@@ -36,6 +36,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -142,6 +143,7 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
 {
 	struct rr_pco_use *rpu, *rpulim;
 	struct rainfo *rai;
+	struct ifinfo *ifi;
 	struct prefix *pfx;
 
 	rpu = (struct rr_pco_use *)(rpm + 1);
@@ -207,8 +209,10 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
 		    IN6_ARE_ADDR_EQUAL(&rpm->rpm_prefix, &rpu->rpu_prefix) &&
 		    rpm->rpm_matchlen == rpu->rpu_uselen &&
 		    rpu->rpu_uselen == rpu->rpu_keeplen) {
-			if ((rai = if_indextorainfo(ifindex)) == NULL)
+			ifi = if_indextoifinfo(ifindex);
+			if (ifi == NULL || ifi->ifi_rainfo == NULL)
 				continue; /* non-advertising IF */
+			rai = ifi->ifi_rainfo;
 
 			TAILQ_FOREACH(pfx, &rai->rai_prefix, pfx_next) {
 				struct timeval now;
@@ -250,7 +254,8 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 {
 	int ifindex = 0;
 	struct in6_rrenumreq irr;
-
+	struct ifinfo *ifi;
+	
 	if ((rr_pco_check(len, rpm) != 0))
 		return (1);
 
@@ -270,12 +275,18 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 	irr.irr_matchprefix.sin6_addr = rpm->rpm_prefix;
 
 	while (if_indextoname(++ifindex, irr.irr_name)) {
+		ifi = if_indextoifinfo(ifindex);
+		if (ifi == NULL) {
+			syslog(LOG_ERR, "<%s> ifindex not found.",
+			    __func__);
+			return (1);
+		}
 		/*
 		 * if ICMP6_RR_FLAGS_FORCEAPPLY(A flag) is 0 and
 		 * IFF_UP is off, the interface is not applied
 		 */
 		if ((rr->rr_flags & ICMP6_RR_FLAGS_FORCEAPPLY) == 0 &&
-		    (iflist[ifindex]->ifm_flags & IFF_UP) == 0)
+		    (ifi->ifi_flags & IFF_UP) == 0)
 			continue;
 		/* TODO: interface scope check */
 		do_use_prefix(len, rpm, &irr, ifindex);
@@ -305,8 +316,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 	cp = (char *)(rr + 1);
 	len -= sizeof(struct icmp6_router_renum);
 
-	/* get iflist block from kernel again, to get up-to-date information */
-	init_iflist();
+	update_ifinfo(&ifilist, UPDATE_IFINFO_ALL);
 
 	while (cp < lim) {
 		int rpmlen;

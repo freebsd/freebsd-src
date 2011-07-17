@@ -15,6 +15,7 @@
 #ifndef LLVM_TARGET_SystemZ_H
 #define LLVM_TARGET_SystemZ_H
 
+#include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -47,15 +48,5 @@ namespace llvm {
   FunctionPass *createSystemZISelDag(SystemZTargetMachine &TM,
                                     CodeGenOpt::Level OptLevel);
 
-  extern Target TheSystemZTarget;
-
 } // end namespace llvm;
-
-// Defines symbolic names for SystemZ registers.
-// This defines a mapping from register name to register number.
-#include "SystemZGenRegisterNames.inc"
-
-// Defines symbolic names for the SystemZ instructions.
-#include "SystemZGenInstrNames.inc"
-
 #endif

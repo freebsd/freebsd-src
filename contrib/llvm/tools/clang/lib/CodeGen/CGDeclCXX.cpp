@@ -27,68 +27,76 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
          "Should not call EmitDeclInit on a reference!");
   
   ASTContext &Context = CGF.getContext();
-    
-  const Expr *Init = D.getInit();
-  QualType T = D.getType();
-  bool isVolatile = Context.getCanonicalType(T).isVolatileQualified();
 
-  unsigned Alignment = Context.getDeclAlign(&D).getQuantity();
-  if (!CGF.hasAggregateLLVMType(T)) {
-    llvm::Value *V = CGF.EmitScalarExpr(Init);
+  unsigned alignment = Context.getDeclAlign(&D).getQuantity();
+  QualType type = D.getType();
+  LValue lv = CGF.MakeAddrLValue(DeclPtr, type, alignment);
+
+  const Expr *Init = D.getInit();
+  if (!CGF.hasAggregateLLVMType(type)) {
     CodeGenModule &CGM = CGF.CGM;
-    Qualifiers::GC GCAttr = CGM.getContext().getObjCGCAttrKind(T);
-    if (GCAttr == Qualifiers::Strong)
-      CGM.getObjCRuntime().EmitObjCGlobalAssign(CGF, V, DeclPtr,
-                                                D.isThreadSpecified());
-    else if (GCAttr == Qualifiers::Weak)
-      CGM.getObjCRuntime().EmitObjCWeakAssign(CGF, V, DeclPtr);
+    if (lv.isObjCStrong())
+      CGM.getObjCRuntime().EmitObjCGlobalAssign(CGF, CGF.EmitScalarExpr(Init),
+                                                DeclPtr, D.isThreadSpecified());
+    else if (lv.isObjCWeak())
+      CGM.getObjCRuntime().EmitObjCWeakAssign(CGF, CGF.EmitScalarExpr(Init),
+                                              DeclPtr);
     else
-      CGF.EmitStoreOfScalar(V, DeclPtr, isVolatile, Alignment, T);
-  } else if (T->isAnyComplexType()) {
-    CGF.EmitComplexExprIntoAddr(Init, DeclPtr, isVolatile);
+      CGF.EmitScalarInit(Init, &D, lv, false);
+  } else if (type->isAnyComplexType()) {
+    CGF.EmitComplexExprIntoAddr(Init, DeclPtr, lv.isVolatile());
   } else {
-    CGF.EmitAggExpr(Init, AggValueSlot::forAddr(DeclPtr, isVolatile, true));
+    CGF.EmitAggExpr(Init, AggValueSlot::forLValue(lv, true));
   }
 }
 
 /// Emit code to cause the destruction of the given variable with
 /// static storage duration.
 static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
-                            llvm::Constant *DeclPtr) {
+                            llvm::Constant *addr) {
   CodeGenModule &CGM = CGF.CGM;
-  ASTContext &Context = CGF.getContext();
+
+  // FIXME:  __attribute__((cleanup)) ?
   
-  QualType T = D.getType();
-  
-  // Drill down past array types.
-  const ConstantArrayType *Array = Context.getAsConstantArrayType(T);
-  if (Array)
-    T = Context.getBaseElementType(Array);
-  
-  /// If that's not a record, we're done.
-  /// FIXME:  __attribute__((cleanup)) ?
-  const RecordType *RT = T->getAs<RecordType>();
-  if (!RT)
+  QualType type = D.getType();
+  QualType::DestructionKind dtorKind = type.isDestructedType();
+
+  switch (dtorKind) {
+  case QualType::DK_none:
     return;
-  
-  CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-  if (RD->hasTrivialDestructor())
+
+  case QualType::DK_cxx_destructor:
+    break;
+
+  case QualType::DK_objc_strong_lifetime:
+  case QualType::DK_objc_weak_lifetime:
+    // We don't care about releasing objects during process teardown.
     return;
-  
-  CXXDestructorDecl *Dtor = RD->getDestructor();
-  
-  llvm::Constant *DtorFn;
-  if (Array) {
-    DtorFn = 
-      CodeGenFunction(CGM).GenerateCXXAggrDestructorHelper(Dtor, Array, 
-                                                           DeclPtr);
-    const llvm::Type *Int8PtrTy =
-      llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
-    DeclPtr = llvm::Constant::getNullValue(Int8PtrTy);
-  } else
-    DtorFn = CGM.GetAddrOfCXXDestructor(Dtor, Dtor_Complete);
-  
-  CGF.EmitCXXGlobalDtorRegistration(DtorFn, DeclPtr);
+  }
+
+  llvm::Constant *function;
+  llvm::Constant *argument;
+
+  // Special-case non-array C++ destructors, where there's a function
+  // with the right signature that we can just call.
+  const CXXRecordDecl *record = 0;
+  if (dtorKind == QualType::DK_cxx_destructor &&
+      (record = type->getAsCXXRecordDecl())) {
+    assert(!record->hasTrivialDestructor());
+    CXXDestructorDecl *dtor = record->getDestructor();
+
+    function = CGM.GetAddrOfCXXDestructor(dtor, Dtor_Complete);
+    argument = addr;
+
+  // Otherwise, the standard logic requires a helper function.
+  } else {
+    function = CodeGenFunction(CGM).generateDestroyHelper(addr, type,
+                                                  CGF.getDestroyer(dtorKind),
+                                                  CGF.needsEHCleanup(dtorKind));
+    argument = llvm::Constant::getNullValue(CGF.Int8PtrTy);
+  }
+
+  CGF.EmitCXXGlobalDtorRegistration(function, argument);
 }
 
 void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
@@ -118,12 +126,13 @@ CodeGenFunction::EmitCXXGlobalDtorRegistration(llvm::Constant *DtorFn,
   }
 
   // Get the destructor function type
-  const llvm::Type *DtorFnTy =
+  llvm::Type *ArgTys[] = { Int8PtrTy };
+  llvm::Type *DtorFnTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()),
-                            Int8PtrTy, false);
+                            ArgTys, false);
   DtorFnTy = llvm::PointerType::getUnqual(DtorFnTy);
 
-  const llvm::Type *Params[] = { DtorFnTy, Int8PtrTy, Int8PtrTy };
+  llvm::Type *Params[] = { DtorFnTy, Int8PtrTy, Int8PtrTy };
 
   // Get the __cxa_atexit function type
   // extern "C" int __cxa_atexit ( void (*f)(void *), void *p, void *d );
@@ -140,7 +149,7 @@ CodeGenFunction::EmitCXXGlobalDtorRegistration(llvm::Constant *DtorFn,
   llvm::Value *Args[3] = { llvm::ConstantExpr::getBitCast(DtorFn, DtorFnTy),
                            llvm::ConstantExpr::getBitCast(DeclPtr, Int8PtrTy),
                            llvm::ConstantExpr::getBitCast(Handle, Int8PtrTy) };
-  Builder.CreateCall(AtExitFn, &Args[0], llvm::array_endof(Args));
+  Builder.CreateCall(AtExitFn, Args);
 }
 
 void CodeGenFunction::EmitCXXGuardedInit(const VarDecl &D,
@@ -270,12 +279,11 @@ void CodeGenFunction::GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn,
                 getTypes().getNullaryFunctionInfo(),
                 FunctionArgList(), SourceLocation());
 
-  // Use guarded initialization if the global variable is weak due to
-  // being a class template's static data member.  These will always
-  // have weak_odr linkage.
-  if (Addr->getLinkage() == llvm::GlobalValue::WeakODRLinkage &&
-      D->isStaticDataMember() &&
-      D->getInstantiatedFromStaticDataMember()) {
+  // Use guarded initialization if the global variable is weak. This
+  // occurs for, e.g., instantiated static data members and
+  // definitions explicitly marked weak.
+  if (Addr->getLinkage() == llvm::GlobalValue::WeakODRLinkage ||
+      Addr->getLinkage() == llvm::GlobalValue::WeakAnyLinkage) {
     EmitCXXGuardedInit(*D, Addr);
   } else {
     EmitCXXGlobalVarDeclInit(*D, Addr);
@@ -291,10 +299,21 @@ void CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
                 getTypes().getNullaryFunctionInfo(),
                 FunctionArgList(), SourceLocation());
 
+  RunCleanupsScope Scope(*this);
+
+  // When building in Objective-C++ ARC mode, create an autorelease pool
+  // around the global initializers.
+  if (getLangOptions().ObjCAutoRefCount && getLangOptions().CPlusPlus) {    
+    llvm::Value *token = EmitObjCAutoreleasePoolPush();
+    EmitObjCAutoreleasePoolCleanup(token);
+  }
+  
   for (unsigned i = 0; i != NumDecls; ++i)
     if (Decls[i])
-      Builder.CreateCall(Decls[i]);
+      Builder.CreateCall(Decls[i]);    
 
+  Scope.ForceCleanup();
+  
   FinishFunction();
 }
 
@@ -318,13 +337,13 @@ void CodeGenFunction::GenerateCXXGlobalDtorFunc(llvm::Function *Fn,
   FinishFunction();
 }
 
-/// GenerateCXXAggrDestructorHelper - Generates a helper function which when
-/// invoked, calls the default destructor on array elements in reverse order of
-/// construction.
+/// generateDestroyHelper - Generates a helper function which, when
+/// invoked, destroys the given object.
 llvm::Function * 
-CodeGenFunction::GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
-                                                 const ArrayType *Array,
-                                                 llvm::Value *This) {
+CodeGenFunction::generateDestroyHelper(llvm::Constant *addr,
+                                       QualType type,
+                                       Destroyer &destroyer,
+                                       bool useEHCleanupForArray) {
   FunctionArgList args;
   ImplicitParamDecl dst(0, SourceLocation(), 0, getContext().VoidPtrTy);
   args.push_back(&dst);
@@ -333,19 +352,16 @@ CodeGenFunction::GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
     CGM.getTypes().getFunctionInfo(getContext().VoidTy, args, 
                                    FunctionType::ExtInfo());
   const llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FI, false);
-  llvm::Function *Fn = 
+  llvm::Function *fn = 
     CreateGlobalInitOrDestructFunction(CGM, FTy, "__cxx_global_array_dtor");
 
-  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, FI, args,
+  StartFunction(GlobalDecl(), getContext().VoidTy, fn, FI, args,
                 SourceLocation());
 
-  QualType BaseElementTy = getContext().getBaseElementType(Array);
-  const llvm::Type *BasePtr = ConvertType(BaseElementTy)->getPointerTo();
-  llvm::Value *BaseAddrPtr = Builder.CreateBitCast(This, BasePtr);
-  
-  EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
+  emitDestroy(addr, type, destroyer, useEHCleanupForArray);
   
   FinishFunction();
   
-  return Fn;
+  return fn;
 }
+

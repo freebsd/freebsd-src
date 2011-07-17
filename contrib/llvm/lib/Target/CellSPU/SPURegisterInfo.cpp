@@ -14,7 +14,6 @@
 #define DEBUG_TYPE "reginfo"
 #include "SPU.h"
 #include "SPURegisterInfo.h"
-#include "SPURegisterNames.h"
 #include "SPUInstrBuilder.h"
 #include "SPUSubtarget.h"
 #include "SPUMachineFunction.h"
@@ -42,6 +41,9 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
+
+#define GET_REGINFO_TARGET_DESC
+#include "SPUGenRegisterInfo.inc"
 
 using namespace llvm;
 
@@ -185,9 +187,7 @@ unsigned SPURegisterInfo::getRegisterNumbering(unsigned RegEnum) {
 
 SPURegisterInfo::SPURegisterInfo(const SPUSubtarget &subtarget,
                                  const TargetInstrInfo &tii) :
-  SPUGenRegisterInfo(SPU::ADJCALLSTACKDOWN, SPU::ADJCALLSTACKUP),
-  Subtarget(subtarget),
-  TII(tii)
+  SPUGenRegisterInfo(), Subtarget(subtarget), TII(tii)
 {
 }
 
@@ -371,5 +371,3 @@ SPURegisterInfo::findScratchRegister(MachineBasicBlock::iterator II,
   assert( Reg && "Register scavenger failed");
   return Reg;
 }
-
-#include "SPUGenRegisterInfo.inc"

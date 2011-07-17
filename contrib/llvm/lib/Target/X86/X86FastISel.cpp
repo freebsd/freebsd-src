@@ -15,6 +15,7 @@
 
 #include "X86.h"
 #include "X86InstrBuilder.h"
+#include "X86ISelLowering.h"
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
@@ -1392,7 +1393,7 @@ bool X86FastISel::X86VisitIntrinsicCall(const IntrinsicInst &I) {
     assert(DI->getAddress() && "Null address should be checked earlier!");
     if (!X86SelectAddress(DI->getAddress(), AM))
       return false;
-    const TargetInstrDesc &II = TII.get(TargetOpcode::DBG_VALUE);
+    const MCInstrDesc &II = TII.get(TargetOpcode::DBG_VALUE);
     // FIXME may need to add RegState::Debug to any registers produced,
     // although ESP/EBP should be the only ones at the moment.
     addFullAddress(BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II), AM).
@@ -1493,7 +1494,8 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
     return false;
 
   // Fast-isel doesn't know about callee-pop yet.
-  if (Subtarget->IsCalleePop(isVarArg, CC))
+  if (X86::isCalleePop(CC, Subtarget->is64Bit(), isVarArg,
+                       GuaranteedTailCallOpt))
     return false;
 
   // Check whether the function can return without sret-demotion.
@@ -1628,7 +1630,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
   unsigned NumBytes = CCInfo.getNextStackOffset();
 
   // Issue CALLSEQ_START
-  unsigned AdjStackDown = TM.getRegisterInfo()->getCallFrameSetupOpcode();
+  unsigned AdjStackDown = TII.getCallFrameSetupOpcode();
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(AdjStackDown))
     .addImm(NumBytes);
 
@@ -1801,7 +1803,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
     MIB.addReg(RegArgs[i]);
 
   // Issue CALLSEQ_END
-  unsigned AdjStackUp = TM.getRegisterInfo()->getCallFrameDestroyOpcode();
+  unsigned AdjStackUp = TII.getCallFrameDestroyOpcode();
   unsigned NumBytesCallee = 0;
   if (!Subtarget->is64Bit() && CS.paramHasAttr(1, Attribute::StructRet))
     NumBytesCallee = 4;
@@ -1846,15 +1848,18 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
     // stack, but where we prefer to use the value in xmm registers, copy it
     // out as F80 and use a truncate to move it from fp stack reg to xmm reg.
     if ((RVLocs[i].getLocReg() == X86::ST0 ||
-         RVLocs[i].getLocReg() == X86::ST1) &&
-        isScalarFPTypeInSSEReg(RVLocs[0].getValVT())) {
-      CopyVT = MVT::f80;
-      CopyReg = createResultReg(X86::RFP80RegisterClass);
+         RVLocs[i].getLocReg() == X86::ST1)) {
+      if (isScalarFPTypeInSSEReg(RVLocs[i].getValVT())) {
+        CopyVT = MVT::f80;
+        CopyReg = createResultReg(X86::RFP80RegisterClass);
+      }
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(X86::FpPOP_RETVAL),
+              CopyReg);
+    } else {
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(TargetOpcode::COPY),
+              CopyReg).addReg(RVLocs[i].getLocReg());
+      UsedRegs.push_back(RVLocs[i].getLocReg());
     }
-
-    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(TargetOpcode::COPY),
-            CopyReg).addReg(RVLocs[i].getLocReg());
-    UsedRegs.push_back(RVLocs[i].getLocReg());
 
     if (CopyVT != RVLocs[i].getValVT()) {
       // Round the F80 the right size, which also moves to the appropriate xmm

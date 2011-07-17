@@ -7,34 +7,45 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines 
+// This file implements cocoa naming convention analysis. 
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_ANALYSIS_DS_COCOA
 #define LLVM_CLANG_ANALYSIS_DS_COCOA
 
+#include "llvm/ADT/StringRef.h"
 #include "clang/AST/Type.h"
 
 namespace clang {
+  
+class ObjCMethodDecl;
+  
 namespace ento {
 namespace cocoa {
  
   enum NamingConvention { NoConvention, CreateRule, InitRule };
 
-  NamingConvention deriveNamingConvention(Selector S);
+  NamingConvention deriveNamingConvention(Selector S, const ObjCMethodDecl *MD);
 
-  static inline bool followsFundamentalRule(Selector S) {
-    return deriveNamingConvention(S) == CreateRule;
+  static inline bool followsFundamentalRule(Selector S, 
+                                            const ObjCMethodDecl *MD) {
+    return deriveNamingConvention(S, MD) == CreateRule;
   }
   
   bool isRefType(QualType RetTy, llvm::StringRef Prefix,
                  llvm::StringRef Name = llvm::StringRef());
-  
-  bool isCFObjectRef(QualType T);
-  
+    
   bool isCocoaObjectRef(QualType T);
 
-}}}
+}
+
+namespace coreFoundation {
+  bool isCFObjectRef(QualType T);
+  
+  bool followsCreateRule(llvm::StringRef functionName);
+}
+
+}} // end: "clang:ento"
 
 #endif

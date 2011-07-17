@@ -20,21 +20,11 @@
 
 using namespace llvm;
 
-TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterDesc *D, unsigned NR,
+TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
                              regclass_iterator RCB, regclass_iterator RCE,
-                             const char *const *subregindexnames,
-                             int CFSO, int CFDO,
-                             const unsigned* subregs, const unsigned subregsize,
-                         const unsigned* aliases, const unsigned aliasessize)
-  : SubregHash(subregs), SubregHashSize(subregsize),
-    AliasesHash(aliases), AliasesHashSize(aliasessize),
-    Desc(D), SubRegIndexNames(subregindexnames), NumRegs(NR),
+                             const char *const *subregindexnames)
+  : InfoDesc(ID), SubRegIndexNames(subregindexnames),
     RegClassBegin(RCB), RegClassEnd(RCE) {
-  assert(isPhysicalRegister(NumRegs) &&
-         "Target has too many physical registers!");
-
-  CallFrameSetupOpcode   = CFSO;
-  CallFrameDestroyOpcode = CFDO;
 }
 
 TargetRegisterInfo::~TargetRegisterInfo() {}
@@ -83,14 +73,14 @@ TargetRegisterInfo::getMinimalPhysRegClass(unsigned reg, EVT VT) const {
 /// registers for the specific register class.
 static void getAllocatableSetForRC(const MachineFunction &MF,
                                    const TargetRegisterClass *RC, BitVector &R){
-  for (TargetRegisterClass::iterator I = RC->allocation_order_begin(MF),
-         E = RC->allocation_order_end(MF); I != E; ++I)
-    R.set(*I);
+  ArrayRef<unsigned> Order = RC->getRawAllocationOrder(MF);
+  for (unsigned i = 0; i != Order.size(); ++i)
+    R.set(Order[i]);
 }
 
 BitVector TargetRegisterInfo::getAllocatableSet(const MachineFunction &MF,
                                           const TargetRegisterClass *RC) const {
-  BitVector Allocatable(NumRegs);
+  BitVector Allocatable(getNumRegs());
   if (RC) {
     getAllocatableSetForRC(MF, RC, Allocatable);
   } else {

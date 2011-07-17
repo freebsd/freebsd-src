@@ -22,6 +22,7 @@
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdio>
@@ -194,9 +195,9 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   /// invocation.
   MacroArgs *Args = 0;
 
-  // Remember where the end of the instantiation occurred.  For an object-like
+  // Remember where the end of the expansion occurred.  For an object-like
   // macro, this is the identifier.  For a function-like macro, this is the ')'.
-  SourceLocation InstantiationEnd = Identifier.getLocation();
+  SourceLocation ExpansionEnd = Identifier.getLocation();
 
   // If this is a function-like macro, read the arguments.
   if (MI->isFunctionLike()) {
@@ -209,7 +210,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // Preprocessor directives used inside macro arguments are not portable, and
     // this enables the warning.
     InMacroArgs = true;
-    Args = ReadFunctionLikeMacroArgs(Identifier, MI, InstantiationEnd);
+    Args = ReadFunctionLikeMacroArgs(Identifier, MI, ExpansionEnd);
 
     // Finished parsing args.
     InMacroArgs = false;
@@ -229,8 +230,8 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   
   // If we started lexing a macro, enter the macro expansion body.
 
-  // Remember where the token is instantiated.
-  SourceLocation InstantiateLoc = Identifier.getLocation();
+  // Remember where the token is expanded.
+  SourceLocation ExpandLoc = Identifier.getLocation();
 
   // If this macro expands to no tokens, don't bother to push it onto the
   // expansion stack, only to take it right back off.
@@ -254,7 +255,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       if (HadLeadingSpace) Identifier.setFlag(Token::LeadingSpace);
     }
     Identifier.setFlag(Token::LeadingEmptyMacro);
-    LastEmptyMacroInstantiationLoc = InstantiateLoc;
+    LastEmptyMacroExpansionLoc = ExpandLoc;
     ++NumFastMacroExpanded;
     return false;
 
@@ -280,11 +281,11 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     Identifier.setFlagValue(Token::StartOfLine , isAtStartOfLine);
     Identifier.setFlagValue(Token::LeadingSpace, hasLeadingSpace);
 
-    // Update the tokens location to include both its instantiation and physical
+    // Update the tokens location to include both its expansion and physical
     // locations.
     SourceLocation Loc =
-      SourceMgr.createInstantiationLoc(Identifier.getLocation(), InstantiateLoc,
-                                       InstantiationEnd,Identifier.getLength());
+      SourceMgr.createInstantiationLoc(Identifier.getLocation(), ExpandLoc,
+                                       ExpansionEnd,Identifier.getLength());
     Identifier.setLocation(Loc);
 
     // If this is a disabled macro or #define X X, we must mark the result as
@@ -302,7 +303,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   }
 
   // Start expanding the macro.
-  EnterMacro(Identifier, InstantiationEnd, Args);
+  EnterMacro(Identifier, ExpansionEnd, Args);
 
   // Now that the macro is at the top of the include stack, ask the
   // preprocessor to read the next token from it.
@@ -490,6 +491,46 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
                            isVarargsElided, *this);
 }
 
+/// \brief Keeps macro expanded tokens for TokenLexers.
+//
+/// Works like a stack; a TokenLexer adds the macro expanded tokens that is
+/// going to lex in the cache and when it finishes the tokens are removed
+/// from the end of the cache.
+Token *Preprocessor::cacheMacroExpandedTokens(TokenLexer *tokLexer,
+                                              llvm::ArrayRef<Token> tokens) {
+  assert(tokLexer);
+  if (tokens.empty())
+    return 0;
+
+  size_t newIndex = MacroExpandedTokens.size();
+  bool cacheNeedsToGrow = tokens.size() >
+                      MacroExpandedTokens.capacity()-MacroExpandedTokens.size(); 
+  MacroExpandedTokens.append(tokens.begin(), tokens.end());
+
+  if (cacheNeedsToGrow) {
+    // Go through all the TokenLexers whose 'Tokens' pointer points in the
+    // buffer and update the pointers to the (potential) new buffer array.
+    for (unsigned i = 0, e = MacroExpandingLexersStack.size(); i != e; ++i) {
+      TokenLexer *prevLexer;
+      size_t tokIndex;
+      llvm::tie(prevLexer, tokIndex) = MacroExpandingLexersStack[i];
+      prevLexer->Tokens = MacroExpandedTokens.data() + tokIndex;
+    }
+  }
+
+  MacroExpandingLexersStack.push_back(std::make_pair(tokLexer, newIndex));
+  return MacroExpandedTokens.data() + newIndex;
+}
+
+void Preprocessor::removeCachedMacroExpandedTokensOfLastLexer() {
+  assert(!MacroExpandingLexersStack.empty());
+  size_t tokIndex = MacroExpandingLexersStack.back().second;
+  assert(tokIndex < MacroExpandedTokens.size());
+  // Pop the cached macro expanded tokens from the end.
+  MacroExpandedTokens.resize(tokIndex);
+  MacroExpandingLexersStack.pop_back();
+}
+
 /// ComputeDATE_TIME - Compute the current time, enter it into the specified
 /// scratch buffer, then return DATELoc/TIMELoc locations with the position of
 /// the identifier tokens inserted.
@@ -551,6 +592,11 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_exceptions", LangOpts.Exceptions)
            .Case("cxx_rtti", LangOpts.RTTI)
            .Case("enumerator_attributes", true)
+           // Objective-C features
+           .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
+           .Case("objc_arc", LangOpts.ObjCAutoRefCount)
+           .Case("objc_arc_weak", LangOpts.ObjCAutoRefCount && 
+                 LangOpts.ObjCRuntimeHasWeak)
            .Case("objc_nonfragile_abi", LangOpts.ObjCNonFragileABI)
            .Case("objc_weak_class", LangOpts.ObjCNonFragileABI)
            .Case("ownership_holds", true)
@@ -787,10 +833,10 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     Loc = AdvanceToTokenCharacter(Loc, 0);
 
     // One wrinkle here is that GCC expands __LINE__ to location of the *end* of
-    // a macro instantiation.  This doesn't matter for object-like macros, but
+    // a macro expansion.  This doesn't matter for object-like macros, but
     // can matter for a function-like macro that expands to contain __LINE__.
-    // Skip down through instantiation points until we find a file loc for the
-    // end of the instantiation history.
+    // Skip down through expansion points until we find a file loc for the
+    // end of the expansion history.
     Loc = SourceMgr.getInstantiationRange(Loc).second;
     PresumedLoc PLoc = SourceMgr.getPresumedLoc(Loc);
 

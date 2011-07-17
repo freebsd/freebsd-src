@@ -62,7 +62,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	Passes.cpp \
 	PeepholeOptimizer.cpp \
 	PostRASchedulerList.cpp \
-	PreAllocSplitting.cpp \
 	ProcessImplicitDefs.cpp \
 	PrologEpilogInserter.cpp \
 	PseudoSourceValue.cpp \
@@ -82,7 +81,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ScoreboardHazardRecognizer.cpp \
 	ShadowStackGC.cpp \
 	ShrinkWrapping.cpp \
-	SimpleRegisterCoalescing.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	Spiller.cpp \

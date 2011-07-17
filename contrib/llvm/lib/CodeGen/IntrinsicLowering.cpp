@@ -29,7 +29,7 @@ static void EnsureFunctionExists(Module &M, const char *Name,
                                  ArgIt ArgBegin, ArgIt ArgEnd,
                                  const Type *RetTy) {
   // Insert a correctly-typed definition now.
-  std::vector<const Type *> ParamTys;
+  std::vector<Type *> ParamTys;
   for (ArgIt I = ArgBegin; I != ArgEnd; ++I)
     ParamTys.push_back(I->getType());
   M.getOrInsertFunction(Name, FunctionType::get(RetTy, ParamTys, false));
@@ -69,7 +69,7 @@ static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI,
   // program already contains a function with this name.
   Module *M = CI->getParent()->getParent()->getParent();
   // Get or insert the definition now.
-  std::vector<const Type *> ParamTys;
+  std::vector<Type *> ParamTys;
   for (ArgIt I = ArgBegin; I != ArgEnd; ++I)
     ParamTys.push_back((*I)->getType());
   Constant* FCache = M->getOrInsertFunction(NewFn,
@@ -77,7 +77,7 @@ static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI,
 
   IRBuilder<> Builder(CI->getParent(), CI);
   SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
-  CallInst *NewCI = Builder.CreateCall(FCache, Args.begin(), Args.end());
+  CallInst *NewCI = Builder.CreateCall(FCache, Args);
   NewCI->setName(CI->getName());
   if (!CI->use_empty())
     CI->replaceAllUsesWith(NewCI);
@@ -353,6 +353,13 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     report_fatal_error("Code generator does not support intrinsic function '"+
                       Callee->getName()+"'!");
 
+  case Intrinsic::expect: {
+    // Just replace __builtin_expect(exp, c) with EXP.
+    Value *V = CI->getArgOperand(0);
+    CI->replaceAllUsesWith(V);
+    break;
+  }
+
     // The setjmp/longjmp intrinsics should only exist in the code if it was
     // never optimized (ie, right out of the CFE), or if it has been hacked on
     // by the lowerinvoke pass.  In both cases, the right thing to do is to
@@ -546,14 +553,13 @@ bool IntrinsicLowering::LowerToByteSwap(CallInst *CI) {
       !CI->getType()->isIntegerTy())
     return false;
 
-  const IntegerType *Ty = dyn_cast<IntegerType>(CI->getType());
+  IntegerType *Ty = dyn_cast<IntegerType>(CI->getType());
   if (!Ty)
     return false;
 
   // Okay, we can do this xform, do so now.
-  const Type *Tys[] = { Ty };
   Module *M = CI->getParent()->getParent()->getParent();
-  Constant *Int = Intrinsic::getDeclaration(M, Intrinsic::bswap, Tys, 1);
+  Constant *Int = Intrinsic::getDeclaration(M, Intrinsic::bswap, Ty);
 
   Value *Op = CI->getArgOperand(0);
   Op = CallInst::Create(Int, Op, CI->getName(), CI);

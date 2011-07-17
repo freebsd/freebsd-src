@@ -90,6 +90,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::Metadata: return "MVT::Metadata";
   case MVT::iPTR:     return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
+  case MVT::untyped:  return "MVT::untyped";
   default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
   }
 }
@@ -163,40 +164,32 @@ CodeGenRegBank &CodeGenTarget::getRegBank() const {
   return *RegBank;
 }
 
-void CodeGenTarget::ReadRegisterClasses() const {
-  std::vector<Record*> RegClasses =
-    Records.getAllDerivedDefinitions("RegisterClass");
-  if (RegClasses.empty())
-    throw std::string("No 'RegisterClass' subclasses defined!");
-
-  RegisterClasses.reserve(RegClasses.size());
-  RegisterClasses.assign(RegClasses.begin(), RegClasses.end());
+void CodeGenTarget::ReadRegAltNameIndices() const {
+  RegAltNameIndices = Records.getAllDerivedDefinitions("RegAltNameIndex");
+  std::sort(RegAltNameIndices.begin(), RegAltNameIndices.end(), LessRecord());
 }
 
 /// getRegisterByName - If there is a register with the specific AsmName,
 /// return it.
 const CodeGenRegister *CodeGenTarget::getRegisterByName(StringRef Name) const {
-  const std::vector<CodeGenRegister> &Regs = getRegBank().getRegisters();
-  for (unsigned i = 0, e = Regs.size(); i != e; ++i) {
-    const CodeGenRegister &Reg = Regs[i];
-    if (Reg.TheDef->getValueAsString("AsmName") == Name)
-      return &Reg;
-  }
+  const std::vector<CodeGenRegister*> &Regs = getRegBank().getRegisters();
+  for (unsigned i = 0, e = Regs.size(); i != e; ++i)
+    if (Regs[i]->TheDef->getValueAsString("AsmName") == Name)
+      return Regs[i];
 
   return 0;
 }
 
 std::vector<MVT::SimpleValueType> CodeGenTarget::
 getRegisterVTs(Record *R) const {
+  const CodeGenRegister *Reg = getRegBank().getReg(R);
   std::vector<MVT::SimpleValueType> Result;
   const std::vector<CodeGenRegisterClass> &RCs = getRegisterClasses();
   for (unsigned i = 0, e = RCs.size(); i != e; ++i) {
-    const CodeGenRegisterClass &RC = RegisterClasses[i];
-    for (unsigned ei = 0, ee = RC.Elements.size(); ei != ee; ++ei) {
-      if (R == RC.Elements[ei]) {
-        const std::vector<MVT::SimpleValueType> &InVTs = RC.getValueTypes();
-        Result.insert(Result.end(), InVTs.begin(), InVTs.end());
-      }
+    const CodeGenRegisterClass &RC = RCs[i];
+    if (RC.contains(Reg)) {
+      const std::vector<MVT::SimpleValueType> &InVTs = RC.getValueTypes();
+      Result.insert(Result.end(), InVTs.begin(), InVTs.end());
     }
   }
 

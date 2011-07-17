@@ -16,17 +16,21 @@
 #include "SystemZInstrInfo.h"
 #include "SystemZMachineFunctionInfo.h"
 #include "SystemZTargetMachine.h"
-#include "SystemZGenInstrInfo.inc"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+
+#define GET_INSTRINFO_CTOR
+#include "SystemZGenInstrInfo.inc"
+
 using namespace llvm;
 
 SystemZInstrInfo::SystemZInstrInfo(SystemZTargetMachine &tm)
-  : TargetInstrInfoImpl(SystemZInsts, array_lengthof(SystemZInsts)),
+  : SystemZGenInstrInfo(SystemZ::ADJCALLSTACKUP, SystemZ::ADJCALLSTACKDOWN),
     RI(tm, *this), TM(tm) {
 }
 
@@ -199,13 +203,13 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
 }
 
 bool SystemZInstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
-  const TargetInstrDesc &TID = MI->getDesc();
-  if (!TID.isTerminator()) return false;
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (!MCID.isTerminator()) return false;
 
   // Conditional branch is a special case.
-  if (TID.isBranch() && !TID.isBarrier())
+  if (MCID.isBranch() && !MCID.isBarrier())
     return true;
-  if (!TID.isPredicable())
+  if (!MCID.isPredicable())
     return true;
   return !isPredicated(MI);
 }
@@ -343,7 +347,7 @@ SystemZInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   return Count;
 }
 
-const TargetInstrDesc&
+const MCInstrDesc&
 SystemZInstrInfo::getBrCond(SystemZCC::CondCodes CC) const {
   switch (CC) {
   default:
@@ -408,7 +412,7 @@ SystemZInstrInfo::getOppositeCondition(SystemZCC::CondCodes CC) const {
   }
 }
 
-const TargetInstrDesc&
+const MCInstrDesc&
 SystemZInstrInfo::getLongDispOpc(unsigned Opc) const {
   switch (Opc) {
   default:

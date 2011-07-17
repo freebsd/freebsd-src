@@ -146,21 +146,21 @@ void BlackfinDAGToDAGISel::FixRegisterClasses(SelectionDAG &DAG) {
        NI != DAG.allnodes_end(); ++NI) {
     if (NI->use_empty() || !NI->isMachineOpcode())
       continue;
-    const TargetInstrDesc &DefTID = TII.get(NI->getMachineOpcode());
+    const MCInstrDesc &DefMCID = TII.get(NI->getMachineOpcode());
     for (SDNode::use_iterator UI = NI->use_begin(); !UI.atEnd(); ++UI) {
       if (!UI->isMachineOpcode())
         continue;
 
-      if (UI.getUse().getResNo() >= DefTID.getNumDefs())
+      if (UI.getUse().getResNo() >= DefMCID.getNumDefs())
         continue;
       const TargetRegisterClass *DefRC =
-        DefTID.OpInfo[UI.getUse().getResNo()].getRegClass(TRI);
+        TII.getRegClass(DefMCID, UI.getUse().getResNo(), TRI);
 
-      const TargetInstrDesc &UseTID = TII.get(UI->getMachineOpcode());
-      if (UseTID.getNumDefs()+UI.getOperandNo() >= UseTID.getNumOperands())
+      const MCInstrDesc &UseMCID = TII.get(UI->getMachineOpcode());
+      if (UseMCID.getNumDefs()+UI.getOperandNo() >= UseMCID.getNumOperands())
         continue;
       const TargetRegisterClass *UseRC =
-        UseTID.OpInfo[UseTID.getNumDefs()+UI.getOperandNo()].getRegClass(TRI);
+        TII.getRegClass(UseMCID, UseMCID.getNumDefs()+UI.getOperandNo(), TRI);
       if (!DefRC || !UseRC)
         continue;
       // We cannot copy CC <-> !(CC/D)

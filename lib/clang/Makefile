@@ -2,6 +2,7 @@
 
 .if !make(install)
 SUBDIR=	libclanganalysis \
+	libclangarcmigrate \
 	libclangast \
 	libclangbasic \
 	libclangcodegen \
@@ -39,16 +40,21 @@ SUBDIR=	libclanganalysis \
 	\
 	libllvmarmasmparser \
 	libllvmarmcodegen \
+	libllvmarmdesc \
 	libllvmarmdisassembler \
 	libllvmarminfo \
 	libllvmarminstprinter \
 	libllvmmipscodegen \
+	libllvmmipsdesc \
 	libllvmmipsinfo \
+	libllvmmipsinstprinter \
 	libllvmpowerpccodegen \
+	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \
 	libllvmpowerpcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
+	libllvmx86desc \
 	libllvmx86disassembler \
 	libllvmx86info \
 	libllvmx86instprinter \

@@ -180,11 +180,7 @@ Spiller *createInlineSpiller(MachineFunctionPass &pass,
 /// isFullCopyOf - If MI is a COPY to or from Reg, return the other register,
 /// otherwise return 0.
 static unsigned isFullCopyOf(const MachineInstr *MI, unsigned Reg) {
-  if (!MI->isCopy())
-    return 0;
-  if (MI->getOperand(0).getSubReg() != 0)
-    return 0;
-  if (MI->getOperand(1).getSubReg() != 0)
+  if (!MI->isFullCopy())
     return 0;
   if (MI->getOperand(0).getReg() == Reg)
       return MI->getOperand(1).getReg();
@@ -307,7 +303,8 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
   // Best spill candidate seen so far. This must dominate UseVNI.
   SibValueInfo SVI(UseReg, UseVNI);
   MachineBasicBlock *UseMBB = LIS.getMBBFromIndex(UseVNI->def);
-  unsigned SpillDepth = Loops.getLoopDepth(UseMBB);
+  MachineBasicBlock *SpillMBB = UseMBB;
+  unsigned SpillDepth = Loops.getLoopDepth(SpillMBB);
   bool SeenOrigPHI = false; // Original PHI met.
 
   do {
@@ -320,7 +317,30 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
     // Is this value a better spill candidate?
     if (!isRegToSpill(Reg)) {
       MachineBasicBlock *MBB = LIS.getMBBFromIndex(VNI->def);
-      if (MBB != UseMBB && MDT.dominates(MBB, UseMBB)) {
+      if (MBB == SpillMBB) {
+        // This is an alternative def earlier in the same MBB.
+        // Hoist the spill as far as possible in SpillMBB. This can ease
+        // register pressure:
+        //
+        //   x = def
+        //   y = use x
+        //   s = copy x
+        //
+        // Hoisting the spill of s to immediately after the def removes the
+        // interference between x and y:
+        //
+        //   x = def
+        //   spill x
+        //   y = use x<kill>
+        //
+        if (VNI->def < SVI.SpillVNI->def) {
+          DEBUG(dbgs() << "  hoist in BB#" << MBB->getNumber() << ": "
+                       << PrintReg(Reg) << ':' << VNI->id << '@' << VNI->def
+                       << '\n');
+          SVI.SpillReg = Reg;
+          SVI.SpillVNI = VNI;
+        }
+      } else if (MBB != UseMBB && MDT.dominates(MBB, UseMBB)) {
         // This is a valid spill location dominating UseVNI.
         // Prefer to spill at a smaller loop depth.
         unsigned Depth = Loops.getLoopDepth(MBB);
@@ -329,6 +349,7 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
                        << ':' << VNI->id << '@' << VNI->def << '\n');
           SVI.SpillReg = Reg;
           SVI.SpillVNI = VNI;
+          SpillMBB = MBB;
           SpillDepth = Depth;
         }
       }
@@ -429,6 +450,7 @@ void InlineSpiller::analyzeSiblingValues() {
       // Check possible sibling copies.
       if (VNI->isPHIDef() || VNI->getCopy()) {
         VNInfo *OrigVNI = OrigLI.getVNInfoAt(VNI->def);
+        assert(OrigVNI && "Def outside original live range");
         if (OrigVNI->def != VNI->def)
           DefMI = traceSiblingValue(Reg, VNI, OrigVNI);
       }

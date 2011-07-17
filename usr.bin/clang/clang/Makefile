@@ -31,6 +31,7 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercore \
 	clanganalysis \
 	clangindex \
+	clangarcmigrate \
 	clangrewrite \
 	clangast \
 	clanglex \
@@ -43,16 +44,21 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmdesc \
 	llvmarminstprinter \
 	llvmarminfo \
 	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
+	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
+	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \

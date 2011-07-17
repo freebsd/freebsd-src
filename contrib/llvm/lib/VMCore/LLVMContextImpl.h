@@ -15,17 +15,16 @@
 #ifndef LLVM_LLVMCONTEXT_IMPL_H
 #define LLVM_LLVMCONTEXT_IMPL_H
 
+#include "llvm/LLVMContext.h"
 #include "ConstantsContext.h"
 #include "LeaksContext.h"
-#include "TypesContext.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Metadata.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -139,27 +138,30 @@ public:
   // on Context destruction.
   SmallPtrSet<MDNode*, 1> NonUniquedMDNodes;
   
-  ConstantUniqueMap<char, Type, ConstantAggregateZero> AggZeroConstants;
+  ConstantUniqueMap<char, char, Type, ConstantAggregateZero> AggZeroConstants;
 
-  typedef ConstantUniqueMap<std::vector<Constant*>, ArrayType,
-    ConstantArray, true /*largekey*/> ArrayConstantsTy;
+  typedef ConstantUniqueMap<std::vector<Constant*>, ArrayRef<Constant*>,
+    ArrayType, ConstantArray, true /*largekey*/> ArrayConstantsTy;
   ArrayConstantsTy ArrayConstants;
   
-  typedef ConstantUniqueMap<std::vector<Constant*>, StructType,
-    ConstantStruct, true /*largekey*/> StructConstantsTy;
+  typedef ConstantUniqueMap<std::vector<Constant*>, ArrayRef<Constant*>,
+    StructType, ConstantStruct, true /*largekey*/> StructConstantsTy;
   StructConstantsTy StructConstants;
   
-  typedef ConstantUniqueMap<std::vector<Constant*>, VectorType,
-                            ConstantVector> VectorConstantsTy;
+  typedef ConstantUniqueMap<std::vector<Constant*>, ArrayRef<Constant*>,
+                            VectorType, ConstantVector> VectorConstantsTy;
   VectorConstantsTy VectorConstants;
   
-  ConstantUniqueMap<char, PointerType, ConstantPointerNull> NullPtrConstants;
-  ConstantUniqueMap<char, Type, UndefValue> UndefValueConstants;
+  ConstantUniqueMap<char, char, PointerType, ConstantPointerNull>
+    NullPtrConstants;
+  ConstantUniqueMap<char, char, Type, UndefValue> UndefValueConstants;
   
   DenseMap<std::pair<Function*, BasicBlock*> , BlockAddress*> BlockAddresses;
-  ConstantUniqueMap<ExprMapKeyType, Type, ConstantExpr> ExprConstants;
+  ConstantUniqueMap<ExprMapKeyType, const ExprMapKeyType&, Type, ConstantExpr>
+    ExprConstants;
 
-  ConstantUniqueMap<InlineAsmKeyType, PointerType, InlineAsm> InlineAsms;
+  ConstantUniqueMap<InlineAsmKeyType, const InlineAsmKeyType&, PointerType,
+                    InlineAsm> InlineAsms;
   
   ConstantInt *TheTrueVal;
   ConstantInt *TheFalseVal;
@@ -167,41 +169,27 @@ public:
   LeakDetectorImpl<Value> LLVMObjects;
   
   // Basic type instances.
-  const Type VoidTy;
-  const Type LabelTy;
-  const Type FloatTy;
-  const Type DoubleTy;
-  const Type MetadataTy;
-  const Type X86_FP80Ty;
-  const Type FP128Ty;
-  const Type PPC_FP128Ty;
-  const Type X86_MMXTy;
-  const IntegerType Int1Ty;
-  const IntegerType Int8Ty;
-  const IntegerType Int16Ty;
-  const IntegerType Int32Ty;
-  const IntegerType Int64Ty;
+  Type VoidTy, LabelTy, FloatTy, DoubleTy, MetadataTy;
+  Type X86_FP80Ty, FP128Ty, PPC_FP128Ty, X86_MMXTy;
+  IntegerType Int1Ty, Int8Ty, Int16Ty, Int32Ty, Int64Ty;
 
-  // Concrete/Abstract TypeDescriptions - We lazily calculate type descriptions
-  // for types as they are needed.  Because resolution of types must invalidate
-  // all of the abstract type descriptions, we keep them in a separate map to
-  // make this easy.
-  TypePrinting ConcreteTypeDescriptions;
-  TypePrinting AbstractTypeDescriptions;
   
-  TypeMap<ArrayValType, ArrayType> ArrayTypes;
-  TypeMap<VectorValType, VectorType> VectorTypes;
-  TypeMap<PointerValType, PointerType> PointerTypes;
-  TypeMap<FunctionValType, FunctionType> FunctionTypes;
-  TypeMap<StructValType, StructType> StructTypes;
-  TypeMap<IntegerValType, IntegerType> IntegerTypes;
-
-  // Opaque types are not structurally uniqued, so don't use TypeMap.
-  typedef SmallPtrSet<const OpaqueType*, 8> OpaqueTypesTy;
-  OpaqueTypesTy OpaqueTypes;
-
-  /// Used as an abstract type that will never be resolved.
-  OpaqueType *const AlwaysOpaqueTy;
+  /// TypeAllocator - All dynamically allocated types are allocated from this.
+  /// They live forever until the context is torn down.
+  BumpPtrAllocator TypeAllocator;
+  
+  DenseMap<unsigned, IntegerType*> IntegerTypes;
+  
+  // TODO: Optimize FunctionTypes/AnonStructTypes!
+  std::map<std::vector<Type*>, FunctionType*> FunctionTypes;
+  std::map<std::vector<Type*>, StructType*> AnonStructTypes;
+  StringMap<StructType*> NamedStructTypes;
+  unsigned NamedStructTypesUniqueID;
+    
+  DenseMap<std::pair<Type *, uint64_t>, ArrayType*> ArrayTypes;
+  DenseMap<std::pair<Type *, unsigned>, VectorType*> VectorTypes;
+  DenseMap<Type*, PointerType*> PointerTypes;  // Pointers in AddrSpace = 0
+  DenseMap<std::pair<Type*, unsigned>, PointerType*> ASPointerTypes;
 
 
   /// ValueHandles - This map keeps track of all of the value handles that are

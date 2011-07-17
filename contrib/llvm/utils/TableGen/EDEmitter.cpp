@@ -588,7 +588,11 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("imm0_31");
   IMM("imm0_31_m1");
   IMM("nModImm");
+  IMM("imm0_7");
+  IMM("imm0_15");
+  IMM("imm0_255");
   IMM("imm0_4095");
+  IMM("imm0_65535");
   IMM("jt2block_operand");
   IMM("t_imm_s4");
   IMM("pclabel");
@@ -652,12 +656,12 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   MISC("t2am_imm8s4_offset", "kOperandTypeThumb2AddrModeImm8s4Offset");
                                                                   // R, I
   MISC("tb_addrmode", "kOperandTypeARMTBAddrMode");               // I
-  MISC("t_addrmode_rrs1", "kOperandTypeThumbAddrModeRegS");       // R, R
-  MISC("t_addrmode_rrs2", "kOperandTypeThumbAddrModeRegS");       // R, R
-  MISC("t_addrmode_rrs4", "kOperandTypeThumbAddrModeRegS");       // R, R
-  MISC("t_addrmode_is1", "kOperandTypeThumbAddrModeImmS");        // R, I
-  MISC("t_addrmode_is2", "kOperandTypeThumbAddrModeImmS");        // R, I
-  MISC("t_addrmode_is4", "kOperandTypeThumbAddrModeImmS");        // R, I
+  MISC("t_addrmode_rrs1", "kOperandTypeThumbAddrModeRegS1");      // R, R
+  MISC("t_addrmode_rrs2", "kOperandTypeThumbAddrModeRegS2");      // R, R
+  MISC("t_addrmode_rrs4", "kOperandTypeThumbAddrModeRegS4");      // R, R
+  MISC("t_addrmode_is1", "kOperandTypeThumbAddrModeImmS1");       // R, I
+  MISC("t_addrmode_is2", "kOperandTypeThumbAddrModeImmS2");       // R, I
+  MISC("t_addrmode_is4", "kOperandTypeThumbAddrModeImmS4");       // R, I
   MISC("t_addrmode_rr", "kOperandTypeThumbAddrModeRR");           // R, R
   MISC("t_addrmode_sp", "kOperandTypeThumbAddrModeSP");           // R, I
   MISC("t_addrmode_pc", "kOperandTypeThumbAddrModePC");           // R, I
@@ -665,14 +669,9 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   return 1;
 }
 
-#undef SOREG
-#undef SOIMM
-#undef PRED
 #undef REG
 #undef MEM
-#undef LEA
-#undef IMM
-#undef PCR
+#undef MISC
 
 #undef SET
 
@@ -773,6 +772,11 @@ static void populateInstInfo(CompoundConstantEmitter &infoArray,
   for (index = 0; index < numInstructions; ++index) {
     const CodeGenInstruction& inst = *numberedInstructions[index];
 
+    // We don't need to do anything for pseudo-instructions, as we'll never
+    // see them here. We'll only see real instructions.
+    if (inst.isPseudo)
+      continue;
+
     CompoundConstantEmitter *infoStruct = new CompoundConstantEmitter;
     infoArray.addEntry(infoStruct);
 
@@ -868,8 +872,12 @@ static void emitCommonEnums(raw_ostream &o, unsigned int &i) {
   operandTypes.addEntry("kOperandTypeARMSPRRegisterList");
   operandTypes.addEntry("kOperandTypeARMTBAddrMode");
   operandTypes.addEntry("kOperandTypeThumbITMask");
-  operandTypes.addEntry("kOperandTypeThumbAddrModeRegS");
-  operandTypes.addEntry("kOperandTypeThumbAddrModeImmS");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeImmS1");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeImmS2");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeImmS4");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeRegS1");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeRegS2");
+  operandTypes.addEntry("kOperandTypeThumbAddrModeRegS4");
   operandTypes.addEntry("kOperandTypeThumbAddrModeRR");
   operandTypes.addEntry("kOperandTypeThumbAddrModeSP");
   operandTypes.addEntry("kOperandTypeThumbAddrModePC");

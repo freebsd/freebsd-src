@@ -14,7 +14,7 @@
 #ifndef LLVM_TARGET_TARGETINSTRINFO_H
 #define LLVM_TARGET_TARGETINSTRINFO_H
 
-#include "llvm/Target/TargetInstrDesc.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
@@ -32,6 +32,7 @@ class SelectionDAG;
 class ScheduleDAG;
 class TargetRegisterClass;
 class TargetRegisterInfo;
+class BranchProbability;
 
 template<class T> class SmallVectorImpl;
 
@@ -40,25 +41,22 @@ template<class T> class SmallVectorImpl;
 ///
 /// TargetInstrInfo - Interface to description of machine instruction set
 ///
-class TargetInstrInfo {
-  const TargetInstrDesc *Descriptors; // Raw array to allow static init'n
-  unsigned NumOpcodes;                // Number of entries in the desc array
-
+class TargetInstrInfo : public MCInstrInfo {
   TargetInstrInfo(const TargetInstrInfo &);  // DO NOT IMPLEMENT
   void operator=(const TargetInstrInfo &);   // DO NOT IMPLEMENT
 public:
-  TargetInstrInfo(const TargetInstrDesc *desc, unsigned NumOpcodes);
+  TargetInstrInfo(int CFSetupOpcode = -1, int CFDestroyOpcode = -1)
+    : CallFrameSetupOpcode(CFSetupOpcode),
+      CallFrameDestroyOpcode(CFDestroyOpcode) {
+  }
+    
   virtual ~TargetInstrInfo();
 
-  unsigned getNumOpcodes() const { return NumOpcodes; }
-
-  /// get - Return the machine instruction descriptor that corresponds to the
-  /// specified instruction opcode.
-  ///
-  const TargetInstrDesc &get(unsigned Opcode) const {
-    assert(Opcode < NumOpcodes && "Invalid opcode!");
-    return Descriptors[Opcode];
-  }
+  /// getRegClass - Givem a machine instruction descriptor, returns the register
+  /// class constraint for OpNum, or NULL.
+  const TargetRegisterClass *getRegClass(const MCInstrDesc &TID,
+                                         unsigned OpNum,
+                                         const TargetRegisterInfo *TRI) const;
 
   /// isTriviallyReMaterializable - Return true if the instruction is trivially
   /// rematerializable, meaning it has no side effects and requires no operands
@@ -93,6 +91,15 @@ private:
                                                 AliasAnalysis *AA) const;
 
 public:
+  /// getCallFrameSetup/DestroyOpcode - These methods return the opcode of the
+  /// frame setup/destroy instructions if they exist (-1 otherwise).  Some
+  /// targets use pseudo instructions in order to abstract away the difference
+  /// between operating with a frame pointer and operating without, through the
+  /// use of these two instructions.
+  ///
+  int getCallFrameSetupOpcode() const { return CallFrameSetupOpcode; }
+  int getCallFrameDestroyOpcode() const { return CallFrameDestroyOpcode; }
+
   /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
   /// extension instruction. That is, it's like a copy where it's legal for the
   /// source to overlap the destination. e.g. X86::MOVSX64rr32. If this returns
@@ -315,7 +322,7 @@ public:
   virtual
   bool isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumCyles,
                            unsigned ExtraPredCycles,
-                           float Probability, float Confidence) const {
+                           const BranchProbability &Probability) const {
     return false;
   }
 
@@ -330,7 +337,7 @@ public:
                       unsigned NumTCycles, unsigned ExtraTCycles,
                       MachineBasicBlock &FMBB,
                       unsigned NumFCycles, unsigned ExtraFCycles,
-                      float Probability, float Confidence) const {
+                      const BranchProbability &Probability) const {
     return false;
   }
 
@@ -342,7 +349,7 @@ public:
   /// will be properly predicted.
   virtual bool
   isProfitableToDupForIfCvt(MachineBasicBlock &MBB, unsigned NumCyles,
-                            float Probability, float Confidence) const {
+                            const BranchProbability &Probability) const {
     return false;
   }
 
@@ -663,6 +670,9 @@ public:
   virtual
   bool hasLowDefLatency(const InstrItineraryData *ItinData,
                         const MachineInstr *DefMI, unsigned DefIdx) const;
+
+private:
+  int CallFrameSetupOpcode, CallFrameDestroyOpcode;
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of
@@ -671,8 +681,9 @@ public:
 /// libcodegen, not in libtarget.
 class TargetInstrInfoImpl : public TargetInstrInfo {
 protected:
-  TargetInstrInfoImpl(const TargetInstrDesc *desc, unsigned NumOpcodes)
-  : TargetInstrInfo(desc, NumOpcodes) {}
+  TargetInstrInfoImpl(int CallFrameSetupOpcode = -1,
+                      int CallFrameDestroyOpcode = -1)
+    : TargetInstrInfo(CallFrameSetupOpcode, CallFrameDestroyOpcode) {}
 public:
   virtual void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                        MachineBasicBlock *NewDest) const;

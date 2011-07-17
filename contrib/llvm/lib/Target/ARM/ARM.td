@@ -16,18 +16,26 @@
 
 include "llvm/Target/Target.td"
 
+//===----------------------------------------------------------------------===//
+// ARM Subtarget state.
+//
+
+def ModeThumb  : SubtargetFeature<"thumb-mode", "InThumbMode", "true",
+                                  "Thumb mode">;
 
 //===----------------------------------------------------------------------===//
 // ARM Subtarget features.
 //
 
-def FeatureVFP2 : SubtargetFeature<"vfp2", "ARMFPUType", "VFPv2",
+def FeatureVFP2 : SubtargetFeature<"vfp2", "HasVFPv2", "true",
                                    "Enable VFP2 instructions">;
-def FeatureVFP3 : SubtargetFeature<"vfp3", "ARMFPUType", "VFPv3",
-                                   "Enable VFP3 instructions">;
-def FeatureNEON : SubtargetFeature<"neon", "ARMFPUType", "NEON",
-                                   "Enable NEON instructions">;
-def FeatureThumb2 : SubtargetFeature<"thumb2", "ThumbMode", "Thumb2",
+def FeatureVFP3 : SubtargetFeature<"vfp3", "HasVFPv3", "true",
+                                   "Enable VFP3 instructions",
+                                   [FeatureVFP2]>;
+def FeatureNEON : SubtargetFeature<"neon", "HasNEON", "true",
+                                   "Enable NEON instructions",
+                                   [FeatureVFP3]>;
+def FeatureThumb2 : SubtargetFeature<"thumb2", "HasThumb2", "true",
                                      "Enable Thumb2 instructions">;
 def FeatureNoARM  : SubtargetFeature<"noarm", "NoARM", "true",
                                      "Does not support ARM mode execution">;
@@ -75,32 +83,32 @@ def FeatureAvoidPartialCPSR : SubtargetFeature<"avoid-partial-cpsr",
                                                "AvoidCPSRPartialUpdate", "true",
                                  "Avoid CPSR partial update for OOO execution">;
 
+/// Some M architectures don't have the DSP extension (v7E-M vs. v7M)
+def FeatureDSPThumb2 : SubtargetFeature<"t2dsp", "Thumb2DSP", "true",
+                                 "Supports v7 DSP instructions in Thumb2.">;
+
 // Multiprocessing extension.
 def FeatureMP : SubtargetFeature<"mp", "HasMPExtension", "true",
                                  "Supports Multiprocessing extension">;
 
-// ARM architectures.
-def ArchV4T     : SubtargetFeature<"v4t", "ARMArchVersion", "V4T",
-                                   "ARM v4T">;
-def ArchV5T     : SubtargetFeature<"v5t", "ARMArchVersion", "V5T",
-                                   "ARM v5T">;
-def ArchV5TE    : SubtargetFeature<"v5te", "ARMArchVersion", "V5TE",
-                                   "ARM v5TE, v5TEj, v5TExp">;
-def ArchV6      : SubtargetFeature<"v6", "ARMArchVersion", "V6",
-                                   "ARM v6">;
-def ArchV6M     : SubtargetFeature<"v6m", "ARMArchVersion", "V6M",
-                                   "ARM v6m",
-                                   [FeatureNoARM, FeatureDB]>;
-def ArchV6T2    : SubtargetFeature<"v6t2", "ARMArchVersion", "V6T2",
-                                   "ARM v6t2",
-                                   [FeatureThumb2]>;
-def ArchV7A     : SubtargetFeature<"v7a", "ARMArchVersion", "V7A",
-                                   "ARM v7A",
-                                   [FeatureThumb2, FeatureNEON, FeatureDB]>;
-def ArchV7M     : SubtargetFeature<"v7m", "ARMArchVersion", "V7M",
-                                   "ARM v7M",
-                                   [FeatureThumb2, FeatureNoARM, FeatureDB,
-                                    FeatureHWDiv]>;
+// ARM ISAs.
+def HasV4TOps   : SubtargetFeature<"v4t", "HasV4TOps", "true",
+                                   "Support ARM v4T instructions">;
+def HasV5TOps   : SubtargetFeature<"v5t", "HasV5TOps", "true",
+                                   "Support ARM v5T instructions",
+                                   [HasV4TOps]>;
+def HasV5TEOps  : SubtargetFeature<"v5te", "HasV5TEOps", "true",
+                             "Support ARM v5TE, v5TEj, and v5TExp instructions",
+                                   [HasV5TOps]>;
+def HasV6Ops    : SubtargetFeature<"v6", "HasV6Ops", "true",
+                                   "Support ARM v6 instructions",
+                                   [HasV5TEOps]>;
+def HasV6T2Ops  : SubtargetFeature<"v6t2", "HasV6T2Ops", "true",
+                                   "Support ARM v6t2 instructions",
+                                   [HasV6Ops, FeatureThumb2, FeatureDSPThumb2]>;
+def HasV7Ops    : SubtargetFeature<"v7", "HasV7Ops", "true",
+                                   "Support ARM v7 instructions",
+                                   [HasV6T2Ops]>;
 
 //===----------------------------------------------------------------------===//
 // ARM Processors supported.
@@ -109,8 +117,6 @@ def ArchV7M     : SubtargetFeature<"v7m", "ARMArchVersion", "V7M",
 include "ARMSchedule.td"
 
 // ARM processor families.
-def ProcOthers  : SubtargetFeature<"others", "ARMProcFamily", "Others",
-                                   "One of the other ARM processor families">;
 def ProcA8      : SubtargetFeature<"a8", "ARMProcFamily", "CortexA8",
                                    "Cortex-A8 ARM processors",
                                    [FeatureSlowFPBrcc, FeatureNEONForFP,
@@ -135,64 +141,76 @@ def : ProcNoItin<"strongarm1100",   []>;
 def : ProcNoItin<"strongarm1110",   []>;
 
 // V4T Processors.
-def : ProcNoItin<"arm7tdmi",        [ArchV4T]>;
-def : ProcNoItin<"arm7tdmi-s",      [ArchV4T]>;
-def : ProcNoItin<"arm710t",         [ArchV4T]>;
-def : ProcNoItin<"arm720t",         [ArchV4T]>;
-def : ProcNoItin<"arm9",            [ArchV4T]>;
-def : ProcNoItin<"arm9tdmi",        [ArchV4T]>;
-def : ProcNoItin<"arm920",          [ArchV4T]>;
-def : ProcNoItin<"arm920t",         [ArchV4T]>;
-def : ProcNoItin<"arm922t",         [ArchV4T]>;
-def : ProcNoItin<"arm940t",         [ArchV4T]>;
-def : ProcNoItin<"ep9312",          [ArchV4T]>;
+def : ProcNoItin<"arm7tdmi",        [HasV4TOps]>;
+def : ProcNoItin<"arm7tdmi-s",      [HasV4TOps]>;
+def : ProcNoItin<"arm710t",         [HasV4TOps]>;
+def : ProcNoItin<"arm720t",         [HasV4TOps]>;
+def : ProcNoItin<"arm9",            [HasV4TOps]>;
+def : ProcNoItin<"arm9tdmi",        [HasV4TOps]>;
+def : ProcNoItin<"arm920",          [HasV4TOps]>;
+def : ProcNoItin<"arm920t",         [HasV4TOps]>;
+def : ProcNoItin<"arm922t",         [HasV4TOps]>;
+def : ProcNoItin<"arm940t",         [HasV4TOps]>;
+def : ProcNoItin<"ep9312",          [HasV4TOps]>;
 
 // V5T Processors.
-def : ProcNoItin<"arm10tdmi",       [ArchV5T]>;
-def : ProcNoItin<"arm1020t",        [ArchV5T]>;
+def : ProcNoItin<"arm10tdmi",       [HasV5TOps]>;
+def : ProcNoItin<"arm1020t",        [HasV5TOps]>;
 
 // V5TE Processors.
-def : ProcNoItin<"arm9e",           [ArchV5TE]>;
-def : ProcNoItin<"arm926ej-s",      [ArchV5TE]>;
-def : ProcNoItin<"arm946e-s",       [ArchV5TE]>;
-def : ProcNoItin<"arm966e-s",       [ArchV5TE]>;
-def : ProcNoItin<"arm968e-s",       [ArchV5TE]>;
-def : ProcNoItin<"arm10e",          [ArchV5TE]>;
-def : ProcNoItin<"arm1020e",        [ArchV5TE]>;
-def : ProcNoItin<"arm1022e",        [ArchV5TE]>;
-def : ProcNoItin<"xscale",          [ArchV5TE]>;
-def : ProcNoItin<"iwmmxt",          [ArchV5TE]>;
+def : ProcNoItin<"arm9e",           [HasV5TEOps]>;
+def : ProcNoItin<"arm926ej-s",      [HasV5TEOps]>;
+def : ProcNoItin<"arm946e-s",       [HasV5TEOps]>;
+def : ProcNoItin<"arm966e-s",       [HasV5TEOps]>;
+def : ProcNoItin<"arm968e-s",       [HasV5TEOps]>;
+def : ProcNoItin<"arm10e",          [HasV5TEOps]>;
+def : ProcNoItin<"arm1020e",        [HasV5TEOps]>;
+def : ProcNoItin<"arm1022e",        [HasV5TEOps]>;
+def : ProcNoItin<"xscale",          [HasV5TEOps]>;
+def : ProcNoItin<"iwmmxt",          [HasV5TEOps]>;
 
 // V6 Processors.
-def : Processor<"arm1136j-s",       ARMV6Itineraries, [ArchV6]>;
-def : Processor<"arm1136jf-s",      ARMV6Itineraries, [ArchV6, FeatureVFP2,
+def : Processor<"arm1136j-s",       ARMV6Itineraries, [HasV6Ops]>;
+def : Processor<"arm1136jf-s",      ARMV6Itineraries, [HasV6Ops, FeatureVFP2,
                                                        FeatureHasSlowFPVMLx]>;
-def : Processor<"arm1176jz-s",      ARMV6Itineraries, [ArchV6]>;
-def : Processor<"arm1176jzf-s",     ARMV6Itineraries, [ArchV6, FeatureVFP2,
+def : Processor<"arm1176jz-s",      ARMV6Itineraries, [HasV6Ops]>;
+def : Processor<"arm1176jzf-s",     ARMV6Itineraries, [HasV6Ops, FeatureVFP2,
                                                        FeatureHasSlowFPVMLx]>;
-def : Processor<"mpcorenovfp",      ARMV6Itineraries, [ArchV6]>;
-def : Processor<"mpcore",           ARMV6Itineraries, [ArchV6, FeatureVFP2,
+def : Processor<"mpcorenovfp",      ARMV6Itineraries, [HasV6Ops]>;
+def : Processor<"mpcore",           ARMV6Itineraries, [HasV6Ops, FeatureVFP2,
                                                        FeatureHasSlowFPVMLx]>;
 
 // V6M Processors.
-def : Processor<"cortex-m0",        ARMV6Itineraries, [ArchV6M]>;
+def : Processor<"cortex-m0",        ARMV6Itineraries, [HasV6Ops, FeatureNoARM,
+                                                       FeatureDB]>;
 
 // V6T2 Processors.
-def : Processor<"arm1156t2-s",      ARMV6Itineraries, [ArchV6T2]>;
-def : Processor<"arm1156t2f-s",     ARMV6Itineraries, [ArchV6T2, FeatureVFP2,
+def : Processor<"arm1156t2-s",      ARMV6Itineraries, [HasV6T2Ops]>;
+def : Processor<"arm1156t2f-s",     ARMV6Itineraries, [HasV6T2Ops, FeatureVFP2,
                                                        FeatureHasSlowFPVMLx]>;
 
-// V7 Processors.
+// V7a Processors.
 def : Processor<"cortex-a8",        CortexA8Itineraries,
-                                    [ArchV7A, ProcA8]>;
+                                    [ProcA8, HasV7Ops, FeatureNEON, FeatureDB,
+                                     FeatureDSPThumb2]>;
 def : Processor<"cortex-a9",        CortexA9Itineraries,
-                                    [ArchV7A, ProcA9]>;
+                                    [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
+                                     FeatureDSPThumb2]>;
 def : Processor<"cortex-a9-mp",     CortexA9Itineraries,
-                                    [ArchV7A, ProcA9, FeatureMP]>;
+                                    [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
+                                     FeatureDSPThumb2, FeatureMP]>;
 
 // V7M Processors.
-def : ProcNoItin<"cortex-m3",       [ArchV7M]>;
-def : ProcNoItin<"cortex-m4",       [ArchV7M, FeatureVFP2, FeatureVFPOnlySP]>;
+def : ProcNoItin<"cortex-m3",       [HasV7Ops,
+                                     FeatureThumb2, FeatureNoARM, FeatureDB,
+                                     FeatureHWDiv]>;
+
+// V7EM Processors.
+def : ProcNoItin<"cortex-m4",       [HasV7Ops,
+                                     FeatureThumb2, FeatureNoARM, FeatureDB,
+                                     FeatureHWDiv, FeatureDSPThumb2,
+                                     FeatureT2XtPk, FeatureVFP2,
+                                     FeatureVFPOnlySP]>;
 
 //===----------------------------------------------------------------------===//
 // Register File Description

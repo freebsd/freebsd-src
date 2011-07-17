@@ -44,6 +44,9 @@
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
 
+#define GET_REGINFO_TARGET_DESC
+#include "PPCGenRegisterInfo.inc"
+
 // FIXME (64-bit): Eventually enable by default.
 namespace llvm {
 cl::opt<bool> EnablePPC32RS("enable-ppc32-regscavenger",
@@ -110,8 +113,7 @@ unsigned PPCRegisterInfo::getRegisterNumbering(unsigned RegEnum) {
 
 PPCRegisterInfo::PPCRegisterInfo(const PPCSubtarget &ST,
                                  const TargetInstrInfo &tii)
-  : PPCGenRegisterInfo(PPC::ADJCALLSTACKDOWN, PPC::ADJCALLSTACKUP),
-    Subtarget(ST), TII(tii) {
+  : PPCGenRegisterInfo(), Subtarget(ST), TII(tii) {
   ImmToIdxMap[PPC::LD]   = PPC::LDX;    ImmToIdxMap[PPC::STD]  = PPC::STDX;
   ImmToIdxMap[PPC::LBZ]  = PPC::LBZX;   ImmToIdxMap[PPC::STB]  = PPC::STBX;
   ImmToIdxMap[PPC::LHZ]  = PPC::LHZX;   ImmToIdxMap[PPC::LHA]  = PPC::LHAX;
@@ -504,6 +506,7 @@ void PPCRegisterInfo::lowerCRSpilling(MachineBasicBlock::iterator II,
   const TargetRegisterClass *RC = Subtarget.isPPC64() ? G8RC : GPRC;
   unsigned Reg = findScratchRegister(II, RS, RC, SPAdj);
   unsigned SrcReg = MI.getOperand(0).getReg();
+  bool LP64 = Subtarget.isPPC64();
 
   // We need to store the CR in the low 4-bits of the saved value. First, issue
   // an MFCRpsued to save all of the CRBits and, if needed, kill the SrcReg.
@@ -520,7 +523,7 @@ void PPCRegisterInfo::lowerCRSpilling(MachineBasicBlock::iterator II,
       .addImm(0)
       .addImm(31);
 
-  addFrameReference(BuildMI(MBB, II, dl, TII.get(PPC::STW))
+  addFrameReference(BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::STW8 : PPC::STW))
                     .addReg(Reg, getKillRegState(MI.getOperand(1).getImm())),
                     FrameIndex);
 
@@ -709,5 +712,3 @@ int PPCRegisterInfo::getLLVMRegNum(unsigned RegNum, bool isEH) const {
 
   return PPCGenRegisterInfo::getLLVMRegNumFull(RegNum, Flavour);
 }
-
-#include "PPCGenRegisterInfo.inc"

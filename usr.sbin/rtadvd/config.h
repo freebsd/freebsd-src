@@ -30,16 +30,18 @@
  * SUCH DAMAGE.
  */
 
-extern int getconfig(int);
-extern int rmconfig(int);
-extern int loadconfig(char *[], const int);
+extern struct ifinfo *getconfig(struct ifinfo *);
+extern int rm_ifinfo(struct ifinfo *);
+extern int rm_ifinfo_index(int);
+extern int rm_rainfo(struct rainfo *);
+extern int loadconfig_ifname(char *);
+extern int loadconfig_index(int);
 extern void delete_prefix(struct prefix *);
 extern void invalidate_prefix(struct prefix *);
 extern void update_prefix(struct prefix *);
 extern void make_prefix(struct rainfo *, int, struct in6_addr *, int);
 extern void make_packet(struct rainfo *);
 extern void get_prefix(struct rainfo *);
-
 
 /*
  * it is highly unlikely to have 100 prefix information options,

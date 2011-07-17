@@ -20,6 +20,7 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
+  template <typename T> class ArrayRef;
   class MCSection;
   class MCContext;
   class MachineFunction;
@@ -27,29 +28,13 @@ namespace llvm {
   class TargetLoweringObjectFile;
 
 class TargetAsmInfo {
-  unsigned PointerSize;
-  bool IsLittleEndian;
-  TargetFrameLowering::StackDirection StackDir;
-  const TargetRegisterInfo *TRI;
   std::vector<MachineMove> InitialFrameState;
+  const TargetRegisterInfo *TRI;
+  const TargetFrameLowering *TFI;
   const TargetLoweringObjectFile *TLOF;
 
 public:
   explicit TargetAsmInfo(const TargetMachine &TM);
-
-  /// getPointerSize - Get the pointer size in bytes.
-  unsigned getPointerSize() const {
-    return PointerSize;
-  }
-
-  /// islittleendian - True if the target is little endian.
-  bool isLittleEndian() const {
-    return IsLittleEndian;
-  }
-
-  TargetFrameLowering::StackDirection getStackGrowthDirection() const {
-    return StackDir;
-  }
 
   const MCSection *getDwarfLineSection() const {
     return TLOF->getDwarfLineSection();
@@ -57,6 +42,10 @@ public:
 
   const MCSection *getEHFrameSection() const {
     return TLOF->getEHFrameSection();
+  }
+
+  const MCSection *getCompactUnwindSection() const {
+    return TLOF->getCompactUnwindSection();
   }
 
   const MCSection *getDwarfFrameSection() const {
@@ -77,6 +66,12 @@ public:
 
   bool isFunctionEHFrameSymbolPrivate() const {
     return TLOF->isFunctionEHFrameSymbolPrivate();
+  }
+
+  int getCompactUnwindEncoding(ArrayRef<MCCFIInstruction> Instrs,
+                               int DataAlignmentFactor,
+                               bool IsEH) const {
+    return TFI->getCompactUnwindEncoding(Instrs, DataAlignmentFactor, IsEH);
   }
 
   const unsigned *getCalleeSavedRegs(MachineFunction *MF = 0) const {

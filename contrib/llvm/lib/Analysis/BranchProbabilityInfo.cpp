@@ -13,6 +13,7 @@
 
 #include "llvm/Instructions.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -25,7 +26,7 @@ INITIALIZE_PASS_END(BranchProbabilityInfo, "branch-prob",
 
 char BranchProbabilityInfo::ID = 0;
 
-
+namespace {
 // Please note that BranchProbabilityAnalysis is not a FunctionPass.
 // It is created by BranchProbabilityInfo (which is a FunctionPass), which
 // provides a clear interface. Thanks to that, all heuristics and other
@@ -143,6 +144,7 @@ public:
 
   bool runOnFunction(Function &F);
 };
+} // end anonymous namespace
 
 // Calculate Edge Weights using "Return Heuristics". Predict a successor which
 // leads directly to Return Instruction will not be taken.
@@ -167,7 +169,7 @@ void BranchProbabilityAnalysis::calcPointerHeuristics(BasicBlock *BB) {
 
   Value *Cond = BI->getCondition();
   ICmpInst *CI = dyn_cast<ICmpInst>(Cond);
-  if (!CI)
+  if (!CI || !CI->isEquality())
     return;
 
   Value *LHS = CI->getOperand(0);
@@ -184,7 +186,7 @@ void BranchProbabilityAnalysis::calcPointerHeuristics(BasicBlock *BB) {
   // p == 0   ->   isProb = false
   // p != q   ->   isProb = true
   // p == q   ->   isProb = false;
-  bool isProb = !CI->isEquality();
+  bool isProb = CI->getPredicate() == ICmpInst::ICMP_NE;
   if (!isProb)
     std::swap(Taken, NonTaken);
 
@@ -256,6 +258,10 @@ bool BranchProbabilityAnalysis::runOnFunction(Function &F) {
   return false;
 }
 
+void BranchProbabilityInfo::getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.addRequired<LoopInfo>();
+    AU.setPreservesAll();
+}
 
 bool BranchProbabilityInfo::runOnFunction(Function &F) {
   LoopInfo &LI = getAnalysis<LoopInfo>();
@@ -347,8 +353,8 @@ getEdgeProbability(BasicBlock *Src, BasicBlock *Dst) const {
 raw_ostream &
 BranchProbabilityInfo::printEdgeProbability(raw_ostream &OS, BasicBlock *Src,
                                             BasicBlock *Dst) const {
-  BranchProbability Prob = getEdgeProbability(Src, Dst);
 
+  const BranchProbability Prob = getEdgeProbability(Src, Dst);
   OS << "edge " << Src->getNameStr() << " -> " << Dst->getNameStr()
      << " probability is " << Prob
      << (isEdgeHot(Src, Dst) ? " [HOT edge]\n" : "\n");
