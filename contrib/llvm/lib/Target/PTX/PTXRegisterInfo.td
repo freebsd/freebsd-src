@@ -1,3 +1,4 @@
+
 //===- PTXRegisterInfo.td - PTX Register defs ----------------*- tblgen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -21,16 +22,16 @@ class PTXReg<string n> : Register<n> {
 
 ///===- Predicate Registers -----------------------------------------------===//
 
-def P0  : PTXReg<"p0">;
-def P1  : PTXReg<"p1">;
-def P2  : PTXReg<"p2">;
-def P3  : PTXReg<"p3">;
-def P4  : PTXReg<"p4">;
-def P5  : PTXReg<"p5">;
-def P6  : PTXReg<"p6">;
-def P7  : PTXReg<"p7">;
-def P8  : PTXReg<"p8">;
-def P9  : PTXReg<"p9">;
+def P0 : PTXReg<"p0">;
+def P1 : PTXReg<"p1">;
+def P2 : PTXReg<"p2">;
+def P3 : PTXReg<"p3">;
+def P4 : PTXReg<"p4">;
+def P5 : PTXReg<"p5">;
+def P6 : PTXReg<"p6">;
+def P7 : PTXReg<"p7">;
+def P8 : PTXReg<"p8">;
+def P9 : PTXReg<"p9">;
 def P10 : PTXReg<"p10">;
 def P11 : PTXReg<"p11">;
 def P12 : PTXReg<"p12">;
@@ -85,19 +86,83 @@ def P60 : PTXReg<"p60">;
 def P61 : PTXReg<"p61">;
 def P62 : PTXReg<"p62">;
 def P63 : PTXReg<"p63">;
+def P64 : PTXReg<"p64">;
+def P65 : PTXReg<"p65">;
+def P66 : PTXReg<"p66">;
+def P67 : PTXReg<"p67">;
+def P68 : PTXReg<"p68">;
+def P69 : PTXReg<"p69">;
+def P70 : PTXReg<"p70">;
+def P71 : PTXReg<"p71">;
+def P72 : PTXReg<"p72">;
+def P73 : PTXReg<"p73">;
+def P74 : PTXReg<"p74">;
+def P75 : PTXReg<"p75">;
+def P76 : PTXReg<"p76">;
+def P77 : PTXReg<"p77">;
+def P78 : PTXReg<"p78">;
+def P79 : PTXReg<"p79">;
+def P80 : PTXReg<"p80">;
+def P81 : PTXReg<"p81">;
+def P82 : PTXReg<"p82">;
+def P83 : PTXReg<"p83">;
+def P84 : PTXReg<"p84">;
+def P85 : PTXReg<"p85">;
+def P86 : PTXReg<"p86">;
+def P87 : PTXReg<"p87">;
+def P88 : PTXReg<"p88">;
+def P89 : PTXReg<"p89">;
+def P90 : PTXReg<"p90">;
+def P91 : PTXReg<"p91">;
+def P92 : PTXReg<"p92">;
+def P93 : PTXReg<"p93">;
+def P94 : PTXReg<"p94">;
+def P95 : PTXReg<"p95">;
+def P96 : PTXReg<"p96">;
+def P97 : PTXReg<"p97">;
+def P98 : PTXReg<"p98">;
+def P99 : PTXReg<"p99">;
+def P100 : PTXReg<"p100">;
+def P101 : PTXReg<"p101">;
+def P102 : PTXReg<"p102">;
+def P103 : PTXReg<"p103">;
+def P104 : PTXReg<"p104">;
+def P105 : PTXReg<"p105">;
+def P106 : PTXReg<"p106">;
+def P107 : PTXReg<"p107">;
+def P108 : PTXReg<"p108">;
+def P109 : PTXReg<"p109">;
+def P110 : PTXReg<"p110">;
+def P111 : PTXReg<"p111">;
+def P112 : PTXReg<"p112">;
+def P113 : PTXReg<"p113">;
+def P114 : PTXReg<"p114">;
+def P115 : PTXReg<"p115">;
+def P116 : PTXReg<"p116">;
+def P117 : PTXReg<"p117">;
+def P118 : PTXReg<"p118">;
+def P119 : PTXReg<"p119">;
+def P120 : PTXReg<"p120">;
+def P121 : PTXReg<"p121">;
+def P122 : PTXReg<"p122">;
+def P123 : PTXReg<"p123">;
+def P124 : PTXReg<"p124">;
+def P125 : PTXReg<"p125">;
+def P126 : PTXReg<"p126">;
+def P127 : PTXReg<"p127">;
 
-///===- 16-bit Integer Registers ------------------------------------------===//
+///===- 16-Bit Registers --------------------------------------------------===//
 
-def RH0  : PTXReg<"rh0">;
-def RH1  : PTXReg<"rh1">;
-def RH2  : PTXReg<"rh2">;
-def RH3  : PTXReg<"rh3">;
-def RH4  : PTXReg<"rh4">;
-def RH5  : PTXReg<"rh5">;
-def RH6  : PTXReg<"rh6">;
-def RH7  : PTXReg<"rh7">;
-def RH8  : PTXReg<"rh8">;
-def RH9  : PTXReg<"rh9">;
+def RH0 : PTXReg<"rh0">;
+def RH1 : PTXReg<"rh1">;
+def RH2 : PTXReg<"rh2">;
+def RH3 : PTXReg<"rh3">;
+def RH4 : PTXReg<"rh4">;
+def RH5 : PTXReg<"rh5">;
+def RH6 : PTXReg<"rh6">;
+def RH7 : PTXReg<"rh7">;
+def RH8 : PTXReg<"rh8">;
+def RH9 : PTXReg<"rh9">;
 def RH10 : PTXReg<"rh10">;
 def RH11 : PTXReg<"rh11">;
 def RH12 : PTXReg<"rh12">;
@@ -152,20 +217,83 @@ def RH60 : PTXReg<"rh60">;
 def RH61 : PTXReg<"rh61">;
 def RH62 : PTXReg<"rh62">;
 def RH63 : PTXReg<"rh63">;
+def RH64 : PTXReg<"rh64">;
+def RH65 : PTXReg<"rh65">;
+def RH66 : PTXReg<"rh66">;
+def RH67 : PTXReg<"rh67">;
+def RH68 : PTXReg<"rh68">;
+def RH69 : PTXReg<"rh69">;
+def RH70 : PTXReg<"rh70">;
+def RH71 : PTXReg<"rh71">;
+def RH72 : PTXReg<"rh72">;
+def RH73 : PTXReg<"rh73">;
+def RH74 : PTXReg<"rh74">;
+def RH75 : PTXReg<"rh75">;
+def RH76 : PTXReg<"rh76">;
+def RH77 : PTXReg<"rh77">;
+def RH78 : PTXReg<"rh78">;
+def RH79 : PTXReg<"rh79">;
+def RH80 : PTXReg<"rh80">;
+def RH81 : PTXReg<"rh81">;
+def RH82 : PTXReg<"rh82">;
+def RH83 : PTXReg<"rh83">;
+def RH84 : PTXReg<"rh84">;
+def RH85 : PTXReg<"rh85">;
+def RH86 : PTXReg<"rh86">;
+def RH87 : PTXReg<"rh87">;
+def RH88 : PTXReg<"rh88">;
+def RH89 : PTXReg<"rh89">;
+def RH90 : PTXReg<"rh90">;
+def RH91 : PTXReg<"rh91">;
+def RH92 : PTXReg<"rh92">;
+def RH93 : PTXReg<"rh93">;
+def RH94 : PTXReg<"rh94">;
+def RH95 : PTXReg<"rh95">;
+def RH96 : PTXReg<"rh96">;
+def RH97 : PTXReg<"rh97">;
+def RH98 : PTXReg<"rh98">;
+def RH99 : PTXReg<"rh99">;
+def RH100 : PTXReg<"rh100">;
+def RH101 : PTXReg<"rh101">;
+def RH102 : PTXReg<"rh102">;
+def RH103 : PTXReg<"rh103">;
+def RH104 : PTXReg<"rh104">;
+def RH105 : PTXReg<"rh105">;
+def RH106 : PTXReg<"rh106">;
+def RH107 : PTXReg<"rh107">;
+def RH108 : PTXReg<"rh108">;
+def RH109 : PTXReg<"rh109">;
+def RH110 : PTXReg<"rh110">;
+def RH111 : PTXReg<"rh111">;
+def RH112 : PTXReg<"rh112">;
+def RH113 : PTXReg<"rh113">;
+def RH114 : PTXReg<"rh114">;
+def RH115 : PTXReg<"rh115">;
+def RH116 : PTXReg<"rh116">;
+def RH117 : PTXReg<"rh117">;
+def RH118 : PTXReg<"rh118">;
+def RH119 : PTXReg<"rh119">;
+def RH120 : PTXReg<"rh120">;
+def RH121 : PTXReg<"rh121">;
+def RH122 : PTXReg<"rh122">;
+def RH123 : PTXReg<"rh123">;
+def RH124 : PTXReg<"rh124">;
+def RH125 : PTXReg<"rh125">;
+def RH126 : PTXReg<"rh126">;
+def RH127 : PTXReg<"rh127">;
 
+///===- 32-Bit Registers --------------------------------------------------===//
 
-///===- 32-bit Integer Registers ------------------------------------------===//
-
-def R0  : PTXReg<"r0">;
-def R1  : PTXReg<"r1">;
-def R2  : PTXReg<"r2">;
-def R3  : PTXReg<"r3">;
-def R4  : PTXReg<"r4">;
-def R5  : PTXReg<"r5">;
-def R6  : PTXReg<"r6">;
-def R7  : PTXReg<"r7">;
-def R8  : PTXReg<"r8">;
-def R9  : PTXReg<"r9">;
+def R0 : PTXReg<"r0">;
+def R1 : PTXReg<"r1">;
+def R2 : PTXReg<"r2">;
+def R3 : PTXReg<"r3">;
+def R4 : PTXReg<"r4">;
+def R5 : PTXReg<"r5">;
+def R6 : PTXReg<"r6">;
+def R7 : PTXReg<"r7">;
+def R8 : PTXReg<"r8">;
+def R9 : PTXReg<"r9">;
 def R10 : PTXReg<"r10">;
 def R11 : PTXReg<"r11">;
 def R12 : PTXReg<"r12">;
@@ -220,20 +348,83 @@ def R60 : PTXReg<"r60">;
 def R61 : PTXReg<"r61">;
 def R62 : PTXReg<"r62">;
 def R63 : PTXReg<"r63">;
+def R64 : PTXReg<"r64">;
+def R65 : PTXReg<"r65">;
+def R66 : PTXReg<"r66">;
+def R67 : PTXReg<"r67">;
+def R68 : PTXReg<"r68">;
+def R69 : PTXReg<"r69">;
+def R70 : PTXReg<"r70">;
+def R71 : PTXReg<"r71">;
+def R72 : PTXReg<"r72">;
+def R73 : PTXReg<"r73">;
+def R74 : PTXReg<"r74">;
+def R75 : PTXReg<"r75">;
+def R76 : PTXReg<"r76">;
+def R77 : PTXReg<"r77">;
+def R78 : PTXReg<"r78">;
+def R79 : PTXReg<"r79">;
+def R80 : PTXReg<"r80">;
+def R81 : PTXReg<"r81">;
+def R82 : PTXReg<"r82">;
+def R83 : PTXReg<"r83">;
+def R84 : PTXReg<"r84">;
+def R85 : PTXReg<"r85">;
+def R86 : PTXReg<"r86">;
+def R87 : PTXReg<"r87">;
+def R88 : PTXReg<"r88">;
+def R89 : PTXReg<"r89">;
+def R90 : PTXReg<"r90">;
+def R91 : PTXReg<"r91">;
+def R92 : PTXReg<"r92">;
+def R93 : PTXReg<"r93">;
+def R94 : PTXReg<"r94">;
+def R95 : PTXReg<"r95">;
+def R96 : PTXReg<"r96">;
+def R97 : PTXReg<"r97">;
+def R98 : PTXReg<"r98">;
+def R99 : PTXReg<"r99">;
+def R100 : PTXReg<"r100">;
+def R101 : PTXReg<"r101">;
+def R102 : PTXReg<"r102">;
+def R103 : PTXReg<"r103">;
+def R104 : PTXReg<"r104">;
+def R105 : PTXReg<"r105">;
+def R106 : PTXReg<"r106">;
+def R107 : PTXReg<"r107">;
+def R108 : PTXReg<"r108">;
+def R109 : PTXReg<"r109">;
+def R110 : PTXReg<"r110">;
+def R111 : PTXReg<"r111">;
+def R112 : PTXReg<"r112">;
+def R113 : PTXReg<"r113">;
+def R114 : PTXReg<"r114">;
+def R115 : PTXReg<"r115">;
+def R116 : PTXReg<"r116">;
+def R117 : PTXReg<"r117">;
+def R118 : PTXReg<"r118">;
+def R119 : PTXReg<"r119">;
+def R120 : PTXReg<"r120">;
+def R121 : PTXReg<"r121">;
+def R122 : PTXReg<"r122">;
+def R123 : PTXReg<"r123">;
+def R124 : PTXReg<"r124">;
+def R125 : PTXReg<"r125">;
+def R126 : PTXReg<"r126">;
+def R127 : PTXReg<"r127">;
 
+///===- 64-Bit Registers --------------------------------------------------===//
 
-///===- 64-bit Integer Registers ------------------------------------------===//
-
-def RD0  : PTXReg<"rd0">;
-def RD1  : PTXReg<"rd1">;
-def RD2  : PTXReg<"rd2">;
-def RD3  : PTXReg<"rd3">;
-def RD4  : PTXReg<"rd4">;
-def RD5  : PTXReg<"rd5">;
-def RD6  : PTXReg<"rd6">;
-def RD7  : PTXReg<"rd7">;
-def RD8  : PTXReg<"rd8">;
-def RD9  : PTXReg<"rd9">;
+def RD0 : PTXReg<"rd0">;
+def RD1 : PTXReg<"rd1">;
+def RD2 : PTXReg<"rd2">;
+def RD3 : PTXReg<"rd3">;
+def RD4 : PTXReg<"rd4">;
+def RD5 : PTXReg<"rd5">;
+def RD6 : PTXReg<"rd6">;
+def RD7 : PTXReg<"rd7">;
+def RD8 : PTXReg<"rd8">;
+def RD9 : PTXReg<"rd9">;
 def RD10 : PTXReg<"rd10">;
 def RD11 : PTXReg<"rd11">;
 def RD12 : PTXReg<"rd12">;
@@ -288,204 +479,77 @@ def RD60 : PTXReg<"rd60">;
 def RD61 : PTXReg<"rd61">;
 def RD62 : PTXReg<"rd62">;
 def RD63 : PTXReg<"rd63">;
-
-
-///===- 32-bit Floating-Point Registers -----------------------------------===//
-
-def F0  : PTXReg<"f0">;
-def F1  : PTXReg<"f1">;
-def F2  : PTXReg<"f2">;
-def F3  : PTXReg<"f3">;
-def F4  : PTXReg<"f4">;
-def F5  : PTXReg<"f5">;
-def F6  : PTXReg<"f6">;
-def F7  : PTXReg<"f7">;
-def F8  : PTXReg<"f8">;
-def F9  : PTXReg<"f9">;
-def F10 : PTXReg<"f10">;
-def F11 : PTXReg<"f11">;
-def F12 : PTXReg<"f12">;
-def F13 : PTXReg<"f13">;
-def F14 : PTXReg<"f14">;
-def F15 : PTXReg<"f15">;
-def F16 : PTXReg<"f16">;
-def F17 : PTXReg<"f17">;
-def F18 : PTXReg<"f18">;
-def F19 : PTXReg<"f19">;
-def F20 : PTXReg<"f20">;
-def F21 : PTXReg<"f21">;
-def F22 : PTXReg<"f22">;
-def F23 : PTXReg<"f23">;
-def F24 : PTXReg<"f24">;
-def F25 : PTXReg<"f25">;
-def F26 : PTXReg<"f26">;
-def F27 : PTXReg<"f27">;
-def F28 : PTXReg<"f28">;
-def F29 : PTXReg<"f29">;
-def F30 : PTXReg<"f30">;
-def F31 : PTXReg<"f31">;
-def F32 : PTXReg<"f32">;
-def F33 : PTXReg<"f33">;
-def F34 : PTXReg<"f34">;
-def F35 : PTXReg<"f35">;
-def F36 : PTXReg<"f36">;
-def F37 : PTXReg<"f37">;
-def F38 : PTXReg<"f38">;
-def F39 : PTXReg<"f39">;
-def F40 : PTXReg<"f40">;
-def F41 : PTXReg<"f41">;
-def F42 : PTXReg<"f42">;
-def F43 : PTXReg<"f43">;
-def F44 : PTXReg<"f44">;
-def F45 : PTXReg<"f45">;
-def F46 : PTXReg<"f46">;
-def F47 : PTXReg<"f47">;
-def F48 : PTXReg<"f48">;
-def F49 : PTXReg<"f49">;
-def F50 : PTXReg<"f50">;
-def F51 : PTXReg<"f51">;
-def F52 : PTXReg<"f52">;
-def F53 : PTXReg<"f53">;
-def F54 : PTXReg<"f54">;
-def F55 : PTXReg<"f55">;
-def F56 : PTXReg<"f56">;
-def F57 : PTXReg<"f57">;
-def F58 : PTXReg<"f58">;
-def F59 : PTXReg<"f59">;
-def F60 : PTXReg<"f60">;
-def F61 : PTXReg<"f61">;
-def F62 : PTXReg<"f62">;
-def F63 : PTXReg<"f63">;
-
-
-///===- 64-bit Floating-Point Registers -----------------------------------===//
-
-def FD0  : PTXReg<"fd0">;
-def FD1  : PTXReg<"fd1">;
-def FD2  : PTXReg<"fd2">;
-def FD3  : PTXReg<"fd3">;
-def FD4  : PTXReg<"fd4">;
-def FD5  : PTXReg<"fd5">;
-def FD6  : PTXReg<"fd6">;
-def FD7  : PTXReg<"fd7">;
-def FD8  : PTXReg<"fd8">;
-def FD9  : PTXReg<"fd9">;
-def FD10 : PTXReg<"fd10">;
-def FD11 : PTXReg<"fd11">;
-def FD12 : PTXReg<"fd12">;
-def FD13 : PTXReg<"fd13">;
-def FD14 : PTXReg<"fd14">;
-def FD15 : PTXReg<"fd15">;
-def FD16 : PTXReg<"fd16">;
-def FD17 : PTXReg<"fd17">;
-def FD18 : PTXReg<"fd18">;
-def FD19 : PTXReg<"fd19">;
-def FD20 : PTXReg<"fd20">;
-def FD21 : PTXReg<"fd21">;
-def FD22 : PTXReg<"fd22">;
-def FD23 : PTXReg<"fd23">;
-def FD24 : PTXReg<"fd24">;
-def FD25 : PTXReg<"fd25">;
-def FD26 : PTXReg<"fd26">;
-def FD27 : PTXReg<"fd27">;
-def FD28 : PTXReg<"fd28">;
-def FD29 : PTXReg<"fd29">;
-def FD30 : PTXReg<"fd30">;
-def FD31 : PTXReg<"fd31">;
-def FD32 : PTXReg<"fd32">;
-def FD33 : PTXReg<"fd33">;
-def FD34 : PTXReg<"fd34">;
-def FD35 : PTXReg<"fd35">;
-def FD36 : PTXReg<"fd36">;
-def FD37 : PTXReg<"fd37">;
-def FD38 : PTXReg<"fd38">;
-def FD39 : PTXReg<"fd39">;
-def FD40 : PTXReg<"fd40">;
-def FD41 : PTXReg<"fd41">;
-def FD42 : PTXReg<"fd42">;
-def FD43 : PTXReg<"fd43">;
-def FD44 : PTXReg<"fd44">;
-def FD45 : PTXReg<"fd45">;
-def FD46 : PTXReg<"f4d6">;
-def FD47 : PTXReg<"fd47">;
-def FD48 : PTXReg<"fd48">;
-def FD49 : PTXReg<"fd49">;
-def FD50 : PTXReg<"fd50">;
-def FD51 : PTXReg<"fd51">;
-def FD52 : PTXReg<"fd52">;
-def FD53 : PTXReg<"fd53">;
-def FD54 : PTXReg<"fd54">;
-def FD55 : PTXReg<"fd55">;
-def FD56 : PTXReg<"fd56">;
-def FD57 : PTXReg<"fd57">;
-def FD58 : PTXReg<"fd58">;
-def FD59 : PTXReg<"fd59">;
-def FD60 : PTXReg<"fd60">;
-def FD61 : PTXReg<"fd61">;
-def FD62 : PTXReg<"fd62">;
-def FD63 : PTXReg<"fd63">;
-
+def RD64 : PTXReg<"rd64">;
+def RD65 : PTXReg<"rd65">;
+def RD66 : PTXReg<"rd66">;
+def RD67 : PTXReg<"rd67">;
+def RD68 : PTXReg<"rd68">;
+def RD69 : PTXReg<"rd69">;
+def RD70 : PTXReg<"rd70">;
+def RD71 : PTXReg<"rd71">;
+def RD72 : PTXReg<"rd72">;
+def RD73 : PTXReg<"rd73">;
+def RD74 : PTXReg<"rd74">;
+def RD75 : PTXReg<"rd75">;
+def RD76 : PTXReg<"rd76">;
+def RD77 : PTXReg<"rd77">;
+def RD78 : PTXReg<"rd78">;
+def RD79 : PTXReg<"rd79">;
+def RD80 : PTXReg<"rd80">;
+def RD81 : PTXReg<"rd81">;
+def RD82 : PTXReg<"rd82">;
+def RD83 : PTXReg<"rd83">;
+def RD84 : PTXReg<"rd84">;
+def RD85 : PTXReg<"rd85">;
+def RD86 : PTXReg<"rd86">;
+def RD87 : PTXReg<"rd87">;
+def RD88 : PTXReg<"rd88">;
+def RD89 : PTXReg<"rd89">;
+def RD90 : PTXReg<"rd90">;
+def RD91 : PTXReg<"rd91">;
+def RD92 : PTXReg<"rd92">;
+def RD93 : PTXReg<"rd93">;
+def RD94 : PTXReg<"rd94">;
+def RD95 : PTXReg<"rd95">;
+def RD96 : PTXReg<"rd96">;
+def RD97 : PTXReg<"rd97">;
+def RD98 : PTXReg<"rd98">;
+def RD99 : PTXReg<"rd99">;
+def RD100 : PTXReg<"rd100">;
+def RD101 : PTXReg<"rd101">;
+def RD102 : PTXReg<"rd102">;
+def RD103 : PTXReg<"rd103">;
+def RD104 : PTXReg<"rd104">;
+def RD105 : PTXReg<"rd105">;
+def RD106 : PTXReg<"rd106">;
+def RD107 : PTXReg<"rd107">;
+def RD108 : PTXReg<"rd108">;
+def RD109 : PTXReg<"rd109">;
+def RD110 : PTXReg<"rd110">;
+def RD111 : PTXReg<"rd111">;
+def RD112 : PTXReg<"rd112">;
+def RD113 : PTXReg<"rd113">;
+def RD114 : PTXReg<"rd114">;
+def RD115 : PTXReg<"rd115">;
+def RD116 : PTXReg<"rd116">;
+def RD117 : PTXReg<"rd117">;
+def RD118 : PTXReg<"rd118">;
+def RD119 : PTXReg<"rd119">;
+def RD120 : PTXReg<"rd120">;
+def RD121 : PTXReg<"rd121">;
+def RD122 : PTXReg<"rd122">;
+def RD123 : PTXReg<"rd123">;
+def RD124 : PTXReg<"rd124">;
+def RD125 : PTXReg<"rd125">;
+def RD126 : PTXReg<"rd126">;
+def RD127 : PTXReg<"rd127">;
 
 //===----------------------------------------------------------------------===//
 //  Register classes
 //===----------------------------------------------------------------------===//
-
-def Preds : RegisterClass<"PTX", [i1], 8,
-                          [P0, P1, P2, P3, P4, P5, P6, P7,
-                           P8, P9, P10, P11, P12, P13, P14, P15,
-                           P16, P17, P18, P19, P20, P21, P22, P23,
-                           P24, P25, P26, P27, P28, P29, P30, P31,
-                           P32, P33, P34, P35, P36, P37, P38, P39,
-                           P40, P41, P42, P43, P44, P45, P46, P47,
-                           P48, P49, P50, P51, P52, P53, P54, P55,
-                           P56, P57, P58, P59, P60, P61, P62, P63]>;
-
-def RRegu16 : RegisterClass<"PTX", [i16], 16,
-                            [RH0, RH1, RH2, RH3, RH4, RH5, RH6, RH7,
-                             RH8, RH9, RH10, RH11, RH12, RH13, RH14, RH15,
-                             RH16, RH17, RH18, RH19, RH20, RH21, RH22, RH23,
-                             RH24, RH25, RH26, RH27, RH28, RH29, RH30, RH31,
-                             RH32, RH33, RH34, RH35, RH36, RH37, RH38, RH39,
-                             RH40, RH41, RH42, RH43, RH44, RH45, RH46, RH47,
-                             RH48, RH49, RH50, RH51, RH52, RH53, RH54, RH55,
-                             RH56, RH57, RH58, RH59, RH60, RH61, RH62, RH63]>;
-
-def RRegu32 : RegisterClass<"PTX", [i32], 32,
-                            [R0, R1, R2, R3, R4, R5, R6, R7,
-                             R8, R9, R10, R11, R12, R13, R14, R15,
-                             R16, R17, R18, R19, R20, R21, R22, R23,
-                             R24, R25, R26, R27, R28, R29, R30, R31,
-                             R32, R33, R34, R35, R36, R37, R38, R39,
-                             R40, R41, R42, R43, R44, R45, R46, R47,
-                             R48, R49, R50, R51, R52, R53, R54, R55,
-                             R56, R57, R58, R59, R60, R61, R62, R63]>;
-
-def RRegu64 : RegisterClass<"PTX", [i64], 64,
-                            [RD0, RD1, RD2, RD3, RD4, RD5, RD6, RD7,
-                             RD8, RD9, RD10, RD11, RD12, RD13, RD14, RD15,
-                             RD16, RD17, RD18, RD19, RD20, RD21, RD22, RD23,
-                             RD24, RD25, RD26, RD27, RD28, RD29, RD30, RD31,
-                             RD32, RD33, RD34, RD35, RD36, RD37, RD38, RD39,
-                             RD40, RD41, RD42, RD43, RD44, RD45, RD46, RD47,
-                             RD48, RD49, RD50, RD51, RD52, RD53, RD54, RD55,
-                             RD56, RD57, RD58, RD59, RD60, RD61, RD62, RD63]>;
-
-def RRegf32 : RegisterClass<"PTX", [f32], 32,
-                            [F0, F1, F2, F3, F4, F5, F6, F7,
-                             F8, F9, F10, F11, F12, F13, F14, F15,
-                             F16, F17, F18, F19, F20, F21, F22, F23,
-                             F24, F25, F26, F27, F28, F29, F30, F31,
-                             F32, F33, F34, F35, F36, F37, F38, F39,
-                             F40, F41, F42, F43, F44, F45, F46, F47,
-                             F48, F49, F50, F51, F52, F53, F54, F55,
-                             F56, F57, F58, F59, F60, F61, F62, F63]>;
-
-def RRegf64 : RegisterClass<"PTX", [f64], 64,
-                            [FD0, FD1, FD2, FD3, FD4, FD5, FD6, FD7,
-                             FD8, FD9, FD10, FD11, FD12, FD13, FD14, FD15,
-                             FD16, FD17, FD18, FD19, FD20, FD21, FD22, FD23,
-                             FD24, FD25, FD26, FD27, FD28, FD29, FD30, FD31,
-                             FD32, FD33, FD34, FD35, FD36, FD37, FD38, FD39,
-                             FD40, FD41, FD42, FD43, FD44, FD45, FD46, FD47,
-                             FD48, FD49, FD50, FD51, FD52, FD53, FD54, FD55,
-                             FD56, FD57, FD58, FD59, FD60, FD61, FD62, FD63]>;
+def RegPred : RegisterClass<"PTX", [i1], 8, (sequence "P%u", 0, 127)>;
+def RegI16 : RegisterClass<"PTX", [i16], 16, (sequence "RH%u", 0, 127)>;
+def RegI32 : RegisterClass<"PTX", [i32], 32, (sequence "R%u", 0, 127)>;
+def RegI64 : RegisterClass<"PTX", [i64], 64, (sequence "RD%u", 0, 127)>;
+def RegF32 : RegisterClass<"PTX", [f32], 32, (sequence "R%u", 0, 127)>;
+def RegF64 : RegisterClass<"PTX", [f64], 64, (sequence "RD%u", 0, 127)>;

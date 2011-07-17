@@ -24,10 +24,14 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegistry.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
@@ -98,10 +102,10 @@ static cl::opt<cl::boolOrDefault>
 EnableFastISelOption("fast-isel", cl::Hidden,
   cl::desc("Enable the \"fast\" instruction selector"));
 
-LLVMTargetMachine::LLVMTargetMachine(const Target &T,
-                                     const std::string &Triple)
-  : TargetMachine(T), TargetTriple(Triple) {
-  AsmInfo = T.createAsmInfo(TargetTriple);
+LLVMTargetMachine::LLVMTargetMachine(const Target &T, StringRef Triple,
+                                     StringRef CPU, StringRef FS)
+  : TargetMachine(T, Triple, CPU, FS) {
+  AsmInfo = T.createMCAsmInfo(Triple);
 }
 
 // Set the default code model for the JIT for a generic target.
@@ -136,14 +140,15 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   default: return true;
   case CGFT_AssemblyFile: {
     MCInstPrinter *InstPrinter =
-      getTarget().createMCInstPrinter(*this, MAI.getAssemblerDialect(), MAI);
+      getTarget().createMCInstPrinter(MAI.getAssemblerDialect(), MAI);
 
     // Create a code emitter if asked to show the encoding.
     MCCodeEmitter *MCE = 0;
     TargetAsmBackend *TAB = 0;
     if (ShowMCEncoding) {
-      MCE = getTarget().createCodeEmitter(*this, *Context);
-      TAB = getTarget().createAsmBackend(TargetTriple);
+      const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
+      MCE = getTarget().createCodeEmitter(*getInstrInfo(), STI, *Context);
+      TAB = getTarget().createAsmBackend(getTargetTriple());
     }
 
     MCStreamer *S = getTarget().createAsmStreamer(*Context, Out,
@@ -159,13 +164,15 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   case CGFT_ObjectFile: {
     // Create the code emitter for the target if it exists.  If not, .o file
     // emission fails.
-    MCCodeEmitter *MCE = getTarget().createCodeEmitter(*this, *Context);
-    TargetAsmBackend *TAB = getTarget().createAsmBackend(TargetTriple);
+    const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
+    MCCodeEmitter *MCE = getTarget().createCodeEmitter(*getInstrInfo(), STI,
+                                                       *Context);
+    TargetAsmBackend *TAB = getTarget().createAsmBackend(getTargetTriple());
     if (MCE == 0 || TAB == 0)
       return true;
 
-    AsmStreamer.reset(getTarget().createObjectStreamer(TargetTriple, *Context,
-                                                       *TAB, Out, MCE,
+    AsmStreamer.reset(getTarget().createObjectStreamer(getTargetTriple(),
+                                                       *Context, *TAB, Out, MCE,
                                                        hasMCRelaxAll(),
                                                        hasMCNoExecStack()));
     AsmStreamer.get()->InitSections();
@@ -240,13 +247,14 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM,
 
   // Create the code emitter for the target if it exists.  If not, .o file
   // emission fails.
-  MCCodeEmitter *MCE = getTarget().createCodeEmitter(*this, *Ctx);
-  TargetAsmBackend *TAB = getTarget().createAsmBackend(TargetTriple);
+  const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
+  MCCodeEmitter *MCE = getTarget().createCodeEmitter(*getInstrInfo(),STI, *Ctx);
+  TargetAsmBackend *TAB = getTarget().createAsmBackend(getTargetTriple());
   if (MCE == 0 || TAB == 0)
     return true;
 
   OwningPtr<MCStreamer> AsmStreamer;
-  AsmStreamer.reset(getTarget().createObjectStreamer(TargetTriple, *Ctx,
+  AsmStreamer.reset(getTarget().createObjectStreamer(getTargetTriple(), *Ctx,
                                                      *TAB, Out, MCE,
                                                      hasMCRelaxAll(),
                                                      hasMCNoExecStack()));
@@ -384,6 +392,12 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   // Expand pseudo-instructions emitted by ISel.
   PM.add(createExpandISelPseudosPass());
 
+  // Pre-ra tail duplication.
+  if (OptLevel != CodeGenOpt::None && !DisableEarlyTailDup) {
+    PM.add(createTailDuplicatePass(true));
+    printAndVerify(PM, "After Pre-RegAlloc TailDuplicate");
+  }
+
   // Optimize PHIs before DCE: removing dead PHI cycles may make more
   // instructions dead.
   if (OptLevel != CodeGenOpt::None)
@@ -410,12 +424,6 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
 
     PM.add(createPeepholeOptimizerPass());
     printAndVerify(PM, "After codegen peephole optimization pass");
-  }
-
-  // Pre-ra tail duplication.
-  if (OptLevel != CodeGenOpt::None && !DisableEarlyTailDup) {
-    PM.add(createTailDuplicatePass(true));
-    printAndVerify(PM, "After Pre-RegAlloc TailDuplicate");
   }
 
   // Run pre-ra passes.

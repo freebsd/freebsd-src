@@ -43,6 +43,19 @@ using namespace dwarf;
 //                                  ELF
 //===----------------------------------------------------------------------===//
 
+TargetLoweringObjectFileELF::TargetLoweringObjectFileELF()
+  : TargetLoweringObjectFile(),
+    TLSDataSection(0),
+    TLSBSSSection(0),
+    DataRelSection(0),
+    DataRelLocalSection(0),
+    DataRelROSection(0),
+    DataRelROLocalSection(0),
+    MergeableConst4Section(0),
+    MergeableConst8Section(0),
+    MergeableConst16Section(0) {
+}
+
 void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
                                              const TargetMachine &TM) {
   TargetLoweringObjectFile::Initialize(Ctx, TM);
@@ -189,8 +202,8 @@ TargetLoweringObjectFileELF::getCFIPersonalitySymbol(const GlobalValue *GV,
     return  Mang->getSymbol(GV);
     break;
   case dwarf::DW_EH_PE_pcrel: {
-    Twine FullName = StringRef("DW.ref.") + Mang->getSymbol(GV)->getName();
-    return getContext().GetOrCreateSymbol(FullName);
+    return getContext().GetOrCreateSymbol(StringRef("DW.ref.") +
+                                          Mang->getSymbol(GV)->getName());
     break;
   }
   }
@@ -199,13 +212,13 @@ TargetLoweringObjectFileELF::getCFIPersonalitySymbol(const GlobalValue *GV,
 void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
                                                        const TargetMachine &TM,
                                                        const MCSymbol *Sym) const {
-  Twine FullName = StringRef("DW.ref.") + Sym->getName();
-  MCSymbol *Label = getContext().GetOrCreateSymbol(FullName);
+  SmallString<64> NameData("DW.ref.");
+  NameData += Sym->getName();
+  MCSymbol *Label = getContext().GetOrCreateSymbol(NameData);
   Streamer.EmitSymbolAttribute(Label, MCSA_Hidden);
   Streamer.EmitSymbolAttribute(Label, MCSA_Weak);
-  Twine SectionName = StringRef(".data.") + Label->getName();
-  SmallString<64> NameData;
-  SectionName.toVector(NameData);
+  StringRef Prefix = ".data.";
+  NameData.insert(NameData.begin(), Prefix.begin(), Prefix.end());
   unsigned Flags = ELF::SHF_ALLOC | ELF::SHF_WRITE | ELF::SHF_GROUP;
   const MCSection *Sec = getContext().getELFSection(NameData,
                                                     ELF::SHT_PROGBITS,
@@ -480,6 +493,27 @@ getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
 //                                 MachO
 //===----------------------------------------------------------------------===//
 
+TargetLoweringObjectFileMachO::TargetLoweringObjectFileMachO()
+  : TargetLoweringObjectFile(),
+    TLSDataSection(0),
+    TLSBSSSection(0),
+    TLSTLVSection(0),
+    TLSThreadInitSection(0),
+    CStringSection(0),
+    UStringSection(0),
+    TextCoalSection(0),
+    ConstTextCoalSection(0),
+    ConstDataSection(0),
+    DataCoalSection(0),
+    DataCommonSection(0),
+    DataBSSSection(0),
+    FourByteConstantSection(0),
+    EightByteConstantSection(0),
+    SixteenByteConstantSection(0),
+    LazySymbolPointerSection(0),
+    NonLazySymbolPointerSection(0) {
+}
+
 void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
                                                const TargetMachine &TM) {
   IsFunctionEHFrameSymbolPrivate = false;
@@ -605,6 +639,13 @@ void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
   // Exception Handling.
   LSDASection = getContext().getMachOSection("__TEXT", "__gcc_except_tab", 0,
                                              SectionKind::getReadOnlyWithRel());
+
+  if (T.isMacOSX() && !T.isMacOSXVersionLT(10, 6))
+    CompactUnwindSection =
+      getContext().getMachOSection("__LD", "__compact_unwind",
+                                   MCSectionMachO::S_ATTR_DEBUG,
+                                   SectionKind::getReadOnly());
+
   // Debug Information.
   DwarfAbbrevSection =
     getContext().getMachOSection("__DWARF", "__debug_abbrev",
@@ -883,6 +924,13 @@ unsigned TargetLoweringObjectFileMachO::getTTypeEncoding() const {
 //===----------------------------------------------------------------------===//
 //                                  COFF
 //===----------------------------------------------------------------------===//
+
+TargetLoweringObjectFileCOFF::TargetLoweringObjectFileCOFF()
+  : TargetLoweringObjectFile(),
+    DrectveSection(0),
+    PDataSection(0),
+    XDataSection(0) {
+}
 
 void TargetLoweringObjectFileCOFF::Initialize(MCContext &Ctx,
                                               const TargetMachine &TM) {

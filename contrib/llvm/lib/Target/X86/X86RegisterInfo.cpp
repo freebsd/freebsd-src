@@ -39,6 +39,10 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/CommandLine.h"
+
+#define GET_REGINFO_TARGET_DESC
+#include "X86GenRegisterInfo.inc"
+
 using namespace llvm;
 
 cl::opt<bool>
@@ -49,18 +53,11 @@ ForceStackAlign("force-align-stack",
 
 X86RegisterInfo::X86RegisterInfo(X86TargetMachine &tm,
                                  const TargetInstrInfo &tii)
-  : X86GenRegisterInfo(tm.getSubtarget<X86Subtarget>().is64Bit() ?
-                         X86::ADJCALLSTACKDOWN64 :
-                         X86::ADJCALLSTACKDOWN32,
-                       tm.getSubtarget<X86Subtarget>().is64Bit() ?
-                         X86::ADJCALLSTACKUP64 :
-                         X86::ADJCALLSTACKUP32),
-    TM(tm), TII(tii) {
+  : X86GenRegisterInfo(), TM(tm), TII(tii) {
   // Cache some information.
   const X86Subtarget *Subtarget = &TM.getSubtarget<X86Subtarget>();
   Is64Bit = Subtarget->is64Bit();
   IsWin64 = Subtarget->isTargetWin64();
-  StackAlign = TM.getFrameLowering()->getStackAlignment();
 
   if (Is64Bit) {
     SlotSize = 8;
@@ -105,6 +102,21 @@ int X86RegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
   unsigned Flavour = getFlavour(Subtarget, isEH);
 
   return X86GenRegisterInfo::getLLVMRegNumFull(DwarfRegNo, Flavour);
+}
+
+/// getCompactUnwindRegNum - This function maps the register to the number for
+/// compact unwind encoding. Return -1 if the register isn't valid.
+int X86RegisterInfo::getCompactUnwindRegNum(unsigned RegNum, bool isEH) const {
+  switch (getLLVMRegNum(RegNum, isEH)) {
+  case X86::EBX: case X86::RBX: return 1;
+  case X86::ECX: case X86::R12: return 2;
+  case X86::EDX: case X86::R13: return 3;
+  case X86::EDI: case X86::R14: return 4;
+  case X86::ESI: case X86::R15: return 5;
+  case X86::EBP: case X86::RBP: return 6;
+  }
+
+  return -1;
 }
 
 int
@@ -495,18 +507,6 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
     Reserved.set(X86::BPL);
   }
 
-  // Mark the x87 stack registers as reserved, since they don't behave normally
-  // with respect to liveness. We don't fully model the effects of x87 stack
-  // pushes and pops after stackification.
-  Reserved.set(X86::ST0);
-  Reserved.set(X86::ST1);
-  Reserved.set(X86::ST2);
-  Reserved.set(X86::ST3);
-  Reserved.set(X86::ST4);
-  Reserved.set(X86::ST5);
-  Reserved.set(X86::ST6);
-  Reserved.set(X86::ST7);
-
   // Mark the segment registers as reserved.
   Reserved.set(X86::CS);
   Reserved.set(X86::SS);
@@ -517,13 +517,20 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   // Reserve the registers that only exist in 64-bit mode.
   if (!Is64Bit) {
+    // These 8-bit registers are part of the x86-64 extension even though their
+    // super-registers are old 32-bits.
+    Reserved.set(X86::SIL);
+    Reserved.set(X86::DIL);
+    Reserved.set(X86::BPL);
+    Reserved.set(X86::SPL);
+
     for (unsigned n = 0; n != 8; ++n) {
+      // R8, R9, ...
       const unsigned GPR64[] = {
         X86::R8,  X86::R9,  X86::R10, X86::R11,
         X86::R12, X86::R13, X86::R14, X86::R15
       };
-      for (const unsigned *AI = getOverlaps(GPR64[n]); unsigned Reg = *AI;
-           ++AI)
+      for (const unsigned *AI = getOverlaps(GPR64[n]); unsigned Reg = *AI; ++AI)
         Reserved.set(Reg);
 
       // XMM8, XMM9, ...
@@ -550,6 +557,7 @@ bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const Function *F = MF.getFunction();
+  unsigned StackAlign = TM.getFrameLowering()->getStackAlignment();
   bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
                                F->hasFnAttr(Attribute::StackAlignment));
 
@@ -608,7 +616,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
   bool reseveCallFrame = TFI->hasReservedCallFrame(MF);
   int Opcode = I->getOpcode();
-  bool isDestroy = Opcode == getCallFrameDestroyOpcode();
+  bool isDestroy = Opcode == TII.getCallFrameDestroyOpcode();
   DebugLoc DL = I->getDebugLoc();
   uint64_t Amount = !reseveCallFrame ? I->getOperand(0).getImm() : 0;
   uint64_t CalleeAmt = isDestroy ? I->getOperand(1).getImm() : 0;
@@ -625,16 +633,17 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     // We need to keep the stack aligned properly.  To do this, we round the
     // amount of space needed for the outgoing arguments up to the next
     // alignment boundary.
+    unsigned StackAlign = TM.getFrameLowering()->getStackAlignment();
     Amount = (Amount + StackAlign - 1) / StackAlign * StackAlign;
 
     MachineInstr *New = 0;
-    if (Opcode == getCallFrameSetupOpcode()) {
+    if (Opcode == TII.getCallFrameSetupOpcode()) {
       New = BuildMI(MF, DL, TII.get(getSUBriOpcode(Is64Bit, Amount)),
                     StackPtr)
         .addReg(StackPtr)
         .addImm(Amount);
     } else {
-      assert(Opcode == getCallFrameDestroyOpcode());
+      assert(Opcode == TII.getCallFrameDestroyOpcode());
 
       // Factor out the amount the callee already popped.
       Amount -= CalleeAmt;
@@ -657,7 +666,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     return;
   }
 
-  if (Opcode == getCallFrameDestroyOpcode() && CalleeAmt) {
+  if (Opcode == TII.getCallFrameDestroyOpcode() && CalleeAmt) {
     // If we are performing frame pointer elimination and if the callee pops
     // something off the stack pointer, add it back.  We do this until we have
     // more advanced stack pointer tracking ability.
@@ -667,6 +676,13 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 
     // The EFLAGS implicit def is dead.
     New->getOperand(3).setIsDead();
+
+    // We are not tracking the stack pointer adjustment by the callee, so make
+    // sure we restore the stack pointer immediately after the call, there may
+    // be spill code inserted between the CALL and ADJCALLSTACKUP instructions.
+    MachineBasicBlock::iterator B = MBB.begin();
+    while (I != B && !llvm::prior(I)->getDesc().isCall())
+      --I;
     MBB.insert(I, New);
   }
 }
@@ -713,7 +729,10 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   if (MI.getOperand(i+3).isImm()) {
     // Offset is a 32-bit integer.
-    int Offset = FIOffset + (int)(MI.getOperand(i + 3).getImm());
+    int Imm = (int)(MI.getOperand(i + 3).getImm());
+    int Offset = FIOffset + Imm;
+    assert((!Is64Bit || isInt<32>((long long)FIOffset + Imm)) &&
+           "Requesting 64-bit offset in 32-bit immediate!");
     MI.getOperand(i + 3).ChangeToImmediate(Offset);
   } else {
     // Offset is symbolic. This is extremely rare.
@@ -910,8 +929,6 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
 }
 }
 
-#include "X86GenRegisterInfo.inc"
-
 namespace {
   struct MSAH : public MachineFunctionPass {
     static char ID;
@@ -920,10 +937,10 @@ namespace {
     virtual bool runOnMachineFunction(MachineFunction &MF) {
       const X86TargetMachine *TM =
         static_cast<const X86TargetMachine *>(&MF.getTarget());
-      const X86RegisterInfo *X86RI = TM->getRegisterInfo();
+      const TargetFrameLowering *TFI = TM->getFrameLowering();
       MachineRegisterInfo &RI = MF.getRegInfo();
       X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
-      unsigned StackAlignment = X86RI->getStackAlignment();
+      unsigned StackAlignment = TFI->getStackAlignment();
 
       // Be over-conservative: scan over all vreg defs and find whether vector
       // registers are used. If yes, there is a possibility that vector register

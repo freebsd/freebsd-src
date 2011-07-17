@@ -20,11 +20,11 @@ SRCS=	ARMAsmBackend.cpp \
 	ARMISelLowering.cpp \
 	ARMInstrInfo.cpp \
 	ARMJITInfo.cpp \
+	ARMLoadStoreOptimizer.cpp \
 	ARMMCCodeEmitter.cpp \
 	ARMMCExpr.cpp \
-	ARMLoadStoreOptimizer.cpp \
-	ARMMCAsmInfo.cpp \
 	ARMMCInstLower.cpp \
+	ARMMachObjectWriter.cpp \
 	ARMRegisterInfo.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \
@@ -46,12 +46,10 @@ TGHDRS=	ARMGenAsmWriter \
 	ARMGenDAGISel \
 	ARMGenFastISel \
 	ARMGenInstrInfo \
-	ARMGenInstrNames \
 	ARMGenMCCodeEmitter \
+	ARMGenMCPseudoLowering \
 	ARMGenRegisterInfo \
-	ARMGenRegisterInfo.h \
-	ARMGenRegisterNames \
-	ARMGenSubtarget \
+	ARMGenSubtargetInfo \
 	Intrinsics
 
 .include "../clang.lib.mk"

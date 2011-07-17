@@ -1538,7 +1538,10 @@ bool ARMConstantIslands::UndoLRSpillRestore() {
     if (MI->getOpcode() == ARM::tPOP_RET &&
         MI->getOperand(2).getReg() == ARM::PC &&
         MI->getNumExplicitOperands() == 3) {
-      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET));
+      // Create the new insn and copy the predicate from the old.
+      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET))
+        .addOperand(MI->getOperand(0))
+        .addOperand(MI->getOperand(1));
       MI->eraseFromParent();
       MadeChange = true;
     }
@@ -1692,9 +1695,9 @@ bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());
@@ -1815,9 +1818,9 @@ bool ARMConstantIslands::ReorderThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());

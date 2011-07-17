@@ -149,13 +149,7 @@ public:
   static bool isValueValidForType(const Type *Ty, uint64_t V);
   static bool isValueValidForType(const Type *Ty, int64_t V);
 
-  /// This function will return true iff this constant represents the "null"
-  /// value that would be returned by the getNullValue method.
-  /// @returns true if this is the null integer value.
-  /// @brief Determine if the value is null.
-  virtual bool isNullValue() const { 
-    return Val == 0; 
-  }
+  bool isNegative() const { return Val.isNegative(); }
 
   /// This is just a convenience method to make client code smaller for a
   /// common code. It also correctly performs the comparison without the
@@ -263,21 +257,13 @@ public:
   
   /// isValueValidForType - return true if Ty is big enough to represent V.
   static bool isValueValidForType(const Type *Ty, const APFloat &V);
-  inline const APFloat& getValueAPF() const { return Val; }
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  For ConstantFP, this is +0.0, but not -0.0.  To handle the
-  /// two the same, use isZero().
-  virtual bool isNullValue() const;
-  
-  /// isNegativeZeroValue - Return true if the value is what would be returned 
-  /// by getZeroValueForNegation.
-  virtual bool isNegativeZeroValue() const {
-    return Val.isZero() && Val.isNegative();
-  }
+  inline const APFloat &getValueAPF() const { return Val; }
 
   /// isZero - Return true if the value is positive or negative zero.
   bool isZero() const { return Val.isZero(); }
+
+  /// isNegative - Return true if the sign bit is set.
+  bool isNegative() const { return Val.isNegative(); }
 
   /// isNaN - Return true if the value is a NaN.
   bool isNaN() const { return Val.isNaN(); }
@@ -324,10 +310,6 @@ protected:
 public:
   static ConstantAggregateZero* get(const Type *Ty);
   
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.
-  virtual bool isNullValue() const { return true; }
-
   virtual void destroyConstant();
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -350,9 +332,7 @@ protected:
   ConstantArray(const ArrayType *T, const std::vector<Constant*> &Val);
 public:
   // ConstantArray accessors
-  static Constant *get(const ArrayType *T, const std::vector<Constant*> &V);
-  static Constant *get(const ArrayType *T, Constant *const *Vals, 
-                       unsigned NumVals);
+  static Constant *get(const ArrayType *T, ArrayRef<Constant*> V);
                              
   /// This method constructs a ConstantArray and initializes it with a text
   /// string. The default behavior (AddNull==true) causes a null terminator to
@@ -389,10 +369,11 @@ public:
   ///
   std::string getAsString() const;
 
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because zero arrays are always
-  /// created as ConstantAggregateZero objects.
-  virtual bool isNullValue() const { return false; }
+  /// getAsCString - If this array is isCString(), then this method converts the
+  /// array (without the trailing null byte) to an std::string and returns it.
+  /// Otherwise, it asserts out.
+  ///
+  std::string getAsCString() const;
 
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
@@ -422,14 +403,29 @@ protected:
   ConstantStruct(const StructType *T, const std::vector<Constant*> &Val);
 public:
   // ConstantStruct accessors
-  static Constant *get(const StructType *T, const std::vector<Constant*> &V);
-  static Constant *get(LLVMContext &Context, 
-                       const std::vector<Constant*> &V, bool Packed);
-  static Constant *get(LLVMContext &Context,
-                       Constant *const *Vals, unsigned NumVals, bool Packed);
-  static Constant *get(LLVMContext &Context, bool Packed,
-                       Constant * Val, ...) END_WITH_NULL;
+  static Constant *get(const StructType *T, ArrayRef<Constant*> V);
+  static Constant *get(const StructType *T, ...) END_WITH_NULL;
 
+  /// getAnon - Return an anonymous struct that has the specified
+  /// elements.  If the struct is possibly empty, then you must specify a
+  /// context.
+  static Constant *getAnon(ArrayRef<Constant*> V, bool Packed = false) {
+    return get(getTypeForElements(V, Packed), V);
+  }
+  static Constant *getAnon(LLVMContext &Ctx, 
+                           ArrayRef<Constant*> V, bool Packed = false) {
+    return get(getTypeForElements(Ctx, V, Packed), V);
+  }
+
+  /// getTypeForElements - Return an anonymous struct type to use for a constant
+  /// with the specified set of elements.  The list must not be empty.
+  static StructType *getTypeForElements(ArrayRef<Constant*> V,
+                                        bool Packed = false);
+  /// getTypeForElements - This version of the method allows an empty list.
+  static StructType *getTypeForElements(LLVMContext &Ctx,
+                                        ArrayRef<Constant*> V,
+                                        bool Packed = false);
+  
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
@@ -437,13 +433,6 @@ public:
   ///
   inline const StructType *getType() const {
     return reinterpret_cast<const StructType*>(Value::getType());
-  }
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because zero structs are always
-  /// created as ConstantAggregateZero objects.
-  virtual bool isNullValue() const {
-    return false;
   }
 
   virtual void destroyConstant();
@@ -476,8 +465,6 @@ protected:
 public:
   // ConstantVector accessors
   static Constant *get(ArrayRef<Constant*> V);
-  // FIXME: Eliminate this constructor form.
-  static Constant *get(const VectorType *T, const std::vector<Constant*> &V);
   
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -489,11 +476,6 @@ public:
     return reinterpret_cast<const VectorType*>(Value::getType());
   }
   
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because zero vectors are always
-  /// created as ConstantAggregateZero objects.
-  virtual bool isNullValue() const { return false; }
-
   /// This function will return true iff every element in this vector constant
   /// is set to all ones.
   /// @returns true iff this constant's emements are all set to all ones.
@@ -542,10 +524,6 @@ public:
   /// get() - Static factory methods - Return objects of the specified value
   static ConstantPointerNull *get(const PointerType *T);
 
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.
-  virtual bool isNullValue() const { return true; }
-
   virtual void destroyConstant();
 
   /// getType - Specialize the getType() method to always return an PointerType,
@@ -581,10 +559,6 @@ public:
   
   Function *getFunction() const { return (Function*)Op<0>().get(); }
   BasicBlock *getBasicBlock() const { return (BasicBlock*)Op<1>().get(); }
-  
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.
-  virtual bool isNullValue() const { return false; }
   
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
@@ -622,35 +596,6 @@ protected:
     // Operation type (an Instruction opcode) is stored as the SubclassData.
     setValueSubclassData(Opcode);
   }
-
-  // These private methods are used by the type resolution code to create
-  // ConstantExprs in intermediate forms.
-  static Constant *getTy(const Type *Ty, unsigned Opcode,
-                         Constant *C1, Constant *C2,
-                         unsigned Flags = 0);
-  static Constant *getCompareTy(unsigned short pred, Constant *C1,
-                                Constant *C2);
-  static Constant *getSelectTy(const Type *Ty,
-                               Constant *C1, Constant *C2, Constant *C3);
-  template<typename IndexTy>
-  static Constant *getGetElementPtrTy(const Type *Ty, Constant *C,
-                                      IndexTy const *Idxs, unsigned NumIdxs,
-                                      bool InBounds);
-  static Constant *getExtractElementTy(const Type *Ty, Constant *Val,
-                                       Constant *Idx);
-  static Constant *getInsertElementTy(const Type *Ty, Constant *Val,
-                                      Constant *Elt, Constant *Idx);
-  static Constant *getShuffleVectorTy(const Type *Ty, Constant *V1,
-                                      Constant *V2, Constant *Mask);
-  static Constant *getExtractValueTy(const Type *Ty, Constant *Agg,
-                                     const unsigned *Idxs, unsigned NumIdxs);
-  static Constant *getInsertValueTy(const Type *Ty, Constant *Agg,
-                                    Constant *Val,
-                                    const unsigned *Idxs, unsigned NumIdxs);
-  template<typename IndexTy>
-  static Constant *getGetElementPtrImpl(Constant *C,
-                                        IndexTy const *IdxList,
-                                        unsigned NumIdx, bool InBounds);
 
 public:
   // Static methods to construct a ConstantExpr of different kinds.  Note that
@@ -822,9 +767,7 @@ public:
 
   /// Select constant expr
   ///
-  static Constant *getSelect(Constant *C, Constant *V1, Constant *V2) {
-    return getSelectTy(V1->getType(), C, V1, V2);
-  }
+  static Constant *getSelect(Constant *C, Constant *V1, Constant *V2);
 
   /// get - Return a binary or shift operator constant expression,
   /// folding if possible.
@@ -846,7 +789,9 @@ public:
   ///
   static Constant *getGetElementPtr(Constant *C,
                                     Constant *const *IdxList, unsigned NumIdx,
-                                    bool InBounds = false);
+                                    bool InBounds = false) {
+    return getGetElementPtr(C, (Value**)IdxList, NumIdx, InBounds);
+  }
   static Constant *getGetElementPtr(Constant *C,
                                     Value *const *IdxList, unsigned NumIdx,
                                     bool InBounds = false);
@@ -867,14 +812,9 @@ public:
   static Constant *getExtractElement(Constant *Vec, Constant *Idx);
   static Constant *getInsertElement(Constant *Vec, Constant *Elt,Constant *Idx);
   static Constant *getShuffleVector(Constant *V1, Constant *V2, Constant *Mask);
-  static Constant *getExtractValue(Constant *Agg,
-                                   const unsigned *IdxList, unsigned NumIdx);
+  static Constant *getExtractValue(Constant *Agg, ArrayRef<unsigned> Idxs);
   static Constant *getInsertValue(Constant *Agg, Constant *Val,
-                                  const unsigned *IdxList, unsigned NumIdx);
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.
-  virtual bool isNullValue() const { return false; }
+                                  ArrayRef<unsigned> Idxs);
 
   /// getOpcode - Return the opcode at the root of this constant expression
   unsigned getOpcode() const { return getSubclassDataFromValue(); }
@@ -895,10 +835,18 @@ public:
   Constant *getWithOperandReplaced(unsigned OpNo, Constant *Op) const;
   
   /// getWithOperands - This returns the current constant expression with the
-  /// operands replaced with the specified values.  The specified operands must
-  /// match count and type with the existing ones.
-  Constant *getWithOperands(ArrayRef<Constant*> Ops) const;
-  
+  /// operands replaced with the specified values.  The specified array must
+  /// have the same number of operands as our current one.
+  Constant *getWithOperands(ArrayRef<Constant*> Ops) const {
+    return getWithOperands(Ops, getType());
+  }
+
+  /// getWithOperands - This returns the current constant expression with the
+  /// operands replaced with the specified values and with the specified result
+  /// type.  The specified array must have the same number of operands as our
+  /// current one.
+  Constant *getWithOperands(ArrayRef<Constant*> Ops, const Type *Ty) const;
+
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
 
@@ -949,10 +897,6 @@ public:
   /// type.
   ///
   static UndefValue *get(const Type *T);
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.
-  virtual bool isNullValue() const { return false; }
 
   virtual void destroyConstant();
 

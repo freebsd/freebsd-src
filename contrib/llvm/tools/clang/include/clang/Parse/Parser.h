@@ -15,6 +15,7 @@
 #define LLVM_CLANG_PARSE_PARSER_H
 
 #include "clang/Basic/Specifiers.h"
+#include "clang/Basic/DelayedCleanupPool.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Sema/Sema.h"
@@ -169,6 +170,10 @@ class Parser : public CodeCompletionHandler {
   
   /// Factory object for creating AttributeList objects.
   AttributeFactory AttrFactory;
+
+  /// \brief Gathers and cleans up objects when parsing of a top-level
+  /// declaration is finished.
+  DelayedCleanupPool TopLevelDeclCleanupPool;
 
 public:
   Parser(Preprocessor &PP, Sema &Actions);
@@ -419,25 +424,7 @@ private:
       Tok.setAnnotationValue(ER.get());
   }
 
-  /// TryAnnotateTypeOrScopeToken - If the current token position is on a
-  /// typename (possibly qualified in C++) or a C++ scope specifier not followed
-  /// by a typename, TryAnnotateTypeOrScopeToken will replace one or more tokens
-  /// with a single annotation token representing the typename or C++ scope
-  /// respectively.
-  /// This simplifies handling of C++ scope specifiers and allows efficient
-  /// backtracking without the need to re-parse and resolve nested-names and
-  /// typenames.
-  /// It will mainly be called when we expect to treat identifiers as typenames
-  /// (if they are typenames). For example, in C we do not expect identifiers
-  /// inside expressions to be treated as typenames so it will not be called
-  /// for expressions in C.
-  ///
-  /// This returns true if the token was annotated.
   bool TryAnnotateTypeOrScopeToken(bool EnteringContext = false);
-
-  /// TryAnnotateCXXScopeToken - Like TryAnnotateTypeOrScopeToken but
-  /// only annotates C++ scope specifiers.  This returns true if there
-  /// was an unrecoverable error.
   bool TryAnnotateCXXScopeToken(bool EnteringContext = false);
 
   /// TryAltiVecToken - Check for context-sensitive AltiVec identifier tokens,
@@ -467,7 +454,12 @@ private:
   bool TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
                                 const char *&PrevSpec, unsigned &DiagID,
                                 bool &isInvalid);
-    
+
+  /// \brief Get the TemplateIdAnnotation from the token and put it in the
+  /// cleanup pool so that it gets destroyed when parsing the current top level
+  /// declaration is finished.
+  TemplateIdAnnotation *takeTemplateIdAnnotation(const Token &tok);
+
   /// TentativeParsingAction - An object that is used as a kind of "tentative
   /// parsing transaction". It gets instantiated to mark the token position and
   /// after the token consumption is done, Commit() or Revert() is called to
@@ -507,12 +499,6 @@ private:
   };
 
 
-  /// MatchRHSPunctuation - For punctuation with a LHS and RHS (e.g. '['/']'),
-  /// this helper function matches and consumes the specified RHS token if
-  /// present.  If not present, it emits the specified diagnostic indicating
-  /// that the parser failed to match the RHS of the token at LHSLoc.  LHSName
-  /// should be the name of the unmatched LHS token.  This returns the location
-  /// of the consumed token.
   SourceLocation MatchRHSPunctuation(tok::TokenKind RHSTok,
                                      SourceLocation LHSLoc);
 
@@ -1125,10 +1111,10 @@ private:
   ExprResult ParseCastExpression(bool isUnaryExpression,
                                  bool isAddressOfOperand,
                                  bool &NotCastExpr,
-                                 ParsedType TypeOfCast);
+                                 bool isTypeCast);
   ExprResult ParseCastExpression(bool isUnaryExpression,
                                  bool isAddressOfOperand = false,
-                                 ParsedType TypeOfCast = ParsedType());
+                                 bool isTypeCast = false);
 
   /// Returns true if the next token would start a postfix-expression
   /// suffix.
@@ -1169,7 +1155,7 @@ private:
   };
   ExprResult ParseParenExpression(ParenParseOption &ExprType,
                                         bool stopIfCastExpr,
-                                        ParsedType TypeOfCast,
+                                        bool isTypeCast,
                                         ParsedType &CastTy,
                                         SourceLocation &RParenLoc);
 
@@ -1328,6 +1314,9 @@ private:
   StmtResult ParseDefaultStatement(ParsedAttributes &Attr);
   StmtResult ParseCompoundStatement(ParsedAttributes &Attr,
                                     bool isStmtExpr = false);
+  StmtResult ParseCompoundStatement(ParsedAttributes &Attr,
+                                    bool isStmtExpr,
+                                    unsigned ScopeFlags);
   StmtResult ParseCompoundStatementBody(bool isStmtExpr = false);
   bool ParseParenExprOrCondition(ExprResult &ExprResult,
                                  Decl *&DeclResult,
@@ -1375,6 +1364,7 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
   StmtResult ParseObjCTryStmt(SourceLocation atLoc);
   StmtResult ParseObjCThrowStmt(SourceLocation atLoc);
   StmtResult ParseObjCSynchronizedStmt(SourceLocation atLoc);
+  StmtResult ParseObjCAutoreleasePoolStmt(SourceLocation atLoc);
 
 
   //===--------------------------------------------------------------------===//
@@ -1439,7 +1429,7 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
                const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
                                   bool SuppressDeclarations = false);
 
-  void ParseSpecifierQualifierList(DeclSpec &DS);
+  void ParseSpecifierQualifierList(DeclSpec &DS, AccessSpecifier AS = AS_none);
 
   void ParseObjCTypeQualifierList(ObjCDeclSpec &DS, 
                                   ObjCTypeNameContext Context);
@@ -1616,7 +1606,10 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
 
   TypeResult ParseTypeName(SourceRange *Range = 0,
                            Declarator::TheContext Context
-                             = Declarator::TypeNameContext);
+                             = Declarator::TypeNameContext,
+                           ObjCDeclSpec *objcQuals = 0,
+                           AccessSpecifier AS = AS_none,
+                           Decl **OwnedType = 0);
   void ParseBlockId();
 
   void ProhibitAttributes(ParsedAttributesWithRange &attrs) {
@@ -1742,10 +1735,15 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
   void ParseFunctionDeclarator(SourceLocation LParenLoc, Declarator &D,
                                ParsedAttributes &attrs,
                                bool RequiresArg = false);
-  void ParseFunctionDeclaratorIdentifierList(SourceLocation LParenLoc,
-                                             IdentifierInfo *FirstIdent,
-                                             SourceLocation FirstIdentLoc,
-                                             Declarator &D);
+  bool isFunctionDeclaratorIdentifierList();
+  void ParseFunctionDeclaratorIdentifierList(
+         Declarator &D,
+         llvm::SmallVector<DeclaratorChunk::ParamInfo, 16> &ParamInfo);
+  void ParseParameterDeclarationClause(
+         Declarator &D,
+         ParsedAttributes &attrs,
+         llvm::SmallVector<DeclaratorChunk::ParamInfo, 16> &ParamInfo,
+         SourceLocation &EllipsisLoc);
   void ParseBracketDeclarator(Declarator &D);
 
   //===--------------------------------------------------------------------===//
@@ -1766,7 +1764,8 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
   Decl *ParseUsingDirectiveOrDeclaration(unsigned Context,
                                          const ParsedTemplateInfo &TemplateInfo,
                                          SourceLocation &DeclEnd,
-                                         ParsedAttributesWithRange &attrs);
+                                         ParsedAttributesWithRange &attrs,
+                                         Decl **OwnedType = 0);
   Decl *ParseUsingDirective(unsigned Context,
                             SourceLocation UsingLoc,
                             SourceLocation &DeclEnd,
@@ -1775,7 +1774,8 @@ bool ParseAsmOperandsOpt(llvm::SmallVectorImpl<IdentifierInfo *> &Names,
                               const ParsedTemplateInfo &TemplateInfo,
                               SourceLocation UsingLoc,
                               SourceLocation &DeclEnd,
-                              AccessSpecifier AS = AS_none);
+                              AccessSpecifier AS = AS_none,
+                              Decl **OwnedType = 0);
   Decl *ParseStaticAssertDeclaration(SourceLocation &DeclEnd);
   Decl *ParseNamespaceAlias(SourceLocation NamespaceLoc,
                             SourceLocation AliasLoc, IdentifierInfo *Alias,

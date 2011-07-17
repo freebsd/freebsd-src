@@ -94,7 +94,8 @@ multiclass vfp_ldst_mult<string asm, bit L_bit,
     let Inst{20}    = L_bit;
   }
   def DIA_UPD :
-    AXDI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, dpr_reglist:$regs, variable_ops),
+    AXDI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, dpr_reglist:$regs,
+                               variable_ops),
           IndexModeUpd, itin_upd,
           !strconcat(asm, "ia${p}\t$Rn!, $regs"), "$Rn = $wb", []> {
     let Inst{24-23} = 0b01;       // Increment After
@@ -102,7 +103,8 @@ multiclass vfp_ldst_mult<string asm, bit L_bit,
     let Inst{20}    = L_bit;
   }
   def DDB_UPD :
-    AXDI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, dpr_reglist:$regs, variable_ops),
+    AXDI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, dpr_reglist:$regs,
+                               variable_ops),
           IndexModeUpd, itin_upd,
           !strconcat(asm, "db${p}\t$Rn!, $regs"), "$Rn = $wb", []> {
     let Inst{24-23} = 0b10;       // Decrement Before
@@ -124,7 +126,8 @@ multiclass vfp_ldst_mult<string asm, bit L_bit,
     let D = VFPNeonDomain;
   }
   def SIA_UPD :
-    AXSI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, spr_reglist:$regs, variable_ops),
+    AXSI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, spr_reglist:$regs,
+                               variable_ops),
           IndexModeUpd, itin_upd,
           !strconcat(asm, "ia${p}\t$Rn!, $regs"), "$Rn = $wb", []> {
     let Inst{24-23} = 0b01;       // Increment After
@@ -136,7 +139,8 @@ multiclass vfp_ldst_mult<string asm, bit L_bit,
     let D = VFPNeonDomain;
   }
   def SDB_UPD :
-    AXSI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, spr_reglist:$regs, variable_ops),
+    AXSI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, spr_reglist:$regs,
+                               variable_ops),
           IndexModeUpd, itin_upd,
           !strconcat(asm, "db${p}\t$Rn!, $regs"), "$Rn = $wb", []> {
     let Inst{24-23} = 0b10;       // Decrement Before
@@ -161,6 +165,15 @@ defm VSTM : vfp_ldst_mult<"vstm", 0, IIC_fpLoad_m, IIC_fpLoad_mu>;
 
 def : MnemonicAlias<"vldm", "vldmia">;
 def : MnemonicAlias<"vstm", "vstmia">;
+
+def : InstAlias<"vpush${p} $r", (VSTMDDB_UPD SP, pred:$p, dpr_reglist:$r)>,
+                Requires<[HasVFP2]>;
+def : InstAlias<"vpush${p} $r", (VSTMSDB_UPD SP, pred:$p, spr_reglist:$r)>,
+                Requires<[HasVFP2]>;
+def : InstAlias<"vpop${p} $r",  (VLDMDIA_UPD SP, pred:$p, dpr_reglist:$r)>,
+                Requires<[HasVFP2]>;
+def : InstAlias<"vpop${p} $r",  (VLDMSIA_UPD SP, pred:$p, spr_reglist:$r)>,
+                Requires<[HasVFP2]>;
 
 // FLDMX, FSTMX - mixing S/D registers for pre-armv6 cores
 
@@ -860,7 +873,7 @@ def VULTOD : AVConv1XI<0b11101, 0b11, 0b1011, 0b1011, 1,
 } // End of 'let Constraints = "$a = $dst", isCodeGenOnly = 1 in'
 
 //===----------------------------------------------------------------------===//
-// FP FMA Operations.
+// FP Multiply-Accumulate Operations.
 //
 
 def VMLAD : ADbI<0b11100, 0b00, 0, 0,
@@ -977,12 +990,12 @@ def : Pat<(fsub_mlx (fmul_su SPR:$a, SPR:$b), SPR:$dstin),
 
 let neverHasSideEffects = 1 in {
 def VMOVDcc  : ARMPseudoInst<(outs DPR:$Dd), (ins DPR:$Dn, DPR:$Dm, pred:$p),
-                    Size4Bytes, IIC_fpUNA64,
+                    4, IIC_fpUNA64,
                     [/*(set DPR:$Dd, (ARMcmov DPR:$Dn, DPR:$Dm, imm:$cc))*/]>,
                  RegConstraint<"$Dn = $Dd">;
 
 def VMOVScc  : ARMPseudoInst<(outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm, pred:$p),
-                    Size4Bytes, IIC_fpUNA32,
+                    4, IIC_fpUNA32,
                     [/*(set SPR:$Sd, (ARMcmov SPR:$Sn, SPR:$Sm, imm:$cc))*/]>,
                  RegConstraint<"$Sn = $Sd">;
 } // neverHasSideEffects

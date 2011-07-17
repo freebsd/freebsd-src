@@ -17,6 +17,7 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Job.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
@@ -30,6 +31,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include "InputInfo.h"
 #include "ToolChains.h"
@@ -147,20 +149,37 @@ static void AddLinkerInputs(const ToolChain &TC,
   }
 }
 
+/// \brief Determine whether Objective-C automated reference counting is
+/// enabled.
+static bool isObjCAutoRefCount(const ArgList &Args) {
+  return Args.hasFlag(options::OPT_fobjc_arc, options::OPT_fno_objc_arc, false);
+}
+
 static void addProfileRT(const ToolChain &TC, const ArgList &Args,
-                         ArgStringList &CmdArgs) {
-  if (Args.hasArg(options::OPT_fprofile_arcs) ||
-      Args.hasArg(options::OPT_fprofile_generate) ||
-      Args.hasArg(options::OPT_fcreate_profile) ||
-      Args.hasArg(options::OPT_coverage)) {
-    // GCC links libgcov.a by adding -L<inst>/gcc/lib/gcc/<triple>/<ver> -lgcov
-    // to the link line. We cannot do the same thing because unlike gcov
-    // there is a libprofile_rt.so. We used to use the -l:libprofile_rt.a
-    // syntax, but that is not supported by old linkers.
-    const char *lib = Args.MakeArgString(TC.getDriver().Dir + "/../lib/" +
-                                         "libprofile_rt.a");
-    CmdArgs.push_back(lib);
+                         ArgStringList &CmdArgs,
+                         llvm::Triple Triple) {
+  if (!(Args.hasArg(options::OPT_fprofile_arcs) ||
+        Args.hasArg(options::OPT_fprofile_generate) ||
+        Args.hasArg(options::OPT_fcreate_profile) ||
+        Args.hasArg(options::OPT_coverage)))
+    return;
+
+  // GCC links libgcov.a by adding -L<inst>/gcc/lib/gcc/<triple>/<ver> -lgcov to
+  // the link line. We cannot do the same thing because unlike gcov there is a
+  // libprofile_rt.so. We used to use the -l:libprofile_rt.a syntax, but that is
+  // not supported by old linkers.
+  llvm::Twine ProfileRT =
+    llvm::Twine(TC.getDriver().Dir) + "/../lib/" + "libprofile_rt.a";
+
+  if (Triple.getOS() == llvm::Triple::Darwin) {
+    // On Darwin, if the static library doesn't exist try the dylib.
+    bool Exists;
+    if (llvm::sys::fs::exists(ProfileRT.str(), Exists) || !Exists)
+      ProfileRT =
+        llvm::Twine(TC.getDriver().Dir) + "/../lib/" + "libprofile_rt.dylib";
   }
+
+  CmdArgs.push_back(Args.MakeArgString(ProfileRT));
 }
 
 void Clang::AddPreprocessingOptions(const Driver &D,
@@ -221,6 +240,13 @@ void Clang::AddPreprocessingOptions(const Driver &D,
     if (A->getOption().matches(options::OPT_M) ||
         A->getOption().matches(options::OPT_MD))
       CmdArgs.push_back("-sys-header-deps");
+  }
+
+  if (Args.hasArg(options::OPT_MG)) {
+    if (!A || A->getOption().matches(options::OPT_MD) ||
+              A->getOption().matches(options::OPT_MMD))
+      D.Diag(clang::diag::err_drv_mg_requires_m_or_mm);
+    CmdArgs.push_back("-MG");
   }
 
   Args.AddLastArg(CmdArgs, options::OPT_MP);
@@ -318,8 +344,13 @@ void Clang::AddPreprocessingOptions(const Driver &D,
 
   // Add C++ include arguments, if needed.
   types::ID InputType = Inputs[0].getType();
-  if (types::isCXX(InputType))
-    getToolChain().AddClangCXXStdlibIncludeArgs(Args, CmdArgs);
+  if (types::isCXX(InputType)) {
+    bool ObjCXXAutoRefCount
+      = types::isObjC(InputType) && isObjCAutoRefCount(Args);
+    getToolChain().AddClangCXXStdlibIncludeArgs(Args, CmdArgs, 
+                                                ObjCXXAutoRefCount);
+    Args.AddAllArgs(CmdArgs, options::OPT_stdlib_EQ);
+  }
 
   // Add -Wp, and -Xassembler if using the preprocessor.
 
@@ -737,7 +768,6 @@ void Clang::AddSparcTargetArgs(const ArgList &Args,
     //
     // FIXME: This changes CPP defines, we need -target-soft-float.
     CmdArgs.push_back("-msoft-float");
-    CmdArgs.push_back("soft");
     CmdArgs.push_back("-target-feature");
     CmdArgs.push_back("+soft-float");
   } else {
@@ -816,6 +846,14 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
     CmdArgs.push_back(CPUName);
   }
 
+  // The required algorithm here is slightly strange: the options are applied
+  // in order (so -mno-sse -msse2 disables SSE3), but any option that gets
+  // directly overridden later is ignored (so "-mno-sse -msse2 -mno-sse2 -msse"
+  // is equivalent to "-mno-sse2 -msse"). The -cc1 handling deals with the
+  // former correctly, but not the latter; handle directly-overridden
+  // attributes here.
+  llvm::StringMap<unsigned> PrevFeature;
+  std::vector<const char*> Features;
   for (arg_iterator it = Args.filtered_begin(options::OPT_m_x86_Features_Group),
          ie = Args.filtered_end(); it != ie; ++it) {
     llvm::StringRef Name = (*it)->getOption().getName();
@@ -829,25 +867,34 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
     if (IsNegative)
       Name = Name.substr(3);
 
-    CmdArgs.push_back("-target-feature");
-    CmdArgs.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
+    unsigned& Prev = PrevFeature[Name];
+    if (Prev)
+      Features[Prev - 1] = 0;
+    Prev = Features.size() + 1;
+    Features.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
+  }
+  for (unsigned i = 0; i < Features.size(); i++) {
+    if (Features[i]) {
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back(Features[i]);
+    }
   }
 }
 
 static bool 
-shouldUseExceptionTablesForObjCExceptions(const ArgList &Args, 
+shouldUseExceptionTablesForObjCExceptions(unsigned objcABIVersion,
                                           const llvm::Triple &Triple) {
   // We use the zero-cost exception tables for Objective-C if the non-fragile
   // ABI is enabled or when compiling for x86_64 and ARM on Snow Leopard and
   // later.
 
-  if (Args.hasArg(options::OPT_fobjc_nonfragile_abi))
+  if (objcABIVersion >= 2)
     return true;
 
   if (Triple.getOS() != llvm::Triple::Darwin)
     return false;
 
-  return (Triple.getDarwinMajorNumber() >= 9 &&
+  return (!Triple.isMacOSXVersionLT(10,5) &&
           (Triple.getArch() == llvm::Triple::x86_64 ||
            Triple.getArch() == llvm::Triple::arm));  
 }
@@ -860,6 +907,7 @@ shouldUseExceptionTablesForObjCExceptions(const ArgList &Args,
 static void addExceptionArgs(const ArgList &Args, types::ID InputType,
                              const llvm::Triple &Triple,
                              bool KernelOrKext, bool IsRewriter,
+                             unsigned objcABIVersion,
                              ArgStringList &CmdArgs) {
   if (KernelOrKext)
     return;
@@ -896,7 +944,7 @@ static void addExceptionArgs(const ArgList &Args, types::ID InputType,
     CmdArgs.push_back("-fobjc-exceptions");
 
     ShouldUseExceptionTables |= 
-      shouldUseExceptionTablesForObjCExceptions(Args, Triple);
+      shouldUseExceptionTablesForObjCExceptions(objcABIVersion, Triple);
   }
 
   if (types::isCXX(InputType)) {
@@ -1040,6 +1088,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         } else if (Value == "--fatal-warnings") {
           CmdArgs.push_back("-mllvm");
           CmdArgs.push_back("-fatal-assembler-warnings");
+        } else if (Value == "--noexecstack") {
+          CmdArgs.push_back("-mnoexecstack");
         } else {
           D.Diag(clang::diag::err_drv_unsupported_option_argument)
             << A->getOption().getName() << Value;
@@ -1311,8 +1361,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   types::ID InputType = Inputs[0].getType();
   if (!Args.hasArg(options::OPT_fallow_unsupported)) {
     Arg *Unsupported;
-    if ((Unsupported = Args.getLastArg(options::OPT_MG)) ||
-        (Unsupported = Args.getLastArg(options::OPT_iframework)))
+    if ((Unsupported = Args.getLastArg(options::OPT_iframework)))
       D.Diag(clang::diag::err_drv_clang_unsupported)
         << Unsupported->getOption().getName();
 
@@ -1378,6 +1427,28 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddLastArg(CmdArgs, options::OPT_working_directory);
 
+  if (!Args.hasArg(options::OPT_fno_objc_arc)) {
+    if (const Arg *A = Args.getLastArg(options::OPT_ccc_arcmt_check,
+                                       options::OPT_ccc_arcmt_modify,
+                                       options::OPT_ccc_arcmt_migrate)) {
+      switch (A->getOption().getID()) {
+      default:
+        llvm_unreachable("missed a case");
+      case options::OPT_ccc_arcmt_check:
+        CmdArgs.push_back("-arcmt-check");
+        break;
+      case options::OPT_ccc_arcmt_modify:
+        CmdArgs.push_back("-arcmt-modify");
+        break;
+      case options::OPT_ccc_arcmt_migrate:
+        CmdArgs.push_back("-arcmt-migrate");
+        CmdArgs.push_back("-arcmt-migrate-directory");
+        CmdArgs.push_back(A->getValue(Args));
+        break;
+      }
+    }
+  }
+    
   // Add preprocessing options like -I, -D, etc. if we are using the
   // preprocessor.
   //
@@ -1543,27 +1614,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                     options::OPT_fno_lax_vector_conversions))
     CmdArgs.push_back("-fno-lax-vector-conversions");
 
-  // -fobjc-infer-related-result-type is the default.
-  if (Args.hasFlag(options::OPT_fobjc_infer_related_result_type, 
-                   options::OPT_fno_objc_infer_related_result_type, 
-                   /*Default=*/true))
-    CmdArgs.push_back("-fobjc-infer-related-result-type");
-  
-  // Handle -fobjc-gc and -fobjc-gc-only. They are exclusive, and -fobjc-gc-only
-  // takes precedence.
-  const Arg *GCArg = Args.getLastArg(options::OPT_fobjc_gc_only);
-  if (!GCArg)
-    GCArg = Args.getLastArg(options::OPT_fobjc_gc);
-  if (GCArg) {
-    if (getToolChain().SupportsObjCGC()) {
-      GCArg->render(Args, CmdArgs);
-    } else {
-      // FIXME: We should move this to a hard error.
-      D.Diag(clang::diag::warn_drv_objc_gc_unsupported)
-        << GCArg->getAsString(Args);
-    }
-  }
-
   if (Args.getLastArg(options::OPT_fapple_kext))
     CmdArgs.push_back("-fapple-kext");
 
@@ -1661,13 +1711,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    false))
     CmdArgs.push_back("-fno-elide-constructors");
 
-  // Add exception args.
-  addExceptionArgs(Args, InputType, getToolChain().getTriple(),
-                   KernelOrKext, IsRewriter, CmdArgs);
-
-  if (getToolChain().UseSjLjExceptions())
-    CmdArgs.push_back("-fsjlj-exceptions");
-
   // -frtti is default.
   if (KernelOrKext ||
       !Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
@@ -1735,30 +1778,41 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    false))
     CmdArgs.push_back("-fgnu89-inline");
 
-  // -fnext-runtime defaults to on Darwin and when rewriting Objective-C, and is
-  // -the -cc1 default.
-  bool NeXTRuntimeIsDefault =
-    IsRewriter || getToolChain().getTriple().getOS() == llvm::Triple::Darwin;
-  if (!Args.hasFlag(options::OPT_fnext_runtime, options::OPT_fgnu_runtime,
-                    NeXTRuntimeIsDefault))
-    CmdArgs.push_back("-fgnu-runtime");
-
   // -fobjc-nonfragile-abi=0 is default.
+  ObjCRuntime objCRuntime;
+  unsigned objcABIVersion = 0;
   if (types::isObjC(InputType)) {
+    bool NeXTRuntimeIsDefault
+      = (IsRewriter || getToolChain().getTriple().isOSDarwin());
+    if (Args.hasFlag(options::OPT_fnext_runtime, options::OPT_fgnu_runtime,
+                     NeXTRuntimeIsDefault)) {
+      objCRuntime.setKind(ObjCRuntime::NeXT);
+    } else {
+      CmdArgs.push_back("-fgnu-runtime");
+      objCRuntime.setKind(ObjCRuntime::GNU);
+    }
+    getToolChain().configureObjCRuntime(objCRuntime);
+    if (objCRuntime.HasARC)
+      CmdArgs.push_back("-fobjc-runtime-has-arc");
+    if (objCRuntime.HasWeak)
+      CmdArgs.push_back("-fobjc-runtime-has-weak");
+    if (objCRuntime.HasTerminate)
+      CmdArgs.push_back("-fobjc-runtime-has-terminate");
+
     // Compute the Objective-C ABI "version" to use. Version numbers are
     // slightly confusing for historical reasons:
     //   1 - Traditional "fragile" ABI
     //   2 - Non-fragile ABI, version 1
     //   3 - Non-fragile ABI, version 2
-    unsigned Version = 1;
+    objcABIVersion = 1;
     // If -fobjc-abi-version= is present, use that to set the version.
     if (Arg *A = Args.getLastArg(options::OPT_fobjc_abi_version_EQ)) {
       if (llvm::StringRef(A->getValue(Args)) == "1")
-        Version = 1;
+        objcABIVersion = 1;
       else if (llvm::StringRef(A->getValue(Args)) == "2")
-        Version = 2;
+        objcABIVersion = 2;
       else if (llvm::StringRef(A->getValue(Args)) == "3")
-        Version = 3;
+        objcABIVersion = 3;
       else
         D.Diag(clang::diag::err_drv_clang_unsupported) << A->getAsString(Args);
     } else {
@@ -1784,13 +1838,13 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
               << A->getAsString(Args);
         }
 
-        Version = 1 + NonFragileABIVersion;
+        objcABIVersion = 1 + NonFragileABIVersion;
       } else {
-        Version = 1;
+        objcABIVersion = 1;
       }
     }
 
-    if (Version == 2 || Version == 3) {
+    if (objcABIVersion == 2 || objcABIVersion == 3) {
       CmdArgs.push_back("-fobjc-nonfragile-abi");
 
       // -fobjc-dispatch-method is only relevant with the nonfragile-abi, and
@@ -1819,6 +1873,51 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 #endif
   }
 
+  // Allow -fno-objc-arr to trump -fobjc-arr/-fobjc-arc.
+  // NOTE: This logic is duplicated in ToolChains.cpp.
+  bool ARC = isObjCAutoRefCount(Args);
+  if (ARC) {
+    CmdArgs.push_back("-fobjc-arc");
+
+    // Allow the user to enable full exceptions code emission.
+    // We define off for Objective-CC, on for Objective-C++.
+    if (Args.hasFlag(options::OPT_fobjc_arc_exceptions,
+                     options::OPT_fno_objc_arc_exceptions,
+                     /*default*/ types::isCXX(InputType)))
+      CmdArgs.push_back("-fobjc-arc-exceptions");
+  }
+
+  // -fobjc-infer-related-result-type is the default, except in the Objective-C
+  // rewriter.
+  if (IsRewriter)
+    CmdArgs.push_back("-fno-objc-infer-related-result-type");
+  
+  // Handle -fobjc-gc and -fobjc-gc-only. They are exclusive, and -fobjc-gc-only
+  // takes precedence.
+  const Arg *GCArg = Args.getLastArg(options::OPT_fobjc_gc_only);
+  if (!GCArg)
+    GCArg = Args.getLastArg(options::OPT_fobjc_gc);
+  if (GCArg) {
+    if (ARC) {
+      D.Diag(clang::diag::err_drv_objc_gc_arr)
+        << GCArg->getAsString(Args);
+    } else if (getToolChain().SupportsObjCGC()) {
+      GCArg->render(Args, CmdArgs);
+    } else {
+      // FIXME: We should move this to a hard error.
+      D.Diag(clang::diag::warn_drv_objc_gc_unsupported)
+        << GCArg->getAsString(Args);
+    }
+  }
+
+  // Add exception args.
+  addExceptionArgs(Args, InputType, getToolChain().getTriple(),
+                   KernelOrKext, IsRewriter, objcABIVersion, CmdArgs);
+
+  if (getToolChain().UseSjLjExceptions())
+    CmdArgs.push_back("-fsjlj-exceptions");
+
+  // C++ "sane" operator new.
   if (!Args.hasFlag(options::OPT_fassume_sane_operator_new,
                     options::OPT_fno_assume_sane_operator_new))
     CmdArgs.push_back("-fno-assume-sane-operator-new");
@@ -2859,6 +2958,17 @@ void darwin::Link::AddLinkArgs(Compilation &C,
       CmdArgs.push_back("-demangle");
   }
 
+  // If we are using LTO, then automatically create a temporary file path for
+  // the linker to use, so that it's lifetime will extend past a possible
+  // dsymutil step.
+  if (Version[0] >= 116 && D.IsUsingLTO(Args)) {
+    const char *TmpPath = C.getArgs().MakeArgString(
+      D.GetTemporaryPath(types::getTypeTempSuffix(types::TY_Object)));
+    C.addTempFile(TmpPath);
+    CmdArgs.push_back("-object_path_lto");
+    CmdArgs.push_back(TmpPath);
+  }
+
   // Derived from the "link" spec.
   Args.AddAllArgs(CmdArgs, options::OPT_static);
   if (!Args.hasArg(options::OPT_static))
@@ -2922,6 +3032,7 @@ void darwin::Link::AddLinkArgs(Compilation &C,
   Args.AddLastArg(CmdArgs, options::OPT_dynamic);
   Args.AddAllArgs(CmdArgs, options::OPT_exported__symbols__list);
   Args.AddLastArg(CmdArgs, options::OPT_flat__namespace);
+  Args.AddAllArgs(CmdArgs, options::OPT_force__load);
   Args.AddAllArgs(CmdArgs, options::OPT_headerpad__max__install__names);
   Args.AddAllArgs(CmdArgs, options::OPT_image__base);
   Args.AddAllArgs(CmdArgs, options::OPT_init);
@@ -3143,6 +3254,16 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   getDarwinToolChain().AddLinkSearchPathArgs(Args, CmdArgs);
 
+  // In ARC, if we don't have runtime support, link in the runtime
+  // stubs.  We have to do this *before* adding any of the normal
+  // linker inputs so that its initializer gets run first.
+  if (isObjCAutoRefCount(Args)) {
+    ObjCRuntime runtime;
+    getDarwinToolChain().configureObjCRuntime(runtime);
+    if (!runtime.HasARC)
+      getDarwinToolChain().AddLinkARCArgs(Args, CmdArgs);
+  }
+
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs);
 
   if (LinkingOutput) {
@@ -3171,7 +3292,7 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
     // endfile_spec is empty.
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   Args.AddAllArgs(CmdArgs, options::OPT_T_Group);
   Args.AddAllArgs(CmdArgs, options::OPT_F);
@@ -3330,7 +3451,7 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                 getToolChain().GetFilePath("crtend.o")));
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath("ld"));
@@ -3638,7 +3759,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                                                     "crtn.o")));
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath("ld"));
@@ -3793,7 +3914,7 @@ void netbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                                                     "crtn.o")));
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   const char *Exec = Args.MakeArgString(FindTargetProgramPath(getToolChain(),
                                                       ToolTriple.getTriple(),
@@ -4017,7 +4138,7 @@ void linuxtools::Link::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   if (Args.hasArg(options::OPT_use_gold_plugin)) {
     CmdArgs.push_back("-plugin");
@@ -4101,7 +4222,7 @@ void minix::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                               "/usr/gnu/lib/libend.a")));
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath("/usr/gnu/bin/gld"));
@@ -4258,7 +4379,7 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
                               getToolChain().GetFilePath("crtn.o")));
   }
 
-  addProfileRT(getToolChain(), Args, CmdArgs);
+  addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath("ld"));

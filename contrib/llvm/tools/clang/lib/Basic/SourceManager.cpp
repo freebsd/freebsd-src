@@ -169,11 +169,11 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(Diagnostic &Diag,
   return Buffer.getPointer();
 }
 
-unsigned LineTableInfo::getLineTableFilenameID(const char *Ptr, unsigned Len) {
+unsigned LineTableInfo::getLineTableFilenameID(llvm::StringRef Name) {
   // Look up the filename in the string table, returning the pre-existing value
   // if it exists.
   llvm::StringMapEntry<unsigned> &Entry =
-    FilenameIDs.GetOrCreateValue(Ptr, Ptr+Len, ~0U);
+    FilenameIDs.GetOrCreateValue(Name, ~0U);
   if (Entry.getValue() != ~0U)
     return Entry.getValue();
 
@@ -277,10 +277,10 @@ void LineTableInfo::AddEntry(unsigned FID,
 
 /// getLineTableFilenameID - Return the uniqued ID for the specified filename.
 ///
-unsigned SourceManager::getLineTableFilenameID(const char *Ptr, unsigned Len) {
+unsigned SourceManager::getLineTableFilenameID(llvm::StringRef Name) {
   if (LineTable == 0)
     LineTable = new LineTableInfo();
-  return LineTable->getLineTableFilenameID(Ptr, Len);
+  return LineTable->getLineTableFilenameID(Name);
 }
 
 
@@ -531,16 +531,31 @@ FileID SourceManager::createFileID(const ContentCache *File,
   return LastFileIDLookup = FID;
 }
 
-/// createInstantiationLoc - Return a new SourceLocation that encodes the fact
-/// that a token from SpellingLoc should actually be referenced from
-/// InstantiationLoc.
+SourceLocation
+SourceManager::createMacroArgInstantiationLoc(SourceLocation SpellingLoc,
+                                              SourceLocation ILoc,
+                                              unsigned TokLength) {
+  InstantiationInfo II =
+    InstantiationInfo::createForMacroArg(SpellingLoc, ILoc);
+  return createInstantiationLocImpl(II, TokLength);
+}
+
 SourceLocation SourceManager::createInstantiationLoc(SourceLocation SpellingLoc,
                                                      SourceLocation ILocStart,
                                                      SourceLocation ILocEnd,
                                                      unsigned TokLength,
                                                      unsigned PreallocatedID,
                                                      unsigned Offset) {
-  InstantiationInfo II = InstantiationInfo::get(ILocStart,ILocEnd, SpellingLoc);
+  InstantiationInfo II =
+    InstantiationInfo::create(SpellingLoc, ILocStart, ILocEnd);
+  return createInstantiationLocImpl(II, TokLength, PreallocatedID, Offset);
+}
+
+SourceLocation
+SourceManager::createInstantiationLocImpl(const InstantiationInfo &II,
+                                          unsigned TokLength,
+                                          unsigned PreallocatedID,
+                                          unsigned Offset) {
   if (PreallocatedID) {
     // If we're filling in a preallocated ID, just load in the
     // instantiation entry and return.
@@ -749,18 +764,19 @@ SourceLocation SourceManager::getSpellingLocSlowCase(SourceLocation Loc) const {
 
 
 std::pair<FileID, unsigned>
-SourceManager::getDecomposedInstantiationLocSlowCase(const SrcMgr::SLocEntry *E,
-                                                     unsigned Offset) const {
+SourceManager::getDecomposedInstantiationLocSlowCase(
+                                             const SrcMgr::SLocEntry *E) const {
   // If this is an instantiation record, walk through all the instantiation
   // points.
   FileID FID;
   SourceLocation Loc;
+  unsigned Offset;
   do {
     Loc = E->getInstantiation().getInstantiationLocStart();
 
     FID = getFileID(Loc);
     E = &getSLocEntry(FID);
-    Offset += Loc.getOffset()-E->getOffset();
+    Offset = Loc.getOffset()-E->getOffset();
   } while (!Loc.isFileID());
 
   return std::make_pair(FID, Offset);
@@ -823,6 +839,14 @@ SourceManager::getInstantiationRange(SourceLocation Loc) const {
   return Res;
 }
 
+bool SourceManager::isMacroArgInstantiation(SourceLocation Loc) const {
+  if (!Loc.isMacroID()) return false;
+
+  FileID FID = getFileID(Loc);
+  const SrcMgr::SLocEntry *E = &getSLocEntry(FID);
+  const SrcMgr::InstantiationInfo &II = E->getInstantiation();
+  return II.isMacroArgInstantiation();
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -917,7 +941,7 @@ static void ComputeLineNumbers(Diagnostic &Diag, ContentCache *FI,
 
   // Find the file offsets of all of the *physical* source lines.  This does
   // not look at trigraphs, escaped newlines, or anything else tricky.
-  std::vector<unsigned> LineOffsets;
+  llvm::SmallVector<unsigned, 256> LineOffsets;
 
   // Line #1 starts at char 0.
   LineOffsets.push_back(0);
@@ -1213,73 +1237,6 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc) const {
   return PresumedLoc(Filename, LineNo, ColNo, IncludeLoc);
 }
 
-/// \brief Returns true if the given MacroID location points at the first
-/// token of the macro instantiation.
-bool SourceManager::isAtStartOfMacroInstantiation(SourceLocation loc) const {
-  assert(loc.isValid() && loc.isMacroID() && "Expected a valid macro loc");
-
-  unsigned FID = getFileID(loc).ID;
-  assert(FID > 1);
-  std::pair<SourceLocation, SourceLocation>
-    instRange = getImmediateInstantiationRange(loc);
-
-  bool invalid = false;
-  const SrcMgr::SLocEntry &Entry = getSLocEntry(FID-1, &invalid);
-  if (invalid)
-    return false;
-
-  // If the FileID immediately before it is a file then this is the first token
-  // in the macro.
-  if (Entry.isFile())
-    return true;
-
-  // If the FileID immediately before it (which is a macro token) is the
-  // immediate instantiated macro, check this macro token's location.
-  if (getFileID(instRange.second).ID == FID-1)
-    return isAtStartOfMacroInstantiation(instRange.first);
-
-  // If the FileID immediately before it (which is a macro token) came from a
-  // different instantiation, then this is the first token in the macro.
-  if (getInstantiationLoc(Entry.getInstantiation().getInstantiationLocStart())
-        != getInstantiationLoc(loc))
-    return true;
-
-  // It is inside the macro or the last token in the macro.
-  return false;
-}
-
-/// \brief Returns true if the given MacroID location points at the last
-/// token of the macro instantiation.
-bool SourceManager::isAtEndOfMacroInstantiation(SourceLocation loc) const {
-  assert(loc.isValid() && loc.isMacroID() && "Expected a valid macro loc");
-
-  unsigned FID = getFileID(loc).ID;
-  assert(FID > 1);
-  std::pair<SourceLocation, SourceLocation>
-    instRange = getInstantiationRange(loc);
-
-  // If there's no FileID after it, it is the last token in the macro.
-  if (FID+1 == sloc_entry_size())
-    return true;
-
-  bool invalid = false;
-  const SrcMgr::SLocEntry &Entry = getSLocEntry(FID+1, &invalid);
-  if (invalid)
-    return false;
-
-  // If the FileID immediately after it is a file or a macro token which
-  // came from a different instantiation, then this is the last token in the
-  // macro.
-  if (Entry.isFile())
-    return true;
-  if (getInstantiationLoc(Entry.getInstantiation().getInstantiationLocStart())
-        != instRange.first)
-    return true;
-
-  // It is inside the macro or the first token in the macro.
-  return false;
-}
-
 //===----------------------------------------------------------------------===//
 // Other miscellaneous methods.
 //===----------------------------------------------------------------------===//
@@ -1474,8 +1431,6 @@ bool SourceManager::isBeforeInTranslationUnit(SourceLocation LHS,
   // reflect the order that the tokens, pointed to by these locations, were
   // instantiated (during parsing each token that is instantiated by a macro,
   // expands the SLocEntries).
-  if (LHS.isMacroID() && RHS.isMacroID())
-    return LHS.getOffset() < RHS.getOffset();
 
   std::pair<FileID, unsigned> LOffs = getDecomposedLoc(LHS);
   std::pair<FileID, unsigned> ROffs = getDecomposedLoc(RHS);
@@ -1562,7 +1517,9 @@ void SourceManager::PrintStats() const {
   llvm::errs() << "\n*** Source Manager Stats:\n";
   llvm::errs() << FileInfos.size() << " files mapped, " << MemBufferInfos.size()
                << " mem buffers mapped.\n";
-  llvm::errs() << SLocEntryTable.size() << " SLocEntry's allocated, "
+  llvm::errs() << SLocEntryTable.size() << " SLocEntry's allocated ("
+               << SLocEntryTable.capacity()*sizeof(SrcMgr::SLocEntry)
+               << " bytes of capacity), "
                << NextOffset << "B of Sloc address space used.\n";
 
   unsigned NumLineNumsComputed = 0;

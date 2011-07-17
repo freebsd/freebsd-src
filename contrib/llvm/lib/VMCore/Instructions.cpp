@@ -87,11 +87,8 @@ PHINode::PHINode(const PHINode &PN)
   : Instruction(PN.getType(), Instruction::PHI,
                 allocHungoffUses(PN.getNumOperands()), PN.getNumOperands()),
     ReservedSpace(PN.getNumOperands()) {
-  Use *OL = OperandList;
-  for (unsigned i = 0, e = PN.getNumOperands(); i != e; i+=2) {
-    OL[i] = PN.getOperand(i);
-    OL[i+1] = PN.getOperand(i+1);
-  }
+  std::copy(PN.op_begin(), PN.op_end(), op_begin());
+  std::copy(PN.block_begin(), PN.block_end(), block_begin());
   SubclassOptionalData = PN.SubclassOptionalData;
 }
 
@@ -99,31 +96,37 @@ PHINode::~PHINode() {
   dropHungoffUses();
 }
 
+Use *PHINode::allocHungoffUses(unsigned N) const {
+  // Allocate the array of Uses of the incoming values, followed by a pointer
+  // (with bottom bit set) to the User, followed by the array of pointers to
+  // the incoming basic blocks.
+  size_t size = N * sizeof(Use) + sizeof(Use::UserRef)
+    + N * sizeof(BasicBlock*);
+  Use *Begin = static_cast<Use*>(::operator new(size));
+  Use *End = Begin + N;
+  (void) new(End) Use::UserRef(const_cast<PHINode*>(this), 1);
+  return Use::initTags(Begin, End);
+}
+
 // removeIncomingValue - Remove an incoming value.  This is useful if a
 // predecessor basic block is deleted.
 Value *PHINode::removeIncomingValue(unsigned Idx, bool DeletePHIIfEmpty) {
-  unsigned NumOps = getNumOperands();
-  Use *OL = OperandList;
-  assert(Idx*2 < NumOps && "BB not in PHI node!");
-  Value *Removed = OL[Idx*2];
+  Value *Removed = getIncomingValue(Idx);
 
   // Move everything after this operand down.
   //
   // FIXME: we could just swap with the end of the list, then erase.  However,
-  // client might not expect this to happen.  The code as it is thrashes the
+  // clients might not expect this to happen.  The code as it is thrashes the
   // use/def lists, which is kinda lame.
-  for (unsigned i = (Idx+1)*2; i != NumOps; i += 2) {
-    OL[i-2] = OL[i];
-    OL[i-2+1] = OL[i+1];
-  }
+  std::copy(op_begin() + Idx + 1, op_end(), op_begin() + Idx);
+  std::copy(block_begin() + Idx + 1, block_end(), block_begin() + Idx);
 
   // Nuke the last value.
-  OL[NumOps-2].set(0);
-  OL[NumOps-2+1].set(0);
-  NumOperands = NumOps-2;
+  Op<-1>().set(0);
+  --NumOperands;
 
   // If the PHI node is dead, because it has zero entries, nuke it now.
-  if (NumOps == 2 && DeletePHIIfEmpty) {
+  if (getNumOperands() == 0 && DeletePHIIfEmpty) {
     // If anyone is using this PHI, make them use a dummy value instead...
     replaceAllUsesWith(UndefValue::get(getType()));
     eraseFromParent();
@@ -137,15 +140,18 @@ Value *PHINode::removeIncomingValue(unsigned Idx, bool DeletePHIIfEmpty) {
 ///
 void PHINode::growOperands() {
   unsigned e = getNumOperands();
-  // Multiply by 1.5 and round down so the result is still even.
-  unsigned NumOps = e + e / 4 * 2;
-  if (NumOps < 4) NumOps = 4;      // 4 op PHI nodes are VERY common.
+  unsigned NumOps = e + e / 2;
+  if (NumOps < 2) NumOps = 2;      // 2 op PHI nodes are VERY common.
+
+  Use *OldOps = op_begin();
+  BasicBlock **OldBlocks = block_begin();
 
   ReservedSpace = NumOps;
-  Use *OldOps = OperandList;
-  Use *NewOps = allocHungoffUses(NumOps);
-  std::copy(OldOps, OldOps + e, NewOps);
-  OperandList = NewOps;
+  OperandList = allocHungoffUses(ReservedSpace);
+
+  std::copy(OldOps, OldOps + e, op_begin());
+  std::copy(OldBlocks, OldBlocks + e, block_begin());
+
   Use::zap(OldOps, OldOps + e, true);
 }
 
@@ -168,95 +174,42 @@ Value *PHINode::hasConstantValue() const {
 CallInst::~CallInst() {
 }
 
-void CallInst::init(Value *Func, Value* const *Params, unsigned NumParams) {
-  assert(NumOperands == NumParams+1 && "NumOperands not set up?");
+void CallInst::init(Value *Func, ArrayRef<Value *> Args, const Twine &NameStr) {
+  assert(NumOperands == Args.size() + 1 && "NumOperands not set up?");
   Op<-1>() = Func;
 
+#ifndef NDEBUG
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  (void)FTy;  // silence warning.
 
-  assert((NumParams == FTy->getNumParams() ||
-          (FTy->isVarArg() && NumParams > FTy->getNumParams())) &&
+  assert((Args.size() == FTy->getNumParams() ||
+          (FTy->isVarArg() && Args.size() > FTy->getNumParams())) &&
          "Calling a function with bad signature!");
-  for (unsigned i = 0; i != NumParams; ++i) {
+
+  for (unsigned i = 0; i != Args.size(); ++i)
     assert((i >= FTy->getNumParams() || 
-            FTy->getParamType(i) == Params[i]->getType()) &&
+            FTy->getParamType(i) == Args[i]->getType()) &&
            "Calling a function with a bad signature!");
-    OperandList[i] = Params[i];
-  }
+#endif
+
+  std::copy(Args.begin(), Args.end(), op_begin());
+  setName(NameStr);
 }
 
-void CallInst::init(Value *Func, Value *Actual1, Value *Actual2) {
-  assert(NumOperands == 3 && "NumOperands not set up?");
-  Op<-1>() = Func;
-  Op<0>() = Actual1;
-  Op<1>() = Actual2;
-
-  const FunctionType *FTy =
-    cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  (void)FTy;  // silence warning.
-
-  assert((FTy->getNumParams() == 2 ||
-          (FTy->isVarArg() && FTy->getNumParams() < 2)) &&
-         "Calling a function with bad signature");
-  assert((0 >= FTy->getNumParams() || 
-          FTy->getParamType(0) == Actual1->getType()) &&
-         "Calling a function with a bad signature!");
-  assert((1 >= FTy->getNumParams() || 
-          FTy->getParamType(1) == Actual2->getType()) &&
-         "Calling a function with a bad signature!");
-}
-
-void CallInst::init(Value *Func, Value *Actual) {
-  assert(NumOperands == 2 && "NumOperands not set up?");
-  Op<-1>() = Func;
-  Op<0>() = Actual;
-
-  const FunctionType *FTy =
-    cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  (void)FTy;  // silence warning.
-
-  assert((FTy->getNumParams() == 1 ||
-          (FTy->isVarArg() && FTy->getNumParams() == 0)) &&
-         "Calling a function with bad signature");
-  assert((0 == FTy->getNumParams() || 
-          FTy->getParamType(0) == Actual->getType()) &&
-         "Calling a function with a bad signature!");
-}
-
-void CallInst::init(Value *Func) {
+void CallInst::init(Value *Func, const Twine &NameStr) {
   assert(NumOperands == 1 && "NumOperands not set up?");
   Op<-1>() = Func;
 
+#ifndef NDEBUG
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  (void)FTy;  // silence warning.
 
   assert(FTy->getNumParams() == 0 && "Calling a function with bad signature");
+#endif
+
+  setName(NameStr);
 }
 
-CallInst::CallInst(Value *Func, Value* Actual, const Twine &Name,
-                   Instruction *InsertBefore)
-  : Instruction(cast<FunctionType>(cast<PointerType>(Func->getType())
-                                   ->getElementType())->getReturnType(),
-                Instruction::Call,
-                OperandTraits<CallInst>::op_end(this) - 2,
-                2, InsertBefore) {
-  init(Func, Actual);
-  setName(Name);
-}
-
-CallInst::CallInst(Value *Func, Value* Actual, const Twine &Name,
-                   BasicBlock  *InsertAtEnd)
-  : Instruction(cast<FunctionType>(cast<PointerType>(Func->getType())
-                                   ->getElementType())->getReturnType(),
-                Instruction::Call,
-                OperandTraits<CallInst>::op_end(this) - 2,
-                2, InsertAtEnd) {
-  init(Func, Actual);
-  setName(Name);
-}
 CallInst::CallInst(Value *Func, const Twine &Name,
                    Instruction *InsertBefore)
   : Instruction(cast<FunctionType>(cast<PointerType>(Func->getType())
@@ -264,8 +217,7 @@ CallInst::CallInst(Value *Func, const Twine &Name,
                 Instruction::Call,
                 OperandTraits<CallInst>::op_end(this) - 1,
                 1, InsertBefore) {
-  init(Func);
-  setName(Name);
+  init(Func, Name);
 }
 
 CallInst::CallInst(Value *Func, const Twine &Name,
@@ -275,8 +227,7 @@ CallInst::CallInst(Value *Func, const Twine &Name,
                 Instruction::Call,
                 OperandTraits<CallInst>::op_end(this) - 1,
                 1, InsertAtEnd) {
-  init(Func);
-  setName(Name);
+  init(Func, Name);
 }
 
 CallInst::CallInst(const CallInst &CI)
@@ -287,10 +238,7 @@ CallInst::CallInst(const CallInst &CI)
   setTailCall(CI.isTailCall());
   setCallingConv(CI.getCallingConv());
     
-  Use *OL = OperandList;
-  Use *InOL = CI.OperandList;
-  for (unsigned i = 0, e = CI.getNumOperands(); i != e; ++i)
-    OL[i] = InOL[i];
+  std::copy(CI.op_begin(), CI.op_end(), op_begin());
   SubclassOptionalData = CI.SubclassOptionalData;
 }
 
@@ -366,7 +314,7 @@ static Instruction *createMalloc(Instruction *InsertBefore,
   // Create the call to Malloc.
   BasicBlock* BB = InsertBefore ? InsertBefore->getParent() : InsertAtEnd;
   Module* M = BB->getParent()->getParent();
-  const Type *BPTy = Type::getInt8PtrTy(BB->getContext());
+  Type *BPTy = Type::getInt8PtrTy(BB->getContext());
   Value *MallocFunc = MallocF;
   if (!MallocFunc)
     // prototype malloc as "void *malloc(size_t)"
@@ -481,27 +429,28 @@ Instruction* CallInst::CreateFree(Value* Source, BasicBlock *InsertAtEnd) {
 //===----------------------------------------------------------------------===//
 
 void InvokeInst::init(Value *Fn, BasicBlock *IfNormal, BasicBlock *IfException,
-                      Value* const *Args, unsigned NumArgs) {
-  assert(NumOperands == 3+NumArgs && "NumOperands not set up?");
+                      ArrayRef<Value *> Args, const Twine &NameStr) {
+  assert(NumOperands == 3 + Args.size() && "NumOperands not set up?");
   Op<-3>() = Fn;
   Op<-2>() = IfNormal;
   Op<-1>() = IfException;
+
+#ifndef NDEBUG
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Fn->getType())->getElementType());
-  (void)FTy;  // silence warning.
 
-  assert(((NumArgs == FTy->getNumParams()) ||
-          (FTy->isVarArg() && NumArgs > FTy->getNumParams())) &&
+  assert(((Args.size() == FTy->getNumParams()) ||
+          (FTy->isVarArg() && Args.size() > FTy->getNumParams())) &&
          "Invoking a function with bad signature");
 
-  Use *OL = OperandList;
-  for (unsigned i = 0, e = NumArgs; i != e; i++) {
+  for (unsigned i = 0, e = Args.size(); i != e; i++)
     assert((i >= FTy->getNumParams() || 
             FTy->getParamType(i) == Args[i]->getType()) &&
            "Invoking a function with a bad signature!");
-    
-    OL[i] = Args[i];
-  }
+#endif
+
+  std::copy(Args.begin(), Args.end(), op_begin());
+  setName(NameStr);
 }
 
 InvokeInst::InvokeInst(const InvokeInst &II)
@@ -511,9 +460,7 @@ InvokeInst::InvokeInst(const InvokeInst &II)
                    II.getNumOperands()) {
   setAttributes(II.getAttributes());
   setCallingConv(II.getCallingConv());
-  Use *OL = OperandList, *InOL = II.OperandList;
-  for (unsigned i = 0, e = II.getNumOperands(); i != e; ++i)
-    OL[i] = InOL[i];
+  std::copy(II.op_begin(), II.op_end(), op_begin());
   SubclassOptionalData = II.SubclassOptionalData;
 }
 
@@ -817,7 +764,7 @@ bool AllocaInst::isArrayAllocation() const {
   return true;
 }
 
-const Type *AllocaInst::getAllocatedType() const {
+Type *AllocaInst::getAllocatedType() const {
   return getType()->getElementType();
 }
 
@@ -1092,7 +1039,7 @@ GetElementPtrInst::GetElementPtrInst(const GetElementPtrInst &GEPI)
 GetElementPtrInst::GetElementPtrInst(Value *Ptr, Value *Idx,
                                      const Twine &Name, Instruction *InBe)
   : Instruction(PointerType::get(
-      checkType(getIndexedType(Ptr->getType(),Idx)), retrieveAddrSpace(Ptr)),
+      checkGEPType(getIndexedType(Ptr->getType(),Idx)), retrieveAddrSpace(Ptr)),
                 GetElementPtr,
                 OperandTraits<GetElementPtrInst>::op_end(this) - 2,
                 2, InBe) {
@@ -1102,7 +1049,7 @@ GetElementPtrInst::GetElementPtrInst(Value *Ptr, Value *Idx,
 GetElementPtrInst::GetElementPtrInst(Value *Ptr, Value *Idx,
                                      const Twine &Name, BasicBlock *IAE)
   : Instruction(PointerType::get(
-            checkType(getIndexedType(Ptr->getType(),Idx)),  
+            checkGEPType(getIndexedType(Ptr->getType(),Idx)),  
                 retrieveAddrSpace(Ptr)),
                 GetElementPtr,
                 OperandTraits<GetElementPtrInst>::op_end(this) - 2,
@@ -1120,60 +1067,50 @@ GetElementPtrInst::GetElementPtrInst(Value *Ptr, Value *Idx,
 /// pointer type.
 ///
 template <typename IndexTy>
-static const Type* getIndexedTypeInternal(const Type *Ptr, IndexTy const *Idxs,
-                                          unsigned NumIdx) {
+static Type *getIndexedTypeInternal(const Type *Ptr, IndexTy const *Idxs,
+                                    unsigned NumIdx) {
   const PointerType *PTy = dyn_cast<PointerType>(Ptr);
   if (!PTy) return 0;   // Type isn't a pointer type!
-  const Type *Agg = PTy->getElementType();
+  Type *Agg = PTy->getElementType();
 
   // Handle the special case of the empty set index set, which is always valid.
   if (NumIdx == 0)
     return Agg;
   
   // If there is at least one index, the top level type must be sized, otherwise
-  // it cannot be 'stepped over'.  We explicitly allow abstract types (those
-  // that contain opaque types) under the assumption that it will be resolved to
-  // a sane type later.
-  if (!Agg->isSized() && !Agg->isAbstract())
+  // it cannot be 'stepped over'.
+  if (!Agg->isSized())
     return 0;
 
   unsigned CurIdx = 1;
   for (; CurIdx != NumIdx; ++CurIdx) {
-    const CompositeType *CT = dyn_cast<CompositeType>(Agg);
+    CompositeType *CT = dyn_cast<CompositeType>(Agg);
     if (!CT || CT->isPointerTy()) return 0;
     IndexTy Index = Idxs[CurIdx];
     if (!CT->indexValid(Index)) return 0;
     Agg = CT->getTypeAtIndex(Index);
-
-    // If the new type forwards to another type, then it is in the middle
-    // of being refined to another type (and hence, may have dropped all
-    // references to what it was using before).  So, use the new forwarded
-    // type.
-    if (const Type *Ty = Agg->getForwardedType())
-      Agg = Ty;
   }
   return CurIdx == NumIdx ? Agg : 0;
 }
 
-const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
-                                              Value* const *Idxs,
-                                              unsigned NumIdx) {
+Type *GetElementPtrInst::getIndexedType(const Type *Ptr, Value* const *Idxs,
+                                        unsigned NumIdx) {
   return getIndexedTypeInternal(Ptr, Idxs, NumIdx);
 }
 
-const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
-                                              Constant* const *Idxs,
-                                              unsigned NumIdx) {
+Type *GetElementPtrInst::getIndexedType(const Type *Ptr,
+                                        Constant* const *Idxs,
+                                        unsigned NumIdx) {
   return getIndexedTypeInternal(Ptr, Idxs, NumIdx);
 }
 
-const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
-                                              uint64_t const *Idxs,
-                                              unsigned NumIdx) {
+Type *GetElementPtrInst::getIndexedType(const Type *Ptr,
+                                        uint64_t const *Idxs,
+                                        unsigned NumIdx) {
   return getIndexedTypeInternal(Ptr, Idxs, NumIdx);
 }
 
-const Type* GetElementPtrInst::getIndexedType(const Type *Ptr, Value *Idx) {
+Type *GetElementPtrInst::getIndexedType(const Type *Ptr, Value *Idx) {
   const PointerType *PTy = dyn_cast<PointerType>(Ptr);
   if (!PTy) return 0;   // Type isn't a pointer type!
 
@@ -1390,27 +1327,22 @@ int ShuffleVectorInst::getMaskValue(unsigned i) const {
 //                             InsertValueInst Class
 //===----------------------------------------------------------------------===//
 
-void InsertValueInst::init(Value *Agg, Value *Val, const unsigned *Idx, 
-                           unsigned NumIdx, const Twine &Name) {
+void InsertValueInst::init(Value *Agg, Value *Val, ArrayRef<unsigned> Idxs, 
+                           const Twine &Name) {
   assert(NumOperands == 2 && "NumOperands not initialized?");
-  assert(ExtractValueInst::getIndexedType(Agg->getType(), Idx, Idx + NumIdx) ==
+
+  // There's no fundamental reason why we require at least one index
+  // (other than weirdness with &*IdxBegin being invalid; see
+  // getelementptr's init routine for example). But there's no
+  // present need to support it.
+  assert(Idxs.size() > 0 && "InsertValueInst must have at least one index");
+
+  assert(ExtractValueInst::getIndexedType(Agg->getType(), Idxs) ==
          Val->getType() && "Inserted value must match indexed type!");
   Op<0>() = Agg;
   Op<1>() = Val;
 
-  Indices.append(Idx, Idx + NumIdx);
-  setName(Name);
-}
-
-void InsertValueInst::init(Value *Agg, Value *Val, unsigned Idx, 
-                           const Twine &Name) {
-  assert(NumOperands == 2 && "NumOperands not initialized?");
-  assert(ExtractValueInst::getIndexedType(Agg->getType(), Idx) == Val->getType()
-         && "Inserted value must match indexed type!");
-  Op<0>() = Agg;
-  Op<1>() = Val;
-
-  Indices.push_back(Idx);
+  Indices.append(Idxs.begin(), Idxs.end());
   setName(Name);
 }
 
@@ -1423,44 +1355,18 @@ InsertValueInst::InsertValueInst(const InsertValueInst &IVI)
   SubclassOptionalData = IVI.SubclassOptionalData;
 }
 
-InsertValueInst::InsertValueInst(Value *Agg,
-                                 Value *Val,
-                                 unsigned Idx, 
-                                 const Twine &Name,
-                                 Instruction *InsertBefore)
-  : Instruction(Agg->getType(), InsertValue,
-                OperandTraits<InsertValueInst>::op_begin(this),
-                2, InsertBefore) {
-  init(Agg, Val, Idx, Name);
-}
-
-InsertValueInst::InsertValueInst(Value *Agg,
-                                 Value *Val,
-                                 unsigned Idx, 
-                                 const Twine &Name,
-                                 BasicBlock *InsertAtEnd)
-  : Instruction(Agg->getType(), InsertValue,
-                OperandTraits<InsertValueInst>::op_begin(this),
-                2, InsertAtEnd) {
-  init(Agg, Val, Idx, Name);
-}
-
 //===----------------------------------------------------------------------===//
 //                             ExtractValueInst Class
 //===----------------------------------------------------------------------===//
 
-void ExtractValueInst::init(const unsigned *Idx, unsigned NumIdx,
-                            const Twine &Name) {
+void ExtractValueInst::init(ArrayRef<unsigned> Idxs, const Twine &Name) {
   assert(NumOperands == 1 && "NumOperands not initialized?");
 
-  Indices.append(Idx, Idx + NumIdx);
-  setName(Name);
-}
+  // There's no fundamental reason why we require at least one index.
+  // But there's no present need to support it.
+  assert(Idxs.size() > 0 && "ExtractValueInst must have at least one index");
 
-void ExtractValueInst::init(unsigned Idx, const Twine &Name) {
-  assert(NumOperands == 1 && "NumOperands not initialized?");
-
-  Indices.push_back(Idx);
+  Indices.append(Idxs.begin(), Idxs.end());
   setName(Name);
 }
 
@@ -1476,10 +1382,9 @@ ExtractValueInst::ExtractValueInst(const ExtractValueInst &EVI)
 // A null type is returned if the indices are invalid for the specified
 // pointer type.
 //
-const Type* ExtractValueInst::getIndexedType(const Type *Agg,
-                                             const unsigned *Idxs,
-                                             unsigned NumIdx) {
-  for (unsigned CurIdx = 0; CurIdx != NumIdx; ++CurIdx) {
+Type *ExtractValueInst::getIndexedType(const Type *Agg,
+                                       ArrayRef<unsigned> Idxs) {
+  for (unsigned CurIdx = 0; CurIdx != Idxs.size(); ++CurIdx) {
     unsigned Index = Idxs[CurIdx];
     // We can't use CompositeType::indexValid(Index) here.
     // indexValid() always returns true for arrays because getelementptr allows
@@ -1499,20 +1404,8 @@ const Type* ExtractValueInst::getIndexedType(const Type *Agg,
     }
 
     Agg = cast<CompositeType>(Agg)->getTypeAtIndex(Index);
-
-    // If the new type forwards to another type, then it is in the middle
-    // of being refined to another type (and hence, may have dropped all
-    // references to what it was using before).  So, use the new forwarded
-    // type.
-    if (const Type *Ty = Agg->getForwardedType())
-      Agg = Ty;
   }
-  return Agg;
-}
-
-const Type* ExtractValueInst::getIndexedType(const Type *Agg,
-                                             unsigned Idx) {
-  return getIndexedType(Agg, &Idx, 1);
+  return const_cast<Type*>(Agg);
 }
 
 //===----------------------------------------------------------------------===//

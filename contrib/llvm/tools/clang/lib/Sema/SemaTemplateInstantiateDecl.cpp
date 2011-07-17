@@ -59,7 +59,7 @@ bool TemplateDeclInstantiator::SubstQualifier(const TagDecl *OldDecl,
 
 // FIXME: Is this still too simple?
 void Sema::InstantiateAttrs(const MultiLevelTemplateArgumentList &TemplateArgs,
-                            Decl *Tmpl, Decl *New) {
+                            const Decl *Tmpl, Decl *New) {
   for (AttrVec::const_iterator i = Tmpl->attr_begin(), e = Tmpl->attr_end();
        i != e; ++i) {
     const Attr *TmplAttr = *i;
@@ -132,7 +132,7 @@ Decl *TemplateDeclInstantiator::InstantiateTypedefNameDecl(TypedefNameDecl *D,
                                                            bool IsTypeAlias) {
   bool Invalid = false;
   TypeSourceInfo *DI = D->getTypeSourceInfo();
-  if (DI->getType()->isDependentType() ||
+  if (DI->getType()->isInstantiationDependentType() ||
       DI->getType()->isVariablyModifiedType()) {
     DI = SemaRef.SubstType(DI, TemplateArgs,
                            D->getLocation(), D->getDeclName());
@@ -415,8 +415,10 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
              !Var->isCXXForRangeDecl())
     SemaRef.ActOnUninitializedDecl(Var, false);
 
-  // Diagnose unused local variables.
-  if (!Var->isInvalidDecl() && Owner->isFunctionOrMethod() && !Var->isUsed())
+  // Diagnose unused local variables with dependent types, where the diagnostic
+  // will have been deferred.
+  if (!Var->isInvalidDecl() && Owner->isFunctionOrMethod() && !Var->isUsed() &&
+      D->getType()->isDependentType())
     SemaRef.DiagnoseUnusedDecl(Var);
 
   return Var;
@@ -433,7 +435,7 @@ Decl *TemplateDeclInstantiator::VisitAccessSpecDecl(AccessSpecDecl *D) {
 Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
   bool Invalid = false;
   TypeSourceInfo *DI = D->getTypeSourceInfo();
-  if (DI->getType()->isDependentType() ||
+  if (DI->getType()->isInstantiationDependentType() ||
       DI->getType()->isVariablyModifiedType())  {
     DI = SemaRef.SubstType(DI, TemplateArgs,
                            D->getLocation(), D->getDeclName());
@@ -1088,9 +1090,26 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
   Function->setLexicalDeclContext(LexicalDC);
 
   // Attach the parameters
-  for (unsigned P = 0; P < Params.size(); ++P)
-    if (Params[P])
-      Params[P]->setOwningFunction(Function);
+  if (isa<FunctionProtoType>(Function->getType().IgnoreParens())) {
+    // Adopt the already-instantiated parameters into our own context.
+    for (unsigned P = 0; P < Params.size(); ++P)
+      if (Params[P])
+        Params[P]->setOwningFunction(Function);
+  } else {
+    // Since we were instantiated via a typedef of a function type, create
+    // new parameters.
+    const FunctionProtoType *Proto
+      = Function->getType()->getAs<FunctionProtoType>();
+    assert(Proto && "No function prototype in template instantiation?");
+    for (FunctionProtoType::arg_type_iterator AI = Proto->arg_type_begin(),
+         AE = Proto->arg_type_end(); AI != AE; ++AI) {
+      ParmVarDecl *Param
+        = SemaRef.BuildParmVarDeclForTypedef(Function, Function->getLocation(),
+                                             *AI);
+      Param->setScopeInfo(0, Params.size());
+      Params.push_back(Param);
+    }
+  }
   Function->setParams(Params.data(), Params.size());
 
   SourceLocation InstantiateAtPOI;
@@ -2264,7 +2283,12 @@ TemplateDeclInstantiator::InitFunctionInstantiation(FunctionDecl *New,
                                                  EPI));
   }
 
-  SemaRef.InstantiateAttrs(TemplateArgs, Tmpl, New);
+  const FunctionDecl* Definition = Tmpl;
+
+  // Get the definition. Leaves the variable unchanged if undefined.
+  Tmpl->isDefined(Definition);
+
+  SemaRef.InstantiateAttrs(TemplateArgs, Definition, New);
 
   return false;
 }

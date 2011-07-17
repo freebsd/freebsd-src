@@ -28,10 +28,10 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetInstrItineraries.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/DenseMap.h"
@@ -1018,9 +1018,9 @@ MachineInstr *MachineLICM::ExtractHoistableLoad(MachineInstr *MI) {
                                     /*UnfoldStore=*/false,
                                     &LoadRegIndex);
   if (NewOpc == 0) return 0;
-  const TargetInstrDesc &TID = TII->get(NewOpc);
-  if (TID.getNumDefs() != 1) return 0;
-  const TargetRegisterClass *RC = TID.OpInfo[LoadRegIndex].getRegClass(TRI);
+  const MCInstrDesc &MID = TII->get(NewOpc);
+  if (MID.getNumDefs() != 1) return 0;
+  const TargetRegisterClass *RC = TII->getRegClass(MID, LoadRegIndex, TRI);
   // Ok, we're unfolding. Create a temporary register and do the unfold.
   unsigned Reg = MRI->createVirtualRegister(RC);
 

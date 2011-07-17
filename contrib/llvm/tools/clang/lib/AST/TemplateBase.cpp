@@ -104,6 +104,45 @@ bool TemplateArgument::isDependent() const {
   return false;
 }
 
+bool TemplateArgument::isInstantiationDependent() const {
+  switch (getKind()) {
+  case Null:
+    assert(false && "Should not have a NULL template argument");
+    return false;
+    
+  case Type:
+    return getAsType()->isInstantiationDependentType();
+    
+  case Template:
+    return getAsTemplate().isInstantiationDependent();
+    
+  case TemplateExpansion:
+    return true;
+    
+  case Declaration:
+    if (DeclContext *DC = dyn_cast<DeclContext>(getAsDecl()))
+      return DC->isDependentContext();
+    return getAsDecl()->getDeclContext()->isDependentContext();
+    
+  case Integral:
+    // Never dependent
+    return false;
+    
+  case Expression:
+    return getAsExpr()->isInstantiationDependent();
+    
+  case Pack:
+    for (pack_iterator P = pack_begin(), PEnd = pack_end(); P != PEnd; ++P) {
+      if (P->isInstantiationDependent())
+        return true;
+    }
+    
+    return false;
+  }
+  
+  return false;
+}
+
 bool TemplateArgument::isPackExpansion() const {
   switch (getKind()) {
   case Null:
@@ -277,8 +316,10 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
     break;
     
   case Type: {
+    PrintingPolicy SubPolicy(Policy);
+    SubPolicy.SuppressStrongLifetime = true;
     std::string TypeStr;
-    getAsType().getAsStringInternal(TypeStr, Policy);
+    getAsType().getAsStringInternal(TypeStr, SubPolicy);
     Out << TypeStr;
     break;
   }
