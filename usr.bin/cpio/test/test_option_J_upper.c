@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,42 +25,32 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-/*
- * This is called "test_option_ell" instead of "test_option_l" to
- * avoid any conflicts with "test_option_L" on case-insensitive
- * filesystems.
- */
-
-DEFINE_TEST(test_option_ell)
+DEFINE_TEST(test_option_J_upper)
 {
-	struct stat st, st2;
-	int fd;
+	char *p;
 	int r;
+	size_t s;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
-	/* Stat it. */
-	assertEqualInt(0, stat("f", &st));
-
-	/* Copy the file to the "copy" dir. */
-	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
+	/* Archive it with xz compression. */
+	r = systemf("echo f | %s -o -J >archive.out 2>archive.err",
 	    testprog);
-	assertEqualInt(r, 0);
-
-	/* Check that the copy is a true copy and not a link. */
-	assertEqualInt(0, stat("copy/f", &st2));
-	assert(st2.st_ino != st.st_ino);
-
-	/* Copy the file to the "link" dir with the -l option. */
-	r = systemf("echo f | %s -pld link >link.out 2>link.err",
-	    testprog);
-	assertEqualInt(r, 0);
-
-	/* Check that this is a link and not a copy. */
-	assertEqualInt(0, stat("link/f", &st2));
-	assert(st2.st_ino == st.st_ino);
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
+			skipping("This version of bsdcpio was compiled "
+			    "without xz support");
+			return;
+		}
+		failure("-J option is broken");
+		assertEqualInt(r, 0);
+		return;
+	}
+	/* Check that the archive file has an xz signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 2);
+	assertEqualMem(p, "\3757zXZ", 5);
 }

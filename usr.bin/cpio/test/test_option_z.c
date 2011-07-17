@@ -28,32 +28,29 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_z)
 {
 	char *p;
-	int fd;
 	int r;
 	size_t s;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
 	/* Archive it with gzip compression. */
 	r = systemf("echo f | %s -oz >archive.out 2>archive.err",
 	    testprog);
-	failure("-z option seems to be broken");
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		p = slurpfile(&s, "archive.err");
-		p[s] = '\0';
-		if (strstr(p, "gzip compression not supported") != NULL) {
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
 			    "without gzip support");
-		} else {
-			/* Check that the archive file has a gzip signature. */
-			p = slurpfile(&s, "archive.out");
-			assert(s > 2);
-			assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
+			return;
 		}
+		failure("-z option is broken");
+		assertEqualInt(r, 0);
+		return;
 	}
+	/* Check that the archive file has a gzip signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 4);
+	assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
 }

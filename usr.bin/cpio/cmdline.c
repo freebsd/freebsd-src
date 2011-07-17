@@ -175,7 +175,7 @@ cpio_getopt(struct cpio *cpio)
 				/* Otherwise, pick up the next word. */
 				opt_word = *cpio->argv;
 				if (opt_word == NULL) {
-					warnc(0,
+					lafe_warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
 					return ('?');
@@ -226,13 +226,13 @@ cpio_getopt(struct cpio *cpio)
 
 		/* Fail if there wasn't a unique match. */
 		if (match == NULL) {
-			warnc(0,
+			lafe_warnc(0,
 			    "Option %s%s is not supported",
 			    long_prefix, opt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
-			warnc(0,
+			lafe_warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
 			    long_prefix, opt_word, match->name, match2->name);
 			return ('?');
@@ -244,7 +244,7 @@ cpio_getopt(struct cpio *cpio)
 			if (cpio->optarg == NULL) {
 				cpio->optarg = *cpio->argv;
 				if (cpio->optarg == NULL) {
-					warnc(0,
+					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
 					return ('?');
@@ -255,7 +255,7 @@ cpio_getopt(struct cpio *cpio)
 		} else {
 			/* Argument forbidden: fail if there is one. */
 			if (cpio->optarg != NULL) {
-				warnc(0,
+				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
 				return ('?');

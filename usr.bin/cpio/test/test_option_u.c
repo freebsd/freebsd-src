@@ -23,10 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <sys/utime.h>
-#else
+#if defined(HAVE_UTIME_H)
 #include <utime.h>
+#elif defined(HAVE_SYS_UTIME_H)
+#include <sys/utime.h>
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -35,14 +35,10 @@ DEFINE_TEST(test_option_u)
 	struct utimbuf times;
 	char *p;
 	size_t s;
-	int fd;
 	int r;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
 	/* Copy the file to the "copy" dir. */
 	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
@@ -55,10 +51,7 @@ DEFINE_TEST(test_option_u)
 	assertEqualMem(p, "a", 1);
 
 	/* Recreate the file with a single "b" */
-	fd = open("f", O_CREAT | O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "b", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "b");
 
 	/* Set the mtime to the distant past. */
 	memset(&times, 0, sizeof(times));
