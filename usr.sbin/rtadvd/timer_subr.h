@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: dump.h,v 1.1 2000/05/23 11:31:26 itojun Exp $	*/
+/*	$KAME: timer.h,v 1.5 2002/05/31 13:30:38 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -30,4 +30,28 @@
  * SUCH DAMAGE.
  */
 
-extern void rtadvd_dump_file(const char *);
+#define	SSBUFLEN	1024
+#define MILLION 1000000
+
+/* a < b */
+#define	TIMEVAL_LT(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec < (b)->tv_usec)))
+
+/* a <= b */
+#define	TIMEVAL_LEQ(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec <= (b)->tv_usec)))
+
+#define	TIMEVAL_EQUAL(a,b)				\
+		(((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec == (b)->tv_usec))
+
+struct timeval	*rtadvd_timer_rest(struct rtadvd_timer *);
+void		TIMEVAL_ADD(struct timeval *, struct timeval *,
+		    struct timeval *);
+void		TIMEVAL_SUB(struct timeval *, struct timeval *,
+		    struct timeval *);
+char		*sec2str(uint32_t, char *buf);

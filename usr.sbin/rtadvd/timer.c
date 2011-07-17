@@ -3,6 +3,7 @@
 
 /*
  * Copyright (C) 1998 WIDE Project.
+ * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +33,22 @@
 
 #include <sys/time.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <netinet/in.h>
 
 #include <unistd.h>
 #include <syslog.h>
 #include <stdlib.h>
 #include <string.h>
 #include <search.h>
-#include "timer.h"
+#include <netdb.h>
 
-#define MILLION 1000000
+#include "rtadvd.h"
+#include "timer_subr.h"
+#include "timer.h"
 
 struct rtadvd_timer_head_t ra_timer =
     TAILQ_HEAD_INITIALIZER(ra_timer);
@@ -53,6 +61,43 @@ rtadvd_timer_init(void)
 
 	tm_max = tm_limit;
 	TAILQ_INIT(&ra_timer);
+}
+
+void
+rtadvd_update_timeout_handler(void)
+{
+	struct ifinfo *ifi;
+
+	TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
+		switch (ifi->ifi_state) {
+		case IFI_STATE_CONFIGURED:
+		case IFI_STATE_TRANSITIVE:
+			if (ifi->ifi_ra_timer != NULL)
+				continue;
+
+			syslog(LOG_DEBUG, "<%s> add timer for %s (idx=%d)",
+			    __func__, ifi->ifi_ifname, ifi->ifi_ifindex);
+			ifi->ifi_ra_timer = rtadvd_add_timer(ra_timeout,
+			    ra_timer_update, ifi, ifi);
+			ra_timer_update((void *)ifi,
+			    &ifi->ifi_ra_timer->rat_tm);
+			rtadvd_set_timer(&ifi->ifi_ra_timer->rat_tm,
+			    ifi->ifi_ra_timer);
+			break;
+		case IFI_STATE_UNCONFIGURED:
+			if (ifi->ifi_ra_timer == NULL)
+				continue;
+
+			syslog(LOG_DEBUG,
+			    "<%s> remove timer for %s (idx=%d)", __func__,
+			    ifi->ifi_ifname, ifi->ifi_ifindex);
+			rtadvd_remove_timer(ifi->ifi_ra_timer);
+			ifi->ifi_ra_timer = NULL;
+			break;
+		}
+	}
+
+	return;
 }
 
 struct rtadvd_timer *
@@ -99,22 +144,6 @@ rtadvd_remove_timer(struct rtadvd_timer *rat)
 	free(rat);
 }
 
-void
-rtadvd_set_timer(struct timeval *tm, struct rtadvd_timer *rat)
-{
-	struct timeval now;
-
-	/* reset the timer */
-	gettimeofday(&now, NULL);
-	TIMEVAL_ADD(&now, tm, &rat->rat_tm);
-
-	/* update the next expiration time */
-	if (TIMEVAL_LT(&rat->rat_tm, &tm_max))
-		tm_max = rat->rat_tm;
-
-	return;
-}
-
 /*
  * Check expiration for each timer. If a timer expires,
  * call the expire function for the timer and update the timer.
@@ -151,55 +180,18 @@ rtadvd_check_timer(void)
 	return (&returnval);
 }
 
-struct timeval *
-rtadvd_timer_rest(struct rtadvd_timer *rat)
+void
+rtadvd_set_timer(struct timeval *tm, struct rtadvd_timer *rat)
 {
-	static struct timeval returnval, now;
+	struct timeval now;
 
+	/* reset the timer */
 	gettimeofday(&now, NULL);
-	if (TIMEVAL_LEQ(&rat->rat_tm, &now)) {
-		syslog(LOG_DEBUG,
-		    "<%s> a timer must be expired, but not yet",
-		    __func__);
-		returnval.tv_sec = returnval.tv_usec = 0;
-	}
-	else
-		TIMEVAL_SUB(&rat->rat_tm, &now, &returnval);
+	TIMEVAL_ADD(&now, tm, &rat->rat_tm);
 
-	return (&returnval);
-}
+	/* update the next expiration time */
+	if (TIMEVAL_LT(&rat->rat_tm, &tm_max))
+		tm_max = rat->rat_tm;
 
-/* result = a + b */
-void
-TIMEVAL_ADD(struct timeval *a, struct timeval *b, struct timeval *result)
-{
-	long l;
-
-	if ((l = a->tv_usec + b->tv_usec) < MILLION) {
-		result->tv_usec = l;
-		result->tv_sec = a->tv_sec + b->tv_sec;
-	}
-	else {
-		result->tv_usec = l - MILLION;
-		result->tv_sec = a->tv_sec + b->tv_sec + 1;
-	}
-}
-
-/*
- * result = a - b
- * XXX: this function assumes that a >= b.
- */
-void
-TIMEVAL_SUB(struct timeval *a, struct timeval *b, struct timeval *result)
-{
-	long l;
-
-	if ((l = a->tv_usec - b->tv_usec) >= 0) {
-		result->tv_usec = l;
-		result->tv_sec = a->tv_sec - b->tv_sec;
-	}
-	else {
-		result->tv_usec = MILLION + l;
-		result->tv_sec = a->tv_sec - b->tv_sec - 1;
-	}
+	return;
 }
