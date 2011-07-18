@@ -71,6 +71,11 @@ static STAILQ_HEAD(, pic) pics;
 static int assign_cpu;
 #endif
 
+u_long intrcnt[INTRCNT_COUNT];
+char intrnames[INTRCNT_COUNT * (MAXCOMLEN + 1)];
+size_t sintrcnt = sizeof(intrcnt);
+size_t sintrnames = sizeof(intrnames);
+
 static int	intr_assign_cpu(void *arg, u_char cpu);
 static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
