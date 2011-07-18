@@ -235,6 +235,7 @@ static int *pcpu_cpu_states;
 
 static int compare_jid(const void *a, const void *b);
 static int compare_pid(const void *a, const void *b);
+static int compare_tid(const void *a, const void *b);
 static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
@@ -557,7 +558,7 @@ get_old_proc(struct kinfo_proc *pp)
 	 * cache it.
 	 */
 	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
-	    sizeof(*previous_pref), compare_pid);
+	    sizeof(*previous_pref), ps.thread ? compare_tid : compare_pid);
 	if (oldpp == NULL) {
 		pp->ki_udata = NOPROC;
 		return (NULL);
@@ -652,7 +653,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			previous_pref[i] = &previous_procs[i];
 		bcopy(pbase, previous_procs, nproc * sizeof(*previous_procs));
 		qsort(previous_pref, nproc, sizeof(*previous_pref),
-		    compare_pid);
+		    ps.thread ? compare_tid : compare_pid);
 	}
 	previous_proc_count = nproc;
 
@@ -1057,6 +1058,18 @@ compare_pid(const void *p1, const void *p2)
 		abort();
 
 	return ((*pp1)->ki_pid - (*pp2)->ki_pid);
+}
+
+static int
+compare_tid(const void *p1, const void *p2)
+{
+	const struct kinfo_proc * const *pp1 = p1;
+	const struct kinfo_proc * const *pp2 = p2;
+
+	if ((*pp2)->ki_tid < 0 || (*pp1)->ki_tid < 0)
+		abort();
+
+	return ((*pp1)->ki_tid - (*pp2)->ki_tid);
 }
 
 /*
