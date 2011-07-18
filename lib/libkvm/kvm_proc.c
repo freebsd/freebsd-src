@@ -426,10 +426,10 @@ nopgrp:
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
 			if (mtd.td_name[0] != 0)
-				strlcpy(kp->ki_ocomm, mtd.td_name, MAXCOMLEN);
+				strlcpy(kp->ki_tdname, mtd.td_name, MAXCOMLEN);
 			kp->ki_oncpu = mtd.td_oncpu;
 			if (mtd.td_name[0] != '\0')
-				strlcpy(kp->ki_ocomm, mtd.td_name, sizeof(kp->ki_ocomm));
+				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
 			kp->ki_pctcpu = 0;
 			kp->ki_rqindex = 0;
 		} else {
