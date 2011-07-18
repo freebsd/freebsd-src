@@ -833,8 +833,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    pp->ki_ocomm[0]) {
-			snprintf(cmdbuf, cmdlengthdelta, "{%s}", pp->ki_ocomm);
+		    pp->ki_tdname[0]) {
+			snprintf(cmdbuf, cmdlengthdelta, "{%s}", pp->ki_tdname);
 		} else {
 			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
 		}
@@ -844,9 +844,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    	    pp->ki_ocomm[0]) {
+		    	    pp->ki_tdname[0]) {
 				snprintf(cmdbuf, cmdlengthdelta,
-				    "{%s}", pp->ki_ocomm);
+				    "{%s}", pp->ki_tdname);
 			} else {
 				snprintf(cmdbuf, cmdlengthdelta,
 				    "[%s]", pp->ki_comm);
