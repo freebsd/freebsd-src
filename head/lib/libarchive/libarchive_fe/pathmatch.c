@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpio_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_STRING_H
@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Check whether a character 'c' is matched by a list specification [...]:
- *    * Leading '!' negates the class.
+ *    * Leading '!' or '^' negates the class.
  *    * <char>-<char> is a range of characters
  *    * \<char> removes any special meaning for <char>
  *
@@ -60,7 +60,7 @@ pm_list(const char *start, const char *end, const char c, int flags)
 	(void)flags; /* UNUSED */
 
 	/* If this is a negated class, return success for nomatch. */
-	if (*p == '!' && p < end) {
+	if ((*p == '!' || *p == '^') && p < end) {
 		match = 0;
 		nomatch = 1;
 		++p;
@@ -144,7 +144,7 @@ pm(const char *p, const char *s, int flags)
 			if (*p == '\0')
 				return (1);
 			while (*s) {
-				if (pathmatch(p, s, flags))
+				if (lafe_pathmatch(p, s, flags))
 					return (1);
 				++s;
 			}
@@ -215,7 +215,7 @@ pm(const char *p, const char *s, int flags)
 
 /* Main entry point. */
 int
-pathmatch(const char *p, const char *s, int flags)
+lafe_pathmatch(const char *p, const char *s, int flags)
 {
 	/* Empty pattern only matches the empty string. */
 	if (p == NULL || *p == '\0')

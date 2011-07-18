@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,21 +21,36 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef LAFE_PATHMATCH_H
-#define LAFE_PATHMATCH_H
+DEFINE_TEST(test_option_J_upper)
+{
+	char *p;
+	int r;
+	size_t s;
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END 	2
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
-
-int pathmatch(const char *p, const char *s, int flags);
-
-#endif
+	/* Archive it with xz compression. */
+	r = systemf("echo f | %s -o -J >archive.out 2>archive.err",
+	    testprog);
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
+			skipping("This version of bsdcpio was compiled "
+			    "without xz support");
+			return;
+		}
+		failure("-J option is broken");
+		assertEqualInt(r, 0);
+		return;
+	}
+	/* Check that the archive file has an xz signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 2);
+	assertEqualMem(p, "\3757zXZ", 5);
+}

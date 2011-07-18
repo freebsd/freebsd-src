@@ -3,17 +3,24 @@
 .include <bsd.own.mk>
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=2.8.3
-SRCS=	cpio.c cmdline.c err.c line_reader.c matching.c pathmatch.c
+BSDCPIO_VERSION_STRING=2.8.4
+
+SRCS=	cpio.c cmdline.c
+
+.PATH:	${.CURDIR}/../../lib/libarchive/libarchive_fe
+SRCS+=	err.c line_reader.c matching.c pathmatch.c
+
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libarchive/libarchive_fe
+
 .ifdef RELEASE_CRUNCH
 # FreeBSD's installer uses cpio in crunched binaries that are
 # statically linked, cannot use -lcrypto, and are size sensitive.
 CFLAGS+= -DSMALLER
 .endif
-DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD} ${LIBLZMA}
-LDADD=	-larchive -lz -lbz2 -lmd -llzma
+DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD} ${LIBLZMA} ${LIBBSDXML}
+LDADD=	-larchive -lz -lbz2 -lmd -llzma -lbsdxml
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto

@@ -70,25 +70,25 @@ int mp_maxcpus = MAXCPU;
 volatile int smp_started;
 u_int mp_maxid;
 
-SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
+SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD|CTLFLAG_CAPRD, NULL, "Kernel SMP");
 
-SYSCTL_UINT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
+SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxid, 0,
     "Max CPU ID.");
 
-SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD, &mp_maxcpus, 0,
-    "Max number of CPUs that the system was compiled for.");
+SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxcpus,
+    0, "Max number of CPUs that the system was compiled for.");
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
     "Number of Auxillary Processors (APs) that were successfully started");
 
 int smp_disabled = 0;	/* has smp been disabled? */
-SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN, &smp_disabled, 0,
-    "SMP has been disabled from the loader");
+SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
+    &smp_disabled, 0, "SMP has been disabled from the loader");
 TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 
 int smp_cpus = 1;	/* how many cpu's running */
-SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
+SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD|CTLFLAG_CAPRD, &smp_cpus, 0,
     "Number of CPUs online");
 
 int smp_topology = 0;	/* Which topology we're using. */

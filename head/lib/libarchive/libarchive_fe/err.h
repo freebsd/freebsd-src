@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,53 +21,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+#ifndef LAFE_ERR_H
+#define LAFE_ERR_H
 
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif
-#include <stdio.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_DEAD       __attribute__((__noreturn__))
+#else
+#define __LA_DEAD
 #endif
 
-#include "err.h"
+extern const char *lafe_progname;
 
-const char *bsdtar_progname;
+void	lafe_warnc(int code, const char *fmt, ...);
+void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD;
 
-static void
-bsdtar_vwarnc(int code, const char *fmt, va_list ap)
-{
-	fprintf(stderr, "%s: ", bsdtar_progname);
-	vfprintf(stderr, fmt, ap);
-	if (code != 0)
-		fprintf(stderr, ": %s", strerror(code));
-	fprintf(stderr, "\n");
-}
-
-void
-bsdtar_warnc(int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
-	va_end(ap);
-}
-
-void
-bsdtar_errc(int eval, int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
-	va_end(ap);
-	exit(eval);
-}
+#endif

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpio_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  *
  * This uses a self-sizing buffer to handle arbitrarily-long lines.
  */
-struct line_reader {
+struct lafe_line_reader {
 	FILE *f;
 	char *buff, *buff_end, *line_start, *line_end, *p;
 	char *pathname;
@@ -55,14 +55,14 @@ struct line_reader {
 	int ret;
 };
 
-struct line_reader *
-line_reader(const char *pathname, int nullSeparator)
+struct lafe_line_reader *
+lafe_line_reader(const char *pathname, int nullSeparator)
 {
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 
 	lr = calloc(1, sizeof(*lr));
 	if (lr == NULL)
-		errc(1, ENOMEM, "Can't open %s", pathname);
+		lafe_errc(1, ENOMEM, "Can't open %s", pathname);
 
 	lr->nullSeparator = nullSeparator;
 	lr->pathname = strdup(pathname);
@@ -72,18 +72,18 @@ line_reader(const char *pathname, int nullSeparator)
 	else
 		lr->f = fopen(pathname, "r");
 	if (lr->f == NULL)
-		errc(1, errno, "Couldn't open %s", pathname);
+		lafe_errc(1, errno, "Couldn't open %s", pathname);
 	lr->buff_length = 8192;
 	lr->buff = malloc(lr->buff_length);
 	if (lr->buff == NULL)
-		errc(1, ENOMEM, "Can't read %s", pathname);
+		lafe_errc(1, ENOMEM, "Can't read %s", pathname);
 	lr->line_start = lr->line_end = lr->buff_end = lr->buff;
 
 	return (lr);
 }
 
 const char *
-line_reader_next(struct line_reader *lr)
+lafe_line_reader_next(struct lafe_line_reader *lr)
 {
 	size_t bytes_wanted, bytes_read, new_buff_size;
 	char *line_start, *p;
@@ -135,12 +135,12 @@ line_reader_next(struct line_reader *lr)
 			/* Line is too big; enlarge the buffer. */
 			new_buff_size = lr->buff_length * 2;
 			if (new_buff_size <= lr->buff_length)
-				errc(1, ENOMEM,
+				lafe_errc(1, ENOMEM,
 				    "Line too long in %s", lr->pathname);
 			lr->buff_length = new_buff_size;
 			p = realloc(lr->buff, new_buff_size);
 			if (p == NULL)
-				errc(1, ENOMEM,
+				lafe_errc(1, ENOMEM,
 				    "Line too long in %s", lr->pathname);
 			lr->buff_end = p + (lr->buff_end - lr->buff);
 			lr->line_end = p + (lr->line_end - lr->buff);
@@ -153,7 +153,7 @@ line_reader_next(struct line_reader *lr)
 		lr->buff_end += bytes_read;
 
 		if (ferror(lr->f))
-			errc(1, errno, "Can't read %s", lr->pathname);
+			lafe_errc(1, errno, "Can't read %s", lr->pathname);
 		if (feof(lr->f)) {
 			if (lr->f != stdin)
 				fclose(lr->f);
@@ -163,7 +163,7 @@ line_reader_next(struct line_reader *lr)
 }
 
 void
-line_reader_free(struct line_reader *lr)
+lafe_line_reader_free(struct lafe_line_reader *lr)
 {
 	free(lr->buff);
 	free(lr->pathname);

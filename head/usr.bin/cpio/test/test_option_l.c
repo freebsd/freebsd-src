@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Joerg Sonnenberger
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,17 +21,30 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef LAFE_LINE_READER_H
-#define LAFE_LINE_READER_H
+DEFINE_TEST(test_option_l)
+{
+	int r;
 
-struct line_reader;
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-struct line_reader *line_reader(const char *, int nullSeparator);
-const char *line_reader_next(struct line_reader *);
-void	line_reader_free(struct line_reader *);
+	/* Copy the file to the "copy" dir. */
+	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
+	    testprog);
+	assertEqualInt(r, 0);
 
-#endif
+	/* Check that the copy is a true copy and not a link. */
+	assertIsNotHardlink("f", "copy/f");
+
+	/* Copy the file to the "link" dir with the -l option. */
+	r = systemf("echo f | %s -pld link >link.out 2>link.err",
+	    testprog);
+	assertEqualInt(r, 0);
+
+	/* Check that this is a link and not a copy. */
+	assertIsHardlink("f", "link/f");
+}
