@@ -21,46 +21,35 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-#include "test.h"
-__FBSDID("$FreeBSD$");
 
 /*
- * This is called "test_option_ell" instead of "test_option_l" to
- * avoid any conflicts with "test_option_L" on case-insensitive
- * filesystems.
+ * This header is the first thing included in any of the libarchive_fe
+ * source files.  As far as possible, platform-specific issues should
+ * be dealt with here and not within individual source files.
  */
 
-DEFINE_TEST(test_option_ell)
-{
-	struct stat st, st2;
-	int fd;
-	int r;
+#ifndef LAFE_PLATFORM_H_INCLUDED
+#define	LAFE_PLATFORM_H_INCLUDED
 
-	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#else
+/* Read config.h or die trying. */
+#include "config.h"
+#endif
 
-	/* Stat it. */
-	assertEqualInt(0, stat("f", &st));
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
 
-	/* Copy the file to the "copy" dir. */
-	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
-	    testprog);
-	assertEqualInt(r, 0);
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
+#define	__FBSDID(a)     struct _undefined_hack
+#endif
 
-	/* Check that the copy is a true copy and not a link. */
-	assertEqualInt(0, stat("copy/f", &st2));
-	assert(st2.st_ino != st.st_ino);
-
-	/* Copy the file to the "link" dir with the -l option. */
-	r = systemf("echo f | %s -pld link >link.out 2>link.err",
-	    testprog);
-	assertEqualInt(r, 0);
-
-	/* Check that this is a link and not a copy. */
-	assertEqualInt(0, stat("link/f", &st2));
-	assert(st2.st_ino == st.st_ino);
-}
+#endif

@@ -2477,7 +2477,7 @@ set_xattrs(struct archive_write_disk *a)
 	}
 	return (ret);
 }
-#elif HAVE_EXTATTR_SET_FILE
+#elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
 /*
  * Restore extended attributes -  FreeBSD implementation
  */

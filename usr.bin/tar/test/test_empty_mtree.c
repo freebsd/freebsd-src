@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,21 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-
-DEFINE_TEST(test_option_B)
+/*
+ * Regression test:  We used to get a bogus error message when we
+ * asked tar to copy entries out of an empty archive.  See
+ * Issue 51 on libarchive.googlecode.com for details.
+ */
+DEFINE_TEST(test_empty_mtree)
 {
-	struct stat st;
-	int r, fd;
+	int r;
 
-	/*
-	 * Create a file on disk.
-	 */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	assertMakeFile("test1.mtree", 0777, "#mtree\n");
 
-	/* Create an archive without -B; this should be 512 bytes. */
-	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);
+	r = systemf("%s cf test1.tar @test1.mtree >test1.out 2>test1.err",
+	    testprog);
+	failure("Error invoking %s cf", testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "small.err");
-	assertEqualInt(0, stat("small.cpio", &st));
-	assertEqualInt(512, st.st_size);
-
-	/* Create an archive with -B; this should be 5120 bytes. */
-	r = systemf("echo file | %s -oB > large.cpio 2>large.err", testprog);
-	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "large.err");
-	assertEqualInt(0, stat("large.cpio", &st));
-	assertEqualInt(5120, st.st_size);
+	assertEmptyFile("test1.out");
+	assertEmptyFile("test1.err");
 }

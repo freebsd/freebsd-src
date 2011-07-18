@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpio_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
@@ -47,7 +47,7 @@ struct match {
 	char		  pattern[1];
 };
 
-struct matching {
+struct lafe_matching {
 	struct match	 *exclusions;
 	int		  exclusions_count;
 	struct match	 *inclusions;
@@ -56,7 +56,7 @@ struct matching {
 };
 
 static void	add_pattern(struct match **list, const char *pattern);
-static void	initialize_matching(struct matching **);
+static void	initialize_matching(struct lafe_matching **);
 static int	match_exclusion(struct match *, const char *pathname);
 static int	match_inclusion(struct match *, const char *pathname);
 
@@ -72,7 +72,7 @@ static int	match_inclusion(struct match *, const char *pathname);
  */
 
 int
-exclude(struct matching **matching, const char *pattern)
+lafe_exclude(struct lafe_matching **matching, const char *pattern)
 {
 
 	if (*matching == NULL)
@@ -83,23 +83,23 @@ exclude(struct matching **matching, const char *pattern)
 }
 
 int
-exclude_from_file(struct matching **matching, const char *pathname)
+lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
 {
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 	const char *p;
 	int ret = 0;
 
-	lr = line_reader(pathname, 0);
-	while ((p = line_reader_next(lr)) != NULL) {
-		if (exclude(matching, p) != 0)
+	lr = lafe_line_reader(pathname, 0);
+	while ((p = lafe_line_reader_next(lr)) != NULL) {
+		if (lafe_exclude(matching, p) != 0)
 			ret = -1;
 	}
-	line_reader_free(lr);
+	lafe_line_reader_free(lr);
 	return (ret);
 }
 
 int
-include(struct matching **matching, const char *pattern)
+lafe_include(struct lafe_matching **matching, const char *pattern)
 {
 
 	if (*matching == NULL)
@@ -111,19 +111,19 @@ include(struct matching **matching, const char *pattern)
 }
 
 int
-include_from_file(struct matching **matching, const char *pathname,
+lafe_include_from_file(struct lafe_matching **matching, const char *pathname,
     int nullSeparator)
 {
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 	const char *p;
 	int ret = 0;
 
-	lr = line_reader(pathname, nullSeparator);
-	while ((p = line_reader_next(lr)) != NULL) {
-		if (include(matching, p) != 0)
+	lr = lafe_line_reader(pathname, nullSeparator);
+	while ((p = lafe_line_reader_next(lr)) != NULL) {
+		if (lafe_include(matching, p) != 0)
 			ret = -1;
 	}
-	line_reader_free(lr);
+	lafe_line_reader_free(lr);
 	return (ret);
 }
 
@@ -136,7 +136,7 @@ add_pattern(struct match **list, const char *pattern)
 	len = strlen(pattern);
 	match = malloc(sizeof(*match) + len + 1);
 	if (match == NULL)
-		errc(1, errno, "Out of memory");
+		lafe_errc(1, errno, "Out of memory");
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
 	if (len && match->pattern[len - 1] == '/')
@@ -148,7 +148,7 @@ add_pattern(struct match **list, const char *pattern)
 
 
 int
-excluded(struct matching *matching, const char *pathname)
+lafe_excluded(struct lafe_matching *matching, const char *pathname)
 {
 	struct match *match;
 	struct match *matched;
@@ -156,39 +156,40 @@ excluded(struct matching *matching, const char *pathname)
 	if (matching == NULL)
 		return (0);
 
+	/* Mark off any unmatched inclusions. */
+	/* In particular, if a filename does appear in the archive and
+	 * is explicitly included and excluded, then we don't report
+	 * it as missing even though we don't extract it.
+	 */
+	matched = NULL;
+	for (match = matching->inclusions; match != NULL; match = match->next){
+		if (match->matches == 0
+		    && match_inclusion(match, pathname)) {
+			matching->inclusions_unmatched_count--;
+			match->matches++;
+			matched = match;
+		}
+	}
+
 	/* Exclusions take priority */
 	for (match = matching->exclusions; match != NULL; match = match->next){
 		if (match_exclusion(match, pathname))
 			return (1);
 	}
 
-	/* Then check for inclusions */
-	matched = NULL;
-	for (match = matching->inclusions; match != NULL; match = match->next){
-		if (match_inclusion(match, pathname)) {
-			/*
-			 * If this pattern has never been matched,
-			 * then we're done.
-			 */
-			if (match->matches == 0) {
-				match->matches++;
-				matching->inclusions_unmatched_count--;
-				return (0);
-			}
-			/*
-			 * Otherwise, remember the match but keep checking
-			 * in case we can tick off an unmatched pattern.
-			 */
-			matched = match;
-		}
-	}
-	/*
-	 * We didn't find a pattern that had never been matched, but
-	 * we did find a match, so count it and exit.
-	 */
-	if (matched != NULL) {
-		matched->matches++;
+	/* It's not excluded and we found an inclusion above, so it's included. */
+	if (matched != NULL)
 		return (0);
+
+
+	/* We didn't find an unmatched inclusion, check the remaining ones. */
+	for (match = matching->inclusions; match != NULL; match = match->next){
+		/* We looked at previously-unmatched inclusions already. */
+		if (match->matches > 0
+		    && match_inclusion(match, pathname)) {
+			match->matches++;
+			return (0);
+		}
 	}
 
 	/* If there were inclusions, default is to exclude. */
@@ -207,7 +208,7 @@ excluded(struct matching *matching, const char *pathname)
 static int
 match_exclusion(struct match *match, const char *pathname)
 {
-	return (pathmatch(match->pattern,
+	return (lafe_pathmatch(match->pattern,
 		    pathname,
 		    PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
 }
@@ -219,15 +220,11 @@ match_exclusion(struct match *match, const char *pathname)
 static int
 match_inclusion(struct match *match, const char *pathname)
 {
-#if 0
-	return (pathmatch(match->pattern, pathname, 0));
-#else
-	return (pathmatch(match->pattern, pathname, PATHMATCH_NO_ANCHOR_END));
-#endif	
+	return (lafe_pathmatch(match->pattern, pathname, PATHMATCH_NO_ANCHOR_END));
 }
 
 void
-cleanup_exclusions(struct matching **matching)
+lafe_cleanup_exclusions(struct lafe_matching **matching)
 {
 	struct match *p, *q;
 
@@ -251,15 +248,15 @@ cleanup_exclusions(struct matching **matching)
 }
 
 static void
-initialize_matching(struct matching **matching)
+initialize_matching(struct lafe_matching **matching)
 {
 	*matching = calloc(sizeof(**matching), 1);
 	if (*matching == NULL)
-		errc(1, errno, "No memory");
+		lafe_errc(1, errno, "No memory");
 }
 
 int
-unmatched_inclusions(struct matching *matching)
+lafe_unmatched_inclusions(struct lafe_matching *matching)
 {
 
 	if (matching == NULL)
@@ -268,7 +265,7 @@ unmatched_inclusions(struct matching *matching)
 }
 
 int
-unmatched_inclusions_warn(struct matching *matching, const char *msg)
+lafe_unmatched_inclusions_warn(struct lafe_matching *matching, const char *msg)
 {
 	struct match *p;
 
@@ -277,7 +274,7 @@ unmatched_inclusions_warn(struct matching *matching, const char *msg)
 
 	for (p = matching->inclusions; p != NULL; p = p->next) {
 		if (p->matches == 0)
-			warnc(0, "%s: %s", p->pattern, msg);
+			lafe_warnc(0, "%s: %s", p->pattern, msg);
 	}
 
 	return (matching->inclusions_unmatched_count);

@@ -27,27 +27,27 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_stdio)
 {
-	int fd;
-	int filelist;
-	int oldumask;
+	FILE *filelist;
+	char *p;
+	size_t s;
 	int r;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create a couple of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
 	/* File */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	write(fd, "f\n", 2);
-	close(fd);
-	write(filelist, "f\n", 2);
+	assertMakeFile("f", 0755, "abc");
 	/* Link to above file. */
-	assertEqualInt(0, link("f", "l"));
-	write(filelist, "l\n", 2);
-	close(filelist);
+	assertMakeHardlink("l", "f");
+
+	/* Create file list (text mode here) */
+	filelist = fopen("filelist", "w");
+	assert(filelist != NULL);
+	fprintf(filelist, "f\n");
+	fprintf(filelist, "l\n");
+	fclose(filelist);
 
 	/*
 	 * Archive/dearchive with a variety of options, verifying
@@ -111,7 +111,10 @@ DEFINE_TEST(test_stdio)
 	/* 'xvOf' should generate list on stderr, file contents on stdout. */
 	r = systemf("%s xvOf archive >xvOf.out 2>xvOf.err", testprog);
 	assertEqualInt(r, 0);
-	/* TODO: Verify xvOf.out */
+	/* Verify xvOf.out is the file contents */
+	p = slurpfile(&s, "xvOf.out");
+	assert(s = 3);
+	assertEqualMem(p, "abc", 3);
 	/* TODO: Verify xvf.err */
 
 	/* 'xvf -' should generate list on stderr, empty stdout. */
@@ -119,6 +122,4 @@ DEFINE_TEST(test_stdio)
 	assertEqualInt(r, 0);
 	assertEmptyFile("xvf-.out");
 	/* TODO: Verify xvf-.err */
-
-	umask(oldumask);
 }
