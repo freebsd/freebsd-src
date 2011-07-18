@@ -865,6 +865,19 @@ audit_arg_envv(char *envv, int envc, int length)
 	ARG_SET_VALID(ar, ARG_ENVV);
 }
 
+void
+audit_arg_rights(cap_rights_t rights)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_rights = rights;
+	ARG_SET_VALID(ar, ARG_RIGHTS);
+}
+
 /*
  * The close() system call uses it's own audit call to capture the path/vnode
  * information because those pieces are not easily obtained within the system
