@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/types.h>
@@ -1327,75 +1328,8 @@ zfs_aclset_common(znode_t *zp, zfs_acl_t *aclp, cred_t *cr, dmu_tx_t *tx)
 	return (sa_bulk_update(zp->z_sa_hdl, bulk, count, tx));
 }
 
-/*
- * Update access mask for prepended ACE
- *
- * This applies the "groupmask" value for aclmode property.
- */
 static void
-zfs_acl_prepend_fixup(zfs_acl_t *aclp, void  *acep, void  *origacep,
-    mode_t mode, uint64_t owner)
-{
-	int	rmask, wmask, xmask;
-	int	user_ace;
-	uint16_t aceflags;
-	uint32_t origmask, acepmask;
-	uint64_t fuid;
-
-	aceflags = aclp->z_ops.ace_flags_get(acep);
-	fuid = aclp->z_ops.ace_who_get(acep);
-	origmask = aclp->z_ops.ace_mask_get(origacep);
-	acepmask = aclp->z_ops.ace_mask_get(acep);
-
-	user_ace = (!(aceflags &
-	    (ACE_OWNER|ACE_GROUP|ACE_IDENTIFIER_GROUP)));
-
-	if (user_ace && (fuid == owner)) {
-		rmask = S_IRUSR;
-		wmask = S_IWUSR;
-		xmask = S_IXUSR;
-	} else {
-		rmask = S_IRGRP;
-		wmask = S_IWGRP;
-		xmask = S_IXGRP;
-	}
-
-	if (origmask & ACE_READ_DATA) {
-		if (mode & rmask) {
-			acepmask &= ~ACE_READ_DATA;
-		} else {
-			acepmask |= ACE_READ_DATA;
-		}
-	}
-
-	if (origmask & ACE_WRITE_DATA) {
-		if (mode & wmask) {
-			acepmask &= ~ACE_WRITE_DATA;
-		} else {
-			acepmask |= ACE_WRITE_DATA;
-		}
-	}
-
-	if (origmask & ACE_APPEND_DATA) {
-		if (mode & wmask) {
-			acepmask &= ~ACE_APPEND_DATA;
-		} else {
-			acepmask |= ACE_APPEND_DATA;
-		}
-	}
-
-	if (origmask & ACE_EXECUTE) {
-		if (mode & xmask) {
-			acepmask &= ~ACE_EXECUTE;
-		} else {
-			acepmask |= ACE_EXECUTE;
-		}
-	}
-	aclp->z_ops.ace_mask_set(acep, acepmask);
-}
-
-static void
-zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
+zfs_acl_chmod(vtype_t vtype, uint64_t mode, boolean_t trim, zfs_acl_t *aclp)
 {
 	void		*acep = NULL;
 	uint64_t	who;
@@ -1407,30 +1341,31 @@ zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
 	zfs_acl_node_t	*newnode;
 	size_t 		abstract_size = aclp->z_ops.ace_abstract_size();
 	void 		*zacep;
-	uint32_t 	owner, group, everyone;
-	uint32_t	deny1, deny2, allow0;
+	boolean_t	isdir;
+	trivial_acl_t	masks;
 
 	new_count = new_bytes = 0;
 
-	acl_trivial_access_masks((mode_t)mode, &allow0, &deny1, &deny2,
-	    &owner, &group, &everyone);
+	isdir = (vtype == VDIR);
+
+	acl_trivial_access_masks((mode_t)mode, isdir, &masks);
 
 	newnode = zfs_acl_node_alloc((abstract_size * 6) + aclp->z_acl_bytes);
 
 	zacep = newnode->z_acldata;
-	if (allow0) {
-		zfs_set_ace(aclp, zacep, allow0, ALLOW, -1, ACE_OWNER);
+	if (masks.allow0) {
+		zfs_set_ace(aclp, zacep, masks.allow0, ALLOW, -1, ACE_OWNER);
 		zacep = (void *)((uintptr_t)zacep + abstract_size);
 		new_count++;
 		new_bytes += abstract_size;
-	} if (deny1) {
-		zfs_set_ace(aclp, zacep, deny1, DENY, -1, ACE_OWNER);
+	} if (masks.deny1) {
+		zfs_set_ace(aclp, zacep, masks.deny1, DENY, -1, ACE_OWNER);
 		zacep = (void *)((uintptr_t)zacep + abstract_size);
 		new_count++;
 		new_bytes += abstract_size;
 	}
-	if (deny2) {
-		zfs_set_ace(aclp, zacep, deny2, DENY, -1, OWNING_GROUP);
+	if (masks.deny2) {
+		zfs_set_ace(aclp, zacep, masks.deny2, DENY, -1, OWNING_GROUP);
 		zacep = (void *)((uintptr_t)zacep + abstract_size);
 		new_count++;
 		new_bytes += abstract_size;
@@ -1449,10 +1384,17 @@ zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
 			continue;
 		}
 
+		/*
+		 * If this ACL has any inheritable ACEs, mark that in
+		 * the hints (which are later masked into the pflags)
+		 * so create knows to do inheritance.
+		 */
+		if (isdir && (inherit_flags &
+		    (ACE_FILE_INHERIT_ACE|ACE_DIRECTORY_INHERIT_ACE)))
+			aclp->z_hints |= ZFS_INHERIT_ACE;
+
 		if ((type != ALLOW && type != DENY) ||
 		    (inherit_flags & ACE_INHERIT_ONLY_ACE)) {
-			if (inherit_flags)
-				aclp->z_hints |= ZFS_INHERIT_ACE;
 			switch (type) {
 			case ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE:
 			case ACE_ACCESS_DENIED_OBJECT_ACE_TYPE:
@@ -1465,20 +1407,13 @@ zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
 
 			/*
 			 * Limit permissions to be no greater than
-			 * group permissions
+			 * group permissions.
+			 * The "aclinherit" and "aclmode" properties
+			 * affect policy for create and chmod(2),
+			 * respectively.
 			 */
-			if (type == ALLOW && zfsvfs->z_acl_inherit == ZFS_ACL_RESTRICTED) {
-				if (!(mode & S_IRGRP))
-					access_mask &= ~ACE_READ_DATA;
-				if (!(mode & S_IWGRP))
-					access_mask &=
-					    ~(ACE_WRITE_DATA|ACE_APPEND_DATA);
-				if (!(mode & S_IXGRP))
-					access_mask &= ~ACE_EXECUTE;
-				access_mask &=
-				    ~(ACE_WRITE_OWNER|ACE_WRITE_ACL|
-				    ACE_WRITE_ATTRIBUTES|ACE_WRITE_NAMED_ATTRS);
-			}
+			if ((type == ALLOW) && trim)
+				access_mask &= masks.group;
 		}
 		zfs_set_ace(aclp, zacep, access_mask, type, who, iflags);
 		ace_size = aclp->z_ops.ace_size(acep);
@@ -1486,11 +1421,11 @@ zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
 		new_count++;
 		new_bytes += ace_size;
 	}
-	zfs_set_ace(aclp, zacep, owner, 0, -1, ACE_OWNER);
+	zfs_set_ace(aclp, zacep, masks.owner, 0, -1, ACE_OWNER);
 	zacep = (void *)((uintptr_t)zacep + abstract_size);
-	zfs_set_ace(aclp, zacep, group, 0, -1, OWNING_GROUP);
+	zfs_set_ace(aclp, zacep, masks.group, 0, -1, OWNING_GROUP);
 	zacep = (void *)((uintptr_t)zacep + abstract_size);
-	zfs_set_ace(aclp, zacep, everyone, 0, -1, ACE_EVERYONE);
+	zfs_set_ace(aclp, zacep, masks.everyone, 0, -1, ACE_EVERYONE);
 
 	new_count += 3;
 	new_bytes += abstract_size * 3;
@@ -1502,17 +1437,27 @@ zfs_acl_chmod(zfsvfs_t *zfsvfs, uint64_t mode, zfs_acl_t *aclp)
 	list_insert_tail(&aclp->z_acl, newnode);
 }
 
-void
+int
 zfs_acl_chmod_setattr(znode_t *zp, zfs_acl_t **aclp, uint64_t mode)
 {
+	int error = 0;
+
 	mutex_enter(&zp->z_acl_lock);
 	mutex_enter(&zp->z_lock);
-	*aclp = zfs_acl_alloc(zfs_acl_version_zp(zp));
-	(*aclp)->z_hints = zp->z_pflags & V4_ACL_WIDE_FLAGS;
-	zfs_acl_chmod(zp->z_zfsvfs, mode, *aclp);
+	if (zp->z_zfsvfs->z_acl_mode == ZFS_ACL_DISCARD)
+		*aclp = zfs_acl_alloc(zfs_acl_version_zp(zp));
+	else
+		error = zfs_acl_node_read(zp, B_TRUE, aclp, B_TRUE);
+
+	if (error == 0) {
+		(*aclp)->z_hints = zp->z_pflags & V4_ACL_WIDE_FLAGS;
+		zfs_acl_chmod(ZTOV(zp)->v_type, mode,
+		    (zp->z_zfsvfs->z_acl_mode == ZFS_ACL_GROUPMASK), *aclp);
+	}
 	mutex_exit(&zp->z_lock);
 	mutex_exit(&zp->z_acl_lock);
-	ASSERT(*aclp);
+
+	return (error);
 }
 
 /*
@@ -1764,8 +1709,8 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 	if (acl_ids->z_aclp == NULL) {
 		mutex_enter(&dzp->z_acl_lock);
 		mutex_enter(&dzp->z_lock);
-		if (!(flag & IS_ROOT_NODE) && (ZTOV(dzp)->v_type == VDIR &&
-		    (dzp->z_pflags & ZFS_INHERIT_ACE)) &&
+		if (!(flag & IS_ROOT_NODE) &&
+		    (dzp->z_pflags & ZFS_INHERIT_ACE) &&
 		    !(dzp->z_pflags & ZFS_XATTR)) {
 			VERIFY(0 == zfs_acl_node_read(dzp, B_TRUE,
 			    &paclp, B_FALSE));
@@ -1782,7 +1727,9 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 		if (need_chmod) {
 			acl_ids->z_aclp->z_hints |= (vap->va_type == VDIR) ?
 			    ZFS_ACL_AUTO_INHERIT : 0;
-			zfs_acl_chmod(zfsvfs, acl_ids->z_mode, acl_ids->z_aclp);
+			zfs_acl_chmod(vap->va_type, acl_ids->z_mode,
+			    (zfsvfs->z_acl_inherit == ZFS_ACL_RESTRICTED),
+			    acl_ids->z_aclp);
 		}
 	}
 
