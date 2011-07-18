@@ -813,7 +813,7 @@ void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 	struct thread *td;
-	uint64_t u;
+	uint64_t runtime, u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
@@ -826,7 +826,9 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	td = curthread;
 	if (td->td_proc == p) {
 		u = cpu_ticks();
-		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
 		PCPU_SET(switchtime, u);
 	}
 	/* Make sure the per-thread stats are current. */
@@ -836,6 +838,34 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		ruxagg(p, td);
 	}
 	calcru1(p, &p->p_rux, up, sp);
+}
+
+/* Collect resource usage for a single thread. */
+void
+rufetchtd(struct thread *td, struct rusage *ru)
+{
+	struct proc *p;
+	uint64_t runtime, u;
+
+	p = td->td_proc;
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*
+	 * If we are getting stats for the current thread, then add in the
+	 * stats that this thread has accumulated in its current time slice.
+	 * We reset the thread and CPU state as if we had performed a context
+	 * switch right here.
+	 */
+	if (td == curthread) {
+		u = cpu_ticks();
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
+		PCPU_SET(switchtime, u);
+	}
+	ruxagg(p, td);
+	*ru = td->td_ru;
+	calcru1(p, &td->td_rux, &ru->ru_utime, &ru->ru_stime);
 }
 
 static void
@@ -955,12 +985,10 @@ kern_getrusage(struct thread *td, int who, struct rusage *rup)
 
 	case RUSAGE_THREAD:
 		PROC_SLOCK(p);
-		ruxagg(p, td);
-		PROC_SUNLOCK(p);
 		thread_lock(td);
-		*rup = td->td_ru;
-		calcru1(p, &td->td_rux, &rup->ru_utime, &rup->ru_stime);
+		rufetchtd(td, rup);
 		thread_unlock(td);
+		PROC_SUNLOCK(p);
 		break;
 
 	default:
