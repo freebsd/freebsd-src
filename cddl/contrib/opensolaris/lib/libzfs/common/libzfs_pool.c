@@ -3110,15 +3110,25 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 	char buf[64];
 	vdev_stat_t *vs;
 	uint_t vsc;
+	int have_stats;
+	int have_path;
 
-	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
-	    &value) == 0) {
+	have_stats = nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
+	    (uint64_t **)&vs, &vsc) == 0;
+	have_path = nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0;
+
+	/*
+	 * If the device is not currently present, assume it will not
+	 * come back at the same device path.  Display the device by GUID.
+	 */
+	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT, &value) == 0 ||
+	    have_path && have_stats && vs->vs_state <= VDEV_STATE_CANT_OPEN) {
 		verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID,
 		    &value) == 0);
 		(void) snprintf(buf, sizeof (buf), "%llu",
 		    (u_longlong_t)value);
 		path = buf;
-	} else if (nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0) {
+	} else if (have_path) {
 
 		/*
 		 * If the device is dead (faulted, offline, etc) then don't
@@ -3126,8 +3136,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		 * open a misbehaving device, which can have undesirable
 		 * effects.
 		 */
-		if ((nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
-		    (uint64_t **)&vs, &vsc) != 0 ||
+		if ((have_stats == 0 ||
 		    vs->vs_state >= VDEV_STATE_DEGRADED) &&
 		    zhp != NULL &&
 		    nvlist_lookup_string(nv, ZPOOL_CONFIG_DEVID, &devid) == 0) {
