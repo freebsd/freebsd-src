@@ -1029,8 +1029,8 @@ restart:
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
-				    " Displaying %sCPU",
-				    ps.wcpu ? "W" : "");
+				    " Displaying %s CPU",
+				    ps.wcpu ? "weighted" : "raw");
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
