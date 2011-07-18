@@ -86,9 +86,9 @@ procstat_threads(struct kinfo_proc *kipp)
 		printf("%6d ", kipp->ki_tid);
 		printf("%-16s ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");
-		printf("%-16s ", (strlen(kipp->ki_ocomm) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_ocomm) != 0)) ?
-		    kipp->ki_ocomm : "-");
+		printf("%-16s ", (strlen(kipp->ki_tdname) &&
+		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
+		    kipp->ki_tdname : "-");
 		if (kipp->ki_oncpu != 255)
 			printf("%3d ", kipp->ki_oncpu);
 		else if (kipp->ki_lastcpu != 255)
