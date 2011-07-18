@@ -1504,11 +1504,11 @@ static __inline void scsi_ulto2b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto3b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto4b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_u64to8b(u_int64_t val, u_int8_t *bytes);
-static __inline u_int32_t scsi_2btoul(u_int8_t *bytes);
-static __inline u_int32_t scsi_3btoul(u_int8_t *bytes);
-static __inline int32_t scsi_3btol(u_int8_t *bytes);
-static __inline u_int32_t scsi_4btoul(u_int8_t *bytes);
-static __inline u_int64_t scsi_8btou64(u_int8_t *bytes);
+static __inline uint32_t scsi_2btoul(const uint8_t *bytes);
+static __inline uint32_t scsi_3btoul(const uint8_t *bytes);
+static __inline int32_t scsi_3btol(const uint8_t *bytes);
+static __inline uint32_t scsi_4btoul(const uint8_t *bytes);
+static __inline uint64_t scsi_8btou64(const uint8_t *bytes);
 static __inline void *find_mode_page_6(struct scsi_mode_header_6 *mode_header);
 static __inline void *find_mode_page_10(struct scsi_mode_header_10 *mode_header);
 
@@ -1563,20 +1563,20 @@ scsi_u64to8b(u_int64_t val, u_int8_t *bytes)
 	bytes[7] = val & 0xff;
 }
 
-static __inline u_int32_t
-scsi_2btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_2btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 8) |
 	     bytes[1];
 	return (rv);
 }
 
-static __inline u_int32_t
-scsi_3btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_3btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 16) |
 	     (bytes[1] << 8) |
@@ -1585,9 +1585,9 @@ scsi_3btoul(u_int8_t *bytes)
 }
 
 static __inline int32_t 
-scsi_3btol(u_int8_t *bytes)
+scsi_3btol(const uint8_t *bytes)
 {
-	u_int32_t rc = scsi_3btoul(bytes);
+	uint32_t rc = scsi_3btoul(bytes);
  
 	if (rc & 0x00800000)
 		rc |= 0xff000000;
@@ -1595,10 +1595,10 @@ scsi_3btol(u_int8_t *bytes)
 	return (int32_t) rc;
 }
 
-static __inline u_int32_t
-scsi_4btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_4btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 24) |
 	     (bytes[1] << 16) |
@@ -1608,7 +1608,7 @@ scsi_4btoul(u_int8_t *bytes)
 }
 
 static __inline uint64_t
-scsi_8btou64(uint8_t *bytes)
+scsi_8btou64(const uint8_t *bytes)
 {
         uint64_t rv;
  
