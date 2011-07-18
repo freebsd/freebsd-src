@@ -171,7 +171,7 @@ static int
 intrcnt_setname(const char *name, int index)
 {
 
-	if (intrnames + (MAXCOMLEN + 1) * index >= eintrnames)
+	if ((MAXCOMLEN + 1) * index >= sintrnames)
 		return (E2BIG);
 	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
 	    MAXCOMLEN, name);

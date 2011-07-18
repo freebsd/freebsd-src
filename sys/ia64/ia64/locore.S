@@ -206,11 +206,14 @@ intr_n = 1
 	.byte 0
 	intr_n = intr_n + 1
 .endr
-EXPORT(eintrnames)
+EXPORT(sintrnames)
+	.word INTRCNT_COUNT * INTRNAME_LEN
+
 	.align 8
 EXPORT(intrcnt)
 	.fill INTRCNT_COUNT, 8, 0
-EXPORT(eintrcnt)
+EXPORT(sintrcnt)
+	.word INTRCNT_COUNT
 
 	.text
 	// in0:	image base
