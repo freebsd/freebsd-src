@@ -102,14 +102,16 @@ ASENTRY_NP(irq_entry)
 	.align	0
 
 
-	.global _C_LABEL(intrnames), _C_LABEL(eintrnames)
-	.global _C_LABEL(intrcnt), _C_LABEL(eintrcnt)
+	.global _C_LABEL(intrnames), _C_LABEL(sintrnames)
+	.global _C_LABEL(intrcnt), _C_LABEL(sintrcnt)
 _C_LABEL(intrnames): 
 	.space NIRQ * (MAXCOMLEN + 1)
-_C_LABEL(eintrnames):
 _C_LABEL(intrcnt):
 	.space NIRQ * 4
-_C_LABEL(eintrcnt):
+_C_LABEL(sintrnames):
+	.word NIRQ * (MAXCOMLEN + 1)
+_C_LABEL(sintrcnt):
+	.word NIRQ * 4
 
 	.global _C_LABEL(current_intr_depth)
 _C_LABEL(current_intr_depth):

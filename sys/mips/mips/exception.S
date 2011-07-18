@@ -1134,16 +1134,19 @@ END(MipsFPTrap)
  */
 	.data
 	.globl intrcnt
-	.globl eintrcnt
+	.globl sintrcnt
 	.globl intrnames
-	.globl eintrnames
+	.globl sintrnames
 intrnames:
 	.space  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-eintrnames:
+sintrnames:
+	.word  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+
 	.align	4
 intrcnt:
 	.space  INTRCNT_COUNT * 4 * 2
-eintrcnt:
+sintrcnt:
+	.word  INTRCNT_COUNT * 4 * 2
 
 
 /*
