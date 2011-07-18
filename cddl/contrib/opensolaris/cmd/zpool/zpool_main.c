@@ -1084,10 +1084,11 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	}
 
 	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
-	    &notpresent) == 0) {
+	    &notpresent) == 0 ||
+	    vs->vs_state <= VDEV_STATE_CANT_OPEN) {
 		char *path;
-		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
-		(void) printf("  was %s", path);
+		if (nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0)
+			(void) printf("  was %s", path);
 	} else if (vs->vs_aux != 0) {
 		(void) printf("  ");
 
