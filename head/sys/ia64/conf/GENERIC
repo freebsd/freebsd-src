@@ -106,7 +106,7 @@ device		ch		# Media changer
 device		da		# Direct Access (ie disk)
 device		pass		# Passthrough (direct ATA/SCSI access)
 device		sa		# Sequential Access (ie tape)
-device		ses		# Environmental Services (and SAF-TE)
+device		enc		# Enclosure Services (SES and SAF-TE)
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID

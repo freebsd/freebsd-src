@@ -33,10 +33,13 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"
 
@@ -46,80 +49,83 @@ geteltnm(int type)
 	static char rbuf[132];
 
 	switch (type) {
-	case SESTYP_UNSPECIFIED:
+	case ELMTYP_UNSPECIFIED:
 		sprintf(rbuf, "Unspecified");
 		break;
-	case SESTYP_DEVICE:
+	case ELMTYP_DEVICE:
 		sprintf(rbuf, "Device");
 		break;
-	case SESTYP_POWER:
+	case ELMTYP_POWER:
 		sprintf(rbuf, "Power supply");
 		break;
-	case SESTYP_FAN:
+	case ELMTYP_FAN:
 		sprintf(rbuf, "Cooling element");
 		break;
-	case SESTYP_THERM:
+	case ELMTYP_THERM:
 		sprintf(rbuf, "Temperature sensors");
 		break;
-	case SESTYP_DOORLOCK:
+	case ELMTYP_DOORLOCK:
 		sprintf(rbuf, "Door Lock");
 		break;
-	case SESTYP_ALARM:
+	case ELMTYP_ALARM:
 		sprintf(rbuf, "Audible alarm");
 		break;
-	case SESTYP_ESCC:
+	case ELMTYP_ESCC:
 		sprintf(rbuf, "Enclosure services controller electronics");
 		break;
-	case SESTYP_SCC:
+	case ELMTYP_SCC:
 		sprintf(rbuf, "SCC controller electronics");
 		break;
-	case SESTYP_NVRAM:
+	case ELMTYP_NVRAM:
 		sprintf(rbuf, "Nonvolatile cache");
 		break;
-	case SESTYP_UPS:
+	case ELMTYP_INV_OP_REASON:
+		sprintf(rbuf, "Invalid Operation Reason");
+		break;
+	case ELMTYP_UPS:
 		sprintf(rbuf, "Uninterruptible power supply");
 		break;
-	case SESTYP_DISPLAY:
+	case ELMTYP_DISPLAY:
 		sprintf(rbuf, "Display");
 		break;
-	case SESTYP_KEYPAD:
+	case ELMTYP_KEYPAD:
 		sprintf(rbuf, "Key pad entry device");
 		break;
-	case SESTYP_ENCLOSURE:
+	case ELMTYP_ENCLOSURE:
 		sprintf(rbuf, "Enclosure");
 		break;
-	case SESTYP_SCSIXVR:
+	case ELMTYP_SCSIXVR:
 		sprintf(rbuf, "SCSI port/transceiver");
 		break;
-	case SESTYP_LANGUAGE:
+	case ELMTYP_LANGUAGE:
 		sprintf(rbuf, "Language");
 		break;
-	case SESTYP_COMPORT:
+	case ELMTYP_COMPORT:
 		sprintf(rbuf, "Communication Port");
 		break;
-	case SESTYP_VOM:
+	case ELMTYP_VOM:
 		sprintf(rbuf, "Voltage Sensor");
 		break;
-	case SESTYP_AMMETER:
+	case ELMTYP_AMMETER:
 		sprintf(rbuf, "Current Sensor");
 		break;
-	case SESTYP_SCSI_TGT:
+	case ELMTYP_SCSI_TGT:
 		sprintf(rbuf, "SCSI target port");
 		break;
-	case SESTYP_SCSI_INI:
+	case ELMTYP_SCSI_INI:
 		sprintf(rbuf, "SCSI initiator port");
 		break;
-	case SESTYP_SUBENC:
+	case ELMTYP_SUBENC:
 		sprintf(rbuf, "Simple sub-enclosure");
 		break;
-	case SESTYP_ARRAY:
+	case ELMTYP_ARRAY_DEV:
 		sprintf(rbuf, "Array device");
 		break;
-	case SESTYP_SASEXPANDER:
-		sprintf(rbuf, "SAS Expander");
+	case ELMTYP_SAS_EXP:
+		sprintf(rbuf, "SAS expander");
 		break;
-	case SESTYP_SASCONNECTOR:
-		sprintf(rbuf, "SAS Connector");
+	case ELMTYP_SAS_CONN:
+		sprintf(rbuf, "SAS connector");
 		break;
 	default:
 		(void) sprintf(rbuf, "<Type 0x%x>", type);
