@@ -1094,7 +1094,7 @@ restart:
 				new_message(MT_standout | MT_delayed,
 				    " Displaying %sCPU statistics.",
 				    pcpu_stats ? "per-" : "global ");
-				toggle_pcpustats(&statics);
+				toggle_pcpustats();
 				max_topn = display_updatecpus(&statics);
 				reset_display();
 				putchar('\r');

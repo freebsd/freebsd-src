@@ -241,7 +241,7 @@ static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 
 void
-toggle_pcpustats(struct statics *statics)
+toggle_pcpustats(void)
 {
 
 	if (ncpus == 1)
@@ -256,7 +256,6 @@ toggle_pcpustats(struct statics *statics)
 		y_header += ncpus - 1;	/* 6 */
 		y_procs += ncpus - 1;	/* 7 */
 		Header_lines += ncpus - 1; /* 7 */
-		statics->ncpus = ncpus;
 	} else {
 		y_mem = 3;
 		y_swap = 4;
@@ -265,7 +264,6 @@ toggle_pcpustats(struct statics *statics)
 		y_header = 6;
 		y_procs = 7;
 		Header_lines = 7;
-		statics->ncpus = 1;
 	}
 }
 
@@ -356,10 +354,10 @@ machine_init(struct statics *statics, char do_unames)
 	pcpu_cp_old = calloc(1, size);
 	pcpu_cp_diff = calloc(1, size);
 	pcpu_cpu_states = calloc(1, size);
-	statics->ncpus = 1;
+	statics->ncpus = ncpus;
 
 	if (pcpu_stats)
-		toggle_pcpustats(statics);
+		toggle_pcpustats();
 
 	/* all done! */
 	return (0);
