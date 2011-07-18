@@ -133,7 +133,6 @@ SUBDIR+=	named
 SUBDIR+=	named-checkconf
 SUBDIR+=	named-checkzone
 SUBDIR+=	named-journalprint
-SUBDIR+=	named.reload
 SUBDIR+=	nsec3hash
 SUBDIR+=	rndc
 SUBDIR+=	rndc-confgen
