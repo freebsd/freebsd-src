@@ -151,6 +151,26 @@ int display_resize()
     return(smart_terminal ? lines : Largest);
 }
 
+int display_updatecpus(statics)
+
+struct statics *statics;
+
+{
+    register int lines;
+    register int i;
+    
+    /* call resize to do the dirty work */
+    lines = display_resize();
+    num_cpus = statics->ncpus;
+    cpustates_column = 5;	/* CPU: */
+    if (num_cpus != 1)
+    cpustates_column += 2;	/* CPU 0: */
+    for (i = num_cpus; i > 9; i /= 10)
+	cpustates_column++;
+
+    return(lines);
+}
+    
 int display_init(statics)
 
 struct statics *statics;
@@ -161,14 +181,7 @@ struct statics *statics;
     register int *ip;
     register int i;
 
-    /* call resize to do the dirty work */
-    lines = display_resize();
-    num_cpus = statics->ncpus;
-    cpustates_column = 5;	/* CPU: */
-    if (num_cpus != 1)
-    cpustates_column += 2;	/* CPU 0: */
-    for (i = num_cpus; i > 9; i /= 10)
-	cpustates_column++;
+    lines = display_updatecpus(statics);
 
     /* only do the rest if we need to */
     if (lines > -1)

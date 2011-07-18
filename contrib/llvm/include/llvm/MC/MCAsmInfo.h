@@ -37,6 +37,18 @@ namespace llvm {
     //===------------------------------------------------------------------===//
     // Properties to be set by the target writer, used to configure asm printer.
     //
+    
+    /// PointerSize - Pointer size in bytes.
+    ///               Default is 4.
+    unsigned PointerSize;
+
+    /// IsLittleEndian - True if target is little endian.
+    ///                  Default is true.
+    bool IsLittleEndian;
+
+    /// StackGrowsUp - True if target stack grow up.
+    ///                Default is false.
+    bool StackGrowsUp;
 
     /// HasSubsectionsViaSymbols - True if this target has the MachO
     /// .subsections_via_symbols directive.
@@ -284,6 +296,10 @@ namespace llvm {
     // use EmitLabelOffsetDifference.
     bool DwarfUsesLabelOffsetForRanges;
 
+    /// DwarfRegNumForCFI - True if dwarf register numbers are printed
+    /// instead of symbolic register names in .cfi_* directives.
+    bool DwarfRegNumForCFI;  // Defaults to false;
+
     //===--- CBE Asm Translation Table -----------------------------------===//
 
     const char *const *AsmTransCBE;          // Defaults to empty
@@ -295,6 +311,21 @@ namespace llvm {
     // FIXME: move these methods to DwarfPrinter when the JIT stops using them.
     static unsigned getSLEB128Size(int Value);
     static unsigned getULEB128Size(unsigned Value);
+
+    /// getPointerSize - Get the pointer size in bytes.
+    unsigned getPointerSize() const {
+      return PointerSize;
+    }
+
+    /// islittleendian - True if the target is little endian.
+    bool isLittleEndian() const {
+      return IsLittleEndian;
+    }
+
+    /// isStackGrowthDirectionUp - True if target stack grow up.
+    bool isStackGrowthDirectionUp() const {
+      return StackGrowsUp;
+    }
 
     bool hasSubsectionsViaSymbols() const { return HasSubsectionsViaSymbols; }
 
@@ -474,6 +505,9 @@ namespace llvm {
     }
     bool doesDwarfUsesLabelOffsetForRanges() const {
       return DwarfUsesLabelOffsetForRanges;
+    }
+    bool useDwarfRegNumForCFI() const {
+      return DwarfRegNumForCFI;
     }
     const char *const *getAsmCBE() const {
       return AsmTransCBE;

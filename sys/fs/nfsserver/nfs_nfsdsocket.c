@@ -376,7 +376,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				if (error != EBADRPC)
 					printf("nfs dorpc err1=%d\n", error);
 				nd->nd_repstat = NFSERR_GARBAGE;
-				return;
+				goto out;
 			}
 			if (nd->nd_procnum == NFSPROC_READ ||
 			    nd->nd_procnum == NFSPROC_READDIR ||
@@ -393,7 +393,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				nfsd_fhtovp(nd, &fh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
 			if (nd->nd_repstat == NFSERR_PROGNOTV4)
-				return;
+				goto out;
 		}
 	}
 
@@ -416,7 +416,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 		NFSINCRGLOBAL(newnfsstats.srvrpccnt[nfsv3to4op[nd->nd_procnum]]);
 		if (mp != NULL && nfs_writerpc[nd->nd_procnum] != 0)
 			vn_finished_write(mp);
-		return;
+		goto out;
 	}
 
 	/*
@@ -430,7 +430,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	} else {
 		if (nfs_retfh[nd->nd_procnum] == 1) {
 			if (vp)
-				NFSVOPUNLOCK(vp, 0, p);
+				NFSVOPUNLOCK(vp, 0);
 			error = (*(nfsrv3_procs1[nd->nd_procnum]))(nd, isdgram,
 			    vp, NULL, (fhandle_t *)fh.nfsrvfh_data, p, &nes);
 		} else if (nfs_retfh[nd->nd_procnum] == 2) {
@@ -469,6 +469,9 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	     nd->nd_repstat == NFSERR_GRACE ||
 	     nd->nd_repstat == NFSERR_NOGRACE))
 		nd->nd_flag &= ~ND_SAVEREPLY;
+
+out:
+	NFSEXITCODE2(0, nd);
 }
 
 /*
@@ -705,7 +708,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
@@ -720,7 +723,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
@@ -733,7 +736,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 						vrele(vp);
 					vp = nvp;
 					cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-					VOP_UNLOCK(vp, 0);
+					NFSVOPUNLOCK(vp, 0);
 					vpnes = nes;
 				}
 			} else
@@ -840,7 +843,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				    }
 				}
 				/* Lookup ops return a locked vnode */
-				VOP_UNLOCK(nvp, 0);
+				NFSVOPUNLOCK(nvp, 0);
 			    }
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
@@ -861,7 +864,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			}
 			if (nfsv4_opflag[op].modifyfs)
 				vn_start_write(savevp, &temp_mp, V_WAIT);
-			if (vn_lock(savevp, LK_EXCLUSIVE) == 0) {
+			if (NFSVOPLOCK(savevp, LK_EXCLUSIVE) == 0) {
 				VREF(vp);
 				VREF(savevp);
 				error = (*(nfsrv4_ops2[op]))(nd, isdgram,
@@ -878,7 +881,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					if (nfsv4_opflag[op].modifyfs)
 						vn_start_write(vp, &temp_mp,
 						    V_WAIT);
-					if (vn_lock(vp, nfsv4_opflag[op].lktype)
+					if (NFSVOPLOCK(vp, nfsv4_opflag[op].lktype)
 					    == 0)
 						VREF(vp);
 					else
@@ -946,4 +949,6 @@ nfsmout:
 	NFSLOCKV4ROOTMUTEX();
 	nfsv4_relref(&nfsv4rootfs_lock);
 	NFSUNLOCKV4ROOTMUTEX();
+
+	NFSEXITCODE2(0, nd);
 }

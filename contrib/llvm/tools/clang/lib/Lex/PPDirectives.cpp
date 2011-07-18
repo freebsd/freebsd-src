@@ -784,8 +784,7 @@ void Preprocessor::HandleLineDirective(Token &Tok) {
       Diag(StrTok, diag::err_pp_linemarker_invalid_filename);
       return DiscardUntilEndOfDirective();
     }
-    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString(),
-                                                  Literal.GetStringLength());
+    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString());
 
     // Verify that there is nothing after the string, other than EOD.  Because
     // of C99 6.10.4p5, macros that expand to empty tokens are ok.
@@ -918,8 +917,7 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
       Diag(StrTok, diag::err_pp_linemarker_invalid_filename);
       return DiscardUntilEndOfDirective();
     }
-    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString(),
-                                                  Literal.GetStringLength());
+    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString());
 
     // If a filename was present, read any flags that are present.
     if (ReadLineMarkerFlags(IsFileEntry, IsFileExit,
@@ -1182,15 +1180,16 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   const FileEntry *File = LookupFile(
       Filename, isAngled, LookupFrom, CurDir,
       Callbacks ? &SearchPath : NULL, Callbacks ? &RelativePath : NULL);
-  if (File == 0) {
-    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
-    return;
-  }
 
   // Notify the callback object that we've seen an inclusion directive.
   if (Callbacks)
     Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled, File,
                                   End, SearchPath, RelativePath);
+
+  if (File == 0) {
+    Diag(FilenameTok, diag::warn_pp_file_not_found) << Filename;
+    return;
+  }
 
   // The #included file will be considered to be a system header if either it is
   // in a system include directory, or if the #includer is a system include
@@ -1210,10 +1209,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   // Look up the file, create a File ID for it.
   FileID FID = SourceMgr.createFileID(File, FilenameTok.getLocation(),
                                       FileCharacter);
-  if (FID.isInvalid()) {
-    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
-    return;
-  }
+  assert(!FID.isInvalid() && "Expected valid file ID");
 
   // Finally, if all is good, enter the new file!
   EnterSourceFile(FID, CurDir, FilenameTok.getLocation());
@@ -1599,7 +1595,7 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   // If the macro is not defined, this is a noop undef, just return.
   if (MI == 0) return;
 
-  if (!MI->isUsed())
+  if (!MI->isUsed() && MI->isWarnIfUnused())
     Diag(MI->getDefinitionLoc(), diag::pp_macro_not_used);
 
   // If the callbacks want to know, tell them about the macro #undef.

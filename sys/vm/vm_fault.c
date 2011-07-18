@@ -209,6 +209,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags)
 {
 
+	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+		return (KERN_PROTECTION_FAILURE);
 	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
 }
 
@@ -1474,4 +1476,18 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	/* return number of pages */
 	return i;
+}
+
+int
+vm_fault_disable_pagefaults(void)
+{
+
+	return (curthread_pflags_set(TDP_NOFAULTING));
+}
+
+void
+vm_fault_enable_pagefaults(int save)
+{
+
+	curthread_pflags_restore(save);
 }

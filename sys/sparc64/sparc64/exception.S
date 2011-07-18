@@ -369,11 +369,21 @@ ENTRY(rsf_fatal)
 	sir
 END(rsf_fatal)
 
-	.comm	intrnames, IV_MAX * (MAXCOMLEN + 1)
-	.comm	eintrnames, 0
+	.data
+	_ALIGN_DATA
+	.globl	intrnames, sintrnames
+intrnames:
+	.space	IV_MAX * (MAXCOMLEN + 1)
+sintrnames:
+	.word	IV_MAX * (MAXCOMLEN + 1)
 
-	.comm	intrcnt, IV_MAX * 8
-	.comm	eintrcnt, 0
+	.globl	intrcnt, sintrcnt
+intrcnt:
+	.space	IV_MAX * 8
+sintrcnt:
+	.word	IV_MAX * 8
+
+	.text
 
 /*
  * Trap table and associated macros
@@ -578,7 +588,8 @@ END(tl0_sfsr_trap)
 	andcc	%g1, IRSR_BUSY, %g0
 	bnz,a,pt %xcc, intr_vector
 	 nop
-	sir
+	ba,a,pt	%xcc, intr_vector_stray
+	 nop
 	.align	32
 	.endm
 

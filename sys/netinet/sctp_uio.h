@@ -591,6 +591,7 @@ struct sctp_authchunk {
 struct sctp_authkey {
 	sctp_assoc_t sca_assoc_id;
 	uint16_t sca_keynumber;
+	uint16_t sca_keylength;
 	uint8_t sca_key[];
 };
 

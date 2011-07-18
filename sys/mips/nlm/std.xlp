@@ -1,0 +1,4 @@
+# $FreeBSD$
+files	"../nlm/files.xlp"
+cpu	CPU_NLM
+

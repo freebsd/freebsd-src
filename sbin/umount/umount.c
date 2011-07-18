@@ -154,6 +154,8 @@ main(int argc, char *argv[])
 			sfs = &mntbuf[mntsize];
 			if (checkvfsname(sfs->f_fstypename, typelist))
 				continue;
+			if (strcmp(sfs->f_mntonname, "/dev") == 0)
+				continue;
 			if (umountfs(sfs) != 0)
 				errs = 1;
 		}

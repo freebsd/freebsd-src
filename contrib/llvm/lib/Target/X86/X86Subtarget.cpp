@@ -7,21 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the X86 specific subclass of TargetSubtarget.
+// This file implements the X86 specific subclass of TargetSubtargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "subtarget"
 #include "X86Subtarget.h"
 #include "X86InstrInfo.h"
-#include "X86GenSubtarget.inc"
 #include "llvm/GlobalValue.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/SmallVector.h"
+
+#define GET_SUBTARGETINFO_TARGET_DESC
+#define GET_SUBTARGETINFO_CTOR
+#include "X86GenSubtargetInfo.inc"
+
 using namespace llvm;
 
 #if defined(_MSC_VER)
@@ -154,7 +157,7 @@ const char *X86Subtarget::getBZeroEntry() const {
 /// IsLegalToCallImmediateAddr - Return true if the subtarget allows calls
 /// to immediate address.
 bool X86Subtarget::IsLegalToCallImmediateAddr(const TargetMachine &TM) const {
-  if (Is64Bit)
+  if (In64BitMode)
     return false;
   return isTargetELF() || TM.getRelocationModel() == Reloc::Static;
 }
@@ -170,73 +173,6 @@ unsigned X86Subtarget::getSpecialAddressLatency() const {
   return 200;
 }
 
-/// GetCpuIDAndInfo - Execute the specified cpuid and return the 4 values in the
-/// specified arguments.  If we can't run cpuid on the host, return true.
-static bool GetCpuIDAndInfo(unsigned value, unsigned *rEAX,
-                            unsigned *rEBX, unsigned *rECX, unsigned *rEDX) {
-#if defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
-  #if defined(__GNUC__)
-    // gcc doesn't know cpuid would clobber ebx/rbx. Preseve it manually.
-    asm ("movq\t%%rbx, %%rsi\n\t"
-         "cpuid\n\t"
-         "xchgq\t%%rbx, %%rsi\n\t"
-         : "=a" (*rEAX),
-           "=S" (*rEBX),
-           "=c" (*rECX),
-           "=d" (*rEDX)
-         :  "a" (value));
-    return false;
-  #elif defined(_MSC_VER)
-    int registers[4];
-    __cpuid(registers, value);
-    *rEAX = registers[0];
-    *rEBX = registers[1];
-    *rECX = registers[2];
-    *rEDX = registers[3];
-    return false;
-  #endif
-#elif defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)
-  #if defined(__GNUC__)
-    asm ("movl\t%%ebx, %%esi\n\t"
-         "cpuid\n\t"
-         "xchgl\t%%ebx, %%esi\n\t"
-         : "=a" (*rEAX),
-           "=S" (*rEBX),
-           "=c" (*rECX),
-           "=d" (*rEDX)
-         :  "a" (value));
-    return false;
-  #elif defined(_MSC_VER)
-    __asm {
-      mov   eax,value
-      cpuid
-      mov   esi,rEAX
-      mov   dword ptr [esi],eax
-      mov   esi,rEBX
-      mov   dword ptr [esi],ebx
-      mov   esi,rECX
-      mov   dword ptr [esi],ecx
-      mov   esi,rEDX
-      mov   dword ptr [esi],edx
-    }
-    return false;
-  #endif
-#endif
-  return true;
-}
-
-static void DetectFamilyModel(unsigned EAX, unsigned &Family, unsigned &Model) {
-  Family = (EAX >> 8) & 0xf; // Bits 8 - 11
-  Model  = (EAX >> 4) & 0xf; // Bits 4 - 7
-  if (Family == 6 || Family == 0xf) {
-    if (Family == 0xf)
-      // Examine extended family ID if family ID is F.
-      Family += (EAX >> 20) & 0xff;    // Bits 20 - 27
-    // Examine extended model ID if family ID is 6 or F.
-    Model += ((EAX >> 16) & 0xf) << 4; // Bits 16 - 19
-  }
-}
-
 void X86Subtarget::AutoDetectSubtargetFeatures() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   union {
@@ -244,50 +180,66 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
     char     c[12];
   } text;
   
-  if (GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1))
+  if (X86_MC::GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1))
     return;
 
-  GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
+  X86_MC::GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
   
-  if ((EDX >> 15) & 1) HasCMov = true;
-  if ((EDX >> 23) & 1) X86SSELevel = MMX;
-  if ((EDX >> 25) & 1) X86SSELevel = SSE1;
-  if ((EDX >> 26) & 1) X86SSELevel = SSE2;
-  if (ECX & 0x1)       X86SSELevel = SSE3;
-  if ((ECX >> 9)  & 1) X86SSELevel = SSSE3;
-  if ((ECX >> 19) & 1) X86SSELevel = SSE41;
-  if ((ECX >> 20) & 1) X86SSELevel = SSE42;
+  if ((EDX >> 15) & 1) HasCMov = true;      ToggleFeature(X86::FeatureCMOV);
+  if ((EDX >> 23) & 1) X86SSELevel = MMX;   ToggleFeature(X86::FeatureMMX);
+  if ((EDX >> 25) & 1) X86SSELevel = SSE1;  ToggleFeature(X86::FeatureSSE1);
+  if ((EDX >> 26) & 1) X86SSELevel = SSE2;  ToggleFeature(X86::FeatureSSE2);
+  if (ECX & 0x1)       X86SSELevel = SSE3;  ToggleFeature(X86::FeatureSSE3);
+  if ((ECX >> 9)  & 1) X86SSELevel = SSSE3; ToggleFeature(X86::FeatureSSSE3);
+  if ((ECX >> 19) & 1) X86SSELevel = SSE41; ToggleFeature(X86::FeatureSSE41);
+  if ((ECX >> 20) & 1) X86SSELevel = SSE42; ToggleFeature(X86::FeatureSSE42);
   // FIXME: AVX codegen support is not ready.
-  //if ((ECX >> 28) & 1) { HasAVX = true; X86SSELevel = NoMMXSSE; }
+  //if ((ECX >> 28) & 1) { HasAVX = true; } ToggleFeature(X86::FeatureAVX);
 
   bool IsIntel = memcmp(text.c, "GenuineIntel", 12) == 0;
   bool IsAMD   = !IsIntel && memcmp(text.c, "AuthenticAMD", 12) == 0;
 
-  HasCLMUL = IsIntel && ((ECX >> 1) & 0x1);
-  HasFMA3  = IsIntel && ((ECX >> 12) & 0x1);
-  HasPOPCNT = IsIntel && ((ECX >> 23) & 0x1);
-  HasAES   = IsIntel && ((ECX >> 25) & 0x1);
+  HasCLMUL = IsIntel && ((ECX >> 1) & 0x1);   ToggleFeature(X86::FeatureCLMUL);
+  HasFMA3  = IsIntel && ((ECX >> 12) & 0x1);  ToggleFeature(X86::FeatureFMA3);
+  HasPOPCNT = IsIntel && ((ECX >> 23) & 0x1); ToggleFeature(X86::FeaturePOPCNT);
+  HasAES   = IsIntel && ((ECX >> 25) & 0x1);  ToggleFeature(X86::FeatureAES);
 
   if (IsIntel || IsAMD) {
     // Determine if bit test memory instructions are slow.
     unsigned Family = 0;
     unsigned Model  = 0;
-    DetectFamilyModel(EAX, Family, Model);
-    IsBTMemSlow = IsAMD || (Family == 6 && Model >= 13);
+    X86_MC::DetectFamilyModel(EAX, Family, Model);
+    if (IsAMD || (Family == 6 && Model >= 13)) {
+      IsBTMemSlow = true;
+      ToggleFeature(X86::FeatureSlowBTMem);
+    }
     // If it's Nehalem, unaligned memory access is fast.
-    if (Family == 15 && Model == 26)
+    if (Family == 15 && Model == 26) {
       IsUAMemFast = true;
+      ToggleFeature(X86::FeatureFastUAMem);
+    }
 
-    GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
-    HasX86_64 = (EDX >> 29) & 0x1;
-    HasSSE4A = IsAMD && ((ECX >> 6) & 0x1);
-    HasFMA4 = IsAMD && ((ECX >> 16) & 0x1);
+    X86_MC::GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
+    if ((EDX >> 29) & 0x1) {
+      HasX86_64 = true;
+      ToggleFeature(X86::Feature64Bit);
+    }
+    if (IsAMD && ((ECX >> 6) & 0x1)) {
+      HasSSE4A = true;
+      ToggleFeature(X86::FeatureSSE4A);
+    }
+    if (IsAMD && ((ECX >> 16) & 0x1)) {
+      HasFMA4 = true;
+      ToggleFeature(X86::FeatureFMA4);
+    }
   }
 }
 
-X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS, 
-                           bool is64Bit)
-  : PICStyle(PICStyles::None)
+X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
+                           const std::string &FS, 
+                           unsigned StackAlignOverride, bool is64Bit)
+  : X86GenSubtargetInfo(TT, CPU, FS)
+  , PICStyle(PICStyles::None)
   , X86SSELevel(NoMMXSSE)
   , X863DNowLevel(NoThreeDNow)
   , HasCMov(false)
@@ -306,73 +258,66 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   // FIXME: this is a known good value for Yonah. How about others?
   , MaxInlineSizeThreshold(128)
   , TargetTriple(TT)
-  , Is64Bit(is64Bit) {
-
-  // default to hard float ABI
-  if (FloatABIType == FloatABI::Default)
-    FloatABIType = FloatABI::Hard;
-    
+  , In64BitMode(is64Bit) {
   // Determine default and user specified characteristics
-  if (!FS.empty()) {
+  if (!FS.empty() || !CPU.empty()) {
+    std::string CPUName = CPU;
+    if (CPUName.empty()) {
+#if defined (__x86_64__) || defined(__i386__)
+      CPUName = sys::getHostCPUName();
+#else
+      CPUName = "generic";
+#endif
+    }
+
+    // Make sure 64-bit features are available in 64-bit mode. (But make sure
+    // SSE2 can be turned off explicitly.)
+    std::string FullFS = FS;
+    if (In64BitMode) {
+      if (!FullFS.empty())
+        FullFS = "+64bit,+sse2," + FullFS;
+      else
+        FullFS = "+64bit,+sse2";
+    }
+
     // If feature string is not empty, parse features string.
-    std::string CPU = sys::getHostCPUName();
-    ParseSubtargetFeatures(FS, CPU);
-    // All X86-64 CPUs also have SSE2, however user might request no SSE via 
-    // -mattr, so don't force SSELevel here.
-    if (HasAVX)
-      X86SSELevel = NoMMXSSE;
+    ParseSubtargetFeatures(CPUName, FullFS);
   } else {
     // Otherwise, use CPUID to auto-detect feature set.
     AutoDetectSubtargetFeatures();
-    // Make sure SSE2 is enabled; it is available on all X86-64 CPUs.
-    if (Is64Bit && !HasAVX && X86SSELevel < SSE2)
-      X86SSELevel = SSE2;
+
+    // Make sure 64-bit features are available in 64-bit mode.
+    if (In64BitMode) {
+      HasX86_64 = true; ToggleFeature(X86::Feature64Bit);
+      HasCMov = true;   ToggleFeature(X86::FeatureCMOV);
+
+      if (!HasAVX && X86SSELevel < SSE2) {
+        X86SSELevel = SSE2;
+        ToggleFeature(X86::FeatureSSE1);
+        ToggleFeature(X86::FeatureSSE2);
+      }
+    }
   }
 
-  // If requesting codegen for X86-64, make sure that 64-bit features
-  // are enabled.
-  if (Is64Bit) {
-    HasX86_64 = true;
+  // It's important to keep the MCSubtargetInfo feature bits in sync with
+  // target data structure which is shared with MC code emitter, etc.
+  if (In64BitMode)
+    ToggleFeature(X86::Mode64Bit);
 
-    // All 64-bit cpus have cmov support.
-    HasCMov = true;
-  }
+  if (HasAVX)
+    X86SSELevel = NoMMXSSE;
     
   DEBUG(dbgs() << "Subtarget features: SSELevel " << X86SSELevel
                << ", 3DNowLevel " << X863DNowLevel
                << ", 64bit " << HasX86_64 << "\n");
-  assert((!Is64Bit || HasX86_64) &&
+  assert((!In64BitMode || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
   // Stack alignment is 16 bytes on Darwin, FreeBSD, Linux and Solaris (both
   // 32 and 64 bit) and for all 64-bit targets.
-  if (isTargetDarwin() || isTargetFreeBSD() || isTargetLinux() ||
-      isTargetSolaris() || Is64Bit)
+  if (StackAlignOverride)
+    stackAlignment = StackAlignOverride;
+  else if (isTargetDarwin() || isTargetFreeBSD() || isTargetLinux() ||
+           isTargetSolaris() || In64BitMode)
     stackAlignment = 16;
-
-  if (StackAlignment)
-    stackAlignment = StackAlignment;
-}
-
-/// IsCalleePop - Determines whether the callee is required to pop its
-/// own arguments. Callee pop is necessary to support tail calls.
-bool X86Subtarget::IsCalleePop(bool IsVarArg,
-                               CallingConv::ID CallingConv) const {
-  if (IsVarArg)
-    return false;
-
-  switch (CallingConv) {
-  default:
-    return false;
-  case CallingConv::X86_StdCall:
-    return !is64Bit();
-  case CallingConv::X86_FastCall:
-    return !is64Bit();
-  case CallingConv::X86_ThisCall:
-    return !is64Bit();
-  case CallingConv::Fast:
-    return GuaranteedTailCallOpt;
-  case CallingConv::GHC:
-    return GuaranteedTailCallOpt;
-  }
 }

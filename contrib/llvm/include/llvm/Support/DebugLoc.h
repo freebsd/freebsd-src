@@ -61,7 +61,10 @@ namespace llvm {
     
     /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
     static DebugLoc getFromDILocation(MDNode *N);
-    
+
+    /// getFromDILexicalBlock - Translate the DILexicalBlock into a DebugLoc.
+    static DebugLoc getFromDILexicalBlock(MDNode *N);
+
     /// isUnknown - Return true if this is an unknown location.
     bool isUnknown() const { return ScopeIdx == 0; }
     
@@ -94,6 +97,8 @@ namespace llvm {
       return LineCol == DL.LineCol && ScopeIdx == DL.ScopeIdx;
     }
     bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
+
+    void dump(const LLVMContext &Ctx) const;
   };
 
   template <>

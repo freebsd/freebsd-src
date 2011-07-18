@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2010  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3.h,v 1.5.48.3 2009-10-06 21:20:18 each Exp $ */
+/* $Id: nsec3.h,v 1.12 2010-05-18 02:38:10 tbox Exp $ */
 
 #ifndef DNS_NSEC3_H
 #define DNS_NSEC3_H 1
@@ -110,6 +110,12 @@ isc_result_t
 dns_nsec3_addnsec3s(dns_db_t *db, dns_dbversion_t *version,
 		    dns_name_t *name, dns_ttl_t nsecttl,
 		    isc_boolean_t unsecure, dns_diff_t *diff);
+
+isc_result_t
+dns_nsec3_addnsec3sx(dns_db_t *db, dns_dbversion_t *version,
+		     dns_name_t *name, dns_ttl_t nsecttl,
+		     isc_boolean_t unsecure, dns_rdatatype_t private,
+		     dns_diff_t *diff);
 /*%<
  * Add NSEC3 records for 'name', recording the change in 'diff'.
  * Adjust previous NSEC3 records, if any, to reflect the addition.
@@ -130,6 +136,10 @@ dns_nsec3_addnsec3s(dns_db_t *db, dns_dbversion_t *version,
  * NSEC3PARAM record otherwise OPTOUT will be inherited from the previous
  * record in the chain.
  *
+ * dns_nsec3_addnsec3sx() is similar to dns_nsec3_addnsec3s() but 'private'
+ * specifies the type of the private rdataset to be checked in addition to
+ * the nsec3param rdataset at the zone apex.
+ *
  * Requires:
  *	'db' to be valid.
  *	'version' to be valid or NULL.
@@ -145,6 +155,10 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 isc_result_t
 dns_nsec3_delnsec3s(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		    dns_diff_t *diff);
+
+isc_result_t
+dns_nsec3_delnsec3sx(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
+		     dns_rdatatype_t private, dns_diff_t *diff);
 /*%<
  * Remove NSEC3 records for 'name', recording the change in 'diff'.
  * Adjust previous NSEC3 records, if any, to reflect the removal.
@@ -155,6 +169,10 @@ dns_nsec3_delnsec3s(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
  * dns_nsec3_delnsec3s() examines the NSEC3PARAM RRset in a similar manner
  * to dns_nsec3_addnsec3s().  Unlike dns_nsec3_addnsec3s() updated NSEC3
  * records have the OPTOUT flag preserved.
+ *
+ * dns_nsec3_delnsec3sx() is similar to dns_nsec3_delnsec3s() but 'private'
+ * specifies the type of the private rdataset to be checked in addition to
+ * the nsec3param rdataset at the zone apex.
  *
  * Requires:
  *	'db' to be valid.
@@ -167,9 +185,18 @@ dns_nsec3_delnsec3s(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 isc_result_t
 dns_nsec3_active(dns_db_t *db, dns_dbversion_t *version,
 		 isc_boolean_t complete, isc_boolean_t *answer);
+
+isc_result_t
+dns_nsec3_activex(dns_db_t *db, dns_dbversion_t *version,
+		  isc_boolean_t complete, dns_rdatatype_t private,
+		  isc_boolean_t *answer);
 /*%<
  * Check if there are any complete/to be built NSEC3 chains.
  * If 'complete' is ISC_TRUE only complete chains will be recognized.
+ *
+ * dns_nsec3_activex() is similar to dns_nsec3_active() but 'private'
+ * specifies the type of the private rdataset to be checked in addition to
+ * the nsec3param rdataset at the zone apex.
  *
  * Requires:
  *	'db' to be valid.
@@ -190,6 +217,36 @@ dns_nsec3_maxiterations(dns_db_t *db, dns_dbversion_t *version,
  *	'mctx' to be valid.
  *	'iterationsp' to be non NULL.
  */
+
+isc_boolean_t
+dns_nsec3param_fromprivate(dns_rdata_t *src, dns_rdata_t *target,
+			   unsigned char *buf, size_t buflen);
+/*%<
+ * Convert a private rdata to a nsec3param rdata.
+ *
+ * Return ISC_TRUE if 'src' could be successfully converted.
+ *
+ * 'buf' should be at least DNS_NSEC3PARAM_BUFFERSIZE in size.
+ */
+
+void
+dns_nsec3param_toprivate(dns_rdata_t *src, dns_rdata_t *target,
+			 dns_rdatatype_t privatetype,
+			 unsigned char *buf, size_t buflen);
+/*%<
+ * Convert a nsec3param rdata to a private rdata.
+ *
+ * 'buf' should be at least src->length + 1 in size.
+ */
+
+isc_result_t
+dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
+			    dns_zone_t *zone, dns_diff_t *diff);
+
+/*%<
+ * Mark NSEC3PARAM for deletion.
+ */
+
 
 ISC_LANG_ENDDECLS
 

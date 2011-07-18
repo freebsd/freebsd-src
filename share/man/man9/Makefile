@@ -296,7 +296,6 @@ MAN=	accept_filter.9 \
 	vm_fault_prefault.9 \
 	vm_map.9 \
 	vm_map_check_protection.9 \
-	vm_map_clean.9 \
 	vm_map_create.9 \
 	vm_map_delete.9 \
 	vm_map_entry_resize_free.9 \
@@ -314,11 +313,11 @@ MAN=	accept_filter.9 \
 	vm_map_simplify_entry.9 \
 	vm_map_stack.9 \
 	vm_map_submap.9 \
+	vm_map_sync.9 \
 	vm_map_wire.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
 	vm_page_cache.9 \
-	vm_page_copy.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
 	vm_page_flag.9 \
@@ -328,12 +327,10 @@ MAN=	accept_filter.9 \
 	vm_page_insert.9 \
 	vm_page_io.9 \
 	vm_page_lookup.9 \
-	vm_page_protect.9 \
 	vm_page_rename.9 \
 	vm_page_sleep_if_busy.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
-	vm_page_zero_fill.9 \
 	vm_set_page_size.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
@@ -551,8 +548,10 @@ MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_establish.9
 MLINKS+=contigmalloc.9 contigfree.9
 MLINKS+=copy.9 copyin.9 \
+	copy.9 copyin_nofault.9 \
 	copy.9 copyinstr.9 \
 	copy.9 copyout.9 \
+	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
@@ -1284,7 +1283,8 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uifree.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
-MLINKS+=uio.9 uiomove.9
+MLINKS+=uio.9 uiomove.9 \
+	uio.9 uiomove_nofault.9
 MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usbd_do_request_flags.9 \
 	usbdi.9 usbd_errstr.9 \

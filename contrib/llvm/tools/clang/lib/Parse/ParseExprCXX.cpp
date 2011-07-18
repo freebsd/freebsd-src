@@ -245,8 +245,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
       // So we need to check whether the simple-template-id is of the
       // right kind (it should name a type or be dependent), and then
       // convert it into a type within the nested-name-specifier.
-      TemplateIdAnnotation *TemplateId
-        = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+      TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
       if (CheckForDestructor && GetLookAheadToken(2).is(tok::tilde)) {
         *MayBePseudoDestructor = true;
         return false;
@@ -281,10 +280,6 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
         SS.SetInvalid(SourceRange(StartLoc, CCLoc));
       }
 
-      // If we are caching tokens we will process the TemplateId again,
-      // otherwise destroy it.
-      if (!PP.isBacktrackEnabled())
-        TemplateId->Destroy();
       continue;
     }
 
@@ -543,7 +538,14 @@ ExprResult Parser::ParseCXXCasts() {
   if (ExpectAndConsume(tok::less, diag::err_expected_less_after, CastName))
     return ExprError();
 
-  TypeResult CastTy = ParseTypeName();
+  // Parse the common declaration-specifiers piece.
+  DeclSpec DS(AttrFactory);
+  ParseSpecifierQualifierList(DS);
+
+  // Parse the abstract-declarator, if present.
+  Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+  ParseDeclarator(DeclaratorInfo);
+
   SourceLocation RAngleBracketLoc = Tok.getLocation();
 
   if (ExpectAndConsume(tok::greater, diag::err_expected_greater))
@@ -559,9 +561,9 @@ ExprResult Parser::ParseCXXCasts() {
   // Match the ')'.
   RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
 
-  if (!Result.isInvalid() && !CastTy.isInvalid())
+  if (!Result.isInvalid() && !DeclaratorInfo.isInvalidType())
     Result = Actions.ActOnCXXNamedCast(OpLoc, Kind,
-                                       LAngleBracketLoc, CastTy.get(),
+                                       LAngleBracketLoc, DeclaratorInfo,
                                        RAngleBracketLoc,
                                        LParenLoc, Result.take(), RParenLoc);
 
@@ -785,12 +787,12 @@ ExprResult Parser::ParseThrowExpression() {
   case tok::r_brace:
   case tok::colon:
   case tok::comma:
-    return Actions.ActOnCXXThrow(ThrowLoc, 0);
+    return Actions.ActOnCXXThrow(getCurScope(), ThrowLoc, 0);
 
   default:
     ExprResult Expr(ParseAssignmentExpression());
     if (Expr.isInvalid()) return move(Expr);
-    return Actions.ActOnCXXThrow(ThrowLoc, Expr.take());
+    return Actions.ActOnCXXThrow(getCurScope(), ThrowLoc, Expr.take());
   }
 }
 
@@ -1606,8 +1608,7 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
   // unqualified-id:
   //   template-id (already parsed and annotated)
   if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId
-      = static_cast<TemplateIdAnnotation*>(Tok.getAnnotationValue());
+    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
 
     // If the template-name names the current class, then this is a constructor 
     if (AllowConstructorName && TemplateId->Name &&
@@ -1630,7 +1631,6 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
                                             /*NontrivialTypeSourceInfo=*/true),
                                   TemplateId->TemplateNameLoc, 
                                   TemplateId->RAngleLoc);
-        TemplateId->Destroy();
         ConsumeToken();
         return false;
       }
@@ -1755,7 +1755,7 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
 
   SourceRange TypeIdParens;
   DeclSpec DS(AttrFactory);
-  Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+  Declarator DeclaratorInfo(DS, Declarator::CXXNewContext);
   if (Tok.is(tok::l_paren)) {
     // If it turns out to be a placement, we change the type location.
     PlacementLParen = ConsumeParen();
@@ -2200,7 +2200,8 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
       Result = ParseCastExpression(false/*isUnaryExpression*/,
                                    false/*isAddressofOperand*/,
                                    NotCastExpr,
-                                   ParsedType()/*TypeOfCast*/);
+                                   // type-id has priority.
+                                   true/*isTypeCast*/);
     }
 
     // If we parsed a cast-expression, it's really a type-id, otherwise it's
@@ -2219,7 +2220,11 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
   ConsumeAnyToken();
 
   if (ParseAs >= CompoundLiteral) {
-    TypeResult Ty = ParseTypeName();
+    // Parse the type declarator.
+    DeclSpec DS(AttrFactory);
+    ParseSpecifierQualifierList(DS);
+    Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+    ParseDeclarator(DeclaratorInfo);
 
     // Match the ')'.
     if (Tok.is(tok::r_paren))
@@ -2229,21 +2234,21 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
 
     if (ParseAs == CompoundLiteral) {
       ExprType = CompoundLiteral;
+      TypeResult Ty = ParseTypeName();
       return ParseCompoundLiteralExpression(Ty.get(), LParenLoc, RParenLoc);
     }
 
     // We parsed '(' type-id ')' and the thing after it wasn't a '{'.
     assert(ParseAs == CastExpr);
 
-    if (Ty.isInvalid())
+    if (DeclaratorInfo.isInvalidType())
       return ExprError();
-
-    CastTy = Ty.get();
 
     // Result is what ParseCastExpression returned earlier.
     if (!Result.isInvalid())
-      Result = Actions.ActOnCastExpr(getCurScope(), LParenLoc, CastTy, RParenLoc,
-                                     Result.take());
+      Result = Actions.ActOnCastExpr(getCurScope(), LParenLoc,
+                                     DeclaratorInfo, CastTy,
+                                     RParenLoc, Result.take());
     return move(Result);
   }
 

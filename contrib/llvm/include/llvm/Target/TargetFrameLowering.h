@@ -15,6 +15,8 @@
 #define LLVM_TARGET_TARGETFRAMELOWERING_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/MC/MCDwarf.h"
+#include "llvm/ADT/ArrayRef.h"
 
 #include <utility>
 #include <vector>
@@ -188,6 +190,14 @@ public:
   /// replaced with direct constants.  This method is optional.
   ///
   virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
+  }
+
+  /// getCompactUnwindEncoding - Get the compact unwind encoding for the
+  /// function. Return 0 if the compact unwind isn't available.
+  virtual uint32_t getCompactUnwindEncoding(ArrayRef<MCCFIInstruction> Instrs,
+                                            int DataAlignmentFactor,
+                                            bool IsEH) const {
+    return 0;
   }
 };
 

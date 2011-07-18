@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.4.326.3 2009-06-24 02:21:28 marka Exp $ */
+/* $Id: atomic.h,v 1.7 2009-06-24 02:22:50 marka Exp $ */
 
 #ifndef ISC_ATOMIC_H
 #define ISC_ATOMIC_H 1

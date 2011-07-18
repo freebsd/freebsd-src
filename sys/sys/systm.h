@@ -217,7 +217,11 @@ int	copyinstr(const void * __restrict udaddr, void * __restrict kaddr,
 	    __nonnull(1) __nonnull(2);
 int	copyin(const void * __restrict udaddr, void * __restrict kaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
+int	copyin_nofault(const void * __restrict udaddr, void * __restrict kaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
 int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
+int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 
 int	fubyte(const void *base);
@@ -389,6 +393,17 @@ bitcount32(uint32_t x)
 	x = (x + (x >> 4)) & 0x0f0f0f0f;
 	x = (x + (x >> 8));
 	x = (x + (x >> 16)) & 0x000000ff;
+	return (x);
+}
+
+static __inline uint16_t
+bitcount16(uint32_t x)
+{
+
+	x = (x & 0x5555) + ((x & 0xaaaa) >> 1);
+	x = (x & 0x3333) + ((x & 0xcccc) >> 2);
+	x = (x + (x >> 4)) & 0x0f0f;
+	x = (x + (x >> 8)) & 0x00ff;
 	return (x);
 }
 

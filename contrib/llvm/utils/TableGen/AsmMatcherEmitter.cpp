@@ -98,6 +98,7 @@
 
 #include "AsmMatcherEmitter.h"
 #include "CodeGenTarget.h"
+#include "Error.h"
 #include "Record.h"
 #include "StringMatcher.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -870,6 +871,31 @@ AsmMatcherInfo::getOperandClass(const CGIOperandList::OperandInfo &OI,
   if (SubOpIdx != -1)
     Rec = dynamic_cast<DefInit*>(OI.MIOperandInfo->getArg(SubOpIdx))->getDef();
 
+  if (Rec->isSubClassOf("RegisterOperand")) {
+    // RegisterOperand may have an associated ParserMatchClass. If it does,
+    // use it, else just fall back to the underlying register class.
+    const RecordVal *R = Rec->getValue("ParserMatchClass");
+    if (R == 0 || R->getValue() == 0)
+      throw "Record `" + Rec->getName() +
+        "' does not have a ParserMatchClass!\n";
+
+    if (DefInit *DI= dynamic_cast<DefInit*>(R->getValue())) {
+      Record *MatchClass = DI->getDef();
+      if (ClassInfo *CI = AsmOperandClasses[MatchClass])
+        return CI;
+    }
+
+    // No custom match class. Just use the register class.
+    Record *ClassRec = Rec->getValueAsDef("RegClass");
+    if (!ClassRec)
+      throw TGError(Rec->getLoc(), "RegisterOperand `" + Rec->getName() +
+                    "' has no associated register class!\n");
+    if (ClassInfo *CI = RegisterClassClasses[ClassRec])
+      return CI;
+    throw TGError(Rec->getLoc(), "register class has no class info!");
+  }
+
+
   if (Rec->isSubClassOf("RegisterClass")) {
     if (ClassInfo *CI = RegisterClassClasses[Rec])
       return CI;
@@ -886,7 +912,8 @@ AsmMatcherInfo::getOperandClass(const CGIOperandList::OperandInfo &OI,
 
 void AsmMatcherInfo::
 BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
-  const std::vector<CodeGenRegister> &Registers = Target.getRegisters();
+  const std::vector<CodeGenRegister*> &Registers =
+    Target.getRegBank().getRegisters();
   const std::vector<CodeGenRegisterClass> &RegClassList =
     Target.getRegisterClasses();
 
@@ -896,8 +923,8 @@ BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
   // Gather the defined sets.
   for (std::vector<CodeGenRegisterClass>::const_iterator it =
        RegClassList.begin(), ie = RegClassList.end(); it != ie; ++it)
-    RegisterSets.insert(std::set<Record*>(it->Elements.begin(),
-                                          it->Elements.end()));
+    RegisterSets.insert(std::set<Record*>(it->getOrder().begin(),
+                                          it->getOrder().end()));
 
   // Add any required singleton sets.
   for (SmallPtrSet<Record*, 16>::iterator it = SingletonRegisters.begin(),
@@ -910,9 +937,9 @@ BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
   // a unique register set class), and build the mapping of registers to the set
   // they should classify to.
   std::map<Record*, std::set<Record*> > RegisterMap;
-  for (std::vector<CodeGenRegister>::const_iterator it = Registers.begin(),
+  for (std::vector<CodeGenRegister*>::const_iterator it = Registers.begin(),
          ie = Registers.end(); it != ie; ++it) {
-    const CodeGenRegister &CGR = *it;
+    const CodeGenRegister &CGR = **it;
     // Compute the intersection of all sets containing this register.
     std::set<Record*> ContainingSet;
 
@@ -971,8 +998,8 @@ BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
   // Name the register classes which correspond to a user defined RegisterClass.
   for (std::vector<CodeGenRegisterClass>::const_iterator
        it = RegClassList.begin(), ie = RegClassList.end(); it != ie; ++it) {
-    ClassInfo *CI = RegisterSetClasses[std::set<Record*>(it->Elements.begin(),
-                                                         it->Elements.end())];
+    ClassInfo *CI = RegisterSetClasses[std::set<Record*>(it->getOrder().begin(),
+                                                         it->getOrder().end())];
     if (CI->ValueName.empty()) {
       CI->ClassName = it->getName();
       CI->Name = "MCK_" + it->getName();
@@ -1126,7 +1153,7 @@ void AsmMatcherInfo::BuildInfo() {
     assert(FeatureNo < 32 && "Too many subtarget features!");
   }
 
-  StringRef CommentDelimiter = AsmParser->getValueAsString("CommentDelimiter");
+  std::string CommentDelimiter = AsmParser->getValueAsString("CommentDelimiter");
 
   // Parse the instructions; we need to do this first so that we can gather the
   // singleton register classes.
@@ -1629,6 +1656,10 @@ static void EmitValidateOperandClass(AsmMatcherInfo &Info,
   OS << "  " << Info.Target.getName() << "Operand &Operand = *("
      << Info.Target.getName() << "Operand*)GOp;\n";
 
+  // The InvalidMatchClass is not to match any operand.
+  OS << "  if (Kind == InvalidMatchClass)\n";
+  OS << "    return false;\n\n";
+
   // Check for Token operands first.
   OS << "  if (Operand.isToken())\n";
   OS << "    return MatchTokenString(Operand.getToken()) == Kind;\n\n";
@@ -1745,14 +1776,16 @@ static void EmitMatchRegisterName(CodeGenTarget &Target, Record *AsmParser,
                                   raw_ostream &OS) {
   // Construct the match list.
   std::vector<StringMatcher::StringPair> Matches;
-  for (unsigned i = 0, e = Target.getRegisters().size(); i != e; ++i) {
-    const CodeGenRegister &Reg = Target.getRegisters()[i];
-    if (Reg.TheDef->getValueAsString("AsmName").empty())
+  const std::vector<CodeGenRegister*> &Regs =
+    Target.getRegBank().getRegisters();
+  for (unsigned i = 0, e = Regs.size(); i != e; ++i) {
+    const CodeGenRegister *Reg = Regs[i];
+    if (Reg->TheDef->getValueAsString("AsmName").empty())
       continue;
 
     Matches.push_back(StringMatcher::StringPair(
-                                        Reg.TheDef->getValueAsString("AsmName"),
-                                        "return " + utostr(i + 1) + ";"));
+                                     Reg->TheDef->getValueAsString("AsmName"),
+                                     "return " + utostr(Reg->EnumValue) + ";"));
   }
 
   OS << "static unsigned MatchRegisterName(StringRef Name) {\n";
@@ -1788,15 +1821,44 @@ static void EmitComputeAvailableFeatures(AsmMatcherInfo &Info,
     Info.AsmParser->getValueAsString("AsmParserClassName");
 
   OS << "unsigned " << Info.Target.getName() << ClassName << "::\n"
-     << "ComputeAvailableFeatures(const " << Info.Target.getName()
-     << "Subtarget *Subtarget) const {\n";
+     << "ComputeAvailableFeatures(uint64_t FB) const {\n";
   OS << "  unsigned Features = 0;\n";
   for (std::map<Record*, SubtargetFeatureInfo*>::const_iterator
          it = Info.SubtargetFeatures.begin(),
          ie = Info.SubtargetFeatures.end(); it != ie; ++it) {
     SubtargetFeatureInfo &SFI = *it->second;
-    OS << "  if (" << SFI.TheDef->getValueAsString("CondString")
-       << ")\n";
+
+    OS << "  if (";
+    std::string CondStorage = SFI.TheDef->getValueAsString("AssemblerCondString");
+    StringRef Conds = CondStorage;
+    std::pair<StringRef,StringRef> Comma = Conds.split(',');
+    bool First = true;
+    do {
+      if (!First)
+        OS << " && ";
+
+      bool Neg = false;
+      StringRef Cond = Comma.first;
+      if (Cond[0] == '!') {
+        Neg = true;
+        Cond = Cond.substr(1);
+      }
+
+      OS << "((FB & " << Info.Target.getName() << "::" << Cond << ")";
+      if (Neg)
+        OS << " == 0";
+      else
+        OS << " != 0";
+      OS << ")";
+
+      if (Comma.second.empty())
+        break;
+
+      First = false;
+      Comma = Comma.second.split(',');
+    } while (true);
+
+    OS << ")\n";
     OS << "    Features |= " << SFI.getEnumName() << ";\n";
   }
   OS << "  return Features;\n";
@@ -2111,8 +2173,7 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "#undef GET_ASSEMBLER_HEADER\n";
   OS << "  // This should be included into the middle of the declaration of\n";
   OS << "  // your subclasses implementation of TargetAsmParser.\n";
-  OS << "  unsigned ComputeAvailableFeatures(const " <<
-           Target.getName() << "Subtarget *Subtarget) const;\n";
+  OS << "  unsigned ComputeAvailableFeatures(uint64_t FeatureBits) const;\n";
   OS << "  enum MatchResultTy {\n";
   OS << "    Match_ConversionFail,\n";
   OS << "    Match_InvalidOperand,\n";

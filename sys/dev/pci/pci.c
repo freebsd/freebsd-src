@@ -347,6 +347,21 @@ pci_find_device(uint16_t vendor, uint16_t device)
 	return (NULL);
 }
 
+device_t
+pci_find_class(uint8_t class, uint8_t subclass)
+{
+	struct pci_devinfo *dinfo;
+
+	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
+		if (dinfo->cfg.baseclass == class &&
+		    dinfo->cfg.subclass == subclass) {
+			return (dinfo->cfg.dev);
+		}
+	}
+
+	return (NULL);
+}
+
 static int
 pci_printf(pcicfgregs *cfg, const char *fmt, ...)
 {
@@ -1338,8 +1353,11 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	for (i = 0; i < max; i++) {
 		/* Allocate a message. */
 		error = PCIB_ALLOC_MSIX(device_get_parent(dev), child, &irq);
-		if (error)
+		if (error) {
+			if (i == 0)
+				return (error);
 			break;
+		}
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
 		    irq, 1);
 	}

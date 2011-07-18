@@ -664,9 +664,7 @@ fire_attach(device_t dev)
 
 	/*
 	 * Setup JBC/UBC performance counter 0 in bus cycle counting
-	 * mode as timecounter.  Unfortunately, at least with Fire all
-	 * JBus-driven performance counters just don't advance in bus
-	 * cycle counting mode.
+	 * mode as timecounter.
 	 */
 	if (device_get_unit(dev) == 0) {
 		FIRE_CTRL_SET(sc, FO_XBC_PRF_CNT0, 0);
@@ -674,19 +672,10 @@ fire_attach(device_t dev)
 		FIRE_CTRL_SET(sc, FO_XBC_PRF_CNT_SEL,
 		    (FO_XBC_PRF_CNT_NONE << FO_XBC_PRF_CNT_CNT1_SHFT) |
 		    (FO_XBC_PRF_CNT_XB_CLK << FO_XBC_PRF_CNT_CNT0_SHFT));
-#ifdef FIRE_DEBUG
-		device_printf(dev, "FO_XBC_PRF_CNT0 0x%016llx\n",
-		    (long long unsigned)FIRE_CTRL_READ_8(sc,
-		    FO_XBC_PRF_CNT0));
-		device_printf(dev, "FO_XBC_PRF_CNT0 0x%016llx\n",
-		    (long long unsigned)FIRE_CTRL_READ_8(sc,
-		    FO_XBC_PRF_CNT0));
-#endif
 		tc = malloc(sizeof(*tc), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (tc == NULL)
 			panic("%s: could not malloc timecounter", __func__);
 		tc->tc_get_timecount = fire_get_timecount;
-		tc->tc_poll_pps = NULL;
 		tc->tc_counter_mask = TC_COUNTER_MAX_MASK;
 		if (OF_getprop(OF_peer(0), "clock-frequency", &prop,
 		    sizeof(prop)) == -1)
@@ -694,8 +683,16 @@ fire_attach(device_t dev)
 			    __func__);
 		tc->tc_frequency = prop;
 		tc->tc_name = strdup(device_get_nameunit(dev), M_DEVBUF);
-		tc->tc_quality = -FIRE_PERF_CNT_QLTY;
 		tc->tc_priv = sc;
+		/*
+		 * Due to initial problems with the JBus-driven performance
+		 * counters not advancing which might be firmware dependent
+		 * ensure that it actually works.
+		 */
+		if (fire_get_timecount(tc) - fire_get_timecount(tc) != 0)
+			tc->tc_quality = FIRE_PERF_CNT_QLTY;
+		else
+			tc->tc_quality = -FIRE_PERF_CNT_QLTY;
 		tc_init(tc);
 	}
 

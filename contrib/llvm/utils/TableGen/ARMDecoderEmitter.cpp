@@ -421,6 +421,9 @@ public:
 protected:
   // Populates the insn given the uid.
   void insnWithID(insn_t &Insn, unsigned Opcode) const {
+    if (AllInstructions[Opcode]->isPseudo)
+      return;
+
     BitsInit &Bits = getBitsField(*AllInstructions[Opcode]->TheDef, "Inst");
 
     for (unsigned i = 0; i < BIT_WIDTH; ++i)
@@ -1592,10 +1595,6 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     // The following special cases are for conflict resolutions.
     //
 
-    // RSCSri and RSCSrs set the 's' bit, but are not predicated.  We are
-    // better off using the generic RSCri and RSCrs instructions.
-    if (Name == "RSCSri" || Name == "RSCSrs") return false;
-
     // A8-598: VEXT
     // Vector Extract extracts elements from the bottom end of the second
     // operand vector and the top end of the first, concatenates them and
@@ -1628,10 +1627,6 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     if (Name == "tBX_RET" || Name == "tBX_RET_vararg")
       return false;
 
-    // Ignore the TPsoft (TLS) instructions, which conflict with tBLr9.
-    if (Name == "tTPsoft" || Name == "t2TPsoft")
-      return false;
-
     // Ignore tADR, prefer tADDrPCi.
     if (Name == "tADR")
       return false;
@@ -1644,12 +1639,8 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     // Ignore tADDrSP, tADDspr, and tPICADD, prefer the generic tADDhirr.
     // Ignore t2SUBrSPs, prefer the t2SUB[S]r[r|s].
     // Ignore t2ADDrSPs, prefer the t2ADD[S]r[r|s].
-    // Ignore t2ADDrSPi/t2SUBrSPi, which have more generic couterparts.
-    // Ignore t2ADDrSPi12/t2SUBrSPi12, which have more generic couterparts
     if (Name == "tADDrSP" || Name == "tADDspr" || Name == "tPICADD" ||
-        Name == "t2SUBrSPs" || Name == "t2ADDrSPs" ||
-        Name == "t2ADDrSPi" || Name == "t2SUBrSPi" ||
-        Name == "t2ADDrSPi12" || Name == "t2SUBrSPi12")
+        Name == "t2SUBrSPs" || Name == "t2ADDrSPs")
       return false;
 
     // FIXME: Use ldr.n to work around a Darwin assembler bug.
@@ -1664,17 +1655,15 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     // Resolve conflicts:
     //
     //   tBfar conflicts with tBLr9
-    //   tPOP_RET/t2LDMIA_RET conflict with tPOP/t2LDM (ditto)
+    //   t2LDMIA_RET conflict with t2LDM (ditto)
     //   tMOVCCi conflicts with tMOVi8
     //   tMOVCCr conflicts with tMOVgpr2gpr
-    //   tSpill conflicts with tSTRspi
     //   tLDRcp conflicts with tLDRspi
-    //   tRestore conflicts with tLDRspi
     //   t2MOVCCi16 conflicts with tMOVi16
     if (Name == "tBfar" ||
-        Name == "tPOP_RET" || Name == "t2LDMIA_RET" ||
+        Name == "t2LDMIA_RET" ||
         Name == "tMOVCCi" || Name == "tMOVCCr" ||
-        Name == "tSpill" || Name == "tLDRcp" || Name == "tRestore" ||
+        Name == "tLDRcp" || 
         Name == "t2MOVCCi16")
       return false;
   }

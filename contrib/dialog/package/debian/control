@@ -3,12 +3,12 @@ Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
 Section: misc
 Priority: optional
 Standards-Version: 3.8.4
-Build-Depends: debhelper (>= 5)
+Build-Depends: debhelper (>= 5), libncursesw5-dev (>= 5.3), groff-base
 Homepage: http://invisible-island.net/dialog/
 
 Package: cdialog
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: libncursesw5 (>= 5.3)
 Description: dialog - display dialog boxes from shell scripts
  Dialog is a program that will let you to present a variety of questions
  or display messages using dialog boxes  from  a  shell  script.   These

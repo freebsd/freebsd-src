@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2010 Nathan Whitehorn
+ * Copyright (C) 2011 glevand (geoffrey.levand@mail.ru)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "lv1call.h"
 #include "ps3.h"
+#include "ps3devdesc.h"
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -58,7 +60,9 @@ main(void)
 {
 	uint64_t maxmem = 0;
 	void *heapbase;
-	int i;
+	int i, err;
+	struct ps3_devdesc currdev;
+	struct open_file f;
 
 	lv1_get_physmem(&maxmem);
 	
@@ -78,9 +82,37 @@ main(void)
 	/*
 	 * March through the device switch probing for things.
 	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
+	for (i = 0; devsw[i] != NULL; i++) {
+		if (devsw[i]->dv_init != NULL) {
+			err = (devsw[i]->dv_init)();
+			if (err) {
+				printf("\n%s: initialization failed err=%d\n",
+					devsw[i]->dv_name, err);
+				continue;
+			}
+		}
+
+		printf("\nDevice: %s\n", devsw[i]->dv_name);
+
+		currdev.d_dev = devsw[i];
+		currdev.d_type = currdev.d_dev->dv_type;
+
+		if (strcmp(devsw[i]->dv_name, "disk") == 0) {
+			f.f_devdata = &currdev;
+			currdev.d_unit = 3;
+			currdev.d_disk.pnum = 1;
+			currdev.d_disk.ptype = PTYPE_GPT;
+
+			if (devsw[i]->dv_open(&f, &currdev) == 0)
+				break;
+		}
+
+		if (strcmp(devsw[i]->dv_name, "net") == 0)
+			break;
+	}
+
+	if (devsw[i] == NULL)
+		panic("No boot device found!");
 
 	/*
 	 * Get timebase at boot.
@@ -98,8 +130,10 @@ main(void)
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	printf("Memory: %lldKB\n", maxmem / 1024);
 
-	env_setenv("currdev", EV_VOLATILE, "net", ps3_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, "net", env_noset, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, ps3_fmtdev(&currdev),
+	    ps3_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, ps3_fmtdev(&currdev), env_noset,
+	    env_nounset);
 	setenv("LINES", "24", 1);
 	setenv("hw.platform", "ps3", 1);
 

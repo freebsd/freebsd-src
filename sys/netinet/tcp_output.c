@@ -84,10 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#ifdef notyet
-extern struct mbuf *m_copypack();
-#endif
-
 VNET_DEFINE(int, path_mtu_discovery) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
@@ -820,19 +816,6 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-#ifdef notyet
-		if ((m = m_copypack(so->so_snd.sb_mb, off,
-		    (int)len, max_linkhdr + hdrlen)) == 0) {
-			SOCKBUF_UNLOCK(&so->so_snd);
-			error = ENOBUFS;
-			goto out;
-		}
-		/*
-		 * m_copypack left space for our hdr; use it.
-		 */
-		m->m_len += hdrlen;
-		m->m_data -= hdrlen;
-#else
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
@@ -872,7 +855,7 @@ send:
 				goto out;
 			}
 		}
-#endif /* notyet */
+
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only

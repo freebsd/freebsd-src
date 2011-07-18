@@ -263,7 +263,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	pc = pcpu_find(curcpu);
 
 	/* Check if we just need to do a proper critical_exit. */
-	if (!CPU_OVERLAP(&pc->pc_cpumask, &rm->rm_writecpus)) {
+	if (!CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus)) {
 		critical_exit();
 		return (1);
 	}
@@ -325,7 +325,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	critical_enter();
 	pc = pcpu_find(curcpu);
-	CPU_NAND(&rm->rm_writecpus, &pc->pc_cpumask);
+	CPU_CLR(pc->pc_cpuid, &rm->rm_writecpus);
 	rm_tracker_add(pc, tracker);
 	sched_pin();
 	critical_exit();
@@ -367,7 +367,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	 * conditional jump.
 	 */
 	if (0 == (td->td_owepreempt |
-	    CPU_OVERLAP(&rm->rm_writecpus,  &pc->pc_cpumask)))
+	    CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus)))
 		return (1);
 
 	/* We do not have a read token and need to acquire one. */

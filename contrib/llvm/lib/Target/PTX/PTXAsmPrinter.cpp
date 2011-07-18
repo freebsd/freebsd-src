@@ -22,9 +22,12 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
@@ -34,6 +37,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -62,7 +66,12 @@ public:
                        const char *Modifier = 0);
   void printParamOperand(const MachineInstr *MI, int opNum, raw_ostream &OS,
                          const char *Modifier = 0);
+  void printReturnOperand(const MachineInstr *MI, int opNum, raw_ostream &OS,
+                          const char *Modifier = 0); 
   void printPredicateOperand(const MachineInstr *MI, raw_ostream &O);
+
+  unsigned GetOrCreateSourceID(StringRef FileName,
+                               StringRef DirName);
 
   // autogen'd.
   void printInstruction(const MachineInstr *MI, raw_ostream &OS);
@@ -71,20 +80,23 @@ public:
 private:
   void EmitVariableDeclaration(const GlobalVariable *gv);
   void EmitFunctionDeclaration();
+
+  StringMap<unsigned> SourceIdMap;
 }; // class PTXAsmPrinter
 } // namespace
 
 static const char PARAM_PREFIX[] = "__param_";
+static const char RETURN_PREFIX[] = "__ret_";
 
 static const char *getRegisterTypeName(unsigned RegNo) {
 #define TEST_REGCLS(cls, clsstr)                \
   if (PTX::cls ## RegisterClass->contains(RegNo)) return # clsstr;
-  TEST_REGCLS(Preds, pred);
-  TEST_REGCLS(RRegu16, u16);
-  TEST_REGCLS(RRegu32, u32);
-  TEST_REGCLS(RRegu64, u64);
-  TEST_REGCLS(RRegf32, f32);
-  TEST_REGCLS(RRegf64, f64);
+  TEST_REGCLS(RegPred, pred);
+  TEST_REGCLS(RegI16, b16);
+  TEST_REGCLS(RegI32, b32);
+  TEST_REGCLS(RegI64, b64);
+  TEST_REGCLS(RegF32, b32);
+  TEST_REGCLS(RegF64, b64);
 #undef TEST_REGCLS
 
   llvm_unreachable("Not in any register class!");
@@ -162,6 +174,27 @@ void PTXAsmPrinter::EmitStartOfAsmFile(Module &M)
   OutStreamer.EmitRawText(Twine("\t.target " + ST.getTargetString() +
                                 (ST.supportsDouble() ? ""
                                                      : ", map_f64_to_f32")));
+  // .address_size directive is optional, but it must immediately follow
+  // the .target directive if present within a module
+  if (ST.supportsPTX23()) {
+    std::string addrSize = ST.is64Bit() ? "64" : "32";
+    OutStreamer.EmitRawText(Twine("\t.address_size " + addrSize));
+  }
+
+  OutStreamer.AddBlankLine();
+
+  // Define any .file directives
+  DebugInfoFinder DbgFinder;
+  DbgFinder.processModule(M);
+
+  for (DebugInfoFinder::iterator I = DbgFinder.compile_unit_begin(),
+       E = DbgFinder.compile_unit_end(); I != E; ++I) {
+    DICompileUnit DIUnit(*I);
+    StringRef FN = DIUnit.getFilename();
+    StringRef Dir = DIUnit.getDirectory();
+    GetOrCreateSourceID(FN, Dir);
+  }
+
   OutStreamer.AddBlankLine();
 
   // declare global variables
@@ -194,6 +227,21 @@ void PTXAsmPrinter::EmitFunctionBodyStart() {
     def += ';';
     OutStreamer.EmitRawText(Twine(def));
   }
+
+  const MachineFrameInfo* FrameInfo = MF->getFrameInfo();
+  DEBUG(dbgs() << "Have " << FrameInfo->getNumObjects()
+               << " frame object(s)\n");
+  for (unsigned i = 0, e = FrameInfo->getNumObjects(); i != e; ++i) {
+    DEBUG(dbgs() << "Size of object: " << FrameInfo->getObjectSize(i) << "\n");
+    if (FrameInfo->getObjectSize(i) > 0) {
+      std::string def = "\t.reg .b";
+      def += utostr(FrameInfo->getObjectSize(i)*8); // Convert to bits
+      def += " s";
+      def += utostr(i);
+      def += ";";
+      OutStreamer.EmitRawText(Twine(def));
+    }
+  }
 }
 
 void PTXAsmPrinter::EmitInstruction(const MachineInstr *MI) {
@@ -201,6 +249,54 @@ void PTXAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   str.reserve(64);
 
   raw_string_ostream OS(str);
+
+  DebugLoc DL = MI->getDebugLoc();
+  if (!DL.isUnknown()) {
+
+    const MDNode *S = DL.getScope(MF->getFunction()->getContext());
+
+    // This is taken from DwarfDebug.cpp, which is conveniently not a public
+    // LLVM class.
+    StringRef Fn;
+    StringRef Dir;
+    unsigned Src = 1;
+    if (S) {
+      DIDescriptor Scope(S);
+      if (Scope.isCompileUnit()) {
+        DICompileUnit CU(S);
+        Fn = CU.getFilename();
+        Dir = CU.getDirectory();
+      } else if (Scope.isFile()) {
+        DIFile F(S);
+        Fn = F.getFilename();
+        Dir = F.getDirectory();
+      } else if (Scope.isSubprogram()) {
+        DISubprogram SP(S);
+        Fn = SP.getFilename();
+        Dir = SP.getDirectory();
+      } else if (Scope.isLexicalBlock()) {
+        DILexicalBlock DB(S);
+        Fn = DB.getFilename();
+        Dir = DB.getDirectory();
+      } else
+        assert(0 && "Unexpected scope info");
+
+      Src = GetOrCreateSourceID(Fn, Dir);
+    }
+    OutStreamer.EmitDwarfLocDirective(Src, DL.getLine(), DL.getCol(),
+                                     0, 0, 0, Fn);
+
+    const MCDwarfLoc& MDL = OutContext.getCurrentDwarfLoc();
+
+    OS << "\t.loc ";
+    OS << utostr(MDL.getFileNum());
+    OS << " ";
+    OS << utostr(MDL.getLine());
+    OS << " ";
+    OS << utostr(MDL.getColumn());
+    OS << "\n";
+  }
+
 
   // Emit predicate
   printPredicateOperand(MI, OS);
@@ -275,6 +371,11 @@ void PTXAsmPrinter::printParamOperand(const MachineInstr *MI, int opNum,
   OS << PARAM_PREFIX << (int) MI->getOperand(opNum).getImm() + 1;
 }
 
+void PTXAsmPrinter::printReturnOperand(const MachineInstr *MI, int opNum,
+                                       raw_ostream &OS, const char *Modifier) {
+  OS << RETURN_PREFIX << (int) MI->getOperand(opNum).getImm() + 1;
+}
+
 void PTXAsmPrinter::EmitVariableDeclaration(const GlobalVariable *gv) {
   // Check to see if this is a special global used by LLVM, if so, emit it.
   if (EmitSpecialLLVMGlobal(gv))
@@ -311,7 +412,7 @@ void PTXAsmPrinter::EmitVariableDeclaration(const GlobalVariable *gv) {
     decl += ".b8 ";
     decl += gvsym->getName();
     decl += "[";
-    
+
     if (elementTy->isArrayTy())
     {
       assert(elementTy->isArrayTy() && "Only pointers to arrays are supported");
@@ -320,7 +421,7 @@ void PTXAsmPrinter::EmitVariableDeclaration(const GlobalVariable *gv) {
       elementTy = arrayTy->getElementType();
 
       unsigned numElements = arrayTy->getNumElements();
-      
+
       while (elementTy->isArrayTy()) {
 
         arrayTy = dyn_cast<const ArrayType>(elementTy);
@@ -336,17 +437,17 @@ void PTXAsmPrinter::EmitVariableDeclaration(const GlobalVariable *gv) {
       // Compute the size of the array, in bytes.
       uint64_t arraySize = (elementTy->getPrimitiveSizeInBits() >> 3)
                         * numElements;
-  
+
       decl += utostr(arraySize);
     }
-    
+
     decl += "]";
-    
+
     // handle string constants (assume ConstantArray means string)
-    
+
     if (gv->hasInitializer())
     {
-      Constant *C = gv->getInitializer();  
+      const Constant *C = gv->getInitializer();  
       if (const ConstantArray *CA = dyn_cast<ConstantArray>(C))
       {
         decl += " = {";
@@ -354,10 +455,11 @@ void PTXAsmPrinter::EmitVariableDeclaration(const GlobalVariable *gv) {
         for (unsigned i = 0, e = C->getNumOperands(); i != e; ++i)
         {
           if (i > 0)   decl += ",";
-      
-          decl += "0x" + utohexstr(cast<ConstantInt>(CA->getOperand(i))->getZExtValue());
+
+          decl += "0x" +
+                utohexstr(cast<ConstantInt>(CA->getOperand(i))->getZExtValue());
         }
-      
+
         decl += "}";
       }
     }
@@ -393,17 +495,25 @@ void PTXAsmPrinter::EmitFunctionDeclaration() {
 
   const PTXMachineFunctionInfo *MFI = MF->getInfo<PTXMachineFunctionInfo>();
   const bool isKernel = MFI->isKernel();
-  unsigned reg;
+  const PTXSubtarget& ST = TM.getSubtarget<PTXSubtarget>();
 
   std::string decl = isKernel ? ".entry" : ".func";
 
-  // Print return register
-  reg = MFI->retReg();
-  if (!isKernel && reg != PTX::NoRegister) {
-    decl += " (.reg ."; // FIXME: could it return in .param space?
-    decl += getRegisterTypeName(reg);
-    decl += " ";
-    decl += getRegisterName(reg);
+  unsigned cnt = 0;
+
+  if (!isKernel) {
+    decl += " (";
+    for (PTXMachineFunctionInfo::ret_iterator
+         i = MFI->retRegBegin(), e = MFI->retRegEnd(), b = i;
+         i != e; ++i) {
+      if (i != b) {
+        decl += ", ";
+      }
+      decl += ".reg .";
+      decl += getRegisterTypeName(*i);
+      decl += " ";
+      decl += getRegisterName(*i);
+    }
     decl += ")";
   }
 
@@ -411,40 +521,31 @@ void PTXAsmPrinter::EmitFunctionDeclaration() {
   decl += " ";
   decl += CurrentFnSym->getName().str();
 
-  // Print parameter list
-  if (!MFI->argRegEmpty()) {
-    decl += " (";
-    if (isKernel) {
-      unsigned cnt = 0;
-      for(PTXMachineFunctionInfo::reg_iterator
-          i = MFI->argRegBegin(), e = MFI->argRegEnd(), b = i;
-          i != e; ++i) {
-        reg = *i;
-        assert(reg != PTX::NoRegister && "Not a valid register!");
-        if (i != b)
-          decl += ", ";
-        decl += ".param .";
-        decl += getRegisterTypeName(reg);
-        decl += " ";
-        decl += PARAM_PREFIX;
-        decl += utostr(++cnt);
-      }
-    } else {
-      for (PTXMachineFunctionInfo::reg_iterator
-           i = MFI->argRegBegin(), e = MFI->argRegEnd(), b = i;
-           i != e; ++i) {
-        reg = *i;
-        assert(reg != PTX::NoRegister && "Not a valid register!");
-        if (i != b)
-          decl += ", ";
-        decl += ".reg .";
-        decl += getRegisterTypeName(reg);
-        decl += " ";
-        decl += getRegisterName(reg);
-      }
+  decl += " (";
+
+  cnt = 0;
+
+  // Print parameters
+  for (PTXMachineFunctionInfo::reg_iterator
+       i = MFI->argRegBegin(), e = MFI->argRegEnd(), b = i;
+       i != e; ++i) {
+    if (i != b) {
+      decl += ", ";
     }
-    decl += ")";
+    if (isKernel || ST.useParamSpaceForDeviceArgs()) {
+      decl += ".param .b";
+      decl += utostr(*i);
+      decl += " ";
+      decl += PARAM_PREFIX;
+      decl += utostr(++cnt);
+    } else {
+      decl += ".reg .";
+      decl += getRegisterTypeName(*i);
+      decl += " ";
+      decl += getRegisterName(*i);
+    }
   }
+  decl += ")";
 
   OutStreamer.EmitRawText(Twine(decl));
 }
@@ -466,6 +567,33 @@ printPredicateOperand(const MachineInstr *MI, raw_ostream &O) {
       O << '!';
     O << getRegisterName(reg);
   }
+}
+
+unsigned PTXAsmPrinter::GetOrCreateSourceID(StringRef FileName,
+                                            StringRef DirName) {
+  // If FE did not provide a file name, then assume stdin.
+  if (FileName.empty())
+    return GetOrCreateSourceID("<stdin>", StringRef());
+
+  // MCStream expects full path name as filename.
+  if (!DirName.empty() && !sys::path::is_absolute(FileName)) {
+    SmallString<128> FullPathName = DirName;
+    sys::path::append(FullPathName, FileName);
+    // Here FullPathName will be copied into StringMap by GetOrCreateSourceID.
+    return GetOrCreateSourceID(StringRef(FullPathName), StringRef());
+  }
+
+  StringMapEntry<unsigned> &Entry = SourceIdMap.GetOrCreateValue(FileName);
+  if (Entry.getValue())
+    return Entry.getValue();
+
+  unsigned SrcId = SourceIdMap.size();
+  Entry.setValue(SrcId);
+
+  // Print out a .file directive to specify files for .loc directives.
+  OutStreamer.EmitDwarfFileDirective(SrcId, Entry.getKey());
+
+  return SrcId;
 }
 
 #include "PTXGenAsmWriter.inc"

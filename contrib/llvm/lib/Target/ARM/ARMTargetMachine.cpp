@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMTargetMachine.h"
-#include "ARMMCAsmInfo.h"
 #include "ARMFrameLowering.h"
 #include "ARM.h"
 #include "llvm/PassManager.h"
@@ -21,15 +20,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
-
-static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
-  Triple TheTriple(TT);
-
-  if (TheTriple.isOSDarwin())
-    return new ARMMCAsmInfoDarwin();
-
-  return new ARMELFMCAsmInfo();
-}
 
 // This is duplicated code. Refactor this.
 static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
@@ -56,10 +46,6 @@ extern "C" void LLVMInitializeARMTarget() {
   RegisterTargetMachine<ARMTargetMachine> X(TheARMTarget);
   RegisterTargetMachine<ThumbTargetMachine> Y(TheThumbTarget);
 
-  // Register the target asm info.
-  RegisterAsmInfoFn A(TheARMTarget, createMCAsmInfo);
-  RegisterAsmInfoFn B(TheThumbTarget, createMCAsmInfo);
-
   // Register the MC Code Emitter
   TargetRegistry::RegisterCodeEmitter(TheARMTarget, createARMMCCodeEmitter);
   TargetRegistry::RegisterCodeEmitter(TheThumbTarget, createARMMCCodeEmitter);
@@ -78,18 +64,23 @@ extern "C" void LLVMInitializeARMTarget() {
 ///
 ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T,
                                            const std::string &TT,
-                                           const std::string &FS,
-                                           bool isThumb)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS, isThumb),
+                                           const std::string &CPU,
+                                           const std::string &FS)
+  : LLVMTargetMachine(T, TT, CPU, FS),
+    Subtarget(TT, CPU, FS),
     JITInfo(),
     InstrItins(Subtarget.getInstrItineraryData()) {
   DefRelocModel = getRelocationModel();
+
+  // Default to soft float ABI
+  if (FloatABIType == FloatABI::Default)
+    FloatABIType = FloatABI::Soft;
 }
 
 ARMTargetMachine::ARMTargetMachine(const Target &T, const std::string &TT,
+                                   const std::string &CPU,
                                    const std::string &FS)
-  : ARMBaseTargetMachine(T, TT, FS, false), InstrInfo(Subtarget),
+  : ARMBaseTargetMachine(T, TT, CPU, FS), InstrInfo(Subtarget),
     DataLayout(Subtarget.isAPCS_ABI() ?
                std::string("e-p:32:32-f64:32:64-i64:32:64-"
                            "v128:32:128-v64:32:64-n32") :
@@ -105,8 +96,9 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, const std::string &TT,
 }
 
 ThumbTargetMachine::ThumbTargetMachine(const Target &T, const std::string &TT,
+                                       const std::string &CPU,
                                        const std::string &FS)
-  : ARMBaseTargetMachine(T, TT, FS, true),
+  : ARMBaseTargetMachine(T, TT, CPU, FS),
     InstrInfo(Subtarget.hasThumb2()
               ? ((ARMBaseInstrInfo*)new Thumb2InstrInfo(Subtarget))
               : ((ARMBaseInstrInfo*)new Thumb1InstrInfo(Subtarget))),

@@ -206,15 +206,22 @@ let Namespace = "X86" in {
   def YMM15: RegisterWithSubRegs<"ymm15", [XMM15]>, DwarfRegAlias<XMM15>;
   }
 
-  // Floating point stack registers
-  def ST0 : Register<"st(0)">, DwarfRegNum<[33, 12, 11]>;
-  def ST1 : Register<"st(1)">, DwarfRegNum<[34, 13, 12]>;
-  def ST2 : Register<"st(2)">, DwarfRegNum<[35, 14, 13]>;
-  def ST3 : Register<"st(3)">, DwarfRegNum<[36, 15, 14]>;
-  def ST4 : Register<"st(4)">, DwarfRegNum<[37, 16, 15]>;
-  def ST5 : Register<"st(5)">, DwarfRegNum<[38, 17, 16]>;
-  def ST6 : Register<"st(6)">, DwarfRegNum<[39, 18, 17]>;
-  def ST7 : Register<"st(7)">, DwarfRegNum<[40, 19, 18]>;
+  class STRegister<string Name, list<Register> A> : Register<Name> {
+    let Aliases = A;
+  }
+
+  // Floating point stack registers. These don't map one-to-one to the FP
+  // pseudo registers, but we still mark them as aliasing FP registers. That
+  // way both kinds can be live without exceeding the stack depth. ST registers
+  // are only live around inline assembly.
+  def ST0 : STRegister<"st(0)", []>, DwarfRegNum<[33, 12, 11]>;
+  def ST1 : STRegister<"st(1)", [FP6]>, DwarfRegNum<[34, 13, 12]>;
+  def ST2 : STRegister<"st(2)", [FP5]>, DwarfRegNum<[35, 14, 13]>;
+  def ST3 : STRegister<"st(3)", [FP4]>, DwarfRegNum<[36, 15, 14]>;
+  def ST4 : STRegister<"st(4)", [FP3]>, DwarfRegNum<[37, 16, 15]>;
+  def ST5 : STRegister<"st(5)", [FP2]>, DwarfRegNum<[38, 17, 16]>;
+  def ST6 : STRegister<"st(6)", [FP1]>, DwarfRegNum<[39, 18, 17]>;
+  def ST7 : STRegister<"st(7)", [FP0]>, DwarfRegNum<[40, 19, 18]>;
 
   // Status flags register
   def EFLAGS : Register<"flags">;
@@ -279,58 +286,23 @@ let Namespace = "X86" in {
 // require a REX prefix. For example, "addb %ah, %dil" and "movzbl %ah, %r8d"
 // cannot be encoded.
 def GR8 : RegisterClass<"X86", [i8],  8,
-                        [AL, CL, DL, AH, CH, DH, BL, BH, SIL, DIL, BPL, SPL,
-                         R8B, R9B, R10B, R11B, R14B, R15B, R12B, R13B]> {
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    static const unsigned X86_GR8_AO_64[] = {
-      X86::AL,   X86::CL,   X86::DL,   X86::SIL, X86::DIL,
-      X86::R8B,  X86::R9B,  X86::R10B, X86::R11B,
-      X86::BL,   X86::R14B, X86::R15B, X86::R12B, X86::R13B, X86::BPL
-    };
-
-    GR8Class::iterator
-    GR8Class::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return X86_GR8_AO_64;
-      else
-        return begin();
-    }
-
-    GR8Class::iterator
-    GR8Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      // Does the function dedicate RBP / EBP to being a frame ptr?
-      if (!Subtarget.is64Bit())
-        // In 32-mode, none of the 8-bit registers aliases EBP or ESP.
-        return begin() + 8;
-      else if (TFI->hasFP(MF) || MFI->getReserveFP())
-        // If so, don't allocate SPL or BPL.
-        return array_endof(X86_GR8_AO_64) - 1;
-      else
-        // If not, just don't allocate SPL.
-        return array_endof(X86_GR8_AO_64);
-    }
+                        (add AL, CL, DL, AH, CH, DH, BL, BH, SIL, DIL, BPL, SPL,
+                             R8B, R9B, R10B, R11B, R14B, R15B, R12B, R13B)> {
+  let AltOrders = [(sub GR8, AH, BH, CH, DH)];
+  let AltOrderSelect = [{
+    return MF.getTarget().getSubtarget<X86Subtarget>().is64Bit();
   }];
 }
 
 def GR16 : RegisterClass<"X86", [i16], 16,
-                         [AX, CX, DX, SI, DI, BX, BP, SP,
-                          R8W, R9W, R10W, R11W, R14W, R15W, R12W, R13W]> {
+                         (add AX, CX, DX, SI, DI, BX, BP, SP,
+                              R8W, R9W, R10W, R11W, R14W, R15W, R12W, R13W)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi)];
 }
 
 def GR32 : RegisterClass<"X86", [i32], 32,
-                         [EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP,
-                          R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D]> {
+                         (add EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP,
+                              R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
 }
 
@@ -338,8 +310,8 @@ def GR32 : RegisterClass<"X86", [i32], 32,
 // RIP isn't really a register and it can't be used anywhere except in an
 // address, but it doesn't cause trouble.
 def GR64 : RegisterClass<"X86", [i64], 64,
-                         [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
-                          RBX, R14, R15, R12, R13, RBP, RSP, RIP]> {
+                         (add RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
+                              RBX, R14, R15, R12, R13, RBP, RSP, RIP)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32 sub_32bit)];
@@ -348,16 +320,13 @@ def GR64 : RegisterClass<"X86", [i64], 64,
 // Segment registers for use by MOV instructions (and others) that have a
 //   segment register as one operand.  Always contain a 16-bit segment
 //   descriptor.
-def SEGMENT_REG : RegisterClass<"X86", [i16], 16, [CS, DS, SS, ES, FS, GS]>;
+def SEGMENT_REG : RegisterClass<"X86", [i16], 16, (add CS, DS, SS, ES, FS, GS)>;
 
 // Debug registers.
-def DEBUG_REG : RegisterClass<"X86", [i32], 32,
-                              [DR0, DR1, DR2, DR3, DR4, DR5, DR6, DR7]>;
+def DEBUG_REG : RegisterClass<"X86", [i32], 32, (sequence "DR%u", 0, 7)>;
 
 // Control registers.
-def CONTROL_REG : RegisterClass<"X86", [i64], 64,
-                                [CR0, CR1, CR2, CR3, CR4, CR5, CR6, CR7, CR8,
-                                 CR9, CR10, CR11, CR12, CR13, CR14, CR15]>;
+def CONTROL_REG : RegisterClass<"X86", [i64], 64, (sequence "CR%u", 0, 15)>;
 
 // GR8_ABCD_L, GR8_ABCD_H, GR16_ABCD, GR32_ABCD, GR64_ABCD - Subclasses of
 // GR8, GR16, GR32, and GR64 which contain just the "a" "b", "c", and "d"
@@ -365,99 +334,69 @@ def CONTROL_REG : RegisterClass<"X86", [i64], 64,
 // that support 8-bit subreg operations. On x86-64, GR16_ABCD, GR32_ABCD,
 // and GR64_ABCD are classes for registers that support 8-bit h-register
 // operations.
-def GR8_ABCD_L : RegisterClass<"X86", [i8], 8, [AL, CL, DL, BL]>;
-def GR8_ABCD_H : RegisterClass<"X86", [i8], 8, [AH, CH, DH, BH]>;
-def GR16_ABCD : RegisterClass<"X86", [i16], 16, [AX, CX, DX, BX]> {
+def GR8_ABCD_L : RegisterClass<"X86", [i8], 8, (add AL, CL, DL, BL)>;
+def GR8_ABCD_H : RegisterClass<"X86", [i8], 8, (add AH, CH, DH, BH)>;
+def GR16_ABCD : RegisterClass<"X86", [i16], 16, (add AX, CX, DX, BX)> {
   let SubRegClasses = [(GR8_ABCD_L sub_8bit), (GR8_ABCD_H sub_8bit_hi)];
 }
-def GR32_ABCD : RegisterClass<"X86", [i32], 32, [EAX, ECX, EDX, EBX]> {
+def GR32_ABCD : RegisterClass<"X86", [i32], 32, (add EAX, ECX, EDX, EBX)> {
   let SubRegClasses = [(GR8_ABCD_L sub_8bit),
                        (GR8_ABCD_H sub_8bit_hi),
                        (GR16_ABCD sub_16bit)];
 }
-def GR64_ABCD : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX, RBX]> {
+def GR64_ABCD : RegisterClass<"X86", [i64], 64, (add RAX, RCX, RDX, RBX)> {
   let SubRegClasses = [(GR8_ABCD_L sub_8bit),
                        (GR8_ABCD_H sub_8bit_hi),
                        (GR16_ABCD sub_16bit),
                        (GR32_ABCD sub_32bit)];
 }
-def GR32_TC   : RegisterClass<"X86", [i32], 32, [EAX, ECX, EDX]> {
+def GR32_TC   : RegisterClass<"X86", [i32], 32, (add EAX, ECX, EDX)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
 }
-def GR64_TC   : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX, RSI, RDI,
-                                                 R8, R9, R11, RIP]> {
+def GR64_TC   : RegisterClass<"X86", [i64], 64, (add RAX, RCX, RDX, RSI, RDI,
+                                                     R8, R9, R11, RIP)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32_TC sub_32bit)];
 }
 
-def GR64_TCW64   : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX,
-                                                    R8, R9, R11]>;
+def GR64_TCW64 : RegisterClass<"X86", [i64], 64, (add RAX, RCX, RDX,
+                                                      R8, R9, R11)>;
 
 // GR8_NOREX - GR8 registers which do not require a REX prefix.
 def GR8_NOREX : RegisterClass<"X86", [i8], 8,
-                              [AL, CL, DL, AH, CH, DH, BL, BH]> {
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    // In 64-bit mode, it's not safe to blindly allocate H registers.
-    static const unsigned X86_GR8_NOREX_AO_64[] = {
-      X86::AL, X86::CL, X86::DL, X86::BL
-    };
-
-    GR8_NOREXClass::iterator
-    GR8_NOREXClass::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return X86_GR8_NOREX_AO_64;
-      else
-        return begin();
-    }
-
-    GR8_NOREXClass::iterator
-    GR8_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return array_endof(X86_GR8_NOREX_AO_64);
-      else
-        return end();
-    }
+                              (add AL, CL, DL, AH, CH, DH, BL, BH)> {
+  let AltOrders = [(sub GR8_NOREX, AH, BH, CH, DH)];
+  let AltOrderSelect = [{
+    return MF.getTarget().getSubtarget<X86Subtarget>().is64Bit();
   }];
 }
 // GR16_NOREX - GR16 registers which do not require a REX prefix.
 def GR16_NOREX : RegisterClass<"X86", [i16], 16,
-                               [AX, CX, DX, SI, DI, BX, BP, SP]> {
+                               (add AX, CX, DX, SI, DI, BX, BP, SP)> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi)];
 }
 // GR32_NOREX - GR32 registers which do not require a REX prefix.
 def GR32_NOREX : RegisterClass<"X86", [i32], 32,
-                               [EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP]> {
+                               (add EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP)> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit)];
 }
 // GR64_NOREX - GR64 registers which do not require a REX prefix.
 def GR64_NOREX : RegisterClass<"X86", [i64], 64,
-                               [RAX, RCX, RDX, RSI, RDI, RBX, RBP, RSP, RIP]> {
+                            (add RAX, RCX, RDX, RSI, RDI, RBX, RBP, RSP, RIP)> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit),
                        (GR32_NOREX sub_32bit)];
 }
 
 // GR32_NOSP - GR32 registers except ESP.
-def GR32_NOSP : RegisterClass<"X86", [i32], 32,
-                              [EAX, ECX, EDX, ESI, EDI, EBX, EBP,
-                               R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D]> {
+def GR32_NOSP : RegisterClass<"X86", [i32], 32, (sub GR32, ESP)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
 }
 
 // GR64_NOSP - GR64 registers except RSP (and RIP).
-def GR64_NOSP : RegisterClass<"X86", [i64], 64,
-                              [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
-                               RBX, R14, R15, R12, R13, RBP]> {
+def GR64_NOSP : RegisterClass<"X86", [i64], 64, (sub GR64, RSP, RIP)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32_NOSP sub_32bit)];
@@ -466,36 +405,30 @@ def GR64_NOSP : RegisterClass<"X86", [i64], 64,
 // GR32_NOREX_NOSP - GR32 registers which do not require a REX prefix except
 // ESP.
 def GR32_NOREX_NOSP : RegisterClass<"X86", [i32], 32,
-                               [EAX, ECX, EDX, ESI, EDI, EBX, EBP]> {
+                                    (and GR32_NOREX, GR32_NOSP)> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit)];
 }
 
 // GR64_NOREX_NOSP - GR64_NOREX registers except RSP.
 def GR64_NOREX_NOSP : RegisterClass<"X86", [i64], 64,
-                                    [RAX, RCX, RDX, RSI, RDI, RBX, RBP]> {
+                                    (and GR64_NOREX, GR64_NOSP)> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit),
                        (GR32_NOREX_NOSP sub_32bit)];
 }
 
 // A class to support the 'A' assembler constraint: EAX then EDX.
-def GR32_AD : RegisterClass<"X86", [i32], 32, [EAX, EDX]> {
+def GR32_AD : RegisterClass<"X86", [i32], 32, (add EAX, EDX)> {
   let SubRegClasses = [(GR8_ABCD_L sub_8bit),
                        (GR8_ABCD_H sub_8bit_hi),
                        (GR16_ABCD sub_16bit)];
 }
 
 // Scalar SSE2 floating point registers.
-def FR32 : RegisterClass<"X86", [f32], 32,
-                         [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
-                          XMM8, XMM9, XMM10, XMM11,
-                          XMM12, XMM13, XMM14, XMM15]>;
+def FR32 : RegisterClass<"X86", [f32], 32, (sequence "XMM%u", 0, 15)>;
 
-def FR64 : RegisterClass<"X86", [f64], 64,
-                         [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
-                          XMM8, XMM9, XMM10, XMM11,
-                          XMM12, XMM13, XMM14, XMM15]>;
+def FR64 : RegisterClass<"X86", [f64], 64, (add FR32)>;
 
 
 // FIXME: This sets up the floating point register files as though they are f64
@@ -504,37 +437,31 @@ def FR64 : RegisterClass<"X86", [f64], 64,
 // faster on common hardware.  In reality, this should be controlled by a
 // command line option or something.
 
-def RFP32 : RegisterClass<"X86",[f32], 32, [FP0, FP1, FP2, FP3, FP4, FP5, FP6]>;
-def RFP64 : RegisterClass<"X86",[f64], 32, [FP0, FP1, FP2, FP3, FP4, FP5, FP6]>;
-def RFP80 : RegisterClass<"X86",[f80], 32, [FP0, FP1, FP2, FP3, FP4, FP5, FP6]>;
+def RFP32 : RegisterClass<"X86",[f32], 32, (sequence "FP%u", 0, 6)>;
+def RFP64 : RegisterClass<"X86",[f64], 32, (add RFP32)>;
+def RFP80 : RegisterClass<"X86",[f80], 32, (add RFP32)>;
 
 // Floating point stack registers (these are not allocatable by the
 // register allocator - the floating point stackifier is responsible
 // for transforming FPn allocations to STn registers)
-def RST : RegisterClass<"X86", [f80, f64, f32], 32,
-                        [ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7]> {
+def RST : RegisterClass<"X86", [f80, f64, f32], 32, (sequence "ST%u", 0, 7)> {
   let isAllocatable = 0;
 }
 
 // Generic vector registers: VR64 and VR128.
-def VR64: RegisterClass<"X86", [x86mmx], 64,
-                          [MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7]>;
-def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],128,
-                          [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
-                           XMM8, XMM9, XMM10, XMM11,
-                           XMM12, XMM13, XMM14, XMM15]> {
+def VR64: RegisterClass<"X86", [x86mmx], 64, (sequence "MM%u", 0, 7)>;
+def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+                          128, (add FR32)> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd)];
 }
 
 def VR256 : RegisterClass<"X86", [v32i8, v8i32, v4i64, v8f32, v4f64], 256,
-                          [YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7,
-                           YMM8, YMM9, YMM10, YMM11,
-                           YMM12, YMM13, YMM14, YMM15]> {
+                          (sequence "YMM%u", 0, 15)> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd), (VR128 sub_xmm)];
 }
 
 // Status flags registers.
-def CCR : RegisterClass<"X86", [i32], 32, [EFLAGS]> {
+def CCR : RegisterClass<"X86", [i32], 32, (add EFLAGS)> {
   let CopyCost = -1;  // Don't allow copying of status registers.
   let isAllocatable = 0;
 }

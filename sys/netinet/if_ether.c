@@ -694,11 +694,13 @@ match:
 		    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
 			if (la->la_flags & LLE_STATIC) {
 				LLE_WUNLOCK(la);
-				log(LOG_ERR,
-				    "arp: %*D attempts to modify permanent "
-				    "entry for %s on %s\n",
-				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    inet_ntoa(isaddr), ifp->if_xname);
+				if (log_arp_permanent_modify)
+					log(LOG_ERR,
+					    "arp: %*D attempts to modify "
+					    "permanent entry for %s on %s\n",
+					    ifp->if_addrlen,
+					    (u_char *)ar_sha(ah), ":",
+					    inet_ntoa(isaddr), ifp->if_xname);
 				goto reply;
 			}
 			if (log_arp_movements) {
@@ -857,6 +859,7 @@ reply:
 	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
 	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);   
 	m->m_pkthdr.len = m->m_len;   
+	m->m_pkthdr.rcvif = NULL;
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	(*ifp->if_output)(ifp, m, &sa, NULL);

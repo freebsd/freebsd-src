@@ -62,8 +62,20 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
   if (!Ctx) {
     Ctx = D->getDeclContext();
     
-    assert((!D->isTemplateParameter() || !Ctx->isTranslationUnit()) &&
-           "Template parameter doesn't have its context yet!");
+    // If we have a template template parameter with translation unit context,
+    // then we're performing substitution into a default template argument of
+    // this template template parameter before we've constructed the template
+    // that will own this template template parameter. In this case, we
+    // use empty template parameter lists for all of the outer templates
+    // to avoid performing any substitutions.
+    if (Ctx->isTranslationUnit()) {
+      if (TemplateTemplateParmDecl *TTP 
+                                      = dyn_cast<TemplateTemplateParmDecl>(D)) {
+        for (unsigned I = 0, N = TTP->getDepth() + 1; I != N; ++I)
+          Result.addOuterTemplateArguments(0, 0);
+        return Result;
+      }
+    }
   }
   
   while (!Ctx->isFileContext()) {
@@ -788,6 +800,11 @@ namespace {
       getSema().CallsUndergoingInstantiation.pop_back();
       return move(Result);
     }
+
+  private:
+    ExprResult transformNonTypeTemplateParmRef(NonTypeTemplateParmDecl *parm,
+                                               SourceLocation loc,
+                                               const TemplateArgument &arg);
   };
 }
 
@@ -795,7 +812,7 @@ bool TemplateInstantiator::AlreadyTransformed(QualType T) {
   if (T.isNull())
     return true;
   
-  if (T->isDependentType() || T->isVariablyModifiedType())
+  if (T->isInstantiationDependentType() || T->isVariablyModifiedType())
     return false;
   
   getSema().MarkDeclarationsReferencedInType(Loc, T);
@@ -980,13 +997,14 @@ TemplateName TemplateInstantiator::TransformTemplateName(CXXScopeSpec &SS,
       
       TemplateName Template = Arg.getAsTemplate();
       assert(!Template.isNull() && "Null template template argument");
-      
+
       // We don't ever want to substitute for a qualified template name, since
       // the qualifier is handled separately. So, look through the qualified
       // template name to its underlying declaration.
       if (QualifiedTemplateName *QTN = Template.getAsQualifiedTemplateName())
         Template = TemplateName(QTN->getTemplateDecl());
-          
+
+      Template = getSema().Context.getSubstTemplateTemplateParm(TTP, Template);
       return Template;
     }
   }
@@ -1065,46 +1083,65 @@ TemplateInstantiator::TransformTemplateParmRefExpr(DeclRefExpr *E,
     Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
   }
 
+  return transformNonTypeTemplateParmRef(NTTP, E->getLocation(), Arg);
+}
+
+ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
+                                                 NonTypeTemplateParmDecl *parm,
+                                                 SourceLocation loc,
+                                                 const TemplateArgument &arg) {
+  ExprResult result;
+  QualType type;
+
   // The template argument itself might be an expression, in which
   // case we just return that expression.
-  if (Arg.getKind() == TemplateArgument::Expression)
-    return SemaRef.Owned(Arg.getAsExpr());
+  if (arg.getKind() == TemplateArgument::Expression) {
+    Expr *argExpr = arg.getAsExpr();
+    result = SemaRef.Owned(argExpr);
+    type = argExpr->getType();
 
-  if (Arg.getKind() == TemplateArgument::Declaration) {
-    ValueDecl *VD = cast<ValueDecl>(Arg.getAsDecl());
+  } else if (arg.getKind() == TemplateArgument::Declaration) {
+    ValueDecl *VD = cast<ValueDecl>(arg.getAsDecl());
 
     // Find the instantiation of the template argument.  This is
     // required for nested templates.
     VD = cast_or_null<ValueDecl>(
-                            getSema().FindInstantiatedDecl(E->getLocation(),
-                                                           VD, TemplateArgs));
+                       getSema().FindInstantiatedDecl(loc, VD, TemplateArgs));
     if (!VD)
       return ExprError();
 
     // Derive the type we want the substituted decl to have.  This had
     // better be non-dependent, or these checks will have serious problems.
-    QualType TargetType;
-    if (NTTP->isExpandedParameterPack())
-      TargetType = NTTP->getExpansionType(
-                                      getSema().ArgumentPackSubstitutionIndex);
-    else if (NTTP->isParameterPack() && 
-             isa<PackExpansionType>(NTTP->getType())) {
-      TargetType = SemaRef.SubstType(
-                        cast<PackExpansionType>(NTTP->getType())->getPattern(),
-                                     TemplateArgs, E->getLocation(), 
-                                     NTTP->getDeclName());
-    } else
-      TargetType = SemaRef.SubstType(NTTP->getType(), TemplateArgs, 
-                                     E->getLocation(), NTTP->getDeclName());
-    assert(!TargetType.isNull() && "type substitution failed for param type");
-    assert(!TargetType->isDependentType() && "param type still dependent");
-    return SemaRef.BuildExpressionFromDeclTemplateArgument(Arg,
-                                                           TargetType,
-                                                           E->getLocation());
-  }
+    if (parm->isExpandedParameterPack()) {
+      type = parm->getExpansionType(SemaRef.ArgumentPackSubstitutionIndex);
+    } else if (parm->isParameterPack() && 
+               isa<PackExpansionType>(parm->getType())) {
+      type = SemaRef.SubstType(
+                        cast<PackExpansionType>(parm->getType())->getPattern(),
+                                     TemplateArgs, loc, parm->getDeclName());
+    } else {
+      type = SemaRef.SubstType(parm->getType(), TemplateArgs, 
+                               loc, parm->getDeclName());
+    }
+    assert(!type.isNull() && "type substitution failed for param type");
+    assert(!type->isDependentType() && "param type still dependent");
+    result = SemaRef.BuildExpressionFromDeclTemplateArgument(arg, type, loc);
 
-  return SemaRef.BuildExpressionFromIntegralTemplateArgument(Arg, 
-                                                E->getSourceRange().getBegin());
+    if (!result.isInvalid()) type = result.get()->getType();
+  } else {
+    result = SemaRef.BuildExpressionFromIntegralTemplateArgument(arg, loc);
+
+    // Note that this type can be different from the type of 'result',
+    // e.g. if it's an enum type.
+    type = arg.getIntegralType();
+  }
+  if (result.isInvalid()) return ExprError();
+
+  Expr *resultExpr = result.take();
+  return SemaRef.Owned(new (SemaRef.Context)
+                SubstNonTypeTemplateParmExpr(type,
+                                             resultExpr->getValueKind(),
+                                             loc, parm, resultExpr));
 }
                                                    
 ExprResult 
@@ -1120,36 +1157,9 @@ TemplateInstantiator::TransformSubstNonTypeTemplateParmPackExpr(
   assert(Index < ArgPack.pack_size() && "Substitution index out-of-range");
   
   const TemplateArgument &Arg = ArgPack.pack_begin()[Index];
-  if (Arg.getKind() == TemplateArgument::Expression)
-    return SemaRef.Owned(Arg.getAsExpr());
-  
-  if (Arg.getKind() == TemplateArgument::Declaration) {
-    ValueDecl *VD = cast<ValueDecl>(Arg.getAsDecl());
-    
-    // Find the instantiation of the template argument.  This is
-    // required for nested templates.
-    VD = cast_or_null<ValueDecl>(
-                   getSema().FindInstantiatedDecl(E->getParameterPackLocation(),
-                                                  VD, TemplateArgs));
-    if (!VD)
-      return ExprError();
-
-    QualType T;
-    NonTypeTemplateParmDecl *NTTP = E->getParameterPack();
-    if (NTTP->isExpandedParameterPack())
-      T = NTTP->getExpansionType(getSema().ArgumentPackSubstitutionIndex);
-    else if (const PackExpansionType *Expansion 
-                                = dyn_cast<PackExpansionType>(NTTP->getType()))
-      T = SemaRef.SubstType(Expansion->getPattern(), TemplateArgs, 
-                            E->getParameterPackLocation(), NTTP->getDeclName());
-    else
-      T = E->getType();
-    return SemaRef.BuildExpressionFromDeclTemplateArgument(Arg, T,
-                                                 E->getParameterPackLocation());
-  }
-    
-  return SemaRef.BuildExpressionFromIntegralTemplateArgument(Arg, 
-                                                 E->getParameterPackLocation());
+  return transformNonTypeTemplateParmRef(E->getParameterPack(),
+                                         E->getParameterPackLocation(),
+                                         Arg);
 }
 
 ExprResult
@@ -1327,7 +1337,7 @@ TypeSourceInfo *Sema::SubstType(TypeSourceInfo *T,
          "Cannot perform an instantiation without some context on the "
          "instantiation stack");
   
-  if (!T->getType()->isDependentType() && 
+  if (!T->getType()->isInstantiationDependentType() && 
       !T->getType()->isVariablyModifiedType())
     return T;
 
@@ -1346,7 +1356,7 @@ TypeSourceInfo *Sema::SubstType(TypeLoc TL,
   if (TL.getType().isNull())
     return 0;
 
-  if (!TL.getType()->isDependentType() && 
+  if (!TL.getType()->isInstantiationDependentType() && 
       !TL.getType()->isVariablyModifiedType()) {
     // FIXME: Make a copy of the TypeLoc data here, so that we can
     // return a new TypeSourceInfo. Inefficient!
@@ -1375,7 +1385,7 @@ QualType Sema::SubstType(QualType T,
 
   // If T is not a dependent type or a variably-modified type, there
   // is nothing to do.
-  if (!T->isDependentType() && !T->isVariablyModifiedType())
+  if (!T->isInstantiationDependentType() && !T->isVariablyModifiedType())
     return T;
 
   TemplateInstantiator Instantiator(*this, TemplateArgs, Loc, Entity);
@@ -1383,7 +1393,8 @@ QualType Sema::SubstType(QualType T,
 }
 
 static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
-  if (T->getType()->isDependentType() || T->getType()->isVariablyModifiedType())
+  if (T->getType()->isInstantiationDependentType() || 
+      T->getType()->isVariablyModifiedType())
     return true;
 
   TypeLoc TL = T->getTypeLoc().IgnoreParens();
@@ -1397,7 +1408,7 @@ static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
     // The parameter's type as written might be dependent even if the
     // decayed type was not dependent.
     if (TypeSourceInfo *TSInfo = P->getTypeSourceInfo())
-      if (TSInfo->getType()->isDependentType())
+      if (TSInfo->getType()->isInstantiationDependentType())
         return true;
 
     // TODO: currently we always rebuild expressions.  When we
@@ -1798,9 +1809,11 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
     ExprResult NewInit = SubstExpr(OldInit, TemplateArgs);
 
     // If the initialization is no longer dependent, check it now.
-    if ((OldField->getType()->isDependentType() || OldInit->isTypeDependent())
-        && !NewField->getType()->isDependentType()
-        && !NewInit.get()->isTypeDependent()) {
+    if ((OldField->getType()->isDependentType() || OldInit->isTypeDependent() ||
+         OldInit->isValueDependent()) &&
+        !NewField->getType()->isDependentType() &&
+        !NewInit.get()->isTypeDependent() &&
+        !NewInit.get()->isValueDependent()) {
       // FIXME: handle list-initialization
       SourceLocation EqualLoc = NewField->getLocation();
       NewInit = PerformCopyInitialization(

@@ -2416,6 +2416,12 @@ tryhost:
 				else
 					pwd = sm_getpwnam(contextaddr->q_user);
 				sucflags = LOGIN_SETRESOURCES|LOGIN_SETPRIORITY;
+#ifdef LOGIN_SETCPUMASK
+				sucflags |= LOGIN_SETCPUMASK;
+#endif /* LOGIN_SETCPUMASK */
+#ifdef LOGIN_SETLOGINCLASS
+				sucflags |= LOGIN_SETLOGINCLASS;
+#endif /* LOGIN_SETLOGINCLASS */
 #ifdef LOGIN_SETMAC
 				sucflags |= LOGIN_SETMAC;
 #endif /* LOGIN_SETMAC */

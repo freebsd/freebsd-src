@@ -28,22 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <x86/apicreg.h>
-#include <x86/mptable.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
 
 #include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
@@ -111,20 +105,3 @@ mptable_register(void *dummy __unused)
 }
 SYSINIT(mptable_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, mptable_register,
     NULL);
-
-
-
-int
-mptable_pci_probe_table(int bus)
-{
-
-	return (0);
-}
-
-int
-mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
-{
-
-	return (0);
-}
-

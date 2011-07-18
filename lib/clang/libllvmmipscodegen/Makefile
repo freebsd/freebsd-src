@@ -11,7 +11,8 @@ SRCS=	MipsAsmPrinter.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \
 	MipsInstrInfo.cpp \
-	MipsMCAsmInfo.cpp \
+	MipsMCInstLower.cpp \
+	MipsMCSymbolRefExpr.cpp \
 	MipsRegisterInfo.cpp \
 	MipsSelectionDAGInfo.cpp \
 	MipsSubtarget.cpp \
@@ -23,10 +24,7 @@ TGHDRS=	Intrinsics \
 	MipsGenCallingConv \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
-	MipsGenInstrNames \
 	MipsGenRegisterInfo \
-	MipsGenRegisterInfo.h \
-	MipsGenRegisterNames \
-	MipsGenSubtarget
+	MipsGenSubtargetInfo
 
 .include "../clang.lib.mk"

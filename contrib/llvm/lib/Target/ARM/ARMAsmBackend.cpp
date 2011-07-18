@@ -28,14 +28,6 @@
 using namespace llvm;
 
 namespace {
-class ARMMachObjectWriter : public MCMachObjectTargetWriter {
-public:
-  ARMMachObjectWriter(bool Is64Bit, uint32_t CPUType,
-                      uint32_t CPUSubtype)
-    : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype,
-                               /*UseAggressiveSymbolFolding=*/true) {}
-};
-
 class ARMELFObjectWriter : public MCELFObjectTargetWriter {
 public:
   ARMELFObjectWriter(Triple::OSType OSType)
@@ -182,7 +174,8 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     Value >>= 16;
     // Fallthrough
   case ARM::fixup_t2_movw_lo16:
-  case ARM::fixup_t2_movt_hi16_pcrel:
+  case ARM::fixup_t2_movt_hi16_pcrel:  //FIXME: Shouldn't this be shifted like
+                                       // the other hi16 fixup?
   case ARM::fixup_t2_movw_lo16_pcrel: {
     unsigned Hi4 = (Value & 0xF000) >> 12;
     unsigned i = (Value & 0x800) >> 11;
@@ -192,8 +185,10 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     // inst{26} = i;
     // inst{14-12} = Mid3;
     // inst{7-0} = Lo8;
-    assert ((((int64_t)Value) >= -0x8000) && (((int64_t)Value) <= 0x7fff) &&
-            "Out of range pc-relative fixup value!");
+    // The value comes in as the whole thing, not just the portion required
+    // for this fixup, so we need to mask off the bits not handled by this
+    // portion (lo vs. hi).
+    Value &= 0xffff;
     Value = (Hi4 << 16) | (i << 26) | (Mid3 << 12) | (Lo8);
     uint64_t swapped = (Value & 0xFFFF0000) >> 16;
     swapped |= (Value & 0x0000FFFF) << 16;
@@ -423,12 +418,9 @@ public:
     : ARMAsmBackend(T), Subtype(st) { }
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createMachObjectWriter(new ARMMachObjectWriter(
-                                    /*Is64Bit=*/false,
-                                    object::mach::CTM_ARM,
-                                    Subtype),
-                                  OS,
-                                  /*IsLittleEndian=*/true);
+    return createARMMachObjectWriter(OS, /*Is64Bit=*/false,
+                                     object::mach::CTM_ARM,
+                                     Subtype);
   }
 
   void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
@@ -505,7 +497,13 @@ TargetAsmBackend *llvm::createARMAsmBackend(const Target &T,
   Triple TheTriple(TT);
 
   if (TheTriple.isOSDarwin()) {
-    if (TheTriple.getArchName() == "armv6" ||
+    if (TheTriple.getArchName() == "armv4t" ||
+        TheTriple.getArchName() == "thumbv4t")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V4T);
+    else if (TheTriple.getArchName() == "armv5e" ||
+        TheTriple.getArchName() == "thumbv5e")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V5TEJ);
+    else if (TheTriple.getArchName() == "armv6" ||
         TheTriple.getArchName() == "thumbv6")
       return new DarwinARMAsmBackend(T, object::mach::CSARM_V6);
     return new DarwinARMAsmBackend(T, object::mach::CSARM_V7);

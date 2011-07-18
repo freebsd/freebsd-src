@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2011
+.Dd July 3, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -296,6 +296,19 @@ Remove the interface from the given
 Fill interface index
 (lowermost 64bit of an IPv6 address)
 automatically.
+.It Cm fib Ar fib_number
+Specify interface FIB.
+A FIB
+.Ar fib_number
+is assigned to all frames or packets received on that interface.
+The FIB is not inherited, e.g. vlans or other sub-interfaces will use
+the default FIB (0) irrespective of the parent interface's FIB.
+The kernel needs to be tuned to support more than the default FIB
+using the
+.Va ROUTETABLES
+kernel configuration option, or the
+.Va net.fibs
+tunable.
 .It Cm ipdst
 This is used to specify an Internet host who is willing to receive
 IP packets encapsulating IPX packets bound for a remote network.

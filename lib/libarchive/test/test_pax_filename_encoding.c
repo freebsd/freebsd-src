@@ -225,9 +225,11 @@ test_pax_filename_encoding_3(void)
 	 * setlocale() does not set the default encoding for CP_ACP. */
 	entry = archive_entry_new();
 	if (archive_entry_update_pathname_utf8(entry, badname_utf8)) {
+		archive_entry_free(entry);
 		skipping("Cannot test conversion failures.");
 		return;
 	}
+	archive_entry_free(entry);
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_pax(a));

@@ -4201,6 +4201,20 @@ TemplateName ASTImporter::Import(TemplateName From) {
     
     return ToContext.getDependentTemplateName(Qualifier, DTN->getOperator());
   }
+
+  case TemplateName::SubstTemplateTemplateParm: {
+    SubstTemplateTemplateParmStorage *subst
+      = From.getAsSubstTemplateTemplateParm();
+    TemplateTemplateParmDecl *param
+      = cast_or_null<TemplateTemplateParmDecl>(Import(subst->getParameter()));
+    if (!param)
+      return TemplateName();
+
+    TemplateName replacement = Import(subst->getReplacement());
+    if (replacement.isNull()) return TemplateName();
+    
+    return ToContext.getSubstTemplateTemplateParm(param, replacement);
+  }
       
   case TemplateName::SubstTemplateTemplateParmPack: {
     SubstTemplateTemplateParmPackStorage *SubstPack
@@ -4232,8 +4246,8 @@ SourceLocation ASTImporter::Import(SourceLocation FromLoc) {
   SourceManager &FromSM = FromContext.getSourceManager();
   
   // For now, map everything down to its spelling location, so that we
-  // don't have to import macro instantiations.
-  // FIXME: Import macro instantiations!
+  // don't have to import macro expansions.
+  // FIXME: Import macro expansions!
   FromLoc = FromSM.getSpellingLoc(FromLoc);
   std::pair<FileID, unsigned> Decomposed = FromSM.getDecomposedLoc(FromLoc);
   SourceManager &ToSM = ToContext.getSourceManager();
@@ -4254,7 +4268,7 @@ FileID ASTImporter::Import(FileID FromID) {
   SourceManager &FromSM = FromContext.getSourceManager();
   SourceManager &ToSM = ToContext.getSourceManager();
   const SrcMgr::SLocEntry &FromSLoc = FromSM.getSLocEntry(FromID);
-  assert(FromSLoc.isFile() && "Cannot handle macro instantiations yet");
+  assert(FromSLoc.isFile() && "Cannot handle macro expansions yet");
   
   // Include location of this file.
   SourceLocation ToIncludeLoc = Import(FromSLoc.getFile().getIncludeLoc());

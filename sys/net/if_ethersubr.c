@@ -692,6 +692,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m_adj(m, ETHER_VLAN_ENCAP_LEN);
 	}
 
+	M_SETFIB(m, ifp->if_fib);
+
 	/* Allow ng_ether(4) to claim this frame. */
 	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		KASSERT(ng_ether_input_p != NULL,

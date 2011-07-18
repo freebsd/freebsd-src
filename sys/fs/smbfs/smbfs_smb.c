@@ -556,7 +556,7 @@ smbfs_smb_setftime(struct smbnode *np, struct timespec *mtime,
 
 /*
  * Set DOS file attributes.
- * Looks like this call can be used only if CAP_NT_SMBS bit is on.
+ * Looks like this call can be used only if SMB_CAP_NT_SMBS bit is on.
  */
 int
 smbfs_smb_setfattrNT(struct smbnode *np, u_int16_t attr, struct timespec *mtime,

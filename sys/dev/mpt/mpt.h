@@ -721,11 +721,9 @@ struct mpt_softc {
 	 * DMA Mapping Stuff
 	 */
 	struct resource *	pci_reg;	/* Register map for chip */
-	int			pci_mem_rid;	/* Resource ID */
 	bus_space_tag_t		pci_st;		/* Bus tag for registers */
 	bus_space_handle_t	pci_sh;		/* Bus handle for registers */
 	/* PIO versions of above. */
-	int			pci_pio_rid;
 	struct resource *	pci_pio_reg;
 	bus_space_tag_t		pci_pio_st;
 	bus_space_handle_t	pci_pio_sh;

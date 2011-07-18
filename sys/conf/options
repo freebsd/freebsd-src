@@ -63,6 +63,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
@@ -163,7 +164,6 @@ MSGMNI		opt_sysvipc.h
 MSGSEG		opt_sysvipc.h
 MSGSSZ		opt_sysvipc.h
 MSGTQL		opt_sysvipc.h
-SEMMAP		opt_sysvipc.h
 SEMMNI		opt_sysvipc.h
 SEMMNS		opt_sysvipc.h
 SEMMNU		opt_sysvipc.h
@@ -426,7 +426,6 @@ SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
-TCP_SORECEIVE_STREAM	opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
 FLOWTABLE		opt_route.h

@@ -13,8 +13,10 @@
 
 #include "clang/Parse/ParseDiagnostic.h" // FIXME: remove this back-dependency!
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/LocInfoType.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Lex/Preprocessor.h"
@@ -124,6 +126,12 @@ void CXXScopeSpec::Adopt(NestedNameSpecifierLoc Other) {
   Builder.Adopt(Other);
 }
 
+SourceLocation CXXScopeSpec::getLastQualifierNameLoc() const {
+  if (!Builder.getRepresentation())
+    return SourceLocation();
+  return Builder.getTemporary().getLocalBeginLoc();
+}
+
 NestedNameSpecifierLoc 
 CXXScopeSpec::getWithLocInContext(ASTContext &Context) const {
   if (!Builder.getRepresentation())
@@ -141,6 +149,7 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
                                              unsigned TypeQuals,
                                              bool RefQualifierIsLvalueRef,
                                              SourceLocation RefQualifierLoc,
+                                             SourceLocation MutableLoc,
                                              ExceptionSpecificationType
                                                  ESpecType,
                                              SourceLocation ESpecLoc,
@@ -166,6 +175,7 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
   I.Fun.ArgInfo                 = 0;
   I.Fun.RefQualifierIsLValueRef = RefQualifierIsLvalueRef;
   I.Fun.RefQualifierLoc         = RefQualifierLoc.getRawEncoding();
+  I.Fun.MutableLoc              = MutableLoc.getRawEncoding();
   I.Fun.ExceptionSpecType       = ESpecType;
   I.Fun.ExceptionSpecLoc        = ESpecLoc.getRawEncoding();
   I.Fun.NumExceptions           = 0;
@@ -211,6 +221,73 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
     break;
   }
   return I;
+}
+
+bool Declarator::isDeclarationOfFunction() const {
+  for (unsigned i = 0, i_end = DeclTypeInfo.size(); i < i_end; ++i) {
+    switch (DeclTypeInfo[i].Kind) {
+    case DeclaratorChunk::Function:
+      return true;
+    case DeclaratorChunk::Paren:
+      continue;
+    case DeclaratorChunk::Pointer:
+    case DeclaratorChunk::Reference:
+    case DeclaratorChunk::Array:
+    case DeclaratorChunk::BlockPointer:
+    case DeclaratorChunk::MemberPointer:
+      return false;
+    }
+    llvm_unreachable("Invalid type chunk");
+    return false;
+  }
+  
+  switch (DS.getTypeSpecType()) {
+    case TST_auto:
+    case TST_bool:
+    case TST_char:
+    case TST_char16:
+    case TST_char32:
+    case TST_class:
+    case TST_decimal128:
+    case TST_decimal32:
+    case TST_decimal64:
+    case TST_double:
+    case TST_enum:
+    case TST_error:
+    case TST_float:
+    case TST_int:
+    case TST_struct:
+    case TST_union:
+    case TST_unknown_anytype:
+    case TST_unspecified:
+    case TST_void:
+    case TST_wchar:
+      return false;
+
+    case TST_decltype:
+    case TST_typeofExpr:
+      if (Expr *E = DS.getRepAsExpr())
+        return E->getType()->isFunctionType();
+      return false;
+     
+    case TST_underlyingType:
+    case TST_typename:
+    case TST_typeofType: {
+      QualType QT = DS.getRepAsType().get();
+      if (QT.isNull())
+        return false;
+      
+      if (const LocInfoType *LIT = dyn_cast<LocInfoType>(QT))
+        QT = LIT->getType();
+
+      if (QT.isNull())
+        return false;
+        
+      return QT->isFunctionType();
+    }
+  }
+  
+  return false;
 }
 
 /// getParsedSpecifiers - Return a bitmask of which flavors of specifiers this
@@ -792,9 +869,6 @@ bool DeclSpec::isMissingDeclaratorOk() {
 }
 
 void UnqualifiedId::clear() {
-  if (Kind == IK_TemplateId)
-    TemplateId->Destroy();
-  
   Kind = IK_Identifier;
   Identifier = 0;
   StartLocation = SourceLocation();

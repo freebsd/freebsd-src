@@ -35,4 +35,4 @@ extern void hardware_memlimit_set(uint64_t new_memlimit,
 extern uint64_t hardware_memlimit_get(enum operation_mode mode);
 
 /// Display the amount of RAM and memory usage limits and exit.
-extern void hardware_memlimit_show(void) lzma_attribute((noreturn));
+extern void hardware_memlimit_show(void) lzma_attribute((__noreturn__));
