@@ -6,7 +6,6 @@ SRCDIR=	lib/Transforms/IPO
 SRCS=	ArgumentPromotion.cpp \
 	ConstantMerge.cpp \
 	DeadArgumentElimination.cpp \
-	DeadTypeElimination.cpp \
 	ExtractGV.cpp \
 	FunctionAttrs.cpp \
 	GlobalDCE.cpp \

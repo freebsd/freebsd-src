@@ -6,6 +6,7 @@
 .\" The contents of this file are subject to the terms of the Common Development and Distribution License (the "License").  You may not use this file except in compliance with the License. You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.
 .\"  See the License for the specific language governing permissions and limitations under the License. When distributing Covered Code, include this CDDL HEADER in each file and include the License file at usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this CDDL HEADER, with
 .\" the fields enclosed by brackets "[]" replaced with your own identifying information: Portions Copyright [yyyy] [name of copyright owner]
+.\" Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
 .\" Copyright 2011 by Delphix.  All rights reserved.
 .TH zfs 1M "24 Sep 2009" "SunOS 5.11" "System Administration Commands"
 .SH NAME
@@ -642,7 +643,7 @@ When the property value is set to \fBpassthrough\fR, files are created with a mo
 .ad
 .sp .6
 .RS 4n
-Controls how an \fBACL\fR is modified during \fBchmod\fR(2). A file system with an \fBaclmode\fR property of \fBdiscard\fR deletes all \fBACL\fR entries that do not represent the mode of the file. An \fBaclmode\fR property of \fBgroupmask\fR (the default) reduces user or group permissions. The permissions are reduced, such that they are no greater than the group permission bits, unless it is a user entry that has the same \fBUID\fR as the owner of the file or directory. In this case, the \fBACL\fR permissions are reduced so that they are no greater than owner permission bits. A file system with an \fBaclmode\fR property of \fBpassthrough\fR indicates that no changes are made to the \fBACL\fR other than generating the necessary \fBACL\fR entries to represent the new mode of the file or directory.
+Controls how an \fBACL\fR is modified during \fBchmod\fR(2). A file system with an \fBaclmode\fR property of \fBdiscard\fR (the default) deletes all \fBACL\fR entries that do not represent the mode of the file. An \fBaclmode\fR property of \fBgroupmask\fR reduces permissions granted in all \fBALLOW\fR entries found in the \fBACL\fR such that they are no greater than the group permissions specified by \fBchmod\fR.  A file system with an \fBaclmode\fR property of \fBpassthrough\fR indicates that no changes are made to the \fBACL\fR other than creating or updating the necessary \fBACL\fR entries to represent the new mode of the file or directory.
 .RE
 
 .sp
@@ -2697,7 +2698,7 @@ pool/home/bob  setuid                on                     default
 pool/home/bob  readonly              off                    default
 pool/home/bob  zoned                 off                    default
 pool/home/bob  snapdir               hidden                 default
-pool/home/bob  aclmode               groupmask              default
+pool/home/bob  aclmode               discard                default
 pool/home/bob  aclinherit            restricted             default
 pool/home/bob  canmount              on                     default
 pool/home/bob  shareiscsi            off                    default

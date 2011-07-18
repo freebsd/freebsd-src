@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.h,v 1.26 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: cache.h,v 1.28 2009-01-09 23:47:46 tbox Exp $ */
 
 #ifndef DNS_CACHE_H
 #define DNS_CACHE_H 1
@@ -65,8 +65,15 @@ dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		 isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
 		 const char *db_type, unsigned int db_argc, char **db_argv,
 		 dns_cache_t **cachep);
+isc_result_t
+dns_cache_create2(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
+		  isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
+		  const char *cachename, const char *db_type,
+		  unsigned int db_argc, char **db_argv, dns_cache_t **cachep);
 /*%<
- * Create a new DNS cache.
+ * Create a new DNS cache.  dns_cache_create2() will create a named cache.
+ * dns_cache_create() is a backward compatible version that internally specifies
+ * an empty name.
  *
  * Requires:
  *
@@ -75,6 +82,8 @@ dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
  *\li	'taskmgr' is a valid task manager and 'timermgr' is a valid timer
  * 	manager, or both are NULL.  If NULL, no periodic cleaning of the
  * 	cache will take place.
+ *
+ *\li	'cachename' is a valid string.  This must not be NULL.
  *
  *\li	'cachep' is a valid pointer, and *cachep == NULL
  *
@@ -217,10 +226,34 @@ dns_cache_setcleaninginterval(dns_cache_t *cache, unsigned int interval);
  * Set the periodic cache cleaning interval to 'interval' seconds.
  */
 
+unsigned int
+dns_cache_getcleaninginterval(dns_cache_t *cache);
+/*%<
+ * Get the periodic cache cleaning interval to 'interval' seconds.
+ */
+
+isc_uint32_t
+dns_cache_getcachesize(dns_cache_t *cache);
+/*%<
+ * Get the maximum cache size.
+ */
+
+const char *
+dns_cache_getname(dns_cache_t *cache);
+/*%<
+ * Get the cache name.
+ */
+
 void
 dns_cache_setcachesize(dns_cache_t *cache, isc_uint32_t size);
 /*%<
  * Set the maximum cache size.  0 means unlimited.
+ */
+
+isc_uint32_t
+dns_cache_getcachesize(dns_cache_t *cache);
+/*%<
+ * Get the maximum cache size.
  */
 
 isc_result_t

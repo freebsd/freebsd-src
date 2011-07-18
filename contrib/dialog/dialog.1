@@ -1,5 +1,5 @@
 '\" t
-.\" $Id: dialog.1,v 1.126 2011/03/02 01:24:21 tom Exp $
+.\" $Id: dialog.1,v 1.133 2011/06/29 09:39:29 tom Exp $
 .\" Copyright 2005-2010,2011  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@
 .RE
 ..
 .
-.TH \*D 1 "" "$Date: 2011/03/02 01:24:21 $"
+.TH \*D 1 "" "$Date: 2011/06/29 09:39:29 $"
 .SH NAME
 \*p \- display dialog boxes from shell scripts
 .SH SYNOPSIS
@@ -285,8 +285,9 @@ Override the label used for "Extra" buttons.
 Note: for inputmenu widgets, this defaults to "Rename".
 .
 .IP "\fB--help"
-Prints the help message to \fB\*p\fP's output.
-The help message is printed if no options are given.
+Prints the help message to the standard output and exits.
+The help message is also printed if no options are given,
+or if an unrecognized option is given.
 .
 .IP "\fB--help-button"
 Show a help-button after "OK" and "Cancel" buttons,
@@ -306,6 +307,12 @@ writes the checklist, radiolist or form information
 after the item-help "HELP" information.
 This can be used to reconstruct the state of a checklist after processing
 the help request.
+.
+.IP "\fB--hfile \fIfilename"
+Display the given file using a textbox when the user presses F1.
+.
+.IP "\fB--hline \fIstring"
+Display the given string centered at the bottom of the widget.
 .
 .IP "\fB--ignore"
 Ignore options that \fB\*p\fP does not recognize.
@@ -385,6 +392,10 @@ See also "\fB--ascii-lines\fR".
 .IP "\fB--no-mouse
 Do not enable the mouse.
 .
+.IP "\fB--no-nl-expand
+Do not convert "\\n" substrings of the message/prompt text into
+literal newlines.
+.
 .IP "\fB--no-ok"
 .IP "\fB--nook"
 Suppress the "OK" button in checklist, inputbox and menu box modes.
@@ -420,8 +431,9 @@ Prints the size of each dialog box to \fB\*p\fP's output.
 .IP "\fB--print-version"
 Prints \fB\*p\fR's version to \fB\*p\fP's output.
 This may be used alone, without other options.
+It does not cause \fBdialog\fP to exit by itself.
 .
-.IP "\fB--scrollbar \fIstring"
+.IP "\fB--scrollbar"
 For widgets holding a scrollable set of data,
 draw a scrollbar on its right-margin.
 This does not respond to the mouse.
@@ -501,6 +513,7 @@ string to be displayed at the top of the dialog box.
 logs the command-line parameters and
 keystrokes to the given file.
 If \fBdialog\fP reads a configure file, it is logged as well.
+Piped input to the \fIgauge\fP widget is logged.
 Use control/T to log a picture of the current dialog window.
 .
 .IP "\fB--trim"
@@ -511,7 +524,8 @@ trim literal newlines and repeated blanks from message text.
 See also the "\fB--cr-wrap\fR" and "\fB--no-collapse\fR" options.
 .
 .IP "\fB--version"
-Same as "\fB--print-version\fP".
+Prints \fB\*p\fR's version to the standard output, and exits.
+See also "\fB--print-version\fP".
 .
 .IP "\fB--visit-items"
 Modify the tab-traversal of checklist, radiobox, menubox and inputmenu
@@ -1278,12 +1292,13 @@ also does not work for common options of \*p, such as the gauge box.
 original dialog 0.4 program.
 .PP
 \fBwhiptail\fP's manpage borrows features from \fB\*p\fP, e.g.,
-\fB--default-item\fP, \fB--output-fd\fP,
-but oddly cites only \fB\*p\fP versions up to 0.4 as a source.
+\fB--default-item\fP (2000),
+\fB--output-fd\fP (2002),
+but oddly cites only \fB\*p\fP versions up to 0.4 (1996) as a source.
 That is, its manpage refers to features which
 were borrowed from more recent versions of \fB\*p\fP, e.g.,
 the \fB--gauge\fP and \fB--password\fP boxes,
-as well as options such as \fB-separate-output\fP.
+as well as options such as \fB-separate-output\fP (2008).
 Somewhat humorously, one may note that the \fBpopt\fP feature
 (undocumented in its manpage)
 of using a "--" as an escape was documented in \fB\*p\fP's manpage about

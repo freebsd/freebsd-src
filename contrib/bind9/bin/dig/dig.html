@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dig.html,v 1.45.44.3 2009-07-11 01:55:20 tbox Exp $ -->
+<!-- $Id: dig.html,v 1.49 2010-03-05 01:14:15 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -34,7 +34,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543518"></a><h2>DESCRIPTION</h2>
+<a name="id2543522"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -80,7 +80,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543592"></a><h2>SIMPLE USAGE</h2>
+<a name="id2543595"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -126,7 +126,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543683"></a><h2>OPTIONS</h2>
+<a name="id2543686"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -230,7 +230,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544032"></a><h2>QUERY OPTIONS</h2>
+<a name="id2544035"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -499,6 +499,12 @@
               each record on a single line, to facilitate machine parsing
               of the <span><strong class="command">dig</strong></span> output.
             </p></dd>
+<dt><span class="term"><code class="option">+[no]onesoa</code></span></dt>
+<dd><p>
+	      Print only one (starting) SOA record when performing
+	      an AXFR. The default is to print both the starting and
+	      ending SOA records.
+	    </p></dd>
 <dt><span class="term"><code class="option">+[no]fail</code></span></dt>
 <dd><p>
               Do not try the next server if you receive a SERVFAIL.  The
@@ -555,7 +561,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545166"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2545184"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -601,7 +607,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545228"></a><h2>IDN SUPPORT</h2>
+<a name="id2545245"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -615,14 +621,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545251"></a><h2>FILES</h2>
+<a name="id2545336"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545336"></a><h2>SEE ALSO</h2>
+<a name="id2545353"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -630,7 +636,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545373"></a><h2>BUGS</h2>
+<a name="id2545390"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

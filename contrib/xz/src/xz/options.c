@@ -150,7 +150,7 @@ enum {
 
 static void
 set_delta(void *options, uint32_t key, uint64_t value,
-		const char *valuestr lzma_attribute((unused)))
+		const char *valuestr lzma_attribute((__unused__)))
 {
 	lzma_options_delta *opt = options;
 	switch (key) {
@@ -194,7 +194,7 @@ enum {
 
 static void
 set_bcj(void *options, uint32_t key, uint64_t value,
-		const char *valuestr lzma_attribute((unused)))
+		const char *valuestr lzma_attribute((__unused__)))
 {
 	lzma_options_bcj *opt = options;
 	switch (key) {
@@ -241,7 +241,7 @@ enum {
 };
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 error_lzma_preset(const char *valuestr)
 {
 	message_fatal(_("Unsupported LZMA1/LZMA2 preset: %s"), valuestr);

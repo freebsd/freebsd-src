@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlz.h,v 1.7.332.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id: dlz.h,v 1.12 2010-12-20 23:47:21 tbox Exp $ */
 
 /*! \file dns/dlz.h */
 
@@ -87,6 +87,7 @@
 #include <dns/name.h>
 #include <dns/types.h>
 #include <dns/view.h>
+#include <dst/dst.h>
 
 #include <isc/lang.h>
 
@@ -166,12 +167,37 @@ typedef isc_result_t
  * return a result code indicating the type of error.
  */
 
+
+typedef isc_result_t
+(*dns_dlzconfigure_t)(void *driverarg, void *dbdata, dns_view_t *view);
+/*%<
+ * Method prototype.  Drivers implementing the DLZ interface may
+ * optionally supply a configure method. If supplied, this will be
+ * called immediately after the create method is called. The driver
+ * may call configuration functions during the configure call
+ */
+
+
+typedef isc_boolean_t (*dns_dlzssumatch_t)(dns_name_t *signer,
+					   dns_name_t *name,
+					   isc_netaddr_t *tcpaddr,
+					   dns_rdatatype_t type,
+					   const dst_key_t *key,
+					   void *driverarg, void *dbdata);
+/*%<
+ * Method prototype.  Drivers implementing the DLZ interface may
+ * optionally supply a ssumatch method. If supplied, this will be
+ * called to authorize update requests
+ */
+
 /*% the methods supplied by a DLZ driver */
 typedef struct dns_dlzmethods {
 	dns_dlzcreate_t		create;
 	dns_dlzdestroy_t	destroy;
 	dns_dlzfindzone_t	findzone;
 	dns_dlzallowzonexfr_t	allowzonexfr;
+	dns_dlzconfigure_t	configure;
+	dns_dlzssumatch_t	ssumatch;
 } dns_dlzmethods_t;
 
 /*% information about a DLZ driver */
@@ -183,12 +209,18 @@ struct dns_dlzimplementation {
 	ISC_LINK(dns_dlzimplementation_t)	link;
 };
 
-/*% an instance of a DLZ driver */
+typedef isc_result_t (*dlzconfigure_callback_t)(dns_view_t *, dns_zone_t *);
+
+/*% An instance of a DLZ driver */
 struct dns_dlzdb {
 	unsigned int		magic;
 	isc_mem_t		*mctx;
 	dns_dlzimplementation_t	*implementation;
 	void			*dbdata;
+	dlzconfigure_callback_t configure_callback;
+#ifdef BIND9
+	dns_ssutable_t 		*ssutable;
+#endif
 };
 
 
@@ -283,6 +315,30 @@ dns_dlzunregister(dns_dlzimplementation_t **dlzimp);
  * Removes the dlz driver from the list of registered dlz drivers.
  * There must be no active dlz drivers of this type when this function
  * is called.
+ */
+
+
+isc_result_t
+dns_dlz_writeablezone(dns_view_t *view, const char *zone_name);
+
+/*%<
+ * creates a writeable DLZ zone. Must be called from within the
+ * configure() method of a DLZ driver.
+ */
+
+
+isc_result_t
+dns_dlzconfigure(dns_view_t *view, dlzconfigure_callback_t callback);
+/*%<
+ * call a DLZ drivers configure method, if supplied
+ */
+
+isc_boolean_t
+dns_dlz_ssumatch(dns_dlzdb_t *dlzdatabase,
+		  dns_name_t *signer, dns_name_t *name, isc_netaddr_t *tcpaddr,
+		  dns_rdatatype_t type, const dst_key_t *key);
+/*%<
+ * call a DLZ drivers ssumatch method, if supplied. Otherwise return ISC_FALSE
  */
 
 ISC_LANG_ENDDECLS

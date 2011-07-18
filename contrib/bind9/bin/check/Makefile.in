@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.32 2007-06-19 23:46:59 tbox Exp $
+# $Id: Makefile.in,v 1.36 2009-12-05 23:31:40 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -32,6 +32,7 @@ CWARNINGS =
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
@@ -39,7 +40,8 @@ ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 BIND9DEPLIBS =	../../lib/bind9/libbind9.@A@
 
-LIBS =		@LIBS@
+LIBS =		${ISCLIBS} @LIBS@
+NOSYMLIBS =	${ISCNOSYMLIBS} @LIBS@
 
 SUBDIRS =
 
@@ -69,14 +71,14 @@ named-checkzone.@O@: named-checkzone.c
 
 named-checkconf@EXEEXT@: named-checkconf.@O@ check-tool.@O@ ${ISCDEPLIBS} \
 		${ISCCFGDEPLIBS} ${BIND9DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	named-checkconf.@O@ check-tool.@O@ ${BIND9LIBS} ${ISCCFGLIBS} \
-	${DNSLIBS} ${ISCLIBS} ${LIBS}
+	export BASEOBJS="named-checkconf.@O@ check-tool.@O@"; \
+	export LIBS0="${BIND9LIBS} ${ISCCFGLIBS} ${DNSLIBS}"; \
+	${FINALBUILDCMD}
 
 named-checkzone@EXEEXT@: named-checkzone.@O@ check-tool.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	named-checkzone.@O@ check-tool.@O@ ${ISCCFGLIBS} ${DNSLIBS} \
-	${ISCLIBS} ${LIBS}
+	export BASEOBJS="named-checkzone.@O@ check-tool.@O@"; \
+	export LIBS0="${ISCCFGLIBS} ${DNSLIBS}"; \
+	${FINALBUILDCMD}
 
 doc man:: ${MANOBJS}
 

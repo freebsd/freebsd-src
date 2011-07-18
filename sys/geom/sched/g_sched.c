@@ -111,6 +111,7 @@
 #include <sys/bio.h>
 #include <sys/limits.h>
 #include <sys/hash.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>		/* we access curthread */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.160.50.8 2010-12-14 23:46:09 tbox Exp $ */
+/* $Id: zone.h,v 1.182 2010-12-18 01:56:22 each Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -40,7 +40,10 @@ typedef enum {
 	dns_zone_none,
 	dns_zone_master,
 	dns_zone_slave,
-	dns_zone_stub
+	dns_zone_stub,
+	dns_zone_staticstub,
+	dns_zone_key,
+	dns_zone_dlz
 } dns_zonetype_t;
 
 #define DNS_ZONEOPT_SERVERS	  0x00000001U	/*%< perform server checks */
@@ -70,6 +73,10 @@ typedef enum {
 #define DNS_ZONEOPT_TRYTCPREFRESH 0x01000000U	/*%< try tcp refresh on udp failure */
 #define DNS_ZONEOPT_NOTIFYTOSOA	  0x02000000U	/*%< Notify the SOA MNAME */
 #define DNS_ZONEOPT_NSEC3TESTZONE 0x04000000U	/*%< nsec3-test-zone */
+#define DNS_ZONEOPT_SECURETOINSECURE 0x08000000U /*%< dnssec-secure-to-insecure */
+#define DNS_ZONEOPT_DNSKEYKSKONLY 0x10000000U	/*%< dnssec-dnskey-kskonly */
+#define DNS_ZONEOPT_CHECKDUPRR	  0x20000000U   /*%< check-dup-records */
+#define DNS_ZONEOPT_CHECKDUPRRFAIL 0x40000000U	/*%< fatal check-dup-records failures */
 
 #ifndef NOMINUM_PUBLIC
 /*
@@ -77,6 +84,14 @@ typedef enum {
  */
 #define DNS_ZONEOPT_NOTIFYFORWARD 0x80000000U	/* forward notify to master */
 #endif /* NOMINUM_PUBLIC */
+
+/*
+ * Zone key maintenance options
+ */
+#define DNS_ZONEKEY_ALLOW	0x00000001U	/*%< fetch keys on command */
+#define DNS_ZONEKEY_MAINTAIN	0x00000002U	/*%< publish/sign on schedule */
+#define DNS_ZONEKEY_CREATE	0x00000004U	/*%< make keys when needed */
+#define DNS_ZONEKEY_FULLSIGN    0x00000008U     /*%< roll to new keys immediately */
 
 #ifndef DNS_ZONE_MINREFRESH
 #define DNS_ZONE_MINREFRESH		    300	/*%< 5 minutes */
@@ -367,6 +382,22 @@ dns_zone_getdb(dns_zone_t *zone, dns_db_t **dbp);
  *\li	DNS_R_NOTLOADED
  */
 
+void
+dns_zone_setdb(dns_zone_t *zone, dns_db_t *db);
+/*%<
+ *	Sets the zone database to 'db'.
+ *
+ *	This function is expected to be used to configure a zone with a
+ *	database which is not loaded from a file or zone transfer.
+ *	It can be used for a general purpose zone, but right now its use
+ *	is limited to static-stub zones to avoid possible undiscovered
+ *	problems in the general cases.
+ *
+ * Require:
+ *\li	'zone' to be a valid zone of static-stub.
+ *\li	zone doesn't have a database.
+ */
+
 isc_result_t
 dns_zone_setdbtype(dns_zone_t *zone,
 		   unsigned int dbargc, const char * const *dbargv);
@@ -562,6 +593,25 @@ unsigned int
 dns_zone_getoptions(dns_zone_t *zone);
 /*%<
  *	Returns the current zone options.
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ */
+
+void
+dns_zone_setkeyopt(dns_zone_t *zone, unsigned int option, isc_boolean_t value);
+/*%<
+ *	Set key options on ('value' == ISC_TRUE) or off ('value' ==
+ *	#ISC_FALSE).
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ */
+
+unsigned int
+dns_zone_getkeyopts(dns_zone_t *zone);
+/*%<
+ *	Returns the current zone key options.
  *
  * Require:
  *\li	'zone' to be a valid zone.
@@ -1745,6 +1795,61 @@ dns_zone_getprivatetype(dns_zone_t *zone);
 /*
  * Get/Set the private record type.  It is expected that these interfaces
  * will not be permanent.
+ */
+
+void
+dns_zone_rekey(dns_zone_t *zone, isc_boolean_t fullsign);
+/*%<
+ * Update the zone's DNSKEY set from the key repository.
+ *
+ * If 'fullsign' is true, trigger an immediate full signing of
+ * the zone with the new key.  Otherwise, if there are no keys or
+ * if the new keys are for algorithms that have already signed the
+ * zone, then the zone can be re-signed incrementally.
+ */
+
+isc_result_t
+dns_zone_nscheck(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
+		 unsigned int *errors);
+/*%
+ * Check if the name servers for the zone are sane (have address, don't
+ * refer to CNAMEs/DNAMEs.  The number of constiancy errors detected in
+ * returned in '*errors'
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ * \li	'db' to be valid.
+ * \li	'version' to be valid or NULL.
+ * \li	'errors' to be non NULL.
+ *
+ * Returns:
+ * 	ISC_R_SUCCESS if there were no errors examining the zone contents.
+ */
+
+void
+dns_zone_setadded(dns_zone_t *zone, isc_boolean_t added);
+/*%
+ * Sets the value of zone->added, which should be ISC_TRUE for
+ * zones that were originally added by "rndc addzone".
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+isc_boolean_t
+dns_zone_getadded(dns_zone_t *zone);
+/*%
+ * Returns ISC_TRUE if the zone was originally added at runtime
+ * using "rndc addzone".
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+isc_result_t
+dns_zone_dlzpostload(dns_zone_t *zone, dns_db_t *db);
+/*%
+ * Load the origin names for a writeable DLZ database.
  */
 
 ISC_LANG_ENDDECLS

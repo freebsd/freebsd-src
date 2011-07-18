@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.94.50.3.18.1 2011-05-27 00:19:19 each Exp $ */
+/* $Id: masterdump.c,v 1.99.328.3 2011-06-21 20:15:47 each Exp $ */
 
 /*! \file */
 
@@ -42,6 +42,7 @@
 #include <dns/log.h>
 #include <dns/master.h>
 #include <dns/masterdump.h>
+#include <dns/ncache.h>
 #include <dns/rdata.h>
 #include <dns/rdataclass.h>
 #include <dns/rdataset.h>
@@ -58,6 +59,11 @@
 	isc_result_t _r = (x); \
 	if (_r != ISC_R_SUCCESS) \
 		return (_r); \
+	} while (0)
+
+#define CHECK(x) do { \
+	if ((x) != ISC_R_SUCCESS) \
+		goto cleanup; \
 	} while (0)
 
 struct dns_master_style {
@@ -156,6 +162,7 @@ static char spaces[N_SPACES+1] = "          ";
 #define N_TABS 10
 static char tabs[N_TABS+1] = "\t\t\t\t\t\t\t\t\t\t";
 
+#ifdef BIND9
 struct dns_dumpctx {
 	unsigned int		magic;
 	isc_mem_t		*mctx;
@@ -183,6 +190,7 @@ struct dns_dumpctx {
 					    dns_totext_ctx_t *ctx,
 					    isc_buffer_t *buffer, FILE *f);
 };
+#endif /* BIND9 */
 
 #define NXDOMAIN(x) (((x)->attributes & DNS_RDATASETATTR_NXDOMAIN) != 0)
 
@@ -336,6 +344,52 @@ str_totext(const char *source, isc_buffer_t *target) {
 	return (ISC_R_SUCCESS);
 }
 
+static isc_result_t
+ncache_summary(dns_rdataset_t *rdataset, isc_boolean_t omit_final_dot,
+	       isc_buffer_t *target)
+{
+	isc_result_t result = ISC_R_SUCCESS;
+	dns_rdataset_t rds;
+	dns_name_t name;
+
+	dns_rdataset_init(&rds);
+	dns_name_init(&name, NULL);
+
+	do {
+		dns_ncache_current(rdataset, &name, &rds);
+		for (result = dns_rdataset_first(&rds);
+		     result == ISC_R_SUCCESS;
+		     result = dns_rdataset_next(&rds)) {
+			CHECK(str_totext("; ", target));
+			CHECK(dns_name_totext(&name, omit_final_dot, target));
+			CHECK(str_totext(" ", target));
+			CHECK(dns_rdatatype_totext(rds.type, target));
+			if (rds.type == dns_rdatatype_rrsig) {
+				CHECK(str_totext(" ", target));
+				CHECK(dns_rdatatype_totext(rds.covers, target));
+				CHECK(str_totext(" ...\n", target));
+			} else {
+				dns_rdata_t rdata = DNS_RDATA_INIT;
+				dns_rdataset_current(&rds, &rdata);
+				CHECK(str_totext(" ", target));
+				CHECK(dns_rdata_tofmttext(&rdata, dns_rootname,
+							  0, 0, " ", target));
+				CHECK(str_totext("\n", target));
+			}
+		}
+		dns_rdataset_disassociate(&rds);
+		result = dns_rdataset_next(rdataset);
+	} while (result == ISC_R_SUCCESS);
+
+	if (result == ISC_R_NOMORE)
+		result = ISC_R_SUCCESS;
+ cleanup:
+	if (dns_rdataset_isassociated(&rds))
+		dns_rdataset_disassociate(&rds);
+
+	return (result);
+}
+
 /*
  * Convert 'rdataset' to master file text format according to 'ctx',
  * storing the result in 'target'.  If 'owner_name' is NULL, it
@@ -356,6 +410,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 	isc_uint32_t current_ttl;
 	isc_boolean_t current_ttl_valid;
 	dns_rdatatype_t type;
+	unsigned int type_start;
 
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 
@@ -437,33 +492,37 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		 * Type.
 		 */
 
-		if (rdataset->type == 0) {
+		if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) {
 			type = rdataset->covers;
 		} else {
 			type = rdataset->type;
 		}
 
-		{
-			unsigned int type_start;
-			INDENT_TO(type_column);
-			type_start = target->used;
-			if (rdataset->type == 0)
-				RETERR(str_totext("\\-", target));
-			result = dns_rdatatype_totext(type, target);
-			if (result != ISC_R_SUCCESS)
-				return (result);
-			column += (target->used - type_start);
-		}
+		INDENT_TO(type_column);
+		type_start = target->used;
+		if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0)
+			RETERR(str_totext("\\-", target));
+		result = dns_rdatatype_totext(type, target);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		column += (target->used - type_start);
 
 		/*
 		 * Rdata.
 		 */
 		INDENT_TO(rdata_column);
-		if (rdataset->type == 0) {
+		if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) {
 			if (NXDOMAIN(rdataset))
 				RETERR(str_totext(";-$NXDOMAIN\n", target));
 			else
 				RETERR(str_totext(";-$NXRRSET\n", target));
+			/*
+			 * Print a summary of the cached records which make
+			 * up the negative response.
+			 */
+			RETERR(ncache_summary(rdataset, omit_final_dot,
+					      target));
+			break;
 		} else {
 			dns_rdata_t rdata = DNS_RDATA_INIT;
 			isc_region_t r;
@@ -639,6 +698,7 @@ dns_master_questiontotext(dns_name_t *owner_name,
 				ISC_FALSE, target));
 }
 
+#ifdef BIND9
 /*
  * Print an rdataset.  'buffer' is a scratch buffer, which must have been
  * dynamically allocated by the caller.  It must be large enough to
@@ -814,7 +874,7 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 		if (ctx->style.flags & DNS_STYLEFLAG_TRUST) {
 			fprintf(f, "; %s\n", dns_trust_totext(rds->trust));
 		}
-		if (rds->type == 0 &&
+		if (((rds->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) &&
 		    (ctx->style.flags & DNS_STYLEFLAG_NCACHE) == 0) {
 			/* Omit negative cache entries */
 		} else {
@@ -979,7 +1039,7 @@ dump_rdatasets_raw(isc_mem_t *mctx, dns_name_t *name,
 		dns_rdataset_init(&rdataset);
 		dns_rdatasetiter_current(rdsiter, &rdataset);
 
-		if (rdataset.type == 0 &&
+		if (((rdataset.attributes & DNS_RDATASETATTR_NEGATIVE) != 0) &&
 		    (ctx->style.flags & DNS_STYLEFLAG_NCACHE) == 0) {
 			/* Omit negative cache entries */
 		} else {
@@ -1694,6 +1754,7 @@ dns_master_dumpnode(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 
 	return (result);
 }
+#endif /* BIND9 */
 
 isc_result_t
 dns_master_stylecreate(dns_master_style_t **stylep, unsigned int flags,

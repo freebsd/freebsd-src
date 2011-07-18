@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.h,v 1.9.332.2 2010-01-15 23:47:34 tbox Exp $ */
+/* $Id: sha2.h,v 1.12 2009-10-22 02:21:31 each Exp $ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.h,v 1.3 2001/03/12 08:27:48 itojun Exp $	*/
@@ -58,6 +58,7 @@
 #define ISC_SHA2_H
 
 #include <isc/lang.h>
+#include <isc/platform.h>
 #include <isc/types.h>
 
 /*** SHA-224/256/384/512 Various Length Definitions ***********************/
@@ -75,10 +76,15 @@
 #define ISC_SHA512_DIGESTLENGTH	64U
 #define ISC_SHA512_DIGESTSTRINGLENGTH	(ISC_SHA512_DIGESTLENGTH * 2 + 1)
 
-
-ISC_LANG_BEGINDECLS
-
 /*** SHA-256/384/512 Context Structures *******************************/
+
+#ifdef ISC_PLATFORM_OPENSSLHASH
+#include <openssl/evp.h>
+
+typedef EVP_MD_CTX isc_sha256_t;
+typedef EVP_MD_CTX isc_sha512_t;
+
+#else
 
 /*
  * Keep buffer immediately after bitcount to preserve alignment.
@@ -97,9 +103,12 @@ typedef struct {
 	isc_uint64_t	bitcount[2];
 	isc_uint8_t	buffer[ISC_SHA512_BLOCK_LENGTH];
 } isc_sha512_t;
+#endif
 
 typedef isc_sha256_t isc_sha224_t;
 typedef isc_sha512_t isc_sha384_t;
+
+ISC_LANG_BEGINDECLS
 
 /*** SHA-224/256/384/512 Function Prototypes ******************************/
 

@@ -460,7 +460,8 @@ namespace llvm {
 
     virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                           const MCSymbol *LastLabel,
-                                          const MCSymbol *Label) = 0;
+                                          const MCSymbol *Label,
+                                          unsigned PointerSize) = 0;
 
     virtual void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                            const MCSymbol *Label) {
@@ -547,6 +548,9 @@ namespace llvm {
   ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
+  ///
+  /// \param DecodeLSDA - If true, emit comments that translates the LSDA into a
+  /// human readable format. Only usable with CFI.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
                                 bool useLoc,

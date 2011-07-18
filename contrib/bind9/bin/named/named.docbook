@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.23.14.2 2009-12-03 04:49:32 tbox Exp $ -->
+<!-- $Id: named.docbook,v 1.26 2009-10-05 17:30:49 fdupont Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
     <date>May 21, 2009</date>
@@ -60,6 +60,7 @@
       <arg><option>-6</option></arg>
       <arg><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
       <arg><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
+      <arg><option>-E <replaceable class="parameter">engine-name</replaceable></option></arg>
       <arg><option>-f</option></arg>
       <arg><option>-g</option></arg>
       <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
@@ -116,6 +117,7 @@
           </para>
         </listitem>
       </varlistentry>
+
       <varlistentry>
         <term>-c <replaceable class="parameter">config-file</replaceable></term>
         <listitem>
@@ -140,6 +142,19 @@
             Set the daemon's debug level to <replaceable class="parameter">debug-level</replaceable>.
             Debugging traces from <command>named</command> become
             more verbose as the debug level increases.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-E <replaceable class="parameter">engine-name</replaceable></term>
+        <listitem>
+          <para>
+            Use a crypto hardware (OpenSSL engine) for the crypto operations
+            it supports, for instance re-signing with private keys from
+            a secure key store. When compiled with PKCS#11 support
+            <replaceable class="parameter">engine-name</replaceable>
+            defaults to pkcs11, the empty name resets it to no engine.
           </para>
         </listitem>
       </varlistentry>

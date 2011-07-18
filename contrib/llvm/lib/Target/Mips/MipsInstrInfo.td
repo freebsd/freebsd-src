@@ -39,6 +39,9 @@ def SDT_MipsDivRem       : SDTypeProfile<0, 2,
 
 def SDT_MipsThreadPointer : SDTypeProfile<1, 0, [SDTCisPtrTy<0>]>;
 
+def SDT_MipsDynAlloc    : SDTypeProfile<1, 1, [SDTCisVT<0, i32>,
+                                               SDTCisVT<1, iPTR>]>;
+
 // Call
 def MipsJmpLink : SDNode<"MipsISD::JmpLink",SDT_MipsJmpLink,
                          [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue,
@@ -99,6 +102,10 @@ def MipsDivRemU   : SDNode<"MipsISD::DivRemU", SDT_MipsDivRem,
 
 def MipsWrapperPIC    : SDNode<"MipsISD::WrapperPIC",  SDTIntUnaryOp>;
 
+// Pointer to dynamically allocated stack area.
+def MipsDynAlloc  : SDNode<"MipsISD::DynAlloc", SDT_MipsDynAlloc,
+                           [SDNPHasChain, SDNPInGlue]>;
+
 //===----------------------------------------------------------------------===//
 // Mips Instruction Predicate Definitions.
 //===----------------------------------------------------------------------===//
@@ -127,7 +134,12 @@ def uimm16      : Operand<i32> {
 // Address operand
 def mem : Operand<i32> {
   let PrintMethod = "printMemOperand";
-  let MIOperandInfo = (ops simm16, CPURegs);
+  let MIOperandInfo = (ops CPURegs, simm16);
+}
+
+def mem_ea : Operand<i32> {
+  let PrintMethod = "printMemOperandEA";
+  let MIOperandInfo = (ops CPURegs, simm16);
 }
 
 // Transformation Function - get the lower 16 bits.
@@ -344,7 +356,7 @@ class MoveToLOHI<bits<6> func, string instr_asm>:
      !strconcat(instr_asm, "\t$src"), [], IIHiLo>;
 
 class EffectiveAddress<string instr_asm> :
-  FI<0x09, (outs CPURegs:$dst), (ins mem:$addr),
+  FI<0x09, (outs CPURegs:$dst), (ins mem_ea:$addr),
      instr_asm, [(set CPURegs:$dst, addr:$addr)], IIAlu>;
 
 // Count Leading Ones/Zeros in Word
@@ -412,7 +424,7 @@ def ATMACRO   : MipsPseudo<(outs), (ins), ".set\tat", []>;
 // are used, we have the same behavior, but get also a bunch of warnings
 // from the assembler.
 def CPLOAD : MipsPseudo<(outs), (ins CPURegs:$picreg), ".cpload\t$picreg", []>;
-def CPRESTORE : MipsPseudo<(outs), (ins i32imm:$loc), ".cprestore\t$loc\n", []>;
+def CPRESTORE : MipsPseudo<(outs), (ins i32imm:$loc), ".cprestore\t$loc", []>;
 
 let usesCustomInserter = 1 in {
   def ATOMIC_LOAD_ADD_I8 : MipsPseudo<
@@ -673,7 +685,13 @@ let addr=0 in
 // instructions. The same not happens for stack address copies, so an
 // add op with mem ComplexPattern is used and the stack address copy
 // can be matched. It's similar to Sparc LEA_ADDRi
-def LEA_ADDiu : EffectiveAddress<"addiu\t$dst, ${addr:stackloc}">;
+def LEA_ADDiu : EffectiveAddress<"addiu\t$dst, $addr">;
+
+// DynAlloc node points to dynamically allocated stack space.
+// $sp is added to the list of implicitly used registers to prevent dead code
+// elimination from removing instructions that modify $sp.
+let Uses = [SP] in
+def DynAlloc : EffectiveAddress<"addiu\t$dst, $addr">;
 
 // MADD*/MSUB*
 def MADD  : MArithR<0, "madd", MipsMAdd, 1>;
@@ -851,6 +869,9 @@ def : Pat<(setge CPURegs:$lhs, immSExt16:$rhs),
           (XORi (SLTi CPURegs:$lhs, immSExt16:$rhs), 1)>;
 def : Pat<(setuge CPURegs:$lhs, immSExt16:$rhs),
           (XORi (SLTiu CPURegs:$lhs, immSExt16:$rhs), 1)>;
+
+// select MipsDynAlloc
+def : Pat<(MipsDynAlloc addr:$f), (DynAlloc addr:$f)>;
 
 //===----------------------------------------------------------------------===//
 // Floating Point Support

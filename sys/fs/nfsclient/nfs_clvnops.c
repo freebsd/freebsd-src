@@ -1209,13 +1209,13 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 
 	if (flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(dvp);
+		ltype = NFSVOPISLOCKED(dvp);
 		error = vfs_busy(mp, MBF_NOWAIT);
 		if (error != 0) {
 			vfs_ref(mp);
-			VOP_UNLOCK(dvp, 0);
+			NFSVOPUNLOCK(dvp, 0);
 			error = vfs_busy(mp, 0);
-			vn_lock(dvp, ltype | LK_RETRY);
+			NFSVOPLOCK(dvp, ltype | LK_RETRY);
 			vfs_rel(mp);
 			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
 				vfs_unbusy(mp);
@@ -1224,14 +1224,14 @@ nfs_lookup(struct vop_lookup_args *ap)
 			if (error != 0)
 				return (error);
 		}
-		VOP_UNLOCK(dvp, 0);
+		NFSVOPUNLOCK(dvp, 0);
 		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
 		    cnp->cn_lkflags);
 		if (error == 0)
 			newvp = NFSTOV(np);
 		vfs_unbusy(mp);
 		if (newvp != dvp)
-			vn_lock(dvp, ltype | LK_RETRY);
+			NFSVOPLOCK(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
 			if (error == 0) {
 				if (newvp == dvp)
@@ -1764,7 +1764,7 @@ nfs_rename(struct vop_rename_args *ap)
 		error = 0;
 		goto out;
 	}
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
+	if ((error = NFSVOPLOCK(fvp, LK_EXCLUSIVE)) != 0)
 		goto out;
 
 	/*
@@ -1781,7 +1781,7 @@ nfs_rename(struct vop_rename_args *ap)
 	 * this condition can result in potential (silent) data loss.
 	 */
 	error = VOP_FSYNC(fvp, MNT_WAIT, fcnp->cn_thread);
-	VOP_UNLOCK(fvp, 0);
+	NFSVOPUNLOCK(fvp, 0);
 	if (!error && tvp)
 		error = VOP_FSYNC(tvp, MNT_WAIT, tcnp->cn_thread);
 	if (error)
@@ -2943,9 +2943,9 @@ nfs_advlock(struct vop_advlock_args *ap)
 			cred = p->p_ucred;
 		else
 			cred = td->td_ucred;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			return (EBADF);
 		}
 
@@ -2968,27 +2968,27 @@ nfs_advlock(struct vop_advlock_args *ap)
 			    ap->a_fl, 0, cred, td, ap->a_id, ap->a_flags);
 			if (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 			    ap->a_op == F_SETLK) {
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				error = nfs_catnap(PZERO | PCATCH, ret,
 				    "ncladvl");
 				if (error)
 					return (EINTR);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 				if (vp->v_iflag & VI_DOOMED) {
-					VOP_UNLOCK(vp, 0);
+					NFSVOPUNLOCK(vp, 0);
 					return (EBADF);
 				}
 			}
 		} while (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 		     ap->a_op == F_SETLK);
 		if (ret == NFSERR_DENIED) {
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			return (EAGAIN);
 		} else if (ret == EINVAL || ret == EBADF || ret == EINTR) {
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			return (ret);
 		} else if (ret != 0) {
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			return (EACCES);
 		}
 
@@ -3015,21 +3015,21 @@ nfs_advlock(struct vop_advlock_args *ap)
 				}
 			}
 		}
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 		return (0);
 	} else if (!NFS_ISV4(vp)) {
-		error = vn_lock(vp, LK_SHARED);
+		error = NFSVOPLOCK(vp, LK_SHARED);
 		if (error)
 			return (error);
 		if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
 			size = VTONFS(vp)->n_size;
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			error = lf_advlock(ap, &(vp->v_lockf), size);
 		} else {
 			if (nfs_advlock_p != NULL)
 				error = nfs_advlock_p(ap);
 			else {
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				error = ENOLCK;
 			}
 		}
@@ -3049,15 +3049,15 @@ nfs_advlockasync(struct vop_advlockasync_args *ap)
 	
 	if (NFS_ISV4(vp))
 		return (EOPNOTSUPP);
-	error = vn_lock(vp, LK_SHARED);
+	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error)
 		return (error);
 	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
 		size = VTONFS(vp)->n_size;
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 		error = lf_advlockasync(ap, &(vp->v_lockf), size);
 	} else {
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 		error = EOPNOTSUPP;
 	}
 	return (error);

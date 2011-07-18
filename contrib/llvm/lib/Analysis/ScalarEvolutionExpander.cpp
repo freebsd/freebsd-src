@@ -19,6 +19,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/ADT/STLExtras.h"
+
 using namespace llvm;
 
 /// ReuseOrCreateCast - Arrange for there to be a cast of V to Ty at IP,
@@ -159,7 +160,8 @@ Value *SCEVExpander::InsertBinop(Instruction::BinaryOps Opcode,
   }
 
   // If we haven't found this binop, insert it.
-  Value *BO = Builder.CreateBinOp(Opcode, LHS, RHS, "tmp");
+  Instruction *BO = cast<Instruction>(Builder.CreateBinOp(Opcode, LHS, RHS, "tmp"));
+  BO->setDebugLoc(SaveInsertPt->getDebugLoc());
   rememberInstruction(BO);
 
   // Restore the original insert point.
@@ -847,6 +849,8 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
                                         const Loop *L,
                                         const Type *ExpandTy,
                                         const Type *IntTy) {
+  assert((!IVIncInsertLoop||IVIncInsertPos) && "Uninitialized insert position");
+
   // Reuse a previously-inserted PHI, if present.
   for (BasicBlock::iterator I = L->getHeader()->begin();
        PHINode *PN = dyn_cast<PHINode>(I); ++I)
@@ -871,13 +875,15 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
           // If any of the operands don't dominate the insert position, bail.
           // Addrec operands are always loop-invariant, so this can only happen
           // if there are instructions which haven't been hoisted.
-          for (User::op_iterator OI = IncV->op_begin()+1,
-               OE = IncV->op_end(); OI != OE; ++OI)
-            if (Instruction *OInst = dyn_cast<Instruction>(OI))
-              if (!SE.DT->dominates(OInst, IVIncInsertPos)) {
-                IncV = 0;
-                break;
-              }
+          if (L == IVIncInsertLoop) {
+            for (User::op_iterator OI = IncV->op_begin()+1,
+                   OE = IncV->op_end(); OI != OE; ++OI)
+              if (Instruction *OInst = dyn_cast<Instruction>(OI))
+                if (!SE.DT->dominates(OInst, IVIncInsertPos)) {
+                  IncV = 0;
+                  break;
+                }
+          }
           if (!IncV)
             break;
           // Advance to the next instruction.
@@ -919,6 +925,11 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   Value *StartV = expandCodeFor(Normalized->getStart(), ExpandTy,
                                 L->getHeader()->begin());
 
+  // StartV must be hoisted into L's preheader to dominate the new phi.
+  assert(!isa<Instruction>(StartV) ||
+         SE.DT->properlyDominates(cast<Instruction>(StartV)->getParent(),
+                                  L->getHeader()));
+
   // Expand code for the step value. Insert instructions right before the
   // terminator corresponding to the back-edge. Do this before creating the PHI
   // so that PHI reuse code doesn't see an incomplete PHI. If the stride is
@@ -935,7 +946,8 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   BasicBlock *Header = L->getHeader();
   Builder.SetInsertPoint(Header, Header->begin());
   pred_iterator HPB = pred_begin(Header), HPE = pred_end(Header);
-  PHINode *PN = Builder.CreatePHI(ExpandTy, std::distance(HPB, HPE), "lsr.iv");
+  PHINode *PN = Builder.CreatePHI(ExpandTy, std::distance(HPB, HPE),
+                                  Twine(IVName) + ".iv");
   rememberInstruction(PN);
 
   // Create the step instructions and populate the PHI.
@@ -953,7 +965,7 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
     // at IVIncInsertPos.
     Instruction *InsertPos = L == IVIncInsertLoop ?
       IVIncInsertPos : Pred->getTerminator();
-    Builder.SetInsertPoint(InsertPos->getParent(), InsertPos);
+    Builder.SetInsertPoint(InsertPos);
     Value *IncV;
     // If the PHI is a pointer, use a GEP, otherwise use an add or sub.
     if (isPointer) {
@@ -971,8 +983,8 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
       }
     } else {
       IncV = isNegative ?
-        Builder.CreateSub(PN, StepV, "lsr.iv.next") :
-        Builder.CreateAdd(PN, StepV, "lsr.iv.next");
+        Builder.CreateSub(PN, StepV, Twine(IVName) + ".iv.next") :
+        Builder.CreateAdd(PN, StepV, Twine(IVName) + ".iv.next");
       rememberInstruction(IncV);
     }
     PN->addIncoming(IncV, Pred);
@@ -1155,6 +1167,7 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
         Instruction *Add = BinaryOperator::CreateAdd(CanonicalIV, One,
                                                      "indvar.next",
                                                      HP->getTerminator());
+        Add->setDebugLoc(HP->getTerminator()->getDebugLoc());
         rememberInstruction(Add);
         CanonicalIV->addIncoming(Add, HP);
       } else {

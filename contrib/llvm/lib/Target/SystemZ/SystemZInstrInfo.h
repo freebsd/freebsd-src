@@ -19,6 +19,9 @@
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/Target/TargetInstrInfo.h"
 
+#define GET_INSTRINFO_HEADER
+#include "SystemZGenInstrInfo.inc"
+
 namespace llvm {
 
 class SystemZTargetMachine;
@@ -47,7 +50,7 @@ namespace SystemZII {
   };
 }
 
-class SystemZInstrInfo : public TargetInstrInfoImpl {
+class SystemZInstrInfo : public SystemZGenInstrInfo {
   const SystemZRegisterInfo RI;
   SystemZTargetMachine &TM;
 public:
@@ -94,10 +97,10 @@ public:
 
   SystemZCC::CondCodes getOppositeCondition(SystemZCC::CondCodes CC) const;
   SystemZCC::CondCodes getCondFromBranchOpc(unsigned Opc) const;
-  const TargetInstrDesc& getBrCond(SystemZCC::CondCodes CC) const;
-  const TargetInstrDesc& getLongDispOpc(unsigned Opc) const;
+  const MCInstrDesc& getBrCond(SystemZCC::CondCodes CC) const;
+  const MCInstrDesc& getLongDispOpc(unsigned Opc) const;
 
-  const TargetInstrDesc& getMemoryInstr(unsigned Opc, int64_t Offset = 0) const {
+  const MCInstrDesc& getMemoryInstr(unsigned Opc, int64_t Offset = 0) const {
     if (Offset < 0 || Offset >= 4096)
       return getLongDispOpc(Opc);
     else

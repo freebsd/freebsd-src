@@ -23,12 +23,15 @@
 #include "llvm/Type.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
+
+#define GET_REGINFO_TARGET_DESC
+#include "SparcGenRegisterInfo.inc"
+
 using namespace llvm;
 
 SparcRegisterInfo::SparcRegisterInfo(SparcSubtarget &st,
                                      const TargetInstrInfo &tii)
-  : SparcGenRegisterInfo(SP::ADJCALLSTACKDOWN, SP::ADJCALLSTACKUP),
-    Subtarget(st), TII(tii) {
+  : SparcGenRegisterInfo(), Subtarget(st), TII(tii) {
 }
 
 const unsigned* SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
@@ -135,6 +138,3 @@ int SparcRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
 int SparcRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
   return SparcGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }
-
-#include "SparcGenRegisterInfo.inc"
-

@@ -28,6 +28,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
@@ -84,6 +85,7 @@ private:
   AsmLexer Lexer;
   MCContext &Ctx;
   MCStreamer &Out;
+  const MCAsmInfo &MAI;
   SourceMgr &SrcMgr;
   MCAsmParserExtension *GenericParser;
   MCAsmParserExtension *PlatformParser;
@@ -135,7 +137,7 @@ public:
   virtual MCContext &getContext() { return Ctx; }
   virtual MCStreamer &getStreamer() { return Out; }
 
-  virtual bool Warning(SMLoc L, const Twine &Meg);
+  virtual bool Warning(SMLoc L, const Twine &Msg);
   virtual bool Error(SMLoc L, const Twine &Msg);
 
   const AsmToken &Lex();
@@ -160,8 +162,9 @@ private:
   void HandleMacroExit();
 
   void PrintMacroInstantiations();
-  void PrintMessage(SMLoc Loc, const Twine &Msg, const char *Type) const {
-    SrcMgr.PrintMessage(Loc, Msg, Type);
+  void PrintMessage(SMLoc Loc, const Twine &Msg, const char *Type,
+                    bool ShowLine = true) const {
+    SrcMgr.PrintMessage(Loc, Msg, Type, ShowLine);
   }
 
   /// EnterIncludeFile - Enter the specified file. This returns true on failure.
@@ -337,7 +340,7 @@ enum { DEFAULT_ADDRSPACE = 0 };
 
 AsmParser::AsmParser(const Target &T, SourceMgr &_SM, MCContext &_Ctx,
                      MCStreamer &_Out, const MCAsmInfo &_MAI)
-  : Lexer(_MAI), Ctx(_Ctx), Out(_Out), SrcMgr(_SM),
+  : Lexer(_MAI), Ctx(_Ctx), Out(_Out), MAI(_MAI), SrcMgr(_SM),
     GenericParser(new GenericAsmParser), PlatformParser(0),
     CurBuffer(0), MacrosEnabled(true) {
   Lexer.setBuffer(SrcMgr.getMemoryBuffer(CurBuffer));
@@ -465,6 +468,29 @@ bool AsmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
     if (!MCDwarfFiles[i])
       TokError("unassigned file number: " + Twine(i) + " for .file directives");
   }
+
+  // Check to see that all assembler local symbols were actually defined.
+  // Targets that don't do subsections via symbols may not want this, though,
+  // so conservatively exclude them. Only do this if we're finalizing, though,
+  // as otherwise we won't necessarilly have seen everything yet.
+  if (!NoFinalize && MAI.hasSubsectionsViaSymbols()) {
+    const MCContext::SymbolTable &Symbols = getContext().getSymbols();
+    for (MCContext::SymbolTable::const_iterator i = Symbols.begin(),
+         e = Symbols.end();
+         i != e; ++i) {
+      MCSymbol *Sym = i->getValue();
+      // Variable symbols may not be marked as defined, so check those
+      // explicitly. If we know it's a variable, we have a definition for
+      // the purposes of this check.
+      if (Sym->isTemporary() && !Sym->isVariable() && !Sym->isDefined())
+        // FIXME: We would really like to refer back to where the symbol was
+        // first referenced for a source location. We need to add something
+        // to track that. Currently, we just point to the end of the file.
+        PrintMessage(getLexer().getLoc(), "assembler local symbol '" +
+                     Sym->getName() + "' not defined", "error", false);
+    }
+  }
+
 
   // Finalize the output stream if there are no errors and if the client wants
   // us to.
@@ -1121,7 +1147,7 @@ bool AsmParser::ParseStatement() {
     if (IDVal == ".weak_def_can_be_hidden")
       return ParseDirectiveSymbolAttribute(MCSA_WeakDefAutoPrivate);
 
-    if (IDVal == ".comm")
+    if (IDVal == ".comm" || IDVal == ".common")
       return ParseDirectiveComm(/*IsLocal=*/false);
     if (IDVal == ".lcomm")
       return ParseDirectiveComm(/*IsLocal=*/true);
@@ -1168,7 +1194,7 @@ bool AsmParser::ParseStatement() {
     for (unsigned i = 0; i != ParsedOperands.size(); ++i) {
       if (i != 0)
         OS << ", ";
-      ParsedOperands[i]->dump(OS);
+      ParsedOperands[i]->print(OS);
     }
     OS << "]";
 
@@ -1587,13 +1613,18 @@ bool AsmParser::ParseDirectiveValue(unsigned Size) {
 
     for (;;) {
       const MCExpr *Value;
+      SMLoc ExprLoc = getLexer().getLoc();
       if (ParseExpression(Value))
         return true;
 
       // Special case constant expressions to match code generator.
-      if (const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value))
-        getStreamer().EmitIntValue(MCE->getValue(), Size, DEFAULT_ADDRSPACE);
-      else
+      if (const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value)) {
+        assert(Size <= 8 && "Invalid size");
+        uint64_t IntValue = MCE->getValue();
+        if (!isUIntN(8 * Size, IntValue) && !isIntN(8 * Size, IntValue))
+          return Error(ExprLoc, "literal value out of range for directive");
+        getStreamer().EmitIntValue(IntValue, Size, DEFAULT_ADDRSPACE);
+      } else
         getStreamer().EmitValue(Value, Size, DEFAULT_ADDRSPACE);
 
       if (getLexer().is(AsmToken::EndOfStatement))

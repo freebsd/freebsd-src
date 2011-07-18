@@ -406,29 +406,20 @@ lltok::Kind LLLexer::LexQuote() {
   return kind;
 }
 
-static bool JustWhitespaceNewLine(const char *&Ptr) {
-  const char *ThisPtr = Ptr;
-  while (*ThisPtr == ' ' || *ThisPtr == '\t')
-    ++ThisPtr;
-  if (*ThisPtr == '\n' || *ThisPtr == '\r') {
-    Ptr = ThisPtr;
-    return true;
-  }
-  return false;
-}
-
 /// LexExclaim:
 ///    !foo
 ///    !
 lltok::Kind LLLexer::LexExclaim() {
   // Lex a metadata name as a MetadataVar.
-  if (isalpha(CurPtr[0])) {
+  if (isalpha(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+      CurPtr[0] == '.' || CurPtr[0] == '_' || CurPtr[0] == '\\') {
     ++CurPtr;
     while (isalnum(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
-           CurPtr[0] == '.' || CurPtr[0] == '_')
+           CurPtr[0] == '.' || CurPtr[0] == '_' || CurPtr[0] == '\\')
       ++CurPtr;
 
     StrVal.assign(TokStart+1, CurPtr);   // Skip !
+    UnEscapeLexed(StrVal);
     return lltok::MetadataVar;
   }
   return lltok::exclaim;
@@ -480,7 +471,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   if (Len == strlen(#STR) && !memcmp(StartChar, #STR, strlen(#STR))) \
     return lltok::kw_##STR;
 
-  KEYWORD(begin);   KEYWORD(end);
   KEYWORD(true);    KEYWORD(false);
   KEYWORD(declare); KEYWORD(define);
   KEYWORD(global);  KEYWORD(constant);
@@ -570,6 +560,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(noimplicitfloat);
   KEYWORD(naked);
   KEYWORD(hotpatch);
+  KEYWORD(nonlazybind);
 
   KEYWORD(type);
   KEYWORD(opaque);
@@ -597,26 +588,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   TYPEKEYWORD("metadata",  Type::getMetadataTy(Context));
   TYPEKEYWORD("x86_mmx",   Type::getX86_MMXTy(Context));
 #undef TYPEKEYWORD
-
-  // Handle special forms for autoupgrading.  Drop these in LLVM 3.0.  This is
-  // to avoid conflicting with the sext/zext instructions, below.
-  if (Len == 4 && !memcmp(StartChar, "sext", 4)) {
-    // Scan CurPtr ahead, seeing if there is just whitespace before the newline.
-    if (JustWhitespaceNewLine(CurPtr))
-      return lltok::kw_signext;
-  } else if (Len == 4 && !memcmp(StartChar, "zext", 4)) {
-    // Scan CurPtr ahead, seeing if there is just whitespace before the newline.
-    if (JustWhitespaceNewLine(CurPtr))
-      return lltok::kw_zeroext;
-  } else if (Len == 6 && !memcmp(StartChar, "malloc", 6)) {
-    // FIXME: Remove in LLVM 3.0.
-    // Autoupgrade malloc instruction.
-    return lltok::kw_malloc;
-  } else if (Len == 4 && !memcmp(StartChar, "free", 4)) {
-    // FIXME: Remove in LLVM 3.0.
-    // Autoupgrade malloc instruction.
-    return lltok::kw_free;
-  }
 
   // Keywords for instructions.
 #define INSTKEYWORD(STR, Enum) \
@@ -664,7 +635,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(extractelement, ExtractElement);
   INSTKEYWORD(insertelement,  InsertElement);
   INSTKEYWORD(shufflevector,  ShuffleVector);
-  INSTKEYWORD(getresult,      ExtractValue);
   INSTKEYWORD(extractvalue,   ExtractValue);
   INSTKEYWORD(insertvalue,    InsertValue);
 #undef INSTKEYWORD
@@ -687,14 +657,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   if (TokStart[0] == 'c' && TokStart[1] == 'c') {
     CurPtr = TokStart+2;
     return lltok::kw_cc;
-  }
-
-  // If this starts with "call", return it as CALL.  This is to support old
-  // broken .ll files.  FIXME: remove this with LLVM 3.0.
-  if (CurPtr-TokStart > 4 && !memcmp(TokStart, "call", 4)) {
-    CurPtr = TokStart+4;
-    UIntVal = Instruction::Call;
-    return lltok::kw_call;
   }
 
   // Finally, if this isn't known, return an error.

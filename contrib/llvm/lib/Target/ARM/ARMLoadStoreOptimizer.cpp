@@ -329,13 +329,9 @@ ARMLoadStoreOpt::MergeOps(MachineBasicBlock &MBB,
       if (NewBase == 0)
         return false;
     }
-    int BaseOpc = !isThumb2
-      ? ARM::ADDri
-      : ((Base == ARM::SP) ? ARM::t2ADDrSPi : ARM::t2ADDri);
+    int BaseOpc = !isThumb2 ? ARM::ADDri : ARM::t2ADDri;
     if (Offset < 0) {
-      BaseOpc = !isThumb2
-        ? ARM::SUBri
-        : ((Base == ARM::SP) ? ARM::t2SUBrSPi : ARM::t2SUBri);
+      BaseOpc = !isThumb2 ? ARM::SUBri : ARM::t2SUBri;
       Offset = - Offset;
     }
     int ImmedOffset = isThumb2
@@ -516,8 +512,6 @@ static inline bool isMatchingDecrement(MachineInstr *MI, unsigned Base,
   if (!MI)
     return false;
   if (MI->getOpcode() != ARM::t2SUBri &&
-      MI->getOpcode() != ARM::t2SUBrSPi &&
-      MI->getOpcode() != ARM::t2SUBrSPi12 &&
       MI->getOpcode() != ARM::tSUBspi &&
       MI->getOpcode() != ARM::SUBri)
     return false;
@@ -541,8 +535,6 @@ static inline bool isMatchingIncrement(MachineInstr *MI, unsigned Base,
   if (!MI)
     return false;
   if (MI->getOpcode() != ARM::t2ADDri &&
-      MI->getOpcode() != ARM::t2ADDrSPi &&
-      MI->getOpcode() != ARM::t2ADDrSPi12 &&
       MI->getOpcode() != ARM::tADDspi &&
       MI->getOpcode() != ARM::ADDri)
     return false;
@@ -1461,19 +1453,19 @@ static bool IsSafeAndProfitableToMove(bool isLd, unsigned Base,
   while (++I != E) {
     if (I->isDebugValue() || MemOps.count(&*I))
       continue;
-    const TargetInstrDesc &TID = I->getDesc();
-    if (TID.isCall() || TID.isTerminator() || I->hasUnmodeledSideEffects())
+    const MCInstrDesc &MCID = I->getDesc();
+    if (MCID.isCall() || MCID.isTerminator() || I->hasUnmodeledSideEffects())
       return false;
-    if (isLd && TID.mayStore())
+    if (isLd && MCID.mayStore())
       return false;
     if (!isLd) {
-      if (TID.mayLoad())
+      if (MCID.mayLoad())
         return false;
       // It's not safe to move the first 'str' down.
       // str r1, [r0]
       // strh r5, [r0]
       // str r4, [r0, #+4]
-      if (TID.mayStore())
+      if (MCID.mayStore())
         return false;
     }
     for (unsigned j = 0, NumOps = I->getNumOperands(); j != NumOps; ++j) {
@@ -1672,14 +1664,14 @@ bool ARMPreAllocLoadStoreOpt::RescheduleOps(MachineBasicBlock *MBB,
           Ops.pop_back();
           Ops.pop_back();
 
-          const TargetInstrDesc &TID = TII->get(NewOpc);
-          const TargetRegisterClass *TRC = TID.OpInfo[0].getRegClass(TRI);
+          const MCInstrDesc &MCID = TII->get(NewOpc);
+          const TargetRegisterClass *TRC = TII->getRegClass(MCID, 0, TRI);
           MRI->constrainRegClass(EvenReg, TRC);
           MRI->constrainRegClass(OddReg, TRC);
 
           // Form the pair instruction.
           if (isLd) {
-            MachineInstrBuilder MIB = BuildMI(*MBB, InsertPos, dl, TID)
+            MachineInstrBuilder MIB = BuildMI(*MBB, InsertPos, dl, MCID)
               .addReg(EvenReg, RegState::Define)
               .addReg(OddReg, RegState::Define)
               .addReg(BaseReg);
@@ -1691,7 +1683,7 @@ bool ARMPreAllocLoadStoreOpt::RescheduleOps(MachineBasicBlock *MBB,
             MIB.addImm(Offset).addImm(Pred).addReg(PredReg);
             ++NumLDRDFormed;
           } else {
-            MachineInstrBuilder MIB = BuildMI(*MBB, InsertPos, dl, TID)
+            MachineInstrBuilder MIB = BuildMI(*MBB, InsertPos, dl, MCID)
               .addReg(EvenReg)
               .addReg(OddReg)
               .addReg(BaseReg);
@@ -1742,8 +1734,8 @@ ARMPreAllocLoadStoreOpt::RescheduleLoadStoreInstrs(MachineBasicBlock *MBB) {
   while (MBBI != E) {
     for (; MBBI != E; ++MBBI) {
       MachineInstr *MI = MBBI;
-      const TargetInstrDesc &TID = MI->getDesc();
-      if (TID.isCall() || TID.isTerminator()) {
+      const MCInstrDesc &MCID = MI->getDesc();
+      if (MCID.isCall() || MCID.isTerminator()) {
         // Stop at barriers.
         ++MBBI;
         break;

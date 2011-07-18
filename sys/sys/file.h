@@ -64,6 +64,7 @@ struct socket;
 #define	DTYPE_SEM	9	/* posix semaphore */
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
 #define	DTYPE_DEV	11	/* Device specific fd type */
+#define	DTYPE_CAPABILITY	12	/* capability */
 
 #ifdef _KERNEL
 
@@ -178,6 +179,7 @@ extern volatile int openfiles;	/* actual number of open files */
 int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
 int fget_write(struct thread *td, int fd, struct file **fpp);
+int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 /*

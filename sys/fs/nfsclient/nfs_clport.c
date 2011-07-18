@@ -127,7 +127,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	if (error == 0 && nvp != NULL) {
 		/*
 		 * I believe there is a slight chance that vgonel() could
-		 * get called on this vnode between when vn_lock() drops
+		 * get called on this vnode between when NFSVOPLOCK() drops
 		 * the VI_LOCK() and vget() acquires it again, so that it
 		 * hasn't yet had v_usecount incremented. If this were to
 		 * happen, the VI_DOOMED flag would be set, so check for
@@ -317,7 +317,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	error = vfs_hash_get(mntp, hash, (LK_EXCLUSIVE | LK_NOWAIT), td, &nvp,
 	    newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
-		VOP_UNLOCK(nvp, 0);
+		NFSVOPUNLOCK(nvp, 0);
 	} else if (error == EBUSY) {
 		/*
 		 * The LK_EXCLOTHER lock type tells nfs_lock1() to not try

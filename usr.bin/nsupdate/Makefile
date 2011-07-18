@@ -14,6 +14,7 @@ SRCS+=		nsupdate.c
 
 CFLAGS+=	-I${SRCDIR}/include
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
+CFLAGS+=	-DSESSION_KEYFILE=\"/var/run/named/session.key\"
 
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}

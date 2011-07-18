@@ -51,6 +51,7 @@ DEFINE_TEST(test_help)
 
 	/* Exercise --help option. */
 	r = systemf("%s --help >help.stdout 2>help.stderr", testprog);
+	assertEqualInt(r, 0);
 	failure("--help should generate nothing to stderr.");
 	assertEmptyFile("help.stderr");
 	/* Help message should start with name of program. */
@@ -67,6 +68,7 @@ DEFINE_TEST(test_help)
 
 	/* -h option should generate the same output. */
 	r = systemf("%s -h >h.stdout 2>h.stderr", testprog);
+	assertEqualInt(r, 0);
 	failure("-h should generate nothing to stderr.");
 	assertEmptyFile("h.stderr");
 	failure("stdout should be same for -h and --help");
@@ -74,6 +76,7 @@ DEFINE_TEST(test_help)
 
 	/* -W help should be another synonym. */
 	r = systemf("%s -W help >Whelp.stdout 2>Whelp.stderr", testprog);
+	assertEqualInt(r, 0);
 	failure("-W help should generate nothing to stderr.");
 	assertEmptyFile("Whelp.stderr");
 	failure("stdout should be same for -W help and --help");

@@ -88,6 +88,7 @@ o       - specify sort order (vcsw, ivcsw, read, write, fault, total, jid)\n",
 	    stdout);
 #endif
 	fputs("\
+P       - toggle the displaying of per-CPU statistics\n\
 r       - renice a process\n\
 s       - change number of seconds to delay between updates\n\
 S       - toggle the displaying of system processes\n\

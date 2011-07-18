@@ -91,12 +91,14 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 		ia64_set_itm(itc + load);
 	} else
 		ia64_set_itv((1 << 16) | xiv);
+
+	ia64_set_eoi(0);
 	ia64_srlz_d();
 
 	et = &ia64_clock_et;
 	if (et->et_active)
 		et->et_event_cb(et, et->et_arg);
-	return (0);
+	return (1);
 }
 
 /*

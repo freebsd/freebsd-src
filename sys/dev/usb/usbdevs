@@ -484,6 +484,7 @@ vendor SHANTOU		0x0a46	ShanTou
 vendor MEDIAGEAR	0x0a48	MediaGear
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
+vendor MEDELI		0x0a67	Medeli
 vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
@@ -899,6 +900,7 @@ product AIRPLUS MCD650		0x3198	MCD650 modem
 
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
+product AIRPRIME USB308		0x68A3	USB308 HSPA+ USB Modem
 
 /* AirTies products */
 product AIRTIES RT3070		0x2310	RT3070
@@ -1043,6 +1045,7 @@ product ASIX AX88172		0x1720	10/100 Ethernet
 product ASIX AX88178		0x1780	AX88178
 product ASIX AX88772		0x7720	AX88772
 product ASIX AX88772A		0x772a	AX88772A USB 2.0 10/100 Ethernet
+product ASIX AX88772B		0x772b	AX88772B USB 2.0 10/100 Ethernet
 
 /* ASUS products */
 product ASUS2 USBN11		0x0b05	USB-N11
@@ -2129,6 +2132,9 @@ product MCT HUB0100		0x0100	Hub
 product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 product MCT USB232		0x0210	USB-232 Interface
 product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
+
+/* Medeli */
+product MEDELI DD305		0x5011	DD305 Digital Drum Set
 
 /* MediaTek, Inc. */
 product MEDIATEK MTK3329	0x3329	MTK II GPS Receiver

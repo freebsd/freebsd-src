@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkconf.docbook,v 1.19 2007-06-19 06:58:03 marka Exp $ -->
+<!-- $Id: named-checkconf.docbook,v 1.22 2009-12-28 23:21:16 each Exp $ -->
 <refentry id="man.named-checkconf">
   <refentryinfo>
     <date>June 14, 2000</date>
@@ -35,6 +35,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -58,6 +59,7 @@
       <arg><option>-j</option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg choice="req">filename</arg>
+      <arg><option>-p</option></arg>
       <arg><option>-z</option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -65,8 +67,21 @@
   <refsect1>
     <title>DESCRIPTION</title>
     <para><command>named-checkconf</command>
-      checks the syntax, but not the semantics, of a named
-      configuration file.
+      checks the syntax, but not the semantics, of a
+      <command>named</command> configuration file.  The file is parsed
+      and checked for syntax errors, along with all files included by it.
+      If no file is specified, <filename>/etc/named.conf</filename> is read
+      by default.
+    </para>
+    <para>
+      Note: files that <command>named</command> reads in separate
+      parser contexts, such as <filename>rndc.key</filename> and
+      <filename>bind.keys</filename>, are not automatically read
+      by <command>named-checkconf</command>.  Configuration
+      errors in these files may cause <command>named</command> to
+      fail to run, even if <command>named-checkconf</command> was
+      successful.  <command>named-checkconf</command> can be run
+      on these files explicitly, however.
     </para>
   </refsect1>
 
@@ -87,8 +102,7 @@
         <term>-t <replaceable class="parameter">directory</replaceable></term>
         <listitem>
           <para>
-            Chroot to <filename>directory</filename> so that
-            include
+            Chroot to <filename>directory</filename> so that include
             directives in the configuration file are processed as if
             run by a similarly chrooted named.
           </para>
@@ -101,6 +115,16 @@
           <para>
             Print the version of the <command>named-checkconf</command>
             program and exit.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-p</term>
+        <listitem>
+          <para>
+	    Print out the <filename>named.conf</filename> and included files
+	    in canonical form if no errors were detected.
           </para>
         </listitem>
       </varlistentry>

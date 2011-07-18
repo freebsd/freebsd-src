@@ -1657,6 +1657,14 @@ struct lpathconf_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 };
+struct cap_new_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char rights_l_[PADL_(u_int64_t)]; u_int64_t rights; char rights_r_[PADR_(u_int64_t)];
+};
+struct cap_getrights_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char rightsp_l_[PADL_(u_int64_t *)]; u_int64_t * rightsp; char rightsp_r_[PADR_(u_int64_t *)];
+};
 struct cap_enter_args {
 	register_t dummy;
 };
@@ -2073,6 +2081,8 @@ int	__semctl(struct thread *, struct __semctl_args *);
 int	msgctl(struct thread *, struct msgctl_args *);
 int	shmctl(struct thread *, struct shmctl_args *);
 int	lpathconf(struct thread *, struct lpathconf_args *);
+int	cap_new(struct thread *, struct cap_new_args *);
+int	cap_getrights(struct thread *, struct cap_getrights_args *);
 int	cap_enter(struct thread *, struct cap_enter_args *);
 int	cap_getmode(struct thread *, struct cap_getmode_args *);
 int	pselect(struct thread *, struct pselect_args *);
@@ -2758,6 +2768,8 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 #define	SYS_AUE_msgctl	AUE_MSGCTL
 #define	SYS_AUE_shmctl	AUE_SHMCTL
 #define	SYS_AUE_lpathconf	AUE_LPATHCONF
+#define	SYS_AUE_cap_new	AUE_CAP_NEW
+#define	SYS_AUE_cap_getrights	AUE_CAP_GETRIGHTS
 #define	SYS_AUE_cap_enter	AUE_CAP_ENTER
 #define	SYS_AUE_cap_getmode	AUE_CAP_GETMODE
 #define	SYS_AUE_pselect	AUE_SELECT

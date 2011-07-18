@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.h,v 1.9.332.2 2009-01-18 23:47:35 tbox Exp $ */
+/* $Id: getaddresses.h,v 1.11 2009-01-17 23:47:42 tbox Exp $ */
 
 #ifndef BIND9_GETADDRESSES_H
 #define BIND9_GETADDRESSES_H 1

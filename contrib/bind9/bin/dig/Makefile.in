@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.41 2007-06-19 23:46:59 tbox Exp $
+# $Id: Makefile.in,v 1.47 2009-12-05 23:31:40 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -24,7 +24,7 @@ top_srcdir =	@top_srcdir@
 @BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	-I${srcdir}/include ${DNS_INCLUDES} ${BIND9_INCLUDES} \
-		${ISC_INCLUDES} ${LWRES_INCLUDES}
+		${ISC_INCLUDES} ${LWRES_INCLUDES} ${ISCCFG_INCLUDES}
 
 CDEFINES =	-DVERSION=\"${VERSION}\"
 CWARNINGS =
@@ -33,6 +33,7 @@ ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 LWRESLIBS =	../../lib/lwres/liblwres.@A@
 
 ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
@@ -44,8 +45,11 @@ LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
 DEPLIBS =	${DNSDEPLIBS} ${BIND9DEPLIBS} ${ISCDEPLIBS} ${ISCCFGDEPLIBS} \
 		${LWRESDEPLIBS}
 
-LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCLIBS} \
-		${ISCCFGLIBS} @IDNLIBS@ @LIBS@
+LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCCFGLIBS} \
+		${ISCLIBS} @IDNLIBS@ @LIBS@
+
+NOSYMLIBS =	${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCCFGLIBS} \
+		${ISCNOSYMLIBS} @IDNLIBS@ @LIBS@
 
 SUBDIRS =
 
@@ -66,16 +70,16 @@ MANOBJS =	${MANPAGES} ${HTMLPAGES}
 @BIND9_MAKE_RULES@
 
 dig@EXEEXT@: dig.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	dig.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	export BASEOBJS="dig.@O@ dighost.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 host@EXEEXT@: host.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	host.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	export BASEOBJS="host.@O@ dighost.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 nslookup@EXEEXT@: nslookup.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	nslookup.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	export BASEOBJS="nslookup.@O@ dighost.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 doc man:: ${MANOBJS}
 

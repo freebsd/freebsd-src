@@ -70,6 +70,7 @@
 #define	HAVE_BSDXML_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
+#define	HAVE_DECL_EXTATTR_NAMESPACE_USER 1
 #define	HAVE_DECL_INT64_MAX 1
 #define	HAVE_DECL_INT64_MIN 1
 #define	HAVE_DECL_SIZE_MAX 1
@@ -92,7 +93,9 @@
 #define	HAVE_FTRUNCATE 1
 #define	HAVE_FUTIMES 1
 #define	HAVE_GETEUID 1
+#define	HAVE_GETGRGID_R 1
 #define	HAVE_GETPID 1
+#define	HAVE_GETPWUID_R 1
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
@@ -149,6 +152,7 @@
 #define	HAVE_UTIME_H 1
 #define	HAVE_VFORK 1
 #define	HAVE_WCHAR_H 1
+#define	HAVE_WCSCMP 1
 #define	HAVE_WCSCPY 1
 #define	HAVE_WCSLEN 1
 #define	HAVE_WCTOMB 1
@@ -161,4 +165,19 @@
 #if __FreeBSD__ < 5
 #define	intmax_t int64_t
 #define	uintmax_t uint64_t
+#endif
+
+/* FreeBSD defines for archive_hash.h */
+#ifdef WITH_OPENSSL
+#define	ARCHIVE_HASH_MD5_OPENSSL 1
+#define	ARCHIVE_HASH_RMD160_OPENSSL 1
+#define	ARCHIVE_HASH_SHA1_OPENSSL
+#define	ARCHIVE_HASH_SHA256_OPENSSL 1
+#define	ARCHIVE_HASH_SHA384_OPENSSL 1
+#define	ARCHIVE_HASH_SHA512_OPENSSL 1
+#else
+#define	ARCHIVE_HASH_MD5_LIBC 1
+#define	ARCHIVE_HASH_SHA1_LIBC 1
+#define	ARCHIVE_HASH_SHA256_LIBC 1
+#define	ARCHIVE_HASH_SHA512_LIBC 1
 #endif

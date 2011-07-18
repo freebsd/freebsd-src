@@ -19,11 +19,10 @@
 namespace llvm {
 
 class MCOperand;
-class TargetMachine;
 
 class ARMInstPrinter : public MCInstPrinter {
 public:
-  ARMInstPrinter(TargetMachine &TM, const MCAsmInfo &MAI)
+  ARMInstPrinter(const MCAsmInfo &MAI)
     : MCInstPrinter(MAI) {}
 
   virtual void printInst(const MCInst *MI, raw_ostream &O);
@@ -38,8 +37,6 @@ public:
 
 
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
-
-  void printSOImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printSORegOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 

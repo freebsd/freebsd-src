@@ -744,9 +744,11 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 * Destroy resource accounting information associated with the process.
 	 */
 	racct_proc_exit(p);
+#ifdef RACCT
 	PROC_LOCK(p->p_pptr);
 	racct_sub(p->p_pptr, RACCT_NPROC, 1);
 	PROC_UNLOCK(p->p_pptr);
+#endif
 
 	/*
 	 * Free credentials, arguments, and sigacts.
@@ -905,19 +907,23 @@ loop:
 void
 proc_reparent(struct proc *child, struct proc *parent)
 {
+#ifdef RACCT
 	int locked;
+#endif
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
+#ifdef RACCT
 	locked = PROC_LOCKED(parent);
 	if (!locked)
 		PROC_LOCK(parent);
 	racct_add_force(parent, RACCT_NPROC, 1);
 	if (!locked)
 		PROC_UNLOCK(parent);
+#endif
 	PROC_LOCK(child->p_pptr);
 	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);

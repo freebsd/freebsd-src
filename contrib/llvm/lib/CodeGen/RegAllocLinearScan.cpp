@@ -16,7 +16,9 @@
 #include "LiveRangeEdit.h"
 #include "VirtRegMap.h"
 #include "VirtRegRewriter.h"
+#include "RegisterClassInfo.h"
 #include "Spiller.h"
+#include "RegisterCoalescer.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
@@ -27,7 +29,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
-#include "llvm/CodeGen/RegisterCoalescer.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
@@ -55,11 +56,6 @@ static cl::opt<bool>
 NewHeuristic("new-spilling-heuristic",
              cl::desc("Use new spilling heuristic"),
              cl::init(false), cl::Hidden);
-
-static cl::opt<bool>
-PreSplitIntervals("pre-alloc-split",
-                  cl::desc("Pre-register allocation live interval splitting"),
-                  cl::init(false), cl::Hidden);
 
 static cl::opt<bool>
 TrivCoalesceEnds("trivial-coalesce-ends",
@@ -100,10 +96,9 @@ namespace {
       initializeLiveDebugVariablesPass(*PassRegistry::getPassRegistry());
       initializeLiveIntervalsPass(*PassRegistry::getPassRegistry());
       initializeStrongPHIEliminationPass(*PassRegistry::getPassRegistry());
-      initializeRegisterCoalescerAnalysisGroup(
+      initializeRegisterCoalescerPass(
         *PassRegistry::getPassRegistry());
       initializeCalculateSpillWeightsPass(*PassRegistry::getPassRegistry());
-      initializePreAllocSplittingPass(*PassRegistry::getPassRegistry());
       initializeLiveStacksPass(*PassRegistry::getPassRegistry());
       initializeMachineDominatorTreePass(*PassRegistry::getPassRegistry());
       initializeMachineLoopInfoPass(*PassRegistry::getPassRegistry());
@@ -148,6 +143,7 @@ namespace {
     BitVector reservedRegs_;
     LiveIntervals* li_;
     MachineLoopInfo *loopInfo;
+    RegisterClassInfo RegClassInfo;
 
     /// handled_ - Intervals are added to the handled_ set in the order of their
     /// start value.  This is uses for backtracking.
@@ -215,8 +211,6 @@ namespace {
       // to coalescing and which analyses coalescing invalidates.
       AU.addRequiredTransitive<RegisterCoalescer>();
       AU.addRequired<CalculateSpillWeights>();
-      if (PreSplitIntervals)
-        AU.addRequiredID(PreAllocSplittingID);
       AU.addRequiredID(LiveStacksID);
       AU.addPreservedID(LiveStacksID);
       AU.addRequired<MachineLoopInfo>();
@@ -366,13 +360,10 @@ namespace {
     /// getFirstNonReservedPhysReg - return the first non-reserved physical
     /// register in the register class.
     unsigned getFirstNonReservedPhysReg(const TargetRegisterClass *RC) {
-        TargetRegisterClass::iterator aoe = RC->allocation_order_end(*mf_);
-        TargetRegisterClass::iterator i = RC->allocation_order_begin(*mf_);
-        while (i != aoe && reservedRegs_.test(*i))
-          ++i;
-        assert(i != aoe && "All registers reserved?!");
-        return *i;
-      }
+      ArrayRef<unsigned> O = RegClassInfo.getOrder(RC);
+      assert(!O.empty() && "All registers reserved?!");
+      return O.front();
+    }
 
     void ComputeRelatedRegClasses();
 
@@ -402,11 +393,10 @@ INITIALIZE_PASS_BEGIN(RALinScan, "linearscan-regalloc",
 INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
 INITIALIZE_PASS_DEPENDENCY(StrongPHIElimination)
 INITIALIZE_PASS_DEPENDENCY(CalculateSpillWeights)
-INITIALIZE_PASS_DEPENDENCY(PreAllocSplitting)
 INITIALIZE_PASS_DEPENDENCY(LiveStacks)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
 INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
-INITIALIZE_AG_DEPENDENCY(RegisterCoalescer)
+INITIALIZE_PASS_DEPENDENCY(RegisterCoalescer)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(RALinScan, "linearscan-regalloc",
                     "Linear Scan Register Allocator", false, false)
@@ -524,6 +514,7 @@ bool RALinScan::runOnMachineFunction(MachineFunction &fn) {
   reservedRegs_ = tri_->getReservedRegs(fn);
   li_ = &getAnalysis<LiveIntervals>();
   loopInfo = &getAnalysis<MachineLoopInfo>();
+  RegClassInfo.runOnMachineFunction(fn);
 
   // We don't run the coalescer here because we have no reason to
   // interact with it.  If the coalescer requires interaction, it
@@ -1166,14 +1157,11 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
 
   bool Found = false;
   std::vector<std::pair<unsigned,float> > RegsWeights;
+  ArrayRef<unsigned> Order = RegClassInfo.getOrder(RC);
   if (!minReg || SpillWeights[minReg] == HUGE_VALF)
-    for (TargetRegisterClass::iterator i = RC->allocation_order_begin(*mf_),
-           e = RC->allocation_order_end(*mf_); i != e; ++i) {
-      unsigned reg = *i;
+    for (unsigned i = 0; i != Order.size(); ++i) {
+      unsigned reg = Order[i];
       float regWeight = SpillWeights[reg];
-      // Don't even consider reserved regs.
-      if (reservedRegs_.test(reg))
-        continue;
       // Skip recently allocated registers and reserved registers.
       if (minWeight > regWeight && !isRecentlyUsed(reg))
         Found = true;
@@ -1182,11 +1170,8 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
 
   // If we didn't find a register that is spillable, try aliases?
   if (!Found) {
-    for (TargetRegisterClass::iterator i = RC->allocation_order_begin(*mf_),
-           e = RC->allocation_order_end(*mf_); i != e; ++i) {
-      unsigned reg = *i;
-      if (reservedRegs_.test(reg))
-        continue;
+    for (unsigned i = 0; i != Order.size(); ++i) {
+      unsigned reg = Order[i];
       // No need to worry about if the alias register size < regsize of RC.
       // We are going to spill all registers that alias it anyway.
       for (const unsigned* as = tri_->getAliasSet(reg); *as; ++as)
@@ -1446,13 +1431,17 @@ unsigned RALinScan::getFreePhysReg(LiveInterval* cur,
   if (TargetRegisterInfo::isVirtualRegister(physReg) && vrm_->hasPhys(physReg))
     physReg = vrm_->getPhys(physReg);
 
-  TargetRegisterClass::iterator I, E;
-  tie(I, E) = tri_->getAllocationOrder(RC, Hint.first, physReg, *mf_);
-  assert(I != E && "No allocatable register in this register class!");
+  ArrayRef<unsigned> Order;
+  if (Hint.first)
+    Order = tri_->getRawAllocationOrder(RC, Hint.first, physReg, *mf_);
+  else
+    Order = RegClassInfo.getOrder(RC);
+
+  assert(!Order.empty() && "No allocatable register in this register class!");
 
   // Scan for the first available register.
-  for (; I != E; ++I) {
-    unsigned Reg = *I;
+  for (unsigned i = 0; i != Order.size(); ++i) {
+    unsigned Reg = Order[i];
     // Ignore "downgraded" registers.
     if (SkipDGRegs && DowngradedRegs.count(Reg))
       continue;
@@ -1482,8 +1471,8 @@ unsigned RALinScan::getFreePhysReg(LiveInterval* cur,
   // inactive count.  Alkis found that this reduced register pressure very
   // slightly on X86 (in rev 1.94 of this file), though this should probably be
   // reevaluated now.
-  for (; I != E; ++I) {
-    unsigned Reg = *I;
+  for (unsigned i = 0; i != Order.size(); ++i) {
+    unsigned Reg = Order[i];
     // Ignore "downgraded" registers.
     if (SkipDGRegs && DowngradedRegs.count(Reg))
       continue;

@@ -90,12 +90,12 @@ static struct nlist namelist[] = {
 	{ "_nchstats" },
 #define	X_INTRNAMES	5
 	{ "_intrnames" },
-#define	X_EINTRNAMES	6
-	{ "_eintrnames" },
+#define	X_SINTRNAMES	6
+	{ "_sintrnames" },
 #define	X_INTRCNT	7
 	{ "_intrcnt" },
-#define	X_EINTRCNT	8
-	{ "_eintrcnt" },
+#define	X_SINTRCNT	8
+	{ "_sintrcnt" },
 #define	X_KMEMSTATS	9
 	{ "_kmemstatistics" },
 #define	X_KMEMZONES	10
@@ -1153,10 +1153,8 @@ dointr(void)
 
 	uptime = getuptime();
 	if (kd != NULL) {
-		intrcntlen = namelist[X_EINTRCNT].n_value -
-		    namelist[X_INTRCNT].n_value;
-		inamlen = namelist[X_EINTRNAMES].n_value -
-		    namelist[X_INTRNAMES].n_value;
+		intrcntlen = namelist[X_SINTRCNT].n_value;
+		inamlen = namelist[X_SINTRNAMES].n_value;
 		if ((intrcnt = malloc(intrcntlen)) == NULL ||
 		    (intrname = malloc(inamlen)) == NULL)
 			err(1, "malloc()");

@@ -15,6 +15,7 @@
 #ifndef PTX_H
 #define PTX_H
 
+#include "MCTargetDesc/PTXMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -42,14 +43,6 @@ namespace llvm {
   FunctionPass *createPTXMFInfoExtract(PTXTargetMachine &TM,
                                        CodeGenOpt::Level OptLevel);
 
-  extern Target ThePTX32Target;
-  extern Target ThePTX64Target;
 } // namespace llvm;
-
-// Defines symbolic names for PTX registers.
-#include "PTXGenRegisterNames.inc"
-
-// Defines symbolic names for the PTX instructions.
-#include "PTXGenInstrNames.inc"
 
 #endif // PTX_H

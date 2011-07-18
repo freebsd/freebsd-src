@@ -203,9 +203,9 @@ struct tcpcb {
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
-	int	t_ispare;		/* explicit pad for 64bit alignment */
+	uint32_t t_ispare[12];		/* 4 keep timers, 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
-	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
 
 /*
@@ -300,6 +300,7 @@ struct tcpopt {
 	u_int16_t	to_mss;		/* maximum segment size */
 	u_int8_t	to_wscale;	/* window scaling */
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
+	u_int32_t	to_spare;	/* UTO */
 };
 
 /*

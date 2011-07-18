@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kobj.h>
 #include <sys/gpt.h>
+#include <sys/sbuf.h>
 
 #include <geom/geom.h>
 #include <geom/label/g_label.h>

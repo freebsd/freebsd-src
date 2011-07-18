@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
@@ -91,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
 
 #include <ddb/ddb.h>
 
@@ -818,6 +821,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 			 * descriptors, just put the limit on the size of the file
 			 * descriptor table.
 			 */
+#ifdef RACCT
 			PROC_LOCK(p);
 			error = racct_set(p, RACCT_NOFILE, new + 1);
 			PROC_UNLOCK(p);
@@ -826,6 +830,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 				fdrop(fp, td);
 				return (EMFILE);
 			}
+#endif
 			fdgrowtable(fdp, new + 1);
 		}
 		if (fdp->fd_ofiles[new] == NULL)
@@ -1155,7 +1160,7 @@ kern_close(td, fd)
 	int fd;
 {
 	struct filedesc *fdp;
-	struct file *fp;
+	struct file *fp, *fp_object;
 	int error;
 	int holdleaders;
 
@@ -1190,8 +1195,14 @@ kern_close(td, fd)
 	 * added, and deleteing a knote for the new fd.
 	 */
 	knote_fdclose(td, fd);
-	if (fp->f_type == DTYPE_MQUEUE)
-		mq_fdclose(td, fd, fp);
+
+	/*
+	 * When we're closing an fd with a capability, we need to notify
+	 * mqueue if the underlying object is of type mqueue.
+	 */
+	(void)cap_funwrap(fp, 0, &fp_object);
+	if (fp_object->f_type == DTYPE_MQUEUE)
+		mq_fdclose(td, fd, fp_object);
 	FILEDESC_XUNLOCK(fdp);
 
 	error = closef(fp, td);
@@ -1473,7 +1484,10 @@ fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
-	int fd = -1, maxfd, error;
+	int fd = -1, maxfd;
+#ifdef RACCT
+	int error;
+#endif
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
@@ -1496,11 +1510,13 @@ fdalloc(struct thread *td, int minfd, int *result)
 			return (EMFILE);
 		if (fd < fdp->fd_nfiles)
 			break;
+#ifdef RACCT
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_NOFILE, min(fdp->fd_nfiles * 2, maxfd));
 		PROC_UNLOCK(p);
 		if (error != 0)
 			return (EMFILE);
+#endif
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
 	}
 
@@ -1770,11 +1786,11 @@ fdcopy(struct filedesc *fdp)
 		FILEDESC_XUNLOCK(newfdp);
 		FILEDESC_SLOCK(fdp);
 	}
-	/* copy everything except kqueue descriptors */
+	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
+		    (fdp->fd_ofiles[i]->f_ops->fo_flags & DFLAG_PASSABLE) &&
 		    fdp->fd_ofiles[i]->f_ops != &badfileops) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
@@ -1816,9 +1832,11 @@ fdfree(struct thread *td)
 	if (fdp == NULL)
 		return;
 
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	racct_set(td->td_proc, RACCT_NOFILE, 0);
 	PROC_UNLOCK(td->td_proc);
+#endif
 
 	/* Check for special need to clear POSIX style locks */
 	fdtol = td->td_proc->p_fdtol;
@@ -2134,6 +2152,7 @@ closef(struct file *fp, struct thread *td)
 	struct flock lf;
 	struct filedesc_to_leader *fdtol;
 	struct filedesc *fdp;
+	struct file *fp_object;
 
 	/*
 	 * POSIX record locking dictates that any close releases ALL
@@ -2146,11 +2165,15 @@ closef(struct file *fp, struct thread *td)
 	 * NULL thread pointer when there really is no owning
 	 * context that might have locks, or the locks will be
 	 * leaked.
+	 *
+	 * If this is a capability, we do lock processing under the underlying
+	 * node, not the capability itself.
 	 */
-	if (fp->f_type == DTYPE_VNODE && td != NULL) {
+	(void)cap_funwrap(fp, 0, &fp_object);
+	if ((fp_object->f_type == DTYPE_VNODE) && (td != NULL)) {
 		int vfslocked;
 
-		vp = fp->f_vnode;
+		vp = fp_object->f_vnode;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
@@ -2180,7 +2203,7 @@ closef(struct file *fp, struct thread *td)
 				lf.l_start = 0;
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
-				vp = fp->f_vnode;
+				vp = fp_object->f_vnode;
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)fdtol->fdl_leader,
 						   F_UNLCK, &lf, F_POSIX);
@@ -2259,15 +2282,27 @@ fget_unlocked(struct filedesc *fdp, int fd)
  * If the descriptor doesn't exist or doesn't match 'flags', EBADF is
  * returned.
  *
+ * If the FGET_GETCAP flag is set, the capability itself will be returned.
+ * Calling _fget() with FGET_GETCAP on a non-capability will return EINVAL.
+ * Otherwise, if the file is a capability, its rights will be checked against
+ * the capability rights mask, and if successful, the object will be unwrapped.
+ *
  * If an error occured the non-zero error is returned and *fpp is set to
  * NULL.  Otherwise *fpp is held and set and zero is returned.  Caller is
  * responsible for fdrop().
  */
+#define	FGET_GETCAP	0x00000001
 static __inline int
-_fget(struct thread *td, int fd, struct file **fpp, int flags)
+_fget(struct thread *td, int fd, struct file **fpp, int flags,
+    cap_rights_t needrights, cap_rights_t *haverights, u_char *maxprotp,
+    int fget_flags)
 {
 	struct filedesc *fdp;
 	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_fromcap;
+	int error;
+#endif
 
 	*fpp = NULL;
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
@@ -2278,6 +2313,47 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags)
 		fdrop(fp, td);
 		return (EBADF);
 	}
+
+#ifdef CAPABILITIES
+	/*
+	 * If a capability has been requested, return the capability directly.
+	 * Otherwise, check capability rights, extract the underlying object,
+	 * and check its access flags.
+	 */
+	if (fget_flags & FGET_GETCAP) {
+		if (fp->f_type != DTYPE_CAPABILITY) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+	} else {
+		if (maxprotp == NULL)
+			error = cap_funwrap(fp, needrights, &fp_fromcap);
+		else
+			error = cap_funwrap_mmap(fp, needrights, maxprotp,
+			    &fp_fromcap);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+
+		/*
+		 * If we've unwrapped a file, drop the original capability
+		 * and hold the new descriptor.  fp after this point refers to
+		 * the actual (unwrapped) object, not the capability.
+		 */
+		if (fp != fp_fromcap) {
+			fhold(fp_fromcap);
+			fdrop(fp, td);
+			fp = fp_fromcap;
+		}
+	}
+#else /* !CAPABILITIES */
+	KASSERT(fp->f_type != DTYPE_CAPABILITY,
+	    ("%s: saw capability", __func__));
+	if (maxprotp != NULL)
+		*maxprotp = VM_PROT_ALL;
+#endif /* CAPABILITIES */
+
 	/*
 	 * FREAD and FWRITE failure return EBADF as per POSIX.
 	 *
@@ -2296,22 +2372,35 @@ int
 fget(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, 0));
+	return(_fget(td, fd, fpp, 0, 0, NULL, NULL, 0));
 }
 
 int
 fget_read(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FREAD));
+	return(_fget(td, fd, fpp, FREAD, 0, NULL, NULL, 0));
 }
 
 int
 fget_write(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FWRITE));
+	return(_fget(td, fd, fpp, FWRITE, 0, NULL, NULL, 0));
 }
+
+/*
+ * Unlike the other fget() calls, which will accept and check capability rights
+ * but never return capabilities, fgetcap() returns the capability but doesn't
+ * check capability rights.
+ */
+int
+fgetcap(struct thread *td, int fd, struct file **fpp)
+{
+
+	return (_fget(td, fd, fpp, 0, 0, NULL, NULL, FGET_GETCAP));
+}
+
 
 /*
  * Like fget() but loads the underlying vnode, or returns an error if the
@@ -2327,7 +2416,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	int error;
 
 	*vpp = NULL;
-	if ((error = _fget(td, fd, &fp, flags)) != 0)
+	if ((error = _fget(td, fd, &fp, flags, 0, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
@@ -2383,7 +2472,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, 0, 0, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		error = ENOTSOCK;
@@ -2419,6 +2508,9 @@ fputsock(struct socket *so)
 
 /*
  * Handle the last reference to a file being closed.
+ *
+ * No special capability handling here, as the capability's fo_close will run
+ * instead of the object here, and perform any necessary drop on the object.
  */
 int
 _fdrop(struct file *fp, struct thread *td)

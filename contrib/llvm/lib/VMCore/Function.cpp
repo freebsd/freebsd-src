@@ -134,7 +134,7 @@ LLVMContext &Function::getContext() const {
   return getType()->getContext();
 }
 
-const FunctionType *Function::getFunctionType() const {
+FunctionType *Function::getFunctionType() const {
   return cast<FunctionType>(getType()->getElementType());
 }
 
@@ -142,7 +142,7 @@ bool Function::isVarArg() const {
   return getFunctionType()->isVarArg();
 }
 
-const Type *Function::getReturnType() const {
+Type *Function::getReturnType() const {
   return getFunctionType()->getReturnType();
 }
 
@@ -163,7 +163,7 @@ Function::Function(const FunctionType *Ty, LinkageTypes Linkage,
   : GlobalValue(PointerType::getUnqual(Ty), 
                 Value::FunctionVal, 0, 0, Linkage, name) {
   assert(FunctionType::isValidReturnType(getReturnType()) &&
-         !getReturnType()->isOpaqueTy() && "invalid return type");
+         "invalid return type");
   SymTab = new ValueSymbolTable();
 
   // If the function has arguments, mark them as lazily built.
@@ -333,7 +333,7 @@ unsigned Function::getIntrinsicID() const {
   return 0;
 }
 
-std::string Intrinsic::getName(ID id, const Type **Tys, unsigned numTys) { 
+std::string Intrinsic::getName(ID id, ArrayRef<Type*> Tys) {
   assert(id < num_intrinsics && "Invalid intrinsic ID!");
   static const char * const Table[] = {
     "not_intrinsic",
@@ -341,10 +341,10 @@ std::string Intrinsic::getName(ID id, const Type **Tys, unsigned numTys) {
 #include "llvm/Intrinsics.gen"
 #undef GET_INTRINSIC_NAME_TABLE
   };
-  if (numTys == 0)
+  if (Tys.empty())
     return Table[id];
   std::string Result(Table[id]);
-  for (unsigned i = 0; i < numTys; ++i) {
+  for (unsigned i = 0; i < Tys.size(); ++i) {
     if (const PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
       Result += ".p" + llvm::utostr(PTyp->getAddressSpace()) + 
                 EVT::getEVT(PTyp->getElementType()).getEVTString();
@@ -356,10 +356,9 @@ std::string Intrinsic::getName(ID id, const Type **Tys, unsigned numTys) {
 }
 
 const FunctionType *Intrinsic::getType(LLVMContext &Context,
-                                       ID id, const Type **Tys, 
-                                       unsigned numTys) {
+                                       ID id, ArrayRef<Type*> Tys) {
   const Type *ResultTy = NULL;
-  std::vector<const Type*> ArgTys;
+  std::vector<Type*> ArgTys;
   bool IsVarArg = false;
   
 #define GET_INTRINSIC_GENERATOR
@@ -384,14 +383,12 @@ bool Intrinsic::isOverloaded(ID id) {
 #include "llvm/Intrinsics.gen"
 #undef GET_INTRINSIC_ATTRIBUTES
 
-Function *Intrinsic::getDeclaration(Module *M, ID id, const Type **Tys, 
-                                    unsigned numTys) {
+Function *Intrinsic::getDeclaration(Module *M, ID id, ArrayRef<Type*> Tys) {
   // There can never be multiple globals with the same name of different types,
   // because intrinsics must be a specific type.
   return
-    cast<Function>(M->getOrInsertFunction(getName(id, Tys, numTys),
-                                          getType(M->getContext(),
-                                                  id, Tys, numTys)));
+    cast<Function>(M->getOrInsertFunction(getName(id, Tys),
+                                          getType(M->getContext(), id, Tys)));
 }
 
 // This defines the "Intrinsic::getIntrinsicForGCCBuiltin()" method.
@@ -417,7 +414,7 @@ bool Function::hasAddressTaken(const User* *PutOffender) const {
 /// setjmp or other function that gcc recognizes as "returning twice".
 ///
 /// FIXME: Remove after <rdar://problem/8031714> is fixed.
-/// FIXME: Is the obove FIXME valid?
+/// FIXME: Is the above FIXME valid?
 bool Function::callsFunctionThatReturnsTwice() const {
   const Module *M = this->getParent();
   static const char *ReturnsTwiceFns[] = {

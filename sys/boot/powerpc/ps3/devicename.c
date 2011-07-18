@@ -33,8 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "bootstrap.h"
+#include "ps3.h"
+#include "ps3devdesc.h"
 
-static int ps3_parsedev(struct devdesc **dev, const char *devspec,
+static int ps3_parsedev(struct ps3_devdesc **dev, const char *devspec,
     const char **path);
 
 /*
@@ -45,7 +47,7 @@ static int ps3_parsedev(struct devdesc **dev, const char *devspec,
 int
 ps3_getdev(void **vdev, const char *devspec, const char **path)
 {
-	struct devdesc **dev = (struct devdesc **)vdev;
+	struct ps3_devdesc **dev = (struct ps3_devdesc **)vdev;
 	int rv = 0;
 
 	/*
@@ -82,9 +84,9 @@ ps3_getdev(void **vdev, const char *devspec, const char **path)
  *
  */
 static int
-ps3_parsedev(struct devdesc **dev, const char *devspec, const char **path)
+ps3_parsedev(struct ps3_devdesc **dev, const char *devspec, const char **path)
 {
-	struct devdesc *idev;
+	struct ps3_devdesc *idev;
 	struct devsw *dv;
 	char *cp;
 	const char *np;
@@ -104,7 +106,7 @@ ps3_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	}
 	if (dv == NULL)
 		return(ENOENT);
-	idev = malloc(sizeof(struct devdesc));
+	idev = malloc(sizeof(struct ps3_devdesc));
 	err = 0;
 	np = (devspec + strlen(dv->dv_name));
 
@@ -112,7 +114,6 @@ ps3_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	case DEVT_NONE:
 		break;
 
-#ifdef NOTYET
 	case DEVT_DISK:
 		unit = -1;
 		pnum = -1;
@@ -154,7 +155,6 @@ ps3_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
-#endif
 
 	case DEVT_NET:
 		/*
@@ -188,7 +188,7 @@ fail:
 char *
 ps3_fmtdev(void *vdev)
 {
-	struct devdesc *dev = (struct devdesc *)vdev;
+	struct ps3_devdesc *dev = (struct ps3_devdesc *)vdev;
 	char *cp;
 	static char buf[128];
 
@@ -197,7 +197,6 @@ ps3_fmtdev(void *vdev)
 		strcpy(buf, "(no device)");
 		break;
 
-#ifdef NOTYET
 	case DEVT_DISK:
 		cp = buf;
 		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
@@ -212,7 +211,6 @@ ps3_fmtdev(void *vdev)
 
 		strcat(cp, ":");
 		break;
-#endif
 
 	case DEVT_NET:
 		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
@@ -227,7 +225,7 @@ ps3_fmtdev(void *vdev)
 int
 ps3_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-	struct devdesc *ncurr;
+	struct ps3_devdesc *ncurr;
 	int rv;
 
 	if ((rv = ps3_parsedev(&ncurr, value, NULL)) != 0)

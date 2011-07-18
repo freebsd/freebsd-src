@@ -155,7 +155,7 @@ glc_attach(device_t dev)
 	lv1_net_control(sc->sc_bus, sc->sc_dev, GELIC_GET_MAC_ADDRESS,
 	    0, 0, 0, &mac64, &junk);
 	memcpy(sc->sc_enaddr, &((uint8_t *)&mac64)[2], sizeof(sc->sc_enaddr));
-	sc->sc_tx_vlan = sc->sc_rx_vlan =  -1;
+	sc->sc_tx_vlan = sc->sc_rx_vlan = -1;
 	err = lv1_net_control(sc->sc_bus, sc->sc_dev, GELIC_GET_VLAN_ID,
 	    GELIC_VLAN_TX_ETHERNET, 0, 0, &val, &junk);
 	if (err == 0)
@@ -178,7 +178,7 @@ glc_attach(device_t dev)
 	}
 
 	bus_setup_intr(dev, sc->sc_irq,
-	    INTR_TYPE_MISC | INTR_MPSAFE | INTR_ENTROPY,
+	    INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY,
 	    glc_intr_filter, glc_intr, sc, &sc->sc_irqctx);
 	sc->sc_hwirq_status = (uint64_t *)contigmalloc(8, M_GLC, M_ZERO, 0,
 	    BUS_SPACE_MAXADDR_32BIT, 8, PAGE_SIZE);
@@ -755,8 +755,11 @@ glc_rxintr(struct glc_softc *sc)
 		m->m_len = sc->sc_rxdmadesc[i].valid_size;
 		m->m_pkthdr.len = m->m_len;
 
-		if (sc->sc_rx_vlan >= 0)
-			m_adj(m, 2);
+		/*
+		 * Remove VLAN tag. Even on early firmwares that do not allow
+		 * multiple VLANs, the VLAN tag is still in place here.
+		 */
+		m_adj(m, 2);
 
 		mtx_unlock(&sc->sc_mtx);
 		(*ifp->if_input)(ifp, m);

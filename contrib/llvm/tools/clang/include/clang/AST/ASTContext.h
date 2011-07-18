@@ -124,7 +124,10 @@ class ASTContext : public llvm::RefCountedBase<ASTContext> {
 
   mutable llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
   mutable llvm::FoldingSet<DependentTemplateName> DependentTemplateNames;
-  mutable llvm::FoldingSet<SubstTemplateTemplateParmPackStorage> 
+  mutable llvm::FoldingSet<SubstTemplateTemplateParmStorage> 
+    SubstTemplateTemplateParms;
+  mutable llvm::ContextualFoldingSet<SubstTemplateTemplateParmPackStorage,
+                                     ASTContext&> 
     SubstTemplateTemplateParmPacks;
   
   /// \brief The set of nested name specifiers.
@@ -993,6 +996,18 @@ public:
     return getExtQualType(T, Qs);
   }
 
+  /// getLifetimeQualifiedType - Returns a type with the given
+  /// lifetime qualifier.
+  QualType getLifetimeQualifiedType(QualType type,
+                                    Qualifiers::ObjCLifetime lifetime) {
+    assert(type.getObjCLifetime() == Qualifiers::OCL_None);
+    assert(lifetime != Qualifiers::OCL_None);
+
+    Qualifiers qs;
+    qs.addObjCLifetime(lifetime);
+    return getQualifiedType(type, qs);
+  }
+
   DeclarationNameInfo getNameForTemplate(TemplateName Name,
                                          SourceLocation NameLoc) const;
 
@@ -1007,6 +1022,8 @@ public:
                                         const IdentifierInfo *Name) const;
   TemplateName getDependentTemplateName(NestedNameSpecifier *NNS,
                                         OverloadedOperatorKind Operator) const;
+  TemplateName getSubstTemplateTemplateParm(TemplateTemplateParmDecl *param,
+                                            TemplateName replacement) const;
   TemplateName getSubstTemplateTemplateParmPack(TemplateTemplateParmDecl *Param,
                                         const TemplateArgument &ArgPack) const;
   
@@ -1044,7 +1061,9 @@ public:
 
   /// isObjCNSObjectType - Return true if this is an NSObject object with
   /// its NSObject attribute set.
-  bool isObjCNSObjectType(QualType Ty) const;
+  static bool isObjCNSObjectType(QualType Ty) {
+    return Ty->isObjCNSObjectType();
+  }
 
   //===--------------------------------------------------------------------===//
   //                         Type Sizing and Analysis
@@ -1315,6 +1334,18 @@ public:
   /// getConstantArrayElementCount - Returns number of constant array elements.
   uint64_t getConstantArrayElementCount(const ConstantArrayType *CA) const;
 
+  /// \brief Perform adjustment on the parameter type of a function.
+  ///
+  /// This routine adjusts the given parameter type @p T to the actual
+  /// parameter type used by semantic analysis (C99 6.7.5.3p[7,8],
+  /// C++ [dcl.fct]p3). The adjusted parameter type is returned.
+  QualType getAdjustedParameterType(QualType T);
+  
+  /// \brief Retrieve the parameter type as adjusted for use in the signature
+  /// of a function, decaying array and function types and removing top-level
+  /// cv-qualifiers.
+  QualType getSignatureParameterType(QualType T);
+  
   /// getArrayDecayedType - Return the properly qualified result of decaying the
   /// specified array type to a pointer.  This operation is non-trivial when
   /// handling typedefs etc.  The canonical type of "T" must be an array type,
@@ -1327,6 +1358,10 @@ public:
   /// promote to: C99 6.3.1.1p2, assuming that Promotable is a promotable
   /// integer type.
   QualType getPromotedIntegerType(QualType PromotableType) const;
+
+  /// \brief Recurses in pointer/array types until it finds an objc retainable
+  /// type and returns its ownership.
+  Qualifiers::ObjCLifetime getInnerObjCOwnership(QualType T) const;
 
   /// \brief Whether this is a promotable bitfield reference according
   /// to C99 6.3.1.1p2, bullet 2 (and GCC extensions).
@@ -1382,6 +1417,7 @@ public:
   bool typesAreCompatible(QualType T1, QualType T2, 
                           bool CompareUnqualified = false); // C99 6.2.7p1
 
+  bool propertyTypesAreCompatible(QualType, QualType); 
   bool typesAreBlockPointerCompatible(QualType, QualType); 
 
   bool isObjCIdType(QualType T) const {

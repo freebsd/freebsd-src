@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <sys/param.h>
 
-#ifdef __mips_n64
+#if ELFSIZE == 64
 #include <sys/elf64.h>
 #else
 #include <sys/elf32.h>
@@ -90,13 +90,19 @@ bzero(void *addr, size_t count)
 }
 
 /*
+ * Convert number to pointer, truncate on 64->32 case, sign extend
+ * in 32->64 case
+ */
+#define	mkptr(x)	((void *)(intptr_t)(int)(x))
+
+/*
  * Relocate PT_LOAD segements of kernel ELF image to their respective
  * virtual addresses and return entry point
  */
 void *
 load_kernel(void * kstart)
 {
-#ifdef __mips_n64
+#if ELFSIZE == 64
 	Elf64_Ehdr *eh;
 	Elf64_Phdr phdr[64] /* XXX */;
 	Elf64_Shdr shdr[64] /* XXX */;
@@ -107,17 +113,19 @@ load_kernel(void * kstart)
 #endif
 	int i, j;
 	void *entry_point;
-	vm_offset_t lastaddr = 0;
+	vm_offset_t loadend = 0;
+	intptr_t lastaddr;
 	int symtabindex = -1;
 	int symstrindex = -1;
+	Elf_Size tmp;
 	
-#ifdef __mips_n64
+#if ELFSIZE == 64
 	eh = (Elf64_Ehdr *)kstart;
 #else
 	eh = (Elf32_Ehdr *)kstart;
 #endif
-	entry_point = (void*)eh->e_entry;
-	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
+	entry_point = mkptr(eh->e_entry);
+	memcpy(phdr, (void *)(kstart + eh->e_phoff),
 	    eh->e_phnum * sizeof(phdr[0]));
 
 	memcpy(shdr, (void *)(kstart + eh->e_shoff),
@@ -147,27 +155,31 @@ load_kernel(void * kstart)
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
 		
-		memcpy((void *)(phdr[i].p_vaddr),
+		memcpy(mkptr(phdr[i].p_vaddr),
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
-			bzero((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 
+			bzero(mkptr(phdr[i].p_vaddr + phdr[i].p_filesz),
 			    phdr[i].p_memsz - phdr[i].p_filesz);
 
-		if (lastaddr < phdr[i].p_vaddr + phdr[i].p_memsz)
-			lastaddr = phdr[i].p_vaddr + phdr[i].p_memsz;
+		if (loadend < phdr[i].p_vaddr + phdr[i].p_memsz)
+			loadend = phdr[i].p_vaddr + phdr[i].p_memsz;
 	}
 
 	/* Now grab the symbol tables. */
+	lastaddr = (intptr_t)(int)loadend;
 	if (symtabindex >= 0 && symstrindex >= 0) {
-		*(Elf_Size *)lastaddr = SYMTAB_MAGIC;
+		tmp = SYMTAB_MAGIC;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(Elf_Size);
-		*(Elf_Size *)lastaddr = shdr[symtabindex].sh_size +
+		tmp = shdr[symtabindex].sh_size +
 		    shdr[symstrindex].sh_size + 2*sizeof(Elf_Size);
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(Elf_Size);
 		/* .symtab size */
-		*(Elf_Size *)lastaddr = shdr[symtabindex].sh_size;
+		tmp = shdr[symtabindex].sh_size;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(shdr[symtabindex].sh_size);
 		/* .symtab data */
 		memcpy((void*)lastaddr,
@@ -176,16 +188,19 @@ load_kernel(void * kstart)
 		lastaddr += shdr[symtabindex].sh_size;
 
 		/* .strtab size */
-		*(Elf_Size *)lastaddr = shdr[symstrindex].sh_size;
+		tmp = shdr[symstrindex].sh_size;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(shdr[symstrindex].sh_size);
 
 		/* .strtab data */
 		memcpy((void*)lastaddr,
 		    shdr[symstrindex].sh_offset + kstart,
 		    shdr[symstrindex].sh_size);
-	} else
+	} else {
 		/* Do not take any chances */
-		*(Elf_Size *)lastaddr = 0;
+		tmp = 0;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
+	}
 
 	return entry_point;
 }

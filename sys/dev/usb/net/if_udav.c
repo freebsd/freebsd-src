@@ -147,7 +147,6 @@ static device_method_t udav_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),

@@ -22,6 +22,7 @@ SRCS=	ADCE.cpp \
 	LoopUnrollPass.cpp \
 	LoopUnswitch.cpp \
 	MemCpyOptimizer.cpp \
+	ObjCARC.cpp \
 	Reassociate.cpp \
 	SCCP.cpp \
 	ScalarReplAggregates.cpp \

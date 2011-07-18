@@ -836,10 +836,13 @@ void nfsd_mntinit(void);
 
 /*
  * Define these for vnode lock/unlock ops.
+ *
+ * These are good abstractions to macro out, so that they can be added to
+ * later, for debugging or stats, etc.
  */
-#define	NFSVOPLOCK(v, f, p)	vn_lock((v), (f))
-#define	NFSVOPUNLOCK(v, f, p)	VOP_UNLOCK((v), (f))
-#define	NFSVOPISLOCKED(v, p)	VOP_ISLOCKED((v))
+#define	NFSVOPLOCK(v, f)	vn_lock((v), (f))
+#define	NFSVOPUNLOCK(v, f)	VOP_UNLOCK((v), (f))
+#define	NFSVOPISLOCKED(v)	VOP_ISLOCKED((v))
 
 /*
  * Define ncl_hash().

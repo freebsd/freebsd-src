@@ -27,8 +27,11 @@
 
 // #include "MBlazeGenDecoderTables.inc"
 // #include "MBlazeGenRegisterNames.inc"
-#include "MBlazeGenInstrInfo.inc"
 #include "MBlazeGenEDInfo.inc"
+
+namespace llvm {
+extern MCInstrDesc MBlazeInsts[];
+}
 
 using namespace llvm;
 

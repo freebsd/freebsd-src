@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +17,7 @@
 
 /*! \file */
 /*
- * $Id: ssu.c,v 1.34 2008-01-18 23:46:58 tbox Exp $
+ * $Id: ssu.c,v 1.38 2011-01-06 23:47:00 tbox Exp $
  * Principal Author: Brian Wellington
  */
 
@@ -30,11 +30,13 @@
 #include <isc/string.h>
 #include <isc/util.h>
 
+#include <dns/dlz.h>
 #include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/ssu.h>
 
 #include <dst/gssapi.h>
+#include <dst/dst.h>
 
 #define SSUTABLEMAGIC		ISC_MAGIC('S', 'S', 'U', 'T')
 #define VALID_SSUTABLE(table)	ISC_MAGIC_VALID(table, SSUTABLEMAGIC)
@@ -59,6 +61,7 @@ struct dns_ssutable {
 	isc_mem_t *mctx;
 	unsigned int references;
 	isc_mutex_t lock;
+	dns_dlzdb_t *dlzdatabase;
 	ISC_LIST(dns_ssurule_t) rules;
 };
 
@@ -345,7 +348,8 @@ stf_from_address(dns_name_t *stfself, isc_netaddr_t *tcpaddr) {
 isc_boolean_t
 dns_ssutable_checkrules(dns_ssutable_t *table, dns_name_t *signer,
 			dns_name_t *name, isc_netaddr_t *tcpaddr,
-			dns_rdatatype_t type)
+			dns_rdatatype_t type,
+			const dst_key_t *key)
 {
 	dns_ssurule_t *rule;
 	unsigned int i;
@@ -483,10 +487,27 @@ dns_ssutable_checkrules(dns_ssutable_t *table, dns_name_t *signer,
 			if (!dns_name_equal(stfself, name))
 				continue;
 			break;
+		case DNS_SSUMATCHTYPE_EXTERNAL:
+			if (!dns_ssu_external_match(rule->identity, signer,
+						    name, tcpaddr, type, key,
+						    table->mctx))
+				continue;
+			break;
+		case DNS_SSUMATCHTYPE_DLZ:
+			if (!dns_dlz_ssumatch(table->dlzdatabase, signer,
+					      name, tcpaddr, type, key))
+				continue;
+			break;
 		}
 
 		if (rule->ntypes == 0) {
-			if (!isusertype(type))
+			/*
+			 * If this is a DLZ rule, then the DLZ ssu
+			 * checks will have already checked
+			 * the type.
+			 */
+			if (rule->matchtype != DNS_SSUMATCHTYPE_DLZ &&
+			    !isusertype(type))
 				continue;
 		} else {
 			for (i = 0; i < rule->ntypes; i++) {
@@ -549,4 +570,43 @@ dns_ssutable_nextrule(dns_ssurule_t *rule, dns_ssurule_t **nextrule) {
 	REQUIRE(nextrule != NULL && *nextrule == NULL);
 	*nextrule = ISC_LIST_NEXT(rule, link);
 	return (*nextrule != NULL ? ISC_R_SUCCESS : ISC_R_NOMORE);
+}
+
+/*
+ * Create a specialised SSU table that points at an external DLZ database
+ */
+isc_result_t
+dns_ssutable_createdlz(isc_mem_t *mctx, dns_ssutable_t **tablep,
+		       dns_dlzdb_t *dlzdatabase)
+{
+	isc_result_t result;
+	dns_ssurule_t *rule;
+	dns_ssutable_t *table = NULL;
+
+	REQUIRE(tablep != NULL && *tablep == NULL);
+
+	result = dns_ssutable_create(mctx, &table);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	table->dlzdatabase = dlzdatabase;
+
+	rule = isc_mem_get(table->mctx, sizeof(dns_ssurule_t));
+	if (rule == NULL) {
+		dns_ssutable_detach(&table);
+		return (ISC_R_NOMEMORY);
+	}
+
+	rule->identity = NULL;
+	rule->name = NULL;
+	rule->types = NULL;
+	rule->grant = ISC_TRUE;
+	rule->matchtype = DNS_SSUMATCHTYPE_DLZ;
+	rule->ntypes = 0;
+	rule->types = NULL;
+	rule->magic = SSURULEMAGIC;
+
+	ISC_LIST_INITANDAPPEND(table->rules, rule, link);
+	*tablep = table;
+	return (ISC_R_SUCCESS);
 }

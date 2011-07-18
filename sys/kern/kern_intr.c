@@ -1869,8 +1869,7 @@ SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
 static int
 sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames, eintrnames - intrnames,
-	   req));
+	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
@@ -1879,8 +1878,7 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
 static int
 sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrcnt,
-	    (char *)eintrcnt - (char *)intrcnt, req));
+	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt, CTLTYPE_OPAQUE | CTLFLAG_RD,
@@ -1894,9 +1892,12 @@ DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
 {
 	u_long *i;
 	char *cp;
+	u_int j;
 
 	cp = intrnames;
-	for (i = intrcnt; i != eintrcnt && !db_pager_quit; i++) {
+	j = 0;
+	for (i = intrcnt; j < (sintrcnt / sizeof(u_long)) && !db_pager_quit;
+	    i++, j++) {
 		if (*cp == '\0')
 			break;
 		if (*i != 0)

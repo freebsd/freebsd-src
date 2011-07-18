@@ -68,13 +68,6 @@ typedef struct LLVMOpaqueModule *LLVMModuleRef;
  */
 typedef struct LLVMOpaqueType *LLVMTypeRef;
 
-/**
- * When building recursive types using LLVMRefineType, LLVMTypeRef values may
- * become invalid; use LLVMTypeHandleRef to resolve this problem. See the
- * llvm::AbstractTypeHolder class.
- */
-typedef struct LLVMOpaqueTypeHandle *LLVMTypeHandleRef;
-
 typedef struct LLVMOpaqueValue *LLVMValueRef;
 typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
 typedef struct LLVMOpaqueBuilder *LLVMBuilderRef;
@@ -206,7 +199,6 @@ typedef enum {
   LLVMStructTypeKind,      /**< Structures */
   LLVMArrayTypeKind,       /**< Arrays */
   LLVMPointerTypeKind,     /**< Pointers */
-  LLVMOpaqueTypeKind,      /**< Opaque: type with unknown structure */
   LLVMVectorTypeKind,      /**< SIMD 'packed' format, or other vector type */
   LLVMMetadataTypeKind,    /**< Metadata */
   LLVMX86_MMXTypeKind      /**< X86 MMX */
@@ -320,12 +312,6 @@ void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);
 const char *LLVMGetTarget(LLVMModuleRef M);
 void LLVMSetTarget(LLVMModuleRef M, const char *Triple);
 
-/** See Module::addTypeName. */
-LLVMBool LLVMAddTypeName(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty);
-void LLVMDeleteTypeName(LLVMModuleRef M, const char *Name);
-LLVMTypeRef LLVMGetTypeByName(LLVMModuleRef M, const char *Name);
-const char *LLVMGetTypeName(LLVMModuleRef M, LLVMTypeRef Ty);
-
 /** See Module::dump. */
 void LLVMDumpModule(LLVMModuleRef M);
 
@@ -401,9 +387,16 @@ LLVMTypeRef LLVMStructTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
                                     unsigned ElementCount, LLVMBool Packed);
 LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes, unsigned ElementCount,
                            LLVMBool Packed);
+LLVMTypeRef LLVMStructCreateNamed(LLVMContextRef C, const char *Name);
+void LLVMStructSetBody(LLVMTypeRef StructTy, LLVMTypeRef *ElementTypes,
+                       unsigned ElementCount, LLVMBool Packed);
+
 unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
 LLVMBool LLVMIsPackedStruct(LLVMTypeRef StructTy);
+LLVMBool LLVMIsOpaqueStruct(LLVMTypeRef StructTy);
+
+LLVMTypeRef LLVMGetTypeByName(LLVMModuleRef M, const char *Name);
 
 /* Operations on array, pointer, and vector types (sequence types) */
 LLVMTypeRef LLVMArrayType(LLVMTypeRef ElementType, unsigned ElementCount);
@@ -418,20 +411,11 @@ unsigned LLVMGetVectorSize(LLVMTypeRef VectorTy);
 /* Operations on other types */
 LLVMTypeRef LLVMVoidTypeInContext(LLVMContextRef C);
 LLVMTypeRef LLVMLabelTypeInContext(LLVMContextRef C);
-LLVMTypeRef LLVMOpaqueTypeInContext(LLVMContextRef C);
 LLVMTypeRef LLVMX86MMXTypeInContext(LLVMContextRef C);
 
 LLVMTypeRef LLVMVoidType(void);
 LLVMTypeRef LLVMLabelType(void);
-LLVMTypeRef LLVMOpaqueType(void);
 LLVMTypeRef LLVMX86MMXType(void);
-
-/* Operations on type handles */
-LLVMTypeHandleRef LLVMCreateTypeHandle(LLVMTypeRef PotentiallyAbstractTy);
-void LLVMRefineType(LLVMTypeRef AbstractTy, LLVMTypeRef ConcreteTy);
-LLVMTypeRef LLVMResolveTypeHandle(LLVMTypeHandleRef TypeHandle);
-void LLVMDisposeTypeHandle(LLVMTypeHandleRef TypeHandle);
-
 
 /*===-- Values ------------------------------------------------------------===*/
 
@@ -581,6 +565,9 @@ LLVMValueRef LLVMConstArray(LLVMTypeRef ElementTy,
                             LLVMValueRef *ConstantVals, unsigned Length);
 LLVMValueRef LLVMConstStruct(LLVMValueRef *ConstantVals, unsigned Count,
                              LLVMBool Packed);
+LLVMValueRef LLVMConstNamedStruct(LLVMTypeRef StructTy,
+                                  LLVMValueRef *ConstantVals,
+                                  unsigned Count);
 LLVMValueRef LLVMConstVector(LLVMValueRef *ScalarConstantVals, unsigned Size);
 
 /* Constant expressions */
@@ -1117,7 +1104,6 @@ namespace llvm {
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Module,             LLVMModuleRef        )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(BasicBlock,         LLVMBasicBlockRef    )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(IRBuilder<>,        LLVMBuilderRef       )
-  DEFINE_SIMPLE_CONVERSION_FUNCTIONS(PATypeHolder,       LLVMTypeHandleRef    )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(MemoryBuffer,       LLVMMemoryBufferRef  )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(LLVMContext,        LLVMContextRef       )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Use,                LLVMUseRef           )

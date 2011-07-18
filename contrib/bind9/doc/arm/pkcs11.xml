@@ -1,0 +1,390 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+               [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: pkcs11.xml,v 1.3 2010-02-06 07:42:02 marka Exp $ -->
+
+<sect1 id="pkcs11">
+  <title>PKCS #11 (Cryptoki) support</title>
+  <para>PKCS #11 (Public Key Cryptography Standard #11) defines a
+  platform- independent API for the control of hardware security
+  modules (HSMs) and other cryptographic support devices.</para>
+  <para>BIND 9 is known to work with two HSMs: The Sun SCA 6000
+  cryptographic acceleration board, tested under Solaris x86, and
+  the AEP Keyper network-attached key storage device, tested with
+  Debian Linux, Solaris x86 and Windows Server 2003.</para>
+  <sect2>
+    <title>Prerequisites</title>
+    <para>See the HSM vendor documentation for information about
+    installing, initializing, testing and troubleshooting the
+    HSM.</para>
+    <para>BIND 9 uses OpenSSL for cryptography, but stock OpenSSL
+    does not yet fully support PKCS #11. However, a PKCS #11 engine
+    for OpenSSL is available from the OpenSolaris project. It has
+    been modified by ISC to work with with BIND 9, and to provide
+    new features such as PIN management and key by
+    reference.</para>
+    <para>The patched OpenSSL depends on a "PKCS #11 provider".
+    This is a shared library object, providing a low-level PKCS #11
+    interface to the HSM hardware. It is dynamically loaded by
+    OpenSSL at runtime. The PKCS #11 provider comes from the HSM
+    vendor, and and is specific to the HSM to be controlled.</para>
+    <para>There are two "flavors" of PKCS #11 support provided by
+    the patched OpenSSL, one of which must be chosen at
+    configuration time. The correct choice depends on the HSM
+    hardware:</para>
+    <itemizedlist>
+      <listitem>
+        <para>Use 'crypto-accelerator' with HSMs that have hardware
+        cryptographic acceleration features, such as the SCA 6000
+        board. This causes OpenSSL to run all supported
+        cryptographic operations in the HSM.</para>
+      </listitem>
+      <listitem>
+        <para>Use 'sign-only' with HSMs that are designed to
+        function primarily as secure key storage devices, but lack
+        hardware acceleration. These devices are highly secure, but
+        are not necessarily any faster at cryptography than the
+        system CPU &mdash; often, they are slower. It is therefore
+        most efficient to use them only for those cryptographic
+        functions that require access to the secured private key,
+        such as zone signing, and to use the system CPU for all
+        other computationally-intensive operations. The AEP Keyper
+        is an example of such a device.</para>
+      </listitem>
+    </itemizedlist>
+    <para>The modified OpenSSL code is included in the BIND 9.7.0
+    release, in the form of a context diff against the latest OpenSSL.
+    </para>
+    <note>
+      The latest OpenSSL version at the time of the BIND release
+      is 0.9.8l.
+      ISC will provide an updated patch as new versions of OpenSSL
+      are released. The version number in the following examples
+      is expected to change.</note>
+    <para>
+    Before building BIND 9 with PKCS #11 support, it will be
+    necessary to build OpenSSL with this patch in place and inform
+    it of the path to the HSM-specific PKCS #11 provider
+    library.</para>
+    <para>Obtain OpenSSL 0.9.8l:</para>
+    <screen>
+$ <userinput>wget <ulink>http://www.openssl.org/source/openssl-0.9.8l.tar.gz</ulink></userinput>
+</screen>
+    <para>Extract the tarball:</para>
+    <screen>
+$ <userinput>tar zxf openssl-0.9.8l.tar.gz</userinput>
+</screen>
+    <para>Apply the patch from the BIND 9 release:</para>
+    <screen>
+$ <userinput>patch -p1 -d openssl-0.9.8l \
+            &lt; bind-9.7.0/bin/pkcs11/openssl-0.9.8l-patch</userinput>
+</screen>
+    <note>(Note that the patch file may not be compatible with the
+    "patch" utility on all operating systems. You may need to
+    install GNU patch.)</note>
+    <para>When building OpenSSL, place it in a non-standard
+    location so that it does not interfere with OpenSSL libraries
+    elsewhere on the system. In the following examples, we choose
+    to install into "/opt/pkcs11/usr". We will use this location
+    when we configure BIND 9.</para>
+    <sect3>
+      <!-- Example 1 -->
+      <title>Building OpenSSL for the AEP Keyper on Linux</title>
+      <para>The AEP Keyper is a highly secure key storage device,
+      but does not provide hardware cryptographic acceleration. It
+      can carry out cryptographic operations, but it is probably
+      slower than your system's CPU. Therefore, we choose the
+      'sign-only' flavor when building OpenSSL.</para>
+      <para>The Keyper-specific PKCS #11 provider library is
+      delivered with the Keyper software. In this example, we place
+      it /opt/pkcs11/usr/lib:</para>
+      <screen>
+$ <userinput>cp pkcs11.GCC4.0.2.so.4.05 /opt/pkcs11/usr/lib/libpkcs11.so</userinput>
+</screen>
+      <para>This library is only available for Linux as a 32-bit
+      binary. If we are compiling on a 64-bit Linux system, it is
+      necessary to force a 32-bit build, by specifying -m32 in the
+      build options.</para>
+      <para>Finally, the Keyper library requires threads, so we
+      must specify -pthread.</para>
+      <screen>
+$ <userinput>cd openssl-0.9.8l</userinput>
+$ <userinput>./Configure linux-generic32 -m32 -pthread \
+            --pk11-libname=/opt/pkcs11/usr/lib/libpkcs11.so \
+            --pk11-flavor=sign-only \
+            --prefix=/opt/pkcs11/usr</userinput>
+</screen>
+      <para>After configuring, run "<command>make</command>"
+      and "<command>make test</command>". If "<command>make
+      test</command>" fails with "pthread_atfork() not found", you forgot to
+      add the -pthread above.</para>
+    </sect3>
+    <sect3>
+      <!-- Example 2 -->
+      <title>Building OpenSSL for the SCA 6000 on Solaris</title>
+      <para>The SCA-6000 PKCS #11 provider is installed as a system
+      library, libpkcs11. It is a true crypto accelerator, up to 4
+      times faster than any CPU, so the flavor shall be
+      'crypto-accelerator'.</para>
+      <para>In this example, we are building on Solaris x86 on an
+      AMD64 system.</para>
+      <screen>
+$ <userinput>cd openssl-0.9.8l</userinput>
+$ <userinput>./Configure solaris64-x86_64-cc \
+            --pk11-libname=/usr/lib/64/libpkcs11.so \
+            --pk11-flavor=crypto-accelerator \
+            --prefix=/opt/pkcs11/usr</userinput>
+</screen>
+      <para>(For a 32-bit build, use "solaris-x86-cc" and
+      /usr/lib/libpkcs11.so.)</para>
+      <para>After configuring, run 
+      <command>make</command> and 
+      <command>make test</command>.</para>
+      <para>Once you have built OpenSSL, run
+      "<command>apps/openssl engine pkcs11</command>" to confirm
+      that PKCS #11 support was compiled in correctly. The output
+      should be one of the following lines, depending on the flavor
+      selected:</para>
+      <screen>
+        (pkcs11) PKCS #11 engine support (sign only)
+</screen>
+      <para>Or:</para>
+      <screen>
+        (pkcs11) PKCS #11 engine support (crypto accelerator)
+</screen>
+      <para>Next, run
+      "<command>apps/openssl engine pkcs11 -t</command>". This will
+      attempt to initialize the PKCS #11 engine. If it is able to
+      do so successfully, it will report
+      <quote><literal>[ available ]</literal></quote>.</para>
+      <para>If the output is correct, run
+      "<command>make install</command>" which will install the
+      modified OpenSSL suite to 
+      <filename>/opt/pkcs11/usr</filename>.</para>
+    </sect3>
+  </sect2>
+  <sect2>
+    <title>Building BIND 9 with PKCS#11</title>
+    <para>When building BIND 9, the location of the custom-built
+    OpenSSL library must be specified via configure.</para>
+    <sect3>
+      <!-- Example 3 -->
+      <title>Configuring BIND 9 for Linux</title>
+      <para>To link with the PKCS #11 provider, threads must be
+      enabled in the BIND 9 build.</para>
+      <para>The PKCS #11 library for the AEP Keyper is currently
+      only available as a 32-bit binary. If we are building on a
+      64-bit host, we must force a 32-bit build by adding "-m32" to
+      the CC options on the "configure" command line.</para>
+      <screen>
+$ <userinput>cd ../bind-9.7.0</userinput>
+$ <userinput>./configure CC="gcc -m32" --enable-threads \
+           --with-openssl=/opt/pkcs11/usr \
+           --with-pkcs11=/opt/pkcs11/usr/lib/libpkcs11.so</userinput>
+</screen>
+    </sect3>
+    <sect3>
+      <!-- Example 4 -->
+      <title>Configuring BIND 9 for Solaris</title>
+      <para>To link with the PKCS #11 provider, threads must be
+      enabled in the BIND 9 build.</para>
+      <screen>
+$ <userinput>cd ../bind-9.7.0</userinput>
+$ <userinput>./configure CC="cc -xarch=amd64" --enable-threads \
+            --with-openssl=/opt/pkcs11/usr \
+            --with-pkcs11=/usr/lib/64/libpkcs11.so</userinput>
+</screen>
+      <para>(For a 32-bit build, omit CC="cc -xarch=amd64".)</para>
+      <para>If configure complains about OpenSSL not working, you
+      may have a 32/64-bit architecture mismatch. Or, you may have
+      incorrectly specified the path to OpenSSL (it should be the
+      same as the --prefix argument to the OpenSSL
+      Configure).</para>
+    </sect3>
+    <para>After configuring, run
+    "<command>make</command>",
+    "<command>make test</command>" and
+    "<command>make install</command>".</para>
+  </sect2>
+  <sect2>
+    <title>PKCS #11 Tools</title>
+    <para>BIND 9 includes a minimal set of tools to operate the
+    HSM, including 
+    <command>pkcs11-keygen</command> to generate a new key pair
+    within the HSM, 
+    <command>pkcs11-list</command> to list objects currently
+    available, and 
+    <command>pkcs11-destroy</command> to remove objects.</para>
+    <para>In UNIX/Linux builds, these tools are built only if BIND
+    9 is configured with the --with-pkcs11 option. (NOTE: If
+    --with-pkcs11 is set to "yes", rather than to the path of the
+    PKCS #11 provider, then the tools will be built but the
+    provider will be left undefined. Use the -m option or the
+    PKCS11_PROVIDER environment variable to specify the path to the
+    provider.)</para>
+  </sect2>
+  <sect2>
+    <title>Using the HSM</title>
+    <para>First, we must set up the runtime environment so the
+    OpenSSL and PKCS #11 libraries can be loaded:</para>
+    <screen>
+$ <userinput>export LD_LIBRARY_PATH=/opt/pkcs11/usr/lib:${LD_LIBRARY_PATH}</userinput>
+</screen>
+    <para>When operating an AEP Keyper, it is also necessary to
+    specify the location of the "machine" file, which stores
+    information about the Keyper for use by PKCS #11 provider
+    library. If the machine file is in 
+    <filename>/opt/Keyper/PKCS11Provider/machine</filename>,
+    use:</para>
+    <screen>
+$ <userinput>export KEYPER_LIBRARY_PATH=/opt/Keyper/PKCS11Provider</userinput>
+</screen>
+    <!-- TODO: why not defined at compile time? -->
+    <para>These environment variables must be set whenever running
+    any tool that uses the HSM, including 
+    <command>pkcs11-keygen</command>, 
+    <command>pkcs11-list</command>, 
+    <command>pkcs11-destroy</command>, 
+    <command>dnssec-keyfromlabel</command>, 
+    <command>dnssec-signzone</command>, 
+    <command>dnssec-keygen</command>(which will use the HSM for
+    random number generation), and 
+    <command>named</command>.</para>
+    <para>We can now create and use keys in the HSM. In this case,
+    we will create a 2048 bit key and give it the label
+    "sample-ksk":</para>
+    <screen>
+$ <userinput>pkcs11-keygen -b 2048 -l sample-ksk</userinput>
+</screen>
+    <para>To confirm that the key exists:</para>
+    <screen>
+$ <userinput>pkcs11-list</userinput>
+Enter PIN:
+object[0]: handle 2147483658 class 3 label[8] 'sample-ksk' id[0]
+object[1]: handle 2147483657 class 2 label[8] 'sample-ksk' id[0]
+</screen>
+    <para>Before using this key to sign a zone, we must create a
+    pair of BIND 9 key files. The "dnssec-keyfromlabel" utility
+    does this. In this case, we will be using the HSM key
+    "sample-ksk" as the key-signing key for "example.net":</para>
+    <screen>
+$ <userinput>dnssec-keyfromlabel -l sample-ksk -f KSK example.net</userinput>
+</screen>
+    <para>The resulting K*.key and K*.private files can now be used
+    to sign the zone. Unlike normal K* files, which contain both
+    public and private key data, these files will contain only the
+    public key data, plus an identifier for the private key which
+    remains stored within the HSM. The HSM handles signing with the
+    private key.</para>
+    <para>If you wish to generate a second key in the HSM for use
+    as a zone-signing key, follow the same procedure above, using a
+    different keylabel, a smaller key size, and omitting "-f KSK"
+    from the dnssec-keyfromlabel arguments:</para>
+    <screen>
+$ <userinput>pkcs11-keygen -b 1024 -l sample-zsk</userinput>
+$ <userinput>dnssec-keyfromlabel -l sample-zsk example.net</userinput>
+</screen>
+    <para>Alternatively, you may prefer to generate a conventional
+    on-disk key, using dnssec-keygen:</para>
+    <screen>
+$ <userinput>dnssec-keygen example.net</userinput>
+</screen>
+    <para>This provides less security than an HSM key, but since
+    HSMs can be slow or cumbersome to use for security reasons, it
+    may be more efficient to reserve HSM keys for use in the less
+    frequent key-signing operation. The zone-signing key can be
+    rolled more frequently, if you wish, to compensate for a
+    reduction in key security.</para>
+    <para>Now you can sign the zone. (Note: If not using the -S
+    option to 
+    <command>dnssec-signzone</command>, it will be necessary to add
+    the contents of both 
+    <filename>K*.key</filename> files to the zone master file before
+    signing it.)</para>
+    <screen>
+$ <userinput>dnssec-signzone -S example.net</userinput>
+Enter PIN:
+Verifying the zone using the following algorithms:
+NSEC3RSASHA1.
+Zone signing complete:
+Algorithm: NSEC3RSASHA1: ZSKs: 1, KSKs: 1 active, 0 revoked, 0 stand-by
+example.net.signed
+</screen>
+  </sect2>
+  <sect2>
+    <title>Specifying the engine on the command line</title>
+    <para>The OpenSSL engine can be specified in 
+    <command>named</command> and all of the BIND 
+    <command>dnssec-*</command> tools by using the "-E
+    &lt;engine&gt;" command line option. If BIND 9 is built with
+    the --with-pkcs11 option, this option defaults to "pkcs11".
+    Specifying the engine will generally not be necessary unless
+    for some reason you wish to use a different OpenSSL
+    engine.</para>
+    <para>If you wish to disable use of the "pkcs11" engine &mdash;
+    for troubleshooting purposes, or because the HSM is unavailable
+    &mdash; set the engine to the empty string. For example:</para>
+    <screen>
+$ <userinput>dnssec-signzone -E '' -S example.net</userinput>
+</screen>
+    <para>This causes 
+    <command>dnssec-signzone</command> to run as if it were compiled
+    without the --with-pkcs11 option.</para>
+  </sect2>
+  <sect2>
+    <title>Running named with automatic zone re-signing</title>
+    <para>If you want 
+    <command>named</command> to dynamically re-sign zones using HSM
+    keys, and/or to to sign new records inserted via nsupdate, then
+    named must have access to the HSM PIN. This can be accomplished
+    by placing the PIN into the openssl.cnf file (in the above
+    examples, 
+    <filename>/opt/pkcs11/usr/ssl/openssl.cnf</filename>).</para>
+    <para>The location of the openssl.cnf file can be overridden by
+    setting the OPENSSL_CONF environment variable before running
+    named.</para>
+    <para>Sample openssl.cnf:</para>
+    <programlisting>
+        openssl_conf = openssl_def
+        [ openssl_def ]
+        engines = engine_section
+        [ engine_section ]
+        pkcs11 = pkcs11_section
+        [ pkcs11_section ]
+        PIN = <replaceable>&lt;PLACE PIN HERE&gt;</replaceable>
+</programlisting>
+    <para>This will also allow the dnssec-* tools to access the HSM
+    without PIN entry. (The pkcs11-* tools access the HSM directly,
+    not via OpenSSL, so a PIN will still be required to use
+    them.)</para>
+<!-- 
+If the PIN is not known, I believe the first time named needs the
+PIN to open a key, it'll ask you to type in the PIN, which will be
+a problem because it probably won't be running on a terminal
+-->
+    <warning>
+      <para>Placing the HSM's PIN in a text file in
+      this manner may reduce the security advantage of using an
+      HSM. Be sure this is what you want to do before configuring
+      OpenSSL in this way.</para>
+    </warning>
+  </sect2>
+  <!-- TODO: what is alternative then for named dynamic re-signing? -->
+  <!-- TODO: what happens if PIN is not known? named will log about it? -->
+</sect1>

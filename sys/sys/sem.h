@@ -107,8 +107,7 @@ union semun {
  * semaphore info struct
  */
 struct seminfo {
-	int	semmap,		/* # of entries in semaphore map */
-		semmni,		/* # of semaphore identifiers */
+	int	semmni,		/* # of semaphore identifiers */
 		semmns,		/* # of semaphores in system */
 		semmnu,		/* # of undo structures in system */
 		semmsl,		/* max # of semaphores per id */

@@ -77,6 +77,7 @@ struct ufsmount {
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
+	pid_t	um_fsckpid;			/* PID permitted fsck sysctls */
 	long	um_numindirdeps;		/* outstanding indirdeps */
 	struct	workhead softdep_workitem_pending; /* softdep work queue */
 	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg.h,v 1.44 2007-10-12 04:17:18 each Exp $ */
+/* $Id: cfg.h,v 1.46 2010-08-13 23:47:04 tbox Exp $ */
 
 #ifndef ISCCFG_CFG_H
 #define ISCCFG_CFG_H 1
@@ -35,6 +35,7 @@
 
 #include <isc/formatcheck.h>
 #include <isc/lang.h>
+#include <isc/refcount.h>
 #include <isc/types.h>
 #include <isc/list.h>
 
@@ -70,7 +71,7 @@ typedef struct cfg_obj cfg_obj_t;
 typedef struct cfg_listelt cfg_listelt_t;
 
 /*%
- * A callback function to be called when parsing an option 
+ * A callback function to be called when parsing an option
  * that needs to be interpreted at parsing time, like
  * "directory".
  */
@@ -82,6 +83,12 @@ typedef isc_result_t
  ***/
 
 ISC_LANG_BEGINDECLS
+
+void
+cfg_parser_attach(cfg_parser_t *src, cfg_parser_t **dest);
+/*%<
+ * Reference a parser object.
+ */
 
 isc_result_t
 cfg_parser_create(isc_mem_t *mctx, isc_log_t *lctx, cfg_parser_t **ret);
@@ -123,7 +130,7 @@ cfg_parse_buffer(cfg_parser_t *pctx, isc_buffer_t *buffer,
  * (isc_parse_buffer()).
  *
  * Returns an error if the file does not parse correctly.
- * 
+ *
  * Requires:
  *\li 	"filename" is valid.
  *\li 	"mem" is valid.
@@ -140,13 +147,14 @@ cfg_parse_buffer(cfg_parser_t *pctx, isc_buffer_t *buffer,
 void
 cfg_parser_destroy(cfg_parser_t **pctxp);
 /*%<
- * Destroy a configuration parser.
+ * Remove a reference to a configuration parser; destroy it if there are no
+ * more references.
  */
 
 isc_boolean_t
 cfg_obj_isvoid(const cfg_obj_t *obj);
 /*%<
- * Return true iff 'obj' is of void type (e.g., an optional 
+ * Return true iff 'obj' is of void type (e.g., an optional
  * value not specified).
  */
 
@@ -355,7 +363,7 @@ cfg_list_length(const cfg_obj_t *obj, isc_boolean_t recurse);
  * all contained lists.
  */
 
-const cfg_obj_t *
+cfg_obj_t *
 cfg_listelt_value(const cfg_listelt_t *elt);
 /*%<
  * Returns the configuration object associated with cfg_listelt_t.
@@ -389,17 +397,25 @@ cfg_print_grammar(const cfg_type_t *type,
 isc_boolean_t
 cfg_obj_istype(const cfg_obj_t *obj, const cfg_type_t *type);
 /*%<
- * Return true iff 'obj' is of type 'type'. 
+ * Return true iff 'obj' is of type 'type'.
  */
 
-void cfg_obj_destroy(cfg_parser_t *pctx, cfg_obj_t **obj);
+void
+cfg_obj_attach(cfg_obj_t *src, cfg_obj_t **dest);
 /*%<
- * Destroy a configuration object.
+ * Reference a configuration object.
+ */
+
+void
+cfg_obj_destroy(cfg_parser_t *pctx, cfg_obj_t **obj);
+/*%<
+ * Delete a reference to a configuration object; destroy the object if
+ * there are no more references.
  */
 
 void
 cfg_obj_log(const cfg_obj_t *obj, isc_log_t *lctx, int level,
-            const char *fmt, ...)
+	    const char *fmt, ...)
 	ISC_FORMAT_PRINTF(4, 5);
 /*%<
  * Log a message concerning configuration object 'obj' to the logging
