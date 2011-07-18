@@ -236,6 +236,7 @@ extern "C" {
 
 #define	EV_VERSION		"version"
 #define	DEV_PHYS_PATH		"phys_path"
+#define	DEV_PATH		"dev_path"
 #define	DEV_NAME		"dev_name"
 #define	DEV_DRIVER_NAME		"driver_name"
 #define	DEV_INSTANCE		"instance"
