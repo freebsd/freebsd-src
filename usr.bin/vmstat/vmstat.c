@@ -1153,8 +1153,8 @@ dointr(void)
 
 	uptime = getuptime();
 	if (kd != NULL) {
-		intrcntlen = namelist[X_SINTRCNT].n_value;
-		inamlen = namelist[X_SINTRNAMES].n_value;
+		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
+		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
 		if ((intrcnt = malloc(intrcntlen)) == NULL ||
 		    (intrname = malloc(inamlen)) == NULL)
 			err(1, "malloc()");
