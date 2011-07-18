@@ -51,7 +51,3 @@ MLINKS+=tsearch.3 tdelete.3 tsearch.3 tfind.3 tsearch.3 twalk.3
 CFLAGS+=	-DMALLOC_PRODUCTION
 .endif
 
-.if ${CC:T:Mclang} == "clang"
-# XXX: Temporary workaround for LLVM PR 9352
-CFLAGS+=	${.IMPSRC:T:Mmalloc.c:C/^.+$/-no-integrated-as/}
-.endif
