@@ -188,7 +188,6 @@ static device_method_t rue_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, rue_miibus_readreg),
