@@ -570,6 +570,7 @@ DFLTPHYS		opt_global.h
 DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
+MAXCPU			opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
