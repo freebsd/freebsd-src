@@ -512,6 +512,26 @@ defm VCVTSI2SDL  : sse12_vcvt_avx<0x2A, GR32, FR64, i32mem, "cvtsi2sd{l}">, XD,
 defm VCVTSI2SD64 : sse12_vcvt_avx<0x2A, GR64, FR64, i64mem, "cvtsi2sd{q}">, XD,
                                   VEX_4V, VEX_W;
 
+let Predicates = [HasAVX] in {
+  def : Pat<(f32 (sint_to_fp (loadi32 addr:$src))),
+            (VCVTSI2SSrm (f32 (IMPLICIT_DEF)), addr:$src)>;
+  def : Pat<(f32 (sint_to_fp (loadi64 addr:$src))),
+            (VCVTSI2SS64rm (f32 (IMPLICIT_DEF)), addr:$src)>;
+  def : Pat<(f64 (sint_to_fp (loadi32 addr:$src))),
+            (VCVTSI2SDrm (f64 (IMPLICIT_DEF)), addr:$src)>;
+  def : Pat<(f64 (sint_to_fp (loadi64 addr:$src))),
+            (VCVTSI2SD64rm (f64 (IMPLICIT_DEF)), addr:$src)>;
+
+  def : Pat<(f32 (sint_to_fp GR32:$src)),
+            (VCVTSI2SSrr (f32 (IMPLICIT_DEF)), GR32:$src)>;
+  def : Pat<(f32 (sint_to_fp GR64:$src)),
+            (VCVTSI2SS64rr (f32 (IMPLICIT_DEF)), GR64:$src)>;
+  def : Pat<(f64 (sint_to_fp GR32:$src)),
+            (VCVTSI2SDrr (f64 (IMPLICIT_DEF)), GR32:$src)>;
+  def : Pat<(f64 (sint_to_fp GR64:$src)),
+            (VCVTSI2SD64rr (f64 (IMPLICIT_DEF)), GR64:$src)>;
+}
+
 defm CVTTSS2SI : sse12_cvt_s<0x2C, FR32, GR32, fp_to_sint, f32mem, loadf32,
                       "cvttss2si\t{$src, $dst|$dst, $src}">, XS;
 defm CVTTSS2SI64 : sse12_cvt_s<0x2C, FR32, GR64, fp_to_sint, f32mem, loadf32,
@@ -1473,83 +1493,68 @@ let neverHasSideEffects = 1, Pattern = []<dag>, isCommutable = 0 in
 /// sse12_fp_packed_logical - SSE 1 & 2 packed FP logical ops
 ///
 multiclass sse12_fp_packed_logical<bits<8> opc, string OpcodeStr,
-                                 SDNode OpNode, int HasPat = 0,
-                                 list<list<dag>> Pattern = []> {
+                                   SDNode OpNode> {
   let Pattern = []<dag> in {
     defm V#NAME#PS : sse12_fp_packed_logical_rm<opc, VR128, SSEPackedSingle,
          !strconcat(OpcodeStr, "ps"), f128mem,
-         !if(HasPat, Pattern[0], // rr
-                     [(set VR128:$dst, (v2i64 (OpNode VR128:$src1,
-                                                      VR128:$src2)))]),
-         !if(HasPat, Pattern[2], // rm
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v4f32 VR128:$src1)),
-                                               (memopv2i64 addr:$src2)))]), 0>,
-                                               VEX_4V;
+         [(set VR128:$dst, (v2i64 (OpNode VR128:$src1, VR128:$src2)))],
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v4f32 VR128:$src1)),
+                                   (memopv2i64 addr:$src2)))], 0>, VEX_4V;
 
     defm V#NAME#PD : sse12_fp_packed_logical_rm<opc, VR128, SSEPackedDouble,
          !strconcat(OpcodeStr, "pd"), f128mem,
-         !if(HasPat, Pattern[1], // rr
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
-                                               (bc_v2i64 (v2f64
-                                               VR128:$src2))))]),
-         !if(HasPat, Pattern[3], // rm
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
-                                               (memopv2i64 addr:$src2)))]), 0>,
-                                                               OpSize, VEX_4V;
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
+                                   (bc_v2i64 (v2f64 VR128:$src2))))],
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
+                                   (memopv2i64 addr:$src2)))], 0>,
+                                                   OpSize, VEX_4V;
   }
   let Constraints = "$src1 = $dst" in {
     defm PS : sse12_fp_packed_logical_rm<opc, VR128, SSEPackedSingle,
          !strconcat(OpcodeStr, "ps"), f128mem,
-         !if(HasPat, Pattern[0], // rr
-                     [(set VR128:$dst, (v2i64 (OpNode VR128:$src1,
-                                                      VR128:$src2)))]),
-         !if(HasPat, Pattern[2], // rm
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v4f32 VR128:$src1)),
-                                               (memopv2i64 addr:$src2)))])>, TB;
+         [(set VR128:$dst, (v2i64 (OpNode VR128:$src1, VR128:$src2)))],
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v4f32 VR128:$src1)),
+                                   (memopv2i64 addr:$src2)))]>, TB;
 
     defm PD : sse12_fp_packed_logical_rm<opc, VR128, SSEPackedDouble,
          !strconcat(OpcodeStr, "pd"), f128mem,
-         !if(HasPat, Pattern[1], // rr
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
-                                               (bc_v2i64 (v2f64
-                                               VR128:$src2))))]),
-         !if(HasPat, Pattern[3], // rm
-                     [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
-                                               (memopv2i64 addr:$src2)))])>,
-                                                                    TB, OpSize;
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
+                                   (bc_v2i64 (v2f64 VR128:$src2))))],
+         [(set VR128:$dst, (OpNode (bc_v2i64 (v2f64 VR128:$src1)),
+                                   (memopv2i64 addr:$src2)))]>, TB, OpSize;
   }
 }
 
 /// sse12_fp_packed_logical_y - AVX 256-bit SSE 1 & 2 logical ops forms
 ///
-multiclass sse12_fp_packed_logical_y<bits<8> opc, string OpcodeStr> {
+multiclass sse12_fp_packed_logical_y<bits<8> opc, string OpcodeStr,
+                                     SDNode OpNode> {
     defm PSY : sse12_fp_packed_logical_rm<opc, VR256, SSEPackedSingle,
-          !strconcat(OpcodeStr, "ps"), f256mem, [], [], 0>, VEX_4V;
+          !strconcat(OpcodeStr, "ps"), f256mem,
+          [(set VR256:$dst, (v4i64 (OpNode VR256:$src1, VR256:$src2)))],
+          [(set VR256:$dst, (OpNode (bc_v4i64 (v8f32 VR256:$src1)),
+                                    (memopv4i64 addr:$src2)))], 0>, VEX_4V;
 
     defm PDY : sse12_fp_packed_logical_rm<opc, VR256, SSEPackedDouble,
-          !strconcat(OpcodeStr, "pd"), f256mem, [], [], 0>, OpSize, VEX_4V;
+          !strconcat(OpcodeStr, "pd"), f256mem,
+          [(set VR256:$dst, (OpNode (bc_v4i64 (v4f64 VR256:$src1)),
+                                    (bc_v4i64 (v4f64 VR256:$src2))))],
+          [(set VR256:$dst, (OpNode (bc_v4i64 (v4f64 VR256:$src1)),
+                                    (memopv4i64 addr:$src2)))], 0>,
+                                    OpSize, VEX_4V;
 }
 
 // AVX 256-bit packed logical ops forms
-defm VAND : sse12_fp_packed_logical_y<0x54, "and">;
-defm VOR  : sse12_fp_packed_logical_y<0x56, "or">;
-defm VXOR : sse12_fp_packed_logical_y<0x57, "xor">;
-let isCommutable = 0 in
-  defm VANDN : sse12_fp_packed_logical_y<0x55, "andn">;
+defm VAND  : sse12_fp_packed_logical_y<0x54, "and", and>;
+defm VOR   : sse12_fp_packed_logical_y<0x56, "or", or>;
+defm VXOR  : sse12_fp_packed_logical_y<0x57, "xor", xor>;
+defm VANDN : sse12_fp_packed_logical_y<0x55, "andn", X86andnp>;
 
 defm AND  : sse12_fp_packed_logical<0x54, "and", and>;
 defm OR   : sse12_fp_packed_logical<0x56, "or", or>;
 defm XOR  : sse12_fp_packed_logical<0x57, "xor", xor>;
 let isCommutable = 0 in
-  defm ANDN : sse12_fp_packed_logical<0x55, "andn", undef /* dummy */, 1, [
-    // single r+r
-    [(set VR128:$dst, (X86pandn VR128:$src1, VR128:$src2))],
-    // double r+r
-    [],
-    // single r+m
-    [(set VR128:$dst, (X86pandn VR128:$src1, (memopv2i64 addr:$src2)))],
-    // double r+m
-    []]>;
+  defm ANDN : sse12_fp_packed_logical<0x55, "andn", X86andnp>;
 
 //===----------------------------------------------------------------------===//
 // SSE 1 & 2 - Arithmetic Instructions
@@ -1991,11 +1996,11 @@ def : Pat<(alignednontemporalstore (v2i64 VR128:$src), addr:$dst),
 
 // There is no AVX form for instructions below this point
 def MOVNTImr : I<0xC3, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
-                 "movnti\t{$src, $dst|$dst, $src}",
+                 "movnti{l}\t{$src, $dst|$dst, $src}",
                  [(nontemporalstore (i32 GR32:$src), addr:$dst)]>,
                TB, Requires<[HasSSE2]>;
 def MOVNTI_64mr : RI<0xC3, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src),
-                     "movnti\t{$src, $dst|$dst, $src}",
+                     "movnti{q}\t{$src, $dst|$dst, $src}",
                      [(nontemporalstore (i64 GR64:$src), addr:$dst)]>,
                   TB, Requires<[HasSSE2]>;
 }
@@ -2006,13 +2011,13 @@ def MOVNTI_64mr : RI<0xC3, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src),
 
 // Prefetch intrinsic.
 def PREFETCHT0   : PSI<0x18, MRM1m, (outs), (ins i8mem:$src),
-    "prefetcht0\t$src", [(prefetch addr:$src, imm, (i32 3))]>;
+    "prefetcht0\t$src", [(prefetch addr:$src, imm, (i32 3), (i32 1))]>;
 def PREFETCHT1   : PSI<0x18, MRM2m, (outs), (ins i8mem:$src),
-    "prefetcht1\t$src", [(prefetch addr:$src, imm, (i32 2))]>;
+    "prefetcht1\t$src", [(prefetch addr:$src, imm, (i32 2), (i32 1))]>;
 def PREFETCHT2   : PSI<0x18, MRM3m, (outs), (ins i8mem:$src),
-    "prefetcht2\t$src", [(prefetch addr:$src, imm, (i32 1))]>;
+    "prefetcht2\t$src", [(prefetch addr:$src, imm, (i32 1), (i32 1))]>;
 def PREFETCHNTA  : PSI<0x18, MRM0m, (outs), (ins i8mem:$src),
-    "prefetchnta\t$src", [(prefetch addr:$src, imm, (i32 0))]>;
+    "prefetchnta\t$src", [(prefetch addr:$src, imm, (i32 0), (i32 1))]>;
 
 // Load, store, and memory fence
 def SFENCE : I<0xAE, MRM_F8, (outs), (ins), "sfence", [(int_x86_sse_sfence)]>,
@@ -2037,7 +2042,10 @@ def V_SET0PI : PDI<0xEF, MRMInitReg, (outs VR128:$dst), (ins), "",
 }
 
 // The same as done above but for AVX. The 128-bit versions are the
-// same, but re-encoded. The 256-bit does not support PI version.
+// same, but re-encoded. The 256-bit does not support PI version, and
+// doesn't need it because on sandy bridge the register is set to zero
+// at the rename stage without using any execution unit, so SET0PSY
+// and SET0PDY can be used for vector int instructions without penalty
 // FIXME: Change encoding to pseudo! This is blocked right now by the x86
 // JIT implementatioan, it does not expand the instructions below like
 // X86MCInstLower does.
@@ -2052,8 +2060,8 @@ def AVX_SET0PSY : PSI<0x57, MRMInitReg, (outs VR256:$dst), (ins), "",
 def AVX_SET0PDY : PDI<0x57, MRMInitReg, (outs VR256:$dst), (ins), "",
                    [(set VR256:$dst, (v4f64 immAllZerosV))]>, VEX_4V;
 let ExeDomain = SSEPackedInt in
-def AVX_SET0PI : PDI<0xEF, MRMInitReg, (outs VR128:$dst), (ins), "",
-                 [(set VR128:$dst, (v4i32 immAllZerosV))]>;
+def AVX_SET0PI  : PDI<0xEF, MRMInitReg, (outs VR128:$dst), (ins), "",
+                   [(set VR128:$dst, (v4i32 immAllZerosV))]>;
 }
 
 def : Pat<(v2i64 immAllZerosV), (V_SET0PI)>;
@@ -2062,6 +2070,15 @@ def : Pat<(v16i8 immAllZerosV), (V_SET0PI)>;
 
 def : Pat<(f32 (vector_extract (v4f32 VR128:$src), (iPTR 0))),
           (f32 (EXTRACT_SUBREG (v4f32 VR128:$src), sub_ss))>;
+
+// FIXME: According to the intel manual, DEST[127:64] <- SRC1[127:64], while
+// in the non-AVX version bits 127:64 aren't touched. Find a better way to
+// represent this instead of always zeroing SRC1. One possible solution is
+// to represent the instruction w/ something similar as the "$src1 = $dst"
+// constraint but without the tied operands.
+def : Pat<(extloadf32 addr:$src),
+          (VCVTSS2SDrm (f32 (EXTRACT_SUBREG (AVX_SET0PS), sub_ss)), addr:$src)>,
+      Requires<[HasAVX, OptForSpeed]>;
 
 //===----------------------------------------------------------------------===//
 // SSE 1 & 2 - Load/Store XCSR register
@@ -2959,6 +2976,22 @@ def : Pat<(v4i32 (X86vzmovl (bc_v4i32 (loadv2i64 addr:$src)))),
             (MOVZDI2PDIrm addr:$src)>;
 }
 
+// These are the correct encodings of the instructions so that we know how to
+// read correct assembly, even though we continue to emit the wrong ones for
+// compatibility with Darwin's buggy assembler.
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (MOV64toPQIrr VR128:$dst, GR64:$src), 0>;
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (MOV64toSDrr FR64:$dst, GR64:$src), 0>;
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (MOVPQIto64rr GR64:$dst, VR128:$src), 0>;
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (MOVSDto64rr GR64:$dst, FR64:$src), 0>;
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (VMOVZQI2PQIrr VR128:$dst, GR64:$src), 0>;
+def : InstAlias<"movq\t{$src, $dst|$dst, $src}",
+                (MOVZQI2PQIrr VR128:$dst, GR64:$src), 0>;
+
 //===---------------------------------------------------------------------===//
 // SSE2 - Move Quadword
 //===---------------------------------------------------------------------===//
@@ -3589,6 +3622,16 @@ let Predicates = [HasSSE2] in
  def : Pat<(fextend (loadf32 addr:$src)),
            (CVTSS2SDrm addr:$src)>;
 
+// FIXME: According to the intel manual, DEST[127:64] <- SRC1[127:64], while
+// in the non-AVX version bits 127:64 aren't touched. Find a better way to
+// represent this instead of always zeroing SRC1. One possible solution is
+// to represent the instruction w/ something similar as the "$src1 = $dst"
+// constraint but without the tied operands.
+let Predicates = [HasAVX] in
+ def : Pat<(fextend (loadf32 addr:$src)),
+           (VCVTSS2SDrm (f32 (EXTRACT_SUBREG (AVX_SET0PS), sub_ss)),
+                        addr:$src)>;
+
 // bit_convert
 let Predicates = [HasXMMInt] in {
   def : Pat<(v2i64 (bitconvert (v4i32 VR128:$src))), (v2i64 VR128:$src)>;
@@ -3625,6 +3668,19 @@ let Predicates = [HasXMMInt] in {
 
 let Predicates = [HasAVX] in {
   def : Pat<(v4f64 (bitconvert (v8f32 VR256:$src))), (v4f64 VR256:$src)>;
+  def : Pat<(v4f64 (bitconvert (v4i64 VR256:$src))), (v4f64 VR256:$src)>;
+  def : Pat<(v4f64 (bitconvert (v32i8 VR256:$src))), (v4f64 VR256:$src)>;
+  def : Pat<(v8f32 (bitconvert (v4i64 VR256:$src))), (v8f32 VR256:$src)>;
+  def : Pat<(v8f32 (bitconvert (v4f64 VR256:$src))), (v8f32 VR256:$src)>;
+  def : Pat<(v8f32 (bitconvert (v32i8 VR256:$src))), (v8f32 VR256:$src)>;
+  def : Pat<(v4i64 (bitconvert (v8f32 VR256:$src))), (v4i64 VR256:$src)>;
+  def : Pat<(v4i64 (bitconvert (v4f64 VR256:$src))), (v4i64 VR256:$src)>;
+  def : Pat<(v4i64 (bitconvert (v32i8 VR256:$src))), (v4i64 VR256:$src)>;
+  def : Pat<(v32i8 (bitconvert (v4f64 VR256:$src))), (v32i8 VR256:$src)>;
+  def : Pat<(v32i8 (bitconvert (v4i64 VR256:$src))), (v32i8 VR256:$src)>;
+  def : Pat<(v32i8 (bitconvert (v8f32 VR256:$src))), (v32i8 VR256:$src)>;
+  def : Pat<(v32i8 (bitconvert (v8i32 VR256:$src))), (v32i8 VR256:$src)>;
+  def : Pat<(v8i32 (bitconvert (v32i8 VR256:$src))), (v8i32 VR256:$src)>;
 }
 
 // Move scalar to XMM zero-extended
@@ -3807,6 +3863,8 @@ def : Pat<(v4i32 (fp_to_sint (v4f32 VR128:$src))),
           (CVTTPS2DQrr VR128:$src)>, Requires<[HasSSE2]>;
 
 // Use movaps / movups for SSE integer load / store (one byte shorter).
+// The instructions selected below are then converted to MOVDQA/MOVDQU
+// during the SSE domain pass.
 let Predicates = [HasSSE1] in {
   def : Pat<(alignedloadv4i32 addr:$src),
             (MOVAPSrm addr:$src)>;
@@ -3835,8 +3893,9 @@ let Predicates = [HasSSE1] in {
             (MOVUPSmr addr:$dst, VR128:$src)>;
 }
 
-// Use vmovaps/vmovups for AVX 128-bit integer load/store (one byte shorter).
+// Use vmovaps/vmovups for AVX integer load/store.
 let Predicates = [HasAVX] in {
+  // 128-bit load/store
   def : Pat<(alignedloadv4i32 addr:$src),
             (VMOVAPSrm addr:$src)>;
   def : Pat<(loadv4i32 addr:$src),
@@ -3862,6 +3921,24 @@ let Predicates = [HasAVX] in {
             (VMOVUPSmr addr:$dst, VR128:$src)>;
   def : Pat<(store (v16i8 VR128:$src), addr:$dst),
             (VMOVUPSmr addr:$dst, VR128:$src)>;
+
+  // 256-bit load/store
+  def : Pat<(alignedloadv4i64 addr:$src),
+            (VMOVAPSYrm addr:$src)>;
+  def : Pat<(loadv4i64 addr:$src),
+            (VMOVUPSYrm addr:$src)>;
+  def : Pat<(alignedloadv8i32 addr:$src),
+            (VMOVAPSYrm addr:$src)>;
+  def : Pat<(loadv8i32 addr:$src),
+            (VMOVUPSYrm addr:$src)>;
+  def : Pat<(alignedstore (v4i64 VR256:$src), addr:$dst),
+            (VMOVAPSYmr addr:$dst, VR256:$src)>;
+  def : Pat<(alignedstore (v8i32 VR256:$src), addr:$dst),
+            (VMOVAPSYmr addr:$dst, VR256:$src)>;
+  def : Pat<(store (v4i64 VR256:$src), addr:$dst),
+            (VMOVUPSYmr addr:$dst, VR256:$src)>;
+  def : Pat<(store (v8i32 VR256:$src), addr:$dst),
+            (VMOVUPSYmr addr:$dst, VR256:$src)>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -5160,33 +5237,52 @@ def AESKEYGENASSIST128rm : AESAI<0xDF, MRMSrcMem, (outs VR128:$dst),
 // CLMUL Instructions
 //===----------------------------------------------------------------------===//
 
-// Only the AVX version of CLMUL instructions are described here.
-
 // Carry-less Multiplication instructions
-def VPCLMULQDQrr : CLMULIi8<0x44, MRMSrcReg, (outs VR128:$dst),
+let Constraints = "$src1 = $dst" in {
+def PCLMULQDQrr : CLMULIi8<0x44, MRMSrcReg, (outs VR128:$dst),
+           (ins VR128:$src1, VR128:$src2, i8imm:$src3),
+           "pclmulqdq\t{$src3, $src2, $dst|$dst, $src2, $src3}",
+           []>;
+
+def PCLMULQDQrm : CLMULIi8<0x44, MRMSrcMem, (outs VR128:$dst),
+           (ins VR128:$src1, i128mem:$src2, i8imm:$src3),
+           "pclmulqdq\t{$src3, $src2, $dst|$dst, $src2, $src3}",
+           []>;
+}
+
+// AVX carry-less Multiplication instructions
+def VPCLMULQDQrr : AVXCLMULIi8<0x44, MRMSrcReg, (outs VR128:$dst),
            (ins VR128:$src1, VR128:$src2, i8imm:$src3),
            "vpclmulqdq\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}",
            []>;
 
-def VPCLMULQDQrm : CLMULIi8<0x44, MRMSrcMem, (outs VR128:$dst),
+def VPCLMULQDQrm : AVXCLMULIi8<0x44, MRMSrcMem, (outs VR128:$dst),
            (ins VR128:$src1, i128mem:$src2, i8imm:$src3),
            "vpclmulqdq\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}",
            []>;
 
-// Assembler Only
-multiclass avx_vpclmul<string asm> {
-  def rr : I<0, Pseudo, (outs VR128:$dst), (ins VR128:$src1, VR128:$src2),
-             !strconcat(asm, "\t{$src2, $src1, $dst|$dst, $src1, $src2}"),
-             []>;
 
-  def rm : I<0, Pseudo, (outs VR128:$dst), (ins VR128:$src1, i128mem:$src2),
-             !strconcat(asm, "\t{$src2, $src1, $dst|$dst, $src1, $src2}"),
-             []>;
+multiclass pclmul_alias<string asm, int immop> {
+  def : InstAlias<!strconcat("pclmul", asm, 
+                           "dq {$src, $dst|$dst, $src}"),
+                  (PCLMULQDQrr VR128:$dst, VR128:$src, immop)>;
+
+  def : InstAlias<!strconcat("pclmul", asm, 
+                             "dq {$src, $dst|$dst, $src}"),
+                  (PCLMULQDQrm VR128:$dst, i128mem:$src, immop)>;
+
+  def : InstAlias<!strconcat("vpclmul", asm, 
+                             "dq {$src2, $src1, $dst|$dst, $src1, $src2}"),
+                  (VPCLMULQDQrr VR128:$dst, VR128:$src1, VR128:$src2, immop)>;
+
+  def : InstAlias<!strconcat("vpclmul", asm, 
+                             "dq {$src2, $src1, $dst|$dst, $src1, $src2}"),
+                  (VPCLMULQDQrm VR128:$dst, VR128:$src1, i128mem:$src2, immop)>;
 }
-defm VPCLMULHQHQDQ : avx_vpclmul<"vpclmulhqhqdq">;
-defm VPCLMULHQLQDQ : avx_vpclmul<"vpclmulhqlqdq">;
-defm VPCLMULLQHQDQ : avx_vpclmul<"vpclmullqhqdq">;
-defm VPCLMULLQLQDQ : avx_vpclmul<"vpclmullqlqdq">;
+defm : pclmul_alias<"hqhq", 0x11>;
+defm : pclmul_alias<"hqlq", 0x01>;
+defm : pclmul_alias<"lqhq", 0x10>;
+defm : pclmul_alias<"lqlq", 0x00>;
 
 //===----------------------------------------------------------------------===//
 // AVX Instructions

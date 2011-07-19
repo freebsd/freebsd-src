@@ -17,11 +17,12 @@
 #include "ScheduleDAGSDNodes.h"
 #include "InstrEmitter.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtarget.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
@@ -111,7 +112,7 @@ static void CheckForPhysRegDependency(SDNode *Def, SDNode *User, unsigned Op,
 
   unsigned ResNo = User->getOperand(2).getResNo();
   if (Def->isMachineOpcode()) {
-    const TargetInstrDesc &II = TII->get(Def->getMachineOpcode());
+    const MCInstrDesc &II = TII->get(Def->getMachineOpcode());
     if (ResNo >= II.getNumDefs() &&
         II.ImplicitDefs[ResNo - II.getNumDefs()] == Reg) {
       PhysReg = Reg;
@@ -255,8 +256,8 @@ void ScheduleDAGSDNodes::ClusterNodes() {
       continue;
 
     unsigned Opc = Node->getMachineOpcode();
-    const TargetInstrDesc &TID = TII->get(Opc);
-    if (TID.mayLoad())
+    const MCInstrDesc &MCID = TII->get(Opc);
+    if (MCID.mayLoad())
       // Cluster loads from "near" addresses into combined SUnits.
       ClusterNeighboringLoads(Node);
   }
@@ -378,7 +379,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
 }
 
 void ScheduleDAGSDNodes::AddSchedEdges() {
-  const TargetSubtarget &ST = TM.getSubtarget<TargetSubtarget>();
+  const TargetSubtargetInfo &ST = TM.getSubtarget<TargetSubtargetInfo>();
 
   // Check to see if the scheduler cares about latencies.
   bool UnitLatencies = ForceUnitLatencies();
@@ -390,14 +391,14 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
 
     if (MainNode->isMachineOpcode()) {
       unsigned Opc = MainNode->getMachineOpcode();
-      const TargetInstrDesc &TID = TII->get(Opc);
-      for (unsigned i = 0; i != TID.getNumOperands(); ++i) {
-        if (TID.getOperandConstraint(i, TOI::TIED_TO) != -1) {
+      const MCInstrDesc &MCID = TII->get(Opc);
+      for (unsigned i = 0; i != MCID.getNumOperands(); ++i) {
+        if (MCID.getOperandConstraint(i, MCOI::TIED_TO) != -1) {
           SU->isTwoAddress = true;
           break;
         }
       }
-      if (TID.isCommutable())
+      if (MCID.isCommutable())
         SU->isCommutable = true;
     }
 
@@ -435,7 +436,7 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
         // it requires a cross class copy (cost < 0). That means we are only
         // treating "expensive to copy" register dependency as physical register
         // dependency. This may change in the future though.
-        if (Cost >= 0)
+        if (Cost >= 0 && !StressSched)
           PhysReg = 0;
 
         // If this is a ctrl dep, latency is 1.
@@ -520,14 +521,7 @@ void ScheduleDAGSDNodes::RegDefIter::Advance() {
     for (;DefIdx < NodeNumDefs; ++DefIdx) {
       if (!Node->hasAnyUseOfValue(DefIdx))
         continue;
-      if (Node->isMachineOpcode() &&
-          Node->getMachineOpcode() == TargetOpcode::EXTRACT_SUBREG) {
-        // Propagate the incoming (full-register) type. I doubt it's needed.
-        ValueType = Node->getOperand(0).getValueType();
-      }
-      else {
-        ValueType = Node->getValueType(DefIdx);
-      }
+      ValueType = Node->getValueType(DefIdx);
       ++DefIdx;
       return; // Found a normal regdef.
     }
@@ -649,7 +643,7 @@ static void ProcessSDDbgValues(SDNode *N, SelectionDAG *DAG,
   // order number right after the N.
   MachineBasicBlock *BB = Emitter.getBlock();
   MachineBasicBlock::iterator InsertPos = Emitter.getInsertPos();
-  SmallVector<SDDbgValue*,2> &DVs = DAG->GetDbgValues(N);
+  ArrayRef<SDDbgValue*> DVs = DAG->GetDbgValues(N);
   for (unsigned i = 0, e = DVs.size(); i != e; ++i) {
     if (DVs[i]->isInvalidated())
       continue;

@@ -21,6 +21,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaDecl.cpp \
 	SemaDeclAttr.cpp \
 	SemaDeclCXX.cpp \
+	SemaExprMember.cpp \
 	SemaDeclObjC.cpp \
 	SemaExceptionSpec.cpp \
 	SemaExpr.cpp \

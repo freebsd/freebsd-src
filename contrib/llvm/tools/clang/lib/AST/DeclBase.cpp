@@ -29,7 +29,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <cstdio>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -76,26 +75,27 @@ bool Decl::CollectingStats(bool Enable) {
 }
 
 void Decl::PrintStats() {
-  fprintf(stderr, "*** Decl Stats:\n");
+  llvm::errs() << "\n*** Decl Stats:\n";
 
   int totalDecls = 0;
 #define DECL(DERIVED, BASE) totalDecls += n##DERIVED##s;
 #define ABSTRACT_DECL(DECL)
 #include "clang/AST/DeclNodes.inc"
-  fprintf(stderr, "  %d decls total.\n", totalDecls);
+  llvm::errs() << "  " << totalDecls << " decls total.\n";
 
   int totalBytes = 0;
 #define DECL(DERIVED, BASE)                                             \
   if (n##DERIVED##s > 0) {                                              \
     totalBytes += (int)(n##DERIVED##s * sizeof(DERIVED##Decl));         \
-    fprintf(stderr, "    %d " #DERIVED " decls, %d each (%d bytes)\n",  \
-            n##DERIVED##s, (int)sizeof(DERIVED##Decl),                  \
-            (int)(n##DERIVED##s * sizeof(DERIVED##Decl)));              \
+    llvm::errs() << "    " << n##DERIVED##s << " " #DERIVED " decls, "  \
+                 << sizeof(DERIVED##Decl) << " each ("                  \
+                 << n##DERIVED##s * sizeof(DERIVED##Decl)               \
+                 << " bytes)\n";                                        \
   }
 #define ABSTRACT_DECL(DECL)
 #include "clang/AST/DeclNodes.inc"
 
-  fprintf(stderr, "Total bytes = %d\n", totalBytes);
+  llvm::errs() << "Total bytes = " << totalBytes << "\n";
 }
 
 void Decl::add(Kind k) {
@@ -641,12 +641,8 @@ DeclContext *Decl::getNonClosureContext() {
   // This is basically "while (DC->isClosure()) DC = DC->getParent();"
   // except that it's significantly more efficient to cast to a known
   // decl type and call getDeclContext() than to call getParent().
-  do {
-    if (isa<BlockDecl>(DC)) {
-      DC = cast<BlockDecl>(DC)->getDeclContext();
-      continue;
-    }
-  } while (false);
+  while (isa<BlockDecl>(DC))
+    DC = cast<BlockDecl>(DC)->getDeclContext();
 
   assert(!DC->isClosure());
   return DC;
@@ -843,12 +839,17 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
   // Notify that we have a DeclContext that is initializing.
   ExternalASTSource::Deserializing ADeclContext(Source);
 
+  // Load the external declarations, if any.
   llvm::SmallVector<Decl*, 64> Decls;
-  if (Source->FindExternalLexicalDecls(this, Decls))
-    return;
-
-  // There is no longer any lexical storage in this context
   ExternalLexicalStorage = false;
+  switch (Source->FindExternalLexicalDecls(this, Decls)) {
+  case ELR_Success:
+    break;
+    
+  case ELR_Failure:
+  case ELR_AlreadyLoaded:
+    return;
+  }
 
   if (Decls.empty())
     return;

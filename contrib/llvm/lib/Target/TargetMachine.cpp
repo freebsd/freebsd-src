@@ -43,7 +43,7 @@ namespace llvm {
   Reloc::Model RelocationModel;
   CodeModel::Model CMModel;
   bool GuaranteedTailCallOpt;
-  unsigned StackAlignment;
+  unsigned StackAlignmentOverride;
   bool RealignStack;
   bool DisableJumpTables;
   bool StrongPHIElim;
@@ -183,7 +183,7 @@ EnableGuaranteedTailCallOpt("tailcallopt",
 static cl::opt<unsigned, true>
 OverrideStackAlignment("stack-alignment",
   cl::desc("Override default stack alignment"),
-  cl::location(StackAlignment),
+  cl::location(StackAlignmentOverride),
   cl::init(0));
 static cl::opt<bool, true>
 EnableRealignStack("realign-stack",
@@ -216,8 +216,9 @@ FunctionSections("ffunction-sections",
 // TargetMachine Class
 //
 
-TargetMachine::TargetMachine(const Target &T) 
-  : TheTarget(T), AsmInfo(0),
+TargetMachine::TargetMachine(const Target &T,
+                             StringRef TT, StringRef CPU, StringRef FS)
+  : TheTarget(T), TargetTriple(TT), TargetCPU(CPU), TargetFS(FS), AsmInfo(0),
     MCRelaxAll(false),
     MCNoExecStack(false),
     MCSaveTempLabels(false),

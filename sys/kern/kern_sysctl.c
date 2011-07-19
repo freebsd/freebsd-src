@@ -38,12 +38,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/fail.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -725,7 +727,12 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
+/*
+ * XXXRW/JA: Shouldn't return name data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD | CTLFLAG_CAPRD,
+    sysctl_sysctl_name, "");
 
 static int
 sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
@@ -806,7 +813,12 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD, sysctl_sysctl_next, "");
+/*
+ * XXXRW/JA: Shouldn't return next data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_CAPRD,
+    sysctl_sysctl_next, "");
 
 static int
 name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
@@ -902,9 +914,13 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * XXXRW/JA: Shouldn't return name2oid data for nodes that we don't permit in
+ * capability mode.
+ */
 SYSCTL_PROC(_sysctl, 3, name2oid,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-    0, 0, sysctl_sysctl_name2oid, "I", "");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE
+    | CTLFLAG_CAPRW, 0, 0, sysctl_sysctl_name2oid, "I", "");
 
 static int
 sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
@@ -931,7 +947,7 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 }
 
 
-static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE,
+static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
     sysctl_sysctl_oidfmt, "");
 
 static int
@@ -955,7 +971,8 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD, sysctl_sysctl_oiddescr, "");
+static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_CAPRD,
+    sysctl_sysctl_oiddescr, "");
 
 /*
  * Default "handler" functions.
@@ -1428,6 +1445,19 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		return (EPERM);
 
 	KASSERT(req->td != NULL, ("sysctl_root(): req->td == NULL"));
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * If the process is in capability mode, then don't permit reading or
+	 * writing unless specifically granted for the node.
+	 */
+	if (IN_CAPABILITY_MODE(req->td)) {
+		if (req->oldptr && !(oid->oid_kind & CTLFLAG_CAPRD))
+			return (EPERM);
+		if (req->newptr && !(oid->oid_kind & CTLFLAG_CAPWR))
+			return (EPERM);
+	}
+#endif
 
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {

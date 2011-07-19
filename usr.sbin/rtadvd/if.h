@@ -30,29 +30,32 @@
  * SUCH DAMAGE.
  */
 
-#define RTADV_TYPE2BITMASK(type) (0x1 << type)
+#define	UPDATE_IFINFO_ALL	0
 
-extern struct if_msghdr **iflist;
-extern size_t ifblock_size;
-extern char *ifblock;
+struct sockinfo {
+	int		si_fd;
+	const char	*si_name;
+};
 
-struct nd_opt_hdr;
-struct sockaddr_dl *if_nametosdl(char *);
-int if_getmtu(char *);
-int if_getflags(int, int);
+extern struct sockinfo sock;
+extern struct sockinfo rtsock;
+extern struct sockinfo ctrlsock;
+
 int lladdropt_length(struct sockaddr_dl *);
 void lladdropt_fill(struct sockaddr_dl *, struct nd_opt_hdr *);
 int rtbuf_len(void);
 char *get_next_msg(char *, char *, int, size_t *, int);
 struct in6_addr *get_addr(char *);
 int get_rtm_ifindex(char *);
-int get_ifm_ifindex(char *);
-int get_ifam_ifindex(char *);
-int get_ifm_flags(char *);
 int get_prefixlen(char *);
-int prefixlen(u_char *, u_char *);
-int rtmsg_type(char *);
-int ifmsg_type(char *);
-int rtmsg_len(char *);
-int ifmsg_len(char *);
-void init_iflist(void);
+int prefixlen(unsigned char *, unsigned char *);
+
+struct ifinfo	*update_ifinfo(struct ifilist_head_t *, int);
+int		update_ifinfo_nd_flags(struct ifinfo *);
+struct ifinfo	*update_persist_ifinfo(struct ifilist_head_t *,
+			const char *);
+
+int		sock_mc_join(struct sockinfo *, int);
+int		sock_mc_leave(struct sockinfo *, int);
+int		sock_mc_rr_update(struct sockinfo *, char *);
+int		getinet6sysctl(int);

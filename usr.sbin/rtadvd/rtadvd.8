@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2010
+.Dd July 14, 2011
 .Dt RTADVD 8
 .Os
 .Sh NAME
@@ -39,7 +39,6 @@
 .Nm
 .Op Fl dDfRs
 .Op Fl c Ar configfile
-.Op Fl F Ar dumpfile
 .Op Fl M Ar ifname
 .Op Fl p Ar pidfile
 .Ar interface ...
@@ -129,13 +128,6 @@ Even more debugging information is printed.
 .It Fl f
 Foreground mode (useful when debugging).
 Log messages will be dumped to stderr when this option is specified.
-.It Fl F
-Specify an alternative file in which to dump internal states when
-.Nm
-receives signal
-.Dv SIGUSR1 .
-The default is
-.Pa /var/run/rtadvd.dump .
 .It Fl M
 Specify an interface to join the all-routers site-local multicast group.
 By default,
@@ -159,14 +151,6 @@ with a warning message.
 Do not add or delete prefixes dynamically.
 Only statically configured prefixes, if any, will be advertised.
 .El
-.Pp
-Upon receipt of signal
-.Dv SIGUSR1 ,
-.Nm
-will dump the current internal state into
-.Pa /var/run/rtadvd.dump
-or the file specified with option
-.Fl F .
 .Pp
 Use
 .Dv SIGHUP
@@ -196,10 +180,6 @@ to all the interfaces
 The default configuration file.
 .It Pa /var/run/rtadvd.pid
 The default process ID file.
-.It Pa /var/run/rtadvd.dump
-The default file in which
-.Nm
-dumps its internal state.
 .El
 .Sh EXIT STATUS
 .Ex -std

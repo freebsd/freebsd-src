@@ -211,24 +211,39 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
                                       DeclContext *DC) {
   assert(DC != 0 && "given null context");
 
-  if (TagDecl *Tag = dyn_cast<TagDecl>(DC)) {
+  if (TagDecl *tag = dyn_cast<TagDecl>(DC)) {
     // If this is a dependent type, then we consider it complete.
-    if (Tag->isDependentContext())
+    if (tag->isDependentContext())
       return false;
 
     // If we're currently defining this type, then lookup into the
     // type is okay: don't complain that it isn't complete yet.
-    const TagType *TagT = Context.getTypeDeclType(Tag)->getAs<TagType>();
-    if (TagT && TagT->isBeingDefined())
+    QualType type = Context.getTypeDeclType(tag);
+    const TagType *tagType = type->getAs<TagType>();
+    if (tagType && tagType->isBeingDefined())
       return false;
 
+    SourceLocation loc = SS.getLastQualifierNameLoc();
+    if (loc.isInvalid()) loc = SS.getRange().getBegin();
+
     // The type must be complete.
-    if (RequireCompleteType(SS.getRange().getBegin(),
-                            Context.getTypeDeclType(Tag),
+    if (RequireCompleteType(loc, type,
                             PDiag(diag::err_incomplete_nested_name_spec)
                               << SS.getRange())) {
       SS.SetInvalid(SS.getRange());
       return true;
+    }
+
+    // Fixed enum types are complete, but they aren't valid as scopes
+    // until we see a definition, so awkwardly pull out this special
+    // case.
+    if (const EnumType *enumType = dyn_cast_or_null<EnumType>(tagType)) {
+      if (!enumType->getDecl()->isDefinition()) {
+        Diag(loc, diag::err_incomplete_nested_name_spec)
+          << type << SS.getRange();
+        SS.SetInvalid(SS.getRange());
+        return true;
+      }
     }
   }
 
@@ -464,26 +479,29 @@ bool Sema::BuildCXXNestedNameSpecifier(Scope *S,
     // We haven't found anything, and we're not recovering from a
     // different kind of error, so look for typos.
     DeclarationName Name = Found.getLookupName();
-    if (CorrectTypo(Found, S, &SS, LookupCtx, EnteringContext,  
-                    CTC_NoKeywords) &&
-        Found.isSingleResult() &&
-        isAcceptableNestedNameSpecifier(Found.getAsSingle<NamedDecl>())) {
+    TypoCorrection Corrected;
+    Found.clear();
+    if ((Corrected = CorrectTypo(Found.getLookupNameInfo(),
+                                 Found.getLookupKind(), S, &SS, LookupCtx,
+                                 EnteringContext, CTC_NoKeywords)) &&
+        isAcceptableNestedNameSpecifier(Corrected.getCorrectionDecl())) {
+      std::string CorrectedStr(Corrected.getAsString(getLangOptions()));
+      std::string CorrectedQuotedStr(Corrected.getQuoted(getLangOptions()));
       if (LookupCtx)
         Diag(Found.getNameLoc(), diag::err_no_member_suggest)
-          << Name << LookupCtx << Found.getLookupName() << SS.getRange()
-          << FixItHint::CreateReplacement(Found.getNameLoc(),
-                                          Found.getLookupName().getAsString());
+          << Name << LookupCtx << CorrectedQuotedStr << SS.getRange()
+          << FixItHint::CreateReplacement(Found.getNameLoc(), CorrectedStr);
       else
         Diag(Found.getNameLoc(), diag::err_undeclared_var_use_suggest)
-          << Name << Found.getLookupName()
-          << FixItHint::CreateReplacement(Found.getNameLoc(),
-                                          Found.getLookupName().getAsString());
+          << Name << CorrectedQuotedStr
+          << FixItHint::CreateReplacement(Found.getNameLoc(), CorrectedStr);
       
-      if (NamedDecl *ND = Found.getAsSingle<NamedDecl>())
-        Diag(ND->getLocation(), diag::note_previous_decl)
-          << ND->getDeclName();
+      if (NamedDecl *ND = Corrected.getCorrectionDecl()) {
+        Diag(ND->getLocation(), diag::note_previous_decl) << CorrectedQuotedStr;
+        Found.addDecl(ND);
+      }
+      Found.setLookupName(Corrected.getCorrection());
     } else {
-      Found.clear();
       Found.setLookupName(&Identifier);
     }
   }

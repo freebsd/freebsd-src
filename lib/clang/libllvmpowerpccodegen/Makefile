@@ -13,7 +13,6 @@ SRCS=	PPCAsmBackend.cpp \
 	PPCISelLowering.cpp \
 	PPCInstrInfo.cpp \
 	PPCJITInfo.cpp \
-	PPCMCAsmInfo.cpp \
 	PPCMCCodeEmitter.cpp \
 	PPCMCInstLower.cpp \
 	PPCPredicates.cpp \
@@ -27,11 +26,8 @@ TGHDRS=	Intrinsics \
 	PPCGenCodeEmitter \
 	PPCGenDAGISel \
 	PPCGenInstrInfo \
-	PPCGenInstrNames \
 	PPCGenMCCodeEmitter \
 	PPCGenRegisterInfo \
-	PPCGenRegisterInfo.h \
-	PPCGenRegisterNames \
-	PPCGenSubtarget
+	PPCGenSubtargetInfo
 
 .include "../clang.lib.mk"

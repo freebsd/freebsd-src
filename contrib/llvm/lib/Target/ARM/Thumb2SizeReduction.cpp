@@ -57,10 +57,8 @@ namespace {
   static const ReduceEntry ReduceTable[] = {
     // Wide,        Narrow1,      Narrow2,     imm1,imm2,  lo1, lo2, P/C, PF, S
     { ARM::t2ADCrr, 0,            ARM::tADC,     0,   0,    0,   1,  0,0, 0,0 },
-    { ARM::t2ADDri, ARM::tADDi3,  ARM::tADDi8,   3,   8,    1,   1,  0,0, 0,0 },
+    { ARM::t2ADDri, ARM::tADDi3,  ARM::tADDi8,   3,   8,    1,   1,  0,0, 0,1 },
     { ARM::t2ADDrr, ARM::tADDrr,  ARM::tADDhirr, 0,   0,    1,   0,  0,1, 0,0 },
-    // Note: immediate scale is 4.
-    { ARM::t2ADDrSPi,ARM::tADDrSPi,0,            8,   0,    1,   0,  1,0, 0,1 },
     { ARM::t2ADDSri,ARM::tADDi3,  ARM::tADDi8,   3,   8,    1,   1,  2,2, 0,1 },
     { ARM::t2ADDSrr,ARM::tADDrr,  0,             0,   0,    1,   0,  2,0, 0,1 },
     { ARM::t2ANDrr, 0,            ARM::tAND,     0,   0,    0,   1,  0,0, 1,0 },
@@ -84,9 +82,7 @@ namespace {
     { ARM::t2MOVi,  ARM::tMOVi8,  0,             8,   0,    1,   0,  0,0, 0,0 },
     { ARM::t2MOVi16,ARM::tMOVi8,  0,             8,   0,    1,   0,  0,0, 0,1 },
     // FIXME: Do we need the 16-bit 'S' variant?
-    { ARM::t2MOVr,ARM::tMOVgpr2gpr,0,            0,   0,    0,   0,  1,0, 0,0 },
-    { ARM::t2MOVCCr,0,            ARM::tMOVCCr,  0,   0,    0,   0,  0,1, 0,0 },
-    { ARM::t2MOVCCi,0,            ARM::tMOVCCi,  0,   8,    0,   1,  0,1, 0,0 },
+    { ARM::t2MOVr,ARM::tMOVr,     0,             0,   0,    0,   0,  1,0, 0,0 },
     { ARM::t2MUL,   0,            ARM::tMUL,     0,   0,    0,   1,  0,0, 1,0 },
     { ARM::t2MVNr,  ARM::tMVN,    0,             0,   0,    1,   0,  0,0, 0,0 },
     { ARM::t2ORRrr, 0,            ARM::tORR,     0,   0,    0,   1,  0,0, 1,0 },
@@ -189,8 +185,8 @@ Thumb2SizeReduce::Thumb2SizeReduce() : MachineFunctionPass(ID) {
   }
 }
 
-static bool HasImplicitCPSRDef(const TargetInstrDesc &TID) {
-  for (const unsigned *Regs = TID.ImplicitDefs; *Regs; ++Regs)
+static bool HasImplicitCPSRDef(const MCInstrDesc &MCID) {
+  for (const unsigned *Regs = MCID.ImplicitDefs; *Regs; ++Regs)
     if (*Regs == ARM::CPSR)
       return true;
   return false;
@@ -291,7 +287,7 @@ static bool VerifyLowRegs(MachineInstr *MI) {
                  Opc == ARM::t2LDMDB     || Opc == ARM::t2LDMIA_UPD ||
                  Opc == ARM::t2LDMDB_UPD);
   bool isLROk = (Opc == ARM::t2STMIA_UPD || Opc == ARM::t2STMDB_UPD);
-  bool isSPOk = isPCOk || isLROk || (Opc == ARM::t2ADDrSPi);
+  bool isSPOk = isPCOk || isLROk;
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg() || MO.isImplicit())
@@ -481,14 +477,54 @@ bool
 Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
                                 const ReduceEntry &Entry,
                                 bool LiveCPSR, MachineInstr *CPSRDef) {
+  unsigned Opc = MI->getOpcode();
+  if (Opc == ARM::t2ADDri) {
+    // If the source register is SP, try to reduce to tADDrSPi, otherwise
+    // it's a normal reduce.
+    if (MI->getOperand(1).getReg() != ARM::SP) {
+      if (ReduceTo2Addr(MBB, MI, Entry, LiveCPSR, CPSRDef))
+        return true;
+      return ReduceToNarrow(MBB, MI, Entry, LiveCPSR, CPSRDef);
+    }
+    // Try to reduce to tADDrSPi.
+    unsigned Imm = MI->getOperand(2).getImm();
+    // The immediate must be in range, the destination register must be a low
+    // reg, the predicate must be "always" and the condition flags must not
+    // be being set.
+    if (Imm & 3 || Imm > 1020)
+      return false;
+    if (!isARMLowRegister(MI->getOperand(0).getReg()))
+      return false;
+    if (MI->getOperand(3).getImm() != ARMCC::AL)
+      return false;
+    const MCInstrDesc &MCID = MI->getDesc();
+    if (MCID.hasOptionalDef() &&
+        MI->getOperand(MCID.getNumOperands()-1).getReg() == ARM::CPSR)
+      return false;
+
+    MachineInstrBuilder MIB = BuildMI(MBB, *MI, MI->getDebugLoc(),
+                                      TII->get(ARM::tADDrSPi))
+      .addOperand(MI->getOperand(0))
+      .addOperand(MI->getOperand(1))
+      .addImm(Imm / 4); // The tADDrSPi has an implied scale by four.
+
+    // Transfer MI flags.
+    MIB.setMIFlags(MI->getFlags());
+
+    DEBUG(errs() << "Converted 32-bit: " << *MI << "       to 16-bit: " <<*MIB);
+
+    MBB.erase(MI);
+    ++NumNarrows;
+    return true;
+  }
+
   if (Entry.LowRegs1 && !VerifyLowRegs(MI))
     return false;
 
-  const TargetInstrDesc &TID = MI->getDesc();
-  if (TID.mayLoad() || TID.mayStore())
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (MCID.mayLoad() || MCID.mayStore())
     return ReduceLoadStore(MBB, MI, Entry);
 
-  unsigned Opc = MI->getOpcode();
   switch (Opc) {
   default: break;
   case ARM::t2ADDSri:
@@ -531,13 +567,6 @@ Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
       return true;
     return ReduceToNarrow(MBB, MI, Entry, LiveCPSR, CPSRDef);
   }
-  case ARM::t2ADDrSPi: {
-    static const ReduceEntry NarrowEntry =
-      { ARM::t2ADDrSPi,ARM::tADDspi, 0, 7, 0, 1, 0, 1, 0, 0,1 };
-    if (MI->getOperand(0).getReg() == ARM::SP)
-      return ReduceToNarrow(MBB, MI, NarrowEntry, LiveCPSR, CPSRDef);
-    return ReduceToNarrow(MBB, MI, Entry, LiveCPSR, CPSRDef);
-  }
   }
   return false;
 }
@@ -576,23 +605,23 @@ Thumb2SizeReduce::ReduceTo2Addr(MachineBasicBlock &MBB, MachineInstr *MI,
   }
 
   // Check if it's possible / necessary to transfer the predicate.
-  const TargetInstrDesc &NewTID = TII->get(Entry.NarrowOpc2);
+  const MCInstrDesc &NewMCID = TII->get(Entry.NarrowOpc2);
   unsigned PredReg = 0;
   ARMCC::CondCodes Pred = getInstrPredicate(MI, PredReg);
   bool SkipPred = false;
   if (Pred != ARMCC::AL) {
-    if (!NewTID.isPredicable())
+    if (!NewMCID.isPredicable())
       // Can't transfer predicate, fail.
       return false;
   } else {
-    SkipPred = !NewTID.isPredicable();
+    SkipPred = !NewMCID.isPredicable();
   }
 
   bool HasCC = false;
   bool CCDead = false;
-  const TargetInstrDesc &TID = MI->getDesc();
-  if (TID.hasOptionalDef()) {
-    unsigned NumOps = TID.getNumOperands();
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (MCID.hasOptionalDef()) {
+    unsigned NumOps = MCID.getNumOperands();
     HasCC = (MI->getOperand(NumOps-1).getReg() == ARM::CPSR);
     if (HasCC && MI->getOperand(NumOps-1).isDead())
       CCDead = true;
@@ -602,15 +631,15 @@ Thumb2SizeReduce::ReduceTo2Addr(MachineBasicBlock &MBB, MachineInstr *MI,
 
   // Avoid adding a false dependency on partial flag update by some 16-bit
   // instructions which has the 's' bit set.
-  if (Entry.PartFlag && NewTID.hasOptionalDef() && HasCC &&
+  if (Entry.PartFlag && NewMCID.hasOptionalDef() && HasCC &&
       canAddPseudoFlagDep(CPSRDef, MI))
     return false;
 
   // Add the 16-bit instruction.
   DebugLoc dl = MI->getDebugLoc();
-  MachineInstrBuilder MIB = BuildMI(MBB, *MI, dl, NewTID);
+  MachineInstrBuilder MIB = BuildMI(MBB, *MI, dl, NewMCID);
   MIB.addOperand(MI->getOperand(0));
-  if (NewTID.hasOptionalDef()) {
+  if (NewMCID.hasOptionalDef()) {
     if (HasCC)
       AddDefaultT1CC(MIB, CCDead);
     else
@@ -618,11 +647,11 @@ Thumb2SizeReduce::ReduceTo2Addr(MachineBasicBlock &MBB, MachineInstr *MI,
   }
 
   // Transfer the rest of operands.
-  unsigned NumOps = TID.getNumOperands();
+  unsigned NumOps = MCID.getNumOperands();
   for (unsigned i = 1, e = MI->getNumOperands(); i != e; ++i) {
-    if (i < NumOps && TID.OpInfo[i].isOptionalDef())
+    if (i < NumOps && MCID.OpInfo[i].isOptionalDef())
       continue;
-    if (SkipPred && TID.OpInfo[i].isPredicate())
+    if (SkipPred && MCID.OpInfo[i].isPredicate())
       continue;
     MIB.addOperand(MI->getOperand(i));
   }
@@ -645,47 +674,44 @@ Thumb2SizeReduce::ReduceToNarrow(MachineBasicBlock &MBB, MachineInstr *MI,
     return false;
 
   unsigned Limit = ~0U;
-  unsigned Scale = (Entry.WideOpc == ARM::t2ADDrSPi) ? 4 : 1;
   if (Entry.Imm1Limit)
-    Limit = ((1 << Entry.Imm1Limit) - 1) * Scale;
+    Limit = (1 << Entry.Imm1Limit) - 1;
 
-  const TargetInstrDesc &TID = MI->getDesc();
-  for (unsigned i = 0, e = TID.getNumOperands(); i != e; ++i) {
-    if (TID.OpInfo[i].isPredicate())
+  const MCInstrDesc &MCID = MI->getDesc();
+  for (unsigned i = 0, e = MCID.getNumOperands(); i != e; ++i) {
+    if (MCID.OpInfo[i].isPredicate())
       continue;
     const MachineOperand &MO = MI->getOperand(i);
     if (MO.isReg()) {
       unsigned Reg = MO.getReg();
       if (!Reg || Reg == ARM::CPSR)
         continue;
-      if (Entry.WideOpc == ARM::t2ADDrSPi && Reg == ARM::SP)
-        continue;
       if (Entry.LowRegs1 && !isARMLowRegister(Reg))
         return false;
     } else if (MO.isImm() &&
-               !TID.OpInfo[i].isPredicate()) {
-      if (((unsigned)MO.getImm()) > Limit || (MO.getImm() & (Scale-1)) != 0)
+               !MCID.OpInfo[i].isPredicate()) {
+      if (((unsigned)MO.getImm()) > Limit)
         return false;
     }
   }
 
   // Check if it's possible / necessary to transfer the predicate.
-  const TargetInstrDesc &NewTID = TII->get(Entry.NarrowOpc1);
+  const MCInstrDesc &NewMCID = TII->get(Entry.NarrowOpc1);
   unsigned PredReg = 0;
   ARMCC::CondCodes Pred = getInstrPredicate(MI, PredReg);
   bool SkipPred = false;
   if (Pred != ARMCC::AL) {
-    if (!NewTID.isPredicable())
+    if (!NewMCID.isPredicable())
       // Can't transfer predicate, fail.
       return false;
   } else {
-    SkipPred = !NewTID.isPredicable();
+    SkipPred = !NewMCID.isPredicable();
   }
 
   bool HasCC = false;
   bool CCDead = false;
-  if (TID.hasOptionalDef()) {
-    unsigned NumOps = TID.getNumOperands();
+  if (MCID.hasOptionalDef()) {
+    unsigned NumOps = MCID.getNumOperands();
     HasCC = (MI->getOperand(NumOps-1).getReg() == ARM::CPSR);
     if (HasCC && MI->getOperand(NumOps-1).isDead())
       CCDead = true;
@@ -695,15 +721,15 @@ Thumb2SizeReduce::ReduceToNarrow(MachineBasicBlock &MBB, MachineInstr *MI,
 
   // Avoid adding a false dependency on partial flag update by some 16-bit
   // instructions which has the 's' bit set.
-  if (Entry.PartFlag && NewTID.hasOptionalDef() && HasCC &&
+  if (Entry.PartFlag && NewMCID.hasOptionalDef() && HasCC &&
       canAddPseudoFlagDep(CPSRDef, MI))
     return false;
 
   // Add the 16-bit instruction.
   DebugLoc dl = MI->getDebugLoc();
-  MachineInstrBuilder MIB = BuildMI(MBB, *MI, dl, NewTID);
+  MachineInstrBuilder MIB = BuildMI(MBB, *MI, dl, NewMCID);
   MIB.addOperand(MI->getOperand(0));
-  if (NewTID.hasOptionalDef()) {
+  if (NewMCID.hasOptionalDef()) {
     if (HasCC)
       AddDefaultT1CC(MIB, CCDead);
     else
@@ -711,29 +737,25 @@ Thumb2SizeReduce::ReduceToNarrow(MachineBasicBlock &MBB, MachineInstr *MI,
   }
 
   // Transfer the rest of operands.
-  unsigned NumOps = TID.getNumOperands();
+  unsigned NumOps = MCID.getNumOperands();
   for (unsigned i = 1, e = MI->getNumOperands(); i != e; ++i) {
-    if (i < NumOps && TID.OpInfo[i].isOptionalDef())
+    if (i < NumOps && MCID.OpInfo[i].isOptionalDef())
       continue;
-    if ((TID.getOpcode() == ARM::t2RSBSri ||
-         TID.getOpcode() == ARM::t2RSBri) && i == 2)
+    if ((MCID.getOpcode() == ARM::t2RSBSri ||
+         MCID.getOpcode() == ARM::t2RSBri) && i == 2)
       // Skip the zero immediate operand, it's now implicit.
       continue;
-    bool isPred = (i < NumOps && TID.OpInfo[i].isPredicate());
+    bool isPred = (i < NumOps && MCID.OpInfo[i].isPredicate());
     if (SkipPred && isPred)
         continue;
     const MachineOperand &MO = MI->getOperand(i);
-    if (Scale > 1 && !isPred && MO.isImm())
-      MIB.addImm(MO.getImm() / Scale);
-    else {
-      if (MO.isReg() && MO.isImplicit() && MO.getReg() == ARM::CPSR)
-        // Skip implicit def of CPSR. Either it's modeled as an optional
-        // def now or it's already an implicit def on the new instruction.
-        continue;
-      MIB.addOperand(MO);
-    }
+    if (MO.isReg() && MO.isImplicit() && MO.getReg() == ARM::CPSR)
+      // Skip implicit def of CPSR. Either it's modeled as an optional
+      // def now or it's already an implicit def on the new instruction.
+      continue;
+    MIB.addOperand(MO);
   }
-  if (!TID.isPredicable() && NewTID.isPredicable())
+  if (!MCID.isPredicable() && NewMCID.isPredicable())
     AddDefaultPred(MIB);
 
   // Transfer MI flags.

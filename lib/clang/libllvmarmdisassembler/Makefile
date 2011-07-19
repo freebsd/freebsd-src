@@ -15,8 +15,7 @@ SRCS+=	ARMDisassembler.cpp
 TGHDRS=	ARMGenDecoderTables \
 	ARMGenEDInfo \
 	ARMGenInstrInfo \
-	ARMGenInstrNames \
-	ARMGenRegisterInfo.h \
-	ARMGenRegisterNames
+	ARMGenRegisterInfo \
+	ARMGenSubtargetInfo
 
 .include "../clang.lib.mk"

@@ -14,6 +14,6 @@ SRCS+=	X86DisassemblerDecoder.c
 
 TGHDRS=	X86GenDisassemblerTables \
 	X86GenEDInfo \
-	X86GenRegisterNames
+	X86GenRegisterInfo
 
 .include "../clang.lib.mk"

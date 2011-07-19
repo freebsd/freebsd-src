@@ -89,6 +89,7 @@ typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
 struct g_class {
 	const char		*name;
 	u_int			version;
+	u_int			spare0;
 	g_taste_t		*taste;
 	g_config_t		*config;
 	g_ctl_req_t		*ctlreq;
@@ -105,6 +106,8 @@ struct g_class {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
+	void			*spare1;
+	void			*spare2;
 	/*
 	 * The remaining elements are private
 	 */
@@ -134,6 +137,8 @@ struct g_geom {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
+	void			*spare0;
+	void			*spare1;
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1

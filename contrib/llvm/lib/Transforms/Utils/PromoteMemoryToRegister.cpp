@@ -38,6 +38,7 @@
 #include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -91,6 +92,22 @@ bool llvm::isAllocaPromotable(const AllocaInst *AI) {
       if (SI->getOperand(0) == AI)
         return false;   // Don't allow a store OF the AI, only INTO the AI.
       if (SI->isVolatile())
+        return false;
+    } else if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+      if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
+          II->getIntrinsicID() != Intrinsic::lifetime_end)
+        return false;
+    } else if (const BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
+      if (BCI->getType() != Type::getInt8PtrTy(U->getContext()))
+        return false;
+      if (!onlyUsedByLifetimeMarkers(BCI))
+        return false;
+    } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(U)) {
+      if (GEPI->getType() != Type::getInt8PtrTy(U->getContext()))
+        return false;
+      if (!GEPI->hasAllZeroIndices())
+        return false;
+      if (!onlyUsedByLifetimeMarkers(GEPI))
         return false;
     } else {
       return false;
@@ -335,6 +352,31 @@ namespace {
   };
 }  // end of anonymous namespace
 
+static void removeLifetimeIntrinsicUsers(AllocaInst *AI) {
+  // Knowing that this alloca is promotable, we know that it's safe to kill all
+  // instructions except for load and store.
+
+  for (Value::use_iterator UI = AI->use_begin(), UE = AI->use_end();
+       UI != UE;) {
+    Instruction *I = cast<Instruction>(*UI);
+    ++UI;
+    if (isa<LoadInst>(I) || isa<StoreInst>(I))
+      continue;
+
+    if (!I->getType()->isVoidTy()) {
+      // The only users of this bitcast/GEP instruction are lifetime intrinsics.
+      // Follow the use/def chain to erase them now instead of leaving it for
+      // dead code elimination later.
+      for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();
+           UI != UE;) {
+        Instruction *Inst = cast<Instruction>(*UI);
+        ++UI;
+        Inst->eraseFromParent();
+      }
+    }
+    I->eraseFromParent();
+  }
+}
 
 void PromoteMem2Reg::run() {
   Function &F = *DT.getRoot()->getParent();
@@ -352,6 +394,8 @@ void PromoteMem2Reg::run() {
            "Cannot promote non-promotable alloca!");
     assert(AI->getParent()->getParent() == &F &&
            "All allocas should be in the same function, which is same as DF!");
+
+    removeLifetimeIntrinsicUsers(AI);
 
     if (AI->use_empty()) {
       // If there are no uses of the alloca, just delete it now.

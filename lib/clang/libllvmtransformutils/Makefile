@@ -11,7 +11,6 @@ SRCS=	AddrModeMatcher.cpp \
 	BreakCriticalEdges.cpp \
 	BuildLibCalls.cpp \
 	CloneFunction.cpp \
-	CloneLoop.cpp \
 	CloneModule.cpp \
 	CodeExtractor.cpp \
 	DemoteRegToStack.cpp \
@@ -21,6 +20,7 @@ SRCS=	AddrModeMatcher.cpp \
 	Local.cpp \
 	LoopSimplify.cpp \
 	LoopUnroll.cpp \
+	LowerExpectIntrinsic.cpp \
 	LowerInvoke.cpp \
 	LowerSwitch.cpp \
 	Mem2Reg.cpp \

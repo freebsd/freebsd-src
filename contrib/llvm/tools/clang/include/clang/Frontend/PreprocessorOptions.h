@@ -1,4 +1,4 @@
-//===--- PreprocessorOptionms.h ---------------------------------*- C++ -*-===//
+//===--- PreprocessorOptions.h ----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -26,6 +26,15 @@ namespace clang {
 class Preprocessor;
 class LangOptions;
 
+/// \brief Enumerate the kinds of standard library that 
+enum ObjCXXARCStandardLibraryKind {
+  ARCXX_nolib,
+  /// \brief libc++
+  ARCXX_libcxx,
+  /// \brief libstdc++
+  ARCXX_libstdcxx
+};
+  
 /// PreprocessorOptions - This class is used for passing the various options
 /// used in preprocessor initialization to InitializePreprocessor().
 class PreprocessorOptions {
@@ -39,11 +48,11 @@ public:
 
   unsigned DetailedRecord : 1; /// Whether we should maintain a detailed
                                /// record of all macro definitions and
-                               /// instantiations.
+                               /// expansions.
   
   /// \brief Whether the detailed preprocessing record includes nested macro 
-  /// instantiations.
-  unsigned DetailedRecordIncludesNestedMacroInstantiations : 1;
+  /// expansions.
+  unsigned DetailedRecordIncludesNestedMacroExpansions : 1;
   
   /// The implicit PCH included at the start of the translation unit, or empty.
   std::string ImplicitPCHInclude;
@@ -104,6 +113,11 @@ public:
   /// compiler invocation and its buffers will be reused.
   bool RetainRemappedFileBuffers;
   
+  /// \brief The Objective-C++ ARC standard library that we should support,
+  /// by providing appropriate definitions to retrofit the standard library
+  /// with support for lifetime-qualified pointers.
+  ObjCXXARCStandardLibraryKind ObjCXXARCStandardLibrary;
+  
   typedef std::vector<std::pair<std::string, std::string> >::iterator
     remapped_file_iterator;
   typedef std::vector<std::pair<std::string, std::string> >::const_iterator
@@ -140,12 +154,13 @@ public:
   
 public:
   PreprocessorOptions() : UsePredefines(true), DetailedRecord(false),
-                          DetailedRecordIncludesNestedMacroInstantiations(true),
+                          DetailedRecordIncludesNestedMacroExpansions(true),
                           DisablePCHValidation(false), DisableStatCache(false),
                           DumpDeserializedPCHDecls(false),
                           PrecompiledPreambleBytes(0, true),
                           RemappedFilesKeepOriginalName(true),
-                          RetainRemappedFileBuffers(false) { }
+                          RetainRemappedFileBuffers(false),
+                          ObjCXXARCStandardLibrary(ARCXX_nolib) { }
 
   void addMacroDef(llvm::StringRef Name) {
     Macros.push_back(std::make_pair(Name, false));

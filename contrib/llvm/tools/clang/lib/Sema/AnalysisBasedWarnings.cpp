@@ -486,7 +486,8 @@ static void SuggestInitializationFixit(Sema &S, const VarDecl *VD) {
   const char *initialization = 0;
   QualType VariableTy = VD->getType().getCanonicalType();
 
-  if (VariableTy->getAs<ObjCObjectPointerType>()) {
+  if (VariableTy->isObjCObjectPointerType() ||
+      VariableTy->isBlockPointerType()) {
     // Check if 'nil' is defined.
     if (S.PP.getMacroInfo(&S.getASTContext().Idents.get("nil")))
       initialization = " = nil";
@@ -499,6 +500,13 @@ static void SuggestInitializationFixit(Sema &S, const VarDecl *VD) {
     initialization = " = false";
   else if (VariableTy->isEnumeralType())
     return;
+  else if (VariableTy->isPointerType() || VariableTy->isMemberPointerType()) {
+    // Check if 'NULL' is defined.
+    if (S.PP.getMacroInfo(&S.getASTContext().Idents.get("NULL")))
+      initialization = " = NULL";
+    else
+      initialization = " = 0";
+  }
   else if (VariableTy->isScalarType())
     initialization = " = 0";
 
@@ -589,7 +597,17 @@ clang::sema::AnalysisBasedWarnings::Policy::Policy() {
   enableCheckUnreachable = 0;
 }
 
-clang::sema::AnalysisBasedWarnings::AnalysisBasedWarnings(Sema &s) : S(s) {
+clang::sema::AnalysisBasedWarnings::AnalysisBasedWarnings(Sema &s)
+  : S(s),
+    NumFunctionsAnalyzed(0),
+    NumFunctionsWithBadCFGs(0),
+    NumCFGBlocks(0),
+    MaxCFGBlocksPerFunction(0),
+    NumUninitAnalysisFunctions(0),
+    NumUninitAnalysisVariables(0),
+    MaxUninitAnalysisVariablesPerFunction(0),
+    NumUninitAnalysisBlockVisits(0),
+    MaxUninitAnalysisBlockVisitsPerFunction(0) {
   Diagnostic &D = S.getDiagnostics();
   DefaultPolicy.enableCheckUnreachable = (unsigned)
     (D.getDiagnosticLevel(diag::warn_unreachable, SourceLocation()) !=
@@ -705,8 +723,68 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
       != Diagnostic::Ignored) {
     if (CFG *cfg = AC.getCFG()) {
       UninitValsDiagReporter reporter(S);
+      UninitVariablesAnalysisStats stats;
+      std::memset(&stats, 0, sizeof(UninitVariablesAnalysisStats));
       runUninitializedVariablesAnalysis(*cast<DeclContext>(D), *cfg, AC,
-                                        reporter);
+                                        reporter, stats);
+
+      if (S.CollectStats && stats.NumVariablesAnalyzed > 0) {
+        ++NumUninitAnalysisFunctions;
+        NumUninitAnalysisVariables += stats.NumVariablesAnalyzed;
+        NumUninitAnalysisBlockVisits += stats.NumBlockVisits;
+        MaxUninitAnalysisVariablesPerFunction =
+            std::max(MaxUninitAnalysisVariablesPerFunction,
+                     stats.NumVariablesAnalyzed);
+        MaxUninitAnalysisBlockVisitsPerFunction =
+            std::max(MaxUninitAnalysisBlockVisitsPerFunction,
+                     stats.NumBlockVisits);
+      }
     }
   }
+
+  // Collect statistics about the CFG if it was built.
+  if (S.CollectStats && AC.isCFGBuilt()) {
+    ++NumFunctionsAnalyzed;
+    if (CFG *cfg = AC.getCFG()) {
+      // If we successfully built a CFG for this context, record some more
+      // detail information about it.
+      NumCFGBlocks += cfg->getNumBlockIDs();
+      MaxCFGBlocksPerFunction = std::max(MaxCFGBlocksPerFunction,
+                                         cfg->getNumBlockIDs());
+    } else {
+      ++NumFunctionsWithBadCFGs;
+    }
+  }
+}
+
+void clang::sema::AnalysisBasedWarnings::PrintStats() const {
+  llvm::errs() << "\n*** Analysis Based Warnings Stats:\n";
+
+  unsigned NumCFGsBuilt = NumFunctionsAnalyzed - NumFunctionsWithBadCFGs;
+  unsigned AvgCFGBlocksPerFunction =
+      !NumCFGsBuilt ? 0 : NumCFGBlocks/NumCFGsBuilt;
+  llvm::errs() << NumFunctionsAnalyzed << " functions analyzed ("
+               << NumFunctionsWithBadCFGs << " w/o CFGs).\n"
+               << "  " << NumCFGBlocks << " CFG blocks built.\n"
+               << "  " << AvgCFGBlocksPerFunction
+               << " average CFG blocks per function.\n"
+               << "  " << MaxCFGBlocksPerFunction
+               << " max CFG blocks per function.\n";
+
+  unsigned AvgUninitVariablesPerFunction = !NumUninitAnalysisFunctions ? 0
+      : NumUninitAnalysisVariables/NumUninitAnalysisFunctions;
+  unsigned AvgUninitBlockVisitsPerFunction = !NumUninitAnalysisFunctions ? 0
+      : NumUninitAnalysisBlockVisits/NumUninitAnalysisFunctions;
+  llvm::errs() << NumUninitAnalysisFunctions
+               << " functions analyzed for uninitialiazed variables\n"
+               << "  " << NumUninitAnalysisVariables << " variables analyzed.\n"
+               << "  " << AvgUninitVariablesPerFunction
+               << " average variables per function.\n"
+               << "  " << MaxUninitAnalysisVariablesPerFunction
+               << " max variables per function.\n"
+               << "  " << NumUninitAnalysisBlockVisits << " block visits.\n"
+               << "  " << AvgUninitBlockVisitsPerFunction
+               << " average block visits per function.\n"
+               << "  " << MaxUninitAnalysisBlockVisitsPerFunction
+               << " max block visits per function.\n";
 }

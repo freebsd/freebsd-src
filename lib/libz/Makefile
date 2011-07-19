@@ -42,16 +42,16 @@ CFLAGS+=	-DASMV -DNO_UNDERLINE
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
-.PATH:		${.CURDIR}/contrib/gcc_gvmat64
-SRCS+=		gvmat64.S
-CFLAGS+=	-DASMV -DNO_UNDERLINE
-ACFLAGS+=	-Wa,--noexecstack
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .intel_syntax directives yet
-ACFLAGS+=	${.IMPSRC:T:Mgvmat64.S:C/^.+$/-no-integrated-as/}
-.endif
-.endif
+#.if ${MACHINE_ARCH} == "amd64"
+#.PATH:		${.CURDIR}/contrib/gcc_gvmat64
+#SRCS+=		gvmat64.S
+#CFLAGS+=	-DASMV -DNO_UNDERLINE
+#ACFLAGS+=	-Wa,--noexecstack
+#.if ${CC:T:Mclang} == "clang"
+## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
+#ACFLAGS+=	${.IMPSRC:T:Mgvmat64.S:C/^.+$/-no-integrated-as/}
+#.endif
+#.endif
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map

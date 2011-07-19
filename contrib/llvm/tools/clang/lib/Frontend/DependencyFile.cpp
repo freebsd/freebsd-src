@@ -17,9 +17,11 @@
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Lex/DirectoryLookup.h"
+#include "clang/Lex/LexDiagnostic.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -33,9 +35,11 @@ class DependencyFileCallback : public PPCallbacks {
   llvm::raw_ostream *OS;
   bool IncludeSystemHeaders;
   bool PhonyTarget;
+  bool AddMissingHeaderDeps;
 private:
   bool FileMatchesDepCriteria(const char *Filename,
                               SrcMgr::CharacteristicKind FileType);
+  void AddFilename(llvm::StringRef Filename);
   void OutputDependencyFile();
 
 public:
@@ -44,10 +48,19 @@ public:
                          const DependencyOutputOptions &Opts)
     : PP(_PP), Targets(Opts.Targets), OS(_OS),
       IncludeSystemHeaders(Opts.IncludeSystemHeaders),
-      PhonyTarget(Opts.UsePhonyTargets) {}
+      PhonyTarget(Opts.UsePhonyTargets),
+      AddMissingHeaderDeps(Opts.AddMissingHeaderDeps) {}
 
   virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                            SrcMgr::CharacteristicKind FileType);
+  virtual void InclusionDirective(SourceLocation HashLoc,
+                                  const Token &IncludeTok,
+                                  llvm::StringRef FileName,
+                                  bool IsAngled,
+                                  const FileEntry *File,
+                                  SourceLocation EndLoc,
+                                  llvm::StringRef SearchPath,
+                                  llvm::StringRef RelativePath);
 
   virtual void EndOfMainFile() {
     OutputDependencyFile();
@@ -70,6 +83,16 @@ void clang::AttachDependencyFileGen(Preprocessor &PP,
     PP.getDiagnostics().Report(diag::err_fe_error_opening)
       << Opts.OutputFile << Err;
     return;
+  }
+
+  // Disable the "file not found" diagnostic if the -MG option was given.
+  // FIXME: Ideally this would live in the driver, but we don't have the ability
+  // to remap individual diagnostics there without creating a DiagGroup, in
+  // which case we would need to prevent the group name from showing up in
+  // diagnostics.
+  if (Opts.AddMissingHeaderDeps) {
+    PP.getDiagnostics().setDiagnosticMapping(diag::warn_pp_file_not_found,
+                                            diag::MAP_IGNORE, SourceLocation());
   }
 
   PP.addPPCallbacks(new DependencyFileCallback(&PP, OS, Opts));
@@ -103,14 +126,34 @@ void DependencyFileCallback::FileChanged(SourceLocation Loc,
     SM.getFileEntryForID(SM.getFileID(SM.getInstantiationLoc(Loc)));
   if (FE == 0) return;
 
-  const char *Filename = FE->getName();
-  if (!FileMatchesDepCriteria(Filename, FileType))
+  llvm::StringRef Filename = FE->getName();
+  if (!FileMatchesDepCriteria(Filename.data(), FileType))
     return;
 
-  // Remove leading "./"
-  if (Filename[0] == '.' && Filename[1] == '/')
-    Filename = &Filename[2];
+  // Remove leading "./" (or ".//" or "././" etc.)
+  while (Filename.size() > 2 && Filename[0] == '.' &&
+         llvm::sys::path::is_separator(Filename[1])) {
+    Filename = Filename.substr(1);
+    while (llvm::sys::path::is_separator(Filename[0]))
+      Filename = Filename.substr(1);
+  }
+    
+  AddFilename(Filename);
+}
 
+void DependencyFileCallback::InclusionDirective(SourceLocation HashLoc,
+                                                const Token &IncludeTok,
+                                                llvm::StringRef FileName,
+                                                bool IsAngled,
+                                                const FileEntry *File,
+                                                SourceLocation EndLoc,
+                                                llvm::StringRef SearchPath,
+                                                llvm::StringRef RelativePath) {
+  if (AddMissingHeaderDeps && !File)
+    AddFilename(FileName);
+}
+
+void DependencyFileCallback::AddFilename(llvm::StringRef Filename) {
   if (FilesSet.insert(Filename))
     Files.push_back(Filename);
 }

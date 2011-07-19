@@ -235,12 +235,13 @@ static int *pcpu_cpu_states;
 
 static int compare_jid(const void *a, const void *b);
 static int compare_pid(const void *a, const void *b);
+static int compare_tid(const void *a, const void *b);
 static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 
 void
-toggle_pcpustats(struct statics *statics)
+toggle_pcpustats(void)
 {
 
 	if (ncpus == 1)
@@ -255,7 +256,6 @@ toggle_pcpustats(struct statics *statics)
 		y_header += ncpus - 1;	/* 6 */
 		y_procs += ncpus - 1;	/* 7 */
 		Header_lines += ncpus - 1; /* 7 */
-		statics->ncpus = ncpus;
 	} else {
 		y_mem = 3;
 		y_swap = 4;
@@ -264,7 +264,6 @@ toggle_pcpustats(struct statics *statics)
 		y_header = 6;
 		y_procs = 7;
 		Header_lines = 7;
-		statics->ncpus = 1;
 	}
 }
 
@@ -355,10 +354,10 @@ machine_init(struct statics *statics, char do_unames)
 	pcpu_cp_old = calloc(1, size);
 	pcpu_cp_diff = calloc(1, size);
 	pcpu_cpu_states = calloc(1, size);
-	statics->ncpus = 1;
+	statics->ncpus = ncpus;
 
 	if (pcpu_stats)
-		toggle_pcpustats(statics);
+		toggle_pcpustats();
 
 	/* all done! */
 	return (0);
@@ -557,7 +556,7 @@ get_old_proc(struct kinfo_proc *pp)
 	 * cache it.
 	 */
 	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
-	    sizeof(*previous_pref), compare_pid);
+	    sizeof(*previous_pref), ps.thread ? compare_tid : compare_pid);
 	if (oldpp == NULL) {
 		pp->ki_udata = NOPROC;
 		return (NULL);
@@ -652,7 +651,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			previous_pref[i] = &previous_procs[i];
 		bcopy(pbase, previous_procs, nproc * sizeof(*previous_procs));
 		qsort(previous_pref, nproc, sizeof(*previous_pref),
-		    compare_pid);
+		    ps.thread ? compare_tid : compare_pid);
 	}
 	previous_proc_count = nproc;
 
@@ -832,8 +831,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    pp->ki_ocomm[0]) {
-			snprintf(cmdbuf, cmdlengthdelta, "{%s}", pp->ki_ocomm);
+		    pp->ki_tdname[0]) {
+			snprintf(cmdbuf, cmdlengthdelta, "%s{%s}", pp->ki_comm,
+			    pp->ki_tdname);
 		} else {
 			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
 		}
@@ -843,9 +843,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    	    pp->ki_ocomm[0]) {
+		    	    pp->ki_tdname[0]) {
 				snprintf(cmdbuf, cmdlengthdelta,
-				    "{%s}", pp->ki_ocomm);
+				    "[%s{%s}]", pp->ki_comm, pp->ki_tdname);
 			} else {
 				snprintf(cmdbuf, cmdlengthdelta,
 				    "[%s]", pp->ki_comm);
@@ -889,12 +889,23 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				dst--;
 			*dst = '\0';
 
-			if (strcmp(cmd, pp->ki_comm) != 0 )
-				snprintf(cmdbuf, cmdlengthdelta,
-				    "%s (%s)",argbuf,  pp->ki_comm);
-			else
-				strlcpy(cmdbuf, argbuf, cmdlengthdelta);
-
+			if (strcmp(cmd, pp->ki_comm) != 0 ) {
+				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+				    pp->ki_tdname[0])
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s (%s){%s}", argbuf, pp->ki_comm,
+					    pp->ki_tdname);
+				else
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s (%s)", argbuf, pp->ki_comm);
+			} else {
+				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+				    pp->ki_tdname[0])
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s{%s}", argbuf, pp->ki_tdname);
+				else
+					strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+			}
 			free(argbuf);
 		}
 	}
@@ -1057,6 +1068,18 @@ compare_pid(const void *p1, const void *p2)
 		abort();
 
 	return ((*pp1)->ki_pid - (*pp2)->ki_pid);
+}
+
+static int
+compare_tid(const void *p1, const void *p2)
+{
+	const struct kinfo_proc * const *pp1 = p1;
+	const struct kinfo_proc * const *pp2 = p2;
+
+	if ((*pp2)->ki_tid < 0 || (*pp1)->ki_tid < 0)
+		abort();
+
+	return ((*pp1)->ki_tid - (*pp2)->ki_tid);
 }
 
 /*

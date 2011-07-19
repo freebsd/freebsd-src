@@ -15,7 +15,9 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/Options.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace clang::driver;
 
@@ -45,6 +47,25 @@ types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
 
 bool ToolChain::HasNativeLLVMSupport() const {
   return false;
+}
+
+void ToolChain::configureObjCRuntime(ObjCRuntime &runtime) const {
+  switch (runtime.getKind()) {
+  case ObjCRuntime::NeXT:
+    // Assume a minimal NeXT runtime.
+    runtime.HasARC = false;
+    runtime.HasWeak = false;
+    runtime.HasTerminate = false;
+    return;
+
+  case ObjCRuntime::GNU:
+    // Assume a maximal GNU runtime.
+    runtime.HasARC = true;
+    runtime.HasWeak = true;
+    runtime.HasTerminate = false; // to be added
+    return;
+  }
+  llvm_unreachable("invalid runtime kind!");
 }
 
 /// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targeting.
@@ -201,18 +222,21 @@ ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
 }
 
 void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs) const {
+                                             ArgStringList &CmdArgs,
+                                             bool ObjCXXAutoRefCount) const {
   CXXStdlibType Type = GetCXXStdlibType(Args);
+
+  // Header search paths are handled by the mass of goop in InitHeaderSearch.
 
   switch (Type) {
   case ToolChain::CST_Libcxx:
-    CmdArgs.push_back("-nostdinc++");
-    CmdArgs.push_back("-cxx-isystem");
-    CmdArgs.push_back("/usr/include/c++/v1");
+    if (ObjCXXAutoRefCount)
+      CmdArgs.push_back("-fobjc-arc-cxxlib=libc++");
     break;
 
   case ToolChain::CST_Libstdcxx:
-    // Currently handled by the mass of goop in InitHeaderSearch.
+    if (ObjCXXAutoRefCount)
+      CmdArgs.push_back("-fobjc-arc-cxxlib=libstdc++");
     break;
   }
 }

@@ -101,8 +101,6 @@ public:
 /// bitfields, this is not a simple LLVM pointer, it may be a pointer plus a
 /// bitrange.
 class LValue {
-  // FIXME: alignment?
-
   enum {
     Simple,       // This is a normal l-value, use getAddress().
     VectorElt,    // This is a vector element l-value (V[i]), use getVector*
@@ -127,6 +125,8 @@ class LValue {
     // Obj-C property reference expression
     const ObjCPropertyRefExpr *PropertyRefExpr;
   };
+
+  QualType Type;
 
   // 'const' is unused here
   Qualifiers Quals;
@@ -156,8 +156,9 @@ class LValue {
   llvm::MDNode *TBAAInfo;
 
 private:
-  void Initialize(Qualifiers Quals, unsigned Alignment = 0,
+  void Initialize(QualType Type, Qualifiers Quals, unsigned Alignment = 0,
                   llvm::MDNode *TBAAInfo = 0) {
+    this->Type = Type;
     this->Quals = Quals;
     this->Alignment = Alignment;
     assert(this->Alignment == Alignment && "Alignment exceeds allowed max!");
@@ -182,6 +183,12 @@ public:
     return Quals.getCVRQualifiers() & ~Qualifiers::Const;
   }
 
+  QualType getType() const { return Type; }
+
+  Qualifiers::ObjCLifetime getObjCLifetime() const {
+    return Quals.getObjCLifetime();
+  }
+
   bool isObjCIvar() const { return Ivar; }
   void setObjCIvar(bool Value) { Ivar = Value; }
 
@@ -203,6 +210,10 @@ public:
   bool isObjCStrong() const {
     return Quals.getObjCGCAttr() == Qualifiers::Strong;
   }
+
+  bool isVolatile() const {
+    return Quals.hasVolatile();
+  }
   
   Expr *getBaseIvarExp() const { return BaseIvarExp; }
   void setBaseIvarExp(Expr *V) { BaseIvarExp = V; }
@@ -219,6 +230,10 @@ public:
 
   // simple lvalue
   llvm::Value *getAddress() const { assert(isSimple()); return V; }
+  void setAddress(llvm::Value *address) {
+    assert(isSimple());
+    V = address;
+  }
 
   // vector elt lvalue
   llvm::Value *getVectorAddr() const { assert(isVectorElt()); return V; }
@@ -251,36 +266,36 @@ public:
     return PropertyRefExpr;
   }
 
-  static LValue MakeAddr(llvm::Value *V, QualType T, unsigned Alignment,
-                         ASTContext &Context,
+  static LValue MakeAddr(llvm::Value *address, QualType type,
+                         unsigned alignment, ASTContext &Context,
                          llvm::MDNode *TBAAInfo = 0) {
-    Qualifiers Quals = T.getQualifiers();
-    Quals.setObjCGCAttr(Context.getObjCGCAttrKind(T));
+    Qualifiers qs = type.getQualifiers();
+    qs.setObjCGCAttr(Context.getObjCGCAttrKind(type));
 
     LValue R;
     R.LVType = Simple;
-    R.V = V;
-    R.Initialize(Quals, Alignment, TBAAInfo);
+    R.V = address;
+    R.Initialize(type, qs, alignment, TBAAInfo);
     return R;
   }
 
   static LValue MakeVectorElt(llvm::Value *Vec, llvm::Value *Idx,
-                              unsigned CVR) {
+                              QualType type) {
     LValue R;
     R.LVType = VectorElt;
     R.V = Vec;
     R.VectorIdx = Idx;
-    R.Initialize(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(type, type.getQualifiers());
     return R;
   }
 
   static LValue MakeExtVectorElt(llvm::Value *Vec, llvm::Constant *Elts,
-                                 unsigned CVR) {
+                                 QualType type) {
     LValue R;
     R.LVType = ExtVectorElt;
     R.V = Vec;
     R.VectorElts = Elts;
-    R.Initialize(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(type, type.getQualifiers());
     return R;
   }
 
@@ -290,13 +305,14 @@ public:
   /// bit-field.
   /// \param Info - The information describing how to perform the bit-field
   /// access.
-  static LValue MakeBitfield(llvm::Value *BaseValue, const CGBitFieldInfo &Info,
-                             unsigned CVR) {
+  static LValue MakeBitfield(llvm::Value *BaseValue,
+                             const CGBitFieldInfo &Info,
+                             QualType type) {
     LValue R;
     R.LVType = BitField;
     R.V = BaseValue;
     R.BitFieldInfo = &Info;
-    R.Initialize(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(type, type.getQualifiers());
     return R;
   }
 
@@ -309,7 +325,7 @@ public:
     R.LVType = PropertyRef;
     R.V = Base;
     R.PropertyRefExpr = E;
-    R.Initialize(Qualifiers());
+    R.Initialize(QualType(), Qualifiers());
     return R;
   }
 };
@@ -318,9 +334,11 @@ public:
 class AggValueSlot {
   /// The address.
   llvm::Value *Addr;
+
+  // Qualifiers
+  Qualifiers Quals;
   
   // Associated flags.
-  bool VolatileFlag : 1;
   bool LifetimeFlag : 1;
   bool RequiresGCollection : 1;
   
@@ -335,25 +353,31 @@ public:
   static AggValueSlot ignored() {
     AggValueSlot AV;
     AV.Addr = 0;
-    AV.VolatileFlag = AV.LifetimeFlag = AV.RequiresGCollection = AV.IsZeroed =0;
+    AV.Quals = Qualifiers();
+    AV.LifetimeFlag = AV.RequiresGCollection = AV.IsZeroed =0;
     return AV;
   }
 
   /// forAddr - Make a slot for an aggregate value.
   ///
   /// \param Volatile - true if the slot should be volatile-initialized
+  ///
+  /// \param Qualifiers - The qualifiers that dictate how the slot
+  /// should be initialied. Only 'volatile' and the Objective-C
+  /// lifetime qualifiers matter.
+  ///
   /// \param LifetimeExternallyManaged - true if the slot's lifetime
   ///   is being externally managed; false if a destructor should be
   ///   registered for any temporaries evaluated into the slot
   /// \param RequiresGCollection - true if the slot is located
   ///   somewhere that ObjC GC calls should be emitted for
-  static AggValueSlot forAddr(llvm::Value *Addr, bool Volatile,
+  static AggValueSlot forAddr(llvm::Value *Addr, Qualifiers Quals,
                               bool LifetimeExternallyManaged,
                               bool RequiresGCollection = false,
                               bool IsZeroed = false) {
     AggValueSlot AV;
     AV.Addr = Addr;
-    AV.VolatileFlag = Volatile;
+    AV.Quals = Quals;
     AV.LifetimeFlag = LifetimeExternallyManaged;
     AV.RequiresGCollection = RequiresGCollection;
     AV.IsZeroed = IsZeroed;
@@ -361,9 +385,10 @@ public:
   }
 
   static AggValueSlot forLValue(LValue LV, bool LifetimeExternallyManaged,
-                                bool RequiresGCollection = false) {
-    return forAddr(LV.getAddress(), LV.isVolatileQualified(),
-                   LifetimeExternallyManaged, RequiresGCollection);
+                                bool RequiresGCollection = false,
+                                bool IsZeroed = false) {
+    return forAddr(LV.getAddress(), LV.getQuals(),
+                   LifetimeExternallyManaged, RequiresGCollection, IsZeroed);
   }
 
   bool isLifetimeExternallyManaged() const {
@@ -373,8 +398,14 @@ public:
     LifetimeFlag = Managed;
   }
 
+  Qualifiers getQualifiers() const { return Quals; }
+
   bool isVolatile() const {
-    return VolatileFlag;
+    return Quals.hasVolatile();
+  }
+
+  Qualifiers::ObjCLifetime getObjCLifetime() const {
+    return Quals.getObjCLifetime();
   }
 
   bool requiresGCollection() const {
