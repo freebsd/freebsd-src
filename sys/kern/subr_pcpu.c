@@ -92,9 +92,6 @@ pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	cpu_pcpu_init(pcpu, cpuid, size);
 	pcpu->pc_rm_queue.rmq_next = &pcpu->pc_rm_queue;
 	pcpu->pc_rm_queue.rmq_prev = &pcpu->pc_rm_queue;
-#ifdef KTR
-	snprintf(pcpu->pc_name, sizeof(pcpu->pc_name), "CPU %d", cpuid);
-#endif
 }
 
 void
