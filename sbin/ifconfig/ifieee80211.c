@@ -3451,10 +3451,21 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 {
 	char buf[14];
 
+	if (verb)
+		printf("Channel %3u : %u%c%c%c%c%c MHz%-14.14s",
+		    ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
+		    IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
+		    IEEE80211_IS_CHAN_DFS(c) ? 'D' : ' ',
+		    IEEE80211_IS_CHAN_RADAR(c) ? 'R' : ' ',
+		    IEEE80211_IS_CHAN_CWINT(c) ? 'I' : ' ',
+		    IEEE80211_IS_CHAN_CACDONE(c) ? 'C' : ' ',
+		    get_chaninfo(c, verb, buf, sizeof(buf)));
+	else
 	printf("Channel %3u : %u%c MHz%-14.14s",
-		ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
-		IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
-		get_chaninfo(c, verb, buf, sizeof(buf)));
+	    ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
+	    IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
+	    get_chaninfo(c, verb, buf, sizeof(buf)));
+
 }
 
 static int
