@@ -146,8 +146,6 @@ struct rm_queue {
 	struct rm_queue* volatile rmq_prev;
 };
 
-#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__XSTRING(MAXCPU)) - 1)
-
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
@@ -200,7 +198,7 @@ struct pcpu {
 STAILQ_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
-extern struct pcpu *cpuid_to_pcpu[MAXCPU];
+extern struct pcpu *cpuid_to_pcpu[];
 
 #define	curcpu		PCPU_GET(cpuid)
 #define	curproc		(curthread->td_proc)
