@@ -218,8 +218,20 @@ fork1(td, flags, pages, procp)
 	vm_ooffset_t mem_charged;
 	int error;
 
+	/* Check for the undefined or unimplemented flags. */
+	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
+		return (EINVAL);
+
+	/* Signal value requires RFTSIGZMB. */
+	if ((flags & RFTSIGFLAGS(RFTSIGMASK)) != 0 && (flags & RFTSIGZMB) == 0)
+		return (EINVAL);
+
 	/* Can't copy and clear. */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
+		return (EINVAL);
+
+	/* Check the validity of the signal number. */
+	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
 		return (EINVAL);
 
 	p2_held = 0;
@@ -567,7 +579,10 @@ again:
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
 	}
-	if (flags & RFLINUXTHPN) 
+
+	if (flags & RFTSIGZMB)
+	        p2->p_sigparent = RFTSIGNUM(flags);
+	else if (flags & RFLINUXTHPN)
 	        p2->p_sigparent = SIGUSR1;
 	else
 	        p2->p_sigparent = SIGCHLD;
