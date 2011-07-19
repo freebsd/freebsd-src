@@ -1501,6 +1501,11 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	ieee80211_notify_csa(ic, c, mode, count);
 }
 
+/*
+ * Complete the channel switch by transitioning all CSA VAPs to RUN.
+ * This is called by both the completion and cancellation functions
+ * so each VAP is placed back in the RUN state and can thus transmit.
+ */
 static void
 csa_completeswitch(struct ieee80211com *ic)
 {
@@ -1518,6 +1523,12 @@ csa_completeswitch(struct ieee80211com *ic)
  * Complete an 802.11h channel switch started by ieee80211_csa_startswitch.
  * We clear state and move all vap's in CSA state to RUN state
  * so they can again transmit.
+ *
+ * Although this may not be completely correct, update the BSS channel
+ * for each VAP to the newly configured channel. The setcurchan sets
+ * the current operating channel for the interface (so the radio does
+ * switch over) but the VAP BSS isn't updated, leading to incorrectly
+ * reported information via ioctl.
  */
 void
 ieee80211_csa_completeswitch(struct ieee80211com *ic)
@@ -1527,6 +1538,10 @@ ieee80211_csa_completeswitch(struct ieee80211com *ic)
 	KASSERT(ic->ic_flags & IEEE80211_F_CSAPENDING, ("csa not pending"));
 
 	ieee80211_setcurchan(ic, ic->ic_csa_newchan);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_state == IEEE80211_S_CSA)
+			vap->iv_bss->ni_chan = ic->ic_curchan;
+
 	csa_completeswitch(ic);
 }
 
