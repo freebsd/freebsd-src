@@ -165,9 +165,6 @@ struct pcpu {
 	u_int		pc_cpuid;		/* This cpu number */
 	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-#ifdef KTR
-	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR */
-#endif
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
