@@ -1140,13 +1140,21 @@ END(MipsFPTrap)
 intrnames:
 	.space  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 sintrnames:
+#ifdef __mips_n64
+	.quad  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+#else
 	.word  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+#endif
 
 	.align	4
 intrcnt:
 	.space  INTRCNT_COUNT * 4 * 2
 sintrcnt:
+#ifdef __mips_n64
+	.quad  INTRCNT_COUNT * 4 * 2
+#else
 	.word  INTRCNT_COUNT * 4 * 2
+#endif
 
 
 /*
