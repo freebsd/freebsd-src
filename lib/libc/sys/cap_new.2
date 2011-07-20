@@ -1,0 +1,474 @@
+.\"
+.\" Copyright (c) 2008-2010 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2011
+.Dt CAP_NEW 2
+.Os
+.Sh NAME
+.Nm cap_new ,
+.Nm cap_getrights
+.Nd System calls to manipulate capabilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/capability.h
+.Ft int
+.Fn cap_new "int fd" "cap_rights_t rights"
+.Ft int
+.Fn cap_getrights "int fd" "cap_rights_t *rightsp"
+.Sh DESCRIPTION
+Capabilities are special file descriptors derived from an existing file
+descriptor, such as one returned by
+.Xr fhopen 2 ,
+.Xr kqueue 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr pipe 2 ,
+.Xr shm_open 2 ,
+.Xr socket 2 ,
+or
+.Xr socketpair 2 ,
+but with a restricted set of permitted operations determined by a rights
+mask set when the capability is created.
+These restricted rights cannot be changed after the capability is created,
+although further capabilities with yet more restricted rights may be created
+from an existing capability.
+In every other sense, a capability behaves in the same way as the file
+descriptor it was created from.
+.Pp
+.Fn cap_new
+creates a new capability for the existing file descriptor
+.Fa fd ,
+and returns a file descriptor for it.
+Operations on the capability will be limited to those permitted by
+.Fa rights ,
+which is static for the lifetime of the capability.
+If
+.Fa fd
+refers to an existing capability, then
+.Fa rights
+must be equal to or a subset of the rights on that capability.
+As with
+.Xr dup 2
+and
+.Xr dup2 2 ,
+many properties are shared between the new capability and the existing file
+descriptor, including open file flags, blocking disposition, and file offset.
+Many applications will prefer to use the
+.Xr cap_limitfd 3
+library call, part of
+.Xr libcapsicum 3 ,
+as it offers a more convenient interface.
+.Pp
+.Fn cap_getrights
+queries the rights associated with the capability referred to by file
+descriptor
+.Fa fd .
+.Pp
+These system calls, when combined with
+.Xr cap_enter 2 ,
+may be used to construct process sandboxes with highly granular rights
+assignment.
+.Sh RIGHTS
+The following rights may be specified in a new capability rights mask:
+.Bl -tag -width CAP_EXTATTR_DELETE
+.It Dv CAP_ACCEPT
+Permit
+.Xr accept 2 .
+.It Dv CAP_ACL_CHECK
+Permit checking of an ACL on a file descriptor; there is no cross-reference
+for this system call.
+.It Dv CAP_ACL_DELETE
+Permit
+.Xr acl_delete_fd_np 2 .
+.It Dv CAP_ACL_GET
+Permit
+.Xr acl_get_fd 2
+and
+.Xr acl_get_fd_np 2 .
+.It Dv CAP_ACL_SET
+Permit
+.Xr acl_set_fd 2
+and
+.Xr acl_set_fd_np 2 .
+.It Dv CAP_BIND
+Permit
+.Xr bind 2 .
+Note that sockets can also become bound implicitly as a result of
+.Xr connect 2
+or
+.Xr send 2 ,
+and that socket options set with
+.Xr setsockopt 2
+may also affect binding behavior.
+.It Dv CAP_CONNECT
+Permit
+.Xr connect 2 ;
+also required for
+.Xr sendto 2
+with a non-NULL destination address.
+.It Dv CAP_EVENT
+Permit
+.Xr select 2 ,
+.Xr poll 2 ,
+and
+.Xr kevent 2
+to be used in monitoring the file descriptor for events.
+.It Dv CAP_FEXECVE
+Permit
+.Xr fexecve 2 ;
+.Dv CAP_READ
+will also be required.
+.It Dv CAP_EXTATTR_DELETE
+Permit
+.Xr extattr_delete_fd 2 .
+.It Dv CAP_EXTATTR_GET
+Permit
+.Xr extattr_get_fd 2 .
+.It Dv CAP_EXTATTR_LIST
+Permit
+.Xr extattr_list_fd 2 .
+.It Dv CAP_EXTATTR_SET
+Permit
+.Xr extattr_set_fd 2 .
+.It Dv CAP_FCHDIR
+Permit
+.Xr fchdir 2 .
+.It Dv CAP_FCHFLAGS
+Permit
+.Xr fchflags 2 .
+.It Dv CAP_FCHMOD
+Permit
+.Xr fchmod 2 .
+.It Dv CAP_FCHOWN
+Permit
+.Xr fchown 2 .
+.It Dv CAP_FCNTL
+Permit
+.Xr fcntl 2 ;
+be aware that this call provides indirect access to other operations, such as
+.Xr flock 2 .
+.It Dv CAP_FLOCK
+Permit
+.Xr flock 2
+and related calls.
+.It Dv CAP_FPATHCONF
+Permit
+.Xr fpathconf 2 .
+.It Dv CAP_FSCK
+Permit UFS background-fsck operations on the descriptor.
+.It Dv CAP_FSTAT
+Permit
+.Xr fstat 2 .
+.It Dv CAP_FSTATFS
+Permit
+.Xr fstatfs 2 .
+.It Dv CAP_FSYNC
+Permit
+.Xr aio_fsync 2
+and
+.Xr fsync 2 .
+.Pp
+.It Dv CAP_FTRUNCATE
+Permit
+.Xr ftruncate 2 .
+.It Dv CAP_FUTIMES
+Permit
+.Xr futimes 2 .
+.It Dv CAP_GETPEERNAME
+Permit
+.Xr getpeername 2 .
+.It Dv CAP_GETSOCKNAME
+Permit
+.Xr getsockname 2 .
+.It Dv CAP_GETSOCKOPT
+Permit
+.Xr getsockopt 2 .
+.It Dv CAP_IOCTL
+Permit
+.Xr ioctl 2 .
+Be aware that this system call has enormous scope, including potentially
+global scope for some objects.
+.It Dv CAP_KEVENT
+Permit
+.Xr kevent 2 ;
+.Dv CAP_EVENT
+is also required on file descriptors that will be monitored using
+.Xr kevent 2 .
+.It Dv CAP_LISTEN
+Permit
+.Xr listen 2 ;
+not much use (generally) without
+.Dv CAP_BIND .
+.It Dv CAP_LOOKUP
+Permit the file descriptor to be used as a starting directory for calls such
+as
+.Xr linkat 2 ,
+.Xr openat 2 ,
+and
+.Xr unlinkat 2 .
+Note that these calls are not available in capability mode as they manipulate
+a global name space; see
+.Xr cap_enter 2
+for details.
+.It Dv CAP_MAC_GET
+Permit
+.Xr mac_get_fd 2 .
+.It Dv CAP_MAC_SET
+Permit
+.Xr mac_set_fd 2 .
+.It Dv CAP_MMAP
+Permit
+.Xr mmap 2 ;
+specific invocations may also require
+.Dv CAP_READ
+or
+.Dv CAP_WRITE .
+.Pp
+.It Dv CAP_PDGETPID
+Permit
+.Xr pdgetpid 2 .
+.It Dv CAP_PDKILL
+Permit
+.Xr pdkill 2 .
+.It Dv CAP_PDWAIT
+Permit
+.Xr pdwait 2 .
+.It Dv CAP_PEELOFF
+Permit
+.Xr sctp_peeloff 2 .
+.It Dv CAP_READ
+Allow
+.Xr aio_read 2 ,
+.Xr pread 2 ,
+.Xr read 2 ,
+.Xr recv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+and related system calls.
+.Pp
+For files and other seekable objects,
+.Dv CAP_SEEK
+may also be required.
+.It Dv CAP_REVOKE
+Permit
+.Xr frevoke 2
+in certain ABI compatibility modes that support this system call.
+.It Dv CAP_SEEK
+Permit operations that seek on the file descriptor, such as
+.Xr lseek 2 ,
+but also required for I/O system calls that modify the file offset, such as
+.Xr read 2
+and
+.Xr write 2 .
+.It Dv CAP_SEM_GETVALUE
+Permit
+.Xr sem_getvalue 3 .
+.It Dv CAP_SEM_POST
+Permit
+.Xr sem_post 3 .
+.It Dv CAP_SEM_WAIT
+Permit
+.Xr sem_wait 3
+and
+.Xr sem_trywait 3 .
+.It Dv CAP_SETSOCKOPT
+Permit
+.Xr setsockopt 2 ;
+this controls various aspects of socket behavior and may affect binding,
+connecting, and other behaviors with global scope.
+.It Dv CAP_SHUTDOWN
+Permit explicit
+.Xr shutdown 2 ;
+closing the socket will also generally shut down any connections on it.
+.It Dv CAP_TTYHOOK
+Allow configuration of TTY hooks, such as
+.Xr snp 4 ,
+on the file descriptor.
+.It Dv CAP_WRITE
+Allow
+.Xr aio_write 2 ,
+.Xr pwrite 2 ,
+.Xr send 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr write 2 ,
+and related system calls.
+.Pp
+For files and other seekable objects,
+.Dv CAP_SEEK
+may also be required.
+.Pp
+For
+.Xr sendto 2
+with a non-NULL connection address,
+.Dv CAP_CONNECT
+is also required.
+.El
+.Sh CAVEAT
+The
+.Fn cap_new
+system call and the capabilities it creates may be used to assign
+fine-grained rights to sandboxed processes running in capability mode.
+However, the semantics of objects accessed via file descriptors are complex,
+so caution should be exercised in passing object capabilities into sandboxes.
+.Sh RETURN VALUES
+If successful,
+.Fn cap_new
+returns a non-negative integer, termed a file descriptor.
+It returns -1 on failure, and sets
+.Va errno
+to indicate the error.
+.Pp
+.Rv -std cap_getrights
+.Sh ERRORS
+.Fn cap_new
+may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid active descriptor.
+.It Bq Er EINVAL
+An invalid right has been requested in
+.Fa rights .
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er EPERM
+.Fa rights
+contains requested rights not present in the current rights mask associated
+with the capability referenced by
+.Fa fd ,
+if any.
+.El
+.Pp
+.Fn cap_getrights
+may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid active descriptor.
+.It Bq Er EINVAL
+The
+.Fa fd
+argument is not a capability.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr acl_delete_fd_np 2 ,
+.Xr acl_get_fd 2 ,
+.Xr acl_get_fd_np 2 ,
+.Xr acl_set_fd_np 2 ,
+.Xr aio_read 2 ,
+.Xr aio_fsync 2 ,
+.Xr aio_write 2 ,
+.Xr bind 2 ,
+.Xr cap_enter 2 ,
+.Xr connect 2 ,
+.Xr dup 2 ,
+.Xr dup2 2 ,
+.Xr extattr_delete_fd 2 ,
+.Xr extattr_get_fd 2 ,
+.Xr extattr_list_fd 2 ,
+.Xr extattr_set_fd 2 ,
+.Xr fchflags 2 ,
+.Xr fchown 2 ,
+.Xr fcntl 2 ,
+.Xr fexecve 2 ,
+.Xr fhopen 2 ,
+.Xr flock 2 ,
+.Xr fpathconf 2 ,
+.Xr fstat 2 ,
+.Xr fstatfs 2 ,
+.Xr fsync 2 ,
+.Xr ftruncate 2 ,
+.Xr futimes 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr ioctl 2 ,
+.Xr kevent 2 ,
+.Xr kqueue 2 ,
+.Xr linkat 2 ,
+.Xr listen 2 ,
+.Xr mac_get_fd 2 ,
+.Xr mac_set_fd 2 ,
+.Xr mmap 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr openat 2 ,
+.Xr pdgetpid 2 ,
+.Xr pdkill 2 ,
+.Xr pdwait 2 ,
+.Xr pipe 2 ,
+.Xr poll 2 ,
+.Xr pread 2 ,
+.Xr pwrite 2 ,
+.Xr read 2 ,
+.Xr recv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+.Xr sctp_peeloff 2 ,
+.Xr select 2 ,
+.Xr send 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr setsockopt 2 ,
+.Xr shm_open 2 ,
+.Xr shutdown 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr unlinkat 2 ,
+.Xr write 2 ,
+.Xr cap_limitfd 3 ,
+.Xr libcapsicum 3 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3 ,
+.Xr snp 4
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh BUGS
+This man page should list the set of permitted system calls more specifically
+for each capability right.
+.Pp
+Capability rights sometimes have unclear indirect impacts, which should be
+documented, or at least hinted at.
+.Sh AUTHORS
+These functions and the capability facility were created by
+.An "Robert N. M. Watson" 
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.
