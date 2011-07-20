@@ -2027,18 +2027,6 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 						    "HT40 channel\n", freq);
 					continue;
 				}
-				/*
-				 * DFS and HT40 don't mix.  This should be
-				 * expressed in the regdomain database but
-				 * just in case enforce it here.
-				 */
-				if ((chanFlags & IEEE80211_CHAN_HT40) &&
-				    (flags & IEEE80211_CHAN_DFS)) {
-					if (verbose)
-						printf("%u: skip, HT40+DFS "
-						    "not permitted\n", freq);
-					continue;
-				}
 				/* NB: HT attribute comes from caller */
 				flags &= ~IEEE80211_CHAN_HT;
 				flags |= chanFlags & IEEE80211_CHAN_HT;
