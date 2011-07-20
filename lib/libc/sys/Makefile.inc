@@ -77,7 +77,7 @@ ${SPSEUDO}:
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
-	bind.2 brk.2 cap_enter.2 chdir.2 chflags.2 \
+	bind.2 brk.2 cap_enter.2 cap_new.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
 	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
 	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
@@ -119,6 +119,7 @@ MAN+=	sctp_generic_recvmsg.2 sctp_generic_sendmsg.2 sctp_peeloff.2 \
 MLINKS+=access.2 eaccess.2 access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
 MLINKS+=cap_enter.2 cap_getmode.2
+MLINKS+=cap_new.2 cap_getrights.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2 chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 chmod.2 fchmodat.2 chmod.2 lchmod.2

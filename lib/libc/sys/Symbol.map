@@ -363,6 +363,8 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
+	cap_new;
+	cap_getrights;
 	getloginclass;
 	posix_fallocate;
 	rctl_get_racct;
