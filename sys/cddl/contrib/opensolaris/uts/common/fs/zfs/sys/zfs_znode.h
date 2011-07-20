@@ -209,6 +209,7 @@ typedef struct znode {
 	boolean_t	z_is_sa;	/* are we native sa? */
 	/* FreeBSD-specific field. */
 	struct task	z_task;
+	dev_t		z_rdev;
 } znode_t;
 
 
