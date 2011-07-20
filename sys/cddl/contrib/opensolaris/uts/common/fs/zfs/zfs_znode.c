@@ -700,6 +700,16 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	case VDIR:
 		zp->z_zn_prefetch = B_TRUE; /* z_prefetch default is enabled */
 		break;
+	case VBLK:
+	case VCHR:
+		{
+			uint64_t rdev;
+			VERIFY(sa_lookup(zp->z_sa_hdl, SA_ZPL_RDEV(zfsvfs),
+			    &rdev, sizeof (rdev)) == 0);
+
+			zp->z_rdev = zfs_cmpldev(rdev);
+		}
+		break;
 	case VFIFO:
 		vp->v_op = &zfs_fifoops;
 		break;
