@@ -2946,6 +2946,22 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		so = NULL;
 		tp = NULL;
 		kif->kf_fd = i;
+
+#ifdef CAPABILITIES
+		/*
+		 * When reporting a capability, most fields will be from the
+		 * underlying object, but do mark as a capability. With
+		 * ofiledesc, we don't have a field to export the cap_rights_t,
+		 * but we do with the new filedesc.
+		 */
+		if (fp->f_type == DTYPE_CAPABILITY) {
+			kif->kf_flags |= KF_FLAG_CAPABILITY;
+			(void)cap_funwrap(fp, 0, &fp);
+		}
+#else
+		KASSERT(fp->f_type != DTYPE_CAPABILITY,
+		    ("sysctl_kern_proc_ofiledesc: saw capability"));
+#endif
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
 			kif->kf_type = KF_TYPE_VNODE;
@@ -3262,6 +3278,22 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		if ((fp = fdp->fd_ofiles[i]) == NULL)
 			continue;
 		data = NULL;
+
+#ifdef CAPABILITIES
+		/*
+		 * When reporting a capability, most fields will be from the
+		 * underlying object, but do mark as a capability and export
+		 * the capability rights mask.
+		 */
+		if (fp->f_type == DTYPE_CAPABILITY) {
+			kif->kf_flags |= KF_FLAG_CAPABILITY;
+			kif->kf_cap_rights = cap_rights(fp);
+			(void)cap_funwrap(fp, 0, &fp);
+		}
+#else /* !CAPABILITIES */
+		KASSERT(fp->f_type != DTYPE_CAPABILITY,
+		    ("sysctl_kern_proc_filedesc: saw capability"));
+#endif
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
 			type = KF_TYPE_VNODE;
