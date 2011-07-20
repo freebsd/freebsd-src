@@ -73,10 +73,20 @@
 /* Check hostid on import? */
 static int check_hostid = 1;
 
+/*
+ * The interval at which failed configuration cache file writes
+ * should be retried.
+ */
+static int zfs_ccw_retry_interval = 300;
+
 SYSCTL_DECL(_vfs_zfs);
 TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
     "Check hostid on import?");
+TUNABLE_INT("vfs.zfs.ccw_retry_interval", &zfs_ccw_retry_interval);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, ccw_retry_interval, CTLFLAG_RW,
+    &zfs_ccw_retry_interval, 0,
+    "Configuration cache file write, retry after failure, interval (seconds)");
 
 typedef enum zti_modes {
 	zti_mode_fixed,			/* value is # of threads (min 1) */
@@ -5178,13 +5188,34 @@ spa_async_resume(spa_t *spa)
 	mutex_exit(&spa->spa_async_lock);
 }
 
+static int
+spa_async_tasks_pending(spa_t *spa)
+{
+	u_int non_config_tasks;
+	u_int config_task;
+	boolean_t config_task_suspended;
+
+	non_config_tasks = spa->spa_async_tasks & ~SPA_ASYNC_CONFIG_UPDATE;
+	config_task = spa->spa_async_tasks & SPA_ASYNC_CONFIG_UPDATE;
+	if (spa->spa_ccw_fail_time == 0) {
+		config_task_suspended = B_FALSE;
+	} else {
+		config_task_suspended =
+		    (ddi_get_lbolt64() - spa->spa_ccw_fail_time)
+		  < (zfs_ccw_retry_interval * hz);
+	}
+
+	return (non_config_tasks || (config_task && !config_task_suspended));
+}
+
 static void
 spa_async_dispatch(spa_t *spa)
 {
 	mutex_enter(&spa->spa_async_lock);
-	if (spa->spa_async_tasks && !spa->spa_async_suspended &&
+	if (spa_async_tasks_pending(spa) &&
+	    !spa->spa_async_suspended &&
 	    spa->spa_async_thread == NULL &&
-	    rootdir != NULL && !vn_is_readonly(rootdir))
+	    rootdir != NULL)
 		spa->spa_async_thread = thread_create(NULL, 0,
 		    spa_async_thread, spa, 0, &p0, TS_RUN, maxclsyspri);
 	mutex_exit(&spa->spa_async_lock);
