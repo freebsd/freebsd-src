@@ -1533,6 +1533,8 @@ csa_completeswitch(struct ieee80211com *ic)
 void
 ieee80211_csa_completeswitch(struct ieee80211com *ic)
 {
+	struct ieee80211vap *vap;
+
 	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT(ic->ic_flags & IEEE80211_F_CSAPENDING, ("csa not pending"));
