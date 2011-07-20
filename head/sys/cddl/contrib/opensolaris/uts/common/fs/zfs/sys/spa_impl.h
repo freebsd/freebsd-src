@@ -216,6 +216,7 @@ struct spa {
 	int		spa_vdev_locks;		/* locks grabbed */
 	uint64_t	spa_creation_version;	/* version at pool creation */
 	uint64_t	spa_prev_software_version;
+	int64_t		spa_ccw_fail_time;	/* Conf cache write fail time */
 	/*
 	 * spa_refcnt & spa_config_lock must be the last elements
 	 * because refcount_t changes size based on compilation options.
