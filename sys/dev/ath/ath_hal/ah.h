@@ -718,17 +718,18 @@ typedef struct {
 	u_int32_t	pe_relpwr;	/* Relative power threshold in 0.5dB steps */
 	u_int32_t	pe_relstep;	/* Pulse Relative step threshold in 0.5dB steps */
 	u_int32_t	pe_maxlen;	/* Max length of radar sign in 0.8us units */
-	HAL_BOOL	pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
-	HAL_BOOL	pe_blockradar;	/*
+	int32_t		pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
+	int32_t		pe_blockradar;	/*
 					 * Enable to block radar check if pkt detect is done via OFDM
 					 * weak signal detect or pkt is detected immediately after tx
 					 * to rx transition
 					 */
-	HAL_BOOL	pe_enmaxrssi;	/*
+	int32_t		pe_enmaxrssi;	/*
 					 * Enable to use the max rssi instead of the last rssi during
 					 * fine gain changes for radar detection
 					 */
-	HAL_BOOL	pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_enabled;	/* Whether radar detection is enabled */
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
