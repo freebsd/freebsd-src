@@ -207,9 +207,11 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 			length = res->Data.ExtAddress64.AddressLength;
 			break;
 		}
-		if (length == 0 ||
-		    res->Data.Address.MinAddressFixed != ACPI_ADDRESS_FIXED ||
-		    res->Data.Address.MaxAddressFixed != ACPI_ADDRESS_FIXED)
+		if (length == 0)
+			break;
+		if (min + length - 1 != max &&
+		    (res->Data.Address.MinAddressFixed != ACPI_ADDRESS_FIXED ||
+		    res->Data.Address.MaxAddressFixed != ACPI_ADDRESS_FIXED))
 			break;
 		flags = 0;
 		switch (res->Data.Address.ResourceType) {
