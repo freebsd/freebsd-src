@@ -526,6 +526,7 @@ getchannels(struct ath_hal *ah,
 					    "skip ecm channel\n");
 					continue;
 				}
+#if 0
 				if ((fband->useDfs & dfsMask) && 
 				    (cm->flags & IEEE80211_CHAN_HT40)) {
 					/* NB: DFS and HT40 don't mix */
@@ -533,6 +534,7 @@ getchannels(struct ath_hal *ah,
 					    "skip HT40 chan, DFS required\n");
 					continue;
 				}
+#endif
 				/*
 				 * Make sure that channel separation
 				 * meets the requirement.
