@@ -1,5 +1,5 @@
 /*
- * Adapted by Guillaume Morin <guillaume@hudson-trading.com> from strcpy.S
+ * Adapted by Guillaume Morin <guillaume@morinfr.org> from strcpy.S
  * written by J.T. Conklin <jtc@acorntoolworks.com>
  * Public domain.
  */
