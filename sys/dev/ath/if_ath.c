@@ -5344,6 +5344,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGATHDIAG:
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
 		break;
+	case SIOCGATHPHYERR:
+		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
+		break;
 #endif
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
