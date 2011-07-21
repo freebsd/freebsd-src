@@ -1423,60 +1423,20 @@ ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
 void
 ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	uint32_t pll;
+	uint32_t pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
+	if (chan != AH_NULL) {
+		if (IEEE80211_IS_CHAN_HALF(chan))
+			pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
+		else if (IEEE80211_IS_CHAN_QUARTER(chan))
+			pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
 
-	if (AR_SREV_MERLIN_20(ah) &&
-	    chan != AH_NULL && IEEE80211_IS_CHAN_5GHZ(chan)) {
-		/*
-		 * PLL WAR for Merlin 2.0/2.1
-		 * When doing fast clock, set PLL to 0x142c
-		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation 
-		 */
-		pll = IS_5GHZ_FAST_CLOCK_EN(ah, chan) ? 0x142c : 0x2850;
-	} else if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
-		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0x28, AR_RTC_SOWL_PLL_DIV);
-			else
-				pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
-
-		} else
-			pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
-	} else if (AR_SREV_SOWL_10_OR_LATER(ah)) {
-		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0x50, AR_RTC_SOWL_PLL_DIV);
-			else
-				pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
-		} else
-			pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
-	} else {
-		pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0xa, AR_RTC_PLL_DIV);
-			else
-				pll |= SM(0xb, AR_RTC_PLL_DIV);
-		} else
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
+			pll |= SM(0xa, AR_RTC_PLL_DIV);
+		else
 			pll |= SM(0xb, AR_RTC_PLL_DIV);
-	}
+	} else
+		pll |= SM(0xb, AR_RTC_PLL_DIV);
+	
 	OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
 	/* TODO:

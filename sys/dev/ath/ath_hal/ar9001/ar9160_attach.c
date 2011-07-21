@@ -86,6 +86,28 @@ ar9160AniSetup(struct ath_hal *ah)
 	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
+static void 
+ar9160InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
+	if (chan != AH_NULL) {
+		if (IEEE80211_IS_CHAN_HALF(chan))
+			pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
+		else if (IEEE80211_IS_CHAN_QUARTER(chan))
+			pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
+
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
+			pll |= SM(0x50, AR_RTC_SOWL_PLL_DIV);
+		else
+			pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
+	} else
+		pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
+
+	OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
+	OS_DELAY(RTC_PLL_SETTLE_DELAY);
+	OS_REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_SLEEP_DERIVED_CLK);
+}
+
 /*
  * Attach for an AR9160 part.
  */
@@ -118,6 +140,7 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* XXX override with 9160 specific state */
 	/* override 5416 methods for our needs */
+	AH5416(ah)->ah_initPLL = ar9160InitPLL;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9160_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9160_adc_gain_cal;
