@@ -1,17 +1,14 @@
 /*
- * Written by J.T. Conklin <jtc@acorntoolworks.com>
+ * Adapted by Guillaume Morin <guillaume@hudson-trading.com> from strcpy.S
+ * written by J.T. Conklin <jtc@acorntoolworks.com>
  * Public domain.
  */
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#if 0
-	RCSID("$NetBSD: strcpy.S,v 1.3 2004/07/19 20:04:41 drochner Exp $")
-#endif
-
 /*
- * This strcpy implementation copies a byte at a time until the
+ * This stpcpy implementation copies a byte at a time until the
  * source pointer is aligned to a word boundary, it then copies by
  * words until it finds a word containing a zero byte, and finally
  * copies by bytes until the end of the string is reached.
@@ -23,10 +20,11 @@ __FBSDID("$FreeBSD$");
  * requirements.
  */
 
-ENTRY(strcpy)
-	movq	%rdi,%rax
-	movabsq	$0x0101010101010101,%r8
-	movabsq	$0x8080808080808080,%r9
+	.globl	stpcpy,__stpcpy
+ENTRY(stpcpy)
+__stpcpy:
+	movabsq $0x0101010101010101,%r8
+	movabsq $0x8080808080808080,%r9
 
 	/*
 	 * Align source to a word boundary.
@@ -41,6 +39,8 @@ ENTRY(strcpy)
 	incq	%rdi
 	testb	%dl,%dl
 	jne	.Lalign
+	movq	%rdi,%rax
+	dec	%rax
 	ret
 
 	.p2align 4
@@ -61,54 +61,56 @@ ENTRY(strcpy)
 	 */
 
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 1st byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 2nd byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 3rd byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 4th byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 5th byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 6th byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
-	incq	%rdi
 	testb	%dl,%dl		/* 7th byte == 0? */
 	je	.Ldone
+	incq	%rdi
 
 	shrq	$8,%rdx
 	movb	%dl,(%rdi)
 	incq	%rdi
 	testb	%dl,%dl		/* 8th byte == 0? */
 	jne	.Lword_aligned
+	decq	%rdi
 
 .Ldone:
+	movq	%rdi,%rax
 	ret
-END(strcpy)
-
+END(stpcpy)
+	
 	.section .note.GNU-stack,"",%progbits
