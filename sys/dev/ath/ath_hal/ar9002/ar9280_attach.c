@@ -99,6 +99,39 @@ ar9280AniSetup(struct ath_hal *ah)
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
+void
+ar9280InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
+
+	if (AR_SREV_MERLIN_20(ah) &&
+	    chan != AH_NULL && IEEE80211_IS_CHAN_5GHZ(chan)) {
+		/*
+		 * PLL WAR for Merlin 2.0/2.1
+		 * When doing fast clock, set PLL to 0x142c
+		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation 
+		 */
+		pll = IS_5GHZ_FAST_CLOCK_EN(ah, chan) ? 0x142c : 0x2850;
+	} else if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
+		if (chan != AH_NULL) {
+			if (IEEE80211_IS_CHAN_HALF(chan))
+				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
+			else if (IEEE80211_IS_CHAN_QUARTER(chan))
+				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
+			if (IEEE80211_IS_CHAN_5GHZ(chan))
+				pll |= SM(0x28, AR_RTC_SOWL_PLL_DIV);
+			else
+				pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
+		} else
+			pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
+	}
+
+	OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
+	OS_DELAY(RTC_PLL_SETTLE_DELAY);
+	OS_REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_SLEEP_DERIVED_CLK);
+}
+
 /* XXX shouldn't be here! */
 #define	EEP_MINOR(_ah) \
 	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
@@ -138,6 +171,8 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */
+	AH5416(ah)->ah_initPLL = ar9280InitPLL;
+
 	ah->ah_setAntennaSwitch		= ar9280SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9280ConfigPCIE;
 
