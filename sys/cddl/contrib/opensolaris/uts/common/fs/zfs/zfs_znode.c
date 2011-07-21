@@ -713,6 +713,10 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 		break;
 #endif	/* sun */
 	case VFIFO:
+#ifdef sun
+	case VSOCK:
+	case VDOOR:
+#endif	/* sun */
 		vp->v_op = &zfs_fifoops;
 		break;
 	case VREG:
@@ -721,6 +725,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_op = &zfs_shareops;
 		}
 		break;
+#ifdef sun
+	case VLNK:
+		vn_setops(vp, zfs_symvnodeops);
+		break;
+	default:
+		vn_setops(vp, zfs_evnodeops);
+		break;
+#endif	/* sun */
 	}
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
