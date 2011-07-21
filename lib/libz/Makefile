@@ -25,11 +25,12 @@ SRCS+=		match.S
 CFLAGS+=	-DASMV -DNO_UNDERLINE
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
-.PATH:		${.CURDIR}/contrib/gcc_gvmat64
-SRCS+=		gvmat64.S
-CFLAGS+=	-DASMV -DNO_UNDERLINE
-.endif
+#.if ${MACHINE_ARCH} == "amd64"
+#.PATH:		${.CURDIR}/contrib/gcc_gvmat64
+#SRCS+=		gvmat64.S
+#CFLAGS+=	-DASMV -DNO_UNDERLINE
+#ACFLAGS+=	-Wa,--noexecstack
+#.endif
 
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
