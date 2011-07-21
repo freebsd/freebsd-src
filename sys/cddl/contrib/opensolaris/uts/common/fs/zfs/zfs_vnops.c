@@ -2688,7 +2688,11 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	mutex_enter(&zp->z_lock);
 	vap->va_type = IFTOVT(zp->z_mode);
 	vap->va_mode = zp->z_mode & ~S_IFMT;
-//	vap->va_fsid = zp->z_zfsvfs->z_vfs->vfs_dev;
+#ifdef sun
+	vap->va_fsid = zp->z_zfsvfs->z_vfs->vfs_dev;
+#else
+	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+#endif
 	vap->va_nodeid = zp->z_id;
 	if ((vp->v_flag & VROOT) && zfs_show_ctldir(zp))
 		links = zp->z_links + 1;
@@ -2696,9 +2700,12 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 		links = zp->z_links;
 	vap->va_nlink = MIN(links, UINT32_MAX);	/* nlink_t limit! */
 	vap->va_size = zp->z_size;
-	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+#ifdef sun
+	vap->va_rdev = vp->v_rdev;
+#else
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		vap->va_rdev = zfs_cmpldev(rdev);
+#endif
 	vap->va_seq = zp->z_seq;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 
