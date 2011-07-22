@@ -224,9 +224,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 	cap_rights_t rights = uap->rights;
 
 	AUDIT_ARG_FD(fd);
-#ifdef notyet	/* capability auditing will follow in a few commits */
 	AUDIT_ARG_RIGHTS(rights);
-#endif
 	error = fget(td, fd, &fp);
 	if (error)
 		return (error);
