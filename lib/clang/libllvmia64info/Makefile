@@ -7,7 +7,8 @@ INCDIR=	lib/Target/IA64
 SRCS=	IA64TargetInfo.cpp
 
 TGHDRS=	\
-	IA64GenInstrNames \
-	IA64GenRegisterNames
+	IA64GenInstrInfo \
+	IA64GenRegisterInfo \
+	IA64GenSubtargetInfo
 
 .include "../clang.lib.mk"

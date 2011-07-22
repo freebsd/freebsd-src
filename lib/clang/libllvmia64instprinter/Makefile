@@ -8,7 +8,8 @@ SRCS=	IA64InstPrinter.cpp
 
 TGHDRS=	\
 	IA64GenAsmWriter \
-	IA64GenInstrNames \
-	IA64GenRegisterNames
+	IA64GenInstrInfo \
+	IA64GenRegisterInfo \
+	IA64GenSubtargetInfo
 
 .include "../clang.lib.mk"

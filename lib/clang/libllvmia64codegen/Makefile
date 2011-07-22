@@ -9,7 +9,6 @@ SRCS=	\
 	IA64FrameLowering.cpp \
 	IA64InstrInfo.cpp \
 	IA64TargetLowering.cpp \
-	IA64MCAsmInfo.cpp \
 	IA64MCInstLower.cpp \
 	IA64RegisterInfo.cpp \
 	IA64SelectionDAGInfo.cpp \
@@ -21,10 +20,7 @@ TGHDRS=	\
 	IA64GenCallingConv \
 	IA64GenDAGISel \
 	IA64GenInstrInfo \
-	IA64GenInstrNames \
 	IA64GenRegisterInfo \
-	IA64GenRegisterInfo.h \
-	IA64GenRegisterNames \
-	IA64GenSubtarget
+	IA64GenSubtargetInfo
 
 .include "../clang.lib.mk"
