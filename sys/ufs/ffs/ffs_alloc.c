@@ -2447,7 +2447,7 @@ static SYSCTL_NODE(_vfs_ffs, FFS_SET_BUFOUTPUT, setbufoutput, CTLFLAG_WR,
 
 #define DEBUG 1
 #ifdef DEBUG
-static int fsckcmds = 1;
+static int fsckcmds = 0;
 SYSCTL_INT(_debug, OID_AUTO, fsckcmds, CTLFLAG_RW, &fsckcmds, 0, "");
 #endif /* DEBUG */
 
@@ -2470,7 +2470,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	struct file *fp, *vfp;
 	int vfslocked, filetype, error;
 	static struct fileops *origops, bufferedops;
-	static int outcnt = 0;
 
 	if (req->newlen > sizeof cmd)
 		return (EBADRPC);
@@ -2755,7 +2754,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 #ifdef DEBUG
-		if (fsckcmds && outcnt++ < 100) {
+		if (fsckcmds) {
 			printf("%s: update inode %jd\n",
 			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
 		}
@@ -2857,7 +2856,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 	struct fs *fs;
 	int error, vfslocked;
 	daddr_t lbn;
-	static int outcnt = 0;
 
 	/*
 	 * The devvp is associated with the /dev filesystem. To discover
@@ -2875,7 +2873,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 #ifdef DEBUG
-	if (fsckcmds && outcnt++ < 100) {
+	if (fsckcmds) {
 		printf("%s: buffered write for block %jd\n",
 		    fs->fs_fsmnt, (intmax_t)btodb(uio->uio_offset));
 	}
