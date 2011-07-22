@@ -95,7 +95,19 @@ struct ath_tid {
 	u_int			axq_depth;	/* SW queue depth */
 	struct mtx		axq_lock;	/* lock on queue, tx_buf */
 	char			axq_name[24];	/* e.g. "wlan0_a1_t5" */
+
+	/*
+	 * The following implements a ring representing
+	 * the frames in the current BAW.
+	 * To avoid copying the array content each time
+	 * the BAW is moved, the baw_head/baw_tail point
+	 * to the current BAW begin/end; when the BAW is
+	 * shifted the head/tail of the array are also
+	 * appropriately shifted.
+	 */
 	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
+	int			baw_head;	/* where the baw head is in the array */
+	int			baw_tail;	/* where the BAW tail is in the array */
 };
 
 /* driver-specific node state */
