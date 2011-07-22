@@ -1,6 +1,5 @@
 #include "IA64.h"
 #include "IA64InstrInfo.h"
-#include "IA64MCAsmInfo.h"
 #include "IA64MCInstLower.h"
 #include "IA64TargetMachine.h"
 #include "InstPrinter/IA64InstPrinter.h"
@@ -14,6 +13,7 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
@@ -113,11 +113,11 @@ IA64AsmPrinter::EmitInstruction(const MachineInstr *MI)
 }
 
 static
-MCInstPrinter *createIA64MCInstPrinter(const Target &T, TargetMachine &TM,
-      unsigned SyntaxVariant, const MCAsmInfo &MAI)
+MCInstPrinter *createIA64MCInstPrinter(const Target &T, unsigned SyntaxVariant,
+	const MCAsmInfo &MAI)
 {
   if (SyntaxVariant == 0)
-    return new IA64InstPrinter(TM, MAI);
+    return new IA64InstPrinter(MAI);
   return 0;
 }
 
@@ -127,5 +127,5 @@ LLVMInitializeIA64AsmPrinter()
 {
   RegisterAsmPrinter<IA64AsmPrinter> X(TheIA64Target);
   TargetRegistry::RegisterMCInstPrinter(TheIA64Target,
-        createIA64MCInstPrinter);
+      createIA64MCInstPrinter);
 }

@@ -5,11 +5,14 @@
 
 #include "llvm/Target/TargetInstrInfo.h"
 
+#define GET_INSTRINFO_HEADER
+#include "IA64GenInstrInfo.inc"
+
 namespace llvm {
 
   class IA64TargetMachine;
 
-  class IA64InstrInfo : public TargetInstrInfoImpl {
+  class IA64InstrInfo : public IA64GenInstrInfo {
     const IA64RegisterInfo RI;
     IA64TargetMachine &TM;
 

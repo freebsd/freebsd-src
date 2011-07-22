@@ -3,7 +3,8 @@
 
 #include "llvm/Target/TargetRegisterInfo.h"
 
-#include "IA64GenRegisterInfo.h.inc"
+#define GET_REGINFO_HEADER
+#include "IA64GenRegisterInfo.inc"
 
 namespace llvm {
 

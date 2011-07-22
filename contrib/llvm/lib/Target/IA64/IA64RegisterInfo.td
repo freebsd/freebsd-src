@@ -3,7 +3,7 @@ class IA64Register<string name> : Register<name> {
   let Namespace = "IA64";
 }
 
-class IA64RegisterClass<list<ValueType> types, int align, list<Register> regs> :
+class IA64RegisterClass<list<ValueType> types, int align, dag regs> :
     RegisterClass<"IA64", types, align, regs> {
 }
 
@@ -27,7 +27,7 @@ def B6 : IA64Register<"b6">, DwarfRegNum<[326]>;
 def B7 : IA64Register<"b7">, DwarfRegNum<[327]>;
 
 def BR : IA64RegisterClass<[i64], 64,
-    [B6, B7, B0, B1, B2, B3, B4, B5]>;
+    (add B6, B7, B0, B1, B2, B3, B4, B5)>;
 
 //
 // Control registers
@@ -68,8 +68,9 @@ def F30 : IA64Register<"f30">;
 def F31 : IA64Register<"f31">;
 
 def FR : IA64RegisterClass<[f128], 128,
-    [F0, F1, F2, F3, F4, F5, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17,
-     F18, F19, F20, F21, F22, F23, F24, F25, F26, F27, F28, F29, F30, F31]>;
+    (add F0, F1, F2, F3, F4, F5, F8, F9, F10, F11, F12, F13, F14, F15,
+     F16, F17, F18, F19, F20, F21, F22, F23, F24, F25, F26, F27, F28,
+     F29, F30, F31)>;
 
 //
 // General registers
@@ -116,13 +117,13 @@ def R38 : IA64Register<"r38">, DwarfRegNum<[38]>;
 def R39 : IA64Register<"r39">, DwarfRegNum<[39]>;
 
 def GR : IA64RegisterClass<[i64], 64,
-    [R14, R15, R16, R17, R18, R19, R20, R21, R22, R23, R24, R25, R26, R27,
-     R28, R29, R30, R31,
+    (add R14, R15, R16, R17, R18, R19, R20, R21, R22, R23, R24, R25, R26,
+     R27, R28, R29, R30, R31,
      R8, R9, R10, R11,
      R2, R3,
      R32, R33, R34, R35, R36, R37, R38, R39,
      R4, R5, R6, R7,
-     R1, R12, R13, R0]>;
+     R1, R12, R13, R0)>;
 
 //
 // Pregicate registers
@@ -183,7 +184,8 @@ def P62 : IA64Register<"p62">;
 def P63 : IA64Register<"p63">;
 
 def P : IA64RegisterClass<[i1], 0,
-    [P0, P1, P2, P3, P4, P5, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25,
-     P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40,
-     P41, P42, P43, P44, P45, P46, P47, P48, P49, P50, P51, P52, P53, P54, P55,
-     P56, P57, P58, P59, P60, P61, P62, P63]>;
+    (add P0, P1, P2, P3, P4, P5, P16, P17, P18, P19, P20, P21, P22, P23,
+     P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36,
+     P37, P38, P39, P40, P41, P42, P43, P44, P45, P46, P47, P48, P49,
+     P50, P51, P52, P53, P54, P55, P56, P57, P58, P59, P60, P61, P62,
+     P63)>;

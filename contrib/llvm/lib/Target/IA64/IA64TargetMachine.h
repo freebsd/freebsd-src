@@ -23,7 +23,7 @@ namespace llvm {
 
   public:
     IA64TargetMachine(const Target &T, const std::string &TT,
-	const std::string &FS);
+	const std::string &CPU, const std::string &FS);
 
     virtual const TargetFrameLowering *getFrameLowering() const {
       return &FrameLowering;

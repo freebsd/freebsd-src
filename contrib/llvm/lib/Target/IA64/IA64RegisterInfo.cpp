@@ -11,12 +11,15 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "IA64GenRegisterInfo.inc"
+
 using namespace llvm;
 
 // FIXME: Provide proper call frame setup / destroy opcodes.
 IA64RegisterInfo::IA64RegisterInfo(IA64TargetMachine &tm,
-	const TargetInstrInfo &tii) :
-    IA64GenRegisterInfo(IA64::NOP, IA64::NOP),
+        const TargetInstrInfo &tii) :
+    IA64GenRegisterInfo(),
     TM(tm),
     TII(tii)
 {
@@ -107,5 +110,3 @@ IA64RegisterInfo::getRARegister() const
 {
   llvm_unreachable(__func__);
 }
-
-#include "IA64GenRegisterInfo.inc"

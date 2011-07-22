@@ -1,6 +1,8 @@
 #ifndef LLVM_TARGET_IA64_H
 #define LLVM_TARGET_IA64_H
 
+#include "MCTargetDesc/IA64MCTargetDesc.h"
+
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -13,11 +15,6 @@ namespace llvm {
 
   FunctionPass *createIA64BundleSelectionPass();
 
-  extern Target TheIA64Target;
-
 } // namespace llvm
-
-#include "IA64GenRegisterNames.inc"
-#include "IA64GenInstrNames.inc"
 
 #endif // LLVM_TARGET_IA64_H

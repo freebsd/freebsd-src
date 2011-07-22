@@ -8,13 +8,15 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetRegistry.h"
 
+#define GET_INSTRINFO_CTOR
 #include "IA64GenInstrInfo.inc"
 
 using namespace llvm;
 
 IA64InstrInfo::IA64InstrInfo(IA64TargetMachine &tm) :
-    TargetInstrInfoImpl(IA64Insts, array_lengthof(IA64Insts)),
+    IA64GenInstrInfo(IA64::NOP, IA64::NOP),
     RI(tm, *this),
     TM(tm)
 {

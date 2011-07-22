@@ -6,11 +6,10 @@
 namespace llvm {
 
   class MCOperand;
-  class TargetMachine;
 
   class IA64InstPrinter : public MCInstPrinter {
   public:
-    IA64InstPrinter(TargetMachine &TM, const MCAsmInfo &MAI) :
+    IA64InstPrinter(const MCAsmInfo &MAI) :
         MCInstPrinter(MAI) {}
 
     virtual void printInst(const MCInst *MI, raw_ostream &O);
