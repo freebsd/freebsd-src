@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-/* local vars */
-static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
+MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 
 /* misc defines */
 #define IOMASK                  0xfffffffc
@@ -146,13 +145,14 @@ ata_pci_detach(device_t dev)
 	    device_delete_child(dev, children[i]);
 	free(children, M_TEMP);
     }
-
     if (ctlr->r_irq) {
 	bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle);
 	bus_release_resource(dev, SYS_RES_IRQ, ctlr->r_irq_rid, ctlr->r_irq);
 	if (ctlr->r_irq_rid != ATA_IRQ_RID)
 	    pci_release_msi(dev);
     }
+    if (ctlr->chipdeinit != NULL)
+	ctlr->chipdeinit(dev);
     if (ctlr->r_res2)
 	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
     if (ctlr->r_res1)
