@@ -33,7 +33,8 @@ LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 MAN=		named.8 lwresd.8 named.conf.5
 
-MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
+MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g" \
+		-e "s@/var\/run\/named\/named.pid@/var/run/named/pid@"
 
 LINKS=		${BINDIR}/named ${BINDIR}/lwresd
 
