@@ -25,12 +25,12 @@ static MVT::SimpleValueType getRegisterValueType(Record *R,
                                                  const CodeGenTarget &T) {
   bool FoundRC = false;
   MVT::SimpleValueType VT = MVT::Other;
+  const CodeGenRegister *Reg = T.getRegBank().getReg(R);
   const std::vector<CodeGenRegisterClass> &RCs = T.getRegisterClasses();
-  std::vector<Record*>::const_iterator Element;
 
   for (unsigned rc = 0, e = RCs.size(); rc != e; ++rc) {
     const CodeGenRegisterClass &RC = RCs[rc];
-    if (!std::count(RC.Elements.begin(), RC.Elements.end(), R))
+    if (!RC.contains(Reg))
       continue;
 
     if (!FoundRC) {
@@ -93,10 +93,6 @@ namespace {
     /// CurPredicate - As we emit matcher nodes, this points to the latest check
     /// which should have future checks stuck into its Next position.
     Matcher *CurPredicate;
-
-    /// RegisterDefMap - A map of register record definitions to the
-    /// corresponding target CodeGenRegister entry.
-    DenseMap<const Record *, const CodeGenRegister *> RegisterDefMap;
   public:
     MatcherGen(const PatternToMatch &pattern, const CodeGenDAGPatterns &cgp);
 
@@ -165,12 +161,6 @@ MatcherGen::MatcherGen(const PatternToMatch &pattern,
 
   // If there are types that are manifestly known, infer them.
   InferPossibleTypes();
-
-  // Populate the map from records to CodeGenRegister entries.
-  const CodeGenTarget &CGT = CGP.getTargetInfo();
-  const std::vector<CodeGenRegister> &Registers = CGT.getRegisters();
-  for (unsigned i = 0, e = Registers.size(); i != e; ++i)
-    RegisterDefMap[Registers[i].TheDef] = &Registers[i];
 }
 
 /// InferPossibleTypes - As we emit the pattern, we end up generating type
@@ -234,6 +224,7 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
   Record *LeafRec = DI->getDef();
   if (// Handle register references.  Nothing to do here, they always match.
       LeafRec->isSubClassOf("RegisterClass") ||
+      LeafRec->isSubClassOf("RegisterOperand") ||
       LeafRec->isSubClassOf("PointerLikeRegClass") ||
       LeafRec->isSubClassOf("SubRegIndex") ||
       // Place holder for SRCVALUE nodes. Nothing to do here.
@@ -589,14 +580,16 @@ void MatcherGen::EmitResultLeafAsOperand(const TreePatternNode *N,
 
   // If this is an explicit register reference, handle it.
   if (DefInit *DI = dynamic_cast<DefInit*>(N->getLeafValue())) {
-    if (DI->getDef()->isSubClassOf("Register")) {
-      AddMatcher(new EmitRegisterMatcher(RegisterDefMap[DI->getDef()],
-                                         N->getType(0)));
+    Record *Def = DI->getDef();
+    if (Def->isSubClassOf("Register")) {
+      const CodeGenRegister *Reg =
+        CGP.getTargetInfo().getRegBank().getReg(Def);
+      AddMatcher(new EmitRegisterMatcher(Reg, N->getType(0)));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
     }
 
-    if (DI->getDef()->getName() == "zero_reg") {
+    if (Def->getName() == "zero_reg") {
       AddMatcher(new EmitRegisterMatcher(0, N->getType(0)));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
@@ -604,16 +597,18 @@ void MatcherGen::EmitResultLeafAsOperand(const TreePatternNode *N,
 
     // Handle a reference to a register class. This is used
     // in COPY_TO_SUBREG instructions.
-    if (DI->getDef()->isSubClassOf("RegisterClass")) {
-      std::string Value = getQualifiedName(DI->getDef()) + "RegClassID";
+    if (Def->isSubClassOf("RegisterOperand"))
+      Def = Def->getValueAsDef("RegClass");
+    if (Def->isSubClassOf("RegisterClass")) {
+      std::string Value = getQualifiedName(Def) + "RegClassID";
       AddMatcher(new EmitStringIntegerMatcher(Value, MVT::i32));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
     }
 
     // Handle a subregister index. This is used for INSERT_SUBREG etc.
-    if (DI->getDef()->isSubClassOf("SubRegIndex")) {
-      std::string Value = getQualifiedName(DI->getDef());
+    if (Def->isSubClassOf("SubRegIndex")) {
+      std::string Value = getQualifiedName(Def);
       AddMatcher(new EmitStringIntegerMatcher(Value, MVT::i32));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
@@ -644,6 +639,35 @@ GetInstPatternNode(const DAGInstruction &Inst, const TreePatternNode *N) {
     InstPatNode = InstPatNode->getChild(InstPatNode->getNumChildren()-1);
 
   return InstPatNode;
+}
+
+static bool
+mayInstNodeLoadOrStore(const TreePatternNode *N,
+                       const CodeGenDAGPatterns &CGP) {
+  Record *Op = N->getOperator();
+  const CodeGenTarget &CGT = CGP.getTargetInfo();
+  CodeGenInstruction &II = CGT.getInstruction(Op);
+  return II.mayLoad || II.mayStore;
+}
+
+static unsigned
+numNodesThatMayLoadOrStore(const TreePatternNode *N,
+                           const CodeGenDAGPatterns &CGP) {
+  if (N->isLeaf())
+    return 0;
+
+  Record *OpRec = N->getOperator();
+  if (!OpRec->isSubClassOf("Instruction"))
+    return 0;
+
+  unsigned Count = 0;
+  if (mayInstNodeLoadOrStore(N, CGP))
+    ++Count;
+
+  for (unsigned i = 0, e = N->getNumChildren(); i != e; ++i)
+    Count += numNodesThatMayLoadOrStore(N->getChild(i), CGP);
+
+  return Count;
 }
 
 void MatcherGen::
@@ -772,21 +796,26 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
       (Pattern.getSrcPattern()->NodeHasProperty(SDNPVariadic, CGP)))
     NumFixedArityOperands = Pattern.getSrcPattern()->getNumChildren();
 
-  // If this is the root node and any of the nodes matched nodes in the input
-  // pattern have MemRefs in them, have the interpreter collect them and plop
-  // them onto this node.
+  // If this is the root node and multiple matched nodes in the input pattern
+  // have MemRefs in them, have the interpreter collect them and plop them onto
+  // this node. If there is just one node with MemRefs, leave them on that node
+  // even if it is not the root.
   //
-  // FIXME3: This is actively incorrect for result patterns where the root of
-  // the pattern is not the memory reference and is also incorrect when the
-  // result pattern has multiple memory-referencing instructions.  For example,
-  // in the X86 backend, this pattern causes the memrefs to get attached to the
-  // CVTSS2SDrr instead of the MOVSSrm:
-  //
-  //  def : Pat<(extloadf32 addr:$src),
-  //            (CVTSS2SDrr (MOVSSrm addr:$src))>;
-  //
-  bool NodeHasMemRefs =
-    isRoot && Pattern.getSrcPattern()->TreeHasProperty(SDNPMemOperand, CGP);
+  // FIXME3: This is actively incorrect for result patterns with multiple
+  // memory-referencing instructions.
+  bool PatternHasMemOperands =
+    Pattern.getSrcPattern()->TreeHasProperty(SDNPMemOperand, CGP);
+
+  bool NodeHasMemRefs = false;
+  if (PatternHasMemOperands) {
+    unsigned NumNodesThatLoadOrStore =
+      numNodesThatMayLoadOrStore(Pattern.getDstPattern(), CGP);
+    bool NodeIsUniqueLoadOrStore = mayInstNodeLoadOrStore(N, CGP) &&
+                                   NumNodesThatLoadOrStore == 1;
+    NodeHasMemRefs =
+      NodeIsUniqueLoadOrStore || (isRoot && (mayInstNodeLoadOrStore(N, CGP) ||
+                                             NumNodesThatLoadOrStore != 1));
+  }
 
   assert((!ResultVTs.empty() || TreeHasOutGlue || NodeHasChain) &&
          "Node has no result");

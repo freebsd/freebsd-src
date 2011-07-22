@@ -379,6 +379,8 @@ MIASM =  \
 	msgctl.o \
 	shmctl.o \
 	lpathconf.o \
+	cap_new.o \
+	cap_getrights.o \
 	cap_enter.o \
 	cap_getmode.o \
 	pselect.o \

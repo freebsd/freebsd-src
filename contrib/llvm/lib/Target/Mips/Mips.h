@@ -15,6 +15,7 @@
 #ifndef TARGET_MIPS_H
 #define TARGET_MIPS_H
 
+#include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -26,17 +27,8 @@ namespace llvm {
   FunctionPass *createMipsISelDag(MipsTargetMachine &TM);
   FunctionPass *createMipsDelaySlotFillerPass(MipsTargetMachine &TM);
   FunctionPass *createMipsExpandPseudoPass(MipsTargetMachine &TM);
-
-  extern Target TheMipsTarget;
-  extern Target TheMipselTarget;
+  FunctionPass *createMipsEmitGPRestorePass(MipsTargetMachine &TM);
 
 } // end namespace llvm;
-
-// Defines symbolic names for Mips registers.  This defines a mapping from
-// register name to register number.
-#include "MipsGenRegisterNames.inc"
-
-// Defines symbolic names for the Mips instructions.
-#include "MipsGenInstrNames.inc"
 
 #endif

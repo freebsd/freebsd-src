@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
 
@@ -512,11 +513,13 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 static void
 cpu_reset_proxy()
 {
+	cpuset_t tcrp;
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
 		;	/* Wait for other cpu to see that we've started */
-	stop_cpus((1<<cpu_reset_proxyid));
+	CPU_SETOF(cpu_reset_proxyid, &tcrp);
+	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
 	DELAY(1000000);
 	cpu_reset_real();
@@ -527,12 +530,14 @@ void
 cpu_reset()
 {
 #ifdef SMP
-	cpumask_t map;
+	cpuset_t map;
 	u_int cnt;
 
 	if (smp_active) {
-		map = PCPU_GET(other_cpus) & ~stopped_cpus;
-		if (map != 0) {
+		map = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &map);
+		CPU_NAND(&map, &stopped_cpus);
+		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);
 		}
@@ -544,7 +549,8 @@ cpu_reset()
 			printf("cpu_reset: Restarting BSP\n");
 
 			/* Restart CPU #0. */
-			atomic_store_rel_int(&started_cpus, 1 << 0);
+			CPU_SETOF(0, &started_cpus);
+			wmb();
 
 			cnt = 0;
 			while (cpu_reset_proxy_active == 0 && cnt < 10000000)

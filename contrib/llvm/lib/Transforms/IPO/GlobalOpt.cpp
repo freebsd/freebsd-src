@@ -241,15 +241,15 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
         GS.HasPHIUser = true;
       } else if (isa<CmpInst>(I)) {
         GS.isCompared = true;
-      } else if (isa<MemTransferInst>(I)) {
-        const MemTransferInst *MTI = cast<MemTransferInst>(I);
+      } else if (const MemTransferInst *MTI = dyn_cast<MemTransferInst>(I)) {
+        if (MTI->isVolatile()) return true;
         if (MTI->getArgOperand(0) == V)
           GS.StoredType = GlobalStatus::isStored;
         if (MTI->getArgOperand(1) == V)
           GS.isLoaded = true;
-      } else if (isa<MemSetInst>(I)) {
-        assert(cast<MemSetInst>(I)->getArgOperand(0) == V &&
-               "Memset only takes one pointer!");
+      } else if (const MemSetInst *MSI = dyn_cast<MemSetInst>(I)) {
+        assert(MSI->getArgOperand(0) == V && "Memset only takes one pointer!");
+        if (MSI->isVolatile()) return true;
         GS.StoredType = GlobalStatus::isStored;
       } else {
         return true;  // Any other non-load instruction might take address!
@@ -799,7 +799,8 @@ static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV) {
       // If we get here we could have other crazy uses that are transitively
       // loaded.
       assert((isa<PHINode>(GlobalUser) || isa<SelectInst>(GlobalUser) ||
-              isa<ConstantExpr>(GlobalUser)) && "Only expect load and stores!");
+              isa<ConstantExpr>(GlobalUser) || isa<CmpInst>(GlobalUser)) &&
+             "Only expect load and stores!");
     }
   }
 
@@ -1589,8 +1590,7 @@ static bool OptimizeOnceStoredGlobal(GlobalVariable *GV, Value *StoredOnceVal,
       GV->getInitializer()->isNullValue()) {
     if (Constant *SOVC = dyn_cast<Constant>(StoredOnceVal)) {
       if (GV->getInitializer()->getType() != SOVC->getType())
-        SOVC =
-         ConstantExpr::getBitCast(SOVC, GV->getInitializer()->getType());
+        SOVC = ConstantExpr::getBitCast(SOVC, GV->getInitializer()->getType());
 
       // Optimize away any trapping uses of the loaded value.
       if (OptimizeAwayTrappingUsesOfLoads(GV, SOVC))
@@ -1999,9 +1999,13 @@ static std::vector<Function*> ParseGlobalCtors(GlobalVariable *GV) {
 static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
                                           const std::vector<Function*> &Ctors) {
   // If we made a change, reassemble the initializer list.
-  std::vector<Constant*> CSVals;
-  CSVals.push_back(ConstantInt::get(Type::getInt32Ty(GCL->getContext()),65535));
-  CSVals.push_back(0);
+  Constant *CSVals[2];
+  CSVals[0] = ConstantInt::get(Type::getInt32Ty(GCL->getContext()), 65535);
+  CSVals[1] = 0;
+
+  const StructType *StructTy =
+    cast <StructType>(
+    cast<ArrayType>(GCL->getType()->getElementType())->getElementType());
 
   // Create the new init list.
   std::vector<Constant*> CAList;
@@ -2016,12 +2020,10 @@ static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
       CSVals[0] = ConstantInt::get(Type::getInt32Ty(GCL->getContext()),
                                    0x7fffffff);
     }
-    CAList.push_back(ConstantStruct::get(GCL->getContext(), CSVals, false));
+    CAList.push_back(ConstantStruct::get(StructTy, CSVals));
   }
 
   // Create the array initializer.
-  const Type *StructTy =
-      cast<ArrayType>(GCL->getType()->getElementType())->getElementType();
   Constant *CA = ConstantArray::get(ArrayType::get(StructTy,
                                                    CAList.size()), CAList);
 
@@ -2218,42 +2220,40 @@ static Constant *EvaluateStoreInto(Constant *Init, Constant *Val,
     Elts[Idx] = EvaluateStoreInto(Elts[Idx], Val, Addr, OpNo+1);
 
     // Return the modified struct.
-    return ConstantStruct::get(Init->getContext(), &Elts[0], Elts.size(),
-                               STy->isPacked());
-  } else {
-    ConstantInt *CI = cast<ConstantInt>(Addr->getOperand(OpNo));
-    const SequentialType *InitTy = cast<SequentialType>(Init->getType());
-
-    uint64_t NumElts;
-    if (const ArrayType *ATy = dyn_cast<ArrayType>(InitTy))
-      NumElts = ATy->getNumElements();
-    else
-      NumElts = cast<VectorType>(InitTy)->getNumElements();
-
-
-    // Break up the array into elements.
-    if (ConstantArray *CA = dyn_cast<ConstantArray>(Init)) {
-      for (User::op_iterator i = CA->op_begin(), e = CA->op_end(); i != e; ++i)
-        Elts.push_back(cast<Constant>(*i));
-    } else if (ConstantVector *CV = dyn_cast<ConstantVector>(Init)) {
-      for (User::op_iterator i = CV->op_begin(), e = CV->op_end(); i != e; ++i)
-        Elts.push_back(cast<Constant>(*i));
-    } else if (isa<ConstantAggregateZero>(Init)) {
-      Elts.assign(NumElts, Constant::getNullValue(InitTy->getElementType()));
-    } else {
-      assert(isa<UndefValue>(Init) && "This code is out of sync with "
-             " ConstantFoldLoadThroughGEPConstantExpr");
-      Elts.assign(NumElts, UndefValue::get(InitTy->getElementType()));
-    }
-
-    assert(CI->getZExtValue() < NumElts);
-    Elts[CI->getZExtValue()] =
-      EvaluateStoreInto(Elts[CI->getZExtValue()], Val, Addr, OpNo+1);
-
-    if (Init->getType()->isArrayTy())
-      return ConstantArray::get(cast<ArrayType>(InitTy), Elts);
-    return ConstantVector::get(Elts);
+    return ConstantStruct::get(STy, Elts);
   }
+  
+  ConstantInt *CI = cast<ConstantInt>(Addr->getOperand(OpNo));
+  const SequentialType *InitTy = cast<SequentialType>(Init->getType());
+
+  uint64_t NumElts;
+  if (const ArrayType *ATy = dyn_cast<ArrayType>(InitTy))
+    NumElts = ATy->getNumElements();
+  else
+    NumElts = cast<VectorType>(InitTy)->getNumElements();
+
+  // Break up the array into elements.
+  if (ConstantArray *CA = dyn_cast<ConstantArray>(Init)) {
+    for (User::op_iterator i = CA->op_begin(), e = CA->op_end(); i != e; ++i)
+      Elts.push_back(cast<Constant>(*i));
+  } else if (ConstantVector *CV = dyn_cast<ConstantVector>(Init)) {
+    for (User::op_iterator i = CV->op_begin(), e = CV->op_end(); i != e; ++i)
+      Elts.push_back(cast<Constant>(*i));
+  } else if (isa<ConstantAggregateZero>(Init)) {
+    Elts.assign(NumElts, Constant::getNullValue(InitTy->getElementType()));
+  } else {
+    assert(isa<UndefValue>(Init) && "This code is out of sync with "
+           " ConstantFoldLoadThroughGEPConstantExpr");
+    Elts.assign(NumElts, UndefValue::get(InitTy->getElementType()));
+  }
+
+  assert(CI->getZExtValue() < NumElts);
+  Elts[CI->getZExtValue()] =
+    EvaluateStoreInto(Elts[CI->getZExtValue()], Val, Addr, OpNo+1);
+
+  if (Init->getType()->isArrayTy())
+    return ConstantArray::get(cast<ArrayType>(InitTy), Elts);
+  return ConstantVector::get(Elts);
 }
 
 /// CommitValueTo - We have decided that Addr (which satisfies the predicate
@@ -2437,6 +2437,20 @@ static bool EvaluateFunction(Function *F, Constant *&RetVal,
 
       // Cannot handle inline asm.
       if (isa<InlineAsm>(CI->getCalledValue())) return false;
+
+      if (MemSetInst *MSI = dyn_cast<MemSetInst>(CI)) {
+        if (MSI->isVolatile()) return false;
+        Constant *Ptr = getVal(Values, MSI->getDest());
+        Constant *Val = getVal(Values, MSI->getValue());
+        Constant *DestVal = ComputeLoadResult(getVal(Values, Ptr),
+                                              MutatedMemory);
+        if (Val->isNullValue() && DestVal && DestVal->isNullValue()) {
+          // This memset is a no-op.
+          ++CurInst;
+          continue;
+        }
+        return false;
+      }
 
       // Resolve function pointers.
       Function *Callee = dyn_cast<Function>(getVal(Values,

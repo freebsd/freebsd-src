@@ -2928,6 +2928,11 @@ repeat:
 	usbd_transfer_unsetup(udev->ctrl_xfer, USB_CTRL_XFER_MAX);
 
 	/*
+	 * Reset clear stall error counter.
+	 */
+	udev->clear_stall_errors = 0;
+
+	/*
 	 * Try to setup a new USB transfer for the
 	 * default control endpoint:
 	 */

@@ -187,6 +187,8 @@ struct usb_device {
 	struct usb_host_endpoint *linux_endpoint_end;
 	uint16_t devnum;
 #endif
+
+	uint32_t clear_stall_errors;	/* number of clear-stall failures */
 };
 
 /* globals */

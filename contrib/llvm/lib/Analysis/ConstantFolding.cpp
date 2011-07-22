@@ -771,12 +771,12 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I, const TargetData *TD) {
     return ConstantExpr::getInsertValue(
                                 cast<Constant>(IVI->getAggregateOperand()),
                                 cast<Constant>(IVI->getInsertedValueOperand()),
-                                IVI->idx_begin(), IVI->getNumIndices());
+                                IVI->getIndices());
 
   if (ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I))
     return ConstantExpr::getExtractValue(
                                     cast<Constant>(EVI->getAggregateOperand()),
-                                    EVI->idx_begin(), EVI->getNumIndices());
+                                    EVI->getIndices());
 
   return ConstantFoldInstOperands(I->getOpcode(), I->getType(),
                                   Ops.data(), Ops.size(), TD);
@@ -1085,7 +1085,7 @@ llvm::canConstantFoldCallTo(const Function *F) {
   case 'c':
     return Name == "cos" || Name == "ceil" || Name == "cosf" || Name == "cosh";
   case 'e':
-    return Name == "exp";
+    return Name == "exp" || Name == "exp2";
   case 'f':
     return Name == "fabs" || Name == "fmod" || Name == "floor";
   case 'l':
@@ -1221,6 +1221,12 @@ llvm::ConstantFoldCall(Function *F,
       case 'e':
         if (Name == "exp")
           return ConstantFoldFP(exp, V, Ty);
+  
+        if (Name == "exp2") {
+          // Constant fold exp2(x) as pow(2,x) in case the host doesn't have a
+          // C99 library.
+          return ConstantFoldBinaryFP(pow, 2.0, V, Ty);
+        }
         break;
       case 'f':
         if (Name == "fabs")
@@ -1393,7 +1399,7 @@ llvm::ConstantFoldCall(Function *F,
             ConstantInt::get(F->getContext(), Res),
             ConstantInt::get(Type::getInt1Ty(F->getContext()), Overflow)
           };
-          return ConstantStruct::get(F->getContext(), Ops, 2, false);
+          return ConstantStruct::get(cast<StructType>(F->getReturnType()), Ops);
         }
         }
       }

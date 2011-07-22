@@ -145,7 +145,7 @@ trap(struct trapframe *frame)
 
 	PCPU_INC(cnt.v_trap);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	p = td->td_proc;
 
 	type = frame->exc;
@@ -382,7 +382,7 @@ syscall(struct trapframe *frame)
 	struct syscall_args sa;
 	int error;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	td->td_frame = frame;
 
 	error = syscallenter(td, &sa);
@@ -480,7 +480,7 @@ badaddr_read(void *addr, size_t size, int *rptr)
 	/* Get rid of any stale machine checks that have been waiting.  */
 	__asm __volatile ("sync; isync");
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = 0;

@@ -103,7 +103,7 @@ struct sysentvec aout_sysvec = {
 
 #elif defined(__amd64__)
 
-#define	AOUT32_USRSTACK	0xbfc0000
+#define	AOUT32_USRSTACK	0xbfc00000
 #define	AOUT32_PS_STRINGS \
     (AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
 
@@ -152,7 +152,7 @@ aout_fixup(register_t **stack_base, struct image_params *imgp)
 {
 
 	*(char **)stack_base -= sizeof(uint32_t);
-	return (suword(*stack_base, imgp->args->argc));
+	return (suword32(*stack_base, imgp->args->argc));
 }
 
 static int

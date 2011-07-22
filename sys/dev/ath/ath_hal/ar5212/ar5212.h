@@ -506,6 +506,8 @@ extern	HAL_BOOL ar5212SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5212GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
+		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
@@ -620,5 +622,8 @@ extern	HAL_BOOL ar5212IsNFCalInProgress(struct ath_hal *ah);
 extern	HAL_BOOL ar5212WaitNFCalComplete(struct ath_hal *ah, int i);
 extern	void ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	void ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	HAL_BOOL ar5212ProcessRadarEvent(struct ath_hal *ah,
+	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
+	    HAL_DFS_EVENT *event);
 
 #endif	/* _ATH_AR5212_H_ */

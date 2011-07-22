@@ -47,6 +47,11 @@ STATISTIC(NumUncacheNonLocalPtr,
 STATISTIC(NumCacheCompleteNonLocalPtr,
           "Number of block queries that were completely cached");
 
+// Limit for the number of instructions to scan in a block.
+// FIXME: Figure out what a sane value is for this.
+//        (500 is relatively insane.)
+static const int BlockScanLimit = 500;
+
 char MemoryDependenceAnalysis::ID = 0;
   
 // Register this pass...
@@ -180,8 +185,16 @@ AliasAnalysis::ModRefResult GetLocation(const Instruction *Inst,
 MemDepResult MemoryDependenceAnalysis::
 getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
                           BasicBlock::iterator ScanIt, BasicBlock *BB) {
+  unsigned Limit = BlockScanLimit;
+
   // Walk backwards through the block, looking for dependencies
   while (ScanIt != BB->begin()) {
+    // Limit the amount of scanning we do so we don't end up with quadratic
+    // running time on extreme testcases. 
+    --Limit;
+    if (!Limit)
+      return MemDepResult::getUnknown();
+
     Instruction *Inst = --ScanIt;
     
     // If this inst is a memory op, get the pointer it accessed
@@ -215,11 +228,11 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
     }
   }
   
-  // No dependence found.  If this is the entry block of the function, it is a
-  // clobber, otherwise it is non-local.
+  // No dependence found.  If this is the entry block of the function, it is
+  // unknown, otherwise it is non-local.
   if (BB != &BB->getParent()->getEntryBlock())
     return MemDepResult::getNonLocal();
-  return MemDepResult::getClobber(ScanIt);
+  return MemDepResult::getUnknown();
 }
 
 /// isLoadLoadClobberIfExtendedToFullWidth - Return true if LI is a load that
@@ -322,9 +335,17 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
   const Value *MemLocBase = 0;
   int64_t MemLocOffset = 0;
-  
+
+  unsigned Limit = BlockScanLimit;
+
   // Walk backwards through the basic block, looking for dependencies.
   while (ScanIt != BB->begin()) {
+    // Limit the amount of scanning we do so we don't end up with quadratic
+    // running time on extreme testcases.
+    --Limit;
+    if (!Limit)
+      return MemDepResult::getUnknown();
+
     Instruction *Inst = --ScanIt;
 
     if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst)) {
@@ -374,10 +395,16 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
         if (R == AliasAnalysis::MustAlias)
           return MemDepResult::getDef(Inst);
 
+#if 0 // FIXME: Temporarily disabled. GVN is cleverly rewriting loads
+      // in terms of clobbering loads, but since it does this by looking
+      // at the clobbering load directly, it doesn't know about any
+      // phi translation that may have happened along the way.
+
         // If we have a partial alias, then return this as a clobber for the
         // client to handle.
         if (R == AliasAnalysis::PartialAlias)
           return MemDepResult::getClobber(Inst);
+#endif
         
         // Random may-alias loads don't depend on each other without a
         // dependence.
@@ -452,11 +479,11 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
     }
   }
   
-  // No dependence found.  If this is the entry block of the function, it is a
-  // clobber, otherwise it is non-local.
+  // No dependence found.  If this is the entry block of the function, it is
+  // unknown, otherwise it is non-local.
   if (BB != &BB->getParent()->getEntryBlock())
     return MemDepResult::getNonLocal();
-  return MemDepResult::getClobber(ScanIt);
+  return MemDepResult::getUnknown();
 }
 
 /// getDependency - Return the instruction on which a memory operation
@@ -484,12 +511,12 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
   
   // Do the scan.
   if (BasicBlock::iterator(QueryInst) == QueryParent->begin()) {
-    // No dependence found.  If this is the entry block of the function, it is a
-    // clobber, otherwise it is non-local.
+    // No dependence found.  If this is the entry block of the function, it is
+    // unknown, otherwise it is non-local.
     if (QueryParent != &QueryParent->getParent()->getEntryBlock())
       LocalCache = MemDepResult::getNonLocal();
     else
-      LocalCache = MemDepResult::getClobber(QueryInst);
+      LocalCache = MemDepResult::getUnknown();
   } else {
     AliasAnalysis::Location MemLoc;
     AliasAnalysis::ModRefResult MR = GetLocation(QueryInst, MemLoc, AA);
@@ -497,7 +524,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
       // If we can do a pointer scan, make it happen.
       bool isLoad = !(MR & AliasAnalysis::Mod);
       if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(QueryInst))
-        isLoad |= II->getIntrinsicID() == Intrinsic::lifetime_end;
+        isLoad |= II->getIntrinsicID() == Intrinsic::lifetime_start;
 
       LocalCache = getPointerDependencyFrom(MemLoc, isLoad, ScanPos,
                                             QueryParent);
@@ -508,7 +535,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
                                              QueryParent);
     } else
       // Non-memory instruction.
-      LocalCache = MemDepResult::getClobber(--BasicBlock::iterator(ScanPos));
+      LocalCache = MemDepResult::getUnknown();
   }
   
   // Remember the result!
@@ -642,10 +669,10 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
       Dep = getCallSiteDependencyFrom(QueryCS, isReadonlyCall,ScanPos, DirtyBB);
     } else if (DirtyBB != &DirtyBB->getParent()->getEntryBlock()) {
       // No dependence found.  If this is the entry block of the function, it is
-      // a clobber, otherwise it is non-local.
+      // a clobber, otherwise it is unknown.
       Dep = MemDepResult::getNonLocal();
     } else {
-      Dep = MemDepResult::getClobber(ScanPos);
+      Dep = MemDepResult::getUnknown();
     }
     
     // If we had a dirty entry for the block, update it.  Otherwise, just add
@@ -701,7 +728,7 @@ getNonLocalPointerDependency(const AliasAnalysis::Location &Loc, bool isLoad,
     return;
   Result.clear();
   Result.push_back(NonLocalDepResult(FromBB,
-                                     MemDepResult::getClobber(FromBB->begin()),
+                                     MemDepResult::getUnknown(),
                                      const_cast<Value *>(Loc.Ptr)));
 }
 
@@ -763,7 +790,7 @@ GetNonLocalInfoForBlock(const AliasAnalysis::Location &Loc,
   // If the block has a dependency (i.e. it isn't completely transparent to
   // the value), remember the reverse association because we just added it
   // to Cache!
-  if (Dep.isNonLocal())
+  if (Dep.isNonLocal() || Dep.isUnknown())
     return Dep;
   
   // Keep the ReverseNonLocalPtrDeps map up to date so we can efficiently
@@ -937,6 +964,9 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
   SmallVector<BasicBlock*, 32> Worklist;
   Worklist.push_back(StartBB);
   
+  // PredList used inside loop.
+  SmallVector<std::pair<BasicBlock*, PHITransAddr>, 16> PredList;
+
   // Keep track of the entries that we know are sorted.  Previously cached
   // entries will all be sorted.  The entries we add we only sort on demand (we
   // don't insert every element into its sorted position).  We know that we
@@ -973,22 +1003,29 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     // the same Pointer.
     if (!Pointer.NeedsPHITranslationFromBlock(BB)) {
       SkipFirstBlock = false;
+      SmallVector<BasicBlock*, 16> NewBlocks;
       for (BasicBlock **PI = PredCache->GetPreds(BB); *PI; ++PI) {
         // Verify that we haven't looked at this block yet.
         std::pair<DenseMap<BasicBlock*,Value*>::iterator, bool>
           InsertRes = Visited.insert(std::make_pair(*PI, Pointer.getAddr()));
         if (InsertRes.second) {
           // First time we've looked at *PI.
-          Worklist.push_back(*PI);
+          NewBlocks.push_back(*PI);
           continue;
         }
         
         // If we have seen this block before, but it was with a different
         // pointer then we have a phi translation failure and we have to treat
         // this as a clobber.
-        if (InsertRes.first->second != Pointer.getAddr())
+        if (InsertRes.first->second != Pointer.getAddr()) {
+          // Make sure to clean up the Visited map before continuing on to
+          // PredTranslationFailure.
+          for (unsigned i = 0; i < NewBlocks.size(); i++)
+            Visited.erase(NewBlocks[i]);
           goto PredTranslationFailure;
+        }
       }
+      Worklist.append(NewBlocks.begin(), NewBlocks.end());
       continue;
     }
     
@@ -1007,13 +1044,15 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
       NumSortedEntries = Cache->size();
     }
     Cache = 0;
-    
+
+    PredList.clear();
     for (BasicBlock **PI = PredCache->GetPreds(BB); *PI; ++PI) {
       BasicBlock *Pred = *PI;
-      
+      PredList.push_back(std::make_pair(Pred, Pointer));
+
       // Get the PHI translated pointer in this predecessor.  This can fail if
       // not translatable, in which case the getAddr() returns null.
-      PHITransAddr PredPointer(Pointer);
+      PHITransAddr &PredPointer = PredList.back().second;
       PredPointer.PHITranslateValue(BB, Pred, 0);
 
       Value *PredPtrVal = PredPointer.getAddr();
@@ -1027,6 +1066,9 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
         InsertRes = Visited.insert(std::make_pair(Pred, PredPtrVal));
 
       if (!InsertRes.second) {
+        // We found the pred; take it off the list of preds to visit.
+        PredList.pop_back();
+
         // If the predecessor was visited with PredPtr, then we already did
         // the analysis and can ignore it.
         if (InsertRes.first->second == PredPtrVal)
@@ -1035,18 +1077,49 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
         // Otherwise, the block was previously analyzed with a different
         // pointer.  We can't represent the result of this case, so we just
         // treat this as a phi translation failure.
+
+        // Make sure to clean up the Visited map before continuing on to
+        // PredTranslationFailure.
+        for (unsigned i = 0; i < PredList.size(); i++)
+          Visited.erase(PredList[i].first);
+
         goto PredTranslationFailure;
       }
-      
+    }
+
+    // Actually process results here; this need to be a separate loop to avoid
+    // calling getNonLocalPointerDepFromBB for blocks we don't want to return
+    // any results for.  (getNonLocalPointerDepFromBB will modify our 
+    // datastructures in ways the code after the PredTranslationFailure label
+    // doesn't expect.)
+    for (unsigned i = 0; i < PredList.size(); i++) {
+      BasicBlock *Pred = PredList[i].first;
+      PHITransAddr &PredPointer = PredList[i].second;
+      Value *PredPtrVal = PredPointer.getAddr();
+
+      bool CanTranslate = true;
       // If PHI translation was unable to find an available pointer in this
       // predecessor, then we have to assume that the pointer is clobbered in
       // that predecessor.  We can still do PRE of the load, which would insert
       // a computation of the pointer in this predecessor.
-      if (PredPtrVal == 0) {
+      if (PredPtrVal == 0)
+        CanTranslate = false;
+
+      // FIXME: it is entirely possible that PHI translating will end up with
+      // the same value.  Consider PHI translating something like:
+      // X = phi [x, bb1], [y, bb2].  PHI translating for bb1 doesn't *need*
+      // to recurse here, pedantically speaking.
+
+      // If getNonLocalPointerDepFromBB fails here, that means the cached
+      // result conflicted with the Visited list; we have to conservatively
+      // assume it is unknown, but this also does not block PRE of the load.
+      if (!CanTranslate ||
+          getNonLocalPointerDepFromBB(PredPointer,
+                                      Loc.getWithNewPtr(PredPtrVal),
+                                      isLoad, Pred,
+                                      Result, Visited)) {
         // Add the entry to the Result list.
-        NonLocalDepResult Entry(Pred,
-                                MemDepResult::getClobber(Pred->getTerminator()),
-                                PredPtrVal);
+        NonLocalDepResult Entry(Pred, MemDepResult::getUnknown(), PredPtrVal);
         Result.push_back(Entry);
 
         // Since we had a phi translation failure, the cache for CacheKey won't
@@ -1058,19 +1131,6 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
         NLPI.Pair = BBSkipFirstBlockPair();
         continue;
       }
-
-      // FIXME: it is entirely possible that PHI translating will end up with
-      // the same value.  Consider PHI translating something like:
-      // X = phi [x, bb1], [y, bb2].  PHI translating for bb1 doesn't *need*
-      // to recurse here, pedantically speaking.
-      
-      // If we have a problem phi translating, fall through to the code below
-      // to handle the failure condition.
-      if (getNonLocalPointerDepFromBB(PredPointer,
-                                      Loc.getWithNewPtr(PredPointer.getAddr()),
-                                      isLoad, Pred,
-                                      Result, Visited))
-        goto PredTranslationFailure;
     }
     
     // Refresh the CacheInfo/Cache pointer so that it isn't invalidated.
@@ -1087,6 +1147,9 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     continue;
 
   PredTranslationFailure:
+    // The following code is "failure"; we can't produce a sane translation
+    // for the given block.  It assumes that we haven't modified any of
+    // our datastructures while processing the current block.
     
     if (Cache == 0) {
       // Refresh the CacheInfo/Cache pointer if it got invalidated.
@@ -1101,8 +1164,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     // results from the set".  Clear out the indicator for this.
     CacheInfo->Pair = BBSkipFirstBlockPair();
     
-    // If *nothing* works, mark the pointer as being clobbered by the first
-    // instruction in this block.
+    // If *nothing* works, mark the pointer as unknown.
     //
     // If this is the magic first block, return this as a clobber of the whole
     // incoming value.  Since we can't phi translate to one of the predecessors,
@@ -1117,8 +1179,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
       
       assert(I->getResult().isNonLocal() &&
              "Should only be here with transparent block");
-      I->setResult(MemDepResult::getClobber(BB->begin()));
-      ReverseNonLocalPtrDeps[BB->begin()].insert(CacheKey);
+      I->setResult(MemDepResult::getUnknown());
       Result.push_back(NonLocalDepResult(I->getBB(), I->getResult(),
                                          Pointer.getAddr()));
       break;

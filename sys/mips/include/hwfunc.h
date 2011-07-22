@@ -28,6 +28,8 @@
 #ifndef _MACHINE_HWFUNC_H_
 #define	_MACHINE_HWFUNC_H_
 
+#include <sys/_cpuset.h>
+
 struct trapframe;
 struct timecounter;
 /*
@@ -91,7 +93,7 @@ extern int platform_processor_id(void);
 /*
  * Return the cpumask of available processors.
  */
-extern cpumask_t platform_cpu_mask(void);
+extern void platform_cpu_mask(cpuset_t *mask);
 
 /*
  * Return the topology of processors on this platform

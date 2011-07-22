@@ -15,7 +15,6 @@
 #include "ARM.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMAddressingModes.h"
-#include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -113,18 +112,8 @@ void Thumb2InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (!ARM::GPRRegClass.contains(DestReg, SrcReg))
     return ARMBaseInstrInfo::copyPhysReg(MBB, I, DL, DestReg, SrcReg, KillSrc);
 
-  bool tDest = ARM::tGPRRegClass.contains(DestReg);
-  bool tSrc  = ARM::tGPRRegClass.contains(SrcReg);
-  unsigned Opc = ARM::tMOVgpr2gpr;
-  if (tDest && tSrc)
-    Opc = ARM::tMOVr;
-  else if (tSrc)
-    Opc = ARM::tMOVtgpr2gpr;
-  else if (tDest)
-    Opc = ARM::tMOVgpr2tgpr;
-
-  BuildMI(MBB, I, DL, get(Opc), DestReg)
-    .addReg(SrcReg, getKillRegState(KillSrc));
+  AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc)));
 }
 
 void Thumb2InstrInfo::
@@ -232,8 +221,8 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
     unsigned Opc = 0;
     if (DestReg == ARM::SP && BaseReg != ARM::SP) {
       // mov sp, rn. Note t2MOVr cannot be used.
-      BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVgpr2gpr),DestReg)
-        .addReg(BaseReg).setMIFlags(MIFlags);
+      AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVr),DestReg)
+        .addReg(BaseReg).setMIFlags(MIFlags));
       BaseReg = ARM::SP;
       continue;
     }
@@ -252,7 +241,7 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
       }
 
       // sub rd, sp, so_imm
-      Opc = isSub ? ARM::t2SUBrSPi : ARM::t2ADDrSPi;
+      Opc = isSub ? ARM::t2SUBri : ARM::t2ADDri;
       if (ARM_AM::getT2SOImmVal(NumBytes) != -1) {
         NumBytes = 0;
       } else {
@@ -396,7 +385,7 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
                                unsigned FrameReg, int &Offset,
                                const ARMBaseInstrInfo &TII) {
   unsigned Opcode = MI.getOpcode();
-  const TargetInstrDesc &Desc = MI.getDesc();
+  const MCInstrDesc &Desc = MI.getDesc();
   unsigned AddrMode = (Desc.TSFlags & ARMII::AddrModeMask);
   bool isSub = false;
 
@@ -410,25 +399,24 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
     unsigned PredReg;
     if (Offset == 0 && getInstrPredicate(&MI, PredReg) == ARMCC::AL) {
       // Turn it into a move.
-      MI.setDesc(TII.get(ARM::tMOVgpr2gpr));
+      MI.setDesc(TII.get(ARM::tMOVr));
       MI.getOperand(FrameRegIdx).ChangeToRegister(FrameReg, false);
       // Remove offset and remaining explicit predicate operands.
       do MI.RemoveOperand(FrameRegIdx+1);
-      while (MI.getNumOperands() > FrameRegIdx+1 &&
-             (!MI.getOperand(FrameRegIdx+1).isReg() ||
-              !MI.getOperand(FrameRegIdx+1).isImm()));
+      while (MI.getNumOperands() > FrameRegIdx+1);
+      MachineInstrBuilder MIB(&MI);
+      AddDefaultPred(MIB);
       return true;
     }
 
-    bool isSP = FrameReg == ARM::SP;
     bool HasCCOut = Opcode != ARM::t2ADDri12;
 
     if (Offset < 0) {
       Offset = -Offset;
       isSub = true;
-      MI.setDesc(TII.get(isSP ? ARM::t2SUBrSPi : ARM::t2SUBri));
+      MI.setDesc(TII.get(ARM::t2SUBri));
     } else {
-      MI.setDesc(TII.get(isSP ? ARM::t2ADDrSPi : ARM::t2ADDri));
+      MI.setDesc(TII.get(ARM::t2ADDri));
     }
 
     // Common case: small offset, fits into instruction.
@@ -444,9 +432,7 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
     // Another common case: imm12.
     if (Offset < 4096 &&
         (!HasCCOut || MI.getOperand(MI.getNumOperands()-1).getReg() == 0)) {
-      unsigned NewOpc = isSP
-        ? (isSub ? ARM::t2SUBrSPi12 : ARM::t2ADDrSPi12)
-        : (isSub ? ARM::t2SUBri12   : ARM::t2ADDri12);
+      unsigned NewOpc = isSub ? ARM::t2SUBri12 : ARM::t2ADDri12;
       MI.setDesc(TII.get(NewOpc));
       MI.getOperand(FrameRegIdx).ChangeToRegister(FrameReg, false);
       MI.getOperand(FrameRegIdx+1).ChangeToImmediate(Offset);
@@ -579,8 +565,7 @@ void
 Thumb2InstrInfo::scheduleTwoAddrSource(MachineInstr *SrcMI,
                                        MachineInstr *UseMI,
                                        const TargetRegisterInfo &TRI) const {
-  if (SrcMI->getOpcode() != ARM::tMOVgpr2gpr ||
-      SrcMI->getOperand(1).isKill())
+  if (SrcMI->getOpcode() != ARM::tMOVr || SrcMI->getOperand(1).isKill())
     return;
 
   unsigned PredReg = 0;

@@ -117,8 +117,9 @@ namespace llvm {
     /// @param Name        Typedef name.
     /// @param File        File where this type is defined.
     /// @param LineNo      Line number.
+    /// @param Context     The surrounding context for the typedef.
     DIType createTypedef(DIType Ty, StringRef Name, DIFile File, 
-                         unsigned LineNo);
+                         unsigned LineNo, DIDescriptor Context);
 
     /// createFriend - Create debugging information entry for a 'friend'.
     DIType createFriend(DIType Ty, DIType FriendTy);
@@ -134,6 +135,7 @@ namespace llvm {
                              unsigned Flags);
 
     /// createMemberType - Create debugging information entry for a member.
+    /// @param Scope        Member scope.
     /// @param Name         Member name.
     /// @param File         File where this member is defined.
     /// @param LineNo       Line number.
@@ -142,7 +144,7 @@ namespace llvm {
     /// @param OffsetInBits Member offset.
     /// @param Flags        Flags to encode member attribute, e.g. private
     /// @param Ty           Parent type.
-    DIType createMemberType(StringRef Name, DIFile File,
+    DIType createMemberType(DIDescriptor Scope, StringRef Name, DIFile File,
                             unsigned LineNo, uint64_t SizeInBits, 
                             uint64_t AlignInBits, uint64_t OffsetInBits, 
                             unsigned Flags, DIType Ty);

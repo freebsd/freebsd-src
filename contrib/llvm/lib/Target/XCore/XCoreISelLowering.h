@@ -103,9 +103,6 @@ namespace llvm {
     virtual bool isLegalAddressingMode(const AddrMode &AM,
                                        const Type *Ty) const;
 
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
-
   private:
     const XCoreTargetMachine &TM;
     const XCoreSubtarget &Subtarget;
@@ -151,9 +148,9 @@ namespace llvm {
     SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
 
     // Inline asm support
-    std::vector<unsigned>
-    getRegClassForInlineAsmConstraint(const std::string &Constraint,
-              EVT VT) const;
+    std::pair<unsigned, const TargetRegisterClass*>
+    getRegForInlineAsmConstraint(const std::string &Constraint,
+				 EVT VT) const;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -194,7 +191,8 @@ namespace llvm {
                   DebugLoc dl, SelectionDAG &DAG) const;
 
     virtual bool
-      CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
+      CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+		     bool isVarArg,
                      const SmallVectorImpl<ISD::OutputArg> &ArgsFlags,
                      LLVMContext &Context) const;
   };

@@ -1405,8 +1405,8 @@ pccard_ccr_read_impl(device_t brdev, device_t child, uint32_t offset,
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 
 	*val = pccard_ccr_read(devi->pf, offset);
-	device_printf(child, "ccr_read of %#x (%#x) is %#x\n", offset,
-	  devi->pf->pf_ccr_offset, *val);
+	DEVPRINTF((child, "ccr_read of %#x (%#x) is %#x\n", offset,
+	  devi->pf->pf_ccr_offset, *val));
 	return 0;
 }
 
@@ -1421,8 +1421,8 @@ pccard_ccr_write_impl(device_t brdev, device_t child, uint32_t offset,
 	 * Can't use pccard_ccr_write since client drivers may access
 	 * registers not contained in the 'mask' if they are non-standard.
 	 */
-	device_printf(child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
-	  devi->pf->pf_ccr_offset);
+	DEVPRINTF((child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
+	  devi->pf->pf_ccr_offset));
 	bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, pf->pf_ccr_offset + offset,
 	    val);
 	return 0;

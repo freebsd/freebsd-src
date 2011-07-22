@@ -43,6 +43,7 @@
 #include "../mystring.h"
 #ifdef SHELL
 #include "../output.h"
+#include "builtins.h"
 #define FILE struct output
 #undef stdout
 #define stdout out1
@@ -74,8 +75,5 @@
 pointer stalloc(int);
 void error(const char *, ...) __printf0like(1, 2);
 pid_t getjobpgrp(char *);
-
-int echocmd(int, char **);
-int testcmd(int, char **);
 
 extern char *commandname;

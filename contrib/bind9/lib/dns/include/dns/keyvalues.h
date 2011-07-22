@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyvalues.h,v 1.23.48.4 2010-01-15 23:47:33 tbox Exp $ */
+/* $Id: keyvalues.h,v 1.29 2010-12-23 23:47:08 tbox Exp $ */
 
 #ifndef DNS_KEYVALUES_H
 #define DNS_KEYVALUES_H 1
@@ -42,7 +42,7 @@
 #define DNS_KEYOWNER_ENTITY	0x0200	/*%< key is assoc. with entity eg host */
 #define DNS_KEYOWNER_ZONE	0x0100	/*%< key is zone key */
 #define DNS_KEYOWNER_RESERVED	0x0300	/*%< reserved meaning */
-#define DNS_KEYFLAG_REVOKE	0x0080	/*%< key revoked (per rfc5001) */
+#define DNS_KEYFLAG_REVOKE	0x0080	/*%< key revoked (per rfc5011) */
 #define DNS_KEYFLAG_RESERVED9	0x0040	/*%< reserved - must be zero */
 #define DNS_KEYFLAG_RESERVED10	0x0020	/*%< reserved - must be zero */
 #define DNS_KEYFLAG_RESERVED11	0x0010	/*%< reserved - must be zero */
@@ -51,7 +51,6 @@
 #define DNS_KEYFLAG_RESERVEDMASK (DNS_KEYFLAG_RESERVED2 | \
 				  DNS_KEYFLAG_RESERVED4 | \
 				  DNS_KEYFLAG_RESERVED5 | \
-				  DNS_KEYFLAG_RESERVED8 | \
 				  DNS_KEYFLAG_RESERVED9 | \
 				  DNS_KEYFLAG_RESERVED10 | \
 				  DNS_KEYFLAG_RESERVED11 )
@@ -71,6 +70,7 @@
 #define DNS_KEYALG_NSEC3RSASHA1	7
 #define DNS_KEYALG_RSASHA256	8
 #define DNS_KEYALG_RSASHA512	10
+#define DNS_KEYALG_ECCGOST	12
 #define DNS_KEYALG_INDIRECT	252
 #define DNS_KEYALG_PRIVATEDNS	253
 #define DNS_KEYALG_PRIVATEOID	254     /*%< Key begins with OID giving alg */
@@ -98,5 +98,7 @@
 #define DNS_SIG_DSAMAXBITS	1024
 #define DNS_SIG_DSAMINBYTES	213
 #define DNS_SIG_DSAMAXBYTES	405
+
+#define DNS_SIG_GOSTSIGSIZE	64
 
 #endif /* DNS_KEYVALUES_H */

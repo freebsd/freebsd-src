@@ -186,7 +186,8 @@ udp_init(void)
 {
 
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
-	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE);
+	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    IPI_HASHFIELDS_2TUPLE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
@@ -567,9 +568,9 @@ udp_input(struct mbuf *m, int off)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	inp = in_pcblookup(&V_udbinfo, ip->ip_src, uh->uh_sport,
+	inp = in_pcblookup_mbuf(&V_udbinfo, ip->ip_src, uh->uh_sport,
 	    ip->ip_dst, uh->uh_dport, INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
-	    ifp);
+	    ifp, m);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
 			char buf[4*sizeof "123"];

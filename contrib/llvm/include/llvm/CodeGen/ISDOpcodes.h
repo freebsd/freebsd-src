@@ -107,11 +107,11 @@ namespace ISD {
     // and returns an outchain.
     EH_SJLJ_LONGJMP,
 
-    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, context)
+    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, setjmpval)
     // This corresponds to the eh.sjlj.dispatchsetup intrinsic. It takes an
-    // input chain and a pointer to the sjlj function context as inputs and
-    // returns an outchain. By default, this does nothing. Targets can lower
-    // this to unwind setup code if needed.
+    // input chain and the value returning from setjmp as inputs and returns an
+    // outchain. By default, this does nothing. Targets can lower this to unwind
+    // setup code if needed.
     EH_SJLJ_DISPATCHSETUP,
 
     // TargetConstant* - Like Constant*, but the DAG does not do any folding,
@@ -232,7 +232,7 @@ namespace ISD {
     SMULO, UMULO,
 
     // Simple binary floating point operators.
-    FADD, FSUB, FMUL, FDIV, FREM,
+    FADD, FSUB, FMUL, FMA, FDIV, FREM,
 
     // FCOPYSIGN(X, Y) - Return the value of X with the sign of Y.  NOTE: This
     // DAG node does not require that X and Y have the same type, just that they
@@ -580,7 +580,8 @@ namespace ISD {
 
     // PREFETCH - This corresponds to a prefetch intrinsic. It takes chains are
     // their first operand. The other operands are the address to prefetch,
-    // read / write specifier, and locality specifier.
+    // read / write specifier, locality specifier and instruction / data cache
+    // specifier.
     PREFETCH,
 
     // OUTCHAIN = MEMBARRIER(INCHAIN, load-load, load-store, store-load,

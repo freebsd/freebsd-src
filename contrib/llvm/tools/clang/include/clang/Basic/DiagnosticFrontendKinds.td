@@ -137,6 +137,9 @@ def warn_pch_nonfragile_abi2 : Error<
     "PCH file was compiled with the %select{32-bit|enhanced non-fragile}0 "
     "Objective-C ABI but the %select{32-bit|enhanced non-fragile}1 "
     "Objective-C ABI is selected">;
+def warn_pch_auto_ref_count : Error<
+    "PCH file was compiled %select{without|with} automated reference counting,"
+    "which is currently %select{disabled|enabled}">;
 def warn_pch_apple_kext : Error<
     "PCH file was compiled %select{with|without}0 support for Apple's kernel "
     "extensions ABI but it is currently %select{disabled|enabled}1">;
@@ -281,6 +284,9 @@ def err_not_a_pch_file : Error<
 def warn_unknown_warning_option : Warning<
     "unknown warning option '%0'">,
     InGroup<DiagGroup<"unknown-warning-option"> >;
+def warn_unknown_negative_warning_option : Warning<
+    "unknown warning option '%0'">,
+    InGroup<DiagGroup<"unknown-warning-option"> >, DefaultIgnore;
 def warn_unknown_warning_specifier : Warning<
     "unknown %0 warning specifier: '%1'">,
     InGroup<DiagGroup<"unknown-warning-option"> >;

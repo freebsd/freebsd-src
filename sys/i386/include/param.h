@@ -56,6 +56,7 @@
 
 
 #define __HAVE_ACPI
+#define	__HAVE_PIR
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
@@ -67,7 +68,9 @@
 #define MID_MACHINE	MID_I386
 
 #if defined(SMP) || defined(KLD_MODULE)
+#ifndef MAXCPU
 #define MAXCPU		32
+#endif
 #else
 #define MAXCPU		1
 #endif /* SMP || KLD_MODULE */

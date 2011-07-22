@@ -747,6 +747,7 @@ static int akbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 		break;
 
 	case PIO_KEYMAP:
+	case OPIO_KEYMAP:
 	case PIO_KEYMAPENT:
 	case PIO_DEADKEYMAP:
 	default:

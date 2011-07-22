@@ -1,5 +1,5 @@
 /*
- *  $Id: trace.c,v 1.12 2011/01/13 01:36:34 tom Exp $
+ *  $Id: trace.c,v 1.14 2011/06/21 21:12:56 tom Exp $
  *
  *  trace.c -- implements screen-dump and keystroke-logging
  *
@@ -119,6 +119,7 @@ dlg_trace_chr(int ch, int fkey)
 		    CASE(DLGK_BEGIN);
 		    CASE(DLGK_FINAL);
 		    CASE(DLGK_SELECT);
+		    CASE(DLGK_HELPFILE);
 		    CASE(DLGK_TRACE);
 		}
 	    }
@@ -144,6 +145,7 @@ dlg_trace(const char *fname)
 	    myFP = fopen(fname, "a");
 	    if (myFP != 0) {
 		dlg_trace_time("** opened at");
+		dlg_trace_msg("** dialog %s\n", dialog_version());
 	    }
 	}
     } else if (myFP != 0) {

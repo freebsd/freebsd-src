@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dname_39.c,v 1.38 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: dname_39.c,v 1.40 2009-12-04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 16:52:38 PST 2000 by explorer */
 
@@ -230,4 +230,8 @@ checknames_dname(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_dname(ARGS_COMPARE) {
+	return (compare_dname(rdata1, rdata2));
+}
 #endif	/* RDATA_GENERIC_DNAME_39_C */

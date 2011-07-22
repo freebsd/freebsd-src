@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
@@ -91,12 +90,12 @@ static struct nlist namelist[] = {
 	{ "_nchstats" },
 #define	X_INTRNAMES	5
 	{ "_intrnames" },
-#define	X_EINTRNAMES	6
-	{ "_eintrnames" },
+#define	X_SINTRNAMES	6
+	{ "_sintrnames" },
 #define	X_INTRCNT	7
 	{ "_intrcnt" },
-#define	X_EINTRCNT	8
-	{ "_eintrcnt" },
+#define	X_SINTRCNT	8
+	{ "_sintrcnt" },
 #define	X_KMEMSTATS	9
 	{ "_kmemstatistics" },
 #define	X_KMEMZONES	10
@@ -1154,10 +1153,8 @@ dointr(void)
 
 	uptime = getuptime();
 	if (kd != NULL) {
-		intrcntlen = namelist[X_EINTRCNT].n_value -
-		    namelist[X_INTRCNT].n_value;
-		inamlen = namelist[X_EINTRNAMES].n_value -
-		    namelist[X_INTRNAMES].n_value;
+		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
+		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
 		if ((intrcnt = malloc(intrcntlen)) == NULL ||
 		    (intrname = malloc(inamlen)) == NULL)
 			err(1, "malloc()");

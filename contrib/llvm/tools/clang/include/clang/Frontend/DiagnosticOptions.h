@@ -37,6 +37,10 @@ public:
   unsigned ShowNoteIncludeStack : 1; /// Show include stacks for notes.
   unsigned ShowCategories : 2;   /// Show categories: 0 -> none, 1 -> Number,
                                  /// 2 -> Full Name.
+                                 
+  unsigned Format : 2;           /// Format for diagnostics: 
+  enum TextDiagnosticFormat { Clang, Msvc, Vi };
+  
   unsigned ShowColors : 1;       /// Show diagnostics with ANSI color sequences.
   unsigned ShowOverloads : 1;    /// Overload candidates to show.  Values from
                                  /// Diagnostic::OverloadsShown
@@ -45,8 +49,7 @@ public:
                                  /// input source file.
 
   unsigned ErrorLimit;           /// Limit # errors emitted.
-  unsigned MacroBacktraceLimit;  /// Limit depth of macro instantiation 
-                                 /// backtrace.
+  unsigned MacroBacktraceLimit;  /// Limit depth of macro expansion backtrace.
   unsigned TemplateBacktraceLimit; /// Limit depth of instantiation backtrace.
 
   /// The distance between tab stops.
@@ -86,6 +89,7 @@ public:
     ShowNames = 0;
     ShowOptionNames = 0;
     ShowCategories = 0;
+    Format = Clang;
     ShowSourceRanges = 0;
     ShowParseableFixits = 0;
     VerifyDiagnostics = 0;

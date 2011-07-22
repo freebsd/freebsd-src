@@ -791,12 +791,14 @@ findpcb:
 		 * Transparently forwarded. Pretend to be the destination.
 		 * already got one like this?
 		 */
-		inp = in_pcblookup(&V_tcbinfo, ip->ip_src, th->th_sport,
+		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src, th->th_sport,
 		    ip->ip_dst, th->th_dport, INPLOOKUP_WLOCKPCB,
-		    m->m_pkthdr.rcvif);
+		    m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
+			 * Because we've rewritten the destination address,
+			 * any hardware-generated hash is ignored.
 			 */
 			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
 			    th->th_sport, next_hop->sin_addr,
@@ -812,19 +814,19 @@ findpcb:
 	{
 #ifdef INET6
 		if (isipv6)
-			inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_src,
+			inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 			    th->th_sport, &ip6->ip6_dst, th->th_dport,
 			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-			    m->m_pkthdr.rcvif);
+			    m->m_pkthdr.rcvif, m);
 #endif
 #if defined(INET) && defined(INET6)
 		else
 #endif
 #ifdef INET
-			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
+			inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 			    th->th_sport, ip->ip_dst, th->th_dport,
 			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-			    m->m_pkthdr.rcvif);
+			    m->m_pkthdr.rcvif, m);
 #endif
 	}
 

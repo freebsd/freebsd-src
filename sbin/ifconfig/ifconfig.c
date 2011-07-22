@@ -498,9 +498,11 @@ ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 	 * ifconfig IF up/down etc. to work without INET support as people
 	 * never used ifconfig IF link up/down, etc. either.
 	 */
+#ifndef RESCUE
 #ifdef INET
 	if (afp == NULL && feature_present("inet"))
 		afp = af_getbyname("inet");
+#endif
 #endif
 	if (afp == NULL)
 		afp = af_getbyname("link");
@@ -908,7 +910,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
 "\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
-"\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE"
+"\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE\25NETMAP"
 
 /*
  * Print the status of the interface.  If an address family was

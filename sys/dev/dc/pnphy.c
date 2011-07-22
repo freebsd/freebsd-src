@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
 
 #include <dev/dc/if_dcreg.h>
 

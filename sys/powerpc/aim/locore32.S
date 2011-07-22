@@ -90,11 +90,14 @@ GLOBAL(esym)
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(eintrnames)
+GLOBAL(sintrnames)
+	.word	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+
 	.align 4
 GLOBAL(intrcnt)
 	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(eintrcnt)
+GLOBAL(sintrcnt)
+	.word	INTRCNT_COUNT * 4 * 2
 
 	.text
 	.globl	btext
@@ -181,8 +184,7 @@ setfault:
 	mflr	0
 	mfcr	12
 	mfsprg	4,0
-	lwz	4,PC_CURTHREAD(4)
-	lwz	4,TD_PCB(4)
+	lwz	4,TD_PCB(2)	/* curthread = r2 */
 	stw	3,PCB_ONFAULT(4)
 	stw	0,0(3)
 	stw	1,4(3)

@@ -15,7 +15,9 @@
 #define LLVM_TARGET_MSP430REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "MSP430GenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "MSP430GenRegisterInfo.inc"
 
 namespace llvm {
 
@@ -39,6 +41,13 @@ public:
   BitVector getReservedRegs(const MachineFunction &MF) const;
   const TargetRegisterClass* getPointerRegClass(unsigned Kind = 0) const;
 
+  const TargetRegisterClass *
+  getMatchingSuperRegClass(const TargetRegisterClass *A,
+                           const TargetRegisterClass *B, unsigned Idx) const {
+    // No sub-classes makes this really easy.
+    return A;
+  }
+
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
@@ -54,6 +63,7 @@ public:
 
   //! Get DWARF debugging register number
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 };
 
 } // end namespace llvm

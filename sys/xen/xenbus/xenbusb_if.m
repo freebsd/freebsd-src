@@ -31,10 +31,12 @@
 #
 
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
+#include <sys/taskqueue.h>
 
-HEADER {
-struct xenbus_device_ivars;
-}
+#include <xen/xenstore/xenstorevar.h>
+#include <xen/xenbus/xenbusb.h>
 
 INTERFACE xenbusb;
 
@@ -76,3 +78,34 @@ METHOD int get_otherend_node {
 	device_t _dev;
 	struct xenbus_device_ivars *_ivars;
 }
+
+/**
+ * \brief Handle a XenStore change detected in the peer tree of a child
+ *        device of the bus.
+ *
+ * \param _bus       NewBus device_t for this XenBus (front/back) bus instance.
+ * \param _child     NewBus device_t for the child device whose peer XenStore
+ *                   tree has changed.
+ * \param _state     The current state of the peer.
+ */
+METHOD void otherend_changed {
+	device_t _bus;
+	device_t _child;
+	enum xenbus_state _state;
+} DEFAULT xenbusb_otherend_changed;
+
+/**
+ * \brief Handle a XenStore change detected in the local tree of a child
+ *        device of the bus.
+ *
+ * \param _bus    NewBus device_t for this XenBus (front/back) bus instance.
+ * \param _child  NewBus device_t for the child device whose peer XenStore
+ *                tree has changed.
+ * \param _path   The tree relative sub-path to the modified node.  The empty
+ *                string indicates the root of the tree was destroyed.
+ */
+METHOD void localend_changed {
+	device_t _bus;
+	device_t _child;
+	const char * _path;
+} DEFAULT xenbusb_localend_changed;

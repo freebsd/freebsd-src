@@ -15,6 +15,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp \
 	CodeGenInstruction.cpp \
+	CodeGenRegisters.cpp \
 	CodeGenTarget.cpp \
 	DAGISelEmitter.cpp \
 	DAGISelMatcher.cpp \
@@ -23,6 +24,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	DAGISelMatcherOpt.cpp \
 	DisassemblerEmitter.cpp \
 	EDEmitter.cpp \
+	Error.cpp \
 	FastISelEmitter.cpp \
 	FixedLenDecoderEmitter.cpp \
 	InstrEnumEmitter.cpp \
@@ -31,8 +33,10 @@ SRCS=	ARMDecoderEmitter.cpp \
 	LLVMCConfigurationEmitter.cpp \
 	NeonEmitter.cpp \
 	OptParserEmitter.cpp \
+	PseudoLoweringEmitter.cpp \
 	Record.cpp \
 	RegisterInfoEmitter.cpp \
+	SetTheory.cpp \
 	StringMatcher.cpp \
 	SubtargetEmitter.cpp \
 	TGLexer.cpp \

@@ -40,8 +40,6 @@
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void atomic_dec_64(volatile uint64_t *target);
 #endif
-#ifndef __LP64__
-#endif
 #ifndef __sparc64__
 extern uint32_t atomic_cas_32(volatile uint32_t *target, uint32_t cmp,
     uint32_t newval);

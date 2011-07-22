@@ -34,7 +34,7 @@ Value *IRBuilderBase::CreateGlobalString(StringRef Str, const Twine &Name) {
   return GV;
 }
 
-const Type *IRBuilderBase::getCurrentFunctionReturnType() const {
+Type *IRBuilderBase::getCurrentFunctionReturnType() const {
   assert(BB && BB->getParent() && "No current function!");
   return BB->getParent()->getReturnType();
 }
@@ -52,25 +52,24 @@ Value *IRBuilderBase::getCastedInt8PtrValue(Value *Ptr) {
   return BCI;
 }
 
-static CallInst *createCallHelper(Value *Callee, Value *const* Ops,
-                                  unsigned NumOps, IRBuilderBase *Builder) {
-  CallInst *CI = CallInst::Create(Callee, Ops, Ops + NumOps, "");
+static CallInst *createCallHelper(Value *Callee, ArrayRef<Value *> Ops,
+                                  IRBuilderBase *Builder) {
+  CallInst *CI = CallInst::Create(Callee, Ops, "");
   Builder->GetInsertBlock()->getInstList().insert(Builder->GetInsertPoint(),CI);
   Builder->SetInstDebugLocation(CI);
   return CI;  
 }
-
 
 CallInst *IRBuilderBase::
 CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
              bool isVolatile, MDNode *TBAATag) {
   Ptr = getCastedInt8PtrValue(Ptr);
   Value *Ops[] = { Ptr, Val, Size, getInt32(Align), getInt1(isVolatile) };
-  const Type *Tys[] = { Ptr->getType(), Size->getType() };
+  Type *Tys[] = { Ptr->getType(), Size->getType() };
   Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memset, Tys, 2);
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memset, Tys);
   
-  CallInst *CI = createCallHelper(TheFn, Ops, 5, this);
+  CallInst *CI = createCallHelper(TheFn, Ops, this);
   
   // Set the TBAA info if present.
   if (TBAATag)
@@ -86,11 +85,11 @@ CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
   Src = getCastedInt8PtrValue(Src);
 
   Value *Ops[] = { Dst, Src, Size, getInt32(Align), getInt1(isVolatile) };
-  const Type *Tys[] = { Dst->getType(), Src->getType(), Size->getType() };
+  Type *Tys[] = { Dst->getType(), Src->getType(), Size->getType() };
   Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memcpy, Tys, 3);
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memcpy, Tys);
   
-  CallInst *CI = createCallHelper(TheFn, Ops, 5, this);
+  CallInst *CI = createCallHelper(TheFn, Ops, this);
   
   // Set the TBAA info if present.
   if (TBAATag)
@@ -106,15 +105,45 @@ CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
   Src = getCastedInt8PtrValue(Src);
   
   Value *Ops[] = { Dst, Src, Size, getInt32(Align), getInt1(isVolatile) };
-  const Type *Tys[] = { Dst->getType(), Src->getType(), Size->getType() };
+  Type *Tys[] = { Dst->getType(), Src->getType(), Size->getType() };
   Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memmove, Tys, 3);
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::memmove, Tys);
   
-  CallInst *CI = createCallHelper(TheFn, Ops, 5, this);
+  CallInst *CI = createCallHelper(TheFn, Ops, this);
   
   // Set the TBAA info if present.
   if (TBAATag)
     CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
   
   return CI;  
+}
+
+CallInst *IRBuilderBase::CreateLifetimeStart(Value *Ptr, ConstantInt *Size) {
+  assert(isa<PointerType>(Ptr->getType()) &&
+	 "lifetime.start only applies to pointers.");
+  Ptr = getCastedInt8PtrValue(Ptr);
+  if (!Size)
+    Size = getInt64(-1);
+  else
+    assert(Size->getType() == getInt64Ty() &&
+	   "lifetime.start requires the size to be an i64");
+  Value *Ops[] = { Size, Ptr };
+  Module *M = BB->getParent()->getParent();
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_start);
+  return createCallHelper(TheFn, Ops, this);
+}
+
+CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
+  assert(isa<PointerType>(Ptr->getType()) &&
+	 "lifetime.end only applies to pointers.");
+  Ptr = getCastedInt8PtrValue(Ptr);
+  if (!Size)
+    Size = getInt64(-1);
+  else
+    assert(Size->getType() == getInt64Ty() &&
+	   "lifetime.end requires the size to be an i64");
+  Value *Ops[] = { Size, Ptr };
+  Module *M = BB->getParent()->getParent();
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);
+  return createCallHelper(TheFn, Ops, this);
 }

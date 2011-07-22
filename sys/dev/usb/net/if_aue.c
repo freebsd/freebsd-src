@@ -110,7 +110,7 @@ SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RW, &aue_debug, 0,
 /*
  * Various supported device vendors/products.
  */
-static const struct usb_device_id aue_devs[] = {
+static const STRUCT_USB_HOST_ID aue_devs[] = {
 #define	AUE_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
     AUE_DEV(3COM, 3C460B, AUE_FLAG_PII),
     AUE_DEV(ABOCOM, DSB650TX_PNA, 0),
@@ -256,7 +256,6 @@ static device_method_t aue_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, aue_miibus_readreg),

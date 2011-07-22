@@ -341,9 +341,10 @@ gpart_autofill_resize(struct gctl_req *req)
 			errc(EXIT_FAILURE, error, "Invalid alignment param");
 		if (alignment == 0)
 			errx(EXIT_FAILURE, "Invalid alignment param");
+	} else {
 		lba = pp->lg_stripesize / pp->lg_sectorsize;
 		if (lba > 0)
-			alignment = g_lcm(lba, alignment);
+			alignment = lba;
 	}
 	error = gctl_delete_param(req, "alignment");
 	if (error)
@@ -361,7 +362,7 @@ gpart_autofill_resize(struct gctl_req *req)
 			goto done;
 	}
 
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
@@ -491,19 +492,15 @@ gpart_autofill(struct gctl_req *req)
 	if (has_size && has_start && !has_alignment)
 		goto done;
 
-	/*
-	 * If stripesize is not zero, then recalculate alignment value.
-	 * Use LCM from stripesize and user specified alignment.
-	 */
 	len = pp->lg_stripesize / pp->lg_sectorsize;
-	if (len > 0 )
-		alignment = g_lcm(len, alignment);
+	if (len > 0 && !has_alignment)
+		alignment = len;
 
 	/* Adjust parameters to stripeoffset */
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	start = ALIGNUP(start + offset, alignment);
-	if (size + offset > alignment)
-		size = ALIGNDOWN(size + offset, alignment);
+	if (size > alignment)
+		size = ALIGNDOWN(size, alignment);
 
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
@@ -930,6 +927,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "size", -1, argv[3]);
 			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
+			gctl_ro_param(r, "alignment", -1, GPART_AUTOFILL);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
 			if (error != 0)
@@ -1210,8 +1208,11 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 			if (idx == 0)
 				errx(EXIT_FAILURE, "missing -i option");
 			gpart_write_partcode(gp, idx, partcode, partsize);
-		} else
+		} else {
+			if (partsize != VTOC_BOOTSIZE)
+				errx(EXIT_FAILURE, "invalid bootcode");
 			gpart_write_partcode_vtoc8(gp, idx, partcode);
+		}
 	} else
 		if (bootcode == NULL)
 			errx(EXIT_FAILURE, "no -b nor -p");

@@ -173,8 +173,7 @@ exec 3>&-
 echo ${RESOLV} | tr ' ' '\n' | \
 awk '
 BEGIN {
-	search=1
-	printf "search ";
+	search=-1;
 }
 {
 	if (/^[[:space:]]+$/) {
@@ -185,8 +184,13 @@ BEGIN {
 		search=0;
 		next;
 	}
+	if (search == -1) {
+		printf "search ";
+		search=1;
+	}
 	if (search > 0) {
-		printf "%s%s", (search > 1) ? "," : "", $1;
+		printf "%s%s", (search > 1) ? " " : "", $1;
+		search++;
 		next;
 	}
 	printf "nameserver %s\n", $1;

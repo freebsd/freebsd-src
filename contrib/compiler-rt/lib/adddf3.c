@@ -1,21 +1,26 @@
-//===-- lib/adddf3.c - Double-precision addition and subtraction --*- C -*-===//
+//===-- lib/adddf3.c - Double-precision addition ------------------*- C -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements double-precision soft-float addition and subtraction
-// with the IEEE-754 default rounding (to nearest, ties to even).
+// This file implements double-precision soft-float addition with the IEEE-754
+// default rounding (to nearest, ties to even).
 //
 //===----------------------------------------------------------------------===//
+
+#include "abi.h"
 
 #define DOUBLE_PRECISION
 #include "fp_lib.h"
 
-fp_t __adddf3(fp_t a, fp_t b) {
+ARM_EABI_FNALIAS(dadd, adddf3);
+
+COMPILER_RT_ABI fp_t
+__adddf3(fp_t a, fp_t b) {
     
     rep_t aRep = toRep(a);
     rep_t bRep = toRep(b);
@@ -146,9 +151,4 @@ fp_t __adddf3(fp_t a, fp_t b) {
     if (roundGuardSticky > 0x4) result++;
     if (roundGuardSticky == 0x4) result += result & 1;
     return fromRep(result);
-}
-
-// Subtraction; flip the sign bit of b and add.
-fp_t __subdf3(fp_t a, fp_t b) {
-    return __adddf3(a, fromRep(toRep(b) ^ signBit));
 }

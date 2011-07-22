@@ -94,6 +94,10 @@ private:
   inline SDValue getI32Imm(unsigned Imm) {
     return CurDAG->getTargetConstant(Imm, MVT::i32);
   }
+
+  virtual bool SelectInlineAsmMemoryOperand(const SDValue &Op,
+                                            char ConstraintCode,
+                                            std::vector<SDValue> &OutOps);
 };
 
 }
@@ -109,7 +113,7 @@ SDNode *MipsDAGToDAGISel::getGlobalBaseReg() {
 /// ComplexPattern used on MipsInstrInfo
 /// Used on Mips Load/Store instructions
 bool MipsDAGToDAGISel::
-SelectAddr(SDValue Addr, SDValue &Offset, SDValue &Base) {
+SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
   // if Address is FI, get the TargetFrameIndex.
   if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
     Base   = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
@@ -119,39 +123,41 @@ SelectAddr(SDValue Addr, SDValue &Offset, SDValue &Base) {
 
   // on PIC code Load GA
   if (TM.getRelocationModel() == Reloc::PIC_) {
-    if ((Addr.getOpcode() == ISD::TargetGlobalAddress) ||
-        (Addr.getOpcode() == ISD::TargetConstantPool) ||
-        (Addr.getOpcode() == ISD::TargetJumpTable) ||
-        (Addr.getOpcode() == ISD::TargetBlockAddress) ||
-        (Addr.getOpcode() == ISD::TargetExternalSymbol)) {
+    if (Addr.getOpcode() == MipsISD::WrapperPIC) {
       Base   = CurDAG->getRegister(Mips::GP, MVT::i32);
-      Offset = Addr;
+      Offset = Addr.getOperand(0);
       return true;
     }
   } else {
     if ((Addr.getOpcode() == ISD::TargetExternalSymbol ||
         Addr.getOpcode() == ISD::TargetGlobalAddress))
       return false;
+    else if (Addr.getOpcode() == ISD::TargetGlobalTLSAddress) {
+      Base   = CurDAG->getRegister(Mips::GP, MVT::i32);
+      Offset = Addr;
+      return true;
+    }
+  }
+
+  // Addresses of the form FI+const or FI|const
+  if (CurDAG->isBaseWithConstantOffset(Addr)) {
+    ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
+    if (isInt<16>(CN->getSExtValue())) {
+
+      // If the first operand is a FI, get the TargetFI Node
+      if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>
+                                  (Addr.getOperand(0)))
+        Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
+      else
+        Base = Addr.getOperand(0);
+
+      Offset = CurDAG->getTargetConstant(CN->getZExtValue(), MVT::i32);
+      return true;
+    }
   }
 
   // Operand is a result from an ADD.
   if (Addr.getOpcode() == ISD::ADD) {
-    if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1))) {
-      if (isInt<16>(CN->getSExtValue())) {
-
-        // If the first operand is a FI, get the TargetFI Node
-        if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>
-                                    (Addr.getOperand(0))) {
-          Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
-        } else {
-          Base = Addr.getOperand(0);
-        }
-
-        Offset = CurDAG->getTargetConstant(CN->getZExtValue(), MVT::i32);
-        return true;
-      }
-    }
-
     // When loading from constant pools, load the lower address part in
     // the instruction itself. Example, instead of:
     //  lui $2, %hi($CPI1_0)
@@ -164,7 +170,8 @@ SelectAddr(SDValue Addr, SDValue &Offset, SDValue &Base) {
          Addr.getOperand(0).getOpcode() == ISD::LOAD) &&
         Addr.getOperand(1).getOpcode() == MipsISD::Lo) {
       SDValue LoVal = Addr.getOperand(1);
-      if (dyn_cast<ConstantPoolSDNode>(LoVal.getOperand(0))) {
+      if (isa<ConstantPoolSDNode>(LoVal.getOperand(0)) || 
+          isa<GlobalAddressSDNode>(LoVal.getOperand(0))) {
         Base = Addr.getOperand(0);
         Offset = LoVal.getOperand(0);
         return true;
@@ -193,7 +200,7 @@ SDNode *MipsDAGToDAGISel::SelectLoadFp64(SDNode *N) {
   SDValue N1 = N->getOperand(1);
   SDValue Offset0, Offset1, Base;
 
-  if (!SelectAddr(N1, Offset0, Base) ||
+  if (!SelectAddr(N1, Base, Offset0) ||
       N1.getValueType() != MVT::i32)
     return NULL;
 
@@ -223,14 +230,14 @@ SDNode *MipsDAGToDAGISel::SelectLoadFp64(SDNode *N) {
   //    lwc $f0, X($3)
   //    lwc $f1, X+4($3)
   SDNode *LD0 = CurDAG->getMachineNode(Mips::LWC1, dl, MVT::f32,
-                                    MVT::Other, Offset0, Base, Chain);
+                                       MVT::Other, Base, Offset0, Chain);
   SDValue Undef = SDValue(CurDAG->getMachineNode(TargetOpcode::IMPLICIT_DEF,
                                                  dl, NVT), 0);
   SDValue I0 = CurDAG->getTargetInsertSubreg(Mips::sub_fpeven, dl,
                             MVT::f64, Undef, SDValue(LD0, 0));
 
   SDNode *LD1 = CurDAG->getMachineNode(Mips::LWC1, dl, MVT::f32,
-                          MVT::Other, Offset1, Base, SDValue(LD0, 1));
+                                       MVT::Other, Base, Offset1, SDValue(LD0, 1));
   SDValue I1 = CurDAG->getTargetInsertSubreg(Mips::sub_fpodd, dl,
                             MVT::f64, I0, SDValue(LD1, 0));
 
@@ -257,7 +264,7 @@ SDNode *MipsDAGToDAGISel::SelectStoreFp64(SDNode *N) {
   SDValue N2 = N->getOperand(2);
   SDValue Offset0, Offset1, Base;
 
-  if (!SelectAddr(N2, Offset0, Base) ||
+  if (!SelectAddr(N2, Base, Offset0) ||
       N1.getValueType() != MVT::f64 ||
       N2.getValueType() != MVT::i32)
     return NULL;
@@ -287,12 +294,12 @@ SDNode *MipsDAGToDAGISel::SelectStoreFp64(SDNode *N) {
   // Generate:
   //    swc $f0, X($3)
   //    swc $f1, X+4($3)
-  SDValue Ops0[] = { FPEven, Offset0, Base, Chain };
+  SDValue Ops0[] = { FPEven, Base, Offset0, Chain };
   Chain = SDValue(CurDAG->getMachineNode(Mips::SWC1, dl,
                                        MVT::Other, Ops0, 4), 0);
   cast<MachineSDNode>(Chain.getNode())->setMemRefs(MemRefs0, MemRefs0 + 1);
 
-  SDValue Ops1[] = { FPOdd, Offset1, Base, Chain };
+  SDValue Ops1[] = { FPOdd, Base, Offset1, Chain };
   Chain = SDValue(CurDAG->getMachineNode(Mips::SWC1, dl,
                                        MVT::Other, Ops1, 4), 0);
   cast<MachineSDNode>(Chain.getNode())->setMemRefs(MemRefs0, MemRefs0 + 1);
@@ -321,7 +328,6 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
   // tablegen selection should be handled here.
   ///
   switch(Opcode) {
-
     default: break;
 
     case ISD::SUBE:
@@ -355,10 +361,7 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
                                   LHS, SDValue(AddCarry,0));
     }
 
-    /// Mul/Div with two results
-    case ISD::SDIVREM:
-    case ISD::UDIVREM:
-      break;
+    /// Mul with two results
     case ISD::SMUL_LOHI:
     case ISD::UMUL_LOHI: {
       SDValue Op1 = Node->getOperand(0);
@@ -405,13 +408,6 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
         return CurDAG->getMachineNode(Mips::MFHI, dl, MVT::i32, InFlag);
     }
 
-    /// Div/Rem operations
-    case ISD::SREM:
-    case ISD::UREM:
-    case ISD::SDIV:
-    case ISD::UDIV:
-      break;
-
     // Get target GOT address.
     case ISD::GLOBAL_OFFSET_TABLE:
       return getGlobalBaseReg();
@@ -445,6 +441,18 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
         return ResNode;
       // Other cases are autogenerated.
       break;
+
+    case MipsISD::ThreadPointer: {
+      unsigned SrcReg = Mips::HWR29;
+      unsigned DestReg = Mips::V1;
+      SDNode *Rdhwr = CurDAG->getMachineNode(Mips::RDHWR, Node->getDebugLoc(),
+          Node->getValueType(0), CurDAG->getRegister(SrcReg, MVT::i32));
+      SDValue Chain = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, DestReg,
+          SDValue(Rdhwr, 0));
+      SDValue ResNode = CurDAG->getCopyFromReg(Chain, dl, DestReg, MVT::i32);
+      ReplaceUses(SDValue(Node, 0), ResNode);
+      return ResNode.getNode();
+    }
   }
 
   // Select the default instruction
@@ -457,6 +465,14 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
     DEBUG(ResNode->dump(CurDAG));
   DEBUG(errs() << "\n");
   return ResNode;
+}
+
+bool MipsDAGToDAGISel::
+SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
+                             std::vector<SDValue> &OutOps) {
+  assert(ConstraintCode == 'm' && "unexpected asm memory constraint");
+  OutOps.push_back(Op);
+  return false;
 }
 
 /// createMipsISelDag - This pass converts a legalized DAG into a

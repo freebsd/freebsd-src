@@ -46,14 +46,14 @@
 using namespace clang::driver;
 using namespace clang;
 
-Driver::Driver(llvm::StringRef _ClangExecutable,
-               llvm::StringRef _DefaultHostTriple,
-               llvm::StringRef _DefaultImageName,
+Driver::Driver(llvm::StringRef ClangExecutable,
+               llvm::StringRef DefaultHostTriple,
+               llvm::StringRef DefaultImageName,
                bool IsProduction, bool CXXIsProduction,
-               Diagnostic &_Diags)
-  : Opts(createDriverOptTable()), Diags(_Diags),
-    ClangExecutable(_ClangExecutable), UseStdLib(true),
-    DefaultHostTriple(_DefaultHostTriple), DefaultImageName(_DefaultImageName),
+               Diagnostic &Diags)
+  : Opts(createDriverOptTable()), Diags(Diags),
+    ClangExecutable(ClangExecutable), UseStdLib(true),
+    DefaultHostTriple(DefaultHostTriple), DefaultImageName(DefaultImageName),
     DriverTitle("clang \"gcc-compatible\" driver"),
     Host(0),
     CCPrintOptionsFilename(0), CCPrintHeadersFilename(0),
@@ -398,9 +398,10 @@ void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
 /// PrintDiagnosticCategories - Implement the --print-diagnostic-categories
 /// option.
 static void PrintDiagnosticCategories(llvm::raw_ostream &OS) {
-  for (unsigned i = 1; // Skip the empty category.
-       const char *CategoryName = DiagnosticIDs::getCategoryNameFromID(i); ++i)
-    OS << i << ',' << CategoryName << '\n';
+  // Skip the empty category.
+  for (unsigned i = 1, max = DiagnosticIDs::getNumberOfCategories();
+       i != max; ++i)
+    OS << i << ',' << DiagnosticIDs::getCategoryNameFromID(i) << '\n';
 }
 
 bool Driver::HandleImmediateArgs(const Compilation &C) {
@@ -457,11 +458,20 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
     }
     llvm::outs() << "\n";
     llvm::outs() << "libraries: =";
+
+    std::string sysroot;
+    if (Arg *A = C.getArgs().getLastArg(options::OPT__sysroot_EQ))
+      sysroot = A->getValue(C.getArgs());
+
     for (ToolChain::path_list::const_iterator it = TC.getFilePaths().begin(),
            ie = TC.getFilePaths().end(); it != ie; ++it) {
       if (it != TC.getFilePaths().begin())
         llvm::outs() << ':';
-      llvm::outs() << *it;
+      const char *path = it->c_str();
+      if (path[0] == '=')
+        llvm::outs() << sysroot << path + 1;
+      else
+        llvm::outs() << path;
     }
     llvm::outs() << "\n";
     return false;
@@ -569,14 +579,14 @@ void Driver::PrintActions(const Compilation &C) const {
     PrintActions1(C, *it, Ids);
 }
 
-/// \brief Check whether the given input tree contains any compilation (or
-/// assembly) actions.
-static bool ContainsCompileAction(const Action *A) {
+/// \brief Check whether the given input tree contains any compilation or
+/// assembly actions.
+static bool ContainsCompileOrAssembleAction(const Action *A) {
   if (isa<CompileJobAction>(A) || isa<AssembleJobAction>(A))
     return true;
 
   for (Action::const_iterator it = A->begin(), ie = A->end(); it != ie; ++it)
-    if (ContainsCompileAction(*it))
+    if (ContainsCompileOrAssembleAction(*it))
       return true;
 
   return false;
@@ -667,7 +677,7 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
       Arg *A = Args.getLastArg(options::OPT_g_Group);
       if (A && !A->getOption().matches(options::OPT_g0) &&
           !A->getOption().matches(options::OPT_gstabs) &&
-          ContainsCompileAction(Actions.back())) {
+          ContainsCompileOrAssembleAction(Actions.back())) {
         ActionList Inputs;
         Inputs.push_back(Actions.back());
         Actions.pop_back();
@@ -941,10 +951,6 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
   case phases::Precompile:
     return new PrecompileJobAction(Input, types::TY_PCH);
   case phases::Compile: {
-    bool HasO4 = false;
-    if (const Arg *A = Args.getLastArg(options::OPT_O_Group))
-      HasO4 = A->getOption().matches(options::OPT_O4);
-
     if (Args.hasArg(options::OPT_fsyntax_only)) {
       return new CompileJobAction(Input, types::TY_Nothing);
     } else if (Args.hasArg(options::OPT_rewrite_objc)) {
@@ -953,9 +959,7 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
       return new AnalyzeJobAction(Input, types::TY_Plist);
     } else if (Args.hasArg(options::OPT_emit_ast)) {
       return new CompileJobAction(Input, types::TY_AST);
-    } else if (Args.hasArg(options::OPT_emit_llvm) ||
-               Args.hasFlag(options::OPT_flto, options::OPT_fno_lto, false) ||
-               HasO4) {
+    } else if (IsUsingLTO(Args)) {
       types::ID Output =
         Args.hasArg(options::OPT_S) ? types::TY_LTO_IR : types::TY_LTO_BC;
       return new CompileJobAction(Input, Output);
@@ -969,6 +973,19 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
 
   assert(0 && "invalid phase in ConstructPhaseAction");
   return 0;
+}
+
+bool Driver::IsUsingLTO(const ArgList &Args) const {
+  // Check for -emit-llvm or -flto.
+  if (Args.hasArg(options::OPT_emit_llvm) ||
+      Args.hasFlag(options::OPT_flto, options::OPT_fno_lto, false))
+    return true;
+
+  // Check for -O4.
+  if (const Arg *A = Args.getLastArg(options::OPT_O_Group))
+      return A->getOption().matches(options::OPT_O4);
+
+  return false;
 }
 
 void Driver::BuildJobs(Compilation &C) const {
@@ -1242,6 +1259,15 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
     Suffixed += '.';
     Suffixed += Suffix;
     NamedOutput = C.getArgs().MakeArgString(Suffixed.c_str());
+  }
+
+  // If we're saving temps and the temp filename conflicts with the input 
+  // filename, then avoid overwriting input file.
+  if (!AtTopLevel && C.getArgs().hasArg(options::OPT_save_temps) &&
+    NamedOutput == BaseName) {
+    std::string TmpName =
+      GetTemporaryPath(types::getTypeTempSuffix(JA.getType()));
+    return C.addTempFile(C.getArgs().MakeArgString(TmpName.c_str()));
   }
 
   // As an annoying special case, PCH generation doesn't strip the pathname.

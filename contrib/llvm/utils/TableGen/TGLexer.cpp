@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TGLexer.h"
+#include "Error.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Config/config.h"
@@ -35,23 +36,12 @@ SMLoc TGLexer::getLoc() const {
   return SMLoc::getFromPointer(TokStart);
 }
 
-
 /// ReturnError - Set the error to the specified string at the specified
 /// location.  This is defined to always return tgtok::Error.
 tgtok::TokKind TGLexer::ReturnError(const char *Loc, const Twine &Msg) {
   PrintError(Loc, Msg);
   return tgtok::Error;
 }
-
-
-void TGLexer::PrintError(const char *Loc, const Twine &Msg) const {
-  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg, "error");
-}
-
-void TGLexer::PrintError(SMLoc Loc, const Twine &Msg) const {
-  SrcMgr.PrintMessage(Loc, Msg, "error");
-}
-
 
 int TGLexer::getNextChar() {
   char CurChar = *CurPtr++;
@@ -267,14 +257,17 @@ bool TGLexer::LexInclude() {
 
   // Get the string.
   std::string Filename = CurStrVal;
+  std::string IncludedFile;
 
   
-  CurBuffer = SrcMgr.AddIncludeFile(Filename, SMLoc::getFromPointer(CurPtr));
+  CurBuffer = SrcMgr.AddIncludeFile(Filename, SMLoc::getFromPointer(CurPtr),
+                                    IncludedFile);
   if (CurBuffer == -1) {
     PrintError(getLoc(), "Could not find include file '" + Filename + "'");
     return true;
   }
   
+  Dependencies.push_back(IncludedFile);
   // Save the line number and lex buffer of the includer.
   CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
   CurPtr = CurBuf->getBufferStart();

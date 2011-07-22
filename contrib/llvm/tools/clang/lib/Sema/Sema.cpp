@@ -31,6 +31,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/PartialDiagnostic.h"
@@ -140,9 +141,9 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
   : TheTargetAttributesSema(0), FPFeatures(pp.getLangOptions()),
     LangOpts(pp.getLangOptions()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
-    ExternalSource(0), CodeCompleter(CodeCompleter), CurContext(0), 
-    PackContext(0), MSStructPragmaOn(false), VisContext(0),
-    LateTemplateParser(0), OpaqueParser(0),
+    CollectStats(false), ExternalSource(0), CodeCompleter(CodeCompleter),
+    CurContext(0), PackContext(0), MSStructPragmaOn(false), VisContext(0),
+    ExprNeedsCleanups(0), LateTemplateParser(0), OpaqueParser(0),
     IdResolver(pp.getLangOptions()), CXXTypeInfoDecl(0), MSVCGuidDecl(0),
     GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
@@ -153,6 +154,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     AnalysisWarnings(*this)
 {
   TUScope = 0;
+  LoadedExternalKnownNamespaces = false;
+  
   if (getLangOptions().CPlusPlus)
     FieldCollector.reset(new CXXFieldCollector());
 
@@ -161,7 +164,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
                                        &Context);
 
   ExprEvalContexts.push_back(
-                  ExpressionEvaluationContextRecord(PotentiallyEvaluated, 0));  
+        ExpressionEvaluationContextRecord(PotentiallyEvaluated, 0, false));
 
   FunctionScopes.push_back(new FunctionScopeInfo(Diags));
 }
@@ -201,8 +204,43 @@ Sema::~Sema() {
     ExternalSema->ForgetSema();
 }
 
+
+/// makeUnavailableInSystemHeader - There is an error in the current
+/// context.  If we're still in a system header, and we can plausibly
+/// make the relevant declaration unavailable instead of erroring, do
+/// so and return true.
+bool Sema::makeUnavailableInSystemHeader(SourceLocation loc,
+                                         llvm::StringRef msg) {
+  // If we're not in a function, it's an error.
+  FunctionDecl *fn = dyn_cast<FunctionDecl>(CurContext);
+  if (!fn) return false;
+
+  // If we're in template instantiation, it's an error.
+  if (!ActiveTemplateInstantiations.empty())
+    return false;
+  
+  // If that function's not in a system header, it's an error.
+  if (!Context.getSourceManager().isInSystemHeader(loc))
+    return false;
+
+  // If the function is already unavailable, it's not an error.
+  if (fn->hasAttr<UnavailableAttr>()) return true;
+
+  fn->addAttr(new (Context) UnavailableAttr(loc, Context, msg));
+  return true;
+}
+
 ASTMutationListener *Sema::getASTMutationListener() const {
   return getASTConsumer().GetASTMutationListener();
+}
+
+/// \brief Print out statistics about the semantic analysis.
+void Sema::PrintStats() const {
+  llvm::errs() << "\n*** Semantic Analysis Stats:\n";
+  llvm::errs() << NumSFINAEErrors << " SFINAE diagnostics trapped.\n";
+
+  BumpAlloc.PrintStats();
+  AnalysisWarnings.PrintStats();
 }
 
 /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit cast.
@@ -210,12 +248,16 @@ ASTMutationListener *Sema::getASTMutationListener() const {
 /// The result is of the given category.
 ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
                                    CastKind Kind, ExprValueKind VK,
-                                   const CXXCastPath *BasePath) {
+                                   const CXXCastPath *BasePath,
+                                   CheckedConversionKind CCK) {
   QualType ExprTy = Context.getCanonicalType(E->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
 
   if (ExprTy == TypeTy)
     return Owned(E);
+
+  if (getLangOptions().ObjCAutoRefCount)
+    CheckObjCARCConversion(SourceRange(), Ty, E, CCK);
 
   // If this is a derived-to-base cast to a through a virtual base, we
   // need a vtable.
@@ -377,30 +419,22 @@ void Sema::ActOnEndOfTranslationUnit() {
       }
     }
 
-    bool SomethingChanged;
-    do {
-      SomethingChanged = false;
-      
-      // If DefinedUsedVTables ends up marking any virtual member functions it
-      // might lead to more pending template instantiations, which we then need
-      // to instantiate.
-      if (DefineUsedVTables())
-        SomethingChanged = true;
+    // If DefinedUsedVTables ends up marking any virtual member functions it
+    // might lead to more pending template instantiations, which we then need
+    // to instantiate.
+    DefineUsedVTables();
 
-      // C++: Perform implicit template instantiations.
-      //
-      // FIXME: When we perform these implicit instantiations, we do not
-      // carefully keep track of the point of instantiation (C++ [temp.point]).
-      // This means that name lookup that occurs within the template
-      // instantiation will always happen at the end of the translation unit,
-      // so it will find some names that should not be found. Although this is
-      // common behavior for C++ compilers, it is technically wrong. In the
-      // future, we either need to be able to filter the results of name lookup
-      // or we need to perform template instantiations earlier.
-      if (PerformPendingInstantiations())
-        SomethingChanged = true;
-      
-    } while (SomethingChanged);
+    // C++: Perform implicit template instantiations.
+    //
+    // FIXME: When we perform these implicit instantiations, we do not
+    // carefully keep track of the point of instantiation (C++ [temp.point]).
+    // This means that name lookup that occurs within the template
+    // instantiation will always happen at the end of the translation unit,
+    // so it will find some names that should not be found. Although this is
+    // common behavior for C++ compilers, it is technically wrong. In the
+    // future, we either need to be able to filter the results of name lookup
+    // or we need to perform template instantiations earlier.
+    PerformPendingInstantiations();
   }
   
   // Remove file scoped decls that turned out to be used.
@@ -472,6 +506,12 @@ void Sema::ActOnEndOfTranslationUnit() {
       Consumer.CompleteTentativeDefinition(VD);
 
   }
+
+  if (LangOpts.CPlusPlus0x &&
+      Diags.getDiagnosticLevel(diag::warn_delegating_ctor_cycle,
+                               SourceLocation())
+        != Diagnostic::Ignored)
+    CheckDelegatingCtorCycles();
 
   // If there were errors, disable 'unused' warnings since they will mostly be
   // noise.
@@ -570,9 +610,12 @@ Sema::SemaDiagnosticBuilder::~SemaDiagnosticBuilder() {
       break;
       
     case DiagnosticIDs::SFINAE_AccessControl:
-      // Unless access checking is specifically called out as a SFINAE
-      // error, report this diagnostic.
-      if (!SemaRef.AccessCheckingSFINAE)
+      // Per C++ Core Issue 1170, access control is part of SFINAE.
+      // Additionally, the AccessCheckingSFINAE flag can be used to temporary
+      // make access control a part of SFINAE for the purposes of checking
+      // type traits.
+      if (!SemaRef.AccessCheckingSFINAE &&
+          !SemaRef.getLangOptions().CPlusPlus0x)
         break;
         
     case DiagnosticIDs::SFINAE_SubstitutionFailure:
@@ -727,8 +770,8 @@ void Sema::PopFunctionOrBlockScope(const AnalysisBasedWarnings::Policy *WP,
 
 /// \brief Determine whether any errors occurred within this function/method/
 /// block.
-bool Sema::hasAnyErrorsInThisFunction() const {
-  return getCurFunction()->ErrorTrap.hasErrorOccurred();
+bool Sema::hasAnyUnrecoverableErrorsInThisFunction() const {
+  return getCurFunction()->ErrorTrap.hasUnrecoverableErrorOccurred();
 }
 
 BlockScopeInfo *Sema::getCurBlock() {
@@ -744,6 +787,10 @@ ExternalSemaSource::~ExternalSemaSource() {}
 std::pair<ObjCMethodList, ObjCMethodList>
 ExternalSemaSource::ReadMethodPool(Selector Sel) {
   return std::pair<ObjCMethodList, ObjCMethodList>();
+}
+
+void ExternalSemaSource::ReadKnownNamespaces(
+                           llvm::SmallVectorImpl<NamespaceDecl *> &Namespaces) {  
 }
 
 void PrettyDeclStackTraceEntry::print(llvm::raw_ostream &OS) const {
@@ -762,4 +809,102 @@ void PrettyDeclStackTraceEntry::print(llvm::raw_ostream &OS) const {
   }
 
   OS << '\n';
+}
+
+/// \brief Figure out if an expression could be turned into a call.
+///
+/// Use this when trying to recover from an error where the programmer may have
+/// written just the name of a function instead of actually calling it.
+///
+/// \param E - The expression to examine.
+/// \param ZeroArgCallReturnTy - If the expression can be turned into a call
+///  with no arguments, this parameter is set to the type returned by such a
+///  call; otherwise, it is set to an empty QualType.
+/// \param NonTemplateOverloads - If the expression is an overloaded function
+///  name, this parameter is populated with the decls of the various overloads.
+bool Sema::isExprCallable(const Expr &E, QualType &ZeroArgCallReturnTy,
+                          UnresolvedSetImpl &NonTemplateOverloads) {
+  ZeroArgCallReturnTy = QualType();
+  NonTemplateOverloads.clear();
+  if (const OverloadExpr *Overloads = dyn_cast<OverloadExpr>(&E)) {
+    for (OverloadExpr::decls_iterator it = Overloads->decls_begin(),
+         DeclsEnd = Overloads->decls_end(); it != DeclsEnd; ++it) {
+      // Our overload set may include TemplateDecls, which we'll ignore for our
+      // present purpose.
+      if (const FunctionDecl *OverloadDecl = dyn_cast<FunctionDecl>(*it)) {
+        NonTemplateOverloads.addDecl(*it);
+        if (OverloadDecl->getMinRequiredArguments() == 0)
+          ZeroArgCallReturnTy = OverloadDecl->getResultType();
+      }
+    }
+    return true;
+  }
+
+  if (const DeclRefExpr *DeclRef = dyn_cast<DeclRefExpr>(&E)) {
+    if (const FunctionDecl *Fun = dyn_cast<FunctionDecl>(DeclRef->getDecl())) {
+      if (Fun->getMinRequiredArguments() == 0)
+        ZeroArgCallReturnTy = Fun->getResultType();
+      return true;
+    }
+  }
+
+  // We don't have an expression that's convenient to get a FunctionDecl from,
+  // but we can at least check if the type is "function of 0 arguments".
+  QualType ExprTy = E.getType();
+  const FunctionType *FunTy = NULL;
+  QualType PointeeTy = ExprTy->getPointeeType();
+  if (!PointeeTy.isNull())
+    FunTy = PointeeTy->getAs<FunctionType>();
+  if (!FunTy)
+    FunTy = ExprTy->getAs<FunctionType>();
+  if (!FunTy && ExprTy == Context.BoundMemberTy) {
+    // Look for the bound-member type.  If it's still overloaded, give up,
+    // although we probably should have fallen into the OverloadExpr case above
+    // if we actually have an overloaded bound member.
+    QualType BoundMemberTy = Expr::findBoundMemberType(&E);
+    if (!BoundMemberTy.isNull())
+      FunTy = BoundMemberTy->castAs<FunctionType>();
+  }
+
+  if (const FunctionProtoType *FPT =
+      dyn_cast_or_null<FunctionProtoType>(FunTy)) {
+    if (FPT->getNumArgs() == 0)
+      ZeroArgCallReturnTy = FunTy->getResultType();
+    return true;
+  }
+  return false;
+}
+
+/// \brief Give notes for a set of overloads.
+///
+/// A companion to isExprCallable. In cases when the name that the programmer
+/// wrote was an overloaded function, we may be able to make some guesses about
+/// plausible overloads based on their return types; such guesses can be handed
+/// off to this method to be emitted as notes.
+///
+/// \param Overloads - The overloads to note.
+/// \param FinalNoteLoc - If we've suppressed printing some overloads due to
+///  -fshow-overloads=best, this is the location to attach to the note about too
+///  many candidates. Typically this will be the location of the original
+///  ill-formed expression.
+void Sema::NoteOverloads(const UnresolvedSetImpl &Overloads,
+                         const SourceLocation FinalNoteLoc) {
+  int ShownOverloads = 0;
+  int SuppressedOverloads = 0;
+  for (UnresolvedSetImpl::iterator It = Overloads.begin(),
+       DeclsEnd = Overloads.end(); It != DeclsEnd; ++It) {
+    // FIXME: Magic number for max shown overloads stolen from
+    // OverloadCandidateSet::NoteCandidates.
+    if (ShownOverloads >= 4 &&
+        Diags.getShowOverloads() == Diagnostic::Ovl_Best) {
+      ++SuppressedOverloads;
+      continue;
+    }
+    Diag(cast<FunctionDecl>(*It)->getSourceRange().getBegin(),
+         diag::note_member_ref_possible_intended_overload);
+    ++ShownOverloads;
+  }
+  if (SuppressedOverloads)
+    Diag(FinalNoteLoc, diag::note_ovl_too_many_candidates)
+        << SuppressedOverloads;
 }

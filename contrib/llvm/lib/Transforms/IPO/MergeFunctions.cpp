@@ -218,7 +218,6 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
     llvm_unreachable("Unknown type!");
     // Fall through in Release mode.
   case Type::IntegerTyID:
-  case Type::OpaqueTyID:
   case Type::VectorTyID:
     // Ty1 == Ty2 would have returned true earlier.
     return false;
@@ -733,7 +732,7 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
     ++i;
   }
 
-  CallInst *CI = Builder.CreateCall(F, Args.begin(), Args.end());
+  CallInst *CI = Builder.CreateCall(F, Args);
   CI->setTailCall();
   CI->setCallingConv(F->getCallingConv());
   if (NewG->getReturnType()->isVoidTy()) {

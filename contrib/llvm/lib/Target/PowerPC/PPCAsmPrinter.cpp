@@ -344,7 +344,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   }
   case PPC::LDtoc: {
     // Transform %X3 = LDtoc <ga:@min1>, %X2
-    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this);
+    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
       
     // Change the opcode to LD, and the global address operand to be a
     // reference to the TOC entry we will synthesize later.
@@ -376,7 +376,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     return;
   }
 
-  LowerPPCMachineInstrToMCInst(MI, TmpInst, *this);
+  LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
   OutStreamer.EmitInstruction(TmpInst);
 }
 
@@ -680,10 +680,9 @@ static AsmPrinter *createPPCAsmPrinterPass(TargetMachine &tm,
 }
 
 static MCInstPrinter *createPPCMCInstPrinter(const Target &T,
-                                             TargetMachine &TM,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI) {
-  return new PPCInstPrinter(TM, MAI, SyntaxVariant);
+  return new PPCInstPrinter(MAI, SyntaxVariant);
 }
 
 

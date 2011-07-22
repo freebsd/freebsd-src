@@ -6,7 +6,7 @@ MK_SSP=		no
 LIB=		ia64
 INTERNALLIB=
 
-SRCS=		autoload.c bootinfo.c copy.c devicename.c exec.c
+SRCS=		autoload.c bootinfo.c copy.c devicename.c exec.c icache.c
 
 CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}

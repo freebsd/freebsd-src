@@ -47,11 +47,11 @@ InlineAsm::InlineAsm(const PointerType *Ty, const std::string &asmString,
 }
 
 void InlineAsm::destroyConstant() {
-  getRawType()->getContext().pImpl->InlineAsms.remove(this);
+  getType()->getContext().pImpl->InlineAsms.remove(this);
   delete this;
 }
 
-const FunctionType *InlineAsm::getFunctionType() const {
+FunctionType *InlineAsm::getFunctionType() const {
   return cast<FunctionType>(getType()->getElementType());
 }
     
@@ -181,6 +181,11 @@ bool InlineAsm::ConstraintInfo::Parse(StringRef Str,
       multipleAlternativeIndex++;
       pCodes = &multipleAlternatives[multipleAlternativeIndex].Codes;
       ++I;
+    } else if (*I == '^') {
+      // Multi-letter constraint
+      // FIXME: For now assuming these are 2-character constraints.
+      pCodes->push_back(std::string(I+1, I+3));
+      I += 3;
     } else {
       // Single letter constraint.
       pCodes->push_back(std::string(I, I+1));

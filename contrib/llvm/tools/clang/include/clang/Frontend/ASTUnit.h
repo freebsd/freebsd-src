@@ -51,6 +51,7 @@ class HeaderSearch;
 class Preprocessor;
 class SourceManager;
 class TargetInfo;
+class ASTFrontendAction;
 
 using namespace idx;
   
@@ -248,6 +249,10 @@ private:
   /// \brief Whether we should be caching code-completion results.
   bool ShouldCacheCodeCompletionResults;
   
+  /// \brief Whether we want to include nested macro expansions in the
+  /// detailed preprocessing record.
+  bool NestedMacroExpansions;
+  
   static void ConfigureDiags(llvm::IntrusiveRefCntPtr<Diagnostic> &Diags,
                              const char **ArgBegin, const char **ArgEnd,
                              ASTUnit &AST, bool CaptureDiagnostics);
@@ -358,7 +363,7 @@ private:
                   unsigned MaxLines, bool &CreatedBuffer);
   
   llvm::MemoryBuffer *getMainBufferWithPrecompiledPreamble(
-                                         CompilerInvocation PreambleInvocation,
+                               const CompilerInvocation &PreambleInvocationIn,
                                                      bool AllowRebuild = true,
                                                         unsigned MaxLines = 0);
   void RealizeTopLevelDeclsFromPreamble();
@@ -574,6 +579,21 @@ private:
   
 public:
   
+  /// \brief Create an ASTUnit from a source file, via a CompilerInvocation
+  /// object, by invoking the optionally provided ASTFrontendAction. 
+  ///
+  /// \param CI - The compiler invocation to use; it must have exactly one input
+  /// source file. The ASTUnit takes ownership of the CompilerInvocation object.
+  ///
+  /// \param Diags - The diagnostics engine to use for reporting errors; its
+  /// lifetime is expected to extend past that of the returned ASTUnit.
+  ///
+  /// \param Action - The ASTFrontendAction to invoke. Its ownership is not
+  /// transfered.
+  static ASTUnit *LoadFromCompilerInvocationAction(CompilerInvocation *CI,
+                                     llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
+                                             ASTFrontendAction *Action = 0);
+
   /// LoadFromCompilerInvocation - Create an ASTUnit from a source file, via a
   /// CompilerInvocation object.
   ///
@@ -591,7 +611,8 @@ public:
                                              bool CaptureDiagnostics = false,
                                              bool PrecompilePreamble = false,
                                           bool CompleteTranslationUnit = true,
-                                       bool CacheCodeCompletionResults = false);
+                                       bool CacheCodeCompletionResults = false,
+                                       bool NestedMacroExpansions = true);
 
   /// LoadFromCommandLine - Create an ASTUnit from a vector of command line
   /// arguments, which must specify exactly one source file.
@@ -620,7 +641,8 @@ public:
                                       bool CompleteTranslationUnit = true,
                                       bool CacheCodeCompletionResults = false,
                                       bool CXXPrecompilePreamble = false,
-                                      bool CXXChainedPCH = false);
+                                      bool CXXChainedPCH = false,
+                                      bool NestedMacroExpansions = true);
   
   /// \brief Reparse the source files using the same command-line options that
   /// were originally used to produce this translation unit.
@@ -658,8 +680,8 @@ public:
 
   /// \brief Save this translation unit to a file with the given name.
   ///
-  /// \returns True if an error occurred, false otherwise.
-  bool Save(llvm::StringRef File);
+  /// \returns An indication of whether the save was successful or not.
+  CXSaveError Save(llvm::StringRef File);
 
   /// \brief Serialize this translation unit with the given output stream.
   ///

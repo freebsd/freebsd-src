@@ -18,10 +18,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "FastISelEmitter.h"
+#include "Error.h"
 #include "Record.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/VectorExtras.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
 namespace {
@@ -246,10 +248,12 @@ struct OperandsSignature {
       
       // For now, the only other thing we accept is register operands.
       const CodeGenRegisterClass *RC = 0;
+      if (OpLeafRec->isSubClassOf("RegisterOperand"))
+        OpLeafRec = OpLeafRec->getValueAsDef("RegClass");
       if (OpLeafRec->isSubClassOf("RegisterClass"))
         RC = &Target.getRegisterClass(OpLeafRec);
       else if (OpLeafRec->isSubClassOf("Register"))
-        RC = Target.getRegisterClassForRegister(OpLeafRec);
+        RC = Target.getRegBank().getRegClassForRegister(OpLeafRec);
       else
         return false;
 
@@ -278,8 +282,7 @@ struct OperandsSignature {
       } else if (Operands[i].isFP()) {
         OS << "ConstantFP *f" << i;
       } else {
-        assert("Unknown operand kind!");
-        abort();
+        llvm_unreachable("Unknown operand kind!");
       }
       if (i + 1 != e)
         OS << ", ";
@@ -307,8 +310,7 @@ struct OperandsSignature {
         OS << "f" << i;
         PrintedArg = true;
       } else {
-        assert("Unknown operand kind!");
-        abort();
+        llvm_unreachable("Unknown operand kind!");
       }
     }
   }
@@ -322,8 +324,7 @@ struct OperandsSignature {
       } else if (Operands[i].isFP()) {
         OS << "f" << i;
       } else {
-        assert("Unknown operand kind!");
-        abort();
+        llvm_unreachable("Unknown operand kind!");
       }
       if (i + 1 != e)
         OS << ", ";
@@ -408,15 +409,7 @@ static std::string PhyRegForNode(TreePatternNode *Op,
   PhysReg += static_cast<StringInit*>(OpLeafRec->getValue( \
              "Namespace")->getValue())->getValue();
   PhysReg += "::";
-
-  std::vector<CodeGenRegister> Regs = Target.getRegisters();
-  for (unsigned i = 0; i < Regs.size(); ++i) {
-    if (Regs[i].TheDef == OpLeafRec) {
-      PhysReg += Regs[i].getName();
-      break;
-    }
-  }
-
+  PhysReg += Target.getRegBank().getReg(OpLeafRec)->getName();
   return PhysReg;
 }
 
@@ -463,6 +456,8 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     std::string SubRegNo;
     if (Op->getName() != "EXTRACT_SUBREG") {
       Record *Op0Rec = II.Operands[0].Rec;
+      if (Op0Rec->isSubClassOf("RegisterOperand"))
+        Op0Rec = Op0Rec->getValueAsDef("RegClass");
       if (!Op0Rec->isSubClassOf("RegisterClass"))
         continue;
       DstRC = &Target.getRegisterClass(Op0Rec);

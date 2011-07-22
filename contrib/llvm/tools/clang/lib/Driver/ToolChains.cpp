@@ -9,12 +9,17 @@
 
 #include "ToolChains.h"
 
+#ifdef HAVE_CLANG_CONFIG_H
+# include "clang/Config/config.h"
+#endif
+
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
@@ -22,6 +27,7 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -30,6 +36,8 @@
 #include "llvm/Support/system_error.h"
 
 #include <cstdlib> // ::getenv
+
+#include "llvm/Config/config.h" // for CXX_INCLUDE_ROOT
 
 #ifndef CLANG_PREFIX
 #define CLANG_PREFIX
@@ -41,7 +49,8 @@ using namespace clang::driver::toolchains;
 /// Darwin - Darwin tool chain for i386 and x86_64.
 
 Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple)
-  : ToolChain(Host, Triple), TargetInitialized(false)
+  : ToolChain(Host, Triple), TargetInitialized(false),
+    ARCRuntimeForSimulator(ARCSimulator_None)
 {
   // Compute the initial Darwin version based on the host.
   bool HadExtra;
@@ -68,6 +77,39 @@ types::ID Darwin::LookupTypeForExtension(const char *Ext) const {
 
 bool Darwin::HasNativeLLVMSupport() const {
   return true;
+}
+
+bool Darwin::hasARCRuntime() const {
+  // FIXME: Remove this once there is a proper way to detect an ARC runtime
+  // for the simulator.
+  switch (ARCRuntimeForSimulator) {
+  case ARCSimulator_None:
+    break;
+  case ARCSimulator_HasARCRuntime:
+    return true;
+  case ARCSimulator_NoARCRuntime:
+    return false;
+  }
+
+  if (isTargetIPhoneOS())
+    return !isIPhoneOSVersionLT(5);
+  else
+    return !isMacosxVersionLT(10, 7);
+}
+
+/// Darwin provides an ARC runtime starting in MacOS X 10.7 and iOS 5.0.
+void Darwin::configureObjCRuntime(ObjCRuntime &runtime) const {
+  if (runtime.getKind() != ObjCRuntime::NeXT)
+    return ToolChain::configureObjCRuntime(runtime);
+
+  runtime.HasARC = runtime.HasWeak = hasARCRuntime();
+
+  // So far, objc_terminate is only available in iOS 5.
+  // FIXME: do the simulator logic properly.
+  if (!ARCRuntimeForSimulator && isTargetIPhoneOS())
+    runtime.HasTerminate = !isIPhoneOSVersionLT(5);
+  else
+    runtime.HasTerminate = false;
 }
 
 // FIXME: Can we tablegen this?
@@ -119,7 +161,7 @@ llvm::StringRef Darwin::getDarwinArchName(const ArgList &Args) const {
   switch (getTriple().getArch()) {
   default:
     return getArchName();
-  
+
   case llvm::Triple::thumb:
   case llvm::Triple::arm: {
     if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
@@ -149,10 +191,10 @@ std::string Darwin::ComputeEffectiveClangTriple(const ArgList &Args) const {
   // the default triple).
   if (!isTargetInitialized())
     return Triple.getTriple();
-    
+
   unsigned Version[3];
   getTargetVersion(Version);
-  
+
   llvm::SmallString<16> Str;
   llvm::raw_svector_ostream(Str)
     << (isTargetIPhoneOS() ? "ios" : "macosx")
@@ -320,6 +362,45 @@ void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString("-L" + P.str()));
 }
 
+void DarwinClang::AddLinkARCArgs(const ArgList &Args,
+                                 ArgStringList &CmdArgs) const {
+  
+  CmdArgs.push_back("-force_load");    
+  llvm::sys::Path P(getDriver().ClangExecutable);
+  P.eraseComponent(); // 'clang'
+  P.eraseComponent(); // 'bin'
+  P.appendComponent("lib");
+  P.appendComponent("arc");
+  P.appendComponent("libarclite_");
+  std::string s = P.str();
+  // Mash in the platform.
+  if (isTargetIPhoneOS())
+    s += "iphoneos";
+  // FIXME: isTargetIphoneOSSimulator() is not returning true.
+  else if (ARCRuntimeForSimulator != ARCSimulator_None)
+    s += "iphonesimulator";
+  else
+    s += "macosx";
+  s += ".a";
+
+  CmdArgs.push_back(Args.MakeArgString(s));
+}
+
+void DarwinClang::AddLinkRuntimeLib(const ArgList &Args,
+                                    ArgStringList &CmdArgs, 
+                                    const char *DarwinStaticLib) const {
+  llvm::sys::Path P(getDriver().ResourceDir);
+  P.appendComponent("lib");
+  P.appendComponent("darwin");
+  P.appendComponent(DarwinStaticLib);
+  
+  // For now, allow missing resource libraries to support developers who may
+  // not have compiler-rt checked out or integrated into their build.
+  bool Exists;
+  if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
+    CmdArgs.push_back(Args.MakeArgString(P.str()));
+}
+
 void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs) const {
   // Darwin doesn't support real static executables, don't link any runtime
@@ -341,7 +422,6 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
   CmdArgs.push_back("-lSystem");
 
   // Select the dynamic runtime library and the target specific static library.
-  const char *DarwinStaticLib = 0;
   if (isTargetIPhoneOS()) {
     // If we are compiling as iOS / simulator, don't attempt to link libgcc_s.1,
     // it never went into the SDK.
@@ -349,7 +429,7 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
         CmdArgs.push_back("-lgcc_s.1");
 
     // We currently always need a static runtime library for iOS.
-    DarwinStaticLib = "libclang_rt.ios.a";
+    AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.ios.a");
   } else {
     // The dynamic runtime library was merged with libSystem for 10.6 and
     // beyond; only 10.4 and 10.5 need an additional runtime library.
@@ -367,26 +447,42 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
     // libSystem. Therefore, we still must provide a runtime library just for
     // the tiny tiny handful of projects that *might* use that symbol.
     if (isMacosxVersionLT(10, 5)) {
-      DarwinStaticLib = "libclang_rt.10.4.a";
+      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.10.4.a");
     } else {
       if (getTriple().getArch() == llvm::Triple::x86)
-        DarwinStaticLib = "libclang_rt.eprintf.a";
+        AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.eprintf.a");
+      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.osx.a");
     }
   }
+}
 
-  /// Add the target specific static library, if needed.
-  if (DarwinStaticLib) {
-    llvm::sys::Path P(getDriver().ResourceDir);
-    P.appendComponent("lib");
-    P.appendComponent("darwin");
-    P.appendComponent(DarwinStaticLib);
+static inline llvm::StringRef SimulatorVersionDefineName() {
+  return "__IPHONE_OS_VERSION_MIN_REQUIRED";
+}
 
-    // For now, allow missing resource libraries to support developers who may
-    // not have compiler-rt checked out or integrated into their build.
-    bool Exists;
-    if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
-      CmdArgs.push_back(Args.MakeArgString(P.str()));
-  }
+/// \brief Parse the simulator version define:
+/// __IPHONE_OS_VERSION_MIN_REQUIRED=([0-9])([0-9][0-9])([0-9][0-9])
+// and return the grouped values as integers, e.g:
+//   __IPHONE_OS_VERSION_MIN_REQUIRED=40201
+// will return Major=4, Minor=2, Micro=1.
+static bool GetVersionFromSimulatorDefine(llvm::StringRef define,
+                                          unsigned &Major, unsigned &Minor,
+                                          unsigned &Micro) {
+  assert(define.startswith(SimulatorVersionDefineName()));
+  llvm::StringRef name, version;
+  llvm::tie(name, version) = define.split('=');
+  if (version.empty())
+    return false;
+  std::string verstr = version.str();
+  char *end;
+  unsigned num = (unsigned) strtol(verstr.c_str(), &end, 10);
+  if (*end != '\0')
+    return false;
+  Major = num / 10000;
+  num = num % 10000;
+  Minor = num / 100;
+  Micro = num % 100;
+  return true;
 }
 
 void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
@@ -396,6 +492,27 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
   Arg *iOSVersion = Args.getLastArg(options::OPT_miphoneos_version_min_EQ);
   Arg *iOSSimVersion = Args.getLastArg(
     options::OPT_mios_simulator_version_min_EQ);
+
+  // FIXME: HACK! When compiling for the simulator we don't get a
+  // '-miphoneos-version-min' to help us know whether there is an ARC runtime
+  // or not; try to parse a __IPHONE_OS_VERSION_MIN_REQUIRED
+  // define passed in command-line.
+  if (!iOSVersion) {
+    for (arg_iterator it = Args.filtered_begin(options::OPT_D),
+           ie = Args.filtered_end(); it != ie; ++it) {
+      llvm::StringRef define = (*it)->getValue(Args);
+      if (define.startswith(SimulatorVersionDefineName())) {
+        unsigned Major, Minor, Micro;
+        if (GetVersionFromSimulatorDefine(define, Major, Minor, Micro) &&
+            Major < 10 && Minor < 100 && Micro < 100) {
+          ARCRuntimeForSimulator = Major < 5 ? ARCSimulator_NoARCRuntime
+                                             : ARCSimulator_HasARCRuntime;
+        }
+        break;
+      }
+    }
+  }
+
   if (OSXVersion && (iOSVersion || iOSSimVersion)) {
     getDriver().Diag(clang::diag::err_drv_argument_not_allowed_with)
           << OSXVersion->getAsString(Args)
@@ -562,7 +679,7 @@ void DarwinClang::AddCCKextLibArgs(const ArgList &Args,
   P.appendComponent("lib");
   P.appendComponent("darwin");
   P.appendComponent("libclang_rt.cc_kext.a");
-  
+
   // For now, allow missing resource libraries to support developers who may
   // not have compiler-rt checked out or integrated into their build.
   bool Exists;
@@ -587,8 +704,13 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
     Arg *A = *it;
 
     if (A->getOption().matches(options::OPT_Xarch__)) {
+      // Skip this argument unless the architecture matches either the toolchain
+      // triple arch, or the arch being bound.
+      //
       // FIXME: Canonicalize name.
-      if (getArchName() != A->getValue(Args, 0))
+      llvm::StringRef XarchArch = A->getValue(Args, 0);
+      if (!(XarchArch == getArchName()  ||
+            (BoundArch && XarchArch == BoundArch)))
         continue;
 
       Arg *OriginalArg = A;
@@ -628,7 +750,7 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
           DAL->AddSeparateArg(OriginalArg,
                               Opts.getOption(options::OPT_Zlinker_input),
                               A->getValue(Args, i));
-          
+
         }
         continue;
       }
@@ -919,8 +1041,8 @@ TCEToolChain::~TCEToolChain() {
       delete it->second;
 }
 
-bool TCEToolChain::IsMathErrnoDefault() const { 
-  return true; 
+bool TCEToolChain::IsMathErrnoDefault() const {
+  return true;
 }
 
 bool TCEToolChain::IsUnwindTablesDefault() const {
@@ -935,7 +1057,7 @@ const char *TCEToolChain::GetForcedPicModel() const {
   return 0;
 }
 
-Tool &TCEToolChain::SelectTool(const Compilation &C, 
+Tool &TCEToolChain::SelectTool(const Compilation &C,
                             const JobAction &JA,
                                const ActionList &Inputs) const {
   Action::ActionClass Key;
@@ -1006,7 +1128,12 @@ FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple)
       llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
         llvm::Triple::x86_64)
     Lib32 = true;
-    
+
+  if (Triple.getArch() == llvm::Triple::ppc &&
+      llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
+        llvm::Triple::ppc64)
+    Lib32 = true;
+
   if (Lib32) {
     getFilePaths().push_back(CLANG_PREFIX "/usr/lib32");
   } else {
@@ -1047,14 +1174,14 @@ Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA,
 
 /// NetBSD - NetBSD tool chain which can call as(1) and ld(1) directly.
 
-NetBSD::NetBSD(const HostInfo &Host, const llvm::Triple& Triple)
-  : Generic_ELF(Host, Triple) {
+NetBSD::NetBSD(const HostInfo &Host, const llvm::Triple& Triple,
+               const llvm::Triple& ToolTriple)
+  : Generic_ELF(Host, Triple), ToolTriple(ToolTriple) {
 
   // Determine if we are compiling 32-bit code on an x86_64 platform.
   bool Lib32 = false;
-  if (Triple.getArch() == llvm::Triple::x86 &&
-      llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
-        llvm::Triple::x86_64)
+  if (ToolTriple.getArch() == llvm::Triple::x86_64 &&
+      Triple.getArch() == llvm::Triple::x86)
     Lib32 = true;
 
   if (getDriver().UseStdLib) {
@@ -1084,10 +1211,11 @@ Tool &NetBSD::SelectTool(const Compilation &C, const JobAction &JA,
       if (UseIntegratedAs)
         T = new tools::ClangAs(*this);
       else
-        T = new tools::netbsd::Assemble(*this);
+        T = new tools::netbsd::Assemble(*this, ToolTriple);
       break;
     case Action::LinkJobClass:
-      T = new tools::netbsd::Link(*this); break;
+      T = new tools::netbsd::Link(*this, ToolTriple);
+      break;
     default:
       T = &Generic_GCC::SelectTool(C, JA, Inputs);
     }
@@ -1176,12 +1304,18 @@ enum LinuxDistro {
   ArchLinux,
   DebianLenny,
   DebianSqueeze,
+  DebianWheezy,
   Exherbo,
+  RHEL4,
+  RHEL5,
+  RHEL6,
   Fedora13,
   Fedora14,
   Fedora15,
   FedoraRawhide,
   OpenSuse11_3,
+  OpenSuse11_4,
+  OpenSuse12_1,
   UbuntuHardy,
   UbuntuIntrepid,
   UbuntuJaunty,
@@ -1189,27 +1323,31 @@ enum LinuxDistro {
   UbuntuLucid,
   UbuntuMaverick,
   UbuntuNatty,
+  UbuntuOneiric,
   UnknownDistro
 };
 
-static bool IsFedora(enum LinuxDistro Distro) {
+static bool IsRedhat(enum LinuxDistro Distro) {
   return Distro == Fedora13 || Distro == Fedora14 ||
-         Distro == Fedora15 || Distro == FedoraRawhide;
+         Distro == Fedora15 || Distro == FedoraRawhide ||
+         Distro == RHEL4 || Distro == RHEL5 || Distro == RHEL6;
 }
 
 static bool IsOpenSuse(enum LinuxDistro Distro) {
-  return Distro == OpenSuse11_3;
+  return Distro == OpenSuse11_3 || Distro == OpenSuse11_4 ||
+         Distro == OpenSuse12_1;
 }
 
 static bool IsDebian(enum LinuxDistro Distro) {
-  return Distro == DebianLenny || Distro == DebianSqueeze;
+  return Distro == DebianLenny || Distro == DebianSqueeze ||
+         Distro == DebianWheezy;
 }
 
 static bool IsUbuntu(enum LinuxDistro Distro) {
   return Distro == UbuntuHardy  || Distro == UbuntuIntrepid ||
-         Distro == UbuntuLucid  || Distro == UbuntuMaverick || 
+         Distro == UbuntuLucid  || Distro == UbuntuMaverick ||
          Distro == UbuntuJaunty || Distro == UbuntuKarmic ||
-         Distro == UbuntuNatty;
+         Distro == UbuntuNatty  || Distro == UbuntuOneiric;
 }
 
 static bool IsDebianBased(enum LinuxDistro Distro) {
@@ -1227,7 +1365,8 @@ static bool HasMultilib(llvm::Triple::ArchType Arch, enum LinuxDistro Distro) {
   }
   if (Arch == llvm::Triple::ppc64)
     return true;
-  if ((Arch == llvm::Triple::x86 || Arch == llvm::Triple::ppc) && IsDebianBased(Distro))
+  if ((Arch == llvm::Triple::x86 || Arch == llvm::Triple::ppc) && 
+      IsDebianBased(Distro))
     return true;
   return false;
 }
@@ -1253,6 +1392,8 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
         return UbuntuMaverick;
       else if (Lines[i] == "DISTRIB_CODENAME=natty")
         return UbuntuNatty;
+      else if (Lines[i] == "DISTRIB_CODENAME=oneiric")
+        return UbuntuOneiric;
     }
     return UnknownDistro;
   }
@@ -1268,6 +1409,17 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     else if (Data.startswith("Fedora release") &&
              Data.find("Rawhide") != llvm::StringRef::npos)
       return FedoraRawhide;
+    else if (Data.startswith("Red Hat Enterprise Linux") &&
+             Data.find("release 6") != llvm::StringRef::npos)
+      return RHEL6;
+    else if ((Data.startswith("Red Hat Enterprise Linux") ||
+	      Data.startswith("CentOS")) &&
+             Data.find("release 5") != llvm::StringRef::npos)
+      return RHEL5;
+    else if ((Data.startswith("Red Hat Enterprise Linux") ||
+	      Data.startswith("CentOS")) &&
+             Data.find("release 4") != llvm::StringRef::npos)
+      return RHEL4;
     return UnknownDistro;
   }
 
@@ -1277,6 +1429,8 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
       return DebianLenny;
     else if (Data.startswith("squeeze/sid"))
       return DebianSqueeze;
+    else if (Data.startswith("wheezy/sid"))
+      return DebianWheezy;
     return UnknownDistro;
   }
 
@@ -1284,6 +1438,10 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     llvm::StringRef Data = File.get()->getBuffer();
     if (Data.startswith("openSUSE 11.3"))
       return OpenSuse11_3;
+    else if (Data.startswith("openSUSE 11.4"))
+      return OpenSuse11_4;
+    else if (Data.startswith("openSUSE 12.1"))
+      return OpenSuse12_1;
     return UnknownDistro;
   }
 
@@ -1295,6 +1453,54 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     return ArchLinux;
 
   return UnknownDistro;
+}
+
+static std::string findGCCBaseLibDir(const std::string &GccTriple) {
+  // FIXME: Using CXX_INCLUDE_ROOT is here is a bit of a hack, but
+  // avoids adding yet another option to configure/cmake.
+  // It would probably be cleaner to break it in two variables
+  // CXX_GCC_ROOT with just /foo/bar
+  // CXX_GCC_VER with 4.5.2
+  // Then we would have
+  // CXX_INCLUDE_ROOT = CXX_GCC_ROOT/include/c++/CXX_GCC_VER
+  // and this function would return
+  // CXX_GCC_ROOT/lib/gcc/CXX_INCLUDE_ARCH/CXX_GCC_VER
+  llvm::SmallString<128> CxxIncludeRoot(CXX_INCLUDE_ROOT);
+  if (CxxIncludeRoot != "") {
+    // This is of the form /foo/bar/include/c++/4.5.2/
+    if (CxxIncludeRoot.back() == '/')
+      llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the /
+    llvm::StringRef Version = llvm::sys::path::filename(CxxIncludeRoot);
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the version
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the c++
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the include
+    std::string ret(CxxIncludeRoot.c_str());
+    ret.append("/lib/gcc/");
+    ret.append(CXX_INCLUDE_ARCH);
+    ret.append("/");
+    ret.append(Version);
+    return ret;
+  }
+  static const char* GccVersions[] = {"4.6.1", "4.6.0", "4.6",
+                                      "4.5.2", "4.5.1", "4.5",
+                                      "4.4.5", "4.4.4", "4.4.3", "4.4",
+                                      "4.3.4", "4.3.3", "4.3.2", "4.3",
+                                      "4.2.4", "4.2.3", "4.2.2", "4.2.1",
+                                      "4.2", "4.1.1"};
+  bool Exists;
+  for (unsigned i = 0; i < sizeof(GccVersions)/sizeof(char*); ++i) {
+    std::string Suffix = GccTriple + "/" + GccVersions[i];
+    std::string t1 = "/usr/lib/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t1 + "/crtbegin.o", Exists) && Exists)
+      return t1;
+    std::string t2 = "/usr/lib64/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t2 + "/crtbegin.o", Exists) && Exists)
+      return t2;
+    std::string t3 = "/usr/lib/" + GccTriple + "/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t3 + "/crtbegin.o", Exists) && Exists)
+      return t3;
+  }
+  return "";
 }
 
 Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
@@ -1337,6 +1543,9 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
     else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-pc-linux-gnu",
              Exists) && Exists)
       GccTriple = "x86_64-pc-linux-gnu";
+    else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-redhat-linux6E",
+             Exists) && Exists)
+      GccTriple = "x86_64-redhat-linux6E";
     else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-redhat-linux",
              Exists) && Exists)
       GccTriple = "x86_64-redhat-linux";
@@ -1370,42 +1579,23 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
   } else if (Arch == llvm::Triple::ppc) {
     if (!llvm::sys::fs::exists("/usr/lib/powerpc-linux-gnu", Exists) && Exists)
       GccTriple = "powerpc-linux-gnu";
-    else if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc-unknown-linux-gnu", Exists) && Exists)
+    else if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc-unknown-linux-gnu",
+                                    Exists) && Exists)
       GccTriple = "powerpc-unknown-linux-gnu";
   } else if (Arch == llvm::Triple::ppc64) {
-    if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc64-unknown-linux-gnu", Exists) && Exists)
+    if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc64-unknown-linux-gnu",
+                               Exists) && Exists)
       GccTriple = "powerpc64-unknown-linux-gnu";
-    else if (!llvm::sys::fs::exists("/usr/lib64/gcc/powerpc64-unknown-linux-gnu", Exists) && Exists)
+    else if (!llvm::sys::fs::exists("/usr/lib64/gcc/"
+                                    "powerpc64-unknown-linux-gnu", Exists) && 
+             Exists)
       GccTriple = "powerpc64-unknown-linux-gnu";
   }
 
-  const char* GccVersions[] = {"4.6.0",
-                               "4.5.2", "4.5.1", "4.5",
-                               "4.4.5", "4.4.4", "4.4.3", "4.4",
-                               "4.3.4", "4.3.3", "4.3.2", "4.3",
-                               "4.2.4", "4.2.3", "4.2.2", "4.2.1", "4.2"};
-  std::string Base = "";
-  for (unsigned i = 0; i < sizeof(GccVersions)/sizeof(char*); ++i) {
-    std::string Suffix = GccTriple + "/" + GccVersions[i];
-    std::string t1 = "/usr/lib/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t1 + "/crtbegin.o", Exists) && Exists) {
-      Base = t1;
-      break;
-    }
-    std::string t2 = "/usr/lib64/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t2 + "/crtbegin.o", Exists) && Exists) {
-      Base = t2;
-      break;
-    }
-    std::string t3 = "/usr/lib/" + GccTriple + "/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t3 + "/crtbegin.o", Exists) && Exists) {
-      Base = t3;
-      break;
-    }
-  }
-
+  std::string Base = findGCCBaseLibDir(GccTriple);
   path_list &Paths = getFilePaths();
-  bool Is32Bits = (getArch() == llvm::Triple::x86 || getArch() == llvm::Triple::ppc);
+  bool Is32Bits = (getArch() == llvm::Triple::x86 || 
+                   getArch() == llvm::Triple::ppc);
 
   std::string Suffix;
   std::string Lib;
@@ -1426,7 +1616,7 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
 
   LinuxDistro Distro = DetectLinuxDistro(Arch);
 
-  if (IsUbuntu(Distro)) {
+  if (IsOpenSuse(Distro) || IsUbuntu(Distro)) {
     ExtraOpts.push_back("-z");
     ExtraOpts.push_back("relro");
   }
@@ -1434,20 +1624,27 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
   if (Arch == llvm::Triple::arm || Arch == llvm::Triple::thumb)
     ExtraOpts.push_back("-X");
 
-  if (IsFedora(Distro) || Distro == UbuntuMaverick || Distro == UbuntuNatty)
+  if (IsRedhat(Distro) || IsOpenSuse(Distro) || Distro == UbuntuMaverick ||
+      Distro == UbuntuNatty || Distro == UbuntuOneiric)
     ExtraOpts.push_back("--hash-style=gnu");
 
-  if (IsDebian(Distro) || Distro == UbuntuLucid || Distro == UbuntuJaunty ||
-      Distro == UbuntuKarmic)
+  if (IsDebian(Distro) || IsOpenSuse(Distro) || Distro == UbuntuLucid ||
+      Distro == UbuntuJaunty || Distro == UbuntuKarmic)
     ExtraOpts.push_back("--hash-style=both");
 
-  if (IsFedora(Distro))
+  if (IsRedhat(Distro))
     ExtraOpts.push_back("--no-add-needed");
 
-  if (Distro == DebianSqueeze || IsOpenSuse(Distro) ||
-      IsFedora(Distro) || Distro == UbuntuLucid || Distro == UbuntuMaverick ||
-      Distro == UbuntuKarmic || Distro == UbuntuNatty)
+  if (Distro == DebianSqueeze || Distro == DebianWheezy ||
+      IsOpenSuse(Distro) ||
+      (IsRedhat(Distro) && Distro != RHEL4 && Distro != RHEL5) ||
+      Distro == UbuntuLucid ||
+      Distro == UbuntuMaverick || Distro == UbuntuKarmic ||
+      Distro == UbuntuNatty || Distro == UbuntuOneiric)
     ExtraOpts.push_back("--build-id");
+
+  if (IsOpenSuse(Distro))
+    ExtraOpts.push_back("--enable-new-dtags");
 
   if (Distro == ArchLinux)
     Lib = "lib";
@@ -1457,9 +1654,14 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
     if (IsOpenSuse(Distro) && Is32Bits)
       Paths.push_back(Base + "/../../../../" + GccTriple + "/lib/../lib");
     Paths.push_back(Base + "/../../../../" + Lib);
-    Paths.push_back("/lib/../" + Lib);
-    Paths.push_back("/usr/lib/../" + Lib);
   }
+
+  // FIXME: This is in here to find crt1.o. It is provided by libc, and
+  // libc (like gcc), can be installed in any directory. Once we are
+  // fetching this from a config file, we should have a libc prefix.
+  Paths.push_back("/lib/../" + Lib);
+  Paths.push_back("/usr/lib/../" + Lib);
+
   if (!Suffix.empty())
     Paths.push_back(Base);
   if (IsOpenSuse(Distro))

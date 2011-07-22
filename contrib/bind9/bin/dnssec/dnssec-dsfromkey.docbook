@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2010  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-dsfromkey.docbook,v 1.6 2008-11-07 13:54:11 jreed Exp $ -->
+<!-- $Id: dnssec-dsfromkey.docbook,v 1.12 2010-12-23 23:47:08 tbox Exp $ -->
 <refentry id="man.dnssec-dsfromkey">
   <refentryinfo>
-    <date>November 29, 2008</date>
+    <date>August 26, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -37,6 +37,8 @@
   <docinfo>
     <copyright>
       <year>2008</year>
+      <year>2009</year>
+      <year>2010</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -48,17 +50,22 @@
       <arg><option>-1</option></arg>
       <arg><option>-2</option></arg>
       <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
       <arg choice="req">keyfile</arg>
     </cmdsynopsis>
     <cmdsynopsis>
       <command>dnssec-dsfromkey</command>
       <arg choice="req">-s</arg>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
       <arg><option>-1</option></arg>
       <arg><option>-2</option></arg>
       <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
+      <arg><option>-s</option></arg>
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
-      <arg><option>-d <replaceable class="parameter">dir</replaceable></option></arg>
+      <arg><option>-f <replaceable class="parameter">file</replaceable></option></arg>
+      <arg><option>-A</option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
       <arg choice="req">dnsname</arg>
    </cmdsynopsis>
   </refsynopsisdiv>
@@ -99,10 +106,77 @@
         <listitem>
           <para>
             Select the digest algorithm. The value of
-            <option>algorithm</option> must be one of SHA-1 (SHA1) or
-            SHA-256 (SHA256). These values are case insensitive.
+            <option>algorithm</option> must be one of SHA-1 (SHA1),
+            SHA-256 (SHA256) or GOST. These values are case insensitive.
           </para>
         </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-K <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para>
+            Look for key files (or, in keyset mode,
+            <filename>keyset-</filename> files) in
+            <option>directory</option>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-f <replaceable class="parameter">file</replaceable></term>
+        <listitem>
+          <para>
+            Zone file mode: in place of the keyfile name, the argument is
+            the DNS domain name of a zone master file, which can be read
+            from <option>file</option>.  If the zone name is the same as
+            <option>file</option>, then it may be omitted.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-A</term>
+        <listitem>
+          <para>
+            Include ZSK's when generating DS records.  Without this option,
+            only keys which have the KSK flag set will be converted to DS
+            records and printed.  Useful only in zone file mode. 
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-l <replaceable class="parameter">domain</replaceable></term>
+        <listitem>
+          <para>
+            Generate a DLV set instead of a DS set.  The specified
+            <option>domain</option> is appended to the name for each
+            record in the set.
+            The DNSSEC Lookaside Validation (DLV) RR is described
+            in RFC 4431.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-s</term>
+        <listitem>
+          <para>
+            Keyset mode: in place of the keyfile name, the argument is
+            the DNS domain name of a keyset file.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the DNS class (default is IN).  Useful only
+            in keyset or zone file mode.
+          </para>
+	  </listitem>
       </varlistentry>
 
       <varlistentry>
@@ -113,39 +187,6 @@
           </para>
         </listitem>
       </varlistentry>
-
-      <varlistentry>
-        <term>-s</term>
-        <listitem>
-          <para>
-            Keyset mode: in place of the keyfile name, the argument is
-            the DNS domain name of a keyset file. Following options make sense
-            only in this mode.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term>-c <replaceable class="parameter">class</replaceable></term>
-        <listitem>
-          <para>
-            Specifies the DNS class (default is IN), useful only
-            in the keyset mode.
-          </para>
-	  </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term>-d <replaceable class="parameter">directory</replaceable></term>
-        <listitem>
-          <para>
-            Look for <filename>keyset</filename> files in
-            <option>directory</option> as the directory, ignored when
-            not in the keyset mode.
-          </para>
-        </listitem>
-      </varlistentry>
-
     </variablelist>
   </refsect1>
 
@@ -197,6 +238,7 @@
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
       <citetitle>RFC 3658</citetitle>,
+      <citetitle>RFC 4431</citetitle>.
       <citetitle>RFC 4509</citetitle>.
     </para>
   </refsect1>

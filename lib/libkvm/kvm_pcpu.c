@@ -137,8 +137,8 @@ kvm_getpcpu(kvm_t *kd, int cpu)
 		_kvm_err(kd, kd->program, "out of memory");
 		return ((void *)-1);
 	}
-	if (kvm_read(kd, (uintptr_t)pcpu_data[cpu], buf, sizeof(struct pcpu)) !=
-	    sizeof(struct pcpu)) {
+	if (kvm_read(kd, (uintptr_t)pcpu_data[cpu], buf,
+	    sizeof(struct pcpu)) != sizeof(struct pcpu)) {
 		_kvm_err(kd, kd->program, "unable to read per-CPU data");
 		free(buf);
 		return ((void *)-1);

@@ -26,7 +26,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetAsmBackend.h"
-#include "llvm/Target/TargetAsmInfo.h"
 
 using namespace llvm;
 
@@ -66,6 +65,11 @@ void MCELFStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
 
 void MCELFStreamer::EmitThumbFunc(MCSymbol *Func) {
   // FIXME: Anything needed here to flag the function as thumb?
+
+  getAssembler().setIsThumbFunc(Func);
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Func);
+  SD.setFlags(SD.getFlags() | ELF_Other_ThumbFunc);
 }
 
 void MCELFStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
@@ -345,8 +349,7 @@ void MCELFStreamer::EmitInstToData(const MCInst &Inst) {
 }
 
 void MCELFStreamer::Finish() {
-  if (getNumFrameInfos())
-    MCDwarfFrameEmitter::Emit(*this, true);
+  EmitFrames(true);
 
   for (std::vector<LocalCommon>::const_iterator i = LocalCommons.begin(),
                                                 e = LocalCommons.end();

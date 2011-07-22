@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa.h,v 1.9 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: soa.h,v 1.12 2009-09-10 01:47:09 each Exp $ */
 
 #ifndef DNS_SOA_H
 #define DNS_SOA_H 1
@@ -39,6 +39,28 @@
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
+
+#define DNS_SOA_BUFFERSIZE      ((2 * DNS_NAME_MAXWIRE) + (4 * 5))
+
+isc_result_t
+dns_soa_buildrdata(dns_name_t *origin, dns_name_t *contact,
+		   dns_rdataclass_t rdclass,
+		   isc_uint32_t serial, isc_uint32_t refresh,
+		   isc_uint32_t retry, isc_uint32_t expire,
+		   isc_uint32_t minimum, unsigned char *buffer,
+		   dns_rdata_t *rdata);
+/*%<
+ * Build the rdata of an SOA record.
+ *
+ * Requires:
+ *\li   buffer  Points to a temporary buffer of at least
+ *              DNS_SOA_BUFFERSIZE bytes.
+ *\li   rdata   Points to an initialized dns_rdata_t.
+ *
+ * Ensures:
+ *  \li    *rdata       Contains a valid SOA rdata.  The 'data' member
+ *  			refers to 'buffer'.
+ */
 
 isc_uint32_t
 dns_soa_getserial(dns_rdata_t *rdata);

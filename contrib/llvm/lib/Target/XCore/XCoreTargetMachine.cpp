@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "XCoreMCAsmInfo.h"
 #include "XCoreTargetMachine.h"
 #include "XCore.h"
 #include "llvm/Module.h"
@@ -21,9 +20,10 @@ using namespace llvm;
 /// XCoreTargetMachine ctor - Create an ILP32 architecture model
 ///
 XCoreTargetMachine::XCoreTargetMachine(const Target &T, const std::string &TT,
+                                       const std::string &CPU,
                                        const std::string &FS)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS),
+  : LLVMTargetMachine(T, TT, CPU, FS),
+    Subtarget(TT, CPU, FS),
     DataLayout("e-p:32:32:32-a0:0:32-f32:32:32-f64:32:32-i1:8:32-i8:8:32-"
                "i16:16:32-i32:32:32-i64:32:32-n32"),
     InstrInfo(),
@@ -41,5 +41,4 @@ bool XCoreTargetMachine::addInstSelector(PassManagerBase &PM,
 // Force static initialization.
 extern "C" void LLVMInitializeXCoreTarget() {
   RegisterTargetMachine<XCoreTargetMachine> X(TheXCoreTarget);
-  RegisterAsmInfo<XCoreMCAsmInfo> Y(TheXCoreTarget);
 }

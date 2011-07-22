@@ -10,6 +10,7 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Module.h"
@@ -18,15 +19,14 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/StandardPasses.h"
+#include "llvm/Support/PassManagerBuilder.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -40,6 +40,7 @@ class EmitAssemblyHelper {
   Diagnostic &Diags;
   const CodeGenOptions &CodeGenOpts;
   const TargetOptions &TargetOpts;
+  const LangOptions &LangOpts;
   Module *TheModule;
 
   Timer CodeGenerationTime;
@@ -83,8 +84,9 @@ private:
 public:
   EmitAssemblyHelper(Diagnostic &_Diags,
                      const CodeGenOptions &CGOpts, const TargetOptions &TOpts,
+                     const LangOptions &LOpts,
                      Module *M)
-    : Diags(_Diags), CodeGenOpts(CGOpts), TargetOpts(TOpts),
+    : Diags(_Diags), CodeGenOpts(CGOpts), TargetOpts(TOpts), LangOpts(LOpts),
       TheModule(M), CodeGenerationTime("Code Generation Time"),
       CodeGenPasses(0), PerModulePasses(0), PerFunctionPasses(0) {}
 
@@ -99,6 +101,16 @@ public:
 
 }
 
+static void addObjCARCExpandPass(const PassManagerBuilder &Builder, PassManagerBase &PM) {
+  if (Builder.OptLevel > 0)
+    PM.add(createObjCARCExpandPass());
+}
+
+static void addObjCARCOptPass(const PassManagerBuilder &Builder, PassManagerBase &PM) {
+  if (Builder.OptLevel > 0)
+    PM.add(createObjCARCOptPass());
+}
+
 void EmitAssemblyHelper::CreatePasses() {
   unsigned OptLevel = CodeGenOpts.OptimizationLevel;
   CodeGenOptions::InliningMethod Inlining = CodeGenOpts.Inlining;
@@ -109,67 +121,70 @@ void EmitAssemblyHelper::CreatePasses() {
     OptLevel = 0;
     Inlining = CodeGenOpts.NoInlining;
   }
+  
+  PassManagerBuilder PMBuilder;
+  PMBuilder.OptLevel = OptLevel;
+  PMBuilder.SizeLevel = CodeGenOpts.OptimizeSize;
 
-  FunctionPassManager *FPM = getPerFunctionPasses();
+  PMBuilder.DisableSimplifyLibCalls = !CodeGenOpts.SimplifyLibCalls;
+  PMBuilder.DisableUnitAtATime = !CodeGenOpts.UnitAtATime;
+  PMBuilder.DisableUnrollLoops = !CodeGenOpts.UnrollLoops;
 
-  TargetLibraryInfo *TLI =
-    new TargetLibraryInfo(Triple(TheModule->getTargetTriple()));
+  // In ObjC ARC mode, add the main ARC optimization passes.
+  if (LangOpts.ObjCAutoRefCount) {
+    PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
+                           addObjCARCExpandPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+                           addObjCARCOptPass);
+  }
+  
+  // Figure out TargetLibraryInfo.
+  Triple TargetTriple(TheModule->getTargetTriple());
+  PMBuilder.LibraryInfo = new TargetLibraryInfo(TargetTriple);
   if (!CodeGenOpts.SimplifyLibCalls)
-    TLI->disableAllFunctions();
-  FPM->add(TLI);
-
-  // In -O0 if checking is disabled, we don't even have per-function passes.
-  if (CodeGenOpts.VerifyModule)
-    FPM->add(createVerifierPass());
-
-  // Assume that standard function passes aren't run for -O0.
-  if (OptLevel > 0)
-    llvm::createStandardFunctionPasses(FPM, OptLevel);
-
-  llvm::Pass *InliningPass = 0;
+    PMBuilder.LibraryInfo->disableAllFunctions();
+  
   switch (Inlining) {
   case CodeGenOptions::NoInlining: break;
   case CodeGenOptions::NormalInlining: {
-    // Set the inline threshold following llvm-gcc.
-    //
     // FIXME: Derive these constants in a principled fashion.
     unsigned Threshold = 225;
-    if (CodeGenOpts.OptimizeSize == 1) //-Os
+    if (CodeGenOpts.OptimizeSize == 1)      // -Os
       Threshold = 75;
-    else if (CodeGenOpts.OptimizeSize == 2) //-Oz
+    else if (CodeGenOpts.OptimizeSize == 2) // -Oz
       Threshold = 25;
     else if (OptLevel > 2)
       Threshold = 275;
-    InliningPass = createFunctionInliningPass(Threshold);
+    PMBuilder.Inliner = createFunctionInliningPass(Threshold);
     break;
   }
   case CodeGenOptions::OnlyAlwaysInlining:
-    InliningPass = createAlwaysInlinerPass();         // Respect always_inline
+    // Respect always_inline.
+    PMBuilder.Inliner = createAlwaysInlinerPass();
     break;
   }
 
-  PassManager *MPM = getPerModulePasses();
+ 
+  // Set up the per-function pass manager.
+  FunctionPassManager *FPM = getPerFunctionPasses();
+  if (CodeGenOpts.VerifyModule)
+    FPM->add(createVerifierPass());
+  PMBuilder.populateFunctionPassManager(*FPM);
 
-  TLI = new TargetLibraryInfo(Triple(TheModule->getTargetTriple()));
-  if (!CodeGenOpts.SimplifyLibCalls)
-    TLI->disableAllFunctions();
-  MPM->add(TLI);
+  // Set up the per-module pass manager.
+  PassManager *MPM = getPerModulePasses();
 
   if (CodeGenOpts.EmitGcovArcs || CodeGenOpts.EmitGcovNotes) {
     MPM->add(createGCOVProfilerPass(CodeGenOpts.EmitGcovNotes,
-                                    CodeGenOpts.EmitGcovArcs));
+                                    CodeGenOpts.EmitGcovArcs,
+                                    TargetTriple.isMacOSX()));
+
     if (!CodeGenOpts.DebugInfo)
       MPM->add(createStripSymbolsPass(true));
   }
-
-  // For now we always create per module passes.
-  llvm::createStandardModulePasses(MPM, OptLevel,
-                                   CodeGenOpts.OptimizeSize,
-                                   CodeGenOpts.UnitAtATime,
-                                   CodeGenOpts.UnrollLoops,
-                                   CodeGenOpts.SimplifyLibCalls,
-                                   /*HaveExceptions=*/true,
-                                   InliningPass);
+  
+  
+  PMBuilder.populateModulePassManager(*MPM);
 }
 
 bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
@@ -215,7 +230,6 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
   NoZerosInBSS = CodeGenOpts.NoZeroInitializedInBSS;
   llvm::UnsafeFPMath = CodeGenOpts.UnsafeFPMath;
   llvm::UseSoftFloat = CodeGenOpts.SoftFloat;
-  UnwindTablesMandatory = CodeGenOpts.UnwindTables;
 
   TargetMachine::setAsmVerbosityDefault(CodeGenOpts.AsmVerbose);
 
@@ -265,16 +279,16 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
                                     const_cast<char **>(&BackendArgs[0]));
 
   std::string FeaturesStr;
-  if (TargetOpts.CPU.size() || TargetOpts.Features.size()) {
+  if (TargetOpts.Features.size()) {
     SubtargetFeatures Features;
-    Features.setCPU(TargetOpts.CPU);
     for (std::vector<std::string>::const_iterator
            it = TargetOpts.Features.begin(),
            ie = TargetOpts.Features.end(); it != ie; ++it)
       Features.AddFeature(*it);
     FeaturesStr = Features.getString();
   }
-  TargetMachine *TM = TheTarget->createTargetMachine(Triple, FeaturesStr);
+  TargetMachine *TM = TheTarget->createTargetMachine(Triple, TargetOpts.CPU,
+                                                     FeaturesStr);
 
   if (CodeGenOpts.RelaxAll)
     TM->setMCRelaxAll(true);
@@ -282,6 +296,8 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
     TM->setMCSaveTempLabels(true);
   if (CodeGenOpts.NoDwarf2CFIAsm)
     TM->setMCUseCFI(false);
+  if (CodeGenOpts.NoExecStack)
+    TM->setMCNoExecStack(true);
 
   // Create the code generator passes.
   PassManager *PM = getCodeGenPasses();
@@ -302,6 +318,13 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
     CGFT = TargetMachine::CGFT_Null;
   else
     assert(Action == Backend_EmitAssembly && "Invalid action!");
+
+  // Add ObjC ARC final-cleanup optimizations. This is done as part of the
+  // "codegen" passes so that it isn't run multiple times when there is
+  // inlining happening.
+  if (LangOpts.ObjCAutoRefCount)
+    PM->add(createObjCARCContractPass());
+
   if (TM->addPassesToEmitFile(*PM, OS, CGFT, OptLevel,
                               /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
     Diags.Report(diag::err_fe_unable_to_interface_with_target);
@@ -364,9 +387,11 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action, raw_ostream *OS) {
 }
 
 void clang::EmitBackendOutput(Diagnostic &Diags, const CodeGenOptions &CGOpts,
-                              const TargetOptions &TOpts, Module *M,
+                              const TargetOptions &TOpts,
+                              const LangOptions &LOpts,
+                              Module *M,
                               BackendAction Action, raw_ostream *OS) {
-  EmitAssemblyHelper AsmHelper(Diags, CGOpts, TOpts, M);
+  EmitAssemblyHelper AsmHelper(Diags, CGOpts, TOpts, LOpts, M);
 
   AsmHelper.EmitAssembly(Action, OS);
 }

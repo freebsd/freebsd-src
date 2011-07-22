@@ -156,6 +156,7 @@ xenbusb_front_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 
 	if (error == 0) {
 		ivars->xd_otherend_path = strdup(otherend_path, M_XENBUS);
+		ivars->xd_otherend_path_len = strlen(otherend_path);
 		free(otherend_path, M_XENSTORE);
 	}
 	return (error);

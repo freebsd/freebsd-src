@@ -228,6 +228,18 @@ struct usb_config {
 };
 
 /*
+ * Use these macro when defining USB device ID arrays if you want to
+ * have your driver module automatically loaded in host, device or
+ * both modes respectivly:
+ */
+#define	STRUCT_USB_HOST_ID \
+    struct usb_device_id __section("usb_host_id")
+#define	STRUCT_USB_DEVICE_ID \
+    struct usb_device_id __section("usb_device_id")
+#define	STRUCT_USB_DUAL_ID \
+    struct usb_device_id __section("usb_dual_id")
+
+/*
  * The following structure is used when looking up an USB driver for
  * an USB device. It is inspired by the Linux structure called
  * "usb_device_id".
@@ -258,12 +270,15 @@ struct usb_device_id {
 	uint8_t	match_flag_product:1;
 	uint8_t	match_flag_dev_lo:1;
 	uint8_t	match_flag_dev_hi:1;
+
 	uint8_t	match_flag_dev_class:1;
 	uint8_t	match_flag_dev_subclass:1;
 	uint8_t	match_flag_dev_protocol:1;
 	uint8_t	match_flag_int_class:1;
+
 	uint8_t	match_flag_int_subclass:1;
 	uint8_t	match_flag_int_protocol:1;
+	uint8_t match_flag_unused:6;
 
 #if USB_HAVE_COMPAT_LINUX
 	/* which fields to match against */
@@ -279,7 +294,10 @@ struct usb_device_id {
 #define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
 #endif
-};
+} __aligned(32);
+
+/* check that the size of the structure above is correct */
+extern char usb_device_id_assert[(sizeof(struct usb_device_id) == 32) ? 1 : -1];
 
 #define	USB_VENDOR(vend)			\
   .match_flag_vendor = 1, .idVendor = (vend)
@@ -542,6 +560,7 @@ void	usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
 	    struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len);
 void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 	    usb_frlength_t len);
+void	usbd_start_re_enumerate(struct usb_device *udev);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

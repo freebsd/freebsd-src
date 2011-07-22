@@ -349,12 +349,13 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		}
 
 		if (n == 0) {
-			/* A flush request (arg == 0) on empty ruleset
-			 * returns with no error. On the contrary,
+			/* A flush request (arg == 0 or cmd == 1) on empty
+			 * ruleset returns with no error. On the contrary,
 			 * if there is no match on a specific request,
 			 * we return EINVAL.
 			 */
-			error = (arg == 0) ? 0 : EINVAL;
+			if (arg != 0 && cmd != 1)
+				error = EINVAL;
 			break;
 		}
 
@@ -751,6 +752,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 #endif
 		case O_SKIPTO:
 		case O_REASS:
+		case O_CALLRETURN:
 check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;

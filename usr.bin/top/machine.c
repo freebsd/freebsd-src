@@ -235,23 +235,51 @@ static int *pcpu_cpu_states;
 
 static int compare_jid(const void *a, const void *b);
 static int compare_pid(const void *a, const void *b);
+static int compare_tid(const void *a, const void *b);
 static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 
+void
+toggle_pcpustats(void)
+{
+
+	if (ncpus == 1)
+		return;
+
+	/* Adjust display based on ncpus */
+	if (pcpu_stats) {
+		y_mem += ncpus - 1;	/* 3 */
+		y_swap += ncpus - 1;	/* 4 */
+		y_idlecursor += ncpus - 1; /* 5 */
+		y_message += ncpus - 1;	/* 5 */
+		y_header += ncpus - 1;	/* 6 */
+		y_procs += ncpus - 1;	/* 7 */
+		Header_lines += ncpus - 1; /* 7 */
+	} else {
+		y_mem = 3;
+		y_swap = 4;
+		y_idlecursor = 5;
+		y_message = 5;
+		y_header = 6;
+		y_procs = 7;
+		Header_lines = 7;
+	}
+}
+
 int
 machine_init(struct statics *statics, char do_unames)
 {
-	int pagesize;
-	size_t modelen;
+	int i, j, empty, pagesize;
+	size_t size;
 	struct passwd *pw;
 
-	modelen = sizeof(smpmode);
-	if ((sysctlbyname("machdep.smp_active", &smpmode, &modelen,
+	size = sizeof(smpmode);
+	if ((sysctlbyname("machdep.smp_active", &smpmode, &size,
 	    NULL, 0) != 0 &&
-	    sysctlbyname("kern.smp.active", &smpmode, &modelen,
+	    sysctlbyname("kern.smp.active", &smpmode, &size,
 	    NULL, 0) != 0) ||
-	    modelen != sizeof(smpmode))
+	    size != sizeof(smpmode))
 		smpmode = 0;
 
 	if (do_unames) {
@@ -299,51 +327,37 @@ machine_init(struct statics *statics, char do_unames)
 	statics->order_names = ordernames;
 #endif
 
-	/* Adjust display based on ncpus */
-	if (pcpu_stats) {
-		int i, j, empty;
-		size_t size;
-
-		cpumask = 0;
-		ncpus = 0;
-		GETSYSCTL("kern.smp.maxcpus", maxcpu);
-		size = sizeof(long) * maxcpu * CPUSTATES;
-		times = malloc(size);
-		if (times == NULL)
-			err(1, "malloc %zd bytes", size);
-		if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
-			err(1, "sysctlbyname kern.cp_times");
-		pcpu_cp_time = calloc(1, size);
-		maxid = (size / CPUSTATES / sizeof(long)) - 1;
-		for (i = 0; i <= maxid; i++) {
-			empty = 1;
-			for (j = 0; empty && j < CPUSTATES; j++) {
-				if (times[i * CPUSTATES + j] != 0)
-					empty = 0;
-			}
-			if (!empty) {
-				cpumask |= (1ul << i);
-				ncpus++;
-			}
+	/* Allocate state for per-CPU stats. */
+	cpumask = 0;
+	ncpus = 0;
+	GETSYSCTL("kern.smp.maxcpus", maxcpu);
+	size = sizeof(long) * maxcpu * CPUSTATES;
+	times = malloc(size);
+	if (times == NULL)
+		err(1, "malloc %zd bytes", size);
+	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
+		err(1, "sysctlbyname kern.cp_times");
+	pcpu_cp_time = calloc(1, size);
+	maxid = (size / CPUSTATES / sizeof(long)) - 1;
+	for (i = 0; i <= maxid; i++) {
+		empty = 1;
+		for (j = 0; empty && j < CPUSTATES; j++) {
+			if (times[i * CPUSTATES + j] != 0)
+				empty = 0;
 		}
-
-		if (ncpus > 1) {
-			y_mem += ncpus - 1;	/* 3 */
-			y_swap += ncpus - 1;	/* 4 */
-			y_idlecursor += ncpus - 1; /* 5 */
-			y_message += ncpus - 1;	/* 5 */
-			y_header += ncpus - 1;	/* 6 */
-			y_procs += ncpus - 1;	/* 7 */
-			Header_lines += ncpus - 1; /* 7 */
+		if (!empty) {
+			cpumask |= (1ul << i);
+			ncpus++;
 		}
-		size = sizeof(long) * ncpus * CPUSTATES;
-		pcpu_cp_old = calloc(1, size);
-		pcpu_cp_diff = calloc(1, size);
-		pcpu_cpu_states = calloc(1, size);
-		statics->ncpus = ncpus;
-	} else {
-		statics->ncpus = 1;
 	}
+	size = sizeof(long) * ncpus * CPUSTATES;
+	pcpu_cp_old = calloc(1, size);
+	pcpu_cp_diff = calloc(1, size);
+	pcpu_cpu_states = calloc(1, size);
+	statics->ncpus = ncpus;
+
+	if (pcpu_stats)
+		toggle_pcpustats();
 
 	/* all done! */
 	return (0);
@@ -398,14 +412,11 @@ get_system_info(struct system_info *si)
 	int i, j;
 	size_t size;
 
-	/* get the cp_time array */
-	if (pcpu_stats) {
-		size = (maxid + 1) * CPUSTATES * sizeof(long);
-		if (sysctlbyname("kern.cp_times", pcpu_cp_time, &size, NULL, 0) == -1)
-			err(1, "sysctlbyname kern.cp_times");
-	} else {
-		GETSYSCTL("kern.cp_time", cp_time);
-	}
+	/* get the CPU stats */
+	size = (maxid + 1) * CPUSTATES * sizeof(long);
+	if (sysctlbyname("kern.cp_times", pcpu_cp_time, &size, NULL, 0) == -1)
+		err(1, "sysctlbyname kern.cp_times");
+	GETSYSCTL("kern.cp_time", cp_time);
 	GETSYSCTL("vm.loadavg", sysload);
 	GETSYSCTL("kern.lastpid", lastpid);
 
@@ -413,21 +424,17 @@ get_system_info(struct system_info *si)
 	for (i = 0; i < 3; i++)
 		si->load_avg[i] = (double)sysload.ldavg[i] / sysload.fscale;
 
-	if (pcpu_stats) {
-		for (i = j = 0; i <= maxid; i++) {
-			if ((cpumask & (1ul << i)) == 0)
-				continue;
-			/* convert cp_time counts to percentages */
-			percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
-			    &pcpu_cp_time[j * CPUSTATES],
-			    &pcpu_cp_old[j * CPUSTATES],
-			    &pcpu_cp_diff[j * CPUSTATES]);
-			j++;
-		}
-	} else {
-		/* convert cp_time counts to percentages */
-		percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
+	/* convert cp_time counts to percentages */
+	for (i = j = 0; i <= maxid; i++) {
+		if ((cpumask & (1ul << i)) == 0)
+			continue;
+		percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
+		    &pcpu_cp_time[j * CPUSTATES],
+		    &pcpu_cp_old[j * CPUSTATES],
+		    &pcpu_cp_diff[j * CPUSTATES]);
+		j++;
 	}
+	percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
 
 	/* sum memory & swap statistics */
 	{
@@ -549,7 +556,7 @@ get_old_proc(struct kinfo_proc *pp)
 	 * cache it.
 	 */
 	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
-	    sizeof(*previous_pref), compare_pid);
+	    sizeof(*previous_pref), ps.thread ? compare_tid : compare_pid);
 	if (oldpp == NULL) {
 		pp->ki_udata = NOPROC;
 		return (NULL);
@@ -616,7 +623,6 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int active_procs;
 	struct kinfo_proc **prefp;
 	struct kinfo_proc *pp;
-	struct kinfo_proc *prev_pp = NULL;
 
 	/* these are copied out of sel for speed */
 	int show_idle;
@@ -645,11 +651,12 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			previous_pref[i] = &previous_procs[i];
 		bcopy(pbase, previous_procs, nproc * sizeof(*previous_procs));
 		qsort(previous_pref, nproc, sizeof(*previous_pref),
-		    compare_pid);
+		    ps.thread ? compare_tid : compare_pid);
 	}
 	previous_proc_count = nproc;
 
-	pbase = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
+	pbase = kvm_getprocs(kd, sel->thread ? KERN_PROC_ALL : KERN_PROC_PROC,
+	    0, &nproc);
 	if (nproc > onproc)
 		pref = realloc(pref, sizeof(*pref) * (onproc = nproc));
 	if (pref == NULL || pbase == NULL) {
@@ -701,17 +708,16 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip zombies */
 			continue;
 
+		if (!show_kidle && pp->ki_tdflags & TDF_IDLETD)
+			/* skip kernel idle process */
+			continue;
+		    
 		if (displaymode == DISP_CPU && !show_idle &&
 		    (pp->ki_pctcpu == 0 ||
 		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
 			/* skip idle or non-running processes */
 			continue;
 
-		if (displaymode == DISP_CPU && !show_kidle &&
-		    pp->ki_tdflags & TDF_IDLETD)
-			/* skip kernel idle process */
-			continue;
-		    
 		if (displaymode == DISP_IO && !show_idle && p_io == 0)
 			/* skip processes that aren't doing I/O */
 			continue;
@@ -720,21 +726,8 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip proc. that don't belong to the selected UID */
 			continue;
 
-		/*
-		 * When not showing threads, take the first thread
-		 * for output and add the fields that we can from
-		 * the rest of the process's threads rather than
-		 * using the system's mostly-broken KERN_PROC_PROC.
-		 */
-		if (sel->thread || prev_pp == NULL ||
-		    prev_pp->ki_pid != pp->ki_pid) {
-			*prefp++ = pp;
-			active_procs++;
-			prev_pp = pp;
-		} else {
-			prev_pp->ki_pctcpu += pp->ki_pctcpu;
-			prev_pp->ki_runtime += pp->ki_runtime;
-		}
+		*prefp++ = pp;
+		active_procs++;
 	}
 
 	/* if requested, sort the "interesting" processes */
@@ -838,8 +831,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    pp->ki_ocomm[0]) {
-			snprintf(cmdbuf, cmdlengthdelta, "{%s}", pp->ki_ocomm);
+		    pp->ki_tdname[0]) {
+			snprintf(cmdbuf, cmdlengthdelta, "%s{%s}", pp->ki_comm,
+			    pp->ki_tdname);
 		} else {
 			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
 		}
@@ -849,9 +843,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    	pp->ki_ocomm[0]) {
+		    	    pp->ki_tdname[0]) {
 				snprintf(cmdbuf, cmdlengthdelta,
-				    "{%s}", pp->ki_ocomm);
+				    "[%s{%s}]", pp->ki_comm, pp->ki_tdname);
 			} else {
 				snprintf(cmdbuf, cmdlengthdelta,
 				    "[%s]", pp->ki_comm);
@@ -895,12 +889,23 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				dst--;
 			*dst = '\0';
 
-			if (strcmp(cmd, pp->ki_comm) != 0 )
-				snprintf(cmdbuf, cmdlengthdelta,
-				    "%s (%s)",argbuf,  pp->ki_comm);
-			else
-				strlcpy(cmdbuf, argbuf, cmdlengthdelta);
-
+			if (strcmp(cmd, pp->ki_comm) != 0 ) {
+				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+				    pp->ki_tdname[0])
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s (%s){%s}", argbuf, pp->ki_comm,
+					    pp->ki_tdname);
+				else
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s (%s)", argbuf, pp->ki_comm);
+			} else {
+				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+				    pp->ki_tdname[0])
+					snprintf(cmdbuf, cmdlengthdelta,
+					    "%s{%s}", argbuf, pp->ki_tdname);
+				else
+					strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+			}
 			free(argbuf);
 		}
 	}
@@ -1063,6 +1068,18 @@ compare_pid(const void *p1, const void *p2)
 		abort();
 
 	return ((*pp1)->ki_pid - (*pp2)->ki_pid);
+}
+
+static int
+compare_tid(const void *p1, const void *p2)
+{
+	const struct kinfo_proc * const *pp1 = p1;
+	const struct kinfo_proc * const *pp2 = p2;
+
+	if ((*pp2)->ki_tid < 0 || (*pp1)->ki_tid < 0)
+		abort();
+
+	return ((*pp1)->ki_tid - (*pp2)->ki_tid);
 }
 
 /*

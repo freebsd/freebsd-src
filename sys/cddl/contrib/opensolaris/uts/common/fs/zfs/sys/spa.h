@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_SPA_H
@@ -655,7 +656,7 @@ extern void spa_history_log_version(spa_t *spa, history_internal_events_t evt);
 /* error handling */
 struct zbookmark;
 extern void spa_log_error(spa_t *spa, zio_t *zio);
-extern void zfs_ereport_post(const char *class, spa_t *spa, vdev_t *vd,
+extern void zfs_ereport_post(const char *cls, spa_t *spa, vdev_t *vd,
     zio_t *zio, uint64_t stateoroffset, uint64_t length);
 extern void zfs_post_remove(spa_t *spa, vdev_t *vd);
 extern void zfs_post_state_change(spa_t *spa, vdev_t *vd);
@@ -697,6 +698,13 @@ _NOTE(CONSTCOND) } while (0)
 #else
 #define	dprintf_bp(bp, fmt, ...)
 #endif
+
+extern boolean_t spa_debug_enabled(spa_t *spa);
+#define	spa_dbgmsg(spa, ...)			\
+{						\
+	if (spa_debug_enabled(spa))		\
+		zfs_dbgmsg(__VA_ARGS__);	\
+}
 
 extern int spa_mode_global;			/* mode, e.g. FREAD | FWRITE */
 

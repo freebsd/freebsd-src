@@ -52,12 +52,16 @@ protected:
   const MCSection *MergeableConst8Section;
   const MCSection *MergeableConst16Section;
 public:
-  TargetLoweringObjectFileELF() {}
+  TargetLoweringObjectFileELF();
   ~TargetLoweringObjectFileELF() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
 
   virtual void emitPersonalityValue(MCStreamer &Streamer,
                                     const TargetMachine &TM,
@@ -127,12 +131,16 @@ class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
   const MCSection *LazySymbolPointerSection;
   const MCSection *NonLazySymbolPointerSection;
 public:
-  TargetLoweringObjectFileMachO() {}
+  TargetLoweringObjectFileMachO();
   ~TargetLoweringObjectFileMachO() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
 
   virtual const MCSection *
   SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
@@ -196,13 +204,17 @@ public:
 
 class TargetLoweringObjectFileCOFF : public TargetLoweringObjectFile {
   const MCSection *DrectveSection;
+  const MCSection *PDataSection;
+  const MCSection *XDataSection;
 public:
-  TargetLoweringObjectFileCOFF() {}
+  TargetLoweringObjectFileCOFF();
   ~TargetLoweringObjectFileCOFF() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const;
+  virtual const MCSection *getWin64EHTableSection(StringRef) const;
 
   virtual const MCSection *getDrectveSection() const { return DrectveSection; }
 

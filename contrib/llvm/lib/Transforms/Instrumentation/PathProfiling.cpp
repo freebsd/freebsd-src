@@ -376,7 +376,7 @@ namespace llvm {
   public:
     static const StructType *get(LLVMContext& C) {
       return( StructType::get(
-                C, TypeBuilder<types::i<32>, xcompile>::get(C), // type
+                TypeBuilder<types::i<32>, xcompile>::get(C), // type
                 TypeBuilder<types::i<32>, xcompile>::get(C), // array size
                 TypeBuilder<types::i<8>*, xcompile>::get(C), // array/hash ptr
                 NULL));
@@ -1062,7 +1062,7 @@ void PathProfiler::insertCounterIncrement(Value* incValue,
 
     CallInst::Create(
       increment ? llvmIncrementHashFunction : llvmDecrementHashFunction,
-      args.begin(), args.end(), "", insertPoint);
+      args, "", insertPoint);
   }
 }
 
@@ -1350,8 +1350,6 @@ bool PathProfiler::runOnModule(Module &M) {
            << " with no main function!\n";
     return false;
   }
-
-  BasicBlock::iterator insertPoint = Main->getEntryBlock().getFirstNonPHI();
 
   llvmIncrementHashFunction = M.getOrInsertFunction(
     "llvm_increment_path_count",

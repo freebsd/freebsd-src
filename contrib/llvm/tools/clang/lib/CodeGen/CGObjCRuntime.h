@@ -95,9 +95,9 @@ protected:
   /// thrown object directly.
   void EmitTryCatchStmt(CodeGenFunction &CGF,
                         const ObjCAtTryStmt &S,
-                        llvm::Function *beginCatchFn,
-                        llvm::Function *endCatchFn,
-                        llvm::Function *exceptionRethrowFn);
+                        llvm::Constant *beginCatchFn,
+                        llvm::Constant *endCatchFn,
+                        llvm::Constant *exceptionRethrowFn);
   /// Emits an @synchronize() statement, using the syncEnterFn and syncExitFn
   /// arguments as the functions called to lock and unlock the object.  This
   /// function can be called by subclasses that use zero-cost exception
@@ -205,7 +205,13 @@ public:
   /// interface decl.
   virtual llvm::Value *GetClass(CGBuilderTy &Builder,
                                 const ObjCInterfaceDecl *OID) = 0;
-
+  
+  
+  virtual llvm::Value *EmitNSAutoreleasePoolClassRef(CGBuilderTy &Builder) {
+    assert(false &&"autoreleasepool unsupported in this ABI");
+    return 0;
+  }
+  
   /// EnumerationMutationFunction - Return the function that's called by the
   /// compiler when a mutation is detected during foreach iteration.
   virtual llvm::Constant *EnumerationMutationFunction() = 0;
@@ -243,6 +249,7 @@ public:
                                         llvm::Value *Size) = 0;
   virtual llvm::Constant *BuildGCBlockLayout(CodeGen::CodeGenModule &CGM,
                                   const CodeGen::CGBlockInfo &blockInfo) = 0;
+  virtual llvm::GlobalVariable *GetClassGlobal(const std::string &Name) = 0;
 };
 
 /// Creates an instance of an Objective-C runtime class.

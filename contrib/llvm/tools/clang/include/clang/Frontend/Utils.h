@@ -19,6 +19,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/Basic/Diagnostic.h"
 
 namespace llvm {
 class Triple;
@@ -70,9 +71,6 @@ void ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
                               const PreprocessorOutputOptions &Opts);
-
-/// CheckDiagnostics - Gather the expected diagnostics and check them.
-bool CheckDiagnostics(Preprocessor &PP);
 
 /// AttachDependencyFileGen - Create a dependency file generator, and attach
 /// it to the given preprocessor.  This takes ownership of the output stream.

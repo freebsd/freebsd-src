@@ -87,12 +87,10 @@ FunctionPass *llvm::createSjLjEHPass(const TargetLowering *TLI) {
 bool SjLjEHPass::doInitialization(Module &M) {
   // Build the function context structure.
   // builtin_setjmp uses a five word jbuf
-  const Type *VoidPtrTy =
-          Type::getInt8PtrTy(M.getContext());
-  const Type *Int32Ty = Type::getInt32Ty(M.getContext());
+  Type *VoidPtrTy = Type::getInt8PtrTy(M.getContext());
+  Type *Int32Ty = Type::getInt32Ty(M.getContext());
   FunctionContextTy =
-    StructType::get(M.getContext(),
-                    VoidPtrTy,                        // __prev
+    StructType::get(VoidPtrTy,                        // __prev
                     Int32Ty,                          // call_site
                     ArrayType::get(Int32Ty, 4),       // __data
                     VoidPtrTy,                        // __personality
@@ -520,7 +518,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
 
   // Add a call to dispatch_setup after the setjmp call. This is expanded to any
   // target-specific setup that needs to be done.
-  CallInst::Create(DispatchSetupFn, "", EntryBB->getTerminator());
+  CallInst::Create(DispatchSetupFn, DispatchVal, "", EntryBB->getTerminator());
 
   // check the return value of the setjmp. non-zero goes to dispatcher.
   Value *IsNormal = new ICmpInst(EntryBB->getTerminator(),

@@ -63,19 +63,30 @@ public:
   ///  1. |   o---x   | Internal to block. Variable is only live in this block.
   ///  2. |---x       | Live-in, kill.
   ///  3. |       o---| Def, live-out.
-  ///  4. |---x   o---| Live-in, kill, def, live-out.
+  ///  4. |---x   o---| Live-in, kill, def, live-out. Counted by NumGapBlocks.
   ///  5. |---o---o---| Live-through with uses or defs.
-  ///  6. |-----------| Live-through without uses. Transparent.
+  ///  6. |-----------| Live-through without uses. Counted by NumThroughBlocks.
+  ///
+  /// Two BlockInfo entries are created for template 4. One for the live-in
+  /// segment, and one for the live-out segment. These entries look as if the
+  /// block were split in the middle where the live range isn't live.
+  ///
+  /// Live-through blocks without any uses don't get BlockInfo entries. They
+  /// are simply listed in ThroughBlocks instead.
   ///
   struct BlockInfo {
     MachineBasicBlock *MBB;
     SlotIndex FirstUse;   ///< First instr using current reg.
     SlotIndex LastUse;    ///< Last instr using current reg.
-    SlotIndex Kill;       ///< Interval end point inside block.
-    SlotIndex Def;        ///< Interval start point inside block.
-    bool LiveThrough;     ///< Live in whole block (Templ 5. or 6. above).
+    bool LiveThrough;     ///< Live in whole block (Templ 5. above).
     bool LiveIn;          ///< Current reg is live in.
     bool LiveOut;         ///< Current reg is live out.
+
+    /// isOneInstr - Returns true when this BlockInfo describes a single
+    /// instruction.
+    bool isOneInstr() const {
+      return SlotIndex::isSameInstr(FirstUse, LastUse);
+    }
   };
 
 private:
@@ -91,11 +102,18 @@ private:
   /// UseBlocks - Blocks where CurLI has uses.
   SmallVector<BlockInfo, 8> UseBlocks;
 
+  /// NumGapBlocks - Number of duplicate entries in UseBlocks for blocks where
+  /// the live range has a gap.
+  unsigned NumGapBlocks;
+
   /// ThroughBlocks - Block numbers where CurLI is live through without uses.
   BitVector ThroughBlocks;
 
   /// NumThroughBlocks - Number of live-through blocks.
   unsigned NumThroughBlocks;
+
+  /// DidRepairRange - analyze was forced to shrinkToUses().
+  bool DidRepairRange;
 
   SlotIndex computeLastSplitPoint(unsigned Num);
 
@@ -112,6 +130,11 @@ public:
   /// analyze - set CurLI to the specified interval, and analyze how it may be
   /// split.
   void analyze(const LiveInterval *li);
+
+  /// didRepairRange() - Returns true if CurLI was invalid and has been repaired
+  /// by analyze(). This really shouldn't happen, but sometimes the coalescer
+  /// can create live ranges that end in mid-air.
+  bool didRepairRange() const { return DidRepairRange; }
 
   /// clear - clear all data structures so SplitAnalysis is ready to analyze a
   /// new interval.
@@ -139,7 +162,7 @@ public:
 
   /// getUseBlocks - Return an array of BlockInfo objects for the basic blocks
   /// where CurLI has uses.
-  ArrayRef<BlockInfo> getUseBlocks() { return UseBlocks; }
+  ArrayRef<BlockInfo> getUseBlocks() const { return UseBlocks; }
 
   /// getNumThroughBlocks - Return the number of through blocks.
   unsigned getNumThroughBlocks() const { return NumThroughBlocks; }
@@ -150,9 +173,14 @@ public:
   /// getThroughBlocks - Return the set of through blocks.
   const BitVector &getThroughBlocks() const { return ThroughBlocks; }
 
-  /// countLiveBlocks - Return the number of blocks where li is live.
-  /// This is guaranteed to return the same number as getNumThroughBlocks() +
-  /// getUseBlocks().size() after calling analyze(li).
+  /// getNumLiveBlocks - Return the number of blocks where CurLI is live.
+  unsigned getNumLiveBlocks() const {
+    return getUseBlocks().size() - NumGapBlocks + getNumThroughBlocks();
+  }
+
+  /// countLiveBlocks - Return the number of blocks where li is live. This is
+  /// guaranteed to return the same number as getNumLiveBlocks() after calling
+  /// analyze(li).
   unsigned countLiveBlocks(const LiveInterval *li) const;
 
   typedef SmallPtrSet<const MachineBasicBlock*, 16> BlockPtrSet;
@@ -338,6 +366,10 @@ public:
   /// Return the beginning of the new live range.
   SlotIndex enterIntvBefore(SlotIndex Idx);
 
+  /// enterIntvAfter - Enter the open interval after the instruction at Idx.
+  /// Return the beginning of the new live range.
+  SlotIndex enterIntvAfter(SlotIndex Idx);
+
   /// enterIntvAtEnd - Enter the open interval at the end of MBB.
   /// Use the open interval from he inserted copy to the MBB end.
   /// Return the beginning of the new live range.
@@ -394,6 +426,42 @@ public:
   /// splitSingleBlocks - Split CurLI into a separate live interval inside each
   /// basic block in Blocks.
   void splitSingleBlocks(const SplitAnalysis::BlockPtrSet &Blocks);
+
+  /// splitLiveThroughBlock - Split CurLI in the given block such that it
+  /// enters the block in IntvIn and leaves it in IntvOut. There may be uses in
+  /// the block, but they will be ignored when placing split points.
+  ///
+  /// @param MBBNum      Block number.
+  /// @param IntvIn      Interval index entering the block.
+  /// @param LeaveBefore When set, leave IntvIn before this point.
+  /// @param IntvOut     Interval index leaving the block.
+  /// @param EnterAfter  When set, enter IntvOut after this point.
+  void splitLiveThroughBlock(unsigned MBBNum,
+                             unsigned IntvIn, SlotIndex LeaveBefore,
+                             unsigned IntvOut, SlotIndex EnterAfter);
+
+  /// splitRegInBlock - Split CurLI in the given block such that it enters the
+  /// block in IntvIn and leaves it on the stack (or not at all). Split points
+  /// are placed in a way that avoids putting uses in the stack interval. This
+  /// may require creating a local interval when there is interference.
+  ///
+  /// @param BI          Block descriptor.
+  /// @param IntvIn      Interval index entering the block. Not 0.
+  /// @param LeaveBefore When set, leave IntvIn before this point.
+  void splitRegInBlock(const SplitAnalysis::BlockInfo &BI,
+                       unsigned IntvIn, SlotIndex LeaveBefore);
+
+  /// splitRegOutBlock - Split CurLI in the given block such that it enters the
+  /// block on the stack (or isn't live-in at all) and leaves it in IntvOut.
+  /// Split points are placed to avoid interference and such that the uses are
+  /// not in the stack interval. This may require creating a local interval
+  /// when there is interference.
+  ///
+  /// @param BI          Block descriptor.
+  /// @param IntvOut     Interval index leaving the block.
+  /// @param EnterAfter  When set, enter IntvOut after this point.
+  void splitRegOutBlock(const SplitAnalysis::BlockInfo &BI,
+                        unsigned IntvOut, SlotIndex EnterAfter);
 };
 
 }

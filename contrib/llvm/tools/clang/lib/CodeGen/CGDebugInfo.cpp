@@ -314,8 +314,9 @@ llvm::DIType CGDebugInfo::CreateType(const BuiltinType *BT) {
 
     llvm::SmallVector<llvm::Value *, 16> EltTys;
     llvm::DIType FieldTy = 
-      DBuilder.createMemberType("isa", getOrCreateMainFile(),
-                                0,Size, 0, 0, 0, ISATy);
+      DBuilder.createMemberType(getOrCreateMainFile(), "isa",
+                                getOrCreateMainFile(), 0, Size,
+                                0, 0, 0, ISATy);
     EltTys.push_back(FieldTy);
     llvm::DIArray Elements = DBuilder.getOrCreateArray(EltTys);
     
@@ -335,10 +336,12 @@ llvm::DIType CGDebugInfo::CreateType(const BuiltinType *BT) {
   case BuiltinType::SChar: Encoding = llvm::dwarf::DW_ATE_signed_char; break;
   case BuiltinType::UShort:
   case BuiltinType::UInt:
+  case BuiltinType::UInt128:
   case BuiltinType::ULong:
   case BuiltinType::ULongLong: Encoding = llvm::dwarf::DW_ATE_unsigned; break;
   case BuiltinType::Short:
   case BuiltinType::Int:
+  case BuiltinType::Int128:
   case BuiltinType::Long:
   case BuiltinType::LongLong:  Encoding = llvm::dwarf::DW_ATE_signed; break;
   case BuiltinType::Bool:      Encoding = llvm::dwarf::DW_ATE_boolean; break;
@@ -387,6 +390,7 @@ llvm::DIType CGDebugInfo::CreateQualifiedType(QualType Ty, llvm::DIFile Unit) {
   // Ignore these qualifiers for now.
   Qc.removeObjCGCAttr();
   Qc.removeAddressSpace();
+  Qc.removeObjCLifetime();
 
   // We will create one Derived type for one qualifier and recurse to handle any
   // additional ones.
@@ -526,7 +530,7 @@ llvm::DIType CGDebugInfo::CreateType(const BlockPointerType *Ty,
   FieldTy = DescTy;
   FieldSize = CGM.getContext().getTypeSize(Ty);
   FieldAlign = CGM.getContext().getTypeAlign(Ty);
-  FieldTy = DBuilder.createMemberType("__descriptor", Unit,
+  FieldTy = DBuilder.createMemberType(Unit, "__descriptor", Unit,
                                       LineNo, FieldSize, FieldAlign,
                                       FieldOffset, 0, FieldTy);
   EltTys.push_back(FieldTy);
@@ -553,9 +557,12 @@ llvm::DIType CGDebugInfo::CreateType(const TypedefType *Ty,
   // We don't set size information, but do specify where the typedef was
   // declared.
   unsigned Line = getLineNumber(Ty->getDecl()->getLocation());
-  llvm::DIType DbgTy = DBuilder.createTypedef(Src, Ty->getDecl()->getName(),
-                                              Unit, Line);
-  return DbgTy;
+  const TypedefNameDecl *TyDecl = Ty->getDecl();
+  llvm::DIDescriptor TydefContext =
+    getContextDescriptor(cast<Decl>(Ty->getDecl()->getDeclContext()));
+
+  return  
+    DBuilder.createTypedef(Src, TyDecl->getName(), Unit, Line, TydefContext);
 }
 
 llvm::DIType CGDebugInfo::CreateType(const FunctionType *Ty,
@@ -586,7 +593,8 @@ llvm::DIType CGDebugInfo::createFieldType(llvm::StringRef name,
                                           SourceLocation loc,
                                           AccessSpecifier AS,
                                           uint64_t offsetInBits,
-                                          llvm::DIFile tunit) {
+                                          llvm::DIFile tunit,
+                                          llvm::DIDescriptor scope) {
   llvm::DIType debugType = getOrCreateType(type, tunit);
 
   // Get the location for the field.
@@ -608,15 +616,16 @@ llvm::DIType CGDebugInfo::createFieldType(llvm::StringRef name,
   else if (AS == clang::AS_protected)
     flags |= llvm::DIDescriptor::FlagProtected;
 
-  return DBuilder.createMemberType(name, file, line, sizeInBits, alignInBits,
-                                   offsetInBits, flags, debugType);
+  return DBuilder.createMemberType(scope, name, file, line, sizeInBits,
+                                   alignInBits, offsetInBits, flags, debugType);
 }
 
 /// CollectRecordFields - A helper function to collect debug info for
 /// record fields. This is used while creating debug info entry for a Record.
 void CGDebugInfo::
 CollectRecordFields(const RecordDecl *record, llvm::DIFile tunit,
-                    llvm::SmallVectorImpl<llvm::Value *> &elements) {
+                    llvm::SmallVectorImpl<llvm::Value *> &elements,
+                    llvm::DIType RecordTy) {
   unsigned fieldNo = 0;
   const FieldDecl *LastFD = 0;
   bool IsMsStruct = record->hasAttr<MsStructAttr>();
@@ -628,8 +637,7 @@ CollectRecordFields(const RecordDecl *record, llvm::DIFile tunit,
     FieldDecl *field = *I;
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are ignored
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((field), LastFD) ||
-          CGM.getContext().ZeroBitfieldFollowsBitfield((field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((field), LastFD)) {
         --fieldNo;
         continue;
       }
@@ -648,7 +656,7 @@ CollectRecordFields(const RecordDecl *record, llvm::DIFile tunit,
     llvm::DIType fieldType
       = createFieldType(name, type, field->getBitWidth(),
                         field->getLocation(), field->getAccess(),
-                        layout.getFieldOffset(fieldNo), tunit);
+                        layout.getFieldOffset(fieldNo), tunit, RecordTy);
 
     elements.push_back(fieldType);
   }
@@ -956,7 +964,7 @@ CollectVTableInfo(const CXXRecordDecl *RD, llvm::DIFile Unit,
 
   unsigned Size = CGM.getContext().getTypeSize(CGM.getContext().VoidPtrTy);
   llvm::DIType VPTR
-    = DBuilder.createMemberType(getVTableName(RD), Unit,
+    = DBuilder.createMemberType(Unit, getVTableName(RD), Unit,
                                 0, Size, 0, 0, 0, 
                                 getOrCreateVTablePtrType(Unit));
   EltTys.push_back(VPTR);
@@ -1044,7 +1052,7 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty) {
       }
     }
 
-  CollectRecordFields(RD, Unit, EltTys);
+  CollectRecordFields(RD, Unit, EltTys, FwdDecl);
   llvm::DIArray TParamsArray;
   if (CXXDecl) {
     CollectCXXMemberFunctions(CXXDecl, Unit, EltTys, FwdDecl);
@@ -1240,9 +1248,13 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
 
+  unsigned Flags = 0;
+  if (ID->getImplementation())
+    Flags |= llvm::DIDescriptor::FlagObjcClassComplete;
+
   llvm::DIType RealDecl =
     DBuilder.createStructType(Unit, ID->getName(), DefUnit,
-                                  Line, Size, Align, 0,
+                                  Line, Size, Align, Flags,
                                   Elements, RuntimeLang);
 
   // Now that we have a real decl for the struct, replace anything using the
@@ -1371,13 +1383,13 @@ llvm::DIType CGDebugInfo::CreateType(const MemberPointerType *Ty,
   
   // FIXME: This should probably be a function type instead.
   ElementTypes[0] =
-    DBuilder.createMemberType("ptr", U, 0,
+    DBuilder.createMemberType(U, "ptr", U, 0,
                               Info.first, Info.second, FieldOffset, 0,
                               PointerDiffDITy);
   FieldOffset += Info.first;
   
   ElementTypes[1] =
-    DBuilder.createMemberType("ptr", U, 0,
+    DBuilder.createMemberType(U, "ptr", U, 0,
                               Info.first, Info.second, FieldOffset, 0,
                               PointerDiffDITy);
   
@@ -1438,6 +1450,9 @@ static QualType UnwrapTypeForDebugInfo(QualType T) {
       break;
     case Type::Decltype:
       T = cast<DecltypeType>(T)->getUnderlyingType();
+      break;
+    case Type::UnaryTransform:
+      T = cast<UnaryTransformType>(T)->getUnderlyingType();
       break;
     case Type::Attributed:
       T = cast<AttributedType>(T)->getEquivalentType();
@@ -1509,10 +1524,7 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
 #include "clang/AST/TypeNodes.def"
     assert(false && "Dependent types cannot show up in debug information");
 
-  // FIXME: Handle these.
   case Type::ExtVector:
-    return llvm::DIType();
-
   case Type::Vector:
     return CreateType(cast<VectorType>(Ty), Unit);
   case Type::ObjCObjectPointer:
@@ -1554,6 +1566,7 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
   case Type::TypeOfExpr:
   case Type::TypeOf:
   case Type::Decltype:
+  case Type::UnaryTransform:
   case Type::Auto:
     llvm_unreachable("type should have been unwrapped!");
     return llvm::DIType();      
@@ -1574,7 +1587,7 @@ llvm::DIType CGDebugInfo::CreateMemberType(llvm::DIFile Unit, QualType FType,
   llvm::DIType FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
   uint64_t FieldSize = CGM.getContext().getTypeSize(FType);
   unsigned FieldAlign = CGM.getContext().getTypeAlign(FType);
-  llvm::DIType Ty = DBuilder.createMemberType(Name, Unit, 0,
+  llvm::DIType Ty = DBuilder.createMemberType(Unit, Name, Unit, 0,
                                               FieldSize, FieldAlign,
                                               *Offset, 0, FieldTy);
   *Offset += FieldSize;
@@ -1612,6 +1625,33 @@ llvm::DISubprogram CGDebugInfo::getFunctionDeclaration(const Decl *D) {
   return llvm::DISubprogram();
 }
 
+// getOrCreateFunctionType - Construct DIType. If it is a c++ method, include
+// implicit parameter "this".
+llvm::DIType CGDebugInfo::getOrCreateFunctionType(const Decl * D, QualType FnType,
+                                                  llvm::DIFile F) {
+  if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(D))
+    return getOrCreateMethodType(Method, F);
+  else if (const ObjCMethodDecl *OMethod = dyn_cast<ObjCMethodDecl>(D)) {
+    // Add "self" and "_cmd"
+    llvm::SmallVector<llvm::Value *, 16> Elts;
+
+    // First element is always return type. For 'void' functions it is NULL.
+    Elts.push_back(getOrCreateType(OMethod->getResultType(), F));
+    // "self" pointer is always first argument.
+    Elts.push_back(getOrCreateType(OMethod->getSelfDecl()->getType(), F));
+    // "cmd" pointer is always second argument.
+    Elts.push_back(getOrCreateType(OMethod->getCmdDecl()->getType(), F));
+    // Get rest of the arguments.
+    for (ObjCMethodDecl::param_iterator PI = OMethod->param_begin(), 
+           PE = OMethod->param_end(); PI != PE; ++PI)
+      Elts.push_back(getOrCreateType((*PI)->getType(), F));
+
+    llvm::DIArray EltTypeArray = DBuilder.getOrCreateArray(Elts);
+    return DBuilder.createSubroutineType(F, EltTypeArray);
+  }
+  return getOrCreateType(FnType, F);
+}
+
 /// EmitFunctionStart - Constructs the debug code for entering a function -
 /// "llvm.dbg.func.start.".
 void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
@@ -1644,7 +1684,8 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
     }
     Name = getFunctionName(FD);
     // Use mangled name as linkage name for c/c++ functions.
-    LinkageName = CGM.getMangledName(GD);
+    if (!Fn->hasInternalLinkage())
+      LinkageName = CGM.getMangledName(GD);
     if (LinkageName == Name)
       LinkageName = llvm::StringRef();
     if (FD->hasPrototype())
@@ -1652,6 +1693,9 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
     if (const NamespaceDecl *NSDecl =
         dyn_cast_or_null<NamespaceDecl>(FD->getDeclContext()))
       FDContext = getOrCreateNameSpace(NSDecl);
+    else if (const RecordDecl *RDecl =
+             dyn_cast_or_null<RecordDecl>(FD->getDeclContext()))
+      FDContext = getContextDescriptor(cast<Decl>(RDecl->getDeclContext()));
 
     // Collect template parameters.
     TParamsArray = CollectFunctionTemplateParams(FD, Unit);
@@ -1672,11 +1716,10 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
   unsigned LineNo = getLineNumber(CurLoc);
   if (D->isImplicit())
     Flags |= llvm::DIDescriptor::FlagArtificial;
-  llvm::DIType SPTy = getOrCreateType(FnType, Unit);
   llvm::DISubprogram SPDecl = getFunctionDeclaration(D);
   llvm::DISubprogram SP =
     DBuilder.createFunction(FDContext, Name, LinkageName, Unit,
-                            LineNo, SPTy,
+                            LineNo, getOrCreateFunctionType(D, FnType, Unit),
                             Fn->hasInternalLinkage(), true/*definition*/,
                             Flags, CGM.getLangOptions().Optimize, Fn,
                             TParamsArray, SPDecl);
@@ -1855,7 +1898,7 @@ llvm::DIType CGDebugInfo::EmitTypeForVarWithBlocksAttr(const ValueDecl *VD,
   FieldAlign = CGM.getContext().toBits(Align);
 
   *XOffset = FieldOffset;  
-  FieldTy = DBuilder.createMemberType(VD->getName(), Unit,
+  FieldTy = DBuilder.createMemberType(Unit, VD->getName(), Unit,
                                       0, FieldSize, FieldAlign,
                                       FieldOffset, 0, FieldTy);
   EltTys.push_back(FieldTy);
@@ -2091,23 +2134,23 @@ void CGDebugInfo::EmitDeclareOfBlockLiteralArgVariable(const CGBlockInfo &block,
   llvm::SmallVector<llvm::Value*, 16> fields;
   fields.push_back(createFieldType("__isa", C.VoidPtrTy, 0, loc, AS_public,
                                    blockLayout->getElementOffsetInBits(0),
-                                   tunit));
+                                   tunit, tunit));
   fields.push_back(createFieldType("__flags", C.IntTy, 0, loc, AS_public,
                                    blockLayout->getElementOffsetInBits(1),
-                                   tunit));
+                                   tunit, tunit));
   fields.push_back(createFieldType("__reserved", C.IntTy, 0, loc, AS_public,
                                    blockLayout->getElementOffsetInBits(2),
-                                   tunit));
+                                   tunit, tunit));
   fields.push_back(createFieldType("__FuncPtr", C.VoidPtrTy, 0, loc, AS_public,
                                    blockLayout->getElementOffsetInBits(3),
-                                   tunit));
+                                   tunit, tunit));
   fields.push_back(createFieldType("__descriptor",
                                    C.getPointerType(block.NeedsCopyDispose ?
                                         C.getBlockDescriptorExtendedType() :
                                         C.getBlockDescriptorType()),
                                    0, loc, AS_public,
                                    blockLayout->getElementOffsetInBits(4),
-                                   tunit));
+                                   tunit, tunit));
 
   // We want to sort the captures by offset, not because DWARF
   // requires this, but because we're paranoid about debuggers.
@@ -2156,7 +2199,7 @@ void CGDebugInfo::EmitDeclareOfBlockLiteralArgVariable(const CGBlockInfo &block,
       QualType type = method->getThisType(C);
 
       fields.push_back(createFieldType("this", type, 0, loc, AS_public,
-                                       offsetInBits, tunit));
+                                       offsetInBits, tunit, tunit));
       continue;
     }
 
@@ -2171,12 +2214,12 @@ void CGDebugInfo::EmitDeclareOfBlockLiteralArgVariable(const CGBlockInfo &block,
       uint64_t xoffset;
       fieldType = EmitTypeForVarWithBlocksAttr(variable, &xoffset);
       fieldType = DBuilder.createPointerType(fieldType, ptrInfo.first);
-      fieldType = DBuilder.createMemberType(name, tunit, line,
+      fieldType = DBuilder.createMemberType(tunit, name, tunit, line,
                                             ptrInfo.first, ptrInfo.second,
                                             offsetInBits, 0, fieldType);
     } else {
       fieldType = createFieldType(name, variable->getType(), 0,
-                                  loc, AS_public, offsetInBits, tunit);
+                                  loc, AS_public, offsetInBits, tunit, tunit);
     }
     fields.push_back(fieldType);
   }

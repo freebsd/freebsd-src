@@ -26,10 +26,18 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cctype>
 using namespace llvm;
+
+/// We are in the process of implementing a new TypeLegalization action
+/// - the promotion of vector elements. This feature is disabled by default
+/// and only enabled using this flag.
+static cl::opt<bool>
+AllowPromoteIntElem("promote-elements", cl::Hidden,
+  cl::desc("Allow promotion of integer vector element types"));
 
 namespace llvm {
 TLSModel::Model getTLSModel(const GlobalValue *GV, Reloc::Model reloc) {
@@ -73,6 +81,9 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::MUL_I32] = "__mulsi3";
   Names[RTLIB::MUL_I64] = "__muldi3";
   Names[RTLIB::MUL_I128] = "__multi3";
+  Names[RTLIB::MULO_I32] = "__mulosi4";
+  Names[RTLIB::MULO_I64] = "__mulodi4";
+  Names[RTLIB::MULO_I128] = "__muloti4";
   Names[RTLIB::SDIV_I8] = "__divqi3";
   Names[RTLIB::SDIV_I16] = "__divhi3";
   Names[RTLIB::SDIV_I32] = "__divsi3";
@@ -128,6 +139,10 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::REM_F64] = "fmod";
   Names[RTLIB::REM_F80] = "fmodl";
   Names[RTLIB::REM_PPCF128] = "fmodl";
+  Names[RTLIB::FMA_F32] = "fmaf";
+  Names[RTLIB::FMA_F64] = "fma";
+  Names[RTLIB::FMA_F80] = "fmal";
+  Names[RTLIB::FMA_PPCF128] = "fmal";
   Names[RTLIB::POWI_F32] = "__powisf2";
   Names[RTLIB::POWI_F64] = "__powidf2";
   Names[RTLIB::POWI_F80] = "__powixf2";
@@ -528,7 +543,8 @@ static void InitCmpLibcallCCs(ISD::CondCode *CCs) {
 /// NOTE: The constructor takes ownership of TLOF.
 TargetLowering::TargetLowering(const TargetMachine &tm,
                                const TargetLoweringObjectFile *tlof)
-  : TM(tm), TD(TM.getTargetData()), TLOF(*tlof) {
+  : TM(tm), TD(TM.getTargetData()), TLOF(*tlof),
+  mayPromoteElements(AllowPromoteIntElem) {
   // All operations default to being supported.
   memset(OpActions, 0, sizeof(OpActions));
   memset(LoadExtActions, 0, sizeof(LoadExtActions));
@@ -596,6 +612,8 @@ TargetLowering::TargetLowering(const TargetMachine &tm,
   SchedPreferenceInfo = Sched::Latency;
   JumpBufSize = 0;
   JumpBufAlignment = 0;
+  MinFunctionAlignment = 0;
+  PrefFunctionAlignment = 0;
   PrefLoopAlignment = 0;
   MinStackArgumentAlignment = 1;
   ShouldFoldAtomicFences = false;
@@ -662,10 +680,16 @@ static unsigned getVectorTypeBreakdownMVT(MVT VT, MVT &IntermediateVT,
     NewVT = EltTy;
   IntermediateVT = NewVT;
 
+  unsigned NewVTSize = NewVT.getSizeInBits();
+
+  // Convert sizes such as i33 to i64.
+  if (!isPowerOf2_32(NewVTSize))
+    NewVTSize = NextPowerOf2(NewVTSize);
+
   EVT DestVT = TLI->getRegisterType(NewVT);
   RegisterVT = DestVT;
   if (EVT(DestVT).bitsLT(NewVT))    // Value is expanded, e.g. i64 -> i16.
-    return NumVectorRegs*(NewVT.getSizeInBits()/DestVT.getSizeInBits());
+    return NumVectorRegs*(NewVTSize/DestVT.getSizeInBits());
 
   // Otherwise, promotion or legal types use the same number of registers as
   // the vector decimated to the appropriate level.
@@ -747,7 +771,7 @@ void TargetLowering::computeRegisterProperties() {
     NumRegistersForVT[ExpandedReg] = 2*NumRegistersForVT[ExpandedReg-1];
     RegisterTypeForVT[ExpandedReg] = (MVT::SimpleValueType)LargestIntReg;
     TransformToType[ExpandedReg] = (MVT::SimpleValueType)(ExpandedReg - 1);
-    ValueTypeActions.setTypeAction(ExpandedVT, Expand);
+    ValueTypeActions.setTypeAction(ExpandedVT, TypeExpandInteger);
   }
 
   // Inspect all of the ValueType's smaller than the largest integer
@@ -761,7 +785,7 @@ void TargetLowering::computeRegisterProperties() {
     } else {
       RegisterTypeForVT[IntReg] = TransformToType[IntReg] =
         (MVT::SimpleValueType)LegalIntReg;
-      ValueTypeActions.setTypeAction(IVT, Promote);
+      ValueTypeActions.setTypeAction(IVT, TypePromoteInteger);
     }
   }
 
@@ -770,7 +794,7 @@ void TargetLowering::computeRegisterProperties() {
     NumRegistersForVT[MVT::ppcf128] = 2*NumRegistersForVT[MVT::f64];
     RegisterTypeForVT[MVT::ppcf128] = MVT::f64;
     TransformToType[MVT::ppcf128] = MVT::f64;
-    ValueTypeActions.setTypeAction(MVT::ppcf128, Expand);
+    ValueTypeActions.setTypeAction(MVT::ppcf128, TypeExpandFloat);
   }
 
   // Decide how to handle f64. If the target does not have native f64 support,
@@ -779,7 +803,7 @@ void TargetLowering::computeRegisterProperties() {
     NumRegistersForVT[MVT::f64] = NumRegistersForVT[MVT::i64];
     RegisterTypeForVT[MVT::f64] = RegisterTypeForVT[MVT::i64];
     TransformToType[MVT::f64] = MVT::i64;
-    ValueTypeActions.setTypeAction(MVT::f64, Expand);
+    ValueTypeActions.setTypeAction(MVT::f64, TypeSoftenFloat);
   }
 
   // Decide how to handle f32. If the target does not have native support for
@@ -789,12 +813,12 @@ void TargetLowering::computeRegisterProperties() {
       NumRegistersForVT[MVT::f32] = NumRegistersForVT[MVT::f64];
       RegisterTypeForVT[MVT::f32] = RegisterTypeForVT[MVT::f64];
       TransformToType[MVT::f32] = MVT::f64;
-      ValueTypeActions.setTypeAction(MVT::f32, Promote);
+      ValueTypeActions.setTypeAction(MVT::f32, TypePromoteInteger);
     } else {
       NumRegistersForVT[MVT::f32] = NumRegistersForVT[MVT::i32];
       RegisterTypeForVT[MVT::f32] = RegisterTypeForVT[MVT::i32];
       TransformToType[MVT::f32] = MVT::i32;
-      ValueTypeActions.setTypeAction(MVT::f32, Expand);
+      ValueTypeActions.setTypeAction(MVT::f32, TypeSoftenFloat);
     }
   }
 
@@ -810,6 +834,30 @@ void TargetLowering::computeRegisterProperties() {
     unsigned NElts = VT.getVectorNumElements();
     if (NElts != 1) {
       bool IsLegalWiderType = false;
+      // If we allow the promotion of vector elements using a flag,
+      // then return TypePromoteInteger on vector elements.
+      // First try to promote the elements of integer vectors. If no legal
+      // promotion was found, fallback to the widen-vector method.
+      if (mayPromoteElements)
+      for (unsigned nVT = i+1; nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
+        EVT SVT = (MVT::SimpleValueType)nVT;
+        // Promote vectors of integers to vectors with the same number
+        // of elements, with a wider element type.
+        if (SVT.getVectorElementType().getSizeInBits() > EltVT.getSizeInBits()
+            && SVT.getVectorNumElements() == NElts &&
+            isTypeLegal(SVT) && SVT.getScalarType().isInteger()) {
+          TransformToType[i] = SVT;
+          RegisterTypeForVT[i] = SVT;
+          NumRegistersForVT[i] = 1;
+          ValueTypeActions.setTypeAction(VT, TypePromoteInteger);
+          IsLegalWiderType = true;
+          break;
+        }
+      }
+
+      if (IsLegalWiderType) continue;
+
+      // Try to widen the vector.
       for (unsigned nVT = i+1; nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
         EVT SVT = (MVT::SimpleValueType)nVT;
         if (SVT.getVectorElementType() == EltVT &&
@@ -818,7 +866,7 @@ void TargetLowering::computeRegisterProperties() {
           TransformToType[i] = SVT;
           RegisterTypeForVT[i] = SVT;
           NumRegistersForVT[i] = 1;
-          ValueTypeActions.setTypeAction(VT, Promote);
+          ValueTypeActions.setTypeAction(VT, TypeWidenVector);
           IsLegalWiderType = true;
           break;
         }
@@ -838,10 +886,12 @@ void TargetLowering::computeRegisterProperties() {
     if (NVT == VT) {
       // Type is already a power of 2.  The default action is to split.
       TransformToType[i] = MVT::Other;
-      ValueTypeActions.setTypeAction(VT, Expand);
+      unsigned NumElts = VT.getVectorNumElements();
+      ValueTypeActions.setTypeAction(VT,
+            NumElts > 1 ? TypeSplitVector : TypeScalarizeVector);
     } else {
       TransformToType[i] = NVT;
-      ValueTypeActions.setTypeAction(VT, Promote);
+      ValueTypeActions.setTypeAction(VT, TypeWidenVector);
     }
   }
 
@@ -890,7 +940,7 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
   // If there is a wider vector type with the same element type as this one,
   // we should widen to that legal vector type.  This handles things like
   // <2 x float> -> <4 x float>.
-  if (NumElts != 1 && getTypeAction(VT) == Promote) {
+  if (NumElts != 1 && getTypeAction(Context, VT) == TypeWidenVector) {
     RegisterVT = getTypeToTransformTo(Context, VT);
     if (isTypeLegal(RegisterVT)) {
       IntermediateVT = RegisterVT;
@@ -928,8 +978,14 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
 
   EVT DestVT = getRegisterType(Context, NewVT);
   RegisterVT = DestVT;
+  unsigned NewVTSize = NewVT.getSizeInBits();
+
+  // Convert sizes such as i33 to i64.
+  if (!isPowerOf2_32(NewVTSize))
+    NewVTSize = NextPowerOf2(NewVTSize);
+
   if (DestVT.bitsLT(NewVT))   // Value is expanded, e.g. i64 -> i16.
-    return NumVectorRegs*(NewVT.getSizeInBits()/DestVT.getSizeInBits());
+    return NumVectorRegs*(NewVTSize/DestVT.getSizeInBits());
 
   // Otherwise, promotion or legal types use the same number of registers as
   // the vector decimated to the appropriate level.
@@ -1723,26 +1779,28 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     break;
   }
   case ISD::BITCAST:
-#if 0
-    // If this is an FP->Int bitcast and if the sign bit is the only thing that
-    // is demanded, turn this into a FGETSIGN.
-    if (NewMask == EVT::getIntegerVTSignBit(Op.getValueType()) &&
-        MVT::isFloatingPoint(Op.getOperand(0).getValueType()) &&
-        !MVT::isVector(Op.getOperand(0).getValueType())) {
-      // Only do this xform if FGETSIGN is valid or if before legalize.
-      if (!TLO.AfterLegalize ||
-          isOperationLegal(ISD::FGETSIGN, Op.getValueType())) {
+    // If this is an FP->Int bitcast and if the sign bit is the only
+    // thing demanded, turn this into a FGETSIGN.
+    if (!Op.getOperand(0).getValueType().isVector() &&
+        NewMask == APInt::getSignBit(Op.getValueType().getSizeInBits()) &&
+        Op.getOperand(0).getValueType().isFloatingPoint()) {
+      bool OpVTLegal = isOperationLegalOrCustom(ISD::FGETSIGN, Op.getValueType());
+      bool i32Legal  = isOperationLegalOrCustom(ISD::FGETSIGN, MVT::i32);
+      if ((OpVTLegal || i32Legal) && Op.getValueType().isSimple()) {
+        EVT Ty = OpVTLegal ? Op.getValueType() : MVT::i32;
         // Make a FGETSIGN + SHL to move the sign bit into the appropriate
         // place.  We expect the SHL to be eliminated by other optimizations.
-        SDValue Sign = TLO.DAG.getNode(ISD::FGETSIGN, Op.getValueType(),
-                                         Op.getOperand(0));
+        SDValue Sign = TLO.DAG.getNode(ISD::FGETSIGN, dl, Ty, Op.getOperand(0));
+        unsigned OpVTSizeInBits = Op.getValueType().getSizeInBits();
+        if (!OpVTLegal && OpVTSizeInBits > 32)
+          Sign = TLO.DAG.getNode(ISD::ZERO_EXTEND, dl, Op.getValueType(), Sign);
         unsigned ShVal = Op.getValueType().getSizeInBits()-1;
-        SDValue ShAmt = TLO.DAG.getConstant(ShVal, getShiftAmountTy());
-        return TLO.CombineTo(Op, TLO.DAG.getNode(ISD::SHL, Op.getValueType(),
+        SDValue ShAmt = TLO.DAG.getConstant(ShVal, Op.getValueType());
+        return TLO.CombineTo(Op, TLO.DAG.getNode(ISD::SHL, dl,
+                                                 Op.getValueType(),
                                                  Sign, ShAmt));
       }
     }
-#endif
     break;
   case ISD::ADD:
   case ISD::MUL:
@@ -1863,7 +1921,7 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
   // comparisons.
   if (isa<ConstantSDNode>(N0.getNode()))
     return DAG.getSetCC(dl, VT, N1, N0, ISD::getSetCCSwappedOperands(Cond));
-  
+
   if (ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N1.getNode())) {
     const APInt &C1 = N1C->getAPIntValue();
 
@@ -2569,7 +2627,6 @@ PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const {
 
 TargetLowering::ConstraintType
 TargetLowering::getConstraintType(const std::string &Constraint) const {
-  // FIXME: lots more standard ones to handle.
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     default: break;
@@ -2619,9 +2676,13 @@ const char *TargetLowering::LowerXConstraint(EVT ConstraintVT) const{
 /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
 /// vector.  If it is invalid, don't add anything to Ops.
 void TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
-                                                  char ConstraintLetter,
+                                                  std::string &Constraint,
                                                   std::vector<SDValue> &Ops,
                                                   SelectionDAG &DAG) const {
+
+  if (Constraint.length() > 1) return;
+
+  char ConstraintLetter = Constraint[0];
   switch (ConstraintLetter) {
   default: break;
   case 'X':     // Allows any operand; labels (basic block) use this.
@@ -2678,13 +2739,6 @@ void TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   }
   }
 }
-
-std::vector<unsigned> TargetLowering::
-getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                  EVT VT) const {
-  return std::vector<unsigned>();
-}
-
 
 std::pair<unsigned, const TargetRegisterClass*> TargetLowering::
 getRegForInlineAsmConstraint(const std::string &Constraint,
@@ -2810,6 +2864,12 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
           report_fatal_error("Indirect operand for inline asm not a pointer!");
         OpTy = PtrTy->getElementType();
       }
+
+      // Look for vector wrapped in a struct. e.g. { <16 x i8> }.
+      if (const StructType *STy = dyn_cast<StructType>(OpTy))
+        if (STy->getNumElements() == 1)
+          OpTy = STy->getElementType(0);
+
       // If OpTy is not a single value, it may be a struct/union that we
       // can tile with integers.
       if (!OpTy->isSingleValueType() && OpTy->isSized()) {
@@ -2906,10 +2966,13 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
       AsmOperandInfo &Input = ConstraintOperands[OpInfo.MatchingInput];
 
       if (OpInfo.ConstraintVT != Input.ConstraintVT) {
+	std::pair<unsigned, const TargetRegisterClass*> MatchRC =
+	  getRegForInlineAsmConstraint(OpInfo.ConstraintCode, OpInfo.ConstraintVT);
+	std::pair<unsigned, const TargetRegisterClass*> InputRC =
+	  getRegForInlineAsmConstraint(Input.ConstraintCode, Input.ConstraintVT);
         if ((OpInfo.ConstraintVT.isInteger() !=
              Input.ConstraintVT.isInteger()) ||
-            (OpInfo.ConstraintVT.getSizeInBits() !=
-             Input.ConstraintVT.getSizeInBits())) {
+            (MatchRC.second != InputRC.second)) {
           report_fatal_error("Unsupported asm: input constraint"
                              " with a matching output constraint of"
                              " incompatible type!");
@@ -3054,7 +3117,7 @@ static void ChooseConstraint(TargetLowering::AsmOperandInfo &OpInfo,
       assert(OpInfo.Codes[i].size() == 1 &&
              "Unhandled multi-letter 'other' constraint");
       std::vector<SDValue> ResultOps;
-      TLI.LowerAsmOperandForConstraint(Op, OpInfo.Codes[i][0],
+      TLI.LowerAsmOperandForConstraint(Op, OpInfo.Codes[i],
                                        ResultOps, *DAG);
       if (!ResultOps.empty()) {
         BestType = CType;
@@ -3153,6 +3216,32 @@ bool TargetLowering::isLegalAddressingMode(const AddrMode &AM,
   }
 
   return true;
+}
+
+/// BuildExactDiv - Given an exact SDIV by a constant, create a multiplication
+/// with the multiplicative inverse of the constant.
+SDValue TargetLowering::BuildExactSDIV(SDValue Op1, SDValue Op2, DebugLoc dl,
+                                       SelectionDAG &DAG) const {
+  ConstantSDNode *C = cast<ConstantSDNode>(Op2);
+  APInt d = C->getAPIntValue();
+  assert(d != 0 && "Division by zero!");
+
+  // Shift the value upfront if it is even, so the LSB is one.
+  unsigned ShAmt = d.countTrailingZeros();
+  if (ShAmt) {
+    // TODO: For UDIV use SRL instead of SRA.
+    SDValue Amt = DAG.getConstant(ShAmt, getShiftAmountTy(Op1.getValueType()));
+    Op1 = DAG.getNode(ISD::SRA, dl, Op1.getValueType(), Op1, Amt);
+    d = d.ashr(ShAmt);
+  }
+
+  // Calculate the multiplicative inverse, using Newton's method.
+  APInt t, xn = d;
+  while ((t = d*xn) != 1)
+    xn *= APInt(d.getBitWidth(), 2) - t;
+
+  Op2 = DAG.getConstant(xn, Op1.getValueType());
+  return DAG.getNode(ISD::MUL, dl, Op1.getValueType(), Op1, Op2);
 }
 
 /// BuildSDIVSequence - Given an ISD::SDIV node expressing a divide by constant,

@@ -260,7 +260,7 @@ teken_subr_cursor_backward_tabulation(teken_t *t, unsigned int ntabs)
 			break;
 
 		t->t_cursor.tp_col--;
-		
+
 		/* Tab marker set. */
 		if (teken_tab_isset(t, t->t_cursor.tp_col))
 			ntabs--;
@@ -303,7 +303,7 @@ teken_subr_cursor_forward_tabulation(teken_t *t, unsigned int ntabs)
 			break;
 
 		t->t_cursor.tp_col++;
-		
+
 		/* Tab marker set. */
 		if (teken_tab_isset(t, t->t_cursor.tp_col))
 			ntabs--;

@@ -687,6 +687,10 @@ cdregister(struct cam_periph *periph, void *arg)
 	else
 		softc->minimum_command_size = 6;
 
+	/*
+	 * Refcount and block open attempts until we are setup
+	 * Can't block
+	 */
 	(void)cam_periph_hold(periph, PRIBIO);
 	cam_periph_unlock(periph);
 	/*
@@ -747,7 +751,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
-	cam_periph_unhold(periph);
 
 	/*
 	 * Add an async callback so that we get
@@ -971,12 +974,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	}
 
 cdregisterexit:
-
-	/*
-	 * Refcount and block open attempts until we are setup
-	 * Can't block
-	 */
-	(void)cam_periph_hold(periph, PRIBIO);
 
 	if ((softc->flags & CD_FLAG_CHANGER) == 0)
 		xpt_schedule(periph, CAM_PRIORITY_DEV);

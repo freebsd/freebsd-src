@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/kerneldump.h>
-#include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <errno.h>

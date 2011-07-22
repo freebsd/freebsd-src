@@ -97,6 +97,8 @@ struct cam_ed {
 	uint8_t		 supported_vpds_len;
 	uint32_t	 device_id_len;
 	uint8_t		 *device_id;
+	uint8_t		 physpath_len;
+	uint8_t		 *physpath;	/* physical path string form */
 	struct		 ata_params ident_data;
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.

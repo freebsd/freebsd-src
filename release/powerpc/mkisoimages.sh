@@ -43,6 +43,8 @@ if [ "x$1" = "x-b" ]; then
 <boot-script>boot &device;:&partition;,\ppc\chrp\loader</boot-script>
 </chrp-boot>
 EOF
+	bootable="$bootable -o chrp-boot"
+
 	shift
 else
 	bootable=""

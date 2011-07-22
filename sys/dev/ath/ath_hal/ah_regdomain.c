@@ -167,7 +167,7 @@ isEepromValid(struct ath_hal *ah)
 			if (regDomainPairs[i].regDmnEnum == rd)
 				return AH_TRUE;
 	}
-	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+	HALDEBUG_G(ah, HAL_DEBUG_REGDOMAIN,
 	    "%s: invalid regulatory domain/country code 0x%x\n", __func__, rd);
 	return AH_FALSE;
 }
@@ -526,6 +526,7 @@ getchannels(struct ath_hal *ah,
 					    "skip ecm channel\n");
 					continue;
 				}
+#if 0
 				if ((fband->useDfs & dfsMask) && 
 				    (cm->flags & IEEE80211_CHAN_HT40)) {
 					/* NB: DFS and HT40 don't mix */
@@ -533,6 +534,7 @@ getchannels(struct ath_hal *ah,
 					    "skip HT40 chan, DFS required\n");
 					continue;
 				}
+#endif
 				/*
 				 * Make sure that channel separation
 				 * meets the requirement.
@@ -609,7 +611,7 @@ ath_hal_mapgsm(int sku, int freq)
 		return 1544 + freq;
 	if (sku == SKU_SR9)
 		return 3344 - freq;
-	HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
+	HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
 	    "%s: cannot map freq %u unknown gsm sku %u\n",
 	    __func__, freq, sku);
 	return freq;

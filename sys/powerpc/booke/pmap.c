@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
@@ -1225,7 +1226,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		    PTE_VALID;
 	}
 	/* Mark kernel_pmap active on all CPUs */
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	/*******************************************************/
 	/* Final setup */
@@ -1480,7 +1481,7 @@ mmu_booke_pinit(mmu_t mmu, pmap_t pmap)
 	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < MAXCPU; i++)
 		pmap->pm_tid[i] = TID_NONE;
-	pmap->pm_active = 0;
+	CPU_ZERO(&kernel_pmap->pm_active);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	bzero(&pmap->pm_pdir, sizeof(pte_t *) * PDIR_NENTRIES);
 	TAILQ_INIT(&pmap->pm_ptbl_list);
@@ -1825,6 +1826,7 @@ static void
 mmu_booke_activate(mmu_t mmu, struct thread *td)
 {
 	pmap_t pmap;
+	u_int cpuid;
 
 	pmap = &td->td_proc->p_vmspace->vm_pmap;
 
@@ -1835,14 +1837,15 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	mtx_lock_spin(&sched_lock);
 
-	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
+	cpuid = PCPU_GET(cpuid);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	
-	if (pmap->pm_tid[PCPU_GET(cpuid)] == TID_NONE)
+	if (pmap->pm_tid[cpuid] == TID_NONE)
 		tid_alloc(pmap);
 
 	/* Load PID0 register with pmap tid value. */
-	mtspr(SPR_PID0, pmap->pm_tid[PCPU_GET(cpuid)]);
+	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
 	mtx_unlock_spin(&sched_lock);
@@ -1864,7 +1867,7 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
-	atomic_clear_int(&pmap->pm_active, PCPU_GET(cpumask));
+	CPU_CLR_ATOMIC(PCPU_GET(cpuid), &pmap->pm_active);
 	PCPU_SET(curpmap, NULL);
 }
 

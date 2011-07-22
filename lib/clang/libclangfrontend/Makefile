@@ -6,13 +6,11 @@ SRCDIR=	tools/clang/lib/Frontend
 SRCS=	ASTConsumers.cpp \
 	ASTMerge.cpp \
 	ASTUnit.cpp \
-	BoostConAction.cpp \
 	CacheTokens.cpp \
 	CompilerInstance.cpp \
 	CompilerInvocation.cpp \
 	CreateInvocationFromCommandLine.cpp \
 	DependencyFile.cpp \
-	DiagChecker.cpp \
 	FrontendAction.cpp \
 	FrontendActions.cpp \
 	FrontendOptions.cpp \

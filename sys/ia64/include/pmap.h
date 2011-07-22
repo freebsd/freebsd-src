@@ -68,6 +68,7 @@ struct	pv_entry;
 struct md_page {
 	int			pv_list_count;
 	TAILQ_HEAD(,pv_entry)	pv_list;
+	vm_memattr_t		memattr;
 };
 
 struct pmap {
@@ -115,21 +116,22 @@ extern vm_offset_t virtual_end;
 extern uint64_t pmap_vhpt_base[];
 extern int pmap_vhpt_log2size;
 
-#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
+#define	pmap_page_get_memattr(m)	((m)->md.memattr)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-#define	pmap_page_set_memattr(m, ma)	(void)0
 #define	pmap_mapbios(pa, sz)	pmap_mapdev(pa, sz)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev(va, sz)
 
-vm_offset_t pmap_steal_memory(vm_size_t);
 vm_offset_t pmap_alloc_vhpt(void);
 void	pmap_bootstrap(void);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
-void	pmap_unmapdev(vm_offset_t, vm_size_t);
+void	pmap_page_set_memattr(vm_page_t, vm_memattr_t);
+vm_offset_t pmap_page_to_va(vm_page_t);
+vm_offset_t pmap_steal_memory(vm_size_t);
 struct pmap *pmap_switch(struct pmap *pmap);
+void	pmap_unmapdev(vm_offset_t, vm_size_t);
 
 #endif /* _KERNEL */
 

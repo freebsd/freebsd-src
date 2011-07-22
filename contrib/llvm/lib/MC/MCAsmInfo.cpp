@@ -23,6 +23,9 @@
 using namespace llvm;
 
 MCAsmInfo::MCAsmInfo() {
+  PointerSize = 4;
+  IsLittleEndian = true;
+  StackGrowsUp = false;
   HasSubsectionsViaSymbols = false;
   HasMachoZeroFillDirective = false;
   HasMachoTBSSDirective = false;
@@ -74,11 +77,11 @@ MCAsmInfo::MCAsmInfo() {
   HasLEB128 = false;
   SupportsDebugInformation = false;
   ExceptionsType = ExceptionHandling::None;
-  DwarfRequiresFrameSection = true;
   DwarfUsesInlineInfoSection = false;
-  DwarfUsesAbsoluteLabelForStmtList = true;
+  DwarfRequiresRelocationForSectionOffset = true;
   DwarfSectionOffsetDirective = 0;
   DwarfUsesLabelOffsetForRanges = true;
+  DwarfRegNumForCFI = false;
   HasMicrosoftFastStdCallMangling = false;
 
   AsmTransCBE = 0;

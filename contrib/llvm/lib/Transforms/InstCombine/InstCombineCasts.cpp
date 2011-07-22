@@ -30,6 +30,14 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
   }
   
   if (BinaryOperator *I = dyn_cast<BinaryOperator>(Val)) {
+    // Cannot look past anything that might overflow.
+    OverflowingBinaryOperator *OBI = dyn_cast<OverflowingBinaryOperator>(Val);
+    if (OBI && !OBI->hasNoUnsignedWrap()) {
+      Scale = 1;
+      Offset = 0;
+      return Val;
+    }
+
     if (ConstantInt *RHS = dyn_cast<ConstantInt>(I->getOperand(1))) {
       if (I->getOpcode() == Instruction::Shl) {
         // This is a value scaled by '1 << the shift amt'.
@@ -133,7 +141,7 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
     // New is the allocation instruction, pointer typed. AI is the original
     // allocation instruction, also pointer typed. Thus, cast to use is BitCast.
     Value *NewCast = AllocaBuilder.CreateBitCast(New, AI.getType(), "tmpcast");
-    AI.replaceAllUsesWith(NewCast);
+    ReplaceInstUsesWith(AI, NewCast);
   }
   return ReplaceInstUsesWith(CI, New);
 }
@@ -211,7 +219,7 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, const Type *Ty,
   }
   
   Res->takeName(I);
-  return InsertNewInstBefore(Res, *I);
+  return InsertNewInstWith(Res, *I);
 }
 
 
@@ -1208,7 +1216,8 @@ Instruction *InstCombiner::visitFPTrunc(FPTruncInst &CI) {
   CallInst *Call = dyn_cast<CallInst>(CI.getOperand(0));
   if (Call && Call->getCalledFunction() &&
       Call->getCalledFunction()->getName() == "sqrt" &&
-      Call->getNumArgOperands() == 1) {
+      Call->getNumArgOperands() == 1 &&
+      Call->hasOneUse()) {
     CastInst *Arg = dyn_cast<CastInst>(Call->getArgOperand(0));
     if (Arg && Arg->getOpcode() == Instruction::FPExt &&
         CI.getType()->isFloatTy() &&
@@ -1228,7 +1237,7 @@ Instruction *InstCombiner::visitFPTrunc(FPTruncInst &CI) {
       
       
       // Remove the old Call.  With -fmath-errno, it won't get marked readnone.
-      Call->replaceAllUsesWith(UndefValue::get(Call->getType()));
+      ReplaceInstUsesWith(*Call, UndefValue::get(Call->getType()));
       EraseInstFromFunction(*Call);
       return ret;
     }
@@ -1684,8 +1693,7 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
     // If we found a path from the src to dest, create the getelementptr now.
     if (SrcElTy == DstElTy) {
       SmallVector<Value*, 8> Idxs(NumZeros+1, ZeroUInt);
-      return GetElementPtrInst::CreateInBounds(Src, Idxs.begin(), Idxs.end(),"",
-                                               ((Instruction*)NULL));
+      return GetElementPtrInst::CreateInBounds(Src, Idxs.begin(), Idxs.end());
     }
   }
   

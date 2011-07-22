@@ -718,22 +718,55 @@ typedef struct {
 	u_int32_t	pe_relpwr;	/* Relative power threshold in 0.5dB steps */
 	u_int32_t	pe_relstep;	/* Pulse Relative step threshold in 0.5dB steps */
 	u_int32_t	pe_maxlen;	/* Max length of radar sign in 0.8us units */
-	HAL_BOOL	pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
-	HAL_BOOL	pe_blockradar;	/*
+	int32_t		pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
+	int32_t		pe_blockradar;	/*
 					 * Enable to block radar check if pkt detect is done via OFDM
 					 * weak signal detect or pkt is detected immediately after tx
 					 * to rx transition
 					 */
-	HAL_BOOL	pe_enmaxrssi;	/*
+	int32_t		pe_enmaxrssi;	/*
 					 * Enable to use the max rssi instead of the last rssi during
 					 * fine gain changes for radar detection
 					 */
-	HAL_BOOL	pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_enabled;	/* Whether radar detection is enabled */
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
 #define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
+
+/*
+ * Flag for setting QUIET period
+ */
+typedef enum {
+	HAL_QUIET_DISABLE		= 0x0,
+	HAL_QUIET_ENABLE		= 0x1,
+	HAL_QUIET_ADD_CURRENT_TSF	= 0x2,	/* add current TSF to next_start offset */
+	HAL_QUIET_ADD_SWBA_RESP_TIME	= 0x4,	/* add beacon response time to next_start offset */
+} HAL_QUIET_FLAG;
+
+#define	HAL_DFS_EVENT_PRICH		0x0000001
+
+struct dfs_event {
+	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */
+	uint32_t	re_ts;		/* Original 15 bit recv timestamp */
+	uint8_t		re_rssi;	/* rssi of radar event */
+	uint8_t		re_dur;		/* duration of radar pulse */
+	uint32_t	re_flags;	/* Flags (see above) */
+};
+typedef struct dfs_event HAL_DFS_EVENT;
+
+typedef struct
+{
+	int ah_debug;			/* only used if AH_DEBUG is defined */
+	int ah_ar5416_biasadj;		/* enable AR2133 radio specific bias fiddling */
+
+	/* NB: these are deprecated; they exist for now for compatibility */
+	int ah_dma_beacon_response_time;/* in TU's */
+	int ah_sw_beacon_response_time;	/* in TU's */
+	int ah_additional_swba_backoff;	/* in TU's */
+}HAL_OPS_CONFIG;
 
 /*
  * Hardware Access Layer (HAL) API.
@@ -763,6 +796,7 @@ struct ath_hal {
 
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
+	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
 	void	  __ahdecl(*ah_detach)(struct ath_hal*);
@@ -909,12 +943,18 @@ struct ath_hal {
 	u_int	  __ahdecl(*ah_getCTSTimeout)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setDecompMask)(struct ath_hal*, uint16_t, int);
 	void	  __ahdecl(*ah_setCoverageClass)(struct ath_hal*, uint8_t, int);
+	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
+				uint32_t duration, uint32_t nextStart,
+				HAL_QUIET_FLAG flag);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
 				HAL_PHYERR_PARAM *pe);
 	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
 				HAL_PHYERR_PARAM *pe);
+	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
+				struct ath_rx_status *rxs, uint64_t fulltsf,
+				const char *buf, HAL_DFS_EVENT *event);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);

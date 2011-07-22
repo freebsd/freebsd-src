@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
@@ -672,7 +673,7 @@ static int
 g_eli_cpu_is_disabled(int cpu)
 {
 #ifdef SMP
-	return ((hlt_cpus_mask & (1 << cpu)) != 0);
+	return (CPU_ISSET(cpu, &hlt_cpus_mask));
 #else
 	return (0);
 #endif

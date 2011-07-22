@@ -1,5 +1,5 @@
 /*
- *  $Id: menubox.c,v 1.120 2011/01/19 00:27:53 tom Exp $
+ *  $Id: menubox.c,v 1.122 2011/06/29 09:48:46 tom Exp $
  *
  *  menubox.c -- implements the menu box
  *
@@ -291,6 +291,7 @@ dlg_menu(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_RIGHT ),
@@ -312,6 +313,7 @@ dlg_menu(const char *title,
     };
     static DLG_KEYS_BINDING binding2[] = {
 	INPUTSTR_BINDINGS,
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	END_KEYS_BINDING
     };
@@ -685,7 +687,7 @@ dlg_menu(const char *title,
 				 FALSE, width);
 		break;
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = dlg_enter_buttoncode(button);
 
 		/*
 		 * If dlg_menu() is called from dialog_menu(), we want to

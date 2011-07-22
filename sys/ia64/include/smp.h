@@ -7,12 +7,15 @@
 #ifdef _KERNEL
 
 #define	IPI_AST			ia64_ipi_ast
+#define	IPI_HARDCLOCK		ia64_ipi_hardclock
 #define	IPI_PREEMPT		ia64_ipi_preempt
 #define	IPI_RENDEZVOUS		ia64_ipi_rndzvs
 #define	IPI_STOP		ia64_ipi_stop
 #define	IPI_STOP_HARD		ia64_ipi_nmi
 
 #ifndef LOCORE
+
+#include <sys/_cpuset.h>
 
 struct pcpu;
 
@@ -35,6 +38,7 @@ struct ia64_ap_state {
 };
 
 extern int ia64_ipi_ast;
+extern int ia64_ipi_hardclock;
 extern int ia64_ipi_highfp;
 extern int ia64_ipi_nmi;
 extern int ia64_ipi_preempt;
@@ -44,7 +48,7 @@ extern int ia64_ipi_wakeup;
 
 void	ipi_all_but_self(int ipi);
 void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpumask_t cpus, int ipi);
+void	ipi_selected(cpuset_t cpus, int ipi);
 void	ipi_send(struct pcpu *, int ipi);
 
 #endif /* !LOCORE */

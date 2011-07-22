@@ -214,8 +214,14 @@ std::string sys::getHostCPUName() {
                // As found in a Summer 2010 model iMac.
       case 37: // Intel Core i7, laptop version.
         return "corei7";
-      case 42: // SandyBridge
-        return "sandybridge";
+
+      // SandyBridge:
+      case 42: // Intel Core i7 processor. All processors are manufactured
+               // using the 32 nm process.
+      case 44: // Intel Core i7 processor and Intel Xeon processor. All
+               // processors are manufactured using the 32 nm process.
+      case 45:
+        return "corei7-avx";
 
       case 28: // Intel Atom processor. All processors are manufactured using
                // the 45 nm process

@@ -38,6 +38,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110709: vm_map_clean.9 -> vm_map_sync.9
+OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
+# 20110709: Catch up with removal of these functions.
+OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_zero_fill.9.gz
+# 20110707: script no longer needed by /etc/rc.d/nfsd
+OLD_FILES+=etc/rc.d/nfsserver
+# 20110705: files moved so both NFS clients can share them
+OLD_FILES+=usr/include/nfsclient/krpc.h
+OLD_FILES+=usr/include/nfsclient/nfsdiskless.h
+# 20110705: the switch of default NFS client to the new one
+OLD_FILES+=sbin/mount_newnfs
+OLD_FILES+=usr/share/man/man8/mount_newnfs.8.gz
+OLD_FILES+=usr/include/nfsclient/nfs_kdtrace.h
+# 20110628: calendar.msk removed
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
+# 20110517: libpkg removed
+OLD_FILES+=usr/include/pkg.h
+OLD_FILES+=usr/lib/libpkg.a
+OLD_FILES+=usr/lib/libpkg.so
+OLD_LIBS+=usr/lib/libpkg.so.0
+OLD_FILES+=usr/lib/libpkg_p.a
+# 20110517: libsbuf version bump
+OLD_LIBS+=lib/libsbuf.so.5
 # 20110502: new clang import which bumps version from 2.9 to 3.0
 OLD_FILES+=usr/include/clang/2.9/emmintrin.h
 OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
@@ -66,6 +91,8 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
+# 20110331: firmware.img created at build time
+OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
 # 20110224: sticky.8 -> sticky.7
 OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20110220: new clang import which bumps version from 2.8 to 2.9
@@ -76,6 +103,8 @@ OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
 OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
 OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
 OLD_DIRS+=usr/include/clang/2.8
+# 20110119: netinet/sctp_cc_functions.h removed
+OLD_FILES+=usr/include/netinet/sctp_cc_functions.h
 # 20110119: Remove SYSCTL_*X* sysctl additions.
 OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
     usr/share/man/man9/SYSCTL_XLONG.9.gz
@@ -131,6 +160,8 @@ OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101112: removed gasp.info
 OLD_FILES+=usr/share/info/gasp.info.gz
+# 20101109: machine/mutex.h removed
+OLD_FILES+=usr/include/machine/mutex.h
 # 20101109: headers moved from machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/mptable.h

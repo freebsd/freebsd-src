@@ -16,7 +16,9 @@
 #define SPU_REGISTERINFO_H
 
 #include "SPU.h"
-#include "SPUGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "SPUGenRegisterInfo.inc"
 
 namespace llvm {
   class SPUSubtarget;
@@ -83,6 +85,7 @@ namespace llvm {
 
     //! Get DWARF debugging register number
     int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+    int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 
     //! Convert D-form load/store to X-form load/store
     /*!

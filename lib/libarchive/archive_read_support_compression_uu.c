@@ -325,7 +325,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 			--len;
 		}
 		b += nl;
-		
+
 		if (avail >= 5 && memcmp(b, "====\n", 5) == 0)
 			return (firstline+40);
 		if (avail >= 6 && memcmp(b, "====\r\n", 6) == 0)

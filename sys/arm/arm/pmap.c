@@ -2395,7 +2395,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	cpu_cpwait();
 
 	PMAP_LOCK_INIT(kernel_pmap);
-	kernel_pmap->pm_active = -1;
+	CPU_FILL(&kernel_pmap->pm_active);
 	kernel_pmap->pm_domain = PMAP_DOMAIN_KERNEL;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	
@@ -3120,8 +3120,8 @@ pmap_remove_all(vm_page_t m)
 	pmap_t curpm;
 	int flags = 0;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
 	vm_page_lock_queues();
@@ -3242,9 +3242,12 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				PTE_SYNC(ptep);
 
 				if (pg != NULL) {
-					f = pmap_modify_pv(pg, pm, sva,
-					    PVF_WRITE, 0);
-					vm_page_dirty(pg);
+					if (!(pg->flags & PG_UNMANAGED)) {
+						f = pmap_modify_pv(pg, pm, sva,
+						    PVF_WRITE, 0);
+						vm_page_dirty(pg);
+					} else
+						f = 0;
 				} else
 					f = PVF_REF | PVF_EXEC;
 
@@ -3826,7 +3829,7 @@ pmap_pinit(pmap_t pmap)
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 		
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);

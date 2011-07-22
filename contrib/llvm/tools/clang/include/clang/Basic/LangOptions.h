@@ -46,6 +46,8 @@ public:
   unsigned ObjCNonFragileABI : 1;  // Objective-C modern abi enabled
   unsigned ObjCNonFragileABI2 : 1;  // Objective-C enhanced modern abi enabled
   unsigned ObjCDefaultSynthProperties : 1; // Objective-C auto-synthesized properties.
+  unsigned ObjCInferRelatedResultType : 1; // Infer Objective-C related return
+                                           // types
   unsigned AppleKext         : 1;  // Allow apple kext features.
 
   unsigned PascalStrings     : 1;  // Allow Pascal strings
@@ -118,6 +120,8 @@ public:
   unsigned InlineVisibilityHidden : 1; // Whether inline C++ methods have
                                        // hidden visibility by default.
   unsigned ParseUnknownAnytype: 1; /// Let the user write __unknown_anytype.
+  unsigned DebuggerSupport : 1;   /// Do things that only make sense when
+                                  /// supporting a debugger
 
   unsigned SpellChecking : 1; // Whether to perform spell-checking for error
                               // recovery.
@@ -129,6 +133,10 @@ public:
   unsigned DefaultFPContract : 1; // Default setting for FP_CONTRACT
   // FIXME: This is just a temporary option, for testing purposes.
   unsigned NoBitFieldTypeAlign : 1;
+  unsigned ObjCAutoRefCount : 1; // Objective C automated reference counting
+  unsigned ObjCRuntimeHasWeak : 1; // The ARC runtime supports __weak
+  unsigned ObjCInferRelatedReturnType : 1; // Infer Objective-C related return
+                                           // types
   unsigned FakeAddressSpaceMap : 1; // Use a fake address space map, for
                                     // testing languages such as OpenCL.
 
@@ -171,9 +179,13 @@ public:
     Trigraphs = BCPLComment = Bool = DollarIdents = AsmPreprocessor = 0;
     GNUMode = GNUKeywords = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
+    ObjCAutoRefCount = 0;
+    ObjCRuntimeHasWeak = 0;
+    ObjCInferRelatedReturnType = 0;
     GC = ObjC1 = ObjC2 = ObjCNonFragileABI = ObjCNonFragileABI2 = 0;
     AppleKext = 0;
     ObjCDefaultSynthProperties = 0;
+    ObjCInferRelatedResultType = 1;
     NoConstantCFStrings = 0; InlineVisibilityHidden = 0;
     C99 = C1X = Microsoft = Borland = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = ConstStrings = 0;
@@ -232,7 +244,7 @@ public:
     FakeAddressSpaceMap = 0;
     MRTD = 0;
     DelayedTemplateParsing = 0;
-    ParseUnknownAnytype = 0;
+    ParseUnknownAnytype = DebuggerSupport = 0;
   }
 
   GCMode getGCMode() const { return (GCMode) GC; }

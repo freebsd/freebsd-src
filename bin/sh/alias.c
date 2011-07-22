@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "alias.h"
 #include "options.h"	/* XXX for argptr (should remove?) */
+#include "builtins.h"
 
 #define ATABSIZE 39
 
@@ -238,7 +239,7 @@ aliascmd(int argc, char **argv)
 	while ((n = *++argv) != NULL) {
 		if ((v = strchr(n+1, '=')) == NULL) /* n+1: funny ksh stuff */
 			if ((ap = lookupalias(n, 0)) == NULL) {
-				warning("%s not found", n);
+				warning("%s: not found", n);
 				ret = 1;
 			} else
 				printalias(ap);

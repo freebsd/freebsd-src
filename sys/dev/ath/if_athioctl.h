@@ -154,6 +154,7 @@ struct ath_diag {
 
 };
 #define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
+#define	SIOCGATHPHYERR	_IOWR('i', 140, struct ath_diag)
 
 /*
  * Radio capture format.
@@ -204,5 +205,35 @@ struct ath_tx_radiotap_header {
 	u_int8_t	wt_chan_ieee;
 	int8_t		wt_chan_maxpow;
 } __packed;
+
+/*
+ * DFS ioctl commands
+ */
+
+#define	DFS_SET_THRESH		2
+#define	DFS_GET_THRESH		3
+#define	DFS_RADARDETECTS	6
+
+/*
+ * DFS ioctl parameter types
+ */
+#define DFS_PARAM_FIRPWR	1
+#define DFS_PARAM_RRSSI		2
+#define DFS_PARAM_HEIGHT	3
+#define DFS_PARAM_PRSSI		4
+#define DFS_PARAM_INBAND	5
+#define DFS_PARAM_NOL		6	/* XXX not used in FreeBSD */
+#define DFS_PARAM_RELSTEP_EN	7
+#define DFS_PARAM_RELSTEP	8
+#define DFS_PARAM_RELPWR_EN	9
+#define DFS_PARAM_RELPWR	10
+#define DFS_PARAM_MAXLEN	11
+#define DFS_PARAM_USEFIR128	12
+#define DFS_PARAM_BLOCKRADAR	13
+#define DFS_PARAM_MAXRSSI_EN	14
+
+/* FreeBSD-specific start at 32 */
+#define	DFS_PARAM_ENABLE	32
+#define	DFS_PARAM_EN_EXTCH	33
 
 #endif /* _DEV_ATH_ATHIOCTL_H */

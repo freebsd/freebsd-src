@@ -390,8 +390,7 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
     llvm::ArrayType::get(Int8PtrTy, Builder.getVTTComponents().size());
   
   llvm::Constant *Init = 
-    llvm::ConstantArray::get(ArrayType, Builder.getVTTComponents().data(),
-                             Builder.getVTTComponents().size());
+    llvm::ConstantArray::get(ArrayType, Builder.getVTTComponents());
 
   VTT->setInitializer(Init);
 
@@ -410,6 +409,8 @@ llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTT(const CXXRecordDecl *RD) {
   CGM.getCXXABI().getMangleContext().mangleCXXVTT(RD, Out);
   Out.flush();
   llvm::StringRef Name = OutName.str();
+
+  ComputeVTableRelatedInformation(RD, /*VTableRequired=*/true);
 
   VTTBuilder Builder(CGM, RD, /*GenerateDefinition=*/false);
 

@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.179 2008/04/14 02:06:16 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.180 2010/11/23 02:35:08 gshapiro Exp $")
 
 
 #include <sys/types.h>
@@ -238,7 +238,7 @@ main(argc, argv)
 	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
 			      NULL)) == NULL)
 	{
-		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s",
+		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s\n",
 			      cfile, sm_errstring(errno));
 		exit(EX_NOINPUT);
 	}

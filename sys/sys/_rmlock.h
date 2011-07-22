@@ -45,7 +45,7 @@ LIST_HEAD(rmpriolist,rm_priotracker);
 
 struct rmlock {
 	struct lock_object lock_object; 
-	volatile cpumask_t rm_writecpus;
+	volatile cpuset_t rm_writecpus;
 	LIST_HEAD(,rm_priotracker) rm_activeReaders;
 	union {
 		struct mtx _rm_lock_mtx;

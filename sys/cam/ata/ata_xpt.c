@@ -1583,12 +1583,14 @@ ata_device_transport(struct cam_path *path)
 	cts.proto_specific.valid = 0;
 	if (ident_buf) {
 		if (path->device->transport == XPORT_ATA) {
-			cts.xport_specific.ata.atapi = 
+			cts.xport_specific.ata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.ata.valid = CTS_ATA_VALID_ATAPI;
 		} else {
-			cts.xport_specific.sata.atapi = 
+			cts.xport_specific.sata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.sata.valid = CTS_SATA_VALID_ATAPI;
@@ -1596,6 +1598,34 @@ ata_device_transport(struct cam_path *path)
 	} else
 		cts.xport_specific.valid = 0;
 	xpt_action((union ccb *)&cts);
+}
+
+static void
+ata_dev_advinfo(union ccb *start_ccb)
+{
+	struct cam_ed *device;
+	struct ccb_dev_advinfo *cdai;
+	off_t amt; 
+
+	start_ccb->ccb_h.status = CAM_REQ_INVALID;
+	device = start_ccb->ccb_h.path->device;
+	cdai = &start_ccb->cdai;
+	switch(cdai->buftype) {
+	case CDAI_TYPE_SERIAL_NUM:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			break;
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
+		cdai->provsiz = device->serial_num_len;
+		if (device->serial_num_len == 0)
+			break;
+		amt = device->serial_num_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->serial_num, amt);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -1638,7 +1668,9 @@ ata_action(union ccb *start_ccb)
 			uint16_t p =
 			    device->ident_data.config & ATA_PROTO_MASK;
 
-			maxlen = (p == ATA_PROTO_ATAPI_16) ? 16 :
+			maxlen =
+			    (device->ident_data.config == ATA_PROTO_CFA) ? 0 :
+			    (p == ATA_PROTO_ATAPI_16) ? 16 :
 			    (p == ATA_PROTO_ATAPI_12) ? 12 : 0;
 		}
 		if (start_ccb->csio.cdb_len > maxlen) {
@@ -1646,7 +1678,13 @@ ata_action(union ccb *start_ccb)
 			xpt_done(start_ccb);
 			break;
 		}
-		/* FALLTHROUGH */
+		xpt_action_default(start_ccb);
+		break;
+	}
+	case XPT_DEV_ADVINFO:
+	{
+		ata_dev_advinfo(start_ccb);
+		break;
 	}
 	default:
 		xpt_action_default(start_ccb);

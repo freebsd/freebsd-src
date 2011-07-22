@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
+#include "opt_mp_watchdog.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_xbox.h"
@@ -118,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/mp_watchdog.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
@@ -1357,9 +1359,8 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
-#if defined(SMP) && !defined(XEN)
-	if (mp_grab_cpu_hlt())
-		return;
+#if defined(MP_WATCHDOG) && !defined(XEN)
+	ap_watchdog(PCPU_GET(cpuid));
 #endif
 #ifndef XEN
 	/* If we are busy - try to use fast methods. */

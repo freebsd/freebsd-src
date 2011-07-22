@@ -23,6 +23,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/IRBuilder.h"
@@ -459,7 +460,10 @@ Instruction *MemCpyOpt::tryMergingIntoMemset(Instruction *StartInst,
           for (unsigned i = 0, e = Range.TheStores.size(); i != e; ++i)
             dbgs() << *Range.TheStores[i] << '\n';
           dbgs() << "With: " << *AMemSet << '\n');
-    
+
+    if (!Range.TheStores.empty())
+      AMemSet->setDebugLoc(Range.TheStores[0]->getDebugLoc());
+
     // Zap all the stores.
     for (SmallVector<Instruction*, 16>::const_iterator
          SI = Range.TheStores.begin(),
@@ -483,12 +487,27 @@ bool MemCpyOpt::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
   // happen to be using a load-store pair to implement it, rather than
   // a memcpy.
   if (LoadInst *LI = dyn_cast<LoadInst>(SI->getOperand(0))) {
-    if (!LI->isVolatile() && LI->hasOneUse()) {
-      MemDepResult dep = MD->getDependency(LI);
+    if (!LI->isVolatile() && LI->hasOneUse() &&
+        LI->getParent() == SI->getParent()) {
+      MemDepResult ldep = MD->getDependency(LI);
       CallInst *C = 0;
-      if (dep.isClobber() && !isa<MemCpyInst>(dep.getInst()))
-        C = dyn_cast<CallInst>(dep.getInst());
-      
+      if (ldep.isClobber() && !isa<MemCpyInst>(ldep.getInst()))
+        C = dyn_cast<CallInst>(ldep.getInst());
+
+      if (C) {
+        // Check that nothing touches the dest of the "copy" between
+        // the call and the store.
+        AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
+        AliasAnalysis::Location StoreLoc = AA.getLocation(SI);
+        for (BasicBlock::iterator I = --BasicBlock::iterator(SI),
+                                  E = C; I != E; --I) {
+          if (AA.getModRefInfo(&*I, StoreLoc) != AliasAnalysis::NoModRef) {
+            C = 0;
+            break;
+          }
+        }
+      }
+
       if (C) {
         bool changed = performCallSlotOptzn(LI,
                         SI->getPointerOperand()->stripPointerCasts(), 
@@ -821,11 +840,11 @@ bool MemCpyOpt::processMemMove(MemMoveInst *M) {
   
   // If not, then we know we can transform this.
   Module *Mod = M->getParent()->getParent()->getParent();
-  const Type *ArgTys[3] = { M->getRawDest()->getType(),
-                            M->getRawSource()->getType(),
-                            M->getLength()->getType() };
+  Type *ArgTys[3] = { M->getRawDest()->getType(),
+                      M->getRawSource()->getType(),
+                      M->getLength()->getType() };
   M->setCalledFunction(Intrinsic::getDeclaration(Mod, Intrinsic::memcpy,
-                                                 ArgTys, 3));
+                                                 ArgTys));
 
   // MemDep may have over conservative information about this instruction, just
   // conservatively flush it from the cache.
@@ -863,12 +882,16 @@ bool MemCpyOpt::processByValArgument(CallSite CS, unsigned ArgNo) {
   if (C1 == 0 || C1->getValue().getZExtValue() < ByValSize)
     return false;
 
-  // Get the alignment of the byval.  If it is greater than the memcpy, then we
-  // can't do the substitution.  If the call doesn't specify the alignment, then
-  // it is some target specific value that we can't know.
+  // Get the alignment of the byval.  If the call doesn't specify the alignment,
+  // then it is some target specific value that we can't know.
   unsigned ByValAlign = CS.getParamAlignment(ArgNo+1);
-  if (ByValAlign == 0 || MDep->getAlignment() < ByValAlign)
-    return false;  
+  if (ByValAlign == 0) return false;
+  
+  // If it is greater than the memcpy, then we check to see if we can force the
+  // source of the memcpy to the alignment we need.  If we fail, we bail out.
+  if (MDep->getAlignment() < ByValAlign &&
+      getOrEnforceKnownAlignment(MDep->getSource(),ByValAlign, TD) < ByValAlign)
+    return false;
   
   // Verify that the copied-from memory doesn't change in between the memcpy and
   // the byval call.

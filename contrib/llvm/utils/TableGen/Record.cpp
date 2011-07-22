@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Record.h"
+#include "Error.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Format.h"
 #include "llvm/ADT/StringExtras.h"
@@ -68,14 +69,9 @@ Init *BitsRecTy::convertValue(BitInit *UI) {
 /// canFitInBitfield - Return true if the number of bits is large enough to hold
 /// the integer value.
 static bool canFitInBitfield(int64_t Value, unsigned NumBits) {
-  if (Value >= 0) {
-    if (Value & ~((1LL << NumBits) - 1))
-      return false;
-  } else if ((Value >> NumBits) != -1 || (Value & (1LL << (NumBits-1))) == 0) {
-    return false;
-  }
-
-  return true;
+  // For example, with NumBits == 4, we permit Values from [-7 .. 15].
+  return (NumBits >= sizeof(Value) * 8) ||
+         (Value >> NumBits == 0) || (Value >> (NumBits-1) == -1);
 }
 
 /// convertValue from Int initializer to bits type: Split the integer up into the
@@ -583,9 +579,7 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
         if (Record *D = (CurRec->getRecords()).getDef(Name))
           return new DefInit(D);
 
-        errs() << "Variable not defined: '" + Name + "'\n";
-        assert(0 && "Variable not found");
-        return 0;
+        throw TGError(CurRec->getLoc(), "Undefined reference:'" + Name + "'\n");
       }
     }
     break;
@@ -813,15 +807,13 @@ static Init *ForeachHelper(Init *LHS, Init *MHS, Init *RHS, RecTy *Type,
   OpInit *RHSo = dynamic_cast<OpInit*>(RHS);
 
   if (!RHSo) {
-    errs() << "!foreach requires an operator\n";
-    assert(0 && "No operator for !foreach");
+    throw TGError(CurRec->getLoc(), "!foreach requires an operator\n");
   }
 
   TypedInit *LHSt = dynamic_cast<TypedInit*>(LHS);
 
   if (!LHSt) {
-    errs() << "!foreach requires typed variable\n";
-    assert(0 && "No typed variable for !foreach");
+    throw TGError(CurRec->getLoc(), "!foreach requires typed variable\n");
   }
 
   if ((MHSd && DagType) || (MHSl && ListType)) {
@@ -1449,6 +1441,25 @@ Record::getValueAsListOfInts(StringRef FieldName) const {
     }
   }
   return Ints;
+}
+
+/// getValueAsListOfStrings - This method looks up the specified field and
+/// returns its value as a vector of strings, throwing an exception if the
+/// field does not exist or if the value is not the right type.
+///
+std::vector<std::string>
+Record::getValueAsListOfStrings(StringRef FieldName) const {
+  ListInit *List = getValueAsListInit(FieldName);
+  std::vector<std::string> Strings;
+  for (unsigned i = 0; i < List->getSize(); i++) {
+    if (StringInit *II = dynamic_cast<StringInit*>(List->getElement(i))) {
+      Strings.push_back(II->getValue());
+    } else {
+      throw "Record `" + getName() + "', field `" + FieldName.str() +
+            "' does not have a list of strings initializer!";
+    }
+  }
+  return Strings;
 }
 
 /// getValueAsDef - This method looks up the specified field and returns its

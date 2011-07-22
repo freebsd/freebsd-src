@@ -476,7 +476,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
 	}
-	if (flags & RFLINUXTHPN) 
+
+	if (flags & RFTSIGZMB)
+	        p2->p_sigparent = RFTSIGNUM(flags);
+	else if (flags & RFLINUXTHPN)
 	        p2->p_sigparent = SIGUSR1;
 	else
 	        p2->p_sigparent = SIGCHLD;
@@ -719,8 +722,20 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	static int curfail;
 	static struct timeval lastfail;
 
+	/* Check for the undefined or unimplemented flags. */
+	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
+		return (EINVAL);
+
+	/* Signal value requires RFTSIGZMB. */
+	if ((flags & RFTSIGFLAGS(RFTSIGMASK)) != 0 && (flags & RFTSIGZMB) == 0)
+		return (EINVAL);
+
 	/* Can't copy and clear. */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
+		return (EINVAL);
+
+	/* Check the validity of the signal number. */
+	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
 		return (EINVAL);
 
 	p1 = td->td_proc;
@@ -734,11 +749,13 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		return (fork_norfproc(td, flags));
 	}
 
+#ifdef RACCT
 	PROC_LOCK(p1);
 	error = racct_add(p1, RACCT_NPROC, 1);
 	PROC_UNLOCK(p1);
 	if (error != 0)
 		return (EAGAIN);
+#endif
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -822,6 +839,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		goto fail;
 	}
 
+#ifdef RACCT
 	/*
 	 * After fork, there is exactly one thread running.
 	 */
@@ -832,6 +850,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		error = EAGAIN;
 		goto fail;
 	}
+#endif
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -874,9 +893,11 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
+#ifdef RACCT
 	PROC_LOCK(p1);
 	racct_sub(p1, RACCT_NPROC, 1);
 	PROC_UNLOCK(p1);
+#endif
 	return (error);
 }
 

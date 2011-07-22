@@ -51,6 +51,10 @@ void DIBuilder::createCompileUnit(unsigned Lang, StringRef Filename,
     ConstantInt::get(Type::getInt32Ty(VMContext), RunTimeVer)
   };
   TheCU = DICompileUnit(MDNode::get(VMContext, Elts));
+
+  // Create a named metadata so that it is easier to find cu in a module.
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.cu");
+  NMD->addOperand(TheCU);
 }
 
 /// createFile - Create a file descriptor to hold debugging information
@@ -156,12 +160,12 @@ DIType DIBuilder::createReferenceType(DIType RTy) {
 
 /// createTypedef - Create debugging information entry for a typedef.
 DIType DIBuilder::createTypedef(DIType Ty, StringRef Name, DIFile File,
-                                unsigned LineNo) {
+                                unsigned LineNo, DIDescriptor Context) {
   // typedefs are encoded in DIDerivedType format.
   assert(Ty.Verify() && "Invalid typedef type!");
   Value *Elts[] = {
     GetTagConstant(VMContext, dwarf::DW_TAG_typedef),
-    Ty.getContext(),
+    Context,
     MDString::get(VMContext, Name),
     File,
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
@@ -215,7 +219,7 @@ DIType DIBuilder::createInheritance(DIType Ty, DIType BaseTy,
 }
 
 /// createMemberType - Create debugging information entry for a member.
-DIType DIBuilder::createMemberType(StringRef Name, 
+DIType DIBuilder::createMemberType(DIDescriptor Scope, StringRef Name, 
                                    DIFile File, unsigned LineNumber, 
                                    uint64_t SizeInBits, uint64_t AlignInBits,
                                    uint64_t OffsetInBits, unsigned Flags, 
@@ -223,7 +227,7 @@ DIType DIBuilder::createMemberType(StringRef Name,
   // TAG_member is encoded in DIDerivedType format.
   Value *Elts[] = {
     GetTagConstant(VMContext, dwarf::DW_TAG_member),
-    File, // Or TheCU ? Ty ?
+    Scope,
     MDString::get(VMContext, Name),
     File,
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNumber),
@@ -782,7 +786,7 @@ Instruction *DIBuilder::insertDeclare(Value *Storage, DIVariable VarInfo,
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
   Value *Args[] = { MDNode::get(Storage->getContext(), Storage), VarInfo };
-  return CallInst::Create(DeclareFn, Args, Args+2, "", InsertBefore);
+  return CallInst::Create(DeclareFn, Args, "", InsertBefore);
 }
 
 /// insertDeclare - Insert a new llvm.dbg.declare intrinsic call.
@@ -798,9 +802,9 @@ Instruction *DIBuilder::insertDeclare(Value *Storage, DIVariable VarInfo,
   // If this block already has a terminator then insert this intrinsic
   // before the terminator.
   if (TerminatorInst *T = InsertAtEnd->getTerminator())
-    return CallInst::Create(DeclareFn, Args, Args+2, "", T);
+    return CallInst::Create(DeclareFn, Args, "", T);
   else
-    return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
+    return CallInst::Create(DeclareFn, Args, "", InsertAtEnd);
 }
 
 /// insertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
@@ -815,7 +819,7 @@ Instruction *DIBuilder::insertDbgValueIntrinsic(Value *V, uint64_t Offset,
   Value *Args[] = { MDNode::get(V->getContext(), V),
                     ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     VarInfo };
-  return CallInst::Create(ValueFn, Args, Args+3, "", InsertBefore);
+  return CallInst::Create(ValueFn, Args, "", InsertBefore);
 }
 
 /// insertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
@@ -830,6 +834,6 @@ Instruction *DIBuilder::insertDbgValueIntrinsic(Value *V, uint64_t Offset,
   Value *Args[] = { MDNode::get(V->getContext(), V),
                     ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     VarInfo };
-  return CallInst::Create(ValueFn, Args, Args+3, "", InsertAtEnd);
+  return CallInst::Create(ValueFn, Args, "", InsertAtEnd);
 }
 

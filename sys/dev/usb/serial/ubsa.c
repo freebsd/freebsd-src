@@ -239,7 +239,7 @@ static const struct ucom_callback ubsa_callback = {
 	.ucom_poll = &ubsa_poll,
 };
 
-static const struct usb_device_id ubsa_devs[] = {
+static const STRUCT_USB_HOST_ID ubsa_devs[] = {
 	/* AnyData ADU-500A */
 	{USB_VPI(USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_500A, 0)},
 	/* AnyData ADU-E100A/H */

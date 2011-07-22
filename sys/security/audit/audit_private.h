@@ -229,6 +229,7 @@ struct audit_record {
 	int			ar_arg_exitstatus;
 	int			ar_arg_exitretval;
 	struct sockaddr_storage ar_arg_sockaddr;
+	cap_rights_t		ar_arg_rights;
 };
 
 /*
@@ -288,6 +289,7 @@ struct audit_record {
 #define	ARG_ENVV		0x0002000000000000ULL
 #define	ARG_ATFD1		0x0004000000000000ULL
 #define	ARG_ATFD2		0x0008000000000000ULL
+#define	ARG_RIGHTS		0x0010000000000000ULL
 #define	ARG_NONE		0x0000000000000000ULL
 #define	ARG_ALL			0xFFFFFFFFFFFFFFFFULL
 

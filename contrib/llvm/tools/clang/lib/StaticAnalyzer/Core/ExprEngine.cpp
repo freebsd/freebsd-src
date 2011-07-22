@@ -156,6 +156,27 @@ const GRState* ExprEngine::getInitialState(const LocationContext *InitLoc) {
   return state;
 }
 
+bool
+ExprEngine::doesInvalidateGlobals(const CallOrObjCMessage &callOrMessage) const
+{
+  if (callOrMessage.isFunctionCall() && !callOrMessage.isCXXCall()) {
+    SVal calleeV = callOrMessage.getFunctionCallee();
+    if (const FunctionTextRegion *codeR =
+          llvm::dyn_cast_or_null<FunctionTextRegion>(calleeV.getAsRegion())) {
+      
+      const FunctionDecl *fd = codeR->getDecl();
+      if (const IdentifierInfo *ii = fd->getIdentifier()) {
+        llvm::StringRef fname = ii->getName();
+        if (fname == "strlen")
+          return false;
+      }
+    }
+  }
+  
+  // The conservative answer: invalidates globals.
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // Top-level transfer function logic (Dispatcher).
 //===----------------------------------------------------------------------===//
@@ -179,9 +200,11 @@ bool ExprEngine::wantsRegionChangeUpdate(const GRState* state) {
 
 const GRState *
 ExprEngine::processRegionChanges(const GRState *state,
-                                   const MemRegion * const *Begin,
-                                   const MemRegion * const *End) {
-  return getCheckerManager().runCheckersForRegionChanges(state, Begin, End);
+                            const StoreManager::InvalidatedSymbols *invalidated,
+                                 const MemRegion * const *Begin,
+                                 const MemRegion * const *End) {
+  return getCheckerManager().runCheckersForRegionChanges(state, invalidated,
+                                                         Begin, End);
 }
 
 void ExprEngine::processEndWorklist(bool hasWorkRemaining) {
@@ -419,7 +442,8 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
   }
 
   switch (S->getStmtClass()) {
-    // C++ stuff we don't support yet.
+    // C++ and ARC stuff we don't support yet.
+    case Expr::ObjCIndirectCopyRestoreExprClass:
     case Stmt::CXXBindTemporaryExprClass:
     case Stmt::CXXCatchStmtClass:
     case Stmt::CXXDependentScopeMemberExprClass:
@@ -455,6 +479,7 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
     
     // We don't handle default arguments either yet, but we can fake it
     // for now by just skipping them.
+    case Stmt::SubstNonTypeTemplateParmExprClass:
     case Stmt::CXXDefaultArgExprClass: {
       Dst.Add(Pred);
       break;
@@ -485,7 +510,10 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
       break;
 
     case Stmt::GNUNullExprClass: {
-      MakeNode(Dst, S, Pred, GetState(Pred)->BindExpr(S, svalBuilder.makeNull()));
+      // GNU __null is a pointer-width integer, not an actual pointer.
+      const GRState *state = GetState(Pred);
+      state = state->BindExpr(S, svalBuilder.makeIntValWithPtrWidth(0, false));
+      MakeNode(Dst, S, Pred, state);
       break;
     }
 
@@ -497,14 +525,27 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
       VisitObjCPropertyRefExpr(cast<ObjCPropertyRefExpr>(S), Pred, Dst);
       break;
 
+    case Stmt::ImplicitValueInitExprClass: {
+      const GRState *state = GetState(Pred);
+      QualType ty = cast<ImplicitValueInitExpr>(S)->getType();
+      SVal val = svalBuilder.makeZeroVal(ty);
+      MakeNode(Dst, S, Pred, state->BindExpr(S, val));
+      break;
+    }
+      
+    case Stmt::ExprWithCleanupsClass: {
+      Visit(cast<ExprWithCleanups>(S)->getSubExpr(), Pred, Dst);
+      break;
+    }
+
     // Cases not handled yet; but will handle some day.
     case Stmt::DesignatedInitExprClass:
     case Stmt::ExtVectorElementExprClass:
     case Stmt::ImaginaryLiteralClass:
-    case Stmt::ImplicitValueInitExprClass:
     case Stmt::ObjCAtCatchStmtClass:
     case Stmt::ObjCAtFinallyStmtClass:
     case Stmt::ObjCAtTryStmtClass:
+    case Stmt::ObjCAutoreleasePoolStmtClass:
     case Stmt::ObjCEncodeExprClass:
     case Stmt::ObjCIsaExprClass:
     case Stmt::ObjCProtocolExprClass:
@@ -516,6 +557,7 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
     case Stmt::VAArgExprClass:
     case Stmt::CUDAKernelCallExprClass:
     case Stmt::OpaqueValueExprClass:
+    case Stmt::AsTypeExprClass:
         // Fall through.
 
     // Cases we intentionally don't evaluate, since they don't need
@@ -524,7 +566,6 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
     case Stmt::IntegerLiteralClass:
     case Stmt::CharacterLiteralClass:
     case Stmt::CXXBoolLiteralExprClass:
-    case Stmt::ExprWithCleanupsClass:
     case Stmt::FloatingLiteralClass:
     case Stmt::SizeOfPackExprClass:
     case Stmt::CXXNullPtrLiteralExprClass:
@@ -644,12 +685,35 @@ void ExprEngine::Visit(const Stmt* S, ExplodedNode* Pred,
     case Stmt::CXXDynamicCastExprClass:
     case Stmt::CXXReinterpretCastExprClass:
     case Stmt::CXXConstCastExprClass:
-    case Stmt::CXXFunctionalCastExprClass: {
+    case Stmt::CXXFunctionalCastExprClass: 
+    case Stmt::ObjCBridgedCastExprClass: {
       const CastExpr* C = cast<CastExpr>(S);
-      VisitCast(C, C->getSubExpr(), Pred, Dst);
+      // Handle the previsit checks.
+      ExplodedNodeSet dstPrevisit;
+      getCheckerManager().runCheckersForPreStmt(dstPrevisit, Pred, C, *this);
+      
+      // Handle the expression itself.
+      ExplodedNodeSet dstExpr;
+      for (ExplodedNodeSet::iterator i = dstPrevisit.begin(),
+                                     e = dstPrevisit.end(); i != e ; ++i) { 
+        VisitCast(C, C->getSubExpr(), *i, dstExpr);
+      }
+
+      // Handle the postvisit checks.
+      getCheckerManager().runCheckersForPostStmt(Dst, dstExpr, C, *this);
       break;
     }
 
+    case Expr::MaterializeTemporaryExprClass: {
+      const MaterializeTemporaryExpr *Materialize
+                                            = cast<MaterializeTemporaryExpr>(S);
+      if (!Materialize->getType()->isRecordType())
+        CreateCXXTemporaryObject(Materialize->GetTemporaryExpr(), Pred, Dst);
+      else
+        Visit(Materialize->GetTemporaryExpr(), Pred, Dst);
+      break;
+    }
+      
     case Stmt::InitListExprClass:
       VisitInitListExpr(cast<InitListExpr>(S), Pred, Dst);
       break;
@@ -2124,10 +2188,19 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
     Pred = *I;
 
     switch (CastE->getCastKind()) {
+      case CK_LValueToRValue:
+        assert(false && "LValueToRValue casts handled earlier.");
+      case CK_GetObjCProperty:
+        assert(false && "GetObjCProperty casts handled earlier.");
       case CK_ToVoid:
         Dst.Add(Pred);
         continue;
-      case CK_LValueToRValue:
+      // The analyzer doesn't do anything special with these casts,
+      // since it understands retain/release semantics already.
+      case CK_ObjCProduceObject:
+      case CK_ObjCConsumeObject:
+      case CK_ObjCReclaimReturnedObject: // Fall-through.
+      // True no-ops.
       case CK_NoOp:
       case CK_FunctionToPointerDecay: {
         // Copy the SVal of Ex to CastE.
@@ -2137,7 +2210,6 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         MakeNode(Dst, CastE, Pred, state);
         continue;
       }
-      case CK_GetObjCProperty:
       case CK_Dependent:
       case CK_ArrayToPointerDecay:
       case CK_BitCast:
@@ -2249,17 +2321,9 @@ void ExprEngine::VisitDeclStmt(const DeclStmt *DS, ExplodedNode *Pred,
   //  time a function is called those values may not be current.
   ExplodedNodeSet Tmp;
 
-  if (InitEx) {
-    if (VD->getType()->isReferenceType() && !InitEx->isLValue()) {
-      // If the initializer is C++ record type, it should already has a 
-      // temp object.
-      if (!InitEx->getType()->isRecordType())
-        CreateCXXTemporaryObject(InitEx, Pred, Tmp);
-      else
-        Tmp.Add(Pred);
-    } else
-      Visit(InitEx, Pred, Tmp);
-  } else
+  if (InitEx)
+    Visit(InitEx, Pred, Tmp);
+  else
     Tmp.Add(Pred);
 
   ExplodedNodeSet Tmp2;
@@ -2462,7 +2526,7 @@ void ExprEngine::VisitOffsetOfExpr(const OffsetOfExpr* OOE,
     const APSInt &IV = Res.Val.getInt();
     assert(IV.getBitWidth() == getContext().getTypeSize(OOE->getType()));
     assert(OOE->getType()->isIntegerType());
-    assert(IV.isSigned() == OOE->getType()->isSignedIntegerType());
+    assert(IV.isSigned() == OOE->getType()->isSignedIntegerOrEnumerationType());
     SVal X = svalBuilder.makeIntVal(IV);
     MakeNode(Dst, OOE, Pred, GetState(Pred)->BindExpr(OOE, X));
     return;
@@ -2701,7 +2765,7 @@ void ExprEngine::VisitUnaryOperator(const UnaryOperator* U,
       if (U->isLValue())
         state = state->BindExpr(U, loc);
       else
-        state = state->BindExpr(U, V2);
+        state = state->BindExpr(U, U->isPostfix() ? V2 : Result);
 
       // Perform the store.
       evalStore(Dst, NULL, U, *I2, state, loc, Result);

@@ -72,13 +72,14 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "builtins.h"
 
 int rootpid;
 int rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
-static void read_profile(const char *);
+static void read_profile(char *);
 static char *find_dot_file(char *);
 
 /*
@@ -92,7 +93,7 @@ static char *find_dot_file(char *);
 int
 main(int argc, char *argv[])
 {
-	struct stackmark smark;
+	struct stackmark smark, smark2;
 	volatile int state;
 	char *shinit;
 
@@ -139,6 +140,7 @@ main(int argc, char *argv[])
 	rootshell = 1;
 	init();
 	setstackmark(&smark);
+	setstackmark(&smark2);
 	procargs(argc, argv);
 	pwd_init(iflag);
 	if (iflag)
@@ -149,7 +151,7 @@ main(int argc, char *argv[])
 state1:
 		state = 2;
 		if (privileged == 0)
-			read_profile(".profile");
+			read_profile("${HOME-}/.profile");
 		else
 			read_profile("/etc/suid_profile");
 	}
@@ -163,6 +165,7 @@ state2:
 	}
 state3:
 	state = 4;
+	popstackmark(&smark2);
 	if (minusc) {
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
@@ -235,12 +238,16 @@ cmdloop(int top)
  */
 
 static void
-read_profile(const char *name)
+read_profile(char *name)
 {
 	int fd;
+	const char *expandedname;
 
+	expandedname = expandstr(name);
+	if (expandedname == NULL)
+		return;
 	INTOFF;
-	if ((fd = open(name, O_RDONLY)) >= 0)
+	if ((fd = open(expandedname, O_RDONLY)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)
@@ -264,7 +271,7 @@ readcmdfile(const char *name)
 	if ((fd = open(name, O_RDONLY)) >= 0)
 		setinputfd(fd, 1);
 	else
-		error("Can't open %s: %s", name, strerror(errno));
+		error("cannot open %s: %s", name, strerror(errno));
 	INTON;
 	cmdloop(0);
 	popfile();

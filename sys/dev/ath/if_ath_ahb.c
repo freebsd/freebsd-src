@@ -123,7 +123,7 @@ ath_ahb_attach(device_t dev)
 	device_printf(sc->sc_dev, "eeprom @ %p\n", (void *) eepromaddr);
 	psc->sc_eeprom = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, (uintptr_t) eepromaddr,
 	  (uintptr_t) eepromaddr + (uintptr_t) ((ATH_EEPROM_DATA_SIZE * 2) - 1), 0, RF_ACTIVE);
-	if (psc->sc_sr == NULL) {
+	if (psc->sc_eeprom == NULL) {
 		device_printf(dev, "cannot map eeprom space\n");
 		goto bad0;
 	}
@@ -139,6 +139,10 @@ ath_ahb_attach(device_t dev)
 
 	/* Copy the EEPROM data out */
 	sc->sc_eepromdata = malloc(ATH_EEPROM_DATA_SIZE * 2, M_TEMP, M_NOWAIT | M_ZERO);
+	if (sc->sc_eepromdata == NULL) {
+		device_printf(dev, "cannot allocate memory for eeprom data\n");
+		goto bad1;
+	}
 	device_printf(sc->sc_dev, "eeprom data @ %p\n", (void *) rman_get_bushandle(psc->sc_eeprom));
 	/* XXX why doesn't this work? -adrian */
 #if 0

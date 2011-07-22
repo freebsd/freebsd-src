@@ -329,10 +329,10 @@ bool ARMDAGToDAGISel::hasNoVMLxHazardUse(SDNode *N) const {
   if (Use->getOpcode() == ISD::CopyToReg)
     return true;
   if (Use->isMachineOpcode()) {
-    const TargetInstrDesc &TID = TII->get(Use->getMachineOpcode());
-    if (TID.mayStore())
+    const MCInstrDesc &MCID = TII->get(Use->getMachineOpcode());
+    if (MCID.mayStore())
       return true;
-    unsigned Opcode = TID.getOpcode();
+    unsigned Opcode = MCID.getOpcode();
     if (Opcode == ARM::VMOVRS || Opcode == ARM::VMOVRRD)
       return true;
     // vmlx feeding into another vmlx. We actually want to unfold
@@ -1354,30 +1354,34 @@ SDNode *ARMDAGToDAGISel::SelectT2IndexedLoad(SDNode *N) {
 ///
 SDNode *ARMDAGToDAGISel::PairSRegs(EVT VT, SDValue V0, SDValue V1) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass =
+    CurDAG->getTargetConstant(ARM::DPR_VFP2RegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::ssub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::ssub_1, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 4);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 5);
 }
 
 /// PairDRegs - Form a quad register from a pair of D registers.
 ///
 SDNode *ARMDAGToDAGISel::PairDRegs(EVT VT, SDValue V0, SDValue V1) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass = CurDAG->getTargetConstant(ARM::QPRRegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::dsub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::dsub_1, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 4);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 5);
 }
 
 /// PairQRegs - Form 4 consecutive D registers from a pair of Q registers.
 ///
 SDNode *ARMDAGToDAGISel::PairQRegs(EVT VT, SDValue V0, SDValue V1) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass = CurDAG->getTargetConstant(ARM::QQPRRegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::qsub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::qsub_1, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 4);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 5);
 }
 
 /// QuadSRegs - Form 4 consecutive S registers.
@@ -1385,12 +1389,15 @@ SDNode *ARMDAGToDAGISel::PairQRegs(EVT VT, SDValue V0, SDValue V1) {
 SDNode *ARMDAGToDAGISel::QuadSRegs(EVT VT, SDValue V0, SDValue V1,
                                    SDValue V2, SDValue V3) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass =
+    CurDAG->getTargetConstant(ARM::QPR_VFP2RegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::ssub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::ssub_1, MVT::i32);
   SDValue SubReg2 = CurDAG->getTargetConstant(ARM::ssub_2, MVT::i32);
   SDValue SubReg3 = CurDAG->getTargetConstant(ARM::ssub_3, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1, V2, SubReg2, V3, SubReg3 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 8);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1,
+                                    V2, SubReg2, V3, SubReg3 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 9);
 }
 
 /// QuadDRegs - Form 4 consecutive D registers.
@@ -1398,12 +1405,14 @@ SDNode *ARMDAGToDAGISel::QuadSRegs(EVT VT, SDValue V0, SDValue V1,
 SDNode *ARMDAGToDAGISel::QuadDRegs(EVT VT, SDValue V0, SDValue V1,
                                    SDValue V2, SDValue V3) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass = CurDAG->getTargetConstant(ARM::QQPRRegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::dsub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::dsub_1, MVT::i32);
   SDValue SubReg2 = CurDAG->getTargetConstant(ARM::dsub_2, MVT::i32);
   SDValue SubReg3 = CurDAG->getTargetConstant(ARM::dsub_3, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1, V2, SubReg2, V3, SubReg3 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 8);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1,
+                                    V2, SubReg2, V3, SubReg3 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 9);
 }
 
 /// QuadQRegs - Form 4 consecutive Q registers.
@@ -1411,12 +1420,14 @@ SDNode *ARMDAGToDAGISel::QuadDRegs(EVT VT, SDValue V0, SDValue V1,
 SDNode *ARMDAGToDAGISel::QuadQRegs(EVT VT, SDValue V0, SDValue V1,
                                    SDValue V2, SDValue V3) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
+  SDValue RegClass = CurDAG->getTargetConstant(ARM::QQQQPRRegClassID, MVT::i32);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::qsub_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::qsub_1, MVT::i32);
   SDValue SubReg2 = CurDAG->getTargetConstant(ARM::qsub_2, MVT::i32);
   SDValue SubReg3 = CurDAG->getTargetConstant(ARM::qsub_3, MVT::i32);
-  const SDValue Ops[] = { V0, SubReg0, V1, SubReg1, V2, SubReg2, V3, SubReg3 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 8);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1,
+                                    V2, SubReg2, V3, SubReg3 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, VT, Ops, 9);
 }
 
 /// GetVLDSTAlign - Get the alignment (in bytes) for the alignment operand
@@ -2690,6 +2701,111 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
     switch (IntNo) {
     default:
       break;
+
+    case Intrinsic::arm_ldrexd: {
+      SDValue MemAddr = N->getOperand(2);
+      DebugLoc dl = N->getDebugLoc();
+      SDValue Chain = N->getOperand(0);
+
+      unsigned NewOpc = ARM::LDREXD;
+      if (Subtarget->isThumb() && Subtarget->hasThumb2())
+        NewOpc = ARM::t2LDREXD;
+
+      // arm_ldrexd returns a i64 value in {i32, i32}
+      std::vector<EVT> ResTys;
+      ResTys.push_back(MVT::i32);
+      ResTys.push_back(MVT::i32);
+      ResTys.push_back(MVT::Other);
+
+      // place arguments in the right order
+      SmallVector<SDValue, 7> Ops;
+      Ops.push_back(MemAddr);
+      Ops.push_back(getAL(CurDAG));
+      Ops.push_back(CurDAG->getRegister(0, MVT::i32));
+      Ops.push_back(Chain);
+      SDNode *Ld = CurDAG->getMachineNode(NewOpc, dl, ResTys, Ops.data(),
+                                          Ops.size());
+      // Transfer memoperands.
+      MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
+      MemOp[0] = cast<MemIntrinsicSDNode>(N)->getMemOperand();
+      cast<MachineSDNode>(Ld)->setMemRefs(MemOp, MemOp + 1);
+
+      // Until there's support for specifing explicit register constraints
+      // like the use of even/odd register pair, hardcode ldrexd to always
+      // use the pair [R0, R1] to hold the load result.
+      Chain = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, ARM::R0,
+                                   SDValue(Ld, 0), SDValue(0,0));
+      Chain = CurDAG->getCopyToReg(Chain, dl, ARM::R1,
+                                   SDValue(Ld, 1), Chain.getValue(1));
+
+      // Remap uses.
+      SDValue Glue = Chain.getValue(1);
+      if (!SDValue(N, 0).use_empty()) {
+        SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
+                                                ARM::R0, MVT::i32, Glue);
+        Glue = Result.getValue(2);
+        ReplaceUses(SDValue(N, 0), Result);
+      }
+      if (!SDValue(N, 1).use_empty()) {
+        SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
+                                                ARM::R1, MVT::i32, Glue);
+        Glue = Result.getValue(2);
+        ReplaceUses(SDValue(N, 1), Result);
+      }
+
+      ReplaceUses(SDValue(N, 2), SDValue(Ld, 2));
+      return NULL;
+    }
+
+    case Intrinsic::arm_strexd: {
+      DebugLoc dl = N->getDebugLoc();
+      SDValue Chain = N->getOperand(0);
+      SDValue Val0 = N->getOperand(2);
+      SDValue Val1 = N->getOperand(3);
+      SDValue MemAddr = N->getOperand(4);
+
+      // Until there's support for specifing explicit register constraints
+      // like the use of even/odd register pair, hardcode strexd to always
+      // use the pair [R2, R3] to hold the i64 (i32, i32) value to be stored.
+      Chain = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, ARM::R2, Val0,
+                                   SDValue(0, 0));
+      Chain = CurDAG->getCopyToReg(Chain, dl, ARM::R3, Val1, Chain.getValue(1));
+
+      SDValue Glue = Chain.getValue(1);
+      Val0 = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
+                                    ARM::R2, MVT::i32, Glue);
+      Glue = Val0.getValue(1);
+      Val1 = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
+                                    ARM::R3, MVT::i32, Glue);
+
+      // Store exclusive double return a i32 value which is the return status
+      // of the issued store.
+      std::vector<EVT> ResTys;
+      ResTys.push_back(MVT::i32);
+      ResTys.push_back(MVT::Other);
+
+      // place arguments in the right order
+      SmallVector<SDValue, 7> Ops;
+      Ops.push_back(Val0);
+      Ops.push_back(Val1);
+      Ops.push_back(MemAddr);
+      Ops.push_back(getAL(CurDAG));
+      Ops.push_back(CurDAG->getRegister(0, MVT::i32));
+      Ops.push_back(Chain);
+
+      unsigned NewOpc = ARM::STREXD;
+      if (Subtarget->isThumb() && Subtarget->hasThumb2())
+        NewOpc = ARM::t2STREXD;
+
+      SDNode *St = CurDAG->getMachineNode(NewOpc, dl, ResTys, Ops.data(),
+                                          Ops.size());
+      // Transfer memoperands.
+      MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
+      MemOp[0] = cast<MemIntrinsicSDNode>(N)->getMemOperand();
+      cast<MachineSDNode>(St)->setMemRefs(MemOp, MemOp + 1);
+
+      return St;
+    }
 
     case Intrinsic::arm_neon_vld1: {
       unsigned DOpcodes[] = { ARM::VLD1d8, ARM::VLD1d16,

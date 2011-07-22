@@ -338,10 +338,20 @@ private:
   void WriteFPPragmaOptions(const FPOptions &Opts);
   void WriteOpenCLExtensions(Sema &SemaRef);
 
-  unsigned ParmVarDeclAbbrev;
+  unsigned DeclParmVarAbbrev;
   unsigned DeclContextLexicalAbbrev;
   unsigned DeclContextVisibleLookupAbbrev;
   unsigned UpdateVisibleAbbrev;
+  unsigned DeclRefExprAbbrev;
+  unsigned CharacterLiteralAbbrev;
+  unsigned DeclRecordAbbrev;
+  unsigned IntegerLiteralAbbrev;
+  unsigned DeclTypedefAbbrev;
+  unsigned DeclVarAbbrev;
+  unsigned DeclFieldAbbrev;
+  unsigned DeclEnumAbbrev;
+  unsigned DeclObjCIvarAbbrev;
+
   void WriteDeclsBlockAbbrevs();
   void WriteDecl(ASTContext &Context, Decl *D);
 
@@ -373,7 +383,7 @@ public:
   /// are relative to the given system root.
   ///
   /// \param PPRec Record of the preprocessing actions that occurred while
-  /// preprocessing this file, e.g., macro instantiations
+  /// preprocessing this file, e.g., macro expansions
   void WriteAST(Sema &SemaRef, MemorizeStatCalls *StatCalls,
                 const std::string &OutputFile,
                 const char* isysroot);
@@ -568,7 +578,16 @@ public:
   /// \brief Retrieve the ID for the given opaque value expression.
   unsigned getOpaqueValueID(OpaqueValueExpr *e);
 
-  unsigned getParmVarDeclAbbrev() const { return ParmVarDeclAbbrev; }
+  unsigned getDeclParmVarAbbrev() const { return DeclParmVarAbbrev; }
+  unsigned getDeclRefExprAbbrev() const { return DeclRefExprAbbrev; }
+  unsigned getCharacterLiteralAbbrev() const { return CharacterLiteralAbbrev; }
+  unsigned getDeclRecordAbbrev() const { return DeclRecordAbbrev; }
+  unsigned getIntegerLiteralAbbrev() const { return IntegerLiteralAbbrev; }
+  unsigned getDeclTypedefAbbrev() const { return DeclTypedefAbbrev; }
+  unsigned getDeclVarAbbrev() const { return DeclVarAbbrev; }
+  unsigned getDeclFieldAbbrev() const { return DeclFieldAbbrev; }
+  unsigned getDeclEnumAbbrev() const { return DeclEnumAbbrev; }
+  unsigned getDeclObjCIvarAbbrev() const { return DeclObjCIvarAbbrev; }
 
   bool hasChain() const { return Chain; }
 

@@ -56,7 +56,14 @@ acpi_machdep_quirks(int *quirks)
 void
 acpi_cpu_c1()
 {
+#ifdef INVARIANTS
+	register_t ie;
+
+	ie = intr_disable();
+	KASSERT(ie == 0, ("%s called with interrupts enabled\n", __func__));
+#endif
 	ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+	ia64_enable_intr();
 }
 
 void *

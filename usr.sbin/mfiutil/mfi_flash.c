@@ -136,21 +136,25 @@ flash_adapter(int ac, char **av)
 		return (error);
 	}
 
+	buf = NULL;
+	fd = -1;
+
 	if (fstat(flash, &sb) < 0) {
 		error = errno;
 		warn("fstat(%s)", av[1]);
-		return (error);
+		goto error;
 	}
 	if (sb.st_size % 1024 != 0 || sb.st_size > 0x7fffffff) {
 		warnx("Invalid flash file size");
-		return (EINVAL);
+		error = EINVAL;
+		goto error;
 	}
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
-		return (error);
+		goto error;
 	}
 
 	/* First, ask the firmware to allocate space for the flash file. */
@@ -158,14 +162,16 @@ flash_adapter(int ac, char **av)
 	mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_OPEN, NULL, 0, mbox, 4, &status);
 	if (status != MFI_STAT_OK) {
 		warnx("Failed to alloc flash memory: %s", mfi_status(status));
-		return (EIO);
+		error = EIO;
+		goto error;
 	}
 
 	/* Upload the file 64k at a time. */
 	buf = malloc(FLASH_BUF_SIZE);
 	if (buf == NULL) {
 		warnx("malloc failed");
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
 	offset = 0;
 	while (sb.st_size > 0) {
@@ -174,7 +180,8 @@ flash_adapter(int ac, char **av)
 			warnx("Bad read from flash file");
 			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
 			    NULL, 0, NULL);
-			return (ENXIO);
+			error = ENXIO;
+			goto error;
 		}
 
 		mbox_store_word(mbox, offset);
@@ -184,12 +191,12 @@ flash_adapter(int ac, char **av)
 			warnx("Flash download failed: %s", mfi_status(status));
 			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
 			    NULL, 0, NULL);
-			return (ENXIO);
+			error = ENXIO;
+			goto error;
 		}
 		sb.st_size -= nread;
 		offset += nread;
 	}
-	close(flash);
 
 	/* Kick off the flash. */
 	printf("WARNING: Firmware flash in progress, do not reboot machine... ");
@@ -198,12 +205,17 @@ flash_adapter(int ac, char **av)
 	    NULL, 0, &status);
 	if (status != MFI_STAT_OK) {
 		printf("failed:\n\t%s\n", mfi_status(status));
-		return (ENXIO);
+		error = ENXIO;
+		goto error;
 	}
 	printf("finished\n");
 	error = display_pending_firmware(fd);
 
-	close(fd);
+error:
+	free(buf);
+	if (fd >= 0)
+		close(fd);
+	close(flash);
 
 	return (error);
 }

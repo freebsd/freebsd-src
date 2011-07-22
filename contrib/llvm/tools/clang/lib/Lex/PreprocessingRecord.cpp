@@ -45,8 +45,9 @@ void PreprocessingRecord::MaybeLoadPreallocatedEntities() const {
   ExternalSource->ReadPreprocessedEntities();
 }
 
-PreprocessingRecord::PreprocessingRecord()
-  : ExternalSource(0), NumPreallocatedEntities(0), 
+PreprocessingRecord::PreprocessingRecord(bool IncludeNestedMacroExpansions)
+  : IncludeNestedMacroExpansions(IncludeNestedMacroExpansions),
+    ExternalSource(0), NumPreallocatedEntities(0), 
     LoadedPreallocatedEntities(false)
 {
 }
@@ -120,11 +121,13 @@ MacroDefinition *PreprocessingRecord::findMacroDefinition(const MacroInfo *MI) {
 }
 
 void PreprocessingRecord::MacroExpands(const Token &Id, const MacroInfo* MI) {
+  if (!IncludeNestedMacroExpansions && Id.getLocation().isMacroID())
+    return;
+
   if (MacroDefinition *Def = findMacroDefinition(MI))
     PreprocessedEntities.push_back(
-                       new (*this) MacroInstantiation(Id.getIdentifierInfo(),
-                                                      Id.getLocation(),
-                                                      Def));
+                       new (*this) MacroExpansion(Id.getIdentifierInfo(),
+                                                  Id.getLocation(), Def));
 }
 
 void PreprocessingRecord::MacroDefined(const Token &Id,

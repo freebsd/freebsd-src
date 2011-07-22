@@ -14,7 +14,7 @@
 #include <utility>
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/PackedVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "clang/AST/Decl.h"
 #include "clang/Analysis/CFG.h"
@@ -93,39 +93,8 @@ static bool isAlwaysUninit(const Value v) {
 }
 
 namespace {
-class ValueVector {
-  llvm::BitVector vec;
-public:
-  ValueVector() {}
-  ValueVector(unsigned size) : vec(size << 1) {}
-  void resize(unsigned n) { vec.resize(n << 1); }
-  void merge(const ValueVector &rhs) { vec |= rhs.vec; }
-  bool operator!=(const ValueVector &rhs) const { return vec != rhs.vec; }
-  void reset() { vec.reset(); }
-  
-  class reference {
-    ValueVector &vv;
-    const unsigned idx;
 
-    reference();  // Undefined    
-  public:
-    reference(ValueVector &vv, unsigned idx) : vv(vv), idx(idx) {}    
-    ~reference() {}
-    
-    reference &operator=(Value v) {
-      vv.vec[idx << 1] = (((unsigned) v) & 0x1) ? true : false;
-      vv.vec[(idx << 1) | 1] = (((unsigned) v) & 0x2) ? true : false;
-      return *this;
-    }
-    operator Value() {
-      unsigned x = (vv.vec[idx << 1] ? 1 : 0) | (vv.vec[(idx << 1) | 1] ? 2 :0);
-      return (Value) x;      
-    }
-  };
-    
-  reference operator[](unsigned idx) { return reference(*this, idx); }
-};
-
+typedef llvm::PackedVector<Value, 2> ValueVector;
 typedef std::pair<ValueVector *, ValueVector *> BVPair;
 
 class CFGBlockValues {
@@ -214,11 +183,15 @@ static BinaryOperator *getLogicalOperatorInChain(const CFGBlock *block) {
   if (!b || !b->isLogicalOp())
     return 0;
   
-  if (block->pred_size() == 2 &&
-      ((block->succ_size() == 2 && block->getTerminatorCondition() == b) ||
-       block->size() == 1))
-    return b;
-  
+  if (block->pred_size() == 2) {
+    if (block->getTerminatorCondition() == b) {
+      if (block->succ_size() == 2)
+      return b;
+    }
+    else if (block->size() == 1)
+      return b;
+  }
+
   return 0;
 }
 
@@ -255,7 +228,7 @@ void CFGBlockValues::mergeIntoScratch(ValueVector const &source,
   if (isFirst)
     scratch = source;
   else
-    scratch.merge(source);
+    scratch |= source;
 }
 #if 0
 static void printVector(const CFGBlock *block, ValueVector &bv,
@@ -315,28 +288,28 @@ class DataflowWorklist {
 public:
   DataflowWorklist(const CFG &cfg) : enqueuedBlocks(cfg.getNumBlockIDs()) {}
   
-  void enqueue(const CFGBlock *block);
   void enqueueSuccessors(const CFGBlock *block);
   const CFGBlock *dequeue();
-  
 };
 }
 
-void DataflowWorklist::enqueue(const CFGBlock *block) {
-  if (!block)
-    return;
-  unsigned idx = block->getBlockID();
-  if (enqueuedBlocks[idx])
-    return;
-  worklist.push_back(block);
-  enqueuedBlocks[idx] = true;
-}
-
 void DataflowWorklist::enqueueSuccessors(const clang::CFGBlock *block) {
+  unsigned OldWorklistSize = worklist.size();
   for (CFGBlock::const_succ_iterator I = block->succ_begin(),
        E = block->succ_end(); I != E; ++I) {
-    enqueue(*I);
+    const CFGBlock *Successor = *I;
+    if (!Successor || enqueuedBlocks[Successor->getBlockID()])
+      continue;
+    worklist.push_back(Successor);
+    enqueuedBlocks[Successor->getBlockID()] = true;
   }
+  if (OldWorklistSize == 0 || OldWorklistSize == worklist.size())
+    return;
+
+  // Rotate the newly added blocks to the start of the worklist so that it forms
+  // a proper queue when we pop off the end of the worklist.
+  std::rotate(worklist.begin(), worklist.begin() + OldWorklistSize,
+              worklist.end());
 }
 
 const CFGBlock *DataflowWorklist::dequeue() {
@@ -681,14 +654,18 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
   return vals.updateValueVectorWithScratch(block);
 }
 
-void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
-                                              const CFG &cfg,
-                                              AnalysisContext &ac,
-                                              UninitVariablesHandler &handler) {
+void clang::runUninitializedVariablesAnalysis(
+    const DeclContext &dc,
+    const CFG &cfg,
+    AnalysisContext &ac,
+    UninitVariablesHandler &handler,
+    UninitVariablesAnalysisStats &stats) {
   CFGBlockValues vals(cfg);
   vals.computeSetOfDeclarations(dc);
   if (vals.hasNoDeclarations())
     return;
+
+  stats.NumVariablesAnalyzed = vals.getNumEntries();
 
   // Mark all variables uninitialized at the entry.
   const CFGBlock &entry = cfg.getEntry();
@@ -711,7 +688,8 @@ void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
 
   while (const CFGBlock *block = worklist.dequeue()) {
     // Did the block change?
-    bool changed = runOnBlock(block, cfg, ac, vals, wasAnalyzed);    
+    bool changed = runOnBlock(block, cfg, ac, vals, wasAnalyzed);
+    ++stats.NumBlockVisits;
     if (changed || !previouslyVisited[block->getBlockID()])
       worklist.enqueueSuccessors(block);    
     previouslyVisited[block->getBlockID()] = true;
@@ -719,11 +697,12 @@ void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
   
   // Run through the blocks one more time, and report uninitialized variabes.
   for (CFG::const_iterator BI = cfg.begin(), BE = cfg.end(); BI != BE; ++BI) {
-    if (wasAnalyzed[(*BI)->getBlockID()])
+    if (wasAnalyzed[(*BI)->getBlockID()]) {
       runOnBlock(*BI, cfg, ac, vals, wasAnalyzed, &handler,
                  /* flagBlockUses */ true);
+      ++stats.NumBlockVisits;
+    }
   }
 }
 
 UninitVariablesHandler::~UninitVariablesHandler() {}
-

@@ -528,6 +528,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
+#ifdef	ATH_ENABLE_DFS
+		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+#endif
 		;
 	/*
 	 * Query the hal to figure out h/w crypto support.
@@ -746,6 +749,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	ath_sysctlattach(sc);
 	ath_sysctl_stats_attach(sc);
+	ath_sysctl_hal_attach(sc);
 
 	/* Setup software TX queue related bits */
 	STAILQ_INIT(&sc->sc_txnodeq);
@@ -1277,6 +1281,10 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
@@ -1298,6 +1306,8 @@ ath_resume(struct ath_softc *sc)
 		    HAL_GPIO_MUX_MAC_NETWORK_LED);
 		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
+
+	/* XXX beacons ? */
 }
 
 void
@@ -1600,6 +1610,12 @@ ath_init(void *arg)
 	sc->sc_lastani = 0;
 	sc->sc_lastshortcal = 0;
 	sc->sc_doresetcal = AH_FALSE;
+	/*
+	 * Beacon timers were cleared here; give ath_newstate()
+	 * a hint that the beacon timers should be poked when
+	 * things transition to the RUN state.
+	 */
+	sc->sc_beacons = 0;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -2036,6 +2052,10 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	if (sc->sc_dodfs) {
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+	}
 
 	/*
 	 * Enable RX of compressed BAR frames only when doing
@@ -3501,7 +3521,15 @@ ath_rx_proc(void *arg, int npending)
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
 				/* Process DFS radar events */
-				ath_dfs_process_phy_err(sc, ds, tsf, rs);
+				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
+				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
+					/* Since we're touching the frame data, sync it */
+					bus_dmamap_sync(sc->sc_dmat,
+					    bf->bf_dmamap,
+					    BUS_DMASYNC_POSTREAD);
+					/* Now pass it to the radar processing code */
+					ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+				}
 
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
 				if (rs->rs_phyerr < 64)
@@ -4510,6 +4538,19 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_chan_change(sc, chan);
 
 		/*
+		 * Reset clears the beacon timers; reset them
+		 * here if needed.
+		 */
+		if (sc->sc_beacons) {		/* restart beacons */
+#ifdef IEEE80211_SUPPORT_TDMA
+			if (sc->sc_tdma)
+				ath_tdma_config(sc, NULL);
+			else
+#endif
+			ath_beacon_config(sc, NULL);
+		}
+
+		/*
 		 * Re-enable interrupts.
 		 */
 		ath_hal_intrset(ah, sc->sc_imask);
@@ -4714,6 +4755,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211_node *ni = NULL;
 	int i, error, stamode;
 	u_int32_t rfilt;
+	int csa_run_transition = 0;
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
@@ -4728,6 +4770,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: %s -> %s\n", __func__,
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
+
+	if (vap->iv_state == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
+		csa_run_transition = 1;
 
 	callout_drain(&sc->sc_cal_ch);
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
@@ -4835,8 +4880,14 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Defer beacon timer configuration to the next
 			 * beacon frame so we have a current TSF to use
 			 * (any TSF collected when scanning is likely old).
+			 * However if it's due to a CSA -> RUN transition,
+			 * force a beacon update so we pick up a lack of
+			 * beacons from an AP in CAC and thus force a
+			 * scan.
 			 */
 			sc->sc_syncbeacon = 1;
+			if (csa_run_transition)
+				ath_beacon_config(sc, vap);
 			break;
 		case IEEE80211_M_MONITOR:
 			/*
@@ -5354,6 +5405,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
+		break;
+	case SIOCGATHPHYERR:
+		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
 	case SIOCGIFADDR:

@@ -26,6 +26,7 @@ namespace driver {
   class HostInfo;
   class InputArgList;
   class JobAction;
+  class ObjCRuntime;
   class Tool;
 
 /// ToolChain - Access to tools for a single platform.
@@ -157,7 +158,7 @@ public:
   virtual bool SupportsProfiling() const { return true; }
 
   /// Does this tool chain support Objective-C garbage collection.
-  virtual bool SupportsObjCGC() const { return false; }
+  virtual bool SupportsObjCGC() const { return true; }
 
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.
@@ -177,6 +178,12 @@ public:
   /// Clang.
   virtual std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
 
+  /// configureObjCRuntime - Configure the known properties of the
+  /// Objective-C runtime for this platform.
+  ///
+  /// FIXME: this doesn't really belong here.
+  virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
+
   // GetCXXStdlibType - Determine the C++ standard library type to use with the
   // given compilation arguments.
   virtual CXXStdlibType GetCXXStdlibType(const ArgList &Args) const;
@@ -184,7 +191,8 @@ public:
   /// AddClangCXXStdlibIncludeArgs - Add the clang -cc1 level arguments to set
   /// the include paths to use for the given C++ standard library type.
   virtual void AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs) const;
+                                            ArgStringList &CmdArgs,
+                                            bool ObjCXXAutoRefCount) const;
 
   /// AddCXXStdlibLibArgs - Add the system specific linker arguments to use
   /// for the given C++ standard library type.

@@ -5044,13 +5044,13 @@ getdevid(struct cam_devitem *item)
 	 * then allocate that much memory and try again.
 	 */
 retry:
-	ccb->ccb_h.func_code = XPT_GDEV_ADVINFO;
+	ccb->ccb_h.func_code = XPT_DEV_ADVINFO;
 	ccb->ccb_h.flags = CAM_DIR_IN;
-	ccb->cgdai.flags = CGDAI_FLAG_PROTO;
-	ccb->cgdai.buftype = CGDAI_TYPE_SCSI_DEVID;
-	ccb->cgdai.bufsiz = item->device_id_len;
+	ccb->cdai.flags = 0;
+	ccb->cdai.buftype = CDAI_TYPE_SCSI_DEVID;
+	ccb->cdai.bufsiz = item->device_id_len;
 	if (item->device_id_len != 0)
-		ccb->cgdai.buf = (uint8_t *)item->device_id;
+		ccb->cdai.buf = (uint8_t *)item->device_id;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
 		warn("%s: error sending XPT_GDEV_ADVINFO CCB", __func__);
@@ -5069,13 +5069,13 @@ retry:
 		 * This is our first time through.  Allocate the buffer,
 		 * and then go back to get the data.
 		 */
-		if (ccb->cgdai.provsiz == 0) {
+		if (ccb->cdai.provsiz == 0) {
 			warnx("%s: invalid .provsiz field returned with "
 			     "XPT_GDEV_ADVINFO CCB", __func__);
 			retval = 1;
 			goto bailout;
 		}
-		item->device_id_len = ccb->cgdai.provsiz;
+		item->device_id_len = ccb->cdai.provsiz;
 		item->device_id = malloc(item->device_id_len);
 		if (item->device_id == NULL) {
 			warn("%s: unable to allocate %d bytes", __func__,
@@ -5283,8 +5283,9 @@ findsasdevice(struct cam_devlist *devlist, uint64_t sasaddr)
 		/*
 		 * XXX KDM look for LUN IDs as well?
 		 */
-		item_addr = scsi_get_sas_addr(item->device_id,
-					      item->device_id_len);
+		item_addr = scsi_get_devid(item->device_id,
+					   item->device_id_len,
+					   scsi_devid_is_sas_target);
 		if (item_addr == NULL)
 			continue;
 

@@ -409,6 +409,7 @@ struct ath_softc {
 
 	/* DFS related state */
 	void			*sc_dfs;	/* Used by an optional DFS module */
+	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
 	/* Software TX queue related state */
@@ -778,6 +779,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_enableDfs)((_ah), (_param)))
 #define	ath_hal_getdfsthresh(_ah, _param) \
 	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
+#define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
+	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), (_buf), (_event)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

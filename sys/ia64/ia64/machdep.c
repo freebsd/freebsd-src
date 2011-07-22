@@ -232,6 +232,9 @@ identifycpu(void)
 		case 0x00:
 			model_name = "Montecito";
 			break;
+		case 0x01:
+			model_name = "Montvale";
+			break;
 		}
 		break;
 	}
@@ -344,6 +347,11 @@ cpu_startup(void *dummy)
 
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhardclocks", CTLFLAG_RD, &pcs->pcs_nhardclocks,
+		    "Number of IPI_HARDCLOCK interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nhighfps", CTLFLAG_RD, &pcs->pcs_nhighfps,
 		    "Number of IPI_HIGH_FP interrupts");
 
@@ -411,12 +419,30 @@ cpu_halt()
 void
 cpu_idle(int busy)
 {
-	struct ia64_pal_result res;
+	register_t ie;
 
-	if (cpu_idle_hook != NULL)
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+
+	ie = intr_disable();
+	KASSERT(ie != 0, ("%s called with interrupts disabled\n", __func__));
+
+	if (sched_runnable())
+		ia64_enable_intr();
+	else if (cpu_idle_hook != NULL) {
 		(*cpu_idle_hook)();
-	else
-		res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		/* The hook must enable interrupts! */
+	} else {
+		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		ia64_enable_intr();
+	}
+
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
 }
 
 int
@@ -445,11 +471,11 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		atomic_store_rel_ptr(&old->td_lock, mtx);
-
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+		atomic_store_rel_ptr(&old->td_lock, mtx);
 
 #if defined(SCHED_ULE) && defined(SMP)
 		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
@@ -644,9 +670,12 @@ calculate_frequencies(void)
 {
 	struct ia64_sal_result sal;
 	struct ia64_pal_result pal;
+	register_t ie;
 
+	ie = intr_disable();
 	sal = ia64_sal_entry(SAL_FREQ_BASE, 0, 0, 0, 0, 0, 0, 0);
 	pal = ia64_call_pal_static(PAL_FREQ_RATIOS, 0, 0, 0);
+	intr_restore(ie);
 
 	if (sal.sal_status == 0 && pal.pal_status == 0) {
 		if (bootverbose) {
@@ -760,6 +789,8 @@ ia64_init(void)
 	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
+
+	set_cputicker(ia64_get_itc, (u_long)itc_freq * 1000000, 0);
 
 	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed

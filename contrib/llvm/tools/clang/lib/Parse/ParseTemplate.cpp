@@ -861,8 +861,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
 void Parser::AnnotateTemplateIdTokenAsType() {
   assert(Tok.is(tok::annot_template_id) && "Requires template-id tokens");
 
-  TemplateIdAnnotation *TemplateId
-    = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+  TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
   assert((TemplateId->Kind == TNK_Type_template ||
           TemplateId->Kind == TNK_Dependent_template_name) &&
          "Only works for type and dependent templates");
@@ -888,7 +887,6 @@ void Parser::AnnotateTemplateIdTokenAsType() {
   // Replace the template-id annotation token, and possible the scope-specifier
   // that precedes it, with the typename annotation token.
   PP.AnnotateCachedTokens(Tok);
-  TemplateId->Destroy();
 }
 
 /// \brief Determine whether the given token can end a template argument.
@@ -905,10 +903,10 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
 
   // C++0x [temp.arg.template]p1:
   //   A template-argument for a template template-parameter shall be the name
-  //   of a class template or a template alias, expressed as id-expression.
+  //   of a class template or an alias template, expressed as id-expression.
   //   
-  // We parse an id-expression that refers to a class template or template
-  // alias. The grammar we parse is:
+  // We parse an id-expression that refers to a class template or alias
+  // template. The grammar we parse is:
   //
   //   nested-name-specifier[opt] template[opt] identifier ...[opt]
   //
@@ -969,7 +967,7 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
                                                 MemberOfUnknownSpecialization);
       if (TNK == TNK_Dependent_template_name || TNK == TNK_Type_template) {
         // We have an id-expression that refers to a class template or
-        // (C++0x) template alias. 
+        // (C++0x) alias template. 
         Result = ParsedTemplateArgument(SS, Template, Name.StartLocation);
       }
     }

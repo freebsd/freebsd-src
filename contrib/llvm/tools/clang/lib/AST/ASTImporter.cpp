@@ -64,6 +64,7 @@ namespace {
     // FIXME: DependentTypeOfExprType
     QualType VisitTypeOfType(const TypeOfType *T);
     QualType VisitDecltypeType(const DecltypeType *T);
+    QualType VisitUnaryTransformType(const UnaryTransformType *T);
     QualType VisitAutoType(const AutoType *T);
     // FIXME: DependentDecltypeType
     QualType VisitRecordType(const RecordType *T);
@@ -604,7 +605,14 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                   cast<TypeOfType>(T2)->getUnderlyingType()))
       return false;
     break;
-      
+
+  case Type::UnaryTransform:
+    if (!IsStructurallyEquivalent(Context,
+                             cast<UnaryTransformType>(T1)->getUnderlyingType(),
+                             cast<UnaryTransformType>(T1)->getUnderlyingType()))
+      return false;
+    break;
+
   case Type::Decltype:
     if (!IsStructurallyEquivalent(Context,
                                   cast<DecltypeType>(T1)->getUnderlyingExpr(),
@@ -1572,6 +1580,17 @@ QualType ASTNodeImporter::VisitDecltypeType(const DecltypeType *T) {
   return Importer.getToContext().getDecltypeType(ToExpr);
 }
 
+QualType ASTNodeImporter::VisitUnaryTransformType(const UnaryTransformType *T) {
+  QualType ToBaseType = Importer.Import(T->getBaseType());
+  QualType ToUnderlyingType = Importer.Import(T->getUnderlyingType());
+  if (ToBaseType.isNull() || ToUnderlyingType.isNull())
+    return QualType();
+
+  return Importer.getToContext().getUnaryTransformType(ToBaseType,
+                                                       ToUnderlyingType,
+                                                       T->getUTTKind());
+}
+
 QualType ASTNodeImporter::VisitAutoType(const AutoType *T) {
   // FIXME: Make sure that the "to" context supports C++0x!
   QualType FromDeduced = T->getDeducedType();
@@ -2493,9 +2512,12 @@ Decl *ASTNodeImporter::VisitFieldDecl(FieldDecl *D) {
   FieldDecl *ToField = FieldDecl::Create(Importer.getToContext(), DC,
                                          Importer.Import(D->getInnerLocStart()),
                                          Loc, Name.getAsIdentifierInfo(),
-                                         T, TInfo, BitWidth, D->isMutable());
+                                         T, TInfo, BitWidth, D->isMutable(),
+                                         D->hasInClassInitializer());
   ToField->setAccess(D->getAccess());
   ToField->setLexicalDeclContext(LexicalDC);
+  if (ToField->hasInClassInitializer())
+    ToField->setInClassInitializer(D->getInClassInitializer());
   Importer.Imported(D, ToField);
   LexicalDC->addDecl(ToField);
   return ToField;
@@ -2851,7 +2873,8 @@ Decl *ASTNodeImporter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
                              D->isVariadic(),
                              D->isSynthesized(),
                              D->isDefined(),
-                             D->getImplementationControl());
+                             D->getImplementationControl(),
+                             D->hasRelatedResultType());
 
   // FIXME: When we decide to merge method definitions, we'll need to
   // deal with implicit parameters.
@@ -4178,6 +4201,20 @@ TemplateName ASTImporter::Import(TemplateName From) {
     
     return ToContext.getDependentTemplateName(Qualifier, DTN->getOperator());
   }
+
+  case TemplateName::SubstTemplateTemplateParm: {
+    SubstTemplateTemplateParmStorage *subst
+      = From.getAsSubstTemplateTemplateParm();
+    TemplateTemplateParmDecl *param
+      = cast_or_null<TemplateTemplateParmDecl>(Import(subst->getParameter()));
+    if (!param)
+      return TemplateName();
+
+    TemplateName replacement = Import(subst->getReplacement());
+    if (replacement.isNull()) return TemplateName();
+    
+    return ToContext.getSubstTemplateTemplateParm(param, replacement);
+  }
       
   case TemplateName::SubstTemplateTemplateParmPack: {
     SubstTemplateTemplateParmPackStorage *SubstPack
@@ -4209,8 +4246,8 @@ SourceLocation ASTImporter::Import(SourceLocation FromLoc) {
   SourceManager &FromSM = FromContext.getSourceManager();
   
   // For now, map everything down to its spelling location, so that we
-  // don't have to import macro instantiations.
-  // FIXME: Import macro instantiations!
+  // don't have to import macro expansions.
+  // FIXME: Import macro expansions!
   FromLoc = FromSM.getSpellingLoc(FromLoc);
   std::pair<FileID, unsigned> Decomposed = FromSM.getDecomposedLoc(FromLoc);
   SourceManager &ToSM = ToContext.getSourceManager();
@@ -4231,7 +4268,7 @@ FileID ASTImporter::Import(FileID FromID) {
   SourceManager &FromSM = FromContext.getSourceManager();
   SourceManager &ToSM = ToContext.getSourceManager();
   const SrcMgr::SLocEntry &FromSLoc = FromSM.getSLocEntry(FromID);
-  assert(FromSLoc.isFile() && "Cannot handle macro instantiations yet");
+  assert(FromSLoc.isFile() && "Cannot handle macro expansions yet");
   
   // Include location of this file.
   SourceLocation ToIncludeLoc = Import(FromSLoc.getFile().getIncludeLoc());

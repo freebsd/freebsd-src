@@ -471,7 +471,7 @@ pmap_create_kernel_pagetable(void)
 
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_segtab = kernel_segmap;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	kernel_pmap->pm_asid[0].asid = PMAP_ASID_RESERVED;
 	kernel_pmap->pm_asid[0].gen = 0;
@@ -625,15 +625,18 @@ pmap_init(void)
 static __inline void
 pmap_invalidate_all_local(pmap_t pmap)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (pmap == kernel_pmap) {
 		tlb_invalidate_all();
 		return;
 	}
-	if (pmap->pm_active & PCPU_GET(cpumask))
+	if (CPU_ISSET(cpuid, &pmap->pm_active))
 		tlb_invalidate_all_user(pmap);
 	else
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
+		pmap->pm_asid[cpuid].gen = 0;
 }
 
 #ifdef SMP
@@ -662,15 +665,18 @@ pmap_invalidate_all(pmap_t pmap)
 static __inline void
 pmap_invalidate_page_local(pmap_t pmap, vm_offset_t va)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (is_kernel_pmap(pmap)) {
 		tlb_invalidate_address(pmap, va);
 		return;
 	}
-	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation))
+	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
 		return;
-	else if (!(pmap->pm_active & PCPU_GET(cpumask))) {
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
+	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
+		pmap->pm_asid[cpuid].gen = 0;
 		return;
 	}
 	tlb_invalidate_address(pmap, va);
@@ -711,15 +717,18 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 static __inline void
 pmap_update_page_local(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (is_kernel_pmap(pmap)) {
 		tlb_update(pmap, va, pte);
 		return;
 	}
-	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation))
+	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
 		return;
-	else if (!(pmap->pm_active & PCPU_GET(cpumask))) {
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
+	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
+		pmap->pm_asid[cpuid].gen = 0;
 		return;
 	}
 	tlb_update(pmap, va, pte);
@@ -1041,7 +1050,7 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_segtab = kernel_segmap;
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	pmap->pm_ptphint = NULL;
 	for (i = 0; i < MAXCPU; i++) {
 		pmap->pm_asid[i].asid = PMAP_ASID_RESERVED;
@@ -1102,7 +1111,7 @@ pmap_pinit(pmap_t pmap)
 
 	ptdva = MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(ptdpg));
 	pmap->pm_segtab = (pd_entry_t *)ptdva;
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	pmap->pm_ptphint = NULL;
 	for (i = 0; i < MAXCPU; i++) {
 		pmap->pm_asid[i].asid = PMAP_ASID_RESERVED;
@@ -1402,7 +1411,7 @@ get_pv_entry(pmap_t locked_pmap)
 	vpq = &vm_page_queues[PQ_INACTIVE];
 retry:
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
-		if (m->hold_count || m->busy)
+		if ((m->flags & PG_MARKER) != 0 || m->hold_count || m->busy)
 			continue;
 		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
@@ -1699,8 +1708,8 @@ pmap_remove_all(vm_page_t m)
 	pv_entry_t pv;
 	pt_entry_t *pte, tpte;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 
 	if (m->md.pv_flags & PV_TABLE_REF)
@@ -2941,19 +2950,21 @@ pmap_activate(struct thread *td)
 {
 	pmap_t pmap, oldpmap;
 	struct proc *p = td->td_proc;
+	u_int cpuid;
 
 	critical_enter();
 
 	pmap = vmspace_pmap(p->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
+	cpuid = PCPU_GET(cpuid);
 
 	if (oldpmap)
-		atomic_clear_32(&oldpmap->pm_active, PCPU_GET(cpumask));
-	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
+		CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	pmap_asid_alloc(pmap);
 	if (td == curthread) {
 		PCPU_SET(segbase, pmap->pm_segtab);
-		mips_wr_entryhi(pmap->pm_asid[PCPU_GET(cpuid)].asid);
+		mips_wr_entryhi(pmap->pm_asid[cpuid].asid);
 	}
 
 	PCPU_SET(curpmap, pmap);
@@ -3283,7 +3294,7 @@ pmap_kextract(vm_offset_t va)
 		pt_entry_t *ptep;
 
 		/* Is the kernel pmap initialized? */
-		if (kernel_pmap->pm_active) {
+		if (!CPU_EMPTY(&kernel_pmap->pm_active)) {
 			/* It's inside the virtual address range */
 			ptep = pmap_pte(kernel_pmap, va);
 			if (ptep) {

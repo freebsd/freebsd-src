@@ -332,6 +332,14 @@ public:
   /// consumed.
   void clear();
 
+  /// clearDanglingDebugInfo - Clear the dangling debug information
+  /// map. This function is seperated from the clear so that debug
+  /// information that is dangling in a basic block can be properly
+  /// resolved in a different basic block. This allows the
+  /// SelectionDAG to resolve dangling debug information attached
+  /// to PHI nodes.
+  void clearDanglingDebugInfo();
+
   /// getRoot - Return the current virtual root of the Selection DAG,
   /// flushing any PendingLoad items. This must be done before emitting
   /// a store or any other node that may need to be ordered after any
@@ -426,6 +434,9 @@ private:
                                 const Value* SV,
                                 MachineBasicBlock* Default,
                                 MachineBasicBlock *SwitchBB);
+
+  uint32_t getEdgeWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst);
+  void addSuccessorWithWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst);
 public:
   void visitSwitchCase(CaseBlock &CB,
                        MachineBasicBlock *SwitchBB);
@@ -456,7 +467,7 @@ private:
   void visitSRem(const User &I) { visitBinary(I, ISD::SREM); }
   void visitFRem(const User &I) { visitBinary(I, ISD::FREM); }
   void visitUDiv(const User &I) { visitBinary(I, ISD::UDIV); }
-  void visitSDiv(const User &I) { visitBinary(I, ISD::SDIV); }
+  void visitSDiv(const User &I);
   void visitFDiv(const User &I) { visitBinary(I, ISD::FDIV); }
   void visitAnd (const User &I) { visitBinary(I, ISD::AND); }
   void visitOr  (const User &I) { visitBinary(I, ISD::OR); }

@@ -1221,14 +1221,15 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *scifp = sc->sc_ifp;
 
+	LAGG_RLOCK(sc);
 	if ((scifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (lp->lp_flags & LAGG_PORT_DISABLED) ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
+		LAGG_RUNLOCK(sc);
 		m_freem(m);
 		return (NULL);
 	}
 
-	LAGG_RLOCK(sc);
 	ETHER_BPF_MTAP(scifp, m);
 
 	m = (*sc->sc_input)(sc, lp, m);

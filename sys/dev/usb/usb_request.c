@@ -238,6 +238,10 @@ usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
+
+		/* reset error counter */
+		udev->clear_stall_errors = 0;
+
 		if (ep == NULL)
 			goto tr_setup;		/* device was unconfigured */
 		if (ep->edesc &&
@@ -289,8 +293,23 @@ tr_setup:
 		goto tr_setup;
 
 	default:
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED)
 			break;
+
+		DPRINTF("Clear stall failed.\n");
+		if (udev->clear_stall_errors == USB_CS_RESET_LIMIT)
+			goto tr_setup;
+
+		if (error == USB_ERR_TIMEOUT) {
+			udev->clear_stall_errors = USB_CS_RESET_LIMIT;
+			DPRINTF("Trying to re-enumerate.\n");
+			usbd_start_re_enumerate(udev);
+		} else {
+			udev->clear_stall_errors++;
+			if (udev->clear_stall_errors == USB_CS_RESET_LIMIT) {
+				DPRINTF("Trying to re-enumerate.\n");
+				usbd_start_re_enumerate(udev);
+			}
 		}
 		goto tr_setup;
 	}
@@ -760,10 +779,17 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	uint16_t pr_recovery_delay;
 
 #endif
-	err = usbd_req_set_port_feature(udev, mtx, port, UHF_PORT_RESET);
-	if (err) {
+	/* clear any leftover port reset changes first */
+	usbd_req_clear_port_feature(
+	    udev, mtx, port, UHF_C_PORT_RESET);
+
+	/* assert port reset on the given port */
+	err = usbd_req_set_port_feature(
+	    udev, mtx, port, UHF_PORT_RESET);
+
+	/* check for errors */
+	if (err)
 		goto done;
-	}
 #ifdef USB_DEBUG
 	/* range check input parameters */
 	pr_poll_delay = usb_pr_poll_delay;
@@ -779,6 +805,9 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 #endif
 	n = 0;
 	while (1) {
+		uint16_t status;
+		uint16_t change;
+
 #ifdef USB_DEBUG
 		/* wait for the device to recover from reset */
 		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
@@ -792,14 +821,25 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		if (err) {
 			goto done;
 		}
+		status = UGETW(ps.wPortStatus);
+		change = UGETW(ps.wPortChange);
+
 		/* if the device disappeared, just give up */
-		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
+		if (!(status & UPS_CURRENT_CONNECT_STATUS))
 			goto done;
-		}
+
 		/* check if reset is complete */
-		if (UGETW(ps.wPortChange) & UPS_C_PORT_RESET) {
+		if (change & UPS_C_PORT_RESET)
 			break;
-		}
+
+		/*
+		 * Some Virtual Machines like VirtualBox 4.x fail to
+		 * generate a port reset change event. Check if reset
+		 * is no longer asserted.
+		 */
+		if (!(status & UPS_RESET))
+			break;
+
 		/* check for timeout */
 		if (n > 1000) {
 			n = 0;
@@ -1936,6 +1976,23 @@ usbd_req_re_enumerate(struct usb_device *udev, struct mtx *mtx)
 		return (USB_ERR_INVAL);
 	}
 retry:
+	/*
+	 * Try to reset the High Speed parent HUB of a LOW- or FULL-
+	 * speed device, if any.
+	 */
+	if (udev->parent_hs_hub != NULL &&
+	    udev->speed != USB_SPEED_HIGH) {
+		DPRINTF("Trying to reset parent High Speed TT.\n");
+		err = usbd_req_reset_tt(udev->parent_hs_hub, NULL,
+		    udev->hs_port_no);
+		if (err) {
+			DPRINTF("Resetting parent High "
+			    "Speed TT failed (%s).\n",
+			    usbd_errstr(err));
+		}
+	}
+
+	/* Try to reset the parent HUB port. */
 	err = usbd_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
 		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
@@ -2030,6 +2087,68 @@ usbd_req_set_device_feature(struct usb_device *udev, struct mtx *mtx,
 	req.bRequest = UR_SET_FEATURE;
 	USETW(req.wValue, sel);
 	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_reset_tt
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_reset_tt(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port)
+{
+	struct usb_device_request req;
+
+	/* For single TT HUBs the port should be 1 */
+
+	if (udev->ddesc.bDeviceClass == UDCLASS_HUB &&
+	    udev->ddesc.bDeviceProtocol == UDPROTO_HSHUBSTT)
+		port = 1;
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_RESET_TT;
+	USETW(req.wValue, 0);
+	req.wIndex[0] = port;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_clear_tt_buffer
+ *
+ * For single TT HUBs the port should be 1.
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_clear_tt_buffer(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t addr, uint8_t type, uint8_t endpoint)
+{
+	struct usb_device_request req;
+	uint16_t wValue;
+
+	/* For single TT HUBs the port should be 1 */
+
+	if (udev->ddesc.bDeviceClass == UDCLASS_HUB &&
+	    udev->ddesc.bDeviceProtocol == UDPROTO_HSHUBSTT)
+		port = 1;
+
+	wValue = (endpoint & 0xF) | ((addr & 0x7F) << 4) |
+	    ((endpoint & 0x80) << 8) | ((type & 3) << 12);
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_CLEAR_TT_BUFFER;
+	USETW(req.wValue, wValue);
+	req.wIndex[0] = port;
+	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 	return (usbd_do_request(udev, mtx, &req, 0));
 }

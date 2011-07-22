@@ -30,6 +30,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -300,29 +303,6 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 }
 
 int
-pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
-    int *nzero, int flags)
-{
-	struct pfioc_table io;
-
-	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRCLRASTATS, &io))
-		return (-1);
-	if (nzero != NULL)
-		*nzero = io.pfrio_nzero;
-	return (0);
-}
-
-int
 pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 {
 	struct pfioc_table io;
@@ -340,32 +320,6 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 		return (-1);
 	if (nzero)
 		*nzero = io.pfrio_nzero;
-	return (0);
-}
-
-int
-pfr_set_tflags(struct pfr_table *tbl, int size, int setflag, int clrflag,
-    int *nchange, int *ndel, int flags)
-{
-	struct pfioc_table io;
-
-	if (size < 0 || (size && !tbl)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_buffer = tbl;
-	io.pfrio_esize = sizeof(*tbl);
-	io.pfrio_size = size;
-	io.pfrio_setflag = setflag;
-	io.pfrio_clrflag = clrflag;
-	if (ioctl(dev, DIOCRSETTFLAGS, &io))
-		return (-1);
-	if (nchange)
-		*nchange = io.pfrio_nchange;
-	if (ndel)
-		*ndel = io.pfrio_ndel;
 	return (0);
 }
 

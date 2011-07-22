@@ -247,7 +247,7 @@ static struct ucom_callback uplcom_callback = {
 #define	UPLCOM_DEV(v,p)				\
   { USB_VENDOR(USB_VENDOR_##v), USB_PRODUCT(USB_PRODUCT_##v##_##p) }
 
-static const struct usb_device_id uplcom_devs[] = {
+static const STRUCT_USB_HOST_ID uplcom_devs[] = {
 	UPLCOM_DEV(ACERP, S81),			/* BenQ S81 phone */
 	UPLCOM_DEV(ADLINK, ND6530),		/* ADLINK ND-6530 USB-Serial */
 	UPLCOM_DEV(ALCATEL, OT535),		/* Alcatel One Touch 535/735 */

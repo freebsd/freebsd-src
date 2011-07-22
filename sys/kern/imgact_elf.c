@@ -31,10 +31,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_core.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -578,6 +580,15 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	u_long base_addr = 0;
 	int vfslocked, error, i, numsegs;
 
+#ifdef CAPABILITY_MODE
+	/*
+	 * XXXJA: This check can go away once we are sufficiently confident
+	 * that the checks in namei() are correct.
+	 */
+	if (IN_CAPABILITY_MODE(curthread))
+		return (ECAPMODE);
+#endif
+
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
@@ -1104,6 +1115,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = 0;
 	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	error = racct_add(td->td_proc, RACCT_CORE, hdrsize + seginfo.size);
 	PROC_UNLOCK(td->td_proc);
@@ -1111,6 +1123,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		error = EFAULT;
 		goto done;
 	}
+#endif
 	if (hdrsize + seginfo.size >= limit) {
 		error = EFAULT;
 		goto done;

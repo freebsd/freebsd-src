@@ -352,8 +352,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD) ||
-          CGM.getContext().ZeroBitfieldFollowsBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
         --FieldNo;
         continue;
       }
@@ -434,9 +433,19 @@ llvm::Constant *ConstStructBuilder::
   if (!Builder.Build(ILE))
     return 0;
   
+  // Pick the type to use.  If the type is layout identical to the ConvertType
+  // type then use it, otherwise use whatever the builder produced for us.
+  const llvm::StructType *STy =
+      llvm::ConstantStruct::getTypeForElements(CGM.getLLVMContext(),
+                                               Builder.Elements,Builder.Packed);
+  const llvm::Type *ILETy = CGM.getTypes().ConvertType(ILE->getType());
+  if (const llvm::StructType *ILESTy = dyn_cast<llvm::StructType>(ILETy)) {
+    if (ILESTy->isLayoutIdentical(STy))
+      STy = ILESTy;
+  }
+    
   llvm::Constant *Result =
-  llvm::ConstantStruct::get(CGM.getLLVMContext(),
-                            Builder.Elements, Builder.Packed);
+    llvm::ConstantStruct::get(STy, Builder.Elements);
   
   assert(Builder.NextFieldOffsetInChars.RoundUpToAlignment(
            Builder.getAlignment(Result)) ==
@@ -470,6 +479,11 @@ public:
 
   llvm::Constant *VisitParenExpr(ParenExpr *PE) {
     return Visit(PE->getSubExpr());
+  }
+
+  llvm::Constant *
+  VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *PE) {
+    return Visit(PE->getReplacement());
   }
 
   llvm::Constant *VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
@@ -524,7 +538,7 @@ public:
       // Build a struct with the union sub-element as the first member,
       // and padded to the appropriate size
       std::vector<llvm::Constant*> Elts;
-      std::vector<const llvm::Type*> Types;
+      std::vector<llvm::Type*> Types;
       Elts.push_back(C);
       Types.push_back(C->getType());
       unsigned CurSize = CGM.getTargetData().getTypeAllocSize(C->getType());
@@ -532,7 +546,7 @@ public:
 
       assert(CurSize <= TotalSize && "Union size mismatch!");
       if (unsigned NumPadBytes = TotalSize - CurSize) {
-        const llvm::Type *Ty = llvm::Type::getInt8Ty(VMContext);
+        llvm::Type *Ty = llvm::Type::getInt8Ty(VMContext);
         if (NumPadBytes > 1)
           Ty = llvm::ArrayType::get(Ty, NumPadBytes);
 
@@ -571,6 +585,9 @@ public:
     case CK_GetObjCProperty:
     case CK_ToVoid:
     case CK_Dynamic:
+    case CK_ObjCProduceObject:
+    case CK_ObjCConsumeObject:
+    case CK_ObjCReclaimReturnedObject:
       return 0;
 
     // These might need to be supported for constexpr.
@@ -611,12 +628,12 @@ public:
       return llvm::ConstantPointerNull::get(cast<llvm::PointerType>(destType));
 
     case CK_IntegralCast: {
-      bool isSigned = subExpr->getType()->isSignedIntegerType();
+      bool isSigned = subExpr->getType()->isSignedIntegerOrEnumerationType();
       return llvm::ConstantExpr::getIntegerCast(C, destType, isSigned);
     }
 
     case CK_IntegralToPointer: {
-      bool isSigned = subExpr->getType()->isSignedIntegerType();
+      bool isSigned = subExpr->getType()->isSignedIntegerOrEnumerationType();
       C = llvm::ConstantExpr::getIntegerCast(C, CGM.IntPtrTy, isSigned);
       return llvm::ConstantExpr::getIntToPtr(C, destType);
     }
@@ -626,13 +643,13 @@ public:
                              llvm::Constant::getNullValue(C->getType()));
 
     case CK_IntegralToFloating:
-      if (subExpr->getType()->isSignedIntegerType())
+      if (subExpr->getType()->isSignedIntegerOrEnumerationType())
         return llvm::ConstantExpr::getSIToFP(C, destType);
       else
         return llvm::ConstantExpr::getUIToFP(C, destType);
 
     case CK_FloatingToIntegral:
-      if (E->getType()->isSignedIntegerType())
+      if (E->getType()->isSignedIntegerOrEnumerationType())
         return llvm::ConstantExpr::getFPToSI(C, destType);
       else
         return llvm::ConstantExpr::getFPToUI(C, destType);
@@ -649,6 +666,10 @@ public:
 
   llvm::Constant *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     return Visit(DAE->getExpr());
+  }
+
+  llvm::Constant *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
+    return Visit(E->GetTemporaryExpr());
   }
 
   llvm::Constant *EmitArrayInitialization(InitListExpr *ILE) {
@@ -695,7 +716,7 @@ public:
 
     if (RewriteType) {
       // FIXME: Try to avoid packing the array
-      std::vector<const llvm::Type*> Types;
+      std::vector<llvm::Type*> Types;
       for (unsigned i = 0; i < Elts.size(); ++i)
         Types.push_back(Elts[i]->getType());
       const llvm::StructType *SType = llvm::StructType::get(AType->getContext(),
@@ -987,7 +1008,10 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
                                           Result.Val.getComplexIntImag());
 
       // FIXME: the target may want to specify that this is packed.
-      return llvm::ConstantStruct::get(VMContext, Complex, 2, false);
+      llvm::StructType *STy = llvm::StructType::get(Complex[0]->getType(),
+                                                    Complex[1]->getType(),
+                                                    NULL);
+      return llvm::ConstantStruct::get(STy, Complex);
     }
     case APValue::Float:
       return llvm::ConstantFP::get(VMContext, Result.Val.getFloat());
@@ -1000,7 +1024,10 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
                                          Result.Val.getComplexFloatImag());
 
       // FIXME: the target may want to specify that this is packed.
-      return llvm::ConstantStruct::get(VMContext, Complex, 2, false);
+      llvm::StructType *STy = llvm::StructType::get(Complex[0]->getType(),
+                                                    Complex[1]->getType(),
+                                                    NULL);
+      return llvm::ConstantStruct::get(STy, Complex);
     }
     case APValue::Vector: {
       llvm::SmallVector<llvm::Constant *, 4> Inits;

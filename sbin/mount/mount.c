@@ -243,7 +243,7 @@ main(int argc, char *argv[])
 	const char *mntfromname, **vfslist, *vfstype;
 	struct fstab *fs;
 	struct statfs *mntbuf;
-	int all, ch, i, init_flags, late, mntsize, rval, have_fstab, ro;
+	int all, ch, i, init_flags, late, failok, mntsize, rval, have_fstab, ro;
 	char *cp, *ep, *options;
 
 	all = init_flags = late = 0;
@@ -328,6 +328,10 @@ main(int argc, char *argv[])
 					continue;
 				if (hasopt(fs->fs_mntops, "late") && !late)
 					continue;
+				if (hasopt(fs->fs_mntops, "failok"))
+					failok = 1;
+				else
+					failok = 0;
 				if (!(init_flags & MNT_UPDATE) &&
 				    ismounted(fs, mntbuf, mntsize))
 					continue;
@@ -335,7 +339,7 @@ main(int argc, char *argv[])
 				    mntbuf->f_flags);
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
-				    fs->fs_mntops))
+				    fs->fs_mntops) && !failok)
 					rval = 1;
 			}
 		} else if (fstab_style) {
@@ -715,6 +719,14 @@ mangle(char *options, struct cpa *a)
 				 * in the boot cycle; for instance,
 				 * loopback NFS mounts can't be mounted
 				 * before mountd starts.
+				 */
+				continue;
+			} else if (strcmp(p, "failok") == 0) {
+				/*
+				 * "failok" is used to prevent certain file
+				 * systems from being causing the system to
+				 * drop into single user mode in the boot
+				 * cycle, and is not a real mount option.
 				 */
 				continue;
 			} else if (strncmp(p, "mountprog", 9) == 0) {

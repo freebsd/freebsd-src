@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflog.4,v 1.9 2006/10/25 12:51:31 jmc Exp $
+.\"	$OpenBSD: pflog.4,v 1.10 2007/05/31 19:19:51 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Tobias Weingartner
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2001
+.Dd May 31 2007
 .Dt PFLOG 4
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh DESCRIPTION
 The
 .Nm pflog
-interface is a pseudo-device which makes visible all packets logged by
+interface is a device which makes visible all packets logged by
 the packet filter,
 .Xr pf 4 .
 Logged packets can easily be monitored in real
@@ -91,13 +91,13 @@ and monitor all packets logged on it:
 # tcpdump -n -e -ttt -i pflog1
 .Ed
 .Sh SEE ALSO
-.Xr tcpdump 1
 .Xr inet 4 ,
 .Xr inet6 4 ,
 .Xr netintro 4 ,
 .Xr pf 4 ,
 .Xr ifconfig 8 ,
-.Xr pflogd 8
+.Xr pflogd 8 ,
+.Xr tcpdump 1
 .Sh HISTORY
 The
 .Nm

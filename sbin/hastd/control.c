@@ -155,8 +155,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	const char *str;
 	int error;
 
-	cnvin = cnvout = NULL;
-	error = 0;
+	cnvin = NULL;
 
 	/*
 	 * Prepare and send command to worker process.

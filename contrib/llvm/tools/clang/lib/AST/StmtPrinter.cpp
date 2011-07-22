@@ -449,6 +449,12 @@ void StmtPrinter::VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *Node) {
   OS << "\n";
 }
 
+void StmtPrinter::VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *Node) {
+  Indent() << "@autoreleasepool";
+  PrintRawCompoundStmt(dyn_cast<CompoundStmt>(Node->getSubStmt()));
+  OS << "\n";
+}
+
 void StmtPrinter::PrintRawCXXCatchStmt(CXXCatchStmt *Node) {
   OS << "catch (";
   if (Decl *ExDecl = Node->getExceptionDecl())
@@ -1297,7 +1303,7 @@ static const char *getTypeTraitName(UnaryTypeTrait UTT) {
   case UTT_HasNothrowConstructor: return "__has_nothrow_constructor";
   case UTT_HasNothrowCopy:          return "__has_nothrow_copy";
   case UTT_HasTrivialAssign:      return "__has_trivial_assign";
-  case UTT_HasTrivialConstructor: return "__has_trivial_constructor";
+  case UTT_HasTrivialDefaultConstructor: return "__has_trivial_constructor";
   case UTT_HasTrivialCopy:          return "__has_trivial_copy";
   case UTT_HasTrivialDestructor:  return "__has_trivial_destructor";
   case UTT_HasVirtualDestructor:  return "__has_virtual_destructor";
@@ -1329,6 +1335,7 @@ static const char *getTypeTraitName(UnaryTypeTrait UTT) {
   case UTT_IsSigned:                return "__is_signed";
   case UTT_IsStandardLayout:        return "__is_standard_layout";
   case UTT_IsTrivial:               return "__is_trivial";
+  case UTT_IsTriviallyCopyable:     return "__is_trivially_copyable";
   case UTT_IsUnion:               return "__is_union";
   case UTT_IsUnsigned:              return "__is_unsigned";
   case UTT_IsVoid:                  return "__is_void";
@@ -1406,6 +1413,15 @@ void StmtPrinter::VisitSubstNonTypeTemplateParmPackExpr(
   OS << Node->getParameterPack()->getNameAsString();
 }
 
+void StmtPrinter::VisitSubstNonTypeTemplateParmExpr(
+                                       SubstNonTypeTemplateParmExpr *Node) {
+  Visit(Node->getReplacement());
+}
+
+void StmtPrinter::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *Node){
+  PrintExpr(Node->GetTemporaryExpr());
+}
+
 // Obj-C
 
 void StmtPrinter::VisitObjCStringLiteral(ObjCStringLiteral *Node) {
@@ -1463,6 +1479,17 @@ void StmtPrinter::VisitObjCMessageExpr(ObjCMessageExpr *Mess) {
   OS << "]";
 }
 
+void
+StmtPrinter::VisitObjCIndirectCopyRestoreExpr(ObjCIndirectCopyRestoreExpr *E) {
+  PrintExpr(E->getSubExpr());
+}
+
+void
+StmtPrinter::VisitObjCBridgedCastExpr(ObjCBridgedCastExpr *E) {
+  OS << "(" << E->getBridgeKindName() << E->getType().getAsString(Policy) 
+     << ")";
+  PrintExpr(E->getSubExpr());
+}
 
 void StmtPrinter::VisitBlockExpr(BlockExpr *Node) {
   BlockDecl *BD = Node->getBlockDecl();
@@ -1497,6 +1524,13 @@ void StmtPrinter::VisitBlockDeclRefExpr(BlockDeclRefExpr *Node) {
 }
 
 void StmtPrinter::VisitOpaqueValueExpr(OpaqueValueExpr *Node) {}
+
+void StmtPrinter::VisitAsTypeExpr(AsTypeExpr *Node) {
+  OS << "__builtin_astype(";
+  PrintExpr(Node->getSrcExpr());
+  OS << ", " << Node->getType().getAsString();
+  OS << ")";
+}
 
 //===----------------------------------------------------------------------===//
 // Stmt method implementations

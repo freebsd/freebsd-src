@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmpx.h>
 
-typedef char   namebuf[MAXLOGNAME];
+typedef char   namebuf[sizeof(((struct utmpx *)0)->ut_user) + 1];
 
 int scmp(const void *, const void *);
 static void usage(void);

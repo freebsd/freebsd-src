@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.h,v 1.27.332.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id: request.h,v 1.31 2010-03-04 23:50:34 tbox Exp $ */
 
 #ifndef DNS_REQUEST_H
 #define DNS_REQUEST_H 1
@@ -47,6 +47,7 @@
 #include <dns/types.h>
 
 #define DNS_REQUESTOPT_TCP 0x00000001U
+#define DNS_REQUESTOPT_CASE 0x00000002U
 
 typedef struct dns_requestevent {
 	ISC_EVENT_COMMON(struct dns_requestevent);
@@ -175,6 +176,9 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
  *	#DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
  *	will timeout after 'timeout' seconds.
  *
+ *\li	If the #DNS_REQUESTOPT_CASE option is set, use case sensitive
+ *	compression.
+ *
  *\li	When the request completes, successfully, due to a timeout, or
  *	because it was canceled, a completion event will be sent to 'task'.
  *
@@ -226,6 +230,9 @@ dns_request_createvia3(dns_requestmgr_t *requestmgr, dns_message_t *message,
  *	#DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
  *	will timeout after 'timeout' seconds.  UDP requests will be resent
  *	at 'udptimeout' intervals if non-zero or 'udpretries' is non-zero.
+ *
+ *\li	If the #DNS_REQUESTOPT_CASE option is set, use case sensitive
+ *	compression.
  *
  *\li	When the request completes, successfully, due to a timeout, or
  *	because it was canceled, a completion event will be sent to 'task'.

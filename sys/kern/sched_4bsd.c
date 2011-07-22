@@ -156,7 +156,7 @@ static struct runq runq;
 static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
 
-static cpumask_t idle_cpus_mask;
+static cpuset_t idle_cpus_mask;
 #endif
 
 struct pcpuidlestat {
@@ -951,7 +951,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td->td_flags & TDF_IDLETD) {
 		TD_SET_CAN_RUN(td);
 #ifdef SMP
-		idle_cpus_mask &= ~PCPU_GET(cpumask);
+		CPU_CLR(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	} else {
 		if (TD_IS_RUNNING(td)) {
@@ -1025,7 +1025,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)
-		idle_cpus_mask |= PCPU_GET(cpumask);
+		CPU_SET(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
@@ -1054,7 +1054,9 @@ static int
 forward_wakeup(int cpunum)
 {
 	struct pcpu *pc;
-	cpumask_t dontuse, id, map, map2, me;
+	cpuset_t dontuse, map, map2;
+	u_int id, me;
+	int iscpuset;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -1072,31 +1074,34 @@ forward_wakeup(int cpunum)
 	 * Check the idle mask we received against what we calculated
 	 * before in the old version.
 	 */
-	me = PCPU_GET(cpumask);
+	me = PCPU_GET(cpuid);
 
 	/* Don't bother if we should be doing it ourself. */
-	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == (1 << cpunum)))
+	if (CPU_ISSET(me, &idle_cpus_mask) &&
+	    (cpunum == NOCPU || me == cpunum))
 		return (0);
 
-	dontuse = me | stopped_cpus | hlt_cpus_mask;
-	map2 = 0;
+	CPU_SETOF(me, &dontuse);
+	CPU_OR(&dontuse, &stopped_cpus);
+	CPU_OR(&dontuse, &hlt_cpus_mask);
+	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if ((id & dontuse) == 0 &&
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &dontuse) &&
 			    pc->pc_curthread == pc->pc_idlethread) {
-				map2 |= id;
+				CPU_SET(id, &map2);
 			}
 		}
 	}
 
 	if (forward_wakeup_use_mask) {
-		map = 0;
-		map = idle_cpus_mask & ~dontuse;
+		map = idle_cpus_mask;
+		CPU_NAND(&map, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
-			if (map != map2) {
+			if (CPU_CMP(&map, &map2)) {
 				printf("map != map2, loop method preferred\n");
 				map = map2;
 			}
@@ -1108,18 +1113,22 @@ forward_wakeup(int cpunum)
 	/* If we only allow a specific CPU, then mask off all the others. */
 	if (cpunum != NOCPU) {
 		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
-		map &= (1 << cpunum);
+		iscpuset = CPU_ISSET(cpunum, &map);
+		if (iscpuset == 0)
+			CPU_ZERO(&map);
+		else
+			CPU_SETOF(cpunum, &map);
 	}
-	if (map) {
+	if (!CPU_EMPTY(&map)) {
 		forward_wakeups_delivered++;
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if ((map & id) == 0)
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &map))
 				continue;
 			if (cpu_idle_wakeup(pc->pc_cpuid))
-				map &= ~id;
+				CPU_CLR(id, &map);
 		}
-		if (map)
+		if (!CPU_EMPTY(&map))
 			ipi_selected(map, IPI_AST);
 		return (1);
 	}
@@ -1135,7 +1144,7 @@ kick_other_cpu(int pri, int cpuid)
 	int cpri;
 
 	pcpu = pcpu_find(cpuid);
-	if (idle_cpus_mask & pcpu->pc_cpumask) {
+	if (CPU_ISSET(cpuid, &idle_cpus_mask)) {
 		forward_wakeups_delivered++;
 		if (!cpu_idle_wakeup(cpuid))
 			ipi_cpu(cpuid, IPI_AST);
@@ -1193,9 +1202,10 @@ void
 sched_add(struct thread *td, int flags)
 #ifdef SMP
 {
+	cpuset_t tidlemsk;
 	struct td_sched *ts;
+	u_int cpu, cpuid;
 	int forwarded = 0;
-	int cpu;
 	int single_cpu = 0;
 
 	ts = td->td_sched;
@@ -1258,15 +1268,18 @@ sched_add(struct thread *td, int flags)
 		ts->ts_runq = &runq;
 	}
 
-	if (single_cpu && (cpu != PCPU_GET(cpuid))) {
+	cpuid = PCPU_GET(cpuid);
+	if (single_cpu && cpu != cpuid) {
 	        kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
-			cpumask_t me = PCPU_GET(cpumask);
-			cpumask_t idle = idle_cpus_mask & me;
+			tidlemsk = idle_cpus_mask;
+			CPU_NAND(&tidlemsk, &hlt_cpus_mask);
+			CPU_CLR(cpuid, &tidlemsk);
 
-			if (!idle && ((flags & SRQ_INTR) == 0) &&
-			    (idle_cpus_mask & ~(hlt_cpus_mask | me)))
+			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
+			    ((flags & SRQ_INTR) == 0) &&
+			    !CPU_EMPTY(&tidlemsk))
 				forwarded = forward_wakeup(cpu);
 		}
 

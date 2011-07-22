@@ -636,7 +636,7 @@ libusb_clear_halt(struct libusb20_device *pdev, uint8_t endpoint)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	CTX_LOCK(dev->ctx);
-	err = libusb20_tr_open(xfer, 0, 0, endpoint);
+	err = libusb20_tr_open(xfer, 0, 1, endpoint);
 	CTX_UNLOCK(dev->ctx);
 
 	if (err != 0 && err != LIBUSB20_ERROR_BUSY)
@@ -719,6 +719,8 @@ libusb_get_driver(struct libusb20_device *pdev, int interface,
 		return (LIBUSB_ERROR_INVALID_PARAM);
 	if (namelen < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen > 255)
+		namelen = 255;
 
 	err = libusb20_dev_get_iface_desc(
 	    pdev, interface, name, namelen);

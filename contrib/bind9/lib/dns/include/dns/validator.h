@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.41.48.5 2010-02-25 10:56:41 tbox Exp $ */
+/* $Id: validator.h,v 1.46 2010-02-25 05:08:01 tbox Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1

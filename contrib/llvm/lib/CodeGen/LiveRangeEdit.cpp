@@ -15,6 +15,7 @@
 #include "LiveRangeEdit.h"
 #include "VirtRegMap.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -23,6 +24,10 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+STATISTIC(NumDCEDeleted,     "Number of instructions deleted by DCE");
+STATISTIC(NumDCEFoldedLoads, "Number of single use loads folded after DCE");
+STATISTIC(NumFracRanges,     "Number of live ranges fractured by DCE");
 
 LiveInterval &LiveRangeEdit::createFrom(unsigned OldReg,
                                         LiveIntervals &LIS,
@@ -199,6 +204,7 @@ bool LiveRangeEdit::foldAsLoad(LiveInterval *LI,
   UseMI->eraseFromParent();
   DefMI->addRegisterDead(LI->reg, 0);
   Dead.push_back(DefMI);
+  ++NumDCEFoldedLoads;
   return true;
 }
 
@@ -269,6 +275,7 @@ void LiveRangeEdit::eliminateDeadDefs(SmallVectorImpl<MachineInstr*> &Dead,
         delegate_->LRE_WillEraseInstruction(MI);
       LIS.RemoveMachineInstrFromMaps(MI);
       MI->eraseFromParent();
+      ++NumDCEDeleted;
     }
 
     if (ToShrink.empty())
@@ -290,10 +297,17 @@ void LiveRangeEdit::eliminateDeadDefs(SmallVectorImpl<MachineInstr*> &Dead,
     unsigned NumComp = ConEQ.Classify(LI);
     if (NumComp <= 1)
       continue;
+    ++NumFracRanges;
+    bool IsOriginal = VRM.getOriginal(LI->reg) == LI->reg;
     DEBUG(dbgs() << NumComp << " components: " << *LI << '\n');
     SmallVector<LiveInterval*, 8> Dups(1, LI);
     for (unsigned i = 1; i != NumComp; ++i) {
       Dups.push_back(&createFrom(LI->reg, LIS, VRM));
+      // If LI is an original interval that hasn't been split yet, make the new
+      // intervals their own originals instead of referring to LI. The original
+      // interval must contain all the split products, and LI doesn't.
+      if (IsOriginal)
+        VRM.setIsSplitFromReg(Dups.back()->reg, 0);
       if (delegate_)
         delegate_->LRE_DidCloneVirtReg(Dups.back()->reg, LI->reg);
     }

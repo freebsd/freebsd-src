@@ -221,6 +221,166 @@ static void DefineExactWidthIntType(TargetInfo::IntType Ty,
                         ConstSuffix);
 }
 
+/// \brief Add definitions required for a smooth interaction between
+/// Objective-C++ automatic reference counting and libc++.
+static void AddObjCXXARCLibcxxDefines(const LangOptions &LangOpts, 
+                                      MacroBuilder &Builder) {
+  Builder.defineMacro("_LIBCPP_PREDEFINED_OBJC_ARC_ADDRESSOF");
+  
+  std::string Result;
+  {
+    // Provide overloads of the function std::__1::addressof() that accept
+    // references to lifetime-qualified objects. libc++'s (more general)
+    // std::__1::addressof() template fails to instantiate with such types,
+    // because it attempts to convert the object to a char& before 
+    // dereferencing.
+    llvm::raw_string_ostream Out(Result);
+    
+    Out << "#pragma clang diagnostic push\n"
+        << "#pragma clang diagnostic ignored \"-Wc++0x-extensions\"\n"
+        << "namespace std { inline namespace __1 {\n"
+        << "\n";
+    
+    Out << "template <class _Tp>\n"
+        << "inline __attribute__ ((__visibility__(\"hidden\"), "
+        << "__always_inline__))\n"
+        << "__attribute__((objc_ownership(strong))) _Tp*\n"
+        << "addressof(__attribute__((objc_ownership(strong))) _Tp& __x) {\n"
+        << "  return &__x;\n"
+        << "}\n"
+        << "\n";
+      
+    if (LangOpts.ObjCRuntimeHasWeak) {
+      Out << "template <class _Tp>\n"
+          << "inline __attribute__ ((__visibility__(\"hidden\"),"
+          << "__always_inline__))\n"
+          << "__attribute__((objc_ownership(weak))) _Tp*\n"
+          << "addressof(__attribute__((objc_ownership(weak))) _Tp& __x) {\n"
+          << "  return &__x;\n"
+          << "};\n"
+          << "\n";
+    }
+      
+    Out << "template <class _Tp>\n"
+        << "inline __attribute__ ((__visibility__(\"hidden\"),"
+        << "__always_inline__))\n"
+        << "__attribute__((objc_ownership(autoreleasing))) _Tp*\n"
+        << "addressof(__attribute__((objc_ownership(autoreleasing))) _Tp& __x) "
+        << "{\n"
+        << " return &__x;\n"
+        << "}\n"
+        << "\n";
+    
+    Out << "template <class _Tp>\n"
+        << "inline __attribute__ ((__visibility__(\"hidden\"), "
+        << "__always_inline__))\n"
+        << "__unsafe_unretained _Tp* addressof(__unsafe_unretained _Tp& __x)"
+        << " {\n"
+        << "  return &__x;\n"
+        << "}\n";
+      
+    Out << "\n"
+        << "} }\n"
+        << "#pragma clang diagnostic pop\n"
+        << "\n";    
+  }
+  Builder.append(Result);
+}
+
+/// \brief Add definitions required for a smooth interaction between
+/// Objective-C++ automated reference counting and libstdc++ (4.2).
+static void AddObjCXXARCLibstdcxxDefines(const LangOptions &LangOpts, 
+                                         MacroBuilder &Builder) {
+  Builder.defineMacro("_GLIBCXX_PREDEFINED_OBJC_ARC_IS_SCALAR");
+  
+  std::string Result;
+  {
+    // Provide specializations for the __is_scalar type trait so that 
+    // lifetime-qualified objects are not considered "scalar" types, which
+    // libstdc++ uses as an indicator of the presence of trivial copy, assign,
+    // default-construct, and destruct semantics (none of which hold for
+    // lifetime-qualified objects in ARC).
+    llvm::raw_string_ostream Out(Result);
+    
+    Out << "namespace std {\n"
+        << "\n"
+        << "struct __true_type;\n"
+        << "struct __false_type;\n"
+        << "\n";
+    
+    Out << "template<typename _Tp> struct __is_scalar;\n"
+        << "\n";
+      
+    Out << "template<typename _Tp>\n"
+        << "struct __is_scalar<__attribute__((objc_ownership(strong))) _Tp> {\n"
+        << "  enum { __value = 0 };\n"
+        << "  typedef __false_type __type;\n"
+        << "};\n"
+        << "\n";
+      
+    if (LangOpts.ObjCRuntimeHasWeak) {
+      Out << "template<typename _Tp>\n"
+          << "struct __is_scalar<__attribute__((objc_ownership(weak))) _Tp> {\n"
+          << "  enum { __value = 0 };\n"
+          << "  typedef __false_type __type;\n"
+          << "};\n"
+          << "\n";
+    }
+    
+    Out << "template<typename _Tp>\n"
+        << "struct __is_scalar<__attribute__((objc_ownership(autoreleasing)))"
+        << " _Tp> {\n"
+        << "  enum { __value = 0 };\n"
+        << "  typedef __false_type __type;\n"
+        << "};\n"
+        << "\n";
+      
+    Out << "}\n";
+  }
+  Builder.append(Result);
+}
+
+static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
+                                               const LangOptions &LangOpts,
+                                               const FrontendOptions &FEOpts,
+                                               MacroBuilder &Builder) {
+  if (!LangOpts.Microsoft && !LangOpts.TraditionalCPP)
+    Builder.defineMacro("__STDC__");
+  if (LangOpts.Freestanding)
+    Builder.defineMacro("__STDC_HOSTED__", "0");
+  else
+    Builder.defineMacro("__STDC_HOSTED__");
+
+  if (!LangOpts.CPlusPlus) {
+    if (LangOpts.C99)
+      Builder.defineMacro("__STDC_VERSION__", "199901L");
+    else if (!LangOpts.GNUMode && LangOpts.Digraphs)
+      Builder.defineMacro("__STDC_VERSION__", "199409L");
+  } else {
+    if (LangOpts.GNUMode)
+      Builder.defineMacro("__cplusplus");
+    else {
+      // C++0x [cpp.predefined]p1:
+      //   The name_ _cplusplus is defined to the value 201103L when compiling a
+      //   C++ translation unit.
+      if (LangOpts.CPlusPlus0x)
+        Builder.defineMacro("__cplusplus", "201103L");
+      // C++03 [cpp.predefined]p1:
+      //   The name_ _cplusplus is defined to the value 199711L when compiling a
+      //   C++ translation unit.
+      else
+        Builder.defineMacro("__cplusplus", "199711L");
+    }
+  }
+
+  if (LangOpts.ObjC1)
+    Builder.defineMacro("__OBJC__");
+
+  // Not "standard" per se, but available even with the -undef flag.
+  if (LangOpts.AsmPreprocessor)
+    Builder.defineMacro("__ASSEMBLER__");
+}
+
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
                                        const FrontendOptions &FEOpts,
@@ -256,20 +416,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 
   // Initialize language-specific preprocessor defines.
 
-  // These should all be defined in the preprocessor according to the
-  // current language configuration.
-  if (!LangOpts.Microsoft && !LangOpts.TraditionalCPP)
-    Builder.defineMacro("__STDC__");
-  if (LangOpts.AsmPreprocessor)
-    Builder.defineMacro("__ASSEMBLER__");
-
-  if (!LangOpts.CPlusPlus) {
-    if (LangOpts.C99)
-      Builder.defineMacro("__STDC_VERSION__", "199901L");
-    else if (!LangOpts.GNUMode && LangOpts.Digraphs)
-      Builder.defineMacro("__STDC_VERSION__", "199409L");
-  }
-
   // Standard conforming mode?
   if (!LangOpts.GNUMode)
     Builder.defineMacro("__STRICT_ANSI__");
@@ -277,13 +423,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.CPlusPlus0x)
     Builder.defineMacro("__GXX_EXPERIMENTAL_CXX0X__");
 
-  if (LangOpts.Freestanding)
-    Builder.defineMacro("__STDC_HOSTED__", "0");
-  else
-    Builder.defineMacro("__STDC_HOSTED__");
-
   if (LangOpts.ObjC1) {
-    Builder.defineMacro("__OBJC__");
     if (LangOpts.ObjCNonFragileABI) {
       Builder.defineMacro("__OBJC2__");
       Builder.defineMacro("OBJC_ZEROCOST_EXCEPTIONS");
@@ -298,7 +438,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 
   // darwin_constant_cfstrings controls this. This is also dependent
   // on other things like the runtime I believe.  This is set even for C code.
-  Builder.defineMacro("__CONSTANT_CFSTRINGS__");
+  if (!LangOpts.NoConstantCFStrings)
+      Builder.defineMacro("__CONSTANT_CFSTRINGS__");
 
   if (LangOpts.ObjC2)
     Builder.defineMacro("OBJC_NEW_PROPERTIES");
@@ -324,13 +465,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.CPlusPlus) {
     Builder.defineMacro("__GNUG__", "4");
     Builder.defineMacro("__GXX_WEAK__");
-    if (LangOpts.GNUMode)
-      Builder.defineMacro("__cplusplus");
-    else
-      // C++ [cpp.predefined]p1:
-      //   The name_ _cplusplusis defined to the value 199711L when compiling a
-      //   C++ translation unit.
-      Builder.defineMacro("__cplusplus", "199711L");
     Builder.defineMacro("__private_extern__", "extern");
   }
 
@@ -343,6 +477,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       // Since we define wchar_t in C++ mode.
       Builder.defineMacro("_WCHAR_T_DEFINED");
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
+      // FIXME: Support Microsoft's __identifier extension in the lexer.
+      Builder.append("#define __identifier(x) x");
       Builder.append("class type_info;");
     }
 
@@ -478,6 +614,15 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.FastRelaxedMath)
     Builder.defineMacro("__FAST_RELAXED_MATH__");
 
+  if (LangOpts.ObjCAutoRefCount) {
+    Builder.defineMacro("__weak", "__attribute__((objc_ownership(weak)))");
+    Builder.defineMacro("__strong", "__attribute__((objc_ownership(strong)))");
+    Builder.defineMacro("__autoreleasing",
+                        "__attribute__((objc_ownership(autoreleasing)))");
+    Builder.defineMacro("__unsafe_unretained",
+                        "__attribute__((objc_ownership(none)))");
+  }
+
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Builder);
 }
@@ -551,6 +696,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const HeaderSearchOptions &HSOpts,
                                    const FrontendOptions &FEOpts) {
+  const LangOptions &LangOpts = PP.getLangOptions();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
   llvm::raw_string_ostream Predefines(PredefineBuffer);
@@ -566,9 +712,32 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     Builder.append("# 1 \"<built-in>\" 3");
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
-  if (InitOpts.UsePredefines)
-    InitializePredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
-                               FEOpts, Builder);
+  if (InitOpts.UsePredefines) {
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts, Builder);
+
+    // Install definitions to make Objective-C++ ARC work well with various
+    // C++ Standard Library implementations.
+    if (LangOpts.ObjC1 && LangOpts.CPlusPlus && LangOpts.ObjCAutoRefCount) {
+      switch (InitOpts.ObjCXXARCStandardLibrary) {
+      case ARCXX_nolib:
+        break;
+
+      case ARCXX_libcxx:
+        AddObjCXXARCLibcxxDefines(LangOpts, Builder);
+        break;
+
+      case ARCXX_libstdcxx:
+        AddObjCXXARCLibstdcxxDefines(LangOpts, Builder);
+        break;
+      }
+    }
+  }
+  
+  // Even with predefines off, some macros are still predefined.
+  // These should all be defined in the preprocessor according to the
+  // current language configuration.
+  InitializeStandardPredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
+                                     FEOpts, Builder);
 
   // Add on the predefines from the driver.  Wrap in a #line directive to report
   // that they come from the command line.

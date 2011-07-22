@@ -351,14 +351,16 @@ main(int argc, char *argv[])
 		if ((dp->put)(sdp, &key, &data, 0) == -1)
 			error("put");
 	}
-	ypcnt = 1;
+	ypcnt = 0;
 	data.data = (u_char *)buf;
 	sdata.data = (u_char *)sbuf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
 		if (!is_comment && 
-		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
+		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')) {
 			yp_enabled = 1;
+			ypcnt++;
+		}
 		if (is_comment)
 			--cnt;
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
@@ -456,7 +458,6 @@ main(int argc, char *argv[])
 				tbuf[0] = CURRENT_VERSION(_PW_KEYYPBYNUM);
 				store = htonl(ypcnt);
 				memmove(tbuf + 1, &store, sizeof(store));
-				ypcnt++;
 				key.size = sizeof(store) + 1;
 				if ((dp->put)(dp, &key, &data, method) == -1)
 					error("put");
@@ -547,7 +548,6 @@ main(int argc, char *argv[])
 				tbuf[0] = LEGACY_VERSION(_PW_KEYYPBYNUM);
 				store = HTOL(ypcnt);
 				memmove(tbuf + 1, &store, sizeof(store));
-				ypcnt++;
 				key.size = sizeof(store) + 1;
 				if ((dp->put)(dp, &key, &data, method) == -1)
 					error("put");

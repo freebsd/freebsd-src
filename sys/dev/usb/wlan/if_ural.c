@@ -91,7 +91,7 @@ SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &ural_debug, 0,
 	 ((rssi) - (RAL_NOISE_FLOOR + RAL_RSSI_CORR)) : 0)
 
 /* various supported device vendors/products */
-static const struct usb_device_id ural_devs[] = {
+static const STRUCT_USB_HOST_ID ural_devs[] = {
 #define	URAL_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	URAL_DEV(ASUS, WL167G),
 	URAL_DEV(ASUS, RT2570),
