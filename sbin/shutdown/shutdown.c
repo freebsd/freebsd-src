@@ -115,8 +115,31 @@ main(int argc, char **argv)
 	if (geteuid())
 		errx(1, "NOT super-user");
 #endif
+
 	nosync = NULL;
 	readstdin = 0;
+
+	/*
+	 * Test for the special case where the utility is called as
+	 * "poweroff", for which it runs 'shutdown -p now'.
+	 */
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (strcmp(p, "poweroff") == 0) {
+		if (getopt(argc, argv, "") != -1)
+			usage((char *)NULL);
+		argc -= optind;
+		argv += optind;
+		if (argc != 0)
+			usage((char *)NULL);
+		dopower = 1;
+		offset = 0;
+		(void)time(&shuttime);
+		goto poweroff;
+	}
+
 	while ((ch = getopt(argc, argv, "-hknopr")) != -1)
 		switch (ch) {
 		case '-':
@@ -161,6 +184,7 @@ main(int argc, char **argv)
 
 	getoffset(*argv++);
 
+poweroff:
 	if (*argv) {
 		for (p = mbuf, len = sizeof(mbuf); *argv; ++argv) {
 			arglen = strlen(*argv);
@@ -510,7 +534,7 @@ usage(const char *cp)
 	if (cp != NULL)
 		warnx("%s", cp);
 	(void)fprintf(stderr,
-	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]]"
-	    " time [warning-message ...]\n");
+	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
+	    "       poweroff\n");
 	exit(1);
 }
