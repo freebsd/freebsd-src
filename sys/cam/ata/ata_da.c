@@ -425,7 +425,8 @@ adaclose(struct disk *dp)
 
 	softc = (struct ada_softc *)periph->softc;
 	/* We only sync the cache if the drive is capable of it. */
-	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
+	if ((softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
+	    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
@@ -1361,7 +1362,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
-				if (error == ENXIO) {
+				if (error == ENXIO &&
+				    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
 					/*
 					 * Catastrophic error.  Mark our pack as
 					 * invalid.
