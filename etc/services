@@ -1533,6 +1533,8 @@ cisco-ipsla	1167/sctp  #Cisco IP SLAs Control Protocol
 cisco-ipsla	1167/tcp   #Cisco IP SLAs Control Protocol
 cisco-ipsla	1167/udp   #Cisco IP SLAs Control Protocol
 skkserv		1178/tcp   #SKK (kanji input)
+openvpn		1194/tcp   #OpenVPN
+openvpn		1194/udp   #OpenVPN
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network
