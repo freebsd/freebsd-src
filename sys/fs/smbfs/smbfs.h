@@ -80,7 +80,7 @@ struct smbmount {
 	struct mount * 		sm_mp;
 	struct smbnode *	sm_root;
 	struct ucred *		sm_owner;
-	u_int			sm_flags;
+	uint64_t		sm_flags;
 	long			sm_nextino;
 	struct smb_share * 	sm_share;
 /*	struct simplelock	sm_npslock;*/
