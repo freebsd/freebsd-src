@@ -151,6 +151,7 @@ iface_Create(const char *name)
         return NULL;
       }
       iface->name = strdup(name);
+      iface->descr = NULL;
       iface->index = ifm->ifm_index;
       iface->flags = ifm->ifm_flags;
       iface->mtu = 0;
@@ -369,6 +370,103 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
   return res != -1;
 }
 
+int
+iface_Name(struct iface *iface, const char *name)
+{
+  struct ifreq ifr;
+  int s;
+  char *newname;
+
+  if ((newname = strdup(name)) == NULL) {
+    log_Printf(LogWARN, "iface name: strdup failed: %s\n", strerror(errno));
+    return 0;
+  }
+
+  if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+    log_Printf(LogERROR, "iface name: socket(): %s\n", strerror(errno));
+    free(newname);
+    return 0;
+  }
+
+  strlcpy(ifr.ifr_name, iface->name, sizeof(ifr.ifr_name));
+  ifr.ifr_data = newname;
+  if (ID0ioctl(s, SIOCSIFNAME, (caddr_t)&ifr) < 0) {
+    log_Printf(LogWARN, "iface name: ioctl(SIOCSIFNAME, %s -> %s): %s\n",
+               name, newname, strerror(errno));
+    free(newname);
+    return 0;
+  }
+
+  free(iface->name);
+  iface->name = newname;
+
+  return 1;
+}
+
+int
+iface_Descr(struct cmdargs const *arg)
+{
+  struct ifreq ifr;
+  struct iface *iface;
+  size_t sz, len;
+  int s, n, ifdescr_maxlen;
+  char *descr;
+
+  sz = sizeof(int);
+  if (sysctlbyname("net.ifdescr_maxlen", &ifdescr_maxlen, &sz, NULL, 0) < 0) {
+    log_Printf(LogERROR, "iface descr: sysctl failed: %s\n", strerror(errno));
+    return 1;
+  }
+
+  if (ifdescr_maxlen < 1) {
+    log_Printf(LogERROR, "iface descr: sysctl net.ifdescr_maxlen < 1\n");
+    return 1;
+  }
+
+  sz = sizeof(char) * ifdescr_maxlen;
+  if ((descr = malloc(sz)) == NULL) {
+    log_Printf(LogERROR, "iface descr: malloc failed: %s\n", strerror(errno));
+    return 1;
+  }
+
+  *descr = '\0';
+  n = arg->argn;
+  while (n < arg->argc) {
+    if (n > arg->argn && (len = strlcat(descr, " ", sz)) >= sz)
+      break;
+    if ((len = strlcat(descr, arg->argv[n], sz)) >= sz)
+      break;
+    ++n;
+  }
+  if (len >= sz) {
+    log_Printf(LogERROR, "iface descr: description exceeds maximum (%d)\n",
+               ifdescr_maxlen-1);
+    free(descr);
+    return 1;
+  }
+
+  if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+    log_Printf(LogERROR, "iface descr: socket(): %s\n", strerror(errno));
+    free(descr);
+    return 1;
+  }
+
+  iface = arg->bundle->iface;
+  strlcpy(ifr.ifr_name, iface->name, sizeof(ifr.ifr_name));
+  ifr.ifr_buffer.length = strlen(descr) + 1;
+  ifr.ifr_buffer.buffer = descr;
+  if (ID0ioctl(s, SIOCSIFDESCR, (caddr_t)&ifr) < 0) {
+    log_Printf(LogWARN, "iface descr: ioctl(SIOCSIFDESCR, %s): %s\n",
+               descr, strerror(errno));
+    free(descr);
+    return 1;
+  }
+
+  free(iface->descr);
+  iface->descr = descr;
+
+  return 0;
+}
 
 void
 iface_Clear(struct iface *iface, struct ncp *ncp, int family, int how)
@@ -608,18 +706,30 @@ iface_ClearFlags(const char *ifname, int flags)
 }
 
 void
-iface_Destroy(struct iface *iface)
+iface_Free(struct iface *iface)
 {
-  /*
-   * iface_Clear(iface, IFACE_CLEAR_ALL) must be called manually
-   * if that's what the user wants.  It's better to leave the interface
-   * allocated so that existing connections can continue to work.
-   */
-
-  if (iface != NULL) {
     free(iface->name);
+    free(iface->descr);
     free(iface->addr);
     free(iface);
+}
+
+void
+iface_Destroy(struct iface *iface)
+{
+  struct ifreq ifr;
+  int s;
+
+  if (iface != NULL) {
+    if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+      log_Printf(LogERROR, "iface_Destroy: socket(): %s\n", strerror(errno));
+    } else {
+      strlcpy(ifr.ifr_name, iface->name, sizeof(ifr.ifr_name));
+      if (ID0ioctl(s, SIOCIFDESTROY, (caddr_t)&ifr) < 0)
+        log_Printf(LogWARN, "iface_Destroy: ioctl(SIOCIFDESTROY, %s): %s\n",
+               iface->name, strerror(errno));
+    }
+    iface_Free(iface);
   }
 }
 
@@ -661,7 +771,7 @@ iface_Show(struct cmdargs const *arg)
 
   current = iface_Create(iface->name);
   flags = iface->flags = current->flags;
-  iface_Destroy(current);
+  iface_Free(current);
 
   prompt_Printf(arg->prompt, "%s (idx %d) <", iface->name, iface->index);
   for (f = 0; f < sizeof if_flags / sizeof if_flags[0]; f++)

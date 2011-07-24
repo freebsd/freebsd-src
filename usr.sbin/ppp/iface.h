@@ -36,6 +36,7 @@ struct iface_addr {
 
 struct iface {
   char *name;			/* Interface name (malloc'd) */
+  char *descr;			/* Interface description (malloc'd) */
   int index;			/* Interface index */
   int flags;			/* Interface flags (IFF_*) */
   unsigned long mtu;		/* struct tuninfo MTU */
@@ -55,11 +56,14 @@ struct iface {
 
 extern struct iface *iface_Create(const char *name);
 extern void iface_Clear(struct iface *, struct ncp *, int, int);
+extern int iface_Name(struct iface *, const char *);
+extern int iface_Descr(struct cmdargs const *);
 extern int iface_Add(struct iface *, struct ncp *, const struct ncprange *,
                      const struct ncpaddr *, int);
 extern int iface_Delete(struct iface *, struct ncp *, const struct ncpaddr *);
 extern int iface_Show(struct cmdargs const *);
 extern int iface_SetFlags(const char *, int);
 extern int iface_ClearFlags(const char *, int);
+extern void iface_Free(struct iface *);
 extern void iface_Destroy(struct iface *);
 extern void iface_ParseHdr(struct ifa_msghdr *, struct sockaddr *[RTAX_MAX]);
