@@ -103,7 +103,7 @@ struct msdosfsmount {
 	u_int pm_fatdiv;	/*	offset computation */
 	u_int pm_curfat;	/* current fat for FAT32 (0 otherwise) */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
-	u_int pm_flags;		/* see below */
+	uint64_t pm_flags;	/* see below */
 	void *pm_u2w;	/* Local->Unicode iconv handle */
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */

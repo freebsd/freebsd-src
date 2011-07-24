@@ -166,8 +166,7 @@ struct mount {
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
-	u_int		mnt_flag;		/* (i) flags shared with user */
-	u_int		mnt_xflag;		/* (i) more flags shared with user */
+	uint64_t	mnt_flag;		/* (i) flags shared with user */
 	u_int		mnt_noasync;		/* (i) # noasync overrides */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
@@ -224,43 +223,43 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 /*
  * User specifiable flags, stored in mnt_flag.
  */
-#define	MNT_RDONLY	0x00000001	/* read only filesystem */
-#define	MNT_SYNCHRONOUS	0x00000002	/* filesystem written synchronously */
-#define	MNT_NOEXEC	0x00000004	/* can't exec from filesystem */
-#define	MNT_NOSUID	0x00000008	/* don't honor setuid bits on fs */
-#define	MNT_UNION	0x00000020	/* union with underlying filesystem */
-#define	MNT_ASYNC	0x00000040	/* filesystem written asynchronously */
-#define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
-#define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
-#define	MNT_NOSYMFOLLOW	0x00400000	/* do not follow symlinks */
-#define	MNT_GJOURNAL	0x02000000	/* GEOM journal support enabled */
-#define	MNT_MULTILABEL	0x04000000	/* MAC support for individual objects */
-#define	MNT_ACLS	0x08000000	/* ACL support enabled */
-#define	MNT_NOATIME	0x10000000	/* disable update of file access time */
-#define	MNT_NOCLUSTERR	0x40000000	/* disable cluster read */
-#define	MNT_NOCLUSTERW	0x80000000	/* disable cluster write */
-#define	MNT_NFS4ACLS	0x00000010
+#define	MNT_RDONLY	0x0000000000000001ULL /* read only filesystem */
+#define	MNT_SYNCHRONOUS	0x0000000000000002ULL /* fs written synchronously */
+#define	MNT_NOEXEC	0x0000000000000004ULL /* can't exec from filesystem */
+#define	MNT_NOSUID	0x0000000000000008ULL /* don't honor setuid fs bits */
+#define	MNT_NFS4ACLS	0x0000000000000010ULL /* enable NFS version 4 ACLs */
+#define	MNT_UNION	0x0000000000000020ULL /* union with underlying fs */
+#define	MNT_ASYNC	0x0000000000000040ULL /* fs written asynchronously */
+#define	MNT_SUIDDIR	0x0000000000100000ULL /* special SUID dir handling */
+#define	MNT_SOFTDEP	0x0000000000200000ULL /* using soft updates */
+#define	MNT_NOSYMFOLLOW	0x0000000000400000ULL /* do not follow symlinks */
+#define	MNT_GJOURNAL	0x0000000002000000ULL /* GEOM journal support enabled */
+#define	MNT_MULTILABEL	0x0000000004000000ULL /* MAC support for objects */
+#define	MNT_ACLS	0x0000000008000000ULL /* ACL support enabled */
+#define	MNT_NOATIME	0x0000000010000000ULL /* dont update file access time */
+#define	MNT_NOCLUSTERR	0x0000000040000000ULL /* disable cluster read */
+#define	MNT_NOCLUSTERW	0x0000000080000000ULL /* disable cluster write */
 
 /*
  * NFS export related mount flags.
  */
-#define	MNT_EXRDONLY	0x00000080	/* exported read only */
-#define	MNT_EXPORTED	0x00000100	/* filesystem is exported */
-#define	MNT_DEFEXPORTED	0x00000200	/* exported to the world */
-#define	MNT_EXPORTANON	0x00000400	/* use anon uid mapping for everyone */
-#define	MNT_EXKERB	0x00000800	/* exported with Kerberos uid mapping */
-#define	MNT_EXPUBLIC	0x20000000	/* public export (WebNFS) */
+#define	MNT_EXRDONLY	0x0000000000000080ULL	/* exported read only */
+#define	MNT_EXPORTED	0x0000000000000100ULL	/* filesystem is exported */
+#define	MNT_DEFEXPORTED	0x0000000000000200ULL	/* exported to the world */
+#define	MNT_EXPORTANON	0x0000000000000400ULL	/* anon uid mapping for all */
+#define	MNT_EXKERB	0x0000000000000800ULL	/* exported with Kerberos */
+#define	MNT_EXPUBLIC	0x0000000020000000ULL	/* public export (WebNFS) */
 
 /*
  * Flags set by internal operations,
  * but visible to the user.
  * XXX some of these are not quite right.. (I've never seen the root flag set)
  */
-#define	MNT_LOCAL	0x00001000	/* filesystem is stored locally */
-#define	MNT_QUOTA	0x00002000	/* quotas are enabled on filesystem */
-#define	MNT_ROOTFS	0x00004000	/* identifies the root filesystem */
-#define	MNT_USER	0x00008000	/* mounted by a user */
-#define	MNT_IGNORE	0x00800000	/* do not show entry in df */
+#define	MNT_LOCAL	0x0000000000001000ULL /* filesystem is stored locally */
+#define	MNT_QUOTA	0x0000000000002000ULL /* quotas are enabled on fs */
+#define	MNT_ROOTFS	0x0000000000004000ULL /* identifies the root fs */
+#define	MNT_USER	0x0000000000008000ULL /* mounted by a user */
+#define	MNT_IGNORE	0x0000000000800000ULL /* do not show entry in df */
 
 /*
  * Mask of flags that are visible to statfs().
@@ -293,12 +292,12 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
  * XXX: MNT_BYFSID collides with MNT_ACLS, but because MNT_ACLS is only used for
  *      mount(2) and MNT_BYFSID is only used for unmount(2) it's harmless.
  */
-#define	MNT_UPDATE	0x00010000	/* not a real mount, just an update */
-#define	MNT_DELEXPORT	0x00020000	/* delete export host lists */
-#define	MNT_RELOAD	0x00040000	/* reload filesystem data */
-#define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
-#define	MNT_SNAPSHOT	0x01000000	/* snapshot the filesystem */
-#define	MNT_BYFSID	0x08000000	/* specify filesystem by ID. */
+#define	MNT_UPDATE	0x0000000000010000ULL /* not real mount, just update */
+#define	MNT_DELEXPORT	0x0000000000020000ULL /* delete export host lists */
+#define	MNT_RELOAD	0x0000000000040000ULL /* reload filesystem data */
+#define	MNT_FORCE	0x0000000000080000ULL /* force unmount or readonly */
+#define	MNT_SNAPSHOT	0x0000000001000000ULL /* snapshot the filesystem */
+#define	MNT_BYFSID	0x0000000008000000ULL /* specify filesystem by ID. */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
 			MNT_FORCE	| MNT_SNAPSHOT	| MNT_BYFSID)
 /*
@@ -715,7 +714,8 @@ void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 void	vfs_freeopts(struct vfsoptlist *opts);
 void	vfs_deleteopt(struct vfsoptlist *opts, const char *name);
 int	vfs_buildopts(struct uio *auio, struct vfsoptlist **options);
-int	vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val);
+int	vfs_flagopt(struct vfsoptlist *opts, const char *name, uint64_t *w,
+	    uint64_t val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
