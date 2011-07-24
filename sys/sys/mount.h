@@ -239,6 +239,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_NOATIME	0x0000000010000000ULL /* dont update file access time */
 #define	MNT_NOCLUSTERR	0x0000000040000000ULL /* disable cluster read */
 #define	MNT_NOCLUSTERW	0x0000000080000000ULL /* disable cluster write */
+#define	MNT_SUJ		0x0000000100000000ULL /* using journaled soft updates */
 
 /*
  * NFS export related mount flags.
@@ -267,7 +268,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
  * but the 'mount' program may need changing to handle this.
  */
 #define	MNT_VISFLAGMASK	(MNT_RDONLY	| MNT_SYNCHRONOUS | MNT_NOEXEC	| \
-			MNT_NOSUID	| MNT_UNION	| \
+			MNT_NOSUID	| MNT_UNION	| MNT_SUJ	| \
 			MNT_ASYNC	| MNT_EXRDONLY	| MNT_EXPORTED	| \
 			MNT_DEFEXPORTED	| MNT_EXPORTANON| MNT_EXKERB	| \
 			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
@@ -324,7 +325,6 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
-#define	MNTK_SUJ	0x00000100	/* Softdep journaling enabled */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
