@@ -1389,6 +1389,9 @@ ffs_statfs(mp, sbp)
 	fs = ump->um_fs;
 	if (fs->fs_magic != FS_UFS1_MAGIC && fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_statfs");
+	/* Don't export MNT_SOFTDEP when MNT_SUJ is in use */
+	if ((sbp->f_flags & (MNT_SOFTDEP | MNT_SUJ)) == (MNT_SOFTDEP | MNT_SUJ))
+		sbp->f_flags &= ~MNT_SOFTDEP;
 	sbp->f_version = STATFS_VERSION;
 	sbp->f_bsize = fs->fs_fsize;
 	sbp->f_iosize = fs->fs_bsize;

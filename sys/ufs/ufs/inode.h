@@ -176,7 +176,7 @@ struct indir {
 /* Determine if soft dependencies are being done */
 #define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)
 #define DOINGASYNC(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
-#define DOINGSUJ(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_SUJ)
+#define DOINGSUJ(vp)		((vp)->v_mount->mnt_flag & MNT_SUJ)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
