@@ -109,6 +109,7 @@ static struct opt {
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
+	{ MNT_SUJ,		"journaled soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
@@ -316,7 +317,7 @@ main(int argc, char *argv[])
 	rval = 0;
 	switch (argc) {
 	case 0:
-		if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
+		if ((mntsize = getmntinfo(&mntbuf, MNT_WAIT)) == 0)
 			err(1, "getmntinfo");
 		if (all) {
 			while ((fs = getfsent()) != NULL) {
@@ -665,7 +666,7 @@ getmntpt(const char *name)
 	struct statfs *mntbuf;
 	int i, mntsize;
 
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	mntsize = getmntinfo(&mntbuf, MNT_WAIT);
 	for (i = mntsize - 1; i >= 0; i--) {
 		if (strcmp(mntbuf[i].f_mntfromname, name) == 0 ||
 		    strcmp(mntbuf[i].f_mntonname, name) == 0)
