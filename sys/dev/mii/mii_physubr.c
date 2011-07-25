@@ -109,7 +109,7 @@ mii_phy_setmedia(struct mii_softc *sc)
 		/*
 		 * Force renegotiation if MIIF_DOPAUSE or MIIF_FORCEANEG.
 		 * The former is necessary as we might switch from flow-
-		 * control advertisment being off to on or vice versa.
+		 * control advertisement being off to on or vice versa.
 		 */
 		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0 ||
 		    (sc->mii_flags & (MIIF_DOPAUSE | MIIF_FORCEANEG)) != 0)
