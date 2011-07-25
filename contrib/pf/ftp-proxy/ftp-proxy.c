@@ -273,6 +273,12 @@ end_session(struct session *s)
 
 	logmsg(LOG_INFO, "#%d ending session", s->id);
 
+	/* Flush output buffers. */
+	if (s->client_bufev && s->client_fd != -1)
+		evbuffer_write(s->client_bufev->output, s->client_fd);
+	if (s->server_bufev && s->server_fd != -1)
+		evbuffer_write(s->server_bufev->output, s->server_fd);
+
 	if (s->client_fd != -1)
 		close(s->client_fd);
 	if (s->server_fd != -1)
