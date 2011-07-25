@@ -377,7 +377,7 @@ END(rsf_fatal)
  * Due to its size a trap table is an inherently hard thing to represent in
  * code in a clean way.  There are approximately 1024 vectors, of 8 or 32
  * instructions each, many of which are identical.  The way that this is
- * layed out is the instructions (8 or 32) for the actual trap vector appear
+ * laid out is the instructions (8 or 32) for the actual trap vector appear
  * as an AS macro.  In general this code branches to tl0_trap or tl1_trap,
  * but if not supporting code can be placed just after the definition of the
  * macro.  The macros are then instantiated in a different section (.trap),
@@ -2405,7 +2405,7 @@ ENTRY(tl0_ret)
 	 * Check for pending asts atomically with returning.  We must raise
 	 * the PIL before checking, and if no asts are found the PIL must
 	 * remain raised until the retry is executed, or we risk missing asts
-	 * caused by interrupts occuring after the test.  If the PIL is
+	 * caused by interrupts occurring after the test.  If the PIL is
 	 * lowered, as it is when we call ast, the check must be re-executed.
 	 */
 	wrpr	%g0, PIL_TICK, %pil
