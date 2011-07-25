@@ -482,7 +482,6 @@ schizo_attach(device_t dev)
 		if (tc == NULL)
 			panic("%s: could not malloc timecounter", __func__);
 		tc->tc_get_timecount = schizo_get_timecount;
-		tc->tc_poll_pps = NULL;
 		tc->tc_counter_mask = STX_CTRL_PERF_CNT_MASK;
 		if (OF_getprop(OF_peer(0), "clock-frequency", &prop,
 		    sizeof(prop)) == -1)
@@ -1521,6 +1520,7 @@ schizo_get_timecount(struct timecounter *tc)
 	struct schizo_softc *sc;
 
 	sc = tc->tc_priv;
-	return (SCHIZO_CTRL_READ_8(sc, STX_CTRL_PERF_CNT) &
-	    (STX_CTRL_PERF_CNT_MASK << STX_CTRL_PERF_CNT_CNT0_SHIFT));
+	return ((SCHIZO_CTRL_READ_8(sc, STX_CTRL_PERF_CNT) &
+	    (STX_CTRL_PERF_CNT_MASK << STX_CTRL_PERF_CNT_CNT0_SHIFT)) >>
+	    STX_CTRL_PERF_CNT_CNT0_SHIFT);
 }
