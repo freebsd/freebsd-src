@@ -585,15 +585,6 @@ panic(const char *fmt, ...)
 		kdb_backtrace();
 	if (debugger_on_panic)
 		kdb_enter(KDB_WHY_PANIC, "panic");
-#ifdef RESTARTABLE_PANICS
-	/* See if the user aborted the panic, in which case we continue. */
-	if (panicstr == NULL) {
-#ifdef SMP
-		atomic_store_rel_int(&panic_cpu, NOCPU);
-#endif
-		return;
-	}
-#endif
 #endif
 	/*thread_lock(td); */
 	td->td_flags |= TDF_INPANIC;
