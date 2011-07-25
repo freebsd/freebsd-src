@@ -626,7 +626,9 @@ gem_reset(struct gem_softc *sc)
 	gem_reset_tx(sc);
 
 	/* Do a full reset. */
-	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX);
+	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX |
+	    (sc->sc_variant == GEM_SUN_ERI ? GEM_ERI_CACHE_LINE_SIZE <<
+	    GEM_RESET_CLSZ_SHFT : 0));
 	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0))
@@ -716,11 +718,12 @@ gem_reset_rx(struct gem_softc *sc)
 	DELAY(5000);
 
 	/* Reset the ERX. */
-	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX);
+	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX |
+	    (sc->sc_variant == GEM_SUN_ERI ? GEM_ERI_CACHE_LINE_SIZE <<
+	    GEM_RESET_CLSZ_SHFT : 0));
 	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX,
-	    0)) {
+	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
 		return (1);
 	}
@@ -806,11 +809,12 @@ gem_reset_tx(struct gem_softc *sc)
 	DELAY(5000);
 
 	/* Finally, reset the ETX. */
-	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_TX);
+	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_TX |
+	    (sc->sc_variant == GEM_SUN_ERI ? GEM_ERI_CACHE_LINE_SIZE <<
+	    GEM_RESET_CLSZ_SHFT : 0));
 	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX,
-	    0)) {
+	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_TX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset transmitter\n");
 		return (1);
 	}
