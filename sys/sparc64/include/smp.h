@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2007 - 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,9 +157,9 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
-	ica->ica_mask = all_cpus;
+	ica->ica_mask = PCPU_GET(other_cpus);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -172,9 +173,9 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
-	ica->ica_mask = all_cpus;
+	ica->ica_mask = PCPU_GET(other_cpus);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -188,7 +189,7 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 	sched_pin();
 	ira = &ipi_rd_args;
 	mtx_lock_spin(&ipi_mtx);
-	ira->ira_mask = 1 << cpu | PCPU_GET(cpumask);
+	ira->ira_mask = 1 << cpu;
 	ira->ira_val = val;
 	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
 	return (&ira->ira_mask);
@@ -209,7 +210,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
 	    (u_long)ita);
@@ -231,7 +232,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
@@ -253,7 +254,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
@@ -268,7 +269,6 @@ ipi_wait(void *cookie)
 	volatile u_int *mask;
 
 	if ((mask = cookie) != NULL) {
-		atomic_clear_int(mask, PCPU_GET(cpumask));
 		while (*mask != 0)
 			;
 		mtx_unlock_spin(&ipi_mtx);
