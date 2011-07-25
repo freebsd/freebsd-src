@@ -1158,6 +1158,7 @@ pmap_release(pmap_t pm)
 			pc->pc_pmap = NULL;
 	mtx_unlock_spin(&sched_lock);
 
+	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	obj = pm->pm_tsb_obj;
 	VM_OBJECT_LOCK(obj);
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
@@ -1175,7 +1176,6 @@ pmap_release(pmap_t pm)
 		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(obj);
-	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	PMAP_LOCK_DESTROY(pm);
 }
 
