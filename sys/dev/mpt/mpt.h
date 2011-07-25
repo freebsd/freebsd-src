@@ -371,7 +371,7 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
-	uint16_t	ResponseCode;	/* TMF Reponse Code */
+	uint16_t	ResponseCode;	/* TMF Response Code */
 	uint16_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
@@ -714,7 +714,7 @@ struct mpt_softc {
 	 */
 	int			pci_msi_count;
 	struct resource *	pci_irq;	/* Interrupt map for chip */
-	void *			ih;		/* Interupt handle */
+	void *			ih;		/* Interrupt handle */
 	struct mpt_pci_cfg	pci_cfg;	/* saved PCI conf registers */
 
 	/*
@@ -1052,7 +1052,7 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
 void
 mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
 
-/************************** Scatter Gather Managment **************************/
+/************************** Scatter Gather Management **************************/
 /* MPT_RQSL- size of request frame, in bytes */
 #define	MPT_RQSL(mpt)		(mpt->ioc_facts.RequestFrameSize << 2)
 
