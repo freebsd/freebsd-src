@@ -96,10 +96,10 @@ static struct mmu_ops {
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
     void *openfirmware);
 
-static inline u_long dtlb_get_data_sun4u(u_int);
+static inline u_long dtlb_get_data_sun4u(u_int, u_int);
 static int dtlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t dtlb_va_to_pa_sun4u(vm_offset_t);
-static inline u_long itlb_get_data_sun4u(u_int);
+static inline u_long itlb_get_data_sun4u(u_int, u_int);
 static int itlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
 static void itlb_relocate_locked0_sun4u(void);
@@ -140,6 +140,7 @@ u_int itlb_slot;
 static int cpu_impl;
 static u_int dtlb_slot_max;
 static u_int itlb_slot_max;
+static u_int tlb_locked;
 
 /* sun4v */
 static struct tlb_entry *tlb_store;
@@ -414,42 +415,55 @@ __elfN(exec)(struct preloaded_file *fp)
 }
 
 static inline u_long
-dtlb_get_data_sun4u(u_int slot)
+dtlb_get_data_sun4u(u_int tlb, u_int slot)
 {
+	u_long data, pstate;
 
+	slot = TLB_DAR_SLOT(tlb, slot);
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
-	 * around errata of USIII and beyond.
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice back-to-back in order to
+	 * work around errata of USIII and beyond.
 	 */
-	(void)ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
-	return (ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG));
+	pstate = rdpr(pstate);
+	wrpr(pstate, pstate & ~PSTATE_IE, 0);
+	(void)ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	wrpr(pstate, pstate, 0);
+	return (data);
 }
 
 static inline u_long
-itlb_get_data_sun4u(u_int slot)
+itlb_get_data_sun4u(u_int tlb, u_int slot)
 {
+	u_long data, pstate;
 
+	slot = TLB_DAR_SLOT(tlb, slot);
 	/*
-	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
-	 * around errata of USIII and beyond.
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice back-to-back in order to
+	 * work around errata of USIII and beyond.
 	 */
-	(void)ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG);
-	return (ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG));
+	pstate = rdpr(pstate);
+	wrpr(pstate, pstate & ~PSTATE_IE, 0);
+	(void)ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+	data = ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+	wrpr(pstate, pstate, 0);
+	return (data);
 }
 
 static vm_offset_t
 dtlb_va_to_pa_sun4u(vm_offset_t va)
 {
 	u_long pstate, reg;
-	int i;
+	u_int i, tlb;
 
 	pstate = rdpr(pstate);
 	wrpr(pstate, pstate & ~PSTATE_IE, 0);
 	for (i = 0; i < dtlb_slot_max; i++) {
-		reg = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
+		reg = ldxa(TLB_DAR_SLOT(tlb_locked, i),
+		    ASI_DTLB_TAG_READ_REG);
 		if (TLB_TAR_VA(reg) != va)
 			continue;
-		reg = dtlb_get_data_sun4u(i);
+		reg = dtlb_get_data_sun4u(tlb_locked, i);
 		wrpr(pstate, pstate, 0);
 		reg >>= TD_PA_SHIFT;
 		if (cpu_impl == CPU_IMPL_SPARC64V ||
@@ -470,10 +484,11 @@ itlb_va_to_pa_sun4u(vm_offset_t va)
 	pstate = rdpr(pstate);
 	wrpr(pstate, pstate & ~PSTATE_IE, 0);
 	for (i = 0; i < itlb_slot_max; i++) {
-		reg = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
+		reg = ldxa(TLB_DAR_SLOT(tlb_locked, i),
+		    ASI_ITLB_TAG_READ_REG);
 		if (TLB_TAR_VA(reg) != va)
 			continue;
-		reg = itlb_get_data_sun4u(i);
+		reg = itlb_get_data_sun4u(tlb_locked, i);
 		wrpr(pstate, pstate, 0);
 		reg >>= TD_PA_SHIFT;
 		if (cpu_impl == CPU_IMPL_SPARC64V ||
@@ -517,14 +532,14 @@ itlb_relocate_locked0_sun4u(void)
 	pstate = rdpr(pstate);
 	wrpr(pstate, pstate & ~PSTATE_IE, 0);
 
-	data = itlb_get_data_sun4u(0);
+	data = itlb_get_data_sun4u(tlb_locked, 0);
 	if ((data & (TD_V | TD_L)) != (TD_V | TD_L)) {
 		wrpr(pstate, pstate, 0);
 		return;
 	}
 
 	/* Flush the mapping of slot 0. */
-	tag = ldxa(TLB_DAR_SLOT(0), ASI_ITLB_TAG_READ_REG);
+	tag = ldxa(TLB_DAR_SLOT(tlb_locked, 0), ASI_ITLB_TAG_READ_REG);
 	stxa(TLB_DEMAP_VA(TLB_TAR_VA(tag)) | TLB_DEMAP_PRIMARY |
 	    TLB_DEMAP_PAGE, ASI_IMMU_DEMAP, 0);
 	flush(0);	/* The USIII-family ignores the address. */
@@ -534,11 +549,12 @@ itlb_relocate_locked0_sun4u(void)
 	 * that formerly were in slot 0.
 	 */
 	for (i = 1; i < itlb_slot_max; i++) {
-		if ((itlb_get_data_sun4u(i) & TD_V) != 0)
+		if ((itlb_get_data_sun4u(tlb_locked, i) & TD_V) != 0)
 			continue;
 
 		stxa(AA_IMMU_TAR, ASI_IMMU, tag);
-		stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
+		stxa(TLB_DAR_SLOT(tlb_locked, i), ASI_ITLB_DATA_ACCESS_REG,
+		    data);
 		flush(0);	/* The USIII-family ignores the address. */
 		break;
 	}
@@ -751,6 +767,26 @@ tlb_init_sun4u(void)
 	phandle_t bsp;
 
 	cpu_impl = VER_IMPL(rdpr(ver));
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		tlb_locked = TLB_DAR_T32;
+		break;
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		tlb_locked = TLB_DAR_T16;
+		break;
+	case CPU_IMPL_SPARC64V:
+		tlb_locked = TLB_DAR_FTLB;
+		break;
+	}
 	bsp = find_bsp_sun4u(OF_child(root), cpu_get_mid_sun4u());
 	if (bsp == 0)
 		panic("%s: no node for bootcpu?!?!", __func__);
@@ -937,21 +973,23 @@ pmap_print_tlb_sun4u(void)
 	pstate = rdpr(pstate);
 	for (i = 0; i < itlb_slot_max; i++) {
 		wrpr(pstate, pstate & ~PSTATE_IE, 0);
-		tte = itlb_get_data_sun4u(i);
+		tte = itlb_get_data_sun4u(tlb_locked, i);
 		wrpr(pstate, pstate, 0);
 		if (!(tte & TD_V))
 			continue;
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
+		tag = ldxa(TLB_DAR_SLOT(tlb_locked, i),
+		    ASI_ITLB_TAG_READ_REG);
 		printf("iTLB-%2u: ", i);
 		pmap_print_tte_sun4u(tag, tte);
 	}
 	for (i = 0; i < dtlb_slot_max; i++) {
 		wrpr(pstate, pstate & ~PSTATE_IE, 0);
-		tte = dtlb_get_data_sun4u(i);
+		tte = dtlb_get_data_sun4u(tlb_locked, i);
 		wrpr(pstate, pstate, 0);
 		if (!(tte & TD_V))
 			continue;
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
+		tag = ldxa(TLB_DAR_SLOT(tlb_locked, i),
+		    ASI_DTLB_TAG_READ_REG);
 		printf("dTLB-%2u: ", i);
 		pmap_print_tte_sun4u(tag, tte);
 	}
