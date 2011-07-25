@@ -303,13 +303,6 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 	kthread_exit(status)
 #endif
 
-/****************************** Timer Facilities ******************************/
-#if __FreeBSD_version > 500000
-#define mpt_callout_init(c)	callout_init(c, /*mpsafe*/1);
-#else
-#define mpt_callout_init(c)	callout_init(c);
-#endif
-
 /********************************** Endianess *********************************/
 #define	MPT_2_HOST64(ptr, tag)	ptr->tag = le64toh(ptr->tag)
 #define	MPT_2_HOST32(ptr, tag)	ptr->tag = le32toh(ptr->tag)
@@ -897,6 +890,10 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	callout_reset(&(req)->callout, (ticks), (func), (arg));
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
+#define mpt_callout_init(mpt, c) \
+	callout_init(c)
+#define mpt_callout_drain(mpt, c) \
+	callout_stop(c)
 
 #else
 #if 1
@@ -919,9 +916,13 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
 #define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg));
+	callout_reset(&(req)->callout, (ticks), (func), (arg))
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
+#define mpt_callout_init(mpt, c) \
+	callout_init_mtx(c, &(mpt)->mpt_lock, 0)
+#define mpt_callout_drain(mpt, c) \
+	callout_drain(c)
 
 #else
 
@@ -934,17 +935,17 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 #define	MPTLOCK_2_CAMLOCK(mpt)
 #define	CAMLOCK_2_MPTLOCK(mpt)
 
+#define mpt_req_timeout(req, ticks, func, arg) \
+	callout_reset(&(req)->callout, (ticks), (func), (arg))
+#define mpt_req_untimeout(req, func, arg) \
+	callout_stop(&(req)->callout)
+#define mpt_callout_init(mpt, c) \
+	callout_init(c, 0)
+#define mpt_callout_drain(mpt, c) \
+	callout_drain(c)
+
 static __inline int
 mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
-
-#define mpt_ccb_timeout(ccb, ticks, func, arg) \
-	do {	\
-		(ccb)->ccb_h.timeout_ch = timeout((func), (arg), (ticks)); \
-	} while (0)
-#define mpt_ccb_untimeout(ccb, func, arg) \
-	untimeout((func), (arg), (ccb)->ccb_h.timeout_ch)
-#define mpt_ccb_timeout_init(ccb) \
-	callout_handle_init(&(ccb)->ccb_h.timeout_ch)
 
 static __inline int
 mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
