@@ -1153,7 +1153,7 @@ cas_init_locked(struct cas_softc *sc)
 
 	/* step 14.  Issue Transmit Pending command. */
 
-	/* step 15.  Give the reciever a swift kick. */
+	/* step 15.  Give the receiver a swift kick. */
 	CAS_WRITE_4(sc, CAS_RX_KICK, CAS_NRXDESC - 4);
 	CAS_WRITE_4(sc, CAS_RX_COMP_TAIL, 0);
 	if ((sc->sc_flags & CAS_REG_PLUS) != 0)
