@@ -2563,6 +2563,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			}
 			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
 			crs.ccb_h.func_code = XPT_REL_SIMQ;
+			crs.ccb_h.flags = CAM_DEV_QFREEZE;
 			crs.release_flags = RELSIM_ADJUST_OPENINGS;
 			crs.openings = pqf->CurrentDepth - 1;
 			xpt_action((union ccb *)&crs);
