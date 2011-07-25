@@ -173,6 +173,8 @@ struct gem_softc {
 	u_int		sc_rxptr;	/* next ready RX descriptor/state */
 	u_int		sc_rxfifosize;	/* RX FIFO size (bytes) */
 
+	uint32_t	sc_mac_rxcfg;	/* RX MAC conf. % GEM_MAC_RX_ENABLE */
+
 	int		sc_ifflags;
 	u_long		sc_csum_features;
 };
