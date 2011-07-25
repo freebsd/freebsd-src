@@ -604,9 +604,6 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 
 	panic("%s: weird hook", __func__);
-#ifdef RESTARTABLE_PANICS /* so we don't get an error msg in LINT */
-	return (0);
-#endif
 }
 
 /*
