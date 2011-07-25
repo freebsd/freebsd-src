@@ -235,8 +235,8 @@ ENTRY(tl_ipi_tlb_range_demap)
 	ldx	[%g5 + ITA_START], %g1
 	ldx	[%g5 + ITA_END], %g2
 
-1:	or	%g1, %g3, %g4
 	sethi	%hi(KERNBASE), %g6
+1:	or	%g1, %g3, %g4
 	stxa	%g0, [%g4] ASI_DMMU_DEMAP
 	stxa	%g0, [%g4] ASI_IMMU_DEMAP
 	flush	%g6
@@ -245,7 +245,7 @@ ENTRY(tl_ipi_tlb_range_demap)
 	add	%g1, %g6, %g1
 	cmp	%g1, %g2
 	blt,a,pt %xcc, 1b
-	 nop
+	 sethi	%hi(KERNBASE), %g6
 
 	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
