@@ -1205,25 +1205,21 @@ mpt_cam_detach(struct mpt_softc *mpt)
 		free(mpt->sas_portinfo, M_DEVBUF);
 		mpt->sas_portinfo = NULL;
 	}
-	MPT_UNLOCK(mpt);
 
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
-		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
-		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
 	}
 
 	if (mpt->phydisk_sim != NULL) {
 		xpt_free_path(mpt->phydisk_path);
-		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
-		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
 	}
+	MPT_UNLOCK(mpt);
 }
 
 /* This routine is used after a system crash to dump core onto the swap device.
@@ -3586,6 +3582,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = mpt->port_facts[0].MaxDevices - 1;
+#if 0
+		cpi->maxio = (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE;
+#endif
+
 		/*
 		 * FC cards report MAX_DEVICES of 512, but
 		 * the MSG_SCSI_IO_REQUEST target id field
@@ -4226,7 +4226,7 @@ mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 	/*
 	 * Okay, set up ELS buffer pointers. ELS buffer pointers
 	 * consist of a TE SGL element (with details length of zero)
-	 * followe by a SIMPLE SGL element which holds the address
+	 * followed by a SIMPLE SGL element which holds the address
 	 * of the buffer.
 	 */
 
