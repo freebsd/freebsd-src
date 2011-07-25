@@ -85,7 +85,7 @@
  * The number of PHYSSEG entries must be one greater than the number
  * of phys_avail entries because the phys_avail entry that spans the
  * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries. 
+ * into two PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		64
 
@@ -144,13 +144,13 @@
  * 43 bits of user address space is considered to be "enough", so we ignore it.
  *
  * Upper region:	0xffffffffffffffff
- * 			0xfffff80000000000
- * 
+ *			0xfffff80000000000
+ *
  * Hole:		0xfffff7ffffffffff
- * 			0x0000080000000000
+ *			0x0000080000000000
  *
  * Lower region:	0x000007ffffffffff
- * 			0x0000000000000000
+ *			0x0000000000000000
  *
  * In general we ignore the upper region, and use the lower region as mappable
  * space.
