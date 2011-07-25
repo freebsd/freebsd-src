@@ -67,6 +67,10 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
 		const uint32_t control = in[*in_pos];
 		++*in_pos;
 
+		// End marker
+		if (control == 0x00)
+			return LZMA_STREAM_END;
+
 		if (control >= 0xE0 || control == 1) {
 			// Dictionary reset implies that next LZMA chunk has
 			// to set new properties.
@@ -104,10 +108,6 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
 							&coder->options);
 			}
 		} else {
-			// End marker
-			if (control == 0x00)
-				return LZMA_STREAM_END;
-
 			// Invalid control values
 			if (control > 2)
 				return LZMA_DATA_ERROR;

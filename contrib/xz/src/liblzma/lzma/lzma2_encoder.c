@@ -374,7 +374,7 @@ lzma_lzma2_props_encode(const void *options, uint8_t *out)
 	const lzma_options_lzma *const opt = options;
 	uint32_t d = my_max(opt->dict_size, LZMA_DICT_SIZE_MIN);
 
-	// Round up to to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
+	// Round up to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
 	// on which one is the next:
 	--d;
 	d |= d >> 2;
