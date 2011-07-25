@@ -161,12 +161,10 @@ cpu_initclocks(void)
 	 * quality (S)TICK timers in the MP case.
 	 */
 	tick_tc.tc_get_timecount = tick_get_timecount_up;
-	tick_tc.tc_poll_pps = NULL;
 	tick_tc.tc_counter_mask = ~0u;
 	tick_tc.tc_frequency = clock;
 	tick_tc.tc_name = "tick";
 	tick_tc.tc_quality = TICK_QUALITY_UP;
-	tick_tc.tc_priv = NULL;
 #ifdef SMP
 	if (cpu_mp_probe()) {
 		tick_tc.tc_get_timecount = tick_get_timecount_mp;
@@ -176,12 +174,10 @@ cpu_initclocks(void)
 	tc_init(&tick_tc);
 	if (sclock != 0) {
 		stick_tc.tc_get_timecount = stick_get_timecount_up;
-		stick_tc.tc_poll_pps = NULL;
 		stick_tc.tc_counter_mask = ~0u;
 		stick_tc.tc_frequency = sclock;
 		stick_tc.tc_name = "stick";
 		stick_tc.tc_quality = TICK_QUALITY_UP;
-		stick_tc.tc_priv = NULL;
 #ifdef SMP
 		if (cpu_mp_probe()) {
 			stick_tc.tc_get_timecount = stick_get_timecount_mp;
