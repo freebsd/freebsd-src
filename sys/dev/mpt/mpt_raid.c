@@ -271,7 +271,7 @@ mpt_raid_attach(struct mpt_softc *mpt)
 	mpt_handler_t	 handler;
 	int		 error;
 
-	mpt_callout_init(&mpt->raid_timer);
+	mpt_callout_init(mpt, &mpt->raid_timer);
 
 	error = mpt_spawn_raid_thread(mpt);
 	if (error != 0) {
@@ -320,10 +320,10 @@ mpt_raid_detach(struct mpt_softc *mpt)
 	struct ccb_setasync csa;
 	mpt_handler_t handler;
 
-	callout_stop(&mpt->raid_timer);
+	mpt_callout_drain(mpt, &mpt->raid_timer);
+
 	MPT_LOCK(mpt);
 	mpt_terminate_raid_thread(mpt); 
-
 	handler.reply_handler = mpt_raid_reply_handler;
 	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
 			       raid_handler_id);
@@ -1570,9 +1570,14 @@ mpt_raid_timer(void *arg)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)arg;
+#if __FreeBSD_version < 500000
 	MPT_LOCK(mpt);
+#endif
+	MPT_LOCK_ASSERT(mpt);
 	mpt_raid_wakeup(mpt);
+#if __FreeBSD_version < 500000
 	MPT_UNLOCK(mpt);
+#endif
 }
 
 void
