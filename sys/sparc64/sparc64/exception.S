@@ -581,7 +581,8 @@ END(tl0_sfsr_trap)
 	andcc	%g1, IRSR_BUSY, %g0
 	bnz,a,pt %xcc, intr_vector
 	 nop
-	sir
+	ba,a,pt	%xcc, intr_vector_stray
+	 nop
 	.align	32
 	.endm
 
