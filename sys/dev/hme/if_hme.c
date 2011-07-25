@@ -203,7 +203,7 @@ hme_config(struct hme_softc *sc)
 	 * the DMA bus tag:
 	 *	sc_dmatag
 	 *
-	 * the bus handles, tags and offsets (splitted for SBus compatability):
+	 * the bus handles, tags and offsets (splitted for SBus compatibility):
 	 *	sc_seb{t,h,o}	(Shared Ethernet Block registers)
 	 *	sc_erx{t,h,o}	(Receiver Unit registers)
 	 *	sc_etx{t,h,o}	(Transmitter Unit registers)
@@ -1559,7 +1559,7 @@ hme_mediachange_locked(struct hme_softc *sc)
 	 * If both PHYs are present reset them. This is required for
 	 * unisolating the previously isolated PHY when switching PHYs.
 	 * As the above hme_mifinit() call will set the MII drivers in
-	 * the XIF configuration register accoring to the currently
+	 * the XIF configuration register according to the currently
 	 * selected media, there should be no window during which the
 	 * data paths of both transceivers are open at the same time,
 	 * even if the PHY device drivers use MIIF_NOISOLATE.
