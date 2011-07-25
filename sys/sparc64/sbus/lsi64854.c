@@ -521,7 +521,7 @@ lsi64854_scsi_intr(void *arg)
 	}
 
 	trans = sc->sc_dmasize - resid;
-	if (trans < 0) {			/* transfered < 0? */
+	if (trans < 0) {			/* transferred < 0? */
 #if 0
 		/*
 		 * This situation can happen in perfectly normal operation
@@ -711,7 +711,7 @@ lsi64854_pp_intr(void *arg)
 	sc->sc_active = 0;
 
 	trans = sc->sc_dmasize - resid;
-	if (trans < 0)				/* transfered < 0? */
+	if (trans < 0)				/* transferred < 0? */
 		trans = sc->sc_dmasize;
 	*sc->sc_dmalen -= trans;
 	*sc->sc_dmaaddr += trans;
