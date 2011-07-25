@@ -1294,8 +1294,11 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	for (i = 0; i < max; i++) {
 		/* Allocate a message. */
 		error = PCIB_ALLOC_MSIX(device_get_parent(dev), child, &irq);
-		if (error)
+		if (error) {
+			if (i == 0)
+				return (error);
 			break;
+		}
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
 		    irq, 1);
 	}
