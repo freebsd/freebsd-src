@@ -366,7 +366,7 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
  *  from the SCRIPTS code. In addition, cache line alignment
  *  is guaranteed for power of 2 cache line size.
  *
- *  This allocator has been developped for the Linux sym53c8xx
+ *  This allocator has been developed for the Linux sym53c8xx
  *  driver, since this O/S does not provide naturally aligned
  *  allocations.
  *  It has the advantage of allowing the driver to use private
@@ -1959,10 +1959,8 @@ static void
 sym_fw1_setup(hcb_p np, const struct sym_fw *fw)
 {
 	struct sym_fw1a_scr *scripta0;
-	struct sym_fw1b_scr *scriptb0;
 
 	scripta0 = (struct sym_fw1a_scr *) np->scripta0;
-	scriptb0 = (struct sym_fw1b_scr *) np->scriptb0;
 
 	/*
 	 *  Fill variable parts in scripts.
@@ -1983,10 +1981,8 @@ static void
 sym_fw2_setup(hcb_p np, const struct sym_fw *fw)
 {
 	struct sym_fw2a_scr *scripta0;
-	struct sym_fw2b_scr *scriptb0;
 
 	scripta0 = (struct sym_fw2a_scr *) np->scripta0;
-	scriptb0 = (struct sym_fw2b_scr *) np->scriptb0;
 
 	/*
 	 *  Fill variable parts in scripts.
@@ -2294,7 +2290,7 @@ static void sym_nvram_setup_target (hcb_p np, int targ, struct sym_nvram *nvp);
 static int sym_read_nvram (hcb_p np, struct sym_nvram *nvp);
 
 /*
- *  Print something which allows to retrieve the controler type,
+ *  Print something which allows to retrieve the controller type,
  *  unit, target, lun concerned by a kernel message.
  */
 static void PRINT_TARGET (hcb_p np, int target)
@@ -4300,7 +4296,7 @@ static void sym_int_ma (hcb_p np)
 		}
 
 		/*
-		 *  The data in the dma fifo has not been transfered to
+		 *  The data in the dma fifo has not been transferred to
 		 *  the target -> add the amount to the rest
 		 *  and clear the data.
 		 *  Check the sstat2 register in case of wide transfer.
@@ -7520,7 +7516,7 @@ static void sym_action(struct cam_sim *sim, union ccb *ccb)
         }
 
 	/*
-	 *  Retreive the target and lun descriptors.
+	 *  Retrieve the target and lun descriptors.
 	 */
 	tp = &np->target[ccb_h->target_id];
 	lp = sym_lp(np, tp, ccb_h->target_lun);
