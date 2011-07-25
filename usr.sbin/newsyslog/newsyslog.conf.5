@@ -301,9 +301,16 @@ log file using
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
+.It Cm R
+if this flag is set the
+.Xr newsyslog 8
+will run executable defined in 
+.Ar path_to_pid_cmd_file
+after rotation instead of trying to send signal to a process id
+stored in the file.
 .It Cm U
 indicates that the file specified by
-.Ar path_to_pid_file
+.Ar path_to_pid_cmd_file
 will contain the ID for a process group instead of a process.
 This option also requires that the first line in that file
 be a negative value to distinguish it from a process ID.
@@ -319,7 +326,7 @@ can be used as a placeholder to create a
 .Ar flags
 field when you need to specify any of the following fields.
 .El
-.It Ar path_to_pid_file
+.It Ar path_to_pid_cmd_file
 This optional field specifies the file name containing a daemon's
 process ID or to find a group process ID if the
 .Cm U
@@ -340,6 +347,12 @@ switch.
 This field must start with
 .Ql /
 in order to be recognized properly.
+When used with the
+.Cm R
+flag, the file is treated as a path to a binary to be executed
+by the
+.Xr newsyslog 8
+after rotation instead of sending the signal out.
 .It Ar signal_number
 This optional field specifies the signal number that will be sent
 to the daemon process (or to all processes in a process group, if the
