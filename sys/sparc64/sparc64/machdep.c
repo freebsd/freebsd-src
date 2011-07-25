@@ -557,7 +557,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * is necessary in order to set obp-control-relinquished to true
 	 * within the PROM so obtaining /virtual-memory/translations doesn't
 	 * trigger a fatal reset error or worse things further down the road.
-	 * XXX it should be possible to use this soley instead of writing
+	 * XXX it should be possible to use this solely instead of writing
 	 * %tba in cpu_setregs().  Doing so causes a hang however.
 	 */
 	sun4u_set_traptable(tl0_base);
