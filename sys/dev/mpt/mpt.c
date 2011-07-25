@@ -128,6 +128,8 @@ static void mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 static int mpt_send_event_request(struct mpt_softc *mpt, int onoff);
 static int mpt_soft_reset(struct mpt_softc *mpt);
 static void mpt_hard_reset(struct mpt_softc *mpt);
+static int mpt_dma_buf_alloc(struct mpt_softc *mpt);
+static void mpt_dma_buf_free(struct mpt_softc *mpt);
 static int mpt_configure_ioc(struct mpt_softc *mpt, int, int);
 static int mpt_enable_ioc(struct mpt_softc *mpt, int);
 
@@ -2247,14 +2249,6 @@ mpt_core_attach(struct mpt_softc *mpt)
 	TAILQ_INIT(&mpt->request_pending_list);
 	TAILQ_INIT(&mpt->request_free_list);
 	TAILQ_INIT(&mpt->request_timeout_list);
-	MPT_LOCK(mpt);
-	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
-		request_t *req = &mpt->request_pool[val];
-		req->state = REQ_STATE_ALLOCATED;
-		mpt_callout_init(mpt, &req->callout);
-		mpt_free_request(mpt, req);
-	}
-	MPT_UNLOCK(mpt);
 	for (val = 0; val < MPT_MAX_LUNS; val++) {
 		STAILQ_INIT(&mpt->trt[val].atios);
 		STAILQ_INIT(&mpt->trt[val].inots);
@@ -2347,6 +2341,8 @@ mpt_core_detach(struct mpt_softc *mpt)
 		request_t *req = &mpt->request_pool[val];
 		mpt_callout_drain(mpt, &req->callout);
 	}
+
+	mpt_dma_buf_free(mpt);
 }
 
 int
@@ -2481,6 +2477,105 @@ mpt_download_fw(struct mpt_softc *mpt)
 	return (0);
 }
 
+static int
+mpt_dma_buf_alloc(struct mpt_softc *mpt)
+{
+	struct mpt_map_info mi;
+	uint8_t *vptr;
+	uint32_t pptr, end;
+	int i, error;
+
+	/* Create a child tag for data buffers */
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
+	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    NULL, NULL, (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE,
+	    mpt->max_cam_seg_cnt, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    &mpt->buffer_dmat) != 0) {
+		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
+		return (1);
+	}
+
+	/* Create a child tag for request buffers */
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    &mpt->request_dmat) != 0) {
+		mpt_prt(mpt, "cannot create a dma tag for requests\n");
+		return (1);
+	}
+
+	/* Allocate some DMA accessable memory for requests */
+	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
+	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
+		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
+		    MPT_REQ_MEM_SIZE(mpt));
+		return (1);
+	}
+
+	mi.mpt = mpt;
+	mi.error = 0;
+
+	/* Load and lock it into "bus space" */
+	bus_dmamap_load(mpt->request_dmat, mpt->request_dmap, mpt->request,
+	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &mi, 0);
+
+	if (mi.error) {
+		mpt_prt(mpt, "error %d loading dma map for DMA request queue\n",
+		    mi.error);
+		return (1);
+	}
+	mpt->request_phys = mi.phys;
+
+	/*
+	 * Now create per-request dma maps
+	 */
+	i = 0;
+	pptr =  mpt->request_phys;
+	vptr =  mpt->request;
+	end = pptr + MPT_REQ_MEM_SIZE(mpt);
+	while(pptr < end) {
+		request_t *req = &mpt->request_pool[i];
+		req->index = i++;
+
+		/* Store location of Request Data */
+		req->req_pbuf = pptr;
+		req->req_vbuf = vptr;
+
+		pptr += MPT_REQUEST_AREA;
+		vptr += MPT_REQUEST_AREA;
+
+		req->sense_pbuf = (pptr - MPT_SENSE_SIZE);
+		req->sense_vbuf = (vptr - MPT_SENSE_SIZE);
+
+		error = bus_dmamap_create(mpt->buffer_dmat, 0, &req->dmap);
+		if (error) {
+			mpt_prt(mpt, "error %d creating per-cmd DMA maps\n",
+			    error);
+			return (1);
+		}
+	}
+
+	return (0);
+}
+
+static void
+mpt_dma_buf_free(struct mpt_softc *mpt)
+{
+	int i;
+	if (mpt->request_dmat == 0) {
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
+		return;
+	}
+	for (i = 0; i < MPT_MAX_REQUESTS(mpt); i++) {
+		bus_dmamap_destroy(mpt->buffer_dmat, mpt->request_pool[i].dmap);
+	}
+	bus_dmamap_unload(mpt->request_dmat, mpt->request_dmap);
+	bus_dmamem_free(mpt->request_dmat, mpt->request, mpt->request_dmap);
+	bus_dma_tag_destroy(mpt->request_dmat);
+	mpt->request_dmat = 0;
+	bus_dma_tag_destroy(mpt->buffer_dmat);
+}
+
 /*
  * Allocate/Initialize data structures for the controller.  Called
  * once at instance startup.
@@ -2489,7 +2584,7 @@ static int
 mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 {
 	PTR_MSG_PORT_FACTS_REPLY pfp;
-	int error,  port;
+	int error, port, val;
 	size_t len;
 
 	if (tn == MPT_MAX_TRYS) {
@@ -2549,7 +2644,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 
 	/* limited by the number of chain areas the card will support */
 	if (mpt->max_seg_cnt > mpt->ioc_facts.MaxChainDepth) {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		mpt_lprt(mpt, MPT_PRT_INFO,
 		    "chain depth limited to %u (from %u)\n",
 		    mpt->ioc_facts.MaxChainDepth, mpt->max_seg_cnt);
 		mpt->max_seg_cnt = mpt->ioc_facts.MaxChainDepth;
@@ -2558,17 +2653,37 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	/* converted to the number of simple sges in chain segments. */
 	mpt->max_seg_cnt *= (MPT_NSGL(mpt) - 1);
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "Maximum Segment Count: %u\n",
-	    mpt->max_seg_cnt);
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "MsgLength=%u IOCNumber = %d\n",
+	/*
+	 * Use this as the basis for reporting the maximum I/O size to CAM.
+	 */
+	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, (MAXPHYS / PAGE_SIZE) + 1);
+
+	error = mpt_dma_buf_alloc(mpt);
+	if (error != 0) {
+		mpt_prt(mpt, "mpt_dma_buf_alloc() failed!\n");
+		return (EIO);
+	}
+
+	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
+		request_t *req = &mpt->request_pool[val];
+		req->state = REQ_STATE_ALLOCATED;
+		mpt_callout_init(mpt, &req->callout);
+		mpt_free_request(mpt, req);
+	}
+
+	mpt_lprt(mpt, MPT_PRT_INFO, "Maximum Segment Count: %u, Maximum "
+		 "CAM Segment Count: %u\n", mpt->max_seg_cnt,
+		 mpt->max_cam_seg_cnt);
+
+	mpt_lprt(mpt, MPT_PRT_INFO, "MsgLength=%u IOCNumber = %d\n",
 	    mpt->ioc_facts.MsgLength, mpt->ioc_facts.IOCNumber);
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
+	mpt_lprt(mpt, MPT_PRT_INFO,
 	    "IOCFACTS: GlobalCredits=%d BlockSize=%u bytes "
 	    "Request Frame Size %u bytes Max Chain Depth %u\n",
 	    mpt->ioc_facts.GlobalCredits, mpt->ioc_facts.BlockSize,
 	    mpt->ioc_facts.RequestFrameSize << 2,
 	    mpt->ioc_facts.MaxChainDepth);
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOCFACTS: Num Ports %d, FWImageSize %d, "
+	mpt_lprt(mpt, MPT_PRT_INFO, "IOCFACTS: Num Ports %d, FWImageSize %d, "
 	    "Flags=%#x\n", mpt->ioc_facts.NumberOfPorts,
 	    mpt->ioc_facts.FWImageSize, mpt->ioc_facts.Flags);
 
@@ -2758,7 +2873,7 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 		mpt_send_event_request(mpt, 1);
 
 		if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
-			mpt_prt(mpt, "failed to enable port 0\n");
+			mpt_prt(mpt, "%s: failed to enable port 0\n", __func__);
 			return (ENXIO);
 		}
 	}
