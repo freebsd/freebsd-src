@@ -369,11 +369,18 @@ ENTRY(rsf_fatal)
 	sir
 END(rsf_fatal)
 
-	.comm	intrnames, IV_MAX * (MAXCOMLEN + 1)
-	.comm	eintrnames, 0
+	.data
+	_ALIGN_DATA
+	.globl	intrnames, eintrnames
+intrnames:
+	.space	IV_MAX * (MAXCOMLEN + 1)
+eintrnames:
+	.globl	intrcnt, eintrcnt
+intrcnt:
+	.space	IV_MAX * 8
+eintrcnt:
 
-	.comm	intrcnt, IV_MAX * 8
-	.comm	eintrcnt, 0
+	.text
 
 /*
  * Trap table and associated macros
