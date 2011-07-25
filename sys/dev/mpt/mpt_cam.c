@@ -2158,7 +2158,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->TargetID = tgt;
 
 	/* We assume a single level LUN type */
-	if (ccb->ccb_h.target_lun >= 256) {
+	if (ccb->ccb_h.target_lun >= MPT_MAX_LUNS) {
 		mpt_req->LUN[0] = 0x40 | ((ccb->ccb_h.target_lun >> 8) & 0x3f);
 		mpt_req->LUN[1] = ccb->ccb_h.target_lun & 0xff;
 	} else {
@@ -4043,7 +4043,7 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	tmf_req->MsgFlags = flags;
 	tmf_req->MsgContext =
 	    htole32(mpt->tmf_req->index | scsi_tmf_handler_id);
-	if (lun > 256) {
+	if (lun > MPT_MAX_LUNS) {
 		tmf_req->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
 		tmf_req->LUN[1] = lun & 0xff;
 	} else {
@@ -4517,7 +4517,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		ta->Function = MPI_FUNCTION_TARGET_ASSIST;
 		ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
 		ta->ReplyWord = htole32(tgt->reply_desc);
-		if (csio->ccb_h.target_lun > 256) {
+		if (csio->ccb_h.target_lun > MPT_MAX_LUNS) {
 			ta->LUN[0] =
 			    0x40 | ((csio->ccb_h.target_lun >> 8) & 0x3f);
 			ta->LUN[1] = csio->ccb_h.target_lun & 0xff;
@@ -4669,7 +4669,7 @@ mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
 	ta->Function = MPI_FUNCTION_TARGET_ASSIST;
 	ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
 	ta->ReplyWord = htole32(tgt->reply_desc);
-	if (lun > 256) {
+	if (lun > MPT_MAX_LUNS) {
 		ta->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
 		ta->LUN[1] = lun & 0xff;
 	} else {
