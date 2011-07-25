@@ -134,7 +134,7 @@ typedef struct mii_softc mii_softc_t;
 #define	MIIF_IS_HPNA	0x00000200	/* is a HomePNA device */
 #define	MIIF_FORCEANEG	0x00000400	/* force auto-negotiation */
 #define	MIIF_NOMANPAUSE	0x00100000	/* no manual PAUSE selection */
-#define	MIIF_FORCEPAUSE	0x00200000	/* force PAUSE advertisment */
+#define	MIIF_FORCEPAUSE	0x00200000	/* force PAUSE advertisement */
 #define	MIIF_MACPRIV0	0x01000000	/* private to the MAC driver */
 #define	MIIF_MACPRIV1	0x02000000	/* private to the MAC driver */
 #define	MIIF_MACPRIV2	0x04000000	/* private to the MAC driver */
