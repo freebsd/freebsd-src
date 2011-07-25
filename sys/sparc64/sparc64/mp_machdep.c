@@ -438,9 +438,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	 */
 	tlb_flush_nonlocked();
 
-	/* Initialize global registers. */
-	cpu_setregs(pc);
-
 	/*
 	 * Enable interrupts.
 	 * Note that the PIL we be lowered indirectly via sched_throw(NULL)

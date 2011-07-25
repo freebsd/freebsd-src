@@ -82,7 +82,7 @@ l2:	add	r2, 1, r3 ; \
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
 	set	mask, r1 ; \
 	TEST(ktr_mask, r1, r2, r2, l3) ; \
-	lduw	[PCPU(MID)], r1 ; \
+	lduw	[PCPU(CPUID)], r1 ; \
 	mov	1, r2 ; \
 	sllx	r2, r1, r1 ; \
 	TEST(ktr_cpumask, r1, r2, r3, l3) ; \
