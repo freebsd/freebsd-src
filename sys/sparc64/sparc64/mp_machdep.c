@@ -424,9 +424,11 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	csa = &cpu_start_args;
 
 	/* Do CPU-specific initialization. */
-	if (pc->pc_impl == CPU_IMPL_SPARC64V ||
-	    pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(pc->pc_impl);
+	else if (pc->pc_impl == CPU_IMPL_SPARC64V)
+		zeus_init(pc->pc_impl);
+
 	/*
 	 * Enable the caches.  Note that his may include applying workarounds.
 	 */
