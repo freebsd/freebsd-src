@@ -89,12 +89,9 @@ void	pmap_kremove_flags(vm_offset_t va);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
-void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
 
 int	pmap_remove_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
 			vm_offset_t va);
-int	pmap_protect_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
-			 vm_offset_t va);
 
 void	pmap_map_tsb(void);
 
