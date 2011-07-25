@@ -194,8 +194,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-#define	MPT_IO_BAR	0
-#define	MPT_MEM_BAR	1
 
 static int mpt_pci_probe(device_t);
 static int mpt_pci_attach(device_t);
@@ -420,6 +418,7 @@ mpt_pci_attach(device_t dev)
 	struct mpt_softc *mpt;
 	int		  iqd;
 	uint32_t	  data, cmd;
+	int		  mpt_io_bar, mpt_mem_bar;
 
 	/* Allocate the softc structure */
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
@@ -505,11 +504,25 @@ mpt_pci_attach(device_t dev)
 	}
 
 	/*
+	 * Figure out which are the I/O and MEM Bars
+	 */
+	data = pci_read_config(dev, PCIR_BAR(0), 4);
+	if (PCI_BAR_IO(data)) {
+		/* BAR0 is IO, BAR1 is memory */
+		mpt_io_bar = 0;
+		mpt_mem_bar = 1;
+	} else {
+		/* BAR0 is memory, BAR1 is IO */
+		mpt_mem_bar = 0;
+		mpt_io_bar = 1;
+	}
+
+	/*
 	 * Set up register access.  PIO mode is required for
 	 * certain reset operations (but must be disabled for
 	 * some cards otherwise).
 	 */
-	mpt->pci_pio_rid = PCIR_BAR(MPT_IO_BAR);
+	mpt->pci_pio_rid = PCIR_BAR(mpt_io_bar);
 	mpt->pci_pio_reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 			    &mpt->pci_pio_rid, RF_ACTIVE);
 	if (mpt->pci_pio_reg == NULL) {
@@ -520,7 +533,7 @@ mpt_pci_attach(device_t dev)
 	mpt->pci_pio_sh = rman_get_bushandle(mpt->pci_pio_reg);
 
 	/* Allocate kernel virtual memory for the 9x9's Mem0 region */
-	mpt->pci_mem_rid = PCIR_BAR(MPT_MEM_BAR);
+	mpt->pci_mem_rid = PCIR_BAR(mpt_mem_bar);
 	mpt->pci_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 			&mpt->pci_mem_rid, RF_ACTIVE);
 	if (mpt->pci_reg == NULL) {
