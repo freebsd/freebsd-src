@@ -83,10 +83,11 @@ CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
 
 ih_func_t *intr_handlers[PIL_MAX];
 uint16_t pil_countp[PIL_MAX];
+static uint16_t pil_stray_count[PIL_MAX];
 
 struct intr_vector intr_vectors[IV_MAX];
 uint16_t intr_countp[IV_MAX];
-static u_long intr_stray_count[IV_MAX];
+static uint16_t intr_stray_count[IV_MAX];
 
 static const char *const pil_names[] = {
 	"stray",
@@ -198,22 +199,32 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 static void
 intr_stray_level(struct trapframe *tf)
 {
+	uint64_t level;
 
-	printf("stray level interrupt %ld\n", tf->tf_level);
+	level = tf->tf_level;
+	if (pil_stray_count[level] < MAX_STRAY_LOG) {
+		printf("stray level interrupt %ld\n", level);
+		pil_stray_count[level]++;
+		if (pil_stray_count[level] >= MAX_STRAY_LOG)
+			printf("got %d stray level interrupt %ld's: not "
+			    "logging anymore\n", MAX_STRAY_LOG, level);
+	}
 }
 
 static void
 intr_stray_vector(void *cookie)
 {
 	struct intr_vector *iv;
+	u_int vec;
 
 	iv = cookie;
-	if (intr_stray_count[iv->iv_vec] < MAX_STRAY_LOG) {
-		printf("stray vector interrupt %d\n", iv->iv_vec);
-		intr_stray_count[iv->iv_vec]++;
-		if (intr_stray_count[iv->iv_vec] >= MAX_STRAY_LOG)
-			printf("got %d stray interrupt %d's: not logging "
-			    "anymore\n", MAX_STRAY_LOG, iv->iv_vec);
+	vec = iv->iv_vec;
+	if (intr_stray_count[vec] < MAX_STRAY_LOG) {
+		printf("stray vector interrupt %d\n", vec);
+		intr_stray_count[vec]++;
+		if (intr_stray_count[vec] >= MAX_STRAY_LOG)
+			printf("got %d stray vector interrupt %d's: not "
+			    "logging anymore\n", MAX_STRAY_LOG, vec);
 	}
 }
 
