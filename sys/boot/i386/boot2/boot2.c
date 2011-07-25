@@ -132,7 +132,7 @@ static struct dsk {
 } dsk;
 static char cmd[512], cmddup[512];
 static char kname[1024];
-static uint32_t opts;
+static uint16_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -233,7 +233,7 @@ putc(int c)
 int
 main(void)
 {
-    int autoboot;
+    uint8_t autoboot;
     ino_t ino;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
@@ -320,7 +320,8 @@ load(void)
     caddr_t p;
     ino_t ino;
     uint32_t addr, x;
-    int fmt, i, j;
+    int i, j;
+    uint8_t fmt;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
