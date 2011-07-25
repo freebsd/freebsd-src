@@ -398,10 +398,13 @@ extern LZMA_API(lzma_index *)
 lzma_index_init(lzma_allocator *allocator)
 {
 	lzma_index *i = index_init_plain(allocator);
+	if (i == NULL)
+		return NULL;
+
 	index_stream *s = index_stream_init(0, 0, 1, 0, allocator);
-	if (i == NULL || s == NULL) {
-		index_stream_end(s, allocator);
+	if (s == NULL) {
 		lzma_free(i, allocator);
+		return NULL;
 	}
 
 	index_tree_append(&i->streams, &s->node);
