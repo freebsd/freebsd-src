@@ -2136,10 +2136,9 @@ pmap_activate(struct thread *td)
 	struct pmap *pm;
 	int context;
 
+	critical_enter();
 	vm = td->td_proc->p_vmspace;
 	pm = vmspace_pmap(vm);
-
-	mtx_lock_spin(&sched_lock);
 
 	context = PCPU_GET(tlb_ctx);
 	if (context == PCPU_GET(tlb_ctx_max)) {
@@ -2148,17 +2147,18 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
+	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
 	pm->pm_active |= PCPU_GET(cpumask);
 	PCPU_SET(pmap, pm);
+	mtx_unlock_spin(&sched_lock);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
-
-	mtx_unlock_spin(&sched_lock);
+	critical_exit();
 }
 
 void
