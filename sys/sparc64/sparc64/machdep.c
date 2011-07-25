@@ -347,9 +347,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl == CPU_IMPL_SPARC64V ||
-	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(cpu_impl);
+	else if (cpu_impl == CPU_IMPL_SPARC64V)
+		zeus_init(cpu_impl);
 
 	/*
 	 * Clear (S)TICK timer (including NPT).
