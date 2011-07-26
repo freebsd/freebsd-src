@@ -195,6 +195,25 @@ vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 	}
 }
 
+static int
+vfs_isopt_ro(const char *opt)
+{
+
+	if (strcmp(opt, "ro") == 0 || strcmp(opt, "rdonly") == 0 ||
+	    strcmp(opt, "norw") == 0)
+		return (1);
+	return (0);
+}
+
+static int
+vfs_isopt_rw(const char *opt)
+{
+
+	if (strcmp(opt, "rw") == 0 || strcmp(opt, "noro") == 0)
+		return (1);
+	return (0);
+}
+
 /*
  * Check if options are equal (with or without the "no" prefix).
  */
@@ -210,6 +229,10 @@ vfs_equalopts(const char *opt1, const char *opt2)
 		return (1);
 	/* "opt" vs. "noopt" */
 	if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
+		return (1);
+	/* "ro" / "rdonly" / "norw" / "rw" / "noro" */
+	if ((vfs_isopt_ro(opt1) || vfs_isopt_rw(opt1)) &&
+	    (vfs_isopt_ro(opt2) || vfs_isopt_rw(opt2)))
 		return (1);
 	return (0);
 }
