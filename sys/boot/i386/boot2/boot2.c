@@ -347,23 +347,6 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
-	bootinfo.bi_symtab = VTOP(p);
-	*(uint32_t*)p = hdr.ex.a_syms;
-	p += sizeof(hdr.ex.a_syms);
-	if (hdr.ex.a_syms) {
-	    if (xfsread(ino, p, hdr.ex.a_syms))
-		return;
-	    p += hdr.ex.a_syms;
-	    if (xfsread(ino, p, sizeof(int)))
-		return;
-	    x = *(uint32_t *)p;
-	    p += sizeof(int);
-	    x -= sizeof(int);
-	    if (xfsread(ino, p, x))
-		return;
-	    p += x;
-	}
     } else {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
@@ -395,8 +378,8 @@ load(void)
 	    }
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
+	bootinfo.bi_esymtab = VTOP(p);
     }
-    bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
