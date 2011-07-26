@@ -125,17 +125,17 @@ static struct dsk {
     unsigned drive;
     unsigned type;
     unsigned unit;
-    unsigned slice;
-    unsigned part;
+    uint8_t slice;
+    uint8_t part;
     unsigned start;
     int init;
 } dsk;
 static char cmd[512], cmddup[512];
-static const char *kname = NULL;
+static const char *kname;
 static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
-static unsigned ioctrl = IO_KEYBOARD;
+static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(void);
@@ -226,6 +226,7 @@ main(void)
     uint8_t autoboot;
     ino_t ino;
 
+    kname = NULL;
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
@@ -306,9 +307,8 @@ load(void)
     static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
-    uint32_t addr, x;
+    uint32_t addr;
     int i, j;
-    uint8_t fmt;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -317,15 +317,8 @@ load(void)
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
 	return;
-    if (N_GETMAGIC(hdr.ex) == ZMAGIC)
-	fmt = 0;
-    else if (IS_ELF(hdr.eh))
-	fmt = 1;
-    else {
-	printf("Invalid %s\n", "format");
-	return;
-    }
-    if (fmt == 0) {
+
+    if (N_GETMAGIC(hdr.ex) == ZMAGIC) {
 	addr = hdr.ex.a_entry & 0xffffff;
 	p = PTOV(addr);
 	fs_off = PAGE_SIZE;
@@ -334,7 +327,7 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-    } else {
+    } else if (IS_ELF(hdr.eh)) {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
@@ -366,7 +359,11 @@ load(void)
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
 	bootinfo.bi_esymtab = VTOP(p);
+    } else {
+	printf("Invalid %s\n", "format");
+	return;
     }
+
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
@@ -474,7 +471,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     struct dos_partition *dp;
     struct disklabel *d;
     char *sec;
-    unsigned sl, i;
+    unsigned i;
+    uint8_t sl;
 
     if (!dsk_meta) {
 	sec = dmadat->secbuf;
@@ -534,7 +532,7 @@ static void
 printf(const char *fmt,...)
 {
     va_list ap;
-    char buf[10];
+    static char buf[10];
     char *s;
     unsigned u;
     int c;
