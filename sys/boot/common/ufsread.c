@@ -88,7 +88,7 @@ static struct dmadat *dmadat;
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
 
-static int ls, dsk_meta;
+static uint8_t ls, dsk_meta;
 static uint32_t fs_off;
 
 static __inline uint8_t
@@ -127,8 +127,6 @@ lookup(const char *path)
 
 	ino = ROOTINO;
 	dt = DT_DIR;
-	name[0] = '/';
-	name[1] = '\0';
 	for (;;) {
 		if (*path == '/')
 			path++;
