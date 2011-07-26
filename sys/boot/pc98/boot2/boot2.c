@@ -150,7 +150,7 @@ static int drvread(void *, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
-static int getc(int);
+static inline int getc(int);
 
 static void memcpy(void *, const void *, int);
 static void
@@ -779,6 +779,18 @@ xputc(int c)
 }
 
 static int
+getc(int fn)
+{
+    v86.addr = 0x18;
+    v86.eax = fn << 8;
+    v86int();
+    if (fn)
+	return (v86.ebx >> 8) & 0x01;
+    else
+	return v86.eax & 0xff;
+}
+
+static int
 xgetc(int fn)
 {
     if (OPT_CHECK(RBX_NOINTR))
@@ -791,16 +803,4 @@ xgetc(int fn)
 	if (fn)
 	    return 0;
     }
-}
-
-static int
-getc(int fn)
-{
-    v86.addr = 0x18;
-    v86.eax = fn << 8;
-    v86int();
-    if (fn)
-	return (v86.ebx >> 8) & 0x01;
-    else
-	return v86.eax & 0xff;
 }
