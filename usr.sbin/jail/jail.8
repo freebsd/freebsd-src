@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2010
+.Dd July 23, 2011
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -913,3 +913,10 @@ Currently, the simplest answer is to minimize services
 offered on the host, possibly limiting it to services offered from
 .Xr inetd 8
 which is easily configurable.
+.Sh NOTES
+Great care should be taken when managing directories visible within the jail.
+For example, if a jailed process has its current working directory set to a
+directory that is moved out of the jail's chroot, then the process may gain
+access to the file space outside of the jail.
+It is recommended that directories always be copied, rather than moved, out
+of a jail.
