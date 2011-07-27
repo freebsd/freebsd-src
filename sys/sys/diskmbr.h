@@ -36,6 +36,7 @@
 #include <sys/ioccom.h>
 
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#define	DOSDSNOFF	440	/* WinNT/2K/XP Drive Serial Number offset */
 #define	DOSPARTOFF	446
 #define	DOSPARTSIZE	16
 #define	NDOSPART	4
