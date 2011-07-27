@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 
 struct g_part_ebr_table {
 	struct g_part_table	base;
+#ifndef GEOM_PART_EBR_COMPAT
+	u_char		ebr[EBRSIZE];
+#endif
 };
 
 struct g_part_ebr_entry {
@@ -395,7 +398,7 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	char psn[8];
 	struct g_provider *pp;
 	u_char *buf, *p;
-	int error, index, res, sum;
+	int error, index, res;
 	uint16_t magic;
 
 	pp = cp->provider;
@@ -427,29 +430,11 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (magic != DOSMAGIC)
 		goto out;
 
-	/*
-	 * The sector is all zeroes, except for the partition entries,
-	 * pseudo boot code and some signatures or disk serial number.
-	 * The latter can be found in the 9 bytes immediately in front
-	 * of the partition table.
-	 */
-	sum = 0;
-	for (index = 96; index < DOSPARTOFF - 9; index++)
-		sum += buf[index];
-	if (sum != 0)
-		goto out;
-
-	for (index = 0; index < NDOSPART; index++) {
+	for (index = 0; index < 2; index++) {
 		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
 		if (p[0] != 0 && p[0] != 0x80)
 			goto out;
-		if (index < 2)
-			continue;
-		/* The 3rd & 4th entries are always zero. */
-		if ((le64dec(p+0) + le64dec(p+8)) != 0)
-			goto out;
 	}
-
 	res = G_PART_PROBE_PRI_NORM;
 
  out:
@@ -483,6 +468,19 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 		ebr_entry_decode(buf + DOSPARTOFF + 0 * DOSPARTSIZE, ent + 0);
 		ebr_entry_decode(buf + DOSPARTOFF + 1 * DOSPARTSIZE, ent + 1);
+
+		/* The 3rd & 4th entries should be zeroes. */
+		if (le64dec(buf + DOSPARTOFF + 2 * DOSPARTSIZE) +
+		    le64dec(buf + DOSPARTOFF + 3 * DOSPARTSIZE) != 0) {
+			basetable->gpt_corrupt = 1;
+			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
+			    pp->name);
+		}
+#ifndef GEOM_PART_EBR_COMPAT
+		/* Save the first EBR, it can contain a boot code */
+		if (lba == 0)
+			bcopy(buf, table->ebr, sizeof(table->ebr));
+#endif
 		g_free(buf);
 
 		if (ent[0].dp_typ == 0)
@@ -570,6 +568,9 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
+#ifndef GEOM_PART_EBR_COMPAT
+	struct g_part_ebr_table *table;
+#endif
 	struct g_provider *pp;
 	struct g_part_entry *baseentry, *next;
 	struct g_part_ebr_entry *entry;
@@ -579,6 +580,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+#ifndef GEOM_PART_EBR_COMPAT
+	table = (struct g_part_ebr_table *)basetable;
+	bcopy(table->ebr, buf, DOSPARTOFF);
+#endif
 	le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
@@ -631,7 +636,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 		error = g_write_data(cp, baseentry->gpe_start * pp->sectorsize,
 		    buf, pp->sectorsize);
-
+#ifndef GEOM_PART_EBR_COMPAT
+		if (baseentry->gpe_start == 0)
+			bzero(buf, DOSPARTOFF);
+#endif
 		baseentry = next;
 	} while (!error && baseentry != NULL);
 
