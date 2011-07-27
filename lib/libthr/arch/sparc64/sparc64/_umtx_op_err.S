@@ -1,7 +1,5 @@
 /*-
- * Copyright (C) 2003 Jake Burkholder <jake@freebsd.org>
- * Copyright (C) 2003 David Xu <davidxu@freebsd.org>
- * Copyright (c) 2001,2003 Daniel Eischen <deischen@freebsd.org>
+ * Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -9,9 +7,9 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Neither the name of the author nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,31 +24,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <rtld_tls.h>
+#include <sys/syscall.h>
 
-#include "pthread_md.h"
+#include <machine/utrap.h>
 
-struct tcb *
-_tcb_ctor(struct pthread *thread, int initial)
-{
-	struct tcb *tcb;
-
-	if (initial)
-		tcb = _tcb_get();
-	else
-		tcb = _rtld_allocate_tls(NULL, sizeof(struct tcb), 16);
-	if (tcb)
-		tcb->tcb_thread = thread;
-	return (tcb);
-}
-
-void
-_tcb_dtor(struct tcb *tcb)
-{
-
-	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
-}
+ENTRY(_umtx_op_err)
+	mov	SYS__umtx_op, %g1
+	retl
+	 ta	%xcc, ST_SYSCALL
+END(_umtx_op_err)
