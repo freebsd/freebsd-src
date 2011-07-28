@@ -430,6 +430,7 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 		}
 
 	foundhid:
+		hid_end_parse(d);
 		cmd->lastseen = -1;
 		cmd->lastused = -1;
 		cmd->item = h;
@@ -441,7 +442,6 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 			else
 				cmd->value = -1;
 		}
-		hid_end_parse(d);
 
 		if (verbose)
 			printf("PARSE:%d %s, %d, '%s'\n", cmd->line, name,
