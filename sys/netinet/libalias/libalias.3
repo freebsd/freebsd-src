@@ -812,6 +812,17 @@ argument is the pointer to a header fragment used as a template, and
 is the pointer to the packet to be de-aliased.
 .Ed
 .Sh MISCELLANEOUS FUNCTIONS
+.Ft struct alias_link *
+.Fn AddLink "struct libalias *" "struct in_addr src_addr" "struct in_addr dst_addr" \
+"struct in_addr alias_addr" "u_short src_port" "u_short dst_port" \
+"int alias_param" "int link_type"
+.Bd -ragged -offset indent
+This function adds new state to instance hash table.
+Zero can be specified instead of dst_address and/or dst port.
+This makes link partially specified dynamic.
+However due to hashing method such links can be resolved on inbound (ext -> int) only.
+.Ed
+.Pp
 .Ft void
 .Fn LibAliasSetTarget "struct libalias *" "struct in_addr addr"
 .Bd -ragged -offset indent
