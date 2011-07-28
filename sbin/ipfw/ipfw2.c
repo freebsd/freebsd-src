@@ -1112,8 +1112,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_NAT:
-			PRINT_UINT_ARG("nat ", cmd->arg1);
- 			break;
+			if (cmd->arg1 != 0)
+				PRINT_UINT_ARG("nat ", cmd->arg1);
+			else
+				printf("nat global");
+			break;
 
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
@@ -2728,9 +2731,14 @@ ipfw_add(char *av[])
 		break;
 
 	case TOK_NAT:
- 		action->opcode = O_NAT;
- 		action->len = F_INSN_SIZE(ipfw_insn_nat);
-		goto chkarg;
+		action->opcode = O_NAT;
+		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		if (_substrcmp(*av, "global") == 0) {
+			action->arg1 = 0;
+			av++;
+			break;
+		} else
+			goto chkarg;
 
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
