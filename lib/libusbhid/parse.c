@@ -322,6 +322,8 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 					 * one and one item:
 					 */
 					c->report_count = 1;
+					c->usage_minimum = 0;
+					c->usage_maximum = 0;
 				} else {
 					s->ncount = 1;
 				}
