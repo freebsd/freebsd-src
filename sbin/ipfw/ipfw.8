@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2011
+.Dd June 14, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2422,6 +2422,27 @@ Reset table of the packet aliasing engine on address change.
 Reverse the way libalias handles aliasing.
 .It Cm proxy_only
 Obey transparent proxy rules only, packet aliasing is not performed.
+.It Cm skip_global
+Skip instance in case of global state lookup (see below).
+.El
+.Pp
+Some specials value can be supplied instead of
+.Va nat_number:
+.Bl -tag -width indent
+.It Cm global
+Looks up translation state in all configured nat instances.
+If an entry is found, packet is aliased according to that entry.
+If no entry was found in any of the instances, packet is passed unchanged,
+and no new entry will be created.
+See section
+.Sx MULTIPLE INSTANCES
+in
+.Xr natd 8
+for more information.
+.It Cm tablearg
+Uses argument supplied in lookup table. See
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .El
 .Pp
 To let the packet continue after being (de)aliased, set the sysctl variable
