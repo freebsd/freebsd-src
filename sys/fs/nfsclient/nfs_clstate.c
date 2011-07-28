@@ -761,7 +761,8 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			FREE((caddr_t)newclp, M_NFSCLCLIENT);
 	}
 	NFSLOCKCLSTATE();
-	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock)
+	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock &&
+	    (mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0)
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
 		    NFSCLSTATEMUTEXPTR, mp);
 	if (!igotlock)
