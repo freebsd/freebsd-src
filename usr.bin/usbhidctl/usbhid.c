@@ -101,8 +101,8 @@ dumpitem(const char *label, struct hid_item *h)
 {
 	if ((h->flags & HIO_CONST) && !verbose)
 		return;
-	printf("%s size=%d count=%d page=%s usage=%s%s", label,
-	       h->report_size, h->report_count,
+	printf("%s rid=%d size=%d count=%d page=%s usage=%s%s", label,
+	       h->report_ID, h->report_size, h->report_count,
 	       hid_usage_page(HID_PAGE(h->usage)),
 	       hid_usage_in_page(h->usage),
 	       h->flags & HIO_CONST ? " Const" : "");
@@ -116,6 +116,24 @@ dumpitem(const char *label, struct hid_item *h)
 	printf("\n");
 }
 
+static const char *
+hid_collection_type(int32_t type)
+{
+	static char num[8];
+
+	switch (type) {
+	case 0: return ("Physical");
+	case 1: return ("Application");
+	case 2: return ("Logical");
+	case 3: return ("Report");
+	case 4: return ("Named_Array");
+	case 5: return ("Usage_Switch");
+	case 6: return ("Usage_Modifier");
+	}
+	snprintf(num, sizeof(num), "0x%02x", type);
+	return (num);
+}
+
 void
 dumpitems(report_desc_t r)
 {
@@ -126,7 +144,8 @@ dumpitems(report_desc_t r)
 	for (d = hid_start_parse(r, ~0, reportid); hid_get_item(d, &h); ) {
 		switch (h.kind) {
 		case hid_collection:
-			printf("Collection page=%s usage=%s\n",
+			printf("Collection type=%s page=%s usage=%s\n",
+			       hid_collection_type(h.collection),
 			       hid_usage_page(HID_PAGE(h.usage)),
 			       hid_usage_in_page(h.usage));
 			break;
