@@ -203,7 +203,20 @@ main(int argc, char **argv)
 			if (cmd->item.report_ID != 0 &&
 			    buf[0] != cmd->item.report_ID)
 				continue;
-			val = hid_get_data(buf, &cmd->item);
+			if (cmd->item.flags & HIO_VARIABLE)
+				val = hid_get_data(buf, &cmd->item);
+			else {
+				uint32_t pos = cmd->item.pos;
+				for (i = 0; i < cmd->item.report_count; i++) {
+					val = hid_get_data(buf, &cmd->item);
+					if (val == cmd->value)
+						break;
+					cmd->item.pos += cmd->item.report_size;
+				}
+				cmd->item.pos = pos;
+				val = (i < cmd->item.report_count) ?
+				    cmd->value : -1;
+			}
 			if (cmd->value != val && cmd->anyvalue == 0)
 				goto next;
 			if ((cmd->debounce == 0) ||
@@ -417,7 +430,6 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 		}
 
 	foundhid:
-		hid_end_parse(d);
 		cmd->lastseen = -1;
 		cmd->lastused = -1;
 		cmd->item = h;
@@ -429,6 +441,7 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 			else
 				cmd->value = -1;
 		}
+		hid_end_parse(d);
 
 		if (verbose)
 			printf("PARSE:%d %s, %d, '%s'\n", cmd->line, name,
