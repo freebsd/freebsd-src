@@ -28,7 +28,7 @@
 .\"     @(#)dumpfs.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2009
+.Dd Jul 14, 2011
 .Dt DUMPFS 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
+.Op Fl l
 .Op Fl m
 .Ar filesys | device
 .Sh DESCRIPTION
@@ -44,7 +45,8 @@ The
 .Nm
 utility prints out the super block and cylinder group information
 for the file system or special device specified, unless the
-.Fl f
+.Fl f ,
+.Fl l
 or
 .Fl m
 flag is specified.
@@ -62,6 +64,11 @@ If the flag is specified twice, contiguous free fragments are not collapsed
 into ranges and instead printed in a simple list.
 Fragment numbers may be converted to raw byte offsets by multiplying by the
 fragment size, which may be useful when recovering deleted data.
+.Pp
+If
+.Fl l
+is specified, the pathname to the file system's container derived from
+its unique identifier is printed.
 .Pp
 If
 .Fl m
