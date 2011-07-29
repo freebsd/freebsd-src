@@ -354,7 +354,21 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &intmit, 0, req);
 	if (error || !req->newptr)
 		return error;
-	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
+
+	/* reusing error; 1 here means "good"; 0 means "fail" */
+	error = ath_hal_setintmit(sc->sc_ah, intmit);
+	if (! error)
+		return EINVAL;
+
+	/*
+	 * Reset the hardware here - disabling ANI in the HAL
+	 * doesn't reset ANI related registers, so it'll leave
+	 * things in an inconsistent state.
+	 */
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ath_reset(sc->sc_ifp);
+
+	return 0;
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
