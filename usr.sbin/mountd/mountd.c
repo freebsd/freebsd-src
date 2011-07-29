@@ -1789,10 +1789,9 @@ get_exp(void)
 {
 	struct exportlist *ep;
 
-	ep = (struct exportlist *)malloc(sizeof (struct exportlist));
+	ep = (struct exportlist *)calloc(1, sizeof (struct exportlist));
 	if (ep == (struct exportlist *)NULL)
 		out_of_mem();
-	memset(ep, 0, sizeof(struct exportlist));
 	return (ep);
 }
 
@@ -1804,10 +1803,9 @@ get_grp(void)
 {
 	struct grouplist *gp;
 
-	gp = (struct grouplist *)malloc(sizeof (struct grouplist));
+	gp = (struct grouplist *)calloc(1, sizeof (struct grouplist));
 	if (gp == (struct grouplist *)NULL)
 		out_of_mem();
-	memset(gp, 0, sizeof(struct grouplist));
 	return (gp);
 }
 
