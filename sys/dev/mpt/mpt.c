@@ -301,66 +301,75 @@ mpt_modevent(module_t mod, int type, void *data)
 	return (error);
 }
 
-int
+static int
 mpt_stdload(struct mpt_personality *pers)
 {
+
 	/* Load is always successful. */
 	return (0);
 }
 
-int
+static int
 mpt_stdprobe(struct mpt_softc *mpt)
 {
+
 	/* Probe is always successful. */
 	return (0);
 }
 
-int
+static int
 mpt_stdattach(struct mpt_softc *mpt)
 {
+
 	/* Attach is always successful. */
 	return (0);
 }
 
-int
+static int
 mpt_stdenable(struct mpt_softc *mpt)
 {
+
 	/* Enable is always successful. */
 	return (0);
 }
 
-void
+static void
 mpt_stdready(struct mpt_softc *mpt)
 {
+
 }
 
-
-int
+static int
 mpt_stdevent(struct mpt_softc *mpt, request_t *req, MSG_EVENT_NOTIFY_REPLY *msg)
 {
+
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_stdevent: 0x%x\n", msg->Event & 0xFF);
 	/* Event was not for us. */
 	return (0);
 }
 
-void
+static void
 mpt_stdreset(struct mpt_softc *mpt, int type)
 {
+
 }
 
-void
+static void
 mpt_stdshutdown(struct mpt_softc *mpt)
 {
+
 }
 
-void
+static void
 mpt_stddetach(struct mpt_softc *mpt)
 {
+
 }
 
-int
+static int
 mpt_stdunload(struct mpt_personality *pers)
 {
+
 	/* Unload is always successful. */
 	return (0);
 }
@@ -382,7 +391,6 @@ mpt_postattach(void *unused)
 	}
 }
 SYSINIT(mptdev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, mpt_postattach, NULL);
-
 
 /******************************* Bus DMA Support ******************************/
 void
@@ -478,6 +486,7 @@ static int
 mpt_default_reply_handler(struct mpt_softc *mpt, request_t *req,
 	uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
+
 	mpt_prt(mpt,
 	    "Default Handler Called: req=%p:%u reply_descriptor=%x frame=%p\n",
 	    req, req->serno, reply_desc, reply_frame);
@@ -494,8 +503,8 @@ static int
 mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
  uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
-	if (req != NULL) {
 
+	if (req != NULL) {
 		if (reply_frame != NULL) {
 			MSG_CONFIG *cfgp;
 			MSG_CONFIG_REPLY *reply;
@@ -528,6 +537,7 @@ static int
 mpt_handshake_reply_handler(struct mpt_softc *mpt, request_t *req,
  uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
+
 	/* Nothing to be done. */
 	return (TRUE);
 }
@@ -650,6 +660,7 @@ static int
 mpt_core_event(struct mpt_softc *mpt, request_t *req,
 	       MSG_EVENT_NOTIFY_REPLY *msg)
 {
+
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_core_event: 0x%x\n",
                  msg->Event & 0xFF);
 	switch(msg->Event & 0xFF) {
@@ -870,6 +881,7 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 void
 mpt_dump_reply_frame(struct mpt_softc *mpt, MSG_DEFAULT_REPLY *reply_frame)
 {
+
 	mpt_prt(mpt, "Address Reply:\n");
 	mpt_print_reply(reply_frame);
 }
@@ -881,12 +893,14 @@ static __inline  uint32_t mpt_rd_intr(struct mpt_softc *mpt);
 static __inline uint32_t
 mpt_rd_db(struct mpt_softc *mpt)
 {
+
 	return mpt_read(mpt, MPT_OFFSET_DOORBELL);
 }
 
 static __inline uint32_t
 mpt_rd_intr(struct mpt_softc *mpt)
 {
+
 	return mpt_read(mpt, MPT_OFFSET_INTR_STATUS);
 }
 
@@ -895,6 +909,7 @@ static int
 mpt_wait_db_ack(struct mpt_softc *mpt)
 {
 	int i;
+
 	for (i=0; i < MPT_MAX_WAIT; i++) {
 		if (!MPT_DB_IS_BUSY(mpt_rd_intr(mpt))) {
 			maxwait_ack = i > maxwait_ack ? i : maxwait_ack;
@@ -910,6 +925,7 @@ static int
 mpt_wait_db_int(struct mpt_softc *mpt)
 {
 	int i;
+
 	for (i = 0; i < MPT_MAX_WAIT; i++) {
 		if (MPT_DB_INTR(mpt_rd_intr(mpt))) {
 			maxwait_int = i > maxwait_int ? i : maxwait_int;
@@ -925,6 +941,7 @@ void
 mpt_check_doorbell(struct mpt_softc *mpt)
 {
 	uint32_t db = mpt_rd_db(mpt);
+
 	if (MPT_STATE(db) != MPT_DB_STATE_RUNNING) {
 		mpt_prt(mpt, "Device not running\n");
 		mpt_print_db(db);
@@ -956,6 +973,7 @@ static int mpt_download_fw(struct mpt_softc *mpt);
 static int
 mpt_soft_reset(struct mpt_softc *mpt)
 {
+
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "soft reset\n");
 
 	/* Have to use hard reset if we are not in Running state */
@@ -1019,6 +1037,7 @@ mpt_enable_diag_mode(struct mpt_softc *mpt)
 static void
 mpt_disable_diag_mode(struct mpt_softc *mpt)
 {
+
 	mpt_write(mpt, MPT_OFFSET_SEQUENCE, 0xFFFFFFFF);
 }
 
@@ -1094,6 +1113,7 @@ mpt_hard_reset(struct mpt_softc *mpt)
 static void
 mpt_core_ioc_reset(struct mpt_softc *mpt, int type)
 {
+
 	/*
 	 * Complete all pending requests with a status
 	 * appropriate for an IOC reset.
@@ -1101,7 +1121,6 @@ mpt_core_ioc_reset(struct mpt_softc *mpt, int type)
 	mpt_complete_request_chain(mpt, &mpt->request_pending_list,
 				   MPI_IOCSTATUS_INVALID_STATE);
 }
-
 
 /*
  * Reset the IOC when needed. Try software command first then if needed
@@ -1263,6 +1282,7 @@ retry:
 void
 mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 {
+
 	if (mpt->verbose > MPT_PRT_DEBUG2) {
 		mpt_dump_request(mpt, req);
 	}
@@ -2110,6 +2130,7 @@ mpt_send_event_request(struct mpt_softc *mpt, int onoff)
 void
 mpt_enable_ints(struct mpt_softc *mpt)
 {
+
 	/* Unmask every thing except door bell int */
 	mpt_write(mpt, MPT_OFFSET_INTR_MASK, MPT_INTR_DB_MASK);
 }
@@ -2120,6 +2141,7 @@ mpt_enable_ints(struct mpt_softc *mpt)
 void
 mpt_disable_ints(struct mpt_softc *mpt)
 {
+
 	/* Mask all interrupts */
 	mpt_write(mpt, MPT_OFFSET_INTR_MASK,
 	    MPT_INTR_REPLY_MASK | MPT_INTR_DB_MASK);
@@ -2219,7 +2241,7 @@ mpt_detach(struct mpt_softc *mpt)
 	return (0);
 }
 
-int
+static int
 mpt_core_load(struct mpt_personality *pers)
 {
 	int i;
@@ -2245,7 +2267,7 @@ mpt_core_load(struct mpt_personality *pers)
  * Initialize per-instance driver data and perform
  * initial controller configuration.
  */
-int
+static int
 mpt_core_attach(struct mpt_softc *mpt)
 {
         int val, error;
@@ -2276,9 +2298,10 @@ mpt_core_attach(struct mpt_softc *mpt)
 	return (error);
 }
 
-int
+static int
 mpt_core_enable(struct mpt_softc *mpt)
 {
+
 	/*
 	 * We enter with the IOC enabled, but async events
 	 * not enabled, ports not enabled and interrupts
@@ -2326,13 +2349,14 @@ mpt_core_enable(struct mpt_softc *mpt)
 	return (0);
 }
 
-void
+static void
 mpt_core_shutdown(struct mpt_softc *mpt)
 {
+
 	mpt_disable_ints(mpt);
 }
 
-void
+static void
 mpt_core_detach(struct mpt_softc *mpt)
 {
 	int val;
@@ -2351,9 +2375,10 @@ mpt_core_detach(struct mpt_softc *mpt)
 	mpt_dma_buf_free(mpt);
 }
 
-int
+static int
 mpt_core_unload(struct mpt_personality *pers)
 {
+
 	/* Unload is always successful. */
 	return (0);
 }
@@ -2575,6 +2600,7 @@ static void
 mpt_dma_buf_free(struct mpt_softc *mpt)
 {
 	int i;
+
 	if (mpt->request_dmat == 0) {
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
 		return;
