@@ -752,7 +752,8 @@ typedef struct {
  * IOCTL commands for /dev/dsp and /dev/audio
  */
 
-#define SNDCTL_DSP_RESET	_IO  ('P', 0)
+#define SNDCTL_DSP_HALT		_IO  ('P', 0)
+#define SNDCTL_DSP_RESET	SNDCTL_DSP_HALT
 #define SNDCTL_DSP_SYNC		_IO  ('P', 1)
 #define SNDCTL_DSP_SPEED	_IOWR('P', 2, int)
 #define SNDCTL_DSP_STEREO	_IOWR('P', 3, int)
