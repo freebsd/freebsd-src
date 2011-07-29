@@ -533,6 +533,7 @@ show_drives(int ac, char **av)
 		    MFI_DNAME_ES));
 		printf("\n");
 	}
+	error = 0;
 error:
 	free(list);
 	close(fd);
