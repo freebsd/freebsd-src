@@ -201,6 +201,9 @@ static int mpt_pci_shutdown(device_t);
 static int mpt_dma_mem_alloc(struct mpt_softc *mpt);
 static void mpt_dma_mem_free(struct mpt_softc *mpt);
 static void mpt_read_config_regs(struct mpt_softc *mpt);
+#if 0
+static void mpt_set_config_regs(struct mpt_softc *mpt);
+#endif
 static void mpt_pci_intr(void *);
 
 static device_method_t mpt_methods[] = {
@@ -404,6 +407,7 @@ mpt_link_peer(struct mpt_softc *mpt)
 static void
 mpt_unlink_peer(struct mpt_softc *mpt)
 {
+
 	if (mpt->mpt2) {
 		mpt->mpt2->mpt2 = NULL;
 	}
@@ -654,6 +658,7 @@ bad:
 static void
 mpt_free_bus_resources(struct mpt_softc *mpt)
 {
+
 	if (mpt->ih) {
 		bus_teardown_intr(mpt->dev, mpt->pci_irq, mpt->ih);
 		mpt->ih = NULL;
@@ -827,6 +832,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 static void
 mpt_read_config_regs(struct mpt_softc *mpt)
 {
+
 	mpt->pci_cfg.Command = pci_read_config(mpt->dev, PCIR_COMMAND, 2);
 	mpt->pci_cfg.LatencyTimer_LineSize =
 	    pci_read_config(mpt->dev, PCIR_CACHELNSZ, 2);
@@ -840,8 +846,9 @@ mpt_read_config_regs(struct mpt_softc *mpt)
 	mpt->pci_cfg.PMCSR = pci_read_config(mpt->dev, 0x44, 4);
 }
 
+#if 0
 /* Sets modifiable config registers */
-void
+static void
 mpt_set_config_regs(struct mpt_softc *mpt)
 {
 	uint32_t val;
@@ -880,6 +887,7 @@ mpt_set_config_regs(struct mpt_softc *mpt)
 	pci_write_config(mpt->dev, PCIR_INTLINE, mpt->pci_cfg.IntLine, 1);
 	pci_write_config(mpt->dev, 0x44, mpt->pci_cfg.PMCSR, 4);
 }
+#endif
 
 static void
 mpt_pci_intr(void *arg)
