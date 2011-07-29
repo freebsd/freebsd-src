@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_intel_chipinit(device_t dev);
+static int ata_intel_chipdeinit(device_t dev);
 static int ata_intel_ch_attach(device_t dev);
 static void ata_intel_reset(device_t dev);
 static int ata_intel_old_setmode(device_t dev, int target, int mode);
@@ -84,6 +85,18 @@ static void ata_intel_31244_reset(device_t dev);
 #define INTEL_6CH	4
 #define INTEL_6CH2	8
 #define INTEL_ICH7	16
+
+struct ata_intel_data {
+	struct mtx	lock;
+	u_char		smap[4];
+};
+
+#define ATA_INTEL_SMAP(ctlr, ch) \
+    &((struct ata_intel_data *)((ctlr)->chipset_data))->smap[(ch)->unit * 2]
+#define ATA_INTEL_LOCK(ctlr) \
+    mtx_lock(&((struct ata_intel_data *)((ctlr)->chipset_data))->lock)
+#define ATA_INTEL_UNLOCK(ctlr) \
+    mtx_unlock(&((struct ata_intel_data *)((ctlr)->chipset_data))->lock)
 
 /*
  * Intel chipset support functions
@@ -206,6 +219,7 @@ ata_intel_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_intel_chipinit;
+    ctlr->chipdeinit = ata_intel_chipdeinit;
     return (BUS_PROBE_DEFAULT);
 }
 
@@ -213,11 +227,14 @@ static int
 ata_intel_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_intel_data *data;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    ctlr->chipset_data = NULL;
+    data = malloc(sizeof(struct ata_intel_data), M_ATAPCI, M_WAITOK | M_ZERO);
+    mtx_init(&data->lock, "Intel SATA lock", NULL, MTX_DEF);
+    ctlr->chipset_data = (void *)data;
 
     /* good old PIIX needs special treatment (not implemented) */
     if (ctlr->chip->chipid == ATA_I82371FB) {
@@ -305,6 +322,19 @@ ata_intel_chipinit(device_t dev)
 }
 
 static int
+ata_intel_chipdeinit(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+	struct ata_intel_data *data;
+
+	data = ctlr->chipset_data;
+	mtx_destroy(&data->lock);
+	free(data, M_ATAPCI);
+	ctlr->chipset_data = NULL;
+	return (0);
+}
+
+static int
 ata_intel_ch_attach(device_t dev)
 {
 	struct ata_pci_controller *ctlr;
@@ -329,7 +359,7 @@ ata_intel_ch_attach(device_t dev)
 
 	ch->flags |= ATA_ALWAYS_DMASTAT;
 	if (ctlr->chip->max_dma >= ATA_SA150) {
-		smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+		smap = ATA_INTEL_SMAP(ctlr, ch);
 		map = pci_read_config(device_get_parent(dev), 0x90, 1);
 		if (ctlr->chip->cfg1 & INTEL_ICH5) {
 			map &= 0x07;
@@ -415,7 +445,7 @@ ata_intel_reset(device_t dev)
 		return (ata_generic_reset(dev));
 
 	/* Do hard-reset on respective SATA ports. */
-	smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+	smap = ATA_INTEL_SMAP(ctlr, ch);
 	mask = 1 << smap[0];
 	if ((ch->flags & ATA_NO_SLAVE) == 0)
 		mask |= (1 << smap[1]);
@@ -605,7 +635,7 @@ ata_intel_sata_ahci_read(device_t dev, int port, int reg, u_int32_t *result)
 	ctlr = device_get_softc(parent);
 	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
-	smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+	smap = ATA_INTEL_SMAP(ctlr, ch);
 	offset = 0x100 + smap[port] * 0x80;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -635,7 +665,7 @@ ata_intel_sata_cscr_read(device_t dev, int port, int reg, u_int32_t *result)
 	parent = device_get_parent(dev);
 	ctlr = device_get_softc(parent);
 	ch = device_get_softc(dev);
-	smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+	smap = ATA_INTEL_SMAP(ctlr, ch);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -650,9 +680,11 @@ ata_intel_sata_cscr_read(device_t dev, int port, int reg, u_int32_t *result)
 	default:
 	    return (EINVAL);
 	}
+	ATA_INTEL_LOCK(ctlr);
 	pci_write_config(parent, 0xa0,
 	    0x50 + smap[port] * 0x10 + reg * 4, 4);
 	*result = pci_read_config(parent, 0xa4, 4);
+	ATA_INTEL_UNLOCK(ctlr);
 	return (0);
 }
 
@@ -680,8 +712,10 @@ ata_intel_sata_sidpr_read(device_t dev, int port, int reg, u_int32_t *result)
 	default:
 	    return (EINVAL);
 	}
+	ATA_INTEL_LOCK(ctlr);
 	ATA_IDX_OUTL(ch, ATA_IDX_ADDR, ((ch->unit * 2 + port) << 8) + reg);
 	*result = ATA_IDX_INL(ch, ATA_IDX_DATA);
+	ATA_INTEL_UNLOCK(ctlr);
 	return (0);
 }
 
@@ -698,7 +732,7 @@ ata_intel_sata_ahci_write(device_t dev, int port, int reg, u_int32_t value)
 	ctlr = device_get_softc(parent);
 	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
-	smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+	smap = ATA_INTEL_SMAP(ctlr, ch);
 	offset = 0x100 + smap[port] * 0x80;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -728,7 +762,7 @@ ata_intel_sata_cscr_write(device_t dev, int port, int reg, u_int32_t value)
 	parent = device_get_parent(dev);
 	ctlr = device_get_softc(parent);
 	ch = device_get_softc(dev);
-	smap = (u_char *)&ctlr->chipset_data + ch->unit * 2;
+	smap = ATA_INTEL_SMAP(ctlr, ch);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -743,9 +777,11 @@ ata_intel_sata_cscr_write(device_t dev, int port, int reg, u_int32_t value)
 	default:
 	    return (EINVAL);
 	}
+	ATA_INTEL_LOCK(ctlr);
 	pci_write_config(parent, 0xa0,
 	    0x50 + smap[port] * 0x10 + reg * 4, 4);
 	pci_write_config(parent, 0xa4, value, 4);
+	ATA_INTEL_UNLOCK(ctlr);
 	return (0);
 }
 
@@ -773,8 +809,10 @@ ata_intel_sata_sidpr_write(device_t dev, int port, int reg, u_int32_t value)
 	default:
 	    return (EINVAL);
 	}
+	ATA_INTEL_LOCK(ctlr);
 	ATA_IDX_OUTL(ch, ATA_IDX_ADDR, ((ch->unit * 2 + port) << 8) + reg);
 	ATA_IDX_OUTL(ch, ATA_IDX_DATA, value);
+	ATA_INTEL_UNLOCK(ctlr);
 	return (0);
 }
 
