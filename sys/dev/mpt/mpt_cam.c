@@ -2538,7 +2538,8 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		pqf->CurrentDepth = le16toh(pqf->CurrentDepth);
 		mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x Depth "
 		    "%d\n", pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
-		if (mpt->phydisk_sim) {
+		if (mpt->phydisk_sim && mpt_is_raid_member(mpt,
+		    pqf->TargetID) != 0) {
 			sim = mpt->phydisk_sim;
 		} else {
 			sim = mpt->sim;
@@ -2570,9 +2571,72 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		mpt_prt(mpt, "IR resync update %d completed\n",
 		    (data0 >> 16) & 0xff);
 		break;
+	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+	{
+		union ccb *ccb;
+		struct cam_sim *sim;
+		struct cam_path *tmppath;
+		PTR_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE psdsc;
+
+		psdsc = (PTR_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE)msg->Data;
+		if (mpt->phydisk_sim && mpt_is_raid_member(mpt,
+		    psdsc->TargetID) != 0)
+			sim = mpt->phydisk_sim;
+		else
+			sim = mpt->sim;
+		switch(psdsc->ReasonCode) {
+		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
+			MPTLOCK_2_CAMLOCK(mpt);
+			ccb = xpt_alloc_ccb_nowait();
+			if (ccb == NULL) {
+				mpt_prt(mpt,
+				    "unable to alloc CCB for rescan\n");
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			    cam_sim_path(sim), psdsc->TargetID,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				CAMLOCK_2_MPTLOCK(mpt);
+				mpt_prt(mpt,
+				    "unable to create path for rescan\n");
+				xpt_free_ccb(ccb);
+				break;
+			}
+			xpt_rescan(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+			break;
+		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
+			MPTLOCK_2_CAMLOCK(mpt);
+			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
+			    psdsc->TargetID, CAM_LUN_WILDCARD) !=
+			    CAM_REQ_CMP) {
+				mpt_prt(mpt,
+				    "unable to create path for async event");
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+			xpt_free_path(tmppath);
+			CAMLOCK_2_MPTLOCK(mpt);
+			break;
+		case MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET:
+			break;
+		default:
+			mpt_lprt(mpt, MPT_PRT_WARN,
+			    "SAS device status change: Bus: 0x%02x TargetID: "
+			    "0x%02x ReasonCode: 0x%02x\n", psdsc->TargetID,
+			    psdsc->Bus, psdsc->ReasonCode);
+			break;
+		}
+		break;
+	}
 	case MPI_EVENT_EVENT_CHANGE:
 	case MPI_EVENT_INTEGRATED_RAID:
-	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+	case MPI_EVENT_IR2:
+	case MPI_EVENT_LOG_ENTRY_ADDED:
+	case MPI_EVENT_SAS_DISCOVERY:
+	case MPI_EVENT_SAS_PHY_LINK_STATUS:
 	case MPI_EVENT_SAS_SES:
 		break;
 	default:
