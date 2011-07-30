@@ -117,6 +117,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_resetTxQueue		= ar5416ResetTxQueue;
 
 	/* Receive Functions */
+	ah->ah_getRxFilter		= ar5416GetRxFilter;
+	ah->ah_setRxFilter		= ar5416SetRxFilter;
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
