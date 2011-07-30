@@ -189,7 +189,7 @@ ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad)
 	switch (id) {
 		case DFS_SET_THRESH:
 			if (insize < sizeof(HAL_PHYERR_PARAM)) {
-				error = -EINVAL;
+				error = EINVAL;
 				break;
 			}
 			pe = (HAL_PHYERR_PARAM *) indata;
@@ -203,12 +203,12 @@ ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad)
 			memcpy(pe, &peout, sizeof(*pe));
 			break;
 		default:
-			error = -EINVAL;
+			error = EINVAL;
 	}
 	if (outsize < ad->ad_out_size)
 		ad->ad_out_size = outsize;
 	if (outdata && copyout(outdata, ad->ad_out_data, ad->ad_out_size))
-		error = -EFAULT;
+		error = EFAULT;
 bad:
 	if ((ad->ad_id & ATH_DIAG_IN) && indata != NULL)
 		free(indata, M_TEMP);
