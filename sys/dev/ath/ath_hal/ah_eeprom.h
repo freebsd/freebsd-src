@@ -104,6 +104,7 @@ enum {
 	AR_EEP_PWDCLKIND,	/* uint8_t* */
 	AR_EEP_TEMPSENSE_SLOPE,	/* int8_t* */
 	AR_EEP_TEMPSENSE_SLOPE_PAL_ON,	/* int8_t* */
+	AR_EEP_FRAC_N_5G,	/* uint8_t* */
 };
 
 typedef struct {

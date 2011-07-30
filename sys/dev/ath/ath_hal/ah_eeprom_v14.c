@@ -97,6 +97,12 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 			return HAL_OK;
 		} else
 			return HAL_EIO;
+	case AR_EEP_FRAC_N_5G:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_22)) {
+			*(uint8_t *) val = pBase->frac_n_5g;
+		} else
+			*(uint8_t *) val = 0;
+		return HAL_OK;
 	case AR_EEP_AMODE:
 		HALASSERT(val == AH_NULL);
 		return pBase->opCapFlags & AR5416_OPFLAGS_11A ?
