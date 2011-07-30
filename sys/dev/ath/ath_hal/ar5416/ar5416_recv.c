@@ -27,6 +27,46 @@
 #include "ar5416/ar5416desc.h"
 
 /*
+ * Get the receive filter.
+ */
+uint32_t
+ar5416GetRxFilter(struct ath_hal *ah)
+{
+	uint32_t bits = OS_REG_READ(ah, AR_RX_FILTER);
+	uint32_t phybits = OS_REG_READ(ah, AR_PHY_ERR);
+
+	if (phybits & AR_PHY_ERR_RADAR)
+		bits |= HAL_RX_FILTER_PHYRADAR;
+	if (phybits & (AR_PHY_ERR_OFDM_TIMING | AR_PHY_ERR_CCK_TIMING))
+		bits |= HAL_RX_FILTER_PHYERR;
+	return bits;
+}
+
+/*
+ * Set the receive filter.
+ */
+void
+ar5416SetRxFilter(struct ath_hal *ah, u_int32_t bits)
+{
+	uint32_t phybits;
+
+	OS_REG_WRITE(ah, AR_RX_FILTER, (bits & 0xffff));
+	phybits = 0;
+	if (bits & HAL_RX_FILTER_PHYRADAR)
+		phybits |= AR_PHY_ERR_RADAR;
+	if (bits & HAL_RX_FILTER_PHYERR)
+		phybits |= AR_PHY_ERR_OFDM_TIMING | AR_PHY_ERR_CCK_TIMING;
+	OS_REG_WRITE(ah, AR_PHY_ERR, phybits);
+	if (phybits) {
+		OS_REG_WRITE(ah, AR_RXCFG,
+		    OS_REG_READ(ah, AR_RXCFG) | AR_RXCFG_ZLFDMA);
+	} else {
+		OS_REG_WRITE(ah, AR_RXCFG,
+		    OS_REG_READ(ah, AR_RXCFG) &~ AR_RXCFG_ZLFDMA);
+	}
+}
+
+/*
  * Start receive at the PCU engine
  */
 void
