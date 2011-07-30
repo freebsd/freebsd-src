@@ -32,7 +32,7 @@ if [ -e ${2} ]; then
   exit 1
 fi
 
-echo '/dev/da0s3 / ufs rw,noatime 1 1' > ${1}/etc/fstab
+echo '/dev/da0s3 / ufs ro,noatime 1 1' > ${1}/etc/fstab
 rm -f ${tempfile}
 makefs -B big ${tempfile} ${1}
 if [ $? -ne 0 ]; then
