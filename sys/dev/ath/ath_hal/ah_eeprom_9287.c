@@ -298,11 +298,18 @@ ath_hal_9287EepromAttach(struct ath_hal *ah)
 	uint32_t sum;
 
 	HALASSERT(ee == AH_NULL);
- 
-	if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s Error reading Eeprom MAGIC\n", __func__);
-		return HAL_EEREAD;
+
+	/*
+	 * Don't check magic if we're supplied with an EEPROM block,
+	 * typically this is from Howl but it may also be from later
+	 * boards w/ an embedded WMAC.
+	 */
+	if (ah->ah_eepromdata == NULL) {
+		if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s Error reading Eeprom MAGIC\n", __func__);
+			return HAL_EEREAD;
+		}
 	}
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
 	    __func__, magic);
@@ -328,7 +335,11 @@ ath_hal_9287EepromAttach(struct ath_hal *ah)
 		}
 	}
 	/* Convert to eeprom native eeprom endian format */
-	if (isBigEndian()) {
+	/*
+	 * XXX this is likely incorrect but will do for now
+	 * XXX to get embedded boards working.
+	 */
+	if (ah->ah_eepromdata == NULL && isBigEndian()) {
 		for (w = 0; w < NW(HAL_EEPROM_9287); w++)
 			eep_data[w] = __bswap16(eep_data[w]);
 	}
