@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2009
+.Dd July 31, 2011
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -41,7 +41,121 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device sound"
 .Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver is the main component of the
+.Fx sound system.
+It works in conjunction with a bridge device driver on supported devices
+and provides PCM audio record and playback once it attaches.
+Each bridge device driver supports a specific set of audio chipsets and
+needs to be enabled together with the
+.Nm
+driver.
+PCI and ISA PnP audio devices identify themselves so users are usually not
+required to add anything to
+.Pa /boot/device.hints .
 .Pp
+Some of the main features of the
+.Nm
+driver are: multichannel audio, per-application
+volume control, dynamic mixing through virtual sound channels, true full
+duplex operation, bit perfect audio, rate conversion and low latency
+modes.
+.Pp
+The
+.Nm
+driver is enabled by default, along with several bridge device drivers.
+Those not enabled by default can be loaded during runtime with
+.Xr kldload 8
+or during boot via
+.Xr loader.conf 5 .
+The following bridge device drivers are available:
+.Pp
+.Bl -bullet -compact
+.It
+.Xr snd_ad1816 4
+.It
+.Xr snd_ai2s 4 (enabled by default on powerpc)
+.It
+.Xr snd_als4000 4
+.It
+.Xr snd_atiixp 4
+.It
+.Xr snd_audiocs 4 (enabled by default on sparc64)
+.It
+.Xr snd_cmi 4
+.It
+.Xr snd_cs4281 4
+.It
+.Xr snd_csa 4
+.It
+.Xr snd_davbus 4 (enabled by default on powerpc)
+.It
+.Xr snd_ds1 4
+.It
+.Xr snd_emu10k1 4
+.It
+.Xr snd_emu10kx 4
+.It
+.Xr snd_envy24 4
+.It
+.Xr snd_envy24ht 4
+.It
+.Xr snd_es137x 4 (enabled by default on amd64, i386, sparc64)
+.It
+.Xr snd_ess 4
+.It
+.Xr snd_fm801 4
+.It
+.Xr snd_gusc 4
+.It
+.Xr snd_hda 4 (enabled by default on amd64, i386)
+.It
+.Xr snd_ich 4 (enabled by default on amd64, i386)
+.It
+.Xr snd_maestro 4
+.It
+.Xr snd_maestro3 4
+.It
+.Xr snd_mss 4
+.It
+.Xr snd_neomagic 4
+.It
+snd_sb16
+.It
+snd_sb8
+.It
+.Xr snd_sbc 4
+.It
+.Xr snd_solo 4
+.It
+.Xr snd_spicds 4
+.It
+.Xr snd_t4dwave 4 (enabled by default on sparc64)
+.It
+.Xr snd_uaudio 4 (enabled by default on amd64, i386, powerpc, sparc64)
+.It
+.Xr snd_via8233 4 (enabled by default on amd64, i386)
+.It
+.Xr snd_via82c686 4
+.It
+.Xr snd_vibes 4
+.El
+.Pp
+Refer to the manual page for each bridge device driver for driver specific
+settings and information.
+.Ss Legacy Hardware
+For old legacy
+.Tn ISA
+cards, the driver looks for
+.Tn MSS
+cards at addresses
+.Dv 0x530
+and
+.Dv 0x604 .
+These values can be overridden in
+.Pa /boot/device.hints .
 Non-PnP sound cards require the following lines in
 .Xr device.hints 5 :
 .Bd -literal -offset indent
@@ -50,33 +164,6 @@ hint.pcm.0.irq="5"
 hint.pcm.0.drq="1"
 hint.pcm.0.flags="0x0"
 .Ed
-.Sh DESCRIPTION
-The
-.Nm
-driver provides support for
-.Tn PCM
-audio play and capture.
-This driver also supports various
-.Tn PCI ,
-.Tn ISA ,
-.Tn WSS/MSS
-compatible
-sound cards, AC97 mixer and High Definition Audio.
-Once the
-.Nm
-driver attaches, supported devices provide audio record and
-playback channels.
-The
-.Fx
-sound system provides dynamic mixing
-.Dq VCHAN
-and rate conversion
-.Dq soft formats .
-True full duplex operation is available on most sound cards.
-.Pp
-If the sound card is supported by a bridge driver, the
-.Nm
-driver works in conjunction with the bridge driver.
 .Pp
 Apart from the usual parameters, the flags field is used to specify
 the secondary
@@ -85,24 +172,6 @@ channel (generally used for capture in full duplex cards).
 Flags are set to 0 for cards not using a secondary
 .Tn DMA
 channel, or to 0x10 + C to specify channel C.
-.Pp
-The driver does its best to recognize the installed hardware and drive
-it correctly so the user is not required to add several lines in
-.Pa /boot/device.hints .
-For
-.Tn PCI
-and
-.Tn ISA
-.Tn PnP
-cards this is actually easy
-since they identify themselves.
-For legacy
-.Tn ISA
-cards, the driver looks for
-.Tn MSS
-cards at addresses 0x530 and 0x604 (unless overridden
-in
-.Pa /boot/device.hints ) .
 .Ss Boot Variables
 In general, the module
 .Pa snd_foo
@@ -119,17 +188,18 @@ utility.
 Options which can be specified in
 .Pa /boot/loader.conf
 include:
-.Bl -tag -width ".Va snd_emu10k1_load" -offset indent
+.Bl -tag -width ".Va snd_driver_load" -offset indent
 .It Va snd_driver_load
 .Pq Dq Li NO
 If set to
 .Dq Li YES ,
 this option loads all available drivers.
-.It Va snd_emu10k1_load
+.It Va snd_hda_load
 .Pq Dq Li NO
 If set to
 .Dq Li YES ,
-only the SoundBlaster 5.1 driver and dependent modules will be loaded.
+only the Intel High Definition Audio bridge device driver and dependent
+modules will be loaded.
 .It Va snd_foo_load
 .Pq Dq Li NO
 If set to
@@ -155,8 +225,9 @@ This provides a base interface for related multichannel
 support.
 Multichannel audio works both with and without
 .Tn VCHANs .
-Most bridge device drivers are still missing multichannel matrixing support
-, but in most cases this should be trivial to implement.
+.Pp
+Most bridge device drivers are still missing multichannel matrixing
+support, but in most cases this should be trivial to implement.
 Use the
 .Va dev.pcm.%d.[play|rec].vchanformat
 .Xr sysctl(8)
@@ -173,7 +244,7 @@ controls (bass and treble).
 Commonly used for ear-candy or frequency compensation due to the vast
 difference in hardware quality.
 EQ is disabled by default, but can be enabled with the
-.Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+.Va hint.pcm.%d.eq
 tunable.
 .Ss VCHANs
 Each device can optionally support more playback and recording channels
@@ -208,13 +279,13 @@ driver.
 The following tunables can not be changed during runtime using
 .Xr sysctl 8 .
 .Bl -tag -width indent
-.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+.It Va hint.pcm.%d.eq
 Set to 1 or 0 to explicitly enable (1) or disable (0) the equalizer.
 Requires a driver reload if changed.
 Enabling this will make bass and treble controls appear in mixer applications.
 This tunable is undefined by default.
 Equalizing is disabled by default.
-.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .vpc
+.It Va hint.pcm.%d.vpc
 Set to 1 or 0 to explicitly enable (1) or disable (0) the
 .Tn VPC
 feature.
@@ -512,6 +583,9 @@ On devices that have more than one recording source (ie: mic and line),
 there is a corresponding
 .Pa /dev/dsp%d.r%d
 device.
+The
+.Xr mixer 8
+utility can be used to start and stop recording from an specific device.
 .Ss Statistics
 Channel statistics are only kept while the device is open.
 So with situations involving overruns and underruns, consider the output
@@ -586,6 +660,31 @@ For specific sound card access, please instead use
 .Pa /dev/dsp
 or
 .Pa /dev/dsp%d .
+.Sh EXAMPLES
+Use the sound metadriver to load all
+.Nm
+bridge device drivers at once
+(for example if it is unclear which the correct driver to use is):
+.Pp
+.Dl kldload snd_driver
+.Pp
+Load a specific bridge device driver, in this case the Intel
+High Definition Audio driver:
+.Pp
+.Dl kldload snd_hda
+.Pp
+Check the status of all detected
+.Nm
+devices:
+.Pp
+.Dl cat /dev/sndstat
+.Pp
+Change the default sound device, in this case to the second device.
+This is handy if there are multiple
+.Nm
+devices available:
+.Pp
+.Dl sysctl hw.snd.default_unit=1
 .Sh DIAGNOSTICS
 .Bl -diag
 .It pcm%d:play:%d:dsp%d.p%d: play interrupt timeout, channel dead
@@ -596,12 +695,14 @@ A device node is not created properly.
 .El
 .Sh SEE ALSO
 .Xr snd_ad1816 4 ,
+.Xr snd_ai2s 4 ,
 .Xr snd_als4000 4 ,
 .Xr snd_atiixp 4 ,
 .Xr snd_audiocs 4 ,
 .Xr snd_cmi 4 ,
 .Xr snd_cs4281 4 ,
 .Xr snd_csa 4 ,
+.Xr snd_davbus 4 ,
 .Xr snd_ds1 4 ,
 .Xr snd_emu10k1 4 ,
 .Xr snd_emu10kx 4 ,
@@ -630,6 +731,7 @@ A device node is not created properly.
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,
 .Xr kldload 8 ,
+.Xr mixer 8 ,
 .Xr sysctl 8
 .Rs
 .%T "Cookbook formulae for audio EQ biquad filter coefficients, by Robert Bristow-Johnson"
