@@ -282,14 +282,14 @@ fcu_fan_set_rpm(struct fcu_fan *fan, int rpm)
 		fan->setpoint = rpm;
 	} else {
 		device_printf(fan->dev, "Unknown fan type: %d\n", fan->type);
-		return (-1);
+		return (ENXIO);
 	}
 
 	buf[0] = rpm >> (8 - fcu_rpm_shift);
 	buf[1] = rpm << fcu_rpm_shift;
 
 	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2) < 0)
-		return (-1);
+		return (EIO);
 
 	return (0);
 }
@@ -377,7 +377,7 @@ fcu_fan_set_pwm(struct fcu_fan *fan, int pwm)
 	buf[0] = (pwm * 2550) / 1000;
 
 	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1) < 0)
-		return (-1);
+		return (EIO);
 	return (0);
 }
 
@@ -536,12 +536,12 @@ fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	if (fan->type == FCU_FAN_RPM) {
 		rpm = fcu_fan_get_rpm(fan);
 		if (rpm < 0)
-			return (-1);
+			return (EIO);
 		error = sysctl_handle_int(oidp, &rpm, 0, req);
 	} else {
 		error = fcu_fan_get_pwm(fcu, fan, &pwm, &rpm);
 		if (error < 0)
-			return (-1);
+			return (EIO);
 
 		switch (arg2 & 0xff00) {
 		case FCU_PWM_SYSCTL_PWM:
@@ -552,7 +552,7 @@ fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 			break;
 		default:
 			/* This should never happen */
-			error = -1;
+			return (EINVAL);
 		};
 	}
 
