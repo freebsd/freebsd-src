@@ -1364,7 +1364,7 @@ softdep_flush(void)
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
 			nmp = TAILQ_NEXT(mp, mnt_list);
-			if ((mp->mnt_flag & MNT_SOFTDEP) == 0)
+			if (MOUNTEDSOFTDEP(mp) == 0)
 				continue;
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 				continue;
@@ -2423,7 +2423,7 @@ softdep_unmount(mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_SOFTDEP;
-	if ((mp->mnt_flag & MNT_SUJ) == 0) {
+	if (MOUNTEDSUJ(mp) == 0) {
 		MNT_IUNLOCK(mp);
 		return;
 	}
@@ -2638,6 +2638,7 @@ out:
 	if (error == 0) {
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_SUJ;
+		mp->mnt_flag &= ~MNT_SOFTDEP;
 		MNT_IUNLOCK(mp);
 		/*
 		 * Only validate the journal contents if the
@@ -3060,7 +3061,7 @@ softdep_flushjournal(mp)
 	struct jblocks *jblocks;
 	struct ufsmount *ump;
 
-	if ((mp->mnt_flag & MNT_SUJ) == 0)
+	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	jblocks = ump->softdep_jblocks;
@@ -3096,7 +3097,7 @@ softdep_process_journal(mp, needwk, flags)
 	int off;
 	int devbsize;
 
-	if ((mp->mnt_flag & MNT_SUJ) == 0)
+	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
@@ -3827,8 +3828,8 @@ newfreework(ump, freeblks, parent, lbn, nb, frags, off, journal)
 	freework->fw_blkno = nb;
 	freework->fw_frags = frags;
 	freework->fw_indir = NULL;
-	freework->fw_ref = ((UFSTOVFS(ump)->mnt_flag & MNT_SUJ) == 0 ||
-	    lbn >= -NXADDR) ? 0 : NINDIR(ump->um_fs) + 1;
+	freework->fw_ref = (MOUNTEDSUJ(UFSTOVFS(ump)) == 0 || lbn >= -NXADDR)
+		? 0 : NINDIR(ump->um_fs) + 1;
 	freework->fw_start = freework->fw_off = off;
 	if (journal)
 		newjfreeblk(freeblks, lbn, nb, frags);
@@ -4681,7 +4682,7 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	 * Allocate the journal reference add structure so that the bitmap
 	 * can be dependent on it.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (MOUNTEDSUJ(mp)) {
 		jaddref = newjaddref(ip, newinum, 0, 0, mode);
 		jaddref->ja_state |= NEWBLOCK;
 	}
@@ -4734,7 +4735,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	 * Add it to the dependency list for the buffer holding
 	 * the cylinder group map from which it was allocated.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (MOUNTEDSUJ(mp)) {
 		jnewblk = malloc(sizeof(*jnewblk), M_JNEWBLK, M_SOFTDEP_FLAGS);
 		workitem_alloc(&jnewblk->jn_list, D_JNEWBLK, mp);
 		jnewblk->jn_jsegdep = newjsegdep(&jnewblk->jn_list);
@@ -5199,7 +5200,7 @@ newfreefrag(ip, blkno, size, lbn)
 	freefrag->ff_blkno = blkno;
 	freefrag->ff_fragsize = size;
 
-	if ((ip->i_ump->um_mountp->mnt_flag & MNT_SUJ) != 0) {
+	if (MOUNTEDSUJ(UFSTOVFS(ip->i_ump))) {
 		freefrag->ff_jdep = (struct worklist *)
 		    newjfreefrag(freefrag, ip, blkno, size, lbn);
 	} else {
@@ -7254,7 +7255,7 @@ freework_freeblock(freework)
 	freeblks = freework->fw_freeblks;
 	ump = VFSTOUFS(freeblks->fb_list.wk_mp);
 	fs = ump->um_fs;
-	needj = (freeblks->fb_list.wk_mp->mnt_flag & MNT_SUJ) != 0;
+	needj = MOUNTEDSUJ(freeblks->fb_list.wk_mp) != 0;
 	bsize = lfragtosize(fs, freework->fw_frags);
 	LIST_INIT(&wkhd);
 	/*
@@ -7674,7 +7675,7 @@ indir_trunc(freework, dbn, lbn)
 		ufs1fmt = 0;
 	}
 	level = lbn_level(lbn);
-	needj = (UFSTOVFS(ump)->mnt_flag & MNT_SUJ) != 0;
+	needj = MOUNTEDSUJ(UFSTOVFS(ump)) != 0;
 	lbnadd = lbn_offset(fs, level);
 	nblocks = btodb(fs->fs_bsize);
 	nfreework = freework;
@@ -7860,7 +7861,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	mkdir2->md_state = ATTACHED | MKDIR_PARENT;
 	mkdir2->md_diradd = dap;
 	mkdir2->md_jaddref = NULL;
-	if ((mp->mnt_flag & MNT_SUJ) == 0) {
+	if (MOUNTEDSUJ(mp) == 0) {
 		mkdir1->md_state |= DEPCOMPLETE;
 		mkdir2->md_state |= DEPCOMPLETE;
 	}
@@ -7900,7 +7901,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	 * been satisfied and mkdir2 can be freed.
 	 */
 	inodedep_lookup(mp, dinum, 0, &inodedep);
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (MOUNTEDSUJ(mp)) {
 		if (inodedep == NULL)
 			panic("setup_newdir: Lost parent.");
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
@@ -8031,7 +8032,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	 * written place it on the bufwait list, otherwise do the post-inode
 	 * write processing to put it on the id_pendinghd list.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (MOUNTEDSUJ(mp)) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
@@ -8047,7 +8048,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	 * Add the journal entries for . and .. links now that the primary
 	 * link is written.
 	 */
-	if (mkdir1 != NULL && (mp->mnt_flag & MNT_SUJ)) {
+	if (mkdir1 != NULL && MOUNTEDSUJ(mp)) {
 		jaddref = (struct jaddref *)TAILQ_PREV(&jaddref->ja_ref,
 		    inoreflst, if_deps);
 		KASSERT(jaddref != NULL &&
@@ -8144,7 +8145,7 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	 * determine if any affected adds or removes are present in the
 	 * journal.
 	 */
-	if (mp->mnt_flag & MNT_SUJ)  {
+	if (MOUNTEDSUJ(mp)) {
 		flags = DEPALLOC;
 		jmvref = newjmvref(dp, de->d_ino,
 		    dp->i_offset + (oldloc - base),
@@ -8865,7 +8866,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 * processing to put it on the id_pendinghd list.
 	 */
 	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (MOUNTEDSUJ(mp)) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
@@ -8928,7 +8929,7 @@ softdep_setup_sbupdate(ump, fs, bp)
 	struct sbdep *sbdep;
 	struct worklist *wk;
 
-	if ((ump->um_mountp->mnt_flag & MNT_SUJ) == 0)
+	if (MOUNTEDSUJ(UFSTOVFS(ump)) == 0)
 		return;
 	LIST_FOREACH(wk, &bp->b_dep, wk_list)
 		if (wk->wk_type == D_SBDEP)
@@ -9046,7 +9047,7 @@ unlinked_inodedep(mp, inodedep)
 {
 	struct ufsmount *ump;
 
-	if ((mp->mnt_flag & MNT_SUJ) == 0)
+	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	ump->um_fs->fs_fmod = 1;
