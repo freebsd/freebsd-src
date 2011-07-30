@@ -174,6 +174,8 @@ TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 static struct rl_type re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_528T, 0,
 	    "D-Link DGE-528(T) Gigabit Ethernet Adapter" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
+	    "D-Link DGE-530(T) Gigabit Ethernet Adapter" },
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
 	    "RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
