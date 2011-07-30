@@ -63,10 +63,10 @@ the read-only sysctl variable
 .Pp
 .Fx
 allows specific CPUs on a multi-processor system to be disabled.
-The sysctl variable
-.Va machdep.hlt_cpus
-is an integer bitmask denoting CPUs to halt, counting from 0.
-Setting a bit to 1 will result in the corresponding CPU being
+This can be done using the
+.Va hint.lapic.X.disabled
+tunable, where X is the APIC ID of a CPU.
+Setting this tunable to 1 will result in the corresponding CPU being
 disabled.
 .Pp
 The
@@ -122,12 +122,12 @@ tasks on CPUs that are closely grouped together.
 supports hyperthreading on Intel CPU's on the i386 and AMD64 platforms.
 Since using logical CPUs can cause performance penalties under certain loads,
 the logical CPUs can be disabled by setting the
-.Va machdep.hlt_logical_cpus
-sysctl to one. 
-Note that this operation is different from the mechanism used by the
+.Va machdep.hyperthreading_allowed
+tunable to zero. 
 .Xr cpuset 1 .
 .Sh SEE ALSO
 .Xr mptable 1 ,
+.Xr loader 8 ,
 .Xr sysctl 8 ,
 .Xr condvar 9 ,
 .Xr msleep 9 ,
