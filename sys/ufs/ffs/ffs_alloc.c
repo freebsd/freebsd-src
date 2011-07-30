@@ -1967,7 +1967,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	mp = UFSTOVFS(ump);
-	if (mp->mnt_flag & MNT_SOFTDEP && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(mp) && devvp->v_type != VREG)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
 		    numfrags(fs, size), dephd);
 	bdwrite(bp);
@@ -2217,7 +2217,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	fs->fs_fmod = 1;
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
-	if (UFSTOVFS(ump)->mnt_flag & MNT_SOFTDEP && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(UFSTOVFS(ump)) && devvp->v_type != VREG)
 		softdep_setup_inofree(UFSTOVFS(ump), bp,
 		    ino + cg * fs->fs_ipg, wkhd);
 	bdwrite(bp);

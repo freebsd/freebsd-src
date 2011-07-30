@@ -281,7 +281,7 @@ ffs_mount(struct mount *mp)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (mp->mnt_flag & MNT_SOFTDEP) {
+			if (MOUNTEDSOFTDEP(mp)) {
 				error = softdep_flushfiles(mp, flags, td);
 			} else {
 				error = ffs_flushfiles(mp, flags, td);
@@ -307,7 +307,7 @@ ffs_mount(struct mount *mp)
 				vfs_write_resume(mp);
 				return (error);
 			}
-			if (mp->mnt_flag & MNT_SOFTDEP)
+			if (MOUNTEDSOFTDEP(mp))
 				softdep_unmount(mp);
 			DROP_GIANT();
 			g_topology_lock();
@@ -411,7 +411,7 @@ ffs_mount(struct mount *mp)
 		 * Softdep_mount() clears it in an initial mount
 		 * or ro->rw remount.
 		 */
-		if (mp->mnt_flag & MNT_SOFTDEP) {
+		if (MOUNTEDSOFTDEP(mp)) {
 			/* XXX: Reset too late ? */
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_ASYNC;
@@ -443,7 +443,7 @@ ffs_mount(struct mount *mp)
 				    fs->fs_fsmnt);
 				return (EINVAL);
 			}
-			KASSERT((mp->mnt_flag & MNT_SOFTDEP) == 0,
+			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
 			    ("soft updates enabled on read-only file system"));
 			DROP_GIANT();
 			g_topology_lock();
@@ -530,7 +530,7 @@ ffs_mount(struct mount *mp)
 			return (error);
 		}
 		if (fsckpid > 0) {
-			KASSERT((mp->mnt_flag & MNT_SOFTDEP) == 0,
+			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
 			    ("soft updates enabled on read-only file system"));
 			ump = VFSTOUFS(mp);
 			fs = ump->um_fs;
@@ -1247,7 +1247,7 @@ ffs_unmount(mp, mntflags)
 			vn_start_write(NULL, &mp, V_WAIT);
 		}
 	}
-	if (mp->mnt_flag & MNT_SOFTDEP)
+	if (MOUNTEDSOFTDEP(mp))
 		error = softdep_flushfiles(mp, flags, td);
 	else
 		error = ffs_flushfiles(mp, flags, td);
@@ -1389,9 +1389,6 @@ ffs_statfs(mp, sbp)
 	fs = ump->um_fs;
 	if (fs->fs_magic != FS_UFS1_MAGIC && fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_statfs");
-	/* Don't export MNT_SOFTDEP when MNT_SUJ is in use */
-	if ((sbp->f_flags & (MNT_SOFTDEP | MNT_SUJ)) == (MNT_SOFTDEP | MNT_SUJ))
-		sbp->f_flags &= ~MNT_SOFTDEP;
 	sbp->f_version = STATFS_VERSION;
 	sbp->f_bsize = fs->fs_fsize;
 	sbp->f_iosize = fs->fs_bsize;
