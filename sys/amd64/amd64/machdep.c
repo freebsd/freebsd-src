@@ -1309,7 +1309,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
-	u_long physmem_tunable;
+	u_long physmem_tunable, memtest, tmpul;
 	pt_entry_t *pte;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
@@ -1370,6 +1370,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 
 	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
 		Maxmem = atop(physmem_tunable);
+
+	/*
+	 * By default keep the memtest enabled.  Use a general name so that
+	 * one could eventually do more with the code than just disable it.
+	 */
+	memtest = 1;
+	if (TUNABLE_ULONG_FETCH("hw.memtest.tests", &tmpul))
+		memtest = tmpul;
 
 	/*
 	 * Don't allow MAXMEM or hw.physmem to extend the amount of memory
@@ -1433,6 +1441,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 				goto do_dump_avail;
 
 			page_bad = FALSE;
+			if (memtest == 0)
+				goto skip_memtest;
 
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
@@ -1470,6 +1480,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			 */
 			*(int *)ptr = tmp;
 
+skip_memtest:
 			/*
 			 * Adjust array of valid/good pages.
 			 */
