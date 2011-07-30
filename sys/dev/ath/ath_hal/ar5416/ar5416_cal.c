@@ -186,36 +186,22 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
 }
 #endif
 
+
+/*
+ * AGC calibration for the AR5416, AR9130, AR9160, AR9280.
+ */
 HAL_BOOL
 ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
+
 	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/* Disable ADC */
+		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
+		    AR_PHY_ADC_CTL_OFF_PWDADC);
+
 		/* Enable Rx Filter Cal */
-		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
 		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_FLTR_CAL);
-
-		/* Clear the carrier leak cal bit */
-		OS_REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
-
-		/* kick off the cal */
-		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
-
-		/* Poll for offset calibration complete */
-		if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0)) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
-			    "%s: offset calibration failed to complete in 1ms; "
-			    "noisy environment?\n", __func__);
-			return AH_FALSE;
-		}
-
-		/* Set the cl cal bit and rerun the cal a 2nd time */
-		/* Enable Rx Filter Cal */
-		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_FLTR_CAL);
-
-		OS_REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
 	} 	
 
 	/* Calibrate the AGC */
@@ -227,6 +213,16 @@ ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    "%s: offset calibration did not complete in 1ms; "
 		    "noisy environment?\n", __func__);
 		return AH_FALSE;
+	}
+
+	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/* Enable ADC */
+		OS_REG_SET_BIT(ah, AR_PHY_ADC_CTL,
+		    AR_PHY_ADC_CTL_OFF_PWDADC);
+
+		/* Disable Rx Filter Cal */
+		OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_FLTR_CAL);
 	}
 
 	return AH_TRUE;
@@ -247,7 +243,8 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* Do initial chipset-specific calibration */
 	if (! AH5416(ah)->ah_cal_initcal(ah, chan)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial chipset calibration did "
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: initial chipset calibration did "
 		    "not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
 	}
