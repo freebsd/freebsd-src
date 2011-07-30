@@ -4289,7 +4289,8 @@ zfs_jail(zfs_handle_t *zhp, int jailid, int attach)
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	zfs_cmd_t zc = { 0 };
 	char errbuf[1024];
-	int cmd, ret;
+	unsigned long cmd;
+	int ret;
 
 	if (attach) {
 		(void) snprintf(errbuf, sizeof (errbuf),
