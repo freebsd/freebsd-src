@@ -42,14 +42,14 @@ static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 static const HAL_PERCAL_DATA ar9280_adc_gain_cal = {	/* single sample */
 	.calName = "ADC Gain", .calType = ADC_GAIN_CAL,
 	.calNumSamples	= MIN_CAL_SAMPLES,
-	.calCountMax	= PER_MIN_LOG_COUNT,
+	.calCountMax	= PER_MAX_LOG_COUNT,
 	.calCollect	= ar5416AdcGainCalCollect,
 	.calPostProc	= ar5416AdcGainCalibration
 };
 static const HAL_PERCAL_DATA ar9280_adc_dc_cal = {	/* single sample */
 	.calName = "ADC DC", .calType = ADC_DC_CAL,
 	.calNumSamples	= MIN_CAL_SAMPLES,
-	.calCountMax	= PER_MIN_LOG_COUNT,
+	.calCountMax	= PER_MAX_LOG_COUNT,
 	.calCollect	= ar5416AdcDcCalCollect,
 	.calPostProc	= ar5416AdcDcCalibration
 };
