@@ -195,7 +195,7 @@
 	resources between logical processors within the same CPU.
 	Because this naive scheduling can result in suboptimal
 	performance, under certain circumstances it may be useful to
-	disable the logical processors with the the
+	disable the logical processors with the
 	<varname>machdep.hyperthreading_allowed</varname> tunable.
 	The &man.smp.4; manual page has more details.</para>
 
