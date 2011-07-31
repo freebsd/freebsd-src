@@ -1116,8 +1116,9 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
 		KLD_UNLOCK_READ();
 	} else
-#else
 		KLD_UNLOCK();
+#else
+	KLD_UNLOCK();
 #endif
 	CURVNET_RESTORE();
 	return (error);
