@@ -58,7 +58,7 @@ struct timespec32 {
 #define TS_CP(src,dst,fld) do {			\
 	CP((src).fld,(dst).fld,tv_sec);		\
 	CP((src).fld,(dst).fld,tv_nsec);	\
-} while (0);
+} while (0)
 
 struct rusage32 {
 	struct timeval32 ru_utime;
