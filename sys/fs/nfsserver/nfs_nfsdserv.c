@@ -1425,6 +1425,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	struct nfsrvfh tfh;
 	char *bufp, *tbufp = NULL;
 	u_long *hashp;
+	fhandle_t fh;
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
@@ -1450,19 +1451,34 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		tnes = *toexp;
 		tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred, p, 0);
 	} else {
+		tfh.nfsrvfh_len = 0;
 		error = nfsrv_mtofh(nd, &tfh);
+		if (error == 0)
+			error = nfsvno_getfh(dp, &fh, p);
 		if (error) {
 			vput(dp);
 			/* todp is always NULL except NFSv4 */
 			nfsvno_relpathbuf(&fromnd);
 			goto out;
 		}
-		nd->nd_cred->cr_uid = nd->nd_saveduid;
-		nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL, 0, p);
-		if (tdp) {
+
+		/* If this is the same file handle, just VREF() the vnode. */
+		if (tfh.nfsrvfh_len == NFSX_MYFH &&
+		    !NFSBCMP(tfh.nfsrvfh_data, &fh, NFSX_MYFH)) {
+			VREF(dp);
+			tdp = dp;
+			tnes = *exp;
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
 			    p, 1);
-			NFSVOPUNLOCK(tdp, 0);
+		} else {
+			nd->nd_cred->cr_uid = nd->nd_saveduid;
+			nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL,
+			    0, p);
+			if (tdp) {
+				tdirfor_ret = nfsvno_getattr(tdp, &tdirfor,
+				    nd->nd_cred, p, 1);
+				NFSVOPUNLOCK(tdp, 0);
+			}
 		}
 	}
 	NFSNAMEICNDSET(&tond.ni_cnd, nd->nd_cred, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART);
