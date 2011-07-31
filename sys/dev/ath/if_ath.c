@@ -1395,6 +1395,12 @@ ath_intr(void *arg)
 			 *     least on older hardware revs.
 			 */
 			sc->sc_stats.ast_rxeol++;
+			/*
+			 * Disable RXEOL/RXORN - prevent an interrupt
+			 * storm until the PCU logic can be reset.
+			 */
+			sc->sc_imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+			ath_hal_intrset(ah, sc->sc_imask);
 			sc->sc_rxlink = NULL;
 		}
 		if (status & HAL_INT_TXURN) {
