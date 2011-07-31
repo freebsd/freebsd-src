@@ -2953,9 +2953,6 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_name = name;
 	dd->dd_desc_len = desc_len * nbuf * ndesc;
 
-	device_printf(sc->sc_dev, "desc_len: %d, nbuf=%d, ndesc=%d; dd_desc_len=%d\n",
-	    desc_len, nbuf, ndesc, dd->dd_desc_len);
-
 	/*
 	 * Merlin work-around:
 	 * Descriptors that cross the 4KB boundary can't be used.
@@ -2964,8 +2961,6 @@ ath_descdma_setup(struct ath_softc *sc,
 	if (! ath_hal_split4ktrans(sc->sc_ah)) {
 		int numdescpage = 4096 / (desc_len * ndesc);
 		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
-		device_printf(sc->sc_dev, "numdescpage: %d, new dd_desc_len=%d\n",
-		    numdescpage, dd->dd_desc_len);
 	}
 
 	/*
