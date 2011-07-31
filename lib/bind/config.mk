@@ -77,11 +77,6 @@ CFLAGS+=	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 .if ${MK_BIND_SIGCHASE} == "yes"
 CFLAGS+=	-DDIG_SIGCHASE
 .endif
-.if ${MK_BIND_XML} == "yes"
-CFLAGS+=	-DHAVE_LIBXML2
-CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
-CFLAGS+=	-L/usr/local/lib -lxml2 -lz -liconv -lm
-.endif
 
 # Link against BIND libraries
 .if ${MK_BIND_LIBS} == "no"
@@ -109,6 +104,13 @@ BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
 		${LIBISC} ${LIBLWRES}
 .if ${MK_BIND_LIBS} != "no"
 BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
+CFLAGS+=	-I${BIND_DIR}/lib/isc/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/pthreads/include
+CFLAGS+=	-I${.CURDIR}/../dns
+CFLAGS+=	-I${BIND_DIR}/lib/dns/include
+CFLAGS+=	-I${BIND_DIR}/lib/isccfg/include
+CFLAGS+=	-I${.CURDIR}/../isc
 .else
 BIND_LDADD=	${BIND_DPADD}
 .endif
@@ -119,6 +121,16 @@ CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
 .endif
 
+.if ${MK_BIND_XML} == "yes"
+CFLAGS+=	-DHAVE_LIBXML2
+CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
+.if ${MK_BIND_LIBS} != "no"
+BIND_LDADD+=	-L/usr/local/lib -lxml2 -lz -liconv -lm
+.else
+BIND_DPADD+=	/usr/local/lib/libxml2.a ${LIBZ} 
+BIND_DPADD+=	/usr/local/lib/libiconv.a ${LIBM}
+.endif
+.endif
+
 PTHREAD_DPADD=	${LIBPTHREAD}
 PTHREAD_LDADD=	-lpthread
-
