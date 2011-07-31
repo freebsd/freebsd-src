@@ -43,7 +43,7 @@ options 	MD_ROOT
 options 	MPC85XX
 options 	MSDOSFS
 options 	NFS_ROOT
-options 	NFSCLIENT
+options 	NFSCL
 options 	NFSLOCKD
 options 	PROCFS
 options 	PSEUDOFS
