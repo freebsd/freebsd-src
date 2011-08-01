@@ -44,11 +44,17 @@ archive_read_support_compression_all(struct archive *a)
 	archive_read_support_compression_lzma(a);
 	/* Xz falls back to "unxz" command-line program. */
 	archive_read_support_compression_xz(a);
+	/* The decode code doesn't use an outside library. */
+	archive_read_support_compression_uu(a);
+	/* The decode code doesn't use an outside library. */
+	archive_read_support_compression_rpm(a);
 
 	/* Note: We always return ARCHIVE_OK here, even if some of the
 	 * above return ARCHIVE_WARN.  The intent here is to enable
 	 * "as much as possible."  Clients who need specific
 	 * compression should enable those individually so they can
 	 * verify the level of support. */
+	/* Clear any warning messages set by the above functions. */
+	archive_clear_error(a);
 	return (ARCHIVE_OK);
 }

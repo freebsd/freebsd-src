@@ -205,7 +205,7 @@ program_bidder_bid(struct archive_read_filter_bidder *self,
 		/* No match, so don't bid. */
 		if (memcmp(p, state->signature, state->signature_len) != 0)
 			return (0);
-		return (state->signature_len * 8);
+		return ((int)state->signature_len * 8);
 	}
 
 	/* Otherwise, bid once and then never bid again. */
@@ -251,6 +251,7 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 		return (ARCHIVE_WARN);
 	}
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (WIFSIGNALED(state->exit_status)) {
 #ifdef SIGPIPE
 		/* If the child died because we stopped reading before
@@ -267,6 +268,7 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 		    WTERMSIG(state->exit_status));
 		return (ARCHIVE_WARN);
 	}
+#endif /* !_WIN32 || __CYGWIN__ */
 
 	if (WIFEXITED(state->exit_status)) {
 		if (WEXITSTATUS(state->exit_status) == 0)

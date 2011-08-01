@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 static struct archive_vtable *archive_write_vtable(void);
 
 static int	_archive_write_close(struct archive *);
-static int	_archive_write_finish(struct archive *);
+static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
@@ -73,7 +73,7 @@ archive_write_vtable(void)
 
 	if (!inited) {
 		av.archive_close = _archive_write_close;
-		av.archive_finish = _archive_write_finish;
+		av.archive_free = _archive_write_free;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
@@ -312,7 +312,6 @@ archive_write_open(struct archive *_a, void *client_data,
 	struct archive_write *a = (struct archive_write *)_a;
 	int ret;
 
-	ret = ARCHIVE_OK;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_open");
 	archive_clear_error(&a->archive);
@@ -384,13 +383,13 @@ _archive_write_close(struct archive *_a)
  * Destroy the archive structure.
  */
 static int
-_archive_write_finish(struct archive *_a)
+_archive_write_free(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_ANY, "archive_write_finish");
+	    ARCHIVE_STATE_ANY, "archive_write_free");
 	if (a->archive.state != ARCHIVE_STATE_CLOSED)
 		r = archive_write_close(&a->archive);
 
@@ -423,7 +422,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (a->skip_file_dev != 0 &&
 	    archive_entry_dev(entry) == a->skip_file_dev &&
 	    a->skip_file_ino != 0 &&
-	    archive_entry_ino(entry) == a->skip_file_ino) {
+	    archive_entry_ino64(entry) == a->skip_file_ino) {
 		archive_set_error(&a->archive, 0,
 		    "Can't add archive to itself");
 		return (ARCHIVE_FAILED);

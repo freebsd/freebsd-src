@@ -32,6 +32,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -95,6 +101,9 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		mine->can_skip = 1;
 	} else
 		mine->can_skip = 0;
+#if defined(__CYGWIN__) || defined(_WIN32)
+	setmode(mine->fd, O_BINARY);
+#endif
 
 	return (archive_read_open2(a, mine,
 		NULL, file_read, file_skip, file_close));
@@ -107,11 +116,15 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	ssize_t bytes_read;
 
 	*buff = mine->buffer;
-	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
-	if (bytes_read < 0) {
-		archive_set_error(a, errno, "Error reading fd %d", mine->fd);
+	for (;;) {
+		bytes_read = read(mine->fd, mine->buffer, mine->block_size);
+		if (bytes_read < 0) {
+			if (errno == EINTR)
+				continue;
+			archive_set_error(a, errno, "Error reading fd %d", mine->fd);
+		}
+		return (bytes_read);
 	}
-	return (bytes_read);
 }
 
 #if ARCHIVE_API_VERSION < 2

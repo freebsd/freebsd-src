@@ -89,9 +89,8 @@ archive_read_support_format_raw(struct archive *_a)
 static int
 archive_read_format_raw_bid(struct archive_read *a)
 {
-	const char *p;
 
-	if ((p = __archive_read_ahead(a, 1, NULL)) == NULL)
+	if (__archive_read_ahead(a, 1, NULL) == NULL)
 		return (-1);
 	return (1);
 }
@@ -149,7 +148,6 @@ archive_read_format_raw_read_data(struct archive_read *a,
 		*offset = info->offset;
 		return (avail);
 	}
-	return (ARCHIVE_OK);
 }
 
 static int

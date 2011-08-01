@@ -46,49 +46,39 @@ else
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/long-joliet-file-name.textfile /tmp/iso/dir
 TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
 fi
-mkhybrid -J -uid 1 -gid 2 /tmp/iso | bzip2 > test_read_format_isojoliet_bz2.iso.bz2
-F=test_read_format_isojoliet_bz2.iso.bz2
+F=test_read_format_iso_joliet.iso.Z
+mkhybrid -J -uid 1 -gid 2 /tmp/iso | compress > $F
 uuencode $F $F > $F.uu
 exit 1
  */
 
-static void
-joliettest(int withrr)
+DEFINE_TEST(test_read_format_isojoliet_bz2)
 {
-	const char *refname = "test_read_format_isojoliet_bz2.iso.bz2";
+	const char *refname = "test_read_format_iso_joliet.iso.Z";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *p;
 	size_t size;
 	off_t offset;
-	int r;
-
-	if (withrr) {
-		refname = "test_read_format_isojolietrr_bz2.iso.bz2";
-	}
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("bzip2 reading not fully supported on this platform");
-		assertEqualInt(0, archive_read_finish(a));
-		return;
-	}
-	assertEqualInt(0, r);
+	assertEqualInt(0, archive_read_support_compression_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_set_options(a, "iso9660:!rockridge"));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
 	/* First entry is '.' root directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString(".", archive_entry_pathname(ae));
-	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(86401, archive_entry_ctime(ae));
-	assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(3, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &p, &size, &offset));
@@ -97,95 +87,48 @@ joliettest(int withrr)
 	/* A directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
-	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
-	if (withrr) {
-		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-		assertEqualInt(1, archive_entry_uid(ae));
-		assertEqualInt(2, archive_entry_gid(ae));
-	}
 
-	/* A hardlink to the regular file. */
+	/* A regular file with two names ("hardlink" gets returned
+	 * first, so it's not marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("hardlink", archive_entry_pathname(ae));
-	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	if (withrr) {
-		assertEqualString("long-joliet-file-name.textfile",
-		    archive_entry_hardlink(ae));
-	}
+	assertEqualString("long-joliet-file-name.textfile",
+	    archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assert(archive_entry_hardlink(ae) == NULL);
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
 	assertEqualInt(0, offset);
 	assertEqualInt(0, memcmp(p, "hello\n", 6));
-	if (withrr) {
-		assertEqualInt(86401, archive_entry_mtime(ae));
-		assertEqualInt(86401, archive_entry_atime(ae));
-		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-		assertEqualInt(1, archive_entry_uid(ae));
-		assertEqualInt(2, archive_entry_gid(ae));
-	}
 
-	/* A regular file. */
+	/* Second name for the same regular file (this happens to be
+	 * returned second, so does get marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("long-joliet-file-name.textfile", archive_entry_pathname(ae));
-	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assertEqualInt(6, archive_entry_size(ae));
-	if (withrr) {
-		assertEqualInt(86401, archive_entry_mtime(ae));
-		assertEqualInt(86401, archive_entry_atime(ae));
-		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-		assertEqualInt(1, archive_entry_uid(ae));
-		assertEqualInt(2, archive_entry_gid(ae));
-	}
+	assertEqualString("hardlink", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("long-joliet-file-name.textfile",
+	    archive_entry_hardlink(ae));
+	assert(!archive_entry_size_is_set(ae));
 
 	/* A symlink to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
-	if (withrr) {
-		assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
-		assertEqualString("long-joliet-file-name.textfile",
-		    archive_entry_symlink(ae));
-	}
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(172802, archive_entry_atime(ae));
-	if (withrr) {
-		assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
-		assertEqualInt(1, archive_entry_uid(ae));
-		assertEqualInt(2, archive_entry_gid(ae));
-	}
 
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
-	if (withrr) {
-		assertEqualInt(archive_format(a),
-		    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
-	}
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 
 	/* Close the archive. */
 	assertEqualInt(0, archive_read_close(a));
 	assertEqualInt(0, archive_read_finish(a));
 }
-
-
-DEFINE_TEST(test_read_format_isojoliet_bz2)
-{
-	joliettest(0);
-
-	/* XXXX This doesn't work today; can it be made to work? */
-#if 0
-	joliettest(1);
-#else
-	skipping("Mixed Joliet/RR not fully supported yet.");
-#endif
-}
-
-
-
 

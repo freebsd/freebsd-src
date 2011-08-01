@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" Copyright (c) 2003-2009 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2009
+.Dd December 27, 2009
 .Dt LIBARCHIVE-FORMATS 5
 .Os
 .Sh NAME
@@ -45,7 +45,8 @@ limitations of the current library support.
 Note that just because a format is supported by libarchive does not
 imply that a program that uses libarchive will support that format.
 Applications that use libarchive specify which formats they wish
-to support.
+to support, though many programs do use libarchive convenience
+functions to enable all supported formats.
 .Ss Tar Formats
 The
 .Xr libarchive 3
@@ -64,7 +65,6 @@ Later variants have extended this by either appropriating undefined
 areas of the header record, extending the header to multiple records,
 or by storing special entries that modify the interpretation of
 subsequent entries.
-.Pp
 .Bl -tag -width indent
 .It Cm gnutar
 The
@@ -83,8 +83,8 @@ library can read and write POSIX-compliant pax interchange format
 archives.
 Pax interchange format archives are an extension of the older ustar
 format that adds a separate entry with additional attributes stored
-as key/value pairs.
-The presence of this additional entry is the only difference between
+as key/value pairs immediately before each regular entry.
+The presence of these additional entries is the only difference between
 pax interchange format and the older ustar format.
 The extended attributes are of unlimited length and are stored
 as UTF-8 Unicode strings.
@@ -131,16 +131,30 @@ This name is limited to 100 bytes.
 Extended attributes, file flags, and other extended
 security information cannot be stored.
 .It
-Archive entries are limited to 2 gigabytes in size.
+Archive entries are limited to 8 gigabytes in size.
 .El
 Note that the pax interchange format has none of these restrictions.
 .El
 .Pp
-The libarchive library can also read a variety of commonly-used extensions to
+The libarchive library also reads a variety of commonly-used extensions to
 the basic tar format.
-In particular, it supports base-256 values in certain numeric fields.
-This essentially removes the limitations on file size, modification time,
+These extensions are recognized automatically whenever they appear.
+.Bl -tag -width indent
+.It Numeric extensions.
+The POSIX standards require fixed-length numeric fields to be written with
+some character position reserved for terminators.
+Libarchive allows these fields to be written without terminator characters.
+This extends the allowable range; in particular, ustar archives with this
+extension can support entries up to 64 gigabytes in size.
+Libarchive also recognizes base-256 values in most numeric fields.
+This essentially removes all limitations on file size, modification time,
 and device numbers.
+.It Solaris extensions
+Libarchive recognizes ACL and extended attribute records written
+by Solaris tar.
+Currently, libarchive only has support for old-style ACLs; the
+newer NFSv4 ACLs are recognized but discarded.
+.El
 .Pp
 The first tar program appeared in Seventh Edition Unix in 1979.
 The first official standard for the tar file format was the
@@ -159,13 +173,13 @@ A cpio archive stores each entry as a fixed-size header followed
 by a variable-length filename and variable-length data.
 Unlike the tar format, the cpio format does only minimal padding
 of the header or file data.
-There are a variety of cpio formats, which differ primarily in
+There are several cpio variants, which differ primarily in
 how they store the initial header: some store the values as
 octal or hexadecimal numbers in ASCII, others as binary values of
 varying byte order and length.
 .Bl -tag -width indent
 .It Cm binary
-The libarchive library can read both big-endian and little-endian
+The libarchive library transparently reads both big-endian and little-endian
 variants of the original binary cpio format.
 This format used 32-bit binary values for file size and mtime,
 and 16-bit binary values for the other fields.
@@ -243,20 +257,24 @@ shardump archives less portable than plain shar archives.
 .Ss ISO9660 format
 Libarchive can read and extract from files containing ISO9660-compliant
 CDROM images.
-It also has partial support for Rockridge extensions.
 In many cases, this can remove the need to burn a physical CDROM
 just in order to read the files contained in an ISO9660 image.
 It also avoids security and complexity issues that come with
 virtual mounts and loopback devices.
+Libarchive supports the most common Rockridge extensions and has partial
+support for Joliet extensions.
+If both extensions are present, the Joliet extensions will be
+used and the Rockridge extensions will be ignored.
+In particular, this can create problems with hardlinks and symlinks,
+which are supported by Rockridge but not by Joliet.
 .Ss Zip format
-Libarchive can extract from most zip format archives, including
-jar archives, archives that use Zip64 extensions and many
-self-extracting zip archives.
-It currently only supports uncompressed entries and entries
-compressed with the
+Libarchive can read and write zip format archives that have
+uncompressed entries and entries compressed with the
 .Dq deflate
 algorithm.
 Older zip compression algorithms are not supported.
+It can extract jar archives, archives that use Zip64 extensions and many
+self-extracting zip archives.
 Libarchive reads Zip archives as they are being streamed,
 which allows it to read archives of arbitrary size.
 It currently does not use the central directory; this
@@ -273,7 +291,20 @@ The ar format has never been standardised.
 There are two common variants:
 the GNU format derived from SVR4,
 and the BSD format, which first appeared in 4.4BSD.
-Libarchive provides read and write support for both variants.
+The two differ primarily in their handling of filenames
+longer than 15 characters:
+the GNU/SVR4 variant writes a filename table at the beginning of the archive;
+the BSD format stores each long filename in an extension
+area adjacent to the entry.
+Libarchive can read both extensions,
+including archives that may include both types of long filenames.
+Programs using libarchive can write GNU/SVR4 format
+if they provide a filename table to be written into
+the archive before any of the entries.
+Any entries whose names are not in the filename table
+will be written using BSD-style long filenames.
+This can cause problems for programs such as
+GNU ld that do not support the BSD-style long filenames.
 .Ss mtree
 Libarchive can read and write files in
 .Xr mtree 5
@@ -287,20 +318,29 @@ the NetBSD and FreeBSD versions of
 although many of the keywords cannot currently be stored in an
 .Tn archive_entry
 object.
-When reading, libarchive supports an extension that allows it
-to obtain the contents of the files described by the
-.Xr mtree 5
-description from files on disk.
 When writing, libarchive supports use of the
 .Xr archive_write_set_options 3
 interface to specify which keywords should be included in the
 output.
-This includes the ability to compute hash entries such
-as
+If libarchive was compiled with access to suitable
+cryptographic libraries (such as the OpenSSL libraries),
+it can compute hash entries such as
 .Cm sha512
 or
 .Cm md5
 from file data being written to the mtree writer.
+.Pp
+When reading an mtree file, libarchive will locate the corresponding
+files on disk using the
+.Cm contents
+keyword if present or the regular filename.
+If it can locate and open the file on disk, it will use that
+to fill in any metadata that is missing from the mtree file
+and will read the file contents and return those to the program
+using libarchive.
+If it cannot locate and open the file on disk, libarchive
+will return an error for any attempt to read the entry
+body.
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr cpio 1 ,

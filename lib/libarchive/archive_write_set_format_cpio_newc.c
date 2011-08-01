@@ -75,6 +75,9 @@ struct cpio_header_newc {
 	char	c_checksum[8];
 };
 
+/* Logic trick: difference between 'n' and next multiple of 4 */
+#define PAD4(n)	(3 & (1 + ~(n)))
+
 /*
  * Set output format to 'cpio' format.
  */
@@ -111,28 +114,34 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 static int
 archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 {
+	int64_t ino;
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret;
+	int pathlength, ret, ret2;
 	struct cpio_header_newc	 h;
 	int pad;
 
 	cpio = (struct cpio *)a->format_data;
-	ret = 0;
+	ret2 = ARCHIVE_OK;
 
 	path = archive_entry_pathname(entry);
-	pathlength = strlen(path) + 1; /* Include trailing null. */
+	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
 
 	memset(&h, 0, sizeof(h));
 	format_hex(0x070701, &h.c_magic, sizeof(h.c_magic));
-	format_hex(archive_entry_devmajor(entry), &h.c_devmajor, sizeof(h.c_devmajor));
-	format_hex(archive_entry_devminor(entry), &h.c_devminor, sizeof(h.c_devminor));
-	if (archive_entry_ino(entry) > 0xffffffff) {
-		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
-		ret = ARCHIVE_WARN;
+	format_hex(archive_entry_devmajor(entry), &h.c_devmajor,
+	    sizeof(h.c_devmajor));
+	format_hex(archive_entry_devminor(entry), &h.c_devminor,
+	    sizeof(h.c_devminor));
+
+	ino = archive_entry_ino64(entry);
+	if (ino > 0xffffffff) {
+		archive_set_error(&a->archive, ERANGE,
+		    "large inode number truncated");
+		ret2 = ARCHIVE_WARN;
 	}
 
-	format_hex(archive_entry_ino(entry) & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
+	format_hex(ino & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
 	format_hex(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
 	format_hex(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
 	format_hex(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
@@ -169,24 +178,26 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	ret = (a->compressor.write)(a, path, pathlength);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
-	pad = 0x3 & - (pathlength + sizeof(struct cpio_header_newc));
+	pad = PAD4(pathlength + sizeof(struct cpio_header_newc));
 	if (pad)
 		ret = (a->compressor.write)(a, "\0\0\0", pad);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
-	cpio->padding = 3 & (-cpio->entry_bytes_remaining);
+	cpio->padding = PAD4(cpio->entry_bytes_remaining);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {
 		ret = (a->compressor.write)(a, p, strlen(p));
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		pad = 0x3 & -strlen(p);
+		pad = PAD4(strlen(p));
 		ret = (a->compressor.write)(a, "\0\0\0", pad);
 	}
 
+	if (ret == ARCHIVE_OK)
+		ret = ret2;
 	return (ret);
 }
 
@@ -235,17 +246,15 @@ format_hex_recursive(int64_t v, char *p, int s)
 		return (v);
 	v = format_hex_recursive(v, p+1, s-1);
 	*p = "0123456789abcdef"[v & 0xf];
-	return (v >>= 4);
+	return (v >> 4);
 }
 
 static int
 archive_write_newc_finish(struct archive_write *a)
 {
-	struct cpio *cpio;
 	int er;
 	struct archive_entry *trailer;
 
-	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
@@ -269,10 +278,10 @@ static int
 archive_write_newc_finish_entry(struct archive_write *a)
 {
 	struct cpio *cpio;
-	int to_write, ret;
+	size_t to_write;
+	int ret;
 
 	cpio = (struct cpio *)a->format_data;
-	ret = ARCHIVE_OK;
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?
 		    cpio->entry_bytes_remaining : a->null_length;

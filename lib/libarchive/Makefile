@@ -2,8 +2,8 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBZ} ${LIBMD}
-LDADD=	-lz -lmd
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 DPADD+=	${LIBBZ2}
 LDADD+=	-lbz2
@@ -12,6 +12,9 @@ CFLAGS+= -DHAVE_BZLIB_H=1
 DPADD+=	${LIBLZMA}
 LDADD+=	-llzma
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+
+DPADD+= ${LIBBSDXML}
+LDADD+= -lbsdxml
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -24,6 +27,9 @@ CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-DWITH_OPENSSL
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
+.else
+DPADD+=	${LIBMD}
+LDADD+=	-lmd
 .endif
 
 WARNS?=	6
@@ -38,6 +44,7 @@ SRCS=	archive_check_magic.c				\
 	archive_entry_stat.c				\
 	archive_entry_strmode.c				\
 	archive_entry_link_resolver.c			\
+	archive_entry_xattr.c				\
 	archive_read.c					\
 	archive_read_data_into_fd.c			\
 	archive_read_disk.c				\
@@ -54,6 +61,8 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_compression_program.c	\
+	archive_read_support_compression_rpm.c		\
+	archive_read_support_compression_uu.c		\
 	archive_read_support_compression_xz.c		\
 	archive_read_support_format_all.c		\
 	archive_read_support_format_ar.c		\
@@ -63,6 +72,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_format_mtree.c		\
 	archive_read_support_format_raw.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_xar.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string_sprintf.c			\
@@ -90,6 +100,7 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c		\
+	archive_write_set_format_zip.c			\
 	filter_fork.c
 
 # Man pages to be installed.

@@ -25,6 +25,13 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define open _open
+#if !defined(__BORLANDC__)
+#define lseek _lseek
+#endif
+#define close _close
+#endif
 
 DEFINE_TEST(test_open_fd)
 {
@@ -33,7 +40,11 @@ DEFINE_TEST(test_open_fd)
 	struct archive *a;
 	int fd;
 
-	fd = open("test.tar", O_RDWR | O_CREAT, 0777);
+#if defined(__BORLANDC__)
+	fd = open("test.tar", O_RDWR | O_CREAT | O_BINARY);
+#else
+	fd = open("test.tar", O_RDWR | O_CREAT | O_BINARY, 0777);
+#endif
 	assert(fd >= 0);
 	if (fd < 0)
 		return;

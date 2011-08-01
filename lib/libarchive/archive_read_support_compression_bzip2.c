@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-#if HAVE_BZLIB_H
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 struct private_data {
 	bz_stream	 stream;
 	char		*out_block;
@@ -86,7 +86,7 @@ archive_read_support_compression_bzip2(struct archive *_a)
 	reader->init = bzip2_reader_init;
 	reader->options = NULL;
 	reader->free = bzip2_reader_free;
-#if HAVE_BZLIB_H
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);
 #else
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
@@ -146,7 +146,7 @@ bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_fi
 	return (bits_checked);
 }
 
-#ifndef HAVE_BZLIB_H
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR)
 
 /*
  * If we don't have the library on this system, we can't actually do the
@@ -210,12 +210,11 @@ static ssize_t
 bzip2_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
-	size_t read_avail, decompressed;
+	size_t decompressed;
 	const char *read_buf;
 	ssize_t ret;
 
 	state = (struct private_data *)self->data;
-	read_avail = 0;
 
 	if (state->eof) {
 		*p = NULL;
@@ -348,7 +347,7 @@ bzip2_filter_close(struct archive_read_filter *self)
 
 	free(state->out_block);
 	free(state);
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 #endif /* HAVE_BZLIB_H */
