@@ -9,6 +9,8 @@ CFLAGS+=	-I${.CURDIR}/../../..
 opt_compat.h:
 .if ${MACHINE_ARCH} == "amd64"
 	echo "#define COMPAT_FREEBSD32 1" >> ${.TARGET}
+.else
+	echo -n >> ${.TARGET}
 .endif
 .endif
 
