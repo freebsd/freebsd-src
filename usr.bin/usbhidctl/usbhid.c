@@ -90,6 +90,9 @@ parceargs(report_desc_t r, int all, int nnames, char **names)
 				if (tmp1 != NULL) {
 					cp -= strlen(tmp1);
 					tmp1[0] = 0;
+				} else {
+					cp = 0;
+					colls[0] = 0;
 				}
 			}
 			if ((h.kind != hid_input && h.kind != hid_output &&
@@ -141,6 +144,9 @@ parceargs(report_desc_t r, int all, int nnames, char **names)
 				if (tmp1 != NULL) {
 					cp -= strlen(tmp1);
 					tmp1[0] = 0;
+				} else {
+					cp = 0;
+					colls[0] = 0;
 				}
 			}
 			if ((h.kind != hid_input && h.kind != hid_output &&
