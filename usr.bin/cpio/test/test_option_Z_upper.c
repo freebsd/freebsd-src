@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,19 +21,36 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef MATCHING_H
-#define MATCHING_H
+DEFINE_TEST(test_option_Z_upper)
+{
+	char *p;
+	int r;
+	size_t s;
 
-#include "cpio.h"
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-int	exclude(struct cpio *, const char *pattern);
-int	include(struct cpio *, const char *pattern);
-int	excluded(struct cpio *cpio, const char *pathname);
-void	cleanup_exclusions(struct cpio *cpio);
-int	unmatched_inclusions(struct cpio *cpio);
-
-#endif
+	/* Archive it with compress compression. */
+	r = systemf("echo f | %s -oZ >archive.out 2>archive.err",
+	    testprog);
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
+			skipping("This version of bsdcpio was compiled "
+			    "without compress support");
+			return;
+		}
+		failure("-Z option is broken");
+		assertEqualInt(r, 0);
+		return;
+	}
+	/* Check that the archive file has a compress signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 2);
+	assertEqualMem(p, "\x1f\x9d", 2);
+}

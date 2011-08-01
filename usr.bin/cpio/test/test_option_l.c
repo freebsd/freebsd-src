@@ -25,30 +25,26 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-
-DEFINE_TEST(test_option_B)
+DEFINE_TEST(test_option_l)
 {
-	struct stat st;
-	int r, fd;
+	int r;
 
-	/*
-	 * Create a file on disk.
-	 */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-	/* Create an archive without -B; this should be 512 bytes. */
-	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);
+	/* Copy the file to the "copy" dir. */
+	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
+	    testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "small.err");
-	assertEqualInt(0, stat("small.cpio", &st));
-	assertEqualInt(512, st.st_size);
 
-	/* Create an archive with -B; this should be 5120 bytes. */
-	r = systemf("echo file | %s -oB > large.cpio 2>large.err", testprog);
+	/* Check that the copy is a true copy and not a link. */
+	assertIsNotHardlink("f", "copy/f");
+
+	/* Copy the file to the "link" dir with the -l option. */
+	r = systemf("echo f | %s -pld link >link.out 2>link.err",
+	    testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "large.err");
-	assertEqualInt(0, stat("large.cpio", &st));
-	assertEqualInt(5120, st.st_size);
+
+	/* Check that this is a link and not a copy. */
+	assertIsHardlink("f", "link/f");
 }

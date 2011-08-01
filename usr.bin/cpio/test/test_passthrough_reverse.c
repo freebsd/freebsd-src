@@ -36,33 +36,28 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_passthrough_reverse)
 {
-	struct stat st;
-	int fd, r;
-	int filelist;
-	int oldumask;
+	int r;
+	FILE *filelist;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0743));
+	assertMakeDir("dir", 0743);
 
 	/* File with 10 bytes content. */
-	fd = open("dir/file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "dir/file\n", 9);
+	assertMakeFile("dir/file", 0644, "1234567890");
+	fprintf(filelist, "dir/file\n");
 
 	/* Write dir last. */
-	write(filelist, "dir\n", 4);
+	fprintf(filelist, "dir\n");
 
 	/* All done. */
-	close(filelist);
+	fclose(filelist);
 
 
 	/*
@@ -72,7 +67,7 @@ DEFINE_TEST(test_passthrough_reverse)
 	failure("Error invoking %s -pd out", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, chdir("out"));
+	assertChdir("out");
 
 	/* Verify stderr and stdout. */
 	assertTextFileContents("out/dir/file\nout/dir\n1 block\n",
@@ -80,33 +75,11 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEmptyFile("../stdout");
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-		failure("st.st_mode=0%o",  st.st_mode);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0700, st.st_mode & 0700);
-#else
-		assertEqualInt(0743, st.st_mode & 0777);
-#endif
-	}
+	assertIsDir("dir", 0743);
 
 
 	/* Regular file. */
-	r = lstat("dir/file", &st);
-	failure("Failed to stat dir/file, errno=%d", errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0644, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		assertEqualInt(1, st.st_nlink);
-	}
-
-	umask(oldumask);
+	assertIsReg("dir/file", 0644);
+	assertFileSize("dir/file", 10);
+	assertFileNLinks("dir/file", 1);
 }
