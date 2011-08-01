@@ -67,31 +67,38 @@ parceargs(report_desc_t r, int all, int nnames, char **names)
 {
 	struct hid_data *d;
 	struct hid_item h;
-	u_int32_t colls[100];
-	int i, sp, instance;
+	char colls[1000];
 	char hname[1000], *tmp1, *tmp2;
 	struct variable *var, **pnext;
+	int i, instance, cp, t;
 
 	pnext = &vars;
 	if (all) {
 		if (wflag)
 			errx(1, "Must not specify -w to read variables");
-		sp = 0;
+		cp = 0;
 		for (d = hid_start_parse(r,
 		    1<<hid_input | 1<<hid_output | 1<<hid_feature, -1);
 		    hid_get_item(d, &h); ) {
-			if (h.kind == hid_collection)
-				colls[++sp] = h.usage;
-			else if (h.kind == hid_endcollection)
-				--sp;
+			if (h.kind == hid_collection) {
+				cp += sprintf(&colls[cp], "%s%s:%s",
+				    cp != 0 ? "." : "",
+				    hid_usage_page(HID_PAGE(h.usage)),
+				    hid_usage_in_page(h.usage));
+			} else if (h.kind == hid_endcollection) {
+				tmp1 = strrchr(colls, '.');
+				if (tmp1 != NULL) {
+					cp -= strlen(tmp1);
+					tmp1[0] = 0;
+				}
+			}
 			if ((h.kind != hid_input && h.kind != hid_output &&
 			    h.kind != hid_feature) || (h.flags & HIO_CONST))
 				continue;
 			var = malloc(sizeof(*var));
 			memset(var, 0, sizeof(*var));
-			asprintf(&var->name, "%s:%s.%s:%s",
-			    hid_usage_page(HID_PAGE(colls[sp])),
-			    hid_usage_in_page(colls[sp]),
+			asprintf(&var->name, "%s%s%s:%s",
+			    colls, colls[0] != 0 ? "." : "",
 			    hid_usage_page(HID_PAGE(h.usage)),
 			    hid_usage_in_page(h.usage));
 			var->h = h;
@@ -120,29 +127,37 @@ parceargs(report_desc_t r, int all, int nnames, char **names)
 		pnext = &var->next;
 
 		instance = 0;
-		sp = 0;
+		cp = 0;
 		for (d = hid_start_parse(r,
 		    1<<hid_input | 1<<hid_output | 1<<hid_feature, -1);
 		    hid_get_item(d, &h); ) {
-			if (h.kind == hid_collection)
-				colls[++sp] = h.usage;
-			else if (h.kind == hid_endcollection)
-				--sp;
+			if (h.kind == hid_collection) {
+				cp += sprintf(&colls[cp], "%s%s:%s",
+				    cp != 0 ? "." : "",
+				    hid_usage_page(HID_PAGE(h.usage)),
+				    hid_usage_in_page(h.usage));
+			} else if (h.kind == hid_endcollection) {
+				tmp1 = strrchr(colls, '.');
+				if (tmp1 != NULL) {
+					cp -= strlen(tmp1);
+					tmp1[0] = 0;
+				}
+			}
 			if ((h.kind != hid_input && h.kind != hid_output &&
 			    h.kind != hid_feature) || (h.flags & HIO_CONST))
 				continue;
-			snprintf(hname, sizeof(hname), "%s:%s",
+			snprintf(hname, sizeof(hname), "%s%s%s:%s",
+			    colls, colls[0] != 0 ? "." : "",
 			    hid_usage_page(HID_PAGE(h.usage)),
 			    hid_usage_in_page(h.usage));
-			if (strcmp(hname, var->name) != 0) {
-				snprintf(hname, sizeof(hname), "%s:%s.%s:%s",
-				    hid_usage_page(HID_PAGE(colls[sp])),
-				    hid_usage_in_page(colls[sp]),
-				    hid_usage_page(HID_PAGE(h.usage)),
-				    hid_usage_in_page(h.usage));
-				if (strcmp(hname, var->name) != 0)
+			t = strlen(hname) - strlen(var->name);
+			if (t > 0) {
+				if (strcmp(hname + t, var->name) != 0)
 					continue;
-			}
+				if (hname[t - 1] != '.')
+					continue;
+			} else if (strcmp(hname, var->name) != 0)
+				continue;
 			if (var->instance != instance++)
 				continue;
 			var->h = h;
@@ -150,7 +165,7 @@ parceargs(report_desc_t r, int all, int nnames, char **names)
 		}
 		hid_end_parse(d);
 		if (var->h.usage == 0)
-			errx(1, "Unknown usage '%s'", var->name);
+			errx(1, "Unknown item '%s'", var->name);
 	}
 }
 
