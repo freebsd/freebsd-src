@@ -219,7 +219,8 @@ datephrase(struct gdstate *gds)
 			gds->Year = gds->tokenp[0].value;
 			gds->Month = gds->tokenp[2].value;
 			gds->Day = gds->tokenp[4].value;
-		} else if ((gds->tokenp[4].value >= 13) || (gds->tokenp[2].value >= 13)) {
+		} else if ((gds->tokenp[4].value >= 13)
+		    || (gds->tokenp[2].value >= 13)) {
 			/* Last number is big:  01/07/98 */
 			/* Middle number is big:  01/29/04 */
 			gds->Month = gds->tokenp[0].value;
@@ -681,20 +682,6 @@ static struct LEXICON {
 };
 
 /*
- * Convert hour/minute/second to count of seconds.
- */
-static time_t
-ToSeconds(time_t Hours, time_t Minutes, time_t Seconds)
-{
-	if (Minutes < 0 || Minutes > 59 || Seconds < 0 || Seconds > 59)
-		return -1;
-	if (Hours < 0 || Hours > 23)
-		return -1;
-	return Hours * HOUR + Minutes * MINUTE + Seconds;
-}
-
-
-/*
  * Year is either:
  *  = A number from 0 to 99, which means a year from 1970 to 2069, or
  *  = The actual year (>=100).
@@ -707,7 +694,6 @@ Convert(time_t Month, time_t Day, time_t Year,
 	static int DaysInMonth[12] = {
 		31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 	};
-	time_t	tod;
 	time_t	Julian;
 	int	i;
 
@@ -722,7 +708,10 @@ Convert(time_t Month, time_t Day, time_t Year,
 	if (Year < EPOCH || Year > 2038
 	    || Month < 1 || Month > 12
 	    /* Lint fluff:  "conversion from long may lose accuracy" */
-	    || Day < 1 || Day > DaysInMonth[(int)--Month])
+	    || Day < 1 || Day > DaysInMonth[(int)--Month]
+	    || Hours < 0 || Hours > 23
+	    || Minutes < 0 || Minutes > 59
+	    || Seconds < 0 || Seconds > 59)
 		return -1;
 
 	Julian = Day - 1;
@@ -732,9 +721,7 @@ Convert(time_t Month, time_t Day, time_t Year,
 		Julian += 365 + (i % 4 == 0);
 	Julian *= DAY;
 	Julian += Timezone;
-	if ((tod = ToSeconds(Hours, Minutes, Seconds)) < 0)
-		return -1;
-	Julian += tod;
+	Julian += Hours * HOUR + Minutes * MINUTE + Seconds;
 	if (DSTmode == DSTon
 	    || (DSTmode == DSTmaybe && localtime(&Julian)->tm_isdst))
 		Julian -= HOUR;
@@ -838,7 +825,7 @@ nexttoken(char **in, time_t *value)
 				}
 				src++;
 			}
-			buff[i++] = '\0';
+			buff[i] = '\0';
 
 			/*
 			 * Find the first match.  If the word can be

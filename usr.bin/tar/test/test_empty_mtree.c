@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -23,52 +22,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "bsdtar_platform.h"
+#include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif
-#include <stdio.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-
-#include "err.h"
-
-const char *bsdtar_progname;
-
-static void
-bsdtar_vwarnc(int code, const char *fmt, va_list ap)
+/*
+ * Regression test:  We used to get a bogus error message when we
+ * asked tar to copy entries out of an empty archive.  See
+ * Issue 51 on libarchive.googlecode.com for details.
+ */
+DEFINE_TEST(test_empty_mtree)
 {
-	fprintf(stderr, "%s: ", bsdtar_progname);
-	vfprintf(stderr, fmt, ap);
-	if (code != 0)
-		fprintf(stderr, ": %s", strerror(code));
-	fprintf(stderr, "\n");
-}
+	int r;
 
-void
-bsdtar_warnc(int code, const char *fmt, ...)
-{
-	va_list ap;
+	assertMakeFile("test1.mtree", 0777, "#mtree\n");
 
-	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
-	va_end(ap);
-}
-
-void
-bsdtar_errc(int eval, int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
-	va_end(ap);
-	exit(eval);
+	r = systemf("%s cf test1.tar @test1.mtree >test1.out 2>test1.err",
+	    testprog);
+	failure("Error invoking %s cf", testprog);
+	assertEqualInt(r, 0);
+	assertEmptyFile("test1.out");
+	assertEmptyFile("test1.err");
 }

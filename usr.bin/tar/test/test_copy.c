@@ -25,7 +25,108 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#define	LOOP_MAX	170
+#if defined(__CYGWIN__)
+# include <limits.h>
+# include <sys/cygwin.h>
+#endif
+
+/*
+ * Try to figure out how deep we can go in our tests.  Assumes that
+ * the first call to this function has the longest starting cwd (which
+ * is currently "<testdir>/original").  This is mostly to work around
+ * limits in our Win32 support.
+ *
+ * Background: On Posix systems, PATH_MAX is merely a limit on the
+ * length of the string passed into a system call.  By repeatedly
+ * calling chdir(), you can work with arbitrarily long paths on such
+ * systems.  In contrast, Win32 APIs apply PATH_MAX limits to the full
+ * absolute path, so the permissible length of a system call argument
+ * varies with the cwd. Some APIs actually enforce limits
+ * significantly less than PATH_MAX to ensure that you can create
+ * files within the current working directory.  The Win32 limits also
+ * apply to Cygwin before 1.7.
+ *
+ * Someday, I want to convert the Win32 support to use newer
+ * wide-character paths with '\\?\' prefix, which has a 32k PATH_MAX
+ * instead of the rather anemic 260 character limit of the older
+ * system calls.  Then we can drop this mess (unless we want to
+ * continue to special-case Cygwin 1.5 and earlier).
+ */
+static int
+compute_loop_max(void)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	static int LOOP_MAX = 0;
+	char buf[MAX_PATH];
+	size_t cwdlen;
+
+	if (LOOP_MAX == 0) {
+		assert(_getcwd(buf, MAX_PATH) != NULL);
+		cwdlen = strlen(buf);
+		/* 12 characters = length of 8.3 filename */
+		/* 4 characters = length of "/../" used in symlink tests */
+		/* 1 character = length of extra "/" separator */
+		LOOP_MAX = MAX_PATH - (int)cwdlen - 12 - 4 - 1;
+	}
+	return LOOP_MAX;
+#elif defined(__CYGWIN__) && !defined(HAVE_CYGWIN_CONV_PATH)
+	static int LOOP_MAX = 0;
+	if (LOOP_MAX == 0) {
+		char wbuf[PATH_MAX];
+		char pbuf[PATH_MAX];
+		size_t wcwdlen;
+		size_t pcwdlen;
+	        size_t cwdlen;
+		assert(getcwd(pbuf, PATH_MAX) != NULL);
+		pcwdlen = strlen(pbuf);
+		cygwin_conv_to_full_win32_path(pbuf, wbuf);
+		wcwdlen = strlen(wbuf);
+		cwdlen = ((wcwdlen > pcwdlen) ? wcwdlen : pcwdlen);
+		/* Cygwin helper needs an extra few characters. */
+		LOOP_MAX = PATH_MAX - (int)cwdlen - 12 - 4 - 4;
+	}
+	return LOOP_MAX;
+#else
+	/* cygwin-1.7 ends up here, along with "normal" unix */
+	return 200; /* restore pre-r278 depth */
+#endif
+}
+
+/* filenames[i] is a distinctive filename of length i. */
+/* To simplify interpreting failures, each filename ends with a
+ * decimal integer which is the length of the filename.  E.g., A
+ * filename ending in "_92" is 92 characters long.  To detect errors
+ * which drop or misplace characters, the filenames use a repeating
+ * "abcdefghijklmnopqrstuvwxyz..." pattern. */
+static char *filenames[201];
+
+static void
+compute_filenames(void)
+{
+	char buff[250];
+	size_t i,j;
+
+	filenames[0] = strdup("");
+	filenames[1] = strdup("1");
+	filenames[2] = strdup("a2");
+	for (i = 3; i < sizeof(filenames)/sizeof(filenames[0]); ++i) {
+		/* Fill with "abcdefghij..." */
+		for (j = 0; j < i; ++j)
+			buff[j] = 'a' + (j % 26);
+		buff[j--] = '\0';
+		/* Work from the end to fill in the number portion. */
+		buff[j--] = '0' + (i % 10);
+		if (i > 9) {
+			buff[j--] = '0' + ((i / 10) % 10);
+			if (i > 99)
+				buff[j--] = '0' + (i / 100);
+		}
+		buff[j] = '_';
+		/* Guard against obvious screwups in the above code. */
+		assertEqualInt(strlen(buff), i);
+		filenames[i] = strdup(buff);
+	}
+}
 
 static void
 create_tree(void)
@@ -33,217 +134,145 @@ create_tree(void)
 	char buff[260];
 	char buff2[260];
 	int i;
-	int fd;
+	int LOOP_MAX;
 
-	assertEqualInt(0, mkdir("original", 0775));
-	chdir("original");
-	assertEqualInt(0, mkdir("f", 0775));
-	assertEqualInt(0, mkdir("l", 0775));
-	assertEqualInt(0, mkdir("m", 0775));
-	assertEqualInt(0, mkdir("s", 0775));
-	assertEqualInt(0, mkdir("d", 0775));
+	compute_filenames();
 
-	for (i = 0; i < LOOP_MAX; i++) {
-		buff[0] = 'f';
-		buff[1] = '/';
-		/* Create a file named "f/abcdef..." */
-		buff[i + 2] = 'a' + (i % 26);
-		buff[i + 3] = '\0';
-		fd = open(buff, O_CREAT | O_WRONLY, 0644);
-		assert(fd >= 0);
-		assertEqualInt(i + 3, write(fd, buff, strlen(buff)));
-		close(fd);
-
-		/* Create a link named "l/abcdef..." to the above. */
-		strcpy(buff2, buff);
-		buff2[0] = 'l';
-		assertEqualInt(0, link(buff, buff2));
-
-		/* Create a link named "m/abcdef..." to the above. */
-		strcpy(buff2, buff);
-		buff2[0] = 'm';
-		assertEqualInt(0, link(buff, buff2));
-
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		/* Create a symlink named "s/abcdef..." to the above. */
-		strcpy(buff2 + 3, buff);
-		buff[0] = 's';
-		buff2[0] = '.';
-		buff2[1] = '.';
-		buff2[2] = '/';
-		assertEqualInt(0, symlink(buff2, buff));
-#else
-		skipping("create a symlink to the above");
-#endif
-		/* Create a dir named "d/abcdef...". */
-		buff[0] = 'd';
-		assertEqualInt(0, mkdir(buff, 0775));
+	/* Log that we'll be omitting some checks. */
+	if (!canSymlink()) {
+		skipping("Symlink checks");
 	}
 
-	chdir("..");
+	assertMakeDir("original", 0775);
+	assertEqualInt(0, chdir("original"));
+	LOOP_MAX = compute_loop_max();
+
+	assertMakeDir("f", 0775);
+	assertMakeDir("l", 0775);
+	assertMakeDir("m", 0775);
+	assertMakeDir("s", 0775);
+	assertMakeDir("d", 0775);
+
+	for (i = 1; i < LOOP_MAX; i++) {
+		failure("Internal sanity check failed: i = %d", i);
+		assert(filenames[i] != NULL);
+
+		sprintf(buff, "f/%s", filenames[i]);
+		assertMakeFile(buff, 0777, buff);
+
+		/* Create a link named "l/abcdef..." to the above. */
+		sprintf(buff2, "l/%s", filenames[i]);
+		assertMakeHardlink(buff2, buff);
+
+		/* Create a link named "m/abcdef..." to the above. */
+		sprintf(buff2, "m/%s", filenames[i]);
+		assertMakeHardlink(buff2, buff);
+
+		if (canSymlink()) {
+			/* Create a symlink named "s/abcdef..." to the above. */
+			sprintf(buff, "s/%s", filenames[i]);
+			sprintf(buff2, "../f/%s", filenames[i]);
+			failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
+			assertMakeSymlink(buff, buff2);
+		}
+		/* Create a dir named "d/abcdef...". */
+		buff[0] = 'd';
+		failure("buff=\"%s\"", buff);
+		assertMakeDir(buff, 0775);
+	}
+
+	assertEqualInt(0, chdir(".."));
 }
 
-#define LIMIT_NONE 0
-#define LIMIT_USTAR 1
+#define LIMIT_NONE 200
+#define LIMIT_USTAR 100
 
 static void
-verify_tree(int limit)
+verify_tree(size_t limit)
 {
-	struct stat st, st2;
-	char filename[260];
 	char name1[260];
 	char name2[260];
-	char contents[260];
-	int i, j, r;
-	int fd;
-	int len;
-	const char *p, *dp;
-	DIR *d;
-	struct dirent *de;
+	size_t i, LOOP_MAX;
+
+	LOOP_MAX = compute_loop_max();
 
 	/* Generate the names we know should be there and verify them. */
 	for (i = 1; i < LOOP_MAX; i++) {
-		/* Generate a base name of the correct length. */
-		for (j = 0; j < i; ++j)
-			filename[j] = 'a' + (j % 26);
-#if 0
-		for (n = i; n > 0; n /= 10)
-			filename[--j] = '0' + (n % 10);
-#endif
-		filename[i] = '\0';
-
 		/* Verify a file named "f/abcdef..." */
-		strcpy(name1, "f/");
-		strcat(name1, filename);
-		if (limit != LIMIT_USTAR || strlen(filename) <= 100) {
-			fd = open(name1, O_RDONLY);
-			failure("Couldn't open \"%s\": %s",
-			    name1, strerror(errno));
-			if (assert(fd >= 0)) {
-				len = read(fd, contents, i + 10);
-				close(fd);
-				assertEqualInt(len, i + 2);
-				/* Verify contents of 'contents' */
-				contents[len] = '\0';
-				failure("Each test file contains its own name");
-				assertEqualString(name1, contents);
-				/* stat() for dev/ino for next check */
-				assertEqualInt(0, lstat(name1, &st));
-			}
+		sprintf(name1, "f/%s", filenames[i]);
+		if (i <= limit) {
+			assertFileExists(name1);
+			assertFileContents(name1, strlen(name1), name1);
 		}
 
-		/*
-		 * ustar allows 100 chars for links, and we have
-		 * "original/" as part of the name, so the link
-		 * names here can't exceed 91 chars.
-		 */
-		strcpy(name2, "l/");
-		strcat(name2, filename);
-		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
+		sprintf(name2, "l/%s", filenames[i]);
+		if (i + 2 <= limit) {
 			/* Verify hardlink "l/abcdef..." */
-			assertEqualInt(0, (r = lstat(name2, &st2)));
-			if (r == 0) {
-				assertEqualInt(st2.st_dev, st.st_dev);
-				assertEqualInt(st2.st_ino, st.st_ino);
-			}
-
-			/* Verify hardlink "m_abcdef..." */
+			assertIsHardlink(name1, name2);
+			/* Verify hardlink "m/abcdef..." */
 			name2[0] = 'm';
-			assertEqualInt(0, (r = lstat(name2, &st2)));
-			if (r == 0) {
-				assertEqualInt(st2.st_dev, st.st_dev);
-				assertEqualInt(st2.st_ino, st.st_ino);
+			assertIsHardlink(name1, name2);
+		}
+
+		if (canSymlink()) {
+			/* Verify symlink "s/abcdef..." */
+			sprintf(name1, "s/%s", filenames[i]);
+			sprintf(name2, "../f/%s", filenames[i]);
+			if (strlen(name2) <= limit)
+				assertIsSymlink(name1, name2);
+		}
+
+		/* Verify dir "d/abcdef...". */
+		sprintf(name1, "d/%s", filenames[i]);
+		if (i + 1 <= limit) { /* +1 for trailing slash */
+			if (assertIsDir(name1, -1)) {
+				/* TODO: opendir/readdir this
+				 * directory and make sure
+				 * it's empty.
+				 */
 			}
 		}
+	}
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
-		/*
-		 * Symlink text doesn't include the 'original/' prefix,
-		 * so the limit here is 100 characters.
-		 */
-		/* Verify symlink "s/abcdef..." */
-		strcpy(name2, "../s/");
-		strcat(name2, filename);
-		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
-			/* This is a symlink. */
-			failure("Couldn't stat %s (length %d)",
-			    filename, strlen(filename));
-			if (assertEqualInt(0, lstat(name2 + 3, &st2))) {
-				assert(S_ISLNK(st2.st_mode));
-				/* This is a symlink to the file above. */
-				failure("Couldn't stat %s", name2 + 3);
-				if (assertEqualInt(0, stat(name2 + 3, &st2))) {
-					assertEqualInt(st2.st_dev, st.st_dev);
-					assertEqualInt(st2.st_ino, st.st_ino);
+	{
+		const char *dp;
+		/* Now make sure nothing is there that shouldn't be. */
+		for (dp = "dflms"; *dp != '\0'; ++dp) {
+			DIR *d;
+			struct dirent *de;
+			char dir[2];
+			dir[0] = *dp; dir[1] = '\0';
+			d = opendir(dir);
+			failure("Unable to open dir '%s'", dir);
+			if (!assert(d != NULL))
+				continue;
+			while ((de = readdir(d)) != NULL) {
+				char *p = de->d_name;
+				if (p[0] == '.')
+					continue;
+				switch(dp[0]) {
+				case 'l': case 'm': case 'd':
+					failure("strlen(p)=%d", strlen(p));
+					assert(strlen(p) < limit);
+					assertEqualString(p,
+					    filenames[strlen(p)]);
+					break;
+				case 'f': case 's':
+					failure("strlen(p)=%d", strlen(p));
+					assert(strlen(p) < limit + 1);
+					assertEqualString(p,
+					    filenames[strlen(p)]);
+					break;
+				default:
+					failure("File %s shouldn't be here", p);
+					assert(0);
 				}
 			}
+			closedir(d);
 		}
-#else
-		skipping("verify symlink");
+	}
 #endif
-		/* Verify dir "d/abcdef...". */
-		strcpy(name1, "d/");
-		strcat(name1, filename);
-		if (limit != LIMIT_USTAR || strlen(filename) < 100) {
-			/* This is a dir. */
-			failure("Couldn't stat %s (length %d)",
-			    name1, strlen(filename));
-			if (assertEqualInt(0, lstat(name1, &st2))) {
-				if (assert(S_ISDIR(st2.st_mode))) {
-					/* TODO: opendir/readdir this
-					 * directory and make sure
-					 * it's empty.
-					 */
-				}
-			}
-		}
-	}
-
-	/* Now make sure nothing is there that shouldn't be. */
-	for (dp = "dflms"; *dp != '\0'; ++dp) {
-		char dir[2];
-		dir[0] = *dp; dir[1] = '\0';
-		d = opendir(dir);
-		failure("Unable to open dir '%s'", dir);
-		if (!assert(d != NULL))
-			continue;
-		while ((de = readdir(d)) != NULL) {
-			p = de->d_name;
-			switch(dp[0]) {
-			case 'l': case 'm':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p) = %d", strlen(p));
-					assert(strlen(p) <= 100);
-				}
-			case 'd':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p)=%d", strlen(p));
-					assert(strlen(p) < 100);
-				}
-			case 'f': case 's':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p)=%d", strlen(p));
-					assert(strlen(p) < 101);
-				}
-				/* Our files have very particular filename patterns. */
-				if (p[0] != '.' || (p[1] != '.' && p[1] != '\0')) {
-					for (i = 0; p[i] != '\0' && i < LOOP_MAX; i++) {
-						failure("i=%d, p[i]='%c' 'a'+(i%%26)='%c'", i, p[i], 'a' + (i % 26));
-						assertEqualInt(p[i], 'a' + (i % 26));
-					}
-					assert(p[i] == '\0');
-				}
-				break;
-			case '.':
-				assert(p[1] == '\0' || (p[1] == '.' && p[2] == '\0'));
-				break;
-			default:
-				failure("File %s shouldn't be here", p);
-				assert(0);
-			}
-		}
-		closedir(d);
-	}
 }
 
 static void
@@ -251,7 +280,13 @@ copy_basic(void)
 {
 	int r;
 
-	assertEqualInt(0, mkdir("plain", 0775));
+	/* NOTE: for proper operation on cygwin-1.5 and windows, the
+	 * length of the name of the directory below, "plain", must be
+	 * less than or equal to the lengthe of the name of the original
+	 * directory, "original"  This restriction derives from the
+	 * extremely limited pathname lengths on those platforms.
+	 */
+	assertMakeDir("plain", 0775);
 	assertEqualInt(0, chdir("plain"));
 
 	/*
@@ -287,7 +322,13 @@ copy_ustar(void)
 	const char *target = "ustar";
 	int r;
 
-	assertEqualInt(0, mkdir(target, 0775));
+	/* NOTE: for proper operation on cygwin-1.5 and windows, the
+	 * length of the name of the directory below, "ustar", must be
+	 * less than or equal to the lengthe of the name of the original
+	 * directory, "original"  This restriction derives from the
+	 * extremely limited pathname lengths on those platforms.
+	 */
+	assertMakeDir(target, 0775);
 	assertEqualInt(0, chdir(target));
 
 	/*
@@ -314,17 +355,13 @@ copy_ustar(void)
 	assertEmptyFile("unpack.err");
 	assertEmptyFile("unpack.out");
 
-	chdir("original");
 	verify_tree(LIMIT_USTAR);
-	chdir("../..");
+	assertEqualInt(0, chdir("../.."));
 }
 
 DEFINE_TEST(test_copy)
 {
-	int oldumask;
-
-	oldumask = umask(0);
-
+	assertUmask(0);
 	create_tree(); /* Create sample files in "original" dir. */
 
 	/* Test simple "tar -c | tar -x" pipeline copy. */
@@ -332,6 +369,4 @@ DEFINE_TEST(test_copy)
 
 	/* Same, but constrain to ustar format. */
 	copy_ustar();
-
-	umask(oldumask);
 }
