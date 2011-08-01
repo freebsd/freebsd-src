@@ -23,59 +23,40 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#if defined(HAVE_UTIME_H)
-#include <utime.h>
-#elif defined(HAVE_SYS_UTIME_H)
-#include <sys/utime.h>
-#endif
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_option_u)
+
+DEFINE_TEST(test_option_C_upper)
 {
-	struct utimbuf times;
-	char *p;
-	size_t s;
 	int r;
 
-	/* Create a file. */
-	assertMakeFile("f", 0644, "a");
+	/*
+	 * Create a file on disk.
+	 */
+	assertMakeFile("file", 0644, NULL);
 
-	/* Copy the file to the "copy" dir. */
-	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
-	    testprog);
+	/* Create an archive without -C; this should be 512 bytes. */
+	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "small.err");
+	assertFileSize("small.cpio", 512);
 
-	/* Check that the file contains only a single "a" */
-	p = slurpfile(&s, "copy/f");
-	assertEqualInt(s, 1);
-	assertEqualMem(p, "a", 1);
-
-	/* Recreate the file with a single "b" */
-	assertMakeFile("f", 0644, "b");
-
-	/* Set the mtime to the distant past. */
-	memset(&times, 0, sizeof(times));
-	times.actime = 1;
-	times.modtime = 3;
-	assertEqualInt(0, utime("f", &times));
-
-	/* Copy the file to the "copy" dir. */
-	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
-	    testprog);
+	/* Create an archive with -C 513; this should be 513 bytes. */
+	r = systemf("echo file | %s -o -C 513 > 513.cpio 2>513.err",
+		    testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "513.err");
+	assertFileSize("513.cpio", 513);
 
-	/* Verify that the file hasn't changed (it wasn't overwritten) */
-	p = slurpfile(&s, "copy/f");
-	assertEqualInt(s, 1);
-	assertEqualMem(p, "a", 1);
-
-	/* Copy the file to the "copy" dir with -u (force) */
-	r = systemf("echo f | %s -pud copy >copy.out 2>copy.err",
-	    testprog);
+	/* Create an archive with -C 12345; this should be 12345 bytes. */
+	r = systemf("echo file | %s -o -C12345 > 12345.cpio 2>12345.err",
+		    testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "12345.err");
+	assertFileSize("12345.cpio", 12345);
 
-	/* Verify that the file has changed (it was overwritten) */
-	p = slurpfile(&s, "copy/f");
-	assertEqualInt(s, 1);
-	assertEqualMem(p, "b", 1);
+	/* Create an archive with invalid -C request */
+	assert(0 != systemf("echo file | %s -o -C > bad.cpio 2>bad.err",
+			    testprog));
+	assertEmptyFile("bad.cpio");
 }
