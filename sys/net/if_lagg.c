@@ -208,6 +208,7 @@ static moduledata_t lagg_mod = {
 };
 
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_lagg, 1);
 
 #if __FreeBSD_version >= 800000
 /*
