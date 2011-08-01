@@ -28,6 +28,7 @@
 /* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
+#define	HAVE_ACL_GET_LINK_NP 1
 #define	HAVE_ACL_GET_PERM_NP 1
 #define	HAVE_ACL_INIT 1
 #define	HAVE_ACL_SET_FD 1
@@ -46,13 +47,30 @@
 #define	HAVE_OPENSSL_MD5_H 1
 #define	HAVE_OPENSSL_RIPEMD_H 1
 #define	HAVE_OPENSSL_SHA_H 1
+#define	HAVE_OPENSSL_SHA256_INIT 1
+#define	HAVE_OPENSSL_SHA384_INIT 1
+#define	HAVE_OPENSSL_SHA512_INIT 1
+#define	HAVE_SHA256 1
 #define	HAVE_SHA384 1
 #define	HAVE_SHA512 1
+#else
+#define	HAVE_MD5_H 1
+#define	HAVE_MD5INIT 1
+#define	HAVE_SHA_H 1
+#define	HAVE_SHA1 1
+#define	HAVE_SHA1_INIT 1
+#define	HAVE_SHA256 1
+#define	HAVE_SHA256_H 1
+#define	HAVE_SHA256_INIT 1
+#define	HAVE_SHA512 1
+#define	HAVE_SHA512_H 1
+#define	HAVE_SHA512_INIT 1
 #endif
 
-#define	HAVE_BZLIB_H 1
+#define	HAVE_BSDXML_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
+#define	HAVE_DECL_EXTATTR_NAMESPACE_USER 1
 #define	HAVE_DECL_INT64_MAX 1
 #define	HAVE_DECL_INT64_MIN 1
 #define	HAVE_DECL_SIZE_MAX 1
@@ -60,6 +78,7 @@
 #define	HAVE_DECL_STRERROR_R 1
 #define	HAVE_DECL_UINT32_MAX 1
 #define	HAVE_DECL_UINT64_MAX 1
+#define	HAVE_DIRENT_H 1
 #define	HAVE_EFTYPE 1
 #define	HAVE_EILSEQ 1
 #define	HAVE_ERRNO_H 1
@@ -74,19 +93,21 @@
 #define	HAVE_FTRUNCATE 1
 #define	HAVE_FUTIMES 1
 #define	HAVE_GETEUID 1
+#define	HAVE_GETGRGID_R 1
 #define	HAVE_GETPID 1
+#define	HAVE_GETPWUID_R 1
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
 #define	HAVE_LCHMOD 1
 #define	HAVE_LCHOWN 1
 #define	HAVE_LIMITS_H 1
+#define	HAVE_LINK 1
+#define	HAVE_LSTAT 1
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
 #define	HAVE_MD5 1
-#define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
-#define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
 #define	HAVE_MKNOD 1
@@ -95,14 +116,9 @@
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
 #define	HAVE_READLINK 1
-#define	HAVE_RIPEMD_H
 #define	HAVE_RMD160 1
 #define	HAVE_SELECT 1
 #define	HAVE_SETENV 1
-#define	HAVE_SHA_H 1
-#define	HAVE_SHA1 1
-#define	HAVE_SHA256 1
-#define	HAVE_SHA256_H 1
 #define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
@@ -118,6 +134,8 @@
 #define	HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 #define	HAVE_STRUCT_STAT_ST_FLAGS 1
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+#define	HAVE_SYMLINK 1
+#define	HAVE_SYS_CDEFS_H 1
 #define	HAVE_SYS_IOCTL_H 1
 #define	HAVE_SYS_SELECT_H 1
 #define	HAVE_SYS_STAT_H 1
@@ -134,17 +152,32 @@
 #define	HAVE_UTIME_H 1
 #define	HAVE_VFORK 1
 #define	HAVE_WCHAR_H 1
+#define	HAVE_WCSCMP 1
 #define	HAVE_WCSCPY 1
 #define	HAVE_WCSLEN 1
 #define	HAVE_WCTOMB 1
 #define	HAVE_WMEMCMP 1
 #define	HAVE_WMEMCPY 1
 #define	HAVE_ZLIB_H 1
-#define	STDC_HEADERS 1
 #define	TIME_WITH_SYS_TIME 1
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
 #if __FreeBSD__ < 5
 #define	intmax_t int64_t
 #define	uintmax_t uint64_t
+#endif
+
+/* FreeBSD defines for archive_hash.h */
+#ifdef WITH_OPENSSL
+#define	ARCHIVE_HASH_MD5_OPENSSL 1
+#define	ARCHIVE_HASH_RMD160_OPENSSL 1
+#define	ARCHIVE_HASH_SHA1_OPENSSL
+#define	ARCHIVE_HASH_SHA256_OPENSSL 1
+#define	ARCHIVE_HASH_SHA384_OPENSSL 1
+#define	ARCHIVE_HASH_SHA512_OPENSSL 1
+#else
+#define	ARCHIVE_HASH_MD5_LIBC 1
+#define	ARCHIVE_HASH_SHA1_LIBC 1
+#define	ARCHIVE_HASH_SHA256_LIBC 1
+#define	ARCHIVE_HASH_SHA512_LIBC 1
 #endif

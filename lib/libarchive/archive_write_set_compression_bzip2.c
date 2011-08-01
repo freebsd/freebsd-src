@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-#ifndef HAVE_BZLIB_H
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR)
 int
 archive_write_set_compression_bzip2(struct archive *a)
 {
@@ -291,7 +291,6 @@ archive_compressor_bzip2_finish(struct archive_write *a)
 		block_length = state->stream.next_out - state->compressed;
 
 		/* Tricky calculation to determine size of last block. */
-		target_block_length = block_length;
 		if (a->bytes_in_last_block <= 0)
 			/* Default or Zero: pad to full block */
 			target_block_length = a->bytes_per_block;
@@ -406,4 +405,4 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 	}
 }
 
-#endif /* HAVE_BZLIB_H */
+#endif /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */

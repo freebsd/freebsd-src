@@ -112,6 +112,8 @@ test_format(int	(*set_format)(struct archive *))
 
 	/*
 	 * Damage the second entry to test the search-ahead recovery.
+	 * TODO: Move the damage-recovery checking to a separate test;
+	 * it doesn't really belong in this write test.
 	 */
 	{
 		int i;
@@ -124,7 +126,7 @@ test_format(int	(*set_format)(struct archive *))
 		}
 	}
 	failure("Unable to locate the second header for damage-recovery test.");
-	assert(damaged = 1);
+	assert(damaged == 1);
 
 	/*
 	 * Now, read the data back.
@@ -151,28 +153,14 @@ test_format(int	(*set_format)(struct archive *))
 	assert(0 == memcmp(filedata, "12345678", 8));
 
 	/*
-	 * Read the second file back.
+	 * The second file can't be read because we damaged its header.
 	 */
-	if (!damaged) {
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-		assertEqualInt(1, archive_entry_mtime(ae));
-		/* Not the same as above: cpio doesn't store hi-res times. */
-		assert(0 == archive_entry_mtime_nsec(ae));
-		assert(0 == archive_entry_atime(ae));
-		assert(0 == archive_entry_ctime(ae));
-		assertEqualString("file2", archive_entry_pathname(ae));
-		assert((S_IFREG | 0755) == archive_entry_mode(ae));
-		assertEqualInt(4, archive_entry_size(ae));
-		assertEqualIntA(a, 4, archive_read_data(a, filedata, 10));
-		assert(0 == memcmp(filedata, "1234", 4));
-	}
 
 	/*
 	 * Read the dir entry back.
+	 * ARCHIVE_WARN here because the damaged entry was skipped.
 	 */
-	assertEqualIntA(a,
-	    damaged ? ARCHIVE_WARN : ARCHIVE_OK,
-	    archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
 	assert(0 == archive_entry_mtime_nsec(ae));
 	assert(0 == archive_entry_atime(ae));

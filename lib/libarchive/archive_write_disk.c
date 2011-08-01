@@ -252,7 +252,7 @@ static ssize_t	write_data_block(struct archive_write_disk *,
 static struct archive_vtable *archive_write_disk_vtable(void);
 
 static int	_archive_write_close(struct archive *);
-static int	_archive_write_finish(struct archive *);
+static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
@@ -291,7 +291,7 @@ archive_write_disk_vtable(void)
 
 	if (!inited) {
 		av.archive_close = _archive_write_close;
-		av.archive_finish = _archive_write_finish;
+		av.archive_free = _archive_write_free;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
@@ -442,20 +442,23 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	ret = restore_entry(a);
 
 	/*
-	 * On the GNU tar mailing list, some people working with new
-	 * Linux filesystems observed that system xattrs used as
-	 * layout hints need to be restored before the file contents
-	 * are written, so this can't be done at file close.
+	 * TODO: There are rumours that some extended attributes must
+	 * be restored before file data is written.  If this is true,
+	 * then we either need to write all extended attributes both
+	 * before and after restoring the data, or find some rule for
+	 * determining which must go first and which last.  Due to the
+	 * many ways people are using xattrs, this may prove to be an
+	 * intractable problem.
 	 */
-	if (a->todo & TODO_XATTR) {
-		int r2 = set_xattrs(a);
-		if (r2 < ret) ret = r2;
-	}
 
 #ifdef HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
 	if (a->restore_pwd >= 0) {
-		fchdir(a->restore_pwd);
+		r = fchdir(a->restore_pwd);
+		if (r != 0) {
+			archive_set_error(&a->archive, errno, "chdir() failure");
+			ret = ARCHIVE_FATAL;
+		}
 		close(a->restore_pwd);
 		a->restore_pwd = -1;
 	}
@@ -692,15 +695,18 @@ _archive_write_finish_entry(struct archive *_a)
 		}
 #endif
 		/*
-		 * Explicitly stat the file as some platforms might not
-		 * implement the XSI option to extend files via ftruncate.
+		 * Not all platforms implement the XSI option to
+		 * extend files via ftruncate.  Stat() the file again
+		 * to see what happened.
 		 */
 		a->pst = NULL;
 		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (ret);
-		if (a->st.st_size != a->filesize) {
+		/* We can use lseek()/write() to extend the file if
+		 * ftruncate didn't work or isn't available. */
+		if (a->st.st_size < a->filesize) {
 			const char nul = '\0';
-			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
+			if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
@@ -747,6 +753,17 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
 	}
+
+	/*
+	 * Security-related extended attributes (such as
+	 * security.capability on Linux) have to be restored last,
+	 * since they're implicitly removed by other file changes.
+	 */
+	if (a->todo & TODO_XATTR) {
+		int r2 = set_xattrs(a);
+		if (r2 < ret) ret = r2;
+	}
+
 	/*
 	 * Some flags prevent file modification; they must be restored after
 	 * file contents are written.
@@ -1057,7 +1074,7 @@ restore_entry(struct archive_write_disk *a)
  * the failed system call.   Note:  This function should only ever perform
  * a single system call.
  */
-int
+static int
 create_filesystem_object(struct archive_write_disk *a)
 {
 	/* Create the entry. */
@@ -1069,6 +1086,9 @@ create_filesystem_object(struct archive_write_disk *a)
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
 	linkname = archive_entry_hardlink(a->entry);
 	if (linkname != NULL) {
+#if !HAVE_LINK
+		return (EPERM);
+#else
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
@@ -1091,10 +1111,16 @@ create_filesystem_object(struct archive_write_disk *a)
 				r = errno;
 		}
 		return (r);
+#endif
 	}
 	linkname = archive_entry_symlink(a->entry);
-	if (linkname != NULL)
+	if (linkname != NULL) {
+#if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
+#else
+		return (EPERM);
+#endif
+	}
 
 	/*
 	 * The remaining system calls all set permissions, so let's
@@ -1126,22 +1152,22 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * S_IFCHR for the mknod() call.  This is correct.  */
 		r = mknod(a->name, mode | S_IFCHR,
 		    archive_entry_rdev(a->entry));
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a char device node. */
 		return (EINVAL);
 #endif /* HAVE_MKNOD */
-		break;
 	case AE_IFBLK:
 #ifdef HAVE_MKNOD
 		r = mknod(a->name, mode | S_IFBLK,
 		    archive_entry_rdev(a->entry));
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a block device node. */
 		return (EINVAL);
 #endif /* HAVE_MKNOD */
-		break;
 	case AE_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
 		r = mkdir(a->name, mode);
@@ -1161,12 +1187,12 @@ create_filesystem_object(struct archive_write_disk *a)
 	case AE_IFIFO:
 #ifdef HAVE_MKFIFO
 		r = mkfifo(a->name, mode);
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a fifo. */
 		return (EINVAL);
 #endif /* HAVE_MKFIFO */
-		break;
 	}
 
 	/* All the system calls above set errno on failure. */
@@ -1269,7 +1295,7 @@ _archive_write_close(struct archive *_a)
 }
 
 static int
-_archive_write_finish(struct archive *_a)
+_archive_write_free(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret;
@@ -1394,9 +1420,15 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
+/* TODO: Extend this to support symlinks on Windows Vista and later. */
 static int
 check_symlinks(struct archive_write_disk *a)
 {
+#if !defined(HAVE_LSTAT)
+	/* Platform doesn't have lstat, so we can't look for symlinks. */
+	(void)a; /* UNUSED */
+	return (ARCHIVE_OK);
+#else
 	char *pn, *p;
 	char c;
 	int r;
@@ -1477,6 +1509,7 @@ check_symlinks(struct archive_write_disk *a)
 	/* We've checked and/or cleaned the whole path, so remember it. */
 	archive_strcpy(&a->path_safe, a->name);
 	return (ARCHIVE_OK);
+#endif
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -1661,8 +1694,6 @@ create_dir(struct archive_write_disk *a, char *path)
 	mode_t mode_final, mode;
 	int r;
 
-	r = ARCHIVE_OK;
-
 	/* Check for special names and just skip them. */
 	slash = strrchr(path, '/');
 	if (slash == NULL)
@@ -1806,11 +1837,31 @@ set_ownership(struct archive_write_disk *a)
 	return (ARCHIVE_WARN);
 }
 
-#ifdef HAVE_UTIMES
+
+#if defined(HAVE_UTIMENSAT) && defined(HAVE_FUTIMENS)
+/* 
+ * utimensat() and futimens() are defined in POSIX.1-2008. They provide ns
+ * resolution and setting times on fd and on symlinks, too.
+ */
+static int
+set_time(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec)
+{
+	struct timespec ts[2];
+	ts[0].tv_sec = atime;
+	ts[0].tv_nsec = atime_nsec;
+	ts[1].tv_sec = mtime;
+	ts[1].tv_nsec = mtime_nsec;
+	if (fd >= 0)
+		return futimens(fd, ts);
+	return utimensat(AT_FDCWD, name, ts, AT_SYMLINK_NOFOLLOW);
+}
+#elif HAVE_UTIMES
 /*
- * The utimes()-family functions provide high resolution and
+ * The utimes()-family functions provide µs-resolution and
  * a way to set time on an fd or a symlink.  We prefer them
- * when they're available.
+ * when they're available and utimensat/futimens aren't there.
  */
 static int
 set_time(int fd, int mode, const char *name,
@@ -2426,7 +2477,7 @@ set_xattrs(struct archive_write_disk *a)
 	}
 	return (ret);
 }
-#elif HAVE_EXTATTR_SET_FILE
+#elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
 /*
  * Restore extended attributes -  FreeBSD implementation
  */

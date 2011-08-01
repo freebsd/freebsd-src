@@ -38,12 +38,9 @@ DEFINE_TEST(test_write_compress_program)
 	size_t used;
 	int blocksize = 1024;
 	int r;
-	const char *compprog, *decompprog;
 
-	decompprog = external_gzip_program(1);
-	if ((compprog = external_gzip_program(0)) == NULL) {
-		skipping("There is no gzip compression "
-		    "program in this platform");
+	if (!canGzip()) {
+		skipping("Cannot run 'gzip'");
 		return;
 	}
 
@@ -51,7 +48,7 @@ DEFINE_TEST(test_write_compress_program)
 	/* Write it through an external "gzip" program. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_program(a, compprog);
+	r = archive_write_set_compression_program(a, "gzip");
 	if (r == ARCHIVE_FATAL) {
 		skipping("Write compression via external "
 		    "program unsupported on this platform");
@@ -91,8 +88,8 @@ DEFINE_TEST(test_write_compress_program)
 	/* The compression_gzip() handler will fall back to gunzip
 	 * automatically, but if we know gunzip isn't available, then
 	 * skip the rest. */
-	if (r != ARCHIVE_OK && decompprog == NULL) {
-		skipping("No gzip decompression is available; "
+	if (r != ARCHIVE_OK && !canGunzip()) {
+		skipping("No libz and no gunzip program, "
 		    "unable to verify gzip compression");
 		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 		return;

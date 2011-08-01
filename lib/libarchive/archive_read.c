@@ -57,9 +57,10 @@ __FBSDID("$FreeBSD$");
 
 static int	build_stream(struct archive_read *);
 static int	choose_format(struct archive_read *);
+static int	cleanup_filters(struct archive_read *);
 static struct archive_vtable *archive_read_vtable(void);
 static int	_archive_read_close(struct archive *);
-static int	_archive_read_finish(struct archive *);
+static int	_archive_read_free(struct archive *);
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -68,7 +69,7 @@ archive_read_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
-		av.archive_finish = _archive_read_finish;
+		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 	}
 	return (&av);
@@ -121,6 +122,9 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_format_options");
+
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
@@ -165,12 +169,14 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	char key[64], val[64];
 	int len, r;
 
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_filter_options");
+
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
-	filter = a->filter;
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
 		bidder = filter->bidder;
@@ -205,6 +211,10 @@ int
 archive_read_set_options(struct archive *_a, const char *s)
 {
 	int r;
+
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_options");
+	archive_clear_error(_a);
 
 	r = archive_read_set_format_options(_a, s);
 	if (r != ARCHIVE_OK)
@@ -242,13 +252,26 @@ client_read_proxy(struct archive_read_filter *self, const void **buff)
 static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
-	int64_t r;
+	int64_t ask, get, total;
+	/* Limit our maximum seek request to 1GB on platforms
+	* with 32-bit off_t (such as Windows). */
+	int64_t skip_limit = ((int64_t)1) << (sizeof(off_t) * 8 - 2);
+
 	if (self->archive->client.skipper == NULL)
 		return (0);
-	r = (self->archive->client.skipper)(&self->archive->archive,
-	    self->data, request);
-	self->archive->archive.raw_position += r;
-	return (r);
+	total = 0;
+	for (;;) {
+		ask = request;
+		if (ask > skip_limit)
+			ask = skip_limit;
+		get = (self->archive->client.skipper)(&self->archive->archive,
+			self->data, ask);
+		if (get == 0)
+			return (total);
+		request -= get;
+		self->archive->archive.raw_position += get;
+		total += get;
+	}
 }
 
 static int
@@ -277,6 +300,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_open");
+	archive_clear_error(&a->archive);
 
 	if (client_reader == NULL)
 		__archive_errx(1,
@@ -331,6 +355,7 @@ build_stream(struct archive_read *a)
 	int number_bidders, i, bid, best_bid;
 	struct archive_read_filter_bidder *bidder, *best_bidder;
 	struct archive_read_filter *filter;
+	ssize_t avail;
 	int r;
 
 	for (;;) {
@@ -370,6 +395,12 @@ build_stream(struct archive_read *a)
 			return (r);
 		}
 		a->filter = filter;
+		/* Verify the filter by asking it for some data. */
+		__archive_read_filter_ahead(filter, 1, &avail);
+		if (avail < 0) {
+			cleanup_filters(a);
+			return (ARCHIVE_FATAL);
+		}
 	}
 }
 
@@ -707,18 +738,10 @@ _archive_read_close(struct archive *_a)
 
 	/* TODO: Clean up the formatters. */
 
-	/* Clean up the filter pipeline. */
-	while (a->filter != NULL) {
-		struct archive_read_filter *t = a->filter->upstream;
-		if (a->filter->close != NULL) {
-			r1 = (a->filter->close)(a->filter);
-			if (r1 < r)
-				r = r1;
-		}
-		free(a->filter->buffer);
-		free(a->filter);
-		a->filter = t;
-	}
+	/* Release the filter objects. */
+	r1 = cleanup_filters(a);
+	if (r1 < r)
+		r = r1;
 
 	/* Release the bidder objects. */
 	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
@@ -733,11 +756,30 @@ _archive_read_close(struct archive *_a)
 	return (r);
 }
 
+static int
+cleanup_filters(struct archive_read *a)
+{
+	int r = ARCHIVE_OK;
+	/* Clean up the filter pipeline. */
+	while (a->filter != NULL) {
+		struct archive_read_filter *t = a->filter->upstream;
+		if (a->filter->close != NULL) {
+			int r1 = (a->filter->close)(a->filter);
+			if (r1 < r)
+				r = r1;
+		}
+		free(a->filter->buffer);
+		free(a->filter);
+		a->filter = t;
+	}
+	return r;
+}
+
 /*
  * Release memory and other resources.
  */
-int
-_archive_read_finish(struct archive *_a)
+static int
+_archive_read_free(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int i;
@@ -745,7 +787,7 @@ _archive_read_finish(struct archive *_a)
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_finish");
+	    "archive_read_free");
 	if (a->archive.state != ARCHIVE_STATE_CLOSED)
 		r = archive_read_close(&a->archive);
 
@@ -1121,6 +1163,8 @@ __archive_read_skip(struct archive_read *a, int64_t request)
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
+	if (skipped < 0)  // Map error code to 0 for error message below.
+		skipped = 0;
 	archive_set_error(&a->archive,
 	    ARCHIVE_ERRNO_MISC,
 	    "Truncated input file (needed %jd bytes, only %jd available)",
@@ -1140,7 +1184,7 @@ __archive_read_skip_lenient(struct archive_read *a, int64_t request)
 int64_t
 __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 {
-	off_t bytes_skipped, total_bytes_skipped = 0;
+	int64_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
 
 	if (filter->fatal)
@@ -1155,7 +1199,7 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 		total_bytes_skipped += bytes_skipped;
 	}
 	if (filter->client_avail > 0) {
-		min = minimum(request, (off_t)filter->client_avail);
+		min = minimum(request, (int64_t)filter->client_avail);
 		bytes_skipped = __archive_read_filter_consume(filter, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
@@ -1189,10 +1233,8 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	 * have to use ordinary reads to finish out the request.
 	 */
 	while (request > 0) {
-		const void* dummy_buffer;
 		ssize_t bytes_read;
-		dummy_buffer = __archive_read_filter_ahead(filter,
-		    1, &bytes_read);
+		(void)__archive_read_filter_ahead(filter, 1, &bytes_read);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {

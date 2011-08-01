@@ -35,12 +35,16 @@
  * this header!  If you must conditionalize, use predefined compiler and/or
  * platform macros.
  */
+#if defined(__BORLANDC__) && __BORLANDC__ >= 0x560
+# define __LA_STDINT_H <stdint.h>
+#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__)
+# define __LA_STDINT_H <inttypes.h>
+#endif
 
 #include <sys/stat.h>
 #include <sys/types.h>  /* Linux requires this for off_t */
-#if !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX)
-/* Header unavailable on Watcom C or MS Visual C++ or SFU. */
-#include <inttypes.h> /* int64_t, etc. */
+#ifdef __LA_STDINT_H
+# include __LA_STDINT_H /* int64_t, etc. */
 #endif
 #include <stdio.h> /* For FILE * */
 
@@ -48,13 +52,20 @@
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
-# if	defined(_WIN64)
+# if defined(_SSIZE_T_DEFINED)
+#  define	__LA_SSIZE_T	ssize_t
+# elif defined(_WIN64)
 #  define	__LA_SSIZE_T	__int64
 # else
 #  define	__LA_SSIZE_T	long
 # endif
-#define	__LA_UID_T	unsigned int
-#define	__LA_GID_T	unsigned int
+# if defined(__BORLANDC__)
+#  define	__LA_UID_T	uid_t
+#  define	__LA_GID_T	gid_t
+# else
+#  define	__LA_UID_T	short
+#  define	__LA_GID_T	short
+# endif
 #else
 #include <unistd.h>  /* ssize_t, uid_t, and gid_t */
 #define	__LA_INT64_T	int64_t
@@ -118,13 +129,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2007000
+#define	ARCHIVE_VERSION_NUMBER 2008004
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.7.0"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.8.4"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -232,6 +243,8 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_PROGRAM	4
 #define	ARCHIVE_COMPRESSION_LZMA	5
 #define	ARCHIVE_COMPRESSION_XZ		6
+#define	ARCHIVE_COMPRESSION_UU		7
+#define	ARCHIVE_COMPRESSION_RPM		8
 
 /*
  * Codes returned by archive_format.
@@ -273,6 +286,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 #define	ARCHIVE_FORMAT_MTREE			0x80000
 #define	ARCHIVE_FORMAT_RAW			0x90000
+#define	ARCHIVE_FORMAT_XAR			0xA0000
 
 /*-
  * Basic outline for reading an archive:
@@ -307,6 +321,8 @@ __LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
 				    const void * /* match */, size_t);
 
+__LA_DECL int		 archive_read_support_compression_rpm(struct archive *);
+__LA_DECL int		 archive_read_support_compression_uu(struct archive *);
 __LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
@@ -318,6 +334,7 @@ __LA_DECL int		 archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int		 archive_read_support_format_mtree(struct archive *);
 __LA_DECL int		 archive_read_support_format_raw(struct archive *);
 __LA_DECL int		 archive_read_support_format_tar(struct archive *);
+__LA_DECL int		 archive_read_support_format_xar(struct archive *);
 __LA_DECL int		 archive_read_support_format_zip(struct archive *);
 
 
@@ -469,11 +486,10 @@ __LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
 /* Close the file and release most resources. */
 __LA_DECL int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
-/* Note that archive_read_finish will call archive_read_close for you. */
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Erroneously declared to return void in libarchive 1.x */
-__LA_DECL void		 archive_read_finish(struct archive *);
-#else
+/* Note that archive_read_free will call archive_read_close for you. */
+__LA_DECL int		 archive_read_free(struct archive *);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Synonym for archive_read_free() for backwards compatibility. */
 __LA_DECL int		 archive_read_finish(struct archive *);
 #endif
 
@@ -490,7 +506,7 @@ __LA_DECL int		 archive_read_finish(struct archive *);
  *      - archive_write_header to write the header
  *      - archive_write_data to write the entry data
  *   5) archive_write_close to close the output
- *   6) archive_write_finish to cleanup the writer and release resources
+ *   6) archive_write_free to cleanup the writer and release resources
  */
 __LA_DECL struct archive	*archive_write_new(void);
 __LA_DECL int		 archive_write_set_bytes_per_block(struct archive *,
@@ -529,6 +545,7 @@ __LA_DECL int		 archive_write_set_format_pax_restricted(struct archive *);
 __LA_DECL int		 archive_write_set_format_shar(struct archive *);
 __LA_DECL int		 archive_write_set_format_shar_dump(struct archive *);
 __LA_DECL int		 archive_write_set_format_ustar(struct archive *);
+__LA_DECL int		 archive_write_set_format_zip(struct archive *);
 __LA_DECL int		 archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
@@ -570,13 +587,12 @@ __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 #endif
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
 __LA_DECL int		 archive_write_close(struct archive *);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Return value was incorrect in libarchive 1.x. */
-__LA_DECL void		 archive_write_finish(struct archive *);
-#else
-/* Libarchive 2.x and later returns an error if this fails. */
-/* It can fail if the archive wasn't already closed, in which case
- * archive_write_finish() will implicitly call archive_write_close(). */
+
+/* This can fail if the archive wasn't already closed, in which case
+ * archive_write_free() will implicitly call archive_write_close(). */
+__LA_DECL int		 archive_write_free(struct archive *);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Synonym for archive_write_free() for backwards compatibility. */
 __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
 
@@ -605,7 +621,7 @@ __LA_DECL int		archive_write_set_options(struct archive *_a,
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to create the file/dir/etc on disk
  *      - archive_write_data to write the entry data
- *   4) archive_write_finish to cleanup the writer and release resources
+ *   4) archive_write_free to cleanup the writer and release resources
  *
  * In particular, you can use this in conjunction with archive_read()
  * to pull entries out of an archive and create them on disk.

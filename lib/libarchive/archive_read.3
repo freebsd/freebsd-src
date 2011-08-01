@@ -69,7 +69,7 @@
 .Nm archive_read_extract2 ,
 .Nm archive_read_extract_set_progress_callback ,
 .Nm archive_read_close ,
-.Nm archive_read_finish
+.Nm archive_read_free
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
 .In archive.h
@@ -196,7 +196,7 @@
 .Ft int
 .Fn archive_read_close "struct archive *"
 .Ft int
-.Fn archive_read_finish "struct archive *"
+.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for reading streaming archives.
 The general process is to first create the
@@ -457,7 +457,7 @@ object and the archive_entry object so that various statistics
 can be retrieved for the progress display.
 .It Fn archive_read_close
 Complete the archive and invoke the close callback.
-.It Fn archive_read_finish
+.It Fn archive_read_free
 Invokes
 .Fn archive_read_close
 if it was not invoked manually, then release all resources.
@@ -597,10 +597,10 @@ list_archive(const char *name)
   archive_read_support_format_all(a);
   archive_read_open(a, mydata, myopen, myread, myclose);
   while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
-    printf("%s\\n",archive_entry_pathname(entry));
+    printf("%s\en",archive_entry_pathname(entry));
     archive_read_data_skip(a);
   }
-  archive_read_finish(a);
+  archive_read_free(a);
   free(mydata);
 }
 

@@ -159,10 +159,10 @@ struct tar {
 	wchar_t 		*pax_entry;
 	size_t			 pax_entry_length;
 	int			 header_recursion_depth;
-	off_t			 entry_bytes_remaining;
-	off_t			 entry_offset;
-	off_t			 entry_padding;
-	off_t			 realsize;
+	int64_t			 entry_bytes_remaining;
+	int64_t			 entry_offset;
+	int64_t			 entry_padding;
+	int64_t			 realsize;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_last;
 	int64_t			 sparse_offset;
@@ -509,7 +509,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
-	off_t bytes_skipped;
+	int64_t bytes_skipped;
 	struct tar* tar;
 
 	tar = (struct tar *)(a->format->data);
@@ -552,7 +552,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		return (bytes);
 	if (bytes < 512) {  /* Short read or EOF. */
 		/* Try requesting just one byte and see what happens. */
-		h = __archive_read_ahead(a, 1, &bytes);
+		(void)__archive_read_ahead(a, 1, &bytes);
 		if (bytes == 0) {
 			/*
 			 * The archive ends at a 512-byte boundary but
@@ -773,7 +773,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		}
 		p++;
 	}
-	switch (type & ~0777777) {
+	switch ((int)type & ~0777777) {
 	case 01000000:
 		/* POSIX.1e ACL */
 		break;
@@ -1196,7 +1196,7 @@ pax_header(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, char *attr)
 {
 	size_t attr_length, l, line_length;
-	char *line, *p;
+	char *p;
 	char *key, *value;
 	int err, err2;
 
@@ -1212,7 +1212,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 		/* Parse decimal length field at start of line. */
 		line_length = 0;
 		l = attr_length;
-		line = p = attr; /* Record start of line. */
+		p = attr; /* Record start of line. */
 		while (l>0) {
 			if (*p == ' ') {
 				p++;
@@ -1630,7 +1630,7 @@ pax_time(const char *p, int64_t *ps, long *pn)
 		digit = *p - '0';
 		if (s > limit ||
 		    (s == limit && digit > last_digit_limit)) {
-			s = UINT64_MAX;
+			s = INT64_MAX;
 			break;
 		}
 		s = (s * 10) + digit;
@@ -1929,7 +1929,7 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_WARN);
 		digit = *p - '0';
 		if (l > limit || (l == limit && digit > last_digit_limit))
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 		else
 			l = (l * base) + digit;
 		p++;
@@ -2035,7 +2035,7 @@ tar_atol8(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -2071,7 +2071,7 @@ tar_atol10(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -2189,7 +2189,7 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 
 	/* Ensure pax_entry buffer is big enough. */
 	if (tar->pax_entry_length <= length) {
-		wchar_t *old_entry = tar->pax_entry;
+		wchar_t *old_entry;
 
 		if (tar->pax_entry_length <= 0)
 			tar->pax_entry_length = 1024;
@@ -2217,7 +2217,7 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 		src += n;
 		length -= n;
 	}
-	*dest++ = L'\0';
+	*dest = L'\0';
 	return (tar->pax_entry);
 }
 
@@ -2318,7 +2318,7 @@ base64_decode(const char *s, size_t len, size_t *out_len)
 
 	/* If the decode table is not yet initialized, prepare it. */
 	if (decode_table[digits[1]] != 1) {
-		size_t i;
+		unsigned i;
 		memset(decode_table, 0xff, sizeof(decode_table));
 		for (i = 0; i < sizeof(digits); i++)
 			decode_table[digits[i]] = i;

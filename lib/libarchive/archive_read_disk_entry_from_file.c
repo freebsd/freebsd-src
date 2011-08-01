@@ -103,7 +103,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	 * open file descriptor which we can use in the subsequent lookups. */
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0)
-			fd = open(pathname, O_RDONLY | O_NONBLOCK);
+			fd = open(pathname, O_RDONLY | O_NONBLOCK | O_BINARY);
 		if (fd >= 0) {
 			unsigned long stflags;
 			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
@@ -114,20 +114,34 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif
 
 	if (st == NULL) {
+		/* TODO: On Windows, use GetFileInfoByHandle() here.
+		 * Using Windows stat() call is badly broken, but
+		 * even the stat() wrapper has problems because
+		 * 'struct stat' is broken on Windows.
+		 */
 #if HAVE_FSTAT
 		if (fd >= 0) {
-			if (fstat(fd, &s) != 0)
-				return (ARCHIVE_FATAL);
+			if (fstat(fd, &s) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Can't fstat");
+				return (ARCHIVE_FAILED);
+			}
 		} else
 #endif
 #if HAVE_LSTAT
 		if (!a->follow_symlinks) {
-			if (lstat(path, &s) != 0)
-				return (ARCHIVE_FATAL);
+			if (lstat(path, &s) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Can't lstat %s", path);
+				return (ARCHIVE_FAILED);
+			}
 		} else
 #endif
-		if (stat(path, &s) != 0)
-			return (ARCHIVE_FATAL);
+		if (stat(path, &s) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't stat %s", path);
+			return (ARCHIVE_FAILED);
+		}
 		st = &s;
 	}
 	archive_entry_copy_stat(entry, st);
@@ -154,7 +168,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		if (lnklen < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't read link data");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		linkbuffer[lnklen] = 0;
 		archive_entry_set_symlink(entry, linkbuffer);
@@ -194,6 +208,12 @@ setup_acls_posix1e(struct archive_read_disk *a,
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_ACCESS);
+#else
+	else if ((!a->follow_symlinks)
+	    && (archive_entry_filetype(entry) == AE_IFLNK))
+		/* We can't get the ACL of a symlink, so we assume it can't
+		   have one. */
+		acl = NULL;
 #endif
 	else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
@@ -405,7 +425,8 @@ setup_xattrs(struct archive_read_disk *a,
 	return (ARCHIVE_OK);
 }
 
-#elif HAVE_EXTATTR_GET_FILE && HAVE_EXTATTR_LIST_FILE
+#elif HAVE_EXTATTR_GET_FILE && HAVE_EXTATTR_LIST_FILE && \
+    HAVE_DECL_EXTATTR_NAMESPACE_USER
 
 /*
  * FreeBSD extattr interface.
@@ -416,11 +437,11 @@ setup_xattrs(struct archive_read_disk *a,
  * to not include the system extattrs that hold ACLs; we handle
  * those separately.
  */
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd);
 
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd)
 {

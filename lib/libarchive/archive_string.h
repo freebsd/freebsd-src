@@ -26,6 +26,10 @@
  *
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_STRING_H_INCLUDED
 #define	ARCHIVE_STRING_H_INCLUDED
 

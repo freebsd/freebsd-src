@@ -60,7 +60,7 @@ searchgid(void)
 	_searched = 1;
 
 	/* Create a file on disk in the current default dir. */
-	fd = open("test_gid", O_CREAT, 0664);
+	fd = open("test_gid", O_CREAT | O_BINARY, 0664);
 	failure("Couldn't create a file for gid testing.");
 	assert(fd > 0);
 
@@ -132,6 +132,8 @@ DEFINE_TEST(test_write_disk_perms)
 	struct archive_entry *ae;
 	struct stat st;
 
+	assertUmask(UMASK);
+
 	/*
 	 * Set ownership of the current directory to the group of this
 	 * process.  Otherwise, the SGID tests below fail if the
@@ -182,7 +184,7 @@ DEFINE_TEST(test_write_disk_perms)
 
 	/* Overwrite an existing dir. */
 	/* For dir, the first perms should get left. */
-	assert(mkdir("dir_overwrite_0744", 0744) == 0);
+	assertMakeDir("dir_overwrite_0744", 0744);
 	/* Check original perms. */
 	assert(0 == stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
