@@ -37,19 +37,18 @@
 #if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
-#elif defined(HAVE_CONFIG_H)
-/* Most POSIX platforms use the 'configure' script to build config.h */
+#else
+/* Not having a config.h of some sort is a serious problem. */
 #include "config.h"
-#else
-/* Warn if bsdtar hasn't been (automatically or manually) configured. */
-#error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
-#endif /* !HAVE_CONFIG_H */
+#endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#else
-/* Just leaving this macro replacement empty leads to a dangling semicolon. */
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
 
@@ -63,27 +62,8 @@
 #include "archive_entry.h"
 #endif
 
-/*
- * Does this platform have complete-looking POSIX-style ACL support,
- * including some variant of the acl_get_perm() function (which was
- * omitted from the POSIX.1e draft)?
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T && HAVE_ACL_USER
-#if HAVE_ACL_GET_PERM || HAVE_ACL_GET_PERM_NP
-#define	HAVE_POSIX_ACL	1
-#endif
-#endif
-
 #ifdef HAVE_LIBACL
 #include <acl/libacl.h>
-#endif
-
-#if HAVE_ACL_GET_PERM
-#define	ACL_GET_PERM acl_get_perm
-#else
-#if HAVE_ACL_GET_PERM_NP
-#define	ACL_GET_PERM acl_get_perm_np
-#endif
 #endif
 
 /*
@@ -113,25 +93,6 @@
 # if HAVE_NDIR_H
 #  include <ndir.h>
 # endif
-#endif
-
-
-/*
- * We need to be able to display a filesize using printf().  The type
- * and format string here must be compatible with one another and
- * large enough for any file.
- */
-#if HAVE_UINTMAX_T
-#define	BSDTAR_FILESIZE_TYPE	uintmax_t
-#define	BSDTAR_FILESIZE_PRINTF	"%ju"
-#else
-#if HAVE_UNSIGNED_LONG_LONG
-#define	BSDTAR_FILESIZE_TYPE	unsigned long long
-#define	BSDTAR_FILESIZE_PRINTF	"%llu"
-#else
-#define	BSDTAR_FILESIZE_TYPE	unsigned long
-#define	BSDTAR_FILESIZE_PRINTF	"%lu"
-#endif
 #endif
 
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
