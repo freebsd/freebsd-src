@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <sys/param.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -128,9 +127,7 @@ hid_get_report(int fd, enum hid_kind k, unsigned char *data, unsigned int size)
 	ugd.ugd_data = hid_pass_ptr(data);
 	ugd.ugd_maxlen = size;
 	ugd.ugd_report_type = k + 1;
-	if (ioctl(fd, USB_GET_REPORT, &ugd) < 0)
-		return (errno);
-	return (0);
+	return (ioctl(fd, USB_GET_REPORT, &ugd));
 }
 
 int
@@ -142,7 +139,5 @@ hid_set_report(int fd, enum hid_kind k, unsigned char *data, unsigned int size)
 	ugd.ugd_data = hid_pass_ptr(data);
 	ugd.ugd_maxlen = size;
 	ugd.ugd_report_type = k + 1;
-	if (ioctl(fd, USB_SET_REPORT, &ugd) < 0)
-		return (errno);
-	return (0);
+	return (ioctl(fd, USB_SET_REPORT, &ugd));
 }
