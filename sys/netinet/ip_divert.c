@@ -410,6 +410,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			}
 
 			ip6->ip6_plen = ntohs(ip6->ip6_plen);
+			break;
 		    }
 #endif
 		default:
