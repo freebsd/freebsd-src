@@ -103,6 +103,37 @@ Reset reports to zero before processing
 .Fl w
 arguments. If not specified, current values will be requested from device.
 .El
+.Sh SYNTAX
+.Nm
+compares the names of items specified on the command line against the human
+interface items reported by the USB device.
+Each human interface item is mapped from its native form to a human readable
+name, using the HID usage table file.
+Command line items are compared with the generated item names,
+and the USB HID device is operated on when a match is found.
+.Pp
+Each human interface item is named by the
+.Qq page
+it appears in, the
+.Qq usage
+within that page, and the list of
+.Qq collections
+containing the item.
+Each collection in turn is also identified by page, and
+the usage within that page.
+.Pp
+On the
+.Nm
+command line the page name is separated from the usage name with the character
+.Sq Cm \&: .
+The collections are separated by the character
+.Sq Cm \&. .
+.Pp
+Some devices give the same name to more than one item.
+.Nm
+supports isolating each item by appending a
+.Sq Cm \&# .
+character and a decimal item instance number, starting at zero.
 .Sh FILES
 .Pa /usr/share/misc/usb_hid_usages
 The default HID usage table.
