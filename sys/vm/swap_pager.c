@@ -2365,35 +2365,53 @@ swap_pager_status(int *total, int *used)
 	mtx_unlock(&sw_dev_mtx);
 }
 
+int
+swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len)
+{
+	struct swdevt *sp;
+	char *tmp_devname;
+	int error, n;
+
+	n = 0;
+	error = ENOENT;
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (n != name) {
+			n++;
+			continue;
+		}
+		xs->xsw_version = XSWDEV_VERSION;
+		xs->xsw_dev = sp->sw_dev;
+		xs->xsw_flags = sp->sw_flags;
+		xs->xsw_nblks = sp->sw_nblks;
+		xs->xsw_used = sp->sw_used;
+		if (devname != NULL) {
+			if (vn_isdisk(sp->sw_vp, NULL))
+				tmp_devname = sp->sw_vp->v_rdev->si_name;
+			else
+				tmp_devname = "[file]";
+			strncpy(devname, tmp_devname, len);
+		}
+		error = 0;
+		break;
+	}
+	mtx_unlock(&sw_dev_mtx);
+	return (error);
+}
+
 static int
 sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 {
-	int	*name = (int *)arg1;
-	int	error, n;
 	struct xswdev xs;
-	struct swdevt *sp;
+	int error;
 
-	if (arg2 != 1) /* name length */
+	if (arg2 != 1)			/* name length */
 		return (EINVAL);
-
-	n = 0;
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (n == *name) {
-			mtx_unlock(&sw_dev_mtx);
-			xs.xsw_version = XSWDEV_VERSION;
-			xs.xsw_dev = sp->sw_dev;
-			xs.xsw_flags = sp->sw_flags;
-			xs.xsw_nblks = sp->sw_nblks;
-			xs.xsw_used = sp->sw_used;
-
-			error = SYSCTL_OUT(req, &xs, sizeof(xs));
-			return (error);
-		}
-		n++;
-	}
-	mtx_unlock(&sw_dev_mtx);
-	return (ENOENT);
+	error = swap_dev_info(*(int *)arg1, &xs, NULL, 0);
+	if (error != 0)
+		return (error);
+	error = SYSCTL_OUT(req, &xs, sizeof(xs));
+	return (error);
 }
 
 SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswapdev, 0,
