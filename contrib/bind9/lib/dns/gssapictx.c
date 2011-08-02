@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapictx.c,v 1.12.118.5 2010-12-22 02:37:55 marka Exp $ */
+/* $Id: gssapictx.c,v 1.12.118.8 2011-04-07 23:07:37 marka Exp $ */
 
 #include <config.h>
 
@@ -177,7 +177,7 @@ log_cred(const gss_cred_id_t cred) {
 	}
 
 	if (gret == GSS_S_COMPLETE) {
-		if (gbuffer.length != 0) {
+		if (gbuffer.length != 0U) {
 			gret = gss_release_buffer(&minor, &gbuffer);
 			if (gret != GSS_S_COMPLETE)
 				gss_log(3, "failed gss_release_buffer: %s",
@@ -574,7 +574,7 @@ dst_gssapi_initctx(dns_name_t *name, isc_buffer_t *intoken,
 	/*
 	 * RFC 2744 states the a valid output token has a non-zero length.
 	 */
-	if (gouttoken.length != 0) {
+	if (gouttoken.length != 0U) {
 		GBUFFER_TO_REGION(gouttoken, r);
 		RETERR(isc_buffer_copyregion(outtoken, &r));
 		(void)gss_release_buffer(&minor, &gouttoken);
@@ -617,14 +617,14 @@ dst_gssapi_acceptctx(gss_cred_id_t cred,
 
 	REQUIRE(outtoken != NULL && *outtoken == NULL);
 
-	log_cred(cred);
-
 	REGION_TO_GBUFFER(*intoken, gintoken);
 
 	if (*ctxout == NULL)
 		context = GSS_C_NO_CONTEXT;
 	else
 		context = *ctxout;
+
+	log_cred(cred);
 
 	gret = gss_accept_sec_context(&minor, &context, cred, &gintoken,
 				      GSS_C_NO_CHANNEL_BINDINGS, &gname,
@@ -658,7 +658,7 @@ dst_gssapi_acceptctx(gss_cred_id_t cred,
 		return (result);
 	}
 
-	if (gouttoken.length > 0) {
+	if (gouttoken.length > 0U) {
 		RETERR(isc_buffer_allocate(mctx, outtoken, gouttoken.length));
 		GBUFFER_TO_REGION(gouttoken, r);
 		RETERR(isc_buffer_copyregion(*outtoken, &r));
@@ -680,7 +680,7 @@ dst_gssapi_acceptctx(gss_cred_id_t cred,
 		 * case, since principal names really should not
 		 * contain null characters.
 		 */
-		if (gnamebuf.length > 0 &&
+		if (gnamebuf.length > 0U &&
 		    ((char *)gnamebuf.value)[gnamebuf.length - 1] == '\0')
 			gnamebuf.length--;
 
@@ -694,7 +694,7 @@ dst_gssapi_acceptctx(gss_cred_id_t cred,
 		RETERR(dns_name_fromtext(principal, &namebuf, dns_rootname,
 					 ISC_FALSE, NULL));
 
-		if (gnamebuf.length != 0) {
+		if (gnamebuf.length != 0U) {
 			gret = gss_release_buffer(&minor, &gnamebuf);
 			if (gret != GSS_S_COMPLETE)
 				gss_log(3, "failed gss_release_buffer: %s",
@@ -774,9 +774,9 @@ gss_error_tostring(isc_uint32_t major, isc_uint32_t minor,
 	snprintf(buf, buflen, "GSSAPI error: Major = %s, Minor = %s.",
 		(char *)msg_major.value, (char *)msg_minor.value);
 
-	if (msg_major.length != 0)
+	if (msg_major.length != 0U)
 		(void)gss_release_buffer(&minor_stat, &msg_major);
-	if (msg_minor.length != 0)
+	if (msg_minor.length != 0U)
 		(void)gss_release_buffer(&minor_stat, &msg_minor);
 	return(buf);
 #else

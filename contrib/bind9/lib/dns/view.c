@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.150.84.6 2010-09-24 08:09:08 marka Exp $ */
+/* $Id: view.c,v 1.150.84.8 2011-03-12 04:57:28 tbox Exp $ */
 
 /*! \file */
 
@@ -1192,6 +1192,7 @@ dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name,
 		if (result == DNS_R_PARTIALMATCH) {
 			dns_zone_detach(zp);
 			result = ISC_R_NOTFOUND;
+			POST(result);
 		}
 
 		if (zone2 != NULL) {

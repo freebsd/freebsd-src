@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.209.12.20 2010-06-03 23:47:48 tbox Exp $ */
+/* $Id: dnssec-signzone.c,v 1.209.12.24 2011-05-07 00:23:50 each Exp $ */
 
 /*! \file */
 
@@ -495,8 +495,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 			if (!expired)
 				keep = ISC_TRUE;
 		} else if (issigningkey(key)) {
-			if (!expired && setverifies(name, set, key, &sigrdata))
-			{
+			if (!expired && rrsig.originalttl == set->ttl &&
+			    setverifies(name, set, key, &sigrdata)) {
 				vbprintf(2, "\trrsig by %s retained\n", sigstr);
 				keep = ISC_TRUE;
 				wassignedby[key->position] = ISC_TRUE;
@@ -504,15 +504,15 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 				key->wasused = ISC_TRUE;
 			} else {
 				vbprintf(2, "\trrsig by %s dropped - %s\n",
-					 sigstr,
-					 expired ? "expired" :
-						   "failed to verify");
+					 sigstr, expired ? "expired" :
+					 rrsig.originalttl != set->ttl ?
+					 "ttl change" : "failed to verify");
 				wassignedby[key->position] = ISC_TRUE;
 				resign = ISC_TRUE;
 			}
 		} else if (iszonekey(key)) {
-			if (!expired && setverifies(name, set, key, &sigrdata))
-			{
+			if (!expired && rrsig.originalttl == set->ttl &&
+			    setverifies(name, set, key, &sigrdata)) {
 				vbprintf(2, "\trrsig by %s retained\n", sigstr);
 				keep = ISC_TRUE;
 				wassignedby[key->position] = ISC_TRUE;
@@ -520,9 +520,9 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 				key->wasused = ISC_TRUE;
 			} else {
 				vbprintf(2, "\trrsig by %s dropped - %s\n",
-					 sigstr,
-					 expired ? "expired" :
-						   "failed to verify");
+					 sigstr, expired ? "expired" :
+					 rrsig.originalttl != set->ttl ?
+					 "ttl change" : "failed to verify");
 				wassignedby[key->position] = ISC_TRUE;
 			}
 		} else if (!expired) {
@@ -1358,6 +1358,13 @@ verifyset(dns_rdataset_t *rdataset, dns_name_t *name, dns_dbnode_t *node,
 
 		dns_rdataset_current(&sigrdataset, &rdata);
 		dns_rdata_tostruct(&rdata, &sig, NULL);
+		if (rdataset->ttl != sig.originalttl) {
+			dns_name_format(name, namebuf, sizeof(namebuf));
+			type_format(rdataset->type, typebuf, sizeof(typebuf));
+			fprintf(stderr, "TTL mismatch for %s %s keytag %u\n",
+				namebuf, typebuf, sig.keyid);
+			continue;
+		}
 		if ((set_algorithms[sig.algorithm] != 0) ||
 		    (ksk_algorithms[sig.algorithm] == 0))
 			continue;
@@ -1438,7 +1445,6 @@ verifyzone(void) {
 	isc_boolean_t done = ISC_FALSE;
 	isc_boolean_t first = ISC_TRUE;
 	isc_boolean_t goodksk = ISC_FALSE;
-	isc_boolean_t goodzsk = ISC_FALSE;
 	isc_result_t result;
 	unsigned char revoked[256];
 	unsigned char standby[256];
@@ -1532,7 +1538,6 @@ verifyzone(void) {
 #endif
 			if (zsk_algorithms[dnskey.algorithm] != 255)
 				zsk_algorithms[dnskey.algorithm]++;
-			goodzsk = ISC_TRUE;
 		} else {
 			if (zsk_algorithms[dnskey.algorithm] != 255)
 				zsk_algorithms[dnskey.algorithm]++;
@@ -2126,6 +2131,7 @@ addnsec3param(const unsigned char *salt, size_t salt_length,
 	result = dns_rdata_fromstruct(&rdata, gclass,
 				      dns_rdatatype_nsec3param,
 				      &nsec3param, &b);
+	check_result(result, "dns_rdata_fromstruct()");
 	rdatalist.rdclass = rdata.rdclass;
 	rdatalist.type = rdata.type;
 	rdatalist.covers = 0;
@@ -3450,6 +3456,8 @@ main(int argc, char *argv[]) {
 		nokeys = ISC_TRUE;
 	}
 
+	warnifallksk(gdb);
+
 	if (IS_NSEC3) {
 		unsigned int max;
 		result = dns_nsec3_maxiterations(gdb, NULL, mctx, &max);
@@ -3458,8 +3466,6 @@ main(int argc, char *argv[]) {
 			fatal("NSEC3 iterations too big for weakest DNSKEY "
 			      "strength. Maximum iterations allowed %u.", max);
 	}
-
-	warnifallksk(gdb);
 
 	gversion = NULL;
 	result = dns_db_newversion(gdb, &gversion);

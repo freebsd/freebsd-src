@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.520.12.21 2011-01-14 23:45:49 tbox Exp $ */
+/* $Id: server.c,v 1.520.12.23 2011-03-11 10:49:51 marka Exp $ */
 
 /*! \file */
 
@@ -543,17 +543,12 @@ get_view_querysource_dispatch(const cfg_obj_t **maps,
 			      int af, dns_dispatch_t **dispatchp,
 			      isc_boolean_t is_firstview)
 {
-	isc_result_t result;
+	isc_result_t result = ISC_R_FAILURE;
 	dns_dispatch_t *disp;
 	isc_sockaddr_t sa;
 	unsigned int attrs, attrmask;
 	const cfg_obj_t *obj = NULL;
 	unsigned int maxdispatchbuffers;
-
-	/*
-	 * Make compiler happy.
-	 */
-	result = ISC_R_FAILURE;
 
 	switch (af) {
 	case AF_INET:
@@ -1033,7 +1028,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	isc_uint32_t lame_ttl;
 	dns_tsig_keyring_t *ring;
 	dns_view_t *pview = NULL;	/* Production view */
-	isc_mem_t *cmctx;
+	isc_mem_t *cmctx = NULL, *hmctx = NULL;
 	dns_dispatch_t *dispatch4 = NULL;
 	dns_dispatch_t *dispatch6 = NULL;
 	isc_boolean_t reused_cache = ISC_FALSE;
@@ -1055,8 +1050,6 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	isc_boolean_t zero_no_soattl;
 
 	REQUIRE(DNS_VIEW_VALID(view));
-
-	cmctx = NULL;
 
 	if (config != NULL)
 		(void)cfg_map_get(config, "options", &options);
@@ -1082,6 +1075,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		sep = "";
 		viewname = "";
 		forview = "";
+		POST(forview);
 	}
 
 	/*
@@ -1292,10 +1286,22 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		dns_view_detach(&pview);
 	}
 	if (cache == NULL) {
+		/*
+		 * Create a cache.
+		 *
+		 * We use two separate memory contexts for the
+		 * cache, for the main cache memory and the heap
+		 * memory.
+		 */
 		CHECK(isc_mem_create(0, 0, &cmctx));
-		CHECK(dns_cache_create(cmctx, ns_g_taskmgr, ns_g_timermgr,
-				       view->rdclass, "rbt", 0, NULL, &cache));
 		isc_mem_setname(cmctx, "cache", NULL);
+		CHECK(isc_mem_create(0, 0, &hmctx));
+		isc_mem_setname(hmctx, "cache_heap", NULL);
+		CHECK(dns_cache_create3(cmctx, hmctx, ns_g_taskmgr,
+					ns_g_timermgr, view->rdclass,
+					NULL, "rbt", 0, NULL, &cache));
+		isc_mem_detach(&cmctx);
+		isc_mem_detach(&hmctx);
 	}
 	dns_view_setcache(view, cache);
 
@@ -2029,6 +2035,8 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		dns_order_detach(&order);
 	if (cmctx != NULL)
 		isc_mem_detach(&cmctx);
+	if (hmctx != NULL)
+		isc_mem_detach(&hmctx);
 
 	if (cache != NULL)
 		dns_cache_detach(&cache);
@@ -2260,6 +2268,7 @@ create_view(const cfg_obj_t *vconfig, dns_viewlist_t *viewlist,
 		classobj = cfg_tuple_get(vconfig, "class");
 		result = ns_config_getclass(classobj, dns_rdataclass_in,
 					    &viewclass);
+		INSIST(result == ISC_R_SUCCESS);
 	} else {
 		viewname = "_default";
 		viewclass = dns_rdataclass_in;
@@ -3016,7 +3025,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	if (result == ISC_R_SUCCESS)
 		maps[i++] = options;
 	maps[i++] = ns_g_defaults;
-	maps[i++] = NULL;
+	maps[i] = NULL;
 
 	/*
 	 * Set process limits, which (usually) needs to be done as root.
@@ -3217,11 +3226,10 @@ load_configuration(const char *filename, ns_server_t *server,
 		if (options != NULL)
 			(void)cfg_map_get(options, "listen-on", &clistenon);
 		if (clistenon != NULL) {
-			result = ns_listenlist_fromconfig(clistenon,
-							  config,
-							  &aclconfctx,
-							  ns_g_mctx,
-							  &listenon);
+			/* check return code? */
+			(void)ns_listenlist_fromconfig(clistenon, config,
+						       &aclconfctx, ns_g_mctx,
+						       &listenon);
 		} else if (!ns_g_lwresdonly) {
 			/*
 			 * Not specified, use default.
@@ -3245,11 +3253,10 @@ load_configuration(const char *filename, ns_server_t *server,
 		if (options != NULL)
 			(void)cfg_map_get(options, "listen-on-v6", &clistenon);
 		if (clistenon != NULL) {
-			result = ns_listenlist_fromconfig(clistenon,
-							  config,
-							  &aclconfctx,
-							  ns_g_mctx,
-							  &listenon);
+			/* check return code? */
+			(void)ns_listenlist_fromconfig(clistenon, config,
+						       &aclconfctx, ns_g_mctx,
+						       &listenon);
 		} else if (!ns_g_lwresdonly) {
 			isc_boolean_t enable;
 			/*
@@ -3875,8 +3882,8 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 void
 ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	isc_result_t result;
-
 	ns_server_t *server = isc_mem_get(mctx, sizeof(*server));
+
 	if (server == NULL)
 		fatal("allocating server object", ISC_R_NOMEMORY);
 
@@ -4596,7 +4603,6 @@ ns_server_dumpstats(ns_server_t *server) {
 		"could not open statistics dump file", server->statsfile);
 
 	result = ns_stats_dump(server, fp);
-	CHECK(result);
 
  cleanup:
 	if (fp != NULL)
@@ -4776,6 +4782,7 @@ dumpdone(void *arg, isc_result_t result) {
 				fprintf(dctx->fp, "; %s\n",
 					dns_result_totext(result));
 				result = ISC_R_SUCCESS;
+				POST(result);
 				goto nextzone;
 			}
 			if (result != ISC_R_SUCCESS)

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.13.120.2 2009-01-14 23:47:26 tbox Exp $ */
+/* $Id: openssldsa_link.c,v 1.13.120.4 2011-03-12 04:57:27 tbox Exp $ */
 
 #ifdef OPENSSL
 #ifndef USE_EVP
@@ -252,7 +252,6 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	dsasig->r = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
 	cp += ISC_SHA1_DIGESTLENGTH;
 	dsasig->s = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
-	cp += ISC_SHA1_DIGESTLENGTH;
 
 #if 0
 	pkey = EVP_PKEY_new();

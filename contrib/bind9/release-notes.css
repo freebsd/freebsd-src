@@ -1,0 +1,42 @@
+body {
+	background-color: #ffffff;
+	color: #333333;
+	font-family: "Helvetica Neue", "ArialMT", "Verdana", "Arial", "Helvetica", sans-serif;
+	font-size: 14px;
+	line-height: 18px;
+	margin: 2em auto;
+	width: 700px;
+}
+
+.command {
+	font-family: "Courier New", "Courier", monospace;
+	font-weight: normal;
+}
+
+.note {
+	background-color: #ddeedd;
+	border: 1px solid #aaccaa;
+	margin: 1em 0 1em 0;
+	padding: 0.5em 1em 0.5em 1em;
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+}
+
+.screen {
+	background-color: #ffffee;
+	border: 1px solid #ddddaa;
+	padding: 0.25em 1em 0.25em 1em;
+	margin: 1em 0 1em 0;
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+}
+
+.section.title {
+	font-size: 150%;
+	font-weight: bold;
+}
+
+.section.section.title {
+  font-size: 130%;
+  font-weight: bold;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.h,v 1.26 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: cache.h,v 1.26.332.2 2011-03-03 23:46:01 tbox Exp $ */
 
 #ifndef DNS_CACHE_H
 #define DNS_CACHE_H 1
@@ -61,16 +61,37 @@ ISC_LANG_BEGINDECLS
  ***/
 
 isc_result_t
-dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
+dns_cache_create(isc_mem_t *cmctx, isc_taskmgr_t *taskmgr,
 		 isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
 		 const char *db_type, unsigned int db_argc, char **db_argv,
 		 dns_cache_t **cachep);
+isc_result_t
+dns_cache_create2(isc_mem_t *cmctx, isc_taskmgr_t *taskmgr,
+		  isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
+		  const char *cachename, const char *db_type,
+		  unsigned int db_argc, char **db_argv, dns_cache_t **cachep);
+isc_result_t
+dns_cache_create3(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
+		  isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
+		  const char *cachename, const char *db_type,
+		  unsigned int db_argc, char **db_argv, dns_cache_t **cachep);
 /*%<
  * Create a new DNS cache.
  *
+ * dns_cache_create2() is used in BIND 9.7 and up but is not implemented
+ * here.
+ *
+ * dns_cache_create3() will create a cache using two separate memory
+ * contexts, one for cache data which can be cleaned and a separate one for
+ * memory allocated for the heap (which can grow without an upper limit and
+ * has no mechanism for shrinking).
+ *
+ * dns_cache_create() is a backward compatible version that internally
+ * specifies an empty cache name and a single memory context.
+ *
  * Requires:
  *
- *\li	'mctx' is a valid memory context
+ *\li	'cmctx' (and 'hmctx' if applicable) is a valid memory context.
  *
  *\li	'taskmgr' is a valid task manager and 'timermgr' is a valid timer
  * 	manager, or both are NULL.  If NULL, no periodic cleaning of the

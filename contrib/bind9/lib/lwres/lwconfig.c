@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.46.332.2 2008-12-30 23:46:49 tbox Exp $ */
+/* $Id: lwconfig.c,v 1.46.332.4 2011-03-12 04:57:33 tbox Exp $ */
 
 /*! \file */
 
@@ -589,6 +589,7 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 		stopchar = getword(fp, word, sizeof(word));
 		if (stopchar == EOF) {
 			rval = LWRES_R_SUCCESS;
+			POST(rval);
 			break;
 		}
 

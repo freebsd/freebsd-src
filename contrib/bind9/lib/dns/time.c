@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.c,v 1.31.332.4 2010-04-21 23:48:05 tbox Exp $ */
+/* $Id: time.c,v 1.31.332.6 2011-03-09 23:45:50 tbox Exp $ */
 
 /*! \file */
 
@@ -28,6 +28,7 @@
 
 #include <isc/print.h>
 #include <isc/region.h>
+#include <isc/serial.h>
 #include <isc/stdtime.h>
 #include <isc/util.h>
 
@@ -44,13 +45,21 @@ dns_time64_totext(isc_int64_t t, isc_buffer_t *target) {
 	unsigned int l;
 	isc_region_t region;
 
-	REQUIRE(t >= 0);
-
+/*
+ * Warning. Do NOT use arguments with side effects with these macros.
+ */
 #define is_leap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 #define year_secs(y) ((is_leap(y) ? 366 : 365 ) * 86400)
 #define month_secs(m,y) ((days[m] + ((m == 1 && is_leap(y)) ? 1 : 0 )) * 86400)
 
 	tm.tm_year = 70;
+	while (t < 0) {
+		if (tm.tm_year == 0)
+			return (ISC_R_RANGE);
+		tm.tm_year--;
+		secs = year_secs(tm.tm_year + 1900);
+		t += secs;
+	}
 	while ((secs = year_secs(tm.tm_year + 1900)) <= t) {
 		t -= secs;
 		tm.tm_year++;
@@ -98,7 +107,6 @@ isc_result_t
 dns_time32_totext(isc_uint32_t value, isc_buffer_t *target) {
 	isc_stdtime_t now;
 	isc_int64_t start;
-	isc_int64_t base;
 	isc_int64_t t;
 
 	/*
@@ -109,12 +117,10 @@ dns_time32_totext(isc_uint32_t value, isc_buffer_t *target) {
 	 */
 	isc_stdtime_get(&now);
 	start = (isc_int64_t) now;
-	start -= 0x7fffffff;
-	base = 0;
-	while ((t = (base + value)) < start) {
-		base += 0x80000000;
-		base += 0x80000000;
-	}
+	if (isc_serial_gt(value, now))
+		t = start + (value - now);
+	else
+		t = start - (now - value);
 	return (dns_time64_totext(t, target));
 }
 
@@ -145,7 +151,7 @@ dns_time64_fromtext(const char *source, isc_int64_t *target) {
 		   &year, &month, &day, &hour, &minute, &second) != 6)
 		return (DNS_R_SYNTAX);
 
-	RANGE(1970, 9999, year);
+	RANGE(0, 9999, year);
 	RANGE(1, 12, month);
 	RANGE(1, days[month - 1] +
 		 ((month == 2 && is_leap(year)) ? 1 : 0), day);
@@ -154,16 +160,24 @@ dns_time64_fromtext(const char *source, isc_int64_t *target) {
 	RANGE(0, 60, second);		/* 60 == leap second. */
 
 	/*
-	 * Calculate seconds since epoch.
+	 * Calculate seconds from epoch.
+	 * Note: this uses a idealized calendar.
 	 */
 	value = second + (60 * minute) + (3600 * hour) + ((day - 1) * 86400);
 	for (i = 0; i < (month - 1); i++)
 		value += days[i] * 86400;
 	if (is_leap(year) && month > 2)
 		value += 86400;
-	for (i = 1970; i < year; i++) {
-		secs = (is_leap(i) ? 366 : 365) * 86400;
-		value += secs;
+	if (year < 1970) {
+		for (i = 1969; i >= year; i--) {
+			secs = (is_leap(i) ? 366 : 365) * 86400;
+			value -= secs;
+		}
+	} else {
+		for (i = 1970; i < year; i++) {
+			secs = (is_leap(i) ? 366 : 365) * 86400;
+			value += secs;
+		}
 	}
 
 	*target = value;

@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.9 2007-06-19 23:47:21 tbox Exp $
+# $Id: Makefile.in,v 1.9.332.2 2011-02-19 23:45:47 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -71,7 +71,7 @@ libisccc.la: ${OBJS}
 	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisccc.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${LIBS} ${ISCLIBS}
+		${OBJS} ${ISCLIBS} ${LIBS}
 
 timestamp: libisccc.@A@
 	touch timestamp
