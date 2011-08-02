@@ -83,8 +83,7 @@ __start:
  * locore registers use:
  *	r1	: stack pointer
  *	r2	: trace pointer (AP only, for early diagnostics)
- *	r3-r26	: scratch registers
- *	r27	: kernload
+ *	r3-r27	: scratch registers
  *	r28	: temp TLB1 entry
  *	r29	: initial TLB1 entry we started in
  *	r30-r31	: arguments (metadata pointer)
@@ -115,6 +114,9 @@ __start:
 	/* Invalidate all entries in TLB0 */
 	li	%r3, 0
 	bl	tlb_inval_all
+
+	cmpwi	%r30, 0
+	beq	done_mapping
 
 /*
  * Locate the TLB1 entry that maps this code
@@ -171,7 +173,6 @@ __start:
 	bl	3f
 3:	mflr	%r4			/* Use current address */
 	rlwinm	%r4, %r4, 0, 0, 7	/* 16MB alignment mask */
-	mr	%r27, %r4		/* Keep kernel load address */
 	ori	%r4, %r4, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r4		/* Set RPN and protection */
 	isync
@@ -197,23 +198,7 @@ __start:
 	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
-/*
- * Save kernel load address for later use.
- */
-	lis	%r3, kernload@ha
-	addi	%r3, %r3, kernload@l
-	stw	%r27, 0(%r3)
-#ifdef SMP
-	/*
-	 * APs need a separate copy of kernload info within the __boot_page
-	 * area so they can access this value very early, before their TLBs
-	 * are fully set up and the kernload global location is available.
-	 */
-	lis	%r3, kernload_ap@ha
-	addi	%r3, %r3, kernload_ap@l
-	stw	%r27, 0(%r3)
-	msync
-#endif
+done_mapping:
 
 /*
  * Setup a temporary stack
@@ -257,7 +242,7 @@ __start:
 __boot_page:
 	bl	1f
 
-kernload_ap:
+GLOBAL(kernload_ap):
 	.long	0
 
 /*
@@ -785,8 +770,6 @@ tmpstack:
  */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 
-GLOBAL(kernload)
-	.long	0
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 GLOBAL(sintrnames)
