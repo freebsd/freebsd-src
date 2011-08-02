@@ -109,9 +109,9 @@ _C_LABEL(intrnames):
 _C_LABEL(intrcnt):
 	.space NIRQ * 4
 _C_LABEL(sintrnames):
-	.word NIRQ * (MAXCOMLEN + 1)
+	.int NIRQ * (MAXCOMLEN + 1)
 _C_LABEL(sintrcnt):
-	.word NIRQ * 4
+	.int NIRQ * 4
 
 	.global _C_LABEL(current_intr_depth)
 _C_LABEL(current_intr_depth):
