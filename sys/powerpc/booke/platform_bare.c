@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 extern void *ap_pcpu;
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t kernload;		/* Kernel physical load address */
+extern uint32_t kernload_ap;		/* Kernel physical load address */
 #endif
 
 extern uint32_t *bootinfo;
@@ -178,9 +178,13 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	phandle_t cpus, child;
 	pcell_t freq;
 
-	if (bootinfo != NULL) {
-		/* Backward compatibility. See 8-STABLE. */
-		ticks = bootinfo[3] >> 3;
+	if (bootinfo != NULL)
+		if (bootinfo[0] == 1) {
+			/* Backward compatibility. See 8-STABLE. */
+			ticks = bootinfo[3] >> 3;
+		} else {
+			/* Compatbility with Juniper's loader. */
+			ticks = bootinfo[5] >> 3;
 	} else
 		ticks = 0;
 
@@ -268,7 +272,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload;
+	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload_ap;
 	ccsr_write4(OCP85XX_BPTR, (bptr >> 12) | 0x80000000);
 
 	/*
