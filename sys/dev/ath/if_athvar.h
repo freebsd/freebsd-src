@@ -254,7 +254,8 @@ struct ath_softc {
 				sc_tdma	    : 1,/* TDMA in use */
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1,/* reset cal state next trip */
-				sc_rxslink  : 1;/* do self-linked final descriptor */
+				sc_rxslink  : 1,/* do self-linked final descriptor */
+				sc_kickpcu  : 1;/* kick PCU RX on next RX proc */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
