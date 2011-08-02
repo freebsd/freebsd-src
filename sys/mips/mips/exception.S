@@ -1143,7 +1143,7 @@ sintrnames:
 #ifdef __mips_n64
 	.quad  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #else
-	.word  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #endif
 
 	.align	4
@@ -1153,7 +1153,7 @@ sintrcnt:
 #ifdef __mips_n64
 	.quad  INTRCNT_COUNT * 4 * 2
 #else
-	.word  INTRCNT_COUNT * 4 * 2
+	.int  INTRCNT_COUNT * 4 * 2
 #endif
 
 
