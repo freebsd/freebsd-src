@@ -242,7 +242,7 @@ done_mapping:
 __boot_page:
 	bl	1f
 
-GLOBAL(kernload_ap):
+GLOBAL(kernload_ap)
 	.long	0
 
 /*
