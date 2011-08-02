@@ -1389,6 +1389,7 @@ ath_intr(void *arg)
 			}
 		}
 		if (status & HAL_INT_RXEOL) {
+			int imask = sc->sc_imask;
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
@@ -1398,10 +1399,22 @@ ath_intr(void *arg)
 			/*
 			 * Disable RXEOL/RXORN - prevent an interrupt
 			 * storm until the PCU logic can be reset.
+			 * In case the interface is reset some other
+			 * way before "sc_kickpcu" is called, don't
+			 * modify sc_imask - that way if it is reset
+			 * by a call to ath_reset() somehow, the
+			 * interrupt mask will be correctly reprogrammed.
 			 */
-			sc->sc_imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
-			ath_hal_intrset(ah, sc->sc_imask);
+			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+			ath_hal_intrset(ah, imask);
+			/*
+			 * Enqueue an RX proc, to handled whatever
+			 * is in the RX queue.
+			 * This will then kick the PCU.
+			 */
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 			sc->sc_rxlink = NULL;
+			sc->sc_kickpcu = 1;
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -3775,6 +3788,25 @@ rx_next:
 	/* Queue DFS tasklet if needed */
 	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
+
+	/*
+	 * Now that all the RX frames were handled that
+	 * need to be handled, kick the PCU if there's
+	 * been an RXEOL condition.
+	 */
+	if (sc->sc_kickpcu) {
+		sc->sc_kickpcu = 0;
+		ath_stoprecv(sc);
+		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
+		if (ath_startrecv(sc) != 0) {
+			if_printf(ifp,
+			    "%s: couldn't restart RX after RXEOL; resetting\n",
+			    __func__);
+			ath_reset(ifp);
+			return;
+		}
+		ath_hal_intrset(ah, sc->sc_imask);
+	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
