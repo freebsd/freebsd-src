@@ -178,13 +178,14 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	phandle_t cpus, child;
 	pcell_t freq;
 
-	if (bootinfo != NULL)
+	if (bootinfo != NULL) {
 		if (bootinfo[0] == 1) {
 			/* Backward compatibility. See 8-STABLE. */
 			ticks = bootinfo[3] >> 3;
 		} else {
-			/* Compatbility with Juniper's loader. */
+			/* Compatibility with Juniper's loader. */
 			ticks = bootinfo[5] >> 3;
+		}
 	} else
 		ticks = 0;
 
