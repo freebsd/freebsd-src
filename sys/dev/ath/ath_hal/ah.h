@@ -747,6 +747,9 @@ typedef enum {
 } HAL_QUIET_FLAG;
 
 #define	HAL_DFS_EVENT_PRICH		0x0000001
+#define	HAL_DFS_EVENT_EXTCH		0x0000002
+#define	HAL_DFS_EVENT_EXTEARLY		0x0000004
+#define	HAL_DFS_EVENT_ISDC		0x0000008
 
 struct dfs_event {
 	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */

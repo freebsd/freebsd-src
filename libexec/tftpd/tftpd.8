@@ -300,8 +300,15 @@ and
 .Xr tftp 1
 code to support RFC2348.
 .Sh NOTES
-Files larger than 33488896 octets (65535 blocks) cannot be transferred
-without client and server supporting the TFTP blocksize option (RFC2348),
+Files larger than 33,553,919 octets (65535 blocks, last one <512
+octets) cannot be correctly transferred without client and server
+supporting blocksize negotiation (RFCs 2347 and 2348),
 or the non-standard TFTP rollover option.
+As a kludge,
+.Nm
+accepts a sequence of block number which wrap to zero after 65535,
+even if the rollover option is not specified.
 .Pp
-Many tftp clients will not transfer files over 16744448 octets (32767 blocks).
+Many tftp clients will not transfer files over 16,776,703 octets
+(32767 blocks), as they incorrectly count the block number using
+a signed rather than unsigned 16-bit integer.

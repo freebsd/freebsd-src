@@ -484,12 +484,20 @@ static void
 adaschedule(struct cam_periph *periph)
 {
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
+	uint32_t prio;
 
+	/* Check if cam_periph_getccb() was called. */
+	prio = periph->immediate_priority;
+
+	/* Check if we have more work to do. */
 	if (bioq_first(&softc->bio_queue) ||
 	    (!softc->trim_running && bioq_first(&softc->trim_queue))) {
-		/* Have more work to do, so ensure we stay scheduled */
-		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+		prio = CAM_PRIORITY_NORMAL;
 	}
+
+	/* Schedule CCB if any of above is true. */
+	if (prio != CAM_PRIORITY_NONE)
+		xpt_schedule(periph, prio);
 }
 
 /*
