@@ -745,7 +745,6 @@ static int
 vfs_domount_first(
 	struct thread *td,		/* Calling thread. */
 	struct vfsconf *vfsp,		/* File system type. */
-	char *fspath,			/* Mount path. */
 	struct vnode *vp,		/* Vnode to be covered. */
 	int fsflags,			/* Flags common to all filesystems. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
@@ -754,11 +753,24 @@ vfs_domount_first(
 	struct vattr va;
 	struct mount *mp;
 	struct vnode *newdp;
+	char *fspath, *fbuf;
 	int error;
 
 	mtx_assert(&Giant, MA_OWNED);
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
+
+	/* Construct global filesystem path from vp. */
+	error = vn_fullpath_global(td, vp, &fspath, &fbuf);
+	if (error != 0) {
+		vput(vp);
+		return (error);
+	}
+	if (strlen(fspath) >= MNAMELEN) {
+		vput(vp);
+		free(fbuf, M_TEMP);
+		return (ENAMETOOLONG);
+	}
 
 	/*
 	 * If the user is not root, ensure that they own the directory
@@ -781,12 +793,14 @@ vfs_domount_first(
 	}
 	if (error != 0) {
 		vput(vp);
+		free(fbuf, M_TEMP);
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0);
 
 	/* Allocate and initialize the filesystem. */
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
+	free(fbuf, M_TEMP);
 	/* XXXMAC: pass to vfs_mount_alloc? */
 	mp->mnt_optnew = *optlist;
 	/* Set the mount level flags. */
@@ -1069,12 +1083,10 @@ vfs_domount(
 		mtx_lock(&Giant);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
-		    optlist);
-	} else {
+	if ((fsflags & MNT_UPDATE) == 0)
+		error = vfs_domount_first(td, vfsp, vp, fsflags, optlist);
+	else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
-	}
 	mtx_unlock(&Giant);
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
@@ -1105,7 +1117,8 @@ unmount(td, uap)
 	} */ *uap;
 {
 	struct mount *mp;
-	char *pathbuf;
+	struct nameidata nd;
+	char *pathbuf, *rpathbuf, *fbuf;
 	int error, id0, id1;
 
 	AUDIT_ARG_VALUE(uap->flags);
@@ -1140,6 +1153,28 @@ unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		AUDIT_ARG_UPATH1(td, pathbuf);
+		/*
+		 * If we are jailed and this is not a root jail try to find
+		 * global path for path argument.
+		 */
+		if (jailed(td->td_ucred) &&
+		    td->td_ucred->cr_prison->pr_root != rootvnode) {
+			NDINIT(&nd, LOOKUP,
+			    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+			    UIO_SYSSPACE, pathbuf, td);
+			if (namei(&nd) == 0) {
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+				if (vn_fullpath_global(td, nd.ni_vp, &rpathbuf,
+				    &fbuf) == 0) {
+					if (strlen(rpathbuf) < MNAMELEN) {
+						strlcpy(pathbuf, rpathbuf,
+						    MNAMELEN);
+					}
+					free(fbuf, M_TEMP);
+				}
+				vput(nd.ni_vp);
+			}
+		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
