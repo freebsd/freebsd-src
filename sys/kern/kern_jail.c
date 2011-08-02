@@ -3858,7 +3858,8 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
 	case PRIV_VFS_MOUNT_OWNER:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT)
+		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT &&
+		    cred->cr_prison->pr_enforce_statfs < 2)
 			return (0);
 		else
 			return (EPERM);
