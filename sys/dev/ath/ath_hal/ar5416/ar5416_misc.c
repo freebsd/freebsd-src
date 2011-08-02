@@ -670,26 +670,27 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 
 	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
 
-	if (pe->pe_usefir128 == 0)
-		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
-	else if (pe->pe_usefir128 == 1)
+	if (pe->pe_usefir128 == 1)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
+	else if (pe->pe_usefir128 == 0)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
 
-	if (pe->pe_enmaxrssi == 0)
+	if (pe->pe_enmaxrssi == 1)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
-	else if (pe->pe_enmaxrssi == 1)
+	else if (pe->pe_enmaxrssi == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
 
-	if (pe->pe_blockradar == 0)
+	if (pe->pe_blockradar == 1)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
-	else if (pe->pe_blockradar == 1)
+	else if (pe->pe_blockradar == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
 
 	if (pe->pe_maxlen != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
 		val &= ~AR_PHY_RADAR_1_MAXLEN;
 		val |= SM(pe->pe_maxlen, AR_PHY_RADAR_1_MAXLEN);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
 	}
-	OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
 
 	/*
 	 * Enable HT/40 if the upper layer asks;

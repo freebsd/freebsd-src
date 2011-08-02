@@ -187,7 +187,10 @@ typedef struct BaseEepHeader {
 	uint8_t		rcChainMask;	/* "1" if the card is an HB93 1x2 */
 	uint8_t		desiredScaleCCK;
 	uint8_t		pwr_table_offset;
-	uint8_t		frac_n_5g;
+	uint8_t		frac_n_5g;	/*
+					 * bit 0: indicates that fracN synth
+					 * mode applies to all 5G channels
+					 */
 	uint8_t		futureBase[21];
 } __packed BASE_EEP_HEADER; // 64 B
 

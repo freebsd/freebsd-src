@@ -218,6 +218,8 @@ extern	HAL_BOOL ar5416ResetKeyCacheEntry(struct ath_hal *ah, uint16_t entry);
 extern	HAL_BOOL ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 	       const HAL_KEYVAL *k, const uint8_t *mac, int xorKey);
 
+extern	uint32_t ar5416GetRxFilter(struct ath_hal *ah);
+extern	void ar5416SetRxFilter(struct ath_hal *ah, uint32_t bits);
 extern	void ar5416StartPcuReceive(struct ath_hal *ah);
 extern	void ar5416StopPcuReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetupRxDesc(struct ath_hal *,

@@ -540,8 +540,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	int ip6s, redo_ip6;
 #endif
-	unsigned pr_flags, ch_flags;
-	unsigned pr_allow, ch_allow, tallow;
+	uint64_t pr_allow, ch_allow, pr_flags, ch_flags;
+	unsigned tallow;
 	char numbuf[12];
 
 	error = priv_check(td, PRIV_JAIL_SET);

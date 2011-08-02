@@ -41,24 +41,11 @@ kld_start()
 {
 	[ -n "$kld_list" ] || return
 
-	local _kernel_path _module_path _kld _path
-
-	_kernel_path=`$SYSCTL_N kern.bootfile`
-	_kernel_path="${_kernel_path%/*}"
-
-	_module_path=`$SYSCTL_N kern.module_path`
-	_module_path="${_module_path#*\;}"
-	_module_path="$_kernel_path `ltr $_module_path \; ' '`"
+	local _kld
 
 	echo 'Loading kernel modules:'
 	for _kld in $kld_list ; do
-		for _path in $_module_path ; do
-			if [ -x "${_path}/${_kld}.ko" ]; then
-				load_kld -e ${_kld}.ko ${_path}/${_kld}.ko
-				continue 2
-			fi
-		done
-		warn "${_kld}.ko not found in $_module_path"
+		load_kld -e ${_kld}.ko $_kld
 	done
 }
 

@@ -79,7 +79,7 @@ memstat_sysctl_uma(struct memory_type_list *list, int flags)
 	struct uma_type_header *uthp;
 	struct uma_percpu_stat *upsp;
 	struct memory_type *mtp;
-	int count, hint_dontsearch, i, j, maxcpus;
+	int count, hint_dontsearch, i, j, maxcpus, maxid;
 	char *buffer, *p;
 	size_t size;
 
@@ -93,21 +93,16 @@ memstat_sysctl_uma(struct memory_type_list *list, int flags)
 	 * from the header.
 	 */
 retry:
-	size = sizeof(maxcpus);
-	if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
+	size = sizeof(maxid);
+	if (sysctlbyname("kern.smp.maxid", &maxid, &size, NULL, 0) < 0) {
 		if (errno == EACCES || errno == EPERM)
 			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
 		else
 			list->mtl_error = MEMSTAT_ERROR_DATAERROR;
 		return (-1);
 	}
-	if (size != sizeof(maxcpus)) {
+	if (size != sizeof(maxid)) {
 		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
-		return (-1);
-	}
-
-	if (maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
 
@@ -125,7 +120,7 @@ retry:
 	}
 
 	size = sizeof(*uthp) + count * (sizeof(*uthp) + sizeof(*upsp) *
-	    maxcpus);
+	    (maxid + 1));
 
 	buffer = malloc(size);
 	if (buffer == NULL) {
@@ -170,12 +165,6 @@ retry:
 		return (-1);
 	}
 
-	if (ushp->ush_maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
-		free(buffer);
-		return (-1);
-	}
-
 	/*
 	 * For the remainder of this function, we are quite trusting about
 	 * the layout of structures and sizes, since we've determined we have
@@ -194,7 +183,7 @@ retry:
 			mtp = NULL;
 		if (mtp == NULL)
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-			    uthp->uth_name);
+			    uthp->uth_name, maxid + 1);
 		if (mtp == NULL) {
 			_memstat_mtl_empty(list);
 			free(buffer);
@@ -205,7 +194,7 @@ retry:
 		/*
 		 * Reset the statistics on a current node.
 		 */
-		_memstat_mt_reset_stats(mtp);
+		_memstat_mt_reset_stats(mtp, maxid + 1);
 
 		mtp->mt_numallocs = uthp->uth_allocs;
 		mtp->mt_numfrees = uthp->uth_frees;
@@ -398,7 +387,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 				mtp = NULL;
 			if (mtp == NULL)
 				mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-				    name);
+				    name, mp_maxid + 1);
 			if (mtp == NULL) {
 				free(ucp_array);
 				_memstat_mtl_empty(list);
@@ -408,7 +397,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			/*
 			 * Reset the statistics on a current node.
 			 */
-			_memstat_mt_reset_stats(mtp);
+			_memstat_mt_reset_stats(mtp, mp_maxid + 1);
 			mtp->mt_numallocs = uz.uz_allocs;
 			mtp->mt_numfrees = uz.uz_frees;
 			mtp->mt_failures = uz.uz_fails;
