@@ -189,6 +189,10 @@ Wunused-variable
 Common Var(warn_unused_variable)
 Warn when a variable is unused
 
+Wvariable-decl
+Common Var(warn_variable_decl)
+Warn about variable-sized declarations.
+
 Wvolatile-register-var
 Common Var(warn_register_var)
 Warn when a register variable is declared volatile
