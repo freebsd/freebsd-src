@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.95.12.6 2010-03-04 23:47:53 tbox Exp $ */
+/* $Id: check.c,v 1.95.12.8 2011-03-12 04:57:26 tbox Exp $ */
 
 /*! \file */
 
@@ -1675,7 +1675,7 @@ check_trusted_key(const cfg_obj_t *key, isc_log_t *logctx)
 	const char *keystr, *keynamestr;
 	dns_fixedname_t fkeyname;
 	dns_name_t *keyname;
-	isc_buffer_t keydatabuf;
+	isc_buffer_t b;
 	isc_region_t r;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
@@ -1685,8 +1685,18 @@ check_trusted_key(const cfg_obj_t *key, isc_log_t *logctx)
 	flags = cfg_obj_asuint32(cfg_tuple_get(key, "flags"));
 	proto = cfg_obj_asuint32(cfg_tuple_get(key, "protocol"));
 	alg = cfg_obj_asuint32(cfg_tuple_get(key, "algorithm"));
+	dns_fixedname_init(&fkeyname);
 	keyname = dns_fixedname_name(&fkeyname);
 	keynamestr = cfg_obj_asstring(cfg_tuple_get(key, "name"));
+
+	isc_buffer_init(&b, keynamestr, strlen(keynamestr));
+	isc_buffer_add(&b, strlen(keynamestr));
+	result = dns_name_fromtext(keyname, &b, dns_rootname, 0, NULL);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(key, logctx, ISC_LOG_WARNING, "bad key name: %s\n",
+			    isc_result_totext(result));
+		result = ISC_R_FAILURE;
+	}
 
 	if (flags > 0xffff) {
 		cfg_obj_log(key, logctx, ISC_LOG_WARNING,
@@ -1704,17 +1714,17 @@ check_trusted_key(const cfg_obj_t *key, isc_log_t *logctx)
 		result = ISC_R_FAILURE;
 	}
 
-	isc_buffer_init(&keydatabuf, keydata, sizeof(keydata));
+	isc_buffer_init(&b, keydata, sizeof(keydata));
 
 	keystr = cfg_obj_asstring(cfg_tuple_get(key, "key"));
-	tresult = isc_base64_decodestring(keystr, &keydatabuf);
+	tresult = isc_base64_decodestring(keystr, &b);
 
 	if (tresult != ISC_R_SUCCESS) {
 		cfg_obj_log(key, logctx, ISC_LOG_ERROR,
 			    "%s", isc_result_totext(tresult));
 		result = ISC_R_FAILURE;
 	} else {
-		isc_buffer_usedregion(&keydatabuf, &r);
+		isc_buffer_usedregion(&b, &r);
 
 		if ((alg == DST_ALG_RSASHA1 || alg == DST_ALG_RSAMD5) &&
 		    r.length > 1 && r.base[0] == 1 && r.base[1] == 3)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2007, 2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.4.50.2 2010-01-15 23:47:31 tbox Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.4.50.4 2011-03-12 04:57:22 tbox Exp $ */
 
 /*! \file */
 
@@ -297,6 +297,9 @@ main(int argc, char **argv) {
 	if (ret == ISC_R_SUCCESS) {
 		isc_buffer_clear(&buf);
 		ret = dst_key_buildfilename(key, 0, NULL, &buf);
+		if (ret != ISC_R_SUCCESS)
+			fatal("dst_key_buildfilename returned: %s\n",
+			      isc_result_totext(ret));
 		fprintf(stderr, "%s: %s already exists\n",
 			program, filename);
 		dst_key_free(&key);
@@ -313,6 +316,9 @@ main(int argc, char **argv) {
 
 	isc_buffer_clear(&buf);
 	ret = dst_key_buildfilename(key, 0, NULL, &buf);
+	if (ret != ISC_R_SUCCESS)
+		fatal("dst_key_buildfilename returned: %s\n",
+		      isc_result_totext(ret));
 	printf("%s\n", filename);
 	dst_key_free(&key);
 

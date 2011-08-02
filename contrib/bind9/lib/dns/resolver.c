@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.384.14.30.4.1 2011-06-21 20:13:23 each Exp $ */
+/* $Id: resolver.c,v 1.384.14.32 2011-06-09 00:16:36 each Exp $ */
 
 /*! \file */
 
@@ -2602,7 +2602,7 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 	isc_result_t result;
 	dns_resolver_t *res;
 	isc_stdtime_t now;
-	unsigned int stdoptions;
+	unsigned int stdoptions = 0;
 	isc_sockaddr_t *sa;
 	dns_adbaddrinfo_t *ai;
 	isc_boolean_t all_bad;
@@ -2621,7 +2621,6 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 	}
 
 	res = fctx->res;
-	stdoptions = 0;         /* Keep compiler happy. */
 
 	/*
 	 * Forwarders.
@@ -4260,6 +4259,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 							    sigrdataset, 0,
 							    NULL);
 			dns_db_detachnode(fctx->cache, &nsnode);
+			if (result != ISC_R_SUCCESS)
+				continue;
 		}
 		result = dns_message_nextname(fctx->rmessage,
 					      DNS_SECTION_AUTHORITY);
@@ -4322,6 +4323,7 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 
 	res = fctx->res;
 	need_validation = ISC_FALSE;
+	POST(need_validation);
 	secure_domain = ISC_FALSE;
 	have_answer = ISC_FALSE;
 	eresult = ISC_R_SUCCESS;
@@ -4789,6 +4791,7 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 
 	res = fctx->res;
 	need_validation = ISC_FALSE;
+	POST(need_validation);
 	secure_domain = ISC_FALSE;
 	eresult = ISC_R_SUCCESS;
 	name = &fctx->name;
@@ -5476,6 +5479,7 @@ answer_response(fetchctx_t *fctx) {
 	chaining = ISC_FALSE;
 	have_answer = ISC_FALSE;
 	want_chaining = ISC_FALSE;
+	POST(want_chaining);
 	if ((message->flags & DNS_MESSAGEFLAG_AA) != 0)
 		aa = ISC_TRUE;
 	else
@@ -5664,6 +5668,7 @@ answer_response(fetchctx_t *fctx) {
 						return (DNS_R_FORMERR);
 					found = ISC_TRUE;
 					want_chaining = ISC_TRUE;
+					POST(want_chaining);
 					aflag = DNS_RDATASETATTR_ANSWER;
 					result = dname_target(rdataset,
 							      qname, name,
@@ -5675,6 +5680,7 @@ answer_response(fetchctx_t *fctx) {
 						 * try to continue.
 						 */
 						want_chaining = ISC_FALSE;
+						POST(want_chaining);
 					} else if (result != ISC_R_SUCCESS)
 						return (result);
 					else
@@ -6490,6 +6496,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			unsigned int version;
 
 			resend = ISC_TRUE;
+			INSIST(opt != NULL);
 			version = (opt->ttl >> 16) & 0xff;
 			flags = (version << DNS_FETCHOPT_EDNSVERSIONSHIFT) |
 				DNS_FETCHOPT_EDNSVERSIONSET;
@@ -7949,10 +7956,8 @@ dns_resolver_addbadcache(dns_resolver_t *resolver, dns_name_t *name,
 		resolver->badcache = isc_mem_get(resolver->mctx,
 						 sizeof(*resolver->badcache) *
 						 DNS_BADCACHE_SIZE);
-		if (resolver->badcache == NULL) {
-			result = ISC_R_NOMEMORY;
+		if (resolver->badcache == NULL)
 			goto cleanup;
-		}
 		resolver->badhash = DNS_BADCACHE_SIZE;
 		memset(resolver->badcache, 0, sizeof(*resolver->badcache) *
 		       resolver->badhash);
@@ -7982,10 +7987,8 @@ dns_resolver_addbadcache(dns_resolver_t *resolver, dns_name_t *name,
 	if (bad == NULL) {
 		isc_buffer_t buffer;
 		bad = isc_mem_get(resolver->mctx, sizeof(*bad) + name->length);
-		if (bad == NULL) {
-			result = ISC_R_NOMEMORY;
+		if (bad == NULL)
 			goto cleanup;
-		}
 		bad->type = type;
 		bad->hashval = hashval;
 		isc_buffer_init(&buffer, bad + 1, name->length);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.93.70.2 2009-01-18 23:47:34 tbox Exp $ */
+/* $Id: interfacemgr.c,v 1.93.70.4 2011-03-12 04:57:23 tbox Exp $ */
 
 /*! \file */
 
@@ -379,7 +379,7 @@ ns_interface_setup(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 		}
 	}
 	*ifpret = ifp;
-	return (ISC_R_SUCCESS);
+	return (result);
 
  cleanup_interface:
 	ISC_LIST_UNLINK(ifp->mgr->interfaces, ifp, link);
@@ -964,7 +964,6 @@ isc_boolean_t
 ns_interfacemgr_listeningon(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr) {
 	isc_sockaddr_t *old;
 
-	old = ISC_LIST_HEAD(mgr->listenon);
 	for (old = ISC_LIST_HEAD(mgr->listenon);
 	     old != NULL;
 	     old = ISC_LIST_NEXT(old, link))

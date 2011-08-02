@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.457.26.28 $)
+AC_REVISION($Revision: 1.457.26.35 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -281,6 +281,11 @@ AC_C_INLINE
 AC_C_VOLATILE
 AC_CHECK_FUNC(sysctlbyname, AC_DEFINE(HAVE_SYSCTLBYNAME))
 AC_C_FLEXIBLE_ARRAY_MEMBER
+
+#
+# Check for getenv()
+#
+AC_CHECK_FUNCS(getenv)
 
 #
 # UnixWare 7.1.1 with the feature supplement to the UDK compiler
@@ -1605,10 +1610,8 @@ char a[16],b[64]; return(inet_ntop(AF_INET6, a, b, sizeof(b)) == (char*)0);}],
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
 	ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"],
-	[AC_MSG_RESULT(assuming inet_ntop needed)
-	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
-	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
-	ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"])
+	[AC_MSG_RESULT(assuming inet_ntop not needed)
+	ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"])
 
 
 # On NetBSD 1.4.2 and maybe others, inet_pton() incorrectly accepts
@@ -1630,14 +1633,10 @@ main() { char a[16]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
 	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
-	[AC_MSG_RESULT(assuming target platform has working inet_pton)
-	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
 	[AC_MSG_RESULT(assuming inet_pton needed)
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
-	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
-	[AC_MSG_RESULT(assuming target platform has working inet_pton)
-	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"])
+	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"])
 
 AC_SUBST(ISC_PLATFORM_NEEDNTOP)
 AC_SUBST(ISC_PLATFORM_NEEDPTON)
@@ -2090,8 +2089,9 @@ ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"],
 ],[AC_MSG_ERROR(this cannot happen)])
 ],[AC_MSG_ERROR(this cannot happen)])
 ],[
-ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"
-AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming long long int)])
+AC_ARG_WITH(rlimtype, , rlimtype="$withval", rlimtype="long long int")
+ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE $rlimtype"
+AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming $rlimtype)])
 ])
 AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 
@@ -2298,27 +2298,22 @@ if test "$use_atomic" = "yes"; then
 	[i[3456]86-*])
 		# XXX: some old x86 architectures actually do not support
 		#      (some of) these operations.  Do we need stricter checks?
-AC_TRY_RUN([
-main() {
-	exit((sizeof(void *) == 8) ? 0 : 1);
-}
-],
-		[arch=x86_64
-		have_xaddq=yes],
-		[arch=x86_32],
-		[arch=x86_32])
+                AC_CHECK_SIZEOF([void *])
+		if test $ac_cv_sizeof_void_p = 8; then
+			arch=x86_64
+			have_xaddq=yes
+		else
+			arch=x86_32
+		fi
 	;;
 	x86_64-*|amd64-*)
-AC_TRY_RUN([
-main() {
-       exit((sizeof(void *) == 8) ? 0 : 1);
-}
-],
-	       [arch=x86_64
-	       have_xaddq=yes],
-	       [arch=x86_32],
-	       [arch=x86_64
-	       have_xaddq=yes])
+                AC_CHECK_SIZEOF([void *])
+		if test $ac_cv_sizeof_void_p = 8; then
+			arch=x86_64
+			have_xaddq=yes
+		else
+			arch=x86_32
+		fi
 	;;
 	alpha*-*)
 		arch=alpha
@@ -2709,6 +2704,34 @@ if test "$use_idn" != no; then
 fi
 AC_SUBST(IDNLIBS)
 
+#
+# Check whether to build Automated Test Framework unit tests
+#
+AC_ARG_WITH(atf,
+	[  --with-atf=ARG       Automated Test Framework support],
+	atf="$withval", atf="no")
+if test "$atf" = yes; then
+	atf=`pwd`/unit/atf
+	ATFBUILD=atf-src
+	AC_SUBST(ATFBUILD)
+	AC_CONFIG_COMMANDS([atf-config],
+		[cd unit/atf-src; ${SHELL} ./configure MISSING=: --prefix $atfdir; cd ../..],
+		[atfdir=`pwd`/unit/atf])
+	AC_MSG_RESULT(building ATF from bind9/unit/atf-src)
+fi
+
+ATFLIBS=
+if test "$atf" != no; then
+	AC_DEFINE(ATF_TEST, 1, [define if ATF unit tests are to be built.])
+	STD_CINCLUDES="$STD_CINCLUDES -I$atf/include"
+	ATFBIN="$atf/bin"
+	ATFLIBS="-L$atf/lib -latf-c"
+	UNITTESTS=tests
+fi
+AC_SUBST(ATFBIN)
+AC_SUBST(ATFLIBS)
+AC_SUBST(UNITTESTS)
+
 AC_CHECK_HEADERS(locale.h)
 AC_CHECK_FUNCS(setlocale)
 
@@ -2975,6 +2998,7 @@ AC_CONFIG_FILES([
 	lib/dns/include/Makefile
 	lib/dns/include/dns/Makefile
 	lib/dns/include/dst/Makefile
+	lib/dns/tests/Makefile
 	lib/bind9/Makefile
 	lib/bind9/include/Makefile
 	lib/bind9/include/bind9/Makefile
@@ -2990,6 +3014,8 @@ AC_CONFIG_FILES([
 	lib/tests/Makefile
 	lib/tests/include/Makefile
 	lib/tests/include/tests/Makefile
+	unit/Makefile
+	unit/unittest.sh
 	bin/Makefile
 	bin/check/Makefile
 	bin/named/Makefile
@@ -3012,6 +3038,7 @@ AC_CONFIG_FILES([
 	bin/tests/sockaddr/Makefile
 	bin/tests/system/Makefile
 	bin/tests/system/conf.sh
+	bin/tests/system/dlz/prereq.sh
 	bin/tests/system/lwresd/Makefile
 	bin/tests/system/tkey/Makefile
 	bin/tests/headerdep_test.sh

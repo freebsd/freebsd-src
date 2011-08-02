@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: opensslrsa_link.c,v 1.20.50.8 2010-01-22 02:36:49 marka Exp $
+ * $Id: opensslrsa_link.c,v 1.20.50.11 2011-03-12 04:57:27 tbox Exp $
  */
 #ifdef OPENSSL
 #include <config.h>
@@ -50,7 +50,9 @@
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 #include <openssl/bn.h>
 #endif
+#ifdef USE_ENGINE
 #include <openssl/engine.h>
+#endif
 
 /*
  * We don't use configure for windows so enforce the OpenSSL version
@@ -1079,10 +1081,14 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer) {
 	isc_result_t ret;
 	int i;
 	RSA *rsa = NULL;
+#ifdef USE_ENGINE
 	ENGINE *e = NULL;
+#endif
 	isc_mem_t *mctx = key->mctx;
 	const char *name = NULL, *label = NULL;
+#if defined(USE_ENGINE) || USE_EVP
 	EVP_PKEY *pkey = NULL;
+#endif
 
 	/* read private key file */
 	ret = dst__privstruct_parse(key, DST_ALG_RSA, lexer, mctx, &priv);
@@ -1106,6 +1112,7 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer) {
 	 * See if we can fetch it.
 	 */
 	if (name != NULL || label != NULL) {
+#ifdef USE_ENGINE
 		INSIST(name != NULL);
 		INSIST(label != NULL);
 		e = dst__openssl_getengine(name);
@@ -1133,6 +1140,9 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer) {
 #endif
 		dst__privstruct_free(&priv, mctx);
 		return (ISC_R_SUCCESS);
+#else
+		DST_RET(DST_R_NOENGINE);
+#endif
 	}
 
 	rsa = RSA_new();
@@ -1221,6 +1231,7 @@ static isc_result_t
 opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 		     const char *pin)
 {
+#ifdef USE_ENGINE
 	ENGINE *e = NULL;
 	isc_result_t ret;
 	EVP_PKEY *pkey = NULL;
@@ -1254,6 +1265,13 @@ opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 	if (pkey != NULL)
 		EVP_PKEY_free(pkey);
 	return (ret);
+#else
+	UNUSED(key);
+	UNUSED(engine);
+	UNUSED(label);
+	UNUSED(pin);
+	return(DST_R_NOENGINE);
+#endif
 }
 
 static dst_func_t opensslrsa_functions = {
