@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.72.18.9.10.1 2011-05-26 23:56:27 each Exp $ */
+/* $Id: rdataset.c,v 1.72.18.12 2011-06-09 00:42:48 each Exp $ */
 
 /*! \file */
 
@@ -342,7 +342,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		count = 1;
 		result = dns_rdataset_first(rdataset);
 		INSIST(result == ISC_R_NOMORE);
-	} else if (rdataset->type == 0) {
+	} else if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) {
 		/*
 		 * This is a negative caching rdataset.
 		 */

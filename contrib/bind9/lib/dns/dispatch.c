@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.116.18.42 2009-12-02 23:36:35 marka Exp $ */
+/* $Id: dispatch.c,v 1.116.18.44 2011-04-06 23:45:16 tbox Exp $ */
 
 /*! \file */
 
@@ -769,7 +769,8 @@ get_dispsocket(dns_dispatch_t *disp, isc_sockaddr_t *dest,
 			continue;
 
 		result = open_socket(sockmgr, &localaddr, 0, &sock);
-		if (result == ISC_R_SUCCESS || result != ISC_R_ADDRINUSE)
+		if (result == ISC_R_SUCCESS ||
+		    (result != ISC_R_ADDRINUSE && result != ISC_R_NOPERM))
 			break;
 	}
 

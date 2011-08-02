@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.237.18.68 2009-09-07 02:17:09 marka Exp $ */
+/* $Id: socket.c,v 1.237.18.72 2011-07-21 23:45:14 tbox Exp $ */
 
 /*! \file */
 
@@ -1088,6 +1088,9 @@ build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
 #if defined(USE_CMSG) && defined(ISC_PLATFORM_HAVEIN6PKTINFO)
 	if ((sock->type == isc_sockettype_udp)
 	    && ((dev->attributes & ISC_SOCKEVENTATTR_PKTINFO) != 0)) {
+#if defined(IPV6_USE_MIN_MTU)
+		int use_min_mtu = 1;	/* -1, 0, 1 */
+#endif
 		struct cmsghdr *cmsgp;
 		struct in6_pktinfo *pktinfop;
 
@@ -1106,6 +1109,22 @@ build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
 		cmsgp->cmsg_len = cmsg_len(sizeof(struct in6_pktinfo));
 		pktinfop = (struct in6_pktinfo *)CMSG_DATA(cmsgp);
 		memcpy(pktinfop, &dev->pktinfo, sizeof(struct in6_pktinfo));
+#if defined(IPV6_USE_MIN_MTU)
+		/*
+		 * Set IPV6_USE_MIN_MTU as a per packet option as FreeBSD
+		 * ignores setsockopt(IPV6_USE_MIN_MTU) when IPV6_PKTINFO
+		 * is used.
+		 */
+		cmsgp = (struct cmsghdr *)(sock->sendcmsgbuf +
+					   msg->msg_controllen);
+		msg->msg_controllen += cmsg_space(sizeof(use_min_mtu));
+		INSIST(msg->msg_controllen <= sock->sendcmsgbuflen);
+
+		cmsgp->cmsg_level = IPPROTO_IPV6;
+		cmsgp->cmsg_type = IPV6_USE_MIN_MTU;
+		cmsgp->cmsg_len = cmsg_len(sizeof(use_min_mtu));
+		memcpy(CMSG_DATA(cmsgp), &use_min_mtu, sizeof(use_min_mtu));
+#endif
 	}
 #endif /* USE_CMSG && ISC_PLATFORM_HAVEIPV6 */
 #else /* ISC_NET_BSD44MSGHDR */
@@ -1724,7 +1743,14 @@ allocate_socket(isc_socketmgr_t *manager, isc_sockettype_t type,
 
 	cmsgbuflen = 0;
 #if defined(USE_CMSG) && defined(ISC_PLATFORM_HAVEIN6PKTINFO)
-	cmsgbuflen = cmsg_space(sizeof(struct in6_pktinfo));
+	cmsgbuflen += cmsg_space(sizeof(struct in6_pktinfo));
+#if defined(IPV6_USE_MIN_MTU)
+	/*
+	 * Provide space for working around FreeBSD's broken IPV6_USE_MIN_MTU
+	 * support.
+	 */
+	cmsgbuflen += cmsg_space(sizeof(int));
+#endif
 #endif
 	sock->sendcmsgbuflen = cmsgbuflen;
 	if (sock->sendcmsgbuflen != 0U) {
@@ -2055,10 +2081,18 @@ opensocket(isc_socketmgr_t *manager, isc_socket_t *sock) {
 #endif /* ISC_PLATFORM_HAVEIN6PKTINFO */
 #ifdef IPV6_USE_MIN_MTU        /* RFC 3542, not too common yet*/
 		/* use minimum MTU */
-		if (sock->pf == AF_INET6) {
-			(void)setsockopt(sock->fd, IPPROTO_IPV6,
-					 IPV6_USE_MIN_MTU,
-					 (void *)&on, sizeof(on));
+		if (sock->pf == AF_INET6 &&
+		    setsockopt(sock->fd, IPPROTO_IPV6, IPV6_USE_MIN_MTU,
+			       (void *)&on, sizeof(on)) < 0) {
+			isc__strerror(errno, strbuf, sizeof(strbuf));
+			UNEXPECTED_ERROR(__FILE__, __LINE__,
+					 "setsockopt(%d, IPV6_USE_MIN_MTU) "
+					 "%s: %s", sock->fd,
+					 isc_msgcat_get(isc_msgcat,
+							ISC_MSGSET_GENERAL,
+							ISC_MSG_FAILED,
+							"failed"),
+					 strbuf);
 		}
 #endif
 #endif /* ISC_PLATFORM_HAVEIPV6 */
@@ -4334,9 +4368,16 @@ isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *sockaddr,
 	return (ISC_R_SUCCESS);
 }
 
+/*
+ * Enable this only for specific OS versions, and only when they have repaired
+ * their problems with it.  Until then, this is is broken and needs to be
+ * diabled by default.  See RT22589 for details.
+ */
+#undef ENABLE_ACCEPTFILTER
+
 isc_result_t
 isc_socket_filter(isc_socket_t *sock, const char *filter) {
-#ifdef SO_ACCEPTFILTER
+#if defined(SO_ACCEPTFILTER) && defined(ENABLE_ACCEPTFILTER)
 	char strbuf[ISC_STRERRORSIZE];
 	struct accept_filter_arg afa;
 #else
@@ -4346,7 +4387,7 @@ isc_socket_filter(isc_socket_t *sock, const char *filter) {
 
 	REQUIRE(VALID_SOCKET(sock));
 
-#ifdef SO_ACCEPTFILTER
+#if defined(SO_ACCEPTFILTER) && defined(ENABLE_ACCEPTFILTER)
 	bzero(&afa, sizeof(afa));
 	strncpy(afa.af_name, filter, sizeof(afa.af_name));
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_ACCEPTFILTER,

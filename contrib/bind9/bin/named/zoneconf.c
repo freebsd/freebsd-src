@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.110.18.23 2006-05-16 03:39:57 marka Exp $ */
+/* $Id: zoneconf.c,v 1.110.18.25 2011-03-12 04:56:41 tbox Exp $ */
 
 /*% */
 
@@ -60,7 +60,7 @@
 static isc_result_t
 configure_zone_acl(const cfg_obj_t *zconfig, const cfg_obj_t *vconfig,
 		   const cfg_obj_t *config, const char *aclname,
-		   cfg_aclconfctx_t *actx, dns_zone_t *zone, 
+		   cfg_aclconfctx_t *actx, dns_zone_t *zone,
 		   void (*setzacl)(dns_zone_t *, dns_acl_t *),
 		   void (*clearzacl)(dns_zone_t *))
 {
@@ -264,11 +264,11 @@ strtoargvsub(isc_mem_t *mctx, char *s, unsigned int *argcp,
 	     char ***argvp, unsigned int n)
 {
 	isc_result_t result;
-	
+
 	/* Discard leading whitespace. */
 	while (*s == ' ' || *s == '\t')
 		s++;
-	
+
 	if (*s == '\0') {
 		/* We have reached the end of the string. */
 		*argcp = n;
@@ -582,10 +582,10 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		INSIST(result == ISC_R_SUCCESS);
 		if (cfg_obj_isboolean(obj))
 			ixfrdiff = cfg_obj_asboolean(obj);
-		else if (strcasecmp(cfg_obj_asstring(obj), "master") &&
+		else if (!strcasecmp(cfg_obj_asstring(obj), "master") &&
 			 ztype == dns_zone_master)
 			ixfrdiff = ISC_TRUE;
-		else if (strcasecmp(cfg_obj_asstring(obj), "slave") &&
+		else if (!strcasecmp(cfg_obj_asstring(obj), "slave") &&
 			ztype == dns_zone_slave)
 			ixfrdiff = ISC_TRUE;
 		else
@@ -614,7 +614,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		obj = NULL;
 		result = ns_config_get(maps, "check-sibling", &obj);
 		INSIST(result == ISC_R_SUCCESS);
-		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSIBLING, 
+		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSIBLING,
 				   cfg_obj_asboolean(obj));
 
 		obj = NULL;
@@ -633,7 +633,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 					  "allow-update", ac, zone,
 					  dns_zone_setupdateacl,
 					  dns_zone_clearupdateacl));
-		
+
 		updateacl = dns_zone_getupdateacl(zone);
 		if (updateacl != NULL  && dns_acl_isinsecure(updateacl))
 			isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
@@ -641,7 +641,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 				      "zone '%s' allows updates by IP "
 				      "address, which is insecure",
 				      zname);
-		
+
 		RETERR(configure_zone_ssutable(zoptions, zone));
 
 		obj = NULL;
@@ -689,7 +689,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		obj = NULL;
 		result = ns_config_get(maps, "check-integrity", &obj);
 		INSIST(obj != NULL);
-		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKINTEGRITY, 
+		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKINTEGRITY,
 				   cfg_obj_asboolean(obj));
 
 		obj = NULL;
@@ -725,7 +725,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		obj = NULL;
 		result = ns_config_get(maps, "update-check-ksk", &obj);
 		INSIST(result == ISC_R_SUCCESS);
-		dns_zone_setoption(zone, DNS_ZONEOPT_UPDATECHECKKSK, 
+		dns_zone_setoption(zone, DNS_ZONEOPT_UPDATECHECKKSK,
 				   cfg_obj_asboolean(obj));
 	}
 
@@ -739,7 +739,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 					  "allow-update", ac, zone,
 					  dns_zone_setupdateacl,
 					  dns_zone_clearupdateacl));
-		
+
 		updateacl = dns_zone_getupdateacl(zone);
 		if (updateacl != NULL  && dns_acl_isinsecure(updateacl))
 			isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
@@ -747,7 +747,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 				      "zone '%s' allows updates by IP "
 				      "address, which is insecure",
 				      zname);
-		
+
 		RETERR(configure_zone_ssutable(zoptions, zone));
 
 		obj = NULL;

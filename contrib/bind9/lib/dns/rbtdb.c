@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.64 2010-11-17 10:21:01 marka Exp $ */
+/* $Id: rbtdb.c,v 1.196.18.67 2011-06-09 00:42:47 each Exp $ */
 
 /*! \file */
 
@@ -244,6 +244,7 @@ typedef struct rdatasetheader {
 #define RDATASET_ATTR_IGNORE		0x0004
 #define RDATASET_ATTR_RETAIN		0x0008
 #define RDATASET_ATTR_NXDOMAIN		0x0010
+#define RDATASET_ATTR_NEGATIVE          0x0100
 
 typedef struct acache_cbarg {
 	dns_rdatasetadditional_t	type;
@@ -278,6 +279,8 @@ struct acachectl {
 	(((header)->attributes & RDATASET_ATTR_RETAIN) != 0)
 #define NXDOMAIN(header) \
 	(((header)->attributes & RDATASET_ATTR_NXDOMAIN) != 0)
+#define NEGATIVE(header) \
+	(((header)->attributes & RDATASET_ATTR_NEGATIVE) != 0)
 
 #define DEFAULT_NODE_LOCK_COUNT		7	/*%< Should be prime. */
 #define DEFAULT_CACHE_NODE_LOCK_COUNT	1009	/*%< Should be prime. */
@@ -1779,10 +1782,15 @@ zone_zonecut_callback(dns_rbtnode_t *node, dns_name_t *name, void *arg) {
 	/*
 	 * Did we find anything?
 	 */
-	if (dname_header != NULL) {
+	if (!IS_CACHE(search->rbtdb) && !IS_STUB(search->rbtdb) &&
+	    ns_header != NULL) {
 		/*
-		 * Note that DNAME has precedence over NS if both exist.
+		 * Note that NS has precedence over DNAME if both exist
+		 * in a zone.  Otherwise DNAME take precedence over NS.
 		 */
+		found = ns_header;
+		search->zonecut_sigrdataset = NULL;
+	} else if (dname_header != NULL) {
 		found = dname_header;
 		search->zonecut_sigrdataset = sigdname_header;
 	} else if (ns_header != NULL) {
@@ -1873,6 +1881,8 @@ bind_rdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	rdataset->covers = RBTDB_RDATATYPE_EXT(header->type);
 	rdataset->ttl = header->ttl - now;
 	rdataset->trust = header->trust;
+	if (NEGATIVE(header))
+		rdataset->attributes |= DNS_RDATASETATTR_NEGATIVE;
 	if (NXDOMAIN(header))
 		rdataset->attributes |= DNS_RDATASETATTR_NXDOMAIN;
 	rdataset->private1 = rbtdb;
@@ -3634,7 +3644,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 		*nodep = node;
 	}
 
-	if (RBTDB_RDATATYPE_BASE(found->type) == 0) {
+	if (NEGATIVE(found)) {
 		/*
 		 * We found a negative cache entry.
 		 */
@@ -4258,7 +4268,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	if (found == NULL)
 		return (ISC_R_NOTFOUND);
 
-	if (RBTDB_RDATATYPE_BASE(found->type) == 0) {
+	if (NEGATIVE(found)) {
 		/*
 		 * We found a negative cache entry.
 		 */
@@ -4456,7 +4466,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	negtype = 0;
 	if (rbtversion == NULL && !newheader_nx) {
 		rdtype = RBTDB_RDATATYPE_BASE(newheader->type);
-		if (rdtype == 0) {
+		if (NEGATIVE(newheader)) {
 			/*
 			 * We're adding a negative cache entry.
 			 */
@@ -4884,6 +4894,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		now = 0;
 	} else {
 		newheader->serial = 1;
+		if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0)
+			newheader->attributes |= RDATASET_ATTR_NEGATIVE;
 		if ((rdataset->attributes & DNS_RDATASETATTR_NXDOMAIN) != 0)
 			newheader->attributes |= RDATASET_ATTR_NXDOMAIN;
 		if ((rdataset->attributes & DNS_RDATASETATTR_NOQNAME) != 0) {
@@ -5979,7 +5991,7 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator) {
 
 	type = header->type;
 	rdtype = RBTDB_RDATATYPE_BASE(header->type);
-	if (rdtype == 0) {
+	if (NEGATIVE(header)) {
 		covers = RBTDB_RDATATYPE_EXT(header->type);
 		negtype = RBTDB_RDATATYPE_VALUE(covers, 0);
 	} else

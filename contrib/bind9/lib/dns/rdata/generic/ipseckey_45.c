@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipseckey_45.c,v 1.2.2.4 2009-09-18 21:57:08 jinmei Exp $ */
+/* $Id: ipseckey_45.c,v 1.2.2.6 2011-01-13 04:47:42 tbox Exp $ */
 
 #ifndef RDATA_GENERIC_IPSECKEY_45_C
 #define RDATA_GENERIC_IPSECKEY_45_C
@@ -120,8 +120,6 @@ static inline isc_result_t
 totext_ipseckey(ARGS_TOTEXT) {
 	isc_region_t region;
 	dns_name_t name;
-	dns_name_t prefix;
-	isc_boolean_t sub;
 	char buf[sizeof("255 ")];
 	unsigned short num;
 	unsigned short gateway;
@@ -130,7 +128,6 @@ totext_ipseckey(ARGS_TOTEXT) {
 	REQUIRE(rdata->length >= 3);
 
 	dns_name_init(&name, NULL);
-	dns_name_init(&prefix, NULL);
 
 	if (rdata->data[1] > 3U)
 		return (ISC_R_NOTIMPLEMENTED);
@@ -183,8 +180,7 @@ totext_ipseckey(ARGS_TOTEXT) {
 
 	case 3:
 		dns_name_fromregion(&name, &region);
-		sub = name_prefix(&name, tctx->origin, &prefix);
-		RETERR(dns_name_totext(&prefix, sub, target));
+		RETERR(dns_name_totext(&name, ISC_FALSE, target));
 		isc_region_consume(&region, name_length(&name));
 		break;
 	}
