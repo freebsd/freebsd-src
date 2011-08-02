@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.h,v 1.31.14.4 2005-09-01 03:04:28 marka Exp $ */
+/* $Id: masterdump.h,v 1.31.14.7 2011-05-27 23:49:08 tbox Exp $ */
 
 #ifndef DNS_MASTERDUMP_H
 #define DNS_MASTERDUMP_H 1
@@ -93,9 +93,9 @@ typedef struct dns_master_style dns_master_style_t;
 
 /*% Never print the TTL */
 #define	DNS_STYLEFLAG_NO_TTL		0x01000000U
-                    
+
 /*% Never print the CLASS */
-#define	DNS_STYLEFLAG_NO_CLASS		0x02000000U 
+#define	DNS_STYLEFLAG_NO_CLASS		0x02000000U
 
 ISC_LANG_BEGINDECLS
 
@@ -119,8 +119,8 @@ LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_default;
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_full;
 
 /*%
- * A master file style that prints explicit TTL values on each 
- * record line, never using $TTL statements.  The TTL has a tab 
+ * A master file style that prints explicit TTL values on each
+ * record line, never using $TTL statements.  The TTL has a tab
  * stop of its own, but the class and type share one.
  */
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t
@@ -133,9 +133,9 @@ LIBDNS_EXTERNAL_DATA extern const dns_master_style_t
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_cache;
 
 /*%
- * A master style that prints name, ttl, class, type, and value on 
- * every line.  Similar to explicitttl above, but more verbose.  
- * Intended for generating master files which can be easily parsed 
+ * A master style that prints name, ttl, class, type, and value on
+ * every line.  Similar to explicitttl above, but more verbose.
+ * Intended for generating master files which can be easily parsed
  * by perl scripts and similar applications.
  */
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_simple;
@@ -231,7 +231,7 @@ dns_master_dumptostream2(isc_mem_t *mctx, dns_db_t *db,
  *\li	'task' to be valid.
  *\li	'done' to be non NULL.
  *\li	'dctxp' to be non NULL && '*dctxp' to be NULL.
- * 
+ *
  * Returns:
  *\li	ISC_R_SUCCESS
  *\li	ISC_R_CONTINUE	dns_master_dumptostreaminc() only.

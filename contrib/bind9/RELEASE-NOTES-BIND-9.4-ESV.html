@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!--
+ - Copyright (C) 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: RELEASE-NOTES-BIND-9.4-ESV.html,v 1.1.2.12 2011-07-24 08:05:11 tbox Exp $ -->
+
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title></title><link rel="stylesheet" href="release-notes.css" type="text/css" /><meta name="generator" content="DocBook XSL Stylesheets V1.71.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><hr /></div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3359578"></a>Introduction</h2></div></div></div>
+    
+    <p>
+			BIND 9.4-ESV-R5 is the current production release
+			of BIND 9.4.
+		</p>
+    <p>
+			This document summarizes changes from BIND 9.4-ESV-R4 to BIND 9.4-ESV-R5.
+			Please see the CHANGES file in the source code release for a
+			complete list of all changes.
+		</p>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358597"></a>Download</h2></div></div></div>
+    
+    <p>
+			The latest release of BIND 9 software can always be found
+	 		on our web site at
+      <a href="http://www.isc.org/downloads/all" target="_top">http://www.isc.org/downloads/all</a>.
+  		There you will find additional information about each release,
+ 			source code, and some pre-compiled versions for certain operating
+ 			systems.
+		</p>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358630"></a>Support</h2></div></div></div>
+    
+    <p>Product support information is available on
+      <a href="http://www.isc.org/services/support" target="_top">http://www.isc.org/services/support</a>
+      for paid support options.  Free support is provided by our user
+ 			community via a mailing list.  Information on all public email
+ 			lists is available at
+      <a href="https://lists.isc.org/mailman/listinfo" target="_top">https://lists.isc.org/mailman/listinfo</a>.
+    </p>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358679"></a>New Features</h2></div></div></div>
+    
+		<div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="id3358720"></a>9.4-ESV-R5</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358748"></a>Feature Changes</h2></div></div></div>
+    
+		<div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="id3358768"></a>9.4-ESV-R5</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358796"></a>Security Fixes</h2></div></div></div>
+    
+		<div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="id3358816"></a>9.4-ESV-R5</h3></div></div></div>
+			
+			<div class="itemizedlist"><ul type="disc"><li>
+A bug in NetBSD and FreeBSD kernels with SO_ACCEPTFILTER enabled allows
+for a TCP DoS attack. Until there is a kernel fix, ISC is disabling
+SO_ACCEPTFILTER support in BIND. [RT #22589]
+</li><li>
+named, set up to be a caching resolver, is vulnerable to a
+user querying a domain with very large resource record sets (RRSets)
+when trying to negatively cache the response. Due to an off-by-one
+error, caching the response could cause named to crash. [RT #24650]
+[CVE-2011-1910]
+</li><li>
+Change #2912 (see CHANGES) exposed a latent bug in the DNS message
+processing code that could allow certain UPDATE requests to crash
+named. This was fixed by disambiguating internal database representation
+vs DNS wire format data. [RT #24777] [CVE-2011-2464]
+</li></ul></div>
+		</div>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3358855"></a>Bug Fixes</h2></div></div></div>
+    
+		<div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="id3358861"></a>9.4-ESV-R5</h3></div></div></div>
+			
+	    <div class="itemizedlist"><ul type="disc"><li>
+During RFC5011 processing some journal write errors were not detected.
+This could lead to managed-keys changes being committed but not 
+recorded in the journal files, causing potential inconsistencies  
+during later processing.  [RT #20256]
+<p>
+A potential NULL pointer deference in the DNS64 code could cause 
+named to terminate unexpectedly. [RT #20256]
+</p>
+<p>
+A state variable relating to DNSSEC could fail to be set during 
+some infrequently-executed code paths, allowing it to be used whilst
+in an unitialized state during cache updates, with unpredictable results.
+[RT #20256]
+</p>
+<p>
+A potential NULL pointer deference in DNSSEC signing code could 
+cause named to terminate unexpectedly  [RT #20256]
+</p>
+<p>
+Several cosmetic code changes were made to silence warnings
+generated by a static code analysis tool. [RT #20256]
+</p>
+</li><li>
+Cause named to terminate at startup or rndc reconfig
+reload to fail, if a log file specified in the
+conf file isn't a plain file. (RT #22771]
+</li><li>
+Prior to this fix, when named was was writing a zone to disk (as slave,
+when resigning, etc.), it might not correctly preserve the case of domain
+name labels within RDATA, if the RDATA was not compressible. The result
+is that when reloading the zone from disk would, named could serve data
+that did not match the RRSIG for that data, due to case mismatch. named
+now correctly preserves case. After upgrading to fixed code, the operator
+should either resign the data (on the master) or delete the disk file
+on the slave and reload the zone. [RT #22863]
+</li><li>
+Fix the zonechecks system test to fail on error (warning in 9.6,
+fatal in 9.7) to match behaviour for 9.4. [RT #22905]
+</li><li>
+There was a bug in how the clients-per-query code worked with some
+query patterns. This could result, in rare circumstances, in having all
+the client query slots filled with queries for the same DNS label,
+essentially ignoring the max-clients-per-query setting.
+[RT #22972]
+</li><li>
+If a slave initiates a TSIG signed AXFR from the master and the master
+fails to correctly TSIG sign the final message, the slave would be left
+with the zone in an unclean state. named detected this error too late
+and named would crash with an INSIST. The order dependancy has been
+fixed. [RT #23254]
+</li><li>
+Fixed precedence order bug with NS and DNAME records if both are present.
+(Also fixed timing of autosign test in 9.7+) [RT #23035]
+</li><li>
+Changing TTL did not cause dnssec-signzone to generate new signatures.
+[RT #23330]
+</li><li>
+If named encountered a CNAME instead of a DS record when walking
+the chain of trust down from the trust anchor, it incorrectly stopped
+validating. [RT #23338]
+</li><li>
+RRSIG records could have time stamps too far in the future.
+[RT #23356]
+</li><li>
+If running on a powerpc CPU and with atomic operations enabled,
+named could lock up. Added sync instructions to the end of atomic
+operations. [RT #23469]
+</li><li>
+ixfr-from-differences {master|slave};
+failed to select the master/slave zones, resulting in on diff/journal
+file being created.
+[RT #23580]
+</li><li>
+Remove bin/tests/system/logfileconfig/ns1/named.conf and
+add setup.sh in order to resolve changing named.conf issue. [RT #23687]
+</li><li>
+The autosign tests attempted to open ports within reserved ranges. Test
+now avoids those ports.
+[RT #23957]
+</li><li>
+Named could fail to validate zones list in a DLV that validated insecure
+without using DLV and had DS records in the parent zone. [RT #24631]
+</li><li>
+A bug in FreeBSD kernels causes IPv6 UDP responses greater than
+1280 bytes to not fragment as they should. Until there is a kernel
+fix, named will work around this by setting IPV6_USE_MIN_MTU on a
+per packet basis. [RT #24950]
+</li></ul></div>
+		</div>
+  </div>
+
+  <div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id3359002"></a>Thank You</h2></div></div></div>
+    
+    <p>
+      Thank you to everyone who assisted us in making this release possible.
+      If you would like to contribute to ISC to assist us in continuing to make
+      quality open source software, please visit our donations page at
+      <a href="http://www.isc.org/supportisc" target="_top">http://www.isc.org/supportisc</a>.
+    </p>
+  </div>
+</div></body></html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.109.18.33 2009-07-28 15:57:26 marka Exp $ */
+/* $Id: update.c,v 1.109.18.35 2011-03-12 04:56:41 tbox Exp $ */
 
 #include <config.h>
 
@@ -1549,7 +1549,7 @@ next_active(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 {
 	isc_result_t result;
 	dns_dbiterator_t *dbit = NULL;
-	isc_boolean_t has_nsec;
+	isc_boolean_t has_nsec = ISC_FALSE;
 	unsigned int wraps = 0;
 
 	CHECK(dns_db_createiterator(db, ISC_FALSE, &dbit));

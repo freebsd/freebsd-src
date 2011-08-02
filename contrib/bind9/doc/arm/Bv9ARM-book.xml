@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.113 2010-02-26 23:46:35 tbox Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.115 2011-05-17 23:45:13 tbox Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -31,6 +31,7 @@
       <year>2008</year>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -6564,22 +6565,27 @@ avoid-v6-udp-ports {};
 
             <varlistentry>
               <term><command>serial-query-rate</command></term>
-              <listitem>
-                <para>
-                  Slave servers will periodically query master servers
-                  to find out if zone serial numbers have changed. Each such
-                  query uses
-                  a minute amount of the slave server's network bandwidth.  To
-                  limit the
-                  amount of bandwidth used, BIND 9 limits the rate at which
-                  queries are
-                  sent.  The value of the <command>serial-query-rate</command> option,
-                  an integer, is the maximum number of queries sent per
-                  second.
-                  The default is 20.
-                </para>
-              </listitem>
-            </varlistentry>
+	      <listitem>
+		<para>
+		  Slave servers will periodically query master
+		  servers to find out if zone serial numbers have
+		  changed. Each such query uses a minute amount of
+		  the slave server's network bandwidth.  To limit
+		  the amount of bandwidth used, BIND 9 limits the
+		  rate at which queries are sent.  The value of the
+		  <command>serial-query-rate</command> option, an
+		  integer, is the maximum number of queries sent
+		  per second.  The default is 20.
+		</para>
+		<para>
+		  In addition to controlling the rate SOA refresh
+		  queries are issued at
+		  <command>serial-query-rate</command> also controls
+		  the rate at which NOTIFY messages are sent from
+		  both master and slave zones.
+		</para>
+	      </listitem>
+	    </varlistentry>
 
             <varlistentry>
               <term><command>serial-queries</command></term>
@@ -7713,6 +7719,10 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   use the hostname as found by the gethostname() function.
                   The default <command>server-id</command> is <command>none</command>.
                 </para>
+                <para>
+		  The overall rate that NOTIFY messages are sent for all
+		  zones is controlled by <command>serial-query-rate</command>.
+		</para>
               </listitem>
             </varlistentry>
 

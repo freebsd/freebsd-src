@@ -1,13 +1,82 @@
-	--- 9.4-ESV-R4-P1 released ---
+	--- 9.4-ESV-R5 released ---
+
+3135.	[port]		FreeBSD: workaround broken IPV6_USE_MIN_MTU processing.
+			See http://www.freebsd.org/cgi/query-pr.cgi?pr=158307
+			[RT #24950]
+
+3023.	[bug]		Named could be left in an inconsistent state when
+			receiving multiple AXFR response messages that were
+			not all TSIG-signed. [RT #23254]
+
+	--- 9.4-ESV-R5rc1 released ---
+
+3124.	[bug]		Use an rdataset attribute flag to indicate
+			negative-cache records rather than using rrtype 0;
+			this will prevent problems when that rrtype is
+			used in actual DNS packets. [RT #24777]
 
 3121.   [security]      An authoritative name server sending a negative
                         response containing a very large RRset could
                         trigger an off-by-one error in the ncache code
                         and crash named. [RT #24650]
 
-3120.	[bug]		Named could fail to validate zones listed in a DLV
+3120.	[bug]		Named could fail to validate zones list in a DLV
 			that validated insecure without using DLV and had
 			DS records in the parent zone. [RT #24631]
+
+3113.	[doc]		Document the relationship between serial-query-rate
+			and NOTIFY messages.
+
+	--- 9.4-ESV-R5b1 released ---
+
+3095.	[bug]		Handle isolated reserved ports in the port range.
+			[RT #23957]
+
+3088.   [bug]           Remove bin/tests/system/logfileconfig/ns1/named.conf
+                        and add setup.sh in order to resolve changing
+                        named.conf issue.  [RT #23687]
+
+3071.	[bug]		has_nsec could be used unintialised in
+			update.c:next_active. [RT #20256]
+
+3067.	[bug]		ixfr-from-differences {master|slave}; failed to
+			select the master/slave zones.  [RT #23580]
+
+3065.	[bug]		RRSIG could have time stamps too far in the future.
+			[RT #23356]
+
+3064.	[bug]		powerpc: add sync instructions to the end of atomic
+			operations. [RT #23469]
+
+3058.   [bug]           Cause named to terminate at startup or rndc reconfig/
+                        reload to fail, if a log file specified in the conf
+                        file isn't a plain file. [RT #22771]
+
+3051.	[bug]		NS records obsure DNAME records at the bottom of the
+			zone if both are present. [RT #23035]
+
+3041.	[bug]		dnssec-signzone failed to generate new signatures on
+			ttl changes. [RT #23330]
+
+3040.	[bug]		Named failed to validate insecure zones where a node
+			with a CNAME existed between the trust anchor and the
+			top of the zone. [RT #23338]
+
+3037.	[doc]		Update COPYRIGHT to contain all the individual
+			copyright notices that cover various parts.
+
+3014.	[bug]		Fix the zonechecks system test to match expected
+			behaviour for 9.4 and to fail on error. [RT #22905]
+
+3009.	[bug]		clients-per-query code didn't work as expected with
+			particular query patterns. [RT #22972]
+
+3007.	[bug]		Named failed to preserve the case of domain names in
+			rdata which is not compressible when writing master
+			files.  [RT #22863]
+
+2996.	[security]	Temporarily disable SO_ACCEPTFILTER support.
+			[RT #22589]
 
 	--- 9.4-ESV-R4 released ---
 
