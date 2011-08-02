@@ -147,6 +147,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
 
+/* define if ATF unit tests are to be built. */
+/* #undef ATF_TEST */
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 /* #undef BROKEN_RECVMSG */
@@ -186,6 +189,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
+
+/* Define to 1 if you have the `getenv' function. */
+#define HAVE_GETENV 1
 
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_GSSAPI_H */
@@ -333,6 +339,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Sets which flag to pass to open/fcntl to make non-blocking
    (O_NDELAY/O_NONBLOCK). */
 #define PORT_NONBLOCK O_NONBLOCK
+
+/* The size of `void *', as computed by sizeof. */
+#define SIZEOF_VOID_P 8
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
