@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.34.18.12 2008/12/01 04:02:15 marka Exp $ */
+/* $Id: platform.h.in,v 1.34.18.12 2008-12-01 04:02:15 marka Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
