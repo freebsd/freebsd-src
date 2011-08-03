@@ -1,4 +1,5 @@
 /* $OpenBSD: myproposal.h,v 1.27 2010/09/01 22:42:13 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -75,6 +76,10 @@
 	"arcfour256,arcfour128," \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc," \
 	"aes192-cbc,aes256-cbc,arcfour,rijndael-cbc@lysator.liu.se"
+#ifdef	NONE_CIPHER_ENABLED
+#define KEX_ENCRYPT_INCLUDE_NONE KEX_DEFAULT_ENCRYPT \
+	",none"
+#endif
 #define	KEX_DEFAULT_MAC \
 	"hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \
