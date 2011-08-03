@@ -75,8 +75,7 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_RXGAIN_TYPE:
 		return AR5416_EEP_RXGAIN_ORIG;
 	case AR_EEP_TXGAIN_TYPE:
-		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
-		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
+		return pBase->txGainType;
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return HAL_EIO;
