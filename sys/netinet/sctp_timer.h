@@ -42,10 +42,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_RTT_SHIFT 3
 #define SCTP_RTT_VAR_SHIFT 2
 
-void
-sctp_early_fr_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net);
-
 struct sctp_nets *
 sctp_find_alternate_net(struct sctp_tcb *,
     struct sctp_nets *, int mode);
@@ -65,7 +61,7 @@ sctp_shutdown_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 int
 sctp_heartbeat_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, int);
+    struct sctp_nets *);
 
 int
 sctp_cookie_timer(struct sctp_inpcb *, struct sctp_tcb *,
