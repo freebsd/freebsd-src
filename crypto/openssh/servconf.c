@@ -1,4 +1,5 @@
 /* $OpenBSD: servconf.c,v 1.213 2010/11/13 23:27:50 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -141,6 +142,12 @@ initialize_server_options(ServerOptions *options)
 	options->authorized_principals_file = NULL;
 	options->ip_qos_interactive = -1;
 	options->ip_qos_bulk = -1;
+	options->hpn_disabled = -1;
+	options->hpn_buffer_size = -1;
+	options->tcp_rcv_buf_poll = -1;
+#ifdef	NONE_CIPHER_ENABLED
+	options->none_enabled = -1;
+#endif
 }
 
 void
@@ -283,6 +290,37 @@ fill_default_server_options(ServerOptions *options)
 		options->ip_qos_interactive = IPTOS_LOWDELAY;
 	if (options->ip_qos_bulk == -1)
 		options->ip_qos_bulk = IPTOS_THROUGHPUT;
+	if (options->hpn_disabled == -1) 
+		options->hpn_disabled = 0;
+	if (options->hpn_buffer_size == -1) {
+		/*
+		 * HPN buffer size option not explicitly set.  Try to figure
+		 * out what value to use or resort to default.
+		 */
+		options->hpn_buffer_size = CHAN_SES_WINDOW_DEFAULT;
+		if (!options->hpn_disabled) {
+			sock_get_rcvbuf(&options->hpn_buffer_size, 0);
+			debug ("HPN Buffer Size: %d", options->hpn_buffer_size);
+		}
+	} else {
+		/*
+		 * In the case that the user sets both values in a
+		 * contradictory manner hpn_disabled overrrides hpn_buffer_size.
+		 */
+		if (options->hpn_disabled <= 0) {
+			u_int maxlen;
+
+			maxlen = buffer_get_max_len();
+			if (options->hpn_buffer_size == 0)
+				options->hpn_buffer_size = 1;
+			/* Limit the maximum buffer to BUFFER_MAX_LEN. */
+			if (options->hpn_buffer_size > maxlen / 1024)
+				options->hpn_buffer_size = maxlen;
+			else
+				options->hpn_buffer_size *= 1024;
+		} else
+			options->hpn_buffer_size = CHAN_TCP_WINDOW_DEFAULT;
+	}
 
 	/* Turn privilege separation on by default */
 	if (use_privsep == -1)
@@ -330,6 +368,10 @@ typedef enum {
 	sZeroKnowledgePasswordAuthentication, sHostCertificate,
 	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
 	sKexAlgorithms, sIPQoS,
+	sHPNDisabled, sHPNBufferSize, sTcpRcvBufPoll,
+#ifdef NONE_CIPHER_ENABLED
+	sNoneEnabled,
+#endif
 	sVersionAddendum,
 	sDeprecated, sUnsupported
 } ServerOpCodes;
@@ -455,6 +497,12 @@ static struct {
 	{ "authorizedprincipalsfile", sAuthorizedPrincipalsFile, SSHCFG_ALL },
 	{ "kexalgorithms", sKexAlgorithms, SSHCFG_GLOBAL },
 	{ "ipqos", sIPQoS, SSHCFG_ALL },
+	{ "hpndisabled", sHPNDisabled, SSHCFG_ALL },
+	{ "hpnbuffersize", sHPNBufferSize, SSHCFG_ALL },
+	{ "tcprcvbufpoll", sTcpRcvBufPoll, SSHCFG_ALL },
+#ifdef NONE_CIPHER_ENABLED
+	{ "noneenabled", sNoneEnabled, SSHCFG_ALL },
+#endif
 	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
 	{ NULL, sBadOption, 0 }
 };
@@ -1408,6 +1456,24 @@ process_server_config_line(ServerOptions *options, char *line,
 			arg = strdelim(&cp);
 		} while (arg != NULL && *arg != '\0');
 		break;
+
+	case sHPNDisabled:
+		intptr = &options->hpn_disabled;
+		goto parse_flag;
+
+	case sHPNBufferSize:
+		intptr = &options->hpn_buffer_size;
+		goto parse_int;
+
+	case sTcpRcvBufPoll:
+		intptr = &options->tcp_rcv_buf_poll;
+		goto parse_flag;
+
+#ifdef	NONE_CIPHER_ENABLED
+	case sNoneEnabled:
+		intptr = &options->none_enabled;
+		goto parse_flag;
+#endif
 
 	case sDeprecated:
 		logit("%s line %d: Deprecated option %s",
