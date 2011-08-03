@@ -4144,12 +4144,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 	nacked = 0;
+	ATH_TXQ_LOCK(txq);
 	for (;;) {
-		ATH_TXQ_LOCK(txq);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ds0 = &bf->bf_desc[0];
@@ -4162,7 +4161,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
@@ -4179,7 +4177,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_depth == 0)
 #endif
 			txq->axq_link = NULL;
-		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
 		/*
@@ -4223,16 +4220,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 #endif
 
 	/* Kick the TXQ scheduler */
-	/*
-	 * XXX for now, (whilst the completion functions aren't doing anything),
-	 * XXX re-lock the hardware txq here.
-	 *
-	 * Later on though, those completion functions may grovel around
-	 * in the per-tid state. That's going to require locking.
-	 * The reference code kept TXQ locked for the whole of this duration
-	 * so the completion functions didn't race.
-	 */
-	ATH_TXQ_LOCK(txq);
 	ath_txq_sched(sc, txq);
 	ATH_TXQ_UNLOCK(txq);
 
