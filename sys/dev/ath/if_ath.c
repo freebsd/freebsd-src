@@ -4205,8 +4205,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * Hand the descriptor to the rate control algorithm.
 			 */
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
+				ATH_NODE_LOCK(an);
 				ath_rate_tx_complete(sc, an, bf);
+				ATH_NODE_UNLOCK(an);
+			}
 		}
 
 		if (bf->bf_comp == NULL)
