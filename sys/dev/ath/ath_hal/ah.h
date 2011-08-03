@@ -751,14 +751,14 @@ typedef enum {
 #define	HAL_DFS_EVENT_EXTEARLY		0x0000004
 #define	HAL_DFS_EVENT_ISDC		0x0000008
 
-struct dfs_event {
+struct hal_dfs_event {
 	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */
 	uint32_t	re_ts;		/* Original 15 bit recv timestamp */
 	uint8_t		re_rssi;	/* rssi of radar event */
 	uint8_t		re_dur;		/* duration of radar pulse */
 	uint32_t	re_flags;	/* Flags (see above) */
 };
-typedef struct dfs_event HAL_DFS_EVENT;
+typedef struct hal_dfs_event HAL_DFS_EVENT;
 
 typedef struct
 {
@@ -769,7 +769,7 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
-}HAL_OPS_CONFIG;
+} HAL_OPS_CONFIG;
 
 /*
  * Hardware Access Layer (HAL) API.
