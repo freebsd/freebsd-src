@@ -432,7 +432,7 @@ process_page(char *mandir, char *src, char *cat, enum Ziptype zipped)
 	}
 	snprintf(tmp_file, sizeof tmp_file, "%s.tmp", cat);
 	snprintf(cmd, sizeof cmd,
-	    "%scat %s | tbl | nroff -T%s -man | col | %s > %s.tmp",
+	    "%scat %s | tbl | nroff -T%s -man | %s > %s.tmp",
 	    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
 	    src, nroff_device,
 	    zipped == BZIP ? BZ2_CMD : zipped == GZIP ? GZ_CMD : "cat",
