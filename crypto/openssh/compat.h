@@ -1,4 +1,5 @@
 /* $OpenBSD: compat.h,v 1.42 2008/09/11 14:22:37 markus Exp $ */
+/* $FReeBSD$ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -58,6 +59,7 @@
 #define SSH_OLD_FORWARD_ADDR	0x01000000
 #define SSH_BUG_RFWD_ADDR	0x02000000
 #define SSH_NEW_OPENSSH		0x04000000
+#define SSH_BUG_LARGEWINDOW	0x08000000
 
 void     enable_compat13(void);
 void     enable_compat20(void);
