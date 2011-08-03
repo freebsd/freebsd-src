@@ -751,12 +751,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_sysctl_stats_attach(sc);
 	ath_sysctl_hal_attach(sc);
 
-	/* Setup software TX queue related bits */
-	STAILQ_INIT(&sc->sc_txnodeq);
-	snprintf(sc->sc_txnodeq_name, sizeof(sc->sc_txnodeq_name),
-	    "%s: txnodeq\n", device_get_nameunit(sc->sc_dev));
-	ATH_TXNODE_LOCK_INIT(sc);
-
 	if (bootverbose)
 		ieee80211_announce(ic);
 	ath_announce(sc);
@@ -808,7 +802,6 @@ ath_detach(struct ath_softc *sc)
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
-	ATH_TXNODE_LOCK_DESTROY(sc);
 	if_free(ifp);
 
 	return 0;
@@ -1951,12 +1944,6 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
-
-	/*
-	 * Since there's no nicer place to put this for now,
-	 * stick the software TXQ punt call here.
-	 */
-	ath_txq_sched(sc);
 }
 
 static int
@@ -3863,6 +3850,7 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	STAILQ_INIT(&txq->axq_q);
+	STAILQ_INIT(&txq->axq_tidq);
 	ATH_TXQ_LOCK_INIT(sc, txq);
 }
 
@@ -4233,6 +4221,21 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	if (txq->axq_depth <= 1)
 		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
+
+	/* Kick the TXQ scheduler */
+	/*
+	 * XXX for now, (whilst the completion functions aren't doing anything),
+	 * XXX re-lock the hardware txq here.
+	 *
+	 * Later on though, those completion functions may grovel around
+	 * in the per-tid state. That's going to require locking.
+	 * The reference code kept TXQ locked for the whole of this duration
+	 * so the completion functions didn't race.
+	 */
+	ATH_TXQ_LOCK(txq);
+	ath_txq_sched(sc, txq);
+	ATH_TXQ_UNLOCK(txq);
+
 	return nacked;
 }
 

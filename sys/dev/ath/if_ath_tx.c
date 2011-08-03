@@ -236,8 +236,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 }
 
 static void
-ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq,
-   struct ath_buf *bf)
+ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
@@ -270,7 +269,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq,
 static void
 ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
-	ATH_TXQ_LOCK(txq);
+	ATH_TXQ_LOCK_ASSERT(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("busy status 0x%x", bf->bf_flags));
 	if (txq->axq_link != NULL) {
@@ -288,7 +287,6 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	ATH_TXQ_UNLOCK(txq);
 }
 
 
@@ -309,7 +307,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	 * the SWBA handler since frames only go out on DTIM and
 	 * to avoid possible races.
 	 */
-	ATH_TXQ_LOCK(txq);
+	ATH_TXQ_LOCK_ASSERT(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("busy status 0x%x", bf->bf_flags));
 	KASSERT(txq->axq_qnum != ATH_TXQ_SWQ,
@@ -391,12 +389,17 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
-	ATH_TXQ_UNLOCK(txq);
 }
 
+/*
+ * Hand off a packet to the hardware (or mcast queue.)
+ * The relevant hardware txq should be locked.
+ */
 static void
 ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	if (txq->axq_qnum == ATH_TXQ_SWQ)
 		ath_tx_handoff_mcast(sc, txq, bf);
 	else
@@ -939,12 +942,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	/* A-MPDU TX */
-	/*
-	 * XXX This doesn't hold the node lock!
-	 * XXX So it's possible that another TX process can change
-	 * XXX the AMPDU status from underneath us. This needs to be
-	 * XXX further investigated!
-	 */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
 	is_ampdu = is_ampdu_tx | is_ampdu_pending;
@@ -989,11 +986,15 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	//m0 = bf->bf_m;
 
 	/* Fill in the details in the descriptor list */
-	ath_tx_chaindesclist(sc, txq, bf);
+	ath_tx_chaindesclist(sc, bf);
 
 #if 1
+	ATH_TXQ_LOCK(txq);
 	/* add to software queue */
 	ath_tx_swq(sc, ni, txq, bf, m0);
+	/* Kick txq */
+	ath_txq_sched(sc, txq);
+	ATH_TXQ_UNLOCK(txq);
 #else
 
 	/*
@@ -1215,7 +1216,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 
 	/* Fill in the details in the descriptor list */
-	ath_tx_chaindesclist(sc, sc->sc_ac2q[pri], bf);
+	ath_tx_chaindesclist(sc, bf);
 
 	/*
 	 * If we're overiding the ADDBA destination, dump directly
@@ -1223,6 +1224,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * frames to that node are.
 	 */
 
+	ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 	if (do_override)
 		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
 	else {
@@ -1230,8 +1232,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf, m0);
 
 		/* Kick txq */
-		ath_txq_sched(sc);
+		ath_txq_sched(sc, sc->sc_ac2q[pri]);
 	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 
 	return 0;
 }
@@ -1393,42 +1396,48 @@ ath_tx_action_frame_override_queue(struct ath_softc *sc,
 /*
  * Mark the current node/TID as ready to TX.
  *
- * This is done to make it easy for the software scheduler to 
+ * This is done to make it easy for the software scheduler to
  * find which nodes have data to send.
  *
- * The node and txnode locks should be held.
+ * The relevant hw txq lock should be held.
  */
 static void
 ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
-	ATH_NODE_LOCK_ASSERT(an);
-	ATH_TXNODE_LOCK_ASSERT(sc);
+	struct ath_tid *atid = &an->an_tid[tid];
+	int ac = TID_TO_WME_AC(tid);
+	struct ath_txq *txq = sc->sc_ac2q[ac];
 
-	if (an->sched)
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	if (atid->sched)
 		return;		/* already scheduled */
 
-	an->sched = 1;
+	atid->sched = 1;
 
-	STAILQ_INSERT_TAIL(&sc->sc_txnodeq, an, an_list);
+	STAILQ_INSERT_TAIL(&txq->axq_tidq, atid, axq_qelem);
 }
 
 /*
  * Mark the current node as no longer needing to be polled for
  * TX packets.
  *
- * The node and txnode locks should be held.
+ * The relevant hw txq lock should be held.
  */
 static void
 ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
-	ATH_NODE_LOCK_ASSERT(an);
-	ATH_TXNODE_LOCK_ASSERT(sc);
+	struct ath_tid *atid = &an->an_tid[tid];
+	int ac = TID_TO_WME_AC(tid);
+	struct ath_txq *txq = sc->sc_ac2q[ac];
 
-	if (an->sched == 0)
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	if (atid->sched == 0)
 		return;
 
-	an->sched = 0;
-	STAILQ_REMOVE(&sc->sc_txnodeq, an, ath_node, an_list);
+	atid->sched = 0;
+	STAILQ_REMOVE(&txq->axq_tidq, atid, ath_tid, axq_qelem);
 }
 
 /*
@@ -1477,6 +1486,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	struct ath_tid *atid;
 	int pri, tid;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = M_WME_GETAC(m0);			/* honor classification */
@@ -1488,22 +1499,10 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_txq = txq;
 
 	/* Queue frame to the tail of the software queue */
-	ATH_TXQ_LOCK(atid);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
-	ATH_TXQ_UNLOCK(atid);
 
-	/*
-	 * ATH_TXNODE must be acquired before ATH_NODE is acquired
-	 * if they're both needed.
-	 */
-	ATH_TXNODE_LOCK(sc);
-	ATH_NODE_LOCK(an);
-	/* Bump queued packet counter */
-	an->an_qdepth++;
-	/* Mark the given node as having packets to dequeue */
+	/* Mark the given tid as having packets to dequeue */
 	ath_tx_node_sched(sc, an, tid);
-	ATH_NODE_UNLOCK(an);
-	ATH_TXNODE_UNLOCK(sc);
 }
 
 /*
@@ -1533,16 +1532,12 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 {
 	int i;
 	struct ath_tid *atid;
-	struct ieee80211_node *ni = &an->an_node;
 
 	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
 		atid = &an->an_tid[i];
 		STAILQ_INIT(&atid->axq_q);
-		snprintf(atid->axq_name, sizeof(atid->axq_name),
-		    "%s_a%d_t%d\n", device_get_nameunit(sc->sc_dev),
-		    ni->ni_associd,
-		    i);
-		mtx_init(&atid->axq_lock, atid->axq_name, NULL, MTX_DEF);
+		atid->tid = i;
+		atid->an = an;
 	}
 }
 
@@ -1570,8 +1565,6 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
  *
  * It can also be called on an active node during an interface
  * reset or state transition.
- *
- * This doesn't update an->an_qdepth!
  */
 static void
 ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
@@ -1579,17 +1572,18 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_buf *bf;
+	int ac = TID_TO_WME_AC(tid);
+	struct ath_txq *txq = sc->sc_ac2q[ac];
+
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* Walk the queue, free frames */
 	for (;;) {
-		ATH_TXQ_LOCK(atid);
 		bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
-		ATH_TXQ_UNLOCK(atid);
 		ath_tx_freebuf(sc, bf, -1);
 	}
 }
@@ -1602,8 +1596,18 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
 
-	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++)
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		int ac = TID_TO_WME_AC(tid);
+		struct ath_txq *txq = sc->sc_ac2q[ac];
+
+		ATH_TXQ_LOCK(txq);
+		/* Remove this tid from the list of active tids */
+		ath_tx_node_unsched(sc, an, tid);
+
+		/* Free packets */
 		ath_tx_tid_free_pkts(sc, an, tid);
+		ATH_TXQ_UNLOCK(txq);
+	}
 
 	/*
 	 * Don't hold the node lock across free_pkts;
@@ -1611,9 +1615,6 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	 * that will acquire the IEEE80211_NODE_LOCK (node table).
 	 * That then causes a lock reversal.
 	 */
-	ATH_NODE_LOCK(an);
-	an->an_qdepth = 0;
-	ATH_NODE_UNLOCK(an);
 }
 
 /*
@@ -1625,35 +1626,16 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 void
 ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	int i;
+	int tid;
 	struct ath_tid *atid;
-	struct ieee80211_node *ni = &an->an_node;
 
-	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
-		atid = &an->an_tid[i];
+	/* Flush all packets currently in the sw queues for this node */
+	ath_tx_node_flush(sc, an);
 
-		/* Free packets in sw queue */
-		/* For now, just print a loud warning if it occurs */
-		ATH_TXQ_LOCK(atid);
-		if (! STAILQ_EMPTY(&atid->axq_q))
-			device_printf(sc->sc_dev, "%s: AID %d TID %d queue not "
-			    "empty on queue destroy!\n",
-			    __func__, ni->ni_associd, i);
-		ATH_TXQ_UNLOCK(atid);
-		ath_tx_tid_free_pkts(sc, an, i);
-
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
 		/* Mark hw-queued packets as having no parent now */
-		ath_tx_tid_txq_unmark(sc, an, i);
-
-		/* Remove any pending hardware TXQ scheduling */
-		ATH_TXNODE_LOCK(sc);
-		ATH_NODE_LOCK(an);
-		ath_tx_node_unsched(sc, an, i);
-		ATH_NODE_UNLOCK(an);
-		ATH_TXNODE_UNLOCK(sc);
-
-		/* Free mutex */
-		mtx_destroy(&atid->axq_lock);
+		ath_tx_tid_txq_unmark(sc, an, tid);
 	}
 }
 
@@ -1695,10 +1677,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	for (;;) {
-		ATH_TXQ_LOCK(atid);
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 
@@ -1712,14 +1692,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		 * XXX and progress can be made.
 		 */
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
-		ATH_TXQ_UNLOCK(atid);
-
-		/* Remove from queue */
-		ATH_NODE_LOCK(an);
-		an->an_qdepth--;
-		ATH_NODE_UNLOCK(an);
 
 		txq = bf->bf_state.bfs_txq;
+		ATH_TXQ_LOCK_ASSERT(txq);
+
 		/* Sanity check! */
 		if (tid != bf->bf_state.bfs_tid) {
 			device_printf(sc->sc_dev, "%s: bfs_tid %d !="
@@ -1735,8 +1711,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	}
 }
 
-
-
 /*
  * Schedule some packets from the given node/TID to the hardware.
  */
@@ -1748,21 +1722,14 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	for (;;) {
-		ATH_TXQ_LOCK(atid);
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
-		ATH_TXQ_UNLOCK(atid);
-
-		/* Remove from queue */
-		ATH_NODE_LOCK(an);
-		an->an_qdepth--;
-		ATH_NODE_UNLOCK(an);
 
 		txq = bf->bf_state.bfs_txq;
+		ATH_TXQ_LOCK_ASSERT(txq);
 		/* Sanity check! */
 		if (tid != bf->bf_state.bfs_tid) {
 			device_printf(sc->sc_dev, "%s: bfs_tid %d !="
@@ -1781,6 +1748,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 void
 ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 {
+#if 0
 	struct ath_tid *atid;
 	int tid;
 	int isempty;
@@ -1792,12 +1760,9 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 	 */
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];
-		ATH_NODE_LOCK(an);
 		if (ath_tx_ampdu_pending(sc, an, tid)) {
-			ATH_NODE_UNLOCK(an);
 			continue;
 		}
-		ATH_NODE_UNLOCK(an);
 		if (ath_tx_ampdu_running(sc, an, tid))
 			ath_tx_tid_hw_queue_aggr(sc, an, tid);
 		else
@@ -1820,35 +1785,44 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 		}
 		ATH_TXQ_UNLOCK(atid);
 	}
-}
-
-#if 0
-static int
-ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
-{
-	ATH_NODE_LOCK_ASSERT(an);
-	return an->an_qdepth;
-}
 #endif
+}
 
 /*
- * Handle scheduling some packets from whichever nodes have
- * signaled they're (potentially) ready.
+ * Schedule some packets to the given hardware queue.
+ *
+ * This function walks the list of TIDs (ie, ath_node TIDs
+ * with queued traffic) and attempts to schedule traffic
+ * from them.
+ *
+ * This must be called with the HW TXQ lock held.
  */
 void
-ath_txq_sched(struct ath_softc *sc)
+ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_node *an, *next;
+	ATH_TXQ_LOCK_ASSERT(txq);
+	struct ath_tid *atid, *next;
 
-	ATH_TXNODE_LOCK(sc);
-	/* Iterate over the list of active nodes, queuing packets */
-	STAILQ_FOREACH_SAFE(an, &sc->sc_txnodeq, an_list, next) {
-		/* Try dequeueing packets from the current node */
-		ath_tx_hw_queue(sc, an);
+	/*
+	 * For now, let's not worry about QoS, fair-scheduling
+	 * or the like. That's a later problem. Just throw
+	 * packets at the hardware.
+	 */
+	STAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
+		if (ath_tx_ampdu_pending(sc, atid->an, atid->tid)) {
+			/* XXX TODO should remove it from the list */
+			continue;
+		}
+		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
+			ath_tx_tid_hw_queue_aggr(sc, atid->an, atid->tid);
+		else
+			ath_tx_tid_hw_queue_norm(sc, atid->an, atid->tid);
+
+		/* Empty? Remove */
+		if (atid->axq_depth == 0)
+			ath_tx_node_unsched(sc, atid->an, atid->tid);
 	}
-	ATH_TXNODE_UNLOCK(sc);
 }
-
 
 /*
  * TX addba handling
@@ -1875,15 +1849,11 @@ ath_tx_get_tx_tid(struct ath_node *an, int tid)
 
 /*
  * Is AMPDU-TX running?
- *
- * The ATH_NODE lock must be held.
  */
 static int
 ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
-
-//	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
@@ -1894,15 +1864,11 @@ ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 
 /*
  * Is AMPDU-TX negotiation pending?
- *
- * The ATH_NODE lock must be held.
  */
 static int
 ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
-
-//	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
@@ -1914,8 +1880,6 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 
 /*
  * Is AMPDU-TX pending for the given TID?
- *
- * The ATH_NODE lock must be held.
  */
 
 
@@ -1949,6 +1913,11 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+
+	/*
+	 * XXX todo: resume the ath_node/TID now, rather than
+	 * XXX waiting for the next packet to trigger a TX.
+	 */
 	return sc->sc_addba_response(ni, tap, dialogtoken, code, batimeout);
 }
 

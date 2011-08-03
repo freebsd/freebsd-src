@@ -93,8 +93,15 @@ struct ath_buf;
 struct ath_tid {
 	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers        */
 	u_int			axq_depth;	/* SW queue depth */
-	struct mtx		axq_lock;	/* lock on queue, tx_buf */
-	char			axq_name[24];	/* e.g. "wlan0_a1_t5" */
+	struct ath_node		*an;		/* pointer to parent */
+	int			tid;		/* tid */
+
+	/*
+	 * Entry on the ath_txq; when there's traffic
+	 * to send
+	 */
+	STAILQ_ENTRY(ath_tid)	axq_qelem;
+	int			sched;
 
 	/*
 	 * The following implements a ring representing
@@ -115,13 +122,8 @@ struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
-	STAILQ_ENTRY(ath_node)	an_list;	/* Per hw-txq entry, added if there
-						 * is traffic in this queue to send */
-	int		sched;			/* Whether this node has been
-						 * added to the txq axq_nodeq */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
-	u_int		an_qdepth;	/* Current queue depth of all TIDs */
 	char		an_name[32];	/* eg "wlan0_a1" */
 	struct mtx	an_mtx;		/* protecting the ath_node state */
 	/* variable-length rate control state follows */
@@ -219,6 +221,9 @@ struct ath_txq {
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
+
+	/* Per-TID traffic queue for software -> hardware TX */
+	STAILQ_HEAD(,ath_tid)	axq_tidq;
 };
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
@@ -425,11 +430,6 @@ struct ath_softc {
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
-	/* Software TX queue related state */
-	struct mtx		sc_txnodeq_mtx;	/* mutex protecting the below */
-	STAILQ_HEAD(, ath_node)	sc_txnodeq;	/* Nodes which have traffic to send */
-	char			sc_txnodeq_name[16];	/* mutex name */
-
 	/* TX AMPDU handling */
 	int			(*sc_addba_request)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int, int, int);
@@ -446,14 +446,6 @@ struct ath_softc {
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
-
-#define	ATH_TXNODE_LOCK_INIT(_sc) \
-	mtx_init(&(_sc)->sc_txnodeq_mtx, (sc)->sc_txnodeq_name, \
-	NULL, MTX_DEF | MTX_RECURSE)
-#define	ATH_TXNODE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txnodeq_mtx)
-#define	ATH_TXNODE_LOCK(_sc)		mtx_lock(&(_sc)->sc_txnodeq_mtx)
-#define	ATH_TXNODE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txnodeq_mtx)
-#define	ATH_TXNODE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_txnodeq_mtx, MA_OWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 

@@ -52,7 +52,7 @@ extern void ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 extern void ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
     int tid);
 extern void ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an);
-extern void ath_txq_sched(struct ath_softc *sc);
+extern void ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq);
 
 /* TX addba handling */
 extern	int ath_addba_request(struct ieee80211_node *ni,
