@@ -1402,7 +1402,7 @@ ath_tx_action_frame_override_queue(struct ath_softc *sc,
  * The relevant hw txq lock should be held.
  */
 static void
-ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	int ac = TID_TO_WME_AC(tid);
@@ -1425,7 +1425,7 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
  * The relevant hw txq lock should be held.
  */
 static void
-ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	int ac = TID_TO_WME_AC(tid);
@@ -1502,7 +1502,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 
 	/* Mark the given tid as having packets to dequeue */
-	ath_tx_node_sched(sc, an, tid);
+	ath_tx_tid_sched(sc, an, tid);
 }
 
 /*
@@ -1569,7 +1569,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	if (tid->axq_depth == 0)
 		return;
 
-	ath_tx_node_sched(sc, tid->an, tid->tid);
+	ath_tx_tid_sched(sc, tid->an, tid->tid);
 	ath_txq_sched(sc, txq);
 }
 
@@ -1604,10 +1604,6 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_buf *bf;
-	int ac = TID_TO_WME_AC(tid);
-	struct ath_txq *txq = sc->sc_ac2q[ac];
-
-	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* Walk the queue, free frames */
 	for (;;) {
@@ -1634,11 +1630,11 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 
 		ATH_TXQ_LOCK(txq);
 		/* Remove this tid from the list of active tids */
-		ath_tx_node_unsched(sc, an, tid);
+		ath_tx_tid_unsched(sc, an, tid);
+		ATH_TXQ_UNLOCK(txq);
 
 		/* Free packets */
 		ath_tx_tid_free_pkts(sc, an, tid);
-		ATH_TXQ_UNLOCK(txq);
 	}
 
 	/*
@@ -1800,7 +1796,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * once the addba completes or times out.
 		 */
 		if (atid->paused) {
-			ath_tx_node_unsched(sc, atid->an, atid->tid);
+			ath_tx_tid_unsched(sc, atid->an, atid->tid);
 			continue;
 		}
 		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
@@ -1810,7 +1806,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 
 		/* Empty? Remove */
 		if (atid->axq_depth == 0)
-			ath_tx_node_unsched(sc, atid->an, atid->tid);
+			ath_tx_tid_unsched(sc, atid->an, atid->tid);
 	}
 }
 
