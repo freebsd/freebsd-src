@@ -1542,6 +1542,38 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 }
 
 /*
+ * Pause the current TID. This stops packets from being transmitted
+ * on it.
+ */
+static void
+ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
+{
+	int ac = TID_TO_WME_AC(tid->tid);
+	struct ath_txq *txq = sc->sc_ac2q[ac];
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+	tid->paused++;
+}
+
+static void
+ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
+{
+	int ac = TID_TO_WME_AC(tid->tid);
+	struct ath_txq *txq = sc->sc_ac2q[ac];
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+	tid->paused--;
+
+	if (tid->paused)
+		return;
+	if (tid->axq_depth == 0)
+		return;
+
+	ath_tx_node_sched(sc, tid->an, tid->tid);
+	ath_txq_sched(sc, txq);
+}
+
+/*
  * Mark packets currently in the hardware TXQ from this TID
  * as now having no parent software TXQ.
  *
@@ -1763,8 +1795,12 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * packets at the hardware.
 	 */
 	STAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
-		if (ath_tx_ampdu_pending(sc, atid->an, atid->tid)) {
-			/* XXX TODO should remove it from the list */
+		/*
+		 * Suspend paused queues here; they'll be resumed
+		 * once the addba completes or times out.
+		 */
+		if (atid->paused) {
+			ath_tx_node_unsched(sc, atid->an, atid->tid);
 			continue;
 		}
 		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
@@ -1850,6 +1886,14 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	int tid = WME_AC_TO_TID(tap->txa_ac);
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	ATH_TXQ_LOCK(sc->sc_ac2q[tap->txa_ac]);
+	ath_tx_tid_pause(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tap->txa_ac]);
+
 	return sc->sc_addba_request(ni, tap, dialogtoken, baparamset,
 	    batimeout);
 }
@@ -1867,11 +1911,13 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	int tid = WME_AC_TO_TID(tap->txa_ac);
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_tid *atid = &an->an_tid[tid];
 
-	/*
-	 * XXX todo: resume the ath_node/TID now, rather than
-	 * XXX waiting for the next packet to trigger a TX.
-	 */
+	ATH_TXQ_LOCK(sc->sc_ac2q[tap->txa_ac]);
+	ath_tx_tid_resume(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tap->txa_ac]);
 	return sc->sc_addba_response(ni, tap, dialogtoken, code, batimeout);
 }
 
@@ -1887,5 +1933,11 @@ void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+#if 0
+	int tid = WME_AC_TO_TID(tap->txa_ac);
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_tid *atid = an->an_tid[tid];
+#endif
+
 	sc->sc_addba_stop(ni, tap);
 }

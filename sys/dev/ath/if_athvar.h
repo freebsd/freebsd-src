@@ -102,6 +102,7 @@ struct ath_tid {
 	 */
 	STAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
+	int			paused;	/* >0 if the TID has been paused */
 
 	/*
 	 * The following implements a ring representing
