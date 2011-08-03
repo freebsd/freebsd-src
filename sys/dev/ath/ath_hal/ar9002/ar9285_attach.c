@@ -29,8 +29,6 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#include "ar9001/ar9130_eeprom.h"
-
 #include "ar9002/ar9285.ini"
 #include "ar9002/ar9285v2.ini"
 #include "ar9002/ar9280v2.ini"		/* XXX ini for tx/rx gain */
@@ -155,13 +153,7 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar9285WriteIni;
 	AH5416(ah)->ah_rx_chainmask	= AR9285_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9285_DEFAULT_TXCHAINMASK;
-
-	if (eepromdata) {
-		AH_PRIVATE((ah))->ah_eepromRead = ar9130EepromRead;
-		AH_PRIVATE((ah))->ah_eepromWrite = NULL;
-		ah->ah_eepromdata = eepromdata;
-	}
-
+	
 	ahp->ah_maxTxTrigLev		= MAX_TX_FIFO_THRESHOLD >> 1;
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
