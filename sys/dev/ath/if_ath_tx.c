@@ -1743,52 +1743,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 }
 
 /*
- * Attempt to schedule packets from the given node to the hardware.
- */
-void
-ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
-{
-#if 0
-	struct ath_tid *atid;
-	int tid;
-	int isempty;
-
-	/*
-	 * For now, just queue from all TIDs in order.
-	 * This is very likely absolutely wrong from a QoS
-	 * perspective but it'll do for now.
-	 */
-	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
-		atid = &an->an_tid[tid];
-		if (ath_tx_ampdu_pending(sc, an, tid)) {
-			continue;
-		}
-		if (ath_tx_ampdu_running(sc, an, tid))
-			ath_tx_tid_hw_queue_aggr(sc, an, tid);
-		else
-			ath_tx_tid_hw_queue_norm(sc, an, tid);
-
-		/*
-		 * Check if anything is left in the queue;
-		 * if not, unschedule it.
-		 * Checking this only requires the TXQ lock.
-		 * Unscheduling it requires all the locks.
-		 */
-		ATH_TXQ_LOCK(atid);
-		isempty = (atid->axq_depth == 0);
-		if (isempty) {
-			ATH_TXNODE_LOCK(sc);
-			ATH_NODE_LOCK(an);
-			ath_tx_node_unsched(sc, an, tid);
-			ATH_NODE_UNLOCK(an);
-			ATH_TXNODE_UNLOCK(sc);
-		}
-		ATH_TXQ_UNLOCK(atid);
-	}
-#endif
-}
-
-/*
  * Schedule some packets to the given hardware queue.
  *
  * This function walks the list of TIDs (ie, ath_node TIDs
