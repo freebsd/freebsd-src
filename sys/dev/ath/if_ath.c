@@ -4144,7 +4144,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 	nacked = 0;
-	ATH_TXQ_LOCK(txq);
 	for (;;) {
 		ATH_TXQ_LOCK(txq);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
