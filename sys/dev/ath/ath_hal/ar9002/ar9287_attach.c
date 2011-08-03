@@ -30,6 +30,8 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
+#include "ar9001/ar9130_eeprom.h"
+
 #include "ar9002/ar9287_cal.h"
 #include "ar9002/ar9287_reset.h"
 #include "ar9002/ar9287_olc.h"
@@ -167,6 +169,12 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 
 	AH5416(ah)->ah_rx_chainmask	= AR9287_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9287_DEFAULT_TXCHAINMASK;
+
+	if (eepromdata) {
+		AH_PRIVATE((ah))->ah_eepromRead = ar9130EepromRead;
+		AH_PRIVATE((ah))->ah_eepromWrite = NULL;
+		ah->ah_eepromdata = eepromdata;
+	}
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */
