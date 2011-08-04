@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008-2011 Robert N. M. Watson
+ * Copyright (c) 2011 Jonathan Anderson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,11 +36,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/capability.h>
+#include <sys/errno.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
 #include <err.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -50,18 +51,17 @@ __FBSDID("$FreeBSD$");
  * Certain sysctls are permitted in capability mode, but most are not.  Test
  * for the ones that should be, and try one or two that shouldn't.
  */
-void
+int
 test_sysctl(void)
 {
-	int error, i, oid[2];
+	int i, oid[2];
+	int success = PASSED;
 	size_t len;
 
 	oid[0] = CTL_KERN;
 	oid[1] = KERN_OSRELDATE;
 	len = sizeof(i);
-	error = sysctl(oid, 2, &i, &len, NULL, 0);
-	if (error)
-		warnx("capmode and kern.osreldate failed error %d", errno);
+	CHECK(sysctl(oid, 2, &i, &len, NULL, 0) == 0);
 
-	exit(0);
+	return (success);
 }
