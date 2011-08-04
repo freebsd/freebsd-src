@@ -21,11 +21,14 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libarchive/libarchive_fe
 # statically linked, cannot use -lcrypto, and are size sensitive.
 CFLAGS+= -DSMALLER
 .endif
-DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD} ${LIBLZMA} ${LIBBSDXML}
-LDADD=	-larchive -lz -lbz2 -lmd -llzma -lbsdxml
+DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBLZMA} ${LIBBSDXML}
+LDADD=	-larchive -lz -lbz2 -llzma -lbsdxml
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
+.else
+DPADD+= ${LIBMD}
+LDADD+= -lmd
 .endif
 
 SYMLINKS=bsdcpio ${BINDIR}/cpio
