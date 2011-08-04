@@ -349,11 +349,7 @@ EXTRAS+= cdrom.1 cdrom.2 cdrom.3
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
-.if ${TARGET} == "pc98"
-BOOTABLE="-G"
-.else
 BOOTABLE="-b"
-.endif
 .endif
 
 .if !defined(NODOC)
