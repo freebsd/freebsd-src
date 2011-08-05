@@ -84,11 +84,12 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp.ee.freebsd.org 	"Estonia"\
 	ftp://ftp.fi.freebsd.org 	"Finland"\
 	ftp://ftp.fr.freebsd.org 	"France"\
-	ftp://ftp2.fr.freebsd.org 	"France #2"\
+	ftp://ftp2.fr.freebsd.org 	"IPv6 France #2"\
 	ftp://ftp3.fr.freebsd.org 	"France #3"\
+	ftp://ftp4.fr.freebsd.org 	"France #4"\
 	ftp://ftp5.fr.freebsd.org 	"France #5"\
 	ftp://ftp6.fr.freebsd.org 	"France #6"\
-	ftp://ftp8.fr.freebsd.org 	"France #8"\
+	ftp://ftp8.fr.freebsd.org 	"IPv6 France #8"\
 	ftp://ftp.de.freebsd.org 	"Germany"\
 	ftp://ftp2.de.freebsd.org 	"Germany #2"\
 	ftp://ftp3.de.freebsd.org 	"Germany #3"\
