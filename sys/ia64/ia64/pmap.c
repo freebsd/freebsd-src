@@ -1235,7 +1235,7 @@ pmap_kextract(vm_offset_t va)
 	}
 
 	/* PBVM page table. */
-	if (va >= IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz);
+	if (va >= IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz)
 		return (0);
 	if (va >= IA64_PBVM_PGTBL)
 		return (va - IA64_PBVM_PGTBL) + bootinfo->bi_pbvm_pgtbl;
