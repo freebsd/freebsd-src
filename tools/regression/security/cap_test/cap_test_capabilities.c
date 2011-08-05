@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "cap_test.h"
@@ -102,8 +103,12 @@ try_file_ops(int fd, cap_rights_t rights)
 	off_t off;
 	void *p;
 	char ch;
-	int ret;
+	int ret, is_nfs;
 	int success = PASSED;
+
+	REQUIRE(fstatfs(fd, &sf));
+	is_nfs = (strncmp("nfs", sf.f_fstypename, sizeof(sf.f_fstypename))
+	    == 0);
 
 	REQUIRE(fd_cap = cap_new(fd, rights));
 	REQUIRE(fd_capcap = cap_new(fd_cap, rights));
@@ -126,8 +131,12 @@ try_file_ops(int fd, cap_rights_t rights)
 	off = lseek(fd_cap, 0, SEEK_SET);
 	CHECK_RESULT(lseek, CAP_SEEK, off >= 0);
 
+	/*
+	 * Note: this is not expected to work over NFS.
+	 */
 	ret = fchflags(fd_cap, UF_NODUMP);
-	CHECK_RESULT(fchflags, CAP_FCHFLAGS, ret == 0);
+	CHECK_RESULT(fchflags, CAP_FCHFLAGS,
+	    (ret == 0) || (is_nfs && (errno == EOPNOTSUPP)));
 
 	ret = fstat(fd_cap, &sb);
 	CHECK_RESULT(fstat, CAP_FSTAT, ret == 0);
