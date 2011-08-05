@@ -4139,17 +4139,16 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	int nacked;
 	HAL_STATUS status;
 
+	ATH_TXQ_LOCK(txq);
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
 		__func__, txq->axq_qnum,
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 	nacked = 0;
 	for (;;) {
-		ATH_TXQ_LOCK(txq);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ds0 = &bf->bf_desc[0];
@@ -4162,7 +4161,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
@@ -4179,7 +4177,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_depth == 0)
 #endif
 			txq->axq_link = NULL;
-		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
 		/*
@@ -4226,14 +4223,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 #endif
 
 	/* Kick the TXQ scheduler */
-	/*
-	 * We can't hold the TXQ lock across the completion function;
-	 * the IEEE80211_NODE_LOCK is likely going to be held there
-	 * during buffer/node free. It's up to the completion
-	 * function to grab the TXQ lock before updating TID state
-	 * (eg sliding the BAW along.)
-	 */
-	ATH_TXQ_LOCK(txq);
 	ath_txq_sched(sc, txq);
 	ATH_TXQ_UNLOCK(txq);
 
