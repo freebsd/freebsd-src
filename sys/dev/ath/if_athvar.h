@@ -113,9 +113,12 @@ struct ath_tid {
 	 * shifted the head/tail of the array are also
 	 * appropriately shifted.
 	 */
-	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
-	int			baw_head;	/* where the baw head is in the array */
-	int			baw_tail;	/* where the BAW tail is in the array */
+	/* active tx buffers, beginning at current BAW */
+	struct ath_buf		*tx_buf[ATH_TID_MAX_BUFS];
+	/* where the baw head is in the array */
+	int			baw_head;
+	/* where the BAW tail is in the array */
+	int			baw_tail;
 };
 
 /* driver-specific node state */
