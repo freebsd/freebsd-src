@@ -1217,43 +1217,54 @@ pmap_kextract(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	uint64_t *pbvm_pgtbl;
+	vm_paddr_t pa;
 	u_int idx;
 
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
 	/* Regions 6 and 7 are direct mapped. */
-	if (va >= IA64_RR_BASE(6))
-		return (IA64_RR_MASK(va));
-
-	/* Bail out if the virtual address is beyond our limits. */
-	if (va >= kernel_vm_end)
-		return (0);
-
-	if (va >= VM_MIN_KERNEL_ADDRESS) {
-		pte = pmap_find_kpte(va);
-		return (pmap_present(pte) ? pmap_ppn(pte)|(va&PAGE_MASK) : 0);
+	if (va >= IA64_RR_BASE(6)) {
+		pa = IA64_RR_MASK(va);
+		goto out;
 	}
 
-	/* PBVM page table. */
-	if (va >= IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz)
-		return (0);
-	if (va >= IA64_PBVM_PGTBL)
-		return (va - IA64_PBVM_PGTBL) + bootinfo->bi_pbvm_pgtbl;
+	/* Region 5 is our KVA. Bail out if the VA is beyond our limits. */
+	if (va >= kernel_vm_end)
+		goto err_out;
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
+		pte = pmap_find_kpte(va);
+		pa = pmap_present(pte) ? pmap_ppn(pte) | (va & PAGE_MASK) : 0;
+		goto out;
+	}
 
-	/* PBVM. */
+	/* The PBVM page table. */
+	if (va >= IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz)
+		goto err_out;
+	if (va >= IA64_PBVM_PGTBL) {
+		pa = (va - IA64_PBVM_PGTBL) + bootinfo->bi_pbvm_pgtbl;
+		goto out;
+	}
+
+	/* The PBVM itself. */
 	if (va >= IA64_PBVM_BASE) {
 		pbvm_pgtbl = (void *)IA64_PBVM_PGTBL;
 		idx = (va - IA64_PBVM_BASE) >> IA64_PBVM_PAGE_SHIFT;
 		if (idx >= (bootinfo->bi_pbvm_pgtblsz >> 3))
-			return (0);
+			goto err_out;
 		if ((pbvm_pgtbl[idx] & PTE_PRESENT) == 0)
-			return (0);
-		return ((pbvm_pgtbl[idx] & PTE_PPN_MASK) +
-		    (va & IA64_PBVM_PAGE_MASK));
+			goto err_out;
+		pa = (pbvm_pgtbl[idx] & PTE_PPN_MASK) +
+		    (va & IA64_PBVM_PAGE_MASK);
+		goto out;
 	}
 
-	printf("XXX: %s: va=%#lx\n", __func__, va);
-	return (0);
+ err_out:
+	printf("XXX: %s: va=%#lx is invalid\n", __func__, va);
+	pa = 0;
+	/* FALLTHROUGH */
+
+ out:
+	return (pa);
 }
 
 /*
