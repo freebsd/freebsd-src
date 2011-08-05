@@ -50,12 +50,12 @@ LEAF(octeon_ap_wait)
 	jal	platform_processor_id
 	nop
 
-1:	ll	t0, octeon_ap_boot
+1:	lld	t0, octeon_ap_boot
 	bne	v0, t0, 1b
 	nop
 
 	move	t0, zero
-	sc	t0, octeon_ap_boot
+	scd	t0, octeon_ap_boot
 
 	beqz	t0, 1b
 	nop
