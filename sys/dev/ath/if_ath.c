@@ -647,14 +647,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
 			;
 
-		sc->sc_addba_request = ic->ic_addba_request;
-		sc->sc_addba_response = ic->ic_addba_response;
-		sc->sc_addba_stop = ic->ic_addba_stop;
-
-		ic->ic_addba_request = ath_addba_request;
-		ic->ic_addba_response = ath_addba_response;
-		ic->ic_addba_stop = ath_addba_stop;
-
 		/*
 		 * Enable short-GI for HT20 only if the hardware
 		 * advertises support.
@@ -736,6 +728,15 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
+
+	/* 802.11n specific - but just override anyway */
+	sc->sc_addba_request = ic->ic_addba_request;
+	sc->sc_addba_response = ic->ic_addba_response;
+	sc->sc_addba_stop = ic->ic_addba_stop;
+
+	ic->ic_addba_request = ath_addba_request;
+	ic->ic_addba_response = ath_addba_response;
+	ic->ic_addba_stop = ath_addba_stop;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
