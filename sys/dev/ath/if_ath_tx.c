@@ -1813,6 +1813,28 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 
 /*
  * Flush all software queued packets for the given node.
+ *
+ * XXX there's a recursive lock here which currently panics
+ * XXX the kernel.
+ *
+ * bringing the interface down/up causes a flush on interface
+ * _up_; the stack looks like this:
+ *
+ * <panic>
+ * ath_tx_node_flush - locks each hardware txq
+ * ieee80211_free_node
+ * ath_tx_freebuf
+ * ath_tx_default_comp
+ * ath_tx_processq - locks the hardware txq
+ *
+ * To fix? Not (yet) sure. Perhaps unsched the TID in freebuf
+ * if there's no further buffers for it; then only flush
+ * nodes w/ a lock below if the qlen is 0. But can the tid
+ * txq length be checked without having the txq locked?
+ * It'll be locked by someone, but if this node is being freed,
+ * in theory all references to the node should be released
+ * and thus there shouldn't be any packets in the TIDs for that
+ * node. Hm.
  */
 void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
