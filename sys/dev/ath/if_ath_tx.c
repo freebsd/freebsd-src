@@ -1507,8 +1507,10 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_isretried)
 		return;
 
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, seqno %d; window %d:%d\n",
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW, "%s: tid=%d, seqno %d; window %d:%d\n",
 		    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 		    tap->txa_start, tap->txa_wnd);
 
@@ -1516,16 +1518,13 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	 * ni->ni_txseqs[] is the currently allocated seqno.
 	 * the txa state contains the current baw start.
 	 */
-#if 0
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tap->txa_start: %d, seqno: %d\n",
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW, "%s: tap->txa_start: %d, seqno: %d\n",
 	    __func__, tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
-#endif
 	index  = ATH_BA_INDEX(tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
-#if 0
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
 	    __func__, index, cindex, tid->baw_head, tid->baw_tail);
-#endif
 
 #if 0
 	assert(tid->tx_buf[cindex] == NULL);
@@ -1555,16 +1554,18 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
 
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, baw=%d:%d, seqno=%d\n",
 	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno);
 
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
-#if 0
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
 	    __func__, index, cindex, tid->baw_head, tid->baw_tail);
-#endif
 
 	tid->tx_buf[cindex] = NULL;
 
@@ -1927,7 +1928,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		/* XXX check if seqno is outside of BAW, if so don't queue it */
 		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 		    SEQNO(bf->bf_state.bfs_seqno))) {
-			DPRINTF(sc, ATH_DEBUG_SW_TX,
+			DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 			    "%s: seq %d outside of %d/%d; waiting\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno),
 			    tap->txa_start, tap->txa_wnd);

@@ -58,6 +58,7 @@ enum {
 	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
 	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
 	ATH_DEBUG_SW_TX		= 0x04000000,
+	ATH_DEBUG_SW_TX_BAW	= 0x08000000,
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
