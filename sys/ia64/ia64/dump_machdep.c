@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <machine/bootinfo.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -191,7 +192,8 @@ foreach_chunk(callback_t cb, void *arg)
 	seqnr = 0;
 	mdp = efi_md_first();
 	while (mdp != NULL) {
-		if (mdp->md_type == EFI_MD_TYPE_FREE) {
+		if (mdp->md_type == EFI_MD_TYPE_FREE ||
+		    mdp->md_type == EFI_MD_TYPE_DATA) {
 			error = (*cb)(mdp, seqnr++, arg);
 			if (error)
 				return (-error);
@@ -225,6 +227,7 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
 	ehdr.e_machine = EM_IA_64;
+	ehdr.e_entry = ia64_tpa((uintptr_t)bootinfo);
 	ehdr.e_phoff = sizeof(ehdr);
 	ehdr.e_flags = EF_IA_64_ABSOLUTE;		/* XXX misuse? */
 	ehdr.e_ehsize = sizeof(ehdr);
