@@ -168,6 +168,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object1 = vm_object_allocate(OBJT_DEVICE, pindex);
 		object1->flags |= OBJ_COLORED;
 		object1->pg_color = atop(paddr) - OFF_TO_IDX(off - PAGE_SIZE);
+		TAILQ_INIT(&object1->un_pager.devp.devp_pglist);
 		mtx_lock(&dev_pager_mtx);
 		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 		if (object != NULL) {
@@ -180,7 +181,6 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
-			TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
 		}
@@ -190,7 +190,14 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	}
 	mtx_unlock(&dev_pager_mtx);
 	dev_relthread(dev, ref);
-	vm_object_deallocate(object1);
+	if (object1 != NULL) {
+		object1->handle = object1;
+		mtx_lock(&dev_pager_mtx);
+		TAILQ_INSERT_TAIL(&dev_pager_object_list, object1,
+		    pager_object_list);
+		mtx_unlock(&dev_pager_mtx);
+		vm_object_deallocate(object1);
+	}
 	return (object);
 }
 
