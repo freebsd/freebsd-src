@@ -256,10 +256,6 @@ distribution:
 	    ${DESTDIR}/boot/device.hints
 .endif
 .endif
-.if ${MK_NIS} == "no"
-	sed -i "" -e '/_compat:/d' -e 's/compat/files/' \
-		${DESTDIR}/etc/nsswitch.conf
-.endif
 
 distrib-dirs:
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
