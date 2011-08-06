@@ -139,6 +139,56 @@ ath_tx_is_11n(struct ath_softc *sc)
 	return (sc->sc_ah->ah_magic == 0x20065416);
 }
 
+/*
+ * Obtain the current TID from the given frame.
+ *
+ * Non-QoS frames need to go into TID 16 (IEEE80211_NONQOS_TID.)
+ * This has implications for which AC/priority the packet is placed
+ * in.
+ */
+static int
+ath_tx_gettid(struct ath_softc *sc, const struct mbuf *m0)
+{
+	const struct ieee80211_frame *wh;
+	int pri = M_WME_GETAC(m0);
+
+	wh = mtod(m0, const struct ieee80211_frame *);
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		return IEEE80211_NONQOS_TID;
+	else
+		return WME_AC_TO_TID(pri);
+}
+
+/*
+ * Determine what the correct AC queue for the given frame
+ * should be.
+ *
+ * This code assumes that the TIDs map consistently to
+ * the underlying hardware (or software) ath_txq.
+ * Since the sender may try to set an AC which is
+ * arbitrary, non-QoS TIDs may end up being put on
+ * completely different ACs. There's no way to put a
+ * TID into multiple ath_txq's for scheduling, so
+ * for now we override the AC/TXQ selection and set
+ * non-QOS TID frames into the BE queue.
+ *
+ * This may be completely incorrect - specifically,
+ * some management frames may end up out of order
+ * compared to the QoS traffic they're controlling.
+ * I'll look into this later.
+ */
+static int
+ath_tx_getac(struct ath_softc *sc, const struct mbuf *m0)
+{
+	const struct ieee80211_frame *wh;
+	int pri = M_WME_GETAC(m0);
+	wh = mtod(m0, const struct ieee80211_frame *);
+	if (IEEE80211_QOS_HAS_SEQ(wh))
+		return pri;
+
+	return WME_AC_BE;
+}
+
 void
 ath_txfrag_cleanup(struct ath_softc *sc,
 	ath_bufhead *frags, struct ieee80211_node *ni)
@@ -288,7 +338,8 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 static void
-ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
@@ -955,9 +1006,23 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
 	ieee80211_seq seqno;
 
-	/* Determine the target hardware queue! */
-	pri = M_WME_GETAC(m0);			/* honor classification */
-	tid = WME_AC_TO_TID(pri);
+	/*
+	 * Determine the target hardware queue.
+	 *
+	 * For multicast frames, the txq gets overridden to be the
+	 * software TXQ and it's done via direct-dispatch.
+	 *
+	 * For any other frame, we do a TID/QoS lookup inside the frame
+	 * to see what the TID should be. If it's a non-QoS frame, the
+	 * AC and TID are overridden. The TID/TXQ code assumes the
+	 * TID is on a predictable hardware TXQ, so we don't support
+	 * having a node TID queued to multiple hardware TXQs.
+	 * This may change in the future but would require some locking
+	 * fudgery.
+	 */
+	pri = ath_tx_getac(sc, m0);
+	tid = ath_tx_gettid(sc, m0);
+
 	txq = sc->sc_ac2q[pri];
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
@@ -1008,12 +1073,21 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	ath_tx_chaindesclist(sc, bf);
 
 #if 1
-	ATH_TXQ_LOCK(txq);
-	/* add to software queue */
-	ath_tx_swq(sc, ni, txq, bf, m0);
-	/* Kick txq */
-	ath_txq_sched(sc, txq);
-	ATH_TXQ_UNLOCK(txq);
+	/*
+	 * If it's a multicast frame, do a direct-dispatch to the
+	 * destination hardware queue. Don't bother software
+	 * queuing it.
+	 */
+	if (ismcast)
+		ath_tx_handoff_mcast(sc, txq, bf);
+	else {
+		ATH_TXQ_LOCK(txq);
+		/* add to software queue */
+		ath_tx_swq(sc, ni, txq, bf, m0);
+		/* Kick txq */
+		ath_txq_sched(sc, txq);
+		ATH_TXQ_UNLOCK(txq);
+	}
 #else
 
 	/*
@@ -1121,6 +1195,10 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ctsrate = 0;
 
 	pri = params->ibp_pri & 3;
+	/* Override pri if the frame isn't a QoS one */
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		pri = ath_tx_getac(sc, m0);
+
 	/*
 	 * NB: we mark all packets as type PSPOLL so the h/w won't
 	 * set the sequence number, duration, etc.
@@ -1438,7 +1516,7 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	 * ni->ni_txseqs[] is the currently allocated seqno.
 	 * the txa state contains the current baw start.
 	 */
- #if 0
+#if 0
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tap->txa_start: %d, seqno: %d\n",
 	    __func__, tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
 #endif
@@ -1508,8 +1586,7 @@ static void
 ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
-	int ac = TID_TO_WME_AC(tid);
-	struct ath_txq *txq = sc->sc_ac2q[ac];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -1531,8 +1608,7 @@ static void
 ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
-	int ac = TID_TO_WME_AC(tid);
-	struct ath_txq *txq = sc->sc_ac2q[ac];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -1578,7 +1654,6 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	return seqno;
 }
 
-
 /*
  * Queue the given packet on the relevant software queue.
  *
@@ -1597,27 +1672,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
-	pri = M_WME_GETAC(m0);			/* honor classification */
-	tid = WME_AC_TO_TID(pri);
-#if 0
-	/*
-	 * XXX This is correct!
-	 *
-	 * It however breaks the rest of the code, which currently assumes
-	 * a constant mapping from TID->WME AC->hardware queue.
-	 * Non-QoS frames will have a TID of 16. They may end up with a TXQ
-	 * that differs to what the classification states?
-	 *
-	 * I'll have to go back over the code and audit exactly what's going
-	 * on before I can flip this on.
-	 *
-	 * With this off, non-QoS traffic in pri=0 gets thorwn into tid=0,
-	 * which means it gets punted to the aggregation code.
-	 * This breaks things.
-	 */
-	if (! IEEE80211_QOS_HAS_SEQ(wh))
-		tid = IEEE80211_NONQOS_TID;
-#endif
+	pri = ath_tx_getac(sc, m0);
+	tid = ath_tx_gettid(sc, m0);
 	atid = &an->an_tid[tid];
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos=%d\n",
@@ -1673,6 +1729,10 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->baw_head = atid->baw_tail = 0;
 		atid->paused = 0;
 		atid->sched = 0;
+		if (i == IEEE80211_NONQOS_TID)
+			atid->ac = WME_AC_BE;
+		else
+			atid->ac = TID_TO_WME_AC(i);
 	}
 }
 
@@ -1683,8 +1743,7 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 static void
 ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 {
-	int ac = TID_TO_WME_AC(tid->tid);
-	struct ath_txq *txq = sc->sc_ac2q[ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 	tid->paused++;
@@ -1693,8 +1752,7 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
-	int ac = TID_TO_WME_AC(tid->tid);
-	struct ath_txq *txq = sc->sc_ac2q[ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 	tid->paused--;
@@ -1761,8 +1819,8 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	int tid;
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
-		int ac = TID_TO_WME_AC(tid);
-		struct ath_txq *txq = sc->sc_ac2q[ac];
+		struct ath_tid *atid = &an->an_tid[tid];
+		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
 		ATH_TXQ_LOCK(txq);
 		/* Remove this tid from the list of active tids */
@@ -1861,10 +1919,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		}
 		if (bf->bf_state.bfs_tid != tid)
 			device_printf(sc->sc_dev, "%s: TID: tid=%d, ac=%d, bf tid=%d\n",
-			    __func__, tid, TID_TO_WME_AC(tid), bf->bf_state.bfs_tid);
+			    __func__, tid, atid->ac, bf->bf_state.bfs_tid);
 		if (sc->sc_ac2q[TID_TO_WME_AC(tid)] != bf->bf_state.bfs_txq)
 			device_printf(sc->sc_dev, "%s: TXQ: tid=%d, ac=%d, bf tid=%d\n",
-			    __func__, tid, TID_TO_WME_AC(tid), bf->bf_state.bfs_tid);
+			    __func__, tid, atid->ac, bf->bf_state.bfs_tid);
 
 		/* XXX check if seqno is outside of BAW, if so don't queue it */
 		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,

@@ -95,6 +95,7 @@ struct ath_tid {
 	u_int			axq_depth;	/* SW queue depth */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
+	int			ac;		/* which AC gets this trafic */
 
 	/*
 	 * Entry on the ath_txq; when there's traffic
