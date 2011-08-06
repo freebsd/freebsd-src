@@ -927,3 +927,39 @@ diff -N gdb/config/ia64/tm-fbsd.h
 +#include "ia64/tm-ia64.h"
 +
 +#endif /* TM_FBSD_H */
+Index: gdb/sparc64fbsd-tdep.c
+===================================================================
+--- gdb/sparc64fbsd-tdep.c	(revision 223862)
++++ gdb/sparc64fbsd-tdep.c	(working copy)
+@@ -64,6 +64,31 @@ sparc64fbsd_supply_fpregset (const struct regset *
+ {
+   sparc64_supply_fpregset (regcache, regnum, fpregs);
+ }
++
++void
++supply_gregset (const void *gregs)
++{
++  sparc64_supply_gregset (&sparc64fbsd_gregset, current_regcache, -1, gregs);
++}
++
++void
++supply_fpregset (const void *fpregs)
++{
++  sparc64_supply_fpregset (current_regcache, -1, fpregs);
++}
++
++void
++fill_gregset (void *gregs, int regnum)
++{
++  sparc64_collect_gregset (&sparc64fbsd_gregset, current_regcache, regnum,
++			   gregs);
++}
++
++void
++fill_fpregset (void *fpregs, int regnum)
++{
++  sparc64_collect_fpregset (current_regcache, regnum, fpregs);
++}
+ 
+ 
+ /* Signal trampolines.  */
