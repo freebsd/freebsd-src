@@ -967,10 +967,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
 	is_ampdu = is_ampdu_tx | is_ampdu_pending;
 
-#if 0
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, ac=%d, is_ampdu=%d\n",
 	    __func__, tid, pri, is_ampdu);
-#endif
 
 	/* Multicast frames go onto the software multicast queue */
 	if (ismcast)
@@ -991,13 +989,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	bf->bf_state.bfs_seqno = M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
 
-#if 0
 	/* Is ampdu pending? fetch the seqno and print it out */
 	if (is_ampdu_pending)
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: tid %d: ampdu pending, seqno %d\n",
 		    __func__, tid, M_SEQNO_GET(m0));
-#endif
 
 	/* This also sets up the DMA map */
 	r = ath_tx_normal_setup(sc, ni, bf, m0);
@@ -1564,6 +1560,8 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = M_WME_GETAC(m0);			/* honor classification */
 	tid = WME_AC_TO_TID(pri);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos has seq=%d\n",
+	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* Does the packet require a sequence number? */
 	if (! IEEE80211_QOS_HAS_SEQ(wh))
@@ -1576,6 +1574,7 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	M_SEQNO_SET(m0, seqno);
 
 	/* Return so caller can do something with it if needed */
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s:  -> seqno=%d\n", __func__, seqno);
 	return seqno;
 }
 
@@ -1600,11 +1599,34 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = M_WME_GETAC(m0);			/* honor classification */
 	tid = WME_AC_TO_TID(pri);
+#if 0
+	/*
+	 * XXX This is correct!
+	 *
+	 * It however breaks the rest of the code, which currently assumes
+	 * a constant mapping from TID->WME AC->hardware queue.
+	 * Non-QoS frames will have a TID of 16. They may end up with a TXQ
+	 * that differs to what the classification states?
+	 *
+	 * I'll have to go back over the code and audit exactly what's going
+	 * on before I can flip this on.
+	 *
+	 * With this off, non-QoS traffic in pri=0 gets thorwn into tid=0,
+	 * which means it gets punted to the aggregation code.
+	 * This breaks things.
+	 */
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		tid = IEEE80211_NONQOS_TID;
+#endif
 	atid = &an->an_tid[tid];
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos=%d\n",
+	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_pri = pri;
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
@@ -1828,12 +1850,21 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid);
+
+	tap = ath_tx_get_tx_tid(an, tid);
+
 	for (;;) {
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			break;
 		}
-		tap = ath_tx_get_tx_tid(an, tid);
+		if (bf->bf_state.bfs_tid != tid)
+			device_printf(sc->sc_dev, "%s: TID: tid=%d, ac=%d, bf tid=%d\n",
+			    __func__, tid, TID_TO_WME_AC(tid), bf->bf_state.bfs_tid);
+		if (sc->sc_ac2q[TID_TO_WME_AC(tid)] != bf->bf_state.bfs_txq)
+			device_printf(sc->sc_dev, "%s: TXQ: tid=%d, ac=%d, bf tid=%d\n",
+			    __func__, tid, TID_TO_WME_AC(tid), bf->bf_state.bfs_tid);
 
 		/* XXX check if seqno is outside of BAW, if so don't queue it */
 		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
@@ -1997,7 +2028,6 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	return !! (tap->txa_flags & IEEE80211_AGGR_XCHGPEND);
 }
-
 
 /*
  * Is AMPDU-TX pending for the given TID?
