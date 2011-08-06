@@ -92,18 +92,21 @@ pt_ucontext_to_reg(const ucontext_t *uc, struct reg *r)
 void
 pt_fpreg_to_ucontext(const struct fpreg* r, ucontext_t *uc)
 {
-	memcpy(&uc->uc_mcontext.mc_fpstate, r, sizeof(r));
+
+	memcpy(&uc->uc_mcontext.mc_fpstate, r, sizeof(*r));
 }
 
 void
 pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
 {
-	memcpy(r, &uc->uc_mcontext.mc_fpstate, sizeof(r));
+
+	memcpy(r, &uc->uc_mcontext.mc_fpstate, sizeof(*r));
 }
 
 void
 pt_md_init(void)
 {
+
 	/* Nothing to do */
 }
 
