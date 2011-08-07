@@ -1484,7 +1484,8 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		 * make sure we actually have retries available.
 		 */
 		if ((err_action & SSQ_DECREMENT_COUNT) != 0) {
-		 	if (ccb->ccb_h.retry_count > 0)
+		 	if (ccb->ccb_h.retry_count > 0 &&
+			    (periph->flags & CAM_PERIPH_INVALID) == 0)
 		 		ccb->ccb_h.retry_count--;
 			else {
 				*action_string = "Retries exhausted";
@@ -1643,6 +1644,7 @@ int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 u_int32_t sense_flags, union ccb *save_ccb)
 {
+	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
 	int	    frozen;
@@ -1650,7 +1652,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	int         openings;
 	u_int32_t   relsim_flags;
 	u_int32_t   timeout = 0;
-	
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
 	action_string = NULL;
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
@@ -1712,9 +1715,9 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "Data overrun\n");
 			printed++;
 		}
-		error = EIO;	/* we have to kill the command */
 		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0) {
+		if (ccb->ccb_h.retry_count > 0 &&
+		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
@@ -1733,7 +1736,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		struct cam_path *newpath;
 
 		if ((camflags & CAM_RETRY_SELTO) != 0) {
-			if (ccb->ccb_h.retry_count > 0) {
+			if (ccb->ccb_h.retry_count > 0 &&
+			    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 
 				ccb->ccb_h.retry_count--;
 				error = ERESTART;
@@ -1751,10 +1755,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				timeout = periph_selto_delay;
 				break;
 			}
+			action_string = "Retries exhausted";
 		}
 		error = ENXIO;
 		/* Should we do more if we can't create the path?? */
-		if (xpt_create_path(&newpath, xpt_path_periph(ccb->ccb_h.path),
+		if (xpt_create_path(&newpath, periph,
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
 				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
@@ -1799,10 +1804,15 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* FALLTHROUGH */
 	case CAM_REQUEUE_REQ:
 		/* Unconditional requeue */
-		error = ERESTART;
 		if (bootverbose && printed == 0) {
 			xpt_print(ccb->ccb_h.path, "Request requeued\n");
 			printed++;
+		}
+		if ((periph->flags & CAM_PERIPH_INVALID) == 0)
+			error = ERESTART;
+		else {
+			action_string = "Retries exhausted";
+			error = EIO;
 		}
 		break;
 	case CAM_RESRC_UNAVAIL:
@@ -1818,7 +1828,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* FALLTHROUGH */
 	default:
 		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0) {
+		if (ccb->ccb_h.retry_count > 0 &&
+		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 			if (bootverbose && printed == 0) {
