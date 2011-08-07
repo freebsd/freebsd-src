@@ -1748,6 +1748,8 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 	tid->paused++;
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: paused = %d\n",
+	    __func__, tid->paused);
 }
 
 static void
@@ -1758,6 +1760,8 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TXQ_LOCK_ASSERT(txq);
 	tid->paused--;
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
+	    __func__, tid->paused);
 	if (tid->paused)
 		return;
 	if (tid->axq_depth == 0)
@@ -1884,6 +1888,28 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
+#ifdef	notyet
+/*
+ * Handle completion of non-aggregate frames.
+ */
+static void
+ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an;
+	struct ath_tid *atid;
+	int tid;
+
+	if (ni != NULL) {
+		tid = bf->bf_state.bfs_tid;
+		an = ATH_NODE(ni);
+		atid = &an->an_tid[tid];
+
+		ath_tx_default_comp(sc, bf);
+	}
+}
+#endif
+
 /*
  * Handle completion of aggregate frames.
  */
@@ -1995,6 +2021,14 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_buf *bf;
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
+
+	/* Check - is AMPDU pending or running? then print out something */
+	if (ath_tx_ampdu_pending(sc, an, tid))
+		device_printf(sc->sc_dev, "%s: tid=%d, ampdu pending?\n",
+		    __func__, tid);
+	if (ath_tx_ampdu_running(sc, an, tid))
+		device_printf(sc->sc_dev, "%s: tid=%d, ampdu running?\n",
+		    __func__, tid);
 
 	for (;;) {
                 bf = STAILQ_FIRST(&atid->axq_q);
@@ -2133,6 +2167,7 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[tap->txa_ac]);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 	ath_tx_tid_pause(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[tap->txa_ac]);
 
@@ -2150,17 +2185,27 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
  */
 int
 ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
-    int dialogtoken, int code, int batimeout)
+    int status, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = WME_AC_TO_TID(tap->txa_ac);
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
+	int r;
+
+	/*
+	 * Call this first, so the interface flags get updated
+	 * before the TID is unpaused. Otherwise a race condition
+	 * exists where the unpaused TID still doesn't yet have
+	 * IEEE80211_AGGR_RUNNING set.
+	 */
+	r = sc->sc_addba_response(ni, tap, status, code, batimeout);
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[tap->txa_ac]);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[tap->txa_ac]);
-	return sc->sc_addba_response(ni, tap, dialogtoken, code, batimeout);
+	return r;
 }
 
 
@@ -2180,6 +2225,6 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = an->an_tid[tid];
 #endif
-
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 	sc->sc_addba_stop(ni, tap);
 }

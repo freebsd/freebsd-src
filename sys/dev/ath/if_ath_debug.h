@@ -57,8 +57,9 @@ enum {
 	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
 	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
 	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
-	ATH_DEBUG_SW_TX		= 0x04000000,
-	ATH_DEBUG_SW_TX_BAW	= 0x08000000,
+	ATH_DEBUG_SW_TX		= 0x04000000,	/* per-packet software TX */
+	ATH_DEBUG_SW_TX_BAW	= 0x08000000,	/* BAW handling */
+	ATH_DEBUG_SW_TX_CTRL	= 0x10000000,	/* queue control */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
