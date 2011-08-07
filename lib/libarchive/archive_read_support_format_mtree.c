@@ -525,6 +525,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	/* Initialize reasonable defaults. */
 	mtree->filetype = AE_IFREG;
 	archive_entry_set_size(entry, 0);
+	archive_string_empty(&mtree->contents_name);
 
 	/* Parse options from this line. */
 	parsed_kws = 0;
@@ -613,9 +614,8 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	}
 
 	/*
-	 * If there is a contents file on disk, use that size;
-	 * otherwise leave it as-is (it might have been set from
-	 * the mtree size= keyword).
+	 * Check for a mismatch between the type in the specification and
+	 * the type of the contents object on disk.
 	 */
 	if (st != NULL) {
 		mismatched_type = 0;
@@ -660,6 +660,11 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		}
 	}
 
+	/*
+	 * If there is a contents file on disk, pick some of the metadata
+	 * from that file.  For most of these, we only set it from the contents
+	 * if it wasn't already parsed from the specification.
+	 */
 	if (st != NULL) {
 		if ((parsed_kws & MTREE_HAS_DEVICE) == 0 &&
 		    (archive_entry_filetype(entry) == AE_IFCHR ||

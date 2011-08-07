@@ -709,16 +709,18 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Location of Occurrence of Type L Path Table must be
 	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	 * >= SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_le32dec(h+SVD_type_L_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if (location < SYSTEM_AREA_BLOCK+2 || location >= volume_block)
 		return (0);
 
-	/* Location of Occurrence of Type M Path Table must be
-	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	/* The Type M Path Table must be at a valid location (WinISO
+	 * and probably other programs omit this, so we allow zero)
+	 *
+	 * >= SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+SVD_type_M_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location < SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
@@ -781,16 +783,17 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Location of Occurrence of Type L Path Table must be
 	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	 * >= SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_le32dec(h+PVD_type_1_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if (location < SYSTEM_AREA_BLOCK+2 || location >= volume_block)
 		return (0);
 
 	/* Location of Occurrence of Type M Path Table must be
 	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	 * >= SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+PVD_type_m_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location < SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Reserved field must be 0. */
@@ -862,19 +865,24 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	 * available location,
 	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_le32dec(h+PVD_type_1_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if (location < SYSTEM_AREA_BLOCK+2 || location >= volume_block)
 		return (0);
 
-	/* Location of Occurrence of Type M Path Table must be
-	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	/* The Type M Path Table must also be at a valid location
+	 * (although ECMA 119 requires a Type M Path Table, WinISO and
+	 * probably other programs omit it, so we permit a zero here)
+	 *
+	 * >= SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+PVD_type_m_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location < SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Reserved field must be 0. */
+	/* FreeBSD: makefs erroneously created images with 0x20 */
 	for (i = 0; i < PVD_reserved4_size; ++i)
-		if (h[PVD_reserved4_offset + i] != 0)
+		if (h[PVD_reserved4_offset + i] != 0 &&
+		    h[PVD_reserved4_offset + i] != 32)
 			return (0);
 
 	/* Reserved field must be 0. */
@@ -1677,6 +1685,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	const unsigned char *rr_start, *rr_end;
 	const unsigned char *p;
 	size_t dr_len;
+	uint64_t fsize;
 	int32_t location;
 	int flags;
 
@@ -1685,6 +1694,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	dr_len = (size_t)isodirrec[DR_length_offset];
 	name_len = (size_t)isodirrec[DR_name_len_offset];
 	location = archive_le32dec(isodirrec + DR_extent_offset);
+	fsize = toi(isodirrec + DR_size_offset, DR_size_size);
 	/* Sanity check that dr_len needs at least 34. */
 	if (dr_len < 34) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1703,7 +1713,10 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	 * link or file size is zero. As far as I know latest mkisofs
 	 * do that.
 	 */
-	if (location >= iso9660->volume_block) {
+	if (location > 0 &&
+	    (location + ((fsize + iso9660->logical_block_size -1)
+	       / iso9660->logical_block_size)) >
+	      (unsigned int)iso9660->volume_block) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid location of extent of file");
 		return (NULL);
@@ -1719,7 +1732,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	memset(file, 0, sizeof(*file));
 	file->parent = parent;
 	file->offset = iso9660->logical_block_size * (uint64_t)location;
-	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
+	file->size = fsize;
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
 
