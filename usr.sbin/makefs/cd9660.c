@@ -223,13 +223,12 @@ cd9660_set_defaults(void)
 	/* Make sure the PVD is clear */
 	memset(&diskStructure.primaryDescriptor, 0, 2048);
 
-	memset(diskStructure.primaryDescriptor.volume_set_id,	0x20,32);
 	memset(diskStructure.primaryDescriptor.publisher_id,	0x20,128);
 	memset(diskStructure.primaryDescriptor.preparer_id,	0x20,128);
 	memset(diskStructure.primaryDescriptor.application_id,	0x20,128);
-	memset(diskStructure.primaryDescriptor.copyright_file_id, 0x20,128);
-	memset(diskStructure.primaryDescriptor.abstract_file_id, 0x20,128);
-	memset(diskStructure.primaryDescriptor.bibliographic_file_id, 0x20,128);
+	memset(diskStructure.primaryDescriptor.copyright_file_id, 0x20,37);
+	memset(diskStructure.primaryDescriptor.abstract_file_id, 0x20,37);
+	memset(diskStructure.primaryDescriptor.bibliographic_file_id, 0x20,37);
 
 	strcpy(diskStructure.primaryDescriptor.system_id,"NetBSD");
 
@@ -669,11 +668,11 @@ cd9660_finalize_PVD(void)
 	cd9660_pad_string_spaces(diskStructure.primaryDescriptor.application_id,
 	    128);
 	cd9660_pad_string_spaces(
-	    diskStructure.primaryDescriptor.copyright_file_id, 128);
+	    diskStructure.primaryDescriptor.copyright_file_id, 37);
 	cd9660_pad_string_spaces(
-		diskStructure.primaryDescriptor.abstract_file_id, 128);
+		diskStructure.primaryDescriptor.abstract_file_id, 37);
 	cd9660_pad_string_spaces(
-		diskStructure.primaryDescriptor.bibliographic_file_id, 128);
+		diskStructure.primaryDescriptor.bibliographic_file_id, 37);
 
 	/* Setup dates */
 	time(&tim);
@@ -1307,6 +1306,8 @@ cd9660_rrip_move_directory(cd9660node *dir)
 	/* Set the new name */
 	memset(dir->isoDirRecord->name, 0, ISO_FILENAME_MAXLENGTH_WITH_PADDING);
 	strncpy(dir->isoDirRecord->name, newname, 8);
+	dir->isoDirRecord->length[0] = 34 + 8;
+	dir->isoDirRecord->name_len[0] = 8;
 
 	return dir;
 }
