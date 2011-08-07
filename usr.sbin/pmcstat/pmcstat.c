@@ -31,9 +31,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/event.h>
 #include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/event.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -114,6 +114,55 @@ kvm_t	*pmcstat_kvm;
 struct kinfo_proc *pmcstat_plist;
 struct pmcstat_args args;
 
+static void
+pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask)
+{
+	int cpu, mcpu;
+	struct pmcstat_ev *ev_clone;
+
+	mcpu = sizeof(*cpumask) * NBBY;
+	for (cpu = 0; cpu < mcpu; cpu++) {
+		if (!CPU_ISSET(cpu, cpumask))
+			continue;
+
+		if ((ev_clone = malloc(sizeof(*ev_clone))) == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
+		(void) memset(ev_clone, 0, sizeof(*ev_clone));
+
+		ev_clone->ev_count = ev->ev_count;
+		ev_clone->ev_cpu   = cpu;
+		ev_clone->ev_cumulative = ev->ev_cumulative;
+		ev_clone->ev_flags = ev->ev_flags;
+		ev_clone->ev_mode  = ev->ev_mode;
+		ev_clone->ev_name  = strdup(ev->ev_name);
+		ev_clone->ev_pmcid = ev->ev_pmcid;
+		ev_clone->ev_saved = ev->ev_saved;
+		ev_clone->ev_spec  = strdup(ev->ev_spec);
+
+		STAILQ_INSERT_TAIL(&args.pa_events, ev_clone, ev_next);
+	}
+}
+
+static void
+pmcstat_get_cpumask(const char *cpuspec, cpuset_t *cpumask)
+{
+	int cpu;
+	const char *s;
+	char *end;
+
+	CPU_ZERO(cpumask);
+	s = cpuspec;
+
+	do {
+		cpu = strtol(s, &end, 0);
+		if (cpu < 0 || end == s)
+			errx(EX_USAGE, "ERROR: Illegal CPU specification "
+			    "\"%s\".", cpuspec);
+		CPU_SET(cpu, cpumask);
+		s = end + strspn(end, ", \t");
+	} while (*s);
+}
+
 void
 pmcstat_attach_pmcs(void)
 {
@@ -170,36 +219,6 @@ pmcstat_cleanup(void)
 	}
 
 	pmcstat_shutdown_logging();
-}
-
-void
-pmcstat_clone_event_descriptor(struct pmcstat_ev *ev,
-    uint32_t cpumask)
-{
-	int cpu;
-	struct pmcstat_ev *ev_clone;
-
-	while ((cpu = ffs(cpumask)) > 0) {
-		cpu--;
-
-		if ((ev_clone = malloc(sizeof(*ev_clone))) == NULL)
-			errx(EX_SOFTWARE, "ERROR: Out of memory");
-		(void) memset(ev_clone, 0, sizeof(*ev_clone));
-
-		ev_clone->ev_count = ev->ev_count;
-		ev_clone->ev_cpu   = cpu;
-		ev_clone->ev_cumulative = ev->ev_cumulative;
-		ev_clone->ev_flags = ev->ev_flags;
-		ev_clone->ev_mode  = ev->ev_mode;
-		ev_clone->ev_name  = strdup(ev->ev_name);
-		ev_clone->ev_pmcid = ev->ev_pmcid;
-		ev_clone->ev_saved = ev->ev_saved;
-		ev_clone->ev_spec  = strdup(ev->ev_spec);
-
-		STAILQ_INSERT_TAIL(&args.pa_events, ev_clone, ev_next);
-
-		cpumask &= ~(1 << cpu);
-	}
 }
 
 void
@@ -320,29 +339,6 @@ pmcstat_find_targets(const char *spec)
  outofmemory:
 	errx(EX_SOFTWARE, "Out of memory.");
 	/*NOTREACHED*/
-}
-
-uint32_t
-pmcstat_get_cpumask(const char *cpuspec)
-{
-	uint32_t cpumask;
-	int cpu;
-	const char *s;
-	char *end;
-
-	s = cpuspec;
-	cpumask = 0ULL;
-
-	do {
-		cpu = strtol(s, &end, 0);
-		if (cpu < 0 || end == s)
-			errx(EX_USAGE, "ERROR: Illegal CPU specification "
-			    "\"%s\".", cpuspec);
-		cpumask |= (1 << cpu);
-		s = end + strspn(end, ", \t");
-	} while (*s);
-
-	return (cpumask);
 }
 
 void
@@ -551,8 +547,9 @@ pmcstat_topexit(void)
 int
 main(int argc, char **argv)
 {
+	cpuset_t cpumask;
 	double interval;
-	int option, npmc, ncpu;
+	int hcpu, option, npmc, ncpu;
 	int c, check_driver_stats, current_cpu, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print;
@@ -561,7 +558,6 @@ main(int argc, char **argv)
 	int pipefd[2], rfd;
 	int use_cumulative_counts;
 	short cf, cb;
-	uint32_t cpumask;
 	char *end, *tmp;
 	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
@@ -608,6 +604,7 @@ main(int argc, char **argv)
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
+	CPU_ZERO(&cpumask);
 
 	/*
 	 * The initial CPU mask specifies all non-halted CPUS in the
@@ -616,7 +613,8 @@ main(int argc, char **argv)
 	dummy = sizeof(int);
 	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
 		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
-	cpumask = (1 << ncpu) - 1;
+	for (hcpu = 0; hcpu < ncpu; hcpu++)
+		CPU_SET(hcpu, &cpumask);
 
 	while ((option = getopt(argc, argv,
 	    "CD:EF:G:M:NO:P:R:S:TWc:df:gk:m:n:o:p:qr:s:t:vw:z:")) != -1)
@@ -628,10 +626,11 @@ main(int argc, char **argv)
 
 		case 'c':	/* CPU */
 
-			if (optarg[0] == '*' && optarg[1] == '\0')
-				cpumask = (1 << ncpu) - 1;
-			else
-				cpumask = pmcstat_get_cpumask(optarg);
+			if (optarg[0] == '*' && optarg[1] == '\0') {
+				for (hcpu = 0; hcpu < ncpu; hcpu++)
+					CPU_SET(hcpu, &cpumask);
+			} else
+				pmcstat_get_cpumask(optarg, &cpumask);
 
 			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
 			args.pa_required |= FLAG_HAS_SYSTEM_PMCS;
@@ -745,9 +744,13 @@ main(int argc, char **argv)
 			else
 				ev->ev_count = -1;
 
-			if (option == 'S' || option == 's')
-				ev->ev_cpu = ffs(cpumask) - 1;
-			else
+			if (option == 'S' || option == 's') {
+				hcpu = sizeof(cpumask) * NBBY;
+				for (hcpu--; hcpu >= 0; hcpu--)
+					if (CPU_ISSET(hcpu, &cpumask))
+						break;
+				ev->ev_cpu = hcpu;
+			} else
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
@@ -773,9 +776,13 @@ main(int argc, char **argv)
 
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
-			if (option == 's' || option == 'S')
-				pmcstat_clone_event_descriptor(ev,
-				    cpumask & ~(1 << ev->ev_cpu));
+			if (option == 's' || option == 'S') {
+				hcpu = CPU_ISSET(ev->ev_cpu, &cpumask);
+				CPU_CLR(ev->ev_cpu, &cpumask);
+				pmcstat_clone_event_descriptor(ev, &cpumask);
+				if (hcpu != 0)
+					CPU_SET(ev->ev_cpu, &cpumask);
+			}
 
 			break;
 
@@ -882,7 +889,7 @@ main(int argc, char **argv)
 	 */
 	if ((args.pa_flags & FLAG_READ_LOGFILE) &&
 	    (args.pa_flags & FLAGS_HAS_CPUMASK) == 0)
-		cpumask = 0xffffffff;
+		CPU_FILL(&cpumask);
 
 	args.pa_cpumask = cpumask; /* For selecting CPUs using -R. */
 
