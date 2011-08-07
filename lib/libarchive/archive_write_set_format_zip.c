@@ -502,6 +502,9 @@ archive_write_zip_finish(struct archive_write *a)
 	int entries;
 	int ret;
 
+	if (a->compressor.write == NULL)
+		return (ARCHIVE_OK);
+
 	zip = a->format_data;
 	l = zip->central_directory;
 
