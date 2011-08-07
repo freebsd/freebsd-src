@@ -202,7 +202,7 @@ static td_err_e
 pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 {
 	psaddr_t pt;
-	long lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -245,7 +245,7 @@ pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
 {
 	td_thrhandle_t th;
 	psaddr_t pt;
-	long lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -368,7 +368,7 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 
 	psaddr_t pt;
 	td_thr_events_e	tmp;
-	long lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -672,7 +672,7 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	static td_thrhandle_t handle;
 	const td_thragent_t *ta = th->th_ta;
 	psaddr_t pt, pt_temp;
-	long lwp;
+	int64_t lwp;
 	int ret;
 	td_thr_events_e	tmp;
 
