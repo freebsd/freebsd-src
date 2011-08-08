@@ -835,12 +835,8 @@ void
 ath_hal_update_dfsdomain(struct ath_hal *ah)
 {
 	const REG_DOMAIN *rd5GHz = AH_PRIVATE(ah)->ah_rd5GHz;
-	HAL_CTRY_CODE cc = ah->ah_countryCode;
 	HAL_DFS_DOMAIN dfsDomain = HAL_DFS_UNINIT_DOMAIN;
-	HAL_REG_DOMAIN regDmn = AH_PRIVATE(ah)->ah_currentRD;
 
-	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s CC: %d, RegDmn: %d\n",__func__,
-	    cc, regDmn);
 	if (rd5GHz->dfsMask & DFS_FCC3)
 		dfsDomain = HAL_DFS_FCC_DOMAIN;
 	if (rd5GHz->dfsMask & DFS_ETSI)
