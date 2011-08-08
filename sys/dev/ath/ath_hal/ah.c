@@ -522,6 +522,9 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_REG_DMN:		/* regulatory domain */
 		*result = AH_PRIVATE(ah)->ah_currentRD;
 		return HAL_OK;
+	case HAL_CAP_DFS_DMN:		/* DFS Domain */
+		*result = AH_PRIVATE(ah)->ah_dfsDomain;
+		return HAL_OK;
 	case HAL_CAP_CIPHER:		/* cipher handled in hardware */
 	case HAL_CAP_TKIP_MIC:		/* handle TKIP MIC in hardware */
 		return HAL_ENOTSUPP;
