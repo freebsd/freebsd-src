@@ -731,3 +731,15 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 	 */
 	return AH_FALSE;
 }
+
+/*
+ * Return whether fast-clock is currently enabled for this
+ * channel.
+ */
+HAL_BOOL
+ar5416IsFastClockEnabled(struct ath_hal *ah)
+{
+	struct ath_hal_private *ahp = AH_PRIVATE(ah);
+
+	return IS_5GHZ_FAST_CLOCK_EN(ah, ahp->ah_curchan);
+}
