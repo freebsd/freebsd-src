@@ -712,7 +712,7 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
 #define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
 	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), (_buf), (_event)))
-#define	ath_hal_isfastclockenabled(_ah) \
+#define	ath_hal_is_fast_clock_enabled(_ah) \
 	((*(_ah)->ah_isFastClockEnabled((_ah))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
