@@ -238,6 +238,7 @@ sta_add(struct ieee80211_scan_state *ss,
 	const uint8_t *macaddr = wh->i_addr2;
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_channel *c;
 	struct sta_entry *se;
 	struct ieee80211_scan_entry *ise;
 	int hash;
@@ -300,7 +301,6 @@ found:
 	 * association on the wrong channel.
 	 */
 	if (sp->status & IEEE80211_BPARSE_OFFCHAN) {
-		struct ieee80211_channel *c;
 		/*
 		 * Off-channel, locate the home/bss channel for the sta
 		 * using the value broadcast in the DSPARMS ie.  We know
@@ -317,6 +317,14 @@ found:
 		}
 	} else
 		ise->se_chan = ic->ic_curchan;
+	if (IEEE80211_IS_CHAN_HT(ise->se_chan) && sp->htcap == NULL) {
+		/* Demote legacy networks to a non-HT channel. */
+		c = ieee80211_find_channel(ic, ise->se_chan->ic_freq,
+		    ise->se_chan->ic_flags & ~IEEE80211_CHAN_HT);
+		KASSERT(c != NULL,
+		    ("no legacy channel %u", ise->se_chan->ic_ieee));
+		ise->se_chan = c;
+	}
 	ise->se_fhdwell = sp->fhdwell;
 	ise->se_fhindex = sp->fhindex;
 	ise->se_erp = sp->erp;
