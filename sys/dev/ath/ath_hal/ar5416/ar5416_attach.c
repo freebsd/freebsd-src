@@ -150,6 +150,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_enableDfs		= ar5416EnableDfs;
 	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
+	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
