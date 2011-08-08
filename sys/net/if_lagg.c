@@ -203,6 +203,7 @@ static moduledata_t lagg_mod = {
 };
 
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_lagg, 1);
 
 static int
 lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
