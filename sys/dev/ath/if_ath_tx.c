@@ -1677,8 +1677,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	tid = ath_tx_gettid(sc, m0);
 	atid = &an->an_tid[tid];
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos=%d\n",
-	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p, pri=%d, tid=%d, qos=%d\n",
+	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = tid;
@@ -1925,6 +1925,10 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf)
 	 *
 	 * Mark as retry, requeue at head of queue
 	 */
+	if (tid == IEEE80211_NONQOS_TID)
+		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
+	    __func__, bf, bf->bf_state.bfs_tid);
 
 	/*
 	 * Not success and out of retries?
@@ -1936,8 +1940,8 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf)
 	 */
 
 	/* Success? Complete */
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: seqno %d\n",
-	    __func__, SEQNO(bf->bf_state.bfs_seqno));
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: TID=%d, seqno %d\n",
+	    __func__, tid, SEQNO(bf->bf_state.bfs_seqno));
 	ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
 
 	ath_tx_default_comp(sc, bf);
@@ -1961,11 +1965,17 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	tap = ath_tx_get_tx_tid(an, tid);
 
+	if (tid == IEEE80211_NONQOS_TID)
+		device_printf(sc->sc_dev, "%s: called for TID=NONQOS_TID?\n",
+		    __func__);
+
 	for (;;) {
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			break;
 		}
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
+		    __func__, bf, bf->bf_state.bfs_tid);
 		if (bf->bf_state.bfs_tid != tid)
 			device_printf(sc->sc_dev, "%s: TID: tid=%d, ac=%d, bf tid=%d\n",
 			    __func__, tid, atid->ac, bf->bf_state.bfs_tid);
@@ -2006,6 +2016,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 
 		/* Set completion handler */
 		bf->bf_comp = ath_tx_aggr_comp;
+		if (bf->bf_state.bfs_tid == IEEE80211_NONQOS_TID)
+			device_printf(sc->sc_dev, "%s: TID=16?\n", __func__);
 
 		/* Punt to hardware or software txq */
 		ath_tx_handoff(sc, txq, bf);
@@ -2045,6 +2057,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 			    " tid %d\n",
 			    __func__, bf->bf_state.bfs_tid, tid);
 		}
+		bf->bf_comp = NULL;	/* XXX default handler */
 
 		/* Punt to hardware or software txq */
 		ath_tx_handoff(sc, txq, bf);
@@ -2076,6 +2089,8 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
 		 */
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
+		    __func__, atid->tid, atid->paused);
 		if (atid->paused) {
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
 			continue;
@@ -2122,6 +2137,9 @@ ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
+	if (tid == IEEE80211_NONQOS_TID)
+		return 0;
+
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
 		return 0;	/* Not valid; default to not running */
@@ -2136,6 +2154,9 @@ static int
 ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
+
+	if (tid == IEEE80211_NONQOS_TID)
+		return 0;
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
