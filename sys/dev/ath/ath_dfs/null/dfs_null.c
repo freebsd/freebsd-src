@@ -226,3 +226,13 @@ ath_dfs_get_thresholds(struct ath_softc *sc, HAL_PHYERR_PARAM *param)
 	ath_hal_getdfsthresh(sc->sc_ah, param);
 	return 1;
 }
+
+/*
+ * Update the current radar patterns based on the
+ * current operating mode/regulatory domain.
+ */
+int
+ath_dfs_init_radar_filters(struct ath_softc *sc)
+{
+	return 1;
+}

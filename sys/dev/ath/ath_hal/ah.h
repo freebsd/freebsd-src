@@ -735,6 +735,15 @@ typedef struct {
 #define	HAL_PHYERR_PARAM_NOVAL	65535
 #define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
+/*
+ * DFS operating mode flags.
+ */
+typedef enum {
+	HAL_DFS_UNINIT_DOMAIN	= 0,	/* Uninitialized dfs domain */
+	HAL_DFS_FCC_DOMAIN	= 1,	/* FCC3 dfs domain */
+	HAL_DFS_ETSI_DOMAIN	= 2,	/* ETSI dfs domain */
+	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
+} HAL_DFS_DOMAIN;
 
 /*
  * Flag for setting QUIET period
