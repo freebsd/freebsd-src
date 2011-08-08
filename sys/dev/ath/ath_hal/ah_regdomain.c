@@ -687,8 +687,9 @@ ath_hal_init_channels(struct ath_hal *ah,
     HAL_BOOL enableExtendedChannels)
 {
 	COUNTRY_CODE_TO_ENUM_RD *country;
-	REG_DOMAIN *rd5GHz, *rd2GHz;
+	REG_DOMAIN *rd5GHz = AH_NULL, *rd2GHz;
 	HAL_STATUS status;
+	HAL_DFS_DOMAIN dfsDomain = HAL_DFS_UNINIT_DOMAIN;
 
 	status = getchannels(ah, chans, maxchans, nchans, modeSelect,
 	    cc, regDmn, enableExtendedChannels, &country, &rd2GHz, &rd5GHz);
@@ -702,6 +703,18 @@ ath_hal_init_channels(struct ath_hal *ah,
 		    __func__, ah->ah_countryCode);
 	} else
 		status = HAL_EINVAL;
+
+	/* Update the DFS setting for the current regulatory domain */
+	if (status == HAL_OK && rd5GHz != AH_NULL) {
+		if (rd5GHz->dfsMask & DFS_FCC3)
+			dfsDomain = HAL_DFS_FCC_DOMAIN;
+		if (rd5GHz->dfsMask & DFS_ETSI)
+			dfsDomain = HAL_DFS_ETSI_DOMAIN;
+		if (rd5GHz->dfsMask & DFS_MKK4)
+			dfsDomain = HAL_DFS_MKK4_DOMAIN;
+	}
+	AH_PRIVATE(ah)->ah_dfsDomain = dfsDomain;
+
 	return status;
 }
 
