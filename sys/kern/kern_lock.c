@@ -451,8 +451,18 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		return (0);
 	}
 
-	if (op == LK_SHARED && (lk->lock_object.lo_flags & LK_NOSHARE))
-		op = LK_EXCLUSIVE;
+	if (lk->lock_object.lo_flags & LK_NOSHARE) {
+		switch (op) {
+		case LK_SHARED:
+			op = LK_EXCLUSIVE;
+			break;
+		case LK_UPGRADE:
+		case LK_DOWNGRADE:
+			_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED,
+			    file, line);
+			return (0);
+		}
+	}
 
 	wakeup_swapper = 0;
 	switch (op) {
