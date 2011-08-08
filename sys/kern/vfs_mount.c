@@ -362,60 +362,6 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *oldopts)
 }
 
 /*
- * Verify vnode's global path
- */
-static int
-vfs_verify_global_path(struct thread *td, struct vnode *vp, char *fspath)
-{
-	struct nameidata nd;
-	struct vnode *vp1;
-	char *rpath, *fbuf;
-	int error;
-
-	ASSERT_VOP_ELOCKED(vp, __func__);
-
-	/* Construct global filesystem path from vp. */
-	VOP_UNLOCK(vp, 0);
-	error = vn_fullpath_global(td, vp, &rpath, &fbuf);
-	if (error != 0) {
-		vrele(vp);
-		return (error);
-	}
-	if (strlen(rpath) >= MNAMELEN) {
-		vrele(vp);
-		error = ENAMETOOLONG;
-		goto out;
-	}
-
-	/*
-	 * Re-lookup the vnode by path. As a side effect, the vnode is
-	 * relocked.  If vnode was renamed, return ENOENT.
-	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    UIO_SYSSPACE, fspath, td);
-	error = namei(&nd);
-	if (error != 0) {
-		vrele(vp);
-		goto out;
-	}
-	if (NDHASGIANT(&nd))
-		mtx_unlock(&Giant);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vp1 = nd.ni_vp;
-	vrele(vp);
-	if (vp1 != vp) {
-		vput(vp1);
-		error = ENOENT;
-		goto out;
-	}
-
-	strlcpy(fspath,rpath,MNAMELEN);
-out:
-	free(fbuf, M_TEMP);
-	return (error);
-}
-
-/*
  * Mount a filesystem.
  */
 int
@@ -1124,13 +1070,15 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vfs_verify_global_path(td, vp, fspath);
-		if (error == 0)
-			error = vfs_domount_first(td, vfsp, fspath, vp,
-			    fsflags, optlist);
-	} else
+		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
+		    optlist);
+	} else {
 		error = vfs_domount_update(td, vp, fsflags, optlist);
+	}
 	mtx_unlock(&Giant);
+
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	ASSERT_VOP_UNLOCKED(vp, __func__);
 
 	return (error);
 }
@@ -1157,7 +1105,6 @@ unmount(td, uap)
 	} */ *uap;
 {
 	struct mount *mp;
-	struct nameidata nd;
 	char *pathbuf;
 	int error, id0, id1;
 
@@ -1193,25 +1140,6 @@ unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		AUDIT_ARG_UPATH1(td, pathbuf);
-		/*
-		 * If we are jailed and this is not a root jail try to find
-		 * global path for path argument.
-		 */
-		if (jailed(td->td_ucred) &&
-		    td->td_ucred->cr_prison->pr_root != rootvnode) {
-			NDINIT(&nd, LOOKUP,
-			    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-			    UIO_SYSSPACE, pathbuf, td);
-			if (namei(&nd) == 0) {
-				if (NDHASGIANT(&nd))
-					mtx_unlock(&Giant);
-				NDFREE(&nd, NDF_ONLY_PNBUF);
-				error = vfs_verify_global_path(td, nd.ni_vp,
-				    pathbuf);
-				if (error == 0)
-					vput(nd.ni_vp);
-			}
-		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
