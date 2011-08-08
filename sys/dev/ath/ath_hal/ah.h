@@ -958,6 +958,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
+	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);
