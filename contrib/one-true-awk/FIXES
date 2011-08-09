@@ -25,6 +25,24 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Aug 7, 2011:
+	split(s, a, //) now behaves the same as split(s, a, "")
+
+Jun 12, 2011:
+	/pat/, \n /pat/ {...} is now legal, though bad style to use.
+
+	added checks to new -v code that permits -vnospace; thanks to
+	ruslan ermilov for spotting this and providing the patch. 
+
+	removed fixed limit on number of open files; thanks to aleksey
+	cheusov and christos zoulos. 
+
+	fixed day 1 bug that resurrected deleted elements of ARGV when
+	used as filenames (in lib.c).
+
+	minor type fiddles to make gcc -Wall -pedantic happier (but not
+	totally so); turned on -fno-strict-aliasing in makefile.
+
 May 6, 2011:
 	added #ifdef for isblank.
 	now allows -ffoo as well as -f foo arguments.
