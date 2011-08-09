@@ -1222,12 +1222,12 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
 	    ("moea64_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
-	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea64_pvo_kunmanaged;
 		zone = moea64_upvo_zone;
@@ -1238,7 +1238,7 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= LPTE_BW;
 		if (pmap_bootstrapped &&
-		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	} else
 		pte_lo |= LPTE_BR;
@@ -1248,9 +1248,6 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
-
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		pvo_flags |= PVO_FAKE;
 
 	error = moea64_pvo_enter(mmu, pmap, zone, pvo_head, va,
 	    VM_PAGE_TO_PHYS(m), pte_lo, pvo_flags);
@@ -1474,7 +1471,7 @@ boolean_t
 moea64_is_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_is_referenced: page %p is not managed", m));
 	return (moea64_query_bit(mmu, m, PTE_REF));
 }
@@ -1483,7 +1480,7 @@ boolean_t
 moea64_is_modified(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_is_modified: page %p is not managed", m));
 
 	/*
@@ -1515,7 +1512,7 @@ void
 moea64_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_clear_reference: page %p is not managed", m));
 	moea64_clear_bit(mmu, m, LPTE_REF);
 }
@@ -1524,7 +1521,7 @@ void
 moea64_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -1551,7 +1548,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	uint64_t lo;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_remove_write: page %p is not managed", m));
 
 	/*
@@ -1611,7 +1608,7 @@ boolean_t
 moea64_ts_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_ts_referenced: page %p is not managed", m));
 	return (moea64_clear_bit(mmu, m, LPTE_REF));
 }
@@ -1628,7 +1625,7 @@ moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 	pmap_t	pmap;
 	uint64_t lo;
 
-	if (m->flags & PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		m->md.mdpg_cache_attrs = ma;
 		return;
 	}
@@ -1763,7 +1760,7 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	struct pvo_entry *pvo;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
@@ -1791,7 +1788,7 @@ moea64_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
@@ -2227,8 +2224,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	if (bootstrap)
 		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
-	if (flags & PVO_FAKE)
-		pvo->pvo_vaddr |= PVO_FAKE;
 	if (flags & PVO_LARGE)
 		pvo->pvo_vaddr |= PVO_LARGE;
 
@@ -2305,7 +2300,7 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 	/*
 	 * Save the REF/CHG bits into their cache if the page is managed.
 	 */
-	if ((pvo->pvo_vaddr & (PVO_MANAGED|PVO_FAKE)) == PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
