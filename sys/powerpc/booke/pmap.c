@@ -887,13 +887,11 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 	 * Insert pv_entry into pv_list for mapped page if part of managed
 	 * memory.
 	 */
-        if ((m->flags & PG_FICTITIOUS) == 0) {
-		if ((m->flags & PG_UNMANAGED) == 0) {
-			flags |= PTE_MANAGED;
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
+		flags |= PTE_MANAGED;
 
-			/* Create and insert pv entry. */
-			pv_insert(pmap, va, m);
-		}
+		/* Create and insert pv entry. */
+		pv_insert(pmap, va, m);
 	}
 
 	pmap->pm_stats.resident_count++;
@@ -1562,8 +1560,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		KASSERT((va <= VM_MAXUSER_ADDRESS),
 		    ("mmu_booke_enter_locked: user pmap, non user va"));
 	}
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
 	    ("mmu_booke_enter_locked: page %p is not busy", m));
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -1668,7 +1666,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (!su)
 				flags |= PTE_UW;
 
-			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+			if ((m->oflags & VPO_UNMANAGED) == 0)
 				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 
@@ -1955,7 +1953,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	pte_t *pte;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_remove_write: page %p is not managed", m));
 
 	/*
@@ -2169,7 +2167,7 @@ mmu_booke_is_modified(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_is_modified: page %p is not managed", m));
 	rv = FALSE;
 
@@ -2220,7 +2218,7 @@ mmu_booke_is_referenced(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_is_referenced: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
@@ -2248,7 +2246,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 	pv_entry_t pv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -2300,7 +2298,7 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	int count;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_ts_referenced: page %p is not managed", m));
 	count = 0;
 	vm_page_lock_queues();
@@ -2339,7 +2337,7 @@ mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 	pv_entry_t pv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_clear_reference: page %p is not managed", m));
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
@@ -2400,7 +2398,7 @@ mmu_booke_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	int loops;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("mmu_booke_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
@@ -2428,7 +2426,7 @@ mmu_booke_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 	int count = 0;
 
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
