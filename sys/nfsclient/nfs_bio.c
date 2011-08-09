@@ -445,6 +445,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	struct thread *td;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn, rabn;
+	off_t end;
 	int bcount;
 	int seqcount;
 	int nra, error = 0, n = 0, on = 0;
@@ -464,8 +465,9 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	} else
 		mtx_unlock(&nmp->nm_mtx);		
 
+	end = uio->uio_offset + uio->uio_resid;
 	if (vp->v_type != VDIR &&
-	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	    (end > nmp->nm_maxfilesize || end < uio->uio_offset))
 		return (EFBIG);
 
 	if (nfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
@@ -865,6 +867,7 @@ nfs_write(struct vop_write_args *ap)
 	struct vattr vattr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
+	off_t end;
 	int bcount;
 	int n, on, error = 0;
 
@@ -932,7 +935,8 @@ flush_and_restart:
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-	if ((uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	end = uio->uio_offset + uio->uio_resid;
+	if (end > nmp->nm_maxfilesize || end < uio->uio_offset)
 		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);
