@@ -1073,12 +1073,12 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
 	    ("moea_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
-	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
@@ -1088,7 +1088,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * If this is a managed page, and it's the first reference to the page,
 	 * clear the execness of the page.  Otherwise fetch the execness.
 	 */
-	if ((pg != NULL) && ((m->flags & PG_FICTITIOUS) == 0)) {
+	if ((pg != NULL) && ((m->oflags & VPO_UNMANAGED) == 0)) {
 		if (LIST_EMPTY(pvo_head)) {
 			moea_attr_clear(pg, PTE_EXEC);
 		} else {
@@ -1101,7 +1101,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= PTE_BW;
 		if (pmap_bootstrapped &&
-		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	} else
 		pte_lo |= PTE_BR;
@@ -1111,9 +1111,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
-
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		pvo_flags |= PVO_FAKE;
 
 	error = moea_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
 	    pte_lo, pvo_flags);
@@ -1245,7 +1242,7 @@ boolean_t
 moea_is_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_referenced: page %p is not managed", m));
 	return (moea_query_bit(m, PTE_REF));
 }
@@ -1254,7 +1251,7 @@ boolean_t
 moea_is_modified(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_modified: page %p is not managed", m));
 
 	/*
@@ -1286,7 +1283,7 @@ void
 moea_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_reference: page %p is not managed", m));
 	moea_clear_bit(m, PTE_REF);
 }
@@ -1295,7 +1292,7 @@ void
 moea_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -1322,7 +1319,7 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	u_int	lo;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_remove_write: page %p is not managed", m));
 
 	/*
@@ -1379,7 +1376,7 @@ boolean_t
 moea_ts_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_ts_referenced: page %p is not managed", m));
 	return (moea_clear_bit(m, PTE_REF));
 }
@@ -1396,7 +1393,7 @@ moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 	pmap_t	pmap;
 	u_int	lo;
 
-	if (m->flags & PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		m->md.mdpg_cache_attrs = ma;
 		return;
 	}
@@ -1537,7 +1534,7 @@ moea_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	struct pvo_entry *pvo;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
@@ -1565,7 +1562,7 @@ moea_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
@@ -1928,8 +1925,6 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	if (bootstrap)
 		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
-	if (flags & PVO_FAKE)
-		pvo->pvo_vaddr |= PVO_FAKE;
 
 	moea_pte_create(&pvo->pvo_pte.pte, sr, va, pa | pte_lo);
 
@@ -1988,7 +1983,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	/*
 	 * Save the REF/CHG bits into their cache if the page is managed.
 	 */
-	if ((pvo->pvo_vaddr & (PVO_MANAGED|PVO_FAKE)) == PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
