@@ -231,7 +231,7 @@ void freetr(Node *p)	/* free parse tree */
 /* in the parsing of regular expressions, metacharacters like . have */
 /* to be seen literally;  \056 is not a metacharacter. */
 
-int hexstr(char **pp)	/* find and eval hex string at pp, return new p */
+int hexstr(uschar **pp)	/* find and eval hex string at pp, return new p */
 {			/* only pick up one 8-bit byte (2 chars) */
 	uschar *p;
 	int n = 0;
@@ -245,16 +245,16 @@ int hexstr(char **pp)	/* find and eval hex string at pp, return new p */
 		else if (*p >= 'A' && *p <= 'F')
 			n = 16 * n + *p - 'A' + 10;
 	}
-	*pp = (char *) p;
+	*pp = (uschar *) p;
 	return n;
 }
 
 #define isoctdigit(c) ((c) >= '0' && (c) <= '7')	/* multiple use of arg */
 
-int quoted(char **pp)	/* pick up next thing after a \\ */
+int quoted(uschar **pp)	/* pick up next thing after a \\ */
 			/* and increment *pp */
 {
-	char *p = *pp;
+	uschar *p = *pp;
 	int c;
 
 	if ((c = *p++) == 't')
@@ -299,13 +299,13 @@ char *cclenter(const char *argp)	/* add a character class */
 	bp = buf;
 	for (i = 0; (c = *p++) != 0; ) {
 		if (c == '\\') {
-			c = quoted((char **) &p);
+			c = quoted(&p);
 		} else if (c == '-' && i > 0 && bp[-1] != 0) {
 			if (*p != 0) {
 				c = bp[-1];
 				c2 = *p++;
 				if (c2 == '\\')
-					c2 = quoted((char **) &p);
+					c2 = quoted(&p);
 				if (c > c2) {	/* empty; ignore */
 					bp--;
 					i--;
@@ -789,7 +789,7 @@ int relex(void)		/* lexical analyzer for reparse */
 	case ')':
 		return c;
 	case '\\':
-		rlxval = quoted((char **) &prestr);
+		rlxval = quoted(&prestr);
 		return CHAR;
 	default:
 		rlxval = c;
