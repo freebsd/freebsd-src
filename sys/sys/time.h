@@ -195,24 +195,6 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
 
-/* Conversion between timespec and timeval. */
-
-static __inline void
-timeval2timespec(const struct timeval *tv, struct timespec *ts)
-{
-
-	ts->tv_sec = tv->tv_sec;
-	ts->tv_nsec = 1000 * tv->tv_usec;
-}
-
-static __inline void
-timespec2timeval(const struct timespec *ts, struct timeval *tv)
-{
-
-	tv->tv_sec = ts->tv_sec;
-	tv->tv_usec = ts->tv_nsec / 1000;
-}
-
 /* timevaladd and timevalsub are not inlined */
 
 #endif /* _KERNEL */
