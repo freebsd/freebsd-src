@@ -165,3 +165,22 @@ Written by
 .An Perry E. Metzger Aq perry@piermont.com
 and
 .An Matthew R. Green Aq mrg@eterna.com.au .
+.Sh BUGS
+The
+.Dq Li REQUIRE
+keyword is misleading:
+It doesn't describe which daemons have to be running before a script
+will be started.
+It describes which scripts must be placed before it in
+the dependency ordering.
+For example,
+if your script has a
+.Dq Li REQUIRE
+on
+.Dq Li named ,
+it means the script must be placed after the 
+.Dq Li named
+script in the dependency ordering,
+not necessarily that it requires
+.Xr named 8
+to be started or enabled.
