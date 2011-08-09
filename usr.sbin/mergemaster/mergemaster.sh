@@ -5,8 +5,8 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2010 Douglas Barton
-# DougB@FreeBSD.org
+# Copyright 1998-2011 Douglas Barton
+# dougb@FreeBSD.org
 
 # $FreeBSD$
 
@@ -30,6 +30,7 @@ display_usage () {
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
   echo "  -U  Attempt to auto upgrade files that have not been user modified"
+  echo '      ***DANGEROUS***'
   echo ''
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
@@ -635,7 +636,7 @@ case "${RERUN}" in
     # Only set up files that are crucial to {build|install}world
     { mkdir -p ${TEMPROOT}/etc &&
       cp -p ${SOURCEDIR}/etc/master.passwd ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
+      install -p -o root -g wheel -m 0644 ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
     { echo '';
       echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
       echo '';
