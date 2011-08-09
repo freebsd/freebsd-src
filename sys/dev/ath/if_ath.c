@@ -5032,12 +5032,6 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *reg,
 		return EINVAL;		/* XXX */
 	}
 
-	/*
-	 * Setting country code might change the DFS domain
-	 * so initialize the DFS Radar filters
-	 */
-	ath_dfs_init_radar_filters(sc);
-
 	return 0;
 }
 
