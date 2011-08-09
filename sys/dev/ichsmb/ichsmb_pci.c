@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ichsmb/ichsmb_reg.h>
 
 /* PCI unique identifiers */
-#define ID_PCH_DH89XXCC			0x23308086
 #define ID_82801AA			0x24138086
 #define ID_82801AB			0x24238086
 #define ID_82801BA			0x24438086
@@ -170,7 +169,6 @@ ichsmb_pci_probe(device_t dev)
 	case ID_82801JI:
 		device_set_desc(dev, "Intel 82801JI (ICH10) SMBus controller");
 		break;
-	case ID_PCH_DH89XXCC:
 	case ID_PCH:
 		device_set_desc(dev, "Intel PCH SMBus controller");
 		break;
