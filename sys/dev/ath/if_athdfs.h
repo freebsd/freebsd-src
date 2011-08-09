@@ -44,6 +44,5 @@ extern	int ath_dfs_tasklet_needed(struct ath_softc *sc,
 extern	int ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad);
 extern	int ath_dfs_get_thresholds(struct ath_softc *sc,
     HAL_PHYERR_PARAM *param);
-extern	int ath_dfs_init_radar_filters(struct ath_softc *sc);
 
 #endif	/* __IF_ATHDFS_H__ */
