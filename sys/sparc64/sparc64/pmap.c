@@ -1390,7 +1390,7 @@ pmap_remove_all(vm_page_t m)
 	struct tte *tp;
 	vm_offset_t va;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
@@ -1498,13 +1498,13 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	struct tte *tp;
 	vm_paddr_t pa;
+	vm_page_t real;
 	u_long data;
-	int i;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter_locked: page %p is not busy", m));
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
@@ -1514,12 +1514,9 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * physical memory, convert to the real backing page.
 	 */
 	if ((m->flags & PG_FICTITIOUS) != 0) {
-		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-			if (pa >= phys_avail[i] && pa <= phys_avail[i + 1]) {
-				m = PHYS_TO_VM_PAGE(pa);
-				break;
-			}
-		}
+		real = vm_phys_paddr_to_vm_page(pa);
+		if (real != NULL)
+			m = real;
 	}
 
 	CTR6(KTR_PMAP,
@@ -1562,7 +1559,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			tp->tte_data |= TD_SW;
 			if (wired)
 				tp->tte_data |= TD_W;
-			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+			if ((m->oflags & VPO_UNMANAGED) == 0)
 				vm_page_flag_set(m, PG_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
@@ -1603,7 +1600,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_P;
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
-			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+			if ((m->oflags & VPO_UNMANAGED) == 0)
 				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
@@ -1945,7 +1942,7 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 	int loops;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
@@ -1975,7 +1972,7 @@ pmap_page_wired_mappings(vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
@@ -2006,7 +2003,7 @@ pmap_page_is_mapped(vm_page_t m)
 	boolean_t rv;
 
 	rv = FALSE;
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (rv);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
@@ -2037,7 +2034,7 @@ pmap_ts_referenced(vm_page_t m)
 	u_long data;
 	int count;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	count = 0;
 	vm_page_lock_queues();
@@ -2064,7 +2061,7 @@ pmap_is_modified(vm_page_t m)
 	struct tte *tp;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
 	rv = FALSE;
 
@@ -2117,7 +2114,7 @@ pmap_is_referenced(vm_page_t m)
 	struct tte *tp;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
@@ -2139,7 +2136,7 @@ pmap_clear_modify(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -2169,7 +2166,7 @@ pmap_clear_reference(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2188,7 +2185,7 @@ pmap_remove_write(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
