@@ -1769,7 +1769,7 @@ usbd_req_get_report(struct usb_device *udev, struct mtx *mtx, void *data,
 	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
 	struct usb_device_request req;
 
-	if ((iface == NULL) || (iface->idesc == NULL) || (id == 0)) {
+	if ((iface == NULL) || (iface->idesc == NULL)) {
 		return (USB_ERR_INVAL);
 	}
 	DPRINTFN(5, "len=%d\n", len);
