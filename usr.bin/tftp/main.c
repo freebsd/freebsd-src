@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXLINE		200
 #define	TIMEOUT		5		/* secs between rexmt's */
 
-static struct	sockaddr_storage peeraddr;
+typedef struct	sockaddr_storage peeraddr;
 static int	connected;
 static char	mode[32];
 jmp_buf		toplevel;
