@@ -86,12 +86,16 @@ file_write(struct archive *a, void *client_data, const void *buff, size_t length
 	size_t	bytesWritten;
 
 	mine = client_data;
-	bytesWritten = fwrite(buff, 1, length, mine->f);
-	if (bytesWritten < length) {
-		archive_set_error(a, errno, "Write error");
-		return (-1);
+	for (;;) {
+		bytesWritten = fwrite(buff, 1, length, mine->f);
+		if (bytesWritten <= 0) {
+			if (errno == EINTR)
+				continue;
+			archive_set_error(a, errno, "Write error");
+			return (-1);
+		}
+		return (bytesWritten);
 	}
-	return (bytesWritten);
 }
 
 static int
