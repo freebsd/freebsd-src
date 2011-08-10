@@ -2620,15 +2620,28 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			xpt_free_path(tmppath);
 			CAMLOCK_2_MPTLOCK(mpt);
 			break;
+		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET:
+		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL:
 		case MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET:
 			break;
 		default:
 			mpt_lprt(mpt, MPT_PRT_WARN,
 			    "SAS device status change: Bus: 0x%02x TargetID: "
-			    "0x%02x ReasonCode: 0x%02x\n", psdsc->TargetID,
-			    psdsc->Bus, psdsc->ReasonCode);
+			    "0x%02x ReasonCode: 0x%02x\n", psdsc->Bus,
+			    psdsc->TargetID, psdsc->ReasonCode);
 			break;
 		}
+		break;
+	}
+	case MPI_EVENT_SAS_DISCOVERY_ERROR:
+	{
+		PTR_EVENT_DATA_DISCOVERY_ERROR pde;
+
+		pde = (PTR_EVENT_DATA_DISCOVERY_ERROR)msg->Data;
+		pde->DiscoveryStatus = le32toh(pde->DiscoveryStatus);
+		mpt_lprt(mpt, MPT_PRT_WARN,
+		    "SAS discovery error: Port: 0x%02x Status: 0x%08x\n",
+		    pde->Port, pde->DiscoveryStatus);
 		break;
 	}
 	case MPI_EVENT_EVENT_CHANGE:
