@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660.h,v 1.15 2010/10/27 18:51:34 christos Exp $	*/
+/*	$NetBSD: cd9660.h,v 1.17 2011/06/23 02:35:56 enami Exp $	*/
 
 /*
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
@@ -50,6 +50,7 @@
 #include <limits.h>
 #include <sys/queue.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 
 #include "makefs.h"
 #include "iso.h"
