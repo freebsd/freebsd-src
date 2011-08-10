@@ -183,7 +183,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 			ptrace(PT_IO, pid, (caddr_t)&iorequest, 0);
 			ngot = iorequest.piod_len;
 			if ((size_t)ngot < nwant)
-				errx(1, "short read wanted %d, got %d",
+				errx(1, "short read wanted %zu, got %zd",
 				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
