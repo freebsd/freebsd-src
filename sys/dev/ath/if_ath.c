@@ -4110,19 +4110,30 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 
 }
 
+/*
+ * The default completion. If fail is 1, this means
+ * "please don't retry the frame, and just return -1 status
+ * to the net80211 stack.
+ */
 void
-ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
 	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	int st;
+
+	if (fail == 1)
+		st = -1;
+	else
+		st = ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+		    ts->ts_status : HAL_TXERR_XRETRY;
+
 	/*
 	 * Do any tx complete callback.  Note this must
 	 * be done before releasing the node reference.
 	 * This will free the mbuf, release the net80211
 	 * node and recycle the ath_buf.
 	 */
-	ath_tx_freebuf(sc, bf,
-	    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
-	        ts->ts_status : HAL_TXERR_XRETRY);
+	ath_tx_freebuf(sc, bf, st);
 }
 
 /*
@@ -4211,9 +4222,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		}
 
 		if (bf->bf_comp == NULL)
-			ath_tx_default_comp(sc, bf);
+			ath_tx_default_comp(sc, bf, 0);
 		else
-			bf->bf_comp(sc, bf);
+			bf->bf_comp(sc, bf, 0);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -4376,16 +4387,23 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
+	/*
+	 * The TXQ lock is held here for the entire trip through the
+	 * list (rather than just being held whilst acquiring frames
+	 * off of the list) because of the (current) assumption that
+	 * the per-TID software queue stuff is locked by the hardware
+	 * queue it maps to, thus ensuring proper ordering of things.
+	 *
+	 * The chance for LOR's however, is now that much bigger. Sigh.
+	 */
+	ATH_TXQ_LOCK(txq);
 	for (ix = 0;; ix++) {
-		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
-		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
@@ -4397,8 +4415,18 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			    bf->bf_m->m_len, 0, -1);
 		}
 #endif /* ATH_DEBUG */
-		ath_tx_freebuf(sc, bf, -1);
+		//ath_tx_freebuf(sc, bf, -1);
+		/*
+		 * Since we're now doing magic in the completion
+		 * functions, we -must- call it for aggregation
+		 * destinations or BAW tracking will get upset.
+		 */
+		if (bf->bf_comp)
+			bf->bf_comp(sc, bf, 1);
+		else
+			ath_tx_default_comp(sc, bf, 1);
 	}
+	ATH_TXQ_UNLOCK(txq);
 }
 
 static void

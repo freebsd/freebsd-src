@@ -167,7 +167,11 @@ struct ath_buf {
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
 
 	/* Completion function to call on TX complete (fail or not) */
-	void(* bf_comp) (struct ath_softc *sc, struct ath_buf *bf);
+	/*
+	 * "fail" here is set to 1 if the queue entries were removed
+	 * through a call to ath_tx_draintxq().
+	 */
+	void(* bf_comp) (struct ath_softc *sc, struct ath_buf *bf, int fail);
 
 	/* This state is kept to support software retries and aggregation */
 	struct {

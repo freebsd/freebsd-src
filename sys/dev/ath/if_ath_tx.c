@@ -1890,10 +1890,10 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 
 #ifdef	notyet
 /*
- * Handle completion of non-aggregate frames.
+ * Handle completion of non-aggregate session frames.
  */
 static void
-ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ath_node *an;
@@ -1905,30 +1905,35 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf)
 		an = ATH_NODE(ni);
 		atid = &an->an_tid[tid];
 
-		ath_tx_default_comp(sc, bf);
+		ath_tx_default_comp(sc, bf, fail);
 	}
 }
 #endif
 
 /*
  * Handle completion of aggregate frames.
+ *
+ * Fail is set to 1 if the entry is being freed via a call to
+ * ath_tx_draintxq().
  */
 static void
-ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
+
+	if (tid == IEEE80211_NONQOS_TID)
+		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
+	    __func__, bf, bf->bf_state.bfs_tid);
+
 	/*
 	 * Not success and have retries left?
 	 *
 	 * Mark as retry, requeue at head of queue
 	 */
-	if (tid == IEEE80211_NONQOS_TID)
-		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
-	    __func__, bf, bf->bf_state.bfs_tid);
 
 	/*
 	 * Not success and out of retries?
@@ -1944,7 +1949,7 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf)
 	    __func__, tid, SEQNO(bf->bf_state.bfs_seqno));
 	ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
 
-	ath_tx_default_comp(sc, bf);
+	ath_tx_default_comp(sc, bf, fail);
 	/* bf is freed at this point */
 }
 

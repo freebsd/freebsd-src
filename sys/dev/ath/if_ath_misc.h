@@ -55,7 +55,8 @@ extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc);
 
 extern int ath_reset(struct ifnet *);
 extern void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
-extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
+	    int fail);
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
 
