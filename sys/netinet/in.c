@@ -1037,7 +1037,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	IN_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
-			p = ia->ia_addr.sin_addr;
+			p = ia->ia_dstaddr.sin_addr;
 
 			if (prefix.s_addr != p.s_addr)
 				continue;
