@@ -37,12 +37,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
@@ -232,7 +234,7 @@ kern_readv(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, &fp);
+	error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -275,7 +277,7 @@ kern_preadv(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, &fp);
+	error = fget_read(td, fd, CAP_READ, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -441,7 +443,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, &fp);
+	error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -484,7 +486,7 @@ kern_pwritev(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, &fp);
+	error = fget_write(td, fd, CAP_WRITE, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -566,7 +568,7 @@ kern_ftruncate(td, fd, length)
 	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
-	error = fget(td, fd, &fp);
+	error = fget(td, fd, CAP_FTRUNCATE, &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -696,7 +698,7 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_CMD(com);
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
@@ -1054,6 +1056,37 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 	return (n);
 }
 
+static __inline int
+getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
+{
+	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_fromcap;
+	int error;
+#endif
+
+	if ((fp = fget_unlocked(fdp, fd)) == NULL)
+		return (EBADF);
+#ifdef CAPABILITIES
+	/*
+	 * If the file descriptor is for a capability, test rights and use
+	 * the file descriptor references by the capability.
+	 */
+	error = cap_funwrap(fp, CAP_POLL_KEVENT, &fp_fromcap);
+	if (error) {
+		fdrop(fp, curthread);
+		return (error);
+	}
+	if (fp != fp_fromcap) {
+		fhold(fp_fromcap);
+		fdrop(fp, curthread);
+		fp = fp_fromcap;
+	}
+#endif /* CAPABILITIES */
+	*fpp = fp;
+	return (0);
+}
+
 /*
  * Traverse the list of fds attached to this thread's seltd and check for
  * completion.
@@ -1069,6 +1102,7 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 	struct file *fp;
 	fd_mask bit;
 	int fd, ev, n, idx;
+	int error;
 
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
@@ -1080,8 +1114,9 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		if ((fp = fget_unlocked(fdp, fd)) == NULL)
-			return (EBADF);
+		error = getselfd_cap(fdp, fd, &fp);
+		if (error)
+			return (error);
 		idx = fd / NFDBITS;
 		bit = (fd_mask)1 << (fd % NFDBITS);
 		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
@@ -1109,6 +1144,7 @@ selscan(td, ibits, obits, nfd)
 	fd_mask bit;
 	int ev, flags, end, fd;
 	int n, idx;
+	int error;
 
 	fdp = td->td_proc->p_fd;
 	n = 0;
@@ -1119,8 +1155,9 @@ selscan(td, ibits, obits, nfd)
 			flags = selflags(ibits, idx, bit);
 			if (flags == 0)
 				continue;
-			if ((fp = fget_unlocked(fdp, fd)) == NULL)
-				return (EBADF);
+			error = getselfd_cap(fdp, fd, &fp);
+			if (error)
+				return (error);
 			selfdalloc(td, (void *)(uintptr_t)fd);
 			ev = fo_poll(fp, flags, td->td_ucred, td);
 			fdrop(fp, td);

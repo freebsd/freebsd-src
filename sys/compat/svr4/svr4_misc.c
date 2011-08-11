@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
@@ -246,7 +247,8 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0) {
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
+	    CAP_READ | CAP_SEEK, &fp)) != 0) {
 		return (error);
 	}
 
@@ -427,7 +429,8 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
+	    CAP_READ | CAP_SEEK, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -615,7 +618,8 @@ svr4_sys_fchroot(td, uap)
 
 	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
-	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
+	/* XXX: we have the chroot priv... what cap might we need? all? */
+	if ((error = getvnode(fdp, uap->fd, 0, &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
 	VREF(vp);

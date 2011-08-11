@@ -439,7 +439,11 @@ interpret:
 		imgp->vp = binvp;
 	} else {
 		AUDIT_ARG_FD(args->fd);
-		error = fgetvp(td, args->fd, &binvp);
+		/*
+		 * Some might argue that CAP_READ and/or CAP_MMAP should also
+		 * be required here; such arguments will be entertained.
+		 */
+		error = fgetvp_read(td, args->fd, CAP_FEXECVE, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);

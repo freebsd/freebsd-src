@@ -37,12 +37,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
@@ -212,7 +214,12 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
-			error = fgetvp(td, ndp->ni_dirfd, &dp);
+#ifdef CAPABILITY_MODE
+			KASSERT(!IN_CAPABILITY_MODE(td),
+			    ("%s: reached %s:%d in capability mode",
+			     __func__, __FILE__, __LINE__));
+#endif
+			error = fgetvp(td, ndp->ni_dirfd, 0, &dp);
 		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);

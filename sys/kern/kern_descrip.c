@@ -431,6 +431,26 @@ fdtofp(int fd, struct filedesc *fdp)
 	return (fp);
 }
 
+static inline int
+fdunwrap(int fd, cap_rights_t rights, struct filedesc *fdp, struct file **fpp)
+{
+
+	*fpp = fdtofp(fd, fdp);
+	if (*fpp == NULL)
+		return (EBADF);
+
+#ifdef CAPABILITIES
+	if ((*fpp)->f_type == DTYPE_CAPABILITY) {
+		int err = cap_funwrap(*fpp, rights, fpp);
+		if (err != 0) {
+			*fpp = NULL;
+			return (err);
+		}
+	}
+#endif /* CAPABILITIES */
+	return (0);
+}
+
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 {
@@ -489,9 +509,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETFL:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -500,9 +520,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETFL:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -532,9 +552,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETOWN:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -547,9 +567,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETOWN:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -573,9 +593,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETLK:
 	do_setlk:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FLOCK, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
@@ -668,9 +688,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETLK:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FLOCK, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1312,7 +1332,7 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 
 	AUDIT_ARG_FD(fd);
 
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_FSTAT, &fp)) != 0)
 		return (error);
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -1368,7 +1388,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	struct vnode *vp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_FPATHCONF, &fp)) != 0)
 		return (error);
 
 	/* If asynchronous I/O is available, it works for all descriptors. */
@@ -2294,7 +2314,7 @@ fget_unlocked(struct filedesc *fdp, int fd)
 #define	FGET_GETCAP	0x00000001
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t needrights, cap_rights_t *haverights, u_char *maxprotp,
+    cap_rights_t needrights, cap_rights_t *haverightsp, u_char *maxprotp,
     int fget_flags)
 {
 	struct filedesc *fdp;
@@ -2369,28 +2389,36 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 }
 
 int
-fget(struct thread *td, int fd, struct file **fpp)
+fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, 0, 0, NULL, NULL, 0));
+	return(_fget(td, fd, fpp, 0, rights, NULL, NULL, 0));
 }
 
 int
-fget_read(struct thread *td, int fd, struct file **fpp)
+fget_mmap(struct thread *td, int fd, cap_rights_t rights, u_char *maxprotp,
+    struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FREAD, 0, NULL, NULL, 0));
+	return (_fget(td, fd, fpp, 0, rights, NULL, maxprotp, 0));
 }
 
 int
-fget_write(struct thread *td, int fd, struct file **fpp)
+fget_read(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FWRITE, 0, NULL, NULL, 0));
+	return(_fget(td, fd, fpp, FREAD, rights, NULL, NULL, 0));
+}
+
+int
+fget_write(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
+{
+
+	return (_fget(td, fd, fpp, FWRITE, rights, NULL, NULL, 0));
 }
 
 /*
- * Unlike the other fget() calls, which will accept and check capability rights
+ * Unlike the other fget() calls, which accept and check capability rights
  * but never return capabilities, fgetcap() returns the capability but doesn't
  * check capability rights.
  */
@@ -2410,13 +2438,15 @@ fgetcap(struct thread *td, int fd, struct file **fpp)
  * XXX: what about the unused flags ?
  */
 static __inline int
-_fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
+_fgetvp(struct thread *td, int fd, int flags, cap_rights_t needrights,
+    cap_rights_t *haverightsp, struct vnode **vpp)
 {
 	struct file *fp;
 	int error;
 
 	*vpp = NULL;
-	if ((error = _fget(td, fd, &fp, flags, 0, NULL, NULL, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, flags, needrights, haverightsp,
+	    NULL, 0)) != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
@@ -2430,25 +2460,33 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 }
 
 int
-fgetvp(struct thread *td, int fd, struct vnode **vpp)
+fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, 0));
+	return (_fgetvp(td, fd, 0, rights, NULL, vpp));
 }
 
 int
-fgetvp_read(struct thread *td, int fd, struct vnode **vpp)
+fgetvp_rights(struct thread *td, int fd, cap_rights_t need, cap_rights_t *have,
+    struct vnode **vpp)
+{
+	return (_fgetvp(td, fd, 0, need, have, vpp));
+}
+
+int
+fgetvp_read(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, FREAD));
+	return (_fgetvp(td, fd, FREAD, rights, NULL, vpp));
 }
 
 #ifdef notyet
 int
-fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
+fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, FWRITE));
+	return (_fgetvp(td, fd, FWRITE, rights, NULL, vpp));
 }
 #endif
 
@@ -2464,7 +2502,8 @@ fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
  * during use.
  */
 int
-fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
+fgetsock(struct thread *td, int fd, cap_rights_t rights, struct socket **spp,
+    u_int *fflagp)
 {
 	struct file *fp;
 	int error;
@@ -2472,7 +2511,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0, 0, NULL, NULL, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, 0, rights, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		error = ENOTSOCK;
@@ -2557,7 +2596,7 @@ flock(struct thread *td, struct flock_args *uap)
 	int vfslocked;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_FLOCK, &fp)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);

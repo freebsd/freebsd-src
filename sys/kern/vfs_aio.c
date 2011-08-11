@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/capability.h>
 #include <sys/eventhandler.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
@@ -1577,17 +1578,30 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
 
-	/* Fetch the file object for the specified file descriptor. */
+	/*
+	 * Validate the opcode and fetch the file object for the specified
+	 * file descriptor.
+	 *
+	 * XXXRW: Moved the opcode validation up here so that we don't
+	 * retrieve a file descriptor without knowing what the capabiltity
+	 * should be.
+	 */
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, &fp);
+		error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, &fp);
+		error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+		break;
+	case LIO_SYNC:
+		error = fget(td, fd, CAP_FSYNC, &fp);
+		break;
+	case LIO_NOP:
+		error = fget(td, fd, 0, &fp);
 		break;
 	default:
-		error = fget(td, fd, &fp);
+		error = EINVAL;
 	}
 	if (error) {
 		uma_zfree(aiocb_zone, aiocbe);
@@ -1622,11 +1636,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		return (0);
-	}
-	if ((opcode != LIO_READ) && (opcode != LIO_WRITE) &&
-	    (opcode != LIO_SYNC)) {
-		error = EINVAL;
-		goto aqueue_fail;
 	}
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT)
@@ -1971,7 +1980,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, uap->fd, 0, &fp);
 	if (error)
 		return (error);
 

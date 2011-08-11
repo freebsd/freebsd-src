@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
@@ -371,7 +372,7 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 		struct vnode *vp = NULL;
 
 		if (tmp->oh.result == 0) {
-			error = getvnode(uiop->uio_td->td_proc->p_fd,
+			error = getvnode(uiop->uio_td->td_proc->p_fd, CAP_WRITE,
 			    tmp->fd, &fp);
 			if (!error) {
 				/*
