@@ -119,6 +119,11 @@ __FBSDID("$FreeBSD$");
 #define	BAW_WITHIN(_start, _bawsz, _seqno)	\
 	     ((((_seqno) - (_start)) & 4095) < (_bawsz))
 
+/*
+ * How many retries to perform in software
+ */
+#define	SWMAX_RETRIES		10
+
 static struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
@@ -1910,8 +1915,68 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 }
 #endif
 
+static void
+ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_frame *wh;
+
+	sc->sc_stats.ast_tx_swretries++;
+	bf->bf_state.bfs_isretried = 1;
+	bf->bf_state.bfs_retries ++;
+	wh = mtod(bf->bf_m, struct ieee80211_frame *);
+	wh->i_fc[1] |= IEEE80211_FC1_RETRY;
+}
+
 /*
- * Handle completion of aggregate frames.
+ * Handle retrying an unaggregate frame in an aggregate
+ * session.
+ *
+ * If too many retries occur, pause the TID, wait for
+ * any further retransmits (as there's no reason why
+ * non-aggregate frames in an aggregate session are
+ * transmitted in-order; they just have to be in-BAW)
+ * and then queue a BAR.
+ */
+static void
+ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	int tid = bf->bf_state.bfs_tid;
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
+
+		/* Update BAW anyway */
+		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+
+		/* Free buffer, bf is free after this call */
+		ath_tx_default_comp(sc, bf, 0);
+		return;
+	}
+
+	/*
+	 * This increments the retry counter as well as
+	 * sets the retry flag in the ath_buf and packet
+	 * body.
+	 */
+	ath_tx_set_retry(sc, bf);
+
+	/*
+	 * Insert this at the head of the queue, so it's
+	 * retried before any current/subsequent frames.
+	 */
+	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+	ath_tx_tid_sched(sc, an, atid->tid);
+}
+
+/*
+ * Handle completion of unaggregated frames in an ADDBA
+ * session.
  *
  * Fail is set to 1 if the entry is being freed via a call to
  * ath_tx_draintxq().
@@ -1923,6 +1988,7 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
 	if (tid == IEEE80211_NONQOS_TID)
 		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
@@ -1930,19 +1996,13 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	    __func__, bf, bf->bf_state.bfs_tid);
 
 	/*
-	 * Not success and have retries left?
-	 *
-	 * Mark as retry, requeue at head of queue
+	 * Don't bother with the retry check if all frames
+	 * are being failed (eg during queue deletion.)
 	 */
-
-	/*
-	 * Not success and out of retries?
-	 *
-	 * Need to wait for the hardware TXQ to finish draining,
-	 * then once we know what was successfully TXed and what
-	 * wasn't, we send a BAR to advance the pointer to that
-	 * place.
-	 */
+	if (fail == 0 && ts->ts_status & HAL_TXERR_XRETRY) {
+		ath_tx_aggr_retry_unaggr(sc, bf);
+		return;
+	}
 
 	/* Success? Complete */
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: TID=%d, seqno %d\n",
