@@ -25,7 +25,7 @@ THIS SOFTWARE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-const char	*version = "version 20110807 (FreeBSD)";
+const char	*version = "version 20110810 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
