@@ -58,8 +58,38 @@ fork_exit+a8 (?,?,?,?) ra 80383210 sp c7713e58 sz 40
 fork_trampoline+10 (?,?,?,?) ra 0 sp c7713e80 sz 0
 pid 0
 
+And another LOR:
 
-
+lock order reversal:
+ 1st 0xc08316cc ath0_node_lock (ath0_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
+ 2nd 0x80a03738 ath0_txq1 (ath0_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath_tx.c:1854
+KDB: stack backtrace:
+db_trace_thread+30 (?,?,?,?) ra 8038ab6c sp c7bf9798 sz 24
+db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7bf97b0 sz 24
+80074c08+34 (?,?,?,?) ra 801ce3a4 sp c7bf97c8 sz 416
+kdb_backtrace+44 (?,?,?,?) ra 801e5e60 sp c7bf9968 sz 24
+801e5e2c+34 (?,?,?,?) ra 801e6aa4 sp c7bf9980 sz 32
+witness_checkorder+954 (?,?,?,?) ra 80186f40 sp c7bf99a0 sz 88
+_mtx_lock_flags+c4 (?,?,?,?) ra 80085fc4 sp c7bf99f8 sz 48
+ath_tx_node_flush+8c (?,?,?,?) ra 800860d0 sp c7bf9a28 sz 48
+ath_tx_tid_cleanup+10 (?,?,?,?) ra 8007c654 sp c7bf9a58 sz 24
+8007c5fc+58 (?,?,?,?) ra 80298318 sp c7bf9a70 sz 32
+802981fc+11c (?,?,?,?) ra 80298914 sp c7bf9a90 sz 24
+ieee80211_free_node+58 (?,?,?,?) ra 8029a110 sp c7bf9aa8 sz 48
+8029a078+98 (?,?,?,?) ra 8029c044 sp c7bf9ad8 sz 40
+ieee80211_sta_join+20c (?,?,?,?) ra 8028e720 sp c7bf9b00 sz 40
+8028e688+98 (?,?,?,?) ra 80290148 sp c7bf9b28 sz 48
+802900e4+64 (?,?,?,?) ra 80290948 sp c7bf9b58 sz 72
+802903f4+554 (?,?,?,?) ra 80292604 sp c7bf9ba0 sz 128
+ieee80211_ioctl+2c8 (?,?,?,?) ra 802b9e84 sp c7bf9c20 sz 48
+in_control+1c8 (?,?,?,?) ra 802514d8 sp c7bf9c50 sz 88
+ifioctl+13cc (?,?,80aaada0,80dda900) ra 801ee8c0 sp c7bf9ca8 sz 144
+soo_ioctl+3b0 (?,?,?,?) ra 801e91c4 sp c7bf9d38 sz 40
+kern_ioctl+23c (?,?,?,?) ra 801e936c sp c7bf9d60 sz 64
+ioctl+130 (?,?,?,?) ra 8037eb6c sp c7bf9da0 sz 56
+trap+8a4 (?,?,?,?) ra 80376fec sp c7bf9dd8 sz 168
+MipsUserGenException+10c (?,?,?,40818e20) ra 0 sp c7bf9e80 sz 0
+pid 1510
 
 Fixed issues:
 
