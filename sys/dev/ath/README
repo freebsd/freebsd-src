@@ -27,6 +27,10 @@ Things that need doing!
 
 Things that need investigating!
 
+* Recursive HW TXQ's sometimes? Get some details about the the next one
+
+* LORs? Post some more details! (on STA join and node deletion?)
+
 * How should channel scanning be handled? Right now it's causing both a HW TXQ
   and SW TXQ / node flush; this means the BAW will need to be slid along. Eek.
 
