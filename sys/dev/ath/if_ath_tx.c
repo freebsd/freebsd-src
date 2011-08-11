@@ -1809,7 +1809,14 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 		if (bf == NULL) {
 			break;
 		}
-		/* XXX update BAW if needed? */
+
+		/*
+		 * If the current TID is running AMPDU, update
+		 * the BAW.
+		 */
+		if (ath_tx_ampdu_running(sc, an, tid))
+			ath_tx_update_baw(sc, an, atid,
+			    SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
 		ath_tx_freebuf(sc, bf, -1);
 	}
