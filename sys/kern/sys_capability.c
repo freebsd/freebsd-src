@@ -225,7 +225,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_RIGHTS(rights);
-	error = fget(td, fd, &fp);
+	error = fget(td, fd, rights, &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);

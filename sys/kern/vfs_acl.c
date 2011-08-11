@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -408,7 +409,7 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_GET, &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
@@ -427,7 +428,7 @@ __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_SET, &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
@@ -486,7 +487,8 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_DELETE,
+	    &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_delete(td, fp->f_vnode, uap->type);
@@ -545,7 +547,8 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_CHECK,
+	    &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
