@@ -251,6 +251,10 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
 #define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
+#define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
+	STAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
 #define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
 	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
