@@ -1116,7 +1116,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
-		fdclose(fdp, fp, indx, td);
+		if (indx != -1)
+			fdclose(fdp, fp, indx, td);
 		fdrop(fp, td);
 
 		if (error == ERESTART)
@@ -1185,7 +1186,8 @@ success:
 bad:
 	VFS_UNLOCK_GIANT(vfslocked);
 bad_unlocked:
-	fdclose(fdp, fp, indx, td);
+	if (indx != -1)
+		fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
 	td->td_retval[0] = -1;
 	return (error);
