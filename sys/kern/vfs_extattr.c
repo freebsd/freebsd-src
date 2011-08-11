@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -230,7 +231,7 @@ extattr_set_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_SET, &fp);
 	if (error)
 		return (error);
 
@@ -410,7 +411,7 @@ extattr_get_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_GET, &fp);
 	if (error)
 		return (error);
 
@@ -560,7 +561,8 @@ extattr_delete_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_DELETE,
+	    &fp);
 	if (error)
 		return (error);
 
@@ -719,7 +721,7 @@ extattr_list_fd(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_LIST, &fp);
 	if (error)
 		return (error);
 

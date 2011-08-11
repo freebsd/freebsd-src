@@ -176,9 +176,13 @@ extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern volatile int openfiles;	/* actual number of open files */
 
-int fget(struct thread *td, int fd, struct file **fpp);
-int fget_read(struct thread *td, int fd, struct file **fpp);
-int fget_write(struct thread *td, int fd, struct file **fpp);
+int fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp);
+int fget_mmap(struct thread *td, int fd, cap_rights_t rights,
+    u_char *maxprotp, struct file **fpp);
+int fget_read(struct thread *td, int fd, cap_rights_t rights,
+    struct file **fpp);
+int fget_write(struct thread *td, int fd, cap_rights_t rights,
+    struct file **fpp);
 int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
@@ -197,11 +201,16 @@ fo_stat_t	soo_stat;
 fo_close_t	soo_close;
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
-int fgetvp(struct thread *td, int fd, struct vnode **vpp);
-int fgetvp_read(struct thread *td, int fd, struct vnode **vpp);
-int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
+int fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp);
+int fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
+    cap_rights_t *have, struct vnode **vpp);
+int fgetvp_read(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp);
+int fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp);
 
-int fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp);
+int fgetsock(struct thread *td, int fd, cap_rights_t rights,
+    struct socket **spp, u_int *fflagp);
 void fputsock(struct socket *sp);
 
 static __inline int

@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
+
 /*
  * Functions that perform the vfs operations required by the routines in
  * nfsd_serv.c. It is hoped that this change will make the server more
@@ -3027,8 +3029,14 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
 		if (error)
 			goto out;
-		if ((error = fget(td, sockarg.sock, &fp)) != 0)
+		/*
+		 * Since we don't know what rights might be required,
+		 * pretend that we need them all. It is better to be too
+		 * careful than too reckless.
+		 */
+		if ((error = fget(td, sockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
 			goto out;
+			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
 			error = EPERM;

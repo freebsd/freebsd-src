@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -203,7 +204,7 @@ ibcs2_open(td, uap)
 		struct file *fp;
 		int error;
 
-		error = fget(td, td->td_retval[0], &fp);
+		error = fget(td, td->td_retval[0], CAP_IOCTL, &fp);
 		PROC_UNLOCK(p);
 		if (error)
 			return (EBADF);

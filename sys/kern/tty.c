@@ -30,9 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -1810,6 +1812,9 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 {
 	struct tty *tp;
 	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_cap;
+#endif
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
@@ -1826,6 +1831,13 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		error = EBADF;
 		goto done1;
 	}
+
+#ifdef CAPABILITIES
+	fp_cap = fp;
+	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
+	if (error)
+		return (error);
+#endif
 
 	/*
 	 * Make sure the vnode is bound to a character device.
