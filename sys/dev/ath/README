@@ -1,0 +1,35 @@
+Things that need doing!
+
+* RIFS? Do I care about supporting RIFS?
+
+* Fast Frames? Do I care about supporting FF here, or is it done via suitable
+  evilness in net80211?
+
+* A-MPDU aggregation?
+  + how many pending A-MPDU frames per hardware TXQ? As many as needed? One?
+
+* Software retransmit when aggregation is enabled
+  + Whether doing A-MPDU or not
+  + Support rate updates and lookup on a retry; maybe a slower rate
+    is needed?
+
+* Send BAR when needed
+  + after TX failure
+  + when else?
+
+* DELBA - ie, downgrade existing packets in the SWQ
+  + What about stuff in the HWQ?
+
+* 20<->2040 mode change?
+  + part of this project or not?
+  + right now packets are simply flushed; why not just re-prod them into
+    the software TXQ ?
+
+Things that need investigating!
+
+* How should channel scanning be handled? Right now it's causing both a HW TXQ
+  and SW TXQ / node flush; this means the BAW will need to be slid along. Eek.
+
+* When a node is flushed (but not being deleted) should the BAW also be updated?
+  I don't think it is right now and this could be incorrect.
+
