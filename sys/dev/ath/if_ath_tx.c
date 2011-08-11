@@ -1818,41 +1818,34 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 /*
  * Flush all software queued packets for the given node.
  *
- * XXX there's a recursive lock here which currently panics
- * XXX the kernel.
- *
- * bringing the interface down/up causes a flush on interface
- * _up_; the stack looks like this:
- *
- * <panic>
- * ath_tx_node_flush - locks each hardware txq
- * ieee80211_free_node
- * ath_tx_freebuf
- * ath_tx_default_comp
- * ath_tx_processq - locks the hardware txq
- *
- * To fix? Not (yet) sure. Perhaps unsched the TID in freebuf
- * if there's no further buffers for it; then only flush
- * nodes w/ a lock below if the qlen is 0. But can the tid
- * txq length be checked without having the txq locked?
- * It'll be locked by someone, but if this node is being freed,
- * in theory all references to the node should be released
- * and thus there shouldn't be any packets in the TIDs for that
- * node. Hm.
+ * Work around recursive TXQ locking.
+ * This occurs when a completion handler frees the last buffer
+ * for a node, and the node is thus freed. This causes the node
+ * to be cleaned up, which ends up calling ath_tx_node_flush.
  */
 void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
+	int is_owned;
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
-		ATH_TXQ_LOCK(txq);
+		/*
+		 * Only lock if we don't have it locked.
+		 * It may be locked already if this is being called
+		 * when the last buffer for an ieee80211_node is
+		 * being freed.
+		 */
+		is_owned = ATH_TXQ_IS_LOCKED(txq);
+		if (! is_owned)
+			ATH_TXQ_LOCK(txq);
 		/* Remove this tid from the list of active tids */
 		ath_tx_tid_unsched(sc, an, tid);
-		ATH_TXQ_UNLOCK(txq);
+		if (! is_owned)
+			ATH_TXQ_UNLOCK(txq);
 
 		/* Free packets */
 		ath_tx_tid_free_pkts(sc, an, tid);

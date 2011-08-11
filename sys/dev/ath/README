@@ -59,7 +59,14 @@ fork_trampoline+10 (?,?,?,?) ra 0 sp c7713e80 sz 0
 pid 0
 
 
+
+
+Fixed issues:
+
 * Recursive TXQ lock on interface destruction:
+
+  - Fixed by only locking the TXQ in ath_tx_node_flush if the TXQ
+    isn't already locked by us.
 
 drian-home-mips# ifconfig wlan0 destroy
 ath1: ath_tx_node_flush: called
