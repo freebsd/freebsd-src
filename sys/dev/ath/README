@@ -27,9 +27,6 @@ Things that need doing!
 
 Things that need investigating!
 
-* Recursive HW TXQ's sometimes? Get some details about the the next one
-
-* LORs? Post some more details! (on STA join and node deletion?)
 
 * How should channel scanning be handled? Right now it's causing both a HW TXQ
   and SW TXQ / node flush; this means the BAW will need to be slid along. Eek.
@@ -37,3 +34,65 @@ Things that need investigating!
 * When a node is flushed (but not being deleted) should the BAW also be updated?
   I don't think it is right now and this could be incorrect.
 
+* LOR between the net80211 node lock and the txqs
+
+lock order reversal:
+ 1st 0x80a02738 ath1_txq1 (ath1_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath.c:4154
+ 2nd 0xc086c6cc ath1_node_lock (ath1_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
+KDB: stack backtrace:
+db_trace_thread+30 (?,?,?,?) ra 8038aacc sp c7713a88 sz 24
+db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7713aa0 sz 24
+80074c08+34 (?,?,?,?) ra 801ce304 sp c7713ab8 sz 416
+kdb_backtrace+44 (?,?,?,?) ra 801e5dc0 sp c7713c58 sz 24
+801e5d8c+34 (?,?,?,?) ra 801e6a04 sp c7713c70 sz 32
+witness_checkorder+954 (?,?,?,?) ra 80186ea0 sp c7713c90 sz 88
+_mtx_lock_flags+c4 (?,?,?,?) ra 8029885c sp c7713ce8 sz 48
+ieee80211_free_node+40 (?,?,?,?) ra 80079c80 sp c7713d18 sz 48
+ath_tx_freebuf+68 (?,?,?,?) ra 80079d2c sp c7713d48 sz 40
+ath_tx_default_comp+34 (?,?,?,?) ra 8007d664 sp c7713d70 sz 24
+8007d2b0+3b4 (?,?,?,?) ra 8007df3c sp c7713d88 sz 64
+8007deb4+88 (?,?,?,?) ra 801dc284 sp c7713dc8 sz 48
+801dc19c+e8 (?,?,?,?) ra 801dcd4c sp c7713df8 sz 56
+taskqueue_thread_loop+60 (?,?,?,?) ra 8016c2c4 sp c7713e30 sz 40
+fork_exit+a8 (?,?,?,?) ra 80383210 sp c7713e58 sz 40
+fork_trampoline+10 (?,?,?,?) ra 0 sp c7713e80 sz 0
+pid 0
+
+
+* Recursive TXQ lock on interface destruction:
+
+drian-home-mips# ifconfig wlan0 destroy
+ath1: ath_tx_node_flush: called
+ar5212StopDmaReceive: dma failed to stop in 10ms
+AR_CR=0x00000024
+AR_DIAG_SW=0x42000020
+wlan0: [00:1b:b1:58:f6:f0] send station disassociate (reason 8)
+ath1: ath_tx_node_flush: called
+panic: _mtx_lock_sleep: recursed on non-recursive mutex ath1_txq1 @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath_tx.c:1854
+
+KDB: enter: panic
+[ thread pid 0 tid 100028 ]
+Stopped at      kdb_enter+0x4c: lui     at,0x804c
+db> bt
+Tracing pid 0 tid 100028 td 0x80762900
+db_trace_thread+30 (?,?,?,?) ra 80072de0 sp c7717748 sz 24
+80072ccc+114 (0,?,ffffffff,?) ra 8007239c sp c7717760 sz 32
+80072014+388 (?,?,?,?) ra 80072520 sp c7717780 sz 168
+db_command_loop+70 (?,?,?,?) ra 80074be4 sp c7717828 sz 24
+80074af0+f4 (?,?,?,?) ra 801cdf78 sp c7717840 sz 424
+kdb_trap+104 (?,?,?,?) ra 8037ee00 sp c77179e8 sz 40
+trap+bd8 (?,?,?,?) ra 80376d50 sp c7717a10 sz 168
+MipsKernGenException+134 (0,4,803f6b90,109) ra 801ce204 sp c7717ab8 sz 200
+kdb_enter+4c (?,?,?,?) ra 80196e38 sp c7717b80 sz 24
+panic+f4 (?,80a0274c,803ddea4,73e) ra 80186c9c sp c7717b98 sz 40
+_mtx_lock_sleep+68 (?,?,?,?) ra 80186f14 sp c7717bc0 sz 32
+_mtx_lock_flags+138 (?,?,?,?) ra 80085f74 sp c7717be0 sz 48
+ath_tx_node_flush+70 (?,?,?,?) ra 80086028 sp c7717c10 sz 40
+ath_tx_tid_cleanup+10 (?,?,?,?) ra 8007c654 sp c7717c38 sz 24
+8007c5fc+58 (?,?,?,?) ra 80298278 sp c7717c50 sz 32
+8029815c+11c (?,?,?,?) ra 80298958 sp c7717c70 sz 24
+ieee80211_free_node+13c (?,?,?,?) ra 80079c80 sp c7717c88 sz 48
+ath_tx_freebuf+68 (?,?,?,?) ra 80079d2c sp c7717cb8 sz 40
+ath_tx_default_comp+34 (?,?,?,?) ra 80079ef0 sp c7717ce0 sz 24
+80079e3c+b4 (?,?,?,?) ra 0 sp c7717cf8 sz 0
+pid 0
