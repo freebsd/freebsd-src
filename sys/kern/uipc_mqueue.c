@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/limits.h>
 #include <sys/buf.h>
+#include <sys/capability.h>
 #include <sys/dirent.h>
 #include <sys/event.h>
 #include <sys/eventhandler.h>
@@ -2087,19 +2088,19 @@ kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	return (error);
 }
 
-typedef int (*_fgetf)(struct thread *, int, struct file **);
+typedef int (*_fgetf)(struct thread *, int, cap_rights_t, struct file **);
 
 /*
  * Get message queue by giving file slot
  */
 static int
-_getmq(struct thread *td, int fd, _fgetf func,
+_getmq(struct thread *td, int fd, cap_rights_t rights, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
 	struct mqfs_node *pn;
 	int error;
 
-	error = func(td, fd, fpp);
+	error = func(td, fd, rights, fpp);
 	if (error)
 		return (error);
 	if (&mqueueops != (*fpp)->f_ops) {
@@ -2118,21 +2119,21 @@ static __inline int
 getmq(struct thread *td, int fd, struct file **fpp, struct mqfs_node **ppn,
 	struct mqueue **pmq)
 {
-	return _getmq(td, fd, fget, fpp, ppn, pmq);
+	return _getmq(td, fd, CAP_POLL_KEVENT, fget, fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_read(struct thread *td, int fd, struct file **fpp,
 	 struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, fget_read, fpp, ppn, pmq);
+	return _getmq(td, fd, CAP_READ, fget_read, fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_write(struct thread *td, int fd, struct file **fpp,
 	struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, fget_write, fpp, ppn, pmq);
+	return _getmq(td, fd, CAP_WRITE, fget_write, fpp, ppn, pmq);
 }
 
 static int
@@ -2243,7 +2244,7 @@ kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 	struct filedesc *fdp;
 	struct proc *p;
 	struct mqueue *mq;
-	struct file *fp;
+	struct file *fp, *fp2;
 	struct mqueue_notifier *nt, *newnt = NULL;
 	int error;
 
@@ -2267,7 +2268,18 @@ kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 		return (error);
 again:
 	FILEDESC_SLOCK(fdp);
-	if (fget_locked(fdp, uap->mqd) != fp) {
+	fp2 = fget_locked(fdp, uap->mqd);
+	if (fp2 == NULL) {
+		FILEDESC_SUNLOCK(fdp);
+		error = EBADF;
+		goto out;
+	}
+	error = cap_funwrap(fp2, CAP_POLL_KEVENT, &fp2);
+	if (error) {
+		FILEDESC_SUNLOCK(fdp);
+		goto out;
+	}
+	if (fp2 != fp) {
 		FILEDESC_SUNLOCK(fdp);
 		error = EBADF;
 		goto out;

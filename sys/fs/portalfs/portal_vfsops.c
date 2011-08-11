@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/domain.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
@@ -112,7 +113,12 @@ portal_mount(struct mount *mp)
 	if (error)
 		return (error);
 
-	if ((error = fget(td, v, &fp)) != 0)
+	/*
+	 * Capsicum is not incompatible with portalfs, but we don't really
+	 * know what rights are required. In the spirit of "better safe than
+	 * sorry", pretend that all rights are required for now.
+	 */
+	if ((error = fget(td, v, CAP_MASK_VALID, &fp)) != 0)
 		return (error);
         if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, td);

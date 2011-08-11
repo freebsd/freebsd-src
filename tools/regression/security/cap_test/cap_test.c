@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <err.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,7 +61,7 @@ main(int argc, char *argv[])
 	 * If no tests have been specified at the command line, run them all.
 	 */
 	if (argc == 1) {
-		printf("1..%ld\n", test_count);
+		printf("1..%ju\n", (uintmax_t)test_count);
 
 		for (size_t i = 0; i < test_count; i++)
 			execute(i + 1, all_tests + i);

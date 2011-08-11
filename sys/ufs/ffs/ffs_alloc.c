@@ -62,9 +62,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -2477,7 +2479,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, CAP_FSCK,
+	     &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -2798,7 +2801,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    (intmax_t)cmd.value);
 		}
 #endif /* DEBUG */
-		if ((error = getvnode(td->td_proc->p_fd, cmd.value, &vfp)) != 0)
+		if ((error = getvnode(td->td_proc->p_fd, cmd.value,
+		    CAP_FSCK, &vfp)) != 0)
 			break;
 		if (vfp->f_vnode->v_type != VCHR) {
 			fdrop(vfp, td);

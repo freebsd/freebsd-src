@@ -115,9 +115,9 @@
 #define	CAP_SEM_POST		0x0000010000000000ULL
 #define	CAP_SEM_WAIT		0x0000020000000000ULL
 
-/* Events - maybe we need a post/get distinction? */
-#define	CAP_EVENT		0x0000040000000000ULL
-#define	CAP_KEVENT		0x0000080000000000ULL
+/* kqueue events. */
+#define	CAP_POLL_KEVENT		0x0000040000000000ULL
+#define	CAP_POST_KEVENT		0x0000080000000000ULL
 
 /* Strange and powerful rights that should not be given lightly. */
 #define	CAP_IOCTL		0x0000100000000000ULL
