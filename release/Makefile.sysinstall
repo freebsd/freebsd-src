@@ -363,6 +363,8 @@ WMAKEENV!=	cd ${.CURDIR}/..; \
 WMAKE=		${WMAKEENV} ${BINMAKE}
 .endif
 
+SMAKE=		${MAKE} -f ${MAKEFILE}
+
 CVS_SRCARGS=	-P
 .if defined(RELEASETAG)
 CVS_SRCARGS+=	-r ${RELEASETAG}
@@ -479,7 +481,7 @@ release rerelease:
 		mkdir -p ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
 .if !defined(NO_PREFETCHDISTFILES)
-	@cd ${.CURDIR} && ${MAKE} fetch-distfiles
+	@cd ${.CURDIR} && ${SMAKE} fetch-distfiles
 .endif
 .endif
 .endif
@@ -719,7 +721,7 @@ release.6:
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
-			cd ${.CURDIR} && $(MAKE) doTARBALL \
+			cd ${.CURDIR} && $(SMAKE) doTARBALL \
 				SD=${RD}/trees/$${i} \
 				TN=$$i TD=$$i ARG="." && \
 			echo "$${i} distribution is finished."; \
@@ -728,7 +730,7 @@ release.6:
 	@for i in ${KERNELS_BASE} ${KERNELS} ; \
 	do \
 		if [ -d ${RD}/kernels/$${i} ] ; then \
-			cd ${.CURDIR} && $(MAKE) doTARBALL \
+			cd ${.CURDIR} && $(SMAKE) doTARBALL \
 				SD=${RD}/kernels \
 				TN=$$i TD=kernels ARG="$$i" && \
 			echo "$${i} distribution is finished."; \
@@ -758,11 +760,11 @@ release.6:
 #
 release.7:
 .if !defined(NOSRC)
-	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
+	@cd ${.CURDIR} && $(SMAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
 		if [ -d /usr/src/$$i ] ; then \
-			cd ${.CURDIR} && $(MAKE) doTARBALL \
+			cd ${.CURDIR} && $(SMAKE) doTARBALL \
 				TN=`echo s$$i | tr -d '.' | \
 				    sed -e 's/usr/u/' \
 					-e 's/kerberos5/krb5/'` \
@@ -773,7 +775,7 @@ release.7:
 	@set ${EXTRA_SRC} && \
 	while [ $$# -ge 2 ] ; do \
 		if [ -d /usr/src/$$1 ] ; then \
-			cd ${.CURDIR} && $(MAKE) doTARBALL \
+			cd ${.CURDIR} && $(SMAKE) doTARBALL \
 				SD=/usr/src TN="s$$2" TD=src ARG="$$1" ; \
 		fi && shift && shift ; \
 	done
@@ -796,7 +798,7 @@ release.8:
 	cd ${RD}/mfsfd && \
 		mkdir -p etc/defaults dev mnt stand/etc/defaults stand/help \
 		var/empty
-	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
+	@cd ${.CURDIR} && $(SMAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/mfsfd && \
 	  for dir in bin sbin ; do \
@@ -862,39 +864,39 @@ SMALLMFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot-small/mfsroot.gz
 floppies.1:
 	@${ZIPPER} -c ${RD}/kernels/${KERN_GENERIC}/kernel > ${RD}/kernels/kernel.gz
 	@echo "Making the kernel boot floppies..."
-	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern \
+	@cd ${.CURDIR} && ${SMAKE} makeFloppySet FLOPPYBASE=kern \
 	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz
 .if defined(SMALLFLOPPYSIZE)
 	@echo "Making the small kernel boot floppies..."
-	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern-small \
+	@cd ${.CURDIR} && ${SMAKE} makeFloppySet FLOPPYBASE=kern-small \
 	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz \
 	    FDSIZE="SMALL"
 .endif
 .if defined(SPLIT_MFSROOT)
 	@echo "Making the mfsroot boot floppies..."
-	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=mfsroot \
+	@cd ${.CURDIR} && ${SMAKE} makeFloppySet FLOPPYBASE=mfsroot \
 	    FLOPPYDESC="Memory Filesystem" SPLITFILE=${RD}/mfsroot/mfsroot.gz
 .if defined(SMALLFLOPPYSIZE)
 	@echo "Making the small mfsroot boot floppies..."
-	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=mfsroot-small \
+	@cd ${.CURDIR} && ${SMAKE} makeFloppySet FLOPPYBASE=mfsroot-small \
 	    FLOPPYDESC="Memory Filesystem" SPLITFILE=${RD}/mfsroot/mfsroot.gz \
 	    FDSIZE="SMALL"
 .endif
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	@cd ${.CURDIR} && ${SMAKE} buildBootFloppy FSIMAGE="boot" \
 	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
 	    MFSROOTFILE="${MFSROOTFLOPPYSET}.split ${MFSROOTFLOPPYSET}.boot"
 .if defined(SMALLFLOPPYSIZE)
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot-small" \
+	@cd ${.CURDIR} && ${SMAKE} buildBootFloppy FSIMAGE="boot-small" \
 	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
 	    MFSROOTFILE="${SMALLMFSROOTFLOPPYSET}.split ${SMALLMFSROOTFLOPPYSET}.boot" \
 	    FDSIZE="SMALL"
 .endif
 .else	# !SPLIT_MFSROOT
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	@cd ${.CURDIR} && ${SMAKE} buildBootFloppy FSIMAGE="boot" \
 	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
 	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz
 .if defined(SMALLFLOPPYSIZE)
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot-small" \
+	@cd ${.CURDIR} && ${SMAKE} buildBootFloppy FSIMAGE="boot-small" \
 	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
 	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz \
 	    FDSIZE="SMALL"
@@ -921,14 +923,14 @@ floppies.2:
 	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
 	@chmod 555 ${RD}/fixitfd/stand/tar
 .if defined(SMALLFLOPPYSIZE)
-	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit-small \
+	@cd ${.CURDIR} && ${SMAKE} installCRUNCH CRUNCH=fixit-small \
 	    DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${DOFS_SH} ${RD}/floppies/fixit-small.flp ${RD} ${MNT} \
 	    ${SMALLFLOPPYSIZE} ${RD}/fixitfd ${FLOPPYINODE} ${SMALLFLOPPYLABEL}
 	@rm -rf ${RD}/fixitfd/stand
 	@mkdir ${RD}/fixitfd/stand
 .endif
-	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
+	@cd ${.CURDIR} && ${SMAKE} installCRUNCH CRUNCH=fixit \
 	    DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} ${MNT} \
 	    ${FLOPPYSIZE} ${RD}/fixitfd ${FLOPPYINODE} ${FLOPPYLABEL}
@@ -1245,7 +1247,7 @@ doRELEASE: release.1 release.2 ${DOCREL} release.3 release.4 \
 
 floppies:
 	@rm -f release.4 release.8 floppies.[123]
-	@cd ${.CURDIR} && ${MAKE} release.4 release.8 floppies.1 floppies.2 \
+	@cd ${.CURDIR} && ${SMAKE} release.4 release.8 floppies.1 floppies.2 \
 	    floppies.3
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
