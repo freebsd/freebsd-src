@@ -729,6 +729,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_timerexpired, 0, "TX exceeded TX_TIMER register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_desccfgerr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_desccfgerr, 0, "TX Descriptor Cfg Error");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretries", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretries, 0, "TX software retry count");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretrymax", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretrymax, 0, "TX software retry max reached");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
