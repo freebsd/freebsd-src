@@ -25,6 +25,10 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Aug 10, 2011:
+	another fix to avoid core dump with -v; again, many thanks
+	to ruslan ermilov.
+
 Aug 7, 2011:
 	split(s, a, //) now behaves the same as split(s, a, "")
 
