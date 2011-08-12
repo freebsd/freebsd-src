@@ -1735,6 +1735,7 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->baw_head = atid->baw_tail = 0;
 		atid->paused = 0;
 		atid->sched = 0;
+		atid->cleanup_inprogress = 0;
 		if (i == IEEE80211_NONQOS_TID)
 			atid->ac = WME_AC_BE;
 		else
@@ -1915,6 +1916,57 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 }
 #endif
 
+#ifdef	notyet
+/*
+ * Handle cleanup of aggregate state packets that aren't
+ * an A-MPDU.
+ */
+static void
+ath_tx_comp_cleanup(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+}
+#endif
+
+/*
+ * Performs transmit side cleanup when TID changes from aggregated to
+ * unaggregated.
+ * - Discard all retry frames from the s/w queue.
+ * - Fix the tx completion function for all buffers in s/w queue.
+ * - Count the number of unacked frames, and let transmit completion
+ *   handle it later.
+ */
+static void
+ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+
+	ATH_TXQ_LOCK(txq);
+
+	/*
+	 * + Discard retry frames in the queue
+	 * + Fix the completion function to be non-aggregate
+	 */
+
+	/* Pause the TID */
+
+	/*
+	 * Calculate what incomplete frames exist, based on
+	 * the current BAW size. Ie, what frames have been
+	 * added to the TX hardware queue for this TID but
+	 * not yet ACKed.
+	 */
+
+	/*
+	 * If cleanup is required, defer TID scheduling
+	 * until all the HW queued packets have been
+	 * sent.
+	 */
+
+	ATH_TXQ_UNLOCK(txq);
+}
+
 static void
 ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
 {
@@ -1994,6 +2046,20 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
 	    __func__, bf, bf->bf_state.bfs_tid);
+
+
+	/*
+	 * If a cleanup is in progress, punt to comp_cleanup;
+	 * rather than handling it here. It's thus their
+	 * responsibility to do the BAW update, track the
+	 * incomplete packet count, etc.
+	 */
+#ifdef notyet
+	if (atid->cleanup_inprogress) {
+		ath_tx_comp_cleanup(sc, bf);
+		return;
+	}
+#endif
 
 	/*
 	 * Don't bother with the retry check if all frames
@@ -2306,11 +2372,12 @@ void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-#if 0
 	int tid = WME_AC_TO_TID(tap->txa_ac);
 	struct ath_node *an = ATH_NODE(ni);
+#if 0
 	struct ath_tid *atid = an->an_tid[tid];
 #endif
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 	sc->sc_addba_stop(ni, tap);
+	ath_tx_cleanup(sc, an, tid);
 }

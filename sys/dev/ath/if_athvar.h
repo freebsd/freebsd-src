@@ -106,6 +106,17 @@ struct ath_tid {
 	int			paused;	/* >0 if the TID has been paused */
 
 	/*
+	 * Is the TID being cleaned up after a transition
+	 * from aggregation to non-aggregation?
+	 * When this is set to 1, this TID will be paused
+	 * and no further traffic will be queued until all
+	 * the hardware packets pending for this TID have been
+	 * TXed/completed; at which point (non-aggregation)
+	 * traffic will resume being TXed.
+	 */
+	int			cleanup_inprogress;
+
+	/*
 	 * The following implements a ring representing
 	 * the frames in the current BAW.
 	 * To avoid copying the array content each time
