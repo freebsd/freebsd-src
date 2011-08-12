@@ -49,6 +49,7 @@ struct test all_tests[] = {
 	TEST_INIT(capmode),
 	TEST_INIT(capabilities),
 	TEST_INIT(fcntl),
+	TEST_INIT(relative),
 	TEST_INIT(sysctl),
 };
 int test_count = sizeof(all_tests) / sizeof(struct test);
