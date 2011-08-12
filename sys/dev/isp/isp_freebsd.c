@@ -67,7 +67,10 @@ static void isp_intr_enable(void *);
 static void isp_cam_async(void *, uint32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
 static timeout_t isp_watchdog;
+static timeout_t isp_gdt;
+static task_fn_t isp_gdt_task;
 static timeout_t isp_ldt;
+static task_fn_t isp_ldt_task;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 #ifdef	ISP_INTERNAL_TARGET
@@ -141,8 +144,11 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
+
 		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
+		TASK_INIT(&fc->ltask, 1, isp_ldt_task, fc);
+		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
 
 		/*
 		 * We start by being "loop down" if we have an initiator role
@@ -3937,12 +3943,20 @@ static void
 isp_gdt(void *arg)
 {
 	struct isp_fc *fc = arg;
+	taskqueue_enqueue(taskqueue_thread, &fc->gtask);
+}
+
+static void
+isp_gdt_task(void *arg, int pending)
+{
+	struct isp_fc *fc = arg;
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
 	int dbidx, tgt, more_to_do = 0;
 
-	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d GDT timer expired @ %lu", chan, (unsigned long) time_uptime);
+	ISP_LOCK(isp);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GDT timer expired", chan);
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 		lp = &FCPARAM(isp, chan)->portdb[dbidx];
 
@@ -3953,6 +3967,7 @@ isp_gdt(void *arg)
 			continue;
 		}
 		if (lp->gone_timer != 0) {
+			isp_prt(isp, ISP_LOGSANCFG, "%s: Chan %d more to do for target %u (timer=%u)", __func__, chan, lp->dev_map_idx - 1, lp->gone_timer);
 			lp->gone_timer -= 1;
 			more_to_do++;
 			continue;
@@ -3968,9 +3983,11 @@ isp_gdt(void *arg)
 		if (more_to_do) {
 			callout_reset(&fc->gdt, hz, isp_gdt, fc);
 		} else {
-			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Stopping Gone Device Timer", chan);
+			callout_deactivate(&fc->gdt);
+			isp_prt(isp, ISP_LOGSANCFG, "Chan %d Stopping Gone Device Timer @ %lu", chan, (unsigned long) time_uptime);
 		}
 	}
+	ISP_UNLOCK(isp);
 }
 
 /*
@@ -3986,12 +4003,21 @@ static void
 isp_ldt(void *arg)
 {
 	struct isp_fc *fc = arg;
+	taskqueue_enqueue(taskqueue_thread, &fc->ltask);
+}
+
+static void
+isp_ldt_task(void *arg, int pending)
+{
+	struct isp_fc *fc = arg;
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
 	int dbidx, tgt;
 
+	ISP_LOCK(isp);
 	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Loop Down Timer expired @ %lu", chan, (unsigned long) time_uptime);
+	callout_deactivate(&fc->ldt);
 
 	/*
 	 * Notify to the OS all targets who we now consider have departed.
@@ -4631,7 +4657,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if (kp->xport_specific.fc.valid & KNOB_VALID_ADDRESS) {
 			fcp->isp_wwnn = ISP_FC_PC(isp, bus)->def_wwnn = kp->xport_specific.fc.wwnn;
 			fcp->isp_wwpn = ISP_FC_PC(isp, bus)->def_wwpn = kp->xport_specific.fc.wwpn;
-isp_prt(isp, ISP_LOGALL, "Setting Channel %d wwns to 0x%jx 0x%jx", bus, fcp->isp_wwnn, fcp->isp_wwpn);
+			isp_prt(isp, ISP_LOGALL, "Setting Channel %d wwns to 0x%jx 0x%jx", bus, fcp->isp_wwnn, fcp->isp_wwpn);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		if (kp->xport_specific.fc.valid & KNOB_VALID_ROLE) {
@@ -5423,15 +5449,19 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 void
 isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
 {
+	int loc;
+	char lbuf[128];
 	va_list ap;
+
 	if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
 		return;
 	}
-	printf("%s: ", device_get_nameunit(isp->isp_dev));
+	sprintf(lbuf, "%s: ", device_get_nameunit(isp->isp_dev));
+	loc = strlen(lbuf);
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	vsnprintf(&lbuf[loc], sizeof (lbuf) - loc - 1, fmt, ap); 
 	va_end(ap);
-	printf("\n");
+	printf("%s\n", lbuf);
 }
 
 void
