@@ -41,6 +41,7 @@
 
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -182,6 +183,8 @@ struct isp_fc {
 		ready		: 1;
 	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
+	struct task ltask;
+	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
 #ifdef	ISP_INTERNAL_TARGET
