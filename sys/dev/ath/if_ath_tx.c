@@ -1653,16 +1653,18 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 		return -1;
 
 	/*
-	 * Is it a QOS NULL Data frame? Give it a sequence number of 0x0.
+	 * Is it a QOS NULL Data frame? Give it a sequence number from
+	 * the default TID (IEEE80211_NONQOS_TID.)
+	 *
 	 * The RX path of everything I've looked at doesn't include the NULL
 	 * data frame sequence number in the aggregation state updates, so
 	 * assigning it a sequence number there will cause a BAW hole on the
 	 * RX side.
 	 */
-	/* XXX use the global sequence number instead? */
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
-		seqno = 0;
+		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
+		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
 	} else {
 		/* Manually assign sequence number */
 		seqno = ni->ni_txseqs[tid];
