@@ -1873,19 +1873,13 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 			ATH_TXQ_LOCK(txq);
 		/* Remove this tid from the list of active tids */
 		ath_tx_tid_unsched(sc, an, tid);
-		if (! is_owned)
-			ATH_TXQ_UNLOCK(txq);
 
 		/* Free packets */
 		ath_tx_tid_free_pkts(sc, an, tid);
-	}
+		if (! is_owned)
+			ATH_TXQ_UNLOCK(txq);
 
-	/*
-	 * Don't hold the node lock across free_pkts;
-	 * freeing buffers may release the node and
-	 * that will acquire the IEEE80211_NODE_LOCK (node table).
-	 * That then causes a lock reversal.
-	 */
+	}
 }
 
 /*
@@ -2047,8 +2041,6 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		device_printf(sc->sc_dev,
 		    "%s: TID %d: cleanup needed: %d packets\n",
 		    __func__, tid, atid->incomp);
-
-	ATH_TXQ_UNLOCK(txq);
 }
 
 static void
