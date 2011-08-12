@@ -15,10 +15,19 @@ Things that need doing!
 
 * Send BAR when needed
   + after TX failure
-  + when else?
+  + when else? When shutting down an aggregation session and flushing packets?
+  + ieee80211_send_bar() will only work if IEEE80211_AGGR_RUNNING is set;
+    what's that mean for trying to send BAR frames during session teardown?
+  + it'll call raw_xmit to send the BAR, so the various bits of TX code
+    are going to have to be recursive. How's that going to work out for us?
+    (think: with all the TXQ node locks being held..)
+  + ic->ic_bar_response(ni, tap, status) is called on BAR response, and
+    ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT) is called on
+    repeated failure to ACK the BAR.
 
 * DELBA - ie, downgrade existing packets in the SWQ
   + What about stuff in the HWQ?
+  + This is done, just completely and totally untested at the moment
 
 * 20<->2040 mode change?
   + part of this project or not?
