@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2010 Douglas Barton
+.\" Copyright (c) 1998-2011 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2010
+.Dd August 9, 2011
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -244,6 +244,8 @@ or another directory you specify in your
 rc file.
 .It Fl U
 Attempt to auto upgrade files that have not been user modified.
+This option can be dangerous when there are critical changes
+in the new versions that affect your running system.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -361,6 +363,7 @@ with all values commented out:
 #AUTO_INSTALL=
 #
 # Automatically upgrade files that have not been user modified (-U)
+# ***DANGEROUS***
 #AUTO_UPGRADE=
 #
 # Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
@@ -462,7 +465,7 @@ temporary root environment comes from Nik Clayton's
 make world tutorial which is referenced above.
 .Sh AUTHORS
 This manual page and the script itself were written by
-.An Douglas Barton Aq DougB@FreeBSD.org .
+.An Douglas Barton Aq dougb@FreeBSD.org .
 .Sh BUGS
 There are no known bugs.
 Please report any problems,
