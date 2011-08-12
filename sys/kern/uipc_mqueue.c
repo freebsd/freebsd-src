@@ -2119,7 +2119,7 @@ static __inline int
 getmq(struct thread *td, int fd, struct file **fpp, struct mqfs_node **ppn,
 	struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_POLL_KEVENT, fget, fpp, ppn, pmq);
+	return _getmq(td, fd, CAP_POLL_EVENT, fget, fpp, ppn, pmq);
 }
 
 static __inline int
@@ -2274,7 +2274,7 @@ again:
 		error = EBADF;
 		goto out;
 	}
-	error = cap_funwrap(fp2, CAP_POLL_KEVENT, &fp2);
+	error = cap_funwrap(fp2, CAP_POLL_EVENT, &fp2);
 	if (error) {
 		FILEDESC_SUNLOCK(fdp);
 		goto out;
