@@ -1072,7 +1072,7 @@ getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 	 * If the file descriptor is for a capability, test rights and use
 	 * the file descriptor references by the capability.
 	 */
-	error = cap_funwrap(fp, CAP_POLL_KEVENT, &fp_fromcap);
+	error = cap_funwrap(fp, CAP_POLL_EVENT, &fp_fromcap);
 	if (error) {
 		fdrop(fp, curthread);
 		return (error);

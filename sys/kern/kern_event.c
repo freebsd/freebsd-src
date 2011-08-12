@@ -817,7 +817,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	struct file *fp;
 	int i, n, nerrors, error;
 
-	if ((error = fget(td, fd, CAP_POST_KEVENT, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto done_norel;
@@ -973,7 +973,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
-		error = fget(td, kev->ident, CAP_POLL_KEVENT, &fp);
+		error = fget(td, kev->ident, CAP_POLL_EVENT, &fp);
 		if (error)
 			goto done;
 
@@ -2182,7 +2182,7 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, fd, CAP_POST_KEVENT, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto noacquire;
