@@ -1916,53 +1916,121 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 }
 #endif
 
-#ifdef	notyet
 /*
- * Handle cleanup of aggregate state packets that aren't
+ * Handle cleanup of aggregate session packets that aren't
  * an A-MPDU.
  */
 static void
 ath_tx_comp_cleanup(struct ath_softc *sc, struct ath_buf *bf)
 {
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	int tid = bf->bf_state.bfs_tid;
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
+	device_printf(sc->sc_dev, "%s: TID %d: incomp=%d\n",
+	    __func__, tid, atid->incomp);
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	atid->incomp--;
+	if (atid->incomp == 0) {
+		device_printf(sc->sc_dev, "%s: TID %d: cleaned up! resume!\n",
+		    __func__, tid);
+		atid->cleanup_inprogress = 0;
+		ath_tx_tid_resume(sc, atid);
+	}
+
+	ath_tx_default_comp(sc, bf, 0);
 }
-#endif
 
 /*
  * Performs transmit side cleanup when TID changes from aggregated to
  * unaggregated.
+ *
  * - Discard all retry frames from the s/w queue.
  * - Fix the tx completion function for all buffers in s/w queue.
  * - Count the number of unacked frames, and let transmit completion
  *   handle it later.
+ *
+ * The caller is responsible for pausing the TID.
+ * The caller is responsible for locking TXQ.
  */
 static void
 ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ieee80211_tx_ampdu *tap;
+	struct ath_buf *bf, *bf_next;
 
-	ATH_TXQ_LOCK(txq);
+	device_printf(sc->sc_dev, "%s: TID %d: called\n", __func__, tid);
+
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/*
+	 * Update the frames in the software TX queue:
+	 *
 	 * + Discard retry frames in the queue
 	 * + Fix the completion function to be non-aggregate
 	 */
+	bf = STAILQ_FIRST(&atid->axq_q);
+	while (bf) {
+		if (bf->bf_state.bfs_isretried) {
+			bf_next = STAILQ_NEXT(bf, bf_list);
+			STAILQ_REMOVE(&atid->axq_q, bf, ath_buf, bf_list);
+			atid->axq_depth--;
+			ath_tx_update_baw(sc, an, atid,
+			    SEQNO(bf->bf_state.bfs_seqno));
+			/*
+			 * Call the default completion handler with "fail" just
+			 * so upper levels are suitably notified about this.
+			 */
+			ath_tx_default_comp(sc, bf, 1);
+			bf = bf_next;
+			continue;
+		}
+		/* Give these the default completion handler */
+		bf->bf_comp = NULL;
+		bf = STAILQ_NEXT(bf, bf_list);
+	}
 
+	/* The caller is required to pause the TID */
+#if 0
 	/* Pause the TID */
+	ath_tx_tid_pause(sc, atid);
+#endif
 
 	/*
-	 * Calculate what incomplete frames exist, based on
-	 * the current BAW size. Ie, what frames have been
+	 * Calculate what hardware-queued frames exist based
+	 * on the current BAW size. Ie, what frames have been
 	 * added to the TX hardware queue for this TID but
 	 * not yet ACKed.
 	 */
+	tap = ath_tx_get_tx_tid(an, tid);
+	while (atid->baw_head != atid->baw_tail) {
+		if (atid->tx_buf[atid->baw_head]) {
+			atid->incomp++;
+			atid->cleanup_inprogress = 1;
+			atid->tx_buf[atid->baw_head] = NULL;
+		}
+		INCR(atid->baw_head, ATH_TID_MAX_BUFS);
+		INCR(tap->txa_start, IEEE80211_SEQ_RANGE);
+	}
 
 	/*
 	 * If cleanup is required, defer TID scheduling
 	 * until all the HW queued packets have been
 	 * sent.
 	 */
+	if (! atid->cleanup_inprogress)
+		ath_tx_tid_resume(sc, atid);
+
+	if (atid->cleanup_inprogress)
+		device_printf(sc->sc_dev,
+		    "%s: TID %d: cleanup needed: %d packets\n",
+		    __func__, tid, atid->incomp);
 
 	ATH_TXQ_UNLOCK(txq);
 }
@@ -2051,15 +2119,13 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	/*
 	 * If a cleanup is in progress, punt to comp_cleanup;
 	 * rather than handling it here. It's thus their
-	 * responsibility to do the BAW update, track the
-	 * incomplete packet count, etc.
+	 * responsibility to clean up, call the completion
+	 * function in net80211, update rate control, etc.
 	 */
-#ifdef notyet
 	if (atid->cleanup_inprogress) {
 		ath_tx_comp_cleanup(sc, bf);
 		return;
 	}
-#endif
 
 	/*
 	 * Don't bother with the retry check if all frames
@@ -2363,10 +2429,6 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 
 /*
  * Stop ADDBA on a queue.
- *
- * In theory, queued ath_bufs should be turned back into non-aggregate
- * buffers. I'm not sure what to do about packets currently queued
- * to the hardware.
  */
 void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
@@ -2374,10 +2436,20 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = WME_AC_TO_TID(tap->txa_ac);
 	struct ath_node *an = ATH_NODE(ni);
-#if 0
-	struct ath_tid *atid = an->an_tid[tid];
-#endif
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
+
+	/* Pause TID traffic early, so there aren't any races */
+	ATH_TXQ_LOCK(txq);
+	ath_tx_tid_pause(sc, atid);
+	ATH_TXQ_UNLOCK(txq);
+
+	/* There's no need to hold the TXQ lock here */
 	sc->sc_addba_stop(ni, tap);
+
+	ATH_TXQ_LOCK(txq);
 	ath_tx_cleanup(sc, an, tid);
+	ATH_TXQ_UNLOCK(txq);
 }

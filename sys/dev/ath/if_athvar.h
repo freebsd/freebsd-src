@@ -115,6 +115,12 @@ struct ath_tid {
 	 * traffic will resume being TXed.
 	 */
 	int			cleanup_inprogress;
+	/*
+	 * How many hardware-queued packets are
+	 * waiting to be cleaned up.
+	 * This is only valid if cleanup_inprogress is 1.
+	 */
+	int			incomp;
 
 	/*
 	 * The following implements a ring representing
