@@ -1627,8 +1627,8 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 
 /*
  * Assign a sequence number manually to the given frame.
- * 
- * This should only be called for A-MPDU TX frames. 
+ *
+ * This should only be called for A-MPDU TX frames.
  */
 static ieee80211_seq
 ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
@@ -1637,6 +1637,7 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	int tid, pri;
 	ieee80211_seq seqno;
+	uint8_t subtype;
 
 	/* TID lookup */
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -1645,13 +1646,28 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos has seq=%d\n",
 	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
+	/* XXX Is it a control frame? Ignore */
+
 	/* Does the packet require a sequence number? */
 	if (! IEEE80211_QOS_HAS_SEQ(wh))
 		return -1;
 
-	/* Manually assign sequence number */
-	seqno = ni->ni_txseqs[tid];
-	INCR(ni->ni_txseqs[tid], IEEE80211_SEQ_RANGE);
+	/*
+	 * Is it a QOS NULL Data frame? Give it a sequence number of 0x0.
+	 * The RX path of everything I've looked at doesn't include the NULL
+	 * data frame sequence number in the aggregation state updates, so
+	 * assigning it a sequence number there will cause a BAW hole on the
+	 * RX side.
+	 */
+	/* XXX use the global sequence number instead? */
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+		seqno = 0;
+	} else {
+		/* Manually assign sequence number */
+		seqno = ni->ni_txseqs[tid];
+		INCR(ni->ni_txseqs[tid], IEEE80211_SEQ_RANGE);
+	}
 	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 	M_SEQNO_SET(m0, seqno);
 
