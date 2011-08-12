@@ -5,7 +5,9 @@ SRCS=	cap_test.c \
 	cap_test_capmode.c \
 	cap_test_capabilities.c \
 	cap_test_fcntl.c \
-	cap_test_sysctl.c
+	cap_test_relative.c \
+	cap_test_sysctl.c \
+
 WARNS=	3
 NO_MAN=
 

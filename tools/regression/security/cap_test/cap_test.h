@@ -148,8 +148,8 @@ int	execute(int id, struct test*);
 
 int	test_capmode(void);
 int	test_capabilities(void);
-int	test_syscalls(void);
-int	test_sysctl(void);
 int	test_fcntl(void);
+int	test_relative(void);
+int	test_sysctl(void);
 
 #endif /* CAP_TEST_H */
