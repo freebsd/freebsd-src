@@ -121,7 +121,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 	}
 	error = VOP_GETATTR(vp, &nvap->na_vattr, cred);
 	if (lockedit != 0)
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 	return (error);
 }
 
@@ -189,7 +189,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 	}
 	if (error != 0) {
 		if (vpislocked == 0)
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 		return (error);
 	}
 
@@ -229,7 +229,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		}
 	}
 	if (vpislocked == 0)
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 	return (error);
 }
 
@@ -1097,7 +1097,7 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 	if (ndflag & ND_NFSV4) {
 		if (NFSVOPLOCK(fvp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(fvp, 0, p);
-			VOP_UNLOCK(fvp, 0);
+			NFSVOPUNLOCK(fvp, 0);
 		} else
 			error = EPERM;
 		if (tvp && !error)
@@ -1165,7 +1165,7 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 			vrele(ndp->ni_dvp);
 		else
 			vput(ndp->ni_dvp);
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 	} else {
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -1884,7 +1884,7 @@ again:
 	 */
 	mp = vp->v_mount;
 	vfs_ref(mp);
-	VOP_UNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp, 0);
 	nd->nd_repstat = vfs_busy(mp, 0);
 	vfs_rel(mp);
 	if (nd->nd_repstat != 0) {
@@ -1998,7 +1998,7 @@ again:
 							r = VOP_LOOKUP(vp, &nvp,
 							    &cn);
 							if (vp != nvp)
-								VOP_UNLOCK(vp,
+								NFSVOPUNLOCK(vp,
 								    0);
 						}
 					}
@@ -2077,7 +2077,7 @@ again:
 				if (nvp != NULL) {
 					supports_nfsv4acls =
 					    nfs_supportsnfsv4acls(nvp);
-					VOP_UNLOCK(nvp, 0);
+					NFSVOPUNLOCK(nvp, 0);
 				} else
 					supports_nfsv4acls = 0;
 				if (refp != NULL) {
