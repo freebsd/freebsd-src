@@ -142,7 +142,7 @@
  * Create a capability to wrap a file object.
  */
 int	kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
-	    struct file **cap, int *capfd);
+	    int *capfd);
 
 /*
  * Unwrap a capability if its rights mask is a superset of 'rights'.
