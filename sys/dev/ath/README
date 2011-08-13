@@ -34,6 +34,9 @@ Things that need doing!
   + right now packets are simply flushed; why not just re-prod them into
     the software TXQ ?
 
+* A device timeout during an active iperf causes TCP to stop, until something
+  triggers a TX (say an ICMP ping.) Then it all keeps flowing.
+
 Things that need investigating!
 
 

@@ -1072,7 +1072,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		return r;
 
 	/* At this point m0 could have changed! */
-	//m0 = bf->bf_m;
+	m0 = bf->bf_m;
 
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, bf);
@@ -1088,7 +1088,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	else {
 		ATH_TXQ_LOCK(txq);
 		/* add to software queue */
-		ath_tx_swq(sc, ni, txq, bf, m0);
+		ath_tx_swq(sc, ni, txq, bf);
 		/* Kick txq */
 		ath_txq_sched(sc, txq);
 		ATH_TXQ_UNLOCK(txq);
@@ -1331,7 +1331,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
 	else {
 		/* Queue to software queue */
-		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf, m0);
+		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 
 		/* Kick txq */
 		ath_txq_sched(sc, sc->sc_ac2q[pri]);
@@ -1685,12 +1685,13 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
  */
 void
 ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
-    struct ath_buf *bf, struct mbuf *m0)
+    struct ath_buf *bf)
 {
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211_frame *wh;
 	struct ath_tid *atid;
 	int pri, tid;
+	struct mbuf *m0 = bf->bf_m;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -2167,6 +2168,9 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
+	int check_baw;
+	uint8_t subtype;
+	const struct ieee80211_frame *wh;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid);
 
@@ -2177,6 +2181,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		    __func__);
 
 	for (;;) {
+		check_baw = 1;
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			break;
@@ -2190,9 +2195,24 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			device_printf(sc->sc_dev, "%s: TXQ: tid=%d, ac=%d, bf tid=%d\n",
 			    __func__, tid, atid->ac, bf->bf_state.bfs_tid);
 
+		/*
+		 * Some packets aren't going to fall within the BAW.
+		 * If they're non-sequence QOS packets that sit inside this TID,
+		 * or they're a null data frame.
+		 * This is quite messy and I should make the seqno code and
+		 * this code share the same decision logic.
+		 */
+		wh = mtod(bf->bf_m, const struct ieee80211_frame *);
+		if (! IEEE80211_QOS_HAS_SEQ(wh))
+			check_baw = 0;
+		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+		if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL)
+			check_baw = 0;
+
 		/* XXX check if seqno is outside of BAW, if so don't queue it */
-		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
-		    SEQNO(bf->bf_state.bfs_seqno))) {
+		if (check_baw == 1 &&
+		    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+		    SEQNO(bf->bf_state.bfs_seqno)))) {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 			    "%s: seq %d outside of %d/%d; waiting\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno),
@@ -2200,7 +2220,9 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			break;
 		}
 
-		ath_tx_addto_baw(sc, an, atid, bf);
+		/* Don't add packets to the BAW that don't contribute to it */
+		if (check_baw == 1)
+			ath_tx_addto_baw(sc, an, atid, bf);
 
 		/*
 		 * XXX If the seqno is out of BAW, then we should pause this TID
