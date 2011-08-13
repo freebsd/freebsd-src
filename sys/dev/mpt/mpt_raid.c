@@ -812,6 +812,25 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, target_id_t *tgt)
 
 /* XXX Ignores that there may be multiple busses/IOCs involved. */
 int
+mpt_is_raid_member(struct mpt_softc *mpt, target_id_t tgt)
+{
+	struct mpt_raid_disk *mpt_disk;
+	int i;
+
+	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0)
+		return (0);
+	for (i = 0; i < mpt->ioc_page2->MaxPhysDisks; i++) {
+		mpt_disk = &mpt->raid_disks[i];
+		if ((mpt_disk->flags & MPT_RDF_ACTIVE) != 0 &&
+		    mpt_disk->config_page.PhysDiskID == tgt)
+			return (1);
+	}
+	return (0);
+	
+}
+
+/* XXX Ignores that there may be multiple busses/IOCs involved. */
+int
 mpt_is_raid_volume(struct mpt_softc *mpt, target_id_t tgt)
 {
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;

@@ -54,6 +54,7 @@ typedef enum {
 } mpt_raid_mwce_t;
 
 cam_status mpt_map_physdisk(struct mpt_softc *, union ccb *, target_id_t *);
+int mpt_is_raid_member(struct mpt_softc *, target_id_t);
 int mpt_is_raid_volume(struct mpt_softc *, target_id_t);
 #if	0
 cam_status
