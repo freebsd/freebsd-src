@@ -325,6 +325,8 @@ struct ucred *newnfs_getcred(void);
 void newnfs_setroot(struct ucred *);
 int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
+int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
+    NFSPROC_T *);
 int nfsrv_atroot(vnode_t, long *);
 void newnfs_timer(void *);
 int nfs_supportsnfsv4acls(vnode_t);
@@ -569,8 +571,6 @@ int nfsvno_checkexp(mount_t, NFSSOCKADDR_T, struct nfsexstuff *,
     struct ucred **);
 int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T, int,
     vnode_t *, struct nfsexstuff *, struct ucred **);
-int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
-    NFSPROC_T *);
 vnode_t nfsvno_getvp(fhandle_t *);
 int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
