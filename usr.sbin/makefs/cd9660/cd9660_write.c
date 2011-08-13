@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660_write.c,v 1.13 2010/10/22 00:49:15 christos Exp $	*/
+/*	$NetBSD: cd9660_write.c,v 1.14 2011/01/04 09:48:21 wiz Exp $	*/
 
 /*
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
@@ -458,6 +458,7 @@ cd9660_copy_file(FILE *fd, off_t start_sector, const char *filename)
 		if (ferror(rf)) {
 			warn("%s: fread", __func__);
 			free(buf);
+			(void)fclose(rf);
 			return 0;
 		}
 
@@ -465,6 +466,7 @@ cd9660_copy_file(FILE *fd, off_t start_sector, const char *filename)
 		if (ferror(fd)) {
 			warn("%s: fwrite", __func__);
 			free(buf);
+			(void)fclose(rf);
 			return 0;
 		}
 		sector++;
