@@ -82,7 +82,6 @@ struct mpt_raid_action_result
 
 #define REQ_IOCSTATUS(req) ((req)->IOCStatus & MPI_IOCSTATUS_MASK)
 
-
 static mpt_probe_handler_t	mpt_raid_probe;
 static mpt_attach_handler_t	mpt_raid_attach;
 static mpt_enable_handler_t	mpt_raid_enable;
@@ -126,9 +125,25 @@ static void mpt_adjust_queue_depth(struct mpt_softc *, struct mpt_raid_volume *,
 static void mpt_raid_sysctl_attach(struct mpt_softc *);
 #endif
 
+static const char *mpt_vol_type(struct mpt_raid_volume *vol);
+static const char *mpt_vol_state(struct mpt_raid_volume *vol);
+static const char *mpt_disk_state(struct mpt_raid_disk *disk);
+static void mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
+    const char *fmt, ...);
+static void mpt_disk_prt(struct mpt_softc *mpt, struct mpt_raid_disk *disk,
+    const char *fmt, ...);
+
+static int mpt_issue_raid_req(struct mpt_softc *mpt,
+    struct mpt_raid_volume *vol, struct mpt_raid_disk *disk, request_t *req,
+    u_int Action, uint32_t ActionDataWord, bus_addr_t addr, bus_size_t len,
+    int write, int wait);
+
+static int mpt_refresh_raid_data(struct mpt_softc *mpt);
+static void mpt_schedule_raid_refresh(struct mpt_softc *mpt);
+
 static uint32_t raid_handler_id = MPT_HANDLER_ID_NONE;
 
-const char *
+static const char *
 mpt_vol_type(struct mpt_raid_volume *vol)
 {
 	switch (vol->config_page->VolumeType) {
@@ -143,7 +158,7 @@ mpt_vol_type(struct mpt_raid_volume *vol)
 	}
 }
 
-const char *
+static const char *
 mpt_vol_state(struct mpt_raid_volume *vol)
 {
 	switch (vol->config_page->VolumeStatus.State) {
@@ -158,7 +173,7 @@ mpt_vol_state(struct mpt_raid_volume *vol)
 	}
 }
 
-const char *
+static const char *
 mpt_disk_state(struct mpt_raid_disk *disk)
 {
 	switch (disk->config_page.PhysDiskStatus.State) {
@@ -183,7 +198,7 @@ mpt_disk_state(struct mpt_raid_disk *disk)
 	}
 }
 
-void
+static void
 mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	    const char *fmt, ...)
 {
@@ -197,7 +212,7 @@ mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	va_end(ap);
 }
 
-void
+static void
 mpt_disk_prt(struct mpt_softc *mpt, struct mpt_raid_disk *disk,
 	     const char *fmt, ...)
 {
@@ -255,16 +270,17 @@ mpt_raid_async(void *callback_arg, u_int32_t code,
 	}
 }
 
-int
+static int
 mpt_raid_probe(struct mpt_softc *mpt)
 {
+
 	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
 		return (ENODEV);
 	}
 	return (0);
 }
 
-int
+static int
 mpt_raid_attach(struct mpt_softc *mpt)
 {
 	struct ccb_setasync csa;
@@ -308,13 +324,14 @@ cleanup:
 	return (error);
 }
 
-int
+static int
 mpt_raid_enable(struct mpt_softc *mpt)
 {
+
 	return (0);
 }
 
-void
+static void
 mpt_raid_detach(struct mpt_softc *mpt)
 {
 	struct ccb_setasync csa;
@@ -339,6 +356,7 @@ mpt_raid_detach(struct mpt_softc *mpt)
 static void
 mpt_raid_ioc_reset(struct mpt_softc *mpt, int type)
 {
+
 	/* Nothing to do yet. */
 }
 
@@ -571,7 +589,7 @@ mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 /*
  * Utiltity routine to perform a RAID action command;
  */
-int
+static int
 mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 		   struct mpt_raid_disk *disk, request_t *req, u_int Action,
 		   uint32_t ActionDataWord, bus_addr_t addr, bus_size_t len,
@@ -735,6 +753,7 @@ mpt_raid_thread(void *arg)
 static void
 mpt_raid_quiesce_timeout(void *arg)
 {
+
 	/* Complete the CCB with error */
 	/* COWWWW */
 }
@@ -792,7 +811,7 @@ mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 
 /* XXX Ignores that there may be multiple busses/IOCs involved. */
 cam_status
-mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
+mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, target_id_t *tgt)
 {
 	struct mpt_raid_disk *mpt_disk;
 
@@ -809,7 +828,7 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
 
 /* XXX Ignores that there may be multiple busses/IOCs involved. */
 int
-mpt_is_raid_volume(struct mpt_softc *mpt, int tgt)
+mpt_is_raid_volume(struct mpt_softc *mpt, target_id_t tgt)
 {
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_last_vol;
@@ -1321,7 +1340,7 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
  * be updated by our event handler.  Interesting changes are displayed
  * to the console.
  */
-int
+static int
 mpt_refresh_raid_data(struct mpt_softc *mpt)
 {
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
@@ -1581,9 +1600,10 @@ mpt_raid_timer(void *arg)
 #endif
 }
 
-void
+static void
 mpt_schedule_raid_refresh(struct mpt_softc *mpt)
 {
+
 	callout_reset(&mpt->raid_timer, MPT_RAID_SYNC_REPORT_INTERVAL,
 		      mpt_raid_timer, mpt);
 }
@@ -1735,7 +1755,8 @@ mpt_raid_set_vol_mwce(struct mpt_softc *mpt, mpt_raid_mwce_t mwce)
 	MPT_UNLOCK(mpt);
 	return (0);
 }
-const char *mpt_vol_mwce_strs[] =
+
+static const char *mpt_vol_mwce_strs[] =
 {
 	"On",
 	"Off",
