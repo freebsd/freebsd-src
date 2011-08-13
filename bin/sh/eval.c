@@ -221,6 +221,7 @@ evaltree(union node *n, int flags)
 		evaltree(n->nbinary.ch2, flags);
 		break;
 	case NREDIR:
+		oexitstatus = exitstatus;
 		expredir(n->nredir.redirect);
 		redirect(n->nredir.redirect, REDIR_PUSH);
 		evaltree(n->nredir.n, flags);
@@ -400,6 +401,7 @@ evalsubshell(union node *n, int flags)
 	struct job *jp;
 	int backgnd = (n->type == NBACKGND);
 
+	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()) ||
 			forkshell(jp = makejob(n, 1), n, backgnd) == 0) {
@@ -428,7 +430,6 @@ expredir(union node *n)
 	for (redir = n ; redir ; redir = redir->nfile.next) {
 		struct arglist fn;
 		fn.lastp = &fn.list;
-		oexitstatus = exitstatus;
 		switch (redir->type) {
 		case NFROM:
 		case NTO:
