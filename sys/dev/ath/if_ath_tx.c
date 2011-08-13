@@ -1010,6 +1010,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh;
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
 	ieee80211_seq seqno;
+	uint8_t subtype;
 
 	/*
 	 * Determine the target hardware queue.
@@ -1031,6 +1032,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txq = sc->sc_ac2q[pri];
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	/* A-MPDU TX */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
@@ -1043,15 +1045,27 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Multicast frames go onto the software multicast queue */
 	if (ismcast)
 		txq = &avp->av_mcastq;
- 	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+
+	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
 
 	/* Do the generic frame setup */
 
 	/* A-MPDU TX? Manually set sequence number */
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
-	if (is_ampdu_tx)
+	if (is_ampdu_tx) {
+		/*
+		 * Always set a seqno; this function will
+		 * handle making sure that null data frames
+		 * don't get a sequence number from the current
+		 * TID and thus mess with the BAW.
+		 */
 		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+		if (IEEE80211_QOS_HAS_SEQ(wh) &&
+		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+			bf->bf_state.bfs_dobaw = 1;
+		}
+	}
 
 	/*
 	 * If needed, the sequence number has been assigned.
@@ -1708,6 +1722,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
+	bf->bf_state.bfs_dobaw = 0;
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
@@ -1839,7 +1854,8 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 		 * If the current TID is running AMPDU, update
 		 * the BAW.
 		 */
-		if (ath_tx_ampdu_running(sc, an, tid))
+		if (ath_tx_ampdu_running(sc, an, tid) &&
+		    bf->bf_state.bfs_dobaw)
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
@@ -1994,8 +2010,9 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			bf_next = STAILQ_NEXT(bf, bf_list);
 			STAILQ_REMOVE(&atid->axq_q, bf, ath_buf, bf_list);
 			atid->axq_depth--;
-			ath_tx_update_baw(sc, an, atid,
-			    SEQNO(bf->bf_state.bfs_seqno));
+			if (bf->bf_state.bfs_dobaw)
+				ath_tx_update_baw(sc, an, atid,
+				    SEQNO(bf->bf_state.bfs_seqno));
 			/*
 			 * Call the default completion handler with "fail" just
 			 * so upper levels are suitably notified about this.
@@ -2083,7 +2100,9 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		sc->sc_stats.ast_tx_swretrymax++;
 
 		/* Update BAW anyway */
-		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		if (bf->bf_state.bfs_dobaw)
+			ath_tx_update_baw(sc, an, atid,
+			    SEQNO(bf->bf_state.bfs_seqno));
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2150,7 +2169,8 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	/* Success? Complete */
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: TID=%d, seqno %d\n",
 	    __func__, tid, SEQNO(bf->bf_state.bfs_seqno));
-	ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+	if (bf->bf_state.bfs_dobaw)
+		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
 
 	ath_tx_default_comp(sc, bf, fail);
 	/* bf is freed at this point */
@@ -2168,9 +2188,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
-	int check_baw;
-	uint8_t subtype;
-	const struct ieee80211_frame *wh;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid);
 
@@ -2181,7 +2198,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		    __func__);
 
 	for (;;) {
-		check_baw = 1;
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			break;
@@ -2195,22 +2211,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			device_printf(sc->sc_dev, "%s: TXQ: tid=%d, ac=%d, bf tid=%d\n",
 			    __func__, tid, atid->ac, bf->bf_state.bfs_tid);
 
-		/*
-		 * Some packets aren't going to fall within the BAW.
-		 * If they're non-sequence QOS packets that sit inside this TID,
-		 * or they're a null data frame.
-		 * This is quite messy and I should make the seqno code and
-		 * this code share the same decision logic.
-		 */
-		wh = mtod(bf->bf_m, const struct ieee80211_frame *);
-		if (! IEEE80211_QOS_HAS_SEQ(wh))
-			check_baw = 0;
-		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
-		if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL)
-			check_baw = 0;
-
-		/* XXX check if seqno is outside of BAW, if so don't queue it */
-		if (check_baw == 1 &&
+		/* Check if seqno is outside of BAW, if so don't queue it */
+		if (bf->bf_state.bfs_dobaw &&
 		    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 		    SEQNO(bf->bf_state.bfs_seqno)))) {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
@@ -2221,7 +2223,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		}
 
 		/* Don't add packets to the BAW that don't contribute to it */
-		if (check_baw == 1)
+		if (bf->bf_state.bfs_dobaw)
 			ath_tx_addto_baw(sc, an, atid, bf);
 
 		/*

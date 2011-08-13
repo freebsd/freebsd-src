@@ -207,6 +207,7 @@ struct ath_buf {
 		int bfs_aggr:1;		/* part of aggregate? */
 		int bfs_aggrburst:1;	/* part of aggregate burst? */
 		int bfs_isretried:1;	/* retried frame? */
+		int bfs_dobaw:1;	/* actually check against BAW? */
 	} bf_state;
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
