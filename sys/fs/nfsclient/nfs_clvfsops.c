@@ -1473,7 +1473,7 @@ loop:
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
 		/* XXX Racy bv_cnt check. */
-		if (VOP_ISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
+		if (NFSVOPISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);
