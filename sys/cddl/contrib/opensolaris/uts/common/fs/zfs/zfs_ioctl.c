@@ -1964,7 +1964,8 @@ top:
 		int len = sizeof (zc->zc_name) - (p - zc->zc_name);
 
 		while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0)
-			(void) dmu_objset_prefetch(zc->zc_name, NULL);
+			if (dataset_name_hidden(zc->zc_name) == B_FALSE)
+				(void) dmu_objset_prefetch(zc->zc_name, NULL);
 	}
 
 	do {
