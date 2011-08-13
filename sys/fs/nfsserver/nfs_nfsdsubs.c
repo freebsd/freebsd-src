@@ -1418,21 +1418,23 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 		if (len == 0 && nfs_pubfhset && (nd->nd_flag & ND_NFSV3) &&
 		    nd->nd_procnum == NFSPROC_LOOKUP) {
 			nd->nd_flag |= ND_PUBLOOKUP;
-			return (0);
+			goto nfsmout;
 		}
 		if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 				if (error)
-					return (error);
+					goto nfsmout;
 				nd->nd_repstat = NFSERR_BADHANDLE;
-				return (0);
+				goto nfsmout;
 			    } else {
-				return (EBADRPC);
+				    error = EBADRPC;
+				    goto nfsmout;
 			    }
 			} else {
-				return (EBADRPC);
+				error = EBADRPC;
+				goto nfsmout;
 			}
 		}
 		copylen = len;
@@ -1450,11 +1452,12 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 	    nd->nd_procnum == NFSPROC_LOOKUP &&
 	    !NFSBCMP((caddr_t)tl, nfs_v2pubfh, NFSX_V2FH)) {
 		nd->nd_flag |= ND_PUBLOOKUP;
-		return (0);
+		goto nfsmout;
 	}
 	NFSBCOPY(tl, (caddr_t)fhp->nfsrvfh_data, copylen);
 	fhp->nfsrvfh_len = copylen;
 nfsmout:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -1503,22 +1506,28 @@ nfsd_errmap(struct nfsrv_descript *nd)
 APPLESTATIC int
 nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 {
+	int error = 0;
 
 	/*
 	 * If not setting either uid nor gid, it's OK.
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
-		return (0);
+		goto out;
 	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid))
-		return (NFSERR_BADOWNER);
+	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid)) {
+		error = NFSERR_BADOWNER;
+		goto out;
+	}
 	if (nd->nd_cred->cr_uid == 0)
-		return (0);
+		goto out;
 	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid != nd->nd_cred->cr_uid) ||
 	    (NFSVNO_ISSETGID(nvap) && nvap->na_gid != nd->nd_cred->cr_gid &&
 	    !groupmember(nvap->na_gid, nd->nd_cred)))
-		return (NFSERR_PERM);
-	return (0);
+		error = NFSERR_PERM;
+
+out:
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -1542,7 +1551,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 	 * the V2 and 3 semantics.
 	 */
 	if ((nd->nd_flag & ND_NFSV4) == 0)
-		return;
+		goto out;
 	NFSVNO_ATTRINIT(&nva);
 	NFSZERO_ATTRBIT(&nattrbits);
 	tuid = nd->nd_cred->cr_uid;
@@ -1604,6 +1613,9 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 #endif
 	NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_ACL);
 	nd->nd_cred->cr_uid = tuid;
+
+out:
+	NFSEXITCODE2(0, nd);
 }
 
 /*
@@ -1800,10 +1812,12 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	    len = fxdr_unsigned(int, *tl);
 	    if (len > NFS_MAXNAMLEN) {
 		nd->nd_repstat = NFSERR_NAMETOL;
-		return (0);
+		error = 0;
+		goto nfsmout;
 	    } else if (len <= 0) {
 		nd->nd_repstat = NFSERR_INVAL;
-		return (0);
+		error = 0;
+		goto nfsmout;
 	    }
 
 	    /*
@@ -1815,14 +1829,17 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	    for (i = 0; i < len; i++) {
 		while (rem == 0) {
 			md = mbuf_next(md);
-			if (md == NULL)
-				return (EBADRPC);
+			if (md == NULL) {
+				error = EBADRPC;
+				goto nfsmout;
+			}
 			fromcp = NFSMTOD(md, caddr_t);
 			rem = mbuf_len(md);
 		}
 		if (*fromcp == '\0') {
 			nd->nd_repstat = EACCES;
-			return (0);
+			error = 0;
+			goto nfsmout;
 		}
 		/*
 		 * For lookups on the public filehandle, do some special
@@ -1858,7 +1875,8 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 			 */
 			if (*fromcp == '/' && pubtype != 1) {
 				nd->nd_repstat = EACCES;
-				return (0);
+				error = 0;
+				goto nfsmout;
 			}
 
 			/*
@@ -1871,7 +1889,8 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 				digit = nfsrv_hexdigit(*fromcp, &error);
 				if (error) {
 					nd->nd_repstat = EACCES;
-					return (0);
+					error = 0;
+					goto nfsmout;
 				}
 				if (percent == 1) {
 					val = (digit << 4);
@@ -1890,7 +1909,8 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 					 */
 					if ((len - i) < 3) {
 						nd->nd_repstat = EACCES;
-						return (0);
+						error = 0;
+						goto nfsmout;
 					}
 					percent = 1;
 				} else {
@@ -1908,7 +1928,8 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 					nd->nd_repstat = NFSERR_BADNAME;
 				else
 					nd->nd_repstat = EACCES;
-				return (0);
+				error = 0;
+				goto nfsmout;
 			}
 			hash += ((u_char)*fromcp);
 			*tocp++ = *fromcp;
@@ -1926,7 +1947,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		} else {
 			error = nfsm_advance(nd, i, rem);
 			if (error)
-				return (error);
+				goto nfsmout;
 		}
 	    }
 
@@ -1939,11 +1960,13 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    (outlen == 2 && bufp[0] == '.' &&
 		     bufp[1] == '.')) {
 		    nd->nd_repstat = NFSERR_BADNAME;
-		    return (0);
+		    error = 0;
+		    goto nfsmout;
 		}
 		if (nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
-		    return (0);
+		    error = 0;
+		    goto nfsmout;
 		}
 	    }
 	}
@@ -1952,6 +1975,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	if (hashp != NULL)
 		*hashp = hash;
 nfsmout:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
