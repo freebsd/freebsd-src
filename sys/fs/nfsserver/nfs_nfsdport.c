@@ -2301,7 +2301,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			if (error)
 				goto nfsmout;
 			if (aceerr && !nd->nd_repstat)
-				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+				nd->nd_repstat = aceerr;
 			attrsum += aclsize;
 			break;
 		case NFSATTRBIT_ARCHIVE:
