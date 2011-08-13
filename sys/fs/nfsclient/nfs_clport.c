@@ -295,7 +295,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	error = vfs_hash_get(mntp, hash, (LK_EXCLUSIVE | LK_NOWAIT), td, &nvp,
 	    newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
-		VOP_UNLOCK(nvp, 0);
+		NFSVOPUNLOCK(nvp, 0);
 	} else if (error == EBUSY) {
 		/*
 		 * The LK_EXCLOTHER lock type tells nfs_lock1() to not try

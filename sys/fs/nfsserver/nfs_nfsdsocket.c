@@ -705,7 +705,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
@@ -720,7 +720,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
@@ -733,7 +733,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 						vrele(vp);
 					vp = nvp;
 					cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-					VOP_UNLOCK(vp, 0);
+					NFSVOPUNLOCK(vp, 0);
 					vpnes = nes;
 				}
 			} else
@@ -840,7 +840,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				    }
 				}
 				/* Lookup ops return a locked vnode */
-				VOP_UNLOCK(nvp, 0);
+				NFSVOPUNLOCK(nvp, 0);
 			    }
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
