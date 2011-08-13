@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660_eltorito.c,v 1.14 2010/10/27 18:51:35 christos Exp $	*/
+/*	$NetBSD: cd9660_eltorito.c,v 1.17 2011/06/23 02:35:56 enami Exp $	*/
 
 /*
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
@@ -31,8 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  */
-
-#include <sys/endian.h>
 
 #include "cd9660.h"
 #include "cd9660_eltorito.h"
@@ -501,13 +499,14 @@ cd9660_setup_boot_volume_descriptor(volume_descriptor *bvd)
 }
 
 static int
-cd9660_write_mbr_partition_entry(FILE *fd, int index, off_t sector_start,
+cd9660_write_mbr_partition_entry(FILE *fd, int idx, off_t sector_start,
     off_t nsectors, int type)
 {
 	uint8_t val;
 	uint32_t lba;
 
-	fseeko(fd, (off_t)(index) * 16 + 0x1be, SEEK_SET);
+	if (fseeko(fd, (off_t)(idx) * 16 + 0x1be, SEEK_SET) == -1)
+		err(1, "fseeko");
 	
 	val = 0x80; /* Bootable */
 	fwrite(&val, sizeof(val), 1, fd);
@@ -531,18 +530,19 @@ cd9660_write_mbr_partition_entry(FILE *fd, int index, off_t sector_start,
 	lba = htole32(nsectors);
 	fwrite(&lba, sizeof(lba), 1, fd);
 
-	return (0);
+	return 0;
 }
 
 static int
-cd9660_write_apm_partition_entry(FILE *fd, int index, int total_partitions,
+cd9660_write_apm_partition_entry(FILE *fd, int idx, int total_partitions,
     off_t sector_start, off_t nsectors, off_t sector_size,
     const char *part_name, const char *part_type)
 {
 	uint32_t apm32;
 	uint16_t apm16;
 
-	fseeko(fd, (off_t)(index + 1) * sector_size, SEEK_SET);
+	if (fseeko(fd, (off_t)(idx + 1) * sector_size, SEEK_SET) == -1)
+		err(1, "fseeko");
 
 	/* Signature */
 	apm16 = htobe16(0x504d);
