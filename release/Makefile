@@ -335,11 +335,7 @@ EXTRAS+= cdrom.1 cdrom.2 cdrom.3
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
-.if ${TARGET} == "pc98"
-BOOTABLE="-G"
-.else
 BOOTABLE="-b"
-.endif
 .endif
 
 .if !defined(NODOC)
@@ -1123,35 +1119,35 @@ CD_DVD1_PKGS=	${CD_PACKAGE_TREE}/dvd1
 .endif
 
 iso.1:
-.if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
+.if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 	@echo "Creating ISO images..."
 .if defined(CD_BOOT)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_bootonly \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
 .endif
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
 	    ${CD_DISC1_PKGS}
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh \
 	    FreeBSD_Packages \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
 .if defined(MAKE_DVD)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-dvd1.iso ${CD_DVD1} \
 	    ${CD_DVD1_PKGS}
 .endif
 .if !defined(NODOC)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh \
 	    FreeBSD_Documentation \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc3.iso ${CD_DOCS} \
 	    ${CD_DOCS_PKGS}
 .endif
 .if defined(SEPARATE_LIVEFS)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_LiveFS \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
@@ -1160,7 +1156,7 @@ iso.1:
 	@(cd ${CD} && sha256 *.iso > FreeBSD-${BUILDNAME}-${TARGET}-iso.CHECKSUM.SHA256)
 	touch ${.TARGET}
 .else
-	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
+	@echo "Do not know how to create an ISO for ${TARGET}."
 .endif
 
 #

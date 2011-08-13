@@ -23,9 +23,21 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+publisher="The FreeBSD Project.  http://www.freebsd.org/"
+IMG=/tmp/bootfs
+MNT=/mnt
+
 if [ "x$1" = "x-b" ]; then
-	# This is highly x86-centric and will be used directly below.
-	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
+	dd if=/dev/zero of=${IMG} bs=512 count=1024
+	MD=`mdconfig -a -t vnode -f ${IMG}`
+	sunlabel -w -B -b $4/boot/boot1 ${MD} auto
+	newfs -O1 -o space -m 0 /dev/${MD}
+	mount /dev/${MD} ${MNT}
+	mkdir ${MNT}/boot
+	cp $4/boot/loader ${MNT}/boot
+	umount ${MNT}
+	mdconfig -d -u ${MD#md}
+	bootable="-B ,,,,${IMG}"
 	shift
 else
 	bootable=""
@@ -33,10 +45,26 @@ fi
 
 if [ $# -lt 3 ]; then
 	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
+	rm -f ${IMG}
 	exit 1
+fi
+
+type mkisofs 2>&1 | grep " is " >/dev/null
+if [ $? -ne 0 ]; then
+	echo The cdrtools port is not installed.  Trying to get it now.
+	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
+		cd /usr/ports/sysutils/cdrtools && make install BATCH=yes && make clean
+	else
+		if ! pkg_add -r cdrtools; then
+			echo "Could not get it via pkg_add - please go install this"
+			echo "from the ports collection and run this script again."
+			exit 2
+		fi
+	fi
 fi
 
 LABEL=$1; shift
 NAME=$1; shift
 
-makefs -t cd9660 $bootable -o rockridge -o label=$LABEL $NAME $*
+mkisofs $bootable -r -J -V $LABEL -publisher "$publisher" -o $NAME $*
+rm -f ${IMG}
