@@ -238,7 +238,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				VOP_UNLOCK(vp, 0);
 				if (at_root != 0) {
 					if ((nd->nd_repstat =
-					     vn_lock(tvp, LK_SHARED)) == 0) {
+					     NFSVOPLOCK(tvp, LK_SHARED)) == 0) {
 						nd->nd_repstat = VOP_GETATTR(
 						    tvp, &va, nd->nd_cred);
 						vput(tvp);
@@ -2703,7 +2703,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		};
 		stp->ls_flags |= NFSLCK_RECLAIM;
 		vp = dp;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 		if ((vp->v_iflag & VI_DOOMED) == 0)
 			nd->nd_repstat = nfsrv_opencheck(clientid, &stateid,
 			    stp, vp, nd, p, nd->nd_repstat);

@@ -116,7 +116,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 		 */
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			lockedit = 1;
-			vn_lock(vp, LK_SHARED | LK_RETRY);
+			NFSVOPLOCK(vp, LK_SHARED | LK_RETRY);
 		}
 	}
 	error = VOP_GETATTR(vp, &nvap->na_vattr, cred);
@@ -158,7 +158,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 	int error = 0, getret = 0;
 
 	if (vpislocked == 0) {
-		if (vn_lock(vp, LK_SHARED) != 0)
+		if (NFSVOPLOCK(vp, LK_SHARED) != 0)
 			return (EPERM);
 	}
 	if (accmode & VWRITE) {
@@ -1095,7 +1095,7 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		goto out;
 	}
 	if (ndflag & ND_NFSV4) {
-		if (vn_lock(fvp, LK_EXCLUSIVE) == 0) {
+		if (NFSVOPLOCK(fvp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(fvp, 0, p);
 			VOP_UNLOCK(fvp, 0);
 		} else
@@ -1156,7 +1156,7 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 			error = EXDEV;
 	}
 	if (!error) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 		if ((vp->v_iflag & VI_DOOMED) == 0)
 			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
 		else
@@ -1983,7 +1983,7 @@ again:
 						    dp->d_name[1] == '.')
 							cn.cn_flags |=
 							    ISDOTDOT;
-						if (vn_lock(vp, LK_SHARED)
+						if (NFSVOPLOCK(vp, LK_SHARED)
 						    != 0) {
 							nd->nd_repstat = EPERM;
 							break;
@@ -2575,7 +2575,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 		 * but this will have to do until VFS_FHTOVP() has a lock
 		 * type argument like VFS_VGET().
 		 */
-		vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
+		NFSVOPLOCK(*vpp, LK_DOWNGRADE | LK_RETRY);
 	return (error);
 }
 
