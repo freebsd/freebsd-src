@@ -1177,7 +1177,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			vfs_ref(mp);
 			VOP_UNLOCK(dvp, 0);
 			error = vfs_busy(mp, 0);
-			vn_lock(dvp, ltype | LK_RETRY);
+			NFSVOPLOCK(dvp, ltype | LK_RETRY);
 			vfs_rel(mp);
 			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
 				vfs_unbusy(mp);
@@ -1193,7 +1193,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			newvp = NFSTOV(np);
 		vfs_unbusy(mp);
 		if (newvp != dvp)
-			vn_lock(dvp, ltype | LK_RETRY);
+			NFSVOPLOCK(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
 			if (error == 0) {
 				if (newvp == dvp)
@@ -1707,7 +1707,7 @@ nfs_rename(struct vop_rename_args *ap)
 		error = 0;
 		goto out;
 	}
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
+	if ((error = NFSVOPLOCK(fvp, LK_EXCLUSIVE)) != 0)
 		goto out;
 
 	/*
@@ -2879,7 +2879,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 			cred = p->p_ucred;
 		else
 			cred = td->td_ucred;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
 			return (EBADF);
@@ -2909,7 +2909,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 				    "ncladvl");
 				if (error)
 					return (EINTR);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 				if (vp->v_iflag & VI_DOOMED) {
 					VOP_UNLOCK(vp, 0);
 					return (EBADF);
@@ -2952,7 +2952,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 		VOP_UNLOCK(vp, 0);
 		return (0);
 	} else if (!NFS_ISV4(vp)) {
-		error = vn_lock(vp, LK_SHARED);
+		error = NFSVOPLOCK(vp, LK_SHARED);
 		if (error)
 			return (error);
 		if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
@@ -2983,7 +2983,7 @@ nfs_advlockasync(struct vop_advlockasync_args *ap)
 	
 	if (NFS_ISV4(vp))
 		return (EOPNOTSUPP);
-	error = vn_lock(vp, LK_SHARED);
+	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error)
 		return (error);
 	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
