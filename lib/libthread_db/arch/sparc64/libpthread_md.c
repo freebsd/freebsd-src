@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Marcel Moolenaar
+ * Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,39 +28,63 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/procfs.h>
+#include <sys/types.h>
+#include <string.h>
 #include <thread_db.h>
 #include <ucontext.h>
+#include <machine/fsr.h>
 
 #include "libpthread_db.h"
 
 void
-pt_reg_to_ucontext(const struct reg *r __unused, ucontext_t *uc __unused)
+pt_reg_to_ucontext(const struct reg *r, ucontext_t *uc)
 {
+
+	memcpy(&uc->uc_mcontext, r, MIN(sizeof(uc->uc_mcontext), sizeof(*r)));
 }
 
 void
-pt_ucontext_to_reg(const ucontext_t *uc __unused, struct reg *r __unused)
+pt_ucontext_to_reg(const ucontext_t *uc, struct reg *r)
 {
+
+	memcpy(r, &uc->uc_mcontext, MIN(sizeof(uc->uc_mcontext), sizeof(*r)));
 }
 
 void
-pt_fpreg_to_ucontext(const struct fpreg* r __unused, ucontext_t *uc __unused)
+pt_fpreg_to_ucontext(const struct fpreg* r, ucontext_t *uc)
 {
+	mcontext_t *mc = &uc->uc_mcontext;
+
+	memcpy(mc->mc_fp, r->fr_regs, MIN(sizeof(mc->mc_fp),
+	    sizeof(r->fr_regs)));
+	mc->mc_fsr = r->fr_fsr;
+	mc->mc_gsr = r->fr_gsr;
+	mc->mc_fprs |= FPRS_FEF;
 }
 
 void
-pt_ucontext_to_fpreg(const ucontext_t *uc __unused, struct fpreg *r __unused)
+pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
 {
+	const mcontext_t *mc = &uc->uc_mcontext;
+
+	if ((mc->mc_fprs & FPRS_FEF) != 0) {
+		memcpy(r->fr_regs, mc->mc_fp, MIN(sizeof(mc->mc_fp),
+		    sizeof(r->fr_regs)));
+		r->fr_fsr = mc->mc_fsr;
+		r->fr_gsr = mc->mc_gsr;
+	} else
+		memset(r, 0, sizeof(*r));
 }
 
 void
 pt_md_init(void)
 {
+
 }
 
 int
 pt_reg_sstep(struct reg *reg __unused, int step __unused)
 {
+
 	return (0);
 }
