@@ -220,7 +220,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 {
 	int error, capfd;
 	int fd = uap->fd;
-	struct file *fp, *fcapp;
+	struct file *fp;
 	cap_rights_t rights = uap->rights;
 
 	AUDIT_ARG_FD(fd);
@@ -229,7 +229,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
-	error = kern_capwrap(td, fp, rights, &fcapp, &capfd);
+	error = kern_capwrap(td, fp, rights, &capfd);
 	if (error)
 		return (error);
 
@@ -267,10 +267,10 @@ cap_getrights(struct thread *td, struct cap_getrights_args *uap)
  */
 int
 kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
-    struct file **fcappp, int *capfdp)
+    int *capfdp)
 {
 	struct capability *cp, *cp_old;
-	struct file *fp_object;
+	struct file *fp_object, *fcapp;
 	int error;
 
 	if ((rights | CAP_MASK_VALID) != CAP_MASK_VALID)
@@ -290,7 +290,7 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	/*
 	 * Allocate a new file descriptor to hang the capability off of.
 	 */
-	error = falloc(td, fcappp, capfdp, fp->f_flag);
+	error = falloc(td, &fcapp, capfdp, fp->f_flag);
 	if (error)
 		return (error);
 
@@ -309,18 +309,18 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	cp = uma_zalloc(capability_zone, M_WAITOK | M_ZERO);
 	cp->cap_rights = rights;
 	cp->cap_object = fp_object;
-	cp->cap_file = *fcappp;
+	cp->cap_file = fcapp;
 	if (fp->f_flag & DFLAG_PASSABLE)
-		finit(*fcappp, fp->f_flag, DTYPE_CAPABILITY, cp,
+		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
 		    &capability_ops);
 	else
-		finit(*fcappp, fp->f_flag, DTYPE_CAPABILITY, cp,
+		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
 		    &capability_ops_unpassable);
 
 	/*
 	 * Release our private reference (the proc filedesc still has one).
 	 */
-	fdrop(*fcappp, td);
+	fdrop(fcapp, td);
 	return (0);
 }
 
