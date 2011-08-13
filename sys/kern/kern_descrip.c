@@ -2336,6 +2336,16 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 #ifdef CAPABILITIES
 	/*
+	 * If this is a capability, what rights does it have?
+	 */
+	if (haverightsp != NULL) {
+		if (fp->f_type == DTYPE_CAPABILITY)
+			*haverightsp = cap_rights(fp);
+		else
+			*haverightsp = CAP_MASK_VALID;
+	}
+
+	/*
 	 * If a capability has been requested, return the capability directly.
 	 * Otherwise, check capability rights, extract the underlying object,
 	 * and check its access flags.
