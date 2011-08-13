@@ -1086,7 +1086,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct vnode *vp;
 	int cmode;
 	struct file *nfp;
-	int type, indx = -1, error;
+	int type, indx = -1, error, error_open;
 	struct flock lf;
 	struct nameidata nd;
 	int vfslocked;
@@ -1145,10 +1145,11 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		    (error == ENODEV || error == ENXIO) &&
 		    (td->td_dupfd >= 0)) {
 			/* XXX from fdopen */
+			error_open = error;
 			if ((error = finstall(td, fp, &indx, flags)) != 0)
 				goto bad_unlocked;
 			if ((error = dupfdopen(td, fdp, indx, td->td_dupfd,
-			    flags, error)) == 0)
+			    flags, error_open)) == 0)
 				goto success;
 		}
 		/*
