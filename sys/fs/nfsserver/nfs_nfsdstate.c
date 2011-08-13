@@ -4248,7 +4248,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		return (0);
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		lktype = VOP_ISLOCKED(vp);
+		lktype = NFSVOPISLOCKED(vp);
 		NFSVOPUNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
@@ -4416,7 +4416,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 */
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		lktype = VOP_ISLOCKED(vp);
+		lktype = NFSVOPISLOCKED(vp);
 		NFSVOPUNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
@@ -4610,7 +4610,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	    nfsrv_issuedelegs == 0)
 		return;
 
-	KASSERT((VOP_ISLOCKED(vp) != LK_EXCLUSIVE), ("vp %p is locked", vp));
+	KASSERT((NFSVOPISLOCKED(vp) != LK_EXCLUSIVE), ("vp %p is locked", vp));
 	/*
 	 * First, get a reference on the nfsv4rootfs_lock so that an
 	 * exclusive lock cannot be acquired by another thread.
