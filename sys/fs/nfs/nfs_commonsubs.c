@@ -1037,7 +1037,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    acl_free(naclp);
 				    goto nfsmout;
 				}
-				if (aceerr || nfsrv_compareacl(aclp, naclp))
+				if (aceerr || aclp == NULL ||
+				    nfsrv_compareacl(aclp, naclp))
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
