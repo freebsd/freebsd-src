@@ -331,6 +331,7 @@ nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
 		};
 		error = 0;
 	}
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -429,6 +430,7 @@ nfssvc_nfscommon(struct thread *td, struct nfssvc_args *uap)
 	int error;
 
 	error = nfssvc_call(td, uap, td->td_ucred);
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -441,9 +443,9 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	if (uap->flag & NFSSVC_IDNAME) {
 		error = copyin(uap->argp, (caddr_t)&nid, sizeof (nid));
 		if (error)
-			return (error);
+			goto out;
 		error = nfssvc_idname(&nid);
-		return (error);
+		goto out;
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		error = copyout(&newnfsstats,
 		    CAST_USER_ADDR_T(uap->argp), sizeof (newnfsstats));
@@ -505,7 +507,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				    sizeof(newnfsstats.cbrpccnt));
 			}
 		}
-		return (error);
+		goto out;
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
 
@@ -517,6 +519,9 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsrv_nfsuserddelport();
 		error = 0;
 	}
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -571,7 +576,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		if (loaded)
-			return (0);
+			goto out;
 		newnfs_portinit();
 		mtx_init(&nfs_nameid_mutex, "nfs_nameid_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
@@ -608,6 +613,9 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
+
+out:
+	NFSEXITCODE(error);
 	return error;
 }
 static moduledata_t nfscommon_mod = {

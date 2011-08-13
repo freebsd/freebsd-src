@@ -115,7 +115,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (rqst->rq_proc > NFSV2PROC_STATFS) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = newnfs_nfsv3_procid[rqst->rq_proc];
 		nd.nd_flag = ND_NFSV2;
@@ -123,7 +123,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (rqst->rq_proc >= NFS_V3NPROCS) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = rqst->rq_proc;
 		nd.nd_flag = ND_NFSV3;
@@ -132,7 +132,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		    rqst->rq_proc != NFSV4PROC_COMPOUND) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = rqst->rq_proc;
 		nd.nd_flag = ND_NFSV4;
@@ -192,7 +192,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 	}
 
@@ -201,7 +201,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 
 		/* Set the flag based on credflavor */
@@ -215,7 +215,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 
 #ifdef MAC
@@ -227,7 +227,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 				svcerr_weakauth(rqst);
 				svc_freereq(rqst);
 				m_freem(nd.nd_mrep);
-				return;
+				goto out;
 			}
 		}
 
@@ -248,13 +248,13 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (nd.nd_mreq != NULL)
 			m_freem(nd.nd_mreq);
 		svc_freereq(rqst);
-		return;
+		goto out;
 	}
 
 	if (nd.nd_mreq == NULL) {
 		svcerr_decode(rqst);
 		svc_freereq(rqst);
-		return;
+		goto out;
 	}
 
 	if (nd.nd_repstat & NFSERR_AUTHERR) {
@@ -267,6 +267,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	if (rp != NULL)
 		nfsrvd_sentcache(rp, xprt->xp_socket, 0);
 	svc_freereq(rqst);
+
+out:
+	NFSEXITCODE(0);
 }
 
 /*
@@ -329,6 +332,8 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 			cacherep = RC_REPLY;
 		*rpp = nfsrvd_updatecache(nd, so);
 	}
+
+	NFSEXITCODE2(0, nd);
 	return (cacherep);
 }
 
@@ -340,7 +345,7 @@ nfsrvd_addsock(struct file *fp)
 {
 	int siz;
 	struct socket *so;
-	int error;
+	int error = 0;
 	SVCXPRT *xprt;
 	static u_int64_t sockref = 0;
 
@@ -348,9 +353,8 @@ nfsrvd_addsock(struct file *fp)
 
 	siz = sb_max_adj;
 	error = soreserve(so, siz, siz);
-	if (error) {
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	/*
 	 * Steal the socket from userland so that it doesn't close
@@ -376,7 +380,9 @@ nfsrvd_addsock(struct file *fp)
 		SVC_RELEASE(xprt);
 	}
 
-	return (0);
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -387,13 +393,13 @@ int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
 	char principal[MAXHOSTNAMELEN + 5];
-	int error;
+	int error = 0;
 	bool_t ret2, ret3, ret4;
 
 	error = copyinstr(args->principal, principal, sizeof (principal),
 	    NULL);
 	if (error)
-		return (error);
+		goto out;
 
 	/*
 	 * Only the first nfsd actually does any work. The RPC code
@@ -438,7 +444,9 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	}
 	NFSD_UNLOCK();
 
-	return (0);
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
