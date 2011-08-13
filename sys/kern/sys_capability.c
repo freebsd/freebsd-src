@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CAPABILITY_MODE
 
-FEATURE(security_capabilities, "Capsicum Capability Mode");
+FEATURE(security_capability_mode, "Capsicum Capability Mode");
 
 /*
  * System call to enter capability mode for the process.
@@ -133,6 +133,8 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 #endif /* CAPABILITY_MODE */
 
 #ifdef CAPABILITIES
+
+FEATURE(security_capabilities, "Capsicum Capabilities");
 
 /*
  * struct capability describes a capability, and is hung off of its struct
