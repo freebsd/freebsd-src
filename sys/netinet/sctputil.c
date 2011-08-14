@@ -924,9 +924,9 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->sctp_frag_point = m->sctp_frag_point;
 	asoc->sctp_features = m->sctp_features;
 #ifdef INET
-	asoc->default_tos = m->ip_inp.inp.inp_ip_tos;
+	asoc->default_dscp = m->ip_inp.inp.inp_ip_tos;
 #else
-	asoc->default_tos = 0;
+	asoc->default_dscp = 0;
 #endif
 
 #ifdef INET6
