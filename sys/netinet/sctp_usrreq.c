@@ -2416,13 +2416,13 @@ flags_out:
 					}
 #ifdef INET
 					if (net->ro._l_addr.sin.sin_family == AF_INET) {
-						paddrp->spp_ipv4_tos = net->tos_flowlabel & 0x000000fc;
-						paddrp->spp_flags |= SPP_IPV4_TOS;
+						paddrp->spp_dscp = net->dscp;
+						paddrp->spp_flags |= SPP_DSCP;
 					}
 #endif
 #ifdef INET6
 					if (net->ro._l_addr.sin6.sin6_family == AF_INET6) {
-						paddrp->spp_ipv6_flowlabel = net->tos_flowlabel;
+						paddrp->spp_ipv6_flowlabel = net->flowlabel;
 						paddrp->spp_flags |= SPP_IPV6_FLOWLABEL;
 					}
 #endif
@@ -2436,8 +2436,8 @@ flags_out:
 					paddrp->spp_pathmaxrxt = stcb->asoc.def_net_failure;
 					paddrp->spp_pathmtu = sctp_get_frag_point(stcb, &stcb->asoc);
 #ifdef INET
-					paddrp->spp_ipv4_tos = stcb->asoc.default_tos & 0x000000fc;
-					paddrp->spp_flags |= SPP_IPV4_TOS;
+					paddrp->spp_dscp = stcb->asoc.default_dscp & 0x000000fc;
+					paddrp->spp_flags |= SPP_DSCP;
 #endif
 #ifdef INET6
 					paddrp->spp_ipv6_flowlabel = stcb->asoc.default_flowlabel;
@@ -2470,8 +2470,8 @@ flags_out:
 					paddrp->spp_assoc_id = SCTP_FUTURE_ASSOC;
 					/* get inp's default */
 #ifdef INET
-					paddrp->spp_ipv4_tos = inp->ip_inp.inp.inp_ip_tos;
-					paddrp->spp_flags |= SPP_IPV4_TOS;
+					paddrp->spp_dscp = inp->ip_inp.inp.inp_ip_tos;
+					paddrp->spp_flags |= SPP_DSCP;
 #endif
 #ifdef INET6
 					if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
@@ -4626,16 +4626,16 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						net->failure_threshold = paddrp->spp_pathmaxrxt;
 					}
 #ifdef INET
-					if (paddrp->spp_flags & SPP_IPV4_TOS) {
+					if (paddrp->spp_flags & SPP_DSCP) {
 						if (net->ro._l_addr.sin.sin_family == AF_INET) {
-							net->tos_flowlabel = paddrp->spp_ipv4_tos & 0x000000fc;
+							net->dscp = paddrp->spp_dscp & 0xfc;
 						}
 					}
 #endif
 #ifdef INET6
 					if (paddrp->spp_flags & SPP_IPV6_FLOWLABEL) {
 						if (net->ro._l_addr.sin6.sin6_family == AF_INET6) {
-							net->tos_flowlabel = paddrp->spp_ipv6_flowlabel;
+							net->flowlabel = paddrp->spp_ipv6_flowlabel & 0x000fffff;
 						}
 					}
 #endif
@@ -4724,27 +4724,18 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							}
 						}
 					}
-#ifdef INET
-					if (paddrp->spp_flags & SPP_IPV4_TOS) {
+					if (paddrp->spp_flags & SPP_DSCP) {
 						TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-							if (net->ro._l_addr.sin.sin_family == AF_INET) {
-								net->tos_flowlabel = paddrp->spp_ipv4_tos & 0x000000fc;
-							}
+							net->dscp = paddrp->spp_dscp & 0x000000fc;
 						}
-						stcb->asoc.default_tos = paddrp->spp_ipv4_tos & 0x000000fc;
+						stcb->asoc.default_dscp = paddrp->spp_dscp & 0x000000fc;
 					}
-#endif
-#ifdef INET6
 					if (paddrp->spp_flags & SPP_IPV6_FLOWLABEL) {
 						TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-							if (net->ro._l_addr.sin6.sin6_family == AF_INET6) {
-								net->tos_flowlabel = paddrp->spp_ipv6_flowlabel;
-							}
+							net->flowlabel = paddrp->spp_ipv6_flowlabel;
 						}
 						stcb->asoc.default_flowlabel = paddrp->spp_ipv6_flowlabel;
 					}
-#endif
-
 				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {

@@ -3967,7 +3967,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			ip->ip_v = IPVERSION;
 			ip->ip_hl = (sizeof(struct ip) >> 2);
 			if (net) {
-				tos_value = net->tos_flowlabel & 0x000000ff;
+				tos_value = net->dscp;
 			} else {
 				tos_value = inp->ip_inp.inp.inp_ip_tos;
 			}
@@ -4204,7 +4204,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			int len;
 
 			if (net != NULL) {
-				flowlabel = net->tos_flowlabel;
+				flowlabel = net->flowlabel;
 			} else {
 				flowlabel = ((struct in6pcb *)inp)->in6p_flowinfo;
 			}
