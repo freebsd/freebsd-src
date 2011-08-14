@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct devsw ps3disk;
+extern struct devsw ps3cdrom;
 
 /*
  * We could use linker sets for some or all of these, but
@@ -47,7 +48,10 @@ extern struct devsw ps3disk;
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-#if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
+#if defined(LOADER_CD9660_SUPPORT)
+    &ps3cdrom,
+#endif
+#if defined(LOADER_DISK_SUPPORT)
     &ps3disk,
 #endif
 #if defined(LOADER_NET_SUPPORT)
