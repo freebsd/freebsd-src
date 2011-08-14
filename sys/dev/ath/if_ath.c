@@ -733,10 +733,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_addba_request = ic->ic_addba_request;
 	sc->sc_addba_response = ic->ic_addba_response;
 	sc->sc_addba_stop = ic->ic_addba_stop;
+	sc->sc_bar_response = ic->ic_bar_response;
 
 	ic->ic_addba_request = ath_addba_request;
 	ic->ic_addba_response = ath_addba_response;
 	ic->ic_addba_stop = ath_addba_stop;
+	ic->ic_bar_response = ath_bar_response;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),

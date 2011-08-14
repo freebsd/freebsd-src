@@ -2104,6 +2104,12 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 
+		/* Pause the TID */
+
+		/* Send BAR frame */
+		device_printf(sc->sc_dev, "%s: TID %d: send BAR\n",
+		    __func__, tid);
+
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
 		return;
@@ -2486,4 +2492,15 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	ATH_TXQ_LOCK(txq);
 	ath_tx_cleanup(sc, an, tid);
 	ATH_TXQ_UNLOCK(txq);
+}
+
+void
+ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int status)
+{
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	sc->sc_bar_response(ni, tap, status);
 }
