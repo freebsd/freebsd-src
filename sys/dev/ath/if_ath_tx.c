@@ -1010,7 +1010,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh;
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
 	ieee80211_seq seqno;
-	uint8_t subtype;
+	uint8_t type, subtype;
 
 	/*
 	 * Determine the target hardware queue.
@@ -1032,6 +1032,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txq = sc->sc_ac2q[pri];
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	/* A-MPDU TX */
@@ -1097,9 +1098,38 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * destination hardware queue. Don't bother software
 	 * queuing it.
 	 */
+	/*
+	 * If it's a BAR frame, do a direct dispatch to the
+	 * destination hardware queue. Don't bother software
+	 * queuing it, as the TID will now be paused.
+	 */
 	if (ismcast)
 		ath_tx_handoff_mcast(sc, txq, bf);
-	else {
+	else if (type == IEEE80211_FC0_TYPE_CTL &&
+		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
+		/*
+		 * XXX The following is dirty but needed for now.
+		 *
+		 * Because of the current way locking is implemented,
+		 * we may end up here because of a call to
+		 * ieee80211_send_bar() from a call inside the completion
+		 * handler. This will have the hardware TXQ locked,
+		 * protecting the TXQ and the node TID state in question.
+		 *
+		 * So we (a) can't SWQ queue to it, as it'll be queued
+		 * on the same TID which will be paused, and (b) the TXQ
+		 * will be locked anyway, so grabbing the lock will cause
+		 * recursion.
+		 *
+		 * The longer term issue is that the TXQ lock is being held
+		 * for so damned long, and that must be addressed before this
+		 * stuff is merged into -HEAD.
+		 */
+		device_printf(sc->sc_dev, "%s: BAR: TX'ing direct\n", __func__);
+		ATH_TXQ_LOCK(txq);
+		ath_tx_handoff(sc, txq, bf);
+		ATH_TXQ_UNLOCK(txq);
+	} else {
 		ATH_TXQ_LOCK(txq);
 		/* add to software queue */
 		ath_tx_swq(sc, ni, txq, bf);
@@ -1108,15 +1138,16 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ATH_TXQ_UNLOCK(txq);
 	}
 #else
-
 	/*
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
+	ATH_TXQ_LOCK(txq);
 	if (ismcast)
 		ath_tx_handoff_mcast(sc, txq, bf);
 	else
 		ath_tx_handoff_hw(sc, txq, bf);
+	ATH_TXQ_UNLOCK(txq);
 #endif
 
 	return 0;
@@ -2093,8 +2124,11 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ieee80211_tx_ampdu *tap;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+	tap = ath_tx_get_tx_tid(an, tid);
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
 		sc->sc_stats.ast_tx_swretrymax++;
@@ -2107,8 +2141,18 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		/* Pause the TID */
 
 		/* Send BAR frame */
+		/*
+		 * XXX This causes the kernel to recurse
+		 * XXX back into the net80211 layer, then back out
+		 * XXX to the TX queue (via ic->ic_raw_xmit()).
+		 * XXX Because the TXQ lock is held here,
+		 * XXX this will cause a lock recurse panic.
+		 */
 		device_printf(sc->sc_dev, "%s: TID %d: send BAR\n",
 		    __func__, tid);
+#if 0
+		ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]);
+#endif
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
