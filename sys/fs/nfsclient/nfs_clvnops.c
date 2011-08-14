@@ -1544,6 +1544,8 @@ again:
 			if (attrflag)
 				(void) nfscl_loadattrcache(&newvp, &nfsva, NULL,
 				    NULL, 0, 1);
+			if (error != 0)
+				vput(newvp);
 		}
 	}
 	if (!error) {
