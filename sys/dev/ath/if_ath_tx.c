@@ -2494,6 +2494,13 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	ATH_TXQ_UNLOCK(txq);
 }
 
+/*
+ * Note: net80211 bar_timeout() doesn't call this function on BAR failure;
+ * it simply tears down the aggregation session. Ew.
+ *
+ * It however will call ieee80211_ampdu_stop() which will call
+ * ic->ic_addba_stop().
+ */
 void
 ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status)
@@ -2503,4 +2510,7 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
 
 	sc->sc_bar_response(ni, tap, status);
+	/* Note: This may update the BAW details */
+
+	/* Unpause the TID */
 }
