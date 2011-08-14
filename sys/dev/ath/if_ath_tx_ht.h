@@ -31,6 +31,15 @@
 #ifndef	__IF_ATH_TX_HT_H__
 #define	__IF_ATH_TX_HT_H__
 
+enum {
+	MCS_HT20,
+	MCS_HT20_SGI,
+	MCS_HT40,
+	MCS_HT40_SGI,
+};
+
+extern int	ath_max_4ms_framelen[4][32];
+
 extern void	ath_buf_set_rate(struct ath_softc *sc,
 		struct ieee80211_node *ni, struct ath_buf *bf,
 		int pktlen, int flags, uint8_t ctsrate, int is_pspoll,
