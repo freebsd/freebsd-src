@@ -307,14 +307,8 @@ lv1_storage_read:
 	sldi	%r6,%r9,32
 	clrldi	%r7,%r10,32
 	or	%r6,%r6,%r7
-	lwz     %r7,8(%r1)
-	lwz     %r8,12(%r1)
-	sldi	%r7,%r7,32
-	or	%r7,%r7,%r8
-	lwz     %r8,16(%r1)
-	lwz     %r9,20(%r1)
-	sldi	%r8,%r8,32
-	or	%r8,%r8,%r9
+	ld	%r7,8(%r1)
+	ld	%r8,16(%r1)
 
 	li	%r11,245
 	hc
