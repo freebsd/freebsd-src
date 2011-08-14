@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007, 2011 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,13 @@
 #include "procstat.h"
 
 static int aflag, bflag, cflag, fflag, iflag, jflag, kflag, sflag, tflag, vflag;
-int	hflag, nflag;
+int	hflag, nflag, Cflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-M core] [-N system] "
+	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
 	    "[-w interval] [-b | -c | -f | -i | -j | -k | -s | -t | -v]\n");
 	fprintf(stderr, "                [-a | pid ...]\n");
 	exit(EX_USAGE);
@@ -117,8 +117,12 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "N:M:abcfijkhstvw:")) != -1) {
+	while ((ch = getopt(argc, argv, "CN:M:abcfijkhstvw:")) != -1) {
 		switch (ch) {
+		case 'C':
+			Cflag++;
+			break;
+
 		case 'M':
 			memf = optarg;
 			break;
@@ -202,6 +206,10 @@ main(int argc, char *argv[])
 
 	/* Must specify either the -a flag or a list of pids. */
 	if (!(aflag == 1 && argc == 0) && !(aflag == 0 && argc > 0))
+		usage();
+
+	/* Only allow -C with -f. */
+	if (Cflag && !fflag)
 		usage();
 
 	if (memf != NULL)
