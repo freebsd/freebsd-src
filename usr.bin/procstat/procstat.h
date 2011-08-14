@@ -29,7 +29,7 @@
 #ifndef PROCSTAT_H
 #define	PROCSTAT_H
 
-extern int	hflag, nflag;
+extern int	hflag, nflag, Cflag;
 
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
