@@ -53,7 +53,6 @@ int verbose = 0;
 int all = 0;
 int noname = 0;
 int hexdump = 0;
-static int reportid;
 
 char **names;
 int nnames;
@@ -108,11 +107,12 @@ dumpitem(const char *label, struct hid_item *h)
 {
 	if ((h->flags & HIO_CONST) && !verbose)
 		return;
-	printf("%s size=%d count=%d page=%s usage=%s%s", label,
-	       h->report_size, h->report_count,
+	printf("%s rid=%d size=%d count=%d page=%s usage=%s%s%s", label,
+	       h->report_ID, h->report_size, h->report_count,
 	       hid_usage_page(HID_PAGE(h->usage)),
 	       hid_usage_in_page(h->usage),
-	       h->flags & HIO_CONST ? " Const" : "");
+	       h->flags & HIO_CONST ? " Const" : "",
+	       h->flags & HIO_VARIABLE ? "" : " Array");
 	printf(", logical range %d..%d",
 	       h->logical_minimum, h->logical_maximum);
 	if (h->physical_minimum != h->physical_maximum)
@@ -123,6 +123,24 @@ dumpitem(const char *label, struct hid_item *h)
 	printf("\n");
 }
 
+static const char *
+hid_collection_type(int32_t type)
+{
+	static char num[8];
+
+	switch (type) {
+	case 0: return ("Physical");
+	case 1: return ("Application");
+	case 2: return ("Logical");
+	case 3: return ("Report");
+	case 4: return ("Named_Array");
+	case 5: return ("Usage_Switch");
+	case 6: return ("Usage_Modifier");
+	}
+	snprintf(num, sizeof(num), "0x%02x", type);
+	return (num);
+}
+
 void
 dumpitems(report_desc_t r)
 {
@@ -130,10 +148,11 @@ dumpitems(report_desc_t r)
 	struct hid_item h;
 	int size;
 
-	for (d = hid_start_parse(r, ~0, reportid); hid_get_item(d, &h); ) {
+	for (d = hid_start_parse(r, ~0, -1); hid_get_item(d, &h); ) {
 		switch (h.kind) {
 		case hid_collection:
-			printf("Collection page=%s usage=%s\n",
+			printf("Collection type=%s page=%s usage=%s\n",
+			       hid_collection_type(h.collection),
 			       hid_usage_page(HID_PAGE(h.usage)),
 			       hid_usage_in_page(h.usage));
 			break;
@@ -152,13 +171,13 @@ dumpitems(report_desc_t r)
 		}
 	}
 	hid_end_parse(d);
-	size = hid_report_size(r, hid_input, 0);
+	size = hid_report_size(r, hid_input, -1);
 	printf("Total   input size %d bytes\n", size);
 
-	size = hid_report_size(r, hid_output, 0);
+	size = hid_report_size(r, hid_output, -1);
 	printf("Total  output size %d bytes\n", size);
 
-	size = hid_report_size(r, hid_feature, 0);
+	size = hid_report_size(r, hid_feature, -1);
 	printf("Total feature size %d bytes\n", size);
 }
 
@@ -187,14 +206,17 @@ prdata(u_char *buf, struct hid_item *h)
 	pos = h->pos;
 	for (i = 0; i < h->report_count; i++) {
 		data = hid_get_data(buf, h);
+		if (i > 0)
+			printf(" ");
 		if (h->logical_minimum < 0)
 			printf("%d", (int)data);
 		else
 			printf("%u", data);
                 if (hexdump)
 			printf(" [0x%x]", data);
-		pos += h->report_size;
+		h->pos += h->report_size;
 	}
+	h->pos = pos;
 }
 
 void
@@ -209,7 +231,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	char namebuf[10000], *namep;
 
 	hids = 0;
-	for (d = hid_start_parse(rd, 1<<hid_input, reportid);
+	for (d = hid_start_parse(rd, 1<<hid_input, -1);
 	     hid_get_item(d, &h); ) {
 		if (h.kind == hid_collection)
 			colls[++sp] = h.usage;
@@ -224,7 +246,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	}
 	hid_end_parse(d);
 	rev(&hids);
-	dlen = hid_report_size(rd, hid_input, 0);
+	dlen = hid_report_size(rd, hid_input, -1);
 	dbuf = malloc(dlen);
 	if (!loop)
 		if (hid_set_immed(f, 1) < 0) {
@@ -235,10 +257,12 @@ dumpdata(int f, report_desc_t rd, int loop)
 		}
 	do {
 		r = read(f, dbuf, dlen);
-		if (r != dlen) {
-			err(1, "bad read %d != %d", r, dlen);
+		if (r < 1) {
+			err(1, "read error");
 		}
 		for (n = hids; n; n = n->next) {
+			if (n->report_ID != 0 && dbuf[0] != n->report_ID)
+				continue;
 			namep = namebuf;
 			namep += sprintf(namep, "%s:%s.",
 					 hid_usage_page(HID_PAGE(n->collection)),
@@ -249,7 +273,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 			if (all || gotname(namebuf)) {
 				if (!noname)
 					printf("%s=", namebuf);
-				prdata(dbuf + (reportid != 0), n);
+				prdata(dbuf, n);
 				printf("\n");
 			}
 		}
