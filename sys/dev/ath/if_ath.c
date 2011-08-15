@@ -175,6 +175,7 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
+static void	ath_tx_sched_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *);
 static void	ath_stoprecv(struct ath_softc *);
@@ -398,6 +399,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
+	TASK_INIT(&sc->sc_txschedtask, 0, ath_tx_sched_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -4140,6 +4142,8 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 /*
  * Process completed xmit descriptors from the specified queue.
+ * Kick the packet scheduler if needed. This can occur from this
+ * particular task.
  */
 static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
@@ -4153,7 +4157,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	int nacked;
 	HAL_STATUS status;
 
-	ATH_TXQ_LOCK(txq);
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
 		__func__, txq->axq_qnum,
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
@@ -4161,8 +4164,10 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	nacked = 0;
 	for (;;) {
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
+		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ds0 = &bf->bf_desc[0];
@@ -4175,6 +4180,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
@@ -4191,6 +4197,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_depth == 0)
 #endif
 			txq->axq_link = NULL;
+		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
 		/*
@@ -4238,7 +4245,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	/* Kick the TXQ scheduler */
 	ath_txq_sched(sc, txq);
-	ATH_TXQ_UNLOCK(txq);
 
 	return nacked;
 }
@@ -4341,6 +4347,39 @@ ath_tx_proc(void *arg, int npending)
 }
 
 /*
+ * TX scheduling
+ *
+ * This calls the per-TXQ TX queue packet scheduling code.
+ *
+ * Note: there's no need to handle the mcastq; it doesn't have
+ * a software TID queue attached (as it's a software queue in
+ * itself.)
+ */
+static void
+ath_tx_sched_proc(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+	struct ath_txq *txq;
+	int i;
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		txq = &sc->sc_txq[i];
+		if (ATH_TXQ_SETUP(sc, i)) {
+			ath_txq_sched(sc, txq);
+		}
+	}
+}
+
+/*
+ * Schedule a TXQ scheduling task to occur.
+ */
+void
+ath_tx_sched_proc_sched(struct ath_softc *sc)
+{
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txschedtask);
+}
+
+/*
  * This is currently used by ath_tx_draintxq() and
  * ath_tx_tid_free_pkts().
  *
@@ -4389,23 +4428,17 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
-	/*
-	 * The TXQ lock is held here for the entire trip through the
-	 * list (rather than just being held whilst acquiring frames
-	 * off of the list) because of the (current) assumption that
-	 * the per-TID software queue stuff is locked by the hardware
-	 * queue it maps to, thus ensuring proper ordering of things.
-	 *
-	 * The chance for LOR's however, is now that much bigger. Sigh.
-	 */
-	ATH_TXQ_LOCK(txq);
+
 	for (ix = 0;; ix++) {
+		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(txq);
 			txq->axq_link = NULL;
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
+		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
@@ -4428,7 +4461,6 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		else
 			ath_tx_default_comp(sc, bf, 1);
 	}
-	ATH_TXQ_UNLOCK(txq);
 }
 
 static void

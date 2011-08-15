@@ -91,8 +91,10 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers        */
+	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	struct mtx		axq_lock;	/* lock on q and link */
 	u_int			axq_depth;	/* SW queue depth */
+	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
 	int			ac;		/* which AC gets this trafic */
@@ -417,6 +419,7 @@ struct ath_softc {
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
+	struct task		sc_txschedtask;	/* tx processing task */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
