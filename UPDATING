@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110815:
+	During the merge of Capsicum features, the fget(9) KPI was modified.
+	This may require the rebuilding of out-of-tree device drivers --
+	issues have been reported specifically with the nVidia device driver.
+	__FreeBSD_version is bumped to 900041.
+
+	Also, there is a period between 20110811 and 20110814 where the
+	special devices /dev/{stdin,stdout,stderr} did not work correctly.
+	Building world from a kernel during that window may not work.
+
 20110628:
 	The packet filter (pf) code has been updated to OpenBSD 4.5.
 	You need to update userland tools to be in sync with kernel.
