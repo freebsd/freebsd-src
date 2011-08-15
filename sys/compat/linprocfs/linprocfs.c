@@ -499,6 +499,33 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	return (0);
 }
 
+static int
+linprocfs_doswaps(PFS_FILL_ARGS)
+{
+	struct xswdev xsw;
+	uintmax_t total, used;
+	int n;
+	char devname[SPECNAMELEN + 1];
+
+	sbuf_printf(sb, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+	mtx_lock(&Giant);
+	for (n = 0; ; n++) {
+		if (swap_dev_info(n, &xsw, devname, sizeof(devname)) != 0)
+			break;
+		total = (uintmax_t)xsw.xsw_nblks * PAGE_SIZE / 1024;
+		used  = (uintmax_t)xsw.xsw_used * PAGE_SIZE / 1024;
+
+		/*
+		 * The space and not tab after the device name is on
+		 * purpose.  Linux does so.
+		 */
+		sbuf_printf(sb, "/dev/%-34s unknown\t\t%jd\t%jd\t-1\n",
+		    devname, total, used);
+	}
+	mtx_unlock(&Giant);
+	return (0);
+}
+
 /*
  * Filler function for proc/uptime
  */
@@ -1452,6 +1479,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(root, "stat", &linprocfs_dostat,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "swaps", &linprocfs_doswaps,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "uptime", &linprocfs_douptime,
 	    NULL, NULL, NULL, PFS_RD);
