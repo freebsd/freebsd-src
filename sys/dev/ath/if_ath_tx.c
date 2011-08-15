@@ -348,7 +348,7 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
-	     ("busy status 0x%x", bf->bf_flags));
+	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 	if (txq->axq_link != NULL) {
 		struct ath_buf *last = ATH_TXQ_LAST(txq);
 		struct ieee80211_frame *wh;
@@ -386,7 +386,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	 */
 	ATH_TXQ_LOCK_ASSERT(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
-	     ("busy status 0x%x", bf->bf_flags));
+	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 	KASSERT(txq->axq_qnum != ATH_TXQ_SWQ,
 	     ("ath_tx_handoff_hw called for mcast queue"));
 
@@ -2151,17 +2151,12 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 
 		/* Send BAR frame */
 		/*
-		 * XXX This causes the kernel to recurse
-		 * XXX back into the net80211 layer, then back out
-		 * XXX to the TX queue (via ic->ic_raw_xmit()).
-		 * XXX Because the TXQ lock is held here,
-		 * XXX this will cause a lock recurse panic.
+		 * This'll end up going into net80211 and back out
+		 * again, via ic->ic_raw_xmit().
 		 */
 		device_printf(sc->sc_dev, "%s: TID %d: send BAR\n",
 		    __func__, tid);
-#if 0
 		ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]);
-#endif
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2174,6 +2169,26 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 * body.
 	 */
 	ath_tx_set_retry(sc, bf);
+
+	/*
+	 * XXX Clear the ATH_BUF_BUSY flag. This is likely incorrect
+	 * XXX and must be revisited before this is merged into -HEAD.
+	 *
+	 * This flag is set in ath_tx_processq() if the HW TXQ has
+	 * further frames on it. The hardware may currently be processing
+	 * the link field in the descriptor (because for TDMA, the
+	 * QCU (TX queue DMA engine) can stop until the next TX slot is
+	 * available and a recycled buffer may still contain a descriptor
+	 * which the currently-paused QCU still points to.
+	 *
+	 * Since I'm not worried about TDMA just for now, I'm going to blank
+	 * the flag.
+	 */
+	if (bf->bf_flags & ATH_BUF_BUSY) {
+		bf->bf_flags &= ~ ATH_BUF_BUSY;
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
+	}
 
 	/*
 	 * Insert this at the head of the queue, so it's
