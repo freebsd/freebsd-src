@@ -92,12 +92,12 @@ main(int argc, char **argv)
 	char buf[100];
 	char devnamebuf[PATH_MAX];
 	struct command *cmd;
-	int reportid;
+	int reportid = -1;
 
 	demon = 1;
 	ignore = 0;
 	dieearly = 0;
-	while ((ch = getopt(argc, argv, "c:def:ip:t:v")) != -1) {
+	while ((ch = getopt(argc, argv, "c:def:ip:r:t:v")) != -1) {
 		switch(ch) {
 		case 'c':
 			conf = optarg;
@@ -116,6 +116,9 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			pidfile = optarg;
+			break;
+		case 'r':
+			reportid = atoi(optarg);
 			break;
 		case 't':
 			table = optarg;
@@ -146,14 +149,13 @@ main(int argc, char **argv)
 	fd = open(dev, O_RDWR);
 	if (fd < 0)
 		err(1, "%s", dev);
-	reportid = hid_get_report_id(fd);
 	repd = hid_get_report_desc(fd);
 	if (repd == NULL)
 		err(1, "hid_get_report_desc() failed");
 
 	commands = parse_conf(conf, repd, reportid, ignore);
 
-	sz = (size_t)hid_report_size(repd, hid_input, reportid);
+	sz = (size_t)hid_report_size(repd, hid_input, -1);
 
 	if (verbose)
 		printf("report size %zu\n", sz);
@@ -198,7 +200,23 @@ main(int argc, char **argv)
 		}
 #endif
 		for (cmd = commands; cmd; cmd = cmd->next) {
-			val = hid_get_data(buf, &cmd->item);
+			if (cmd->item.report_ID != 0 &&
+			    buf[0] != cmd->item.report_ID)
+				continue;
+			if (cmd->item.flags & HIO_VARIABLE)
+				val = hid_get_data(buf, &cmd->item);
+			else {
+				uint32_t pos = cmd->item.pos;
+				for (i = 0; i < cmd->item.report_count; i++) {
+					val = hid_get_data(buf, &cmd->item);
+					if (val == cmd->value)
+						break;
+					cmd->item.pos += cmd->item.report_size;
+				}
+				cmd->item.pos = pos;
+				val = (i < cmd->item.report_count) ?
+				    cmd->value : -1;
+			}
 			if (cmd->value != val && cmd->anyvalue == 0)
 				goto next;
 			if ((cmd->debounce == 0) ||

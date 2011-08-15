@@ -69,12 +69,12 @@ int lv1_net_stop_tx_dma(int bus, int dev, int);
 int lv1_net_stop_rx_dma(int bus, int dev, int);
 
 int lv1_get_repository_node_value(uint64_t lpar_id, uint64_t n1, uint64_t n2,
-	uint64_t n3, uint64_t n4, uint64_t *v1, uint64_t *v2);
+    uint64_t n3, uint64_t n4, uint64_t *v1, uint64_t *v2);
 
-int lv1_storage_read(uint64_t dev_id, uint64_t region_id,
-	uint64_t start_sector, uint64_t sector_count,
-	uint64_t flags, uint64_t buf, uint64_t *tag);
-int lv1_storage_check_async_status(uint64_t dev_id, uint64_t tag, uint64_t *status);
+int lv1_storage_read(uint64_t dev_id, uint64_t region_id, uint64_t start_sector,
+    uint64_t sector_count, uint64_t flags, uint64_t buf, uint64_t *tag);
+int lv1_storage_check_async_status(uint64_t dev_id, uint64_t tag,
+    uint64_t *status);
 
 #endif
 

@@ -213,6 +213,10 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# MAXCPU defines the maximum number of CPUs that can boot in the system.
+# A default value should be already present, for every architecture.
+options 	MAXCPU=32
+
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
 # CPU.  This behaviour is enabled by default, so this option can be used
@@ -493,16 +497,6 @@ options 	DIAGNOSTIC
 # impossible) scenarios.
 #
 options 	REGRESSION
-
-#
-# RESTARTABLE_PANICS allows one to continue from a panic as if it were
-# a call to the debugger to continue from a panic as instead.  It is only
-# useful if a kernel debugger is present.  To restart from a panic, reset
-# the panicstr variable to NULL and continue execution.  This option is
-# for development use only and should NOT be used in production systems
-# to "workaround" a panic.
-#
-#options 	RESTARTABLE_PANICS
 
 #
 # This option lets some drivers co-exist that can't co-exist in a running

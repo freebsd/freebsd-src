@@ -38,7 +38,10 @@
  * Portal Filesystem
  */
 
+#include "opt_capsicum.h"
+
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
@@ -232,6 +235,15 @@ portal_open(ap)
 	struct file *fp;
 	struct portal_cred pcred;
 
+#ifdef CAPABILITY_MODE
+	/*
+	 * This may require access to a global namespace (e.g. an IP address);
+	 * disallow it entirely, as we do open(2).
+	 */
+	if (IN_CAPABILITY_MODE(td))
+		return (ECAPMODE);
+#endif
+
 	/*
 	 * Nothing to do when opening the root node.
 	 */
@@ -414,7 +426,7 @@ portal_open(ap)
 	 * Check that the mode the file is being opened for is a subset
 	 * of the mode of the existing descriptor.
 	 */
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		goto bad;
 	if (((ap->a_mode & (FREAD|FWRITE)) | fp->f_flag) != fp->f_flag) {
 		fdrop(fp, td);

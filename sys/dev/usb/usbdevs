@@ -2110,6 +2110,7 @@ product LOGITEC RT2870_3	0x0164	RT2870
 product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA
 product LONGCHEER W14		0x9603	Mobilcom W14
 product LONGCHEER DISK		0xf000	Driver disk
+product LONGCHEER XSSTICK	0x9605	4G Systems XSStick P14
 
 
 /* Lucent products */

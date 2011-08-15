@@ -250,7 +250,7 @@ struct ntfsmount {
 	uid_t           ntm_uid;
 	gid_t           ntm_gid;
 	mode_t          ntm_mode;
-	u_int           ntm_flag;
+	uint64_t	ntm_flag;
 	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;

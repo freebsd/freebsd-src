@@ -158,6 +158,12 @@ enum {
 	HAL_PHYERR_CCK_RATE_ILLEGAL	= 27,	/* */
 	HAL_PHYERR_CCK_SERVICE		= 30,	/* */
 	HAL_PHYERR_CCK_RESTART		= 31,	/* */
+	HAL_PHYERR_CCK_LENGTH_ILLEGAL	= 32,	/* */
+	HAL_PHYERR_CCK_POWER_DROP	= 33,	/* */
+	/* AR5416 and later */
+	HAL_PHYERR_HT_CRC_ERROR		= 34,	/* */
+	HAL_PHYERR_HT_LENGTH_ILLEGAL	= 35,	/* */
+	HAL_PHYERR_HT_RATE_ILLEGAL	= 36,	/* */
 };
 
 /* value found in rs_keyix to mark invalid entries */

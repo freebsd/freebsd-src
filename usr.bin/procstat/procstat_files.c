@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2011 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
@@ -131,6 +132,133 @@ print_address(struct sockaddr_storage *ss)
 	printf("%s", addr);
 }
 
+static struct cap_desc {
+	cap_rights_t	 cd_right;
+	const char	*cd_desc;
+} cap_desc[] = {
+	/* General file I/O. */
+	{ CAP_READ,		"rd" },
+	{ CAP_WRITE,		"wr" },
+	{ CAP_MMAP,		"mm" },
+	{ CAP_MAPEXEC,		"me" },
+	{ CAP_FEXECVE,		"fe" },
+	{ CAP_FSYNC,		"fy" },
+	{ CAP_FTRUNCATE,	"ft" },
+	{ CAP_SEEK,		"se" },
+
+	/* VFS methods. */
+	{ CAP_FCHFLAGS,		"cf" },
+	{ CAP_FCHDIR,		"cd" },
+	{ CAP_FCHMOD,		"cm" },
+	{ CAP_FCHOWN,		"cn" },
+	{ CAP_FCNTL,		"fc" },
+	{ CAP_FPATHCONF,	"fp" },
+	{ CAP_FLOCK,		"fl" },
+	{ CAP_FSCK,		"fk" },
+	{ CAP_FSTAT,		"fs" },
+	{ CAP_FSTATFS,		"sf" },
+	{ CAP_FUTIMES,		"fu" },
+	{ CAP_CREATE,		"cr" },
+	{ CAP_DELETE,		"de" },
+	{ CAP_MKDIR,		"md" },
+	{ CAP_RMDIR,		"rm" },
+	{ CAP_MKFIFO,		"mf" },
+
+	/* Lookups - used to constraint *at() calls. */
+	{ CAP_LOOKUP,		"lo" },
+
+	/* Extended attributes. */
+	{ CAP_EXTATTR_GET,	"eg" },
+	{ CAP_EXTATTR_SET,	"es" },
+	{ CAP_EXTATTR_DELETE,	"ed" },
+	{ CAP_EXTATTR_LIST,	"el" },
+
+	/* Access Control Lists. */
+	{ CAP_ACL_GET,		"ag" },
+	{ CAP_ACL_SET,		"as" },
+	{ CAP_ACL_DELETE,	"ad" },
+	{ CAP_ACL_CHECK,	"ac" },
+
+	/* Socket operations. */
+	{ CAP_ACCEPT,		"at" },
+	{ CAP_BIND,		"bd" },
+	{ CAP_CONNECT,		"co" },
+	{ CAP_GETPEERNAME,	"pn" },
+	{ CAP_GETSOCKNAME,	"sn" },
+	{ CAP_GETSOCKOPT,	"gs" },
+	{ CAP_LISTEN,		"ln" },
+	{ CAP_PEELOFF,		"pf" },
+	{ CAP_SETSOCKOPT,	"ss" },
+	{ CAP_SHUTDOWN,		"sh" },
+
+	/* Mandatory Access Control. */
+	{ CAP_MAC_GET,		"mg" },
+	{ CAP_MAC_SET,		"ms" },
+
+	/* Methods on semaphores. */
+	{ CAP_SEM_GETVALUE,	"sg" },
+	{ CAP_SEM_POST,		"sp" },
+	{ CAP_SEM_WAIT,		"sw" },
+
+	/* Event monitoring and posting. */
+	{ CAP_POLL_EVENT,	"po" },
+	{ CAP_POST_EVENT,	"ev" },
+
+	/* Strange and powerful rights that should not be given lightly. */
+	{ CAP_IOCTL,		"io" },
+	{ CAP_TTYHOOK,		"ty" },
+
+#ifdef NOTYET
+	{ CAP_PDGETPID,		"pg" },
+	{ CAP_PDWAIT4,		"pw" },
+	{ CAP_PDKILL,		"pk" },
+#endif
+};
+static const u_int	cap_desc_count = sizeof(cap_desc) /
+			    sizeof(cap_desc[0]);
+
+static u_int
+width_capability(cap_rights_t rights)
+{
+	u_int count, i, width;
+
+	count = 0;
+	width = 0;
+	for (i = 0; i < cap_desc_count; i++) {
+		if (rights & cap_desc[i].cd_right) {
+			width += strlen(cap_desc[i].cd_desc);
+			if (count)
+				width++;
+			count++;
+		}
+	}
+	return (width);
+}
+
+static void
+print_capability(cap_rights_t rights, u_int capwidth)
+{
+	u_int count, i, width;
+
+	count = 0;
+	width = 0;
+	for (i = width_capability(rights); i < capwidth; i++) {
+		if (rights || i != 0)
+			printf(" ");
+		else
+			printf("-");
+	}
+	for (i = 0; i < cap_desc_count; i++) {
+		if (rights & cap_desc[i].cd_right) {
+			printf("%s%s", count ? "," : "", cap_desc[i].cd_desc);
+			width += strlen(cap_desc[i].cd_desc);
+			if (count)
+				width++;
+			count++;
+		}
+	}
+}
+
 void
 procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 { 
@@ -139,14 +267,39 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 	struct filestat *fst;
 	const char *str;
 	struct vnstat vn;
+	u_int capwidth, width;
 	int error;
 
-	if (!hflag)
-		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
-		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
-		    "PRO", "NAME");
-
+	/*
+	 * To print the header in capability mode, we need to know the width
+	 * of the widest capability string.  Even if we get no processes
+	 * back, we will print the header, so we defer aborting due to a lack
+	 * of processes until after the header logic.
+	 */
+	capwidth = 0;
 	head = procstat_getfiles(procstat, kipp, 0);
+	if (head != NULL && Cflag) {
+		STAILQ_FOREACH(fst, head, next) {
+			width = width_capability(fst->fs_cap_rights);
+			if (width > capwidth)
+				capwidth = width;
+		}
+		if (capwidth < strlen("CAPABILITIES"))
+			capwidth = strlen("CAPABILITIES");
+	}
+
+	if (!hflag) {
+		if (Cflag)
+			printf("%5s %-16s %4s %1s %-9s %-*s "
+			    "%-3s %-12s\n", "PID", "COMM", "FD", "T",
+			    "FLAGS", capwidth, "CAPABILITIES", "PRO",
+			    "NAME");
+		else
+			printf("%5s %-16s %4s %1s %1s %-9s "
+			    "%3s %7s %-3s %-12s\n", "PID", "COMM", "FD", "T",
+			    "V", "FLAGS", "REF", "OFFSET", "PRO", "NAME");
+	}
+
 	if (head == NULL)
 		return;
 	STAILQ_FOREACH(fst, head, next) {
@@ -215,50 +368,53 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			break;
 		}
 		printf("%1s ", str);
-		str = "-";
-		if (fst->fs_type == PS_FST_TYPE_VNODE) {
-			error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
-			switch (vn.vn_type) {
-			case PS_FST_VTYPE_VREG:
-				str = "r";
-				break;
+		if (!Cflag) {
+			str = "-";
+			if (fst->fs_type == PS_FST_TYPE_VNODE) {
+				error = procstat_get_vnode_info(procstat, fst,
+				    &vn, NULL);
+				switch (vn.vn_type) {
+				case PS_FST_VTYPE_VREG:
+					str = "r";
+					break;
 
-			case PS_FST_VTYPE_VDIR:
-				str = "d";
-				break;
+				case PS_FST_VTYPE_VDIR:
+					str = "d";
+					break;
 
-			case PS_FST_VTYPE_VBLK:
-				str = "b";
-				break;
+				case PS_FST_VTYPE_VBLK:
+					str = "b";
+					break;
 
-			case PS_FST_VTYPE_VCHR:
-				str = "c";
-				break;
+				case PS_FST_VTYPE_VCHR:
+					str = "c";
+					break;
 
-			case PS_FST_VTYPE_VLNK:
-				str = "l";
-				break;
+				case PS_FST_VTYPE_VLNK:
+					str = "l";
+					break;
 
-			case PS_FST_VTYPE_VSOCK:
-				str = "s";
-				break;
+				case PS_FST_VTYPE_VSOCK:
+					str = "s";
+					break;
 
-			case PS_FST_VTYPE_VFIFO:
-				str = "f";
-				break;
+				case PS_FST_VTYPE_VFIFO:
+					str = "f";
+					break;
 
-			case PS_FST_VTYPE_VBAD:
-				str = "x";
-				break;
+				case PS_FST_VTYPE_VBAD:
+					str = "x";
+					break;
 
-			case PS_FST_VTYPE_VNON:
-			case PS_FST_VTYPE_UNKNOWN:
-			default:
-				str = "?";
-				break;
+				case PS_FST_VTYPE_VNON:
+				case PS_FST_VTYPE_UNKNOWN:
+				default:
+					str = "?";
+					break;
+				}
 			}
+			printf("%1s ", str);
 		}
-		printf("%1s ", str);
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_READ ? "r" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_WRITE ? "w" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_APPEND ? "a" : "-");
@@ -266,16 +422,23 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_SYNC ? "f" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_NONBLOCK ? "n" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_DIRECT ? "d" : "-");
-		printf("%s ", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
-		if (fst->fs_ref_count > -1)
-			printf("%3d ", fst->fs_ref_count);
-		else
-			printf("%3c ", '-');
-		if (fst->fs_offset > -1)
-			printf("%7jd ", (intmax_t)fst->fs_offset);
-		else
-			printf("%7c ", '-');
-
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
+		printf("%s ", fst->fs_fflags & PS_FST_FFLAG_CAPABILITY ?
+		    "c" : "-");
+		if (!Cflag) {
+			if (fst->fs_ref_count > -1)
+				printf("%3d ", fst->fs_ref_count);
+			else
+				printf("%3c ", '-');
+			if (fst->fs_offset > -1)
+				printf("%7jd ", (intmax_t)fst->fs_offset);
+			else
+				printf("%7c ", '-');
+		}
+		if (Cflag) {
+			print_capability(fst->fs_cap_rights, capwidth);
+			printf(" ");
+		}
 		switch (fst->fs_type) {
 		case PS_FST_TYPE_VNODE:
 		case PS_FST_TYPE_FIFO:
@@ -314,7 +477,6 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			break;
 
 		default:
-			printf("%-3s ", "-");
 			printf("%-18s", "-");
 		}
 

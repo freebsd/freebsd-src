@@ -1134,16 +1134,27 @@ END(MipsFPTrap)
  */
 	.data
 	.globl intrcnt
-	.globl eintrcnt
+	.globl sintrcnt
 	.globl intrnames
-	.globl eintrnames
+	.globl sintrnames
 intrnames:
 	.space  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-eintrnames:
+sintrnames:
+#ifdef __mips_n64
+	.quad  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+#else
+	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+#endif
+
 	.align	4
 intrcnt:
 	.space  INTRCNT_COUNT * 4 * 2
-eintrcnt:
+sintrcnt:
+#ifdef __mips_n64
+	.quad  INTRCNT_COUNT * 4 * 2
+#else
+	.int  INTRCNT_COUNT * 4 * 2
+#endif
 
 
 /*

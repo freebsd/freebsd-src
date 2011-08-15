@@ -353,7 +353,6 @@ extern void *zfsdev_get_soft_state(minor_t minor,
 extern minor_t zfsdev_minor_alloc(void);
 
 extern void *zfsdev_state;
-extern kmutex_t zfsdev_state_lock;
 
 #endif	/* _KERNEL */
 

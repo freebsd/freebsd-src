@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
 /* XXX */
 extern cvmx_bootinfo_t *octeon_bootinfo;
 
-unsigned octeon_ap_boot = ~0;
+/* NOTE: this 64-bit mask (and many others) limits MAXCPU to 64 */
+uint64_t octeon_ap_boot = ~0ULL;
 
 void
 platform_ipi_send(int cpuid)
@@ -105,15 +106,13 @@ platform_init_ap(int cpuid)
 void
 platform_cpu_mask(cpuset_t *mask)
 {
+	uint64_t core_mask = octeon_bootinfo->core_mask;
+	uint64_t i, m;
 
 	CPU_ZERO(mask);
-
-	/*
-	 * XXX: hack in order to simplify CPU set building, assuming that
-	 * core_mask is 32-bits.
-	 */
-	memcpy(mask, &octeon_bootinfo->core_mask,
-	    sizeof(octeon_bootinfo->core_mask));
+	for (i = 0, m = 1 ; i < MAXCPU; i++, m <<= 1)
+		if (core_mask & m)
+			CPU_SET(i, mask);
 }
 
 struct cpu_group *
@@ -125,11 +124,26 @@ platform_smp_topo(void)
 int
 platform_start_ap(int cpuid)
 {
-	if (atomic_cmpset_32(&octeon_ap_boot, ~0, cpuid) == 0)
+	uint64_t cores_in_reset;
+
+	/* 
+	 * Release the core if it is in reset, and let it rev up a bit.
+	 * The real synchronization happens below via octeon_ap_boot.
+	 */
+	cores_in_reset = cvmx_read_csr(CVMX_CIU_PP_RST);
+	if (cores_in_reset & (1ULL << cpuid)) {
+	    if (bootverbose)
+		printf ("AP #%d still in reset\n", cpuid);
+	    cores_in_reset &= ~(1ULL << cpuid);
+	    cvmx_write_csr(CVMX_CIU_PP_RST, (uint64_t)(cores_in_reset));
+	    DELAY(2000);    /* Give it a moment to start */
+	}
+
+	if (atomic_cmpset_64(&octeon_ap_boot, ~0, cpuid) == 0)
 		return (-1);
 	for (;;) {
 		DELAY(1000);
-		if (atomic_cmpset_32(&octeon_ap_boot, 0, ~0) != 0)
+		if (atomic_cmpset_64(&octeon_ap_boot, 0, ~0) != 0)
 			return (0);
 		printf("Waiting for cpu%d to start\n", cpuid);
 	}

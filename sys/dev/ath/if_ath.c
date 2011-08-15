@@ -1389,13 +1389,32 @@ ath_intr(void *arg)
 			}
 		}
 		if (status & HAL_INT_RXEOL) {
+			int imask = sc->sc_imask;
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
 			 *     least on older hardware revs.
 			 */
 			sc->sc_stats.ast_rxeol++;
+			/*
+			 * Disable RXEOL/RXORN - prevent an interrupt
+			 * storm until the PCU logic can be reset.
+			 * In case the interface is reset some other
+			 * way before "sc_kickpcu" is called, don't
+			 * modify sc_imask - that way if it is reset
+			 * by a call to ath_reset() somehow, the
+			 * interrupt mask will be correctly reprogrammed.
+			 */
+			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+			ath_hal_intrset(ah, imask);
+			/*
+			 * Enqueue an RX proc, to handled whatever
+			 * is in the RX queue.
+			 * This will then kick the PCU.
+			 */
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 			sc->sc_rxlink = NULL;
+			sc->sc_kickpcu = 1;
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -2937,16 +2956,31 @@ ath_descdma_setup(struct ath_softc *sc,
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
+	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ath_desc *ds;
+	uint8_t *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
+	int desc_len;
+
+	desc_len = sizeof(struct ath_desc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers %u desc/buf\n",
 	    __func__, name, nbuf, ndesc);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = sizeof(struct ath_desc) * nbuf * ndesc;
+	dd->dd_desc_len = desc_len * nbuf * ndesc;
+
+	/*
+	 * Merlin work-around:
+	 * Descriptors that cross the 4KB boundary can't be used.
+	 * Assume one skipped descriptor per 4KB page.
+	 */
+	if (! ath_hal_split4ktrans(sc->sc_ah)) {
+		int numdescpage = 4096 / (desc_len * ndesc);
+		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
+	}
 
 	/*
 	 * Setup DMA descriptor area.
@@ -2995,7 +3029,7 @@ ath_descdma_setup(struct ath_softc *sc,
 		goto fail2;
 	}
 
-	ds = dd->dd_desc;
+	ds = (uint8_t *) dd->dd_desc;
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
 	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
@@ -3011,9 +3045,23 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_bufptr = bf;
 
 	STAILQ_INIT(head);
-	for (i = 0; i < nbuf; i++, bf++, ds += ndesc) {
-		bf->bf_desc = ds;
+	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
+		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
+		if (! ath_hal_split4ktrans(sc->sc_ah)) {
+			/*
+			 * Merlin WAR: Skip descriptor addresses which
+			 * cause 4KB boundary crossing along any point
+			 * in the descriptor.
+			 */
+			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
+			     desc_len * ndesc)) {
+				/* Start at the next page */
+				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
+				bf->bf_desc = (struct ath_desc *) ds;
+				bf->bf_daddr = DS2PHYS(dd, ds);
+			}
+		}
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
@@ -3036,6 +3084,7 @@ fail0:
 	memset(dd, 0, sizeof(*dd));
 	return error;
 #undef DS2PHYS
+#undef ATH_DESC_4KB_BOUND_CHECK
 }
 
 static void
@@ -3739,6 +3788,25 @@ rx_next:
 	/* Queue DFS tasklet if needed */
 	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
+
+	/*
+	 * Now that all the RX frames were handled that
+	 * need to be handled, kick the PCU if there's
+	 * been an RXEOL condition.
+	 */
+	if (sc->sc_kickpcu) {
+		sc->sc_kickpcu = 0;
+		ath_stoprecv(sc);
+		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
+		if (ath_startrecv(sc) != 0) {
+			if_printf(ifp,
+			    "%s: couldn't restart RX after RXEOL; resetting\n",
+			    __func__);
+			ath_reset(ifp);
+			return;
+		}
+		ath_hal_intrset(ah, sc->sc_imask);
+	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -4963,6 +5031,7 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *reg,
 		    __func__, status);
 		return EINVAL;		/* XXX */
 	}
+
 	return 0;
 }
 
@@ -5343,6 +5412,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
+		break;
+	case SIOCGATHPHYERR:
+		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
 	case SIOCGIFADDR:

@@ -764,7 +764,8 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 				LIST_REMOVE(dev, si_list);
 				dev_unlock();
 				devfs_free(dev);
-			}
+			} else
+				dev_unlock();
 			return (res);
 		}
 	}

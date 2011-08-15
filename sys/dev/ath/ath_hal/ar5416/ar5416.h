@@ -208,6 +208,7 @@ extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
 	    HAL_DFS_EVENT *event);
+extern	HAL_BOOL ar5416IsFastClockEnabled(struct ath_hal *ah);
 
 extern	HAL_BOOL ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
@@ -218,6 +219,8 @@ extern	HAL_BOOL ar5416ResetKeyCacheEntry(struct ath_hal *ah, uint16_t entry);
 extern	HAL_BOOL ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 	       const HAL_KEYVAL *k, const uint8_t *mac, int xorKey);
 
+extern	uint32_t ar5416GetRxFilter(struct ath_hal *ah);
+extern	void ar5416SetRxFilter(struct ath_hal *ah, uint32_t bits);
 extern	void ar5416StartPcuReceive(struct ath_hal *ah);
 extern	void ar5416StopPcuReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetupRxDesc(struct ath_hal *,

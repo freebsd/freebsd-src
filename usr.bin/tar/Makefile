@@ -18,12 +18,16 @@ SRCS+=	err.c		\
 	matching.c	\
 	pathmatch.c
 
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBLZMA} ${LIBBSDXML}
-LDADD=	-larchive -lbz2 -lz -lmd -llzma -lbsdxml
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA} ${LIBBSDXML}
+LDADD=	-larchive -lbz2 -lz -llzma -lbsdxml
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
+.else
+DPADD+= ${LIBMD}
+LDADD+= -lmd
 .endif
+
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../lib/libarchive

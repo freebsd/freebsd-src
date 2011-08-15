@@ -625,5 +625,6 @@ extern	void ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5212ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
 	    HAL_DFS_EVENT *event);
+extern	HAL_BOOL ar5212IsFastClockEnabled(struct ath_hal *ah);
 
 #endif	/* _ATH_AR5212_H_ */

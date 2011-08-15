@@ -156,6 +156,8 @@ ar5416AniAttach(struct ath_hal *ah, const struct ar5212AniParams *params24,
 
 /*
  * Cleanup any ANI state setup.
+ *
+ * This doesn't restore registers to their default settings!
  */
 void
 ar5416AniDetach(struct ath_hal *ah)
@@ -173,7 +175,43 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	typedef int TABLE[];
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = ahp->ah_curani;
-	const struct ar5212AniParams *params = aniState->params;
+	const struct ar5212AniParams *params = AH_NULL;
+
+	/*
+	 * This function may be called before there's a current
+	 * channel (eg to disable ANI.)
+	 */
+	if (aniState != AH_NULL)
+		params = aniState->params;
+
+	OS_MARK(ah, AH_MARK_ANI_CONTROL, cmd);
+
+	/* These commands can't be disabled */
+	if (cmd == HAL_ANI_PRESENT)
+		return AH_TRUE;
+
+	if (cmd == HAL_ANI_MODE) {
+		if (param == 0) {
+			ahp->ah_procPhyErr &= ~HAL_ANI_ENA;
+			/* Turn off HW counters if we have them */
+			ar5416AniDetach(ah);
+		} else {			/* normal/auto mode */
+			/* don't mess with state if already enabled */
+			if (! (ahp->ah_procPhyErr & HAL_ANI_ENA)) {
+				/* Enable MIB Counters */
+				/*
+				 * XXX use 2.4ghz params if no channel is
+				 * available
+				 */
+				enableAniMIBCounters(ah,
+				    ahp->ah_curani != AH_NULL ?
+				      ahp->ah_curani->params:
+				      &ahp->ah_aniParams24);
+				ahp->ah_procPhyErr |= HAL_ANI_ENA;
+			}
+		}
+		return AH_TRUE;
+	}
 
 	/* Check whether the particular function is enabled */
 	if (((1 << cmd) & AH5416(ah)->ah_ani_function) == 0) {
@@ -183,7 +221,6 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		return AH_FALSE;
 	}
 
-	OS_MARK(ah, AH_MARK_ANI_CONTROL, cmd);
 
 	switch (cmd) {
 	case HAL_ANI_NOISE_IMMUNITY_LEVEL: {
@@ -317,23 +354,6 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		aniState->spurImmunityLevel = level;
 		break;
 	}
-	case HAL_ANI_PRESENT:
-		break;
-	case HAL_ANI_MODE:
-		if (param == 0) {
-			ahp->ah_procPhyErr &= ~HAL_ANI_ENA;
-			/* Turn off HW counters if we have them */
-			ar5416AniDetach(ah);
-		} else {			/* normal/auto mode */
-			/* don't mess with state if already enabled */
-			if (ahp->ah_procPhyErr & HAL_ANI_ENA)
-				break;
-			/* Enable MIB Counters */
-			enableAniMIBCounters(ah, ahp->ah_curani != AH_NULL ?
-			    ahp->ah_curani->params: &ahp->ah_aniParams24 /*XXX*/);
-			ahp->ah_procPhyErr |= HAL_ANI_ENA;
-		}
-		break;
 #ifdef AH_PRIVATE_DIAG
 	case HAL_ANI_PHYERR_RESET:
 		ahp->ah_stats.ast_ani_ofdmerrs = 0;
@@ -548,8 +568,21 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	/*
 	 * Turn off PHY error frame delivery while we futz with settings.
 	 */
-	rxfilter = ar5212GetRxFilter(ah);
-	ar5212SetRxFilter(ah, rxfilter &~ HAL_RX_FILTER_PHYERR);
+	rxfilter = ah->ah_getRxFilter(ah);
+	ah->ah_setRxFilter(ah, rxfilter &~ HAL_RX_FILTER_PHYERR);
+
+	/*
+	 * If ANI is disabled at this point, don't set the default
+	 * ANI parameter settings - leave the HAL settings there.
+	 * This is (currently) needed for reliable radar detection.
+	 */
+	if (! ANI_ENA(ah)) {
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: ANI disabled\n",
+		    __func__);
+		goto finish;
+	}
+
+
 	/*
 	 * Automatic processing is done only in station mode right now.
 	 */
@@ -583,10 +616,16 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL, 0);
 		ichan->privFlags |= CHANNEL_ANI_SETUP;
 	}
+
+	/*
+	 * In case the counters haven't yet been setup; set them up.
+	 */
+	enableAniMIBCounters(ah, aniState->params);
 	ar5416AniRestart(ah, aniState);
 
+finish:
 	/* restore RX filter mask */
-	ar5212SetRxFilter(ah, rxfilter);
+	ah->ah_setRxFilter(ah, rxfilter);
 }
 
 /*

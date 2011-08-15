@@ -371,14 +371,17 @@ END(rsf_fatal)
 
 	.data
 	_ALIGN_DATA
-	.globl	intrnames, eintrnames
+	.globl	intrnames, sintrnames
 intrnames:
 	.space	IV_MAX * (MAXCOMLEN + 1)
-eintrnames:
-	.globl	intrcnt, eintrcnt
+sintrnames:
+	.quad	IV_MAX * (MAXCOMLEN + 1)
+
+	.globl	intrcnt, sintrcnt
 intrcnt:
 	.space	IV_MAX * 8
-eintrcnt:
+sintrcnt:
+	.quad	IV_MAX * 8
 
 	.text
 

@@ -310,7 +310,7 @@ struct kinfo_proc32 {
 	char	ki_rqindex;
 	u_char	ki_oncpu;
 	u_char	ki_lastcpu;
-	char	ki_ocomm[OCOMMLEN+1];
+	char	ki_tdname[TDNAMLEN+1];
 	char	ki_wmesg[WMESGLEN+1];
 	char	ki_login[LOGNAMELEN+1];
 	char	ki_lockname[LOCKNAMELEN+1];

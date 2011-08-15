@@ -694,7 +694,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	/* Check that the FD given is legit. and change it to a pointer to a
 	 * struct file. */
 	fd = CMSG_DATA(cm);
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		return (error);
 
 	/* Depending on what kind of resource it is, act differently. For

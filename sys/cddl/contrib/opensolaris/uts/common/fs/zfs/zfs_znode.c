@@ -700,7 +700,23 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	case VDIR:
 		zp->z_zn_prefetch = B_TRUE; /* z_prefetch default is enabled */
 		break;
+#ifdef sun
+	case VBLK:
+	case VCHR:
+		{
+			uint64_t rdev;
+			VERIFY(sa_lookup(zp->z_sa_hdl, SA_ZPL_RDEV(zfsvfs),
+			    &rdev, sizeof (rdev)) == 0);
+
+			vp->v_rdev = zfs_cmpldev(rdev);
+		}
+		break;
+#endif	/* sun */
 	case VFIFO:
+#ifdef sun
+	case VSOCK:
+	case VDOOR:
+#endif	/* sun */
 		vp->v_op = &zfs_fifoops;
 		break;
 	case VREG:
@@ -709,6 +725,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_op = &zfs_shareops;
 		}
 		break;
+#ifdef sun
+	case VLNK:
+		vn_setops(vp, zfs_symvnodeops);
+		break;
+	default:
+		vn_setops(vp, zfs_evnodeops);
+		break;
+#endif	/* sun */
 	}
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);

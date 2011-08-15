@@ -106,6 +106,9 @@ cam_status		xpt_create_path_unlocked(struct cam_path **new_path_ptr,
 int			xpt_getattr(char *buf, size_t len, const char *attr,
 				    struct cam_path *path);
 void			xpt_free_path(struct cam_path *path);
+void			xpt_path_counts(struct cam_path *path, uint32_t *bus_ref,
+					uint32_t *periph_ref, uint32_t *target_ref,
+					uint32_t *device_ref);
 int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
 void			xpt_print_path(struct cam_path *path);
@@ -138,4 +141,3 @@ void			xpt_release_path(struct cam_path *path);
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
-

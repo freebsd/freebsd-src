@@ -1014,6 +1014,10 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
+.if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
+_awk=		usr.bin/awk
+.endif
+
 .if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -1052,6 +1056,7 @@ bootstrap-tools:
     ${_groff} \
     ${_ar} \
     ${_dtc} \
+    ${_awk} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \

@@ -322,6 +322,8 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 					 * one and one item:
 					 */
 					c->report_count = 1;
+					c->usage_minimum = 0;
+					c->usage_maximum = 0;
 				} else {
 					s->ncount = 1;
 				}
@@ -512,13 +514,14 @@ hid_report_size(report_desc_t r, enum hid_kind k, int id)
 	uint32_t temp;
 	uint32_t hpos;
 	uint32_t lpos;
+	int report_id = 0;
 
 	hpos = 0;
 	lpos = 0xFFFFFFFF;
 
 	memset(&h, 0, sizeof h);
 	for (d = hid_start_parse(r, 1 << k, id); hid_get_item(d, &h); ) {
-		if (h.report_ID == id && h.kind == k) {
+		if ((h.report_ID == id || id < 0) && h.kind == k) {
 			/* compute minimum */
 			if (lpos > h.pos)
 				lpos = h.pos;
@@ -527,6 +530,8 @@ hid_report_size(report_desc_t r, enum hid_kind k, int id)
 			/* compute maximum */
 			if (hpos < temp)
 				hpos = temp;
+			if (h.report_ID != 0)
+				report_id = 1;
 		}
 	}
 	hid_end_parse(d);
@@ -537,11 +542,8 @@ hid_report_size(report_desc_t r, enum hid_kind k, int id)
 	else
 		temp = hpos - lpos;
 
-	if (id)
-		temp += 8;
-
 	/* return length in bytes rounded up */
-	return ((temp + 7) / 8);
+	return ((temp + 7) / 8 + report_id);
 }
 
 int

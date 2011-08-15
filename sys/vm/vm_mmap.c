@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
@@ -189,12 +191,13 @@ mmap(td, uap)
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
-	vm_prot_t prot, maxprot;
+	vm_prot_t cap_maxprot, prot, maxprot;
 	void *handle;
 	objtype_t handle_type;
 	int flags, error;
 	off_t pos;
 	struct vmspace *vms = td->td_proc->p_vmspace;
+	cap_rights_t rights;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
@@ -274,12 +277,25 @@ mmap(td, uap)
 		handle = NULL;
 		handle_type = OBJT_DEFAULT;
 		maxprot = VM_PROT_ALL;
+		cap_maxprot = VM_PROT_ALL;
 	} else {
 		/*
-		 * Mapping file, get fp for validation and
-		 * don't let the descriptor disappear on us if we block.
+		 * Mapping file, get fp for validation and don't let the
+		 * descriptor disappear on us if we block. Check capability
+		 * rights, but also return the maximum rights to be combined
+		 * with maxprot later.
 		 */
-		if ((error = fget(td, uap->fd, &fp)) != 0)
+		rights = CAP_MMAP;
+		if (prot & PROT_READ)
+			rights |= CAP_READ;
+		if ((flags & MAP_SHARED) != 0) {
+			if (prot & PROT_WRITE)
+				rights |= CAP_WRITE;
+		}
+		if (prot & PROT_EXEC)
+			rights |= CAP_MAPEXEC;
+		if ((error = fget_mmap(td, uap->fd, rights, &cap_maxprot,
+		    &fp)) != 0)
 			goto done;
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;
@@ -346,12 +362,14 @@ mmap(td, uap)
 			}
 		} else if (vp->v_type != VCHR || (fp->f_flag & FWRITE) != 0) {
 			maxprot |= VM_PROT_WRITE;
+			cap_maxprot |= VM_PROT_WRITE;
 		}
 		handle = (void *)vp;
 		handle_type = OBJT_VNODE;
 	}
 map:
 	td->td_fpop = fp;
+	maxprot &= cap_maxprot;
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
 	td->td_fpop = NULL;
