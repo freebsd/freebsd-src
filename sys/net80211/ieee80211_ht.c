@@ -2200,7 +2200,7 @@ bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
 	    callout_pending(&tap->txa_timer)) {
 		struct ieee80211com *ic = ni->ni_ic;
 
-		if (status)		/* ACK'd */
+		if (status == 0)		/* ACK'd */
 			bar_stop_timer(tap);
 		ic->ic_bar_response(ni, tap, status);
 		/* NB: just let timer expire so we pace requests */
