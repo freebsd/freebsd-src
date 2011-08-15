@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2010
+.Dd August 15, 2011
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -168,6 +168,25 @@ forwarded to its destination, and destination replying faster
 than the state information is packed and synced with the second router.
 If the reply would be load balanced to second router, it will be
 dropped due to no state.
+.Sh STATE CHANGE NOTIFICATIONS
+Sometimes it is useful to get notified about
+.Nm
+status change events.
+This can be accomplished by using
+.Xr devd 8
+hooks.
+Master/slave events are signalled as
+.Nm
+interface
+.Dv LINK_UP
+or
+.Dv LINK_DOWN
+event.
+Please see
+.Xr devd.conf 5
+and 
+.Sx EXAMPLES
+section for more information.
 .Sh EXAMPLES
 For firewalls and routers with multiple interfaces, it is desirable to
 failover all of the
@@ -249,6 +268,25 @@ This way, locally connected systems will receive different ARP replies and
 subsequent IP traffic will be balanced among the hosts.
 If one of the hosts fails, the other will take over the virtual MAC address,
 and begin answering ARP requests on its behalf.
+.Pp
+Processing of
+.Nm
+status change events can be set up by using the following devd.conf rules:
+.Bd -literal -offset indent
+notify 0 {
+	match "system"          "IFNET";
+	match "type"            "LINK_UP";
+	match "subsystem"       "carp*";
+	action "/root/carpcontrol.sh $type $subsystem";
+};
+
+notify 0 {
+	match "system"          "IFNET";
+	match "type"            "LINK_UP";
+	match "subsystem"       "carp*";
+	action "/root/carpcontrol.sh $type $subsystem";
+};
+.Ed
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr pfsync 4 ,
