@@ -1662,7 +1662,7 @@ ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
  * Mark the current node as no longer needing to be polled for
  * TX packets.
  *
- * The TXQ lock must NOT be held, it'll be grabbed as needed.
+ * The TXQ lock must be held.
  */
 static void
 ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
@@ -1670,13 +1670,13 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	if (atid->sched == 0)
 		return;
 
 	atid->sched = 0;
-	ATH_TXQ_LOCK(txq);
 	STAILQ_REMOVE(&txq->axq_tidq, atid, ath_tid, axq_qelem);
-	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -1922,29 +1922,18 @@ void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
-	int is_owned;
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
-		/*
-		 * Only lock if we don't have it locked.
-		 * It may be locked already if this is being called
-		 * when the last buffer for an ieee80211_node is
-		 * being freed.
-		 */
-		is_owned = ATH_TXQ_IS_LOCKED(txq);
-		if (! is_owned)
-			ATH_TXQ_LOCK(txq);
 		/* Remove this tid from the list of active tids */
+		ATH_TXQ_LOCK(txq);
 		ath_tx_tid_unsched(sc, an, tid);
+		ATH_TXQ_UNLOCK(txq);
 
 		/* Free packets */
 		ath_tx_tid_free_pkts(sc, an, tid);
-		if (! is_owned)
-			ATH_TXQ_UNLOCK(txq);
-
 	}
 }
 
@@ -1971,27 +1960,16 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
-#ifdef	notyet
 /*
  * Handle completion of non-aggregate session frames.
  */
-static void
+void
 ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
-	struct ieee80211_node *ni = bf->bf_node;
-	struct ath_node *an;
-	struct ath_tid *atid;
-	int tid;
-
-	if (ni != NULL) {
-		tid = bf->bf_state.bfs_tid;
-		an = ATH_NODE(ni);
-		atid = &an->an_tid[tid];
-
-		ath_tx_default_comp(sc, bf, fail);
-	}
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: fail=%d\n", __func__,
+	    bf, fail);
+	ath_tx_default_comp(sc, bf, fail);
 }
-#endif
 
 /*
  * Handle cleanup of aggregate session packets that aren't
@@ -2064,7 +2042,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			continue;
 		}
 		/* Give these the default completion handler */
-		bf->bf_comp = NULL;
+		bf->bf_comp = ath_tx_normal_comp;
 		bf = STAILQ_NEXT(bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(atid);
@@ -2350,6 +2328,9 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: node %p: TID %d: called\n",
+	    __func__, an, tid);
+
 	/* Check - is AMPDU pending or running? then print out something */
 	if (ath_tx_ampdu_pending(sc, an, tid))
 		device_printf(sc->sc_dev, "%s: tid=%d, ampdu pending?\n",
@@ -2376,7 +2357,8 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 			    " tid %d\n",
 			    __func__, bf->bf_state.bfs_tid, tid);
 		}
-		bf->bf_comp = NULL;	/* XXX default handler */
+		/* Normal completion handler */
+		bf->bf_comp = ath_tx_normal_comp;
 
 		/* Punt to hardware or software txq */
 		ATH_TXQ_LOCK(txq);
@@ -2410,7 +2392,9 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, atid->tid, atid->paused);
 		if (atid->paused) {
+			ATH_TXQ_LOCK(txq);
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
+			ATH_TXQ_UNLOCK(txq);
 			continue;
 		}
 		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
@@ -2419,8 +2403,10 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 			ath_tx_tid_hw_queue_norm(sc, atid->an, atid->tid);
 
 		/* Empty? Remove */
+		ATH_TXQ_LOCK(txq);
 		if (atid->axq_depth == 0)
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
+		ATH_TXQ_UNLOCK(txq);
 	}
 }
 
