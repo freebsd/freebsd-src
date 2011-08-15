@@ -2212,7 +2212,7 @@ ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status)
 {
 
-	if (status != 0) {		/* got ACK */
+	if (status == 0) {		/* got ACK */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni, "BAR moves BA win <%u:%u> (%u frames) txseq %u tid %u",
 		    tap->txa_start,
