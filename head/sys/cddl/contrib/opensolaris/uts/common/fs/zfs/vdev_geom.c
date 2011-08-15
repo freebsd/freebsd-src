@@ -410,7 +410,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	size_t bufsize;
-	int error, lock;
+	int error;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -422,12 +422,6 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	vd->vdev_tsd = NULL;
 
-	if (mutex_owned(&spa_namespace_lock)) {
-		mutex_exit(&spa_namespace_lock);
-		lock = 1;
-	} else {
-		lock = 0;
-	}
 	DROP_GIANT();
 	g_topology_lock();
 	error = 0;
@@ -459,11 +453,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	    !ISP2(cp->provider->sectorsize)) {
 		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
 		    vd->vdev_path);
-
-		g_topology_lock();
 		vdev_geom_detach(cp, 0);
-		g_topology_unlock();
-
 		error = EINVAL;
 		cp = NULL;
 	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
@@ -486,8 +476,6 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	}
 	g_topology_unlock();
 	PICKUP_GIANT();
-	if (lock)
-		mutex_enter(&spa_namespace_lock);
 	if (cp == NULL) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);

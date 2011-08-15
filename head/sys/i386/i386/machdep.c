@@ -2132,7 +2132,7 @@ static void
 getmemsize(int first)
 {
 	int has_smap, off, physmap_idx, pa_indx, da_indx;
-	u_long physmem_tunable;
+	u_long physmem_tunable, memtest, tmpul;
 	vm_paddr_t physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
@@ -2339,6 +2339,14 @@ physmap_done:
 	if (has_smap && Maxmem > atop(physmap[physmap_idx + 1]))
 		Maxmem = atop(physmap[physmap_idx + 1]);
 
+	/*
+	 * By default keep the memtest enabled.  Use a general name so that
+	 * one could eventually do more with the code than just disable it.
+	 */
+	memtest = 1;
+	if (TUNABLE_ULONG_FETCH("hw.memtest.tests", &tmpul))
+		memtest = tmpul;
+
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
@@ -2402,6 +2410,8 @@ physmap_done:
 				goto do_dump_avail;
 
 			page_bad = FALSE;
+			if (memtest == 0)
+				goto skip_memtest;
 
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
@@ -2439,6 +2449,7 @@ physmap_done:
 			 */
 			*(int *)ptr = tmp;
 
+skip_memtest:
 			/*
 			 * Adjust array of valid/good pages.
 			 */

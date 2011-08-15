@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2011
+.Dd August 5, 2011
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -89,12 +89,9 @@ and
 lines may appear, but all such lines must appear in a sequence without
 any intervening lines, as once a line that does not follow the format
 is reached, parsing stops.
-Note that for historical reasons,
-.Dq Li REQUIRES ,
-.Dq Li PROVIDES ,
-and
-.Dq Li KEYWORDS
-are also accepted in addition to the above.
+.\" Note that for historical reasons REQUIRES, PROVIDES, and KEYWORDS
+.\" are also accepted in addition to the above, but not documented so
+.\" that they can be deprecated at some point in the future.
 .Pp
 The options are as follows:
 .Bl -tag -width indent

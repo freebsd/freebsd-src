@@ -540,8 +540,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	int ip6s, redo_ip6;
 #endif
-	unsigned pr_flags, ch_flags;
-	unsigned pr_allow, ch_allow, tallow;
+	uint64_t pr_allow, ch_allow, pr_flags, ch_flags;
+	unsigned tallow;
 	char numbuf[12];
 
 	error = priv_check(td, PRIV_JAIL_SET);
@@ -3858,7 +3858,8 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
 	case PRIV_VFS_MOUNT_OWNER:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT)
+		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT &&
+		    cred->cr_prison->pr_enforce_statfs < 2)
 			return (0);
 		else
 			return (EPERM);

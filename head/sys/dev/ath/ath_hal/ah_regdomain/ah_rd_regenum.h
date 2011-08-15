@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
- * Copyright (c) 2005-2006 Atheros Communications, Inc.
+ * Copyright (c) 2005-2011 Atheros Communications, Inc.
  * All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -46,6 +46,7 @@ enum {
 	FCC1_WORLD	= 0x11,		/* Hong Kong */
 	FCC4_FCCA	= 0x12,		/* USA - Public Safety */
 	FCC5_FCCB	= 0x13,		/* USA w/ 1/2 and 1/4 width channels */
+	FCC6_FCCA	= 0x14,		/* Canada for AP only */
 
 	FCC2_FCCA	= 0x20,		/* Canada */
 	FCC2_WORLD	= 0x21,		/* Australia & HK */
@@ -62,6 +63,8 @@ enum {
 	ETSI4_ETSIC	= 0x38,
 	ETSI5_WORLD	= 0x39,
 	ETSI6_WORLD	= 0x34,		/* Bulgaria */
+	ETSI8_WORLD	= 0x3D,		/* Russia */
+	ETSI9_WORLD	= 0x3E,		/* Ukraine */
 	ETSI_RESERVED	= 0x33,		/* Reserved (Do not used) */
 
 	MKK1_MKKA	= 0x40,		/* Japan (JP1) */
@@ -77,8 +80,9 @@ enum {
 	MKK1_MKKA1	= 0x4A,		/* Japan (JE1) */
 	MKK1_MKKA2	= 0x4B,		/* Japan (JE2) */
 	MKK1_MKKC	= 0x4C,		/* Japan (MKK1_MKKA,except Ch14) */
+	APL2_FCCA	= 0x4D,		/* Mobile customer */
 
-	APL3_FCCA       = 0x50,
+	APL3_FCCA	= 0x50,
 	APL1_WORLD	= 0x52,		/* Latin America */
 	APL1_FCCA	= 0x53,
 	APL1_APLA	= 0x54,
@@ -86,9 +90,10 @@ enum {
 	APL2_ETSIC	= 0x56,		/* Venezuela */
 	APL5_WORLD	= 0x58,		/* Chile */
 	APL6_WORLD	= 0x5B,		/* Singapore */
-	APL7_FCCA   	= 0x5C,     	/* Taiwan 5.47 Band */
-	APL8_WORLD  	= 0x5D,     	/* Malaysia 5GHz */
-	APL9_WORLD  	= 0x5E,     	/* Korea 5GHz */
+	APL7_FCCA	= 0x5C,		/* Taiwan 5.47 Band */
+	APL8_WORLD	= 0x5D,		/* Malaysia 5GHz */
+	APL9_WORLD	= 0x5E,		/* Korea 5GHz; before 11/2007; now APs only */
+	APL10_WORLD	= 0x5F,		/* Korea 5GHz; After 11/2007; STAs only */
 
 	/*
 	 * World mode SKUs
@@ -97,16 +102,17 @@ enum {
 	WOR1_WORLD	= 0x61,		/* World1 (WO1 SKU) */
 	WOR2_WORLD	= 0x62,		/* World2 (WO2 SKU) */
 	WOR3_WORLD	= 0x63,		/* World3 (WO3 SKU) */
-	WOR4_WORLD	= 0x64,		/* World4 (WO4 SKU) */	
-	WOR5_ETSIC	= 0x65,		/* World5 (WO5 SKU) */    
+	WOR4_WORLD	= 0x64,		/* World4 (WO4 SKU) */
+	WOR5_ETSIC	= 0x65,		/* World5 (WO5 SKU) */
 
 	WOR01_WORLD	= 0x66,		/* World0-1 (WW0-1 SKU) */
 	WOR02_WORLD	= 0x67,		/* World0-2 (WW0-2 SKU) */
 	EU1_WORLD	= 0x68,		/* Same as World0-2 (WW0-2 SKU), except active scan ch1-13. No ch14 */
 
-	WOR9_WORLD	= 0x69,		/* World9 (WO9 SKU) */	
-	WORA_WORLD	= 0x6A,		/* WorldA (WOA SKU) */	
+	WOR9_WORLD	= 0x69,		/* World9 (WO9 SKU) */
+	WORA_WORLD	= 0x6A,		/* WorldA (WOA SKU) */
 	WORB_WORLD	= 0x6B,		/* WorldB (WOB SKU) */
+	WORC_WORLD	= 0x6C,		/* WorldC (WOC SKU) */
 
 	MKK3_MKKB	= 0x80,		/* Japan UNI-1 even + MKKB */
 	MKK3_MKKA2	= 0x81,		/* Japan UNI-1 even + MKKA2 */
@@ -132,17 +138,48 @@ enum {
 	MKK8_MKKA2	= 0x90,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + MKKA2 */
 	MKK8_MKKC	= 0x91,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + MKKC */
 
-	/* Following definitions are used only by s/w to map old
- 	 * Japan SKUs.
+	MKK14_MKKA1	= 0x92,		/* Japan UNI-1 even + UNI-1 odd + 4.9GHz + MKKA1 */
+	MKK15_MKKA1	= 0x93,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + 4.9GHz + MKKA1 */
+
+	MKK10_FCCA	= 0xD0,		/* Japan UNI-1 even + UNI-2 + 4.9GHz + FCCA */
+	MKK10_MKKA1	= 0xD1,		/* Japan UNI-1 even + UNI-2 + 4.9GHz + MKKA1 */
+	MKK10_MKKC	= 0xD2,		/* Japan UNI-1 even + UNI-2 + 4.9GHz + MKKC */
+	MKK10_MKKA2	= 0xD3,		/* Japan UNI-1 even + UNI-2 + 4.9GHz + MKKA2 */
+
+	MKK11_MKKA	= 0xD4,		/* Japan UNI-1 even + UNI-2 + mid-band + 4.9GHz + MKKA */
+	MKK11_FCCA	= 0xD5,		/* Japan UNI-1 even + UNI-2 + mid-band + 4.9GHz + FCCA */
+	MKK11_MKKA1	= 0xD6,		/* Japan UNI-1 even + UNI-2 + mid-band + 4.9GHz + MKKA1 */
+	MKK11_MKKC	= 0xD7,		/* Japan UNI-1 even + UNI-2 + mid-band + 4.9GHz + MKKC */
+	MKK11_MKKA2	= 0xD8,		/* Japan UNI-1 even + UNI-2 + mid-band + 4.9GHz + MKKA2 */
+
+	MKK12_MKKA	= 0xD9,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + 4.9GHz + MKKA */
+	MKK12_FCCA	= 0xDA,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + 4.9GHz + FCCA */
+	MKK12_MKKA1	= 0xDB,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + 4.9GHz + MKKA1 */
+	MKK12_MKKC	= 0xDC,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + 4.9GHz + MKKC */
+	MKK12_MKKA2	= 0xDD,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + 4.9GHz + MKKA2 */
+
+	MKK13_MKKB	= 0xDE,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + mid-band + MKKB + All passive + no adhoc */
+
+	/*
+	 * Following definitions are used only by s/w to map old
+	 * Japan SKUs.
 	 */
-	MKK3_MKKA       = 0xF0,         /* Japan UNI-1 even + MKKA */
-	MKK3_MKKA1      = 0xF1,         /* Japan UNI-1 even + MKKA1 */
-	MKK3_FCCA       = 0xF2,         /* Japan UNI-1 even + FCCA */
-	MKK4_MKKA       = 0xF3,         /* Japan UNI-1 even + UNI-2 + MKKA */
-	MKK4_MKKA1      = 0xF4,         /* Japan UNI-1 even + UNI-2 + MKKA1 */
-	MKK4_FCCA       = 0xF5,         /* Japan UNI-1 even + UNI-2 + FCCA */
-	MKK9_MKKA       = 0xF6,         /* Japan UNI-1 even + 4.9GHz */
-	MKK10_MKKA      = 0xF7,         /* Japan UNI-1 even + UNI-2 + 4.9GHz */
+	MKK3_MKKA	= 0xF0,		/* Japan UNI-1 even + MKKA */
+	MKK3_MKKA1	= 0xF1,		/* Japan UNI-1 even + MKKA1 */
+	MKK3_FCCA	= 0xF2,		/* Japan UNI-1 even + FCCA */
+	MKK4_MKKA	= 0xF3,		/* Japan UNI-1 even + UNI-2 + MKKA */
+	MKK4_MKKA1	= 0xF4,		/* Japan UNI-1 even + UNI-2 + MKKA1 */
+	MKK4_FCCA	= 0xF5,		/* Japan UNI-1 even + UNI-2 + FCCA */
+	MKK9_MKKA	= 0xF6,		/* Japan UNI-1 even + 4.9GHz */
+	MKK10_MKKA	= 0xF7,		/* Japan UNI-1 even + UNI-2 + 4.9GHz */
+	MKK6_MKKA1	= 0xF8,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + MKKA1 */
+	MKK6_FCCA	= 0xF9,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + FCCA */
+	MKK7_MKKA1	= 0xFA,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + MKKA1 */
+	MKK7_FCCA	= 0xFB,		/* Japan UNI-1 even + UNI-1 odd + UNI-2 + FCCA */
+	MKK9_FCCA	= 0xFC,		/* Japan UNI-1 even + 4.9GHz + FCCA */
+	MKK9_MKKA1	= 0xFD,		/* Japan UNI-1 even + 4.9GHz + MKKA1 */
+	MKK9_MKKC	= 0xFE,		/* Japan UNI-1 even + 4.9GHz + MKKC */
+	MKK9_MKKA2	= 0xFF,		/* Japan UNI-1 even + 4.9GHz + MKKA2 */
 
 	/*
 	 * Regulator domains ending in a number (e.g. APL1,
@@ -157,8 +194,10 @@ enum {
 	APL4		= 0x0450,	/* Jordan */
 	APL5		= 0x0550,	/* Chile */
 	APL6		= 0x0650,	/* Singapore */
+	APL7		= 0x0750,	/* Taiwan, disable ch52 */
 	APL8		= 0x0850,	/* Malaysia */
-	APL9		= 0x0950,	/* Korea (South) ROC 3 */
+	APL9		= 0x0950,	/* Korea. Before 11/2007. Now used only by APs */
+	APL10		= 0x1050,	/* Korea. After 11/2007. For STAs only */
 
 	ETSI1		= 0x0130,	/* Europe & others */
 	ETSI2		= 0x0230,	/* Europe & others */
@@ -166,16 +205,19 @@ enum {
 	ETSI4		= 0x0430,	/* Europe & others */
 	ETSI5		= 0x0530,	/* Europe & others */
 	ETSI6		= 0x0630,	/* Europe & others */
+	ETSI8		= 0x0830,	/* Russia */
+	ETSI9		= 0x0930,	/* Ukraine */
 	ETSIA		= 0x0A30,	/* France */
 	ETSIB		= 0x0B30,	/* Israel */
 	ETSIC		= 0x0C30,	/* Latin America */
 
 	FCC1		= 0x0110,	/* US & others */
 	FCC2		= 0x0120,	/* Canada, Australia & New Zealand */
-	FCC3		= 0x0160,	/* US w/new middle band & DFS */    
-	FCC4          	= 0x0165,     	/* US Public Safety */
-	FCC5          	= 0x0166,     	/* US w/ 1/2 and 1/4 width channels */
-	FCCA		= 0x0A10,	 
+	FCC3		= 0x0160,	/* US w/new middle band & DFS */
+	FCC4		= 0x0165,	/* US Public Safety */
+	FCC5		= 0x0166,	/* US w/ 1/2 and 1/4 width channels */
+	FCC6		= 0x0610,	/* Canada and Australia */
+	FCCA		= 0x0A10,
 	FCCB		= 0x0A11,	/* US w/ 1/2 and 1/4 width channels */
 
 	APLD		= 0x0D50,	/* South Korea */
@@ -188,8 +230,14 @@ enum {
 	MKK6		= 0x0640,	/* Japan (UNI-1 odd + UNI-1 even) */
 	MKK7		= 0x0740,	/* Japan (UNI-1 odd + UNI-1 even + UNI-2 */
 	MKK8		= 0x0840,	/* Japan (UNI-1 odd + UNI-1 even + UNI-2 + mid-band) */
-	MKK9            = 0x0940,       /* Japan (UNI-1 even + 4.9 GHZ) */
-	MKK10           = 0x0B40,       /* Japan (UNI-1 even + UNI-2 + 4.9 GHZ) */
+	MKK9		= 0x0940,	/* Japan (UNI-1 even + 4.9 GHZ) */
+	MKK10		= 0x0B40,	/* Japan (UNI-1 even + UNI-2 + 4.9 GHZ) */
+	MKK11		= 0x1140,	/* Japan (UNI-1 even + UNI-2 + 4.9 GHZ) */
+	MKK12		= 0x1240,	/* Japan (UNI-1 even + UNI-2 + 4.9 GHZ) */
+	MKK13		= 0x0C40,	/* Same as MKK8 but all passive and no adhoc 11a */
+	MKK14		= 0x1440,	/* Japan UNI-1 even + UNI-1 odd + 4.9GHz */
+	MKK15		= 0x1540,	/* Japan UNI-1 even + UNI-1 odd + UNI-2 + 4.9GHz */
+
 	MKKA		= 0x0A40,	/* Japan */
 	MKKC		= 0x0A50,
 

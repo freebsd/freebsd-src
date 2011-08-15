@@ -55,6 +55,7 @@ struct ata_pci_controller {
     int                 channels;
     int			ichannels;
     int                 (*chipinit)(device_t);
+    int                 (*chipdeinit)(device_t);
     int                 (*suspend)(device_t);
     int                 (*resume)(device_t);
     int                 (*ch_attach)(device_t);
@@ -578,6 +579,8 @@ int ata_sii_chipinit(device_t);
 
 /* externs */
 extern devclass_t ata_pci_devclass;
+
+MALLOC_DECLARE(M_ATAPCI);
 
 /* macro for easy definition of all driver module stuff */
 #define ATA_DECLARE_DRIVER(dname) \

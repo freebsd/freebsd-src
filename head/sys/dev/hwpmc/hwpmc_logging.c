@@ -37,6 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -589,7 +590,7 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 		po->po_file));
 
 	/* get a reference to the file state */
-	error = fget_write(curthread, logfd, &po->po_file);
+	error = fget_write(curthread, logfd, CAP_WRITE, &po->po_file);
 	if (error)
 		goto error;
 

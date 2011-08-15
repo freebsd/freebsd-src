@@ -1029,8 +1029,8 @@ restart:
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
-				    " Displaying %sCPU",
-				    ps.wcpu ? "W" : "");
+				    " Displaying %s CPU",
+				    ps.wcpu ? "weighted" : "raw");
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
@@ -1094,7 +1094,7 @@ restart:
 				new_message(MT_standout | MT_delayed,
 				    " Displaying %sCPU statistics.",
 				    pcpu_stats ? "per-" : "global ");
-				toggle_pcpustats(&statics);
+				toggle_pcpustats();
 				max_topn = display_updatecpus(&statics);
 				reset_display();
 				putchar('\r');

@@ -136,6 +136,8 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* XXX override with 9285 specific state */
 	/* override 5416 methods for our needs */
+	AH5416(ah)->ah_initPLL = ar9280InitPLL;
+
 	ah->ah_setAntennaSwitch		= ar9285SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9285ConfigPCIE;
 	ah->ah_setTxPower		= ar9285SetTransmitPower;

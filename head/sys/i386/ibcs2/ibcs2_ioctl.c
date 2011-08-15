@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -333,7 +334,7 @@ ibcs2_ioctl(td, uap)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0) {
+	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0) {
 		DPRINTF(("ibcs2_ioctl(%d): bad fd %d ", p->p_pid,
 			 uap->fd));
 		return EBADF;

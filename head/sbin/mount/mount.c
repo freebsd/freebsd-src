@@ -109,6 +109,7 @@ static struct opt {
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
+	{ MNT_SUJ,		"journaled soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
 	{ MNT_NFS4ACLS,		"nfsv4acls" },

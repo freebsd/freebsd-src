@@ -426,6 +426,7 @@ struct ahci_channel {
 	int			resetting;	/* Hard-reset in progress. */
 	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			listening;	/* SUD bit is cleared. */
+	int			wrongccs;	/* CCS field in CMD was wrong */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
 	struct callout		reset_timer;	/* Hard-reset timeout */
