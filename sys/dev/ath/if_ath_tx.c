@@ -1116,20 +1116,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		/*
 		 * XXX The following is dirty but needed for now.
 		 *
-		 * Because of the current way locking is implemented,
-		 * we may end up here because of a call to
-		 * ieee80211_send_bar() from a call inside the completion
-		 * handler. This will have the hardware TXQ locked,
-		 * protecting the TXQ and the node TID state in question.
+		 * Sending a BAR frame can occur from the net80211 txa timer
+		 * (ie, retries) or from the ath txtask (completion call.)
+		 * It queues directly to hardware because the TID is paused
+		 * at this point (and won't be unpaused until the BAR has
+		 * either been TXed successfully or max retries has been
+		 * reached.)
 		 *
-		 * So we (a) can't SWQ queue to it, as it'll be queued
-		 * on the same TID which will be paused, and (b) the TXQ
-		 * will be locked anyway, so grabbing the lock will cause
-		 * recursion.
-		 *
-		 * The longer term issue is that the TXQ lock is being held
-		 * for so damned long, and that must be addressed before this
-		 * stuff is merged into -HEAD.
+		 * TODO: sending a BAR should be done at the management rate!
 		 */
 		device_printf(sc->sc_dev, "%s: BAR: TX'ing direct\n", __func__);
 		ATH_TXQ_LOCK(txq);
