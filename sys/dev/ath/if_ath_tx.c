@@ -1125,7 +1125,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 *
 		 * TODO: sending a BAR should be done at the management rate!
 		 */
-		device_printf(sc->sc_dev, "%s: BAR: TX'ing direct\n", __func__);
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: BAR: TX'ing direct\n", __func__);
 		ATH_TXQ_LOCK(txq);
 		ath_tx_handoff(sc, txq, bf);
 		ATH_TXQ_UNLOCK(txq);
@@ -1819,28 +1820,43 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 /*
  * Pause the current TID. This stops packets from being transmitted
  * on it.
+ *
+ * XXX As this is being called from upper layers, it needs to be
+ * XXX properly locked!
  */
 static void
 ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 {
+	ATH_TXQ_LOCK(tid);
 	tid->paused++;
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: paused = %d\n",
 	    __func__, tid->paused);
+	ATH_TXQ_UNLOCK(tid);
 }
 
+/*
+ * Unpause the current TID, and schedule it if needed.
+ *
+ * XXX As this is being called from upper layers, it needs to be
+ * XXX properly locked!
+ */
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
+	ATH_TXQ_LOCK(tid);
+
 	tid->paused--;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
 	    __func__, tid->paused);
-	if (tid->paused)
+
+	if (tid->paused || tid->axq_depth == 0) {
+		ATH_TXQ_UNLOCK(tid);
 		return;
-	if (tid->axq_depth == 0)
-		return;
+	}
+	ATH_TXQ_UNLOCK(tid);
 
 	ATH_TXQ_LOCK(txq);
 	ath_tx_tid_sched(sc, tid->an, tid->tid);
@@ -1977,12 +1993,13 @@ ath_tx_comp_cleanup(struct ath_softc *sc, struct ath_buf *bf)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	device_printf(sc->sc_dev, "%s: TID %d: incomp=%d\n",
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: incomp=%d\n",
 	    __func__, tid, atid->incomp);
 
 	atid->incomp--;
 	if (atid->incomp == 0) {
-		device_printf(sc->sc_dev, "%s: TID %d: cleaned up! resume!\n",
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: TID %d: cleaned up! resume!\n",
 		    __func__, tid);
 		atid->cleanup_inprogress = 0;
 		ath_tx_tid_resume(sc, atid);
@@ -2009,7 +2026,8 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ieee80211_tx_ampdu *tap;
 	struct ath_buf *bf, *bf_next;
 
-	device_printf(sc->sc_dev, "%s: TID %d: called\n", __func__, tid);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: TID %d: called\n", __func__, tid);
 
 	/*
 	 * Update the frames in the software TX queue:
@@ -2073,7 +2091,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		ath_tx_tid_resume(sc, atid);
 
 	if (atid->cleanup_inprogress)
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: TID %d: cleanup needed: %d packets\n",
 		    __func__, tid, atid->incomp);
 }
@@ -2119,16 +2137,26 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 
-		/* Pause the TID */
-
 		/* Send BAR frame */
 		/*
 		 * This'll end up going into net80211 and back out
 		 * again, via ic->ic_raw_xmit().
 		 */
-		device_printf(sc->sc_dev, "%s: TID %d: send BAR\n",
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: send BAR\n",
 		    __func__, tid);
-		ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]);
+		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
+			/*
+			 * Pause the TID if this was successful.
+			 * An un-successful BAR TX would never call
+			 * the BAR complete / timeout methods.
+			 */
+			ath_tx_tid_pause(sc, atid);
+		} else {
+			/* BAR TX failed */
+			device_printf(sc->sc_dev,
+			    "%s: TID %d: BAR TX failed\n",
+			    __func__, tid);
+		}
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2544,6 +2572,11 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	sc->sc_addba_stop(ni, tap);
 
 	ath_tx_cleanup(sc, an, tid);
+	/*
+	 * ath_tx_cleanup will resume the TID if possible, otherwise
+	 * it'll set the cleanup flag, and it'll be unpaused once
+	 * things have been cleaned up.
+	 */
 }
 
 /*
@@ -2552,17 +2585,32 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
  *
  * It however will call ieee80211_ampdu_stop() which will call
  * ic->ic_addba_stop().
+ *
+ * XXX This uses a hard-coded max BAR count value; the whole
+ * XXX BAR TX success or failure should be better handled!
  */
 void
 ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	int tid = WME_AC_TO_TID(tap->txa_ac);
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_tid *atid = &an->an_tid[tid];
+	int attempts = tap->txa_attempts;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: called; status=%d\n", __func__, status);
 
-	sc->sc_bar_response(ni, tap, status);
 	/* Note: This may update the BAW details */
+	sc->sc_bar_response(ni, tap, status);
 
 	/* Unpause the TID */
+	/*
+	 * XXX if this is attempt=50, the TID will be downgraded
+	 * XXX to a non-aggregate session. So we must unpause the
+	 * XXX TID here or it'll never be done.
+	 */
+	if (status == 0 || attempts == 50)
+		ath_tx_tid_resume(sc, atid);
 }
