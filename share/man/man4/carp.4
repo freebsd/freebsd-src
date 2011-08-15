@@ -282,7 +282,7 @@ notify 0 {
 
 notify 0 {
 	match "system"          "IFNET";
-	match "type"            "LINK_UP";
+	match "type"            "LINK_DOWN";
 	match "subsystem"       "carp*";
 	action "/root/carpcontrol.sh $type $subsystem";
 };
@@ -291,6 +291,7 @@ notify 0 {
 .Xr inet 4 ,
 .Xr pfsync 4 ,
 .Xr rc.conf 5 ,
+.Xr devd.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh HISTORY
