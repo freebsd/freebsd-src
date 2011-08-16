@@ -1821,8 +1821,8 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
  * Pause the current TID. This stops packets from being transmitted
  * on it.
  *
- * XXX As this is being called from upper layers, it needs to be
- * XXX properly locked!
+ * Since this is also called from upper layers as well as the driver,
+ * it will get the TID lock.
  */
 static void
 ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
@@ -1837,8 +1837,8 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 /*
  * Unpause the current TID, and schedule it if needed.
  *
- * XXX As this is being called from upper layers, it needs to be
- * XXX properly locked!
+ * Since this is called from upper layers as well as the driver,
+ * it will get the TID lock and the TXQ lock if needed.
  */
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
@@ -2410,15 +2410,21 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
+		 *
+		 * Since this touches tid->paused, it should lock
+		 * the TID lock before checking.
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, atid->tid, atid->paused);
+		ATH_TXQ_LOCK(atid);
 		if (atid->paused) {
+			ATH_TXQ_UNLOCK(atid);
 			ATH_TXQ_LOCK(txq);
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
 			ATH_TXQ_UNLOCK(txq);
 			continue;
 		}
+		ATH_TXQ_UNLOCK(atid);
 		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
 			ath_tx_tid_hw_queue_aggr(sc, atid->an, atid->tid);
 		else
