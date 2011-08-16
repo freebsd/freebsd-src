@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 static fo_rdwr_t	vn_read;
@@ -81,6 +82,8 @@ struct 	fileops vnops = {
 	.fo_kqfilter = vn_kqfilter,
 	.fo_stat = vn_statfile,
 	.fo_close = vn_closefile,
+	.fo_chmod = vn_chmod,
+	.fo_chown = vn_chown,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -1356,4 +1359,42 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	}
 	PROC_UNLOCK(td->td_proc);
 	return (0);
+}
+
+int
+vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfmode(td, active_cred, vp, mode);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+int
+vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfown(td, active_cred, vp, uid, gid);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
