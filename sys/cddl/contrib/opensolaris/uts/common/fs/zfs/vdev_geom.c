@@ -442,23 +442,37 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	error = 0;
 
 	/*
-	 * If we're creating or splitting a pool, just find the GEOM provider
-	 * by its name and ignore GUID mismatches.
+	 * Try using the recorded path for this device, but only
+	 * accept it if its label data contains the expected GUIDs.
 	 */
-	if (vd->vdev_spa->spa_load_state == SPA_LOAD_NONE ||
-	    vd->vdev_spa->spa_splitting_newspa == B_TRUE)
+	cp = vdev_geom_open_by_path(vd, 1);
+	if (cp == NULL) {
+		/*
+		 * The device at vd->vdev_path doesn't have the
+		 * expected GUIDs. The disks might have merely
+		 * moved around so try all other GEOM providers
+		 * to find one with the right GUIDs.
+		 */
+		cp = vdev_geom_open_by_guids(vd);
+	}
+
+	if (cp == NULL &&
+	    ((vd->vdev_prevstate == VDEV_STATE_UNKNOWN &&
+	      vd->vdev_spa->spa_load_state == SPA_LOAD_NONE) ||
+	     vd->vdev_spa->spa_splitting_newspa == B_TRUE)) {
+		/*
+		 * We are dealing with a vdev that hasn't been previosly
+		 * opened (since boot), and we are not loading an
+		 * existing pool configuration (e.g. this operations is
+		 * an add of a vdev to new or * existing pool) or we are
+		 * in the process of splitting a pool.  Find the GEOM
+		 * provider by its name, ignoring GUID mismatches.
+		 *
+		 * XXPOLICY: It would be safer to only allow a device
+		 *           that is unlabeled or labeled but missing
+		 *           GUID information to be opened in this fashion.
+		 */
 		cp = vdev_geom_open_by_path(vd, 0);
-	else {
-		cp = vdev_geom_open_by_path(vd, 1);
-		if (cp == NULL) {
-			/*
-			 * The device at vd->vdev_path doesn't have the
-			 * expected guid. The disks might have merely
-			 * moved around so try all other GEOM providers
-			 * to find one with the right guid.
-			 */
-			cp = vdev_geom_open_by_guids(vd);
-		}
 	}
 
 	if (cp == NULL) {
