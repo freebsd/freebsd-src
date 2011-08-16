@@ -778,7 +778,15 @@ void vfs_mark_atime(struct vnode *vp, struct ucred *cred);
 struct dirent;
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 
-int	vfs_unixify_accmode(accmode_t *accmode);
+int vfs_unixify_accmode(accmode_t *accmode);
+
+int setfmode(struct thread *td, struct ucred *cred, struct vnode *vp, int mode);
+int setfown(struct thread *td, struct ucred *cred, struct vnode *vp, uid_t uid,
+    gid_t gid);
+int vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td);
+int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td);
 
 #endif /* _KERNEL */
 

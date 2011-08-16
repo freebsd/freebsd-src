@@ -135,6 +135,8 @@ static fo_poll_t	ksem_poll;
 static fo_kqfilter_t	ksem_kqfilter;
 static fo_stat_t	ksem_stat;
 static fo_close_t	ksem_closef;
+static fo_chmod_t	ksem_chmod;
+static fo_chown_t	ksem_chown;
 
 /* File descriptor operations. */
 static struct fileops ksem_ops = {
@@ -146,6 +148,8 @@ static struct fileops ksem_ops = {
 	.fo_kqfilter = ksem_kqfilter,
 	.fo_stat = ksem_stat,
 	.fo_close = ksem_closef,
+	.fo_chmod = ksem_chmod,
+	.fo_chown = ksem_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -220,16 +224,72 @@ ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	 * file descriptor.
 	 */
 	bzero(sb, sizeof(*sb));
-	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
 
+	mtx_lock(&sem_lock);
 	sb->st_atim = ks->ks_atime;
 	sb->st_ctim = ks->ks_ctime;
 	sb->st_mtim = ks->ks_mtime;
-	sb->st_birthtim = ks->ks_birthtime;	
+	sb->st_birthtim = ks->ks_birthtime;
 	sb->st_uid = ks->ks_uid;
 	sb->st_gid = ks->ks_gid;
+	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
+	mtx_unlock(&sem_lock);
 
 	return (0);
+}
+
+static int
+ksem_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct ksem *ks;
+	int error;
+
+	error = 0;
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+#ifdef MAC
+	error = mac_posixsem_check_setmode(active_cred, ks, mode);
+	if (error != 0)
+		goto out;
+#endif
+	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid, VADMIN,
+	    active_cred, NULL);
+	if (error != 0)
+		goto out;
+	ks->ks_mode = mode & ACCESSPERMS;
+out:
+	mtx_unlock(&sem_lock);
+	return (error);
+}
+
+static int
+ksem_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct ksem *ks;
+	int error;
+
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+#ifdef MAC
+	error = mac_posixsem_check_setowner(active_cred, ks, uid, gid);
+	if (error != 0)
+		goto out;
+#endif
+	if (uid == (uid_t)-1)
+		uid = ks->ks_uid;
+	if (gid == (gid_t)-1)
+                 gid = ks->ks_gid;
+	if (((uid != ks->ks_uid && uid != active_cred->cr_uid) ||
+	    (gid != ks->ks_gid && !groupmember(gid, active_cred))) &&
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+		goto out;
+	ks->ks_uid = uid;
+	ks->ks_gid = gid;
+out:
+	mtx_unlock(&sem_lock);
+	return (error);
 }
 
 static int
