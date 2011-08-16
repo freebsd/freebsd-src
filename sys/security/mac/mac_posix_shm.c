@@ -181,3 +181,35 @@ mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd)
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_setmode, "struct ucred *",
+    "struct shmfd *", "mode_t");
+
+int
+mac_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd, mode_t mode)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_setmode, cred, shmfd,
+	    shmfd->shm_label, mode);
+	MAC_CHECK_PROBE3(posixshm_check_setmode, error, cred, shmfd, mode);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE4(posixshm_check_setowner, "struct ucred *",
+    "struct shmfd *", "uid_t", "gid_t");
+
+int
+mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd, uid_t uid,
+    gid_t gid)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_setowner, cred, shmfd,
+	    shmfd->shm_label, uid, gid);
+	MAC_CHECK_PROBE4(posixshm_check_setowner, error, cred, shmfd,
+	    uid, gid);
+
+	return (error);
+}

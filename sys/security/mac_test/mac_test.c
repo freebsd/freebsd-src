@@ -1297,6 +1297,30 @@ test_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
+COUNTER_DECL(posixsem_check_setmode);
+static int
+test_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, mode_t mode)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixsem_check_setmode);
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_setowner);
+static int
+test_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, uid_t uid, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixsem_check_setowner);
+	return (0);
+}
+
 COUNTER_DECL(posixsem_check_stat);
 static int
 test_posixsem_check_stat(struct ucred *active_cred,
@@ -1387,6 +1411,30 @@ test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
 	COUNTER_INC(posixshm_check_open);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_setmode);
+static int
+test_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel, mode_t mode)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_setmode);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_setowner);
+static int
+test_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel, uid_t uid, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_setowner);
 	return (0);
 }
 
@@ -3045,6 +3093,8 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_check_getvalue = test_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = test_posixsem_check_open,
 	.mpo_posixsem_check_post = test_posixsem_check_post,
+	.mpo_posixsem_check_setmode = test_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = test_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = test_posixsem_check_stat,
 	.mpo_posixsem_check_unlink = test_posixsem_check_unlink,
 	.mpo_posixsem_check_wait = test_posixsem_check_wait,
@@ -3054,6 +3104,8 @@ static struct mac_policy_ops test_ops =
 
 	.mpo_posixshm_check_mmap = test_posixshm_check_mmap,
 	.mpo_posixshm_check_open = test_posixshm_check_open,
+	.mpo_posixshm_check_setmode = test_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = test_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = test_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = test_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = test_posixshm_check_unlink,

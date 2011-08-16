@@ -96,8 +96,6 @@ SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
-static int setfown(struct thread *td, struct vnode *, uid_t, gid_t);
-static int setfmode(struct thread *td, struct vnode *, int);
 static int setfflags(struct thread *td, struct vnode *, int);
 static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int, int);
@@ -2865,9 +2863,10 @@ fchflags(td, uap)
 /*
  * Common implementation code for chmod(), lchmod() and fchmod().
  */
-static int
-setfmode(td, vp, mode)
+int
+setfmode(td, cred, vp, mode)
 	struct thread *td;
+	struct ucred *cred;
 	struct vnode *vp;
 	int mode;
 {
@@ -2881,10 +2880,10 @@ setfmode(td, vp, mode)
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
 #ifdef MAC
-	error = mac_vnode_check_setmode(td->td_ucred, vp, vattr.va_mode);
+	error = mac_vnode_check_setmode(cred, vp, vattr.va_mode);
 	if (error == 0)
 #endif
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
+		error = VOP_SETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -2980,7 +2979,7 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfmode(td, nd.ni_vp, mode);
+	error = setfmode(td, td->td_ucred, nd.ni_vp, mode);
 	vrele(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
@@ -2996,30 +2995,18 @@ struct fchmod_args {
 };
 #endif
 int
-fchmod(td, uap)
-	struct thread *td;
-	register struct fchmod_args /* {
-		int fd;
-		int mode;
-	} */ *uap;
+fchmod(struct thread *td, struct fchmod_args *uap)
 {
 	struct file *fp;
-	int vfslocked;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_MODE(uap->mode);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_FCHMOD,
-	    &fp)) != 0)
+
+	error = fget(td, uap->fd, CAP_FCHMOD, &fp);
+	if (error != 0)
 		return (error);
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
-#ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE1(fp->f_vnode);
-	VOP_UNLOCK(fp->f_vnode, 0);
-#endif
-	error = setfmode(td, fp->f_vnode, uap->mode);
-	VFS_UNLOCK_GIANT(vfslocked);
+	error = fo_chmod(fp, uap->mode, td->td_ucred, td);
 	fdrop(fp, td);
 	return (error);
 }
@@ -3027,9 +3014,10 @@ fchmod(td, uap)
 /*
  * Common implementation for chown(), lchown(), and fchown()
  */
-static int
-setfown(td, vp, uid, gid)
+int
+setfown(td, cred, vp, uid, gid)
 	struct thread *td;
+	struct ucred *cred;
 	struct vnode *vp;
 	uid_t uid;
 	gid_t gid;
@@ -3045,11 +3033,11 @@ setfown(td, vp, uid, gid)
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
 #ifdef MAC
-	error = mac_vnode_check_setowner(td->td_ucred, vp, vattr.va_uid,
+	error = mac_vnode_check_setowner(cred, vp, vattr.va_uid,
 	    vattr.va_gid);
 	if (error == 0)
 #endif
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
+		error = VOP_SETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -3124,7 +3112,7 @@ kern_fchownat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfown(td, nd.ni_vp, uid, gid);
+	error = setfown(td, td->td_ucred, nd.ni_vp, uid, gid);
 	vrele(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
@@ -3182,22 +3170,14 @@ fchown(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
-	int vfslocked;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_OWNER(uap->uid, uap->gid);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_FCHOWN, &fp))
-	    != 0)
+	error = fget(td, uap->fd, CAP_FCHOWN, &fp);
+	if (error != 0)
 		return (error);
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
-#ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE1(fp->f_vnode);
-	VOP_UNLOCK(fp->f_vnode, 0);
-#endif
-	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
-	VFS_UNLOCK_GIANT(vfslocked);
+	error = fo_chown(fp, uap->uid, uap->gid, td->td_ucred, td);
 	fdrop(fp, td);
 	return (error);
 }

@@ -2469,6 +2469,7 @@ mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	struct mqfs_node *pn = fp->f_data;
 
 	bzero(st, sizeof *st);
+	sx_xlock(&mqfs_data.mi_lock);
 	st->st_atim = pn->mn_atime;
 	st->st_mtim = pn->mn_mtime;
 	st->st_ctim = pn->mn_ctime;
@@ -2476,7 +2477,53 @@ mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	st->st_uid = pn->mn_uid;
 	st->st_gid = pn->mn_gid;
 	st->st_mode = S_IFIFO | pn->mn_mode;
+	sx_xunlock(&mqfs_data.mi_lock);
 	return (0);
+}
+
+static int
+mqf_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct mqfs_node *pn;
+	int error;
+
+	error = 0;
+	pn = fp->f_data;
+	sx_xlock(&mqfs_data.mi_lock);
+	error = vaccess(VREG, pn->mn_mode, pn->mn_uid, pn->mn_gid, VADMIN,
+	    active_cred, NULL);
+	if (error != 0)
+		goto out;
+	pn->mn_mode = mode & ACCESSPERMS;
+out:
+	sx_xunlock(&mqfs_data.mi_lock);
+	return (error);
+}
+
+static int
+mqf_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct mqfs_node *pn;
+	int error;
+
+	error = 0;
+	pn = fp->f_data;
+	sx_xlock(&mqfs_data.mi_lock);
+	if (uid == (uid_t)-1)
+		uid = pn->mn_uid;
+	if (gid == (gid_t)-1)
+		gid = pn->mn_gid;
+	if (((uid != pn->mn_uid && uid != active_cred->cr_uid) ||
+	    (gid != pn->mn_gid && !groupmember(gid, active_cred))) &&
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+		goto out;
+	pn->mn_uid = uid;
+	pn->mn_gid = gid;
+out:
+	sx_xunlock(&mqfs_data.mi_lock);
+	return (error);
 }
 
 static int
@@ -2535,6 +2582,8 @@ static struct fileops mqueueops = {
 	.fo_poll		= mqf_poll,
 	.fo_kqfilter		= mqf_kqfilter,
 	.fo_stat		= mqf_stat,
+	.fo_chmod		= mqf_chmod,
+	.fo_chown		= mqf_chown,
 	.fo_close		= mqf_close
 };
 
