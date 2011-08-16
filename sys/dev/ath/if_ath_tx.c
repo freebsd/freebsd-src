@@ -603,6 +603,34 @@ ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
 	return ctsduration;
 }
 
+
+/*
+ * Setup the descriptor chain for a normal or fast-frame
+ * frame.
+ */
+static void
+ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ath_desc *ds = bf->bf_desc;
+	struct ath_hal *ah = sc->sc_ah;
+
+	ath_hal_setuptxdesc(ah, ds
+		, bf->bf_state.bfs_pktlen	/* packet length */
+		, bf->bf_state.bfs_hdrlen	/* header length */
+		, bf->bf_state.bfs_atype	/* Atheros packet type */
+		, bf->bf_state.bfs_txpower	/* txpower */
+		, bf->bf_state.bfs_txrate0
+		, bf->bf_state.bfs_try0		/* series 0 rate/tries */
+		, bf->bf_state.bfs_keyix	/* key cache index */
+		, bf->bf_state.bfs_txantenna	/* antenna mode */
+		, bf->bf_state.bfs_flags	/* flags */
+		, bf->bf_state.bfs_ctsrate	/* rts/cts rate */
+		, bf->bf_state.bfs_ctsduration	/* rts/cts duration */
+	);
+
+	/* XXX TODO: Setup descriptor chain */
+}
+
 static int
 ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
@@ -917,7 +945,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* This point forward is actual TX bits */
 
-
 	/*
 	 * At this point we are committed to sending the frame
 	 * and we don't need to look at m_nextpkt; clear it in
@@ -945,31 +972,33 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
-
 	if (ath_tx_is_11n(sc)) {
 		rate[0] = rix;
 		try[0] = try0;
 	}
 
+	/* Store the decided rate index values away */
+	bf->bf_state.bfs_pktlen = pktlen;
+	bf->bf_state.bfs_hdrlen = hdrlen;
+	bf->bf_state.bfs_atype = atype;
+	bf->bf_state.bfs_txpower = ni->ni_txpower;
+	bf->bf_state.bfs_txrate0 = txrate;
+	bf->bf_state.bfs_try0 = try0;
+	bf->bf_state.bfs_keyix = keyix;
+	bf->bf_state.bfs_txantenna = sc->sc_txantenna;
+	bf->bf_state.bfs_flags = flags;
+	bf->bf_txflags = flags;
+
+	/* XXX this should be done in ath_tx_setrate() */
+	bf->bf_state.bfs_ctsrate = ctsrate;
+	bf->bf_state.bfs_ctsduration = ctsduration;
+	bf->bf_state.bfs_ismrr = ismrr;
+
 	/*
 	 * Formulate first tx descriptor with tx controls.
 	 */
-	/* XXX check return value? */
-	/* XXX is this ok to call for 11n descriptors? */
-	/* XXX or should it go through the first, next, last 11n calls? */
-	ath_hal_setuptxdesc(ah, ds
-		, pktlen		/* packet length */
-		, hdrlen		/* header length */
-		, atype			/* Atheros packet type */
-		, ni->ni_txpower	/* txpower */
-		, txrate, try0		/* series 0 rate/tries */
-		, keyix			/* key cache index */
-		, sc->sc_txantenna	/* antenna mode */
-		, flags			/* flags */
-		, ctsrate		/* rts/cts rate */
-		, ctsduration		/* rts/cts duration */
-	);
-	bf->bf_txflags = flags;
+	ath_tx_setds(sc, bf);
+
 	/*
 	 * Setup the multi-rate retry state only when we're
 	 * going to use it.  This assumes ath_hal_setuptxdesc
@@ -986,6 +1015,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ATH_NODE_UNLOCK(an);
         }
 
+	/* Setup 11n rate scenario for 11n NICs only */
         if (ath_tx_is_11n(sc)) {
                 ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate,
 		    (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
@@ -1277,19 +1307,25 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	ds = bf->bf_desc;
 	/* XXX check return value? */
-	ath_hal_setuptxdesc(ah, ds
-		, pktlen		/* packet length */
-		, hdrlen		/* header length */
-		, atype			/* Atheros packet type */
-		, params->ibp_power	/* txpower */
-		, txrate, try0		/* series 0 rate/tries */
-		, keyix			/* key cache index */
-		, txantenna		/* antenna mode */
-		, flags			/* flags */
-		, ctsrate		/* rts/cts rate */
-		, ctsduration		/* rts/cts duration */
-	);
+
+	/* Store the decided rate index values away */
+	bf->bf_state.bfs_pktlen = pktlen;
+	bf->bf_state.bfs_hdrlen = hdrlen;
+	bf->bf_state.bfs_atype = atype;
+	bf->bf_state.bfs_txpower = params->ibp_power;
+	bf->bf_state.bfs_txrate0 = txrate;
+	bf->bf_state.bfs_try0 = try0;
+	bf->bf_state.bfs_keyix = keyix;
+	bf->bf_state.bfs_txantenna = txantenna;
+	bf->bf_state.bfs_flags = flags;
 	bf->bf_txflags = flags;
+
+	/* XXX this should be done in ath_tx_setrate() */
+	bf->bf_state.bfs_ctsrate = ctsrate;
+	bf->bf_state.bfs_ctsduration = ctsduration;
+	bf->bf_state.bfs_ismrr = ismrr;
+
+	ath_tx_setds(sc, bf);
 
 	if (ath_tx_is_11n(sc)) {
 		rate[0] = ath_tx_findrix(sc, params->ibp_rate0);

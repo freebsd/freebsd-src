@@ -209,6 +209,7 @@ struct ath_buf {
 		int bfs_dobaw:1;	/* actually check against BAW? */
 		int bfs_shpream:1;	/* use short preamble */
 		int bfs_istxfrag:1;	/* is fragmented */
+		int bfs_ismrr:1;	/* do multi-rate TX retry */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
@@ -220,10 +221,15 @@ struct ath_buf {
 		int bfs_hdrlen;		/* length of this packet header */
 		uint16_t bfs_al;	/* length of aggregate */
 		int bfs_flags;		/* HAL descriptor flags */
+		int bfs_txrate0;	/* first TX rate */
+		int bfs_try0;		/* first try count */
 		int bfs_keyix;		/* crypto key index */
-		int bfs_keytype;	/* crypto key type */
+		int bfs_txpower;	/* tx power */
+		int bfs_txantenna;	/* TX antenna config */
 		enum ieee80211_protmode bfs_protmode;
 		HAL_11N_RATE_SERIES bfs_rc11n[4];	/* 11n TX series */
+		int bfs_ctsrate;	/* CTS rate */
+		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
 		struct ath_rc_series bfs_rc[4];	/* non-11n TX series */
 	} bf_state;
 };
