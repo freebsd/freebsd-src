@@ -446,22 +446,24 @@ done:
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, uint8_t *rix, uint8_t *try)
+    uint8_t rix0, struct ath_rc_series *rc)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct txschedule *sched = &sn->sched[rix0];
 
 	KASSERT(rix0 == sched->r0, ("rix0 (%x) != sched->r0 (%x)!\n", rix0, sched->r0));
 
-/*	rix[0] = sched->r0; */
-	rix[1] = sched->r1;
-	rix[2] = sched->r2;
-	rix[3] = sched->r3;
+	rc[0].flags = rc[1].flags = rc[2].flags = rc[3].flags = 0;
 
-	try[0] = sched->t0;
-	try[1] = sched->t1;
-	try[2] = sched->t2;
-	try[3] = sched->t3;
+	rc[0].rix = sched->r0;
+	rc[1].rix = sched->r1;
+	rc[2].rix = sched->r2;
+	rc[3].rix = sched->r3;
+
+	rc[0].tries = sched->t0;
+	rc[1].tries = sched->t1;
+	rc[2].tries = sched->t2;
+	rc[3].tries = sched->t3;
 }
 
 void

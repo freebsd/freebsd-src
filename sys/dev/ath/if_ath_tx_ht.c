@@ -122,8 +122,7 @@ int ath_max_4ms_framelen[4][32] = {
  */
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
-    HAL_11N_RATE_SERIES *series, unsigned int pktlen, uint8_t *rix,
-    uint8_t *try, int flags)
+    struct ath_buf *bf, HAL_11N_RATE_SERIES *series)
 {
 #define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 	struct ieee80211com *ic = ni->ni_ic;
@@ -131,6 +130,9 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	HAL_BOOL shortPreamble = AH_FALSE;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
+	int pktlen = bf->bf_state.bfs_pktlen;
+	int flags = bf->bf_state.bfs_flags;
+	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
 	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE))
@@ -139,10 +141,10 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	memset(series, 0, sizeof(HAL_11N_RATE_SERIES) * 4);
 	for (i = 0; i < 4;  i++) {
 		/* Only set flags for actual TX attempts */
-		if (try[i] == 0)
+		if (rc[i].tries == 0)
 			continue;
 
-		series[i].Tries = try[i];
+		series[i].Tries = rc[i].tries;
 
 		/*
 		 * XXX this isn't strictly correct - sc_txchainmask
@@ -181,7 +183,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
-		series[i].Rate = rt->info[rix[i]].rateCode;
+		series[i].Rate = rt->info[rc[i].rix].rateCode;
 
 		/* PktDuration doesn't include slot, ACK, RTS, etc timing - it's just the packet duration */
 		if (series[i].Rate & IEEE80211_RATE_MCS) {
@@ -193,9 +195,10 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			if (shortPreamble)
-				series[i].Rate |= rt->info[rix[i]].shortPreamble;
+				series[i].Rate |=
+				    rt->info[rc[i].rix].shortPreamble;
 			series[i].PktDuration = ath_hal_computetxtime(ah,
-			    rt, pktlen, rix[i], shortPreamble);
+			    rt, pktlen, rc[i].rix, shortPreamble);
 		}
 	}
 #undef	HT_RC_2_STREAMS
@@ -227,18 +230,21 @@ ath_rateseries_print(HAL_11N_RATE_SERIES *series)
  */
 
 void
-ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
-    int pktlen, int flags, uint8_t ctsrate, int is_pspoll, uint8_t *rix, uint8_t *try)
+ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
 {
 	HAL_11N_RATE_SERIES series[4];
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_desc *lastds = NULL;
 	struct ath_hal *ah = sc->sc_ah;
+	int is_pspoll = (bf->bf_state.bfs_atype == HAL_PKT_TYPE_PSPOLL);
+	int ctsrate = bf->bf_state.bfs_ctsrate;
+	int flags = bf->bf_state.bfs_flags;
 
 	/* Setup rate scenario */
 	memset(&series, 0, sizeof(series));
 
-	ath_rateseries_setup(sc, ni, series, pktlen, rix, try, flags);
+	ath_rateseries_setup(sc, ni, bf, series);
 
 	/* Enforce AR5416 aggregate limit - can't do RTS w/ an agg frame > 8k */
 

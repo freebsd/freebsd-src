@@ -77,6 +77,8 @@ struct ath_ratectrl {
 struct ath_ratectrl *ath_rate_attach(struct ath_softc *);
 void	ath_rate_detach(struct ath_ratectrl *);
 
+#define	ATH_RC_NUM		4
+
 struct ath_rc_series {
 	uint8_t rix;
 	uint8_t tries;
@@ -111,7 +113,7 @@ void	ath_rate_newassoc(struct ath_softc *, struct ath_node *,
  * Return the four TX rate index and try counts for the current data packet.
  */
 void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-		uint8_t rix0, uint8_t *rix, uint8_t *try);
+		uint8_t rix0, struct ath_rc_series *rc);
 
 /*
  * Return the transmit info for a data packet.  If multi-rate state

@@ -227,10 +227,10 @@ struct ath_buf {
 		int bfs_txpower;	/* tx power */
 		int bfs_txantenna;	/* TX antenna config */
 		enum ieee80211_protmode bfs_protmode;
-		HAL_11N_RATE_SERIES bfs_rc11n[4];	/* 11n TX series */
+		HAL_11N_RATE_SERIES bfs_rc11n[ATH_RC_NUM];	/* 11n TX series */
 		int bfs_ctsrate;	/* CTS rate */
 		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
-		struct ath_rc_series bfs_rc[4];	/* non-11n TX series */
+		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
 	} bf_state;
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;

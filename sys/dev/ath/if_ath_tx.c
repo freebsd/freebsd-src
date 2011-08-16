@@ -654,10 +654,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
 	u_int pri;
-	uint8_t try[4], rate[4];
-
-	bzero(try, sizeof(try));
-	bzero(rate, sizeof(rate));
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
@@ -972,9 +968,16 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
+	/* Blank the legacy rate array */
+	bzero(&bf->bf_state.bfs_rc, sizeof(bf->bf_state.bfs_rc));
+
+	/*
+	 * ath_buf_set_rate needs at least one rate/try to setup
+	 * the rate scenario.
+	 */
 	if (ath_tx_is_11n(sc)) {
-		rate[0] = rix;
-		try[0] = try0;
+		bf->bf_state.bfs_rc[0].rix = rix;
+		bf->bf_state.bfs_rc[0].tries = try0;
 	}
 
 	/* Store the decided rate index values away */
@@ -988,6 +991,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_txantenna = sc->sc_txantenna;
 	bf->bf_state.bfs_flags = flags;
 	bf->bf_txflags = flags;
+	bf->bf_state.bfs_shpream = shortPreamble;
 
 	/* XXX this should be done in ath_tx_setrate() */
 	bf->bf_state.bfs_ctsrate = ctsrate;
@@ -1009,17 +1013,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
         if (ismrr) {
 		ATH_NODE_LOCK(an);
                 if (ath_tx_is_11n(sc))
-                        ath_rate_getxtxrates(sc, an, rix, rate, try);
+                        ath_rate_getxtxrates(sc, an, rix, bf->bf_state.bfs_rc);
                 else
                         ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
 		ATH_NODE_UNLOCK(an);
         }
 
 	/* Setup 11n rate scenario for 11n NICs only */
-        if (ath_tx_is_11n(sc)) {
-                ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate,
-		    (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
-        }
+	if (ath_tx_is_11n(sc))
+		ath_buf_set_rate(sc, ni, bf);
 
 	return 0;
 }
@@ -1198,12 +1200,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt;
 	struct ath_desc *ds;
 	u_int pri;
-	uint8_t try[4], rate[4];
 	int o_tid = -1;
 	int do_override;
-
-	bzero(try, sizeof(try));
-	bzero(rate, sizeof(rate));
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
@@ -1319,6 +1317,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_txantenna = txantenna;
 	bf->bf_state.bfs_flags = flags;
 	bf->bf_txflags = flags;
+	bf->bf_state.bfs_shpream =
+	    !! (params->ibp_flags & IEEE80211_BPF_SHORTPRE);
 
 	/* XXX this should be done in ath_tx_setrate() */
 	bf->bf_state.bfs_ctsrate = ctsrate;
@@ -1327,21 +1327,32 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	ath_tx_setds(sc, bf);
 
+	/* Blank the legacy rate array */
+	bzero(&bf->bf_state.bfs_rc, sizeof(bf->bf_state.bfs_rc));
+
 	if (ath_tx_is_11n(sc)) {
-		rate[0] = ath_tx_findrix(sc, params->ibp_rate0);
-		try[0] = params->ibp_try0;
+		bf->bf_state.bfs_rc[0].rix = ath_tx_findrix(sc, params->ibp_rate0);
+		bf->bf_state.bfs_rc[0].tries = params->ibp_try0;
 
 		if (ismrr) {
 			/* Remember, rate[] is actually an array of rix's -adrian */
-			rate[0] = ath_tx_findrix(sc, params->ibp_rate0);
-			rate[1] = ath_tx_findrix(sc, params->ibp_rate1);
-			rate[2] = ath_tx_findrix(sc, params->ibp_rate2);
-			rate[3] = ath_tx_findrix(sc, params->ibp_rate3);
+			bf->bf_state.bfs_rc[0].rix =
+			    ath_tx_findrix(sc, params->ibp_rate0);
+			bf->bf_state.bfs_rc[1].rix =
+			    ath_tx_findrix(sc, params->ibp_rate1);
+			bf->bf_state.bfs_rc[2].rix =
+			    ath_tx_findrix(sc, params->ibp_rate2);
+			bf->bf_state.bfs_rc[3].rix =
+			    ath_tx_findrix(sc, params->ibp_rate3);
 
-			try[0] = params->ibp_try0;
-			try[1] = params->ibp_try1;
-			try[2] = params->ibp_try2;
-			try[3] = params->ibp_try3;
+			bf->bf_state.bfs_rc[0].tries =
+			    params->ibp_try0;
+			bf->bf_state.bfs_rc[1].tries =
+			    params->ibp_try1;
+			bf->bf_state.bfs_rc[2].tries =
+			    params->ibp_try2;
+			bf->bf_state.bfs_rc[3].tries =
+			    params->ibp_try3;
 		}
 	} else {
 		if (ismrr) {
@@ -1376,8 +1387,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * notice that rix doesn't include any of the "magic" flags txrate
 		 * does for communicating "other stuff" to the HAL.
 		 */
-		ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate,
-		    (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
+		ath_buf_set_rate(sc, ni, bf);
 	}
 
 	/* NB: no buffered multicast in power save support */

@@ -126,7 +126,7 @@ ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
 
-/*	rix[0] = amn->amn_tx_rate0; */
+	rix[0] = amn->amn_tx_rate0;
 	rix[1] = amn->amn_tx_rate1;
 	rix[2] = amn->amn_tx_rate2;
 	rix[3] = amn->amn_tx_rate3;

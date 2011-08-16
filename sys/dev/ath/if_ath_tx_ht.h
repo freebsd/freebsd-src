@@ -41,8 +41,6 @@ enum {
 extern int	ath_max_4ms_framelen[4][32];
 
 extern void	ath_buf_set_rate(struct ath_softc *sc,
-		struct ieee80211_node *ni, struct ath_buf *bf,
-		int pktlen, int flags, uint8_t ctsrate, int is_pspoll,
-		uint8_t *rix, uint8_t *try);
+		struct ieee80211_node *ni, struct ath_buf *bf);
 
 #endif

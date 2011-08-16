@@ -134,7 +134,7 @@ ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
-/*	rix[0] = on->on_tx_rate0; */
+	rix[0] = on->on_tx_rate0;
 	rix[1] = on->on_tx_rate1;
 	rix[2] = on->on_tx_rate2;
 	rix[3] = on->on_tx_rate3;
