@@ -64,6 +64,10 @@ vdev_geom_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	vd = cp->private;
+	if (vd == NULL) {
+		/* Vdev close in progress.  Ignore the event. */
+		return;
+	}
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -85,7 +89,7 @@ vdev_geom_orphan(struct g_consumer *cp)
 }
 
 static struct g_consumer *
-vdev_geom_attach(struct g_provider *pp)
+vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -140,20 +144,27 @@ vdev_geom_attach(struct g_provider *pp)
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
 	}
+	cp->private = vd;
 	return (cp);
 }
 
 static void
-vdev_geom_detach(void *arg, int flag __unused)
+vdev_geom_detach(void *arg)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	vdev_t *vd;
 
 	g_topology_assert();
 	cp = arg;
 	gp = cp->geom;
 
 	ZFS_LOG(1, "Closing access to %s.", cp->provider->name);
+	vd = cp->private;
+	if (vd != NULL) {
+		vd->vdev_tsd = NULL;
+		cp->private = NULL;
+	}
 	g_access(cp, -1, 0, -1);
 	/* Destroy consumer on last close. */
 	if (cp->acr == 0 && cp->ace == 0) {
@@ -328,7 +339,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 				if (pguid != spa_guid(vd->vdev_spa) ||
 				    vguid != vd->vdev_guid)
 					continue;
-				cp = vdev_geom_attach(pp);
+				cp = vdev_geom_attach(pp, vd);
 				if (cp == NULL) {
 					printf("ZFS WARNING: Unable to attach to %s.\n",
 					    pp->name);
@@ -394,7 +405,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	pp = g_provider_by_name(vd->vdev_path + sizeof("/dev/") - 1);
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
-		cp = vdev_geom_attach(pp);
+		cp = vdev_geom_attach(pp, vd);
 		if (cp != NULL && check_guid && ISP2(pp->sectorsize) &&
 		    pp->sectorsize <= VDEV_PAD_SIZE) {
 			g_topology_unlock();
@@ -402,7 +413,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 			g_topology_lock();
 			if (pguid != spa_guid(vd->vdev_spa) ||
 			    vguid != vd->vdev_guid) {
-				vdev_geom_detach(cp, 0);
+				vdev_geom_detach(cp);
 				cp = NULL;
 				ZFS_LOG(1, "guid mismatch for provider %s: "
 				    "%ju:%ju != %ju:%ju.", vd->vdev_path,
@@ -482,7 +493,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	    !ISP2(cp->provider->sectorsize)) {
 		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
 		    vd->vdev_path);
-		vdev_geom_detach(cp, 0);
+		vdev_geom_detach(cp);
 		error = EINVAL;
 		cp = NULL;
 	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
@@ -499,10 +510,11 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		if (error != 0) {
 			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
 			    vd->vdev_path, error);
-			vdev_geom_detach(cp, 0);
+			vdev_geom_detach(cp);
 			cp = NULL;
 		}
 	}
+
 	g_topology_unlock();
 	PICKUP_GIANT();
 	if (cp == NULL) {
@@ -510,7 +522,6 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		return (error);
 	}
 
-	cp->private = vd;
 	vd->vdev_tsd = cp;
 	pp = cp->provider;
 
@@ -547,9 +558,9 @@ vdev_geom_close(vdev_t *vd)
 	cp = vd->vdev_tsd;
 	if (cp == NULL)
 		return;
-	vd->vdev_tsd = NULL;
-	vd->vdev_delayed_close = B_FALSE;
-	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
+	g_topology_lock();
+	vdev_geom_detach(cp);
+	g_topology_unlock();
 }
 
 static void
