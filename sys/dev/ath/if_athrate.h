@@ -77,6 +77,12 @@ struct ath_ratectrl {
 struct ath_ratectrl *ath_rate_attach(struct ath_softc *);
 void	ath_rate_detach(struct ath_ratectrl *);
 
+struct ath_rc_series {
+	uint8_t rix;
+	uint8_t tries;
+	uint8_t flags;
+	uint32_t max4msframelen;
+};
 
 /*
  * State storage handling.

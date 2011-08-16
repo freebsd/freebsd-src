@@ -194,14 +194,11 @@ struct ath_buf {
 
 	/* This state is kept to support software retries and aggregation */
 	struct {
-		int bfs_pktlen;		/* length of this packet */
-		int bfs_hdrlen;		/* length of this packet header */
 		int bfs_seqno;		/* sequence number of this packet */
 		int bfs_retries;	/* retry count */
 		uint16_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
 		uint16_t bfs_pri;	/* packet AC priority */
 		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
-		uint16_t bfs_al;	/* length of aggregate */
 		uint16_t bfs_pktdur;	/* packet duration (at current rate?) */
 		uint16_t bfs_nframes;	/* number of frames in aggregate */
 		uint16_t bfs_ndelim;	/* number of delims for padding */
@@ -210,6 +207,24 @@ struct ath_buf {
 		int bfs_aggrburst:1;	/* part of aggregate burst? */
 		int bfs_isretried:1;	/* retried frame? */
 		int bfs_dobaw:1;	/* actually check against BAW? */
+		int bfs_shpream:1;	/* use short preamble */
+		int bfs_istxfrag:1;	/* is fragmented */
+		int bfs_nfl;		/* next fragment length */
+
+		/*
+		 * These fields are passed into the
+		 * descriptor setup functions.
+		 */
+		HAL_PKT_TYPE bfs_atype;	/* packet type */
+		int bfs_pktlen;		/* length of this packet */
+		int bfs_hdrlen;		/* length of this packet header */
+		uint16_t bfs_al;	/* length of aggregate */
+		int bfs_flags;		/* HAL descriptor flags */
+		int bfs_keyix;		/* crypto key index */
+		int bfs_keytype;	/* crypto key type */
+		enum ieee80211_protmode bfs_protmode;
+		HAL_11N_RATE_SERIES bfs_rc11n[4];	/* 11n TX series */
+		struct ath_rc_series bfs_rc[4];	/* non-11n TX series */
 	} bf_state;
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
