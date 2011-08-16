@@ -1279,11 +1279,17 @@ pollrescan(struct thread *td)
 		if (si != NULL)
 			continue;
 		fp = fdp->fd_ofiles[fd->fd];
+#ifdef CAPABILITIES
+		if ((fp == NULL)
+		    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 		if (fp == NULL) {
+#endif
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
 		}
+
 		/*
 		 * Note: backend also returns POLLHUP and
 		 * POLLERR if appropriate.
@@ -1344,7 +1350,12 @@ pollscan(td, fds, nfd)
 			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
+#ifdef CAPABILITIES
+			if ((fp == NULL)
+			    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 			if (fp == NULL) {
+#endif
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
