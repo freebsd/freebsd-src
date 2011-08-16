@@ -3036,7 +3036,6 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 */
 		if ((error = fget(td, sockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
 			goto out;
-			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
 			error = EPERM;
