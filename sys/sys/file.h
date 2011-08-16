@@ -85,6 +85,10 @@ typedef	int fo_kqfilter_t(struct file *fp, struct knote *kn);
 typedef	int fo_stat_t(struct file *fp, struct stat *sb,
 		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_close_t(struct file *fp, struct thread *td);
+typedef	int fo_chmod_t(struct file *fp, mode_t mode,
+		    struct ucred *active_cred, struct thread *td);
+typedef	int fo_chown_t(struct file *fp, uid_t uid, gid_t gid,
+		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -96,6 +100,8 @@ struct fileops {
 	fo_kqfilter_t	*fo_kqfilter;
 	fo_stat_t	*fo_stat;
 	fo_close_t	*fo_close;
+	fo_chmod_t	*fo_chmod;
+	fo_chown_t	*fo_chown;
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
@@ -200,6 +206,9 @@ fo_kqfilter_t	soo_kqfilter;
 fo_stat_t	soo_stat;
 fo_close_t	soo_close;
 
+fo_chmod_t	invfo_chmod;
+fo_chown_t	invfo_chown;
+
 void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp);
 int fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
@@ -233,6 +242,8 @@ static __inline fo_poll_t	fo_poll;
 static __inline fo_kqfilter_t	fo_kqfilter;
 static __inline fo_stat_t	fo_stat;
 static __inline fo_close_t	fo_close;
+static __inline fo_chmod_t	fo_chmod;
+static __inline fo_chown_t	fo_chown;
 
 static __inline int
 fo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
@@ -294,6 +305,22 @@ fo_kqfilter(struct file *fp, struct knote *kn)
 {
 
 	return ((*fp->f_ops->fo_kqfilter)(fp, kn));
+}
+
+static __inline int
+fo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return ((*fp->f_ops->fo_chmod)(fp, mode, active_cred, td));
+}
+
+static __inline int
+fo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return ((*fp->f_ops->fo_chown)(fp, uid, gid, active_cred, td));
 }
 
 #endif /* _KERNEL */

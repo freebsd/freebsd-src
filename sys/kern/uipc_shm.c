@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
@@ -123,6 +124,8 @@ static fo_poll_t	shm_poll;
 static fo_kqfilter_t	shm_kqfilter;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
+static fo_chmod_t	shm_chmod;
+static fo_chown_t	shm_chown;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
@@ -134,6 +137,8 @@ static struct fileops shm_ops = {
 	.fo_kqfilter = shm_kqfilter,
 	.fo_stat = shm_stat,
 	.fo_close = shm_close,
+	.fo_chmod = shm_chmod,
+	.fo_chown = shm_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -218,16 +223,18 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	 * descriptor.
 	 */
 	bzero(sb, sizeof(*sb));
-	sb->st_mode = S_IFREG | shmfd->shm_mode;		/* XXX */
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
 	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
+	mtx_lock(&shm_timestamp_lock);
 	sb->st_atim = shmfd->shm_atime;
 	sb->st_ctim = shmfd->shm_ctime;
 	sb->st_mtim = shmfd->shm_mtime;
-	sb->st_birthtim = shmfd->shm_birthtime;	
+	sb->st_birthtim = shmfd->shm_birthtime;
+	sb->st_mode = S_IFREG | shmfd->shm_mode;		/* XXX */
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
+	mtx_unlock(&shm_timestamp_lock);
 
 	return (0);
 }
@@ -395,14 +402,18 @@ static int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
 	accmode_t accmode;
+	int error;
 
 	accmode = 0;
 	if (flags & FREAD)
 		accmode |= VREAD;
 	if (flags & FWRITE)
 		accmode |= VWRITE;
-	return (vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
-	    accmode, ucred, NULL));
+	mtx_lock(&shm_timestamp_lock);
+	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
+	    accmode, ucred, NULL);
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
 }
 
 /*
@@ -650,4 +661,62 @@ shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	vm_object_reference(shmfd->shm_object);
 	*obj = shmfd->shm_object;
 	return (0);
+}
+
+static int
+shm_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct shmfd *shmfd;
+	int error;
+
+	error = 0;
+	shmfd = fp->f_data;
+	mtx_lock(&shm_timestamp_lock);
+	/*
+	 * SUSv4 says that x bits of permission need not be affected.
+	 * Be consistent with our shm_open there.
+	 */
+#ifdef MAC
+	error = mac_posixshm_check_setmode(active_cred, shmfd, mode);
+	if (error != 0)
+		goto out;
+#endif
+	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid,
+	    shmfd->shm_gid, VADMIN, active_cred, NULL);
+	if (error != 0)
+		goto out;
+	shmfd->shm_mode = mode & ACCESSPERMS;
+out:
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
+}
+
+static int
+shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct shmfd *shmfd;
+	int error;
+
+	shmfd = fp->f_data;
+	mtx_lock(&shm_timestamp_lock);
+#ifdef MAC
+	error = mac_posixshm_check_setowner(active_cred, shmfd, uid, gid);
+	if (error != 0)
+		goto out;
+#endif
+	if (uid == (uid_t)-1)
+		uid = shmfd->shm_uid;
+	if (gid == (gid_t)-1)
+                 gid = shmfd->shm_gid;
+	if (((uid != shmfd->shm_uid && uid != active_cred->cr_uid) ||
+	    (gid != shmfd->shm_gid && !groupmember(gid, active_cred))) &&
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+		goto out;
+	shmfd->shm_uid = uid;
+	shmfd->shm_gid = gid;
+out:
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
 }

@@ -3774,6 +3774,22 @@ badfo_close(struct file *fp, struct thread *td)
 	return (EBADF);
 }
 
+static int
+badfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
 	.fo_write = badfo_readwrite,
@@ -3783,8 +3799,25 @@ struct fileops badfileops = {
 	.fo_kqfilter = badfo_kqfilter,
 	.fo_stat = badfo_stat,
 	.fo_close = badfo_close,
+	.fo_chmod = badfo_chmod,
+	.fo_chown = badfo_chown,
 };
 
+int
+invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
 
 /*-------------------------------------------------------------------*/
 
