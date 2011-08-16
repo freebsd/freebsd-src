@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 		else if (errno != ENOTCAPABLE)				\
 			SYSCALL_FAIL(syscall, "errno != ENOTCAPABLE");	\
 	}								\
+	errno = 0;							\
 } while (0)
 
 /*
@@ -87,6 +89,7 @@ __FBSDID("$FreeBSD$");
 		} else if (errno != ENOTCAPABLE)			\
 			SYSCALL_FAIL(syscall, "errno != ENOTCAPABLE");	\
 	}								\
+	errno = 0;							\
 } while (0)
 
 /*
@@ -104,6 +107,7 @@ try_file_ops(int fd, cap_rights_t rights)
 	void *p;
 	char ch;
 	int ret, is_nfs;
+	struct pollfd pollfd;
 	int success = PASSED;
 
 	REQUIRE(fstatfs(fd, &sf));
@@ -113,6 +117,10 @@ try_file_ops(int fd, cap_rights_t rights)
 	REQUIRE(fd_cap = cap_new(fd, rights));
 	REQUIRE(fd_capcap = cap_new(fd_cap, rights));
 	CHECK(fd_capcap != fd_cap);
+
+	pollfd.fd = fd_cap;
+	pollfd.events = POLLIN | POLLERR | POLLHUP;
+	pollfd.revents = 0;
 
 	ssize = read(fd_cap, &ch, sizeof(ch));
 	CHECK_RESULT(read, CAP_READ | CAP_SEEK, ssize >= 0);
@@ -189,7 +197,13 @@ try_file_ops(int fd, cap_rights_t rights)
 	ret = futimes(fd_cap, NULL);
 	CHECK_RESULT(futimes, CAP_FUTIMES, ret == 0);
 
-	/* XXX select / poll / kqueue */
+	ret = poll(&pollfd, 1, 0);
+	if (rights & CAP_POLL_EVENT)
+		CHECK((pollfd.revents & POLLNVAL) == 0);
+	else
+		CHECK((pollfd.revents & POLLNVAL) != 0);
+
+	/* XXX: select, kqueue */
 
 	close (fd_cap);
 	return (success);
@@ -210,7 +224,7 @@ test_capabilities(void)
 	int fd;
 	int success = PASSED;
 
-	fd = open("/tmp/cap_test", O_RDWR | O_CREAT, 0644);
+	fd = open("/tmp/cap_test_capabilities", O_RDWR | O_CREAT, 0644);
 	if (fd < 0)
 		err(-1, "open");
 
