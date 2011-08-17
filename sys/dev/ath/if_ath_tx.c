@@ -1155,19 +1155,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
 
-	/*
-	 * Formulate first tx descriptor with tx controls.
-	 */
-	ath_tx_setds(sc, bf);
-
-	/*
-	 * Setup rate control series.
-	 */
-	ath_tx_set_ratectrl(sc, ni, bf);
-
-	/* Fill in the details in the descriptor list */
-	ath_tx_chaindesclist(sc, bf);
-
 #if 1
 	/*
 	 * If it's a multicast frame, do a direct-dispatch to the
@@ -1179,9 +1166,16 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * destination hardware queue. Don't bother software
 	 * queuing it, as the TID will now be paused.
 	 */
-	if (ismcast)
-		ath_tx_handoff_mcast(sc, txq, bf);
-	else if (type == IEEE80211_FC0_TYPE_CTL &&
+	if (ismcast) {
+		/* Setup the descriptor before handoff */
+		ath_tx_setds(sc, bf);
+		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
+
+		ATH_TXQ_LOCK(txq);
+		ath_tx_handoff(sc, txq, bf);
+		ATH_TXQ_UNLOCK(txq);
+	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
 		/*
 		 * XXX The following is dirty but needed for now.
@@ -1197,6 +1191,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: BAR: TX'ing direct\n", __func__);
+
+		/* Setup the descriptor before handoff */
+		ath_tx_setds(sc, bf);
+		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
+
 		ATH_TXQ_LOCK(txq);
 		ath_tx_handoff(sc, txq, bf);
 		ATH_TXQ_UNLOCK(txq);
@@ -1212,6 +1212,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
+
+	/* Setup the descriptor before handoff */
+	ath_tx_setds(sc, bf);
+	ath_tx_set_ratectrl(sc, ni, bf);
+	ath_tx_chaindesclist(sc, bf);
+
 	ATH_TXQ_LOCK(txq);
 	ath_tx_handoff(sc, txq, bf);
 	ATH_TXQ_UNLOCK(txq);
@@ -1383,12 +1389,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		bf->bf_state.bfs_rc[3].tries = params->ibp_try3;
 	}
 
-	/* Program the descriptor */
-	ath_tx_setds(sc, bf);
-
-	/* Program the rate control series */
-	ath_tx_set_ratectrl(sc, ni, bf);
-
 	/* NB: no buffered multicast in power save support */
 
 	/* XXX If it's an ADDBA, override the correct queue */
@@ -1404,9 +1404,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		pri = TID_TO_WME_AC(o_tid);
 	}
 
-	/* Fill in the details in the descriptor list */
-	ath_tx_chaindesclist(sc, bf);
-
 	/*
 	 * If we're overiding the ADDBA destination, dump directly
 	 * into the hardware queue, right after any pending
@@ -1415,6 +1412,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	if (do_override) {
 		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
+		ath_tx_setds(sc, bf);
+		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
 		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 	}
@@ -2312,6 +2312,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
+	struct ieee80211_node *ni = &an->an_node;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid);
 
@@ -2378,6 +2379,11 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_tid == IEEE80211_NONQOS_TID)
 			device_printf(sc->sc_dev, "%s: TID=16?\n", __func__);
 
+		/* Program descriptor */
+		ath_tx_setds(sc, bf);
+		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
+
 		/* Punt to hardware or software txq */
 		ATH_TXQ_LOCK(txq);
 		ath_tx_handoff(sc, txq, bf);
@@ -2394,6 +2400,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_buf *bf;
 	struct ath_txq *txq;
 	struct ath_tid *atid = &an->an_tid[tid];
+	struct ieee80211_node *ni = &an->an_node;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: node %p: TID %d: called\n",
 	    __func__, an, tid);
@@ -2426,6 +2433,11 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 		}
 		/* Normal completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
+
+		/* Program descriptor */
+		ath_tx_setds(sc, bf);
+		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
 
 		/* Punt to hardware or software txq */
 		ATH_TXQ_LOCK(txq);
