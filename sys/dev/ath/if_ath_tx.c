@@ -2344,20 +2344,28 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf)
  * not the last descriptor in the first frame.
  */
 static void
-ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
+ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 {
 	//struct ath_desc *ds = bf->bf_lastds;
-	struct ieee80211_node *ni = bf->bf_node;
+	struct ieee80211_node *ni = bf_first->bf_node;
 	struct ath_node *an = ATH_NODE(ni);
-	int tid = bf->bf_state.bfs_tid;
+	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	struct ath_tx_status *ts = &bf_first->bf_status.ds_txstat;
+	struct ieee80211_tx_ampdu *tap;
+	ath_bufhead bf_q;
+	int seq_st, tx_ok;
+	int hasba, isaggr;
+	uint32_t ba[2];
+	struct ath_buf *bf, *bf_next;
+	int ba_index;
+	int drops = 0;
 
 	/*
 	 * Punt cleanup to the relevant function, not our problem now
 	 */
 	if (atid->cleanup_inprogress) {
-		ath_tx_comp_cleanup_aggr(sc, bf);
+		ath_tx_comp_cleanup_aggr(sc, bf_first);
 		return;
 	}
 
@@ -2365,15 +2373,83 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * handle errors first
 	 */
 	if (ts->ts_status & HAL_TXERR_XRETRY) {
-		ath_tx_comp_aggr_error(sc, bf, atid);
+		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
 	}
+
+	STAILQ_INIT(&bf_q);
+	tap = ath_tx_get_tx_tid(an, tid);
 
 	/*
 	 * extract starting sequence and block-ack bitmap
 	 */
+	/* XXX endian-ness of seq_st, ba? */
+	seq_st = ts->ts_seqnum;
+	hasba = !! (ts->ts_flags & HAL_TX_BA);
+	tx_ok = (ts->ts_status == 0);
+	isaggr = bf_first->bf_state.bfs_aggr;
+	ba[0] = ts->ts_ba_low;
+	ba[1] = ts->ts_ba_high;
 
-	/* AR5416 BA bug; this requires re-TX of all frames */
+	/* Occasionally, the MAC sends a tx status for the wrong TID. */
+	if (tid != ts->ts_tid) {
+		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
+		    __func__, tid, ts->ts_tid);
+		tx_ok = 0;
+	}
+
+	/* AR5416 BA bug; this requires an interface reset */
+	/* XXX TODO */
+
+	/*
+	 * Walk the list of frames, figure out which ones were correctly
+	 * sent and which weren't.
+	 */
+	bf = bf_first;
+
+	while (bf) {
+		ba_index = ATH_BA_INDEX(seq_st, SEQNO(bf->bf_state.bfs_seqno));
+		bf_next = bf->bf_next;
+
+		if (tx_ok && ATH_BA_ISSET(ba, ba_index)) {
+			ath_tx_update_baw(sc, an, atid,
+			    SEQNO(bf->bf_state.bfs_seqno));
+			ath_tx_default_comp(sc, bf, 0);
+		} else {
+			drops += ath_tx_retry_subframe(sc, bf, &bf_q);
+		}
+		bf = bf_next;
+	}
+
+	/* update rate control module about aggregate status */
+	/* XXX TODO */
+
+	/*
+	 * send bar if we dropped any frames
+	 */
+	if (drops) {
+		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
+			/*
+			 * Pause the TID if this was successful.
+			 * An un-successful BAR TX would never call
+			 * the BAR complete / timeout methods.
+			 */
+			ath_tx_tid_pause(sc, atid);
+		} else {
+			/* BAR TX failed */
+			device_printf(sc->sc_dev,
+			    "%s: TID %d: BAR TX failed\n",
+			    __func__, tid);
+		}
+	}
+
+	/* Prepend all frames to the beginning of the queue */
+	ATH_TXQ_LOCK(atid);
+	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
+		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+	}
+	ATH_TXQ_UNLOCK(atid);
 }
 
 /*

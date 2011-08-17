@@ -40,6 +40,17 @@
  */
 #define	ATH_BA_INDEX(_st, _seq)	(((_seq) - (_st)) & (IEEE80211_SEQ_RANGE - 1))
 
+#define	WME_BA_BMP_SIZE	64
+#define	WME_MAX_BA	WME_BA_BMP_SIZE
+
+/*
+ * return whether a bit at index _n in bitmap _bm is set
+ * _sz is the size of the bitmap
+ */
+#define	ATH_BA_ISSET(_bm, _n)	(((_n) < (WME_BA_BMP_SIZE)) &&		\
+	    ((_bm)[(_n) >> 5] & (1 << ((_n) & 31))))
+
+
 /* extracting the seqno from buffer seqno */
 #define	SEQNO(_a)	((_a) >> IEEE80211_SEQ_SEQ_SHIFT)
 
