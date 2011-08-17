@@ -65,6 +65,38 @@ struct ichwd_softc {
 };
 
 #define VENDORID_INTEL		0x8086
+#define DEVICEID_CPT0		0x1c40
+#define DEVICEID_CPT1		0x1c41
+#define DEVICEID_CPT2		0x1c42
+#define DEVICEID_CPT3		0x1c43
+#define DEVICEID_CPT4		0x1c44
+#define DEVICEID_CPT5		0x1c45
+#define DEVICEID_CPT6		0x1c46
+#define DEVICEID_CPT7		0x1c47
+#define DEVICEID_CPT8		0x1c48
+#define DEVICEID_CPT9		0x1c49
+#define DEVICEID_CPT10		0x1c4a
+#define DEVICEID_CPT11		0x1c4b
+#define DEVICEID_CPT12		0x1c4c
+#define DEVICEID_CPT13		0x1c4d
+#define DEVICEID_CPT14		0x1c4e
+#define DEVICEID_CPT15		0x1c4f
+#define DEVICEID_CPT16		0x1c50
+#define DEVICEID_CPT17		0x1c51
+#define DEVICEID_CPT18		0x1c52
+#define DEVICEID_CPT19		0x1c53
+#define DEVICEID_CPT20		0x1c54
+#define DEVICEID_CPT21		0x1c55
+#define DEVICEID_CPT22		0x1c56
+#define DEVICEID_CPT23		0x1c57
+#define DEVICEID_CPT24		0x1c58
+#define DEVICEID_CPT25		0x1c59
+#define DEVICEID_CPT26		0x1c5a
+#define DEVICEID_CPT27		0x1c5b
+#define DEVICEID_CPT28		0x1c5c
+#define DEVICEID_CPT29		0x1c5d
+#define DEVICEID_CPT30		0x1c5e
+#define DEVICEID_CPT31		0x1c5f
 #define DEVICEID_PATSBURG_LPC1	0x1d40
 #define DEVICEID_PATSBURG_LPC2	0x1d41
 #define DEVICEID_PPT0		0x1e40
@@ -136,7 +168,21 @@ struct ichwd_softc {
 #define DEVICEID_ICH10D		0x3a1a
 #define DEVICEID_ICH10DO	0x3a14
 #define DEVICEID_ICH10R		0x3a16
+#define DEVICEID_PCH		0x3b00
+#define DEVICEID_PCHM		0x3b01
+#define DEVICEID_P55		0x3b02
+#define DEVICEID_PM55		0x3b03
 #define DEVICEID_H55		0x3b06
+#define DEVICEID_QM57		0x3b07
+#define DEVICEID_H57		0x3b08
+#define DEVICEID_HM55		0x3b09
+#define DEVICEID_Q57		0x3b0a
+#define DEVICEID_HM57		0x3b0b
+#define DEVICEID_PCHMSFF	0x3b0d
+#define DEVICEID_QS57		0x3b0f
+#define DEVICEID_3400		0x3b12
+#define DEVICEID_3420		0x3b14
+#define DEVICEID_3450		0x3b16
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define ICH_GEN_STA		0xd4
