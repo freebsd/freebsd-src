@@ -270,6 +270,7 @@ ksem_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	struct ksem *ks;
 	int error;
 
+	error = 0;
 	ks = fp->f_data;
 	mtx_lock(&sem_lock);
 #ifdef MAC

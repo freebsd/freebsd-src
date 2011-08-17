@@ -699,6 +699,7 @@ shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	struct shmfd *shmfd;
 	int error;
 
+	error = 0;
 	shmfd = fp->f_data;
 	mtx_lock(&shm_timestamp_lock);
 #ifdef MAC
