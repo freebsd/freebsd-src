@@ -35,11 +35,14 @@
 #ifndef _NFSCLIENT_NFSNODE_H_
 #define	_NFSCLIENT_NFSNODE_H_
 
+#include <sys/_task.h>
+
 /*
  * Silly rename structure that hangs off the nfsnode until the name
  * can be removed by nfs_inactive()
  */
 struct sillyrename {
+	struct	task s_task;
 	struct	ucred *s_cred;
 	struct	vnode *s_dvp;
 	long	s_namlen;
