@@ -830,8 +830,14 @@ void	ath_intr(void *);
 #define	ath_hal_set11nratescenario(_ah, _ds, _dur, _rt, _series, _ns, _flags) \
 	((*(_ah)->ah_set11nRateScenario)((_ah), (_ds), (_dur), (_rt), \
 	(_series), (_ns), (_flags)))
+
+#define	ath_hal_set11n_aggr_first(_ah, _ds, _len, _num) \
+	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len), (_num)))
 #define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
 	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
+#define	ath_hal_set11n_aggr_last(_ah, _ds) \
+	((*(_ah)->ah_set11nAggrLast)((_ah), (_ds)))
+
 #define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
 #define	ath_hal_clr11n_aggr(_ah, _ds) \
