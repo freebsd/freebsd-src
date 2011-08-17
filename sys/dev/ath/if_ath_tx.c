@@ -2023,6 +2023,8 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: incomp=%d\n",
 	    __func__, tid, atid->incomp);
 
+	ath_tx_default_comp(sc, bf, 0);
+
 	atid->incomp--;
 	if (atid->incomp == 0) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -2032,7 +2034,6 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		ath_tx_tid_resume(sc, atid);
 	}
 
-	ath_tx_default_comp(sc, bf, 0);
 }
 
 /*
@@ -2330,9 +2331,31 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
  * Handle clean-up of packets from an aggregate list.
  */
 static void
-ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 {
-	/* XXX TODO */
+	struct ath_buf *bf, *bf_next;
+	struct ieee80211_node *ni = bf_first->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	int tid = bf_first->bf_state.bfs_tid;
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	bf = bf_first;
+
+	while (bf) {
+		atid->incomp--;
+		bf_next = bf->bf_next;
+		ath_tx_default_comp(sc, bf, -1);
+		bf = bf_next;
+	}
+
+	if (atid->incomp == 0) {
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: TID %d: cleaned up! resume!\n",
+		    __func__, tid);
+		atid->cleanup_inprogress = 0;
+		ath_tx_tid_resume(sc, atid);
+	}
+
 }
 
 /*
