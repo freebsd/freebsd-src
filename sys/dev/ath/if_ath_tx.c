@@ -1097,6 +1097,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		txq = &avp->av_mcastq;
 
 	/* Do the generic frame setup */
+	/* XXX should just bzero the bf_state? */
+	bf->bf_state.bfs_dobaw = 0;
 
 	/* A-MPDU TX? Manually set sequence number */
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
@@ -1246,6 +1248,10 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 	/* packet header may have moved, reset our local pointer */
 	wh = mtod(m0, struct ieee80211_frame *);
+
+	/* Do the generic frame setup */
+	/* XXX should just bzero the bf_state? */
+	bf->bf_state.bfs_dobaw = 0;
 
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
@@ -1780,7 +1786,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
-	bf->bf_state.bfs_dobaw = 0;
 	bf->bf_state.bfs_aggr = 0;
 	bf->bf_state.bfs_aggrburst = 0;
 
@@ -2581,6 +2586,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			    "%s: seq %d outside of %d/%d; waiting\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno),
 			    tap->txa_start, tap->txa_wnd);
+			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 
