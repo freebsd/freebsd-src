@@ -317,8 +317,8 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
+		bf->bf_lastds = ds;
 	}
-
 }
 
 static void
@@ -606,6 +606,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 		, bf->bf_state.bfs_ctsrate	/* rts/cts rate */
 		, bf->bf_state.bfs_ctsduration	/* rts/cts duration */
 	);
+	bf->bf_lastds = ds;
 
 	/* XXX TODO: Setup descriptor chain */
 }
@@ -1780,6 +1781,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
 	bf->bf_state.bfs_dobaw = 0;
+	bf->bf_state.bfs_aggr = 0;
+	bf->bf_state.bfs_aggrburst = 0;
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
@@ -2010,7 +2013,7 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
  * an A-MPDU.
  */
 static void
-ath_tx_comp_cleanup(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ath_node *an = ATH_NODE(ni);
@@ -2228,14 +2231,160 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Common code for aggregate excessive retry/subframe retry.
+ * If retrying, queues buffers to bf_q. If not, frees the
+ * buffers.
+ *
+ * XXX should unify this with ath_tx_aggr_retry_unaggr()
+ */
+static int
+ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
+    ath_bufhead *bf_q)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	int tid = bf->bf_state.bfs_tid;
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
+	ath_hal_set11nburstduration(sc->sc_ah, bf->bf_desc, 0);
+	/* ath_hal_set11n_virtualmorefrag(sc->sc_ah, bf->bf_desc, 0); */
+
+	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
+		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		/* XXX subframe completion status? is that valid here? */
+		ath_tx_default_comp(sc, bf, 0);
+		return 1;
+	}
+
+	if (bf->bf_flags & ATH_BUF_BUSY) {
+		bf->bf_flags &= ~ ATH_BUF_BUSY;
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
+	}
+
+	ath_tx_set_retry(sc, bf);
+
+	STAILQ_INSERT_TAIL(bf_q, bf, bf_list);
+	return 0;
+}
+
+/*
+ * error pkt completion for an aggregate destination
+ */
+static void
+ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
+    struct ath_tid *tid)
+{
+	struct ieee80211_node *ni = bf_first->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_buf *bf_next, *bf;
+	ath_bufhead bf_q;
+	int drops = 0;
+	struct ieee80211_tx_ampdu *tap;
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+
+	STAILQ_INIT(&bf_q);
+
+	/* Retry all subframes */
+	bf = bf_first;
+	while (bf) {
+		bf_next = bf->bf_next;
+		drops += ath_tx_retry_subframe(sc, bf, &bf_q);
+		bf = bf_next;
+	}
+
+	/* Update rate control module about aggregation */
+	/* XXX todo */
+
+	/*
+	 * send bar if we dropped any frames
+	 */
+	if (drops) {
+		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid->tid]) == 0) {
+			/*
+			 * Pause the TID if this was successful.
+			 * An un-successful BAR TX would never call
+			 * the BAR complete / timeout methods.
+			 */
+			ath_tx_tid_pause(sc, tid);
+		} else {
+			/* BAR TX failed */
+			device_printf(sc->sc_dev,
+			    "%s: TID %d: BAR TX failed\n",
+			    __func__, tid->tid);
+		}
+	}
+
+	/* Prepend all frames to the beginning of the queue */
+	ATH_TXQ_LOCK(tid);
+	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+	}
+	ATH_TXQ_LOCK(tid);
+}
+
+/*
+ * Handle clean-up of packets from an aggregate list.
+ */
+static void
+ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf)
+{
+	/* XXX TODO */
+}
+
+/*
+ * Handle completion of an set of aggregate frames.
+ *
+ * XXX for now, simply complete each sub-frame.
+ *
+ * Note: the completion handler is the last descriptor in the aggregate,
+ * not the last descriptor in the first frame.
+ */
+static void
+ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
+{
+	//struct ath_desc *ds = bf->bf_lastds;
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = ATH_NODE(ni);
+	int tid = bf->bf_state.bfs_tid;
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+
+	/*
+	 * Punt cleanup to the relevant function, not our problem now
+	 */
+	if (atid->cleanup_inprogress) {
+		ath_tx_comp_cleanup_aggr(sc, bf);
+		return;
+	}
+
+	/*
+	 * handle errors first
+	 */
+	if (ts->ts_status & HAL_TXERR_XRETRY) {
+		ath_tx_comp_aggr_error(sc, bf, atid);
+		return;
+	}
+
+	/*
+	 * extract starting sequence and block-ack bitmap
+	 */
+
+	/* AR5416 BA bug; this requires re-TX of all frames */
+}
+
+/*
  * Handle completion of unaggregated frames in an ADDBA
  * session.
  *
  * Fail is set to 1 if the entry is being freed via a call to
  * ath_tx_draintxq().
  */
-void
-ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
+static void
+ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ath_node *an = ATH_NODE(ni);
@@ -2248,7 +2397,6 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
 	    __func__, bf, bf->bf_state.bfs_tid);
 
-
 	/*
 	 * If a cleanup is in progress, punt to comp_cleanup;
 	 * rather than handling it here. It's thus their
@@ -2256,7 +2404,7 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * function in net80211, update rate control, etc.
 	 */
 	if (atid->cleanup_inprogress) {
-		ath_tx_comp_cleanup(sc, bf);
+		ath_tx_comp_cleanup_unaggr(sc, bf);
 		return;
 	}
 
@@ -2277,6 +2425,15 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	ath_tx_default_comp(sc, bf, fail);
 	/* bf is freed at this point */
+}
+
+void
+ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
+{
+	if (bf->bf_state.bfs_aggr)
+		ath_tx_aggr_comp_aggr(sc, bf, fail);
+	else
+		ath_tx_aggr_comp_unaggr(sc, bf, fail);
 }
 
 /*

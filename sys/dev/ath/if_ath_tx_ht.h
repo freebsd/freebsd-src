@@ -38,9 +38,23 @@ enum {
 	MCS_HT40_SGI,
 };
 
+typedef enum {
+	ATH_AGGR_DONE,
+	ATH_AGGR_BAW_CLOSED,
+	ATH_AGGR_LIMITED,
+	ATH_AGGR_SHORTPKT,
+	ATH_AGGR_8K_LIMITED,
+	ATH_AGGR_ERROR,
+	ATH_AGGR_NONAGGR,
+} ATH_AGGR_STATUS;
+
 extern int	ath_max_4ms_framelen[4][32];
 
 extern void	ath_buf_set_rate(struct ath_softc *sc,
 		struct ieee80211_node *ni, struct ath_buf *bf);
+
+extern ATH_AGGR_STATUS
+	    ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
+	    struct ath_tid *tid, ath_bufhead *bf_q);
 
 #endif

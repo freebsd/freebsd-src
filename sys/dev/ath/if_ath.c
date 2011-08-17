@@ -3086,6 +3086,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
+		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		STAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
 	return 0;
@@ -4171,7 +4172,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ds0 = &bf->bf_desc[0];
-		ds = &bf->bf_desc[bf->bf_nseg - 1];
+		ds = bf->bf_lastds;	/* XXX must be setup correctly! */
 		ts = &bf->bf_status.ds_txstat;
 		status = ath_hal_txprocdesc(ah, ds, ts);
 #ifdef ATH_DEBUG

@@ -86,7 +86,26 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#include <dev/ath/if_ath_tx.h>		/* XXX for some support functions */
 #include <dev/ath/if_ath_tx_ht.h>
+
+/*
+ * XXX net80211?
+ */
+#define	IEEE80211_AMPDU_SUBFRAME_DEFAULT		32
+
+#define	ATH_AGGR_DELIM_SZ	4	/* delimiter size   */
+#define	ATH_AGGR_MINPLEN	256	/* in bytes, minimum packet length */
+#define	ATH_AGGR_ENCRYPTDELIM	10	/* number of delimiters for encryption padding */
+
+/*
+ * returns delimiter padding required given the packet length
+ */
+#define	ATH_AGGR_GET_NDELIM(_len)					\
+	    (((((_len) + ATH_AGGR_DELIM_SZ) < ATH_AGGR_MINPLEN) ?	\
+	    (ATH_AGGR_MINPLEN - (_len) - ATH_AGGR_DELIM_SZ) : 0) >> 2)
+
+#define	PADBYTES(_len)		((4 - ((_len) % 4)) % 4)
 
 int ath_max_4ms_framelen[4][32] = {
 	[MCS_HT20] = {
@@ -251,7 +270,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Enforce RTS and CTS are mutually exclusive */
 
 	/* Get a pointer to the last tx descriptor in the list */
-	lastds = &bf->bf_desc[bf->bf_nseg - 1];
+	lastds = bf->bf_lastds;
 
 #if 0
 	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
@@ -273,4 +292,198 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Set burst duration */
 	/* This should only be done if aggregate protection is enabled */
 	//ath_hal_set11nburstduration(ah, ds, 8192);
+}
+
+/*
+ * Form an aggregate packet list.
+ *
+ * This function enforces the aggregate restrictions/requirements.
+ *
+ * These are:
+ *
+ * + The aggregate size maximum (64k for AR9160 and later, 8K for
+ *   AR5416 when doing RTS frame protection.)
+ * + Maximum number of sub-frames for an aggregate
+ * + The aggregate delimiter size, giving MACs time to do whatever is
+ *   needed before each frame
+ * + Enforce the BAW limit
+ *
+ * Each descriptor queued should already have the TX fields setup,
+ * the DMA map setup and the rate control series setup. Since
+ * aggregate sub-frame retransmission is done entirely in software,
+ * it should only have a single rate series configured.
+ *
+ * The first descriptor has the rate control and aggregate setup
+ * fields; the middle frames have "aggregate" and "more" flags set
+ * along with the delimiter count; the last frame has "aggregate"
+ * set.
+ *
+ * Note that the TID lock is only grabbed when dequeuing packets from
+ * the TID queue. If some code in another thread adds to the head of this
+ * list, very strange behaviour will occur. Since retransmission is the
+ * only reason this will occur, and this routine is designed to be called
+ * from within the scheduler task, it won't ever clash with the completion
+ * task.
+ *
+ * So if you want to call this from an upper layer context (eg, to direct-
+ * dispatch aggregate frames to the hardware), please keep this in mind.
+ */
+ATH_AGGR_STATUS
+ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
+    ath_bufhead *bf_q)
+{
+	//struct ieee80211_node *ni = &an->an_node;
+	struct ath_buf *bf, *bf_first = NULL, *bf_prev = NULL;
+	int nframes = 0;
+	uint16_t aggr_limit = 0, al = 0, bpad = 0, al_delta, h_baw;
+	struct ieee80211_tx_ampdu *tap;
+	int status = ATH_AGGR_DONE;
+	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
+	int prev_al = 0;	/* XXX also for AR5416 burst */
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+	if (tap == NULL) {
+		status = ATH_AGGR_ERROR;
+		goto finish;
+	}
+
+	h_baw = tap->txa_wnd / 2;
+
+	/* Calculate aggregation limit */
+	aggr_limit = 8192;		/* XXX just for now, for testing */
+
+	for (;;) {
+		ATH_TXQ_LOCK(tid);
+		bf = STAILQ_FIRST(&tid->axq_q);
+		if (bf_first == NULL)
+			bf_first = bf;
+		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(tid);
+			status = ATH_AGGR_DONE;
+			break;
+		}
+
+		/*
+		 * Don't unlock the tid lock until we're sure we are going
+		 * to queue this frame.
+		 */
+
+		/*
+		 * If the frame doesn't have a sequence number, we can't
+		 * aggregate it.
+		 */
+		if (! bf->bf_state.bfs_dobaw) {
+			ATH_TXQ_UNLOCK(tid);
+			status = ATH_AGGR_NONAGGR;
+			break;
+		}
+
+		/*
+		 * If the packet has a sequence number, do not
+		 * step outside of the block-ack window.
+		 */
+		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+		    SEQNO(bf->bf_state.bfs_seqno))) {
+		    ATH_TXQ_UNLOCK(tid);
+		    status = ATH_AGGR_BAW_CLOSED;
+		    break;
+		}
+
+		/*
+		 * do not exceed aggregation limit
+		 */
+		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
+
+		/*
+		 * XXX TODO: AR5416 has an 8K aggregation size limit
+		 * when RTS is enabled, and RTS is required for dual-stream
+		 * rates.
+		 *
+		 * For now, limit all aggregates for the AR5416 to be 8K.
+		 */
+
+		if (nframes &&
+		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
+			ATH_TXQ_UNLOCK(tid);
+			status = ATH_AGGR_LIMITED;
+			break;
+		}
+
+		/*
+		 * Do not exceed subframe limit.
+		 */
+		if ((nframes + prev_frames) >= MIN((h_baw),
+		    IEEE80211_AMPDU_SUBFRAME_DEFAULT)) {
+			ATH_TXQ_UNLOCK(tid);
+			status = ATH_AGGR_LIMITED;
+			break;
+		}
+
+		/*
+		 * XXX TODO: do not exceed 4ms packet length
+		 */
+
+		/*
+		 * this packet is part of an aggregate.
+		 */
+		ATH_TXQ_REMOVE_HEAD(tid, bf_list);
+		ATH_TXQ_UNLOCK(tid);
+
+		ath_tx_addto_baw(sc, an, tid, bf);
+		STAILQ_INSERT_TAIL(bf_q, bf, bf_list);
+		nframes ++;
+
+		/* Completion handler */
+		bf->bf_comp = ath_tx_aggr_comp;
+
+		/*
+		 * add padding for previous frame to aggregation length
+		 */
+		al += bpad + al_delta;
+		bf->bf_state.bfs_ndelim =
+		    ATH_AGGR_GET_NDELIM(bf->bf_state.bfs_pktlen);
+
+		/*
+		 * Add further padding if encryption is required
+		 * XXX for now, always add it.
+		 */
+		bf->bf_state.bfs_ndelim += ATH_AGGR_ENCRYPTDELIM;
+
+		bpad = PADBYTES(al_delta) + (bf->bf_state.bfs_ndelim << 2);
+
+		/*
+		 * link current buffer to the aggregate
+		 */
+		if (bf_prev) {
+			bf_prev->bf_next = bf;
+			bf_prev->bf_desc->ds_link = bf->bf_daddr;
+		}
+		bf_prev = bf;
+
+		/* Set aggregate flags */
+		ath_hal_set11naggrmiddle(sc->sc_ah, bf->bf_desc,
+		    bf->bf_state.bfs_ndelim);
+
+#if 0
+		/*
+		 * terminate aggregation on a small packet boundary
+		 */
+		if (bf->bf_state.bfs_pktlen < ATH_AGGR_MINPLEN) {
+			status = ATH_AGGR_SHORTPKT;
+			break;
+		}
+#endif
+
+	}
+
+finish:
+	/*
+	 * Just in case the list was empty when we tried to
+	 * dequeue a packet ..
+	 */
+	if (bf_first) {
+		bf_first->bf_state.bfs_al = al;
+		bf_first->bf_state.bfs_nframes = nframes;
+	}
+	return status;
 }
