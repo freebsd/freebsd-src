@@ -959,7 +959,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	} else
 		ctsrate = 0;
 
-
 	/*
 	 * Determine if a tx interrupt should be generated for
 	 * this descriptor.  We take a tx interrupt to reap
@@ -1051,16 +1050,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_rate_getxtxrates(sc, an, rix, bf->bf_state.bfs_rc);
 		ATH_NODE_UNLOCK(an);
         }
-
-	/*
-	 * Formulate first tx descriptor with tx controls.
-	 */
-	ath_tx_setds(sc, bf);
-
-	/*
-	 * Setup rate control series.
-	 */
-	ath_tx_set_ratectrl(sc, ni, bf);
 
 	return 0;
 }
@@ -1165,6 +1154,16 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
+
+	/*
+	 * Formulate first tx descriptor with tx controls.
+	 */
+	ath_tx_setds(sc, bf);
+
+	/*
+	 * Setup rate control series.
+	 */
+	ath_tx_set_ratectrl(sc, ni, bf);
 
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, bf);
