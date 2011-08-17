@@ -369,8 +369,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 
 		/*
-		 * If the frame doesn't have a sequence number, we can't
-		 * aggregate it.
+		 * If the frame doesn't have a sequence number that we're
+		 * tracking in the BAW (eg NULL QOS data frame), we can't
+		 * aggregate it. Stop the aggregation process; the sender
+		 * can then TX what's in the list thus far and then
+		 * TX the frame individually.
 		 */
 		if (! bf->bf_state.bfs_dobaw) {
 			ATH_TXQ_UNLOCK(tid);
