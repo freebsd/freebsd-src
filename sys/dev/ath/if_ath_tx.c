@@ -1104,7 +1104,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
 	if (is_ampdu_tx) {
 		/*
-		 * Always set a seqno; this function will
+		 * Always call; this function will
 		 * handle making sure that null data frames
 		 * don't get a sequence number from the current
 		 * TID and thus mess with the BAW.
@@ -1675,6 +1675,9 @@ ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+	if (atid->paused)
+		return;		/* paused, can't schedule yet */
 
 	if (atid->sched)
 		return;		/* already scheduled */
@@ -2564,11 +2567,24 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	for (;;) {
 		ATH_TXQ_LOCK(atid);
+
+		/*
+		 * If the upper layer has paused the TID, don't
+		 * queue any further packets.
+		 *
+		 * This can also occur from the completion task because
+		 * of packet loss; but as its serialised with this code,
+		 * it won't "appear" half way through queuing packets.
+		 */
+		if (atid->paused)
+			break;
+
                 bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
+
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: tid=%d\n",
 		    __func__, bf, bf->bf_state.bfs_tid);
 		if (bf->bf_state.bfs_tid != tid)
@@ -2656,11 +2672,20 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	for (;;) {
 		ATH_TXQ_LOCK(atid);
+
+		/*
+		 * If the upper layers have paused the TID, don't
+		 * queue any further packets.
+		 */
+		if (atid->paused)
+			break;
+
 		bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
+
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
 		ATH_TXQ_UNLOCK(atid);
 
@@ -2817,8 +2842,31 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
+	/*
+	 * XXX This isn't enough.
+	 *
+	 * The taskqueue may be running and scheduling some more packets.
+	 * It acquires the TID lock to serialise access to the TID paused
+	 * flag but as the rest of the code doesn't hold the TID lock
+	 * for the duration of any activity (outside of adding/removing
+	 * items from the software queue), it can't possibly guarantee
+	 * consistency.
+	 *
+	 * This pauses future scheduling, but it doesn't interrupt the
+	 * current scheduling, nor does it wait for that scheduling to
+	 * finish. So the txseq window has moved, and those frames
+	 * in the meantime have "normal" completion handlers.
+	 *
+	 * The addba teardown pause/resume likely has the same problem.
+	 */
 	ath_tx_tid_pause(sc, atid);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: called; dialogtoken=%d, baparamset=%d, batimeout=%d\n",
+	    __func__, dialogtoken, baparamset, batimeout);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: txa_start=%d, ni_txseqs=%d\n",
+	    __func__, tap->txa_start, ni->ni_txseqs[tid]);
 
 	return sc->sc_addba_request(ni, tap, dialogtoken, baparamset,
 	    batimeout);
@@ -2831,6 +2879,18 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
  *
  * Any packets TX'ed from this point should be "aggregate" (whether
  * aggregate or not) so the BAW is updated.
+ *
+ * Note! net80211 keeps self-assigning sequence numbers until
+ * ampdu is negotiated. This means the initially-negotiated BAW left
+ * edge won't match the ni->ni_txseq.
+ *
+ * So, being very dirty, the BAW left edge is "slid" here to match
+ * ni->ni_txseq.
+ *
+ * What likely SHOULD happen is that all packets subsequent to the
+ * addba request should be tagged as aggregate and queued as non-aggregate
+ * frames; thus updating the BAW. For now though, I'll just slide the
+ * window.
  */
 int
 ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
@@ -2842,6 +2902,14 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_tid *atid = &an->an_tid[tid];
 	int r;
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: called; status=%d, code=%d, batimeout=%d\n", __func__,
+	    status, code, batimeout);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: txa_start=%d, ni_txseqs=%d\n",
+	    __func__, tap->txa_start, ni->ni_txseqs[tid]);
+
 	/*
 	 * Call this first, so the interface flags get updated
 	 * before the TID is unpaused. Otherwise a race condition
@@ -2850,7 +2918,13 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 */
 	r = sc->sc_addba_response(ni, tap, status, code, batimeout);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
+	/*
+	 * XXX dirty!
+	 * Slide the BAW left edge to wherever net80211 left it for us.
+	 * Read above for more information.
+	 */
+	tap->txa_start = ni->ni_txseqs[tid];
+
 	ath_tx_tid_resume(sc, atid);
 	return r;
 }
