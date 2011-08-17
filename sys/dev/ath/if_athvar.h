@@ -833,6 +833,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
 #define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
+#define	ath_hal_clr11n_aggr(_ah, _ds) \
+	((*(_ah)->ah_clr11nAggr)((_ah), (_ds)))
 
 /*
  * This is badly-named; you need to set the correct parameters
