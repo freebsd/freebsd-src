@@ -50,6 +50,7 @@ struct ath_tx_status {
 /* #define ts_rssi ts_rssi_combined */
 	uint32_t   	ts_ba_low;	/* blockack bitmap low */
 	uint32_t   	ts_ba_high;	/* blockack bitmap high */
+	uint8_t		ts_tid;		/* TID */
 	uint32_t  	ts_evm0;	/* evm bytes */
 	uint32_t   	ts_evm1;
 	uint32_t   	ts_evm2;

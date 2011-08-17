@@ -504,6 +504,7 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	/* Update software copies of the HW status */
 	ts->ts_seqnum = MS(ds_txstatus[9], AR_SeqNum);
 	ts->ts_tstamp = AR_SendTimestamp(ds_txstatus);
+	ts->ts_tid = MS(ds_txstatus[9], AR_TxTid);
 
 	ts->ts_status = 0;
 	if (ds_txstatus[1] & AR_ExcessiveRetries)
