@@ -526,10 +526,6 @@ MLINKS+=agp.4 agpgart.4
 MLINKS+=ale.4 if_ale.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=an.4 if_an.4
-MLINKS+=ata.4 acd.4 \
-	ata.4 ad.4 \
-	ata.4 afd.4 \
-	ata.4 ast.4
 MLINKS+=aue.4 if_aue.4
 MLINKS+=axe.4 if_axe.4
 MLINKS+=bce.4 if_bce.4
