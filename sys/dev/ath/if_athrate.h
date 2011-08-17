@@ -80,7 +80,7 @@ void	ath_rate_detach(struct ath_ratectrl *);
 #define	ATH_RC_NUM		4
 
 struct ath_rc_series {
-	uint8_t rix;
+	uint8_t rix;		/* ratetable index, not rate code */
 	uint8_t tries;
 	uint8_t flags;
 	uint32_t max4msframelen;

@@ -631,6 +631,49 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	/* XXX TODO: Setup descriptor chain */
 }
 
+/*
+ * Set the rate control fields in the given descriptor based on
+ * the bf_state fields and node state.
+ *
+ * The bfs fields should already be set with the relevant rate
+ * control information, including whether MRR is to be enabled.
+ *
+ * Since the FreeBSD HAL currently sets up the first TX rate
+ * in ath_hal_setuptxdesc(), this will setup the MRR
+ * conditionally for the pre-11n chips, and call ath_buf_set_rate
+ * unconditionally for 11n chips. These require the 11n rate
+ * scenario to be set if MCS rates are enabled, so it's easier
+ * to just always call it. The caller can then only set rates 2, 3
+ * and 4 if multi-rate retry is needed.
+ */
+static void
+ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
+{
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
+	uint8_t rate[4];
+	int i;
+
+	if (ath_tx_is_11n(sc)) {
+		/* Always setup rate series */
+		ath_buf_set_rate(sc, ni, bf);
+	} else if (bf->bf_state.bfs_ismrr) {
+		/* Only call for legacy NICs if MRR */
+		for (i = 0; i < 4; i++) {
+			rate[i] = rt->info[rc[i].rix].rateCode;
+			if (bf->bf_state.bfs_shpream) {
+				rate[i] |= rt->info[rc[i].rix].shortPreamble;
+			}
+		}
+		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
+			, rate[1], rc[1].tries
+			, rate[2], rc[2].tries
+			, rate[3], rc[3].tries
+		);
+	}
+}
+
 static int
 ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
@@ -975,10 +1018,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * ath_buf_set_rate needs at least one rate/try to setup
 	 * the rate scenario.
 	 */
-	if (ath_tx_is_11n(sc)) {
-		bf->bf_state.bfs_rc[0].rix = rix;
-		bf->bf_state.bfs_rc[0].tries = try0;
-	}
+	bf->bf_state.bfs_rc[0].rix = rix;
+	bf->bf_state.bfs_rc[0].tries = try0;
 
 	/* Store the decided rate index values away */
 	bf->bf_state.bfs_pktlen = pktlen;
@@ -999,11 +1040,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_ismrr = ismrr;
 
 	/*
-	 * Formulate first tx descriptor with tx controls.
-	 */
-	ath_tx_setds(sc, bf);
-
-	/*
 	 * Setup the multi-rate retry state only when we're
 	 * going to use it.  This assumes ath_hal_setuptxdesc
 	 * initializes the descriptors (so we don't have to)
@@ -1012,16 +1048,19 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
         if (ismrr) {
 		ATH_NODE_LOCK(an);
-                if (ath_tx_is_11n(sc))
-                        ath_rate_getxtxrates(sc, an, rix, bf->bf_state.bfs_rc);
-                else
-                        ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
+		ath_rate_getxtxrates(sc, an, rix, bf->bf_state.bfs_rc);
 		ATH_NODE_UNLOCK(an);
         }
 
-	/* Setup 11n rate scenario for 11n NICs only */
-	if (ath_tx_is_11n(sc))
-		ath_buf_set_rate(sc, ni, bf);
+	/*
+	 * Formulate first tx descriptor with tx controls.
+	 */
+	ath_tx_setds(sc, bf);
+
+	/*
+	 * Setup rate control series.
+	 */
+	ath_tx_set_ratectrl(sc, ni, bf);
 
 	return 0;
 }
@@ -1193,7 +1232,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0, txantenna;
-	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
+	u_int8_t rix, cix, txrate, ctsrate;
 	struct ieee80211_frame *wh;
 	u_int flags, ctsduration;
 	HAL_PKT_TYPE atype;
@@ -1325,70 +1364,31 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_ctsduration = ctsduration;
 	bf->bf_state.bfs_ismrr = ismrr;
 
-	ath_tx_setds(sc, bf);
-
 	/* Blank the legacy rate array */
 	bzero(&bf->bf_state.bfs_rc, sizeof(bf->bf_state.bfs_rc));
 
-	if (ath_tx_is_11n(sc)) {
-		bf->bf_state.bfs_rc[0].rix = ath_tx_findrix(sc, params->ibp_rate0);
-		bf->bf_state.bfs_rc[0].tries = params->ibp_try0;
+	bf->bf_state.bfs_rc[0].rix =
+	    ath_tx_findrix(sc, params->ibp_rate0);
+	bf->bf_state.bfs_rc[0].tries = try0;
 
-		if (ismrr) {
-			/* Remember, rate[] is actually an array of rix's -adrian */
-			bf->bf_state.bfs_rc[0].rix =
-			    ath_tx_findrix(sc, params->ibp_rate0);
-			bf->bf_state.bfs_rc[1].rix =
-			    ath_tx_findrix(sc, params->ibp_rate1);
-			bf->bf_state.bfs_rc[2].rix =
-			    ath_tx_findrix(sc, params->ibp_rate2);
-			bf->bf_state.bfs_rc[3].rix =
-			    ath_tx_findrix(sc, params->ibp_rate3);
+	if (ismrr) {
+		bf->bf_state.bfs_rc[1].rix =
+		    ath_tx_findrix(sc, params->ibp_rate1);
+		bf->bf_state.bfs_rc[2].rix =
+		    ath_tx_findrix(sc, params->ibp_rate2);
+		bf->bf_state.bfs_rc[3].rix =
+		    ath_tx_findrix(sc, params->ibp_rate3);
 
-			bf->bf_state.bfs_rc[0].tries =
-			    params->ibp_try0;
-			bf->bf_state.bfs_rc[1].tries =
-			    params->ibp_try1;
-			bf->bf_state.bfs_rc[2].tries =
-			    params->ibp_try2;
-			bf->bf_state.bfs_rc[3].tries =
-			    params->ibp_try3;
-		}
-	} else {
-		if (ismrr) {
-			rix = ath_tx_findrix(sc, params->ibp_rate1);
-			rate1 = rt->info[rix].rateCode;
-			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-				rate1 |= rt->info[rix].shortPreamble;
-			if (params->ibp_try2) {
-				rix = ath_tx_findrix(sc, params->ibp_rate2);
-				rate2 = rt->info[rix].rateCode;
-				if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-					rate2 |= rt->info[rix].shortPreamble;
-			} else
-				rate2 = 0;
-			if (params->ibp_try3) {
-				rix = ath_tx_findrix(sc, params->ibp_rate3);
-				rate3 = rt->info[rix].rateCode;
-				if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-					rate3 |= rt->info[rix].shortPreamble;
-			} else
-				rate3 = 0;
-			ath_hal_setupxtxdesc(ah, ds
-				, rate1, params->ibp_try1	/* series 1 */
-				, rate2, params->ibp_try2	/* series 2 */
-				, rate3, params->ibp_try3	/* series 3 */
-			);
-		}
+		bf->bf_state.bfs_rc[1].tries = params->ibp_try1;
+		bf->bf_state.bfs_rc[2].tries = params->ibp_try2;
+		bf->bf_state.bfs_rc[3].tries = params->ibp_try3;
 	}
 
-	if (ath_tx_is_11n(sc)) {
-		/*
-		 * notice that rix doesn't include any of the "magic" flags txrate
-		 * does for communicating "other stuff" to the HAL.
-		 */
-		ath_buf_set_rate(sc, ni, bf);
-	}
+	/* Program the descriptor */
+	ath_tx_setds(sc, bf);
+
+	/* Program the rate control series */
+	ath_tx_set_ratectrl(sc, ni, bf);
 
 	/* NB: no buffered multicast in power save support */
 
