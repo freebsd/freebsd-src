@@ -84,7 +84,7 @@ dir_matching(const char *dname)
 
 	for (unsigned int i = 0; i < dpatterns; ++i) {
 		if (dname != NULL &&
-		    fnmatch(dname, dpattern[i].pat, 0) == 0) {
+		    fnmatch(dpattern[i].pat, dname, 0) == 0) {
 			if (dpattern[i].mode == EXCL_PAT)
 				return (false);
 			else
@@ -103,7 +103,6 @@ grep_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
-	char *d, *dir = NULL;
 	int c, fts_flags;
 	bool ok;
 
@@ -135,6 +134,10 @@ grep_tree(char **argv)
 		case FTS_D:
 			/* FALLTHROUGH */
 		case FTS_DP:
+			if (dexclude || dinclude)
+				if (!dir_matching(p->fts_name) ||
+				    !dir_matching(p->fts_path))
+					fts_set(fts, p, FTS_SKIP);
 			break;
 		case FTS_DC:
 			/* Print a warning for recursive directory loop */
@@ -144,18 +147,6 @@ grep_tree(char **argv)
 		default:
 			/* Check for file exclusion/inclusion */
 			ok = true;
-			if (dexclude || dinclude) {
-				if ((d = strrchr(p->fts_path, '/')) != NULL) {
-					dir = grep_malloc(sizeof(char) *
-					    (d - p->fts_path + 1));
-					memcpy(dir, p->fts_path,
-					    d - p->fts_path);
-					dir[d - p->fts_path] = '\0';
-				}
-				ok = dir_matching(dir);
-				free(dir);
-				dir = NULL;
-			}
 			if (fexclude || finclude)
 				ok &= file_matching(p->fts_path);
 
