@@ -2323,7 +2323,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
 	}
-	ATH_TXQ_LOCK(tid);
+	ATH_TXQ_UNLOCK(tid);
 }
 
 /*
