@@ -13,29 +13,10 @@ Things that need doing!
   + Support rate updates and lookup on a retry; maybe a slower rate
     is needed?
 
-* Send BAR when needed
-  + after TX failure
-  + when else? When shutting down an aggregation session and flushing packets?
-  + ieee80211_send_bar() will only work if IEEE80211_AGGR_RUNNING is set;
-    what's that mean for trying to send BAR frames during session teardown?
-  + it'll call raw_xmit to send the BAR, so the various bits of TX code
-    are going to have to be recursive. How's that going to work out for us?
-    (think: with all the TXQ node locks being held..)
-  + ic->ic_bar_response(ni, tap, status) is called on BAR response, and
-    ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT) is called on
-    repeated failure to ACK the BAR.
-
-* DELBA - ie, downgrade existing packets in the SWQ
-  + What about stuff in the HWQ?
-  + This is done, just completely and totally untested at the moment
-
 * 20<->2040 mode change?
   + part of this project or not?
   + right now packets are simply flushed; why not just re-prod them into
     the software TXQ ?
-
-* A device timeout during an active iperf causes TCP to stop, until something
-  triggers a TX (say an ICMP ping.) Then it all keeps flowing.
 
 Things that need investigating!
 
@@ -145,3 +126,36 @@ ath_tx_freebuf+68 (?,?,?,?) ra 80079d2c sp c7717cb8 sz 40
 ath_tx_default_comp+34 (?,?,?,?) ra 80079ef0 sp c7717ce0 sz 24
 80079e3c+b4 (?,?,?,?) ra 0 sp c7717cf8 sz 0
 pid 0
+
+* DELBA - ie, downgrade existing packets in the SWQ
+  + What about stuff in the HWQ?
+  + This is done, just completely and totally untested at the moment
+
+  - implemented and tested
+
+* A device timeout during an active iperf causes TCP to stop, until something
+  triggers a TX (say an ICMP ping.) Then it all keeps flowing.
+  - I had messed up the blockack window tracking a bit, and there were some
+    races in marking the queue scheduled/unscheduled. I've since fixed these.
+
+* Send BAR when needed
+  + after TX failure
+  + when else? When shutting down an aggregation session and flushing packets?
+  + ieee80211_send_bar() will only work if IEEE80211_AGGR_RUNNING is set;
+    what's that mean for trying to send BAR frames during session teardown?
+  + it'll call raw_xmit to send the BAR, so the various bits of TX code
+    are going to have to be recursive. How's that going to work out for us?
+    (think: with all the TXQ node locks being held..)
+  + ic->ic_bar_response(ni, tap, status) is called on BAR response, and
+    ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT) is called on
+    repeated failure to ACK the BAR.
+
+  - I've implemented this; the recursion into the TX path was fixed by
+    causing all TX scheduling and completion to run in the ath task,
+    ath_tx_start() / ath_tx_raw_xmit() just queues packets to the hardware
+    or software queue. It doesn't run scheduling as well. This eliminated
+    most of the locking issues and the recursion.
+
+  - There's a dirty workaround to unpause the queue if BAR TX is definitely
+    failing. This needs to be addressed before this work is merged back into
+    -HEAD.
