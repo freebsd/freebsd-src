@@ -101,31 +101,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx_ht.h>
 
 /*
- * some general macros
- */
-#define	INCR(_l, _sz)		(_l) ++; (_l) &= ((_sz) - 1)
-/*
- * return block-ack bitmap index given sequence and starting sequence
- */
-#define	ATH_BA_INDEX(_st, _seq)	(((_seq) - (_st)) & (IEEE80211_SEQ_RANGE - 1))
-
-/* extracting the seqno from buffer seqno */
-#define	SEQNO(_a)	((_a) >> IEEE80211_SEQ_SEQ_SHIFT)
-
-/*
- * Whether the current sequence number is within the
- * BAW.
- */
-#define	BAW_WITHIN(_start, _bawsz, _seqno)	\
-	     ((((_seqno) - (_start)) & 4095) < (_bawsz))
-
-/*
  * How many retries to perform in software
  */
 #define	SWMAX_RETRIES		10
 
-static struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
-    int tid);
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
@@ -1600,7 +1579,7 @@ ath_tx_action_frame_override_queue(struct ath_softc *sc,
  * + fits inside the BAW;
  * + already has had a sequence number allocated.
  */
-static void
+void
 ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf)
 {
@@ -2255,7 +2234,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
  * Fail is set to 1 if the entry is being freed via a call to
  * ath_tx_draintxq().
  */
-static void
+void
 ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 {
 	struct ieee80211_node *ni = bf->bf_node;
@@ -2502,7 +2481,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 /*
  * Return net80211 TID struct pointer, or NULL for none
  */
-static struct ieee80211_tx_ampdu *
+struct ieee80211_tx_ampdu *
 ath_tx_get_tx_tid(struct ath_node *an, int tid)
 {
 	struct ieee80211_node *ni = &an->an_node;

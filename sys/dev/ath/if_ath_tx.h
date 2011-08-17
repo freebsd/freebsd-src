@@ -31,6 +31,25 @@
 #ifndef	__IF_ATH_TX_H__
 #define	__IF_ATH_TX_H__
 
+/*
+ * some general macros
+ */
+#define	INCR(_l, _sz)		(_l) ++; (_l) &= ((_sz) - 1)
+/*
+ * return block-ack bitmap index given sequence and starting sequence
+ */
+#define	ATH_BA_INDEX(_st, _seq)	(((_seq) - (_st)) & (IEEE80211_SEQ_RANGE - 1))
+
+/* extracting the seqno from buffer seqno */
+#define	SEQNO(_a)	((_a) >> IEEE80211_SEQ_SEQ_SHIFT)
+
+/*
+ * Whether the current sequence number is within the
+ * BAW.
+ */
+#define	BAW_WITHIN(_start, _bawsz, _seqno)	\
+	    ((((_seqno) - (_start)) & 4095) < (_bawsz))
+
 extern void ath_freetx(struct mbuf *m);
 extern void ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an);
 extern void ath_txfrag_cleanup(struct ath_softc *sc, ath_bufhead *frags,
@@ -54,6 +73,12 @@ extern void ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 extern void ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq);
 extern void ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf,
     int fail);
+extern void ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf,
+    int fail);
+extern void ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid, struct ath_buf *bf);
+extern struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
+    int tid);
 
 /* TX addba handling */
 extern	int ath_addba_request(struct ieee80211_node *ni,
