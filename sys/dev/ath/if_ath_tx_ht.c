@@ -350,7 +350,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	h_baw = tap->txa_wnd / 2;
 
 	/* Calculate aggregation limit */
-	aggr_limit = 8192;		/* XXX just for now, for testing */
+	aggr_limit = 49152;		/* XXX just for now, for testing */
 
 	for (;;) {
 		ATH_TXQ_LOCK(tid);
@@ -362,6 +362,9 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 			status = ATH_AGGR_DONE;
 			break;
 		}
+
+		/* Set this early just so things don't get confused */
+		bf->bf_next = NULL;
 
 		/*
 		 * Don't unlock the tid lock until we're sure we are going
@@ -455,17 +458,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		bpad = PADBYTES(al_delta) + (bf->bf_state.bfs_ndelim << 2);
 
 		/*
-		 * link current buffer to the aggregate
+		 * Chain the buffers together
 		 */
-		if (bf_prev) {
+		if (bf_prev)
 			bf_prev->bf_next = bf;
-			bf_prev->bf_desc->ds_link = bf->bf_daddr;
-		}
 		bf_prev = bf;
-
-		/* Set aggregate flags */
-		ath_hal_set11naggrmiddle(sc->sc_ah, bf->bf_desc,
-		    bf->bf_state.bfs_ndelim);
 
 #if 0
 		/*
