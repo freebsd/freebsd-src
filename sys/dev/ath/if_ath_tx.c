@@ -390,22 +390,6 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	    bf_first->bf_state.bfs_al);
 
 	/*
-	 * Setup first descriptor of first frame.
-	 * The sub-frame specific stuff is done
-	 * later.
-	 */
-	ath_hal_setupfirsttxdesc(sc->sc_ah,
-	    bf_first->bf_desc,
-	    bf_first->bf_state.bfs_al,
-	    bf_first->bf_state.bfs_flags,
-	    bf_first->bf_state.bfs_txpower,
-	    bf_first->bf_state.bfs_txrate0,
-	    bf_first->bf_state.bfs_try0,
-	    bf_first->bf_state.bfs_txantenna,
-	    bf_first->bf_state.bfs_ctsrate,
-	    bf_first->bf_state.bfs_ctsduration);
-
-	/*
 	 * Setup all descriptors of all subframes.
 	 */
 	bf = bf_first;
@@ -428,6 +412,25 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 		bf_prev = bf;
 		bf = bf->bf_next;
 	}
+
+	/*
+	 * Setup first descriptor of first frame.
+	 * chaintxdesc() overwrites the descriptor entries;
+	 * setupfirsttxdesc() merges in things.
+	 * Otherwise various fields aren't set correctly (eg flags).
+	 */
+	ath_hal_setupfirsttxdesc(sc->sc_ah,
+	    bf_first->bf_desc,
+	    bf_first->bf_state.bfs_al,
+	    bf_first->bf_state.bfs_flags,
+	    bf_first->bf_state.bfs_txpower,
+	    bf_first->bf_state.bfs_txrate0,
+	    bf_first->bf_state.bfs_try0,
+	    bf_first->bf_state.bfs_txantenna,
+	    bf_first->bf_state.bfs_ctsrate,
+	    bf_first->bf_state.bfs_ctsduration);
+
+
 
 	/*
 	 * Setup the last descriptor in the list.
@@ -2556,8 +2559,9 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	ba[1] = ts->ts_ba_high;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
-	    "%s: txa_start=%d, tx_ok=%d, isaggr=%d, seq_st=%d, hasba=%d, ba=%.8x, %.8x\n",
-	    __func__, tap->txa_start, tx_ok, isaggr, seq_st, hasba, ba[0], ba[1]);
+	    "%s: txa_start=%d, tx_ok=%d, status=%.8x, flags=%.8x, isaggr=%d, seq_st=%d, hasba=%d, ba=%.8x, %.8x\n",
+	    __func__, tap->txa_start, tx_ok, ts->ts_status, ts->ts_flags,
+	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts->ts_tid) {
