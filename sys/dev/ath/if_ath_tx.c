@@ -2458,10 +2458,15 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 #endif
 
 	/* Prepend all frames to the beginning of the queue */
+	/*
+	 * XXX for now, these are done in reverse order.
+	 * XXX I'll have to convert this into a TAILQ, so it can
+	 * XXX added to by walking in the reverse order.
+	 */
 	ATH_TXQ_LOCK(tid);
 	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(tid);
 }
@@ -2555,7 +2560,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	ba[0] = ts->ts_ba_low;
 	ba[1] = ts->ts_ba_high;
 
-	device_printf(sc->sc_dev,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: txa_start=%d, tx_ok=%d, isaggr=%d, seq_st=%d, hasba=%d, ba=%.8x, %.8x\n",
 	    __func__, tap->txa_start, tx_ok, isaggr, seq_st, hasba, ba[0], ba[1]);
 
@@ -2621,15 +2626,20 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 #endif
 
 	/* Prepend all frames to the beginning of the queue */
+	/*
+	 * XXX for now, these are done in reverse order.
+	 * XXX I'll have to convert this into a TAILQ, so it can
+	 * XXX added to by walking in the reverse order.
+	 */
 	ATH_TXQ_LOCK(atid);
 	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
-		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(atid);
 
-	device_printf(sc->sc_dev, "%s: finished; txa_start now %d\n",
-	    __func__, tap->txa_start);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+	    "%s: finished; txa_start now %d\n", __func__, tap->txa_start);
 }
 
 /*
