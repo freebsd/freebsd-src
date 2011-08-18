@@ -5,6 +5,8 @@ SRCS=	cap_test.c \
 	cap_test_capmode.c \
 	cap_test_capabilities.c \
 	cap_test_fcntl.c \
+	cap_test_pdfork.c \
+	cap_test_pdkill.c \
 	cap_test_relative.c \
 	cap_test_sysctl.c \
 
