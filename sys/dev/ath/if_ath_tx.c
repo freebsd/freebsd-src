@@ -2849,21 +2849,27 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	/*
-	 * XXX This isn't enough.
+	 * XXX danger Will Robinson!
 	 *
-	 * The taskqueue may be running and scheduling some more packets.
-	 * It acquires the TID lock to serialise access to the TID paused
-	 * flag but as the rest of the code doesn't hold the TID lock
-	 * for the duration of any activity (outside of adding/removing
-	 * items from the software queue), it can't possibly guarantee
-	 * consistency.
+	 * Although the taskqueue may be running and scheduling some more
+	 * packets, these should all be _before_ the addba sequence number.
+	 * However, net80211 will keep self-assigning sequence numbers
+	 * until addba has been negotiated.
 	 *
-	 * This pauses future scheduling, but it doesn't interrupt the
-	 * current scheduling, nor does it wait for that scheduling to
-	 * finish. So the txseq window has moved, and those frames
-	 * in the meantime have "normal" completion handlers.
+	 * In the past, these packets would be "paused" (which still works
+	 * fine, as they're being scheduled to the driver in the same
+	 * serialised method which is calling the addba request routine)
+	 * and when the aggregation session begins, they'll be dequeued
+	 * as aggregate packets and added to the BAW. However, now there's
+	 * a "bf->bf_state.bfs_dobaw" flag, and this isn't set for these
+	 * packets. Thus they never get included in the BAW tracking and
+	 * this can cause the initial burst of packets after the addba
+	 * negotiation to "hang", as they quickly fall outside the BAW.
 	 *
-	 * The addba teardown pause/resume likely has the same problem.
+	 * The "eventual" solution should be to tag these packets with
+	 * dobaw. Although net80211 has given us a sequence number,
+	 * it'll be "after" the left edge of the BAW and thus it'll
+	 * fall within it.
 	 */
 	ath_tx_tid_pause(sc, atid);
 
