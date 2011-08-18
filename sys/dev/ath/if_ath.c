@@ -4425,6 +4425,11 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	}
 	m_freem(bf->bf_m);
 	bf->bf_m = NULL;
+
+	/*
+	 * XXX This is incorrect. Check what the -HEAD code is doing.
+	 * XXX The TDMA code will be broken if this isn't properly repaired.
+	 */
 	bf->bf_flags &= ~ATH_BUF_BUSY;
 
 	ATH_TXBUF_LOCK(sc);
