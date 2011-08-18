@@ -102,10 +102,8 @@ static void	usb_notify_addq(const char *type, struct usb_device *);
 #endif
 #if USB_HAVE_UGEN
 static void	usb_fifo_free_wrap(struct usb_device *, uint8_t, uint8_t);
-static struct cdev *usb_make_dev(struct usb_device *, int, int);
 static void	usb_cdev_create(struct usb_device *);
 static void	usb_cdev_free(struct usb_device *);
-static void	usb_cdev_cleanup(void *);
 #endif
 
 /* This variable is global to allow easy access to it: */
@@ -1626,10 +1624,12 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	LIST_INIT(&udev->pd_list);
 
 	/* Create the control endpoint device */
-	udev->ctrl_dev = usb_make_dev(udev, 0, FREAD|FWRITE);
+	udev->ctrl_dev = usb_make_dev(udev, NULL, 0, 0,
+	    FREAD|FWRITE, UID_ROOT, GID_OPERATOR, 0600);
 
 	/* Create a link from /dev/ugenX.X to the default endpoint */
-	make_dev_alias(udev->ctrl_dev, "%s", udev->ugen_name);
+	if (udev->ctrl_dev != NULL)
+		make_dev_alias(udev->ctrl_dev->cdev, "%s", udev->ugen_name);
 #endif
 	/* Initialise device */
 	if (bus->methods->device_init != NULL) {
@@ -1884,11 +1884,12 @@ done:
 }
 
 #if USB_HAVE_UGEN
-static struct cdev *
-usb_make_dev(struct usb_device *udev, int ep, int mode)
+struct usb_fs_privdata *
+usb_make_dev(struct usb_device *udev, const char *devname, int ep,
+    int fi, int rwmode, uid_t uid, gid_t gid, int mode)
 {
 	struct usb_fs_privdata* pd;
-	char devname[20];
+	char buffer[32];
 
 	/* Store information to locate ourselves again later */
 	pd = malloc(sizeof(struct usb_fs_privdata), M_USBDEV,
@@ -1896,16 +1897,39 @@ usb_make_dev(struct usb_device *udev, int ep, int mode)
 	pd->bus_index = device_get_unit(udev->bus->bdev);
 	pd->dev_index = udev->device_index;
 	pd->ep_addr = ep;
-	pd->mode = mode;
+	pd->fifo_index = fi;
+	pd->mode = rwmode;
 
 	/* Now, create the device itself */
-	snprintf(devname, sizeof(devname), "%u.%u.%u",
-	    pd->bus_index, pd->dev_index, pd->ep_addr);
-	pd->cdev = make_dev(&usb_devsw, 0, UID_ROOT,
-	    GID_OPERATOR, 0600, USB_DEVICE_DIR "/%s", devname);
+	if (devname == NULL) {
+		devname = buffer;
+		snprintf(buffer, sizeof(buffer), USB_DEVICE_DIR "/%u.%u.%u",
+		    pd->bus_index, pd->dev_index, pd->ep_addr);
+	}
+
+	pd->cdev = make_dev(&usb_devsw, 0, uid, gid, mode, "%s", devname);
+
+	if (pd->cdev == NULL) {
+		DPRINTFN(0, "Failed to create device %s\n", devname);
+		free(pd, M_USBDEV);
+		return (NULL);
+	}
+
+	/* XXX setting si_drv1 and creating the device is not atomic! */
 	pd->cdev->si_drv1 = pd;
 
-	return (pd->cdev);
+	return (pd);
+}
+
+void
+usb_destroy_dev(struct usb_fs_privdata *pd)
+{
+	if (pd == NULL)
+		return;
+
+	destroy_dev(pd->cdev);
+
+	free(pd, M_USBDEV);
 }
 
 static void
@@ -1915,7 +1939,6 @@ usb_cdev_create(struct usb_device *udev)
 	struct usb_endpoint_descriptor *ed;
 	struct usb_descriptor *desc;
 	struct usb_fs_privdata* pd;
-	struct cdev *dev;
 	int inmode, outmode, inmask, outmask, mode;
 	uint8_t ep;
 
@@ -1957,14 +1980,16 @@ usb_cdev_create(struct usb_device *udev)
 
 	/* Create all available endpoints except EP0 */
 	for (ep = 1; ep < 16; ep++) {
-		mode = inmask & (1 << ep) ? inmode : 0;
-		mode |= outmask & (1 << ep) ? outmode : 0;
+		mode = (inmask & (1 << ep)) ? inmode : 0;
+		mode |= (outmask & (1 << ep)) ? outmode : 0;
 		if (mode == 0)
 			continue;	/* no IN or OUT endpoint */
 
-		dev = usb_make_dev(udev, ep, mode);
-		pd = dev->si_drv1;
-		LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
+		pd = usb_make_dev(udev, NULL, ep, 0,
+		    mode, UID_ROOT, GID_OPERATOR, 0600);
+
+		if (pd != NULL)
+			LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
 	}
 }
 
@@ -1972,25 +1997,16 @@ static void
 usb_cdev_free(struct usb_device *udev)
 {
 	struct usb_fs_privdata* pd;
-	struct cdev* pcdev;
 
 	DPRINTFN(2, "Freeing device nodes\n");
 
 	while ((pd = LIST_FIRST(&udev->pd_list)) != NULL) {
 		KASSERT(pd->cdev->si_drv1 == pd, ("privdata corrupt"));
 
-		pcdev = pd->cdev;
-		pd->cdev = NULL;
 		LIST_REMOVE(pd, pd_next);
-		if (pcdev != NULL)
-			destroy_dev_sched_cb(pcdev, usb_cdev_cleanup, pd);
-	}
-}
 
-static void
-usb_cdev_cleanup(void* arg)
-{
-	free(arg, M_USBDEV);
+		usb_destroy_dev(pd);
+	}
 }
 #endif
 
@@ -2046,8 +2062,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	}
 	mtx_unlock(&usb_ref_lock);
 
-	destroy_dev_sched_cb(udev->ctrl_dev, usb_cdev_cleanup,
-	    udev->ctrl_dev->si_drv1);
+	usb_destroy_dev(udev->ctrl_dev);
 #endif
 
 	if (udev->flags.usb_mode == USB_MODE_DEVICE) {

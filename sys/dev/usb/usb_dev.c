@@ -1648,7 +1648,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	struct usb_fifo *f_rx;
 	char devname[32];
 	uint8_t n;
-	struct usb_fs_privdata* pd;
 
 	f_sc->fp[USB_FIFO_TX] = NULL;
 	f_sc->fp[USB_FIFO_RX] = NULL;
@@ -1746,22 +1745,10 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 			    usb_alloc_symlink(devname);
 		}
 
-		/*
-		 * Initialize device private data - this is used to find the
-		 * actual USB device itself.
-		 */
-		pd = malloc(sizeof(struct usb_fs_privdata), M_USBDEV, M_WAITOK | M_ZERO);
-		pd->bus_index = device_get_unit(udev->bus->bdev);
-		pd->dev_index = udev->device_index;
-		pd->ep_addr = -1;	/* not an endpoint */
-		pd->fifo_index = f_tx->fifo_index & f_rx->fifo_index;
-		pd->mode = FREAD|FWRITE;
-
-		/* Now, create the device itself */
-		f_sc->dev = make_dev(&usb_devsw, 0, uid, gid, mode,
-		    "%s", devname);
-		/* XXX setting si_drv1 and creating the device is not atomic! */
-		f_sc->dev->si_drv1 = pd;
+		/* Create the device */
+		f_sc->dev = usb_make_dev(udev, devname, -1,
+		    f_tx->fifo_index & f_rx->fifo_index,
+		    FREAD|FWRITE, uid, gid, mode);
 	}
 
 	DPRINTFN(2, "attached %p/%p\n", f_tx, f_rx);
@@ -1814,12 +1801,6 @@ usb_fifo_free_buffer(struct usb_fifo *f)
 	bzero(&f->used_q, sizeof(f->used_q));
 }
 
-static void
-usb_fifo_cleanup(void* ptr) 
-{
-	free(ptr, M_USBDEV);
-}
-
 void
 usb_fifo_detach(struct usb_fifo_sc *f_sc)
 {
@@ -1832,11 +1813,9 @@ usb_fifo_detach(struct usb_fifo_sc *f_sc)
 	f_sc->fp[USB_FIFO_TX] = NULL;
 	f_sc->fp[USB_FIFO_RX] = NULL;
 
-	if (f_sc->dev != NULL) {
-		destroy_dev_sched_cb(f_sc->dev, 
-		    usb_fifo_cleanup, f_sc->dev->si_drv1);
-		f_sc->dev = NULL;
-	}
+	usb_destroy_dev(f_sc->dev);
+
+	f_sc->dev = NULL;
 
 	DPRINTFN(2, "detached %p\n", f_sc);
 }
