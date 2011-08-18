@@ -64,7 +64,8 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2)) != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0))
+	    != 0)
 		return (error);
 
 	td->td_retval[0] = p2->p_pid;
@@ -100,7 +101,8 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 #endif
 
 	/* Exclude RFPPWAIT */
-	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2)) != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2,
+	    NULL, 0)) != 0)
 		return (error);
 
    	td->td_retval[0] = p2->p_pid;
@@ -190,7 +192,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
 
-	error = fork1(td, ff, 0, &p2);
+	error = fork1(td, ff, 0, &p2, NULL, 0);
 	if (error)
 		return (error);
 

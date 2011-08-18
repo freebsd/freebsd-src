@@ -185,11 +185,12 @@
 #define	RFTSIGMASK	0xFF
 #define	RFTSIGNUM(flags)	(((flags) >> RFTSIGSHIFT) & RFTSIGMASK)
 #define	RFTSIGFLAGS(signum)	((signum) << RFTSIGSHIFT)
+#define	RFPROCDESC	(1<<28)	/* return a process descriptor */
 #define	RFPPWAIT	(1<<31)	/* parent sleeps until child exits (vfork) */
-#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT)
 #define	RFFLAGS		(RFFDG | RFPROC | RFMEM | RFNOWAIT | RFCFDG | \
     RFTHREAD | RFSIGSHARE | RFLINUXTHPN | RFSTOPPED | RFHIGHPID | RFTSIGZMB | \
-    RFPPWAIT)
+    RFPROCDESC | RFPPWAIT)
+#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT | RFPROCDESC)
 
 #endif /* __BSD_VISIBLE */
 

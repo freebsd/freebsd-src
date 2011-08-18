@@ -166,6 +166,7 @@ struct mqueue_notifier;
 struct nlminfo;
 struct p_sched;
 struct proc;
+struct procdesc;
 struct racct;
 struct sleepqueue;
 struct td_sched;
@@ -534,6 +535,7 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
+	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -822,7 +824,7 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **);
+int	fork1(struct thread *, int, int, struct proc **, int *, int);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
@@ -844,6 +846,8 @@ void	pargs_hold(struct pargs *pa);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
+void	proc_reap(struct thread *td, struct proc *p, int *status, int options,
+	    struct rusage *rusage);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
