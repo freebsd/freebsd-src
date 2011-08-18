@@ -252,6 +252,7 @@ struct user {
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
 /* no KF_TYPE_CAPABILITY (11), since capabilities wrap other file objects */
+#define	KF_TYPE_PROCDESC	12
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -377,6 +378,9 @@ struct kinfo_file {
 			/* Round to 64 bit alignment. */
 			uint32_t	kf_pts_pad0[7];
 		} kf_pts;
+		struct {
+			pid_t		kf_pid;
+		} kf_proc;
 	} kf_un;
 	uint16_t	kf_status;		/* Status flags. */
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */

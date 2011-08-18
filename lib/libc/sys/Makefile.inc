@@ -96,7 +96,7 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mq_setattr.2 \
 	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
-	pathconf.2 pipe.2 poll.2 posix_fallocate.2 posix_openpt.2 profil.2 \
+	pathconf.2 pdfork.2 pipe.2 poll.2 posix_fallocate.2 posix_openpt.2 profil.2 \
 	pselect.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2
@@ -178,6 +178,9 @@ MLINKS+=ntp_adjtime.2 ntp_gettime.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
+MLINKS+=pdfork.2 pdgetpid.2\
+	pdfork.2 pdkill.2 \
+	pdfork.2 pdwait4.2
 MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2

@@ -366,6 +366,9 @@ FBSD_1.2 {
 	cap_new;
 	cap_getrights;
 	getloginclass;
+	pdfork;
+	pdgetpid;
+	pdkill;
 	posix_fallocate;
 	rctl_get_racct;
 	rctl_get_rules;
