@@ -1855,6 +1855,7 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		    STAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
 	}
+	bf->bf_next = NULL;	/* XXX just to be sure */
 	return bf;
 }
 
