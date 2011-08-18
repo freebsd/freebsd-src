@@ -29,6 +29,7 @@
 
 struct usb_symlink;		/* UGEN */
 struct usb_device;		/* linux compat */
+struct usb_fs_privdata;
 
 #define	USB_CTRL_XFER_MAX 2
 
@@ -135,7 +136,7 @@ struct usb_device {
 #if USB_HAVE_UGEN
 	struct usb_fifo *fifo[USB_FIFO_MAX];
 	struct usb_symlink *ugen_symlink;	/* our generic symlink */
-	struct cdev *ctrl_dev;	/* Control Endpoint 0 device node */
+	struct usb_fs_privdata *ctrl_dev;	/* Control Endpoint 0 device node */
 	LIST_HEAD(,usb_fs_privdata) pd_list;
 	char	ugen_name[20];		/* name of ugenX.X device */
 #endif
@@ -202,6 +203,11 @@ struct usb_device *usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		    struct usb_device *parent_hub, uint8_t depth,
 		    uint8_t port_index, uint8_t port_no,
 		    enum usb_dev_speed speed, enum usb_hc_mode mode);
+#if USB_HAVE_UGEN
+struct usb_fs_privdata *usb_make_dev(struct usb_device *, const char *,
+		    int, int, int, uid_t, gid_t, int);
+void	usb_destroy_dev(struct usb_fs_privdata *);
+#endif
 usb_error_t	usb_probe_and_attach(struct usb_device *udev,
 		    uint8_t iface_index);
 void		usb_detach_device(struct usb_device *, uint8_t, uint8_t);
