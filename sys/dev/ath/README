@@ -20,69 +20,31 @@ Things that need doing!
 
 Things that need investigating!
 
+There's a crash which occurs when a wlan interface is destroyed and
+re-created.
+
+<an up STA interface that's done some traffic and was in addba mode>
+ifconfig wlan0 destroy
+<stuff goes away>
+adrian-home-mips# /root/wifi-client ath0 CACHEBOY_11N_1
+ifconfig: interface wlan0 does not exist
+wlan0: Ethernet address: 00:15:6d:84:05:52
+kern.msgbuf_clear: 0 -> 0
+net.wlan.0.debug: 0x0 => 0x80000000<11n>
+net.wlan.0.debug: 0x80000000 => 0x80800000<11n,assoc>
+Trap cause = 4 (address error (load or I-fetch) - kernel mode)
+[ thread pid 0 tid 100025 ]
+Stopped at      ieee80211_node_attach+0x3f4:    lw      v0,24(v0)
+db> reset
+
+Maybe do a bit of kernel version bisecting to see when this was first broken?
+Hopefully it's something easy
 
 * How should channel scanning be handled? Right now it's causing both a HW TXQ
   and SW TXQ / node flush; this means the BAW will need to be slid along. Eek.
 
 * When a node is flushed (but not being deleted) should the BAW also be updated?
   I don't think it is right now and this could be incorrect.
-
-* LOR between the net80211 node lock and the txqs
-
-lock order reversal:
- 1st 0x80a02738 ath1_txq1 (ath1_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath.c:4154
- 2nd 0xc086c6cc ath1_node_lock (ath1_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
-KDB: stack backtrace:
-db_trace_thread+30 (?,?,?,?) ra 8038aacc sp c7713a88 sz 24
-db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7713aa0 sz 24
-80074c08+34 (?,?,?,?) ra 801ce304 sp c7713ab8 sz 416
-kdb_backtrace+44 (?,?,?,?) ra 801e5dc0 sp c7713c58 sz 24
-801e5d8c+34 (?,?,?,?) ra 801e6a04 sp c7713c70 sz 32
-witness_checkorder+954 (?,?,?,?) ra 80186ea0 sp c7713c90 sz 88
-_mtx_lock_flags+c4 (?,?,?,?) ra 8029885c sp c7713ce8 sz 48
-ieee80211_free_node+40 (?,?,?,?) ra 80079c80 sp c7713d18 sz 48
-ath_tx_freebuf+68 (?,?,?,?) ra 80079d2c sp c7713d48 sz 40
-ath_tx_default_comp+34 (?,?,?,?) ra 8007d664 sp c7713d70 sz 24
-8007d2b0+3b4 (?,?,?,?) ra 8007df3c sp c7713d88 sz 64
-8007deb4+88 (?,?,?,?) ra 801dc284 sp c7713dc8 sz 48
-801dc19c+e8 (?,?,?,?) ra 801dcd4c sp c7713df8 sz 56
-taskqueue_thread_loop+60 (?,?,?,?) ra 8016c2c4 sp c7713e30 sz 40
-fork_exit+a8 (?,?,?,?) ra 80383210 sp c7713e58 sz 40
-fork_trampoline+10 (?,?,?,?) ra 0 sp c7713e80 sz 0
-pid 0
-
-And another LOR:
-
-lock order reversal:
- 1st 0xc08316cc ath0_node_lock (ath0_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
- 2nd 0x80a03738 ath0_txq1 (ath0_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath_tx.c:1854
-KDB: stack backtrace:
-db_trace_thread+30 (?,?,?,?) ra 8038ab6c sp c7bf9798 sz 24
-db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7bf97b0 sz 24
-80074c08+34 (?,?,?,?) ra 801ce3a4 sp c7bf97c8 sz 416
-kdb_backtrace+44 (?,?,?,?) ra 801e5e60 sp c7bf9968 sz 24
-801e5e2c+34 (?,?,?,?) ra 801e6aa4 sp c7bf9980 sz 32
-witness_checkorder+954 (?,?,?,?) ra 80186f40 sp c7bf99a0 sz 88
-_mtx_lock_flags+c4 (?,?,?,?) ra 80085fc4 sp c7bf99f8 sz 48
-ath_tx_node_flush+8c (?,?,?,?) ra 800860d0 sp c7bf9a28 sz 48
-ath_tx_tid_cleanup+10 (?,?,?,?) ra 8007c654 sp c7bf9a58 sz 24
-8007c5fc+58 (?,?,?,?) ra 80298318 sp c7bf9a70 sz 32
-802981fc+11c (?,?,?,?) ra 80298914 sp c7bf9a90 sz 24
-ieee80211_free_node+58 (?,?,?,?) ra 8029a110 sp c7bf9aa8 sz 48
-8029a078+98 (?,?,?,?) ra 8029c044 sp c7bf9ad8 sz 40
-ieee80211_sta_join+20c (?,?,?,?) ra 8028e720 sp c7bf9b00 sz 40
-8028e688+98 (?,?,?,?) ra 80290148 sp c7bf9b28 sz 48
-802900e4+64 (?,?,?,?) ra 80290948 sp c7bf9b58 sz 72
-802903f4+554 (?,?,?,?) ra 80292604 sp c7bf9ba0 sz 128
-ieee80211_ioctl+2c8 (?,?,?,?) ra 802b9e84 sp c7bf9c20 sz 48
-in_control+1c8 (?,?,?,?) ra 802514d8 sp c7bf9c50 sz 88
-ifioctl+13cc (?,?,80aaada0,80dda900) ra 801ee8c0 sp c7bf9ca8 sz 144
-soo_ioctl+3b0 (?,?,?,?) ra 801e91c4 sp c7bf9d38 sz 40
-kern_ioctl+23c (?,?,?,?) ra 801e936c sp c7bf9d60 sz 64
-ioctl+130 (?,?,?,?) ra 8037eb6c sp c7bf9da0 sz 56
-trap+8a4 (?,?,?,?) ra 80376fec sp c7bf9dd8 sz 168
-MipsUserGenException+10c (?,?,?,40818e20) ra 0 sp c7bf9e80 sz 0
-pid 1510
 
 Fixed issues:
 
@@ -159,3 +121,63 @@ pid 0
   - There's a dirty workaround to unpause the queue if BAR TX is definitely
     failing. This needs to be addressed before this work is merged back into
     -HEAD.
+
+
+* LOR between the net80211 node lock and the txqs
+  - These have disappeared now that the locking has been reworked.
+
+lock order reversal:
+ 1st 0x80a02738 ath1_txq1 (ath1_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath.c:4154
+ 2nd 0xc086c6cc ath1_node_lock (ath1_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
+KDB: stack backtrace:
+db_trace_thread+30 (?,?,?,?) ra 8038aacc sp c7713a88 sz 24
+db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7713aa0 sz 24
+80074c08+34 (?,?,?,?) ra 801ce304 sp c7713ab8 sz 416
+kdb_backtrace+44 (?,?,?,?) ra 801e5dc0 sp c7713c58 sz 24
+801e5d8c+34 (?,?,?,?) ra 801e6a04 sp c7713c70 sz 32
+witness_checkorder+954 (?,?,?,?) ra 80186ea0 sp c7713c90 sz 88
+_mtx_lock_flags+c4 (?,?,?,?) ra 8029885c sp c7713ce8 sz 48
+ieee80211_free_node+40 (?,?,?,?) ra 80079c80 sp c7713d18 sz 48
+ath_tx_freebuf+68 (?,?,?,?) ra 80079d2c sp c7713d48 sz 40
+ath_tx_default_comp+34 (?,?,?,?) ra 8007d664 sp c7713d70 sz 24
+8007d2b0+3b4 (?,?,?,?) ra 8007df3c sp c7713d88 sz 64
+8007deb4+88 (?,?,?,?) ra 801dc284 sp c7713dc8 sz 48
+801dc19c+e8 (?,?,?,?) ra 801dcd4c sp c7713df8 sz 56
+taskqueue_thread_loop+60 (?,?,?,?) ra 8016c2c4 sp c7713e30 sz 40
+fork_exit+a8 (?,?,?,?) ra 80383210 sp c7713e58 sz 40
+fork_trampoline+10 (?,?,?,?) ra 0 sp c7713e80 sz 0
+pid 0
+
+And another LOR:
+
+lock order reversal:
+ 1st 0xc08316cc ath0_node_lock (ath0_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1702
+ 2nd 0x80a03738 ath0_txq1 (ath0_txq1) @ /data/freebsd/mips/if_ath_tx/src/sys/dev/ath/if_ath_tx.c:1854
+KDB: stack backtrace:
+db_trace_thread+30 (?,?,?,?) ra 8038ab6c sp c7bf9798 sz 24
+db_trace_self+1c (?,?,?,?) ra 80074c3c sp c7bf97b0 sz 24
+80074c08+34 (?,?,?,?) ra 801ce3a4 sp c7bf97c8 sz 416
+kdb_backtrace+44 (?,?,?,?) ra 801e5e60 sp c7bf9968 sz 24
+801e5e2c+34 (?,?,?,?) ra 801e6aa4 sp c7bf9980 sz 32
+witness_checkorder+954 (?,?,?,?) ra 80186f40 sp c7bf99a0 sz 88
+_mtx_lock_flags+c4 (?,?,?,?) ra 80085fc4 sp c7bf99f8 sz 48
+ath_tx_node_flush+8c (?,?,?,?) ra 800860d0 sp c7bf9a28 sz 48
+ath_tx_tid_cleanup+10 (?,?,?,?) ra 8007c654 sp c7bf9a58 sz 24
+8007c5fc+58 (?,?,?,?) ra 80298318 sp c7bf9a70 sz 32
+802981fc+11c (?,?,?,?) ra 80298914 sp c7bf9a90 sz 24
+ieee80211_free_node+58 (?,?,?,?) ra 8029a110 sp c7bf9aa8 sz 48
+8029a078+98 (?,?,?,?) ra 8029c044 sp c7bf9ad8 sz 40
+ieee80211_sta_join+20c (?,?,?,?) ra 8028e720 sp c7bf9b00 sz 40
+8028e688+98 (?,?,?,?) ra 80290148 sp c7bf9b28 sz 48
+802900e4+64 (?,?,?,?) ra 80290948 sp c7bf9b58 sz 72
+802903f4+554 (?,?,?,?) ra 80292604 sp c7bf9ba0 sz 128
+ieee80211_ioctl+2c8 (?,?,?,?) ra 802b9e84 sp c7bf9c20 sz 48
+in_control+1c8 (?,?,?,?) ra 802514d8 sp c7bf9c50 sz 88
+ifioctl+13cc (?,?,80aaada0,80dda900) ra 801ee8c0 sp c7bf9ca8 sz 144
+soo_ioctl+3b0 (?,?,?,?) ra 801e91c4 sp c7bf9d38 sz 40
+kern_ioctl+23c (?,?,?,?) ra 801e936c sp c7bf9d60 sz 64
+ioctl+130 (?,?,?,?) ra 8037eb6c sp c7bf9da0 sz 56
+trap+8a4 (?,?,?,?) ra 80376fec sp c7bf9dd8 sz 168
+MipsUserGenException+10c (?,?,?,40818e20) ra 0 sp c7bf9e80 sz 0
+pid 1510
+
