@@ -131,8 +131,13 @@
 #define	CAP_IOCTL		0x0004000000000000ULL
 #define	CAP_TTYHOOK		0x0008000000000000ULL
 
+/* Process management via process descriptors. */
+#define	CAP_PDGETPID		0x0010000000000000ULL
+#define	CAP_PDWAIT		0x0020000000000000ULL
+#define	CAP_PDKILL		0x0040000000000000ULL
+
 /* The mask of all valid method rights. */
-#define	CAP_MASK_VALID		0x000fffffffffffffULL
+#define	CAP_MASK_VALID		0x007fffffffffffffULL
 
 #ifdef _KERNEL
 
