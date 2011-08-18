@@ -1397,10 +1397,10 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 
 	if (do_override) {
-		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 		ath_tx_setds(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
 		ath_tx_chaindesclist(sc, bf);
+		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 	}
@@ -1791,6 +1791,16 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_pri = pri;
 	bf->bf_state.bfs_aggr = 0;
 	bf->bf_state.bfs_aggrburst = 0;
+
+	/*
+	 * Program first and chain the descriptors together.
+	 *
+	 * These fields (along with the DMA map setup) are needed
+	 * by the aggregate forming code, which only overrides
+	 * the rate control setup and the aggregation fields.
+	 */
+	ath_tx_setds(sc, bf);
+	ath_tx_chaindesclist(sc, bf);
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
@@ -2636,10 +2646,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_tid == IEEE80211_NONQOS_TID)
 			device_printf(sc->sc_dev, "%s: TID=16?\n", __func__);
 
-		/* Program descriptor */
-		ath_tx_setds(sc, bf);
+		/* Program rate control */
 		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
 
 		/* Punt to hardware or software txq */
 		ATH_TXQ_LOCK(txq);
@@ -2700,10 +2708,8 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 		/* Normal completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
 
-		/* Program descriptor */
-		ath_tx_setds(sc, bf);
+		/* Program rate control*/
 		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
 
 		/* Punt to hardware or software txq */
 		ATH_TXQ_LOCK(txq);
