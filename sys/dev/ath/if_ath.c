@@ -1150,6 +1150,27 @@ ath_vap_delete(struct ieee80211vap *vap)
 	}
 
 	ieee80211_vap_detach(vap);
+
+	/*
+	 * XXX Danger Will Robinson! Danger!
+	 *
+	 * Because ieee80211_vap_detach() can queue a frame (the station
+	 * diassociate message?) after we've drained the TXQ and
+	 * flushed the software TXQ, we will end up with a frame queued
+	 * to a node whose vap is about to be freed.
+	 *
+	 * To work around this, flush the hardware/software again.
+	 * This may be racy - the ath task may be running and the packet
+	 * may be being scheduled between sw->hw txq. Tsk.
+	 *
+	 * TODO: figure out why a new node gets allocated somewhere around
+	 * here (after the ath_tx_swq() call; and after an ath_stop_locked()
+	 * call!)
+	 */
+
+	ath_draintxq(sc);
+	ath_sc_flushtxq(sc);
+
 	ATH_LOCK(sc);
 	/*
 	 * Reclaim beacon state.  Note this must be done before
