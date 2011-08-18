@@ -618,7 +618,8 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	/*
 	 * If we're in FRSYNC mode, sync out this znode before reading it.
 	 */
-	if (ioflag & FRSYNC || zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+	if (zfsvfs->z_log &&
+	    (ioflag & FRSYNC || zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS))
 		zil_commit(zfsvfs->z_log, zp->z_id);
 
 	/*
@@ -6345,7 +6346,7 @@ vop_getextattr {
 		if (error == 0)
 			*ap->a_size = (size_t)va.va_size;
 	} else if (ap->a_uio != NULL)
-		error = VOP_READ(vp, ap->a_uio, IO_UNIT | IO_SYNC, ap->a_cred);
+		error = VOP_READ(vp, ap->a_uio, IO_UNIT, ap->a_cred);
 
 	VOP_UNLOCK(vp, 0);
 	vn_close(vp, flags, ap->a_cred, td);
