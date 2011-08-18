@@ -4434,8 +4434,8 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(txq);
 			txq->axq_link = NULL;
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
