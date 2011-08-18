@@ -919,10 +919,10 @@
 				    u_int64_t *rightsp); }
 516	AUE_CAP_ENTER	STD	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	STD	{ int cap_getmode(u_int *modep); }
-518	AUE_PDFORK	UNIMPL	pdfork
-519	AUE_PDKILL	UNIMPL	pdkill
-520	AUE_PDGETPID	UNIMPL	pdgetpid
-521	AUE_PDWAIT	UNIMPL	pdwait
+518	AUE_PDFORK	STD	{ int pdfork(int *fdp, int flags); }
+519	AUE_PDKILL	STD	{ int pdkill(int fd, int signum); }
+520	AUE_PDGETPID	STD	{ int pdgetpid(int fd, pid_t *pidp); }
+521	AUE_PDWAIT	UNIMPL	pdwait4
 522	AUE_SELECT	STD	{ int pselect(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec *ts, \
