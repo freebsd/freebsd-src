@@ -977,7 +977,7 @@ ath_vap_create(struct ieee80211com *ic,
 	/*
 	 * Check that a beacon buffer is available; the code below assumes it.
 	 */
-	if (needbeacon & STAILQ_EMPTY(&sc->sc_bbuf)) {
+	if (needbeacon & TAILQ_EMPTY(&sc->sc_bbuf)) {
 		device_printf(sc->sc_dev, "no beacon buffer available\n");
 		goto bad;
 	}
@@ -1039,8 +1039,8 @@ ath_vap_create(struct ieee80211com *ic,
 		 * multicast frames.  We know a beacon buffer is
 		 * available because we checked above.
 		 */
-		avp->av_bcbuf = STAILQ_FIRST(&sc->sc_bbuf);
-		STAILQ_REMOVE_HEAD(&sc->sc_bbuf, bf_list);
+		avp->av_bcbuf = TAILQ_FIRST(&sc->sc_bbuf);
+		TAILQ_REMOVE(&sc->sc_bbuf, avp->av_bcbuf, bf_list);
 		if (opmode != IEEE80211_M_IBSS || !sc->sc_hasveol) {
 			/*
 			 * Assign the vap to a beacon xmit slot.  As above
@@ -1845,14 +1845,14 @@ _ath_getbuf_locked(struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	bf = STAILQ_FIRST(&sc->sc_txbuf);
+	bf = TAILQ_FIRST(&sc->sc_txbuf);
 	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
-		STAILQ_REMOVE_HEAD(&sc->sc_txbuf, bf_list);
+		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
 	else
 		bf = NULL;
 	if (bf == NULL) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
-		    STAILQ_FIRST(&sc->sc_txbuf) == NULL ?
+		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
 	}
 	bf->bf_next = NULL;	/* XXX just to be sure */
@@ -1899,7 +1899,7 @@ ath_start(struct ifnet *ifp)
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
 			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
@@ -1910,7 +1910,7 @@ ath_start(struct ifnet *ifp)
 		 * buffers to send all the fragments so all
 		 * go out or none...
 		 */
-		STAILQ_INIT(&frags);
+		TAILQ_INIT(&frags);
 		if ((m->m_flags & M_FRAG) &&
 		    !ath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -1942,7 +1942,7 @@ ath_start(struct ifnet *ifp)
 			bf->bf_m = NULL;
 			bf->bf_node = NULL;
 			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
 			if (ni != NULL)
@@ -1963,9 +1963,9 @@ ath_start(struct ifnet *ifp)
 				goto reclaim;
 			}
 			m = next;
-			bf = STAILQ_FIRST(&frags);
+			bf = TAILQ_FIRST(&frags);
 			KASSERT(bf != NULL, ("no buf for txfrag"));
-			STAILQ_REMOVE_HEAD(&frags, bf_list);
+			TAILQ_REMOVE(&frags, bf, bf_list);
 			goto nextfrag;
 		}
 
@@ -2468,7 +2468,7 @@ ath_beacon_update(struct ieee80211vap *vap, int item)
 static void
 ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 {
-	STAILQ_CONCAT(&dst->axq_q, &src->axq_q);
+	TAILQ_CONCAT(&dst->axq_q, &src->axq_q, bf_list);
 	dst->axq_link = src->axq_link;
 	src->axq_link = NULL;
 	dst->axq_depth += src->axq_depth;
@@ -2663,7 +2663,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			 * Move frames from the s/w mcast q to the h/w cab q.
 			 * XXX MORE_DATA bit
 			 */
-			bfm = STAILQ_FIRST(&avp->av_mcastq.axq_q);
+			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
 			if (cabq->axq_link != NULL) {
 				*cabq->axq_link = bfm->bf_daddr;
 			} else
@@ -2752,7 +2752,7 @@ ath_beacon_return(struct ath_softc *sc, struct ath_buf *bf)
 		ieee80211_free_node(bf->bf_node);
 		bf->bf_node = NULL;
 	}
-	STAILQ_INSERT_TAIL(&sc->sc_bbuf, bf, bf_list);
+	TAILQ_INSERT_TAIL(&sc->sc_bbuf, bf, bf_list);
 }
 
 /*
@@ -2763,7 +2763,7 @@ ath_beacon_free(struct ath_softc *sc)
 {
 	struct ath_buf *bf;
 
-	STAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list) {
+	TAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list) {
 		if (bf->bf_m != NULL) {
 			bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 			m_freem(bf->bf_m);
@@ -3082,7 +3082,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	}
 	dd->dd_bufptr = bf;
 
-	STAILQ_INIT(head);
+	TAILQ_INIT(head);
 	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
 		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
@@ -3109,7 +3109,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			return error;
 		}
 		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
-		STAILQ_INSERT_TAIL(head, bf, bf_list);
+		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
 	return 0;
 fail3:
@@ -3138,7 +3138,7 @@ ath_descdma_cleanup(struct ath_softc *sc,
 	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
-	STAILQ_FOREACH(bf, head, bf_list) {
+	TAILQ_FOREACH(bf, head, bf_list) {
 		if (bf->bf_m) {
 			m_freem(bf->bf_m);
 			bf->bf_m = NULL;
@@ -3157,7 +3157,7 @@ ath_descdma_cleanup(struct ath_softc *sc,
 		}
 	}
 
-	STAILQ_INIT(head);
+	TAILQ_INIT(head);
 	free(dd->dd_bufptr, M_ATHDEV);
 	memset(dd, 0, sizeof(*dd));
 }
@@ -3511,7 +3511,7 @@ ath_rx_proc(void *arg, int npending)
 	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
-		bf = STAILQ_FIRST(&sc->sc_rxbuf);
+		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
 			break;
@@ -3531,7 +3531,7 @@ ath_rx_proc(void *arg, int npending)
 			 */
 			/* XXX make debug msg */
 			if_printf(ifp, "%s: no mbuf!\n", __func__);
-			STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+			TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 			goto rx_next;
 		}
 		ds = bf->bf_desc;
@@ -3561,7 +3561,7 @@ ath_rx_proc(void *arg, int npending)
 #endif
 		if (status == HAL_EINPROGRESS)
 			break;
-		STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 
 		/* These aren't specifically errors */
 		if (rs->rs_flags & HAL_RX_GI)
@@ -3828,7 +3828,7 @@ rx_accept:
 				ath_led_event(sc, 0);
 		}
 rx_next:
-		STAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
+		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
 	} while (ath_rxbuf_init(sc, bf) == 0);
 
 	/* rx signal state monitoring */
@@ -3877,8 +3877,8 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
-	STAILQ_INIT(&txq->axq_q);
-	STAILQ_INIT(&txq->axq_tidq);
+	TAILQ_INIT(&txq->axq_q);
+	TAILQ_INIT(&txq->axq_tidq);
 	ATH_TXQ_LOCK_INIT(sc, txq);
 }
 
@@ -4188,7 +4188,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	for (;;) {
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		ATH_TXQ_LOCK(txq);
-		bf = STAILQ_FIRST(&txq->axq_q);
+		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(txq);
 			break;
@@ -4206,7 +4206,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
+		ATH_TXQ_REMOVE(txq, bf, bf_list);
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (txq->axq_depth > 0) {
 			/*
@@ -4434,7 +4434,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	bf->bf_flags &= ~ATH_BUF_BUSY;
 
 	ATH_TXBUF_LOCK(sc);
-	STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
 }
 
@@ -4452,20 +4452,20 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 *     we do not need to block ath_tx_proc
 	 */
 	ATH_TXBUF_LOCK(sc);
-	bf = STAILQ_LAST(&sc->sc_txbuf, ath_buf, bf_list);
+	bf = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
 
 	for (ix = 0;; ix++) {
 		ATH_TXQ_LOCK(txq);
-		bf = STAILQ_FIRST(&txq->axq_q);
+		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
+		ATH_TXQ_REMOVE(txq, bf, bf_list);
 		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
@@ -4530,7 +4530,7 @@ ath_draintxq(struct ath_softc *sc)
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
-		struct ath_buf *bf = STAILQ_FIRST(&sc->sc_bbuf);
+		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
 		if (bf != NULL && bf->bf_m != NULL) {
 			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
@@ -4568,7 +4568,7 @@ ath_stoprecv(struct ath_softc *sc)
 		printf("%s: rx queue %p, link %p\n", __func__,
 			(caddr_t)(uintptr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
 		ix = 0;
-		STAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
+		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
 			struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
 			HAL_STATUS status = ath_hal_rxprocdesc(ah, ds,
@@ -4598,7 +4598,7 @@ ath_startrecv(struct ath_softc *sc)
 
 	sc->sc_rxlink = NULL;
 	sc->sc_rxpending = NULL;
-	STAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
+	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 		int error = ath_rxbuf_init(sc, bf);
 		if (error != 0) {
 			DPRINTF(sc, ATH_DEBUG_RECV,
@@ -4608,7 +4608,7 @@ ath_startrecv(struct ath_softc *sc)
 		}
 	}
 
-	bf = STAILQ_FIRST(&sc->sc_rxbuf);
+	bf = TAILQ_FIRST(&sc->sc_rxbuf);
 	ath_hal_putrxbuf(ah, bf->bf_daddr);
 	ath_hal_rxena(ah);		/* enable recv descriptors */
 	ath_mode_init(sc);		/* set filters, etc. */

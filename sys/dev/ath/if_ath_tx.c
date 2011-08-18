@@ -181,10 +181,10 @@ ath_txfrag_cleanup(struct ath_softc *sc,
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	STAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
+	TAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
 		/* NB: bf assumed clean */
-		STAILQ_REMOVE_HEAD(frags, bf_list);
-		STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		TAILQ_REMOVE(frags, bf, bf_list);
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 		ieee80211_node_decref(ni);
 	}
 }
@@ -209,11 +209,11 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 			break;
 		}
 		ieee80211_node_incref(ni);
-		STAILQ_INSERT_TAIL(frags, bf, bf_list);
+		TAILQ_INSERT_TAIL(frags, bf, bf_list);
 	}
 	ATH_TXBUF_UNLOCK(sc);
 
-	return !STAILQ_EMPTY(frags);
+	return !TAILQ_EMPTY(frags);
 }
 
 /*
@@ -453,7 +453,7 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 	if (txq->axq_link != NULL) {
-		struct ath_buf *last = ATH_TXQ_LAST(txq);
+		struct ath_buf *last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
 
 		/* mark previous frame */
@@ -542,7 +542,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 				 * is/was empty.
 				 */
 				ath_hal_puttxbuf(ah, txq->axq_qnum,
-					STAILQ_FIRST(&txq->axq_q)->bf_daddr);
+					TAILQ_FIRST(&txq->axq_q)->bf_daddr);
 				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u restarted\n", __func__,
@@ -1608,7 +1608,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
-	STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
 bad:
 	ifp->if_oerrors++;
@@ -1812,7 +1812,7 @@ ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	atid->sched = 1;
 
-	STAILQ_INSERT_TAIL(&txq->axq_tidq, atid, axq_qelem);
+	TAILQ_INSERT_TAIL(&txq->axq_tidq, atid, axq_qelem);
 }
 
 /*
@@ -1833,7 +1833,7 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 		return;
 
 	atid->sched = 0;
-	STAILQ_REMOVE(&txq->axq_tidq, atid, ath_tid, axq_qelem);
+	TAILQ_REMOVE(&txq->axq_tidq, atid, axq_qelem);
 }
 
 /*
@@ -1961,7 +1961,7 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 
 	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
 		atid = &an->an_tid[i];
-		STAILQ_INIT(&atid->axq_q);
+		TAILQ_INIT(&atid->axq_q);
 		atid->tid = i;
 		atid->an = an;
 		for (j = 0; j < ATH_TID_MAX_BUFS; j++)
@@ -2063,7 +2063,7 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 	/* Walk the queue, free frames */
 	for (;;) {
 		ATH_TXQ_LOCK(atid);
-		bf = STAILQ_FIRST(&atid->axq_q);
+		bf = TAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
@@ -2077,7 +2077,7 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 		    bf->bf_state.bfs_dobaw)
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
-		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ATH_TXQ_REMOVE(atid, bf, bf_list);
 		ATH_TXQ_UNLOCK(atid);
 		ath_tx_freebuf(sc, bf, -1);
 	}
@@ -2200,11 +2200,11 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * + Fix the completion function to be non-aggregate
 	 */
 	ATH_TXQ_LOCK(atid);
-	bf = STAILQ_FIRST(&atid->axq_q);
+	bf = TAILQ_FIRST(&atid->axq_q);
 	while (bf) {
 		if (bf->bf_state.bfs_isretried) {
-			bf_next = STAILQ_NEXT(bf, bf_list);
-			STAILQ_REMOVE(&atid->axq_q, bf, ath_buf, bf_list);
+			bf_next = TAILQ_NEXT(bf, bf_list);
+			TAILQ_REMOVE(&atid->axq_q, bf, bf_list);
 			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw)
 				ath_tx_update_baw(sc, an, atid,
@@ -2219,7 +2219,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		}
 		/* Give these the default completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
-		bf = STAILQ_NEXT(bf, bf_list);
+		bf = TAILQ_NEXT(bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(atid);
 
@@ -2403,7 +2403,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	ath_tx_set_retry(sc, bf);
 	bf->bf_next = NULL;		/* Just to make sure */
 
-	STAILQ_INSERT_TAIL(bf_q, bf, bf_list);
+	TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 	return 0;
 }
 
@@ -2423,7 +2423,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
-	STAILQ_INIT(&bf_q);
+	TAILQ_INIT(&bf_q);
 
 	/* Retry all subframes */
 	bf = bf_first;
@@ -2458,14 +2458,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 #endif
 
 	/* Prepend all frames to the beginning of the queue */
-	/*
-	 * XXX for now, these are done in reverse order.
-	 * XXX I'll have to convert this into a TAILQ, so it can
-	 * XXX added to by walking in the reverse order.
-	 */
 	ATH_TXQ_LOCK(tid);
-	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
-		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
+		TAILQ_REMOVE(&bf_q, bf, bf_list);
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(tid);
@@ -2546,7 +2541,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		return;
 	}
 
-	STAILQ_INIT(&bf_q);
+	TAILQ_INIT(&bf_q);
 	tap = ath_tx_get_tx_tid(an, tid);
 
 	/*
@@ -2626,14 +2621,9 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 #endif
 
 	/* Prepend all frames to the beginning of the queue */
-	/*
-	 * XXX for now, these are done in reverse order.
-	 * XXX I'll have to convert this into a TAILQ, so it can
-	 * XXX added to by walking in the reverse order.
-	 */
 	ATH_TXQ_LOCK(atid);
-	while ((bf = STAILQ_FIRST(&bf_q)) != NULL) {
-		STAILQ_REMOVE_HEAD(&bf_q, bf_list);
+	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
+		TAILQ_REMOVE(&bf_q, bf, bf_list);
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(atid);
@@ -2742,7 +2732,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (atid->paused)
 			break;
 
-		bf = STAILQ_FIRST(&atid->axq_q);
+		bf = TAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
@@ -2755,7 +2745,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (! bf->bf_state.bfs_dobaw) {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: non-baw packet\n",
 			    __func__);
-			ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+			ATH_TXQ_REMOVE(atid, bf, bf_list);
 			ATH_TXQ_UNLOCK(atid);
 			bf->bf_state.bfs_aggr = 0;
 			/* Ensure the last descriptor link is 0 */
@@ -2771,7 +2761,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		ATH_TXQ_UNLOCK(atid);
 
 		/* Don't lock the TID - ath_tx_form_aggr will lock as needed */
-		STAILQ_INIT(&bf_q);
+		TAILQ_INIT(&bf_q);
 		status = ath_tx_form_aggr(sc, an, atid, &bf_q);
 
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -2780,14 +2770,14 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		/*
 		 * No frames to be picked up - out of BAW
 		 */
-		if (STAILQ_EMPTY(&bf_q))
+		if (TAILQ_EMPTY(&bf_q))
 			break;
 
 		/*
 		 * This assumes that the descriptor list in the ath_bufhead
 		 * are already linked together via bf_next pointers.
 		 */
-		bf = STAILQ_FIRST(&bf_q);
+		bf = TAILQ_FIRST(&bf_q);
 
 		/*
 		 * If it's the only frame send as non-aggregate
@@ -2890,13 +2880,13 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (atid->paused)
 			break;
 
-		bf = STAILQ_FIRST(&atid->axq_q);
+		bf = TAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 
-		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ATH_TXQ_REMOVE(atid, bf, bf_list);
 		ATH_TXQ_UNLOCK(atid);
 
 		txq = bf->bf_state.bfs_txq;
@@ -2939,7 +2929,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * or the like. That's a later problem. Just throw
 	 * packets at the hardware.
 	 */
-	STAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
+	TAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.

@@ -354,7 +354,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 
 	for (;;) {
 		ATH_TXQ_LOCK(tid);
-		bf = STAILQ_FIRST(&tid->axq_q);
+		bf = TAILQ_FIRST(&tid->axq_q);
 		if (bf_first == NULL)
 			bf_first = bf;
 		if (bf == NULL) {
@@ -432,11 +432,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		/*
 		 * this packet is part of an aggregate.
 		 */
-		ATH_TXQ_REMOVE_HEAD(tid, bf_list);
+		ATH_TXQ_REMOVE(tid, bf, bf_list);
 		ATH_TXQ_UNLOCK(tid);
 
 		ath_tx_addto_baw(sc, an, tid, bf);
-		STAILQ_INSERT_TAIL(bf_q, bf, bf_list);
+		TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 		nframes ++;
 
 		/* Completion handler */

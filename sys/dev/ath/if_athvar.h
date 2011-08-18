@@ -91,7 +91,7 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
 	struct mtx		axq_lock;	/* lock on q and link */
 	u_int			axq_depth;	/* SW queue depth */
 	char			axq_name[48];	/* lock name */
@@ -103,7 +103,7 @@ struct ath_tid {
 	 * Entry on the ath_txq; when there's traffic
 	 * to send
 	 */
-	STAILQ_ENTRY(ath_tid)	axq_qelem;
+	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
 
@@ -170,7 +170,7 @@ struct ath_node {
 #define	ATH_RSSI(x)		ATH_EP_RND(x, HAL_RSSI_EP_MULTIPLIER)
 
 struct ath_buf {
-	STAILQ_ENTRY(ath_buf)	bf_list;
+	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
@@ -234,7 +234,7 @@ struct ath_buf {
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
 	} bf_state;
 };
-typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
+typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 
@@ -270,12 +270,12 @@ struct ath_txq {
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
-	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
+	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
-	STAILQ_HEAD(,ath_tid)	axq_tidq;
+	TAILQ_HEAD(,ath_tid)	axq_tidq;
 };
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
@@ -294,21 +294,18 @@ struct ath_txq {
 #define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
 #define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
-	STAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
+	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
 } while (0)
 #define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
-	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
+	TAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
 } while (0)
-#define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
-	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \
+#define ATH_TXQ_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->axq_q, _elm, _field); \
 	(_tq)->axq_depth--; \
 } while (0)
-/* NB: this does not do the "head empty check" that STAILQ_LAST does */
-#define	ATH_TXQ_LAST(_tq) \
-	((struct ath_buf *)(void *) \
-	 ((char *)((_tq)->axq_q.stqh_last) - __offsetof(struct ath_buf, bf_list)))
+#define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
