@@ -1235,7 +1235,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
 	/* XXX do we need locking here? */
 	if (is_ampdu_tx) {
-		struct ath_node *an = ATH_NODE(ni);
+		//struct ath_node *an = ATH_NODE(ni);
 		//ATH_TXQ_LOCK(&an->an_tid[tid]);
 		/*
 		 * Always call; this function will
