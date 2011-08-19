@@ -2094,7 +2094,7 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 			    SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_REMOVE(atid, bf, bf_list);
 		ATH_TXQ_UNLOCK(atid);
-		ath_tx_freebuf(sc, bf, -1);
+		ath_tx_default_comp(sc, bf, -1);
 	}
 }
 
