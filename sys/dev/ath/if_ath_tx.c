@@ -395,8 +395,9 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	bf = bf_first;
 	while (bf != NULL) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
-		    "%s: bf=%p, nseg=%d, pktlen=%d\n",
-		    __func__, bf, bf->bf_nseg, bf->bf_state.bfs_pktlen);
+		    "%s: bf=%p, nseg=%d, pktlen=%d, seqno=%d\n",
+		    __func__, bf, bf->bf_nseg, bf->bf_state.bfs_pktlen,
+		    SEQNO(bf->bf_state.bfs_seqno));
 
 		/* Sub-frame setup */
 		ath_tx_chaindesclist_subframe(sc, bf);
@@ -2322,6 +2323,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		 * This'll end up going into net80211 and back out
 		 * again, via ic->ic_raw_xmit().
 		 */
+#if 0
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: send BAR\n",
 		    __func__, tid);
 		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
@@ -2337,6 +2339,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 			    "%s: TID %d: BAR TX failed\n",
 			    __func__, tid);
 		}
+#endif
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2438,6 +2441,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	ath_bufhead bf_q;
 	int drops = 0;
 	struct ieee80211_tx_ampdu *tap;
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
@@ -2482,6 +2486,13 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(tid);
+
+	/*
+	 * Kick the queue
+	 */
+	ATH_TXQ_LOCK(txq);
+	ath_tx_tid_sched(sc, an, tid->tid);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -2541,6 +2552,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	struct ath_buf *bf, *bf_next;
 	int ba_index;
 	int drops = 0;
+	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called\n", __func__);
 
@@ -2596,11 +2608,13 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	bf = bf_first;
 
 	while (bf) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: checking bf=%p seqno=%d\n",
-		    __func__, bf, SEQNO(bf->bf_state.bfs_seqno));
-
 		ba_index = ATH_BA_INDEX(seq_st, SEQNO(bf->bf_state.bfs_seqno));
 		bf_next = bf->bf_next;
+
+		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+		    "%s: checking bf=%p seqno=%d; ack=%d\n",
+		    __func__, bf, SEQNO(bf->bf_state.bfs_seqno),
+		    ATH_BA_ISSET(ba, ba_index));
 
 		/*
 		 * For now, ACK all packets
@@ -2647,6 +2661,14 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
 	ATH_TXQ_UNLOCK(atid);
+
+	/*
+	 * Kick the queue if it needs it
+	 * XXX too aggressive?
+	 */
+	ATH_TXQ_LOCK(txq);
+	ath_tx_tid_sched(sc, an, atid->tid);
+	ATH_TXQ_UNLOCK(txq);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: finished; txa_start now %d\n", __func__, tap->txa_start);
