@@ -67,6 +67,11 @@
 #include <dev/usb/usb_bus.h>
 #include <sys/ctype.h>
 
+static int usb_no_cs_fail;
+
+SYSCTL_INT(_hw_usb, OID_AUTO, no_cs_fail, CTLFLAG_RW,
+    &usb_no_cs_fail, 0, "USB clear stall failures are ignored, if set");
+
 #ifdef USB_DEBUG
 static int usb_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
@@ -238,7 +243,7 @@ usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
+tr_transferred:
 		/* reset error counter */
 		udev->clear_stall_errors = 0;
 
@@ -297,6 +302,13 @@ tr_setup:
 			break;
 
 		DPRINTF("Clear stall failed.\n");
+
+		/*
+		 * Some VMs like VirtualBox always return failure on
+		 * clear-stall which we sometimes should just ignore.
+		 */
+		if (usb_no_cs_fail)
+			goto tr_transferred;
 		if (udev->clear_stall_errors == USB_CS_RESET_LIMIT)
 			goto tr_setup;
 
