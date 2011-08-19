@@ -1233,7 +1233,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* A-MPDU TX? Manually set sequence number */
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
+	/* XXX do we need locking here? */
 	if (is_ampdu_tx) {
+		struct ath_node *an = ATH_NODE(ni);
+		//ATH_TXQ_LOCK(&an->an_tid[tid]);
 		/*
 		 * Always call; this function will
 		 * handle making sure that null data frames
@@ -1245,6 +1248,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
+		//ATH_TXQ_UNLOCK(&an->an_tid[tid]);
 	}
 
 	/*
@@ -1728,21 +1732,17 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 		return;
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW, "%s: tid=%d, seqno %d; window %d:%d\n",
-		    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
-		    tap->txa_start, tap->txa_wnd);
-
 	/*
 	 * ni->ni_txseqs[] is the currently allocated seqno.
 	 * the txa state contains the current baw start.
 	 */
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW, "%s: tap->txa_start: %d, seqno: %d\n",
-	    __func__, tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
 	index  = ATH_BA_INDEX(tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
-	    __func__, index, cindex, tid->baw_head, tid->baw_tail);
+	    "%s: tid=%d, seqno %d; window %d:%d; index=%d cindex=%d baw head=%d tail=%d\n",
+	    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
+	    tap->txa_start, tap->txa_wnd, index, cindex, tid->baw_head, tid->baw_tail);
+
 
 #if 0
 	assert(tid->tx_buf[cindex] == NULL);
@@ -1773,15 +1773,12 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	struct ieee80211_tx_ampdu *tap;
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, baw=%d:%d, seqno=%d\n",
-	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno);
-
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: index=%d, cindex=%d, baw head=%d, tail=%d\n",
-	    __func__, index, cindex, tid->baw_head, tid->baw_tail);
+	    "%s: tid=%d, baw=%d:%d, seqno=%d, index=%d, cindex=%d, baw head=%d, tail=%d\n",
+	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index, cindex, tid->baw_head, tid->baw_tail);
 
 	tid->tx_buf[cindex] = NULL;
 
@@ -1789,6 +1786,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 		INCR(tap->txa_start, IEEE80211_SEQ_RANGE);
 		INCR(tid->baw_head, ATH_TID_MAX_BUFS);
 	}
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW, "%s: baw is now %d:%d, baw head=%d\n",
+	    __func__, tap->txa_start, tap->txa_wnd, tid->baw_head);
 }
 
 /*
@@ -1920,8 +1919,20 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
+
+	/*
+	 * blank out fields which will be overridden if needed
+	 * Don't touch bfs_dobaw - that's already been set by
+	 * ath_tx_start().
+	 */
 	bf->bf_state.bfs_aggr = 0;
 	bf->bf_state.bfs_aggrburst = 0;
+	bf->bf_next = NULL;
+	bf->bf_state.bfs_retries = 0;
+	bf->bf_state.bfs_isretried = 0;
+	bf->bf_state.bfs_ndelim = 0;
+	bf->bf_state.bfs_nframes = 0;
+	bf->bf_state.bfs_al = 0;
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
@@ -2297,6 +2308,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	tap = ath_tx_get_tx_tid(an, tid);
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
+		device_printf(sc->sc_dev, "%s: exceeded retries; seqno %d\n",
+		    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		sc->sc_stats.ast_tx_swretrymax++;
 
 		/* Update BAW anyway */
@@ -2391,6 +2404,8 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	/* ath_hal_set11n_virtualmorefrag(sc->sc_ah, bf->bf_desc, 0); */
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
+		device_printf(sc->sc_dev, "%s: max retries: seqno %d\n",
+		    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
 		/* XXX subframe completion status? is that valid here? */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2471,6 +2486,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 /*
  * Handle clean-up of packets from an aggregate list.
+ * XXX update BAW?
  */
 static void
 ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
@@ -2539,7 +2555,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	/*
 	 * handle errors first
 	 */
-	if (0 && ts->ts_status & HAL_TXERR_XRETRY) {
+	if (ts->ts_status & HAL_TXERR_XRETRY) {
 		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
 	}
