@@ -2309,11 +2309,15 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	    ni, "send BAR: tid %u ctl 0x%x start %u (attempt %d)",
 	    tid, barctl, seq, tap->txa_attempts);
 
+	/*
+	 * ic_raw_xmit will free the node reference
+	 * regardless of queue/TX success or failure.
+	 */
 	ret = ic->ic_raw_xmit(ni, m, NULL);
 	if (ret != 0) {
 		/* xmit failed, clear state flag */
 		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
-		goto bad;
+		return ret;
 	}
 	/* XXX hack against tx complete happening before timer is started */
 	if (tap->txa_flags & IEEE80211_AGGR_BARPEND)
