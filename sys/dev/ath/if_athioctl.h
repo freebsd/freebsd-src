@@ -136,7 +136,9 @@ struct ath_stats {
 	u_int32_t	ast_tx_desccfgerr;	/* tx desc cfg error */
 	u_int32_t	ast_tx_swretries;	/* software TX retries */
 	u_int32_t	ast_tx_swretrymax;	/* software TX retry max limit reach */
-	u_int32_t	ast_pad[11];
+	u_int32_t	ast_tx_data_underrun;
+	u_int32_t	ast_tx_delim_underrun;
+	u_int32_t	ast_pad[9];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
