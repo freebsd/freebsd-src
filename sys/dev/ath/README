@@ -34,6 +34,17 @@ Things that need doing!
     one was used?
   - what else would be helpful?
 
+* Am I too aggressively scheduling things, and thus the aggregation code
+  doesn't ever get a chance to form decent sized aggregates?
+
+* I'm getting a lot of OOR packets at the receive end, is this because
+  of a large number of software retries? or is it that, combined with
+  TX'ing a long list of aggregates that mostly fill the BAW, meaning
+  packets can stay out of order for longer (but still be within the BAW?)
+  I bet this'd piss off TCP, if it had to wait for 20/30 packets
+  before it received the next retransmit (and thus the AMPDU RX queue
+  would get flushed.)
+
 Things that need investigating!
 
 There's a crash which occurs when a wlan interface is destroyed and
