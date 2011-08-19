@@ -135,6 +135,44 @@ int ath_max_4ms_framelen[4][32] = {
 };
 
 /*
+ * Return the number of delimiters to be added to
+ * meet the minimum required mpdudensity.
+ * Caller should make sure that the rate is HT.
+ *
+ * TODO: is this delimiter calculation supposed to be the
+ * total frame length, the hdr length, the data length (including
+ * delimiters, padding, CRC, etc) or ?
+ */
+static int
+ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
+    uint16_t pktlen)
+{
+	int ndelim;
+
+	/* Select standard number of delimiters based on frame length */
+	ndelim = ATH_AGGR_GET_NDELIM(pktlen);
+
+	/*
+	 * If encryption is enabled, add extra delimiters to let the
+	 * crypto hardware catch up. This could be tuned per-MAC and
+	 * per-rate, but for now we'll simply assume encryption is
+	 * always enabled.
+	 */
+	ndelim += ATH_AGGR_ENCRYPTDELIM;
+
+	/*
+	 * If the MPDU density is 0, we can return here.
+	 * Otherwise, we need to convert the desired mpdudensity
+	 * into a byte length, based on the rate in the subframe.
+	 *
+	 * XXX TODO: since the rate scenario hasn't been configured
+	 * XXX yet, this is likely not going to work. So, for now,
+	 * XXX ignore it.
+	 */
+	return ndelim;
+}
+
+/*
  * Setup a 11n rate series structure
  *
  * This should be called for both legacy and MCS rates.
@@ -290,7 +328,14 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	ath_hal_setuplasttxdesc(ah, lastds, ds);
 
 	/* Set burst duration */
-	/* This should only be done if aggregate protection is enabled */
+	/*
+	 * This is only required when doing 11n burst, not aggregation
+	 * ie, if there's a second frame in a RIFS or A-MPDU burst
+	 * w/ >1 A-MPDU frame bursting back to back.
+	 * Normal A-MPDU doesn't do bursting -between- aggregates.
+	 *
+	 * .. and it's highly likely this won't ever be implemented
+	 */
 	//ath_hal_set11nburstduration(ah, ds, 8192);
 }
 
@@ -308,15 +353,12 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
  *   needed before each frame
  * + Enforce the BAW limit
  *
- * Each descriptor queued should already have the TX fields setup,
- * the DMA map setup and the rate control series setup. Since
- * aggregate sub-frame retransmission is done entirely in software,
- * it should only have a single rate series configured.
- *
- * The first descriptor has the rate control and aggregate setup
- * fields; the middle frames have "aggregate" and "more" flags set
- * along with the delimiter count; the last frame has "aggregate"
- * set.
+ * Each descriptor queued should have the DMA setup.
+ * The rate series, descriptor setup, linking, etc is all done
+ * externally. This routine simply chains them together.
+ * ath_tx_setds_11n() will take care of configuring the per-
+ * descriptor setup, and ath_buf_set_rate() will configure the
+ * rate control.
  *
  * Note that the TID lock is only grabbed when dequeuing packets from
  * the TID queue. If some code in another thread adds to the head of this
@@ -350,7 +392,10 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	h_baw = tap->txa_wnd / 2;
 
 	/* Calculate aggregation limit */
-	aggr_limit = 49152;		/* XXX just for now, for testing */
+	/*
+	 * XXX TODO: do not exceed 4ms packet length
+	 */
+	aggr_limit = 65530;		/* XXX just for now, for testing */
 
 	for (;;) {
 		ATH_TXQ_LOCK(tid);
@@ -396,11 +441,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		}
 
 		/*
-		 * do not exceed aggregation limit
-		 */
-		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
-
-		/*
 		 * XXX TODO: AR5416 has an 8K aggregation size limit
 		 * when RTS is enabled, and RTS is required for dual-stream
 		 * rates.
@@ -408,6 +448,10 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * For now, limit all aggregates for the AR5416 to be 8K.
 		 */
 
+		/*
+		 * do not exceed aggregation limit
+		 */
+		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
 		if (nframes &&
 		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
 			ATH_TXQ_UNLOCK(tid);
@@ -425,9 +469,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 			break;
 		}
 
-		/*
-		 * XXX TODO: do not exceed 4ms packet length
-		 */
 
 		/*
 		 * this packet is part of an aggregate.
@@ -446,15 +487,19 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * add padding for previous frame to aggregation length
 		 */
 		al += bpad + al_delta;
-		bf->bf_state.bfs_ndelim =
-		    ATH_AGGR_GET_NDELIM(bf->bf_state.bfs_pktlen);
 
 		/*
-		 * Add further padding if encryption is required
-		 * XXX for now, always add it.
+		 * Calculate delimiters needed for the current frame
 		 */
-		bf->bf_state.bfs_ndelim += ATH_AGGR_ENCRYPTDELIM;
+		bf->bf_state.bfs_ndelim =
+		    ath_compute_num_delims(sc, bf_first,
+		    bf->bf_state.bfs_pktlen);
 
+		/*
+		 * Calculate the padding needed from this set of delimiters,
+		 * used when calculating if the next frame will fit in
+		 * the aggregate.
+		 */
 		bpad = PADBYTES(al_delta) + (bf->bf_state.bfs_ndelim << 2);
 
 		/*
@@ -463,6 +508,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		if (bf_prev)
 			bf_prev->bf_next = bf;
 		bf_prev = bf;
+
+		/*
+		 * XXX TODO: if any sub-frames have RTS/CTS enabled;
+		 * enable it for the entire aggregate.
+		 */
 
 #if 0
 		/*
