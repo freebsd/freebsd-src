@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2011
+.Dd August 19, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -260,29 +260,21 @@ and
 .Fl i Ar index ) .
 Not all partitioning schemes have embedded bootstrap code, so the
 .Fl b Ar bootcode
-option is scheme-specific in nature.
-For the GPT scheme, embedded bootstrap code is supported.
-The bootstrap code is embedded in the protective MBR rather than the GPT.
+option is scheme-specific in nature (see the section entitled
+.Sx BOOTSTRAPPING
+below).
 The
 .Fl b Ar bootcode
 option specifies a file that contains the bootstrap code.
 The contents and size of the file are determined by the partitioning
 scheme.
-For the MBR scheme, it is a 512 byte file of which the first 446 bytes
-are installed as bootstrap code.
 The
 .Fl p Ar partcode
 option specifies a file that contains the bootstrap code intended to be
 written to a partition.
-For the VTOC8 scheme, it is a 8192 byte file of which the last 7680 bytes
-are installed as bootstrap code.
 The partition is specified by the
 .Fl i Ar index
 option.
-For the VTOC8 scheme, if the
-.Fl i Ar index
-option is omitted, the bootstrap code is written to all sufficiently large
-partitions.
 The size of the file must be smaller than the size of the partition.
 .Pp
 Additional options include:
@@ -716,6 +708,91 @@ The scheme-specific attributes for PC98:
 .It Cm active
 .It Cm bootable
 .El
+.Sh BOOTSTRAPPING
+.Fx supports several partitioning schemes and each scheme uses different
+bootstrap code.
+The bootstrap code is located in the specific disk area for each partitioning
+scheme and also it might have different size.
+.Pp
+The bootstrap code could be separated into two types.
+The first one is embedded in the partitioning scheme's metadata, the second
+type is located on the specific partition.
+The embedding bootstrap code should be done only with the
+.Cm gpart bootcode
+command with
+.Fl b Ar bootcode
+option.
+The GEOM PART class has knowlege on how to embed bootstrap code into specific
+partitioning scheme metadata without damage.
+.Pp
+The Master Boot Record (MBR) uses 512-bytes bootstrap code image, embedded into
+partition table's metadata area.
+There are two variants of this bootstrap code:
+.Pa /boot/mbr
+and
+.Pa /boot/boot0 .
+The first one searches partition with
+.Cm active
+attribute (see the
+.Sx ATTRIBUTES
+section) in the partition table.
+Then it runs next bootstrap stage.
+The
+.Pa /boot/boot0
+image contains a boot manager with some additional interactive functions.
+.Pp
+The BSD disklabel is usually created on top of the MBR partition (slice)
+with type
+.Cm freebsd
+(see the
+.Sx "PARTITION TYPES"
+section).
+It uses 8 KB size bootstrap code image
+.Pa /boot/boot ,
+embedded into partition table's metadata area.
+.Pp
+Both types of bootstrap code are used to boot from the GUID Partition Table.
+First of all, a protective MBR is embedded into first disk sector from the
+.Pa /boot/pmbr
+image.
+It searches the
+.Cm freebsd-boot
+partition (see the
+.Sx "PARTITION TYPES"
+section) in the GPT and runs next bootstrap stage from it.
+The
+.Cm freebsd-boot
+partition should be smaller than 545 KB.
+There are two variants of bootstrap code to write to this partition:
+.Pa /boot/gptboot
+and
+.Pa /boot/gptzfsboot .
+The first one is used to boot from UFS.
+It searches in the GPT partition with type
+.Cm freebsd-ufs ,
+and it runs the thrid bootstrap stage (
+.Pa /boot/loader )
+if it is found.
+The
+.Pa /boot/gptzfsboot
+is used to boot from ZFS.
+It searches partition with type
+.Cm freebsd-zfs
+and starts
+.Pa /boot/zfsloader
+from it.
+.Pp
+The VTOC8 scheme does not support embedding bootstrap code.
+Instead, the 8 KBytes bootstrap code image
+.Pa /boot/boot1
+could be written with
+.Cm gpart bootcode
+command with
+.Fl p Ar bootcode
+option to all sufficiently large VTOC8 partitions.
+To do this the
+.Fl i Ar index
+option could be ommited.
 .Sh OPERATIONAL FLAGS
 Actions other than the
 .Cm commit
@@ -949,6 +1026,7 @@ and
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr geom 4 ,
+.Xr boot0cfg 8 ,
 .Xr geom 8
 .Sh HISTORY
 The
