@@ -176,6 +176,9 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
  * Setup a 11n rate series structure
  *
  * This should be called for both legacy and MCS rates.
+ *
+ * It, along with ath_buf_set_rate, must be called -after- a burst
+ * or aggregate is setup.
  */
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
@@ -187,13 +190,22 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	HAL_BOOL shortPreamble = AH_FALSE;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
-	int pktlen = bf->bf_state.bfs_pktlen;
+	int pktlen;
 	int flags = bf->bf_state.bfs_flags;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
 	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE))
 		shortPreamble = AH_TRUE;
+
+	/*
+	 * If this is the first frame in an aggregate series,
+	 * use the aggregate length.
+	 */
+	if (bf->bf_state.bfs_aggr)
+		pktlen = bf->bf_state.bfs_al;
+	else
+		pktlen = bf->bf_state.bfs_pktlen;
 
 	memset(series, 0, sizeof(HAL_11N_RATE_SERIES) * 4);
 	for (i = 0; i < 4;  i++) {
