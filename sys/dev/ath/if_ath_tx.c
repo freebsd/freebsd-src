@@ -2616,11 +2616,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		    __func__, bf, SEQNO(bf->bf_state.bfs_seqno),
 		    ATH_BA_ISSET(ba, ba_index));
 
-		/*
-		 * For now, ACK all packets
-		 */
 		if (tx_ok && ATH_BA_ISSET(ba, ba_index)) {
-		//if (1) {
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 			ath_tx_default_comp(sc, bf, 0);
@@ -2785,7 +2781,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		 * data frame), schedule it directly; continue.
 		 */
 		if (! bf->bf_state.bfs_dobaw) {
-			DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: non-baw packet\n",
+			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: non-baw packet\n",
 			    __func__);
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
 			ATH_TXQ_UNLOCK(atid);
@@ -2806,7 +2802,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		TAILQ_INIT(&bf_q);
 		status = ath_tx_form_aggr(sc, an, atid, &bf_q);
 
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: ath_tx_form_aggr() status=%d\n", __func__, status);
 
 		/*
@@ -2827,7 +2823,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		 * whether it's in the BAW and added it appropriately.
 		 */
 		if (bf->bf_state.bfs_nframes == 1) {
-			DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
 			/* Ensure the last descriptor link is 0 */
@@ -2837,7 +2833,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
 		} else {
-			DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: multi-frame aggregate: %d frames, length %d\n",
 			     __func__, bf->bf_state.bfs_nframes,
 			    bf->bf_state.bfs_al);
