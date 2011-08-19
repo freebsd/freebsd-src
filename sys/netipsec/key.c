@@ -2866,9 +2866,10 @@ key_newsav(m, mhp, sah, errp, where, tag)
 	sa_initref(newsav);
 	newsav->state = SADB_SASTATE_LARVAL;
 
-	/* XXX locking??? */
+	SAHTREE_LOCK();
 	LIST_INSERT_TAIL(&sah->savtree[SADB_SASTATE_LARVAL], newsav,
 			secasvar, chain);
+	SAHTREE_UNLOCK();
 done:
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP %s from %s:%u return SP:%p\n", __func__,
@@ -5712,8 +5713,8 @@ key_delete(so, m, mhp)
 	}
 
 	key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-	SAHTREE_UNLOCK();
 	KEY_FREESAV(&sav);
+	SAHTREE_UNLOCK();
 
     {
 	struct mbuf *n;
