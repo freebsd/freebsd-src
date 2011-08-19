@@ -583,7 +583,11 @@ release rerelease:
 	echo "fi"				>> ${_MK}
 	echo "cd /usr/src/release"		>> ${_MK}
 	echo "make obj"				>> ${_MK}
-	echo "make \$${_RELTARGET}"		>> ${_MK}
+	echo "if [ -f Makefile.sysinstall ]; then" >> ${_MK}
+	echo "  make -f Makefile.sysinstall \$${_RELTARGET}" >> ${_MK}
+	echo "else"				>> ${_MK}
+	echo "  make \$${_RELTARGET}"		>> ${_MK}
+	echo "fi"				>> ${_MK}
 	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	chmod 755 ${_MK}
 .if defined(NOPORTS)
