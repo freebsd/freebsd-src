@@ -4156,6 +4156,10 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		st = ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
 		    ts->ts_status : HAL_TXERR_XRETRY;
 
+	if (bf->bf_state.bfs_dobaw)
+		device_printf(sc->sc_dev,
+		    "%s: dobaw should've been cleared!\n", __func__);
+
 	/*
 	 * Do any tx complete callback.  Note this must
 	 * be done before releasing the node reference.

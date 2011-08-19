@@ -486,9 +486,16 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * this packet is part of an aggregate.
 		 */
 		ATH_TXQ_REMOVE(tid, bf, bf_list);
+
+		/* The TID lock is required for the BAW update */
+		ath_tx_addto_baw(sc, an, tid, bf);
 		ATH_TXQ_UNLOCK(tid);
 
-		ath_tx_addto_baw(sc, an, tid, bf);
+		/*
+		 * Add the now owned buffer (which isn't
+		 * on the software TXQ any longer) to our
+		 * aggregate frame list.
+		 */
 		TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 		nframes ++;
 

@@ -1721,6 +1721,9 @@ ath_tx_action_frame_override_queue(struct ath_softc *sc,
  *
  * + fits inside the BAW;
  * + already has had a sequence number allocated.
+ *
+ * Since the BAW status may be modified by both the ath task and
+ * the net80211/ifnet contexts, the TID must be locked.
  */
 void
 ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
@@ -1728,6 +1731,8 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 {
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
+
+	ATH_TXQ_LOCK_ASSERT(tid);
 
 	if (bf->bf_state.bfs_isretried)
 		return;
@@ -1765,6 +1770,9 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 /*
  * seq_start - left edge of BAW
  * seq_next - current/next sequence number to allocate
+ *
+ * Since the BAW status may be modified by both the ath task and
+ * the net80211/ifnet contexts, the TID must be locked.
  */
 static void
 ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
@@ -1772,6 +1780,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 {
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
+
+	ATH_TXQ_LOCK_ASSERT(tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
@@ -2089,9 +2099,11 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 		 * the BAW.
 		 */
 		if (ath_tx_ampdu_running(sc, an, tid) &&
-		    bf->bf_state.bfs_dobaw)
+		    bf->bf_state.bfs_dobaw) {
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
+			bf->bf_state.bfs_dobaw = 0;
+		}
 		ATH_TXQ_REMOVE(atid, bf, bf_list);
 		ATH_TXQ_UNLOCK(atid);
 		ath_tx_default_comp(sc, bf, -1);
@@ -2224,6 +2236,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			if (bf->bf_state.bfs_dobaw)
 				ath_tx_update_baw(sc, an, atid,
 				    SEQNO(bf->bf_state.bfs_seqno));
+			bf->bf_state.bfs_dobaw = 0;
 			/*
 			 * Call the default completion handler with "fail" just
 			 * so upper levels are suitably notified about this.
@@ -2251,6 +2264,8 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * not yet ACKed.
 	 */
 	tap = ath_tx_get_tx_tid(an, tid);
+	/* Need the lock - fiddling with BAW */
+	ATH_TXQ_LOCK(atid);
 	while (atid->baw_head != atid->baw_tail) {
 		if (atid->tx_buf[atid->baw_head]) {
 			atid->incomp++;
@@ -2260,6 +2275,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		INCR(atid->baw_head, ATH_TID_MAX_BUFS);
 		INCR(tap->txa_start, IEEE80211_SEQ_RANGE);
 	}
+	ATH_TXQ_UNLOCK(atid);
 
 	/*
 	 * If cleanup is required, defer TID scheduling
@@ -2314,9 +2330,13 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		sc->sc_stats.ast_tx_swretrymax++;
 
 		/* Update BAW anyway */
-		if (bf->bf_state.bfs_dobaw)
+		if (bf->bf_state.bfs_dobaw) {
+			ATH_TXQ_LOCK(atid);
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
+			ATH_TXQ_UNLOCK(atid);
+		}
+		bf->bf_state.bfs_dobaw = 0;
 
 		/* Send BAR frame */
 		/*
@@ -2369,8 +2389,10 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 */
 	if (bf->bf_flags & ATH_BUF_BUSY) {
 		bf->bf_flags &= ~ ATH_BUF_BUSY;
+#if 0
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
+#endif
 	}
 
 	/*
@@ -2409,7 +2431,10 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
 		device_printf(sc->sc_dev, "%s: max retries: seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
+		ATH_TXQ_LOCK(atid);
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		bf->bf_state.bfs_dobaw = 0;
+		ATH_TXQ_UNLOCK(atid);
 		/* XXX subframe completion status? is that valid here? */
 		ath_tx_default_comp(sc, bf, 0);
 		return 1;
@@ -2417,8 +2442,10 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 
 	if (bf->bf_flags & ATH_BUF_BUSY) {
 		bf->bf_flags &= ~ ATH_BUF_BUSY;
+#if 0
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
+#endif
 	}
 
 	ath_tx_set_retry(sc, bf);
@@ -2617,8 +2644,11 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		    ATH_BA_ISSET(ba, ba_index));
 
 		if (tx_ok && ATH_BA_ISSET(ba, ba_index)) {
+			ATH_TXQ_LOCK(atid);
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
+			ATH_TXQ_UNLOCK(atid);
+			bf->bf_state.bfs_dobaw = 0;
 			ath_tx_default_comp(sc, bf, 0);
 		} else {
 			drops += ath_tx_retry_subframe(sc, bf, &bf_q);
@@ -2714,8 +2744,12 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	/* Success? Complete */
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: TID=%d, seqno %d\n",
 	    __func__, tid, SEQNO(bf->bf_state.bfs_seqno));
-	if (bf->bf_state.bfs_dobaw)
+	if (bf->bf_state.bfs_dobaw) {
+		ATH_TXQ_LOCK(atid);
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		bf->bf_state.bfs_dobaw = 0;
+		ATH_TXQ_UNLOCK(atid);
+	}
 
 	ath_tx_default_comp(sc, bf, fail);
 	/* bf is freed at this point */
