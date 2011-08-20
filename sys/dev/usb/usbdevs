@@ -2448,6 +2448,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTMAX72		0x6711	GlobeTrotter Max 7.2 HSDPA
 product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
