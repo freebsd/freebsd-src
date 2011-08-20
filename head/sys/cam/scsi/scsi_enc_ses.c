@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD: head/sys/cam/scsi/scsi_ses.c 201758 2010-01-07 21:01:37Z mbr
 
 /* SES Diagnostic Page Codes */
 typedef enum {
+	SesSupportedPages	= 0x0,
 	SesConfigPage		= 0x1,
 	SesControlPage		= 0x2,
 	SesStatusPage		= SesControlPage,
@@ -237,6 +238,7 @@ struct ses_iterator {
 
 typedef enum {
 	SES_UPDATE_NONE,
+	SES_UPDATE_PAGES,
 	SES_UPDATE_GETCONFIG,
 	SES_UPDATE_GETSTATUS,
 	SES_UPDATE_GETELMDESCS,
@@ -253,6 +255,7 @@ static enc_softc_cleanup_t ses_softc_cleanup;
 
 static fsm_fill_handler_t ses_fill_rcv_diag_io;
 static fsm_fill_handler_t ses_fill_control_request;
+static fsm_done_handler_t ses_process_pages;
 static fsm_done_handler_t ses_process_config;
 static fsm_done_handler_t ses_process_status;
 static fsm_done_handler_t ses_process_elm_descs;
@@ -264,6 +267,15 @@ static fsm_done_handler_t ses_publish_cache;
 struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 {
 	{ "SES_UPDATE_NONE", 0, 0, 0, NULL, NULL, NULL },
+	{
+		"SES_UPDATE_PAGES",
+		SesSupportedPages,
+		SCSZ,
+		60 * 1000,
+		ses_fill_rcv_diag_io,
+		ses_process_pages,
+		enc_error
+	},
 	{
 		"SES_UPDATE_GETCONFIG",
 		SesConfigPage,
@@ -352,6 +364,7 @@ typedef struct ses_cache {
 typedef struct ses_softc {
 	uint32_t		ses_flags;
 #define	SES_FLAG_TIMEDCOMP	0x01
+#define	SES_FLAG_ADDLSTATUS	0x02
 
 	ses_control_reqlist_t	ses_requests;
 	ses_control_reqlist_t	ses_pending_requests;
@@ -1211,6 +1224,55 @@ out:
 }
 
 /**
+ * \brief Process the list of supported pages and update flags.
+ *
+ * \param enc       SES device to query.
+ * \param buf       Buffer containing the config page.
+ * \param xfer_len  Length of the config page in the buffer.
+ *
+ * \return  0 on success, errno otherwise.
+ */
+static int
+ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
+		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+{
+	ses_softc_t *ses;
+	struct scsi_diag_page *page;
+	int err, i, length;
+
+	CAM_DEBUG(enc->periph->path, CAM_DEBUG_SUBTRACE,
+	    ("entering %s(%p, %d)\n", __func__, bufp, xfer_len));
+	ses = enc->enc_private;
+	err = -1;
+
+	if (xfer_len < sizeof(*page)) {
+		ENC_LOG(enc, "Unable to parse Diag Pages List Header\n");
+		err = EIO;
+		goto out;
+	}
+	page = (struct scsi_diag_page *)*bufp;
+	length = scsi_2btoul(page->length);
+	if (length + offsetof(struct scsi_diag_page, params) > xfer_len) {
+		ENC_LOG(enc, "Diag Pages List Too Long\n");
+		goto out;
+	}
+	ENC_DLOG(enc, "%s: page length %d, xfer_len %d\n",
+		 __func__, length, xfer_len);
+
+	err = 0;
+	for (i = 0; i < length; i++) {
+		if (page->params[i] == SesAddlElementStatus) {
+			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
+			break;
+		}
+	}
+
+out:
+	ENC_DLOG(enc, "%s: exiting with err %d\n", __func__, err);
+	return (err);
+}
+
+/**
  * \brief Process the config page and update associated structures.
  *
  * \param enc       SES device to query.
@@ -1411,7 +1473,8 @@ out:
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
 		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
-		enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
+		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
+			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 		enc_update_request(enc, SES_PUBLISH_CACHE);
 	}
 	ENC_DLOG(enc, "%s: exiting with err %d\n", __func__, err);
@@ -1817,6 +1880,7 @@ static int
 ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 		     union ccb *ccb, uint8_t **bufp, int xfer_len)
 {
+	ses_softc_t *ses;
 	struct ses_iterator iter;
 	enc_element_t *element;
 	int err;
@@ -1829,6 +1893,7 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 	const struct ses_page_hdr *phdr;
 	const struct ses_elm_desc_hdr *hdr;
 
+	ses = enc->enc_private;
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
@@ -1891,8 +1956,10 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 out:
-	if (err == 0)
-		enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
+	if (err == 0) {
+		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
+			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
+	}
 	enc_update_request(enc, SES_PUBLISH_CACHE);
 	return (err);
 }
@@ -2633,8 +2700,12 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 static void
 ses_poll_status(enc_softc_t *enc)
 {
+	ses_softc_t *ses;
+
+	ses = enc->enc_private;
 	enc_update_request(enc, SES_UPDATE_GETSTATUS);
-	enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
+	if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
+		enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 }
 
 /**
@@ -2709,6 +2780,8 @@ ses_softc_init(enc_softc_t *enc, int doinit)
 	ses_softc = enc->enc_private;
 	TAILQ_INIT(&ses_softc->ses_requests);
 	TAILQ_INIT(&ses_softc->ses_pending_requests);
+
+	enc_update_request(enc, SES_UPDATE_PAGES);
 
 	// XXX: Move this to the FSM so it doesn't hang init
 	if (0) (void) ses_set_timed_completion(enc, 1);

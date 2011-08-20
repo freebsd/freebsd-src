@@ -907,7 +907,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		goto out;
 	}
 	enc->periph = periph;
-	enc->current_action = ENC_UPDATE_NONE;
+	enc->current_action = ENC_UPDATE_INVALID;
 
 	enc->enc_type = enc_type(cgd);
 	sx_init(&enc->enc_cache_lock, "enccache");

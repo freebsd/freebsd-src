@@ -154,6 +154,7 @@ struct enc_softc {
 	/* The action on which the state machine is currently working. */
 	uint32_t		 current_action;
 #define	ENC_UPDATE_NONE		0x00
+#define	ENC_UPDATE_INVALID	0xff
 
 	/* Callout for auto-updating enclosure status */
 	struct callout		 status_updater;
