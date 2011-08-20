@@ -44,6 +44,11 @@
 #define	WME_MAX_BA	WME_BA_BMP_SIZE
 
 /*
+ * How 'busy' to try and keep the hardware txq
+ */
+#define	ATH_AGGR_MIN_QDEPTH		2
+
+/*
  * return whether a bit at index _n in bitmap _bm is set
  * _sz is the size of the bitmap
  */

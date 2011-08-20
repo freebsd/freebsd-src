@@ -1,3 +1,18 @@
+Things to debug!
+
+* Write something in ath_tx_default_comp() that ensures the buffer is unlinked
+  (ie, not part of an aggregate)
+
+* Write something in the aggr comp function which checks that the number of
+  frames in the aggregate list matches bf_stats.bfs_nframes
+  - Done
+
+* Am I losing an ath_buf in the hardware TX queue code? Ie, are they not
+  ever queued?
+
+* Is it some missing sequence numbers? ie, is addto_baw being called with
+  sequence numbers out of order, or "gaps" in the sequence numbers?
+
 Things that need doing!
 
 * RIFS? Do I care about supporting RIFS?

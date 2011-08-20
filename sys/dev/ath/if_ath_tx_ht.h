@@ -50,6 +50,8 @@ typedef enum {
 
 extern int	ath_max_4ms_framelen[4][32];
 
+extern void ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf);
+
 extern void	ath_buf_set_rate(struct ath_softc *sc,
 		struct ieee80211_node *ni, struct ath_buf *bf);
 

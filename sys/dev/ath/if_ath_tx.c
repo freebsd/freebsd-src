@@ -1273,6 +1273,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
 
+	/*
+	 * ath_tx_normal_setup() has done the single and multi-rate
+	 * retry rate lookup for us. Fill in the rcflags based on
+	 * that.
+	 */
+	ath_tx_rate_fill_rcflags(sc, bf);
 #if 1
 	/*
 	 * If it's a multicast frame, do a direct-dispatch to the
@@ -1510,6 +1516,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		bf->bf_state.bfs_rc[2].tries = params->ibp_try2;
 		bf->bf_state.bfs_rc[3].tries = params->ibp_try3;
 	}
+	/*
+	 * All the required rate control decisions have been made;
+	 * fill in the rc flags.
+	 */
+	ath_tx_rate_fill_rcflags(sc, bf);
 
 	/* NB: no buffered multicast in power save support */
 
@@ -2478,6 +2489,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
+		bf->bf_next = NULL;	/* Remove it from the aggr list */
 		drops += ath_tx_retry_subframe(sc, bf, &bf_q);
 		bf = bf_next;
 	}
@@ -2540,6 +2552,7 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	while (bf) {
 		atid->incomp--;
 		bf_next = bf->bf_next;
+		bf->bf_next = NULL;	/* Remove it from the aggr list */
 		ath_tx_default_comp(sc, bf, -1);
 		bf = bf_next;
 	}
@@ -2580,6 +2593,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	int ba_index;
 	int drops = 0;
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	int np = 0;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called\n", __func__);
 
@@ -2635,8 +2649,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	bf = bf_first;
 
 	while (bf) {
+		np++;
 		ba_index = ATH_BA_INDEX(seq_st, SEQNO(bf->bf_state.bfs_seqno));
 		bf_next = bf->bf_next;
+		bf->bf_next = NULL;	/* Remove it from the aggr list */
 
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: checking bf=%p seqno=%d; ack=%d\n",
@@ -2655,6 +2671,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		}
 		bf = bf_next;
 	}
+
+	if (np != bf_first->bf_state.bfs_nframes)
+		device_printf(sc->sc_dev, "%s: np=%d; nframes=%d\n",
+		    __func__, np, bf_first->bf_state.bfs_nframes);
 
 	/* update rate control module about aggregate status */
 	/* XXX TODO */

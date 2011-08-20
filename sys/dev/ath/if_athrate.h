@@ -79,6 +79,12 @@ void	ath_rate_detach(struct ath_ratectrl *);
 
 #define	ATH_RC_NUM		4
 
+#define	ATH_RC_DS_FLAG		0x01	/* dual-stream rate */
+#define	ATH_RC_CW40_FLAG	0x02	/* use HT40 */
+#define	ATH_RC_SGI_FLAG		0x04	/* use short-GI */
+#define	ATH_RC_HT_FLAG		0x08	/* use HT */
+#define	ATH_RC_RTSCTS_FLAG	0x10	/* enable RTS/CTS protection */
+
 struct ath_rc_series {
 	uint8_t rix;		/* ratetable index, not rate code */
 	uint8_t tries;
