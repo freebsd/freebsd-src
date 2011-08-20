@@ -37,7 +37,36 @@ Things to debug!
 
   That should be .. well, fixed.
 
+  Yes, it's this. The problem is the cleanup, flush, drain handling.
+  What I need to do is:
+
+  * for interface -teardown-, the frames can be completed.
+  * for interface -flush-, complete the retries as failed?, and reschedule
+    the frames on the queue.
+    - the problem - what if that flush is a mode change?
+    - or what else? 20/40 change? rate change? etc.
+  * for interface -cleanup-, ?
+  * drain?
+
+
 Things that need doing!
+
+* Handle channel/mode changes which shouldn't flush packets in the
+  software queue (and the packets in the hardware queue that can
+  be recovered after TX DMA is stopped..)
+  + eg a mode change which changes the channel (2/5ghz), or ht<->non-ht,
+    or 40<->20mhz modes - these may end up with packets in the software
+    queue which can't be supported by the new operating mode.
+  + How to fix? :-)
+
+* Perhaps delay the rate lookup until the packet is being hardware queued,
+  rather than doing the rate decision at ath_tx_raw_xmit() / ath_tx_start();
+* .. and since raw queued frames may have invalid rate information, enforce
+  valid rate/flags when the packet is being hardware queued.
+* .. this also will allow for rate lookups to be done on retried frames,
+  which may help with reliability.
+* Find where in the driver the rate table is updated, and do what? Trigger
+  updating the software-queued frames? Or?
 
 * Add a swretrysubframe and swretrysubframemax counter, use it
 
