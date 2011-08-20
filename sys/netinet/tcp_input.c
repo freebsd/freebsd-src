@@ -581,9 +581,6 @@ tcp_input(struct mbuf *m, int off0)
 	int isipv6;
 #else
 	const void *ip6 = NULL;
-#if (defined(INET) && defined(IPFIREWALL_FORWARD)) || defined(TCPDEBUG)
-	const int isipv6 = 0;
-#endif
 #endif /* INET6 */
 	struct tcpopt to;		/* options in this segment */
 	char *s = NULL;			/* address and port logging */
@@ -1028,11 +1025,11 @@ relocked:
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG) {
 		ostate = tp->t_state;
-		if (isipv6) {
 #ifdef INET6
+		if (isipv6) {
 			bcopy((char *)ip6, (char *)tcp_saveipgen, sizeof(*ip6));
-#endif
 		} else
+#endif
 			bcopy((char *)ip, (char *)tcp_saveipgen, sizeof(*ip));
 		tcp_savetcp = *th;
 	}
