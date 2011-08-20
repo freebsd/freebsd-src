@@ -978,7 +978,7 @@ do {								\
 		proto = ip6->ip6_nxt;
 
 		/* Search extension headers to find upper layer protocols */
-		while (ulp == NULL) {
+		while (ulp == NULL && offset == 0) {
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
