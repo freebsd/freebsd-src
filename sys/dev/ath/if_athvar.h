@@ -208,6 +208,7 @@ struct ath_buf {
 		int bfs_aggrburst:1;	/* part of aggregate burst? */
 		int bfs_isretried:1;	/* retried frame? */
 		int bfs_dobaw:1;	/* actually check against BAW? */
+		int bfs_addedbaw:1;	/* has been added to the BAW */
 		int bfs_shpream:1;	/* use short preamble */
 		int bfs_istxfrag:1;	/* is fragmented */
 		int bfs_ismrr:1;	/* do multi-rate TX retry */

@@ -745,6 +745,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);
+		bf->bf_state.bfs_addedbaw = 1;
 		ATH_TXQ_UNLOCK(tid);
 
 		/*

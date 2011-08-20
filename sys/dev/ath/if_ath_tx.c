@@ -1955,6 +1955,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_ndelim = 0;
 	bf->bf_state.bfs_nframes = 0;
 	bf->bf_state.bfs_al = 0;
+	bf->bf_state.bfs_addedbaw = 0;
 
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
@@ -2114,6 +2115,10 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 			bf->bf_state.bfs_dobaw = 0;
+			if (! bf->bf_state.bfs_addedbaw)
+				device_printf(sc->sc_dev,
+				    "%s: wasn't added: seqno %d\n",
+				    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		}
 		ATH_TXQ_REMOVE(atid, bf, bf_list);
 		ATH_TXQ_UNLOCK(atid);
@@ -2159,6 +2164,9 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
 	struct ath_tid *atid;
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: node %p: cleaning up\n",
+	    __func__, an);
 
 	/* Flush all packets currently in the sw queues for this node */
 	ath_tx_node_flush(sc, an);
@@ -2244,9 +2252,14 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			bf_next = TAILQ_NEXT(bf, bf_list);
 			TAILQ_REMOVE(&atid->axq_q, bf, bf_list);
 			atid->axq_depth--;
-			if (bf->bf_state.bfs_dobaw)
+			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid,
 				    SEQNO(bf->bf_state.bfs_seqno));
+				if (! bf->bf_state.bfs_addedbaw)
+					device_printf(sc->sc_dev,
+					    "%s: wasn't added: seqno %d\n",
+					    __func__, SEQNO(bf->bf_state.bfs_seqno));
+			}
 			bf->bf_state.bfs_dobaw = 0;
 			/*
 			 * Call the default completion handler with "fail" just
@@ -2346,6 +2359,10 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 			ath_tx_update_baw(sc, an, atid,
 			    SEQNO(bf->bf_state.bfs_seqno));
 			ATH_TXQ_UNLOCK(atid);
+			if (! bf->bf_state.bfs_addedbaw)
+				device_printf(sc->sc_dev,
+				    "%s: wasn't added: seqno %d\n",
+				    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		}
 		bf->bf_state.bfs_dobaw = 0;
 
@@ -2444,6 +2461,10 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_LOCK(atid);
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		if (! bf->bf_state.bfs_addedbaw)
+			device_printf(sc->sc_dev,
+			    "%s: wasn't added: seqno %d\n",
+			    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		bf->bf_state.bfs_dobaw = 0;
 		ATH_TXQ_UNLOCK(atid);
 		/* XXX subframe completion status? is that valid here? */
@@ -2665,6 +2686,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 			    SEQNO(bf->bf_state.bfs_seqno));
 			ATH_TXQ_UNLOCK(atid);
 			bf->bf_state.bfs_dobaw = 0;
+			if (! bf->bf_state.bfs_addedbaw)
+				device_printf(sc->sc_dev,
+				    "%s: wasn't added: seqno %d\n",
+				    __func__, SEQNO(bf->bf_state.bfs_seqno));
 			ath_tx_default_comp(sc, bf, 0);
 		} else {
 			drops += ath_tx_retry_subframe(sc, bf, &bf_q);
@@ -2768,6 +2793,10 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		ATH_TXQ_LOCK(atid);
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
 		bf->bf_state.bfs_dobaw = 0;
+		if (! bf->bf_state.bfs_addedbaw)
+			device_printf(sc->sc_dev,
+			    "%s: wasn't added: seqno %d\n",
+			    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_UNLOCK(atid);
 	}
 
