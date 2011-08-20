@@ -110,8 +110,7 @@ static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
 static void *volatile smp_rv_func_arg;
-static volatile int smp_rv_waiters[3];
-static volatile int smp_rv_generation;
+static volatile int smp_rv_waiters[4];
 
 /* 
  * Shared mutex to restrict busywaits between smp_rendezvous() and
@@ -345,7 +344,6 @@ smp_rendezvous_action(void)
 	void (*local_setup_func)(void*);
 	void (*local_action_func)(void*);
 	void (*local_teardown_func)(void*);
-	int generation;
 #ifdef INVARIANTS
 	int owepreempt;
 #endif
@@ -360,7 +358,6 @@ smp_rendezvous_action(void)
 	local_setup_func = smp_rv_setup_func;
 	local_action_func = smp_rv_action_func;
 	local_teardown_func = smp_rv_teardown_func;
-	generation = smp_rv_generation;
 
 	/*
 	 * Use a nested critical section to prevent any preemptions
@@ -406,31 +403,27 @@ smp_rendezvous_action(void)
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
 
-	/*
-	 * Signal that the main action has been completed.  If a
-	 * full exit rendezvous is requested, then all CPUs will
-	 * wait here until all CPUs have finished the main action.
-	 *
-	 * Note that the write by the last CPU to finish the action
-	 * may become visible to different CPUs at different times.
-	 * As a result, the CPU that initiated the rendezvous may
-	 * exit the rendezvous and drop the lock allowing another
-	 * rendezvous to be initiated on the same CPU or a different
-	 * CPU.  In that case the exit sentinel may be cleared before
-	 * all CPUs have noticed causing those CPUs to hang forever.
-	 * Workaround this by using a generation count to notice when
-	 * this race occurs and to exit the rendezvous in that case.
-	 */
-	MPASS(generation == smp_rv_generation);
-	atomic_add_int(&smp_rv_waiters[2], 1);
 	if (local_teardown_func != smp_no_rendevous_barrier) {
-		while (smp_rv_waiters[2] < smp_rv_ncpus &&
-		    generation == smp_rv_generation)
+		/*
+		 * Signal that the main action has been completed.  If a
+		 * full exit rendezvous is requested, then all CPUs will
+		 * wait here until all CPUs have finished the main action.
+		 */
+		atomic_add_int(&smp_rv_waiters[2], 1);
+		while (smp_rv_waiters[2] < smp_rv_ncpus)
 			cpu_spinwait();
 
 		if (local_teardown_func != NULL)
 			local_teardown_func(local_func_arg);
 	}
+
+	/*
+	 * Signal that the rendezvous is fully completed by this CPU.
+	 * This means that no member of smp_rv_* pseudo-structure will be
+	 * accessed by this target CPU after this point; in particular,
+	 * memory pointed by smp_rv_func_arg.
+	 */
+	atomic_add_int(&smp_rv_waiters[3], 1);
 
 	td->td_critnest--;
 	KASSERT(owepreempt == td->td_owepreempt,
@@ -465,8 +458,6 @@ smp_rendezvous_cpus(cpumask_t map,
 
 	mtx_lock_spin(&smp_ipi_mtx);
 
-	atomic_add_acq_int(&smp_rv_generation, 1);
-
 	/* Pass rendezvous parameters via global variables. */
 	smp_rv_ncpus = ncpus;
 	smp_rv_setup_func = setup_func;
@@ -475,6 +466,7 @@ smp_rendezvous_cpus(cpumask_t map,
 	smp_rv_func_arg = arg;
 	smp_rv_waiters[1] = 0;
 	smp_rv_waiters[2] = 0;
+	smp_rv_waiters[3] = 0;
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
 	/*
@@ -488,13 +480,13 @@ smp_rendezvous_cpus(cpumask_t map,
 		smp_rendezvous_action();
 
 	/*
-	 * If the caller did not request an exit barrier to be enforced
-	 * on each CPU, ensure that this CPU waits for all the other
-	 * CPUs to finish the rendezvous.
+	 * Ensure that the master CPU waits for all the other
+	 * CPUs to finish the rendezvous, so that smp_rv_*
+	 * pseudo-structure and the arg are guaranteed to not
+	 * be in use.
 	 */
-	if (teardown_func == smp_no_rendevous_barrier)
-		while (atomic_load_acq_int(&smp_rv_waiters[2]) < ncpus)
-			cpu_spinwait();
+	while (atomic_load_acq_int(&smp_rv_waiters[3]) < ncpus)
+		cpu_spinwait();
 
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
