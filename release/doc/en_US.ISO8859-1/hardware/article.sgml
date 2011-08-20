@@ -195,7 +195,7 @@
 	resources between logical processors within the same CPU.
 	Because this naive scheduling can result in suboptimal
 	performance, under certain circumstances it may be useful to
-	disable the logical processors with the the
+	disable the logical processors with the
 	<varname>machdep.hlt_logical_cpus</varname> sysctl variable.
 	It is also possible to halt any CPU in the idle loop with the
 	<varname>machdep.hlt_cpus</varname> sysctl variable.  The
