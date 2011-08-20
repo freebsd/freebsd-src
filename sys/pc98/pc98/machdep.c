@@ -1855,7 +1855,7 @@ static void
 getmemsize(int first)
 {
 	int off, physmap_idx, pa_indx, da_indx;
-	u_long physmem_tunable, memtest, tmpul;
+	u_long physmem_tunable, memtest;
 	vm_paddr_t physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
@@ -1920,8 +1920,7 @@ getmemsize(int first)
 	 * one could eventually do more with the code than just disable it.
 	 */
 	memtest = 1;
-	if (TUNABLE_ULONG_FETCH("hw.memtest.tests", &tmpul))
-		memtest = tmpul;
+	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
