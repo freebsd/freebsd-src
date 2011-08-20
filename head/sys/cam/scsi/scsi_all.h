@@ -869,6 +869,8 @@ struct scsi_vpd_id_descriptor
 #define	SCSI_PROTO_RDMA		0x04
 #define SCSI_PROTO_iSCSI	0x05
 #define	SCSI_PROTO_SAS		0x06
+#define	SCSI_PROTO_ADT		0x07
+#define	SCSI_PROTO_ATA		0x08
 #define	SVPD_ID_PROTO_SHIFT	4
 #define	SVPD_ID_CODESET_BINARY	0x01
 #define	SVPD_ID_CODESET_ASCII	0x02

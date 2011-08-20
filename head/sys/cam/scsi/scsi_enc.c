@@ -74,7 +74,7 @@ static  periph_dtor_t   enc_dtor;
 static  periph_start_t  enc_start;
 
 static void enc_async(void *, uint32_t, struct cam_path *, void *);
-static enctyp enc_type(void *, int);
+static enctyp enc_type(struct ccb_getdev *);
 
 static struct periph_driver encdriver = {
 	enc_init, "enc",
@@ -183,7 +183,6 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
-		int inq_len;
 		path_id_t path_id;
 
 		cgd = (struct ccb_getdev *)arg;
@@ -191,23 +190,7 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			break;
 		}
 
-		if (cgd->protocol != PROTO_SCSI)
-			break;
-
-		inq_len = cgd->inq_data.additional_length + 4;
-
-		/*
-		 * PROBLEM: WE NEED TO LOOK AT BYTES 48-53 TO SEE IF THIS
-		 * PROBLEM: IS A SAF-TE DEVICE.
-		 */
-		switch (enc_type(&cgd->inq_data, inq_len)) {
-		case ENC_SES:
-		case ENC_SES_SCSI2:
-		case ENC_SES_PASSTHROUGH:
-		case ENC_SEN:
-		case ENC_SAFT:
-			break;
-		default:
+		if (enc_type(cgd) == ENC_NONE) {
 			/*
 			 * Schedule announcement of the ENC bindings for
 			 * this device if it is managed by a SEP.
@@ -564,7 +547,7 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 int
 enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 {
-	int error, dlen;
+	int error, dlen, tdlen;
 	ccb_flags ddf;
 	union ccb *ccb;
 
@@ -587,9 +570,32 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 	}
 
 	ccb = cam_periph_getccb(enc->periph, 1);
-	cam_fill_csio(&ccb->csio, 0, enc_done, ddf, MSG_SIMPLE_Q_TAG, dptr,
-	    dlen, sizeof (struct scsi_sense_data), cdbl, 60 * 1000);
-	bcopy(cdb, ccb->csio.cdb_io.cdb_bytes, cdbl);
+	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
+		tdlen = min(dlen, 1020);
+		tdlen = (tdlen + 3) & ~3;
+		cam_fill_ataio(&ccb->ataio, 0, enc_done, ddf, 0, dptr, tdlen,
+		    30 * 1000);
+		if (cdb[0] == RECEIVE_DIAGNOSTIC)
+			ata_28bit_cmd(&ccb->ataio,
+			    ATA_SEP_ATTN, cdb[2], 0x02, tdlen / 4);
+		else if (cdb[0] == SEND_DIAGNOSTIC)
+			ata_28bit_cmd(&ccb->ataio,
+			    ATA_SEP_ATTN, dlen > 0 ? dptr[0] : 0,
+			    0x82, tdlen / 4);
+		else if (cdb[0] == READ_BUFFER)
+			ata_28bit_cmd(&ccb->ataio,
+			    ATA_SEP_ATTN, cdb[2], 0x00, tdlen / 4);
+		else
+			ata_28bit_cmd(&ccb->ataio,
+			    ATA_SEP_ATTN, dlen > 0 ? dptr[0] : 0,
+			    0x80, tdlen / 4);
+	} else {
+		tdlen = dlen;
+		cam_fill_csio(&ccb->csio, 0, enc_done, ddf, MSG_SIMPLE_Q_TAG,
+		    dptr, dlen, sizeof (struct scsi_sense_data), cdbl,
+		    60 * 1000);
+		bcopy(cdb, ccb->csio.cdb_io.cdb_bytes, cdbl);
+	}
 
 	error = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -600,7 +606,11 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 		}
 	} else {
 		if (dptr) {
-			*dlenp = ccb->csio.resid;
+			if (ccb->ccb_h.func_code == XPT_ATA_IO)
+				*dlenp = ccb->ataio.resid;
+			else
+				*dlenp = ccb->csio.resid;
+			*dlenp += tdlen - dlen;
 		}
 	}
 	xpt_release_ccb(ccb);
@@ -639,10 +649,25 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 #define	SAFTE_LEN	SAFTE_END-SAFTE_START
 
 static enctyp
-enc_type(void *buf, int buflen)
+enc_type(struct ccb_getdev *cgd)
 {
-	unsigned char *iqd = buf;
+	int buflen;
+	unsigned char *iqd;
 
+	if (cgd->protocol == PROTO_SEMB) {
+		iqd = (unsigned char *)&cgd->ident_data;
+		if (STRNCMP(iqd + 43, "S-E-S", 5) == 0)
+			return (ENC_SEMB_SES);
+		else if (STRNCMP(iqd + 43, "SAF-TE", 6) == 0)
+			return (ENC_SEMB_SAFT);
+		return (ENC_NONE);
+
+	} else if (cgd->protocol != PROTO_SCSI)
+		return (ENC_NONE);
+
+	iqd = (unsigned char *)&cgd->inq_data;
+	buflen = min(sizeof(cgd->inq_data),
+	    SID_ADDITIONAL_LENGTH(&cgd->inq_data));
 	if (buflen < 8+SEN_ID_LEN)
 		return (ENC_NONE);
 
@@ -743,14 +768,18 @@ enc_fsm_step(enc_softc_t *enc)
 
 	
 	if (error == 0) {
-		uint32_t resid;
+		uint32_t len;
 
-		resid = 0;
-		if (ccb != NULL)
-			resid = ccb->csio.dxfer_len - ccb->csio.resid;
+		len = 0;
+		if (ccb != NULL) {
+			if (ccb->ccb_h.func_code == XPT_ATA_IO)
+				len = ccb->ataio.dxfer_len - ccb->ataio.resid;
+			else
+				len = ccb->csio.dxfer_len - ccb->csio.resid;
+		}
 
 		cam_periph_unlock(enc->periph);
-		cur_state->done(enc, cur_state, ccb, &buf, resid);
+		cur_state->done(enc, cur_state, ccb, &buf, len);
 		cam_periph_lock(enc->periph);
 	}
 
@@ -880,16 +909,18 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	enc->periph = periph;
 	enc->current_action = ENC_UPDATE_NONE;
 
-	enc->enc_type = enc_type(&cgd->inq_data, sizeof (cgd->inq_data));
+	enc->enc_type = enc_type(cgd);
 	sx_init(&enc->enc_cache_lock, "enccache");
 
 	switch (enc->enc_type) {
 	case ENC_SES:
 	case ENC_SES_SCSI2:
 	case ENC_SES_PASSTHROUGH:
+	case ENC_SEMB_SES:
 		err = ses_softc_init(enc, 1);
 		break;
 	case ENC_SAFT:
+	case ENC_SEMB_SAFT:
 		err = safte_softc_init(enc, 1);
 		break;
 	case ENC_SEN:
@@ -962,6 +993,12 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		break;
         case ENC_SAFT:
 		tname = "SAF-TE Compliant Device";
+		break;
+	case ENC_SEMB_SES:
+		tname = "SEMB SES Device";
+		break;
+	case ENC_SEMB_SAFT:
+		tname = "SEMB SAF-TE Device";
 		break;
 	}
 	xpt_announce_periph(periph, tname);

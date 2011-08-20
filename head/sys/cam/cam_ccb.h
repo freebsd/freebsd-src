@@ -242,6 +242,7 @@ typedef enum {
 	PROTO_ATA,	/* AT Attachment */
 	PROTO_ATAPI,	/* AT Attachment Packetized Interface */
 	PROTO_SATAPM,	/* SATA Port Multiplier */
+	PROTO_SEMB,	/* SATA Enclosure Management Bridge */
 } cam_proto;
 
 typedef enum {

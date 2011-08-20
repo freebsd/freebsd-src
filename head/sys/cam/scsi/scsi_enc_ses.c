@@ -251,7 +251,7 @@ static enc_softc_cleanup_t ses_softc_cleanup;
 
 #define	SCSZ	0x8000
 
-static fsm_fill_handler_t ses_fill_rcv_diag_csio;
+static fsm_fill_handler_t ses_fill_rcv_diag_io;
 static fsm_fill_handler_t ses_fill_control_request;
 static fsm_done_handler_t ses_process_config;
 static fsm_done_handler_t ses_process_status;
@@ -269,7 +269,7 @@ struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 		SesConfigPage,
 		SCSZ,
 		60 * 1000,
-		ses_fill_rcv_diag_csio,
+		ses_fill_rcv_diag_io,
 		ses_process_config,
 		enc_error
 	},
@@ -278,7 +278,7 @@ struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 		SesStatusPage,
 		SCSZ,
 		60 * 1000,
-		ses_fill_rcv_diag_csio,
+		ses_fill_rcv_diag_io,
 		ses_process_status,
 		enc_error
 	},
@@ -287,7 +287,7 @@ struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 		SesElementDescriptor,
 		SCSZ,
 		60 * 1000,
-		ses_fill_rcv_diag_csio,
+		ses_fill_rcv_diag_io,
 		ses_process_elm_descs,
 		enc_error
 	},
@@ -296,7 +296,7 @@ struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 		SesAddlElementStatus,
 		SCSZ,
 		60 * 1000,
-		ses_fill_rcv_diag_csio,
+		ses_fill_rcv_diag_io,
 		ses_process_elm_addlstatus,
 		enc_error
 	},
@@ -1898,13 +1898,21 @@ out:
 }
 
 static int
-ses_fill_rcv_diag_csio(enc_softc_t *enc, struct enc_fsm_state *state,
+ses_fill_rcv_diag_io(enc_softc_t *enc, struct enc_fsm_state *state,
 		       union ccb *ccb, uint8_t *buf)
 {
-	scsi_receive_diagnostic_results(&ccb->csio, /*retries*/5,
+
+	if (enc->enc_type == ENC_SEMB_SES) {
+		semb_receive_diagnostic_results(&ccb->ataio, /*retries*/5,
+					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					state->page_code, buf, state->buf_size,
+					state->timeout);
+	} else {
+		scsi_receive_diagnostic_results(&ccb->csio, /*retries*/5,
 					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					SSD_FULL_SIZE, state->timeout);
+	}
 	return (0);
 }
 
@@ -2018,12 +2026,19 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 		return (ENOENT);
 
 	/* Fill out the ccb */
-	scsi_send_diagnostic(&ccb->csio, /*retries*/5, enc_done,
+	if (enc->enc_type == ENC_SEMB_SES) {
+		semb_send_diagnostic(&ccb->ataio, /*retries*/5, enc_done,
+			     MSG_SIMPLE_Q_TAG,
+			     buf, ses_page_length(&ses_cache->status_page->hdr),
+			     state->timeout);
+	} else {
+		scsi_send_diagnostic(&ccb->csio, /*retries*/5, enc_done,
 			     MSG_SIMPLE_Q_TAG, /*unit_offline*/0,
 			     /*device_offline*/0, /*self_test*/0,
 			     /*page_format*/1, /*self_test_code*/0,
 			     buf, ses_page_length(&ses_cache->status_page->hdr),
 			     SSD_FULL_SIZE, state->timeout);
+	}
 	return (0);
 }
 
