@@ -55,7 +55,9 @@ typedef enum {
 	ENC_SES,
 	ENC_SES_PASSTHROUGH,
 	ENC_SEN,
-	ENC_SAFT
+	ENC_SAFT,
+	ENC_SEMB_SES,
+	ENC_SEMB_SAFT
 } enctyp;
 
 /* Platform Independent Driver Internal Definitions for enclosure devices. */

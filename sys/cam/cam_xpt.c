@@ -1081,6 +1081,9 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	else if (path->device->protocol == PROTO_ATA ||
 	    path->device->protocol == PROTO_SATAPM)
 		ata_print_ident(&path->device->ident_data);
+	else if (path->device->protocol == PROTO_SEMB)
+		semb_print_ident(
+		    (struct sep_identify_data *)&path->device->ident_data);
 	else
 		printf("Unknown protocol device\n");
 	if (bootverbose && path->device->serial_num_len > 0) {
