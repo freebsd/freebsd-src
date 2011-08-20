@@ -877,17 +877,14 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	we have a fragment at this offset of an IPv4 packet.
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
-	 *	For IPv6 offset == 0 means there is no Fragment Header or there
-	 *	is a single packet fragement (fragement header added without
-	 *	needed).  We will treat a single packet fragment as if there
-	 *	was no fragment header (or log/block depending on the
+	 *	For IPv6 offset|ip6f_mf == 0 means there is no Fragment Header
+	 *	or there is a single packet fragement (fragement header added
+	 *	without needed).  We will treat a single packet fragment as if
+	 *	there was no fragment header (or log/block depending on the
 	 *	V_fw_permit_single_frag6 sysctl setting).
-	 *	If offset != 0 for IPv6 always use correct mask to
-	 *	get the correct offset because we add IP6F_MORE_FRAG to be able
-	 *	to dectect the first of multiple fragments which would
-	 *	otherwise have offset = 0.
 	 */
 	u_short offset = 0;
+	u_short ip6f_mf = 0;
 
 	/*
 	 * Local copies of addresses. They are only valid if we have
@@ -1046,12 +1043,10 @@ do {								\
 				proto = ((struct ip6_frag *)ulp)->ip6f_nxt;
 				offset = ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_OFF_MASK;
-				/* Add IP6F_MORE_FRAG for offset of first
-				 * fragment to be != 0 if there shall be more. */
-				offset |= ((struct ip6_frag *)ulp)->ip6f_offlg &
+				ip6f_mf = ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_MORE_FRAG;
 				if (V_fw_permit_single_frag6 == 0 &&
-				    offset == 0) {
+				    offset == 0 && ip6f_mf == 0) {
 					printf("IPFW2: IPV6 - Invalid Fragment "
 					    "Header\n");
 					if (V_fw_deny_unknown_exthdrs)
@@ -1687,7 +1682,7 @@ do {								\
 
 			case O_LOG:
 				ipfw_log(f, hlen, args, m,
-					    oif, offset, tablearg, ip);
+				    oif, offset | ip6f_mf, tablearg, ip);
 				match = 1;
 				break;
 
