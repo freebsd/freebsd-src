@@ -276,7 +276,7 @@ enum libusb_speed
 libusb_get_device_speed(libusb_device *dev)
 {
 	if (dev == NULL)
-		return (0);		/* should not happen */
+		return (LIBUSB_SPEED_UNKNOWN);	/* should not happen */
 
 	switch (libusb20_dev_get_speed(dev->os_priv)) {
 	case LIBUSB20_SPEED_LOW:
