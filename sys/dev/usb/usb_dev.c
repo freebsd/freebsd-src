@@ -911,10 +911,23 @@ usb_close(void *arg)
 
 	DPRINTFN(2, "cpd=%p\n", cpd);
 
-	err = usb_ref_device(cpd, &refs, 1);
-	if (err) {
-		free(cpd, M_USBDEV);
-		return;
+	err = usb_ref_device(cpd, &refs, 0);
+	if (err)
+		goto done;
+
+	/*
+	 * If this function is not called directly from the root HUB
+	 * thread, there is usually a need to lock the enumeration
+	 * lock. Check this.
+	 */
+	if (!usbd_enum_is_locked(cpd->udev)) {
+
+		DPRINTFN(2, "Locking enumeration\n");
+
+		/* reference device */
+		err = usb_usb_ref_device(cpd, &refs);
+		if (err)
+			goto done;
 	}
 	if (cpd->fflags & FREAD) {
 		usb_fifo_close(refs.rxfifo, cpd->fflags);
@@ -922,10 +935,9 @@ usb_close(void *arg)
 	if (cpd->fflags & FWRITE) {
 		usb_fifo_close(refs.txfifo, cpd->fflags);
 	}
-
 	usb_unref_device(cpd, &refs);
+done:
 	free(cpd, M_USBDEV);
-	return;
 }
 
 static void
