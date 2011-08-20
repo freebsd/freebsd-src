@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
 
@@ -91,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/ip_var.h>
 #include <netinet/in_systm.h>
 #include <net/if_llatbl.h>
 #ifdef INET
@@ -357,6 +359,17 @@ ip6_input(struct mbuf *m)
 	 */
 	ip6_delaux(m);
 
+	if (m->m_flags & M_FASTFWD_OURS) {
+		/*
+		 * Firewall changed destination to local.
+		 */
+		m->m_flags &= ~M_FASTFWD_OURS;
+		ours = 1;
+		deliverifp = m->m_pkthdr.rcvif;
+		ip6 = mtod(m, struct ip6_hdr *);
+		goto hbhcheck;
+	}
+
 	/*
 	 * mbuf statistics
 	 */
@@ -532,6 +545,24 @@ ip6_input(struct mbuf *m)
 		return;
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
+
+#ifdef IPFIREWALL_FORWARD
+	if (m->m_flags & M_FASTFWD_OURS) {
+		m->m_flags &= ~M_FASTFWD_OURS;
+		ours = 1;
+		deliverifp = m->m_pkthdr.rcvif;
+		goto hbhcheck;
+	}
+	if (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
+		/*
+		 * Directly ship the packet on.  This allows forwarding
+		 * packets originally destined to us to some other directly
+		 * connected host.
+		 */
+		ip6_forward(m, 1);
+		goto out;
+	}
+#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*
