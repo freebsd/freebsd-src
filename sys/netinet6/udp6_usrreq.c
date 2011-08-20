@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -181,6 +182,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	int off = *offp;
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
+#endif
 
 	ifp = m->m_pkthdr.rcvif;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -377,9 +381,43 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	inp = in6_pcblookup_mbuf(&V_udbinfo, &ip6->ip6_src, uh->uh_sport,
-	    &ip6->ip6_dst, uh->uh_dport, INPLOOKUP_WILDCARD |
-	    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif, m);
+#ifdef IPFIREWALL_FORWARD
+	/*
+	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
+	 */
+	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (fwd_tag != NULL) {
+		struct sockaddr_in6 *next_hop6;
+
+		next_hop6 = (struct sockaddr_in6 *)(fwd_tag + 1);
+
+		/*
+		 * Transparently forwarded. Pretend to be the destination.
+		 * Already got one like this?
+		 */
+		inp = in6_pcblookup_mbuf(&V_udbinfo,
+		    &ip6->ip6_src, uh->uh_sport, &ip6->ip6_dst, uh->uh_dport,
+		    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif, m);
+		if (!inp) {
+			/*
+			 * It's new.  Try to find the ambushing socket.
+			 * Because we've rewritten the destination address,
+			 * any hardware-generated hash is ignored.
+			 */
+			inp = in6_pcblookup(&V_udbinfo, &ip6->ip6_src,
+			    uh->uh_sport, &next_hop6->sin6_addr,
+			    next_hop6->sin6_port ? htons(next_hop6->sin6_port) :
+			    uh->uh_dport, INPLOOKUP_WILDCARD |
+			    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif);
+		}
+		/* Remove the tag from the packet. We don't need it anymore. */
+		m_tag_delete(m, fwd_tag);
+	} else
+#endif /* IPFIREWALL_FORWARD */
+		inp = in6_pcblookup_mbuf(&V_udbinfo, &ip6->ip6_src,
+		    uh->uh_sport, &ip6->ip6_dst, uh->uh_dport,
+		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
+		    m->m_pkthdr.rcvif, m);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
 			char ip6bufs[INET6_ADDRSTRLEN];
