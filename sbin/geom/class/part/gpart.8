@@ -709,7 +709,8 @@ The scheme-specific attributes for PC98:
 .It Cm bootable
 .El
 .Sh BOOTSTRAPPING
-.Fx supports several partitioning schemes and each scheme uses different
+.Fx
+supports several partitioning schemes and each scheme uses different
 bootstrap code.
 The bootstrap code is located in the specific disk area for each partitioning
 scheme and also it might have different size.
@@ -770,7 +771,7 @@ and
 The first one is used to boot from UFS.
 It searches in the GPT partition with type
 .Cm freebsd-ufs ,
-and it runs the thrid bootstrap stage (
+and it runs the third bootstrap stage (
 .Pa /boot/loader )
 if it is found.
 The
@@ -785,7 +786,7 @@ from it.
 The VTOC8 scheme does not support embedding bootstrap code.
 Instead, the 8 KBytes bootstrap code image
 .Pa /boot/boot1
-could be written with
+should be written with
 .Cm gpart bootcode
 command with
 .Fl p Ar bootcode
@@ -793,6 +794,15 @@ option to all sufficiently large VTOC8 partitions.
 To do this the
 .Fl i Ar index
 option could be ommited.
+.Pp
+The APM scheme also does not support embedding bootstrap code.
+Instead, the 800 KBytes bootstrap code image
+.Pa /boot/boot1.hfs
+should be written with
+.Cm gpart bootcode
+command to a partition of type
+.Cm freebsd-boot ,
+which should also be 800 KB in size.
 .Sh OPERATIONAL FLAGS
 Actions other than the
 .Cm commit
