@@ -796,6 +796,7 @@ set_match(struct ip_fw_args *args, int slot,
  *
  *	args->rule	Pointer to the last matching rule (in/out)
  *	args->next_hop	Socket we are forwarding to (out).
+ *	args->next_hop6	IPv6 next hop we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
  * 	args->rule.info	a cookie depending on rule action
  *
@@ -2280,6 +2281,23 @@ do {								\
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
 				break;
+
+#ifdef INET6
+			case O_FORWARD_IP6:
+				if (args->eh)	/* not valid on layer2 pkts */
+					break;
+				if (q == NULL || q->rule != f ||
+				    dyn_dir == MATCH_FORWARD) {
+					struct sockaddr_in6 *sin6;
+
+					sin6 = &(((ipfw_insn_sa6 *)cmd)->sa);
+					args->next_hop6 = sin6;
+				}
+				retval = IP_FW_PASS;
+				l = 0;		/* exit inner loop */
+				done = 1;	/* exit outer loop */
+				break;
+#endif
 
 			case O_NETGRAPH:
 			case O_NGTEE:
