@@ -1137,6 +1137,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_vap *avp = ATH_VAP(vap);
 
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
+
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/*
 		 * Quiesce the hardware while we remove the vap.  In
@@ -1145,6 +1147,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* stop hw xmit side */
+		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* stop recv side */
 	}
@@ -1169,6 +1172,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	 */
 
 	ath_draintxq(sc);
+	/* XXX Do all frames from all vaps/nodes need draining here? */
 	ath_sc_flushtxq(sc);
 
 	ATH_LOCK(sc);
@@ -1745,6 +1749,10 @@ ath_stop_locked(struct ifnet *ifp)
 			ath_hal_intrset(ah, 0);
 		}
 		ath_draintxq(sc);
+		/*
+		 * XXX Draining these packets may create a hole in the
+		 * XXX BAW.
+		 */
 		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
@@ -1780,9 +1788,23 @@ ath_reset(struct ifnet *ifp)
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
+
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
+	/*
+	 * XXX as long as ath_reset() isn't called during a state
+	 * transition (eg channel change, mode change, etc)
+	 * then there's no need to flush the software TXQ.
+	 * Doing this here messes with the BAW tracking, as
+	 * there may be aggregate packets in the software TXQ
+	 * which haven't been queued to the hardware, and thus
+	 * the BAW hasn't been set. Freeing those packets will
+	 * create a "hole" in the BAW.
+	 */
+#if 0
 	ath_sc_flushtxq(sc);		/* drain sw xmit side */
+#endif
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -4669,6 +4691,17 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* clear pending tx frames */
+		/*
+		 * XXX This may create holes in the BAW, since some
+		 * XXX aggregate packets may have not yet been scheduled
+		 * XXX to the hardware, and thus ath_tx_addto_baw() has
+		 * XXX never been called.
+		 *
+		 * But we can't _not_ call this here, because the current
+		 * TX code doesn't handle the potential rate/flags change
+		 * (eg a 40->20mhz change, or HT->non-HT change, or 11a<->g
+		 * change, etc.)
+		 */
 		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
