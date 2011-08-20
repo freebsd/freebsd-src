@@ -2200,11 +2200,11 @@ zvol_create_minors(const char *name)
 	p = osname + strlen(osname);
 	len = MAXPATHLEN - (p - osname);
 
-	if (strchr(name, '/') == NULL) {
-		/* Prefetch only for pool name. */
-		cookie = 0;
-		while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0)
-			(void) dmu_objset_prefetch(p, NULL);
+	/* Prefetch the datasets. */
+	cookie = 0;
+	while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0) {
+		if (!dataset_name_hidden(osname))
+			(void) dmu_objset_prefetch(osname, NULL);
 	}
 
 	cookie = 0;
