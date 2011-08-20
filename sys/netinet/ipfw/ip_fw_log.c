@@ -333,10 +333,14 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 #ifdef INET6
 		struct ip6_hdr *ip6 = NULL;
 		struct icmp6_hdr *icmp6;
+		u_short ip6f_mf;
 #endif
 		src[0] = '\0';
 		dst[0] = '\0';
 #ifdef INET6
+		ip6f_mf = offset & IP6F_MORE_FRAG;
+		offset &= IP6F_OFF_MASK;
+
 		if (IS_IP6_FLOW_ID(&(args->f_id))) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			snprintf(src, sizeof(src), "[%s]",
@@ -418,8 +422,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				    " (frag %08x:%d@%d%s)",
 				    args->f_id.extra,
 				    ntohs(ip6->ip6_plen) - hlen,
-				    ntohs(offset & IP6F_OFF_MASK) << 3,
-				    (offset & IP6F_MORE_FRAG) ? "+" : "");
+				    ntohs(offset) << 3, ip6f_mf ? "+" : "");
 		} else
 #endif
 		{
