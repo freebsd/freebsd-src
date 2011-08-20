@@ -992,6 +992,13 @@ struct scsi_vpd_id_scsi_name
 	uint8_t name_string[256];
 };
 
+struct scsi_diag_page {
+	uint8_t page_code;
+	uint8_t page_specific_flags;
+	uint8_t length[2];
+	uint8_t params[0];
+};
+
 struct scsi_read_capacity
 {
 	u_int8_t opcode;
