@@ -2,6 +2,7 @@ Things to debug!
 
 * Write something in ath_tx_default_comp() that ensures the buffer is unlinked
   (ie, not part of an aggregate)
+  - Done
 
 * Write something in the aggr comp function which checks that the number of
   frames in the aggregate list matches bf_stats.bfs_nframes
@@ -13,7 +14,59 @@ Things to debug!
 * Is it some missing sequence numbers? ie, is addto_baw being called with
   sequence numbers out of order, or "gaps" in the sequence numbers?
 
+* Scheduler issues - add some statistics to track how many packets are going
+  out as aggregates (looks like around 84%) -and- what the distribution of
+  aggregate packets is like. Abuse a histogram - will only send up to 64
+  aggregate packets at once, so track:
+
+  + single packet returned from ath_tx_form_aggr()
+  + single packet with no BAW returned from ath_tx_form_aggr()
+  + single packet with non HT rate
+  + aggregate packets (ie, how many times were aggregates sent)
+  + aggregate sub-frame count histogram, 2->64 sub-frames
+
+  I can't help but think we're sending very small aggregates.
+
+* The RX side (AR9160, FreeBSD) seems to lock up from time to time, with
+  stuck beacons and RXORN interrupts (ie, RX FIFO overflows.) Why?
+
+* There's the possibility that ampdu seqno packets have sequence numbers
+  allocated but are flushed -before- they're added to the BAW.
+  I guess this is why seqno allocation should be delayed until just before
+  it's queued to the hardware.
+
+  That should be .. well, fixed.
+
 Things that need doing!
+
+* Add a swretrysubframe and swretrysubframemax counter, use it
+
+* Scheduling is wrong - the software TXQ needs more time to assemble
+  frames together for aggregation.
+
+  Based on Linux ath9k:
+
+  + Don't base it completely on how "deep" the hardware queue is, that
+    can involve multiple TIDs, not just one!
+  + If the TID has say, more than two hardware queued aggregate frames,
+    or more than say eight hardware-queued normal frames, don't schedule it.
+  + When the completion function is called, check to see if there are frames
+    in the queue and the frames queued to hardware has dropped. If so,
+    schedule the TID. If not, give the TID some more time to gather packets.
+
+  The logic:
+
+  + The MAC has to be kept busy enough to not wait around for data to send.
+    Not more, not less.
+  + Immediately handling a TID when the hardware is busy sending aggregate
+    frames is just plain silly - as it's already busy. So queuing the frames
+    to the hardware doesn't buy you anything, it doesn't decrease latency, etc.
+  + So instead, just feed it enough frames to keep the hardware queue busy,
+    and let the TID software queue gather up more frames.
+  + Finally, if the TID has a couple frames queued to the hardware
+    -and- there's only one frame to send, don't just queue it.
+    Wait until the completion handlers are called, then schedule the
+    queue function again.
 
 * RIFS? Do I care about supporting RIFS?
 
