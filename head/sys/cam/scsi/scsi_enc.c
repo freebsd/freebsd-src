@@ -940,9 +940,11 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	 * through our state machine so that physical path data is
 	 * present.
 	 */
-	enc->enc_boot_hold_ch.ich_func = enc_nop_confighook_cb;
-	enc->enc_boot_hold_ch.ich_arg = enc;
-	config_intrhook_establish(&enc->enc_boot_hold_ch);
+	if (enc->enc_vec.poll_status != NULL) {
+		enc->enc_boot_hold_ch.ich_func = enc_nop_confighook_cb;
+		enc->enc_boot_hold_ch.ich_arg = enc;
+		config_intrhook_establish(&enc->enc_boot_hold_ch);
+	}
 
 	/*
 	 * The softc field is set only once the enc is fully initialized
