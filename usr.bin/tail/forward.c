@@ -365,8 +365,10 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 					if (errno != ENOENT)
 						ierr(file->file_name);
 					show(file);
-					fclose(file->fp);
-					file->fp = NULL;
+					if (file->fp != NULL) {
+						fclose(file->fp);
+						file->fp = NULL;
+					}
 					ev_change++;
 					continue;
 				}
