@@ -117,21 +117,16 @@ Things that need doing!
 
 * Software retransmit when aggregation is enabled
   + Whether doing A-MPDU or not
+    - done
   + Support rate updates and lookup on a retry; maybe a slower rate
     is needed?
+    - not yet done, but would need changes to the way the rate decisions
+      are made
 
 * 20<->2040 mode change?
   + part of this project or not?
   + right now packets are simply flushed; why not just re-prod them into
     the software TXQ ?
-
-* Delimiter calculation? is it right?
-  port ath_compute_num_delims()
-
-* rate series packet duration calculation - it needs to be the entire
-  aggregate length for aggregates, not the individual frame?
-  (carrier code uses the whole aggregate, what about newma/fusion/ath9k?)
-  newma does this too (check ath_pkt_duration())
 
 * nodes w/ a lower BA window size; try to fill it in ath_tx_form_aggr() ?
 
@@ -329,4 +324,14 @@ pid 1510
   I can't help but think we're sending very small aggregates.
 
   - done - sysctl dev.ath.X.txagg=1
+
+* Delimiter calculation? is it right?
+  port ath_compute_num_delims()
+  - done
+
+* rate series packet duration calculation - it needs to be the entire
+  aggregate length for aggregates, not the individual frame?
+  (carrier code uses the whole aggregate, what about newma/fusion/ath9k?)
+  newma does this too (check ath_pkt_duration())
+  - done - it uses the whole aggregate length, incl. delimiters.
 
