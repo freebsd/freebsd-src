@@ -1,4 +1,5 @@
 Things to debug!
+----------------
 
 * Write something in ath_tx_default_comp() that ensures the buffer is unlinked
   (ie, not part of an aggregate)
@@ -10,22 +11,29 @@ Things to debug!
 
 * Am I losing an ath_buf in the hardware TX queue code? Ie, are they not
   ever queued?
+  - No
 
 * Is it some missing sequence numbers? ie, is addto_baw being called with
   sequence numbers out of order, or "gaps" in the sequence numbers?
+  - Yes, if the frame is queued via ath_tx_swq() but it's never submitted
+    to the hardware; it never gets added to the BAW.
+  - The solution here is to modify the whole TX aggr pipeline to allocate
+    seqno's just as a frame is to be queued to the hardware the first time,
+    rather than in ath_tx_start().
 
-* Scheduler issues - add some statistics to track how many packets are going
-  out as aggregates (looks like around 84%) -and- what the distribution of
-  aggregate packets is like. Abuse a histogram - will only send up to 64
-  aggregate packets at once, so track:
+* Although it's a nice idea to run completion handlers in the ath task
+  context (making scheduling and completion occur in a mutually exclusive
+  setup within the same taskqueue), the fact that nodes can be flushed,
+  drained and freed from -outside- that context puts a spanner in the works.
+  Ideally, the only time completion handlers should be called from outside
+  that context is when the node is being destroyed. Otherwise, we're going
+  to have to lock -everything-.
 
-  + single packet returned from ath_tx_form_aggr()
-  + single packet with no BAW returned from ath_tx_form_aggr()
-  + single packet with non HT rate
-  + aggregate packets (ie, how many times were aggregates sent)
-  + aggregate sub-frame count histogram, 2->64 sub-frames
-
-  I can't help but think we're sending very small aggregates.
+  So, when going over the drain/flush/free code to see what's going on,
+  please consider making -node free- the only time these completion
+  functions are called from outside the ath taskqueue task, and ensure
+  that they don't trample over any state which is going to cause contention
+  (and thus need to be locked.)
 
 * The RX side (AR9160, FreeBSD) seems to lock up from time to time, with
   stuck beacons and RXORN interrupts (ie, RX FIFO overflows.) Why?
@@ -47,7 +55,6 @@ Things to debug!
     - or what else? 20/40 change? rate change? etc.
   * for interface -cleanup-, ?
   * drain?
-
 
 Things that need doing!
 
@@ -307,4 +314,19 @@ ioctl+130 (?,?,?,?) ra 8037eb6c sp c7bf9da0 sz 56
 trap+8a4 (?,?,?,?) ra 80376fec sp c7bf9dd8 sz 168
 MipsUserGenException+10c (?,?,?,40818e20) ra 0 sp c7bf9e80 sz 0
 pid 1510
+
+* Scheduler issues - add some statistics to track how many packets are going
+  out as aggregates (looks like around 84%) -and- what the distribution of
+  aggregate packets is like. Abuse a histogram - will only send up to 64
+  aggregate packets at once, so track:
+
+  + single packet returned from ath_tx_form_aggr()
+  + single packet with no BAW returned from ath_tx_form_aggr()
+  + single packet with non HT rate
+  + aggregate packets (ie, how many times were aggregates sent)
+  + aggregate sub-frame count histogram, 2->64 sub-frames
+
+  I can't help but think we're sending very small aggregates.
+
+  - done - sysctl dev.ath.X.txagg=1
 
