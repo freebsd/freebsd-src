@@ -2917,7 +2917,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
-			sc->sc_stats.tx_aggr.aggr_single_pkt++;
+			if (status == ATH_AGGR_BAW_CLOSED)
+				sc->sc_stats.tx_aggr.aggr_baw_closed_single_pkt++;
+			else
+				sc->sc_stats.tx_aggr.aggr_single_pkt++;
 		} else {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: multi-frame aggregate: %d frames, length %d\n",
@@ -3043,6 +3046,11 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
  * This function walks the list of TIDs (ie, ath_node TIDs
  * with queued traffic) and attempts to schedule traffic
  * from them.
+ *
+ * XXX I haven't locked this code yet, but I need to!
+ * XXX walking the tidq requires the TXQ lock, checking
+ * XXX for how busy the queues are require the relevant
+ * XXX lock!
  */
 void
 ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)

@@ -314,6 +314,8 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	printf("aggr single packet: %d\n",
 	    sc->sc_stats.tx_aggr.aggr_single_pkt);
+	printf("aggr single packet w/ BAW closed: %d\n",
+	    sc->sc_stats.tx_aggr.aggr_baw_closed_single_pkt);
 	printf("aggr non-baw packet: %d\n",
 	    sc->sc_stats.tx_aggr.aggr_nonbaw_pkt);
 	printf("aggr aggregate packet: %d\n",
