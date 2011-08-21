@@ -59,6 +59,6 @@ extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 	    int fail);
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
-extern void ath_tx_sched_proc_sched(struct ath_softc *sc);
+extern void ath_tx_sched_proc_sched(struct ath_softc *sc, struct ath_txq *txq);
 
 #endif

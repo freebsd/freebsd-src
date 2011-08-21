@@ -1329,7 +1329,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_tx_swq(sc, ni, txq, bf);
 
 		/* Schedule a TX scheduler task call to occur */
-		ath_tx_sched_proc_sched(sc);
+		ath_tx_sched_proc_sched(sc, txq);
 	}
 #else
 	/*
@@ -1554,6 +1554,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	else {
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
+
+		/* Schedule a TX scheduler task call to occur */
+		ath_tx_sched_proc_sched(sc, sc->sc_ac2q[pri]);
 	}
 
 	return 0;
@@ -1615,14 +1618,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_wd_timer = 5;
 	ifp->if_opackets++;
 	sc->sc_stats.ast_tx_raw++;
-
-	/*
-	 * This kicks off a TX packet scheduler task,
-	 * pushing packet scheduling out of this thread
-	 * and into a separate context. This will (hopefully)
-	 * simplify locking/contention in the long run.
-	 */
-	ath_tx_sched_proc_sched(sc);
 
 	return 0;
 bad2:
@@ -2062,7 +2057,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	ath_tx_tid_sched(sc, tid->an, tid->tid);
 	ATH_TXQ_UNLOCK(txq);
 
-	ath_tx_sched_proc_sched(sc);
+	ath_tx_sched_proc_sched(sc, txq);
 }
 
 /*

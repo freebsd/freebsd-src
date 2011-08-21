@@ -3899,6 +3899,7 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
+	txq->axq_softc = sc;
 	TAILQ_INIT(&txq->axq_q);
 	TAILQ_INIT(&txq->axq_tidq);
 	ATH_TXQ_LOCK_INIT(sc, txq);
@@ -4428,7 +4429,7 @@ ath_tx_sched_proc(void *arg, int npending)
  * Schedule a TXQ scheduling task to occur.
  */
 void
-ath_tx_sched_proc_sched(struct ath_softc *sc)
+ath_tx_sched_proc_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_txschedtask);
 }

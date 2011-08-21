@@ -263,6 +263,7 @@ struct ath_descdma {
  * hardware queue).
  */
 struct ath_txq {
+	struct ath_softc	*axq_softc;	/* Needed for scheduling */
 	u_int			axq_qnum;	/* hardware q number */
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
 	u_int			axq_ac;		/* WME AC */
