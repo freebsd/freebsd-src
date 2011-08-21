@@ -49,6 +49,19 @@
 #define	ATH_AGGR_MIN_QDEPTH		2
 
 /*
+ * Watermark for scheduling TIDs in order to maximise aggregation.
+ *
+ * If hwq_depth is greater than this, don't schedule the TID
+ * for packet scheduling - the hardware is already busy servicing
+ * this TID.
+ *
+ * If hwq_depth is less than this, schedule the TID for packet
+ * scheduling in the completion handler.
+ */
+#define	ATH_AGGR_SCHED_HIGH		4
+#define	ATH_AGGR_SCHED_LOW		2
+
+/*
  * return whether a bit at index _n in bitmap _bm is set
  * _sz is the size of the bitmap
  */

@@ -98,6 +98,7 @@ struct ath_tid {
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
 	int			ac;		/* which AC gets this trafic */
+	int			hwq_depth;	/* how many buffers are on HW */
 
 	/*
 	 * Entry on the ath_txq; when there's traffic
