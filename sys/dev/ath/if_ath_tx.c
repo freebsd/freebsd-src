@@ -423,7 +423,7 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	ath_hal_setupfirsttxdesc(sc->sc_ah,
 	    bf_first->bf_desc,
 	    bf_first->bf_state.bfs_al,
-	    bf_first->bf_state.bfs_flags,
+	    bf_first->bf_state.bfs_flags | HAL_TXDESC_INTREQ,
 	    bf_first->bf_state.bfs_txpower,
 	    bf_first->bf_state.bfs_txrate0,
 	    bf_first->bf_state.bfs_try0,
