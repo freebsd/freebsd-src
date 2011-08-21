@@ -51,6 +51,9 @@ Things to debug!
 
 Things that need doing!
 
+* When off-channel, aggregate traffic should stay queued, but raw
+  frames (eg probes) should be sent?
+
 * Handle channel/mode changes which shouldn't flush packets in the
   software queue (and the packets in the hardware queue that can
   be recovered after TX DMA is stopped..)
