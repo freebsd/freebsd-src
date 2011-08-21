@@ -2928,6 +2928,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			    bf->bf_state.bfs_al);
 			bf->bf_state.bfs_aggr = 1;
 			sc->sc_stats.tx_aggr.aggr_pkts[bf->bf_state.bfs_nframes]++;
+			sc->sc_stats.tx_aggr.aggr_aggr_pkt++;
 
 			/* Set rate 1, 2, 3 to 0 for aggregate frames */
 			bf->bf_state.bfs_rc[1].rix =
@@ -2961,6 +2962,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		/* Punt to txq */
 		ATH_TXQ_LOCK(txq);
 		ath_tx_handoff(sc, txq, bf);
+		if (txq->axq_depth > ATH_AGGR_MIN_QDEPTH) {
+			ATH_TXQ_UNLOCK(txq);
+			break;
+		}
 		ATH_TXQ_UNLOCK(txq);
 
 		/*
@@ -3058,11 +3063,26 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_tid *atid, *next;
 
 	/*
+	 * Don't schedule if the hardware queue is busy.
+	 * This (hopefully) gives some more time to aggregate
+	 * some packets in the aggregation queue.
+	 * XXX TODO: only do this based on AMPDU buffersj, not
+	 * XXX normal ones.
+	 */
+	ATH_TXQ_LOCK(txq);
+	if (txq->axq_depth >= ATH_AGGR_MIN_QDEPTH) {
+		ATH_TXQ_UNLOCK(txq);
+		return;
+	}
+
+	/*
 	 * For now, let's not worry about QoS, fair-scheduling
 	 * or the like. That's a later problem. Just throw
 	 * packets at the hardware.
 	 */
+	/* XXX txq is already locked */
 	TAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
+		ATH_TXQ_UNLOCK(txq);
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
@@ -3077,7 +3097,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_TXQ_UNLOCK(atid);
 			ATH_TXQ_LOCK(txq);
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
-			ATH_TXQ_UNLOCK(txq);
+			//ATH_TXQ_UNLOCK(txq);
 			continue;
 		}
 		ATH_TXQ_UNLOCK(atid);
@@ -3090,8 +3110,13 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_LOCK(txq);
 		if (atid->axq_depth == 0)
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
-		ATH_TXQ_UNLOCK(txq);
+		if (txq->axq_depth > ATH_AGGR_MIN_QDEPTH) {
+			//ATH_TXQ_UNLOCK(txq);
+			break;
+		}
+		//ATH_TXQ_UNLOCK(txq);
 	}
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
