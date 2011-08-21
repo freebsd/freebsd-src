@@ -299,6 +299,35 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int i, param = 0;
+	int error;
+
+	error = sysctl_handle_int(oidp, &param, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	if (param != 1)
+		return 0;
+
+	printf("aggr single packet: %d\n",
+	    sc->sc_stats.tx_aggr.aggr_single_pkt);
+	printf("aggr non-baw packet: %d\n",
+	    sc->sc_stats.tx_aggr.aggr_nonbaw_pkt);
+	printf("aggr aggregate packet: %d\n",
+	    sc->sc_stats.tx_aggr.aggr_aggr_pkt);
+	for (i = 0; i < 64; i++) {
+		printf("%2d: %10d ", i, sc->sc_stats.tx_aggr.aggr_pkts[i]);
+		if (i % 4 == 3)
+			printf("\n");
+	}
+	printf("\n");
+	return 0;
+}
+
+static int
 ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
@@ -465,6 +494,11 @@ ath_sysctlattach(struct ath_softc *sc)
 			"rfkill", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
 	}
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txagg", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_txagg, "I", "");
+
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,

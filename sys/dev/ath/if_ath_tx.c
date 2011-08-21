@@ -2876,6 +2876,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
 
+			sc->sc_stats.tx_aggr.aggr_nonbaw_pkt++;
+
 			/* Queue the packet; continue */
 			goto queuepkt;
 		}
@@ -2915,12 +2917,14 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
+			sc->sc_stats.tx_aggr.aggr_single_pkt++;
 		} else {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: multi-frame aggregate: %d frames, length %d\n",
 			     __func__, bf->bf_state.bfs_nframes,
 			    bf->bf_state.bfs_al);
 			bf->bf_state.bfs_aggr = 1;
+			sc->sc_stats.tx_aggr.aggr_pkts[bf->bf_state.bfs_nframes]++;
 
 			/* Set rate 1, 2, 3 to 0 for aggregate frames */
 			bf->bf_state.bfs_rc[1].rix =
