@@ -2189,9 +2189,9 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	/*
 	 * punt to rate control if we're not being cleaned up
-	 * during a hw queue drain.
+	 * during a hw queue drain and the frame wanted an ACK.
 	 */
-	if (fail == 0)
+	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    ts, bf->bf_state.bfs_pktlen,
 		    1, (ts->ts_status == 0) ? 0 : 1);
@@ -2821,7 +2821,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * Update rate control status here, before we possibly
 	 * punt to retry or cleanup.
 	 */
-	if (fail == 0)
+	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    &bf->bf_status.ds_txstat,
 		    bf->bf_state.bfs_pktlen,
