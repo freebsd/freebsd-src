@@ -57,6 +57,7 @@ Things to debug!
   * drain?
 
 Things that need doing!
+-----------------------
 
 * When off-channel, aggregate traffic should stay queued, but raw
   frames (eg probes) should be sent?
@@ -175,7 +176,30 @@ Hopefully it's something easy
 * When a node is flushed (but not being deleted) should the BAW also be updated?
   I don't think it is right now and this could be incorrect.
 
+
+Stuff to do to the rate control code
+------------------------------------
+
+* Teach ath_rate_sample about the packet error rate when TX'ing aggregates
+
+* Delay rate control lookup? Until the aggregate is being formed or a non-agg
+  frame is being TXed?
+
+* .. then we can re-do rate control lookups for retransmits? That should help
+  with performance issues when bad MCSes have been chosen
+
+* Tidy up ath_rate_sample and have it use the flags in the ath_rc_series array,
+  rather than re-calculating what flags are used (ht20/ht40, shortgi, etc.)
+
+  That way if the rate selection logic decides to use something besides what
+  the node says it supports (eg sending a HT/20 frame to a HT/40 station,
+  sending long-gi instead of short-GI) then the correct calculations can be
+  made.
+
+  The rate selection stuff doesn't do this -now-, but it may be useful later.
+
 Fixed issues:
+-------------
 
 * Recursive TXQ lock on interface destruction:
 
