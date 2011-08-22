@@ -33,7 +33,8 @@
 .Nm libusb
 .Nd "USB access library"
 .Sh LIBRARY
-USB access library (libusb -lusb)
+USB access library
+.Pq libusb, -lusb
 .Sh SYNOPSIS
 .In libusb.h
 .Sh DESCRIPTION
@@ -46,8 +47,8 @@ The current implementation supports v1.0 of the libusb API.
 .Ft int
 .Fn libusb_init libusb_context **ctx
 This function initialises libusb.
-Must be called at the beginning
-of the program.
+It must be called at the beginning
+of the program, before other libusb routines are used.
 This function returns 0 on success or LIBUSB_ERROR on
 failure.
 .Pp
@@ -55,35 +56,39 @@ failure.
 .Fn libusb_exit "libusb_context *ctx"
 Deinitialise libusb.
 Must be called at the end of the application.
+Other libusb routines may not be called after this function.
 .Pp
 .Ft const char *
 .Fn libusb_strerror "int code"
-Get ASCII representation of the error given by the
+Get the ASCII representation of the error given by the
 .Fa code
 argument.
 .Pp
 .Ft void
 .Fn libusb_set_debug "libusb_context *ctx" "int level"
-Set debug to the
-.Fa level
-level.
+Set the debug level to
+.Fa level .
 .Pp
 .Ft ssize_t
 .Fn libusb_get_device_list "libusb_context *ctx" "libusb_device ***list"
-Fill into
+Populate
 .Fa list
-the list of usb device available.
-All the device created by this
-function must be unref and free when you are done with them.
+with the list of usb devices available, adding a reference to each
+device in the list.
+All the list entries created by this
+function must have their reference counter
+decremented when you are done with them,
+and the list itself must be freed.
 This
-function returns the number of devices in list or a LIBUSB_ERROR code.
+function returns the number of devices in the list or a LIBUSB_ERROR code.
 .Pp
 .Ft void
 .Fn libusb_free_device_list "libusb_device **list" "int unref_devices"
 Free the list of devices discovered by libusb_get_device_list.
 If
 .Fa unref_device
-is set to 1 all devices are unref one time.
+is set to 1 all devices in the list have their reference
+counter decremented once.
 .Pp
 .Ft uint8_t
 .Fn libusb_get_bus_number "libusb_device *dev"
@@ -120,13 +125,13 @@ Decrement the reference counter of the device
 .Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
 Open a device and obtain a device_handle.
 Returns 0 on success,
-LIBUSB_ERROR_NO_MEM on memory allocation problem, LIBUSB_ERROR_ACCESS
-on permission problem, LIBUSB_ERROR_NO_DEVICE if the device has been
-disconnected and a LIBUSB_ERROR code on error.
+LIBUSB_ERROR_NO_MEM on memory allocation problems, LIBUSB_ERROR_ACCESS
+on permissions problems, LIBUSB_ERROR_NO_DEVICE if the device has been
+disconnected and a LIBUSB_ERROR code on other errors.
 .Pp
 .Ft libusb_device_handle *
 .Fn libusb_open_device_with_vid_pid "libusb_context *ctx" "uint16_t vid" "uint16_t pid"
-Convenience function to open a device with is
+A convenience function to open a device by vendor and product IDs
 .Fa vid
 and
 .Fa pid.
@@ -150,7 +155,7 @@ and a LIBUSB_ERROR code on error.
 .Pp
 .Ft int
 .Fn libusb_set_configuration "libusb_device_handle *devh" "int config"
-Set the active configuration
+Set the active configuration to
 .Fa config
 for the device contained by
 .Fa devh.
@@ -164,16 +169,16 @@ LIBUSB_ERROR code on failure.
 Claim an interface in a given libusb_handle
 .Fa devh.
 This is a non-blocking function.
-It returns 0 success, LIBUSB_ERROR_NOT_FOUND
+It returns 0 on success, LIBUSB_ERROR_NOT_FOUND
 if the requested interface does not exist, LIBUSB_ERROR_BUSY if a program or
 driver has claimed the interface, LIBUSB_ERROR_NO_DEVICE if the device has
 been disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_release_interface "libusb_device_handle *devh" "int interface_number"
-This function release an interface.
-All the claimed interface must be released
-before closing a device.
+This function releases an interface.
+All the claimed interfaces on a device must be released
+before closing the device.
 Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the
 interface was not claimed, LIBUSB_ERROR_NO_DEVICE if the device has been
 disconnected and LIBUSB_ERROR on failure.
@@ -184,7 +189,7 @@ Activate an alternate setting for an interface.
 Returns 0 on success,
 LIBUSB_ERROR_NOT_FOUND if the interface was not claimed or the requested
 setting does not exist, LIBUSB_ERROR_NO_DEVICE if the device has been
-disconnected and LIBUSB_ERROR code on failure.
+disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_clear_halt "libusb_device_handle *devh" "unsigned char endpoint"
@@ -202,31 +207,30 @@ been disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_check_connected "libusb_device_handle *devh"
-Test if USB device is still connected.
+Test if the USB device is still connected.
 Returns 0 on success,
-LIBUSB_ERROR_NO_DEVICE if has been disconnected and a LIBUSB_ERROR
+LIBUSB_ERROR_NO_DEVICE if it has been disconnected and a LIBUSB_ERROR
 code on failure.
 .Pp
 .Ft int
 .Fn libusb_kernel_driver_active "libusb_device_handle *devh" "int interface"
 Determine if a driver is active on a interface.
 Returns 0 if no kernel driver
-is active, returns 1 if a kernel driver is active,
-returns LIBUSB_ERROR_NO_DEVICE
-if the device has been disconnected and returns a LIBUSB_ERROR code on failure.
+is active, 1 if a kernel driver is active, LIBUSB_ERROR_NO_DEVICE
+if the device has been disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_get_driver "libusb_device_handle *devh" "int interface" "char *name" "int namelen"
 or
 .Ft int
 .Fn libusb_get_driver_np "libusb_device_handle *devh" "int interface" "char *name" "int namelen"
-Gets the name of the driver attached to the given
+Copy the name of the driver attached to the given
 .Fa device
 and
 .Fa interface
-into the buffer given by
+into the buffer
 .Fa name
-and
+of length
 .Fa namelen .
 Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if no kernel driver is attached
 to the given interface and LIBUSB_ERROR_INVALID_PARAM if the interface does
@@ -242,7 +246,7 @@ or
 .Ft int
 .Fn libusb_detach_kernel_driver_np "libusb_device_handle *devh" "int interface"
 Detach a kernel driver from an interface.
-This is needed to claim an interface required by a kernel driver.
+This is needed to claim an interface already claimed by a kernel driver.
 Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if no kernel driver was active,
 LIBUSB_ERROR_INVALID_PARAM if the interface does not exist,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected
@@ -251,11 +255,11 @@ This function is non-portable.
 .Pp
 .Ft int
 .Fn libusb_attach_kernel_driver "libusb_device_handle *devh" "int interface"
-Re-attach an interface kernel driver previously detached.
+Re-attach an interface kernel driver that was previously detached.
 Returns 0 on success,
 LIBUSB_ERROR_INVALID_PARAM if the interface does not exist,
 LIBUSB_ERROR_NO_DEVICE
-if the device has been disconnect, LIBUSB_ERROR_BUSY if the driver cannot be
+if the device has been disconnected, LIBUSB_ERROR_BUSY if the driver cannot be
 attached because the interface is claimed by a program or driver and a
 LIBUSB_ERROR code on failure.
 .Pp
@@ -273,24 +277,25 @@ failure.
 .Fn libsub_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
 Get the USB configuration descriptor for the active configuration.
 Returns 0 on
-success, returns LIBUSB_ERROR_NOT_FOUND if the device is in unconfigured state
-and returns another LIBUSB_ERROR code on error.
+success, LIBUSB_ERROR_NOT_FOUND if the device is in
+an unconfigured state
+and a LIBUSB_ERROR code on error.
 .Pp
 .Ft int
 .Fn libusb_get_config_descriptor "libusb_device *dev" "uint8_t config_index" "libusb_config_descriptor **config"
-Get USB configuration descriptor based on its index
+Get a USB configuration descriptor based on its index
 .Fa idx.
 Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the configuration does not exist
-and returns another LIBUSB_ERROR code on error.
+and a LIBUSB_ERROR code on error.
 .Pp
 .Ft int
 .Fn libusb_get_config_descriptor_by_value "libusb_device *dev" "uint8 bConfigurationValue" "libusb_config_descriptor **config"
 Get a USB configuration descriptor with a specific bConfigurationValue.
 This is
-a non-blocking function which does not send request through the device.
+a non-blocking function which does not send a request through the device.
 Returns 0
 on success, LIBUSB_ERROR_NOT_FOUND if the configuration
-does not exist and another
+does not exist and a
 LIBUSB_ERROR code on failure.
 .Pp
 .Ft void
@@ -299,17 +304,17 @@ Free a configuration descriptor.
 .Pp
 .Ft int
 .Fn libusb_get_string_descriptor_ascii "libusb_device_handle *devh" "uint8_t desc_idx" "unsigned char *data" "int length"
-Retrieve a string descriptor in C style ascii.
-Returns a positive number of bytes in the resulting ASCII string
+Retrieve a string descriptor in C style ASCII.
+Returns the positive number of bytes in the resulting ASCII string
 on success and a LIBUSB_ERROR code on failure.
 .Pp
 .Sh USB ASYNCHRONOUS I/O
 .Pp
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
-Allocate a transfer with
-.Fa iso_packets
-numbers of isochronous packet descriptors.
+Allocate a transfer with the number of isochronous packet descriptors
+specified by
+.Fa iso_packets .
 Returns NULL on error.
 .Pp
 .Ft void
@@ -320,13 +325,13 @@ Free a transfer.
 .Fn libusb_submit_transfer "struct libusb_transfer *tr"
 This function will submit a transfer and returns immediately.
 Returns 0 on success, LIBUSB_ERROR_NO_DEVICE if
-the device has been disconnected and
+the device has been disconnected and a
 LIBUSB_ERROR code on other failure.
 .Pp
 .Ft int
 .Fn libusb_cancel_transfer "struct libusb_transfer *tr"
-This function asynchronously cancel a transfer.
-Returns 0 on success and LIBUSB_ERROR code on failure.
+This function asynchronously cancels a transfer.
+Returns 0 on success and a LIBUSB_ERROR code on failure.
 .Pp
 .Sh USB SYNCHRONOUS I/O
 .Pp
@@ -334,14 +339,14 @@ Returns 0 on success and LIBUSB_ERROR code on failure.
 .Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint8_t bRequest" "uint16_t wValue" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
 Perform a USB control transfer.
 Returns the actual number of bytes
-transferred on success in the range from and including zero until and
+transferred on success, in the range from and including zero up to and
 including
 .Fa wLength .
-On error a libusb error code is returned, for example
-LIBUSB_ERROR_TIMEOUT if the transfer timeout, LIBUSB_ERROR_PIPE if the
+On error a LIBUSB_ERROR code is returned, for example
+LIBUSB_ERROR_TIMEOUT if the transfer timed out, LIBUSB_ERROR_PIPE if the
 control request was not supported, LIBUSB_ERROR_NO_DEVICE if the
-device has been disconnected or another LIBUSB_ERROR code on other failures.
-The libusb error codes are always negative.
+device has been disconnected and another LIBUSB_ERROR code on other failures.
+The LIBUSB_ERROR codes are all negative.
 .Pp
 .Ft int
 .Fn libusb_bulk_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
@@ -349,10 +354,10 @@ Perform an USB bulk transfer.
 A timeout value of zero means no timeout.
 The timeout value is given in milliseconds.
 Returns 0 on success, LIBUSB_ERROR_TIMEOUT
-if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not
+if the transfer timed out, LIBUSB_ERROR_PIPE if the control request was not
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and
-LIBUSB_ERROR code on other failure.
+a LIBUSB_ERROR code on other failure.
 .Pp
 .Ft int
 .Fn libusb_interrupt_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
@@ -360,10 +365,10 @@ Perform an USB Interrupt transfer.
 A timeout value of zero means no timeout.
 The timeout value is given in milliseconds.
 Returns 0 on success, LIBUSB_ERROR_TIMEOUT
-if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not
+if the transfer timed out, LIBUSB_ERROR_PIPE if the control request was not
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and
-LIBUSB_ERROR code on other failure.
+a LIBUSB_ERROR code on other failure.
 .Pp
 .Sh USB EVENTS
 .Pp
@@ -381,7 +386,8 @@ This function is blocking.
 .Fn libusb_unlock_events "libusb_context *ctx"
 Release the event handling lock.
 This will wake up any thread blocked
-on libusb_wait_for_event().
+on
+.B libusb_wait_for_event() .
 .Pp
 .Ft int
 .Fn libusb_event_handling_ok "libusb_context *ctx"
@@ -394,13 +400,13 @@ the events lock.
 .Ft int
 .Fn libusb_event_handler_active "libusb_context *ctx"
 Determine if an active thread is handling events.
-Returns 1 if yes and 0 if there
+Returns 1 if there is a thread handling events and 0 if there
 are no threads currently handling events.
 .Pp
 .Ft void
 .Fn libusb_lock_event_waiters "libusb_context *ctx"
 Acquire the event_waiters lock.
-This lock is designed to be obtained under the
+This lock is designed to be obtained in the
 situation where you want to be aware when events are completed, but some other
 thread is event handling so calling libusb_handle_events() is not allowed.
 .Pp
@@ -417,7 +423,7 @@ This will
 block until the timeout expires or a transfer completes or a thread releases
 the event handling lock through libusb_unlock_events().
 Returns 0 after a
-transfer completes or another thread stops event handling, returns 1 if the
+transfer completes or another thread stops event handling, and 1 if the
 timeout expired.
 .Pp
 .Ft int
@@ -431,19 +437,19 @@ LIBUSB_ERROR code on failure.
 .Fn libusb_handle_events "libusb_context *ctx"
 Handle any pending events in blocking mode with a sensible timeout.
 Returns 0
-on success, returns a LIBUSB_ERROR code on failure.
+on success and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_handle_events_locked "libusb_context *ctx" "struct timeval *tv"
 Handle any pending events by polling file desciptors, without checking if
-another threads are already doing so.
+another thread is already doing so.
 Must be called with the event lock held.
 .Pp
 .Ft int
 .Fn libusb_get_next_timeout "libusb_context *ctx" "struct timeval *tv"
 Determine the next internal timeout that libusb needs to handle.
 Returns 0
-if there are no pending timeouts, 1 if a timeout was returned, or LIBUSB_ERROR
+if there are no pending timeouts, 1 if a timeout was returned, or a LIBUSB_ERROR
 code on failure.
 .Pp
 .Ft void
