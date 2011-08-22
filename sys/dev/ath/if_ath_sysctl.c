@@ -518,6 +518,17 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
 		"mask of error frames to pass when monitoring");
+
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
+		"");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
+		"");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
+		"");
+
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;

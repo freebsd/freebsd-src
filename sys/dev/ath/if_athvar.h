@@ -483,6 +483,20 @@ struct ath_softc {
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
 
+	/*
+	 * Aggregation twiddles
+	 *
+	 * hwq_limit:	how busy to keep the hardware queue - don't schedule
+	 *		further packets to the hardware, regardless of the TID
+	 * tid_hwq_lo:	how low the per-TID hwq count has to be before the
+	 *		TID will be scheduled again
+	 * tid_hwq_hi:	how many frames to queue to the HWQ before the TID
+	 *		stops being scheduled.
+	 */
+	int			sc_hwq_limit;
+	int			sc_tid_hwq_lo;
+	int			sc_tid_hwq_hi;
+
 	/* DFS related state */
 	void			*sc_dfs;	/* Used by an optional DFS module */
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */

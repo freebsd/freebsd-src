@@ -1660,6 +1660,13 @@ ath_init(void *arg)
 	sc->sc_beacons = 0;
 
 	/*
+	 * Initial aggregation settings.
+	 */
+	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
+	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
+
+	/*
 	 * Setup the hardware after reset: the key cache
 	 * is filled as needed and the receive engine is
 	 * set going.  Frame transmit is handled entirely
