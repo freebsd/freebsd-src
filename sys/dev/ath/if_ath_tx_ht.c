@@ -234,6 +234,17 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 
 		rate = rt->info[rc[i].rix].rateCode;
 
+		/*
+		 * XXX only do this for legacy rates?
+		 */
+		if (bf->bf_state.bfs_shpream)
+			rate |= rt->info[rc[i].rix].shortPreamble;
+
+		/*
+		 * Save this, used by the TX and completion code
+		 */
+		rc[i].ratecode = rate;
+
 		if (bf->bf_state.bfs_flags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			rc[i].flags |= ATH_RC_RTSCTS_FLAG;

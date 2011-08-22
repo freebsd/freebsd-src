@@ -4206,6 +4206,29 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 }
 
 /*
+ * Update rate control with the given completion status.
+ */
+void
+ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_rc_series *rc, struct ath_tx_status *ts, int frmlen,
+    int nframes, int nbad)
+{
+	struct ath_node *an;
+
+	/* Only for unicast frames */
+	if (ni == NULL)
+		return;
+
+	an = ATH_NODE(ni);
+
+	if ((ts->ts_status & HAL_TXERR_FILT) == 0) {
+		ATH_NODE_LOCK(an);
+		ath_rate_tx_complete(sc, an, rc, ts, frmlen, nframes, nbad);
+		ATH_NODE_UNLOCK(an);
+	}
+}
+
+/*
  * Process completed xmit descriptors from the specified queue.
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
@@ -4283,21 +4306,31 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			an = ATH_NODE(ni);
 			/* update statistics */
 			ath_tx_update_stats(sc, ts, bf);
-
-			/*
-			 * Hand the descriptor to the rate control algorithm.
-			 */
-			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
-				ATH_NODE_LOCK(an);
-				ath_rate_tx_complete(sc, an, bf);
-				ATH_NODE_UNLOCK(an);
-			}
 		}
 
-		if (bf->bf_comp == NULL)
+
+		/*
+		 * Call the completion handler.
+		 * The completion handler is responsible for
+		 * calling the rate control code.
+		 *
+		 * Frames with no completion handler get the
+		 * rate control code called here.
+		 */
+		if (bf->bf_comp == NULL) {
+			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
+			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
+				/*
+				 * XXX assume this isn't an aggregate
+				 * frame.
+				 */
+				ath_tx_update_ratectrl(sc, ni,
+				     bf->bf_state.bfs_rc, ts,
+				    bf->bf_state.bfs_pktlen, 1,
+				    (ts->ts_status == 0 ? 0 : 1));
 			ath_tx_default_comp(sc, bf, 0);
-		else
+			}
+		} else
 			bf->bf_comp(sc, bf, 0);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG

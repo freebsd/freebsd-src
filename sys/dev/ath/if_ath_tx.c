@@ -760,26 +760,17 @@ static void
 ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf)
 {
-	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
-	uint8_t rate[4];
-	int i;
 
 	if (ath_tx_is_11n(sc)) {
 		/* Always setup rate series */
 		ath_buf_set_rate(sc, ni, bf);
 	} else if (bf->bf_state.bfs_ismrr) {
 		/* Only call for legacy NICs if MRR */
-		for (i = 0; i < 4; i++) {
-			rate[i] = rt->info[rc[i].rix].rateCode;
-			if (bf->bf_state.bfs_shpream) {
-				rate[i] |= rt->info[rc[i].rix].shortPreamble;
-			}
-		}
 		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
-			, rate[1], rc[1].tries
-			, rate[2], rc[2].tries
-			, rate[3], rc[3].tries
+			, rc[1].ratecode, rc[1].tries
+			, rc[2].ratecode, rc[2].tries
+			, rc[3].ratecode, rc[3].tries
 		);
 	}
 }
@@ -1129,6 +1120,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	bf->bf_state.bfs_rc[0].rix = rix;
 	bf->bf_state.bfs_rc[0].tries = try0;
+	bf->bf_state.bfs_rc[0].ratecode = txrate;
 
 	/* Store the decided rate index values away */
 	bf->bf_state.bfs_pktlen = pktlen;
@@ -1498,17 +1490,21 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_rc[0].rix =
 	    ath_tx_findrix(sc, params->ibp_rate0);
 	bf->bf_state.bfs_rc[0].tries = try0;
+	bf->bf_state.bfs_rc[0].ratecode = txrate;
 
 	if (ismrr) {
-		bf->bf_state.bfs_rc[1].rix =
-		    ath_tx_findrix(sc, params->ibp_rate1);
-		bf->bf_state.bfs_rc[2].rix =
-		    ath_tx_findrix(sc, params->ibp_rate2);
-		bf->bf_state.bfs_rc[3].rix =
-		    ath_tx_findrix(sc, params->ibp_rate3);
+		int rix;
 
+		rix = ath_tx_findrix(sc, params->ibp_rate1);
+		bf->bf_state.bfs_rc[1].rix = rix;
 		bf->bf_state.bfs_rc[1].tries = params->ibp_try1;
+
+		rix = ath_tx_findrix(sc, params->ibp_rate2);
+		bf->bf_state.bfs_rc[2].rix = rix;
 		bf->bf_state.bfs_rc[2].tries = params->ibp_try2;
+
+		rix = ath_tx_findrix(sc, params->ibp_rate3);
+		bf->bf_state.bfs_rc[3].rix = rix;
 		bf->bf_state.bfs_rc[3].tries = params->ibp_try3;
 	}
 	/*
@@ -2179,6 +2175,7 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: fail=%d, hwq_depth now %d\n",
 	    __func__, bf, fail, atid->hwq_depth - 1);
@@ -2189,6 +2186,15 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		device_printf(sc->sc_dev, "%s: hwq_depth < 0: %d\n",
 		    __func__, atid->hwq_depth);
 	ATH_TXQ_UNLOCK(atid);
+
+	/*
+	 * punt to rate control if we're not being cleaned up
+	 * during a hw queue drain.
+	 */
+	if (fail == 0)
+		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
+		    ts, bf->bf_state.bfs_pktlen,
+		    1, (ts->ts_status == 0) ? 0 : 1);
 
 	ath_tx_default_comp(sc, bf, fail);
 }
@@ -2514,6 +2520,14 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	TAILQ_INIT(&bf_q);
 
+	/*
+	 * Update rate control - all frames have failed.
+	 */
+	ath_tx_update_ratectrl(sc, ni, bf_first->bf_state.bfs_rc,
+	    &bf_first->bf_status.ds_txstat,
+	    bf_first->bf_state.bfs_al,
+	    bf_first->bf_state.bfs_nframes, bf_first->bf_state.bfs_nframes);
+
 	/* Retry all subframes */
 	bf = bf_first;
 	while (bf) {
@@ -2522,9 +2536,6 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		drops += ath_tx_retry_subframe(sc, bf, &bf_q);
 		bf = bf_next;
 	}
-
-	/* Update rate control module about aggregation */
-	/* XXX todo */
 
 #if 0
 	/*
@@ -2579,7 +2590,7 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 		atid->incomp--;
 		bf_next = bf->bf_next;
 		bf->bf_next = NULL;	/* Remove it from the aggr list */
-		ath_tx_default_comp(sc, bf, -1);
+		ath_tx_default_comp(sc, bf, 1);
 		bf = bf_next;
 	}
 
@@ -2609,7 +2620,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_tx_status *ts = &bf_first->bf_status.ds_txstat;
+	struct ath_tx_status ts;
 	struct ieee80211_tx_ampdu *tap;
 	ath_bufhead bf_q;
 	int seq_st, tx_ok;
@@ -2619,7 +2630,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	int ba_index;
 	int drops = 0;
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
-	int np = 0;
+	int nframes = 0, nbad = 0;
+	int pktlen;
+	/* XXX there's too much on the stack? */
+	struct ath_rc_series rc[4];
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
 	    __func__, atid->hwq_depth);
@@ -2640,9 +2654,16 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	}
 
 	/*
+	 * Take a copy; this may be needed -after- bf_first
+	 * has been completed and freed.
+	 */
+	ts = bf_first->bf_status.ds_txstat;
+	pktlen = bf_first->bf_state.bfs_al;
+
+	/*
 	 * handle errors first
 	 */
-	if (ts->ts_status & HAL_TXERR_XRETRY) {
+	if (ts.ts_status & HAL_TXERR_XRETRY) {
 		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
 	}
@@ -2654,22 +2675,30 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * extract starting sequence and block-ack bitmap
 	 */
 	/* XXX endian-ness of seq_st, ba? */
-	seq_st = ts->ts_seqnum;
-	hasba = !! (ts->ts_flags & HAL_TX_BA);
-	tx_ok = (ts->ts_status == 0);
+	seq_st = ts.ts_seqnum;
+	hasba = !! (ts.ts_flags & HAL_TX_BA);
+	tx_ok = (ts.ts_status == 0);
 	isaggr = bf_first->bf_state.bfs_aggr;
-	ba[0] = ts->ts_ba_low;
-	ba[1] = ts->ts_ba_high;
+	ba[0] = ts.ts_ba_low;
+	ba[1] = ts.ts_ba_high;
+
+	/*
+	 * Copy the TX completion status and the rate control
+	 * series from the first descriptor, as it may be freed
+	 * before the rate control code can get its grubby fingers
+	 * into things.
+	 */
+	memcpy(rc, bf_first->bf_state.bfs_rc, sizeof(rc));
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: txa_start=%d, tx_ok=%d, status=%.8x, flags=%.8x, isaggr=%d, seq_st=%d, hasba=%d, ba=%.8x, %.8x\n",
-	    __func__, tap->txa_start, tx_ok, ts->ts_status, ts->ts_flags,
+	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
-	if (tid != ts->ts_tid) {
+	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
-		    __func__, tid, ts->ts_tid);
+		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
 
@@ -2683,7 +2712,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	bf = bf_first;
 
 	while (bf) {
-		np++;
+		nframes++;
 		ba_index = ATH_BA_INDEX(seq_st, SEQNO(bf->bf_state.bfs_seqno));
 		bf_next = bf->bf_next;
 		bf->bf_next = NULL;	/* Remove it from the aggr list */
@@ -2706,16 +2735,21 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 			ath_tx_default_comp(sc, bf, 0);
 		} else {
 			drops += ath_tx_retry_subframe(sc, bf, &bf_q);
+			nbad++;
 		}
 		bf = bf_next;
 	}
 
-	if (np != bf_first->bf_state.bfs_nframes)
+	if (nframes != bf_first->bf_state.bfs_nframes)
 		device_printf(sc->sc_dev, "%s: np=%d; nframes=%d\n",
-		    __func__, np, bf_first->bf_state.bfs_nframes);
+		    __func__, nframes, bf_first->bf_state.bfs_nframes);
 
-	/* update rate control module about aggregate status */
-	/* XXX TODO */
+	/*
+	 * Now we know how many frames were bad, call the rate
+	 * control code.
+	 */
+	if (fail == 0)
+		ath_tx_update_ratectrl(sc, ni, rc, &ts, pktlen, nframes, nbad);
 
 #if 0
 	/*
@@ -2783,6 +2817,16 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		    __func__, atid->hwq_depth);
 	ATH_TXQ_UNLOCK(atid);
 
+	/*
+	 * Update rate control status here, before we possibly
+	 * punt to retry or cleanup.
+	 */
+	if (fail == 0)
+		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
+		    &bf->bf_status.ds_txstat,
+		    bf->bf_state.bfs_pktlen,
+		    1, (ts->ts_status == 0) ? 0 : 1);
+
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_sched(sc, an, atid->tid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
@@ -2791,7 +2835,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * If a cleanup is in progress, punt to comp_cleanup;
 	 * rather than handling it here. It's thus their
 	 * responsibility to clean up, call the completion
-	 * function in net80211, update rate control, etc.
+	 * function in net80211, etc.
 	 */
 	if (atid->cleanup_inprogress) {
 		ath_tx_comp_cleanup_unaggr(sc, bf);
@@ -2955,6 +2999,11 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			bf->bf_state.bfs_rc[1].rix =
 			bf->bf_state.bfs_rc[2].rix =
 			bf->bf_state.bfs_rc[3].rix = 0;
+
+			bf->bf_state.bfs_rc[1].ratecode =
+			bf->bf_state.bfs_rc[2].ratecode =
+			bf->bf_state.bfs_rc[3].ratecode = 0;
+
 			bf->bf_state.bfs_rc[1].tries =
 			bf->bf_state.bfs_rc[2].tries =
 			bf->bf_state.bfs_rc[3].tries = 0;

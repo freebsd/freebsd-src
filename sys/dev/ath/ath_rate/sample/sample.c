@@ -594,21 +594,20 @@ badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_buf *bf)
+	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
+	int frame_size, int nframes, int nbad)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
-	const struct ath_desc *ds0 = &bf->bf_desc[0];
-	int final_rix, short_tries, long_tries, frame_size;
+	int final_rix, short_tries, long_tries;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int mrr;
 
 	final_rix = rt->rateCodeToIndex[ts->ts_rate];
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
-	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
+
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
 
@@ -645,18 +644,12 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			     0, 0,
 			     short_tries, long_tries, ts->ts_status);
 	} else {
-		int hwrates[4], tries[4], rix[4];
 		int finalTSIdx = ts->ts_finaltsi;
 		int i;
 
 		/*
 		 * Process intermediate rates that failed.
 		 */
-		ath_hal_gettxcompletionrates(sc->sc_ah, ds0, hwrates, tries);
-
-		for (i = 0; i < 4; i++) {
-			rix[i] = rt->rateCodeToIndex[hwrates[i]];
-		}
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
@@ -665,16 +658,21 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
 		     finalTSIdx,
-		     long_tries, 
+		     long_tries,
 		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, rix[0]), dot11rate_label(rt, rix[0]), tries[0],
-		     dot11rate(rt, rix[1]), dot11rate_label(rt, rix[1]), tries[1],
-		     dot11rate(rt, rix[2]), dot11rate_label(rt, rix[2]), tries[2],
-		     dot11rate(rt, rix[3]), dot11rate_label(rt, rix[3]), tries[3]);
+		     dot11rate(rt, rc[0].rix),
+		      dot11rate_label(rt, rc[0].rix), rc[0].tries,
+		     dot11rate(rt, rc[1].rix),
+		      dot11rate_label(rt, rc[1].rix), rc[1].tries,
+		     dot11rate(rt, rc[2].rix),
+		      dot11rate_label(rt, rc[2].rix), rc[2].tries,
+		     dot11rate(rt, rc[3].rix),
+		      dot11rate_label(rt, rc[3].rix), rc[3].tries);
 
 		for (i = 0; i < 4; i++) {
-			if (tries[i] && !IS_RATE_DEFINED(sn, rix[i]))
-				badrate(ifp, 0, hwrates[i], tries[i], ts->ts_status);
+			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
+				badrate(ifp, 0, rc[i].ratecode, rc[i].tries,
+				    ts->ts_status);
 		}
 
 		/*
@@ -684,46 +682,46 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * sample higher rates 1 try at a time doing so
 		 * may unfairly penalize them.
 		 */
-		if (tries[0]) {
-			update_stats(sc, an, frame_size, 
-				     rix[0], tries[0], 
-				     rix[1], tries[1], 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
-				     short_tries, long_tries, 
-				     long_tries > tries[0]);
-			long_tries -= tries[0];
+		if (rc[0].tries) {
+			update_stats(sc, an, frame_size,
+				     rc[0].rix, rc[0].tries,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     short_tries, long_tries,
+				     long_tries > rc[0].tries);
+			long_tries -= rc[0].tries;
 		}
 		
-		if (tries[1] && finalTSIdx > 0) {
-			update_stats(sc, an, frame_size, 
-				     rix[1], tries[1], 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
-				     0, 0, 
-				     short_tries, long_tries, 
+		if (rc[1].tries && finalTSIdx > 0) {
+			update_stats(sc, an, frame_size,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     0, 0,
+				     short_tries, long_tries,
 				     ts->ts_status);
-			long_tries -= tries[1];
+			long_tries -= rc[1].tries;
 		}
 
-		if (tries[2] && finalTSIdx > 1) {
-			update_stats(sc, an, frame_size, 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
+		if (rc[2].tries && finalTSIdx > 1) {
+			update_stats(sc, an, frame_size,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     0, 0,
-				     short_tries, long_tries, 
+				     short_tries, long_tries,
 				     ts->ts_status);
-			long_tries -= tries[2];
+			long_tries -= rc[2].tries;
 		}
 
-		if (tries[3] && finalTSIdx > 2) {
-			update_stats(sc, an, frame_size, 
-				     rix[3], tries[3],
+		if (rc[3].tries && finalTSIdx > 2) {
+			update_stats(sc, an, frame_size,
+				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     0, 0,
 				     0, 0,
-				     short_tries, long_tries, 
+				     short_tries, long_tries,
 				     ts->ts_status);
 		}
 	}

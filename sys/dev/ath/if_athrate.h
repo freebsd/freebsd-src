@@ -87,6 +87,7 @@ void	ath_rate_detach(struct ath_ratectrl *);
 
 struct ath_rc_series {
 	uint8_t rix;		/* ratetable index, not rate code */
+	uint8_t ratecode;	/* hardware rate code */
 	uint8_t tries;
 	uint8_t flags;
 	uint32_t max4msframelen;
@@ -141,8 +142,12 @@ void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
  * supplied transmit descriptor.  The routine is invoked both
  * for packets that were successfully sent and for those that
  * failed (consult the descriptor for details).
+ *
+ * For A-MPDU frames, nframes and nbad indicate how many frames
+ * were in the aggregate, and how many failed.
  */
 struct ath_buf;
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
-		const struct ath_buf *);
+		const struct ath_rc_series *, const struct ath_tx_status *,
+		int pktlen, int nframes, int nbad);
 #endif /* _ATH_RATECTRL_H_ */
