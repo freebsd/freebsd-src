@@ -114,9 +114,9 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 
 /*
- * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
- * pages per allocation.  We recommend you stick with the default of 8.
- * The 16-page limit is due to the radix code (kern/subr_blist.c).
+ * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, 16
+ * or 32 pages per allocation.
+ * The 32-page limit is due to the radix code (kern/subr_blist.c).
  */
 #ifndef MAX_PAGEOUT_CLUSTER
 #define MAX_PAGEOUT_CLUSTER 16
@@ -127,14 +127,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Piecemeal swap metadata structure.  Swap is stored in a radix tree.
- *
- * If SWB_NPAGES is 8 and sizeof(char *) == sizeof(daddr_t), our radix
- * is basically 8.  Assuming PAGE_SIZE == 4096, one tree level represents
- * 32K worth of data, two levels represent 256K, three levels represent
- * 2 MBytes.   This is acceptable.
- *
- * Overall memory utilization is about the same as the old swap structure.
+ * The swblock structure maps an object and a small, fixed-size range
+ * of page indices to disk addresses within a swap area.
+ * The collection of these mappings is implemented as a hash table.
+ * Unused disk addresses within a swap area are allocated and managed
+ * using a blist.
  */
 #define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
@@ -662,9 +659,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
  *	routine is typically called only when the entire object is
  *	about to be destroyed.
  *
- *	This routine may block, but no longer does. 
- *
- *	The object must be locked or unreferenceable.
+ *	The object must be locked.
  */
 static void
 swap_pager_dealloc(vm_object_t object)
@@ -706,7 +701,7 @@ swap_pager_dealloc(vm_object_t object)
  *	Also has the side effect of advising that somebody made a mistake
  *	when they configured swap and didn't configure enough.
  *
- *	This routine may not block
+ *	This routine may not sleep.
  *
  *	We allocate in round-robin fashion from the configured devices.
  */
@@ -776,10 +771,7 @@ swp_pager_strategy(struct buf *bp)
  *
  *	This routine returns the specified swap blocks back to the bitmap.
  *
- *	Note:  This routine may not block (it could in the old swap code),
- *	and through the use of the new blist routines it does not block.
- *
- *	This routine may not block
+ *	This routine may not sleep.
  */
 static void
 swp_pager_freeswapspace(daddr_t blk, int npages)
@@ -875,21 +867,16 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
  *	cases where both the source and destination have a valid swapblk,
  *	we keep the destination's.
  *
- *	This routine is allowed to block.  It may block allocating metadata
+ *	This routine is allowed to sleep.  It may sleep allocating metadata
  *	indirectly through swp_pager_meta_build() or if paging is still in
  *	progress on the source. 
- *
- *	XXX vm_page_collapse() kinda expects us not to block because we 
- *	supposedly do not need to allocate memory, but for the moment we
- *	*may* have to get a little memory from the zone allocator, but
- *	it is taken from the interrupt memory.  We should be ok. 
  *
  *	The source object contains no vm_page_t's (which is just as well)
  *
  *	The source object is of type OBJT_SWAP.
  *
- *	The source and destination objects must be locked or 
- *	inaccessible (XXX are they ?)
+ *	The source and destination objects must be locked.
+ *	Both object locks may temporarily be released.
  */
 void
 swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
@@ -1066,7 +1053,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
  *	does NOT change the m->dirty status of the page.  Also: MADV_FREE
  *	depends on it.
  *
- *	This routine may not block
+ *	This routine may not sleep.
  */
 static void
 swap_pager_unswapped(vm_page_t m)
@@ -1472,7 +1459,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  *	operations, we vm_page_t->busy'd unbusy all pages ( we can do this 
  *	because we marked them all VM_PAGER_PEND on return from putpages ).
  *
- *	This routine may not block.
+ *	This routine may not sleep.
  */
 static void
 swp_pager_async_iodone(struct buf *bp)
@@ -1657,7 +1644,7 @@ swp_pager_async_iodone(struct buf *bp)
  *	Return 1 if at least one page in the given object is paged
  *	out to the given swap device.
  *
- *	This routine may not block.
+ *	This routine may not sleep.
  */
 int
 swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
