@@ -2133,16 +2133,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	u_long mblocks;
 
 	/*
-	 * If we go beyond this, we get overflows in the radix
-	 * tree bitmap code.
-	 */
-	mblocks = 0x40000000 / BLIST_META_RADIX;
-	if (nblks > mblocks) {
-		printf("WARNING: reducing size to maximum of %lu blocks per swap unit\n",
-			mblocks);
-		nblks = mblocks;
-	}
-	/*
 	 * nblks is in DEV_BSIZE'd chunks, convert to PAGE_SIZE'd chunks.
 	 * First chop nblks off to page-align it, then convert.
 	 * 
@@ -2150,6 +2140,18 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	 */
 	nblks &= ~(ctodb(1) - 1);
 	nblks = dbtoc(nblks);
+
+	/*
+	 * If we go beyond this, we get overflows in the radix
+	 * tree bitmap code.
+	 */
+	mblocks = 0x40000000 / BLIST_META_RADIX;
+	if (nblks > mblocks) {
+		printf(
+    "WARNING: reducing swap size to maximum of %luMB per unit\n",
+		    mblocks / 1024 / 1024 * PAGE_SIZE);
+		nblks = mblocks;
+	}
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_vp = vp;
