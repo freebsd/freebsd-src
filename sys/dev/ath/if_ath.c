@@ -1908,6 +1908,7 @@ ath_start(struct ifnet *ifp)
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
 	ath_bufhead frags;
+	int tx = 0;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
@@ -1944,6 +1945,7 @@ ath_start(struct ifnet *ifp)
 			goto bad;
 		}
 		ifp->if_opackets++;
+		tx = 1;
 	nextfrag:
 		/*
 		 * Pass the frame to the h/w for transmission.
@@ -1994,6 +1996,13 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
+
+	/*
+	 * Schedule the software TX process to occur
+	 * if we transmitted at least one packet.
+	 */
+	if (tx)
+		ath_tx_sched_proc_sched(sc, NULL);
 }
 
 static int
