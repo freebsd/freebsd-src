@@ -272,6 +272,27 @@ libusb_get_device_address(libusb_device *dev)
 	return (libusb20_dev_get_address(dev->os_priv));
 }
 
+enum libusb_speed
+libusb_get_device_speed(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (LIBUSB_SPEED_UNKNOWN);	/* should not happen */
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+		return (LIBUSB_SPEED_LOW);
+	case LIBUSB20_SPEED_FULL:
+		return (LIBUSB_SPEED_FULL);
+	case LIBUSB20_SPEED_HIGH:
+		return (LIBUSB_SPEED_HIGH);
+	case LIBUSB20_SPEED_SUPER:
+		return (LIBUSB_SPEED_SUPER);
+	default:
+		break;
+	}
+	return (LIBUSB_SPEED_UNKNOWN);
+}
+
 int
 libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 {
