@@ -568,6 +568,8 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
 		}
 #endif /* IEEE80211_SUPPORT_TDMA */
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth++;
 		txq->axq_link = &bf->bf_lastds->ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
@@ -1946,11 +1948,18 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
-	ATH_TXQ_UNLOCK(atid);
 
-	ATH_TXQ_LOCK(txq);
-	ath_tx_tid_sched(sc, an, tid);
-	ATH_TXQ_UNLOCK(txq);
+	/*
+	 * Don't queue frames if the TID has a handful
+	 * of hardware queued frames already.
+	 */
+	if (atid->hwq_depth < sc->sc_tid_hwq_hi) {
+		ATH_TXQ_UNLOCK(atid);
+		ATH_TXQ_LOCK(txq);
+		ath_tx_tid_sched(sc, an, tid);
+		ATH_TXQ_UNLOCK(txq);
+	} else
+		ATH_TXQ_UNLOCK(atid);
 }
 
 /*
@@ -3038,18 +3047,17 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		/* aggregates are "one" buffer */
 		ATH_TXQ_LOCK(atid);
 		atid->hwq_depth++;
-		if (atid->hwq_depth >= ATH_AGGR_SCHED_LOW) {
-			ATH_TXQ_UNLOCK(atid);
-			break;
-		}
 		ATH_TXQ_UNLOCK(atid);
 
 		/*
 		 * Break out if ath_tx_form_aggr() indicated
 		 * there can't be any further progress (eg BAW is full.)
 		 * Checking for an empty txq is done above.
+		 *
+		 * XXX locking on txq here?
 		 */
-		if (status == ATH_AGGR_BAW_CLOSED)
+		if (txq->axq_aggr_depth >= sc->sc_hwq_limit ||
+		    status == ATH_AGGR_BAW_CLOSED)
 			break;
 	}
 }
@@ -3149,7 +3157,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * XXX normal ones.
 	 */
 	ATH_TXQ_LOCK(txq);
-	if (txq->axq_depth >= ATH_AGGR_MIN_QDEPTH) {
+	if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
 		ATH_TXQ_UNLOCK(txq);
 		return;
 	}
@@ -3191,7 +3199,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 			ath_tx_tid_unsched(sc, atid->an, atid->tid);
 
 		/* Give the software queue time to aggregate more packets */
-		if (txq->axq_depth >= ATH_AGGR_MIN_QDEPTH) {
+		if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
 			//ATH_TXQ_UNLOCK(txq);
 			break;
 		}

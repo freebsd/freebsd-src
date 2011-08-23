@@ -2512,7 +2512,9 @@ ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 	dst->axq_link = src->axq_link;
 	src->axq_link = NULL;
 	dst->axq_depth += src->axq_depth;
+	dst->axq_aggr_depth += src->axq_aggr_depth;
 	src->axq_depth = 0;
+	src->axq_aggr_depth = 0;
 }
 
 /*
@@ -3915,6 +3917,7 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_qnum = qnum;
 	txq->axq_ac = 0;
 	txq->axq_depth = 0;
+	txq->axq_aggr_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	txq->axq_softc = sc;
@@ -4293,6 +4296,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_depth == 0)
 #endif
 			txq->axq_link = NULL;
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth--;
 		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
@@ -4549,6 +4554,8 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth--;
 		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
