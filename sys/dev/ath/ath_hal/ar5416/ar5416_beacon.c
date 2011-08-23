@@ -26,6 +26,7 @@
 #include "ar5416/ar5416phy.h"
 
 #define TU_TO_USEC(_tu)		((_tu) << 10)
+#define	ONE_EIGHTH_TU_TO_USEC(_tu8)	((_tu8) << 7)
 
 /*
  * Initialize all of the hardware registers used to
@@ -38,8 +39,8 @@ ar5416SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 	uint32_t bperiod;
 
 	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bt->bt_nexttbtt));
-	OS_REG_WRITE(ah, AR_NEXT_DBA, TU_TO_USEC(bt->bt_nextdba) >> 3);
-	OS_REG_WRITE(ah, AR_NEXT_SWBA, TU_TO_USEC(bt->bt_nextswba) >> 3);
+	OS_REG_WRITE(ah, AR_NEXT_DBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextdba));
+	OS_REG_WRITE(ah, AR_NEXT_SWBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextswba));
 	OS_REG_WRITE(ah, AR_NEXT_NDP, TU_TO_USEC(bt->bt_nextatim));
 
 	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
@@ -144,7 +145,7 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	
 	/* NB: no cfp setting since h/w automatically takes care */
 
-	OS_REG_WRITE(ah, AR_NEXT_TBTT, bs->bs_nexttbtt);
+	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bs->bs_nexttbtt));
 
 	/*
 	 * Start the beacon timers by setting the BEACON register
