@@ -516,7 +516,7 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 			 * Just say 'OK', and use the reserved value of
 			 * zero.
 			 */
-			if (cc->Ntstats == 0)
+			if ((cc->Ntherm + cc->Ntstats) == 0)
 				cache->elm_map[oid].encstat[0] =
 				    SES_OBJSTAT_NOTAVAIL;
 			else
