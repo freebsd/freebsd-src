@@ -444,6 +444,12 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 */
 	bf_first->bf_lastds = bf_prev->bf_lastds;
 
+	/*
+	 * And bf_last in the first descriptor points to the end of
+	 * the aggregate list.
+	 */
+	bf_first->bf_last = bf_prev;
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
 
@@ -739,6 +745,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	 * This will be overriden when the descriptor chain is written.
 	 */
 	bf->bf_lastds = ds;
+	bf->bf_last = bf;
 
 	/* XXX TODO: Setup descriptor chain */
 }

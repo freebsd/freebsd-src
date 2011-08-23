@@ -183,6 +183,7 @@ struct ath_buf {
 	struct mbuf		*bf_m;		/* mbuf for buf */
 	struct ieee80211_node	*bf_node;	/* pointer to the node */
 	struct ath_desc		*bf_lastds;	/* last descriptor for comp status */
+	struct ath_buf		*bf_last;	/* last buffer in aggregate, or self for non-aggregate */
 	bus_size_t		bf_mapsize;
 #define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];

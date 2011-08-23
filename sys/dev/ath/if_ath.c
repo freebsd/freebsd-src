@@ -1885,6 +1885,7 @@ _ath_getbuf_locked(struct ath_softc *sc)
 			"out of xmit buffers" : "xmit buffer busy");
 	} else {
 		bf->bf_next = NULL;	/* XXX just to be sure */
+		bf->bf_last = NULL;	/* XXX again, just to be sure */
 		bf->bf_comp = NULL;	/* XXX again, just to be sure */
 	}
 	return bf;
@@ -2433,6 +2434,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* setup descriptors */
 	ds = bf->bf_desc;
+	bf->bf_last = bf;
 
 	flags = HAL_TXDESC_NOACK;
 	if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol) {
@@ -4248,7 +4250,7 @@ static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
+	struct ath_buf *bf, *last;
 	struct ath_desc *ds, *ds0;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
@@ -4289,8 +4291,12 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * More frames follow.  Mark the buffer busy
 			 * so it's not re-used while the hardware may
 			 * still re-read the link field in the descriptor.
+			 *
+			 * Use the last buffer in an aggregate as that
+			 * is where the hardware may be - intermediate
+			 * descriptors won't be "busy".
 			 */
-			bf->bf_flags |= ATH_BUF_BUSY;
+			bf->bf_last->bf_flags |= ATH_BUF_BUSY;
 		} else
 #else
 		if (txq->axq_depth == 0)
@@ -4321,6 +4327,20 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ath_tx_update_stats(sc, ts, bf);
 		}
 
+		/*
+		 * Since the last frame may still be marked
+		 * as ATH_BUF_BUSY, unmark it here before
+		 * finishing the frame processing.
+		 * Since we've completed a frame (aggregate
+		 * or otherwise), the hardware has moved on
+		 * and is no longer referencing the previous
+		 * descriptor.
+		 */
+		ATH_TXBUF_LOCK(sc);
+		last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+		if (last != NULL)
+			last->bf_flags &= ~ATH_BUF_BUSY;
+		ATH_TXBUF_UNLOCK(sc);
 
 		/*
 		 * Call the completion handler.
@@ -4574,6 +4594,11 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		 * functions, we -must- call it for aggregation
 		 * destinations or BAW tracking will get upset.
 		 */
+		/*
+		 * Clear ATH_BUF_BUSY; the completion handler
+		 * will free the buffer.
+		 */
+		bf->bf_flags &= ~ATH_BUF_BUSY;
 		if (bf->bf_comp)
 			bf->bf_comp(sc, bf, 1);
 		else
