@@ -475,10 +475,6 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 		break;
 
 	case ENCIOC_GETELMDESC:
-		if (enc->enc_vec.get_elm_desc == NULL) {
-			error = EINVAL;
-			break;
-		}
 		error = copyin(addr, &elmd, sizeof(elmd));
 		if (error)
 			break;
@@ -486,9 +482,12 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 			error = EINVAL;
 			break;
 		}
-		error = enc->enc_vec.get_elm_desc(enc, &elmd);
-		if (error)
-			break;
+		if (enc->enc_vec.get_elm_desc != NULL) {
+			error = enc->enc_vec.get_elm_desc(enc, &elmd);
+			if (error)
+				break;
+		} else
+			elmd.elm_desc_len = 0;
 		error = copyout(&elmd, addr, sizeof(elmd));
 		break;
 
