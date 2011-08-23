@@ -1948,18 +1948,11 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(atid);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+	ATH_TXQ_UNLOCK(atid);
 
-	/*
-	 * Don't queue frames if the TID has a handful
-	 * of hardware queued frames already.
-	 */
-	if (atid->hwq_depth < sc->sc_tid_hwq_hi) {
-		ATH_TXQ_UNLOCK(atid);
-		ATH_TXQ_LOCK(txq);
-		ath_tx_tid_sched(sc, an, tid);
-		ATH_TXQ_UNLOCK(txq);
-	} else
-		ATH_TXQ_UNLOCK(atid);
+	ATH_TXQ_LOCK(txq);
+	ath_tx_tid_sched(sc, an, tid);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -2407,10 +2400,6 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		}
 #endif
 
-		ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
-		ath_tx_tid_sched(sc, an, atid->tid);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
-
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
 
@@ -2835,10 +2824,6 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		    &bf->bf_status.ds_txstat,
 		    bf->bf_state.bfs_pktlen,
 		    1, (ts->ts_status == 0) ? 0 : 1);
-
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
-	ath_tx_tid_sched(sc, an, atid->tid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/*
 	 * If a cleanup is in progress, punt to comp_cleanup;
