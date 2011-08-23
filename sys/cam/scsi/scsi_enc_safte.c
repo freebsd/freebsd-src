@@ -83,7 +83,6 @@ static int perf_slotop(enc_softc_t *, uint8_t, uint8_t, int);
 
 
 #define	SAFT_SCRATCH	64
-#define	NPSEUDO_THERM	16
 #define	NPSEUDO_ALARM	1
 struct scfg {
 	/*
@@ -96,6 +95,7 @@ struct scfg {
 	uint8_t	Ntherm;		/* Number of Temperature Sensors */
 	uint8_t	Nspkrs;		/* Number of Speakers */
 	uint8_t Nalarm;		/* Number of Alarms (at least one) */
+	uint8_t	Ntstats;	/* Number of Thermostats */
 	/*
 	 * Cached Flag Bytes for Global Status
 	 */
@@ -158,8 +158,6 @@ safte_getconfig(enc_softc_t *ssc)
 		ENC_FREE(sdata);
 		return (EIO);
 	}
-	ENC_VLOG(ssc, "Nfans %d Npwr %d Nslots %d Lck %d Ntherm %d Nspkrs %d\n",
-	    sdata[0], sdata[1], sdata[2], sdata[3], sdata[4], sdata[5]);
 	cfg->Nfans = sdata[0];
 	cfg->Npwr = sdata[1];
 	cfg->Nslots = sdata[2];
@@ -167,6 +165,14 @@ safte_getconfig(enc_softc_t *ssc)
 	cfg->Ntherm = sdata[4];
 	cfg->Nspkrs = sdata[5];
 	cfg->Nalarm = NPSEUDO_ALARM;
+	if (amt >= 7)
+		cfg->Ntstats = sdata[6] & 0x0f;
+	else
+		cfg->Ntstats = 0;
+	ENC_VLOG(ssc, "Nfans %d Npwr %d Nslots %d Lck %d Ntherm %d Nspkrs %d "
+	    "Ntstats %d\n",
+	    cfg->Nfans, cfg->Npwr, cfg->Nslots, cfg->DoorLock, cfg->Ntherm,
+	    cfg->Nspkrs, cfg->Ntstats);
 	ENC_FREE(sdata);
 	return (0);
 }
@@ -265,7 +271,7 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 			 * if only one fan or no thermometers,
 			 * else the NONCRITICAL error is set.
 			 */
-			if (cc->Nfans == 1 || cc->Ntherm == 0)
+			if (cc->Nfans == 1 || (cc->Ntherm + cc->Ntstats) == 0)
 				cache->enc_status |= SES_ENCSTAT_CRITICAL;
 			else
 				cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
@@ -433,6 +439,21 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 	}
 	r++;
 
+	/*
+	 * Now, for "pseudo" thermometers, we have two bytes
+	 * of information in enclosure status- 16 bits. Actually,
+	 * the MSB is a single TEMP ALERT flag indicating whether
+	 * any other bits are set, but, thanks to fuzzy thinking,
+	 * in the SAF-TE spec, this can also be set even if no
+	 * other bits are set, thus making this really another
+	 * binary temperature sensor.
+	 */
+
+	SAFT_BAIL(r + cc->Ntherm, hiwater, sdata);
+	tempflags = sdata[r + cc->Ntherm];
+	SAFT_BAIL(r + cc->Ntherm + 1, hiwater, sdata);
+	tempflags |= (tempflags << 8) | sdata[r + cc->Ntherm + 1];
+
 	for (i = 0; i < cc->Ntherm; i++) {
 		SAFT_BAIL(r, hiwater, sdata);
 		/*
@@ -465,7 +486,11 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 		 * value and set SES_OBJSTAT_NOTAVAIL. We'll depend on the
 		 * temperature flags for warnings.
 		 */
-		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NOTAVAIL;
+		if (tempflags & (1 << i)) {
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
+			cache->enc_status |= SES_ENCSTAT_CRITICAL;
+		} else
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 		cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] = sdata[r];
 		cache->elm_map[oid].encstat[3] = 0;
@@ -473,24 +498,10 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 		r++;
 	}
 
-	/*
-	 * Now, for "pseudo" thermometers, we have two bytes
-	 * of information in enclosure status- 16 bits. Actually,
-	 * the MSB is a single TEMP ALERT flag indicating whether
-	 * any other bits are set, but, thanks to fuzzy thinking,
-	 * in the SAF-TE spec, this can also be set even if no
-	 * other bits are set, thus making this really another
-	 * binary temperature sensor.
-	 */
-
-	SAFT_BAIL(r, hiwater, sdata);
-	tempflags = sdata[r++];
-	SAFT_BAIL(r, hiwater, sdata);
-	tempflags |= (tempflags << 8) | sdata[r++];
-
-	for (i = 0; i < NPSEUDO_THERM; i++) {
+	for (i = 0; i <= cc->Ntstats; i++) {
 		cache->elm_map[oid].encstat[1] = 0;
-		if (tempflags & (1 << (NPSEUDO_THERM - i - 1))) {
+		if (tempflags & (1 <<
+		    ((i == cc->Ntstats) ? 15 : (cc->Ntherm + i)))) {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			cache->elm_map[4].encstat[2] = 0xff;
 			/*
@@ -505,12 +516,18 @@ safte_rdstat(enc_softc_t *ssc, int slpflg)
 			 * Just say 'OK', and use the reserved value of
 			 * zero.
 			 */
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
+			if (cc->Ntstats == 0)
+				cache->elm_map[oid].encstat[0] =
+				    SES_OBJSTAT_NOTAVAIL;
+			else
+				cache->elm_map[oid].encstat[0] =
+				    SES_OBJSTAT_OK;
 			cache->elm_map[oid].encstat[2] = 0;
 			cache->elm_map[oid].encstat[3] = 0;
 		}
 		cache->elm_map[oid++].svalid = 1;
 	}
+	r += 2;
 
 	/*
 	 * Get alarm status.
@@ -1006,7 +1023,7 @@ safte_softc_init(enc_softc_t *ssc, int doinit)
 	 */
 	cc = ssc->enc_private;
 	ssc->enc_cache.nelms = cc->Nfans + cc->Npwr + cc->Nslots +
-	    cc->DoorLock + cc->Ntherm + cc->Nspkrs + NPSEUDO_THERM +
+	    cc->DoorLock + cc->Ntherm + cc->Nspkrs + cc->Ntstats + 1 +
 	    NPSEUDO_ALARM;
 	ssc->enc_cache.elm_map =
 	    ENC_MALLOCZ(ssc->enc_cache.nelms * sizeof(enc_element_t));
@@ -1030,7 +1047,7 @@ safte_softc_init(enc_softc_t *ssc, int doinit)
 		ssc->enc_cache.elm_map[r++].enctype = ELMTYP_ALARM;
 	for (i = 0; i < cc->Ntherm; i++)
 		ssc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
-	for (i = 0; i < NPSEUDO_THERM; i++)
+	for (i = 0; i <= cc->Ntstats; i++)
 		ssc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
 	ssc->enc_cache.elm_map[r++].enctype = ELMTYP_ALARM;
 	cc->slotoff = (uint8_t) r;
