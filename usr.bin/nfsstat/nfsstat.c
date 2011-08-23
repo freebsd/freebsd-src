@@ -444,14 +444,14 @@ intpr(int clientOnly, int serverOnly)
 				nfsrvstats.srvrpccnt[NFSPROC_REMOVE]);
 		else
 			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-				ext_nfsstats.srvrpccnt[NFSPROC_GETATTR],
-				ext_nfsstats.srvrpccnt[NFSPROC_SETATTR],
-				ext_nfsstats.srvrpccnt[NFSPROC_LOOKUP],
-				ext_nfsstats.srvrpccnt[NFSPROC_READLINK],
-				ext_nfsstats.srvrpccnt[NFSPROC_READ],
-				ext_nfsstats.srvrpccnt[NFSPROC_WRITE],
-				ext_nfsstats.srvrpccnt[NFSPROC_CREATE],
-				ext_nfsstats.srvrpccnt[NFSPROC_REMOVE]);
+				ext_nfsstats.srvrpccnt[NFSV4OP_GETATTR],
+				ext_nfsstats.srvrpccnt[NFSV4OP_SETATTR],
+				ext_nfsstats.srvrpccnt[NFSV4OP_LOOKUP],
+				ext_nfsstats.srvrpccnt[NFSV4OP_READLINK],
+				ext_nfsstats.srvrpccnt[NFSV4OP_READ],
+				ext_nfsstats.srvrpccnt[NFSV4OP_WRITE],
+				ext_nfsstats.srvrpccnt[NFSV4OP_CREATE],
+				ext_nfsstats.srvrpccnt[NFSV4OP_REMOVE]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
 			"Readdir", "RdirPlus", "Access");
@@ -467,14 +467,14 @@ intpr(int clientOnly, int serverOnly)
 				nfsrvstats.srvrpccnt[NFSPROC_ACCESS]);
 		else
 			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-				ext_nfsstats.srvrpccnt[NFSPROC_RENAME],
-				ext_nfsstats.srvrpccnt[NFSPROC_LINK],
-				ext_nfsstats.srvrpccnt[NFSPROC_SYMLINK],
-				ext_nfsstats.srvrpccnt[NFSPROC_MKDIR],
-				ext_nfsstats.srvrpccnt[NFSPROC_RMDIR],
-				ext_nfsstats.srvrpccnt[NFSPROC_READDIR],
-				ext_nfsstats.srvrpccnt[NFSPROC_READDIRPLUS],
-				ext_nfsstats.srvrpccnt[NFSPROC_ACCESS]);
+				ext_nfsstats.srvrpccnt[NFSV4OP_RENAME],
+				ext_nfsstats.srvrpccnt[NFSV4OP_LINK],
+				ext_nfsstats.srvrpccnt[NFSV4OP_SYMLINK],
+				ext_nfsstats.srvrpccnt[NFSV4OP_MKDIR],
+				ext_nfsstats.srvrpccnt[NFSV4OP_RMDIR],
+				ext_nfsstats.srvrpccnt[NFSV4OP_READDIR],
+				ext_nfsstats.srvrpccnt[NFSV4OP_READDIRPLUS],
+				ext_nfsstats.srvrpccnt[NFSV4OP_ACCESS]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit");
 		if (run_v4 == 0)
@@ -486,11 +486,11 @@ intpr(int clientOnly, int serverOnly)
 				nfsrvstats.srvrpccnt[NFSPROC_COMMIT]);
 		else
 			printf("%9d %9d %9d %9d %9d\n",
-				ext_nfsstats.srvrpccnt[NFSPROC_MKNOD],
-				ext_nfsstats.srvrpccnt[NFSPROC_FSSTAT],
-				ext_nfsstats.srvrpccnt[NFSPROC_FSINFO],
-				ext_nfsstats.srvrpccnt[NFSPROC_PATHCONF],
-				ext_nfsstats.srvrpccnt[NFSPROC_COMMIT]);
+				ext_nfsstats.srvrpccnt[NFSV4OP_MKNOD],
+				ext_nfsstats.srvrpccnt[NFSV4OP_FSSTAT],
+				ext_nfsstats.srvrpccnt[NFSV4OP_FSINFO],
+				ext_nfsstats.srvrpccnt[NFSV4OP_PATHCONF],
+				ext_nfsstats.srvrpccnt[NFSV4OP_COMMIT]);
 		printf("Server Ret-Failed\n");
 		if (run_v4 == 0)
 			printf("%17d\n", nfsrvstats.srvrpc_errs);
@@ -531,8 +531,8 @@ intpr(int clientOnly, int serverOnly)
 			 * only useful for NFSv2.
 			 */
 			printf("%9d %9d %9d\n",
-				ext_nfsstats.srvrpccnt[NFSPROC_WRITE],
-				ext_nfsstats.srvrpccnt[NFSPROC_WRITE], 0);
+				ext_nfsstats.srvrpccnt[NFSV4OP_WRITE],
+				ext_nfsstats.srvrpccnt[NFSV4OP_WRITE], 0);
 	}
 }
 
