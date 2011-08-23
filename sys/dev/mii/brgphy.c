@@ -913,10 +913,22 @@ brgphy_reset(struct mii_softc *sc)
 	struct bge_softc *bge_sc = NULL;
 	struct bce_softc *bce_sc = NULL;
 	struct ifnet *ifp;
-	int val;
+	int i, val;
 
-	/* Perform a standard PHY reset. */
-	mii_phy_reset(sc);
+	/*
+	 * Perform a reset.  Note that at least some Broadcom PHYs default to
+	 * being powered down as well as isolated after a reset but don't work
+	 * if one or both of these bits are cleared.  However, they just work
+	 * fine if both bits remain set, so we don't use mii_phy_reset() here.
+	 */
+	PHY_WRITE(sc, BRGPHY_MII_BMCR, BRGPHY_BMCR_RESET);
+
+	/* Wait 100ms for it to complete. */
+	for (i = 0; i < 100; i++) {
+		if ((PHY_READ(sc, BRGPHY_MII_BMCR) & BRGPHY_BMCR_RESET) == 0)
+			break;
+		DELAY(1000);
+	}
 
 	/* Handle any PHY specific procedures following the reset. */
 	switch (bsc->mii_oui) {
