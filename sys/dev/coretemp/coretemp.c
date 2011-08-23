@@ -225,12 +225,12 @@ coretemp_attach(device_t dev)
 			 * these numbers are, with the publicly available
 			 * documents from Intel.
 			 *
-			 * For now, we consider [70, 100]C range, as
+			 * For now, we consider [70, 110]C range, as
 			 * described in #322683, as "reasonable" and accept
 			 * these values whenever the MSR is available for
 			 * read, regardless the CPU model.
 			 */
-			if (tjtarget >= 70 && tjtarget <= 100)
+			if (tjtarget >= 70 && tjtarget <= 110)
 				sc->sc_tjmax = tjtarget;
 			else
 				device_printf(dev, "Tj(target) value %d "
