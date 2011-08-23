@@ -947,10 +947,8 @@ gem_init_locked(struct gem_softc *sc)
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
-#ifdef notyet
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
-#endif
 
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "%s: %s: calling stop", device_get_name(sc->sc_dev),
