@@ -2494,6 +2494,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 	/* setup descriptors */
 	ds = bf->bf_desc;
 	bf->bf_last = bf;
+	bf->bf_lastds = ds;
 
 	flags = HAL_TXDESC_NOACK;
 	if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol) {
@@ -4577,6 +4578,7 @@ void
 ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 {
 	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTWRITE);
 
 	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
 	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
