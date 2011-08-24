@@ -141,8 +141,10 @@ ENTRY(cpu_throw)
 	/* Switch to lwp0 context */
 
 	ldr	r9, .Lcpufuncs
+#if !defined(CPU_ARM11) && !defined(CPU_MV_PJ4B)
 	mov	lr, pc
 	ldr	pc, [r9, #CF_IDCACHE_WBINV_ALL]
+#endif
 	ldr	r0, [r7, #(PCB_PL1VEC)]
 	ldr	r1, [r7, #(PCB_DACR)]
 	/*
@@ -333,6 +335,7 @@ ENTRY(cpu_switch)
 	cmpeq	r0, r5				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
 
+#if !defined(CPU_ARM11) && !defined(CPU_MV_PJ4B)
 	/*
 	 * Definately need to flush the cache.
 	 */
@@ -340,6 +343,7 @@ ENTRY(cpu_switch)
 	ldr	r1, .Lcpufuncs
 	mov	lr, pc
 	ldr	pc, [r1, #CF_IDCACHE_WBINV_ALL]
+#endif
 .Lcs_cache_purge_skipped:
 	/* rem: r6 = lock */
 	/* rem: r9 = new PCB */
@@ -363,6 +367,7 @@ ENTRY(cpu_switch)
 	beq	.Lcs_same_vector
 	str	r0, [r7]		/* Otherwise, update it */
 
+#if !defined(CPU_ARM11) && !defined(CPU_MV_PJ4B)
 	/*
 	 * Need to sync the cache to make sure that last store is
 	 * visible to the MMU.
@@ -372,6 +377,7 @@ ENTRY(cpu_switch)
 	mov	r1, #4
 	mov	lr, pc
 	ldr	pc, [r2, #CF_DCACHE_WB_RANGE]
+#endif
 
 .Lcs_same_vector:
 #endif /* PMAP_INCLUDE_PTE_SYNC */

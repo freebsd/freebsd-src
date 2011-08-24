@@ -222,10 +222,12 @@ int	cpufunc_null_fixup	(void *);
 int	early_abort_fixup	(void *);
 int	late_abort_fixup	(void *);
 u_int	cpufunc_id		(void);
+u_int	cpufunc_cpuid		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpufunc_domains		(u_int domains);
 u_int	cpufunc_faultstatus	(void);
 u_int	cpufunc_faultaddress	(void);
+u_int	cpu_pfr			(int);
 
 #ifdef CPU_ARM3
 u_int	arm3_control		(u_int clear, u_int bic);
@@ -413,7 +415,7 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#ifdef CPU_ARM11
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
 void	arm11_setttb		(u_int);
 
 void	arm11_tlb_flushID_SE	(u_int);
@@ -428,6 +430,45 @@ void	arm11_tlb_flushD	(void);
 void	arm11_tlb_flushD_SE	(u_int va);
 
 void	arm11_drain_writebuf	(void);
+
+void	pj4b_setttb			(u_int);
+
+void	pj4b_icache_sync_range		(vm_offset_t, vm_size_t);
+
+void	pj4b_dcache_wbinv_range		(vm_offset_t, vm_size_t);
+void	pj4b_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	pj4b_dcache_wb_range		(vm_offset_t, vm_size_t);
+
+void	pj4b_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+
+void	pj4b_l2cache_wbinv_range	(vm_offset_t, vm_size_t);
+void	pj4b_l2cache_inv_range		(vm_offset_t, vm_size_t);
+void	pj4b_l2cache_wb_range		(vm_offset_t, vm_size_t);
+void	pj4b_l2cache_wbinv_all		(void);
+
+void	pj4b_drain_readbuf		(void);
+void	pj4b_flush_brnchtgt_all		(void);
+void	pj4b_flush_brnchtgt_va		(u_int);
+void	pj4b_sleep			(int);
+
+void	armv6_icache_sync_all		(void);
+void	armv6_dcache_wbinv_all		(void);
+void	armv6_idcache_wbinv_all		(void);
+
+void	armv7_tlb_flushID		(void);
+void	armv7_tlb_flushID_SE		(u_int);
+void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
+void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv7_dcache_wbinv_all		(void);
+void	armv7_idcache_wbinv_all		(void);
+void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv7_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	armv7_dcache_wb_range		(vm_offset_t, vm_size_t);
+void	pj4bv7_setup			(char *string);
+void	pj4bv6_setup			(char *string);
+void	pj4b_config			(void);
+
+void	armadaxp_idcache_wbinv_all	(void);
 #endif
 
 #if defined(CPU_ARM9E) || defined (CPU_ARM10)
@@ -445,7 +486,7 @@ void	armv5_ec_idcache_wbinv_all(void);
 void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
-#if defined (CPU_ARM10) || defined (CPU_ARM11)
+#if defined (CPU_ARM10)
 void	armv5_setttb(u_int);
 
 void	armv5_icache_sync_all(void);
@@ -635,6 +676,10 @@ extern int	arm_pcache_unified;
 
 extern int	arm_dcache_align;
 extern int	arm_dcache_align_mask;
+
+extern u_int	arm_cache_level;
+extern u_int	arm_cache_loc;
+extern u_int	arm_cache_type[14];
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

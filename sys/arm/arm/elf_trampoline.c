@@ -72,7 +72,13 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #elif defined(CPU_XSCALE_81342)
 #define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+#elif defined(CPU_MV_PJ4B)
+#if !defined(SOC_MV_ARMADAXP)
+#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
+#else
+#define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
 #endif
+#endif /* CPU_MV_PJ4B */
 #ifdef CPU_XSCALE_81342
 #define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
@@ -81,6 +87,7 @@ void __startC(void);
 #define cpu_l2cache_wbinv_all()	
 #endif
 
+static void armadaxp_idcache_wbinv_all(void);
 
 int     arm_picache_size;
 int     arm_picache_line_size;
@@ -306,7 +313,18 @@ arm9_setup(void)
 	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
 }
 
+static void
+armadaxp_idcache_wbinv_all(void)
+{
+	uint32_t feat;
 
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (feat));
+	if (feat & ARM_PFR0_THUMBEE_MASK)
+		armv7_idcache_wbinv_all();
+	else
+		armv6_idcache_wbinv_all();
+
+}
 #ifdef KZIP
 static  unsigned char *orig_input, *i_input, *i_output;
 

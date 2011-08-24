@@ -162,12 +162,20 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+	mov	r0, #0
+	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
+#endif
+
 	/* Set the Domain Access register.  Very important! */
 	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-	orr	r0, r0, #CPU_CONTROL_MMU_ENABLE
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+#endif
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop

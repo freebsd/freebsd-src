@@ -205,7 +205,10 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define	L1_S_DOM_MASK	L1_S_DOM(0xf)
 #define	L1_S_AP(x)	((x) << 10)	/* access permissions */
 #define	L1_S_ADDR_MASK	0xfff00000	/* phys address of section */
-#define L1_SHARED	(1 << 16)
+#define	L1_S_TEX(x)	(((x) & 0x7) << 12)	/* Type Extension */
+#define	L1_S_TEX_MASK	(0x7 << 12)	/* Type Extension */
+#define	L1_S_APX	(1 << 15)
+#define	L1_SHARED	(1 << 16)
 
 #define	L1_S_XSCALE_P	0x00000200	/* ECC enable for this section */
 #define	L1_S_XSCALE_TEX(x) ((x) << 12)	/* Type Extension */
@@ -256,7 +259,13 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define	L2_AP1(x)	((x) << 6)	/* access permissions (sp 1) */
 #define	L2_AP2(x)	((x) << 8)	/* access permissions (sp 2) */
 #define	L2_AP3(x)	((x) << 10)	/* access permissions (sp 3) */
-#define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
+
+#define	L2_APX		(1 << 9)
+#define	L2_XN		(1 << 0)
+#define	L2_L_TEX_MASK	(0x7 << 12)	/* Type Extension */
+#define	L2_L_TEX(x)	(((x) & 0x7) << 12)
+#define	L2_S_TEX_MASK	(0x7 << 6)	/* Type Extension */
+#define	L2_S_TEX(x)	(((x) & 0x7) << 6)
 
 #define	L2_XSCALE_L_TEX(x) ((x) << 12)	/* Type Extension */
 #define L2_XSCALE_L_S(x)   (1 << 15)	/* Shared */
