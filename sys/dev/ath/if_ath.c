@@ -1925,7 +1925,7 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	tbf->bf_next = bf->bf_next;
 	tbf->bf_nseg = bf->bf_nseg;
 	tbf->bf_txflags = bf->bf_txflags;
-	tbf->bf_flags = bf->bf_flags;
+	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
 	tbf->bf_status = bf->bf_status;
 	tbf->bf_m = bf->bf_m;
 	tbf->bf_node = bf->bf_node;
