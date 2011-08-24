@@ -53,10 +53,7 @@ __FBSDID("$FreeBSD: head/sys/cam/scsi/scsi_ses.c 201758 2010-01-07 21:01:37Z mbr
  * SAF-TE Type Device Emulation
  */
 
-static int set_elm_status_sel(enc_softc_t *, encioc_elm_status_t *, int);
 static int wrbuf16(enc_softc_t *, uint8_t, uint8_t, uint8_t, uint8_t, int);
-static void wrslot_stat(enc_softc_t *, int);
-static int perf_slotop(enc_softc_t *, uint8_t, uint8_t, int);
 
 #define	ALL_ENC_STAT (SES_ENCSTAT_CRITICAL | SES_ENCSTAT_UNRECOV | \
 	SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
@@ -90,14 +87,17 @@ typedef enum {
 	SAFTE_UPDATE_READGFLAGS,
 	SAFTE_UPDATE_READENCSTATUS,
 	SAFTE_UPDATE_READSLOTSTATUS,
+	SAFTE_PROCESS_CONTROL_REQS,
 	SAFTE_NUM_UPDATE_STATES
 } safte_update_action;
 
 static fsm_fill_handler_t safte_fill_read_buf_io;
+static fsm_fill_handler_t safte_fill_control_request;
 static fsm_done_handler_t safte_process_config;
 static fsm_done_handler_t safte_process_gflags;
 static fsm_done_handler_t safte_process_status;
 static fsm_done_handler_t safte_process_slotstatus;
+static fsm_done_handler_t safte_process_control_request;
 
 static struct enc_fsm_state enc_fsm_states[SAFTE_NUM_UPDATE_STATES] =
 {
@@ -137,10 +137,30 @@ static struct enc_fsm_state enc_fsm_states[SAFTE_NUM_UPDATE_STATES] =
 		safte_fill_read_buf_io,
 		safte_process_slotstatus,
 		enc_error
+	},
+	{
+		"SAFTE_PROCESS_CONTROL_REQS",
+		0,
+		SCSZ,
+		60 * 1000,
+		safte_fill_control_request,
+		safte_process_control_request,
+		enc_error
 	}
 };
 
-#define	NPSEUDO_ALARM	1
+typedef struct safte_control_request {
+	int	elm_idx;
+	uint8_t	elm_stat[4];
+	int	result;
+	TAILQ_ENTRY(safte_control_request) links;
+} safte_control_request_t;
+TAILQ_HEAD(safte_control_reqlist, safte_control_request);
+typedef struct safte_control_reqlist safte_control_reqlist_t;
+enum {
+	SES_SETSTATUS_ENC_IDX = -1
+};
+
 struct scfg {
 	/*
 	 * Cached Configuration
@@ -151,7 +171,6 @@ struct scfg {
 	uint8_t	DoorLock;	/* Door Lock Installed */
 	uint8_t	Ntherm;		/* Number of Temperature Sensors */
 	uint8_t	Nspkrs;		/* Number of Speakers */
-	uint8_t Nalarm;		/* Number of Alarms (at least one) */
 	uint8_t	Ntstats;	/* Number of Thermostats */
 	/*
 	 * Cached Flag Bytes for Global Status
@@ -164,6 +183,15 @@ struct scfg {
 	uint8_t	pwroff;
 	uint8_t	slotoff;
 #define	SAFT_ALARM_OFFSET(cc)	(cc)->slotoff - 1
+
+	encioc_enc_status_t	adm_status;
+	encioc_enc_status_t	enc_status;
+	encioc_enc_status_t	slot_status;
+
+	safte_control_reqlist_t	requests;
+	safte_control_request_t	*current_request;
+	int			current_request_stage;
+	int			current_request_stages;
 };
 
 #define	SAFT_FLG1_ALARM		0x1
@@ -233,7 +261,6 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg->DoorLock = buf[3];
 	cfg->Ntherm = buf[4];
 	cfg->Nspkrs = buf[5];
-	cfg->Nalarm = NPSEUDO_ALARM;
 	if (xfer_len >= 7)
 		cfg->Ntstats = buf[6] & 0x0f;
 	else
@@ -244,8 +271,7 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	    cfg->Nspkrs, cfg->Ntstats);
 
 	enc->enc_cache.nelms = cfg->Nfans + cfg->Npwr + cfg->Nslots +
-	    cfg->DoorLock + cfg->Ntherm + cfg->Nspkrs + cfg->Ntstats + 1 +
-	    NPSEUDO_ALARM;
+	    cfg->DoorLock + cfg->Ntherm + cfg->Nspkrs + cfg->Ntstats + 1;
 	ENC_FREE_AND_NULL(enc->enc_cache.elm_map);
 	enc->enc_cache.elm_map =
 	    ENC_MALLOCZ(enc->enc_cache.nelms * sizeof(enc_element_t));
@@ -266,13 +292,12 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_POWER;
 	for (i = 0; i < cfg->DoorLock; i++)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_DOORLOCK;
-	for (i = 0; i < cfg->Nspkrs; i++)
+	if (cfg->Nspkrs > 0)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_ALARM;
 	for (i = 0; i < cfg->Ntherm; i++)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
 	for (i = 0; i <= cfg->Ntstats; i++)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
-	enc->enc_cache.elm_map[r++].enctype = ELMTYP_ALARM;
 	cfg->slotoff = (uint8_t) r;
 	for (i = 0; i < cfg->Nslots; i++)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_DEVICE;
@@ -299,6 +324,12 @@ safte_process_gflags(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg->flag1 = buf[1];
 	cfg->flag2 = buf[2];
 
+	cfg->adm_status = 0;
+	if (cfg->flag1 & SAFT_FLG1_GLOBFAIL)
+		cfg->adm_status |= SES_ENCSTAT_CRITICAL;
+	else if (cfg->flag1 & SAFT_FLG1_GLOBWARN)
+		cfg->adm_status |= SES_ENCSTAT_NONCRITICAL;
+
 	return (0);
 }
 
@@ -317,6 +348,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		return (ENXIO);
 
 	oid = r = 0;
+	cfg->enc_status = 0;
 
 	for (nitems = i = 0; i < cfg->Nfans; i++) {
 		SAFT_BAIL(r, xfer_len);
@@ -328,16 +360,16 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		 */
 		cache->elm_map[oid].encstat[1] = 0;	/* resvd */
 		cache->elm_map[oid].encstat[2] = 0;	/* resvd */
+		if (cfg->flag1 & SAFT_FLG1_ENCFANFAIL)
+			cache->elm_map[oid].encstat[3] |= 0x40;
+		else
+			cache->elm_map[oid].encstat[3] &= ~0x40;
 		switch ((int)buf[r]) {
 		case 0:
 			nitems++;
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
-			/*
-			 * We could get fancier and cache
-			 * fan speeds that we have set, but
-			 * that isn't done now.
-			 */
-			cache->elm_map[oid].encstat[3] = 7;
+			if ((cache->elm_map[oid].encstat[3] & 0x37) == 0)
+				cache->elm_map[oid].encstat[3] |= 0x27;
 			break;
 
 		case 1:
@@ -346,35 +378,37 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			/*
 			 * FAIL and FAN STOPPED synthesized
 			 */
-			cache->elm_map[oid].encstat[3] = 0x40;
+			cache->elm_map[oid].encstat[3] |= 0x10;
+			cache->elm_map[oid].encstat[3] &= ~0x07;
 			/*
 			 * Enclosure marked with CRITICAL error
 			 * if only one fan or no thermometers,
 			 * else the NONCRITICAL error is set.
 			 */
 			if (cfg->Nfans == 1 || (cfg->Ntherm + cfg->Ntstats) == 0)
-				cache->enc_status |= SES_ENCSTAT_CRITICAL;
+				cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 			else
-				cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
+				cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
 		case 2:
 			cache->elm_map[oid].encstat[0] =
 			    SES_OBJSTAT_NOTINSTALLED;
-			cache->elm_map[oid].encstat[3] = 0;
+			cache->elm_map[oid].encstat[3] |= 0x10;
+			cache->elm_map[oid].encstat[3] &= ~0x07;
 			/*
 			 * Enclosure marked with CRITICAL error
 			 * if only one fan or no thermometers,
 			 * else the NONCRITICAL error is set.
 			 */
 			if (cfg->Nfans == 1)
-				cache->enc_status |= SES_ENCSTAT_CRITICAL;
+				cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 			else
-				cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
+				cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
 		case 0x80:
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
 			cache->elm_map[oid].encstat[3] = 0;
-			cache->enc_status |= SES_ENCSTAT_INFO;
+			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		default:
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
@@ -390,10 +424,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * No matter how you cut it, no cooling elements when there
 	 * should be some there is critical.
 	 */
-	if (cfg->Nfans && nitems == 0) {
-		cache->enc_status |= SES_ENCSTAT_CRITICAL;
-	}
-
+	if (cfg->Nfans && nitems == 0)
+		cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 
 	for (i = 0; i < cfg->Npwr; i++) {
 		SAFT_BAIL(r, xfer_len);
@@ -408,24 +440,24 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		case 0x01:	/* pws operational and off */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 			cache->elm_map[oid].encstat[3] = 0x10;
-			cache->enc_status |= SES_ENCSTAT_INFO;
+			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		case 0x10:	/* pws is malfunctioning and commanded on */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			cache->elm_map[oid].encstat[3] = 0x61;
-			cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
+			cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
 
 		case 0x11:	/* pws is malfunctioning and commanded off */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NONCRIT;
 			cache->elm_map[oid].encstat[3] = 0x51;
-			cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
+			cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
 		case 0x20:	/* pws is not present */
 			cache->elm_map[oid].encstat[0] =
 			    SES_OBJSTAT_NOTINSTALLED;
 			cache->elm_map[oid].encstat[3] = 0;
-			cache->enc_status |= SES_ENCSTAT_INFO;
+			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		case 0x21:	/* pws is present */
 			/*
@@ -437,7 +469,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		case 0x80:	/* Unknown or Not Reportable Status */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
 			cache->elm_map[oid].encstat[3] = 0;
-			cache->enc_status |= SES_ENCSTAT_INFO;
+			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		default:
 			ENC_LOG(enc, "unknown power supply %d status (0x%x)\n",
@@ -449,9 +481,13 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 
 	/*
-	 * Skip over Slot SCSI IDs
+	 * Copy Slot SCSI IDs
 	 */
-	r += cfg->Nslots;
+	for (i = 0; i < cfg->Nslots; i++) {
+		SAFT_BAIL(r, xfer_len);
+		cache->elm_map[cfg->slotoff + i].encstat[1] = buf[r];
+		r++;
+	}
 
 	/*
 	 * We always have doorlock status, no matter what,
@@ -478,7 +514,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		case 0x80:
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
 			cache->elm_map[oid].encstat[3] = 0;
-			cache->enc_status |= SES_ENCSTAT_INFO;
+			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		default:
 			cache->elm_map[oid].encstat[0] =
@@ -497,24 +533,12 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 */
 	SAFT_BAIL(r, xfer_len);
 	if (cfg->Nspkrs) {
+		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 		cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] = 0;
-		if (buf[r] == 1) {
-			/*
-			 * We need to cache tone urgency indicators.
-			 * Someday.
-			 */
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NONCRIT;
-			cache->elm_map[oid].encstat[3] = 0x8;
-			cache->enc_status |= SES_ENCSTAT_NONCRITICAL;
-		} else if (buf[r] == 0) {
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
-			cache->elm_map[oid].encstat[3] = 0;
-		} else {
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
-			cache->elm_map[oid].encstat[3] = 0;
-			ENC_LOG(enc, "unknown spkr status 0x%x\n",
-			    buf[r] & 0xff);
+		if (buf[r] == 0) {
+			cache->elm_map[oid].encstat[0] |= SESCTL_DISABLE;
+			cache->elm_map[oid].encstat[3] |= 0x40;
 		}
 		cache->elm_map[oid++].svalid = 1;
 	}
@@ -569,7 +593,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		 */
 		if (tempflags & (1 << i)) {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
-			cache->enc_status |= SES_ENCSTAT_CRITICAL;
+			cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 		} else
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 		cache->elm_map[oid].encstat[1] = 0;
@@ -589,7 +613,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			 * Set 'over temperature' failure.
 			 */
 			cache->elm_map[oid].encstat[3] = 8;
-			cache->enc_status |= SES_ENCSTAT_CRITICAL;
+			cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 		} else {
 			/*
 			 * We used to say 'not available' and synthesize a
@@ -610,13 +634,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 	r += 2;
 
-	/*
-	 * Get alarm status.
-	 */
-	cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
-	cache->elm_map[oid].encstat[3] = cache->elm_map[oid].priv;
-	cache->elm_map[oid++].svalid = 1;
-
+	cache->enc_status =
+	    cfg->enc_status | cfg->slot_status | cfg->adm_status;
 	return (0);
 }
 
@@ -628,119 +647,281 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	uint8_t *buf = *bufp;
 	enc_cache_t *cache = &enc->enc_cache;
 	int oid, r, i;
-	uint8_t status;
 
 	cfg = enc->enc_private;
 	if (cfg == NULL)
 		return (ENXIO);
 
+	cfg->slot_status = 0;
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
 		SAFT_BAIL(r+3, xfer_len);
-		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
-		cache->elm_map[oid].encstat[1] = (uint8_t) i;
-		cache->elm_map[oid].encstat[2] = 0;
+		cache->elm_map[oid].encstat[2] &= SESCTL_RQSID;
 		cache->elm_map[oid].encstat[3] = 0;
-		status = buf[r+3];
-		if ((status & 0x1) == 0) {	/* no device */
-			cache->elm_map[oid].encstat[0] =
-			    SES_OBJSTAT_NOTINSTALLED;
+		if ((buf[r+3] & 0x01) == 0) {	/* no device */
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NOTINSTALLED;
+		} else if (buf[r+0] & 0x02) {
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
+			cfg->slot_status |= SES_ENCSTAT_CRITICAL;
+		} else if (buf[r+0] & 0x40) {
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NONCRIT;
+			cfg->slot_status |= SES_ENCSTAT_NONCRITICAL;
 		} else {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 		}
-		if (status & 0x2) {
-			cache->elm_map[oid].encstat[2] = 0x8;
+		if (buf[r+3] & 0x2) {
+			if (buf[r+3] & 0x01)
+				cache->elm_map[oid].encstat[2] |= SESCTL_RQSRMV;
+			else
+				cache->elm_map[oid].encstat[2] |= SESCTL_RQSINS;
 		}
-		if ((status & 0x4) == 0) {
-			cache->elm_map[oid].encstat[3] = 0x10;
-		}
+		if ((buf[r+3] & 0x04) == 0)
+			cache->elm_map[oid].encstat[3] |= SESCTL_DEVOFF;
+		if (buf[r+0] & 0x02)
+			cache->elm_map[oid].encstat[3] |= SESCTL_RQSFLT;
+		if (buf[r+0] & 0x40)
+			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
 		cache->elm_map[oid++].svalid = 1;
+	}
+
+	cache->enc_status =
+	    cfg->enc_status | cfg->slot_status | cfg->adm_status;
+	return (0);
+}
+
+static int
+safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
+		       union ccb *ccb, uint8_t *buf)
+{
+	struct scfg *cfg;
+	enc_element_t *ep, *ep1;
+	safte_control_request_t *req;
+	int i, idx, xfer_len;
+
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
+
+	if (enc->enc_cache.nelms == 0) {
+		enc_update_request(enc, SAFTE_UPDATE_READCONFIG);
+		return (-1);
+	}
+
+	if (cfg->current_request == NULL) {
+		cfg->current_request = TAILQ_FIRST(&cfg->requests);
+		TAILQ_REMOVE(&cfg->requests, cfg->current_request, links);
+		cfg->current_request_stage = 0;
+		cfg->current_request_stages = 1;
+	}
+	req = cfg->current_request;
+
+	idx = (int)req->elm_idx;
+	if (req->elm_idx == SES_SETSTATUS_ENC_IDX) {
+		cfg->adm_status = req->elm_stat[0] & ALL_ENC_STAT;
+		cfg->flag1 &= ~(SAFT_FLG1_GLOBFAIL|SAFT_FLG1_GLOBWARN);
+		if (req->elm_stat[0] & (SES_ENCSTAT_CRITICAL|SES_ENCSTAT_UNRECOV))
+			cfg->flag1 |= SAFT_FLG1_GLOBFAIL;
+		else if (req->elm_stat[0] & SES_ENCSTAT_NONCRITICAL)
+			cfg->flag1 |= SAFT_FLG1_GLOBWARN;
+		buf[0] = SAFTE_WT_GLOBAL;
+		buf[1] = cfg->flag1;
+		buf[2] = cfg->flag2;
+		buf[3] = 0;
+		xfer_len = 16;
+	} else {
+		ep = &enc->enc_cache.elm_map[idx];
+
+		switch (ep->enctype) {
+		case ELMTYP_DEVICE:
+			switch (cfg->current_request_stage) {
+			case 0:
+				ep->priv = 0;
+				if (req->elm_stat[0] & SESCTL_PRDFAIL)
+					ep->priv |= 0x40;
+				if (req->elm_stat[3] & SESCTL_RQSFLT)
+					ep->priv |= 0x02;
+				if ((ep->priv & 0x46) == 0)
+					ep->priv |= 0x01;	/* no errors */
+
+				buf[0] = SAFTE_WT_DSTAT;
+				for (i = 0; i < cfg->Nslots; i++) {
+					ep1 = &enc->enc_cache.elm_map[cfg->slotoff + i];
+					buf[1 + (3 * i)] = ep1->priv;
+					buf[2 + (3 * i)] = ep1->priv >> 8;
+				}
+				xfer_len = cfg->Nslots * 3 + 1;
+#define DEVON(x)	(!(((x)[2] & SESCTL_RQSINS) |	\
+			   ((x)[2] & SESCTL_RQSRMV) |	\
+			   ((x)[3] & SESCTL_DEVOFF)))
+				if (DEVON(req->elm_stat) != DEVON(ep->encstat))
+					cfg->current_request_stages++;
+#define IDON(x)		(!!((x)[2] & SESCTL_RQSID))
+				if (IDON(req->elm_stat) != IDON(ep->encstat))
+					cfg->current_request_stages++;
+				break;
+			case 1:
+			case 2:
+				buf[0] = SAFTE_WT_SLTOP;
+				buf[1] = idx - cfg->slotoff;
+				if (cfg->current_request_stage == 1 &&
+				    DEVON(req->elm_stat) != DEVON(ep->encstat)) {
+					if (DEVON(req->elm_stat))
+						buf[2] = 0x01;
+					else
+						buf[2] = 0x02;
+				} else {
+					if (IDON(req->elm_stat))
+						buf[2] = 0x04;
+					else
+						buf[2] = 0x00;
+					ep->encstat[2] &= ~SESCTL_RQSID;
+					ep->encstat[2] |= req->elm_stat[2] &
+					    SESCTL_RQSID;
+				}
+				xfer_len = 64;
+				break;
+			default:
+				return (EINVAL);
+			}
+			break;
+		case ELMTYP_POWER:
+			cfg->current_request_stages = 2;
+			switch (cfg->current_request_stage) {
+			case 0:
+				if (req->elm_stat[3] & SESCTL_RQSTFAIL) {
+					cfg->flag1 |= SAFT_FLG1_ENCPWRFAIL;
+				} else {
+					cfg->flag1 &= ~SAFT_FLG1_ENCPWRFAIL;
+				}
+				buf[0] = SAFTE_WT_GLOBAL;
+				buf[1] = cfg->flag1;
+				buf[2] = cfg->flag2;
+				buf[3] = 0;
+				xfer_len = 16;
+				break;
+			case 1:
+				buf[0] = SAFTE_WT_ACTPWS;
+				buf[1] = idx - cfg->pwroff;
+				if (req->elm_stat[3] & SESCTL_RQSTON)
+					buf[2] = 0x01;
+				else
+					buf[2] = 0x00;
+				buf[3] = 0;
+				xfer_len = 16;
+			default:
+				return (EINVAL);
+			}
+			break;
+		case ELMTYP_FAN:
+			if ((req->elm_stat[3] & 0x7) != 0)
+				cfg->current_request_stages = 2;
+			switch (cfg->current_request_stage) {
+			case 0:
+				if (req->elm_stat[3] & SESCTL_RQSTFAIL)
+					cfg->flag1 |= SAFT_FLG1_ENCFANFAIL;
+				else
+					cfg->flag1 &= ~SAFT_FLG1_ENCFANFAIL;
+				buf[0] = SAFTE_WT_GLOBAL;
+				buf[1] = cfg->flag1;
+				buf[2] = cfg->flag2;
+				buf[3] = 0;
+				xfer_len = 16;
+				break;
+			case 1:
+				buf[0] = SAFTE_WT_FANSPD;
+				buf[1] = idx;
+				if (req->elm_stat[3] & SESCTL_RQSTON) {
+					if ((req->elm_stat[3] & 0x7) == 7)
+						buf[2] = 4;
+					else if ((req->elm_stat[3] & 0x7) >= 5)
+						buf[2] = 3;
+					else if ((req->elm_stat[3] & 0x7) >= 3)
+						buf[2] = 2;
+					else
+						buf[2] = 1;
+				} else
+					buf[2] = 0;
+				buf[3] = 0;
+				xfer_len = 16;
+				ep->encstat[3] = req->elm_stat[3] & 0x67;
+			default:
+				return (EINVAL);
+			}
+			break;
+		case ELMTYP_DOORLOCK:
+			if (req->elm_stat[3] & 0x1)
+				cfg->flag2 &= ~SAFT_FLG2_LOCKDOOR;
+			else
+				cfg->flag2 |= SAFT_FLG2_LOCKDOOR;
+			buf[0] = SAFTE_WT_GLOBAL;
+			buf[1] = cfg->flag1;
+			buf[2] = cfg->flag2;
+			buf[3] = 0;
+			xfer_len = 16;
+			break;
+		case ELMTYP_ALARM:
+			if ((req->elm_stat[0] & SESCTL_DISABLE) ||
+			    (req->elm_stat[3] & 0x40)) {
+				cfg->flag2 &= ~SAFT_FLG1_ALARM;
+			} else if ((req->elm_stat[3] & 0x0f) != 0) {
+				cfg->flag2 |= SAFT_FLG1_ALARM;
+			} else {
+				cfg->flag2 &= ~SAFT_FLG1_ALARM;
+			}
+			buf[0] = SAFTE_WT_GLOBAL;
+			buf[1] = cfg->flag1;
+			buf[2] = cfg->flag2;
+			buf[3] = 0;
+			xfer_len = 16;
+			ep->encstat[3] = req->elm_stat[3];
+			break;
+		default:
+			return (EINVAL);
+		}
+	}
+
+	if (enc->enc_type == ENC_SEMB_SAFT) {
+		semb_write_buffer(&ccb->ataio, /*retries*/5,
+				enc_done, MSG_SIMPLE_Q_TAG,
+				buf, xfer_len, state->timeout);
+	} else {
+		scsi_write_buffer(&ccb->csio, /*retries*/5,
+				enc_done, MSG_SIMPLE_Q_TAG, 1,
+				0, 0, buf, xfer_len,
+				SSD_FULL_SIZE, state->timeout);
 	}
 	return (0);
 }
 
 static int
-set_elm_status_sel(enc_softc_t *enc, encioc_elm_status_t *elms, int slp)
+safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
+		   union ccb *ccb, uint8_t **bufp, int xfer_len)
 {
-	int idx;
-	enc_element_t *ep;
-	struct scfg *cc = enc->enc_private;
+	struct scfg *cfg;
+	safte_control_request_t *req;
+	int idx, type;
 
-	if (cc == NULL)
-		return (0);
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
 
-	idx = (int)elms->elm_idx;
-	ep = &enc->enc_cache.elm_map[idx];
-
-	switch (ep->enctype) {
-	case ELMTYP_DEVICE:
-		if (elms->cstat[0] & SESCTL_PRDFAIL) {
-			ep->priv |= 0x40;
-		} else {
-			ep->priv &= ~0x40;
-		}
-		/* SESCTL_RSTSWAP has no correspondence in SAF-TE */
-		if (elms->cstat[0] & SESCTL_DISABLE) {
-			ep->priv |= 0x80;
-			/*
-			 * Hmm. Try to set the 'No Drive' flag.
-			 * Maybe that will count as a 'disable'.
-			 */
-		} else {
-			ep->priv &= ~0x80;
-		}
-		if (ep->priv & 0xc6) {
-			ep->priv &= ~0x1;
-		} else {
-			ep->priv |= 0x1;	/* no errors */
-		}
-		wrslot_stat(enc, slp);
-		break;
-	case ELMTYP_POWER:
-		/*
-		 * Okay- the only one that makes sense here is to
-		 * do the 'disable' for a power supply.
-		 */
-		if (elms->cstat[0] & SESCTL_DISABLE) {
-			(void) wrbuf16(enc, SAFTE_WT_ACTPWS,
-				idx - cc->pwroff, 0, 0, slp);
-		}
-		break;
-	case ELMTYP_FAN:
-		/*
-		 * Okay- the only one that makes sense here is to
-		 * set fan speed to zero on disable.
-		 */
-		if (elms->cstat[0] & SESCTL_DISABLE) {
-			/* remember- fans are the first items, so idx works */
-			(void) wrbuf16(enc, SAFTE_WT_FANSPD, idx, 0, 0, slp);
-		}
-		break;
-	case ELMTYP_DOORLOCK:
-		/*
-		 * Well, we can 'disable' the lock.
-		 */
-		if (elms->cstat[0] & SESCTL_DISABLE) {
-			cc->flag2 &= ~SAFT_FLG2_LOCKDOOR;
-			(void) wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-				cc->flag2, 0, slp);
-		}
-		break;
-	case ELMTYP_ALARM:
-		/*
-		 * Well, we can 'disable' the alarm.
-		 */
-		if (elms->cstat[0] & SESCTL_DISABLE) {
-			cc->flag2 &= ~SAFT_FLG1_ALARM;
-			ep->priv |= 0x40;	/* Muted */
-			(void) wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-				cc->flag2, 0, slp);
-		}
-		break;
-	default:
-		break;
+	if (++cfg->current_request_stage >= cfg->current_request_stages) {
+		req = cfg->current_request;
+		idx = req->elm_idx;
+		if (idx == SES_SETSTATUS_ENC_IDX)
+			type = -1;
+		else
+			type = enc->enc_cache.elm_map[idx].enctype;
+		if (type == ELMTYP_DEVICE)
+			enc_update_request(enc, SAFTE_UPDATE_READSLOTSTATUS);
+		else
+			enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
+		cfg->current_request = NULL;
+		req->result = 0;
+		wakeup(req);
+	} else {
+		enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
 	}
-	ep->svalid = 0;
 	return (0);
 }
 
@@ -770,79 +951,6 @@ wrbuf16(enc_softc_t *enc, uint8_t op, uint8_t b1, uint8_t b2,
 	sdata[2] = b2;
 	sdata[3] = b3;
 	amt = -16;
-	err = enc_runcmd(enc, cdb, 10, sdata, &amt);
-	ENC_FREE(sdata);
-	return (err);
-}
-
-/*
- * This function updates the status byte for the device slot described.
- *
- * Since this is an optional SAF-TE command, there's no point in
- * returning an error.
- */
-static void
-wrslot_stat(enc_softc_t *enc, int slp)
-{
-	int i, amt;
-	enc_element_t *ep;
-	char cdb[10], *sdata;
-	struct scfg *cc = enc->enc_private;
-
-	if (cc == NULL)
-		return;
-
-	ENC_DLOG(enc, "saf_wrslot\n");
-	cdb[0] = WRITE_BUFFER;
-	cdb[1] = 1;
-	cdb[2] = 0;
-	cdb[3] = 0;
-	cdb[4] = 0;
-	cdb[5] = 0;
-	cdb[6] = 0;
-	cdb[7] = 0;
-	cdb[8] = cc->Nslots * 3 + 1;
-	cdb[9] = 0;
-
-	sdata = ENC_MALLOCZ(cc->Nslots * 3 + 1);
-	if (sdata == NULL)
-		return;
-
-	sdata[0] = SAFTE_WT_DSTAT;
-	for (i = 0; i < cc->Nslots; i++) {
-		ep = &enc->enc_cache.elm_map[cc->slotoff + i];
-		ENC_DLOG(enc, "saf_wrslot %d <- %x\n", i, ep->priv & 0xff);
-		sdata[1 + (3 * i)] = ep->priv & 0xff;
-	}
-	amt = -(cc->Nslots * 3 + 1);
-	(void) enc_runcmd(enc, cdb, 10, sdata, &amt);
-	ENC_FREE(sdata);
-}
-
-/*
- * This function issues the "PERFORM SLOT OPERATION" command.
- */
-static int
-perf_slotop(enc_softc_t *enc, uint8_t slot, uint8_t opflag, int slp)
-{
-	int err, amt;
-	char *sdata;
-	struct scfg *cc = enc->enc_private;
-	static char cdb[10] =
-	    { WRITE_BUFFER, 1, 0, 0, 0, 0, 0, 0, SAFT_SCRATCH, 0 };
-
-	if (cc == NULL)
-		return (0);
-
-	sdata = ENC_MALLOCZ(SAFT_SCRATCH);
-	if (sdata == NULL)
-		return (ENOMEM);
-
-	sdata[0] = SAFTE_WT_SLTOP;
-	sdata[1] = slot;
-	sdata[2] = opflag;
-	ENC_DLOG(enc, "saf_slotop slot %d op %x\n", slot, opflag);
-	amt = -SAFT_SCRATCH;
 	err = enc_runcmd(enc, cdb, 10, sdata, &amt);
 	ENC_FREE(sdata);
 	return (err);
@@ -882,26 +990,23 @@ safte_get_enc_status(enc_softc_t *enc, int slpflg)
 }
 
 static int
-safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflg)
+safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag)
 {
-	struct scfg *cc = enc->enc_private;
-	if (cc == NULL)
-		return (0);
-	/*
-	 * Since SAF-TE devices aren't necessarily sticky in terms
-	 * of state, make our soft copy of enclosure status 'sticky'-
-	 * that is, things set in enclosure status stay set (as implied
-	 * by conditions set in reading object status) until cleared.
-	 */
-	enc->enc_cache.enc_status &= ~ALL_ENC_STAT;
-	enc->enc_cache.enc_status |= (encstat & ALL_ENC_STAT);
-	cc->flag1 &= ~(SAFT_FLG1_ALARM|SAFT_FLG1_GLOBFAIL|SAFT_FLG1_GLOBWARN);
-	if ((encstat & (SES_ENCSTAT_CRITICAL|SES_ENCSTAT_UNRECOV)) != 0) {
-		cc->flag1 |= SAFT_FLG1_ALARM|SAFT_FLG1_GLOBFAIL;
-	} else if ((encstat & SES_ENCSTAT_NONCRITICAL) != 0) {
-		cc->flag1 |= SAFT_FLG1_GLOBWARN;
-	}
-	return (wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1, cc->flag2, 0, slpflg));
+	struct scfg *cfg;
+	safte_control_request_t req;
+
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
+
+	req.elm_idx = SES_SETSTATUS_ENC_IDX;
+	req.elm_stat[0] = encstat & 0xf;
+	
+	TAILQ_INSERT_TAIL(&cfg->requests, &req, links);
+	enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
+	cam_periph_sleep(enc->periph, &req, PUSER, "encstat", 0);
+
+	return (req.result);
 }
 
 static int
@@ -916,150 +1021,28 @@ safte_get_elm_status(enc_softc_t *enc, encioc_elm_status_t *elms, int slpflg)
 	return (0);
 }
 
-
 static int
-safte_set_elm_status(enc_softc_t *enc, encioc_elm_status_t *elms, int slp)
+safte_set_elm_status(enc_softc_t *enc, encioc_elm_status_t *elms, int slpflag)
 {
-	int idx, err;
-	enc_element_t *ep;
-	struct scfg *cc;
+	struct scfg *cfg;
+	safte_control_request_t req;
 
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
 
-	ENC_DLOG(enc, "safte_set_objstat(%d): %x %x %x %x\n",
-	    (int)elms->elm_idx, elms->cstat[0], elms->cstat[1], elms->cstat[2],
-	    elms->cstat[3]);
-
-	/*
-	 * If this is clear, we don't do diddly.
-	 */
-	if ((elms->cstat[0] & SESCTL_CSEL) == 0) {
-		return (0);
-	}
-
-	err = 0;
-	/*
-	 * Check to see if the common bits are set and do them first.
-	 */
-	if (elms->cstat[0] & ~SESCTL_CSEL) {
-		err = set_elm_status_sel(enc, elms, slp);
-		if (err)
-			return (err);
-	}
-
-	cc = enc->enc_private;
-	if (cc == NULL)
+	/* If this is clear, we don't do diddly.  */
+	if ((elms->cstat[0] & SESCTL_CSEL) == 0)
 		return (0);
 
-	idx = (int)elms->elm_idx;
-	ep = &enc->enc_cache.elm_map[idx];
+	req.elm_idx = elms->elm_idx;
+	memcpy(&req.elm_stat, elms->cstat, sizeof(req.elm_stat));
 
-	switch (ep->enctype) {
-	case ELMTYP_DEVICE:
-	{
-		uint8_t slotop = 0;
-		/*
-		 * XXX: I should probably cache the previous state
-		 * XXX: of SESCTL_DEVOFF so that when it goes from
-		 * XXX: true to false I can then set PREPARE FOR OPERATION
-		 * XXX: flag in PERFORM SLOT OPERATION write buffer command.
-		 */
-		if (elms->cstat[2] & (SESCTL_RQSINS|SESCTL_RQSRMV)) {
-			slotop |= 0x2;
-		}
-		if (elms->cstat[2] & SESCTL_RQSID) {
-			slotop |= 0x4;
-		}
-		err = perf_slotop(enc, (uint8_t) idx - (uint8_t) cc->slotoff,
-		    slotop, slp);
-		if (err)
-			return (err);
-		if (elms->cstat[3] & SESCTL_RQSFLT) {
-			ep->priv |= 0x2;
-		} else {
-			ep->priv &= ~0x2;
-		}
-		if (ep->priv & 0xc6) {
-			ep->priv &= ~0x1;
-		} else {
-			ep->priv |= 0x1;	/* no errors */
-		}
-		wrslot_stat(enc, slp);
-		break;
-	}
-	case ELMTYP_POWER:
-		if (elms->cstat[3] & SESCTL_RQSTFAIL) {
-			cc->flag1 |= SAFT_FLG1_ENCPWRFAIL;
-		} else {
-			cc->flag1 &= ~SAFT_FLG1_ENCPWRFAIL;
-		}
-		err = wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-		    cc->flag2, 0, slp);
-		if (err)
-			return (err);
-		if (elms->cstat[3] & SESCTL_RQSTON) {
-			(void) wrbuf16(enc, SAFTE_WT_ACTPWS,
-				idx - cc->pwroff, 0, 0, slp);
-		} else {
-			(void) wrbuf16(enc, SAFTE_WT_ACTPWS,
-				idx - cc->pwroff, 0, 1, slp);
-		}
-		break;
-	case ELMTYP_FAN:
-		if (elms->cstat[3] & SESCTL_RQSTFAIL) {
-			cc->flag1 |= SAFT_FLG1_ENCFANFAIL;
-		} else {
-			cc->flag1 &= ~SAFT_FLG1_ENCFANFAIL;
-		}
-		err = wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-		    cc->flag2, 0, slp);
-		if (err)
-			return (err);
-		if (elms->cstat[3] & SESCTL_RQSTON) {
-			uint8_t fsp;
-			if ((elms->cstat[3] & 0x7) == 7) {
-				fsp = 4;
-			} else if ((elms->cstat[3] & 0x7) == 6) {
-				fsp = 3;
-			} else if ((elms->cstat[3] & 0x7) == 4) {
-				fsp = 2;
-			} else {
-				fsp = 1;
-			}
-			(void) wrbuf16(enc, SAFTE_WT_FANSPD, idx, fsp, 0, slp);
-		} else {
-			(void) wrbuf16(enc, SAFTE_WT_FANSPD, idx, 0, 0, slp);
-		}
-		break;
-	case ELMTYP_DOORLOCK:
-		if (elms->cstat[3] & 0x1) {
-			cc->flag2 &= ~SAFT_FLG2_LOCKDOOR;
-		} else {
-			cc->flag2 |= SAFT_FLG2_LOCKDOOR;
-		}
-		(void) wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-		    cc->flag2, 0, slp);
-		break;
-	case ELMTYP_ALARM:
-		/*
-		 * On all nonzero but the 'muted' bit, we turn on the alarm,
-		 */
-		elms->cstat[3] &= ~0xa;
-		if (elms->cstat[3] & 0x40) {
-			cc->flag2 &= ~SAFT_FLG1_ALARM;
-		} else if (elms->cstat[3] != 0) {
-			cc->flag2 |= SAFT_FLG1_ALARM;
-		} else {
-			cc->flag2 &= ~SAFT_FLG1_ALARM;
-		}
-		ep->priv = elms->cstat[3];
-		(void) wrbuf16(enc, SAFTE_WT_GLOBAL, cc->flag1,
-			cc->flag2, 0, slp);
-		break;
-	default:
-		break;
-	}
-	ep->svalid = 0;
-	return (0);
+	TAILQ_INSERT_TAIL(&cfg->requests, &req, links);
+	enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
+	cam_periph_sleep(enc->periph, &req, PUSER, "encstat", 0);
+
+	return (req.result);
 }
 
 static void
@@ -1084,6 +1067,8 @@ static struct enc_vec safte_enc_vec =
 int
 safte_softc_init(enc_softc_t *enc, int doinit)
 {
+	struct scfg *cfg;
+
 	if (doinit == 0) {
 		safte_softc_cleanup(enc->periph);
 		return (0);
@@ -1094,14 +1079,15 @@ safte_softc_init(enc_softc_t *enc, int doinit)
 
 	if (enc->enc_private == NULL) {
 		enc->enc_private = ENC_MALLOCZ(SAFT_PRIVATE);
-		if (enc->enc_private == NULL) {
+		if (enc->enc_private == NULL)
 			return (ENOMEM);
-		}
 	}
+	cfg = enc->enc_private;
 
 	enc->enc_cache.nelms = 0;
 	enc->enc_cache.enc_status = 0;
 
+	TAILQ_INIT(&cfg->requests);
 	return (0);
 }
 
