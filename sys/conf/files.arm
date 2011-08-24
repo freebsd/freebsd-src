@@ -8,7 +8,7 @@ arm/arm/blockio.S		standard
 arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/busdma_machdep-v6.c 	optional	cpu_arm11 | cpu_mv_pj4b
+arm/arm/busdma_machdep-v6.c 	optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
@@ -35,7 +35,7 @@ arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
 arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/pmap-v6.c		optional	cpu_arm11 | cpu_mv_pj4b
+arm/arm/pmap-v6.c		optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
 arm/arm/stack_machdep.c		optional	ddb | stack

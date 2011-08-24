@@ -235,6 +235,17 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_ARM1026EJS,	CPU_CLASS_ARM10EJ,	"ARM1026EJ-S",
 	  generic_steppings },
 
+	{ CPU_ID_CORTEXA8R1,	CPU_CLASS_CORTEXA,	"Cortex A8-r1",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA8R2,	CPU_CLASS_CORTEXA,	"Cortex A8-r2",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA8R3,	CPU_CLASS_CORTEXA,	"Cortex A8-r3",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA9R1,	CPU_CLASS_CORTEXA,	"Cortex A9-r1",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA9R2,	CPU_CLASS_CORTEXA,	"Cortex A9-r2",
+	  generic_steppings },
+
 	{ CPU_ID_SA110,		CPU_CLASS_SA1,		"SA-110",
 	  sa110_steppings },
 	{ CPU_ID_SA1100,	CPU_CLASS_SA1,		"SA-1100",
@@ -336,6 +347,7 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM9EJ-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9EJS */
 	{ "ARM10E",	"CPU_ARM10" },		/* CPU_CLASS_ARM10E */
 	{ "ARM10EJ",	"CPU_ARM10" },		/* CPU_CLASS_ARM10EJ */
+	{ "Cortex-A",	"CPU_CORTEXA" },	/* CPU_CLASS_CORTEXA */
 	{ "SA-1",	"CPU_SA110" },		/* CPU_CLASS_SA1 */
 	{ "XScale",	"CPU_XSCALE_..." },	/* CPU_CLASS_XSCALE */
 	{ "ARM11J",	"CPU_ARM11" },		/* CPU_CLASS_ARM11J */

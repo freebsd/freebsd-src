@@ -10,6 +10,7 @@ COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h
 CPU_ARM9E		opt_global.h
 CPU_ARM11		opt_global.h
+CPU_CORTEXA		opt_global.h
 CPU_FA526		opt_global.h
 CPU_FA626TE		opt_global.h
 CPU_MV_PJ4B		opt_global.h

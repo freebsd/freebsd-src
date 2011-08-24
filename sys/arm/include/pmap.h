@@ -297,7 +297,7 @@ extern int pmap_needs_pte_sync;
 /*
  * User-visible names for the ones that vary with MMU class.
  */
-#if ARM_MMU_V6 == 1
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 #define	L2_AP(x)	(L2_AP0(x))
 #else
 #define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
@@ -343,7 +343,7 @@ extern int pmap_needs_pte_sync;
 #define	L1_C_PROTO		L1_C_PROTO_xscale
 #define	L2_S_PROTO		L2_S_PROTO_xscale
 
-#elif ARM_MMU_V6 == 1
+#elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
 
 #define	L2_S_PROT_U		(L2_AP0(2))		/* user access */
 #define	L2_S_PROT_R		(L2_APX|L2_AP0(1))	/* read access */
@@ -399,7 +399,8 @@ extern int pmap_needs_pte_sync;
  * These macros return various bits based on kernel/user and protection.
  * Note that the compiler will usually fold these at compile time.
  */
-#if ARM_MMU_V6 == 0
+#if (ARM_MMU_V6 + ARM_MMU_V7) == 0
+
 #define	L1_S_PROT_U		(L1_S_AP(AP_U))
 #define	L1_S_PROT_W		(L1_S_AP(AP_W))
 #define	L1_S_PROT_MASK		(L1_S_PROT_U|L1_S_PROT_W)
@@ -495,7 +496,7 @@ extern pt_entry_t		pte_l2_s_proto;
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
+#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
@@ -509,7 +510,7 @@ void	pmap_pte_init_arm9(void);
 #if defined(CPU_ARM10)
 void	pmap_pte_init_arm10(void);
 #endif /* CPU_ARM10 */
-#if defined(ARM_MMU_V6)
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
 #endif /* CPU_ARM11 */
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
