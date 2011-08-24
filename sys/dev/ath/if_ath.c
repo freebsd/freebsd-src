@@ -5485,6 +5485,8 @@ ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 	bt.bt_nextdba = (nexttbtt<<3) - sc->sc_tdmadbaprep;
 	bt.bt_nextswba = (nexttbtt<<3) - sc->sc_tdmaswbaprep;
 	bt.bt_nextatim = nexttbtt+1;
+	/* Enables TBTT, DBA, SWBA timers by default */
+	bt.bt_flags = 0;
 	ath_hal_beaconsettimers(ah, &bt);
 }
 
