@@ -429,7 +429,7 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 			cam_periph_unlock(periph);
 			break;
 		}
-		tmp = cache->enc_status & ~ENCI_SVALID;
+		tmp = cache->enc_status;
 		cam_periph_unlock(periph);
 		error = copyout(&tmp, addr, sizeof(tmp));
 		cache->enc_status = tmp;

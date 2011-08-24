@@ -1487,6 +1487,20 @@ void scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
 			  uint16_t param_list_length, uint8_t sense_len,
 			  uint32_t timeout);
 
+void scsi_read_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb*),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t allocation_length,
+			uint8_t sense_len, uint32_t timeout);
+
+void scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb *),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t param_list_length,
+			uint8_t sense_len, uint32_t timeout);
+
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int readop, u_int8_t byte2, 

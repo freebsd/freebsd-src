@@ -264,7 +264,7 @@ static fsm_done_handler_t ses_process_control_request;
 static fsm_done_handler_t ses_publish_physpaths;
 static fsm_done_handler_t ses_publish_cache;
 
-struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
+static struct enc_fsm_state enc_fsm_states[SES_NUM_UPDATE_STATES] =
 {
 	{ "SES_UPDATE_NONE", 0, 0, 0, NULL, NULL, NULL },
 	{
