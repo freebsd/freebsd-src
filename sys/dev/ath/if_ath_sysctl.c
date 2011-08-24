@@ -302,8 +302,9 @@ static int
 ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	int i, param = 0;
+	int i, t, param = 0;
 	int error;
+	struct ath_buf *bf;
 
 	error = sysctl_handle_int(oidp, &param, 0, req);
 	if (error || !req->newptr)
@@ -335,6 +336,19 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 			    sc->sc_txq[i].axq_aggr_depth);
 		}
 	}
+
+	i = t = 0;
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			printf("Busy: %d\n", t);
+			i++;
+		}
+		t++;
+	}
+	ATH_TXBUF_UNLOCK(sc);
+	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
+	    t, i);
 
 	return 0;
 }
