@@ -2372,6 +2372,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_buf *bf)
 		device_printf(sc->sc_dev,
 		    "%s: failed to setup dma for clone\n",
 		    __func__);
+		/* XXX this frees the dmasetup that failed above? */
 		ath_freebuf(sc, nbf);
 		return NULL;
 	}
@@ -2412,7 +2413,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 * to force the next bit of code to free the buffer
 	 * for us.
 	 */
-	if (bf->bf_flags & ATH_BUF_BUSY) {
+	if ((bf->bf_state.bfs_retries < SWMAX_RETRIES) &&
+	    (bf->bf_flags & ATH_BUF_BUSY)) {
 		struct ath_buf *nbf;
 		nbf = ath_tx_retry_clone(sc, bf);
 		if (nbf)
@@ -2517,7 +2519,8 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	 * to force the next bit of code to free the buffer
 	 * for us.
 	 */
-	if (bf->bf_flags & ATH_BUF_BUSY) {
+	if ((bf->bf_state.bfs_retries < SWMAX_RETRIES) &&
+	    (bf->bf_flags & ATH_BUF_BUSY)) {
 		struct ath_buf *nbf;
 		nbf = ath_tx_retry_clone(sc, bf);
 		if (nbf)
