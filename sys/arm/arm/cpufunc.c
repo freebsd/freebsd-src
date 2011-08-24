@@ -2150,7 +2150,6 @@ arm11_setup(args)
 	__asm __volatile ("mcr\tp15, 0, r0, c7, c7, 0" : : );
 
 	/* Set the control register */
-	curcpu()->ci_ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
 	/* And again. */
