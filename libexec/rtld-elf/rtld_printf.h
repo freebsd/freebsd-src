@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 2011 Konstantin Belousov <kib@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,20 @@
  * $FreeBSD$
  */
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef RTLD_PRINTF_H
+#define RTLD_PRINTF_H 1
+
+#include <sys/cdefs.h>
 #include <unistd.h>
-#include "rtld.h"
-#include "rtld_printf.h"
 
-void *xcalloc(size_t);
-void *xmalloc(size_t);
-char *xstrdup(const char *);
+int rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap);
+int rtld_vfdprintf(int fd, const char *fmt, va_list ap);
+int rtld_fdprintf(int fd, const char *fmt, ...) __printflike(2, 3);
+void rtld_fdputstr(int fd, const char *str);
+void rtld_fdputchar(int fd, int c);
 
-void *
-xcalloc(size_t size)
-{
-    return memset(xmalloc(size), 0, size);
-}
+#define	rtld_printf(...) rtld_fdprintf(STDOUT_FILENO, __VA_ARGS__)
+#define	rtld_putstr(str) rtld_fdputstr(STDOUT_FILENO, (str))
+#define	rtld_putchar(c) rtld_fdputchar(STDOUT_FILENO, (c))
 
-void *
-xmalloc(size_t size)
-{
-    void *p = malloc(size);
-    if (p == NULL) {
-	rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
-	_exit(1);
-    }
-    return p;
-}
-
-char *
-xstrdup(const char *s)
-{
-    char *p = strdup(s);
-    if (p == NULL) {
-	 rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
-	 _exit(1);
-    }
-    return p;
-}
+#endif
