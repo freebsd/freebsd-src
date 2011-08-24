@@ -222,15 +222,19 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	OS_REG_WRITE(ah, AR_NEXT_TIM, TU_TO_USEC(nextTbtt - SLEEP_SLOP));
 
 	/* cab timeout is now in 1/8 TU */
-	OS_REG_WRITE(ah, AR_SLEEP1,
+	OS_REG_WRITE(ah, AR5416_SLEEP1,
 		SM((CAB_TIMEOUT_VAL << 3), AR5416_SLEEP1_CAB_TIMEOUT)
-		| AR_SLEEP1_ASSUME_DTIM);
+		| AR5416_SLEEP1_ASSUME_DTIM);
+
+	/* XXX autosleep? Use min beacon timeout; check ath9k -adrian */
 	/* beacon timeout is now in 1/8 TU */
-	OS_REG_WRITE(ah, AR_SLEEP2,
+	OS_REG_WRITE(ah, AR5416_SLEEP2,
 		SM((BEACON_TIMEOUT_VAL << 3), AR5416_SLEEP2_BEACON_TIMEOUT));
 
-	OS_REG_WRITE(ah, AR_TIM_PERIOD, beaconintval);
-	OS_REG_WRITE(ah, AR_DTIM_PERIOD, dtimperiod);
+	/* TIM_PERIOD and DTIM_PERIOD are now in uS. */
+	OS_REG_WRITE(ah, AR_TIM_PERIOD, TU_TO_USEC(beaconintval));
+	OS_REG_WRITE(ah, AR_DTIM_PERIOD, TU_TO_USEC(dtimperiod));
+
 	OS_REG_SET_BIT(ah, AR_TIMER_MODE,
 	     AR_TIMER_MODE_TBTT | AR_TIMER_MODE_TIM | AR_TIMER_MODE_DTIM);
 	HALDEBUG(ah, HAL_DEBUG_BEACON, "%s: next DTIM %d\n",
