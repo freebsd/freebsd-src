@@ -1879,15 +1879,19 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
 	else
 		bf = NULL;
+
 	if (bf == NULL) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
-	} else {
-		bf->bf_next = NULL;	/* XXX just to be sure */
-		bf->bf_last = NULL;	/* XXX again, just to be sure */
-		bf->bf_comp = NULL;	/* XXX again, just to be sure */
+		return NULL;
 	}
+
+	/* Valid bf here; clear some basic fields */
+	bf->bf_next = NULL;	/* XXX just to be sure */
+	bf->bf_last = NULL;	/* XXX again, just to be sure */
+	bf->bf_comp = NULL;	/* XXX again, just to be sure */
+
 	return bf;
 }
 
