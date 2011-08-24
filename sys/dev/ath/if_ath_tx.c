@@ -2425,7 +2425,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	}
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
-		device_printf(sc->sc_dev, "%s: exceeded retries; seqno %d\n",
+		DPRINTF(sc, ATH_DEBUG_SW_TX_RETRIES,
+		    "%s: exceeded retries; seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		sc->sc_stats.ast_tx_swretrymax++;
 
@@ -2531,7 +2532,8 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
-		device_printf(sc->sc_dev, "%s: max retries: seqno %d\n",
+		DPRINTF(sc, ATH_DEBUG_SW_TX_RETRIES,
+		    "%s: max retries: seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		ATH_TXQ_LOCK(atid);
 		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
