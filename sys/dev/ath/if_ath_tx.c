@@ -2345,6 +2345,44 @@ ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
 	wh->i_fc[1] |= IEEE80211_FC1_RETRY;
 }
 
+static struct ath_buf *
+ath_tx_retry_clone(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ath_buf *nbf;
+	int error;
+
+	nbf = ath_buf_clone(sc, bf);
+
+#if 0
+	device_printf(sc->sc_dev, "%s: ATH_BUF_BUSY; cloning\n",
+	    __func__);
+#endif
+
+	if (nbf == NULL) {
+		/* Failed to clone */
+		device_printf(sc->sc_dev,
+		    "%s: failed to clone a busy buffer\n",
+		    __func__);
+		return NULL;
+	}
+
+	/* Setup the dma for the new buffer */
+	error = ath_tx_dmasetup(sc, nbf, nbf->bf_m);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to setup dma for clone\n",
+		    __func__);
+		ath_freebuf(sc, nbf);
+		return NULL;
+	}
+
+	/* Free current buffer; return the older buffer */
+	bf->bf_m = NULL;
+	bf->bf_node = NULL;
+	ath_freebuf(sc, bf);
+	return nbf;
+}
+
 /*
  * Handle retrying an unaggregate frame in an aggregate
  * session.
@@ -2365,6 +2403,24 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	struct ieee80211_tx_ampdu *tap;
 
 	tap = ath_tx_get_tx_tid(an, tid);
+
+	/*
+	 * If the buffer is marked as busy, we can't directly
+	 * reuse it. Instead, try to clone the buffer.
+	 * If the clone is successful, recycle the old buffer.
+	 * If the clone is unsuccessful, set bfs_retries to max
+	 * to force the next bit of code to free the buffer
+	 * for us.
+	 */
+	if (bf->bf_flags & ATH_BUF_BUSY) {
+		struct ath_buf *nbf;
+		nbf = ath_tx_retry_clone(sc, bf);
+		if (nbf)
+			/* bf has been freed at this point */
+			bf = nbf;
+		else
+			bf->bf_state.bfs_retries = SWMAX_RETRIES + 1;
+	}
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
 		device_printf(sc->sc_dev, "%s: exceeded retries; seqno %d\n",
@@ -2421,28 +2477,6 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	ath_tx_set_retry(sc, bf);
 
 	/*
-	 * XXX Clear the ATH_BUF_BUSY flag. This is likely incorrect
-	 * XXX and must be revisited before this is merged into -HEAD.
-	 *
-	 * This flag is set in ath_tx_processq() if the HW TXQ has
-	 * further frames on it. The hardware may currently be processing
-	 * the link field in the descriptor (because for TDMA, the
-	 * QCU (TX queue DMA engine) can stop until the next TX slot is
-	 * available and a recycled buffer may still contain a descriptor
-	 * which the currently-paused QCU still points to.
-	 *
-	 * Since I'm not worried about TDMA just for now, I'm going to blank
-	 * the flag.
-	 */
-	if (bf->bf_flags & ATH_BUF_BUSY) {
-		bf->bf_flags &= ~ ATH_BUF_BUSY;
-#if 0
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
-#endif
-	}
-
-	/*
 	 * Insert this at the head of the queue, so it's
 	 * retried before any current/subsequent frames.
 	 */
@@ -2475,6 +2509,24 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	ath_hal_set11nburstduration(sc->sc_ah, bf->bf_desc, 0);
 	/* ath_hal_set11n_virtualmorefrag(sc->sc_ah, bf->bf_desc, 0); */
 
+	/*
+	 * If the buffer is marked as busy, we can't directly
+	 * reuse it. Instead, try to clone the buffer.
+	 * If the clone is successful, recycle the old buffer.
+	 * If the clone is unsuccessful, set bfs_retries to max
+	 * to force the next bit of code to free the buffer
+	 * for us.
+	 */
+	if (bf->bf_flags & ATH_BUF_BUSY) {
+		struct ath_buf *nbf;
+		nbf = ath_tx_retry_clone(sc, bf);
+		if (nbf)
+			/* bf has been freed at this point */
+			bf = nbf;
+		else
+			bf->bf_state.bfs_retries = SWMAX_RETRIES + 1;
+	}
+
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
 		device_printf(sc->sc_dev, "%s: max retries: seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
@@ -2489,14 +2541,6 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 		/* XXX subframe completion status? is that valid here? */
 		ath_tx_default_comp(sc, bf, 0);
 		return 1;
-	}
-
-	if (bf->bf_flags & ATH_BUF_BUSY) {
-		bf->bf_flags &= ~ ATH_BUF_BUSY;
-#if 0
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-		    "%s: bf %p: ATH_BUF_BUSY\n", __func__, bf);
-#endif
 	}
 
 	ath_tx_set_retry(sc, bf);
@@ -2935,8 +2979,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
 			ATH_TXQ_UNLOCK(atid);
 			bf->bf_state.bfs_aggr = 0;
-			/* Ensure the last descriptor link is 0 */
-			bf->bf_lastds->ds_link = 0;
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
@@ -2977,8 +3019,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
-			/* Ensure the last descriptor link is 0 */
-			bf->bf_lastds->ds_link = 0;
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
