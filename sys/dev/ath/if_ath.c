@@ -1895,6 +1895,61 @@ _ath_getbuf_locked(struct ath_softc *sc)
 	return bf;
 }
 
+/*
+ * When retrying a software frame, buffers marked ATH_BUF_BUSY
+ * can't be thrown back on the queue as they could still be
+ * in use by the hardware.
+ *
+ * This duplicates the buffer, or returns NULL.
+ *
+ * The descriptor is also copied but the link pointers and
+ * the DMA segments aren't copied; this frame should thus
+ * be again passed through the descriptor setup/chain routines
+ * so the link is correct.
+ *
+ * XXX TODO: the source buffer is still valid; so the mbuf
+ * XXX will be freed when that buffer is freed! The bf callback
+ * XXX will be called too, etc, etc.
+ * XXX so the caller must handle this somehow!
+ */
+struct ath_buf *
+ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
+{
+	struct ath_buf *tbf;
+
+	tbf = ath_getbuf(sc);
+	if (tbf == NULL)
+		return NULL;	/* XXX failure? Why? */
+
+	/* Copy basics */
+	tbf->bf_next = bf->bf_next;
+	tbf->bf_nseg = bf->bf_nseg;
+	tbf->bf_txflags = bf->bf_txflags;
+	tbf->bf_flags = bf->bf_flags;
+	tbf->bf_status = bf->bf_status;
+	tbf->bf_m = bf->bf_m;
+	tbf->bf_node = bf->bf_node;
+	/* will be setup by the chain/setup function */
+	tbf->bf_lastds = NULL;
+	/* for now, last == self */
+	tbf->bf_last = tbf;
+	tbf->bf_comp = bf->bf_comp;
+
+	/* NOTE: DMA segments will be setup by the setup/chain functions */
+
+	/*
+	 * Copy the descriptor contents - just the active
+	 * number of segments.
+	 */
+	memcpy(tbf->bf_desc, bf->bf_desc,
+	    bf->bf_nseg * sizeof(struct ath_desc));
+
+	/* Copy status */
+	memcpy(&tbf->bf_state, &bf->bf_state, sizeof(bf->bf_state));
+
+	return tbf;
+}
+
 struct ath_buf *
 ath_getbuf(struct ath_softc *sc)
 {
@@ -4515,6 +4570,22 @@ ath_tx_sched_proc_sched(struct ath_softc *sc, struct ath_txq *txq)
 }
 
 /*
+ * Return a buffer to the pool.
+ * The caller must free the mbuf and recycle the node reference.
+ */
+void
+ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
+{
+	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+
+	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
+	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+}
+
+/*
  * This is currently used by ath_tx_draintxq() and
  * ath_tx_tid_free_pkts().
  *
@@ -4523,31 +4594,30 @@ ath_tx_sched_proc_sched(struct ath_softc *sc, struct ath_txq *txq)
 void
 ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 {
-	struct ieee80211_node *ni;
+	struct ieee80211_node *ni = bf->bf_node;
+	struct mbuf *m0 = bf->bf_m;
 
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-	ni = bf->bf_node;
 	bf->bf_node = NULL;
+	bf->bf_m = NULL;
+
+	/* Free the buffer, it's not needed any longer */
+	ath_freebuf(sc, bf);
+
 	if (ni != NULL) {
 		/*
 		 * Do any callback and reclaim the node reference.
 		 */
-		if (bf->bf_m->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, bf->bf_m, status);
+		if (m0->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m0, status);
 		ieee80211_free_node(ni);
 	}
-	m_freem(bf->bf_m);
-	bf->bf_m = NULL;
+	m_freem(m0);
 
 	/*
-	 * XXX This is incorrect. Check what the -HEAD code is doing.
-	 * XXX The TDMA code will be broken if this isn't properly repaired.
+	 * XXX the buffer used to be freed -after-, but the DMA map was
+	 * freed where ath_freebuf() now is. I've no idea what this
+	 * will do.
 	 */
-	bf->bf_flags &= ~ATH_BUF_BUSY;
-
-	ATH_TXBUF_LOCK(sc);
-	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-	ATH_TXBUF_UNLOCK(sc);
 }
 
 void
