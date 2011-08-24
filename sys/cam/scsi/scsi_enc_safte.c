@@ -70,6 +70,7 @@ static int perf_slotop(enc_softc_t *, uint8_t, uint8_t, int);
 #define	SAFTE_RD_RDCFG	0x00	/* read enclosure configuration */
 #define	SAFTE_RD_RDESTS	0x01	/* read enclosure status */
 #define	SAFTE_RD_RDDSTS	0x04	/* read drive slot status */
+#define	SAFTE_RD_RDGFLG	0x05	/* read global flags */
 
 /*
  * WRITE BUFFER ('set' commands) IDs- placed in offset 0 of databuf
@@ -86,6 +87,7 @@ static int perf_slotop(enc_softc_t *, uint8_t, uint8_t, int);
 typedef enum {
 	SAFTE_UPDATE_NONE,
 	SAFTE_UPDATE_READCONFIG,
+	SAFTE_UPDATE_READGFLAGS,
 	SAFTE_UPDATE_READENCSTATUS,
 	SAFTE_UPDATE_READSLOTSTATUS,
 	SAFTE_NUM_UPDATE_STATES
@@ -93,6 +95,7 @@ typedef enum {
 
 static fsm_fill_handler_t safte_fill_read_buf_io;
 static fsm_done_handler_t safte_process_config;
+static fsm_done_handler_t safte_process_gflags;
 static fsm_done_handler_t safte_process_status;
 static fsm_done_handler_t safte_process_slotstatus;
 
@@ -106,6 +109,15 @@ static struct enc_fsm_state enc_fsm_states[SAFTE_NUM_UPDATE_STATES] =
 		60 * 1000,
 		safte_fill_read_buf_io,
 		safte_process_config,
+		enc_error
+	},
+	{
+		"SAFTE_UPDATE_READGFLAGS",
+		SAFTE_RD_RDGFLG,
+		16,
+		60 * 1000,
+		safte_fill_read_buf_io,
+		safte_process_gflags,
 		enc_error
 	},
 	{
@@ -167,10 +179,9 @@ struct scfg {
 #define	SAFT_PRIVATE		sizeof (struct scfg)
 
 static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
-#define	SAFT_BAIL(r, x, k)	\
+#define	SAFT_BAIL(r, x)	\
 	if ((r) >= (x)) { \
 		ENC_LOG(enc, safte_2little, x, __LINE__);\
-		ENC_FREE((k)); \
 		return (EIO); \
 	}
 
@@ -266,8 +277,27 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	for (i = 0; i < cfg->Nslots; i++)
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_DEVICE;
 
+	enc_update_request(enc, SAFTE_UPDATE_READGFLAGS);
 	enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
 	enc_update_request(enc, SAFTE_UPDATE_READSLOTSTATUS);
+
+	return (0);
+}
+
+static int
+safte_process_gflags(enc_softc_t *enc, struct enc_fsm_state *state,
+		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+{
+	struct scfg *cfg;
+	uint8_t *buf = *bufp;
+
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
+
+	SAFT_BAIL(3, xfer_len);
+	cfg->flag1 = buf[1];
+	cfg->flag2 = buf[2];
 
 	return (0);
 }
@@ -289,7 +319,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	oid = r = 0;
 
 	for (nitems = i = 0; i < cfg->Nfans; i++) {
-		SAFT_BAIL(r, xfer_len, buf);
+		SAFT_BAIL(r, xfer_len);
 		/*
 		 * 0 = Fan Operational
 		 * 1 = Fan is malfunctioning
@@ -366,7 +396,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 
 
 	for (i = 0; i < cfg->Npwr; i++) {
-		SAFT_BAIL(r, xfer_len, buf);
+		SAFT_BAIL(r, xfer_len);
 		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
 		cache->elm_map[oid].encstat[1] = 0;	/* resvd */
 		cache->elm_map[oid].encstat[2] = 0;	/* resvd */
@@ -427,7 +457,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * We always have doorlock status, no matter what,
 	 * but we only save the status if we have one.
 	 */
-	SAFT_BAIL(r, xfer_len, buf);
+	SAFT_BAIL(r, xfer_len);
 	if (cfg->DoorLock) {
 		/*
 		 * 0 = Door Locked
@@ -465,7 +495,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * We always have speaker status, no matter what,
 	 * but we only save the status if we have one.
 	 */
-	SAFT_BAIL(r, xfer_len, buf);
+	SAFT_BAIL(r, xfer_len);
 	if (cfg->Nspkrs) {
 		cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] = 0;
@@ -500,13 +530,13 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * binary temperature sensor.
 	 */
 
-	SAFT_BAIL(r + cfg->Ntherm, xfer_len, buf);
+	SAFT_BAIL(r + cfg->Ntherm, xfer_len);
 	tempflags = buf[r + cfg->Ntherm];
-	SAFT_BAIL(r + cfg->Ntherm + 1, xfer_len, buf);
+	SAFT_BAIL(r + cfg->Ntherm + 1, xfer_len);
 	tempflags |= (tempflags << 8) | buf[r + cfg->Ntherm + 1];
 
 	for (i = 0; i < cfg->Ntherm; i++) {
-		SAFT_BAIL(r, xfer_len, buf);
+		SAFT_BAIL(r, xfer_len);
 		/*
 		 * Status is a range from -10 to 245 deg Celsius,
 		 * which we need to normalize to -20 to -245 according
@@ -606,7 +636,7 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
-		SAFT_BAIL(r+3, xfer_len, buf);
+		SAFT_BAIL(r+3, xfer_len);
 		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
 		cache->elm_map[oid].encstat[1] = (uint8_t) i;
 		cache->elm_map[oid].encstat[2] = 0;
