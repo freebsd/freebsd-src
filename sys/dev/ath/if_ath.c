@@ -1922,7 +1922,7 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 		return NULL;	/* XXX failure? Why? */
 
 	/* Copy basics */
-	tbf->bf_next = bf->bf_next;
+	tbf->bf_next = NULL;
 	tbf->bf_nseg = bf->bf_nseg;
 	tbf->bf_txflags = bf->bf_txflags;
 	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
