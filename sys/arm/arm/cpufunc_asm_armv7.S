@@ -62,7 +62,7 @@ ENTRY(armv7_tlb_flushID)
 
 ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
-	bic	r0, r0, r1	
+	bic	r0, r0, r1
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
 	mcr	p15, 0, r0, c7, c10, 4	/* DSB */
@@ -83,7 +83,7 @@ Loop1:
 	/* Get cache type for given level */
 	mov	r2, r8, lsl #2
 	ldr	r0, .Lcache_type
-	ldr	r1, [r0, r2]	
+	ldr	r1, [r0, r2]
 
 	/* Get line size */
 	and	r2, r1, #7
@@ -93,7 +93,7 @@ Loop1:
 	ldr	r4, .Lway_mask
 	ands	r4, r4, r1, lsr #3
 	clz	r5, r4
-	
+
 	/* Get max index */
 	ldr	r7, .Lmax_index
 	ands	r7, r7, r1, lsr #13
@@ -145,7 +145,6 @@ ENTRY(armv7_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
-	
 ENTRY(armv7_dcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
 .Larmv7_wbinv_next:
@@ -155,7 +154,7 @@ ENTRY(armv7_dcache_wbinv_range)
 	bhi	.Larmv7_wbinv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
-	
+
 /*
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.

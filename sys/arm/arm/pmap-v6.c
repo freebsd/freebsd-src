@@ -3614,7 +3614,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 
 #ifdef VERBOSE_INIT_ARM
 	printf("pmap_map_chunk: pa=0x%x va=0x%x size=0x%x resid=0x%x "
-	    "prot=0x%x cache=%d\n", pa, va, size, resid, prot, cache);
+	    "prot=0x%x type=%d\n", pa, va, size, resid, prot, type);
 #endif
 
 	f1 = l1_mem_types[type];
