@@ -627,6 +627,18 @@ zfs_znode_dmu_fini(znode_t *zp)
 	zp->z_sa_hdl = NULL;
 }
 
+static void
+zfs_vnode_forget(vnode_t *vp)
+{
+
+	VOP_UNLOCK(vp, 0);
+	VI_LOCK(vp);
+	vp->v_usecount--;
+	vp->v_iflag |= VI_DOOMED;
+	vp->v_data = NULL;
+	vdropl(vp);
+}
+
 /*
  * Construct a new znode/vnode and intialize.
  *
@@ -688,6 +700,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count) != 0 || zp->z_gen == 0) {
 		if (hdl == NULL)
 			sa_handle_destroy(zp->z_sa_hdl);
+		zfs_vnode_forget(vp);
+		zp->z_vnode = NULL;
 		kmem_cache_free(znode_cache, zp);
 		return (NULL);
 	}
