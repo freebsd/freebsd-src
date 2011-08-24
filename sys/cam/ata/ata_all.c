@@ -762,3 +762,44 @@ semb_send_diagnostic(struct ccb_ataio *ataio,
 	    length > 0 ? data_ptr[0] : 0, 0x82, length / 4);
 }
 
+void
+semb_read_buffer(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+    uint8_t tag_action, uint8_t page_code,
+    uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    page_code, 0x00, length / 4);
+}
+
+void
+semb_write_buffer(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+    uint8_t tag_action, uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/length ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    length > 0 ? data_ptr[0] : 0, 0x80, length / 4);
+}
+

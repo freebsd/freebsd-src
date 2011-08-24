@@ -139,7 +139,6 @@ struct enc_softc {
 	enc_cache_t		 enc_daemon_cache;
 
 	struct sx		 enc_cache_lock;
-#define	ENCI_SVALID		0x80
 	uint8_t			 enc_flags;
 #define	ENC_FLAG_INVALID	0x01
 #define	ENC_FLAG_INITIALIZED	0x02
