@@ -1940,14 +1940,9 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 
 	/* NOTE: DMA segments will be setup by the setup/chain functions */
 
-	/*
-	 * Copy the descriptor contents - just the active
-	 * number of segments.
-	 */
-	memcpy(tbf->bf_desc, bf->bf_desc,
-	    bf->bf_nseg * sizeof(struct ath_desc));
+	/* The caller has to re-init the descriptor + links */
 
-	/* Copy status */
+	/* Copy state */
 	memcpy(&tbf->bf_state, &bf->bf_state, sizeof(bf->bf_state));
 
 	return tbf;
