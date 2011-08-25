@@ -744,8 +744,11 @@ enc_fsm_step(enc_softc_t *enc)
 	cur_state = &enc->enc_fsm_states[enc->current_action];
 
 	buf = NULL;
-	if (cur_state->buf_size != 0)
+	if (cur_state->buf_size != 0) {
+		cam_periph_unlock(enc->periph);
 		buf = malloc(cur_state->buf_size, M_SCSIENC, M_WAITOK|M_ZERO);
+		cam_periph_lock(enc->periph);
+	}
 
 	error = 0;
 	ccb   = NULL;
