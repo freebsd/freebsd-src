@@ -195,7 +195,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
-VNET_DEFINE(int, tcp_autorcvbuf_max) = 256*1024;
+VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
 #define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
