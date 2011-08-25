@@ -1235,8 +1235,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Don't do it whilst pending; the net80211 layer still assigns them */
 	/* XXX do we need locking here? */
 	if (is_ampdu_tx) {
-		//struct ath_node *an = ATH_NODE(ni);
-		//ATH_TXQ_LOCK(&an->an_tid[tid]);
+		struct ath_node *an = ATH_NODE(ni);
+		ATH_TXQ_LOCK(&an->an_tid[tid]);
 		/*
 		 * Always call; this function will
 		 * handle making sure that null data frames
@@ -1248,7 +1248,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
-		//ATH_TXQ_UNLOCK(&an->an_tid[tid]);
+		ATH_TXQ_UNLOCK(&an->an_tid[tid]);
 	}
 
 	/*
@@ -2078,26 +2078,33 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
 /*
  * Free any packets currently pending in the software TX queue.
  *
- * Since net80211 shouldn't free the node until the last packets
- * have been sent, this function should never have to free any
- * packets when a node is freed.
+ * This will be called when a node is being deleted.
  *
  * It can also be called on an active node during an interface
  * reset or state transition.
+ *
+ * (From Linux/reference):
+ *
+ * TODO: For frame(s) that are in the retry state, we will reuse the
+ * sequence number(s) without setting the retry bit. The
+ * alternative is to give up on these and BAR the receiver's window
+ * forward.
  */
 static void
-ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
-    int tid)
+ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
 {
-	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_buf *bf;
+	struct ieee80211_tx_ampdu *tap;
+	struct ieee80211_node *ni = &an->an_node;
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	/* Walk the queue, free frames */
 	for (;;) {
-		ATH_TXQ_LOCK(atid);
-		bf = TAILQ_FIRST(&atid->axq_q);
+		ATH_TXQ_LOCK(tid);
+		bf = TAILQ_FIRST(&tid->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(atid);
+			ATH_TXQ_UNLOCK(tid);
 			break;
 		}
 
@@ -2105,19 +2112,62 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 		 * If the current TID is running AMPDU, update
 		 * the BAW.
 		 */
-		if (ath_tx_ampdu_running(sc, an, tid) &&
+		if (ath_tx_ampdu_running(sc, an, tid->tid) &&
 		    bf->bf_state.bfs_dobaw) {
-			ath_tx_update_baw(sc, an, atid,
-			    SEQNO(bf->bf_state.bfs_seqno));
-			bf->bf_state.bfs_dobaw = 0;
+			/*
+			 * Only remove the frame from the BAW if it's
+			 * been transmitted at least once; this means
+			 * the frame was in the BAW to begin with.
+			 */
+			if (bf->bf_state.bfs_retries > 0) {
+				ath_tx_update_baw(sc, an, tid,
+				    SEQNO(bf->bf_state.bfs_seqno));
+				bf->bf_state.bfs_dobaw = 0;
+			}
+			/*
+			 * This has become a non-fatal error now
+			 */
 			if (! bf->bf_state.bfs_addedbaw)
 				device_printf(sc->sc_dev,
 				    "%s: wasn't added: seqno %d\n",
 				    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		}
-		ATH_TXQ_REMOVE(atid, bf, bf_list);
-		ATH_TXQ_UNLOCK(atid);
+		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TXQ_UNLOCK(tid);
 		ath_tx_default_comp(sc, bf, 0);
+	}
+
+	/*
+	 * Now that it's completed, grab the TID lock and update
+	 * the sequence number and BAW window.
+	 * Because sequence numbers have been assigned to frames
+	 * that haven't been sent yet, it's entirely possible
+	 * we'll be called with some pending frames that have not
+	 * been transmitted.
+	 *
+	 * The cleaner solution is to do the sequence number allocation
+	 * when the packet is first transmitted - and thus the "retries"
+	 * check above would be enough to update the BAW/seqno.
+	 *
+	 * XXX There may exist a situation where active traffic on a node
+	 * XXX is occuring in another thread whilst an interface is being
+	 * XXX reset. In this instance, traffic is going to be added (eg to the
+	 * XXX tail of the queue, or head if it's a retry) whilst this routine
+	 * XXX attempts to drain. This is going to make things be very out
+	 * XXX of whack.
+	 */
+
+	/* But don't do it for non-QoS TIDs */
+	if (tap) {
+		ATH_TXQ_LOCK(tid);
+#if 0
+		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		    "%s: node %p: TID %d: sliding BAW left edge to %d\n",
+		    __func__, an, tid->tid, tap->txa_start);
+#endif
+		ni->ni_txseqs[tid->tid] = tap->txa_start;
+		tid->baw_tail = tid->baw_head;
+		ATH_TXQ_UNLOCK(tid);
 	}
 }
 
@@ -2144,7 +2194,7 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 		ATH_TXQ_UNLOCK(txq);
 
 		/* Free packets */
-		ath_tx_tid_free_pkts(sc, an, tid);
+		ath_tx_tid_drain(sc, an, atid);
 	}
 }
 
