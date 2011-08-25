@@ -162,6 +162,7 @@ enum {
 };
 
 struct scfg {
+	int	emulate_array_devices;
 	/*
 	 * Cached Configuration
 	 */
@@ -300,7 +301,9 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		enc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
 	cfg->slotoff = (uint8_t) r;
 	for (i = 0; i < cfg->Nslots; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_DEVICE;
+		enc->enc_cache.elm_map[r++].enctype =
+		    cfg->emulate_array_devices ? ELMTYP_ARRAY_DEV :
+		     ELMTYP_DEVICE;
 
 	enc_update_request(enc, SAFTE_UPDATE_READGFLAGS);
 	enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
@@ -485,7 +488,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 */
 	for (i = 0; i < cfg->Nslots; i++) {
 		SAFT_BAIL(r, xfer_len);
-		cache->elm_map[cfg->slotoff + i].encstat[1] = buf[r];
+		if (!cfg->emulate_array_devices)
+			cache->elm_map[cfg->slotoff + i].encstat[1] = buf[r];
 		r++;
 	}
 
@@ -656,6 +660,8 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
 		SAFT_BAIL(r+3, xfer_len);
+		if (cfg->emulate_array_devices)
+			cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] &= SESCTL_RQSID;
 		cache->elm_map[oid].encstat[3] = 0;
 		if ((buf[r+3] & 0x01) == 0) {	/* no device */
@@ -681,6 +687,20 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			cache->elm_map[oid].encstat[3] |= SESCTL_RQSFLT;
 		if (buf[r+0] & 0x40)
 			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
+		if (cfg->emulate_array_devices) {
+			if (buf[r+0] & 0x04)
+				cache->elm_map[oid].encstat[1] |= 0x02;
+			if (buf[r+0] & 0x08)
+				cache->elm_map[oid].encstat[1] |= 0x04;
+			if (buf[r+0] & 0x10)
+				cache->elm_map[oid].encstat[1] |= 0x08;
+			if (buf[r+0] & 0x20)
+				cache->elm_map[oid].encstat[1] |= 0x10;
+			if (buf[r+1] & 0x01)
+				cache->elm_map[oid].encstat[1] |= 0x20;
+			if (buf[r+1] & 0x02)
+				cache->elm_map[oid].encstat[1] |= 0x01;
+		}
 		cache->elm_map[oid++].svalid = 1;
 	}
 
@@ -733,6 +753,7 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 		switch (ep->enctype) {
 		case ELMTYP_DEVICE:
+		case ELMTYP_ARRAY_DEV:
 			switch (cfg->current_request_stage) {
 			case 0:
 				ep->priv = 0;
@@ -742,6 +763,20 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 					ep->priv |= 0x02;
 				if ((ep->priv & 0x46) == 0)
 					ep->priv |= 0x01;	/* no errors */
+				if (cfg->emulate_array_devices) {
+					if (req->elm_stat[1] & 0x01)
+						ep->priv |= 0x200;
+					if (req->elm_stat[1] & 0x02)
+						ep->priv |= 0x04;
+					if (req->elm_stat[1] & 0x04)
+						ep->priv |= 0x08;
+					if (req->elm_stat[1] & 0x08)
+						ep->priv |= 0x10;
+					if (req->elm_stat[1] & 0x10)
+						ep->priv |= 0x20;
+					if (req->elm_stat[1] & 0x20)
+						ep->priv |= 0x100;
+				}
 
 				buf[0] = SAFTE_WT_DSTAT;
 				for (i = 0; i < cfg->Nslots; i++) {
@@ -912,7 +947,7 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 			type = -1;
 		else
 			type = enc->enc_cache.elm_map[idx].enctype;
-		if (type == ELMTYP_DEVICE)
+		if (type == ELMTYP_DEVICE || type == ELMTYP_ARRAY_DEV)
 			enc_update_request(enc, SAFTE_UPDATE_READSLOTSTATUS);
 		else
 			enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
@@ -1068,6 +1103,7 @@ int
 safte_softc_init(enc_softc_t *enc, int doinit)
 {
 	struct scfg *cfg;
+	char buf[32];
 
 	if (doinit == 0) {
 		safte_softc_cleanup(enc->periph);
@@ -1088,6 +1124,10 @@ safte_softc_init(enc_softc_t *enc, int doinit)
 	enc->enc_cache.enc_status = 0;
 
 	TAILQ_INIT(&cfg->requests);
+	cfg->emulate_array_devices = 1;
+	snprintf(buf, sizeof(buf), "kern.cam.enc.%d.emulate_array_devices",
+	    enc->periph->unit_number);
+	TUNABLE_INT_FETCH(buf, &cfg->emulate_array_devices);
 	return (0);
 }
 
