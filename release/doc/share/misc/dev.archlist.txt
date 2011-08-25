@@ -161,6 +161,7 @@ uvisor	i386,pc98,amd64
 uvscom	i386,pc98,amd64
 vpo	i386
 vx	i386,pc98,ia64,amd64
+vxge	i386,amd64
 wb	i386,pc98,amd64
 xe	i386,amd64
 zyd	i386,amd64
