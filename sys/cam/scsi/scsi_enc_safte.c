@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD: head/sys/cam/scsi/scsi_ses.c 201758 2010-01-07 21:01:37Z mbr
 #include <sys/queue.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <cam/cam.h>
@@ -162,7 +163,6 @@ enum {
 };
 
 struct scfg {
-	int	emulate_array_devices;
 	/*
 	 * Cached Configuration
 	 */
@@ -213,6 +213,12 @@ static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 		ENC_LOG(enc, safte_2little, x, __LINE__);\
 		return (EIO); \
 	}
+
+int emulate_array_devices = 1;
+SYSCTL_DECL(_kern_cam_enc);
+SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RW,
+           &emulate_array_devices, 0, "Emulate Array Devices for SAF-TE");
+TUNABLE_INT("kern.cam.enc.emulate_array_devices", &emulate_array_devices);
 
 static int
 safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,
@@ -302,7 +308,7 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg->slotoff = (uint8_t) r;
 	for (i = 0; i < cfg->Nslots; i++)
 		enc->enc_cache.elm_map[r++].enctype =
-		    cfg->emulate_array_devices ? ELMTYP_ARRAY_DEV :
+		    emulate_array_devices ? ELMTYP_ARRAY_DEV :
 		     ELMTYP_DEVICE;
 
 	enc_update_request(enc, SAFTE_UPDATE_READGFLAGS);
@@ -488,7 +494,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 */
 	for (i = 0; i < cfg->Nslots; i++) {
 		SAFT_BAIL(r, xfer_len);
-		if (!cfg->emulate_array_devices)
+		if (cache->elm_map[cfg->slotoff + i].enctype == ELMTYP_DEVICE)
 			cache->elm_map[cfg->slotoff + i].encstat[1] = buf[r];
 		r++;
 	}
@@ -660,7 +666,7 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
 		SAFT_BAIL(r+3, xfer_len);
-		if (cfg->emulate_array_devices)
+		if (cache->elm_map[oid].enctype == ELMTYP_ARRAY_DEV)
 			cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] &= SESCTL_RQSID;
 		cache->elm_map[oid].encstat[3] = 0;
@@ -687,7 +693,7 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			cache->elm_map[oid].encstat[3] |= SESCTL_RQSFLT;
 		if (buf[r+0] & 0x40)
 			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
-		if (cfg->emulate_array_devices) {
+		if (cache->elm_map[oid].enctype == ELMTYP_ARRAY_DEV) {
 			if (buf[r+0] & 0x04)
 				cache->elm_map[oid].encstat[1] |= 0x02;
 			if (buf[r+0] & 0x08)
@@ -763,7 +769,7 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 					ep->priv |= 0x02;
 				if ((ep->priv & 0x46) == 0)
 					ep->priv |= 0x01;	/* no errors */
-				if (cfg->emulate_array_devices) {
+				if (ep->enctype == ELMTYP_ARRAY_DEV) {
 					if (req->elm_stat[1] & 0x01)
 						ep->priv |= 0x200;
 					if (req->elm_stat[1] & 0x02)
@@ -1103,7 +1109,6 @@ int
 safte_softc_init(enc_softc_t *enc, int doinit)
 {
 	struct scfg *cfg;
-	char buf[32];
 
 	if (doinit == 0) {
 		safte_softc_cleanup(enc->periph);
@@ -1124,10 +1129,6 @@ safte_softc_init(enc_softc_t *enc, int doinit)
 	enc->enc_cache.enc_status = 0;
 
 	TAILQ_INIT(&cfg->requests);
-	cfg->emulate_array_devices = 1;
-	snprintf(buf, sizeof(buf), "kern.cam.enc.%d.emulate_array_devices",
-	    enc->periph->unit_number);
-	TUNABLE_INT_FETCH(buf, &cfg->emulate_array_devices);
 	return (0);
 }
 
