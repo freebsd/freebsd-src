@@ -2563,8 +2563,6 @@ ses_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag)
 	enc_update_request(enc, SES_PROCESS_CONTROL_REQS);
 	cam_periph_sleep(enc->periph, &req, PUSER, "encstat", 0);
 
-	sx_slock(&enc->enc_cache_lock);
-
 	return (req.result);
 }
 
