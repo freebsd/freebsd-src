@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <machine/stdarg.h>
@@ -75,6 +76,9 @@ static  periph_start_t  enc_start;
 
 static void enc_async(void *, uint32_t, struct cam_path *, void *);
 static enctyp enc_type(struct ccb_getdev *);
+
+SYSCTL_NODE(_kern_cam, OID_AUTO, enc, CTLFLAG_RD, 0,
+            "CAM Enclosure Services driver");
 
 static struct periph_driver encdriver = {
 	enc_init, "enc",
