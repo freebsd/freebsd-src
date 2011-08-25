@@ -987,6 +987,8 @@
 
       &hwlist.vx;
 
+      &hwlist.vxge;
+
       &hwlist.wb;
 
       &hwlist.xe;
