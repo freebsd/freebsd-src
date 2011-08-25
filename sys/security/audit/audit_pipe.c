@@ -646,6 +646,7 @@ audit_pipe_free(struct audit_pipe *ap)
 	cv_destroy(&ap->ap_cv);
 	AUDIT_PIPE_SX_LOCK_DESTROY(ap);
 	AUDIT_PIPE_LOCK_DESTROY(ap);
+	seldrain(&ap->ap_selinfo);
 	knlist_destroy(&ap->ap_selinfo.si_note);
 	TAILQ_REMOVE(&audit_pipe_list, ap, ap_list);
 	free(ap, M_AUDIT_PIPE);

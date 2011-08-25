@@ -688,6 +688,8 @@ ptsdrv_free(void *softc)
 	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
 	crfree(psc->pts_cred);
 
+	seldrain(&psc->pts_inpoll);
+	seldrain(&psc->pts_outpoll);
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
 
