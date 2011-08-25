@@ -694,6 +694,8 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 		if (buf[r+0] & 0x40)
 			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
 		if (cache->elm_map[oid].enctype == ELMTYP_ARRAY_DEV) {
+			if (buf[r+0] & 0x01)
+				cache->elm_map[oid].encstat[1] |= 0x80;
 			if (buf[r+0] & 0x04)
 				cache->elm_map[oid].encstat[1] |= 0x02;
 			if (buf[r+0] & 0x08)
@@ -767,8 +769,6 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 					ep->priv |= 0x40;
 				if (req->elm_stat[3] & SESCTL_RQSFLT)
 					ep->priv |= 0x02;
-				if ((ep->priv & 0x46) == 0)
-					ep->priv |= 0x01;	/* no errors */
 				if (ep->enctype == ELMTYP_ARRAY_DEV) {
 					if (req->elm_stat[1] & 0x01)
 						ep->priv |= 0x200;
@@ -782,7 +782,11 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 						ep->priv |= 0x20;
 					if (req->elm_stat[1] & 0x20)
 						ep->priv |= 0x100;
+					if (req->elm_stat[1] & 0x80)
+						ep->priv |= 0x01;
 				}
+				if (ep->priv == 0)
+					ep->priv |= 0x01;	/* no errors */
 
 				buf[0] = SAFTE_WT_DSTAT;
 				for (i = 0; i < cfg->Nslots; i++) {
