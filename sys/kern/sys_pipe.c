@@ -1517,6 +1517,7 @@ pipeclose(cpipe)
 	 */
 	knlist_clear(&cpipe->pipe_sel.si_note, 1);
 	cpipe->pipe_present = PIPE_FINALIZED;
+	seldrain(&cpipe->pipe_sel);
 	knlist_destroy(&cpipe->pipe_sel.si_note);
 
 	/*
