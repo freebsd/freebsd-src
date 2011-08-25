@@ -330,8 +330,8 @@ show_config(int ac, char **av)
 					    mfi_pdstate(ar->pd[j].fw_state));
 				else
 					print_pd(&pinfo, -1);
-				printf("\n");
 			}
+			printf("\n");
 		}
 		p += config->array_size;
 	}
