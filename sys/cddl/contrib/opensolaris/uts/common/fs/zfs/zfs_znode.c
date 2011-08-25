@@ -1273,6 +1273,7 @@ zfs_rezget(znode_t *zp)
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	dmu_object_info_t doi;
 	dmu_buf_t *db;
+	vnode_t *vp;
 	uint64_t obj_num = zp->z_id;
 	uint64_t mode, size;
 	sa_bulk_attr_t bulk[8];
@@ -1348,8 +1349,9 @@ zfs_rezget(znode_t *zp)
 	 * that for example regular file was replaced with directory
 	 * which has the same object number.
 	 */
-	if (ZTOV(zp) != NULL &&
-	    ZTOV(zp)->v_type != IFTOVT((mode_t)zp->z_mode)) {
+	vp = ZTOV(zp);
+	if (vp != NULL &&
+	    vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 		return (EIO);
@@ -1357,8 +1359,11 @@ zfs_rezget(znode_t *zp)
 
 	zp->z_unlinked = (zp->z_links == 0);
 	zp->z_blksz = doi.doi_data_block_size;
-	if (zp->z_size != size && ZTOV(zp) != NULL)
-		vnode_pager_setsize(ZTOV(zp), zp->z_size);
+	if (vp != NULL) {
+		vn_pages_remove(vp, 0, 0);
+		if (zp->z_size != size)
+			vnode_pager_setsize(vp, zp->z_size);
+	}
 
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
