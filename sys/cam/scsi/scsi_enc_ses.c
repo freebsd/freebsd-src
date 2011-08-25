@@ -1824,6 +1824,7 @@ ses_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	 *  o Some SCSI status error.
 	 */
 	ses_terminate_control_requests(&ses->ses_pending_requests, 0);
+	enc_update_request(enc, SES_UPDATE_GETSTATUS);
 	return (0);
 }
 
