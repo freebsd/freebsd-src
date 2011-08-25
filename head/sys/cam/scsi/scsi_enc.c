@@ -242,10 +242,8 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return (ENXIO);
 	}
 
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
-		cam_periph_unlock(periph);
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
-	}
 
 	cam_periph_lock(periph);
 
@@ -273,9 +271,6 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct enc_softc *softc;
-	int error;
-
-	error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
