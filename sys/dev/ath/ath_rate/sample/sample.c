@@ -498,7 +498,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		  int rix1, int tries1,
 		  int rix2, int tries2,
 		  int rix3, int tries3,
-		  int short_tries, int tries, int status)
+		  int short_tries, int tries, int status,
+		  int nframes, int nbad)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
@@ -540,7 +541,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		/* just average the first few packets */
 		int avg_tx = sn->stats[size_bin][rix0].average_tx_time;
 		int packets = sn->stats[size_bin][rix0].total_packets;
-		sn->stats[size_bin][rix0].average_tx_time = (tt+(avg_tx*packets))/(packets+1);
+		sn->stats[size_bin][rix0].average_tx_time = (tt+(avg_tx*packets))/(packets+nframes);
 	} else {
 		/* use a ewma */
 		sn->stats[size_bin][rix0].average_tx_time = 
@@ -550,36 +551,37 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	
 	if (status != 0) {
 		int y;
-		sn->stats[size_bin][rix0].successive_failures++;
+		sn->stats[size_bin][rix0].successive_failures += nbad;
 		for (y = size_bin+1; y < NUM_PACKET_SIZE_BINS; y++) {
 			/*
 			 * Also say larger packets failed since we
 			 * assume if a small packet fails at a
 			 * bit-rate then a larger one will also.
 			 */
-			sn->stats[y][rix0].successive_failures++;
+			sn->stats[y][rix0].successive_failures += nbad;
 			sn->stats[y][rix0].last_tx = ticks;
 			sn->stats[y][rix0].tries += tries;
-			sn->stats[y][rix0].total_packets++;
+			sn->stats[y][rix0].total_packets += nframes;
 		}
 	} else {
-		sn->stats[size_bin][rix0].packets_acked++;
+		sn->stats[size_bin][rix0].packets_acked += nframes;
 		sn->stats[size_bin][rix0].successive_failures = 0;
 	}
 	sn->stats[size_bin][rix0].tries += tries;
 	sn->stats[size_bin][rix0].last_tx = ticks;
-	sn->stats[size_bin][rix0].total_packets++;
+	sn->stats[size_bin][rix0].total_packets += nframes;
 
 	if (rix0 == sn->current_sample_rix[size_bin]) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		   &an->an_node,
-"%s: size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d)", 
+"%s: size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d) nfrm %d nbad %d", 
 		    __func__, 
 		    size,
 		    status ? "FAIL" : "OK",
 		    rix0, short_tries, tries, tt, 
 		    sn->stats[size_bin][rix0].average_tx_time,
-		    sn->stats[size_bin][rix0].perfect_tx_time);
+		    sn->stats[size_bin][rix0].perfect_tx_time,
+		    nframes, nbad);
 		sn->sample_tt[size_bin] = tt;
 		sn->current_sample_rix[size_bin] = -1;
 	}
@@ -642,7 +644,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			     0, 0,
 			     0, 0,
 			     0, 0,
-			     short_tries, long_tries, ts->ts_status);
+			     short_tries, long_tries, ts->ts_status,
+			     nframes, nbad);
 	} else {
 		int finalTSIdx = ts->ts_finaltsi;
 		int i;
@@ -689,7 +692,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     rc[2].rix, rc[2].tries,
 				     rc[3].rix, rc[3].tries,
 				     short_tries, long_tries,
-				     long_tries > rc[0].tries);
+				     long_tries > rc[0].tries,
+				     nframes, nbad);
 			long_tries -= rc[0].tries;
 		}
 		
@@ -700,7 +704,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status);
+				     ts->ts_status,
+				     nframes, nbad);
 			long_tries -= rc[1].tries;
 		}
 
@@ -711,7 +716,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     0, 0,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status);
+				     ts->ts_status,
+				     nframes, nbad);
 			long_tries -= rc[2].tries;
 		}
 
@@ -722,7 +728,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     0, 0,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status);
+				     ts->ts_status,
+				     nframes, nbad);
 		}
 	}
 }
