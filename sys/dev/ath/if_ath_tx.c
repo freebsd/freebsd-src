@@ -1289,7 +1289,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * destination hardware queue. Don't bother software
 	 * queuing it, as the TID will now be paused.
 	 */
-	if (ismcast) {
+	if (txq == &avp->av_mcastq) {
 		/* Setup the descriptor before handoff */
 		ath_tx_setds(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
@@ -1376,6 +1376,10 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
+
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: ismcast=%d\n",
+	    __func__, ismcast);
 
 	/* Handle encryption twiddling if needed */
 	if (! ath_tx_tag_crypto(sc, ni,
@@ -1542,6 +1546,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * into the hardware queue, right after any pending
 	 * frames to that node are.
 	 */
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: dooverride=%d\n",
+	    __func__, do_override);
 
 	if (do_override) {
 		ath_tx_setds(sc, bf);
@@ -2734,7 +2740,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	int ba_index;
 	int drops = 0;
 	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
-	int nframes = 0, nbad = 0;
+	int nframes = 0, nbad = 0, nf;
 	int pktlen;
 	/* XXX there's too much on the stack? */
 	struct ath_rc_series rc[4];
@@ -2814,6 +2820,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * sent and which weren't.
 	 */
 	bf = bf_first;
+	nf = bf_first->bf_state.bfs_nframes;
+
+	/* bf_first is going to be invalid once this list is walked */
+	bf_first = NULL;
 
 	while (bf) {
 		nframes++;
@@ -2844,9 +2854,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		bf = bf_next;
 	}
 
-	if (nframes != bf_first->bf_state.bfs_nframes)
-		device_printf(sc->sc_dev, "%s: np=%d; nframes=%d\n",
-		    __func__, nframes, bf_first->bf_state.bfs_nframes);
+	if (nframes != nf)
+		device_printf(sc->sc_dev,
+		    "%s: num frames seen=%d; bf nframes=%d\n",
+		    __func__, nframes, nf);
 
 	/*
 	 * Now we know how many frames were bad, call the rate
