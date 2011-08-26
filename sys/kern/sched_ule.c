@@ -2022,7 +2022,7 @@ sched_exit(struct proc *p, struct thread *child)
 	struct thread *td;
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "proc exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	td = FIRST_THREAD_IN_PROC(p);
 	sched_exit_thread(td, child);
@@ -2039,7 +2039,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "thread exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	/*
 	 * Give the child's runtime to the parent without returning the
 	 * sleep time as a penalty to the parent.  This causes shells that
