@@ -1082,7 +1082,7 @@ atacapprint(struct ata_params *parm)
 	printf("firmware revision     %.8s\n", parm->revision);
 	printf("serial number         %.20s\n", parm->serial);
 	if (parm->enabled.extension & ATA_SUPPORT_64BITWWN) {
-		printf("WWN                   %02x%02x%02x%02x\n",
+		printf("WWN                   %04x%04x%04x%04x\n",
 		    parm->wwn[0], parm->wwn[1], parm->wwn[2], parm->wwn[3]);
 	}
 	if (parm->enabled.extension & ATA_SUPPORT_MEDIASN) {
