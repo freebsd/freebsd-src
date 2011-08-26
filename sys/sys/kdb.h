@@ -64,6 +64,8 @@ extern struct pcb *kdb_thrctx;		/* Current context. */
 extern struct thread *kdb_thread;	/* Current thread. */
 
 int	kdb_alt_break(int, int *);
+int	kdb_alt_break_gdb(int, int *);
+int	kdb_break(void);
 void	kdb_backtrace(void);
 int	kdb_dbbe_select(const char *);
 void	kdb_enter(const char *, const char *);
