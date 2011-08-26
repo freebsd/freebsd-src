@@ -166,14 +166,11 @@ main(int a, char **v)
 			(void)ioctl(fd, ENCIOC_GETELMDEVNAMES, (caddr_t)&objdn);
 			fprintf(stdout, "Element 0x%x: %s", ob.elm_idx,
 			    geteltnm(objp[i].elm_type));
-			if ((ob.cstat[0] & 0xf) == SES_OBJSTAT_OK)
-				fprintf(stdout, ", OK (%s)",
-				    stat2ascii(objp[i].elm_type, ob.cstat));
-			else
-				fprintf(stdout, ", %s",
-				    stat2ascii(objp[i].elm_type, ob.cstat));
-			fprintf(stdout, ", descriptor: '%s'",
-			    objd.elm_desc_str);
+			fprintf(stdout, ", %s",
+			    stat2ascii(objp[i].elm_type, ob.cstat));
+			if (objd.elm_desc_len > 0)
+				fprintf(stdout, ", descriptor: '%s'",
+				    objd.elm_desc_str);
 			if (objdn.elm_names_len > 0)
 				fprintf(stdout, ", dev: '%s'",
 				    objdn.elm_devnames);
