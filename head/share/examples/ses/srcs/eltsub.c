@@ -53,16 +53,16 @@ geteltnm(int type)
 		sprintf(rbuf, "Unspecified");
 		break;
 	case ELMTYP_DEVICE:
-		sprintf(rbuf, "Device");
+		sprintf(rbuf, "Device Slot");
 		break;
 	case ELMTYP_POWER:
-		sprintf(rbuf, "Power supply");
+		sprintf(rbuf, "Power Supply");
 		break;
 	case ELMTYP_FAN:
-		sprintf(rbuf, "Cooling element");
+		sprintf(rbuf, "Cooling");
 		break;
 	case ELMTYP_THERM:
-		sprintf(rbuf, "Temperature sensors");
+		sprintf(rbuf, "Temperature Sensors");
 		break;
 	case ELMTYP_DOORLOCK:
 		sprintf(rbuf, "Door Lock");
@@ -71,31 +71,31 @@ geteltnm(int type)
 		sprintf(rbuf, "Audible alarm");
 		break;
 	case ELMTYP_ESCC:
-		sprintf(rbuf, "Enclosure services controller electronics");
+		sprintf(rbuf, "Enclosure Eervices Controller Electronics");
 		break;
 	case ELMTYP_SCC:
-		sprintf(rbuf, "SCC controller electronics");
+		sprintf(rbuf, "SCC Controller Electronics");
 		break;
 	case ELMTYP_NVRAM:
-		sprintf(rbuf, "Nonvolatile cache");
+		sprintf(rbuf, "Nonvolatile Cache");
 		break;
 	case ELMTYP_INV_OP_REASON:
 		sprintf(rbuf, "Invalid Operation Reason");
 		break;
 	case ELMTYP_UPS:
-		sprintf(rbuf, "Uninterruptible power supply");
+		sprintf(rbuf, "Uninterruptible Power Supply");
 		break;
 	case ELMTYP_DISPLAY:
 		sprintf(rbuf, "Display");
 		break;
 	case ELMTYP_KEYPAD:
-		sprintf(rbuf, "Key pad entry device");
+		sprintf(rbuf, "Key Pad Entry");
 		break;
 	case ELMTYP_ENCLOSURE:
 		sprintf(rbuf, "Enclosure");
 		break;
 	case ELMTYP_SCSIXVR:
-		sprintf(rbuf, "SCSI port/transceiver");
+		sprintf(rbuf, "SCSI Port/Transceiver");
 		break;
 	case ELMTYP_LANGUAGE:
 		sprintf(rbuf, "Language");
@@ -110,22 +110,22 @@ geteltnm(int type)
 		sprintf(rbuf, "Current Sensor");
 		break;
 	case ELMTYP_SCSI_TGT:
-		sprintf(rbuf, "SCSI target port");
+		sprintf(rbuf, "SCSI Target Port");
 		break;
 	case ELMTYP_SCSI_INI:
-		sprintf(rbuf, "SCSI initiator port");
+		sprintf(rbuf, "SCSI Initiator Port");
 		break;
 	case ELMTYP_SUBENC:
-		sprintf(rbuf, "Simple sub-enclosure");
+		sprintf(rbuf, "Simple Subenclosure");
 		break;
 	case ELMTYP_ARRAY_DEV:
-		sprintf(rbuf, "Array device");
+		sprintf(rbuf, "Array Device Slot");
 		break;
 	case ELMTYP_SAS_EXP:
-		sprintf(rbuf, "SAS expander");
+		sprintf(rbuf, "SAS Expander");
 		break;
 	case ELMTYP_SAS_CONN:
-		sprintf(rbuf, "SAS connector");
+		sprintf(rbuf, "SAS Connector");
 		break;
 	default:
 		(void) sprintf(rbuf, "<Type 0x%x>", type);
@@ -140,31 +140,34 @@ scode2ascii(u_char code)
 	static char rbuf[32];
 	switch (code & 0xf) {
 	case SES_OBJSTAT_UNSUPPORTED:
-		sprintf(rbuf, "status not supported");
+		sprintf(rbuf, "Unsupported");
 		break;
 	case SES_OBJSTAT_OK:
-		sprintf(rbuf, "ok");
+		sprintf(rbuf, "OK");
 		break;
 	case SES_OBJSTAT_CRIT:
-		sprintf(rbuf, "critical");
+		sprintf(rbuf, "Critical");
 		break;
 	case SES_OBJSTAT_NONCRIT:
-		sprintf(rbuf, "non-critical");
+		sprintf(rbuf, "Noncritical");
 		break;
 	case SES_OBJSTAT_UNRECOV:
-		sprintf(rbuf, "unrecoverable");
+		sprintf(rbuf, "Unrecoverable");
 		break;
 	case SES_OBJSTAT_NOTINSTALLED:
-		sprintf(rbuf, "not installed");
+		sprintf(rbuf, "Not Installed");
 		break;
 	case SES_OBJSTAT_UNKNOWN:
-		sprintf(rbuf, "unknown status");
+		sprintf(rbuf, "Unknown");
 		break;
 	case SES_OBJSTAT_NOTAVAIL:
-		sprintf(rbuf, "status not available");
+		sprintf(rbuf, "Not Available");
+		break;
+	case SES_OBJSTAT_NOACCESS:
+		sprintf(rbuf, "No Access Allowed");
 		break;
 	default:
-		sprintf(rbuf, "unknown status code %x", code & 0xf);
+		sprintf(rbuf, "<Status 0x%x>", code & 0xf);
 		break;
 	}
 	return (rbuf);
@@ -177,7 +180,7 @@ stat2ascii(int eletype __unused, u_char *cstat)
 	static char ebuf[256], *scode;
 
 	scode = scode2ascii(cstat[0]);
-	sprintf(ebuf, "Status=%s (bytes=0x%02x 0x%02x 0x%02x 0x%02x)",
+	sprintf(ebuf, "status: %s (0x%02x 0x%02x 0x%02x 0x%02x)",
 	    scode, cstat[0], cstat[1], cstat[2], cstat[3]);
 	return (ebuf);
 }
