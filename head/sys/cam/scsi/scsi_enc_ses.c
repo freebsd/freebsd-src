@@ -2606,8 +2606,10 @@ ses_get_elm_desc(enc_softc_t *enc, encioc_elm_desc_t *elmd)
 	/* Assume caller has already checked obj_id validity */
 	elmpriv = enc->enc_cache.elm_map[i].elm_private;
 	/* object might not have a descriptor */
-	if (elmpriv == NULL || elmpriv->descr == NULL)
+	if (elmpriv == NULL || elmpriv->descr == NULL) {
+		elmd->elm_desc_len = 0;
 		return (0);
+	}
 	if (elmd->elm_desc_len > elmpriv->descr_len)
 		elmd->elm_desc_len = elmpriv->descr_len;
 	copyout(elmpriv->descr, elmd->elm_desc_str, elmd->elm_desc_len);
