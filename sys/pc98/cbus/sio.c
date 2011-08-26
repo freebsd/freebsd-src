@@ -310,7 +310,7 @@ struct com_s {
 
 	struct	pps_state pps;
 	int	pps_bit;
-#ifdef ALT_BREAK_TO_DEBUGGER
+#ifdef KDB
 	int	alt_brk_state;
 #endif
 
@@ -1752,8 +1752,7 @@ determined_type: ;
 		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
-#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+#if defined(KDB)
 		/*
 		 * Enable interrupts for early break-to-debugger support
 		 * on the console.
@@ -1896,8 +1895,7 @@ comclose(tp)
 	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #endif
 
-#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+#if defined(KDB)
 	/*
 	 * Leave interrupts enabled and don't clear DTR if this is the
 	 * console. This allows us to detect break-to-debugger events
@@ -2272,7 +2270,7 @@ siointr1(com)
 	u_char	rsa_buf_status = 0;
 	int	rsa_tx_fifo_size = 0;
 #endif /* PC98 */
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB)
 	int	kdb_brk;
 
 again:
@@ -2369,27 +2367,11 @@ more_intr:
 			else
 				recv_data = inb(com->data_port);
 #ifdef KDB
-#ifdef ALT_BREAK_TO_DEBUGGER
 			if (com->unit == comconsole &&
 			    (kdb_brk = kdb_alt_break(recv_data,
 					&com->alt_brk_state)) != 0) {
-				mtx_unlock_spin(&sio_lock);
-				switch (kdb_brk) {
-				case KDB_REQ_DEBUGGER:
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on console");
-					break;
-				case KDB_REQ_PANIC:
-					kdb_panic("panic on console");
-					break;
-				case KDB_REQ_REBOOT:
-					kdb_reboot();
-					break;
-				}
-				mtx_lock_spin(&sio_lock);
 				goto again;
 			}
-#endif /* ALT_BREAK_TO_DEBUGGER */
 #endif /* KDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
@@ -2405,7 +2387,7 @@ more_intr:
 				 * Note: BI together with FE/PE means just BI.
 				 */
 				if (line_status & LSR_BI) {
-#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB)
 					if (com->unit == comconsole) {
 						kdb_enter(KDB_WHY_BREAK,
 						    "Line break on console");

@@ -118,10 +118,10 @@ uart_intr_break(void *arg)
 {
 	struct uart_softc *sc = arg;
 
-#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
-		kdb_enter(KDB_WHY_BREAK, "Line break on console");
-		return (0);
+		if (kdb_break())
+			return (0);
 	}
 #endif
 	if (sc->sc_opened)
@@ -170,26 +170,10 @@ uart_intr_rxready(void *arg)
 
 	rxp = sc->sc_rxput;
 	UART_RECEIVE(sc);
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		while (rxp != sc->sc_rxput) {
-			int kdb_brk;
-
-			if ((kdb_brk = kdb_alt_break(sc->sc_rxbuf[rxp++],
-			    &sc->sc_altbrk)) != 0) {
-				switch (kdb_brk) {
-				case KDB_REQ_DEBUGGER:
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on console");
-					break;
-				case KDB_REQ_PANIC:
-					kdb_panic("Panic sequence on console");
-					break;
-				case KDB_REQ_REBOOT:
-					kdb_reboot();
-					break;
-				}
-			}
+			kdb_alt_break(sc->sc_rxbuf[rxp++], &sc->sc_altbrk);
 			if (rxp == sc->sc_rxbufsz)
 				rxp = 0;
 		}

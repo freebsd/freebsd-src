@@ -60,7 +60,7 @@ static int			polltime;
 static struct callout		mambo_callout;
 static struct tty 		*tp = NULL;
 
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB)
 static int			alt_break_state;
 #endif
 
@@ -156,24 +156,8 @@ mambo_cngetc(struct consdev *cp)
 	ch = mambocall(MAMBO_CONSOLE_READ);
 
 	if (ch > 0 && ch < 0xff) {
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		int kdb_brk;
-
-		if ((kdb_brk = kdb_alt_break(ch, &alt_break_state)) != 0) {
-			switch (kdb_brk) {
-			case KDB_REQ_DEBUGGER:
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on console");
-				break;
-			case KDB_REQ_PANIC:
-				kdb_panic("Panic sequence on console");
-				break;
-			case KDB_REQ_REBOOT:
-				kdb_reboot();
-				break;
-
-			}
-		}
+#if defined(KDB)
+		kdb_alt_break(ch, &alt_break_state);
 #endif
 		return (ch);
 	}
