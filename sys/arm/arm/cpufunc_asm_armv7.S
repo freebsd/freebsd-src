@@ -191,3 +191,8 @@ ENTRY_NP(armv7_icache_sync_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
+ENTRY(armv7_cpu_sleep)
+	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
+	/* FIXME: replace with WFI instruction when AS will support it */
+	.word  0xe320f003		/* wait for interrupt */
+	bx	lr
