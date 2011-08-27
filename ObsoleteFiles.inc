@@ -2043,9 +2043,9 @@ OLD_FILES+=usr/share/man/man5/ipsend.5.gz
 OLD_FILES+=usr/bin/gtar
 OLD_FILES+=usr/share/man/man1/gtar.1.gz
 # 200503XX
-OLD_FILES+=share/man/man3/exp10.3.gz
-OLD_FILES+=share/man/man3/exp10f.3.gz
-OLD_FILES+=share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/exp10.3.gz
+OLD_FILES+=usr/share/man/man3/exp10f.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
 # 20050324: updated release infrastructure
 OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
 # 20050317: removed from BIND 9 distribution
