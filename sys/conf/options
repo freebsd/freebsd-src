@@ -47,6 +47,8 @@ TWA_DEBUG		opt_twa.h
 TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Debugging options.
+ALT_BREAK_TO_DEBUGGER	opt_kdb.h
+BREAK_TO_DEBUGGER	opt_kdb.h
 DDB
 DDB_BUFR_SIZE	opt_ddb.h
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
@@ -636,9 +638,6 @@ BKTR_430_FX_MODE		opt_bktr.h
 BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
 BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
-
-BREAK_TO_DEBUGGER	opt_comconsole.h
-ALT_BREAK_TO_DEBUGGER	opt_comconsole.h
 
 # Options to support PPS
 UART_PPS_ON_CTS		opt_uart.h
