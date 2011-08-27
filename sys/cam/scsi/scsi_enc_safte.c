@@ -247,7 +247,7 @@ safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct scfg *cfg;
 	uint8_t *buf = *bufp;
@@ -256,7 +256,8 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg = enc->enc_private;
 	if (cfg == NULL)
 		return (ENXIO);
-
+	if (error != 0)
+		return (error);
 	if (xfer_len < 6) {
 		ENC_LOG(enc, "too little data (%d) for configuration\n",
 		    xfer_len);
@@ -320,7 +321,7 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 safte_process_gflags(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct scfg *cfg;
 	uint8_t *buf = *bufp;
@@ -328,7 +329,8 @@ safte_process_gflags(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg = enc->enc_private;
 	if (cfg == NULL)
 		return (ENXIO);
-
+	if (error != 0)
+		return (error);
 	SAFT_BAIL(3, xfer_len);
 	cfg->flag1 = buf[1];
 	cfg->flag2 = buf[2];
@@ -344,7 +346,7 @@ safte_process_gflags(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct scfg *cfg;
 	uint8_t *buf = *bufp;
@@ -355,6 +357,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg = enc->enc_private;
 	if (cfg == NULL)
 		return (ENXIO);
+	if (error != 0)
+		return (error);
 
 	oid = r = 0;
 	cfg->enc_status = 0;
@@ -651,7 +655,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct scfg *cfg;
 	uint8_t *buf = *bufp;
@@ -661,7 +665,8 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg = enc->enc_private;
 	if (cfg == NULL)
 		return (ENXIO);
-
+	if (error != 0)
+		return (error);
 	cfg->slot_status = 0;
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
@@ -940,7 +945,7 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct scfg *cfg;
 	safte_control_request_t *req;
@@ -950,8 +955,10 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	if (cfg == NULL)
 		return (ENXIO);
 
+	req = cfg->current_request;
+	if (req->result == 0)
+		req->result = error;
 	if (++cfg->current_request_stage >= cfg->current_request_stages) {
-		req = cfg->current_request;
 		idx = req->elm_idx;
 		if (idx == SES_SETSTATUS_ENC_IDX)
 			type = -1;
@@ -962,7 +969,6 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 		else
 			enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
 		cfg->current_request = NULL;
-		req->result = 0;
 		wakeup(req);
 	} else {
 		enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
@@ -1046,6 +1052,7 @@ safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag)
 
 	req.elm_idx = SES_SETSTATUS_ENC_IDX;
 	req.elm_stat[0] = encstat & 0xf;
+	req.result = 0;
 	
 	TAILQ_INSERT_TAIL(&cfg->requests, &req, links);
 	enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
@@ -1082,6 +1089,7 @@ safte_set_elm_status(enc_softc_t *enc, encioc_elm_status_t *elms, int slpflag)
 
 	req.elm_idx = elms->elm_idx;
 	memcpy(&req.elm_stat, elms->cstat, sizeof(req.elm_stat));
+	req.result = 0;
 
 	TAILQ_INSERT_TAIL(&cfg->requests, &req, links);
 	enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);

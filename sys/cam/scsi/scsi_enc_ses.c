@@ -1234,7 +1234,7 @@ out:
  */
 static int
 ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	ses_softc_t *ses;
 	struct scsi_diag_page *page;
@@ -1245,6 +1245,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 	ses = enc->enc_private;
 	err = -1;
 
+	if (error != 0) {
+		err = error;
+		goto out;
+	}
 	if (xfer_len < sizeof(*page)) {
 		ENC_LOG(enc, "Unable to parse Diag Pages List Header\n");
 		err = EIO;
@@ -1283,7 +1287,7 @@ out:
  */
 static int
 ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct ses_iterator iter;
 	ses_softc_t *ses;
@@ -1315,6 +1319,10 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	buf = *bufp;
 	err = -1;;
 
+	if (error != 0) {
+		err = error;
+		goto out;
+	}
 	if (xfer_len < sizeof(cfg_page->hdr)) {
 		ENC_LOG(enc, "Unable to parse SES Config Header\n");
 		err = EIO;
@@ -1492,7 +1500,7 @@ out:
  */
 static int
 ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
-		   union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct ses_iterator iter;
 	enc_element_t *element;
@@ -1515,6 +1523,10 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	page = (struct ses_status_page *)buf;
 	length = ses_page_length(&page->hdr);
 
+	if (error != 0) {
+		err = error;
+		goto out;
+	}
 	/*
 	 * Make sure the length fits in the buffer.
 	 *
@@ -1660,7 +1672,7 @@ static int ses_get_elm_addlstatus_sas(enc_softc_t *, enc_cache_t *, uint8_t *,
  */
 static int
 ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
-			  union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct ses_iterator iter;
 	int eip;
@@ -1679,6 +1691,10 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	buf = *bufp;
 	err = -1;
 
+	if (error != 0) {
+		err = error;
+		goto out;
+	}
 	ses_cache_free_elm_addlstatus(enc, enc_cache);
 	ses_cache->elm_addlstatus_page =
 	    (struct ses_addl_elem_status_page *)buf;
@@ -1813,7 +1829,7 @@ out:
 
 static int
 ses_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
-			    union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	ses_softc_t *ses;
 
@@ -1823,14 +1839,14 @@ ses_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	 *  o Generation count wrong.
 	 *  o Some SCSI status error.
 	 */
-	ses_terminate_control_requests(&ses->ses_pending_requests, 0);
+	ses_terminate_control_requests(&ses->ses_pending_requests, error);
 	enc_update_request(enc, SES_UPDATE_GETSTATUS);
 	return (0);
 }
 
 static int
 ses_publish_physpaths(enc_softc_t *enc, struct enc_fsm_state *state,
-		      union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct ses_iterator iter;
 	enc_cache_t *enc_cache;
@@ -1857,7 +1873,7 @@ ses_publish_physpaths(enc_softc_t *enc, struct enc_fsm_state *state,
 
 static int
 ses_publish_cache(enc_softc_t *enc, struct enc_fsm_state *state,
-		  union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 
 	sx_xlock(&enc->enc_cache_lock);
@@ -1879,7 +1895,7 @@ ses_publish_cache(enc_softc_t *enc, struct enc_fsm_state *state,
  */
 static int
 ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
-		     union ccb *ccb, uint8_t **bufp, int xfer_len)
+    union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	ses_softc_t *ses;
 	struct ses_iterator iter;
@@ -1900,6 +1916,10 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 	buf = *bufp;
 	err = -1;
 
+	if (error != 0) {
+		err = error;
+		goto out;
+	}
 	ses_cache_free_elm_descs(enc, enc_cache);
 	ses_cache->elm_descs_page = (struct ses_elem_descr_page *)buf;
 	*bufp = NULL;

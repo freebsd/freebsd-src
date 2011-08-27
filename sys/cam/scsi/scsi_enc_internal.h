@@ -72,7 +72,7 @@ typedef int fsm_error_handler_t(union ccb *ccb, uint32_t cflags,
 				uint32_t sflags);
 typedef int fsm_done_handler_t(enc_softc_t *ssc,
 			       struct enc_fsm_state *state, union ccb *ccb,
-			       uint8_t **bufp, int xfer_len);
+			       uint8_t **bufp, int error, int xfer_len);
 
 struct enc_fsm_state {
 	const char	    *name;
