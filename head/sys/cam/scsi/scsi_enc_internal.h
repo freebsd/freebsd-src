@@ -84,9 +84,9 @@ struct enc_fsm_state {
 	fsm_error_handler_t *error;
 };
 
-typedef int (enc_softc_init_t)(enc_softc_t *, int);
-typedef void (enc_softc_invalidate_t)(struct cam_periph *); 
-typedef void (enc_softc_cleanup_t)(struct cam_periph *);
+typedef int (enc_softc_init_t)(enc_softc_t *);
+typedef void (enc_softc_invalidate_t)(enc_softc_t *);
+typedef void (enc_softc_cleanup_t)(enc_softc_t *);
 typedef int (enc_init_enc_t)(enc_softc_t *); 
 typedef int (enc_get_enc_status_t)(enc_softc_t *, int);
 typedef int (enc_set_enc_status_t)(enc_softc_t *, encioc_enc_status_t, int);

@@ -1477,7 +1477,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 out:
 	if (err)
-		ses_softc_cleanup(enc->periph);
+		ses_softc_cleanup(enc);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
 		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
@@ -2538,18 +2538,18 @@ out:
 }
 
 static void
-ses_softc_invalidate(struct cam_periph *periph)
+ses_softc_invalidate(enc_softc_t *enc)
 {
+	ses_softc_t *ses;
+
+	ses = enc->enc_private;
+	ses_terminate_control_requests(&ses->ses_requests, ENXIO);
 }
 
 static void
-ses_softc_cleanup(struct cam_periph *periph)
+ses_softc_cleanup(enc_softc_t *enc)
 {
-	enc_softc_t *enc;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-	    ("entering ses_softc_cleanup(%p)\n", periph));
-	enc = periph->softc;
 	ses_cache_free(enc, &enc->enc_cache);
 	ses_cache_free(enc, &enc->enc_daemon_cache);
 	ENC_FREE_AND_NULL(enc->enc_private);
@@ -2767,16 +2767,12 @@ static struct enc_vec ses_enc_vec =
  * \return		0 on success, errno otherwise.
  */
 int
-ses_softc_init(enc_softc_t *enc, int doinit)
+ses_softc_init(enc_softc_t *enc)
 {
 	ses_softc_t *ses_softc;
 
 	CAM_DEBUG(enc->periph->path, CAM_DEBUG_SUBTRACE,
 	    ("entering enc_softc_init(%p)\n", enc));
-	if (doinit == 0) {
-		ses_softc_cleanup(enc->periph);
-		return (0);
-	}
 
 	enc->enc_vec = ses_enc_vec;
 	enc->enc_fsm_states = enc_fsm_states;

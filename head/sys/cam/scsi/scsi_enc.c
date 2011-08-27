@@ -120,9 +120,11 @@ enc_oninvalidate(struct cam_periph *periph)
 
 	enc = periph->softc;
 
+	enc->enc_flags |= ENC_FLAG_INVALID;
+
 	/* If the sub-driver has an invalidate routine, call it */
 	if (enc->enc_vec.softc_invalidate != NULL)
-		enc->enc_vec.softc_invalidate(periph);
+		enc->enc_vec.softc_invalidate(enc);
 
 	/*
 	 * Unregister any async callbacks.
@@ -146,8 +148,6 @@ enc_oninvalidate(struct cam_periph *periph)
 	}
 	callout_drain(&enc->status_updater);
 
-	enc->enc_flags |= ENC_FLAG_INVALID;
-
 	xpt_print(periph->path, "lost device\n");
 }
 
@@ -165,7 +165,7 @@ enc_dtor(struct cam_periph *periph)
 
 	/* If the sub-driver has a cleanup routine, call it */
 	if (enc->enc_vec.softc_cleanup != NULL)
-		enc->enc_vec.softc_cleanup(periph);
+		enc->enc_vec.softc_cleanup(enc);
 
 	if (enc->enc_boot_hold_ch.ich_func != NULL) {
 		config_intrhook_disestablish(&enc->enc_boot_hold_ch);
@@ -916,11 +916,11 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	case ENC_SES_SCSI2:
 	case ENC_SES_PASSTHROUGH:
 	case ENC_SEMB_SES:
-		err = ses_softc_init(enc, 1);
+		err = ses_softc_init(enc);
 		break;
 	case ENC_SAFT:
 	case ENC_SEMB_SAFT:
-		err = safte_softc_init(enc, 1);
+		err = safte_softc_init(enc);
 		break;
 	case ENC_SEN:
 	case ENC_NONE:

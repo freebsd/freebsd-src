@@ -162,6 +162,18 @@ enum {
 	SES_SETSTATUS_ENC_IDX = -1
 };
 
+static void
+safte_terminate_control_requests(safte_control_reqlist_t *reqlist, int result)
+{
+	safte_control_request_t *req;
+
+	while ((req = TAILQ_FIRST(reqlist)) != NULL) {
+		TAILQ_REMOVE(reqlist, req, links);
+		req->result = result;
+		wakeup(req);
+	}
+}
+
 struct scfg {
 	/*
 	 * Cached Configuration
@@ -977,11 +989,18 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 }
 
 static void
-safte_softc_cleanup(struct cam_periph *periph)
+safte_softc_invalidate(enc_softc_t *enc)
 {
-	enc_softc_t *enc;
+	struct scfg *cfg;
 
-	enc = periph->softc;
+	cfg = enc->enc_private;
+	safte_terminate_control_requests(&cfg->requests, ENXIO);
+}
+
+static void
+safte_softc_cleanup(enc_softc_t *enc)
+{
+
 	ENC_FREE_AND_NULL(enc->enc_cache.elm_map);
 	ENC_FREE_AND_NULL(enc->enc_private);
 	enc->enc_cache.nelms = 0;
@@ -1084,6 +1103,7 @@ safte_poll_status(enc_softc_t *enc)
 
 static struct enc_vec safte_enc_vec =
 {
+	.softc_invalidate	= safte_softc_invalidate,
 	.softc_cleanup	= safte_softc_cleanup,
 	.init_enc	= safte_init_enc,
 	.get_enc_status	= safte_get_enc_status,
@@ -1094,14 +1114,9 @@ static struct enc_vec safte_enc_vec =
 };
 
 int
-safte_softc_init(enc_softc_t *enc, int doinit)
+safte_softc_init(enc_softc_t *enc)
 {
 	struct scfg *cfg;
-
-	if (doinit == 0) {
-		safte_softc_cleanup(enc->periph);
-		return (0);
-	}
 
 	enc->enc_vec = safte_enc_vec;
 	enc->enc_fsm_states = enc_fsm_states;
