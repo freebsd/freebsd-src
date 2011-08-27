@@ -2293,6 +2293,8 @@ OLD_FILES+=lib/libz.so
 OLD_FILES+=bin/cxconfig
 OLD_FILES+=sbin/cxconfig
 OLD_FILES+=usr/share/man/man8/cxconfig.8.gz
+# 20031016: MULTI_DRIVER_MODULE macro removed
+OLD_FILES+=usr/share/man/man9/MULTI_DRIVER_MODULE.9.gz
 # 200309XX
 OLD_FILES+=usr/bin/symorder
 OLD_FILES+=usr/share/man/man1/symorder.1.gz
