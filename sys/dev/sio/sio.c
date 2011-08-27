@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
 #include "opt_compat.h"
 #include "opt_gdb.h"
 #include "opt_kdb.h"

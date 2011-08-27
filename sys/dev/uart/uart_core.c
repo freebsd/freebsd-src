@@ -27,10 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef KLD_MODULE
-#include "opt_comconsole.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
