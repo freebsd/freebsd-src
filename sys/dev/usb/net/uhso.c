@@ -249,6 +249,8 @@ static struct unrhdr *uhso_ifnet_unit = NULL;
 
 static const STRUCT_USB_HOST_ID uhso_devs[] = {
 #define	UHSO_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	/* Option GlobeTrotter MAX 7.2 with upgraded firmware */
+	UHSO_DEV(OPTION, GTMAX72, UHSO_STATIC_IFACE),
 	/* Option GlobeSurfer iCON 7.2 */
 	UHSO_DEV(OPTION, GSICON72, UHSO_STATIC_IFACE),
 	/* Option iCON 225 */
