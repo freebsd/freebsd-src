@@ -1891,6 +1891,7 @@ _ath_getbuf_locked(struct ath_softc *sc)
 	bf->bf_next = NULL;	/* XXX just to be sure */
 	bf->bf_last = NULL;	/* XXX again, just to be sure */
 	bf->bf_comp = NULL;	/* XXX again, just to be sure */
+	bzero(&bf->bf_state, sizeof(bf->bf_state));
 
 	return bf;
 }
