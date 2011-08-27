@@ -3083,6 +3083,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		args.m = *mp;
 		args.oif = ifp;
 		args.next_hop = NULL;
+		args.next_hop6 = NULL;
 		args.eh = &eh2;
 		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
 		i = V_ip_fw_chk_ptr(&args);
