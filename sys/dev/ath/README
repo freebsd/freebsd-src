@@ -198,6 +198,69 @@ Stuff to do to the rate control code
 
   The rate selection stuff doesn't do this -now-, but it may be useful later.
 
+Problems in net80211 (ie, not necessarily this branch)
+------------------------------------------------------
+
+ieee80211_node.c:1940 is within:
+
+static void
+ieee80211_timeout_stations(struct ieee80211com *ic)
+
+This initial lock: IEEE80211_NODE_LOCK(nt);
+
+lock order reversal:
+ 1st 0xc08316cc ath0_node_lock (ath0_node_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:1940
+ 2nd 0xc0830014 ath0_com_lock (ath0_com_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_power.c:295
+KDB: stack backtrace:
+db_trace_thread+30 (?,?,?,?) ra 8038e35c sp c077da90 sz 24
+db_trace_self+1c (?,?,?,?) ra 80074c1c sp c077daa8 sz 24
+80074be8+34 (?,?,?,?) ra 801d1ba4 sp c077dac0 sz 416
+kdb_backtrace+44 (?,?,?,?) ra 801e9660 sp c077dc60 sz 24
+801e962c+34 (?,?,?,?) ra 801ea2a4 sp c077dc78 sz 32
+witness_checkorder+954 (?,?,?,?) ra 8018a740 sp c077dc98 sz 88
+_mtx_lock_flags+c4 (?,?,?,?) ra 802a5a30 sp c077dcf0 sz 48
+802a59a8+88 (?,?,?,?) ra 8029e4a8 sp c077dd20 sz 40
+8029e444+64 (?,?,?,?) ra 8029d4d8 sp c077dd48 sz 32
+ieee80211_node_timeout+1a4 (?,?,?,?) ra 801b0300 sp c077dd68 sz 64
+softclock+298 (?,?,?,?) ra 80172860 sp c077dda8 sz 88
+intr_event_execute_handlers+158 (?,?,?,?) ra 80173868 sp c077de00 sz 40
+8017375c+10c (?,?,?,?) ra 8016fb64 sp c077de28 sz 48
+fork_exit+a8 (?,?,?,?) ra 80386aa0 sp c077de58 sz 40
+fork_trampoline+10 (?,?,?,?) ra 0 sp c077de80 sz 0
+
+A kernel panic, when a station is downed;
+
+wlan0: [8c:7b:9d:d6:65:ba] station with aid 1 leaves
+ath0: ath_addba_stop: called
+ath0: ath_tx_tid_pause: paused = 1
+ath0: ath_tx_cleanup: TID 0: called
+ath0: ath_tx_cleanup: TID 0: cleanup needed: 2 packets
+ath0: ath_tx_tid_cleanup: node 0xc08e8000: cleaning up
+Trap cause = 2 (TLB miss (load or instr. fetch) - kernel mode)
+[ thread pid 0 tid 100024 ]
+Stopped at      _mtx_lock_flags+0x58:   lw      v1,16(a0)
+db> bt
+Tracing pid 0 tid 100024 td 0x80a07600
+db_trace_thread+30 (?,?,?,?) ra 80072dc0 sp c766f7f8 sz 24
+80072cac+114 (8018a6d4,?,ffffffff,?) ra 8007237c sp c766f810 sz 32
+80071ff4+388 (?,?,?,?) ra 80072500 sp c766f830 sz 168
+db_command_loop+70 (?,?,?,?) ra 80074bc4 sp c766f8d8 sz 24
+80074ad0+f4 (?,?,?,?) ra 801d1818 sp c766f8f0 sz 424
+kdb_trap+104 (?,?,?,?) ra 80382910 sp c766fa98 sz 40
+trap+e58 (?,?,?,?) ra 8037a5e0 sp c766fac0 sz 168
+MipsKernGenException+134 (c08ec3e4,0,803e053c,10c9) ra 8018a6d4 sp c766fb68 sz 200
+_mtx_lock_flags+58 (?,?,?,?) ra 80079ea0 sp c766fc30 sz 48
+ath_tx_update_ratectrl+5c (?,?,?,?) ra 80088644 sp c766fc60 sz 56
+ath_tx_aggr_comp+660 (?,?,0,?) ra 8007dcc4 sp c766fc98 sz 232
+8007d7e8+4dc (?,?,?,?) ra 8007e56c sp c766fd80 sz 72		(if_ath.c:4326) - processq?
+8007e4e4+88 (?,?,?,?) ra 801dfb24 sp c766fdc8 sz 48		(if_ath.c:4491) - tx tasklet
+801dfa3c+e8 (?,?,?,?) ra 801e05ec sp c766fdf8 sz 56		(subr_taskqueue.c:308)
+taskqueue_thread_loop+60 (?,?,?,?) ra 8016fb64 sp c766fe30 sz 40
+fork_exit+a8 (?,?,?,?) ra 80386aa0 sp c766fe58 sz 40
+fork_trampoline+10 (?,?,?,?) ra 0 sp c766fe80 sz 0
+pid 0
+
+
 Fixed issues:
 -------------
 
