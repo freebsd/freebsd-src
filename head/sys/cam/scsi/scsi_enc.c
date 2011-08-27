@@ -739,6 +739,7 @@ enc_fsm_step(enc_softc_t *enc)
 	uint8_t              *buf;
 	struct enc_fsm_state *cur_state;
 	int		      error;
+	uint32_t	      xfer_len;
 	
 	ENC_DLOG(enc, "%s enter %p\n", __func__, enc);
 
@@ -760,30 +761,27 @@ enc_fsm_step(enc_softc_t *enc)
 		ccb = cam_periph_getccb(enc->periph, CAM_PRIORITY_NORMAL);
 
 		error = cur_state->fill(enc, cur_state, ccb, buf);
-		if (error == 0) {
-			error = cam_periph_runccb(ccb, cur_state->error,
-						  ENC_CFLAGS,
-						  ENC_FLAGS|SF_QUIET_IR, NULL);
-		}
+		if (error != 0)
+			goto done;
+
+		error = cam_periph_runccb(ccb, cur_state->error,
+					  ENC_CFLAGS,
+					  ENC_FLAGS|SF_QUIET_IR, NULL);
 	}
 
-	
-	if (error == 0) {
-		uint32_t len;
+	if (ccb != NULL) {
+		if (ccb->ccb_h.func_code == XPT_ATA_IO)
+			xfer_len = ccb->ataio.dxfer_len - ccb->ataio.resid;
+		else
+			xfer_len = ccb->csio.dxfer_len - ccb->csio.resid;
+	} else
+		xfer_len = 0;
 
-		len = 0;
-		if (ccb != NULL) {
-			if (ccb->ccb_h.func_code == XPT_ATA_IO)
-				len = ccb->ataio.dxfer_len - ccb->ataio.resid;
-			else
-				len = ccb->csio.dxfer_len - ccb->csio.resid;
-		}
+	cam_periph_unlock(enc->periph);
+	cur_state->done(enc, cur_state, ccb, &buf, error, xfer_len);
+	cam_periph_lock(enc->periph);
 
-		cam_periph_unlock(enc->periph);
-		cur_state->done(enc, cur_state, ccb, &buf, len);
-		cam_periph_lock(enc->periph);
-	}
-
+done:
 	ENC_DLOG(enc, "%s exit - result %d\n", __func__, error);
 	ENC_FREE_AND_NULL(buf);
 	if (ccb != NULL)
