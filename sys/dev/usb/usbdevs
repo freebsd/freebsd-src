@@ -1872,6 +1872,8 @@ product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
+product HUAWEI E173		0x1c05	3G modem
+product HUAWEI E173_INIT	0x1c0b	3G modem initial
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -2445,6 +2447,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTMAX72		0x6711	GlobeTrotter Max 7.2 HSDPA
 product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
