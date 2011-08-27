@@ -4420,8 +4420,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				     bf->bf_state.bfs_rc, ts,
 				    bf->bf_state.bfs_pktlen, 1,
 				    (ts->ts_status == 0 ? 0 : 1));
-				ath_tx_default_comp(sc, bf, 0);
 			}
+			ath_tx_default_comp(sc, bf, 0);
 		} else
 			bf->bf_comp(sc, bf, 0);
 	}
