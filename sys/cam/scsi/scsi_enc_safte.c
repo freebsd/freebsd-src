@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD: head/sys/cam/scsi/scsi_ses.c 201758 2010-01-07 21:01:37Z mbr
  * SAF-TE Type Device Emulation
  */
 
-static int wrbuf16(enc_softc_t *, uint8_t, uint8_t, uint8_t, uint8_t, int);
+static int safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag);
 
 #define	ALL_ENC_STAT (SES_ENCSTAT_CRITICAL | SES_ENCSTAT_UNRECOV | \
 	SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
@@ -976,37 +976,6 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	return (0);
 }
 
-/*
- * This function handles all of the 16 byte WRITE BUFFER commands.
- */
-static int
-wrbuf16(enc_softc_t *enc, uint8_t op, uint8_t b1, uint8_t b2,
-    uint8_t b3, int slp)
-{
-	int err, amt;
-	char *sdata;
-	struct scfg *cc = enc->enc_private;
-	static char cdb[10] = { WRITE_BUFFER, 1, 0, 0, 0, 0, 0, 0, 16, 0 };
-
-	if (cc == NULL)
-		return (0);
-
-	sdata = ENC_MALLOCZ(16);
-	if (sdata == NULL)
-		return (ENOMEM);
-
-	ENC_DLOG(enc, "saf_wrbuf16 %x %x %x %x\n", op, b1, b2, b3);
-
-	sdata[0] = op;
-	sdata[1] = b1;
-	sdata[2] = b2;
-	sdata[3] = b3;
-	amt = -16;
-	err = enc_runcmd(enc, cdb, 10, sdata, &amt);
-	ENC_FREE(sdata);
-	return (err);
-}
-
 static void
 safte_softc_cleanup(struct cam_periph *periph)
 {
@@ -1021,15 +990,22 @@ safte_softc_cleanup(struct cam_periph *periph)
 static int
 safte_init_enc(enc_softc_t *enc)
 {
+	struct scfg *cfg;
 	int err;
 	static char cdb0[6] = { SEND_DIAGNOSTIC };
+
+	cfg = enc->enc_private;
+	if (cfg == NULL)
+		return (ENXIO);
 
 	err = enc_runcmd(enc, cdb0, 6, NULL, 0);
 	if (err) {
 		return (err);
 	}
 	DELAY(5000);
-	err = wrbuf16(enc, SAFTE_WT_GLOBAL, 0, 0, 0, 1);
+	cfg->flag1 = 0;
+	cfg->flag2 = 0;
+	err = safte_set_enc_status(enc, 0, 1);
 	return (err);
 }
 
