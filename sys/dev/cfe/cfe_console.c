@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>

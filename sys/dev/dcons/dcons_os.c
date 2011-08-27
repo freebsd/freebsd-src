@@ -64,7 +64,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "opt_comconsole.h"
 #include "opt_dcons.h"
 #include "opt_kdb.h"
 #include "opt_gdb.h"

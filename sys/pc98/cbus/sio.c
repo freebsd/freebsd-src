@@ -31,7 +31,6 @@
  *	from: i386/isa sio.c,v 1.234
  */
 
-#include "opt_comconsole.h"
 #include "opt_compat.h"
 #include "opt_gdb.h"
 #include "opt_kdb.h"
