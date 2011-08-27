@@ -605,7 +605,6 @@ MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 pfctlinput2.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
-MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \
