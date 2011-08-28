@@ -303,8 +303,8 @@ sbus_attach(device_t dev)
 	    sizeof(*range), (void **)&range)) == -1) {
 		panic("%s: error getting ranges property", __func__);
 	}
-	sc->sc_rd = (struct sbus_rd *)malloc(sizeof(*sc->sc_rd) * sc->sc_nrange,
-	    M_DEVBUF, M_NOWAIT);
+	sc->sc_rd = malloc(sizeof(*sc->sc_rd) * sc->sc_nrange, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (sc->sc_rd == NULL)
 		panic("%s: cannot allocate rmans", __func__);
 	/*
