@@ -38,6 +38,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110828: library version bump for 9.0
+OLD_LIBS+=lib/libufs.so.5
+OLD_LIBS+=usr/lib/libbsnmp.so.5
+OLD_LIBS+=usr/lib/libdwarf.so.2
+OLD_LIBS+=usr/lib/libopie.so.6
+OLD_LIBS+=usr/lib/libpcap.so.7
+OLD_LIBS+=usr/lib/librtld_db.so.1
+OLD_LIBS+=usr/lib/libtacplus.so.4
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libufs.so.5
+OLD_LIBS+=usr/lib32/libbsnmp.so.5
+OLD_LIBS+=usr/lib32/libdwarf.so.2
+OLD_LIBS+=usr/lib32/libopie.so.6
+OLD_LIBS+=usr/lib32/libpcap.so.7
+OLD_LIBS+=usr/lib32/librtld_db.so.1
+OLD_LIBS+=usr/lib32/libtacplus.so.4
+.endif
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.

@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110828:
+	Bump the shared library version numbers for libraries that
+	do not use symbol versioning, have changed the ABI compared
+	to stable/8 and which shared library version was not bumped.
+	Done as part of 9.0-RELEASE cycle.
+
 20110815:
 	During the merge of Capsicum features, the fget(9) KPI was modified.
 	This may require the rebuilding of out-of-tree device drivers --
