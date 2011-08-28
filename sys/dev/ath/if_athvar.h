@@ -340,6 +340,7 @@ struct ath_softc {
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
+	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
 	HAL_BUS_TAG		sc_st;		/* bus space tag */
