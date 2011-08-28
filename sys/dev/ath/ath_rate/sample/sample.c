@@ -147,6 +147,8 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 static int
 dot11rate(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return -1;
 	return rt->info[rix].phy == IEEE80211_T_HT ?
 	    rt->info[rix].dot11Rate : (rt->info[rix].dot11Rate & IEEE80211_RATE_VAL) / 2;
 }
@@ -154,6 +156,8 @@ dot11rate(const HAL_RATE_TABLE *rt, int rix)
 static const char *
 dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return "";
 	return rt->info[rix].phy == IEEE80211_T_HT ? "MCS" : "Mb ";
 }
 
@@ -359,9 +363,12 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	if (sn->sample_tt[size_bin] < average_tx_time * (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
 		rix = pick_sample_rate(ssc, an, rt, size_bin);
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "size %u sample rate %d current rate %d",
-		     bin_to_size(size_bin), RATE(rix),
-		     RATE(sn->current_rix[size_bin]));
+		     &an->an_node, "size %u sample rate %d %s current rate %d %s",
+		     bin_to_size(size_bin),
+		     dot11rate(rt, rix),
+		     dot11rate_label(rt, rix),
+		     dot11rate(rt, sn->current_rix[size_bin]),
+		     dot11rate_label(rt, sn->current_rix[size_bin]));
 		if (rix != sn->current_rix[size_bin]) {
 			sn->current_sample_rix[size_bin] = rix;
 		} else {
@@ -503,6 +510,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
@@ -574,11 +582,13 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	if (rix0 == sn->current_sample_rix[size_bin]) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		   &an->an_node,
-"%s: size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d) nfrm %d nbad %d", 
+"%s: size %d %s sample rate %d %s tries (%d/%d) tt %d avg_tt (%d/%d) nfrm %d nbad %d", 
 		    __func__, 
 		    size,
 		    status ? "FAIL" : "OK",
-		    rix0, short_tries, tries, tt, 
+		    dot11rate(rt, rix0),
+		    dot11rate_label(rt, rix0),
+		    short_tries, tries, tt, 
 		    sn->stats[size_bin][rix0].average_tx_time,
 		    sn->stats[size_bin][rix0].perfect_tx_time,
 		    nframes, nbad);
@@ -889,18 +899,24 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 	uint32_t mask;
 	int rix, y;
 
-	printf("\n[%s] refcnt %d static_rix %d ratemask 0x%x\n",
+	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%x\n",
 	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni),
-	    sn->static_rix, sn->ratemask);
+	    dot11rate(rt, sn->static_rix),
+	    dot11rate_label(rt, sn->static_rix),
+	    sn->ratemask);
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		printf("[%4u] cur rix %d (%d %s) since switch: packets %d ticks %u\n",
 		    bin_to_size(y), sn->current_rix[y],
 		    dot11rate(rt, sn->current_rix[y]),
 		    dot11rate_label(rt, sn->current_rix[y]),
 		    sn->packets_since_switch[y], sn->ticks_since_switch[y]);
-		printf("[%4u] last sample %d cur sample %d packets sent %d\n",
-		    bin_to_size(y), sn->last_sample_rix[y],
-		    sn->current_sample_rix[y], sn->packets_sent[y]);
+		printf("[%4u] last sample (%d %s) cur sample (%d %s) packets sent %d\n",
+		    bin_to_size(y),
+		    dot11rate(rt, sn->last_sample_rix[y]),
+		    dot11rate_label(rt, sn->last_sample_rix[y]),
+		    dot11rate(rt, sn->current_sample_rix[y]),
+		    dot11rate_label(rt, sn->current_sample_rix[y]),
+		    sn->packets_sent[y]);
 		printf("[%4u] packets since sample %d sample tt %u\n",
 		    bin_to_size(y), sn->packets_since_sample[y],
 		    sn->sample_tt[y]);
