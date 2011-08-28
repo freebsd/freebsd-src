@@ -2041,7 +2041,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
-	ATH_TXQ_LOCK(txq);
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	tid->paused--;
 
@@ -2049,24 +2049,13 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	    __func__, tid->paused);
 
 	if (tid->paused || tid->axq_depth == 0) {
-		ATH_TXQ_UNLOCK(txq);
 		return;
 	}
 
 	ath_tx_tid_sched(sc, tid->an, tid->tid);
-	ATH_TXQ_UNLOCK(txq);
-
 	ath_tx_sched_proc_sched(sc, txq);
 }
 
-/*
- * Mark packets currently in the hardware TXQ from this TID
- * as now having no parent software TXQ.
- *
- * XXX not yet needed; there shouldn't be any packets left
- * XXX for this node in any of the hardware queues; the node
- * XXX isn't freed until the last TX packet has been sent.
- */
 static void
 ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
     int tid)
@@ -2166,6 +2155,10 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
  * This occurs when a completion handler frees the last buffer
  * for a node, and the node is thus freed. This causes the node
  * to be cleaned up, which ends up calling ath_tx_node_flush.
+ *
+ * XXX Because the TXQ may be locked right now (when it's called
+ * XXX from a completion handler which frees the last node)
+ * XXX do a dirty recursive hack avoidance.
  */
 void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
@@ -2175,14 +2168,20 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+		int islocked = 0;
 
 		/* Remove this tid from the list of active tids */
-		ATH_TXQ_LOCK(txq);
+		/* XXX eww, this needs to be fixed */
+		if (ATH_TXQ_IS_LOCKED(txq))
+			islocked = 1;
+		else
+			ATH_TXQ_LOCK(txq);
 		ath_tx_tid_unsched(sc, an, tid);
 
 		/* Free packets */
 		ath_tx_tid_drain(sc, an, atid);
-		ATH_TXQ_UNLOCK(txq);
+		if (! islocked)
+			ATH_TXQ_UNLOCK(txq);
 	}
 }
 
@@ -3403,14 +3402,15 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 */
 	r = sc->sc_addba_response(ni, tap, status, code, batimeout);
 
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	/*
 	 * XXX dirty!
 	 * Slide the BAW left edge to wherever net80211 left it for us.
 	 * Read above for more information.
 	 */
 	tap->txa_start = ni->ni_txseqs[tid];
-
 	ath_tx_tid_resume(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	return r;
 }
 
