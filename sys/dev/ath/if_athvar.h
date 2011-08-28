@@ -92,7 +92,6 @@ struct ath_buf;
  */
 struct ath_tid {
 	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
-	struct mtx		axq_lock;	/* lock on q and link */
 	u_int			axq_depth;	/* SW queue depth */
 	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */

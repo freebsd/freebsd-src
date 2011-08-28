@@ -655,6 +655,8 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
 	int prev_al = 0;	/* XXX also for AR5416 burst */
 
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	if (tap == NULL) {
 		status = ATH_AGGR_ERROR;
@@ -664,12 +666,10 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	h_baw = tap->txa_wnd / 2;
 
 	for (;;) {
-		ATH_TXQ_LOCK(tid);
 		bf = TAILQ_FIRST(&tid->axq_q);
 		if (bf_first == NULL)
 			bf_first = bf;
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(tid);
 			status = ATH_AGGR_DONE;
 			break;
 		} else {
@@ -697,7 +697,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * TX the frame individually.
 		 */
 		if (! bf->bf_state.bfs_dobaw) {
-			ATH_TXQ_UNLOCK(tid);
 			status = ATH_AGGR_NONAGGR;
 			break;
 		}
@@ -715,7 +714,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 		    SEQNO(bf->bf_state.bfs_seqno))) {
-		    ATH_TXQ_UNLOCK(tid);
 		    status = ATH_AGGR_BAW_CLOSED;
 		    break;
 		}
@@ -734,7 +732,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
 		if (nframes &&
 		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
-			ATH_TXQ_UNLOCK(tid);
 			status = ATH_AGGR_LIMITED;
 			break;
 		}
@@ -744,7 +741,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 		if ((nframes + prev_frames) >= MIN((h_baw),
 		    IEEE80211_AMPDU_SUBFRAME_DEFAULT)) {
-			ATH_TXQ_UNLOCK(tid);
 			status = ATH_AGGR_LIMITED;
 			break;
 		}
@@ -757,7 +753,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);
 		bf->bf_state.bfs_addedbaw = 1;
-		ATH_TXQ_UNLOCK(tid);
 
 		/*
 		 * Add the now owned buffer (which isn't

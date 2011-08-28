@@ -4322,12 +4322,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 	nacked = 0;
+	ATH_TXQ_LOCK(txq);
 	for (;;) {
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
-		ATH_TXQ_LOCK(txq);
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ds0 = &bf->bf_desc[0];
@@ -4340,7 +4339,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
@@ -4363,7 +4361,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			txq->axq_link = NULL;
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
-		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
 		/*
@@ -4435,6 +4432,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	/* Kick the TXQ scheduler */
 	ath_txq_sched(sc, txq);
+	ATH_TXQ_UNLOCK(txq);
 
 	return nacked;
 }
@@ -4555,7 +4553,9 @@ ath_tx_sched_proc(void *arg, int npending)
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		txq = &sc->sc_txq[i];
 		if (ATH_TXQ_SETUP(sc, i)) {
+			ATH_TXQ_LOCK(txq);
 			ath_txq_sched(sc, txq);
+			ATH_TXQ_UNLOCK(txq);
 		}
 	}
 }
@@ -4640,18 +4640,16 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
 
+	ATH_TXQ_LOCK(txq);
 	for (ix = 0;; ix++) {
-		ATH_TXQ_LOCK(txq);
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
-			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
-		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
@@ -4679,6 +4677,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		else
 			ath_tx_default_comp(sc, bf, 1);
 	}
+	ATH_TXQ_UNLOCK(txq);
 }
 
 static void
