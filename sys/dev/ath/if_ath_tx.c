@@ -2186,6 +2186,28 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 }
 
 /*
+ * Drain all the software TXQs currently with traffic queued.
+ */
+void
+ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
+{
+	struct ath_tid *tid;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/*
+	 * Iterate over all active tids for the given txq,
+	 * flushing and unsched'ing them
+	 */
+	while (! TAILQ_EMPTY(&txq->axq_tidq)) {
+		tid = TAILQ_FIRST(&txq->axq_tidq);
+		ath_tx_tid_drain(sc, tid->an, tid);
+		ath_tx_tid_unsched(sc, tid->an, tid->tid);
+	}
+
+}
+
+/*
  * Free the per-TID node state.
  *
  * This frees any packets currently in the software queue and frees

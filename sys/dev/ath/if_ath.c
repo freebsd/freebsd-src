@@ -202,7 +202,6 @@ static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 static void	ath_announce(struct ath_softc *);
 
 static void	ath_dfs_tasklet(void *, int);
-static void	ath_sc_flushtxq(struct ath_softc *sc);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
@@ -1148,7 +1147,6 @@ ath_vap_delete(struct ieee80211vap *vap)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
-		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* stop recv side */
 	}
 
@@ -1172,8 +1170,6 @@ ath_vap_delete(struct ieee80211vap *vap)
 	 */
 
 	ath_draintxq(sc);
-	/* XXX Do all frames from all vaps/nodes need draining here? */
-	ath_sc_flushtxq(sc);
 
 	ATH_LOCK(sc);
 	/*
@@ -1756,11 +1752,6 @@ ath_stop_locked(struct ifnet *ifp)
 			ath_hal_intrset(ah, 0);
 		}
 		ath_draintxq(sc);
-		/*
-		 * XXX Draining these packets may create a hole in the
-		 * XXX BAW.
-		 */
-		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
 			ath_hal_phydisable(ah);
@@ -1799,19 +1790,6 @@ ath_reset(struct ifnet *ifp)
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
-	/*
-	 * XXX as long as ath_reset() isn't called during a state
-	 * transition (eg channel change, mode change, etc)
-	 * then there's no need to flush the software TXQ.
-	 * Doing this here messes with the BAW tracking, as
-	 * there may be aggregate packets in the software TXQ
-	 * which haven't been queued to the hardware, and thus
-	 * the BAW hasn't been set. Freeing those packets will
-	 * create a "hole" in the BAW.
-	 */
-#if 0
-	ath_sc_flushtxq(sc);		/* drain sw xmit side */
-#endif
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -4677,6 +4655,12 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		else
 			ath_tx_default_comp(sc, bf, 1);
 	}
+
+	/*
+	 * Drain software queued frames which are on
+	 * active TIDs.
+	 */
+	ath_tx_txq_drain(sc, txq);
 	ATH_TXQ_UNLOCK(txq);
 }
 
@@ -4849,18 +4833,6 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* clear pending tx frames */
-		/*
-		 * XXX This may create holes in the BAW, since some
-		 * XXX aggregate packets may have not yet been scheduled
-		 * XXX to the hardware, and thus ath_tx_addto_baw() has
-		 * XXX never been called.
-		 *
-		 * But we can't _not_ call this here, because the current
-		 * TX code doesn't handle the potential rate/flags change
-		 * (eg a 40->20mhz change, or HT->non-HT change, or 11a<->g
-		 * change, etc.)
-		 */
-		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
@@ -6182,41 +6154,6 @@ ath_dfs_tasklet(void *p, int npending)
 		/* DFS event found, initiate channel change */
 		ieee80211_dfs_notify_radar(ic, sc->sc_curchan);
 	}
-}
-
-/*
- * Flush all software queued packets for the given VAP.
- *
- * The ieee80211 common lock should be held.
- */
-static void
-ath_vap_flush_node(void *arg, struct ieee80211_node *ni)
-{
-	struct ath_softc *sc = (struct ath_softc *) arg;
-
-	ath_tx_node_flush(sc, ATH_NODE(ni));
-}
-
-/*
- * Flush all software queued packets for the given sc.
- *
- * The ieee80211 common lock should be held.
- */
-static void
-ath_sc_flushtxq(struct ath_softc *sc)
-{
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-
-#if 0
-	//IEEE80211_LOCK_ASSERT(ic);
-	/* Debug if we don't own the lock! */
-	if (! mtx_owned(IEEE80211_LOCK_OBJ(ic))) {
-		device_printf(sc->sc_dev, "%s: comlock not owned?\n",
-		    __func__);
-	}
-#endif
-
-	ieee80211_iterate_nodes(&ic->ic_sta, ath_vap_flush_node, sc);
 }
 
 MODULE_VERSION(if_ath, 1);
