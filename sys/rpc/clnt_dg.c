@@ -467,7 +467,10 @@ send_again:
 		    cu->cu_waitflag, "rpccwnd", 0);
 		if (error) {
 			errp->re_errno = error;
-			errp->re_status = stat = RPC_CANTSEND;
+			if (error == EINTR || error == ERESTART)
+				errp->re_status = stat = RPC_INTR;
+			else
+				errp->re_status = stat = RPC_CANTSEND;
 			goto out;
 		}
 	}
@@ -636,7 +639,7 @@ get_reply:
 		 */
 		if (error != EWOULDBLOCK) {
 			errp->re_errno = error;
-			if (error == EINTR)
+			if (error == EINTR || error == ERESTART)
 				errp->re_status = stat = RPC_INTR;
 			else
 				errp->re_status = stat = RPC_CANTRECV;
