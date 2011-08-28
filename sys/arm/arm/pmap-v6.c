@@ -2444,12 +2444,10 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				pmap_set_prot(ptep, prot, !(pm == pmap_kernel()));
 				PTE_SYNC(ptep);
 
-				if (pg != NULL) {
-					f = pmap_modify_pv(pg, pm, sva,
-					    PVF_WRITE, 0);
+				f = pmap_modify_pv(pg, pm, sva,
+				    PVF_WRITE, 0);
+				if (f & PVF_WRITE)
 					vm_page_dirty(pg);
-				} else
-					f = PVF_REF | PVF_EXEC;
 
 				if (flush >= 0) {
 					flush++;
