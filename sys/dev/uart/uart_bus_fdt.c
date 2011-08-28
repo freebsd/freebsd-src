@@ -180,7 +180,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Finalize configuration.
 	 */
-	class = &uart_quicc_class;
+	if (fdt_is_compatible(node, "quicc"))
+		class = &uart_quicc_class;
 	if (fdt_is_compatible(node, "ns16550"))
 		class = &uart_ns8250_class;
 
