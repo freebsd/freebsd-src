@@ -144,9 +144,14 @@ opt_ah.h:
 	echo '#define AH_SUPPORT_AR5416 1' > $@
 	echo '#define AH_AR5416_INTERRUPT_MITIGATION 1' >> $@
 	echo '#define AH_DEBUG 1' >> $@
-	echo '#define ATH_DEBUG 1' >> $@
+
+opt_ath.h:
+	echo '#define ATH_DEBUG 1' > $@
 	echo '#define ATH_DIAGAPI 1' >> $@
 	echo '#define ATH_ENABLE_11N 1' >> $@
-	echo '#define IEEE80211_DEBUG 1' >> $@
+
+opt_wlan.h:
+	echo '#define IEEE80211_DEBUG 1' > $@
+	echo '#define IEEE80211_SUPPORT_TDMA 1'>> $@
 
 .include <bsd.kmod.mk>
