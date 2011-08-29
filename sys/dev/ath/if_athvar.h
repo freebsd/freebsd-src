@@ -213,6 +213,7 @@ struct ath_buf {
 		int bfs_shpream:1;	/* use short preamble */
 		int bfs_istxfrag:1;	/* is fragmented */
 		int bfs_ismrr:1;	/* do multi-rate TX retry */
+		int bfs_doprot:1;	/* do RTS/CTS based protection */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
@@ -226,6 +227,7 @@ struct ath_buf {
 		int bfs_flags;		/* HAL descriptor flags */
 		int bfs_txrate0;	/* first TX rate */
 		int bfs_try0;		/* first try count */
+		uint8_t bfs_ctsrate0;	/* Non-zero - use this as ctsrate */
 		int bfs_keyix;		/* crypto key index */
 		int bfs_txpower;	/* tx power */
 		int bfs_txantenna;	/* TX antenna config */

@@ -650,7 +650,7 @@ ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
 
 static uint8_t
 ath_tx_get_rtscts_rate(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
-    int rix, int cix, int shortPreamble)
+    int cix, int shortPreamble)
 {
 	uint8_t ctsrate;
 
@@ -669,7 +669,6 @@ ath_tx_get_rtscts_rate(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
 
 	return ctsrate;
 }
-
 
 /*
  * Calculate the RTS/CTS duration for legacy frames.
@@ -716,6 +715,80 @@ ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
 	return ctsduration;
 }
 
+/*
+ * Update the given ath_buf with updated rts/cts setup and duration
+ * values.
+ *
+ * To support rate lookups for each software retry, the rts/cts rate
+ * and cts duration must be re-calculated.
+ *
+ * This function assumes the RTS/CTS flags have been set as needed;
+ * mrr has been disabled; and the rate control lookup has been done.
+ *
+ * XXX TODO: MRR need only be disabled for the pre-11n NICs.
+ * XXX The 11n NICs support per-rate RTS/CTS configuration.
+ */
+static void
+ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
+{
+	uint16_t ctsduration = 0;
+	uint8_t ctsrate = 0;
+	uint8_t rix = bf->bf_state.bfs_rc[0].rix;
+	uint8_t cix = 0;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+
+	/*
+	 * No RTS/CTS enabled? Don't bother.
+	 */
+	if ((bf->bf_state.bfs_flags &
+	    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) == 0) {
+		/* XXX is this really needed? */
+		bf->bf_state.bfs_ctsrate = 0;
+		bf->bf_state.bfs_ctsduration = 0;
+		return;
+	}
+
+	/*
+	 * If protection is enabled, use the protection rix control
+	 * rate. Otherwise use the rate0 control rate.
+	 */
+	if (bf->bf_state.bfs_doprot)
+		rix = sc->sc_protrix;
+	else
+		rix = bf->bf_state.bfs_rc[0].rix;
+
+	/*
+	 * If the raw path has hard-coded ctsrate0 to something,
+	 * use it.
+	 */
+	if (bf->bf_state.bfs_ctsrate0 != 0)
+		cix = ath_tx_findrix(sc, bf->bf_state.bfs_ctsrate0);
+	else
+		/* Control rate from above */
+		cix = rt->info[rix].controlRate;
+
+	/* Calculate the rtscts rate for the given cix */
+	ctsrate = ath_tx_get_rtscts_rate(sc->sc_ah, rt, cix,
+	    bf->bf_state.bfs_shpream);
+
+	/* The 11n chipsets do ctsduration calculations for you */
+	if (! ath_tx_is_11n(sc))
+		ctsduration = ath_tx_calc_ctsduration(sc->sc_ah, rix, cix,
+		    bf->bf_state.bfs_shpream, bf->bf_state.bfs_pktlen,
+		    rt, bf->bf_state.bfs_flags);
+
+	/* Squirrel away in ath_buf */
+	bf->bf_state.bfs_ctsrate = ctsrate;
+	bf->bf_state.bfs_ctsduration = ctsduration;
+	
+	/*
+	 * Must disable multi-rate retry when using RTS/CTS.
+	 * XXX TODO: only for pre-11n NICs.
+	 */
+	bf->bf_state.bfs_ismrr = 0;
+	bf->bf_state.bfs_try0 =
+	    bf->bf_state.bfs_rc[0].tries = ATH_TXMGTTRY;	/* XXX ew */
+}
 
 /*
  * Setup the descriptor chain for a normal or fast-frame
@@ -771,11 +844,21 @@ ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
+	/* If mrr is disabled, blank tries 1, 2, 3 */
+	if (! bf->bf_state.bfs_ismrr)
+		rc[1].tries = rc[2].tries = rc[3].tries = 0;
+
+	/*
+	 * Always call - that way a retried descriptor will
+	 * have the MRR fields overwritten.
+	 *
+	 * XXX TODO: see if this is really needed - setting up
+	 * the first descriptor should set the MRR fields to 0
+	 * for us anyway.
+	 */
 	if (ath_tx_is_11n(sc)) {
-		/* Always setup rate series */
 		ath_buf_set_rate(sc, ni, bf);
-	} else if (bf->bf_state.bfs_ismrr) {
-		/* Only call for legacy NICs if MRR */
+	} else {
 		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
 			, rc[1].ratecode, rc[1].tries
 			, rc[2].ratecode, rc[2].tries
@@ -796,12 +879,11 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
 	int keyix, hdrlen, pktlen, try0;
-	u_int8_t rix, txrate, ctsrate;
-	u_int8_t cix = 0xff;		/* NB: silence compiler */
+	u_int8_t rix, txrate;
 	struct ath_desc *ds;
 	struct ath_txq *txq;
 	struct ieee80211_frame *wh;
-	u_int subtype, flags, ctsduration;
+	u_int subtype, flags;
 	HAL_PKT_TYPE atype;
 	const HAL_RATE_TABLE *rt;
 	HAL_BOOL shortPreamble;
@@ -955,7 +1037,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	} else if (pktlen > vap->iv_rtsthreshold &&
 	    (ni->ni_ath_flags & IEEE80211_NODE_FF) == 0) {
 		flags |= HAL_TXDESC_RTSENA;	/* RTS based on frame length */
-		cix = rt->info[rix].controlRate;
 		sc->sc_stats.ast_tx_rts++;
 	}
 	if (flags & HAL_TXDESC_NOACK)		/* NB: avoid double counting */
@@ -978,22 +1059,20 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
 	    rt->info[rix].phy == IEEE80211_T_OFDM &&
 	    (flags & HAL_TXDESC_NOACK) == 0) {
+		bf->bf_state.bfs_doprot = 1;
 		/* XXX fragments must use CCK rates w/ protection */
-		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
+		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS) {
 			flags |= HAL_TXDESC_RTSENA;
-		else if (ic->ic_protmode == IEEE80211_PROT_CTSONLY)
+		} else if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
 			flags |= HAL_TXDESC_CTSENA;
-		if (isfrag) {
-			/*
-			 * For frags it would be desirable to use the
-			 * highest CCK rate for RTS/CTS.  But stations
-			 * farther away may detect it at a lower CCK rate
-			 * so use the configured protection rate instead
-			 * (for now).
-			 */
-			cix = rt->info[sc->sc_protrix].controlRate;
-		} else
-			cix = rt->info[sc->sc_protrix].controlRate;
+		}
+		/*
+		 * For frags it would be desirable to use the
+		 * highest CCK rate for RTS/CTS.  But stations
+		 * farther away may detect it at a lower CCK rate
+		 * so use the configured protection rate instead
+		 * (for now).
+		 */
 		sc->sc_stats.ast_tx_protect++;
 	}
 
@@ -1049,25 +1128,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		}
 		*(u_int16_t *)wh->i_dur = htole16(dur);
 	}
-
-	/*
-	 * Calculate RTS/CTS rate and duration if needed.
-	 */
-	ctsduration = 0;
-	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
-		ctsrate = ath_tx_get_rtscts_rate(ah, rt, rix, cix, shortPreamble);
-
-		/* The 11n chipsets do ctsduration calculations for you */
-		if (! ath_tx_is_11n(sc))
-			ctsduration = ath_tx_calc_ctsduration(ah, rix, cix, shortPreamble,
-			    pktlen, rt, flags);
-		/*
-		 * Must disable multi-rate retry when using RTS/CTS.
-		 */
-		ismrr = 0;
-		try0 = ATH_TXMGTTRY;		/* XXX */
-	} else
-		ctsrate = 0;
 
 	/*
 	 * Determine if a tx interrupt should be generated for
@@ -1145,8 +1205,9 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_shpream = shortPreamble;
 
 	/* XXX this should be done in ath_tx_setrate() */
-	bf->bf_state.bfs_ctsrate = ctsrate;
-	bf->bf_state.bfs_ctsduration = ctsduration;
+	bf->bf_state.bfs_ctsrate0 = 0;	/* ie, no hard-coded ctsrate */
+	bf->bf_state.bfs_ctsrate = 0;	/* calculated later */
+	bf->bf_state.bfs_ctsduration = 0;
 	bf->bf_state.bfs_ismrr = ismrr;
 
 	/*
@@ -1290,6 +1351,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	if (txq == &avp->av_mcastq) {
 		/* Setup the descriptor before handoff */
+		ath_tx_set_rtscts(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
 		ath_tx_chaindesclist(sc, bf);
@@ -1315,6 +1377,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    "%s: BAR: TX'ing direct\n", __func__);
 
 		/* Setup the descriptor before handoff */
+		ath_tx_set_rtscts(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
 		ath_tx_chaindesclist(sc, bf);
@@ -1333,6 +1396,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 
 	/* Setup the descriptor before handoff */
+	ath_tx_set_rtscts(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, ni, bf);
 	ath_tx_chaindesclist(sc, bf);
@@ -1356,9 +1420,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0, txantenna;
-	u_int8_t rix, cix, txrate, ctsrate;
+	u_int8_t rix, txrate;
 	struct ieee80211_frame *wh;
-	u_int flags, ctsduration;
+	u_int flags;
 	HAL_PKT_TYPE atype;
 	const HAL_RATE_TABLE *rt;
 	struct ath_desc *ds;
@@ -1405,8 +1469,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	flags |= HAL_TXDESC_INTREQ;		/* force interrupt */
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
 		flags |= HAL_TXDESC_RTSENA;
-	else if (params->ibp_flags & IEEE80211_BPF_CTS)
+	else if (params->ibp_flags & IEEE80211_BPF_CTS) {
+		/* XXX assume 11g/11n protection? */
+		bf->bf_state.bfs_doprot = 1;
 		flags |= HAL_TXDESC_CTSENA;
+	}
 	/* XXX leave ismcast to injector? */
 	if ((params->ibp_flags & IEEE80211_BPF_NOACK) || ismcast)
 		flags |= HAL_TXDESC_NOACK;
@@ -1424,21 +1491,12 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (txantenna == 0)			/* XXX? */
 		txantenna = sc->sc_txantenna;
 
-	ctsduration = 0;
-	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
-		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
-		ctsrate = ath_tx_get_rtscts_rate(ah, rt, rix, cix, params->ibp_flags & IEEE80211_BPF_SHORTPRE);
-		/* The 11n chipsets do ctsduration calculations for you */
-		if (! ath_tx_is_11n(sc))
-			ctsduration = ath_tx_calc_ctsduration(ah, rix, cix,
-			    params->ibp_flags & IEEE80211_BPF_SHORTPRE, pktlen,
-			    rt, flags);
-		/*
-		 * Must disable multi-rate retry when using RTS/CTS.
-		 */
-		ismrr = 0;			/* XXX */
-	} else
-		ctsrate = 0;
+	/*
+	 * Since ctsrate is fixed, store it away for later
+	 * use when the descriptor fields are being set.
+	 */
+	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA))
+		bf->bf_state.bfs_ctsrate0 = params->ibp_ctsrate;
 
 	pri = params->ibp_pri & 3;
 	/* Override pri if the frame isn't a QoS one */
@@ -1492,8 +1550,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    !! (params->ibp_flags & IEEE80211_BPF_SHORTPRE);
 
 	/* XXX this should be done in ath_tx_setrate() */
-	bf->bf_state.bfs_ctsrate = ctsrate;
-	bf->bf_state.bfs_ctsduration = ctsduration;
+	bf->bf_state.bfs_ctsrate = 0;
+	bf->bf_state.bfs_ctsduration = 0;
 	bf->bf_state.bfs_ismrr = ismrr;
 
 	/* Blank the legacy rate array */
@@ -1549,6 +1607,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    __func__, do_override);
 
 	if (do_override) {
+		ath_tx_set_rtscts(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
 		ath_tx_chaindesclist(sc, bf);
@@ -3028,6 +3087,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			    __func__);
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
 			bf->bf_state.bfs_aggr = 0;
+			ath_tx_set_rtscts(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
@@ -3067,6 +3127,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
+			ath_tx_set_rtscts(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
@@ -3190,6 +3251,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 		bf->bf_comp = ath_tx_normal_comp;
 
 		/* Program descriptors + rate control */
+		ath_tx_set_rtscts(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_chaindesclist(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
