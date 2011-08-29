@@ -1627,7 +1627,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 	int extlen = 0;
 	int found_ext = 0;
 
-	while (*oldname != '\0') {
+	while (*oldname != '\0' && extlen < 3) {
 		/* Handle period first, as it is special */
 		if (*oldname == '.') {
 			if (found_ext) {
@@ -1644,10 +1644,8 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			    *oldname == ',' && strlen(oldname) == 4)
 				break;
 			/* Enforce 12.3 / 8 */
-			if (((namelen == 8) && !found_ext) ||
-			    (found_ext && extlen == 3)) {
+			if (namelen == 8 && !found_ext)
 				break;
-			}
 
 			if (islower((unsigned char)*oldname))
 				*newname++ = toupper((unsigned char)*oldname);
@@ -1690,7 +1688,7 @@ cd9660_level2_convert_filename(const char *oldname, char *newname, int is_file)
 	int extlen = 0;
 	int found_ext = 0;
 
-	while (*oldname != '\0') {
+	while (*oldname != '\0' && namelen + extlen < 30) {
 		/* Handle period first, as it is special */
 		if (*oldname == '.') {
 			if (found_ext) {
@@ -1709,8 +1707,6 @@ cd9660_level2_convert_filename(const char *oldname, char *newname, int is_file)
 			/* cut RISC OS file type off ISO name */
 			if (diskStructure.archimedes_enabled &&
 			    *oldname == ',' && strlen(oldname) == 4)
-				break;
-			if ((namelen + extlen) == 30)
 				break;
 
 			 if (islower((unsigned char)*oldname))
