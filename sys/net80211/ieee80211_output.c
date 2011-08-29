@@ -2830,6 +2830,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	if (vap->iv_flags & IEEE80211_F_WME) {
 		struct ieee80211_wme_state *wme = &ic->ic_wme;
 
+#ifdef	IEEE80211_SUPPORT_AGGRMODE
 		/*
 		 * Check for agressive mode change.  When there is
 		 * significant high priority traffic in the BSS
@@ -2862,6 +2863,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				wme->wme_hipri_traffic =
 					wme->wme_hipri_switch_hysteresis;
 		}
+#endif	/* IEEE80211_SUPPORT_AGGRMODE */
+
 		if (isset(bo->bo_flags, IEEE80211_BEACON_WME)) {
 			(void) ieee80211_add_wme_param(bo->bo_wme, wme);
 			clrbit(bo->bo_flags, IEEE80211_BEACON_WME);

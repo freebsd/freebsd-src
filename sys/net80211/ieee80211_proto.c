@@ -974,6 +974,7 @@ ieee80211_wme_initparams(struct ieee80211vap *vap)
 void
 ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 {
+#ifdef	IEEE80211_SUPPORT_AGGRMODE
 	static const paramType aggrParam[IEEE80211_MODE_MAX] = {
 	    [IEEE80211_MODE_AUTO]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11A]	= { 2, 4, 10, 64, 0 },
@@ -988,10 +989,14 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	    [IEEE80211_MODE_11NA]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	    [IEEE80211_MODE_11NG]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	};
+	struct wmeParams *bssp;
+
+#endif	/* IEEE80211_SUPPORT_AGGRMODE */
+
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_wme_state *wme = &ic->ic_wme;
 	const struct wmeParams *wmep;
-	struct wmeParams *chanp, *bssp;
+	struct wmeParams *chanp;
 	enum ieee80211_phymode mode;
 	int i;
 
@@ -1026,6 +1031,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	else
 		mode = IEEE80211_MODE_AUTO;
 
+#ifdef	IEEE80211_SUPPORT_AGGRMODE
 	/*
 	 * This implements agressive mode as found in certain
 	 * vendors' AP's.  When there is significant high
@@ -1081,6 +1087,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    "update %s (chan+bss) logcwmin %u\n",
 		    ieee80211_wme_acnames[WME_AC_BE], chanp->wmep_logcwmin);
     	}	
+#endif	/* IEEE80211_SUPPORT_AGGRMODE */
+
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {	/* XXX ibss? */
 		/*
 		 * Arrange for a beacon update and bump the parameter
