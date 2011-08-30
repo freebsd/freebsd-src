@@ -191,7 +191,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 MIRROR_BUTTON=$?
 exec 3>&-
 
-BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/releases/`uname -p`/`uname -m`/`uname -r`"
+BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/releases/`uname -m`/`uname -p`/`uname -r`"
 
 case $MIRROR_BUTTON in
 $DIALOG_CANCEL)
