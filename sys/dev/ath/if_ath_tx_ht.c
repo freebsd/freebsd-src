@@ -291,11 +291,9 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			    ath_max_4ms_framelen[j][HT_RC_2_MCS(rate)];
 		} else
 			rc[i].max4msframelen = 0;
-#if 0
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: i=%d, rate=0x%x, flags=0x%x, max4ms=%d\n",
 		    __func__, i, rate, rc[i].flags, rc[i].max4msframelen);
-#endif
 	}
 }
 
@@ -753,6 +751,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);
 		bf->bf_state.bfs_addedbaw = 1;
+
+		/*
+		 * XXX TODO: If any frame in the aggregate requires RTS/CTS,
+		 * set the first frame.
+		 */
 
 		/*
 		 * Add the now owned buffer (which isn't
