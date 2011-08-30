@@ -809,6 +809,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_data_underrun, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_delim_underrun", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_delim_underrun, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggrfail", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggrfail, 0,
+	    "Number of aggregate TX failures (whole frame)");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

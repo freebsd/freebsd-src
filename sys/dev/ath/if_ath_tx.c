@@ -2644,6 +2644,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	if (bf->bf_state.bfs_retries >= SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
 		DPRINTF(sc, ATH_DEBUG_SW_TX_RETRIES,
 		    "%s: max retries: seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
@@ -2685,6 +2686,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	TAILQ_INIT(&bf_q);
+	sc->sc_stats.ast_tx_aggrfail++;
 
 	/*
 	 * Update rate control - all frames have failed.
