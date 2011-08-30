@@ -614,6 +614,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int final_rix, short_tries, long_tries;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	int status = ts->ts_status;
 	int mrr;
 
 	final_rix = rt->rateCodeToIndex[ts->ts_rate];
@@ -623,20 +624,24 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
 
+	/* If nbad > 1, override status to FAIL */
+	if (nbad > 0)
+		status = 1;
+
 	if (sn->ratemask == 0) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
 		    "%s: size %d %s rate/try %d/%d no rates yet", 
 		    __func__,
 		    bin_to_size(size_to_bin(frame_size)),
-		    ts->ts_status ? "FAIL" : "OK",
+		    status ? "FAIL" : "OK",
 		    short_tries, long_tries);
 		return;
 	}
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			badrate(ifp, 0, ts->ts_rate, long_tries, ts->ts_status);
+			badrate(ifp, 0, ts->ts_rate, long_tries, status);
 			return;
 		}
 		/*
@@ -647,7 +652,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
-		     ts->ts_status ? "FAIL" : "OK",
+		     status ? "FAIL" : "OK",
 		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix),
 		     short_tries, long_tries, nframes, nbad);
 		update_stats(sc, an, frame_size, 
@@ -655,7 +660,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			     0, 0,
 			     0, 0,
 			     0, 0,
-			     short_tries, long_tries, ts->ts_status,
+			     short_tries, long_tries, status,
 			     nframes, nbad);
 	} else {
 		int finalTSIdx = ts->ts_finaltsi;
@@ -673,7 +678,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     frame_size,
 		     finalTSIdx,
 		     long_tries,
-		     ts->ts_status ? "FAIL" : "OK",
+		     status ? "FAIL" : "OK",
 		     dot11rate(rt, rc[0].rix),
 		      dot11rate_label(rt, rc[0].rix), rc[0].tries,
 		     dot11rate(rt, rc[1].rix),
@@ -687,7 +692,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		for (i = 0; i < 4; i++) {
 			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
 				badrate(ifp, 0, rc[i].ratecode, rc[i].tries,
-				    ts->ts_status);
+				    status);
 		}
 
 		/*
@@ -716,7 +721,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status,
+				     status,
 				     nframes, nbad);
 			long_tries -= rc[1].tries;
 		}
@@ -728,7 +733,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     0, 0,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status,
+				     status,
 				     nframes, nbad);
 			long_tries -= rc[2].tries;
 		}
@@ -740,7 +745,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     0, 0,
 				     0, 0,
 				     short_tries, long_tries,
-				     ts->ts_status,
+				     status,
 				     nframes, nbad);
 		}
 	}
