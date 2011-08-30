@@ -130,6 +130,9 @@
 	.stabs __STRING(_/**/sym),1,0,0,0
 #endif /* __STDC__ */
 
+#if defined (__ARM_ARCH_7__) || defined (__ARM_ARCH_7A__)
+#define _ARM_ARCH_7
+#endif
 
 #if defined (__ARM_ARCH_6__) || defined (__ARM_ARCH_6J__)
 #define _ARM_ARCH_6
