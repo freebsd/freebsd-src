@@ -32,8 +32,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#define isb	mcr	p15, 0, r0, c7, c5, 4
-#define dsb	mcr	p15, 0, r0, c7, c10, 4
 #define TTB (0x59)
 
 .Lcoherency_level:
@@ -48,16 +46,22 @@ __FBSDID("$FreeBSD$");
 	.word	0xfff
 
 ENTRY(armv7_setttb)
-	bic	r0, r0, #0x18
-	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
-	mcr	p15, 0, r0, c7, c5, 4	/* ISB */
+	stmdb   sp!, {r0, lr}
+ 	bl      _C_LABEL(armv7_idcache_wbinv_all) /* clean the D cache */
+ 	ldmia   sp!, {r0, lr}
+ 	dsb
+ 	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
+ 	mcr     p15, 0, r0, c8, c7, 0   /* invalidate I+D TLBs */
+ 	dsb
+ 	isb
 	RET
 
 ENTRY(armv7_tlb_flushID)
-	mcr	p15, 0, r0, c7, c10, 4	/* DSB */
+	dsb
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
-	mcr	p15, 0, r0, c7, c10, 4	/* DSB */
+	dsb
+	isb
 	mov	pc, lr
 
 ENTRY(armv7_tlb_flushID_SE)
@@ -65,7 +69,7 @@ ENTRY(armv7_tlb_flushID_SE)
 	bic	r0, r0, r1
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
-	mcr	p15, 0, r0, c7, c10, 4	/* DSB */
+	dsb
 	mov	pc, lr
 
 /* Based on algorithm from ARM Architecture Reference Manual */
@@ -115,19 +119,19 @@ Skip:
 	cmp	r3, r8
 	bne Loop1
 Finished:
-	mcr	p15, 0, r0, c7, c5, 4
+	isb
 	mcr	p15, 0, r0, c7, c5, 5
 	ldmia	sp!, {r4, r5, r6, r7, r8, r9}
-RET
+	RET
 
 ENTRY(armv7_idcache_wbinv_all)
 	stmdb	sp!, {lr}
 	bl armv7_dcache_wbinv_all
-	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate I cache SE with VA */
-	mcr	p15, 0, r0, c7, c10, 4
-	mcr	p15, 0, r0, c7, c5, 4
+	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I caches to PoU (ICIALLU) */
+	dsb
+	isb
 	ldmia	sp!, {lr}
-RET
+	RET
 
 /* XXX Temporary set it to 32 for MV cores, however this value should be
  * get from Cache Type register
@@ -142,8 +146,8 @@ ENTRY(armv7_dcache_wb_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_wb_next
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	RET
 
 ENTRY(armv7_dcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -152,8 +156,8 @@ ENTRY(armv7_dcache_wbinv_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_wbinv_next
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	RET
 
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -166,8 +170,8 @@ ENTRY(armv7_dcache_inv_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_inv_next
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	RET
 
 ENTRY(armv7_idcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -177,8 +181,8 @@ ENTRY(armv7_idcache_wbinv_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_id_wbinv_next
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	RET
 
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
@@ -188,11 +192,22 @@ ENTRY_NP(armv7_icache_sync_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_sync_next
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	RET
 
 ENTRY(armv7_cpu_sleep)
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	/* FIXME: replace with WFI instruction when AS will support it */
-	.word  0xe320f003		/* wait for interrupt */
-	bx	lr
+	dsb				/* data synchronization barrier */
+	wfi  				/* wait for interrupt */
+	RET
+
+ENTRY(armv7_context_switch)
+	dsb
+	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
+	mcr	p15, 0, r0, c8, c7, 0	/* and flush the I+D tlbs */
+	dsb
+	isb
+	RET
+
+ENTRY(armv7_drain_writebuf)
+	dsb
+	RET

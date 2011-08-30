@@ -968,6 +968,70 @@ struct cpu_functions fa526_cpufuncs = {
 };          
 #endif	/* CPU_FA526 || CPU_FA626TE */
 
+#if defined(CPU_CORTEXA)
+struct cpu_functions cortexa_cpufuncs = {
+	/* CPU functions */
+	
+	cpufunc_id,                     /* id                   */
+	cpufunc_nullop,                 /* cpwait               */
+	
+	/* MMU functions */
+	
+	cpufunc_control,                /* control              */
+	cpufunc_domains,                /* Domain               */
+	armv7_setttb,                   /* Setttb               */
+	cpufunc_faultstatus,            /* Faultstatus          */
+	cpufunc_faultaddress,           /* Faultaddress         */
+	
+	/* TLB functions */
+	
+	arm11_tlb_flushID,              /* tlb_flushID          */
+	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
+	arm11_tlb_flushI,               /* tlb_flushI           */
+	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
+	arm11_tlb_flushD,               /* tlb_flushD           */
+	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
+	
+	/* Cache operations */
+	
+	armv7_idcache_wbinv_all,         /* icache_sync_all      */
+	armv7_icache_sync_range,        /* icache_sync_range    */
+	
+	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */
+	armv7_dcache_wbinv_range,       /* dcache_wbinv_range   */
+	armv7_dcache_inv_range,         /* dcache_inv_range     */
+	armv7_dcache_wb_range,          /* dcache_wb_range      */
+	
+	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
+	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
+	
+	/* Note: From OMAP4 the L2 ops are filled in when the
+	 * L2 cache controller is actually enabled.
+	 */
+	cpufunc_nullop,                 /* l2cache_wbinv_all    */
+	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
+	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
+	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	
+	/* Other functions */
+	
+	cpufunc_nullop,                 /* flush_prefetchbuf    */
+	arm11_drain_writebuf,           /* drain_writebuf       */
+	cpufunc_nullop,                 /* flush_brnchtgt_C     */
+	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
+	
+	arm11_sleep,                    /* sleep                */
+	
+	/* Soft functions */
+	
+	cpufunc_null_fixup,             /* dataabt_fixup        */
+	cpufunc_null_fixup,             /* prefetchabt_fixup    */
+	
+	arm11_context_switch,           /* context_switch       */
+	
+	cortexa_setup                     /* cpu setup            */
+};
+#endif /* CPU_CORTEXA */
 
 /*
  * Global constants also used by locore.s
@@ -982,7 +1046,8 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
+  defined(CPU_CORTEXA)
 
 static void get_cachetype_cp15(void);
 
@@ -1264,6 +1329,23 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM10 */
+#ifdef CPU_CORTEXA
+	if (cputype == CPU_ID_CORTEXA8R1 ||
+	    cputype == CPU_ID_CORTEXA8R2 ||
+	    cputype == CPU_ID_CORTEXA8R3 ||
+	    cputype == CPU_ID_CORTEXA9R1 ||
+	    cputype == CPU_ID_CORTEXA9R2) {
+		cpufuncs = cortexa_cpufuncs;
+		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
+		get_cachetype_cp15();
+		
+		pmap_pte_init_mmu_v6();
+		/* Use powersave on this CPU. */
+		cpu_do_powersave = 1;
+		goto out;
+	}
+#endif /* CPU_CORTEXA */
+		
 #if defined(CPU_MV_PJ4B)
 	if (cputype == CPU_ID_MV88SV581X_V6 ||
 	    cputype == CPU_ID_MV88SV581X_V7 ||
@@ -2225,6 +2307,52 @@ pj4bv7_setup(args)
 	cpu_l2cache_wbinv_all();
 }
 #endif /* CPU_MV_PJ4B */
+
+#ifdef CPU_CORTEXA
+
+void
+cortexa_setup(char *args)
+{
+	int cpuctrl, cpuctrlmask;
+	
+	cpuctrlmask = CPU_CONTROL_MMU_ENABLE |     /* MMU enable         [0] */
+	    CPU_CONTROL_AFLT_ENABLE |    /* Alignment fault    [1] */
+	    CPU_CONTROL_DC_ENABLE |      /* DCache enable      [2] */
+	    CPU_CONTROL_BPRD_ENABLE |    /* Branch prediction [11] */
+	    CPU_CONTROL_IC_ENABLE |      /* ICache enable     [12] */
+	    CPU_CONTROL_VECRELOC;        /* Vector relocation [13] */
+	
+	cpuctrl = CPU_CONTROL_MMU_ENABLE |
+	    CPU_CONTROL_IC_ENABLE |
+	    CPU_CONTROL_DC_ENABLE |
+	    CPU_CONTROL_V6_EXTPAGE |
+	    CPU_CONTROL_BPRD_ENABLE;
+	
+#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
+	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
+#endif
+	
+	/* Switch to big endian */
+#ifdef __ARMEB__
+	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
+#endif
+	
+	/* Check if the vector page is at the high address (0xffff0000) */
+	if (vector_page == ARM_VECTORS_HIGH)
+		cpuctrl |= CPU_CONTROL_VECRELOC;
+	
+	/* Clear out the cache */
+	cpu_idcache_wbinv_all();
+	
+	/* Set the control register */
+	ctrl = cpuctrl;
+	cpu_control(cpuctrlmask, cpuctrl);
+	
+	/* And again. */
+	cpu_idcache_wbinv_all();
+}
+#endif  /* CPU_CORTEXA */
+
 
 #ifdef CPU_SA110
 struct cpu_option sa110_options[] = {

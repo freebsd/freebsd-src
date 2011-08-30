@@ -415,8 +415,9 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 void	arm11_setttb		(u_int);
+void	arm11_sleep		(int);
 
 void	arm11_tlb_flushID_SE	(u_int);
 void	arm11_tlb_flushI_SE	(u_int);
@@ -455,6 +456,7 @@ void	armv6_icache_sync_all		(void);
 void	armv6_dcache_wbinv_all		(void);
 void	armv6_idcache_wbinv_all		(void);
 
+void	armv7_setttb			(u_int);
 void	armv7_tlb_flushID		(void);
 void	armv7_tlb_flushID_SE		(u_int);
 void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
@@ -464,11 +466,17 @@ void	armv7_idcache_wbinv_all		(void);
 void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv7_dcache_inv_range		(vm_offset_t, vm_size_t);
 void	armv7_dcache_wb_range		(vm_offset_t, vm_size_t);
+void	armv7_cpu_sleep			(int);
+void	armv7_setup			(char *string);
+void	armv7_context_switch		(void);
+void	armv7_drain_writebuf		(void);
 void	pj4bv7_setup			(char *string);
 void	pj4bv6_setup			(char *string);
 void	pj4b_config			(void);
 
 void	armadaxp_idcache_wbinv_all	(void);
+
+void 	cortexa_setup			(char *);
 #endif
 
 #if defined(CPU_ARM9E) || defined (CPU_ARM10)

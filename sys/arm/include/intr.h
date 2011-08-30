@@ -50,6 +50,8 @@
 #elif defined(CPU_ARM9) || defined(SOC_MV_KIRKWOOD) || \
     defined(CPU_XSCALE_IXP435)
 #define NIRQ		64
+#elif defined(CPU_CORTEXA)
+#define NIRQ		128
 #else
 #define NIRQ		32
 #endif
