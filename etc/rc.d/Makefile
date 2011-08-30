@@ -16,7 +16,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
-	ipnat ipsec ipxrouted \
+	ipnat ipsec \
 	jail \
 	kadmind kerberos keyserv kld kldxref kpasswdd \
 	ldconfig local localpkg lockd lpd \
@@ -41,6 +41,10 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd \
 	zfs zvol
+
+.if ${MK_IPX} != "no"
+FILES+=	ipxrouted
+.endif
 
 .if ${MK_OPENSSH} != "no"
 FILES+=	sshd
