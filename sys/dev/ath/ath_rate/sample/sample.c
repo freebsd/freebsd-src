@@ -643,12 +643,13 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d",
+		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d nframes/nbad [%d/%d]",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
 		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix), short_tries, long_tries);
+		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix),
+		     short_tries, long_tries, nframes, nbad);
 		update_stats(sc, an, frame_size, 
 			     final_rix, long_tries,
 			     0, 0,
@@ -666,7 +667,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d]", 
+"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
@@ -680,7 +681,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     dot11rate(rt, rc[2].rix),
 		      dot11rate_label(rt, rc[2].rix), rc[2].tries,
 		     dot11rate(rt, rc[3].rix),
-		      dot11rate_label(rt, rc[3].rix), rc[3].tries);
+		      dot11rate_label(rt, rc[3].rix), rc[3].tries,
+		     nframes, nbad);
 
 		for (i = 0; i < 4; i++) {
 			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
