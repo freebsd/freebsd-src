@@ -1797,9 +1797,8 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 {
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
-	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
 	if (bf->bf_state.bfs_isretried)
 		return;
@@ -1847,9 +1846,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 {
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
-	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
@@ -1878,22 +1876,22 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
  * The TXQ lock must be held.
  */
 static void
-ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid)
 {
-	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
-	if (atid->paused)
+	if (tid->paused)
 		return;		/* paused, can't schedule yet */
 
-	if (atid->sched)
+	if (tid->sched)
 		return;		/* already scheduled */
 
-	atid->sched = 1;
+	tid->sched = 1;
 
-	TAILQ_INSERT_TAIL(&txq->axq_tidq, atid, axq_qelem);
+	TAILQ_INSERT_TAIL(&txq->axq_tidq, tid, axq_qelem);
 }
 
 /*
@@ -1903,18 +1901,18 @@ ath_tx_tid_sched(struct ath_softc *sc, struct ath_node *an, int tid)
  * The TXQ lock must be held.
  */
 static void
-ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_unsched(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid)
 {
-	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
-	if (atid->sched == 0)
+	if (tid->sched == 0)
 		return;
 
-	atid->sched = 0;
-	TAILQ_REMOVE(&txq->axq_tidq, atid, axq_qelem);
+	tid->sched = 0;
+	TAILQ_REMOVE(&txq->axq_tidq, tid, axq_qelem);
 }
 
 /*
@@ -2076,7 +2074,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else {
 		/* Busy; queue */
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
-		ath_tx_tid_sched(sc, an, tid);
+		ath_tx_tid_sched(sc, an, atid);
 	}
 	ATH_TXQ_UNLOCK(txq);
 }
@@ -2154,9 +2152,7 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
-	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
-
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
 	tid->paused--;
 
@@ -2167,7 +2163,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 		return;
 	}
 
-	ath_tx_tid_sched(sc, tid->an, tid->tid);
+	ath_tx_tid_sched(sc, tid->an, tid);
 }
 
 static void
@@ -2290,7 +2286,7 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 			islocked = 1;
 		else
 			ATH_TXQ_LOCK(txq);
-		ath_tx_tid_unsched(sc, an, tid);
+		ath_tx_tid_unsched(sc, an, atid);
 
 		/* Free packets */
 		ath_tx_tid_drain(sc, an, atid);
@@ -2316,7 +2312,7 @@ ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 	while (! TAILQ_EMPTY(&txq->axq_tidq)) {
 		tid = TAILQ_FIRST(&txq->axq_tidq);
 		ath_tx_tid_drain(sc, tid->an, tid);
-		ath_tx_tid_unsched(sc, tid->an, tid->tid);
+		ath_tx_tid_unsched(sc, tid->an, tid);
 	}
 
 }
@@ -2654,7 +2650,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 * retried before any current/subsequent frames.
 	 */
 	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
-	ath_tx_tid_sched(sc, an, atid->tid);
+	ath_tx_tid_sched(sc, an, atid);
 }
 
 /*
@@ -2734,9 +2730,8 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	ath_bufhead bf_q;
 	int drops = 0;
 	struct ieee80211_tx_ampdu *tap;
-	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
@@ -2787,7 +2782,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 
-	ath_tx_tid_sched(sc, an, tid->tid);
+	ath_tx_tid_sched(sc, an, tid);
 }
 
 /*
@@ -2848,7 +2843,6 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	struct ath_buf *bf, *bf_next;
 	int ba_index;
 	int drops = 0;
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 	int nframes = 0, nbad = 0, nf;
 	int pktlen;
 	/* XXX there's too much on the stack? */
@@ -2857,7 +2851,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
 	    __func__, atid->hwq_depth);
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
 
 	atid->hwq_depth--;
 	if (atid->hwq_depth < 0)
@@ -3000,7 +2994,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
 
-	ath_tx_tid_sched(sc, an, atid->tid);
+	ath_tx_tid_sched(sc, an, atid);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: finished; txa_start now %d\n", __func__, tap->txa_start);
@@ -3021,9 +3015,8 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid-ac]);
 
 	if (tid == IEEE80211_NONQOS_TID)
 		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
@@ -3097,22 +3090,22 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
  * This is the aggregate version.
  */
 void
-ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid)
 {
 	struct ath_buf *bf;
-	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_node *ni = &an->an_node;
 	ATH_AGGR_STATUS status;
 	ath_bufhead bf_q;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid->tid);
 	ATH_TXQ_LOCK_ASSERT(txq);
 
-	tap = ath_tx_get_tx_tid(an, tid);
+	tap = ath_tx_get_tx_tid(an, tid->tid);
 
-	if (tid == IEEE80211_NONQOS_TID)
+	if (tid->tid == IEEE80211_NONQOS_TID)
 		device_printf(sc->sc_dev, "%s: called for TID=NONQOS_TID?\n",
 		    __func__);
 
@@ -3127,10 +3120,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		 * of packet loss; but as its serialised with this code,
 		 * it won't "appear" half way through queuing packets.
 		 */
-		if (atid->paused)
+		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&atid->axq_q);
+		bf = TAILQ_FIRST(&tid->axq_q);
 		if (bf == NULL) {
 			break;
 		}
@@ -3142,7 +3135,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (! bf->bf_state.bfs_dobaw) {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: non-baw packet\n",
 			    __func__);
-			ATH_TXQ_REMOVE(atid, bf, bf_list);
+			ATH_TXQ_REMOVE(tid, bf, bf_list);
 			bf->bf_state.bfs_aggr = 0;
 			ath_tx_set_rtscts(sc, bf);
 			ath_tx_setds(sc, bf);
@@ -3158,7 +3151,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 
 		/* Don't lock the TID - ath_tx_form_aggr will lock as needed */
 		TAILQ_INIT(&bf_q);
-		status = ath_tx_form_aggr(sc, an, atid, &bf_q);
+		status = ath_tx_form_aggr(sc, an, tid, &bf_q);
 
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: ath_tx_form_aggr() status=%d\n", __func__, status);
@@ -3228,7 +3221,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
-		atid->hwq_depth++;
+		tid->hwq_depth++;
 
 		/*
 		 * Break out if ath_tx_form_aggr() indicated
@@ -3247,25 +3240,25 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
  * Schedule some packets from the given node/TID to the hardware.
  */
 void
-ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid)
 {
 	struct ath_buf *bf;
-	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_txq *txq = sc->sc_ac2q[atid->ac];
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 	struct ieee80211_node *ni = &an->an_node;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: node %p: TID %d: called\n",
-	    __func__, an, tid);
+	    __func__, an, tid->tid);
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* Check - is AMPDU pending or running? then print out something */
-	if (ath_tx_ampdu_pending(sc, an, tid))
+	if (ath_tx_ampdu_pending(sc, an, tid->tid))
 		device_printf(sc->sc_dev, "%s: tid=%d, ampdu pending?\n",
-		    __func__, tid);
-	if (ath_tx_ampdu_running(sc, an, tid))
+		    __func__, tid->tid);
+	if (ath_tx_ampdu_running(sc, an, tid->tid))
 		device_printf(sc->sc_dev, "%s: tid=%d, ampdu running?\n",
-		    __func__, tid);
+		    __func__, tid->tid);
 
 	for (;;) {
 
@@ -3273,23 +3266,23 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 		 * If the upper layers have paused the TID, don't
 		 * queue any further packets.
 		 */
-		if (atid->paused)
+		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&atid->axq_q);
+		bf = TAILQ_FIRST(&tid->axq_q);
 		if (bf == NULL) {
 			break;
 		}
 
-		ATH_TXQ_REMOVE(atid, bf, bf_list);
+		ATH_TXQ_REMOVE(tid, bf, bf_list);
 
 		KASSERT(txq == bf->bf_state.bfs_txq, ("txqs not equal!\n"));
 
 		/* Sanity check! */
-		if (tid != bf->bf_state.bfs_tid) {
+		if (tid->tid != bf->bf_state.bfs_tid) {
 			device_printf(sc->sc_dev, "%s: bfs_tid %d !="
 			    " tid %d\n",
-			    __func__, bf->bf_state.bfs_tid, tid);
+			    __func__, bf->bf_state.bfs_tid, tid->tid);
 		}
 		/* Normal completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
@@ -3302,7 +3295,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
-		atid->hwq_depth++;
+		tid->hwq_depth++;
 
 		/* Punt to hardware or software txq */
 		ath_tx_handoff(sc, txq, bf);
@@ -3319,7 +3312,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 void
 ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_tid *atid, *next;
+	struct ath_tid *tid, *next;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -3337,7 +3330,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * or the like. That's a later problem. Just throw
 	 * packets at the hardware.
 	 */
-	TAILQ_FOREACH_SAFE(atid, &txq->axq_tidq, axq_qelem, next) {
+	TAILQ_FOREACH_SAFE(tid, &txq->axq_tidq, axq_qelem, next) {
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
@@ -3346,19 +3339,19 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * the TID lock before checking.
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
-		    __func__, atid->tid, atid->paused);
-		if (atid->paused) {
-			ath_tx_tid_unsched(sc, atid->an, atid->tid);
+		    __func__, tid->tid, tid->paused);
+		if (tid->paused) {
+			ath_tx_tid_unsched(sc, tid->an, tid);
 			continue;
 		}
-		if (ath_tx_ampdu_running(sc, atid->an, atid->tid))
-			ath_tx_tid_hw_queue_aggr(sc, atid->an, atid->tid);
+		if (ath_tx_ampdu_running(sc, tid->an, tid->tid))
+			ath_tx_tid_hw_queue_aggr(sc, tid->an, tid);
 		else
-			ath_tx_tid_hw_queue_norm(sc, atid->an, atid->tid);
+			ath_tx_tid_hw_queue_norm(sc, tid->an, tid);
 
 		/* Empty? Remove */
-		if (atid->axq_depth == 0)
-			ath_tx_tid_unsched(sc, atid->an, atid->tid);
+		if (tid->axq_depth == 0)
+			ath_tx_tid_unsched(sc, tid->an, tid);
 
 		/* Give the software queue time to aggregate more packets */
 		if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
