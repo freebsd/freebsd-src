@@ -867,6 +867,29 @@ ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 }
 
+/*
+ * Transmit the given frame to the hardware.
+ *
+ * The frame must already be setup; rate control must already have
+ * been done.
+ */
+static void
+ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
+{
+	/* Setup the descriptor before handoff */
+	ath_tx_set_rtscts(sc, bf);
+	ath_tx_setds(sc, bf);
+	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
+	ath_tx_chaindesclist(sc, bf);
+
+	ATH_TXQ_LOCK(txq);
+	ath_tx_handoff(sc, txq, bf);
+	ATH_TXQ_UNLOCK(txq);
+}
+
+
+
 static int
 ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
@@ -1350,15 +1373,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * queuing it, as the TID will now be paused.
 	 */
 	if (txq == &avp->av_mcastq) {
-		/* Setup the descriptor before handoff */
-		ath_tx_set_rtscts(sc, bf);
-		ath_tx_setds(sc, bf);
-		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
-
-		ATH_TXQ_LOCK(txq);
-		ath_tx_handoff(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
+		ath_tx_xmit_normal(sc, txq, bf);
 	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
 		/*
@@ -1375,16 +1390,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: BAR: TX'ing direct\n", __func__);
-
-		/* Setup the descriptor before handoff */
-		ath_tx_set_rtscts(sc, bf);
-		ath_tx_setds(sc, bf);
-		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
-
-		ATH_TXQ_LOCK(txq);
-		ath_tx_handoff(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
+		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* add to software queue */
 		ath_tx_swq(sc, ni, txq, bf);
@@ -1394,16 +1400,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
-
-	/* Setup the descriptor before handoff */
-	ath_tx_set_rtscts(sc, bf);
-	ath_tx_setds(sc, bf);
-	ath_tx_set_ratectrl(sc, ni, bf);
-	ath_tx_chaindesclist(sc, bf);
-
-	ATH_TXQ_LOCK(txq);
-	ath_tx_handoff(sc, txq, bf);
-	ATH_TXQ_UNLOCK(txq);
+	ath_tx_xmit_normal(sc, txq, bf);
 #endif
 
 	return 0;
@@ -1606,15 +1603,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: dooverride=%d\n",
 	    __func__, do_override);
 
-	if (do_override) {
-		ath_tx_set_rtscts(sc, bf);
-		ath_tx_setds(sc, bf);
-		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
-		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
-		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
-	}
+	if (do_override)
+		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
 	else {
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
