@@ -1032,13 +1032,13 @@ vop_setextattr {
 	struct ufsmount *ump = VFSTOUFS(mp); 
 	int error;
 
-	ufs_extattr_uepm_lock(ump, ap->a_td);
-
 	/*
 	 * XXX: No longer a supported way to delete extended attributes.
 	 */
 	if (ap->a_uio == NULL)
 		return (EINVAL);
+
+	ufs_extattr_uepm_lock(ump, ap->a_td);
 
 	error = ufs_extattr_set(ap->a_vp, ap->a_attrnamespace, ap->a_name,
 	    ap->a_uio, ap->a_cred, ap->a_td);
