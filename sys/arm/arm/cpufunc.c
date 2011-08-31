@@ -1270,40 +1270,33 @@ set_cpufuncs()
 	}
 #endif /* CPU_ARM9 */
 #if defined(CPU_ARM9E) || defined(CPU_ARM10)
-	if (cputype == CPU_ID_ARM926EJS || cputype == CPU_ID_ARM1026EJS ||
-	    cputype == CPU_ID_MV88FR131 || cputype == CPU_ID_MV88FR571_VD ||
+	if (cputype == CPU_ID_MV88FR131 || cputype == CPU_ID_MV88FR571_VD ||
 	    cputype == CPU_ID_MV88FR571_41) {
-		if (cputype == CPU_ID_MV88FR131 ||
-		    cputype == CPU_ID_MV88FR571_VD ||
-		    cputype == CPU_ID_MV88FR571_41) {
+		uint32_t sheeva_ctrl;
 
-			cpufuncs = sheeva_cpufuncs;
-			/*
-			 * Workaround for Marvell MV78100 CPU: Cache prefetch
-			 * mechanism may affect the cache coherency validity,
-			 * so it needs to be disabled.
-			 *
-			 * Refer to errata document MV-S501058-00C.pdf (p. 3.1
-			 * L2 Prefetching Mechanism) for details.
-			 */
-			if (cputype == CPU_ID_MV88FR571_VD ||
-			    cputype == CPU_ID_MV88FR571_41) {
-				sheeva_control_ext(0xffffffff,
-				    FC_DCACHE_STREAM_EN | FC_WR_ALLOC_EN |
-				    FC_BRANCH_TARG_BUF_DIS | FC_L2CACHE_EN |
-				    FC_L2_PREF_DIS);
-			} else {
-				sheeva_control_ext(0xffffffff,
-				    FC_DCACHE_STREAM_EN | FC_WR_ALLOC_EN |
-				    FC_BRANCH_TARG_BUF_DIS | FC_L2CACHE_EN);
-			}
+		sheeva_ctrl = (MV_DC_STREAM_ENABLE | MV_BTB_DISABLE |
+		    MV_L2_ENABLE);
+		/*
+		 * Workaround for Marvell MV78100 CPU: Cache prefetch
+		 * mechanism may affect the cache coherency validity,
+		 * so it needs to be disabled.
+		 *
+		 * Refer to errata document MV-S501058-00C.pdf (p. 3.1
+		 * L2 Prefetching Mechanism) for details.
+		 */
+		if (cputype == CPU_ID_MV88FR571_VD ||
+		    cputype == CPU_ID_MV88FR571_41)
+			sheeva_ctrl |= MV_L2_PREFETCH_DISABLE;
 
-			/* Use powersave on this CPU. */
-			cpu_do_powersave = 1;
-		} else
-			cpufuncs = armv5_ec_cpufuncs;
+		sheeva_control_ext(0xffffffff & ~MV_WA_ENABLE, sheeva_ctrl);
 
-		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
+		cpufuncs = sheeva_cpufuncs;
+		get_cachetype_cp15();
+		pmap_pte_init_generic();
+		goto out;
+	} else if (cputype == CPU_ID_ARM926EJS  || cputype == CPU_ID_ARM926ES ||
+	    cputype == CPU_ID_ARM1026EJS)
+		cpufuncs = armv5_ec_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
 		goto out;
