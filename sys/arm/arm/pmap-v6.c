@@ -3501,20 +3501,7 @@ pmap_map_section(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 
 	KASSERT(((va | pa) & L1_S_OFFSET) == 0, ("ouin2"));
 
-	switch (cache) {
-	case PTE_NOCACHE:
-	default:
-		fl = 0;
-		break;
-
-	case PTE_CACHE:
-		fl = pte_l1_s_cache_mode;
-		break;
-
-	case PTE_PAGETABLE:
-		fl = pte_l1_s_cache_mode_pt;
-		break;
-	}
+	fl = l1_mem_types[cache];
 
 	pde[va >> L1_S_SHIFT] = L1_S_PROTO | pa |
 	    L1_S_PROT(PTE_KERNEL, prot) | fl | L1_S_DOM(PMAP_DOMAIN_KERNEL);
@@ -3561,20 +3548,7 @@ pmap_map_entry(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa, int prot,
 
 	KASSERT(((va | pa) & PAGE_MASK) == 0, ("ouin"));
 
-	switch (cache) {
-	case PTE_NOCACHE:
-	default:
-		fl = 0;
-		break;
-
-	case PTE_CACHE:
-		fl = pte_l2_s_cache_mode;
-		break;
-
-	case PTE_PAGETABLE:
-		fl = pte_l2_s_cache_mode_pt;
-		break;
-	}
+	fl = l2s_mem_types[cache];
 
 	if ((pde[va >> L1_S_SHIFT] & L1_TYPE_MASK) != L1_TYPE_C)
 		panic("pmap_map_entry: no L2 table for VA 0x%08x", va);
@@ -3612,7 +3586,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 
 #ifdef VERBOSE_INIT_ARM
 	printf("pmap_map_chunk: pa=0x%x va=0x%x size=0x%x resid=0x%x "
-	    "prot=0x%x type=%d\n", pa, va, size, resid, prot, type);
+	    "prot=0x%x cache=%d\n", pa, va, size, resid, prot, cache);
 #endif
 
 	f1 = l1_mem_types[type];
