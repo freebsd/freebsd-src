@@ -2003,21 +2003,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
 
-	/*
-	 * blank out fields which will be overridden if needed
-	 * Don't touch bfs_dobaw - that's already been set by
-	 * ath_tx_start().
-	 */
-	bf->bf_state.bfs_aggr = 0;
-	bf->bf_state.bfs_aggrburst = 0;
-	bf->bf_next = NULL;
-	bf->bf_state.bfs_retries = 0;
-	bf->bf_state.bfs_isretried = 0;
-	bf->bf_state.bfs_ndelim = 0;
-	bf->bf_state.bfs_nframes = 0;
-	bf->bf_state.bfs_al = 0;
-	bf->bf_state.bfs_addedbaw = 0;
-
 	/* Queue frame to the tail of the software queue */
 	ATH_TXQ_LOCK(txq);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
