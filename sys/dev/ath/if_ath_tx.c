@@ -3202,19 +3202,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
 			sc->sc_stats.tx_aggr.aggr_pkts[bf->bf_state.bfs_nframes]++;
 			sc->sc_stats.tx_aggr.aggr_aggr_pkt++;
 
-			/* Set rate 1, 2, 3 to 0 for aggregate frames */
-			bf->bf_state.bfs_rc[1].rix =
-			bf->bf_state.bfs_rc[2].rix =
-			bf->bf_state.bfs_rc[3].rix = 0;
-
-			bf->bf_state.bfs_rc[1].ratecode =
-			bf->bf_state.bfs_rc[2].ratecode =
-			bf->bf_state.bfs_rc[3].ratecode = 0;
-
-			bf->bf_state.bfs_rc[1].tries =
-			bf->bf_state.bfs_rc[2].tries =
-			bf->bf_state.bfs_rc[3].tries = 0;
-
 			/*
 			 * Setup the relevant descriptor fields
 			 * for aggregation. The first descriptor
