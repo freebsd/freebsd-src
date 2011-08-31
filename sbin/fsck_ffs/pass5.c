@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 static void check_maps(u_char *, u_char *, int, ufs2_daddr_t, const char *, int *, int, int);
 
+static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end);
+
 void
 pass5(void)
 {
@@ -57,7 +59,7 @@ pass5(void)
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
-	ufs2_daddr_t d, dbase, dmax;
+	ufs2_daddr_t d, dbase, dmax, start;
 	int excessdirs, rewritecg = 0;
 	struct csum *cs;
 	struct csum_total cstotal;
@@ -241,13 +243,21 @@ pass5(void)
 				setbit(cg_inosused(newcg), i);
 				newcg->cg_cs.cs_nifree--;
 			}
+		start = -1;
 		for (i = 0, d = dbase;
 		     d < dmax;
 		     d += fs->fs_frag, i += fs->fs_frag) {
 			frags = 0;
 			for (j = 0; j < fs->fs_frag; j++) {
-				if (testbmap(d + j))
+				if (testbmap(d + j)) {
+					if (Eflag && start != -1) {
+						clear_blocks(start, d + j - 1);
+						start = -1;
+					}
 					continue;
+				}
+				if (start == -1)
+					start = d + j;
 				setbit(cg_blksfree(newcg), i + j);
 				frags++;
 			}
@@ -262,6 +272,8 @@ pass5(void)
 				ffs_fragacct(fs, blk, newcg->cg_frsum, 1);
 			}
 		}
+		if (Eflag && start != -1)
+			clear_blocks(start, d - 1);
 		if (fs->fs_contigsumsize > 0) {
 			int32_t *sump = cg_clustersum(newcg);
 			u_char *mapp = cg_clustersfree(newcg);
@@ -549,4 +561,13 @@ check_maps(
 			}
 		}
 	}
+}
+
+static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
+{
+
+	if (debug)
+		printf("Zero frags %jd to %jd\n", start, end);
+	blerase(fswritefd, fsbtodb(&sblock, start),
+	    lfragtosize(&sblock, end - start + 1));
 }

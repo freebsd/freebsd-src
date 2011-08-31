@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2009
+.Dd April 27, 2011
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BFprfny
+.Op Fl BEFfnpry
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -139,6 +139,34 @@ action.
 The following flags are interpreted by
 .Nm :
 .Bl -tag -width indent
+.It Fl B
+A check is done on the specified and possibly active file system.
+The set of corrections that can be done is limited to those done
+when running in preen mode (see the
+.Fl p
+flag).
+If unexpected errors are found,
+the file system is marked as needing a foreground check and
+.Nm
+exits without attempting any further cleaning.
+.It Fl E
+Clear unallocated blocks, notifying the underlying device that they
+are not used and that their contents may be discarded.
+This is useful for filesystems which have been mounted on systems
+without TRIM support, or with TRIM support disabled, as well as
+filesystems which have been copied from one device to another.
+.Pp
+See the
+.Fl E
+and
+.Fl t
+flags of
+.Xr newfs 8 ,
+and
+the
+.Fl t
+flag of
+.Xr tunefs 8 .
 .It Fl F
 Determine whether the file system needs to be cleaned immediately
 in foreground, or if its cleaning can be deferred to background.
@@ -160,16 +188,6 @@ The only thing that
 .Nm
 does is to determine whether a foreground or background
 check is needed and exit with an appropriate status code.
-.It Fl B
-A check is done on the specified and possibly active file system.
-The set of corrections that can be done is limited to those done
-when running in preen mode (see the
-.Fl p
-flag).
-If unexpected errors are found,
-the file system is marked as needing a foreground check and
-.Nm
-exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the file system.
