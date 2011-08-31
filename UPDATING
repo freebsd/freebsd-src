@@ -1095,9 +1095,10 @@ COMMON ITEMS:
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
-breakages in tracking -current.  Not all things will be listed here,
-and it only starts on October 16, 2004.  Updating files can found in
-previous releases if your system is older than this.
+breakages in tracking -current.  It is not guaranteed to be a complete
+list of such breakages, and only contains entries since October 16, 2004.
+If you need to see UPDATING entries from before that date, you will need
+to fetch an UPDATING file from an older FreeBSD release.
 
 Copyright information:
 
