@@ -127,9 +127,6 @@ extern vm_offset_t sa1_cache_clean_addr;
 
 extern int *end;
 
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
-
 #ifndef MD_ROOT_SIZE
 #define MD_ROOT_SIZE 65535
 #endif
@@ -203,7 +200,6 @@ cpu_reset()
 void *
 initarm(void *arg, void *arg2)
 {
-	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr	md_addr;
 	struct pv_addr	md_bla;
@@ -221,9 +217,7 @@ initarm(void *arg, void *arg2)
 	set_cpufuncs();
 	lastaddr = fake_preload_metadata();
 	physmem = memsize / PAGE_SIZE;
-	pc = &__pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();

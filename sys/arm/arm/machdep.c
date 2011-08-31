@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
+struct pcpu __pcpu[MAXCPU];
+struct pcpu *pcpup = &__pcpu[0];
+
 uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
@@ -706,4 +709,12 @@ fake_preload_metadata(void)
 	preload_metadata = (void *)fake_preload;
 
 	return (lastaddr);
+}
+
+void
+pcpu0_init(void)
+{
+
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	PCPU_SET(curthread, &thread0);
 }

@@ -116,9 +116,6 @@ extern void *_end;
 
 extern int *end;
 
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
-
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
@@ -252,8 +249,7 @@ initarm(void *arg, void *arg2)
 	boot_arg2 = arg2;
 	set_cpufuncs();
 	lastaddr = fake_preload_metadata();
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();

@@ -130,11 +130,8 @@ extern vm_offset_t pmap_bootstrap_lastaddr;
 extern int *end;
 
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 /* Physical and virtual addresses for some global pages */
-
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
@@ -372,8 +369,7 @@ initarm(void *mdp, void *unused __unused)
 	/* Platform-specific initialisation */
 	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
 
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Calculate number of L2 tables needed for mapping vm_page_array */
 	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
