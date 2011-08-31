@@ -736,9 +736,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_addba_response = ic->ic_addba_response;
 	sc->sc_addba_stop = ic->ic_addba_stop;
 	sc->sc_bar_response = ic->ic_bar_response;
+	sc->sc_addba_response_timeout = ic->ic_addba_response_timeout;
 
 	ic->ic_addba_request = ath_addba_request;
 	ic->ic_addba_response = ath_addba_response;
+	ic->ic_addba_response_timeout = ath_addba_response_timeout;
 	ic->ic_addba_stop = ath_addba_stop;
 	ic->ic_bar_response = ath_bar_response;
 
