@@ -986,7 +986,7 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 702102
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 702104
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
