@@ -121,5 +121,7 @@ extern	void ath_addba_stop(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
 extern	void ath_bar_response(struct ieee80211_node *ni,
      struct ieee80211_tx_ampdu *tap, int status);
+extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap);
 
 #endif

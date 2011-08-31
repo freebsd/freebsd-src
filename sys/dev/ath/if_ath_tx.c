@@ -3596,6 +3596,34 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * XXX to a non-aggregate session. So we must unpause the
 	 * XXX TID here or it'll never be done.
 	 */
-	if (status == 0 || attempts == 50)
+	if (status == 0 || attempts == 50) {
+		ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_tid_resume(sc, atid);
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+	}
+}
+
+/*
+ * This is called whenever the pending ADDBA request times out.
+ * Unpause and reschedule the TID.
+ */
+void
+ath_addba_response_timeout(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap)
+{
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	int tid = WME_AC_TO_TID(tap->txa_ac);
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: called; resuming\n", __func__);
+
+	/* Note: This updates the aggregate state to (again) pending */
+	sc->sc_addba_response_timeout(ni, tap);
+
+	/* Unpause the TID; which reschedules it */
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	ath_tx_tid_resume(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }

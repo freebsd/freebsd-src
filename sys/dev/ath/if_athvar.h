@@ -512,6 +512,9 @@ struct ath_softc {
 				    struct ieee80211_tx_ampdu *, int, int, int);
 	void			(*sc_addba_stop)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
+	void			(*sc_addba_response_timeout)
+				    (struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
 	void			(*sc_bar_response)(struct ieee80211_node *ni,
 				    struct ieee80211_tx_ampdu *tap,
 				    int status);
