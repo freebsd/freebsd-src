@@ -1995,6 +1995,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 	    SEQNO(bf->bf_state.bfs_seqno)))) {
 		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		ath_tx_tid_sched(sc, an, tid);
 		return;
 	}
 
@@ -3016,7 +3017,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid-ac]);
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
 
 	if (tid == IEEE80211_NONQOS_TID)
 		device_printf(sc->sc_dev, "%s: TID=16!\n", __func__);
