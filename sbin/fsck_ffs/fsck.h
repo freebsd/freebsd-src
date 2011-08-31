@@ -270,6 +270,7 @@ char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
+int	Eflag;			/* zero out empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
@@ -333,6 +334,7 @@ char	       *blockcheck(char *name);
 int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
+void		blerase(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
