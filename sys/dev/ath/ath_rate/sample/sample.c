@@ -557,7 +557,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 			 (tt * (100 - ssc->smoothing_rate))) / 100;
 	}
 	
-	if (status != 0) {
+	if (nframes == nbad) {
 		int y;
 		sn->stats[size_bin][rix0].successive_failures += nbad;
 		for (y = size_bin+1; y < NUM_PACKET_SIZE_BINS; y++) {
@@ -572,7 +572,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 			sn->stats[y][rix0].total_packets += nframes;
 		}
 	} else {
-		sn->stats[size_bin][rix0].packets_acked += nframes;
+		sn->stats[size_bin][rix0].packets_acked += (nframes - nbad);
 		sn->stats[size_bin][rix0].successive_failures = 0;
 	}
 	sn->stats[size_bin][rix0].tries += tries;
@@ -623,10 +623,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
-
-	/* If nbad > 1, override status to FAIL */
-	if (nbad > 0)
-		status = 1;
 
 	if (sn->ratemask == 0) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
