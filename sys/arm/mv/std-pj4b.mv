@@ -1,0 +1,7 @@
+# $FreeBSD: src/sys/arm/mv/std.mv,v 1.1 2008/10/13 20:07:13 raj Exp $
+
+files		"../mv/files.mv"
+cpu		CPU_MV_PJ4B
+makeoptions	CONF_CFLAGS="-march=armv6"
+
+options		VM_MAXUSER_ADDRESS="(KERNBASE-(1024*1024*1024))"

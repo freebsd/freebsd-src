@@ -1,0 +1,6 @@
+# $FreeBSD: src/sys/arm/mv/kirkwood/files.db88f6xxx,v 1.1 2008/10/13 20:07:13 raj Exp $
+
+arm/mv/armadaxp/armadaxp.c	standard
+arm/mv/mpic.c			standard
+arm/mv/rtc.c			standard
+arm/mv/armadaxp/armadaxp_mp.c	optional smp

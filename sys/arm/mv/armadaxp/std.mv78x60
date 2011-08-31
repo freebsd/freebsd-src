@@ -1,0 +1,5 @@
+# $FreeBSD: src/sys/arm/mv/kirkwood/std.db88f6xxx,v 1.1 2008/10/13 20:07:13 raj Exp $
+
+include	"../mv/std-pj4b.mv"
+include "../mv/armadaxp/std.armadaxp"
+files	"../mv/armadaxp/files.armadaxp"

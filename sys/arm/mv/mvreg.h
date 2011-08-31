@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 MARVELL INTERNATIONAL LTD.
+ * Copyright (C) 2007-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
  * Developed by Semihalf.
@@ -158,10 +158,73 @@
 #define MV_INT_XOR_ERR		74	/* XOR engine error */
 #define MV_INT_WD		79	/* WD Timer interrupt */
 
+#elif defined(SOC_MV_DOVE)
+
+#define MV_INT_BRIDGE		0	/* Downstream Bridge Interrupt */
+#define MV_INT_H2C_DOORBELL	1	/* Host2CPU Doorbell Interrupt */
+#define MV_INT_C2H_DOORBELL	2	/* CPU2Host Doorbell Interrupt */
+#define MV_INT_NAND_FLASH	3	/* NandFlash Interrupt */
+#define MV_INT_PDMA		4	/* Peripheral DMA Interrupt */
+#define MV_INT_SPI1		5	/* SPI1 Ready Interrupt */
+#define MV_INT_SPI0		6	/* SPI0 Ready Interrupt */
+#define MV_INT_UART0		7	/* UART0 Interrupt */
+#define MV_INT_UART1		8	/* UART1 Interrupt */
+#define MV_INT_UART2		9	/* UART2 Interrupt */
+#define MV_INT_UART3		10	/* UART3 Interrupt */
+#define MV_INT_TWSI		11	/* TWSI Interrupt */
+#define MV_INT_GPIO7_0		12	/* GPIO[7:0] Interrupt */
+#define MV_INT_GPIO15_8		13	/* GPIO[15:8] Interrupt */
+#define MV_INT_GPIO23_16	14	/* GPIO[23:16] Interrupt */
+#define MV_INT_PEX0_ERR		15	/* PCI Express 0 Error */
+#define MV_INT_PEX0		16	/* PCI Express 0 Interrupt */
+#define MV_INT_PEX1_ERR		17	/* PCI Express 1 Error */
+#define MV_INT_PEX1		18	/* PCI Express 1 Interrupt */
+#define MV_INT_AUDIO0		19	/* Audio 0 Interrupt */
+#define MV_INT_AUDIO0_ERR	20	/* Audio 0 Error */
+#define MV_INT_AUDIO1		21	/* Audio 1 Interrupt */
+#define MV_INT_AUDIO1_ERR	22	/* Audio 1 Error */
+#define MV_INT_USB_BERR		23	/* USB Bridge Error */
+#define MV_INT_USB0		24	/* USB 0 Interrupt */
+#define MV_INT_USB1		25	/* USB 1 Interrupt */
+#define MV_INT_GBERX		26	/* GbE Receive Interrupt */
+#define MV_INT_GBETX		27	/* GbE Transmit Interrupt */
+#define MV_INT_GBEMISC		28	/* GbE Miscellaneous Interrupt */
+#define MV_INT_GBESUM		29	/* GbE Summary */
+#define MV_INT_GBEERR		30	/* GbE Error */
+#define MV_INT_CESA		31	/* Security Interrupt */
+#define MV_INT_AC97		32	/* AC97 Interrupt */
+#define MV_INT_PMU		33	/* Power Management Unit Interrupt */
+#define MV_INT_CAM		34	/* Cafe Camera Interrupt */
+#define MV_INT_SD0		35	/* SD0 IRQ Interrupt */
+#define MV_INT_SD1		36	/* SD1 IRQ Interrupt */
+#define MV_INT_XOR0_DMA0	39	/* XOR Unit 0 DMA 0 Completion */
+#define MV_INT_XOR0_DMA1	40	/* XOR Unit 0 DMA 1 Completion */
+#define MV_INT_XOR0_ERR		41	/* XOR Unit 0 Error Interrupt */
+#define MV_INT_XOR1_DMA0	42	/* XOR Unit 1 DMA 0 Completion */
+#define MV_INT_XOR1_DMA1	43	/* XOR Unit 1 DMA 1 Completion */
+#define MV_INT_XOR1_ERR		44	/* XOR Unit 1 Error Interrupt */
+#define MV_INT_IRE_DCON		45	/* IRE OR DCON Interrupt */
+#define MV_INT_LCD1		46	/* LCD1 Interrupt */
+#define MV_INT_LCD0		47	/* LCD0 Interrupt */
+#define MV_INT_GPU		48	/* Graphics Processing Unit Interrupt */
+#define MV_INT_VMETA		51	/* Video Decode Unit Semaphore Int. */
+#define MV_INT_SSP_TIMER	54	/* SSP Timer Interrupt */
+#define MV_INT_SSP		55	/* SSP Interrupt */
+#define MV_INT_MEM_ERR		56	/* Memory Controller or L2 ECC Error */
+#define MV_INT_DOWNSTR_ERR	57	/* Downstream Bus Error */
+#define MV_INT_UPSTR_ERR	58	/* Upstream Bus Error */
+#define MV_INT_CESA_ERR		59	/* Security Error */
+#define MV_INT_GPIO31_24	60	/* GPIO[31:24] Interrupt */
+#define MV_INT_HIGH_GPIO	61	/* Interrupt from High GPIO[31:0] */
+#define MV_INT_SATA		62	/* SATA Interrupt */
+
 #endif /* SOC_MV_ORION */
 
-#define BRIDGE_IRQ_CAUSE	0x10
-#define BRIGDE_IRQ_MASK		0x14
+#if defined(SOC_MV_LOKIPLUS)
+#define MV_INT_CPU_PCIE_DRBL(n)	(1 + 2 * (n))	/* CPU to PCIE Doorbell int */
+#elif defined(SOC_MV_FREY)
+#define MV_INT_CPU_PCIE_DRBL(n)	(8 + (n))
+#endif
 
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
@@ -175,23 +238,55 @@
 #define FIQ_MASK		0x20
 #define FIQ_MASK_HI		0x24
 #define FIQ_CAUSE_SELECT	0x28
-#define ENDPOINT_IRQ_MASK_ERROR	0x2C
-#define ENDPOINT_IRQ_MASK	0x30
-#define ENDPOINT_IRQ_MASK_HI	0x34
+#define ENDPOINT_IRQ_MASK_ERROR(n) 0x2C
+#define ENDPOINT_IRQ_MASK(n)	0x30
+#define ENDPOINT_IRQ_MASK_HI(n)	0x34
 #define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#else /* !SOC_MV_DISCOVERY */
+#elif defined (SOC_MV_LOKIPLUS) || defined (SOC_MV_FREY)
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
 #define FIQ_MASK		0x8
-#define ENDPOINT_IRQ_MASK	0xC
+#define ENDPOINT_IRQ_MASK(n)	(0xC + (n) * 4)
+#define IRQ_CAUSE_HI		(-1)		/* Fake defines for unified */
+#define IRQ_MASK_HI		(-1)		/* interrupt controller code */
+#define FIQ_MASK_HI		(-1)
+#define ENDPOINT_IRQ_MASK_HI(n)	(-1)
+#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
+#define IRQ_CAUSE_ERROR		(-1)
+#define IRQ_MASK_ERROR		(-1)
+#elif defined (SOC_MV_ARMADAXP)
+#define IRQ_CAUSE		0x18
+#define IRQ_MASK		0x30
+#else /* !SOC_MV_DISCOVERY && !SOC_MV_LOKIPLUS */
+#define IRQ_CAUSE		0x0
+#define IRQ_MASK		0x4
+#define FIQ_MASK		0x8
+#define ENDPOINT_IRQ_MASK(n)	0xC
 #define IRQ_CAUSE_HI		0x10
 #define IRQ_MASK_HI		0x14
 #define FIQ_MASK_HI		0x18
-#define ENDPOINT_IRQ_MASK_HI	0x1C
+#define ENDPOINT_IRQ_MASK_HI(n)	0x1C
+#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
 #define IRQ_CAUSE_ERROR		(-1)		/* Fake defines for unified */
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
 #endif
 
+#if defined(SOC_MV_FREY)
+#define BRIDGE_IRQ_CAUSE	0x118
+#define IRQ_TIMER0		0x00000002
+#define IRQ_TIMER1		0x00000004
+#define IRQ_TIMER_WD		0x00000008
+
+#define BRIDGE_IRQ_MASK		0x11c
+#define IRQ_TIMER0_MASK		0x00000002
+#define IRQ_TIMER1_MASK		0x00000004
+#define IRQ_TIMER_WD_MASK	0x00000008
+#elif defined(SOC_MV_ARMADAXP)
+#define BRIDGE_IRQ_CAUSE	0x68
+#define IRQ_TIMER0		0x00000001
+#define IRQ_TIMER1		0x00000002
+#define IRQ_TIMER_WD		0x00000004
+#else
 #define BRIDGE_IRQ_CAUSE	0x10
 #define IRQ_CPU_SELF		0x00000001
 #define IRQ_TIMER0		0x00000002
@@ -203,6 +298,19 @@
 #define IRQ_TIMER0_MASK		0x00000002
 #define IRQ_TIMER1_MASK		0x00000004
 #define IRQ_TIMER_WD_MASK	0x00000008
+#endif
+
+#if defined(SOC_MV_LOKIPLUS) || defined(SOC_MV_FREY)
+#define IRQ_CPU_SELF_CLR	IRQ_CPU_SELF
+#define IRQ_TIMER0_CLR		IRQ_TIMER0
+#define IRQ_TIMER1_CLR		IRQ_TIMER1
+#define IRQ_TIMER_WD_CLR	IRQ_TIMER_WD
+#else
+#define IRQ_CPU_SELF_CLR	(~IRQ_CPU_SELF)
+#define IRQ_TIMER0_CLR		(~IRQ_TIMER0)
+#define IRQ_TIMER1_CLR		(~IRQ_TIMER1)
+#define IRQ_TIMER_WD_CLR	(~IRQ_TIMER_WD)
+#endif
 
 /*
  * System reset
@@ -281,6 +389,7 @@
 /*
  * Timers
  */
+#define CPU_TIMERS_BASE		0x300
 #define CPU_TIMER_CONTROL	0x0
 #define CPU_TIMER0_EN		0x00000001
 #define CPU_TIMER0_AUTO		0x00000002
@@ -308,7 +417,15 @@
 #define SATA_CR_NOPRDPBS		(1 << 10)
 #define SATA_CR_COALDIS(ch)		(1 << (24 + ch))
 
-#define	SATA_ICR			0x014 /* Interrupt Cause Reg. */
+/* Interrupt Coalescing Threshold Reg. */
+#define SATA_ICTR			0x00C
+#define SATA_ICTR_MAX			((1 << 8) - 1)
+
+/* Interrupt Time Threshold Reg. */
+#define SATA_ITTR			0x010
+#define SATA_ITTR_MAX			((1 << 24) - 1)
+
+#define SATA_ICR			0x014 /* Interrupt Cause Reg. */
 #define SATA_ICR_DMADONE(ch)		(1 << (ch))
 #define SATA_ICR_COAL			(1 << 4)
 #define SATA_ICR_DEV(ch)		(1 << (8 + ch))
@@ -397,34 +514,18 @@
 #define GPIO2IRQ(gpio)		((gpio) + NIRQ)
 #define IRQ2GPIO(irq)		((irq) - NIRQ)
 
-/*
- * MPP
- */
-#if defined(SOC_MV_ORION)
-#define MPP_CONTROL0		0x00
-#define MPP_CONTROL1		0x04
-#define MPP_CONTROL2		0x50
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-#define MPP_CONTROL0		0x00
-#define MPP_CONTROL1		0x04
-#define MPP_CONTROL2		0x08
-#define MPP_CONTROL3		0x0C
-#define MPP_CONTROL4		0x10
-#define MPP_CONTROL5		0x14
-#define MPP_CONTROL6		0x18
-#else
-#error SOC_MV_XX not defined
-#endif
-
-#if defined(SOC_MV_ORION)
+#if defined(SOC_MV_ORION) || defined(SOC_MV_LOKIPLUS)
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
 #elif defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34
-#else
-#error SOC_MV_XX not defined
+#elif defined(SOC_MV_DOVE)
+#define SAMPLE_AT_RESET_LO	0x14
+#define SAMPLE_AT_RESET_HI	0x18
+#elif defined(SOC_MV_FREY)
+#define SAMPLE_AT_RESET		0x100
 #endif
 
 /*
@@ -436,6 +537,9 @@
 #elif defined(SOC_MV_DISCOVERY)
 #define TCLK_MASK		0x00000180
 #define TCLK_SHIFT		0x07
+#elif defined(SOC_MV_LOKIPLUS)
+#define TCLK_MASK		0x0000F000
+#define TCLK_SHIFT		0x0C
 #endif
 
 #define TCLK_100MHZ		100000000
@@ -444,6 +548,33 @@
 #define TCLK_150MHZ		150000000
 #define TCLK_166MHZ		166666667
 #define TCLK_200MHZ		200000000
+#define TCLK_250MHZ		250000000
+#define TCLK_300MHZ		300000000
+#define TCLK_667MHZ		667000000
+
+/*
+ * CPU Cache Configuration
+ */
+
+#define CPU_CONFIG		0x00000000
+#define CPU_CONFIG_IC_PREF	0x00010000
+#define CPU_CONFIG_DC_PREF	0x00020000
+#define CPU_CONTROL		0x00000004
+#define CPU_CONTROL_L2_SIZE	0x00200000	/* Only on Discovery */
+#define CPU_CONTROL_L2_MODE	0x00020000	/* Only on Discovery */
+#define CPU_L2_CONFIG		0x00000028	/* Only on Kirkwood */
+#define CPU_L2_CONFIG_MODE	0x00000010	/* Only on Kirkwood */
+
+/*
+ * PCI Express port control (CPU Control registers)
+ */
+#define CPU_CONTROL_PCIE_DISABLE(n)	(1 << (3 * (n)))
+
+/*
+ * Vendor ID
+ */
+#define PCI_VENDORID_MRVL	0x11AB
+#define PCI_VENDORID_MRVL2	0x1B4B
 
 /*
  * Chip ID
@@ -452,7 +583,34 @@
 #define MV_DEV_88F5182		0x5182
 #define MV_DEV_88F5281		0x5281
 #define MV_DEV_88F6281		0x6281
+#define MV_DEV_88F6781		0x6781
 #define MV_DEV_MV78100_Z0	0x6381
 #define MV_DEV_MV78100		0x7810
+#define MV_DEV_MV78130		0x7813
+#define MV_DEV_MV78160		0x7816
+#define MV_DEV_MV78230		0x7823
+#define MV_DEV_MV78260		0x7826
+#define MV_DEV_MV78460		0x7846
+#define MV_DEV_88RC8180		0x8180
+#define MV_DEV_88RC9480		0x9480
+#define MV_DEV_88RC9580		0x9580
 
+#define MV_DEV_FAMILY_MASK	0xff00
+#define MV_DEV_DISCOVERY	0x7800
+
+/*
+ * Doorbell register control
+ */
+#define MV_DRBL_PCIE_TO_CPU	0
+#define MV_DRBL_CPU_TO_PCIE	1
+
+#if defined(SOC_MV_FREY)
+#define MV_DRBL_CAUSE(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u))
+#define MV_DRBL_MASK(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u) + 0x4)
+#define MV_DRBL_MSG(m,d,u)	(0x8 * (u) + 0x20 * (d) + 0x4 * (m))
+#else
+#define MV_DRBL_CAUSE(d,u)	(0x10 * (u) + 0x8 * (d))
+#define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
+#define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
+#endif
 #endif /* _MVREG_H_ */

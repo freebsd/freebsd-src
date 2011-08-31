@@ -482,7 +482,7 @@ initarm(void *mdp, void *unused __unused)
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
 	    &kernel_pt_table[l2size - 1]);
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
 	if (platform_devmap_init() != 0)
@@ -515,16 +515,21 @@ initarm(void *mdp, void *unused __unused)
 	debugf("initarm: console initialized\n");
 	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
-	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
 
 	/*
 	 * Re-initialise decode windows
 	 */
+#if !defined(SOC_MV_FREY)
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
+#else
+	/* Disable watchdog and timers */
+	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
+#endif
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -592,7 +597,7 @@ initarm(void *mdp, void *unused __unused)
 	    sizeof(struct pcb)));
 }
 
-#define MPP_PIN_MAX		50
+#define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
 #define MPP_PINS_PER_REG	8
 #define MPP_SEL(pin,func)	(((func) & 0xf) <<		\
@@ -629,7 +634,11 @@ platform_mpp_init(void)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,mpp", 0)) == 0)
-		return (ENXIO);
+		/*
+		 * No MPP node. Fall back to how MPP got set by the
+		 * first-stage loader and try to continue booting.
+		 */
+		return (0);
 moveon:
 	/*
 	 * Process 'reg' prop.
@@ -722,10 +731,46 @@ moveon:
 	return (0);
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
+#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
+
+static int
+platform_sram_devmap(struct pmap_devmap *map)
+{
+	phandle_t child, root;
+	u_long base, size;
+
+	/*
+	 * SRAM range.
+	 */
+	if ((child = OF_finddevice("/sram")) != 0)
+		if (fdt_is_compatible(child, "mrvl,cesa-sram") ||
+		    fdt_is_compatible(child, "mrvl,scratchpad"))
+			goto moveon;
+
+	if ((root = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0 &&
+	    (child = fdt_find_compatible(root, "mrvl,scratchpad", 0)) == 0)
+			goto out;
+
+moveon:
+	if (fdt_regsize(child, &base, &size) != 0)
+		return (EINVAL);
+
+	map->pd_va = MV_CESA_SRAM_BASE; /* XXX */
+	map->pd_pa = base;
+	map->pd_size = size;
+	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	map->pd_cache = PTE_NOCACHE;
+
+	return (0);
+out:
+	return (ENOENT);
+}
 
 /*
  * Construct pmap_devmap[] with DT-derived config data.
@@ -734,7 +779,6 @@ static int
 platform_devmap_init(void)
 {
 	phandle_t root, child;
-	u_long base, size;
 	int i;
 
 	/*
@@ -749,56 +793,37 @@ platform_devmap_init(void)
 	i++;
 
 	/*
+	 * SRAM range.
+	 */
+	if (i < FDT_DEVMAP_MAX)
+		if (platform_sram_devmap(&fdt_devmap[i]) == 0)
+			i++;
+
+	/*
 	 * PCI range(s).
 	 */
 	if ((root = OF_finddevice("/")) == 0)
 		return (ENXIO);
-
 	for (child = OF_child(root); child != 0; child = OF_peer(child))
-		if (fdt_is_type(child, "pci")) {
+		if (fdt_is_type(child, "pci") || fdt_is_type(child, "pciep")) {
 			/*
 			 * Check space: each PCI node will consume 2 devmap
 			 * entries.
 			 */
-			if (i + 1 >= FDT_DEVMAP_MAX) {
+			if (i + 1 >= FDT_DEVMAP_MAX)
 				return (ENOMEM);
-				break;
-			}
 
 			/*
 			 * XXX this should account for PCI and multiple ranges
 			 * of a given kind.
 			 */
-			if (fdt_pci_devmap(child, &fdt_devmap[i],
-			    MV_PCIE_IO_BASE, MV_PCIE_MEM_BASE) != 0)
+			if (fdt_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
+				    MV_PCI_VA_MEM_BASE) != 0)
 				return (ENXIO);
 			i += 2;
 		}
 
-	/*
-	 * CESA SRAM range.
-	 */
-	if ((child = OF_finddevice("sram")) != 0)
-		if (fdt_is_compatible(child, "mrvl,cesa-sram"))
-			goto moveon;
 
-	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
-		/* No CESA SRAM node. */
-		goto out;
-moveon:
-	if (i >= FDT_DEVMAP_MAX)
-		return (ENOMEM);
-
-	if (fdt_regsize(child, &base, &size) != 0)
-		return (EINVAL);
-
-	fdt_devmap[i].pd_va = MV_CESA_SRAM_BASE; /* XXX */
-	fdt_devmap[i].pd_pa = base;
-	fdt_devmap[i].pd_size = size;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
-
-out:
 	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 	return (0);
 }
@@ -816,3 +841,62 @@ bus_dma_get_range_nb(void)
 
 	return (0);
 }
+
+#if defined(CPU_MV_PJ4B)
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(cp15, db_show_cp15)
+{
+	u_int reg;
+
+	__asm __volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (reg));
+	db_printf("Cpu ID: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (reg));
+	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 0" : "=r" (reg));
+	db_printf("Ctrl: 0x%08x\n",reg);
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (reg));
+	db_printf("Aux Ctrl: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (reg));
+	db_printf("Processor Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 1" : "=r" (reg));
+	db_printf("Processor Feat 1: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 2" : "=r" (reg));
+	db_printf("Debug Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 3" : "=r" (reg));
+	db_printf("Auxiliary Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 4" : "=r" (reg));
+	db_printf("Memory Model Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 5" : "=r" (reg));
+	db_printf("Memory Model Feat 1: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 6" : "=r" (reg));
+	db_printf("Memory Model Feat 2: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 7" : "=r" (reg));
+	db_printf("Memory Model Feat 3: 0x%08x\n", reg);
+
+	__asm __volatile("mrc p15, 1, %0, c15, c2, 0" : "=r" (reg));
+	db_printf("Aux Func Modes Ctrl 0: 0x%08x\n",reg);
+	__asm __volatile("mrc p15, 1, %0, c15, c2, 1" : "=r" (reg));
+	db_printf("Aux Func Modes Ctrl 1: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 1, %0, c15, c12, 0" : "=r" (reg));
+	db_printf("CPU ID code extension: 0x%08x\n",reg);
+}
+
+DB_SHOW_COMMAND(vtop, db_show_vtop)
+{
+	u_int reg;
+
+	if (have_addr) {
+		__asm __volatile("mcr p15, 0, %0, c7, c8, 0" : : "r" (addr));
+		__asm __volatile("mrc p15, 0, %0, c7, c4, 0" : "=r" (reg));
+		db_printf("Physical address reg: 0x%08x\n",reg);
+	} else
+		db_printf("show vtop <virt_addr>\n");
+}
+#endif /* DDB */
+#endif /* CPU_MV_PJ4B */
+
