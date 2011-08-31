@@ -323,6 +323,8 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	    sc->sc_stats.tx_aggr.aggr_aggr_pkt);
 	printf("aggr single packet low hwq: %d\n",
 	    sc->sc_stats.tx_aggr.aggr_low_hwq_single_pkt);
+	printf("aggr sched, no work: %d\n",
+	    sc->sc_stats.tx_aggr.aggr_sched_nopkt);
 	for (i = 0; i < 64; i++) {
 		printf("%2d: %10d ", i, sc->sc_stats.tx_aggr.aggr_pkts[i]);
 		if (i % 4 == 3)

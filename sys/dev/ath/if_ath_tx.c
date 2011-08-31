@@ -3323,6 +3323,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * some packets in the aggregation queue.
 	 */
 	if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
+		sc->sc_stats.tx_aggr.aggr_sched_nopkt++;
 		return;
 	}
 
@@ -3335,9 +3336,6 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
-		 *
-		 * Since this touches tid->paused, it should lock
-		 * the TID lock before checking.
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, tid->tid, tid->paused);
