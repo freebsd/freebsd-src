@@ -41,6 +41,7 @@ struct ath_tx_aggr_stats {
 	u_int32_t	aggr_nonbaw_pkt;
 	u_int32_t	aggr_aggr_pkt;
 	u_int32_t	aggr_baw_closed_single_pkt;
+	u_int32_t	aggr_low_hwq_single_pkt;
 };
 
 struct ath_stats {

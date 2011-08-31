@@ -176,7 +176,6 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
-static void	ath_tx_sched_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *);
 static void	ath_stoprecv(struct ath_softc *);
@@ -399,7 +398,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
-	TASK_INIT(&sc->sc_txschedtask, 0, ath_tx_sched_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -2044,13 +2042,6 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
-
-	/*
-	 * Schedule the software TX process to occur
-	 * if we transmitted at least one packet.
-	 */
-	if (tx)
-		ath_tx_sched_proc_sched(sc, NULL);
 }
 
 static int
@@ -4520,41 +4511,6 @@ ath_tx_proc(void *arg, int npending)
 		ath_led_event(sc, sc->sc_txrix);
 
 	ath_start(ifp);
-}
-
-/*
- * TX scheduling
- *
- * This calls the per-TXQ TX queue packet scheduling code.
- *
- * Note: there's no need to handle the mcastq; it doesn't have
- * a software TID queue attached (as it's a software queue in
- * itself.)
- */
-static void
-ath_tx_sched_proc(void *arg, int npending)
-{
-	struct ath_softc *sc = arg;
-	struct ath_txq *txq;
-	int i;
-
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
-		txq = &sc->sc_txq[i];
-		if (ATH_TXQ_SETUP(sc, i)) {
-			ATH_TXQ_LOCK(txq);
-			ath_txq_sched(sc, txq);
-			ATH_TXQ_UNLOCK(txq);
-		}
-	}
-}
-
-/*
- * Schedule a TXQ scheduling task to occur.
- */
-void
-ath_tx_sched_proc_sched(struct ath_softc *sc, struct ath_txq *txq)
-{
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txschedtask);
 }
 
 /*

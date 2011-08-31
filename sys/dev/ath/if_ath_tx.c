@@ -872,20 +872,27 @@ ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
  *
  * The frame must already be setup; rate control must already have
  * been done.
+ *
+ * XXX since the TXQ lock is being held here (and I dislike holding
+ * it for this long when not doing software aggregation), later on
+ * break this function into "setup_normal" and "xmit_normal". The
+ * lock only needs to be held for the ath_tx_handoff call.
  */
 static void
 ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	/* Setup the descriptor before handoff */
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
 	ath_tx_chaindesclist(sc, bf);
 
-	ATH_TXQ_LOCK(txq);
+	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
-	ATH_TXQ_UNLOCK(txq);
 }
 
 
@@ -1371,26 +1378,24 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * If it's a BAR frame, do a direct dispatch to the
 	 * destination hardware queue. Don't bother software
 	 * queuing it, as the TID will now be paused.
+	 * Sending a BAR frame can occur from the net80211 txa timer
+	 * (ie, retries) or from the ath txtask (completion call.)
+	 * It queues directly to hardware because the TID is paused
+	 * at this point (and won't be unpaused until the BAR has
+	 * either been TXed successfully or max retries has been
+	 * reached.)
 	 */
 	if (txq == &avp->av_mcastq) {
+		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
+		ATH_TXQ_UNLOCK(txq);
 	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
-		/*
-		 * XXX The following is dirty but needed for now.
-		 *
-		 * Sending a BAR frame can occur from the net80211 txa timer
-		 * (ie, retries) or from the ath txtask (completion call.)
-		 * It queues directly to hardware because the TID is paused
-		 * at this point (and won't be unpaused until the BAR has
-		 * either been TXed successfully or max retries has been
-		 * reached.)
-		 *
-		 * TODO: sending a BAR should be done at the management rate!
-		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: BAR: TX'ing direct\n", __func__);
+		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
+		ATH_TXQ_UNLOCK(txq);
 	} else {
 		/* add to software queue */
 		ath_tx_swq(sc, ni, txq, bf);
@@ -1400,7 +1405,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
+	ATH_TXQ_LOCK(txq);
 	ath_tx_xmit_normal(sc, txq, bf);
+	ATH_TXQ_UNLOCK(txq);
 #endif
 
 	return 0;
@@ -1603,9 +1610,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: dooverride=%d\n",
 	    __func__, do_override);
 
-	if (do_override)
+	if (do_override) {
+		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
-	else {
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
+	} else {
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 	}
@@ -1669,9 +1678,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_wd_timer = 5;
 	ifp->if_opackets++;
 	sc->sc_stats.ast_tx_raw++;
-
-	/* Schedule a TX scheduler task call to occur */
-	ath_tx_sched_proc_sched(sc, NULL);
 
 	return 0;
 bad2:
@@ -1965,9 +1971,63 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 }
 
 /*
- * Queue the given packet on the relevant software queue.
- *
- * This however doesn't queue the packet to the hardware!
+ * Attempt to direct dispatch an aggregate frame to hardware.
+ * If the frame is out of BAW, queue.
+ * Otherwise, schedule it as a single frame.
+ */
+static void
+ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
+{
+	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
+	struct ath_txq *txq = bf->bf_state.bfs_txq;
+	struct ieee80211_tx_ampdu *tap;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+
+	/* paused? queue */
+	if (tid->paused) {
+		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		return;
+	}
+
+	/* outside baw? queue */
+	if (bf->bf_state.bfs_dobaw &&
+	    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+	    SEQNO(bf->bf_state.bfs_seqno)))) {
+		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		return;
+	}
+
+	/* Direct dispatch to hardware */
+	ath_tx_set_rtscts(sc, bf);
+	ath_tx_setds(sc, bf);
+	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
+	ath_tx_chaindesclist(sc, bf);
+
+	/* Statistics */
+	sc->sc_stats.tx_aggr.aggr_low_hwq_single_pkt++;
+
+	/* Track per-TID hardware queue depth correctly */
+	tid->hwq_depth++;
+
+	/* Add to BAW */
+	ath_tx_addto_baw(sc, an, tid, bf);
+	bf->bf_state.bfs_addedbaw = 1;
+
+	/* Set completion handler, multi-frame aggregate or not */
+	bf->bf_comp = ath_tx_aggr_comp;
+
+	/* Hand off to hardware */
+	ath_tx_handoff(sc, txq, bf);
+}
+
+/*
+ * Attempt to send the packet.
+ * If the queue isn't busy, direct-dispatch.
+ * If the queue is busy enough, queue the given packet on the
+ *  relevant software queue.
  */
 void
 ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
@@ -1993,10 +2053,31 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
 
-	/* Queue frame to the tail of the software queue */
+	/*
+	 * If the hardware queue isn't busy, queue it directly.
+	 * If the hardware queue is busy, queue it.
+	 * If the TID is paused or the traffic it outside BAW, software
+	 * queue it.
+	 */
 	ATH_TXQ_LOCK(txq);
-	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
-	ath_tx_tid_sched(sc, an, tid);
+	if (atid->paused) {
+		/* TID is paused, queue */
+		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
+		/* AMPDU pending; queue */
+		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+	} else if (txq->axq_depth < sc->sc_hwq_limit &&
+	    ath_tx_ampdu_running(sc, an, tid)) {
+		/* AMPDU running, attempt direct dispatch */
+		ath_tx_xmit_aggr(sc, an, bf);
+	} else if (txq->axq_depth < sc->sc_hwq_limit) {
+		/* AMPDU not running, attempt direct dispatch */
+		ath_tx_xmit_normal(sc, txq, bf);
+	} else {
+		/* Busy; queue */
+		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ath_tx_tid_sched(sc, an, tid);
+	}
 	ATH_TXQ_UNLOCK(txq);
 }
 
@@ -2087,7 +2168,6 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	}
 
 	ath_tx_tid_sched(sc, tid->an, tid->tid);
-	ath_tx_sched_proc_sched(sc, txq);
 }
 
 static void
