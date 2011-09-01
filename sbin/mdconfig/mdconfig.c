@@ -38,6 +38,7 @@ static enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 static int nflag;
 
 static void usage(void);
+static void md_set_file(const char *);
 static int md_find(char *, const char *);
 static int md_query(char *name);
 static int md_list(char *units, int opt);
@@ -59,7 +60,8 @@ usage()
 "                [-s size] [-S sectorsize] [-u unit]\n"
 "                [-x sectors/track] [-y heads/cyl]\n"
 "       mdconfig -d -u unit [-o [no]force]\n"
-"       mdconfig -l [-v] [-n] [-u unit]\n");
+"       mdconfig -l [-v] [-n] [-u unit]\n"
+"       mdconfig file\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
@@ -82,10 +84,7 @@ main(int argc, char **argv)
 		err(1, "could not allocate memory");
 	vflag = 0;
 	bzero(mdio.md_file, PATH_MAX);
-	for (;;) {
-		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:vx:y:");
-		if (ch == -1)
-			break;
+	while ((ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:vx:y:")) != -1) {
 		switch (ch) {
 		case 'a':
 			if (cmdline != 0)
@@ -141,23 +140,9 @@ main(int argc, char **argv)
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 				cmdline = 2;
 			}
- 			if (cmdline != 2)
- 				usage();
-			if (realpath(optarg, mdio.md_file) == NULL) {
-				err(1, "could not find full path for %s",
-				    optarg);
-			}
-			fd = open(mdio.md_file, O_RDONLY);
-			if (fd < 0)
-				err(1, "could not open %s", optarg);
-			else if (mdio.md_mediasize == 0) {
-				struct stat sb;
-
-				if (fstat(fd, &sb) == -1)
-					err(1, "could not stat %s", optarg);
-				mdio.md_mediasize = sb.st_size;
-			}
-			close(fd);
+			if (cmdline != 2)
+				usage();
+			md_set_file(optarg);
 			break;
 		case 'o':
 			if (action == DETACH) {
@@ -267,6 +252,19 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+
+	argc -= optind;
+	argv += optind;
+	if (action == UNSET) {
+		if (argc != 1)
+			usage();
+		action = ATTACH;
+		mdio.md_type = MD_VNODE;
+		mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+		cmdline = 2;
+		md_set_file(*argv);
+	}
+
 	mdio.md_version = MDIOVERSION;
 
 	if (!kld_isloaded("g_md") && kld_load("geom_md") == -1)
@@ -294,7 +292,7 @@ main(int argc, char **argv)
 	}
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT) {
-			/* 
+			/*
 			 * Listing all devices. This is why we pass NULL
 			 * together with OPT_LIST.
 			 */
@@ -320,6 +318,26 @@ main(int argc, char **argv)
 		usage();
 	close (fd);
 	return (0);
+}
+
+static void
+md_set_file(const char *fn)
+{
+	struct stat sb;
+	int fd;
+
+	if (realpath(fn, mdio.md_file) == NULL)
+		err(1, "could not find full path for %s", fn);
+	fd = open(mdio.md_file, O_RDONLY);
+	if (fd < 0)
+		err(1, "could not open %s", fn);
+	if (fstat(fd, &sb) == -1)
+		err(1, "could not stat %s", fn);
+	if (!S_ISREG(sb.st_mode))
+		errx(1, "%s is not a regular file", fn);
+	if (mdio.md_mediasize == 0)
+		mdio.md_mediasize = sb.st_size;
+	close(fd);
 }
 
 /*
