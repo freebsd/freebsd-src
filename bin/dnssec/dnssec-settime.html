@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009-2011 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dnssec-settime.html,v 1.14 2010-08-17 01:15:26 tbox Exp $ -->
+<!-- $Id: dnssec-settime.html,v 1.14.70.1 2011-03-22 02:37:44 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-settime</code>  [<code class="option">-f</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] {keyfile}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543419"></a><h2>DESCRIPTION</h2>
+<a name="id2543422"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-settime</strong></span>
       reads a DNSSEC private key file and sets the key timing metadata
       as specified by the <code class="option">-P</code>, <code class="option">-A</code>,
@@ -56,7 +56,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543467"></a><h2>OPTIONS</h2>
+<a name="id2543470"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-f</span></dt>
 <dd><p>
@@ -65,7 +65,9 @@
             fail when attempting to update a legacy key.  With this option,
             the key will be recreated in the new format, but with the
             original key data retained.  The key's creation date will be
-            set to the present time. 
+            set to the present time.  If no other values are specified, 
+            then the key's publication and activation dates will also 
+            be set to the present time.
 	  </p></dd>
 <dt><span class="term">-K <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
@@ -87,7 +89,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543559"></a><h2>TIMING OPTIONS</h2>
+<a name="id2543562"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -166,7 +168,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543698"></a><h2>PRINTING OPTIONS</h2>
+<a name="id2543701"></a><h2>PRINTING OPTIONS</h2>
 <p>
       <span><strong class="command">dnssec-settime</strong></span> can also be used to print the
       timing metadata associated with a key.
@@ -192,7 +194,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543912"></a><h2>SEE ALSO</h2>
+<a name="id2543915"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
@@ -200,7 +202,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543945"></a><h2>AUTHOR</h2>
+<a name="id2543948"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.h,v 1.14 2011-01-13 08:50:29 tbox Exp $ */
+/* $Id: sdlz.h,v 1.14.8.2 2011-03-17 23:47:06 tbox Exp $ */
 
 /*! \file dns/sdlz.h */
 
@@ -317,25 +317,33 @@ dns_sdlzunregister(dns_sdlzimplementation_t **sdlzimp);
  * function is called.
  */
 
-isc_result_t
-dns_sdlz_putnamedrr(dns_sdlzallnodes_t *allnodes, const char *name,
-		   const char *type, dns_ttl_t ttl, const char *data);
+typedef isc_result_t dns_sdlz_putnamedrr_t(dns_sdlzallnodes_t *allnodes,
+					   const char *name,
+					   const char *type,
+					   dns_ttl_t ttl,
+					   const char *data);
+dns_sdlz_putnamedrr_t dns_sdlz_putnamedrr;
+
 /*%<
  * Add a single resource record to the allnodes structure to be later
  * parsed into a zone transfer response.
  */
 
-isc_result_t
-dns_sdlz_putrr(dns_sdlzlookup_t *lookup, const char *type, dns_ttl_t ttl,
-	      const char *data);
+typedef isc_result_t dns_sdlz_putrr_t(dns_sdlzlookup_t *lookup,
+				      const char *type,
+				      dns_ttl_t ttl,
+				      const char *data);
+dns_sdlz_putrr_t dns_sdlz_putrr;
 /*%<
  * Add a single resource record to the lookup structure to be later
  * parsed into a query response.
  */
 
-isc_result_t
-dns_sdlz_putsoa(dns_sdlzlookup_t *lookup, const char *mname, const char *rname,
-	       isc_uint32_t serial);
+typedef isc_result_t dns_sdlz_putsoa_t(dns_sdlzlookup_t *lookup,
+				       const char *mname,
+				       const char *rname,
+				       isc_uint32_t serial);
+dns_sdlz_putsoa_t dns_sdlz_putsoa;
 /*%<
  * This function may optionally be called from the 'authority'
  * callback to simplify construction of the SOA record for 'zone'.  It
@@ -347,9 +355,11 @@ dns_sdlz_putsoa(dns_sdlzlookup_t *lookup, const char *mname, const char *rname,
  */
 
 
-isc_result_t
-dns_sdlz_setdb(dns_dlzdb_t *dlzdatabase, dns_rdataclass_t rdclass,
-	       dns_name_t *name, dns_db_t **dbp);
+typedef isc_result_t dns_sdlz_setdb_t(dns_dlzdb_t *dlzdatabase,
+				      dns_rdataclass_t rdclass,
+				      dns_name_t *name,
+				      dns_db_t **dbp);
+dns_sdlz_setdb_t dns_sdlz_setdb;
 /*%<
  * Create the database pointers for a writeable SDLZ zone
  */
