@@ -1,6 +1,10 @@
 Things to debug!
 ----------------
 
+< adrian> oh that's a fun bug. if I trigger A-MPDU using an aggregate UDP TX, I'm out of buffers
+< adrian> (as they're all locked up in pending queues)
+< adrian> so I can't send the ADDBA. :P
+
 * Write something in ath_tx_default_comp() that ensures the buffer is unlinked
   (ie, not part of an aggregate)
   - Done
