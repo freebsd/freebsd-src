@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.c,v 1.73 2010-11-17 23:47:09 tbox Exp $ */
+/* $Id: sockaddr.c,v 1.73.38.2 2011-02-28 01:20:03 tbox Exp $ */
 
 /*! \file */
 
@@ -181,6 +181,9 @@ void
 isc_sockaddr_format(const isc_sockaddr_t *sa, char *array, unsigned int size) {
 	isc_result_t result;
 	isc_buffer_t buf;
+
+	if (size == 0U)
+		return;
 
 	isc_buffer_init(&buf, array, size);
 	result = isc_sockaddr_totext(sa, &buf);

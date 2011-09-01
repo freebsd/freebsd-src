@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-settime.c,v 1.28 2010-12-19 07:29:36 each Exp $ */
+/* $Id: dnssec-settime.c,v 1.28.16.3 2011-06-02 20:24:11 each Exp $ */
 
 /*! \file */
 
@@ -81,8 +81,7 @@ usage(void) {
 						     "deletion date\n");
 	fprintf(stderr, "Printing options:\n");
 	fprintf(stderr, "    -p C/P/A/R/I/D/all: print a particular time "
-						"value or values "
-						"[default: all]\n");
+						"value or values\n");
 	fprintf(stderr, "    -u:                 print times in unix epoch "
 						"format\n");
 	fprintf(stderr, "Output:\n");
@@ -512,6 +511,16 @@ main(int argc, char **argv) {
 		dst_key_settime(key, DST_TIME_DELETE, del);
 	else if (unsetdel)
 		dst_key_unsettime(key, DST_TIME_DELETE);
+
+	/*
+	 * No metadata changes were made but we're forcing an upgrade
+	 * to the new format anyway: use "-P now -A now" as the default
+	 */
+	if (force && !changed) {
+		dst_key_settime(key, DST_TIME_PUBLISH, now);
+		dst_key_settime(key, DST_TIME_ACTIVATE, now);
+		changed = ISC_TRUE;
+	}
 
 	/*
 	 * Print out time values, if -p was used.

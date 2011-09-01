@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.104 2010-11-17 23:47:08 tbox Exp $ */
+/* $Id: os.c,v 1.104.38.3 2011-03-02 00:04:01 marka Exp $ */
 
 /*! \file */
 
@@ -790,6 +790,9 @@ ns_os_openfile(const char *filename, mode_t mode, isc_boolean_t switch_user) {
 	free(f);
 
 	if (switch_user && runas_pw != NULL) {
+#ifndef HAVE_LINUXTHREADS
+		gid_t oldgid = getgid();
+#endif
 		/* Set UID/GID to the one we'll be running with eventually */
 		setperms(runas_pw->pw_uid, runas_pw->pw_gid);
 
@@ -797,7 +800,7 @@ ns_os_openfile(const char *filename, mode_t mode, isc_boolean_t switch_user) {
 
 #ifndef HAVE_LINUXTHREADS
 		/* Restore UID/GID to root */
-		setperms(0, 0);
+		setperms(0, oldgid);
 #endif /* HAVE_LINUXTHREADS */
 
 		if (fd == -1) {
@@ -950,7 +953,7 @@ ns_os_shutdownmsg(char *command, isc_buffer_t *text) {
 		     isc_buffer_availablelength(text),
 		     "pid: %ld", (long)pid);
 	/* Only send a message if it is complete. */
-	if (n < isc_buffer_availablelength(text))
+	if (n > 0 && n < isc_buffer_availablelength(text))
 		isc_buffer_add(text, n);
 }
 
