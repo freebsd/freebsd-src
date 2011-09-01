@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.c,v 1.53 2009-01-17 23:47:42 tbox Exp $ */
+/* $Id: acl.c,v 1.53.426.2 2011-06-17 23:47:11 tbox Exp $ */
 
 /*! \file */
 
@@ -99,6 +99,7 @@ static isc_result_t
 dns_acl_anyornone(isc_mem_t *mctx, isc_boolean_t neg, dns_acl_t **target) {
 	isc_result_t result;
 	dns_acl_t *acl = NULL;
+
 	result = dns_acl_create(mctx, 0, &acl);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -341,7 +342,6 @@ dns_acl_merge(dns_acl_t *dest, dns_acl_t *source, isc_boolean_t pos)
 		}
 	}
 
-
 	/*
 	 * Merge the iptables.  Make sure the destination ACL's
 	 * node_count value is set correctly afterward.
@@ -439,6 +439,7 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
 void
 dns_acl_attach(dns_acl_t *source, dns_acl_t **target) {
 	REQUIRE(DNS_ACL_VALID(source));
+
 	isc_refcount_increment(&source->refcount, NULL);
 	*target = source;
 }
@@ -446,6 +447,9 @@ dns_acl_attach(dns_acl_t *source, dns_acl_t **target) {
 static void
 destroy(dns_acl_t *dacl) {
 	unsigned int i;
+
+	INSIST(!ISC_LINK_LINKED(dacl, nextincache));
+
 	for (i = 0; i < dacl->length; i++) {
 		dns_aclelement_t *de = &dacl->elements[i];
 		if (de->type == dns_aclelementtype_keyname) {
@@ -470,7 +474,9 @@ void
 dns_acl_detach(dns_acl_t **aclp) {
 	dns_acl_t *acl = *aclp;
 	unsigned int refs;
+
 	REQUIRE(DNS_ACL_VALID(acl));
+
 	isc_refcount_decrement(&acl->refcount, &refs);
 	if (refs == 0)
 		destroy(acl);
@@ -590,6 +596,7 @@ dns_acl_isinsecure(const dns_acl_t *a) {
 isc_result_t
 dns_aclenv_init(isc_mem_t *mctx, dns_aclenv_t *env) {
 	isc_result_t result;
+
 	env->localhost = NULL;
 	env->localnets = NULL;
 	result = dns_acl_create(mctx, 0, &env->localhost);

@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.114 2010-12-22 09:00:40 marka Exp $
+# $Id: Makefile.in,v 1.114.14.2 2011-03-10 23:47:25 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -45,7 +45,7 @@ CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include -I. \
 		${ISCCFG_INCLUDES} ${ISCCC_INCLUDES} ${ISC_INCLUDES} \
 		${DLZDRIVER_INCLUDES} ${DBDRIVER_INCLUDES} @DST_OPENSSL_INC@
 
-CDEFINES =      @USE_DLZ@ @USE_PKCS11@ @USE_OPENSSL@
+CDEFINES =      @CONTRIB_DLZ@ @USE_PKCS11@ @USE_OPENSSL@
 
 CWARNINGS =
 
@@ -89,7 +89,7 @@ OBJS =		builtin.@O@ client.@O@ config.@O@ control.@O@ \
 		lwdgnba.@O@ lwdgrbn.@O@ lwdnoop.@O@ lwsearch.@O@ \
 		${DLZDRIVER_OBJS} ${DBDRIVER_OBJS}
 
-UOBJS =		unix/os.@O@
+UOBJS =		unix/os.@O@ unix/dlz_dlopen_driver.@O@
 
 SYMOBJS =	symtbl.@O@
 

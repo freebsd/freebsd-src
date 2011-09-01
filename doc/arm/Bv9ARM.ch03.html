@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch03.html,v 1.83 2011-01-21 01:14:13 tbox Exp $ -->
+<!-- $Id: Bv9ARM.ch03.html,v 1.83.8.1 2011-05-24 02:37:17 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -54,7 +54,7 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568364">Name Server Operations</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568370">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570385">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570378">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -490,11 +490,11 @@ zone "eng.example.com" {
                       </p>
 <p>
                         This command requires that the
-                        <span><strong class="command">auto-dnssec</strong></span> zone option to be set
-                        to <code class="literal">allow</code>,
-                        <code class="literal">maintain</code>, or
-                        <code class="literal">create</code>,  and also requires
-                        the zone to be configured to allow dynamic DNS.
+                        <span><strong class="command">auto-dnssec</strong></span> zone option be set
+                        to <code class="literal">allow</code> or
+                        <code class="literal">maintain</code>,
+                        and also requires the zone to be configured to
+                        allow dynamic DNS.
                         See <a href="Bv9ARM.ch06.html#dynamic_update_policies" title="Dynamic Update Policies">the section called &#8220;Dynamic Update Policies&#8221;</a> for
                         more details.
                       </p>
@@ -518,10 +518,10 @@ zone "eng.example.com" {
                       </p>
 <p>
                         This command requires that the
-                        <span><strong class="command">auto-dnssec</strong></span> zone option to
-                        be set to <code class="literal">maintain</code> or
-                        <code class="literal">create</code>, and also requires
-                        the zone to be configured to allow dynamic DNS.
+                        <span><strong class="command">auto-dnssec</strong></span> zone option
+                        be set to <code class="literal">maintain</code>,
+                        and also requires the zone to be configured to
+                        allow dynamic DNS.
                         See <a href="Bv9ARM.ch06.html#dynamic_update_policies" title="Dynamic Update Policies">the section called &#8220;Dynamic Update Policies&#8221;</a> for
                         more details.
                       </p>
@@ -873,7 +873,7 @@ controls {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570385"></a>Signals</h3></div></div></div>
+<a name="id2570378"></a>Signals</h3></div></div></div>
 <p>
           Certain UNIX signals cause the name server to take specific
           actions, as described in the following table.  These signals can
