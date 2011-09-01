@@ -940,7 +940,7 @@ decimal(const char *str, int *num, int deflt, uint32_t maxval)
 			return 0;
 		while ((c = *cp++)) {
 			if (c <= '9' && c >= '0') {
-				if (maxval > 0 && acc <= maxval)
+				if (acc <= maxval || maxval == 0)
 					acc = acc * 10 + c - '0';
 			} else
 				break;

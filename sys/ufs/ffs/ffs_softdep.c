@@ -6541,7 +6541,7 @@ trunc_pages(ip, length, extblocks, flags)
 	fs = ip->i_fs;
 	extend = OFF_TO_IDX(lblktosize(fs, -extblocks));
 	if ((flags & IO_EXT) != 0)
-		ffs_pages_remove(vp, extend, 0);
+		vn_pages_remove(vp, extend, 0);
 	if ((flags & IO_NORMAL) == 0)
 		return;
 	BO_LOCK(&vp->v_bufobj);
@@ -6567,7 +6567,7 @@ trunc_pages(ip, length, extblocks, flags)
 		end = OFF_TO_IDX(lblktosize(fs, lbn));
 	} else
 		end = extend;
-	ffs_pages_remove(vp, OFF_TO_IDX(OFF_MAX), end);
+	vn_pages_remove(vp, OFF_TO_IDX(OFF_MAX), end);
 }
 
 /*

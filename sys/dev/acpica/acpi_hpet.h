@@ -62,4 +62,6 @@
 #define	HPET_TIMER_FSB_VAL(x)	((x) * 0x20 + 0x110)
 #define	HPET_TIMER_FSB_ADDR(x)	((x) * 0x20 + 0x114)
 
+#define	HPET_MIN_CYCLES		128	/* Period considered reliable. */
+
 #endif /* !__ACPI_HPET_H__ */

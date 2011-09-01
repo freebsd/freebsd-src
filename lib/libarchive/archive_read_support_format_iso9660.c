@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2009 Andreas Henriksson <andreas@fatal.se>
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -261,13 +261,17 @@ struct file_info {
 	struct file_info	*use_next;
 	struct file_info	*parent;
 	struct file_info	*next;
+	struct file_info	*re_next;
 	int		 subdirs;
 	uint64_t	 key;		/* Heap Key.			*/
 	uint64_t	 offset;	/* Offset on disk.		*/
 	uint64_t	 size;		/* File size in bytes.		*/
 	uint32_t	 ce_offset;	/* Offset of CE.		*/
 	uint32_t	 ce_size;	/* Size of CE.			*/
+	char		 rr_moved;	/* Flag to rr_moved.		*/
+	char		 rr_moved_has_re_only;
 	char		 re;		/* Having RRIP "RE" extension.	*/
+	char		 re_descendant;
 	uint64_t	 cl_offset;	/* Having RRIP "CL" extension.	*/
 	int		 birthtime_is_set;
 	time_t		 birthtime;	/* File created time.		*/
@@ -294,7 +298,10 @@ struct file_info {
 		struct content	*first;
 		struct content	**last;
 	} contents;
-	char		 exposed;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	} rede_files;
 };
 
 struct heap_queue {
@@ -317,8 +324,6 @@ struct iso9660 {
 
 	unsigned char	suspOffset;
 	struct file_info *rr_moved;
-	struct heap_queue		 re_dirs;
-	struct heap_queue		 cl_files;
 	struct read_ce_queue {
 		struct read_ce_req {
 			uint64_t	 offset;/* Offset of CE on disk. */
@@ -337,6 +342,10 @@ struct iso9660 {
 		struct file_info	*first;
 		struct file_info	**last;
 	}	cache_files;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	}	re_files;
 
 	uint64_t current_position;
 	ssize_t	logical_block_size;
@@ -377,7 +386,8 @@ static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isSVD(struct iso9660 *, const unsigned char *);
 static int	isEVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
-static struct file_info *next_cache_entry(struct iso9660 *iso9660);
+static int	next_cache_entry(struct archive_read *, struct iso9660 *,
+		    struct file_info **);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
 static struct file_info *
@@ -400,9 +410,11 @@ static void	parse_rockridge_ZF1(struct file_info *,
 static void	register_file(struct iso9660 *, struct file_info *);
 static void	release_files(struct iso9660 *);
 static unsigned	toi(const void *p, int n);
+static inline void re_add_entry(struct iso9660 *, struct file_info *);
+static inline struct file_info * re_get_entry(struct iso9660 *);
+static inline int rede_add_entry(struct file_info *);
+static inline struct file_info * rede_get_entry(struct file_info *);
 static inline void cache_add_entry(struct iso9660 *iso9660,
-		    struct file_info *file);
-static inline void cache_add_to_next_of_parent(struct iso9660 *iso9660,
 		    struct file_info *file);
 static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
 static void	heap_add_entry(struct heap_queue *heap,
@@ -430,6 +442,8 @@ archive_read_support_format_iso9660(struct archive *_a)
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
+	iso9660->re_files.first = NULL;
+	iso9660->re_files.last = &(iso9660->re_files.first);
 	/* Enable to support Joliet extensions by default.	*/
 	iso9660->opt_support_joliet = 1;
 	/* Enable to support Rock Ridge extensions by default.	*/
@@ -975,42 +989,38 @@ read_children(struct archive_read *a, struct file_info *parent)
 			child = parse_file_info(a, parent, p);
 			if (child == NULL)
 				return (ARCHIVE_FATAL);
-			if (child->cl_offset)
-				heap_add_entry(&(iso9660->cl_files),
-				    child, child->cl_offset);
-			else {
-				if (child->multi_extent || multi != NULL) {
-					struct content *con;
+			if (child->cl_offset == 0 &&
+			    (child->multi_extent || multi != NULL)) {
+				struct content *con;
 
-					if (multi == NULL) {
-						multi = child;
-						multi->contents.first = NULL;
-						multi->contents.last =
-						    &(multi->contents.first);
-					}
-					con = malloc(sizeof(struct content));
-					if (con == NULL) {
-						archive_set_error(
-						    &a->archive, ENOMEM,
-						    "No memory for "
-						    "multi extent");
-						return (ARCHIVE_FATAL);
-					}
-					con->offset = child->offset;
-					con->size = child->size;
-					con->next = NULL;
-					*multi->contents.last = con;
-					multi->contents.last = &(con->next);
-					if (multi == child)
-						add_entry(iso9660, child);
-					else {
-						multi->size += child->size;
-						if (!child->multi_extent)
-							multi = NULL;
-					}
-				} else
+				if (multi == NULL) {
+					multi = child;
+					multi->contents.first = NULL;
+					multi->contents.last =
+					    &(multi->contents.first);
+				}
+				con = malloc(sizeof(struct content));
+				if (con == NULL) {
+					archive_set_error(
+					    &a->archive, ENOMEM,
+					    "No memory for "
+					    "multi extent");
+					return (ARCHIVE_FATAL);
+				}
+				con->offset = child->offset;
+				con->size = child->size;
+				con->next = NULL;
+				*multi->contents.last = con;
+				multi->contents.last = &(con->next);
+				if (multi == child)
 					add_entry(iso9660, child);
-			}
+				else {
+					multi->size += child->size;
+					if (!child->multi_extent)
+						multi = NULL;
+				}
+			} else
+				add_entry(iso9660, child);
 		}
 	}
 
@@ -1022,102 +1032,12 @@ read_children(struct archive_read *a, struct file_info *parent)
 }
 
 static int
-relocate_dir(struct iso9660 *iso9660, struct file_info *file)
-{
-	struct file_info *re;
-
-	re = heap_get_entry(&(iso9660->re_dirs));
-	while (re != NULL && re->offset < file->cl_offset) {
-		/* This case is wrong pattern.
-		 * But dont't reject this directory entry to be robust. */
-		cache_add_entry(iso9660, re);
-		re = heap_get_entry(&(iso9660->re_dirs));
-	}
-	if (re == NULL)
-		/* This case is wrong pattern. */
-		return (0);
-	if (re->offset == file->cl_offset) {
-		re->parent->subdirs--;
-		re->parent = file->parent;
-		re->parent->subdirs++;
-		cache_add_to_next_of_parent(iso9660, re);
-		return (1);
-	} else
-		/* This case is wrong pattern. */
-		heap_add_entry(&(iso9660->re_dirs), re, re->offset);
-	return (0);
-}
-
-static int
-read_entries(struct archive_read *a)
-{
-	struct iso9660 *iso9660;
-	struct file_info *file;
-	int r;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
-
-	while ((file = next_entry(iso9660)) != NULL &&
-	    (file->mode & AE_IFMT) == AE_IFDIR) {
-		r = read_children(a, file);
-		if (r != ARCHIVE_OK)
-			return (r);
-
-		if (iso9660->seenRockridge &&
-		    file->parent != NULL &&
-		    file->parent->parent == NULL &&
-		    iso9660->rr_moved == NULL &&
-		    (strcmp(file->name.s, "rr_moved") == 0 ||
-		     strcmp(file->name.s, ".rr_moved") == 0)) {
-			iso9660->rr_moved = file;
-		} else if (file->re)
-			heap_add_entry(&(iso9660->re_dirs), file,
-			    file->offset);
-		else
-			cache_add_entry(iso9660, file);
-	}
-	if (file != NULL)
-		add_entry(iso9660, file);
-
-	if (iso9660->rr_moved != NULL) {
-		/*
-		 * Relocate directory which rr_moved has.
-		 */
-		while ((file = heap_get_entry(&(iso9660->cl_files))) != NULL)
-			relocate_dir(iso9660, file);
-
-		/* If rr_moved directory still has children,
-		 * Add rr_moved into pending_files to show
-		 */
-		if (iso9660->rr_moved->subdirs) {
-			cache_add_entry(iso9660, iso9660->rr_moved);
-			/* If entries which have "RE" extension are still
-			 * remaining(this case is unlikely except ISO image
-			 * is broken), the entries won't be exposed. */
-			while ((file = heap_get_entry(&(iso9660->re_dirs))) != NULL)
-				cache_add_entry(iso9660, file);
-		} else
-			iso9660->rr_moved->parent->subdirs--;
-	} else {
-		/*
-		 * In case ISO image is broken. If the name of rr_moved
-		 * directory has been changed by damage, subdirectories
-		 * of rr_moved entry won't be exposed.
-		 */
-		while ((file = heap_get_entry(&(iso9660->re_dirs))) != NULL)
-			cache_add_entry(iso9660, file);
-	}
-
-	return (ARCHIVE_OK);
-}
-
-static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 	struct iso9660 *iso9660;
 	struct file_info *file;
-	int r, rd_r;
+	int r, rd_r = ARCHIVE_OK;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
@@ -1207,11 +1127,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			a->archive.archive_format_name =
 			    "ISO9660 with Rockridge extensions";
 		}
-		rd_r = read_entries(a);
-		if (rd_r == ARCHIVE_FATAL)
-			return (ARCHIVE_FATAL);
-	} else
-		rd_r = ARCHIVE_OK;
+	}
 
 	/* Get the next entry that appears after the current offset. */
 	r = next_entry_seek(a, iso9660, &file);
@@ -1324,7 +1240,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		/* Directory data has been read completely. */
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
-		file->exposed = 1;
 	}
 
 	if (rd_r != ARCHIVE_OK)
@@ -1651,10 +1566,6 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	archive_string_free(&iso9660->previous_pathname);
 	if (iso9660->pending_files.files)
 		free(iso9660->pending_files.files);
-	if (iso9660->re_dirs.files)
-		free(iso9660->re_dirs.files);
-	if (iso9660->cl_files.files)
-		free(iso9660->cl_files.files);
 #ifdef HAVE_ZLIB_H
 	free(iso9660->entry_zisofs.uncompressed_buffer);
 	free(iso9660->entry_zisofs.block_pointers);
@@ -1735,6 +1646,8 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	file->size = fsize;
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
+	file->rede_files.first = NULL;
+	file->rede_files.last = &(file->rede_files.first);
 
 	p = isodirrec + DR_name_offset;
 	/* Rockridge extensions (if any) follow name.  Compute this
@@ -1873,8 +1786,39 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	file->nlinks = 1;/* Reset nlink. we'll calculate it later. */
 	/* Tell file's parent how many children that parent has. */
-	if (parent != NULL && (flags & 0x02) && file->cl_offset == 0)
+	if (parent != NULL && (flags & 0x02))
 		parent->subdirs++;
+
+	if (iso9660->seenRockridge) {
+		if (parent != NULL && parent->parent == NULL &&
+		    (flags & 0x02) && iso9660->rr_moved == NULL &&
+		    (strcmp(file->name.s, "rr_moved") == 0 ||
+		     strcmp(file->name.s, ".rr_moved") == 0)) {
+			iso9660->rr_moved = file;
+			file->rr_moved = 1;
+			file->rr_moved_has_re_only = 1;
+			file->re = 0;
+			parent->subdirs--;
+		} else if (file->re) {
+			/* This file's parent is not rr_moved, clear invalid
+			 * "RE" mark. */
+			if (parent == NULL || parent->rr_moved == 0)
+				file->re = 0;
+			else if ((flags & 0x02) == 0) {
+				file->rr_moved_has_re_only = 0;
+				file->re = 0;
+			}
+		} else if (parent != NULL && parent->rr_moved)
+			file->rr_moved_has_re_only = 0;
+		else if (parent != NULL && (flags & 0x02) &&
+		    (parent->re || parent->re_descendant))
+			file->re_descendant = 1;
+		if (file->cl_offset != 0) {
+			parent->subdirs++;
+			/* To be appeared before other dirs. */
+			file->offset = file->number = file->cl_offset;
+		}
+	}
 
 #if DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
@@ -2489,10 +2433,12 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
     struct file_info **pfile)
 {
 	struct file_info *file;
+	int r;
 
-	*pfile = file = next_cache_entry(iso9660);
-	if (file == NULL)
-		return (ARCHIVE_EOF);
+	r = next_cache_entry(a, iso9660, pfile);
+	if (r != ARCHIVE_OK)
+		return (r);
+	file = *pfile;
 
 	/* Don't waste time seeking for zero-length bodies. */
 	if (file->size == 0)
@@ -2513,8 +2459,9 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	return (ARCHIVE_OK);
 }
 
-static struct file_info *
-next_cache_entry(struct iso9660 *iso9660)
+static int
+next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
+    struct file_info **pfile)
 {
 	struct file_info *file;
 	struct {
@@ -2526,21 +2473,128 @@ next_cache_entry(struct iso9660 *iso9660)
 
 	file = cache_get_entry(iso9660);
 	if (file != NULL) {
-		while (file->parent != NULL && !file->parent->exposed) {
-			/* If file's parent is not exposed, it's moved
-			 * to next entry of its parent. */
-			cache_add_to_next_of_parent(iso9660, file);
-			file = cache_get_entry(iso9660);
-		}
-		return (file);
+		*pfile = file;
+		return (ARCHIVE_OK);
 	}
 
-	file = next_entry(iso9660);
-	if (file == NULL)
-		return (NULL);
+	for (;;) {
+		struct file_info *re, *d;
+
+		*pfile = file = next_entry(iso9660);
+		if (file == NULL) {
+			/*
+			 * If directory entries all which are descendant of
+			 * rr_moved are stil remaning, expose their. 
+			 */
+			if (iso9660->re_files.first != NULL && 
+			    iso9660->rr_moved != NULL &&
+			    iso9660->rr_moved->rr_moved_has_re_only)
+				/* Expose "rr_moved" entry. */
+				cache_add_entry(iso9660, iso9660->rr_moved);
+			while ((re = re_get_entry(iso9660)) != NULL) {
+				/* Expose its descendant dirs. */
+				while ((d = rede_get_entry(re)) != NULL)
+					cache_add_entry(iso9660, d);
+			}
+			if (iso9660->cache_files.first != NULL)
+				return (next_cache_entry(a, iso9660, pfile));
+			return (ARCHIVE_EOF);
+		}
+
+		if (file->cl_offset) {
+			struct file_info *first_re = NULL;
+			int nexted_re = 0;
+
+			/*
+			 * Find "RE" dir for the current file, which
+			 * has "CL" flag.
+			 */
+			while ((re = re_get_entry(iso9660))
+			    != first_re) {
+				if (first_re == NULL)
+					first_re = re;
+				if (re->offset == file->cl_offset) {
+					re->parent->subdirs--;
+					re->parent = file->parent;
+					re->re = 0;
+					if (re->parent->re_descendant) {
+						nexted_re = 1;
+						re->re_descendant = 1;
+						if (rede_add_entry(re) < 0)
+							goto fatal_rr;
+						/* Move a list of descendants
+						 * to a new ancestor. */
+						while ((d = rede_get_entry(
+						    re)) != NULL)
+							if (rede_add_entry(d)
+							    < 0)
+								goto fatal_rr;
+						break;
+					}
+					/* Replace the current file
+					 * with "RE" dir */
+					*pfile = file = re;
+					/* Expose its descendant */
+					while ((d = rede_get_entry(
+					    file)) != NULL)
+						cache_add_entry(
+						    iso9660, d);
+					break;
+				} else
+					re_add_entry(iso9660, re);
+			}
+			if (nexted_re) {
+				/*
+				 * Do not expose this at this time
+				 * because we have not gotten its full-path
+				 * name yet.
+				 */
+				continue;
+			}
+		} else if ((file->mode & AE_IFMT) == AE_IFDIR) {
+			int r;
+
+			/* Read file entries in this dir. */
+			r = read_children(a, file);
+			if (r != ARCHIVE_OK)
+				return (r);
+
+			/*
+			 * Handle a special dir of Rockridge extensions,
+			 * "rr_moved".
+			 */
+			if (file->rr_moved) {
+				/*
+				 * If this has only the subdirectories which
+				 * have "RE" flags, do not expose at this time.
+				 */
+				if (file->rr_moved_has_re_only)
+					continue;
+				/* Otherwise expose "rr_moved" entry. */
+			} else if (file->re) {
+				/*
+				 * Do not expose this at this time
+				 * because we have not gotten its full-path
+				 * name yet.
+				 */
+				re_add_entry(iso9660, file);
+				continue;
+			} else if (file->re_descendant) {
+				/*
+				 * Do not expose this at this time
+				 * because we have not gotten its full-path
+				 * name yet.
+				 */
+				if (rede_add_entry(file) < 0)
+					goto fatal_rr;
+				continue;
+			}
+		}
+		break;
+	}
 
 	if ((file->mode & AE_IFMT) != AE_IFREG || file->number == -1)
-		return (file);
+		return (ARCHIVE_OK);
 
 	count = 0;
 	number = file->number;
@@ -2573,8 +2627,10 @@ next_cache_entry(struct iso9660 *iso9660)
 		file = next_entry(iso9660);
 	}
 
-	if (count == 0)
-		return (file);
+	if (count == 0) {
+		*pfile = file;
+		return ((file == NULL)?ARCHIVE_EOF:ARCHIVE_OK);
+	}
 	if (file->number == -1) {
 		file->next = NULL;
 		*empty_files.last = file;
@@ -2599,7 +2655,67 @@ next_cache_entry(struct iso9660 *iso9660)
 		*iso9660->cache_files.last = empty_files.first;
 		iso9660->cache_files.last = empty_files.last;
 	}
-	return (cache_get_entry(iso9660));
+	*pfile = cache_get_entry(iso9660);
+	return ((*pfile == NULL)?ARCHIVE_EOF:ARCHIVE_OK);
+
+fatal_rr:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Failed to connect 'CL' pointer to 'RE' rr_moved pointer of"
+	    "Rockridge extensions");
+	return (ARCHIVE_FATAL);
+}
+
+static inline void
+re_add_entry(struct iso9660 *iso9660, struct file_info *file)
+{
+	file->re_next = NULL;
+	*iso9660->re_files.last = file;
+	iso9660->re_files.last = &(file->re_next);
+}
+
+static inline struct file_info *
+re_get_entry(struct iso9660 *iso9660)
+{
+	struct file_info *file;
+
+	if ((file = iso9660->re_files.first) != NULL) {
+		iso9660->re_files.first = file->re_next;
+		if (iso9660->re_files.first == NULL)
+			iso9660->re_files.last =
+			    &(iso9660->re_files.first);
+	}
+	return (file);
+}
+
+static inline int
+rede_add_entry(struct file_info *file)
+{
+	struct file_info *re;
+
+	re = file->parent;
+	while (re != NULL && !re->re)
+		re = re->parent;
+	if (re == NULL)
+		return (-1);
+
+	file->re_next = NULL;
+	*re->rede_files.last = file;
+	re->rede_files.last = &(file->re_next);
+	return (0);
+}
+
+static inline struct file_info *
+rede_get_entry(struct file_info *re)
+{
+	struct file_info *file;
+
+	if ((file = re->rede_files.first) != NULL) {
+		re->rede_files.first = file->re_next;
+		if (re->rede_files.first == NULL)
+			re->rede_files.last =
+			    &(re->rede_files.first);
+	}
+	return (file);
 }
 
 static inline void
@@ -2608,15 +2724,6 @@ cache_add_entry(struct iso9660 *iso9660, struct file_info *file)
 	file->next = NULL;
 	*iso9660->cache_files.last = file;
 	iso9660->cache_files.last = &(file->next);
-}
-
-static inline void
-cache_add_to_next_of_parent(struct iso9660 *iso9660, struct file_info *file)
-{
-	file->next = file->parent->next;
-	file->parent->next = file;
-	if (iso9660->cache_files.last == &(file->parent->next))
-		iso9660->cache_files.last = &(file->next);
 }
 
 static inline struct file_info *

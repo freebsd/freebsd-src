@@ -2126,8 +2126,8 @@ pfsync_sendout(void)
 #else
 	struct ifnet *ifp = &sc->sc_if;
 #endif
-	struct mbuf *m;
 #endif
+	struct mbuf *m;
 	struct ip *ip;
 	struct pfsync_header *ph;
 	struct pfsync_subheader *subh;

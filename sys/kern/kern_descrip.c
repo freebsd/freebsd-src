@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pipe.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/protosw.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
@@ -120,6 +122,8 @@ static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
+static int	fill_procdesc_info(struct procdesc *pdp,
+    struct kinfo_file *kif);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -3056,6 +3060,12 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			tp = fp->f_data;
 			break;
 
+#ifdef PROCDESC
+		case DTYPE_PROCDESC:
+			kif->kf_type = KF_TYPE_PROCDESC;
+			break;
+#endif
+
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
 			break;
@@ -3217,6 +3227,9 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 		break;
 	case KF_TYPE_PTS:
 		error = fill_pts_info((struct tty *)data, kif);
+		break;
+	case KF_TYPE_PROCDESC:
+		error = fill_procdesc_info((struct procdesc *)data, kif);
 		break;
 	default:
 		error = 0;
@@ -3390,6 +3403,13 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			type = KF_TYPE_PTS;
 			data = fp->f_data;
 			break;
+
+#ifdef PROCDESC
+		case DTYPE_PROCDESC:
+			type = KF_TYPE_PROCDESC;
+			data = fp->f_data;
+			break;
+#endif
 
 		default:
 			type = KF_TYPE_UNKNOWN;
@@ -3586,6 +3606,16 @@ fill_pipe_info(struct pipe *pi, struct kinfo_file *kif)
 	return (0);
 }
 
+static int
+fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif)
+{
+
+	if (pdp == NULL)
+		return (1);
+	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
+}
+
 static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
     sysctl_kern_proc_filedesc, "Process filedesc entries");
 
@@ -3774,6 +3804,22 @@ badfo_close(struct file *fp, struct thread *td)
 	return (EBADF);
 }
 
+static int
+badfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
 	.fo_write = badfo_readwrite,
@@ -3783,8 +3829,25 @@ struct fileops badfileops = {
 	.fo_kqfilter = badfo_kqfilter,
 	.fo_stat = badfo_stat,
 	.fo_close = badfo_close,
+	.fo_chmod = badfo_chmod,
+	.fo_chown = badfo_chown,
 };
 
+int
+invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
 
 /*-------------------------------------------------------------------*/
 

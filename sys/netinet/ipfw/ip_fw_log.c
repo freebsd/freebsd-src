@@ -167,7 +167,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 {
 	char *action;
 	int limit_reached = 0;
-	char action2[40], proto[128], fragment[32];
+	char action2[92], proto[128], fragment[32];
 
 	if (V_fw_verbose == 0) {
 #ifndef WITHOUT_BPF
@@ -290,6 +290,21 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				    sa->sa.sin_port);
 			}
 			break;
+#ifdef INET6
+		case O_FORWARD_IP6: {
+			char buf[INET6_ADDRSTRLEN];
+			ipfw_insn_sa6 *sa = (ipfw_insn_sa6 *)cmd;
+			int len;
+
+			len = snprintf(SNPARGS(action2, 0), "Forward to [%s]",
+			    ip6_sprintf(buf, &sa->sa.sin6_addr));
+
+			if (sa->sa.sin6_port)
+				snprintf(SNPARGS(action2, len), ":%u",
+				    sa->sa.sin6_port);
+			}
+			break;
+#endif
 		case O_NETGRAPH:
 			snprintf(SNPARGS(action2, 0), "Netgraph %d",
 				cmd->arg1);
@@ -333,10 +348,14 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 #ifdef INET6
 		struct ip6_hdr *ip6 = NULL;
 		struct icmp6_hdr *icmp6;
+		u_short ip6f_mf;
 #endif
 		src[0] = '\0';
 		dst[0] = '\0';
 #ifdef INET6
+		ip6f_mf = offset & IP6F_MORE_FRAG;
+		offset &= IP6F_OFF_MASK;
+
 		if (IS_IP6_FLOW_ID(&(args->f_id))) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			snprintf(src, sizeof(src), "[%s]",
@@ -418,8 +437,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				    " (frag %08x:%d@%d%s)",
 				    args->f_id.extra,
 				    ntohs(ip6->ip6_plen) - hlen,
-				    ntohs(offset & IP6F_OFF_MASK) << 3,
-				    (offset & IP6F_MORE_FRAG) ? "+" : "");
+				    ntohs(offset) << 3, ip6f_mf ? "+" : "");
 		} else
 #endif
 		{

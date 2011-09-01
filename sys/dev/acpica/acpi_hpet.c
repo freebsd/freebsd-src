@@ -190,13 +190,10 @@ restart:
 		bus_write_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num),
 		    t->next);
 	}
-	if (fdiv < 5000) {
-		bus_read_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num));
-		now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
-		if ((int32_t)(now - t->next) >= 0) {
-			fdiv *= 2;
-			goto restart;
-		}
+	now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
+	if ((int32_t)(now - t->next + HPET_MIN_CYCLES) >= 0) {
+		fdiv *= 2;
+		goto restart;
 	}
 	return (0);
 }
@@ -679,7 +676,8 @@ hpet_attach(device_t dev)
 			t->et.et_quality -= 10;
 		t->et.et_frequency = sc->freq;
 		t->et.et_min_period.sec = 0;
-		t->et.et_min_period.frac = 0x00008000LLU << 32;
+		t->et.et_min_period.frac =
+		    (((uint64_t)(HPET_MIN_CYCLES * 2) << 32) / sc->freq) << 32;
 		t->et.et_max_period.sec = 0xfffffffeLLU / sc->freq;
 		t->et.et_max_period.frac =
 		    ((0xfffffffeLLU << 32) / sc->freq) << 32;
