@@ -1279,11 +1279,17 @@ pollrescan(struct thread *td)
 		if (si != NULL)
 			continue;
 		fp = fdp->fd_ofiles[fd->fd];
+#ifdef CAPABILITIES
+		if ((fp == NULL)
+		    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 		if (fp == NULL) {
+#endif
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
 		}
+
 		/*
 		 * Note: backend also returns POLLHUP and
 		 * POLLERR if appropriate.
@@ -1344,7 +1350,12 @@ pollscan(td, fds, nfd)
 			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
+#ifdef CAPABILITIES
+			if ((fp == NULL)
+			    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 			if (fp == NULL) {
+#endif
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
@@ -1477,6 +1488,23 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
 	mtx_unlock(sfp->sf_mtx);
 	uma_zfree(selfd_zone, sfp);
+}
+
+/* Drain the waiters tied to all the selfd belonging the specified selinfo. */
+void
+seldrain(sip)
+        struct selinfo *sip;
+{
+
+	/*
+	 * This feature is already provided by doselwakeup(), thus it is
+	 * enough to go for it.
+	 * Eventually, the context, should take care to avoid races
+	 * between thread calling select()/poll() and file descriptor
+	 * detaching, but, again, the races are just the same as
+	 * selwakeup().
+	 */
+        doselwakeup(sip, -1);
 }
 
 /*

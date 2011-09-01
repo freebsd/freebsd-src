@@ -57,6 +57,21 @@ struct pcb *kdb_thrctx = NULL;
 struct thread *kdb_thread = NULL;
 struct trapframe *kdb_frame = NULL;
 
+#ifdef BREAK_TO_DEBUGGER
+#define	KDB_BREAK_TO_DEBUGGER	1
+#else
+#define	KDB_BREAK_TO_DEBUGGER	0
+#endif
+
+#ifdef ALT_BREAK_TO_DEBUGGER
+#define	KDB_ALT_BREAK_TO_DEBUGGER	1
+#else
+#define	KDB_ALT_BREAK_TO_DEBUGGER	0
+#endif
+
+static int	kdb_break_to_debugger = KDB_BREAK_TO_DEBUGGER;
+static int	kdb_alt_break_to_debugger = KDB_ALT_BREAK_TO_DEBUGGER;
+
 KDB_BACKEND(null, NULL, NULL, NULL);
 SET_DECLARE(kdb_dbbe_set, struct kdb_dbbe);
 
@@ -86,6 +101,15 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
+
+SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_TUN, &kdb_break_to_debugger, 0, "Enable break to debugger");
+TUNABLE_INT("debug.kdb.break_to_debugger", &kdb_break_to_debugger);
+
+SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger, CTLTYPE_INT |
+    CTLFLAG_RW | CTLFLAG_TUN, &kdb_alt_break_to_debugger, 0,
+    "Enable alternative break to debugger");
+TUNABLE_INT("debug.kdb.alt_break_to_debugger", &kdb_alt_break_to_debugger);
 
 /*
  * Flag to indicate to debuggers why the debugger was entered.
@@ -241,7 +265,17 @@ enum {
 };
 
 int
-kdb_alt_break(int key, int *state)
+kdb_break(void)
+{
+
+	if (!kdb_break_to_debugger)
+		return (0);
+	kdb_enter(KDB_WHY_BREAK, "Break to debugger");
+	return (KDB_REQ_DEBUGGER);
+}
+
+static int
+kdb_alt_break_state(int key, int *state)
 {
 	int brk;
 
@@ -273,6 +307,53 @@ kdb_alt_break(int key, int *state)
 		break;
 	}
 	return (brk);
+}
+
+static int
+kdb_alt_break_internal(int key, int *state, int force_gdb)
+{
+	int brk;
+
+	if (!kdb_alt_break_to_debugger)
+		return (0);
+	brk = kdb_alt_break_state(key, state);
+	switch (brk) {
+	case KDB_REQ_DEBUGGER:
+		if (force_gdb)
+			kdb_dbbe_select("gdb");
+		kdb_enter(KDB_WHY_BREAK, "Break to debugger");
+		break;
+
+	case KDB_REQ_PANIC:
+		if (force_gdb)
+			kdb_dbbe_select("gdb");
+		kdb_panic("Panic sequence on console");
+		break;
+
+	case KDB_REQ_REBOOT:
+		kdb_reboot();
+		break;
+	}
+	return (0);
+}
+
+int
+kdb_alt_break(int key, int *state)
+{
+
+	return (kdb_alt_break_internal(key, state, 0));
+}
+
+/*
+ * This variation on kdb_alt_break() is used only by dcons, which has its own
+ * configuration flag to force GDB use regardless of the global KDB
+ * configuration.
+ */
+int
+kdb_alt_break_gdb(int key, int *state)
+{
+
+	return (kdb_alt_break_internal(key, state, 1));
 }
 
 /*

@@ -2017,6 +2017,27 @@ in6_localaddr(struct in6_addr *in6)
 	return (0);
 }
 
+/*
+ * Return 1 if an internet address is for the local host and configured
+ * on one of its interfaces.
+ */
+int
+in6_localip(struct in6_addr *in6)
+{
+	struct in6_ifaddr *ia;
+
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
+			IN6_IFADDR_RUNLOCK();
+			return (1);
+		}
+	}
+	IN6_IFADDR_RUNLOCK();
+	return (0);
+}
+
+
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {

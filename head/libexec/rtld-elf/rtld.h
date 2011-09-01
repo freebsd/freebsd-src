@@ -34,6 +34,7 @@
 
 #include <elf-hints.h>
 #include <link.h>
+#include <stdarg.h>
 #include <setjmp.h>
 #include <stddef.h>
 

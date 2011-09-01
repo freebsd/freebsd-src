@@ -49,6 +49,8 @@ struct test all_tests[] = {
 	TEST_INIT(capmode),
 	TEST_INIT(capabilities),
 	TEST_INIT(fcntl),
+	TEST_INIT(pdfork),
+	TEST_INIT(pdkill),
 	TEST_INIT(relative),
 	TEST_INIT(sysctl),
 };

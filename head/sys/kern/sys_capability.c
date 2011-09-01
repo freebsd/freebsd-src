@@ -161,6 +161,8 @@ static fo_poll_t capability_poll;
 static fo_kqfilter_t capability_kqfilter;
 static fo_stat_t capability_stat;
 static fo_close_t capability_close;
+static fo_chmod_t capability_chmod;
+static fo_chown_t capability_chown;
 
 static struct fileops capability_ops = {
 	.fo_read = capability_read,
@@ -171,6 +173,8 @@ static struct fileops capability_ops = {
 	.fo_kqfilter = capability_kqfilter,
 	.fo_stat = capability_stat,
 	.fo_close = capability_close,
+	.fo_chmod = capability_chmod,
+	.fo_chown = capability_chown,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
@@ -183,6 +187,8 @@ static struct fileops capability_ops_unpassable = {
 	.fo_kqfilter = capability_kqfilter,
 	.fo_stat = capability_stat,
 	.fo_close = capability_close,
+	.fo_chmod = capability_chmod,
+	.fo_chown = capability_chown,
 	.fo_flags = 0,
 };
 
@@ -482,6 +488,22 @@ capability_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 {
 
 	panic("capability_stat");
+}
+
+int
+capability_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	panic("capability_chmod");
+}
+
+int
+capability_chown(struct file *fp, uid_t uid, gid_t gid,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	panic("capability_chown");
 }
 
 #else /* !CAPABILITIES */

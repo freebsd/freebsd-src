@@ -72,6 +72,8 @@ struct fileops fifo_ops_f = {
 	.fo_kqfilter =  fifo_kqfilter_f,
 	.fo_stat =      fifo_stat_f,
 	.fo_close =     fifo_close_f,
+	.fo_chmod =	vn_chmod,
+	.fo_chown =	vn_chown,
 	.fo_flags =     DFLAG_PASSABLE
 };
 

@@ -605,7 +605,6 @@ MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 pfctlinput2.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
-MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \
@@ -1075,7 +1074,8 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
 MLINKS+=securelevel_gt.9 securelevel_ge.9
-MLINKS+=selrecord.9 selwakeup.9
+MLINKS+=selrecord.9 seldrain.9 \
+	selrecord.9 selwakeup.9
 MLINKS+=sema.9 sema_destroy.9 \
 	sema.9 sema_init.9 \
 	sema.9 sema_post.9 \

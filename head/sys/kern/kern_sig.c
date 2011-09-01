@@ -41,12 +41,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_core.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/capability.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/posix4.h>
 #include <sys/pioctl.h>
 #include <sys/racct.h>
@@ -1696,6 +1699,34 @@ kill(struct thread *td, struct kill_args *uap)
 		return (killpg1(td, uap->signum, -uap->pid, 0, &ksi));
 	}
 	/* NOTREACHED */
+}
+
+int
+pdkill(td, uap)
+	struct thread *td;
+	struct pdkill_args *uap;
+{
+#ifdef PROCDESC
+	struct proc *p;
+	int error;
+
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_FD(uap->fd);
+	if ((u_int)uap->signum > _SIG_MAXSIG)
+		return (EINVAL);
+
+	error = procdesc_find(td, uap->fd, CAP_PDKILL, &p);
+	if (error)
+		return (error);
+	AUDIT_ARG_PROCESS(p);
+	error = p_cansignal(td, p, uap->signum);
+	if (error == 0 && uap->signum)
+		psignal(p, uap->signum);
+	PROC_UNLOCK(p);
+	return (error);
+#else
+	return (ENOSYS);
+#endif
 }
 
 #if defined(COMPAT_43)

@@ -336,6 +336,12 @@ typedef int	(*mpo_posixsem_check_open_t)(struct ucred *cred,
 typedef int	(*mpo_posixsem_check_post_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct ksem *ks,
 		    struct label *kslabel);
+typedef int	(*mpo_posixsem_check_setmode_t)(struct ucred *cred,
+		    struct ksem *ks, struct label *shmlabel,
+		    mode_t mode);
+typedef int	(*mpo_posixsem_check_setowner_t)(struct ucred *cred,
+		    struct ksem *ks, struct label *shmlabel,
+		    uid_t uid, gid_t gid);
 typedef int	(*mpo_posixsem_check_stat_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct ksem *ks,
 		    struct label *kslabel);
@@ -354,6 +360,12 @@ typedef int	(*mpo_posixshm_check_mmap_t)(struct ucred *cred,
 		    int flags);
 typedef int	(*mpo_posixshm_check_open_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel);
+typedef int	(*mpo_posixshm_check_setmode_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel,
+		    mode_t mode);
+typedef int	(*mpo_posixshm_check_setowner_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel,
+		    uid_t uid, gid_t gid);
 typedef int	(*mpo_posixshm_check_stat_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct shmfd *shmfd,
 		    struct label *shmlabel);
@@ -791,6 +803,8 @@ struct mac_policy_ops {
 	mpo_posixsem_check_getvalue_t		mpo_posixsem_check_getvalue;
 	mpo_posixsem_check_open_t		mpo_posixsem_check_open;
 	mpo_posixsem_check_post_t		mpo_posixsem_check_post;
+	mpo_posixsem_check_setmode_t		mpo_posixsem_check_setmode;
+	mpo_posixsem_check_setowner_t		mpo_posixsem_check_setowner;
 	mpo_posixsem_check_stat_t		mpo_posixsem_check_stat;
 	mpo_posixsem_check_unlink_t		mpo_posixsem_check_unlink;
 	mpo_posixsem_check_wait_t		mpo_posixsem_check_wait;
@@ -800,6 +814,8 @@ struct mac_policy_ops {
 
 	mpo_posixshm_check_mmap_t		mpo_posixshm_check_mmap;
 	mpo_posixshm_check_open_t		mpo_posixshm_check_open;
+	mpo_posixshm_check_setmode_t		mpo_posixshm_check_setmode;
+	mpo_posixshm_check_setowner_t		mpo_posixshm_check_setowner;
 	mpo_posixshm_check_stat_t		mpo_posixshm_check_stat;
 	mpo_posixshm_check_truncate_t		mpo_posixshm_check_truncate;
 	mpo_posixshm_check_unlink_t		mpo_posixshm_check_unlink;

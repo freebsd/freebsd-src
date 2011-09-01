@@ -152,13 +152,26 @@ again:
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
-		if (args.next_hop == NULL)
+		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
 #ifndef IPFIREWALL_FORWARD
 		ret = EACCES;
 #else
 	    {
 		struct m_tag *fwd_tag;
+		size_t len;
+
+		KASSERT(args.next_hop == NULL || args.next_hop6 == NULL,
+		    ("%s: both next_hop=%p and next_hop6=%p not NULL", __func__,
+		     args.next_hop, args.next_hop6));
+#ifdef INET6
+		if (args.next_hop6 != NULL)
+			len = sizeof(struct sockaddr_in6);
+#endif
+#ifdef INET
+		if (args.next_hop != NULL)
+			len = sizeof(struct sockaddr_in);
+#endif
 
 		/* Incoming packets should not be tagged so we do not
 		 * m_tag_find. Outgoing packets may be tagged, so we
@@ -169,18 +182,28 @@ again:
 		if (fwd_tag != NULL) {
 			m_tag_unlink(*m0, fwd_tag);
 		} else {
-			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD,
-				sizeof(struct sockaddr_in), M_NOWAIT);
+			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD, len,
+			    M_NOWAIT);
 			if (fwd_tag == NULL) {
 				ret = EACCES;
 				break; /* i.e. drop */
 			}
 		}
-		bcopy(args.next_hop, (fwd_tag+1), sizeof(struct sockaddr_in));
+#ifdef INET6
+		if (args.next_hop6 != NULL) {
+			bcopy(args.next_hop6, (fwd_tag+1), len);
+			if (in6_localip(&args.next_hop6->sin6_addr))
+				(*m0)->m_flags |= M_FASTFWD_OURS;
+		}
+#endif
+#ifdef INET
+		if (args.next_hop != NULL) {
+			bcopy(args.next_hop, (fwd_tag+1), len);
+			if (in_localip(args.next_hop->sin_addr))
+				(*m0)->m_flags |= M_FASTFWD_OURS;
+		}
+#endif
 		m_tag_prepend(*m0, fwd_tag);
-
-		if (in_localip(args.next_hop->sin_addr))
-			(*m0)->m_flags |= M_FASTFWD_OURS;
 	    }
 #endif
 		break;

@@ -123,6 +123,8 @@ static struct fileops kqueueops = {
 	.fo_kqfilter = kqueue_kqfilter,
 	.fo_stat = kqueue_stat,
 	.fo_close = kqueue_close,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
@@ -1702,6 +1704,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	SLIST_REMOVE(&fdp->fd_kqlist, kq, kqueue, kq_list);
 	FILEDESC_XUNLOCK(fdp);
 
+	seldrain(&kq->kq_sel);
 	knlist_destroy(&kq->kq_sel.si_note);
 	mtx_destroy(&kq->kq_lock);
 	kq->kq_fdp = NULL;

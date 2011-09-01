@@ -107,6 +107,9 @@ static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
 static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
+static VNET_DEFINE(int, fw_permit_single_frag6) = 1;
+#define	V_fw_permit_single_frag6	VNET(fw_permit_single_frag6)
+
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
 #else
@@ -182,6 +185,9 @@ SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
     CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
     "Deny packets with unknown IPv6 Extension Headers");
+SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, permit_single_frag6,
+    CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_permit_single_frag6), 0,
+    "Permit single packet IPv6 fragments");
 #endif /* INET6 */
 
 SYSEND
@@ -790,6 +796,7 @@ set_match(struct ip_fw_args *args, int slot,
  *
  *	args->rule	Pointer to the last matching rule (in/out)
  *	args->next_hop	Socket we are forwarding to (out).
+ *	args->next_hop6	IPv6 next hop we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
  * 	args->rule.info	a cookie depending on rule action
  *
@@ -871,13 +878,14 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	we have a fragment at this offset of an IPv4 packet.
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
-	 *	For IPv6 offset == 0 means there is no Fragment Header. 
-	 *	If offset != 0 for IPv6 always use correct mask to
-	 *	get the correct offset because we add IP6F_MORE_FRAG
-	 *	to be able to dectect the first fragment which would
-	 *	otherwise have offset = 0.
+	 *	For IPv6 offset|ip6f_mf == 0 means there is no Fragment Header
+	 *	or there is a single packet fragement (fragement header added
+	 *	without needed).  We will treat a single packet fragment as if
+	 *	there was no fragment header (or log/block depending on the
+	 *	V_fw_permit_single_frag6 sysctl setting).
 	 */
 	u_short offset = 0;
+	u_short ip6f_mf = 0;
 
 	/*
 	 * Local copies of addresses. They are only valid if we have
@@ -971,7 +979,7 @@ do {								\
 		proto = ip6->ip6_nxt;
 
 		/* Search extension headers to find upper layer protocols */
-		while (ulp == NULL) {
+		while (ulp == NULL && offset == 0) {
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
@@ -1016,9 +1024,11 @@ do {								\
 					ext_hd |= EXT_RTHDR2;
 					break;
 				default:
-					printf("IPFW2: IPV6 - Unknown Routing "
-					    "Header type(%d)\n",
-					    ((struct ip6_rthdr *)ulp)->ip6r_type);
+					if (V_fw_verbose)
+						printf("IPFW2: IPV6 - Unknown "
+						    "Routing Header type(%d)\n",
+						    ((struct ip6_rthdr *)
+						    ulp)->ip6r_type);
 					if (V_fw_deny_unknown_exthdrs)
 					    return (IP_FW_DENY);
 					break;
@@ -1036,13 +1046,13 @@ do {								\
 				proto = ((struct ip6_frag *)ulp)->ip6f_nxt;
 				offset = ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_OFF_MASK;
-				/* Add IP6F_MORE_FRAG for offset of first
-				 * fragment to be != 0. */
-				offset |= ((struct ip6_frag *)ulp)->ip6f_offlg &
+				ip6f_mf = ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_MORE_FRAG;
-				if (offset == 0) {
-					printf("IPFW2: IPV6 - Invalid Fragment "
-					    "Header\n");
+				if (V_fw_permit_single_frag6 == 0 &&
+				    offset == 0 && ip6f_mf == 0) {
+					if (V_fw_verbose)
+						printf("IPFW2: IPV6 - Invalid "
+						    "Fragment Header\n");
 					if (V_fw_deny_unknown_exthdrs)
 					    return (IP_FW_DENY);
 					break;
@@ -1113,8 +1123,10 @@ do {								\
 				break;
 
 			default:
-				printf("IPFW2: IPV6 - Unknown Extension "
-				    "Header(%d), ext_hd=%x\n", proto, ext_hd);
+				if (V_fw_verbose)
+					printf("IPFW2: IPV6 - Unknown "
+					    "Extension Header(%d), ext_hd=%x\n",
+					     proto, ext_hd);
 				if (V_fw_deny_unknown_exthdrs)
 				    return (IP_FW_DENY);
 				PULLUP_TO(hlen, ulp, struct ip6_ext);
@@ -1676,7 +1688,7 @@ do {								\
 
 			case O_LOG:
 				ipfw_log(f, hlen, args, m,
-					    oif, offset, tablearg, ip);
+				    oif, offset | ip6f_mf, tablearg, ip);
 				match = 1;
 				break;
 
@@ -2269,6 +2281,23 @@ do {								\
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
 				break;
+
+#ifdef INET6
+			case O_FORWARD_IP6:
+				if (args->eh)	/* not valid on layer2 pkts */
+					break;
+				if (q == NULL || q->rule != f ||
+				    dyn_dir == MATCH_FORWARD) {
+					struct sockaddr_in6 *sin6;
+
+					sin6 = &(((ipfw_insn_sa6 *)cmd)->sa);
+					args->next_hop6 = sin6;
+				}
+				retval = IP_FW_PASS;
+				l = 0;		/* exit inner loop */
+				done = 1;	/* exit outer loop */
+				break;
+#endif
 
 			case O_NETGRAPH:
 			case O_NGTEE:

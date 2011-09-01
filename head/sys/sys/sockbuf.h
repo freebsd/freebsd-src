@@ -37,7 +37,7 @@
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
 
-#define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
+#define	SB_MAX		(2*1024*1024)	/* default for max chars in sockbuf */
 
 /*
  * Constants for sb_flags field of struct sockbuf.

@@ -2741,12 +2741,11 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 * Do basic access checking.
 	 */
 	if (!nd->nd_repstat && vnode_vtype(vp) != VREG) {
-	    if (vnode_vtype(vp) == VDIR)
-		nd->nd_repstat = NFSERR_ISDIR;
-	    else if (vnode_vtype(vp) == VLNK)
+		/*
+		 * The IETF working group decided that this is the correct
+		 * error return for all non-regular files.
+		 */
 		nd->nd_repstat = NFSERR_SYMLINK;
-	    else
-		nd->nd_repstat = NFSERR_INVAL;
 	}
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_WRITEACCESS))
 	    nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred,
