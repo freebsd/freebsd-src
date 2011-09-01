@@ -58,7 +58,8 @@
 		-e '/contrib\/zone-edit.sh/d;' \
 		configure.in Makefile.in */Makefile.in
 	
-	Remove mention of doxygen and related files from configure.in
+	Remove mention of doxygen, pkcs11, unit and related files from
+	configure.in
 
    Please do not commit this change. You only need this to generate config.h.
 
@@ -90,7 +91,7 @@
    Do not commit any other file that was modified or created in
    steps 6) or 7).
 
-12) cd src/lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
+12) cd ../../lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
 
 13) Test build the updated files with a clean /usr/obj and empty src.conf
 
