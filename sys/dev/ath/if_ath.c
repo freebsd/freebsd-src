@@ -3418,7 +3418,9 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		, 0
 	);
 
-	if (sc->sc_rxlink != NULL)
+	if (sc->sc_rxlink == NULL)
+		ath_hal_putrxbuf(sc->sc_ah, bf->bf_daddr);
+	else
 		*sc->sc_rxlink = bf->bf_daddr;
 	sc->sc_rxlink = &ds->ds_link;
 	return 0;
@@ -3931,6 +3933,11 @@ rx_next:
 	 */
 	if (sc->sc_kickpcu) {
 		sc->sc_kickpcu = 0;
+		/*
+		 * XXX this causes a 3ms delay; and shuts down a lof
+		 * XXX is it really needed? Or is it just enough to
+		 * XXX kick the PCU again to continue RXing?
+		 */
 		ath_stoprecv(sc);
 		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
 		if (ath_startrecv(sc) != 0) {
