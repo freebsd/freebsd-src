@@ -48,12 +48,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
-#define	TZ_ZEROC	2732
+#define	TZ_ZEROC			2732
+
+#define	THERM_STATUS_LOG		0x02
+#define	THERM_STATUS			0x01
+#define	THERM_STATUS_TEMP_SHIFT		16
+#define	THERM_STATUS_TEMP_MASK		0x7f
+#define	THERM_STATUS_RES_SHIFT		27
+#define	THERM_STATUS_RES_MASK		0x0f
+#define	THERM_STATUS_VALID_SHIFT	31
+#define	THERM_STATUS_VALID_MASK		0x01
 
 struct coretemp_softc {
 	device_t	sc_dev;
 	int		sc_tjmax;
-	struct sysctl_oid *sc_oid;
+	unsigned int	sc_throttle_log;
 };
 
 /*
@@ -64,8 +73,10 @@ static int	coretemp_probe(device_t dev);
 static int	coretemp_attach(device_t dev);
 static int	coretemp_detach(device_t dev);
 
-static int	coretemp_get_temp(device_t dev);
-static int	coretemp_get_temp_sysctl(SYSCTL_HANDLER_ARGS);
+static uint64_t	coretemp_get_thermal_msr(int cpu);
+static void	coretemp_clear_thermal_msr(int cpu);
+static int	coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS);
+static int	coretemp_throttle_log_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t coretemp_methods[] = {
 	/* Device interface */
@@ -83,8 +94,16 @@ static driver_t coretemp_driver = {
 	sizeof(struct coretemp_softc),
 };
 
+enum therm_info {
+	CORETEMP_TEMP,
+	CORETEMP_DELTA,
+	CORETEMP_RESOLUTION,
+	CORETEMP_TJMAX,
+};
+
 static devclass_t coretemp_devclass;
-DRIVER_MODULE(coretemp, cpu, coretemp_driver, coretemp_devclass, NULL, NULL);
+DRIVER_MODULE(coretemp, cpu, coretemp_driver, coretemp_devclass, NULL,
+    NULL);
 
 static void
 coretemp_identify(driver_t *driver, device_t parent)
@@ -135,6 +154,8 @@ coretemp_attach(device_t dev)
 	uint64_t msr;
 	int cpu_model, cpu_stepping;
 	int ret, tjtarget;
+	struct sysctl_oid *oid;
+	struct sysctl_ctx_list *ctx;
 
 	sc->sc_dev = dev;
 	pdev = device_get_parent(dev);
@@ -149,7 +170,7 @@ coretemp_attach(device_t dev)
 	 */
 	if (cpu_model < 0xe)
 		return (ENXIO);
-	
+
 #if 0 /*
        * XXXrpaulo: I have this CPU model and when it returns from C3
        * coretemp continues to function properly.
@@ -216,7 +237,7 @@ coretemp_attach(device_t dev)
 		ret = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &msr);
 		if (ret == 0) {
 			tjtarget = (msr >> 16) & 0xff;
-			
+
 			/*
 			 * On earlier generation of processors, the value
 			 * obtained from IA32_TEMPERATURE_TARGET register is
@@ -243,15 +264,35 @@ coretemp_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "Setting TjMax=%d\n", sc->sc_tjmax);
 
+	ctx = device_get_sysctl_ctx(dev);
+
+	oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)), OID_AUTO,
+	    "coretemp", CTLFLAG_RD, NULL, "Per-CPU thermal information");
+
 	/*
-	 * Add the "temperature" MIB to dev.cpu.N.
+	 * Add the MIBs to dev.cpu.N and dev.cpu.N.coretemp.
 	 */
-	sc->sc_oid = SYSCTL_ADD_PROC(device_get_sysctl_ctx(pdev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)),
-	    OID_AUTO, "temperature",
-	    CTLTYPE_INT | CTLFLAG_RD,
-	    dev, 0, coretemp_get_temp_sysctl, "IK",
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)),
+	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, dev,
+	    CORETEMP_TEMP, coretemp_get_val_sysctl, "IK",
 	    "Current temperature");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "delta",
+	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_DELTA,
+	    coretemp_get_val_sysctl, "I",
+	    "Delta between TCC activation and current temperature");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "resolution",
+	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_RESOLUTION,
+	    coretemp_get_val_sysctl, "I",
+	    "Resolution of CPU thermal sensor");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "tjmax",
+	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_TJMAX,
+	    coretemp_get_val_sysctl, "IK",
+	    "TCC activation temperature");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "throttle_log", CTLTYPE_INT | CTLFLAG_RW, dev, 0,
+	    coretemp_throttle_log_sysctl, "I",
+	    "Set to 1 if the thermal sensor has tripped");
 
 	return (0);
 }
@@ -259,22 +300,13 @@ coretemp_attach(device_t dev)
 static int
 coretemp_detach(device_t dev)
 {
-	struct coretemp_softc *sc = device_get_softc(dev);
-
-	sysctl_remove_oid(sc->sc_oid, 1, 0);
-
 	return (0);
 }
 
-
-static int
-coretemp_get_temp(device_t dev)
+static uint64_t
+coretemp_get_thermal_msr(int cpu)
 {
 	uint64_t msr;
-	int temp;
-	int cpu = device_get_unit(dev);
-	struct coretemp_softc *sc = device_get_softc(dev);
-	char stemp[16];
 
 	thread_lock(curthread);
 	sched_bind(curthread, cpu);
@@ -296,51 +328,116 @@ coretemp_get_temp(device_t dev)
 	sched_unbind(curthread);
 	thread_unlock(curthread);
 
-	/*
-	 * Check for Thermal Status and Thermal Status Log.
-	 */
-	if ((msr & 0x3) == 0x3)
-		device_printf(dev, "PROCHOT asserted\n");
+	return (msr);
+}
 
-	/*
-	 * Bit 31 contains "Reading valid"
-	 */
-	if (((msr >> 31) & 0x1) == 1) {
-		/*
-		 * Starting on bit 16 and ending on bit 22.
-		 */
-		temp = sc->sc_tjmax - ((msr >> 16) & 0x7f);
-	} else
-		temp = -1;
+static void
+coretemp_clear_thermal_msr(int cpu)
+{
+	thread_lock(curthread);
+	sched_bind(curthread, cpu);
+	thread_unlock(curthread);
 
-	/*
-	 * Check for Critical Temperature Status and Critical
-	 * Temperature Log.
-	 * It doesn't really matter if the current temperature is
-	 * invalid because the "Critical Temperature Log" bit will
-	 * tell us if the Critical Temperature has been reached in
-	 * past. It's not directly related to the current temperature.
-	 *
-	 * If we reach a critical level, allow devctl(4) to catch this
-	 * and shutdown the system.
-	 */
-	if (((msr >> 4) & 0x3) == 0x3) {
-		device_printf(dev, "critical temperature detected, "
-		    "suggest system shutdown\n");
-		snprintf(stemp, sizeof(stemp), "%d", temp);
-		devctl_notify("coretemp", "Thermal", stemp, "notify=0xcc");
-	}
+	wrmsr(MSR_THERM_STATUS, 0);
 
-	return (temp);
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
 }
 
 static int
-coretemp_get_temp_sysctl(SYSCTL_HANDLER_ARGS)
+coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
-	int temp;
+	device_t dev;
+	uint64_t msr;
+	int val, tmp;
+	struct coretemp_softc *sc;
+	enum therm_info type;
+	char stemp[16];
 
-	temp = coretemp_get_temp(dev) * 10 + TZ_ZEROC;
+	dev = (device_t) arg1;
+	msr = coretemp_get_thermal_msr(device_get_unit(dev));
+	sc = device_get_softc(dev);
+	type = arg2;
 
-	return (sysctl_handle_int(oidp, &temp, 0, req));
+	if (((msr >> THERM_STATUS_VALID_SHIFT) & THERM_STATUS_VALID_MASK) != 1) {
+		val = -1;
+	} else {
+		switch (type) {
+		case CORETEMP_TEMP:
+			tmp = (msr >> THERM_STATUS_TEMP_SHIFT) &
+			    THERM_STATUS_TEMP_MASK;
+			val = (sc->sc_tjmax - tmp) * 10 + TZ_ZEROC;
+			break;
+		case CORETEMP_DELTA:
+			val = (msr >> THERM_STATUS_TEMP_SHIFT) &
+			    THERM_STATUS_TEMP_MASK;
+			break;
+		case CORETEMP_RESOLUTION:
+			val = (msr >> THERM_STATUS_RES_SHIFT) &
+			    THERM_STATUS_RES_MASK;
+			break;
+		case CORETEMP_TJMAX:
+			val = sc->sc_tjmax * 10 + TZ_ZEROC;
+			break;
+		}
+	}
+
+	if (msr & THERM_STATUS_LOG) {
+		sc->sc_throttle_log = 1;
+
+		/*
+		 * Check for Critical Temperature Status and Critical
+		 * Temperature Log.  It doesn't really matter if the
+		 * current temperature is invalid because the "Critical
+		 * Temperature Log" bit will tell us if the Critical
+		 * Temperature has * been reached in past. It's not
+		 * directly related to the current temperature.
+		 *
+		 * If we reach a critical level, allow devctl(4)
+		 * to catch this and shutdown the system.
+		 */
+		if (msr & THERM_STATUS) {
+			tmp = (msr >> THERM_STATUS_TEMP_SHIFT) &
+			    THERM_STATUS_TEMP_MASK;
+			tmp = (sc->sc_tjmax - tmp) * 10 + TZ_ZEROC;
+			device_printf(dev, "critical temperature detected, "
+			    "suggest system shutdown\n");
+			snprintf(stemp, sizeof(stemp), "%d", tmp);
+			devctl_notify("coretemp", "Thermal", stemp,
+			    "notify=0xcc");
+		}
+	}
+
+	return (sysctl_handle_int(oidp, &val, 0, req));
+}
+
+static int
+coretemp_throttle_log_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev;
+	uint64_t msr;
+	int error, val;
+	struct coretemp_softc *sc;
+
+	dev = (device_t) arg1;
+	msr = coretemp_get_thermal_msr(device_get_unit(dev));
+	sc = device_get_softc(dev);
+
+	if (msr & THERM_STATUS_LOG)
+		sc->sc_throttle_log = 1;
+
+	val = sc->sc_throttle_log;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+	else if (val != 0)
+		return (EINVAL);
+
+	coretemp_clear_thermal_msr(device_get_unit(dev));
+	sc->sc_throttle_log = 0;
+
+	return (0);
 }
