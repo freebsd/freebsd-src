@@ -111,16 +111,16 @@ mfi_ld_set_props(int fd, struct mfi_ld_props *props)
 }
 
 static int
-update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
-    uint8_t mask)
+update_cache_policy(int fd, struct mfi_ld_props *old, struct mfi_ld_props *new)
 {
 	int error;
 	uint8_t changes, policy;
 
-	policy = (props->default_cache_policy & ~mask) | new_policy;
-	if (policy == props->default_cache_policy)
+	if (old->default_cache_policy == new->default_cache_policy &&
+	    old->disk_cache_policy == new->disk_cache_policy)
 		return (0);
-	changes = policy ^ props->default_cache_policy;
+	policy = new->default_cache_policy;
+	changes = policy ^ old->default_cache_policy;
 	if (changes & MR_LD_CACHE_ALLOW_WRITE_CACHE)
 		printf("%s caching of I/O writes\n",
 		    policy & MR_LD_CACHE_ALLOW_WRITE_CACHE ? "Enabling" :
@@ -142,9 +142,21 @@ update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
 		printf("%s write caching with bad BBU\n",
 		    policy & MR_LD_CACHE_WRITE_CACHE_BAD_BBU ? "Enabling" :
 		    "Disabling");
+	if (old->disk_cache_policy != new->disk_cache_policy) {
+		switch (new->disk_cache_policy) {
+		case MR_PD_CACHE_ENABLE:
+			printf("Enabling write-cache on physical drives\n");
+			break;
+		case MR_PD_CACHE_DISABLE:
+			printf("Disabling write-cache on physical drives\n");
+			break;
+		case MR_PD_CACHE_UNCHANGED:
+			printf("Using default write-cache setting on physical drives\n");
+			break;
+		}
+	}
 
-	props->default_cache_policy = policy;
-	if (mfi_ld_set_props(fd, props) < 0) {
+	if (mfi_ld_set_props(fd, new) < 0) {
 		error = errno;
 		warn("Failed to set volume properties");
 		return (error);
@@ -152,12 +164,130 @@ update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
 	return (0);
 }
 
+static void
+stage_cache_setting(struct mfi_ld_props *props, uint8_t new_policy,
+    uint8_t mask)
+{
+
+	props->default_cache_policy &= ~mask;
+	props->default_cache_policy |= new_policy;
+}
+
+/*
+ * Parse a single cache directive modifying the passed in policy.
+ * Returns -1 on a parse error and the number of arguments consumed
+ * on success.
+ */
+static int
+process_cache_command(int ac, char **av, struct mfi_ld_props *props)
+{
+	uint8_t policy;
+
+	/* I/O cache settings. */
+	if (strcmp(av[0], "all") == 0 || strcmp(av[0], "enable") == 0) {
+		stage_cache_setting(props, MR_LD_CACHE_ALLOW_READ_CACHE |
+		    MR_LD_CACHE_ALLOW_WRITE_CACHE,
+		    MR_LD_CACHE_ALLOW_READ_CACHE |
+		    MR_LD_CACHE_ALLOW_WRITE_CACHE);
+		return (1);
+	}
+	if (strcmp(av[0], "none") == 0 || strcmp(av[0], "disable") == 0) {
+		stage_cache_setting(props, 0, MR_LD_CACHE_ALLOW_READ_CACHE |
+		    MR_LD_CACHE_ALLOW_WRITE_CACHE);
+		return (1);
+	}
+	if (strcmp(av[0], "reads") == 0) {
+ 		stage_cache_setting(props, MR_LD_CACHE_ALLOW_READ_CACHE,
+		    MR_LD_CACHE_ALLOW_READ_CACHE |
+		    MR_LD_CACHE_ALLOW_WRITE_CACHE);
+		return (1);
+	}
+	if (strcmp(av[0], "writes") == 0) {
+		stage_cache_setting(props, MR_LD_CACHE_ALLOW_WRITE_CACHE,
+		    MR_LD_CACHE_ALLOW_READ_CACHE |
+		    MR_LD_CACHE_ALLOW_WRITE_CACHE);
+		return (1);
+	}
+
+	/* Write cache behavior. */
+	if (strcmp(av[0], "write-back") == 0) {
+		stage_cache_setting(props, MR_LD_CACHE_WRITE_BACK,
+		    MR_LD_CACHE_WRITE_BACK);
+		return (1);
+	}
+	if (strcmp(av[0], "write-through") == 0) {
+		stage_cache_setting(props, 0, MR_LD_CACHE_WRITE_BACK);
+		return (1);
+	}
+	if (strcmp(av[0], "bad-bbu-write-cache") == 0) {
+		if (ac < 2) {
+			warnx("cache: bad BBU setting required");
+			return (-1);
+		}
+		if (strcmp(av[1], "enable") == 0)
+			policy = MR_LD_CACHE_WRITE_CACHE_BAD_BBU;
+		else if (strcmp(av[1], "disable") == 0)
+			policy = 0;
+		else {
+			warnx("cache: invalid bad BBU setting");
+			return (-1);
+		}
+		stage_cache_setting(props, policy,
+		    MR_LD_CACHE_WRITE_CACHE_BAD_BBU);
+		return (2);
+	}
+
+	/* Read cache behavior. */
+	if (strcmp(av[0], "read-ahead") == 0) {
+		if (ac < 2) {
+			warnx("cache: read-ahead setting required");
+			return (-1);
+		}
+		if (strcmp(av[1], "none") == 0)
+			policy = 0;
+		else if (strcmp(av[1], "always") == 0)
+			policy = MR_LD_CACHE_READ_AHEAD;
+		else if (strcmp(av[1], "adaptive") == 0)
+			policy = MR_LD_CACHE_READ_AHEAD |
+			    MR_LD_CACHE_READ_ADAPTIVE;
+		else {
+			warnx("cache: invalid read-ahead setting");
+			return (-1);
+		}
+		stage_cache_setting(props, policy, MR_LD_CACHE_READ_AHEAD |
+			    MR_LD_CACHE_READ_ADAPTIVE);
+		return (2);
+	}
+
+	/* Drive write-cache behavior. */
+	if (strcmp(av[0], "write-cache") == 0) {
+		if (ac < 2) {
+			warnx("cache: write-cache setting required");
+			return (-1);
+		}
+		if (strcmp(av[1], "enable") == 0)
+			props->disk_cache_policy = MR_PD_CACHE_ENABLE;
+		else if (strcmp(av[1], "disable") == 0)
+			props->disk_cache_policy = MR_PD_CACHE_DISABLE;
+		else if (strcmp(av[1], "default") == 0)
+			props->disk_cache_policy = MR_PD_CACHE_UNCHANGED;
+		else {
+			warnx("cache: invalid write-cache setting");
+			return (-1);
+		}
+		return (2);
+	}
+
+	warnx("cache: Invalid command");
+	return (-1);
+}
+
 static int
 volume_cache(int ac, char **av)
 {
-	struct mfi_ld_props props;
-	int error, fd;
-	uint8_t target_id, policy;
+	struct mfi_ld_props props, new;
+	int error, fd, consumed;
+	uint8_t target_id;
 
 	if (ac < 2) {
 		warnx("cache: volume required");
@@ -235,113 +365,19 @@ volume_cache(int ac, char **av)
 			printf("Cache Disabled Due to Dead Battery\n");
 		error = 0;
 	} else {
-		if (strcmp(av[2], "all") == 0 || strcmp(av[2], "enable") == 0)
-			error = update_cache_policy(fd, &props,
-			    MR_LD_CACHE_ALLOW_READ_CACHE |
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE,
-			    MR_LD_CACHE_ALLOW_READ_CACHE |
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE);
-		else if (strcmp(av[2], "none") == 0 ||
-		    strcmp(av[2], "disable") == 0)
-			error = update_cache_policy(fd, &props, 0,
-			    MR_LD_CACHE_ALLOW_READ_CACHE |
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE);
-		else if (strcmp(av[2], "reads") == 0)
-			error = update_cache_policy(fd, &props,
-			    MR_LD_CACHE_ALLOW_READ_CACHE,
-			    MR_LD_CACHE_ALLOW_READ_CACHE |
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE);
-		else if (strcmp(av[2], "writes") == 0)
-			error = update_cache_policy(fd, &props,
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE,
-			    MR_LD_CACHE_ALLOW_READ_CACHE |
-			    MR_LD_CACHE_ALLOW_WRITE_CACHE);
-		else if (strcmp(av[2], "write-back") == 0)
-			error = update_cache_policy(fd, &props,
-			    MR_LD_CACHE_WRITE_BACK,
-			    MR_LD_CACHE_WRITE_BACK);
-		else if (strcmp(av[2], "write-through") == 0)
-			error = update_cache_policy(fd, &props, 0,
-			    MR_LD_CACHE_WRITE_BACK);
-		else if (strcmp(av[2], "read-ahead") == 0) {
-			if (ac < 4) {
-				warnx("cache: read-ahead setting required");
+		new = props;
+		av += 2;
+		ac -= 2;
+		while (ac > 0) {
+			consumed = process_cache_command(ac, av, &new);
+			if (consumed < 0) {
 				close(fd);
 				return (EINVAL);
 			}
-			if (strcmp(av[3], "none") == 0)
-				policy = 0;
-			else if (strcmp(av[3], "always") == 0)
-				policy = MR_LD_CACHE_READ_AHEAD;
-			else if (strcmp(av[3], "adaptive") == 0)
-				policy = MR_LD_CACHE_READ_AHEAD |
-				    MR_LD_CACHE_READ_ADAPTIVE;
-			else {
-				warnx("cache: invalid read-ahead setting");
-				close(fd);
-				return (EINVAL);
-			}
-			error = update_cache_policy(fd, &props, policy,
-			    MR_LD_CACHE_READ_AHEAD |
-			    MR_LD_CACHE_READ_ADAPTIVE);
-		} else if (strcmp(av[2], "bad-bbu-write-cache") == 0) {
-			if (ac < 4) {
-				warnx("cache: bad BBU setting required");
-				close(fd);
-				return (EINVAL);
-			}
-			if (strcmp(av[3], "enable") == 0)
-				policy = MR_LD_CACHE_WRITE_CACHE_BAD_BBU;
-			else if (strcmp(av[3], "disable") == 0)
-				policy = 0;
-			else {
-				warnx("cache: invalid bad BBU setting");
-				close(fd);
-				return (EINVAL);
-			}
-			error = update_cache_policy(fd, &props, policy,
-			    MR_LD_CACHE_WRITE_CACHE_BAD_BBU);
-		} else if (strcmp(av[2], "write-cache") == 0) {
-			if (ac < 4) {
-				warnx("cache: write-cache setting required");
-				close(fd);
-				return (EINVAL);
-			}
-			if (strcmp(av[3], "enable") == 0)
-				policy = MR_PD_CACHE_ENABLE;
-			else if (strcmp(av[3], "disable") == 0)
-				policy = MR_PD_CACHE_DISABLE;
-			else if (strcmp(av[3], "default") == 0)
-				policy = MR_PD_CACHE_UNCHANGED;
-			else {
-				warnx("cache: invalid write-cache setting");
-				close(fd);
-				return (EINVAL);
-			}
-			error = 0;
-			if (policy != props.disk_cache_policy) {
-				switch (policy) {
-				case MR_PD_CACHE_ENABLE:
-					printf("Enabling write-cache on physical drives\n");
-					break;
-				case MR_PD_CACHE_DISABLE:
-					printf("Disabling write-cache on physical drives\n");
-					break;
-				case MR_PD_CACHE_UNCHANGED:
-					printf("Using default write-cache setting on physical drives\n");
-					break;
-				}
-				props.disk_cache_policy = policy;
-				if (mfi_ld_set_props(fd, &props) < 0) {
-					error = errno;
-					warn("Failed to set volume properties");
-				}
-			}
-		} else {
-			warnx("cache: Invalid command");
-			close(fd);
-			return (EINVAL);
+			av += consumed;
+			ac -= consumed;
 		}
+		error = update_cache_policy(fd, &props, &new);
 	}
 	close(fd);
 
