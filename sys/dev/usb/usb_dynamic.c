@@ -50,12 +50,12 @@
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_dynamic.h>
+#include <dev/usb/quirk/usb_quirk.h>
 
 /* function prototypes */
 static usb_handle_req_t usb_temp_get_desc_w;
 static usb_temp_setup_by_index_t usb_temp_setup_by_index_w;
 static usb_temp_unsetup_t usb_temp_unsetup_w;
-static usb_test_quirk_t usb_test_quirk_w;
 static usb_quirk_ioctl_t usb_quirk_ioctl_w;
 
 /* global variables */
@@ -72,9 +72,19 @@ usb_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)
 	return (USB_ERR_INVAL);
 }
 
-static uint8_t
+uint8_t
 usb_test_quirk_w(const struct usbd_lookup_info *info, uint16_t quirk)
 {
+	uint8_t x;
+
+	if (quirk == UQ_NONE)
+		return (0);	/* no match */
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (info->autoQuirk[x] == quirk)
+			return (1);	/* match */
+	}
+
 	return (0);			/* no match */
 }
 
