@@ -2006,7 +2006,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	ath_tx_chaindesclist(sc, bf);
 
 	/* Statistics */
-	sc->sc_stats.tx_aggr.aggr_low_hwq_single_pkt++;
+	sc->sc_aggr_stats.aggr_low_hwq_single_pkt++;
 
 	/* Track per-TID hardware queue depth correctly */
 	tid->hwq_depth++;
@@ -3144,7 +3144,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
 
-			sc->sc_stats.tx_aggr.aggr_nonbaw_pkt++;
+			sc->sc_aggr_stats.aggr_nonbaw_pkt++;
 
 			/* Queue the packet; continue */
 			goto queuepkt;
@@ -3184,17 +3184,17 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			ath_tx_set_ratectrl(sc, ni, bf);
 			if (status == ATH_AGGR_BAW_CLOSED)
-				sc->sc_stats.tx_aggr.aggr_baw_closed_single_pkt++;
+				sc->sc_aggr_stats.aggr_baw_closed_single_pkt++;
 			else
-				sc->sc_stats.tx_aggr.aggr_single_pkt++;
+				sc->sc_aggr_stats.aggr_single_pkt++;
 		} else {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: multi-frame aggregate: %d frames, length %d\n",
 			     __func__, bf->bf_state.bfs_nframes,
 			    bf->bf_state.bfs_al);
 			bf->bf_state.bfs_aggr = 1;
-			sc->sc_stats.tx_aggr.aggr_pkts[bf->bf_state.bfs_nframes]++;
-			sc->sc_stats.tx_aggr.aggr_aggr_pkt++;
+			sc->sc_aggr_stats.aggr_pkts[bf->bf_state.bfs_nframes]++;
+			sc->sc_aggr_stats.aggr_aggr_pkt++;
 
 			/*
 			 * Setup the relevant descriptor fields
@@ -3323,7 +3323,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * some packets in the aggregation queue.
 	 */
 	if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
-		sc->sc_stats.tx_aggr.aggr_sched_nopkt++;
+		sc->sc_aggr_stats.aggr_sched_nopkt++;
 		return;
 	}
 

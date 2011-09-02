@@ -314,19 +314,19 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 		return 0;
 
 	printf("aggr single packet: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_single_pkt);
+	    sc->sc_aggr_stats.aggr_single_pkt);
 	printf("aggr single packet w/ BAW closed: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_baw_closed_single_pkt);
+	    sc->sc_aggr_stats.aggr_baw_closed_single_pkt);
 	printf("aggr non-baw packet: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_nonbaw_pkt);
+	    sc->sc_aggr_stats.aggr_nonbaw_pkt);
 	printf("aggr aggregate packet: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_aggr_pkt);
+	    sc->sc_aggr_stats.aggr_aggr_pkt);
 	printf("aggr single packet low hwq: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_low_hwq_single_pkt);
+	    sc->sc_aggr_stats.aggr_low_hwq_single_pkt);
 	printf("aggr sched, no work: %d\n",
-	    sc->sc_stats.tx_aggr.aggr_sched_nopkt);
+	    sc->sc_aggr_stats.aggr_sched_nopkt);
 	for (i = 0; i < 64; i++) {
-		printf("%2d: %10d ", i, sc->sc_stats.tx_aggr.aggr_pkts[i]);
+		printf("%2d: %10d ", i, sc->sc_aggr_stats.aggr_pkts[i]);
 		if (i % 4 == 3)
 			printf("\n");
 	}

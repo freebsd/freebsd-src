@@ -334,6 +334,7 @@ struct ath_tx99;
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
+	struct ath_tx_aggr_stats	sc_aggr_stats;
 	int			sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
