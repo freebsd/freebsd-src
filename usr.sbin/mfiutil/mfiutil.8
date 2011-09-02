@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2011
+.Dd September 2, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -103,7 +103,7 @@
 .Cm locate Ar drive Brq "on | off"
 .Nm
 .Op Fl u Ar unit
-.Cm cache Ar volume Op Ar setting Op Ar value
+.Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
 .Nm
 .Op Fl u Ar unit
 .Cm name Ar volume Ar name
@@ -367,19 +367,23 @@ Change the state of the external LED associated with
 .Pp
 The logical volume management commands include:
 .Bl -tag -width indent
-.It Cm cache Ar volume Op Ar setting Op Ar value
+.It Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
 If no
 .Ar setting
-argument is supplied, then the current cache policy for
+arguments are supplied, then the current cache policy for
 .Ar volume
 is displayed;
 otherwise,
 the cache policy for
 .Ar volume
 is modified.
-The optional
+One or more
 .Ar setting
-argument can be one of the following values:
+arguments may be given.
+Some settings take an additional
+.Ar value
+argument as noted below.
+The valid settings are:
 .Bl -tag -width indent
 .It Cm enable
 Enable caching for both read and write I/O operations.
