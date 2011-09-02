@@ -778,6 +778,7 @@ struct dirent;
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 
 int	vfs_unixify_accmode(accmode_t *accmode);
+int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio, const struct thread *td);
 
 #endif /* _KERNEL */
 

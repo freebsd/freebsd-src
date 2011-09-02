@@ -5696,16 +5696,8 @@ zfs_freebsd_write(ap)
 	} */ *ap;
 {
 
-	if (ap->a_vp->v_type == VREG && ap->a_uio->uio_td != NULL) {
-		PROC_LOCK(ap->a_uio->uio_td->td_proc);
-		if (ap->a_uio->uio_offset + ap->a_uio->uio_resid >
-		    lim_cur(ap->a_uio->uio_td->td_proc, RLIMIT_FSIZE)) {
-			psignal(ap->a_uio->uio_td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(ap->a_uio->uio_td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(ap->a_uio->uio_td->td_proc);
-	}
+	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
+		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));
