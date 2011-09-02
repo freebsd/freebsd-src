@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -734,6 +734,13 @@ stub_posixsem_create(struct ucred *cred, struct ksem *ks,
 }
 
 static int
+stub_posixshm_check_create(struct ucred *cred, const char *path)
+{
+
+	return (0);
+}
+
+static int
 stub_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel, int prot, int flags)
 {
@@ -743,7 +750,7 @@ stub_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 
 static int
 stub_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
-    struct label *shmlabel)
+    struct label *shmlabel, accmode_t accmode)
 {
 
 	return (0);
@@ -1772,6 +1779,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_posixsem_destroy_label = stub_destroy_label,
 	.mpo_posixsem_init_label = stub_init_label,
 
+	.mpo_posixshm_check_create = stub_posixshm_check_create,
 	.mpo_posixshm_check_mmap = stub_posixshm_check_mmap,
 	.mpo_posixshm_check_open = stub_posixshm_check_open,
 	.mpo_posixshm_check_setmode = stub_posixshm_check_setmode,
