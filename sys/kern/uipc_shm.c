@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006, 2011 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,21 @@
  *
  * TODO:
  *
- * (2) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
+ * (1) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
  *     and ipcrm(1) be expanded or should new tools to manage both POSIX
  *     kernel semaphores and POSIX shared memory be written?
  *
- * (3) Add support for this file type to fstat(1).
+ * (2) Add support for this file type to fstat(1).
  *
- * (4) Resource limits?  Does this need its own resource limits or are the
+ * (3) Resource limits?  Does this need its own resource limits or are the
  *     existing limits in mmap(2) sufficient?
  *
- * (5) Partial page truncation.  vnode_pager_setsize() will zero any parts
+ * (4) Partial page truncation.  vnode_pager_setsize() will zero any parts
  *     of a partially mapped page as a result of ftruncate(2)/truncate(2).
  *     We can do the same (with the same pmap evil), but do we need to
  *     worry about the bits on disk if the page is swapped out or will the
  *     swapper zero the parts of a page that are invalid if the page is
  *     swapped back in for us?
- *
- * (6) Add MAC support in mac_biba(4) and mac_mls(4).
- *
- * (7) Add a MAC check_create() hook for creating new named objects.
  */
 
 #include <sys/cdefs.h>
@@ -551,8 +547,16 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 		if (shmfd == NULL) {
 			/* Object does not yet exist, create it if requested. */
 			if (uap->flags & O_CREAT) {
-				shmfd = shm_alloc(td->td_ucred, cmode);
-				shm_insert(path, fnv, shmfd);
+#ifdef MAC
+				error = mac_posixshm_check_create(td->td_ucred,
+				    path);
+				if (error == 0) {
+#endif
+					shmfd = shm_alloc(td->td_ucred, cmode);
+					shm_insert(path, fnv, shmfd);
+#ifdef MAC
+				}
+#endif
 			} else {
 				free(path, M_SHMFD);
 				error = ENOENT;
@@ -569,7 +573,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 			else {
 #ifdef MAC
 				error = mac_posixshm_check_open(td->td_ucred,
-				    shmfd);
+				    shmfd, FFLAGS(uap->flags & O_ACCMODE));
 				if (error == 0)
 #endif
 				error = shm_access(shmfd, td->td_ucred,

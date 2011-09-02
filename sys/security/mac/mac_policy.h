@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -355,11 +355,14 @@ typedef void	(*mpo_posixsem_create_t)(struct ucred *cred,
 typedef void    (*mpo_posixsem_destroy_label_t)(struct label *label);
 typedef void    (*mpo_posixsem_init_label_t)(struct label *label);
 
+typedef int	(*mpo_posixshm_check_create_t)(struct ucred *cred,
+		    const char *path);
 typedef int	(*mpo_posixshm_check_mmap_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel, int prot,
 		    int flags);
 typedef int	(*mpo_posixshm_check_open_t)(struct ucred *cred,
-		    struct shmfd *shmfd, struct label *shmlabel);
+		    struct shmfd *shmfd, struct label *shmlabel,
+		    accmode_t accmode);
 typedef int	(*mpo_posixshm_check_setmode_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel,
 		    mode_t mode);
@@ -812,6 +815,7 @@ struct mac_policy_ops {
 	mpo_posixsem_destroy_label_t		mpo_posixsem_destroy_label;
 	mpo_posixsem_init_label_t		mpo_posixsem_init_label;
 
+	mpo_posixshm_check_create_t		mpo_posixshm_check_create;
 	mpo_posixshm_check_mmap_t		mpo_posixshm_check_mmap;
 	mpo_posixshm_check_open_t		mpo_posixshm_check_open;
 	mpo_posixshm_check_setmode_t		mpo_posixshm_check_setmode;
