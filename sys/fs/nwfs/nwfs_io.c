@@ -34,16 +34,13 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
-#include <sys/signalvar.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -235,16 +232,10 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 		}
 	}
 	if (uiop->uio_resid == 0) return 0;
-	if (td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if  (uiop->uio_offset + uiop->uio_resid >
-		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+
+	if (vn_rlimit_fsize(vp, uiop, td))
+		return (EFBIG);
+
 	error = ncp_write(NWFSTOCONN(nmp), &np->n_fh, uiop, cred);
 	NCPVNDEBUG("after: ofs=%d,resid=%d\n",(int)uiop->uio_offset, uiop->uio_resid);
 	if (!error) {

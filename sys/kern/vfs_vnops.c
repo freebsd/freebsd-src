@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/filio.h>
+#include <sys/resourcevar.h>
 #include <sys/sx.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
@@ -1333,4 +1334,22 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 		error = ENOENT;
 	}
 	return (error);
+}
+
+int
+vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio, const struct thread *td)
+{
+	if (vp->v_type != VREG || td == NULL)
+		return (0);
+
+	PROC_LOCK(td->td_proc);
+	if (uio->uio_offset + uio->uio_resid >
+	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+		psignal(td->td_proc, SIGXFSZ);
+		PROC_UNLOCK(td->td_proc);
+		return (EFBIG);
+	}
+	PROC_UNLOCK(td->td_proc);
+
+	return (0);
 }

@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -867,7 +864,6 @@ ncl_write(struct vop_write_args *ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0;
-	struct proc *p = td?td->td_proc:NULL;
 	off_t tmp_off;
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
@@ -948,16 +944,8 @@ flush_and_restart:
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (p != NULL) {
-		PROC_LOCK(p);
-		if (uio->uio_offset + uio->uio_resid >
-		    lim_cur(p, RLIMIT_FSIZE)) {
-			psignal(p, SIGXFSZ);
-			PROC_UNLOCK(p);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(p);
-	}
+	if (vn_rlimit_fsize(vp, uio, td))
+		return (EFBIG);
 
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*
