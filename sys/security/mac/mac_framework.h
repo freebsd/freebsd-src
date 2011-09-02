@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -238,9 +238,11 @@ void 	mac_posixsem_create(struct ucred *cred, struct ksem *ks);
 void	mac_posixsem_destroy(struct ksem *);
 void	mac_posixsem_init(struct ksem *);
 
+int	mac_posixshm_check_create(struct ucred *cred, const char *path);
 int	mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 	    int prot, int flags);
-int	mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd);
+int	mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+	    accmode_t accmode);
 int	mac_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
 	    mode_t mode);
 int	mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
