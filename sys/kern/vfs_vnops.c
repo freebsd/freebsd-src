@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
 static fo_truncate_t	vn_truncate;
@@ -1352,4 +1355,16 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio, const struct thre
 	PROC_UNLOCK(td->td_proc);
 
 	return (0);
+}
+
+void
+vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	vm_object_page_remove(object, start, end, 0);
+	VM_OBJECT_UNLOCK(object);
 }
