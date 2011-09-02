@@ -1459,10 +1459,14 @@ ath_intr(void *arg)
 			/* bump tx trigger level */
 			ath_hal_updatetxtriglevel(ah, AH_TRUE);
 		}
-		if (status & HAL_INT_RX)
+		if (status & HAL_INT_RX) {
+			sc->sc_stats.ast_rx_intr++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
-		if (status & HAL_INT_TX)
+		}
+		if (status & HAL_INT_TX) {
+			sc->sc_stats.ast_tx_intr++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
+		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);

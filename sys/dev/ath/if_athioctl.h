@@ -150,7 +150,9 @@ struct ath_stats {
 	u_int32_t	ast_tx_delim_underrun;
 	u_int32_t	ast_tx_aggrfail;		/* aggregate TX failed in its entirety */
 	struct ath_tx_aggr_stats	tx_aggr;
-	u_int32_t	ast_pad[9];
+	u_int32_t	ast_tx_intr;
+	u_int32_t	ast_rx_intr;
+	u_int32_t	ast_pad[7];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

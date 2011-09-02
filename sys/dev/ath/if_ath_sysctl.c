@@ -817,6 +817,11 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_aggrfail, 0,
 	    "Number of aggregate TX failures (whole frame)");
 
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
+
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 }
