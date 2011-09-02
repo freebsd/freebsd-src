@@ -3422,9 +3422,7 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		, 0
 	);
 
-	if (sc->sc_rxlink == NULL)
-		ath_hal_putrxbuf(sc->sc_ah, bf->bf_daddr);
-	else
+	if (sc->sc_rxlink != NULL)
 		*sc->sc_rxlink = bf->bf_daddr;
 	sc->sc_rxlink = &ds->ds_link;
 	return 0;
