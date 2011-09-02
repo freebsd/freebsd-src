@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2011
+.Dd Aug 29, 2011
 .Dt MENU.4TH 8
 .Os
 .Sh NAME
@@ -96,11 +96,15 @@ will wait before executing
 by default) unless a key is pressed.
 If set to
 .Dq Li NO
-(case-insensitive) or
-.Dq Li -1 ,
+(case-insensitive)
 .Ic menu-display
 will wait for user input and never execute
 .Ic menu_timeout_command .
+If set to
+.Dq Li -1 ,
+.Ic menu-display
+will boot immediately, preventing both interruption of the autoboot process and
+escaping to the loader prompt.
 Default is
 .Dq Li 10 .
 See
