@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.33 2009-01-17 23:47:43 tbox Exp $ */
+/* $Id: acl.h,v 1.33.426.2 2011-06-17 23:47:11 tbox Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
@@ -145,9 +145,26 @@ dns_acl_merge(dns_acl_t *dest, dns_acl_t *source, isc_boolean_t pos);
 
 void
 dns_acl_attach(dns_acl_t *source, dns_acl_t **target);
+/*%<
+ * Attach to acl 'source'.
+ *
+ * Requires:
+ *\li	'source' to be a valid acl.
+ *\li	'target' to be non NULL and '*target' to be NULL.
+ */
 
 void
 dns_acl_detach(dns_acl_t **aclp);
+/*%<
+ * Detach the acl. On final detach the acl must not be linked on any
+ * list.
+ *
+ * Requires:
+ *\li	'*aclp' to be a valid acl.
+ *
+ * Insists:
+ *\li	'*aclp' is not linked on final detach.
+ */
 
 isc_boolean_t
 dns_acl_isinsecure(const dns_acl_t *a);

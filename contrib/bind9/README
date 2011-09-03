@@ -48,6 +48,17 @@ BIND 9
 	For a detailed list of user-visible changes from
 	previous releases, see the CHANGES file.
 
+BIND 9.8.1
+
+        BIND 9.8.1 includes a number of bug fixes and enhancements from
+	BIND 9.8 and earlier releases.  New features include:
+
+	- The DLZ "dlopen" driver is now built by default.
+	- Added a new include file with function typedefs
+          for the DLZ "dlopen" driver.
+	- Made "--with-gssapi" default.
+	- More verbose error reporting from DLZ LDAP.
+
 BIND 9.8.0
 
         BIND 9.8.0 includes a number of changes from BIND 9.7 and earlier

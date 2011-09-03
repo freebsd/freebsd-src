@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009-2011 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-settime.8,v 1.14 2010-08-17 01:15:26 tbox Exp $
+.\" $Id: dnssec-settime.8,v 1.14.70.1 2011-03-22 02:37:44 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -59,7 +59,7 @@ and
 .RS 4
 Force an update of an old\-format key with no metadata fields. Without this option,
 \fBdnssec\-settime\fR
-will fail when attempting to update a legacy key. With this option, the key will be recreated in the new format, but with the original key data retained. The key's creation date will be set to the present time.
+will fail when attempting to update a legacy key. With this option, the key will be recreated in the new format, but with the original key data retained. The key's creation date will be set to the present time. If no other values are specified, then the key's publication and activation dates will also be set to the present time.
 .RE
 .PP
 \-K \fIdirectory\fR
@@ -162,5 +162,5 @@ RFC 5011.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2009\-2011 Internet Systems Consortium, Inc. ("ISC")
 .br
