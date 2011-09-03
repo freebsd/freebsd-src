@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.104 2011-01-13 04:59:25 tbox Exp $ */
+/* $Id: db.h,v 1.104.8.1 2011-05-19 04:42:51 each Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -1441,7 +1441,9 @@ dns_db_setsigningtime(dns_db_t *db, dns_rdataset_t *rdataset,
  *
  * Requires:
  * \li	'db' is a valid zone database.
- * \li	'rdataset' to be associated with 'db'.
+ * \li	'rdataset' is or is to be associated with 'db'.
+ * \li  'rdataset' is not pending removed from the heap via an
+ *       uncommitted call to dns_db_resigned().
  *
  * Returns:
  * \li	#ISC_R_SUCCESS
@@ -1472,7 +1474,9 @@ dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset,
  * Mark 'rdataset' as not being available to be returned by
  * dns_db_getsigningtime().  If the changes associated with 'version'
  * are committed this will be permanent.  If the version is not committed
- * this change will be rolled back when the version is closed.
+ * this change will be rolled back when the version is closed.  Until
+ * 'version' is either committed or rolled back, 'rdataset' can no longer
+ * be acted upon by dns_db_setsigningtime().
  *
  * Requires:
  * \li	'db' is a valid zone database.

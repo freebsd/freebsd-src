@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.c,v 1.87 2010-03-04 23:50:34 tbox Exp $ */
+/* $Id: request.c,v 1.87.148.2 2011-03-12 04:59:17 tbox Exp $ */
 
 /*! \file */
 
@@ -428,12 +428,10 @@ req_send(dns_request_t *request, isc_task_t *task, isc_sockaddr_t *address) {
 	isc_region_t r;
 	isc_socket_t *socket;
 	isc_result_t result;
-	unsigned int dispattr;
 
 	req_log(ISC_LOG_DEBUG(3), "req_send: request %p", request);
 
 	REQUIRE(VALID_REQUEST(request));
-	dispattr = dns_dispatch_getattributes(request->dispatch);
 	socket = req_getsocket(request);
 	isc_buffer_usedregion(request->query, &r);
 	/*

@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.c,v 1.31 2011-01-13 06:29:16 marka Exp $ */
+/* $Id: sdlz.c,v 1.31.8.2 2011-03-21 19:53:34 each Exp $ */
 
 /*! \file */
 
@@ -336,7 +336,7 @@ destroy(dns_sdlz_db_t *sdlz) {
 	sdlz->common.magic = 0;
 	sdlz->common.impmagic = 0;
 
-	isc_mutex_destroy(&sdlz->refcnt_lock);
+	(void)isc_mutex_destroy(&sdlz->refcnt_lock);
 
 	dns_name_free(&sdlz->common.origin, mctx);
 
@@ -1680,7 +1680,7 @@ dns_sdlzssumatch(dns_name_t *signer, dns_name_t *name, isc_netaddr_t *tcpaddr,
 	char b_addr[ISC_NETADDR_FORMATSIZE];
 	char b_type[DNS_RDATATYPE_FORMATSIZE];
 	char b_key[DST_KEY_FORMATSIZE];
-	isc_buffer_t *tkey_token;
+	isc_buffer_t *tkey_token = NULL;
 	isc_region_t token_region;
 	isc_uint32_t token_len = 0;
 	isc_boolean_t ret;
@@ -1695,28 +1695,27 @@ dns_sdlzssumatch(dns_name_t *signer, dns_name_t *name, isc_netaddr_t *tcpaddr,
 	 * Format the request elements. sdlz operates on strings, not
 	 * structures
 	 */
-	if (signer)
+	if (signer != NULL)
 		dns_name_format(signer, b_signer, sizeof(b_signer));
 	else
 		b_signer[0] = 0;
 
 	dns_name_format(name, b_name, sizeof(b_name));
 
-	if (tcpaddr)
+	if (tcpaddr != NULL)
 		isc_netaddr_format(tcpaddr, b_addr, sizeof(b_addr));
 	else
 		b_addr[0] = 0;
 
 	dns_rdatatype_format(type, b_type, sizeof(b_type));
 
-	if (key)
+	if (key != NULL) {
 		dst_key_format(key, b_key, sizeof(b_key));
-	else
+		tkey_token = dst_key_tkeytoken(key);
+	} else
 		b_key[0] = 0;
 
-	tkey_token = dst_key_tkeytoken(key);
-
-	if (tkey_token) {
+	if (tkey_token != NULL) {
 		isc_buffer_region(tkey_token, &token_region);
 		token_len = token_region.length;
 	}
@@ -1724,7 +1723,7 @@ dns_sdlzssumatch(dns_name_t *signer, dns_name_t *name, isc_netaddr_t *tcpaddr,
 	MAYBE_LOCK(imp);
 	ret = imp->methods->ssumatch(b_signer, b_name, b_addr, b_type, b_key,
 				     token_len,
-				     token_len ? token_region.base : NULL,
+				     token_len != 0 ? token_region.base : NULL,
 				     imp->driverarg, dbdata);
 	MAYBE_UNLOCK(imp);
 	return (ret);

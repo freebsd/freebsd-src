@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.68 2009-09-01 18:40:25 jinmei Exp $
+# $Id: rules.in,v 1.68.346.2 2011-02-28 01:20:04 tbox Exp $
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -50,7 +50,7 @@ top_builddir =	@BIND9_TOP_BUILDDIR@
 ### Makefile may define:
 ###	TARGETS
 
-all: subdirs ${TARGETS}
+all: subdirs ${TARGETS} testdirs
 
 ###
 ### Subdirectories
@@ -59,14 +59,26 @@ all: subdirs ${TARGETS}
 ###	SUBDIRS
 
 ALL_SUBDIRS = ${SUBDIRS} nulldir
+ALL_TESTDIRS = ${TESTDIRS} nulldir
 
 #
 # We use a single-colon rule so that additional dependencies of
 # subdirectories can be specified after the inclusion of this file.
-# The "depend" target is treated the same way.
+# The "depend" and "testdirs" targets are treated the same way.
 #
 subdirs:
 	@for i in ${ALL_SUBDIRS}; do \
+		if [ "$$i" != "nulldir" -a -d $$i ]; then \
+			echo "making all in `pwd`/$$i"; \
+			(cd $$i; ${MAKE} ${MAKEDEFS} DESTDIR="${DESTDIR}" all) || exit 1; \
+		fi; \
+	done
+
+#
+# Tests are built after the targets instead of before
+#
+testdirs:
+	@for i in ${ALL_TESTDIRS}; do \
 		if [ "$$i" != "nulldir" -a -d $$i ]; then \
 			echo "making all in `pwd`/$$i"; \
 			(cd $$i; ${MAKE} ${MAKEDEFS} DESTDIR="${DESTDIR}" all) || exit 1; \
