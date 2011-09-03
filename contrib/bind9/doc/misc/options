@@ -113,7 +113,7 @@ options {
         dnssec-accept-expired <boolean>;
         dnssec-dnskey-kskonly <boolean>;
         dnssec-enable <boolean>;
-        dnssec-lookaside <string> trust-anchor <string>;
+        dnssec-lookaside ( <string> trust-anchor <string> | auto );
         dnssec-must-be-secure <string> <boolean>;
         dnssec-secure-to-insecure <boolean>;
         dnssec-validation ( yes | no | auto );
@@ -332,7 +332,7 @@ view <string> <optional_class> {
         dnssec-accept-expired <boolean>;
         dnssec-dnskey-kskonly <boolean>;
         dnssec-enable <boolean>;
-        dnssec-lookaside <string> trust-anchor <string>;
+        dnssec-lookaside ( <string> trust-anchor <string> | auto );
         dnssec-must-be-secure <string> <boolean>;
         dnssec-secure-to-insecure <boolean>;
         dnssec-validation ( yes | no | auto );
@@ -459,7 +459,7 @@ view <string> <optional_class> {
                     <integer> | * ) ];
                 alt-transfer-source-v6 ( <ipv6_address> | * ) [ port (
                     <integer> | * ) ];
-                auto-dnssec ( allow | maintain | create | off );
+                auto-dnssec ( allow | maintain | off );
                 check-dup-records ( fail | warn | ignore );
                 check-integrity <boolean>;
                 check-mx ( fail | warn | ignore );
@@ -547,7 +547,7 @@ zone <string> <optional_class> {
         alt-transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         alt-transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> |
             * ) ];
-        auto-dnssec ( allow | maintain | create | off );
+        auto-dnssec ( allow | maintain | off );
         check-dup-records ( fail | warn | ignore );
         check-integrity <boolean>;
         check-mx ( fail | warn | ignore );
