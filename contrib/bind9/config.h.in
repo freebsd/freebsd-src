@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.143.8.1 2011-02-03 05:52:35 marka Exp $ */
+/* $Id: config.h.in,v 1.143.8.4 2011-03-10 04:29:14 each Exp $ */
 
 /*! \file */
 
@@ -144,11 +144,11 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 #undef NEED_PTHREAD_SCOPE_SYSTEM
 
-/* Define if building universal (internal helper macro) */
-#undef AC_APPLE_UNIVERSAL_BUILD
-
 /* Define to enable the "filter-aaaa-on-v4" option. */
 #undef ALLOW_FILTER_AAAA_ON_V4
+
+/* define if ATF unit tests are to be built. */
+#undef ATF_TEST
 
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
@@ -240,9 +240,6 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `c_r' library (-lc_r). */
 #undef HAVE_LIBC_R
-
-/* Define to 1 if you have the `dl' library (-ldl). */
-#undef HAVE_LIBDL
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
@@ -361,6 +358,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to the flags type used by getnameinfo(3). */
 #undef IRS_GETNAMEINFO_FLAGS_T
 
+/* Define to allow building of objects for dlopen(). */
+#undef ISC_DLZ_DLOPEN
+
 /* Defined if extern char *optarg is not declared. */
 #undef NEED_OPTARG
 
@@ -379,9 +379,6 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
-
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -403,17 +400,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* define if idnkit support is to be included. */
 #undef WITH_IDN
 
-/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-#  undef WORDS_BIGENDIAN
-# endif
-#endif
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

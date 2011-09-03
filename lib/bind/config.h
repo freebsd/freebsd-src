@@ -187,8 +187,17 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <devpoll.h> header file. */
 /* #undef HAVE_DEVPOLL_H */
 
+/* Define to 1 if you have the `dlclose' function. */
+#define HAVE_DLCLOSE 1
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
+
+/* Define to 1 if you have the `dlopen' function. */
+#define HAVE_DLOPEN 1
+
+/* Define to 1 if you have the `dlsym' function. */
+#define HAVE_DLSYM 1
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
@@ -351,6 +360,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to the flags type used by getnameinfo(3). */
 #define IRS_GETNAMEINFO_FLAGS_T int
+
+/* Define to allow building of objects for dlopen(). */
+#define ISC_DLZ_DLOPEN 1
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
