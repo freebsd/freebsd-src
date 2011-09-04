@@ -2741,10 +2741,13 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	/*
 	 * Update rate control - all frames have failed.
+	 *
+	 * XXX use the length in the first frame in the series;
+	 * XXX just so things are consistent for now.
 	 */
 	ath_tx_update_ratectrl(sc, ni, bf_first->bf_state.bfs_rc,
 	    &bf_first->bf_status.ds_txstat,
-	    bf_first->bf_state.bfs_al,
+	    bf_first->bf_state.bfs_pktlen,
 	    bf_first->bf_state.bfs_nframes, bf_first->bf_state.bfs_nframes);
 
 	/* Retry all subframes */
@@ -2872,7 +2875,11 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * has been completed and freed.
 	 */
 	ts = bf_first->bf_status.ds_txstat;
-	pktlen = bf_first->bf_state.bfs_al;
+	/*
+	 * XXX for now, use the first frame in the aggregate for
+	 * XXX rate control completion; it's at least consistent.
+	 */
+	pktlen = bf_first->bf_state.bfs_pktlen;
 
 	/*
 	 * handle errors first
