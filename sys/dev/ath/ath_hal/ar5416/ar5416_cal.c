@@ -660,7 +660,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		 * here, the baseband nf cal will just be capped by our present
 		 * noisefloor until the next calibration timer.
 		 */
-		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "Timeout while waiting for "
+		HALDEBUG(ah, HAL_DEBUG_NFCAL, "Timeout while waiting for "
 		    "nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
 		return;
