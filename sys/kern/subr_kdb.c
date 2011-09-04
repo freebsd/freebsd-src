@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdb.h"
 #include "opt_stack.h"
+#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>
@@ -587,6 +591,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	cpuset_t other_cpus;
 #endif
 	struct kdb_dbbe *be;
+#ifdef SW_WATCHDOG
+	u_int wdoglvt;
+#endif
 	register_t intr;
 	int handled;
 
@@ -600,6 +607,10 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	intr = intr_disable();
 
+#ifdef SW_WATCHDOG
+	wdoglvt = wdog_kern_last_timeout();
+	wdog_kern_pat(WD_TO_NEVER);
+#endif
 #ifdef SMP
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
@@ -630,6 +641,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 #ifdef SMP
 	restart_cpus(stopped_cpus);
+#endif
+#ifdef SW_WATCHDOG
+	wdog_kern_pat(wdoglvt);
 #endif
 
 	intr_restore(intr);
