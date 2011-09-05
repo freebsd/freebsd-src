@@ -196,9 +196,23 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 		if (sn->stats[size_bin][rix].successive_failures > 3)
 			continue;
 
-		if (best_rate_tt == 0 || tt < best_rate_tt) {
-			best_rate_tt = tt;
-			best_rate_rix = rix;
+		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			if (best_rate_tt == 0 || tt <= best_rate_tt) {
+				best_rate_tt = tt;
+				best_rate_rix = rix;
+			}
+		}
+
+		/*
+		 * Since 2 stream rates have slightly higher TX times,
+		 * allow a little bit of leeway. This should later
+		 * be abstracted out and properly handled.
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if (best_rate_tt == 0 || (tt * 8 <= best_rate_tt * 10)) {
+				best_rate_tt = tt;
+				best_rate_rix = rix;
+			}
 		}
         }
         return (best_rate_tt ? best_rate_rix : -1);
@@ -256,6 +270,28 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 			mask &= ~(1<<rix);
 			goto nextrate;
 		}
+
+		/*
+		 * When doing aggregation, successive failures don't happen
+		 * as often, as sometimes some of the sub-frames get through.
+		 *
+		 * If the sample rix average tx time is greater than the
+		 * average tx time of the current rix, don't immediately use
+		 * the rate for sampling.
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
+			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
+			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
+				mask &= ~(1<<rix);
+				goto nextrate;
+			}
+		}
+
+		/*
+		 * XXX TODO
+		 * For HT, limit sample somehow?
+		 */
 
 		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
@@ -453,7 +489,9 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	if (sn->sample_tt[size_bin] < average_tx_time * (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
 		rix = pick_sample_rate(ssc, an, rt, size_bin);
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "size %u sample rate %d %s current rate %d %s",
+		     &an->an_node, "att %d sample_tt %d size %u sample rate %d %s current rate %d %s",
+		     average_tx_time,
+		     sn->sample_tt[size_bin],
 		     bin_to_size(size_bin),
 		     dot11rate(rt, rix),
 		     dot11rate_label(rt, rix),
@@ -478,13 +516,49 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 				    ath_rate_pick_seed_rate_legacy(sc, an, frameLen);
 		} else if (sn->packets_sent[size_bin] < 20) {
 			/* let the bit-rate switch quickly during the first few packets */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: switching quickly..", __func__);
 			change_rates = 1;
 		} else if (ticks - ssc->min_switch > sn->ticks_since_switch[size_bin]) {
 			/* min_switch seconds have gone by */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: min_switch %d > ticks_since_switch %d..",
+			    __func__, ticks - ssc->min_switch, sn->ticks_since_switch[size_bin]);
 			change_rates = 1;
-		} else if (2*average_tx_time < sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time) {
+		} else if ((! (an->an_node.ni_flags & IEEE80211_NODE_HT)) &&
+		    (2*average_tx_time < sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time)) {
 			/* the current bit-rate is twice as slow as the best one */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: 2x att (= %d) < cur_rix att %d",
+			    __func__,
+			    2 * average_tx_time, sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time);
 			change_rates = 1;
+		} else if ((an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			int cur_rix = sn->current_rix[size_bin];
+			int cur_att = sn->stats[size_bin][cur_rix].average_tx_time;
+			/*
+			 * If the node is HT, upgrade it if the MCS rate is
+			 * higher and the average tx time is within 20% of
+			 * the current rate. It can fail a little.
+			 *
+			 * This is likely not optimal!
+			 */
+#if 0
+			printf("cur rix/att %x/%d, best rix/att %x/%d\n",
+			    MCS(cur_rix), cur_att, MCS(best_rix), average_tx_time);
+#endif
+			if ((MCS(best_rix) > MCS(cur_rix)) &&
+			    (average_tx_time * 8) <= (cur_att * 10)) {
+				IEEE80211_NOTE(an->an_node.ni_vap,
+				    IEEE80211_MSG_RATECTL, &an->an_node,
+				    "%s: HT: best_rix 0x%d > cur_rix 0x%x, average_tx_time %d, cur_att %d",
+				    __func__,
+				    MCS(best_rix), MCS(cur_rix), average_tx_time, cur_att);
+				change_rates = 1;
+			}
 		}
 
 		sn->packets_since_sample[size_bin]++;
