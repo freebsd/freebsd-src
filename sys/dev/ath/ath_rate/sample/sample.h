@@ -51,6 +51,7 @@ struct sample_softc {
 	int	max_successive_failures;
 	int	stale_failure_timeout;	/* how long to honor max_successive_failures */
 	int	min_switch;		/* min time between rate changes */
+	int	min_good_pct;		/* min good percentage for a rate to be considered */
 };
 #define	ATH_SOFTC_SAMPLE(sc)	((struct sample_softc *)sc->sc_rc)
 
@@ -58,8 +59,9 @@ struct rate_stats {
 	unsigned average_tx_time;
 	int successive_failures;
 	int tries;
-	int total_packets;
-	int packets_acked;
+	int total_packets;	/* pkts total since assoc */
+	int packets_acked;	/* pkts acked since assoc */
+	int ewma_pct;	/* EWMA percentage */
 	unsigned perfect_tx_time; /* transmit time for 0 retries */
 	int last_tx;
 };
