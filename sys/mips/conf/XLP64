@@ -21,7 +21,7 @@ machine 	mips mips64eb
 ident           XLP64
 
 options 	ISA_MIPS64
-makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
+makeoptions	ARCH_FLAGS="-march=mips64r2 -mabi=64"
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 include		"../nlm/std.xlp"
@@ -38,7 +38,7 @@ options 	SCHED_ULE		# ULE scheduler
 options         SMP
 options 	PREEMPTION		# Enable kernel thread preemption
 #options 	FULL_PREEMPTION		# Enable kernel thread preemption
-options		MAXCPU=128		# XLP can probe 128 CPUs
+#options 	MAXCPU=128		# XLP can probe 128 CPUs
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
@@ -91,6 +91,7 @@ device		bpf
 
 # UART
 device		uart
+device		pci
 
 # Network
 device		ether
