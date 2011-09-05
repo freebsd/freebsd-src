@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008,2011 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -83,7 +83,10 @@ enum {
 	DIR_NONE,
 };
 
+#define	SCSI_MAX_LEN	0x100
 #define	SCSI_INQ_LEN	0x24
+#define	SCSI_SENSE_LEN	0xFF
+
 static uint8_t scsi_test_unit_ready[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_inquiry[] = { 0x12, 0x00, 0x00, 0x00, SCSI_INQ_LEN, 0x00 };
 static uint8_t scsi_rezero_init[] =     { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -98,6 +101,8 @@ static uint8_t scsi_huawei_eject[] =	{ 0x11, 0x06, 0x00, 0x00, 0x00, 0x00,
 static uint8_t scsi_tct_eject[] =	{ 0x06, 0xf5, 0x04, 0x02, 0x52, 0x70 };
 static uint8_t scsi_sync_cache[] =	{ 0x35, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
+					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -151,7 +156,7 @@ struct bbb_transfer {
 	uint8_t	status_try;
 	int	error;
 
-	uint8_t	buffer[256];
+	uint8_t	buffer[SCSI_MAX_LEN] __aligned(4);
 };
 
 static usb_callback_t bbb_command_callback;
@@ -659,6 +664,32 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		DPRINTF("Device doesn't handle synchronize cache\n");
 
 		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+	}
+
+	/* clear sense status of any failed commands on the device */
+
+	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+	    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
+	    USB_MS_HZ);
+
+	DPRINTF("Inquiry = %d\n", err);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
+	}
+
+	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+	    SCSI_SENSE_LEN, &scsi_request_sense,
+	    sizeof(scsi_request_sense), USB_MS_HZ);
+
+	DPRINTF("Request sense = %d\n", err);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
 	}
 
 done:
