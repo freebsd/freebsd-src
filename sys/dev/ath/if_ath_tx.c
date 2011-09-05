@@ -824,6 +824,43 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Do a rate lookup.
+ *
+ * This performs a rate lookup for the given ath_buf only if it's required.
+ * Non-data frames and raw frames don't require it.
+ *
+ * This populates the primary and MRR entries; MRR values are
+ * then disabled later on if something requires it (eg RTS/CTS on
+ * pre-11n chipsets.
+ *
+ * This needs to be done before the RTS/CTS fields are calculated
+ * as they may depend upon the rate chosen.
+ */
+static void
+ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
+{
+	uint8_t rate, rix;
+	int try0;
+
+	if (! bf->bf_state.bfs_doratelookup)
+		return;
+
+	ATH_NODE_LOCK(ATH_NODE(bf->bf_node));
+	ath_rate_findrate(sc, ATH_NODE(bf->bf_node), bf->bf_state.bfs_shpream,
+	    bf->bf_state.bfs_pktlen, &rix, &try0, &rate);
+	/* XXX only do this if MRR is enabled for this frame? */
+	/* XXX and blank the rest if not? */
+	ath_rate_getxtxrates(sc, ATH_NODE(bf->bf_node), rix,
+	    bf->bf_state.bfs_rc);
+	ATH_NODE_UNLOCK(ATH_NODE(bf->bf_node));
+
+	sc->sc_txrix = rix;	/* for LED blinking */
+	sc->sc_lastdatarix = rix;	/* for fast frames */
+	bf->bf_state.bfs_try0 = try0;
+	bf->bf_state.bfs_txrate0 = rate;
+}
+
+/*
  * Set the rate control fields in the given descriptor based on
  * the bf_state fields and node state.
  *
@@ -886,6 +923,8 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* Setup the descriptor before handoff */
+	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
@@ -908,8 +947,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211com *ic = ifp->if_l2com;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
-	int keyix, hdrlen, pktlen, try0;
-	u_int8_t rix, txrate;
+	int keyix, hdrlen, pktlen, try0 = 0;
+	u_int8_t rix = 0, txrate = 0;
 	struct ath_desc *ds;
 	struct ath_txq *txq;
 	struct ieee80211_frame *wh;
@@ -1029,14 +1068,12 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 				txrate |= rt->info[rix].shortPreamble;
 			try0 = ATH_TXMAXTRY;	/* XXX?too many? */
 		} else {
-			ATH_NODE_LOCK(an);
-			ath_rate_findrate(sc, an, shortPreamble, pktlen,
-				&rix, &try0, &txrate);
-			ATH_NODE_UNLOCK(an);
-			sc->sc_txrix = rix;		/* for LED blinking */
-			sc->sc_lastdatarix = rix;	/* for fast frames */
-			if (try0 != ATH_TXMAXTRY)
-				ismrr = 1;
+			/*
+			 * Do rate lookup on each TX, rather than using
+			 * the hard-coded TX information decided here.
+			 */
+			ismrr = 1;
+			bf->bf_state.bfs_doratelookup = 1;
 		}
 		if (cap->cap_wmeParams[pri].wmep_noackPolicy)
 			flags |= HAL_TXDESC_NOACK;
@@ -1240,19 +1277,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_ctsduration = 0;
 	bf->bf_state.bfs_ismrr = ismrr;
 
-	/*
-	 * Setup the multi-rate retry state only when we're
-	 * going to use it.  This assumes ath_hal_setuptxdesc
-	 * initializes the descriptors (so we don't have to)
-	 * when the hardware supports multi-rate retry and
-	 * we don't use it.
-	 */
-        if (ismrr) {
-		ATH_NODE_LOCK(an);
-		ath_rate_getxtxrates(sc, an, rix, bf->bf_state.bfs_rc);
-		ATH_NODE_UNLOCK(an);
-        }
-
 	return 0;
 }
 
@@ -1362,12 +1386,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
 
-	/*
-	 * ath_tx_normal_setup() has done the single and multi-rate
-	 * retry rate lookup for us. Fill in the rcflags based on
-	 * that.
-	 */
-	ath_tx_rate_fill_rcflags(sc, bf);
 #if 1
 	/*
 	 * If it's a multicast frame, do a direct-dispatch to the
@@ -2000,6 +2018,8 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	}
 
 	/* Direct dispatch to hardware */
+	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
@@ -3145,6 +3165,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    __func__);
 			ATH_TXQ_REMOVE(tid, bf, bf_list);
 			bf->bf_state.bfs_aggr = 0;
+			ath_tx_do_ratelookup(sc, bf);
+			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_set_rtscts(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
@@ -3157,8 +3179,19 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			goto queuepkt;
 		}
 
-		/* Don't lock the TID - ath_tx_form_aggr will lock as needed */
 		TAILQ_INIT(&bf_q);
+
+		/*
+		 * Do a rate control lookup on the first frame in the
+		 * list. The rate control code needs that to occur
+		 * before it can determine whether to TX.
+		 * It's inaccurate because the rate control code doesn't
+		 * really "do" aggregate lookups, so it only considers
+		 * the size of the first frame.
+		 */
+		ath_tx_do_ratelookup(sc, bf);
+		ath_tx_rate_fill_rcflags(sc, bf);
+
 		status = ath_tx_form_aggr(sc, an, tid, &bf_q);
 
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
@@ -3202,6 +3235,13 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			bf->bf_state.bfs_aggr = 1;
 			sc->sc_aggr_stats.aggr_pkts[bf->bf_state.bfs_nframes]++;
 			sc->sc_aggr_stats.aggr_aggr_pkt++;
+
+			/*
+			 * Update the rate and rtscts information based on the
+			 * rate decision made by the rate control code;
+			 * the first frame in the aggregate needs it.
+			 */
+			ath_tx_set_rtscts(sc, bf);
 
 			/*
 			 * Setup the relevant descriptor fields
@@ -3296,6 +3336,8 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		bf->bf_comp = ath_tx_normal_comp;
 
 		/* Program descriptors + rate control */
+		ath_tx_do_ratelookup(sc, bf);
+		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_set_rtscts(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_chaindesclist(sc, bf);

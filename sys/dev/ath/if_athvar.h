@@ -214,6 +214,7 @@ struct ath_buf {
 		int bfs_istxfrag:1;	/* is fragmented */
 		int bfs_ismrr:1;	/* do multi-rate TX retry */
 		int bfs_doprot:1;	/* do RTS/CTS based protection */
+		int bfs_doratelookup:1;	/* do rate lookup before each TX */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
