@@ -742,9 +742,17 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 			 (tt * (100 - ssc->smoothing_rate))) / 100;
 	}
 	
+	/*
+	 * XXX Don't mark the higher bit rates as also having failed; as this
+	 * unfortunately stops those rates from being tasted when trying to
+	 * TX. This happens with 11n aggregation.
+	 */
 	if (nframes == nbad) {
+#if 0
 		int y;
+#endif
 		sn->stats[size_bin][rix0].successive_failures += nbad;
+#if 0
 		for (y = size_bin+1; y < NUM_PACKET_SIZE_BINS; y++) {
 			/*
 			 * Also say larger packets failed since we
@@ -756,6 +764,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 			sn->stats[y][rix0].tries += tries;
 			sn->stats[y][rix0].total_packets += nframes;
 		}
+#endif
 	} else {
 		sn->stats[size_bin][rix0].packets_acked += (nframes - nbad);
 		sn->stats[size_bin][rix0].successive_failures = 0;
