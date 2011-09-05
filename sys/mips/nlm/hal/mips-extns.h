@@ -25,8 +25,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
 #ifndef __NLM_MIPS_EXTNS_H__
 #define __NLM_MIPS_EXTNS_H__
@@ -91,91 +92,6 @@ static __inline__ uint64_t nlm_swapd(int32_t *loc, uint64_t val)
 }
 #endif
 
-#if defined(__mips_n64) || defined(__mips_n32)
-static __inline uint64_t
-nlm_mfcr(uint32_t reg)
-{
-	uint64_t res;
-
-	__asm__ __volatile__(
-	    ".set	push\n\t"
-	    ".set	noreorder\n\t"
-	    "move	$9, %1\n\t"
-	    ".word	0x71280018\n\t"  /* mfcr $8, $9 */
-	    "move	%0, $8\n\t"
-	    ".set	pop\n"
-	    : "=r" (res) : "r"(reg)
-	    : "$8", "$9"
-	);
-	return (res);
-}
-
-static __inline void
-nlm_mtcr(uint32_t reg, uint64_t value)
-{
-	__asm__ __volatile__(
-	    ".set	push\n\t"
-	    ".set	noreorder\n\t"
-	    "move	$8, %0\n"
-	    "move	$9, %1\n"
-	    ".word	0x71280019\n"    /* mtcr $8, $9  */
-	    ".set	pop\n"
-	    :
-	    : "r" (value), "r" (reg)
-	    : "$8", "$9"
-	);
-}
-
-#else /* !(defined(__mips_n64) || defined(__mips_n32)) */
-
-static __inline__  uint64_t
-nlm_mfcr(uint32_t reg)
-{
-        uint64_t hi;
-        uint64_t lo;
-
-        __asm__ __volatile__ (
-                ".set push\n"
-                ".set mips64\n"
-                "move   $8, %2\n"
-                ".word  0x71090018\n"
-		"nop	\n"
-                "dsra32 %0, $9, 0\n"
-                "sll    %1, $9, 0\n"
-                ".set pop\n"
-                : "=r"(hi), "=r"(lo)
-                : "r"(reg) : "$8", "$9");
-
-        return (((uint64_t)hi) << 32) | lo;
-}
-
-static __inline__  void
-nlm_mtcr(uint32_t reg, uint64_t val)
-{
-	uint32_t hi, lo;
-	hi = val >> 32;
-	lo = val & 0xffffffff;
-
-        __asm__ __volatile__ (
-                ".set push\n"
-                ".set mips64\n"
-                "move   $9, %0\n"
-                "dsll32 $9, %1, 0\n"
-                "dsll32 $8, %0, 0\n"
-                "dsrl32 $9, $9, 0\n"
-                "or     $9, $9, $8\n"
-                "move   $8, %2\n"
-                ".word  0x71090019\n"
-		"nop	\n"
-                ".set pop\n"
-                ::"r"(hi), "r"(lo), "r"(reg)
-                : "$8", "$9");
-}
-#endif /* (defined(__mips_n64) || defined(__mips_n32)) */
-
-/* dcrc2 */
-/* XLP additional instructions */
-
 /*
  * Atomic increment a unsigned  int
  */
@@ -196,5 +112,163 @@ nlm_ldaddwu(unsigned int value, unsigned int *addr)
 
 	return (value);
 }
+/*
+ * 32 bit read write for c0
+ */
+#define read_c0_register32(reg, sel)				\
+({								\
+	 uint32_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mfc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
+
+#define write_c0_register32(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mtc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
+
+#if defined(__mips_n64) || defined(__mips_n32)
+/*
+ * On 64 bit compilation, the operations are simple
+ */
+#define read_c0_register64(reg, sel)				\
+({								\
+	uint64_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
+
+#define write_c0_register64(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmtc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
+#else /* ! (defined(__mips_n64) || defined(__mips_n32)) */
+
+/*
+ * 32 bit compilation, 64 bit values has to split 
+ */
+#define read_c0_register64(reg, sel)				\
+({								\
+	uint32_t __high, __low;					\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc0	$8, $%2, %3\n\t"			\
+	    "dsra32	%0, $8, 0\n\t"				\
+	    "sll	%1, $8, 0\n\t"				\
+	    ".set	pop\n"					\
+	    : "=r"(__high), "=r"(__low): "i"(reg), "i"(sel)	\
+	    : "$8");						\
+	((uint64_t)__high << 32) | __low;			\
+})
+
+#define write_c0_register64(reg, sel, value)			\
+do {								\
+       uint32_t __high = value >> 32;				\
+       uint32_t __low = value & 0xffffffff;			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dsll32	$8, %1, 0\n\t"				\
+	    "dsll32	$9, %0, 0\n\t"				\
+	    "dsrl32	$8, $8, 0\n\t"				\
+	    "or		$8, $8, $9\n\t"				\
+	    "dmtc0	$8, $%2, %3\n\t"			\
+	    ".set	pop"					\
+	    :: "r"(__high), "r"(__low),	 "i"(reg), "i"(sel)	\
+	    :"$8", "$9");					\
+} while(0)
+
 #endif
+/* functions to write to and read from the extended
+ * cp0 registers.
+ * EIRR : Extended Interrupt Request Register
+ *        cp0 register 9 sel 6
+ *        bits 0...7 are same as cause register 8...15
+ * EIMR : Extended Interrupt Mask Register
+ *        cp0 register 9 sel 7
+ *        bits 0...7 are same as status register 8...15
+ */
+static __inline uint64_t 
+nlm_read_c0_eirr(void)
+{
+
+	return (read_c0_register64(9, 6));
+}
+
+static __inline void
+nlm_write_c0_eirr(uint64_t val)
+{
+
+	write_c0_register64(9, 6, val);
+}
+
+static __inline uint64_t 
+nlm_read_c0_eimr(void)
+{
+
+	return (read_c0_register64(9, 7));
+}
+
+static __inline void
+nlm_write_c0_eimr(uint64_t val)
+{
+
+	write_c0_register64(9, 7, val);
+}
+
+static __inline__ uint32_t
+nlm_read_c0_ebase(void)
+{
+
+	return (read_c0_register32(15, 1));
+}
+
+static __inline__ int
+nlm_nodeid(void)
+{
+	return (nlm_read_c0_ebase() >> 5) & 0x3;
+}
+
+static __inline__ int
+nlm_cpuid(void)
+{
+	return nlm_read_c0_ebase() & 0x1f;
+}
+
+static __inline__ int
+nlm_threadid(void)
+{
+	return nlm_read_c0_ebase() & 0x3;
+}
+
+static __inline__ int
+nlm_coreid(void)
+{
+	return (nlm_read_c0_ebase() >> 2) & 0x7;
+}
+#endif
+
+#define XLP_MAX_NODES	4
+#define XLP_MAX_CORES	8
+#define XLP_MAX_THREADS	4
+
 #endif
