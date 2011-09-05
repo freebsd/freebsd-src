@@ -206,13 +206,15 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 			continue;
 
 		/*
-		 * For HT, Don't use a bit rate that has a higher failure
-		 * rate than the current.
+		 * For HT, Don't use a bit rate that is much more
+		 * lossy than the best.
 		 *
-		 * XXX This isn't optimal!
+		 * XXX this isn't optimal; it's just designed to
+		 * eliminate rates that are going to be obviously
+		 * worse.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if (best_rate_pct > pct)
+			if (best_rate_pct > (pct + 50))
 				continue;
 		}
 
