@@ -320,6 +320,96 @@ ath_rate_update_static_rix(struct ath_softc *sc, struct ieee80211_node *ni)
 	}
 }
 
+/*
+ * Pick a non-HT rate to begin using.
+ */
+static int
+ath_rate_pick_seed_rate_legacy(struct ath_softc *sc, struct ath_node *an,
+    int frameLen)
+{
+#define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+#define	RATE(ix)	(DOT11RATE(ix) / 2)
+	int rix = -1;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const int size_bin = size_to_bin(frameLen);
+
+	/* no packet has been sent successfully yet */
+	for (rix = rt->rateCount-1; rix > 0; rix--) {
+		if ((sn->ratemask & (1<<rix)) == 0)
+			continue;
+
+		/* Skip HT rates */
+		if (rt->info[rix].phy == IEEE80211_T_HT)
+			continue;
+
+		/*
+		 * Pick the highest rate <= 36 Mbps
+		 * that hasn't failed.
+		 */
+		if (DOT11RATE(rix) <= 72 &&
+		    sn->stats[size_bin][rix].successive_failures == 0) {
+			break;
+		}
+	}
+	return rix;
+#undef	RATE
+#undef	MCS
+#undef	DOT11RATE
+}
+
+/*
+ * Pick a HT rate to begin using.
+ *
+ * Don't use any non-HT rates; only consider HT rates.
+ */
+static int
+ath_rate_pick_seed_rate_ht(struct ath_softc *sc, struct ath_node *an,
+    int frameLen)
+{
+#define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+#define	RATE(ix)	(DOT11RATE(ix) / 2)
+	int rix = -1, ht_rix = -1;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const int size_bin = size_to_bin(frameLen);
+
+	/* no packet has been sent successfully yet */
+	for (rix = rt->rateCount-1; rix > 0; rix--) {
+		/* Skip rates we can't use */
+		if ((sn->ratemask & (1<<rix)) == 0)
+			continue;
+
+		/* Keep a copy of the last seen HT rate index */
+		if (rt->info[rix].phy == IEEE80211_T_HT)
+			ht_rix = rix;
+
+		/* Skip non-HT rates */
+		if (rt->info[rix].phy != IEEE80211_T_HT)
+			continue;
+
+		/*
+		 * Pick a medium-speed rate regardless of stream count
+		 * which has not seen any failures. Higher rates may fail;
+		 * we'll try them later.
+		 */
+		if (((MCS(rix) & 0x7) <= 4) &&
+		    sn->stats[size_bin][rix].successive_failures == 0) {
+			break;
+		}
+	}
+
+	/*
+	 * If all the MCS rates have successive failures, rix should be
+	 * > 0; otherwise use the lowest MCS rix (hopefully MCS 0.)
+	 */
+	return MAX(rix, ht_rix);
+#undef	RATE
+#undef	MCS
+#undef	DOT11RATE
+}
 
 
 void
@@ -379,20 +469,13 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		change_rates = 0;
 		if (!sn->packets_sent[size_bin] || best_rix == -1) {
 			/* no packet has been sent successfully yet */
-			for (rix = rt->rateCount-1; rix > 0; rix--) {
-				if ((sn->ratemask & (1<<rix)) == 0)
-					continue;
-				/* 
-				 * Pick the highest rate <= 36 Mbps
-				 * that hasn't failed.
-				 */
-				if (DOT11RATE(rix) <= 72 && 
-				    sn->stats[size_bin][rix].successive_failures == 0) {
-					break;
-				}
-			}
 			change_rates = 1;
-			best_rix = rix;
+			if (an->an_node.ni_flags & IEEE80211_NODE_HT)
+				best_rix =
+				    ath_rate_pick_seed_rate_ht(sc, an, frameLen);
+			else
+				best_rix =
+				    ath_rate_pick_seed_rate_legacy(sc, an, frameLen);
 		} else if (sn->packets_sent[size_bin] < 20) {
 			/* let the bit-rate switch quickly during the first few packets */
 			change_rates = 1;
