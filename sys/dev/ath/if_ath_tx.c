@@ -3190,6 +3190,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * the size of the first frame.
 		 */
 		ath_tx_do_ratelookup(sc, bf);
+		bf->bf_state.bfs_rc[3].rix = 0;
+		bf->bf_state.bfs_rc[3].tries = 0;
 		ath_tx_rate_fill_rcflags(sc, bf);
 
 		status = ath_tx_form_aggr(sc, an, tid, &bf_q);
