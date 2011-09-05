@@ -39,12 +39,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* program arguments */
+struct _a {
+	int s;
+	struct timespec interval;
+	int port, port_max;
+	long duration;
+	struct sockaddr_in sin;
+	int packet_len;
+	void *packet;
+};
+
 static void
 usage(void)
 {
 
 	fprintf(stderr,
-	    "netsend [ip] [port] [payloadsize] [rate] [duration]\n");
+	    "netsend [ip] [port[-port_max]] [payloadsize] [packet_rate] [duration]\n");
 	exit(-1);
 }
 
@@ -114,10 +125,12 @@ wait_time(struct timespec ts, struct timespec *wakeup_ts, long long *waited)
  * Calculate a second-aligned starting time for the packet stream.  Busy
  * wait between our calculated interval and dropping the provided packet
  * into the socket.  If we hit our duration limit, bail.
+ * We sweep the ports from a->port to a->port_max included.
+ * If the two ports are the same we connect() the socket upfront, which
+ * almost halves the cost of the sendto() call.
  */
 static int
-timing_loop(int s, struct timespec interval, long duration, u_char *packet,
-    u_int packet_len)
+timing_loop(struct _a *a)
 {
 	struct timespec nexttime, starttime, tmptime;
 	long long waited;
@@ -127,18 +140,19 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	/* do not call gettimeofday more than every 20us */
 	long minres_ns = 20000;
 	int ic, gettimeofday_cycles;
+	int cur_port;
 
 	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
 		perror("clock_getres");
 		return (-1);
 	}
 
-	if (timespec_ge(&tmptime, &interval))
+	if (timespec_ge(&tmptime, &a->interval))
 		fprintf(stderr,
 		    "warning: interval (%jd.%09ld) less than resolution (%jd.%09ld)\n",
-		    (intmax_t)interval.tv_sec, interval.tv_nsec,
+		    (intmax_t)a->interval.tv_sec, a->interval.tv_nsec,
 		    (intmax_t)tmptime.tv_sec, tmptime.tv_nsec);
-	if (tmptime.tv_nsec < minres_ns) {
+	if (a->interval.tv_nsec < minres_ns) {
 		gettimeofday_cycles = minres_ns/(tmptime.tv_nsec + 1);
 		fprintf(stderr,
 		    "calling time every %d cycles\n", gettimeofday_cycles);
@@ -156,14 +170,23 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	if (wait_time(starttime, NULL, NULL) == -1)
 		return (-1);
 	nexttime = starttime;
-	finishtime = starttime.tv_sec + duration;
+	finishtime = starttime.tv_sec + a->duration;
 
 	send_errors = send_calls = 0;
 	counter = 0;
 	waited = 0;
 	ic = gettimeofday_cycles;
+	cur_port = a->port;
+	if (a->port == a->port_max) {
+		if (connect(a->s, (struct sockaddr *)&a->sin, sizeof(a->sin))) {
+			perror("connect");
+			return (-1);
+		}
+	}
 	while (1) {
-		timespec_add(&nexttime, &interval);
+		int ret;
+
+		timespec_add(&nexttime, &a->interval);
 		if (--ic <= 0) {
 			ic = gettimeofday_cycles;
 			if (wait_time(nexttime, &tmptime, &waited) == -1)
@@ -178,17 +201,28 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 		 * previous send, the error will turn up the current send
 		 * operation, causing the current sequence number also to be
 		 * skipped.
+		 * The counter is incremented only on the initial port number,
+		 * so all destinations will see the same set of packets.
 		 *
 		 * XXXRW: Note alignment assumption.
 		 */
-		if (packet_len >= 4) {
-			*((u_int32_t *)packet) = htonl(counter);
+		if (cur_port == a->port && a->packet_len >= 4) {
+			*((u_int32_t *)a->packet) = htonl(counter);
 			counter++;
 		}
-		if (send(s, packet, packet_len, 0) < 0)
+		if (a->port == a->port_max) { /* socket already bound */
+			ret = send(a->s, a->packet, a->packet_len, 0);
+		} else {
+			a->sin.sin_port = htons(cur_port++);
+			if (cur_port > a->port_max)
+				cur_port = a->port;
+			ret = sendto(a->s, a->packet, a->packet_len, 0,
+				(struct sockaddr *)&a->sin, sizeof(a->sin));
+		}
+		if (ret < 0)
 			send_errors++;
 		send_calls++;
-		if (duration != 0 && tmptime.tv_sec >= finishtime)
+		if (a->duration != 0 && tmptime.tv_sec >= finishtime)
 			goto done;
 	}
 
@@ -205,11 +239,11 @@ done:
 	    tmptime.tv_nsec);
 	printf("send calls:        %ld\n", send_calls);
 	printf("send errors:       %ld\n", send_errors);
-	printf("approx send rate:  %ld\n", (send_calls - send_errors) /
-	    duration);
+	printf("approx send rate:  %ld pps\n", (send_calls - send_errors) /
+	    a->duration);
 	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
-	printf("approx waits/sec:  %lld\n", (long long)(waited / duration));
+	printf("approx waits/sec:  %lld\n", (long long)(waited / a->duration));
 	printf("approx wait rate:  %lld\n", (long long)(waited / send_calls));
 
 	return (0);
@@ -218,27 +252,35 @@ done:
 int
 main(int argc, char *argv[])
 {
-	long rate, payloadsize, port, duration;
-	struct timespec interval;
-	struct sockaddr_in sin;
-	char *dummy, *packet;
-	int s;
+	long rate, payloadsize, port;
+	char *dummy;
+	struct _a a;	/* arguments */
+
+	bzero(&a, sizeof(a));
 
 	if (argc != 6)
 		usage();
 
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	if (inet_aton(argv[1], &sin.sin_addr) == 0) {
+	a.sin.sin_len = sizeof(a.sin);
+	a.sin.sin_family = AF_INET;
+	if (inet_aton(argv[1], &a.sin.sin_addr) == 0) {
 		perror(argv[1]);
 		return (-1);
 	}
 
 	port = strtoul(argv[2], &dummy, 10);
-	if (port < 1 || port > 65535 || *dummy != '\0')
+	if (port < 1 || port > 65535)
 		usage();
-	sin.sin_port = htons(port);
+	if (*dummy != '\0' && *dummy != '-')
+		usage();
+	a.sin.sin_port = htons(port);
+	a.port = a.port_max = port;
+	if (*dummy == '-') {	/* set high port */
+		port = strtoul(dummy + 1, &dummy, 10);
+		if (port < a.port || port > 65535)
+			usage();
+		a.port_max = port;
+	}
 
 	payloadsize = strtoul(argv[3], &dummy, 10);
 	if (payloadsize < 0 || *dummy != '\0')
@@ -247,56 +289,51 @@ main(int argc, char *argv[])
 		fprintf(stderr, "payloadsize > 32768\n");
 		return (-1);
 	}
+	a.packet_len = payloadsize;
 
 	/*
 	 * Specify an arbitrary limit.  It's exactly that, not selected by
 	 * any particular strategy.  '0' is a special value meaning "blast",
 	 * and avoids the cost of a timing loop.
-	 * XXX 0 is not actually implemented.
 	 */
 	rate = strtoul(argv[4], &dummy, 10);
-	if (rate < 1 || *dummy != '\0')
+	if (rate < 0 || *dummy != '\0')
 		usage();
 	if (rate > MAX_RATE) {
-		fprintf(stderr, "rate > %d\n", MAX_RATE);
+		fprintf(stderr, "packet rate at most %d\n", MAX_RATE);
 		return (-1);
 	}
 
-	duration = strtoul(argv[5], &dummy, 10);
-	if (duration < 0 || *dummy != '\0')
+	a.duration = strtoul(argv[5], &dummy, 10);
+	if (a.duration < 0 || *dummy != '\0')
 		usage();
 
-	packet = malloc(payloadsize);
-	if (packet == NULL) {
+	a.packet = malloc(payloadsize);
+	if (a.packet == NULL) {
 		perror("malloc");
 		return (-1);
 	}
-	bzero(packet, payloadsize);
-
+	bzero(a.packet, payloadsize);
 	if (rate == 0) {
-		interval.tv_sec = 0;
-		interval.tv_nsec = 0;
+		a.interval.tv_sec = 0;
+		a.interval.tv_nsec = 0;
 	} else if (rate == 1) {
-		interval.tv_sec = 1;
-		interval.tv_nsec = 0;
+		a.interval.tv_sec = 1;
+		a.interval.tv_nsec = 0;
 	} else {
-		interval.tv_sec = 0;
-		interval.tv_nsec = ((1 * 1000000000) / rate);
+		a.interval.tv_sec = 0;
+		a.interval.tv_nsec = ((1 * 1000000000) / rate);
 	}
-	printf("Sending packet of payload size %ld every %jd.%09lds for %ld "
-	    "seconds\n", payloadsize, (intmax_t)interval.tv_sec,
-	    interval.tv_nsec, duration);
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
+	printf("Sending packet of payload size %ld every %jd.%09lds for %ld "
+	    "seconds\n", payloadsize, (intmax_t)a.interval.tv_sec,
+	    a.interval.tv_nsec, a.duration);
+
+	a.s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (a.s == -1) {
 		perror("socket");
 		return (-1);
 	}
 
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("connect");
-		return (-1);
-	}
-
-	return (timing_loop(s, interval, duration, packet, payloadsize));
+	return (timing_loop(&a));
 }
