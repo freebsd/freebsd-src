@@ -29,22 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef _RMI_INTERRUPT_H_
-#define _RMI_INTERRUPT_H_
+#ifndef __NLM_USB_H__
+#define __NLM_USB_H__
 
-/* Defines for the IRQ numbers */
+#define USB_CTL_0			0x01
+#define USB_PHY_0			0x0A
+#define USB_PHY_RESET			0x01
+#define USB_PHY_PORT_RESET_0		0x10
+#define USB_PHY_PORT_RESET_1		0x20
+#define USB_CONTROLLER_RESET		0x01
+#define USB_INT_STATUS			0x0E
+#define USB_INT_EN			0x0F
+#define USB_PHY_INTERRUPT_EN		0x01
+#define USB_OHCI_INTERRUPT_EN		0x02
+#define USB_OHCI_INTERRUPT1_EN		0x04
+#define USB_OHCI_INTERRUPT2_EN		0x08
+#define USB_CTRL_INTERRUPT_EN		0x10
 
-#define IRQ_IPI			41  /* 8-39 are mapped by PIC intr 0-31 */
-#define IRQ_MSGRING             6
-#define IRQ_TIMER               7
 
-/*
- * XLR needs custom pre and post handlers for PCI/PCI-e interrupts
- * XXX: maybe follow i386 intsrc model
- */
-void xlp_establish_intr(const char *name, driver_filter_t filt,
-    driver_intr_t handler, void *arg, int irq, int flags,
-    void **cookiep, void (*busack)(int));
-void xlp_enable_irq(int irq);
+#if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
-#endif				/* _RMI_INTERRUPT_H_ */
+#define nlm_read_usb_reg(b, r)		nlm_read_reg(b,r)
+#define nlm_write_usb_reg(b, r, v)	nlm_write_reg(b,r,v)
+#define	nlm_get_usb_pcibase(node, inst)	nlm_pcicfg_base(XLP_IO_USB_OFFSET(node, inst))
+#define	nlm_get_usb_hcd_base(node, inst) nlm_xkphys_map_pcibar0(nlm_get_usb_pcibase(node, inst))
+#define	nlm_get_usb_regbase(node, inst)	(nlm_get_usb_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
+
+#endif
+#endif

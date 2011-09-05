@@ -25,8 +25,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
 #ifndef __NLM_FMNV2_H__
 #define __NLM_FMNV2_H__
@@ -38,156 +39,156 @@
 */
 
 /* FMN configuration registers */
-#define XLP_CMS_OUTPUTQ_CONFIG_REG(i)	((i)*2)
-#define XLP_CMS_MAX_OUTPUTQ		1024
-#define XLP_CMS_OUTPUTQ_CREDIT_CFG_REG	(0x2000/4)
-#define XLP_CMS_MSG_CONFIG_REG		(0x2008/4)
-#define XLP_CMS_MSG_ERR_REG		(0x2010/4)
-#define XLP_CMS_TRACE_CONFIG_REG	(0x2018/4)
-#define XLP_CMS_TRACE_BASE_ADDR_REG	(0x2020/4)
-#define XLP_CMS_TRACE_LIMIT_ADDR_REG	(0x2028/4)
-#define XLP_CMS_TRACE_CURRENT_ADDR_REG	(0x2030/4)
-#define XLP_CMS_MSG_ENDIAN_SWAP_REG	(0x2038/4)
+#define CMS_OUTPUTQ_CONFIG(i)		((i)*2)
+#define CMS_MAX_OUTPUTQ			1024
+#define CMS_OUTPUTQ_CREDIT_CFG		(0x2000/4)
+#define CMS_MSG_CONFIG			(0x2008/4)
+#define CMS_MSG_ERR			(0x2010/4)
+#define CMS_TRACE_CONFIG		(0x2018/4)
+#define CMS_TRACE_BASE_ADDR		(0x2020/4)
+#define CMS_TRACE_LIMIT_ADDR		(0x2028/4)
+#define CMS_TRACE_CURRENT_ADDR		(0x2030/4)
+#define CMS_MSG_ENDIAN_SWAP		(0x2038/4)
 
-#define XLP_CMS_CPU_PUSHQ(node, core, thread, vc)	\
+#define CMS_CPU_PUSHQ(node, core, thread, vc)	\
 		(((node)<<10) | ((core)<<4) | ((thread)<<2) | ((vc)<<0))
-#define XLP_CMS_POPQ(node, queue)	(((node)<<10) | (queue))
-#define XLP_CMS_IO_PUSHQ(node, queue)	(((node)<<10) | (queue))
+#define CMS_POPQ(node, queue)	(((node)<<10) | (queue))
+#define CMS_IO_PUSHQ(node, queue)	(((node)<<10) | (queue))
 
-#define XLP_CMS_POPQ_QID(i)	(128+(i))
-#define XLP_CMS_POPQ_MAXQID	255
-#define XLP_CMS_PCIE0_QID(i)	(256+(i))
-#define XLP_CMS_PCIE0_MAXQID	257
-#define XLP_CMS_PCIE1_QID(i)	(258+(i))
-#define XLP_CMS_PCIE1_MAXQID	259
-#define XLP_CMS_PCIE2_QID(i)	(260+(i))
-#define XLP_CMS_PCIE2_MAXQID	261
-#define XLP_CMS_PCIE3_QID(i)	(262+(i))
-#define XLP_CMS_PCIE3_MAXQID	263
-#define XLP_CMS_DTE_QID(i)	(264+(i))
-#define XLP_CMS_DTE_MAXQID	267
-#define XLP_CMS_RSA_ECC_QID(i)	(272+(i))
-#define XLP_CMS_RSA_ECC_MAXQID	280
-#define XLP_CMS_CRYPTO_QID(i)	(281+(i))
-#define XLP_CMS_CRYPTO_MAXQID	296
+#define CMS_POPQ_QID(i)		(128+(i))
+#define CMS_POPQ_MAXQID		255
+#define CMS_PCIE0_QID(i)	(256+(i))
+#define CMS_PCIE0_MAXQID	257
+#define CMS_PCIE1_QID(i)	(258+(i))
+#define CMS_PCIE1_MAXQID	259
+#define CMS_PCIE2_QID(i)	(260+(i))
+#define CMS_PCIE2_MAXQID	261
+#define CMS_PCIE3_QID(i)	(262+(i))
+#define CMS_PCIE3_MAXQID	263
+#define CMS_DTE_QID(i)		(264+(i))
+#define CMS_DTE_MAXQID		267
+#define CMS_RSA_ECC_QID(i)	(272+(i))
+#define CMS_RSA_ECC_MAXQID	280
+#define CMS_CRYPTO_QID(i)	(281+(i))
+#define CMS_CRYPTO_MAXQID	296
 /* TODO PCI header register 0x3C says CMP starts at 297(0x129) VERIFY */
-#define XLP_CMS_CMP_QID(i)	(298+(i))
-#define XLP_CMS_CMP_MAXQID	305
-#define XLP_CMS_POE_QID(i)	(384+(i))
-#define XLP_CMS_POE_MAXQID	391
-#define XLP_CMS_NAE_QID(i)	(476+(i))
-#define XLP_CMS_NAE_MAXQID	1023
+#define CMS_CMP_QID(i)		(298+(i))
+#define CMS_CMP_MAXQID		305
+#define CMS_POE_QID(i)		(384+(i))
+#define CMS_POE_MAXQID		391
+#define CMS_NAE_QID(i)		(476+(i))
+#define CMS_NAE_MAXQID		1023
 
-#define XLP_CMS_NAE_TX_VC_BASE	476
-#define XLP_CMS_NAE_TX_VC_LIMIT	999
-#define XLP_CMS_NAE_RX_VC_BASE	1000
-#define XLP_CMS_NAE_RX_VC_LIMIT	1019
+#define CMS_NAE_TX_VC_BASE	476
+#define CMS_NAE_TX_VC_LIMIT	999
+#define CMS_NAE_RX_VC_BASE	1000
+#define CMS_NAE_RX_VC_LIMIT	1019
 
-#define XLP_MAX_CMS_QUEUES	1024
+#define MAX_CMS_QUEUES	1024
 
 /* FMN Level Interrupt Type */
-#define XLP_CMS_LVL_INTR_DISABLE	0
-#define XLP_CMS_LVL_LOW_WATERMARK	1
-#define XLP_CMS_LVL_HI_WATERMARK	2
+#define CMS_LVL_INTR_DISABLE	0
+#define CMS_LVL_LOW_WATERMARK	1
+#define CMS_LVL_HI_WATERMARK	2
 
 /* FMN Level interrupt trigger values */
-#define XLP_CMS_QUEUE_NON_EMPTY			0
-#define XLP_CMS_QUEUE_QUARTER_FULL		1
-#define XLP_CMS_QUEUE_HALF_FULL			2
-#define XLP_CMS_QUEUE_THREE_QUARTER_FULL	3
-#define XLP_CMS_QUEUE_FULL			4
+#define CMS_QUEUE_NON_EMPTY		0
+#define CMS_QUEUE_QUARTER_FULL		1
+#define CMS_QUEUE_HALF_FULL		2
+#define CMS_QUEUE_THREE_QUARTER_FULL	3
+#define CMS_QUEUE_FULL			4
 
 /* FMN Timer Interrupt Type */
-#define XLP_CMS_TIMER_INTR_DISABLE	0
-#define XLP_CMS_TIMER_CONSUMER		1
-#define XLP_CMS_TIMER_PRODUCER		1
+#define CMS_TIMER_INTR_DISABLE	0
+#define CMS_TIMER_CONSUMER		1
+#define CMS_TIMER_PRODUCER		1
 
 /* FMN timer interrupt trigger values */
-#define XLP_CMS_TWO_POW_EIGHT_CYCLES		0
-#define XLP_CMS_TWO_POW_TEN_CYCLES		1
-#define XLP_CMS_TWO_POW_TWELVE_CYCLES		2
-#define XLP_CMS_TWO_POW_FOURTEEN_CYCLES		3
-#define XLP_CMS_TWO_POW_SIXTEEN_CYCLES		4
-#define XLP_CMS_TWO_POW_EIGHTTEEN_CYCLES	5
-#define XLP_CMS_TWO_POW_TWENTY_CYCLES		6
-#define XLP_CMS_TWO_POW_TWENTYTWO_CYCLES	7
+#define CMS_TWO_POW_EIGHT_CYCLES	0
+#define CMS_TWO_POW_TEN_CYCLES		1
+#define CMS_TWO_POW_TWELVE_CYCLES	2
+#define CMS_TWO_POW_FOURTEEN_CYCLES	3
+#define CMS_TWO_POW_SIXTEEN_CYCLES	4
+#define CMS_TWO_POW_EIGHTTEEN_CYCLES	5
+#define CMS_TWO_POW_TWENTY_CYCLES	6
+#define CMS_TWO_POW_TWENTYTWO_CYCLES	7
 
-#define XLP_CMS_QUEUE_ENA		1ULL
-#define XLP_CMS_QUEUE_DIS		0
-#define XLP_CMS_SPILL_ENA		1ULL
-#define XLP_CMS_SPILL_DIS		0
+#define CMS_QUEUE_ENA		1ULL
+#define CMS_QUEUE_DIS		0
+#define CMS_SPILL_ENA		1ULL
+#define CMS_SPILL_DIS		0
 
-#define XLP_CMS_MAX_VCPU_VC		4
+#define CMS_MAX_VCPU_VC		4
 
 /* Each XLP chip can hold upto 32K messages on the chip itself */
-#define XLP_CMS_ON_CHIP_MESG_SPACE	(32*1024)
-#define XLP_CMS_ON_CHIP_PER_QUEUE_SPACE	\
-		((XLP_CMS_ON_CHIP_MESG_SPACE)/(XLP_MAX_CMS_QUEUES))
-#define XLP_CMS_MAX_ONCHIP_SEGMENTS	1024
-#define XLP_CMS_MAX_SPILL_SEGMENTS_PER_QUEUE 	64
+#define CMS_ON_CHIP_MESG_SPACE	(32*1024)
+#define CMS_ON_CHIP_PER_QUEUE_SPACE	\
+		((CMS_ON_CHIP_MESG_SPACE)/(MAX_CMS_QUEUES))
+#define CMS_MAX_ONCHIP_SEGMENTS	1024
+#define CMS_MAX_SPILL_SEGMENTS_PER_QUEUE 	64
 
 /* FMN Network error */
-#define XLP_CMS_ILLEGAL_DST_ERROR		0x100
-#define XLP_CMS_BIU_TIMEOUT_ERROR		0x080
-#define XLP_CMS_BIU_ERROR			0x040
-#define XLP_CMS_SPILL_FILL_UNCORRECT_ECC_ERROR	0x020
-#define XLP_CMS_SPILL_FILL_CORRECT_ECC_ERROR	0x010
-#define XLP_CMS_SPILL_UNCORRECT_ECC_ERROR	0x008
-#define XLP_CMS_SPILL_CORRECT_ECC_ERROR		0x004
-#define XLP_CMS_OUTPUTQ_UNCORRECT_ECC_ERROR	0x002
-#define XLP_CMS_OUTPUTQ_CORRECT_ECC_ERROR	0x001
+#define CMS_ILLEGAL_DST_ERROR		0x100
+#define CMS_BIU_TIMEOUT_ERROR		0x080
+#define CMS_BIU_ERROR			0x040
+#define CMS_SPILL_FILL_UNCORRECT_ECC_ERROR	0x020
+#define CMS_SPILL_FILL_CORRECT_ECC_ERROR	0x010
+#define CMS_SPILL_UNCORRECT_ECC_ERROR	0x008
+#define CMS_SPILL_CORRECT_ECC_ERROR		0x004
+#define CMS_OUTPUTQ_UNCORRECT_ECC_ERROR	0x002
+#define CMS_OUTPUTQ_CORRECT_ECC_ERROR	0x001
 
 /* worst case, a single entry message consists of a 4 byte header
  * and an 8-byte entry = 12 bytes in total
  */
-#define XLP_CMS_SINGLE_ENTRY_MSG_SIZE	12
+#define CMS_SINGLE_ENTRY_MSG_SIZE	12
 /* total spill memory needed for one FMN queue */
-#define XLP_CMS_PER_QUEUE_SPILL_MEM(spilltotmsgs)		\
-		((spilltotmsgs) * (XLP_CMS_SINGLE_ENTRY_MSG_SIZE))
+#define CMS_PER_QUEUE_SPILL_MEM(spilltotmsgs)		\
+		((spilltotmsgs) * (CMS_SINGLE_ENTRY_MSG_SIZE))
 /* total spill memory needed */
-#define XLP_CMS_TOTAL_SPILL_MEM(spilltotmsgs)			\
-		((XLP_CMS_PER_QUEUE_SPILL_MEM(spilltotmsgs)) *	\
-		(XLP_MAX_CMS_QUEUES))
+#define CMS_TOTAL_SPILL_MEM(spilltotmsgs)			\
+		((CMS_PER_QUEUE_SPILL_MEM(spilltotmsgs)) *	\
+		(MAX_CMS_QUEUES))
 /* total number of FMN messages possible in a queue */
-#define XLP_CMS_TOTAL_QUEUE_SIZE(spilltotmsgs)			\
-		((spilltotmsgs) + (XLP_CMS_ON_CHIP_PER_QUEUE_SPACE))
+#define CMS_TOTAL_QUEUE_SIZE(spilltotmsgs)			\
+		((spilltotmsgs) + (CMS_ON_CHIP_PER_QUEUE_SPACE))
 
 /* FMN Src station id's */
-#define XLP_CMS_CPU0_SRC_STID		(0 << 4)
-#define XLP_CMS_CPU1_SRC_STID		(1 << 4)
-#define XLP_CMS_CPU2_SRC_STID		(2 << 4)
-#define XLP_CMS_CPU3_SRC_STID		(3 << 4)
-#define XLP_CMS_CPU4_SRC_STID		(4 << 4)
-#define XLP_CMS_CPU5_SRC_STID		(5 << 4)
-#define XLP_CMS_CPU6_SRC_STID		(6 << 4)
-#define XLP_CMS_CPU7_SRC_STID		(7 << 4)
-#define XLP_CMS_PCIE0_SRC_STID		256
-#define XLP_CMS_PCIE1_SRC_STID		258
-#define XLP_CMS_PCIE2_SRC_STID		260
-#define XLP_CMS_PCIE3_SRC_STID		262
-#define XLP_CMS_DTE_SRC_STID		264
-#define XLP_CMS_RSA_ECC_SRC_STID	272
-#define XLP_CMS_CRYPTO_SRC_STID		281
-#define XLP_CMS_CMP_SRC_STID		298
-#define XLP_CMS_POE_SRC_STID		384
-#define XLP_CMS_NAE_SRC_STID		476
+#define CMS_CPU0_SRC_STID		(0 << 4)
+#define CMS_CPU1_SRC_STID		(1 << 4)
+#define CMS_CPU2_SRC_STID		(2 << 4)
+#define CMS_CPU3_SRC_STID		(3 << 4)
+#define CMS_CPU4_SRC_STID		(4 << 4)
+#define CMS_CPU5_SRC_STID		(5 << 4)
+#define CMS_CPU6_SRC_STID		(6 << 4)
+#define CMS_CPU7_SRC_STID		(7 << 4)
+#define CMS_PCIE0_SRC_STID		256
+#define CMS_PCIE1_SRC_STID		258
+#define CMS_PCIE2_SRC_STID		260
+#define CMS_PCIE3_SRC_STID		262
+#define CMS_DTE_SRC_STID		264
+#define CMS_RSA_ECC_SRC_STID		272
+#define CMS_CRYPTO_SRC_STID		281
+#define CMS_CMP_SRC_STID		298
+#define CMS_POE_SRC_STID		384
+#define CMS_NAE_SRC_STID		476
 #if 0
-#define XLP_CMS_DEFAULT_CREDIT(cmstotstns,spilltotmsgs)		\
-		((XLP_CMS_TOTAL_QUEUE_SIZE(spilltotmsgs)) /	\
+#define CMS_DEFAULT_CREDIT(cmstotstns,spilltotmsgs)	\
+		((CMS_TOTAL_QUEUE_SIZE(spilltotmsgs)) /	\
 		(cmstotstns))
 #endif
-#define XLP_CMS_DEFAULT_CREDIT(cmstotstns,spilltotmsgs) 8
+#define CMS_DEFAULT_CREDIT(cmstotstns,spilltotmsgs) 8
 
 /* POPQ related defines */
-#define XLP_CMS_POPQID_START		128
-#define XLP_CMS_POPQID_END		255
+#define CMS_POPQID_START	128
+#define CMS_POPQID_END		255
 
-#define XLP_CMS_INT_RCVD		0x800000000000000ULL
+#define CMS_INT_RCVD		0x800000000000000ULL
 
-#define	nlm_rdreg_cms(b, r)	nlm_read_reg64_xkseg(b,r)
-#define	nlm_wreg_cms(b, r, v)	nlm_write_reg64_xkseg(b,r,v)
-#define nlm_pcibase_cms(node)	nlm_pcicfg_base(XLP_IO_CMS_OFFSET(node))
-#define nlm_regbase_cms(node)	nlm_pcibar0_base_xkphys(nlm_pcibase_cms(node))
+#define	nlm_read_cms_reg(b, r)	nlm_read_reg64_xkphys(b,r)
+#define	nlm_write_cms_reg(b, r, v)	nlm_write_reg64_xkphys(b,r,v)
+#define nlm_get_cms_pcibase(node)	nlm_pcicfg_base(XLP_IO_CMS_OFFSET(node))
+#define nlm_get_cms_regbase(node)	nlm_xkphys_map_pcibar0(nlm_get_cms_pcibase(node))
 
 enum fmn_swcode {
 	FMN_SWCODE_CPU0=1,
@@ -237,7 +238,7 @@ enum fmn_swcode {
 
 extern uint64_t nlm_cms_spill_total_messages;
 extern uint32_t nlm_cms_total_stations;
-extern uint32_t cms_onchip_seg_availability[XLP_CMS_ON_CHIP_PER_QUEUE_SPACE];
+extern uint32_t cms_onchip_seg_availability[CMS_ON_CHIP_PER_QUEUE_SPACE];
 
 extern uint64_t cms_base_addr(int node);
 extern int nlm_cms_verify_credit_config (int spill_en, int tot_credit);
