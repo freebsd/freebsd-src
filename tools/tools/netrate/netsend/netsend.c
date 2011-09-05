@@ -124,6 +124,9 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	u_int32_t counter;
 	long finishtime;
 	long send_errors, send_calls;
+	/* do not call gettimeofday more than every 20us */
+	long minres_ns = 20000;
+	int ic, gettimeofday_cycles;
 
 	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
 		perror("clock_getres");
@@ -132,8 +135,15 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 
 	if (timespec_ge(&tmptime, &interval))
 		fprintf(stderr,
-		    "warning: interval less than resolution (%jd.%09ld)\n",
+		    "warning: interval (%jd.%09ld) less than resolution (%jd.%09ld)\n",
+		    (intmax_t)interval.tv_sec, interval.tv_nsec,
 		    (intmax_t)tmptime.tv_sec, tmptime.tv_nsec);
+	if (tmptime.tv_nsec < minres_ns) {
+		gettimeofday_cycles = minres_ns/(tmptime.tv_nsec + 1);
+		fprintf(stderr,
+		    "calling time every %d cycles\n", gettimeofday_cycles);
+	} else
+		gettimeofday_cycles = 0;
 
 	if (clock_gettime(CLOCK_REALTIME, &starttime) == -1) {
 		perror("clock_gettime");
@@ -151,10 +161,14 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	send_errors = send_calls = 0;
 	counter = 0;
 	waited = 0;
+	ic = gettimeofday_cycles;
 	while (1) {
 		timespec_add(&nexttime, &interval);
-		if (wait_time(nexttime, &tmptime, &waited) == -1)
-			return (-1);
+		if (--ic <= 0) {
+			ic = gettimeofday_cycles;
+			if (wait_time(nexttime, &tmptime, &waited) == -1)
+				return (-1);
+		}
 		/*
 		 * We maintain and, if there's room, send a counter.  Note
 		 * that even if the error is purely local, we still increment
@@ -236,8 +250,9 @@ main(int argc, char *argv[])
 
 	/*
 	 * Specify an arbitrary limit.  It's exactly that, not selected by
-	 .* any particular strategy.  '0' is a special value meaning "blast",
+	 * any particular strategy.  '0' is a special value meaning "blast",
 	 * and avoids the cost of a timing loop.
+	 * XXX 0 is not actually implemented.
 	 */
 	rate = strtoul(argv[4], &dummy, 10);
 	if (rate < 1 || *dummy != '\0')
