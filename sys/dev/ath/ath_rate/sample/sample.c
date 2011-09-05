@@ -170,12 +170,13 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
     int size_bin, int require_acked_before)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-        int best_rate_rix, best_rate_tt;
+        int best_rate_rix, best_rate_tt, best_rate_pct;
 	uint32_t mask;
-	int rix, tt;
+	int rix, tt, pct;
 
         best_rate_rix = 0;
         best_rate_tt = 0;
+	best_rate_pct = 0;
 	for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 		if ((mask & 1) == 0)		/* not a supported rate */
 			continue;
@@ -192,14 +193,40 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 		     !sn->stats[size_bin][rix].packets_acked))
 			continue;
 
+		/* Calculate percentage if possible */
+		if (sn->stats[size_bin][rix].total_packets > 0) {
+			pct =
+			    (100 * sn->stats[size_bin][rix].packets_acked) /
+			    sn->stats[size_bin][rix].total_packets;
+		} else {
+			/* XXX for now, assume 95% ok */
+			pct = 95;
+		}
+
 		/* don't use a bit-rate that has been failing */
 		if (sn->stats[size_bin][rix].successive_failures > 3)
 			continue;
 
+		/*
+		 * For HT, Don't use a bit rate that has a higher failure
+		 * rate than the current.
+		 *
+		 * XXX This isn't optimal!
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if (best_rate_pct > pct)
+				continue;
+		}
+
+		/*
+		 * For non-MCS rates, use the current average txtime for
+		 * comparison.
+		 */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
 			if (best_rate_tt == 0 || tt <= best_rate_tt) {
 				best_rate_tt = tt;
 				best_rate_rix = rix;
+				best_rate_pct = pct;
 			}
 		}
 
@@ -212,6 +239,7 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 			if (best_rate_tt == 0 || (tt * 8 <= best_rate_tt * 10)) {
 				best_rate_tt = tt;
 				best_rate_rix = rix;
+				best_rate_pct = pct;
 			}
 		}
         }
