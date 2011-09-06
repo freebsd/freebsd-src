@@ -518,8 +518,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_reference(m);
 			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
 		}
@@ -538,8 +537,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_reference(m);
 			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
 		}
@@ -650,8 +648,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(vpg, PG_REFERENCED);
+			vm_page_reference(vpg);
 			vm_page_sleep(vpg, "tmfsmw");
 			goto lookupvpg;
 		}
