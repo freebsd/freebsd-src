@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kgssapi.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
@@ -173,7 +174,7 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, addsockarg.sock, &fp)) != 0)
+		if ((error = fget(td, addsockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);

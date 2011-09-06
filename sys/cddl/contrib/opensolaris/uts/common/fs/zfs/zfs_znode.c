@@ -627,6 +627,18 @@ zfs_znode_dmu_fini(znode_t *zp)
 	zp->z_sa_hdl = NULL;
 }
 
+static void
+zfs_vnode_forget(vnode_t *vp)
+{
+
+	VOP_UNLOCK(vp, 0);
+	VI_LOCK(vp);
+	vp->v_usecount--;
+	vp->v_iflag |= VI_DOOMED;
+	vp->v_data = NULL;
+	vdropl(vp);
+}
+
 /*
  * Construct a new znode/vnode and intialize.
  *
@@ -688,6 +700,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count) != 0 || zp->z_gen == 0) {
 		if (hdl == NULL)
 			sa_handle_destroy(zp->z_sa_hdl);
+		zfs_vnode_forget(vp);
+		zp->z_vnode = NULL;
 		kmem_cache_free(znode_cache, zp);
 		return (NULL);
 	}
@@ -700,7 +714,23 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	case VDIR:
 		zp->z_zn_prefetch = B_TRUE; /* z_prefetch default is enabled */
 		break;
+#ifdef sun
+	case VBLK:
+	case VCHR:
+		{
+			uint64_t rdev;
+			VERIFY(sa_lookup(zp->z_sa_hdl, SA_ZPL_RDEV(zfsvfs),
+			    &rdev, sizeof (rdev)) == 0);
+
+			vp->v_rdev = zfs_cmpldev(rdev);
+		}
+		break;
+#endif	/* sun */
 	case VFIFO:
+#ifdef sun
+	case VSOCK:
+	case VDOOR:
+#endif	/* sun */
 		vp->v_op = &zfs_fifoops;
 		break;
 	case VREG:
@@ -709,6 +739,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_op = &zfs_shareops;
 		}
 		break;
+#ifdef sun
+	case VLNK:
+		vn_setops(vp, zfs_symvnodeops);
+		break;
+	default:
+		vn_setops(vp, zfs_evnodeops);
+		break;
+#endif	/* sun */
 	}
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
@@ -1235,6 +1273,7 @@ zfs_rezget(znode_t *zp)
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	dmu_object_info_t doi;
 	dmu_buf_t *db;
+	vnode_t *vp;
 	uint64_t obj_num = zp->z_id;
 	uint64_t mode, size;
 	sa_bulk_attr_t bulk[8];
@@ -1310,8 +1349,9 @@ zfs_rezget(znode_t *zp)
 	 * that for example regular file was replaced with directory
 	 * which has the same object number.
 	 */
-	if (ZTOV(zp) != NULL &&
-	    ZTOV(zp)->v_type != IFTOVT((mode_t)zp->z_mode)) {
+	vp = ZTOV(zp);
+	if (vp != NULL &&
+	    vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 		return (EIO);
@@ -1319,8 +1359,11 @@ zfs_rezget(znode_t *zp)
 
 	zp->z_unlinked = (zp->z_links == 0);
 	zp->z_blksz = doi.doi_data_block_size;
-	if (zp->z_size != size && ZTOV(zp) != NULL)
-		vnode_pager_setsize(ZTOV(zp), zp->z_size);
+	if (vp != NULL) {
+		vn_pages_remove(vp, 0, 0);
+		if (zp->z_size != size)
+			vnode_pager_setsize(vp, zp->z_size);
+	}
 
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 

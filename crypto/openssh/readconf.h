@@ -1,4 +1,5 @@
 /* $OpenBSD: readconf.h,v 1.88 2010/11/13 23:27:50 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -132,6 +133,17 @@ typedef struct {
 
 	int	use_roaming;
 
+	int	hpn_disabled;	/* Switch to disable HPN buffer management. */
+	int	hpn_buffer_size;	/* User definable size for HPN buffer
+					 * window. */
+	int	tcp_rcv_buf_poll;	/* Option to poll recv buf every window
+					 * transfer. */
+	int	tcp_rcv_buf;	/* User switch to set tcp recv buffer. */
+
+#ifdef	NONE_CIPHER_ENABLED
+	int	none_enabled;	/* Allow none to be used */
+	int	none_switch;	/* Use none cipher */
+#endif
 }       Options;
 
 #define SSHCTL_MASTER_NO	0

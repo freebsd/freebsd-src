@@ -195,7 +195,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
-VNET_DEFINE(int, tcp_autorcvbuf_max) = 256*1024;
+VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
 #define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
@@ -573,19 +573,14 @@ tcp_input(struct mbuf *m, int off0)
 	uint8_t sig_checked = 0;
 #endif
 	uint8_t iptos = 0;
-#ifdef INET
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
-#endif /* INET */
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #else
 	const void *ip6 = NULL;
-#if (defined(INET) && defined(IPFIREWALL_FORWARD)) || defined(TCPDEBUG)
-	const int isipv6 = 0;
-#endif
 #endif /* INET6 */
 	struct tcpopt to;		/* options in this segment */
 	char *s = NULL;			/* address and port logging */
@@ -776,14 +771,55 @@ findpcb:
 	}
 #endif
 
-#ifdef INET
 #ifdef IPFIREWALL_FORWARD
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
 	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+#endif /* IPFIREWALL_FORWARD */
 
-	if (fwd_tag != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
+#ifdef INET6
+#ifdef IPFIREWALL_FORWARD
+	if (isipv6 && fwd_tag != NULL) {
+		struct sockaddr_in6 *next_hop6;
+
+		next_hop6 = (struct sockaddr_in6 *)(fwd_tag + 1);
+		/*
+		 * Transparently forwarded. Pretend to be the destination.
+		 * Already got one like this?
+		 */
+		inp = in6_pcblookup_mbuf(&V_tcbinfo,
+		    &ip6->ip6_src, th->th_sport, &ip6->ip6_dst, th->th_dport,
+		    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif, m);
+		if (!inp) {
+			/*
+			 * It's new.  Try to find the ambushing socket.
+			 * Because we've rewritten the destination address,
+			 * any hardware-generated hash is ignored.
+			 */
+			inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_src,
+			    th->th_sport, &next_hop6->sin6_addr,
+			    next_hop6->sin6_port ? ntohs(next_hop6->sin6_port) :
+			    th->th_dport, INPLOOKUP_WILDCARD |
+			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
+		}
+		/* Remove the tag from the packet.  We don't need it anymore. */
+		m_tag_delete(m, fwd_tag);
+	} else
+#endif /* IPFIREWALL_FORWARD */
+	if (isipv6) {
+		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
+		    th->th_sport, &ip6->ip6_dst, th->th_dport,
+		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
+		    m->m_pkthdr.rcvif, m);
+	}
+#endif /* INET6 */
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET
+#ifdef IPFIREWALL_FORWARD
+	if (fwd_tag != NULL) {
 		struct sockaddr_in *next_hop;
 
 		next_hop = (struct sockaddr_in *)(fwd_tag+1);
@@ -810,25 +846,11 @@ findpcb:
 		m_tag_delete(m, fwd_tag);
 	} else
 #endif /* IPFIREWALL_FORWARD */
+		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
+		    th->th_sport, ip->ip_dst, th->th_dport,
+		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
+		    m->m_pkthdr.rcvif, m);
 #endif /* INET */
-	{
-#ifdef INET6
-		if (isipv6)
-			inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
-			    th->th_sport, &ip6->ip6_dst, th->th_dport,
-			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-			    m->m_pkthdr.rcvif, m);
-#endif
-#if defined(INET) && defined(INET6)
-		else
-#endif
-#ifdef INET
-			inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
-			    th->th_sport, ip->ip_dst, th->th_dport,
-			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-			    m->m_pkthdr.rcvif, m);
-#endif
-	}
 
 	/*
 	 * If the INPCB does not exist then all data in the incoming
@@ -1003,11 +1025,11 @@ relocked:
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG) {
 		ostate = tp->t_state;
-		if (isipv6) {
 #ifdef INET6
+		if (isipv6) {
 			bcopy((char *)ip6, (char *)tcp_saveipgen, sizeof(*ip6));
-#endif
 		} else
+#endif
 			bcopy((char *)ip, (char *)tcp_saveipgen, sizeof(*ip));
 		tcp_savetcp = *th;
 	}

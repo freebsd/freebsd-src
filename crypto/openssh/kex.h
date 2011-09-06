@@ -1,4 +1,5 @@
 /* $OpenBSD: kex.h,v 1.52 2010/09/22 05:01:29 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -139,6 +140,10 @@ struct Kex {
 };
 
 int	 kex_names_valid(const char *);
+
+#ifdef	NONE_CIPHER_ENABLED
+void	 kex_prop2buf(Buffer *, char *[PROPOSAL_MAX]);
+#endif
 
 Kex	*kex_setup(char *[PROPOSAL_MAX]);
 void	 kex_finish(Kex *);

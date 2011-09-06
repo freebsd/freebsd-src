@@ -416,7 +416,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_STR_RESET_IN_REQUEST	0x000e
 #define SCTP_STR_RESET_TSN_REQUEST	0x000f
 #define SCTP_STR_RESET_RESPONSE		0x0010
-#define SCTP_STR_RESET_ADD_STREAMS  0x0011
+#define SCTP_STR_RESET_ADD_STREAMS	0x0011
 
 #define SCTP_MAX_RESET_PARAMS 2
 #define SCTP_STREAM_RESET_TSN_DELTA    0x1000
@@ -508,14 +508,10 @@ __FBSDID("$FreeBSD$");
 
 /* SCTP reachability state for each address */
 #define SCTP_ADDR_REACHABLE		0x001
-#define SCTP_ADDR_NOT_REACHABLE		0x002
 #define SCTP_ADDR_NOHB			0x004
 #define SCTP_ADDR_BEING_DELETED		0x008
 #define SCTP_ADDR_NOT_IN_ASSOC		0x010
-#define SCTP_ADDR_WAS_PRIMARY		0x020
-#define SCTP_ADDR_SWITCH_PRIMARY	0x040
 #define SCTP_ADDR_OUT_OF_SCOPE		0x080
-#define SCTP_ADDR_DOUBLE_SWITCH		0x100
 #define SCTP_ADDR_UNCONFIRMED		0x200
 #define SCTP_ADDR_REQ_PRIMARY           0x400
 /* JRS 5/13/07 - Added potentially failed state for CMT PF */
@@ -579,14 +575,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_EVENTWAKE	13
 #define SCTP_TIMER_TYPE_STRRESET        14
 #define SCTP_TIMER_TYPE_INPKILL         15
-#define SCTP_TIMER_TYPE_EARLYFR         17
-#define SCTP_TIMER_TYPE_ASOCKILL        18
-#define SCTP_TIMER_TYPE_ADDR_WQ         19
-#define SCTP_TIMER_TYPE_ZERO_COPY       20
-#define SCTP_TIMER_TYPE_ZCOPY_SENDQ     21
-#define SCTP_TIMER_TYPE_PRIM_DELETED    22
+#define SCTP_TIMER_TYPE_ASOCKILL        16
+#define SCTP_TIMER_TYPE_ADDR_WQ         17
+#define SCTP_TIMER_TYPE_ZERO_COPY       18
+#define SCTP_TIMER_TYPE_ZCOPY_SENDQ     19
+#define SCTP_TIMER_TYPE_PRIM_DELETED    20
 /* add new timers here - and increment LAST */
-#define SCTP_TIMER_TYPE_LAST            23
+#define SCTP_TIMER_TYPE_LAST            21
 
 #define SCTP_IS_TIMER_TYPE_VALID(t)	(((t) > SCTP_TIMER_TYPE_NONE) && \
 					 ((t) < SCTP_TIMER_TYPE_LAST))
@@ -655,16 +650,17 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_SECRET_LIFE_SEC 3600
 
 #define SCTP_RTO_UPPER_BOUND	(60000)	/* 60 sec in ms */
-#define SCTP_RTO_LOWER_BOUND	(300)	/* 0.3 sec is ms */
+#define SCTP_RTO_LOWER_BOUND	(1000)	/* 1 sec is ms */
 #define SCTP_RTO_INITIAL	(3000)	/* 3 sec in ms */
 
 
 #define SCTP_INP_KILL_TIMEOUT 20/* number of ms to retry kill of inpcb */
 #define SCTP_ASOC_KILL_TIMEOUT 10	/* number of ms to retry kill of inpcb */
 
-#define SCTP_DEF_MAX_INIT	8
-#define SCTP_DEF_MAX_SEND	10
-#define SCTP_DEF_MAX_PATH_RTX	5
+#define SCTP_DEF_MAX_INIT		8
+#define SCTP_DEF_MAX_SEND		10
+#define SCTP_DEF_MAX_PATH_RTX		5
+#define SCTP_DEF_PATH_PF_THRESHOLD	SCTP_DEF_MAX_PATH_RTX
 
 #define SCTP_DEF_PMTU_RAISE_SEC	600	/* 10 min between raise attempts */
 
@@ -679,7 +675,7 @@ __FBSDID("$FreeBSD$");
 /* Send window update (incr * this > hiwat). Should be a power of 2 */
 #define SCTP_MINIMAL_RWND		(4096)	/* minimal rwnd */
 
-#define SCTP_ADDRMAX		24
+#define SCTP_ADDRMAX		16
 
 /* SCTP DEBUG Switch parameters */
 #define SCTP_DEBUG_TIMER1	0x00000001

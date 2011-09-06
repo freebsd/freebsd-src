@@ -1025,12 +1025,6 @@ umass_attach(device_t dev)
 	sc->cam_scsi_sense.opcode = REQUEST_SENSE;
 	sc->cam_scsi_test_unit_ready.opcode = TEST_UNIT_READY;
 
-	/*
-	 * some devices need a delay after that the configuration value is
-	 * set to function properly:
-	 */
-	usb_pause_mtx(NULL, hz);
-
 	/* register the SIM */
 	err = umass_cam_attach_sim(sc);
 	if (err) {

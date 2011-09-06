@@ -1,4 +1,5 @@
 /* $OpenBSD: clientloop.c,v 1.231 2011/01/16 12:05:59 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1768,9 +1769,14 @@ client_request_x11(const char *request_type, int rchan)
 	sock = x11_connect_display();
 	if (sock < 0)
 		return NULL;
-	c = channel_new("x11",
-	    SSH_CHANNEL_X11_OPEN, sock, sock, -1,
-	    CHAN_TCP_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT, 0, "x11", 1);
+	if (options.hpn_disabled)
+		c = channel_new("x11", SSH_CHANNEL_X11_OPEN, sock, sock, -1,
+		    CHAN_TCP_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
+		    0, "x11", 1);
+	else
+		c = channel_new("x11", SSH_CHANNEL_X11_OPEN, sock, sock, -1,
+		    options.hpn_buffer_size, CHAN_X11_PACKET_DEFAULT,
+		    0, "x11", 1);
 	c->force_drain = 1;
 	return c;
 }
@@ -1790,10 +1796,16 @@ client_request_agent(const char *request_type, int rchan)
 	sock = ssh_get_authentication_socket();
 	if (sock < 0)
 		return NULL;
-	c = channel_new("authentication agent connection",
-	    SSH_CHANNEL_OPEN, sock, sock, -1,
-	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0,
-	    "authentication agent connection", 1);
+	if (options.hpn_disabled)
+		c = channel_new("authentication agent connection",
+		    SSH_CHANNEL_OPEN, sock, sock, -1,
+		    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_WINDOW_DEFAULT, 0,
+		    "authentication agent connection", 1);
+	else
+		c = channel_new("authentication agent connection",
+		    SSH_CHANNEL_OPEN, sock, sock, -1,
+		    options.hpn_buffer_size, options.hpn_buffer_size, 0,
+		    "authentication agent connection", 1);
 	c->force_drain = 1;
 	return c;
 }
@@ -1820,8 +1832,14 @@ client_request_tun_fwd(int tun_mode, int local_tun, int remote_tun)
 		return -1;
 	}
 
-	c = channel_new("tun", SSH_CHANNEL_OPENING, fd, fd, -1,
-	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0, "tun", 1);
+	if (options.hpn_disabled)
+		c = channel_new("tun", SSH_CHANNEL_OPENING, fd, fd, -1,
+		    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
+		    0, "tun", 1);
+	else
+		c = channel_new("tun", SSH_CHANNEL_OPENING, fd, fd, -1,
+		    options.hpn_buffer_size, CHAN_TCP_PACKET_DEFAULT,
+		    0, "tun", 1);
 	c->datagram = 1;
 
 #if defined(SSH_TUN_FILTER)

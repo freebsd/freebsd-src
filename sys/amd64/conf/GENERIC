@@ -37,7 +37,7 @@ options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
@@ -186,10 +186,7 @@ device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 
-# If you've got a "dumb" serial or parallel PCI card that is
-# supported by the puc(4) glue driver, uncomment the following
-# line to enable it (connects to sio, uart and/or ppc drivers):
-#device		puc
+device		puc		# Multi I/O cards and multi-channel UARTs
 
 # PCI Ethernet NICs.
 device		bxe		# Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet

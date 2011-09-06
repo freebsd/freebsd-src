@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -261,7 +262,17 @@ fd_revoke(td, fd)
 	int error, *retval;
 
 	retval = td->td_retval;
-	if ((error = fgetvp(td, fd, &vp)) != 0)
+	/*
+	 * If we ever want to support Capsicum on SVR4 processes (unlikely)
+	 * or FreeBSD grows a native frevoke() (more likely), we will need a
+	 * CAP_REVOKE here.
+	 *
+	 * In the meantime, use CAP_MASK_VALID: if a SVR4 process wants to
+	 * do an frevoke(), it needs to do it on either a regular file
+	 * descriptor or a fully-privileged capability (which is effectively
+	 * the same as a non-capability-restricted file descriptor).
+	 */
+	if ((error = fgetvp(td, fd, CAP_MASK_VALID, &vp)) != 0)
 		return (error);
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
@@ -313,7 +324,7 @@ fd_truncate(td, fd, flp)
 	/*
 	 * We only support truncating the file.
 	 */
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_FTRUNCATE, &fp)) != 0)
 		return (error);
 
 	vp = fp->f_vnode;
@@ -392,7 +403,7 @@ svr4_sys_open(td, uap)
 #if defined(NOTYET)
 		struct file	*fp;
 
-		error = fget(td, retval, &fp);
+		error = fget(td, retval, CAP_IOCTL, &fp);
 		PROC_UNLOCK(p);
 		/*
 		 * we may have lost a race the above open() and

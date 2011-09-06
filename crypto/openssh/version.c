@@ -40,7 +40,7 @@ const char *
 ssh_version_get(void) {
 
 	if (version == NULL)
-		version = xstrdup(SSH_VERSION_BASE " " SSH_VERSION_ADDENDUM);
+		version = xstrdup(SSH_VERSION);
 	return (version);
 }
 
@@ -50,11 +50,13 @@ ssh_version_set_addendum(const char *add) {
 	size_t size;
 
 	if (add != NULL) {
-		size = strlen(SSH_VERSION_BASE) + 1 + strlen(add) + 1;
+		size = strlen(SSH_VERSION_BASE) + strlen(SSH_VERSION_HPN) + 1 +
+		    strlen(add) + 1;
 		newvers = xmalloc(size);
-		snprintf(newvers, size, "%s %s", SSH_VERSION_BASE, add);
+		snprintf(newvers, size, "%s %s", SSH_VERSION_BASE,
+		    SSH_VERSION_HPN, add);
 	} else {
-		newvers = xstrdup(SSH_VERSION_BASE);
+		newvers = xstrdup(SSH_VERSION_BASE SSH_VERSION_HPN);
 	}
 	if (version != NULL)
 		xfree(version);

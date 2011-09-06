@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ddns-confgen.c,v 1.9 2009-09-29 15:06:05 fdupont Exp $ */
+/* $Id: ddns-confgen.c,v 1.9.308.2 2011-03-12 04:59:13 tbox Exp $ */
 
 /*! \file */
 
@@ -160,6 +160,7 @@ main(int argc, char **argv) {
 
 	argc -= isc_commandline_index;
 	argv += isc_commandline_index;
+	POST(argv);
 
 	if (self_domain != NULL && zone != NULL)
 		usage(1);	/* -s and -z cannot coexist */

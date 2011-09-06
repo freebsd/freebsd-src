@@ -187,8 +187,7 @@ retry:
 	error = ffs_syncvnode(vp, ap->a_waitfor);
 	if (error)
 		return (error);
-	if (ap->a_waitfor == MNT_WAIT &&
-	    (vp->v_mount->mnt_flag & MNT_SOFTDEP)) {
+	if (ap->a_waitfor == MNT_WAIT && DOINGSOFTDEP(vp)) {
 		error = softdep_fsync(vp);
 		if (error)
 			return (error);

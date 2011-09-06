@@ -79,6 +79,13 @@
 #endif	/* AH_SUPPORT_AR9130 */
 
 #define	AR_RESET_TSF		0x8020
+
+/*
+ * AR_SLEEP1 / AR_SLEEP2 are in the same place as in
+ * AR5212, however the fields have changed.
+ */
+#define	AR5416_SLEEP1		0x80d4
+#define	AR5416_SLEEP2		0x80d8
 #define	AR_RXFIFO_CFG		0x8114
 #define	AR_PHY_ERR_1		0x812c
 #define	AR_PHY_ERR_MASK_1	0x8130	/* mask for AR_PHY_ERR_1 */
@@ -402,6 +409,7 @@
 #define	AR9271_AN_RF2G6_OFFS_S	20
 
 /* Sleep control */
+#define	AR5416_SLEEP1_ASSUME_DTIM	0x00080000
 #define	AR5416_SLEEP1_CAB_TIMEOUT	0xFFE00000	/* Cab timeout (TU) */
 #define	AR5416_SLEEP1_CAB_TIMEOUT_S	22
 

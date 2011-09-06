@@ -46,6 +46,7 @@
 #include "xfs_mac.h"
 #include "xfs_rw.h"
 
+#include <sys/capability.h>
 #include <sys/file.h>
 
 /*
@@ -79,7 +80,8 @@ xfs_swapext(
 	}
 
 	/* Pull information for the target fd */
-	if (fgetvp(td, (int)sxp->sx_fdtarget, &bvp) != 0) {
+	if (fgetvp(td, (int)sxp->sx_fdtarget, CAP_READ | CAP_WRITE, &bvp)
+	    != 0) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
@@ -91,7 +93,7 @@ xfs_swapext(
 		goto error0;
 	}
 
-	if (fgetvp(td, (int)sxp->sx_fdtmp, &btvp) != 0) {
+	if (fgetvp(td, (int)sxp->sx_fdtmp, CAP_READ | CAP_WRITE, &btvp) != 0) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}

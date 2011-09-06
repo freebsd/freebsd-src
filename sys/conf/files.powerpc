@@ -207,8 +207,8 @@ powerpc/ps3/ohci_ps3.c		optional	ps3 ohci
 powerpc/ps3/if_glc.c		optional	ps3 glc
 powerpc/ps3/mmu_ps3.c		optional	ps3
 powerpc/ps3/platform_ps3.c	optional	ps3
-powerpc/ps3/ps3ata.c		optional	ps3 ps3ata
 powerpc/ps3/ps3bus.c		optional	ps3
+powerpc/ps3/ps3cdrom.c		optional	ps3 scbus
 powerpc/ps3/ps3disk.c		optional	ps3
 powerpc/ps3/ps3pic.c		optional	ps3
 powerpc/ps3/ps3_syscons.c	optional	ps3 sc

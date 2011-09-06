@@ -330,8 +330,8 @@ show_config(int ac, char **av)
 					    mfi_pdstate(ar->pd[j].fw_state));
 				else
 					print_pd(&pinfo, -1);
-				printf("\n");
 			}
+			printf("\n");
 		}
 		p += config->array_size;
 	}
@@ -533,6 +533,7 @@ show_drives(int ac, char **av)
 		    MFI_DNAME_ES));
 		printf("\n");
 	}
+	error = 0;
 error:
 	free(list);
 	close(fd);

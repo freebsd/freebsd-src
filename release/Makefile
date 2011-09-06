@@ -66,7 +66,7 @@ base.txz:
 	-mkdir ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${DISTDIR}
 # Set up mergemaster root database
-	sh ${.CURDIR}/scripts/mm-mtree.sh -F \
+	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
 # Package all components
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${DISTDIR}

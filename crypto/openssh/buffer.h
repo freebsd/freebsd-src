@@ -1,4 +1,5 @@
 /* $OpenBSD: buffer.h,v 1.21 2010/08/31 11:54:45 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -45,6 +46,8 @@ void     buffer_dump(const Buffer *);
 int	 buffer_get_ret(Buffer *, void *, u_int);
 int	 buffer_consume_ret(Buffer *, u_int);
 int	 buffer_consume_end_ret(Buffer *, u_int);
+
+u_int	 buffer_get_max_len(void);
 
 #include <openssl/bn.h>
 

@@ -1222,3 +1222,13 @@ ar5212ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 
 	return AH_TRUE;
 }
+
+/*
+ * Return whether 5GHz fast-clock (44MHz) is enabled.
+ * It's always disabled for AR5212 series NICs.
+ */
+HAL_BOOL
+ar5212IsFastClockEnabled(struct ath_hal *ah)
+{
+	return AH_FALSE;
+}

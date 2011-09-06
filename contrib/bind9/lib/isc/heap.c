@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.39 2010-02-04 23:49:13 tbox Exp $ */
+/* $Id: heap.c,v 1.39.150.2 2011-03-03 23:47:09 tbox Exp $ */
 
 /*! \file
  * Heap implementation of priority queues adapted from the following:
@@ -86,8 +86,9 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare,
 	if (heap == NULL)
 		return (ISC_R_NOMEMORY);
 	heap->magic = HEAP_MAGIC;
-	heap->mctx = mctx;
 	heap->size = 0;
+	heap->mctx = NULL;
+	isc_mem_attach(mctx, &heap->mctx);
 	if (size_increment == 0)
 		heap->size_increment = SIZE_INCREMENT;
 	else
@@ -114,7 +115,7 @@ isc_heap_destroy(isc_heap_t **heapp) {
 		isc_mem_put(heap->mctx, heap->array,
 			    heap->size * sizeof(void *));
 	heap->magic = 0;
-	isc_mem_put(heap->mctx, heap, sizeof(*heap));
+	isc_mem_putanddetach(&heap->mctx, heap, sizeof(*heap));
 
 	*heapp = NULL;
 }

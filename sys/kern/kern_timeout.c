@@ -269,10 +269,17 @@ callout_cpu_switch(struct callout *c, struct callout_cpu *cc, int new_cpu)
 	MPASS(c != NULL && cc != NULL);
 	CC_LOCK_ASSERT(cc);
 
+	/*
+	 * Avoid interrupts and preemption firing after the callout cpu
+	 * is blocked in order to avoid deadlocks as the new thread
+	 * may be willing to acquire the callout cpu lock.
+	 */
 	c->c_cpu = CPUBLOCK;
+	spinlock_enter();
 	CC_UNLOCK(cc);
 	new_cc = CC_CPU(new_cpu);
 	CC_LOCK(new_cc);
+	spinlock_exit();
 	c->c_cpu = new_cpu;
 	return (new_cc);
 }

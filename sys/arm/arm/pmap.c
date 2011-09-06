@@ -3120,7 +3120,7 @@ pmap_remove_all(vm_page_t m)
 	pmap_t curpm;
 	int flags = 0;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
@@ -3242,7 +3242,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				PTE_SYNC(ptep);
 
 				if (pg != NULL) {
-					if (!(pg->flags & PG_UNMANAGED)) {
+					if (!(pg->oflags & VPO_UNMANAGED)) {
 						f = pmap_modify_pv(pg, pm, sva,
 						    PVF_WRITE, 0);
 						vm_page_dirty(pg);
@@ -3327,8 +3327,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-		    (m->oflags & VPO_BUSY) != 0 || (flags & M_NOWAIT) != 0,
+		KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+		    (flags & M_NOWAIT) != 0,
 		    ("pmap_enter_locked: page %p is not busy", m));
 		pa = VM_PAGE_TO_PHYS(m);
 	}
@@ -3417,7 +3417,7 @@ do_l2b_alloc:
 	if (prot & VM_PROT_WRITE) {
 		npte |= L2_S_PROT_W;
 		if (m != NULL &&
-		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	}
 	npte |= pte_l2_s_cache_mode;
@@ -3480,36 +3480,36 @@ do_l2b_alloc:
 			 * this physical page is not/is already mapped.
 			 */
 
-			    if (m && ((m->flags & PG_FICTITIOUS) ||
-				((m->flags & PG_UNMANAGED) &&
+			    if (m && (m->oflags & VPO_UNMANAGED) &&
 				  !m->md.pv_kva &&
-				 TAILQ_EMPTY(&m->md.pv_list)))) {
+				 TAILQ_EMPTY(&m->md.pv_list)) {
 				pmap_free_pv_entry(pve);
 				pve = NULL;
 			    }
-			} else if (m && !(m->flags & PG_FICTITIOUS) &&
-				 (!(m->flags & PG_UNMANAGED) || m->md.pv_kva ||
+			} else if (m &&
+				 (!(m->oflags & VPO_UNMANAGED) || m->md.pv_kva ||
 				  !TAILQ_EMPTY(&m->md.pv_list)))
 				pve = pmap_get_pv_entry();
-		} else if (m && !(m->flags & PG_FICTITIOUS) &&
-			   (!(m->flags & PG_UNMANAGED) || m->md.pv_kva ||
+		} else if (m &&
+			   (!(m->oflags & VPO_UNMANAGED) || m->md.pv_kva ||
 			   !TAILQ_EMPTY(&m->md.pv_list)))
 			pve = pmap_get_pv_entry();
 
-		if (m && !(m->flags & PG_FICTITIOUS)) {
-			KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-		    	("pmap_enter: managed mapping within the clean submap"));
-			if (m->flags & PG_UNMANAGED) {
+		if (m) {
+			if ((m->oflags & VPO_UNMANAGED)) {
 				if (!TAILQ_EMPTY(&m->md.pv_list) ||
-				     m->md.pv_kva) {
+				    m->md.pv_kva) {
 					KASSERT(pve != NULL, ("No pv"));
 					nflags |= PVF_UNMAN;
 					pmap_enter_pv(m, pve, pmap, va, nflags);
 				} else
 					m->md.pv_kva = va;
 			} else {
-				KASSERT(pve != NULL, ("No pv"));
-				pmap_enter_pv(m, pve, pmap, va, nflags);
+				KASSERT(va < kmi.clean_sva ||
+				    va >= kmi.clean_eva,
+		("pmap_enter: managed mapping within the clean submap"));
+ 				KASSERT(pve != NULL, ("No pv"));
+ 				pmap_enter_pv(m, pve, pmap, va, nflags);
 			}
 		}
 	}
@@ -4423,7 +4423,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 	boolean_t rv;
 	
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
@@ -4453,7 +4453,7 @@ pmap_page_wired_mappings(vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
@@ -4472,7 +4472,7 @@ int
 pmap_ts_referenced(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	return (pmap_clearbit(m, PVF_REF));
 }
@@ -4482,7 +4482,7 @@ boolean_t
 pmap_is_modified(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
 	if (m->md.pvh_attrs & PVF_MOD)
 		return (TRUE);
@@ -4498,7 +4498,7 @@ void
 pmap_clear_modify(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -4526,7 +4526,7 @@ boolean_t
 pmap_is_referenced(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	return ((m->md.pvh_attrs & PVF_REF) != 0);
 }
@@ -4540,7 +4540,7 @@ void
 pmap_clear_reference(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
 	if (m->md.pvh_attrs & PVF_REF) 
 		pmap_clearbit(m, PVF_REF);
@@ -4554,7 +4554,7 @@ void
 pmap_remove_write(vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*

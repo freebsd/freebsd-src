@@ -128,6 +128,7 @@ static struct {
 	{0x43931002, 0x00, "ATI IXP700",	0},
 	{0x43941002, 0x00, "ATI IXP800",	0},
 	{0x43951002, 0x00, "ATI IXP800",	0},
+	{0x06121b21, 0x00, "ASMedia ASM1061",	0},
 	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
 	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
 	{0x26818086, 0x00, "Intel ESB2",	0},
@@ -264,7 +265,7 @@ static struct {
 	{0x0abe10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
 	{0x0abf10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
 	{0x0d8410de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
-	{0x0d8510de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8510de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOFORCE|AHCI_Q_NOAA},
 	{0x0d8610de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8710de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8810de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
@@ -1879,12 +1880,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			device_printf(dev, "Poll timeout on slot %d port %d\n",
 			    slot->slot, port);
 			device_printf(dev, "is %08x cs %08x ss %08x "
-			    "rs %08x tfd %02x serr %08x\n",
+			    "rs %08x tfd %02x serr %08x cmd %08x\n",
 			    ATA_INL(ch->r_mem, AHCI_P_IS),
 			    ATA_INL(ch->r_mem, AHCI_P_CI),
 			    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
 			    ATA_INL(ch->r_mem, AHCI_P_TFD),
-			    ATA_INL(ch->r_mem, AHCI_P_SERR));
+			    ATA_INL(ch->r_mem, AHCI_P_SERR),
+			    ATA_INL(ch->r_mem, AHCI_P_CMD));
 			et = AHCI_ERR_TIMEOUT;
 		}
 
@@ -1960,8 +1962,12 @@ ahci_timeout(struct ahci_slot *slot)
 		ccs = (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_CCS_MASK)
 		    >> AHCI_P_CMD_CCS_SHIFT;
 		if ((sstatus & (1 << slot->slot)) != 0 || ccs == slot->slot ||
-		    ch->fbs_enabled)
+		    ch->fbs_enabled || ch->wrongccs)
 			slot->state = AHCI_SLOT_EXECUTING;
+		else if ((ch->rslots & (1 << ccs)) == 0) {
+			ch->wrongccs = 1;
+			slot->state = AHCI_SLOT_EXECUTING;
+		}
 
 		callout_reset(&slot->timeout,
 		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
@@ -1971,10 +1977,12 @@ ahci_timeout(struct ahci_slot *slot)
 
 	device_printf(dev, "Timeout on slot %d port %d\n",
 	    slot->slot, slot->ccb->ccb_h.target_id & 0x0f);
-	device_printf(dev, "is %08x cs %08x ss %08x rs %08x tfd %02x serr %08x\n",
+	device_printf(dev, "is %08x cs %08x ss %08x rs %08x tfd %02x "
+	    "serr %08x cmd %08x\n",
 	    ATA_INL(ch->r_mem, AHCI_P_IS), ATA_INL(ch->r_mem, AHCI_P_CI),
 	    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
-	    ATA_INL(ch->r_mem, AHCI_P_TFD), ATA_INL(ch->r_mem, AHCI_P_SERR));
+	    ATA_INL(ch->r_mem, AHCI_P_TFD), ATA_INL(ch->r_mem, AHCI_P_SERR),
+	    ATA_INL(ch->r_mem, AHCI_P_CMD));
 
 	/* Handle frozen command. */
 	if (ch->frozen) {
@@ -1987,7 +1995,7 @@ ahci_timeout(struct ahci_slot *slot)
 		}
 		xpt_done(fccb);
 	}
-	if (!ch->fbs_enabled) {
+	if (!ch->fbs_enabled && !ch->wrongccs) {
 		/* Without FBS we know real timeout source. */
 		ch->fatalerr = 1;
 		/* Handle command with timeout. */
@@ -2585,6 +2593,7 @@ ahci_reset(device_t dev)
 		xpt_release_simq(ch->sim, TRUE);
 	ch->eslots = 0;
 	ch->toslots = 0;
+	ch->wrongccs = 0;
 	ch->fatalerr = 0;
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);

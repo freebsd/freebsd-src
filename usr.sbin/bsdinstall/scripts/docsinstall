@@ -59,11 +59,21 @@ NB: This requires a working, configured network connection." 0 0 0 \
 test $? -eq 0 || exit 0
 exec 3>&-
 
+# Let pkg_add be able to use name servers
+cp ${BSDINSTALL_TMPETC}/resolv.conf ${BSDINSTALL_CHROOT}/etc
+
+error() {
+	dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
+	    "Could not install package $1 (`tail -n 1 ${BSDINSTALL_LOG}`)" 0 0
+	exit 1
+}
+
+
 clear
 echo "FreeBSD Installer"
 echo "========================"
 echo
 
 for i in $DOCS; do
-    pkg_add -C ${BSDINSTALL_CHROOT} -r ${i}-freebsd-doc
+    pkg_add -C ${BSDINSTALL_CHROOT} -r ${i}-freebsd-doc || error $i-freebsd-doc
 done

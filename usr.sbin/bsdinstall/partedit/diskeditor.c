@@ -65,7 +65,12 @@ diskeditor_show(const char *title, const char *cprompt,
 	WINDOW *dialog, *partitions;
 	char *prompt;
 	const char *buttons[] =
-	    { "Create", "Delete", "Modify", "Revert", "Auto", "Exit", NULL };
+	    { "Create", "Delete", "Modify", "Revert", "Auto", "Finish", NULL };
+	const char *help_text[] = {
+	    "Add a new partition", "Delete selected partition or partitions",
+	    "Change partition type or mountpoint",
+	    "Revert changes to disk setup", "Use guided partitioning tool",
+	    "Exit partitioner (will ask whether to save changes)", NULL };
 	int x, y;
 	int i;
 	int height, width, min_width;
@@ -125,6 +130,7 @@ diskeditor_show(const char *title, const char *cprompt,
 	dlg_register_buttons(partitions, "partlist", buttons);
 	wattrset(partitions, menubox_attr);
 
+	dlg_item_help(help_text[cur_button]);
 	dlg_draw_buttons(dialog, height - 2*MARGIN, 0, buttons,
 	    cur_button, FALSE, width);
 	dlg_print_autowrap(dialog, prompt, height, width);
@@ -154,6 +160,7 @@ repaint:
 		key = dlg_mouse_wgetch(dialog, &fkey);
 		if ((i = dlg_char_to_button(key, buttons)) >= 0) {
 			cur_button = i;
+			dlg_item_help(help_text[cur_button]);
 			dlg_draw_buttons(dialog, height - 2*MARGIN, 0, buttons,
 			    cur_button, FALSE, width);
 			break;
@@ -167,6 +174,7 @@ repaint:
 			cur_button = dlg_next_button(buttons, cur_button);
 			if (cur_button < 0)
 				cur_button = 0;
+			dlg_item_help(help_text[cur_button]);
 			dlg_draw_buttons(dialog, height - 2*MARGIN, 0, buttons,
 			    cur_button, FALSE, width);
 			break;
@@ -174,6 +182,7 @@ repaint:
 			cur_button = dlg_prev_button(buttons, cur_button);
 			if (cur_button < 0)
 				cur_button = 0;
+			dlg_item_help(help_text[cur_button]);
 			dlg_draw_buttons(dialog, height - 2*MARGIN, 0, buttons,
 			    cur_button, FALSE, width);
 			break;
@@ -215,6 +224,8 @@ repaint:
 			cur_scroll += (partlist_height - 2);
 			if (cur_scroll + partlist_height - 2 >= nitems)
 				cur_scroll = nitems - (partlist_height - 2);
+			if (cur_scroll < 0)
+				cur_scroll = 0;
 			if (cur_part < cur_scroll)
 				cur_part = cur_scroll;
 			goto repaint;
@@ -231,6 +242,8 @@ repaint:
 			goto repaint;
 		case DLGK_PAGE_LAST:
 			cur_scroll = nitems - (partlist_height - 2);
+			if (cur_scroll < 0)
+				cur_scroll = 0;
 			cur_part = cur_scroll;
 			goto repaint;
 		case DLGK_ENTER:
@@ -238,6 +251,7 @@ repaint:
 		default:
 			if (is_DLGK_MOUSE(key)) {
 				cur_button = key - M_EVENT;
+				dlg_item_help(help_text[cur_button]);
 				dlg_draw_buttons(dialog, height - 2*MARGIN, 0,
 				    buttons, cur_button, FALSE, width);
 				goto done;

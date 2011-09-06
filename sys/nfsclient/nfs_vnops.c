@@ -1276,6 +1276,7 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	caddr_t bpos, dpos;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	struct nfsmount *nmp;
+	off_t end;
 	int error = 0, len, retlen, tsiz, eof, attrflag;
 	int v3 = NFS_ISV3(vp);
 	int rsize;
@@ -1286,7 +1287,8 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	nmp = VFSTONFS(vp->v_mount);
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+	end = uiop->uio_offset + tsiz;
+	if (end > nmp->nm_maxfilesize || end < uiop->uio_offset) {
 		mtx_unlock(&nmp->nm_mtx);
 		return (EFBIG);
 	}
@@ -1348,6 +1350,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	caddr_t bpos, dpos;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	off_t end;
 	int error = 0, len, tsiz, wccflag = NFSV3_WCCRATTR, rlen, commit;
 	int v3 = NFS_ISV3(vp), committed = NFSV3WRITE_FILESYNC;
 	int wsize;
@@ -1356,7 +1359,8 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	*must_commit = 0;
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+	end = uiop->uio_offset + tsiz;
+	if (end > nmp->nm_maxfilesize || end < uiop->uio_offset) {
 		mtx_unlock(&nmp->nm_mtx);		
 		return (EFBIG);
 	}
