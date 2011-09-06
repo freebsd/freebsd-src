@@ -39,19 +39,21 @@
 # done
 
 # 20110828: library version bump for 9.0
+OLD_LIBS+=lib/libcam.so.5
+OLD_LIBS+=lib/libpcap.so.7
 OLD_LIBS+=lib/libufs.so.5
 OLD_LIBS+=usr/lib/libbsnmp.so.5
 OLD_LIBS+=usr/lib/libdwarf.so.2
 OLD_LIBS+=usr/lib/libopie.so.6
-OLD_LIBS+=usr/lib/libpcap.so.7
 OLD_LIBS+=usr/lib/librtld_db.so.1
 OLD_LIBS+=usr/lib/libtacplus.so.4
 .if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libcam.so.5
+OLD_LIBS+=usr/lib32/libpcap.so.7
 OLD_LIBS+=usr/lib32/libufs.so.5
 OLD_LIBS+=usr/lib32/libbsnmp.so.5
 OLD_LIBS+=usr/lib32/libdwarf.so.2
 OLD_LIBS+=usr/lib32/libopie.so.6
-OLD_LIBS+=usr/lib32/libpcap.so.7
 OLD_LIBS+=usr/lib32/librtld_db.so.1
 OLD_LIBS+=usr/lib32/libtacplus.so.4
 .endif
