@@ -804,7 +804,7 @@ retry:
 			pmap_invalidate_page(va);
 			pmap_switch(oldpmap);
 			if (pmap_accessed(pte))
-				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			if (pmap_dirty(pte))
 				vm_page_dirty(m);
 			pmap_free_pte(pte, va);
@@ -819,7 +819,7 @@ retry:
 				free_pv_entry(pv);
 		}
 		if (TAILQ_EMPTY(&m->md.pv_list))
-			vm_page_flag_clear(m, PG_WRITEABLE);
+			vm_page_aflag_clear(m, PGA_WRITEABLE);
 	}
 	if (allocated_pv == NULL) {
 		if (vpq == &vm_page_queues[PQ_INACTIVE]) {
@@ -972,7 +972,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pv_entry_t pv)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_WRITEABLE);
+			vm_page_aflag_clear(m, PGA_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1198,7 +1198,7 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 		if (pmap_dirty(pte))
 			vm_page_dirty(m);
 		if (pmap_accessed(pte))
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 
 		error = pmap_remove_entry(pmap, m, va, pv);
 	}
@@ -1460,7 +1460,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -1647,7 +1647,7 @@ validate:
 		ia64_sync_icache(va, PAGE_SIZE);
 
 	if ((prot & VM_PROT_WRITE) != 0 && managed)
-		vm_page_flag_set(m, PG_WRITEABLE);
+		vm_page_aflag_set(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
@@ -2048,13 +2048,13 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can be dirty.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2139,11 +2139,11 @@ pmap_clear_modify(vm_page_t m)
 	    ("pmap_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no PTEs can be modified.
+	 * If the page is not PGA_WRITEABLE, then no PTEs can be modified.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2206,13 +2206,13 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2235,7 +2235,7 @@ pmap_remove_write(vm_page_t m)
 		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 

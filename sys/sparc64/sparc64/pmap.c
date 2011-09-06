@@ -1340,9 +1340,9 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 			if ((data & TD_W) != 0)
 				vm_page_dirty(m);
 			if ((data & TD_REF) != 0)
-				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			if (TAILQ_EMPTY(&m->md.tte_list))
-				vm_page_flag_clear(m, PG_WRITEABLE);
+				vm_page_aflag_clear(m, PGA_WRITEABLE);
 			pm->pm_stats.resident_count--;
 		}
 		pmap_cache_remove(m, va);
@@ -1403,7 +1403,7 @@ pmap_remove_all(vm_page_t m)
 		if ((tp->tte_data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
 		if ((tp->tte_data & TD_REF) != 0)
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 		if ((tp->tte_data & TD_W) != 0)
 			vm_page_dirty(m);
 		tp->tte_data &= ~TD_V;
@@ -1414,7 +1414,7 @@ pmap_remove_all(vm_page_t m)
 		TTE_ZERO(tp);
 		PMAP_UNLOCK(pm);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -1560,7 +1560,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if (wired)
 				tp->tte_data |= TD_W;
 			if ((m->oflags & VPO_UNMANAGED) == 0)
-				vm_page_flag_set(m, PG_WRITEABLE);
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 
@@ -1601,7 +1601,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
 			if ((m->oflags & VPO_UNMANAGED) == 0)
-				vm_page_flag_set(m, PG_WRITEABLE);
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
@@ -2066,13 +2066,13 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no TTEs can have TD_W set.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2143,11 +2143,11 @@ pmap_clear_modify(vm_page_t m)
 	    ("pmap_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no TTEs can have TD_W set.
+	 * If the page is not PGA_WRITEABLE, then no TTEs can have TD_W set.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2189,13 +2189,13 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2207,7 +2207,7 @@ pmap_remove_write(vm_page_t m)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
