@@ -927,8 +927,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 					continue;
 				}
 				if (asf1d->bLength < (sizeof(*asf1d) +
-				    (asf1d->bSamFreqType == 0) ? 6 :
-				    (asf1d->bSamFreqType * 3))) {
+				    ((asf1d->bSamFreqType == 0) ? 6 :
+				    (asf1d->bSamFreqType * 3)))) {
 					DPRINTFN(11, "'asf1d' descriptor is too short\n");
 					asf1d = NULL;
 					continue;
