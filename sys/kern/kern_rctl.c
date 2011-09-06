@@ -363,6 +363,17 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			     rule->rr_action));
 
 			/*
+			 * We're supposed to send a signal, but the process
+			 * is not fully initialized yet, probably because we
+			 * got called from fork1().  For now just deny the
+			 * allocation instead.
+			 */
+                        if (p->p_state != PRS_NORMAL) {
+				should_deny = 1;
+				continue;
+			}
+
+			/*
 			 * We're using the fact that RCTL_ACTION_SIG* values
 			 * are equal to their counterparts from sys/signal.h.
 			 */
