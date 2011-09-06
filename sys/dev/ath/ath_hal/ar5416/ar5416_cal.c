@@ -72,16 +72,17 @@ ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		return !IEEE80211_IS_CHAN_B(chan);
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		/* Run ADC Gain Cal for either 5ghz any or 2ghz HT40 */
 		/*
-		 * Merlin (AR9280) doesn't ever complete ADC calibrations
-		 * in 5ghz non-HT40 mode (ie, HT20, 11a). For now, disable
-		 * it for Merlin only until further information is
-		 * available.
+		 * Run ADC Gain Cal for either 5ghz any or 2ghz HT40.
+		 *
+		 * Don't run ADC calibrations for 5ghz fast clock mode
+		 * in HT20 - only one ADC is used.
 		 */
-		if (! AR_SREV_MERLIN(ah))
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				return AH_TRUE;
+		if (IEEE80211_IS_CHAN_HT20(chan) &&
+		    (IS_5GHZ_FAST_CLOCK_EN(ah, chan)))
+			return AH_FALSE;
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
+			return AH_TRUE;
 		if (IEEE80211_IS_CHAN_HT40(chan))
 			return AH_TRUE;
 		return AH_FALSE;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -1390,6 +1390,15 @@ test_posixsem_init_label(struct label *label)
 	COUNTER_INC(posixsem_init_label);
 }
 
+COUNTER_DECL(posixshm_check_create);
+static int
+test_posixshm_check_create(struct ucred *cred, const char *path)
+{
+
+	COUNTER_INC(posixshm_check_create);
+	return (0);
+}
+
 COUNTER_DECL(posixshm_check_mmap);
 static int
 test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
@@ -1405,7 +1414,7 @@ test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 COUNTER_DECL(posixshm_check_open);
 static int
 test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
-    struct label *shmfdlabel)
+    struct label *shmfdlabel, accmode_t accmode)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -3102,6 +3111,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_destroy_label = test_posixsem_destroy_label,
 	.mpo_posixsem_init_label = test_posixsem_init_label,
 
+	.mpo_posixshm_check_create = test_posixshm_check_create,
 	.mpo_posixshm_check_mmap = test_posixshm_check_mmap,
 	.mpo_posixshm_check_open = test_posixshm_check_open,
 	.mpo_posixshm_check_setmode = test_posixshm_check_setmode,

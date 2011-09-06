@@ -1,4 +1,4 @@
-# Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.4 2009-12-05 23:31:40 each Exp $
+# $Id: Makefile.in,v 1.4.244.2 2011-05-16 23:47:16 tbox Exp $
 
 top_srcdir =	@top_srcdir@
 srcdir =	@top_srcdir@/lib/irs
@@ -80,7 +80,7 @@ installdirs:
 
 install:: timestamp installdirs
 	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libirs.@A@ \
-	${DESTDIR}${export_libdir}
+	${DESTDIR}${export_libdir}/
 
 clean distclean::
 	rm -f libirs.@A@ libirs.la timestamp

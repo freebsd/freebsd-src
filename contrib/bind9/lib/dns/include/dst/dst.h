@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.31 2011-01-11 23:47:14 tbox Exp $ */
+/* $Id: dst.h,v 1.31.10.1 2011-03-21 19:53:35 each Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -844,6 +844,9 @@ dst_key_tkeytoken(const dst_key_t *key);
 /*%<
  * Return the token from the TKEY request, if any.  If this key was
  * not negotiated via TKEY, return NULL.
+ *
+ * Requires:
+ *	"key" is a valid key.
  */
 
 

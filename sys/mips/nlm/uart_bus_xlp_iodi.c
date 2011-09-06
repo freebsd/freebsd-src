@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <mips/nlm/hal/mmio.h>
+#include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/uart.h>
 
@@ -78,9 +78,9 @@ uart_iodi_probe(device_t dev)
 	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	sc->sc_sysdev->bas.bst = rmi_bus_space;
-	sc->sc_sysdev->bas.bsh = nlm_regbase_uart(0, 0) + XLP_IO_PCI_HDRSZ;
+	sc->sc_sysdev->bas.bsh = nlm_get_uart_regbase(0, 0);
 	sc->sc_bas.bst = rmi_bus_space;
-	sc->sc_bas.bsh = nlm_regbase_uart(0, 0) + XLP_IO_PCI_HDRSZ;
+	sc->sc_bas.bsh = nlm_get_uart_regbase(0, 0);
 	/* regshft = 2, rclk = 66000000, rid = 0, chan = 0 */
 	return (uart_bus_probe(dev, 2, 133000000, 0, 0));
 }

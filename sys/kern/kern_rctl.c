@@ -908,7 +908,7 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 		if (error != 0)
 			goto out;
 		if (RACCT_IS_IN_MILLIONS(rule->rr_resource))
-			rule->rr_amount *= 1000;
+			rule->rr_amount *= 1000000;
 	}
 
 	if (perstr == NULL || perstr[0] == '\0')
@@ -1223,7 +1223,7 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 			continue;
 		amount = racct->r_resources[i];
 		if (RACCT_IS_IN_MILLIONS(i))
-			amount /= 1000;
+			amount /= 1000000;
 		sbuf_printf(sb, "%s=%jd,", rctl_resource_name(i), amount);
 	}
 	sbuf_setpos(sb, sbuf_len(sb) - 1);

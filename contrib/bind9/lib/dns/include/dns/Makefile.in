@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.57 2009-10-08 23:48:10 tbox Exp $
+# $Id: Makefile.in,v 1.57.296.2 2011-02-28 01:20:02 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -29,7 +29,7 @@ HEADERS =	acl.h adb.h byaddr.h cache.h callbacks.h cert.h compress.h \
 		peer.h portlist.h private.h rbt.h rcode.h \
 		rdata.h rdataclass.h rdatalist.h rdataset.h rdatasetiter.h \
 		rdataslab.h rdatatype.h request.h resolver.h result.h \
-		rootns.h sdb.h sdlz.h secalg.h secproto.h soa.h ssu.h \
+		rootns.h rpz.h sdb.h sdlz.h secalg.h secproto.h soa.h ssu.h \
 		tcpmsg.h time.h tkey.h tsig.h ttl.h types.h \
 		validator.h version.h view.h xfrin.h zone.h zonekey.h zt.h
 
