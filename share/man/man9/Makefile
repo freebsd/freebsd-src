@@ -320,7 +320,7 @@ MAN=	accept_filter.9 \
 	vm_page_cache.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
-	vm_page_flag.9 \
+	vm_page_aflag.9 \
 	vm_page_free.9 \
 	vm_page_grab.9 \
 	vm_page_hold.9 \
@@ -1372,8 +1372,9 @@ MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_test_dirty.9 \
 	vm_page_bits.9 vm_page_undirty.9 \
 	vm_page_bits.9 vm_page_zero_invalid.9
-MLINKS+=vm_page_flag.9 vm_page_flag_clear.9 \
-	vm_page_flag.9 vm_page_flag_set.9
+MLINKS+=vm_page_aflag.9 vm_page_aflag_clear.9 \
+	vm_page_aflag.9 vm_page_aflag_set.9 \
+	vm_page_aflag.9 vm_page_reference.9
 MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_free_zero.9 \
 	vm_page_free.9 vm_page_try_to_free.9
