@@ -2032,8 +2032,10 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	tid->hwq_depth++;
 
 	/* Add to BAW */
-	ath_tx_addto_baw(sc, an, tid, bf);
-	bf->bf_state.bfs_addedbaw = 1;
+	if (bf->bf_state.bfs_dobaw) {
+		ath_tx_addto_baw(sc, an, tid, bf);
+		bf->bf_state.bfs_addedbaw = 1;
+	}
 
 	/* Set completion handler, multi-frame aggregate or not */
 	bf->bf_comp = ath_tx_aggr_comp;
@@ -2085,10 +2087,14 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
-	} else if (txq->axq_depth < sc->sc_hwq_limit &&
-	    ath_tx_ampdu_running(sc, an, tid)) {
-		/* AMPDU running, attempt direct dispatch */
-		ath_tx_xmit_aggr(sc, an, bf);
+	} else if (ath_tx_ampdu_running(sc, an, tid)) {
+		/* AMPDU running, attempt direct dispatch if possible */
+		if (txq->axq_depth < sc->sc_hwq_limit)
+			ath_tx_xmit_aggr(sc, an, bf);
+		else {
+			ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+			ath_tx_tid_sched(sc, an, atid);
+		}
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		ath_tx_xmit_normal(sc, txq, bf);
