@@ -739,11 +739,11 @@ update_ewma_stats(struct ath_softc *sc, struct ath_node *an,
 		/* just average the first few packets */
 		int a_pct = (sn->stats[size_bin][rix].packets_acked * 1000) /
 		    (sn->stats[size_bin][rix].total_packets);
-		sn->stats[size_bin][rix0].ewma_pct = a_pct;
+		sn->stats[size_bin][rix].ewma_pct = a_pct;
 	} else {
 		/* use a ewma */
-		sn->stats[size_bin][rix0].ewma_pct =
-			((sn->stats[size_bin][rix0].ewma_pct * ssc->smoothing_rate) +
+		sn->stats[size_bin][rix].ewma_pct =
+			((sn->stats[size_bin][rix].ewma_pct * ssc->smoothing_rate) +
 			 (pct * (100 - ssc->smoothing_rate))) / 100;
 	}
 }
