@@ -1208,15 +1208,15 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u %s:%4u] %8d:%-8d (%3d%%) (EWMA %3d.%1d%%) T %8d F %4d avg %5u last %u\n",
+			printf("[%2u %s:%4u] %8ju:%-8ju (%3d%%) (EWMA %3d.%1d%%) T %8ju F %4d avg %5u last %u\n",
 			    dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    bin_to_size(y),
-			    sn->stats[y][rix].total_packets,
-			    sn->stats[y][rix].packets_acked,
-			    (100*sn->stats[y][rix].packets_acked)/sn->stats[y][rix].total_packets,
+			    (uintmax_t) sn->stats[y][rix].total_packets,
+			    (uintmax_t) sn->stats[y][rix].packets_acked,
+			    (int) ((100*sn->stats[y][rix].packets_acked)/sn->stats[y][rix].total_packets),
 			    sn->stats[y][rix].ewma_pct / 10,
 			    sn->stats[y][rix].ewma_pct % 10,
-			    sn->stats[y][rix].tries,
+			    (uintmax_t) sn->stats[y][rix].tries,
 			    sn->stats[y][rix].successive_failures,
 			    sn->stats[y][rix].average_tx_time,
 			    ticks - sn->stats[y][rix].last_tx);
