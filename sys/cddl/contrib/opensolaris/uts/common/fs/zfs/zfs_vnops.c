@@ -331,8 +331,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it.
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(pp, PG_REFERENCED);
+				vm_page_reference(pp);
 				vm_page_sleep(pp, "zfsmwb");
 				continue;
 			}
