@@ -313,6 +313,9 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	if (param != 1)
 		return 0;
 
+	printf("no tx bufs (empty list): %d\n", sc->sc_stats.ast_tx_getnobuf);
+	printf("no tx bufs (was busy): %d\n", sc->sc_stats.ast_tx_getbusybuf);
+
 	printf("aggr single packet: %d\n",
 	    sc->sc_aggr_stats.aggr_single_pkt);
 	printf("aggr single packet w/ BAW closed: %d\n",

@@ -1860,6 +1860,15 @@ _ath_getbuf_locked(struct ath_softc *sc)
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
 	bf = TAILQ_FIRST(&sc->sc_txbuf);
+	if (bf == NULL) {
+		sc->sc_stats.ast_tx_getnobuf++;
+	} else {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			sc->sc_stats.ast_tx_getbusybuf++;
+			bf = NULL;
+		}
+	}
+
 	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
 		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
 	else
