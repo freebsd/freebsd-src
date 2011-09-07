@@ -57,5 +57,6 @@ extern devclass_t usb_devclass_ptr;
 void	usb_temp_unload(void *);
 void	usb_quirk_unload(void *);
 void	usb_bus_unload(void *);
+usb_test_quirk_t usb_test_quirk_w;
 
 #endif					/* _USB_DYNAMIC_H_ */

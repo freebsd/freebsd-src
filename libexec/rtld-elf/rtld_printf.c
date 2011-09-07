@@ -46,23 +46,17 @@
 
 #define MAXNBUF	(sizeof(intmax_t) * NBBY + 1)
 
+#define	PRINT_METHOD_SNPRINTF	1
+#define	PRINT_METHOD_WRITE	2
+
 struct snprintf_arg {
+	int	method;
 	char	*str;
 	char	*buf;
 	size_t	remain;
 	size_t	buf_total;
 	int	fd;
 };
-
-static void
-snprintf_func(int ch, struct snprintf_arg *const info)
-{
-
-	if (info->remain >= 2) {
-		*info->str++ = ch;
-		info->remain--;
-	}
-}
 
 static void
 printf_out(struct snprintf_arg *info)
@@ -76,14 +70,24 @@ printf_out(struct snprintf_arg *info)
 }
 
 static void
-printf_func(int ch, struct snprintf_arg *const info)
+snprintf_func(int ch, struct snprintf_arg *const info)
 {
 
-	if (info->remain > 0) {
-		*info->str++ = ch;
-		info->remain--;
-	} else
-		printf_out(info);
+	switch (info->method) {
+	case PRINT_METHOD_SNPRINTF:
+		if (info->remain >= 2) {
+			*info->str++ = ch;
+			info->remain--;
+		}
+		break;
+	case PRINT_METHOD_WRITE:
+		if (info->remain > 0) {
+			*info->str++ = ch;
+			info->remain--;
+		} else
+			printf_out(info);
+		break;
+	}
 }
 
 static char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -113,10 +117,9 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 }
 
 static int
-kvprintf(char const *fmt, void (*func)(int c, struct snprintf_arg *const arg),
-    struct snprintf_arg *arg, int radix, va_list ap)
+kvprintf(char const *fmt, struct snprintf_arg *arg, int radix, va_list ap)
 {
-#define PCHAR(c) func((c), arg)
+#define PCHAR(c) snprintf_func((c), arg)
 	char nbuf[MAXNBUF];
 	const char *p, *percent, *q;
 	u_char *up;
@@ -429,10 +432,11 @@ rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap)
 	struct snprintf_arg info;
 	int retval;
 
+	info.method = PRINT_METHOD_SNPRINTF;
 	info.buf = info.str = buf;
 	info.buf_total = info.remain = bufsize;
 	info.fd = -1;
-	retval = kvprintf(fmt, snprintf_func, &info, 10, ap);
+	retval = kvprintf(fmt, &info, 10, ap);
 	if (info.remain >= 1)
 		*info.str++ = '\0';
 	return (retval);
@@ -445,10 +449,11 @@ rtld_vfdprintf(int fd, const char *fmt, va_list ap)
 	struct snprintf_arg info;
 	int retval;
 
+	info.method = PRINT_METHOD_WRITE;
 	info.buf = info.str = buf;
 	info.buf_total = info.remain = sizeof(buf);
 	info.fd = fd;
-	retval = kvprintf(fmt, printf_func, &info, 10, ap);
+	retval = kvprintf(fmt, &info, 10, ap);
 	printf_out(&info);
 	return (retval);
 }

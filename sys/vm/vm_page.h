@@ -125,12 +125,13 @@ struct vm_page {
 	struct md_page md;		/* machine dependant stuff */
 	uint8_t	queue;			/* page queue index (P,Q) */
 	int8_t segind;
-	u_short	flags;			/* see below */
+	short hold_count;		/* page hold count (P) */
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
 	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
-	short hold_count;		/* page hold count (P) */
+	uint8_t aflags;			/* access is atomic */
+	uint8_t flags;			/* see below, often immutable after alloc */
 	u_short oflags;			/* page flags (O) */
 	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
@@ -225,21 +226,29 @@ extern struct vpglocks pa_lock[];
 /*
  * These are the flags defined for vm_page.
  *
- * PG_REFERENCED may be cleared only if the object containing the page is
+ * aflags are updated by atomic accesses. Use the vm_page_aflag_set()
+ * and vm_page_aflag_clear() functions to set and clear the flags.
+ *
+ * PGA_REFERENCED may be cleared only if the object containing the page is
  * locked.
  *
- * PG_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
+ * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.
  */
-#define	PG_CACHED	0x0001		/* page is cached */
-#define	PG_FREE		0x0002		/* page is free */
-#define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
-#define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
-#define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
-#define	PG_ZERO		0x0040		/* page is zeroed */
-#define PG_REFERENCED	0x0080		/* page has been referenced */
-#define PG_MARKER	0x1000		/* special queue marker page */
-#define	PG_SLAB		0x2000		/* object pointer is actually a slab */
+#define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
+#define	PGA_REFERENCED	0x02		/* page has been referenced */
+
+/*
+ * Page flags.  If changed at any other time than page allocation or
+ * freeing, the modification must be protected by the vm_page lock.
+ */
+#define	PG_CACHED	0x01		/* page is cached */
+#define	PG_FREE		0x02		/* page is free */
+#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist (O) */
+#define	PG_ZERO		0x08		/* page is zeroed */
+#define	PG_MARKER	0x10		/* special queue marker page */
+#define	PG_SLAB		0x20		/* object pointer is actually a slab */
+#define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
 
 /*
  * Misc constants.
@@ -341,8 +350,8 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
-void vm_page_flag_set(vm_page_t m, unsigned short bits);
-void vm_page_flag_clear(vm_page_t m, unsigned short bits);
+void vm_page_aflag_set(vm_page_t m, uint8_t bits);
+void vm_page_aflag_clear(vm_page_t m, uint8_t bits);
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);
 void vm_page_io_start(vm_page_t m);
@@ -377,6 +386,7 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
+void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);

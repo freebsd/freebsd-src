@@ -901,16 +901,16 @@ RestartScan:
 				if (m->dirty != 0)
 					mincoreinfo |= MINCORE_MODIFIED_OTHER;
 				/*
-				 * The first test for PG_REFERENCED is an
+				 * The first test for PGA_REFERENCED is an
 				 * optimization.  The second test is
 				 * required because a concurrent pmap
 				 * operation could clear the last reference
-				 * and set PG_REFERENCED before the call to
+				 * and set PGA_REFERENCED before the call to
 				 * pmap_is_referenced(). 
 				 */
-				if ((m->flags & PG_REFERENCED) != 0 ||
+				if ((m->aflags & PGA_REFERENCED) != 0 ||
 				    pmap_is_referenced(m) ||
-				    (m->flags & PG_REFERENCED) != 0)
+				    (m->aflags & PGA_REFERENCED) != 0)
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
 			}
 			if (object != NULL)

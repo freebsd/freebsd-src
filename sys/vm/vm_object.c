@@ -1098,9 +1098,7 @@ shadowlookup:
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			}
 			vm_page_unlock(m);
 			if (object != tobject)

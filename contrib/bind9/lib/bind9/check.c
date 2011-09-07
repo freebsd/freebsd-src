@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.125 2011-01-07 23:47:07 tbox Exp $ */
+/* $Id: check.c,v 1.125.14.6 2011-06-17 07:04:31 each Exp $ */
 
 /*! \file */
 
@@ -1999,7 +1999,7 @@ check_trusted_key(const cfg_obj_t *key, isc_boolean_t managed,
 	const char *keystr, *keynamestr;
 	dns_fixedname_t fkeyname;
 	dns_name_t *keyname;
-	isc_buffer_t keydatabuf;
+	isc_buffer_t b;
 	isc_region_t r;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
@@ -2009,8 +2009,19 @@ check_trusted_key(const cfg_obj_t *key, isc_boolean_t managed,
 	flags = cfg_obj_asuint32(cfg_tuple_get(key, "flags"));
 	proto = cfg_obj_asuint32(cfg_tuple_get(key, "protocol"));
 	alg = cfg_obj_asuint32(cfg_tuple_get(key, "algorithm"));
+
+	dns_fixedname_init(&fkeyname);
 	keyname = dns_fixedname_name(&fkeyname);
 	keynamestr = cfg_obj_asstring(cfg_tuple_get(key, "name"));
+
+	isc_buffer_init(&b, keynamestr, strlen(keynamestr));
+	isc_buffer_add(&b, strlen(keynamestr));
+	result = dns_name_fromtext(keyname, &b, dns_rootname, 0, NULL);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(key, logctx, ISC_LOG_WARNING, "bad key name: %s\n",
+			    isc_result_totext(result));
+		result = ISC_R_FAILURE;
+	}
 
 	if (flags > 0xffff) {
 		cfg_obj_log(key, logctx, ISC_LOG_WARNING,
@@ -2041,17 +2052,17 @@ check_trusted_key(const cfg_obj_t *key, isc_boolean_t managed,
 		}
 	}
 
-	isc_buffer_init(&keydatabuf, keydata, sizeof(keydata));
+	isc_buffer_init(&b, keydata, sizeof(keydata));
 
 	keystr = cfg_obj_asstring(cfg_tuple_get(key, "key"));
-	tresult = isc_base64_decodestring(keystr, &keydatabuf);
+	tresult = isc_base64_decodestring(keystr, &b);
 
 	if (tresult != ISC_R_SUCCESS) {
 		cfg_obj_log(key, logctx, ISC_LOG_ERROR,
 			    "%s", isc_result_totext(tresult));
 		result = ISC_R_FAILURE;
 	} else {
-		isc_buffer_usedregion(&keydatabuf, &r);
+		isc_buffer_usedregion(&b, &r);
 
 		if ((alg == DST_ALG_RSASHA1 || alg == DST_ALG_RSAMD5) &&
 		    r.length > 1 && r.base[0] == 1 && r.base[1] == 3)
@@ -2075,9 +2086,16 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	isc_symtab_t *symtab = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult = ISC_R_SUCCESS;
-	cfg_aclconfctx_t actx;
+	cfg_aclconfctx_t *actx = NULL;
 	const cfg_obj_t *obj;
+	const cfg_obj_t *options = NULL;
 	isc_boolean_t enablednssec, enablevalidation;
+	const char *valstr = "no";
+
+	/*
+	 * Get global options block
+	 */
+	(void)cfg_map_get(config, "options", &options);
 
 	/*
 	 * Check that all zone statements are syntactically correct and
@@ -2088,7 +2106,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	if (tresult != ISC_R_SUCCESS)
 		return (ISC_R_NOMEMORY);
 
-	cfg_aclconfctx_init(&actx);
+	cfg_aclconfctx_create(mctx, &actx);
 
 	if (voptions != NULL)
 		(void)cfg_map_get(voptions, "zone", &zones);
@@ -2103,7 +2121,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 		const cfg_obj_t *zone = cfg_listelt_value(element);
 
 		tresult = check_zoneconf(zone, voptions, config, symtab,
-					 vclass, &actx, logctx, mctx);
+					 vclass, actx, logctx, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	}
@@ -2114,8 +2132,6 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	 * Check that forwarding is reasonable.
 	 */
 	if (voptions == NULL) {
-		const cfg_obj_t *options = NULL;
-		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
 			if (check_forward(options, NULL,
 					  logctx) != ISC_R_SUCCESS)
@@ -2129,8 +2145,6 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	 * Check that dual-stack-servers is reasonable.
 	 */
 	if (voptions == NULL) {
-		const cfg_obj_t *options = NULL;
-		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
 			if (check_dual_stack(options, logctx) != ISC_R_SUCCESS)
 				result = ISC_R_FAILURE;
@@ -2191,8 +2205,8 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	obj = NULL;
 	if (voptions != NULL)
 		(void)cfg_map_get(voptions, "dnssec-enable", &obj);
-	if (obj == NULL)
-		(void)cfg_map_get(config, "dnssec-enable", &obj);
+	if (obj == NULL && options != NULL)
+		(void)cfg_map_get(options, "dnssec-enable", &obj);
 	if (obj == NULL)
 		enablednssec = ISC_TRUE;
 	else
@@ -2201,16 +2215,23 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	obj = NULL;
 	if (voptions != NULL)
 		(void)cfg_map_get(voptions, "dnssec-validation", &obj);
-	if (obj == NULL)
-		(void)cfg_map_get(config, "dnssec-validation", &obj);
-	if (obj == NULL)
-		enablevalidation = ISC_FALSE;	/* XXXMPA Change for 9.5. */
-	else
+	if (obj == NULL && options != NULL)
+		(void)cfg_map_get(options, "dnssec-validation", &obj);
+	if (obj == NULL) {
+		enablevalidation = enablednssec;
+		valstr = "yes";
+	} else if (cfg_obj_isboolean(obj)) {
 		enablevalidation = cfg_obj_asboolean(obj);
+		valstr = enablevalidation ? "yes" : "no";
+	} else {
+		enablevalidation = ISC_TRUE;
+		valstr = "auto";
+	}
 
 	if (enablevalidation && !enablednssec)
 		cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
-			    "'dnssec-validation yes;' and 'dnssec-enable no;'");
+			    "'dnssec-validation %s;' and 'dnssec-enable no;'",
+			    valstr);
 
 	/*
 	 * Check trusted-keys and managed-keys.
@@ -2266,25 +2287,25 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	tresult = check_viewacls(&actx, voptions, config, logctx, mctx);
+	tresult = check_viewacls(actx, voptions, config, logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	tresult = check_recursionacls(&actx, voptions, viewname,
+	tresult = check_recursionacls(actx, voptions, viewname,
 				      config, logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	tresult = check_filteraaaa(&actx, voptions, viewname, config,
+	tresult = check_filteraaaa(actx, voptions, viewname, config,
 				   logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	tresult = check_dns64(&actx, voptions, config, logctx, mctx);
+	tresult = check_dns64(actx, voptions, config, logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	cfg_aclconfctx_clear(&actx);
+	cfg_aclconfctx_detach(&actx);
 
 	return (result);
 }
@@ -2441,7 +2462,7 @@ bind9_check_controls(const cfg_obj_t *config, isc_log_t *logctx,
 		     isc_mem_t *mctx)
 {
 	isc_result_t result = ISC_R_SUCCESS, tresult;
-	cfg_aclconfctx_t actx;
+	cfg_aclconfctx_t *actx = NULL;
 	const cfg_listelt_t *element, *element2;
 	const cfg_obj_t *allow;
 	const cfg_obj_t *control;
@@ -2462,7 +2483,7 @@ bind9_check_controls(const cfg_obj_t *config, isc_log_t *logctx,
 
 	(void)cfg_map_get(config, "key", &keylist);
 
-	cfg_aclconfctx_init(&actx);
+	cfg_aclconfctx_create(mctx, &actx);
 
 	/*
 	 * INET: Check allow clause.
@@ -2482,7 +2503,7 @@ bind9_check_controls(const cfg_obj_t *config, isc_log_t *logctx,
 			control = cfg_listelt_value(element2);
 			allow = cfg_tuple_get(control, "allow");
 			tresult = cfg_acl_fromconfig(allow, config, logctx,
-						     &actx, mctx, 0, &acl);
+						     actx, mctx, 0, &acl);
 			if (acl != NULL)
 				dns_acl_detach(&acl);
 			if (tresult != ISC_R_SUCCESS)
@@ -2529,7 +2550,7 @@ bind9_check_controls(const cfg_obj_t *config, isc_log_t *logctx,
 				result = tresult;
 		}
 	}
-	cfg_aclconfctx_clear(&actx);
+	cfg_aclconfctx_detach(&actx);
 	return (result);
 }
 

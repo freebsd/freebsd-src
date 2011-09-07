@@ -1815,8 +1815,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			file->re_descendant = 1;
 		if (file->cl_offset != 0) {
 			parent->subdirs++;
-			/* To be appeared before other dirs. */
-			file->offset = file->number = file->cl_offset;
+			/* Overwrite an offset and a number of this "CL" entry
+			 * to appear before other dirs. "+1" to those is to
+			 * make sure to appear after "RE" entry which this
+			 * "CL" entry should be connected with. */
+			file->offset = file->number = file->cl_offset + 1;
 		}
 	}
 
@@ -2581,13 +2584,16 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 				continue;
 			} else if (file->re_descendant) {
 				/*
-				 * Do not expose this at this time
-				 * because we have not gotten its full-path
-				 * name yet.
+				 * If the top level "RE" entry of this entry
+				 * is not exposed, we, accordingly, should not
+				 * expose this entry at this time because
+				 * we cannot make its proper full-path name.
 				 */
-				if (rede_add_entry(file) < 0)
-					goto fatal_rr;
-				continue;
+				if (rede_add_entry(file) == 0)
+					continue;
+				/* Otherwise we can expose this entry because
+				 * it seems its top level "RE" has already been
+				 * exposed. */
 			}
 		}
 		break;

@@ -30,7 +30,7 @@ CONFIGARGS+='--without-libxml2'
 .endif
 
 .PATH: ${SRCDIR}/unix
-SRCS+=		os.c
+SRCS+=		os.c dlz_dlopen_driver.c
 
 .PATH: ${SRCDIR}
 SRCS+=		builtin.c client.c config.c control.c \

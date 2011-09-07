@@ -25,20 +25,19 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  * NETLOGIC_BSD */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
-#include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/mmio.h>
-#include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/fmn.h>
 #include <sys/systm.h>
 
-uint32_t bad_xlp_num_nodes = 4;
+#include <machine/cpufunc.h>
+#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/hal/haldefs.h>
+#include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/fmn.h>
+
 /* XLP can take upto 16K of FMN messages per hardware queue, as spill.
 * But, configuring all 16K causes the total spill memory to required
 * to blow upto 192MB for single chip configuration, and 768MB in four
@@ -68,27 +67,7 @@ uint64_t nlm_cms_spill_total_messages = 1 * 1024;
 * For all 4 nodes, there are 18*4 = 72 FMN stations
 */
 uint32_t nlm_cms_total_stations = 18 * 4 /*xlp_num_nodes*/;
-uint32_t cms_onchip_seg_availability[XLP_CMS_ON_CHIP_PER_QUEUE_SPACE];
-
-int nlm_cms_verify_credit_config (int spill_en, int tot_credit)
-{
-	/* Note: In XLP there seem to be no mechanism to read back
-	 * the credit count that has been programmed into a sid / did pair;
-	 * since we have only one register 0x2000 to read.
-	 * Hence it looks like all credit mgmt/verification needs to
-	 * be done by software. Software could keep track of total credits
-	 * getting programmed and verify it from this function.
-	 */
-
-	if (spill_en) {
-		/* TODO */
-	}
-
-	if (tot_credit > (XLP_CMS_ON_CHIP_MESG_SPACE*bad_xlp_num_nodes))
-		return 1; /* credits overflowed - should not happen */
-
-	return 0;
-}
+uint32_t cms_onchip_seg_availability[CMS_ON_CHIP_PER_QUEUE_SPACE];
 
 /**
  * Takes inputs as node, queue_size and maximum number of queues.
@@ -163,7 +142,7 @@ void nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
 	uint32_t val;
 
 	val = ((credit << 24) | (destid << 12) | (srcid << 0));
-	nlm_wreg_cms(base, XLP_CMS_OUTPUTQ_CREDIT_CFG_REG, val);
+	nlm_write_cms_reg(base, CMS_OUTPUTQ_CREDIT_CFG, val);
 
 }
 
@@ -182,93 +161,93 @@ int nlm_cms_config_onchip_queue (uint64_t base, uint64_t spill_base,
 
 #if 0
 	/* configure credits for src cpu0, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU0_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU0_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu1, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU1_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU1_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu2, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU2_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU2_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu3, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU3_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU3_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu4, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU4_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU4_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu5, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU5_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU5_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu6, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU6_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU6_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cpu7, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CPU7_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CPU7_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src pcie0, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_PCIE0_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_PCIE0_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src pcie1, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_PCIE1_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_PCIE1_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src pcie2, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_PCIE2_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_PCIE2_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src pcie3, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_PCIE3_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_PCIE3_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src dte, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_DTE_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_DTE_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src rsa_ecc, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_RSA_ECC_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_RSA_ECC_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src crypto, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CRYPTO_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CRYPTO_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src cmp, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_CMP_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_CMP_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src poe, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_POE_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_POE_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 
 	/* configure credits for src nae, on this queue */
-	nlm_cms_setup_credits(base, qid, XLP_CMS_NAE_SRC_STID,
-		XLP_CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
+	nlm_cms_setup_credits(base, qid, CMS_NAE_SRC_STID,
+		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
 			nlm_cms_spill_total_messages));
 #endif
 
@@ -289,20 +268,20 @@ int nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base,
 	uint64_t queue_config;
 	uint32_t spill_start;
 
-	if(nsegs > XLP_CMS_MAX_SPILL_SEGMENTS_PER_QUEUE) {
+	if(nsegs > CMS_MAX_SPILL_SEGMENTS_PER_QUEUE) {
 		return 1;
 	}
 
-	queue_config = nlm_rdreg_cms(base,(XLP_CMS_OUTPUTQ_CONFIG_REG(qid)));
+	queue_config = nlm_read_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)));
 
 	spill_start = ((spill_base >> 12) & 0x3F);
 	/* Spill configuration */
-	queue_config = (((uint64_t)XLP_CMS_SPILL_ENA << 62) |
+	queue_config = (((uint64_t)CMS_SPILL_ENA << 62) |
 				(((spill_base >> 18) & 0x3FFFFF) << 27) |
 				(spill_start + nsegs - 1) << 21 |
 				(spill_start << 15));
 
-	nlm_wreg_cms(base,(XLP_CMS_OUTPUTQ_CONFIG_REG(qid)),queue_config);
+	nlm_write_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)),queue_config);
 
 	return 0;
 }
@@ -320,8 +299,8 @@ int nlm_cms_alloc_onchip_q(uint64_t base, int qid, int nsegs)
 	int onchipbase, start, last;
 	uint8_t i;
 
-        if( ((curr_end + nsegs) > XLP_CMS_MAX_ONCHIP_SEGMENTS) ||
-		(nsegs > XLP_CMS_ON_CHIP_PER_QUEUE_SPACE) ) {
+        if( ((curr_end + nsegs) > CMS_MAX_ONCHIP_SEGMENTS) ||
+		(nsegs > CMS_ON_CHIP_PER_QUEUE_SPACE) ) {
 		/* Invalid configuration */
                 return 1;
         }
@@ -347,15 +326,15 @@ int nlm_cms_alloc_onchip_q(uint64_t base, int qid, int nsegs)
 		cms_onchip_seg_availability[onchipbase] |= (1 << i);
 	}
 
-	queue_config = nlm_rdreg_cms(base,(XLP_CMS_OUTPUTQ_CONFIG_REG(qid)));
+	queue_config = nlm_read_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)));
 
 	/* On chip configuration */
-	queue_config = (((uint64_t)XLP_CMS_QUEUE_ENA << 63) |
+	queue_config = (((uint64_t)CMS_QUEUE_ENA << 63) |
 			((onchipbase & 0x1f) << 10) |
 			((last & 0x1f) << 5) |
 			(start & 0x1f));
 
-	nlm_wreg_cms(base,(XLP_CMS_OUTPUTQ_CONFIG_REG(qid)),queue_config);
+	nlm_write_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)),queue_config);
 
 	return 0;
 }
@@ -367,85 +346,86 @@ void nlm_cms_default_setup(int node, uint64_t spill_base, int spill_en,
 	int queue;
 	uint64_t base;
 
-	base = nlm_regbase_cms(node);
+	base = nlm_get_cms_regbase(node);
 	for(j=0; j<1024; j++) {
-		printf("Qid:0x%04d Val:0x%016jx\n",j, (uintmax_t)nlm_cms_get_onchip_queue (base, j));
+		printf("Qid:0x%04d Val:0x%016jx\n",j, 
+		    (uintmax_t)nlm_cms_get_onchip_queue (base, j));
 	}
 	/* Enable all cpu push queues */
 	for (j=0; j<XLP_MAX_CORES; j++)
 		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<XLP_CMS_MAX_VCPU_VC; vc++) {
+			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
 		/* TODO : remove this once SMP works */
 		if( (j == 0) && (k == 0) )
 			continue;
-		queue = XLP_CMS_CPU_PUSHQ(node, j, k, vc);
+		queue = CMS_CPU_PUSHQ(node, j, k, vc);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable pcie 0 push queue */
-	for (j=XLP_CMS_PCIE0_QID(0); j<XLP_CMS_PCIE0_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable pcie 1 push queue */
-	for (j=XLP_CMS_PCIE1_QID(0); j<XLP_CMS_PCIE1_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable pcie 2 push queue */
-	for (j=XLP_CMS_PCIE2_QID(0); j<XLP_CMS_PCIE2_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable pcie 3 push queue */
-	for (j=XLP_CMS_PCIE3_QID(0); j<XLP_CMS_PCIE3_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable DTE push queue */
-	for (j=XLP_CMS_DTE_QID(0); j<XLP_CMS_DTE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable RSA/ECC push queue */
-	for (j=XLP_CMS_RSA_ECC_QID(0); j<XLP_CMS_RSA_ECC_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable crypto push queue */
-	for (j=XLP_CMS_CRYPTO_QID(0); j<XLP_CMS_CRYPTO_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable CMP push queue */
-	for (j=XLP_CMS_CMP_QID(0); j<XLP_CMS_CMP_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable POE push queue */
-	for (j=XLP_CMS_POE_QID(0); j<XLP_CMS_POE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable NAE push queue */
-	for (j=XLP_CMS_NAE_QID(0); j<XLP_CMS_NAE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
 	}
 
 	/* Enable all pop queues */
 	if (popq_en) {
-		for (j=XLP_CMS_POPQ_QID(0); j<XLP_CMS_POPQ_MAXQID; j++) {
-			queue = XLP_CMS_POPQ(node, j);
+		for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
+			queue = CMS_POPQ(node, j);
 			nlm_cms_config_onchip_queue(base, spill_base, queue,
 							spill_en);
 		}
@@ -454,16 +434,16 @@ void nlm_cms_default_setup(int node, uint64_t spill_base, int spill_en,
 
 uint64_t nlm_cms_get_onchip_queue (uint64_t base, int qid)
 {
-	return nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	return nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 }
 
 void nlm_cms_set_onchip_queue (uint64_t base, int qid, uint64_t val)
 {
 	uint64_t rdval;
 
-	rdval = nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	rdval = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 	rdval |= val;
-	nlm_wreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid), rdval);
+	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), rdval);
 }
 
 void nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type,
@@ -471,12 +451,12 @@ void nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type,
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 
 	val |= (((uint64_t)sub_type<<54) |
 		((uint64_t)intr_val<<56));
 
-	nlm_wreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid), val);
+	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
 void nlm_cms_level_intr(int node, int sub_type, int intr_val)
@@ -485,78 +465,78 @@ void nlm_cms_level_intr(int node, int sub_type, int intr_val)
 	int queue;
 	uint64_t base;
 
-	base = nlm_regbase_cms(node);
+	base = nlm_get_cms_regbase(node);
 	/* setup level intr config on all cpu push queues */
 	for (j=0; j<XLP_MAX_CORES; j++)
 		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<XLP_CMS_MAX_VCPU_VC; vc++) {
-		queue = XLP_CMS_CPU_PUSHQ(node, j, k, vc);
+			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
+		queue = CMS_CPU_PUSHQ(node, j, k, vc);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all pcie 0 push queue */
-	for (j=XLP_CMS_PCIE0_QID(0); j<XLP_CMS_PCIE0_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all pcie 1 push queue */
-	for (j=XLP_CMS_PCIE1_QID(0); j<XLP_CMS_PCIE1_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all pcie 2 push queue */
-	for (j=XLP_CMS_PCIE2_QID(0); j<XLP_CMS_PCIE2_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all pcie 3 push queue */
-	for (j=XLP_CMS_PCIE3_QID(0); j<XLP_CMS_PCIE3_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all DTE push queue */
-	for (j=XLP_CMS_DTE_QID(0); j<XLP_CMS_DTE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all RSA/ECC push queue */
-	for (j=XLP_CMS_RSA_ECC_QID(0); j<XLP_CMS_RSA_ECC_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all crypto push queue */
-	for (j=XLP_CMS_CRYPTO_QID(0); j<XLP_CMS_CRYPTO_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all CMP push queue */
-	for (j=XLP_CMS_CMP_QID(0); j<XLP_CMS_CMP_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all POE push queue */
-	for (j=XLP_CMS_POE_QID(0); j<XLP_CMS_POE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all NAE push queue */
-	for (j=XLP_CMS_NAE_QID(0); j<XLP_CMS_NAE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup level intr config on all pop queues */
-	for (j=XLP_CMS_POPQ_QID(0); j<XLP_CMS_POPQ_MAXQID; j++) {
-		queue = XLP_CMS_POPQ(node, j);
+	for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
+		queue = CMS_POPQ(node, j);
 		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
 	}
 }
@@ -566,12 +546,12 @@ void nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type,
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 
 	val |= (((uint64_t)sub_type<<49) |
 		((uint64_t)intr_val<<51));
 
-	nlm_wreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid), val);
+	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
 void nlm_cms_timer_intr(int node, int en, int sub_type, int intr_val)
@@ -580,78 +560,78 @@ void nlm_cms_timer_intr(int node, int en, int sub_type, int intr_val)
 	int queue;
 	uint64_t base;
 
-	base = nlm_regbase_cms(node);
+	base = nlm_get_cms_regbase(node);
 	/* setup timer intr config on all cpu push queues */
 	for (j=0; j<XLP_MAX_CORES; j++)
 		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<XLP_CMS_MAX_VCPU_VC; vc++) {
-		queue = XLP_CMS_CPU_PUSHQ(node, j, k, vc);
+			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
+		queue = CMS_CPU_PUSHQ(node, j, k, vc);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all pcie 0 push queue */
-	for (j=XLP_CMS_PCIE0_QID(0); j<XLP_CMS_PCIE0_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all pcie 1 push queue */
-	for (j=XLP_CMS_PCIE1_QID(0); j<XLP_CMS_PCIE1_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all pcie 2 push queue */
-	for (j=XLP_CMS_PCIE2_QID(0); j<XLP_CMS_PCIE2_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all pcie 3 push queue */
-	for (j=XLP_CMS_PCIE3_QID(0); j<XLP_CMS_PCIE3_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all DTE push queue */
-	for (j=XLP_CMS_DTE_QID(0); j<XLP_CMS_DTE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all RSA/ECC push queue */
-	for (j=XLP_CMS_RSA_ECC_QID(0); j<XLP_CMS_RSA_ECC_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all crypto push queue */
-	for (j=XLP_CMS_CRYPTO_QID(0); j<XLP_CMS_CRYPTO_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all CMP push queue */
-	for (j=XLP_CMS_CMP_QID(0); j<XLP_CMS_CMP_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all POE push queue */
-	for (j=XLP_CMS_POE_QID(0); j<XLP_CMS_POE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all NAE push queue */
-	for (j=XLP_CMS_NAE_QID(0); j<XLP_CMS_NAE_MAXQID; j++) {
-		queue = XLP_CMS_IO_PUSHQ(node, j);
+	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
+		queue = CMS_IO_PUSHQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 
 	/* setup timer intr config on all pop queues */
-	for (j=XLP_CMS_POPQ_QID(0); j<XLP_CMS_POPQ_MAXQID; j++) {
-		queue = XLP_CMS_POPQ(node, j);
+	for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
+		queue = CMS_POPQ(node, j);
 		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
 	}
 }
@@ -660,7 +640,7 @@ void nlm_cms_timer_intr(int node, int en, int sub_type, int intr_val)
 int nlm_cms_outputq_intr_check(uint64_t base, int qid)
 {
 	uint64_t val;
-	val = nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 
 	return ((val >> 59) & 0x1);
 }
@@ -668,77 +648,77 @@ int nlm_cms_outputq_intr_check(uint64_t base, int qid)
 void nlm_cms_outputq_clr_intr(uint64_t base, int qid)
 {
 	uint64_t val;
-	val = nlm_rdreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid));
+	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 	val |= (1ULL<<59);
-	nlm_wreg_cms(base, XLP_CMS_OUTPUTQ_CONFIG_REG(qid), val);
+	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
 void nlm_cms_illegal_dst_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<8);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_timeout_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<7);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_biu_error_resp_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<6);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_spill_uncorrectable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<5) | (en<<3);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_spill_correctable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<4) | (en<<2);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_outputq_uncorrectable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<1);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_outputq_correctable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
-	val = nlm_rdreg_cms(base, XLP_CMS_MSG_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
 	val |= (en<<0);
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 uint64_t nlm_cms_network_error_status(uint64_t base)
 {
-	return nlm_rdreg_cms(base, XLP_CMS_MSG_ERR_REG);
+	return nlm_read_cms_reg(base, CMS_MSG_ERR);
 }
 
 int nlm_cms_get_net_error_code(uint64_t err)
@@ -770,20 +750,20 @@ void nlm_cms_trace_setup(uint64_t base, int en, uint64_t trace_base,
 {
 	uint64_t val;
 
-	nlm_wreg_cms(base, XLP_CMS_TRACE_BASE_ADDR_REG, trace_base);
-	nlm_wreg_cms(base, XLP_CMS_TRACE_LIMIT_ADDR_REG, trace_limit);
+	nlm_write_cms_reg(base, CMS_TRACE_BASE_ADDR, trace_base);
+	nlm_write_cms_reg(base, CMS_TRACE_LIMIT_ADDR, trace_limit);
 
-	val = nlm_rdreg_cms(base, XLP_CMS_TRACE_CONFIG_REG);
+	val = nlm_read_cms_reg(base, CMS_TRACE_CONFIG);
 	val |= (((uint64_t)match_dstid_en << 39) |
 		((dst_id & 0xfff) << 24) |
 		(match_srcid_en << 23) |
 		((src_id & 0xfff) << 8) |
 		(wrap << 1) |
 		(en << 0));
-	nlm_wreg_cms(base, XLP_CMS_MSG_CONFIG_REG, val);
+	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
 void nlm_cms_endian_byte_swap (uint64_t base, int en)
 {
-	nlm_wreg_cms(base, XLP_CMS_MSG_ENDIAN_SWAP_REG, en);
+	nlm_write_cms_reg(base, CMS_MSG_ENDIAN_SWAP, en);
 }

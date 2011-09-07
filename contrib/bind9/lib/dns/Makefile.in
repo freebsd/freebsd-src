@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.176 2011-01-13 01:59:27 marka Exp $
+# $Id: Makefile.in,v 1.176.8.2 2011-03-10 04:29:17 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -97,11 +97,13 @@ DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
 		tsec.c tsig.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c ${OTHERSRCS}
+
 SRCS = ${DSTSRCS} ${DNSSRCS}
 
-SUBDIRS =	include 
+SUBDIRS =	include
 TARGETS =	include/dns/enumtype.h include/dns/enumclass.h \
 		include/dns/rdatastruct.h timestamp
+TESTDIRS =	@UNITTESTS@
 
 DEPENDEXTRA =	./gen -F include/dns/rdatastruct.h \
 		-s ${srcdir} -d >> Makefile ;

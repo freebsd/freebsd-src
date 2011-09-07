@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2006 SPARTA, Inc.
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2009-2011 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -101,6 +101,20 @@ mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd)
 	    shmfd->shm_label);
 }
 
+MAC_CHECK_PROBE_DEFINE2(posixshm_check_create, "struct ucred *",
+    "const char *");
+
+int
+mac_posixshm_check_create(struct ucred *cred, const char *path)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_create, cred, path);
+	MAC_CHECK_PROBE2(posixshm_check_create, error, cred, path);
+
+	return (error);
+}
+
 MAC_CHECK_PROBE_DEFINE4(posixshm_check_mmap, "struct ucred *",
     "struct shmfd *", "int", "int");
 
@@ -118,17 +132,18 @@ mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(posixshm_check_open, "struct ucred *",
-    "struct shmfd *");
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_open, "struct ucred *",
+    "struct shmfd *", "accmode_t accmode");
 
 int
-mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd)
+mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    accmode_t accmode)
 {
 	int error;
 
 	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_open, cred, shmfd,
-	    shmfd->shm_label);
-	MAC_CHECK_PROBE2(posixshm_check_open, error, cred, shmfd);
+	    shmfd->shm_label, accmode);
+	MAC_CHECK_PROBE3(posixshm_check_open, error, cred, shmfd, accmode);
 
 	return (error);
 }

@@ -1402,7 +1402,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 
 	if ((kwritable == 0) && (writable == 0)) {
 		pg->md.pvh_attrs &= ~PVF_MOD;
-		vm_page_flag_clear(pg, PG_WRITEABLE);
+		vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		return;
 	}
 }
@@ -1568,7 +1568,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 	}
 
 	if (maskbits & PVF_WRITE)
-		vm_page_flag_clear(pg, PG_WRITEABLE);
+		vm_page_aflag_clear(pg, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 	return (count);
 }
@@ -1630,7 +1630,7 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 	pg->md.pvh_attrs |= flags & (PVF_REF | PVF_MOD);
 	if (pve->pv_flags & PVF_WIRED)
 		++pm->pm_stats.wired_count;
-	vm_page_flag_set(pg, PG_REFERENCED);
+	vm_page_aflag_set(pg, PGA_REFERENCED);
 }
 
 /*
@@ -1699,7 +1699,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 	if (TAILQ_FIRST(&pg->md.pv_list) == NULL)
 		pg->md.pvh_attrs &= ~PVF_REF;
        	else
-		vm_page_flag_set(pg, PG_REFERENCED);
+		vm_page_aflag_set(pg, PGA_REFERENCED);
 	if ((pve->pv_flags & PVF_NC) && ((pm == pmap_kernel()) ||
 	     (pve->pv_flags & PVF_WRITE) || !(pve->pv_flags & PVF_MWC)))
 		pmap_fix_cache(pg, pm, 0);
@@ -1709,7 +1709,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 			    break;
 		if (!pve) {
 			pg->md.pvh_attrs &= ~PVF_MOD;
-			vm_page_flag_clear(pg, PG_WRITEABLE);
+			vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		}
 	}
 	pv = TAILQ_FIRST(&pg->md.pv_list);
@@ -1724,7 +1724,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 			--pm->pm_stats.wired_count;
 		pg->md.pvh_attrs &= ~PVF_REF;
 		pg->md.pvh_attrs &= ~PVF_MOD;
-		vm_page_flag_clear(pg, PG_WRITEABLE);
+		vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		pmap_free_pv_entry(pv);
 	}
 }
@@ -2695,7 +2695,7 @@ pmap_remove_pages(pmap_t pmap)
 		npv = TAILQ_NEXT(pv, pv_plist);
 		pmap_nuke_pv(m, pmap, pv);
 		if (TAILQ_EMPTY(&m->md.pv_list))
-			vm_page_flag_clear(m, PG_WRITEABLE);
+			vm_page_aflag_clear(m, PGA_WRITEABLE);
 		pmap_free_pv_entry(pv);
 		pmap_free_l2_bucket(pmap, l2b, 1);
 	}
@@ -3172,7 +3172,7 @@ pmap_remove_all(vm_page_t m)
 		else
 			pmap_tlb_flushD(curpm);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -3406,7 +3406,7 @@ do_l2b_alloc:
 				vm_page_dirty(m);
 		}
 		if (m && opte)
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 	} else {
 		/*
 		 * Need to do page referenced emulation.
@@ -3418,7 +3418,7 @@ do_l2b_alloc:
 		npte |= L2_S_PROT_W;
 		if (m != NULL &&
 		    (m->oflags & VPO_UNMANAGED) == 0)
-			vm_page_flag_set(m, PG_WRITEABLE);
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 	npte |= pte_l2_s_cache_mode;
 	if (m && m == opg) {
@@ -4505,11 +4505,11 @@ pmap_clear_modify(vm_page_t m)
 	    ("pmap_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no mappings can be modified.
+	 * If the page is not PGA_WRITEABLE, then no mappings can be modified.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	if (m->md.pvh_attrs & PVF_MOD)
 		pmap_clearbit(m, PVF_MOD);
@@ -4558,13 +4558,13 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) != 0 ||
-	    (m->flags & PG_WRITEABLE) != 0)
+	    (m->aflags & PGA_WRITEABLE) != 0)
 		pmap_clearbit(m, PVF_WRITE);
 }
 
