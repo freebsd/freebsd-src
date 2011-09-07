@@ -368,7 +368,7 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			 * got called from fork1().  For now just deny the
 			 * allocation instead.
 			 */
-                        if (p->p_state != PRS_NORMAL) {
+			if (p->p_state != PRS_NORMAL) {
 				should_deny = 1;
 				continue;
 			}
