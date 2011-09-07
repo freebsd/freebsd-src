@@ -2533,11 +2533,16 @@ ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ieee80211_frame *wh;
 
+	wh = mtod(bf->bf_m, struct ieee80211_frame *);
+	/* Only update/resync if needed */
+	if (bf->bf_state.bfs_isretried == 0) {
+		wh->i_fc[1] |= IEEE80211_FC1_RETRY;
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+		    BUS_DMASYNC_PREWRITE);
+	}
 	sc->sc_stats.ast_tx_swretries++;
 	bf->bf_state.bfs_isretried = 1;
 	bf->bf_state.bfs_retries ++;
-	wh = mtod(bf->bf_m, struct ieee80211_frame *);
-	wh->i_fc[1] |= IEEE80211_FC1_RETRY;
 }
 
 static struct ath_buf *
