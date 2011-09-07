@@ -589,6 +589,9 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		for (i = 1; i < mnt_argv.c; i++)
 			(void)printf(" %s", mnt_argv.a[i]);
 		(void)printf("\n");
+		free(optbuf);
+		free(mountprog);
+		mountprog = NULL;
 		return (0);
 	}
 
@@ -599,6 +602,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	}
 
 	free(optbuf);
+	free(mountprog);
+	mountprog = NULL;
 
 	if (verbose) {
 		if (statfs(name, &sf) < 0) {

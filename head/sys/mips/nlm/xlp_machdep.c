@@ -71,9 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/mmio.h>
+#include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/cop0.h>
 #include <mips/nlm/hal/sys.h>
 #include <mips/nlm/hal/pic.h>
 #include <mips/nlm/hal/uart.h>
@@ -93,7 +92,7 @@ int xlp_argc;
 char **xlp_argv, **xlp_envp;
 
 uint64_t xlp_cpu_frequency;
-uint64_t nlm_pcicfg_baseaddr = MIPS_PHYS_TO_KSEG1(XLP_DEFAULT_IO_BASE);
+uint64_t xlp_io_base = MIPS_PHYS_TO_KSEG1(XLP_DEFAULT_IO_BASE);
 
 int xlp_ncores;
 int xlp_threads_per_core;
@@ -112,7 +111,7 @@ xlp_setup_core(void)
 {
 	uint64_t reg;
 
-	reg = nlm_mfcr(XLP_LSU_DEFEATURE);
+	reg = nlm_mfcr(LSU_DEFEATURE);
 	/* Enable Unaligned and L2HPE */
 	reg |= (1 << 30) | (1 << 23);
 	/*
@@ -123,12 +122,12 @@ xlp_setup_core(void)
 	reg |= (1ull << 31);
 	/* Clear S1RCM  - A0 errata */
 	reg &= ~0xeull;
-	nlm_mtcr(XLP_LSU_DEFEATURE, reg);
+	nlm_mtcr(LSU_DEFEATURE, reg);
 
-	reg = nlm_mfcr(XLP_SCHED_DEFEATURE);
+	reg = nlm_mfcr(SCHED_DEFEATURE);
 	/* Experimental: Disable BRU accepting ALU ops - A0 errata */
 	reg |= (1 << 24);
-	nlm_mtcr(XLP_SCHED_DEFEATURE, reg);
+	nlm_mtcr(SCHED_DEFEATURE, reg);
 }
 
 static void 
@@ -281,8 +280,9 @@ mips_init(void)
 unsigned int
 platform_get_timecount(struct timecounter *tc __unused)
 {
+	uint64_t count = nlm_pic_read_timer(xlp_pic_base, PIC_CLOCK_TIMER);
 
-	return ((unsigned int)~nlm_pic_read_systimer(xlp_pic_base, 7));
+	return (unsigned int)~count;
 }
 
 static void 
@@ -292,21 +292,21 @@ xlp_pic_init(void)
 		platform_get_timecount, /* get_timecount */
 		0,                      /* no poll_pps */
 		~0U,                    /* counter_mask */
-		XLP_PIC_TIMER_FREQ,           /* frequency */
+		XLP_IO_CLK,            /* frequency */
 		"XLRPIC",               /* name */
 		2000,                   /* quality (adjusted in code) */
 	};
         int i;
 
-	xlp_pic_base = nlm_regbase_pic(0);  /* TOOD: Add other nodes */
+	xlp_pic_base = nlm_get_pic_regbase(0);  /* TOOD: Add other nodes */
         printf("Initializing PIC...@%jx\n", (uintmax_t)xlp_pic_base);
 	/* Bind all PIC irqs to cpu 0 */
-        for(i = 0; i < XLP_PIC_MAX_IRT; i++) {
-                nlm_pic_write_irt_raw(xlp_pic_base, i, 0, 0, 1, 0,
+        for(i = 0; i < PIC_NUM_IRTS; i++) {
+                nlm_pic_write_irt(xlp_pic_base, i, 0, 0, 1, 0,
 		    1, 0, 0x1);
         }
 
-	nlm_pic_set_systimer(xlp_pic_base, 7, ~0ULL, 0, 0, 0, 0);
+	nlm_pic_set_timer(xlp_pic_base, PIC_CLOCK_TIMER, ~0ULL, 0, 0);
 	platform_timecounter = &pic_timecounter;
 }
 
@@ -322,15 +322,15 @@ xlp_pic_init(void)
 static void
 xlp_mem_init(void)
 {
-	uint64_t bridgebase = nlm_regbase_bridge(0);  /* TOOD: Add other nodes */
+	uint64_t bridgebase = nlm_get_bridge_regbase(0);  /* TOOD: Add other nodes */
 	vm_size_t physsz = 0;
         uint64_t base, lim, val;
 	int i, j;
 
         for (i = 0, j = 0; i < 8; i++) {
-		val = nlm_rdreg_bridge(bridgebase, XLP_BRIDGE_DRAM_BAR_REG(i));
+		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_BAR(i));
 		base = ((val >>  12) & 0xfffff) << 20;
-		val = nlm_rdreg_bridge(bridgebase, XLP_BRIDGE_DRAM_LIMIT_REG(i));
+		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_LIMIT(i));
                 lim = ((val >>  12) & 0xfffff) << 20;
 
 		/* BAR not enabled */
@@ -396,17 +396,22 @@ xlp_mem_init(void)
 
 	/* setup final entry with 0 */
 	phys_avail[j] = phys_avail[j + 1] = 0;
+
+	/* copy phys_avail to dump_avail */
+	for(i = 0; i <= j + 1; i++) 
+		dump_avail[i] = phys_avail[i];
+
 	realmem = physmem = btoc(physsz);
 }
 
 static uint32_t
 xlp_get_cpu_frequency(void)
 {
-	uint64_t  sysbase = nlm_regbase_sys(0);
+	uint64_t  sysbase = nlm_get_sys_regbase(0);
 	unsigned int pll_divf, pll_divr, dfs_div, num, denom;
 	uint32_t val;
 	       
-	val = nlm_rdreg_sys(sysbase, XLP_SYS_POWER_ON_RESET_REG);
+	val = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
 	pll_divf = (val >> 10) & 0x7f;
 	pll_divr = (val >> 8)  & 0x3;
 	dfs_div  = (val >> 17) & 0x3;
@@ -520,9 +525,9 @@ platform_trap_enter(void)
 void
 platform_reset(void)
 {
-	uint64_t sysbase = nlm_regbase_sys(0);
+	uint64_t sysbase = nlm_get_sys_regbase(0);
 
-	nlm_wreg_sys(sysbase, XLP_SYS_CHIP_RESET_REG, 1);
+	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for(;;)
 		__asm __volatile("wait");
 }
@@ -544,7 +549,7 @@ int
 platform_start_ap(int cpuid)
 {
 	uint32_t coremask, val;
-	uint64_t sysbase = nlm_regbase_sys(0);
+	uint64_t sysbase = nlm_get_sys_regbase(0);
 	int hwtid = xlp_cpuid_to_hwtid[cpuid];
 	int core, thr;
 
@@ -555,21 +560,21 @@ platform_start_ap(int cpuid)
 		coremask = 1u << core;
 
 		/* Enable core clock */
-		val = nlm_rdreg_sys(sysbase, XLP_SYS_CORE_DFS_DIS_CTRL_REG);
+		val = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL);
 		val &= ~coremask;
-		nlm_wreg_sys(sysbase, XLP_SYS_CORE_DFS_DIS_CTRL_REG, val);
+		nlm_write_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL, val);
 
 		/* Remove CPU Reset */
-		val = nlm_rdreg_sys(sysbase, XLP_SYS_CPU_RESET_REG);
+		val = nlm_read_sys_reg(sysbase, SYS_CPU_RESET);
 		val &=  ~coremask & 0xff;
-		nlm_wreg_sys(sysbase, XLP_SYS_CPU_RESET_REG, val);
+		nlm_write_sys_reg(sysbase, SYS_CPU_RESET, val);
 
 		if (bootverbose)
 			printf("Waking up core %d ...", core);
 
 		/* Poll for CPU to mark itself coherent */
 		do {
-			val = nlm_rdreg_sys(sysbase, XLP_SYS_CPU_NONCOHERENT_MODE_REG);
+			val = nlm_read_sys_reg(sysbase, SYS_CPU_NONCOHERENT_MODE);
        		} while ((val & coremask) != 0);
 		if (bootverbose)
 			printf("Done\n");
@@ -628,7 +633,7 @@ void
 platform_ipi_send(int cpuid)
 {
 
-	nlm_pic_send_ipi(xlp_pic_base, 0, xlp_cpuid_to_hwtid[cpuid],
+	nlm_pic_send_ipi(xlp_pic_base, xlp_cpuid_to_hwtid[cpuid],
 	    platform_ipi_intrnum(), 0);
 }
 

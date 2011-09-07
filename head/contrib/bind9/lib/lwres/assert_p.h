@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assert_p.h,v 1.14 2007-06-19 23:47:22 tbox Exp $ */
+/* $Id: assert_p.h,v 1.14.814.2 2011-03-12 04:59:19 tbox Exp $ */
 
 #ifndef LWRES_ASSERT_P_H
 #define LWRES_ASSERT_P_H 1
@@ -28,6 +28,7 @@
 #define INSIST(x)		assert(x)
 
 #define UNUSED(x)		((void)(x))
+#define POST(x)			((void)(x))
 
 #define SPACE_OK(b, s)		(LWRES_BUFFER_AVAILABLECOUNT(b) >= (s))
 #define SPACE_REMAINING(b, s)	(LWRES_BUFFER_REMAINING(b) >= (s))

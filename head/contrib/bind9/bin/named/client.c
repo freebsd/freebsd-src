@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.271 2011-01-11 23:47:12 tbox Exp $ */
+/* $Id: client.c,v 1.271.10.2 2011-07-28 04:30:54 marka Exp $ */
 
 #include <config.h>
 
@@ -633,6 +633,7 @@ ns_client_endrequest(ns_client_t *client) {
 		dns_message_puttemprdataset(client->message, &client->opt);
 	}
 
+	client->signer = NULL;
 	client->udpsize = 512;
 	client->extflags = 0;
 	client->ednsversion = -1;
@@ -1311,6 +1312,12 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 	isc_netaddr_t netdst;
 
 	UNUSED(arg);
+
+	/*
+	 * ns_g_server->interfacemgr is task exclusive locked.
+	 */
+	if (ns_g_server->interfacemgr == NULL)
+		return (ISC_TRUE);
 
 	if (!ns_interfacemgr_listeningon(ns_g_server->interfacemgr, dstaddr))
 		return (ISC_FALSE);
@@ -2095,6 +2102,7 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	client->next = NULL;
 	client->shutdown = NULL;
 	client->shutdown_arg = NULL;
+	client->signer = NULL;
 	dns_name_init(&client->signername, NULL);
 	client->mortal = ISC_FALSE;
 	client->tcpquota = NULL;

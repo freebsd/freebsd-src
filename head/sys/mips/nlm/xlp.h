@@ -25,25 +25,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
 #ifndef __NLM_XLP_H__
 #define __NLM_XLP_H__
 #include <mips/nlm/hal/pic.h>
 
-#define XLP_PIC_IRT_UART0_IRQ	9
-#define XLP_PIC_IRT_UART1_IRQ	10
+#define PIC_UART_0_IRQ	9
+#define PIC_UART_1_IRQ	10
 
-#define XLP_PIC_IRT_PCIE0_IRQ	11
-#define XLP_PIC_IRT_PCIE1_IRQ	12
-#define XLP_PIC_IRT_PCIE2_IRQ	13
-#define XLP_PIC_IRT_PCIE3_IRQ	14
+#define PIC_PCIE_0_IRQ	11
+#define PIC_PCIE_1_IRQ	12
+#define PIC_PCIE_2_IRQ	13
+#define PIC_PCIE_3_IRQ	14
 
-#define XLP_PIC_IRT_EHCI0_IRQ	39 
-#define XLP_PIC_IRT_EHCI1_IRQ	42 
-#define XLP_PIC_IRT_MMC_IRQ	43
-
+#define PIC_EHCI_0_IRQ	39 
+#define PIC_EHCI_1_IRQ	42 
+#define PIC_MMC_IRQ		43
 
 #ifndef LOCORE
 /*
@@ -59,30 +59,28 @@ extern int xlp_hwtid_to_cpuid[];
 extern void xlp_enable_threads(int code);
 #endif
 
-extern uint64_t xlp_pic_base; /* TODO just for node 0 now */
-
 static __inline__ int
 xlp_irt_to_irq(int irt)
 {
 	switch (irt) {
-		case XLP_PIC_IRT_MMC_INDEX :
-			return XLP_PIC_IRT_MMC_IRQ;
-		case XLP_PIC_IRT_EHCI0_INDEX :
- 			return XLP_PIC_IRT_EHCI0_IRQ;
- 		case XLP_PIC_IRT_EHCI1_INDEX :
- 			return XLP_PIC_IRT_EHCI1_IRQ;
-		case XLP_PIC_IRT_UART0_INDEX :
-			return XLP_PIC_IRT_UART0_IRQ;
-		case XLP_PIC_IRT_UART1_INDEX :
-			return XLP_PIC_IRT_UART1_IRQ;
-		case XLP_PIC_IRT_PCIE_LINK0_INDEX :
-			return XLP_PIC_IRT_PCIE0_IRQ;
-		case XLP_PIC_IRT_PCIE_LINK1_INDEX :
-			return XLP_PIC_IRT_PCIE1_IRQ;
-		case XLP_PIC_IRT_PCIE_LINK2_INDEX :
-			return XLP_PIC_IRT_PCIE2_IRQ;
-		case XLP_PIC_IRT_PCIE_LINK3_INDEX :
-			return XLP_PIC_IRT_PCIE3_IRQ;
+		case PIC_IRT_MMC_INDEX :
+			return PIC_MMC_IRQ;
+		case PIC_IRT_EHCI_0_INDEX :
+ 			return PIC_EHCI_0_IRQ;
+ 		case PIC_IRT_EHCI_1_INDEX :
+ 			return PIC_EHCI_1_IRQ;
+		case PIC_IRT_UART_0_INDEX :
+			return PIC_UART_0_IRQ;
+		case PIC_IRT_UART_1_INDEX :
+			return PIC_UART_1_IRQ;
+		case PIC_IRT_PCIE_LINK_0_INDEX :
+			return PIC_PCIE_0_IRQ;
+		case PIC_IRT_PCIE_LINK_1_INDEX :
+			return PIC_PCIE_1_IRQ;
+		case PIC_IRT_PCIE_LINK_2_INDEX :
+			return PIC_PCIE_2_IRQ;
+		case PIC_IRT_PCIE_LINK_3_INDEX :
+			return PIC_PCIE_3_IRQ;
 		default: panic("Bad IRT %d\n", irt);
 	}
 }
@@ -91,24 +89,24 @@ static __inline__ int
 xlp_irq_to_irt(int irq)
 {
 	switch (irq) {
-		case XLP_PIC_IRT_MMC_IRQ :
-			return XLP_PIC_IRT_MMC_INDEX;
- 		case XLP_PIC_IRT_EHCI0_IRQ :
- 			return XLP_PIC_IRT_EHCI0_INDEX;
- 		case XLP_PIC_IRT_EHCI1_IRQ :
- 			return XLP_PIC_IRT_EHCI1_INDEX;
-		case XLP_PIC_IRT_UART0_IRQ :
-			return XLP_PIC_IRT_UART0_INDEX;
-		case XLP_PIC_IRT_UART1_IRQ :
-			return XLP_PIC_IRT_UART1_INDEX;
-		case XLP_PIC_IRT_PCIE0_IRQ :
-			return XLP_PIC_IRT_PCIE_LINK0_INDEX;
-		case XLP_PIC_IRT_PCIE1_IRQ :
-			return XLP_PIC_IRT_PCIE_LINK1_INDEX;
-		case XLP_PIC_IRT_PCIE2_IRQ :
-			return XLP_PIC_IRT_PCIE_LINK2_INDEX;
-		case XLP_PIC_IRT_PCIE3_IRQ :
-			return XLP_PIC_IRT_PCIE_LINK3_INDEX;
+		case PIC_MMC_IRQ :
+			return PIC_IRT_MMC_INDEX;
+ 		case PIC_EHCI_0_IRQ :
+ 			return PIC_IRT_EHCI_0_INDEX;
+ 		case PIC_EHCI_1_IRQ :
+ 			return PIC_IRT_EHCI_1_INDEX;
+		case PIC_UART_0_IRQ :
+			return PIC_IRT_UART_0_INDEX;
+		case PIC_UART_1_IRQ :
+			return PIC_IRT_UART_1_INDEX;
+		case PIC_PCIE_0_IRQ :
+			return PIC_IRT_PCIE_LINK_0_INDEX;
+		case PIC_PCIE_1_IRQ :
+			return PIC_IRT_PCIE_LINK_1_INDEX;
+		case PIC_PCIE_2_IRQ :
+			return PIC_IRT_PCIE_LINK_2_INDEX;
+		case PIC_PCIE_3_IRQ :
+			return PIC_IRT_PCIE_LINK_3_INDEX;
 		default: panic("Bad IRQ %d\n", irq);
 	}
 }
@@ -117,15 +115,15 @@ static __inline__ int
 xlp_irq_is_picintr(int irq)
 {
 	switch (irq) {
-		case XLP_PIC_IRT_MMC_IRQ : return 1;
- 		case XLP_PIC_IRT_EHCI0_IRQ : return 1;
- 		case XLP_PIC_IRT_EHCI1_IRQ : return 1;
-		case XLP_PIC_IRT_UART0_IRQ : return 1;
-		case XLP_PIC_IRT_UART1_IRQ : return 1;
-		case XLP_PIC_IRT_PCIE0_IRQ : return 1;
-		case XLP_PIC_IRT_PCIE1_IRQ : return 1;
-		case XLP_PIC_IRT_PCIE2_IRQ : return 1;
-		case XLP_PIC_IRT_PCIE3_IRQ : return 1;
+		case PIC_MMC_IRQ : return 1;
+ 		case PIC_EHCI_0_IRQ : return 1;
+ 		case PIC_EHCI_1_IRQ : return 1;
+		case PIC_UART_0_IRQ : return 1;
+		case PIC_UART_1_IRQ : return 1;
+		case PIC_PCIE_0_IRQ : return 1;
+		case PIC_PCIE_1_IRQ : return 1;
+		case PIC_PCIE_2_IRQ : return 1;
+		case PIC_PCIE_3_IRQ : return 1;
 		default: return 0;
 	}
 }

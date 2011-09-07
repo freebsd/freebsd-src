@@ -1239,7 +1239,7 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pte_lo |= LPTE_BW;
 		if (pmap_bootstrapped &&
 		    (m->oflags & VPO_UNMANAGED) == 0)
-			vm_page_flag_set(m, PG_WRITEABLE);
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		pte_lo |= LPTE_BR;
 
@@ -1484,13 +1484,13 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	    ("moea64_is_modified: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea64_query_bit(mmu, m, LPTE_CHG));
 }
@@ -1528,11 +1528,11 @@ moea64_clear_modify(mmu_t mmu, vm_page_t m)
 	    ("moea64_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no PTEs can have LPTE_CHG
+	 * If the page is not PGA_WRITEABLE, then no PTEs can have LPTE_CHG
 	 * set.  If the object containing the page is locked and the page is
-	 * not VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * not VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	moea64_clear_bit(mmu, m, LPTE_CHG);
 }
@@ -1552,13 +1552,13 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	    ("moea64_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	lo = moea64_attr_fetch(m);
@@ -1588,7 +1588,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 		moea64_attr_clear(m, LPTE_CHG);
 		vm_page_dirty(m);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -2064,11 +2064,11 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		moea64_pvo_remove(mmu, pvo);
 		PMAP_UNLOCK(pmap);
 	}
-	if ((m->flags & PG_WRITEABLE) && moea64_is_modified(mmu, m)) {
+	if ((m->aflags & PGA_WRITEABLE) && moea64_is_modified(mmu, m)) {
 		moea64_attr_clear(m, LPTE_CHG);
 		vm_page_dirty(m);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 

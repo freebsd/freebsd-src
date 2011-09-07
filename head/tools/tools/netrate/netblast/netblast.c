@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -108,11 +109,9 @@ blast_loop(int s, long duration, u_char *packet, u_int packet_len)
 		 * previous send, the error will turn up the current send
 		 * operation, causing the current sequence number also to be
 		 * skipped.
-		 *
-		 * XXXRW: Note alignment assumption.
 		 */
 		if (packet_len >= 4) {
-			*((u_int32_t *)packet) = htonl(counter);
+			be32enc(packet, counter);
 			counter++;
 		}
 		if (send(s, packet, packet_len, 0) < 0)

@@ -3849,6 +3849,8 @@ fail:
  **********************************************************************/
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT 2
 
+#define BSIZEPKT_ROUNDUP ((1<<IXGBE_SRRCTL_BSIZEPKT_SHIFT)-1)
+	
 static void
 ixgbe_initialize_receive_units(struct adapter *adapter)
 {
@@ -3882,7 +3884,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
-	bufsz = adapter->rx_mbuf_sz  >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	bufsz = (adapter->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
@@ -4300,9 +4302,10 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			sendmp = rbuf->fmp;
 			rbuf->m_pack = rbuf->fmp = NULL;
 
-			if (sendmp != NULL) /* secondary frag */
+			if (sendmp != NULL) {  /* secondary frag */
+				mp->m_flags &= ~M_PKTHDR;
 				sendmp->m_pkthdr.len += mp->m_len;
-			else {
+			} else {
 				/* first desc of a non-ps chain */
 				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;

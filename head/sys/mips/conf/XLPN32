@@ -37,7 +37,7 @@ options 	SCHED_ULE		# ULE scheduler
 options         SMP
 options 	PREEMPTION		# Enable kernel thread preemption
 #options 	FULL_PREEMPTION		# Enable kernel thread preemption
-options		MAXCPU=128		# XLP can probe 128 CPUs
+#options 	MAXCPU=128		# XLP can probe 128 CPUs
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
@@ -90,6 +90,7 @@ device		bpf
 
 # UART
 device		uart
+device		pci
 
 # Network
 device		ether
