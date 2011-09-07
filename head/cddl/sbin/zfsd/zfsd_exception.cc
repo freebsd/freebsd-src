@@ -152,6 +152,6 @@ ZfsdException::Log() const
 	}
 
 	output << m_log << endl;
-	syslog(LOG_ERR, output.str().c_str());
+	syslog(LOG_ERR, "%s", output.str().c_str());
 }
 

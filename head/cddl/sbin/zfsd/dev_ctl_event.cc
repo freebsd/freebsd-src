@@ -101,7 +101,7 @@ ParseException::Log(const string &parsedBuffer) const
 	if (Type() == DISCARDED_EVENT_TYPE)
 		priority = LOG_INFO;
 
-	syslog(priority, ToString(parsedBuffer).c_str());
+	syslog(priority, "%s", ToString(parsedBuffer).c_str());
 }
 
 /*-------------------------------- DevCtlEvent -------------------------------*/
@@ -236,7 +236,7 @@ DevCtlEvent::Print() const
 void
 DevCtlEvent::Log(int priority) const
 {
-	syslog(priority, ToString().c_str());
+	syslog(priority, "%s", ToString().c_str());
 }
 
 //- DevCtlEvent Virtual Public Methods -----------------------------------------
