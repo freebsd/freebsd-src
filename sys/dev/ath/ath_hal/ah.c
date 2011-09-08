@@ -657,6 +657,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		}
 	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_LONG_RXDESC_TSF:		/* 32 bit TSF in RX descriptor? */
+		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -1221,4 +1223,38 @@ ath_ee_interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
               (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
     }
     return rv;
+}
+
+/*
+ * Adjust the TSF.
+ */
+void
+ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta)
+{
+	/* XXX handle wrap/overflow */
+	OS_REG_WRITE(ah, AR_TSF_L32, OS_REG_READ(ah, AR_TSF_L32) + tsfdelta);
+}
+
+/*
+ * Enable or disable CCA.
+ */
+void
+ath_hal_setcca(struct ath_hal *ah, int ena)
+{
+	/*
+	 * NB: fill me in; this is not provided by default because disabling
+	 *     CCA in most locales violates regulatory.
+	 */
+}
+
+/*
+ * Get CCA setting.
+ */
+int
+ath_hal_getcca(struct ath_hal *ah)
+{
+	u_int32_t diag;
+	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
+		return 1;
+	return ((diag & 0x500000) == 0);
 }
