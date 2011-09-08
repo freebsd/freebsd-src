@@ -151,6 +151,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_beaconInit			= ar5212BeaconInit,
 	.ah_setStationBeaconTimers	= ar5212SetStaBeaconTimers,
 	.ah_resetStationBeaconTimers	= ar5212ResetStaBeaconTimers,
+	.ah_getNextTBTT			= ar5212GetNextTBTT,
 
 	/* Interrupt Functions */
 	.ah_isInterruptPending		= ar5212IsInterruptPending,

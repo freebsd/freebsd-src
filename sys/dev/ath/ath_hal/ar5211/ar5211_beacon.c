@@ -30,6 +30,17 @@
  */
 
 /*
+ * Return the hardware NextTBTT in TSF
+ */
+uint64_t
+ar5211GetNextTBTT(struct ath_hal *ah)
+{
+#define TU_TO_TSF(_tu)	(((uint64_t)(_tu)) << 10)
+	return TU_TO_TSF(OS_REG_READ(ah, AR_TIMER0));
+#undef TU_TO_TSF
+}
+
+/*
  * Initialize all of the hardware registers used to send beacons.
  */
 void
