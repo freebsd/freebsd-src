@@ -1213,7 +1213,8 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 			    bin_to_size(y),
 			    (uintmax_t) sn->stats[y][rix].total_packets,
 			    (uintmax_t) sn->stats[y][rix].packets_acked,
-			    (int) ((100*sn->stats[y][rix].packets_acked)/sn->stats[y][rix].total_packets),
+			    (int) ((sn->stats[y][rix].packets_acked * 100ULL) /
+			     sn->stats[y][rix].total_packets),
 			    sn->stats[y][rix].ewma_pct / 10,
 			    sn->stats[y][rix].ewma_pct % 10,
 			    (uintmax_t) sn->stats[y][rix].tries,
