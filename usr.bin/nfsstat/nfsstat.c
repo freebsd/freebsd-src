@@ -857,24 +857,24 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 		if (serverOnly) {
 		    printf("%s %6d %6d %6d %6d %6d %6d %6d %6d",
 			((clientOnly && serverOnly) ? "Server:" : ""),
-			nfsstats.srvrpccnt[NFSPROC_GETATTR] -
-			lastst.srvrpccnt[NFSPROC_GETATTR],
-			nfsstats.srvrpccnt[NFSPROC_LOOKUP] -
-			lastst.srvrpccnt[NFSPROC_LOOKUP],
-			nfsstats.srvrpccnt[NFSPROC_READLINK] -
-			lastst.srvrpccnt[NFSPROC_READLINK],
-			nfsstats.srvrpccnt[NFSPROC_READ] -
-			lastst.srvrpccnt[NFSPROC_READ],
-			nfsstats.srvrpccnt[NFSPROC_WRITE] -
-			lastst.srvrpccnt[NFSPROC_WRITE],
-			nfsstats.srvrpccnt[NFSPROC_RENAME] -
-			lastst.srvrpccnt[NFSPROC_RENAME],
-			nfsstats.srvrpccnt[NFSPROC_ACCESS] -
-			lastst.srvrpccnt[NFSPROC_ACCESS],
-			(nfsstats.srvrpccnt[NFSPROC_READDIR] -
-			 lastst.srvrpccnt[NFSPROC_READDIR]) +
-			(nfsstats.srvrpccnt[NFSPROC_READDIRPLUS] -
-			 lastst.srvrpccnt[NFSPROC_READDIRPLUS]));
+			nfsstats.srvrpccnt[NFSV4OP_GETATTR] -
+			lastst.srvrpccnt[NFSV4OP_GETATTR],
+			nfsstats.srvrpccnt[NFSV4OP_LOOKUP] -
+			lastst.srvrpccnt[NFSV4OP_LOOKUP],
+			nfsstats.srvrpccnt[NFSV4OP_READLINK] -
+			lastst.srvrpccnt[NFSV4OP_READLINK],
+			nfsstats.srvrpccnt[NFSV4OP_READ] -
+			lastst.srvrpccnt[NFSV4OP_READ],
+			nfsstats.srvrpccnt[NFSV4OP_WRITE] -
+			lastst.srvrpccnt[NFSV4OP_WRITE],
+			nfsstats.srvrpccnt[NFSV4OP_RENAME] -
+			lastst.srvrpccnt[NFSV4OP_RENAME],
+			nfsstats.srvrpccnt[NFSV4OP_ACCESS] -
+			lastst.srvrpccnt[NFSV4OP_ACCESS],
+			(nfsstats.srvrpccnt[NFSV4OP_READDIR] -
+			 lastst.srvrpccnt[NFSV4OP_READDIR]) +
+			(nfsstats.srvrpccnt[NFSV4OP_READDIRPLUS] -
+			 lastst.srvrpccnt[NFSV4OP_READDIRPLUS]));
 		    printf("\n");
 		    lastst = nfsstats;
 		}
