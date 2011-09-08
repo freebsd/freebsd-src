@@ -93,6 +93,41 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 }
 
 /*
+ * Get the current hardware tsf for stamlme
+ */
+uint64_t
+ar5416GetTsf64(struct ath_hal *ah)
+{
+	uint32_t low1, low2, u32;
+
+	/* sync multi-word read */
+	low1 = OS_REG_READ(ah, AR_TSF_L32);
+	u32 = OS_REG_READ(ah, AR_TSF_U32);
+	low2 = OS_REG_READ(ah, AR_TSF_L32);
+	if (low2 < low1) {	/* roll over */
+		/*
+		 * If we are not preempted this will work.  If we are
+		 * then we re-reading AR_TSF_U32 does no good as the
+		 * low bits will be meaningless.  Likewise reading
+		 * L32, U32, U32, then comparing the last two reads
+		 * to check for rollover doesn't help if preempted--so
+		 * we take this approach as it costs one less PCI read
+		 * which can be noticeable when doing things like
+		 * timestamping packets in monitor mode.
+		 */
+		u32++;
+	}
+	return (((uint64_t) u32) << 32) | ((uint64_t) low2);
+}
+
+void
+ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
+/*
  * Reset the current hardware tsf for stamlme.
  */
 void

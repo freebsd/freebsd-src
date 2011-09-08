@@ -148,6 +148,7 @@ typedef enum {
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
+	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -996,6 +997,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setStationBeaconTimers)(struct ath_hal*,
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
+	uint64_t  __ahdecl(*ah_getNextTBTT)(struct ath_hal *);
 
 	/* 802.11n Functions */
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
@@ -1138,4 +1140,20 @@ extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
 		uint16_t rateix, HAL_BOOL shortPreamble);
+
+/*
+ * Adjust the TSF.
+ */
+extern void __ahdecl ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta);
+
+/*
+ * Enable or disable CCA.
+ */
+void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
+
+/*
+ * Get CCA setting.
+ */
+int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
 #endif /* _ATH_AH_H_ */
