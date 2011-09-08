@@ -2929,7 +2929,6 @@ options 	SCSI_NCR_MYADDR=7
 options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
-options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
