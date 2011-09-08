@@ -41,6 +41,14 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 
 	HALASSERT(AH5212(ah)->ah_txq[q].tqi_type != HAL_TX_QUEUE_INACTIVE);
 
+	HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+	    "%s: Q(%d) QTXDP: 0x%.8x, QSTS: 0x%.8x, TXE: 0x%.8x, TXD: 0x%.8x\n",
+	    __func__, q,
+	    OS_REG_READ(ah, AR_QTXDP(q)),
+	    OS_REG_READ(ah, AR_QSTS(q)),
+	    OS_REG_READ(ah, AR_Q_TXE),
+	    OS_REG_READ(ah, AR_Q_TXD));
+
 	OS_REG_WRITE(ah, AR_Q_TXD, 1 << q);
 	for (i = STOP_DMA_TIMEOUT/STOP_DMA_ITER; i != 0; i--) {
 		if (ar5212NumTxPending(ah, q) == 0)
@@ -350,9 +358,16 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		isaggr = 1;
 	}
 
-	if (!firstSeg) {
-		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
-	}
+	/*
+	 * Since this function is called before any of the other
+	 * descriptor setup functions (at least in this particular
+	 * 802.11n aggregation implementation), always bzero() the
+	 * descriptor. Previously this would be done for all but
+	 * the first segment.
+	 * XXX TODO: figure out why; perhaps I'm using this slightly
+	 * XXX incorrectly.
+	 */
+	OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
 	ads->ds_ctl1 = (type << AR_FrameType_S)
