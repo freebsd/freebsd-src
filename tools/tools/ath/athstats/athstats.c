@@ -255,37 +255,37 @@ static const struct fmt athstats[] = {
 #define	S_RX_2040	AFTER(S_RX_HALFGI)
 	{ 6,	"rx2040",	"rx2040",	"40MHz frames received" },
 #define	S_RX_PRE_CRC_ERR	AFTER(S_RX_2040)
-	{ 5,	"rxprecrcerr",	"rxprecrcerr",	"CRC errors for non-last A-MPDU subframes" },
+	{ 11,	"rxprecrcerr",	"rxprecrcerr",	"CRC errors for non-last A-MPDU subframes" },
 #define	S_RX_POST_CRC_ERR	AFTER(S_RX_PRE_CRC_ERR)
-	{ 5,	"rxpostcrcerr",	"rxpostcrcerr",	"CRC errors for last subframe in an A-MPDU" },
+	{ 12,	"rxpostcrcerr",	"rxpostcrcerr",	"CRC errors for last subframe in an A-MPDU" },
 #define	S_RX_DECRYPT_BUSY_ERR	AFTER(S_RX_POST_CRC_ERR)
-	{ 4,	"rxdescbusy",	"rxdescbusy",	"Decryption engine busy" },
+	{ 10,	"rxdescbusy",	"rxdescbusy",	"Decryption engine busy" },
 #define	S_RX_HI_CHAIN	AFTER(S_RX_DECRYPT_BUSY_ERR)
 	{ 4,	"rxhi",	"rxhi",	"Frames received with RX chain in high power mode" },
 #define	S_TX_HTPROTECT	AFTER(S_RX_HI_CHAIN)
-	{ 4,	"txhtprot",	"txhtprot",	"Frames transmitted with HT Protection" },
+	{ 7,	"txhtprot",	"txhtprot",	"Frames transmitted with HT Protection" },
 #define	S_RX_QEND	AFTER(S_TX_HTPROTECT)
-	{ 4,	"rxquend",	"rxquend",	"Hit end of RX descriptor queue" },
+	{ 7,	"rxquend",	"rxquend",	"Hit end of RX descriptor queue" },
 #define	S_TX_TIMEOUT	AFTER(S_RX_QEND)
-	{ 4,	"txtimeout",	"txtimeout",	"TX Timeout" },
+	{ 4,	"txtimeout",	"TXTX",	"TX Timeout" },
 #define	S_TX_CSTIMEOUT	AFTER(S_TX_TIMEOUT)
-	{ 4,	"csttimeout",	"csttimeout",	"Carrier Sense Timeout" },
+	{ 4,	"csttimeout",	"CSTX",	"Carrier Sense Timeout" },
 #define	S_TX_XTXOP_ERR	AFTER(S_TX_CSTIMEOUT)
-	{ 4,	"xtxoperr",	"xtxoperr",	"TXOP exceed" },
+	{ 5,	"xtxoperr",	"TXOPX",	"TXOP exceed" },
 #define	S_TX_TIMEREXPIRED_ERR	AFTER(S_TX_XTXOP_ERR)
-	{ 4,	"texperr",	"texperr",	"TX Timer expired" },
+	{ 7,	"texperr",	"texperr",	"TX Timer expired" },
 #define	S_TX_DESCCFG_ERR	AFTER(S_TX_TIMEREXPIRED_ERR)
-	{ 4,	"desccfgerr",	"desccfgerr",	"TX descriptor error" },
+	{ 10,	"desccfgerr",	"desccfgerr",	"TX descriptor error" },
 #define	S_TX_SWRETRIES	AFTER(S_TX_DESCCFG_ERR)
-	{ 4,	"txswretry",	"txswretry",	"Number of frames retransmitted in software" },
+	{ 9,	"txswretry",	"txswretry",	"Number of frames retransmitted in software" },
 #define	S_TX_SWRETRIES_MAX	AFTER(S_TX_SWRETRIES)
-	{ 4,	"txswmax",	"txswmax",	"Number of frames exceeding software retry" },
+	{ 7,	"txswmax",	"txswmax",	"Number of frames exceeding software retry" },
 #define	S_TX_DATA_UNDERRUN	AFTER(S_TX_SWRETRIES_MAX)
-	{ 4,	"txdataunderrun",	"txdataunderrun",	"A-MPDU TX FIFO data underrun" },
+	{ 5,	"txdataunderrun",	"TXDAU",	"A-MPDU TX FIFO data underrun" },
 #define	S_TX_DELIM_UNDERRUN	AFTER(S_TX_DATA_UNDERRUN)
-	{ 4,	"txdelimunderrun",	"txdelimunderrun",	"A-MPDU TX Delimiter underrun" },
+	{ 5,	"txdelimunderrun",	"TXDEU",	"A-MPDU TX Delimiter underrun" },
 #define	S_TX_AGGR_FAIL		AFTER(S_TX_DELIM_UNDERRUN)
-	{ 4,	"txaggrfail",	"txaggrfail",	"A-MPDU TX attempt failed" },
+	{ 10,	"txaggrfail",	"txaggrfail",	"A-MPDU TX attempt failed" },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAIL)
 	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
