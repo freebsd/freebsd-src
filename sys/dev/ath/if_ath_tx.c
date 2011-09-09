@@ -1821,6 +1821,13 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_isretried)
 		return;
 
+	if (bf->bf_state.bfs_addedbaw)
+		DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+		    "%s: re-added? tid=%d, seqno %d; window %d:%d; baw head=%d tail=%d\n",
+		    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
+		    tap->txa_start, tap->txa_wnd, tid->baw_head, tid->baw_tail);
+
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	/*
 	 * ni->ni_txseqs[] is the currently allocated seqno.
@@ -2087,6 +2094,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		/* XXX sched? */
 	} else if (ath_tx_ampdu_running(sc, an, tid)) {
 		/* AMPDU running, attempt direct dispatch if possible */
 		if (txq->axq_depth < sc->sc_hwq_limit)
@@ -2221,6 +2229,8 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
 	struct ath_buf *bf;
 	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_node *ni = &an->an_node;
+	int t = 0;
+	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
@@ -2232,6 +2242,21 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
 		if (bf == NULL) {
 			break;
 		}
+
+		if (t == 0) {
+			device_printf(sc->sc_dev,
+			    "%s: node %p: tid %d: txq_depth=%d, "
+			    "txq_aggr_depth=%d, sched=%d, paused=%d, "
+			    "hwq_depth=%d, incomp=%d, baw_head=%d, baw_tail=%d "
+			    "txa_start=%d, ni_txseqs=%d\n",
+			     __func__, ni, tid->tid, txq->axq_depth,
+			     txq->axq_aggr_depth, tid->sched, tid->paused,
+			     tid->hwq_depth, tid->incomp, tid->baw_head,
+			     tid->baw_tail, tap->txa_start,
+			     ni->ni_txseqs[tid->tid]);
+			t = 1;
+		}
+
 
 		/*
 		 * If the current TID is running AMPDU, update
