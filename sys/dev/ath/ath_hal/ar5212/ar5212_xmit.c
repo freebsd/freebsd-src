@@ -522,7 +522,11 @@ ar5212StartTxDma(struct ath_hal *ah, u_int q)
 
 	HALASSERT(AH5212(ah)->ah_txq[q].tqi_type != HAL_TX_QUEUE_INACTIVE);
 
-	HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: queue %u\n", __func__, q);
+//	HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: queue %u\n", __func__, q);
+	if (OS_REG_READ(ah, AR_Q_TXD) & (1 << q)) {
+		ath_hal_printf(ah, "%s: TXQ: %d: disabled?\n",
+		    __func__, q);
+	}
 
 	/* Check to be sure we're not enabling a q that has its TXD bit set. */
 	HALASSERT((OS_REG_READ(ah, AR_Q_TXD) & (1 << q)) == 0);
