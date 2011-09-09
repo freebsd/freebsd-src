@@ -165,7 +165,7 @@ fi
 exec 3>&1
 RESOLV=$(echo "${RESOLV}" | xargs dialog --backtitle 'FreeBSD Installer' \
 	--title 'Network Configuration' \
-	--mixedform 'Resovler Configuration' 0 0 0 \
+	--mixedform 'Resolver Configuration' 0 0 0 \
 2>&1 1>&3)
 if [ $? -eq $DIALOG_CANCEL ]; then exec $0; fi
 exec 3>&-

@@ -214,24 +214,6 @@ static void	ath_tdma_update(struct ieee80211_node *ni,
 static void	ath_tdma_beacon_send(struct ath_softc *sc,
 		    struct ieee80211vap *vap);
 
-static __inline void
-ath_hal_setcca(struct ath_hal *ah, int ena)
-{
-	/*
-	 * NB: fill me in; this is not provided by default because disabling
-	 *     CCA in most locales violates regulatory.
-	 */
-}
-
-static __inline int
-ath_hal_getcca(struct ath_hal *ah)
-{
-	u_int32_t diag;
-	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
-		return 1;
-	return ((diag & 0x500000) == 0);
-}
-
 #define	TDMA_EP_MULTIPLIER	(1<<10) /* pow2 to optimize out * and / */
 #define	TDMA_LPF_LEN		6
 #define	TDMA_DUMMY_MARKER	0x127
@@ -613,6 +595,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
+	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -3294,11 +3277,46 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
  * a full 64-bit TSF using the specified TSF.
  */
 static __inline u_int64_t
-ath_extend_tsf(u_int32_t rstamp, u_int64_t tsf)
+ath_extend_tsf15(u_int32_t rstamp, u_int64_t tsf)
 {
 	if ((tsf & 0x7fff) < rstamp)
 		tsf -= 0x8000;
+
 	return ((tsf &~ 0x7fff) | rstamp);
+}
+
+/*
+ * Extend 32-bit time stamp from rx descriptor to
+ * a full 64-bit TSF using the specified TSF.
+ */
+static __inline u_int64_t
+ath_extend_tsf32(u_int32_t rstamp, u_int64_t tsf)
+{
+	u_int32_t tsf_low = tsf & 0xffffffff;
+	u_int64_t tsf64 = (tsf & ~0xffffffffULL) | rstamp;
+
+	if (rstamp > tsf_low && (rstamp - tsf_low > 0x10000000))
+		tsf64 -= 0x100000000ULL;
+
+	if (rstamp < tsf_low && (tsf_low - rstamp > 0x10000000))
+		tsf64 += 0x100000000ULL;
+
+	return tsf64;
+}
+
+/*
+ * Extend the TSF from the RX descriptor to a full 64 bit TSF.
+ * Earlier hardware versions only wrote the low 15 bits of the
+ * TSF into the RX descriptor; later versions (AR5416 and up)
+ * include the 32 bit TSF value.
+ */
+static __inline u_int64_t
+ath_extend_tsf(struct ath_softc *sc, u_int32_t rstamp, u_int64_t tsf)
+{
+	if (sc->sc_rxtsf32)
+		return ath_extend_tsf32(rstamp, tsf);
+	else
+		return ath_extend_tsf15(rstamp, tsf);
 }
 
 /*
@@ -3334,7 +3352,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
 		    vap->iv_state == IEEE80211_S_RUN) {
 			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
-			uint64_t tsf = ath_extend_tsf(rstamp,
+			uint64_t tsf = ath_extend_tsf(sc, rstamp,
 				ath_hal_gettsf64(sc->sc_ah));
 			/*
 			 * Handle ibss merge as needed; check the tsf on the
@@ -3406,7 +3424,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 #endif
-	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(rs->rs_tstamp, tsf));
+	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	/* XXX propagate other error flags from descriptor */
@@ -5460,20 +5478,6 @@ ath_announce(struct ath_softc *sc)
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
-static __inline uint32_t
-ath_hal_getnexttbtt(struct ath_hal *ah)
-{
-#define	AR_TIMER0	0x8028
-	return OS_REG_READ(ah, AR_TIMER0);
-}
-
-static __inline void
-ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta)
-{
-	/* XXX handle wrap/overflow */
-	OS_REG_WRITE(ah, AR_TSF_L32, OS_REG_READ(ah, AR_TSF_L32) + tsfdelta);
-}
-
 static void
 ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 {
@@ -5629,8 +5633,8 @@ ath_tdma_update(struct ieee80211_node *ni,
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	u_int64_t tsf, rstamp, nextslot;
-	u_int32_t txtime, nextslottu, timer0;
+	u_int64_t tsf, rstamp, nextslot, nexttbtt;
+	u_int32_t txtime, nextslottu;
 	int32_t tudelta, tsfdelta;
 	const struct ath_rx_status *rs;
 	int rix;
@@ -5661,7 +5665,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	/* extend rx timestamp to 64 bits */
 	rs = sc->sc_lastrs;
 	tsf = ath_hal_gettsf64(ah);
-	rstamp = ath_extend_tsf(rs->rs_tstamp, tsf);
+	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
 	/*
 	 * The rx timestamp is set by the hardware on completing
 	 * reception (at the point where the rx descriptor is DMA'd
@@ -5677,15 +5681,15 @@ ath_tdma_update(struct ieee80211_node *ni,
 	nextslottu = TSF_TO_TU(nextslot>>32, nextslot) & HAL_BEACON_PERIOD;
 
 	/*
-	 * TIMER0 is the h/w's idea of NextTBTT (in TU's).  Convert
-	 * to usecs and calculate the difference between what the
+	 * Retrieve the hardware NextTBTT in usecs
+	 * and calculate the difference between what the
 	 * other station thinks and what we have programmed.  This
 	 * lets us figure how to adjust our timers to match.  The
 	 * adjustments are done by pulling the TSF forward and possibly
 	 * rewriting the beacon timers.
 	 */
-	timer0 = ath_hal_getnexttbtt(ah);
-	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD+1)) - TU_TO_TSF(timer0));
+	nexttbtt = ath_hal_getnexttbtt(ah);
+	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "tsfdelta %d avg +%d/-%d\n", tsfdelta,
@@ -5705,7 +5709,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
 		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
 	}
-	tudelta = nextslottu - timer0;
+	tudelta = nextslottu - TSF_TO_TU(nexttbtt >> 32, nexttbtt);
 
 	/*
 	 * Copy sender's timetstamp into tdma ie so they can
@@ -5724,10 +5728,9 @@ ath_tdma_update(struct ieee80211_node *ni,
 		&ni->ni_tstamp.data, 8);
 #if 0
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "tsf %llu nextslot %llu (%d, %d) nextslottu %u timer0 %u (%d)\n",
+	    "tsf %llu nextslot %llu (%d, %d) nextslottu %u nexttbtt %llu (%d)\n",
 	    (unsigned long long) tsf, (unsigned long long) nextslot,
-	    (int)(nextslot - tsf), tsfdelta,
-	    nextslottu, timer0, tudelta);
+	    (int)(nextslot - tsf), tsfdelta, nextslottu, nexttbtt, tudelta);
 #endif
 	/*
 	 * Adjust the beacon timers only when pulling them forward
