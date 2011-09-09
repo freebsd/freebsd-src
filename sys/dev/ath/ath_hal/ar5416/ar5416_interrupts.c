@@ -118,10 +118,21 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			return AH_FALSE;
 		}
 
+		/*
+		 * XXX TODO: see whether the hardware signals AR_ISR_RXOK
+		 * even if RX interrupt mitigation is enabled (but then
+		 * doesn't trigger an interrupt per RX packet) - which means
+		 * we'll be setting HAL_INT_RX even before the RX mitigation
+		 * timers have expired.
+		 *
+		 * XXX TODO: do the same for the TX interrupts and TX interrupt
+		 * mitigation.
+		 */
+
 		*masked = isr & HAL_INT_COMMON;
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
+		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR | AR_ISR_RXMINTR | AR_ISR_RXINTM))
 			*masked |= HAL_INT_RX;
-		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL)) {
+		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL | AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
 			*masked |= HAL_INT_TX;
 			isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
 			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXOK);
@@ -138,13 +149,6 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 				*masked |= HAL_INT_TIM_TIMER;
 		}
 
-		/* Interrupt Mitigation on AR5416 */
-#ifdef	AH_AR5416_INTERRUPT_MITIGATION
-		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
-			*masked |= HAL_INT_RX;
-		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
-			*masked |= HAL_INT_TX;
-#endif
 		*masked |= mask2;
 	}
 
