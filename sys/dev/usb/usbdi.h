@@ -353,7 +353,6 @@ struct usbd_lookup_info {
 	uint16_t idVendor;
 	uint16_t idProduct;
 	uint16_t bcdDevice;
-	uint16_t autoQuirk[USB_MAX_AUTO_QUIRK];
 	uint8_t	bDeviceClass;
 	uint8_t	bDeviceSubClass;
 	uint8_t	bDeviceProtocol;
