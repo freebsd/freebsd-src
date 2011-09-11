@@ -2549,14 +2549,12 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+		struct mii_softc	*miisc;
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
-	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	mii_mediachg(mii);
 	FXP_UNLOCK(sc);
 	return (0);

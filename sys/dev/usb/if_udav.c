@@ -1656,6 +1656,7 @@ udav_ifmedia_change(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
 
 	DPRINTF(("%s: %s: enter\n", device_get_nameunit(sc->sc_dev), __func__));
 
@@ -1663,12 +1664,8 @@ udav_ifmedia_change(struct ifnet *ifp)
 		return (0);
 
 	sc->sc_link = 0;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		     miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 
 	return (mii_mediachg(mii));
 }

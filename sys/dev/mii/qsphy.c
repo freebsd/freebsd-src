@@ -139,6 +139,8 @@ qsphy_attach(device_t dev)
 	sc->mii_service = qsphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	qsphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
@@ -238,6 +240,8 @@ qsphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_NONE;
 		break;
 	}
+	if ((mii->mii_media_active & IFM_FDX) != 0)
+		mii->mii_media_active |= mii_phy_flowstatus(sc);
 }
 
 static void

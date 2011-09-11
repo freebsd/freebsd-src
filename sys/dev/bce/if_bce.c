@@ -5813,6 +5813,7 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error;
 
 	DBENTER(BCE_VERBOSE_PHY);
@@ -5825,12 +5826,8 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 	/* Make sure the MII bus has been enumerated. */
 	if (mii) {
 		sc->bce_link_up = FALSE;
-		if (mii->mii_instance) {
-			struct mii_softc *miisc;
-
-			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			    mii_phy_reset(miisc);
-		}
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		    mii_phy_reset(miisc);
 		error = mii_mediachg(mii);
 	}
 

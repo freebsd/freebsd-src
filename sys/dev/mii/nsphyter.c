@@ -110,7 +110,7 @@ static int	nsphyter_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphyter_status(struct mii_softc *);
 static void	nsphyter_reset(struct mii_softc *);
 
-static const struct mii_phydesc nsphys[] = {
+static const struct mii_phydesc nsphyters[] = {
 	MII_PHY_DESC(NATSEMI, DP83815),
 	MII_PHY_DESC(NATSEMI, DP83843),
 	MII_PHY_DESC(NATSEMI, DP83847),
@@ -121,7 +121,7 @@ static int
 nsphyter_probe(device_t dev)
 {
 
-	return (mii_phy_dev_probe(dev, nsphys, BUS_PROBE_DEFAULT));
+	return (mii_phy_dev_probe(dev, nsphyters, BUS_PROBE_DEFAULT));
 }
 
 static int

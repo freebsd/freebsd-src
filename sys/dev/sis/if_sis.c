@@ -2207,17 +2207,15 @@ sis_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
+	struct mii_softc	*miisc;
 	int			error;
 
 	sc = ifp->if_softc;
 
 	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	error = mii_mediachg(mii);
 	SIS_UNLOCK(sc);
 

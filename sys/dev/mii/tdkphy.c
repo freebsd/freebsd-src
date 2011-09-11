@@ -125,7 +125,7 @@ tdkphy_attach(device_t dev)
 	/*
 	 * Apparently, we can't do loopback on this PHY.
 	 */
-	sc->mii_flags |= MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
 	mii_phy_reset(sc);
 
@@ -247,6 +247,8 @@ tdkphy_status(struct mii_softc *phy)
 					mii->mii_media_active |= IFM_10_T;
 			}
 		}
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			mii->mii_media_active |= mii_phy_flowstatus(phy);
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

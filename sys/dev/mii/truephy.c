@@ -157,7 +157,7 @@ truephy_attach(device_t dev)
 	sc->mii_service = truephy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
 	if (MII_MODEL(ma->mii_id2) == MII_MODEL_AGERE_ET1011)
 		mii_phy_reset(sc);
@@ -210,7 +210,7 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
 				PHY_WRITE(sc, MII_BMCR,
-					  bmcr | BMCR_AUTOEN | BMCR_STARTNEG);
+				    bmcr | BMCR_AUTOEN | BMCR_STARTNEG);
 			}
 		}
 		break;
@@ -326,7 +326,7 @@ truephy_status(struct mii_softc *sc)
 	}
 
 	if (sr & TRUEPHY_SR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
 }

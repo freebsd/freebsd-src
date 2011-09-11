@@ -222,9 +222,6 @@ brgphy_attach(device_t dev)
 
 	/* Handle any special cases based on the PHY ID */
 	switch (bsc->mii_oui) {
-	case MII_OUI_BROADCOM:
-	case MII_OUI_BROADCOM2:
-		break;
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 		case MII_MODEL_xxBROADCOM_BCM5706:
@@ -257,11 +254,6 @@ brgphy_attach(device_t dev)
 			break;
 		}
 		break;
-	case MII_OUI_xxBROADCOM_ALT2:
-		/* No special handling yet. */
-		break;
-	default:
-		device_printf(dev, "Unrecognized OUI for PHY!\n");
 	}
 
 	ifp = sc->mii_pdata->mii_ifp;
@@ -400,8 +392,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
 		switch (bsc->mii_oui) {
-		case MII_OUI_BROADCOM:
-			break;
 		case MII_OUI_xxBROADCOM:
 			switch (bsc->mii_model) {
 			case MII_MODEL_xxBROADCOM_BCM5400:
@@ -418,8 +408,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				bcm54k2_load_dspcode(sc);
 				break;
 			}
-			break;
-		case MII_OUI_xxBROADCOM_ALT1:
 			break;
 		}
 	}
@@ -932,8 +920,6 @@ brgphy_reset(struct mii_softc *sc)
 
 	/* Handle any PHY specific procedures following the reset. */
 	switch (bsc->mii_oui) {
-	case MII_OUI_BROADCOM:
-		break;
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 		case MII_MODEL_xxBROADCOM_BCM5400:
@@ -950,9 +936,6 @@ brgphy_reset(struct mii_softc *sc)
 			bcm54k2_load_dspcode(sc);
 			break;
 		}
-		break;
-	case MII_OUI_xxBROADCOM_ALT1:
-	case MII_OUI_xxBROADCOM_ALT2:
 		break;
 	}
 

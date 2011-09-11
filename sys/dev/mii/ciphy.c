@@ -122,7 +122,7 @@ ciphy_attach(device_t dev)
 	sc->mii_service = ciphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 
 	ciphy_reset(sc);
 

@@ -1218,13 +1218,11 @@ aue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct aue_softc	*sc = ifp->if_softc;
 	struct mii_data		*mii = GET_MII(sc);
+	struct mii_softc	*miisc;
 
 	sc->aue_link = 0;
-	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			 mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		 mii_phy_reset(miisc);
 	mii_mediachg(mii);
 	sc->aue_link = 1;
 
