@@ -4620,7 +4620,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
-				ath_hal_txprocdesc(ah, bf->bf_desc,
+				ath_hal_txprocdesc(ah, bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
@@ -4693,7 +4693,7 @@ ath_draintxq(struct ath_softc *sc)
 		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
 		if (bf != NULL && bf->bf_m != NULL) {
 			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
-				ath_hal_txprocdesc(ah, bf->bf_desc,
+				ath_hal_txprocdesc(ah, bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ifp->if_l2com,
 			    mtod(bf->bf_m, const uint8_t *), bf->bf_m->m_len,
