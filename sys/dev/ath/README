@@ -1,6 +1,13 @@
 Things to debug!
 ----------------
 
+The txqactive bitmap (txeol, txurn, txok, etc) is setup at txq create
+time to a set of values, then it seems after a channel scan all of the
+bits are set to 1. I'm not yet sure why. Go in and fix these.
+Note that ath9k caches the IMR_S2 value and rewrites it where needed.
+It's possible that after a channel scan, these values are "initial"
+values rather than the values setup by the if_ath driver.
+
 < adrian> oh that's a fun bug. if I trigger A-MPDU using an aggregate UDP TX, I'm out of buffers
 < adrian> (as they're all locked up in pending queues)
 < adrian> so I can't send the ADDBA. :P
