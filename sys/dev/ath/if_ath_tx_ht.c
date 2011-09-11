@@ -758,6 +758,17 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 
 		/*
+		 * XXX enforce ACK for aggregate frames (this needs to be
+		 * XXX handled more gracefully?
+		 */
+		if (bf->bf_state.bfs_flags & HAL_TXDESC_NOACK) {
+			device_printf(sc->sc_dev,
+			    "%s: HAL_TXDESC_NOACK set for an aggregate frame?\n",
+			    __func__);
+			bf->bf_state.bfs_flags &= (~HAL_TXDESC_NOACK);
+		}
+
+		/*
 		 * Add the now owned buffer (which isn't
 		 * on the software TXQ any longer) to our
 		 * aggregate frame list.
