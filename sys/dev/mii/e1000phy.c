@@ -91,7 +91,7 @@ DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
 static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
 static void	e1000phy_status(struct mii_softc *);
 static void	e1000phy_reset(struct mii_softc *);
-static int	e1000phy_mii_phy_auto(struct e1000phy_softc *, int);
+static int	e1000phy_mii_phy_auto(struct mii_softc *, int);
 
 static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(MARVELL, E1000),
@@ -313,7 +313,6 @@ static int
 e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	struct e1000phy_softc *esc = (struct e1000phy_softc *)sc;
 	uint16_t speed, gig;
 	int reg;
 
@@ -329,7 +328,7 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 
 		if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
-			e1000phy_mii_phy_auto(esc, ife->ifm_media);
+			e1000phy_mii_phy_auto(sc, ife->ifm_media);
 			break;
 		}
 
@@ -418,7 +417,7 @@ done:
 
 		sc->mii_ticks = 0;
 		e1000phy_reset(sc);
-		e1000phy_mii_phy_auto(esc, ife->ifm_media);
+		e1000phy_mii_phy_auto(sc, ife->ifm_media);
 		break;
 	}
 
@@ -494,12 +493,10 @@ e1000phy_status(struct mii_softc *sc)
 }
 
 static int
-e1000phy_mii_phy_auto(struct e1000phy_softc *esc, int media)
+e1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 {
-	struct mii_softc *sc;
 	uint16_t reg;
 
-	sc = &esc->mii_sc;
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		reg = PHY_READ(sc, E1000_AR);
 		reg &= ~(E1000_AR_PAUSE | E1000_AR_ASM_DIR);

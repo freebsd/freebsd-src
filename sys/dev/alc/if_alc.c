@@ -365,10 +365,8 @@ alc_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ALC_LOCK(sc);
 	mii = device_get_softc(sc->alc_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	error = mii_mediachg(mii);
 	ALC_UNLOCK(sc);
 

@@ -139,6 +139,8 @@ nsphy_attach(device_t dev)
 	sc->mii_service = nsphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	nic = device_get_name(device_get_parent(sc->mii_dev));
 	/*
 	 * Am79C971 wedge when isolating all of their external PHYs.
@@ -296,6 +298,9 @@ nsphy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
+			if ((mii->mii_media_active & IFM_FDX) != 0)
+				mii->mii_media_active |=
+				    mii_phy_flowstatus(sc);
 			return;
 		}
 

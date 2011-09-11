@@ -1037,8 +1037,7 @@ epic_ifmedia_upd(struct ifnet *ifp)
 		sc->phyid = EPIC_UNKN_PHY;
 
 		/* Lookup selected PHY. */
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		     miisc = LIST_NEXT(miisc, mii_list)) {
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
 			if (IFM_INST(media) == miisc->mii_inst) {
 				sc->physc = miisc;
 				break;

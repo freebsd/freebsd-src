@@ -133,7 +133,7 @@ pnphy_attach(device_t dev)
 	/*
 	 * Apparently, we can neither isolate nor do loopback.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
 	sc->mii_capabilities =
 	    BMSR_100TXFDX | BMSR_100TXHDX | BMSR_10TFDX | BMSR_10THDX;

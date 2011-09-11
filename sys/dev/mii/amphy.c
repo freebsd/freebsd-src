@@ -115,6 +115,8 @@ amphy_attach(device_t dev)
 	sc->mii_service = amphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
 #if 0
@@ -231,6 +233,8 @@ amphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		else if (par & DSCSR_10HDX)
 			mii->mii_media_active |= IFM_10_T|IFM_HDX;
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			mii->mii_media_active |= mii_phy_flowstatus(sc);
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

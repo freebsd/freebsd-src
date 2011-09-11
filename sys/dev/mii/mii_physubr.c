@@ -428,9 +428,11 @@ mii_phy_add_media(struct mii_softc *sc)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	if ((sc->mii_flags & MIIF_NOISOLATE) == 0)
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
 		    MII_MEDIA_NONE);
+		PRINT("none");
+	}
 
 	/*
 	 * There are different interpretations for the bits in
