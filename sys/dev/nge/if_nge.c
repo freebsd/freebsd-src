@@ -2396,10 +2396,8 @@ nge_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	NGE_LOCK(sc);
 	mii = device_get_softc(sc->nge_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	error = mii_mediachg(mii);
 	NGE_UNLOCK(sc);
 

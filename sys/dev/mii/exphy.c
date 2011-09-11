@@ -147,7 +147,7 @@ exphy_attach(device_t dev)
 	/*
 	 * The 3Com PHY can never be isolated.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 

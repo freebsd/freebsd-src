@@ -150,7 +150,7 @@ rlphy_attach(device_t dev)
 	/*
 	 * The RealTek PHY can never be isolated.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
@@ -259,6 +259,9 @@ rlphy_status(struct mii_softc *phy)
 				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
+			if ((mii->mii_media_active & IFM_FDX) != 0)
+				mii->mii_media_active |=
+				    mii_phy_flowstatus(phy);
 			return;
 		}
 		/*
@@ -279,10 +282,10 @@ rlphy_status(struct mii_softc *phy)
 		 * To determine the link speed, we have to do one
 		 * of two things:
 		 *
-		 * - If this is a standalone RealTek RTL8201(L) PHY,
-		 *   we can determine the link speed by testing bit 0
-		 *   in the magic, vendor-specific register at offset
-		 *   0x19.
+		 * - If this is a standalone RealTek RTL8201(L) or
+		 *   workalike PHY, we can determine the link speed by
+		 *   testing bit 0 in the magic, vendor-specific register
+		 *   at offset 0x19.
 		 *
 		 * - If this is a RealTek MAC with integrated PHY, we
 		 *   can test the 'SPEED10' bit of the MAC's media status

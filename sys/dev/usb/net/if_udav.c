@@ -732,16 +732,13 @@ udav_ifmedia_upd(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	mii_mediachg(mii);
 	return (0);
 }

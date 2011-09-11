@@ -2130,10 +2130,8 @@ vr_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	VR_LOCK(sc);
 	mii = device_get_softc(sc->vr_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	error = mii_mediachg(mii);
 	VR_UNLOCK(sc);
 

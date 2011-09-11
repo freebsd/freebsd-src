@@ -138,6 +138,8 @@ acphy_attach(device_t dev)
 	sc->mii_service = acphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	acphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
@@ -245,7 +247,8 @@ acphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (diag & AC_DIAG_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

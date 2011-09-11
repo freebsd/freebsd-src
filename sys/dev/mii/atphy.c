@@ -119,6 +119,8 @@ atphy_attach(device_t dev)
 	sc->mii_service = atphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	asc->mii_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
 	asc->mii_model = MII_MODEL(ma->mii_id2);
 	asc->mii_rev = MII_REV(ma->mii_id2);
@@ -318,11 +320,8 @@ static void
 atphy_reset(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	struct atphy_softc *asc;
 	uint32_t reg;
 	int i;
-
-	asc = (struct atphy_softc *)sc;
 
 	/* Take PHY out of power down mode. */
 	PHY_WRITE(sc, 29, 0x29);

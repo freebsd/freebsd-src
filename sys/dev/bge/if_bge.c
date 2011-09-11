@@ -4954,9 +4954,8 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 
 	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
-	if (mii->mii_instance)
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	mii_mediachg(mii);
 
 	/*

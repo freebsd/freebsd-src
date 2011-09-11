@@ -356,16 +356,12 @@ octe_mii_medchange(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 
 	priv = ifp->if_softc;
 	mii = device_get_softc(priv->miibus);
-
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	mii_mediachg(mii);
 
 	return (0);

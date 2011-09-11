@@ -925,10 +925,8 @@ kr_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KR_LOCK(sc);
 	mii = device_get_softc(sc->kr_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	error = mii_mediachg(mii);
 	KR_UNLOCK(sc);
 

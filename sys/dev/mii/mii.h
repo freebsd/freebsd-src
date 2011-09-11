@@ -89,15 +89,9 @@
  * info available in register 15, but 802.3 section 22.2.4.3 also
  * states that that all 1000 Mb/s capable PHYs will set this bit to 1.
  */
-#if 0
-#define	BMSR_MEDIAMASK	(BMSR_100T4|BMSR_100TXFDX|BMSR_100TXHDX|BMSR_10TFDX| \
-			 BMSR_10THDX|BMSR_ANEG)
 
-#else
-/* NetBSD uses: */
 #define	BMSR_MEDIAMASK	(BMSR_100T4|BMSR_100TXFDX|BMSR_100TXHDX| \
 			 BMSR_10TFDX|BMSR_10THDX|BMSR_100T2FDX|BMSR_100T2HDX)
-#endif
 
 /*
  * Convert BMSR media capabilities to ANAR bits for autonegotiation.

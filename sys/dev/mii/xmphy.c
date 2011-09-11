@@ -116,7 +116,7 @@ xmphy_attach(device_t dev)
 	sc->mii_service = xmphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 	sc->mii_anegticks = MII_ANEGTICKS;
 
 	mii_phy_reset(sc);
@@ -134,6 +134,7 @@ xmphy_attach(device_t dev)
 	PRINT("auto");
 
 	printf("\n");
+
 #undef ADD
 #undef PRINT
 
@@ -246,7 +247,6 @@ xmphy_status(struct mii_softc *sc)
 
 	if (bmcr & XMPHY_BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
-
 
 	if (bmcr & XMPHY_BMCR_AUTOEN) {
 		if ((bmsr & XMPHY_BMSR_ACOMP) == 0) {

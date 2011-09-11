@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h> 
+#include <sys/bus.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -87,9 +87,9 @@ static device_method_t miibus_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
-	DEVMETHOD(miibus_statchg,	miibus_statchg),    
-	DEVMETHOD(miibus_linkchg,	miibus_linkchg),    
-	DEVMETHOD(miibus_mediainit,	miibus_mediainit),    
+	DEVMETHOD(miibus_statchg,	miibus_statchg),
+	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
+	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
 	{ 0, 0 }
 };
@@ -272,7 +272,7 @@ miibus_linkchg(device_t dev)
 	MIIBUS_LINKCHG(parent);
 
 	mii = device_get_softc(dev);
-	
+
 	if (mii->mii_media_status & IFM_AVALID) {
 		if (mii->mii_media_status & IFM_ACTIVE)
 			link_state = LINK_STATE_UP;
@@ -372,7 +372,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * has been allocated.
 		 */
 		ma.mii_data = device_get_softc(*miibus);
-	} 
+	}
 
 	ma.mii_capmask = capmask;
 
@@ -403,7 +403,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * Check to see if there is a PHY at this address.  Note,
 		 * many braindead PHYs report 0/0 in their ID registers,
 		 * so we test for media in the BMSR.
-	 	 */
+		 */
 		bmsr = MIIBUS_READREG(dev, ma.mii_phyno, MII_BMSR);
 		if (bmsr == 0 || bmsr == 0xffff ||
 		    (bmsr & (BMSR_EXTSTAT | BMSR_MEDIAMASK)) == 0) {
@@ -422,7 +422,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * Extract the IDs. Braindead PHYs will be handled by
 		 * the `ukphy' driver, as we have no ID information to
 		 * match on.
-	 	 */
+		 */
 		ma.mii_id1 = MIIBUS_READREG(dev, ma.mii_phyno, MII_PHYIDR1);
 		ma.mii_id2 = MIIBUS_READREG(dev, ma.mii_phyno, MII_PHYIDR2);
 
