@@ -132,6 +132,7 @@ static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
+static void	ath_handle_intr(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
 static void	ath_key_update_begin(struct ieee80211vap *);
@@ -173,8 +174,10 @@ static int	ath_tx_setup(struct ath_softc *, int, int);
 static int	ath_wme_update(struct ieee80211com *);
 static void	ath_tx_cleanupq(struct ath_softc *, struct ath_txq *);
 static void	ath_tx_cleanup(struct ath_softc *);
+#if 0
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
+#endif
 static void	ath_tx_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *);
@@ -390,14 +393,15 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK_INIT(sc);
 
-	sc->sc_tq = taskqueue_create("ath_taskq", M_NOWAIT,
+	sc->sc_tq = taskqueue_create_fast("ath_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
-	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
+	TASK_INIT(&sc->sc_intrtask, 0, ath_handle_intr, sc);
+	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -443,23 +447,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		sc->sc_ac2q[WME_AC_BE] = sc->sc_ac2q[WME_AC_BK];
 		sc->sc_ac2q[WME_AC_VI] = sc->sc_ac2q[WME_AC_BK];
 		sc->sc_ac2q[WME_AC_VO] = sc->sc_ac2q[WME_AC_BK];
-	}
-
-	/*
-	 * Special case certain configurations.  Note the
-	 * CAB queue is handled by these specially so don't
-	 * include them when checking the txq setup mask.
-	 */
-	switch (sc->sc_txqsetup &~ (1<<sc->sc_cabq->axq_qnum)) {
-	case 0x01:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0, sc);
-		break;
-	case 0x0f:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0123, sc);
-		break;
-	default:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
-		break;
 	}
 
 	/*
@@ -1345,6 +1332,80 @@ ath_shutdown(struct ath_softc *sc)
 }
 
 /*
+ * Do deferred interrupt processing; then re-enable interrupts
+ * if required.
+ */
+static void
+ath_handle_intr(void *arg, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) arg;
+	HAL_INT status;
+	struct ath_hal *ah = sc->sc_ah;
+	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t txqs;
+
+	if (sc->sc_invalid) {
+		/*
+		 * The hardware is not ready/present, don't touch anything.
+		 * Note this can happen early on if the IRQ is shared.
+		 */
+		DPRINTF(sc, ATH_DEBUG_ANY, "%s: invalid; ignored\n", __func__);
+		return;
+	}
+
+	/*
+	 * Fetch the current interrupt status from the interrupt
+	 * handler. It's assumed that any interrupt which would lead
+	 * us here won't happen until the interrupt is cleared.
+	 *
+	 * XXX Thus I'm not using a lock just yet.
+	 */
+	status = sc->sc_intrstatus;
+
+	if (status & HAL_INT_FATAL) {
+		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
+		ath_fatal_proc(sc, 0);
+		return;
+	}
+
+	if (status & (HAL_INT_RXEOL | HAL_INT_RX)) {
+		ath_rx_proc(sc, 1);
+		/* XXX this may reset the hardware? Should handle that! */
+	}
+	if (status & HAL_INT_TXURN) {
+		/* bump tx trigger level */
+		ath_hal_updatetxtriglevel(ah, AH_TRUE);
+	}
+	if (status & HAL_INT_TX) {
+		ath_tx_proc(sc, 1);
+	}
+
+	/*
+	 * If at this point, any of the TX interrupt status lines are
+	 * active, we've messed up. These should only be updated in
+	 * ath_intr().
+	 */
+	txqs = 0xff;
+	ath_hal_gettxintrtxqs(ah, &txqs);
+	if (txqs != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: unserviced TXQs: txq mask=0x%.08x, int status=0x%.08x\n",
+		    __func__, txqs, status);
+		/* XXX since it's been cleared, there's no way to fix it.. */
+	}
+
+	/*
+	 * If TX or RX occured, call ath_start() if the interface
+	 * can grab some packets.
+	 */
+	if (!IFQ_IS_EMPTY(&ifp->if_snd))
+		ath_start(ifp);
+
+	/* re-enable interrupts */
+	ath_hal_intrset(sc->sc_ah, sc->sc_imask);
+}
+
+/*
  * Interrupt handler.  Most of the actual processing is deferred.
  */
 void
@@ -1354,6 +1415,7 @@ ath_intr(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_INT status = 0;
+	int sched = 0;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1389,10 +1451,12 @@ ath_intr(void *arg)
 	if (status == 0x0)
 		return;
 
+	/* XXX locking? */
+	sc->sc_intrstatus = status;
+
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
-		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ath_fatal_proc(sc, 0);
+		sched = 1;
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -1422,12 +1486,12 @@ ath_intr(void *arg)
 				 * traffic so any frames held on the staging
 				 * queue are aged and potentially flushed.
 				 */
-				taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+				/* XXX there's no longer an rxtask? How to force? */
+				taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 #endif
 			}
 		}
 		if (status & HAL_INT_RXEOL) {
-			int imask = sc->sc_imask;
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
@@ -1443,33 +1507,27 @@ ath_intr(void *arg)
 			 * by a call to ath_reset() somehow, the
 			 * interrupt mask will be correctly reprogrammed.
 			 */
-			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
-			ath_hal_intrset(ah, imask);
-			/*
-			 * Enqueue an RX proc, to handled whatever
-			 * is in the RX queue.
-			 * This will then kick the PCU.
-			 */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			/* XXX this is already reset in the sched call below */
 			sc->sc_rxlink = NULL;
 			sc->sc_kickpcu = 1;
+			sched = 1;
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
 			/* bump tx trigger level */
-			ath_hal_updatetxtriglevel(ah, AH_TRUE);
+			sched = 1;
 		}
 		if (status & HAL_INT_RX) {
 			sc->sc_stats.ast_rx_intr++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			sched = 1;
 		}
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
+			sched = 1;
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bmisstask);
 		}
 		if (status & HAL_INT_GTT)
 			sc->sc_stats.ast_tx_timeout++;
@@ -1493,6 +1551,18 @@ ath_intr(void *arg)
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
 			sc->sc_stats.ast_rxorn++;
 		}
+	}
+
+	/*
+	 * If any of the above checks require an ISR schedule,
+	 * enqueue the task and disable interrupts.
+	 *
+	 * Since beacon handling is done in interrupt context at the
+	 * moment, always leave that enabled.
+	 */
+	if (sched == 1) {
+		ath_hal_intrset(ah, (sc->sc_imask & HAL_INT_SWBA));
+		taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_intrtask);
 	}
 }
 
@@ -1826,6 +1896,9 @@ ath_reset(struct ifnet *ifp)
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
+	/*
+	 * XXX should this be done in-line?
+	 */
 	ath_start(ifp);			/* restart xmit */
 	return 0;
 }
@@ -3950,23 +4023,20 @@ rx_next:
 		 * XXX kick the PCU again to continue RXing?
 		 */
 		ath_stoprecv(sc);
-		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
 		if (ath_startrecv(sc) != 0) {
 			if_printf(ifp,
 			    "%s: couldn't restart RX after RXEOL; resetting\n",
 			    __func__);
+			/* XXX this must be scheduled! */
 			ath_reset(ifp);
 			return;
 		}
-		ath_hal_intrset(ah, sc->sc_imask);
 	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
 #endif
-		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_start(ifp);
 	}
 #undef PA2DESC
 }
@@ -4449,6 +4519,7 @@ txqactive(struct ath_hal *ah, int qnum)
 	return (txqs & (1<<qnum));
 }
 
+#if 0
 /*
  * Deferred processing of transmit interrupt; special-cased
  * for a single hardware transmit queue (e.g. 5210 and 5211).
@@ -4509,6 +4580,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 
 	ath_start(ifp);
 }
+#endif
 
 /*
  * Deferred processing of transmit interrupt.

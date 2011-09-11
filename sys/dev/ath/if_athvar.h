@@ -411,6 +411,7 @@ struct ath_softc {
 	u_int			sc_fftxqmax;	/* max frames before drop */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
+	HAL_INT			sc_intrstatus;	/* current interrupt status */
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
@@ -429,7 +430,6 @@ struct ath_softc {
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
 	struct mbuf		*sc_rxpending;	/* pending receive data */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
-	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
 	u_int8_t		sc_rxotherant;	/* rx's on non-default antenna*/
 	u_int64_t		sc_lastrx;	/* tsf at last rx'd frame */
@@ -446,7 +446,6 @@ struct ath_softc {
 	u_int			sc_txintrperiod;/* tx interrupt batching */
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
-	struct task		sc_txtask;	/* tx int processing */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
@@ -460,6 +459,8 @@ struct ath_softc {
 	struct ath_txq		*sc_cabq;	/* tx q for cab frames */
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
+	struct task		sc_intrtask;	/* deferred interrupt processing */
+	struct task		sc_fataltask;	/* deferred reset processing */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */
