@@ -4108,10 +4108,15 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		qi.tqi_burstTime = qi.tqi_readyTime;
 	} else {
 #endif
+		/*
+		 * XXX shouldn't this just use the default flags
+		 * used in the previous queue setup?
+		 */
 		qi.tqi_qflags = HAL_TXQ_TXOKINT_ENABLE
 			      | HAL_TXQ_TXERRINT_ENABLE
 			      | HAL_TXQ_TXDESCINT_ENABLE
 			      | HAL_TXQ_TXURNINT_ENABLE
+			      | HAL_TXQ_TXEOLINT_ENABLE
 			      ;
 		qi.tqi_aifs = wmep->wmep_aifsn;
 		qi.tqi_cwmin = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmin);
