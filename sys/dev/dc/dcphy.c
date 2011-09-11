@@ -158,7 +158,7 @@ dcphy_attach(device_t dev)
 	/*
 	 * Apparently, we can neither isolate nor do loopback.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
 	/*dcphy_reset(sc);*/
 	dc_sc = mii->mii_ifp->if_softc;

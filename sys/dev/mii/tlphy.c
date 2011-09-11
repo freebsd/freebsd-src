@@ -153,6 +153,8 @@ tlphy_attach(device_t dev)
 	sc->sc_mii.mii_service = tlphy_service;
 	sc->sc_mii.mii_pdata = mii;
 
+	sc->sc_mii.mii_flags |= MIIF_NOMANPAUSE;
+
 	/*
 	 * Note that if we're on a device that also supports 100baseTX,
 	 * we are not going to want to use the built-in 10baseT port,
@@ -338,7 +340,8 @@ tlphy_status(struct tlphy_softc *sc)
 	 * just have to report what's in the BMCR.
 	 */
 	if (bmcr & BMCR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |=
+		    IFM_FDX | mii_phy_flowstatus(&sc->sc_mii);
 	else
 		mii->mii_media_active |= IFM_HDX;
 	mii->mii_media_active |= IFM_10_T;

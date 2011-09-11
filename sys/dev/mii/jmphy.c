@@ -269,11 +269,8 @@ jmphy_status(struct mii_softc *sc)
 static void
 jmphy_reset(struct mii_softc *sc)
 {
-	struct jmphy_softc *jsc;
 	uint16_t t2cr, val;
 	int i;
-
-	jsc = (struct jmphy_softc *)sc;
 
 	/* Disable sleep mode. */
 	PHY_WRITE(sc, JMPHY_TMCTL,

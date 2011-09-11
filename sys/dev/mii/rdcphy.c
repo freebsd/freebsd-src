@@ -115,6 +115,8 @@ rdcphy_attach(device_t dev)
 	sc->mii_service = rdcphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	rsc->mii_model = MII_MODEL(ma->mii_id2);
 	if (bootverbose)
 		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",

@@ -1179,19 +1179,15 @@ nve_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 
 	DEBUGOUT(NVE_DEBUG_MII, "nve: nve_ifmedia_upd\n");
 
 	NVE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->miibus);
 
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list)) {
-			mii_phy_reset(miisc);
-		}
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	mii_mediachg(mii);
 }
 

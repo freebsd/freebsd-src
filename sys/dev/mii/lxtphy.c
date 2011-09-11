@@ -106,6 +106,7 @@ DRIVER_MODULE(lxtphy, miibus, lxtphy_driver, lxtphy_devclass, 0, 0);
 
 static int	lxtphy_service(struct mii_softc *, struct mii_data *, int);
 static void	lxtphy_status(struct mii_softc *);
+static void	lxtphy_reset(struct mii_softc *);
 static void	lxtphy_set_tp(struct mii_softc *);
 static void	lxtphy_set_fx(struct mii_softc *);
 
@@ -140,7 +141,9 @@ lxtphy_attach(device_t dev)
 	sc->mii_service = lxtphy_service;
 	sc->mii_pdata = mii;
 
-	mii_phy_reset(sc);
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
+	lxtphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
@@ -245,6 +248,15 @@ lxtphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
+}
+
+static void
+lxtphy_reset(struct mii_softc *sc)
+{
+
+	mii_phy_reset(sc);
+	PHY_WRITE(sc, MII_LXTPHY_IER,
+	    PHY_READ(sc, MII_LXTPHY_IER) & ~IER_INTEN);
 }
 
 static void

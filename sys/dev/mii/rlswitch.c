@@ -129,7 +129,7 @@ rlswitch_attach(device_t dev)
 	/*
 	 * We handle all pseudo PHYs in a single instance.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
@@ -390,7 +390,8 @@ rlswitch_status(struct mii_softc *phy)
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 	mii->mii_media_status |= IFM_ACTIVE;
-	mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+	mii->mii_media_active |=
+	    IFM_100_TX | IFM_FDX | mii_phy_flowstatus(phy);
 }
 
 #ifdef RL_DEBUG

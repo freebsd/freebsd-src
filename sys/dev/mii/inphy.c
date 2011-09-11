@@ -114,7 +114,7 @@ inphy_attach(device_t dev)
 	sc->mii_service = inphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOMANPAUSE;
+	sc->mii_flags |= MIIF_NOMANPAUSE | MIIF_NOMANPAUSE;
 
 	ifmedia_add(&mii->mii_media,
 	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),

@@ -115,7 +115,8 @@ pnaphy_attach(device_t dev)
 	sc->mii_service = pnaphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_IS_HPNA;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_IS_HPNA |
+	    MIIF_NOMANPAUSE;
 
 	mii_phy_reset(sc);
 

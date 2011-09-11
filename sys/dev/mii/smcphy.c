@@ -53,7 +53,7 @@ static int	smcphy_probe(device_t);
 static int	smcphy_attach(device_t);
 
 static int	smcphy_service(struct mii_softc *, struct mii_data *, int);
-static int	smcphy_reset(struct mii_softc *);
+static void	smcphy_reset(struct mii_softc *);
 static void	smcphy_auto(struct mii_softc *, int);
 
 static device_method_t smcphy_methods[] = {
@@ -107,11 +107,9 @@ smcphy_attach(device_t dev)
 	sc->mii_service = smcphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
-	if (smcphy_reset(sc) != 0) {
-		device_printf(dev, "reset failed\n");
-	}
+	smcphy_reset(sc);
 
 	/* Mask interrupts, we poll instead. */
 	PHY_WRITE(sc, 0x1e, 0xffc0);
@@ -184,9 +182,7 @@ smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		}
 
 		sc->mii_ticks = 0;
-		if (smcphy_reset(sc) != 0) {
-			device_printf(sc->mii_dev, "reset failed\n");
-		}
+		smcphy_reset(sc);
 		smcphy_auto(sc, ife->ifm_media);
                 break;
         }
@@ -199,7 +195,7 @@ smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
         return (0);
 }
 
-static int
+static void
 smcphy_reset(struct mii_softc *sc)
 {
 	u_int	bmcr;
@@ -214,12 +210,13 @@ smcphy_reset(struct mii_softc *sc)
 			break;
 	}
 
-	if (bmcr & BMCR_RESET) {
-		return (EIO);
-	}
+	if (bmcr & BMCR_RESET)
+		device_printf(sc->mii_dev, "reset failed\n");
 
 	PHY_WRITE(sc, MII_BMCR, 0x3000);
-	return (0);
+
+	/* Mask interrupts, we poll instead. */
+	PHY_WRITE(sc, 0x1e, 0xffc0);
 }
 
 static void

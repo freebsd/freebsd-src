@@ -120,7 +120,7 @@ ruephy_attach(device_t dev)
 	/*
 	 * Apparently, we can neither isolate nor do loopback on this PHY.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP | MIIF_NOMANPAUSE;
 
 	ruephy_reset(sc);
 
@@ -244,7 +244,8 @@ ruephy_status(struct mii_softc *phy)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (msr & RUEPHY_MSR_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(phy);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

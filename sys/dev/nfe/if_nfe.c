@@ -3295,14 +3295,10 @@ nfe_set_linkspeed(struct nfe_softc *sc)
 			break;
 		}
 	}
-	phyno = 0;
-	if (mii->mii_instance) {
-		miisc = LIST_FIRST(&mii->mii_phys);
-		phyno = miisc->mii_phy;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	} else
-		return;
+	miisc = LIST_FIRST(&mii->mii_phys);
+	phyno = miisc->mii_phy;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		mii_phy_reset(miisc);
 	nfe_miibus_writereg(sc->nfe_dev, phyno, MII_100T2CR, 0);
 	nfe_miibus_writereg(sc->nfe_dev, phyno,
 	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
