@@ -355,6 +355,7 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 		 * This includes enabling the aggregate flags if needed.
 		 */
 		ath_hal_chaintxdesc(ah, ds,
+		    bf->bf_state.bfs_flags | HAL_TXDESC_INTREQ,
 		    bf->bf_state.bfs_pktlen,
 		    bf->bf_state.bfs_hdrlen,
 		    HAL_PKT_TYPE_AMPDU,	/* forces aggregate bits to be set */

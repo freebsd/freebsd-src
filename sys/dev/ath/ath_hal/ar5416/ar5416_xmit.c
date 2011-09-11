@@ -303,12 +303,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * copy the multi-rate transmit parameters from
 		 * the first frame for processing on completion. 
 		 */
-		ads->ds_ctl0 = 0;
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
 #else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
 #endif
@@ -316,7 +318,12 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Intermediate descriptor in a multi-descriptor frame.
 		 */
-		ads->ds_ctl0 = 0;
+#ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
+#else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+#endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;
 		ads->ds_ctl3 = 0;
@@ -331,6 +338,7 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
  */
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+	u_int flags,
 	u_int pktLen,
 	u_int hdrLen,
 	HAL_PKT_TYPE type,
@@ -369,7 +377,15 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	 */
 	OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 
-	ads->ds_ctl0 = (pktLen & AR_FrameLen);
+	/*
+	 * XXX VEOL should only be for the last descriptor in the chain.
+	 * XXX I'm not sure if clrdestmask is ok in intermediary descs or
+	 * XXX   required at the end of a sub-frame.
+	 */
+	ads->ds_ctl0 = (pktLen & AR_FrameLen)
+//		| (flags & HAL_TXDESC_VEOL ? AR_VEOL : 0)
+//		| (flags & HAL_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
+		| (flags & HAL_TXDESC_INTREQ ? AR_TxIntrReq : 0);
 	ads->ds_ctl1 = (type << AR_FrameType_S)
 			| (isaggr ? (AR_IsAggr | AR_MoreAggr) : 0);
 	ads->ds_ctl2 = 0;
