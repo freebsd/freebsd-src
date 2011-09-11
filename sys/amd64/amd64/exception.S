@@ -398,8 +398,9 @@ IDTVEC(fast_syscall)
 	movq	%rsp, %rdi
 	call	ast
 	jmp	1b
-2:	/* Restore preserved registers. */
+
 	.align	16
+2:	/* Restore preserved registers. */
 	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
 	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
