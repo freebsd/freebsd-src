@@ -1239,8 +1239,6 @@ static void
 usb_init_attach_arg(struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
-	uint8_t x;
-
 	memset(uaa, 0, sizeof(*uaa));
 
 	uaa->device = udev;
@@ -1256,9 +1254,6 @@ usb_init_attach_arg(struct usb_device *udev,
 	uaa->info.bDeviceProtocol = udev->ddesc.bDeviceProtocol;
 	uaa->info.bConfigIndex = udev->curr_config_index;
 	uaa->info.bConfigNum = udev->curr_config_no;
-
-	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++)
-		uaa->info.autoQuirk[x] = udev->autoQuirk[x];
 }
 
 /*------------------------------------------------------------------------*
@@ -2389,8 +2384,22 @@ uint8_t
 usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk)
 {
 	uint8_t found;
+	uint8_t x;
+
+	if (quirk == UQ_NONE)
+		return (0);
+
+	/* search the automatic per device quirks first */
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (uaa->device->autoQuirk[x] == quirk)
+			return (1);
+	}
+
+	/* search global quirk table, if any */
 
 	found = (usb_test_quirk_p) (&uaa->info, quirk);
+
 	return (found);
 }
 
@@ -2723,7 +2732,8 @@ usbd_add_dynamic_quirk(struct usb_device *udev, uint16_t quirk)
 	uint8_t x;
 
 	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
-		if (udev->autoQuirk[x] == 0) {
+		if (udev->autoQuirk[x] == 0 ||
+		    udev->autoQuirk[x] == quirk) {
 			udev->autoQuirk[x] = quirk;
 			return (0);	/* success */
 		}
