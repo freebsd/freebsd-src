@@ -2253,7 +2253,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
 			     __func__, ni, tid->tid, txq->axq_depth,
 			     txq->axq_aggr_depth, tid->sched, tid->paused,
 			     tid->hwq_depth, tid->incomp, tid->baw_head,
-			     tid->baw_tail, tap->txa_start,
+			     tid->baw_tail, tap == NULL ? -1 : tap->txa_start,
 			     ni->ni_txseqs[tid->tid]);
 			t = 1;
 		}
