@@ -30,8 +30,8 @@ __FBSDID("$FreeBSD$");
  * The FreeBSD IP packet firewall, main file
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#if !defined(KLD_MODULE)
 #include "opt_ipdivert.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"

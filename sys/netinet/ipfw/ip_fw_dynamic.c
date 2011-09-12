@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
  * Dynamic rule support for ipfw
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#if !defined(KLD_MODULE)
 #include "opt_ipdivert.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"

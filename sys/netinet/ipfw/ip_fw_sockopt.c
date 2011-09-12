@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
  * the upper half of the ipfw code.
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#if !defined(KLD_MODULE)
 #include "opt_ipdivert.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
