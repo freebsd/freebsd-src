@@ -4511,6 +4511,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	return nacked;
 }
 
+#if 0
 static __inline int
 txqactive(struct ath_hal *ah, int qnum)
 {
@@ -4519,7 +4520,6 @@ txqactive(struct ath_hal *ah, int qnum)
 	return (txqs & (1<<qnum));
 }
 
-#if 0
 /*
  * Deferred processing of transmit interrupt; special-cased
  * for a single hardware transmit queue (e.g. 5210 and 5211).
@@ -4591,13 +4591,19 @@ ath_tx_proc(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	int i, nacked;
+	u_int32_t txqs = (1 << HAL_NUM_TX_QUEUES) - 1;
+
+	/*
+	 * Just grab the status of all TX queues.
+	 */
+	ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
 
 	/*
 	 * Process each active queue.
 	 */
 	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i) && txqactive(sc->sc_ah, i))
+		if (ATH_TXQ_SETUP(sc, i) && (txqs & (1 << i)))
 			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
