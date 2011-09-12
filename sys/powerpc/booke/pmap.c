@@ -1918,7 +1918,6 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	for (va = sva; va < eva; va += PAGE_SIZE) {
 		if ((pte = pte_find(mmu, pmap, va)) != NULL) {
@@ -1941,7 +1940,6 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		}
 	}
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
 
 /*
