@@ -378,14 +378,9 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 
 	/*
-	 * XXX VEOL should only be for the last descriptor in the chain.
-	 * XXX I'm not sure if clrdestmask is ok in intermediary descs or
-	 * XXX   required at the end of a sub-frame.
+	 * Note: VEOL should only be for the last descriptor in the chain.
 	 */
-	ads->ds_ctl0 = (pktLen & AR_FrameLen)
-//		| (flags & HAL_TXDESC_VEOL ? AR_VEOL : 0)
-//		| (flags & HAL_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
-		| (flags & HAL_TXDESC_INTREQ ? AR_TxIntrReq : 0);
+	ads->ds_ctl0 = 0;	/* XXX TODO: optimise uncached descriptor writes */
 	ads->ds_ctl1 = (type << AR_FrameType_S)
 			| (isaggr ? (AR_IsAggr | AR_MoreAggr) : 0);
 	ads->ds_ctl2 = 0;
@@ -402,15 +397,24 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	}
 
 	if (firstSeg) {
+		ads->ds_ctl0 |= (pktLen & AR_FrameLen)
+		    | (flags & HAL_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
+		    | (flags & HAL_TXDESC_INTREQ ? AR_TxIntrReq : 0)
+		    ;
 		ads->ds_ctl1 |= segLen | (lastSeg ? 0 : AR_TxMore);
 	} else if (lastSeg) {           /* !firstSeg && lastSeg */
-		ads->ds_ctl0 = 0;
+		ads->ds_ctl0 = 0
+		    | (flags & HAL_TXDESC_VEOL ? AR_VEOL : 0)
+		    | (flags & HAL_TXDESC_INTREQ ? AR_TxIntrReq : 0)
+		    ;
 		ads->ds_ctl1 |= segLen;
 	} else {                        /* !firstSeg && !lastSeg */
 		/*
 		 * Intermediate descriptor in a multi-descriptor frame.
 		 */
-		ads->ds_ctl0 = 0;
+		ads->ds_ctl0 = 0
+		    | (flags & HAL_TXDESC_INTREQ ? AR_TxIntrReq : 0)
+		    ;
 		ads->ds_ctl1 |= segLen | AR_TxMore;
 	}
 	ds_txstatus[0] = ds_txstatus[1] = 0;
