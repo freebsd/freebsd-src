@@ -84,8 +84,17 @@ OLD_FILES+=usr/lib/libpkg.a
 OLD_FILES+=usr/lib/libpkg.so
 OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/lib/libpkg_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libpkg.a
+OLD_FILES+=usr/lib32/libpkg.so
+OLD_LIBS+=usr/lib32/libpkg.so.0
+OLD_FILES+=usr/lib32/libpkg_p.a
+.endif
 # 20110517: libsbuf version bump
 OLD_LIBS+=lib/libsbuf.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libsbuf.so.5
+.endif
 # 20110502: new clang import which bumps version from 2.9 to 3.0
 OLD_FILES+=usr/include/clang/2.9/emmintrin.h
 OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
@@ -114,6 +123,12 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libobjc.a
+OLD_FILES+=usr/lib32/libobjc.so
+OLD_FILES+=usr/lib32/libobjc_p.a
+OLD_LIBS+=usr/lib32/libobjc.so.4
+.endif
 # 20110331: firmware.img created at build time
 OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
 # 20110224: sticky.8 -> sticky.7
