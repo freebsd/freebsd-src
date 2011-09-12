@@ -1561,7 +1561,8 @@ ath_intr(void *arg)
 	 * moment, always leave that enabled.
 	 */
 	if (sched == 1) {
-		ath_hal_intrset(ah, (sc->sc_imask & HAL_INT_SWBA));
+		ath_hal_intrset(ah,
+		    (sc->sc_imask & (HAL_INT_SWBA | HAL_INT_GLOBAL)));
 		taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_intrtask);
 	}
 }
