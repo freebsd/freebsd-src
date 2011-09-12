@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468ACcdknosuv
+.Op Fl 468ACcdkNnosuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -208,6 +208,13 @@ facility is reserved for messages read directly from
 Select the number of minutes between
 .Dq mark
 messages; the default is 20 minutes.
+.It Fl N
+Disable binding on UDP sockets.  RFC 3164 recommends that outgoing
+syslogd messages should originate from the privileged port, this
+option
+.Em disables
+the recommended behavior.  This option inherits
+.Fl s .
 .It Fl n
 Disable dns query for every request.
 .It Fl o
