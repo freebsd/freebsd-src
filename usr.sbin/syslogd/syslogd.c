@@ -278,6 +278,7 @@ static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 static int	MarkSeq;	/* mark sequence number */
+static int	NoBind;		/* don't bind() as suggested by RFC 3164 */
 static int	SecureMode;	/* when true, receive only unix domain socks */
 #ifdef INET6
 static int	family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
@@ -357,7 +358,7 @@ main(int argc, char *argv[])
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nop:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nNop:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 		case '4':
@@ -435,6 +436,10 @@ main(int argc, char *argv[])
 		   }
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
+			break;
+		case 'N':
+			NoBind = 1;
+			SecureMode = 1;
 			break;
 		case 'n':
 			resolve = 0;
@@ -2662,13 +2667,24 @@ socksetup(int af, const char *bindhostname)
 			close(*s);
 			continue;
 		}
-		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
-			close(*s);
-			logerror("bind");
-			continue;
-		}
+		/*
+		 * RFC 3164 recommends that client side message
+		 * should come from the privileged syslogd port.
+		 *
+		 * If the system administrator choose not to obey
+		 * this, we can skip the bind() step so that the
+		 * system will choose a port for us.
+		 */
+		if (!NoBind) {
+			if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+				close(*s);
+				logerror("bind");
+				continue;
+			}
 
-		double_rbuf(*s);
+			if (!SecureMode)
+				double_rbuf(*s);
+		}
 
 		(*socks)++;
 		s++;
