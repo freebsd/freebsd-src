@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2011
+.Dd June 14, 2011
 .Dt RTSOLD 8
 .Os
 .\"
@@ -39,24 +39,24 @@
 .\"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfFm1
+.Op Fl dDfFmu1
 .Op Fl O Ar script-name
-.Op Fl P Ar pidfile
+.Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm
-.Op Fl dDfFm1
+.Op Fl dDfFmu1
 .Op Fl O Ar script-name
-.Op Fl P Ar pidfile
+.Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Fl a
 .Nm rtsol
-.Op Fl dD
+.Op Fl dDu
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm rtsol
-.Op Fl dD
+.Op Fl dDu
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
 .Fl a
@@ -227,7 +227,7 @@ configuration.
 must be the absolute path from root to the script file, be a regular
 file, and be created by the same owner who runs
 .Nm .
-.It Fl P Ar pidfile
+.It Fl p Ar pidfile
 Writes the process ID of
 .Nm
 to
@@ -245,6 +245,18 @@ standard input of this script.
 The
 .Xr resolvconf 8
 script is used by default.
+.It Fl u
+Specifies whether adding the source address of Router Advertisement
+messages to the interface name in an argument of the RDNSS and DNSSL
+script.
+.Pp
+If
+.Fl u
+is specified, the interface name in the script argument will be
+.Ql ifname:slaac:[RA-source-address] .
+.Pp
+If not, it will be
+.Ql ifname:slaac .
 .El
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact
