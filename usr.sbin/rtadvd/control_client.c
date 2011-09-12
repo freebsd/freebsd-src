@@ -55,7 +55,7 @@
 #include "control_client.h"
 
 int
-cmsg_handler_client(int fd, int state, char *buf_orig)
+cm_handler_client(int fd, int state, char *buf_orig)
 {
 	char buf[CM_MSG_MAXLEN];
 	struct ctrl_msg_hdr *cm;
@@ -91,17 +91,17 @@ cmsg_handler_client(int fd, int state, char *buf_orig)
 			break;
 		case CM_STATE_MSG_DISPATCH:
 			cm->cm_version = CM_VERSION;
-			error = cmsg_send(fd, buf);
+			error = cm_send(fd, buf);
 			if (error)
 				syslog(LOG_WARNING,
-				    "<%s> cmsg_send()", __func__);
+				    "<%s> cm_send()", __func__);
 			state = CM_STATE_ACK_WAIT;
 			break;
 		case CM_STATE_ACK_WAIT:
-			error = cmsg_recv(fd, buf);
+			error = cm_recv(fd, buf);
 			if (error) {
 				syslog(LOG_ERR,
-				    "<%s> cmsg_recv()", __func__);
+				    "<%s> cm_recv()", __func__);
 				close(fd);
 				return (-1);
 			}
