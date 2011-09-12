@@ -766,7 +766,7 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
-	int error = 0;
+	int error;
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
@@ -777,6 +777,7 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	error = ttydevsw_cioctl(tp, dev2unit(dev), cmd, data, td);
 	if (error != ENOIOCTL)
 		goto done;
+	error = 0;
 
 	switch (cmd) {
 	case TIOCGETA:
