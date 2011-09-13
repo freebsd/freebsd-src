@@ -192,7 +192,7 @@ auth_lookuprecord(char *server, struct srvrecord *auth)
 			goto close;
 		}
 		/* Skip the rest of this line, it isn't what we are looking for. */
-		if (strcmp(auth->server, server) != 0)
+		if (strcasecmp(auth->server, server) != 0)
 			continue;
 		error = auth_parsetoken(&line, auth->client,
 		    sizeof(auth->client));
