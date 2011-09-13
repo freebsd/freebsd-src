@@ -127,7 +127,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tUv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -212,6 +212,9 @@ main(int argc, char **argv)
 		case 's':
 			argappend(&mdconfig_arg, "-s %s", optarg);
 			break;
+		case 't':
+			argappend(&newfs_arg, "-t");
+			break;
 		case 'U':
 			softdep = true;
 			break;
@@ -282,7 +285,7 @@ argappend(char **dstp, const char *fmt, ...)
 {
 	char *old, *new;
 	va_list ap;
-	
+
 	old = *dstp;
 	assert(old != NULL);
 
@@ -417,7 +420,7 @@ do_mdconfig_detach(void)
 	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
 		warnx("mdconfig (detach) exited with error code %d (ignored)",
-		      rv);
+		    rv);
 }
 
 /*
@@ -656,7 +659,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-DLlMNnPSUX] [-a maxcontig] [-b block-size]\n"
+"usage: %s [-DLlMNnPStUX] [-a maxcontig] [-b block-size]\n"
 "\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
 "\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
 "\t[-O optimization] [-o mount-options]\n"
