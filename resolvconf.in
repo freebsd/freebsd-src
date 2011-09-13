@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2009 Roy Marples
+# Copyright (c) 2007-2011 Roy Marples
 # All rights reserved
 
 # Redistribution and use in source and binary forms, with or without
@@ -187,6 +187,41 @@ uniqify()
 	echo "${result# *}"
 }
 
+dirname()
+{
+	local dir= OIFS="$IFS"
+	local IFS=/
+	set -- $@
+	IFS="$OIFS"
+	if [ -n "$1" ]; then
+		printf %s .
+	else
+		shift
+	fi
+	while [ -n "$2" ]; do
+		printf "/%s" "$1"
+		shift
+	done
+	printf "\n"
+}
+
+config_mkdirs()
+{
+	local e=0 f d
+	for f; do
+		[ -n "$f" ] || continue
+		d="$(dirname "$f")"
+		if [ ! -d "$d" ]; then
+			if type install >/dev/null 2>&1; then
+				install -d "$d" || e=$?
+			else
+				mkdir "$d" || e=$?
+			fi
+		fi
+	done
+	return $e
+}
+
 list_resolv()
 {
 	[ -d "$IFACEDIR" ] || return 0
@@ -197,7 +232,7 @@ list_resolv()
 	# If we have an interface ordering list, then use that.
 	# It works by just using pathname expansion in the interface directory.
 	if [ -n "$1" ]; then
-		list="$@"
+		list="$*"
 		$force || report=true
 	else
 		cd "$IFACEDIR"
@@ -230,7 +265,7 @@ list_resolv()
 		fi
 		
 		if [ "$cmd" = i -o "$cmd" = "-i" ]; then
-			printf "$i "
+			printf %s "$i "
 		else
 			echo_resolv "$i"
 		fi
@@ -274,7 +309,7 @@ make_vars()
 }
 
 force=false
-while getopts a:d:fhIilm:puv OPT; do
+while getopts a:Dd:fhIilm:puv OPT; do
 	case "$OPT" in
 	f) force=true;;
 	h) usage;;
@@ -285,13 +320,19 @@ while getopts a:d:fhIilm:puv OPT; do
 	esac
 done
 shift $(($OPTIND - 1))
-args="$iface${iface:+ }$@"
+args="$iface${iface:+ }$*"
 
 # -I inits the state dir
 if [ "$cmd" = I ]; then
 	if [ -d "$VARDIR" ]; then
 		rm -rf "$VARDIR"/*
 	fi
+	exit $?
+fi
+
+# -D ensures that the listed config file base dirs exist
+if [ "$cmd" = D ]; then
+	config_mkdirs "$@"
 	exit $?
 fi
 
@@ -368,17 +409,17 @@ fi
 
 if [ "$cmd" = a ]; then
 	# Read resolv.conf from stdin
-	resolv="$(cat)\n"
+	resolv="$(cat)"
 	# If what we are given matches what we have, then do nothing
 	if [ -e "$IFACEDIR/$iface" ]; then
-		if [ "$(printf "$resolv")" = \
+		if [ "$(echo "$resolv")" = \
 			"$(cat "$IFACEDIR/$iface")" ]
 		then
 			exit 0
 		fi
 		rm "$IFACEDIR/$iface"
 	fi
-	printf "$resolv" >"$IFACEDIR/$iface" || exit $?
+	echo "$resolv" >"$IFACEDIR/$iface" || exit $?
 	[ ! -d "$METRICDIR" ] && mkdir "$METRICDIR"
 	rm -f "$METRICDIR/"*" $iface"
 	if [ -n "$IF_METRIC" ]; then
@@ -413,7 +454,7 @@ for script in "$LIBEXECDIR"/*; do
 		if [ -x "$script" ]; then
 			"$script" "$cmd" "$iface"
 		else
-			(. "$script" "$cmd" "$iface")
+			(set -- "$cmd" "$iface"; . "$script")
 		fi
 		retval=$(($retval + $?))
 	fi
