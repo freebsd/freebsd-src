@@ -126,8 +126,16 @@ ifconfig_up()
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
+			# backward compatibility: inet6 keyword
+			case "${ifconfig_args}" in
+			:*|[0-9a-fA-F]*:*)
+				warn "\$ifconfig_$1_ipv6 needs " \
+				    "\"inet6\" keyword for an IPv6 address."
+				ifconfig_args="inet6 ${ifconfig_args}"
+			;;
+			esac
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 ${ifconfig_args}
+			eval ifconfig $1 ${ifconfig_args}
 			_cfg=0
 		fi
 
@@ -137,7 +145,7 @@ ifconfig_up()
 			warn "\$ipv6_ifconfig_$1 is obsolete." \
 			    "  Use ifconfig_$1_ipv6 instead."
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 inet6 ${ifconfig_args}
+			eval ifconfig $1 inet6 ${ifconfig_args}
 			_cfg=0
 		fi
 	fi
