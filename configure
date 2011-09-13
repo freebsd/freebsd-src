@@ -9,7 +9,7 @@ TARGET=
 RESTARTCMD=
 RCDIR=
 
-for x; do
+for x do
 	opt=${x%%=*}
 	var=${x#*=}
 	case "$opt" in
