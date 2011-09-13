@@ -614,7 +614,9 @@ struct ip6_mtuinfo {
 #define	IPV6CTL_NO_RADR		48	/* No defroute from RA */
 #define	IPV6CTL_NORBIT_RAIF	49	/* Disable R-bit in NA on RA
 					 * receiving IF. */
-#define	IPV6CTL_MAXID		50
+#define	IPV6CTL_RFC6204W3	50	/* Accept defroute even when forwarding
+					   enabled */
+#define	IPV6CTL_MAXID		51
 #endif /* __BSD_VISIBLE */
 
 /*
