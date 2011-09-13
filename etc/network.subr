@@ -113,6 +113,12 @@ ifconfig_up()
 			;;
 		esac
 
+		case $ipv6_cpe_wanif in
+		$1)
+			_ipv6_opts="${_ipv6_opts} -no_radr accept_rtadv"
+		;;
+		esac
+
 		if [ -n "${_ipv6_opts}" ]; then
 			ifconfig $1 inet6 ${_ipv6_opts}
 		fi
