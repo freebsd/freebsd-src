@@ -61,6 +61,11 @@ OLD_LIBS+=usr/lib32/libopie.so.6
 OLD_LIBS+=usr/lib32/librtld_db.so.1
 OLD_LIBS+=usr/lib32/libtacplus.so.4
 .endif
+# 20110718: no longer useful in the age of rc.d
+OLD_FILES+=usr/sbin/named.reconfig
+OLD_FILES+=usr/sbin/named.reload
+# 20110716: bind 9.8.0 import
+OLD_LIBS+=usr/lib/liblwres.so.50
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.
