@@ -1342,7 +1342,6 @@ ath_handle_intr(void *arg, int npending)
 	HAL_INT status;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
-	uint32_t txqs;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1378,20 +1377,6 @@ ath_handle_intr(void *arg, int npending)
 	}
 	if (status & HAL_INT_TX) {
 		ath_tx_proc(sc, 1);
-	}
-
-	/*
-	 * If at this point, any of the TX interrupt status lines are
-	 * active, we've messed up. These should only be updated in
-	 * ath_intr().
-	 */
-	txqs = 0xff;
-	ath_hal_gettxintrtxqs(ah, &txqs);
-	if (txqs != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: unserviced TXQs: txq mask=0x%.08x, int status=0x%.08x\n",
-		    __func__, txqs, status);
-		/* XXX since it's been cleared, there's no way to fix it.. */
 	}
 
 	/*
