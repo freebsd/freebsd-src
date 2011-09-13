@@ -188,7 +188,7 @@ auth_lookuprecord(char *server, struct srvrecord *auth)
 		error = auth_parsetoken(&line, auth->server,
 		    sizeof(auth->server));
 		if (error != STATUS_SUCCESS) {
-			lprintf(-1, "%s:%d Missng client name\n", authfile, linenum);
+			lprintf(-1, "%s:%d Missing client name\n", authfile, linenum);
 			goto close;
 		}
 		/* Skip the rest of this line, it isn't what we are looking for. */
@@ -197,13 +197,13 @@ auth_lookuprecord(char *server, struct srvrecord *auth)
 		error = auth_parsetoken(&line, auth->client,
 		    sizeof(auth->client));
 		if (error != STATUS_SUCCESS) {
-			lprintf(-1, "%s:%d Missng password\n", authfile, linenum);
+			lprintf(-1, "%s:%d Missing password\n", authfile, linenum);
 			goto close;
 		}
 		error = auth_parsetoken(&line, auth->password,
 		    sizeof(auth->password));
 		if (error != STATUS_SUCCESS) {
-			lprintf(-1, "%s:%d Missng comment\n", authfile, linenum);
+			lprintf(-1, "%s:%d Missing comment\n", authfile, linenum);
 			goto close;
 		}
 		stream_close(s);
