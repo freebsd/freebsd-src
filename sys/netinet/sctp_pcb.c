@@ -4291,6 +4291,16 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)) {
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED)) {
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+			*error = EINVAL;
+			return (NULL);
+		}
+	}
 	SCTPDBG(SCTP_DEBUG_PCB3, "Allocate an association for peer:");
 #ifdef SCTP_DEBUG
 	if (firstaddr) {
