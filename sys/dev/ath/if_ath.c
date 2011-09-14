@@ -4314,7 +4314,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *last;
-	struct ath_desc *ds, *ds0;
+	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
@@ -4333,7 +4333,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (bf == NULL) {
 			break;
 		}
-		ds0 = &bf->bf_desc[0];
 		ds = bf->bf_lastds;	/* XXX must be setup correctly! */
 		ts = &bf->bf_status.ds_txstat;
 		status = ath_hal_txprocdesc(ah, ds, ts);
