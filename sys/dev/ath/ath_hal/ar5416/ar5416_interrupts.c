@@ -68,6 +68,7 @@ HAL_BOOL
 ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 {
 	uint32_t isr, isr0, isr1, sync_cause = 0;
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
 	/*
 	 * Verify there's a mac interrupt and the RTC is on.
@@ -110,9 +111,22 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 				mask2 |= HAL_INT_CST;	
 			if (isr2 & AR_ISR_S2_TSFOOR)
 				mask2 |= HAL_INT_TSFOOR;
+
+			/* XXX TXURN? */
+
+			/*
+			 * Don't mask out AR_BCNMISC; instead mask
+			 * out what causes it.
+			 */
+			if (! pCap->halUseIsrRac) {
+				OS_REG_WRITE(ah, AR_ISR_S2, isr2);
+				isr &= ~AR_ISR_BCNMISC;
+			}
 		}
 
-		isr = OS_REG_READ(ah, AR_ISR_RAC);
+		if (pCap->halUseIsrRac)
+			isr = OS_REG_READ(ah, AR_ISR_RAC);
+
 		if (isr == 0xffffffff) {
 			*masked = 0;
 			return AH_FALSE;
@@ -130,26 +144,62 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		 */
 
 		*masked = isr & HAL_INT_COMMON;
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR | AR_ISR_RXMINTR | AR_ISR_RXINTM))
+		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR | AR_ISR_RXMINTR |
+		    AR_ISR_RXINTM))
 			*masked |= HAL_INT_RX;
-		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL | AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
+		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR |
+		    AR_ISR_TXEOL | AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
 			*masked |= HAL_INT_TX;
-			isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
+			if (pCap->halUseIsrRac) {
+				isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
+				isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
+			} else {
+				isr0 = OS_REG_READ(ah, AR_ISR_S0);
+				OS_REG_WRITE(ah, AR_ISR_S0, isr0);
+				isr1 = OS_REG_READ(ah, AR_ISR_S1);
+				OS_REG_WRITE(ah, AR_ISR_S1, isr1);
+
+				/*
+				 * Don't clear the primary ISR TX bits, clear
+				 * what causes them (S0/S1.)
+				 */
+				isr &= ~(AR_ISR_TXOK | AR_ISR_TXDESC |
+				    AR_ISR_TXERR | AR_ISR_TXEOL);
+			}
 			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXOK);
 			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXDESC);
-			isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
 		}
 
 		if (AR_SREV_MERLIN(ah) || AR_SREV_KITE(ah)) {
 			uint32_t isr5;
-			isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
+			if (pCap->halUseIsrRac) {
+				isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
+			} else {
+				isr5 = OS_REG_READ(ah, AR_ISR_S5);
+				OS_REG_WRITE(ah, AR_ISR_S5, isr5);
+				isr &= ~AR_ISR_GENTMR;
+			}
 			if (isr5 & AR_ISR_S5_TIM_TIMER)
 				*masked |= HAL_INT_TIM_TIMER;
 		}
-
 		*masked |= mask2;
+	}
+
+	if (! pCap->halUseIsrRac) {
+		/*
+		 * If we're not using AR_ISR_RAC, clear the status bits
+		 * for handled interrupts here. For bits whose interrupt
+		 * source is a secondary register, those bits should've been
+		 * masked out - instead of those bits being written back,
+		 * their source (ie, the secondary status registers) should
+		 * be cleared. That way there are no race conditions with
+		 * new triggers coming in whilst they've been read/cleared.
+		 */
+		OS_REG_WRITE(ah, AR_ISR, isr);
+		/* Flush previous write */
+		OS_REG_READ(ah, AR_ISR);
 	}
 
 	if (AR_SREV_HOWL(ah))
