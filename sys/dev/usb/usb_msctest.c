@@ -182,6 +182,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = sizeof(struct bbb_cbw),
+		.flags = {.ext_buffer = 1,},
 		.callback = &bbb_command_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -191,7 +192,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -210,7 +211,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,},
 		.callback = &bbb_data_write_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -229,7 +230,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = sizeof(struct bbb_csw),
-		.flags = {.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_status_callback,
 		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
