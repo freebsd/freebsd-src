@@ -1,12 +1,12 @@
 Things to debug!
 ----------------
 
-The txqactive bitmap (txeol, txurn, txok, etc) is setup at txq create
-time to a set of values, then it seems after a channel scan all of the
-bits are set to 1. I'm not yet sure why. Go in and fix these.
-Note that ath9k caches the IMR_S2 value and rewrites it where needed.
-It's possible that after a channel scan, these values are "initial"
-values rather than the values setup by the if_ath driver.
+* The txqactive bitmap (txeol, txurn, txok, etc) is setup at txq create
+  time to a set of values, then it seems after a channel scan all of the
+  bits are set to 1. I'm not yet sure why. Go in and fix these.
+  Note that ath9k caches the IMR_S2 value and rewrites it where needed.
+  It's possible that after a channel scan, these values are "initial"
+  values rather than the values setup by the if_ath driver.
 
 < adrian> oh that's a fun bug. if I trigger A-MPDU using an aggregate UDP TX, I'm out of buffers
 < adrian> (as they're all locked up in pending queues)
@@ -23,14 +23,6 @@ values rather than the values setup by the if_ath driver.
 * Am I losing an ath_buf in the hardware TX queue code? Ie, are they not
   ever queued?
   - No
-
-* Is it some missing sequence numbers? ie, is addto_baw being called with
-  sequence numbers out of order, or "gaps" in the sequence numbers?
-  - Yes, if the frame is queued via ath_tx_swq() but it's never submitted
-    to the hardware; it never gets added to the BAW.
-  - The solution here is to modify the whole TX aggr pipeline to allocate
-    seqno's just as a frame is to be queued to the hardware the first time,
-    rather than in ath_tx_start().
 
 * Although it's a nice idea to run completion handlers in the ath task
   context (making scheduling and completion occur in a mutually exclusive
@@ -69,6 +61,16 @@ values rather than the values setup by the if_ath driver.
 
 Things that need doing!
 -----------------------
+
+* The txactive bits are set in the interrupt handler context, and cleared
+  in the TX completion process context. Since TX interrupts may occur
+  during a TX completion process, it's unfortunately likely that this
+  will be very racey and end up missing perfectly valid TX events.
+  This should be resolved before things are merged into -HEAD.
+
+  Maybe store the txqactive mask away in ath_softc and put the update
+  of said ath_softc version behind an atomic operation or lock. That way
+  the HAL doesn't have to change (for now).
 
 * When off-channel, aggregate traffic should stay queued, but raw
   frames (eg probes) should be sent?
