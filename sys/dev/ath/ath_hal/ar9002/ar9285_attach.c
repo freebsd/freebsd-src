@@ -421,7 +421,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	/* XXX bluetooth */
 	pCap->halBtCoexSupport = AH_TRUE;
 #endif
-	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
+	pCap->halAutoSleepSupport = AH_TRUE;	/* XXX? */
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
 	/* Disable this so Block-ACK works correctly */
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
