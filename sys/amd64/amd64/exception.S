@@ -393,14 +393,8 @@ IDTVEC(fast_syscall)
 	/* Check for and handle AST's on return to userland. */
 	movq	PCPU(CURTHREAD),%rax
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
-	je	2f
-	sti
-	movq	%rsp, %rdi
-	call	ast
-	jmp	1b
-
-	.align	16
-2:	/* Restore preserved registers. */
+	jne	2f
+	/* Restore preserved registers. */
 	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
 	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
@@ -408,10 +402,16 @@ IDTVEC(fast_syscall)
 	movq	TF_RAX(%rsp),%rax	/* return value 1 */
 	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
-	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
-	movq	%r9,%rsp		/* original %rsp */
+	movq	TF_RSP(%rsp),%rsp	/* user stack pointer */
 	swapgs
 	sysretq
+
+2:	/* AST scheduled. */
+	sti
+	movq	%rsp,%rdi
+	call	ast
+	jmp	1b
+
 3:	/* Requested full context restore, use doreti for that. */
 	MEXITCOUNT
 	jmp	doreti
