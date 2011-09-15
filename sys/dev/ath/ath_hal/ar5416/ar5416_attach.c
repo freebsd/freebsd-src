@@ -170,6 +170,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nAggrLast		= ar5416Set11nAggrLast;
 	ah->ah_clr11nAggr		= ar5416Clr11nAggr;
 	ah->ah_set11nBurstDuration	= ar5416Set11nBurstDuration;
+	ah->ah_get_mib_cycle_counts_pct	= ar5416GetMibCycleCountsPct;
 	ah->ah_get11nExtBusy		= ar5416Get11nExtBusy;
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
