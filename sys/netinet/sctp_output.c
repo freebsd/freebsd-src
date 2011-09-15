@@ -3541,7 +3541,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
 				    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 					*error = EINVAL;
-					return (-1);
+					return (1);
 				}
 				if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL,
 				    SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
@@ -3564,7 +3564,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				if (IN6_IS_ADDR_UNSPECIFIED(&sin6.sin6_addr) ||
 				    IN6_IS_ADDR_MULTICAST(&sin6.sin6_addr)) {
 					*error = EINVAL;
-					return (-1);
+					return (1);
 				}
 #ifdef INET
 				if (IN6_IS_ADDR_V4MAPPED(&sin6.sin6_addr)) {
@@ -3573,7 +3573,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
 					    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 						*error = EINVAL;
-						return (-1);
+						return (1);
 					}
 					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL,
 					    SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
