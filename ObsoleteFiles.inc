@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110915: rename congestion control manpages
+OLD_FILES+=usr/share/man/man4/cc.4.gz
+OLD_FILES+=usr/share/man/man9/cc.9.gz
 # 20110831: atomic page flags operations
 OLD_FILES+=usr/share/man/man9/vm_page_flag.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_flag_clear.9.gz
