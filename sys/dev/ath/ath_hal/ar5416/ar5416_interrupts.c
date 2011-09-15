@@ -144,12 +144,29 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		 */
 
 		*masked = isr & HAL_INT_COMMON;
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR | AR_ISR_RXMINTR |
-		    AR_ISR_RXINTM))
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM)) {
 			*masked |= HAL_INT_RX;
-		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR |
-		    AR_ISR_TXEOL | AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
+		}
+		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
 			*masked |= HAL_INT_TX;
+		}
+#endif
+
+		/*
+		 * Don't signal this when doing interrupt mitigation
+		 */
+#ifndef	AH_AR5416_INTERRUPT_MITIGATION
+		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
+			*masked |= HAL_INT_RX;
+#endif
+
+		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL)) {
+
+#ifndef	AH_AR5416_INTERRUPT_MITIGATION
+			*masked |= HAL_INT_TX;
+#endif
+
 			if (pCap->halUseIsrRac) {
 				isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
 				isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
