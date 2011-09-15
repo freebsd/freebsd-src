@@ -6080,6 +6080,15 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 	struct sockaddr *sa;
 	size_t incr = 0;
 
+#ifdef INET
+	struct sockaddr_in *sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+
+#endif
+
 	sa = addr;
 	inp = stcb->sctp_ep;
 	*error = 0;
@@ -6088,6 +6097,15 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 #ifdef INET
 		case AF_INET:
 			incr = sizeof(struct sockaddr_in);
+			sin = (struct sockaddr_in *)sa;
+			if ((sin->sin_addr.s_addr == INADDR_ANY) ||
+			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_7);
+				*error = EINVAL;
+				goto out_now;
+			}
 			if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
@@ -6101,6 +6119,14 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 #ifdef INET6
 		case AF_INET6:
 			incr = sizeof(struct sockaddr_in6);
+			sin6 = (struct sockaddr_in6 *)sa;
+			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
+			    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_8);
+				*error = EINVAL;
+				goto out_now;
+			}
 			if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
