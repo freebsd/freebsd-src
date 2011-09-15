@@ -2819,9 +2819,14 @@ ath_bstuck_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t hangs = 0;
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0)
+		if_printf(ifp, "bb hang detected (0x%x)\n", hangs);
 
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
+
 	sc->sc_stats.ast_bstuck++;
 	ath_reset(ifp);
 }
