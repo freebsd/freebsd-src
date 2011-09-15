@@ -644,10 +644,10 @@ bpf_dtor(void *data)
 	if (d->bd_bif)
 		bpf_detachd(d);
 	mtx_unlock(&bpf_mtx);
-	selwakeuppri(&d->bd_sel, PRINET);
 #ifdef MAC
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
+	seldrain(&d->bd_sel);
 	knlist_destroy(&d->bd_sel.si_note);
 	callout_drain(&d->bd_callout);
 	bpf_freed(d);

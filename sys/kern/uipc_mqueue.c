@@ -1553,6 +1553,8 @@ mqueue_free(struct mqueue *mq)
 	}
 
 	mtx_destroy(&mq->mq_mutex);
+	seldrain(&mq->mq_rsel);
+	seldrain(&mq->mq_wsel);
 	knlist_destroy(&mq->mq_rsel.si_note);
 	knlist_destroy(&mq->mq_wsel.si_note);
 	uma_zfree(mqueue_zone, mq);

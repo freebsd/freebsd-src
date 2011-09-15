@@ -1442,6 +1442,23 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 	uma_zfree(selfd_zone, sfp);
 }
 
+/* Drain the waiters tied to all the selfd belonging the specified selinfo. */
+void
+seldrain(sip)
+        struct selinfo *sip;
+{
+
+	/*
+	 * This feature is already provided by doselwakeup(), thus it is
+	 * enough to go for it.
+	 * Eventually, the context, should take care to avoid races
+	 * between thread calling select()/poll() and file descriptor
+	 * detaching, but, again, the races are just the same as
+	 * selwakeup().
+	 */
+        doselwakeup(sip, -1);
+}
+
 /*
  * Record a select request.
  */

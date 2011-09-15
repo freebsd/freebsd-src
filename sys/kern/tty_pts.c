@@ -698,6 +698,8 @@ ptsdrv_free(void *softc)
 	chgptscnt(psc->pts_uidinfo, -1, 0);
 	uifree(psc->pts_uidinfo);
 
+	seldrain(&psc->pts_inpoll);
+	seldrain(&psc->pts_outpoll);
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
 
