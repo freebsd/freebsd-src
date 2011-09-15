@@ -45,6 +45,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp3.ie.freebsd.org 	"IPv6 Ireland"\
 	ftp://ftp.il.freebsd.org 	"IPv6 Israel"\
 	ftp://ftp2.jp.freebsd.org 	"IPv6 Japan"\
+	ftp://ftp4.se.freebsd.org	"IPv6 Sweden"\
 	ftp://ftp4.us.freebsd.org 	"IPv6 USA"\
 	ftp://ftp2.tr.freebsd.org 	"IPv6 Turkey"\
 	ftp://ftp1.freebsd.org 	"Primary"\
@@ -84,11 +85,12 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp.ee.freebsd.org 	"Estonia"\
 	ftp://ftp.fi.freebsd.org 	"Finland"\
 	ftp://ftp.fr.freebsd.org 	"France"\
-	ftp://ftp2.fr.freebsd.org 	"France #2"\
+	ftp://ftp2.fr.freebsd.org 	"IPv6 France #2"\
 	ftp://ftp3.fr.freebsd.org 	"France #3"\
+	ftp://ftp4.fr.freebsd.org 	"France #4"\
 	ftp://ftp5.fr.freebsd.org 	"France #5"\
 	ftp://ftp6.fr.freebsd.org 	"France #6"\
-	ftp://ftp8.fr.freebsd.org 	"France #8"\
+	ftp://ftp8.fr.freebsd.org 	"IPv6 France #8"\
 	ftp://ftp.de.freebsd.org 	"Germany"\
 	ftp://ftp2.de.freebsd.org 	"Germany #2"\
 	ftp://ftp3.de.freebsd.org 	"Germany #3"\
@@ -190,7 +192,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 MIRROR_BUTTON=$?
 exec 3>&-
 
-BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/releases/`uname -p`/`uname -m`/`uname -r`"
+BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/releases/`uname -m`/`uname -p`/`uname -r`"
 
 case $MIRROR_BUTTON in
 $DIALOG_CANCEL)

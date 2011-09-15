@@ -78,8 +78,10 @@ echo $INTERFACE $IF_CONFIG |
 
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	. $BSDINSTALL_TMPETC/._rc.conf.net
-	ifconfig $INTERFACE inet `eval echo \\\$ifconfig_$INTERFACE`
-	route delete -inet default
-	route add -inet default $defaultrouter
+	ifconfig $INTERFACE `eval echo \\\$ifconfig_$INTERFACE`
+	if [ -n "${defaultrouter}" ]; then
+		route delete -inet default
+		route add -inet default $defaultrouter
+	fi
 fi
 

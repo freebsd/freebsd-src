@@ -371,7 +371,7 @@ print_jail(int pflags, int jflags)
 		    *(int *)params[5].jp_value);
 		n = 6;
 #ifdef INET
-		if (ip4_ok && !strcmp(params[n].jp_name, "ip.addr")) {
+		if (ip4_ok && !strcmp(params[n].jp_name, "ip4.addr")) {
 			count = params[n].jp_valuelen / sizeof(struct in_addr);
 			for (ai = 0; ai < count; ai++)
 				if (inet_ntop(AF_INET,

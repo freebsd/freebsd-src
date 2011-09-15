@@ -92,7 +92,7 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 	PASS=`dialog --insecure --backtitle "FreeBSD Installer" \
 	    --title "WPA Setup" --mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
-		"Password" 2 0 "" 2 12 15 0 1 \
+		"Password" 2 0 "" 2 12 15 63 1 \
 		2>&1 1>&3` \
 	|| exec $0 $@
 	exec 3>&-

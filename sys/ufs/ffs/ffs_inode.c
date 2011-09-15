@@ -120,18 +120,6 @@ ffs_update(vp, waitfor)
 	}
 }
 
-void
-ffs_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
-{
-	vm_object_t object;
-
-	if ((object = vp->v_object) == NULL)
-		return;
-	VM_OBJECT_LOCK(object);
-	vm_object_page_remove(object, start, end, 0);
-	VM_OBJECT_UNLOCK(object);
-}
-
 #define	SINGLE	0	/* index of single indirect block */
 #define	DOUBLE	1	/* index of double indirect block */
 #define	TRIPLE	2	/* index of triple indirect block */
@@ -219,7 +207,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
-			ffs_pages_remove(vp,
+			vn_pages_remove(vp,
 			    OFF_TO_IDX(lblktosize(fs, -extblocks)), 0);
 			osize = ip->i_din2->di_extsize;
 			ip->i_din2->di_blocks -= extblocks;

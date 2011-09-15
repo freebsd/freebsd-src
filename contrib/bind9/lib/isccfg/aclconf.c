@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.29 2010-08-13 23:47:03 tbox Exp $ */
+/* $Id: aclconf.c,v 1.29.72.2 2011-06-17 23:47:11 tbox Exp $ */
 
 #include <config.h>
 
@@ -33,39 +33,70 @@
 
 #define LOOP_MAGIC ISC_MAGIC('L','O','O','P')
 
-void
-cfg_aclconfctx_init(cfg_aclconfctx_t *ctx) {
-	ISC_LIST_INIT(ctx->named_acl_cache);
+isc_result_t
+cfg_aclconfctx_create(isc_mem_t *mctx, cfg_aclconfctx_t **ret) {
+	isc_result_t result;
+	cfg_aclconfctx_t *actx;
+
+	REQUIRE(mctx != NULL);
+	REQUIRE(ret != NULL && *ret == NULL);
+
+	actx = isc_mem_get(mctx, sizeof(*actx));
+	if (actx == NULL)
+		return (ISC_R_NOMEMORY);
+
+	result = isc_refcount_init(&actx->references, 1);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	actx->mctx = NULL;
+	isc_mem_attach(mctx, &actx->mctx);
+	ISC_LIST_INIT(actx->named_acl_cache);
+
+	*ret = actx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	isc_mem_put(mctx, actx, sizeof(*actx));
+	return (result);
 }
 
 void
-cfg_aclconfctx_clear(cfg_aclconfctx_t *ctx) {
-	dns_acl_t *dacl, *next;
+cfg_aclconfctx_attach(cfg_aclconfctx_t *src, cfg_aclconfctx_t **dest) {
+	REQUIRE(src != NULL);
+	REQUIRE(dest != NULL && *dest == NULL);
 
-	for (dacl = ISC_LIST_HEAD(ctx->named_acl_cache);
-	     dacl != NULL;
-	     dacl = next)
-	{
-		next = ISC_LIST_NEXT(dacl, nextincache);
-		dns_acl_detach(&dacl);
-	}
+	isc_refcount_increment(&src->references, NULL);
+	*dest = src;
 }
 
 void
-cfg_aclconfctx_clone(cfg_aclconfctx_t *src, cfg_aclconfctx_t *dest) {
+cfg_aclconfctx_detach(cfg_aclconfctx_t **actxp) {
+	cfg_aclconfctx_t *actx;
 	dns_acl_t *dacl, *next;
-	REQUIRE(src != NULL && dest != NULL);
+	isc_mem_t *mctx;
+	unsigned int refs;
 
-	cfg_aclconfctx_init(dest);
-	for (dacl = ISC_LIST_HEAD(src->named_acl_cache);
-	     dacl != NULL;
-	     dacl = next)
-	{
-		dns_acl_t *copy;
-		next = ISC_LIST_NEXT(dacl, nextincache);
-		dns_acl_attach(dacl, &copy);
-		ISC_LIST_APPEND(dest->named_acl_cache, copy, nextincache);
+	REQUIRE(actxp != NULL && *actxp != NULL);
+
+	actx = *actxp;
+	mctx = actx->mctx;
+
+	isc_refcount_decrement(&actx->references, &refs);
+	if (refs == 0) {
+		for (dacl = ISC_LIST_HEAD(actx->named_acl_cache);
+		     dacl != NULL;
+		     dacl = next)
+		{
+			next = ISC_LIST_NEXT(dacl, nextincache);
+			ISC_LIST_UNLINK(actx->named_acl_cache, dacl,
+					nextincache);
+			dns_acl_detach(&dacl);
+		}
+		isc_mem_putanddetach(&actx->mctx, actx, sizeof(*actx));
 	}
+
+	*actxp = NULL;
 }
 
 /*

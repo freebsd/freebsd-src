@@ -213,9 +213,9 @@ procstat_kstack(struct kinfo_proc *kipp, int kflag)
 		printf("%5d ", kipp->ki_pid);
 		printf("%6d ", kkstp->kkst_tid);
 		printf("%-16s ", kipp->ki_comm);
-		printf("%-16s ", (strlen(kipp->ki_ocomm) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_ocomm) != 0)) ?
-		    kipp->ki_ocomm : "-");
+		printf("%-16s ", (strlen(kipp->ki_tdname) &&
+		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
+		    kipp->ki_tdname : "-");
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:

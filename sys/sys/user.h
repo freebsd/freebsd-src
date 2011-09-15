@@ -95,12 +95,17 @@
 
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	LOCKNAMELEN	8		/* size of returned lock name */
-#define	OCOMMLEN	16		/* size of returned thread name */
+#define	TDNAMLEN	16		/* size of returned thread name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
 #define KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
 #define	LOGINCLASSLEN	17		/* size of returned ki_loginclass */
+
+#ifndef BURN_BRIDGES
+#define	OCOMMLEN	TDNAMLEN	
+#define	ki_ocomm	ki_tdname
+#endif
 
 /* Flags for the process credential. */
 #define	KI_CRF_CAPABILITY_MODE	0x00000001
@@ -167,7 +172,7 @@ struct kinfo_proc {
 	char	ki_rqindex;		/* Run queue index */
 	u_char	ki_oncpu;		/* Which cpu we are on */
 	u_char	ki_lastcpu;		/* Last cpu we were on */
-	char	ki_ocomm[OCOMMLEN+1];	/* thread name */
+	char	ki_tdname[TDNAMLEN+1];	/* thread name */
 	char	ki_wmesg[WMESGLEN+1];	/* wchan message */
 	char	ki_login[LOGNAMELEN+1];	/* setlogin name */
 	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
@@ -246,6 +251,8 @@ struct user {
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
+/* no KF_TYPE_CAPABILITY (11), since capabilities wrap other file objects */
+#define	KF_TYPE_PROCDESC	12
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -281,6 +288,7 @@ struct user {
 #define	KF_FLAG_TRUNC		0x00001000
 #define	KF_FLAG_EXCL		0x00002000
 #define	KF_FLAG_EXEC		0x00004000
+#define	KF_FLAG_CAPABILITY	0x00008000
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
@@ -370,10 +378,15 @@ struct kinfo_file {
 			/* Round to 64 bit alignment. */
 			uint32_t	kf_pts_pad0[7];
 		} kf_pts;
+		struct {
+			pid_t		kf_pid;
+		} kf_proc;
 	} kf_un;
 	uint16_t	kf_status;		/* Status flags. */
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
-	int		_kf_ispare[7];		/* Space for more stuff. */
+	int		_kf_ispare0;		/* Space for more stuff. */
+	cap_rights_t	kf_cap_rights;		/* Capability rights. */
+	int		_kf_ispare[4];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };

@@ -155,6 +155,8 @@ static struct fileops pipeops = {
 	.fo_kqfilter = pipe_kqfilter,
 	.fo_stat = pipe_stat,
 	.fo_close = pipe_close,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -1515,6 +1517,7 @@ pipeclose(cpipe)
 	 */
 	knlist_clear(&cpipe->pipe_sel.si_note, 1);
 	cpipe->pipe_present = PIPE_FINALIZED;
+	seldrain(&cpipe->pipe_sel);
 	knlist_destroy(&cpipe->pipe_sel.si_note);
 
 	/*

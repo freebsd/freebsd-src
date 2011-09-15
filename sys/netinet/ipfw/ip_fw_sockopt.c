@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
  * the upper half of the ipfw code.
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#if !defined(KLD_MODULE)
 #include "opt_ipdivert.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
@@ -722,6 +722,17 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 #else
 			return EINVAL;
 #endif
+
+#ifdef INET6
+		case O_FORWARD_IP6:
+#ifdef IPFIREWALL_FORWARD
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa6))
+				goto bad_size;
+			goto check_action;
+#else
+			return (EINVAL);
+#endif
+#endif /* INET6 */
 
 		case O_DIVERT:
 		case O_TEE:

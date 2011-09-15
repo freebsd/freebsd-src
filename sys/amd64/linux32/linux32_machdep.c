@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/clock.h>
@@ -566,7 +567,7 @@ linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
 		 * protection options specified.
 		 */
 
-		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
+		if ((error = fget(td, bsd_args.fd, CAP_MMAP, &fp)) != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);

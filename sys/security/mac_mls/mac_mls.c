@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -13,6 +13,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1532,6 +1535,42 @@ mls_posixsem_check_rdonly(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
+mls_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mls_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
     struct ksem *ks, struct label *kslabel)
 {
@@ -1557,6 +1596,159 @@ mls_posixsem_create(struct ucred *cred, struct ksem *ks,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(kslabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, int prot, int flags)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, accmode_t accmode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+	if (accmode & VMODIFY_PERMS) {
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+    
+	return (0);
+}
+
+static void
+mls_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
 
 	mls_copy_effective(source, dest);
 }
@@ -3075,12 +3267,25 @@ static struct mac_policy_ops mls_ops =
 	.mpo_posixsem_check_getvalue = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = mls_posixsem_check_write,
+	.mpo_posixsem_check_setmode = mls_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = mls_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_unlink = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = mls_posixsem_check_write,
 	.mpo_posixsem_create = mls_posixsem_create,
 	.mpo_posixsem_destroy_label = mls_destroy_label,
 	.mpo_posixsem_init_label = mls_init_label,
+
+	.mpo_posixshm_check_mmap = mls_posixshm_check_mmap,
+	.mpo_posixshm_check_open = mls_posixshm_check_open,
+	.mpo_posixshm_check_setmode = mls_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = mls_posixshm_check_setowner,
+	.mpo_posixshm_check_stat = mls_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = mls_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = mls_posixshm_check_unlink,
+	.mpo_posixshm_create = mls_posixshm_create,
+	.mpo_posixshm_destroy_label = mls_destroy_label,
+	.mpo_posixshm_init_label = mls_init_label,
 
 	.mpo_proc_check_debug = mls_proc_check_debug,
 	.mpo_proc_check_sched = mls_proc_check_sched,

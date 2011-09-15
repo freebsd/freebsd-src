@@ -52,35 +52,39 @@ int ps3stor_setup(struct ps3_stordev *sd, int type)
 	if (err)
 		goto out;
 
-	err = ps3repo_read_bus_dev_id(sd->sd_busidx, sd->sd_devidx, &sd->sd_devid);
+	err = ps3repo_read_bus_dev_id(sd->sd_busidx, sd->sd_devidx,
+	    &sd->sd_devid);
 	if (err)
 		goto out;
 
-	err = ps3repo_read_bus_dev_blk_size(sd->sd_busidx, sd->sd_devidx, &sd->sd_blksize);
+	err = ps3repo_read_bus_dev_blk_size(sd->sd_busidx, sd->sd_devidx,
+	    &sd->sd_blksize);
 	if (err)
 		goto out;
 
-	err = ps3repo_read_bus_dev_nblocks(sd->sd_busidx, sd->sd_devidx, &sd->sd_nblocks);
+	err = ps3repo_read_bus_dev_nblocks(sd->sd_busidx, sd->sd_devidx,
+	    &sd->sd_nblocks);
 	if (err)
 		goto out;
 
-	err = ps3repo_read_bus_dev_nregs(sd->sd_busidx, sd->sd_devidx, &sd->sd_nregs);
+	err = ps3repo_read_bus_dev_nregs(sd->sd_busidx, sd->sd_devidx,
+	    &sd->sd_nregs);
 	if (err)
 		goto out;
 
 	for (i = 0; i < sd->sd_nregs; i++) {
-		err = ps3repo_read_bus_dev_reg_id(sd->sd_busidx, sd->sd_devidx, i,
-			&sd->sd_regs[i].sr_id);
+		err = ps3repo_read_bus_dev_reg_id(sd->sd_busidx, sd->sd_devidx,
+		    i, &sd->sd_regs[i].sr_id);
 		if (err)
 			goto out;
 
-		err = ps3repo_read_bus_dev_reg_start(sd->sd_busidx, sd->sd_devidx, i,
-			&sd->sd_regs[i].sr_start);
+		err = ps3repo_read_bus_dev_reg_start(sd->sd_busidx,
+		    sd->sd_devidx, i, &sd->sd_regs[i].sr_start);
 		if (err)
 			goto out;
 
-		err = ps3repo_read_bus_dev_reg_size(sd->sd_busidx, sd->sd_devidx, i,
-			&sd->sd_regs[i].sr_size);
+		err = ps3repo_read_bus_dev_reg_size(sd->sd_busidx,
+		    sd->sd_devidx, i, &sd->sd_regs[i].sr_size);
 		if (err)
 			goto out;
 	}
@@ -109,19 +113,20 @@ out:
 	return err;
 }
 
+static char dma_buf[2048] __aligned(2048);
+
 int ps3stor_read_sectors(struct ps3_stordev *sd, int regidx,
         uint64_t start_sector, uint64_t sector_count, uint64_t flags, char *buf)
 {
 #define MIN(a, b)			((a) <= (b) ? (a) : (b))
-#define BOUNCE_SECTORS			4
+#define BOUNCE_SECTORS			(sizeof(dma_buf) / sd->sd_blksize)
 #define ASYNC_STATUS_POLL_PERIOD	100 /* microseconds */
 
 	struct ps3_storreg *reg = &sd->sd_regs[regidx];
-	char dma_buf[sd->sd_blksize * BOUNCE_SECTORS];
 	uint64_t nleft, nread, nsectors;
 	uint64_t tag, status;
 	unsigned int timeout;
-	int err;
+	int err = 0;
 
 	nleft = sector_count;
 	nread = 0;
@@ -129,8 +134,9 @@ int ps3stor_read_sectors(struct ps3_stordev *sd, int regidx,
 	while (nleft) {
 		nsectors = MIN(nleft, BOUNCE_SECTORS);
 
-		err = lv1_storage_read(sd->sd_devid, reg->sr_id, start_sector + nread, nsectors,
-			flags, (uint32_t) dma_buf, &tag);
+		err = lv1_storage_read(sd->sd_devid, reg->sr_id,
+		    start_sector + nread, nsectors, flags, (uint32_t)dma_buf,
+		    &tag);
 		if (err)
 			return err;
 
@@ -140,7 +146,8 @@ int ps3stor_read_sectors(struct ps3_stordev *sd, int regidx,
 			if (timeout < ASYNC_STATUS_POLL_PERIOD)
 				return ETIMEDOUT;
 
-			err = lv1_storage_check_async_status(sd->sd_devid, tag, &status);
+			err = lv1_storage_check_async_status(sd->sd_devid, tag,
+			    &status);
 			if (!err && !status)
 				break;
 
@@ -148,12 +155,16 @@ int ps3stor_read_sectors(struct ps3_stordev *sd, int regidx,
 			timeout -= ASYNC_STATUS_POLL_PERIOD;
 		}
 
-		memcpy(buf + nread * sd->sd_blksize, (u_char *) dma_buf, nsectors * sd->sd_blksize);
+		if (status != 0)
+			return EIO;
+
+		memcpy(buf + nread * sd->sd_blksize, (u_char *)dma_buf,
+		    nsectors * sd->sd_blksize);
 		nread += nsectors;
 		nleft -= nsectors;
 	}
 
-	return 0;
+	return err;
 
 #undef MIN
 #undef BOUNCE_SECTORS

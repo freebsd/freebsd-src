@@ -3514,7 +3514,7 @@ next_code:
 	    case DBG:
 #ifndef SC_DISABLE_KDBKEY
 		if (enable_kdbkey)
-			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+			kdb_break();
 #endif
 		break;
 
@@ -3562,6 +3562,10 @@ next_code:
 	    /* goto next_code */
 	} else {
 	    /* regular keys (maybe MKEY is set) */
+#if !defined(SC_DISABLE_KDBKEY) && defined(KDB)
+	    if (enable_kdbkey)
+		kdb_alt_break(c, &sc->sc_altbrk);
+#endif
 	    if (!(sc->flags & SC_SCRN_BLANKED))
 		return c;
 	}

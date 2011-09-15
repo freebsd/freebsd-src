@@ -29,7 +29,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -38,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/mmio.h>
+#include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/fmn.h>
 #include <mips/nlm/hal/pic.h>

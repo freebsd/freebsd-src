@@ -3,10 +3,13 @@ mips/nlm/hal/fmn.c				standard
 mips/nlm/xlp_machdep.c				standard
 mips/nlm/intr_machdep.c				standard
 mips/nlm/tick.c					standard
-mips/nlm/iodi.c					standard
 mips/nlm/board.c				standard
 mips/nlm/cms.c					standard
-mips/nlm/bus_space_rmi.c                        standard
+mips/nlm/bus_space_rmi.c			standard
+mips/nlm/bus_space_rmi_pci.c			standard
 mips/nlm/mpreset.S				standard
-mips/nlm/uart_bus_xlp_iodi.c			optional uart
-mips/nlm/uart_cpu_mips_xlp.c			optional uart
+mips/nlm/xlp_pci.c				optional pci
+mips/nlm/intern_dev.c				optional pci
+mips/nlm/uart_pci_xlp.c				optional uart
+mips/nlm/uart_cpu_xlp.c				optional uart
+mips/nlm/usb_init.c				optional usb

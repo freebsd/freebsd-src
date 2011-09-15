@@ -45,6 +45,9 @@ if [ "x$1" = "x-b" ]; then
 EOF
 	bootable="$bootable -o chrp-boot"
 
+	# Playstation 3 boot code
+	echo "FreeBSD Install='/boot/loader.ps3'" > $4/etc/kboot.conf
+
 	shift
 else
 	bootable=""

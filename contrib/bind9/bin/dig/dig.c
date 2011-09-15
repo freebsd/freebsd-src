@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.237 2010-05-13 00:40:46 marka Exp $ */
+/* $Id: dig.c,v 1.237.124.3 2011-03-11 06:46:58 marka Exp $ */
 
 /*! \file */
 
@@ -43,8 +43,6 @@
 #include <dns/rdataclass.h>
 #include <dns/result.h>
 #include <dns/tsig.h>
-
-#include <bind9/getaddresses.h>
 
 #include <dig/dig.h>
 
@@ -478,8 +476,6 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 						   DNS_MESSAGETEXTFLAG_OMITSOA;
 	if (!query->lookup->comments)
 		flags |= DNS_MESSAGETEXTFLAG_NOCOMMENTS;
-
-	result = ISC_R_SUCCESS;
 
 	result = isc_buffer_allocate(mctx, &buf, len);
 	check_result(result, "isc_buffer_allocate");
@@ -1438,30 +1434,6 @@ preparse_args(int argc, char **argv) {
 }
 
 static void
-getaddresses(dig_lookup_t *lookup, const char *host) {
-	isc_result_t result;
-	isc_sockaddr_t sockaddrs[DIG_MAX_ADDRESSES];
-	isc_netaddr_t netaddr;
-	int count, i;
-	dig_server_t *srv;
-	char tmp[ISC_NETADDR_FORMATSIZE];
-
-	result = bind9_getaddresses(host, 0, sockaddrs,
-				    DIG_MAX_ADDRESSES, &count);
-	if (result != ISC_R_SUCCESS)
-	fatal("couldn't get address for '%s': %s",
-	      host, isc_result_totext(result));
-
-	for (i = 0; i < count; i++) {
-		isc_netaddr_fromsockaddr(&netaddr, &sockaddrs[i]);
-		isc_netaddr_format(&netaddr, tmp, sizeof(tmp));
-		srv = make_server(tmp, host);
-		ISC_LIST_APPEND(lookup->my_server_list, srv, link);
-	}
-	addresscount = count;
-}
-
-static void
 parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 	   int argc, char **argv) {
 	isc_result_t result;
@@ -1555,7 +1527,7 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 		if (strncmp(rv[0], "%", 1) == 0)
 			break;
 		if (strncmp(rv[0], "@", 1) == 0) {
-			getaddresses(lookup, &rv[0][1]);
+			addresscount = getaddresses(lookup, &rv[0][1]);
 		} else if (rv[0][0] == '+') {
 			plus_option(&rv[0][1], is_batchfile,
 				    lookup);
@@ -1592,7 +1564,6 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 						(isc_textregion_t *)&tr);
 					if (result == ISC_R_SUCCESS &&
 					    rdtype == dns_rdatatype_ixfr) {
-						result = DNS_R_UNKNOWN;
 						fprintf(stderr, ";; Warning, "
 							"ixfr requires a "
 							"serial number\n");

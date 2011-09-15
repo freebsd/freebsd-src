@@ -367,7 +367,9 @@ ums_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	void *d_ptr;
-	int error;
+	struct hid_data *hd;
+	struct hid_item hi;
+	int error, mdepth, found;
 	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
@@ -388,14 +390,44 @@ ums_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
-	if (hid_is_collection(d_ptr, d_len,
-	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = BUS_PROBE_DEFAULT;
-	else
-		error = ENXIO;
-
+	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
+	if (hd == NULL)
+		return (0);
+	mdepth = 0;
+	found = 0;
+	while (hid_get_item(hd, &hi)) {
+		switch (hi.kind) {
+		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
+		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
+		case hid_input:
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+				found++;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+				found++;
+			break;
+		default:
+			break;
+		}
+	}
+	hid_end_parse(hd);
 	free(d_ptr, M_TEMP);
-	return (error);
+	return (found ? BUS_PROBE_DEFAULT : ENXIO);
 }
 
 static void

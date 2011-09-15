@@ -213,6 +213,10 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# MAXCPU defines the maximum number of CPUs that can boot in the system.
+# A default value should be already present, for every architecture.
+options 	MAXCPU=32
+
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
 # CPU.  This behaviour is enabled by default, so this option can be used
@@ -493,16 +497,6 @@ options 	DIAGNOSTIC
 # impossible) scenarios.
 #
 options 	REGRESSION
-
-#
-# RESTARTABLE_PANICS allows one to continue from a panic as if it were
-# a call to the debugger to continue from a panic as instead.  It is only
-# useful if a kernel debugger is present.  To restart from a panic, reset
-# the panicstr variable to NULL and continue execution.  This option is
-# for development use only and should NOT be used in production systems
-# to "workaround" a panic.
-#
-#options 	RESTARTABLE_PANICS
 
 #
 # This option lets some drivers co-exist that can't co-exist in a running
@@ -1164,6 +1158,9 @@ options 	MAC_TEST
 # Support for Capsicum
 options 	CAPABILITIES	# fine-grained rights on file descriptors
 options 	CAPABILITY_MODE	# sandboxes with no global namespace access
+
+# Support for process descriptors
+options		PROCDESC
 
 
 #####################################################################
@@ -2932,7 +2929,6 @@ options 	SCSI_NCR_MYADDR=7
 options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
-options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack

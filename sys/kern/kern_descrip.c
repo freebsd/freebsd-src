@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pipe.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/protosw.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
@@ -120,6 +122,8 @@ static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
+static int	fill_procdesc_info(struct procdesc *pdp,
+    struct kinfo_file *kif);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -431,6 +435,26 @@ fdtofp(int fd, struct filedesc *fdp)
 	return (fp);
 }
 
+static inline int
+fdunwrap(int fd, cap_rights_t rights, struct filedesc *fdp, struct file **fpp)
+{
+
+	*fpp = fdtofp(fd, fdp);
+	if (*fpp == NULL)
+		return (EBADF);
+
+#ifdef CAPABILITIES
+	if ((*fpp)->f_type == DTYPE_CAPABILITY) {
+		int err = cap_funwrap(*fpp, rights, fpp);
+		if (err != 0) {
+			*fpp = NULL;
+			return (err);
+		}
+	}
+#endif /* CAPABILITIES */
+	return (0);
+}
+
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 {
@@ -489,9 +513,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETFL:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -500,9 +524,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETFL:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -532,9 +556,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETOWN:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -547,9 +571,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETOWN:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FCNTL, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		fhold(fp);
@@ -573,9 +597,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETLK:
 	do_setlk:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FLOCK, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
@@ -668,9 +692,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETLK:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		error = fdunwrap(fd, CAP_FLOCK, fdp, &fp);
+		if (error != 0) {
 			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
 			break;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1312,7 +1336,7 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 
 	AUDIT_ARG_FD(fd);
 
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_FSTAT, &fp)) != 0)
 		return (error);
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -1368,7 +1392,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	struct vnode *vp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_FPATHCONF, &fp)) != 0)
 		return (error);
 
 	/* If asynchronous I/O is available, it works for all descriptors. */
@@ -2294,7 +2318,7 @@ fget_unlocked(struct filedesc *fdp, int fd)
 #define	FGET_GETCAP	0x00000001
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t needrights, cap_rights_t *haverights, u_char *maxprotp,
+    cap_rights_t needrights, cap_rights_t *haverightsp, u_char *maxprotp,
     int fget_flags)
 {
 	struct filedesc *fdp;
@@ -2315,6 +2339,16 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 	}
 
 #ifdef CAPABILITIES
+	/*
+	 * If this is a capability, what rights does it have?
+	 */
+	if (haverightsp != NULL) {
+		if (fp->f_type == DTYPE_CAPABILITY)
+			*haverightsp = cap_rights(fp);
+		else
+			*haverightsp = CAP_MASK_VALID;
+	}
+
 	/*
 	 * If a capability has been requested, return the capability directly.
 	 * Otherwise, check capability rights, extract the underlying object,
@@ -2369,28 +2403,36 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 }
 
 int
-fget(struct thread *td, int fd, struct file **fpp)
+fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, 0, 0, NULL, NULL, 0));
+	return(_fget(td, fd, fpp, 0, rights, NULL, NULL, 0));
 }
 
 int
-fget_read(struct thread *td, int fd, struct file **fpp)
+fget_mmap(struct thread *td, int fd, cap_rights_t rights, u_char *maxprotp,
+    struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FREAD, 0, NULL, NULL, 0));
+	return (_fget(td, fd, fpp, 0, rights, NULL, maxprotp, 0));
 }
 
 int
-fget_write(struct thread *td, int fd, struct file **fpp)
+fget_read(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FWRITE, 0, NULL, NULL, 0));
+	return(_fget(td, fd, fpp, FREAD, rights, NULL, NULL, 0));
+}
+
+int
+fget_write(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
+{
+
+	return (_fget(td, fd, fpp, FWRITE, rights, NULL, NULL, 0));
 }
 
 /*
- * Unlike the other fget() calls, which will accept and check capability rights
+ * Unlike the other fget() calls, which accept and check capability rights
  * but never return capabilities, fgetcap() returns the capability but doesn't
  * check capability rights.
  */
@@ -2410,13 +2452,15 @@ fgetcap(struct thread *td, int fd, struct file **fpp)
  * XXX: what about the unused flags ?
  */
 static __inline int
-_fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
+_fgetvp(struct thread *td, int fd, int flags, cap_rights_t needrights,
+    cap_rights_t *haverightsp, struct vnode **vpp)
 {
 	struct file *fp;
 	int error;
 
 	*vpp = NULL;
-	if ((error = _fget(td, fd, &fp, flags, 0, NULL, NULL, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, flags, needrights, haverightsp,
+	    NULL, 0)) != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
@@ -2430,25 +2474,33 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 }
 
 int
-fgetvp(struct thread *td, int fd, struct vnode **vpp)
+fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, 0));
+	return (_fgetvp(td, fd, 0, rights, NULL, vpp));
 }
 
 int
-fgetvp_read(struct thread *td, int fd, struct vnode **vpp)
+fgetvp_rights(struct thread *td, int fd, cap_rights_t need, cap_rights_t *have,
+    struct vnode **vpp)
+{
+	return (_fgetvp(td, fd, 0, need, have, vpp));
+}
+
+int
+fgetvp_read(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, FREAD));
+	return (_fgetvp(td, fd, FREAD, rights, NULL, vpp));
 }
 
 #ifdef notyet
 int
-fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
+fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, vpp, FWRITE));
+	return (_fgetvp(td, fd, FWRITE, rights, NULL, vpp));
 }
 #endif
 
@@ -2464,7 +2516,8 @@ fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
  * during use.
  */
 int
-fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
+fgetsock(struct thread *td, int fd, cap_rights_t rights, struct socket **spp,
+    u_int *fflagp)
 {
 	struct file *fp;
 	int error;
@@ -2472,7 +2525,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0, 0, NULL, NULL, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, 0, rights, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		error = ENOTSOCK;
@@ -2557,7 +2610,7 @@ flock(struct thread *td, struct flock_args *uap)
 	int vfslocked;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_FLOCK, &fp)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);
@@ -2946,6 +2999,22 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		so = NULL;
 		tp = NULL;
 		kif->kf_fd = i;
+
+#ifdef CAPABILITIES
+		/*
+		 * When reporting a capability, most fields will be from the
+		 * underlying object, but do mark as a capability. With
+		 * ofiledesc, we don't have a field to export the cap_rights_t,
+		 * but we do with the new filedesc.
+		 */
+		if (fp->f_type == DTYPE_CAPABILITY) {
+			kif->kf_flags |= KF_FLAG_CAPABILITY;
+			(void)cap_funwrap(fp, 0, &fp);
+		}
+#else
+		KASSERT(fp->f_type != DTYPE_CAPABILITY,
+		    ("sysctl_kern_proc_ofiledesc: saw capability"));
+#endif
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
 			kif->kf_type = KF_TYPE_VNODE;
@@ -2990,6 +3059,12 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_type = KF_TYPE_PTS;
 			tp = fp->f_data;
 			break;
+
+#ifdef PROCDESC
+		case DTYPE_PROCDESC:
+			kif->kf_type = KF_TYPE_PROCDESC;
+			break;
+#endif
 
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
@@ -3153,6 +3228,9 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 	case KF_TYPE_PTS:
 		error = fill_pts_info((struct tty *)data, kif);
 		break;
+	case KF_TYPE_PROCDESC:
+		error = fill_procdesc_info((struct procdesc *)data, kif);
+		break;
 	default:
 		error = 0;
 	}
@@ -3262,6 +3340,22 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		if ((fp = fdp->fd_ofiles[i]) == NULL)
 			continue;
 		data = NULL;
+
+#ifdef CAPABILITIES
+		/*
+		 * When reporting a capability, most fields will be from the
+		 * underlying object, but do mark as a capability and export
+		 * the capability rights mask.
+		 */
+		if (fp->f_type == DTYPE_CAPABILITY) {
+			kif->kf_flags |= KF_FLAG_CAPABILITY;
+			kif->kf_cap_rights = cap_rights(fp);
+			(void)cap_funwrap(fp, 0, &fp);
+		}
+#else /* !CAPABILITIES */
+		KASSERT(fp->f_type != DTYPE_CAPABILITY,
+		    ("sysctl_kern_proc_filedesc: saw capability"));
+#endif
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
 			type = KF_TYPE_VNODE;
@@ -3309,6 +3403,13 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			type = KF_TYPE_PTS;
 			data = fp->f_data;
 			break;
+
+#ifdef PROCDESC
+		case DTYPE_PROCDESC:
+			type = KF_TYPE_PROCDESC;
+			data = fp->f_data;
+			break;
+#endif
 
 		default:
 			type = KF_TYPE_UNKNOWN;
@@ -3505,6 +3606,16 @@ fill_pipe_info(struct pipe *pi, struct kinfo_file *kif)
 	return (0);
 }
 
+static int
+fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif)
+{
+
+	if (pdp == NULL)
+		return (1);
+	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
+}
+
 static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
     sysctl_kern_proc_filedesc, "Process filedesc entries");
 
@@ -3693,6 +3804,22 @@ badfo_close(struct file *fp, struct thread *td)
 	return (EBADF);
 }
 
+static int
+badfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EBADF);
+}
+
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
 	.fo_write = badfo_readwrite,
@@ -3702,8 +3829,25 @@ struct fileops badfileops = {
 	.fo_kqfilter = badfo_kqfilter,
 	.fo_stat = badfo_stat,
 	.fo_close = badfo_close,
+	.fo_chmod = badfo_chmod,
+	.fo_chown = badfo_chown,
 };
 
+int
+invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
 
 /*-------------------------------------------------------------------*/
 

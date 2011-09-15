@@ -68,6 +68,7 @@
 **     1.20.00.21	02/08/2011		Ching Huang			 Implement I/O request timeout
 **               	02/14/2011		Ching Huang			 Modified pktRequestCount
 **     1.20.00.21	03/03/2011		Ching Huang			 if a command timeout, then wait its ccb back before free it
+**     1.20.00.22	07/04/2011		Ching Huang			 Fixed multiple MTX panic
 ******************************************************************************************
 * $FreeBSD$
 */
@@ -150,7 +151,7 @@
 #define arcmsr_callout_init(a)	callout_init(a);
 #endif
 
-#define ARCMSR_DRIVER_VERSION			"Driver Version 1.20.00.21 2010-03-03"
+#define ARCMSR_DRIVER_VERSION			"Driver Version 1.20.00.22 2011-07-04"
 #include <dev/arcmsr/arcmsr.h>
 #define	SRB_SIZE						((sizeof(struct CommandControlBlock)+0x1f) & 0xffe0)
 #define ARCMSR_SRBS_POOL_SIZE           (SRB_SIZE * ARCMSR_MAX_FREESRB_NUM)
@@ -1293,11 +1294,15 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb)
 static void arcmsr_poll(struct cam_sim * psim)
 {
 	struct AdapterControlBlock *acb;
+	int	mutex;
 
 	acb = (struct AdapterControlBlock *)cam_sim_softc(psim);
-	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+	mutex = mtx_owned(&acb->qbuffer_lock);
+	if( mutex == 0 )
+		ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	arcmsr_interrupt(acb);
-	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+	if( mutex == 0 )
+		ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 	return;
 }
 /*
@@ -2089,8 +2094,11 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 {
 	struct CommandControlBlock *srb=NULL;
 	u_int32_t workingsrb_startindex, workingsrb_doneindex;
+	int	mutex;
 
-	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+	mutex = mtx_owned(&acb->qbuffer_lock);
+	if( mutex == 0 )
+		ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	workingsrb_doneindex=acb->workingsrb_doneindex;
 	workingsrb_startindex=acb->workingsrb_startindex;
 	srb=acb->srbworkingQ[workingsrb_startindex];
@@ -2101,7 +2109,8 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 	} else {
 		srb=NULL;
 	}
-	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+	if( mutex == 0 )
+		ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 	return(srb);
 }
 /*

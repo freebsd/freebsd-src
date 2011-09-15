@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -1967,7 +1968,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	mp = UFSTOVFS(ump);
-	if (mp->mnt_flag & MNT_SOFTDEP && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(mp) && devvp->v_type != VREG)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
 		    numfrags(fs, size), dephd);
 	bdwrite(bp);
@@ -2217,7 +2218,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	fs->fs_fmod = 1;
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
-	if (UFSTOVFS(ump)->mnt_flag & MNT_SOFTDEP && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(UFSTOVFS(ump)) && devvp->v_type != VREG)
 		softdep_setup_inofree(UFSTOVFS(ump), bp,
 		    ino + cg * fs->fs_ipg, wkhd);
 	bdwrite(bp);
@@ -2447,7 +2448,7 @@ static SYSCTL_NODE(_vfs_ffs, FFS_SET_BUFOUTPUT, setbufoutput, CTLFLAG_WR,
 
 #define DEBUG 1
 #ifdef DEBUG
-static int fsckcmds = 1;
+static int fsckcmds = 0;
 SYSCTL_INT(_debug, OID_AUTO, fsckcmds, CTLFLAG_RW, &fsckcmds, 0, "");
 #endif /* DEBUG */
 
@@ -2470,7 +2471,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	struct file *fp, *vfp;
 	int vfslocked, filetype, error;
 	static struct fileops *origops, bufferedops;
-	static int outcnt = 0;
 
 	if (req->newlen > sizeof cmd)
 		return (EBADRPC);
@@ -2478,7 +2478,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, CAP_FSCK,
+	     &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -2755,7 +2756,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 #ifdef DEBUG
-		if (fsckcmds && outcnt++ < 100) {
+		if (fsckcmds) {
 			printf("%s: update inode %jd\n",
 			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
 		}
@@ -2799,7 +2800,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    (intmax_t)cmd.value);
 		}
 #endif /* DEBUG */
-		if ((error = getvnode(td->td_proc->p_fd, cmd.value, &vfp)) != 0)
+		if ((error = getvnode(td->td_proc->p_fd, cmd.value,
+		    CAP_FSCK, &vfp)) != 0)
 			break;
 		if (vfp->f_vnode->v_type != VCHR) {
 			fdrop(vfp, td);
@@ -2857,7 +2859,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 	struct fs *fs;
 	int error, vfslocked;
 	daddr_t lbn;
-	static int outcnt = 0;
 
 	/*
 	 * The devvp is associated with the /dev filesystem. To discover
@@ -2875,7 +2876,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 #ifdef DEBUG
-	if (fsckcmds && outcnt++ < 100) {
+	if (fsckcmds) {
 		printf("%s: buffered write for block %jd\n",
 		    fs->fs_fsmnt, (intmax_t)btodb(uio->uio_offset));
 	}

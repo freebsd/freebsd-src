@@ -133,7 +133,7 @@ If the task's
 .Va ta_pending
 field is non-zero,
 then it is simply incremented to reflect the number of times the task
-was enqueued.
+was enqueued, up to a cap of USHRT_MAX.
 Otherwise,
 the task is added to the list before the first task which has a lower
 .Va ta_priority
@@ -188,7 +188,8 @@ The
 count is cleared, and the old value returned in the reference
 parameter
 .Fa pendp ,
-if it is non- Dv NULL .
+if it is non-
+.Dv NULL .
 If the task is currently running,
 .Dv EBUSY
 is returned, otherwise 0.

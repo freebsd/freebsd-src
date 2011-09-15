@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdtrace.h"
 
+#include <sys/capability.h>
+
 /*
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
@@ -1231,7 +1233,13 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, nfscbdarg.sock, &fp)) != 0) {
+		/*
+		 * Since we don't know what rights might be required,
+		 * pretend that we need them all. It is better to be too
+		 * careful than too reckless.
+		 */
+		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
+		    != 0) {
 			return (error);
 		}
 		if (fp->f_type != DTYPE_SOCKET) {

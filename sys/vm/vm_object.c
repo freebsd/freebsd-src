@@ -1087,7 +1087,9 @@ shadowlookup:
 			vm_page_unlock(m);
 			goto unlock_tobject;
 		}
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+		KASSERT((m->flags & PG_FICTITIOUS) == 0,
+		    ("vm_object_madvise: page %p is fictitious", m));
+		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("vm_object_madvise: page %p is not managed", m));
 		if ((m->oflags & VPO_BUSY) || m->busy) {
 			if (advise == MADV_WILLNEED) {
@@ -1096,9 +1098,7 @@ shadowlookup:
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			}
 			vm_page_unlock(m);
 			if (object != tobject)

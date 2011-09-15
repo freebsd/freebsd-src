@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.h,v 1.14 2007-06-19 23:47:19 tbox Exp $ */
+/* $Id: stdtime.h,v 1.14.814.2 2011-03-18 23:47:15 tbox Exp $ */
 
 #ifndef ISC_STDTIME_H
 #define ISC_STDTIME_H 1
@@ -31,6 +31,10 @@
  * about its size.
  */
 typedef isc_uint32_t isc_stdtime_t;
+
+/* but this flag helps... */
+#define STDTIME_ON_32BITS	1
+
 /*
  * isc_stdtime32_t is a 32-bit version of isc_stdtime_t.  A variable of this
  * type should only be used as an opaque integer (e.g.,) to compare two
