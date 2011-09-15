@@ -986,6 +986,8 @@ tty_dealloc(void *arg)
 	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
 	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
 
+	seldrain(&tp->t_inpoll);
+	seldrain(&tp->t_outpoll);
 	knlist_destroy(&tp->t_inpoll.si_note);
 	knlist_destroy(&tp->t_outpoll.si_note);
 
