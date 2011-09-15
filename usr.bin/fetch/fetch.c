@@ -522,6 +522,12 @@ fetch(char *URL, const char *path)
 				    "does not match remote", path);
 				goto failure_keep;
 			}
+		} else if (url->offset > sb.st_size) {
+			/* gap between what we asked for and what we got */
+			warnx("%s: gap in resume mode", URL);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		} else if (us.size != -1) {
 			if (us.size == sb.st_size)
 				/* nothing to do */
@@ -551,6 +557,14 @@ fetch(char *URL, const char *path)
 				fclose(of);
 				of = NULL;
 				sb = nsb;
+				/* picked up again later */
+			}
+			/* seek to where we left off */
+			if (of != NULL && fseek(of, url->offset, SEEK_SET) != 0) {
+				warn("%s: fseek()", path);
+				fclose(of);
+				of = NULL;
+				/* picked up again later */
 			}
 		}
 	} else if (m_flag && sb.st_size != -1) {
