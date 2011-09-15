@@ -366,7 +366,7 @@ gpart_autofill_resize(struct gctl_req *req)
 			goto done;
 	}
 
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
@@ -514,7 +514,7 @@ gpart_autofill(struct gctl_req *req)
 		alignment = len;
 
 	/* Adjust parameters to stripeoffset */
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	start = ALIGNUP(start + offset, alignment);
 	if (size > alignment)
 		size = ALIGNDOWN(size, alignment);
