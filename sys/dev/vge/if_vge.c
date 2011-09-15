@@ -1752,6 +1752,10 @@ vge_intr(void *arg)
 
 #ifdef DEVICE_POLLING
 	if  (ifp->if_capenable & IFCAP_POLLING) {
+		status = CSR_READ_4(sc, VGE_ISR);
+		CSR_WRITE_4(sc, VGE_ISR, status);
+		if (status != 0xFFFFFFFF && (status & VGE_ISR_LINKSTS) != 0)
+			vge_link_statchg(sc);
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -2109,11 +2113,10 @@ vge_init_locked(struct vge_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/*
-	 * Disable interrupts if we are polling.
+	 * Disable interrupts except link state change if we are polling.
 	 */
 	if (ifp->if_capenable & IFCAP_POLLING) {
-		CSR_WRITE_4(sc, VGE_IMR, 0);
-		CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
+		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
 	} else	/* otherwise ... */
 #endif
 	{
@@ -2121,9 +2124,9 @@ vge_init_locked(struct vge_softc *sc)
 	 * Enable interrupts.
 	 */
 		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
-		CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
-		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 	}
+	CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
+	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
 	sc->vge_flags &= ~VGE_FLAG_LINK;
 	mii_mediachg(mii);
@@ -2280,8 +2283,9 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					return (error);
 				VGE_LOCK(sc);
 					/* Disable interrupts */
-				CSR_WRITE_4(sc, VGE_IMR, 0);
-				CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
+				CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
+				CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
+				CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 				ifp->if_capenable |= IFCAP_POLLING;
 				VGE_UNLOCK(sc);
 			} else {
