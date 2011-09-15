@@ -242,7 +242,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		sin->sin_addr.s_addr = v4addr->addr;
 		if ((sin->sin_addr.s_addr == INADDR_BROADCAST) ||
 		    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
-			bad_address = 1;;
+			bad_address = 1;
 		}
 		if (sin->sin_addr.s_addr == INADDR_ANY)
 			zero_address = 1;
