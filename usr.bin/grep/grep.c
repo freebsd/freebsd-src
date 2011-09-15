@@ -304,7 +304,7 @@ init_color(const char *d)
 	char *c;
 
 	c = getenv("GREP_COLOR");
-	return (c != NULL ? c : d);
+	return (c != NULL && c[0] != '\0' ? c : d);
 }
 
 int
@@ -360,7 +360,7 @@ main(int argc, char *argv[])
 
 	/* support for extra arguments in GREP_OPTIONS */
 	eargc = 0;
-	if (eopts != NULL) {
+	if (eopts != NULL && eopts[0] != '\0') {
 		char *str;
 
 		/* make an estimation of how many extra arguments we have */
@@ -373,7 +373,8 @@ main(int argc, char *argv[])
 		eargc = 0;
 		/* parse extra arguments */
 		while ((str = strsep(&eopts, " ")) != NULL)
-			eargv[eargc++] = grep_strdup(str);
+			if (str[0] != '\0')
+				eargv[eargc++] = grep_strdup(str);
 
 		aargv = (char **)grep_calloc(eargc + argc + 1,
 		    sizeof(char *));

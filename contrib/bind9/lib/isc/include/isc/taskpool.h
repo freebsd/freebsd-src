@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.h,v 1.15 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: taskpool.h,v 1.15.814.2 2011-07-08 23:47:16 tbox Exp $ */
 
 #ifndef ISC_TASKPOOL_H
 #define ISC_TASKPOOL_H 1
@@ -83,11 +83,50 @@ isc_taskpool_create(isc_taskmgr_t *tmgr, isc_mem_t *mctx,
  *\li	#ISC_R_UNEXPECTED
  */
 
-void 
-isc_taskpool_gettask(isc_taskpool_t *pool, unsigned int hash,
-			  isc_task_t **targetp);
+void
+isc_taskpool_gettask(isc_taskpool_t *pool, isc_task_t **targetp);
 /*%<
- * Attach to the task corresponding to the hash value "hash".
+ * Attach to a task from the pool.  Currently the next task is chosen
+ * from the pool at random.  (This may be changed in the future to
+ * something that guaratees balance.)
+ */
+
+int
+isc_taskpool_size(isc_taskpool_t *pool);
+/*%<
+ * Returns the number of tasks in the task pool 'pool'.
+ */
+
+isc_result_t
+isc_taskpool_expand(isc_taskpool_t **sourcep, unsigned int size,
+					isc_taskpool_t **targetp);
+
+/*%<
+ * If 'size' is larger than the number of tasks in the pool pointed to by
+ * 'sourcep', then a new taskpool of size 'size' is allocated, the existing
+ * tasks from are moved into it, additional tasks are created to bring the
+ * total number up to 'size', and the resulting pool is attached to
+ * 'targetp'.
+ *
+ * If 'size' is less than or equal to the tasks in pool 'source', then
+ * 'sourcep' is attached to 'targetp' without any other action being taken.
+ *
+ * In either case, 'sourcep' is detached.
+ *
+ * Requires:
+ *
+ * \li	'sourcep' is not NULL and '*source' is not NULL
+ * \li	'targetp' is not NULL and '*source' is NULL
+ *
+ * Ensures:
+ *
+ * \li	On success, '*targetp' points to a valid task pool.
+ * \li	On success, '*sourcep' points to NULL.
+ *
+ * Returns:
+ *
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_NOMEMORY
  */
 
 void

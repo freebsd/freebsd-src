@@ -99,7 +99,7 @@ CFLAGS+=-DHAVE_NET_PFVAR_H
 
 WARNS?=	0
 
-SHLIB_MAJOR=7
+SHLIB_MAJOR=	8
 
 #
 # Magic to grab sources out of src/contrib

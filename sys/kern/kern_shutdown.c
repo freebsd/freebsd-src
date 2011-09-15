@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_kdb.h"
 #include "opt_panic.h"
-#include "opt_show_busybufs.h"
 #include "opt_sched.h"
 #include "opt_watchdog.h"
 
@@ -66,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/vnode.h>
 #ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
 #endif
@@ -122,6 +122,14 @@ SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
 SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
+
+#ifndef DIAGNOSTIC
+static int show_busybufs;
+#else
+static int show_busybufs = 1;
+#endif
+SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
+	&show_busybufs, 0, "");
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -389,13 +397,17 @@ kern_reboot(int howto)
 				}
 #endif
 				nbusy++;
-#if defined(SHOW_BUSYBUFS) || defined(DIAGNOSTIC)
-				printf(
-			    "%d: bufobj:%p, flags:%0x, blkno:%ld, lblkno:%ld\n",
-				    nbusy, bp->b_bufobj,
-				    bp->b_flags, (long)bp->b_blkno,
-				    (long)bp->b_lblkno);
-#endif
+				if (show_busybufs > 0) {
+					printf(
+	    "%d: buf:%p, vnode:%p, flags:%0x, blkno:%jd, lblkno:%jd, buflock:",
+					    nbusy, bp, bp->b_vp, bp->b_flags,
+					    (intmax_t)bp->b_blkno,
+					    (intmax_t)bp->b_lblkno);
+					BUF_LOCKPRINTINFO(bp);
+					if (show_busybufs > 1)
+						vn_printf(bp->b_vp,
+						    "vnode content: ");
+				}
 			}
 		}
 		if (nbusy) {
@@ -585,15 +597,6 @@ panic(const char *fmt, ...)
 		kdb_backtrace();
 	if (debugger_on_panic)
 		kdb_enter(KDB_WHY_PANIC, "panic");
-#ifdef RESTARTABLE_PANICS
-	/* See if the user aborted the panic, in which case we continue. */
-	if (panicstr == NULL) {
-#ifdef SMP
-		atomic_store_rel_int(&panic_cpu, NOCPU);
-#endif
-		return;
-	}
-#endif
 #endif
 	/*thread_lock(td); */
 	td->td_flags |= TDF_INPANIC;
@@ -702,8 +705,11 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 
 	if (length != 0 && (offset < di->mediaoffset ||
 	    offset - di->mediaoffset + length > di->mediasize)) {
-		printf("Attempt to write outside dump device boundaries.\n");
-		return (ENXIO);
+		printf("Attempt to write outside dump device boundaries.\n"
+	    "offset(%jd), mediaoffset(%jd), length(%ju), mediasize(%jd).\n",
+		    (intmax_t)offset, (intmax_t)di->mediaoffset,
+		    (uintmax_t)length, (intmax_t)di->mediasize);
+		return (ENOSPC);
 	}
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }

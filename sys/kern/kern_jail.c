@@ -540,8 +540,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	int ip6s, redo_ip6;
 #endif
-	unsigned pr_flags, ch_flags;
-	unsigned pr_allow, ch_allow, tallow;
+	uint64_t pr_allow, ch_allow, pr_flags, ch_flags;
+	unsigned tallow;
 	char numbuf[12];
 
 	error = priv_check(td, PRIV_JAIL_SET);
@@ -2470,32 +2470,11 @@ prison_deref(struct prison *pr, int flags)
 
 	if (!(flags & PD_LOCKED))
 		mtx_lock(&pr->pr_mtx);
-	/* Decrement the user references in a separate loop. */
-	if (flags & PD_DEUREF) {
-		for (tpr = pr;; tpr = tpr->pr_parent) {
-			if (tpr != pr)
-				mtx_lock(&tpr->pr_mtx);
-			if (--tpr->pr_uref > 0)
-				break;
-			KASSERT(tpr != &prison0, ("prison0 pr_uref=0"));
-			mtx_unlock(&tpr->pr_mtx);
-		}
-		/* Done if there were only user references to remove. */
-		if (!(flags & PD_DEREF)) {
-			mtx_unlock(&tpr->pr_mtx);
-			if (flags & PD_LIST_SLOCKED)
-				sx_sunlock(&allprison_lock);
-			else if (flags & PD_LIST_XLOCKED)
-				sx_xunlock(&allprison_lock);
-			return;
-		}
-		if (tpr != pr) {
-			mtx_unlock(&tpr->pr_mtx);
-			mtx_lock(&pr->pr_mtx);
-		}
-	}
-
 	for (;;) {
+		if (flags & PD_DEUREF) {
+			pr->pr_uref--;
+			KASSERT(prison0.pr_uref != 0, ("prison0 pr_uref=0"));
+		}
 		if (flags & PD_DEREF)
 			pr->pr_ref--;
 		/* If the prison still has references, nothing else to do. */
@@ -2551,7 +2530,7 @@ prison_deref(struct prison *pr, int flags)
 		/* Removing a prison frees a reference on its parent. */
 		pr = ppr;
 		mtx_lock(&pr->pr_mtx);
-		flags = PD_DEREF;
+		flags = PD_DEREF | PD_DEUREF;
 	}
 }
 
@@ -3858,7 +3837,8 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
 	case PRIV_VFS_MOUNT_OWNER:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT)
+		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT &&
+		    cred->cr_prison->pr_enforce_statfs < 2)
 			return (0);
 		else
 			return (EPERM);

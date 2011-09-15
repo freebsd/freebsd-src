@@ -63,6 +63,7 @@ struct nameidata {
 	 */
 	const	char *ni_dirp;		/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
+	cap_rights_t ni_rightsneeded;	/* rights required to look up vnode */
 	/*
 	 * Arguments to lookup.
 	 */
@@ -70,6 +71,11 @@ struct nameidata {
 	struct	vnode *ni_rootdir;	/* logical root directory */
 	struct	vnode *ni_topdir;	/* logical top directory */
 	int	ni_dirfd;		/* starting directory for *at functions */
+	int	ni_strictrelative;	/* relative lookup only; no '..' */
+	/*
+	 * Results: returned from namei
+	 */
+	cap_rights_t ni_baserights;	/* rights the *at base has (or -1) */
 	/*
 	 * Results: returned from/manipulated by lookup
 	 */
@@ -151,11 +157,13 @@ struct nameidata {
  * Initialization of a nameidata structure.
  */
 #define	NDINIT(ndp, op, flags, segflg, namep, td)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, 0, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, 0, td)
+#define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rights, td) \
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rights, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
 
 static __inline void
 NDINIT_ALL(struct nameidata *ndp,
@@ -164,6 +172,7 @@ NDINIT_ALL(struct nameidata *ndp,
 	const char *namep,
 	int dirfd,
 	struct vnode *startdir,
+	cap_rights_t rights,
 	struct thread *td)
 {
 	ndp->ni_cnd.cn_nameiop = op;
@@ -172,6 +181,9 @@ NDINIT_ALL(struct nameidata *ndp,
 	ndp->ni_dirp = namep;
 	ndp->ni_dirfd = dirfd;
 	ndp->ni_startdir = startdir;
+	ndp->ni_strictrelative = 0;
+	ndp->ni_rightsneeded = rights;
+	ndp->ni_baserights = 0;
 	ndp->ni_cnd.cn_thread = td;
 }
 

@@ -375,13 +375,13 @@ END(rsf_fatal)
 intrnames:
 	.space	IV_MAX * (MAXCOMLEN + 1)
 sintrnames:
-	.word	IV_MAX * (MAXCOMLEN + 1)
+	.quad	IV_MAX * (MAXCOMLEN + 1)
 
 	.globl	intrcnt, sintrcnt
 intrcnt:
 	.space	IV_MAX * 8
 sintrcnt:
-	.word	IV_MAX * 8
+	.quad	IV_MAX * 8
 
 	.text
 

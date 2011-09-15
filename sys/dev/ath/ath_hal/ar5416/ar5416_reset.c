@@ -147,7 +147,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
 	if (AR_SREV_HOWL(ah) ||
 	    (AR_SREV_MERLIN(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)))
-		tsf = ar5212GetTsf64(ah);
+		tsf = ar5416GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
 	ar5416MarkPhyInactive(ah);
@@ -159,7 +159,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Restore TSF */
 	if (tsf)
-		ar5212SetTsf64(ah, tsf);
+		ar5416SetTsf64(ah, tsf);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 	if (AR_SREV_MERLIN_10_OR_LATER(ah))
@@ -192,9 +192,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * value after the initvals have been applied, with an offset
 	 * based on measured time difference
 	 */
-	if (AR_SREV_HOWL(ah) && (ar5212GetTsf64(ah) < tsf)) {
+	if (AR_SREV_HOWL(ah) && (ar5416GetTsf64(ah) < tsf)) {
 		tsf += 1500;
-		ar5212SetTsf64(ah, tsf);
+		ar5416SetTsf64(ah, tsf);
 	}
 
 	HALDEBUG(ah, HAL_DEBUG_RESET, ">>>2 %s: AR_PHY_DAG_CTRLCCK=0x%x\n",
@@ -364,8 +364,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
 	OS_REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_LAST, 300);
 	OS_REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_FIRST, 750);
-#endif	    
-	
+#endif
 	ar5416InitBB(ah, chan);
 
 	/* Setup compression registers */
@@ -503,7 +502,7 @@ ar5416ChannelChange(struct ath_hal *ah, const structu ieee80211_channel *chan)
 		chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
 	ichan->channel_time = 0;
-	ichan->tsf_last = ar5212GetTsf64(ah);
+	ichan->tsf_last = ar5416GetTsf64(ah);
 	ar5212TxEnable(ah, AH_TRUE);
 	return AH_TRUE;
 }
@@ -1423,60 +1422,20 @@ ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
 void
 ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	uint32_t pll;
+	uint32_t pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
+	if (chan != AH_NULL) {
+		if (IEEE80211_IS_CHAN_HALF(chan))
+			pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
+		else if (IEEE80211_IS_CHAN_QUARTER(chan))
+			pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
 
-	if (AR_SREV_MERLIN_20(ah) &&
-	    chan != AH_NULL && IEEE80211_IS_CHAN_5GHZ(chan)) {
-		/*
-		 * PLL WAR for Merlin 2.0/2.1
-		 * When doing fast clock, set PLL to 0x142c
-		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation 
-		 */
-		pll = IS_5GHZ_FAST_CLOCK_EN(ah, chan) ? 0x142c : 0x2850;
-	} else if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
-		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0x28, AR_RTC_SOWL_PLL_DIV);
-			else
-				pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
-
-		} else
-			pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
-	} else if (AR_SREV_SOWL_10_OR_LATER(ah)) {
-		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0x50, AR_RTC_SOWL_PLL_DIV);
-			else
-				pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
-		} else
-			pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
-	} else {
-		pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
-		if (chan != AH_NULL) {
-			if (IEEE80211_IS_CHAN_HALF(chan))
-				pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_QUARTER(chan))
-				pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
-
-			if (IEEE80211_IS_CHAN_5GHZ(chan))
-				pll |= SM(0xa, AR_RTC_PLL_DIV);
-			else
-				pll |= SM(0xb, AR_RTC_PLL_DIV);
-		} else
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
+			pll |= SM(0xa, AR_RTC_PLL_DIV);
+		else
 			pll |= SM(0xb, AR_RTC_PLL_DIV);
-	}
+	} else
+		pll |= SM(0xb, AR_RTC_PLL_DIV);
+	
 	OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
 	/* TODO:

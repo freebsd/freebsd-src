@@ -25,10 +25,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
-/** FIXME **/
 extern uint32_t xlp_msg_thread_mask;
 typedef void (*msgring_handler)(int, int, int, int, struct nlm_fmn_msg *, void *);
 int register_msgring_handler(int startb, int endb, msgring_handler action,
@@ -41,4 +41,3 @@ void xlp_cpu_msgring_handler(int bucket, int size, int code, int stid,
 
 void nlm_cms_credit_setup(int credit);
 void xlp_msgring_iodi_config(void);
-

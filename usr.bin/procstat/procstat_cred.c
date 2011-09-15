@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,9 @@ procstat_cred(struct kinfo_proc *kipp)
 	gid_t *groups = NULL;
 
 	if (!hflag)
-		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %-20s\n", "PID",
+		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %5s %-15s\n", "PID",
 		    "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID", "SVGID",
-		    "GROUPS");
+		    "FLAGS", "GROUPS");
 
 	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
@@ -60,6 +60,8 @@ procstat_cred(struct kinfo_proc *kipp)
 	printf("%5d ", kipp->ki_groups[0]);
 	printf("%5d ", kipp->ki_rgid);
 	printf("%5d ", kipp->ki_svgid);
+	printf("%s", kipp->ki_cr_flags & CRED_FLAG_CAPMODE ? "C" : "-");
+	printf("     ");
 
 	/*
 	 * We may have too many groups to fit in kinfo_proc's statically

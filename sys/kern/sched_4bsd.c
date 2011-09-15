@@ -720,7 +720,7 @@ sched_exit(struct proc *p, struct thread *td)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "proc exit",
-	    "prio:td", td->td_priority);
+	    "prio:%d", td->td_priority);
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
@@ -731,7 +731,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);

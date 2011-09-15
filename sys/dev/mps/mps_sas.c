@@ -925,7 +925,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
-		cpi->max_lun = 0;
+		cpi->max_lun = 8;
 		cpi->initiator_id = 255;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);

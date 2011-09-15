@@ -93,6 +93,41 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 }
 
 /*
+ * Get the current hardware tsf for stamlme
+ */
+uint64_t
+ar5416GetTsf64(struct ath_hal *ah)
+{
+	uint32_t low1, low2, u32;
+
+	/* sync multi-word read */
+	low1 = OS_REG_READ(ah, AR_TSF_L32);
+	u32 = OS_REG_READ(ah, AR_TSF_U32);
+	low2 = OS_REG_READ(ah, AR_TSF_L32);
+	if (low2 < low1) {	/* roll over */
+		/*
+		 * If we are not preempted this will work.  If we are
+		 * then we re-reading AR_TSF_U32 does no good as the
+		 * low bits will be meaningless.  Likewise reading
+		 * L32, U32, U32, then comparing the last two reads
+		 * to check for rollover doesn't help if preempted--so
+		 * we take this approach as it costs one less PCI read
+		 * which can be noticeable when doing things like
+		 * timestamping packets in monitor mode.
+		 */
+		u32++;
+	}
+	return (((uint64_t) u32) << 32) | ((uint64_t) low2);
+}
+
+void
+ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
+/*
  * Reset the current hardware tsf for stamlme.
  */
 void
@@ -617,10 +652,20 @@ ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	temp = val & AR_PHY_RADAR_1_RELSTEP_CHECK;
 	pe->pe_relstep = MS(val, AR_PHY_RADAR_1_RELSTEP_THRESH);
 	if (temp)
-		pe->pe_relstep |= HAL_PHYERR_PARAM_ENABLE;
+		pe->pe_enabled = 1;
+	else
+		pe->pe_enabled = 0;
+
 	pe->pe_maxlen = MS(val, AR_PHY_RADAR_1_MAXLEN);
 	pe->pe_extchannel = !! (OS_REG_READ(ah, AR_PHY_RADAR_EXT) &
 	    AR_PHY_RADAR_EXT_ENA);
+
+	pe->pe_usefir128 = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
+	    AR_PHY_RADAR_1_USE_FIR128);
+	pe->pe_blockradar = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
+	    AR_PHY_RADAR_1_BLOCK_CHECK);
+	pe->pe_enmaxrssi = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
+	    AR_PHY_RADAR_1_MAX_RRSSI);
 }
 
 /*
@@ -660,23 +705,36 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 
 	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
 
-	val = OS_REG_READ(ah, AR_PHY_RADAR_1);
-	val |= (AR_PHY_RADAR_1_MAX_RRSSI | AR_PHY_RADAR_1_BLOCK_CHECK);
+	if (pe->pe_usefir128 == 1)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
+	else if (pe->pe_usefir128 == 0)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
+
+	if (pe->pe_enmaxrssi == 1)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
+	else if (pe->pe_enmaxrssi == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
+
+	if (pe->pe_blockradar == 1)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
+	else if (pe->pe_blockradar == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
 
 	if (pe->pe_maxlen != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
 		val &= ~AR_PHY_RADAR_1_MAXLEN;
 		val |= SM(pe->pe_maxlen, AR_PHY_RADAR_1_MAXLEN);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
 	}
-	OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
 
 	/*
 	 * Enable HT/40 if the upper layer asks;
 	 * it should check the channel is HT/40 and HAL_CAP_EXT_CHAN_DFS
 	 * is available.
 	 */
-	if (pe->pe_extchannel)
+	if (pe->pe_extchannel == 1)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
-	else
+	else if (pe->pe_extchannel == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 
 	if (pe->pe_relstep != HAL_PHYERR_PARAM_NOVAL) {
@@ -707,4 +765,16 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 	 * For now, this isn't implemented.
 	 */
 	return AH_FALSE;
+}
+
+/*
+ * Return whether fast-clock is currently enabled for this
+ * channel.
+ */
+HAL_BOOL
+ar5416IsFastClockEnabled(struct ath_hal *ah)
+{
+	struct ath_hal_private *ahp = AH_PRIVATE(ah);
+
+	return IS_5GHZ_FAST_CLOCK_EN(ah, ahp->ah_curchan);
 }

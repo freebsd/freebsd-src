@@ -1496,7 +1496,8 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 }
 
 int
-vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val)
+vfs_flagopt(struct vfsoptlist *opts, const char *name, uint64_t *w,
+	uint64_t val)
 {
 	struct vfsopt *opt;
 

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include <dev/usb/controller/xhcireg.h>
 #include <dev/usb/controller/ehcireg.h>
 #include <dev/usb/controller/ohcireg.h>
 #include <dev/usb/controller/uhcireg.h>
@@ -2956,6 +2957,68 @@ ehci_early_takeover(device_t self)
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
 }
 
+/* Perform early XHCI takeover from SMM. */
+static void
+xhci_early_takeover(device_t self)
+{
+	struct resource *res;
+	uint32_t cparams;
+	uint32_t eec;
+	uint8_t eecp;
+	uint8_t bios_sem;
+	uint8_t offs;
+	int rid;
+	int i;
+
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return;
+
+	cparams = bus_read_4(res, XHCI_HCSPARAMS0);
+
+	eec = -1;
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = XHCI_HCS0_XECP(cparams) << 2; eecp != 0 && XHCI_XECP_NEXT(eec);
+	    eecp += XHCI_XECP_NEXT(eec) << 2) {
+		eec = bus_read_4(res, eecp);
+
+		if (XHCI_XECP_ID(eec) != XHCI_ID_USB_LEGACY)
+			continue;
+
+		bios_sem = bus_read_1(res, eecp + XHCI_XECP_BIOS_SEM);
+		if (bios_sem == 0)
+			continue;
+
+		if (bootverbose)
+			printf("xhci early: "
+			    "SMM active, request owner change\n");
+
+		bus_write_1(res, eecp + XHCI_XECP_OS_SEM, 1);
+
+		/* wait a maximum of 5 second */
+
+		for (i = 0; (i < 5000) && (bios_sem != 0); i++) {
+			DELAY(1000);
+			bios_sem = bus_read_1(res, eecp +
+			    XHCI_XECP_BIOS_SEM);
+		}
+
+		if (bios_sem != 0) {
+			if (bootverbose)
+				printf("xhci early: "
+				    "SMM does not respond\n");
+		}
+
+		/* Disable interrupts */
+		offs = bus_read_1(res, XHCI_CAPLENGTH);
+		bus_write_4(res, offs + XHCI_USBCMD, 0);
+		bus_read_4(res, offs + XHCI_USBSTS);
+	}
+	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
+}
+
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
@@ -3002,7 +3065,9 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 
 	if (pci_usb_takeover && pci_get_class(dev) == PCIC_SERIALBUS &&
 	    pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
-		if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_EHCI)
+		if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_XHCI)
+			xhci_early_takeover(dev);
+		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_EHCI)
 			ehci_early_takeover(dev);
 		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_OHCI)
 			ohci_early_takeover(dev);

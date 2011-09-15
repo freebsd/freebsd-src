@@ -596,7 +596,8 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+    evh, arg, order, pass)						\
 									\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
@@ -612,7 +613,16 @@ static moduledata_t name##_##busname##_mod = {				\
 	&name##_##busname##_driver_mod					\
 };									\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+	       SI_SUB_DRIVERS, order)
+
+#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, SI_ORDER_MIDDLE, pass)
+
+#define	DRIVER_MODULE_ORDERED(name, busname, driver, devclass, evh, arg,\
+    order)								\
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, order, BUS_PASS_DEFAULT)
 
 #define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg,	\

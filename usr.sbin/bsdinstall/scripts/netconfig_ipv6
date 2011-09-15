@@ -142,7 +142,9 @@ BEGIN {
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	. $BSDINSTALL_TMPETC/._rc.conf.net
 	ifconfig ${INTERFACE} `eval echo \\\$ifconfig_${INTERFACE}_ipv6`
-	route delete default
-	route add default ${ipv6_defaultrouter}
+	if [ -n "${ipv6_defaultrouter}" ]; then
+		route delete -inet6 default
+		route add -inet6 default ${ipv6_defaultrouter}
+	fi
 fi
 

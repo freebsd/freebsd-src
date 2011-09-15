@@ -75,8 +75,7 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_RXGAIN_TYPE:
 		return AR5416_EEP_RXGAIN_ORIG;
 	case AR_EEP_TXGAIN_TYPE:
-		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
-		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
+		return pBase->txGainType;
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return HAL_EIO;
@@ -288,11 +287,17 @@ ath_hal_v4kEepromAttach(struct ath_hal *ah)
 	uint32_t sum;
 
 	HALASSERT(ee == AH_NULL);
- 
-	if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s Error reading Eeprom MAGIC\n", __func__);
-		return HAL_EEREAD;
+	/*
+	 * Don't check magic if we're supplied with an EEPROM block,
+	 * typically this is from Howl but it may also be from later
+	 * boards w/ an embedded WMAC.
+	 */
+	if (ah->ah_eepromdata == NULL) {
+		if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s Error reading Eeprom MAGIC\n", __func__);
+			return HAL_EEREAD;
+		}
 	}
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
 	    __func__, magic);
@@ -318,7 +323,11 @@ ath_hal_v4kEepromAttach(struct ath_hal *ah)
 		}
 	}
 	/* Convert to eeprom native eeprom endian format */
-	if (isBigEndian()) {
+	/*
+	 * XXX this is likely incorrect but will do for now
+	 * XXX to get embedded boards working.
+	 */
+	if (ah->ah_eepromdata == NULL && isBigEndian()) {
 		for (w = 0; w < NW(struct ar5416eeprom_4k); w++)
 			eep_data[w] = __bswap16(eep_data[w]);
 	}

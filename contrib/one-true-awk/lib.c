@@ -89,8 +89,13 @@ void initgetrec(void)
 	char *p;
 
 	for (i = 1; i < *ARGC; i++) {
-		if (!isclvar(p = getargv(i))) {	/* find 1st real filename */
-			setsval(lookup("FILENAME", symtab), getargv(i));
+		p = getargv(i); /* find 1st real filename */
+		if (p == NULL || *p == '\0') {  /* deleted or zapped */
+			argno++;
+			continue;
+		}
+		if (!isclvar(p)) {
+			setsval(lookup("FILENAME", symtab), p);
 			return;
 		}
 		setclvar(p);	/* a commandline assignment before filename */
@@ -124,7 +129,7 @@ int getrec(char **pbuf, int *pbufsize, int isrecord)	/* get next input record */
 		   dprintf( ("argno=%d, file=|%s|\n", argno, file) );
 		if (infile == NULL) {	/* have to open a new file */
 			file = getargv(argno);
-			if (*file == '\0') {	/* it's been zapped */
+			if (file == NULL || *file == '\0') {	/* deleted or zapped */
 				argno++;
 				continue;
 			}
@@ -187,6 +192,7 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf)	/* read one record into buf *
 
 	if (strlen(*FS) >= sizeof(inputFS))
 		FATAL("field separator %.10s... is too long", *FS);
+	/*fflush(stdout); avoids some buffering problem but makes it 25% slower*/
 	strcpy(inputFS, *FS);	/* for subsequent field splitting */
 	if ((sep = **RS) == 0) {
 		sep = '\n';
@@ -227,6 +233,8 @@ char *getargv(int n)	/* get ARGV[n] */
 	extern Array *ARGVtab;
 
 	sprintf(temp, "%d", n);
+	if (lookup(temp, ARGVtab) == NULL)
+		return NULL;
 	x = setsymtab(temp, "", 0.0, STR, ARGVtab);
 	s = getsval(x);
 	   dprintf( ("getargv(%d) returns |%s|\n", n, s) );
@@ -477,14 +485,14 @@ void recbld(void)	/* create $0 from $1..$NF if necessary */
 	if (!adjbuf(&record, &recsize, 2+r-record, recsize, &r, "recbld 3"))
 		FATAL("built giant record `%.30s...'", record);
 	*r = '\0';
-	   dprintf( ("in recbld inputFS=%s, fldtab[0]=%p\n", inputFS, fldtab[0]) );
+	   dprintf( ("in recbld inputFS=%s, fldtab[0]=%p\n", inputFS, (void*)fldtab[0]) );
 
 	if (freeable(fldtab[0]))
 		xfree(fldtab[0]->sval);
 	fldtab[0]->tval = REC | STR | DONTFREE;
 	fldtab[0]->sval = record;
 
-	   dprintf( ("in recbld inputFS=%s, fldtab[0]=%p\n", inputFS, fldtab[0]) );
+	   dprintf( ("in recbld inputFS=%s, fldtab[0]=%p\n", inputFS, (void*)fldtab[0]) );
 	   dprintf( ("recbld = |%s|\n", record) );
 	donerec = 1;
 }

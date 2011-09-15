@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
@@ -141,7 +142,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	     * having the same filedesc could use that fd without
 	     * checking below.
 	     */
-	    error = fget(td, fd, &fp);
+	    error = fget(td, fd, CAP_IOCTL, &fp);
 	    if (!error) {
 		    sx_slock(&proctree_lock);
 		    PROC_LOCK(p);
@@ -345,7 +346,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	if ((error = getvnode(td->td_proc->p_fd, args->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, args->fd, CAP_READ, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -1041,7 +1042,7 @@ linux_pread(td, uap)
 
 	if (error == 0) {
    	   	/* This seems to violate POSIX but linux does it */
-   	   	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+		if ((error = fgetvp(td, uap->fd, CAP_READ, &vp)) != 0)
    		   	return (error);
 		if (vp->v_type == VDIR) {
    		   	vrele(vp);
@@ -1390,7 +1391,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
 		 */
-		error = fget(td, args->fd, &fp);
+		error = fget(td, args->fd, CAP_FCNTL, &fp);
 		if (error)
 			return (error);
 		if (fp->f_type == DTYPE_PIPE) {

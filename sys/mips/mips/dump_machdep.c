@@ -188,7 +188,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 		}
 
 #ifdef SW_WATCHDOG
-		wdog_kern_path(WD_LASTVAL);
+		wdog_kern_pat(WD_LASTVAL);
 #endif
 		error = dump_write(di, (void *)(intptr_t)(pa),0, dumplo, sz); /* XXX fix PA */
 		if (error)

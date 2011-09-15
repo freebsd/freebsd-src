@@ -222,7 +222,14 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	typedef int TABLE[];
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = ahp->ah_curani;
-	const struct ar5212AniParams *params = aniState->params;
+	const struct ar5212AniParams *params = AH_NULL;
+	
+	/*
+	 * This function may be called before there's a current
+	 * channel (eg to disable ANI.)
+	 */
+	if (aniState != AH_NULL)
+		params = aniState->params;
 
 	OS_MARK(ah, AH_MARK_ANI_CONTROL, cmd);
 
@@ -343,8 +350,8 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 			ahp->ah_procPhyErr &= ~HAL_ANI_ENA;
 			/* Turn off HW counters if we have them */
 			ar5212AniDetach(ah);
-			ar5212SetRxFilter(ah,
-				ar5212GetRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
+			ah->ah_setRxFilter(ah,
+			    ah->ah_getRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
 		} else {			/* normal/auto mode */
 			/* don't mess with state if already enabled */
 			if (ahp->ah_procPhyErr & HAL_ANI_ENA)
@@ -358,8 +365,8 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 					ahp->ah_curani->params:
 					&ahp->ah_aniParams24 /*XXX*/);
 			} else {
-				ar5212SetRxFilter(ah,
-					ar5212GetRxFilter(ah) | HAL_RX_FILTER_PHYERR);
+				ah->ah_setRxFilter(ah,
+				    ah->ah_getRxFilter(ah) | HAL_RX_FILTER_PHYERR);
 			}
 			ahp->ah_procPhyErr |= HAL_ANI_ENA;
 		}
@@ -609,8 +616,20 @@ ar5212AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	/*
 	 * Turn off PHY error frame delivery while we futz with settings.
 	 */
-	rxfilter = ar5212GetRxFilter(ah);
-	ar5212SetRxFilter(ah, rxfilter &~ HAL_RX_FILTER_PHYERR);
+	rxfilter = ah->ah_getRxFilter(ah);
+	ah->ah_setRxFilter(ah, rxfilter &~ HAL_RX_FILTER_PHYERR);
+
+	/*
+	 * If ANI is disabled at this point, don't set the default
+	 * ANI parameter settings - leave the HAL settings there.
+	 * This is (currently) needed for reliable radar detection.
+	 */
+	if (! ANI_ENA(ah)) {
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: ANI disabled\n",
+		    __func__);
+		goto finish;
+	}
+
 	/*
 	 * Automatic processing is done only in station mode right now.
 	 */
@@ -644,10 +663,15 @@ ar5212AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		ar5212AniControl(ah, HAL_ANI_FIRSTEP_LEVEL, 0);
 		ichan->privFlags |= CHANNEL_ANI_SETUP;
 	}
+	/*
+	 * In case the counters haven't yet been setup; set them up.
+	 */
+	enableAniMIBCounters(ah, ahp->ah_curani->params);
 	ar5212AniRestart(ah, aniState);
 
+finish:
 	/* restore RX filter mask */
-	ar5212SetRxFilter(ah, rxfilter);
+	ah->ah_setRxFilter(ah, rxfilter);
 }
 
 /*

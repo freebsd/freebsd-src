@@ -31,9 +31,24 @@
 /*
  * FreeBSD kernel capability facility.
  *
- * Currently, this file implements only capability mode; capabilities
- * (rights-refined file descriptors) will follow.
+ * Two kernel features are implemented here: capability mode, a sandboxed mode
+ * of execution for processes, and capabilities, a refinement on file
+ * descriptors that allows fine-grained control over operations on the file
+ * descriptor.  Collectively, these allow processes to run in the style of a
+ * historic "capability system" in which they can use only resources
+ * explicitly delegated to them.  This model is enforced by restricting access
+ * to global namespaces in capability mode.
  *
+ * Capabilities wrap other file descriptor types, binding them to a constant
+ * rights mask set when the capability is created.  New capabilities may be
+ * derived from existing capabilities, but only if they have the same or a
+ * strict subset of the rights on the original capability.
+ *
+ * System calls permitted in capability mode are defined in capabilities.conf;
+ * calls must be carefully audited for safety to ensure that they don't allow
+ * escape from a sandbox.  Some calls permit only a subset of operations in
+ * capability mode -- for example, shm_open(2) is limited to creating
+ * anonymous, rather than named, POSIX shared memory objects.
  */
 
 #include "opt_capsicum.h"
@@ -61,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CAPABILITY_MODE
 
-FEATURE(security_capabilities, "Capsicum Capability Mode");
+FEATURE(security_capability_mode, "Capsicum Capability Mode");
 
 /*
  * System call to enter capability mode for the process.
@@ -119,6 +134,8 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 
 #ifdef CAPABILITIES
 
+FEATURE(security_capabilities, "Capsicum Capabilities");
+
 /*
  * struct capability describes a capability, and is hung off of its struct
  * file f_data field.  cap_file and cap_rightss are static once hooked up, as
@@ -144,6 +161,8 @@ static fo_poll_t capability_poll;
 static fo_kqfilter_t capability_kqfilter;
 static fo_stat_t capability_stat;
 static fo_close_t capability_close;
+static fo_chmod_t capability_chmod;
+static fo_chown_t capability_chown;
 
 static struct fileops capability_ops = {
 	.fo_read = capability_read,
@@ -154,6 +173,8 @@ static struct fileops capability_ops = {
 	.fo_kqfilter = capability_kqfilter,
 	.fo_stat = capability_stat,
 	.fo_close = capability_close,
+	.fo_chmod = capability_chmod,
+	.fo_chown = capability_chown,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
@@ -166,6 +187,8 @@ static struct fileops capability_ops_unpassable = {
 	.fo_kqfilter = capability_kqfilter,
 	.fo_stat = capability_stat,
 	.fo_close = capability_close,
+	.fo_chmod = capability_chmod,
+	.fo_chown = capability_chown,
 	.fo_flags = 0,
 };
 
@@ -220,18 +243,16 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 {
 	int error, capfd;
 	int fd = uap->fd;
-	struct file *fp, *fcapp;
+	struct file *fp;
 	cap_rights_t rights = uap->rights;
 
 	AUDIT_ARG_FD(fd);
-#ifdef notyet	/* capability auditing will follow in a few commits */
 	AUDIT_ARG_RIGHTS(rights);
-#endif
-	error = fget(td, fd, &fp);
+	error = fget(td, fd, rights, &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
-	error = kern_capwrap(td, fp, rights, &fcapp, &capfd);
+	error = kern_capwrap(td, fp, rights, &capfd);
 	if (error)
 		return (error);
 
@@ -269,10 +290,10 @@ cap_getrights(struct thread *td, struct cap_getrights_args *uap)
  */
 int
 kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
-    struct file **fcappp, int *capfdp)
+    int *capfdp)
 {
 	struct capability *cp, *cp_old;
-	struct file *fp_object;
+	struct file *fp_object, *fcapp;
 	int error;
 
 	if ((rights | CAP_MASK_VALID) != CAP_MASK_VALID)
@@ -292,7 +313,7 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	/*
 	 * Allocate a new file descriptor to hang the capability off of.
 	 */
-	error = falloc(td, fcappp, capfdp, fp->f_flag);
+	error = falloc(td, &fcapp, capfdp, fp->f_flag);
 	if (error)
 		return (error);
 
@@ -311,18 +332,18 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	cp = uma_zalloc(capability_zone, M_WAITOK | M_ZERO);
 	cp->cap_rights = rights;
 	cp->cap_object = fp_object;
-	cp->cap_file = *fcappp;
+	cp->cap_file = fcapp;
 	if (fp->f_flag & DFLAG_PASSABLE)
-		finit(*fcappp, fp->f_flag, DTYPE_CAPABILITY, cp,
+		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
 		    &capability_ops);
 	else
-		finit(*fcappp, fp->f_flag, DTYPE_CAPABILITY, cp,
+		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
 		    &capability_ops_unpassable);
 
 	/*
 	 * Release our private reference (the proc filedesc still has one).
 	 */
-	fdrop(*fcappp, td);
+	fdrop(fcapp, td);
 	return (0);
 }
 
@@ -469,6 +490,22 @@ capability_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	panic("capability_stat");
 }
 
+int
+capability_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	panic("capability_chmod");
+}
+
+int
+capability_chown(struct file *fp, uid_t uid, gid_t gid,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	panic("capability_chown");
+}
+
 #else /* !CAPABILITIES */
 
 /*
@@ -514,4 +551,3 @@ cap_funwrap_mmap(struct file *fp_cap, cap_rights_t rights, u_char *maxprotp,
 }
 
 #endif /* CAPABILITIES */
-

@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.147 2011-01-11 23:47:13 tbox Exp $
+ * $Id: tsig.c,v 1.147.10.1 2011-03-21 19:53:34 each Exp $
  */
 /*! \file */
 #include <config.h>
@@ -619,7 +619,7 @@ restore_key(dns_tsig_keyring_t *ring, isc_stdtime_t now, FILE *fp) {
 	result = dns_tsigkey_createfromkey(name, algorithm, dstkey,
 					   ISC_TRUE, creator, inception,
 					   expire, ring->mctx, ring, NULL);
-	if (result != ISC_R_SUCCESS && dstkey != NULL)
+	if (dstkey != NULL)
 		dst_key_free(&dstkey);
 	return (result);
 }

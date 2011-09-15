@@ -630,13 +630,15 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 void
 devfs_populate(struct devfs_mount *dm)
 {
+	unsigned gen;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
-	if (dm->dm_generation == devfs_generation)
+	gen = devfs_generation;
+	if (dm->dm_generation == gen)
 		return;
 	while (devfs_populate_loop(dm, 0))
 		continue;
-	dm->dm_generation = devfs_generation;
+	dm->dm_generation = gen;
 }
 
 /*

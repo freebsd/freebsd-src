@@ -92,7 +92,7 @@ struct memory_type {
 	 * Per-CPU measurements fall into two categories: per-CPU allocation,
 	 * and per-CPU cache state.
 	 */
-	struct {
+	struct mt_percpu_alloc_s {
 		uint64_t	 mtp_memalloced;/* Per-CPU mt_memalloced. */
 		uint64_t	 mtp_memfreed;	/* Per-CPU mt_memfreed. */
 		uint64_t	 mtp_numallocs;	/* Per-CPU mt_numallocs. */
@@ -100,11 +100,11 @@ struct memory_type {
 		uint64_t	 mtp_sizemask;	/* Per-CPU mt_sizemask. */
 		void		*mtp_caller_pointer[MEMSTAT_MAXCALLER];
 		uint64_t	 mtp_caller_uint64[MEMSTAT_MAXCALLER];
-	}	mt_percpu_alloc[MEMSTAT_MAXCPU];
+	}	*mt_percpu_alloc;
 
-	struct {
+	struct mt_percpu_cache_s {
 		uint64_t	 mtp_free;	/* Per-CPU cache free items. */
-	}	mt_percpu_cache[MEMSTAT_MAXCPU];
+	}	*mt_percpu_cache;
 
 	LIST_ENTRY(memory_type)	mt_list;	/* List of types. */
 };
@@ -119,7 +119,8 @@ struct memory_type_list {
 
 void			 _memstat_mtl_empty(struct memory_type_list *list);
 struct memory_type	*_memstat_mt_allocate(struct memory_type_list *list,
-			    int allocator, const char *name);
-void			 _memstat_mt_reset_stats(struct memory_type *mtp);
+			    int allocator, const char *name, int maxcpus);
+void			 _memstat_mt_reset_stats(struct memory_type *mtp,
+			    int maxcpus);
 
 #endif /* !_MEMSTAT_INTERNAL_H_ */

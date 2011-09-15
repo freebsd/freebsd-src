@@ -148,6 +148,7 @@ typedef enum {
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
+	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -718,22 +719,32 @@ typedef struct {
 	u_int32_t	pe_relpwr;	/* Relative power threshold in 0.5dB steps */
 	u_int32_t	pe_relstep;	/* Pulse Relative step threshold in 0.5dB steps */
 	u_int32_t	pe_maxlen;	/* Max length of radar sign in 0.8us units */
-	HAL_BOOL	pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
-	HAL_BOOL	pe_blockradar;	/*
+	int32_t		pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
+	int32_t		pe_blockradar;	/*
 					 * Enable to block radar check if pkt detect is done via OFDM
 					 * weak signal detect or pkt is detected immediately after tx
 					 * to rx transition
 					 */
-	HAL_BOOL	pe_enmaxrssi;	/*
+	int32_t		pe_enmaxrssi;	/*
 					 * Enable to use the max rssi instead of the last rssi during
 					 * fine gain changes for radar detection
 					 */
-	HAL_BOOL	pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
+	int32_t		pe_enabled;	/* Whether radar detection is enabled */
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
 #define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
+/*
+ * DFS operating mode flags.
+ */
+typedef enum {
+	HAL_DFS_UNINIT_DOMAIN	= 0,	/* Uninitialized dfs domain */
+	HAL_DFS_FCC_DOMAIN	= 1,	/* FCC3 dfs domain */
+	HAL_DFS_ETSI_DOMAIN	= 2,	/* ETSI dfs domain */
+	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
+} HAL_DFS_DOMAIN;
 
 /*
  * Flag for setting QUIET period
@@ -746,15 +757,18 @@ typedef enum {
 } HAL_QUIET_FLAG;
 
 #define	HAL_DFS_EVENT_PRICH		0x0000001
+#define	HAL_DFS_EVENT_EXTCH		0x0000002
+#define	HAL_DFS_EVENT_EXTEARLY		0x0000004
+#define	HAL_DFS_EVENT_ISDC		0x0000008
 
-struct dfs_event {
+struct hal_dfs_event {
 	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */
 	uint32_t	re_ts;		/* Original 15 bit recv timestamp */
 	uint8_t		re_rssi;	/* rssi of radar event */
 	uint8_t		re_dur;		/* duration of radar pulse */
 	uint32_t	re_flags;	/* Flags (see above) */
 };
-typedef struct dfs_event HAL_DFS_EVENT;
+typedef struct hal_dfs_event HAL_DFS_EVENT;
 
 typedef struct
 {
@@ -765,7 +779,7 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
-}HAL_OPS_CONFIG;
+} HAL_OPS_CONFIG;
 
 /*
  * Hardware Access Layer (HAL) API.
@@ -954,6 +968,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
+	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);
@@ -982,6 +997,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setStationBeaconTimers)(struct ath_hal*,
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
+	uint64_t  __ahdecl(*ah_getNextTBTT)(struct ath_hal *);
 
 	/* 802.11n Functions */
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
@@ -1124,4 +1140,20 @@ extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
 		uint16_t rateix, HAL_BOOL shortPreamble);
+
+/*
+ * Adjust the TSF.
+ */
+extern void __ahdecl ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta);
+
+/*
+ * Enable or disable CCA.
+ */
+void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
+
+/*
+ * Get CCA setting.
+ */
+int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
 #endif /* _ATH_AH_H_ */

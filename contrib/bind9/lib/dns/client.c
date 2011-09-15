@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.12 2010-12-03 12:03:22 marka Exp $ */
+/* $Id: client.c,v 1.12.24.2 2011-03-12 04:59:16 tbox Exp $ */
 
 #include <config.h>
 
@@ -721,7 +721,7 @@ view_find(resctx_t *rctx, dns_db_t **dbp, dns_dbnode_t **nodep,
 static void
 client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 	isc_mem_t *mctx;
-	isc_result_t result, tresult;
+	isc_result_t tresult, result = ISC_R_SUCCESS;
 	isc_result_t vresult = ISC_R_SUCCESS;
 	isc_boolean_t want_restart;
 	isc_boolean_t send_event = ISC_FALSE;
@@ -741,7 +741,6 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 
 	mctx = rctx->view->mctx;
 
-	result = ISC_R_SUCCESS;
 	name = dns_fixedname_name(&rctx->name);
 
 	do {
@@ -782,6 +781,7 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 				goto done;
 			}
 		} else {
+			INSIST(event != NULL);
 			INSIST(event->fetch == rctx->fetch);
 			dns_resolver_destroyfetch(&rctx->fetch);
 			db = event->db;
@@ -965,6 +965,7 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 							      &rctx->rdataset);
 					if (tresult != ISC_R_SUCCESS) {
 						result = tresult;
+						POST(result);
 						break;
 					}
 				}
@@ -976,6 +977,7 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 				 * implementation).
 				 */
 				result = DNS_R_SERVFAIL; /* better code? */
+				POST(result);
 			} else {
 				ISC_LIST_APPEND(rctx->namelist, ansname, link);
 				ansname = NULL;
@@ -2131,6 +2133,7 @@ receive_soa(isc_task_t *task, isc_event_t *event) {
 	reqev = (dns_requestevent_t *)event;
 	request = reqev->request;
 	result = eresult = reqev->result;
+	POST(result);
 	uctx = reqev->ev_arg;
 	client = uctx->client;
 	soaquery = uctx->soaquery;
@@ -2177,6 +2180,7 @@ receive_soa(isc_task_t *task, isc_event_t *event) {
 	}
 
 	section = DNS_SECTION_ANSWER;
+	POST(section);
 
 	if (rcvmsg->rcode != dns_rcode_noerror &&
 	    rcvmsg->rcode != dns_rcode_nxdomain) {

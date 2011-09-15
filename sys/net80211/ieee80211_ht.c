@@ -2207,7 +2207,7 @@ bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
 	    callout_pending(&tap->txa_timer)) {
 		struct ieee80211com *ic = ni->ni_ic;
 
-		if (status)		/* ACK'd */
+		if (status == 0)		/* ACK'd */
 			bar_stop_timer(tap);
 		ic->ic_bar_response(ni, tap, status);
 		/* NB: just let timer expire so we pace requests */
@@ -2219,7 +2219,7 @@ ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status)
 {
 
-	if (status != 0) {		/* got ACK */
+	if (status == 0) {		/* got ACK */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni, "BAR moves BA win <%u:%u> (%u frames) txseq %u tid %u",
 		    tap->txa_start,
@@ -2309,11 +2309,15 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	    ni, "send BAR: tid %u ctl 0x%x start %u (attempt %d)",
 	    tid, barctl, seq, tap->txa_attempts);
 
+	/*
+	 * ic_raw_xmit will free the node reference
+	 * regardless of queue/TX success or failure.
+	 */
 	ret = ic->ic_raw_xmit(ni, m, NULL);
 	if (ret != 0) {
 		/* xmit failed, clear state flag */
 		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
-		goto bad;
+		return ret;
 	}
 	/* XXX hack against tx complete happening before timer is started */
 	if (tap->txa_flags & IEEE80211_AGGR_BARPEND)

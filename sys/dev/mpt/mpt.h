@@ -1075,16 +1075,6 @@ mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
 int mpt_reset(struct mpt_softc *, int /*reinit*/);
 
 /****************************** Debugging ************************************/
-typedef struct mpt_decode_entry {
-	char    *name;
-	u_int	 value;
-	u_int	 mask;
-} mpt_decode_entry_t;
-
-int mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
-		     const char *name, u_int value, u_int *cur_column,
-		     u_int wrap_point);
-
 void mpt_dump_data(struct mpt_softc *, const char *, void *, int);
 void mpt_dump_request(struct mpt_softc *, request_t *);
 
@@ -1110,16 +1100,20 @@ do {						\
 		mpt_prt(mpt, __VA_ARGS__);	\
 } while (0)
 
+#if 0
 #define mpt_lprtc(mpt, level, ...)		\
 do {						\
 	if (level <= (mpt)->verbose)		\
 		mpt_prtc(mpt, __VA_ARGS__);	\
 } while (0)
+#endif
 #else
 void mpt_lprt(struct mpt_softc *, int, const char *, ...)
 	__printflike(3, 4);
+#if 0
 void mpt_lprtc(struct mpt_softc *, int, const char *, ...)
 	__printflike(3, 4);
+#endif
 #endif
 void mpt_prt(struct mpt_softc *, const char *, ...)
 	__printflike(2, 3);
@@ -1277,7 +1271,6 @@ void		mpt_check_doorbell(struct mpt_softc *mpt);
 void		mpt_dump_reply_frame(struct mpt_softc *mpt,
 				     MSG_DEFAULT_REPLY *reply_frame);
 
-void		mpt_set_config_regs(struct mpt_softc *);
 int		mpt_issue_cfg_req(struct mpt_softc */*mpt*/, request_t */*req*/,
 				  cfgparms_t *params,
 				  bus_addr_t /*addr*/, bus_size_t/*len*/,
@@ -1331,6 +1324,5 @@ char *mpt_ioc_diag(uint32_t diag);
 void mpt_req_state(mpt_req_state_t state);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
-void mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *msg);
 void mpt_dump_sgl(SGE_IO_UNION *se, int offset);
 #endif /* _MPT_H_ */

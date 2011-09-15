@@ -25,7 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_read_format_iso_gz)
+static void
+test1(void)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -47,6 +48,52 @@ DEFINE_TEST(test_read_format_iso_gz)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+}
+
+static
+void test2(void)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	const char *name = "test_read_format_iso_2.iso.Z";
+
+	extract_reference_file(name);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, name, 512));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualString(".", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualString("A", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualString("A/B", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualString("C", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualString("C/D", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_EOF,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a),
+	    ARCHIVE_COMPRESSION_COMPRESS);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+}
+
+DEFINE_TEST(test_read_format_iso_gz)
+{
+	test1();
+	test2();
 }
 
 

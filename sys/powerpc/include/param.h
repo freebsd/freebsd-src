@@ -68,7 +68,9 @@
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
+#ifndef MAXCPU
 #define	MAXCPU		8
+#endif
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */

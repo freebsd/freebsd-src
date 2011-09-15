@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.254 2010-12-21 23:47:08 tbox Exp $ */
+/* $Id: adb.c,v 1.254.14.4 2011-03-13 03:36:47 marka Exp $ */
 
 /*! \file
  *
@@ -910,6 +910,8 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 	if (rdataset->trust == dns_trust_glue ||
 	    rdataset->trust == dns_trust_additional)
 		rdataset->ttl = ADB_CACHE_MINIMUM;
+	else if (rdataset->trust == dns_trust_ultimate)
+		rdataset->ttl = 0;
 	else
 		rdataset->ttl = ttlclamp(rdataset->ttl);
 
@@ -2195,7 +2197,6 @@ check_expire_name(dns_adbname_t **namep, isc_stdtime_t now) {
 static void
 check_stale_name(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 	int victims, max_victims;
-	isc_boolean_t result;
 	dns_adbname_t *victim, *next_victim;
 	isc_boolean_t overmem = isc_mem_isovermem(adb->mctx);
 	int scans = 0;
@@ -2217,7 +2218,7 @@ check_stale_name(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 		INSIST(!NAME_DEAD(victim));
 		scans++;
 		next_victim = ISC_LIST_PREV(victim, plink);
-		result = check_expire_name(&victim, now);
+		(void)check_expire_name(&victim, now);
 		if (victim == NULL) {
 			victims++;
 			goto next;
@@ -2762,6 +2763,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 	REQUIRE((options & DNS_ADBFIND_ADDRESSMASK) != 0);
 
 	result = ISC_R_UNEXPECTED;
+	POST(result);
 	wanted_addresses = (options & DNS_ADBFIND_ADDRESSMASK);
 	wanted_fetches = 0;
 	query_pending = 0;
@@ -2813,6 +2815,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 	 */
 	bucket = DNS_ADB_INVALIDBUCKET;
 	adbname = find_name_and_lock(adb, name, find->options, &bucket);
+	INSIST(bucket != DNS_ADB_INVALIDBUCKET);
 	if (adb->name_sd[bucket]) {
 		DP(DEF_LEVEL,
 		   "dns_adb_createfind: returning ISC_R_SHUTTINGDOWN");
@@ -3167,6 +3170,7 @@ dns_adb_cancelfind(dns_adbfind_t *find) {
 	}
 	UNLOCK(&adb->namelocks[unlock_bucket]);
 	bucket = DNS_ADB_INVALIDBUCKET;
+	POST(bucket);
 
  cleanup:
 
@@ -3945,6 +3949,7 @@ dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 	result = ISC_R_SUCCESS;
 	bucket = DNS_ADB_INVALIDBUCKET;
 	entry = find_entry_and_lock(adb, sa, &bucket, now);
+	INSIST(bucket != DNS_ADB_INVALIDBUCKET);
 	if (adb->entry_sd[bucket]) {
 		result = ISC_R_SHUTTINGDOWN;
 		goto unlock;

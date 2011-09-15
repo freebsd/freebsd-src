@@ -193,7 +193,7 @@ MODULE_DEPEND(mpt_cam, cam, 1, 1, 1);
 int mpt_enable_sata_wc = -1;
 TUNABLE_INT("hw.mpt.enable_sata_wc", &mpt_enable_sata_wc);
 
-int
+static int
 mpt_cam_probe(struct mpt_softc *mpt)
 {
 	int role;
@@ -215,7 +215,7 @@ mpt_cam_probe(struct mpt_softc *mpt)
 	return (ENODEV);
 }
 
-int
+static int
 mpt_cam_attach(struct mpt_softc *mpt)
 {
 	struct cam_devq *devq;
@@ -509,7 +509,6 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_fc(struct mpt_softc *mpt)
 {
-	
 	CONFIG_PAGE_FC_PORT_1 fc;
 	U32 fl;
 	int r, doit = 0;
@@ -881,8 +880,8 @@ static int
 mpt_sata_pass_reply_handler(struct mpt_softc *mpt, request_t *req,
  uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
-	if (req != NULL) {
 
+	if (req != NULL) {
 		if (reply_frame != NULL) {
 			req->IOCStatus = le16toh(reply_frame->IOCStatus);
 		}
@@ -1114,7 +1113,7 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	return (0);
 }
 
-int
+static int
 mpt_cam_enable(struct mpt_softc *mpt)
 {
 	int error;
@@ -1151,9 +1150,10 @@ out:
 	return (error);
 }
 
-void
+static void
 mpt_cam_ready(struct mpt_softc *mpt)
 {
+
 	/*
 	 * If we're in target mode, hang out resources now
 	 * so we don't cause the world to hang talking to us.
@@ -1171,7 +1171,7 @@ mpt_cam_ready(struct mpt_softc *mpt)
 	mpt->ready = 1;
 }
 
-void
+static void
 mpt_cam_detach(struct mpt_softc *mpt)
 {
 	mpt_handler_t handler;
@@ -1842,8 +1842,6 @@ bad:
 		memset(se, 0,sizeof (*se));
 		se->Address = htole32(dm_segs->ds_addr);
 
-
-
 		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 		tf = flags;
 		if (seg == first_lim - 1) {
@@ -1957,9 +1955,6 @@ bad:
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
 			se->Address = htole32(dm_segs->ds_addr);
-
-
-
 
 			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 			tf = flags;
@@ -2543,7 +2538,8 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		pqf->CurrentDepth = le16toh(pqf->CurrentDepth);
 		mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x Depth "
 		    "%d\n", pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
-		if (mpt->phydisk_sim) {
+		if (mpt->phydisk_sim && mpt_is_raid_member(mpt,
+		    pqf->TargetID) != 0) {
 			sim = mpt->phydisk_sim;
 		} else {
 			sim = mpt->sim;
@@ -2575,9 +2571,85 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		mpt_prt(mpt, "IR resync update %d completed\n",
 		    (data0 >> 16) & 0xff);
 		break;
+	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+	{
+		union ccb *ccb;
+		struct cam_sim *sim;
+		struct cam_path *tmppath;
+		PTR_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE psdsc;
+
+		psdsc = (PTR_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE)msg->Data;
+		if (mpt->phydisk_sim && mpt_is_raid_member(mpt,
+		    psdsc->TargetID) != 0)
+			sim = mpt->phydisk_sim;
+		else
+			sim = mpt->sim;
+		switch(psdsc->ReasonCode) {
+		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
+			MPTLOCK_2_CAMLOCK(mpt);
+			ccb = xpt_alloc_ccb_nowait();
+			if (ccb == NULL) {
+				mpt_prt(mpt,
+				    "unable to alloc CCB for rescan\n");
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			    cam_sim_path(sim), psdsc->TargetID,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				CAMLOCK_2_MPTLOCK(mpt);
+				mpt_prt(mpt,
+				    "unable to create path for rescan\n");
+				xpt_free_ccb(ccb);
+				break;
+			}
+			xpt_rescan(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+			break;
+		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
+			MPTLOCK_2_CAMLOCK(mpt);
+			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
+			    psdsc->TargetID, CAM_LUN_WILDCARD) !=
+			    CAM_REQ_CMP) {
+				mpt_prt(mpt,
+				    "unable to create path for async event");
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+			xpt_free_path(tmppath);
+			CAMLOCK_2_MPTLOCK(mpt);
+			break;
+		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET:
+		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL:
+		case MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET:
+			break;
+		default:
+			mpt_lprt(mpt, MPT_PRT_WARN,
+			    "SAS device status change: Bus: 0x%02x TargetID: "
+			    "0x%02x ReasonCode: 0x%02x\n", psdsc->Bus,
+			    psdsc->TargetID, psdsc->ReasonCode);
+			break;
+		}
+		break;
+	}
+	case MPI_EVENT_SAS_DISCOVERY_ERROR:
+	{
+		PTR_EVENT_DATA_DISCOVERY_ERROR pde;
+
+		pde = (PTR_EVENT_DATA_DISCOVERY_ERROR)msg->Data;
+		pde->DiscoveryStatus = le32toh(pde->DiscoveryStatus);
+		mpt_lprt(mpt, MPT_PRT_WARN,
+		    "SAS discovery error: Port: 0x%02x Status: 0x%08x\n",
+		    pde->Port, pde->DiscoveryStatus);
+		break;
+	}
 	case MPI_EVENT_EVENT_CHANGE:
 	case MPI_EVENT_INTEGRATED_RAID:
-	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+	case MPI_EVENT_IR2:
+	case MPI_EVENT_LOG_ENTRY_ADDED:
+	case MPI_EVENT_SAS_DISCOVERY:
+	case MPI_EVENT_SAS_PHY_LINK_STATUS:
 	case MPI_EVENT_SAS_SES:
 		break;
 	default:
@@ -3045,6 +3117,7 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 static void
 mpt_cam_ioc_reset(struct mpt_softc *mpt, int type)
 {
+
 	/*
 	 * The pending list is already run down by
 	 * the generic handler.  Perform the same
@@ -3974,6 +4047,7 @@ mpt_spawn_recovery_thread(struct mpt_softc *mpt)
 static void
 mpt_terminate_recovery_thread(struct mpt_softc *mpt)
 {
+
 	if (mpt->recovery_thread == NULL) {
 		return;
 	}
@@ -4377,6 +4451,7 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 static int
 mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 {
+
 	if (tgt == CAM_TARGET_WILDCARD && lun == CAM_LUN_WILDCARD) {
 		mpt->twildcard = 1;
 	} else if (lun >= MPT_MAX_LUNS) {
@@ -4402,6 +4477,7 @@ static int
 mpt_disable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 {
 	int i;
+
 	if (tgt == CAM_TARGET_WILDCARD && lun == CAM_LUN_WILDCARD) {
 		mpt->twildcard = 0;
 	} else if (lun >= MPT_MAX_LUNS) {
@@ -5286,6 +5362,7 @@ mpt_tgt_dump_tgt_state(struct mpt_softc *mpt, request_t *req)
 static void
 mpt_tgt_dump_req_state(struct mpt_softc *mpt, request_t *req)
 {
+
 	mpt_prt(mpt, "req %p:%u index %u (%x) state %x\n", req, req->serno,
 	    req->index, req->index, req->state);
 	mpt_tgt_dump_tgt_state(mpt, req);

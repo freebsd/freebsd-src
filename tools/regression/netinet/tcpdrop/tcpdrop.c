@@ -233,6 +233,7 @@ main(int argc, char *argv[])
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
+	len = sizeof(sin);
 	if (getsockname(listen_fd, (struct sockaddr *)&sin, &len) < 0)
 		err(-1, "getsockname");
 	port = sin.sin_port;

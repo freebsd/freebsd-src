@@ -160,11 +160,7 @@ void	*hashinit_flags(int count, struct malloc_type *type,
 void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	g_waitidle(void);
 
-#ifdef RESTARTABLE_PANICS
-void	panic(const char *, ...) __printflike(1, 2);
-#else
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
-#endif
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);

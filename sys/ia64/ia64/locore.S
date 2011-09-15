@@ -207,13 +207,13 @@ intr_n = 1
 	intr_n = intr_n + 1
 .endr
 EXPORT(sintrnames)
-	.word INTRCNT_COUNT * INTRNAME_LEN
+	data8 INTRCNT_COUNT * INTRNAME_LEN
 
 	.align 8
 EXPORT(intrcnt)
 	.fill INTRCNT_COUNT, 8, 0
 EXPORT(sintrcnt)
-	.word INTRCNT_COUNT
+	data8 INTRCNT_COUNT * 8
 
 	.text
 	// in0:	image base

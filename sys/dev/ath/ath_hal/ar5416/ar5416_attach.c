@@ -117,6 +117,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_resetTxQueue		= ar5416ResetTxQueue;
 
 	/* Receive Functions */
+	ah->ah_getRxFilter		= ar5416GetRxFilter;
+	ah->ah_setRxFilter		= ar5416SetRxFilter;
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
@@ -134,6 +136,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_gpioGet			= ar5416GpioGet;
 	ah->ah_gpioSet			= ar5416GpioSet;
 	ah->ah_gpioSetIntr		= ar5416GpioSetIntr;
+	ah->ah_getTsf64			= ar5416GetTsf64;
 	ah->ah_resetTsf			= ar5416ResetTsf;
 	ah->ah_getRfGain		= ar5416GetRfgain;
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
@@ -148,6 +151,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_enableDfs		= ar5416EnableDfs;
 	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
+	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
@@ -157,6 +161,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_beaconInit		= ar5416BeaconInit;
 	ah->ah_setStationBeaconTimers	= ar5416SetStaBeaconTimers;
 	ah->ah_resetStationBeaconTimers	= ar5416ResetStaBeaconTimers;
+	ah->ah_getNextTBTT		= ar5416GetNextTBTT;
 
 	/* 802.11n Functions */
 	ah->ah_chainTxDesc		= ar5416ChainTxDesc;
@@ -885,6 +890,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halGTTSupport = AH_TRUE;
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halEnhancedDfsSupport = AH_FALSE;
+	/* Hardware supports 32 bit TSF values in the RX descriptor */
+	pCap->halHasLongRxDescTsf = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

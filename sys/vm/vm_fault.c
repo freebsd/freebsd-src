@@ -345,9 +345,7 @@ RetryFault:;
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(fs.m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
 					if (!VM_OBJECT_TRYLOCK(
