@@ -124,7 +124,7 @@ If the task's
 .Va ta_pending
 field is non-zero,
 then it is simply incremented to reflect the number of times the task
-was enqueued.
+was enqueued, up to a cap of USHRT_MAX.
 Otherwise,
 the task is added to the list before the first task which has a lower
 .Va ta_priority
