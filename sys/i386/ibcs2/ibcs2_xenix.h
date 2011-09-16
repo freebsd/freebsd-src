@@ -129,6 +129,12 @@ int	xenix_utsname(struct thread *, struct xenix_utsname_args *);
 
 #endif /* COMPAT_FREEBSD6 */
 
+
+#ifdef COMPAT_FREEBSD7
+
+
+#endif /* COMPAT_FREEBSD7 */
+
 #define	IBCS2_XENIX_AUE_xenix_rdchk	AUE_NULL
 #define	IBCS2_XENIX_AUE_xenix_chsize	AUE_FTRUNCATE
 #define	IBCS2_XENIX_AUE_xenix_ftime	AUE_NULL
