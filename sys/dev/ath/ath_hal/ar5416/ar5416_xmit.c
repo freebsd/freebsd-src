@@ -941,6 +941,7 @@ setTxQInterrupts(struct ath_hal *ah, HAL_TX_QUEUE_INFO *qi)
  * Assumes:
  *  phwChannel has been set to point to the current channel
  */
+#define	TU_TO_USEC(_tu)		((_tu) << 10)
 HAL_BOOL
 ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 {
@@ -1018,7 +1019,8 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		if (qi->tqi_cbrOverflowLimit)
 			qmisc |= AR_Q_MISC_CBR_EXP_CNTR_LIMIT;
 	}
-	if (qi->tqi_readyTime) {
+
+	if (qi->tqi_readyTime && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
 		OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT)
 			| AR_Q_RDYTIMECFG_ENA);
@@ -1089,18 +1091,38 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		qmisc |= AR_Q_MISC_FSP_DBA_GATED
 		      |  AR_Q_MISC_CBR_INCR_DIS1
 		      |  AR_Q_MISC_CBR_INCR_DIS0;
-
-		if (!qi->tqi_readyTime) {
+		HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: CAB: tqi_readyTime = %d\n",
+		    __func__, qi->tqi_readyTime);
+		if (qi->tqi_readyTime) {
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: using tqi_readyTime\n", __func__);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
+		} else {
 			/*
 			 * NB: don't set default ready time if driver
 			 * has explicitly specified something.  This is
 			 * here solely for backwards compatibility.
 			 */
-			value = (ahp->ah_beaconInterval
-				- (ah->ah_config.ah_sw_beacon_response_time -
-					ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff) * 1024;
-			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_ENA);
+			/*
+			 * XXX for now, hard-code a CAB interval of 70%
+			 * XXX of the total beacon interval.
+			 * XXX This keeps Merlin and later based MACs
+			 * XXX quite a bit happier (stops stuck beacons,
+			 * XXX which I gather is because of such a long
+			 * XXX cabq time.)
+			 */
+			value = TU_TO_USEC((ahp->ah_beaconInterval * 70 / 100)
+				- (ah->ah_config.ah_sw_beacon_response_time
+				+ ah->ah_config.ah_dma_beacon_response_time)
+				- ah->ah_config.ah_additional_swba_backoff);
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: defaulting to rdytime = %d\n",
+			    __func__, value);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(value, AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
 		}
 		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
 			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
@@ -1168,3 +1190,4 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 
 	return AH_TRUE;
 }
+#undef	TU_TO_USEC
