@@ -1263,6 +1263,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP, 0);
 		case O_IP_SRCPORT:
+			if (flags & HAVE_DSTIP)
+				flags |= HAVE_IP;
 			show_prerequisites(&flags,
 				HAVE_PROTO | HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
