@@ -319,11 +319,10 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	cmd &= WD_INTERVAL;
 	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
 	if (cmd) {
-		if (timeout != sc->timeout) {
-			if (!sc->active)
-				ichwd_tmr_enable(sc);
+		if (!sc->active)
+			ichwd_tmr_enable(sc);
+		if (timeout != sc->timeout)
 			ichwd_tmr_set(sc, timeout);
-		}
 		ichwd_tmr_reload(sc);
 		*error = 0;
 	} else {
