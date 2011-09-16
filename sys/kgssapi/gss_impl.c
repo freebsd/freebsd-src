@@ -86,7 +86,7 @@ kgss_uninit(void *dummy)
 SYSUNINIT(kgss_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, kgss_uninit, NULL);
 
 int
-gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
+sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 {
         struct sockaddr_un sun;
         struct netconfig *nconf;

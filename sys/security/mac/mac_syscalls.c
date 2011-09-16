@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 FEATURE(security_mac, "Mandatory Access Control Framework support");
 
 int
-__mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
+sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
 	char *elements, *buffer;
 	struct mac mac;
@@ -126,7 +126,7 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 }
 
 int
-__mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
+sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
 	char *elements, *buffer;
 	struct mac mac;
@@ -159,7 +159,7 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 }
 
 int
-__mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
+sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct label *intlabel;
@@ -220,7 +220,7 @@ out:
 }
 
 int
-__mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
+sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
 	char *elements, *buffer;
 	struct label *intlabel;
@@ -310,7 +310,7 @@ out:
 }
 
 int
-__mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
+sys___mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
 	char *elements, *buffer;
 	struct nameidata nd;
@@ -363,7 +363,7 @@ out:
 }
 
 int
-__mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
+sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
 	char *elements, *buffer;
 	struct nameidata nd;
@@ -416,7 +416,7 @@ out:
 }
 
 int
-__mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
+sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
 	struct label *intlabel;
 	struct pipe *pipe;
@@ -512,7 +512,7 @@ out:
 }
 
 int
-__mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
+sys___mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
 	struct label *intlabel;
 	struct nameidata nd;
@@ -566,7 +566,7 @@ out:
 }
 
 int
-__mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
+sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
 	struct label *intlabel;
 	struct nameidata nd;
@@ -620,7 +620,7 @@ out:
 }
 
 int
-mac_syscall(struct thread *td, struct mac_syscall_args *uap)
+sys_mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 	struct mac_policy_conf *mpc;
 	char target[MAC_MAX_POLICY_NAME];
@@ -659,70 +659,70 @@ out:
 #else /* !MAC */
 
 int
-__mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
+sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
+sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
+sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
+sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
+sys___mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
+sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
+sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
+sys___mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
+sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-mac_syscall(struct thread *td, struct mac_syscall_args *uap)
+sys_mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 
 	return (ENOSYS);

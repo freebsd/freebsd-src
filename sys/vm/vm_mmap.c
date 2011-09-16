@@ -104,7 +104,7 @@ static int vm_mmap_shm(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
  */
 /* ARGSUSED */
 int
-sbrk(td, uap)
+sys_sbrk(td, uap)
 	struct thread *td;
 	struct sbrk_args *uap;
 {
@@ -123,7 +123,7 @@ struct sstk_args {
  */
 /* ARGSUSED */
 int
-sstk(td, uap)
+sys_sstk(td, uap)
 	struct thread *td;
 	struct sstk_args *uap;
 {
@@ -180,7 +180,7 @@ struct mmap_args {
  * MPSAFE
  */
 int
-mmap(td, uap)
+sys_mmap(td, uap)
 	struct thread *td;
 	struct mmap_args *uap;
 {
@@ -402,7 +402,7 @@ freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 	oargs.flags = uap->flags;
 	oargs.fd = uap->fd;
 	oargs.pos = uap->pos;
-	return (mmap(td, &oargs));
+	return (sys_mmap(td, &oargs));
 }
 
 #ifdef COMPAT_43
@@ -454,7 +454,7 @@ ommap(td, uap)
 		nargs.flags |= MAP_FIXED;
 	nargs.fd = uap->fd;
 	nargs.pos = uap->pos;
-	return (mmap(td, &nargs));
+	return (sys_mmap(td, &nargs));
 }
 #endif				/* COMPAT_43 */
 
@@ -470,7 +470,7 @@ struct msync_args {
  * MPSAFE
  */
 int
-msync(td, uap)
+sys_msync(td, uap)
 	struct thread *td;
 	struct msync_args *uap;
 {
@@ -523,7 +523,7 @@ struct munmap_args {
  * MPSAFE
  */
 int
-munmap(td, uap)
+sys_munmap(td, uap)
 	struct thread *td;
 	struct munmap_args *uap;
 {
@@ -599,7 +599,7 @@ struct mprotect_args {
  * MPSAFE
  */
 int
-mprotect(td, uap)
+sys_mprotect(td, uap)
 	struct thread *td;
 	struct mprotect_args *uap;
 {
@@ -641,7 +641,7 @@ struct minherit_args {
  * MPSAFE
  */
 int
-minherit(td, uap)
+sys_minherit(td, uap)
 	struct thread *td;
 	struct minherit_args *uap;
 {
@@ -683,7 +683,7 @@ struct madvise_args {
  */
 /* ARGSUSED */
 int
-madvise(td, uap)
+sys_madvise(td, uap)
 	struct thread *td;
 	struct madvise_args *uap;
 {
@@ -747,7 +747,7 @@ struct mincore_args {
  */
 /* ARGSUSED */
 int
-mincore(td, uap)
+sys_mincore(td, uap)
 	struct thread *td;
 	struct mincore_args *uap;
 {
@@ -1003,7 +1003,7 @@ struct mlock_args {
  * MPSAFE
  */
 int
-mlock(td, uap)
+sys_mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
@@ -1067,7 +1067,7 @@ struct mlockall_args {
  * MPSAFE
  */
 int
-mlockall(td, uap)
+sys_mlockall(td, uap)
 	struct thread *td;
 	struct mlockall_args *uap;
 {
@@ -1144,7 +1144,7 @@ struct munlockall_args {
  * MPSAFE
  */
 int
-munlockall(td, uap)
+sys_munlockall(td, uap)
 	struct thread *td;
 	struct munlockall_args *uap;
 {
@@ -1185,7 +1185,7 @@ struct munlock_args {
  * MPSAFE
  */
 int
-munlock(td, uap)
+sys_munlock(td, uap)
 	struct thread *td;
 	struct munlock_args *uap;
 {

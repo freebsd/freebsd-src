@@ -1174,7 +1174,7 @@ mfi_aen_complete(struct mfi_command *cm)
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
 			PROC_LOCK(mfi_aen_entry->p);
-			psignal(mfi_aen_entry->p, SIGIO);
+			kern_psignal(mfi_aen_entry->p, SIGIO);
 			PROC_UNLOCK(mfi_aen_entry->p);
 			free(mfi_aen_entry, M_MFIBUF);
 		}

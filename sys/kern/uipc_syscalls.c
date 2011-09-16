@@ -171,7 +171,7 @@ getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 #endif
 
 int
-socket(td, uap)
+sys_socket(td, uap)
 	struct thread *td;
 	struct socket_args /* {
 		int	domain;
@@ -210,7 +210,7 @@ socket(td, uap)
 
 /* ARGSUSED */
 int
-bind(td, uap)
+sys_bind(td, uap)
 	struct thread *td;
 	struct bind_args /* {
 		int	s;
@@ -259,7 +259,7 @@ kern_bind(td, fd, sa)
 
 /* ARGSUSED */
 int
-listen(td, uap)
+sys_listen(td, uap)
 	struct thread *td;
 	struct listen_args /* {
 		int	s;
@@ -495,7 +495,7 @@ done:
 }
 
 int
-accept(td, uap)
+sys_accept(td, uap)
 	struct thread *td;
 	struct accept_args *uap;
 {
@@ -516,7 +516,7 @@ oaccept(td, uap)
 
 /* ARGSUSED */
 int
-connect(td, uap)
+sys_connect(td, uap)
 	struct thread *td;
 	struct connect_args /* {
 		int	s;
@@ -664,7 +664,7 @@ free1:
 }
 
 int
-socketpair(struct thread *td, struct socketpair_args *uap)
+sys_socketpair(struct thread *td, struct socketpair_args *uap)
 {
 	int error, sv[2];
 
@@ -834,7 +834,7 @@ bad:
 }
 
 int
-sendto(td, uap)
+sys_sendto(td, uap)
 	struct thread *td;
 	struct sendto_args /* {
 		int	s;
@@ -918,7 +918,7 @@ osendmsg(td, uap)
 #endif
 
 int
-sendmsg(td, uap)
+sys_sendmsg(td, uap)
 	struct thread *td;
 	struct sendmsg_args /* {
 		int	s;
@@ -1128,7 +1128,7 @@ recvit(td, s, mp, namelenp)
 }
 
 int
-recvfrom(td, uap)
+sys_recvfrom(td, uap)
 	struct thread *td;
 	struct recvfrom_args /* {
 		int	s;
@@ -1171,7 +1171,7 @@ orecvfrom(td, uap)
 {
 
 	uap->flags |= MSG_COMPAT;
-	return (recvfrom(td, uap));
+	return (sys_recvfrom(td, uap));
 }
 #endif
 
@@ -1238,7 +1238,7 @@ orecvmsg(td, uap)
 #endif
 
 int
-recvmsg(td, uap)
+sys_recvmsg(td, uap)
 	struct thread *td;
 	struct recvmsg_args /* {
 		int	s;
@@ -1273,7 +1273,7 @@ recvmsg(td, uap)
 
 /* ARGSUSED */
 int
-shutdown(td, uap)
+sys_shutdown(td, uap)
 	struct thread *td;
 	struct shutdown_args /* {
 		int	s;
@@ -1297,7 +1297,7 @@ shutdown(td, uap)
 
 /* ARGSUSED */
 int
-setsockopt(td, uap)
+sys_setsockopt(td, uap)
 	struct thread *td;
 	struct setsockopt_args /* {
 		int	s;
@@ -1360,7 +1360,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 
 /* ARGSUSED */
 int
-getsockopt(td, uap)
+sys_getsockopt(td, uap)
 	struct thread *td;
 	struct getsockopt_args /* {
 		int	s;
@@ -1519,7 +1519,7 @@ bad:
 }
 
 int
-getsockname(td, uap)
+sys_getsockname(td, uap)
 	struct thread *td;
 	struct getsockname_args *uap;
 {
@@ -1624,7 +1624,7 @@ done:
 }
 
 int
-getpeername(td, uap)
+sys_getpeername(td, uap)
 	struct thread *td;
 	struct getpeername_args *uap;
 {
@@ -1764,7 +1764,7 @@ sf_buf_mext(void *addr, void *args)
  * specified, write the total number of bytes sent into *sbytes.
  */
 int
-sendfile(struct thread *td, struct sendfile_args *uap)
+sys_sendfile(struct thread *td, struct sendfile_args *uap)
 {
 
 	return (do_sendfile(td, uap, 0));
@@ -2300,7 +2300,7 @@ out:
  * XXX: We should make this loadable one day.
  */
 int
-sctp_peeloff(td, uap)
+sys_sctp_peeloff(td, uap)
 	struct thread *td;
 	struct sctp_peeloff_args /* {
 		int	sd;
@@ -2387,7 +2387,7 @@ done2:
 }
 
 int
-sctp_generic_sendmsg (td, uap)
+sys_sctp_generic_sendmsg (td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_args /* {
 		int sd, 
@@ -2494,7 +2494,7 @@ sctp_bad2:
 }
 
 int
-sctp_generic_sendmsg_iov(td, uap)
+sys_sctp_generic_sendmsg_iov(td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_iov_args /* {
 		int sd, 
@@ -2616,7 +2616,7 @@ sctp_bad2:
 }
 
 int
-sctp_generic_recvmsg(td, uap)
+sys_sctp_generic_recvmsg(td, uap)
 	struct thread *td;
 	struct sctp_generic_recvmsg_args /* {
 		int sd, 

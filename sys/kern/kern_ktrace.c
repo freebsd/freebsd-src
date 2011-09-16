@@ -782,7 +782,7 @@ struct ktrace_args {
 #endif
 /* ARGSUSED */
 int
-ktrace(td, uap)
+sys_ktrace(td, uap)
 	struct thread *td;
 	register struct ktrace_args *uap;
 {
@@ -936,7 +936,7 @@ done:
 
 /* ARGSUSED */
 int
-utrace(td, uap)
+sys_utrace(td, uap)
 	struct thread *td;
 	register struct utrace_args *uap;
 {
