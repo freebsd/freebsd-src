@@ -8,6 +8,7 @@ PERFMON
 PMAP_SHPGPERPROC	opt_pmap.h
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
+NKPT			opt_pmap.h
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
