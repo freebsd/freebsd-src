@@ -493,6 +493,14 @@ options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 #
 options 	PMAP_SHPGPERPROC=201
 
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel and any
+# modules or other data loaded with the kernel by the loader.  Each
+# page table page maps 2MB.
+#
+options 	NKPT=31
+
 
 #####################################################################
 # ABI Emulation
