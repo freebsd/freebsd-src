@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/jail.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -1226,13 +1227,11 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 *
 	 * For V3, nfs_fsinfo will adjust this as necessary.  Assume maximum
 	 * that we can handle until we find out otherwise.
-	 * XXX Our "safe" limit on the client is what we can store in our
-	 * buffer cache using signed(!) block numbers.
 	 */
 	if ((argp->flags & NFSMNT_NFSV3) == 0)
 		nmp->nm_maxfilesize = 0xffffffffLL;
 	else
-		nmp->nm_maxfilesize = (u_int64_t)0x80000000 * DEV_BSIZE - 1;
+		nmp->nm_maxfilesize = OFF_MAX;
 
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
