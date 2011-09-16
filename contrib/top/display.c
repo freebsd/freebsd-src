@@ -151,6 +151,38 @@ int display_resize()
     return(smart_terminal ? lines : Largest);
 }
 
+int display_updatecpus(statics)
+
+struct statics *statics;
+
+{
+    register int *lp;
+    register int lines;
+    register int i;
+    
+    /* call resize to do the dirty work */
+    lines = display_resize();
+    if (pcpu_stats)
+	num_cpus = statics->ncpus;
+    else
+	num_cpus = 1;
+    cpustates_column = 5;	/* CPU: */
+    if (num_cpus != 1)
+    cpustates_column += 2;	/* CPU 0: */
+    for (i = num_cpus; i > 9; i /= 10)
+	cpustates_column++;
+
+    /* fill the "last" array with all -1s, to insure correct updating */
+    lp = lcpustates;
+    i = num_cpustates * num_cpus;
+    while (--i >= 0)
+    {
+	*lp++ = -1;
+    }
+    
+    return(lines);
+}
+    
 int display_init(statics)
 
 struct statics *statics;
@@ -161,14 +193,7 @@ struct statics *statics;
     register int *ip;
     register int i;
 
-    /* call resize to do the dirty work */
-    lines = display_resize();
-    num_cpus = statics->ncpus;
-    cpustates_column = 5;	/* CPU: */
-    if (num_cpus != 1)
-    cpustates_column += 2;	/* CPU 0: */
-    for (i = num_cpus; i > 9; i /= 10)
-	cpustates_column++;
+    lines = display_updatecpus(statics);
 
     /* only do the rest if we need to */
     if (lines > -1)
@@ -184,7 +209,7 @@ struct statics *statics;
 	num_swap = string_count(swap_names);
 	lswap = (int *)malloc(num_swap * sizeof(int));
 	num_cpustates = string_count(cpustate_names);
-	lcpustates = (int *)malloc(num_cpustates * sizeof(int) * num_cpus);
+	lcpustates = (int *)malloc(num_cpustates * sizeof(int) * statics->ncpus);
 	cpustate_columns = (int *)malloc(num_cpustates * sizeof(int));
 
 	memory_names = statics->memory_names;

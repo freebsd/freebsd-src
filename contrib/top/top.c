@@ -196,9 +196,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajz";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzP";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -225,8 +225,9 @@ char *argv[];
 #define	CMD_showargs	20
 #define	CMD_jidtog	21
 #define CMD_kidletog	22
+#define CMD_pcputog	23
 #ifdef ORDER
-#define CMD_order       23
+#define CMD_order       24
 #endif
 
     /* set the buffer for stdout */
@@ -411,7 +412,7 @@ char *argv[];
 		break;
 
 	      case 'P':
-		pcpu_stats = Yes;
+		pcpu_stats = !pcpu_stats;
 		break;
 
 	      case 'z':
@@ -1086,6 +1087,16 @@ restart:
 				new_message(MT_standout | MT_delayed,
 				    " %sisplaying system idle process.",
 				    ps.kidle ? "D" : "Not d");
+				putchar('\r');
+				break;
+			    case CMD_pcputog:
+				pcpu_stats = !pcpu_stats;
+				new_message(MT_standout | MT_delayed,
+				    " Displaying %sCPU statistics.",
+				    pcpu_stats ? "per-" : "global ");
+				toggle_pcpustats();
+				max_topn = display_updatecpus(&statics);
+				reset_display();
 				putchar('\r');
 				break;
 			    default:
