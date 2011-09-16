@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 Doug Rabson
+ * Copyright (c) 2011 Andriy Gapon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +25,6 @@
  * SUCH DAMAGE.
  */
 /* $FreeBSD$ */
-/*
- * Compile with 'cc -I. -I../../cddl/boot/zfs zfstest.c -o zfstest'
- */
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -48,7 +46,10 @@ pager_output(const char *line)
 	fprintf(stderr, "%s", line);
 }
 
+#define ZFS_TEST
+#define	printf(...)	 fprintf(stderr, __VA_ARGS__)
 #include "zfsimpl.c"
+#undef printf
 
 static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
@@ -86,7 +87,9 @@ main(int argc, char** argv)
 	struct stat sb;
 	dnode_phys_t dn;
 	spa_t *spa;
-	int i, n, off;
+	off_t off;
+	ssize_t n;
+	int i;
 
 	zfs_init();
 	if (argc == 1) {
@@ -131,7 +134,9 @@ main(int argc, char** argv)
 
 	off = 0;
 	do {
-		n = zfs_read(spa, &dn, buf, 512, off);
+		n = sb.st_size - off;
+		n = n > sizeof(buf) ? sizeof(buf) : n;
+		n = zfs_read(spa, &dn, buf, n, off);
 		if (n < 0) {
 			fprintf(stderr, "zfs_read failed\n");
 			exit(1);
