@@ -949,7 +949,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	HAL_TX_QUEUE_INFO *qi;
-	uint32_t cwMin, chanCwMin, value, qmisc, dmisc;
+	uint32_t cwMin, chanCwMin, qmisc, dmisc;
 
 	if (q >= pCap->halTotalQueues) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid queue num %u\n",
@@ -1100,6 +1100,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			    SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) |
 			    AR_Q_RDYTIMECFG_ENA);
 		} else {
+			int value;
 			/*
 			 * NB: don't set default ready time if driver
 			 * has explicitly specified something.  This is
@@ -1108,20 +1109,27 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			/*
 			 * XXX for now, hard-code a CAB interval of 70%
 			 * XXX of the total beacon interval.
+			 *
 			 * XXX This keeps Merlin and later based MACs
 			 * XXX quite a bit happier (stops stuck beacons,
 			 * XXX which I gather is because of such a long
 			 * XXX cabq time.)
 			 */
-			value = TU_TO_USEC((ahp->ah_beaconInterval * 70 / 100)
+			value = (ahp->ah_beaconInterval * 70 / 100)
 				- (ah->ah_config.ah_sw_beacon_response_time
 				+ ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff);
+				- ah->ah_config.ah_additional_swba_backoff;
+			/*
+			 * XXX Ensure it isn't too low - nothing lower
+			 * XXX than 10 TU
+			 */
+			if (value < 10)
+				value = 10;
 			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
-			    "%s: defaulting to rdytime = %d\n",
+			    "%s: defaulting to rdytime = %d uS\n",
 			    __func__, value);
 			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
-			    SM(value, AR_Q_RDYTIMECFG_INT) |
+			    SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_INT) |
 			    AR_Q_RDYTIMECFG_ENA);
 		}
 		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
