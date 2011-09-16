@@ -486,7 +486,7 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 
 /* System calls. */
 int
-shm_open(struct thread *td, struct shm_open_args *uap)
+sys_shm_open(struct thread *td, struct shm_open_args *uap)
 {
 	struct filedesc *fdp;
 	struct shmfd *shmfd;
@@ -620,7 +620,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 }
 
 int
-shm_unlink(struct thread *td, struct shm_unlink_args *uap)
+sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
 	Fnv32_t fnv;

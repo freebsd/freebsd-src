@@ -628,7 +628,7 @@ isc_in(void *vp)
 	    sp->flags, so->so_count, so->so_state, error, sp->proc);
      if((sp->proc != NULL) && sp->signal) {
 	  PROC_LOCK(sp->proc);
-	  psignal(sp->proc, sp->signal);
+	  kern_psignal(sp->proc, sp->signal);
 	  PROC_UNLOCK(sp->proc);
 	  sp->flags |= ISC_SIGNALED;
 	  sdebug(2, "pid=%d signaled(%d)", sp->proc->p_pid, sp->signal);

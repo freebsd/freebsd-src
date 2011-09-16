@@ -82,7 +82,7 @@ FEATURE(security_capability_mode, "Capsicum Capability Mode");
  * System call to enter capability mode for the process.
  */
 int
-cap_enter(struct thread *td, struct cap_enter_args *uap)
+sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct proc *p;
@@ -106,7 +106,7 @@ cap_enter(struct thread *td, struct cap_enter_args *uap)
  * System call to query whether the process is in capability mode.
  */
 int
-cap_getmode(struct thread *td, struct cap_getmode_args *uap)
+sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 	u_int i;
 
@@ -117,14 +117,14 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 #else /* !CAPABILITY_MODE */
 
 int
-cap_enter(struct thread *td, struct cap_enter_args *uap)
+sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-cap_getmode(struct thread *td, struct cap_getmode_args *uap)
+sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 
 	return (ENOSYS);
@@ -239,7 +239,7 @@ cap_rights(struct file *fp_cap)
  * file object or an an existing capability.
  */
 int
-cap_new(struct thread *td, struct cap_new_args *uap)
+sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
 	int error, capfd;
 	int fd = uap->fd;
@@ -269,7 +269,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
  * System call to query the rights mask associated with a capability.
  */
 int
-cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
 {
 	struct capability *cp;
 	struct file *fp;
@@ -513,14 +513,14 @@ capability_chown(struct file *fp, uid_t uid, gid_t gid,
  * into the kernel.
  */
 int
-cap_new(struct thread *td, struct cap_new_args *uap)
+sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
 {
 
 	return (ENOSYS);

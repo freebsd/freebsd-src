@@ -726,7 +726,7 @@ struct sigreturn_args {
  * MPSAFE
  */
 int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct proc *p;
 	mcontext_t *mc;

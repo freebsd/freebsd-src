@@ -192,12 +192,12 @@ ast(struct trapframe *framep)
 	}
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
-		psignal(p, SIGVTALRM);
+		kern_psignal(p, SIGVTALRM);
 		PROC_UNLOCK(p);
 	}
 	if (flags & TDF_PROFPEND) {
 		PROC_LOCK(p);
-		psignal(p, SIGPROF);
+		kern_psignal(p, SIGPROF);
 		PROC_UNLOCK(p);
 	}
 #ifdef MAC
