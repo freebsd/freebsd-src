@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -165,7 +166,8 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	 * Count multiple enqueues.
 	 */
 	if (task->ta_pending) {
-		task->ta_pending++;
+		if (task->ta_pending < USHRT_MAX)
+			task->ta_pending++;
 		TQ_UNLOCK(queue);
 		return 0;
 	}
