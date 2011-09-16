@@ -2045,7 +2045,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
  * Syscall to open a message queue.
  */
 int
-kmq_open(struct thread *td, struct kmq_open_args *uap)
+sys_kmq_open(struct thread *td, struct kmq_open_args *uap)
 {
 	struct mq_attr attr;
 	int flags, error;
@@ -2066,7 +2066,7 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
  * Syscall to unlink a message queue.
  */
 int
-kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
+sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 {
 	char path[MQFS_NAMELEN+1];
 	struct mqfs_node *pn;
@@ -2169,7 +2169,7 @@ kern_kmq_setattr(struct thread *td, int mqd, const struct mq_attr *attr,
 }
 
 int
-kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
+sys_kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 {
 	struct mq_attr attr, oattr;
 	int error;
@@ -2189,7 +2189,7 @@ kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 }
 
 int
-kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
+sys_kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 {
 	struct mqueue *mq;
 	struct file *fp;
@@ -2215,7 +2215,7 @@ kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 }
 
 int
-kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
+sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 {
 	struct mqueue *mq;
 	struct file *fp;
@@ -2240,7 +2240,7 @@ kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 }
 
 int
-kmq_notify(struct thread *td, struct kmq_notify_args *uap)
+sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 {
 	struct sigevent ev;
 	struct filedesc *fdp;
@@ -2770,8 +2770,8 @@ static struct syscall_helper_data mq32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_setattr),
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedsend),
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedreceive),
-	SYSCALL32_INIT_HELPER(kmq_notify),
-	SYSCALL32_INIT_HELPER(kmq_unlink),
+	SYSCALL32_INIT_HELPER_COMPAT(kmq_notify),
+	SYSCALL32_INIT_HELPER_COMPAT(kmq_unlink),
 	SYSCALL_INIT_LAST
 };
 #endif

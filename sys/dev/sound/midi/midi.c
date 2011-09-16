@@ -562,7 +562,7 @@ midi_in(struct snd_midi *m, MIDI_TYPE *buf, int size)
 		selwakeup(&m->rsel);
 		if (m->async) {
 			PROC_LOCK(m->async);
-			psignal(m->async, SIGIO);
+			kern_psignal(m->async, SIGIO);
 			PROC_UNLOCK(m->async);
 		}
 #if 0
@@ -604,7 +604,7 @@ midi_out(struct snd_midi *m, MIDI_TYPE *buf, int size)
 		selwakeup(&m->wsel);
 		if (m->async) {
 			PROC_LOCK(m->async);
-			psignal(m->async, SIGIO);
+			kern_psignal(m->async, SIGIO);
 			PROC_UNLOCK(m->async);
 		}
 	}

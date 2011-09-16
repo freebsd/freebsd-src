@@ -125,7 +125,7 @@ struct sync_args {
 #endif
 /* ARGSUSED */
 int
-sync(td, uap)
+sys_sync(td, uap)
 	struct thread *td;
 	struct sync_args *uap;
 {
@@ -176,7 +176,7 @@ struct quotactl_args {
 };
 #endif
 int
-quotactl(td, uap)
+sys_quotactl(td, uap)
 	struct thread *td;
 	register struct quotactl_args /* {
 		char *path;
@@ -266,7 +266,7 @@ struct statfs_args {
 };
 #endif
 int
-statfs(td, uap)
+sys_statfs(td, uap)
 	struct thread *td;
 	register struct statfs_args /* {
 		char *path;
@@ -346,7 +346,7 @@ struct fstatfs_args {
 };
 #endif
 int
-fstatfs(td, uap)
+sys_fstatfs(td, uap)
 	struct thread *td;
 	register struct fstatfs_args /* {
 		int fd;
@@ -437,7 +437,7 @@ struct getfsstat_args {
 };
 #endif
 int
-getfsstat(td, uap)
+sys_getfsstat(td, uap)
 	struct thread *td;
 	register struct getfsstat_args /* {
 		struct statfs *buf;
@@ -732,7 +732,7 @@ struct fchdir_args {
 };
 #endif
 int
-fchdir(td, uap)
+sys_fchdir(td, uap)
 	struct thread *td;
 	struct fchdir_args /* {
 		int fd;
@@ -797,7 +797,7 @@ struct chdir_args {
 };
 #endif
 int
-chdir(td, uap)
+sys_chdir(td, uap)
 	struct thread *td;
 	struct chdir_args /* {
 		char *path;
@@ -889,7 +889,7 @@ struct chroot_args {
 };
 #endif
 int
-chroot(td, uap)
+sys_chroot(td, uap)
 	struct thread *td;
 	struct chroot_args /* {
 		char *path;
@@ -1038,7 +1038,7 @@ struct open_args {
 };
 #endif
 int
-open(td, uap)
+sys_open(td, uap)
 	struct thread *td;
 	register struct open_args /* {
 		char *path;
@@ -1059,7 +1059,7 @@ struct openat_args {
 };
 #endif
 int
-openat(struct thread *td, struct openat_args *uap)
+sys_openat(struct thread *td, struct openat_args *uap)
 {
 
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
@@ -1279,7 +1279,7 @@ struct mknod_args {
 };
 #endif
 int
-mknod(td, uap)
+sys_mknod(td, uap)
 	struct thread *td;
 	register struct mknod_args /* {
 		char *path;
@@ -1300,7 +1300,7 @@ struct mknodat_args {
 };
 #endif
 int
-mknodat(struct thread *td, struct mknodat_args *uap)
+sys_mknodat(struct thread *td, struct mknodat_args *uap)
 {
 
 	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
@@ -1432,7 +1432,7 @@ struct mkfifo_args {
 };
 #endif
 int
-mkfifo(td, uap)
+sys_mkfifo(td, uap)
 	struct thread *td;
 	register struct mkfifo_args /* {
 		char *path;
@@ -1451,7 +1451,7 @@ struct mkfifoat_args {
 };
 #endif
 int
-mkfifoat(struct thread *td, struct mkfifoat_args *uap)
+sys_mkfifoat(struct thread *td, struct mkfifoat_args *uap)
 {
 
 	return (kern_mkfifoat(td, uap->fd, uap->path, UIO_USERSPACE,
@@ -1533,7 +1533,7 @@ struct link_args {
 };
 #endif
 int
-link(td, uap)
+sys_link(td, uap)
 	struct thread *td;
 	register struct link_args /* {
 		char *path;
@@ -1554,7 +1554,7 @@ struct linkat_args {
 };
 #endif
 int
-linkat(struct thread *td, struct linkat_args *uap)
+sys_linkat(struct thread *td, struct linkat_args *uap)
 {
 	int flag;
 
@@ -1685,7 +1685,7 @@ struct symlink_args {
 };
 #endif
 int
-symlink(td, uap)
+sys_symlink(td, uap)
 	struct thread *td;
 	register struct symlink_args /* {
 		char *path;
@@ -1704,7 +1704,7 @@ struct symlinkat_args {
 };
 #endif
 int
-symlinkat(struct thread *td, struct symlinkat_args *uap)
+sys_symlinkat(struct thread *td, struct symlinkat_args *uap)
 {
 
 	return (kern_symlinkat(td, uap->path1, uap->fd, uap->path2,
@@ -1792,7 +1792,7 @@ out:
  * Delete a whiteout from the filesystem.
  */
 int
-undelete(td, uap)
+sys_undelete(td, uap)
 	struct thread *td;
 	register struct undelete_args /* {
 		char *path;
@@ -1848,7 +1848,7 @@ struct unlink_args {
 };
 #endif
 int
-unlink(td, uap)
+sys_unlink(td, uap)
 	struct thread *td;
 	struct unlink_args /* {
 		char *path;
@@ -1866,7 +1866,7 @@ struct unlinkat_args {
 };
 #endif
 int
-unlinkat(struct thread *td, struct unlinkat_args *uap)
+sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 {
 	int flag = uap->flag;
 	int fd = uap->fd;
@@ -1970,7 +1970,7 @@ struct lseek_args {
 };
 #endif
 int
-lseek(td, uap)
+sys_lseek(td, uap)
 	struct thread *td;
 	register struct lseek_args /* {
 		int fd;
@@ -2084,7 +2084,7 @@ olseek(td, uap)
 	nuap.fd = uap->fd;
 	nuap.offset = uap->offset;
 	nuap.whence = uap->whence;
-	return (lseek(td, &nuap));
+	return (sys_lseek(td, &nuap));
 }
 #endif /* COMPAT_43 */
 
@@ -2099,7 +2099,7 @@ freebsd6_lseek(td, uap)
 	ouap.fd = uap->fd;
 	ouap.offset = uap->offset;
 	ouap.whence = uap->whence;
-	return (lseek(td, &ouap));
+	return (sys_lseek(td, &ouap));
 }
 
 /*
@@ -2146,7 +2146,7 @@ struct access_args {
 };
 #endif
 int
-access(td, uap)
+sys_access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
 		char *path;
@@ -2166,7 +2166,7 @@ struct faccessat_args {
 }
 #endif
 int
-faccessat(struct thread *td, struct faccessat_args *uap)
+sys_faccessat(struct thread *td, struct faccessat_args *uap)
 {
 
 	if (uap->flag & ~AT_EACCESS)
@@ -2234,7 +2234,7 @@ struct eaccess_args {
 };
 #endif
 int
-eaccess(td, uap)
+sys_eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
 		char *path;
@@ -2351,7 +2351,7 @@ struct stat_args {
 };
 #endif
 int
-stat(td, uap)
+sys_stat(td, uap)
 	struct thread *td;
 	register struct stat_args /* {
 		char *path;
@@ -2376,7 +2376,7 @@ struct fstatat_args {
 }
 #endif
 int
-fstatat(struct thread *td, struct fstatat_args *uap)
+sys_fstatat(struct thread *td, struct fstatat_args *uap)
 {
 	struct stat sb;
 	int error;
@@ -2453,7 +2453,7 @@ struct lstat_args {
 };
 #endif
 int
-lstat(td, uap)
+sys_lstat(td, uap)
 	struct thread *td;
 	register struct lstat_args /* {
 		char *path;
@@ -2511,7 +2511,7 @@ struct nstat_args {
 };
 #endif
 int
-nstat(td, uap)
+sys_nstat(td, uap)
 	struct thread *td;
 	register struct nstat_args /* {
 		char *path;
@@ -2540,7 +2540,7 @@ struct lstat_args {
 };
 #endif
 int
-nlstat(td, uap)
+sys_nlstat(td, uap)
 	struct thread *td;
 	register struct nlstat_args /* {
 		char *path;
@@ -2569,7 +2569,7 @@ struct pathconf_args {
 };
 #endif
 int
-pathconf(td, uap)
+sys_pathconf(td, uap)
 	struct thread *td;
 	register struct pathconf_args /* {
 		char *path;
@@ -2587,7 +2587,7 @@ struct lpathconf_args {
 };
 #endif
 int
-lpathconf(td, uap)
+sys_lpathconf(td, uap)
 	struct thread *td;
 	register struct lpathconf_args /* {
 		char *path;
@@ -2633,7 +2633,7 @@ struct readlink_args {
 };
 #endif
 int
-readlink(td, uap)
+sys_readlink(td, uap)
 	struct thread *td;
 	register struct readlink_args /* {
 		char *path;
@@ -2654,7 +2654,7 @@ struct readlinkat_args {
 };
 #endif
 int
-readlinkat(struct thread *td, struct readlinkat_args *uap)
+sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 {
 
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
@@ -2770,7 +2770,7 @@ struct chflags_args {
 };
 #endif
 int
-chflags(td, uap)
+sys_chflags(td, uap)
 	struct thread *td;
 	register struct chflags_args /* {
 		char *path;
@@ -2798,7 +2798,7 @@ chflags(td, uap)
  * Same as chflags() but doesn't follow symlinks.
  */
 int
-lchflags(td, uap)
+sys_lchflags(td, uap)
 	struct thread *td;
 	register struct lchflags_args /* {
 		char *path;
@@ -2832,7 +2832,7 @@ struct fchflags_args {
 };
 #endif
 int
-fchflags(td, uap)
+sys_fchflags(td, uap)
 	struct thread *td;
 	register struct fchflags_args /* {
 		int fd;
@@ -2899,7 +2899,7 @@ struct chmod_args {
 };
 #endif
 int
-chmod(td, uap)
+sys_chmod(td, uap)
 	struct thread *td;
 	register struct chmod_args /* {
 		char *path;
@@ -2919,7 +2919,7 @@ struct fchmodat_args {
 }
 #endif
 int
-fchmodat(struct thread *td, struct fchmodat_args *uap)
+sys_fchmodat(struct thread *td, struct fchmodat_args *uap)
 {
 	int flag = uap->flag;
 	int fd = uap->fd;
@@ -2949,7 +2949,7 @@ struct lchmod_args {
 };
 #endif
 int
-lchmod(td, uap)
+sys_lchmod(td, uap)
 	struct thread *td;
 	register struct lchmod_args /* {
 		char *path;
@@ -2995,7 +2995,7 @@ struct fchmod_args {
 };
 #endif
 int
-fchmod(struct thread *td, struct fchmod_args *uap)
+sys_fchmod(struct thread *td, struct fchmod_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -3054,7 +3054,7 @@ struct chown_args {
 };
 #endif
 int
-chown(td, uap)
+sys_chown(td, uap)
 	struct thread *td;
 	register struct chown_args /* {
 		char *path;
@@ -3076,7 +3076,7 @@ struct fchownat_args {
 };
 #endif
 int
-fchownat(struct thread *td, struct fchownat_args *uap)
+sys_fchownat(struct thread *td, struct fchownat_args *uap)
 {
 	int flag;
 
@@ -3129,7 +3129,7 @@ struct lchown_args {
 };
 #endif
 int
-lchown(td, uap)
+sys_lchown(td, uap)
 	struct thread *td;
 	register struct lchown_args /* {
 		char *path;
@@ -3161,7 +3161,7 @@ struct fchown_args {
 };
 #endif
 int
-fchown(td, uap)
+sys_fchown(td, uap)
 	struct thread *td;
 	register struct fchown_args /* {
 		int fd;
@@ -3268,7 +3268,7 @@ struct utimes_args {
 };
 #endif
 int
-utimes(td, uap)
+sys_utimes(td, uap)
 	struct thread *td;
 	register struct utimes_args /* {
 		char *path;
@@ -3288,7 +3288,7 @@ struct futimesat_args {
 };
 #endif
 int
-futimesat(struct thread *td, struct futimesat_args *uap)
+sys_futimesat(struct thread *td, struct futimesat_args *uap)
 {
 
 	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
@@ -3336,7 +3336,7 @@ struct lutimes_args {
 };
 #endif
 int
-lutimes(td, uap)
+sys_lutimes(td, uap)
 	struct thread *td;
 	register struct lutimes_args /* {
 		char *path;
@@ -3380,7 +3380,7 @@ struct futimes_args {
 };
 #endif
 int
-futimes(td, uap)
+sys_futimes(td, uap)
 	struct thread *td;
 	register struct futimes_args /* {
 		int  fd;
@@ -3429,7 +3429,7 @@ struct truncate_args {
 };
 #endif
 int
-truncate(td, uap)
+sys_truncate(td, uap)
 	struct thread *td;
 	register struct truncate_args /* {
 		char *path;
@@ -3509,7 +3509,7 @@ otruncate(td, uap)
 
 	nuap.path = uap->path;
 	nuap.length = uap->length;
-	return (truncate(td, &nuap));
+	return (sys_truncate(td, &nuap));
 }
 #endif /* COMPAT_43 */
 
@@ -3521,7 +3521,7 @@ freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
 
 	ouap.path = uap->path;
 	ouap.length = uap->length;
-	return (truncate(td, &ouap));
+	return (sys_truncate(td, &ouap));
 }
 
 int
@@ -3531,7 +3531,7 @@ freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 
 	ouap.fd = uap->fd;
 	ouap.length = uap->length;
-	return (ftruncate(td, &ouap));
+	return (sys_ftruncate(td, &ouap));
 }
 
 /*
@@ -3543,7 +3543,7 @@ struct fsync_args {
 };
 #endif
 int
-fsync(td, uap)
+sys_fsync(td, uap)
 	struct thread *td;
 	struct fsync_args /* {
 		int fd;
@@ -3597,7 +3597,7 @@ struct rename_args {
 };
 #endif
 int
-rename(td, uap)
+sys_rename(td, uap)
 	struct thread *td;
 	register struct rename_args /* {
 		char *from;
@@ -3617,7 +3617,7 @@ struct renameat_args {
 };
 #endif
 int
-renameat(struct thread *td, struct renameat_args *uap)
+sys_renameat(struct thread *td, struct renameat_args *uap)
 {
 
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
@@ -3753,7 +3753,7 @@ struct mkdir_args {
 };
 #endif
 int
-mkdir(td, uap)
+sys_mkdir(td, uap)
 	struct thread *td;
 	register struct mkdir_args /* {
 		char *path;
@@ -3772,7 +3772,7 @@ struct mkdirat_args {
 };
 #endif
 int
-mkdirat(struct thread *td, struct mkdirat_args *uap)
+sys_mkdirat(struct thread *td, struct mkdirat_args *uap)
 {
 
 	return (kern_mkdirat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode));
@@ -3860,7 +3860,7 @@ struct rmdir_args {
 };
 #endif
 int
-rmdir(td, uap)
+sys_rmdir(td, uap)
 	struct thread *td;
 	struct rmdir_args /* {
 		char *path;
@@ -4109,7 +4109,7 @@ struct getdirentries_args {
 };
 #endif
 int
-getdirentries(td, uap)
+sys_getdirentries(td, uap)
 	struct thread *td;
 	register struct getdirentries_args /* {
 		int fd;
@@ -4212,7 +4212,7 @@ struct getdents_args {
 };
 #endif
 int
-getdents(td, uap)
+sys_getdents(td, uap)
 	struct thread *td;
 	register struct getdents_args /* {
 		int fd;
@@ -4225,7 +4225,7 @@ getdents(td, uap)
 	ap.buf = uap->buf;
 	ap.count = uap->count;
 	ap.basep = NULL;
-	return (getdirentries(td, &ap));
+	return (sys_getdirentries(td, &ap));
 }
 
 /*
@@ -4237,7 +4237,7 @@ struct umask_args {
 };
 #endif
 int
-umask(td, uap)
+sys_umask(td, uap)
 	struct thread *td;
 	struct umask_args /* {
 		int newmask;
@@ -4263,7 +4263,7 @@ struct revoke_args {
 };
 #endif
 int
-revoke(td, uap)
+sys_revoke(td, uap)
 	struct thread *td;
 	register struct revoke_args /* {
 		char *path;
@@ -4361,7 +4361,7 @@ struct lgetfh_args {
 };
 #endif
 int
-lgetfh(td, uap)
+sys_lgetfh(td, uap)
 	struct thread *td;
 	register struct lgetfh_args *uap;
 {
@@ -4400,7 +4400,7 @@ struct getfh_args {
 };
 #endif
 int
-getfh(td, uap)
+sys_getfh(td, uap)
 	struct thread *td;
 	register struct getfh_args *uap;
 {
@@ -4446,7 +4446,7 @@ struct fhopen_args {
 };
 #endif
 int
-fhopen(td, uap)
+sys_fhopen(td, uap)
 	struct thread *td;
 	struct fhopen_args /* {
 		const struct fhandle *u_fhp;
@@ -4637,7 +4637,7 @@ struct fhstat_args {
 };
 #endif
 int
-fhstat(td, uap)
+sys_fhstat(td, uap)
 	struct thread *td;
 	register struct fhstat_args /* {
 		struct fhandle *u_fhp;
@@ -4685,7 +4685,7 @@ struct fhstatfs_args {
 };
 #endif
 int
-fhstatfs(td, uap)
+sys_fhstatfs(td, uap)
 	struct thread *td;
 	struct fhstatfs_args /* {
 		struct fhandle *u_fhp;
@@ -4840,7 +4840,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 }
 
 int
-posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
+sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
 
 	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));

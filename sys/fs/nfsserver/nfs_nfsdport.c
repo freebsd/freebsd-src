@@ -3230,7 +3230,7 @@ nfsrv_backupstable(void)
 		    procp->p_stats->p_start.tv_usec ==
 		    nfsd_master_start.tv_usec &&
 		    strcmp(procp->p_comm, nfsd_master_comm) == 0)
-			psignal(procp, SIGUSR2);
+			kern_psignal(procp, SIGUSR2);
 		else
 			nfsd_master_proc = NULL;
 

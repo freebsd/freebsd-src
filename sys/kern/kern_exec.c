@@ -192,7 +192,7 @@ struct execve_args {
 #endif
 
 int
-execve(td, uap)
+sys_execve(td, uap)
 	struct thread *td;
 	struct execve_args /* {
 		char *fname;
@@ -218,7 +218,7 @@ struct fexecve_args {
 }
 #endif
 int
-fexecve(struct thread *td, struct fexecve_args *uap)
+sys_fexecve(struct thread *td, struct fexecve_args *uap)
 {
 	int error;
 	struct image_args args;
@@ -242,7 +242,7 @@ struct __mac_execve_args {
 #endif
 
 int
-__mac_execve(td, uap)
+sys___mac_execve(td, uap)
 	struct thread *td;
 	struct __mac_execve_args /* {
 		char *fname;

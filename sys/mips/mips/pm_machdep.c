@@ -213,7 +213,7 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
  * context left by sendsig.
  */
 int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct trapframe *regs;
 	ucontext_t *ucp;
