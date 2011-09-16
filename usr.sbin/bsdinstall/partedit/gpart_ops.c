@@ -862,7 +862,7 @@ addpartform:
 	 * If the user changed the fs type after specifying options, undo
 	 * their choices in favor of the new filesystem's defaults.
 	 */
-	if (strcmp(options_fstype, items[0].name) != 0) {
+	if (strcmp(options_fstype, items[0].text) != 0) {
 		strncpy(options_fstype, items[0].text, sizeof(options_fstype));
 		newfs_command(options_fstype, newfs, 1);
 	}
