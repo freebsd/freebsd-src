@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2005
+.Dd August 24, 2011
 .Dt SIGWAIT 2
 .Os
 .Sh NAME
@@ -82,6 +82,14 @@ selected, it will be the lowest numbered one.
 The selection order between realtime
 and non-realtime signals, or between multiple pending non-realtime signals,
 is unspecified.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn sigwait
+function is implemented as a wrapper around the
+.Fn __sys_sigwait
+system call, which retries the call on
+.Er EINTR
+error.
 .Sh RETURN VALUES
 If successful,
 .Fn sigwait

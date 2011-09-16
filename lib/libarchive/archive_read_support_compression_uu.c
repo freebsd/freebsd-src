@@ -381,7 +381,17 @@ ensure_in_buff_size(struct archive_read_filter *self,
 		unsigned char *ptr;
 		size_t newsize;
 
-		newsize = uudecode->in_allocated << 1;
+		/*
+		 * Calculate a new buffer size for in_buff.
+		 * Increase its value until it has enough size we need.
+		 */
+		newsize = uudecode->in_allocated;
+		do {
+			if (newsize < IN_BUFF_SIZE*32)
+				newsize <<= 1;
+			else
+				newsize += IN_BUFF_SIZE;
+		} while (size > newsize);
 		ptr = malloc(newsize);
 		if (ptr == NULL ||
 		    newsize < uudecode->in_allocated) {

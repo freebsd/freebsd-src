@@ -157,6 +157,7 @@ ps3_parsedev(struct ps3_devdesc **dev, const char *devspec, const char **path)
 		break;
 
 	case DEVT_NET:
+	case DEVT_CD:
 		/*
 		 * PS3 only has one network interface (well, two, but
 		 * netbooting over wireless is not something I'm going
@@ -213,6 +214,7 @@ ps3_fmtdev(void *vdev)
 		break;
 
 	case DEVT_NET:
+	case DEVT_CD:
 		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 		break;
 	}

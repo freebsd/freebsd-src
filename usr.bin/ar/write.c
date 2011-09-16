@@ -58,6 +58,7 @@ static struct ar_obj	*create_obj_from_file(struct bsdar *bsdar,
 		    const char *name, time_t mtime);
 static void	create_symtab_entry(struct bsdar *bsdar, void *maddr,
 		    size_t size);
+static void	free_obj(struct bsdar *bsdar, struct ar_obj *obj);
 static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 		    struct ar_obj *pos);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
@@ -207,6 +208,22 @@ giveup:
 	free(obj->name);
 	free(obj);
 	return (NULL);
+}
+
+/*
+ * Free object itself and its associated allocations.
+ */
+static void
+free_obj(struct bsdar *bsdar, struct ar_obj *obj)
+{
+	if (obj->fd == -1)
+		free(obj->maddr);
+	else
+		if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
+			bsdar_warnc(bsdar, errno,
+			    "can't munmap file: %s", obj->name);
+	free(obj->name);
+	free(obj);
 }
 
 /*
@@ -474,11 +491,8 @@ write_archive(struct bsdar *bsdar, char mode)
 				    *av);
 
 			TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-			if (mode == 'd' || mode == 'r') {
-				free(obj->maddr);
-				free(obj->name);
-				free(obj);
-			}
+			if (mode == 'd' || mode == 'r')
+				free_obj(bsdar, obj);
 
 			if (mode == 'm')
 				insert_obj(bsdar, obj, pos);
@@ -525,15 +539,8 @@ write_cleanup(struct bsdar *bsdar)
 	struct ar_obj		*obj, *obj_temp;
 
 	TAILQ_FOREACH_SAFE(obj, &bsdar->v_obj, objs, obj_temp) {
-		if (obj->fd == -1)
-			free(obj->maddr);
-		else
-			if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
-				bsdar_warnc(bsdar, errno,
-				    "can't munmap file: %s", obj->name);
 		TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-		free(obj->name);
-		free(obj);
+		free_obj(bsdar, obj);
 	}
 
 	free(bsdar->as);

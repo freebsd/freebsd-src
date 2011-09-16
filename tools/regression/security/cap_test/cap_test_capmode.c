@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008-2009 Robert N. M. Watson
+ * Copyright (c) 2011 Jonathan Anderson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,163 +38,121 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capability.h>
+#include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
-#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <machine/sysarch.h>
-#include <netinet/in.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-/* Need to check machine-dependent sysarch(). */
-#define	ARCH_IS(s)	(!strncmp(s, MACHINE, sizeof(s) + 1))
-
 #include "cap_test.h"
 
-void
+#define	CHECK_SYSCALL_VOID_NOT_ECAPMODE(syscall, ...)	do {		\
+	errno = 0;							\
+	(void)syscall(__VA_ARGS__);					\
+	if (errno == ECAPMODE)						\
+		FAIL("capmode: %s failed with ECAPMODE", #syscall);	\
+} while (0)
+
+int
 test_capmode(void)
 {
-	struct sockaddr_in sin;
 	struct statfs statfs;
 	struct stat sb;
-	ssize_t len;
 	long sysarch_arg = 0;
-	int fd, fd_close, fd_dir, fd_file, fd_socket, fd2[2], ret;
+	int fd_close, fd_dir, fd_file, fd_socket, fd2[2];
+	int success = PASSED;
 	pid_t pid, wpid;
 	char ch;
 
-	fd_file = open("/tmp/cap_test_syscalls", O_RDWR|O_CREAT, 0644);
-	if (fd_file < 0)
-		err(-1, "test_syscalls:prep: open cap_test_syscalls");
+	/* Open some files to play with. */
+	REQUIRE(fd_file = open("/tmp/cap_capmode", O_RDWR|O_CREAT, 0644));
+	REQUIRE(fd_close = open("/dev/null", O_RDWR));
+	REQUIRE(fd_dir = open("/tmp", O_RDONLY));
+	REQUIRE(fd_socket = socket(PF_INET, SOCK_DGRAM, 0));
 
-	fd_close = open("/dev/null", O_RDWR);
-	if (fd_close < 0)
-		err(-1, "test_syscalls:prep: open /dev/null");
-
-	fd_dir = open("/tmp", O_RDONLY);
-	if (fd_dir < 0)
-		err(-1, "test_syscalls:prep: open /tmp");
-
-	fd_socket = socket(PF_INET, SOCK_DGRAM, 0);
-	if (fd_socket < 0)
-		err(-1, "test_syscalls:prep: socket");
-
-	if (cap_enter() < 0)
-		err(-1, "test_syscalls:prep: cap_enter");
-
-
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
+	/* Enter capability mode. */
+	REQUIRE(cap_enter());
 
 	/*
-	 * Here begin the tests, sorted roughly alphabetically by system call
-	 * name.
+	 * System calls that are not permitted in capability mode.
 	 */
-	fd = accept(fd_socket, NULL, NULL);
-	if (fd < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:accept");
-	} else {
-		warnx("test_syscalls:accept succeeded");
-		close(fd);
-	}
+	CHECK_CAPMODE(access, "/tmp/cap_capmode_access", F_OK);
+	CHECK_CAPMODE(acct, "/tmp/cap_capmode_acct");
+	CHECK_CAPMODE(bind, PF_INET, NULL, 0);
+	CHECK_CAPMODE(chdir, "/tmp/cap_capmode_chdir");
+	CHECK_CAPMODE(chflags, "/tmp/cap_capmode_chflags", UF_NODUMP);
+	CHECK_CAPMODE(chmod, "/tmp/cap_capmode_chmod", 0644);
+	CHECK_CAPMODE(chown, "/tmp/cap_capmode_chown", -1, -1);
+	CHECK_CAPMODE(chroot, "/tmp/cap_capmode_chroot");
+	CHECK_CAPMODE(connect, PF_INET, NULL, 0);
+	CHECK_CAPMODE(creat, "/tmp/cap_capmode_creat", 0644);
+	CHECK_CAPMODE(fchdir, fd_dir);
+	CHECK_CAPMODE(getfsstat, &statfs, sizeof(statfs), MNT_NOWAIT);
+	CHECK_CAPMODE(link, "/tmp/foo", "/tmp/bar");
+	CHECK_CAPMODE(lstat, "/tmp/cap_capmode_lstat", &sb);
+	CHECK_CAPMODE(mknod, "/tmp/capmode_mknod", 06440, 0);
+	CHECK_CAPMODE(mount, "procfs", "/not_mounted", 0, NULL);
+	CHECK_CAPMODE(open, "/dev/null", O_RDWR);
+	CHECK_CAPMODE(readlink, "/tmp/cap_capmode_readlink", NULL, 0);
+	CHECK_CAPMODE(revoke, "/tmp/cap_capmode_revoke");
+	CHECK_CAPMODE(stat, "/tmp/cap_capmode_stat", &sb);
+	CHECK_CAPMODE(symlink,
+	    "/tmp/cap_capmode_symlink_from",
+	    "/tmp/cap_capmode_symlink_to");
+	CHECK_CAPMODE(unlink, "/tmp/cap_capmode_unlink");
+	CHECK_CAPMODE(unmount, "/not_mounted", 0);
 
-	if (access("/tmp/cap_test_syscalls_access", F_OK) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:access");
-	} else
-		warnx("test_syscalls:access succeeded");
+	/*
+	 * System calls that are permitted in capability mode.
+	 */
+	CHECK_SYSCALL_SUCCEEDS(close, fd_close);
+	CHECK_SYSCALL_SUCCEEDS(dup, fd_file);
+	CHECK_SYSCALL_SUCCEEDS(fstat, fd_file, &sb);
+	CHECK_SYSCALL_SUCCEEDS(lseek, fd_file, SEEK_SET, 0);
+	CHECK_SYSCALL_SUCCEEDS(msync, &fd_file, 8192, MS_ASYNC);
+	CHECK_SYSCALL_SUCCEEDS(profil, NULL, 0, 0, 0);
+	CHECK_SYSCALL_SUCCEEDS(read, fd_file, &ch, sizeof(ch));
+	CHECK_SYSCALL_SUCCEEDS(recvfrom, fd_socket, NULL, 0, 0, NULL, NULL);
+	CHECK_SYSCALL_SUCCEEDS(setuid, getuid());
+	CHECK_SYSCALL_SUCCEEDS(write, fd_file, &ch, sizeof(ch));
 
-	if (acct("/tmp/cap_test_syscalls_acct") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:acct");
-	} else
-		warnx("test_syscalls:acct succeeded");
+	/*
+	 * These calls will fail for lack of e.g. a proper name to send to,
+	 * but they are allowed in capability mode, so errno != ECAPMODE.
+	 */
+	CHECK_NOT_CAPMODE(accept, fd_socket, NULL, NULL);
+	CHECK_NOT_CAPMODE(getpeername, fd_socket, NULL, NULL);
+	CHECK_NOT_CAPMODE(getsockname, fd_socket, NULL, NULL);
+	CHECK_NOT_CAPMODE(fchflags, fd_file, UF_NODUMP);
+	CHECK_NOT_CAPMODE(recvmsg, fd_socket, NULL, 0);
+	CHECK_NOT_CAPMODE(sendmsg, fd_socket, NULL, 0);
+	CHECK_NOT_CAPMODE(sendto, fd_socket, NULL, 0, 0, NULL, 0);
 
-	if (bind(PF_INET, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscall:bind");
-	} else
-		warnx("test_syscall:bind succeeded");
+	/*
+	 * System calls which should be allowed in capability mode, but which
+	 * don't return errors, and are thus difficult to check.
+	 *
+	 * We will try anyway, by checking errno.
+	 */
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(getegid);
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(geteuid);
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(getgid);
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(getpid);
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(getppid);
+	CHECK_SYSCALL_VOID_NOT_ECAPMODE(getuid);
 
-	if (chdir("/tmp/cap_test_syscalls_chdir") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:chdir");
-	} else
-		warnx("test_syscalls:chdir succeeded");
-
-	if (chflags("/tmp/cap_test_syscalls_chflags", UF_NODUMP) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:chflags");
-	} else
-		warnx("test_syscalls:chflags succeeded");
-
-	if (chmod("/tmp/cap_test_syscalls_chmod", 0644) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:chmod");
-	} else
-		warnx("test_syscalls:chmod succeeded");
-
-	if (chown("/tmp/cap_test_syscalls_chown", -1, -1) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:chown");
-	} else
-		warnx("test_syscalls:chown succeeded");
-
-	if (chroot("/tmp/cap_test_syscalls_chroot") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:chroot");
-	} else
-		warnx("test_syscalls:chroot succeeded");
-
-	if (close(fd_close)) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:close");
-		else
-			warn("test_syscalls:close");
-	}
-
-	if (connect(PF_INET, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscall:connect");
-	} else
-		warnx("test_syscall:connect succeeded");
-
-	fd = creat("/tmp/cap_test_syscalls_creat", 0644);
-	if (fd >= 0) {
-		warnx("test_syscalls:creat succeeded");
-		close(fd);
-	} else if (errno != ECAPMODE)
-		warn("test_syscalls:creat");
-
-	fd = dup(fd_file);
-	if (fd < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:dup");
-	} else
-		close(fd);
-
-	if (fchdir(fd_dir) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscall:fchdir");
-	} else
-		warnx("test_syscalls:fchdir succeeded");
-
-	if (fchflags(fd_file, UF_NODUMP) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscall:fchflags");
-	}
-
+	/*
+	 * Finally, tests for system calls that don't fit the pattern very well.
+	 */
 	pid = fork();
 	if (pid >= 0) {
 		if (pid == 0) {
@@ -202,225 +161,40 @@ test_capmode(void)
 			wpid = waitpid(pid, NULL, 0);
 			if (wpid < 0) {
 				if (errno != ECAPMODE)
-					warn("test_syscalls:waitpid");
+					FAIL("capmode:waitpid");
 			} else
-				warnx("test_syscalls:waitpid succeeded");
+				FAIL("capmode:waitpid succeeded");
 		}
 	} else
-		warn("test_syscalls:fork");
-
-	if (fstat(fd_file, &sb) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:fstat");
-	}
-
-	/*
-	 * getegid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	(void)getegid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:getegid");
-
-	/*
-	 * geteuid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	geteuid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:geteuid");
-
-	if (getfsstat(&statfs, sizeof(statfs), MNT_NOWAIT) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:getfsstat");
-	} else
-		warnx("test_syscalls:getfsstat succeeded");
-
-	/*
-	 * getgid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	getgid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:getgid");
-
-	if (getpeername(fd_socket, NULL, NULL) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:getpeername");
-	}
+		FAIL("capmode:fork");
 
 	if (getlogin() == NULL)
-		warn("test_sycalls:getlogin %d", errno);
-
-	/*
-	 * getpid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	(void)getpid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:getpid");
-
-	/*
-	 * getppid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	(void)getppid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:getppid");
+		FAIL("test_sycalls:getlogin %d", errno);
 
 	if (getsockname(fd_socket, NULL, NULL) < 0) {
 		if (errno == ECAPMODE)
-			warnx("test_syscalls:getsockname");
+			FAIL("capmode:getsockname");
 	}
-
-	/*
-	 * getuid() can't return an error but check for it anyway.
-	 */
-	errno = 0;
-	(void)getuid();
-	if (errno == ECAPMODE)
-		warnx("test_syscalls:getuid");
 
 	/* XXXRW: ktrace */
-
-	if (link("/tmp/foo", "/tmp/bar") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:link");
-	} else
-		warnx("test_syscalls:link succeeded");
-
-	ret = lseek(fd_file, SEEK_SET, 0);
-	if (ret < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:lseek");
-		else
-			warn("test_syscalls:lseek");
-	}
-
-	if (lstat("/tmp/cap_test_syscalls_lstat", &sb) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:lstat");
-	} else
-		warnx("test_syscalls:lstat succeeded");
-
-	if (mknod("/tmp/test_syscalls_mknod", 06440, 0) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:mknod");
-	} else
-		warnx("test_syscalls:mknod succeeded");
-
-	/*
-	 * mount() is a bit tricky but do our best.
-	 */
-	if (mount("procfs", "/not_mounted", 0, NULL) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:mount");
-	} else
-		warnx("test_syscalls:mount succeeded");
-
-	if (msync(&fd_file, 8192, MS_ASYNC) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:msync");
-	}
-
-	fd = open("/dev/null", O_RDWR);
-	if (fd >= 0) {
-		warnx("test_syscalls:open succeeded");
-		close(fd);
-	}
 
 	if (pipe(fd2) == 0) {
 		close(fd2[0]);
 		close(fd2[1]);
 	} else if (errno == ECAPMODE)
-		warnx("test_syscalls:pipe");
-
-	if (profil(NULL, 0, 0, 0) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:profile");
-	}
+		FAIL("capmode:pipe");
 
 	/* XXXRW: ptrace. */
 
-	len = read(fd_file, &ch, sizeof(ch));
-	if (len < 0 && errno == ECAPMODE)
-		warnx("test_syscalls:read");
-
-	if (readlink("/tmp/cap_test_syscalls_readlink", NULL, 0) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:readlink");
-	} else
-		warnx("test_syscalls:readlink succeeded");
-
-	len = recvfrom(fd_socket, NULL, 0, 0, NULL, NULL);
-	if (len < 0 && errno == ECAPMODE)
-		warnx("test_syscalls:recvfrom");
-
-	len = recvmsg(fd_socket, NULL, 0);
-	if (len < 0 && errno == ECAPMODE)
-		warnx("test_syscalls:recvmsg");
-
-	if (revoke("/tmp/cap_test_syscalls_revoke") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:revoke");
-	} else
-		warnx("test_syscalls:revoke succeeded");
-
-	len = sendmsg(fd_socket, NULL, 0);
-	if (len < 0 && errno == ECAPMODE)
-		warnx("test_syscalls:sendmsg");
-
-	len = sendto(fd_socket, NULL, 0, 0, NULL, 0);
-	if (len < 0 && errno == ECAPMODE)
-		warn("test_syscalls:sendto(NULL)");
-
-	if (setuid(getuid()) < 0) {
-		if (errno == ECAPMODE)
-			warnx("test_syscalls:setuid");
-	}
-
-	if (stat("/tmp/cap_test_syscalls_stat", &sb) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:stat");
-	} else
-		warnx("test_syscalls:stat succeeded");
-
-	if (symlink("/tmp/cap_test_syscalls_symlink_from",
-	    "/tmp/cap_test_syscalls_symlink_to") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:symlink");
-	} else
-		warnx("test_syscalls:symlink succeeded");
-
 	/* sysarch() is, by definition, architecture-dependent */
-	if (ARCH_IS("i386") || ARCH_IS("amd64")) {
-		if (sysarch(I386_SET_IOPERM, &sysarch_arg) != -1)
-			warnx("test_syscalls:sysarch succeeded");
-		else if (errno != ECAPMODE)
-			warn("test_syscalls:sysarch errno != ECAPMODE");
-
-		/* XXXJA: write a test for arm */
-	} else {
-		warnx("test_syscalls:no sysarch() test for architecture '%s'", MACHINE);
-	}
+#if defined (__amd64__) || defined (__i386__)
+	CHECK_CAPMODE(sysarch, I386_SET_IOPERM, &sysarch_arg);
+#else
+	/* XXXJA: write a test for arm */
+	FAIL("capmode:no sysarch() test for current architecture");
+#endif
 
 	/* XXXRW: No error return from sync(2) to test. */
 
-	if (unlink("/tmp/cap_test_syscalls_unlink") < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:unlink");
-	} else
-		warnx("test_syscalls:unlink succeeded");
-
-	if (unmount("/not_mounted", 0) < 0) {
-		if (errno != ECAPMODE)
-			warn("test_syscalls:unmount");
-	} else
-		warnx("test_syscalls:unmount succeeded");
-
-	len = write(fd_file, &ch, sizeof(ch));
-	if (len < 0 && errno == ECAPMODE)
-		warnx("test_syscalls:write");
-
-	exit(0);
+	return (success);
 }

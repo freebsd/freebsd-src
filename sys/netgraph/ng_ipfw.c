@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -47,6 +50,8 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -224,6 +229,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 	struct m_tag *tag;
 	struct ipfw_rule_ref *r;
 	struct mbuf *m;
+	struct ip *ip;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -234,23 +240,47 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		return (EINVAL);	/* XXX: find smth better */
 	};
 
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+		return (EINVAL);
+
+	ip = mtod(m, struct ip *);
+
 	r = (struct ipfw_rule_ref *)(tag + 1);
 	if (r->info & IPFW_INFO_IN) {
-		ip_input(m);
+		switch (ip->ip_v) {
+#ifdef INET
+		case IPVERSION:
+			ip_input(m);
+			break;
+#endif
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			ip6_input(m);
+			break;
+#endif
+		default:
+			NG_FREE_M(m);
+			return (EINVAL);
+		}
 		return (0);
 	} else {
-		struct ip *ip;
-
-		if (m->m_len < sizeof(struct ip) &&
-		    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+		switch (ip->ip_v) {
+#ifdef INET
+		case IPVERSION:
+			SET_HOST_IPLEN(ip);
+			return (ip_output(m, NULL, NULL, IP_FORWARDING,
+			    NULL, NULL));
+#endif
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			return (ip6_output(m, NULL, NULL, 0, NULL,
+			    NULL, NULL));
+#endif
+		default:
 			return (EINVAL);
-
-		ip = mtod(m, struct ip *);
-
-		SET_HOST_IPLEN(ip);
-
-		return ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
-	}	
+		}
+	}
 }
 
 static int

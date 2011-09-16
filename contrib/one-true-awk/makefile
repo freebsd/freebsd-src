@@ -30,7 +30,7 @@ CC = gcc -Wall -g
 CC = cc
 CC = gcc -Wall -g -Wwrite-strings
 CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
-CC = gcc -O4
+CC = gcc -O4 -Wall -pedantic -fno-strict-aliasing
 
 YACC = bison -y
 YACC = yacc

@@ -55,103 +55,6 @@ __FBSDID("$FreeBSD$");
 
 
 void
-sctp_early_fr_timer(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    struct sctp_nets *net)
-{
-	struct sctp_tmit_chunk *chk, *pchk;
-	struct timeval now, min_wait, tv;
-	unsigned int cur_rto, cnt = 0, cnt_resend = 0;
-
-	/* an early FR is occuring. */
-	(void)SCTP_GETTIME_TIMEVAL(&now);
-	/* get cur rto in micro-seconds */
-	if (net->lastsa == 0) {
-		/* Hmm no rtt estimate yet? */
-		cur_rto = stcb->asoc.initial_rto >> 2;
-	} else {
-
-		cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
-	}
-	if (cur_rto < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
-		cur_rto = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
-	}
-	cur_rto *= 1000;
-	tv.tv_sec = cur_rto / 1000000;
-	tv.tv_usec = cur_rto % 1000000;
-	min_wait = now;
-	timevalsub(&min_wait, &tv);
-	if (min_wait.tv_sec < 0 || min_wait.tv_usec < 0) {
-		/*
-		 * if we hit here, we don't have enough seconds on the clock
-		 * to account for the RTO. We just let the lower seconds be
-		 * the bounds and don't worry about it. This may mean we
-		 * will mark a lot more than we should.
-		 */
-		min_wait.tv_sec = min_wait.tv_usec = 0;
-	}
-	TAILQ_FOREACH_REVERSE_SAFE(chk, &stcb->asoc.sent_queue, sctpchunk_listhead, sctp_next, pchk) {
-		if (chk->whoTo != net) {
-			continue;
-		}
-		if (chk->sent == SCTP_DATAGRAM_RESEND)
-			cnt_resend++;
-		else if ((chk->sent > SCTP_DATAGRAM_UNSENT) &&
-		    (chk->sent < SCTP_DATAGRAM_RESEND)) {
-			/* pending, may need retran */
-			if (chk->sent_rcv_time.tv_sec > min_wait.tv_sec) {
-				/*
-				 * we have reached a chunk that was sent
-				 * some seconds past our min.. forget it we
-				 * will find no more to send.
-				 */
-				continue;
-			} else if (chk->sent_rcv_time.tv_sec == min_wait.tv_sec) {
-				/*
-				 * we must look at the micro seconds to
-				 * know.
-				 */
-				if (chk->sent_rcv_time.tv_usec >= min_wait.tv_usec) {
-					/*
-					 * ok it was sent after our boundary
-					 * time.
-					 */
-					continue;
-				}
-			}
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_EARLYFR_LOGGING_ENABLE) {
-				sctp_log_fr(chk->rec.data.TSN_seq, chk->snd_count,
-				    4, SCTP_FR_MARKED_EARLY);
-			}
-			SCTP_STAT_INCR(sctps_earlyfrmrkretrans);
-			chk->sent = SCTP_DATAGRAM_RESEND;
-			sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
-			/* double book size since we are doing an early FR */
-			chk->book_size_scale++;
-			cnt += chk->send_size;
-			if ((cnt + net->flight_size) > net->cwnd) {
-				/* Mark all we could possibly resend */
-				break;
-			}
-		}
-	}
-	if (cnt) {
-		/*
-		 * JRS - Use the congestion control given in the congestion
-		 * control module
-		 */
-		stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer(inp, stcb, net);
-	} else if (cnt_resend) {
-		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
-	}
-	/* Restart it? */
-	if (net->flight_size < net->cwnd) {
-		SCTP_STAT_INCR(sctps_earlyfrstrtmr);
-		sctp_timer_start(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
-	}
-}
-
-void
 sctp_audit_retranmission_queue(struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
@@ -195,44 +98,23 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/* We had a threshold failure */
 			if (net->dest_state & SCTP_ADDR_REACHABLE) {
 				net->dest_state &= ~SCTP_ADDR_REACHABLE;
-				net->dest_state |= SCTP_ADDR_NOT_REACHABLE;
 				net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
-				if (net == stcb->asoc.primary_destination) {
-					net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
-				}
-				/*
-				 * JRS 5/14/07 - If a destination is
-				 * unreachable, the PF bit is turned off.
-				 * This allows an unambiguous use of the PF
-				 * bit for destinations that are reachable
-				 * but potentially failed. If the
-				 * destination is set to the unreachable
-				 * state, also set the destination to the PF
-				 * state.
-				 */
-				/*
-				 * Add debug message here if destination is
-				 * not in PF state.
-				 */
-				/* Stop any running T3 timers here? */
-				if ((stcb->asoc.sctp_cmt_on_off > 0) &&
-				    (stcb->asoc.sctp_cmt_pf > 0)) {
-					net->dest_state &= ~SCTP_ADDR_PF;
-					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
-					    net);
-				}
+				net->dest_state &= ~SCTP_ADDR_PF;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
 				    stcb,
 				    SCTP_FAILED_THRESHOLD,
 				    (void *)net, SCTP_SO_NOT_LOCKED);
 			}
+		} else if ((net->pf_threshold < net->failure_threshold) &&
+		    (net->error_count > net->pf_threshold)) {
+			if (!(net->dest_state & SCTP_ADDR_PF)) {
+				net->dest_state |= SCTP_ADDR_PF;
+				net->last_active = sctp_get_tick_count();
+				sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+				sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
+				sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
+			}
 		}
-		/*********HOLD THIS COMMENT FOR PATCH OF ALTERNATE
-		 *********ROUTING CODE
-		 */
-		/*********HOLD THIS COMMENT FOR END OF PATCH OF ALTERNATE
-		 *********ROUTING CODE
-		 */
 	}
 	if (stcb == NULL)
 		return (0);
@@ -407,31 +289,10 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				}
 			}
 		}
-		/*
-		 * JRS 5/14/07 - After all destination have been considered
-		 * as alternates, check to see if there was some active
-		 * destination (not in PF state).  If not, check to see if
-		 * there was some PF destination with the minimum number of
-		 * errors.  If not, return the original destination.  If
-		 * there is a min_errors_net, remove the PF flag from that
-		 * destination, set the cwnd to one or two MTUs, and return
-		 * the destination as an alt. If there was some active
-		 * destination with a highest cwnd, return the destination
-		 * as an alt.
-		 */
 		if (max_cwnd_net == NULL) {
 			if (min_errors_net == NULL) {
 				return (net);
 			}
-			min_errors_net->dest_state &= ~SCTP_ADDR_PF;
-			min_errors_net->cwnd = min_errors_net->mtu * stcb->asoc.sctp_cmt_pf;
-			if (SCTP_OS_TIMER_PENDING(&min_errors_net->rxt_timer.timer)) {
-				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-				    stcb, min_errors_net,
-				    SCTP_FROM_SCTP_TIMER + SCTP_LOC_2);
-			}
-			SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to active with %d errors.\n",
-			    min_errors_net, min_errors_net->error_count);
 			return (min_errors_net);
 		} else {
 			return (max_cwnd_net);
@@ -646,15 +507,12 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	/* get cur rto in micro-seconds */
 	cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
 	cur_rto *= 1000;
-	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 		sctp_log_fr(cur_rto,
 		    stcb->asoc.peers_rwnd,
 		    window_probe,
 		    SCTP_FR_T3_MARK_TIME);
-		sctp_log_fr(net->flight_size,
-		    SCTP_OS_TIMER_PENDING(&net->fr_timer.timer),
-		    SCTP_OS_TIMER_ACTIVE(&net->fr_timer.timer),
-		    SCTP_FR_CWND_REPORT);
+		sctp_log_fr(net->flight_size, 0, 0, SCTP_FR_CWND_REPORT);
 		sctp_log_fr(net->flight_size, net->cwnd, stcb->asoc.total_flight, SCTP_FR_CWND_REPORT);
 	}
 	tv.tv_sec = cur_rto / 1000000;
@@ -670,7 +528,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		 */
 		min_wait.tv_sec = min_wait.tv_usec = 0;
 	}
-	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 		sctp_log_fr(cur_rto, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
 		sctp_log_fr(0, min_wait.tv_sec, min_wait.tv_usec, SCTP_FR_T3_MARK_TIME);
 	}
@@ -717,7 +575,7 @@ start_again:
 			 */
 
 			/* validate its been outstanding long enough */
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 				sctp_log_fr(chk->rec.data.TSN_seq,
 				    chk->sent_rcv_time.tv_sec,
 				    chk->sent_rcv_time.tv_usec,
@@ -729,7 +587,7 @@ start_again:
 				 * some seconds past our min.. forget it we
 				 * will find no more to send.
 				 */
-				if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 					sctp_log_fr(0,
 					    chk->sent_rcv_time.tv_sec,
 					    chk->sent_rcv_time.tv_usec,
@@ -747,12 +605,6 @@ start_again:
 					 * ok it was sent after our boundary
 					 * time.
 					 */
-					if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
-						sctp_log_fr(0,
-						    chk->sent_rcv_time.tv_sec,
-						    chk->sent_rcv_time.tv_usec,
-						    SCTP_FR_T3_STOPPED);
-					}
 					continue;
 				}
 			}
@@ -791,7 +643,7 @@ start_again:
 					tsnfirst = chk->rec.data.TSN_seq;
 				}
 				tsnlast = chk->rec.data.TSN_seq;
-				if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 					sctp_log_fr(chk->rec.data.TSN_seq, chk->snd_count,
 					    0, SCTP_FR_T3_MARKED);
 				}
@@ -860,7 +712,7 @@ start_again:
 		/* we did not subtract the same things? */
 		audit_tf = 1;
 	}
-	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 		sctp_log_fr(tsnfirst, tsnlast, num_mk, SCTP_FR_T3_TIMEOUT);
 	}
 #ifdef SCTP_DEBUG
@@ -978,40 +830,72 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		win_probe = 0;
 	}
 
-	/*
-	 * JRS 5/14/07 - If CMT PF is on and the destination if not already
-	 * in PF state, set the destination to PF state and store the
-	 * current time as the time that the destination was last active. In
-	 * addition, find an alternate destination with PF-based
-	 * find_alt_net().
-	 */
-	if ((stcb->asoc.sctp_cmt_on_off > 0) &&
-	    (stcb->asoc.sctp_cmt_pf > 0)) {
-		if ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF) {
-			net->dest_state |= SCTP_ADDR_PF;
-			net->last_active = sctp_get_tick_count();
-			SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from active to PF.\n",
-			    net);
+	if (win_probe == 0) {
+		/* We don't do normal threshold management on window probes */
+		if (sctp_threshold_management(inp, stcb, net,
+		    stcb->asoc.max_send_times)) {
+			/* Association was destroyed */
+			return (1);
+		} else {
+			if (net != stcb->asoc.primary_destination) {
+				/* send a immediate HB if our RTO is stale */
+				struct timeval now;
+				unsigned int ms_goneby;
+
+				(void)SCTP_GETTIME_TIMEVAL(&now);
+				if (net->last_sent_time.tv_sec) {
+					ms_goneby = (now.tv_sec - net->last_sent_time.tv_sec) * 1000;
+				} else {
+					ms_goneby = 0;
+				}
+				if ((net->dest_state & SCTP_ADDR_PF) == 0) {
+					if ((ms_goneby > net->RTO) || (net->RTO == 0)) {
+						/*
+						 * no recent feed back in an
+						 * RTO or more, request a
+						 * RTT update
+						 */
+						sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+					}
+				}
+			}
 		}
-		alt = sctp_find_alternate_net(stcb, net, 2);
-	} else if (stcb->asoc.sctp_cmt_on_off > 0) {
+	} else {
 		/*
-		 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being
-		 * used, then pick dest with largest ssthresh for any
-		 * retransmission.
+		 * For a window probe we don't penalize the net's but only
+		 * the association. This may fail it if SACKs are not coming
+		 * back. If sack's are coming with rwnd locked at 0, we will
+		 * continue to hold things waiting for rwnd to raise
 		 */
-		alt = sctp_find_alternate_net(stcb, net, 1);
-		/*
-		 * CUCv2: If a different dest is picked for the
-		 * retransmission, then new (rtx-)pseudo_cumack needs to be
-		 * tracked for orig dest. Let CUCv2 track new (rtx-)
-		 * pseudo-cumack always.
-		 */
-		net->find_pseudo_cumack = 1;
-		net->find_rtx_pseudo_cumack = 1;
-	} else {		/* CMT is OFF */
+		if (sctp_threshold_management(inp, stcb, NULL,
+		    stcb->asoc.max_send_times)) {
+			/* Association was destroyed */
+			return (1);
+		}
+	}
+	if (stcb->asoc.sctp_cmt_on_off > 0) {
+		if (net->pf_threshold < net->failure_threshold) {
+			alt = sctp_find_alternate_net(stcb, net, 2);
+		} else {
+			/*
+			 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is
+			 * being used, then pick dest with largest ssthresh
+			 * for any retransmission.
+			 */
+			alt = sctp_find_alternate_net(stcb, net, 1);
+			/*
+			 * CUCv2: If a different dest is picked for the
+			 * retransmission, then new (rtx-)pseudo_cumack
+			 * needs to be tracked for orig dest. Let CUCv2
+			 * track new (rtx-) pseudo-cumack always.
+			 */
+			net->find_pseudo_cumack = 1;
+			net->find_rtx_pseudo_cumack = 1;
+		}
+	} else {
 		alt = sctp_find_alternate_net(stcb, net, 0);
 	}
+
 	num_mk = 0;
 	num_abandoned = 0;
 	(void)sctp_mark_all_for_resend(stcb, net, alt, win_probe,
@@ -1033,52 +917,8 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 	/* Backoff the timer and cwnd */
 	sctp_backoff_on_timeout(stcb, net, win_probe, num_mk, num_abandoned);
-	if (win_probe == 0) {
-		/* We don't do normal threshold management on window probes */
-		if (sctp_threshold_management(inp, stcb, net,
-		    stcb->asoc.max_send_times)) {
-			/* Association was destroyed */
-			return (1);
-		} else {
-			if (net != stcb->asoc.primary_destination) {
-				/* send a immediate HB if our RTO is stale */
-				struct timeval now;
-				unsigned int ms_goneby;
-
-				(void)SCTP_GETTIME_TIMEVAL(&now);
-				if (net->last_sent_time.tv_sec) {
-					ms_goneby = (now.tv_sec - net->last_sent_time.tv_sec) * 1000;
-				} else {
-					ms_goneby = 0;
-				}
-				if ((ms_goneby > net->RTO) || (net->RTO == 0)) {
-					/*
-					 * no recent feed back in an RTO or
-					 * more, request a RTT update
-					 */
-					if (sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED) < 0)
-						/*
-						 * Less than 0 means we lost
-						 * the assoc
-						 */
-						return (1);
-				}
-			}
-		}
-	} else {
-		/*
-		 * For a window probe we don't penalize the net's but only
-		 * the association. This may fail it if SACKs are not coming
-		 * back. If sack's are coming with rwnd locked at 0, we will
-		 * continue to hold things waiting for rwnd to raise
-		 */
-		if (sctp_threshold_management(inp, stcb, NULL,
-		    stcb->asoc.max_send_times)) {
-			/* Association was destroyed */
-			return (1);
-		}
-	}
-	if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
+	if ((!(net->dest_state & SCTP_ADDR_REACHABLE)) ||
+	    (net->dest_state & SCTP_ADDR_PF)) {
 		/* Move all pending over too */
 		sctp_move_chunks_from_net(stcb, net);
 
@@ -1106,23 +946,12 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			 * change-primary then this flag must be cleared
 			 * from any net structures.
 			 */
-			if (sctp_set_primary_addr(stcb,
-			    (struct sockaddr *)NULL,
-			    alt) == 0) {
-				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
+			if (stcb->asoc.alternate) {
+				sctp_free_remote_addr(stcb->asoc.alternate);
 			}
+			stcb->asoc.alternate = alt;
+			atomic_add_int(&stcb->asoc.alternate->ref_count, 1);
 		}
-	} else if ((stcb->asoc.sctp_cmt_on_off > 0) &&
-		    (stcb->asoc.sctp_cmt_pf > 0) &&
-	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
-		/*
-		 * JRS 5/14/07 - If the destination hasn't failed completely
-		 * but is in PF state, a PF-heartbeat needs to be sent
-		 * manually.
-		 */
-		if (sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED) < 0)
-			/* Return less than 0 means we lost the association */
-			return (1);
 	}
 	/*
 	 * Special case for cookie-echo'ed case, we don't do output but must
@@ -1324,7 +1153,7 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			atomic_add_int(&alt->ref_count, 1);
 		}
 	}
-	if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
+	if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
 		/*
 		 * If the address went un-reachable, we need to move to
 		 * alternates for ALL chk's in queue
@@ -1414,7 +1243,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 			chk->sent = SCTP_DATAGRAM_RESEND;
 		}
-		if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
+		if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
 			/*
 			 * If the address went un-reachable, we need to move
 			 * to the alternate for ALL chunks in queue
@@ -1569,11 +1398,15 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 
 int
 sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net, int cnt_of_unconf)
+    struct sctp_nets *net)
 {
-	int ret;
+	uint8_t net_was_pf;
 
+	net_was_pf = 0;
 	if (net) {
+		if (net->dest_state & SCTP_ADDR_PF) {
+			net_was_pf = 1;
+		}
 		if (net->hb_responded == 0) {
 			if (net->ro._s_addr) {
 				/*
@@ -1585,6 +1418,10 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->src_addr_selected = 0;
 			}
 			sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
+			if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
+				/* Assoc is over */
+				return (1);
+			}
 		}
 		/* Zero PBA, if it needs it */
 		if (net->partial_bytes_acked) {
@@ -1596,41 +1433,13 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    (TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
 		sctp_audit_stream_queues_for_size(inp, stcb);
 	}
-	/* Send a new HB, this will do threshold managment, pick a new dest */
-	if (cnt_of_unconf == 0) {
-		if (sctp_send_hb(stcb, 0, NULL, SCTP_SO_NOT_LOCKED) < 0) {
-			return (1);
-		}
-	} else {
+	if (!(net->dest_state & SCTP_ADDR_NOHB) &&
+	    !((net_was_pf == 0) && (net->dest_state & SCTP_ADDR_PF))) {
 		/*
-		 * this will send out extra hb's up to maxburst if there are
-		 * any unconfirmed addresses.
+		 * when move to PF during threshold mangement, a HB has been
+		 * queued in that routine
 		 */
-		uint32_t cnt_sent = 0;
-
-		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-			if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
-			    (net->dest_state & SCTP_ADDR_REACHABLE)) {
-				cnt_sent++;
-				if (net->hb_responded == 0) {
-					/* Did we respond last time? */
-					if (net->ro._s_addr) {
-						sctp_free_ifa(net->ro._s_addr);
-						net->ro._s_addr = NULL;
-						net->src_addr_selected = 0;
-					}
-				}
-				ret = sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED);
-				if (ret < 0)
-					return 1;
-				else if (ret == 0) {
-					break;
-				}
-				if (SCTP_BASE_SYSCTL(sctp_hb_maxburst) &&
-				    (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst)))
-					break;
-			}
-		}
+		sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
 	}
 	return (0);
 }
@@ -1733,7 +1542,14 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 				 */
 				if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) {
 					/* only send SHUTDOWN 1st time thru */
-					sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
+					struct sctp_nets *netp;
+
+					if (stcb->asoc.alternate) {
+						netp = stcb->asoc.alternate;
+					} else {
+						netp = stcb->asoc.primary_destination;
+					}
+					sctp_send_shutdown(stcb, netp);
 					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
@@ -1742,10 +1558,10 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 					SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb,
-					    asoc->primary_destination);
+					    netp);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 					    stcb->sctp_ep, stcb,
-					    asoc->primary_destination);
+					    netp);
 				}
 			}
 		} else {

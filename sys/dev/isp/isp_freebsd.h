@@ -41,6 +41,7 @@
 
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -182,6 +183,8 @@ struct isp_fc {
 		ready		: 1;
 	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
+	struct task ltask;
+	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
 #ifdef	ISP_INTERNAL_TARGET
@@ -579,7 +582,7 @@ default:							\
  * prototypes for isp_pci && isp_freebsd to share
  */
 extern int isp_attach(ispsoftc_t *);
-extern void isp_detach(ispsoftc_t *);
+extern int isp_detach(ispsoftc_t *);
 extern void isp_uninit(ispsoftc_t *);
 extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
 
@@ -597,11 +600,22 @@ extern int isp_autoconfig;
  * Platform private flags
  */
 #define	ISP_SPRIV_ERRSET	0x1
+#define	ISP_SPRIV_TACTIVE	0x2
 #define	ISP_SPRIV_DONE		0x8
+#define	ISP_SPRIV_WPEND		0x10
+
+#define	XS_S_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_TACTIVE
+#define	XS_C_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_TACTIVE
+#define	XS_TACTIVE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_TACTIVE)
 
 #define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
 #define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
 #define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
+
+#define	XS_CMD_S_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_WPEND
+#define	XS_CMD_C_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_WPEND
+#define	XS_CMD_WPEND_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_WPEND)
+
 
 #define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 

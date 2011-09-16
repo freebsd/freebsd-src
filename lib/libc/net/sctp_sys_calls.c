@@ -410,6 +410,9 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	case SCTP_DEFAULT_PRINFO:
 		((struct sctp_default_prinfo *)arg)->pr_assoc_id = id;
 		break;
+	case SCTP_PEER_ADDR_THLDS:
+		((struct sctp_paddrthlds *)arg)->spt_assoc_id = id;
+		break;
 	case SCTP_MAX_BURST:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;

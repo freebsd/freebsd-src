@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adho
-.Op Fl t | Fl w
+.Op Fl t | w
 .Op Fl M Ar manpath
 .Op Fl P Ar pager
 .Op Fl S Ar mansect
@@ -73,9 +73,9 @@ environment variable.
 .It Fl P Ar pager
 Use specified pager.
 Defaults to
-.Ic "less -sR"
+.Dq Li "less -sR"
 if color support is enabled, or
-.Ic "more -s" .
+.Dq Li "more -s" .
 Overrides the
 .Ev MANPAGER
 environment variable, which in turn overrides the
@@ -84,7 +84,7 @@ environment variable.
 .It Fl S Ar mansect
 Restricts manual sections searched to the specified colon delimited list.
 Defaults to
-.Va 1:1aout:8:2:3:n:4:5:6:7:9:l .
+.Dq Li 1:1aout:8:2:3:n:4:5:6:7:9:l .
 Overrides the
 .Ev MANSECT
 environment variable.
@@ -125,12 +125,13 @@ Overrides the
 and
 .Ev LANG
 environment variables.
-.It Fl p Op Ar eprtv
+.It Fl p Op Cm eprtv
 Use the list of given preprocessors before running
 .Xr nroff 1
 or
 .Xr troff 1 .
 Valid preprocessors arguments:
+.Pp
 .Bl -tag -width indent -compact
 .It Cm e
 .Xr eqn 1
@@ -143,6 +144,7 @@ Valid preprocessors arguments:
 .It Cm v
 .Xr vgrind 1
 .El
+.Pp
 Overrides the
 .Ev MANROFFSEQ
 environment variable.
@@ -161,35 +163,31 @@ The
 utility supports manual pages in different locales.
 The search behavior is dictated by the first of three
 environment variables with a nonempty string:
-.Ev LC_ALL ,
-.Ev LC_CTYPE ,
+.Ev LC_ALL , LC_CTYPE ,
 or
 .Ev LANG .
 If set,
 .Nm
 will search for locale specific manual pages using the following logic:
-.Bl -item -compact -offset indent
-.Sm off
+.Pp
+.Bl -item -offset indent -compact
 .It
-.Va lang _
-.Va country .
-.Va charset
+.Va lang Ns _ Ns Va country Ns . Ns Va charset
 .It
-.Va lang .
-.Va charset
+.Va lang Ns . Ns Va charset
 .It
-.Li en .
-.Va charset
-.Sm on
+.Li en Ns . Ns Va charset
 .El
+.Pp
 For example, if
 .Ev LC_ALL
 is set to
-.Va ja_JP.eucJP ,
+.Dq Li ja_JP.eucJP ,
 .Nm
 will search the following paths when considering section 1 manual pages in
 .Pa /usr/share/man :
-.Bl -item -compact -offset indent
+.Pp
+.Bl -item -offset indent -compact
 .It
 .Pa /usr/share/man/ja_JP.eucJP/man1
 .It
@@ -213,15 +211,16 @@ environment variables.
 For example, if
 .Ev MACHINE_ARCH
 is set to
-.Va i386
+.Dq Li i386
 and
 .Ev MACHINE
 is set to
-.Va pc98 ,
+.Dq Li pc98 ,
 .Nm
 will search the following paths when considering section 4 manual pages in
 .Pa /usr/share/man :
-.Bl -item -compact -offset indent
+.Pp
+.Bl -item -offset indent -compact
 .It
 .Pa /usr/share/man/man4/pc98
 .It
@@ -234,12 +233,12 @@ The
 .Nm
 utility also supports displaying a specific manual page if passed a path
 to the file as long as it contains a
-.Sq /
+.Ql /
 character.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width ".Ev MANPATH"
+.Bl -tag -width ".Ev MANROFFSEQ"
 .It Ev LC_ALL , LC_CTYPE , LANG
 Used to find locale specific manual pages.
 Valid values can be found by running the
@@ -254,9 +253,9 @@ option.
 .It Ev MACHINE_ARCH , MACHINE
 Used to find platform specific manual pages.
 If unset, the output of
-.Ic "sysctl hw.machine_arch"
+.Dq Li "sysctl hw.machine_arch"
 and
-.Ic "sysctl hw.machine"
+.Dq Li "sysctl hw.machine"
 is used respectively.
 See
 .Sx IMPLEMENTATION NOTES
@@ -299,14 +298,14 @@ If set, enables color support.
 Program used to display files.
 .Pp
 If unset, and color support is enabled,
-.Ic "less -sR"
+.Dq Li "less -sR"
 is used.
 .Pp
 If unset, and color support is disabled, then
 .Ev PAGER
 is used.
 If that has no value either,
-.Ic "more -s"
+.Dq Li "more -s"
 is used.
 .El
 .Sh FILES
@@ -317,11 +316,11 @@ System configuration file.
 Local configuration files.
 .El
 .Sh SEE ALSO
-.Xr intro 1 ,
 .Xr apropos 1 ,
+.Xr intro 1 ,
 .Xr locale 1 ,
 .Xr manpath 1 ,
-.Xr man.conf 5 ,
 .Xr nroff 1 ,
 .Xr troff 1 ,
-.Xr whatis 1
+.Xr whatis 1 ,
+.Xr man.conf 5

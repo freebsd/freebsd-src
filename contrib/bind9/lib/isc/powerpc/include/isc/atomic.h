@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.8 2009-10-14 23:47:51 tbox Exp $ */
+/* $Id: atomic.h,v 1.8.284.3 2011-03-08 00:52:21 marka Exp $ */
 
 #ifndef ISC_ATOMIC_H
 #define ISC_ATOMIC_H 1
@@ -110,14 +110,16 @@ isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
 		"mr %0, r6\n"
 		"add r6, r6, %2\n"
 		"stwcx. r6, 0, %1\n"
-		"bne- 1b"
+		"bne- 1b\n"
+		"sync"
 #else
 		"1:"
 		"lwarx 6, 0, %1\n"
 		"mr %0, 6\n"
 		"add 6, 6, %2\n"
 		"stwcx. 6, 0, %1\n"
-		"bne- 1b"
+		"bne- 1b\n"
+		"sync"
 #endif
 		: "=&r"(orig)
 		: "r"(p), "r"(val)
@@ -135,13 +137,15 @@ isc_atomic_store(void *p, isc_int32_t val) {
 		"lwarx r6, 0, %0\n"
 		"lwz r6, %1\n"
 		"stwcx. r6, 0, %0\n"
-		"bne- 1b"
+		"bne- 1b\n"
+		"sync"
 #else
 		"1:"
 		"lwarx 6, 0, %0\n"
 		"lwz 6, %1\n"
 		"stwcx. 6, 0, %0\n"
-		"bne- 1b"
+		"bne- 1b\n"
+		"sync"
 #endif
 		:
 		: "r"(p), "m"(val)
@@ -163,7 +167,8 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 		"mr r6, %3\n"
 		"stwcx. r6, 0, %1\n"
 		"bne- 1b\n"
-		"2:"
+		"2:\n"
+		"sync"
 #else
 		"1:"
 		"lwarx 6, 0, %1\n"
@@ -173,7 +178,8 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 		"mr 6, %3\n"
 		"stwcx. 6, 0, %1\n"
 		"bne- 1b\n"
-		"2:"
+		"2:\n"
+		"sync"
 #endif
 		: "=&r" (orig)
 		: "r"(p), "r"(cmpval), "r"(val)

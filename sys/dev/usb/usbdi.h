@@ -37,6 +37,7 @@ struct usb_page_search;
 struct usb_process;
 struct usb_proc_msg;
 struct usb_mbuf;
+struct usb_fs_privdata;
 struct mbuf;
 
 typedef enum {	/* keep in sync with usb_errstr_table */
@@ -449,7 +450,7 @@ struct usb_fifo_methods {
 
 struct usb_fifo_sc {
 	struct usb_fifo *fp[2];
-	struct cdev* dev;
+	struct usb_fs_privdata *dev;
 };
 
 const char *usbd_errstr(usb_error_t error);
@@ -474,6 +475,8 @@ void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
 usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
 			uint8_t iface_index, const char *pnpinfo);
+usb_error_t	usbd_add_dynamic_quirk(struct usb_device *udev,
+			uint16_t quirk);
 
 const struct usb_device_id *usbd_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,

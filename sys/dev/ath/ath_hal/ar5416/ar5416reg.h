@@ -40,6 +40,7 @@
 #define	AR_INTR_ASYNC_MASK	0x4030	/* asynchronous interrupt mask */
 #define	AR_INTR_SYNC_MASK	0x4034	/* synchronous interrupt mask */
 #define	AR_INTR_ASYNC_CAUSE	0x4038	/* check pending interrupts */
+#define	AR_INTR_ASYNC_CAUSE_CLR	0x4038	/* clear pending interrupts */
 #define	AR_INTR_ASYNC_ENABLE	0x403c	/* enable interrupts */
 #define	AR5416_PCIE_SERDES	0x4040
 #define	AR5416_PCIE_SERDES2	0x4044

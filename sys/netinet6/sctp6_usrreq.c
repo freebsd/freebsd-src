@@ -420,33 +420,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 		 */
 		if (net->dest_state & SCTP_ADDR_REACHABLE) {
 			/* Ok that destination is NOT reachable */
-			SCTP_PRINTF("ICMP (thresh %d/%d) takes interface %p down\n",
-			    net->error_count,
-			    net->failure_threshold,
-			    net);
-
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
-			net->dest_state |= SCTP_ADDR_NOT_REACHABLE;
-			/*
-			 * JRS 5/14/07 - If a destination is unreachable,
-			 * the PF bit is turned off.  This allows an
-			 * unambiguous use of the PF bit for destinations
-			 * that are reachable but potentially failed. If the
-			 * destination is set to the unreachable state, also
-			 * set the destination to the PF state.
-			 */
-			/*
-			 * Add debug message here if destination is not in
-			 * PF state.
-			 */
-			/* Stop any running T3 timers here? */
-			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
-			    (stcb->asoc.sctp_cmt_pf > 0)) {
-				net->dest_state &= ~SCTP_ADDR_PF;
-				SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
-				    net);
-			}
-			net->error_count = net->failure_threshold + 1;
+			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
 			    stcb, SCTP_FAILED_THRESHOLD,
 			    (void *)net, SCTP_SO_NOT_LOCKED);

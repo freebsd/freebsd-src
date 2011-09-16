@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.512.8.1 $)
+AC_REVISION($Revision: 1.512.8.12 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -267,6 +267,14 @@ case "$host" in
 		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
 		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 		;;
+	#
+	# Starting with OSX 10.7 (Lion) we must choose which IPv6 API to use.
+	# Setting this is sufficient to select the correct behavior for BIND 9.
+	#
+	*-darwin*)
+	  STD_CDEFINES="$STD_CDEFINES -D__APPLE_USE_RFC_3542"
+	  CPPFLAGS="$CPPFLAGS -D__APPLE_USE_RFC_3542"
+	  ;;
 esac
 
 AC_HEADER_STDC
@@ -682,7 +690,9 @@ esac
 int main() {
 #if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
 	ENGINE *e;
+	EC_KEY *ek;
 
+	ek = NULL;
 	OPENSSL_config(NULL);
 
 	e = ENGINE_by_id("gost");
@@ -699,7 +709,25 @@ int main() {
 		[AC_MSG_RESULT(yes)
 		have_gost="yes"],
 		[AC_MSG_RESULT(no)
-		have_gost="no"])
+		have_gost="no"],
+		[AC_MSG_RESULT(using --with-gost)])
+		AC_ARG_WITH(gost, , with_gost="$withval", with_gost="auto")
+		case "$with_gost" in
+		yes)
+		    case "$have_gost" in
+		    no)  AC_MSG_ERROR([gost not supported]) ;;
+		    *)  have_gost=yes ;;
+		    esac
+		    ;;
+		no)
+		    have_gost=no ;;
+		*)
+		    case "$have_gost" in
+		    yes|no) ;;
+		    *) AC_MSG_ERROR([need --with-gost=[[yes or no]]]) ;;
+		    esac
+		    ;;
+		esac
 		case $have_gost in
 		yes)
 			OPENSSL_GOST="yes"
@@ -795,20 +823,42 @@ AC_SUBST(PKCS11_PROVIDER)
 
 AC_MSG_CHECKING(for GSSAPI library)
 AC_ARG_WITH(gssapi,
-[  --with-gssapi=PATH      Specify path for system-supplied GSSAPI],
-    use_gssapi="$withval", use_gssapi="no")
+[  --with-gssapi=PATH      Specify path for system-supplied GSSAPI [[default=yes]]],
+    use_gssapi="$withval", use_gssapi="yes")
 
-gssapidirs="/usr/local /usr/pkg /usr/kerberos /usr"
+# gssapi is just the framework, we really require kerberos v5, so
+# look for those headers (the gssapi headers must be there, too)
+# The problem with this implementation is that it doesn't allow
+# for the specification of gssapi and krb5 headers in different locations,
+# which probably ought to be fixed although fixing might raise the issue of
+# trying to build with incompatible versions of gssapi and krb5.
 if test "$use_gssapi" = "yes"
 then
-	for d in $gssapidirs
-	do
-		if test -f $d/include/gssapi/gssapi.h -o -f $d/include/gssapi.h
+	# first, deal with the obvious
+	if test \( -f /usr/include/kerberosv5/krb5.h -o \
+		   -f /usr/include/krb5/krb5.h -o \
+		   -f /usr/include/krb5.h \)   -a \
+		\( -f /usr/include/gssapi.h -o \
+		   -f /usr/include/gssapi/gssapi.h \)
+	then
+		use_gssapi=/usr
+	else
+	    krb5dirs="/usr/local /usr/local/krb5 /usr/local/kerberosv5 /usr/local/kerberos /usr/pkg /usr/krb5 /usr/kerberosv5 /usr/kerberos /usr"
+	    for d in $krb5dirs
+	    do
+		if test -f $d/include/gssapi/gssapi_krb5.h -o \
+		        -f $d/include/krb5.h
 		then
-			use_gssapi=$d
-			break
+			if test -f $d/include/gssapi/gssapi.h -o \
+			        -f $d/include/gssapi.h
+			then
+				use_gssapi=$d
+				break
+			fi
 		fi
-	done
+		use_gssapi="no"
+	    done
+	fi
 fi
 
 case "$use_gssapi" in
@@ -1821,10 +1871,8 @@ char a[16],b[64]; return(inet_ntop(AF_INET6, a, b, sizeof(b)) == (char*)0);}],
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
 	ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"],
-	[AC_MSG_RESULT(assuming inet_ntop needed)
-	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
-	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
-	ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"])
+	[AC_MSG_RESULT(assuming inet_ntop not needed)
+	ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"])
 
 
 # On NetBSD 1.4.2 and maybe others, inet_pton() incorrectly accepts
@@ -1846,14 +1894,10 @@ main() { char a[16]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
 	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
-	[AC_MSG_RESULT(assuming target platform has working inet_pton)
-	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
 	[AC_MSG_RESULT(assuming inet_pton needed)
 	ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
 	ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
-	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
-	[AC_MSG_RESULT(assuming target platform has working inet_pton)
-	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"])
+	ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"])
 
 AC_SUBST(ISC_PLATFORM_NEEDNTOP)
 AC_SUBST(ISC_PLATFORM_NEEDPTON)
@@ -2357,8 +2401,9 @@ ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"],
 ],[AC_MSG_ERROR(this cannot happen)])
 ],[AC_MSG_ERROR(this cannot happen)])
 ],[
-ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"
-AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming long long int)])
+AC_ARG_WITH(rlimtype, , rlimtype="$withval", rlimtype="long long int")
+ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE $rlimtype"
+AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming $rlimtype)])
 ])
 AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 
@@ -2567,27 +2612,22 @@ if test "$use_atomic" = "yes"; then
 	[i[3456]86-*])
 		# XXX: some old x86 architectures actually do not support
 		#      (some of) these operations.  Do we need stricter checks?
-AC_TRY_RUN([
-main() {
-	exit((sizeof(void *) == 8) ? 0 : 1);
-}
-],
-		[arch=x86_64
-		have_xaddq=yes],
-		[arch=x86_32],
-		[arch=x86_32])
+                AC_CHECK_SIZEOF([void *])
+		if test $ac_cv_sizeof_void_p = 8; then
+			arch=x86_64
+			have_xaddq=yes
+		else
+			arch=x86_32
+		fi
 	;;
 	x86_64-*|amd64-*)
-AC_TRY_RUN([
-main() {
-       exit((sizeof(void *) == 8) ? 0 : 1);
-}
-],
-	       [arch=x86_64
-	       have_xaddq=yes],
-	       [arch=x86_32],
-	       [arch=x86_64
-	       have_xaddq=yes])
+                AC_CHECK_SIZEOF([void *])
+		if test $ac_cv_sizeof_void_p = 8; then
+			arch=x86_64
+			have_xaddq=yes
+		else
+			arch=x86_32
+		fi
 	;;
 	alpha*-*)
 		arch=alpha
@@ -3033,6 +3073,34 @@ if test "$use_idn" != no; then
 fi
 AC_SUBST(IDNLIBS)
 
+#
+# Check whether to build Automated Test Framework unit tests
+#
+AC_ARG_WITH(atf,
+	[  --with-atf=ARG       Automated Test Framework support],
+	atf="$withval", atf="no")
+if test "$atf" = yes; then
+	atf=`pwd`/unit/atf
+	ATFBUILD=atf-src
+	AC_SUBST(ATFBUILD)
+	AC_CONFIG_COMMANDS([atf-config],
+		[cd unit/atf-src; ${SHELL} ./configure MISSING=: --prefix $atfdir; cd ../..],
+		[atfdir=`pwd`/unit/atf])
+	AC_MSG_RESULT(building ATF from bind9/unit/atf-src)
+fi
+
+ATFLIBS=
+if test "$atf" != no; then
+	AC_DEFINE(ATF_TEST, 1, [define if ATF unit tests are to be built.])
+	STD_CINCLUDES="$STD_CINCLUDES -I$atf/include"
+	ATFBIN="$atf/bin"
+	ATFLIBS="-L$atf/lib -latf-c"
+	UNITTESTS=tests
+fi
+AC_SUBST(ATFBIN)
+AC_SUBST(ATFLIBS)
+AC_SUBST(UNITTESTS)
+
 AC_CHECK_HEADERS(locale.h)
 AC_CHECK_FUNCS(setlocale)
 
@@ -3111,28 +3179,98 @@ LIBIRS_API=$srcdir/lib/irs/api
 # Configure any DLZ drivers.
 #
 # If config.dlz.in selects one or more DLZ drivers, it will set
-# USE_DLZ to a non-empty value, which will be our clue to
-# enable the DLZ core functions.
+# CONTRIB_DLZ to a non-empty value, which will be our clue to
+# build DLZ drivers in contrib.
 #
 # This section has to come after the libtool stuff because it needs to
 # know how to name the driver object files.
 #
 
-USE_DLZ=""
+CONTRIB_DLZ=""
 DLZ_DRIVER_INCLUDES=""
 DLZ_DRIVER_LIBS=""
 DLZ_DRIVER_SRCS=""
 DLZ_DRIVER_OBJS=""
 DLZ_SYSTEM_TEST=""
 
+# 
+# Configure support for building a shared library object
+#
+# Even when libtool is available it can't always be relied upon
+# to build an object that can be dlopen()'ed, but this is necessary
+# for building the dlzexternal system test, so we'll try it the
+# old-fashioned way.
+#
+SO="so"
+SO_CFLAGS=""
+SO_LD=""
+SO_TARGETS=""
+
+AC_ARG_WITH(dlopen,
+	[  --with-dlopen=ARG       Support dynamically loadable DLZ drivers],
+	dlopen="$withval", dlopen="yes")
+
+if test "$dlopen" = "yes"; then
+	AC_CHECK_LIB(dl, dlopen, have_dl=yes, have_dl=no)
+	if test "$have_dl" = "yes"; then
+		LIBS="-ldl $LIBS"
+	fi
+        AC_CHECK_FUNCS(dlopen dlclose dlsym,,dlopen=no)
+fi
+
+if test "$dlopen" = "yes"; then
+	case $host in
+		*-linux*)
+			SO_CFLAGS="-fPIC"
+			if test "$have_dl" = "yes"
+			then
+				SO_LD="${CC} -shared"
+			else
+				SO_LD="ld -shared"
+			fi
+			;;
+		*-freebsd*|*-openbsd*|*-netbsd*)
+			SO_CFLAGS="-fpic"
+			SO_LD="ld -Bshareable -x"
+			;;
+		*-solaris*)
+			SO_CFLAGS="-KPIC"
+			SO_LD="ld -G -z text"
+                        ;;
+		*-hp-hpux*)
+			SO=sl
+			SO_CFLAGS="+z"
+			SO_LD="ld -b"
+                        ;;
+		*)
+			SO_CFLAGS="-fPIC"
+			;;
+	esac
+
+	if test "X$GCC" = "Xyes"; then
+		SO_CFLAGS="-fPIC"
+                test -n "$SO_LD" || SO_LD="${CC} -shared"
+	fi
+
+	# If we still don't know how to make shared objects, don't make any.
+	if test -n "$SO_LD"; then
+		SO_TARGETS="\${SO_TARGETS}"
+		AC_DEFINE(ISC_DLZ_DLOPEN, 1,
+			  [Define to allow building of objects for dlopen().])
+	fi
+fi
+
+AC_SUBST(SO)
+AC_SUBST(SO_CFLAGS)
+AC_SUBST(SO_LD)
+AC_SUBST(SO_TARGETS)
+
 sinclude(contrib/dlz/config.dlz.in)
+AC_MSG_CHECKING(contributed DLZ drivers)
 
-AC_MSG_CHECKING(for DLZ)
-
-if test -n "$USE_DLZ"
+if test -n "$CONTRIB_DLZ"
 then
 	AC_MSG_RESULT(yes)
-	USE_DLZ="-DDLZ $USE_DLZ"
 	DLZ_DRIVER_RULES=contrib/dlz/drivers/rules
 	AC_CONFIG_FILES([$DLZ_DRIVER_RULES])
 else
@@ -3140,7 +3278,7 @@ else
 	DLZ_DRIVER_RULES=/dev/null
 fi
 
-AC_SUBST(USE_DLZ)
+AC_SUBST(CONTRIB_DLZ)
 AC_SUBST(DLZ_DRIVER_INCLUDES)
 AC_SUBST(DLZ_DRIVER_LIBS)
 AC_SUBST(DLZ_DRIVER_SRCS)
@@ -3303,11 +3441,15 @@ AC_CONFIG_FILES([
 	bin/tests/sockaddr/Makefile
 	bin/tests/system/Makefile
 	bin/tests/system/conf.sh
+	bin/tests/system/dlz/prereq.sh
+	bin/tests/system/dlzexternal/Makefile
+	bin/tests/system/dlzexternal/ns1/named.conf
 	bin/tests/system/filter-aaaa/Makefile
 	bin/tests/system/gost/prereq.sh
 	bin/tests/system/lwresd/Makefile
 	bin/tests/system/rpz/Makefile
 	bin/tests/system/tkey/Makefile
+	bin/tests/system/tsiggss/Makefile
 	bin/tests/tasks/Makefile
 	bin/tests/timers/Makefile
 	bin/tests/virtual-time/Makefile
@@ -3335,6 +3477,7 @@ AC_CONFIG_FILES([
 	lib/dns/include/Makefile
 	lib/dns/include/dns/Makefile
 	lib/dns/include/dst/Makefile
+	lib/dns/tests/Makefile
 	lib/export/Makefile
 	lib/export/dns/Makefile
 	lib/export/dns/include/Makefile
@@ -3373,6 +3516,7 @@ AC_CONFIG_FILES([
 	lib/isc/include/Makefile
 	lib/isc/include/isc/Makefile
 	lib/isc/include/isc/platform.h
+	lib/isc/tests/Makefile
 	lib/isc/nls/Makefile
 	lib/isc/unix/Makefile
 	lib/isc/unix/include/Makefile
@@ -3395,6 +3539,8 @@ AC_CONFIG_FILES([
 	lib/tests/Makefile
 	lib/tests/include/Makefile
 	lib/tests/include/tests/Makefile
+	unit/Makefile
+	unit/unittest.sh
 ])
 
 #

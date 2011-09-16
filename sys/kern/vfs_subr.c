@@ -3312,6 +3312,7 @@ vbusy(struct vnode *vp)
 static void
 destroy_vpollinfo(struct vpollinfo *vi)
 {
+	seldrain(&vi->vpi_selinfo);
 	knlist_destroy(&vi->vpi_selinfo.si_note);
 	mtx_destroy(&vi->vpi_lock);
 	uma_zfree(vnodepoll_zone, vi);

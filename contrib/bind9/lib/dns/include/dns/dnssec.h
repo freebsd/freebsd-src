@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec.h,v 1.42 2010-01-09 23:48:45 tbox Exp $ */
+/* $Id: dnssec.h,v 1.42.178.2 2011-05-06 23:47:05 tbox Exp $ */
 
 #ifndef DNS_DNSSEC_H
 #define DNS_DNSSEC_H 1
@@ -218,6 +218,19 @@ isc_boolean_t
 dns_dnssec_selfsigns(dns_rdata_t *rdata, dns_name_t *name,
 		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
 		     isc_boolean_t ignoretime, isc_mem_t *mctx);
+
+
+isc_boolean_t
+dns_dnssec_signs(dns_rdata_t *rdata, dns_name_t *name,
+		 dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
+		 isc_boolean_t ignoretime, isc_mem_t *mctx);
+/*%<
+ * Verify that 'rdataset' is validly signed in 'sigrdataset' by
+ * the key in 'rdata'.
+ *
+ * dns_dnssec_selfsigns() requires that rdataset be a DNSKEY or KEY
+ * rrset.  dns_dnssec_signs() works on any rrset.
+ */
 
 
 isc_result_t

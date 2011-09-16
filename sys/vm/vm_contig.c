@@ -265,6 +265,7 @@ retry:
 				vm_contig_grow_cache(tries, low, high);
 				vm_map_lock(map);
 				VM_OBJECT_LOCK(object);
+				tries++;
 				goto retry;
 			}
 			while (i != 0) {

@@ -184,7 +184,7 @@ sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
 	s->s_buf = buf;
 
 	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
-		KASSERT(s->s_size > 1,
+		KASSERT(s->s_size >= 0,
 		    ("attempt to create a too small sbuf"));
 	}
 

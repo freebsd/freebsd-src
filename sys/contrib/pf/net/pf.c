@@ -6967,7 +6967,8 @@ done:
 		ipfwtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 				sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
 		if (ipfwtag != NULL) {
-			((struct ipfw_rule_ref *)(ipfwtag+1))->info = r->divert.port;
+			((struct ipfw_rule_ref *)(ipfwtag+1))->info =
+			    ntohs(r->divert.port);
 			((struct ipfw_rule_ref *)(ipfwtag+1))->rulenum = dir;
 
 			m_tag_prepend(m, ipfwtag);

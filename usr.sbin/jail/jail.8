@@ -393,6 +393,9 @@ The
 .Xr lsvfs 1
 command can be used to find file system types available for mount from
 within a jail.
+This permission is effective only if
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.quotas
 The prison root may administer quotas on the jail's filesystem(s).
 This includes filesystems that the jail may share with other jails or
@@ -746,9 +749,11 @@ It is not possible to
 or
 .Xr umount 8
 any file system inside a jail unless the file system is marked
-jail-friendly and the jail's
+jail-friendly, the jail's
 .Va allow.mount
-parameter is set.
+parameter is set and the jail's
+.Va enforce_statfs
+parameter is lower than 2.
 .Pp
 Multiple jails sharing the same file system can influence each other.
 For example a user in one jail can fill the file system also

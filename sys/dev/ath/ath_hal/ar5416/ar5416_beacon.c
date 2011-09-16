@@ -29,6 +29,15 @@
 #define	ONE_EIGHTH_TU_TO_USEC(_tu8)	((_tu8) << 7)
 
 /*
+ * Return the hardware NextTBTT in TSF
+ */
+uint64_t
+ar5416GetNextTBTT(struct ath_hal *ah)
+{
+	return OS_REG_READ(ah, AR_NEXT_TBTT);
+}
+
+/*
  * Initialize all of the hardware registers used to
  * send beacons.  Note that for station operation the
  * driver calls ar5416SetStaBeaconTimers instead.

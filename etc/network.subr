@@ -32,7 +32,7 @@
 
 # ifn_start ifn
 #	Bring up and configure an interface.  If some configuration is
-#	applied print the interface configuration.
+#	applied, print the interface configuration.
 #
 ifn_start()
 {
@@ -53,7 +53,7 @@ ifn_start()
 }
 
 # ifn_stop ifn
-#	Shutdown and de-configure an interface.  If action is taken
+#	Shutdown and de-configure an interface.  If action is taken,
 #	print the interface name.
 #
 ifn_stop()
@@ -113,6 +113,12 @@ ifconfig_up()
 			;;
 		esac
 
+		case $ipv6_cpe_wanif in
+		$1)
+			_ipv6_opts="${_ipv6_opts} -no_radr accept_rtadv"
+		;;
+		esac
+
 		if [ -n "${_ipv6_opts}" ]; then
 			ifconfig $1 inet6 ${_ipv6_opts}
 		fi
@@ -120,8 +126,16 @@ ifconfig_up()
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
+			# backward compatibility: inet6 keyword
+			case "${ifconfig_args}" in
+			:*|[0-9a-fA-F]*:*)
+				warn "\$ifconfig_$1_ipv6 needs " \
+				    "\"inet6\" keyword for an IPv6 address."
+				ifconfig_args="inet6 ${ifconfig_args}"
+			;;
+			esac
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 ${ifconfig_args}
+			eval ifconfig $1 ${ifconfig_args}
 			_cfg=0
 		fi
 
@@ -131,7 +145,7 @@ ifconfig_up()
 			warn "\$ipv6_ifconfig_$1 is obsolete." \
 			    "  Use ifconfig_$1_ipv6 instead."
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 inet6 ${ifconfig_args}
+			eval ifconfig $1 inet6 ${ifconfig_args}
 			_cfg=0
 		fi
 	fi
@@ -213,8 +227,8 @@ get_if_var()
 }
 
 # _ifconfig_getargs if [af]
-#	Echos the arguments for the supplied interface to stdout.
-#	returns 1 if empty.  In general, ifconfig_getargs should be used
+#	Prints the arguments for the supplied interface to stdout.
+#	Returns 1 if empty.  In general, ifconfig_getargs should be used
 #	outside this file.
 _ifconfig_getargs()
 {
@@ -258,7 +272,7 @@ ifconfig_getargs()
 }
 
 # autoif
-#	Returns 0 if the interface should be automaticly configured at
+#	Returns 0 if the interface should be automatically configured at
 #	boot time and 1 otherwise.
 autoif()
 {
@@ -435,7 +449,7 @@ ipv6if()
 
 # ipv6_autoconfif if
 #	Returns 0 if the interface should be configured for IPv6 with
-#	Stateless Address Configuration, 1 otherwise.
+#	Stateless Address Configuration; 1 otherwise.
 ipv6_autoconfif()
 {
 	local _if _tmpargs _arg

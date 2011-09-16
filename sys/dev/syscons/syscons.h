@@ -266,6 +266,9 @@ typedef struct sc_softc {
 	u_char		cursor_char;
 	u_char		mouse_char;
 
+#ifdef KDB
+	int		sc_altbrk;
+#endif
 } sc_softc_t;
 
 /* virtual screen */

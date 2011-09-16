@@ -25,8 +25,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
 #include <machine/asm.h>
 #include <machine/cpu.h>
@@ -35,6 +36,8 @@
 #include <mips/nlm/hal/sys.h>
 #include <mips/nlm/hal/cpucontrol.h>
 
+#define SYS_REG_KSEG1(node, reg)	(0xa0000000 + XLP_DEFAULT_IO_BASE + \
+		XLP_IO_SYS_OFFSET(node)  + XLP_IO_PCI_HDRSZ + (reg) * 4)
 #include "assym.s"
 
 	.text
@@ -59,7 +62,7 @@ VECTOR(XLPResetEntry, unknown)
 	nor     t0, t0, zero		/* mask with core id bit clear */
 
 	/* clear CPU non-coherent bit */
-	li	t2, XLP_DEFAULT_IO_BASE_KSEG1 + XLP_IO_SYS_OFFSET(0) + XLP_SYS_CPU_NONCOHERENT_MODE_REG * 4
+	li	t2, SYS_REG_KSEG1(0, SYS_CPU_NONCOHERENT_MODE)
 	lw	t1, 0(t2)
 	and	t1, t1, t0
 	sw	t1, 0(t2)
@@ -109,7 +112,7 @@ LEAF(xlp_enable_threads)
 	sd	gp, 80(sp)
 	sd	ra, 88(sp)
 	/* Use register number to work in o32 and n32 */
-	li	$9, ((XLP_CPU_BLOCKID_MAP << 8) | XLP_BLKID_MAP_THREADMODE)
+	li	$9, ((CPU_BLOCKID_MAP << 8) | MAP_THREADMODE)
 	move	$8, a0	
 	sync
 	.word	0x71280019	/* mtcr    t0, t1*/

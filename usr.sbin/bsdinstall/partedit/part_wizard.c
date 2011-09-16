@@ -96,6 +96,7 @@ boot_disk(struct gmesh *mesh)
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
+		    strcmp(classp->lg_name, "RAID") != 0 &&
 		    strcmp(classp->lg_name, "MD") != 0)
 			continue;
 
@@ -169,6 +170,7 @@ provider_for_name(struct gmesh *mesh, const char *name)
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
 		    strcmp(classp->lg_name, "PART") != 0 &&
+		    strcmp(classp->lg_name, "RAID") != 0 &&
 		    strcmp(classp->lg_name, "MD") != 0)
 			continue;
 

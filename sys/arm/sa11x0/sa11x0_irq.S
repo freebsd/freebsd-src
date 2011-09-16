@@ -122,7 +122,7 @@ ENTRY(sa11x0_activateirqs)
 	.global _C_LABEL(intrnames), _C_LABEL(sintrnames)
 _C_LABEL(intrnames): 
 _C_LABEL(sintrnames):
-	.word	0
+	.int	0
 
 	.globl	_C_LABEL(intrcnt), _C_LABEL(sintrcnt)
 

@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: opensslrsa_link.c,v 1.39 2011-01-11 23:47:13 tbox Exp $
+ * $Id: opensslrsa_link.c,v 1.39.10.2 2011-03-11 02:57:35 marka Exp $
  */
 #ifdef OPENSSL
 #include <config.h>
@@ -51,7 +51,9 @@
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 #include <openssl/bn.h>
 #endif
+#ifdef USE_ENGINE
 #include <openssl/engine.h>
+#endif
 
 /*
  * We don't use configure for windows so enforce the OpenSSL version
@@ -1138,10 +1140,14 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	isc_result_t ret;
 	int i;
 	RSA *rsa = NULL, *pubrsa = NULL;
+#ifdef USE_ENGINE
 	ENGINE *e = NULL;
+#endif
 	isc_mem_t *mctx = key->mctx;
 	const char *engine = NULL, *label = NULL;
+#if defined(USE_ENGINE) || USE_EVP
 	EVP_PKEY *pkey = NULL;
+#endif
 
 #if USE_EVP
 	if (pub != NULL && pub->keydata.pkey != NULL)
@@ -1175,6 +1181,7 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	 * See if we can fetch it.
 	 */
 	if (label != NULL) {
+#ifdef USE_ENGINE
 		if (engine == NULL)
 			DST_RET(DST_R_NOENGINE);
 		e = dst__openssl_getengine(engine);
@@ -1209,6 +1216,9 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 		dst__privstruct_free(&priv, mctx);
 		memset(&priv, 0, sizeof(priv));
 		return (ISC_R_SUCCESS);
+#else
+		DST_RET(DST_R_NOENGINE);
+#endif
 	}
 
 	rsa = RSA_new();
@@ -1303,6 +1313,7 @@ static isc_result_t
 opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 		     const char *pin)
 {
+#ifdef USE_ENGINE
 	ENGINE *e = NULL;
 	isc_result_t ret;
 	EVP_PKEY *pkey = NULL;
@@ -1366,6 +1377,13 @@ opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 	if (pkey != NULL)
 		EVP_PKEY_free(pkey);
 	return (ret);
+#else
+	UNUSED(key);
+	UNUSED(engine);
+	UNUSED(label);
+	UNUSED(pin);
+	return(DST_R_NOENGINE);
+#endif
 }
 
 static dst_func_t opensslrsa_functions = {

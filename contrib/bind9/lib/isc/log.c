@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.99 2009-02-16 02:01:16 marka Exp $ */
+/* $Id: log.c,v 1.99.404.2 2011-03-12 04:59:18 tbox Exp $ */
 
 /*! \file
  * \author  Principal Authors: DCL */
@@ -1342,9 +1342,10 @@ isc_log_open(isc_logchannel_t *channel) {
 		    (FILE_MAXSIZE(channel) > 0 &&
 		     statbuf.st_size >= FILE_MAXSIZE(channel)))
 			roll = regular_file;
-	} else if (errno == ENOENT)
+	} else if (errno == ENOENT) {
 		regular_file = ISC_TRUE;
-	else
+		POST(regular_file);
+	} else
 		result = ISC_R_INVALIDFILE;
 
 	/*

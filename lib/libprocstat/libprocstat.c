@@ -282,7 +282,7 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 
 static struct filestat *
 filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags,
-    int refcount, off_t offset, char *path)
+    int refcount, off_t offset, char *path, cap_rights_t cap_rights)
 {
 	struct filestat *entry;
 
@@ -299,6 +299,7 @@ filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags,
 	entry->fs_ref_count = refcount;
 	entry->fs_offset = offset;
 	entry->fs_path = path;
+	entry->fs_cap_rights = cap_rights;
 	return (entry);
 }
 
@@ -381,21 +382,21 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	/* root directory vnode, if one. */
 	if (filed.fd_rdir) {
 		entry = filestat_new_entry(filed.fd_rdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_RDIR, 0, 0, NULL);
+		    PS_FST_FFLAG_READ, PS_FST_UFLAG_RDIR, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* current working directory vnode. */
 	if (filed.fd_cdir) {
 		entry = filestat_new_entry(filed.fd_cdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_CDIR, 0, 0, NULL);
+		    PS_FST_FFLAG_READ, PS_FST_UFLAG_CDIR, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* jail root, if any. */
 	if (filed.fd_jdir) {
 		entry = filestat_new_entry(filed.fd_jdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_JAIL, 0, 0, NULL);
+		    PS_FST_FFLAG_READ, PS_FST_UFLAG_JAIL, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -403,14 +404,14 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	if (kp->ki_tracep) {
 		entry = filestat_new_entry(kp->ki_tracep, PS_FST_TYPE_VNODE, -1,
 		    PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE,
-		    PS_FST_UFLAG_TRACE, 0, 0, NULL);
+		    PS_FST_UFLAG_TRACE, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* text vnode, if one */
 	if (kp->ki_textvp) {
 		entry = filestat_new_entry(kp->ki_textvp, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_TEXT, 0, 0, NULL);
+		    PS_FST_FFLAG_READ, PS_FST_UFLAG_TEXT, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -418,7 +419,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	if ((vp = getctty(kd, kp)) != NULL) {
 		entry = filestat_new_entry(vp, PS_FST_TYPE_VNODE, -1,
 		    PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE,
-		    PS_FST_UFLAG_CTTY, 0, 0, NULL);
+		    PS_FST_UFLAG_CTTY, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -471,8 +472,9 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 		default:
 			continue;
 		}
+		/* XXXRW: No capability rights support for kvm yet. */
 		entry = filestat_new_entry(data, type, i,
-		    to_filestat_flags(file.f_flag), 0, 0, 0, NULL);
+		    to_filestat_flags(file.f_flag), 0, 0, 0, NULL, 0);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -531,7 +533,7 @@ do_mmapped:
 			 */
 			entry = filestat_new_entry(object.handle,
 			    PS_FST_TYPE_VNODE, -1, fflags,
-			    PS_FST_UFLAG_MMAP, 0, 0, NULL);
+			    PS_FST_UFLAG_MMAP, 0, 0, NULL, 0);
 			if (entry != NULL)
 				STAILQ_INSERT_TAIL(head, entry, next);
 		}
@@ -586,6 +588,7 @@ kinfo_fflags2fst(int kfflags)
 	} kfflags2fst[] = {
 		{ KF_FLAG_APPEND, PS_FST_FFLAG_APPEND },
 		{ KF_FLAG_ASYNC, PS_FST_FFLAG_ASYNC },
+		{ KF_FLAG_CAPABILITY, PS_FST_FFLAG_CAPABILITY },
 		{ KF_FLAG_CREAT, PS_FST_FFLAG_CREAT },
 		{ KF_FLAG_DIRECT, PS_FST_FFLAG_DIRECT },
 		{ KF_FLAG_EXCL, PS_FST_FFLAG_EXCL },
@@ -644,6 +647,7 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 	int cnt, fd, fflags;
 	int i, type, uflags;
 	int refcount;
+	cap_rights_t cap_rights;
 
 	assert(kp);
 	if (kp->ki_fd == NULL)
@@ -676,12 +680,13 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 			path = strdup(kif->kf_path);
 		else
 			path = NULL;
+		cap_rights = kif->kf_cap_rights;
 
 		/*
 		 * Create filestat entry.
 		 */
 		entry = filestat_new_entry(kif, type, fd, fflags, uflags,
-		    refcount, offset, path);
+		    refcount, offset, path, cap_rights);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -707,7 +712,8 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 			else
 				path = NULL;
 			entry = filestat_new_entry(kve, PS_FST_TYPE_VNODE, -1,
-			    fflags, PS_FST_UFLAG_MMAP, refcount, offset, path);
+			    fflags, PS_FST_UFLAG_MMAP, refcount, offset, path,
+			    0);
 			if (entry != NULL)
 				STAILQ_INSERT_TAIL(head, entry, next);
 		}

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 Doug Rabson
+ * Copyright (c) 2011 Andriy Gapon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +25,10 @@
  * SUCH DAMAGE.
  */
 /* $FreeBSD$ */
-/*
- * Compile with 'cc -I. -I../../cddl/boot/zfs zfstest.c -o zfstest'
- */
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -37,17 +36,20 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <unistd.h>
 
 #define NBBY 8
 
 void
 pager_output(const char *line)
 {
-	printf("%s", line);
+	fprintf(stderr, "%s", line);
 }
 
+#define ZFS_TEST
+#define	printf(...)	 fprintf(stderr, __VA_ARGS__)
 #include "zfsimpl.c"
+#undef printf
 
 static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
@@ -55,8 +57,8 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	int fd = *(int *) priv;
 
 	if (pread(fd, buf, bytes, off) != bytes)
-		return -1;
-	return 0;
+		return (-1);
+	return (0);
 }
 
 static int
@@ -69,10 +71,10 @@ zfs_read(spa_t *spa, dnode_phys_t *dn, void *buf, size_t size, off_t off)
 	n = size;
 	if (off + n > zp->zp_size)
 		n = zp->zp_size - off;
-	
+
 	rc = dnode_read(spa, dn, off, buf, n);
 	if (rc)
-		return (rc);
+		return (-rc);
 
 	return (n);
 }
@@ -80,22 +82,26 @@ zfs_read(spa_t *spa, dnode_phys_t *dn, void *buf, size_t size, off_t off)
 int
 main(int argc, char** argv)
 {
-	int i, n, off;
-	int fd[99];
-	spa_t *spa;
-	dnode_phys_t dn;
 	char buf[512];
+	int fd[100];
+	struct stat sb;
+	dnode_phys_t dn;
+	spa_t *spa;
+	off_t off;
+	ssize_t n;
+	int i;
 
 	zfs_init();
 	if (argc == 1) {
 		static char *av[] = {
-			"zfstest", "/dev/da0p2", "/dev/da1p2", "/dev/da2p2",
+			"zfstest", "COPYRIGHT",
+			"/dev/da0p2", "/dev/da1p2", "/dev/da2p2",
 			NULL,
 		};
-		argc = 4;
+		argc = 5;
 		argv = av;
 	}
-	for (i = 1; i < argc; i++) {
+	for (i = 2; i < argc; i++) {
 		fd[i] = open(argv[i], O_RDONLY);
 		if (fd[i] < 0)
 			continue;
@@ -105,16 +111,39 @@ main(int argc, char** argv)
 	spa_all_status();
 
 	spa = STAILQ_FIRST(&zfs_pools);
-	if (!spa || zfs_mount_pool(spa))
+	if (spa == NULL) {
+		fprintf(stderr, "no pools\n");
 		exit(1);
+	}
 
-	if (zfs_lookup(spa, "zfs.c", &dn))
+	if (zfs_mount_pool(spa)) {
+		fprintf(stderr, "can't mount pool\n");
 		exit(1);
+	}
+
+	if (zfs_lookup(spa, argv[1], &dn)) {
+		fprintf(stderr, "can't lookup\n");
+		exit(1);
+	}
+
+	if (zfs_dnode_stat(spa, &dn, &sb)) {
+		fprintf(stderr, "can't stat\n");
+		exit(1);
+	}
+
 
 	off = 0;
 	do {
-		n = zfs_read(spa, &dn, buf, 512, off);
+		n = sb.st_size - off;
+		n = n > sizeof(buf) ? sizeof(buf) : n;
+		n = zfs_read(spa, &dn, buf, n, off);
+		if (n < 0) {
+			fprintf(stderr, "zfs_read failed\n");
+			exit(1);
+		}
 		write(1, buf, n);
 		off += n;
-	} while (n == 512);
+	} while (off < sb.st_size);
+
+	return (0);
 }

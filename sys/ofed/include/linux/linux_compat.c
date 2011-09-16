@@ -559,7 +559,9 @@ struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_poll = linux_file_poll,
 	.fo_close = linux_file_close,
-	.fo_ioctl = linux_file_ioctl
+	.fo_ioctl = linux_file_ioctl,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 };
 
 /*

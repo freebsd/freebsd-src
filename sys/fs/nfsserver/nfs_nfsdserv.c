@@ -620,7 +620,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
     vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
 {
 	u_int32_t *tl;
-	int error = 0, cnt, len, getret = 1, reqlen, eof = 0;
+	int error = 0, cnt, getret = 1, reqlen, eof = 0;
 	mbuf_t m2, m3;
 	struct nfsvattr nva;
 	off_t off = 0x0;
@@ -714,11 +714,11 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 		eof = 1;
 	} else if (reqlen == 0)
 		cnt = 0;
-	else if ((off + reqlen) > nva.na_size)
+	else if ((off + reqlen) >= nva.na_size) {
 		cnt = nva.na_size - off;
-	else
+		eof = 1;
+	} else
 		cnt = reqlen;
-	len = NFSM_RNDUP(cnt);
 	m3 = NULL;
 	if (cnt > 0) {
 		nd->nd_repstat = nfsvno_read(vp, off, cnt, nd->nd_cred, p,
@@ -748,7 +748,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 			*tl++ = txdr_unsigned(cnt);
 		} else
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if (len < reqlen || eof)
+		if (eof)
 			*tl++ = newnfs_true;
 		else
 			*tl++ = newnfs_false;
@@ -2741,12 +2741,11 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 * Do basic access checking.
 	 */
 	if (!nd->nd_repstat && vnode_vtype(vp) != VREG) {
-	    if (vnode_vtype(vp) == VDIR)
-		nd->nd_repstat = NFSERR_ISDIR;
-	    else if (vnode_vtype(vp) == VLNK)
+		/*
+		 * The IETF working group decided that this is the correct
+		 * error return for all non-regular files.
+		 */
 		nd->nd_repstat = NFSERR_SYMLINK;
-	    else
-		nd->nd_repstat = NFSERR_INVAL;
 	}
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_WRITEACCESS))
 	    nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred,

@@ -1,4 +1,5 @@
 /* $OpenBSD: session.c,v 1.258 2010/11/25 04:10:09 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -232,7 +233,10 @@ auth_input_request_forwarding(struct passwd * pw)
 		goto authsock_err;
 	}
 
-	/* Allocate a channel for the authentication agent socket. */
+	/*
+	 * Allocate a channel for the authentication agent socket.
+	 * Ignore HPN on that one given no improvement expected.
+	 */
 	nc = channel_new("auth socket",
 	    SSH_CHANNEL_AUTH_SOCKET, sock, sock, -1,
 	    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
@@ -2283,10 +2287,14 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr, int ignore_fderr,
 	 */
 	if (s->chanid == -1)
 		fatal("no channel for session %d", s->self);
-	channel_set_fds(s->chanid,
-	    fdout, fdin, fderr,
-	    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
-	    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
+	if (options.hpn_disabled)
+		channel_set_fds(s->chanid, fdout, fdin, fderr,
+		    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+		    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
+	else
+		channel_set_fds(s->chanid, fdout, fdin, fderr,
+		    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+		    1, is_tty, options.hpn_buffer_size);
 }
 
 /*
