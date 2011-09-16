@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 16, 2008
+.Dd July 20, 2011
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -107,6 +107,9 @@ present file.
 Name of the kernel to be loaded.
 If no kernel name is set, no additional
 modules will be loaded.
+The name must be a subdirectory of
+.Pa /boot
+that contains a kernel.
 .It Ar kernel_options
 Flags to be passed to the kernel.
 .It Ar password
@@ -185,7 +188,7 @@ selects the video console, and
 selects a mute console
 (useful for systems with neither a video console nor a serial port).
 .It Va kernel
-.Pq Dq Pa /boot/kernel/kernel
+.Pq Dq kernel
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
 .It Va splash_bmp_load
