@@ -612,7 +612,7 @@ trap(struct trapframe *frame)
 				PCPU_GET(curpcb)->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
-				psignal(p, SIGBUS);
+				kern_psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
 #endif				
 				goto out;

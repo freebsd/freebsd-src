@@ -889,7 +889,7 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 	if (LIST_EMPTY(&pm->pm_targets)) {
 		p = pm->pm_owner->po_owner;
 		PROC_LOCK(p);
-		psignal(p, SIGIO);
+		kern_psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 
 		PMCDBG(PRC,SIG,2, "signalling proc=%p signal=%d", p,
@@ -4812,7 +4812,7 @@ pmc_cleanup(void)
 				    po->po_owner->p_comm);
 
 				PROC_LOCK(po->po_owner);
-				psignal(po->po_owner, SIGBUS);
+				kern_psignal(po->po_owner, SIGBUS);
 				PROC_UNLOCK(po->po_owner);
 
 				pmc_destroy_owner_descriptor(po);

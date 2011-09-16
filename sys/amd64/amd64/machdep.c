@@ -421,7 +421,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * MPSAFE
  */
 int
-sigreturn(td, uap)
+sys_sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
 		const struct __ucontext *sigcntxp;
@@ -517,7 +517,7 @@ int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
  
-	return sigreturn(td, (struct sigreturn_args *)uap);
+	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
 

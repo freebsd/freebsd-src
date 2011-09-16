@@ -574,7 +574,7 @@ devctl_queue_data_f(char *data, int flags)
 	p = devsoftc.async_proc;
 	if (p != NULL) {
 		PROC_LOCK(p);
-		psignal(p, SIGIO);
+		kern_psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 	}
 	return;

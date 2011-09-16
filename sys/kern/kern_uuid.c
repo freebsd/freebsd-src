@@ -187,7 +187,7 @@ struct uuidgen_args {
 };
 #endif
 int
-uuidgen(struct thread *td, struct uuidgen_args *uap)
+sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 {
 	struct uuid *store;
 	size_t count;
