@@ -863,11 +863,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		}
 	} else
 		vm2 = NULL;
-#ifdef MAC
-	mac_proc_init(newproc);
-#endif
-	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
 
 	/*
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
@@ -883,6 +878,23 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		error = EAGAIN;
 		goto fail1;
 	}
+
+#ifdef RACCT
+	PROC_LOCK(newproc);
+	error = racct_add(newproc, RACCT_NPROC, 1);
+	error += racct_add(newproc, RACCT_NTHR, 1);
+	PROC_UNLOCK(newproc);
+	if (error != 0) {
+		error = EAGAIN;
+		goto fail1;
+	}
+#endif
+
+#ifdef MAC
+	mac_proc_init(newproc);
+#endif
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
+	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
 	sx_slock(&proctree_lock);
@@ -900,20 +912,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		error = EAGAIN;
 		goto fail;
 	}
-
-#ifdef RACCT
-	/*
-	 * After fork, there is exactly one thread running.
-	 */
-	PROC_LOCK(newproc);
-	error = racct_add(newproc, RACCT_NPROC, 1);
-	error += racct_add(newproc, RACCT_NTHR, 1);
-	PROC_UNLOCK(newproc);
-	if (error != 0) {
-		error = EAGAIN;
-		goto fail;
-	}
-#endif
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -946,7 +944,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 
 	error = EAGAIN;
 fail:
-	racct_proc_exit(newproc);
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
 		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
@@ -956,6 +953,7 @@ fail:
 	mac_proc_destroy(newproc);
 #endif
 fail1:
+	racct_proc_exit(newproc);
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
