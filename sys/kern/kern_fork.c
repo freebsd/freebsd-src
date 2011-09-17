@@ -806,14 +806,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		return (fork_norfproc(td, flags));
 	}
 
-#ifdef RACCT
-	PROC_LOCK(p1);
-	error = racct_add(p1, RACCT_NPROC, 1);
-	PROC_UNLOCK(p1);
-	if (error != 0)
-		return (EAGAIN);
-#endif
-
 #ifdef PROCDESC
 	/*
 	 * If required, create a process descriptor in the parent first; we
@@ -822,14 +814,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 */
 	if (flags & RFPROCDESC) {
 		error = falloc(td, &fp_procdesc, procdescp, 0);
-		if (error != 0) {
-#ifdef RACCT
-			PROC_LOCK(p1);
-			racct_sub(p1, RACCT_NPROC, 1);
-			PROC_UNLOCK(p1);
-#endif
+		if (error != 0)
 			return (error);
-		}
 	}
 #endif
 
@@ -920,7 +906,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * After fork, there is exactly one thread running.
 	 */
 	PROC_LOCK(newproc);
-	error = racct_set(newproc, RACCT_NTHR, 1);
+	error = racct_add(newproc, RACCT_NPROC, 1);
+	error += racct_add(newproc, RACCT_NTHR, 1);
 	PROC_UNLOCK(newproc);
 	if (error != 0) {
 		error = EAGAIN;
@@ -977,11 +964,6 @@ fail1:
 		fdrop(fp_procdesc, td);
 #endif
 	pause("fork", hz / 2);
-#ifdef RACCT
-	PROC_LOCK(p1);
-	racct_sub(p1, RACCT_NPROC, 1);
-	PROC_UNLOCK(p1);
-#endif
 	return (error);
 }
 
