@@ -2654,6 +2654,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 	}
 
 	/* Reset state */
+	adapter->last_hw_offload = 0;
 	adapter->next_avail_tx_desc = 0;
 	adapter->next_tx_to_clean = 0;
 	adapter->num_tx_desc_avail = adapter->num_tx_desc;
