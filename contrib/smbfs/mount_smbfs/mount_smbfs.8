@@ -157,11 +157,11 @@ mount_smbfs -I samba.mydomain.com //guest@samba/public /smb/public
 mount_smbfs -I 192.168.20.3 -E koi8-r:cp866 //guest@samba/tmp /smb/tmp
 .Ed
 .Pp
-It is possible to use
+It is also possible to use
 .Xr fstab 5
-for smbfs mounts:
+for smbfs mounts (the example below doesn't prompt for a password):
 .Pp
-.Dl "//guest@samba/public    /smb/public     smbfs  rw,noauto 0   0"
+.Dl "//guest@samba/public    /smb/public     smbfs  rw,noauto,-N 0   0"
 .Sh AUTHORS
 .An Boris Popov Aq bp@butya.kz ,
 .Aq bp@FreeBSD.org
