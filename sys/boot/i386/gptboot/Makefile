@@ -20,12 +20,7 @@ GPTBOOT_UFS?=	UFS1_AND_UFS2
 #GPTBOOT_UFS?=	UFS1_ONLY
 
 CFLAGS=	-DBOOTPROG=\"gptboot\" \
-	-Os \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
-	-mrtd \
+	-O1 \
 	-DGPT \
 	-D${GPTBOOT_UFS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

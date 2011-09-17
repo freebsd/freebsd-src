@@ -22,6 +22,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110913:
+	This commit modifies vfs_register() so that it uses a hash
+	calculation to set vfc_typenum, which is enabled by default.
+	The first time a system is booted after this change, the
+	vfc_typenum values will change for all file systems. The
+	main effect of this is a change to the NFS server file handles
+	for file systems that use vfc_typenum in their fsid, such as ZFS.
+	It will, however, prevent vfc_typenum from changing when file
+	systems are loaded in a different order for subsequent reboots.
+	To disable this, you can set vfs.typenumhash=0 in /boot/loader.conf
+	until you are ready to remount all NFS clients after a reboot.
+
 20110828:
 	Bump the shared library version numbers for libraries that
 	do not use symbol versioning, have changed the ABI compared

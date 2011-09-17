@@ -43,7 +43,6 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
-	cc.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -169,6 +168,7 @@ MAN=	accept_filter.9 \
 	microtime.9 \
 	microuptime.9 \
 	mi_switch.9 \
+	mod_cc.9 \
 	module.9 \
 	MODULE_DEPEND.9 \
 	MODULE_VERSION.9 \

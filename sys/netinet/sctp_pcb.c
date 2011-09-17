@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_dtrace_define.h>
 #include <netinet/udp.h>
+#ifdef INET6
+#include <netinet6/ip6_var.h>
+#endif
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
@@ -2503,6 +2506,11 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	/* setup socket pointers */
 	inp->sctp_socket = so;
 	inp->ip_inp.inp.inp_socket = so;
+#ifdef INET6
+	if (MODULE_GLOBAL(ip6_auto_flowlabel)) {
+		inp->ip_inp.inp.inp_flags |= IN6P_AUTOFLOWLABEL;
+	}
+#endif
 	inp->sctp_associd_counter = 1;
 	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
@@ -2668,6 +2676,10 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	 */
 	m->local_hmacs = sctp_default_supported_hmaclist();
 	m->local_auth_chunks = sctp_alloc_chunklist();
+	m->default_dscp = 0;
+#ifdef INET6
+	m->default_flowlabel = 0;
+#endif
 	sctp_auth_set_default_chunks(m->local_auth_chunks);
 	LIST_INIT(&m->shared_keys);
 	/* add default NULL key as key id 0 */
@@ -4015,11 +4027,18 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		net->port = 0;
 	}
 	net->dscp = stcb->asoc.default_dscp;
+#ifdef INET6
 	net->flowlabel = stcb->asoc.default_flowlabel;
-	if (sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_DONOT_HEARTBEAT)) {
+#endif
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_DONOT_HEARTBEAT)) {
 		net->dest_state |= SCTP_ADDR_NOHB;
 	} else {
 		net->dest_state &= ~SCTP_ADDR_NOHB;
+	}
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_DO_NOT_PMTUD)) {
+		net->dest_state |= SCTP_ADDR_NO_PMTUD;
+	} else {
+		net->dest_state &= ~SCTP_ADDR_NO_PMTUD;
 	}
 	net->heart_beat_delay = stcb->asoc.heart_beat_delay;
 	/* Init the timer structure */
@@ -4277,6 +4296,16 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)) {
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED)) {
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+			*error = EINVAL;
+			return (NULL);
+		}
+	}
 	SCTPDBG(SCTP_DEBUG_PCB3, "Allocate an association for peer:");
 #ifdef SCTP_DEBUG
 	if (firstaddr) {
@@ -4308,7 +4337,10 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			struct sockaddr_in *sin;
 
 			sin = (struct sockaddr_in *)firstaddr;
-			if ((sin->sin_port == 0) || (sin->sin_addr.s_addr == 0)) {
+			if ((ntohs(sin->sin_port) == 0) ||
+			    (sin->sin_addr.s_addr == INADDR_ANY) ||
+			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				/* Invalid address */
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
@@ -4325,8 +4357,9 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			struct sockaddr_in6 *sin6;
 
 			sin6 = (struct sockaddr_in6 *)firstaddr;
-			if ((sin6->sin6_port == 0) ||
-			    (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))) {
+			if ((ntohs(sin6->sin6_port) == 0) ||
+			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
+			    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 				/* Invalid address */
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);

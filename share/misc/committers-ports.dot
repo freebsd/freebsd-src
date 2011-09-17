@@ -68,6 +68,7 @@ clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 clsung [label="Cheng-Lung Sung\nclsung@FreeBSD.org\n2004/8/18"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2011/06/11"]
+cs [label="Carlo Strub\ncs@FreeBSD.org\n2011/09/13"]
 culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
@@ -273,6 +274,7 @@ garga -> wxs
 garga -> xride
 
 glarkin -> avl
+glarkin -> cs
 
 glewis -> hq
 glewis -> jkim
@@ -421,6 +423,7 @@ thierry -> jadawin
 tmclaugh -> itetcu
 tmclaugh -> xride
 
+wen -> cs
 wen -> culot
 wen -> pawel
 

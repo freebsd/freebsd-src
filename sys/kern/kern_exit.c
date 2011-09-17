@@ -104,7 +104,7 @@ void (*nlminfo_release_p)(struct proc *p);
  * exit -- death of process.
  */
 void
-sys_exit(struct thread *td, struct sys_exit_args *uap)
+sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
 	exit1(td, W_EXITCODE(uap->rval, 0));
@@ -224,7 +224,7 @@ exit1(struct thread *td, int rv)
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
@@ -421,7 +421,7 @@ exit1(struct thread *td, int rv)
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			FOREACH_THREAD_IN_PROC(q, temp)
 				temp->td_dbgflags &= ~TDB_SUSPEND;
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
 	}
@@ -501,12 +501,12 @@ exit1(struct thread *td, int rv)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
 		if (p->p_pptr == initproc)
-			psignal(p->p_pptr, SIGCHLD);
+			kern_psignal(p->p_pptr, SIGCHLD);
 		else if (p->p_sigparent != 0) {
 			if (p->p_sigparent == SIGCHLD)
 				childproc_exited(p);
 			else	/* LINUX thread */
-				psignal(p->p_pptr, p->p_sigparent);
+				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
 #ifdef PROCDESC
 	} else
@@ -568,7 +568,7 @@ struct abort2_args {
 #endif
 
 int
-abort2(struct thread *td, struct abort2_args *uap)
+sys_abort2(struct thread *td, struct abort2_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct sbuf *sb;
@@ -656,7 +656,7 @@ owait(struct thread *td, struct owait_args *uap __unused)
  * The dirty work is handled by kern_wait().
  */
 int
-wait4(struct thread *td, struct wait_args *uap)
+sys_wait4(struct thread *td, struct wait_args *uap)
 {
 	struct rusage ru, *rup;
 	int error, status;

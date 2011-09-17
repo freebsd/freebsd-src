@@ -321,7 +321,9 @@ struct sctp_nets {
 	uint32_t fast_recovery_tsn;
 	uint32_t heartbeat_random1;
 	uint32_t heartbeat_random2;
+#ifdef INET6
 	uint32_t flowlabel;
+#endif
 	uint8_t dscp;
 
 	struct timeval start_time;	/* time when this net was created */
@@ -987,7 +989,9 @@ struct sctp_association {
 	uint32_t sb_send_resv;	/* amount reserved on a send */
 	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
 					 * control */
+#ifdef INET6
 	uint32_t default_flowlabel;
+#endif
 	uint32_t pr_sctp_cnt;
 	int ctrl_queue_cnt;	/* could be removed  REM - NO IT CAN'T!! RRS */
 	/*

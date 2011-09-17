@@ -885,7 +885,6 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 #include "../../kern/subr_syscall.c"
 
-void amd64_syscall(struct thread *td, int traced);
 /*
  *	syscall -	system call request C handler
  *

@@ -27,10 +27,10 @@
  *
  */
 
-int	cmsg_getprop(struct ctrl_msg_pl *);
-int	cmsg_setprop(struct ctrl_msg_pl *);
+int	cm_getprop(struct ctrl_msg_pl *);
+int	cm_setprop(struct ctrl_msg_pl *);
 
-int	cmsg_handler_server(int);
+int	cm_handler_server(int);
 
 void	set_do_reload(int);
 void	set_do_reload_ifname(char *);
