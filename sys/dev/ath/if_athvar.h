@@ -64,7 +64,7 @@
 #define	ATH_TXMGTTRY	4		/* xmit attempts for mgt/ctl frames */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
-#define	ATH_BEACON_AIFS_DEFAULT	 0	/* default aifs for ap beacon q */
+#define	ATH_BEACON_AIFS_DEFAULT	 1	/* default aifs for ap beacon q */
 #define	ATH_BEACON_CWMIN_DEFAULT 0	/* default cwmin for ap beacon q */
 #define	ATH_BEACON_CWMAX_DEFAULT 0	/* default cwmax for ap beacon q */
 
