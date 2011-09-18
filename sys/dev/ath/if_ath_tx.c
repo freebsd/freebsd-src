@@ -2813,10 +2813,6 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	struct ieee80211_tx_ampdu *tap;
 	ath_bufhead bf_cq;
 
-	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
-
-	tap = ath_tx_get_tx_tid(an, tid->tid);
-
 	TAILQ_INIT(&bf_q);
 	TAILQ_INIT(&bf_cq);
 	sc->sc_stats.ast_tx_aggrfail++;
@@ -2831,6 +2827,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	    &bf_first->bf_status.ds_txstat,
 	    bf_first->bf_state.bfs_pktlen,
 	    bf_first->bf_state.bfs_nframes, bf_first->bf_state.bfs_nframes);
+
+	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
+	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	/* Retry all subframes */
 	bf = bf_first;
