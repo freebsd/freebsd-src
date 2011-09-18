@@ -4681,9 +4681,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 * Drain software queued frames which are on
 	 * active TIDs.
 	 */
-	ATH_TXQ_LOCK(txq);
 	ath_tx_txq_drain(sc, txq);
-	ATH_TXQ_UNLOCK(txq);
 }
 
 static void

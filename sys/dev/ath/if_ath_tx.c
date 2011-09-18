@@ -2225,7 +2225,8 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
  * forward.
  */
 static void
-ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
+ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
+    ath_bufhead *bf_cq)
 {
 	struct ath_buf *bf;
 	struct ieee80211_tx_ampdu *tap;
@@ -2284,7 +2285,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid)
 				    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		}
 		ATH_TXQ_REMOVE(tid, bf, bf_list);
-		ath_tx_default_comp(sc, bf, 0);
+		TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 	}
 
 	/*
@@ -2323,6 +2324,10 @@ void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
+	ath_bufhead bf_cq;
+	struct ath_buf *bf;
+
+	TAILQ_INIT(&bf_cq);
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
@@ -2333,8 +2338,14 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 		ath_tx_tid_unsched(sc, an, atid);
 
 		/* Free packets */
-		ath_tx_tid_drain(sc, an, atid);
+		ath_tx_tid_drain(sc, an, atid, &bf_cq);
 		ATH_TXQ_UNLOCK(txq);
+	}
+
+	/* Handle completed frames */
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 0);
 	}
 }
 
@@ -2345,8 +2356,11 @@ void
 ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_tid *tid;
+	ath_bufhead bf_cq;
+	struct ath_buf *bf;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	TAILQ_INIT(&bf_cq);
+	ATH_TXQ_LOCK(txq);
 
 	/*
 	 * Iterate over all active tids for the given txq,
@@ -2354,10 +2368,16 @@ ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 	 */
 	while (! TAILQ_EMPTY(&txq->axq_tidq)) {
 		tid = TAILQ_FIRST(&txq->axq_tidq);
-		ath_tx_tid_drain(sc, tid->an, tid);
+		ath_tx_tid_drain(sc, tid->an, tid, &bf_cq);
 		ath_tx_tid_unsched(sc, tid->an, tid);
 	}
 
+	ATH_TXQ_UNLOCK(txq);
+
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 0);
+	}
 }
 
 /*
@@ -2433,13 +2453,10 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
-
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: incomp=%d\n",
 	    __func__, tid, atid->incomp);
 
-	ath_tx_default_comp(sc, bf, 0);
-
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	atid->incomp--;
 	if (atid->incomp == 0) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -2448,7 +2465,9 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		atid->cleanup_inprogress = 0;
 		ath_tx_tid_resume(sc, atid);
 	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
+	ath_tx_default_comp(sc, bf, 0);
 }
 
 /*
@@ -2468,11 +2487,13 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
 	struct ath_buf *bf, *bf_next;
+	ath_bufhead bf_cq;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: TID %d: called\n", __func__, tid);
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
+	TAILQ_INIT(&bf_cq);
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 
 	/*
 	 * Update the frames in the software TX queue:
@@ -2499,7 +2520,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			 * Call the default completion handler with "fail" just
 			 * so upper levels are suitably notified about this.
 			 */
-			ath_tx_default_comp(sc, bf, 1);
+			TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
 			bf = bf_next;
 			continue;
 		}
@@ -2544,6 +2565,13 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: TID %d: cleanup needed: %d packets\n",
 		    __func__, tid, atid->incomp);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+
+	/* Handle completing frames and fail them */
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 1);
+	}
 }
 
 static void
@@ -2621,6 +2649,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
 
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+
 	tap = ath_tx_get_tx_tid(an, tid);
 
 	/*
@@ -2683,8 +2713,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 #endif
 
 		/* Free buffer, bf is free after this call */
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_default_comp(sc, bf, 0);
-
 		return;
 	}
 
@@ -2701,6 +2731,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 */
 	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	ath_tx_tid_sched(sc, an, atid);
+
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }
 
 /*
@@ -2755,8 +2787,6 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
 		bf->bf_state.bfs_dobaw = 0;
-		/* XXX subframe completion status? is that valid here? */
-		ath_tx_default_comp(sc, bf, 0);
 		return 1;
 	}
 
@@ -2780,12 +2810,14 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	ath_bufhead bf_q;
 	int drops = 0;
 	struct ieee80211_tx_ampdu *tap;
+	ath_bufhead bf_cq;
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	TAILQ_INIT(&bf_q);
+	TAILQ_INIT(&bf_cq);
 	sc->sc_stats.ast_tx_aggrfail++;
 
 	/*
@@ -2804,7 +2836,11 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	while (bf) {
 		bf_next = bf->bf_next;
 		bf->bf_next = NULL;	/* Remove it from the aggr list */
-		drops += ath_tx_retry_subframe(sc, bf, &bf_q);
+		if (ath_tx_retry_subframe(sc, bf, &bf_q)) {
+			drops++;
+			bf->bf_next = NULL;
+			TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
+		}
 		bf = bf_next;
 	}
 
@@ -2836,6 +2872,13 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	}
 
 	ath_tx_tid_sched(sc, an, tid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
+
+	/* Complete frames which errored out */
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 0);
+	}
 }
 
 /*
@@ -2853,12 +2896,12 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	bf = bf_first;
 
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+
+	/* update incomp */
 	while (bf) {
 		atid->incomp--;
-		bf_next = bf->bf_next;
-		bf->bf_next = NULL;	/* Remove it from the aggr list */
-		ath_tx_default_comp(sc, bf, 1);
-		bf = bf_next;
+		bf = bf->bf_next;
 	}
 
 	if (atid->incomp == 0) {
@@ -2868,7 +2911,14 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 		atid->cleanup_inprogress = 0;
 		ath_tx_tid_resume(sc, atid);
 	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
+	/* Handle frame completion */
+	while (bf) {
+		bf_next = bf->bf_next;
+		ath_tx_default_comp(sc, bf, 1);
+		bf = bf_next;
+	}
 }
 
 /*
@@ -2917,8 +2967,8 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * Punt cleanup to the relevant function, not our problem now
 	 */
 	if (0 && atid->cleanup_inprogress) {
-		ath_tx_comp_cleanup_aggr(sc, bf_first);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+		ath_tx_comp_cleanup_aggr(sc, bf_first);
 		return;
 	}
 
@@ -2937,8 +2987,8 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * handle errors first
 	 */
 	if (ts.ts_status & HAL_TXERR_XRETRY) {
-		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
 	}
 
@@ -3023,9 +3073,14 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 				device_printf(sc->sc_dev,
 				    "%s: wasn't added: seqno %d\n",
 				    __func__, SEQNO(bf->bf_state.bfs_seqno));
+			bf->bf_next = NULL;
 			TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
 		} else {
-			drops += ath_tx_retry_subframe(sc, bf, &bf_q);
+			if (ath_tx_retry_subframe(sc, bf, &bf_q)) {
+				drops++;
+				bf->bf_next = NULL;
+				TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
+			}
 			nbad++;
 		}
 		bf = bf_next;
@@ -3103,6 +3158,23 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
+	/*
+	 * Update rate control status here, before we possibly
+	 * punt to retry or cleanup.
+	 *
+	 * Do it outside of the TXQ lock.
+	 */
+	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
+		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
+		    &bf->bf_status.ds_txstat,
+		    bf->bf_state.bfs_pktlen,
+		    1, (ts->ts_status == 0) ? 0 : 1);
+
+	/*
+	 * This is called early so atid->hwq_depth can be tracked.
+	 * This unfortunately means that it's released and regrabbed
+	 * during retry and cleanup. That's rather inefficient.
+	 */
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 
 	if (tid == IEEE80211_NONQOS_TID)
@@ -3117,24 +3189,14 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		    __func__, atid->hwq_depth);
 
 	/*
-	 * Update rate control status here, before we possibly
-	 * punt to retry or cleanup.
-	 */
-	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
-		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
-		    &bf->bf_status.ds_txstat,
-		    bf->bf_state.bfs_pktlen,
-		    1, (ts->ts_status == 0) ? 0 : 1);
-
-	/*
 	 * If a cleanup is in progress, punt to comp_cleanup;
 	 * rather than handling it here. It's thus their
 	 * responsibility to clean up, call the completion
 	 * function in net80211, etc.
 	 */
 	if (atid->cleanup_inprogress) {
-		ath_tx_comp_cleanup_unaggr(sc, bf);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+		ath_tx_comp_cleanup_unaggr(sc, bf);
 		return;
 	}
 
@@ -3143,8 +3205,8 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * are being failed (eg during queue deletion.)
 	 */
 	if (fail == 0 && ts->ts_status & HAL_TXERR_XRETRY) {
-		ath_tx_aggr_retry_unaggr(sc, bf);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+		ath_tx_aggr_retry_unaggr(sc, bf);
 		return;
 	}
 
@@ -3668,14 +3730,12 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	/* There's no need to hold the TXQ lock here */
 	sc->sc_addba_stop(ni, tap);
 
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	/*
 	 * ath_tx_cleanup will resume the TID if possible, otherwise
 	 * it'll set the cleanup flag, and it'll be unpaused once
 	 * things have been cleaned up.
 	 */
 	ath_tx_cleanup(sc, an, tid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }
 
 /*
