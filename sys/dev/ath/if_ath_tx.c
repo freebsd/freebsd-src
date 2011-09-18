@@ -2694,9 +2694,10 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		 * This'll end up going into net80211 and back out
 		 * again, via ic->ic_raw_xmit().
 		 */
+		device_printf(sc->sc_dev,
+		    "%s: TID %d: send BAR; seq %d\n",
+		    __func__, tid, ni->ni_txseqs[tid]);
 #if 0
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: TID %d: send BAR\n",
-		    __func__, tid);
 		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
 			/*
 			 * Pause the TID if this was successful.
@@ -2844,11 +2845,15 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		bf = bf_next;
 	}
 
-#if 0
 	/*
 	 * send bar if we dropped any frames
 	 */
 	if (drops) {
+		device_printf(sc->sc_dev,
+		    "%s: TID %d: send BAR; seq %d\n",
+		    __func__, tid->tid,
+		    ni->ni_txseqs[tid->tid]);
+#if 0
 		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid->tid]) == 0) {
 			/*
 			 * Pause the TID if this was successful.
@@ -2862,8 +2867,8 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 			    "%s: TID %d: BAR TX failed\n",
 			    __func__, tid->tid);
 		}
-	}
 #endif
+	}
 
 	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
