@@ -282,7 +282,7 @@ struct ath_txq {
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
-	TAILQ_HEAD(,ath_tid)	axq_tidq;
+	TAILQ_HEAD(axq_t_s,ath_tid)	axq_tidq;
 };
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
