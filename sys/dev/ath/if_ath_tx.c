@@ -2181,9 +2181,6 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 
 /*
  * Unpause the current TID, and schedule it if needed.
- *
- * Since this is called from upper layers as well as the driver,
- * it will get the TID lock and the TXQ lock if needed.
  */
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
