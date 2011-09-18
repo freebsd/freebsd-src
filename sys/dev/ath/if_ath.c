@@ -4350,11 +4350,12 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 	nacked = 0;
-	ATH_TXQ_LOCK(txq);
 	for (;;) {
+		ATH_TXQ_LOCK(txq);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ds = bf->bf_lastds;	/* XXX must be setup correctly! */
@@ -4366,6 +4367,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
@@ -4402,6 +4404,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
 				ts->ts_rssi);
 		}
+		ATH_TXQ_UNLOCK(txq);
 
 		/* If unicast frame, update general statistics */
 		if (ni != NULL) {
@@ -4458,6 +4461,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 #endif
 
 	/* Kick the TXQ scheduler */
+	ATH_TXQ_LOCK(txq);
 	ath_txq_sched(sc, txq);
 	ATH_TXQ_UNLOCK(txq);
 
@@ -4633,11 +4637,12 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
 
-	ATH_TXQ_LOCK(txq);
 	for (ix = 0;; ix++) {
+		ATH_TXQ_LOCK(txq);
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
+			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
@@ -4664,6 +4669,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		 * Clear ATH_BUF_BUSY; the completion handler
 		 * will free the buffer.
 		 */
+		ATH_TXQ_UNLOCK(txq);
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 		if (bf->bf_comp)
 			bf->bf_comp(sc, bf, 1);
@@ -4675,6 +4681,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 * Drain software queued frames which are on
 	 * active TIDs.
 	 */
+	ATH_TXQ_LOCK(txq);
 	ath_tx_txq_drain(sc, txq);
 	ATH_TXQ_UNLOCK(txq);
 }
