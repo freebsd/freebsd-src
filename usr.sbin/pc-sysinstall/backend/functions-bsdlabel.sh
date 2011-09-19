@@ -45,7 +45,6 @@ check_for_enc_pass()
 };
 
 # On check on the disk-label line if we have any extra vars for this device
-# Only enabled for ZFS devices now, may add other xtra options in future for other FS's
 get_fs_line_xvars()
 {
   ACTIVEDEV="${1}"
@@ -75,6 +74,15 @@ get_fs_line_xvars()
       export VAR
       return
     fi # End of ZFS block
+
+    # See if we are looking for UFS specific newfs options
+    echo $LINE | grep -q '^UFS' 2>/dev/null
+    if [ $? -eq 0 ] ; then
+      FSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
+      VAR="${FSVARS}"
+      export VAR
+      return
+    fi
 
   fi # End of xtra-options block
 
@@ -278,7 +286,7 @@ setup_gpart_partitions()
 
       # Check if using zfs mirror
       echo ${XTRAOPTS} | grep -q "mirror" 2>/dev/null
-      if [ $? -eq 0 ] ; then
+      if [ $? -eq 0 -a "$FS" = "ZFS" ] ; then
         if [ "${_pType}" = "gpt" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
         else
