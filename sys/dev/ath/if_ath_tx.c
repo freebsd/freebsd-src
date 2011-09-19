@@ -2441,6 +2441,9 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 /*
  * Handle cleanup of aggregate session packets that aren't
  * an A-MPDU.
+ *
+ * There's no need to update the BAW here - the session is being
+ * torn down.
  */
 static void
 ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
@@ -2884,7 +2887,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 /*
  * Handle clean-up of packets from an aggregate list.
- * XXX update BAW?
+ *
+ * There's no need to update the BAW here - the session is being
+ * torn down.
  */
 static void
 ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
