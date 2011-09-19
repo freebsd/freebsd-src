@@ -63,6 +63,14 @@ Other libusb routines may not be called after this function.
 Get the ASCII representation of the error given by the
 .Fa code
 argument.
+This function does not return NULL.
+.Pp
+.Ft const char *
+.Fn libusb_error_name "int code"
+Get the ASCII representation of the error enum given by the
+.Fa code
+argument.
+This function does not return NULL.
 .Pp
 .Ft void
 .Fn libusb_set_debug "libusb_context *ctx" "int level"
@@ -502,7 +510,8 @@ The library is also compliant with LibUSB version 0.1.12.
 .Sh SEE ALSO
 .Xr libusb20 3 ,
 .Xr usb 4 ,
-.Xr usbconfig 8
+.Xr usbconfig 8 ,
+.Xr usbdump 8
 .Pp
 .Pa http://libusb.sourceforge.net/
 .Sh HISTORY
