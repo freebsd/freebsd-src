@@ -846,13 +846,21 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 	if (! bf->bf_state.bfs_doratelookup)
 		return;
 
+	/* Get rid of any previous state */
+	bzero(bf->bf_state.bfs_rc, sizeof(bf->bf_state.bfs_rc));
+
 	ATH_NODE_LOCK(ATH_NODE(bf->bf_node));
 	ath_rate_findrate(sc, ATH_NODE(bf->bf_node), bf->bf_state.bfs_shpream,
 	    bf->bf_state.bfs_pktlen, &rix, &try0, &rate);
-	/* XXX only do this if MRR is enabled for this frame? */
-	/* XXX and blank the rest if not? */
-	ath_rate_getxtxrates(sc, ATH_NODE(bf->bf_node), rix,
-	    bf->bf_state.bfs_rc);
+
+	/* In case MRR is disabled, make sure rc[0] is setup correctly */
+	bf->bf_state.bfs_rc[0].rix = rix;
+	bf->bf_state.bfs_rc[0].ratecode = rate;
+	bf->bf_state.bfs_rc[0].tries = try0;
+
+	if (bf->bf_state.bfs_ismrr && try0 != ATH_TXMAXTRY)
+		ath_rate_getxtxrates(sc, ATH_NODE(bf->bf_node), rix,
+		    bf->bf_state.bfs_rc);
 	ATH_NODE_UNLOCK(ATH_NODE(bf->bf_node));
 
 	sc->sc_txrix = rix;	/* for LED blinking */
