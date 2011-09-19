@@ -2967,7 +2967,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	/*
 	 * Punt cleanup to the relevant function, not our problem now
 	 */
-	if (0 && atid->cleanup_inprogress) {
+	if (atid->cleanup_inprogress) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_comp_cleanup_aggr(sc, bf_first);
 		return;
