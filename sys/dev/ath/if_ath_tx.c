@@ -2648,6 +2648,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
+	int txseq;
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 
@@ -2694,11 +2695,18 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		 * This'll end up going into net80211 and back out
 		 * again, via ic->ic_raw_xmit().
 		 */
+		txseq = ni->ni_txseqs[tid];
 		device_printf(sc->sc_dev,
-		    "%s: TID %d: send BAR; seq %d\n",
-		    __func__, tid, ni->ni_txseqs[tid]);
-#if 0
-		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
+		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+		/*
+		 * It's ok to unlock it now (and it's required at
+		 * the moment!) since we are purging "holes" in the
+		 * tx sequence up to this point; any subsequent
+		 * sequence numbers haven't been yet attempted to
+		 * TX.
+		 */
+		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
 			/*
 			 * Pause the TID if this was successful.
 			 * An un-successful BAR TX would never call
@@ -2711,10 +2719,8 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 			    "%s: TID %d: BAR TX failed\n",
 			    __func__, tid);
 		}
-#endif
 
 		/* Free buffer, bf is free after this call */
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_default_comp(sc, bf, 0);
 		return;
 	}
@@ -2844,16 +2850,35 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		bf = bf_next;
 	}
 
+	/* Prepend all frames to the beginning of the queue */
+	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
+		TAILQ_REMOVE(&bf_q, bf, bf_list);
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+	}
+
+	ath_tx_tid_sched(sc, tid);
+
 	/*
 	 * send bar if we dropped any frames
+	 *
+	 * Keep the txq lock held for now, as we need to ensure
+	 * that ni_txseqs[] is consistent (as it's being updated
+	 * in the ifnet TX context or raw TX context.)
 	 */
 	if (drops) {
+		int txseq = ni->ni_txseqs[tid->tid];
 		device_printf(sc->sc_dev,
 		    "%s: TID %d: send BAR; seq %d\n",
-		    __func__, tid->tid,
-		    ni->ni_txseqs[tid->tid]);
-#if 0
-		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid->tid]) == 0) {
+		    __func__, tid->tid, txseq);
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
+		/*
+		 * It's ok to unlock it now (and it's required at
+		 * the moment!) since we are purging "holes" in the
+		 * tx sequence up to this point; any subsequent
+		 * sequence numbers haven't been yet attempted to
+		 * TX.
+		 */
+		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
 			/*
 			 * Pause the TID if this was successful.
 			 * An un-successful BAR TX would never call
@@ -2866,23 +2891,17 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 			    "%s: TID %d: BAR TX failed\n",
 			    __func__, tid->tid);
 		}
-#endif
+	} else {
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 	}
-
-	/* Prepend all frames to the beginning of the queue */
-	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
-		TAILQ_REMOVE(&bf_q, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
-	}
-
-	ath_tx_tid_sched(sc, tid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 
 	/* Complete frames which errored out */
 	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
 		TAILQ_REMOVE(&bf_cq, bf, bf_list);
 		ath_tx_default_comp(sc, bf, 0);
 	}
+
+
 }
 
 /*
@@ -2957,6 +2976,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	int pktlen;
 	/* XXX there's too much on the stack? */
 	struct ath_rc_series rc[4];
+	int txseq;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
 	    __func__, atid->hwq_depth);
@@ -3092,7 +3112,15 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		bf = bf_next;
 	}
 
-	/* Now that the BAW updates have been done, unlock */
+	/*
+	 * Now that the BAW updates have been done, unlock
+	 *
+	 * txseq is grabbed before the lock is released so we
+	 * have a consistent view of what -was- in the BAW.
+	 * Anything after this point will not yet have been
+	 * TXed.
+	 */
+	txseq = ni->ni_txseqs[tid];
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	if (nframes != nf)
@@ -3107,12 +3135,13 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	if (fail == 0)
 		ath_tx_update_ratectrl(sc, ni, rc, &ts, pktlen, nframes, nbad);
 
-#if 0
 	/*
 	 * send bar if we dropped any frames
 	 */
 	if (drops) {
-		if (ieee80211_send_bar(ni, tap, ni->ni_txseqs[tid]) == 0) {
+		device_printf(sc->sc_dev,
+		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
+		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
 			/*
 			 * Pause the TID if this was successful.
 			 * An un-successful BAR TX would never call
@@ -3126,7 +3155,6 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 			    __func__, tid);
 		}
 	}
-#endif
 
 	/* Prepend all frames to the beginning of the queue */
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
@@ -3134,7 +3162,6 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
-
 	ath_tx_tid_sched(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
