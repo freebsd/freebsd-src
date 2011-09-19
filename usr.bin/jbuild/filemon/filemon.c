@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2011, David E. O'Brien.
  * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -168,13 +169,6 @@ filemon_dtr(void *data)
 
 		if (fp != NULL)
 			fdrop(fp, curthread);
-
-#ifdef DOODAD
-		mtx_destroy(&filemon->mtx);
-		cv_destroy(&filemon->cv);
-
-		free(filemon, M_FILEMON);
-#endif
 	}
 }
 
@@ -298,6 +292,7 @@ filemon_load(void *dummy __unused)
 static int
 filemon_unload(void)
 {
+ 	struct filemon *filemon;
 	int error = 0;
 
 	/* Get exclusive write access. */
@@ -331,6 +326,15 @@ filemon_unload(void)
 			clone_cleanup(&filemon_clones);
 		}
 #endif
+		/* free() filemon structs free list. */
+		filemon_lock_write();
+		while ((filemon = TAILQ_FIRST(&filemons_free)) != NULL) {
+			TAILQ_REMOVE(&filemons_free, filemon, link);
+			mtx_destroy(&filemon->mtx);
+			cv_destroy(&filemon->cv);
+			free(filemon, M_FILEMON);
+		}
+		filemon_unlock_write();
 
 		mtx_destroy(&access_mtx);
 		cv_destroy(&access_cv);
