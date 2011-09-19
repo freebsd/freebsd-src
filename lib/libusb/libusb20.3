@@ -212,6 +212,10 @@ USB access library (libusb -lusb)
 .Fn libusb20_me_decode "const void *pdata" "uint16_t len" "void *pdecoded"
 .Ft "const uint8_t *"
 .Fn libusb20_desc_foreach "const struct libusb20_me_struct *me" "const uint8_t *pdesc"
+.Ft "const char *"
+.Fn libusb20_strerror "int code"
+.Ft "const char *"
+.Fn libusb20_error_name "int code"
 .
 .
 .Sh DESCRIPTION
@@ -996,6 +1000,22 @@ The total decoded length is returned.
 The buffer pointer cannot be NULL.
 .
 .
+.Sh USB DEBUGGING
+.Pp
+.Ft const char *
+.Fn libusb20_strerror "int code"
+Get the ASCII representation of the error given by the
+.Fa code
+argument.
+This function does not return NULL.
+.Pp
+.Ft const char *
+.Fn libusb20_error_name "int code"
+Get the ASCII representation of the error enum given by the
+.Fa code
+argument.
+This function does not return NULL.
+.
 .Sh FILES
 .
 .
@@ -1003,7 +1023,8 @@ The buffer pointer cannot be NULL.
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr libusb 3 ,
-.Xr usbconfig 8
+.Xr usbconfig 8 ,
+.Xr usbdump 8
 .
 .
 .Sh HISTORY
