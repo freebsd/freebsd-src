@@ -176,35 +176,35 @@ unmount_all_filesystems_failure()
       then
         if [ "${PARTENC}" = "ON" ]
         then
-          rc_nohalt "swapoff ${PARTDEV}.eli"
+          swapoff ${PARTDEV}.eli >/dev/null 2>/dev/null
         else
-          rc_nohalt "swapoff ${PARTDEV}"
+          swapoff ${PARTDEV} >/dev/null 2>/dev/null
         fi
       fi
 
       # Check if we've found "/" again, don't need to mount it twice
       if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
       then
-        rc_nohalt "umount -f ${PARTDEV}"
-        rc_nohalt "umount -f ${FSMNT}${PARTMNT}"
+        umount -f ${PARTDEV} >/dev/null 2>/dev/null
+        umount -f ${FSMNT}${PARTMNT} >/dev/null 2>/dev/null
       fi
     done
 
     # Last lets the /mnt partition
     #########################################################
-    rc_nohalt "umount -f ${FSMNT}"
+    umount -f ${FSMNT} >/dev/null 2>/dev/null
 
    fi
   else
     # We are doing a upgrade, try unmounting any of these filesystems
-    chroot ${FSMNT} /sbin/umount -a >>${LOGOUT} >>${LOGOUT}
-    umount -f ${FSMNT}/usr >>${LOGOUT} 2>>${LOGOUT}
-    umount -f ${FSMNT}/dev >>${LOGOUT} 2>>${LOGOUT}
-    umount -f ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-    rc_nohalt "sh ${TMPDIR}/.upgrade-unmount"
+    chroot ${FSMNT} /sbin/umount -a >/dev/null 2>/dev/null
+    umount -f ${FSMNT}/usr >/dev/null 2>/dev/null
+    umount -f ${FSMNT}/dev >/dev/null 2>/dev/null
+    umount -f ${FSMNT} >/dev/null 2>/dev/null 
+    sh ${TMPDIR}/.upgrade-unmount >/dev/null 2>/dev/null
   fi
    
   # Unmount our CDMNT
-  rc_nohalt "umount ${CDMNT}"
+  umount ${CDMNT} >/dev/null 2>/dev/null
 
 };
