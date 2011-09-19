@@ -3486,20 +3486,11 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
  * This function walks the list of TIDs (ie, ath_node TIDs
  * with queued traffic) and attempts to schedule traffic
  * from them.
- *
- * TID's are rescheduled in a FIFO method - ie, once they've
- * been handled, if they're removed and re-added to the end of
- * the queue if they have more traffic. The hardware takes care
- * of implementing the hardware side of WME QoS scheduling.
- *
- * Since the TXQ lock is held here, it should be safe to take
- * a pointer to the last ath_tid in the TXQ array, as nothing
- * in the scheduler should cause it to disappear.
  */
 void
 ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_tid *tid, *next, *last_tid = NULL;
+	struct ath_tid *tid, *next;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -3513,43 +3504,35 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 	}
 
-	last_tid = TAILQ_LAST(&txq->axq_tidq, axq_t_s);
-
+	/*
+	 * For now, let's not worry about QoS, fair-scheduling
+	 * or the like. That's a later problem. Just throw
+	 * packets at the hardware.
+	 */
 	TAILQ_FOREACH_SAFE(tid, &txq->axq_tidq, axq_qelem, next) {
-		/*
-		 * Remove the entry; we'll re-queue it at the end
-		 * if it needs to be.
-		 */
-		ath_tx_tid_unsched(sc, tid);
-
 		/*
 		 * Suspend paused queues here; they'll be resumed
 		 * once the addba completes or times out.
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, tid->tid, tid->paused);
-		if (tid->paused)
+		if (tid->paused) {
+			ath_tx_tid_unsched(sc, tid);
 			continue;
-
+		}
 		if (ath_tx_ampdu_running(sc, tid->an, tid->tid))
 			ath_tx_tid_hw_queue_aggr(sc, tid->an, tid);
 		else
 			ath_tx_tid_hw_queue_norm(sc, tid->an, tid);
 
-		/* Still has frames? Re-schedule */
-		if (tid->axq_depth > 0)
-			ath_tx_tid_sched(sc, tid);
+		/* Empty? Remove */
+		if (tid->axq_depth == 0)
+			ath_tx_tid_unsched(sc, tid);
 
 		/* Give the software queue time to aggregate more packets */
 		if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
 			break;
 		}
-
-		/*
-		 * If this is the last TID in the original list, break.
-		 */
-		if (tid == last_tid)
-			break;
 	}
 }
 
