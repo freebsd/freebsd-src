@@ -1858,6 +1858,14 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 		    "%s: ba packet dup (index=%d, cindex=%d, "
 		    "head=%d, tail=%d)\n",
 		    __func__, index, cindex, tid->baw_head, tid->baw_tail);
+		device_printf(sc->sc_dev,
+		    "%s: BA bf: %p; seqno=%d ; new bf: %p; seqno=%d\n",
+		    __func__,
+		    tid->tx_buf[cindex],
+		    SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno),
+		    bf,
+		    SEQNO(bf->bf_state.bfs_seqno)
+		);
 	}
 	tid->tx_buf[cindex] = bf;
 
@@ -1876,10 +1884,11 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
  */
 static void
 ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
-    struct ath_tid *tid, int seqno)
+    struct ath_tid *tid, const struct ath_buf *bf)
 {
 	int index, cindex;
 	struct ieee80211_tx_ampdu *tap;
+	int seqno = SEQNO(bf->bf_state.bfs_seqno);
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
@@ -1890,6 +1899,11 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 	    "%s: tid=%d, baw=%d:%d, seqno=%d, index=%d, cindex=%d, baw head=%d, tail=%d\n",
 	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index, cindex, tid->baw_head, tid->baw_tail);
+
+	if (tid->tx_buf[cindex] != bf) {
+		device_printf(sc->sc_dev, "%s: seqno %d: tx_buf bf=%p; comp bf=%p!\n",
+		    __func__, seqno, tid->tx_buf[cindex], bf);
+	}
 
 	tid->tx_buf[cindex] = NULL;
 
@@ -2277,8 +2291,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 			 * the frame was in the BAW to begin with.
 			 */
 			if (bf->bf_state.bfs_retries > 0) {
-				ath_tx_update_baw(sc, an, tid,
-				    SEQNO(bf->bf_state.bfs_seqno));
+				ath_tx_update_baw(sc, an, tid, bf);
 				bf->bf_state.bfs_dobaw = 0;
 			}
 			/*
@@ -2516,8 +2529,7 @@ ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			TAILQ_REMOVE(&atid->axq_q, bf, bf_list);
 			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
-				ath_tx_update_baw(sc, an, atid,
-				    SEQNO(bf->bf_state.bfs_seqno));
+				ath_tx_update_baw(sc, an, atid, bf);
 				if (! bf->bf_state.bfs_addedbaw)
 					device_printf(sc->sc_dev,
 					    "%s: wasn't added: seqno %d\n",
@@ -2689,8 +2701,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 
 		/* Update BAW anyway */
 		if (bf->bf_state.bfs_dobaw) {
-			ath_tx_update_baw(sc, an, atid,
-			    SEQNO(bf->bf_state.bfs_seqno));
+			ath_tx_update_baw(sc, an, atid, bf);
 			if (! bf->bf_state.bfs_addedbaw)
 				device_printf(sc->sc_dev,
 				    "%s: wasn't added: seqno %d\n",
@@ -2796,7 +2807,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 		DPRINTF(sc, ATH_DEBUG_SW_TX_RETRIES,
 		    "%s: max retries: seqno %d\n",
 		    __func__, SEQNO(bf->bf_state.bfs_seqno));
-		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		ath_tx_update_baw(sc, an, atid, bf);
 		if (! bf->bf_state.bfs_addedbaw)
 			device_printf(sc->sc_dev,
 			    "%s: wasn't added: seqno %d\n",
@@ -3100,8 +3111,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		    ATH_BA_ISSET(ba, ba_index));
 
 		if (tx_ok && ATH_BA_ISSET(ba, ba_index)) {
-			ath_tx_update_baw(sc, an, atid,
-			    SEQNO(bf->bf_state.bfs_seqno));
+			ath_tx_update_baw(sc, an, atid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 			if (! bf->bf_state.bfs_addedbaw)
 				device_printf(sc->sc_dev,
@@ -3255,7 +3265,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: TID=%d, seqno %d\n",
 	    __func__, tid, SEQNO(bf->bf_state.bfs_seqno));
 	if (bf->bf_state.bfs_dobaw) {
-		ath_tx_update_baw(sc, an, atid, SEQNO(bf->bf_state.bfs_seqno));
+		ath_tx_update_baw(sc, an, atid, bf);
 		bf->bf_state.bfs_dobaw = 0;
 		if (! bf->bf_state.bfs_addedbaw)
 			device_printf(sc->sc_dev,
