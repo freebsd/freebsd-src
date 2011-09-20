@@ -52,7 +52,7 @@ int main(void) {
 	if ((fm_fd = open("/dev/filemon", O_RDWR)) == -1)
 		err(1, "open(\"/dev/filemon\", O_RDWR)");
 	if ((fm_log = mkstemp(log_name)) == -1)
-		err(1, "mkstemp(log_name)");
+		err(1, "mkstemp(%s)", log_name);
 
 	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)
 		err(1, "Cannot set filemon log file descriptor");
