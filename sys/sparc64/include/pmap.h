@@ -43,6 +43,7 @@
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_rwlock.h>
 #include <machine/cache.h>
 #include <machine/tte.h>
 
@@ -78,6 +79,12 @@ struct pmap {
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
+#define	MDPAGE_ASSERT_WLOCKED()	rw_assert(&md_page_rwlock, RA_WLOCKED)
+#define	MDPAGE_RLOCK()		rw_rlock(&md_page_rwlock)
+#define	MDPAGE_WLOCK()		rw_wlock(&md_page_rwlock)
+#define	MDPAGE_RUNLOCK()	rw_runlock(&md_page_rwlock)
+#define	MDPAGE_WUNLOCK()	rw_wunlock(&md_page_rwlock)
+
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
@@ -101,6 +108,7 @@ void	pmap_set_kctx(void);
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
+extern	struct rwlock md_page_rwlock;
 extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
