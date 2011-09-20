@@ -49,8 +49,12 @@
 struct route {
 	struct	rtentry *ro_rt;
 	struct	llentry *ro_lle;
+	struct	in_ifaddr *ro_ia;
+	int		ro_flags;
 	struct	sockaddr ro_dst;
 };
+
+#define RT_CACHING_CONTEXT	0x1
 
 /*
  * These numbers are used by reliable protocols for determining
