@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2011, David E. O'Brien.
  * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -258,11 +259,23 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
+			if (uap->flags & O_RDWR) {
+				/*
+				 * We'll get the W record below, but need
+				 * to also output an R to distingish from
+				 * O_WRONLY.
+				 */
+				len = snprintf(filemon->msgbufr,
+				    sizeof(filemon->msgbufr), "R %d %s\n",
+				    curproc->p_pid, filemon->fname1);
+				filemon_output(filemon, filemon->msgbufr, len);
+			}
+
+
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "%c %d %s\n",
 			    (uap->flags & O_ACCMODE) ? 'W':'R',
 			    curproc->p_pid, filemon->fname1);
-
 			filemon_output(filemon, filemon->msgbufr, len);
 
 			/* Unlock the found filemon structure. */

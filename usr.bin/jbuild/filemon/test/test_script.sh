@@ -26,11 +26,16 @@
 #
 # $FreeBSD$
 
+trap 'rm -f $f1 $f2; exit 1' 1 2 3 13 15
 echo shazbot > /dev/null
 f1=`mktemp /tmp/filemon_test.XXXXXX`
-trap 'rm -f $f1; exit 1' 1 2 3 13 15
+f2=`mktemp /tmp/ed-script.XXXXXX`
 > $f1
 echo "One line to rule them all" >> $f1
 wc -l $f1 > /dev/null
-rm $f1
+#	ed(1)'s /tmp/ed.* buffer file will be opened RW
+echo ',s/$/./g'	> $f2
+echo 'wq'	>>$f2
+ed -s $f1 < $f2
+rm $f1 $f2
 uptime > /dev/null
