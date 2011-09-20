@@ -2714,30 +2714,13 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		 * This'll end up going into net80211 and back out
 		 * again, via ic->ic_raw_xmit().
 		 */
-		txseq = ni->ni_txseqs[tid];
+		txseq = tap->txa_start;
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+
 		device_printf(sc->sc_dev,
 		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
-		/*
-		 * It's ok to unlock it now (and it's required at
-		 * the moment!) since we are purging "holes" in the
-		 * tx sequence up to this point; any subsequent
-		 * sequence numbers haven't been yet attempted to
-		 * TX.
-		 */
-		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
-			/*
-			 * Pause the TID if this was successful.
-			 * An un-successful BAR TX would never call
-			 * the BAR complete / timeout methods.
-			 */
-			ath_tx_tid_pause(sc, atid);
-		} else {
-			/* BAR TX failed */
-			device_printf(sc->sc_dev,
-			    "%s: TID %d: BAR TX failed\n",
-			    __func__, tid);
-		}
+
+		/* XXX TODO: send BAR */
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -2885,31 +2868,13 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * in the ifnet TX context or raw TX context.)
 	 */
 	if (drops) {
-		int txseq = ni->ni_txseqs[tid->tid];
+		int txseq = tap->txa_start;
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 		device_printf(sc->sc_dev,
 		    "%s: TID %d: send BAR; seq %d\n",
 		    __func__, tid->tid, txseq);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
-		/*
-		 * It's ok to unlock it now (and it's required at
-		 * the moment!) since we are purging "holes" in the
-		 * tx sequence up to this point; any subsequent
-		 * sequence numbers haven't been yet attempted to
-		 * TX.
-		 */
-		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
-			/*
-			 * Pause the TID if this was successful.
-			 * An un-successful BAR TX would never call
-			 * the BAR complete / timeout methods.
-			 */
-			ath_tx_tid_pause(sc, tid);
-		} else {
-			/* BAR TX failed */
-			device_printf(sc->sc_dev,
-			    "%s: TID %d: BAR TX failed\n",
-			    __func__, tid->tid);
-		}
+
+		/* XXX TODO: send BAR */
 	} else {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 	}
@@ -3138,7 +3103,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	 * Anything after this point will not yet have been
 	 * TXed.
 	 */
-	txseq = ni->ni_txseqs[tid];
+	txseq = tap->txa_start;
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	if (nframes != nf)
@@ -3159,19 +3124,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	if (drops) {
 		device_printf(sc->sc_dev,
 		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
-		if (ieee80211_send_bar(ni, tap, txseq) == 0) {
-			/*
-			 * Pause the TID if this was successful.
-			 * An un-successful BAR TX would never call
-			 * the BAR complete / timeout methods.
-			 */
-			ath_tx_tid_pause(sc, atid);
-		} else {
-			/* BAR TX failed */
-			device_printf(sc->sc_dev,
-			    "%s: TID %d: BAR TX failed\n",
-			    __func__, tid);
-		}
+		/* XXX TODO: send BAR */
 	}
 
 	/* Prepend all frames to the beginning of the queue */
