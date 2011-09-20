@@ -381,6 +381,21 @@ rtadvd_shutdown(void)
 		    "waiting expiration of the all RA timers.");
 
 		TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
+			/*
+			 * Ignore !IFF_UP interfaces in waiting for shutdown.
+			 */
+			if (!(ifi->ifi_flags & IFF_UP) &&
+			    ifi->ifi_ra_timer != NULL) {
+				ifi->ifi_state = IFI_STATE_UNCONFIGURED;
+				rtadvd_remove_timer(ifi->ifi_ra_timer);
+				ifi->ifi_ra_timer = NULL;
+				syslog(LOG_DEBUG, "<%s> %s(idx=%d) is down. "
+				    "Timer removed and marked as UNCONFIGURED.",
+				     __func__, ifi->ifi_ifname,
+				    ifi->ifi_ifindex);
+			}
+		}
+		TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
 			if (ifi->ifi_ra_timer != NULL)
 				break;
 		}
