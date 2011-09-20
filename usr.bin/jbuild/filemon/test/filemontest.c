@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This simple test of filemon expects a test script called
- * "test_script" in the cwd.
+ * "test_script.sh" in the cwd.
  */
 
 int main(void) {
