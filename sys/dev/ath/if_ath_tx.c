@@ -2884,8 +2884,6 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		TAILQ_REMOVE(&bf_cq, bf, bf_list);
 		ath_tx_default_comp(sc, bf, 0);
 	}
-
-
 }
 
 /*
