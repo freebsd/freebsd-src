@@ -3606,6 +3606,36 @@ ath_handle_micerror(struct ieee80211com *ic,
 	}
 }
 
+/*
+ * It seems that occasionally we receive packets for a sta
+ * that isn't us. This only occurs in aggregation mode.
+ *
+ * This is just a local hack I'm using to sniff an instance
+ * of these out.
+ */
+static void
+ath_rx_dump_wtf(struct ath_softc *sc, struct ath_rx_status *rs,
+    struct ath_buf *bf, struct mbuf *m, int status)
+{
+#if 0
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
+	const struct ieee80211_frame *wh;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	wh = mtod(m, const struct ieee80211_frame *);
+	if (wh->i_addr1[0] == 0xd4) {
+		device_printf(sc->sc_dev,
+		    "%s: XXX shouldn't see this! keyidx=%d\n",
+		    __func__, rs->rs_keyix);
+		ieee80211_dump_pkt(ic, mtod(m, caddr_t), m->m_len,
+		    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
+		ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+	}
+#endif
+}
+
 static void
 ath_rx_proc(void *arg, int npending)
 {
@@ -3682,7 +3712,20 @@ ath_rx_proc(void *arg, int npending)
 #endif
 		if (status == HAL_EINPROGRESS)
 			break;
+
 		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
+
+		/*
+		 * If the datalen is greater than the buffer itself,
+		 * it's a corrupted status descriptor; skip.
+		 * Yes, it may actually have data in it.
+		 */
+		if (rs->rs_datalen > m->m_len) {
+			device_printf(sc->sc_dev,
+			     "%s: corrupt descriptor: datalen=%d, m_len=%d\n",
+			    __func__, rs->rs_datalen, m->m_len);
+			goto rx_error;
+		}
 
 		/* These aren't specifically errors */
 		if (rs->rs_flags & HAL_RX_GI)
@@ -3760,6 +3803,11 @@ rx_error:
 			 * Cleanup any pending partial frame.
 			 */
 			if (sc->sc_rxpending != NULL) {
+#if 0
+				device_printf(sc->sc_dev,
+				    "%s: error: rs_status=0x%.08x, len=%d, cleaning up pending frame\n",
+				    __func__, rs->rs_status, rs->rs_datalen);
+#endif
 				m_freem(sc->sc_rxpending);
 				sc->sc_rxpending = NULL;
 			}
@@ -3776,6 +3824,9 @@ rx_error:
 				/* NB: bpf needs the mbuf length setup */
 				len = rs->rs_datalen;
 				m->m_pkthdr.len = m->m_len = len;
+
+				ath_rx_dump_wtf(sc, rs, bf, m, status);
+
 				ath_rx_tap(ifp, m, rs, tsf, nf);
 				ieee80211_radiotap_rx_all(ic, m);
 			}
@@ -3798,7 +3849,13 @@ rx_accept:
 		len = rs->rs_datalen;
 		m->m_len = len;
 
+		ath_rx_dump_wtf(sc, rs, bf, m, status);
+
 		if (rs->rs_more) {
+#if 0
+			device_printf(sc->sc_dev, "%s: rs_more set; status=0x%.08x, datalen=%d?\n",
+			    __func__, rs->rs_status, rs->rs_datalen);
+#endif
 			/*
 			 * Frame spans multiple descriptors; save
 			 * it for the next completed descriptor, it
@@ -3814,6 +3871,10 @@ rx_accept:
 			sc->sc_rxpending = m;
 			goto rx_next;
 		} else if (sc->sc_rxpending != NULL) {
+#if 0
+			device_printf(sc->sc_dev, "%s: second half? status=0x%.08x, datalen=%d\n",
+			    __func__, rs->rs_status, rs->rs_datalen);
+#endif
 			/*
 			 * This is the second part of a jumbogram,
 			 * chain it to the first mbuf, adjust the
@@ -3877,10 +3938,17 @@ rx_accept:
 		 * pass the (referenced) node up to the 802.11 layer
 		 * for its use.
 		 */
-		ni = ieee80211_find_rxnode_withkey(ic,
-			mtod(m, const struct ieee80211_frame_min *),
-			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
-				IEEE80211_KEYIX_NONE : rs->rs_keyix);
+
+		/*
+		 * For some reason, the MAC (AR9160?) returns frames
+		 * destined for other STA's when in STA, non-promisc
+		 * mode. Since sometimes these frames seem to look
+		 * quite valid (including completed status, valid
+		 * looking key entry, etc) let's not use the keyix
+		 * as a shortcut.
+		 */
+		ni = ieee80211_find_rxnode(ic,
+			mtod(m, const struct ieee80211_frame_min *));
 		sc->sc_lastrs = rs;
 
 		if (rs->rs_isaggr)
