@@ -159,6 +159,7 @@ static int  xn_ioctl(struct ifnet *, u_long, caddr_t);
 static void xn_ifinit_locked(struct netfront_info *);
 static void xn_ifinit(void *);
 static void xn_stop(struct netfront_info *);
+static int xn_configure_lro(struct netfront_info *np);
 #ifdef notyet
 static void xn_watchdog(struct ifnet *);
 #endif
@@ -174,7 +175,7 @@ static int talk_to_backend(device_t dev, struct netfront_info *info);
 static int create_netdev(device_t dev);
 static void netif_disconnect_backend(struct netfront_info *info);
 static int setup_device(device_t dev, struct netfront_info *info);
-static void end_access(int ref, void *page);
+static void free_ring(int *ref, void *ring_ptr_ref);
 
 static int  xn_ifmedia_upd(struct ifnet *ifp);
 static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
@@ -463,6 +464,18 @@ netfront_attach(device_t dev)
 	return 0;
 }
 
+static int
+netfront_suspend(device_t dev)
+{
+	struct netfront_info *info = device_get_softc(dev);
+
+	XN_RX_LOCK(info);
+	XN_TX_LOCK(info);
+	netfront_carrier_off(info);
+	XN_TX_UNLOCK(info);
+	XN_RX_UNLOCK(info);
+	return (0);
+}
 
 /**
  * We are reconnecting to the backend, due to a suspend/resume, or a backend
@@ -749,10 +762,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		 */
 		if (((uintptr_t)m) <= NET_TX_RING_SIZE)
 			continue;
-		gnttab_grant_foreign_access_ref(np->grant_tx_ref[i],
-		    xenbus_get_otherend_id(np->xbdev),
-		    virt_to_mfn(mtod(m, vm_offset_t)),
-		    GNTMAP_readonly);
+		gnttab_end_foreign_access_ref(np->grant_tx_ref[i]);
 		gnttab_release_grant_reference(&np->gref_tx_head,
 		    np->grant_tx_ref[i]);
 		np->grant_tx_ref[i] = GRANT_REF_INVALID;
@@ -761,7 +771,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
 			panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
 		}
-		m_freem(m);
+		m_free(m);
 	}
 }
 
@@ -1914,6 +1924,7 @@ network_connect(struct netfront_info *np)
 	netif_release_tx_bufs(np);
 
 	/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
+	xn_configure_lro(np);
 	for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
 		struct mbuf *m;
 		u_long pfn;
@@ -1976,6 +1987,30 @@ show_device(struct netfront_info *sc)
 		IPRINTK("<vif NULL>\n");
 	}
 #endif
+}
+
+static int
+xn_configure_lro(struct netfront_info *np)
+{
+	int err;
+
+	err = 0;
+#if __FreeBSD_version >= 700000
+	if ((np->xn_ifp->if_capabilities & IFCAP_LRO) != 0)
+		tcp_lro_free(&np->xn_lro);
+	np->xn_ifp->if_capabilities &= ~IFCAP_LRO;
+	if (xn_enable_lro) {
+		err = tcp_lro_init(&np->xn_lro);
+		if (err) {
+			device_printf(np->xbdev, "LRO initialization failed\n");
+		} else {
+			np->xn_lro.ifp = np->xn_ifp;
+			np->xn_ifp->if_capabilities |= IFCAP_LRO;
+		}
+	}
+    	np->xn_ifp->if_capenable = np->xn_ifp->if_capabilities;
+#endif
+	return (err);
 }
 
 /** Create a network device.
@@ -2057,17 +2092,9 @@ create_netdev(device_t dev)
     	ifp->if_capabilities = IFCAP_HWCSUM;
 #if __FreeBSD_version >= 700000
 	ifp->if_capabilities |= IFCAP_TSO4;
-	if (xn_enable_lro) {
-		int err = tcp_lro_init(&np->xn_lro);
-		if (err) {
-			device_printf(dev, "LRO initialization failed\n");
-			goto exit;
-		}
-		np->xn_lro.ifp = ifp;
-		ifp->if_capabilities |= IFCAP_LRO;
-	}
 #endif
     	ifp->if_capenable = ifp->if_capabilities;
+	xn_configure_lro(np);
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
@@ -2133,12 +2160,8 @@ netif_disconnect_backend(struct netfront_info *info)
 	XN_TX_UNLOCK(info);
 	XN_RX_UNLOCK(info);
 
-	end_access(info->tx_ring_ref, info->tx.sring);
-	end_access(info->rx_ring_ref, info->rx.sring);
-	info->tx_ring_ref = GRANT_REF_INVALID;
-	info->rx_ring_ref = GRANT_REF_INVALID;
-	info->tx.sring = NULL;
-	info->rx.sring = NULL;
+	free_ring(&info->tx_ring_ref, &info->tx.sring);
+	free_ring(&info->rx_ring_ref, &info->rx.sring);
 
 	if (info->irq)
 		unbind_from_irqhandler(info->irq);
@@ -2146,12 +2169,17 @@ netif_disconnect_backend(struct netfront_info *info)
 	info->irq = 0;
 }
 
-
 static void
-end_access(int ref, void *page)
+free_ring(int *ref, void *ring_ptr_ref)
 {
-	if (ref != GRANT_REF_INVALID)
-		gnttab_end_foreign_access(ref, page);
+	void **ring_ptr_ptr = ring_ptr_ref;
+
+	if (*ref != GRANT_REF_INVALID) {
+		/* This API frees the associated storage. */
+		gnttab_end_foreign_access(*ref, *ring_ptr_ptr);
+		*ref = GRANT_REF_INVALID;
+	}
+	*ring_ptr_ptr = NULL;
 }
 
 static int
@@ -2174,7 +2202,7 @@ static device_method_t netfront_methods[] = {
 	DEVMETHOD(device_attach,        netfront_attach), 
 	DEVMETHOD(device_detach,        netfront_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
+	DEVMETHOD(device_suspend,       netfront_suspend), 
 	DEVMETHOD(device_resume,        netfront_resume), 
  
 	/* Xenbus interface */
