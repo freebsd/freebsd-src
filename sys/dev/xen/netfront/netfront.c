@@ -406,11 +406,33 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 {
 	int error, i;
 	char *s, *e, *macstr;
+	const char *path;
 
-	error = xs_read(XST_NIL, xenbus_get_node(dev), "mac", NULL,
-	    (void **) &macstr);
-	if (error)
+	path = xenbus_get_node(dev);
+	error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
+	if (error == ENOENT) {
+		/*
+		 * Deal with missing mac XenStore nodes on devices with
+		 * HVM emulation (the 'ioemu' configuration attribute)
+		 * enabled.
+		 *
+		 * The HVM emulator may execute in a stub device model
+		 * domain which lacks the permission, only given to Dom0,
+		 * to update the guest's XenStore tree.  For this reason,
+		 * the HVM emulator doesn't even attempt to write the
+		 * front-side mac node, even when operating in Dom0.
+		 * However, there should always be a mac listed in the
+		 * backend tree.  Fallback to this version if our query
+		 * of the front side XenStore location doesn't find
+		 * anything.
+		 */
+		path = xenbus_get_otherend_path(dev);
+		error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
+	}
+	if (error != 0) {
+		xenbus_dev_fatal(dev, error, "parsing %s/mac", path);
 		return (error);
+	}
 
 	s = macstr;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -451,7 +473,7 @@ netfront_attach(device_t dev)
 	err = create_netdev(dev);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "creating netdev");
-		return err;
+		return (err);
 	}
 
 #if __FreeBSD_version >= 700000
@@ -461,7 +483,7 @@ netfront_attach(device_t dev)
 	    &xn_enable_lro, 0, "Large Receive Offload");
 #endif
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -2067,11 +2089,8 @@ create_netdev(device_t dev)
 	}
 	
 	err = xen_net_read_mac(dev, np->mac);
-	if (err) {
-		xenbus_dev_fatal(dev, err, "parsing %s/mac",
-		    xenbus_get_node(dev));
+	if (err)
 		goto out;
-	}
 	
 	/* Set up ifnet structure */
 	ifp = np->xn_ifp = if_alloc(IFT_ETHER);
@@ -2105,8 +2124,7 @@ create_netdev(device_t dev)
 exit:
 	gnttab_free_grant_references(np->gref_tx_head);
 out:
-	panic("do something smart");
-
+	return (err);
 }
 
 /**
