@@ -92,7 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
+/* Features supported by all backends.  TSO and LRO can be negotiated */
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
@@ -159,7 +160,8 @@ static int  xn_ioctl(struct ifnet *, u_long, caddr_t);
 static void xn_ifinit_locked(struct netfront_info *);
 static void xn_ifinit(void *);
 static void xn_stop(struct netfront_info *);
-static int xn_configure_lro(struct netfront_info *np);
+static void xn_query_features(struct netfront_info *np);
+static int  xn_configure_features(struct netfront_info *np);
 #ifdef notyet
 static void xn_watchdog(struct ifnet *);
 #endif
@@ -262,6 +264,7 @@ struct netfront_info {
 	u_int irq;
 	u_int copying_receiver;
 	u_int carrier;
+	u_int maxfrags;
 		
 	/* Receive-ring batched refills. */
 #define RX_MIN_TARGET 32
@@ -1526,7 +1529,7 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * deal with nfrags > MAX_TX_REQ_FRAGS, which is a quirk of
 	 * the Linux network stack.
 	 */
-	if (nfrags > MAX_TX_REQ_FRAGS) {
+	if (nfrags > sc->maxfrags) {
 		m = m_defrag(m_head, M_DONTWAIT);
 		if (!m) {
 			/*
@@ -1943,10 +1946,11 @@ network_connect(struct netfront_info *np)
 		return (error);
 	
 	/* Step 1: Reinitialise variables. */
+	xn_query_features(np);
+	xn_configure_features(np);
 	netif_release_tx_bufs(np);
 
 	/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
-	xn_configure_lro(np);
 	for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
 		struct mbuf *m;
 		u_long pfn;
@@ -2011,26 +2015,63 @@ show_device(struct netfront_info *sc)
 #endif
 }
 
+static void
+xn_query_features(struct netfront_info *np)
+{
+	int val;
+
+	device_printf(np->xbdev, "backend features:");
+
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-sg", NULL, "%d", &val) < 0)
+		val = 0;
+
+	np->maxfrags = 1;
+	if (val) {
+		np->maxfrags = MAX_TX_REQ_FRAGS;
+		printf(" feature-sg");
+	}
+
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-gso-tcpv4", NULL, "%d", &val) < 0)
+		val = 0;
+
+	np->xn_ifp->if_capabilities &= ~(IFCAP_TSO4|IFCAP_LRO);
+	if (val) {
+		np->xn_ifp->if_capabilities |= IFCAP_TSO4|IFCAP_LRO;
+		printf(" feature-gso-tcp4");
+	}
+
+	printf("\n");
+}
+
 static int
-xn_configure_lro(struct netfront_info *np)
+xn_configure_features(struct netfront_info *np)
 {
 	int err;
 
 	err = 0;
 #if __FreeBSD_version >= 700000
-	if ((np->xn_ifp->if_capabilities & IFCAP_LRO) != 0)
+	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
 		tcp_lro_free(&np->xn_lro);
-	np->xn_ifp->if_capabilities &= ~IFCAP_LRO;
-	if (xn_enable_lro) {
+#endif
+    	np->xn_ifp->if_capenable =
+	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4);
+	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
+#if __FreeBSD_version >= 700000
+	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) != 0) {
 		err = tcp_lro_init(&np->xn_lro);
 		if (err) {
 			device_printf(np->xbdev, "LRO initialization failed\n");
 		} else {
 			np->xn_lro.ifp = np->xn_ifp;
-			np->xn_ifp->if_capabilities |= IFCAP_LRO;
+			np->xn_ifp->if_capenable |= IFCAP_LRO;
 		}
 	}
-    	np->xn_ifp->if_capenable = np->xn_ifp->if_capabilities;
+	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) != 0) {
+		np->xn_ifp->if_capenable |= IFCAP_TSO4;
+		np->xn_ifp->if_hwassist |= CSUM_TSO;
+	}
 #endif
 	return (err);
 }
@@ -2059,7 +2100,7 @@ create_netdev(device_t dev)
 	np->rx_target     = RX_MIN_TARGET;
 	np->rx_min_target = RX_MIN_TARGET;
 	np->rx_max_target = RX_MAX_TARGET;
-	
+
 	/* Initialise {tx,rx}_skbs to be a free chain containing every entry. */
 	for (i = 0; i <= NET_TX_RING_SIZE; i++) {
 		np->tx_mbufs[i] = (void *) ((u_long) i+1);
@@ -2109,11 +2150,6 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
-#if __FreeBSD_version >= 700000
-	ifp->if_capabilities |= IFCAP_TSO4;
-#endif
-    	ifp->if_capenable = ifp->if_capabilities;
-	xn_configure_lro(np);
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
