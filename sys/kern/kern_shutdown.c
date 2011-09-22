@@ -712,8 +712,11 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 
 	if (length != 0 && (offset < di->mediaoffset ||
 	    offset - di->mediaoffset + length > di->mediasize)) {
-		printf("Attempt to write outside dump device boundaries.\n");
-		return (ENXIO);
+		printf("Attempt to write outside dump device boundaries.\n"
+	    "offset(%jd), mediaoffset(%jd), length(%ju), mediasize(%jd).\n",
+		    (intmax_t)offset, (intmax_t)di->mediaoffset,
+		    (uintmax_t)length, (intmax_t)di->mediasize);
+		return (ENOSPC);
 	}
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
