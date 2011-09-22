@@ -592,10 +592,15 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 *
 		 * If we receive a data frame that isn't
 		 * destined to our VAP MAC, drop it.
+		 *
+		 * XXX TODO: This is only enforced when not scanning;
+		 * XXX it assumes a software-driven scan will put the NIC
+		 * XXX into a "no data frames" mode before setting this
+		 * XXX flag. Otherwise it may be possible that we'll still
+		 * XXX process data frames whilst scanning.
 		 */
-		if (ni == vap->iv_bss
-		    && (!(IEEE80211_IS_MULTICAST(wh->i_addr1)))
-		    && (!IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
 			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
