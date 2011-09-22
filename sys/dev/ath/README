@@ -1,6 +1,12 @@
 Things to debug!
 ----------------
 
+* Implement a net80211 WAR for this upon association:
+
+wlan0: [00:1b:b1:58:f6:f0] discard duplicate frame, seqno <0,0> fragno <0,0> tid 0
+
+.. basically, initialise the seqno's to be 4095 upon initial association.
+
 * The txqactive bitmap (txeol, txurn, txok, etc) is setup at txq create
   time to a set of values, then it seems after a channel scan all of the
   bits are set to 1. I'm not yet sure why. Go in and fix these.
