@@ -3126,7 +3126,7 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
 	newdtv[1] = tls_max_index;
 	free(dtv);
 	wlock_release(rtld_bind_lock, lockstate);
-	*dtvp = newdtv;
+	dtv = *dtvp = newdtv;
     }
 
     /* Dynamically allocate module TLS if necessary */
