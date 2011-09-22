@@ -214,14 +214,20 @@ ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
 		hk.kv_type = HAL_CIPHER_CLR;
 
 	/*
+	 * XXX TODO: check this:
+	 * 
 	 * Group keys on hardware that supports multicast frame
 	 * key search should only be done in adhoc/hostap mode,
 	 * not STA mode.
 	 *
 	 * XXX TODO: what about mesh, tdma?
 	 */
+#if 0
 	if ((vap->iv_opmode == IEEE80211_M_HOSTAP ||
 	     vap->iv_opmode == IEEE80211_M_IBSS) &&
+#else
+	if (
+#endif
 	    (k->wk_flags & IEEE80211_KEY_GROUP) &&
 	    sc->sc_mcastkey) {
 		/*
