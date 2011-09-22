@@ -847,9 +847,9 @@ void	ath_intr(void *);
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
 	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
 	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
-#define	ath_hal_chaintxdesc(_ah, _ds, _flags, _pktlen, _hdrlen, _type, _keyix, \
+#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
 	_cipher, _delims, _seglen, _first, _last) \
-	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_flags), (_pktlen), (_hdrlen), \
+	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_pktlen), (_hdrlen), \
 	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
 	(_first), (_last)))
 #define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
