@@ -380,6 +380,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
+	TASK_INIT(&sc->sc_bproctask, 0, ath_beacon_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -1398,7 +1399,7 @@ ath_intr(void *arg)
 			} else
 #endif
 			{
-				ath_beacon_proc(sc, 0);
+				taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bproctask);
 #ifdef IEEE80211_SUPPORT_SUPERG
 				/*
 				 * Schedule the rx taskq in case there's no
