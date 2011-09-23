@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20110915: rename congestion control manpages
+OLD_FILES+=usr/share/man/man4/cc.4.gz
+OLD_FILES+=usr/share/man/man9/cc.9.gz
 # 20101123: removed subblock.h from liblzma
 OLD_FILES+=usr/include/lzma/subblock.h
 # 20101114: Remove long-obsolete MAKEDEV.8

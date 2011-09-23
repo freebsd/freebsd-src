@@ -38,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2011
+.Dd September 15, 2011
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -144,7 +144,7 @@ bandwidth-controlled window space.
 Select or query the congestion control algorithm that TCP will use for the
 connection.
 See
-.Xr cc 4
+.Xr mod_cc 4
 for details.
 .It Dv TCP_NODELAY
 Under most circumstances,
@@ -249,7 +249,7 @@ The default congestion control algorithm for
 is
 .Xr cc_newreno 4 .
 Other congestion control algorithms can be made available using the
-.Xr cc 4
+.Xr mod_cc 4
 framework.
 .Ss MIB Variables
 The
@@ -576,10 +576,10 @@ address.
 .Xr socket 2 ,
 .Xr sysctl 3 ,
 .Xr blackhole 4 ,
-.Xr cc 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
+.Xr mod_cc 4 ,
 .Xr syncache 4 ,
 .Xr setkey 8
 .Rs
