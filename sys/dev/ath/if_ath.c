@@ -372,7 +372,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK_INIT(sc);
 
-	sc->sc_tq = taskqueue_create("ath_taskq", M_NOWAIT,
+	sc->sc_tq = taskqueue_create_fast("ath_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
@@ -1405,7 +1405,7 @@ ath_intr(void *arg)
 				 * traffic so any frames held on the staging
 				 * queue are aged and potentially flushed.
 				 */
-				taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+				taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 #endif
 			}
 		}
@@ -1433,7 +1433,7 @@ ath_intr(void *arg)
 			 * is in the RX queue.
 			 * This will then kick the PCU.
 			 */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 			sc->sc_rxlink = NULL;
 			sc->sc_kickpcu = 1;
 		}
@@ -1444,15 +1444,15 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_RX) {
 			sc->sc_stats.ast_rx_intr++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 		}
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bmisstask);
 		}
 		if (status & HAL_INT_GTT)
 			sc->sc_stats.ast_tx_timeout++;
@@ -2579,7 +2579,7 @@ ath_beacon_proc(void *arg, int pending)
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
 		if (sc->sc_bmisscount >= ath_bstuck_threshold)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
 	if (sc->sc_bmisscount != 0) {
@@ -3719,6 +3719,7 @@ ath_rx_proc(void *arg, int npending)
 		 * If the datalen is greater than the buffer itself,
 		 * it's a corrupted status descriptor; skip.
 		 * Yes, it may actually have data in it.
+		 * XXX this may not actually be needed.
 		 */
 		if (rs->rs_datalen > m->m_len) {
 			device_printf(sc->sc_dev,
@@ -4029,7 +4030,7 @@ rx_next:
 
 	/* Queue DFS tasklet if needed */
 	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
+		taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_dfstask);
 
 	/*
 	 * Now that all the RX frames were handled that
@@ -6166,7 +6167,7 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
 		if (sc->sc_bmisscount >= ath_bstuck_threshold)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
 	if (sc->sc_bmisscount != 0) {
