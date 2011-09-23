@@ -3486,11 +3486,15 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
  * This function walks the list of TIDs (ie, ath_node TIDs
  * with queued traffic) and attempts to schedule traffic
  * from them.
+ *
+ * TID scheduling is implemented as a FIFO, with TIDs being
+ * added to the end of the queue after some frames have been
+ * scheduled.
  */
 void
 ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_tid *tid, *next;
+	struct ath_tid *tid, *next, *last;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -3504,11 +3508,8 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 	}
 
-	/*
-	 * For now, let's not worry about QoS, fair-scheduling
-	 * or the like. That's a later problem. Just throw
-	 * packets at the hardware.
-	 */
+	last = TAILQ_LAST(&txq->axq_tidq, axq_t_s);
+
 	TAILQ_FOREACH_SAFE(tid, &txq->axq_tidq, axq_qelem, next) {
 		/*
 		 * Suspend paused queues here; they'll be resumed
@@ -3516,8 +3517,8 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, tid->tid, tid->paused);
+		ath_tx_tid_unsched(sc, tid);
 		if (tid->paused) {
-			ath_tx_tid_unsched(sc, tid);
 			continue;
 		}
 		if (ath_tx_ampdu_running(sc, tid->an, tid->tid))
@@ -3525,14 +3526,22 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		else
 			ath_tx_tid_hw_queue_norm(sc, tid->an, tid);
 
-		/* Empty? Remove */
-		if (tid->axq_depth == 0)
-			ath_tx_tid_unsched(sc, tid);
+		/* Not empty? Re-schedule */
+		if (tid->axq_depth != 0)
+			ath_tx_tid_sched(sc, tid);
 
 		/* Give the software queue time to aggregate more packets */
 		if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
 			break;
 		}
+
+		/*
+		 * If this was the last entry on the original list, stop.
+		 * Otherwise nodes that have been rescheduled onto the end
+		 * of the TID FIFO list will just keep being rescheduled.
+		 */
+		if (tid == last)
+			break;
 	}
 }
 
