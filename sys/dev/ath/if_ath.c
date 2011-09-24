@@ -3656,6 +3656,7 @@ ath_rx_proc(void *arg, int npending)
 	HAL_STATUS status;
 	int16_t nf;
 	u_int64_t tsf;
+	int npkts = 0;
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ngood = 0;
@@ -3715,6 +3716,7 @@ ath_rx_proc(void *arg, int npending)
 			break;
 
 		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
+		npkts++;
 
 		/*
 		 * If the datalen is greater than the buffer itself,
@@ -4045,6 +4047,9 @@ rx_next:
 		 * XXX is it really needed? Or is it just enough to
 		 * XXX kick the PCU again to continue RXing?
 		 */
+		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
+		    __func__, npkts);
+#if 0
 		ath_stoprecv(sc);
 		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
 		if (ath_startrecv(sc) != 0) {
@@ -4054,6 +4059,15 @@ rx_next:
 			ath_reset(ifp);
 			return;
 		}
+#endif
+
+		/* XXX rxslink? */
+		bf = TAILQ_FIRST(&sc->sc_rxbuf);
+		ath_hal_putrxbuf(ah, bf->bf_daddr);
+		ath_hal_rxena(ah);		/* enable recv descriptors */
+		ath_mode_init(sc);		/* set filters, etc. */
+		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
 
