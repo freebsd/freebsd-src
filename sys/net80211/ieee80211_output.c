@@ -723,6 +723,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);		/* NB: a little lie */
+	/* XXX shouldn't this also check for NODE_HT? */
 	if (ni->ni_flags & IEEE80211_NODE_QOS) {
 		const int tid = WME_AC_TO_TID(WME_AC_BE);
 		uint8_t *qos;
