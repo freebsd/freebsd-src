@@ -1905,6 +1905,10 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	 * has slid tap->txa_start along without updating the BAW
 	 * tracking start/end pointers. Thus the TX BAW state is now
 	 * completely busted.
+	 *
+	 * But for now, since I haven't yet fixed TDMA and buffer cloning,
+	 * it's quite possible that a cloned buffer is making its way
+	 * here and causing it to fire off. Disable TDMA for now.
 	 */
 	if (tid->tx_buf[cindex] != bf) {
 		device_printf(sc->sc_dev,
