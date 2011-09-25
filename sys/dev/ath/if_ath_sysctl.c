@@ -588,6 +588,8 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 	if (val == 0)
 		return 0;       /* Not clearing the stats is still valid */
 	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+	memset(&sc->sc_aggr_stats, 0, sizeof(sc->sc_aggr_stats));
+
 	val = 0;
 	return 0;
 }
