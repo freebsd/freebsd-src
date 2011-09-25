@@ -144,14 +144,13 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		 */
 
 		*masked = isr & HAL_INT_COMMON;
-#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM)) {
 			*masked |= HAL_INT_RX;
 		}
 		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM)) {
 			*masked |= HAL_INT_TX;
 		}
-#endif
 
 		/*
 		 * Don't signal this when doing interrupt mitigation
@@ -162,10 +161,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 #endif
 
 		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL)) {
-
-#ifndef	AH_AR5416_INTERRUPT_MITIGATION
 			*masked |= HAL_INT_TX;
-#endif
 
 			if (pCap->halUseIsrRac) {
 				isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
@@ -288,18 +284,12 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	 * Overwrite default mask if Interrupt mitigation
 	 * is specified for AR5416
 	 */
-	mask = ints & HAL_INT_COMMON;
-	if (ints & HAL_INT_TX)
-		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
 	if (ints & HAL_INT_RX)
 		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
-	if (ints & HAL_INT_TX) {
-		if (ahp->ah_txErrInterruptMask)
-			mask |= AR_IMR_TXERR;
-		if (ahp->ah_txEolInterruptMask)
-			mask |= AR_IMR_TXEOL;
-	}
 #else
+	if (ints & HAL_INT_RX)
+		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
+#endif
 	if (ints & HAL_INT_TX) {
 		if (ahp->ah_txOkInterruptMask)
 			mask |= AR_IMR_TXOK;
@@ -310,9 +300,6 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ahp->ah_txEolInterruptMask)
 			mask |= AR_IMR_TXEOL;
 	}
-	if (ints & HAL_INT_RX)
-		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
-#endif
 	if (ints & (HAL_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;
 		if (ints & HAL_INT_TIM)

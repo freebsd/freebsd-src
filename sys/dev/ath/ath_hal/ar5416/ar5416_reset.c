@@ -363,8 +363,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	OS_REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
 	OS_REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
-	OS_REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_LAST, 300);
-	OS_REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_FIRST, 750);
 #endif
 	ar5416InitBB(ah, chan);
 
@@ -611,11 +609,11 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
                         | AR_IMR_BCNMISC;
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
-	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
-			|  AR_IMR_TXMINTR | AR_IMR_RXMINTR;
+	ahp->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 #else
-	ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
-#endif	
+	ahp->ah_maskReg |= AR_IMR_RXOK;
+#endif
+	ahp->ah_maskReg |= AR_IMR_TXOK;
 
 	if (opmode == HAL_M_HOSTAP)
 		ahp->ah_maskReg |= AR_IMR_MIB;
