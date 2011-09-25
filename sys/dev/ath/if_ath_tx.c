@@ -3035,7 +3035,12 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 	}
 
 	/* AR5416 BA bug; this requires an interface reset */
-	/* XXX TODO */
+	if (isaggr && tx_ok && (! hasba)) {
+		device_printf(sc->sc_dev,
+		    "%s: AR5416 bug: hasba=%d; txok=%d, isaggr=%d, seq_st=%d\n",
+		    __func__, hasba, tx_ok, isaggr, seq_st);
+		/* XXX TODO: schedule an interface reset */
+	}
 
 	/*
 	 * Walk the list of frames, figure out which ones were correctly
