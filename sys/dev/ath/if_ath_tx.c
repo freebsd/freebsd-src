@@ -1897,11 +1897,22 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 	    "%s: tid=%d, baw=%d:%d, seqno=%d, index=%d, cindex=%d, baw head=%d, tail=%d\n",
-	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index, cindex, tid->baw_head, tid->baw_tail);
+	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index,
+	    cindex, tid->baw_head, tid->baw_tail);
 
+	/*
+	 * If this occurs then we have a big problem - something else
+	 * has slid tap->txa_start along without updating the BAW
+	 * tracking start/end pointers. Thus the TX BAW state is now
+	 * completely busted.
+	 */
 	if (tid->tx_buf[cindex] != bf) {
-		device_printf(sc->sc_dev, "%s: seqno %d: tx_buf bf=%p; comp bf=%p!\n",
-		    __func__, seqno, tid->tx_buf[cindex], bf);
+		device_printf(sc->sc_dev,
+		    "%s: comp bf=%p, seq=%d; slot bf=%p, seqno=%d\n",
+		    __func__,
+		    bf, SEQNO(bf->bf_state.bfs_seqno),
+		    tid->tx_buf[cindex],
+		    SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno));
 	}
 
 	tid->tx_buf[cindex] = NULL;
