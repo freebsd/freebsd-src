@@ -671,11 +671,9 @@ pmap_bootstrap(u_int cpu_impl)
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
-	 * NOTE: PMAP_LOCK_INIT() is needed as part of the initialization
-	 * but sparc64 start up is not ready to initialize mutexes yet.
-	 * It is called in machdep.c.
 	 */
 	pm = kernel_pmap;
+	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = ~0;
