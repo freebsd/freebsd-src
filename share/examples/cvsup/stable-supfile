@@ -66,11 +66,11 @@
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/var/db
 *default prefix=/usr
-# The following line is for 8-stable.  If you want 7-stable, 6-stable,
-# 5-stable, 4-stable, 3-stable, or 2.2-stable, change to "RELENG_7",
-# "RELENG_6", "RELENG_5", "RELENG_4", "RELENG_3", or "RELENG_2_2"
-# respectively.
-*default release=cvs tag=RELENG_8
+# The following line is for 9-stable.  If you want 8-stable, 7-stable,
+# 6-stable, 5-stable, 4-stable, 3-stable, or 2.2-stable, change to
+# "RELENG_7", "RELENG_6", "RELENG_5", "RELENG_4", "RELENG_3", or
+# "RELENG_2_2" respectively.
+*default release=cvs tag=RELENG_9
 *default delete use-rel-suffix
 
 # If you seem to be limited by CPU rather than network or disk bandwidth, try
