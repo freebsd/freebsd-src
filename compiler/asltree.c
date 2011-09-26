@@ -287,9 +287,6 @@ TrGetNodeFlagName (
     case NODE_METHOD_TYPED:
         return ("NODE_METHOD_TYPED");
 
-    case NODE_IS_BIT_OFFSET:
-        return ("NODE_IS_BIT_OFFSET");
-
     case NODE_COMPILE_TIME_CONST:
         return ("NODE_COMPILE_TIME_CONST");
 

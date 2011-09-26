@@ -50,6 +50,8 @@
  */
 const AH_ASL_OPERATOR       AslOperatorInfo[] =
 {
+    {"AccessAs",                "(AccessType, AccessAttibute)",
+                                "ChangeFieldUnitAccess"},
     {"Acquire",                 "(SyncObject, TimeoutValue) => Boolean",
                                 "Acquire a mutex"},
     {"Add",                     "(Addend1, Addend2, Result) => Integer",
@@ -240,6 +242,8 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Notify Object of event"},
     {"ObjectType",              "(Object) => Integer",
                                 "Type of object"},
+    {"Offset",                  "(ByteOffset)",
+                                "Change Current Field Unit Offset"},
     {"One",                     "=> Integer",
                                 "Constant One Object (1)"},
     {"Ones",                    "=> Integer",

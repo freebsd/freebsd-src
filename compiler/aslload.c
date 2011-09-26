@@ -290,7 +290,6 @@ LdLoadResourceElements (
     InitializerOp = ASL_GET_CHILD_NODE (Op);
     while (InitializerOp)
     {
-
         if (InitializerOp->Asl.ExternalName)
         {
             Status = AcpiNsLookup (WalkState->ScopeInfo,
@@ -305,20 +304,15 @@ LdLoadResourceElements (
             }
 
             /*
-             * Store the field offset in the namespace node so it
-             * can be used when the field is referenced
+             * Store the field offset and length in the namespace node
+             * so it can be used when the field is referenced
              */
-            Node->Value = (UINT32) InitializerOp->Asl.Value.Integer;
+            Node->Value = InitializerOp->Asl.Value.Tag.BitOffset;
+            Node->Length = InitializerOp->Asl.Value.Tag.BitLength;
             InitializerOp->Asl.Node = Node;
             Node->Op = InitializerOp;
-
-            /* Pass thru the field type (Bitfield or Bytefield) */
-
-            if (InitializerOp->Asl.CompileFlags & NODE_IS_BIT_OFFSET)
-            {
-                Node->Flags |= ANOBJ_IS_BIT_OFFSET;
-            }
         }
+
         InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
     }
 

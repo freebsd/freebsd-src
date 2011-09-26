@@ -19,23 +19,51 @@ PROG = acpisrc
 
 HOST =          _LINUX
 NOMAN =         YES
-COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $?
+COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $<
 
 ACPICA_COMPONENTS =
-ACPICA_SRC =    ../..
-ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)$(ACPICA_COMPONENTS)
-ACPICA_TOOLS =  $(ACPICA_SRC)/tools
-ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
-INSTALLDIR =    /usr/bin
-INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
+ACPICA_SRC =            ../..
+ACPICA_INCLUDE =        $(ACPICA_SRC)/include
+ACPICA_COMMON =         $(ACPICA_SRC)/common
+ACPICA_CORE =           $(ACPICA_SRC)$(ACPICA_COMPONENTS)
+ACPICA_TOOLS =          $(ACPICA_SRC)/tools
+ACPICA_OSL =            $(ACPICA_SRC)/os_specific/service_layers
+ACPISRC =               $(ACPICA_TOOLS)/acpisrc
+INSTALLDIR =            /usr/bin
+INSTALLPROG =           cp --remove-destination $(PROG) $(INSTALLDIR)
+
+ACPICA_HEADERS = \
+    $(wildcard $(ACPICA_INCLUDE)/*.h) \
+    $(wildcard $(ACPICA_INCLUDE)/platform/*.h)
+
+#
+# Search path for source files and individual source files
+#
+vpath %.c \
+    $(ACPISRC) \
+    $(ACPICA_COMMON) \
+    $(ACPICA_OSL)
+
+HEADERS = \
+    $(wildcard $(ACPISRC)/*.h)
+
+OBJECTS = \
+    ascase.o \
+    asconvrt.o \
+    asfile.o \
+    asmain.o \
+    asremove.o \
+    astable.o \
+    asutils.o \
+    osunixdir.o \
+    getopt.o
 
 CFLAGS+= \
     -D$(HOST) \
     -D_GNU_SOURCE \
     -DACPI_SRC_APP \
-    -I$(ACPICA_SRC)/include \
-    -I.
+    -I$(ACPISRC) \
+    -I$(ACPICA_INCLUDE)
 
 CWARNINGFLAGS = \
     -ansi \
@@ -52,62 +80,35 @@ CWARNINGFLAGS = \
     -Wpointer-arith \
     -Wundef
 
-OBJS = \
-    ascase.o \
-    asconvrt.o \
-    asfile.o \
-    asmain.o \
-    asremove.o \
-    astable.o \
-    asutils.o \
-    osunixdir.o \
-    getopt.o
+#
+# gcc 4+ flags
+#
+CWARNINGFLAGS += \
+    -Waddress \
+    -Waggregate-return \
+    -Wchar-subscripts \
+    -Wempty-body \
+    -Wlogical-op \
+    -Wmissing-declarations \
+    -Wmissing-field-initializers \
+    -Wmissing-parameter-type \
+    -Wnested-externs \
+    -Wold-style-declaration \
+    -Wold-style-definition \
+    -Wredundant-decls \
+    -Wtype-limits
 
 #
-# Root rule
+# Rules
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 
-#
-# acpisrc source
-#
-ascase.o :          $(ACPICA_TOOLS)/acpisrc/ascase.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
-
-asconvrt.o :        $(ACPICA_TOOLS)/acpisrc/asconvrt.c
-	$(COMPILE)
-
-asfile.o :          $(ACPICA_TOOLS)/acpisrc/asfile.c
-	$(COMPILE)
-
-asmain.o :          $(ACPICA_TOOLS)/acpisrc/asmain.c
-	$(COMPILE)
-
-asremove.o :        $(ACPICA_TOOLS)/acpisrc/asremove.c
-	$(COMPILE)
-
-astable.o :         $(ACPICA_TOOLS)/acpisrc/astable.c
-	$(COMPILE)
-
-asutils.o :         $(ACPICA_TOOLS)/acpisrc/asutils.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
-#
-# Unix OS services layer (OSL)
-#
-osunixdir.o :       $(ACPICA_OSL)/osunixdir.c
-	$(COMPILE)
-
 
 clean :
-	rm -f $(PROG) $(PROG) $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

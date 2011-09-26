@@ -750,42 +750,23 @@ AcpiDmDumpTable (
             AcpiOsPrintf ("%1.1X\n", (*Target >> 2) & 0x03);
             break;
 
-        /* Standard Data Types */
+        /* Integer Data Types */
 
         case ACPI_DMT_UINT8:
-
-            AcpiOsPrintf ("%2.2X\n", *Target);
-            break;
-
         case ACPI_DMT_UINT16:
-
-            AcpiOsPrintf ("%4.4X\n", ACPI_GET16 (Target));
-            break;
-
         case ACPI_DMT_UINT24:
-
-            AcpiOsPrintf ("%2.2X%2.2X%2.2X\n",
-                *Target, *(Target + 1), *(Target + 2));
-            break;
-
         case ACPI_DMT_UINT32:
-
-            AcpiOsPrintf ("%8.8X\n", ACPI_GET32 (Target));
-            break;
-
         case ACPI_DMT_UINT56:
-
-            for (Temp8 = 0; Temp8 < 7; Temp8++)
+        case ACPI_DMT_UINT64:
+            /*
+             * Dump bytes - high byte first, low byte last.
+             * Note: All ACPI tables are little-endian.
+             */
+            for (Temp8 = (UINT8) ByteLength; Temp8 > 0; Temp8--)
             {
-                AcpiOsPrintf ("%2.2X", Target[Temp8]);
+                AcpiOsPrintf ("%2.2X", Target[Temp8 - 1]);
             }
             AcpiOsPrintf ("\n");
-            break;
-
-        case ACPI_DMT_UINT64:
-
-            AcpiOsPrintf ("%8.8X%8.8X\n",
-                ACPI_FORMAT_UINT64 (ACPI_GET64 (Target)));
             break;
 
         case ACPI_DMT_BUF7:

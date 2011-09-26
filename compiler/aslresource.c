@@ -437,13 +437,14 @@ RsAllocateResourceNode (
 
 /*******************************************************************************
  *
- * FUNCTION:    RsCreateBitField
+ * FUNCTION:    RsCreateResourceField
  *
  * PARAMETERS:  Op              - Resource field node
  *              Name            - Name of the field (Used only to reference
  *                                the field in the ASL, not in the AML)
  *              ByteOffset      - Offset from the field start
  *              BitOffset       - Additional bit offset
+ *              BitLength       - Number of bits in the field
  *
  * RETURN:      None, sets fields within the input node
  *
@@ -454,46 +455,20 @@ RsAllocateResourceNode (
  ******************************************************************************/
 
 void
-RsCreateBitField (
+RsCreateResourceField (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name,
     UINT32                  ByteOffset,
-    UINT32                  BitOffset)
+    UINT32                  BitOffset,
+    UINT32                  BitLength)
 {
 
-    Op->Asl.ExternalName      = Name;
-    Op->Asl.Value.Integer     = ((UINT64) ByteOffset * 8) + BitOffset;
-    Op->Asl.CompileFlags     |= (NODE_IS_RESOURCE_FIELD | NODE_IS_BIT_OFFSET);
-}
+    Op->Asl.ExternalName = Name;
+    Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
 
 
-/*******************************************************************************
- *
- * FUNCTION:    RsCreateByteField
- *
- * PARAMETERS:  Op              - Resource field node
- *              Name            - Name of the field (Used only to reference
- *                                the field in the ASL, not in the AML)
- *              ByteOffset      - Offset from the field start
- *
- * RETURN:      None, sets fields within the input node
- *
- * DESCRIPTION: Utility function to generate a named byte field within a
- *              resource descriptor.  Mark a node as 1) a field in a resource
- *              descriptor, and 2) set the value to be a BYTE offset
- *
- ******************************************************************************/
-
-void
-RsCreateByteField (
-    ACPI_PARSE_OBJECT       *Op,
-    char                    *Name,
-    UINT32                  ByteOffset)
-{
-
-    Op->Asl.ExternalName      = Name;
-    Op->Asl.Value.Integer     = ByteOffset;
-    Op->Asl.CompileFlags     |= NODE_IS_RESOURCE_FIELD;
+    Op->Asl.Value.Tag.BitOffset = (ByteOffset * 8) + BitOffset;
+    Op->Asl.Value.Tag.BitLength = BitLength;
 }
 
 

@@ -658,6 +658,7 @@ ApCheckObjectType (
         break;
 
     case PARSEOP_PACKAGE:
+    case PARSEOP_VAR_PACKAGE:
         ReturnBtype = ACPI_RTYPE_PACKAGE;
         break;
 

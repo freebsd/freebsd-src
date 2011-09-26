@@ -213,7 +213,6 @@ typedef struct acpi_namespace_node
 #define ANOBJ_IS_EXTERNAL               0x08    /* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10    /* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20    /* iASL only: Method has at least one return value */
-#define ANOBJ_IS_BIT_OFFSET             0x40    /* iASL only: Reference is a bit offset */
 #define ANOBJ_IS_REFERENCED             0x80    /* iASL only: Object was referenced */
 
 
@@ -775,6 +774,17 @@ typedef struct acpi_opcode_info
 
 } ACPI_OPCODE_INFO;
 
+/* Structure for Resource Tag information */
+
+typedef struct acpi_tag_info
+{
+    UINT32                          BitOffset;
+    UINT32                          BitLength;
+
+} ACPI_TAG_INFO;
+
+/* Value associated with the parse object */
+
 typedef union acpi_parse_value
 {
     UINT64                          Integer;        /* Integer constant (Up to 64 bits) */
@@ -783,6 +793,7 @@ typedef union acpi_parse_value
     UINT8                           *Buffer;        /* buffer or string */
     char                            *Name;          /* NULL terminated string */
     union acpi_parse_object         *Arg;           /* arguments and contained ops */
+    ACPI_TAG_INFO                   Tag;            /* Resource descriptor tag info  */
 
 } ACPI_PARSE_VALUE;
 

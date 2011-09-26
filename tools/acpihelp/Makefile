@@ -20,22 +20,48 @@ PROG = acpihelp
 
 HOST =          _LINUX
 NOMAN =         YES
-COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $?
+COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $<
 
 ACPICA_COMPONENTS =
-ACPICA_SRC =    ../..
-ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)$(ACPICA_COMPONENTS)
-ACPICA_TOOLS =  $(ACPICA_SRC)/tools
-ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
-INSTALLDIR =    /usr/bin
-INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
+ACPICA_SRC =            ../..
+ACPICA_INCLUDE =        $(ACPICA_SRC)/include
+ACPICA_COMMON =         $(ACPICA_SRC)/common
+ACPICA_CORE =           $(ACPICA_SRC)$(ACPICA_COMPONENTS)
+ACPICA_TOOLS =          $(ACPICA_SRC)/tools
+ACPICA_OSL =            $(ACPICA_SRC)/os_specific/service_layers
+ACPICA_UTILITIES =      $(ACPICA_CORE)/utilities
+ACPIHELP =              $(ACPICA_TOOLS)/acpihelp
+INSTALLDIR =            /usr/bin
+INSTALLPROG =           cp --remove-destination $(PROG) $(INSTALLDIR)
+
+ACPICA_HEADERS = \
+    $(wildcard $(ACPICA_INCLUDE)/*.h) \
+    $(wildcard $(ACPICA_INCLUDE)/platform/*.h)
+
+#
+# Search paths for source files
+#
+vpath %.c \
+    $(ACPIHELP) \
+    $(ACPICA_COMMON)
+
+HEADERS = \
+    $(wildcard $(ACPIHELP)/*.h)
+
+OBJECTS = \
+	ahamlops.o \
+	ahaslkey.o \
+	ahaslops.o \
+	ahdecode.o \
+	ahpredef.o \
+	ahmain.o \
+	getopt.o
 
 CFLAGS+= \
     -D$(HOST) \
     -D_GNU_SOURCE \
     -DACPI_HELP_APP \
-    -I$(ACPICA_SRC)/include
+    -I$(ACPICA_INCLUDE)
 
 CWARNINGFLAGS = \
     -ansi \
@@ -52,50 +78,36 @@ CWARNINGFLAGS = \
     -Wpointer-arith \
     -Wundef
 
-OBJS = \
-	ahamlops.o \
-	ahaslkey.o \
-	ahaslops.o \
-	ahdecode.o \
-	ahpredef.o \
-	ahmain.o \
-	getopt.o
+#
+# gcc 4+ flags
+#
+CWARNINGFLAGS += \
+    -Waddress \
+    -Waggregate-return \
+    -Wchar-subscripts \
+    -Wempty-body \
+    -Wlogical-op \
+    -Wmissing-declarations \
+    -Wmissing-field-initializers \
+    -Wmissing-parameter-type \
+    -Wnested-externs \
+    -Wold-style-declaration \
+    -Wold-style-definition \
+    -Wredundant-decls \
+    -Wtype-limits
 
 #
-# Root rule
+# Rules
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
+	$(COPYPROG)
 
-#
-# acpihelp source
-#
-ahamlops.o :        $(ACPICA_TOOLS)/acpihelp/ahamlops.c
-	$(COMPILE)
-
-ahaslkey.o :        $(ACPICA_TOOLS)/acpihelp/ahaslkey.c
-	$(COMPILE)
-
-ahaslops.o :        $(ACPICA_TOOLS)/acpihelp/ahaslops.c
-	$(COMPILE)
-
-ahdecode.o :        $(ACPICA_TOOLS)/acpihelp/ahdecode.c
-	$(COMPILE)
-
-ahpredef.o :        $(ACPICA_TOOLS)/acpihelp/ahpredef.c
-	$(COMPILE)
-
-ahmain.o :          $(ACPICA_TOOLS)/acpihelp/ahmain.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

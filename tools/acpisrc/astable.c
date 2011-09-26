@@ -375,6 +375,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_LIST",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_SUPPORT",                  SRC_TYPE_STRUCT},
     {"ACPI_TABLE_TYPE",                     SRC_TYPE_SIMPLE},
+    {"ACPI_TAG_INFO",                       SRC_TYPE_STRUCT},
     {"ACPI_THREAD_ID",                      SRC_TYPE_SIMPLE},
     {"ACPI_THREAD_STATE",                   SRC_TYPE_STRUCT},
     {"ACPI_TYPED_IDENTIFIER_TABLE",         SRC_TYPE_STRUCT},

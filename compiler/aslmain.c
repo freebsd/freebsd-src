@@ -96,7 +96,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:T:v:w:x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:T:G^v:w:x:z"
 
 
 /*******************************************************************************
@@ -116,55 +116,56 @@ Options (
     void)
 {
 
-    printf ("Global:\n");
-    printf ("  -@<file>       Specify command file\n");
-    printf ("  -I<dir>        Specify additional include directory\n");
+    printf ("\nGlobal:\n");
+    ACPI_OPTION ("-@ <file>",       "Specify command file");
+    ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
 
     printf ("\nGeneral Output:\n");
-    printf ("  -p<prefix>     Specify path/filename prefix for all output files\n");
-    printf ("  -va            Disable all errors and warnings (summary only)\n");
-    printf ("  -vi            Less verbose errors and warnings for use with IDEs\n");
-    printf ("  -vo            Enable optimization comments\n");
-    printf ("  -vr            Disable remarks\n");
-    printf ("  -vs            Disable signon\n");
-    printf ("  -w<1|2|3>      Set warning reporting level\n");
+    ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
+    ACPI_OPTION ("-va",             "Disable all errors and warnings (summary only)");
+    ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
+    ACPI_OPTION ("-vo",             "Enable optimization comments");
+    ACPI_OPTION ("-vr",             "Disable remarks");
+    ACPI_OPTION ("-vs",             "Disable signon");
+    ACPI_OPTION ("-w <1|2|3>",      "Set warning reporting level");
 
     printf ("\nAML Output Files:\n");
-    printf ("  -s<a|c>        Create AML in assembler or C source file (*.asm or *.c)\n");
-    printf ("  -i<a|c>        Create assembler or C include file (*.inc or *.h)\n");
-    printf ("  -t<a|c|s>      Create AML in assembler, C, or ASL hex table (*.hex)\n");
+    ACPI_OPTION ("-s <a|c>",        "Create AML in assembler or C source file (*.asm or *.c)");
+    ACPI_OPTION ("-i <a|c>",        "Create assembler or C include file (*.inc or *.h)");
+    ACPI_OPTION ("-t <a|c|s>",      "Create AML in assembler, C, or ASL hex table (*.hex)");
 
     printf ("\nAML Code Generation:\n");
-    printf ("  -oa            Disable all optimizations (compatibility mode)\n");
-    printf ("  -of            Disable constant folding\n");
-    printf ("  -oi            Disable integer optimization to Zero/One/Ones\n");
-    printf ("  -on            Disable named reference string optimization\n");
-    printf ("  -cr            Disable Resource Descriptor error checking\n");
-    printf ("  -r<Revision>   Override table header Revision (1-255)\n");
+    ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
+    ACPI_OPTION ("-of",             "Disable constant folding");
+    ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
+    ACPI_OPTION ("-on",             "Disable named reference string optimization");
+    ACPI_OPTION ("-cr",             "Disable Resource Descriptor error checking");
+    ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
 
     printf ("\nASL Listing Files:\n");
-    printf ("  -l             Create mixed listing file (ASL source and AML) (*.lst)\n");
-    printf ("  -ln            Create namespace file (*.nsp)\n");
-    printf ("  -ls            Create combined source file (expanded includes) (*.src)\n");
+    ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
+    ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
+    ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
 
     printf ("\nACPI Data Tables:\n");
-    printf ("  -T <Sig>|ALL|* Create table template file(s) for <Sig>\n");
-    printf ("  -vt            Create verbose templates (full disassembly)\n");
+    ACPI_OPTION ("-G",              "Compile custom table containing generic operators");
+    ACPI_OPTION ("-T <sig>|ALL|*",  "Create table template file(s) for <Sig>");
+    ACPI_OPTION ("-vt",             "Create verbose templates (full disassembly)");
 
     printf ("\nAML Disassembler:\n");
-    printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
-    printf ("  -da [f1,f2]    Disassemble multiple tables from single namespace\n");
-    printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
-    printf ("                 (Obtain DSDT from current system if no input file)\n");
-    printf ("  -e  [f1,f2]    Include ACPI table(s) for external symbol resolution\n");
-    printf ("  -2             Emit ACPI 2.0 compatible ASL code\n");
-    printf ("  -g             Get ACPI tables and write to files (*.dat)\n");
+    ACPI_OPTION ("-d  [file]",      "Disassemble or decode binary ACPI table to file (*.dsl)");
+    ACPI_OPTION ("-da [f1,f2]",     "Disassemble multiple tables from single namespace");
+    ACPI_OPTION ("-dc [file]",      "Disassemble AML and immediately compile it");
+    ACPI_OPTION ("",                "(Obtain DSDT from current system if no input file)");
+    ACPI_OPTION ("-e  [f1,f2]",     "Include ACPI table(s) for external symbol resolution");
+    ACPI_OPTION ("-2",              "Emit ACPI 2.0 compatible ASL code");
+    ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
 
     printf ("\nHelp:\n");
-    printf ("  -h             Additional help and compiler debug options\n");
-    printf ("  -hc            Display operators allowed in constant expressions\n");
-    printf ("  -hr            Display ACPI reserved method names\n");
-    printf ("  -ht            Display currently supported ACPI table names\n");
+    ACPI_OPTION ("-h",              "Additional help and compiler debug options");
+    ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
+    ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
+    ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
 }
 
 
@@ -185,7 +186,7 @@ HelpMessage (
     void)
 {
 
-    printf ("AML output filename generation:\n");
+    printf ("\nAML output filename generation:\n");
     printf ("  Output filenames are generated by appending an extension to a common\n");
     printf ("  filename prefix.  The filename prefix is obtained via one of the\n");
     printf ("  following methods (in priority order):\n");
@@ -197,13 +198,13 @@ HelpMessage (
     Options ();
 
     printf ("\nCompiler/Disassembler Debug Options:\n");
-    printf ("  -b<p|t|b>      Create compiler debug/trace file (*.txt)\n");
-    printf ("                   Types: Parse/Tree/Both\n");
-    printf ("  -f             Ignore errors, force creation of AML output file(s)\n");
-    printf ("  -n             Parse only, no output generation\n");
-    printf ("  -ot            Display compile times\n");
-    printf ("  -x<level>      Set debug level for trace output\n");
-    printf ("  -z             Do not insert new compiler ID for DataTables\n");
+    ACPI_OPTION ("-b<p|t|b>",       "Create compiler debug/trace file (*.txt)");
+    ACPI_OPTION ("",                "Types: Parse/Tree/Both");
+    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
+    ACPI_OPTION ("-n",              "Parse only, no output generation");
+    ACPI_OPTION ("-ot",             "Display compile times");
+    ACPI_OPTION ("-x<level>",       "Set debug level for trace output");
+    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
 
@@ -224,8 +225,8 @@ Usage (
     void)
 {
 
-    printf ("%s\n", ASL_COMPLIANCE);
-    printf ("Usage:    %s [Options] [Files]\n\n", ASL_INVOCATION_NAME);
+    printf ("%s\n\n", ASL_COMPLIANCE);
+    ACPI_USAGE_HEADER ("iasl [Options] [Files]");
     Options ();
 }
 
@@ -717,6 +718,11 @@ AslDoOptions (
             printf ("Unknown option: -t%s\n", AcpiGbl_Optarg);
             return (-1);
         }
+        break;
+
+
+    case 'G':
+        Gbl_CompileGeneric = TRUE;
         break;
 
 
