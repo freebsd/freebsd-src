@@ -1,7 +1,6 @@
-
 /******************************************************************************
  *
- * Module Name: abmain - Main module for the acpi binary utility
+ * Module Name: axmain - main module for acpixtract utility
  *
  *****************************************************************************/
 
@@ -42,44 +41,61 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#define _DECLARE_GLOBALS
-#include "acpibin.h"
+#include "acpi.h"
+#include "accommon.h"
 #include "acapps.h"
+#include <stdio.h>
 
-/* Local prototypes */
 
 static void
-AbDisplayUsage (
-    UINT8                   OptionCount);
+DisplayUsage (
+    void);
+
+int
+AxExtractTables (
+    char                    *InputPathname,
+    char                    *Signature,
+    unsigned int            MinimumInstances);
+
+int
+AxListTables (
+    char                    *InputPathname);
+
+
+/* Options */
+
+#define AX_EXTRACT_ALL          0
+#define AX_LIST_ALL             1
+#define AX_EXTRACT_SIGNATURE    2
+#define AX_EXTRACT_AML_TABLES   3
+
+static int          AxAction = AX_EXTRACT_AML_TABLES; /* DSDT & SSDTs */
+
+#define AX_OPTIONAL_TABLES      0
+#define AX_REQUIRED_TABLE       1
 
 
 /******************************************************************************
  *
- * FUNCTION:    AbDisplayUsage
+ * FUNCTION:    DisplayUsage
  *
  * DESCRIPTION: Usage message
  *
  ******************************************************************************/
 
 static void
-AbDisplayUsage (
-    UINT8                   OptionCount)
+DisplayUsage (
+    void)
 {
 
-    if (OptionCount)
-    {
-        printf ("Option requires %u arguments\n\n", OptionCount);
-    }
+    ACPI_USAGE_HEADER ("acpixtract [option] <InputFile>");
 
-    ACPI_USAGE_HEADER ("acpibin [options]");
+    ACPI_OPTION ("-a",                  "Extract all tables, not just DSDT/SSDT");
+    ACPI_OPTION ("-l",                  "List table summaries, do not extract");
+    ACPI_OPTION ("-s <signature>",      "Extract all tables with <signature>");
 
-    ACPI_OPTION ("-c <File1><File2>",           "Compare two AML files");
-    ACPI_OPTION ("-d <In><Out>",                "Dump AML binary to text file");
-    ACPI_OPTION ("-e <Sig><In><Out>",           "Extract binary AML table from AcpiDmp file");
-    ACPI_OPTION ("-h <File>",                   "Display table header for binary AML file");
-    ACPI_OPTION ("-s <File>",                   "Update checksum for binary AML file");
-    ACPI_OPTION ("-t",                          "Terse mode");
+    printf ("\nExtract binary ACPI tables from text acpidump output\n");
+    printf ("Default invocation extracts the DSDT and all SSDTs\n");
 }
 
 
@@ -91,96 +107,85 @@ AbDisplayUsage (
  *
  ******************************************************************************/
 
-int ACPI_SYSTEM_XFACE
+int
 main (
     int                     argc,
     char                    *argv[])
 {
+    char                    *Filename;
+    int                     Status;
     int                     j;
-    int                     Status = AE_OK;
 
 
-    AcpiGbl_DebugFile = NULL;
-    AcpiGbl_DbOutputFlags = DB_CONSOLE_OUTPUT ;
-
-    AcpiOsInitialize ();
-    printf (ACPI_COMMON_SIGNON ("ACPI Binary AML File Utility"));
+    printf (ACPI_COMMON_SIGNON ("ACPI Binary Table Extraction Utility"));
 
     if (argc < 2)
     {
-        AbDisplayUsage (0);
-        return 0;
+        DisplayUsage ();
+        return (0);
     }
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "c:d:e:h:s:t")) != EOF) switch(j)
+    while ((j = AcpiGetopt (argc, argv, "ahls:")) != EOF) switch (j)
     {
-    case 'c':   /* Compare Files */
-
-        if (argc < 4)
-        {
-            AbDisplayUsage (2);
-            return -1;
-        }
-
-        Status = AbCompareAmlFiles (AcpiGbl_Optarg, argv[AcpiGbl_Optind]);
+    case 'a':
+        AxAction = AX_EXTRACT_ALL;          /* Extract all tables found */
         break;
 
-    case 'd':   /* Dump AML file */
-
-        if (argc < 4)
-        {
-            AbDisplayUsage (2);
-            return -1;
-        }
-
-        Status = AbDumpAmlFile (AcpiGbl_Optarg, argv[AcpiGbl_Optind]);
+    case 'l':
+        AxAction = AX_LIST_ALL;             /* List tables only, do not extract */
         break;
 
-    case 'e':   /* Extract AML text file */
-
-        if (argc < 5)
-        {
-            AbDisplayUsage (3);
-            return -1;
-        }
-
-        Status = AbExtractAmlFile (AcpiGbl_Optarg, argv[AcpiGbl_Optind],
-                    argv[AcpiGbl_Optind+1]);
+    case 's':
+        AxAction = AX_EXTRACT_SIGNATURE;    /* Extract only tables with this sig */
         break;
 
-    case 'h':   /* Display ACPI table header */
-
-        if (argc < 3)
-        {
-            AbDisplayUsage (1);
-            return -1;
-        }
-
-        AbDisplayHeader (AcpiGbl_Optarg);
+    case 'h':
+    default:
+        DisplayUsage ();
         return (0);
+    }
 
-    case 's':   /* Compute/update checksum */
+    /* Input filename is always required */
 
-        if (argc < 3)
-        {
-            AbDisplayUsage (1);
-            return -1;
-        }
+    Filename = argv[AcpiGbl_Optind];
+    if (!Filename)
+    {
+        printf ("Missing required input filename\n");
+        return (-1);
+    }
 
-        AbComputeChecksum (AcpiGbl_Optarg);
-        return (0);
+    /* Perform requested action */
 
-    case 't':   /* Enable terse mode */
+    switch (AxAction)
+    {
+    case AX_EXTRACT_ALL:
+        Status = AxExtractTables (Filename, NULL, AX_OPTIONAL_TABLES);
+        break;
 
-        Gbl_TerseMode = TRUE;
+    case AX_LIST_ALL:
+        Status = AxListTables (Filename);
+        break;
+
+    case AX_EXTRACT_SIGNATURE:
+        Status = AxExtractTables (Filename, AcpiGbl_Optarg, AX_REQUIRED_TABLE);
         break;
 
     default:
-        AbDisplayUsage (0);
-        return -1;
+        /*
+         * Default output is the DSDT and all SSDTs. One DSDT is required,
+         * any SSDTs are optional.
+         */
+        Status = AxExtractTables (Filename, "DSDT", AX_REQUIRED_TABLE);
+        if (Status)
+        {
+            return (Status);
+        }
+
+        Status = AxExtractTables (Filename, "SSDT", AX_OPTIONAL_TABLES);
+        break;
     }
 
-    return Status;
+    return (Status);
 }

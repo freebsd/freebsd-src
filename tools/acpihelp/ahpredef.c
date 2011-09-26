@@ -273,5 +273,6 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     {"_UPP",    "User Presence Polling", "Returns the recommended user presence polling interval"},
     {"_VPO",    "Video Post Options", "Returns the implemented video post options"},
     {"_WAK",    "Wake", "Inform AML that the system has just awakened"},
-    {"_Wxx",    "Wake Event", "Method executed as a result of a wake event"}
+    {"_Wxx",    "Wake Event", "Method executed as a result of a wake event"},
+    {NULL,      NULL, NULL}
 };

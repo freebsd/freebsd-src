@@ -472,6 +472,8 @@ CmDoCompile (
 
     if (!RootNode)
     {
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+            NULL, "- Could not resolve parse tree root node");
         CmCleanupAndExit ();
         return -1;
     }

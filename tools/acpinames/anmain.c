@@ -72,10 +72,9 @@ static void
 usage (
     void)
 {
-    printf ("Usage: AcpiNames [options] AMLfile\n\n");
 
-    printf ("Where:\n");
-    printf ("   -?                  Display this message\n");
+    ACPI_USAGE_HEADER ("AcpiNames [options] AMLfile");
+    ACPI_OPTION ("-?",                  "Display this message");
 }
 
 

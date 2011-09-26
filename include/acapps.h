@@ -81,6 +81,15 @@
     Prefix, ACPICA_COPYRIGHT, \
     Prefix
 
+/* Macros for usage messages */
+
+#define ACPI_USAGE_HEADER(Usage) \
+    printf ("Usage: %s\nOptions:\n", Usage);
+
+#define ACPI_OPTION(Name, Description) \
+    printf ("  %-18s%s\n", Name, Description);
+
+
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define ACPI_TABLE_FILE_SUFFIX      ".dat"
 

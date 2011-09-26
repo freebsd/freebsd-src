@@ -829,17 +829,12 @@ RsAllocateResourceNode (
     UINT32                  Size);
 
 void
-RsCreateBitField (
+RsCreateResourceField (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name,
     UINT32                  ByteOffset,
-    UINT32                  BitOffset);
-
-void
-RsCreateByteField (
-    ACPI_PARSE_OBJECT       *Op,
-    char                    *Name,
-    UINT32                  ByteOffset);
+    UINT32                  BitOffset,
+    UINT32                  BitLength);
 
 void
 RsSetFlagBits (

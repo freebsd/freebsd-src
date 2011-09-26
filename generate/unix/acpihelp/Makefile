@@ -15,13 +15,16 @@ include ../Makefile.config
 PROG = acpihelp
 
 #
-# Flags specific to acpihelp
+# Search paths for source files
 #
-CFLAGS+= \
-    -DACPI_HELP_APP \
-    -I$(ACPICA_TOOLS)/acpihelp
+vpath %.c \
+    $(ACPIHELP) \
+    $(ACPICA_COMMON)
 
-OBJS = \
+HEADERS = \
+    $(wildcard $(ACPIHELP)/*.h)
+
+OBJECTS = \
 	ahamlops.o \
 	ahaslkey.o \
 	ahaslops.o \
@@ -31,42 +34,24 @@ OBJS = \
 	getopt.o
 
 #
-# Root rule
+# Flags specific to acpihelp
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+CFLAGS+= \
+    -DACPI_HELP_APP \
+    -I$(ACPIHELP)
+
+#
+# Rules
+#
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-#
-# acpihelp source
-#
-ahamlops.o :        $(ACPICA_TOOLS)/acpihelp/ahamlops.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
-
-ahaslkey.o :        $(ACPICA_TOOLS)/acpihelp/ahaslkey.c
-	$(COMPILE)
-
-ahaslops.o :        $(ACPICA_TOOLS)/acpihelp/ahaslops.c
-	$(COMPILE)
-
-ahdecode.o :        $(ACPICA_TOOLS)/acpihelp/ahdecode.c
-	$(COMPILE)
-
-ahpredef.o :        $(ACPICA_TOOLS)/acpihelp/ahpredef.c
-	$(COMPILE)
-
-ahmain.o :          $(ACPICA_TOOLS)/acpihelp/ahmain.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
 
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

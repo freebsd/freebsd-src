@@ -64,18 +64,16 @@ AhDisplayUsage (
     void)
 {
 
-    printf ("\n");
-    printf ("Usage: acpihelp <options> [NamePrefix | HexValue]\n\n");
-    printf ("Where: -k [NamePrefix]     Find/Display ASL non-operator keyword(s)\n");
-    printf ("       -m [NamePrefix]     Find/Display AML opcode name(s)\n");
-    printf ("       -o [HexValue]       Decode hex AML opcode\n");
-    printf ("       -p [NamePrefix]     Find/Display ASL predefined method name(s)\n");
-    printf ("       -s [NamePrefix]     Find/Display ASL operator name(s)\n");
+    ACPI_USAGE_HEADER ("acpihelp <options> [NamePrefix | HexValue]");
+    ACPI_OPTION ("-k [NamePrefix]",         "Find/Display ASL non-operator keyword(s)");
+    ACPI_OPTION ("-m [NamePrefix]",         "Find/Display AML opcode name(s)");
+    ACPI_OPTION ("-o [HexValue]",           "Decode hex AML opcode");
+    ACPI_OPTION ("-p [NamePrefix]",         "Find/Display ASL predefined method name(s)");
+    ACPI_OPTION ("-s [NamePrefix]",         "Find/Display ASL operator name(s)");
     printf ("\nNamePrefix/HexValue not specified means \"Display All\"\n");
     printf ("\nDefault search with NamePrefix and no options:\n");
     printf ("    Find ASL operator names - if NamePrefix does not start with underscore\n");
     printf ("    Find ASL predefined method names - if NamePrefix starts with underscore\n");
-    printf ("\n");
 }
 
 

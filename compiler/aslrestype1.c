@@ -179,7 +179,7 @@ RsDoMemory24Descriptor (
         case 1: /* Min Address */
 
             Descriptor->Memory24.Minimum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MINADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Minimum));
             MinOp = InitializerOp;
             break;
@@ -187,7 +187,7 @@ RsDoMemory24Descriptor (
         case 2: /* Max Address */
 
             Descriptor->Memory24.Maximum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MAXADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Maximum));
             MaxOp = InitializerOp;
             break;
@@ -195,14 +195,14 @@ RsDoMemory24Descriptor (
         case 3: /* Alignment */
 
             Descriptor->Memory24.Alignment = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Alignment));
             break;
 
         case 4: /* Length */
 
             Descriptor->Memory24.AddressLength = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.AddressLength));
             LengthOp = InitializerOp;
             break;
@@ -286,7 +286,7 @@ RsDoMemory32Descriptor (
         case 1:  /* Min Address */
 
             Descriptor->Memory32.Minimum = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_MINADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Minimum));
             MinOp = InitializerOp;
             break;
@@ -294,7 +294,7 @@ RsDoMemory32Descriptor (
         case 2: /* Max Address */
 
             Descriptor->Memory32.Maximum = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_MAXADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Maximum));
             MaxOp = InitializerOp;
             break;
@@ -302,7 +302,7 @@ RsDoMemory32Descriptor (
         case 3: /* Alignment */
 
             Descriptor->Memory32.Alignment = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Alignment));
             AlignOp = InitializerOp;
             break;
@@ -310,7 +310,7 @@ RsDoMemory32Descriptor (
         case 4: /* Length */
 
             Descriptor->Memory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.AddressLength));
             LengthOp = InitializerOp;
             break;
@@ -390,14 +390,14 @@ RsDoMemory32FixedDescriptor (
         case 1: /* Address */
 
             Descriptor->FixedMemory32.Address = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.Address));
             break;
 
         case 2: /* Length */
 
             Descriptor->FixedMemory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.AddressLength));
             break;
 

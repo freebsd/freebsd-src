@@ -153,5 +153,25 @@
 #define POSITIVE                    0
 
 
+/* Helper macros for resource tag creation */
+
+#define RsCreateMultiBitField \
+    RsCreateResourceField
+
+#define RsCreateBitField(Op, Name, ByteOffset, BitOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, BitOffset, 1)
+
+#define RsCreateByteField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 8);
+
+#define RsCreateWordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 16);
+
+#define RsCreateDwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 32);
+
+#define RsCreateQwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
+
 #endif /* ASLDEFINE.H */
 

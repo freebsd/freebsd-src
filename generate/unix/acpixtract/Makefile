@@ -13,24 +13,39 @@
 include ../Makefile.config
 PROG = acpixtract
 
-OBJS = \
-    acpixtract.o
+#
+# Search paths for source files
+#
+vpath %.c \
+    $(ACPIXTRACT) \
+    $(ACPICA_COMMON)
+
+HEADERS = \
+    $(wildcard $(ACPIXTRACT)/*.h)
+
+OBJECTS = \
+    acpixtract.o \
+    axmain.o \
+    getopt.o
 
 #
-# Root rule
+# Flags specific to acpixtract
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+CFLAGS+= \
+    -DACPI_XTRACT_APP \
 
 #
-# acpixtract source
+# Rules
 #
-acpixtract.o :          $(ACPICA_TOOLS)/acpixtract/acpixtract.c
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
+	$(COPYPROG)
+
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
-
 clean :
-	rm -f $(PROG) $(PROG).exe
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

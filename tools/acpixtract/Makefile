@@ -19,21 +19,42 @@ PROG = acpixtract
 
 HOST =          _LINUX
 NOMAN =         YES
-COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $?
+COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $<
 
 ACPICA_COMPONENTS =
-ACPICA_SRC =    ../..
-ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)$(ACPICA_COMPONENTS)
-ACPICA_TOOLS =  $(ACPICA_SRC)/tools
-ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
-INSTALLDIR =    /usr/bin
-INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
+ACPICA_SRC =            ../..
+ACPICA_INCLUDE =        $(ACPICA_SRC)/include
+ACPICA_COMMON =         $(ACPICA_SRC)/common
+ACPICA_CORE =           $(ACPICA_SRC)$(ACPICA_COMPONENTS)
+ACPICA_TOOLS =          $(ACPICA_SRC)/tools
+ACPIXTRACT =            $(ACPICA_TOOLS)/acpixtract
+INSTALLDIR =            /usr/bin
+INSTALLPROG =           cp --remove-destination $(PROG) $(INSTALLDIR)
+
+ACPICA_HEADERS = \
+    $(wildcard $(ACPICA_INCLUDE)/*.h) \
+    $(wildcard $(ACPICA_INCLUDE)/platform/*.h)
+
+#
+# Search paths for source files
+#
+vpath %.c \
+    $(ACPIXTRACT) \
+    $(ACPICA_COMMON)
+
+HEADERS = \
+    $(wildcard $(ACPIXTRACT)/*.h)
+
+OBJECTS = \
+    acpixtract.o \
+    axmain.o \
+    getopt.o
 
 CFLAGS+= \
     -D$(HOST) \
     -D_GNU_SOURCE \
-    -I$(ACPICA_SRC)/include
+    -DACPI_XTRACT_APP \
+    -I$(ACPICA_INCLUDE)
 
 CWARNINGFLAGS = \
     -ansi \
@@ -50,24 +71,36 @@ CWARNINGFLAGS = \
     -Wpointer-arith \
     -Wundef
 
-OBJS = \
-    acpixtract.o
+#
+# gcc 4+ flags
+#
+CWARNINGFLAGS += \
+    -Waddress \
+    -Waggregate-return \
+    -Wchar-subscripts \
+    -Wempty-body \
+    -Wlogical-op \
+    -Wmissing-declarations \
+    -Wmissing-field-initializers \
+    -Wmissing-parameter-type \
+    -Wnested-externs \
+    -Wold-style-declaration \
+    -Wold-style-definition \
+    -Wredundant-decls \
+    -Wtype-limits
 
 #
-# Root rule
+# Rules
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
+	$(COPYPROG)
 
-#
-# acpixtract source
-#
-acpixtract.o :          $(ACPICA_TOOLS)/acpixtract/acpixtract.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
-
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

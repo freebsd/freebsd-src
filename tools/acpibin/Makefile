@@ -19,39 +19,37 @@ PROG = acpibin
 
 HOST =          _LINUX
 NOMAN =         YES
-COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $?
+COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $<
 
 ACPICA_COMPONENTS =
-ACPICA_SRC =    ../..
-ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)$(ACPICA_COMPONENTS)
-ACPICA_TOOLS =  $(ACPICA_SRC)/tools
-ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
-INSTALLDIR =    /usr/bin
-INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
+ACPICA_SRC =            ../..
+ACPICA_INCLUDE =        $(ACPICA_SRC)/include
+ACPICA_COMMON =         $(ACPICA_SRC)/common
+ACPICA_CORE =           $(ACPICA_SRC)$(ACPICA_COMPONENTS)
+ACPICA_TOOLS =          $(ACPICA_SRC)/tools
+ACPICA_OSL =            $(ACPICA_SRC)/os_specific/service_layers
+ACPICA_UTILITIES =      $(ACPICA_CORE)/utilities
+ACPIBIN =               $(ACPICA_TOOLS)/acpibin
+INSTALLDIR =            /usr/bin
+INSTALLPROG =           cp --remove-destination $(PROG) $(INSTALLDIR)
 
-CFLAGS+= \
-    -D$(HOST) \
-    -D_GNU_SOURCE \
-    -DACPI_BIN_APP \
-    -I$(ACPICA_SRC)/include
+ACPICA_HEADERS = \
+    $(wildcard $(ACPICA_INCLUDE)/*.h) \
+    $(wildcard $(ACPICA_INCLUDE)/platform/*.h)
 
-CWARNINGFLAGS = \
-    -ansi \
-    -Wall \
-    -Wbad-function-cast \
-    -Wdeclaration-after-statement \
-    -Werror \
-    -Wformat=2 \
-    -Wmissing-declarations \
-    -Wmissing-prototypes \
-    -Wstrict-aliasing=0 \
-    -Wstrict-prototypes \
-    -Wswitch-default \
-    -Wpointer-arith \
-    -Wundef
+#
+# Search paths for source files
+#
+vpath %.c \
+    $(ACPIBIN) \
+    $(ACPICA_UTILITIES) \
+    $(ACPICA_COMMON) \
+    $(ACPICA_OSL)
 
-OBJS = \
+HEADERS = \
+    $(wildcard $(ACPIBIN)/*.h)
+
+OBJECTS = \
     abcompare.o \
     abmain.o \
 	utalloc.o \
@@ -68,72 +66,56 @@ OBJS = \
 	osunixxf.o \
     getopt.o
 
-#
-# Root rule
-#
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+CFLAGS+= \
+    -D$(HOST) \
+    -D_GNU_SOURCE \
+    -DACPI_BIN_APP \
+    -I$(ACPICA_INCLUDE)
+
+CWARNINGFLAGS = \
+    -ansi \
+    -Wall \
+    -Wbad-function-cast \
+    -Wdeclaration-after-statement \
+    -Werror \
+    -Wformat=2 \
+    -Wmissing-declarations \
+    -Wmissing-prototypes \
+    -Wstrict-aliasing=0 \
+    -Wstrict-prototypes \
+    -Wswitch-default \
+    -Wpointer-arith \
+    -Wundef
 
 #
-# acpibin source
+# gcc 4+ flags
 #
-abcompare.o :       $(ACPICA_TOOLS)/acpibin/abcompare.c
-	$(COMPILE)
-
-abmain.o :          $(ACPICA_TOOLS)/acpibin/abmain.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
-#
-# ACPICA core source
-#
-utalloc.o :         $(ACPICA_CORE)/utilities/utalloc.c
-	$(COMPILE)
-
-utcache.o :         $(ACPICA_CORE)/utilities/utcache.c
-	$(COMPILE)
-
-utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
-	$(COMPILE)
-
-utdecode.o :        $(ACPICA_CORE)/utilities/utdecode.c
-	$(COMPILE)
-
-utglobal.o :        $(ACPICA_CORE)/utilities/utglobal.c
-	$(COMPILE)
-
-utlock.o :          $(ACPICA_CORE)/utilities/utlock.c
-	$(COMPILE)
-
-utmath.o :          $(ACPICA_CORE)/utilities/utmath.c
-	$(COMPILE)
-
-utmisc.o :          $(ACPICA_CORE)/utilities/utmisc.c
-	$(COMPILE)
-
-utmutex.o :         $(ACPICA_CORE)/utilities/utmutex.c
-	$(COMPILE)
-
-utstate.o :         $(ACPICA_CORE)/utilities/utstate.c
-	$(COMPILE)
-
-utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
-	$(COMPILE)
+CWARNINGFLAGS += \
+    -Waddress \
+    -Waggregate-return \
+    -Wchar-subscripts \
+    -Wempty-body \
+    -Wlogical-op \
+    -Wmissing-declarations \
+    -Wmissing-field-initializers \
+    -Wmissing-parameter-type \
+    -Wnested-externs \
+    -Wold-style-declaration \
+    -Wold-style-definition \
+    -Wredundant-decls \
+    -Wtype-limits
 
 #
-# Unix OS services layer (OSL)
+# Rules
 #
-osunixxf.o :        $(ACPICA_OSL)/osunixxf.c
-	$(COMPILE)
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+	$(COMPILE)
 
 clean :
-	rm -f $(PROG) $(PROG) $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

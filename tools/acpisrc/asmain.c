@@ -229,6 +229,12 @@ AsDisplayStats (
 
     printf ("\nAcpiSrc statistics:\n\n");
     printf ("%8u Files processed\n", Gbl_Files);
+
+    if (!Gbl_Files)
+    {
+        return;
+    }
+
     printf ("%8u Total bytes (%.1fK/file)\n",
         Gbl_TotalSize, ((double) Gbl_TotalSize/Gbl_Files)/1024);
     printf ("%8u Tabs found\n", Gbl_Tabs);
@@ -243,6 +249,12 @@ AsDisplayStats (
         ((float) Gbl_SourceLines / (float) Gbl_WhiteLines));
     printf ("%8.1f Ratio of code to comments\n",
         ((float) Gbl_SourceLines / (float) (Gbl_CommentLines + Gbl_NonAnsiComments)));
+
+    if (!Gbl_TotalLines)
+    {
+        return;
+    }
+
     printf ("         %u%% code, %u%% comments, %u%% whitespace, %u%% headers\n",
         (Gbl_SourceLines * 100) / Gbl_TotalLines,
         (Gbl_CommentLines * 100) / Gbl_TotalLines,
@@ -265,19 +277,18 @@ AsDisplayUsage (
     void)
 {
 
+    ACPI_USAGE_HEADER ("acpisrc [-c|l|u] [-dsvy] <SourceDir> <DestinationDir>");
+
+    ACPI_OPTION ("-c",          "Generate cleaned version of the source");
+    ACPI_OPTION ("-h",          "Insert dual-license header into all modules");
+    ACPI_OPTION ("-l",          "Generate Linux version of the source");
+    ACPI_OPTION ("-u",          "Generate Custom source translation");
+
     printf ("\n");
-    printf ("Usage: acpisrc [-c|l|u] [-dsvy] <SourceDir> <DestinationDir>\n\n");
-    printf ("Where: -c          Generate cleaned version of the source\n");
-    printf ("       -h          Insert dual-license header into all modules\n");
-    printf ("       -l          Generate Linux version of the source\n");
-    printf ("       -u          Generate Custom source translation\n");
-    printf ("\n");
-    printf ("       -d          Leave debug statements in code\n");
-    printf ("       -s          Generate source statistics only\n");
-    printf ("       -v          Verbose mode\n");
-    printf ("       -y          Suppress file overwrite prompts\n");
-    printf ("\n");
-    return;
+    ACPI_OPTION ("-d",          "Leave debug statements in code");
+    ACPI_OPTION ("-s",          "Generate source statistics only");
+    ACPI_OPTION ("-v",          "Verbose mode");
+    ACPI_OPTION ("-y",          "Suppress file overwrite prompts");
 }
 
 

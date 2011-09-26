@@ -14,69 +14,46 @@ include ../Makefile.config
 PROG = acpisrc
 
 #
-# Flags specific to acpisrc
+# Search path for source files and individual source files
+#
+vpath %.c \
+    $(ACPISRC) \
+    $(ACPICA_COMMON) \
+    $(ACPICA_OSL)
+
+HEADERS = \
+    $(wildcard $(ACPISRC)/*.h)
+
+OBJECTS = \
+    ascase.o \
+    asconvrt.o \
+    asfile.o \
+    asmain.o \
+    asremove.o \
+    astable.o \
+    asutils.o \
+    osunixdir.o \
+    getopt.o
+
+#
+# Compile flags specific to acpisrc
 #
 CFLAGS+= \
     -DACPI_SRC_APP \
-    -I$(ACPICA_TOOLS)/acpisrc
-
-OBJS = \
-	ascase.o \
-	asconvrt.o \
-	asfile.o \
-	asmain.o \
-	asremove.o \
-	astable.o \
-	asutils.o \
-	getopt.o \
-	osunixdir.o
+    -I$(ACPISRC)
 
 #
-# Root rule
+# Rules
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-#
-# acpisrc source
-#
-ascase.o :          $(ACPICA_TOOLS)/acpisrc/ascase.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
-
-asconvrt.o :        $(ACPICA_TOOLS)/acpisrc/asconvrt.c
-	$(COMPILE)
-
-asfile.o :          $(ACPICA_TOOLS)/acpisrc/asfile.c
-	$(COMPILE)
-
-asmain.o :          $(ACPICA_TOOLS)/acpisrc/asmain.c
-	$(COMPILE)
-
-asremove.o :        $(ACPICA_TOOLS)/acpisrc/asremove.c
-	$(COMPILE)
-
-astable.o :         $(ACPICA_TOOLS)/acpisrc/astable.c
-	$(COMPILE)
-
-asutils.o :         $(ACPICA_TOOLS)/acpisrc/asutils.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
-#
-# Unix OS services layer (OSL)
-#
-osunixdir.o :       $(ACPICA_OSL)/osunixdir.c
-	$(COMPILE)
-
 
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)

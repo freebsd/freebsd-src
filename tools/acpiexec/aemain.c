@@ -82,30 +82,30 @@ static char             *FileList[ASL_MAX_FILES];
 static void
 usage (void)
 {
-    printf ("Usage: acpiexec [options] AMLfile1 AMLfile2 ...\n\n");
 
-    printf ("Where:\n");
-    printf ("   -?                  Display this message\n");
-    printf ("   -b <CommandLine>    Batch mode command execution\n");
-    printf ("   -m [Method]         Batch mode method execution. Default=MAIN\n");
+    ACPI_USAGE_HEADER ("acpiexec [options] AMLfile1 AMLfile2 ...");
+
+    ACPI_OPTION ("-?",                  "Display this message");
+    ACPI_OPTION ("-b <CommandLine>",    "Batch mode command execution");
+    ACPI_OPTION ("-m [Method]",         "Batch mode method execution. Default=MAIN");
     printf ("\n");
 
-    printf ("   -da                 Disable method abort on error\n");
-    printf ("   -di                 Disable execution of STA/INI methods during init\n");
-    printf ("   -do                 Disable Operation Region address simulation\n");
-    printf ("   -dr                 Disable repair of method return values\n");
-    printf ("   -dt                 Disable allocation tracking (performance)\n");
+    ACPI_OPTION ("-da",                 "Disable method abort on error");
+    ACPI_OPTION ("-di",                 "Disable execution of STA/INI methods during init");
+    ACPI_OPTION ("-do",                 "Disable Operation Region address simulation");
+    ACPI_OPTION ("-dr",                 "Disable repair of method return values");
+    ACPI_OPTION ("-dt",                 "Disable allocation tracking (performance)");
     printf ("\n");
 
-    printf ("   -ef                 Enable display of final memory statistics\n");
-    printf ("   -em                 Enable Interpreter Serialized Mode\n");
-    printf ("   -es                 Enable Interpreter Slack Mode\n");
-    printf ("   -et                 Enable debug semaphore timeout\n");
+    ACPI_OPTION ("-ef",                 "Enable display of final memory statistics");
+    ACPI_OPTION ("-em",                 "Enable Interpreter Serialized Mode");
+    ACPI_OPTION ("-es",                 "Enable Interpreter Slack Mode");
+    ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
     printf ("\n");
 
-    printf ("   -f <Value>          Operation Region initialization fill value\n");
-    printf ("   -v                  Verbose initialization output\n");
-    printf ("   -x <DebugLevel>     Debug output level\n");
+    ACPI_OPTION ("-f <Value>",          "Operation Region initialization fill value");
+    ACPI_OPTION ("-v",                  "Verbose initialization output");
+    ACPI_OPTION ("-x <DebugLevel>",     "Debug output level");
 }
 
 
@@ -583,12 +583,13 @@ main (
                 *WildcardList = NULL;
                 WildcardList++;
 
-                /*
-                 * Ignore an FACS or RSDT, we can't use them.
-                 */
-                if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS) ||
-                    ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_RSDT))
+                /* Ignore non-AML tables, we can't use them. Except for an FADT */
+
+                if (!ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FADT) &&
+                    !AcpiUtIsAmlTable (Table))
                 {
+                    ACPI_WARNING ((AE_INFO,"Table %4.4s is not an AML table, ignoring",
+                        Table->Signature));
                     AcpiOsFree (Table);
                     continue;
                 }

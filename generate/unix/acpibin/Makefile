@@ -14,13 +14,18 @@ include ../Makefile.config
 PROG = acpibin
 
 #
-# Flags specific to acpibin
+# Search paths for source files
 #
-CFLAGS+= \
-    -DACPI_BIN_APP \
-    -I$(ACPICA_TOOLS)/acpibin
+vpath %.c \
+    $(ACPIBIN) \
+    $(ACPICA_UTILITIES) \
+    $(ACPICA_COMMON) \
+    $(ACPICA_OSL)
 
-OBJS = \
+HEADERS = \
+    $(wildcard $(ACPIBIN)/*.h)
+
+OBJECTS = \
     abcompare.o \
     abmain.o \
 	utalloc.o \
@@ -38,72 +43,24 @@ OBJS = \
     getopt.o
 
 #
-# Root rule
+# Flags specific to acpibin
 #
-$(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+CFLAGS+= \
+    -DACPI_BIN_APP \
+    -I$(ACPIBIN)
+
+#
+# Rules
+#
+$(PROG) : $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-#
-# acpibin source
-#
-abcompare.o :       $(ACPICA_TOOLS)/acpibin/abcompare.c
+%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
-
-abmain.o :          $(ACPICA_TOOLS)/acpibin/abmain.c
-	$(COMPILE)
-
-#
-# ACPICA core source - common
-#
-getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
-#
-# ACPICA core source
-#
-utalloc.o :         $(ACPICA_CORE)/utilities/utalloc.c
-	$(COMPILE)
-
-utcache.o :         $(ACPICA_CORE)/utilities/utcache.c
-	$(COMPILE)
-
-utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
-	$(COMPILE)
-
-utdecode.o :        $(ACPICA_CORE)/utilities/utdecode.c
-	$(COMPILE)
-
-utglobal.o :        $(ACPICA_CORE)/utilities/utglobal.c
-	$(COMPILE)
-
-utlock.o :          $(ACPICA_CORE)/utilities/utlock.c
-	$(COMPILE)
-
-utmath.o :          $(ACPICA_CORE)/utilities/utmath.c
-	$(COMPILE)
-
-utmisc.o :          $(ACPICA_CORE)/utilities/utmisc.c
-	$(COMPILE)
-
-utmutex.o :         $(ACPICA_CORE)/utilities/utmutex.c
-	$(COMPILE)
-
-utstate.o :         $(ACPICA_CORE)/utilities/utstate.c
-	$(COMPILE)
-
-utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
-	$(COMPILE)
-
-#
-# Unix OS services layer (OSL)
-#
-osunixxf.o :        $(ACPICA_OSL)/osunixxf.c
-	$(COMPILE)
-
 
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJS)
+	rm -f $(PROG) $(PROG).exe $(OBJECTS)
 
 install :
 	$(INSTALLPROG)
