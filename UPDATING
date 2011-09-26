@@ -9,8 +9,8 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
-	FreeBSD 9.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
+	FreeBSD 10.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	kernel.  Many developers choose to disable these features on build
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
+
+20110923:
+	The stable/9 branch created in subversion.  This corresponds to the
+	RELENG_9 branch in CVS.
 
 20110913:
 	This commit modifies vfs_register() so that it uses a hash
