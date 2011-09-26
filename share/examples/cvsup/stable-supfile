@@ -67,7 +67,7 @@
 *default base=/var/db
 *default prefix=/usr
 # The following line is for 9-stable.  If you want 8-stable, 7-stable,
-# 6-stable, 5-stable, 4-stable, 3-stable, or 2.2-stable, change to
+# 6-stable, 5-stable, 4-stable, 3-stable, or 2.2-stable, change to "RELENG_8",
 # "RELENG_7", "RELENG_6", "RELENG_5", "RELENG_4", "RELENG_3", or
 # "RELENG_2_2" respectively.
 *default release=cvs tag=RELENG_9
