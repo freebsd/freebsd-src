@@ -293,8 +293,7 @@ hast_activemap_flush(struct hast_resource *res)
 	PJDLOG_ASSERT((size % res->hr_local_sectorsize) == 0);
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to flush activemap to disk"));
+		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
 		return (-1);
 	}
 	return (0);
