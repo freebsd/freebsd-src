@@ -638,8 +638,8 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 	/* passive mode */
 	if (!pasv)
-		pasv = ((s = getenv("FTP_PASSIVE_MODE")) != NULL &&
-		    strncasecmp(s, "no", 2) != 0);
+		pasv = ((s = getenv("FTP_PASSIVE_MODE")) == NULL ||
+		    strncasecmp(s, "no", 2) == 0);
 
 	/* isolate filename */
 	filename = ftp_filename(file, &filenamelen, &type);
