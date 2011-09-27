@@ -472,8 +472,8 @@ replication_statement:	REPLICATION replication_type
 			depth0_replication = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_replication = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_replication = $2;
 			break;
 		default:
 			PJDLOG_ABORT("replication at wrong depth level");
@@ -496,8 +496,8 @@ checksum_statement:	CHECKSUM checksum_type
 			depth0_checksum = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_checksum = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_checksum = $2;
 			break;
 		default:
 			PJDLOG_ABORT("checksum at wrong depth level");
@@ -520,8 +520,8 @@ compression_statement:	COMPRESSION compression_type
 			depth0_compression = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_compression = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_compression = $2;
 			break;
 		default:
 			PJDLOG_ABORT("compression at wrong depth level");
@@ -548,8 +548,8 @@ timeout_statement:	TIMEOUT NUM
 			depth0_timeout = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_timeout = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_timeout = $2;
 			break;
 		default:
 			PJDLOG_ABORT("timeout at wrong depth level");
@@ -569,8 +569,7 @@ exec_statement:		EXEC STR
 			}
 			break;
 		case 1:
-			if (curres == NULL)
-				break;
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_exec, $2,
 			    sizeof(curres->hr_exec)) >=
 			    sizeof(curres->hr_exec)) {
@@ -639,7 +638,7 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 			}
 
 			/*
-			 * Let's see there are some resource-level settings
+			 * Let's see if there are some resource-level settings
 			 * that we can use for node-level settings.
 			 */
 			if (curres->hr_provname[0] == '\0' &&
