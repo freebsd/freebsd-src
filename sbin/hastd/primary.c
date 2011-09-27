@@ -1421,8 +1421,7 @@ remote_send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			PJDLOG_ASSERT(!"invalid condition");
-			abort();
+			PJDLOG_ABORT("invalid condition");
 		}
 		nv = nv_alloc();
 		nv_add_uint8(nv, cmd, "cmd");
@@ -1621,8 +1620,7 @@ remote_recv_thread(void *arg)
 		case BIO_FLUSH:
 			break;
 		default:
-			PJDLOG_ASSERT(!"invalid condition");
-			abort();
+			PJDLOG_ABORT("invalid condition");
 		}
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);
