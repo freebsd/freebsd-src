@@ -70,6 +70,7 @@ onoe [label="Atsushi Onoe\nonoe@FreeBSD.org\n2000/07/21\n2008/11/10"]
 rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12\n2003/03/08"]
 rink [label="Rink Springer\nrink@FreeBSD.org\n2006/01/16\n2010/11/04"]
 robert [label="Robert Drehmel\nrobert@FreeBSD.org\n2001/08/23\n2006/05/13"]
+rmh [label="Robert Millan\nrmh@FreeBSD.org\n2011/09/18"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25\n2010/12/03"]
 sah [label="Sam Hopkins\nsah@FreeBSD.org\n2004/12/15\n2008/11/10"]
 shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19\n2006/04/06"]
@@ -270,6 +271,7 @@ day1 -> alm
 day1 -> dg
 
 adrian -> ray
+adrian -> rmh
 
 andre -> qingli
 
@@ -440,6 +442,7 @@ kib -> pho
 kib -> pluknet
 kib -> rdivacky
 kib -> rmacklem
+kib -> rmh
 kib -> stas
 kib -> tijl
 kib -> trociny
