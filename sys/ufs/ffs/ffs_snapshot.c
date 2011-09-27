@@ -212,7 +212,7 @@ ffs_snapshot(mp, snapfile)
 	struct fs *copy_fs = NULL, *fs;
 	struct thread *td = curthread;
 	struct inode *ip, *xp;
-	struct buf *bp, *nbp, *ibp, *sbp = NULL;
+	struct buf *bp, *nbp, *ibp;
 	struct nameidata nd;
 	struct mount *wrtmp;
 	struct vattr vat;
@@ -460,21 +460,14 @@ restart:
 	 * Grab a copy of the superblock and its summary information.
 	 * We delay writing it until the suspension is released below.
 	 */
-	error = bread(vp, lblkno(fs, fs->fs_sblockloc), fs->fs_bsize,
-	    KERNCRED, &sbp);
-	if (error) {
-		brelse(sbp);
-		sbp = NULL;
-		goto out1;
-	}
-	loc = blkoff(fs, fs->fs_sblockloc);
-	copy_fs = (struct fs *)(sbp->b_data + loc);
+	copy_fs = malloc((u_long)fs->fs_bsize, M_UFSMNT, M_WAITOK);
 	bcopy(fs, copy_fs, fs->fs_sbsize);
 	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 		copy_fs->fs_clean = 1;
 	size = fs->fs_bsize < SBLOCKSIZE ? fs->fs_bsize : SBLOCKSIZE;
 	if (fs->fs_sbsize < size)
-		bzero(&sbp->b_data[loc + fs->fs_sbsize], size - fs->fs_sbsize);
+		bzero(&((char *)copy_fs)[fs->fs_sbsize],
+		    size - fs->fs_sbsize);
 	size = blkroundup(fs, fs->fs_cssize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
@@ -490,8 +483,8 @@ restart:
 		    len, KERNCRED, &bp)) != 0) {
 			brelse(bp);
 			free(copy_fs->fs_csp, M_UFSMNT);
-			bawrite(sbp);
-			sbp = NULL;
+			free(copy_fs, M_UFSMNT);
+			copy_fs = NULL;
 			goto out1;
 		}
 		bcopy(bp->b_data, space, (u_int)len);
@@ -606,8 +599,8 @@ loop:
 		vdrop(xvp);
 		if (error) {
 			free(copy_fs->fs_csp, M_UFSMNT);
-			bawrite(sbp);
-			sbp = NULL;
+			free(copy_fs, M_UFSMNT);
+			copy_fs = NULL;
 			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			goto out1;
 		}
@@ -621,8 +614,8 @@ loop:
 		error = softdep_journal_lookup(mp, &xvp);
 		if (error) {
 			free(copy_fs->fs_csp, M_UFSMNT);
-			bawrite(sbp);
-			sbp = NULL;
+			free(copy_fs, M_UFSMNT);
+			copy_fs = NULL;
 			goto out1;
 		}
 		xp = VTOI(xvp);
@@ -688,8 +681,8 @@ loop:
 	VI_UNLOCK(devvp);
 	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
 out1:
-	KASSERT((sn != NULL && sbp != NULL && error == 0) ||
-		(sn == NULL && sbp == NULL && error != 0),
+	KASSERT((sn != NULL && copy_fs != NULL && error == 0) ||
+		(sn == NULL && copy_fs == NULL && error != 0),
 		("email phk@ and mckusick@"));
 	/*
 	 * Resume operation on filesystem.
@@ -703,7 +696,7 @@ out1:
 		    vp->v_mount->mnt_stat.f_mntonname, (long)endtime.tv_sec,
 		    endtime.tv_nsec / 1000000, redo, fs->fs_ncg);
 	}
-	if (sbp == NULL)
+	if (copy_fs == NULL)
 		goto out;
 	/*
 	 * Copy allocation information from all the snapshots in
@@ -793,6 +786,15 @@ out1:
 		space = (char *)space + fs->fs_bsize;
 		bawrite(nbp);
 	}
+	error = bread(vp, lblkno(fs, fs->fs_sblockloc), fs->fs_bsize,
+	    KERNCRED, &nbp);
+	if (error) {
+		brelse(nbp);
+	} else {
+		loc = blkoff(fs, fs->fs_sblockloc);
+		bcopy((char *)copy_fs, &nbp->b_data[loc], fs->fs_bsize);
+		bawrite(nbp);
+	}
 	/*
 	 * As this is the newest list, it is the most inclusive, so
 	 * should replace the previous list.
@@ -822,7 +824,8 @@ out1:
 		vrele(vp);		/* Drop extra reference */
 done:
 	free(copy_fs->fs_csp, M_UFSMNT);
-	bawrite(sbp);
+	free(copy_fs, M_UFSMNT);
+	copy_fs = NULL;
 out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (saved_nice > 0) {
