@@ -2792,6 +2792,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
+	struct ieee80211_frame *wh;
+	ieee80211_seq seqno;
 
 	IEEE80211_LOCK(ic);
 	/*
@@ -2822,6 +2824,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		IEEE80211_UNLOCK(ic);
 		return 1;		/* just assume length changed */
 	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	*(uint16_t *)&wh->i_seq[0] =
+		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
 
 	/* XXX faster to recalculate entirely or just changes? */
 	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);

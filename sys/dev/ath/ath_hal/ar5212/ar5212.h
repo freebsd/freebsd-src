@@ -430,6 +430,7 @@ extern	void ar5212BeaconInit(struct ath_hal *ah,
 extern	void ar5212ResetStaBeaconTimers(struct ath_hal *ah);
 extern	void ar5212SetStaBeaconTimers(struct ath_hal *ah,
 		const HAL_BEACON_STATE *);
+extern	uint64_t ar5212GetNextTBTT(struct ath_hal *);
 
 extern	HAL_BOOL ar5212IsInterruptPending(struct ath_hal *ah);
 extern	HAL_BOOL ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *);

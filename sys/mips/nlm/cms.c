@@ -56,9 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/mmio.h>
+#include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/cop0.h>
 #include <mips/nlm/hal/cop2.h>
 #include <mips/nlm/hal/fmn.h>
 #include <mips/nlm/hal/pic.h>
@@ -108,7 +107,7 @@ xlp_msgring_config(void)
 	int i;
 
 	/* TODO: Add other nodes */
-	xlp_cms_base = nlm_regbase_cms(0);
+	xlp_cms_base = nlm_get_cms_regbase(0);
 
 	mtx_init(&msgmap_lock, "msgring", NULL, MTX_SPIN);
 	if (xlp_threads_per_core < xlp_msg_threads_per_core)
@@ -147,62 +146,58 @@ xlp_msgring_iodi_config(void)
 void
 nlm_cms_credit_setup(int credit)
 {
-        int src, qid, i;
+	int src, qid, i;
 
 #if 0
-        /* there are a total of 18 src stations on XLP. */
+	/* there are a total of 18 src stations on XLP. */
 	printf("Setting up CMS credits!\n");
-        for(src=0; src<18; src++) {
-                for(qid=0; qid<1024; qid++) {
-                        nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-                }
-        }
+	for (src=0; src<18; src++) {
+		for(qid=0; qid<1024; qid++) {
+			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+		}
+	}
 #endif
 	printf("Setting up CMS credits!\n");
 	/* CPU Credits */
-        for(i = 1; i < 8; i++) {
+	for (i = 1; i < 8; i++) {
 		src = (i << 4);
-                for(qid = 0; qid < 1024; qid++) {
-                        nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-                }
-        }
+		for (qid = 0; qid < 1024; qid++)
+			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+	}
 	/* PCIE Credits */
-        for(i = 0; i < 4; i++) {
+	for(i = 0; i < 4; i++) {
 		src = (256 + (i * 2));
-                for(qid = 0; qid < 1024; qid++) {
-                        nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-                }
-        }
+		for(qid = 0; qid < 1024; qid++)
+			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+	}
 	/* DTE Credits */
 	src = 264;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for (qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
 	/* RSA Credits */
 	src = 272;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for (qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+
 	/* Crypto Credits */
 	src = 281;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for (qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+
 	/* CMP Credits */
 	src = 298;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for (qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+
 	/* POE Credits */
 	src = 384;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for(qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+
 	/* NAE Credits */
 	src = 476;
-        for(qid = 0; qid < 1024; qid++) {
-               nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-        }
+	for(qid = 0; qid < 1024; qid++)
+		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
 }
 
 void
@@ -210,7 +205,7 @@ xlp_msgring_cpu_init(uint32_t cpuid)
 {
 	int queue,i;
 
-	queue = XLP_CMS_CPU_PUSHQ(0, ((cpuid >> 2) & 0x7), (cpuid & 0x3), 0);
+	queue = CMS_CPU_PUSHQ(0, ((cpuid >> 2) & 0x7), (cpuid & 0x3), 0);
 	/* temp allocate 4 segments to each output queue */
 	nlm_cms_alloc_onchip_q(xlp_cms_base, queue, 4);
 	/* Enable high watermark and non empty interrupt */
@@ -247,9 +242,9 @@ xlp_handle_msg_vc(int vc, int max_msgs)
 	uint32_t mflags, status;
 
 	for (i = 0; i < max_msgs; i++) {
-		mflags = nlm_fmn_saveflags();
+		mflags = nlm_save_flags_cop2();
 		status = nlm_fmn_msgrcv(vc, &srcid, &size, &code, &msg);
-		nlm_fmn_restoreflags(mflags);
+		nlm_restore_flags(mflags);
 		if (status != 0) /* If there is no msg or error */
 			break;
 		if (srcid < 0 && srcid >= 1024) {
@@ -273,27 +268,27 @@ xlp_handle_msg_vc(int vc, int max_msgs)
 static int
 msgring_process_fast_intr(void *arg)
 {
-        struct msgring_thread *mthd;
-        struct thread *td;
-        int             cpu;
+	struct msgring_thread *mthd;
+	struct thread *td;
+	int	cpu;
 
 	cpu = nlm_cpuid();
-        mthd = &msgring_threads[cpu];
-        td = mthd->thread;
+	mthd = &msgring_threads[cpu];
+	td = mthd->thread;
 
-        /* clear pending interrupts */
-        nlm_write_c0_eirr(1ULL << IRQ_MSGRING);
+	/* clear pending interrupts */
+	nlm_write_c0_eirr(1ULL << IRQ_MSGRING);
 
-        /* wake up the target thread */
-        mthd->needed = 1;
-        thread_lock(td);
-        if (TD_AWAITING_INTR(td)) {
-                TD_CLR_IWAIT(td);
-                sched_add(td, SRQ_INTR);
-        }
+	/* wake up the target thread */
+	mthd->needed = 1;
+	thread_lock(td);
+	if (TD_AWAITING_INTR(td)) {
+		TD_CLR_IWAIT(td);
+		sched_add(td, SRQ_INTR);
+	}
 
-        thread_unlock(td);
-        return (FILTER_HANDLED);
+	thread_unlock(td);
+	return (FILTER_HANDLED);
 }
 
 u_int fmn_msgcount[32][4];
@@ -302,31 +297,31 @@ u_int fmn_loops[32];
 static void
 msgring_process(void * arg)
 {
-        volatile struct msgring_thread *mthd;
-        struct thread *td;
-        uint32_t mflags;
+	volatile struct msgring_thread *mthd;
+	struct thread *td;
+	uint32_t mflags;
 	int hwtid, vc, handled, nmsgs;
 
 	hwtid = (intptr_t)arg;
-        mthd = &msgring_threads[hwtid];
-        td = mthd->thread;
-        KASSERT(curthread == td,
-                ("%s:msg_ithread and proc linkage out of sync", __func__));
+	mthd = &msgring_threads[hwtid];
+	td = mthd->thread;
+	KASSERT(curthread == td,
+	    ("%s:msg_ithread and proc linkage out of sync", __func__));
 
-        /* First bind this thread to the right CPU */
-        thread_lock(td);
-        sched_bind(td, xlp_hwtid_to_cpuid[hwtid]);
-        thread_unlock(td);
+	/* First bind this thread to the right CPU */
+	thread_lock(td);
+	sched_bind(td, xlp_hwtid_to_cpuid[hwtid]);
+	thread_unlock(td);
 
 	if (hwtid != nlm_cpuid())
 		printf("Misscheduled hwtid %d != cpuid %d\n", hwtid, nlm_cpuid());
-	mflags = nlm_fmn_saveflags();
-        nlm_fmn_cpu_init(IRQ_MSGRING, 0, 0, 0, 0, 0);
-	nlm_fmn_restoreflags(mflags);
+	mflags = nlm_save_flags_cop2();
+	nlm_fmn_cpu_init(IRQ_MSGRING, 0, 0, 0, 0, 0);
+	nlm_restore_flags(mflags);
 
-        /* start processing messages */
-        for( ; ; ) {
-                /*atomic_store_rel_int(&mthd->needed, 0);*/
+	/* start processing messages */
+	for( ; ; ) {
+		/*atomic_store_rel_int(&mthd->needed, 0);*/
 
 	        /* enable cop2 access */
 		do {
@@ -338,22 +333,22 @@ msgring_process(void * arg)
 			}
 		} while (handled);
 
-                /* sleep */
+		/* sleep */
 #if 0
-                thread_lock(td);
-                if (mthd->needed) {
-                        thread_unlock(td);
-                        continue;
-                }
-                sched_class(td, PRI_ITHD);
-                TD_SET_IWAIT(td);
-                mi_switch(SW_VOL, NULL);
-                thread_unlock(td);
+		thread_lock(td);
+		if (mthd->needed) {
+			thread_unlock(td);
+			continue;
+		}
+		sched_class(td, PRI_ITHD);
+		TD_SET_IWAIT(td);
+		mi_switch(SW_VOL, NULL);
+		thread_unlock(td);
 #else
 		pause("wmsg", 1);
 #endif
 		fmn_loops[hwtid]++;
-        }
+	}
 }
 
 static void
@@ -396,7 +391,6 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 		msgmap[i].arg = arg;
 	}
 	mtx_unlock_spin(&msgmap_lock);
-
 	return (0);
 }
 

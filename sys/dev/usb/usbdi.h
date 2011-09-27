@@ -475,6 +475,8 @@ void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
 usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
 			uint8_t iface_index, const char *pnpinfo);
+usb_error_t	usbd_add_dynamic_quirk(struct usb_device *udev,
+			uint16_t quirk);
 
 const struct usb_device_id *usbd_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,

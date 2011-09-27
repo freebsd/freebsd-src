@@ -38,6 +38,37 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110915: rename congestion control manpages
+OLD_FILES+=usr/share/man/man4/cc.4.gz
+OLD_FILES+=usr/share/man/man9/cc.9.gz
+# 20110831: atomic page flags operations
+OLD_FILES+=usr/share/man/man9/vm_page_flag.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_clear.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_set.9.gz
+# 20110828: library version bump for 9.0
+OLD_LIBS+=lib/libcam.so.5
+OLD_LIBS+=lib/libpcap.so.7
+OLD_LIBS+=lib/libufs.so.5
+OLD_LIBS+=usr/lib/libbsnmp.so.5
+OLD_LIBS+=usr/lib/libdwarf.so.2
+OLD_LIBS+=usr/lib/libopie.so.6
+OLD_LIBS+=usr/lib/librtld_db.so.1
+OLD_LIBS+=usr/lib/libtacplus.so.4
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libcam.so.5
+OLD_LIBS+=usr/lib32/libpcap.so.7
+OLD_LIBS+=usr/lib32/libufs.so.5
+OLD_LIBS+=usr/lib32/libbsnmp.so.5
+OLD_LIBS+=usr/lib32/libdwarf.so.2
+OLD_LIBS+=usr/lib32/libopie.so.6
+OLD_LIBS+=usr/lib32/librtld_db.so.1
+OLD_LIBS+=usr/lib32/libtacplus.so.4
+.endif
+# 20110718: no longer useful in the age of rc.d
+OLD_FILES+=usr/sbin/named.reconfig
+OLD_FILES+=usr/sbin/named.reload
+# 20110716: bind 9.8.0 import
+OLD_LIBS+=usr/lib/liblwres.so.50
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.
@@ -61,8 +92,17 @@ OLD_FILES+=usr/lib/libpkg.a
 OLD_FILES+=usr/lib/libpkg.so
 OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/lib/libpkg_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libpkg.a
+OLD_FILES+=usr/lib32/libpkg.so
+OLD_LIBS+=usr/lib32/libpkg.so.0
+OLD_FILES+=usr/lib32/libpkg_p.a
+.endif
 # 20110517: libsbuf version bump
 OLD_LIBS+=lib/libsbuf.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libsbuf.so.5
+.endif
 # 20110502: new clang import which bumps version from 2.9 to 3.0
 OLD_FILES+=usr/include/clang/2.9/emmintrin.h
 OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
@@ -91,6 +131,12 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libobjc.a
+OLD_FILES+=usr/lib32/libobjc.so
+OLD_FILES+=usr/lib32/libobjc_p.a
+OLD_LIBS+=usr/lib32/libobjc.so.4
+.endif
 # 20110331: firmware.img created at build time
 OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
 # 20110224: sticky.8 -> sticky.7
@@ -2043,9 +2089,9 @@ OLD_FILES+=usr/share/man/man5/ipsend.5.gz
 OLD_FILES+=usr/bin/gtar
 OLD_FILES+=usr/share/man/man1/gtar.1.gz
 # 200503XX
-OLD_FILES+=share/man/man3/exp10.3.gz
-OLD_FILES+=share/man/man3/exp10f.3.gz
-OLD_FILES+=share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/exp10.3.gz
+OLD_FILES+=usr/share/man/man3/exp10f.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
 # 20050324: updated release infrastructure
 OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
 # 20050317: removed from BIND 9 distribution
@@ -2293,6 +2339,8 @@ OLD_FILES+=lib/libz.so
 OLD_FILES+=bin/cxconfig
 OLD_FILES+=sbin/cxconfig
 OLD_FILES+=usr/share/man/man8/cxconfig.8.gz
+# 20031016: MULTI_DRIVER_MODULE macro removed
+OLD_FILES+=usr/share/man/man9/MULTI_DRIVER_MODULE.9.gz
 # 200309XX
 OLD_FILES+=usr/bin/symorder
 OLD_FILES+=usr/share/man/man1/symorder.1.gz

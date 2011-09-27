@@ -324,7 +324,7 @@ pmclog_loop(void *arg)
 			/* XXX some errors are recoverable */
 			/* send a SIGIO to the owner and exit */
 			PROC_LOCK(p);
-			psignal(p, SIGIO);
+			kern_psignal(p, SIGIO);
 			PROC_UNLOCK(p);
 
 			mtx_lock(&pmc_kthread_mtx);

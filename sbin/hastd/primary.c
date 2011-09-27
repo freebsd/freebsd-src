@@ -293,8 +293,7 @@ hast_activemap_flush(struct hast_resource *res)
 	PJDLOG_ASSERT((size % res->hr_local_sectorsize) == 0);
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to flush activemap to disk"));
+		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
 		return (-1);
 	}
 	return (0);
@@ -1421,8 +1420,7 @@ remote_send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			PJDLOG_ASSERT(!"invalid condition");
-			abort();
+			PJDLOG_ABORT("invalid condition");
 		}
 		nv = nv_alloc();
 		nv_add_uint8(nv, cmd, "cmd");
@@ -1621,8 +1619,7 @@ remote_recv_thread(void *arg)
 		case BIO_FLUSH:
 			break;
 		default:
-			PJDLOG_ASSERT(!"invalid condition");
-			abort();
+			PJDLOG_ABORT("invalid condition");
 		}
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);

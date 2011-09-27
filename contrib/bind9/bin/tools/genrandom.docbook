@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: genrandom.docbook,v 1.6 2010-05-17 23:51:05 tbox Exp $ -->
+<!-- $Id: genrandom.docbook,v 1.6.124.2 2011-08-08 23:45:44 tbox Exp $ -->
 <refentry id="man.genrandom">
   <refentryinfo>
     <date>Feb 19, 2009</date>
@@ -38,6 +38,7 @@
     <copyright>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -84,7 +85,7 @@
       </varlistentry>
 
       <varlistentry>
-        <term>domain</term>
+        <term>filename</term>
         <listitem>
           <para>
             The file name into which random data should be written.

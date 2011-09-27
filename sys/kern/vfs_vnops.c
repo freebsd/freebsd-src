@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
 static fo_truncate_t	vn_truncate;
@@ -1353,7 +1356,7 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	PROC_LOCK(td->td_proc);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-		psignal(td->td_proc, SIGXFSZ);
+		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
@@ -1397,4 +1400,16 @@ vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	error = setfown(td, active_cred, vp, uid, gid);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
+}
+
+void
+vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	vm_object_page_remove(object, start, end, 0);
+	VM_OBJECT_UNLOCK(object);
 }

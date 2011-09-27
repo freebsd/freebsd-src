@@ -27,8 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
+#if !defined(KLD_MODULE)
 #include "opt_ipdn.h"
 #include "opt_inet.h"
 #ifndef INET

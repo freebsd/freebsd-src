@@ -791,8 +791,8 @@ send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			abort();
-			break;
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
 		}
 		if (hio->hio_error != 0)
 			nv_add_int16(nvout, hio->hio_error, "error");

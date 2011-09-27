@@ -401,14 +401,14 @@ static u_int8_t
 rmi_bus_space_read_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	return (u_int8_t) (*(volatile u_int32_t *)(handle + offset));
+	return (u_int8_t) (*(volatile u_int8_t *)(handle + offset));
 }
 
 static u_int16_t
 rmi_bus_space_read_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	return (u_int16_t)(*(volatile u_int32_t *)(handle + offset));
+	return (u_int16_t)(*(volatile u_int16_t *)(handle + offset));
 }
 
 static u_int32_t
@@ -453,14 +453,14 @@ static void
 rmi_bus_space_write_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int8_t value)
 {
-	*(volatile u_int32_t *)(handle + offset) =  (u_int32_t)value;
+	*(volatile u_int8_t *)(handle + offset) =  value;
 }
 
 static void
 rmi_bus_space_write_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t value)
 {
-	*(volatile u_int32_t *)(handle + offset) = (u_int32_t)value;
+	*(volatile u_int16_t *)(handle + offset) = value;
 }
 
 static void

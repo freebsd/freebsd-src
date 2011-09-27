@@ -260,7 +260,7 @@ struct setfib_args {
 };
 #endif
 int
-setfib(struct thread *td, struct setfib_args *uap)
+sys_setfib(struct thread *td, struct setfib_args *uap)
 {
 	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
 		return EINVAL;

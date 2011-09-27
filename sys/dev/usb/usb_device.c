@@ -1239,7 +1239,7 @@ static void
 usb_init_attach_arg(struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
-	bzero(uaa, sizeof(*uaa));
+	memset(uaa, 0, sizeof(*uaa));
 
 	uaa->device = udev;
 	uaa->usb_mode = udev->flags.usb_mode;
@@ -1850,6 +1850,20 @@ repeat_set_config:
 			}
 		}
 	}
+	if (set_config_failed == 0 && config_index == 0 &&
+	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0) {
+
+		/*
+		 * Try to figure out if there are any MSC quirks we
+		 * should apply automatically:
+		 */
+		err = usb_msc_auto_quirk(udev, 0);
+
+		if (err != 0) {
+			set_config_failed = 1;
+			goto repeat_set_config;
+		}
+	}
 
 config_done:
 	DPRINTF("new dev (addr %d), udev=%p, parent_hub=%p\n",
@@ -2370,8 +2384,22 @@ uint8_t
 usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk)
 {
 	uint8_t found;
+	uint8_t x;
+
+	if (quirk == UQ_NONE)
+		return (0);
+
+	/* search the automatic per device quirks first */
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (uaa->device->autoQuirk[x] == quirk)
+			return (1);
+	}
+
+	/* search global quirk table, if any */
 
 	found = (usb_test_quirk_p) (&uaa->info, quirk);
+
 	return (found);
 }
 
@@ -2698,3 +2726,17 @@ usbd_set_pnpinfo(struct usb_device *udev, uint8_t iface_index, const char *pnpin
 	return (0);			/* success */
 }
 
+usb_error_t
+usbd_add_dynamic_quirk(struct usb_device *udev, uint16_t quirk)
+{
+	uint8_t x;
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (udev->autoQuirk[x] == 0 ||
+		    udev->autoQuirk[x] == quirk) {
+			udev->autoQuirk[x] = quirk;
+			return (0);	/* success */
+		}
+	}
+	return (USB_ERR_NOMEM);
+}
