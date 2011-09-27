@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LIB=	krb5
+LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map
+LDADD=	-lasn1 -lcom_err -lcrypt -lcrypto -lhx509 -lroken
+DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO} ${LIBHX509} ${LIBROKEN}
 
 INCS=	heim_err.h \
 	heim_threads.h \

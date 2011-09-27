@@ -1218,7 +1218,8 @@ _startup_libs+=	lib/libc
 
 gnu/lib/libgcc__L: lib/libc__L
 
-_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
+_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
+		${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
@@ -1268,6 +1269,19 @@ secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
 _secure_lib=	secure/lib
 .endif
 
+.if ${MK_KERBEROS} != "no"
+kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
+kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L
+kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L
+kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    secure/lib/libcrypto__L kerberos5/lib/libroken__L
+kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
+    kerberos5/lib/libroken__L
+kerberos5/lib/libroken__L: lib/libcrypt__L
+.endif
+
 .if ${MK_GSSAPI} != "no"
 _lib_libgssapi=	lib/libgssapi
 .endif
@@ -1279,6 +1293,7 @@ _lib_libipx=	lib/libipx
 .if ${MK_KERBEROS} != "no"
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
+_kerberos5_lib_libhdb= kerberos5/lib/libhdb
 _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
