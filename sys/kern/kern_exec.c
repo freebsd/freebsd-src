@@ -777,16 +777,6 @@ interpret:
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
 	p->p_flag &= ~P_INEXEC;
 
-	/*
-	 * If tracing the process, trap to the debugger so that
-	 * breakpoints can be set before the program executes.  We
-	 * have to use tdsignal() to deliver the signal to the current
-	 * thread since any other threads in this process will exit if
-	 * execve() succeeds.
-	 */
-	if (p->p_flag & P_TRACED)
-		tdsignal(td, SIGTRAP);
-
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
 
