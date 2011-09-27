@@ -540,7 +540,7 @@ fetch(char *URL, const char *path)
 				goto failure;
 			}
 			/* we got it, open local file */
-			if ((of = fopen(path, "a")) == NULL) {
+			if ((of = fopen(path, "r+")) == NULL) {
 				warn("%s: fopen()", path);
 				goto failure;
 			}
@@ -559,13 +559,13 @@ fetch(char *URL, const char *path)
 				sb = nsb;
 				/* picked up again later */
 			}
-			/* seek to where we left off */
-			if (of != NULL && fseek(of, url->offset, SEEK_SET) != 0) {
-				warn("%s: fseek()", path);
-				fclose(of);
-				of = NULL;
-				/* picked up again later */
-			}
+		}
+		/* seek to where we left off */
+		if (of != NULL && fseek(of, url->offset, SEEK_SET) != 0) {
+			warn("%s: fseek()", path);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		}
 	} else if (m_flag && sb.st_size != -1) {
 		/* mirror mode, local file exists */
