@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -100,7 +99,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 		goto fail;
 	}
 	buf = ebuf_data(eb, NULL);
-	assert(buf != NULL);
+	PJDLOG_ASSERT(buf != NULL);
 	done = pread(res->hr_localfd, buf, METADATA_SIZE, 0);
 	if (done < 0 || done != METADATA_SIZE) {
 		rerrno = errno;
@@ -197,7 +196,7 @@ metadata_write(struct hast_resource *res)
 		nv_add_uint64(nv, res->hr_primary_localcnt, "localcnt");
 		nv_add_uint64(nv, res->hr_primary_remotecnt, "remotecnt");
 	} else /* if (res->hr_role == HAST_ROLE_SECONDARY) */ {
-		assert(res->hr_role == HAST_ROLE_SECONDARY);
+		PJDLOG_ASSERT(res->hr_role == HAST_ROLE_SECONDARY);
 		nv_add_uint64(nv, res->hr_secondary_localcnt, "localcnt");
 		nv_add_uint64(nv, res->hr_secondary_remotecnt, "remotecnt");
 	}
@@ -208,10 +207,10 @@ metadata_write(struct hast_resource *res)
 	}
 	res->hr_previous_role = res->hr_role;
 	eb = nv_hton(nv);
-	assert(eb != NULL);
+	PJDLOG_ASSERT(eb != NULL);
 	ptr = ebuf_data(eb, &size);
-	assert(ptr != NULL);
-	assert(size < METADATA_SIZE);
+	PJDLOG_ASSERT(ptr != NULL);
+	PJDLOG_ASSERT(size < METADATA_SIZE);
 	bcopy(ptr, buf, size);
 	done = pwrite(res->hr_localfd, buf, METADATA_SIZE, 0);
 	if (done < 0 || done != METADATA_SIZE) {
