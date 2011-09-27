@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
 #include <sys/module.h>
+#include <sys/ktr.h>
 
 #include <machine/bus.h>
 
@@ -100,6 +101,9 @@ __FBSDID("$FreeBSD$");
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
+
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
 
 
 /*
@@ -1367,6 +1371,7 @@ ath_intr(void *arg)
 	 */
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
+	CTR1(ATH_KTR_INTR, "ath_intr: mask=0x%.8x", status);
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
@@ -1412,6 +1417,7 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_RXEOL) {
 			int imask = sc->sc_imask;
+			CTR0(ATH_KTR_ERR, "ath_intr: RXEOL");
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
@@ -1475,6 +1481,7 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_RXORN) {
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
+			CTR0(ATH_KTR_ERR, "ath_intr: RXORN");
 			sc->sc_stats.ast_rxorn++;
 		}
 	}
@@ -3658,6 +3665,7 @@ ath_rx_proc(void *arg, int npending)
 	u_int64_t tsf;
 	int npkts = 0;
 
+	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ngood = 0;
 	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
@@ -4031,6 +4039,8 @@ rx_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
+	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
+
 	/* Queue DFS tasklet if needed */
 	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_dfstask);
@@ -4042,6 +4052,7 @@ rx_next:
 	 */
 	if (sc->sc_kickpcu) {
 		sc->sc_kickpcu = 0;
+		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		/*
 		 * XXX this causes a 3ms delay; and shuts down a lof
 		 * XXX is it really needed? Or is it just enough to
