@@ -561,8 +561,8 @@ fetch(char *URL, const char *path)
 			}
 		}
 		/* seek to where we left off */
-		if (of != NULL && fseek(of, url->offset, SEEK_SET) != 0) {
-			warn("%s: fseek()", path);
+		if (of != NULL && fseeko(of, url->offset, SEEK_SET) != 0) {
+			warn("%s: fseeko()", path);
 			fclose(of);
 			of = NULL;
 			/* picked up again later */
