@@ -203,7 +203,7 @@ ffs_snapshot(mp, snapfile)
 	ufs2_daddr_t numblks, blkno, *blkp, *snapblklist;
 	int error, cg, snaploc;
 	int i, size, len, loc;
-	int flag;
+	uint64_t flag;
 	struct timespec starttime = {0, 0}, endtime;
 	char saved_nice = 0;
 	long redo = 0, snaplistsize = 0;
