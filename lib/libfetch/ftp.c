@@ -633,13 +633,12 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 	/* check flags */
 	low = CHECK_FLAG('l');
-	pasv = CHECK_FLAG('p');
+	pasv = CHECK_FLAG('p') || !CHECK_FLAG('P');
 	verbose = CHECK_FLAG('v');
 
 	/* passive mode */
-	if (!pasv)
-		pasv = ((s = getenv("FTP_PASSIVE_MODE")) == NULL ||
-		    strncasecmp(s, "no", 2) == 0);
+	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL)
+		pasv = (strncasecmp(s, "no", 2) != 0);
 
 	/* isolate filename */
 	filename = ftp_filename(file, &filenamelen, &type);
