@@ -1,6 +1,9 @@
 # $FreeBSD$
 
 LIB=	kadm5srv
+LDFLAGS=	-Wl,--no-undefined
+LDADD=	-lcom_err -lhdb -lkrb5 -lroken
+DPADD=	${LIBCOM_ERR} ${LIBHDB} ${LIBKRB5} ${LIBROKEN}
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
 
 SRCS=	acl.c \
