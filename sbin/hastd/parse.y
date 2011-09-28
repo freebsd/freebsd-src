@@ -38,7 +38,6 @@
 
 #include <arpa/inet.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -282,9 +281,9 @@ yy_config_parse(const char *config, bool exitonerror)
 		}
 	}
 	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
-		assert(curres->hr_provname[0] != '\0');
-		assert(curres->hr_localpath[0] != '\0');
-		assert(curres->hr_remoteaddr[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_provname[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_localpath[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_remoteaddr[0] != '\0');
 
 		if (curres->hr_replication == -1) {
 			/*
@@ -426,7 +425,7 @@ control_statement:	CONTROL STR
 			}
 			break;
 		default:
-			assert(!"control at wrong depth level");
+			PJDLOG_ABORT("control at wrong depth level");
 		}
 		free($2);
 	}
@@ -460,7 +459,7 @@ listen_statement:	LISTEN STR
 				free(lst);
 			break;
 		default:
-			assert(!"listen at wrong depth level");
+			PJDLOG_ABORT("listen at wrong depth level");
 		}
 		free($2);
 	}
@@ -473,11 +472,11 @@ replication_statement:	REPLICATION replication_type
 			depth0_replication = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_replication = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_replication = $2;
 			break;
 		default:
-			assert(!"replication at wrong depth level");
+			PJDLOG_ABORT("replication at wrong depth level");
 		}
 	}
 	;
@@ -497,11 +496,11 @@ checksum_statement:	CHECKSUM checksum_type
 			depth0_checksum = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_checksum = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_checksum = $2;
 			break;
 		default:
-			assert(!"checksum at wrong depth level");
+			PJDLOG_ABORT("checksum at wrong depth level");
 		}
 	}
 	;
@@ -521,11 +520,11 @@ compression_statement:	COMPRESSION compression_type
 			depth0_compression = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_compression = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_compression = $2;
 			break;
 		default:
-			assert(!"compression at wrong depth level");
+			PJDLOG_ABORT("compression at wrong depth level");
 		}
 	}
 	;
@@ -549,11 +548,11 @@ timeout_statement:	TIMEOUT NUM
 			depth0_timeout = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_timeout = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_timeout = $2;
 			break;
 		default:
-			assert(!"timeout at wrong depth level");
+			PJDLOG_ABORT("timeout at wrong depth level");
 		}
 	}
 	;
@@ -570,8 +569,7 @@ exec_statement:		EXEC STR
 			}
 			break;
 		case 1:
-			if (curres == NULL)
-				break;
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_exec, $2,
 			    sizeof(curres->hr_exec)) >=
 			    sizeof(curres->hr_exec)) {
@@ -581,7 +579,7 @@ exec_statement:		EXEC STR
 			}
 			break;
 		default:
-			assert(!"exec at wrong depth level");
+			PJDLOG_ABORT("exec at wrong depth level");
 		}
 		free($2);
 	}
@@ -605,7 +603,7 @@ node_start:	STR
 			mynode = true;
 			break;
 		default:
-			assert(!"invalid isitme() return value");
+			PJDLOG_ABORT("invalid isitme() return value");
 		}
 		free($1);
 	}
@@ -640,7 +638,7 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 			}
 
 			/*
-			 * Let's see there are some resource-level settings
+			 * Let's see if there are some resource-level settings
 			 * that we can use for node-level settings.
 			 */
 			if (curres->hr_provname[0] == '\0' &&
@@ -785,7 +783,7 @@ name_statement:		NAME STR
 		case 2:
 			if (!mynode)
 				break;
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_provname, $2,
 			    sizeof(curres->hr_provname)) >=
 			    sizeof(curres->hr_provname)) {
@@ -795,7 +793,7 @@ name_statement:		NAME STR
 			}
 			break;
 		default:
-			assert(!"name at wrong depth level");
+			PJDLOG_ABORT("name at wrong depth level");
 		}
 		free($2);
 	}
@@ -816,7 +814,7 @@ local_statement:	LOCAL STR
 		case 2:
 			if (!mynode)
 				break;
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_localpath, $2,
 			    sizeof(curres->hr_localpath)) >=
 			    sizeof(curres->hr_localpath)) {
@@ -826,7 +824,7 @@ local_statement:	LOCAL STR
 			}
 			break;
 		default:
-			assert(!"local at wrong depth level");
+			PJDLOG_ABORT("local at wrong depth level");
 		}
 		free($2);
 	}
@@ -851,7 +849,7 @@ resource_node_start:	STR
 				mynode = hadmynode = true;
 				break;
 			default:
-				assert(!"invalid isitme() return value");
+				PJDLOG_ABORT("invalid isitme() return value");
 			}
 		}
 		free($1);
@@ -875,9 +873,9 @@ resource_node_entry:
 
 remote_statement:	REMOTE remote_str
 	{
-		assert(depth == 2);
+		PJDLOG_ASSERT(depth == 2);
 		if (mynode) {
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_remoteaddr, $2,
 			    sizeof(curres->hr_remoteaddr)) >=
 			    sizeof(curres->hr_remoteaddr)) {
@@ -898,9 +896,9 @@ remote_str:
 
 source_statement:	SOURCE STR
 	{
-		assert(depth == 2);
+		PJDLOG_ASSERT(depth == 2);
 		if (mynode) {
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_sourceaddr, $2,
 			    sizeof(curres->hr_sourceaddr)) >=
 			    sizeof(curres->hr_sourceaddr)) {

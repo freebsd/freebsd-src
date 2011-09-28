@@ -46,6 +46,7 @@ void
 ar5416SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 {
 	uint32_t bperiod;
+	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bt->bt_nexttbtt));
 	OS_REG_WRITE(ah, AR_NEXT_DBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextdba));
@@ -53,6 +54,7 @@ ar5416SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 	OS_REG_WRITE(ah, AR_NEXT_NDP, TU_TO_USEC(bt->bt_nextatim));
 
 	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
+	ahp->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
 	OS_REG_WRITE(ah, AR5416_BEACON_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_DBA_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_SWBA_PERIOD, bperiod);

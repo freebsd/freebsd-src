@@ -2619,9 +2619,10 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			sc->sc_stats.ast_cabq_xmit += nmcastq;
 		}
 		/* NB: gated by beacon so safe to start here */
-		ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(cabq);
+		if (! STAILQ_EMPTY(&(cabq->axq_q)))
+			ath_hal_txstart(ah, cabq->axq_qnum);
 		ATH_TXQ_UNLOCK(&avp->av_mcastq);
+		ATH_TXQ_UNLOCK(cabq);
 	}
 	return bf;
 }
