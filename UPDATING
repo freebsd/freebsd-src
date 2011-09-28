@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20110928:	p7	FreeBSD-SA-11:04.compress, FreeBSD-SA-11:05.unix
+	Fix handling of corrupt compress(1)ed data. [11:04]
+
+	Add missing length checks on unix socket addresses. [11:05]
+
 20110528:	p6	FreeBSD-SA-11:02.bind
 	Fix BIND remote DoS with large RRSIG RRsets and negative
 	caching.
