@@ -296,6 +296,17 @@ hast_activemap_flush(struct hast_resource *res)
 		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
 		return (-1);
 	}
+	if (res->hr_metaflush == 1 && g_flush(res->hr_localfd) == -1) {
+		if (errno == EOPNOTSUPP) {
+			pjdlog_warning("The %s provider doesn't support flushing write cache. Disabling it.",
+			    res->hr_localpath);
+			res->hr_metaflush = 0;
+		} else {
+			pjdlog_errno(LOG_ERR,
+			    "Unable to flush disk cache on activemap update");
+			return (-1);
+		}
+	}
 	return (0);
 }
 
@@ -1999,6 +2010,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	nv_assert(nv, "compression");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
+	nv_assert(nv, "metaflush");
 
 	ncomps = HAST_NCOMPONENTS;
 
@@ -2009,6 +2021,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #define MODIFIED_COMPRESSION	0x10
 #define MODIFIED_TIMEOUT	0x20
 #define MODIFIED_EXEC		0x40
+#define MODIFIED_METAFLUSH	0x80
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -2049,6 +2062,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	if (strcmp(gres->hr_exec, vstr) != 0) {
 		strlcpy(gres->hr_exec, vstr, sizeof(gres->hr_exec));
 		modified |= MODIFIED_EXEC;
+	}
+	vint = nv_get_int32(nv, "metaflush");
+	if (gres->hr_metaflush != vint) {
+		gres->hr_metaflush = vint;
+		modified |= MODIFIED_METAFLUSH;
 	}
 
 	/*
@@ -2099,6 +2117,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #undef	MODIFIED_COMPRESSION
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
+#undef	MODIFIED_METAFLUSH
 
 	pjdlog_info("Configuration reloaded successfully.");
 }
