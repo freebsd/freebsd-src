@@ -788,6 +788,7 @@ resource_start:	STR
 		curres->hr_provname[0] = '\0';
 		curres->hr_localpath[0] = '\0';
 		curres->hr_localfd = -1;
+		curres->hr_localflush = true;
 		curres->hr_metaflush = -1;
 		curres->hr_remoteaddr[0] = '\0';
 		curres->hr_sourceaddr[0] = '\0';
