@@ -699,6 +699,7 @@ disk_thread(void *arg)
 			free(map);
 			clear_activemap = false;
 			pjdlog_debug(1, "Local activemap cleared.");
+			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio, "disk: (%p) Got request: ", hio);
 		/* Handle the actual request. */
