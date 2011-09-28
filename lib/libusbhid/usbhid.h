@@ -76,6 +76,7 @@ typedef struct hid_item {
 
 #define HID_PAGE(u) (((u) >> 16) & 0xffff)
 #define HID_USAGE(u) ((u) & 0xffff)
+#define HID_HAS_GET_SET_REPORT 1
 
 __BEGIN_DECLS
 
@@ -104,5 +105,9 @@ int hid_parse_usage_page(const char *name);
 /* Extracting/insertion of data, data.c: */
 int32_t hid_get_data(const void *p, const hid_item_t *h);
 void hid_set_data(void *p, const hid_item_t *h, int32_t data);
+int hid_get_report(int fd, enum hid_kind k,
+    unsigned char *data, unsigned int size);
+int hid_set_report(int fd, enum hid_kind k,
+    unsigned char *data, unsigned int size);
 
 __END_DECLS
