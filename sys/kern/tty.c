@@ -30,9 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -764,7 +766,7 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
-	int error = 0;
+	int error;
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
@@ -775,6 +777,7 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	error = ttydevsw_cioctl(tp, dev2unit(dev), cmd, data, td);
 	if (error != ENOIOCTL)
 		goto done;
+	error = 0;
 
 	switch (cmd) {
 	case TIOCGETA:
@@ -1020,6 +1023,8 @@ tty_dealloc(void *arg)
 	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
 	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
 
+	seldrain(&tp->t_inpoll);
+	seldrain(&tp->t_outpoll);
 	knlist_destroy(&tp->t_inpoll.si_note);
 	knlist_destroy(&tp->t_outpoll.si_note);
 
@@ -1259,7 +1264,7 @@ tty_signal_sessleader(struct tty *tp, int sig)
 	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
 		p = tp->t_session->s_leader;
 		PROC_LOCK(p);
-		psignal(p, sig);
+		kern_psignal(p, sig);
 		PROC_UNLOCK(p);
 	}
 }
@@ -1810,6 +1815,9 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 {
 	struct tty *tp;
 	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_cap;
+#endif
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
@@ -1826,6 +1834,13 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		error = EBADF;
 		goto done1;
 	}
+
+#ifdef CAPABILITIES
+	fp_cap = fp;
+	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
+	if (error)
+		return (error);
+#endif
 
 	/*
 	 * Make sure the vnode is bound to a character device.

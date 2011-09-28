@@ -524,6 +524,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x18, 0, 8,
 	},
 
+	{   0x1393, 0x1120, 0xffff, 0,
+	    "Moxa Technologies, CP-112UL",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
 	{   0x1393, 0x1141, 0xffff, 0,
 	    "Moxa Technologies, Industio CP-114",
 	    DEFAULT_RCLK * 8,

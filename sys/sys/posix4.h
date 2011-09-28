@@ -48,7 +48,7 @@ struct nosys_args;
 extern int syscall_not_present(struct thread *, const char *, struct nosys_args *);
 
 #define SYSCALL_NOT_PRESENT_GEN(SC) \
-int SC (struct thread *td, struct SC##_args *uap) \
+int sys_ ## SC (struct thread *td, struct SC##_args *uap) \
 { \
 	return syscall_not_present(td, #SC , (struct nosys_args *)uap); \
 }

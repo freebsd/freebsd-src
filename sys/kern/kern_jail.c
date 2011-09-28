@@ -276,7 +276,7 @@ qcmp_v6(const void *ip1, const void *ip2)
  * };
  */
 int
-jail(struct thread *td, struct jail_args *uap)
+sys_jail(struct thread *td, struct jail_args *uap)
 {
 	uint32_t version;
 	int error;
@@ -489,7 +489,7 @@ kern_jail(struct thread *td, struct jail *j)
  * };
  */
 int
-jail_set(struct thread *td, struct jail_set_args *uap)
+sys_jail_set(struct thread *td, struct jail_set_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -1819,7 +1819,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
  * };
  */
 int
-jail_get(struct thread *td, struct jail_get_args *uap)
+sys_jail_get(struct thread *td, struct jail_get_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -2119,7 +2119,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
  * };
  */
 int
-jail_remove(struct thread *td, struct jail_remove_args *uap)
+sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 {
 	struct prison *pr, *cpr, *lpr, *tpr;
 	int descend, error;
@@ -2206,7 +2206,7 @@ prison_remove_one(struct prison *pr)
 		PROC_LOCK(p);
 		if (p->p_state != PRS_NEW && p->p_ucred &&
 		    p->p_ucred->cr_prison == pr)
-			psignal(p, SIGKILL);
+			kern_psignal(p, SIGKILL);
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
@@ -2221,7 +2221,7 @@ prison_remove_one(struct prison *pr)
  * };
  */
 int
-jail_attach(struct thread *td, struct jail_attach_args *uap)
+sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 {
 	struct prison *pr;
 	int error;
@@ -2470,32 +2470,11 @@ prison_deref(struct prison *pr, int flags)
 
 	if (!(flags & PD_LOCKED))
 		mtx_lock(&pr->pr_mtx);
-	/* Decrement the user references in a separate loop. */
-	if (flags & PD_DEUREF) {
-		for (tpr = pr;; tpr = tpr->pr_parent) {
-			if (tpr != pr)
-				mtx_lock(&tpr->pr_mtx);
-			if (--tpr->pr_uref > 0)
-				break;
-			KASSERT(tpr != &prison0, ("prison0 pr_uref=0"));
-			mtx_unlock(&tpr->pr_mtx);
-		}
-		/* Done if there were only user references to remove. */
-		if (!(flags & PD_DEREF)) {
-			mtx_unlock(&tpr->pr_mtx);
-			if (flags & PD_LIST_SLOCKED)
-				sx_sunlock(&allprison_lock);
-			else if (flags & PD_LIST_XLOCKED)
-				sx_xunlock(&allprison_lock);
-			return;
-		}
-		if (tpr != pr) {
-			mtx_unlock(&tpr->pr_mtx);
-			mtx_lock(&pr->pr_mtx);
-		}
-	}
-
 	for (;;) {
+		if (flags & PD_DEUREF) {
+			pr->pr_uref--;
+			KASSERT(prison0.pr_uref != 0, ("prison0 pr_uref=0"));
+		}
 		if (flags & PD_DEREF)
 			pr->pr_ref--;
 		/* If the prison still has references, nothing else to do. */
@@ -2551,7 +2530,7 @@ prison_deref(struct prison *pr, int flags)
 		/* Removing a prison frees a reference on its parent. */
 		pr = ppr;
 		mtx_lock(&pr->pr_mtx);
-		flags = PD_DEREF;
+		flags = PD_DEREF | PD_DEUREF;
 	}
 }
 
@@ -3858,7 +3837,8 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
 	case PRIV_VFS_MOUNT_OWNER:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT)
+		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT &&
+		    cred->cr_prison->pr_enforce_statfs < 2)
 			return (0);
 		else
 			return (EPERM);

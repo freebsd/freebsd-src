@@ -1,4 +1,5 @@
 /* $OpenBSD: misc.c,v 1.84 2010/11/21 01:01:13 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -995,4 +996,35 @@ sock_set_v6only(int s)
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1)
 		error("setsockopt IPV6_V6ONLY: %s", strerror(errno));
 #endif
+}
+
+void
+sock_get_rcvbuf(int *size, int rcvbuf)
+{
+	int sock, socksize;
+	socklen_t socksizelen = sizeof(socksize);
+
+	/*
+	 * Create a socket but do not connect it.  We use it
+	 * only to get the rcv socket size.
+	 */
+	sock = socket(AF_INET6, SOCK_STREAM, 0);
+	if (sock < 0)
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		return;
+
+	/*
+	 * If the tcp_rcv_buf option is set and passed in, attempt to set the
+	 *  buffer size to its value.
+	 */
+	if (rcvbuf)
+		setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (void *)&rcvbuf,
+		    sizeof(rcvbuf));
+
+	if (getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+	    &socksize, &socksizelen) == 0)
+		if (size != NULL)
+			*size = socksize;
+	close(sock);
 }

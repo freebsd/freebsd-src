@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
@@ -354,7 +355,7 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
@@ -395,7 +396,7 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 		ap.fd = uap->fd;
 		ap.com = uap->com;
 		PTRIN_CP(*uap, ap, data);
-		return ioctl(td, &ap);
+		return sys_ioctl(td, &ap);
 	}
 
 	fdrop(fp, td);

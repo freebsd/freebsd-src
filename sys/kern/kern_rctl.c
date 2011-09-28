@@ -363,10 +363,21 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			     rule->rr_action));
 
 			/*
+			 * We're supposed to send a signal, but the process
+			 * is not fully initialized yet, probably because we
+			 * got called from fork1().  For now just deny the
+			 * allocation instead.
+			 */
+			if (p->p_state != PRS_NORMAL) {
+				should_deny = 1;
+				continue;
+			}
+
+			/*
 			 * We're using the fact that RCTL_ACTION_SIG* values
 			 * are equal to their counterparts from sys/signal.h.
 			 */
-			psignal(p, rule->rr_action);
+			kern_psignal(p, rule->rr_action);
 			link->rrl_exceeded = 1;
 			continue;
 		}
@@ -908,7 +919,7 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 		if (error != 0)
 			goto out;
 		if (RACCT_IS_IN_MILLIONS(rule->rr_resource))
-			rule->rr_amount *= 1000;
+			rule->rr_amount *= 1000000;
 	}
 
 	if (perstr == NULL || perstr[0] == '\0')
@@ -1223,7 +1234,7 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 			continue;
 		amount = racct->r_resources[i];
 		if (RACCT_IS_IN_MILLIONS(i))
-			amount /= 1000;
+			amount /= 1000000;
 		sbuf_printf(sb, "%s=%jd,", rctl_resource_name(i), amount);
 	}
 	sbuf_setpos(sb, sbuf_len(sb) - 1);
@@ -1231,7 +1242,7 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 }
 
 int
-rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
+sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 {
 	int error;
 	char *inputstr;
@@ -1327,7 +1338,7 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 }
 
 int
-rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
+sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
 	int error;
 	size_t bufsize = RCTL_DEFAULT_BUFSIZE;
@@ -1402,7 +1413,7 @@ again:
 }
 
 int
-rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
+sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 {
 	int error;
 	size_t bufsize = RCTL_DEFAULT_BUFSIZE;
@@ -1476,7 +1487,7 @@ again:
 }
 
 int
-rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
+sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 {
 	int error;
 	struct rctl_rule *rule;
@@ -1518,7 +1529,7 @@ out:
 }
 
 int
-rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
+sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 {
 	int error;
 	struct rctl_rule *filter;
@@ -1790,35 +1801,35 @@ rctl_init(void)
 #else /* !RCTL */
 
 int
-rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
+sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 {
 	
 	return (ENOSYS);
 }
 
 int
-rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
+sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
 	
 	return (ENOSYS);
 }
 
 int
-rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
+sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 {
 	
 	return (ENOSYS);
 }
 
 int
-rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
+sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 {
 	
 	return (ENOSYS);
 }
 
 int
-rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
+sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 {
 	
 	return (ENOSYS);

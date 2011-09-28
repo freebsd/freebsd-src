@@ -7188,7 +7188,7 @@ bxe_attn_int(struct bxe_softc* sc)
 /* sum[hi:lo] += add[hi:lo] */
 #define	ADD_64(s_hi, a_hi, s_lo, a_lo) do {			\
 	s_lo += a_lo;						\
-	s_hi += a_hi + (s_lo < a_lo) ? 1 : 0;			\
+	s_hi += a_hi + ((s_lo < a_lo) ? 1 : 0);			\
 } while (0)
 
 /* Subtraction = minuend -= subtrahend */

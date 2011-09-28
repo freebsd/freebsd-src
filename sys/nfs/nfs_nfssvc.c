@@ -73,7 +73,7 @@ int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *) = NULL;
  * Nfs server psuedo system call for the nfsd's
  */
 int
-nfssvc(struct thread *td, struct nfssvc_args *uap)
+sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 {
 	int error;
 

@@ -1,4 +1,5 @@
 /* $OpenBSD: ssh.c,v 1.356 2011/01/06 22:23:53 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -546,6 +547,15 @@ main(int ac, char **av)
 			break;
 		case 'T':
 			no_tty_flag = 1;
+#ifdef	NONE_CIPHER_ENABLED
+			/*
+			 * Ensure that the user does not try to backdoor a
+			 * NONE cipher switch on an interactive session by
+			 * explicitly disabling it if the user asks for a
+			 * session without a tty.
+			 */
+			options.none_switch = 0;
+#endif
 			break;
 		case 'o':
 			dummy = 1;
@@ -1368,9 +1378,46 @@ ssh_session2_open(void)
 	if (!isatty(err))
 		set_nonblock(err);
 
-	window = CHAN_SES_WINDOW_DEFAULT;
+	/*
+	 * We need to check to see what to do about buffer sizes here.
+	 * - In an HPN to non-HPN connection we want to limit the window size to
+	 *   something reasonable in case the far side has the large window bug.
+	 * - In an HPN to HPN connection we want to use the max window size but
+	 *   allow the user to override it.
+	 * - Lastly if HPN is disabled then use the ssh standard window size.
+	 *
+	 * We cannot just do a getsockopt() here and set the ssh window to that
+	 * as in case of autotuning of socket buffers the window would get stuck
+	 * at the initial buffer size, generally less than 96k.  Therefore we
+	 * need to set the maximum ssh window size to the maximum HPN buffer
+	 * size unless the user has set TcpRcvBufPoll to no.  In that case we
+	 * can just set the window to the minimum of HPN buffer size and TCP
+	 * receive buffer size.
+	 */
+	if (tty_flag)
+		options.hpn_buffer_size = CHAN_SES_WINDOW_DEFAULT;
+	else
+		options.hpn_buffer_size = CHAN_HPN_MIN_WINDOW_DEFAULT;
+
+	if (datafellows & SSH_BUG_LARGEWINDOW) {
+		debug("HPN to Non-HPN Connection");
+	} else if (options.tcp_rcv_buf_poll <= 0) {
+		sock_get_rcvbuf(&options.hpn_buffer_size, 0);
+		debug("HPNBufferSize set to TCP RWIN: %d",
+		    options.hpn_buffer_size);
+	} else if (options.tcp_rcv_buf > 0) {
+		sock_get_rcvbuf(&options.hpn_buffer_size,
+		    options.tcp_rcv_buf);
+		debug("HPNBufferSize set to user TCPRcvBuf: %d",
+		    options.hpn_buffer_size);
+	}
+	debug("Final hpn_buffer_size = %d", options.hpn_buffer_size);
+	channel_set_hpn(options.hpn_disabled, options.hpn_buffer_size);
+	window = options.hpn_buffer_size;
+
 	packetmax = CHAN_SES_PACKET_DEFAULT;
 	if (tty_flag) {
+		window = CHAN_SES_WINDOW_DEFAULT;
 		window >>= 1;
 		packetmax >>= 1;
 	}
@@ -1378,7 +1425,10 @@ ssh_session2_open(void)
 	    "session", SSH_CHANNEL_OPENING, in, out, err,
 	    window, packetmax, CHAN_EXTENDED_WRITE,
 	    "client-session", /*nonblock*/0);
-
+	if (!options.hpn_disabled && options.tcp_rcv_buf_poll > 0) {
+		c->dynamic_window = 1;
+		debug("Enabled Dynamic Window Scaling\n");
+	}
 	debug3("ssh_session2_open: channel_new: %d", c->self);
 
 	channel_send_open(c->self);

@@ -702,9 +702,6 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 		    IDR_CHEETAH_ALL_BUSY) != 0)
 			;
 		intr_restore(s);
-		if ((ids &
-		    (IDR_CHEETAH_ALL_BUSY | IDR_CHEETAH_ALL_NACK)) == 0)
-			return;
 		bnp = 0;
 		for (cpu = 0; cpu < mp_ncpus; cpu++) {
 			if (CPU_ISSET(cpu, &cpus)) {
@@ -713,11 +710,6 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 				bnp++;
 			}
 		}
-		/*
-		 * On at least Fire V880 we may receive IDR_NACKs for
-		 * CPUs we actually haven't tried to send an IPI to,
-		 * but which apparently can be safely ignored.
-		 */
 		if (CPU_EMPTY(&cpus))
 			return;
 		/*

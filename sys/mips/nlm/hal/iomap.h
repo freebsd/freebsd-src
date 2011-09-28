@@ -25,82 +25,75 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
-
-#ifndef __NLM_IOMAP_H__
-#define __NLM_IOMAP_H__
-
-/**
-* @file_name xlpiomap.h
-* @author Netlogic Microsystems
-* @brief Basic definitions Netlogic XLP IO BASEs
-*/
-
-/* ----------------------------------
- *   XLP RESET Physical Address Map
- * ----------------------------------
- * PCI ECFG : 0x18000000 - 0x1bffffff
- * PCI CFG  : 0x1c000000 - 0x1cffffff
- * FLASH    : 0x1fc00000 - 0x1fffffff
- * ----------------------------------
  */
 
+#ifndef __NLM_HAL_IOMAP_H__
+#define __NLM_HAL_IOMAP_H__
+
 #define XLP_DEFAULT_IO_BASE             0x18000000
-#define XLP_DEFAULT_IO_BASE_KSEG1       0xb8000000
-#define XLP_IO_SIZE 			(64 << 20)	/* Size of the ECFG Space      */
+#define NMI_BASE			0xbfc00000
+#define	XLP_IO_CLK			133333333
+
+#define XLP_PCIE_CFG_SIZE		0x1000		/* 4K */
+#define XLP_PCIE_DEV_BLK_SIZE		(8 * XLP_PCIE_CFG_SIZE)
+#define XLP_PCIE_BUS_BLK_SIZE		(256 * XLP_PCIE_DEV_BLK_SIZE)
+#define XLP_IO_SIZE			(64 << 20)	/* ECFG space size */
 #define XLP_IO_PCI_HDRSZ		0x100
 #define XLP_IO_DEV(node, dev)		((dev) + (node) * 8)
 #define XLP_HDR_OFFSET(node, bus, dev, fn)	(((bus) << 20) | \
 				((XLP_IO_DEV(node, dev)) << 15) | ((fn) << 12))
 
-#define XLP_IO_BRIDGE_OFFSET(node)	XLP_HDR_OFFSET(node,0,0,0)
+#define XLP_IO_BRIDGE_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 0)
 /* coherent inter chip */
-#define XLP_IO_CIC0_OFFSET(node)	XLP_HDR_OFFSET(node,0,0,1)
-#define XLP_IO_CIC1_OFFSET(node)	XLP_HDR_OFFSET(node,0,0,2)
-#define XLP_IO_CIC2_OFFSET(node)	XLP_HDR_OFFSET(node,0,0,3)
-#define	XLP_IO_PIC_OFFSET(node)		XLP_HDR_OFFSET(node,0,0,4)
+#define XLP_IO_CIC0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 1)
+#define XLP_IO_CIC1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 2)
+#define XLP_IO_CIC2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 3)
+#define XLP_IO_PIC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 0, 4)
 
-#define	XLP_IO_PCIE_OFFSET(node,i)	XLP_HDR_OFFSET(node,0,1,i)
-#define	XLP_IO_PCIE0_OFFSET(node)	XLP_HDR_OFFSET(node,0,1,0)
-#define	XLP_IO_PCIE1_OFFSET(node)	XLP_HDR_OFFSET(node,0,1,1)
-#define	XLP_IO_PCIE2_OFFSET(node)	XLP_HDR_OFFSET(node,0,1,2)
-#define	XLP_IO_PCIE3_OFFSET(node)	XLP_HDR_OFFSET(node,0,1,3)
+#define XLP_IO_PCIE_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 1, i)
+#define XLP_IO_PCIE0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 0)
+#define XLP_IO_PCIE1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 1)
+#define XLP_IO_PCIE2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 2)
+#define XLP_IO_PCIE3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 3)
 
-#define XLP_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node,0,2,i)
-#define	XLP_IO_USB_EHCI0_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,0)
-#define	XLP_IO_USB_OHCI0_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,1)
-#define	XLP_IO_USB_OHCI1_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,2)
-#define	XLP_IO_USB_EHCI1_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,3)
-#define	XLP_IO_USB_OHCI2_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,4)
-#define	XLP_IO_USB_OHCI3_OFFSET(node)	XLP_HDR_OFFSET(node,0,2,5)
+#define XLP_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 2, i)
+#define XLP_IO_USB_EHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 0)
+#define XLP_IO_USB_OHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 1)
+#define XLP_IO_USB_OHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 2)
+#define XLP_IO_USB_EHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 3)
+#define XLP_IO_USB_OHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 4)
+#define XLP_IO_USB_OHCI3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 5)
 
-#define	XLP_IO_NAE_OFFSET(node)		XLP_HDR_OFFSET(node,0,3,0)
-#define	XLP_IO_POE_OFFSET(node)		XLP_HDR_OFFSET(node,0,3,1)
+#define XLP_IO_NAE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 0)
+#define XLP_IO_POE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 1)
 
-#define	XLP_IO_CMS_OFFSET(node)		XLP_HDR_OFFSET(node,0,4,0)
+#define XLP_IO_CMS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 4, 0)
 
-#define	XLP_IO_DMA_OFFSET(node)		XLP_HDR_OFFSET(node,0,5,1)
-#define	XLP_IO_SEC_OFFSET(node)		XLP_HDR_OFFSET(node,0,5,2)
-#define	XLP_IO_CMP_OFFSET(node)		XLP_HDR_OFFSET(node,0,5,3)
+#define XLP_IO_DMA_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 1)
+#define XLP_IO_SEC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 2)
+#define XLP_IO_CMP_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 3)
 
-#define XLP_IO_UART_OFFSET(node, i)	XLP_HDR_OFFSET(node,0,6,i)
-#define XLP_IO_UART0_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,0)
-#define XLP_IO_UART1_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,1)
-#define XLP_IO_I2C_OFFSET(node, i)	XLP_HDR_OFFSET(node,0,6,2+i)
-#define XLP_IO_I2C0_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,2)
-#define XLP_IO_I2C1_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,3)
-#define	XLP_IO_GPIO_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,4)
+#define XLP_IO_UART_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 6, i)
+#define XLP_IO_UART0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 0)
+#define XLP_IO_UART1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 1)
+#define XLP_IO_I2C_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 6, 2 + i)
+#define XLP_IO_I2C0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 2)
+#define XLP_IO_I2C1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 3)
+#define XLP_IO_GPIO_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 4)
 /* system management */
-#define	XLP_IO_SYS_OFFSET(node)		XLP_HDR_OFFSET(node,0,6,5)
-#define	XLP_IO_JTAG_OFFSET(node)	XLP_HDR_OFFSET(node,0,6,6)
+#define XLP_IO_SYS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 6, 5)
+#define XLP_IO_JTAG_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 6)
 
-#define	XLP_IO_NOR_OFFSET(node)		XLP_HDR_OFFSET(node,0,7,0)
-#define	XLP_IO_NAND_OFFSET(node)	XLP_HDR_OFFSET(node,0,7,1)
-#define	XLP_IO_SPI_OFFSET(node)		XLP_HDR_OFFSET(node,0,7,2)
+#define XLP_IO_NOR_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 0)
+#define XLP_IO_NAND_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 7, 1)
+#define XLP_IO_SPI_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 2)
 /* SD flash */
-#define	XLP_IO_SD_OFFSET(node)		XLP_HDR_OFFSET(node,0,7,3)
-#define XLP_IO_MMC_OFFSET(node, slot)	((XLP_IO_SD_OFFSET(node))+(slot*0x100)+XLP_IO_PCI_HDRSZ)
+#define XLP_IO_SD_OFFSET(node)          XLP_HDR_OFFSET(node, 0, 7, 3)
+#define XLP_IO_MMC_OFFSET(node, slot)   \
+		((XLP_IO_SD_OFFSET(node))+(slot*0x100)+XLP_IO_PCI_HDRSZ)
+
 /* PCI config header register id's */
 #define XLP_PCI_CFGREG0			0x00
 #define XLP_PCI_CFGREG1			0x01
@@ -125,113 +118,35 @@
 #define XLP_PCI_UCODEINFO_REG		0x3e
 #define XLP_PCI_SBB_WT_REG		0x3f
 
+/* PCI IDs for SoC device */
+#define	PCI_VENDOR_NETLOGIC		0x184e
+
+#define	PCI_DEVICE_ID_NLM_ROOT		0x1001
+#define	PCI_DEVICE_ID_NLM_ICI		0x1002
+#define	PCI_DEVICE_ID_NLM_PIC		0x1003
+#define	PCI_DEVICE_ID_NLM_PCIE		0x1004
+#define	PCI_DEVICE_ID_NLM_EHCI		0x1007
+#define	PCI_DEVICE_ID_NLM_ILK		0x1008
+#define	PCI_DEVICE_ID_NLM_NAE		0x1009
+#define	PCI_DEVICE_ID_NLM_POE		0x100A
+#define	PCI_DEVICE_ID_NLM_FMN		0x100B
+#define	PCI_DEVICE_ID_NLM_RAID		0x100D
+#define	PCI_DEVICE_ID_NLM_SAE		0x100D
+#define	PCI_DEVICE_ID_NLM_RSA		0x100E
+#define	PCI_DEVICE_ID_NLM_CMP		0x100F
+#define	PCI_DEVICE_ID_NLM_UART		0x1010
+#define	PCI_DEVICE_ID_NLM_I2C		0x1011
+#define	PCI_DEVICE_ID_NLM_NOR		0x1015
+#define	PCI_DEVICE_ID_NLM_NAND		0x1016
+#define	PCI_DEVICE_ID_NLM_MMC		0x1018
+
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
-#ifndef __NLM_NLMIO_H__
-#error iomap.h needs mmio.h to be included
-#endif
+#define nlm_read_pci_reg(b, r)		nlm_read_reg(b, r)
+#define nlm_write_pci_reg(b, r, v)	nlm_write_reg(b, r, v)
 
-static __inline__ uint32_t
-nlm_read_reg_kseg(uint64_t base, uint32_t reg)
-{
-	volatile uint32_t *addr = (volatile uint32_t *)(intptr_t)base + reg;
+extern uint64_t xlp_sys_base;
+extern uint64_t xlp_pic_base;
+#endif /* !LOCORE or !__ASSEMBLY */
 
-	return (*addr);
-}
-
-static __inline__ void
-nlm_write_reg_kseg(uint64_t base, uint32_t reg, uint32_t val)
-{
-	volatile uint32_t *addr = (volatile uint32_t *)(intptr_t)base + reg;
-
-	*addr = val;
-}
-
-static __inline__ uint64_t
-nlm_read_reg64_kseg(uint64_t base, uint32_t reg)
-{
-	volatile uint64_t *addr = (volatile uint64_t *)(intptr_t)base + (reg >> 1);
-
-	return (nlm_load_dword(addr));
-}
-
-static __inline__ void
-nlm_write_reg64_kseg(uint64_t base, uint32_t reg, uint64_t val)
-{
-	volatile uint64_t *addr = (volatile uint64_t *)(intptr_t)base + (reg >> 1);
-
-	return (nlm_store_dword(addr, val));
-}
-
-/*
- * Routines to store 32/64 bit values to 64 bit addresses,
- * used when going thru XKPHYS to access registers
- */
-static __inline__ uint32_t
-nlm_read_reg_xkseg(uint64_t base, uint32_t reg)
-{
-	uint64_t addr = base + reg * sizeof(uint32_t);
-
-	return (nlm_load_word_daddr(addr));
-}
-
-static __inline__ void
-nlm_write_reg_xkseg(uint64_t base, uint32_t reg, uint32_t val)
-{
-	uint64_t addr = base + reg * sizeof(uint32_t);
-
-	return (nlm_store_word_daddr(addr, val));
-}
-
-static __inline__ uint64_t
-nlm_read_reg64_xkseg(uint64_t base, uint32_t reg)
-{
-	uint64_t addr = base + (reg >> 1) * sizeof(uint64_t);
-
-	return (nlm_load_dword_daddr(addr));
-}
-
-static __inline__ void
-nlm_write_reg64_xkseg(uint64_t base, uint32_t reg, uint64_t val)
-{
-	uint64_t addr = base + (reg >> 1) * sizeof(uint64_t);
-
-	return (nlm_store_dword_daddr(addr, val));
-}
-
-/* Location where IO base is mapped */
-extern uint64_t nlm_pcicfg_baseaddr;
-
-static __inline__ uint64_t
-nlm_pcicfg_base(uint32_t devoffset)
-{
-	return (nlm_pcicfg_baseaddr + devoffset);
-}
-
-static __inline__ uint64_t
-nlm_pcibar0_base_xkphys(uint64_t pcibase)
-{
-	uint64_t paddr;
-
-	paddr = nlm_read_reg_kseg(pcibase, XLP_PCI_CFGREG4) & ~0xfu;
-	return (0x9000000000000000 | paddr);
-}
-#define	nlm_pci_rdreg(b, r)	nlm_read_reg_kseg(b, r)
-#define	nlm_pci_wreg(b, r, v)	nlm_write_reg_kseg(b, r, v)
-
-#endif /* !LOCORE && !__ASSEMBLY__*/
-
-
-/* COMPAT stuff - TODO remove */
-#define bit_set(p, m) ((p) |= (m))
-#define bit_clear(p, m) ((p) &= ~(m))
-#define bit_get(p,m) ((p) & (m))
-#define BIT(x) (0x01 << (x))
-
-#define XLP_MAX_NODES		4
-#define	XLP_MAX_CORES		8
-#define	XLP_MAX_THREADS		4
-#define	XLP_CACHELINE_SIZE	64
-#define XLP_NUM_NODES		1   /* we support only one now */
-
-#endif
+#endif /* __NLM_HAL_IOMAP_H__ */

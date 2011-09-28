@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2011
+.Dd August 20, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -726,7 +726,7 @@ The search terminates.
 Change the next-hop on matching packets to
 .Ar ipaddr ,
 which can be an IP address or a host name.
-The next hop can also be supplied by the last table
+For IPv4, the next hop can also be supplied by the last table
 looked up for the packet by using the
 .Cm tablearg
 keyword instead of an explicit address.

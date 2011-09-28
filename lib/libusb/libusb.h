@@ -151,6 +151,14 @@ enum libusb_error {
 	LIBUSB_ERROR_OTHER = -99,
 };
 
+enum libusb_speed {
+	LIBUSB_SPEED_UNKNOWN = 0,
+	LIBUSB_SPEED_LOW = 1,
+	LIBUSB_SPEED_FULL = 2,
+	LIBUSB_SPEED_HIGH = 3,
+	LIBUSB_SPEED_SUPER = 4,
+};
+
 enum libusb_transfer_status {
 	LIBUSB_TRANSFER_COMPLETED,
 	LIBUSB_TRANSFER_ERROR,
@@ -295,6 +303,7 @@ typedef struct libusb_transfer {
 
 void	libusb_set_debug(libusb_context * ctx, int level);
 const char *libusb_strerror(int code);
+const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
 void	libusb_exit(struct libusb_context *ctx);
 
@@ -304,6 +313,7 @@ ssize_t libusb_get_device_list(libusb_context * ctx, libusb_device *** list);
 void	libusb_free_device_list(libusb_device ** list, int unref_devices);
 uint8_t	libusb_get_bus_number(libusb_device * dev);
 uint8_t	libusb_get_device_address(libusb_device * dev);
+enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);

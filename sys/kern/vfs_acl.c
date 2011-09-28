@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -323,7 +324,7 @@ out:
  * Given a file path, get an ACL for it
  */
 int
-__acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
+sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -343,7 +344,7 @@ __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
  * Given a file path, get an ACL for it; don't follow links.
  */
 int
-__acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
+sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -363,7 +364,7 @@ __acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
  * Given a file path, set an ACL for it.
  */
 int
-__acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
+sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -383,7 +384,7 @@ __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
  * Given a file path, set an ACL for it; don't follow links.
  */
 int
-__acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
+sys___acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -403,12 +404,12 @@ __acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
  * Given a file descriptor, get an ACL for it.
  */
 int
-__acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
+sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 {
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_GET, &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
@@ -422,12 +423,12 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
  * Given a file descriptor, set an ACL for it.
  */
 int
-__acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
+sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 {
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_SET, &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
@@ -441,7 +442,7 @@ __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
  * Given a file path, delete an ACL from it.
  */
 int
-__acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
+sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -461,7 +462,7 @@ __acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
  * Given a file path, delete an ACL from it; don't follow links.
  */
 int
-__acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
+sys___acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -481,12 +482,13 @@ __acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
  * Given a file path, delete an ACL from it.
  */
 int
-__acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
+sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 {
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_DELETE,
+	    &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_delete(td, fp->f_vnode, uap->type);
@@ -500,7 +502,7 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
  * Given a file path, check an ACL for it.
  */
 int
-__acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
+sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -520,7 +522,7 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
  * Given a file path, check an ACL for it; don't follow links.
  */
 int
-__acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
+sys___acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 {
 	struct nameidata nd;
 	int vfslocked, error;
@@ -540,12 +542,13 @@ __acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
  * Given a file descriptor, check an ACL for it.
  */
 int
-__acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
+sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 {
 	struct file *fp;
 	int vfslocked, error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_CHECK,
+	    &fp);
 	if (error == 0) {
 		vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);

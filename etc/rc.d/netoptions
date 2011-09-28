@@ -106,6 +106,19 @@ netoptions_inet6()
 		${SYSCTL} net.inet6.ip6.use_tempaddr=1 >/dev/null
 		${SYSCTL} net.inet6.ip6.prefer_tempaddr=1 >/dev/null
 	fi
+
+	case $ipv6_cpe_wanif in
+	""|[Nn][Oo]|[Nn][Oo][Nn][Ee]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+		${SYSCTL} net.inet6.ip6.no_radr=0 >/dev/null
+		${SYSCTL} net.inet6.ip6.rfc6204w3=0 >/dev/null
+	;;
+	*)	
+		netoptions_init
+		echo -n " IPv6 CPE WANIF=${ipv6_cpe_wanif}"
+		${SYSCTL} net.inet6.ip6.no_radr=1 >/dev/null
+		${SYSCTL} net.inet6.ip6.rfc6204w3=1 >/dev/null
+	;;
+	esac
 }
 
 load_rc_config $name

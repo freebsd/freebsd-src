@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.109 2010-06-09 01:43:09 marka Exp $
+# $Id: Makefile.in,v 1.109.108.2 2011-07-08 23:47:16 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -88,6 +88,7 @@ LIBS =		@LIBS@
 .NO_PARALLEL:
 SUBDIRS =	include unix nls @ISC_THREAD_DIR@ @ISC_ARCH_DIR@
 TARGETS =	timestamp
+TESTDIRS =	@UNITTESTS@
 
 @BIND9_MAKE_RULES@
 

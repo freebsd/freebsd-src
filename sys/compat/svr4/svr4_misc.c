@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
@@ -246,7 +247,8 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0) {
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
+	    CAP_READ | CAP_SEEK, &fp)) != 0) {
 		return (error);
 	}
 
@@ -427,7 +429,8 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
+	    CAP_READ | CAP_SEEK, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -566,7 +569,7 @@ svr4_sys_mmap(td, uap)
 	mm.addr = uap->addr;
 	mm.pos = uap->pos;
 
-	return mmap(td, &mm);
+	return sys_mmap(td, &mm);
 }
 
 int
@@ -599,7 +602,7 @@ svr4_sys_mmap64(td, uap)
 	    mm.addr != 0 && (void *)mm.addr < rp)
 		mm.addr = rp;
 
-	return mmap(td, &mm);
+	return sys_mmap(td, &mm);
 }
 
 
@@ -615,7 +618,8 @@ svr4_sys_fchroot(td, uap)
 
 	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
-	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
+	/* XXX: we have the chroot priv... what cap might we need? all? */
+	if ((error = getvnode(fdp, uap->fd, 0, &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
 	VREF(vp);
@@ -840,7 +844,7 @@ svr4_sys_break(td, uap)
 	struct obreak_args ap;
 
 	ap.nsize = uap->nsize;
-	return (obreak(td, &ap));
+	return (sys_obreak(td, &ap));
 }
 
 static __inline clock_t
@@ -986,7 +990,7 @@ svr4_sys_pgrpsys(td, uap)
 		 * setsid() for SVR4.  (Under BSD, the difference is that
 		 * a setpgid(0,0) will not create a new session.)
 		 */
-		setsid(td, NULL);
+		sys_setsid(td, NULL);
 		/*FALLTHROUGH*/
 
 	case 0:			/* getpgrp() */
@@ -1009,7 +1013,7 @@ svr4_sys_pgrpsys(td, uap)
 		return 0;
 
 	case 3:			/* setsid() */
-		return setsid(td, NULL);
+		return sys_setsid(td, NULL);
 
 	case 4:			/* getpgid(pid) */
 
@@ -1028,7 +1032,7 @@ svr4_sys_pgrpsys(td, uap)
 
 			sa.pid = uap->pid;
 			sa.pgid = uap->pgid;
-			return setpgid(td, &sa);
+			return sys_setpgid(td, &sa);
 		}
 
 	default:
@@ -1594,7 +1598,7 @@ svr4_sys_memcntl(td, uap)
 			msa.len = uap->len;
 			msa.flags = (int)uap->arg;
 
-			return msync(td, &msa);
+			return sys_msync(td, &msa);
 		}
 	case SVR4_MC_ADVISE:
 		{
@@ -1604,7 +1608,7 @@ svr4_sys_memcntl(td, uap)
 			maa.len = uap->len;
 			maa.behav = (int)uap->arg;
 
-			return madvise(td, &maa);
+			return sys_madvise(td, &maa);
 		}
 	case SVR4_MC_LOCK:
 	case SVR4_MC_UNLOCK:
@@ -1629,11 +1633,11 @@ svr4_sys_nice(td, uap)
 	ap.who = 0;
 	ap.prio = uap->prio;
 
-	if ((error = setpriority(td, &ap)) != 0)
+	if ((error = sys_setpriority(td, &ap)) != 0)
 		return error;
 
 	/* the cast is stupid, but the structures are the same */
-	if ((error = getpriority(td, (struct getpriority_args *)&ap)) != 0)
+	if ((error = sys_getpriority(td, (struct getpriority_args *)&ap)) != 0)
 		return error;
 
 	return 0;

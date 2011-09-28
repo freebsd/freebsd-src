@@ -92,10 +92,16 @@ main(void)
 			}
 		}
 
-		printf("\nDevice: %s\n", devsw[i]->dv_name);
-
 		currdev.d_dev = devsw[i];
 		currdev.d_type = currdev.d_dev->dv_type;
+
+		if (strcmp(devsw[i]->dv_name, "cd") == 0) {
+			f.f_devdata = &currdev;
+			currdev.d_unit = 0;
+
+			if (devsw[i]->dv_open(&f, &currdev) == 0)
+				break;
+		}
 
 		if (strcmp(devsw[i]->dv_name, "disk") == 0) {
 			f.f_devdata = &currdev;
@@ -113,6 +119,8 @@ main(void)
 
 	if (devsw[i] == NULL)
 		panic("No boot device found!");
+	else
+		printf("Boot device: %s\n", devsw[i]->dv_name);
 
 	/*
 	 * Get timebase at boot.

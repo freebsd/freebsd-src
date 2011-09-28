@@ -95,7 +95,7 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	/* A regular file with two names ("hardlink" gets returned
 	 * first, so it's not marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("long-joliet-file-name.textfile",
+	assertEqualString("hardlink",
 	    archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assert(archive_entry_hardlink(ae) == NULL);
@@ -108,9 +108,10 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("hardlink", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualString("long-joliet-file-name.textfile",
+	    archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("hardlink",
 	    archive_entry_hardlink(ae));
 	assert(!archive_entry_size_is_set(ae));
 

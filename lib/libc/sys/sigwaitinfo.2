@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2005
+.Dd August 24, 2011
 .Dt SIGTIMEDWAIT 2
 .Os
 .Sh NAME
@@ -116,6 +116,16 @@ except that the selected signal number shall be stored in the
 member, and the cause of the signal shall be stored in the
 .Va si_code
 member.
+Besides this, the
+.Fn sigwaitinfo
+and
+.Fn sigtimedwait
+system calls may return
+.Er EINTR
+if interrupted by signal, which is not allowed for the
+.Fn sigwait
+function.
+.Pp
 If any value is queued to the selected signal, the first such queued
 value is dequeued and, if the info argument is
 .Pf non- Dv NULL ,

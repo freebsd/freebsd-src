@@ -472,7 +472,7 @@ gpart_edit(struct gprovider *pp)
 
 	if (geom == NULL) {
 		/* Disk not partitioned, so partition it */
-		gpart_partition(pp->lg_geom->lg_name, NULL);
+		gpart_partition(pp->lg_name, NULL);
 		return;
 	}
 
@@ -791,7 +791,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	}
 
 	if (geom == NULL || scheme == NULL || strcmp(scheme, "(none)") == 0) {
-		if (gpart_partition(pp->lg_geom->lg_name, NULL) == 0)
+		if (gpart_partition(pp->lg_name, NULL) == 0)
 			dialog_msgbox("",
 			    "The partition table has been successfully created."
 			    " Please press Create again to create partitions.",
@@ -820,8 +820,10 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	items[1].text = sizestr;
 
 	/* Special-case the MBR default type for nested partitions */
-	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "PC98") == 0)
+	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "PC98") == 0) {
 		items[0].text = "freebsd";
+		items[0].help = "Filesystem type (e.g. freebsd, fat32)";
+	}
 
 	nitems = scheme_supports_labels(scheme) ? 4 : 3;
 
@@ -860,7 +862,7 @@ addpartform:
 	 * If the user changed the fs type after specifying options, undo
 	 * their choices in favor of the new filesystem's defaults.
 	 */
-	if (strcmp(options_fstype, items[0].name) != 0) {
+	if (strcmp(options_fstype, items[0].text) != 0) {
 		strncpy(options_fstype, items[0].text, sizeof(options_fstype));
 		newfs_command(options_fstype, newfs, 1);
 	}

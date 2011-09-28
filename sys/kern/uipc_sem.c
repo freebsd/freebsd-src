@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_posix.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/condvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -116,7 +117,8 @@ static int	ksem_create(struct thread *td, const char *path,
 		    semid_t *semidp, mode_t mode, unsigned int value,
 		    int flags, int compat32);
 static void	ksem_drop(struct ksem *ks);
-static int	ksem_get(struct thread *td, semid_t id, struct file **fpp);
+static int	ksem_get(struct thread *td, semid_t id, cap_rights_t rights,
+    struct file **fpp);
 static struct ksem *ksem_hold(struct ksem *ks);
 static void	ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks);
 static struct ksem *ksem_lookup(char *path, Fnv32_t fnv);
@@ -133,6 +135,8 @@ static fo_poll_t	ksem_poll;
 static fo_kqfilter_t	ksem_kqfilter;
 static fo_stat_t	ksem_stat;
 static fo_close_t	ksem_closef;
+static fo_chmod_t	ksem_chmod;
+static fo_chown_t	ksem_chown;
 
 /* File descriptor operations. */
 static struct fileops ksem_ops = {
@@ -144,6 +148,8 @@ static struct fileops ksem_ops = {
 	.fo_kqfilter = ksem_kqfilter,
 	.fo_stat = ksem_stat,
 	.fo_close = ksem_closef,
+	.fo_chmod = ksem_chmod,
+	.fo_chown = ksem_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -218,16 +224,73 @@ ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	 * file descriptor.
 	 */
 	bzero(sb, sizeof(*sb));
-	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
 
+	mtx_lock(&sem_lock);
 	sb->st_atim = ks->ks_atime;
 	sb->st_ctim = ks->ks_ctime;
 	sb->st_mtim = ks->ks_mtime;
-	sb->st_birthtim = ks->ks_birthtime;	
+	sb->st_birthtim = ks->ks_birthtime;
 	sb->st_uid = ks->ks_uid;
 	sb->st_gid = ks->ks_gid;
+	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
+	mtx_unlock(&sem_lock);
 
 	return (0);
+}
+
+static int
+ksem_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct ksem *ks;
+	int error;
+
+	error = 0;
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+#ifdef MAC
+	error = mac_posixsem_check_setmode(active_cred, ks, mode);
+	if (error != 0)
+		goto out;
+#endif
+	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid, VADMIN,
+	    active_cred, NULL);
+	if (error != 0)
+		goto out;
+	ks->ks_mode = mode & ACCESSPERMS;
+out:
+	mtx_unlock(&sem_lock);
+	return (error);
+}
+
+static int
+ksem_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct ksem *ks;
+	int error;
+
+	error = 0;
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+#ifdef MAC
+	error = mac_posixsem_check_setowner(active_cred, ks, uid, gid);
+	if (error != 0)
+		goto out;
+#endif
+	if (uid == (uid_t)-1)
+		uid = ks->ks_uid;
+	if (gid == (gid_t)-1)
+                 gid = ks->ks_gid;
+	if (((uid != ks->ks_uid && uid != active_cred->cr_uid) ||
+	    (gid != ks->ks_gid && !groupmember(gid, active_cred))) &&
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+		goto out;
+	ks->ks_uid = uid;
+	ks->ks_gid = gid;
+out:
+	mtx_unlock(&sem_lock);
+	return (error);
 }
 
 static int
@@ -525,13 +588,13 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 }
 
 static int
-ksem_get(struct thread *td, semid_t id, struct file **fpp)
+ksem_get(struct thread *td, semid_t id, cap_rights_t rights, struct file **fpp)
 {
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
-	error = fget(td, id, &fp);
+	error = fget(td, id, rights, &fp);
 	if (error)
 		return (EINVAL);
 	if (fp->f_type != DTYPE_SEM) {
@@ -555,7 +618,7 @@ struct ksem_init_args {
 };
 #endif
 int
-ksem_init(struct thread *td, struct ksem_init_args *uap)
+sys_ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
 
 	return (ksem_create(td, NULL, uap->idp, S_IRWXU | S_IRWXG, uap->value,
@@ -572,7 +635,7 @@ struct ksem_open_args {
 };
 #endif
 int
-ksem_open(struct thread *td, struct ksem_open_args *uap)
+sys_ksem_open(struct thread *td, struct ksem_open_args *uap)
 {
 
 	DP((">>> ksem_open start, pid=%d\n", (int)td->td_proc->p_pid));
@@ -589,7 +652,7 @@ struct ksem_unlink_args {
 };
 #endif
 int
-ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
+sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
 	char *path;
 	Fnv32_t fnv;
@@ -617,13 +680,14 @@ struct ksem_close_args {
 };
 #endif
 int
-ksem_close(struct thread *td, struct ksem_close_args *uap)
+sys_ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	/* No capability rights required to close a semaphore. */
+	error = ksem_get(td, uap->id, 0, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -642,13 +706,13 @@ struct ksem_post_args {
 };
 #endif
 int
-ksem_post(struct thread *td, struct ksem_post_args *uap)
+sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	error = ksem_get(td, uap->id, CAP_SEM_POST, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -680,7 +744,7 @@ struct ksem_wait_args {
 };
 #endif
 int
-ksem_wait(struct thread *td, struct ksem_wait_args *uap)
+sys_ksem_wait(struct thread *td, struct ksem_wait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 0, NULL));
@@ -693,7 +757,7 @@ struct ksem_timedwait_args {
 };
 #endif
 int
-ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
+sys_ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 {
 	struct timespec abstime;
 	struct timespec *ts;
@@ -721,7 +785,7 @@ struct ksem_trywait_args {
 };
 #endif
 int
-ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
+sys_ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 1, NULL));
@@ -738,7 +802,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	int error;
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
-	error = ksem_get(td, id, &fp);
+	error = ksem_get(td, id, CAP_SEM_WAIT, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -798,13 +862,13 @@ struct ksem_getvalue_args {
 };
 #endif
 int
-ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
+sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
 	int error, val;
 
-	error = ksem_get(td, uap->id, &fp);
+	error = ksem_get(td, uap->id, CAP_SEM_GETVALUE, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -832,13 +896,14 @@ struct ksem_destroy_args {
 };
 #endif
 int
-ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
+sys_ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	/* No capability rights required to close a semaphore. */
+	error = ksem_get(td, uap->id, 0, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -929,14 +994,14 @@ freebsd32_ksem_timedwait(struct thread *td,
 static struct syscall_helper_data ksem32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_init),
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_open),
-	SYSCALL32_INIT_HELPER(ksem_unlink),
-	SYSCALL32_INIT_HELPER(ksem_close),
-	SYSCALL32_INIT_HELPER(ksem_post),
-	SYSCALL32_INIT_HELPER(ksem_wait),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_unlink),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_close),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_post),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_wait),
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_timedwait),
-	SYSCALL32_INIT_HELPER(ksem_trywait),
-	SYSCALL32_INIT_HELPER(ksem_getvalue),
-	SYSCALL32_INIT_HELPER(ksem_destroy),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_trywait),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_getvalue),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_destroy),
 	SYSCALL_INIT_LAST
 };
 #endif

@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/filedesc.h>
@@ -305,7 +306,10 @@ fdesc_lookup(ap)
 		fd = fd1;
 	}
 
-	if ((error = fget(td, fd, &fp)) != 0)
+	/*
+	 * No rights to check since 'fp' isn't actually used.
+	 */
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
@@ -455,7 +459,7 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd, &fp);
+	error = getvnode(td->td_proc->p_fd, fd, CAP_EXTATTR_SET, &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not

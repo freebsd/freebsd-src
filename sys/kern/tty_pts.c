@@ -597,6 +597,8 @@ static struct fileops ptsdev_ops = {
 	.fo_kqfilter	= ptsdev_kqfilter,
 	.fo_stat	= ptsdev_stat,
 	.fo_close	= ptsdev_close,
+	.fo_chmod	= invfo_chmod,
+	.fo_chown	= invfo_chown,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 
@@ -686,6 +688,8 @@ ptsdrv_free(void *softc)
 	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
 	crfree(psc->pts_cred);
 
+	seldrain(&psc->pts_inpoll);
+	seldrain(&psc->pts_outpoll);
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
 
@@ -812,7 +816,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 #endif /* PTS_EXTERNAL */
 
 int
-posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 {
 	int error, fd;
 	struct file *fp;

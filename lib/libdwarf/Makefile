@@ -22,7 +22,7 @@ INCS=	dwarf.h libdwarf.h
 
 CFLAGS+=	-I${.CURDIR}
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 WITHOUT_MAN=
 

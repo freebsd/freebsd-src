@@ -96,10 +96,7 @@ rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 {
 	struct radix_node *rn;
 
-	if (!rn_mpath_next((struct radix_node *)rt))
-		return rt;
-
-	if (!gate)
+	if (!gate || !rt->rt_gateway)
 		return NULL;
 
 	/* beyond here, we use rn as the master copy */

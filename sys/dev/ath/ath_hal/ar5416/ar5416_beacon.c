@@ -26,6 +26,16 @@
 #include "ar5416/ar5416phy.h"
 
 #define TU_TO_USEC(_tu)		((_tu) << 10)
+#define	ONE_EIGHTH_TU_TO_USEC(_tu8)	((_tu8) << 7)
+
+/*
+ * Return the hardware NextTBTT in TSF
+ */
+uint64_t
+ar5416GetNextTBTT(struct ath_hal *ah)
+{
+	return OS_REG_READ(ah, AR_NEXT_TBTT);
+}
 
 /*
  * Initialize all of the hardware registers used to
@@ -36,13 +46,15 @@ void
 ar5416SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 {
 	uint32_t bperiod;
+	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bt->bt_nexttbtt));
-	OS_REG_WRITE(ah, AR_NEXT_DBA, TU_TO_USEC(bt->bt_nextdba) >> 3);
-	OS_REG_WRITE(ah, AR_NEXT_SWBA, TU_TO_USEC(bt->bt_nextswba) >> 3);
+	OS_REG_WRITE(ah, AR_NEXT_DBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextdba));
+	OS_REG_WRITE(ah, AR_NEXT_SWBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextswba));
 	OS_REG_WRITE(ah, AR_NEXT_NDP, TU_TO_USEC(bt->bt_nextatim));
 
 	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
+	ahp->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
 	OS_REG_WRITE(ah, AR5416_BEACON_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_DBA_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_SWBA_PERIOD, bperiod);
@@ -144,7 +156,7 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	
 	/* NB: no cfp setting since h/w automatically takes care */
 
-	OS_REG_WRITE(ah, AR_NEXT_TBTT, bs->bs_nexttbtt);
+	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bs->bs_nexttbtt));
 
 	/*
 	 * Start the beacon timers by setting the BEACON register
@@ -221,15 +233,19 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	OS_REG_WRITE(ah, AR_NEXT_TIM, TU_TO_USEC(nextTbtt - SLEEP_SLOP));
 
 	/* cab timeout is now in 1/8 TU */
-	OS_REG_WRITE(ah, AR_SLEEP1,
+	OS_REG_WRITE(ah, AR5416_SLEEP1,
 		SM((CAB_TIMEOUT_VAL << 3), AR5416_SLEEP1_CAB_TIMEOUT)
-		| AR_SLEEP1_ASSUME_DTIM);
+		| AR5416_SLEEP1_ASSUME_DTIM);
+
+	/* XXX autosleep? Use min beacon timeout; check ath9k -adrian */
 	/* beacon timeout is now in 1/8 TU */
-	OS_REG_WRITE(ah, AR_SLEEP2,
+	OS_REG_WRITE(ah, AR5416_SLEEP2,
 		SM((BEACON_TIMEOUT_VAL << 3), AR5416_SLEEP2_BEACON_TIMEOUT));
 
-	OS_REG_WRITE(ah, AR_TIM_PERIOD, beaconintval);
-	OS_REG_WRITE(ah, AR_DTIM_PERIOD, dtimperiod);
+	/* TIM_PERIOD and DTIM_PERIOD are now in uS. */
+	OS_REG_WRITE(ah, AR_TIM_PERIOD, TU_TO_USEC(beaconintval));
+	OS_REG_WRITE(ah, AR_DTIM_PERIOD, TU_TO_USEC(dtimperiod));
+
 	OS_REG_SET_BIT(ah, AR_TIMER_MODE,
 	     AR_TIMER_MODE_TBTT | AR_TIMER_MODE_TIM | AR_TIMER_MODE_DTIM);
 	HALDEBUG(ah, HAL_DEBUG_BEACON, "%s: next DTIM %d\n",

@@ -380,8 +380,11 @@ IDTVEC(fast_syscall)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
-	movq	%rsp,%rdi
-	call	syscall
+	movq	PCPU(CURTHREAD),%rdi
+	movq	%rsp,TD_FRAME(%rdi)
+	movl	TF_RFLAGS(%rsp),%esi
+	andl	$PSL_T,%esi
+	call	amd64_syscall
 1:	movq	PCPU(CURPCB),%rax
 	/* Disable interrupts before testing PCB_FULL_IRET. */
 	cli
@@ -390,29 +393,25 @@ IDTVEC(fast_syscall)
 	/* Check for and handle AST's on return to userland. */
 	movq	PCPU(CURTHREAD),%rax
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
-	je	2f
-	sti
-	movq	%rsp, %rdi
-	call	ast
-	jmp	1b
-2:	/* Restore preserved registers. */
+	jne	2f
+	/* Restore preserved registers. */
 	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
 	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
 	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
 	movq	TF_RAX(%rsp),%rax	/* return value 1 */
-	movq	TF_RBX(%rsp),%rbx	/* C preserved */
-	movq	TF_RBP(%rsp),%rbp	/* C preserved */
-	movq	TF_R12(%rsp),%r12	/* C preserved */
-	movq	TF_R13(%rsp),%r13	/* C preserved */
-	movq	TF_R14(%rsp),%r14	/* C preserved */
-	movq	TF_R15(%rsp),%r15	/* C preserved */
 	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
-	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
-	movq	%r9,%rsp		/* original %rsp */
+	movq	TF_RSP(%rsp),%rsp	/* user stack pointer */
 	swapgs
 	sysretq
+
+2:	/* AST scheduled. */
+	sti
+	movq	%rsp,%rdi
+	call	ast
+	jmp	1b
+
 3:	/* Requested full context restore, use doreti for that. */
 	MEXITCOUNT
 	jmp	doreti

@@ -260,7 +260,7 @@ struct setfib_args {
 };
 #endif
 int
-setfib(struct thread *td, struct setfib_args *uap)
+sys_setfib(struct thread *td, struct setfib_args *uap)
 {
 	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
 		return EINVAL;
@@ -1478,7 +1478,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 */
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_ifa = ifa;
-		info.rti_flags = flags | ifa->ifa_flags;
+		info.rti_flags = flags | (ifa->ifa_flags & ~IFA_RTSELF);
 		info.rti_info[RTAX_DST] = dst;
 		/* 
 		 * doing this for compatibility reasons

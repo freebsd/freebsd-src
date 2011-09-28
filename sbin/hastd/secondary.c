@@ -699,6 +699,7 @@ disk_thread(void *arg)
 			free(map);
 			clear_activemap = false;
 			pjdlog_debug(1, "Local activemap cleared.");
+			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio, "disk: (%p) Got request: ", hio);
 		/* Handle the actual request. */
@@ -791,8 +792,8 @@ send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			abort();
-			break;
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
 		}
 		if (hio->hio_error != 0)
 			nv_add_int16(nvout, hio->hio_error, "error");

@@ -10,7 +10,8 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c metadata.c vers.c main.c devicename.c ppc64_elf_freebsd.c
-SRCS+=		lv1call.S ps3cons.c font.h ps3mmu.c ps3net.c ps3repo.c ps3stor.c ps3disk.c
+SRCS+=		lv1call.S ps3cons.c font.h ps3mmu.c ps3net.c ps3repo.c \
+		ps3stor.c ps3disk.c ps3cdrom.c
 SRCS+=		ucmpdi2.c
 
 LOADER_DISK_SUPPORT?=	yes

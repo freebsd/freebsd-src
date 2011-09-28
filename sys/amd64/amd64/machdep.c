@@ -421,7 +421,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * MPSAFE
  */
 int
-sigreturn(td, uap)
+sys_sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
 		const struct __ucontext *sigcntxp;
@@ -517,7 +517,7 @@ int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
  
-	return sigreturn(td, (struct sigreturn_args *)uap);
+	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
 
@@ -1309,7 +1309,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
-	u_long physmem_tunable, memtest, tmpul;
+	u_long physmem_tunable, memtest;
 	pt_entry_t *pte;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
@@ -1376,8 +1376,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * one could eventually do more with the code than just disable it.
 	 */
 	memtest = 1;
-	if (TUNABLE_ULONG_FETCH("hw.memtest.tests", &tmpul))
-		memtest = tmpul;
+	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
 
 	/*
 	 * Don't allow MAXMEM or hw.physmem to extend the amount of memory

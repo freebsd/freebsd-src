@@ -462,6 +462,8 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
 
+	if (soun->sun_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
 	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
 	if (namelen <= 0)
 		return (EINVAL);
@@ -816,7 +818,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
 	u_int mbcnt_delta, sbcc;
-	u_long newhiwat;
+	u_int newhiwat;
 	int error = 0;
 
 	unp = sotounpcb(so);
@@ -974,7 +976,10 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		sorwakeup_locked(so2);
 
 		SOCKBUF_LOCK(&so->so_snd);
-		newhiwat = so->so_snd.sb_hiwat - (sbcc - unp2->unp_cc);
+		if ((int)so->so_snd.sb_hiwat >= (int)(sbcc - unp2->unp_cc))
+			newhiwat = so->so_snd.sb_hiwat - (sbcc - unp2->unp_cc);
+		else
+			newhiwat = 0;
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		so->so_snd.sb_mbmax -= mbcnt_delta;
@@ -1249,6 +1254,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
 
+	if (nam->sa_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
 		return (EINVAL);

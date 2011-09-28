@@ -608,8 +608,8 @@ orphanpg(pg)
 			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
-				psignal(p, SIGHUP);
-				psignal(p, SIGCONT);
+				kern_psignal(p, SIGHUP);
+				kern_psignal(p, SIGCONT);
 				PROC_UNLOCK(p);
 			}
 			return;
@@ -1391,7 +1391,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	pa = p->p_args;
 	pargs_hold(pa);
 	PROC_UNLOCK(p);
-	if (req->oldptr != NULL && pa != NULL)
+	if (pa != NULL)
 		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
 	pargs_drop(pa);
 	if (error != 0 || req->newptr == NULL)

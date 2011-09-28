@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -54,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * Currently this is used only by UFS1 extended attributes.
  */
 int
-extattrctl(td, uap)
+sys_extattrctl(td, uap)
 	struct thread *td;
 	struct extattrctl_args /* {
 		const char *path;
@@ -209,7 +210,7 @@ done:
 }
 
 int
-extattr_set_fd(td, uap)
+sys_extattr_set_fd(td, uap)
 	struct thread *td;
 	struct extattr_set_fd_args /* {
 		int fd;
@@ -230,7 +231,7 @@ extattr_set_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_SET, &fp);
 	if (error)
 		return (error);
 
@@ -244,7 +245,7 @@ extattr_set_fd(td, uap)
 }
 
 int
-extattr_set_file(td, uap)
+sys_extattr_set_file(td, uap)
 	struct thread *td;
 	struct extattr_set_file_args /* {
 		const char *path;
@@ -281,7 +282,7 @@ extattr_set_file(td, uap)
 }
 
 int
-extattr_set_link(td, uap)
+sys_extattr_set_link(td, uap)
 	struct thread *td;
 	struct extattr_set_link_args /* {
 		const char *path;
@@ -389,7 +390,7 @@ done:
 }
 
 int
-extattr_get_fd(td, uap)
+sys_extattr_get_fd(td, uap)
 	struct thread *td;
 	struct extattr_get_fd_args /* {
 		int fd;
@@ -410,7 +411,7 @@ extattr_get_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_GET, &fp);
 	if (error)
 		return (error);
 
@@ -424,7 +425,7 @@ extattr_get_fd(td, uap)
 }
 
 int
-extattr_get_file(td, uap)
+sys_extattr_get_file(td, uap)
 	struct thread *td;
 	struct extattr_get_file_args /* {
 		const char *path;
@@ -461,7 +462,7 @@ extattr_get_file(td, uap)
 }
 
 int
-extattr_get_link(td, uap)
+sys_extattr_get_link(td, uap)
 	struct thread *td;
 	struct extattr_get_link_args /* {
 		const char *path;
@@ -541,7 +542,7 @@ done:
 }
 
 int
-extattr_delete_fd(td, uap)
+sys_extattr_delete_fd(td, uap)
 	struct thread *td;
 	struct extattr_delete_fd_args /* {
 		int fd;
@@ -560,7 +561,8 @@ extattr_delete_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_DELETE,
+	    &fp);
 	if (error)
 		return (error);
 
@@ -573,7 +575,7 @@ extattr_delete_fd(td, uap)
 }
 
 int
-extattr_delete_file(td, uap)
+sys_extattr_delete_file(td, uap)
 	struct thread *td;
 	struct extattr_delete_file_args /* {
 		const char *path;
@@ -606,7 +608,7 @@ extattr_delete_file(td, uap)
 }
 
 int
-extattr_delete_link(td, uap)
+sys_extattr_delete_link(td, uap)
 	struct thread *td;
 	struct extattr_delete_link_args /* {
 		const char *path;
@@ -705,7 +707,7 @@ done:
 
 
 int
-extattr_list_fd(td, uap)
+sys_extattr_list_fd(td, uap)
 	struct thread *td;
 	struct extattr_list_fd_args /* {
 		int fd;
@@ -719,7 +721,7 @@ extattr_list_fd(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_LIST, &fp);
 	if (error)
 		return (error);
 
@@ -733,7 +735,7 @@ extattr_list_fd(td, uap)
 }
 
 int
-extattr_list_file(td, uap)
+sys_extattr_list_file(td, uap)
 	struct thread*td;
 	struct extattr_list_file_args /* {
 		const char *path;
@@ -763,7 +765,7 @@ extattr_list_file(td, uap)
 }
 
 int
-extattr_list_link(td, uap)
+sys_extattr_list_link(td, uap)
 	struct thread*td;
 	struct extattr_list_link_args /* {
 		const char *path;

@@ -269,11 +269,13 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	dr0.rtaddr = saddr6;
 	dr0.flags  = nd_ra->nd_ra_flags_reserved;
 	/*
-	 * Effectively-disable the route in the RA packet
-	 * when ND6_IFF_NO_RADR on the receiving interface or
-	 * ip6.forwarding=1.
+	 * Effectively-disable routes from RA messages when
+	 * ND6_IFF_NO_RADR enabled on the receiving interface or
+	 * (ip6.forwarding == 1 && ip6.rfc6204w3 != 1).
 	 */
-	if (ndi->flags & ND6_IFF_NO_RADR || V_ip6_forwarding)
+	if (ndi->flags & ND6_IFF_NO_RADR)
+		dr0.rtlifetime = 0;
+	else if (V_ip6_forwarding && !V_ip6_rfc6204w3)
 		dr0.rtlifetime = 0;
 	else
 		dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);

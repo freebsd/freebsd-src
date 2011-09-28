@@ -742,11 +742,12 @@ create init_text8 255 allot
 			else
 				-rot 2drop
 
-				\ disable timeout if less than zero
+				\ boot immediately if less than zero
 				dup 0< if
 					drop
-					0 menu_timeout_enabled !
-					0 ( assigned to menu_timeout below )
+					menu-create
+					0 25 at-xy
+					0 boot
 				then
 			then
 		then

@@ -25,27 +25,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * NETLOGIC_BSD
  * $FreeBSD$
- * NETLOGIC_BSD */
+ */
 
-#ifndef __NLM_COP2_H__
-#define __NLM_COP2_H__
+#ifndef __NLM_HAL_COP2_H__
+#define __NLM_HAL_COP2_H__
 
-#define XLP_COP2_TX_BUF_REG		0
-#define XLP_COP2_RX_BUF_REG		1
-#define XLP_COP2_TXMSGSTATUS_REG	2
-#define XLP_COP2_RXMSGSTATUS_REG	3
-#define XLP_COP2_MSGSTATUS1_REG		4
-#define XLP_COP2_MSGCONFIG_REG		5
-#define XLP_COP2_MSGCONFIG1_REG		6
+#define COP2_TX_BUF		0
+#define COP2_RX_BUF		1
+#define COP2_TXMSGSTATUS	2
+#define COP2_RXMSGSTATUS	3
+#define COP2_MSGSTATUS1		4
+#define COP2_MSGCONFIG		5
+#define COP2_MSGCONFIG1		6
 
-#define CROSSTHR_POPQ_EN		0x01
-#define VC0_POPQ_EN			0x02
-#define VC1_POPQ_EN			0x04
-#define VC2_POPQ_EN			0x08
-#define VC3_POPQ_EN			0x10
-#define ALL_VC_POPQ_EN			0x1E
-#define ALL_VC_CT_POPQ_EN		0x1F
+#define CROSSTHR_POPQ_EN	0x01
+#define VC0_POPQ_EN		0x02
+#define VC1_POPQ_EN		0x04
+#define VC2_POPQ_EN		0x08
+#define VC3_POPQ_EN		0x10
+#define ALL_VC_POPQ_EN		0x1E
+#define ALL_VC_CT_POPQ_EN	0x1F
 
 struct nlm_fmn_msg {
 	uint64_t msg[4];
@@ -62,8 +63,7 @@ static inline uint32_t nlm_read_c2_##name(void)			\
 	"mfc2	%0, $%1, %2\n"					\
 	".set	pop\n"						\
 	: "=r" (__rv)						\
-	: "i" (reg), "i" (sel)					\
-	);							\
+	: "i" (reg), "i" (sel));				\
 	return __rv;						\
 }								\
 								\
@@ -75,8 +75,7 @@ static inline void nlm_write_c2_##name(uint32_t val)		\
 	".set	mips64\n"					\
 	"mtc2	%0, $%1, %2\n"					\
 	".set	pop\n"						\
-	:: "r" (val), "i" (reg), "i" (sel)			\
-	);							\
+	: : "r" (val), "i" (reg), "i" (sel));			\
 } struct __hack
 
 #if (__mips == 64)
@@ -91,7 +90,7 @@ static inline uint64_t nlm_read_c2_##name(void)			\
 	"dmfc2	%0, $%1, %2\n"					\
 	".set	pop\n"						\
 	: "=r" (__rv)						\
-	: "i" (reg), "i" (sel) );				\
+	: "i" (reg), "i" (sel));				\
 	return __rv;						\
 }								\
 								\
@@ -103,7 +102,7 @@ static inline void nlm_write_c2_##name(uint64_t val)		\
 	".set	mips64\n"					\
 	"dmtc2	%0, $%1, %2\n"					\
 	".set	pop\n"						\
-	:: "r" (val), "i" (reg), "i" (sel) );			\
+	: : "r" (val), "i" (reg), "i" (sel));			\
 } struct __hack
 
 #else
@@ -122,15 +121,15 @@ static inline uint64_t nlm_read_c2_##name(void)			\
 	".set	pop\n"						\
 	: "=r"(__high), "=r"(__low)				\
 	: "i"(reg), "i"(sel)					\
-	: "$8" );						\
+	: "$8");						\
 								\
-	return (((uint64_t)__high << 32) | __low);		\
+	return ((uint64_t)__high << 32) | __low;		\
 }								\
 								\
 static inline void nlm_write_c2_##name(uint64_t val)		\
 {								\
-       uint32_t __high = val >> 32;				\
-       uint32_t __low = val & 0xffffffff;			\
+	uint32_t __high = val >> 32;				\
+	uint32_t __low = val & 0xffffffff;			\
 	__asm__ __volatile__ (					\
 	".set	push\n"						\
 	".set	noreorder\n"					\
@@ -141,113 +140,100 @@ static inline void nlm_write_c2_##name(uint64_t val)		\
 	"or	$8, $8, $9\n"					\
 	"dmtc2	$8, $%2, %3\n"					\
 	".set	pop\n"						\
-	:: "r"(__high), "r"(__low),  "i"(reg), "i"(sel)		\
-	:"$8", "$9");						\
+	: : "r"(__high), "r"(__low),  "i"(reg), "i"(sel)	\
+	: "$8", "$9");						\
 } struct __hack
 
 #endif
 
-NLM_DEFINE_COP2_ACCESSORS64(txbuf0, XLP_COP2_TX_BUF_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS64(txbuf1, XLP_COP2_TX_BUF_REG, 1);
-NLM_DEFINE_COP2_ACCESSORS64(txbuf2, XLP_COP2_TX_BUF_REG, 2);
-NLM_DEFINE_COP2_ACCESSORS64(txbuf3, XLP_COP2_TX_BUF_REG, 3);
+NLM_DEFINE_COP2_ACCESSORS64(txbuf0, COP2_TX_BUF, 0);
+NLM_DEFINE_COP2_ACCESSORS64(txbuf1, COP2_TX_BUF, 1);
+NLM_DEFINE_COP2_ACCESSORS64(txbuf2, COP2_TX_BUF, 2);
+NLM_DEFINE_COP2_ACCESSORS64(txbuf3, COP2_TX_BUF, 3);
 
-NLM_DEFINE_COP2_ACCESSORS64(rxbuf0, XLP_COP2_RX_BUF_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS64(rxbuf1, XLP_COP2_RX_BUF_REG, 1);
-NLM_DEFINE_COP2_ACCESSORS64(rxbuf2, XLP_COP2_RX_BUF_REG, 2);
-NLM_DEFINE_COP2_ACCESSORS64(rxbuf3, XLP_COP2_RX_BUF_REG, 3);
+NLM_DEFINE_COP2_ACCESSORS64(rxbuf0, COP2_RX_BUF, 0);
+NLM_DEFINE_COP2_ACCESSORS64(rxbuf1, COP2_RX_BUF, 1);
+NLM_DEFINE_COP2_ACCESSORS64(rxbuf2, COP2_RX_BUF, 2);
+NLM_DEFINE_COP2_ACCESSORS64(rxbuf3, COP2_RX_BUF, 3);
 
-NLM_DEFINE_COP2_ACCESSORS32(txmsgstatus, XLP_COP2_TXMSGSTATUS_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS32(rxmsgstatus, XLP_COP2_RXMSGSTATUS_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS32(msgstatus1, XLP_COP2_MSGSTATUS1_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS32(msgconfig, XLP_COP2_MSGCONFIG_REG, 0);
-NLM_DEFINE_COP2_ACCESSORS32(msgconfig1, XLP_COP2_MSGCONFIG1_REG, 0);
+NLM_DEFINE_COP2_ACCESSORS32(txmsgstatus, COP2_TXMSGSTATUS, 0);
+NLM_DEFINE_COP2_ACCESSORS32(rxmsgstatus, COP2_RXMSGSTATUS, 0);
+NLM_DEFINE_COP2_ACCESSORS32(msgstatus1, COP2_MSGSTATUS1, 0);
+NLM_DEFINE_COP2_ACCESSORS32(msgconfig, COP2_MSGCONFIG, 0);
+NLM_DEFINE_COP2_ACCESSORS32(msgconfig1, COP2_MSGCONFIG1, 0);
 
 /* successful completion returns 1, else 0 */
-static __inline__ int nlm_msgsend(int val)
+static inline int
+nlm_msgsend(int val)
 {
 	int result;
 	__asm__ volatile (
-		".set push			\n"
-		".set noreorder			\n"
-		".set mips64			\n"
-		"move	$8, %1			\n"
-		"sync				\n"
-		"/* msgsnds	$9, $8 */	\n"
-		".word	0x4a084801		\n"
-		"move	%0, $9			\n"
-		".set pop			\n"
+		".set push\n"
+		".set noreorder\n"
+		".set mips64\n"
+		"move	$8, %1\n"
+		"sync\n"
+		"/* msgsnds	$9, $8 */\n"
+		".word	0x4a084801\n"
+		"move	%0, $9\n"
+		".set pop\n"
 		: "=r" (result)
 		: "r" (val)
-		: "$8", "$9"
-	);
+		: "$8", "$9");
 	return result;
 }
 
-static __inline__ int nlm_msgld(int vc)
+static inline int
+nlm_msgld(int vc)
 {
 	int val;
 	__asm__ volatile (
-		".set push			\n"
-		".set noreorder			\n"
-		".set mips64			\n"
-		"move	$8, %1			\n"
-		"/* msgld	$9, $8 */	\n"
-		".word 0x4a084802		\n"
-		"move	%0, $9			\n"
-		".set pop			\n"
+		".set push\n"
+		".set noreorder\n"
+		".set mips64\n"
+		"move	$8, %1\n"
+		"/* msgld	$9, $8 */\n"
+		".word 0x4a084802\n"
+		"move	%0, $9\n"
+		".set pop\n"
 		: "=r" (val)
 		: "r" (vc)
-		: "$8", "$9"
-	);
+		: "$8", "$9");
 	return val;
 }
 
-static __inline__ void nlm_msgwait(int vc)
+static inline void
+nlm_msgwait(int vc)
 {
 	__asm__ volatile (
-		".set push			\n"
-		".set noreorder			\n"
-		".set mips64			\n"
-		"move	$8, %0			\n"
-		"/* msgwait	$8 */		\n"
-		".word 0x4a080003		\n"
-		".set pop			\n"
-		:: "r" (vc)
-		: "$8"
-	);
+		".set push\n"
+		".set noreorder\n"
+		".set mips64\n"
+		"move	$8, %0\n"
+		"/* msgwait	$8 */\n"
+		".word 0x4a080003\n"
+		".set pop\n"
+		: : "r" (vc)
+		: "$8");
 }
 
-/* TODO this is not needed in n32 and n64 */
-static __inline uint32_t
-nlm_fmn_saveflags(void)
-{
-	uint32_t sr = mips_rd_status();
-
-	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_COP_2_BIT);
-	return (sr);
-}
-
-static __inline void
-nlm_fmn_restoreflags(uint32_t sr)
-{
-
-	mips_wr_status(sr);
-}
-
-static __inline__ int nlm_fmn_msgsend(int dstid, int size, int swcode,
-		struct nlm_fmn_msg *m)
+static inline int
+nlm_fmn_msgsend(int dstid, int size, int swcode, struct nlm_fmn_msg *m)
 {
 	uint32_t flags, status;
 	int rv;
 
 	size -= 1;
-	flags = nlm_fmn_saveflags();
-	switch(size) {
-		case 3: nlm_write_c2_txbuf3(m->msg[3]);
-		case 2: nlm_write_c2_txbuf2(m->msg[2]);
-		case 1: nlm_write_c2_txbuf1(m->msg[1]);
-		case 0: nlm_write_c2_txbuf0(m->msg[0]);
+	flags = nlm_save_flags_cop2();
+	switch (size) {
+	case 3:
+		nlm_write_c2_txbuf3(m->msg[3]);
+	case 2:
+		nlm_write_c2_txbuf2(m->msg[2]);
+	case 1:
+		nlm_write_c2_txbuf1(m->msg[1]);
+	case 0:
+		nlm_write_c2_txbuf0(m->msg[0]);
 	}
 
 	dstid |= ((swcode << 24) | (size << 16));
@@ -255,19 +241,19 @@ static __inline__ int nlm_fmn_msgsend(int dstid, int size, int swcode,
 	rv = !status;
 	if (rv != 0)
 		rv = nlm_read_c2_txmsgstatus();
-	nlm_fmn_restoreflags(flags);
+	nlm_restore_flags(flags);
 
-	return (rv);
+	return rv;
 }
 
-static __inline__ int nlm_fmn_msgrcv(int vc, int *srcid, int *size, int *code,
-    struct nlm_fmn_msg *m)
+static inline int
+nlm_fmn_msgrcv(int vc, int *srcid, int *size, int *code, struct nlm_fmn_msg *m)
 {
 	uint32_t status;
 	uint32_t msg_status, flags;
 	int tmp_sz, rv;
 
-	flags = nlm_fmn_saveflags();
+	flags = nlm_save_flags_cop2();
 	status = nlm_msgld(vc); /* will return 0, if error */
 	rv = !status;
 	if (rv == 0) {
@@ -276,38 +262,24 @@ static __inline__ int nlm_fmn_msgrcv(int vc, int *srcid, int *size, int *code,
 		*code = (msg_status >> 18) & 0xff;
 		*srcid = (msg_status >> 4) & 0xfff;
 		tmp_sz = *size - 1;
-		switch(tmp_sz) {
-			case 3: m->msg[3] = nlm_read_c2_rxbuf3();
-			case 2: m->msg[2] = nlm_read_c2_rxbuf2();
-			case 1: m->msg[1] = nlm_read_c2_rxbuf1();
-			case 0: m->msg[0] = nlm_read_c2_rxbuf0();
+		switch (tmp_sz) {
+		case 3:
+			m->msg[3] = nlm_read_c2_rxbuf3();
+		case 2:
+			m->msg[2] = nlm_read_c2_rxbuf2();
+		case 1:
+			m->msg[1] = nlm_read_c2_rxbuf1();
+		case 0:
+			m->msg[0] = nlm_read_c2_rxbuf0();
 		}
 	}
-	nlm_fmn_restoreflags(flags);
+	nlm_restore_flags(flags);
 
 	return rv;
 }
 
-/**
- * nlm_fmn_cpu_init() initializes the per-h/w thread cop2 w.r.t the following
- * configuration parameters. It needs to be individually setup on each
- * hardware thread.
- *
- * int_vec - interrupt vector getting placed into msgconfig reg
- * ctpe - cross thread message pop enable. When set to 1, the thread (h/w cpu)
- *        associated where this cop2 register is setup, can pop messages
- *        intended for any other thread in the same core.
- * v0pe - VC0 pop message request mode enable. When set to 1, the thread
- * 	  can send pop requests to vc0.
- * v1pe - VC1 pop message request mode enable. When set to 1, the thread
- * 	  can send pop requests to vc1.
- * v2pe - VC2 pop message request mode enable. When set to 1, the thread
- * 	  can send pop requests to vc2.
- * v3pe - VC3 pop message request mode enable. When set to 1, the thread
- * 	  can send pop requests to vc3.
- */
-static __inline__ void nlm_fmn_cpu_init(int int_vec, int ctpe, int v0pe,
-    int v1pe, int v2pe, int v3pe)
+static inline void
+nlm_fmn_cpu_init(int int_vec, int ctpe, int v0pe, int v1pe, int v2pe, int v3pe)
 {
 	uint32_t val = nlm_read_c2_msgconfig();
 

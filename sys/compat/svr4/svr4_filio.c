@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
@@ -74,7 +75,7 @@ svr4_sys_poll(td, uap)
      siz = uap->nfds * sizeof(struct pollfd);
      pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
-     error = poll(td, (struct poll_args *)uap);
+     error = sys_poll(td, (struct poll_args *)uap);
 
      if ((cerr = copyin(uap->fds, pfd, siz)) != 0) {
        error = cerr;
@@ -113,7 +114,7 @@ svr4_sys_read(td, uap)
      ra.buf = uap->buf;
      ra.nbyte = uap->nbyte;
 
-     if (fget(td, uap->fd, &fp) != 0) {
+     if (fget(td, uap->fd, CAP_READ, &fp) != 0) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
        return EBADF;
      }
