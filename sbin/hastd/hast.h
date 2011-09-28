@@ -167,6 +167,8 @@ struct hast_resource {
 	off_t	hr_local_mediasize;
 	/* Sector size of local provider. */
 	unsigned int hr_local_sectorsize;
+	/* Flush write cache on metadata updates? */
+	int	hr_metaflush;
 
 	/* Descriptor for /dev/ggctl communication. */
 	int	hr_ggatefd;
