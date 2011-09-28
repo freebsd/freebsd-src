@@ -78,6 +78,7 @@ delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\2011/08/17"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
@@ -209,6 +210,7 @@ arved -> stefan
 
 asami -> obrien
 
+bapt -> eadler
 bapt -> jlaffaye
 
 beat -> decke
@@ -385,6 +387,7 @@ rafan -> chinsan
 rene -> crees
 
 sahil -> culot
+sahil -> eadler
 
 sat -> beech
 
