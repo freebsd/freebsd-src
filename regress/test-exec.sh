@@ -204,6 +204,11 @@ verbose ()
 	fi
 }
 
+warn ()
+{
+	echo "WARNING: $@" >>$TEST_SSH_LOGFILE
+	echo "WARNING: $@"
+}
 
 fail ()
 {

@@ -167,8 +167,8 @@ AUTHENTICATION
      AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.  The
      client selects the encryption algorithm to use from those offered by the
      server.  Additionally, session integrity is provided through a
-     cryptographic message authentication code (hmac-md5, hmac-sha1, umac-64
-     or hmac-ripemd160).
+     cryptographic message authentication code (hmac-md5, hmac-sha1, umac-64,
+     hmac-ripemd160, hmac-sha2-256 or hmac-sha2-512).
 
      Finally, the server and the client enter an authentication dialog.  The
      client tries to authenticate itself using host-based authentication,
@@ -261,20 +261,21 @@ SSHRC
      exist either, xauth is used to add the cookie.
 
 AUTHORIZED_KEYS FILE FORMAT
-     AuthorizedKeysFile specifies the file containing public keys for public
+     AuthorizedKeysFile specifies the files containing public keys for public
      key authentication; if none is specified, the default is
-     ~/.ssh/authorized_keys.  Each line of the file contains one key (empty
-     lines and lines starting with a `#' are ignored as comments).  Protocol 1
-     public keys consist of the following space-separated fields: options,
-     bits, exponent, modulus, comment.  Protocol 2 public key consist of:
-     options, keytype, base64-encoded key, comment.  The options field is
-     optional; its presence is determined by whether the line starts with a
-     number or not (the options field never starts with a number).  The bits,
-     exponent, modulus, and comment fields give the RSA key for protocol
-     version 1; the comment field is not used for anything (but may be
-     convenient for the user to identify the key).  For protocol version 2 the
-     keytype is ``ecdsa-sha2-nistp256'', ``ecdsa-sha2-nistp384'',
-     ``ecdsa-sha2-nistp521'', ``ssh-dss'' or ``ssh-rsa''.
+     ~/.ssh/authorized_keys and ~/.ssh/authorized_keys2.  Each line of the
+     file contains one key (empty lines and lines starting with a `#' are
+     ignored as comments).  Protocol 1 public keys consist of the following
+     space-separated fields: options, bits, exponent, modulus, comment.
+     Protocol 2 public key consist of: options, keytype, base64-encoded key,
+     comment.  The options field is optional; its presence is determined by
+     whether the line starts with a number or not (the options field never
+     starts with a number).  The bits, exponent, modulus, and comment fields
+     give the RSA key for protocol version 1; the comment field is not used
+     for anything (but may be convenient for the user to identify the key).
+     For protocol version 2 the keytype is ``ecdsa-sha2-nistp256'',
+     ``ecdsa-sha2-nistp384'', ``ecdsa-sha2-nistp521'', ``ssh-dss'' or
+     ``ssh-rsa''.
 
      Note that lines in this file are usually several hundred bytes long
      (because of the size of the public key encoding) up to a limit of 8
@@ -631,4 +632,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.9                    October 28, 2010                    OpenBSD 4.9
+OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0

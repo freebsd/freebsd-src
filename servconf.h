@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.95 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.99 2011/06/22 21:57:01 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -27,6 +27,7 @@
 #define MAX_HOSTCERTS		256	/* Max # host certificates. */
 #define MAX_ACCEPT_ENV		256	/* Max # of env vars. */
 #define MAX_MATCH_GROUPS	256	/* Max # of groups for Match. */
+#define MAX_AUTHKEYS_FILES	256	/* Max # of authorized_keys files. */
 
 /* permit_root_login */
 #define	PERMIT_NOT_SET		-1
@@ -34,6 +35,11 @@
 #define	PERMIT_FORCED_ONLY	1
 #define	PERMIT_NO_PASSWD	2
 #define	PERMIT_YES		3
+
+/* use_privsep */
+#define PRIVSEP_OFF		0
+#define PRIVSEP_ON		1
+#define PRIVSEP_SANDBOX		2
 
 #define DEFAULT_AUTH_FAIL_MAX	6	/* Default for MaxAuthTries */
 #define DEFAULT_SESSIONS_MAX	10	/* Default for MaxSessions */
@@ -145,8 +151,8 @@ typedef struct {
 					 * disconnect the session
 					 */
 
-	char   *authorized_keys_file;	/* File containing public keys */
-	char   *authorized_keys_file2;
+	u_int num_authkeys_files;	/* Files containing public keys */
+	char   *authorized_keys_files[MAX_AUTHKEYS_FILES];
 
 	char   *adm_forced_command;
 
@@ -161,6 +167,20 @@ typedef struct {
 	char   *trusted_user_ca_keys;
 	char   *authorized_principals_file;
 }       ServerOptions;
+
+/*
+ * These are string config options that must be copied between the
+ * Match sub-config and the main config, and must be sent from the
+ * privsep slave to the privsep master. We use a macro to ensure all
+ * the options are copied and the copies are done in the correct order.
+ */
+#define COPY_MATCH_STRING_OPTS() do { \
+		M_CP_STROPT(banner); \
+		M_CP_STROPT(trusted_user_ca_keys); \
+		M_CP_STROPT(revoked_keys_file); \
+		M_CP_STROPT(authorized_principals_file); \
+		M_CP_STRARRAYOPT(authorized_keys_files, num_authkeys_files); \
+	} while (0)
 
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);

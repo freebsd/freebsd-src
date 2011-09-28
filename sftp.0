@@ -28,7 +28,13 @@ DESCRIPTION
      The final usage format allows for automated sessions using the -b option.
      In such cases, it is necessary to configure non-interactive
      authentication to obviate the need to enter a password at connection time
-     (see sshd(8) and ssh-keygen(1) for details).  The options are as follows:
+     (see sshd(8) and ssh-keygen(1) for details).
+
+     Since some usage formats use colon characters to delimit host names from
+     path names, IPv6 addresses must be enclosed in square brackets to avoid
+     ambiguity.
+
+     The options are as follows:
 
      -1      Specify the use of protocol version 1.
 
@@ -287,7 +293,7 @@ INTERACTIVE COMMANDS
              remote-path is specified, then remote-path must specify a
              directory.
 
-             If ether the -P or -p flag is specified, then full file
+             If either the -P or -p flag is specified, then full file
              permissions and access times are copied too.
 
              If the -r flag is specified then directories will be copied
@@ -328,4 +334,4 @@ SEE ALSO
      draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
      material.
 
-OpenBSD 4.9                    December 4, 2010                    OpenBSD 4.9
+OpenBSD 5.0                     August 7, 2011                     OpenBSD 5.0
