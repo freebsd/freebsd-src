@@ -2363,7 +2363,7 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 		 * For PAGE_SIZE == 32768 case, compiler already
 		 * properly aligns the dirty field, so no forcible
 		 * alignment is needed. Only require existence of
-		 * atomic_clear_64 when page size if 32768.
+		 * atomic_clear_64 when page size is 32768.
 		 */
 		addr = (uintptr_t)&m->dirty;
 #if PAGE_SIZE == 32768
@@ -2373,9 +2373,9 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 		atomic_clear_32((uint32_t *)addr, pagebits);
 #else		/* PAGE_SIZE <= 8192 */
 		/*
-		 * Use a trick to perform an 32bit atomic on the
-		 * contained aligned word, to not depend on existence
-		 * of the atomic_clear_{8, 16}.
+		 * Use a trick to perform a 32-bit atomic on the
+		 * containing aligned word, to not depend on the existence
+		 * of atomic_clear_{8, 16}.
 		 */
 		shift = addr & (sizeof(uint32_t) - 1);
 #if BYTE_ORDER == BIG_ENDIAN

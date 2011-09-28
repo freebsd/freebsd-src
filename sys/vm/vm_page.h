@@ -105,7 +105,7 @@
  *	the field without holding that lock.  If the underlying
  *	architecture does not support atomic read-modify-write
  *	operations on the field's type, then the machine-independent
- *	layer uses 32bit atomic on the aligned 32bit word that
+ *	layer uses a 32-bit atomic on the aligned 32-bit word that
  *	contains the dirty field.  In the machine-independent layer,
  *	the implementation of read-modify-write operations on the
  *	field is encapsulated in vm_page_clear_dirty_mask().
