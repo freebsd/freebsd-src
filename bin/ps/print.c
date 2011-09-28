@@ -392,17 +392,13 @@ tdev(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	dev_t dev;
-	char buff[16];
 
 	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV)
 		(void)printf("%*s", v->width, "??");
-	else {
-		(void)snprintf(buff, sizeof(buff),
-		    "%d/%d", major(dev), minor(dev));
-		(void)printf("%*s", v->width, buff);
-	}
+	else
+		(void)printf("%#*jx", v->width, (uintmax_t)dev);
 }
 
 void
