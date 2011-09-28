@@ -1,4 +1,4 @@
-/*	$NetBSD: zuncompress.c,v 1.8 2010/11/06 21:42:32 mrg Exp $ */
+/*	$NetBSD: zuncompress.c,v 1.11 2011/08/16 13:55:02 joerg Exp $ */
 
 /*-
  * Copyright (c) 1985, 1986, 1992, 1993
