@@ -15,6 +15,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20110928:	p5	FreeBSD-SA-11:04.compress, FreeBSD-SA-11:05.unix
+	Fix handling of corrupt compress(1)ed data. [11:04]
+
+	Add missing length checks on unix socket addresses. [11:05]
+
 20110528:	p4	FreeBSD-SA-11:02.bind
 	Fix BIND remote DoS with large RRSIG RRsets and negative
 	caching.
