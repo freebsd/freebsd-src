@@ -1304,8 +1304,15 @@ local_send_thread(void *arg)
 			}
 			break;
 		case BIO_FLUSH:
+			if (!res->hr_localflush) {
+				ret = -1;
+				errno = EOPNOTSUPP;
+				break;
+			}
 			ret = g_flush(res->hr_localfd);
 			if (ret < 0) {
+				if (errno == EOPNOTSUPP)
+					res->hr_localflush = false;
 				hio->hio_errors[ncomp] = errno;
 				reqlog(LOG_WARNING, 0, ggio,
 				    "Local request failed (%s): ",

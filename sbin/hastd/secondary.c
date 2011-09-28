@@ -664,7 +664,7 @@ disk_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	ssize_t ret;
-	bool clear_activemap;
+	bool clear_activemap, logerror;
 
 	clear_activemap = true;
 
@@ -702,6 +702,7 @@ disk_thread(void *arg)
 			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio, "disk: (%p) Got request: ", hio);
+		logerror = true;
 		/* Handle the actual request. */
 		switch (hio->hio_cmd) {
 		case HIO_READ:
@@ -736,14 +737,23 @@ disk_thread(void *arg)
 				hio->hio_error = 0;
 			break;
 		case HIO_FLUSH:
+			if (!res->hr_localflush) {
+				ret = -1;
+				hio->hio_error = EOPNOTSUPP;
+				logerror = false;
+				break;
+			}
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0)
+			if (ret < 0) {
+				if (errno == EOPNOTSUPP)
+					res->hr_localflush = false;
 				hio->hio_error = errno;
-			else
+			} else {
 				hio->hio_error = 0;
+			}
 			break;
 		}
-		if (hio->hio_error != 0) {
+		if (logerror && hio->hio_error != 0) {
 			reqlog(LOG_ERR, 0, hio->hio_error, hio,
 			    "Request failed: ");
 		}
