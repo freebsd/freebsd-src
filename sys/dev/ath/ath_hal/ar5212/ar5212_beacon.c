@@ -44,6 +44,7 @@ ar5212GetNextTBTT(struct ath_hal *ah)
 void
 ar5212SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 {
+	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	OS_REG_WRITE(ah, AR_TIMER0, bt->bt_nexttbtt);
 	OS_REG_WRITE(ah, AR_TIMER1, bt->bt_nextdba);
@@ -65,6 +66,7 @@ ar5212SetBeaconTimers(struct ath_hal *ah, const HAL_BEACON_TIMERS *bt)
 		OS_REG_WRITE(ah, AR_BEACON, AR_BEACON_RESET_TSF);
 	}
 	OS_REG_WRITE(ah, AR_BEACON, bt->bt_intval);
+	ahp->ah_beaconInterval = (bt->bt_intval & HAL_BEACON_PERIOD);
 }
 
 /*
