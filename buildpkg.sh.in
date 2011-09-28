@@ -229,8 +229,6 @@ perl -p -i -e "s/#PrintMotd yes/PrintMotd no/" \
 # We don't want to overwrite config files on multiple installs
 mv $FAKE_ROOT${sysconfdir}/ssh_config $FAKE_ROOT${sysconfdir}/ssh_config.default
 mv $FAKE_ROOT${sysconfdir}/sshd_config $FAKE_ROOT${sysconfdir}/sshd_config.default
-[ -f $FAKE_ROOT${sysconfdir}/ssh_prng_cmds ]  &&  \
-mv $FAKE_ROOT${sysconfdir}/ssh_prng_cmds $FAKE_ROOT${sysconfdir}/ssh_prng_cmds.default
 
 # local tweeks here
 [ -s "${POST_MAKE_INSTALL_FIXES}" ]  &&  . ${POST_MAKE_INSTALL_FIXES}
@@ -317,11 +315,6 @@ cat > postinstall << _EOF
 [ -f \${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config ]  ||  \\
 	cp -p \${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config.default \\
 		\${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config
-[ -f \${PKG_INSTALL_ROOT}${sysconfdir}/ssh_prng_cmds.default ]  &&  {
-	[ -f \${PKG_INSTALL_ROOT}${sysconfdir}/ssh_prng_cmds ]  ||  \\
-	cp -p \${PKG_INSTALL_ROOT}${sysconfdir}/ssh_prng_cmds.default \\
-		\${PKG_INSTALL_ROOT}${sysconfdir}/ssh_prng_cmds
-}
 
 # make rc?.d dirs only if we are doing a test install
 [ -n "${TEST_DIR}" ]  &&  [ $DO_SMF -ne 1 ] && {

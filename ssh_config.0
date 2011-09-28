@@ -47,6 +47,12 @@ DESCRIPTION
              line (i.e. the name is not converted to a canonicalized host name
              before matching).
 
+             A pattern entry may be negated by prefixing it with an
+             exclamation mark (`!').  If a negated entry is matched, then the
+             Host entry is ignored, regardless of whether any other patterns
+             on the line match.  Negated matches are therefore useful to
+             provide exceptions for wildcard matches.
+
              See PATTERNS for more information on patterns.
 
      AddressFamily
@@ -160,13 +166,16 @@ DESCRIPTION
      ControlPath
              Specify the path to the control socket used for connection
              sharing as described in the ControlMaster section above or the
-             string ``none'' to disable connection sharing.  In the path, `%l'
-             will be substituted by the local host name, `%h' will be
-             substituted by the target host name, `%p' the port, and `%r' by
-             the remote login username.  It is recommended that any
-             ControlPath used for opportunistic connection sharing include at
-             least %h, %p, and %r.  This ensures that shared connections are
-             uniquely identified.
+             string ``none'' to disable connection sharing.  In the path, `%L'
+             will be substituted by the first component of the local host
+             name, `%l' will be substituted by the local host name (including
+             any domain name), `%h' will be substituted by the target host
+             name, `%n' will be substituted by the original target host name
+             specified on the command line, `%p' the port, `%r' by the remote
+             login username, and `%u' by the username of the user running
+             ssh(1).  It is recommended that any ControlPath used for
+             opportunistic connection sharing include at least %h, %p, and %r.
+             This ensures that shared connections are uniquely identified.
 
      ControlPersist
              When used in conjunction with ControlMaster, specifies that the
@@ -282,8 +291,9 @@ DESCRIPTION
              default is ``no''.
 
      GlobalKnownHostsFile
-             Specifies a file to use for the global host key database instead
-             of /etc/ssh/ssh_known_hosts.
+             Specifies one or more files to use for the global host key
+             database, separated by whitespace.  The default is
+             /etc/ssh/ssh_known_hosts, /etc/ssh/ssh_known_hosts2.
 
      GSSAPIAuthentication
              Specifies whether user authentication based on GSSAPI is allowed.
@@ -336,7 +346,7 @@ DESCRIPTION
              Specifies the real host name to log into.  This can be used to
              specify nicknames or abbreviations for hosts.  If the hostname
              contains the character sequence `%h', then this will be replaced
-             with the host name specified on the commandline (this is useful
+             with the host name specified on the command line (this is useful
              for manipulating unqualified names).  The default is the name
              given on the command line.  Numeric IP addresses are also
              permitted (both on the command line and in HostName
@@ -367,7 +377,9 @@ DESCRIPTION
 
              It is possible to have multiple identity files specified in
              configuration files; all these identities will be tried in
-             sequence.
+             sequence.  Multiple IdentityFile directives will add to the list
+             of identities tried (this behaviour differs from that of other
+             configuration directives).
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
              Accepted values are ``af11'', ``af12'', ``af13'', ``af14'',
@@ -451,7 +463,9 @@ DESCRIPTION
              must be comma-separated.  The default is:
 
                    hmac-md5,hmac-sha1,umac-64@openssh.com,
-                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
+                   hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
+                   hmac-sha2-512-96
 
      NoHostAuthenticationForLocalhost
              This option can be used if the home directory is shared across
@@ -554,6 +568,14 @@ DESCRIPTION
              interfaces.  Specifying a remote bind_address will only succeed
              if the server's GatewayPorts option is enabled (see
              sshd_config(5)).
+
+     RequestTTY
+             Specifies whether to request a pseudo-tty for the session.  The
+             argument may be one of: ``no'' (never request a TTY), ``yes''
+             (always request a TTY when standard input is a TTY), ``force''
+             (always request a TTY) or ``auto'' (request a TTY when opening a
+             login session).  This option mirrors the -t and -T flags for
+             ssh(1).
 
      RhostsRSAAuthentication
              Specifies whether to try rhosts based authentication with RSA
@@ -666,8 +688,9 @@ DESCRIPTION
              command line.
 
      UserKnownHostsFile
-             Specifies a file to use for the user host key database instead of
-             ~/.ssh/known_hosts.
+             Specifies one or more files to use for the user host key
+             database, separated by whitespace.  The default is
+             ~/.ssh/known_hosts, ~/.ssh/known_hosts2.
 
      VerifyHostKeyDNS
              Specifies whether to verify the remote key using DNS and SSHFP
@@ -741,4 +764,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.9                    December 8, 2010                    OpenBSD 4.9
+OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0

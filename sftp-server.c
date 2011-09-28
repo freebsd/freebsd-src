@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.93 2010/12/04 00:18:01 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.94 2011/06/17 21:46:16 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -68,7 +68,7 @@ Buffer iqueue;
 Buffer oqueue;
 
 /* Version of client */
-int version;
+u_int version;
 
 /* Disable writes */
 int readonly;
@@ -522,7 +522,7 @@ process_init(void)
 	Buffer msg;
 
 	version = get_int();
-	verbose("received client version %d", version);
+	verbose("received client version %u", version);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_VERSION);
 	buffer_put_int(&msg, SSH2_FILEXFER_VERSION);

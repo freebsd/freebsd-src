@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.27 2010/11/20 05:12:38 deraadt Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.29 2011/05/23 03:30:07 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -436,7 +436,7 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 int
 user_key_allowed(struct passwd *pw, Key *key)
 {
-	int success;
+	u_int success, i;
 	char *file;
 
 	if (auth_key_is_revoked(key))
@@ -448,16 +448,13 @@ user_key_allowed(struct passwd *pw, Key *key)
 	if (success)
 		return success;
 
-	file = authorized_keys_file(pw);
-	success = user_key_allowed2(pw, key, file);
-	xfree(file);
-	if (success)
-		return success;
+	for (i = 0; !success && i < options.num_authkeys_files; i++) {
+		file = expand_authorized_keys(
+		    options.authorized_keys_files[i], pw);
+		success = user_key_allowed2(pw, key, file);
+		xfree(file);
+	}
 
-	/* try suffix "2" for backward compat, too */
-	file = authorized_keys_file2(pw);
-	success = user_key_allowed2(pw, key, file);
-	xfree(file);
 	return success;
 }
 

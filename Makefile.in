@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.320.4.1 2011/02/04 00:42:13 djm Exp $
+# $Id: Makefile.in,v 1.325 2011/08/05 20:15:18 djm Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -26,7 +26,6 @@ ASKPASS_PROGRAM=$(libexecdir)/ssh-askpass
 SFTP_SERVER=$(libexecdir)/sftp-server
 SSH_KEYSIGN=$(libexecdir)/ssh-keysign
 SSH_PKCS11_HELPER=$(libexecdir)/ssh-pkcs11-helper
-RAND_HELPER=$(libexecdir)/ssh-rand-helper
 PRIVSEP_PATH=@PRIVSEP_PATH@
 SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
 STRIP_OPT=@STRIP_OPT@
@@ -39,7 +38,6 @@ PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_PKCS11_HELPER=\"$(SSH_PKCS11_HELPER)\" \
 	-D_PATH_SSH_PIDDIR=\"$(piddir)\" \
 	-D_PATH_PRIVSEP_CHROOT_DIR=\"$(PRIVSEP_PATH)\" \
-	-DSSH_RAND_HELPER=\"$(RAND_HELPER)\"
 
 CC=@CC@
 LD=@LD@
@@ -61,10 +59,7 @@ LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
 EXEEXT=@EXEEXT@
 MANFMT=@MANFMT@
 
-INSTALL_SSH_PRNG_CMDS=@INSTALL_SSH_PRNG_CMDS@
-INSTALL_SSH_RAND_HELPER=@INSTALL_SSH_RAND_HELPER@
-
-TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) ssh-rand-helper${EXEEXT} sftp-server$(EXEEXT) sftp$(EXEEXT)
+TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT)
 
 LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o bufbn.o buffer.o \
 	canohost.o channels.o cipher.o cipher-acss.o cipher-aes.o \
@@ -94,17 +89,17 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
 	sftp-server.o sftp-common.o \
-	roaming_common.o roaming_serv.o
+	roaming_common.o roaming_serv.o \
+	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o
 
-MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
-MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 ssh-pkcs11-helper.8 sshd_config.5 ssh_config.5
+MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
+MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 sshd_config.5 ssh_config.5
 MANTYPE		= @MANTYPE@
 
 CONFIGFILES=sshd_config.out ssh_config.out moduli.out
 CONFIGFILES_IN=sshd_config ssh_config moduli
 
 PATHSUBS	= \
-	-e 's|/etc/ssh/ssh_prng_cmds|$(sysconfdir)/ssh_prng_cmds|g' \
 	-e 's|/etc/ssh/ssh_config|$(sysconfdir)/ssh_config|g' \
 	-e 's|/etc/ssh/ssh_known_hosts|$(sysconfdir)/ssh_known_hosts|g' \
 	-e 's|/etc/ssh/sshd_config|$(sysconfdir)/sshd_config|g' \
@@ -124,7 +119,7 @@ PATHSUBS	= \
 
 FIXPATHSCMD	= $(SED) $(PATHSUBS)
 
-all: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS)
+all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 
 $(LIBSSH_OBJS): Makefile.in config.h
 $(SSHOBJS): Makefile.in config.h
@@ -175,9 +170,6 @@ sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o s
 sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
 	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
 
-ssh-rand-helper${EXEEXT}: $(LIBCOMPAT) libssh.a ssh-rand-helper.o
-	$(LD) -o $@ ssh-rand-helper.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
-
 # test driver for the loginrec code - not built by default
 logintest: logintest.o $(LIBCOMPAT) libssh.a loginrec.o
 	$(LD) -o $@ logintest.o $(LDFLAGS) loginrec.o -lopenbsd-compat -lssh $(LIBS)
@@ -198,11 +190,6 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 	conffile=`echo $@ | sed 's/.out$$//'`; \
 	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
 
-ssh_prng_cmds.out:	ssh_prng_cmds
-	if test ! -z "$(INSTALL_SSH_PRNG_CMDS)"; then \
-		$(PERL) $(srcdir)/fixprogs ssh_prng_cmds $(ENT); \
-	fi
-
 # fake rule to stop make trying to compile moduli.o into a binary "moduli.o"
 moduli:
 	echo
@@ -215,7 +202,7 @@ clean:	regressclean
 distclean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
 	rm -f *.out core opensshd.init openssh.xml
-	rm -f Makefile buildpkg.sh config.h config.status ssh_prng_cmds
+	rm -f Makefile buildpkg.sh config.h config.status
 	rm -f survey.sh openbsd-compat/regress/Makefile *~ 
 	rm -rf autom4te.cache
 	(cd openbsd-compat && $(MAKE) distclean)
@@ -225,6 +212,8 @@ distclean:	regressclean
 
 veryclean: distclean
 	rm -f configure config.h.in *.0
+
+cleandir: veryclean
 
 mrproper: veryclean
 
@@ -242,9 +231,9 @@ distprep: catman-do
 	$(AUTORECONF)
 	-rm -rf autom4te.cache
 
-install: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files install-sysconf host-key check-config
-install-nokeys: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files install-sysconf
-install-nosysconf: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files
+install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files install-sysconf host-key check-config
+install-nokeys: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files install-sysconf
+install-nosysconf: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files
 
 check-config:
 	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
@@ -265,9 +254,6 @@ install-files:
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keygen$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keygen$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keyscan$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keyscan$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) sshd$(EXEEXT) $(DESTDIR)$(sbindir)/sshd$(EXEEXT)
-	if test ! -z "$(INSTALL_SSH_RAND_HELPER)" ; then \
-		$(INSTALL) -m 0755 $(STRIP_OPT) ssh-rand-helper$(EXEEXT) $(DESTDIR)$(libexecdir)/ssh-rand-helper$(EXEEXT) ; \
-	fi
 	$(INSTALL) -m 4711 $(STRIP_OPT) ssh-keysign$(EXEEXT) $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-pkcs11-helper$(EXEEXT) $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) sftp$(EXEEXT) $(DESTDIR)$(bindir)/sftp$(EXEEXT)
@@ -282,9 +268,6 @@ install-files:
 	$(INSTALL) -m 644 sshd_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/sshd_config.5
 	$(INSTALL) -m 644 ssh_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/ssh_config.5
 	$(INSTALL) -m 644 sshd.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sshd.8
-	if [ ! -z "$(INSTALL_SSH_RAND_HELPER)" ]; then \
-		$(INSTALL) -m 644 ssh-rand-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-rand-helper.8 ; \
-	fi
 	$(INSTALL) -m 644 sftp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
 	$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
@@ -307,13 +290,6 @@ install-sysconf:
 		$(INSTALL) -m 644 sshd_config.out $(DESTDIR)$(sysconfdir)/sshd_config; \
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/sshd_config already exists, install will not overwrite"; \
-	fi
-	@if [ -f ssh_prng_cmds ] && [ ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
-		if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_prng_cmds ] ; then \
-			$(INSTALL) -m 644 ssh_prng_cmds.out $(DESTDIR)$(sysconfdir)/ssh_prng_cmds; \
-		else \
-			echo "$(DESTDIR)$(sysconfdir)/ssh_prng_cmds already exists, install will not overwrite"; \
-		fi ; \
 	fi
 	@if [ ! -f $(DESTDIR)$(sysconfdir)/moduli ]; then \
 		if [ -f $(DESTDIR)$(sysconfdir)/primes ]; then \
@@ -361,7 +337,6 @@ host-key-force: ssh-keygen$(EXEEXT)
 uninstallall:	uninstall
 	-rm -f $(DESTDIR)$(sysconfdir)/ssh_config
 	-rm -f $(DESTDIR)$(sysconfdir)/sshd_config
-	-rm -f $(DESTDIR)$(sysconfdir)/ssh_prng_cmds
 	-rmdir $(DESTDIR)$(sysconfdir)
 	-rmdir $(DESTDIR)$(bindir)
 	-rmdir $(DESTDIR)$(sbindir)
@@ -383,7 +358,6 @@ uninstall:
 	-rm -r $(DESTDIR)$(SFTP_SERVER)$(EXEEXT)
 	-rm -f $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
 	-rm -f $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
-	-rm -f $(DESTDIR)$(RAND_HELPER)$(EXEEXT)
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/scp.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-add.1
@@ -392,7 +366,6 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-keyscan.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sshd.8
-	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-rand-helper.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
@@ -462,7 +435,7 @@ survey: survey.sh ssh
 send-survey:	survey
 	mail portable-survey@mindrot.org <survey
 
-package: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS)
+package: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 	if [ "@MAKE_PACKAGE_SUPPORTED@" = yes ]; then \
 		sh buildpkg.sh; \
 	fi

@@ -24,6 +24,8 @@
 
 #define NUM_OPENS 10
 
+int closefrom(int);
+
 void
 fail(char *msg)
 {

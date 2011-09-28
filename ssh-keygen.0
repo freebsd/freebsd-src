@@ -24,6 +24,7 @@ SYNOPSIS
      ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]
                 [-O option] [-V validity_interval] [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
+     ssh-keygen -A
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
@@ -57,8 +58,8 @@ DESCRIPTION
      the -p option.
 
      There is no way to recover a lost passphrase.  If the passphrase is lost
-     or forgotten, a new key must be generated and copied to the corresponding
-     public key to other machines.
+     or forgotten, a new key must be generated and the corresponding public
+     key copied to other machines.
 
      For RSA1 keys, there is also a comment field in the key file that is only
      for convenience to the user to help identify the key.  The comment can
@@ -71,6 +72,12 @@ DESCRIPTION
 
      The options are as follows:
 
+     -A      For each of the key types (rsa1, rsa, dsa and ecdsa) for which
+             host keys do not exist, generate the host keys with the default
+             key file path, an empty passphrase, default bits for the key
+             type, and default comment.  This is used by /etc/rc to generate
+             new host keys.
+
      -a trials
              Specifies the number of primality tests to perform when screening
              DH-GEX candidates using the -T command.
@@ -82,7 +89,11 @@ DESCRIPTION
              Specifies the number of bits in the key to create.  For RSA keys,
              the minimum size is 768 bits and the default is 2048 bits.
              Generally, 2048 bits is considered sufficient.  DSA keys must be
-             exactly 1024 bits as specified by FIPS 186-2.
+             exactly 1024 bits as specified by FIPS 186-2.  For ECDSA keys,
+             the -b flag determines they key length by selecting from one of
+             three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
+             use bit lengths other than these three values for ECDSA keys will
+             fail.
 
      -C comment
              Provides a new comment.
@@ -231,7 +242,7 @@ DESCRIPTION
              containing the private key, for the old passphrase, and twice for
              the new passphrase.
 
-     -q      Silence ssh-keygen.  Used by /etc/rc when creating a new key.
+     -q      Silence ssh-keygen.
 
      -R hostname
              Removes all keys belonging to hostname from a known_hosts file.
@@ -440,4 +451,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.9                    October 28, 2010                    OpenBSD 4.9
+OpenBSD 5.0                     April 13, 2011                     OpenBSD 5.0

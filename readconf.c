@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.190 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.193 2011/05/24 07:15:47 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -134,7 +134,7 @@ typedef enum {
 	oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
 	oVisualHostKey, oUseRoaming, oZeroKnowledgePasswordAuthentication,
-	oKexAlgorithms, oIPQoS,
+	oKexAlgorithms, oIPQoS, oRequestTTY,
 	oDeprecated, oUnsupported
 } OpCodes;
 
@@ -193,9 +193,9 @@ static struct {
 	{ "host", oHost },
 	{ "escapechar", oEscapeChar },
 	{ "globalknownhostsfile", oGlobalKnownHostsFile },
-	{ "globalknownhostsfile2", oGlobalKnownHostsFile2 },	/* obsolete */
+	{ "globalknownhostsfile2", oDeprecated },
 	{ "userknownhostsfile", oUserKnownHostsFile },
-	{ "userknownhostsfile2", oUserKnownHostsFile2 },	/* obsolete */
+	{ "userknownhostsfile2", oDeprecated }, 
 	{ "connectionattempts", oConnectionAttempts },
 	{ "batchmode", oBatchMode },
 	{ "checkhostip", oCheckHostIP },
@@ -245,6 +245,7 @@ static struct {
 #endif
 	{ "kexalgorithms", oKexAlgorithms },
 	{ "ipqos", oIPQoS },
+	{ "requesttty", oRequestTTY },
 
 	{ NULL, oBadOption }
 };
@@ -353,8 +354,10 @@ process_config_line(Options *options, const char *host,
 		    char *line, const char *filename, int linenum,
 		    int *activep)
 {
-	char *s, **charptr, *endofnumber, *keyword, *arg, *arg2, fwdarg[256];
-	int opcode, *intptr, value, value2, scale;
+	char *s, **charptr, *endofnumber, *keyword, *arg, *arg2;
+	char **cpptr, fwdarg[256];
+	u_int *uintptr, max_entries = 0;
+	int negated, opcode, *intptr, value, value2, scale;
 	LogLevel *log_level_ptr;
 	long long orig, val64;
 	size_t len;
@@ -597,26 +600,33 @@ parse_yesnoask:
 parse_string:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing argument.", filename, linenum);
+			fatal("%.200s line %d: Missing argument.",
+			    filename, linenum);
 		if (*activep && *charptr == NULL)
 			*charptr = xstrdup(arg);
 		break;
 
 	case oGlobalKnownHostsFile:
-		charptr = &options->system_hostfile;
-		goto parse_string;
+		cpptr = (char **)&options->system_hostfiles;
+		uintptr = &options->num_system_hostfiles;
+		max_entries = SSH_MAX_HOSTS_FILES;
+parse_char_array:
+		if (*activep && *uintptr == 0) {
+			while ((arg = strdelim(&s)) != NULL && *arg != '\0') {
+				if ((*uintptr) >= max_entries)
+					fatal("%s line %d: "
+					    "too many authorized keys files.",
+					    filename, linenum);
+				cpptr[(*uintptr)++] = xstrdup(arg);
+			}
+		}
+		return 0;
 
 	case oUserKnownHostsFile:
-		charptr = &options->user_hostfile;
-		goto parse_string;
-
-	case oGlobalKnownHostsFile2:
-		charptr = &options->system_hostfile2;
-		goto parse_string;
-
-	case oUserKnownHostsFile2:
-		charptr = &options->user_hostfile2;
-		goto parse_string;
+		cpptr = (char **)&options->user_hostfiles;
+		uintptr = &options->num_user_hostfiles;
+		max_entries = SSH_MAX_HOSTS_FILES;
+		goto parse_char_array;
 
 	case oHostName:
 		charptr = &options->hostname;
@@ -793,12 +803,28 @@ parse_int:
 
 	case oHost:
 		*activep = 0;
-		while ((arg = strdelim(&s)) != NULL && *arg != '\0')
+		arg2 = NULL;
+		while ((arg = strdelim(&s)) != NULL && *arg != '\0') {
+			negated = *arg == '!';
+			if (negated)
+				arg++;
 			if (match_pattern(host, arg)) {
-				debug("Applying options for %.100s", arg);
+				if (negated) {
+					debug("%.200s line %d: Skipping Host "
+					    "block because of negated match "
+					    "for %.100s", filename, linenum,
+					    arg);
+					*activep = 0;
+					break;
+				}
+				if (!*activep)
+					arg2 = arg; /* logged below */
 				*activep = 1;
-				break;
 			}
+		}
+		if (*activep)
+			debug("%.200s line %d: Applying options for %.100s",
+			    filename, linenum, arg2);
 		/* Avoid garbage check below, as strdelim is done. */
 		return 0;
 
@@ -997,6 +1023,26 @@ parse_int:
 		intptr = &options->use_roaming;
 		goto parse_flag;
 
+	case oRequestTTY:
+		arg = strdelim(&s);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing argument.",
+			    filename, linenum);
+		intptr = &options->request_tty;
+		if (strcasecmp(arg, "yes") == 0)
+			value = REQUEST_TTY_YES;
+		else if (strcasecmp(arg, "no") == 0)
+			value = REQUEST_TTY_NO;
+		else if (strcasecmp(arg, "force") == 0)
+			value = REQUEST_TTY_FORCE;
+		else if (strcasecmp(arg, "auto") == 0)
+			value = REQUEST_TTY_AUTO;
+		else
+			fatal("Unsupported RequestTTY \"%s\"", arg);
+		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
+
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
 		    filename, linenum, keyword);
@@ -1121,10 +1167,8 @@ initialize_options(Options * options)
 	options->proxy_command = NULL;
 	options->user = NULL;
 	options->escape_char = -1;
-	options->system_hostfile = NULL;
-	options->user_hostfile = NULL;
-	options->system_hostfile2 = NULL;
-	options->user_hostfile2 = NULL;
+	options->num_system_hostfiles = 0;
+	options->num_user_hostfiles = 0;
 	options->local_forwards = NULL;
 	options->num_local_forwards = 0;
 	options->remote_forwards = NULL;
@@ -1157,6 +1201,7 @@ initialize_options(Options * options)
 	options->zero_knowledge_password_authentication = -1;
 	options->ip_qos_interactive = -1;
 	options->ip_qos_bulk = -1;
+	options->request_tty = -1;
 }
 
 /*
@@ -1263,14 +1308,18 @@ fill_default_options(Options * options)
 	}
 	if (options->escape_char == -1)
 		options->escape_char = '~';
-	if (options->system_hostfile == NULL)
-		options->system_hostfile = _PATH_SSH_SYSTEM_HOSTFILE;
-	if (options->user_hostfile == NULL)
-		options->user_hostfile = _PATH_SSH_USER_HOSTFILE;
-	if (options->system_hostfile2 == NULL)
-		options->system_hostfile2 = _PATH_SSH_SYSTEM_HOSTFILE2;
-	if (options->user_hostfile2 == NULL)
-		options->user_hostfile2 = _PATH_SSH_USER_HOSTFILE2;
+	if (options->num_system_hostfiles == 0) {
+		options->system_hostfiles[options->num_system_hostfiles++] =
+		    xstrdup(_PATH_SSH_SYSTEM_HOSTFILE);
+		options->system_hostfiles[options->num_system_hostfiles++] =
+		    xstrdup(_PATH_SSH_SYSTEM_HOSTFILE2);
+	}
+	if (options->num_user_hostfiles == 0) {
+		options->user_hostfiles[options->num_user_hostfiles++] =
+		    xstrdup(_PATH_SSH_USER_HOSTFILE);
+		options->user_hostfiles[options->num_user_hostfiles++] =
+		    xstrdup(_PATH_SSH_USER_HOSTFILE2);
+	}
 	if (options->log_level == SYSLOG_LEVEL_NOT_SET)
 		options->log_level = SYSLOG_LEVEL_INFO;
 	if (options->clear_forwardings == 1)
@@ -1315,6 +1364,8 @@ fill_default_options(Options * options)
 		options->ip_qos_interactive = IPTOS_LOWDELAY;
 	if (options->ip_qos_bulk == -1)
 		options->ip_qos_bulk = IPTOS_THROUGHPUT;
+	if (options->request_tty == -1)
+		options->request_tty = REQUEST_TTY_AUTO;
 	/* options->local_command should not be set by default */
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */

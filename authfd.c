@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.84 2010/08/31 11:54:45 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.86 2011/07/06 18:09:21 tedu Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -102,6 +102,7 @@ ssh_get_authentication_socket(void)
 	if (!authsocket)
 		return -1;
 
+	bzero(&sunaddr, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
 
@@ -110,7 +111,7 @@ ssh_get_authentication_socket(void)
 		return -1;
 
 	/* close on exec */
-	if (fcntl(sock, F_SETFD, 1) == -1) {
+	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
 		close(sock);
 		return -1;
 	}

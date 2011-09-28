@@ -13,7 +13,7 @@
 
 Summary:	OpenSSH, a free Secure Shell (SSH) protocol implementation
 Name:		openssh
-Version:	5.8p2
+Version:	5.9p1
 URL:		http://www.openssh.com/
 Release:	1
 Source0:	openssh-%{version}.tar.gz
@@ -28,11 +28,12 @@ Provides:	ssh
 # (Build[ing] Prereq[uisites] only work for RPM 2.95 and newer.)
 # building prerequisites -- stuff for
 #   OpenSSL (openssl-devel),
-#   TCP Wrappers (nkitb),
+#   TCP Wrappers (tcpd-devel),
 #   and Gnome (glibdev, gtkdev, and gnlibsd)
 #
 BuildPrereq:	openssl
-BuildPrereq:	nkitb
+BuildPrereq:	tcpd-devel
+BuildPrereq:	zlib-devel
 #BuildPrereq:	glibdev
 #BuildPrereq:	gtkdev
 #BuildPrereq:	gnlibsd
@@ -177,15 +178,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/useradd -r -o -g sshd -u %{sshd_uid} -s /bin/false -c "SSH Privilege Separation User" -d /var/lib/sshd sshd 2> /dev/null || :
 
 %post
-if [ ! -f /etc/ssh/ssh_host_key -o ! -s /etc/ssh/ssh_host_key ]; then
-	echo "Generating SSH RSA host key..."
-	/usr/bin/ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' >&2
-fi
-if [ ! -f /etc/ssh/ssh_host_dsa_key -o ! -s /etc/ssh/ssh_host_dsa_key ]; then
-	echo "Generating SSH DSA host key..."
-	/usr/bin/ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N '' >&2
-fi
-%{fillup_and_insserv -n -s -y ssh sshd START_SSHD}
+/usr/bin/ssh-keygen -A
+%{fillup_and_insserv -n -y ssh sshd}
 %run_permissions
 
 %verifyscript

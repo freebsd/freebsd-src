@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.h,v 1.22 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: monitor_wrap.h,v 1.23 2011/06/17 21:44:31 djm Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -37,6 +37,7 @@ struct monitor;
 struct mm_master;
 struct Authctxt;
 
+void mm_log_handler(LogLevel, const char *, void *);
 int mm_is_monitor(void);
 DH *mm_choose_dh(int, int, int);
 int mm_key_sign(Key *, u_char **, u_int *, u_char *, u_int);

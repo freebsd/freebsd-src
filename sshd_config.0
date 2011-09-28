@@ -81,8 +81,9 @@ DESCRIPTION
              home directory of the user being authenticated, and %u is
              replaced by the username of that user.  After expansion,
              AuthorizedKeysFile is taken to be an absolute path or one
-             relative to the user's home directory.  The default is
-             ``.ssh/authorized_keys''.
+             relative to the user's home directory.  Multiple files may be
+             listed, separated by whitespace.  The default is
+             ``.ssh/authorized_keys .ssh/authorized_keys2''.
 
      AuthorizedPrincipalsFile
              Specifies a file that lists principal names that are accepted for
@@ -375,7 +376,9 @@ DESCRIPTION
              separated.  The default is:
 
                    hmac-md5,hmac-sha1,umac-64@openssh.com,
-                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
+                   hmac-sha2-256,hmac-sha256-96,hmac-sha2-512,
+                   hmac-sha2-512-96
 
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
@@ -625,7 +628,9 @@ DESCRIPTION
              that has the privilege of the authenticated user.  The goal of
              privilege separation is to prevent privilege escalation by
              containing any corruption within the unprivileged processes.  The
-             default is ``yes''.
+             default is ``yes''.  If UsePrivilegeSeparation is set to
+             ``sandbox'' then the pre-authentication unprivileged process is
+             subject to additional restrictions.
 
      X11DisplayOffset
              Specifies the first display number available for sshd(8)'s X11
@@ -710,4 +715,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.9                    December 8, 2010                    OpenBSD 4.9
+OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0

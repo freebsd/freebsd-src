@@ -43,20 +43,8 @@ rc_reset
 
 case "$1" in
     start)
-        if ! test -f /etc/ssh/ssh_host_key ; then
-	    echo Generating /etc/ssh/ssh_host_key.
-	    ssh-keygen -t rsa1 -f /etc/ssh/ssh_host_key -N ''
-        fi
-        if ! test -f /etc/ssh/ssh_host_dsa_key ; then
-	    echo Generating /etc/ssh/ssh_host_dsa_key.
-	    
-	    ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ''
-        fi
-        if ! test -f /etc/ssh/ssh_host_rsa_key ; then
-	    echo Generating /etc/ssh/ssh_host_rsa_key.
-	    
-	    ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
-        fi
+	# Generate any missing host keys
+	ssh-keygen -A
 	echo -n "Starting SSH daemon"
 	## Start daemon with startproc(8). If this fails
 	## the echo return value is set appropriate.

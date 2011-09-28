@@ -1,4 +1,4 @@
-#	$OpenBSD: dynamic-forward.sh,v 1.4 2004/06/22 22:55:56 dtucker Exp $
+#	$OpenBSD: dynamic-forward.sh,v 1.9 2011/06/03 00:29:52 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dynamic forwarding"
@@ -20,9 +20,23 @@ trace "will use ProxyCommand $proxycmd"
 start_sshd
 
 for p in 1 2; do
+	n=0
+	error="1"
 	trace "start dynamic forwarding, fork to background"
-	${SSH} -$p -F $OBJ/ssh_config -f -D $FWDPORT -q somehost \
-		exec sh -c \'"echo \$\$ > $OBJ/remote_pid; exec sleep 444"\'
+	while [ "$error" -ne 0 -a "$n" -lt 3 ]; do
+		n=`expr $n + 1`
+		${SSH} -$p -F $OBJ/ssh_config -f -D $FWDPORT -q \
+		    -oExitOnForwardFailure=yes somehost exec sh -c \
+			\'"echo \$\$ > $OBJ/remote_pid; exec sleep 444"\'
+		error=$?
+		if [ "$error" -ne 0 ]; then
+			trace "forward failed proto $p attempt $n err $error"
+			sleep $n
+		fi
+	done
+	if [ "$error" -ne 0 ]; then
+		fatal "failed to start dynamic forwarding proto $p"
+	fi
 
 	for s in 4 5; do
 	    for h in 127.0.0.1 localhost; do
@@ -44,7 +58,4 @@ for p in 1 2; do
 	else
 		fail "no pid file: $OBJ/remote_pid"
 	fi
-
-	# Must allow time for connection tear-down
-	sleep 2
 done
