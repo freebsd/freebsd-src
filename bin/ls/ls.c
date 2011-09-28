@@ -563,7 +563,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 	long maxblock;
 	u_long btotal, labelstrlen, maxinode, maxlen, maxnlink;
 	u_long maxlabelstr;
-	u_int devstrlen;
+	u_int sizelen;
 	int maxflags;
 	gid_t maxgroup;
 	uid_t maxuser;
@@ -572,7 +572,6 @@ display(const FTSENT *p, FTSENT *list, int options)
 	int entries, needstats;
 	const char *user, *group;
 	char *flags, *labelstr = NULL;
-	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
 
@@ -656,7 +655,8 @@ display(const FTSENT *p, FTSENT *list, int options)
 		MAKENINES(maxsize);
 		free(jinitmax);
 	}
-	devstrlen = 0;
+	d.s_size = 0;
+	sizelen = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
@@ -796,14 +796,12 @@ label_out:
 				np->group = &np->data[ulen + 1];
 				(void)strcpy(np->group, group);
 
-				if ((S_ISCHR(sp->st_mode) ||
-				    S_ISBLK(sp->st_mode)) &&
-				    devstrlen < DEVSTR_HEX_LEN) {
-					if (minor(sp->st_rdev) > 255 ||
-					    minor(sp->st_rdev) < 0)
-						devstrlen = DEVSTR_HEX_LEN;
-					else
-						devstrlen = DEVSTR_LEN;
+				if (S_ISCHR(sp->st_mode) ||
+				    S_ISBLK(sp->st_mode)) {
+					sizelen = snprintf(NULL, 0,
+					    "%#jx", (uintmax_t)sp->st_rdev);
+					if (d.s_size < sizelen)
+						d.s_size = sizelen;
 				}
 
 				if (f_flags) {
@@ -837,23 +835,16 @@ label_out:
 	d.maxlen = maxlen;
 	if (needstats) {
 		d.btotal = btotal;
-		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
-		d.s_block = strlen(buf);
+		d.s_block = snprintf(NULL, 0, "%lu", maxblock);
 		d.s_flags = maxflags;
 		d.s_label = maxlabelstr;
 		d.s_group = maxgroup;
-		(void)snprintf(buf, sizeof(buf), "%lu", maxinode);
-		d.s_inode = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%lu", maxnlink);
-		d.s_nlink = strlen(buf);
-		if (f_humanval)
-			d.s_size = HUMANVALSTR_LEN;
-		else {
-			(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
-			d.s_size = strlen(buf);
-		}
-		if (d.s_size < devstrlen)
-			d.s_size = devstrlen;
+		d.s_inode = snprintf(NULL, 0, "%lu", maxinode);
+		d.s_nlink = snprintf(NULL, 0, "%lu", maxnlink);
+		sizelen = f_humanval ? HUMANVALSTR_LEN :
+		    snprintf(NULL, 0, "%ju", maxsize);
+		if (d.s_size < sizelen)
+			d.s_size = sizelen;
 		d.s_user = maxuser;
 	}
 	printfcn(&d);
