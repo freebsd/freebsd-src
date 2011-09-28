@@ -167,6 +167,8 @@ struct hast_resource {
 	off_t	hr_local_mediasize;
 	/* Sector size of local provider. */
 	unsigned int hr_local_sectorsize;
+	/* Is flushing write cache supported by the local provider? */
+	bool	hr_localflush;
 	/* Flush write cache on metadata updates? */
 	int	hr_metaflush;
 
