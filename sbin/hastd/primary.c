@@ -1213,7 +1213,7 @@ ggate_recv_thread(void *arg)
 				break;
 			}
 			pjdlog_debug(2,
-			    "ggate_recv: (%p) Moving request to the send queues.",
+			    "ggate_recv: (%p) Moving request to the send queue.",
 			    hio);
 			refcount_init(&hio->hio_countdown, ncomps);
 			for (ii = 0; ii < ncomps; ii++)
