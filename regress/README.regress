@@ -93,10 +93,6 @@ Failed tests can be difficult to diagnose. Suggestions:
 
 Known Issues.
 
-- If your build requires ssh-rand-helper regress tests will fail
-  unless ssh-rand-helper is in pre-installed (the path to
-  ssh-rand-helper is hard coded).
-
 - Similarly, if you do not have "scp" in your system's $PATH then the
   multiplex scp tests will fail (since the system's shell startup scripts
   will determine where the shell started by sshd will look for scp).
@@ -105,4 +101,4 @@ Known Issues.
   test to fail.  The old behaviour can be restored by setting (and
   exporting) _POSIX2_VERSION=199209 before running the tests.
 
-$Id: README.regress,v 1.11 2010/08/16 21:04:29 djm Exp $
+$Id: README.regress,v 1.12 2011/05/05 03:48:42 djm Exp $

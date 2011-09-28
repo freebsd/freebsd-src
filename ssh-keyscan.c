@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.84 2011/01/04 20:44:13 otto Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.85 2011/03/15 10:36:02 okan Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -535,7 +535,7 @@ conloop(void)
 			seltime.tv_sec--;
 		}
 	} else
-		seltime.tv_sec = seltime.tv_usec = 0;
+		timerclear(&seltime);
 
 	r = xcalloc(read_wait_nfdset, sizeof(fd_mask));
 	e = xcalloc(read_wait_nfdset, sizeof(fd_mask));
@@ -620,7 +620,6 @@ main(int argc, char **argv)
 	extern char *optarg;
 
 	__progname = ssh_get_progname(argv[0]);
-	init_rng();
 	seed_rng();
 	TAILQ_INIT(&tq);
 

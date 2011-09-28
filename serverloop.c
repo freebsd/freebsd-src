@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.159 2009/05/28 16:50:16 andreas Exp $ */
+/* $OpenBSD: serverloop.c,v 1.160 2011/05/15 08:09:01 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -131,8 +131,8 @@ notify_setup(void)
 {
 	if (pipe(notify_pipe) < 0) {
 		error("pipe(notify_pipe) failed %s", strerror(errno));
-	} else if ((fcntl(notify_pipe[0], F_SETFD, 1) == -1) ||
-	    (fcntl(notify_pipe[1], F_SETFD, 1) == -1)) {
+	} else if ((fcntl(notify_pipe[0], F_SETFD, FD_CLOEXEC) == -1) ||
+	    (fcntl(notify_pipe[1], F_SETFD, FD_CLOEXEC) == -1)) {
 		error("fcntl(notify_pipe, F_SETFD) failed %s", strerror(errno));
 		close(notify_pipe[0]);
 		close(notify_pipe[1]);

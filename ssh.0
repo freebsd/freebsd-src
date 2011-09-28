@@ -202,8 +202,9 @@ DESCRIPTION
              the -O option is specified, the ctl_cmd argument is interpreted
              and passed to the master process.  Valid commands are: ``check''
              (check that the master process is running), ``forward'' (request
-             forwardings without command execution) and ``exit'' (request the
-             master to exit).
+             forwardings without command execution), ``exit'' (request the
+             master to exit), and ``stop'' (request the master to stop
+             accepting further multiplexing requests).
 
      -o option
              Can be used to give options in the format used in the
@@ -263,6 +264,7 @@ DESCRIPTION
                    PubkeyAuthentication
                    RekeyLimit
                    RemoteForward
+                   RequestTTY
                    RhostsRSAAuthentication
                    RSAAuthentication
                    SendEnv
@@ -389,8 +391,9 @@ AUTHENTICATION
      support similar authentication methods, but protocol 2 is the default
      since it provides additional mechanisms for confidentiality (the traffic
      is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour) and
-     integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).  Protocol 1
-     lacks a strong mechanism for ensuring the integrity of the connection.
+     integrity (hmac-md5, hmac-sha1, hmac-sha2-256, hmac-sha2-512, umac-64,
+     hmac-ripemd160).  Protocol 1 lacks a strong mechanism for ensuring the
+     integrity of the connection.
 
      The methods available for authentication are: GSSAPI-based
      authentication, host-based authentication, public key authentication,
@@ -895,4 +898,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.9                    November 18, 2010                   OpenBSD 4.9
+OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0

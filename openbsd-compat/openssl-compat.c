@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.c,v 1.13 2011/01/21 22:37:06 dtucker Exp $ */
+/* $Id: openssl-compat.c,v 1.14 2011/05/10 01:13:38 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -134,9 +134,9 @@ RSA_get_default_method(void)
 
 #ifdef	USE_OPENSSL_ENGINE
 void
-ssh_SSLeay_add_all_algorithms(void)
+ssh_OpenSSL_add_all_algorithms(void)
 {
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 
 	/* Enable use of crypto hardware */
 	ENGINE_load_builtin_engines();

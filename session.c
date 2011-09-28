@@ -96,6 +96,10 @@
 #include <kafs.h>
 #endif
 
+#ifdef WITH_SELINUX
+#include <selinux/selinux.h>
+#endif
+
 #define IS_INTERNAL_SFTP(c) \
 	(!strncmp(c, INTERNAL_SFTP_NAME, sizeof(INTERNAL_SFTP_NAME) - 1) && \
 	 (c[sizeof(INTERNAL_SFTP_NAME) - 1] == '\0' || \
@@ -1531,6 +1535,9 @@ do_pwchange(Session *s)
 	if (s->ttyfd != -1) {
 		fprintf(stderr,
 		    "You must change your password now and login again!\n");
+#ifdef WITH_SELINUX
+		setexeccon(NULL);
+#endif
 #ifdef PASSWD_NEEDS_USERNAME
 		execl(_PATH_PASSWD_PROG, "passwd", s->pw->pw_name,
 		    (char *)NULL);

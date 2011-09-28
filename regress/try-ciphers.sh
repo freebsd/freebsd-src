@@ -1,4 +1,4 @@
-#	$OpenBSD: try-ciphers.sh,v 1.11 2007/06/07 19:41:46 pvalchev Exp $
+#	$OpenBSD: try-ciphers.sh,v 1.12 2011/08/02 01:23:41 djm Exp $
 #	Placed in the Public Domain.
 
 tid="try ciphers"
@@ -8,6 +8,8 @@ ciphers="aes128-cbc 3des-cbc blowfish-cbc cast128-cbc
 	aes192-cbc aes256-cbc rijndael-cbc@lysator.liu.se
 	aes128-ctr aes192-ctr aes256-ctr"
 macs="hmac-sha1 hmac-md5 umac-64@openssh.com hmac-sha1-96 hmac-md5-96"
+config_defined HAVE_EVP_SHA256 &&
+    macs="$macs hmac-sha2-256 hmac-sha2-256-96 hmac-sha2-512 hmac-sha2-512-96"
 
 for c in $ciphers; do
 	for m in $macs; do

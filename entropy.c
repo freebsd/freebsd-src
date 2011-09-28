@@ -25,19 +25,19 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/wait.h>
-
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
+#include <sys/socket.h>
+#ifdef HAVE_SYS_UN_H
+# include <sys/un.h>
 #endif
 
-#ifdef HAVE_FCNTL_H
-# include <fcntl.h>
-#endif
-#include <stdarg.h>
-#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <errno.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
+#include <stddef.h> /* for offsetof */
 
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
@@ -54,119 +54,128 @@
 /*
  * Portable OpenSSH PRNG seeding:
  * If OpenSSL has not "internally seeded" itself (e.g. pulled data from
- * /dev/random), then we execute a "ssh-rand-helper" program which
- * collects entropy and writes it to stdout. The child program must
- * write at least RANDOM_SEED_SIZE bytes. The child is run with stderr
- * attached, so error/debugging output should be visible.
- *
- * XXX: we should tell the child how many bytes we need.
+ * /dev/random), then collect RANDOM_SEED_SIZE bytes of randomness from
+ * PRNGd.
  */
-
 #ifndef OPENSSL_PRNG_ONLY
+
 #define RANDOM_SEED_SIZE 48
-static uid_t original_uid, original_euid;
-#endif
 
-void
-seed_rng(void)
+/*
+ * Collect 'len' bytes of entropy into 'buf' from PRNGD/EGD daemon
+ * listening either on 'tcp_port', or via Unix domain socket at *
+ * 'socket_path'.
+ * Either a non-zero tcp_port or a non-null socket_path must be
+ * supplied.
+ * Returns 0 on success, -1 on error
+ */
+int
+get_random_bytes_prngd(unsigned char *buf, int len,
+    unsigned short tcp_port, char *socket_path)
 {
-#ifndef OPENSSL_PRNG_ONLY
-	int devnull;
-	int p[2];
-	pid_t pid;
-	int ret;
-	unsigned char buf[RANDOM_SEED_SIZE];
-	mysig_t old_sigchld;
+	int fd, addr_len, rval, errors;
+	u_char msg[2];
+	struct sockaddr_storage addr;
+	struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
+	struct sockaddr_un *addr_un = (struct sockaddr_un *)&addr;
+	mysig_t old_sigpipe;
 
-	if (RAND_status() == 1) {
-		debug3("RNG is ready, skipping seeding");
-		return;
+	/* Sanity checks */
+	if (socket_path == NULL && tcp_port == 0)
+		fatal("You must specify a port or a socket");
+	if (socket_path != NULL &&
+	    strlen(socket_path) >= sizeof(addr_un->sun_path))
+		fatal("Random pool path is too long");
+	if (len <= 0 || len > 255)
+		fatal("Too many bytes (%d) to read from PRNGD", len);
+
+	memset(&addr, '\0', sizeof(addr));
+
+	if (tcp_port != 0) {
+		addr_in->sin_family = AF_INET;
+		addr_in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		addr_in->sin_port = htons(tcp_port);
+		addr_len = sizeof(*addr_in);
+	} else {
+		addr_un->sun_family = AF_UNIX;
+		strlcpy(addr_un->sun_path, socket_path,
+		    sizeof(addr_un->sun_path));
+		addr_len = offsetof(struct sockaddr_un, sun_path) +
+		    strlen(socket_path) + 1;
 	}
 
-	debug3("Seeding PRNG from %s", SSH_RAND_HELPER);
+	old_sigpipe = mysignal(SIGPIPE, SIG_IGN);
 
-	if ((devnull = open("/dev/null", O_RDWR)) == -1)
-		fatal("Couldn't open /dev/null: %s", strerror(errno));
-	if (pipe(p) == -1)
-		fatal("pipe: %s", strerror(errno));
+	errors = 0;
+	rval = -1;
+reopen:
+	fd = socket(addr.ss_family, SOCK_STREAM, 0);
+	if (fd == -1) {
+		error("Couldn't create socket: %s", strerror(errno));
+		goto done;
+	}
 
-	old_sigchld = signal(SIGCHLD, SIG_DFL);
-	if ((pid = fork()) == -1)
-		fatal("Couldn't fork: %s", strerror(errno));
-	if (pid == 0) {
-		dup2(devnull, STDIN_FILENO);
-		dup2(p[1], STDOUT_FILENO);
-		/* Keep stderr open for errors */
-		close(p[0]);
-		close(p[1]);
-		close(devnull);
-		closefrom(STDERR_FILENO + 1);
-
-		if (original_uid != original_euid &&
-		    ( seteuid(getuid()) == -1 ||
-		      setuid(original_uid) == -1) ) {
-			fprintf(stderr, "(rand child) setuid(%li): %s\n",
-			    (long int)original_uid, strerror(errno));
-			_exit(1);
+	if (connect(fd, (struct sockaddr*)&addr, addr_len) == -1) {
+		if (tcp_port != 0) {
+			error("Couldn't connect to PRNGD port %d: %s",
+			    tcp_port, strerror(errno));
+		} else {
+			error("Couldn't connect to PRNGD socket \"%s\": %s",
+			    addr_un->sun_path, strerror(errno));
 		}
-
-		execl(SSH_RAND_HELPER, "ssh-rand-helper", NULL);
-		fprintf(stderr, "(rand child) Couldn't exec '%s': %s\n",
-		    SSH_RAND_HELPER, strerror(errno));
-		_exit(1);
+		goto done;
 	}
 
-	close(devnull);
-	close(p[1]);
+	/* Send blocking read request to PRNGD */
+	msg[0] = 0x02;
+	msg[1] = len;
 
-	memset(buf, '\0', sizeof(buf));
-	ret = atomicio(read, p[0], buf, sizeof(buf));
-	if (ret == -1)
-		fatal("Couldn't read from ssh-rand-helper: %s",
+	if (atomicio(vwrite, fd, msg, sizeof(msg)) != sizeof(msg)) {
+		if (errno == EPIPE && errors < 10) {
+			close(fd);
+			errors++;
+			goto reopen;
+		}
+		error("Couldn't write to PRNGD socket: %s",
 		    strerror(errno));
-	if (ret != sizeof(buf))
-		fatal("ssh-rand-helper child produced insufficient data");
+		goto done;
+	}
 
-	close(p[0]);
-
-	if (waitpid(pid, &ret, 0) == -1)
-		fatal("Couldn't wait for ssh-rand-helper completion: %s",
+	if (atomicio(read, fd, buf, len) != (size_t)len) {
+		if (errno == EPIPE && errors < 10) {
+			close(fd);
+			errors++;
+			goto reopen;
+		}
+		error("Couldn't read from PRNGD socket: %s",
 		    strerror(errno));
-	signal(SIGCHLD, old_sigchld);
+		goto done;
+	}
 
-	/* We don't mind if the child exits upon a SIGPIPE */
-	if (!WIFEXITED(ret) &&
-	    (!WIFSIGNALED(ret) || WTERMSIG(ret) != SIGPIPE))
-		fatal("ssh-rand-helper terminated abnormally");
-	if (WEXITSTATUS(ret) != 0)
-		fatal("ssh-rand-helper exit with exit status %d", ret);
-
-	RAND_add(buf, sizeof(buf), sizeof(buf));
-	memset(buf, '\0', sizeof(buf));
-
-#endif /* OPENSSL_PRNG_ONLY */
-	if (RAND_status() != 1)
-		fatal("PRNG is not seeded");
+	rval = 0;
+done:
+	mysignal(SIGPIPE, old_sigpipe);
+	if (fd != -1)
+		close(fd);
+	return rval;
 }
 
-void
-init_rng(void)
+static int
+seed_from_prngd(unsigned char *buf, size_t bytes)
 {
-	/*
-	 * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
-	 * We match major, minor, fix and status (not patch)
-	 */
-	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L)
-		fatal("OpenSSL version mismatch. Built against %lx, you "
-		    "have %lx", (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
-
-#ifndef OPENSSL_PRNG_ONLY
-	original_uid = getuid();
-	original_euid = geteuid();
+#ifdef PRNGD_PORT
+	debug("trying egd/prngd port %d", PRNGD_PORT);
+	if (get_random_bytes_prngd(buf, bytes, PRNGD_PORT, NULL) == 0)
+		return 0;
 #endif
+#ifdef PRNGD_SOCKET
+	debug("trying egd/prngd socket %s", PRNGD_SOCKET);
+	if (get_random_bytes_prngd(buf, bytes, 0, PRNGD_SOCKET) == 0)
+		return 0;
+#endif
+	return -1;
 }
 
-#ifndef OPENSSL_PRNG_ONLY
 void
 rexec_send_rng_seed(Buffer *m)
 {
@@ -192,4 +201,34 @@ rexec_recv_rng_seed(Buffer *m)
 		RAND_add(buf, len, len);
 	}
 }
+#endif /* OPENSSL_PRNG_ONLY */
+
+void
+seed_rng(void)
+{
+#ifndef OPENSSL_PRNG_ONLY
+	unsigned char buf[RANDOM_SEED_SIZE];
 #endif
+	/*
+	 * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
+	 * We match major, minor, fix and status (not patch)
+	 */
+	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L)
+		fatal("OpenSSL version mismatch. Built against %lx, you "
+		    "have %lx", (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
+
+#ifndef OPENSSL_PRNG_ONLY
+	if (RAND_status() == 1) {
+		debug3("RNG is ready, skipping seeding");
+		return;
+	}
+
+	if (seed_from_prngd(buf, sizeof(buf)) == -1)
+		fatal("Could not obtain seed from PRNGd");
+	RAND_add(buf, sizeof(buf), sizeof(buf));
+	memset(buf, '\0', sizeof(buf));
+
+#endif /* OPENSSL_PRNG_ONLY */
+	if (RAND_status() != 1)
+		fatal("PRNG is not seeded");
+}

@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
 /* Define if you have a getaddrinfo that fails for the all-zeros IPv6 address
    */
 #undef AIX_GETNAMEINFO_HACK
@@ -121,9 +124,6 @@
 
 /* Enable for PKCS#11 support */
 #undef ENABLE_PKCS11
-
-/* Builtin PRNG command timeout */
-#undef ENTROPY_TIMEOUT_MSEC
 
 /* File names may not contain backslash characters */
 #undef FILESYSTEM_NO_BACKSLASH
@@ -750,6 +750,9 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #undef HAVE_RECVMSG
 
+/* sys/resource.h has RLIMIT_NPROC */
+#undef HAVE_RLIMIT_NPROC
+
 /* Define to 1 if you have the <rpc/types.h> header file. */
 #undef HAVE_RPC_TYPES_H
 
@@ -761,6 +764,12 @@
 
 /* Define to 1 if you have the `RSA_get_default_method' function. */
 #undef HAVE_RSA_GET_DEFAULT_METHOD
+
+/* Define to 1 if you have the <sandbox.h> header file. */
+#undef HAVE_SANDBOX_H
+
+/* Define to 1 if you have the `sandbox_init' function. */
+#undef HAVE_SANDBOX_INIT
 
 /* define if you have sa_family_t data type */
 #undef HAVE_SA_FAMILY_T
@@ -948,13 +957,13 @@
 /* define if you have struct sockaddr_in6 data type */
 #undef HAVE_STRUCT_SOCKADDR_IN6
 
-/* Define to 1 if `sin6_scope_id' is member of `struct sockaddr_in6'. */
+/* Define to 1 if `sin6_scope_id' is a member of `struct sockaddr_in6'. */
 #undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 
 /* define if you have struct sockaddr_storage data type */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
-/* Define to 1 if `st_blksize' is member of `struct stat'. */
+/* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
 /* Define to 1 if the system has the type `struct timespec'. */
@@ -1259,7 +1268,7 @@
    from environment and PATH */
 #undef LOGIN_PROGRAM_FALLBACK
 
-/* Set this to your mail directory if you don't have maillock.h */
+/* Set this to your mail directory if you do not have _PATH_MAILDIR */
 #undef MAIL_DIRECTORY
 
 /* Define on *nto-qnx systems */
@@ -1307,6 +1316,9 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -1328,6 +1340,18 @@
 
 /* read(1) can return 0 for a non-closed fd */
 #undef PTY_ZEROREAD
+
+/* Sandbox using Darwin sandbox_init(3) */
+#undef SANDBOX_DARWIN
+
+/* no privsep sandboxing */
+#undef SANDBOX_NULL
+
+/* Sandbox using setrlimit(2) */
+#undef SANDBOX_RLIMIT
+
+/* Sandbox using systrace(4) */
+#undef SANDBOX_SYSTRACE
 
 /* Define if your platform breaks doing a seteuid before a setuid */
 #undef SETEUID_BREAKS_SETUID
@@ -1460,9 +1484,17 @@
 /* Define if you want SELinux support. */
 #undef WITH_SELINUX
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-#undef WORDS_BIGENDIAN
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
+#endif
 
 /* Define if xauth is found in your path */
 #undef XAUTH_PATH
