@@ -247,7 +247,7 @@ zread(void *cookie, char *rbp, int num)
 	zs->zs_block_compress = zs->zs_maxbits & BLOCK_MASK;
 	zs->zs_maxbits &= BIT_MASK;
 	zs->zs_maxmaxcode = 1L << zs->zs_maxbits;
-	if (zs->zs_maxbits > BITS) {
+	if (zs->zs_maxbits > BITS || zs->zs_maxbits < 12) {
 		errno = EFTYPE;
 		return (-1);
 	}
@@ -259,13 +259,7 @@ zread(void *cookie, char *rbp, int num)
 	}
 	zs->zs_free_ent = zs->zs_block_compress ? FIRST : 256;
 
-	zs->u.r.zs_finchar = zs->u.r.zs_oldcode = getcode(zs);
-	if (zs->u.r.zs_oldcode == -1)	/* EOF already? */
-		return (0);	/* Get out of here */
-
-	/* First code must be 8 bits = char. */
-	*bp++ = (u_char)zs->u.r.zs_finchar;
-	count--;
+	zs->u.r.zs_oldcode = -1;
 	zs->u.r.zs_stackp = de_stack;
 
 	while ((zs->u.r.zs_code = getcode(zs)) > -1) {
@@ -275,17 +269,29 @@ zread(void *cookie, char *rbp, int num)
 			    zs->u.r.zs_code--)
 				tab_prefixof(zs->u.r.zs_code) = 0;
 			zs->zs_clear_flg = 1;
-			zs->zs_free_ent = FIRST - 1;
-			if ((zs->u.r.zs_code = getcode(zs)) == -1)	/* O, untimely death! */
-				break;
+			zs->zs_free_ent = FIRST;
+			zs->u.r.zs_oldcode = -1;
+			continue;
 		}
 		zs->u.r.zs_incode = zs->u.r.zs_code;
 
 		/* Special case for KwKwK string. */
 		if (zs->u.r.zs_code >= zs->zs_free_ent) {
+			if (zs->u.r.zs_code > zs->zs_free_ent ||
+			    zs->u.r.zs_oldcode == -1) {
+				/* Bad stream. */
+				errno = EINVAL;
+				return (-1);
+			}
 			*zs->u.r.zs_stackp++ = zs->u.r.zs_finchar;
 			zs->u.r.zs_code = zs->u.r.zs_oldcode;
 		}
+		/*
+		 * The above condition ensures that code < free_ent.
+		 * The construction of tab_prefixof in turn guarantees that
+		 * each iteration decreases code and therefore stack usage is
+		 * bound by 1 << BITS - 256.
+		 */
 
 		/* Generate output characters in reverse order. */
 		while (zs->u.r.zs_code >= 256) {
@@ -302,7 +308,8 @@ middle:		do {
 		} while (zs->u.r.zs_stackp > de_stack);
 
 		/* Generate the new entry. */
-		if ((zs->u.r.zs_code = zs->zs_free_ent) < zs->zs_maxmaxcode) {
+		if ((zs->u.r.zs_code = zs->zs_free_ent) < zs->zs_maxmaxcode &&
+		    zs->u.r.zs_oldcode != -1) {
 			tab_prefixof(zs->u.r.zs_code) = (u_short) zs->u.r.zs_oldcode;
 			tab_suffixof(zs->u.r.zs_code) = zs->u.r.zs_finchar;
 			zs->zs_free_ent = zs->u.r.zs_code + 1;
