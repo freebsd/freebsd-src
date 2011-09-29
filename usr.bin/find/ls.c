@@ -70,8 +70,7 @@ printlong(char *name, char *accpath, struct stat *sb)
 	    group_from_gid(sb->st_gid, 0));
 
 	if (S_ISCHR(sb->st_mode) || S_ISBLK(sb->st_mode))
-		(void)printf("%3d, %3d ", major(sb->st_rdev),
-		    minor(sb->st_rdev));
+		(void)printf("%#8jx ", (uintmax_t)sb->st_rdev);
 	else
 		(void)printf("%8"PRId64" ", sb->st_size);
 	printtime(sb->st_mtime);
