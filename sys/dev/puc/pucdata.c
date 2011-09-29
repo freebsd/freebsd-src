@@ -733,6 +733,13 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * <URL:http://www.startech.com>
 	 */
 
+	{   0x1415, 0xc138, 0xffff, 0,
+	    "Oxford Semiconductor OXPCIe952 UARTs",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
 	{   0x1415, 0xc158, 0xffff, 0,
 	    "Oxford Semiconductor OXPCIe952 UARTs",
 	    DEFAULT_RCLK * 0x22,
