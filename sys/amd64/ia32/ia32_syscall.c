@@ -156,6 +156,8 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 void
 ia32_syscall(struct trapframe *frame)
 {
