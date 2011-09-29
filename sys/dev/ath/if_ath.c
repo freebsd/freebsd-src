@@ -1372,6 +1372,13 @@ ath_intr(void *arg)
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	CTR1(ATH_KTR_INTR, "ath_intr: mask=0x%.8x", status);
+	CTR5(ATH_KTR_INTR,
+	    "ath_intr: ISR=0x%.8x, ISR_S0=0x%.8x, ISR_S1=0x%.8x, ISR_S2=0x%.8x, ISR_S5=0x%.8x",
+	    ah->ah_intrstate[0],
+	    ah->ah_intrstate[1],
+	    ah->ah_intrstate[2],
+	    ah->ah_intrstate[3],
+	    ah->ah_intrstate[6]);
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
