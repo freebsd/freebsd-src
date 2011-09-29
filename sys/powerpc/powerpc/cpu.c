@@ -65,6 +65,7 @@
 #include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
