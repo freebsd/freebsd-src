@@ -132,17 +132,6 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			return AH_FALSE;
 		}
 
-		/*
-		 * XXX TODO: see whether the hardware signals AR_ISR_RXOK
-		 * even if RX interrupt mitigation is enabled (but then
-		 * doesn't trigger an interrupt per RX packet) - which means
-		 * we'll be setting HAL_INT_RX even before the RX mitigation
-		 * timers have expired.
-		 *
-		 * XXX TODO: do the same for the TX interrupts and TX interrupt
-		 * mitigation.
-		 */
-
 		*masked = isr & HAL_INT_COMMON;
 
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM)) {
@@ -153,9 +142,21 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		}
 
 		/*
-		 * Don't signal this when doing interrupt mitigation
+		 * When doing RX interrupt mitigation, the RXOK bit is set
+		 * in AR_ISR even if the relevant bit in AR_IMR is clear.
+		 * Since this interrupt may be due to another source, don't
+		 * just automatically set HAL_INT_RX if it's set, otherwise
+		 * we could prematurely service the RX queue.
+		 *
+		 * In some cases, the driver can even handle all the RX
+		 * frames just before the mitigation interrupt fires.
+		 * The subsequent RX processing trip will then end up
+		 * processing 0 frames.
 		 */
-#ifndef	AH_AR5416_INTERRUPT_MITIGATION
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+		if (isr & AR_ISR_RXERR)
+			*masked |= HAL_INT_RX;
+#else
 		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
 			*masked |= HAL_INT_RX;
 #endif
