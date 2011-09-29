@@ -1447,9 +1447,9 @@ ath_intr(void *arg)
 			 * is in the RX queue.
 			 * This will then kick the PCU.
 			 */
-			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 			sc->sc_rxlink = NULL;
 			sc->sc_kickpcu = 1;
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -1484,7 +1484,14 @@ ath_intr(void *arg)
 			 * clear whatever condition caused the interrupt.
 			 */
 			ath_hal_mibevent(ah, &sc->sc_halstats);
-			ath_hal_intrset(ah, sc->sc_imask);
+			/*
+			 * Don't reset the interrupt if we've just
+			 * kicked the PCU, or we may get a nested
+			 * RXEOL before the rxproc has had a chance
+			 * to run.
+			 */
+			if (sc->sc_kickpcu == 0)
+				ath_hal_intrset(ah, sc->sc_imask);
 		}
 		if (status & HAL_INT_RXORN) {
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
@@ -4057,24 +4064,34 @@ rx_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
+	/*
+	 * XXX TODO!
+	 * It is very likely that we're unfortunately
+	 * racing with other places where ath_hal_intrset()
+	 * may be called. It may be that we do need to
+	 * add some more locking (eg the pcu lock from ath9k/
+	 * reference), or introduce some other way to cope
+	 * with this.
+	 */
 	if (sc->sc_kickpcu) {
-		sc->sc_kickpcu = 0;
 		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
-		/*
-		 * XXX this causes a 3ms delay; and shuts down a lof
-		 * XXX is it really needed? Or is it just enough to
-		 * XXX kick the PCU again to continue RXing?
-		 */
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
+
 #if 0
-		ath_stoprecv(sc);
-		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
+		/*
+		 * This re-links all of the descriptors together.
+		 * (Is it possible that somehow, some state/issue
+		 * is leaving us with badly linked descriptors?)
+		 * Is it possible that we're receiving another RXEOL
+		 * _during_ this function?
+		 */
 		if (ath_startrecv(sc) != 0) {
 			if_printf(ifp,
 			    "%s: couldn't restart RX after RXEOL; resetting\n",
 			    __func__);
 			ath_reset(ifp);
+			sc->sc_kickpcu = 0;
 			return;
 		}
 #endif
@@ -4087,6 +4104,7 @@ rx_next:
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 
 		ath_hal_intrset(ah, sc->sc_imask);
+		sc->sc_kickpcu = 0;
 	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
