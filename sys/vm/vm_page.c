@@ -2348,7 +2348,6 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 	 * If the object is locked and the page is neither VPO_BUSY nor
 	 * PGA_WRITEABLE, then the page's dirty field cannot possibly be
 	 * set by a concurrent pmap operation.
-	 *
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 && (m->aflags & PGA_WRITEABLE) == 0)
