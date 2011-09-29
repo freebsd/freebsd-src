@@ -889,41 +889,37 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 /*
  *	syscall -	system call request C handler
  *
  *	A system call is essentially treated as a trap.
  */
 void
-syscall(struct trapframe *frame)
+amd64_syscall(struct thread *td, int traced)
 {
-	struct thread *td;
 	struct syscall_args sa;
-	register_t orig_tf_rflags;
 	int error;
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(frame->tf_cs) != SEL_UPL) {
+	if (ISPL(td->td_frame->tf_cs) != SEL_UPL) {
 		panic("syscall");
 		/* NOT REACHED */
 	}
 #endif
-	orig_tf_rflags = frame->tf_rflags;
-	td = curthread;
-	td->td_frame = frame;
-
 	error = syscallenter(td, &sa);
 
 	/*
 	 * Traced syscall.
 	 */
-	if (orig_tf_rflags & PSL_T) {
-		frame->tf_rflags &= ~PSL_T;
+	if (__predict_false(traced)) {
+		td->td_frame->tf_rflags &= ~PSL_T;
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGTRAP;
 		ksi.ksi_code = TRAP_TRACE;
-		ksi.ksi_addr = (void *)frame->tf_rip;
+		ksi.ksi_addr = (void *)td->td_frame->tf_rip;
 		trapsignal(td, &ksi);
 	}
 

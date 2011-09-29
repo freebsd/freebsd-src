@@ -614,6 +614,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 /*
  * Syscall handler
  * The arguments to the syscall are passed in the out registers by the caller,

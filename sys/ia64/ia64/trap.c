@@ -936,6 +936,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (0);
 }
 
+#include "../../kern/subr_syscall.c"
+
 /*
  * Process a system call.
  *
