@@ -35,6 +35,11 @@
 #define	UNLIMITED	0	/* unlimited terminal width */
 enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
 
+typedef struct kinfo_str {
+	STAILQ_ENTRY(kinfo_str) ks_next;
+	char *ks_str;	/* formatted string */
+} KINFO_STR;
+
 typedef struct kinfo {
 	struct kinfo_proc *ki_p;	/* kinfo_proc structure */
 	char *ki_args;		/* exec args */
@@ -46,6 +51,7 @@ typedef struct kinfo {
 		int level;	/* used in decendant_sort() */
 		char *prefix;	/* calculated in decendant_sort() */
 	} ki_d;
+	STAILQ_HEAD(, kinfo_str) ki_ks;
 } KINFO;
 
 /* Variables. */
@@ -65,10 +71,7 @@ typedef struct var {
 #define	INF127	0x10		/* values >127 displayed as 127 */
 	u_int	flag;
 				/* output routine */
-	void	(*oproc)(struct kinfo *, struct varent *);
-				/* sizing routine */
-	int	(*sproc)(struct kinfo *);
-	short	width;		/* printing width */
+	char 	*(*oproc)(struct kinfo *, struct varent *);
 	/*
 	 * The following (optional) elements are hooks for passing information
 	 * to the generic output routine pvar (which prints simple elements
@@ -77,10 +80,8 @@ typedef struct var {
 	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
 	const char *fmt;	/* printf format */
-	short	dwidth;		/* dynamic printing width */
-	/*
-	 * glue to link selected fields together
-	 */
+
+	short	width;		/* calculated width */
 } VAR;
 
 #include "extern.h"
