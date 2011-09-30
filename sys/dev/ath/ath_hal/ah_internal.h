@@ -503,26 +503,15 @@ extern	void ath_hal_free(void *);
 extern	int ath_hal_debug;	/* Global debug flags */
 
 /*
- * This is used for global debugging, when ahp doesn't yet have the
- * related debugging state. For example, during probe/attach.
- */
-#define	HALDEBUG_G(_ah, __m, ...) \
-	do {							\
-		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
-		    ath_hal_debug & (__m)) {			\
-			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
-		}						\
-	} while (0);
-
-/*
- * This is used for local debugging, when ahp isn't NULL and
- * thus may have debug flags set.
+ * The typecast is purely because some callers will pass in
+ * AH_NULL directly rather than using a NULL ath_hal pointer.
  */
 #define	HALDEBUG(_ah, __m, ...) \
 	do {							\
 		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
 		    ath_hal_debug & (__m) ||			\
-		    (_ah)->ah_config.ah_debug & (__m)) {	\
+		    ((_ah) != NULL &&				\
+		      ((struct ath_hal *) (_ah))->ah_config.ah_debug & (__m))) {	\
 			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
 		}						\
 	} while(0);
@@ -531,7 +520,6 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
 #define HALDEBUG(_ah, __m, ...)
-#define HALDEBUG_G(_ah, __m, ...)
 #endif /* AH_DEBUG */
 
 /*
