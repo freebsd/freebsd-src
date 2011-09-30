@@ -49,98 +49,98 @@
 /*
  * Atomically decrement an integer in memory.
  */
-#define	ATOMIC_DEC_INT(r1, r2, r3) \
-	lduw	[r1], r2 ; \
-9:	sub	r2, 1, r3 ; \
-	casa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%icc, 9b ; \
+#define	ATOMIC_DEC_INT(r1, r2, r3)					\
+	lduw	[r1], r2 ;						\
+9:	sub	r2, 1, r3 ;						\
+	casa	[r1] ASI_N, r2, r3 ;					\
+	cmp	r2, r3 ;						\
+	bne,pn	%icc, 9b ;						\
 	 mov	r3, r2
 
 /*
  * Atomically increment an integer in memory.
  */
-#define	ATOMIC_INC_INT(r1, r2, r3) \
-	lduw	[r1], r2 ; \
-9:	add	r2, 1, r3 ; \
-	casa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%icc, 9b ; \
+#define	ATOMIC_INC_INT(r1, r2, r3)					\
+	lduw	[r1], r2 ;						\
+9:	add	r2, 1, r3 ;						\
+	casa	[r1] ASI_N, r2, r3 ;					\
+	cmp	r2, r3 ;						\
+	bne,pn	%icc, 9b ;						\
 	 mov	r3, r2
 
 /*
- * Atomically increment an u_long in memory.
+ * Atomically increment a long in memory.
  */
-#define	ATOMIC_INC_ULONG(r1, r2, r3) \
-	ldx	[r1], r2 ; \
-9:	add	r2, 1, r3 ; \
-	casxa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%icc, 9b ; \
+#define	ATOMIC_INC_LONG(r1, r2, r3)					\
+	ldx	[r1], r2 ;						\
+9:	add	r2, 1, r3 ;						\
+	casxa	[r1] ASI_N, r2, r3 ;					\
+	cmp	r2, r3 ;						\
+	bne,pn	%icc, 9b ;						\
 	 mov	r3, r2
 
 /*
  * Atomically clear a number of bits of an integer in memory.
  */
-#define	ATOMIC_CLEAR_INT(r1, r2, r3, bits) \
-	lduw	[r1], r2 ; \
-9:	andn	r2, bits, r3 ; \
-	casa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%icc, 9b ; \
+#define	ATOMIC_CLEAR_INT(r1, r2, r3, bits)				\
+	lduw	[r1], r2 ;						\
+9:	andn	r2, bits, r3 ;						\
+	casa	[r1] ASI_N, r2, r3 ;					\
+	cmp	r2, r3 ;						\
+	bne,pn	%icc, 9b ;						\
 	 mov	r3, r2
 
 /*
- * Atomically clear a number of bits of an u_long in memory.
+ * Atomically clear a number of bits of a long in memory.
  */
-#define	ATOMIC_CLEAR_LONG(r1, r2, r3, bits) \
-	ldx	[r1], r2 ; \
-9:	andn	r2, bits, r3 ; \
-	casxa	[r1] ASI_N, r2, r3 ; \
-	cmp	r2, r3 ; \
-	bne,pn	%icc, 9b ; \
+#define	ATOMIC_CLEAR_LONG(r1, r2, r3, bits)				\
+	ldx	[r1], r2 ;						\
+9:	andn	r2, bits, r3 ;						\
+	casxa	[r1] ASI_N, r2, r3 ;					\
+	cmp	r2, r3 ;						\
+	bne,pn	%icc, 9b ;						\
 	 mov	r3, r2
 
 #define	PCPU(member)	PCPU_REG + PC_ ## member
-#define	PCPU_ADDR(member, reg) \
+#define	PCPU_ADDR(member, reg)						\
 	add	PCPU_REG, PC_ ## member, reg
 
-#define	DEBUGGER() \
+#define	DEBUGGER()							\
 	ta	%xcc, 1
 
-#define	PANIC(msg, r1) \
-	.sect	.rodata ; \
-9:	.asciz	msg ; \
-	.previous ; \
-	SET(9b, r1, %o0) ; \
-	call	panic ; \
+#define	PANIC(msg, r1)							\
+	.sect	.rodata ;						\
+9:	.asciz	msg ;							\
+	.previous ;							\
+	SET(9b, r1, %o0) ;						\
+	call	panic ;							\
 	 nop
 
 #ifdef INVARIANTS
-#define	KASSERT(r1, msg) \
-	brnz,pt	r1, 8f ; \
-	 nop ; \
-	PANIC(msg, r1) ; \
+#define	KASSERT(r1, msg)						\
+	brnz,pt	r1, 8f ;						\
+	 nop ;								\
+	PANIC(msg, r1) ;						\
 8:
 #else
 #define	KASSERT(r1, msg)
 #endif
 
-#define	PUTS(msg, r1) \
-	.sect	.rodata ; \
-9:	.asciz	msg ; \
-	.previous ; \
-	SET(9b, r1, %o0) ; \
-	call	printf ; \
+#define	PUTS(msg, r1)							\
+	.sect	.rodata ;						\
+9:	.asciz	msg ;							\
+	.previous ;							\
+	SET(9b, r1, %o0) ;						\
+	call	printf ;						\
 	 nop
 
 #define	_ALIGN_DATA	.align 8
 
-#define	DATA(name) \
-	.data ; \
-	_ALIGN_DATA ; \
-	.globl	name ; \
-	.type	name, @object ; \
+#define	DATA(name)							\
+	.data ;								\
+	_ALIGN_DATA ;							\
+	.globl	name ;							\
+	.type	name, @object ;						\
 name:
 
 #define	EMPTY
