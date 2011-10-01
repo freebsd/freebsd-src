@@ -373,15 +373,15 @@ END(rsf_fatal)
 	_ALIGN_DATA
 	.globl	intrnames, sintrnames
 intrnames:
-	.space	IV_MAX * (MAXCOMLEN + 1)
+	.space	(IV_MAX + PIL_MAX) * (MAXCOMLEN + 1)
 sintrnames:
-	.quad	IV_MAX * (MAXCOMLEN + 1)
+	.quad	(IV_MAX + PIL_MAX) * (MAXCOMLEN + 1)
 
 	.globl	intrcnt, sintrcnt
 intrcnt:
-	.space	IV_MAX * 8
+	.space	(IV_MAX + PIL_MAX) * 8
 sintrcnt:
-	.quad	IV_MAX * 8
+	.quad	(IV_MAX + PIL_MAX) * 8
 
 	.text
 
