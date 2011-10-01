@@ -100,12 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tsb.h>
 #include <machine/ver.h>
 
-#define	PMAP_DEBUG
-
-#ifndef	PMAP_SHPGPERPROC
-#define	PMAP_SHPGPERPROC	200
-#endif
-
 /* XXX */
 #include "opt_sched.h"
 #ifndef SCHED_4BSD
