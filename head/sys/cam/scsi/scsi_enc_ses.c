@@ -1757,7 +1757,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 						   eip_hdr->element_index,
 						   SES_ELEM_INDEX_INDIVIDUAL);
 
-			if (iter.individual_element_index != expected_index
+			if (iter.individual_element_index > expected_index
 			 && status_type == TYPE_ADDLSTATUS_MANDATORY) {
 				ENC_LOG(enc, "%s: provided element "
 					"index %d skips mandatory status "
@@ -2500,8 +2500,8 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 		case ELMTYP_ARRAY_DEV:
 			break;
 		default:
-			ENC_LOG(enc, "Element %d Additional Status Invalid "
-			    "for SAS device type 0: SES Typ 0x%x\n", nobj,
+			ENC_LOG(enc, "Element %d has Additional Status type 0, "
+			    "invalid for SES element type 0x%x\n", nobj,
 			    ses_cache->ses_types[tidx].hdr->etype_elm_type);
 			err = ENODEV;
 			goto out;
@@ -2518,8 +2518,9 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 		case ELMTYP_ESCC:
 			break;
 		default:
-			ENC_LOG(enc, "Element %d Additional Status Invalid "
-			    "for SAS device type 1\n", nobj);
+			ENC_LOG(enc, "Element %d has Additional Status type 1, "
+			    "invalid for SES element type 0x%x\n", nobj,
+			    ses_cache->ses_types[tidx].hdr->etype_elm_type);
 			err = ENODEV;
 			goto out;
 		}
@@ -2527,8 +2528,9 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 						       bufsiz, eip, nobj);
 		break;
 	default:
-		ENC_LOG(enc, "Element %d Additional Status Invalid Type %d for"
-		    " SAS object\n", dtype, nobj);
+		ENC_LOG(enc, "Element %d of type 0x%x has Additional Status "
+		    "of unknown type 0x%x\n", nobj,
+		    ses_cache->ses_types[tidx].hdr->etype_elm_type, dtype);
 		err = ENODEV;
 		break;
 	}
