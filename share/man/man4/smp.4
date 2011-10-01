@@ -120,25 +120,25 @@ tasks on CPUs that are closely grouped together.
 .Pp
 .Fx
 supports hyperthreading on Intel CPU's on the i386 and AMD64 platforms.
-Since using logical CPUs can cause performance penalties under certain loads,
+Because using logical CPUs can cause performance penalties under certain loads,
 the logical CPUs can be disabled by setting the
 .Va machdep.hlt_logical_cpus
 sysctl to one. 
 Note that this operation is different from the mechanism used by the
-.Xr cpuset 1 .
 .Sh SEE ALSO
+.Xr cpuset 1 ,
 .Xr mptable 1 ,
+.Xr sched_4bsd 4 ,
+.Xr sched_ule 4 ,
+.Xr loader 8 ,
 .Xr sysctl 8 ,
 .Xr condvar 9 ,
 .Xr msleep 9 ,
 .Xr mtx_pool 9 ,
 .Xr mutex 9 ,
-.Xr sema 9 ,
-.Xr sx 9 ,
 .Xr rwlock 9 ,
-.Xr sched_4bsd 4 ,
-.Xr sched_ule 4 ,
-.Xr cpuset 1
+.Xr sema 9 ,
+.Xr sx 9
 .Sh HISTORY
 The
 .Nm
