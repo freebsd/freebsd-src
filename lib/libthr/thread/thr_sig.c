@@ -56,7 +56,7 @@ int	_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout);
 int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
-int	__sigwait(const sigset_t *set, int *sig);
+int	___sigwait(const sigset_t *set, int *sig);
 int	_sigwait(const sigset_t *set, int *sig);
 int	__sigsuspend(const sigset_t *sigmask);
 
@@ -269,7 +269,7 @@ __sigsuspend(const sigset_t * set)
 	return (ret);
 }
 
-__weak_reference(__sigwait, sigwait);
+__weak_reference(___sigwait, sigwait);
 __weak_reference(__sigtimedwait, sigtimedwait);
 __weak_reference(__sigwaitinfo, sigwaitinfo);
 
@@ -328,14 +328,16 @@ _sigwait(const sigset_t *set, int *sig)
 }
 
 int
-__sigwait(const sigset_t *set, int *sig)
+___sigwait(const sigset_t *set, int *sig)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
 	int ret;
 
-	_thr_cancel_enter(curthread);
-	ret = __sys_sigwait(thr_remove_thr_signals(set, &newset), sig);
-	_thr_cancel_leave(curthread);
+	do {
+		_thr_cancel_enter(curthread);
+		ret = __sys_sigwait(thr_remove_thr_signals(set, &newset), sig);
+ 		_thr_cancel_leave(curthread);
+	} while (ret == EINTR);
 	return (ret);
 }

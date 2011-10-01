@@ -917,6 +917,7 @@ FBSDprivate_1.0 {
 	_sigtimedwait;
 	__sys_sigtimedwait;
 	_sigwait;
+	__sigwait;
 	__sys_sigwait;
 	_sigwaitinfo;
 	__sys_sigwaitinfo;
