@@ -23,6 +23,9 @@ SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 PSEUDO+= _fcntl.o
 .endif
+SRCS+= sigwait.c
+NOASM+= sigwait.o
+PSEUDO+= _sigwait.o
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
