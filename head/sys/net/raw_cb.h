@@ -70,9 +70,14 @@ pr_init_t	raw_init;
  * Library routines for raw socket usrreq functions; will always be wrapped
  * so that protocol-specific functions can be handled.
  */
+typedef int (*raw_input_cb_fn)(struct mbuf *, struct sockproto *,
+    struct sockaddr *, struct rawcb *);
+
 int	 raw_attach(struct socket *, int);
 void	 raw_detach(struct rawcb *);
 void	 raw_input(struct mbuf *, struct sockproto *, struct sockaddr *);
+void	 raw_input_ext(struct mbuf *, struct sockproto *, struct sockaddr *,
+	    raw_input_cb_fn);
 
 /*
  * Generic pr_usrreqs entries for raw socket protocols, usually wrapped so

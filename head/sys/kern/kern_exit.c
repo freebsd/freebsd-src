@@ -104,7 +104,7 @@ void (*nlminfo_release_p)(struct proc *p);
  * exit -- death of process.
  */
 void
-sys_exit(struct thread *td, struct sys_exit_args *uap)
+sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
 	exit1(td, W_EXITCODE(uap->rval, 0));
@@ -224,7 +224,7 @@ exit1(struct thread *td, int rv)
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
@@ -421,7 +421,7 @@ exit1(struct thread *td, int rv)
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			FOREACH_THREAD_IN_PROC(q, temp)
 				temp->td_dbgflags &= ~TDB_SUSPEND;
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
 	}
@@ -501,12 +501,12 @@ exit1(struct thread *td, int rv)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
 		if (p->p_pptr == initproc)
-			psignal(p->p_pptr, SIGCHLD);
+			kern_psignal(p->p_pptr, SIGCHLD);
 		else if (p->p_sigparent != 0) {
 			if (p->p_sigparent == SIGCHLD)
 				childproc_exited(p);
 			else	/* LINUX thread */
-				psignal(p->p_pptr, p->p_sigparent);
+				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
 #ifdef PROCDESC
 	} else
@@ -568,7 +568,7 @@ struct abort2_args {
 #endif
 
 int
-abort2(struct thread *td, struct abort2_args *uap)
+sys_abort2(struct thread *td, struct abort2_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct sbuf *sb;
@@ -656,7 +656,7 @@ owait(struct thread *td, struct owait_args *uap __unused)
  * The dirty work is handled by kern_wait().
  */
 int
-wait4(struct thread *td, struct wait_args *uap)
+sys_wait4(struct thread *td, struct wait_args *uap)
 {
 	struct rusage ru, *rup;
 	int error, status;
@@ -765,12 +765,12 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	/*
 	 * Destroy resource accounting information associated with the process.
 	 */
-	racct_proc_exit(p);
 #ifdef RACCT
-	PROC_LOCK(p->p_pptr);
-	racct_sub(p->p_pptr, RACCT_NPROC, 1);
-	PROC_UNLOCK(p->p_pptr);
+	PROC_LOCK(p);
+	racct_sub(p, RACCT_NPROC, 1);
+	PROC_UNLOCK(p);
 #endif
+	racct_proc_exit(p);
 
 	/*
 	 * Free credentials, arguments, and sigacts.
@@ -929,25 +929,13 @@ loop:
 void
 proc_reparent(struct proc *child, struct proc *parent)
 {
-#ifdef RACCT
-	int locked;
-#endif
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
-#ifdef RACCT
-	locked = PROC_LOCKED(parent);
-	if (!locked)
-		PROC_LOCK(parent);
-	racct_add_force(parent, RACCT_NPROC, 1);
-	if (!locked)
-		PROC_UNLOCK(parent);
-#endif
 	PROC_LOCK(child->p_pptr);
-	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);
 	PROC_UNLOCK(child->p_pptr);
 	LIST_REMOVE(child, p_sibling);

@@ -308,7 +308,7 @@ gpart_autofill_resize(struct gctl_req *req)
 	off_t last, size, start, new_size;
 	off_t lba, new_lba, alignment, offset;
 	const char *s;
-	int error, idx;
+	int error, idx, has_alignment;
 
 	idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
 	if (idx < 1)
@@ -334,8 +334,9 @@ gpart_autofill_resize(struct gctl_req *req)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
 
 	s = gctl_get_ascii(req, "alignment");
+	has_alignment = (*s == '*') ? 0 : 1;
 	alignment = 1;
-	if (*s != '*') {
+	if (has_alignment) {
 		error = g_parse_lba(s, pp->lg_sectorsize, &alignment);
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid alignment param");
@@ -358,7 +359,7 @@ gpart_autofill_resize(struct gctl_req *req)
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid size param");
 		/* no autofill necessary. */
-		if (alignment == 1)
+		if (has_alignment == 0)
 			goto done;
 	}
 
@@ -380,7 +381,8 @@ gpart_autofill_resize(struct gctl_req *req)
 	lba = (off_t)strtoimax(s, NULL, 0);
 	size = lba - start + 1;
 
-	if (new_size > 0 && new_size <= size) {
+	pp = find_provider(gp, lba + 1);
+	if (new_size > 0 && (new_size <= size || pp == NULL)) {
 		/* The start offset may be not aligned, so we align the end
 		 * offset and then calculate the size.
 		 */
@@ -388,8 +390,6 @@ gpart_autofill_resize(struct gctl_req *req)
 		    alignment) - start - offset;
 		goto done;
 	}
-
-	pp = find_provider(gp, lba + 1);
 	if (pp == NULL) {
 		new_size = ALIGNDOWN(last + offset + 1, alignment) -
 		    start - offset;

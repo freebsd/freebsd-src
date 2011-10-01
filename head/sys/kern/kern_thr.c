@@ -97,7 +97,7 @@ static int create_thread(struct thread *td, mcontext_t *ctx,
  * System call interface.
  */
 int
-thr_create(struct thread *td, struct thr_create_args *uap)
+sys_thr_create(struct thread *td, struct thr_create_args *uap)
     /* ucontext_t *ctx, long *id, int flags */
 {
 	ucontext_t ctx;
@@ -112,7 +112,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 }
 
 int
-thr_new(struct thread *td, struct thr_new_args *uap)
+sys_thr_new(struct thread *td, struct thr_new_args *uap)
     /* struct thr_param * */
 {
 	struct thr_param param;
@@ -288,7 +288,7 @@ fail:
 }
 
 int
-thr_self(struct thread *td, struct thr_self_args *uap)
+sys_thr_self(struct thread *td, struct thr_self_args *uap)
     /* long *id */
 {
 	int error;
@@ -300,7 +300,7 @@ thr_self(struct thread *td, struct thr_self_args *uap)
 }
 
 int
-thr_exit(struct thread *td, struct thr_exit_args *uap)
+sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
 	struct proc *p;
@@ -337,7 +337,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 }
 
 int
-thr_kill(struct thread *td, struct thr_kill_args *uap)
+sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
     /* long id, int sig */
 {
 	ksiginfo_t ksi;
@@ -384,7 +384,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 }
 
 int
-thr_kill2(struct thread *td, struct thr_kill2_args *uap)
+sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
     /* pid_t pid, long id, int sig */
 {
 	ksiginfo_t ksi;
@@ -441,7 +441,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 }
 
 int
-thr_suspend(struct thread *td, struct thr_suspend_args *uap)
+sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 	/* const struct timespec *timeout */
 {
 	struct timespec ts, *tsp;
@@ -506,7 +506,7 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 }
 
 int
-thr_wake(struct thread *td, struct thr_wake_args *uap)
+sys_thr_wake(struct thread *td, struct thr_wake_args *uap)
 	/* long id */
 {
 	struct proc *p;
@@ -530,7 +530,7 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 }
 
 int
-thr_set_name(struct thread *td, struct thr_set_name_args *uap)
+sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 {
 	struct proc *p;
 	char name[MAXCOMLEN + 1];

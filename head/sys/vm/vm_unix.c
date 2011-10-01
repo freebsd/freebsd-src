@@ -68,7 +68,7 @@ struct obreak_args {
  */
 /* ARGSUSED */
 int
-obreak(td, uap)
+sys_obreak(td, uap)
 	struct thread *td;
 	struct obreak_args *uap;
 {
@@ -197,7 +197,7 @@ struct ovadvise_args {
  */
 /* ARGSUSED */
 int
-ovadvise(td, uap)
+sys_ovadvise(td, uap)
 	struct thread *td;
 	struct ovadvise_args *uap;
 {

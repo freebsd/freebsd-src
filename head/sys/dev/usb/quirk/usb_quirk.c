@@ -457,6 +457,13 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(ROLAND, SD80, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(ROLAND, UA700, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(MEDELI, DD305, 0x0000, 0xffff, UQ_SINGLE_CMD_MIDI, UQ_MATCH_VENDOR_ONLY),
+
+	/*
+	 * Quirks for manufacturers which USB devices does not respond
+	 * after issuing non-supported commands:
+	 */
+	USB_QUIRK(FEIYA, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
+	USB_QUIRK(REALTEK, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
 };
 #undef USB_QUIRK_VP
 #undef USB_QUIRK
@@ -588,7 +595,7 @@ usb_test_quirk_by_info(const struct usbd_lookup_info *info, uint16_t quirk)
 	}
 	mtx_unlock(&usb_quirk_mtx);
 done:
-	return (usb_test_quirk_w(info, quirk));
+	return (0);			/* no quirk match */
 }
 
 static struct usb_quirk_entry *

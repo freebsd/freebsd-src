@@ -58,12 +58,8 @@ fi
 # Set our config file variable
 CFGF="$1"
 
-# Check the dirname of the provided CFGF and make sure its a full path
-DIR="`dirname ${CFGF}`"
-if [ "${DIR}" = "." ]
-then
-  CFGF="`pwd`/${CFGF}"
-fi
+# Resolve any relative pathing
+CFGF="`realpath ${CFGF}`"
 export CFGF
 
 # Start by doing a sanity check, which will catch any obvious mistakes in the config
@@ -72,7 +68,7 @@ file_sanity_check "installMode installType installMedium packageType"
 # We passed the Sanity check, lets grab some of the universal config settings and store them
 check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
-check_value installMedium "dvd usb ftp rsync image"
+check_value installMedium "dvd usb ftp rsync image local"
 check_value packageType "uzip tar rsync split"
 if_check_value_exists partition "all s1 s2 s3 s4 free image"
 if_check_value_exists mirrorbal "load prefer round-robin split"

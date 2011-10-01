@@ -485,9 +485,24 @@ spinlock_exit(void)
 /*
  * call platform specific code to halt (until next interrupt) for the idle loop
  */
+/*
+ * This is disabled because of three issues:
+ *
+ * + By calling critical_enter(), any interrupt which occurs after that but
+ *   before the wait instruction will be handled but not serviced (in the case
+ *   of a netisr) because preemption is not allowed at this point;
+ * + Any fast interrupt handler which schedules an immediate or fast callout
+ *   will not occur until the wait instruction is interrupted, as the clock
+ *   has already been set by cpu_idleclock();
+ * + There is currently no known way to atomically enable interrupts and call
+ *   wait, which is how the i386/amd64 code gets around (1). Thus even if
+ *   interrupts were disabled and reenabled just before the wait call, any
+ *   interrupt that did occur may not interrupt wait.
+ */
 void
 cpu_idle(int busy)
 {
+#if 0
 	KASSERT((mips_rd_status() & MIPS_SR_INT_IE) != 0,
 		("interrupts disabled in idle process."));
 	KASSERT((mips_rd_status() & MIPS_INT_MASK) != 0,
@@ -502,6 +517,7 @@ cpu_idle(int busy)
 		cpu_activeclock();
 		critical_exit();
 	}
+#endif	
 }
 
 int

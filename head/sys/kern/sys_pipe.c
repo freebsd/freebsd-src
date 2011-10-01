@@ -385,7 +385,7 @@ kern_pipe(struct thread *td, int fildes[2])
 
 /* ARGSUSED */
 int
-pipe(struct thread *td, struct pipe_args *uap)
+sys_pipe(struct thread *td, struct pipe_args *uap)
 {
 	int error;
 	int fildes[2];

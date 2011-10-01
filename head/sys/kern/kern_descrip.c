@@ -292,7 +292,7 @@ struct getdtablesize_args {
 #endif
 /* ARGSUSED */
 int
-getdtablesize(struct thread *td, struct getdtablesize_args *uap)
+sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 {
 	struct proc *p = td->td_proc;
 	uint64_t lim;
@@ -321,7 +321,7 @@ struct dup2_args {
 #endif
 /* ARGSUSED */
 int
-dup2(struct thread *td, struct dup2_args *uap)
+sys_dup2(struct thread *td, struct dup2_args *uap)
 {
 
 	return (do_dup(td, DUP_FIXED, (int)uap->from, (int)uap->to,
@@ -338,7 +338,7 @@ struct dup_args {
 #endif
 /* ARGSUSED */
 int
-dup(struct thread *td, struct dup_args *uap)
+sys_dup(struct thread *td, struct dup_args *uap)
 {
 
 	return (do_dup(td, 0, (int)uap->fd, 0, td->td_retval));
@@ -356,7 +356,7 @@ struct fcntl_args {
 #endif
 /* ARGSUSED */
 int
-fcntl(struct thread *td, struct fcntl_args *uap)
+sys_fcntl(struct thread *td, struct fcntl_args *uap)
 {
 	struct flock fl;
 	struct oflock ofl;
@@ -1170,7 +1170,7 @@ struct close_args {
 #endif
 /* ARGSUSED */
 int
-close(td, uap)
+sys_close(td, uap)
 	struct thread *td;
 	struct close_args *uap;
 {
@@ -1253,7 +1253,7 @@ struct closefrom_args {
 #endif
 /* ARGSUSED */
 int
-closefrom(struct thread *td, struct closefrom_args *uap)
+sys_closefrom(struct thread *td, struct closefrom_args *uap)
 {
 	struct filedesc *fdp;
 	int fd;
@@ -1317,7 +1317,7 @@ struct fstat_args {
 #endif
 /* ARGSUSED */
 int
-fstat(struct thread *td, struct fstat_args *uap)
+sys_fstat(struct thread *td, struct fstat_args *uap)
 {
 	struct stat ub;
 	int error;
@@ -1361,7 +1361,7 @@ struct nfstat_args {
 #endif
 /* ARGSUSED */
 int
-nfstat(struct thread *td, struct nfstat_args *uap)
+sys_nfstat(struct thread *td, struct nfstat_args *uap)
 {
 	struct nstat nub;
 	struct stat ub;
@@ -1386,7 +1386,7 @@ struct fpathconf_args {
 #endif
 /* ARGSUSED */
 int
-fpathconf(struct thread *td, struct fpathconf_args *uap)
+sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 {
 	struct file *fp;
 	struct vnode *vp;
@@ -2602,7 +2602,7 @@ struct flock_args {
 #endif
 /* ARGSUSED */
 int
-flock(struct thread *td, struct flock_args *uap)
+sys_flock(struct thread *td, struct flock_args *uap)
 {
 	struct file *fp;
 	struct vnode *vp;

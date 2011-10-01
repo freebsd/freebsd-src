@@ -63,6 +63,7 @@ checksum <algorithm>
 compression <algorithm>
 timeout <seconds>
 exec <path>
+metaflush "on" | "off"
 
 on <node> {
 	# Node section
@@ -85,12 +86,14 @@ resource <name> {
 	local <path>
 	timeout <seconds>
 	exec <path>
+	metaflush "on" | "off"
 
 	on <node> {
 		# Resource-node section
 		name <name>
 		# Required
 		local <path>
+		metaflush "on" | "off"
 		# Required
 		remote <addr>
 		source <addr>
@@ -100,6 +103,7 @@ resource <name> {
 		name <name>
 		# Required
 		local <path>
+		metaflush "on" | "off"
 		# Required
 		remote <addr>
 		source <addr>
@@ -317,6 +321,25 @@ It can be one of:
 .Ar init ,
 .Ar secondary ,
 .Ar primary .
+.Pp
+.It Ic metaflush on | off
+.Pp
+When set to
+.Va on ,
+flush write cache of the local provider after every metadata (activemap) update.
+Flushing write cache ensures that provider will not reorder writes and that
+metadata will be properly updated before real data is stored.
+If the local provider does not support flushing write cache (it returns
+.Er EOPNOTSUPP
+on the
+.Cm BIO_FLUSH
+request),
+.Nm hastd
+will disable
+.Ic metaflush
+automatically.
+The default value is
+.Va on .
 .Pp
 .It Ic name Aq name
 .Pp

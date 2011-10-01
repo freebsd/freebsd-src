@@ -386,6 +386,12 @@ resource_needs_restart(const struct hast_resource *res0,
 			return (true);
 		if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 			return (true);
+		/*
+		 * When metaflush has changed we don't really need restart,
+		 * but it is just easier this way.
+		 */
+		if (res0->hr_metaflush != res1->hr_metaflush)
+			return (true);
 	}
 	return (false);
 }
@@ -416,6 +422,8 @@ resource_needs_reload(const struct hast_resource *res0,
 		return (true);
 	if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 		return (true);
+	if (res0->hr_metaflush != res1->hr_metaflush)
+		return (true);
 	return (false);
 }
 
@@ -436,6 +444,7 @@ resource_reload(const struct hast_resource *res)
 	nv_add_int32(nvout, (int32_t)res->hr_compression, "compression");
 	nv_add_int32(nvout, (int32_t)res->hr_timeout, "timeout");
 	nv_add_string(nvout, res->hr_exec, "exec");
+	nv_add_int32(nvout, (int32_t)res->hr_metaflush, "metaflush");
 	if (nv_error(nvout) != 0) {
 		nv_free(nvout);
 		pjdlog_error("Unable to allocate header for reload message.");
@@ -591,12 +600,13 @@ hastd_reload(void)
 	 * recreating it.
 	 *
 	 * We do just reload (send SIGHUP to worker process) if we act as
-	 * PRIMARY, but only if remote address, replication mode, timeout or
-	 * execution path has changed. For those, there is no need to restart
-	 * worker process.
+	 * PRIMARY, but only if remote address, source address, replication
+	 * mode, timeout, execution path or metaflush has changed.
+	 * For those, there is no need to restart worker process.
 	 * If PRIMARY receives SIGHUP, it will reconnect if remote address or
-	 * replication mode has changed or simply set new timeout if only
-	 * timeout has changed.
+	 * source address has changed or it will set new timeout if only timeout
+	 * has changed or it will update metaflush if only metaflush has
+	 * changed.
 	 */
 	TAILQ_FOREACH_SAFE(nres, &newcfg->hc_resources, hr_next, tres) {
 		TAILQ_FOREACH(cres, &cfg->hc_resources, hr_next) {
@@ -627,6 +637,7 @@ hastd_reload(void)
 			cres->hr_timeout = nres->hr_timeout;
 			strlcpy(cres->hr_exec, nres->hr_exec,
 			    sizeof(cres->hr_exec));
+			cres->hr_metaflush = nres->hr_metaflush;
 			if (cres->hr_workerpid != 0)
 				resource_reload(cres);
 		}

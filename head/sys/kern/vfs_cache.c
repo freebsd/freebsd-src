@@ -925,7 +925,7 @@ SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
 
 /* Implementation of the getcwd syscall. */
 int
-__getcwd(td, uap)
+sys___getcwd(td, uap)
 	struct thread *td;
 	struct __getcwd_args *uap;
 {

@@ -515,7 +515,7 @@ struct ptrace_args {
 #define	COPYOUT(k, u, s)	copyout(k, u, s)
 #endif
 int
-ptrace(struct thread *td, struct ptrace_args *uap)
+sys_ptrace(struct thread *td, struct ptrace_args *uap)
 {
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
@@ -972,7 +972,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			PROC_SUNLOCK(p);
 		} else {
 			if (data)
-				psignal(p, data);
+				kern_psignal(p, data);
 		}
 		break;
 

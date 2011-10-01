@@ -263,6 +263,7 @@ ar5212ReleaseTxQueue(struct ath_hal *ah, u_int q)
  * Assumes:
  *  phwChannel has been set to point to the current channel
  */
+#define	TU_TO_USEC(_tu)		((_tu) << 10)
 HAL_BOOL
 ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 {
@@ -270,7 +271,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	HAL_TX_QUEUE_INFO *qi;
-	uint32_t cwMin, chanCwMin, value, qmisc, dmisc;
+	uint32_t cwMin, chanCwMin, qmisc, dmisc;
 
 	if (q >= pCap->halTotalQueues) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid queue num %u\n",
@@ -409,17 +410,40 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 		      |  AR_Q_MISC_CBR_INCR_DIS1
 		      |  AR_Q_MISC_CBR_INCR_DIS0;
 
-		if (!qi->tqi_readyTime) {
+		if (qi->tqi_readyTime) {
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: using tqi_readyTime\n", __func__);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
+		} else {
+			int value;
 			/*
 			 * NB: don't set default ready time if driver
 			 * has explicitly specified something.  This is
 			 * here solely for backwards compatibility.
 			 */
-			value = (ahp->ah_beaconInterval
+			/*
+			 * XXX for now, hard-code a CAB interval of 70%
+			 * XXX of the total beacon interval.
+			 */
+
+			value = (ahp->ah_beaconInterval * 70 / 100)
 				- (ah->ah_config.ah_sw_beacon_response_time -
-					ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff) * 1024;
-			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_ENA);
+				+ ah->ah_config.ah_dma_beacon_response_time)
+				- ah->ah_config.ah_additional_swba_backoff;
+			/*
+			 * XXX Ensure it isn't too low - nothing lower
+			 * XXX than 10 TU
+			 */
+			if (value < 10)
+				value = 10;
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: defaulting to rdytime = %d uS\n",
+			    __func__, value);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
 		}
 		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
 			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
@@ -481,6 +505,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 
 	return AH_TRUE;
 }
+#undef	TU_TO_USEC
 
 /*
  * Get the TXDP for the specified queue
