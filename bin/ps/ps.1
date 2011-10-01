@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2011
+.Dd October 1, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -54,6 +54,11 @@ utility
 displays a header line, followed by lines containing information about
 all of your
 processes that have controlling terminals.
+If the
+.Fl x
+options is specified,
+.Nm
+will also display processes that do not have controlling terminals.
 .Pp
 A different set of processes can be selected for display by using any
 combination of the
@@ -103,13 +108,9 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Display information about other users' processes as well as your own.
-This will skip any processes which do not have a controlling terminal,
-unless the
-.Fl x
-option is also specified.
-This can be disabled by setting the
+If the
 .Va security.bsd.see_other_uids
-sysctl to zero.
+sysctl is set to zero, this option is honored only if the UID of the user is 0.
 .It Fl c
 Change the
 .Dq command
@@ -216,6 +217,9 @@ with the standard input.
 .It Fl t
 Display information about processes attached to the specified terminal
 devices.
+Full pathnames, as well as abbreviations (see explanation of the
+.Cm tt
+keyword) can be specified.
 .It Fl U
 Display the processes belonging to the specified usernames.
 .It Fl u
@@ -427,12 +431,15 @@ The process is being traced or debugged.
 An abbreviation for the pathname of the controlling terminal, if any.
 The abbreviation consists of the three letters following
 .Pa /dev/tty ,
-or, for the console,
-.Dq Li con .
+or, for psuedo-terminals, the corresponding entry in
+.Pa /dev/pts .
 This is followed by a
 .Ql -
 if the process can no longer reach that
 controlling terminal (i.e., it has been revoked).
+The full pathname of the controlling terminal is available via the
+.Cm tty
+keyword.
 .It Cm wchan
 The event (an address in the system) on which a process waits.
 When printed numerically, the initial part of the address is
