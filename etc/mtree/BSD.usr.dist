@@ -93,6 +93,10 @@
                 intel_wpi
                 ..
             ..
+            llvm
+                clang
+                ..
+            ..
             ncurses
             ..
             ntp

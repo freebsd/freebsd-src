@@ -169,6 +169,7 @@ extern	void ar5416BeaconInit(struct ath_hal *ah,
 extern	void ar5416ResetStaBeaconTimers(struct ath_hal *ah);
 extern	void ar5416SetStaBeaconTimers(struct ath_hal *ah,
 		const HAL_BEACON_STATE *);
+extern	uint64_t ar5416GetNextTBTT(struct ath_hal *);
 
 extern	HAL_BOOL ar5416EepromRead(struct ath_hal *, u_int off, uint16_t *data);
 extern	HAL_BOOL ar5416EepromWrite(struct ath_hal *, u_int off, uint16_t data);
@@ -186,6 +187,8 @@ extern	void ar5416GpioSetIntr(struct ath_hal *ah, u_int, uint32_t ilevel);
 
 extern	u_int ar5416GetWirelessModes(struct ath_hal *ah);
 extern	void ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state);
+extern	uint64_t ar5416GetTsf64(struct ath_hal *ah);
+extern	void ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64);
 extern	void ar5416ResetTsf(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);

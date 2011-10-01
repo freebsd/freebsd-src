@@ -40,6 +40,7 @@ IPv6 Main Site: ftp.freebsd.org|\
 IPv6 Ireland: ftp3.ie.freebsd.org|\
 IPv6 Israel: ftp.il.freebsd.org|\
 IPv6 Japan: ftp2.jp.freebsd.org|\
+IPv6 Sweden: ftp4.se.freebsd.org|\
 IPv6 USA: ftp4.us.freebsd.org|\
 IPv6 Turkey: ftp2.tr.freebsd.org"
 
@@ -212,6 +213,7 @@ SWEDEN_FTP_SERVERS="\
 Sweden: ftp.se.freebsd.org|\
 Sweden #2: ftp2.se.freebsd.org|\
 Sweden #3: ftp3.se.freebsd.org|\
+Sweden #4: ftp4.se.freebsd.org|\
 Sweden #5: ftp5.se.freebsd.org"
 
 SWITZERLAND_FTP_SERVERS="\

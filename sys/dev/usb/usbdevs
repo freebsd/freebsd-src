@@ -1569,6 +1569,7 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
 
 /* FEIYA products */
+product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
@@ -2780,6 +2781,7 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
+product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter

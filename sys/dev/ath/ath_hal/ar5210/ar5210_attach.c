@@ -148,6 +148,7 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_beaconInit			= ar5210BeaconInit,
 	.ah_setStationBeaconTimers	= ar5210SetStaBeaconTimers,
 	.ah_resetStationBeaconTimers	= ar5210ResetStaBeaconTimers,
+	.ah_getNextTBTT			= ar5210GetNextTBTT,
 
 	/* Interrupt Functions */
 	.ah_isInterruptPending		= ar5210IsInterruptPending,
@@ -181,14 +182,14 @@ ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
 	HAL_STATUS ecode;
 	int i;
 
-	HALDEBUG_G(AH_NULL, HAL_DEBUG_ATTACH,
+	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH,
 	    "%s: devid 0x%x sc %p st %p sh %p\n", __func__, devid,
 	    sc, (void*) st, (void*) sh);
 
 	/* NB: memory is returned zero'd */
 	ahp = ath_hal_malloc(sizeof (struct ath_hal_5210));
 	if (ahp == AH_NULL) {
-		HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
+		HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
 		    "%s: no memory for state block\n", __func__);
 		ecode = HAL_ENOMEM;
 		goto bad;

@@ -172,7 +172,7 @@ struct clock_gettime_args {
 #endif
 /* ARGSUSED */
 int
-clock_gettime(struct thread *td, struct clock_gettime_args *uap)
+sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
 	int error;
@@ -255,7 +255,7 @@ struct clock_settime_args {
 #endif
 /* ARGSUSED */
 int
-clock_settime(struct thread *td, struct clock_settime_args *uap)
+sys_clock_settime(struct thread *td, struct clock_settime_args *uap)
 {
 	struct timespec ats;
 	int error;
@@ -290,7 +290,7 @@ struct clock_getres_args {
 };
 #endif
 int
-clock_getres(struct thread *td, struct clock_getres_args *uap)
+sys_clock_getres(struct thread *td, struct clock_getres_args *uap)
 {
 	struct timespec ts;
 	int error;
@@ -394,7 +394,7 @@ struct nanosleep_args {
 #endif
 /* ARGSUSED */
 int
-nanosleep(struct thread *td, struct nanosleep_args *uap)
+sys_nanosleep(struct thread *td, struct nanosleep_args *uap)
 {
 	struct timespec rmt, rqt;
 	int error;
@@ -425,7 +425,7 @@ struct gettimeofday_args {
 #endif
 /* ARGSUSED */
 int
-gettimeofday(struct thread *td, struct gettimeofday_args *uap)
+sys_gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 {
 	struct timeval atv;
 	struct timezone rtz;
@@ -451,7 +451,7 @@ struct settimeofday_args {
 #endif
 /* ARGSUSED */
 int
-settimeofday(struct thread *td, struct settimeofday_args *uap)
+sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 {
 	struct timeval atv, *tvp;
 	struct timezone atz, *tzp;
@@ -523,7 +523,7 @@ struct getitimer_args {
 };
 #endif
 int
-getitimer(struct thread *td, struct getitimer_args *uap)
+sys_getitimer(struct thread *td, struct getitimer_args *uap)
 {
 	struct itimerval aitv;
 	int error;
@@ -575,14 +575,14 @@ struct setitimer_args {
 };
 #endif
 int
-setitimer(struct thread *td, struct setitimer_args *uap)
+sys_setitimer(struct thread *td, struct setitimer_args *uap)
 {
 	struct itimerval aitv, oitv;
 	int error;
 
 	if (uap->itv == NULL) {
 		uap->itv = uap->oitv;
-		return (getitimer(td, (struct getitimer_args *)uap));
+		return (sys_getitimer(td, (struct getitimer_args *)uap));
 	}
 
 	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
@@ -660,7 +660,7 @@ realitexpire(void *arg)
 
 	p = (struct proc *)arg;
 	PROC_LOCK(p);
-	psignal(p, SIGALRM);
+	kern_psignal(p, SIGALRM);
 	if (!timevalisset(&p->p_realtimer.it_interval)) {
 		timevalclear(&p->p_realtimer.it_value);
 		if (p->p_flag & P_WEXIT)
@@ -923,7 +923,7 @@ struct ktimer_create_args {
 };
 #endif
 int
-ktimer_create(struct thread *td, struct ktimer_create_args *uap)
+sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 {
 	struct sigevent *evp1, ev;
 	int id;
@@ -1062,7 +1062,7 @@ struct ktimer_delete_args {
 };
 #endif
 int
-ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
+sys_ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 {
 	return (kern_timer_delete(td, uap->timerid));
 }
@@ -1127,7 +1127,7 @@ struct ktimer_settime_args {
 };
 #endif
 int
-ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
+sys_ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1168,7 +1168,7 @@ struct ktimer_gettime_args {
 };
 #endif
 int
-ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
+sys_ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1199,7 +1199,7 @@ struct timer_getoverrun_args {
 };
 #endif
 int
-ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
+sys_ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;

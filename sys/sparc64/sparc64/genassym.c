@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
-#ifdef SUN4U
 #include <machine/cache.h>
-#endif
 #include <machine/pcb.h>
 #include <machine/setjmp.h>
 #include <machine/smp.h>
@@ -62,9 +60,7 @@ ASSYM(TAR_VPN_SHIFT, TAR_VPN_SHIFT);
 
 ASSYM(_NCPUBITS, _NCPUBITS);
 
-#ifdef SUN4U
 ASSYM(TLB_DEMAP_ALL, TLB_DEMAP_ALL);
-#endif
 ASSYM(TLB_DEMAP_CONTEXT, TLB_DEMAP_CONTEXT);
 ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
 ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
@@ -82,21 +78,17 @@ ASSYM(PAGE_SIZE_4M, PAGE_SIZE_4M);
 #ifdef SMP
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
-#ifdef SUN4U
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
 ASSYM(CSA_STICK, offsetof(struct cpu_start_args, csa_stick));
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 #endif
-#endif
 
-#ifdef SUN4U
 ASSYM(DC_SIZE, offsetof(struct cacheinfo, dc_size));
 ASSYM(DC_LINESIZE, offsetof(struct cacheinfo, dc_linesize));
 ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
 ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
-#endif
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_LINE, offsetof(struct ktr_entry, ktr_line));
@@ -112,7 +104,6 @@ ASSYM(KTR_PARM5, offsetof(struct ktr_entry, ktr_parms[4]));
 ASSYM(KTR_PARM6, offsetof(struct ktr_entry, ktr_parms[5]));
 
 ASSYM(TTE_SHIFT, TTE_SHIFT);
-#ifdef SUN4U
 ASSYM(TTE_VPN, offsetof(struct tte, tte_vpn));
 ASSYM(TTE_DATA, offsetof(struct tte, tte_data));
 
@@ -132,7 +123,6 @@ ASSYM(TLB_CXR_PGSZ_MASK, TLB_CXR_PGSZ_MASK);
 ASSYM(TLB_DIRECT_ADDRESS_MASK, TLB_DIRECT_ADDRESS_MASK);
 ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
-#endif
 
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
@@ -146,14 +136,12 @@ ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
 ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
-#ifdef SUN4U
 ASSYM(PC_CACHE, offsetof(struct pcpu, pc_cache));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
-#endif
 
 ASSYM(IR_NEXT, offsetof(struct intr_request, ir_next));
 ASSYM(IR_FUNC, offsetof(struct intr_request, ir_func));
@@ -161,7 +149,7 @@ ASSYM(IR_ARG, offsetof(struct intr_request, ir_arg));
 ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
-#if defined(SUN4U) && defined(SMP)
+#ifdef SMP
 ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
 
 ASSYM(IRA_MASK, offsetof(struct ipi_rd_args, ira_mask));
@@ -239,14 +227,12 @@ ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
 ASSYM(TF_FSR, offsetof(struct trapframe, tf_fsr));
 ASSYM(TF_GSR, offsetof(struct trapframe, tf_gsr));
 ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
-#ifdef SUN4U
 ASSYM(TF_LEVEL, offsetof(struct trapframe, tf_level));
 ASSYM(TF_SFAR, offsetof(struct trapframe, tf_sfar));
 ASSYM(TF_SFSR, offsetof(struct trapframe, tf_sfsr));
 ASSYM(TF_TAR, offsetof(struct trapframe, tf_tar));
 ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
 ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
-#endif
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
 ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
 ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));

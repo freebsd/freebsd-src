@@ -131,7 +131,7 @@ if [ -n "$pdnsd_conf" ]; then
 	remove_markers "$signature" "$signature_end" "$pdnsd_conf" > "$cf"
 	if [ -n "$newconf" ]; then
 		echo "$signature" >> "$cf"
-		printf "$newconf" >> "$cf"
+		printf %s "$newconf" >> "$cf"
 		echo "$signature_end" >> "$cf"
 	fi
 	if change_file "$pdnsd_conf" "$cf"; then
@@ -141,10 +141,10 @@ fi
 
 if [ -n "$pdnsd_resolv" ]; then
 	if [ ! -f "$pdnsd_resolv" ] || \
-		[ "$(cat "$pdnsd_resolv")" != "$(printf "$newresolv")" ]
+		[ "$(cat "$pdnsd_resolv")" != "$(printf %s "$newresolv")" ]
 	then
 		changed=true
-		printf "$newresolv" >"$pdnsd_resolv"
+		printf %s "$newresolv" >"$pdnsd_resolv"
 	fi
 fi
 

@@ -519,7 +519,7 @@ svr4_sys_kill(td, uap)
 		return (EINVAL);
 	ka.pid = uap->pid;
 	ka.signum = SVR4_SVR42BSD_SIG(uap->signum);
-	return kill(td, &ka);
+	return sys_kill(td, &ka);
 }
 
 

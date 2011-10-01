@@ -612,7 +612,7 @@ trap(struct trapframe *frame)
 				PCPU_GET(curpcb)->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
-				psignal(p, SIGBUS);
+				kern_psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
 #endif				
 				goto out;
@@ -1053,6 +1053,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		
 	return (error);
 }
+
+#include "../../kern/subr_syscall.c"
 
 /*
  *	syscall -	system call request C handler

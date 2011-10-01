@@ -31,11 +31,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2011
-.Dt CC 9
+.Dd September 15, 2011
+.Dt MOD_CC 9
 .Os
 .Sh NAME
-.Nm cc ,
+.Nm mod_cc ,
 .Nm DECLARE_CC_MODULE ,
 .Nm CC_VAR
 .Nd Modular Congestion Control
@@ -53,7 +53,7 @@ loadable kernel modules via the
 facility.
 Transport protocols can select from the list of available algorithms on a
 connection-by-connection basis, or use the system default (see
-.Xr cc 4
+.Xr mod_cc 4
 for more details).
 .Pp
 .Nm
@@ -290,13 +290,13 @@ by the value of the congestion window.
 Algorithms should use the abscence of this flag being set to avoid accumulating
 a large difference between the congestion window and send window.
 .Sh SEE ALSO
-.Xr cc 4 ,
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,
 .Xr cc_hd 4 ,
 .Xr cc_htcp 4 ,
 .Xr cc_newreno 4 ,
 .Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
 .Xr tcp 4
 .Sh ACKNOWLEDGEMENTS
 Development and testing of this software were made possible in part by grants

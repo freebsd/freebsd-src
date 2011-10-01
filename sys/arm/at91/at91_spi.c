@@ -134,7 +134,7 @@ at91_spi_attach(device_t dev)
 
 	device_add_child(dev, "spibus", -1);
 	bus_generic_attach(dev);
-out:;
+out:
 	if (err)
 		at91_spi_deactivate(dev);
 	return (err);
@@ -259,7 +259,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	for (j = 0; j < i; j++)
 		bus_dmamap_unload(sc->dmatag, sc->map[j]);
 	return (err);
-out:;
+out:
 	for (j = 0; j < i; j++)
 		bus_dmamap_unload(sc->dmatag, sc->map[j]);
 	return (EIO);
