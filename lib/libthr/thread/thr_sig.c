@@ -233,23 +233,26 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 
 __weak_reference(__sigsuspend, sigsuspend);
 
+static const sigset_t *
+thr_remove_thr_signals(const sigset_t *set, sigset_t *newset)
+{
+	const sigset_t *pset;
+
+	if (SIGISMEMBER(*set, SIGCANCEL)) {
+		*newset = *set;
+		SIGDELSET(*newset, SIGCANCEL);
+		pset = newset;
+	} else
+		pset = set;
+	return (pset);
+}
+
 int
 _sigsuspend(const sigset_t * set)
 {
 	sigset_t newset;
-	const sigset_t *pset;
-	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
-
-	ret = __sys_sigsuspend(pset);
-
-	return (ret);
+	return (__sys_sigsuspend(thr_remove_thr_signals(set, &newset)));
 }
 
 int
@@ -257,18 +260,10 @@ __sigsuspend(const sigset_t * set)
 {
 	struct pthread *curthread = _get_curthread();
 	sigset_t newset;
-	const sigset_t *pset;
 	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
-
 	_thr_cancel_enter(curthread);
-	ret = __sys_sigsuspend(pset);
+	ret = __sys_sigsuspend(thr_remove_thr_signals(set, &newset));
 	_thr_cancel_leave(curthread);
 
 	return (ret);
@@ -283,17 +278,9 @@ _sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout)
 {
 	sigset_t newset;
-	const sigset_t *pset;
-	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
-	ret = __sys_sigtimedwait(pset, info, timeout);
-	return (ret);
+	return (__sys_sigtimedwait(thr_remove_thr_signals(set, &newset), info,
+	    timeout));
 }
 
 int
@@ -302,17 +289,11 @@ __sigtimedwait(const sigset_t *set, siginfo_t *info,
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
-	const sigset_t *pset;
 	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
 	_thr_cancel_enter(curthread);
-	ret = __sys_sigtimedwait(pset, info, timeout);
+	ret = __sys_sigtimedwait(thr_remove_thr_signals(set, &newset), info,
+	    timeout);
 	_thr_cancel_leave(curthread);
 	return (ret);
 }
@@ -321,18 +302,8 @@ int
 _sigwaitinfo(const sigset_t *set, siginfo_t *info)
 {
 	sigset_t newset;
-	const sigset_t *pset;
-	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
-
-	ret = __sys_sigwaitinfo(pset, info);
-	return (ret);
+	return (__sys_sigwaitinfo(thr_remove_thr_signals(set, &newset), info));
 }
 
 int
@@ -340,18 +311,10 @@ __sigwaitinfo(const sigset_t *set, siginfo_t *info)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
-	const sigset_t *pset;
 	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else
-		pset = set;
-
 	_thr_cancel_enter(curthread);
-	ret = __sys_sigwaitinfo(pset, info);
+	ret = __sys_sigwaitinfo(thr_remove_thr_signals(set, &newset), info);
 	_thr_cancel_leave(curthread);
 	return (ret);
 }
@@ -360,18 +323,8 @@ int
 _sigwait(const sigset_t *set, int *sig)
 {
 	sigset_t newset;
-	const sigset_t *pset;
-	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else 
-		pset = set;
-
-	ret = __sys_sigwait(pset, sig);
-	return (ret);
+	return (__sys_sigwait(thr_remove_thr_signals(set, &newset), sig));
 }
 
 int
@@ -379,18 +332,10 @@ __sigwait(const sigset_t *set, int *sig)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
-	const sigset_t *pset;
 	int ret;
 
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		newset = *set;
-		SIGDELSET(newset, SIGCANCEL);
-		pset = &newset;
-	} else 
-		pset = set;
-
 	_thr_cancel_enter(curthread);
-	ret = __sys_sigwait(pset, sig);
+	ret = __sys_sigwait(thr_remove_thr_signals(set, &newset), sig);
 	_thr_cancel_leave(curthread);
 	return (ret);
 }
