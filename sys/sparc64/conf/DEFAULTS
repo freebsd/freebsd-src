@@ -20,4 +20,4 @@ options 	GEOM_PART_VTOC8
 # Let sunkbd emulate an AT keyboard by default.
 options 	SUNKBD_EMULATE_ATKBD
 
-#options 	NEW_PCIB
+options 	NEW_PCIB
