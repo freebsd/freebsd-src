@@ -119,8 +119,7 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_rxstatus8 &= ~AR_RxDone;
 
 	/* clear the rest of the status fields */
-	if (! pCap->halAutoSleepSupport)
-        	OS_MEMZERO(&(ads->u), sizeof(ads->u));
+	OS_MEMZERO(&(ads->u), sizeof(ads->u));
 
 	return AH_TRUE;
 }
