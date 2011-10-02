@@ -358,8 +358,30 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_WRITE(ah, AR_OBS, 8);
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
+	/*
+	 * Disable the "general" TX/RX mitigation timers.
+	 */
 	OS_REG_WRITE(ah, AR_MIRT, 0);
 
+	/*
+	 * This initialises the RX interrupt mitigation timers.
+	 *
+	 * The mitigation timers begin at idle and are triggered
+	 * upon the RXOK of a single frame (or sub-frame, for A-MPDU.)
+	 * Then, the RX mitigation interrupt will fire:
+	 *
+	 * + 250uS after the last RX'ed frame, or
+	 * + 700uS after the first RX'ed frame
+	 *
+	 * Thus, the LAST field dictates the extra latency
+	 * induced by the RX mitigation method and the FIRST
+	 * field dictates how long to delay before firing an
+	 * RX mitigation interrupt.
+	 *
+	 * Please note this only seems to be for RXOK frames;
+	 * not CRC or PHY error frames.
+	 *
+	 */
 	OS_REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 250);
 	OS_REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 700);
 #endif
