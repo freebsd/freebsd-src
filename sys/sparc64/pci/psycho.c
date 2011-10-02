@@ -89,7 +89,6 @@ static void psycho_intr_enable(void *);
 static void psycho_intr_disable(void *);
 static void psycho_intr_assign(void *);
 static void psycho_intr_clear(void *);
-static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 
 /* Interrupt handlers */
 static driver_filter_t psycho_ue;
@@ -113,8 +112,7 @@ static bus_read_ivar_t psycho_read_ivar;
 static bus_setup_intr_t psycho_setup_intr;
 static bus_alloc_resource_t psycho_alloc_resource;
 static bus_activate_resource_t psycho_activate_resource;
-static bus_deactivate_resource_t psycho_deactivate_resource;
-static bus_release_resource_t psycho_release_resource;
+static bus_adjust_resource_t psycho_adjust_resource;
 static bus_get_dma_tag_t psycho_get_dma_tag;
 static pcib_maxslots_t psycho_maxslots;
 static pcib_read_config_t psycho_read_config;
@@ -137,9 +135,10 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(bus_setup_intr,	psycho_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	psycho_alloc_resource),
-	DEVMETHOD(bus_activate_resource,	psycho_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	psycho_deactivate_resource),
-	DEVMETHOD(bus_release_resource,	psycho_release_resource),
+	DEVMETHOD(bus_activate_resource, psycho_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	psycho_adjust_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_describe_intr,	bus_generic_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	psycho_get_dma_tag),
 
@@ -567,13 +566,19 @@ psycho_attach(device_t dev)
 	}
 
 	/* Allocate our tags. */
-	sc->sc_pci_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
-	sc->sc_pci_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
-	sc->sc_pci_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
+	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
+	    sc->sc_mem_res), PCI_IO_BUS_SPACE, NULL);
+	if (sc->sc_pci_iot == NULL)
+		panic("%s: could not allocate PCI I/O tag", __func__);
+	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
+	    sc->sc_mem_res), PCI_CONFIG_BUS_SPACE, NULL);
+	if (sc->sc_pci_cfgt == NULL)
+		panic("%s: could not allocate PCI configuration space tag",
+		    __func__);
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
 	    sc->sc_is->is_pmaxaddr, ~0, NULL, NULL, sc->sc_is->is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
-		panic("%s: bus_dma_tag_create failed", __func__);
+		panic("%s: could not create PCI DMA tag", __func__);
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = sc->sc_dma_methods;
@@ -1165,14 +1170,10 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct psycho_softc *sc;
 	struct resource *rv;
 	struct rman *rm;
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
-	int needactivate = flags & RF_ACTIVE;
-
-	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-	if (type == SYS_RES_IRQ) {
+	switch (type) {
+	case SYS_RES_IRQ:
 		/*
 		 * XXX: Don't accept blank ranges for now, only single
 		 * interrupts.  The other case should not happen with
@@ -1183,38 +1184,28 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (start != end)
 			panic("%s: XXX: interrupt range", __func__);
 		start = end = INTMAP_VEC(sc->sc_ign, end);
-		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-		    type, rid, start, end, count, flags));
-	}
-	switch (type) {
+		return (bus_generic_alloc_resource(bus, child, type, rid,
+		     start, end, count, flags));
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_pci_mem_rman;
-		bt = sc->sc_pci_memt;
-		bh = sc->sc_pci_bh[OFW_PCI_CS_MEM32];
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_pci_io_rman;
-		bt = sc->sc_pci_iot;
-		bh = sc->sc_pci_bh[OFW_PCI_CS_IO];
 		break;
 	default:
 		return (NULL);
-		/* NOTREACHED */
 	}
 
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
+	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
 	if (rv == NULL)
 		return (NULL);
 	rman_set_rid(rv, *rid);
-	bh += rman_get_start(rv);
-	rman_set_bustag(rv, bt);
-	rman_set_bushandle(rv, bh);
 
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv)) {
-			rman_release_resource(rv);
-			return (NULL);
-		}
+	if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child, type,
+	    *rid, rv) != 0) {
+		rman_release_resource(rv);
+		return (NULL);
 	}
 	return (rv);
 }
@@ -1223,56 +1214,56 @@ static int
 psycho_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	void *p;
-	int error;
+	struct psycho_softc *sc;
+	struct bus_space_tag *tag;
 
-	if (type == SYS_RES_IRQ)
-		return (BUS_ACTIVATE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (type == SYS_RES_MEMORY) {
-		/*
-		 * Need to memory-map the device space, as some drivers
-		 * depend on the virtual address being set and usable.
-		 */
-		error = sparc64_bus_mem_map(rman_get_bustag(r),
-		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
-		if (error != 0)
-			return (error);
-		rman_set_virtual(r, p);
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (bus_generic_activate_resource(bus, child, type, rid,
+		    r));
+	case SYS_RES_MEMORY:
+		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
+		    sc->sc_mem_res), PCI_MEMORY_BUS_SPACE, NULL);
+		if (tag == NULL)
+			return (ENOMEM);
+		rman_set_bustag(r, tag);
+		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_MEM32] +
+		    rman_get_start(r));
+		break;
+	case SYS_RES_IOPORT:
+		rman_set_bustag(r, sc->sc_pci_iot);
+		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_IO] +
+		    rman_get_start(r));
+		break;
 	}
 	return (rman_activate_resource(r));
 }
 
 static int
-psycho_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+psycho_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
 {
+	struct psycho_softc *sc;
+	struct rman *rm;
 
-	if (type == SYS_RES_IRQ)
-		return (BUS_DEACTIVATE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (type == SYS_RES_MEMORY) {
-		sparc64_bus_mem_unmap(rman_get_virtual(r), rman_get_size(r));
-		rman_set_virtual(r, NULL);
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (bus_generic_adjust_resource(bus, child, type, r,
+		    start, end));
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_pci_mem_rman;
+		break;
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_pci_io_rman;
+		break;
+	default:
+		return (EINVAL);
 	}
-	return (rman_deactivate_resource(r));
-}
-
-static int
-psycho_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-	int error;
-
-	if (type == SYS_RES_IRQ)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, r);
-		if (error)
-			return (error);
-	}
-	return (rman_release_resource(r));
+	if (rman_is_region_manager(r, rm) == 0)
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
 }
 
 static bus_dma_tag_t
@@ -1311,20 +1302,4 @@ psycho_setup_device(device_t bus, device_t child)
 	    sizeof(rev)) > 0 && rev == 0)
 		PCICTL_WRITE8(sc, PCR_CS, PCICTL_READ8(sc, PCR_CS) &
 		    ~PCICTL_ARB_PARK);
-}
-
-static bus_space_tag_t
-psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
-{
-	bus_space_tag_t bt;
-
-	bt = malloc(sizeof(struct bus_space_tag), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (bt == NULL)
-		panic("%s: out of memory", __func__);
-
-	bt->bst_cookie = sc;
-	bt->bst_parent = rman_get_bustag(sc->sc_mem_res);
-	bt->bst_type = type;
-	return (bt);
 }
