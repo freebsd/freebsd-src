@@ -81,7 +81,6 @@ struct schizo_softc {
 	bus_space_handle_t		sc_pci_bh[STX_NRANGE];
 	bus_space_tag_t			sc_pci_cfgt;
 	bus_space_tag_t			sc_pci_iot;
-	bus_space_tag_t			sc_pci_memt;
 	bus_dma_tag_t			sc_pci_dmat;
 
 	uint32_t			sc_stats_dma_ce;
