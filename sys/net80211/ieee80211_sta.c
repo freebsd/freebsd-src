@@ -109,6 +109,8 @@ sta_beacon_miss(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
+	IEEE80211_LOCK_ASSERT(ic);
+
 	KASSERT((ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
 	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
 	    ("wrong state %s", ieee80211_state_name[vap->iv_state]));
