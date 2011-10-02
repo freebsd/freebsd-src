@@ -351,6 +351,8 @@ struct ath_softc {
 	HAL_BUS_HANDLE		sc_sh;		/* bus space handle */
 	bus_dma_tag_t		sc_dmat;	/* bus DMA tag */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
+	struct mtx		sc_pcu_mtx;	/* PCU access mutex */
+	char			sc_pcu_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -542,6 +544,37 @@ struct ath_softc {
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+
+/*
+ * The PCU lock is non-recursive and should be treated as a spinlock.
+ * Although currently the interrupt code is run in netisr context and
+ * doesn't require this, this may change in the future.
+ * Please keep this in mind when protecting certain code paths
+ * with the PCU lock.
+ *
+ * The PCU lock is used to serialise access to the PCU so things such
+ * as TX, RX, state change (eg channel change), channel reset and updates
+ * from interrupt context (eg kickpcu, txqactive bits) do not clash.
+ *
+ * Although the current single-thread taskqueue mechanism protects the
+ * majority of these situations by simply serialising them, there are
+ * a few others which occur at the same time. These include the TX path
+ * (which only acquires ATH_LOCK when recycling buffers to the free list),
+ * ath_set_channel, the channel scanning API and perhaps quite a bit more.
+ */
+#define	ATH_PCU_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_pcu_mtx_name,				\
+	    sizeof((_sc)->sc_pcu_mtx_name),				\
+	    "%s PCU lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_pcu_mtx, (_sc)->sc_pcu_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_PCU_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_LOCK(_sc)		mtx_lock(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
+		MA_OWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 
