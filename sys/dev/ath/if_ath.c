@@ -1342,6 +1342,7 @@ ath_intr(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_INT status = 0;
+	uint32_t txqs;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1380,6 +1381,29 @@ ath_intr(void *arg)
 	    ah->ah_intrstate[3],
 	    ah->ah_intrstate[6]);
 	status &= sc->sc_imask;			/* discard unasked for bits */
+
+	/*
+	 * This has now updated the txqactive bits, so
+	 * we should fetch them from the HAL and merge them
+	 * into sc->sc_txq_active. That way we won't miss out
+	 * where one CPU clears the txq bit whilst the other CPU
+	 * sets it.
+	 *
+	 * The HAL updates it if the relevant TX status bits are set
+	 * in the status registers, regardless of whether the status
+	 * caused the interrupt and/or is set in sc_imask.
+	 * Hence we update the bits before we check for status == 0.
+	 */
+	ATH_LOCK(sc);
+	/*
+	 * This returns the txq bits in the given mask and blanks them.
+	 * Since it's only ever set and cleared by the HAL and we are now
+	 * doing it in ath_intr(), it's effectively non-racey.
+	 */
+	txqs = 0xffffffff;
+	ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
+	sc->sc_txq_active |= txqs;
+	ATH_UNLOCK(sc);
 
 	/* Short-circuit un-handled interrupts */
 	if (status == 0x0)
@@ -1440,15 +1464,29 @@ ath_intr(void *arg)
 			 * by a call to ath_reset() somehow, the
 			 * interrupt mask will be correctly reprogrammed.
 			 */
+			ATH_LOCK(sc);
 			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
 			ath_hal_intrset(ah, imask);
+			/*
+			 * Only blank sc_rxlink if we've not yet kicked
+			 * the PCU.
+			 *
+			 * This isn't entirely correct - the correct solution
+			 * would be to have a PCU lock and engage that for
+			 * the duration of the PCU fiddling; which would include
+			 * running the RX process. Otherwise we could end up
+			 * messing up the RX descriptor chain and making the
+			 * RX desc list much shorter.
+			 */
+			if (! sc->sc_kickpcu)
+				sc->sc_rxlink = NULL;
+			sc->sc_kickpcu = 1;
+			ATH_UNLOCK(sc);
 			/*
 			 * Enqueue an RX proc, to handled whatever
 			 * is in the RX queue.
 			 * This will then kick the PCU.
 			 */
-			sc->sc_rxlink = NULL;
-			sc->sc_kickpcu = 1;
 			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_rxtask);
 		}
 		if (status & HAL_INT_TXURN) {
@@ -1490,8 +1528,10 @@ ath_intr(void *arg)
 			 * RXEOL before the rxproc has had a chance
 			 * to run.
 			 */
+			ATH_LOCK(sc);
 			if (sc->sc_kickpcu == 0)
 				ath_hal_intrset(ah, sc->sc_imask);
+			ATH_UNLOCK(sc);
 		}
 		if (status & HAL_INT_RXORN) {
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
@@ -4103,8 +4143,10 @@ rx_next:
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 
+		ATH_LOCK(sc);
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
+		ATH_UNLOCK(sc);
 	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
@@ -4590,12 +4632,29 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	return nacked;
 }
 
+/*
+ * This is inefficient - it's going to be a lot better
+ * if the ath_tx_proc* functions took a private snapshot
+ * of sc_txq_active once, inside the lock, rather than
+ * calling it multiple times.
+ *
+ * So before this makes it into -HEAD, that should be
+ * implemented.
+ */
 static __inline int
-txqactive(struct ath_hal *ah, int qnum)
+txqactive(struct ath_softc *sc, int qnum)
 {
 	u_int32_t txqs = 1<<qnum;
-	ath_hal_gettxintrtxqs(ah, &txqs);
-	return (txqs & (1<<qnum));
+	int r;
+	ATH_LOCK(sc);
+	/*
+	 * This needs to check whether the bit is set, and clear it
+	 * if it is. This is what the HAL functionality did.
+	 */
+	r = sc->sc_txq_active & txqs;
+	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
+	return (!! r);
 }
 
 /*
@@ -4608,10 +4667,10 @@ ath_tx_proc_q0(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 
-	if (txqactive(sc->sc_ah, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
+	if (txqactive(sc, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
 		/* XXX why is lastrx updated in tx code? */
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
-	if (txqactive(sc->sc_ah, sc->sc_cabq->axq_qnum))
+	if (txqactive(sc, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
@@ -4637,15 +4696,15 @@ ath_tx_proc_q0123(void *arg, int npending)
 	 * Process each active queue.
 	 */
 	nacked = 0;
-	if (txqactive(sc->sc_ah, 0))
+	if (txqactive(sc, 0))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[0]);
-	if (txqactive(sc->sc_ah, 1))
+	if (txqactive(sc, 1))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[1]);
-	if (txqactive(sc->sc_ah, 2))
+	if (txqactive(sc, 2))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[2]);
-	if (txqactive(sc->sc_ah, 3))
+	if (txqactive(sc, 3))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[3]);
-	if (txqactive(sc->sc_ah, sc->sc_cabq->axq_qnum))
+	if (txqactive(sc, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
@@ -4674,7 +4733,7 @@ ath_tx_proc(void *arg, int npending)
 	 */
 	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i) && txqactive(sc->sc_ah, i))
+		if (ATH_TXQ_SETUP(sc, i) && txqactive(sc, i))
 			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);

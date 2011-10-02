@@ -384,7 +384,6 @@ struct ath_softc {
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1,/* reset cal state next trip */
 				sc_rxslink  : 1,/* do self-linked final descriptor */
-				sc_kickpcu  : 1,/* kick PCU RX on next RX proc */
 				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
@@ -411,7 +410,19 @@ struct ath_softc {
 	u_int			sc_fftxqmin;	/* min frames before staging */
 	u_int			sc_fftxqmax;	/* max frames before drop */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
+
 	HAL_INT			sc_imask;	/* interrupt mask copy */
+	/*
+	 * These are modified in the interrupt handler as well as
+	 * the task queues and other contexts. Thus these must be
+	 * protected by a mutex, or they could clash.
+	 *
+	 * For now, access to these is behind the ATH_LOCK,
+	 * just to save time.
+	 */
+	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
+	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
