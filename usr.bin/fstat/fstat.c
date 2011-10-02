@@ -441,7 +441,7 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 	}
 
 	if (nflg)
-		printf(" %#8jx", (uintmax_t)vn.vn_fsid);
+		printf(" %#5jx", (uintmax_t)vn.vn_fsid);
 	else if (vn.vn_mntdir != NULL)
 		(void)printf(" %-8s", vn.vn_mntdir);
 
