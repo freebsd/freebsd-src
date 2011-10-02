@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 
 struct fire_msiqarg;
 
-static bus_space_tag_t fire_alloc_bus_tag(struct fire_softc *sc, int type);
 static const struct fire_desc *fire_get_desc(device_t dev);
 static void fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
     bus_dmasync_op_t op);
@@ -113,11 +112,11 @@ static driver_filter_t fire_xcb;
  * Methods
  */
 static bus_activate_resource_t fire_activate_resource;
+static bus_adjust_resource_t fire_adjust_resource;
 static pcib_alloc_msi_t fire_alloc_msi;
 static pcib_alloc_msix_t fire_alloc_msix;
 static bus_alloc_resource_t fire_alloc_resource;
 static device_attach_t fire_attach;
-static bus_deactivate_resource_t fire_deactivate_resource;
 static bus_get_dma_tag_t fire_get_dma_tag;
 static ofw_bus_get_node_t fire_get_node;
 static pcib_map_msi_t fire_map_msi;
@@ -127,7 +126,6 @@ static pcib_read_config_t fire_read_config;
 static bus_read_ivar_t fire_read_ivar;
 static pcib_release_msi_t fire_release_msi;
 static pcib_release_msix_t fire_release_msix;
-static bus_release_resource_t fire_release_resource;
 static pcib_route_interrupt_t fire_route_interrupt;
 static bus_setup_intr_t fire_setup_intr;
 static bus_teardown_intr_t fire_teardown_intr;
@@ -147,9 +145,10 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(bus_setup_intr,	fire_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	fire_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	fire_alloc_resource),
-	DEVMETHOD(bus_activate_resource,	fire_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	fire_deactivate_resource),
-	DEVMETHOD(bus_release_resource,	fire_release_resource),
+	DEVMETHOD(bus_activate_resource, fire_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	fire_adjust_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_get_dma_tag,	fire_get_dma_tag),
 
 	/* pcib interface */
@@ -757,13 +756,19 @@ fire_attach(device_t dev)
 	free(range, M_OFWPROP);
 
 	/* Allocate our tags. */
-	sc->sc_pci_memt = fire_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
-	sc->sc_pci_iot = fire_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
-	sc->sc_pci_cfgt = fire_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
+	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
+	    sc->sc_mem_res[FIRE_PCI]), PCI_IO_BUS_SPACE, NULL);
+	if (sc->sc_pci_iot == NULL)
+		panic("%s: could not allocate PCI I/O tag", __func__);
+	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
+	    sc->sc_mem_res[FIRE_PCI]), PCI_CONFIG_BUS_SPACE, NULL);
+	if (sc->sc_pci_cfgt == NULL)
+		panic("%s: could not allocate PCI configuration space tag",
+		    __func__);
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
-		panic("%s: bus_dma_tag_create failed", __func__);
+		panic("%s: could not create PCI DMA tag", __func__);
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
@@ -2015,14 +2020,10 @@ fire_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct fire_softc *sc;
 	struct resource *rv;
 	struct rman *rm;
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
-	int needactivate = flags & RF_ACTIVE;
-
-	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-	if (type == SYS_RES_IRQ) {
+	switch (type) {
+	case SYS_RES_IRQ:
 		/*
 		 * XXX: Don't accept blank ranges for now, only single
 		 * interrupts.  The other case should not happen with
@@ -2034,38 +2035,28 @@ fire_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			panic("%s: XXX: interrupt range", __func__);
 		if (*rid == 0)
 			start = end = INTMAP_VEC(sc->sc_ign, end);
-		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-		    type, rid, start, end, count, flags));
-	}
-	switch (type) {
+		return (bus_generic_alloc_resource(bus, child, type, rid,
+		    start, end, count, flags));
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_pci_mem_rman;
-		bt = sc->sc_pci_memt;
-		bh = sc->sc_pci_bh[OFW_PCI_CS_MEM32];
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_pci_io_rman;
-		bt = sc->sc_pci_iot;
-		bh = sc->sc_pci_bh[OFW_PCI_CS_IO];
 		break;
 	default:
 		return (NULL);
-		/* NOTREACHED */
 	}
 
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
+	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
 	if (rv == NULL)
 		return (NULL);
 	rman_set_rid(rv, *rid);
-	bh += rman_get_start(rv);
-	rman_set_bustag(rv, bt);
-	rman_set_bushandle(rv, bh);
 
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv)) {
-			rman_release_resource(rv);
-			return (NULL);
-		}
+	if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child, type,
+	    *rid, rv) != 0) {
+		rman_release_resource(rv);
+		return (NULL);
 	}
 	return (rv);
 }
@@ -2074,56 +2065,56 @@ static int
 fire_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	void *p;
-	int error;
+	struct fire_softc *sc;
+	struct bus_space_tag *tag;
 
-	if (type == SYS_RES_IRQ)
-		return (BUS_ACTIVATE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (type == SYS_RES_MEMORY) {
-		/*
-		 * Need to memory-map the device space, as some drivers
-		 * depend on the virtual address being set and usable.
-		 */
-		error = sparc64_bus_mem_map(rman_get_bustag(r),
-		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
-		if (error != 0)
-			return (error);
-		rman_set_virtual(r, p);
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (bus_generic_activate_resource(bus, child, type, rid,
+		    r));
+	case SYS_RES_MEMORY:
+		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
+		    sc->sc_mem_res[FIRE_PCI]), PCI_MEMORY_BUS_SPACE, NULL);
+		if (tag == NULL)
+			return (ENOMEM);
+		rman_set_bustag(r, tag);
+		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_MEM32] +
+		    rman_get_start(r));
+		break;
+	case SYS_RES_IOPORT:
+		rman_set_bustag(r, sc->sc_pci_iot);
+		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_IO] +
+		    rman_get_start(r));
+		break;
 	}
 	return (rman_activate_resource(r));
 }
 
 static int
-fire_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+fire_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
 {
+	struct fire_softc *sc;
+	struct rman *rm;
 
-	if (type == SYS_RES_IRQ)
-		return (BUS_DEACTIVATE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (type == SYS_RES_MEMORY) {
-		sparc64_bus_mem_unmap(rman_get_virtual(r), rman_get_size(r));
-		rman_set_virtual(r, NULL);
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (bus_generic_adjust_resource(bus, child, type, r,
+		    start, end));
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_pci_mem_rman;
+		break;
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_pci_io_rman;
+		break;
+	default:
+		return (EINVAL);
 	}
-	return (rman_deactivate_resource(r));
-}
-
-static int
-fire_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-	int error;
-
-	if (type == SYS_RES_IRQ)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, r);
-		if (error)
-			return (error);
-	}
-	return (rman_release_resource(r));
+	if (rman_is_region_manager(r, rm) == 0)
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
 }
 
 static bus_dma_tag_t
@@ -2143,22 +2134,6 @@ fire_get_node(device_t bus, device_t child __unused)
 	sc = device_get_softc(bus);
 	/* We only have one child, the PCI bus, which needs our own node. */
 	return (sc->sc_node);
-}
-
-static bus_space_tag_t
-fire_alloc_bus_tag(struct fire_softc *sc, int type)
-{
-	bus_space_tag_t bt;
-
-	bt = malloc(sizeof(struct bus_space_tag), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (bt == NULL)
-		panic("%s: out of memory", __func__);
-
-	bt->bst_cookie = sc;
-	bt->bst_parent = rman_get_bustag(sc->sc_mem_res[FIRE_PCI]);
-	bt->bst_type = type;
-	return (bt);
 }
 
 static u_int
