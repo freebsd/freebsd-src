@@ -261,12 +261,8 @@ racct_alloc_resource(struct racct *racct, int resource,
 	}
 }
 
-/*
- * Increase allocation of 'resource' by 'amount' for process 'p'.
- * Return 0 if it's below limits, or errno, if it's not.
- */
-int
-racct_add(struct proc *p, int resource, uint64_t amount)
+static int
+racct_add_locked(struct proc *p, int resource, uint64_t amount)
 {
 #ifdef RCTL
 	int error;
@@ -282,21 +278,33 @@ racct_add(struct proc *p, int resource, uint64_t amount)
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	mtx_lock(&racct_lock);
 #ifdef RCTL
 	error = rctl_enforce(p, resource, amount);
 	if (error && RACCT_IS_DENIABLE(resource)) {
 		SDT_PROBE(racct, kernel, rusage, add_failure, p, resource,
 		    amount, 0, 0);
-		mtx_unlock(&racct_lock);
 		return (error);
 	}
 #endif
 	racct_alloc_resource(p->p_racct, resource, amount);
 	racct_add_cred_locked(p->p_ucred, resource, amount);
-	mtx_unlock(&racct_lock);
 
 	return (0);
+}
+
+/*
+ * Increase allocation of 'resource' by 'amount' for process 'p'.
+ * Return 0 if it's below limits, or errno, if it's not.
+ */
+int
+racct_add(struct proc *p, int resource, uint64_t amount)
+{
+	int error;
+
+	mtx_lock(&racct_lock);
+	error = racct_add_locked(p, resource, amount);
+	mtx_unlock(&racct_lock);
+	return (error);
 }
 
 static void
@@ -575,7 +583,12 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 
 #ifdef RCTL
 	error = rctl_proc_fork(parent, child);
+	if (error != 0)
+		goto out;
 #endif
+
+	error = racct_add_locked(child, RACCT_NPROC, 1);
+	error += racct_add_locked(child, RACCT_NTHR, 1);
 
 out:
 	mtx_unlock(&racct_lock);
