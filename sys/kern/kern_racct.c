@@ -569,32 +569,15 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 
 		error = racct_set_locked(child, i,
 		    parent->p_racct->r_resources[i]);
-		if (error != 0) {
-			/*
-			 * XXX: The only purpose of these two lines is
-			 * to prevent from tripping checks in racct_destroy().
-			 */
-			for (i = 0; i <= RACCT_MAX; i++)
-				racct_set_locked(child, i, 0);
+		if (error != 0)
 			goto out;
-		}
 	}
 
 #ifdef RCTL
 	error = rctl_proc_fork(parent, child);
-	if (error != 0) {
-		/*
-		 * XXX: The only purpose of these two lines is to prevent from
-		 * tripping checks in racct_destroy().
-		 */
-		for (i = 0; i <= RACCT_MAX; i++)
-			racct_set_locked(child, i, 0);
-	}
 #endif
 
 out:
-	if (error != 0)
-		racct_destroy_locked(&child->p_racct);
 	mtx_unlock(&racct_lock);
 	PROC_UNLOCK(child);
 	PROC_UNLOCK(parent);
