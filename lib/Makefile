@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libefi} \
 	libexpat \
 	libfetch \
-	libftpio \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
