@@ -58,6 +58,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 
 	PCPU_INC(cnt.v_syscall);
 	p = td->td_proc;
+	td->td_syscalls++;
 
 	td->td_pticks = 0;
 	if (td->td_ucred != p->p_ucred)
