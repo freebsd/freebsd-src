@@ -585,6 +585,24 @@ out:
 	return (error);
 }
 
+/*
+ * Called at the end of fork1(), to handle rules that require the process
+ * to be fully initialized.
+ */
+void
+racct_proc_fork_done(struct proc *child)
+{
+
+#ifdef RCTL
+	PROC_LOCK(child);
+	mtx_lock(&racct_lock);
+	rctl_enforce(child, RACCT_NPROC, 0);
+	rctl_enforce(child, RACCT_NTHR, 0);
+	mtx_unlock(&racct_lock);
+	PROC_UNLOCK(child);
+#endif
+}
+
 void
 racct_proc_exit(struct proc *p)
 {
@@ -807,6 +825,11 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 {
 
 	return (0);
+}
+
+void
+racct_proc_fork_done(struct proc *child)
+{
 }
 
 void
