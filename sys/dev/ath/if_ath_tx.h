@@ -95,7 +95,6 @@ extern int ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 extern void ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_txq *txq, struct ath_buf *bf);
 extern void ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an);
-extern void ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid);
 extern void ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,

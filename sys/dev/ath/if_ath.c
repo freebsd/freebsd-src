@@ -3376,7 +3376,7 @@ ath_node_cleanup(struct ieee80211_node *ni)
         struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	/* Cleanup ath_tid, free unused bufs, unlink bufs in TXQ */
-	ath_tx_tid_cleanup(sc, ATH_NODE(ni));
+	ath_tx_node_flush(sc, ATH_NODE(ni));
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_cleanup(ni);
 }

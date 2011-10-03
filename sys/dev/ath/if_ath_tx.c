@@ -2235,13 +2235,6 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
 }
 
-static void
-ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
-    int tid)
-{
-	/* XXX TODO */
-}
-
 /*
  * Free any packets currently pending in the software TX queue.
  *
@@ -2409,31 +2402,6 @@ ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
 		TAILQ_REMOVE(&bf_cq, bf, bf_list);
 		ath_tx_default_comp(sc, bf, 0);
-	}
-}
-
-/*
- * Free the per-TID node state.
- *
- * This frees any packets currently in the software queue and frees
- * any other TID state.
- */
-void
-ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
-{
-	int tid;
-	struct ath_tid *atid;
-
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: node %p: cleaning up\n",
-	    __func__, an);
-
-	/* Flush all packets currently in the sw queues for this node */
-	ath_tx_node_flush(sc, an);
-
-	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
-		atid = &an->an_tid[tid];
-		/* Mark hw-queued packets as having no parent now */
-		ath_tx_tid_txq_unmark(sc, an, tid);
 	}
 }
 
