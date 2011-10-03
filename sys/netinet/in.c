@@ -1411,6 +1411,8 @@ static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
 	struct rtentry *rt;
+	struct ifnet *xifp;
+	int error = 0;
 
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
@@ -1418,30 +1420,35 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 
+	if (rt == NULL)
+		return (EINVAL);
+
 	/*
 	 * If the gateway for an existing host route matches the target L3
-	 * address, allow for ARP to proceed.
+	 * address, which is a special route inserted by some implementation
+	 * such as MANET, and the interface is of the correct type, then
+	 * allow for ARP to proceed.
 	 */
-	if (rt != NULL && (rt->rt_flags & (RTF_HOST|RTF_GATEWAY)) &&
-	    rt->rt_gateway->sa_family == AF_INET &&
-	    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data, 4) == 0) {
-		RTFREE_LOCKED(rt);
-		return (0);
-	}
+	if (rt->rt_flags & (RTF_GATEWAY | RTF_HOST)) {
+		xifp = rt->rt_ifp;
+		
+		if (xifp && (xifp->if_type != IFT_ETHER ||
+		     (xifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0))
+			error = EINVAL;
 
-	if (rt == NULL || (!(flags & LLE_PUB) &&
-			   ((rt->rt_flags & RTF_GATEWAY) || 
-			    (rt->rt_ifp != ifp)))) {
+		if (memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
+		    sizeof(in_addr_t)) != 0)
+			error = EINVAL;
+	} else if (!(flags & LLE_PUB) && ((rt->rt_flags & RTF_GATEWAY) ||
+	    (rt->rt_ifp != ifp))) {
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 #endif
-		if (rt != NULL)
-			RTFREE_LOCKED(rt);
-		return (EINVAL);
+		error = EINVAL;
 	}
 	RTFREE_LOCKED(rt);
-	return 0;
+	return (error);
 }
 
 /*
