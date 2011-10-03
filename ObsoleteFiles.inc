@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110930: sysinstall removed
+OLD_FILES+=usr/sbin/sysinstall usr/share/man/man8/sysinstall.8.gz
 # 20110915: rename congestion control manpages
 OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz
