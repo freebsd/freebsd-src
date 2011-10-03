@@ -651,7 +651,7 @@ work_atio(struct ccb_accept_tio *atio)
 	 * receiving this ATIO.
 	 */
 	if (atio->sense_len != 0) {
-		struct scsi_sense_data *sense;
+		struct scsi_sense_data_fixed *sense;
 
 		if (debug) {
 			warnx("ATIO with %u bytes sense received",
@@ -825,9 +825,9 @@ work_inot(struct ccb_immed_notify *inot)
 
 	/* If there is sense data, use it */
 	if (sense != 0) {
-		struct scsi_sense_data *sense;
+		struct scsi_sense_data_fixed *sense;
 
-		sense = &inot->sense_data;
+		sense = (struct scsi_sense_data_fixed *)&inot->sense_data;
 		tcmd_sense(inot->initiator_id, NULL, sense->flags,
 			   sense->add_sense_code, sense->add_sense_code_qual);
 		if (debug)

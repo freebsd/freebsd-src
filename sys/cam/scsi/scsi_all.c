@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stdint.h>
 
 #ifdef _KERNEL
 #include <opt_scsi.h>
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #ifndef _KERNEL
 #include <camlib.h>
+#include <stddef.h>
 
 #ifndef FALSE
 #define FALSE   0
@@ -608,14 +611,24 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	struct op_table_entry *table[2];
 	int num_tables;
 
-	pd_type = SID_TYPE(inq_data);
+	/*
+	 * If we've got inquiry data, use it to determine what type of
+	 * device we're dealing with here.  Otherwise, assume direct
+	 * access.
+	 */
+	if (inq_data == NULL) {
+		pd_type = T_DIRECT;
+		match = NULL;
+	} else {
+		pd_type = SID_TYPE(inq_data);
 
-	match = cam_quirkmatch((caddr_t)inq_data,
-			       (caddr_t)scsi_op_quirk_table,
-			       sizeof(scsi_op_quirk_table)/
-			       sizeof(*scsi_op_quirk_table),
-			       sizeof(*scsi_op_quirk_table),
-			       scsi_inquiry_match);
+		match = cam_quirkmatch((caddr_t)inq_data,
+				       (caddr_t)scsi_op_quirk_table,
+				       sizeof(scsi_op_quirk_table)/
+				       sizeof(*scsi_op_quirk_table),
+				       sizeof(*scsi_op_quirk_table),
+				       scsi_inquiry_match);
+	}
 
 	if (match != NULL) {
 		table[0] = ((struct scsi_op_quirk_entry *)match)->op_table;
@@ -699,7 +712,7 @@ const struct sense_key_table_entry sense_key_table[] =
 	{ SSD_KEY_EQUAL, SS_NOP, "EQUAL" },
 	{ SSD_KEY_VOLUME_OVERFLOW, SS_FATAL|EIO, "VOLUME OVERFLOW" },
 	{ SSD_KEY_MISCOMPARE, SS_NOP, "MISCOMPARE" },
-	{ SSD_KEY_RESERVED, SS_FATAL|EIO, "RESERVED" }
+	{ SSD_KEY_COMPLETED, SS_NOP, "COMPLETED" }
 };
 
 const int sense_key_table_size =
@@ -1062,25 +1075,25 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x10, 0x03, SS_RDEF,	/* XXX TBD */
 	    "Logical block reference tag check failed") },
 	/* DT  WRO   BK   */
-	{ SST(0x11, 0x00, SS_RDEF,
+	{ SST(0x11, 0x00, SS_FATAL|EIO,
 	    "Unrecovered read error") },
 	/* DT  WRO   BK   */
-	{ SST(0x11, 0x01, SS_RDEF,
+	{ SST(0x11, 0x01, SS_FATAL|EIO,
 	    "Read retries exhausted") },
 	/* DT  WRO   BK   */
-	{ SST(0x11, 0x02, SS_RDEF,
+	{ SST(0x11, 0x02, SS_FATAL|EIO,
 	    "Error too long to correct") },
 	/* DT  W O   BK   */
-	{ SST(0x11, 0x03, SS_RDEF,
+	{ SST(0x11, 0x03, SS_FATAL|EIO,
 	    "Multiple read errors") },
 	/* D   W O   BK   */
-	{ SST(0x11, 0x04, SS_RDEF,
+	{ SST(0x11, 0x04, SS_FATAL|EIO,
 	    "Unrecovered read error - auto reallocate failed") },
 	/*     WRO   B    */
-	{ SST(0x11, 0x05, SS_RDEF,
+	{ SST(0x11, 0x05, SS_FATAL|EIO,
 	    "L-EC uncorrectable error") },
 	/*     WRO   B    */
-	{ SST(0x11, 0x06, SS_RDEF,
+	{ SST(0x11, 0x06, SS_FATAL|EIO,
 	    "CIRC unrecovered error") },
 	/*     W O   B    */
 	{ SST(0x11, 0x07, SS_RDEF,
@@ -1095,10 +1108,10 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x11, 0x0A, SS_RDEF,
 	    "Miscorrected error") },
 	/* D   W O   BK   */
-	{ SST(0x11, 0x0B, SS_RDEF,
+	{ SST(0x11, 0x0B, SS_FATAL|EIO,
 	    "Unrecovered read error - recommend reassignment") },
 	/* D   W O   BK   */
-	{ SST(0x11, 0x0C, SS_RDEF,
+	{ SST(0x11, 0x0C, SS_FATAL|EIO,
 	    "Unrecovered read error - recommend rewrite the data") },
 	/* DT  WRO   B    */
 	{ SST(0x11, 0x0D, SS_RDEF,
@@ -2790,7 +2803,10 @@ scsi_sense_desc(int sense_key, int asc, int ascq,
 			  &sense_entry,
 			  &asc_entry);
 
-	*sense_key_desc = sense_entry->desc;
+	if (sense_entry != NULL)
+		*sense_key_desc = sense_entry->desc;
+	else
+		*sense_key_desc = "Invalid Sense Key";
 
 	if (asc_entry != NULL)
 		*asc_desc = asc_entry->desc;
@@ -2816,10 +2832,12 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 	int error_code, sense_key, asc, ascq;
 	scsi_sense_action action;
 
-	scsi_extract_sense(&csio->sense_data, &error_code,
-			   &sense_key, &asc, &ascq);
+	scsi_extract_sense_len(&csio->sense_data, csio->sense_len -
+			       csio->sense_resid, &error_code,
+			       &sense_key, &asc, &ascq, /*show_errors*/ 1);
 
-	if (error_code == SSD_DEFERRED_ERROR) {
+	if ((error_code == SSD_DEFERRED_ERROR)
+	 || (error_code == SSD_DESC_DEFERRED_ERROR)) {
 		/*
 		 * XXX dufault@FreeBSD.org
 		 * This error doesn't relate to the command associated
@@ -2857,8 +2875,10 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 		if (asc_entry != NULL
 		 && (asc != 0 || ascq != 0))
 			action = asc_entry->action;
-		else
+		else if (sense_entry != NULL)
 			action = sense_entry->action;
+		else
+			action = SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE; 
 
 		if (sense_key == SSD_KEY_RECOVERED_ERROR) {
 			/*
@@ -3040,6 +3060,1346 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 	return(0);
 }
 
+/*
+ * Iterate over sense descriptors.  Each descriptor is passed into iter_func(). 
+ * If iter_func() returns 0, list traversal continues.  If iter_func()
+ * returns non-zero, list traversal is stopped.
+ */
+void
+scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
+		  int (*iter_func)(struct scsi_sense_data_desc *sense,
+				   u_int, struct scsi_sense_desc_header *,
+				   void *), void *arg)
+{
+	int cur_pos;
+	int desc_len;
+
+	/*
+	 * First make sure the extra length field is present.
+	 */
+	if (SSD_DESC_IS_PRESENT(sense, sense_len, extra_len) == 0)
+		return;
+
+	/*
+	 * The length of data actually returned may be different than the
+	 * extra_len recorded in the sturcture.
+	 */
+	desc_len = sense_len -offsetof(struct scsi_sense_data_desc, sense_desc);
+
+	/*
+	 * Limit this further by the extra length reported, and the maximum
+	 * allowed extra length.
+	 */
+	desc_len = MIN(desc_len, MIN(sense->extra_len, SSD_EXTRA_MAX));
+
+	/*
+	 * Subtract the size of the header from the descriptor length.
+	 * This is to ensure that we have at least the header left, so we
+	 * don't have to check that inside the loop.  This can wind up
+	 * being a negative value.
+	 */
+	desc_len -= sizeof(struct scsi_sense_desc_header);
+
+	for (cur_pos = 0; cur_pos < desc_len;) {
+		struct scsi_sense_desc_header *header;
+
+		header = (struct scsi_sense_desc_header *)
+			&sense->sense_desc[cur_pos];
+
+		/*
+		 * Check to make sure we have the entire descriptor.  We
+		 * don't call iter_func() unless we do.
+		 *
+		 * Note that although cur_pos is at the beginning of the
+		 * descriptor, desc_len already has the header length
+		 * subtracted.  So the comparison of the length in the
+		 * header (which does not include the header itself) to
+		 * desc_len - cur_pos is correct.
+		 */
+		if (header->length > (desc_len - cur_pos)) 
+			break;
+
+		if (iter_func(sense, sense_len, header, arg) != 0)
+			break;
+
+		cur_pos += sizeof(*header) + header->length;
+	}
+}
+
+struct scsi_find_desc_info {
+	uint8_t desc_type;
+	struct scsi_sense_desc_header *header;
+};
+
+static int
+scsi_find_desc_func(struct scsi_sense_data_desc *sense, u_int sense_len,
+		    struct scsi_sense_desc_header *header, void *arg)
+{
+	struct scsi_find_desc_info *desc_info;
+
+	desc_info = (struct scsi_find_desc_info *)arg;
+
+	if (header->desc_type == desc_info->desc_type) {
+		desc_info->header = header;
+
+		/* We found the descriptor, tell the iterator to stop. */
+		return (1);
+	} else
+		return (0);
+}
+
+/*
+ * Given a descriptor type, return a pointer to it if it is in the sense
+ * data and not truncated.  Avoiding truncating sense data will simplify
+ * things significantly for the caller.
+ */
+uint8_t *
+scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
+	       uint8_t desc_type)
+{
+	struct scsi_find_desc_info desc_info;
+
+	desc_info.desc_type = desc_type;
+	desc_info.header = NULL;
+
+	scsi_desc_iterate(sense, sense_len, scsi_find_desc_func, &desc_info);
+
+	return ((uint8_t *)desc_info.header);
+}
+
+/*
+ * Fill in SCSI sense data with the specified parameters.  This routine can
+ * fill in either fixed or descriptor type sense data.
+ */
+void
+scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
+		      scsi_sense_data_type sense_format, int current_error,
+		      int sense_key, int asc, int ascq, va_list ap) 
+{
+	int descriptor_sense;
+	scsi_sense_elem_type elem_type;
+
+	/*
+	 * Determine whether to return fixed or descriptor format sense
+	 * data.  If the user specifies SSD_TYPE_NONE for some reason,
+	 * they'll just get fixed sense data.
+	 */
+	if (sense_format == SSD_TYPE_DESC)
+		descriptor_sense = 1;
+	else
+		descriptor_sense = 0;
+
+	/*
+	 * Zero the sense data, so that we don't pass back any garbage data
+	 * to the user.
+	 */
+	memset(sense_data, 0, sizeof(*sense_data));
+
+	if (descriptor_sense != 0) {
+		struct scsi_sense_data_desc *sense;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+		/*
+		 * The descriptor sense format eliminates the use of the
+		 * valid bit.
+		 */
+		if (current_error != 0)
+			sense->error_code = SSD_DESC_CURRENT_ERROR;
+		else
+			sense->error_code = SSD_DESC_DEFERRED_ERROR;
+		sense->sense_key = sense_key;
+		sense->add_sense_code = asc;
+		sense->add_sense_code_qual = ascq;
+		/*
+		 * Start off with no extra length, since the above data
+		 * fits in the standard descriptor sense information.
+		 */
+		sense->extra_len = 0;
+		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
+			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
+			int sense_len, len_to_copy;
+			uint8_t *data;
+
+			if (elem_type >= SSD_ELEM_MAX) {
+				printf("%s: invalid sense type %d\n", __func__,
+				       elem_type);
+				break;
+			}
+
+			sense_len = (int)va_arg(ap, int);
+			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
+					  sense->extra_len);
+			data = (uint8_t *)va_arg(ap, uint8_t *);
+
+			/*
+			 * We've already consumed the arguments for this one.
+			 */
+			if (elem_type == SSD_ELEM_SKIP)
+				continue;
+
+			switch (elem_type) {
+			case SSD_ELEM_DESC: {
+
+				/*
+				 * This is a straight descriptor.  All we
+				 * need to do is copy the data in.
+				 */
+				bcopy(data, &sense->sense_desc[
+				      sense->extra_len], len_to_copy);
+				sense->extra_len += len_to_copy;
+				break;
+			}
+			case SSD_ELEM_SKS: {
+				struct scsi_sense_sks sks;
+
+				bzero(&sks, sizeof(sks));
+
+				/*
+				 * This is already-formatted sense key
+				 * specific data.  We just need to fill out
+				 * the header and copy everything in.
+				 */
+				bcopy(data, &sks.sense_key_spec,
+				      MIN(len_to_copy,
+				          sizeof(sks.sense_key_spec)));
+
+				sks.desc_type = SSD_DESC_SKS;
+				sks.length = sizeof(sks) -
+				    offsetof(struct scsi_sense_sks, reserved1);
+				bcopy(&sks,&sense->sense_desc[sense->extra_len],
+				      sizeof(sks));
+				sense->extra_len += sizeof(sks);
+				break;
+			}
+			case SSD_ELEM_INFO:
+			case SSD_ELEM_COMMAND: {
+				struct scsi_sense_command cmd;
+				struct scsi_sense_info info;
+				uint8_t *data_dest;
+				uint8_t *descriptor;
+				int descriptor_size, i, copy_len;
+
+				bzero(&cmd, sizeof(cmd));
+				bzero(&info, sizeof(info));
+
+				/*
+				 * Command or information data.  The
+				 * operate in pretty much the same way.
+				 */
+				if (elem_type == SSD_ELEM_COMMAND) {
+					len_to_copy = MIN(len_to_copy,
+					    sizeof(cmd.command_info));
+					descriptor = (uint8_t *)&cmd;
+					descriptor_size  = sizeof(cmd);
+					data_dest =(uint8_t *)&cmd.command_info;
+					cmd.desc_type = SSD_DESC_COMMAND;
+					cmd.length = sizeof(cmd) -
+					    offsetof(struct scsi_sense_command,
+						     reserved);
+				} else {
+					len_to_copy = MIN(len_to_copy,
+					    sizeof(info.info));
+					descriptor = (uint8_t *)&info;
+					descriptor_size = sizeof(cmd);
+					data_dest = (uint8_t *)&info.info;
+					info.desc_type = SSD_DESC_INFO;
+					info.byte2 = SSD_INFO_VALID;
+					info.length = sizeof(info) -
+					    offsetof(struct scsi_sense_info,
+						     byte2);
+				}
+
+				/*
+				 * Copy this in reverse because the spec
+				 * (SPC-4) says that when 4 byte quantities
+				 * are stored in this 8 byte field, the
+				 * first four bytes shall be 0.
+				 *
+				 * So we fill the bytes in from the end, and
+				 * if we have less than 8 bytes to copy,
+				 * the initial, most significant bytes will
+				 * be 0.
+				 */
+				for (i = sense_len - 1; i >= 0 &&
+				     len_to_copy > 0; i--, len_to_copy--)
+					data_dest[len_to_copy - 1] = data[i];
+
+				/*
+				 * This calculation looks much like the
+				 * initial len_to_copy calculation, but
+				 * we have to do it again here, because
+				 * we're looking at a larger amount that
+				 * may or may not fit.  It's not only the
+				 * data the user passed in, but also the
+				 * rest of the descriptor.
+				 */
+				copy_len = MIN(descriptor_size,
+				    SSD_EXTRA_MAX - sense->extra_len);
+				bcopy(descriptor, &sense->sense_desc[
+				      sense->extra_len], copy_len);
+				sense->extra_len += copy_len;
+				break;
+			}
+			case SSD_ELEM_FRU: {
+				struct scsi_sense_fru fru;
+				int copy_len;
+
+				bzero(&fru, sizeof(fru));
+
+				fru.desc_type = SSD_DESC_FRU;
+				fru.length = sizeof(fru) -
+				    offsetof(struct scsi_sense_fru, reserved);
+				fru.fru = *data;
+
+				copy_len = MIN(sizeof(fru), SSD_EXTRA_MAX -
+					       sense->extra_len);
+				bcopy(&fru, &sense->sense_desc[
+				      sense->extra_len], copy_len);
+				sense->extra_len += copy_len;
+				break;
+			}
+			case SSD_ELEM_STREAM: {
+				struct scsi_sense_stream stream_sense;
+				int copy_len;
+
+				bzero(&stream_sense, sizeof(stream_sense));
+				stream_sense.desc_type = SSD_DESC_STREAM;
+				stream_sense.length = sizeof(stream_sense) -
+				   offsetof(struct scsi_sense_stream, reserved);
+				stream_sense.byte3 = *data;
+
+				copy_len = MIN(sizeof(stream_sense),
+				    SSD_EXTRA_MAX - sense->extra_len);
+				bcopy(&stream_sense, &sense->sense_desc[
+				      sense->extra_len], copy_len);
+				sense->extra_len += copy_len;
+				break;
+			}
+			default:
+				/*
+				 * We shouldn't get here, but if we do, do
+				 * nothing.  We've already consumed the
+				 * arguments above.
+				 */
+				break;
+			}
+		}
+	} else {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		if (current_error != 0)
+			sense->error_code = SSD_CURRENT_ERROR;
+		else
+			sense->error_code = SSD_DEFERRED_ERROR;
+
+		sense->flags = sense_key;
+		sense->add_sense_code = asc;
+		sense->add_sense_code_qual = ascq;
+		/*
+		 * We've set the ASC and ASCQ, so we have 6 more bytes of
+		 * valid data.  If we wind up setting any of the other
+		 * fields, we'll bump this to 10 extra bytes.
+		 */
+		sense->extra_len = 6;
+
+		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
+			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
+			int sense_len, len_to_copy;
+			uint8_t *data;
+
+			if (elem_type >= SSD_ELEM_MAX) {
+				printf("%s: invalid sense type %d\n", __func__,
+				       elem_type);
+				break;
+			}
+			/*
+			 * If we get in here, just bump the extra length to
+			 * 10 bytes.  That will encompass anything we're
+			 * going to set here.
+			 */
+			sense->extra_len = 10;
+			sense_len = (int)va_arg(ap, int);
+			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
+					  sense->extra_len);
+			data = (uint8_t *)va_arg(ap, uint8_t *);
+
+			switch (elem_type) {
+			case SSD_ELEM_SKS:
+				/*
+				 * The user passed in pre-formatted sense
+				 * key specific data.
+				 */
+				bcopy(data, &sense->sense_key_spec[0],
+				      MIN(sizeof(sense->sense_key_spec),
+				      sense_len));
+				break;
+			case SSD_ELEM_INFO:
+			case SSD_ELEM_COMMAND: {
+				uint8_t *data_dest;
+				int i;
+
+				if (elem_type == SSD_ELEM_COMMAND)
+					data_dest = &sense->cmd_spec_info[0];
+				else {
+					data_dest = &sense->info[0];
+					/*
+					 * We're setting the info field, so
+					 * set the valid bit.
+					 */
+					sense->error_code |= SSD_ERRCODE_VALID;
+				}
+
+				/*
+			 	 * Copy this in reverse so that if we have
+				 * less than 4 bytes to fill, the least
+				 * significant bytes will be at the end.
+				 * If we have more than 4 bytes, only the
+				 * least significant bytes will be included.
+				 */
+				for (i = sense_len - 1; i >= 0 &&
+				     len_to_copy > 0; i--, len_to_copy--)
+					data_dest[len_to_copy - 1] = data[i];
+
+				break;
+			}
+			case SSD_ELEM_FRU:
+				sense->fru = *data;
+				break;
+			case SSD_ELEM_STREAM:
+				sense->flags |= *data;
+				break;
+			case SSD_ELEM_DESC:
+			default:
+
+				/*
+				 * If the user passes in descriptor sense,
+				 * we can't handle that in fixed format.
+				 * So just skip it, and any unknown argument
+				 * types.
+				 */
+				break;
+			}
+		}
+	}
+}
+
+void
+scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+		    scsi_sense_data_type sense_format, int current_error,
+		    int sense_key, int asc, int ascq, ...) 
+{
+	va_list ap;
+
+	va_start(ap, ascq);
+	scsi_set_sense_data_va(sense_data, sense_format, current_error,
+			       sense_key, asc, ascq, ap);
+	va_end(ap);
+}
+
+/*
+ * Get sense information for three similar sense data types.
+ */
+int
+scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
+		    uint8_t info_type, uint64_t *info, int64_t *signed_info)
+{
+	scsi_sense_data_type sense_type;
+
+	if (sense_len == 0)
+		goto bailout;
+
+	sense_type = scsi_sense_type(sense_data);
+
+	switch (sense_type) {
+	case SSD_TYPE_DESC: {
+		struct scsi_sense_data_desc *sense;
+		uint8_t *desc;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+
+		desc = scsi_find_desc(sense, sense_len, info_type);
+		if (desc == NULL)
+			goto bailout;
+
+		switch (info_type) {
+		case SSD_DESC_INFO: {
+			struct scsi_sense_info *info_desc;
+
+			info_desc = (struct scsi_sense_info *)desc;
+			*info = scsi_8btou64(info_desc->info);
+			if (signed_info != NULL)
+				*signed_info = *info;
+			break;
+		}
+		case SSD_DESC_COMMAND: {
+			struct scsi_sense_command *cmd_desc;
+
+			cmd_desc = (struct scsi_sense_command *)desc;
+
+			*info = scsi_8btou64(cmd_desc->command_info);
+			if (signed_info != NULL)
+				*signed_info = *info;
+			break;
+		}
+		case SSD_DESC_FRU: {
+			struct scsi_sense_fru *fru_desc;
+
+			fru_desc = (struct scsi_sense_fru *)desc;
+
+			*info = fru_desc->fru;
+			if (signed_info != NULL)
+				*signed_info = (int8_t)fru_desc->fru;
+			break;
+		}
+		default:
+			goto bailout;
+			break;
+		}
+		break;
+	}
+	case SSD_TYPE_FIXED: {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		switch (info_type) {
+		case SSD_DESC_INFO: {
+			uint32_t info_val;
+
+			if ((sense->error_code & SSD_ERRCODE_VALID) == 0)
+				goto bailout;
+
+			if (SSD_FIXED_IS_PRESENT(sense, sense_len, info) == 0)
+				goto bailout;
+
+			info_val = scsi_4btoul(sense->info);
+
+			*info = info_val;
+			if (signed_info != NULL)
+				*signed_info = (int32_t)info_val;
+			break;
+		}
+		case SSD_DESC_COMMAND: {
+			uint32_t cmd_val;
+
+			if ((SSD_FIXED_IS_PRESENT(sense, sense_len,
+			     cmd_spec_info) == 0)
+			 || (SSD_FIXED_IS_FILLED(sense, cmd_spec_info) == 0)) 
+				goto bailout;
+
+			cmd_val = scsi_4btoul(sense->cmd_spec_info);
+			if (cmd_val == 0)
+				goto bailout;
+
+			*info = cmd_val;
+			if (signed_info != NULL)
+				*signed_info = (int32_t)cmd_val;
+			break;
+		}
+		case SSD_DESC_FRU:
+			if ((SSD_FIXED_IS_PRESENT(sense, sense_len, fru) == 0)
+			 || (SSD_FIXED_IS_FILLED(sense, fru) == 0))
+				goto bailout;
+
+			if (sense->fru == 0)
+				goto bailout;
+
+			*info = sense->fru;
+			if (signed_info != NULL)
+				*signed_info = (int8_t)sense->fru;
+			break;
+		default:
+			goto bailout;
+			break;
+		}
+		break;
+	}
+	default: 
+		goto bailout;
+		break;
+	}
+
+	return (0);
+bailout:
+	return (1);
+}
+
+int
+scsi_get_sks(struct scsi_sense_data *sense_data, u_int sense_len, uint8_t *sks)
+{
+	scsi_sense_data_type sense_type;
+
+	if (sense_len == 0)
+		goto bailout;
+
+	sense_type = scsi_sense_type(sense_data);
+
+	switch (sense_type) {
+	case SSD_TYPE_DESC: {
+		struct scsi_sense_data_desc *sense;
+		struct scsi_sense_sks *desc;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+
+		desc = (struct scsi_sense_sks *)scsi_find_desc(sense, sense_len,
+							       SSD_DESC_SKS);
+		if (desc == NULL)
+			goto bailout;
+
+		/*
+		 * No need to check the SKS valid bit for descriptor sense.
+		 * If the descriptor is present, it is valid.
+		 */
+		bcopy(desc->sense_key_spec, sks, sizeof(desc->sense_key_spec));
+		break;
+	}
+	case SSD_TYPE_FIXED: {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		if ((SSD_FIXED_IS_PRESENT(sense, sense_len, sense_key_spec)== 0)
+		 || (SSD_FIXED_IS_FILLED(sense, sense_key_spec) == 0))
+			goto bailout;
+
+		if ((sense->sense_key_spec[0] & SSD_SCS_VALID) == 0)
+			goto bailout;
+
+		bcopy(sense->sense_key_spec, sks,sizeof(sense->sense_key_spec));
+		break;
+	}
+	default:
+		goto bailout;
+		break;
+	}
+	return (0);
+bailout:
+	return (1);
+}
+
+/*
+ * Provide a common interface for fixed and descriptor sense to detect
+ * whether we have block-specific sense information.  It is clear by the
+ * presence of the block descriptor in descriptor mode, but we have to
+ * infer from the inquiry data and ILI bit in fixed mode.
+ */
+int
+scsi_get_block_info(struct scsi_sense_data *sense_data, u_int sense_len,
+		    struct scsi_inquiry_data *inq_data, uint8_t *block_bits)
+{
+	scsi_sense_data_type sense_type;
+
+	if (inq_data != NULL) {
+		switch (SID_TYPE(inq_data)) {
+		case T_DIRECT:
+		case T_RBC:
+			break;
+		default:
+			goto bailout;
+			break;
+		}
+	}
+
+	sense_type = scsi_sense_type(sense_data);
+
+	switch (sense_type) {
+	case SSD_TYPE_DESC: {
+		struct scsi_sense_data_desc *sense;
+		struct scsi_sense_block *block;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+
+		block = (struct scsi_sense_block *)scsi_find_desc(sense,
+		    sense_len, SSD_DESC_BLOCK);
+		if (block == NULL)
+			goto bailout;
+
+		*block_bits = block->byte3;
+		break;
+	}
+	case SSD_TYPE_FIXED: {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		if (SSD_FIXED_IS_PRESENT(sense, sense_len, flags) == 0)
+			goto bailout;
+
+		if ((sense->flags & SSD_ILI) == 0)
+			goto bailout;
+
+		*block_bits = sense->flags & SSD_ILI;
+		break;
+	}
+	default:
+		goto bailout;
+		break;
+	}
+	return (0);
+bailout:
+	return (1);
+}
+
+int
+scsi_get_stream_info(struct scsi_sense_data *sense_data, u_int sense_len,
+		     struct scsi_inquiry_data *inq_data, uint8_t *stream_bits)
+{
+	scsi_sense_data_type sense_type;
+
+	if (inq_data != NULL) {
+		switch (SID_TYPE(inq_data)) {
+		case T_SEQUENTIAL:
+			break;
+		default:
+			goto bailout;
+			break;
+		}
+	}
+
+	sense_type = scsi_sense_type(sense_data);
+
+	switch (sense_type) {
+	case SSD_TYPE_DESC: {
+		struct scsi_sense_data_desc *sense;
+		struct scsi_sense_stream *stream;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+
+		stream = (struct scsi_sense_stream *)scsi_find_desc(sense,
+		    sense_len, SSD_DESC_STREAM);
+		if (stream == NULL)
+			goto bailout;
+
+		*stream_bits = stream->byte3;
+		break;
+	}
+	case SSD_TYPE_FIXED: {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		if (SSD_FIXED_IS_PRESENT(sense, sense_len, flags) == 0)
+			goto bailout;
+
+		if ((sense->flags & (SSD_ILI|SSD_EOM|SSD_FILEMARK)) == 0)
+			goto bailout;
+
+		*stream_bits = sense->flags & (SSD_ILI|SSD_EOM|SSD_FILEMARK);
+		break;
+	}
+	default:
+		goto bailout;
+		break;
+	}
+	return (0);
+bailout:
+	return (1);
+}
+
+void
+scsi_info_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
+	       struct scsi_inquiry_data *inq_data, uint64_t info)
+{
+	sbuf_printf(sb, "Info: %#jx", info);
+}
+
+void
+scsi_command_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
+		  struct scsi_inquiry_data *inq_data, uint64_t csi)
+{
+	sbuf_printf(sb, "Command Specific Info: %#jx", csi);
+}
+
+
+void
+scsi_progress_sbuf(struct sbuf *sb, uint16_t progress)
+{
+	sbuf_printf(sb, "Progress: %d%% (%d/%d) complete",
+		    (progress * 100) / SSD_SKS_PROGRESS_DENOM,
+		    progress, SSD_SKS_PROGRESS_DENOM);
+}
+
+/*
+ * Returns 1 for failure (i.e. SKS isn't valid) and 0 for success.
+ */
+int
+scsi_sks_sbuf(struct sbuf *sb, int sense_key, uint8_t *sks)
+{
+	if ((sks[0] & SSD_SKS_VALID) == 0)
+		return (1);
+
+	switch (sense_key) {
+	case SSD_KEY_ILLEGAL_REQUEST: {
+		struct scsi_sense_sks_field *field;
+		int bad_command;
+		char tmpstr[40];
+
+		/*Field Pointer*/
+		field = (struct scsi_sense_sks_field *)sks;
+
+		if (field->byte0 & SSD_SKS_FIELD_CMD)
+			bad_command = 1;
+		else
+			bad_command = 0;
+
+		tmpstr[0] = '\0';
+
+		/* Bit pointer is valid */
+		if (field->byte0 & SSD_SKS_BPV)
+			snprintf(tmpstr, sizeof(tmpstr), "bit %d ",
+				 field->byte0 & SSD_SKS_BIT_VALUE);
+
+		sbuf_printf(sb, "%s byte %d %sis invalid",
+			    bad_command ? "Command" : "Data",
+			    scsi_2btoul(field->field), tmpstr);
+		break;
+	}
+	case SSD_KEY_UNIT_ATTENTION: {
+		struct scsi_sense_sks_overflow *overflow;
+
+		overflow = (struct scsi_sense_sks_overflow *)sks;
+
+		/*UA Condition Queue Overflow*/
+		sbuf_printf(sb, "Unit Attention Condition Queue %s",
+			    (overflow->byte0 & SSD_SKS_OVERFLOW_SET) ?
+			    "Overflowed" : "Did Not Overflow??");
+		break;
+	}
+	case SSD_KEY_RECOVERED_ERROR:
+	case SSD_KEY_HARDWARE_ERROR:
+	case SSD_KEY_MEDIUM_ERROR: {
+		struct scsi_sense_sks_retry *retry;
+
+		/*Actual Retry Count*/
+		retry = (struct scsi_sense_sks_retry *)sks;
+
+		sbuf_printf(sb, "Actual Retry Count: %d",
+			    scsi_2btoul(retry->actual_retry_count));
+		break;
+	}
+	case SSD_KEY_NO_SENSE:
+	case SSD_KEY_NOT_READY: {
+		struct scsi_sense_sks_progress *progress;
+		int progress_val;
+
+		/*Progress Indication*/
+		progress = (struct scsi_sense_sks_progress *)sks;
+		progress_val = scsi_2btoul(progress->progress);
+
+		scsi_progress_sbuf(sb, progress_val);
+		break;
+	}
+	case SSD_KEY_COPY_ABORTED: {
+		struct scsi_sense_sks_segment *segment;
+		char tmpstr[40];
+
+		/*Segment Pointer*/
+		segment = (struct scsi_sense_sks_segment *)sks;
+
+		tmpstr[0] = '\0';
+
+		if (segment->byte0 & SSD_SKS_SEGMENT_BPV)
+			snprintf(tmpstr, sizeof(tmpstr), "bit %d ",
+				 segment->byte0 & SSD_SKS_SEGMENT_BITPTR);
+
+		sbuf_printf(sb, "%s byte %d %sis invalid", (segment->byte0 &
+			    SSD_SKS_SEGMENT_SD) ? "Segment" : "Data",
+			    scsi_2btoul(segment->field), tmpstr);
+		break;
+	}
+	default:
+		sbuf_printf(sb, "Sense Key Specific: %#x,%#x", sks[0],
+			    scsi_2btoul(&sks[1]));
+		break;
+	}
+
+	return (0);
+}
+
+void
+scsi_fru_sbuf(struct sbuf *sb, uint64_t fru)
+{
+	sbuf_printf(sb, "Field Replaceable Unit: %d", (int)fru);
+}
+
+void
+scsi_stream_sbuf(struct sbuf *sb, uint8_t stream_bits, uint64_t info)
+{
+	int need_comma;
+
+	need_comma = 0;
+	/*
+	 * XXX KDM this needs more descriptive decoding.
+	 */
+	if (stream_bits & SSD_DESC_STREAM_FM) {
+		sbuf_printf(sb, "Filemark");
+		need_comma = 1;
+	}
+
+	if (stream_bits & SSD_DESC_STREAM_EOM) {
+		sbuf_printf(sb, "%sEOM", (need_comma) ? "," : "");
+		need_comma = 1;
+	}
+
+	if (stream_bits & SSD_DESC_STREAM_ILI)
+		sbuf_printf(sb, "%sILI", (need_comma) ? "," : "");
+
+	sbuf_printf(sb, ": Info: %#jx", (uintmax_t) info);
+}
+
+void
+scsi_block_sbuf(struct sbuf *sb, uint8_t block_bits, uint64_t info)
+{
+	if (block_bits & SSD_DESC_BLOCK_ILI)
+		sbuf_printf(sb, "ILI: residue %#jx", (uintmax_t) info);
+}
+
+void
+scsi_sense_info_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		     u_int sense_len, uint8_t *cdb, int cdb_len,
+		     struct scsi_inquiry_data *inq_data,
+		     struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_info *info;
+
+	info = (struct scsi_sense_info *)header;
+
+	scsi_info_sbuf(sb, cdb, cdb_len, inq_data, scsi_8btou64(info->info));
+}
+
+void
+scsi_sense_command_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			u_int sense_len, uint8_t *cdb, int cdb_len,
+			struct scsi_inquiry_data *inq_data,
+			struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_command *command;
+
+	command = (struct scsi_sense_command *)header;
+
+	scsi_command_sbuf(sb, cdb, cdb_len, inq_data,
+			  scsi_8btou64(command->command_info));
+}
+
+void
+scsi_sense_sks_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		    u_int sense_len, uint8_t *cdb, int cdb_len,
+		    struct scsi_inquiry_data *inq_data,
+		    struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_sks *sks;
+	int error_code, sense_key, asc, ascq;
+
+	sks = (struct scsi_sense_sks *)header;
+
+	scsi_extract_sense_len(sense, sense_len, &error_code, &sense_key,
+			       &asc, &ascq, /*show_errors*/ 1);
+
+	scsi_sks_sbuf(sb, sense_key, sks->sense_key_spec);
+}
+
+void
+scsi_sense_fru_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		    u_int sense_len, uint8_t *cdb, int cdb_len,
+		    struct scsi_inquiry_data *inq_data,
+		    struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_fru *fru;
+
+	fru = (struct scsi_sense_fru *)header;
+
+	scsi_fru_sbuf(sb, (uint64_t)fru->fru);
+}
+
+void
+scsi_sense_stream_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		       u_int sense_len, uint8_t *cdb, int cdb_len,
+		       struct scsi_inquiry_data *inq_data,
+		       struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_stream *stream;
+	uint64_t info;
+
+	stream = (struct scsi_sense_stream *)header;
+	info = 0;
+
+	scsi_get_sense_info(sense, sense_len, SSD_DESC_INFO, &info, NULL);
+
+	scsi_stream_sbuf(sb, stream->byte3, info);
+}
+
+void
+scsi_sense_block_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		      u_int sense_len, uint8_t *cdb, int cdb_len,
+		      struct scsi_inquiry_data *inq_data,
+		      struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_block *block;
+	uint64_t info;
+
+	block = (struct scsi_sense_block *)header;
+	info = 0;
+
+	scsi_get_sense_info(sense, sense_len, SSD_DESC_INFO, &info, NULL);
+
+	scsi_block_sbuf(sb, block->byte3, info);
+}
+
+void
+scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_progress *progress;
+	const char *sense_key_desc;
+	const char *asc_desc;
+	int progress_val;
+
+	progress = (struct scsi_sense_progress *)header;
+
+	/*
+	 * Get descriptions for the sense key, ASC, and ASCQ in the
+	 * progress descriptor.  These could be different than the values
+	 * in the overall sense data.
+	 */
+	scsi_sense_desc(progress->sense_key, progress->add_sense_code,
+			progress->add_sense_code_qual, inq_data,
+			&sense_key_desc, &asc_desc);
+
+	progress_val = scsi_2btoul(progress->progress);
+
+	/*
+	 * The progress indicator is for the operation described by the
+	 * sense key, ASC, and ASCQ in the descriptor.
+	 */
+	sbuf_cat(sb, sense_key_desc);
+	sbuf_printf(sb, " asc:%x,%x (%s): ", progress->add_sense_code, 
+		    progress->add_sense_code_qual, asc_desc);
+	scsi_progress_sbuf(sb, progress_val);
+}
+
+/*
+ * Generic sense descriptor printing routine.  This is used when we have
+ * not yet implemented a specific printing routine for this descriptor.
+ */
+void
+scsi_sense_generic_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			u_int sense_len, uint8_t *cdb, int cdb_len,
+			struct scsi_inquiry_data *inq_data,
+			struct scsi_sense_desc_header *header)
+{
+	int i;
+	uint8_t *buf_ptr;
+
+	sbuf_printf(sb, "Descriptor %#x:", header->desc_type);
+
+	buf_ptr = (uint8_t *)&header[1];
+
+	for (i = 0; i < header->length; i++, buf_ptr++)
+		sbuf_printf(sb, " %02x", *buf_ptr);
+}
+
+/*
+ * Keep this list in numeric order.  This speeds the array traversal.
+ */
+struct scsi_sense_desc_printer {
+	uint8_t desc_type;
+	/*
+	 * The function arguments here are the superset of what is needed
+	 * to print out various different descriptors.  Command and
+	 * information descriptors need inquiry data and command type.
+	 * Sense key specific descriptors need the sense key.
+	 *
+	 * The sense, cdb, and inquiry data arguments may be NULL, but the
+	 * information printed may not be fully decoded as a result.
+	 */
+	void (*print_func)(struct sbuf *sb, struct scsi_sense_data *sense,
+			   u_int sense_len, uint8_t *cdb, int cdb_len,
+			   struct scsi_inquiry_data *inq_data,
+			   struct scsi_sense_desc_header *header);
+} scsi_sense_printers[] = {
+	{SSD_DESC_INFO, scsi_sense_info_sbuf},
+	{SSD_DESC_COMMAND, scsi_sense_command_sbuf},
+	{SSD_DESC_SKS, scsi_sense_sks_sbuf},
+	{SSD_DESC_FRU, scsi_sense_fru_sbuf},
+	{SSD_DESC_STREAM, scsi_sense_stream_sbuf},
+	{SSD_DESC_BLOCK, scsi_sense_block_sbuf},
+	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf}
+};
+
+void
+scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+		     u_int sense_len, uint8_t *cdb, int cdb_len,
+		     struct scsi_inquiry_data *inq_data,
+		     struct scsi_sense_desc_header *header)
+{
+	int i, found;
+
+	for (i = 0, found = 0; i < (sizeof(scsi_sense_printers) /
+	     sizeof(scsi_sense_printers[0])); i++) {
+		struct scsi_sense_desc_printer *printer;
+
+		printer = &scsi_sense_printers[i];
+
+		/*
+		 * The list is sorted, so quit if we've passed our
+		 * descriptor number.
+		 */
+		if (printer->desc_type > header->desc_type)
+			break;
+
+		if (printer->desc_type != header->desc_type)
+			continue;
+
+		printer->print_func(sb, sense, sense_len, cdb, cdb_len,
+				    inq_data, header);
+
+		return;
+	}
+
+	/*
+	 * No specific printing routine, so use the generic routine.
+	 */
+	scsi_sense_generic_sbuf(sb, sense, sense_len, cdb, cdb_len,
+				inq_data, header);
+}
+
+scsi_sense_data_type
+scsi_sense_type(struct scsi_sense_data *sense_data)
+{
+	switch (sense_data->error_code & SSD_ERRCODE) {
+	case SSD_DESC_CURRENT_ERROR:
+	case SSD_DESC_DEFERRED_ERROR:
+		return (SSD_TYPE_DESC);
+		break;
+	case SSD_CURRENT_ERROR:
+	case SSD_DEFERRED_ERROR:
+		return (SSD_TYPE_FIXED);
+		break;
+	default:
+		break;
+	}
+
+	return (SSD_TYPE_NONE);
+}
+
+struct scsi_print_sense_info {
+	struct sbuf *sb;
+	char *path_str;
+	uint8_t *cdb;
+	int cdb_len;
+	struct scsi_inquiry_data *inq_data;
+};
+
+static int
+scsi_print_desc_func(struct scsi_sense_data_desc *sense, u_int sense_len,
+		     struct scsi_sense_desc_header *header, void *arg)
+{
+	struct scsi_print_sense_info *print_info;
+
+	print_info = (struct scsi_print_sense_info *)arg;
+
+	switch (header->desc_type) {
+	case SSD_DESC_INFO:
+	case SSD_DESC_FRU:
+	case SSD_DESC_COMMAND:
+	case SSD_DESC_SKS:
+	case SSD_DESC_BLOCK:
+	case SSD_DESC_STREAM:
+		/*
+		 * We have already printed these descriptors, if they are
+		 * present.
+		 */
+		break;
+	default: {
+		sbuf_printf(print_info->sb, "%s", print_info->path_str);
+		scsi_sense_desc_sbuf(print_info->sb,
+				     (struct scsi_sense_data *)sense, sense_len,
+				     print_info->cdb, print_info->cdb_len,
+				     print_info->inq_data, header);
+		sbuf_printf(print_info->sb, "\n");
+		break;
+	}
+	}
+
+	/*
+	 * Tell the iterator that we want to see more descriptors if they
+	 * are present.
+	 */
+	return (0);
+}
+
+void
+scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
+		     struct sbuf *sb, char *path_str,
+		     struct scsi_inquiry_data *inq_data, uint8_t *cdb,
+		     int cdb_len)
+{
+	int error_code, sense_key, asc, ascq;
+
+	sbuf_cat(sb, path_str);
+
+	scsi_extract_sense_len(sense, sense_len, &error_code, &sense_key,
+			       &asc, &ascq, /*show_errors*/ 1);
+
+	sbuf_printf(sb, "SCSI sense: ");
+	switch (error_code) {
+	case SSD_DEFERRED_ERROR:
+	case SSD_DESC_DEFERRED_ERROR:
+		sbuf_printf(sb, "Deferred error: ");
+
+		/* FALLTHROUGH */
+	case SSD_CURRENT_ERROR:
+	case SSD_DESC_CURRENT_ERROR:
+	{
+		struct scsi_sense_data_desc *desc_sense;
+		struct scsi_print_sense_info print_info;
+		const char *sense_key_desc;
+		const char *asc_desc;
+		uint8_t sks[3];
+		uint64_t val;
+		int info_valid;
+
+		/*
+		 * Get descriptions for the sense key, ASC, and ASCQ.  If
+		 * these aren't present in the sense data (i.e. the sense
+		 * data isn't long enough), the -1 values that
+		 * scsi_extract_sense_len() returns will yield default
+		 * or error descriptions.
+		 */
+		scsi_sense_desc(sense_key, asc, ascq, inq_data,
+				&sense_key_desc, &asc_desc);
+
+		/*
+		 * We first print the sense key and ASC/ASCQ.
+		 */
+		sbuf_cat(sb, sense_key_desc);
+		sbuf_printf(sb, " asc:%x,%x (%s)\n", asc, ascq, asc_desc);
+
+		/*
+		 * Get the info field if it is valid.
+		 */
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_INFO,
+					&val, NULL) == 0)
+			info_valid = 1;
+		else
+			info_valid = 0;
+
+		if (info_valid != 0) {
+			uint8_t bits;
+
+			/*
+			 * Determine whether we have any block or stream
+			 * device-specific information.
+			 */
+			if (scsi_get_block_info(sense, sense_len, inq_data,
+						&bits) == 0) {
+				sbuf_cat(sb, path_str);
+				scsi_block_sbuf(sb, bits, val);
+				sbuf_printf(sb, "\n");
+			} else if (scsi_get_stream_info(sense, sense_len,
+							inq_data, &bits) == 0) {
+				sbuf_cat(sb, path_str);
+				scsi_stream_sbuf(sb, bits, val);
+				sbuf_printf(sb, "\n");
+			} else if (val != 0) {
+				/*
+				 * The information field can be valid but 0.
+				 * If the block or stream bits aren't set,
+				 * and this is 0, it isn't terribly useful
+				 * to print it out.
+				 */
+				sbuf_cat(sb, path_str);
+				scsi_info_sbuf(sb, cdb, cdb_len, inq_data, val);
+				sbuf_printf(sb, "\n");
+			}
+		}
+
+		/* 
+		 * Print the FRU.
+		 */
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_FRU,
+					&val, NULL) == 0) {
+			sbuf_cat(sb, path_str);
+			scsi_fru_sbuf(sb, val);
+			sbuf_printf(sb, "\n");
+		}
+
+		/*
+		 * Print any command-specific information.
+		 */
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_COMMAND,
+					&val, NULL) == 0) {
+			sbuf_cat(sb, path_str);
+			scsi_command_sbuf(sb, cdb, cdb_len, inq_data, val);
+			sbuf_printf(sb, "\n");
+		}
+
+		/*
+		 * Print out any sense-key-specific information.
+		 */
+		if (scsi_get_sks(sense, sense_len, sks) == 0) {
+			sbuf_cat(sb, path_str);
+			scsi_sks_sbuf(sb, sense_key, sks);
+			sbuf_printf(sb, "\n");
+		}
+
+		/*
+		 * If this is fixed sense, we're done.  If we have
+		 * descriptor sense, we might have more information
+		 * available.
+		 */
+		if (scsi_sense_type(sense) != SSD_TYPE_DESC)
+			break;
+
+		desc_sense = (struct scsi_sense_data_desc *)sense;
+
+		print_info.sb = sb;
+		print_info.path_str = path_str;
+		print_info.cdb = cdb;
+		print_info.cdb_len = cdb_len;
+		print_info.inq_data = inq_data;
+
+		/*
+		 * Print any sense descriptors that we have not already printed.
+		 */
+		scsi_desc_iterate(desc_sense, sense_len, scsi_print_desc_func,
+				  &print_info);
+		break;
+
+	}
+	case -1:
+		/*
+		 * scsi_extract_sense_len() sets values to -1 if the
+		 * show_errors flag is set and they aren't present in the
+		 * sense data.  This means that sense_len is 0.
+		 */
+		sbuf_printf(sb, "No sense data present\n");
+		break;
+	default: {
+		sbuf_printf(sb, "Error code 0x%x", error_code);
+		if (sense->error_code & SSD_ERRCODE_VALID) {
+			struct scsi_sense_data_fixed *fixed_sense;
+
+			fixed_sense = (struct scsi_sense_data_fixed *)sense;
+
+			if (SSD_FIXED_IS_PRESENT(fixed_sense, sense_len, info)){
+				uint32_t info;
+
+				info = scsi_4btoul(fixed_sense->info);
+
+				sbuf_printf(sb, " at block no. %d (decimal)",
+					    info);
+			}
+		}
+		sbuf_printf(sb, "\n");
+		break;
+	}
+	}
+}
 
 /*
  * scsi_sense_sbuf() returns 0 for success and -1 for failure.
@@ -3059,11 +4419,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #ifdef _KERNEL
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
-	u_int32_t info;
-	int	  error_code;
-	int	  sense_key;
-	int	  asc, ascq;
 	char	  path_str[64];
+	uint8_t	  *cdb;
 
 #ifndef _KERNEL
 	if (device == NULL)
@@ -3161,129 +4518,14 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			sense = &csio->sense_data;
 	}
 
+	if (csio->ccb_h.flags & CAM_CDB_POINTER)
+		cdb = csio->cdb_io.cdb_ptr;
+	else
+		cdb = csio->cdb_io.cdb_bytes;
 
-	sbuf_cat(sb, path_str);
-
-	error_code = sense->error_code & SSD_ERRCODE;
-	sense_key = sense->flags & SSD_KEY;
-
-	sbuf_printf(sb, "SCSI sense: ");
-	switch (error_code) {
-	case SSD_DEFERRED_ERROR:
-		sbuf_printf(sb, "Deferred error: ");
-
-		/* FALLTHROUGH */
-	case SSD_CURRENT_ERROR:
-	{
-		const char *sense_key_desc;
-		const char *asc_desc;
-
-		asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
-		ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
-		scsi_sense_desc(sense_key, asc, ascq, inq_data,
-				&sense_key_desc, &asc_desc);
-		sbuf_cat(sb, sense_key_desc);
-
-		info = scsi_4btoul(sense->info);
-		
-		if (sense->error_code & SSD_ERRCODE_VALID) {
-
-			switch (sense_key) {
-			case SSD_KEY_NOT_READY:
-			case SSD_KEY_ILLEGAL_REQUEST:
-			case SSD_KEY_UNIT_ATTENTION:
-			case SSD_KEY_DATA_PROTECT:
-				break;
-			case SSD_KEY_BLANK_CHECK:
-				sbuf_printf(sb, " req sz: %d (decimal)", info);
-				break;
-			default:
-				if (info) {
-					if (sense->flags & SSD_ILI) {
-						sbuf_printf(sb, " ILI (length "
-							"mismatch): %d", info);
-			
-					} else {
-						sbuf_printf(sb, " info:%x", 
-							    info);
-					}
-				}
-			}
-		} else if (info) {
-			sbuf_printf(sb, " info?:%x", info);
-		}
-
-		if (sense->extra_len >= 4) {
-			if (bcmp(sense->cmd_spec_info, "\0\0\0\0", 4)) {
-				sbuf_printf(sb, " csi:%x,%x,%x,%x",
-					    sense->cmd_spec_info[0],
-					    sense->cmd_spec_info[1],
-					    sense->cmd_spec_info[2],
-					    sense->cmd_spec_info[3]);
-			}
-		}
-
-		sbuf_printf(sb, " asc:%x,%x (%s)", asc, ascq, asc_desc);
-
-		if (sense->extra_len >= 7 && sense->fru) {
-			sbuf_printf(sb, " field replaceable unit: %x", 
-				    sense->fru);
-		}
-
-		if ((sense->extra_len >= 10)
-		 && (sense->sense_key_spec[0] & SSD_SCS_VALID) != 0) {
-			switch(sense_key) {
-			case SSD_KEY_ILLEGAL_REQUEST: {
-				int bad_command;
-				char tmpstr2[40];
-
-				if (sense->sense_key_spec[0] & 0x40)
-					bad_command = 1;
-				else
-					bad_command = 0;
-
-				tmpstr2[0] = '\0';
-
-				/* Bit pointer is valid */
-				if (sense->sense_key_spec[0] & 0x08)
-					snprintf(tmpstr2, sizeof(tmpstr2),
-						 "bit %d ",
-						sense->sense_key_spec[0] & 0x7);
-				sbuf_printf(sb, ": %s byte %d %sis invalid",
-					    bad_command ? "Command" : "Data",
-					    scsi_2btoul(
-					    &sense->sense_key_spec[1]),
-					    tmpstr2);
-				break;
-			}
-			case SSD_KEY_RECOVERED_ERROR:
-			case SSD_KEY_HARDWARE_ERROR:
-			case SSD_KEY_MEDIUM_ERROR:
-				sbuf_printf(sb, " actual retry count: %d",
-					    scsi_2btoul(
-					    &sense->sense_key_spec[1]));
-				break;
-			default:
-				sbuf_printf(sb, " sks:%#x,%#x", 
-					    sense->sense_key_spec[0],
-					    scsi_2btoul(
-					    &sense->sense_key_spec[1]));
-				break;
-			}
-		}
-		break;
-
-	}
-	default:
-		sbuf_printf(sb, "Error code 0x%x", sense->error_code);
-		if (sense->error_code & SSD_ERRCODE_VALID) {
-			sbuf_printf(sb, " at block no. %d (decimal)",
-				    info = scsi_4btoul(sense->info));
-		}
-	}
-
-	sbuf_printf(sb, "\n");
-
+	scsi_sense_only_sbuf(sense, csio->sense_len - csio->sense_resid, sb,
+			     path_str, inq_data, cdb, csio->cdb_len);
+			 
 #ifdef _KERNEL
 	xpt_free_ccb((union ccb*)cgd);
 #endif /* _KERNEL/!_KERNEL */
@@ -3353,6 +4595,135 @@ scsi_sense_print(struct cam_device *device, struct ccb_scsiio *csio,
 }
 
 #endif /* _KERNEL/!_KERNEL */
+
+/*
+ * Extract basic sense information.  This is backward-compatible with the
+ * previous implementation.  For new implementations,
+ * scsi_extract_sense_len() is recommended.
+ */
+void
+scsi_extract_sense(struct scsi_sense_data *sense_data, int *error_code,
+		   int *sense_key, int *asc, int *ascq)
+{
+	scsi_extract_sense_len(sense_data, sizeof(*sense_data), error_code,
+			       sense_key, asc, ascq, /*show_errors*/ 0);
+}
+
+/*
+ * Extract basic sense information.  If show_errors is set, sense values
+ * will be set to -1 if they are not present.
+ */
+void
+scsi_extract_sense_len(struct scsi_sense_data *sense_data, u_int sense_len,
+		       int *error_code, int *sense_key, int *asc, int *ascq,
+		       int show_errors)
+{
+	/*
+	 * If we have no length, we have no sense.
+	 */
+	if (sense_len == 0) {
+		if (show_errors == 0) {
+			*error_code = 0;
+			*sense_key = 0;
+			*asc = 0;
+			*ascq = 0;
+		} else {
+			*error_code = -1;
+			*sense_key = -1;
+			*asc = -1;
+			*ascq = -1;
+		}
+		return;
+	}
+
+	*error_code = sense_data->error_code & SSD_ERRCODE;
+
+	switch (*error_code) {
+	case SSD_DESC_CURRENT_ERROR:
+	case SSD_DESC_DEFERRED_ERROR: {
+		struct scsi_sense_data_desc *sense;
+
+		sense = (struct scsi_sense_data_desc *)sense_data;
+
+		if (SSD_DESC_IS_PRESENT(sense, sense_len, sense_key))
+			*sense_key = sense->sense_key & SSD_KEY;
+		else
+			*sense_key = (show_errors) ? -1 : 0;
+
+		if (SSD_DESC_IS_PRESENT(sense, sense_len, add_sense_code))
+			*asc = sense->add_sense_code;
+		else
+			*asc = (show_errors) ? -1 : 0;
+
+		if (SSD_DESC_IS_PRESENT(sense, sense_len, add_sense_code_qual))
+			*ascq = sense->add_sense_code_qual;
+		else
+			*ascq = (show_errors) ? -1 : 0;
+		break;
+	}
+	case SSD_CURRENT_ERROR:
+	case SSD_DEFERRED_ERROR:
+	default: {
+		struct scsi_sense_data_fixed *sense;
+
+		sense = (struct scsi_sense_data_fixed *)sense_data;
+
+		if (SSD_FIXED_IS_PRESENT(sense, sense_len, flags))
+			*sense_key = sense->flags & SSD_KEY;
+		else
+			*sense_key = (show_errors) ? -1 : 0;
+
+		if ((SSD_FIXED_IS_PRESENT(sense, sense_len, add_sense_code))
+		 && (SSD_FIXED_IS_FILLED(sense, add_sense_code)))
+			*asc = sense->add_sense_code;
+		else
+			*asc = (show_errors) ? -1 : 0;
+
+		if ((SSD_FIXED_IS_PRESENT(sense, sense_len,add_sense_code_qual))
+		 && (SSD_FIXED_IS_FILLED(sense, add_sense_code_qual)))
+			*ascq = sense->add_sense_code_qual;
+		else
+			*ascq = (show_errors) ? -1 : 0;
+		break;
+	}
+	}
+}
+
+int
+scsi_get_sense_key(struct scsi_sense_data *sense_data, u_int sense_len,
+		   int show_errors)
+{
+	int error_code, sense_key, asc, ascq;
+
+	scsi_extract_sense_len(sense_data, sense_len, &error_code,
+			       &sense_key, &asc, &ascq, show_errors);
+
+	return (sense_key);
+}
+
+int
+scsi_get_asc(struct scsi_sense_data *sense_data, u_int sense_len,
+	     int show_errors)
+{
+	int error_code, sense_key, asc, ascq;
+
+	scsi_extract_sense_len(sense_data, sense_len, &error_code,
+			       &sense_key, &asc, &ascq, show_errors);
+
+	return (asc);
+}
+
+int
+scsi_get_ascq(struct scsi_sense_data *sense_data, u_int sense_len,
+	      int show_errors)
+{
+	int error_code, sense_key, asc, ascq;
+
+	scsi_extract_sense_len(sense_data, sense_len, &error_code,
+			       &sense_key, &asc, &ascq, show_errors);
+
+	return (ascq);
+}
 
 /*
  * This function currently requires at least 36 bytes, or
