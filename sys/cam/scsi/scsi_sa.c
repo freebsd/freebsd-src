@@ -235,10 +235,10 @@ struct sa_softc {
 	 */
 	struct {
 		struct scsi_sense_data _last_io_sense;
-		u_int32_t _last_io_resid;
+		u_int64_t _last_io_resid;
 		u_int8_t _last_io_cdb[CAM_MAX_CDBLEN];
 		struct scsi_sense_data _last_ctl_sense;
-		u_int32_t _last_ctl_resid;
+		u_int64_t _last_ctl_resid;
 		u_int8_t _last_ctl_cdb[CAM_MAX_CDBLEN];
 #define	last_io_sense	errinfo._last_io_sense
 #define	last_io_resid	errinfo._last_io_resid
@@ -849,8 +849,10 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			 */
 			if ((periph->flags & CAM_PERIPH_LOCKED) == 0) {
 				error = cam_periph_hold(periph, PRIBIO|PCATCH);
-				 if (error != 0)
+				if (error != 0) {
+					cam_periph_unlock(periph);
 					return (error);
+				}
 				didlockperiph = 1;
 			}
 			break;
@@ -884,12 +886,15 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			 * access to data structures.
 			 */
 			error = cam_periph_hold(periph, PRIBIO|PCATCH);
-			if (error != 0)
+			if (error != 0) {
+				cam_periph_unlock(periph);
 				return (error);
+			}
 			didlockperiph = 1;
 			break;
 
 		default:
+			cam_periph_unlock(periph);
 			return (EINVAL);
 		}
 	}
@@ -2322,17 +2327,28 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	struct	sa_softc *softc;
 	struct	ccb_scsiio *csio;
 	struct	scsi_sense_data *sense;
-	u_int32_t resid = 0;
-	int32_t	info = 0;
+	uint64_t resid = 0;
+	int64_t	info = 0;
 	cam_status status;
-	int error_code, sense_key, asc, ascq, error, aqvalid;
+	int error_code, sense_key, asc, ascq, error, aqvalid, stream_valid;
+	int sense_len;
+	uint8_t stream_bits;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sa_softc *)periph->softc;
 	csio = &ccb->csio;
 	sense = &csio->sense_data;
-	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
-	aqvalid = sense->extra_len >= 6;
+	sense_len = csio->sense_len - csio->sense_resid;
+	scsi_extract_sense_len(sense, sense_len, &error_code, &sense_key,
+	    &asc, &ascq, /*show_errors*/ 1);
+	if (asc != -1 && ascq != -1)
+		aqvalid = 1;
+	else
+		aqvalid = 0;
+	if (scsi_get_stream_info(sense, sense_len, NULL, &stream_bits) == 0)
+		stream_valid = 1;
+	else
+		stream_valid = 0;
 	error = 0;
 
 	status = csio->ccb_h.status & CAM_STATUS_MASK;
@@ -2343,9 +2359,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 * unit.
 	 */
 	if (status == CAM_SCSI_STATUS_ERROR) {
-		if ((sense->error_code & SSD_ERRCODE_VALID) != 0) {
-			info = (int32_t) scsi_4btoul(sense->info);
-			resid = info;
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_INFO, &resid,
+					&info) == 0) {
 			if ((softc->flags & SA_FLAG_FIXED) != 0)
 				resid *= softc->media_blksize;
 		} else {
@@ -2372,10 +2387,11 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			softc->last_resid_was_io = 0;
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("CDB[0]=0x%x Key 0x%x "
-		    "ASC/ASCQ 0x%x/0x%x CAM STATUS 0x%x flags 0x%x resid %d "
+		    "ASC/ASCQ 0x%x/0x%x CAM STATUS 0x%x flags 0x%x resid %jd "
 		    "dxfer_len %d\n", csio->cdb_io.cdb_bytes[0] & 0xff,
 		    sense_key, asc, ascq, status,
-		    sense->flags & ~SSD_KEY_RESERVED, resid, csio->dxfer_len));
+		    (stream_valid) ? stream_bits : 0, (intmax_t)resid,
+		    csio->dxfer_len));
 	} else {
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 		    ("Cam Status 0x%x\n", status));
@@ -2431,7 +2447,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		if (sense_key == SSD_KEY_VOLUME_OVERFLOW) {
 			csio->resid = resid;
 			error = ENOSPC;
-		} else if (sense->flags & SSD_EOM) {
+		} else if ((stream_valid != 0) && (stream_bits & SSD_EOM)) {
 			softc->flags |= SA_FLAG_EOM_PENDING;
 			/*
 			 * Grotesque as it seems, the few times
@@ -2450,7 +2466,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			} else {
 				error = EIO;
 			}
-		} else if (sense->flags & SSD_FILEMARK) {
+		} else if ((stream_valid != 0) && (stream_bits & SSD_FILEMARK)){
 			if (softc->flags & SA_FLAG_FIXED) {
 				error = -1;
 				softc->flags |= SA_FLAG_EOF_PENDING;
@@ -2470,7 +2486,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	/*
 	 * Incorrect Length usually applies to read, but can apply to writes.
 	 */
-	if (error == 0 && (sense->flags & SSD_ILI)) {
+	if (error == 0 && (stream_valid != 0) && (stream_bits & SSD_ILI)) {
 		if (info < 0) {
 			xpt_print(csio->ccb_h.path, toobig,
 			    csio->dxfer_len - info);
@@ -2485,7 +2501,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			 * Bump the block number if we hadn't seen a filemark.
 			 * Do this independent of errors (we've moved anyway).
 			 */
-			if ((sense->flags & SSD_FILEMARK) == 0) {
+			if ((stream_valid == 0) ||
+			    (stream_bits & SSD_FILEMARK) == 0) {
 				if (softc->blkno != (daddr_t) -1) {
 					softc->blkno++;
 					csio->ccb_h.ccb_pflags |=

@@ -2344,14 +2344,14 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					if ((sc->sc_quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
 					    (sc->sc_transfer.cmd_data[1] & SI_EVPD)) {
-						struct scsi_sense_data *sense;
 
-						sense = &ccb->csio.sense_data;
-						bzero(sense, sizeof(*sense));
-						sense->error_code = SSD_CURRENT_ERROR;
-						sense->flags = SSD_KEY_ILLEGAL_REQUEST;
-						sense->add_sense_code = 0x24;
-						sense->extra_len = 10;
+						scsi_set_sense_data(&ccb->csio.sense_data,
+							/*sense_format*/ SSD_TYPE_NONE,
+							/*current_error*/ 1,
+							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+							/*asc*/ 0x24,
+							/*ascq*/ 0x00,
+							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 						    CAM_AUTOSNS_VALID;
@@ -2631,20 +2631,23 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
     uint8_t status)
 {
 	uint8_t *cmd;
-	uint8_t key;
 
 	switch (status) {
 	case STATUS_CMD_OK:
 	case STATUS_CMD_UNKNOWN:
-	case STATUS_CMD_FAILED:
+	case STATUS_CMD_FAILED: {
+		int key, sense_len;
+
+		ccb->csio.sense_resid = residue;
+		sense_len = ccb->csio.sense_len - ccb->csio.sense_resid;
+		key = scsi_get_sense_key(&ccb->csio.sense_data, sense_len,
+					 /*show_errors*/ 1);
 
 		if (ccb->csio.ccb_h.flags & CAM_CDB_POINTER) {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_ptr);
 		} else {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_bytes);
 		}
-
-		key = (ccb->csio.sense_data.flags & SSD_KEY);
 
 		/*
 		 * Getting sense data always succeeds (apart from wire
@@ -2704,7 +2707,7 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		}
 		xpt_done(ccb);
 		break;
-
+	}
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);

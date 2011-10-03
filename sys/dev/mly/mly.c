@@ -1294,9 +1294,11 @@ mly_complete_event(struct mly_command *mc)
 static void
 mly_process_event(struct mly_softc *sc, struct mly_event *me)
 {
-    struct scsi_sense_data	*ssd = (struct scsi_sense_data *)&me->sense[0];
-    char			*fp, *tp;
-    int				bus, target, event, class, action;
+    struct scsi_sense_data_fixed *ssd;
+    char			 *fp, *tp;
+    int				 bus, target, event, class, action;
+
+    ssd = (struct scsi_sense_data_fixed *)&me->sense[0];
 
     /* 
      * Errors can be reported using vendor-unique sense data.  In this case, the
