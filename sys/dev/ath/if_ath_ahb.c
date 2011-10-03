@@ -236,6 +236,7 @@ ath_ahb_detach(device_t dev)
 	if (sc->sc_eepromdata)
 		free(sc->sc_eepromdata, M_TEMP);
 
+	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 
 	return (0);
