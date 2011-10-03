@@ -939,6 +939,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		if (flags & RFPROCDESC)
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
 #endif
+		racct_proc_fork_done(newproc);
 		return (0);
 	}
 
