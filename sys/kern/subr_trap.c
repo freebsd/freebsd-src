@@ -99,6 +99,8 @@ userret(struct thread *td, struct trapframe *frame)
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             td->td_name);
+	KASSERT((p->p_flag & P_WEXIT) == 0,
+	    ("Exiting process returns to usermode"));
 #if 0
 #ifdef DIAGNOSTIC
 	/* Check that we called signotify() enough. */
