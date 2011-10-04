@@ -1833,6 +1833,11 @@ dev/twa/tw_osl_freebsd.c	optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
+dev/tws/tws.c			optional tws
+dev/tws/tws_cam.c		optional tws
+dev/tws/tws_hdm.c		optional tws
+dev/tws/tws_services.c		optional tws
+dev/tws/tws_user.c		optional tws
 dev/tx/if_tx.c			optional tx
 dev/txp/if_txp.c		optional txp
 dev/uart/uart_bus_acpi.c	optional uart acpi
