@@ -2016,6 +2016,7 @@ g_part_orphan(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 	struct g_part_table *table;
+	struct g_part_entry *e;
 
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("%s", __func__));
@@ -2026,6 +2027,11 @@ g_part_orphan(struct g_consumer *cp)
 	table = cp->geom->softc;
 	if (table != NULL && table->gpt_opened)
 		g_access(cp, -1, -1, -1);
+
+	LIST_FOREACH(e, &table->gpt_entry, gpe_entry) {
+		g_notify_destroyed(e->gpe_pp);
+	}
+
 	g_part_wither(cp->geom, pp->error);
 }
 
