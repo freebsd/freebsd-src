@@ -1998,6 +1998,8 @@ g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 		G_MIRROR_DEBUG(0, "Device %s: rebuilding provider %s stopped.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 	}
+	g_notify_sync_stop(sc->sc_provider, !type);
+
 	free(disk->d_sync.ds_bios, M_MIRROR);
 	disk->d_sync.ds_bios = NULL;
 	cp = disk->d_sync.ds_consumer;
@@ -2353,6 +2355,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 * No active disks or no disks at all,
 			 * so destroy device.
 			 */
+			g_notify_destroyed(sc->sc_provider);
 			if (sc->sc_provider != NULL)
 				g_mirror_destroy_provider(sc);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
@@ -2529,6 +2532,9 @@ again:
 		    g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
+		/* Send notification */
+		g_notify_sync_start(sc->sc_provider);
+
 		if (disk->d_state == G_MIRROR_DISK_STATE_NEW)
 			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		disk->d_state = state;
@@ -2579,6 +2585,11 @@ again:
 		DISK_STATE_CHANGED();
 		G_MIRROR_DEBUG(0, "Device %s: provider %s disconnected.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
+
+		g_notify_disconnect(sc->sc_provider, disk->d_consumer,
+			((g_mirror_ndisks(sc, -1) == 1)?
+				G_NOTIFY_DISCONNECT_DEAD:
+				G_NOTIFY_DISCONNECT_FIXABLE));
 
 		g_mirror_destroy_disk(disk);
 		break;
