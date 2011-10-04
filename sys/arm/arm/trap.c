@@ -861,98 +861,68 @@ badaddr_read(void *addr, size_t size, void *rptr)
 	return (rv);
 }
 
-#define MAXARGS	8
+int
+cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+{
+	struct proc *p;
+	register_t *ap;
+	int error;
+
+	sa->code = sa->insn & 0x000fffff;
+	ap = &td->td_frame->tf_r0;
+	if (sa->code == SYS_syscall) {
+		sa->code = *ap++;
+		sa->nap--;
+	} else if (sa->code == SYS___syscall) {
+		sa->code = ap[_QUAD_LOWWORD];
+		sa->nap -= 2;
+		ap += 2;
+	}
+	p = td->td_proc;
+	if (p->p_sysent->sv_mask)
+		sa->code &= p->p_sysent->sv_mask;
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+	error = 0;
+	memcpy(sa->args, ap, sa->nap * sizeof(register_t));
+	if (sa->narg > sa->nap) {
+		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args +
+		    sa->nap, (sa->narg - sa->nap) * sizeof(register_t));
+	}
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = 0;
+	}
+	return (error);
+}
+
+#include "../../kern/subr_syscall.c"
+
 static void
 syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 {
-	struct proc *p = td->td_proc;
-	int code, error;
-	u_int nap, nargs;
-	register_t *ap, *args, copyargs[MAXARGS];
-	struct sysent *callp;
+	struct syscall_args sa;
+	int error;
 
-	PCPU_INC(cnt.v_syscall);
-	td->td_pticks = 0;
-	if (td->td_ucred != td->td_proc->p_ucred)
-		cred_update_thread(td);
+	td->td_frame = frame;
+	sa.insn = insn;
 	switch (insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
-		nap = 4;
+		sa.nap = 4;
 		break;
 	default:
 		call_trapsignal(td, SIGILL, 0);
 		userret(td, frame);
 		return;
 	}
-	code = insn & 0x000fffff;                
-	td->td_pticks = 0;
-	ap = &frame->tf_r0;
-	if (code == SYS_syscall) {
-		code = *ap++;
-		
-		nap--;
-	} else if (code == SYS___syscall) {
-		code = ap[_QUAD_LOWWORD];
-		nap -= 2;
-		ap += 2;
-	}
-	if (p->p_sysent->sv_mask)
-		code &= p->p_sysent->sv_mask;
-	if (code >= p->p_sysent->sv_size)
-		callp = &p->p_sysent->sv_table[0];
-	else
-		callp = &p->p_sysent->sv_table[code];
-	nargs = callp->sy_narg;
-	memcpy(copyargs, ap, nap * sizeof(register_t));
-	if (nargs > nap) {
-		error = copyin((void *)frame->tf_usr_sp, copyargs + nap,
-		    (nargs - nap) * sizeof(register_t));
-		if (error)
-			goto bad;
-	}
-	args = copyargs;
-	error = 0;
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, nargs, args);
-#endif
-		
-	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		td->td_retval[1] = 0;
-		STOPEVENT(p, S_SCE, callp->sy_narg);
-		PTRACESTOP_SC(p, td, S_PT_SCE);
-		AUDIT_SYSCALL_ENTER(code, td);
-		error = (*callp->sy_call)(td, args);
-		AUDIT_SYSCALL_EXIT(error, td);
-		KASSERT(td->td_ar == NULL, 
-		    ("returning from syscall with td_ar set!"));
-	}
-bad:
-	cpu_set_syscall_retval(td, error);
 
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
-	    td->td_locks));
-
-	userret(td, frame);
-	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
-	
-	STOPEVENT(p, S_SCX, code);
-	PTRACESTOP_SC(p, td, S_PT_SCX);
-#ifdef KTRACE
-      	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
-#endif
+	error = syscallenter(td, &sa);
+	KASSERT(error != 0 || td->td_ar == NULL,
+	    ("returning from syscall with td_ar set!"));
+	syscallret(td, error, &sa);
 }
 
 void
