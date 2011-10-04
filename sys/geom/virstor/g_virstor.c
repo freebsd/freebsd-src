@@ -1394,9 +1394,17 @@ g_virstor_orphan(struct g_consumer *cp)
 	comp = cp->private;
 	KASSERT(comp != NULL, ("%s: No component in private part of consumer",
 	    __func__));
+
+	g_notify_disconnect(sc->provider, cp,
+		((virstor_valid_components(sc) > 1)?
+			G_NOTIFY_DISCONNECT_ALIVE:
+			G_NOTIFY_DISCONNECT_DEAD));
+
 	remove_component(sc, comp, FALSE);
-	if (virstor_valid_components(sc) == 0)
+	if (virstor_valid_components(sc) == 0) {
+		g_notify_destroyed(sc->provider);
 		virstor_geom_destroy(sc, TRUE, FALSE);
+	}
 }
 
 /*
