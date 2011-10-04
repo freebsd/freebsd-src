@@ -449,6 +449,24 @@ ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
 
+static int
+ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int val = 0;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (val == 0)
+		return 0;
+
+	taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bstucktask);
+	val = 0;
+	return 0;
+}
+
 void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -531,6 +549,10 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txagg", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_txagg, "I", "");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_forcebstuck, "I", "");
 
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
