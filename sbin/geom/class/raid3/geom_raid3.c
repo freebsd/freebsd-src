@@ -76,10 +76,10 @@ struct g_command class_commands[] = {
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 'n', "number", NULL, G_TYPE_NUMBER },
+		{ 'n', "number", G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] <-n number> name prov"
+	    "[-hv] [-n number] name prov"
 	},
 	{ "label", G_FLAG_VERBOSE, raid3_main,
 	    {
