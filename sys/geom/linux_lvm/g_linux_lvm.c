@@ -332,6 +332,11 @@ g_llvm_remove_disk(struct g_llvm_vg *vg, struct g_consumer *cp)
 			}
 		}
 		if (found) {
+			g_notify_disconnect(lv->lv_gprov, cp,
+				G_NOTIFY_DISCONNECT_DEAD);
+			/* We always destroy whole LVM after disc removal */
+			g_notify_destroyed(lv->lv_gprov);
+
 			G_LLVM_DEBUG(0, "Device %s removed.",
 			    lv->lv_gprov->name);
 			g_orphan_provider(lv->lv_gprov, ENXIO);
