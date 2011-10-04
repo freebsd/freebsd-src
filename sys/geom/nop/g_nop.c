@@ -68,6 +68,7 @@ g_nop_orphan(struct g_consumer *cp)
 {
 
 	g_topology_assert();
+	g_notify_destroyed(LIST_FIRST(&cp->geom->provider));
 	g_nop_destroy(cp->geom, 1);
 }
 
