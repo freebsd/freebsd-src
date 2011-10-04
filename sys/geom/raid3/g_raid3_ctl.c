@@ -250,7 +250,7 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 				 *      component will not be retasted.
 				 */
 				g_raid3_event_send(disk,
-				    G_RAID3_DISK_STATE_DISCONNECTED,
+				    G_RAID3_DISK_STATE_REMOVE,
 				    G_RAID3_EVENT_DONTWAIT);
 			}
 		}
@@ -317,7 +317,7 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	g_topology_lock();
 	error = g_raid3_read_metadata(disk->d_consumer, &md);
 	g_topology_unlock();
-	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
+	g_raid3_event_send(disk, G_RAID3_DISK_STATE_REMOVE,
 	    G_RAID3_EVENT_WAIT);
 	if (error != 0) {
 		gctl_error(req, "Cannot read metadata from %s.", pp->name);
@@ -592,7 +592,7 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 			    g_raid3_get_diskname(disk));
 		} else {
 			g_raid3_event_send(disk,
-			    G_RAID3_DISK_STATE_DISCONNECTED,
+			    G_RAID3_DISK_STATE_REMOVE,
 			    G_RAID3_EVENT_DONTWAIT);
 		}
 		break;

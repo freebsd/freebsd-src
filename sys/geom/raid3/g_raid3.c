@@ -151,6 +151,8 @@ g_raid3_disk_state2str(int state)
 		return ("SYNCHRONIZING");
 	case G_RAID3_DISK_STATE_DISCONNECTED:
 		return ("DISCONNECTED");
+	case G_RAID3_DISK_STATE_REMOVE:
+		return ("REMOVE");
 	default:
 		return ("INVALID");
 	}
@@ -2275,6 +2277,8 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 		else
 			g_io_request(bp, disk->d_sync.ds_consumer);
 	}
+
+	g_notify_sync_start(sc->sc_provider);
 }
 
 /*
@@ -2310,6 +2314,8 @@ g_raid3_sync_stop(struct g_raid3_softc *sc, int type)
 		G_RAID3_DEBUG(0, "Device %s: rebuilding provider %s stopped.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
 	}
+	g_notify_sync_stop(sc->sc_provider, !type);
+
 	free(disk->d_sync.ds_bios, M_RAID3);
 	disk->d_sync.ds_bios = NULL;
 	cp = disk->d_sync.ds_consumer;
@@ -2621,8 +2627,10 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 			return;
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) <
 		    sc->sc_ndisks - 1) {
-			if (sc->sc_provider != NULL)
+			if (sc->sc_provider != NULL) {
+				g_notify_destroyed(sc->sc_provider);
 				g_raid3_destroy_provider(sc);
+			}
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_DESTROY;
 			return;
 		}
@@ -2821,6 +2829,7 @@ again:
 		}
 		break;
 	case G_RAID3_DISK_STATE_DISCONNECTED:
+	case G_RAID3_DISK_STATE_REMOVE:
 		/*
 		 * Possible scenarios:
 		 * 1. Device wasn't running yet, but disk disappear.
@@ -2863,6 +2872,13 @@ again:
 		DISK_STATE_CHANGED();
 		G_RAID3_DEBUG(0, "Device %s: provider %s disconnected.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
+
+		/* Don't notify about manual destroy */
+		if (state == G_RAID3_DISK_STATE_DISCONNECTED)
+			g_notify_disconnect(sc->sc_provider, disk->d_consumer,
+				((g_raid3_ndisks(sc, -1) < sc->sc_ndisks)?
+					G_NOTIFY_DISCONNECT_DEAD:
+					G_NOTIFY_DISCONNECT_FIXABLE));
 
 		g_raid3_destroy_disk(disk);
 		break;

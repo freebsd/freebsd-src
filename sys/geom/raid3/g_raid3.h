@@ -136,7 +136,7 @@ struct g_raid3_device_sync {
 #define	G_RAID3_DISK_STATE_STALE		4
 #define	G_RAID3_DISK_STATE_SYNCHRONIZING	5
 #define	G_RAID3_DISK_STATE_DISCONNECTED		6
-#define	G_RAID3_DISK_STATE_DESTROY		7
+#define	G_RAID3_DISK_STATE_REMOVE		7
 struct g_raid3_disk {
 	u_int		 d_no;		/* Disk number. */
 	struct g_consumer *d_consumer;	/* Consumer. */
