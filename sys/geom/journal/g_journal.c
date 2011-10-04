@@ -393,6 +393,11 @@ g_journal_orphan(struct g_consumer *cp)
 	sc = cp->geom->softc;
 	strlcpy(name, cp->provider->name, sizeof(name));
 	GJ_DEBUG(0, "Lost provider %s.", name);
+
+	/* Notify */
+	g_notify_disconnect(LIST_FIRST(&sc->sc_geom->provider), cp, G_NOTIFY_DISCONNECT_DEAD);
+	g_notify_destroyed(LIST_FIRST(&sc->sc_geom->provider));
+
 	if (sc == NULL)
 		return;
 	error = g_journal_destroy(sc);
