@@ -196,10 +196,17 @@ g_stripe_orphan(struct g_consumer *cp)
 	if (sc == NULL)
 		return;
 
+	g_notify_disconnect(sc->sc_provider, cp,
+		((g_stripe_nvalid(sc) > 1)?
+			G_NOTIFY_DISCONNECT_ALIVE:
+			G_NOTIFY_DISCONNECT_DEAD));
+
 	g_stripe_remove_disk(cp);
 	/* If there are no valid disks anymore, remove device. */
-	if (g_stripe_nvalid(sc) == 0)
+	if (g_stripe_nvalid(sc) == 0) {
+		g_notify_destroyed(sc->sc_provider);
 		g_stripe_destroy(sc, 1);
+	}
 }
 
 static int
