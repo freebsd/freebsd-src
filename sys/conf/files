@@ -2553,6 +2553,7 @@ libkern/strlcpy.c		standard
 libkern/strlen.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
+libkern/strnlen.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
 libkern/strstr.c		standard
