@@ -43,9 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 
-/* XXX */
-extern cvmx_bootinfo_t *octeon_bootinfo;
-
 unsigned octeon_ap_boot = ~0;
 
 void
@@ -105,7 +102,7 @@ platform_init_ap(int cpuid)
 void
 platform_cpu_mask(cpuset_t *mask)
 {
-	uint64_t core_mask = octeon_bootinfo->core_mask;
+	uint64_t core_mask = cvmx_sysinfo_get()->core_mask;
 	uint64_t i, m;
 
 	CPU_ZERO(mask);
