@@ -484,7 +484,12 @@ static int cf_cmd_identify (void)
 	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.current_sectors);
 	drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_1) |
 	    ((uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_2));
-	printf("cf0: <%s> %lld sectors\n", drive_param.model, (long long)drive_param.nr_sectors);
+	if (bootverbose) {
+		printf("    model %s\n", drive_param.model);
+		printf("    heads %d tracks %d sec_tracks %d sectors %d\n",
+			drive_param.heads, drive_param.tracks,
+			drive_param.sec_track, drive_param.nr_sectors);
+	}
 
 	return (0);
 }
@@ -578,7 +583,10 @@ static int cf_wait_busy (void)
 		}
 		break;
 	}
-	if ((status & STATUS_DRQ) == 0) {
+
+	/* DRQ is only for when read data is actually available; check BSY */
+	/* Some vendors do assert DRQ, but not all. Check BSY instead. */
+	if (status & STATUS_BSY) {
 		printf("%s: device not ready (status=%x)\n", __func__, status);
 		return (ENXIO);
 	}
@@ -634,24 +642,25 @@ static int cf_probe (device_t dev)
  * inserted.
  *
  */
-typedef unsigned long long llu;
 static void cf_identify (driver_t *drv, device_t parent)
 {
-        int bus_region;
+	int bus_region;
 	int count = 0;
-        cvmx_mio_boot_reg_cfgx_t cfg;
+	cvmx_mio_boot_reg_cfgx_t cfg;
+
+	uint64_t phys_base = octeon_bootinfo->compact_flash_common_base_addr;
 
     	if (octeon_is_simulation())
 		return;
 
-	base_addr = cvmx_phys_to_ptr(octeon_bootinfo->compact_flash_common_base_addr);
+	base_addr = cvmx_phys_to_ptr(phys_base);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
         {
                 cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(bus_region));
-                if (cfg.s.base == octeon_bootinfo->compact_flash_common_base_addr >> 16)
+                if (cfg.s.base == phys_base >> 16)
                 {
-			if (octeon_bootinfo->compact_flash_attribute_base_addr == 0)
+			if (cvmx_sysinfo_get()->compact_flash_attribute_base_addr == 0)
 				bus_type = CF_TRUE_IDE_8;
 			else
 				bus_type = (cfg.s.width) ? CF_16 : CF_8;
