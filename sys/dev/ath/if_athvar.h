@@ -332,6 +332,16 @@ struct ath_vap {
 struct taskqueue;
 struct ath_tx99;
 
+/*
+ * Whether to reset the TX/RX queue with or without
+ * a queue flush.
+ */
+typedef enum {
+	ATH_RESET_DEFAULT = 0,
+	ATH_RESET_NOLOSS = 1,
+	ATH_RESET_FULL = 2,
+} ATH_RESET_TYPE;
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
