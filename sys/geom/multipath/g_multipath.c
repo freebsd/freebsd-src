@@ -188,6 +188,10 @@ g_multipath_done_error(struct bio *bp)
 		cp->index |= MP_POSTED;
 		g_post_event(g_mpd, cp, M_NOWAIT, NULL);
 	}
+
+	/* It is fixable in any case, as multipath never destroy itself */
+	g_notify_disconnect(sc->pp, cp, G_NOTIFY_DISCONNECT_FIXABLE);
+
 	if (cp == sc->cp_active) {
 		struct g_consumer *lcp;
 		printf("GEOM_MULTIPATH: %s failed in %s\n",
