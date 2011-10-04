@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/mountver/g_mountver.h>
 
+FEATURE(geom_mountver, "GEOM mountver support");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW,
@@ -454,6 +455,9 @@ g_mountver_orphan(struct g_consumer *cp)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	g_detach(cp);
 	G_MOUNTVER_DEBUG(0, "%s is offline.  Mount verification in progress.", sc->sc_provider_name);
+
+	g_notify_disconnect(LIST_FIRST(&cp->geom->provider), cp,
+		G_NOTIFY_DISCONNECT_ALIVE);
 }
 
 static int
