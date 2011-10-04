@@ -1382,29 +1382,6 @@ ath_intr(void *arg)
 	    ah->ah_intrstate[6]);
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
-	/*
-	 * This has now updated the txqactive bits, so
-	 * we should fetch them from the HAL and merge them
-	 * into sc->sc_txq_active. That way we won't miss out
-	 * where one CPU clears the txq bit whilst the other CPU
-	 * sets it.
-	 *
-	 * The HAL updates it if the relevant TX status bits are set
-	 * in the status registers, regardless of whether the status
-	 * caused the interrupt and/or is set in sc_imask.
-	 * Hence we update the bits before we check for status == 0.
-	 */
-	ATH_LOCK(sc);
-	/*
-	 * This returns the txq bits in the given mask and blanks them.
-	 * Since it's only ever set and cleared by the HAL and we are now
-	 * doing it in ath_intr(), it's effectively non-racey.
-	 */
-	txqs = 0xffffffff;
-	ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
-	sc->sc_txq_active |= txqs;
-	ATH_UNLOCK(sc);
-
 	/* Short-circuit un-handled interrupts */
 	if (status == 0x0)
 		return;
@@ -1501,6 +1478,17 @@ ath_intr(void *arg)
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;
 			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
+
+			/*
+			 * Grab all the currently set bits in the HAL txq bitmap
+			 * and blank them. This is the only place we should be
+			 * doing this.
+			 */
+			ATH_LOCK(sc);
+			txqs = 0xffffffff;
+			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
+			sc->sc_txq_active |= txqs;
+			ATH_UNLOCK(sc);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
