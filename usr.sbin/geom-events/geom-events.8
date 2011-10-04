@@ -1,0 +1,398 @@
+.\"
+.\" Copyright (c) 2011 Lev Serebryakov <lev@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 12, 2011
+.Dt GEOM-EVENTS 8
+.Os
+.Sh NAME
+.Nm geom-events
+.Nd command for processing
+.Xr geom 4
+events passed to
+.Xr devd 8 .
+.Sh SYNOPSIS
+.Nm
+.Ar event-name
+.Ar geom-class-name
+.Ar geom-name
+.Ar provider-name
+.Op Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a shell script which processes different events from
+.Xr geom 4
+system via
+.Xr devd 8
+mechanism.
+Its main functions are to notify the administrator about these events
+by e-mail, to log such events with
+.Xr logger 1
+and to replace failed components with spare drives for
+.Xr geom 4
+classes which supports redundancy.
+.Pp
+Every event has these mandatory attributes, passed as arguments
+to
+.Nm :
+.Bl -tag -width "PROVIDER" -offset indent
+.It Ar TYPE
+Type of the event. See section
+.Sx EVENT_TYPES .
+.It Ar CLASS
+Class of geom that sends the given event. Class name should be in lower case,
+as used in first argument to userland
+.Xr geom 8
+utility.
+.It Ar GEOM
+Name of geom that sends the given event. It is usable as an argument for
+various userland utilities like
+.Xr gmirror 8 ,
+.Xr graid3 8
+and more general
+.Xr geom 8 .
+.It Ar PROVIDER
+Name of provider to which the given event is related. Most of geom classes have
+only one provider and this attribute is redundant, as it the same as
+.Ar GEOM ,
+maybe prefixed with
+.Ar CLASS/ ,
+but some classes could have more than one providers. Examples of such classes
+are
+.Xr gpart 8
+and
+.Xr graid 8 .
+.El
+.Sh EVENT TYPES
+.Ss DISCONNECT
+This event is sent when geom loses one of its components. The component is
+a provider of some other geom.
+.Pp
+This event is
+sent only by geoms which use many components. For
+example,
+.Xr gmirror 8
+sends this message, and
+.Xr geli 8
+doens't.
+.Pp
+Additional attributes passed with this event are
+.Va component
+and
+.Va state .
+.Pp
+The first one is the name of the disconnected component (provider of
+underlying geom). It is a name as it is seen in
+.Pa /dev
+tree, without
+.Pa /dev
+prefix itself, like
+.Pa ada0
+or
+.Pa mirror/gm0
+.Pp
+.Va state
+is state of geom after disconnection. It could be one of four values:
+.Bl -tag -width "FIXABLE" -offset indent
+.It Fixable
+This state means that geom is accessible (could be read and written) and
+the disconnected component could be replaced with a spare drive. In this case,
+.Nm
+tries to find a configured spare drive and use it to fix geom.
+.Pp
+This state is typical for geoms which implement volumes
+with redundancy, as
+.Xr gmirror 8
+and
+.Xr graid3 8
+.It Alive
+This state means that geom is accessible, but maybe not fully-functional, or
+no automatic replacement is possible, and operator needs to perform some manual
+operations to be sure that the disconnection is repaired.
+.Pp
+This state is typical for geoms which implement volumes
+without redundancy, like
+.Xr gstripe 8 .
+.It Dead
+This state means that geom's provider is completely destroyed by the
+disconnection and will be removed from system.
+.El
+.Pp
+.Nm
+tries to replace disconnected component in fixable cases. List of
+spare components should be configured in config files (see
+.Sx CONFIGURATION ) .
+.Pp
+.Nm
+checks every configured spare drive with
+.Xr ggetmode 8
+utility to ensure that the drive isn't used.
+.Pp
+It then
+tries to remove the failed component from geom, if configured to do so by
+.Va geom_remove_verb_ Ns Ao Ar class Ac
+variable.
+By default, no removal command is called.
+.Pp
+After that,
+.Nm
+calls shell command to insert the new
+component into array. Default command is
+.Bd -literal -offset indent
+/sbin/g${class} insert ${geom} ${spare}
+.Ed
+.Pp
+and after parameter substitution looks like this:
+.Bd -literal -offset indent
+/sbin/gmirror insert data ada12
+.Ed
+.Pp
+This command could be configured, see
+variable
+.Va geom_remove_verb_ Ns Ao Ar class Ac
+in
+.Sx CONFIGURATION
+section.
+.Pp
+.Nm
+repeats trying till success or end of available spare drives.
+.Pp
+If
+.Va geom_events_notify
+variable is set,
+.Nm
+sents e-mail to the specified address with report about
+a component disconnection and all oprations with spare drives,
+including configured list, availiable drives and the result
+of the insert command.
+.Pp
+Message for
+.Xr syslogd 8
+includes class and name of device,
+disconnected component, status of device (whether disconnect was fatal or not)
+and the result of the component replacement, if one succeeded.
+.Pp
+Manual component removals should not trigger this event.
+.Ss SYNCSTART
+This event is sent when geom starts rebuilding parity or synchronization
+of the volume. No additional parameters are passed.
+.Pp
+.Nm
+sents mail and/or logs this event with
+.Xr syslogd 8
+if configured to do so.
+.Pp
+Manual request for rebuilding or synchronization will trigger this
+event, as here is no way to distinguish the reason for rebuilding
+in most cases.
+.Ss SYNCSTOP
+This event is sent when geom stops rebuilding parity or synchronization
+of the volume. One additional parameter is passed which indicates
+whether synchronization was finished successfully or not.
+.Pp
+.Nm
+sents mail and/or logs this event with
+.Xr syslogd 8
+if configured to do so. The message includes the name of the device and
+the reason for stopping.
+.Pp
+Manual request for abort of rebuilding will trigger this
+event, as here is no way to distinguish reason of stopping in
+most cases.
+.Ss DESTROYED
+This event is sent when geom destroys its provider due to errors.
+.Pp
+.Nm
+sents mail and/or logs this event with
+.Xr syslogd 8
+if configured to do so. Message includes only name of device.
+.Pp
+Manual request for geom removal will not trigger this
+event.
+.Ss UNKNOWN EVENTS
+All unknown events are reported by e-mail and logged to system log with
+.Xr logger 1
+if configured to do so. Reported information includes class and name of device
+and name of event.
+.Sh CONFIGURATION
+The
+.Nm
+utility reads its configuration information from several files.
+The main configuration file which is always read, if it is present, is
+.Pa /etc/geom-events.conf .
+After that,
+.Nm
+determines which class and device has sent event and reads these files
+in this particular order:
+.Bl -enum -offset indent -compact
+.It
+.Pa /etc/geom-events/ Ns Ao Ar class Ac Ns Pa .conf
+.It
+.Pa /usr/local/etc/geom-events/ Ns Ao Ar class Ac Ns Pa .conf
+.It
+.Pa /etc/geom-events/ Ns Ao Ar class Ac Ns Pa / Ns Ao Ar geom Ac Ns Pa .conf
+.It
+.Pa /usr/local/etc/geom-events/ Ns Ao Ar class Ac Ns Pa / Ns Ao Ar geom Ac Ns Pa .conf
+.El
+These files are read as any
+.Pa rc.conf - like
+configuration files by sourcing them into script.
+.Pp
+.Nm
+uses these variabels from this config files:
+.Bl -tag -width indent-two
+.It Va geom_events_notify
+.Pq Vt str
+Set to e-mail for sending notifications about events to. If it is left empty
+or unset, no e-mail notifications will be sent.
+.It Va geom_events_log
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enables logging events with
+.Xr logger 1
+.It Va geom_insert_cmd_ Ns Ao Ar class Ac
+.Pq Vt str
+Set to
+.Xr sh 1
+command is used instead of the default one when
+.Nm
+tries to replace the disconnected component. If no
+variable is set for given class, default
+.Ql /sbin/g${class} insert ${geom} ${spare}
+is used.
+.Pp
+This command could contain references to special
+shell variables
+.Va ${class} , ${geom} , ${provider}
+and
+.Va ${spare}
+which will be substituted at execution time. Please note that
+configuration file is a shell script by itsef, so you need
+to quote commandcontaining variables with single quotes or escape
+varaible references with backslashes.
+.It Va geom_remove_cmd_ Ns Ao Ar class Ac
+.Pq Vt str
+Set to
+.Xr sh 1
+command which should be used by
+.Nm
+to completely remove the failed component from geom
+before replacing it with a spare. By default, no such command
+is configured and no removal is performed.
+.Pp
+This command could contain references to special
+shell variables
+.Va ${class} , ${geom} , ${provider}
+and
+.Va ${failed}
+which will be substituted at execution time. Same precautions should
+be used as with
+.Va geom_remove_cmd_ Ns Ao Ar class Ac .
+.It Va geom_spares
+.Pq Vt str
+Set to list of spare drives (or other geom providers) to use. This is the most
+non-specific list.
+.Nm
+will use more sepcific spare lists if they are configured.
+.It Va geom_spares_ Ns Ao Ar class Ac
+.Pq Vt str
+Set to list of spare drivers (or other geom providers) to use when
+.Nm
+needs to replace the disconnected component in geom with class
+.Aq Ar class .
+.Pp
+Could be overwritten for specific geom instance.
+.It Va geom_spares_ Ns Ao Ar class Ac Ns Va _ Ns Ao Ar geom Ac
+.Pq Vt str
+Set to list of spare drivers (or other geom providers) to use when
+.Nm
+needs to replace the disconnected component in geom with class
+.Aq Ar class
+and name
+.Aq Ar geom .
+.It Va geom_spares_ Ns Ao Ar class Ac Ns Va _ Ns Ao Ar geom Ac _ Ns Ao Ar component Ac
+.Pq Vt str
+Set to list of the spare drivers (or other geom providers) to use when
+.Nm
+needs to replace disconnected component with name
+.Aq Ar component
+in geom with class
+.Aq Ar class
+and name
+.Aq Ar geom .
+.El
+.Pp
+.Nm
+selects the most specific variable for spare devices. The variable is
+selected if it is set. An empty variable counts as a set one.
+.Pp
+If your have such configuration:
+.Bd -literal -offset indent
+geom_spares_raid3="ada2 ada3"
+geom_spares_raid3_test=""
+.Ed
+.Pp
+.Nm
+will select
+.Qq ada2 ada3
+as spare list for any
+.Em raid3
+geom except one, named
+.Em test .
+And
+.Em raid3
+geom
+.Em test
+will have no spare drives configured.
+.Pp
+Please note that
+.Nm
+doesn't distinguish source file of configuration variables. So, more specific
+variables could be placed in less specific config files and will be choosen by
+.Nm Ns .
+.Pp
+When variable name is constructed from geom or component name, all characters
+which could not be used in a variable names, are replaced with underscores.
+.Sh FILES
+.Pa /etc/geom-events/ Ns Ao Ar class Ac Ns Pa .conf
+.Pa /usr/local/etc/geom-events/ Ns Ao Ar class Ac Ns Pa .conf
+.Pa /etc/geom-events/ Ns Ao Ar class Ac Ns Pa / Ns Ao Ar geom Ac Ns Pa .conf
+.Pa /usr/local/etc/geom-events/ Ns Ao Ar class Ac Ns Pa / Ns Ao Ar geom Ac Ns Pa .conf
+.Sh SEE ALSO
+.Xr geom-events 8 ,
+.Xr devd 8 ,
+.Xr geom 8 ,
+.Xr geom 4
+.Sh HISTORY
+The
+.Nm
+utility and manual page first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+This utility and manual page was written by
+.An Lev Serebryakov Aq lev@FreeBSD.org .

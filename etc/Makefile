@@ -10,7 +10,7 @@ SUBDIR=	sendmail
 BIN1=	auth.conf \
 	crontab devd.conf devfs.conf \
 	ddb.conf dhclient.conf disktab fbtab \
-	ftpusers gettytab group \
+	ftpusers geom-events.conf gettytab group \
 	hosts hosts.allow hosts.equiv \
 	inetd.conf libalias.conf login.access login.conf mac.conf motd \
 	netconfig network.subr networks newsyslog.conf nsswitch.conf \
