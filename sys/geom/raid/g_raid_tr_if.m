@@ -100,6 +100,12 @@ METHOD int kerneldump {
 	size_t length;
 } DEFAULT g_raid_tr_kerneldump_common;
 
+# getvolstatus() - check status of volume, based on status of subdisks
+METHOD int getvolstatus {
+	struct g_raid_tr_object *tr;
+	struct g_raid_volume *volume;
+};
+
 # locked() - callback method for lock().
 METHOD int locked {
 	struct g_raid_tr_object *tr;

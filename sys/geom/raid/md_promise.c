@@ -1154,12 +1154,17 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
     struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd;
 
 	sc = md->mdo_softc;
 	if (disk == NULL)
 		return (-1);
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
+		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			/* Notify about changes in volume */
+			g_raid_notify_volume(sd->sd_volume, disk);
+		}
 		/* Delete disk. */
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
 		g_raid_destroy_disk(disk);

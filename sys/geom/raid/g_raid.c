@@ -585,6 +585,36 @@ g_raid_get_subdisk(struct g_raid_volume *vol, int state)
 	return (NULL);
 }
 
+/*
+ * Send event about disk disconnection for volume with proper status
+ */
+void
+g_raid_notify_volume(struct g_raid_volume *vol, struct g_raid_disk *disk)
+{
+	if (!vol->v_tr) {
+		g_notify_disconnect(vol->v_provider, disk->d_consumer, G_NOTIFY_DISCONNECT_UNKNOWN);
+		return;
+	}
+	switch (G_RAID_TR_GETVOLSTATUS(vol->v_tr, vol)) {
+	case G_RAID_VOLUME_S_BROKEN:
+		g_notify_disconnect(vol->v_provider, disk->d_consumer, G_NOTIFY_DISCONNECT_DEAD);
+		break;
+	case G_RAID_VOLUME_S_DEGRADED:
+	case G_RAID_VOLUME_S_SUBOPTIMAL:
+		g_notify_disconnect(vol->v_provider, disk->d_consumer, G_NOTIFY_DISCONNECT_FIXABLE);
+		break;
+	case G_RAID_VOLUME_S_OPTIMAL:
+		g_notify_disconnect(vol->v_provider, disk->d_consumer, G_NOTIFY_DISCONNECT_ALIVE);
+		break;
+	case G_RAID_VOLUME_S_STARTING:
+	case G_RAID_VOLUME_S_UNSUPPORTED:
+	case G_RAID_VOLUME_S_STOPPED:
+	default:
+		g_notify_disconnect(vol->v_provider, disk->d_consumer, G_NOTIFY_DISCONNECT_UNKNOWN);
+		break;
+	}
+}
+
 struct g_consumer *
 g_raid_open_consumer(struct g_raid_softc *sc, const char *name)
 {

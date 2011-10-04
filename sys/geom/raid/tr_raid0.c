@@ -55,6 +55,7 @@ static g_raid_tr_stop_t g_raid_tr_stop_raid0;
 static g_raid_tr_iostart_t g_raid_tr_iostart_raid0;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid0;
 static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid0;
+static g_raid_tr_getvolstatus_t g_raid_tr_getvolstatus_raid0;
 static g_raid_tr_free_t g_raid_tr_free_raid0;
 
 static kobj_method_t g_raid_tr_raid0_methods[] = {
@@ -65,6 +66,7 @@ static kobj_method_t g_raid_tr_raid0_methods[] = {
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid0),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid0),
 	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid0),
+	KOBJMETHOD(g_raid_tr_getvolstatus,	g_raid_tr_getvolstatus_raid0),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid0),
 	{ 0, 0 }
 };
@@ -95,25 +97,10 @@ g_raid_tr_update_state_raid0(struct g_raid_volume *vol)
 	struct g_raid_tr_raid0_object *trs;
 	struct g_raid_softc *sc;
 	u_int s;
-	int n, f;
 
 	sc = vol->v_softc;
 	trs = (struct g_raid_tr_raid0_object *)vol->v_tr;
-	if (trs->trso_stopped)
-		s = G_RAID_VOLUME_S_STOPPED;
-	else if (trs->trso_starting)
-		s = G_RAID_VOLUME_S_STARTING;
-	else {
-		n = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
-		f = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_FAILED);
-		if (n + f == vol->v_disks_count) {
-			if (f == 0)
-				s = G_RAID_VOLUME_S_OPTIMAL;
-			else
-				s = G_RAID_VOLUME_S_SUBOPTIMAL;
-		} else
-			s = G_RAID_VOLUME_S_BROKEN;
-	}
+	s = g_raid_tr_getvolstatus_raid0(vol->v_tr, vol);
 	if (s != vol->v_state) {
 		g_raid_event_send(vol, G_RAID_VOLUME_S_ALIVE(s) ?
 		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
@@ -297,6 +284,31 @@ g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
 		start = 0;
 	} while (remain > 0);
 	return (0);
+}
+
+static int
+g_raid_tr_getvolstatus_raid0(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
+{
+	struct g_raid_tr_raid0_object *trs;
+	int n, f;
+
+	trs = (struct g_raid_tr_raid0_object *)tr;
+	KASSERT(tr == volume->v_tr, ("Invalid transformation object"));
+	if (trs->trso_stopped)
+		return G_RAID_VOLUME_S_STOPPED;
+	else if (trs->trso_starting)
+		return G_RAID_VOLUME_S_STARTING;
+	else {
+		n = g_raid_nsubdisks(volume, G_RAID_SUBDISK_S_ACTIVE);
+		f = g_raid_nsubdisks(volume, G_RAID_SUBDISK_S_FAILED);
+		if (n + f == volume->v_disks_count) {
+			if (f == 0)
+				return G_RAID_VOLUME_S_OPTIMAL;
+			else
+				return G_RAID_VOLUME_S_SUBOPTIMAL;
+		}
+	}
+	return G_RAID_VOLUME_S_BROKEN;
 }
 
 static void

@@ -397,6 +397,8 @@ int g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len,
     struct bio *ignore, void *argp);
 int g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len);
 
+void g_raid_notify_volume(struct g_raid_volume *vol, struct g_raid_disk *disk);
+
 g_ctl_req_t g_raid_ctl;
 #endif	/* _KERNEL */
 

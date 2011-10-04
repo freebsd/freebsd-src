@@ -113,6 +113,7 @@ static g_raid_tr_stop_t g_raid_tr_stop_raid1e;
 static g_raid_tr_iostart_t g_raid_tr_iostart_raid1e;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid1e;
 static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid1e;
+static g_raid_tr_getvolstatus_t g_raid_tr_getvolstatus_raid1e;
 static g_raid_tr_locked_t g_raid_tr_locked_raid1e;
 static g_raid_tr_idle_t g_raid_tr_idle_raid1e;
 static g_raid_tr_free_t g_raid_tr_free_raid1e;
@@ -124,7 +125,8 @@ static kobj_method_t g_raid_tr_raid1e_methods[] = {
 	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid1e),
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid1e),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid1e),
-	KOBJMETHOD(g_raid_tr_kerneldump, g_raid_tr_kerneldump_raid1e),
+	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid1e),
+	KOBJMETHOD(g_raid_tr_getvolstatus,	g_raid_tr_getvolstatus_raid1e),
 	KOBJMETHOD(g_raid_tr_locked,	g_raid_tr_locked_raid1e),
 	KOBJMETHOD(g_raid_tr_idle,	g_raid_tr_idle_raid1e),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid1e),
@@ -191,6 +193,88 @@ g_raid_tr_taste_raid1e(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
+}
+
+static int
+g_raid_tr_getvolstatus_raid1e_even(struct g_raid_volume *vol)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd, *bestsd, *worstsd;
+	int i, j, state, sstate;
+
+	sc = vol->v_softc;
+	state = G_RAID_VOLUME_S_OPTIMAL;
+	for (i = 0; i < vol->v_disks_count / N; i++) {
+		bestsd = &vol->v_subdisks[i * N];
+		for (j = 1; j < N; j++) {
+			sd = &vol->v_subdisks[i * N + j];
+			if (sd->sd_state > bestsd->sd_state)
+				bestsd = sd;
+			else if (sd->sd_state == bestsd->sd_state &&
+			    (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			     sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
+			    sd->sd_rebuild_pos > bestsd->sd_rebuild_pos)
+				bestsd = sd;
+		}
+		worstsd = &vol->v_subdisks[i * N];
+		for (j = 1; j < N; j++) {
+			sd = &vol->v_subdisks[i * N + j];
+			if (sd->sd_state < worstsd->sd_state)
+				worstsd = sd;
+		}
+		if (worstsd->sd_state == G_RAID_SUBDISK_S_ACTIVE)
+			sstate = G_RAID_VOLUME_S_OPTIMAL;
+		else if (worstsd->sd_state >= G_RAID_SUBDISK_S_STALE)
+			sstate = G_RAID_VOLUME_S_SUBOPTIMAL;
+		else if (bestsd->sd_state == G_RAID_SUBDISK_S_ACTIVE)
+			sstate = G_RAID_VOLUME_S_DEGRADED;
+		else
+			sstate = G_RAID_VOLUME_S_BROKEN;
+		if (sstate < state)
+			state = sstate;
+	}
+	return (state);
+}
+
+static int
+g_raid_tr_getvolstatus_raid1e_odd(struct g_raid_volume *vol)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd, *bestsd, *worstsd;
+	int i, j, state, sstate;
+
+	sc = vol->v_softc;
+	if (g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE) ==
+	    vol->v_disks_count)
+		return (G_RAID_VOLUME_S_OPTIMAL);
+	state = G_RAID_VOLUME_S_OPTIMAL;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		bestsd = &vol->v_subdisks[i];
+		worstsd = &vol->v_subdisks[i];
+		for (j = 1; j < N; j++) {
+			sd = &vol->v_subdisks[(i + j) % vol->v_disks_count];
+			if (sd->sd_state > bestsd->sd_state)
+				bestsd = sd;
+			else if (sd->sd_state == bestsd->sd_state &&
+			    (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			     sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
+			    sd->sd_rebuild_pos > bestsd->sd_rebuild_pos)
+				bestsd = sd;
+			if (sd->sd_state < worstsd->sd_state)
+				worstsd = sd;
+		}
+		if (worstsd->sd_state == G_RAID_SUBDISK_S_ACTIVE)
+			sstate = G_RAID_VOLUME_S_OPTIMAL;
+		else if (worstsd->sd_state >= G_RAID_SUBDISK_S_STALE)
+			sstate = G_RAID_VOLUME_S_SUBOPTIMAL;
+		else if (bestsd->sd_state >= G_RAID_SUBDISK_S_STALE)
+			sstate = G_RAID_VOLUME_S_DEGRADED;
+		else
+			sstate = G_RAID_VOLUME_S_BROKEN;
+		if (sstate < state)
+			state = sstate;
+	}
+	return (state);
 }
 
 static int
@@ -386,6 +470,7 @@ g_raid_tr_raid1e_rebuild_finish(struct g_raid_tr_object *tr)
 	g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	sd->sd_rebuild_pos = 0;
 	g_raid_tr_raid1e_rebuild_done(trs);
+	g_notify_sync_stop(sd->sd_volume->v_provider, 1);
 }
 
 static void
@@ -417,6 +502,7 @@ g_raid_tr_raid1e_rebuild_abort(struct g_raid_tr_object *tr)
 		}
 		g_raid_tr_raid1e_rebuild_done(trs);
 	}
+	g_notify_sync_stop(vol->v_provider, 0);
 }
 
 static void
@@ -548,6 +634,9 @@ g_raid_tr_raid1e_rebuild_start(struct g_raid_tr_object *tr)
 	trs->trso_type = TR_RAID1E_REBUILD;
 	trs->trso_buffer = malloc(g_raid1e_rebuild_slab, M_TR_RAID1E, M_WAITOK);
 	trs->trso_meta_update = g_raid1e_rebuild_meta_update;
+
+	g_notify_sync_start(vol->v_provider);
+
 	g_raid_tr_raid1e_rebuild_some(tr);
 }
 
@@ -1170,6 +1259,26 @@ nextdisk:
 		start = 0;
 	}
 	return (0);
+}
+
+static int
+g_raid_tr_getvolstatus_raid1e(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
+{
+	struct g_raid_tr_raid1e_object *trs;
+
+	trs = (struct g_raid_tr_raid1e_object *)tr;
+	KASSERT(tr == volume->v_tr, ("Invalid transformation object"));
+	if (trs->trso_stopping &&
+	    (trs->trso_flags & TR_RAID1E_F_DOING_SOME) == 0)
+		return G_RAID_VOLUME_S_STOPPED;
+	else if (trs->trso_starting)
+		return G_RAID_VOLUME_S_STARTING;
+	else {
+		if ((volume->v_disks_count % N) == 0)
+			return g_raid_tr_getvolstatus_raid1e_even(volume);
+		else
+			return g_raid_tr_getvolstatus_raid1e_odd(volume);
+	}
 }
 
 static int
