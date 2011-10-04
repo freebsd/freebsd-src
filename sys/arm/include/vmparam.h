@@ -141,11 +141,21 @@
 #endif
 
 #define MAXTSIZ 	(16*1024*1024)
+#ifndef DFLDSIZ
 #define DFLDSIZ         (128*1024*1024)
+#endif
+#ifndef MAXDSIZ
 #define MAXDSIZ         (512*1024*1024)
+#endif
+#ifndef DFLSSIZ
 #define DFLSSIZ         (2*1024*1024)
+#endif
+#ifndef MAXSSIZ
 #define MAXSSIZ         (8*1024*1024)
+#endif
+#ifndef SGROWSIZ
 #define SGROWSIZ        (128*1024)
+#endif
 
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC
