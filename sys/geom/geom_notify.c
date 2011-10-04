@@ -54,7 +54,7 @@ g_devctl_notify(struct g_provider *pp, const char *event, const char *format, ..
 	int len;
 	int i;
 
-	subsystem = g_malloc(strlen(pp->geom->class->name) + 1, M_WAITOK);
+	subsystem = g_malloc(strlen(pp->geom->class->name) + 1, M_NOWAIT);
 	if (subsystem == NULL)
 		return;
 	for (i = 0; pp->geom->class->name[i]; i++)
@@ -62,7 +62,7 @@ g_devctl_notify(struct g_provider *pp, const char *event, const char *format, ..
 	subsystem[i] = 0;
 
 	if (format != NULL) {
-		additional_data = g_malloc(1024, M_WAITOK);
+		additional_data = g_malloc(1024, M_NOWAIT);
 		if (additional_data == NULL) {
 			g_free(subsystem);
 			return;
@@ -78,7 +78,7 @@ g_devctl_notify(struct g_provider *pp, const char *event, const char *format, ..
 	/* Add more space for mandatory arguments, space and zero */
 	len += sizeof("geom=") + strlen(pp->geom->name) +
 	       sizeof("provider=") + strlen(pp->name) + 2;
-	full_data = g_malloc(len, M_WAITOK);
+	full_data = g_malloc(len, M_NOWAIT);
 	if (full_data == NULL) {
 		g_free(subsystem);
 		if (additional_data != NULL)
