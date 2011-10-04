@@ -68,6 +68,13 @@ MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
 
+/*
+ * Used by rtsock/raw_input callback code to decide whether to filter the update
+ * notification to a socket bound to a particular FIB.
+ */
+#define	RTS_FILTER_FIB	M_PROTO8
+#define	RTS_ALLFIBS	-1
+
 static struct {
 	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
@@ -124,6 +131,31 @@ rts_init(void)
 }
 SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
 
+static int
+raw_input_rts_cb(struct mbuf *m, struct sockproto *proto, struct sockaddr *src,
+    struct rawcb *rp)
+{
+	int fibnum;
+
+	KASSERT(m != NULL, ("%s: m is NULL", __func__));
+	KASSERT(proto != NULL, ("%s: proto is NULL", __func__));
+	KASSERT(rp != NULL, ("%s: rp is NULL", __func__));
+
+	/* No filtering requested. */
+	if ((m->m_flags & RTS_FILTER_FIB) == 0)
+		return (0);
+
+	/* Check if it is a rts and the fib matches the one of the socket. */
+	fibnum = M_GETFIB(m);
+	if (proto->sp_family != PF_ROUTE ||
+	    rp->rcb_socket == NULL ||
+	    rp->rcb_socket->so_fibnum == fibnum)
+		return (0);
+
+	/* Filtering requested and no match, the socket shall be skipped. */
+	return (1);
+}
+
 static void
 rts_input(struct mbuf *m)
 {
@@ -140,7 +172,7 @@ rts_input(struct mbuf *m)
 	} else
 		route_proto.sp_protocol = 0;
 
-	raw_input(m, &route_proto, &route_src);
+	raw_input_ext(m, &route_proto, &route_src, raw_input_rts_cb);
 }
 
 /*
@@ -727,6 +759,8 @@ flush:
 		Free(rtm);
 	}
 	if (m) {
+		M_SETFIB(m, so->so_fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
 		if (rp) {
 			/*
 			 * XXX insure we don't get a copy by
@@ -958,7 +992,8 @@ again:
  * destination.
  */
 void
-rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
+rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
+    int fibnum)
 {
 	struct rt_msghdr *rtm;
 	struct mbuf *m;
@@ -969,11 +1004,26 @@ rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
 	m = rt_msg1(type, rtinfo);
 	if (m == NULL)
 		return;
+
+	if (fibnum != RTS_ALLFIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: fibnum out "
+		    "of range 0 <= %d < %d", __func__, fibnum, rt_numfibs));
+		M_SETFIB(m, fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
+	}
+
 	rtm = mtod(m, struct rt_msghdr *);
 	rtm->rtm_flags = RTF_DONE | flags;
 	rtm->rtm_errno = error;
 	rtm->rtm_addrs = rtinfo->rti_addrs;
 	rt_dispatch(m, sa);
+}
+
+void
+rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
+{
+
+	rt_missmsg_fib(type, rtinfo, flags, error, RTS_ALLFIBS);
 }
 
 /*
@@ -1010,7 +1060,8 @@ rt_ifmsg(struct ifnet *ifp)
  * copies of it.
  */
 void
-rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
+    int fibnum)
 {
 	struct rt_addrinfo info;
 	struct sockaddr *sa = NULL;
@@ -1066,8 +1117,22 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 			rtm->rtm_errno = error;
 			rtm->rtm_addrs = info.rti_addrs;
 		}
+		if (fibnum != RTS_ALLFIBS) {
+			KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
+			    "fibnum out of range 0 <= %d < %d", __func__,
+			     fibnum, rt_numfibs));
+			M_SETFIB(m, fibnum);
+			m->m_flags |= RTS_FILTER_FIB;
+		}
 		rt_dispatch(m, sa);
 	}
+}
+
+void
+rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+{
+
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RTS_ALLFIBS);
 }
 
 /*
