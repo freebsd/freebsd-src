@@ -181,7 +181,12 @@ g_fox_orphan(struct g_consumer *cp)
 		mark = 0;
 	}
 	mtx_unlock(&sc->lock);
-	    
+
+	g_notify_disconnect(LIST_FIRST(&gp->provider), cp,
+		(LIST_NEXT(LIST_FIRST(&gp->consumer), consumer) == NULL)?
+			G_NOTIFY_DISCONNECT_DEAD:
+			G_NOTIFY_DISCONNECT_ALIVE);
+
 	g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	error = cp->provider->error;
 	g_detach(cp);
@@ -191,6 +196,7 @@ g_fox_orphan(struct g_consumer *cp)
 			g_post_event(g_fox_select_path, gp, M_WAITOK, gp, NULL);
 		return;
 	}
+	g_notify_destroyed(LIST_FIRST(&gp->provider));
 
 	mtx_destroy(&sc->lock);
 	g_free(gp->softc);
