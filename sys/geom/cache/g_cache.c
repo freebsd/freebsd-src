@@ -444,8 +444,8 @@ g_cache_access(struct g_provider *pp, int dr, int dw, int de)
 static void
 g_cache_orphan(struct g_consumer *cp)
 {
-
 	g_topology_assert();
+	g_notify_destroyed(LIST_FIRST(&cp->geom->provider));
 	g_cache_destroy(cp->geom->softc, 1);
 }
 
