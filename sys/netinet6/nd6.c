@@ -2042,14 +2042,15 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		if (*chain == NULL)
 			*chain = m;
 		else {
-			struct mbuf *m = *chain;
+			struct mbuf *mb;
 
 			/*
 			 * append mbuf to end of deferred chain
 			 */
-			while (m->m_nextpkt != NULL)
-				m = m->m_nextpkt;
-			m->m_nextpkt = m;
+			mb = *chain;
+			while (mb->m_nextpkt != NULL)
+				mb = mb->m_nextpkt;
+			mb->m_nextpkt = m;
 		}
 		return (error);
 	}
