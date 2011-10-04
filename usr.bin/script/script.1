@@ -170,3 +170,12 @@ The slave terminal mode is checked
 for ECHO mode to check when to avoid manual echo logging.
 This does not
 work when in a raw mode where the program being run is doing manual echo.
+.Pp
+If the
+.Nm
+reads zero bytes from the terminal it switches to a mode when it probes read
+only once a second until it gets some data.
+This prevents the
+.Nm
+spinning on zero-byte reads, but might cause a 1-second delay in
+processing of the user input.
