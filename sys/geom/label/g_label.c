@@ -109,6 +109,7 @@ g_label_orphan(struct g_consumer *cp)
 
 	G_LABEL_DEBUG(1, "Label %s removed.",
 	    LIST_FIRST(&cp->geom->provider)->name);
+	g_notify_destroyed(LIST_FIRST(&cp->geom->provider));
 	g_slice_orphan(cp);
 }
 
