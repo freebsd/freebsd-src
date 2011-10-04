@@ -185,6 +185,9 @@ int pmap_debug_level = 0;
 #endif  /* PMAP_DEBUG */
 
 extern struct pv_addr systempage;
+
+extern int last_fault_code;
+
 /*
  * Internal function prototypes
  */
@@ -2054,9 +2057,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	 * the TLB.
 	 */
 	if (rv == 0 && pm->pm_l1->l1_domain_use_count == 1) {
-		extern int last_fault_code;
 		printf("fixup: pm %p, va 0x%lx, ftype %d - nothing to do!\n",
-		    pm, va, ftype);
+		    pm, (u_long)va, ftype);
 		printf("fixup: l2 %p, l2b %p, ptep %p, pl1pd %p\n",
 		    l2, l2b, ptep, pl1pd);
 		printf("fixup: pte 0x%x, l1pd 0x%x, last code 0x%x\n",
@@ -4012,13 +4014,6 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	char *dstpg;
 #endif
 
-#ifdef DEBUG
-	struct vm_page *pg = PHYS_TO_VM_PAGE(phys);
-
-	if (pg->md.pvh_list != NULL)
-		panic("pmap_zero_page: page has mappings");
-#endif
-
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
@@ -4290,13 +4285,6 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 #if 0
 	struct vm_page *src_pg = PHYS_TO_VM_PAGE(src);
 #endif
-#ifdef DEBUG
-	struct vm_page *dst_pg = PHYS_TO_VM_PAGE(dst);
-
-	if (dst_pg->md.pvh_list != NULL)
-		panic("pmap_copy_page: dst page has mappings");
-#endif
-
 
 	/*
 	 * Clean the source page.  Hold the source page's lock for
@@ -4342,13 +4330,6 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	/* XXX: Only needed for pmap_clean_page(), which is commented out. */
 	struct vm_page *src_pg = PHYS_TO_VM_PAGE(src);
 #endif
-#ifdef DEBUG
-	struct vm_page *dst_pg = PHYS_TO_VM_PAGE(dst);
-
-	if (dst_pg->md.pvh_list != NULL)
-		panic("pmap_copy_page: dst page has mappings");
-#endif
-
 
 	/*
 	 * Clean the source page.  Hold the source page's lock for
