@@ -447,6 +447,7 @@ MAN=	aac.4 \
 	tun.4 \
 	twa.4 \
 	twe.4 \
+	tws.4 \
 	tx.4 \
 	txp.4 \
 	u3g.4 \

@@ -302,6 +302,7 @@ SUBDIR=	${_3dfx} \
 	trm \
 	${_twa} \
 	twe \
+	tws \
 	tx \
 	txp \
 	uart \
