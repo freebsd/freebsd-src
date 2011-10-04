@@ -101,6 +101,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	int oldv6size;
 	struct sockaddr_in6 *sin6;
 #endif
+	int namelen;
 
 	if (*osalen < 2 || *osalen > UCHAR_MAX || !osa)
 		return (EINVAL);
@@ -157,6 +158,20 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 #endif
 	if (bdom == AF_INET)
 		alloclen = sizeof(struct sockaddr_in);
+
+	if ((bdom == AF_LOCAL) && (*osalen > sizeof(struct sockaddr_un))) {
+		for (namelen = 0;
+		    namelen < *osalen - offsetof(struct sockaddr_un, sun_path);
+		    namelen++)
+			if (!((struct sockaddr_un *)kosa)->sun_path[namelen])
+				break;
+		if (namelen + offsetof(struct sockaddr_un, sun_path) >
+		    sizeof(struct sockaddr_un)) {
+			error = EINVAL;
+			goto out;
+		}
+		alloclen = sizeof(struct sockaddr_un);
+	}
 
 	sa = (struct sockaddr *) kosa;
 	sa->sa_family = bdom;
