@@ -88,6 +88,9 @@ g_bde_orphan(struct g_consumer *cp)
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
 	error = cp->provider->error;
+
+	g_notify_destroyed(LIST_FIRST(&gp->provider));
+
 	LIST_FOREACH(pp, &gp->provider, provider)
 		g_orphan_provider(pp, error);
 	bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
