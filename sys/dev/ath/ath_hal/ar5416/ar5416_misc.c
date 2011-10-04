@@ -143,6 +143,14 @@ ar5416ResetTsf(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);	
 }
 
+uint32_t
+ar5416GetCurRssi(struct ath_hal *ah)
+{
+	if (AR_SREV_OWL(ah))
+		return (OS_REG_READ(ah, AR_PHY_CURRENT_RSSI) & 0xff);
+	return (OS_REG_READ(ah, AR9130_PHY_CURRENT_RSSI) & 0xff);
+}
+
 HAL_BOOL
 ar5416SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
