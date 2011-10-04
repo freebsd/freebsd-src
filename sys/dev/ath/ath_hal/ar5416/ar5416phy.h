@@ -156,8 +156,14 @@
 #define	AR_PHY_CAL_MEAS_0(_i)	(0x9c10 + ((_i) << 12))
 #define	AR_PHY_CAL_MEAS_1(_i)	(0x9c14 + ((_i) << 12))
 #define	AR_PHY_CAL_MEAS_2(_i)	(0x9c18 + ((_i) << 12))
+/* This is AR9130 and later */
 #define	AR_PHY_CAL_MEAS_3(_i)	(0x9c1c + ((_i) << 12))
 
+/*
+ * AR5416 still uses AR_PHY(263) for current RSSI;
+ * AR9130 and later uses AR_PHY(271).
+ */
+#define	AR9130_PHY_CURRENT_RSSI	0x9c3c		/* rssi of current frame rx'd */
 
 #define AR_PHY_CCA          0x9864
 #define AR_PHY_MINCCA_PWR   0x0FF80000

@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LIB=	asn1
+LDFLAGS=	-Wl,--no-undefined
 INCS=	asn1_err.h heim_asn1.h
+LDADD=	-lcom_err -lroken
+DPADD=	${LIBCOM_ERR} ${LIBROKEN}
 
 SRCS=	asn1_err.c \
 	asn1_err.h \

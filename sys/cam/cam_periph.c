@@ -1085,7 +1085,6 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 	cam_status	status;
 	int		frozen = 0;
-	u_int		sense_key;
 	int		depth = done_ccb->ccb_h.recovery_depth;
 
 	status = done_ccb->ccb_h.status;
@@ -1101,22 +1100,25 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (status) {
 	case CAM_REQ_CMP:
 	{
+		int error_code, sense_key, asc, ascq;
+
+		scsi_extract_sense_len(&saved_ccb->csio.sense_data,
+				       saved_ccb->csio.sense_len -
+				       saved_ccb->csio.sense_resid,
+				       &error_code, &sense_key, &asc, &ascq,
+				       /*show_errors*/ 1);
 		/*
 		 * If we manually retrieved sense into a CCB and got
 		 * something other than "NO SENSE" send the updated CCB
 		 * back to the client via xpt_done() to be processed via
 		 * the error recovery code again.
 		 */
-		sense_key = saved_ccb->csio.sense_data.flags;
-		sense_key &= SSD_KEY;
-		if (sense_key != SSD_KEY_NO_SENSE) {
-			saved_ccb->ccb_h.status |=
-			    CAM_AUTOSNS_VALID;
+		if ((sense_key != -1)
+		 && (sense_key != SSD_KEY_NO_SENSE)) {
+			saved_ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		} else {
-			saved_ccb->ccb_h.status &=
-			    ~CAM_STATUS_MASK;
-			saved_ccb->ccb_h.status |=
-			    CAM_AUTOSENSE_FAIL;
+			saved_ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			saved_ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 		}
 		saved_ccb->csio.sense_resid = done_ccb->csio.resid;
 		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
@@ -1198,12 +1200,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		if (status & CAM_AUTOSNS_VALID) {
 			struct ccb_getdev cgd;
 			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq;	
+			int    error_code, sense_key, asc, ascq, sense_len;
 			scsi_sense_action err_action;
 
 			sense = &done_ccb->csio.sense_data;
-			scsi_extract_sense(sense, &error_code, 
-					   &sense_key, &asc, &ascq);
+			sense_len = done_ccb->csio.sense_len -
+				    done_ccb->csio.sense_resid;
+			scsi_extract_sense_len(sense, sense_len, &error_code, 
+					       &sense_key, &asc, &ascq,
+					       /*show_errors*/ 1);
 			/*
 			 * Grab the inquiry data for this device.
 			 */

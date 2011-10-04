@@ -38,6 +38,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110930: sysinstall removed
+OLD_FILES+=usr/sbin/sysinstall
+OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
+OLD_FILES+=usr/lib/libftpio.a
+OLD_FILES+=usr/lib/libftpio.so
+OLD_LIBS+=usr/lib/libftpio.so.8
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libftpio.a
+OLD_FILES+=usr/lib32/libftpio.so
+OLD_LIBS+=usr/lib32/libftpio.so.8
+.endif
+OLD_FILES+=usr/include/ftpio.h
+OLD_FILES+=usr/share/man/man3/ftpio.3.gz
 # 20110915: rename congestion control manpages
 OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz
@@ -54,7 +67,7 @@ OLD_LIBS+=usr/lib/libdwarf.so.2
 OLD_LIBS+=usr/lib/libopie.so.6
 OLD_LIBS+=usr/lib/librtld_db.so.1
 OLD_LIBS+=usr/lib/libtacplus.so.4
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libcam.so.5
 OLD_LIBS+=usr/lib32/libpcap.so.7
 OLD_LIBS+=usr/lib32/libufs.so.5
@@ -92,7 +105,7 @@ OLD_FILES+=usr/lib/libpkg.a
 OLD_FILES+=usr/lib/libpkg.so
 OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/lib/libpkg_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libpkg.a
 OLD_FILES+=usr/lib32/libpkg.so
 OLD_LIBS+=usr/lib32/libpkg.so.0
@@ -100,7 +113,7 @@ OLD_FILES+=usr/lib32/libpkg_p.a
 .endif
 # 20110517: libsbuf version bump
 OLD_LIBS+=lib/libsbuf.so.5
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libsbuf.so.5
 .endif
 # 20110502: new clang import which bumps version from 2.9 to 3.0
@@ -131,7 +144,7 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libobjc.a
 OLD_FILES+=usr/lib32/libobjc.so
 OLD_FILES+=usr/lib32/libobjc_p.a
@@ -258,7 +271,7 @@ OLD_FILES+=usr/include/machine/intr.h
 .endif
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/liblzma.so.0
 .endif
 # 20100511: move GCC-specific headers to /usr/include/gcc
@@ -2580,7 +2593,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign

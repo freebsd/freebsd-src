@@ -65,7 +65,6 @@ struct psycho_softc {
 
 	/* Tags for PCI access */
 	bus_space_tag_t			sc_pci_cfgt;
-	bus_space_tag_t			sc_pci_memt;
 	bus_space_tag_t			sc_pci_iot;
 	bus_dma_tag_t			sc_pci_dmat;
 

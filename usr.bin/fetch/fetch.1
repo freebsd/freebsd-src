@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000-2004 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2000-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
 .\" by permission.
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2008
+.Dd September 27, 2011
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -165,11 +165,13 @@ directory, with name(s) selected as in the default behaviour.
 .It Fl P
 .It Fl p
 Use passive FTP.
-This is useful if you are behind a firewall which blocks incoming
-connections.
-Try this flag if
-.Nm
-seems to hang when retrieving FTP URLs.
+These flags have no effect, since passive FTP is the default, but are
+provided for compatibility with earlier versions where active FTP was
+the default.
+To force active mode, set the
+.Ev FTP_PASSIVE_MODE
+environment variable to
+.Ql NO .
 .It Fl q
 Quiet mode.
 .It Fl R

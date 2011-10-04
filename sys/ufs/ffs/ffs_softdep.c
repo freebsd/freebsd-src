@@ -12648,7 +12648,7 @@ retry:
 				MNT_ILOCK(mp);
 				continue;
 			}
-			(void) ffs_syncvnode(lvp, MNT_WAIT);
+			(void) ffs_syncvnode(lvp, MNT_NOWAIT);
 			vput(lvp);
 			MNT_ILOCK(mp);
 		}

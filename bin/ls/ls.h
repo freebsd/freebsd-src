@@ -36,8 +36,6 @@
 #define NO_PRINT	1
 
 #define HUMANVALSTR_LEN	5
-#define DEVSTR_LEN	8
-#define DEVSTR_HEX_LEN	15
 
 extern long blocksize;		/* block size units */
 

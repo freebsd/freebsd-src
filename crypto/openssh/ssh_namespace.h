@@ -7,7 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { print "#define" $3 "\t\tssh_" $3 }'
+ * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { print "#define " $3 "\t\tssh_" $3 }'
  *
  * $FreeBSD$
  */
@@ -58,6 +58,7 @@
 #define buffer_get_int64			ssh_buffer_get_int64
 #define buffer_get_int64_ret			ssh_buffer_get_int64_ret
 #define buffer_get_int_ret			ssh_buffer_get_int_ret
+#define buffer_get_max_len			ssh_buffer_get_max_len
 #define buffer_get_ret				ssh_buffer_get_ret
 #define buffer_get_short			ssh_buffer_get_short
 #define buffer_get_short_ret			ssh_buffer_get_short_ret
@@ -139,6 +140,7 @@
 #define channel_send_window_changes		ssh_channel_send_window_changes
 #define channel_set_af				ssh_channel_set_af
 #define channel_set_fds				ssh_channel_set_fds
+#define channel_set_hpn				ssh_channel_set_hpn
 #define channel_setup_local_fwd_listener	ssh_channel_setup_local_fwd_listener
 #define channel_setup_remote_fwd_listener	ssh_channel_setup_remote_fwd_listener
 #define channel_still_open			ssh_channel_still_open
@@ -438,6 +440,7 @@
 #define set_nonblock				ssh_set_nonblock
 #define shadow_pw				ssh_shadow_pw
 #define sigdie					ssh_sigdie
+#define sock_get_rcvbuf				ssh_sock_get_rcvbuf
 #define sock_set_v6only				ssh_sock_set_v6only
 #define ssh1_3des_iv				ssh_ssh1_3des_iv
 #define start_progress_meter			ssh_start_progress_meter
