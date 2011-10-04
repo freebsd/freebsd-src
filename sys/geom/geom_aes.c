@@ -246,6 +246,7 @@ g_aes_orphan(struct g_consumer *cp)
 
 	gp = cp->geom;
 	sc = gp->softc;
+	g_notify_destroyed(LIST_FIRST(&gp->provider));
 	g_wither_geom(gp, cp->provider->error);
 	bzero(sc, sizeof(struct g_aes_softc));	/* destroy evidence */
 	g_free(sc);
