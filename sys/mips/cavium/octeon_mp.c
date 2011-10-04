@@ -46,8 +46,7 @@ __FBSDID("$FreeBSD$");
 /* XXX */
 extern cvmx_bootinfo_t *octeon_bootinfo;
 
-/* NOTE: this 64-bit mask (and many others) limits MAXCPU to 64 */
-uint64_t octeon_ap_boot = ~0ULL;
+unsigned octeon_ap_boot = ~0;
 
 void
 platform_ipi_send(int cpuid)
@@ -139,11 +138,11 @@ platform_start_ap(int cpuid)
 	    DELAY(2000);    /* Give it a moment to start */
 	}
 
-	if (atomic_cmpset_64(&octeon_ap_boot, ~0, cpuid) == 0)
+	if (atomic_cmpset_32(&octeon_ap_boot, ~0, cpuid) == 0)
 		return (-1);
 	for (;;) {
 		DELAY(1000);
-		if (atomic_cmpset_64(&octeon_ap_boot, 0, ~0) != 0)
+		if (atomic_cmpset_32(&octeon_ap_boot, 0, ~0) != 0)
 			return (0);
 		printf("Waiting for cpu%d to start\n", cpuid);
 	}
