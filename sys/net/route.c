@@ -344,7 +344,8 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 				    newrt->rt_ifp->if_addr->ifa_addr;
 				info.rti_info[RTAX_IFA] = newrt->rt_ifa->ifa_addr;
 			}
-			rt_missmsg(RTM_ADD, &info, newrt->rt_flags, 0);
+			rt_missmsg_fib(RTM_ADD, &info, newrt->rt_flags, 0,
+			    fibnum);
 		} else {
 			KASSERT(rt == newrt, ("locking wrong route"));
 			RT_LOCK(newrt);
@@ -370,7 +371,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 			 */
 			bzero(&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
-			rt_missmsg(msgtype, &info, 0, err);
+			rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
 		}
 	}
 	if (newrt)
@@ -591,7 +592,7 @@ out:
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_NETMASK] = netmask;
 	info.rti_info[RTAX_AUTHOR] = src;
-	rt_missmsg(RTM_REDIRECT, &info, flags, error);
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
 }
 
 int
@@ -1482,7 +1483,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * notify any listening routing agents of the change
 			 */
 			RT_LOCK(rt);
-			rt_newaddrmsg(cmd, ifa, error, rt);
+			rt_newaddrmsg_fib(cmd, ifa, error, rt, fibnum);
 			if (cmd == RTM_DELETE) {
 				/*
 				 * If we are deleting, and we found an entry, then
