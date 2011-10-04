@@ -318,9 +318,19 @@ and
 implement the FTP protocol as described in RFC959.
 .Pp
 If the
+.Ql P
+(not passive) flag is specified, an active (rather than passive)
+connection will be attempted.
+.Pp
+The
 .Ql p
-(passive) flag is specified, a passive (rather than active) connection
-will be attempted.
+flag is supported for compatibility with earlier versions where active
+connections were the default.
+It has precedence over the
+.Ql P
+flag, so if both are specified,
+.Nm
+will use a passive connection.
 .Pp
 If the
 .Ql l
@@ -475,9 +485,11 @@ connections will be bound.
 .It Ev FTP_LOGIN
 Default FTP login if none was provided in the URL.
 .It Ev FTP_PASSIVE_MODE
-If set to anything but
+If set to
 .Ql no ,
-forces the FTP code to use passive mode.
+forces the FTP code to use active mode.
+If set to any other value, forces passive mode even if the application
+requested active mode.
 .It Ev FTP_PASSWORD
 Default FTP password if the remote server requests one and none was
 provided in the URL.
