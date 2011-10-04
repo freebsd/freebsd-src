@@ -250,6 +250,7 @@ g_eli_orphan(struct g_consumer *cp)
 	sc = cp->geom->softc;
 	if (sc == NULL)
 		return;
+	g_notify_destroyed(LIST_FIRST(&cp->geom->provider));
 	g_eli_destroy(sc, TRUE);
 }
 
