@@ -1,0 +1,57 @@
+.\" Copyright (c) 2011 Lev Serebryakov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2011
+.Dt GGETMODE 8
+.Os
+.Sh NAME
+.Nm ggetmode
+.Nd prints open mode of the given geom provider represented as the device node.
+.Sh SYNOPSIS
+.Nm ggetmode
+.Ar device_name
+.Sh DESCRIPTION
+.Nm
+utility prints open mode of the given device in standard
+.Xr geom 4
+notation
+.Em "rXwYeZ" .
+String of
+.Em "r0w0e0"
+means, that given device isn't used by any consumer and is availiable.
+.Sh EXIT STATUS
+.Ex -std ggetmode
+.Sh SEE ALSO
+.Xr geom 8 ,
+.Xr geom 4
+.Sh HISTORY
+The
+.Nm
+utility and manual page first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+This utility and manual page was written by
+.An Lev Serebryakov Aq lev@FreeBSD.org .
