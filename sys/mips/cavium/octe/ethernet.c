@@ -77,12 +77,6 @@ TUNABLE_INT("hw.octe.pow_receive_group", &pow_receive_group);
 extern int octeon_is_simulation(void);
 
 /**
- * Exported from the kernel so we can determine board information. It is
- * passed by the bootloader to the kernel.
- */
-extern cvmx_bootinfo_t *octeon_bootinfo;
-
-/**
  * Periodic timer to check auto negotiation
  */
 static struct callout cvm_oct_poll_timer;
@@ -475,7 +469,7 @@ int cvm_oct_init_module(device_t bus)
 
 	if (INTERRUPT_LIMIT) {
 		/* Set the POW timer rate to give an interrupt at most INTERRUPT_LIMIT times per second */
-		cvmx_write_csr(CVMX_POW_WQ_INT_PC, octeon_bootinfo->eclock_hz/(INTERRUPT_LIMIT*16*256)<<8);
+		cvmx_write_csr(CVMX_POW_WQ_INT_PC, cvmx_clock_get_rate(CVMX_CLOCK_CORE)/(INTERRUPT_LIMIT*16*256)<<8);
 
 		/* Enable POW timer interrupt. It will count when there are packets available */
 		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0x1ful<<24);
