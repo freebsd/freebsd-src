@@ -315,8 +315,10 @@ g_uzip_orphan(struct g_consumer *cp)
 	g_topology_assert();
 	KASSERT(cp->provider->error != 0,
 		("g_uzip_orphan with error == 0"));
-
 	gp = cp->geom;
+
+	g_notify_destroyed(LIST_FIRST(&gp->provider));
+
 	g_uzip_softc_free(gp->softc, gp);
 	gp->softc = NULL;
 	g_wither_geom(gp, cp->provider->error);
