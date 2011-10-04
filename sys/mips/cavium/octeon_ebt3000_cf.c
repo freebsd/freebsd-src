@@ -100,9 +100,6 @@ __FBSDID("$FreeBSD$");
 #define SWAP_SHORT(x)		((x << 8) | (x >> 8))
 #define MODEL_STR_SIZE		40
 
-/* XXX */
-extern cvmx_bootinfo_t *octeon_bootinfo;
-
 /* Globals */
 /*
  * There's three bus types supported by this driver.
@@ -648,7 +645,7 @@ static void cf_identify (driver_t *drv, device_t parent)
 	int count = 0;
 	cvmx_mio_boot_reg_cfgx_t cfg;
 
-	uint64_t phys_base = octeon_bootinfo->compact_flash_common_base_addr;
+	uint64_t phys_base = cvmx_sysinfo_get()->compact_flash_common_base_addr;
 
     	if (octeon_is_simulation())
 		return;
