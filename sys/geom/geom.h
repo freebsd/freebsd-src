@@ -393,4 +393,19 @@ struct g_class *gctl_get_class(struct gctl_req *req, char const *arg);
 struct g_geom *gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg);
 struct g_provider *gctl_get_provider(struct gctl_req *req, char const *arg);
 
+/* geom_notify.c */
+
+#ifdef _KERNEL
+
+#define G_NOTIFY_DISCONNECT_FIXABLE	'F'
+#define G_NOTIFY_DISCONNECT_ALIVE	'A'
+#define G_NOTIFY_DISCONNECT_DEAD	'D'
+#define G_NOTIFY_DISCONNECT_UNKNOWN	'?'
+void g_notify_disconnect(struct g_provider *pp, struct g_consumer *cp, char state);
+void g_notify_sync_start(struct g_provider *pp);
+void g_notify_sync_stop(struct g_provider *pp, boolean_t complete);
+void g_notify_destroyed(struct g_provider *pp);
+
+#endif /* _KERNEL */
+
 #endif /* _GEOM_GEOM_H_ */
