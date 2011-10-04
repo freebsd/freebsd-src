@@ -154,11 +154,19 @@ g_concat_orphan(struct g_consumer *cp)
 	disk = cp->private;
 	if (disk == NULL)	/* Possible? */
 		return;
+
+	g_notify_disconnect(sc->sc_provider, cp,
+		((g_concat_nvalid(sc) == 1)?
+			G_NOTIFY_DISCONNECT_DEAD:
+			G_NOTIFY_DISCONNECT_ALIVE));
+
 	g_concat_remove_disk(disk);
 
 	/* If there are no valid disks anymore, remove device. */
-	if (g_concat_nvalid(sc) == 0)
+	if (g_concat_nvalid(sc) == 0) {
+		g_notify_destroyed(sc->sc_provider);
 		g_concat_destroy(sc, 1);
+	}
 }
 
 static int
