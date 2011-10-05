@@ -356,5 +356,10 @@ static driver_t gpio_avila_driver = {
 	sizeof(struct avila_gpio_softc),
 };
 static devclass_t gpio_avila_devclass;
+extern devclass_t gpiobus_devclass, gpioc_devclass;
+extern driver_t gpiobus_driver, gpioc_driver;
 
 DRIVER_MODULE(gpio_avila, ixp, gpio_avila_driver, gpio_avila_devclass, 0, 0);
+DRIVER_MODULE(gpiobus, gpio_avila, gpiobus_driver, gpiobus_devclass, 0, 0);
+DRIVER_MODULE(gpioc, gpio_avila, gpioc_driver, gpioc_devclass, 0, 0);
+MODULE_VERSION(gpio_avila, 1);
