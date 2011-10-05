@@ -1,0 +1,406 @@
+
+GSS_ACQUIRE_CRED(3)      BSD Library Functions Manual      GSS_ACQUIRE_CRED(3)
+
+NNAAMMEE
+     ggssss__aacccceepptt__sseecc__ccoonntteexxtt, ggssss__aaccqquuiirree__ccrreedd, ggssss__aadddd__ccrreedd,
+     ggssss__aadddd__ooiidd__sseett__mmeemmbbeerr, ggssss__ccaannoonniiccaalliizzee__nnaammee, ggssss__ccoommppaarree__nnaammee,
+     ggssss__ccoonntteexxtt__ttiimmee, ggssss__ccrreeaattee__eemmppttyy__ooiidd__sseett, ggssss__ddeelleettee__sseecc__ccoonntteexxtt,
+     ggssss__ddiissppllaayy__nnaammee, ggssss__ddiissppllaayy__ssttaattuuss, ggssss__dduupplliiccaattee__nnaammee,
+     ggssss__eexxppoorrtt__nnaammee, ggssss__eexxppoorrtt__sseecc__ccoonntteexxtt, ggssss__ggeett__mmiicc, ggssss__iimmppoorrtt__nnaammee,
+     ggssss__iimmppoorrtt__sseecc__ccoonntteexxtt, ggssss__iinnddiiccaattee__mmeecchhss, ggssss__iinniitt__sseecc__ccoonntteexxtt,
+     ggssss__iinnqquuiirree__ccoonntteexxtt, ggssss__iinnqquuiirree__ccrreedd, ggssss__iinnqquuiirree__ccrreedd__bbyy__mmeecchh,
+     ggssss__iinnqquuiirree__mmeecchhss__ffoorr__nnaammee, ggssss__iinnqquuiirree__nnaammeess__ffoorr__mmeecchh,
+     ggssss__kkrrbb55__ccccaacchhee__nnaammee, ggssss__kkrrbb55__ccoommppaatt__ddeess33__mmiicc, ggssss__kkrrbb55__ccooppyy__ccccaacchhee,
+     ggssss__kkrrbb55__iimmppoorrtt__ccrreedd ggsssskkrrbb55__eexxttrraacctt__aauutthhzz__ddaattaa__ffrroomm__sseecc__ccoonntteexxtt,
+     ggsssskkrrbb55__rreeggiisstteerr__aacccceeppttoorr__iiddeennttiittyy, ggssss__kkrrbb55__iimmppoorrtt__ccccaacchhee,
+     ggssss__kkrrbb55__ggeett__ttkktt__ffllaaggss, ggssss__pprroocceessss__ccoonntteexxtt__ttookkeenn, ggssss__rreelleeaassee__bbuuffffeerr,
+     ggssss__rreelleeaassee__ccrreedd, ggssss__rreelleeaassee__nnaammee, ggssss__rreelleeaassee__ooiidd__sseett, ggssss__sseeaall,
+     ggssss__ssiiggnn, ggssss__tteesstt__ooiidd__sseett__mmeemmbbeerr, ggssss__uunnsseeaall, ggssss__uunnwwrraapp, ggssss__vveerriiffyy,
+     ggssss__vveerriiffyy__mmiicc, ggssss__wwrraapp, ggssss__wwrraapp__ssiizzee__lliimmiitt -- Generic Security Service
+     Application Program Interface library
+
+LLIIBBRRAARRYY
+     GSS-API library (libgssapi, -lgssapi)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<ggssssaappii..hh>>
+
+     _O_M___u_i_n_t_3_2
+     ggssss__aacccceepptt__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _* _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _c_o_n_s_t _g_s_s___c_r_e_d___i_d___t _a_c_c_e_p_t_o_r___c_r_e_d___h_a_n_d_l_e,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___t_o_k_e_n___b_u_f_f_e_r,
+         _c_o_n_s_t _g_s_s___c_h_a_n_n_e_l___b_i_n_d_i_n_g_s___t _i_n_p_u_t___c_h_a_n___b_i_n_d_i_n_g_s,
+         _g_s_s___n_a_m_e___t _* _s_r_c___n_a_m_e, _g_s_s___O_I_D _* _m_e_c_h___t_y_p_e,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___t_o_k_e_n, _O_M___u_i_n_t_3_2 _* _r_e_t___f_l_a_g_s,
+         _O_M___u_i_n_t_3_2 _* _t_i_m_e___r_e_c, _g_s_s___c_r_e_d___i_d___t _* _d_e_l_e_g_a_t_e_d___c_r_e_d___h_a_n_d_l_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__aaccqquuiirree__ccrreedd(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___n_a_m_e___t _d_e_s_i_r_e_d___n_a_m_e,
+         _O_M___u_i_n_t_3_2 _t_i_m_e___r_e_q, _c_o_n_s_t _g_s_s___O_I_D___s_e_t _d_e_s_i_r_e_d___m_e_c_h_s,
+         _g_s_s___c_r_e_d___u_s_a_g_e___t _c_r_e_d___u_s_a_g_e, _g_s_s___c_r_e_d___i_d___t _* _o_u_t_p_u_t___c_r_e_d___h_a_n_d_l_e,
+         _g_s_s___O_I_D___s_e_t _* _a_c_t_u_a_l___m_e_c_h_s, _O_M___u_i_n_t_3_2 _* _t_i_m_e___r_e_c);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__aadddd__ccrreedd(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_r_e_d___i_d___t _i_n_p_u_t___c_r_e_d___h_a_n_d_l_e, _c_o_n_s_t _g_s_s___n_a_m_e___t _d_e_s_i_r_e_d___n_a_m_e,
+         _c_o_n_s_t _g_s_s___O_I_D _d_e_s_i_r_e_d___m_e_c_h, _g_s_s___c_r_e_d___u_s_a_g_e___t _c_r_e_d___u_s_a_g_e,
+         _O_M___u_i_n_t_3_2 _i_n_i_t_i_a_t_o_r___t_i_m_e___r_e_q, _O_M___u_i_n_t_3_2 _a_c_c_e_p_t_o_r___t_i_m_e___r_e_q,
+         _g_s_s___c_r_e_d___i_d___t _*_o_u_t_p_u_t___c_r_e_d___h_a_n_d_l_e, _g_s_s___O_I_D___s_e_t _*_a_c_t_u_a_l___m_e_c_h_s,
+         _O_M___u_i_n_t_3_2 _*_i_n_i_t_i_a_t_o_r___t_i_m_e___r_e_c, _O_M___u_i_n_t_3_2 _*_a_c_c_e_p_t_o_r___t_i_m_e___r_e_c);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__aadddd__ooiidd__sseett__mmeemmbbeerr(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___O_I_D _m_e_m_b_e_r___o_i_d, _g_s_s___O_I_D___s_e_t _* _o_i_d___s_e_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ccaannoonniiccaalliizzee__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___n_a_m_e___t _i_n_p_u_t___n_a_m_e, _c_o_n_s_t _g_s_s___O_I_D _m_e_c_h___t_y_p_e,
+         _g_s_s___n_a_m_e___t _* _o_u_t_p_u_t___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ccoommppaarree__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___n_a_m_e___t _n_a_m_e_1,
+         _c_o_n_s_t _g_s_s___n_a_m_e___t _n_a_m_e_2, _i_n_t _* _n_a_m_e___e_q_u_a_l);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ccoonntteexxtt__ttiimmee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _O_M___u_i_n_t_3_2 _* _t_i_m_e___r_e_c);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ccrreeaattee__eemmppttyy__ooiidd__sseett(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___O_I_D___s_e_t _* _o_i_d___s_e_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ddeelleettee__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _* _c_o_n_t_e_x_t___h_a_n_d_l_e, _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___t_o_k_e_n);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ddiissppllaayy__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___n_a_m_e___t _i_n_p_u_t___n_a_m_e,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___n_a_m_e___b_u_f_f_e_r, _g_s_s___O_I_D _* _o_u_t_p_u_t___n_a_m_e___t_y_p_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ddiissppllaayy__ssttaattuuss(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r___s_t_a_t_u_s, _O_M___u_i_n_t_3_2 _s_t_a_t_u_s___v_a_l_u_e,
+         _i_n_t _s_t_a_t_u_s___t_y_p_e, _c_o_n_s_t _g_s_s___O_I_D _m_e_c_h___t_y_p_e, _O_M___u_i_n_t_3_2 _*_m_e_s_s_a_g_e___c_o_n_t_e_x_t,
+         _g_s_s___b_u_f_f_e_r___t _s_t_a_t_u_s___s_t_r_i_n_g);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__dduupplliiccaattee__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___n_a_m_e___t _s_r_c___n_a_m_e,
+         _g_s_s___n_a_m_e___t _* _d_e_s_t___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__eexxppoorrtt__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___n_a_m_e___t _i_n_p_u_t___n_a_m_e,
+         _g_s_s___b_u_f_f_e_r___t _e_x_p_o_r_t_e_d___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__eexxppoorrtt__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _* _c_o_n_t_e_x_t___h_a_n_d_l_e, _g_s_s___b_u_f_f_e_r___t _i_n_t_e_r_p_r_o_c_e_s_s___t_o_k_e_n);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ggeett__mmiicc(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _g_s_s___q_o_p___t _q_o_p___r_e_q, _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___t_o_k_e_n);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iimmppoorrtt__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___n_a_m_e___b_u_f_f_e_r, _c_o_n_s_t _g_s_s___O_I_D _i_n_p_u_t___n_a_m_e___t_y_p_e,
+         _g_s_s___n_a_m_e___t _* _o_u_t_p_u_t___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iimmppoorrtt__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_t_e_r_p_r_o_c_e_s_s___t_o_k_e_n,
+         _g_s_s___c_t_x___i_d___t _* _c_o_n_t_e_x_t___h_a_n_d_l_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnddiiccaattee__mmeecchhss(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___O_I_D___s_e_t _* _m_e_c_h___s_e_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinniitt__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_r_e_d___i_d___t _i_n_i_t_i_a_t_o_r___c_r_e_d___h_a_n_d_l_e,
+         _g_s_s___c_t_x___i_d___t _* _c_o_n_t_e_x_t___h_a_n_d_l_e, _c_o_n_s_t _g_s_s___n_a_m_e___t _t_a_r_g_e_t___n_a_m_e,
+         _c_o_n_s_t _g_s_s___O_I_D _m_e_c_h___t_y_p_e, _O_M___u_i_n_t_3_2 _r_e_q___f_l_a_g_s, _O_M___u_i_n_t_3_2 _t_i_m_e___r_e_q,
+         _c_o_n_s_t _g_s_s___c_h_a_n_n_e_l___b_i_n_d_i_n_g_s___t _i_n_p_u_t___c_h_a_n___b_i_n_d_i_n_g_s,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___t_o_k_e_n, _g_s_s___O_I_D _* _a_c_t_u_a_l___m_e_c_h___t_y_p_e,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___t_o_k_e_n, _O_M___u_i_n_t_3_2 _* _r_e_t___f_l_a_g_s,
+         _O_M___u_i_n_t_3_2 _* _t_i_m_e___r_e_c);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnqquuiirree__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _g_s_s___n_a_m_e___t _* _s_r_c___n_a_m_e,
+         _g_s_s___n_a_m_e___t _* _t_a_r_g___n_a_m_e, _O_M___u_i_n_t_3_2 _* _l_i_f_e_t_i_m_e___r_e_c,
+         _g_s_s___O_I_D _* _m_e_c_h___t_y_p_e, _O_M___u_i_n_t_3_2 _* _c_t_x___f_l_a_g_s, _i_n_t _* _l_o_c_a_l_l_y___i_n_i_t_i_a_t_e_d,
+         _i_n_t _* _o_p_e_n___c_o_n_t_e_x_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnqquuiirree__ccrreedd(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_r_e_d___i_d___t _c_r_e_d___h_a_n_d_l_e, _g_s_s___n_a_m_e___t _* _n_a_m_e,
+         _O_M___u_i_n_t_3_2 _* _l_i_f_e_t_i_m_e, _g_s_s___c_r_e_d___u_s_a_g_e___t _* _c_r_e_d___u_s_a_g_e,
+         _g_s_s___O_I_D___s_e_t _* _m_e_c_h_a_n_i_s_m_s);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnqquuiirree__ccrreedd__bbyy__mmeecchh(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_r_e_d___i_d___t _c_r_e_d___h_a_n_d_l_e, _c_o_n_s_t _g_s_s___O_I_D _m_e_c_h___t_y_p_e,
+         _g_s_s___n_a_m_e___t _* _n_a_m_e, _O_M___u_i_n_t_3_2 _* _i_n_i_t_i_a_t_o_r___l_i_f_e_t_i_m_e,
+         _O_M___u_i_n_t_3_2 _* _a_c_c_e_p_t_o_r___l_i_f_e_t_i_m_e, _g_s_s___c_r_e_d___u_s_a_g_e___t _* _c_r_e_d___u_s_a_g_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnqquuiirree__mmeecchhss__ffoorr__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___n_a_m_e___t _i_n_p_u_t___n_a_m_e, _g_s_s___O_I_D___s_e_t _* _m_e_c_h___t_y_p_e_s);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__iinnqquuiirree__nnaammeess__ffoorr__mmeecchh(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___O_I_D _m_e_c_h_a_n_i_s_m, _g_s_s___O_I_D___s_e_t _* _n_a_m_e___t_y_p_e_s);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__ccccaacchhee__nnaammee(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r, _c_o_n_s_t _c_h_a_r _*_n_a_m_e,
+         _c_o_n_s_t _c_h_a_r _*_*_o_l_d___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__ccooppyy__ccccaacchhee(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r, _g_s_s___c_r_e_d___i_d___t _c_r_e_d,
+         _k_r_b_5___c_c_a_c_h_e _o_u_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__iimmppoorrtt__ccrreedd(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r___s_t_a_t_u_s, _k_r_b_5___c_c_a_c_h_e _i_d,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _k_e_y_t_a_b___p_r_i_n_c_i_p_a_l, _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b,
+         _g_s_s___c_r_e_d___i_d___t _*_c_r_e_d);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__ccoommppaatt__ddeess33__mmiicc(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _i_n_t _o_n_o_f_f);
+
+     _O_M___u_i_n_t_3_2
+     ggsssskkrrbb55__eexxttrraacctt__aauutthhzz__ddaattaa__ffrroomm__sseecc__ccoonntteexxtt(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _i_n_t _a_d___t_y_p_e, _g_s_s___b_u_f_f_e_r___t _a_d___d_a_t_a);
+
+     _O_M___u_i_n_t_3_2
+     ggsssskkrrbb55__rreeggiisstteerr__aacccceeppttoorr__iiddeennttiittyy(_c_o_n_s_t _c_h_a_r _*_i_d_e_n_t_i_t_y);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__iimmppoorrtt__ccaacchhee(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r, _k_r_b_5___c_c_a_c_h_e _i_d,
+         _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b, _g_s_s___c_r_e_d___i_d___t _*_c_r_e_d);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__kkrrbb55__ggeett__ttkktt__ffllaaggss(_O_M___u_i_n_t_3_2 _*_m_i_n_o_r___s_t_a_t_u_s,
+         _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _O_M___u_i_n_t_3_2 _*_t_k_t___f_l_a_g_s);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__pprroocceessss__ccoonntteexxtt__ttookkeenn(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _t_o_k_e_n___b_u_f_f_e_r);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__rreelleeaassee__bbuuffffeerr(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___b_u_f_f_e_r___t _b_u_f_f_e_r);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__rreelleeaassee__ccrreedd(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___c_r_e_d___i_d___t _* _c_r_e_d___h_a_n_d_l_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__rreelleeaassee__nnaammee(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___n_a_m_e___t _* _i_n_p_u_t___n_a_m_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__rreelleeaassee__ooiidd__sseett(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___O_I_D___s_e_t _* _s_e_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__sseeaall(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _i_n_t _c_o_n_f___r_e_q___f_l_a_g, _i_n_t _q_o_p___r_e_q, _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _i_n_t _* _c_o_n_f___s_t_a_t_e, _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__ssiiggnn(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _i_n_t _q_o_p___r_e_q, _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___t_o_k_e_n);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__tteesstt__ooiidd__sseett__mmeemmbbeerr(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___O_I_D _m_e_m_b_e_r,
+         _c_o_n_s_t _g_s_s___O_I_D___s_e_t _s_e_t, _i_n_t _* _p_r_e_s_e_n_t);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__uunnsseeaall(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r, _i_n_t _* _c_o_n_f___s_t_a_t_e,
+         _i_n_t _* _q_o_p___s_t_a_t_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__uunnwwrraapp(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r, _i_n_t _* _c_o_n_f___s_t_a_t_e,
+         _g_s_s___q_o_p___t _* _q_o_p___s_t_a_t_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__vveerriiffyy(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___b_u_f_f_e_r, _g_s_s___b_u_f_f_e_r___t _t_o_k_e_n___b_u_f_f_e_r,
+         _i_n_t _* _q_o_p___s_t_a_t_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__vveerriiffyy__mmiicc(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _m_e_s_s_a_g_e___b_u_f_f_e_r,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _t_o_k_e_n___b_u_f_f_e_r, _g_s_s___q_o_p___t _* _q_o_p___s_t_a_t_e);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__wwrraapp(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s, _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e,
+         _i_n_t _c_o_n_f___r_e_q___f_l_a_g, _g_s_s___q_o_p___t _q_o_p___r_e_q,
+         _c_o_n_s_t _g_s_s___b_u_f_f_e_r___t _i_n_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r, _i_n_t _* _c_o_n_f___s_t_a_t_e,
+         _g_s_s___b_u_f_f_e_r___t _o_u_t_p_u_t___m_e_s_s_a_g_e___b_u_f_f_e_r);
+
+     _O_M___u_i_n_t_3_2
+     ggssss__wwrraapp__ssiizzee__lliimmiitt(_O_M___u_i_n_t_3_2 _* _m_i_n_o_r___s_t_a_t_u_s,
+         _c_o_n_s_t _g_s_s___c_t_x___i_d___t _c_o_n_t_e_x_t___h_a_n_d_l_e, _i_n_t _c_o_n_f___r_e_q___f_l_a_g,
+         _g_s_s___q_o_p___t _q_o_p___r_e_q, _O_M___u_i_n_t_3_2 _r_e_q___o_u_t_p_u_t___s_i_z_e,
+         _O_M___u_i_n_t_3_2 _* _m_a_x___i_n_p_u_t___s_i_z_e);
+
+DDEESSCCRRIIPPTTIIOONN
+     Generic Security Service API (GSS-API) version 2, and its C binding, is
+     described in RFC2743 and RFC2744.  Version 1 (deprecated) of the C bind-
+     ing is described in RFC1509.
+
+     Heimdals GSS-API implementation supports the following mechanisms
+
+     ++oo   GSS_KRB5_MECHANISM
+
+     ++oo   GSS_SPNEGO_MECHANISM
+
+     GSS-API have generic name types that all mechanism are supposed to imple-
+     ment (if possible):
+
+     ++oo   GSS_C_NT_USER_NAME
+
+     ++oo   GSS_C_NT_MACHINE_UID_NAME
+
+     ++oo   GSS_C_NT_STRING_UID_NAME
+
+     ++oo   GSS_C_NT_HOSTBASED_SERVICE
+
+     ++oo   GSS_C_NT_ANONYMOUS
+
+     ++oo   GSS_C_NT_EXPORT_NAME
+
+     GSS-API implementations that supports Kerberos 5 have some additional
+     name types:
+
+     ++oo   GSS_KRB5_NT_PRINCIPAL_NAME
+
+     ++oo   GSS_KRB5_NT_USER_NAME
+
+     ++oo   GSS_KRB5_NT_MACHINE_UID_NAME
+
+     ++oo   GSS_KRB5_NT_STRING_UID_NAME
+
+     In GSS-API, names have two forms, internal names and contiguous string
+     names.
+
+     ++oo   Internal name and mechanism name
+
+         Internal names are implementation specific representation of a GSS-
+         API name.  Mechanism names special form of internal names corresponds
+         to one and only one mechanism.
+
+         In GSS-API an internal name is stored in a gss_name_t.
+
+     ++oo   Contiguous string name and exported name
+
+         Contiguous string names are gssapi names stored in a OCTET STRING
+         that together with a name type identifier (OID) uniquely specifies a
+         gss-name.  A special form of the contiguous string name is the
+         exported name that have a OID embedded in the string to make it
+         unique.  Exported name have the nametype GSS_C_NT_EXPORT_NAME.
+
+         In GSS-API an contiguous string name is stored in a gss_buffer_t.
+
+         Exported names also have the property that they are specified by the
+         mechanism itself and compatible between different GSS-API implementa-
+         tions.
+
+AACCCCEESSSS CCOONNTTRROOLL
+     There are two ways of comparing GSS-API names, either comparing two
+     internal names with each other or two contiguous string names with either
+     other.
+
+     To compare two internal names with each other, import (if needed) the
+     names with ggssss__iimmppoorrtt__nnaammee() into the GSS-API implementation and the com-
+     pare the imported name with ggssss__ccoommppaarree__nnaammee().
+
+     Importing names can be slow, so when its possible to store exported names
+     in the access control list, comparing contiguous string name might be
+     better.
+
+     when comparing contiguous string name, first export them into a
+     GSS_C_NT_EXPORT_NAME name with ggssss__eexxppoorrtt__nnaammee() and then compare with
+     memcmp(3).
+
+     Note that there are might be a difference between the two methods of com-
+     paring names.  The first (using ggssss__ccoommppaarree__nnaammee()) will compare to
+     (unauthenticated) names are the same.  The second will compare if a mech-
+     anism will authenticate them as the same principal.
+
+     For example, if ggssss__iimmppoorrtt__nnaammee() name was used with GSS_C_NO_OID the
+     default syntax is used for all mechanism the GSS-API implementation sup-
+     ports.  When compare the imported name of GSS_C_NO_OID it may match
+     serveral mechanism names (MN).
+
+     The resulting name from ggssss__ddiissppllaayy__nnaammee() must not be used for acccess
+     control.
+
+FFUUNNCCTTIIOONNSS
+     ggssss__ddiissppllaayy__nnaammee() takes the gss name in _i_n_p_u_t___n_a_m_e and puts a printable
+     form in _o_u_t_p_u_t___n_a_m_e___b_u_f_f_e_r.  _o_u_t_p_u_t___n_a_m_e___b_u_f_f_e_r should be freed when done
+     using ggssss__rreelleeaassee__bbuuffffeerr().  _o_u_t_p_u_t___n_a_m_e___t_y_p_e can either be NULL or a
+     pointer to a gss_OID and will in the latter case contain the OID type of
+     the name.  The name must only be used for printing.  If access control is
+     needed, see section _A_C_C_E_S_S _C_O_N_T_R_O_L.
+
+     ggssss__iinnqquuiirree__ccoonntteexxtt() returns information about the context.  Information
+     is available even after the context have expired.  _l_i_f_e_t_i_m_e___r_e_c argument
+     is set to GSS_C_INDEFINITE (dont expire) or the number of seconds that
+     the context is still valid.  A value of 0 means that the context is
+     expired.  _m_e_c_h___t_y_p_e argument should be considered readonly and must not
+     be released.  _s_r_c___n_a_m_e and ddeesstt__nnaammee() are both mechanims names and must
+     be released with ggssss__rreelleeaassee__nnaammee() when no longer used.
+
+     ggssss__ccoonntteexxtt__ttiimmee will return the amount of time (in seconds) of the con-
+     text is still valid.  If its expired _t_i_m_e___r_e_c will be set to 0 and
+     GSS_S_CONTEXT_EXPIRED returned.
+
+     ggssss__ssiiggnn(), ggssss__vveerriiffyy(), ggssss__sseeaall(), and ggssss__uunnsseeaall() are part of the
+     GSS-API V1 interface and are obsolete.  The functions should not be used
+     for new applications.  They are provided so that version 1 applications
+     can link against the library.
+
+EEXXTTEENNSSIIOONNSS
+     ggssss__kkrrbb55__ccccaacchhee__nnaammee() sets the internal kerberos 5 credential cache name
+     to _n_a_m_e.  The old name is returned in _o_l_d___n_a_m_e, and must not be freed.
+     The data allocated for _o_l_d___n_a_m_e is free upon next call to
+     ggssss__kkrrbb55__ccccaacchhee__nnaammee().  This function is not threadsafe if _o_l_d___n_a_m_e
+     argument is used.
+
+     ggssss__kkrrbb55__ccooppyy__ccccaacchhee() will extract the krb5 credentials that are trans-
+     ferred from the initiator to the acceptor when using token delegation in
+     the Kerberos mechanism.  The acceptor receives the delegated token in the
+     last argument to ggssss__aacccceepptt__sseecc__ccoonntteexxtt().
+
+     ggssss__kkrrbb55__iimmppoorrtt__ccrreedd() will import the krb5 credentials (both keytab
+     and/or credential cache) into gss credential so it can be used withing
+     GSS-API.  The _c_c_a_c_h_e is copied by reference and thus shared, so if the
+     credential is destroyed with _k_r_b_5___c_c___d_e_s_t_r_o_y, all users of thep
+     _g_s_s___c_r_e_d___i_d___t returned by ggssss__kkrrbb55__iimmppoorrtt__ccccaacchhee() will fail.
+
+     ggsssskkrrbb55__rreeggiisstteerr__aacccceeppttoorr__iiddeennttiittyy() sets the Kerberos 5 filebased keytab
+     that the acceptor will use.  The _i_d_e_n_t_i_f_i_e_r is the file name.
+
+     ggsssskkrrbb55__eexxttrraacctt__aauutthhzz__ddaattaa__ffrroomm__sseecc__ccoonntteexxtt() extracts the Kerberos
+     authorizationdata that may be stored within the context.  Tha caller must
+     free the returned buffer _a_d___d_a_t_a with ggssss__rreelleeaassee__bbuuffffeerr() upon success.
+
+     ggssss__kkrrbb55__ggeett__ttkktt__ffllaaggss() return the ticket flags for the kerberos ticket
+     receive when authenticating the initiator.  Only valid on the acceptor
+     context.
+
+     ggssss__kkrrbb55__ccoommppaatt__ddeess33__mmiicc() turns on or off the compatibility with older
+     version of Heimdal using des3 get and verify mic, this is way to program-
+     matically set the [gssapi]broken_des3_mic and [gssapi]correct_des3_mic
+     flags (see COMPATIBILITY section in gssapi(3)).  If the CPP symbol
+     GSS_C_KRB5_COMPAT_DES3_MIC is present, ggssss__kkrrbb55__ccoommppaatt__ddeess33__mmiicc() exists.
+     ggssss__kkrrbb55__ccoommppaatt__ddeess33__mmiicc() will be removed in a later version of the GSS-
+     API library.
+
+SSEEEE AALLSSOO
+     gssapi(3), krb5(3), krb5_ccache(3), kerberos(8)
+
+HEIMDAL                        October 26, 2005                        HEIMDAL

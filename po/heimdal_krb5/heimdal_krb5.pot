@@ -1,0 +1,1793 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Heimdal 1.2.99\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-12-06 09:51-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: lib/krb5/acache.c:119
+#, c-format
+msgid "Failed to load API cache module %s"
+msgstr ""
+
+#: lib/krb5/acache.c:128
+#, c-format
+msgid "Failed to find cc_initializein %s: %s"
+msgstr ""
+
+#: lib/krb5/acache.c:138
+msgid "no support for shared object"
+msgstr ""
+
+#: lib/krb5/acache.c:263
+#: lib/krb5/acache.c:982
+#: lib/krb5/acl.c:87
+#: lib/krb5/addr_families.c:1113
+#: lib/krb5/addr_families.c:1139
+#: lib/krb5/addr_families.c:1382
+#: lib/krb5/addr_families.c:1425
+#: lib/krb5/addr_families.c:1432
+#: lib/krb5/auth_context.c:46
+#: lib/krb5/auth_context.c:52
+#: lib/krb5/auth_context.c:244
+#: lib/krb5/auth_context.c:255
+#: lib/krb5/auth_context.c:455
+#: lib/krb5/build_auth.c:65
+#: lib/krb5/build_auth.c:85
+#: lib/krb5/build_auth.c:93
+#: lib/krb5/build_auth.c:123
+#: lib/krb5/cache.c:77
+#: lib/krb5/cache.c:104
+#: lib/krb5/cache.c:288
+#: lib/krb5/cache.c:361
+#: lib/krb5/cache.c:372
+#: lib/krb5/cache.c:493
+#: lib/krb5/cache.c:540
+#: lib/krb5/cache.c:941
+#: lib/krb5/cache.c:1006
+#: lib/krb5/cache.c:1335
+#: lib/krb5/context.c:71
+#: lib/krb5/context.c:107
+#: lib/krb5/context.c:354
+#: lib/krb5/context.c:360
+#: lib/krb5/context.c:707
+#: lib/krb5/context.c:749
+#: lib/krb5/context.c:787
+#: lib/krb5/context.c:940
+#: lib/krb5/context.c:1022
+#: lib/krb5/convert_creds.c:100
+#: lib/krb5/copy_host_realm.c:65
+#: lib/krb5/copy_host_realm.c:74
+#: lib/krb5/creds.c:161
+#: lib/krb5/crypto.c:362
+#: lib/krb5/crypto.c:445
+#: lib/krb5/crypto.c:459
+#: lib/krb5/crypto.c:507
+#: lib/krb5/crypto.c:585
+#: lib/krb5/crypto.c:601
+#: lib/krb5/crypto.c:625
+#: lib/krb5/crypto.c:673
+#: lib/krb5/crypto.c:679
+#: lib/krb5/crypto.c:916
+#: lib/krb5/crypto.c:1181
+#: lib/krb5/crypto.c:1258
+#: lib/krb5/crypto.c:1291
+#: lib/krb5/crypto.c:1544
+#: lib/krb5/crypto.c:1731
+#: lib/krb5/crypto.c:2634
+#: lib/krb5/crypto.c:2792
+#: lib/krb5/crypto.c:2856
+#: lib/krb5/crypto.c:2918
+#: lib/krb5/crypto.c:2970
+#: lib/krb5/crypto.c:3012
+#: lib/krb5/crypto.c:3041
+#: lib/krb5/crypto.c:3074
+#: lib/krb5/crypto.c:3103
+#: lib/krb5/crypto.c:3118
+#: lib/krb5/crypto.c:3806
+#: lib/krb5/crypto.c:3811
+#: lib/krb5/crypto.c:3830
+#: lib/krb5/crypto.c:3839
+#: lib/krb5/crypto.c:3845
+#: lib/krb5/crypto.c:3943
+#: lib/krb5/crypto.c:3963
+#: lib/krb5/crypto.c:4155
+#: lib/krb5/crypto.c:4167
+#: lib/krb5/crypto.c:4173
+#: lib/krb5/crypto.c:4347
+#: lib/krb5/crypto.c:4431
+#: lib/krb5/crypto.c:4458
+#: lib/krb5/crypto.c:4514
+#: lib/krb5/crypto.c:4644
+#: lib/krb5/crypto.c:4668
+#: lib/krb5/digest.c:58
+#: lib/krb5/digest.c:110
+#: lib/krb5/digest.c:125
+#: lib/krb5/digest.c:142
+#: lib/krb5/digest.c:147
+#: lib/krb5/digest.c:173
+#: lib/krb5/digest.c:197
+#: lib/krb5/digest.c:223
+#: lib/krb5/digest.c:228
+#: lib/krb5/digest.c:478
+#: lib/krb5/digest.c:483
+#: lib/krb5/digest.c:503
+#: lib/krb5/digest.c:520
+#: lib/krb5/digest.c:537
+#: lib/krb5/digest.c:542
+#: lib/krb5/digest.c:566
+#: lib/krb5/digest.c:583
+#: lib/krb5/digest.c:588
+#: lib/krb5/digest.c:608
+#: lib/krb5/digest.c:613
+#: lib/krb5/digest.c:632
+#: lib/krb5/digest.c:637
+#: lib/krb5/digest.c:658
+#: lib/krb5/digest.c:663
+#: lib/krb5/digest.c:682
+#: lib/krb5/digest.c:687
+#: lib/krb5/digest.c:702
+#: lib/krb5/digest.c:807
+#: lib/krb5/digest.c:847
+#: lib/krb5/digest.c:1065
+#: lib/krb5/digest.c:1078
+#: lib/krb5/digest.c:1091
+#: lib/krb5/digest.c:1106
+#: lib/krb5/digest.c:1121
+#: lib/krb5/digest.c:1136
+#: lib/krb5/digest.c:1141
+#: lib/krb5/expand_hostname.c:46
+#: lib/krb5/expand_hostname.c:81
+#: lib/krb5/fcache.c:150
+#: lib/krb5/fcache.c:186
+#: lib/krb5/fcache.c:193
+#: lib/krb5/fcache.c:309
+#: lib/krb5/fcache.c:316
+#: lib/krb5/fcache.c:682
+#: lib/krb5/fcache.c:802
+#: lib/krb5/generate_subkey.c:56
+#: lib/krb5/get_addrs.c:70
+#: lib/krb5/get_addrs.c:137
+#: lib/krb5/get_cred.c:103
+#: lib/krb5/get_cred.c:158
+#: lib/krb5/get_cred.c:178
+#: lib/krb5/get_cred.c:194
+#: lib/krb5/get_cred.c:205
+#: lib/krb5/get_cred.c:212
+#: lib/krb5/get_cred.c:222
+#: lib/krb5/get_cred.c:228
+#: lib/krb5/get_cred.c:237
+#: lib/krb5/get_cred.c:648
+#: lib/krb5/get_cred.c:722
+#: lib/krb5/get_cred.c:798
+#: lib/krb5/get_cred.c:870
+#: lib/krb5/get_cred.c:1120
+#: lib/krb5/get_cred.c:1210
+#: lib/krb5/get_cred.c:1275
+#: lib/krb5/get_cred.c:1283
+#: lib/krb5/get_cred.c:1322
+#: lib/krb5/get_default_realm.c:80
+#: lib/krb5/get_for_creds.c:55
+#: lib/krb5/get_for_creds.c:273
+#: lib/krb5/get_for_creds.c:286
+#: lib/krb5/get_for_creds.c:299
+#: lib/krb5/get_for_creds.c:306
+#: lib/krb5/get_for_creds.c:351
+#: lib/krb5/get_host_realm.c:195
+#: lib/krb5/get_host_realm.c:202
+#: lib/krb5/get_in_tkt.c:63
+#: lib/krb5/get_in_tkt.c:451
+#: lib/krb5/get_in_tkt.c:631
+#: lib/krb5/get_in_tkt.c:678
+#: lib/krb5/get_in_tkt.c:684
+#: lib/krb5/get_in_tkt.c:701
+#: lib/krb5/get_in_tkt.c:714
+#: lib/krb5/get_in_tkt.c:737
+#: lib/krb5/get_in_tkt.c:762
+#: lib/krb5/get_in_tkt.c:801
+#: lib/krb5/init_creds.c:58
+#: lib/krb5/init_creds.c:65
+#: lib/krb5/init_creds.c:84
+#: lib/krb5/init_creds.c:92
+#: lib/krb5/init_creds.c:389
+#: lib/krb5/init_creds_pw.c:341
+#: lib/krb5/init_creds_pw.c:355
+#: lib/krb5/init_creds_pw.c:518
+#: lib/krb5/init_creds_pw.c:570
+#: lib/krb5/init_creds_pw.c:576
+#: lib/krb5/init_creds_pw.c:595
+#: lib/krb5/init_creds_pw.c:608
+#: lib/krb5/init_creds_pw.c:631
+#: lib/krb5/init_creds_pw.c:1104
+#: lib/krb5/kcm.c:184
+#: lib/krb5/kcm.c:219
+#: lib/krb5/kcm.c:228
+#: lib/krb5/kcm.c:645
+#: lib/krb5/kcm.c:668
+#: lib/krb5/keyblock.c:136
+#: lib/krb5/keytab.c:58
+#: lib/krb5/keytab.c:109
+#: lib/krb5/keytab.c:270
+#: lib/krb5/keytab_any.c:76
+#: lib/krb5/keytab_any.c:137
+#: lib/krb5/keytab_file.c:65
+#: lib/krb5/keytab_file.c:86
+#: lib/krb5/keytab_file.c:195
+#: lib/krb5/keytab_file.c:227
+#: lib/krb5/keytab_file.c:298
+#: lib/krb5/keytab_file.c:304
+#: lib/krb5/keytab_file.c:395
+#: lib/krb5/keytab_file.c:611
+#: lib/krb5/keytab_keyfile.c:96
+#: lib/krb5/keytab_keyfile.c:123
+#: lib/krb5/keytab_keyfile.c:141
+#: lib/krb5/keytab_keyfile.c:157
+#: lib/krb5/keytab_keyfile.c:266
+#: lib/krb5/keytab_keyfile.c:336
+#: lib/krb5/keytab_memory.c:79
+#: lib/krb5/keytab_memory.c:87
+#: lib/krb5/keytab_memory.c:182
+#: lib/krb5/krbhst.c:102
+#: lib/krb5/krbhst.c:254
+#: lib/krb5/log.c:125
+#: lib/krb5/log.c:132
+#: lib/krb5/log.c:151
+#: lib/krb5/log.c:194
+#: lib/krb5/log.c:250
+#: lib/krb5/log.c:302
+#: lib/krb5/mcache.c:125
+#: lib/krb5/mcache.c:145
+#: lib/krb5/mcache.c:246
+#: lib/krb5/mcache.c:360
+#: lib/krb5/mcache.c:454
+#: lib/krb5/mk_priv.c:142
+#: lib/krb5/mk_rep.c:73
+#: lib/krb5/pac.c:96
+#: lib/krb5/pac.c:103
+#: lib/krb5/pac.c:127
+#: lib/krb5/pac.c:237
+#: lib/krb5/pac.c:244
+#: lib/krb5/pac.c:252
+#: lib/krb5/pac.c:275
+#: lib/krb5/pac.c:302
+#: lib/krb5/pac.c:359
+#: lib/krb5/pac.c:384
+#: lib/krb5/pac.c:428
+#: lib/krb5/pac.c:440
+#: lib/krb5/pac.c:543
+#: lib/krb5/pac.c:572
+#: lib/krb5/pac.c:590
+#: lib/krb5/pac.c:610
+#: lib/krb5/pac.c:658
+#: lib/krb5/pac.c:822
+#: lib/krb5/pac.c:895
+#: lib/krb5/pac.c:933
+#: lib/krb5/pac.c:941
+#: lib/krb5/pac.c:981
+#: lib/krb5/pac.c:1012
+#: lib/krb5/pac.c:1019
+#: lib/krb5/pac.c:1026
+#: lib/krb5/padata.c:56
+#: lib/krb5/pkinit.c:361
+#: lib/krb5/pkinit.c:617
+#: lib/krb5/pkinit.c:812
+#: lib/krb5/pkinit.c:877
+#: lib/krb5/pkinit.c:1059
+#: lib/krb5/pkinit.c:1250
+#: lib/krb5/pkinit.c:1268
+#: lib/krb5/pkinit.c:1531
+#: lib/krb5/pkinit.c:1750
+#: lib/krb5/pkinit.c:1898
+#: lib/krb5/pkinit.c:1939
+#: lib/krb5/pkinit.c:2059
+#: lib/krb5/pkinit.c:2131
+#: lib/krb5/principal.c:197
+#: lib/krb5/principal.c:206
+#: lib/krb5/principal.c:241
+#: lib/krb5/principal.c:273
+#: lib/krb5/principal.c:297
+#: lib/krb5/principal.c:308
+#: lib/krb5/principal.c:478
+#: lib/krb5/principal.c:554
+#: lib/krb5/principal.c:587
+#: lib/krb5/principal.c:594
+#: lib/krb5/principal.c:643
+#: lib/krb5/principal.c:652
+#: lib/krb5/principal.c:729
+#: lib/krb5/principal.c:735
+#: lib/krb5/principal.c:981
+#: lib/krb5/rd_cred.c:255
+#: lib/krb5/rd_cred.c:267
+#: lib/krb5/rd_rep.c:82
+#: lib/krb5/rd_req.c:539
+#: lib/krb5/rd_req.c:623
+#: lib/krb5/rd_safe.c:197
+#: lib/krb5/recvauth.c:141
+#: lib/krb5/replay.c:51
+#: lib/krb5/replay.c:72
+#: lib/krb5/replay.c:299
+#: lib/krb5/replay.c:311
+#: lib/krb5/scache.c:348
+#: lib/krb5/scache.c:489
+#: lib/krb5/scache.c:540
+#: lib/krb5/scache.c:655
+#: lib/krb5/scache.c:685
+#: lib/krb5/scache.c:879
+#: lib/krb5/scache.c:901
+#: lib/krb5/scache.c:909
+#: lib/krb5/scache.c:1151
+#: lib/krb5/scache.c:1165
+#: lib/krb5/scache.c:1174
+#: lib/krb5/scache.c:1185
+#: lib/krb5/scache.c:1359
+#: lib/krb5/send_to_kdc.c:493
+#: lib/krb5/send_to_kdc.c:528
+#: lib/krb5/set_default_realm.c:50
+#: lib/krb5/set_default_realm.c:57
+#: lib/krb5/ticket.c:61
+#: lib/krb5/ticket.c:157
+#: lib/krb5/transited.c:92
+#: lib/krb5/transited.c:101
+#: lib/krb5/transited.c:118
+#: lib/krb5/transited.c:127
+#: lib/krb5/transited.c:194
+#: lib/krb5/transited.c:209
+#: lib/krb5/transited.c:296
+#: lib/krb5/transited.c:305
+#: lib/krb5/transited.c:316
+#: lib/krb5/transited.c:325
+#: lib/krb5/v4_glue.c:429
+#: lib/krb5/v4_glue.c:486
+#: lib/krb5/v4_glue.c:545
+#: lib/krb5/v4_glue.c:601
+#: lib/krb5/v4_glue.c:780
+#: lib/krb5/v4_glue.c:853
+#: lib/krb5/verify_user.c:107
+msgid "malloc: out of memory"
+msgstr ""
+
+#: lib/krb5/acache.c:632
+#: lib/krb5/acache.c:666
+#: lib/krb5/acache.c:693
+#: lib/krb5/acache.c:759
+#: lib/krb5/acache.c:996
+#: lib/krb5/acache.c:1016
+msgid "No API credential found"
+msgstr ""
+
+#: lib/krb5/acache.c:812
+#, c-format
+msgid "Can't find credential %s in cache"
+msgstr ""
+
+#: lib/krb5/acl.c:103
+#, c-format
+msgid "Unknown format specifier %c while parsing ACL"
+msgstr ""
+
+#: lib/krb5/acl.c:225
+#: lib/krb5/acl.c:294
+msgid "ACL did not match"
+msgstr ""
+
+#: lib/krb5/acl.c:264
+#: lib/krb5/fcache.c:375
+#: lib/krb5/keytab_file.c:542
+#, c-format
+msgid "open(%s): %s"
+msgstr ""
+
+#: lib/krb5/addr_families.c:206
+#, c-format
+msgid "IPv4 prefix too large (%ld)"
+msgstr ""
+
+#: lib/krb5/addr_families.c:400
+#, c-format
+msgid "IPv6 prefix too large (%ld)"
+msgstr ""
+
+#: lib/krb5/addr_families.c:406
+msgid "IPv6 addr bad length"
+msgstr ""
+
+#: lib/krb5/addr_families.c:802
+#: lib/krb5/addr_families.c:830
+#: lib/krb5/addr_families.c:985
+#: lib/krb5/addr_families.c:1019
+#: lib/krb5/addr_families.c:1185
+#: lib/krb5/addr_families.c:1194
+#, c-format
+msgid "Address family %d not supported"
+msgstr ""
+
+#: lib/krb5/addr_families.c:869
+#, c-format
+msgid "Address type %d not supported"
+msgstr ""
+
+#: lib/krb5/addr_families.c:877
+#, c-format
+msgid "Can't convert address type %d to sockaddr"
+msgstr ""
+
+#: lib/krb5/addr_families.c:1493
+#, c-format
+msgid "Address family %d doesn't support address mask operation"
+msgstr ""
+
+#: lib/krb5/cache.c:64
+#, c-format
+msgid "cache type %s already exists"
+msgstr ""
+
+#: lib/krb5/cache.c:173
+#, c-format
+msgid "unknown ccache type %s"
+msgstr ""
+
+#: lib/krb5/cache.c:998
+#, c-format
+msgid "Credential cache type %s doesn't support iterations over caches"
+msgstr ""
+
+#: lib/krb5/cache.c:1114
+#, c-format
+msgid "Principal %s not found in any credential cache"
+msgstr ""
+
+#: lib/krb5/cache.c:1147
+msgid "Moving credentials between diffrent types not yet supported"
+msgstr ""
+
+#: lib/krb5/cache.c:1394
+msgid "Reached end of credential caches"
+msgstr ""
+
+#: lib/krb5/changepw.c:315
+#, c-format
+msgid "Message too large from %s"
+msgstr ""
+
+#: lib/krb5/changepw.c:654
+#, c-format
+msgid "Unable to reach any changepw server  in realm %s"
+msgstr ""
+
+#: lib/krb5/convert_creds.c:136
+#, c-format
+msgid "converting credentials: %s"
+msgstr ""
+
+#: lib/krb5/crypto.c:594
+#: lib/krb5/crypto.c:609
+msgid "Password not an UCS2 string"
+msgstr ""
+
+#: lib/krb5/crypto.c:939
+#: lib/krb5/crypto.c:1053
+#: lib/krb5/crypto.c:1109
+#: lib/krb5/crypto.c:1142
+#: lib/krb5/crypto.c:1168
+#: lib/krb5/crypto.c:2627
+#: lib/krb5/crypto.c:2665
+#: lib/krb5/crypto.c:2680
+#: lib/krb5/crypto.c:3909
+#: lib/krb5/crypto.c:3973
+#: lib/krb5/crypto.c:4095
+#: lib/krb5/crypto.c:4122
+#: lib/krb5/crypto.c:4146
+#: lib/krb5/crypto.c:4297
+#: lib/krb5/crypto.c:4339
+#: lib/krb5/crypto.c:4506
+#: lib/krb5/crypto.c:4566
+#, c-format
+msgid "encryption type %d not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:950
+#, c-format
+msgid "salttype %s not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:1062
+#, c-format
+msgid "salt type %d not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:1480
+#: lib/krb5/crypto.c:1815
+#: lib/krb5/crypto.c:1847
+#: lib/krb5/crypto.c:1907
+#: lib/krb5/crypto.c:1955
+#: lib/krb5/crypto.c:1971
+#: lib/krb5/crypto.c:1986
+#: lib/krb5/crypto.c:2001
+#: lib/krb5/crypto.c:2725
+#: lib/krb5/crypto.c:2738
+#, c-format
+msgid "checksum type %d not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:1767
+#: lib/krb5/crypto.c:1858
+#, c-format
+msgid "Checksum type %s is keyed but no crypto context (key) was passed in"
+msgstr ""
+
+#: lib/krb5/crypto.c:1937
+msgid "checksum type not found"
+msgstr ""
+
+#: lib/krb5/crypto.c:2337
+msgid "malloc: out memory"
+msgstr ""
+
+#: lib/krb5/crypto.c:2652
+#, c-format
+msgid "encryption type %s not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:2686
+#, c-format
+msgid "encryption type %s is disabled"
+msgstr ""
+
+#: lib/krb5/crypto.c:2744
+#, c-format
+msgid "checksum type %s is disabled"
+msgstr ""
+
+#: lib/krb5/crypto.c:2958
+msgid "Encrypted data shorter then checksum + confunder"
+msgstr ""
+
+#: lib/krb5/crypto.c:3585
+msgid "Checksum larger then input buffer"
+msgstr ""
+
+#: lib/krb5/crypto.c:3862
+#, c-format
+msgid "derive_key() called with unknown keytype (%u)"
+msgstr ""
+
+#: lib/krb5/crypto.c:4303
+#, c-format
+msgid ""
+"encryption key %s needs %d bytes of random to make an encryption key out of "
+"it"
+msgstr ""
+
+#: lib/krb5/crypto.c:4395
+msgid "Failed to encode KRB5PrincipalName"
+msgstr ""
+
+#: lib/krb5/crypto.c:4490
+msgid "KDF not supported"
+msgstr ""
+
+#: lib/krb5/crypto.c:4498
+msgid "kdf params not NULL or the NULL-type"
+msgstr ""
+
+#: lib/krb5/digest.c:88
+msgid "server channel binding already set"
+msgstr ""
+
+#: lib/krb5/digest.c:168
+msgid "nonce already set"
+msgstr ""
+
+#: lib/krb5/digest.c:218
+msgid "identifier already set"
+msgstr ""
+
+#: lib/krb5/digest.c:287
+msgid "Failed to encode digest inner request"
+msgstr ""
+
+#: lib/krb5/digest.c:308
+msgid "Digest failed to get local subkey"
+msgstr ""
+
+#: lib/krb5/digest.c:330
+msgid "Failed to encode DigestREQest"
+msgstr ""
+
+#: lib/krb5/digest.c:343
+msgid "Failed to parse digest response"
+msgstr ""
+
+#: lib/krb5/digest.c:365
+msgid "Digest reply have no remote subkey"
+msgstr ""
+
+#: lib/krb5/digest.c:385
+msgid "Failed to decode digest inner reply"
+msgstr ""
+
+#: lib/krb5/digest.c:425
+msgid "Type missing from init req"
+msgstr ""
+
+#: lib/krb5/digest.c:439
+#: lib/krb5/digest.c:902
+#, c-format
+msgid "Digest init error: %s"
+msgstr ""
+
+#: lib/krb5/digest.c:447
+msgid "digest reply not an initReply"
+msgstr ""
+
+#: lib/krb5/digest.c:454
+#: lib/krb5/digest.c:917
+msgid "Failed to copy initReply"
+msgstr ""
+
+#: lib/krb5/digest.c:472
+msgid "clientNonce already set"
+msgstr ""
+
+#: lib/krb5/digest.c:498
+msgid "digest already set"
+msgstr ""
+
+#: lib/krb5/digest.c:559
+msgid "authentication_user already set"
+msgstr ""
+
+#: lib/krb5/digest.c:603
+msgid "method already set"
+msgstr ""
+
+#: lib/krb5/digest.c:627
+msgid "uri already set"
+msgstr ""
+
+#: lib/krb5/digest.c:652
+msgid "nonceCount already set"
+msgstr ""
+
+#: lib/krb5/digest.c:727
+msgid "Type missing from req"
+msgstr ""
+
+#: lib/krb5/digest.c:744
+#, c-format
+msgid "Digest response error: %s"
+msgstr ""
+
+#: lib/krb5/digest.c:751
+msgid "digest reply not an DigestResponse"
+msgstr ""
+
+#: lib/krb5/digest.c:759
+msgid "Failed to copy initReply,"
+msgstr ""
+
+#: lib/krb5/digest.c:910
+msgid "ntlm reply not an initReply"
+msgstr ""
+
+#: lib/krb5/digest.c:1024
+#, c-format
+msgid "NTLM response error: %s"
+msgstr ""
+
+#: lib/krb5/digest.c:1032
+msgid "NTLM reply not an NTLMResponse"
+msgstr ""
+
+#: lib/krb5/digest.c:1039
+msgid "Failed to copy NTLMResponse"
+msgstr ""
+
+#: lib/krb5/digest.c:1163
+msgid "no ntlm session key"
+msgstr ""
+
+#: lib/krb5/fcache.c:97
+#, c-format
+msgid "timed out locking cache file %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:102
+#, c-format
+msgid "error locking cache file %s: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:134
+#, c-format
+msgid "Failed to unlock file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:159
+msgid "Failed to write FILE credential data"
+msgstr ""
+
+#: lib/krb5/fcache.c:322
+#, c-format
+msgid "mkstemp %s failed"
+msgstr ""
+
+#: lib/krb5/fcache.c:437
+#: lib/krb5/fcache.c:491
+#, c-format
+msgid "close %s: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:525
+#, c-format
+msgid "Empty credential cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:528
+#, c-format
+msgid "Error reading pvno in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:535
+#, c-format
+msgid "Bad version number in credential cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:557
+#, c-format
+msgid "Error reading tag length in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:569
+#, c-format
+msgid "Error reading dtag in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:578
+#, c-format
+msgid "Error reading dlength in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:589
+#, c-format
+msgid "Error reading kdc_sec in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:598
+#, c-format
+msgid "Error reading kdc_usec in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:610
+#, c-format
+msgid "Error reading unknown tag in cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:629
+#, c-format
+msgid "Unknown version number (%d) in credential cache file: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:857
+#, c-format
+msgid "Rename of file from %s to %s failed: %s"
+msgstr ""
+
+#: lib/krb5/fcache.c:884
+msgid "Failed to write data from one file credential cache to the other"
+msgstr ""
+
+#: lib/krb5/fcache.c:892
+msgid "Failed to read data from one file credential cache to the other"
+msgstr ""
+
+#: lib/krb5/fcache.c:946
+msgid "Failed to stat cache file"
+msgstr ""
+
+#: lib/krb5/get_addrs.c:121
+msgid "no addresses found"
+msgstr ""
+
+#: lib/krb5/get_cred.c:389
+#: lib/krb5/get_in_tkt.c:341
+msgid "Failed to decode encpart in ticket"
+msgstr ""
+
+#: lib/krb5/get_cred.c:679
+#, c-format
+msgid "Matching credential (%s) not found"
+msgstr ""
+
+#: lib/krb5/get_cred.c:971
+msgid "Got back an non krbtgt ticket referrals"
+msgstr ""
+
+#: lib/krb5/get_cred.c:992
+#, c-format
+msgid "Referral from %s loops back to realm %s"
+msgstr ""
+
+#: lib/krb5/get_default_principal.c:89
+msgid "unable to figure out current principal"
+msgstr ""
+
+#: lib/krb5/get_for_creds.c:242
+#, c-format
+msgid "resolving host %s failed: %s"
+msgstr ""
+
+#: lib/krb5/get_host_realm.c:210
+#, c-format
+msgid "unable to find realm of host %s"
+msgstr ""
+
+#: lib/krb5/get_host_realm.c:254
+#, c-format
+msgid "Unable to find realm of host %s"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:112
+#, c-format
+msgid "Referral EncryptedData wrong for realm %s"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:141
+#, c-format
+msgid "server ref realm mismatch, requested realm %s got back %s"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:157
+msgid "tgt returned with wrong ref"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:163
+msgid "req princ no same as returned"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:174
+msgid "referred principal not same as requested"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:181
+msgid "Requested principal missing on AS-REQ"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:191
+msgid "Not same server principal returned as requested"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:233
+#, c-format
+msgid "Failed to decode ClientCanonicalized from realm %s"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:261
+#, c-format
+msgid "Failed to verify client canonicalized data from realm %s"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:274
+msgid "Requested name doesn't match in client referral"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:284
+msgid "Mapped name doesn't match in client referral"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:294
+msgid "Not same client principal returned as requested"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:479
+#, c-format
+msgid "time skew (%d) larger than max (%d)"
+msgstr ""
+
+#: lib/krb5/get_in_tkt.c:821
+#, c-format
+msgid "pre-auth type %d not supported"
+msgstr ""
+
+#: lib/krb5/init_creds.c:335
+#, c-format
+msgid "%s on non extendable opt"
+msgstr ""
+
+#: lib/krb5/init_creds_pw.c:475
+msgid "failed changing password"
+msgstr ""
+
+#: lib/krb5/init_creds_pw.c:1047
+#: lib/krb5/init_creds_pw.c:1203
+#: lib/krb5/pkinit.c:2154
+msgid "no support for PKINIT compiled in"
+msgstr ""
+
+#: lib/krb5/init_creds_pw.c:1210
+msgid "No usable pa data type"
+msgstr ""
+
+#: lib/krb5/init_creds_pw.c:1337
+msgid "failed to decode METHOD DATA"
+msgstr ""
+
+#: lib/krb5/kcm.c:203
+msgid "Failed to encode KCM request"
+msgstr ""
+
+#: lib/krb5/keytab.c:51
+msgid "can't register cache type, prefix too long"
+msgstr ""
+
+#: lib/krb5/keytab.c:102
+#, c-format
+msgid "unknown keytab type %.*s"
+msgstr ""
+
+#: lib/krb5/keytab.c:384
+#, c-format
+msgid "Failed to find %s%s in keytab %s (%s)"
+msgstr ""
+
+#: lib/krb5/keytab.c:451
+#, c-format
+msgid "start_seq_get is not supported in the %s keytab type"
+msgstr ""
+
+#: lib/krb5/keytab.c:473
+#, c-format
+msgid "next_entry is not supported in the %s  keytab"
+msgstr ""
+
+#: lib/krb5/keytab.c:511
+#, c-format
+msgid "Add is not supported in the %s keytab"
+msgstr ""
+
+#: lib/krb5/keytab.c:531
+#, c-format
+msgid "Remove is not supported in the %s keytab"
+msgstr ""
+
+#: lib/krb5/keytab_any.c:90
+msgid "empty ANY: keytab"
+msgstr ""
+
+#: lib/krb5/keytab_any.c:214
+#, c-format
+msgid "failed to add entry to %s"
+msgstr ""
+
+#: lib/krb5/keytab_any.c:238
+#, c-format
+msgid "Failed to remove keytab entry from %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:144
+#: lib/krb5/keytab_file.c:152
+#, c-format
+msgid "Cant read keyblock from file %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:168
+#: lib/krb5/keytab_file.c:175
+#, c-format
+msgid "Cant store keyblock to file %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:202
+#, c-format
+msgid "Failed decoding length of keytab principal in keytab file %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:212
+#, c-format
+msgid "Keytab principal contains invalid length in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:220
+#, c-format
+msgid "Can't read realm from keytab: %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:235
+#, c-format
+msgid "Can't read principal from keytab: %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:249
+#, c-format
+msgid "Can't read name-type from keytab: %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:380
+#, c-format
+msgid "keytab %s open failed: %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:579
+#, c-format
+msgid "%s: keytab is corrupted: %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:588
+#, c-format
+msgid "Bad version in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:595
+#, c-format
+msgid "failed reading tag from keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:617
+#, c-format
+msgid "Failed storing principal in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:626
+#, c-format
+msgid "Failed storing timpstamp in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:635
+#, c-format
+msgid "Failed storing kvno in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:650
+#, c-format
+msgid "Failed storing extended kvno in keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:662
+#, c-format
+msgid "Failed converting keytab entry to memory block for keytab %s"
+msgstr ""
+
+#: lib/krb5/keytab_file.c:688
+#, c-format
+msgid "Failed writing keytab block in keytab %s: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:78
+#, c-format
+msgid "Open ThisCell %s: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:86
+#, c-format
+msgid "No cell in ThisCell file %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:107
+#, c-format
+msgid "No realm in ThisCell file %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:212
+#, c-format
+msgid "keytab afs keyfile open %s failed: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:324
+#, c-format
+msgid "open keyfile(%s): %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:347
+#, c-format
+msgid "seeking in keyfile: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:372
+msgid "Failed getting kvno from keyfile"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:378
+#: lib/krb5/keytab_keyfile.c:394
+#, c-format
+msgid "Failed seeing in keyfile: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:403
+msgid "keytab keyfile failed new length"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:410
+#, c-format
+msgid "seek to end: %s"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:417
+msgid "keytab keyfile failed store kvno"
+msgstr ""
+
+#: lib/krb5/keytab_keyfile.c:428
+msgid "keytab keyfile failed to add key"
+msgstr ""
+
+#: lib/krb5/krbhst.c:76
+#, c-format
+msgid "unknown protocol `%s' to lookup"
+msgstr ""
+
+#: lib/krb5/krbhst.c:547
+#, c-format
+msgid "Locate plugin failed to lookup realm %s: %d"
+msgstr ""
+
+#: lib/krb5/krbhst.c:843
+#, c-format
+msgid "unknown krbhst type (%u)"
+msgstr ""
+
+#: lib/krb5/krbhst.c:932
+#, c-format
+msgid "No KDC found for realm %s"
+msgstr ""
+
+#: lib/krb5/log.c:286
+#, c-format
+msgid "failed to parse \"%s\""
+msgstr ""
+
+#: lib/krb5/log.c:311
+#, c-format
+msgid "open(%s) logile: %s"
+msgstr ""
+
+#: lib/krb5/log.c:322
+#, c-format
+msgid "fdopen(%s) logfile: %s"
+msgstr ""
+
+#: lib/krb5/log.c:348
+#, c-format
+msgid "unknown log type: %s"
+msgstr ""
+
+#. Too few buffers
+#: lib/krb5/pac.c:112
+msgid "PAC have too few buffer"
+msgstr ""
+
+#: lib/krb5/pac.c:118
+#, c-format
+msgid "PAC have wrong version %d"
+msgstr ""
+
+#: lib/krb5/pac.c:150
+msgid "PAC out of allignment"
+msgstr ""
+
+#: lib/krb5/pac.c:156
+msgid "PAC high offset set"
+msgstr ""
+
+#: lib/krb5/pac.c:162
+msgid "PAC offset off end"
+msgstr ""
+
+#: lib/krb5/pac.c:168
+#, c-format
+msgid "PAC offset inside header: %lu %lu"
+msgstr ""
+
+#: lib/krb5/pac.c:175
+msgid "PAC length off end"
+msgstr ""
+
+#: lib/krb5/pac.c:184
+msgid "PAC have two server checksums"
+msgstr ""
+
+#: lib/krb5/pac.c:192
+msgid "PAC have two KDC checksums"
+msgstr ""
+
+#: lib/krb5/pac.c:200
+msgid "PAC have two logon names"
+msgstr ""
+
+#: lib/krb5/pkinit.c:118
+#, c-format
+msgid "PKINIT: parsing BN failed %s"
+msgstr ""
+
+#: lib/krb5/pkinit.c:542
+#, c-format
+msgid "Failed encoding AuthPackWin: %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:565
+#, c-format
+msgid "Failed encoding AuthPack: %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:586
+msgid "ContentInfo wrapping of signedData failed"
+msgstr ""
+
+#: lib/krb5/pkinit.c:625
+msgid "pk-init: failed to build trustedCertifiers"
+msgstr ""
+
+#: lib/krb5/pkinit.c:796
+#: lib/krb5/pkinit.c:844
+msgid "PKINIT decoding reply key failed"
+msgstr ""
+
+#: lib/krb5/pkinit.c:803
+msgid "PKINIT enckey nonce is wrong"
+msgstr ""
+
+#: lib/krb5/pkinit.c:820
+#: lib/krb5/pkinit.c:885
+msgid "PKINIT failed copying reply key"
+msgstr ""
+
+#: lib/krb5/pkinit.c:908
+msgid "No PK-INIT KDC EKU in kdc certificate"
+msgstr ""
+
+#: lib/krb5/pkinit.c:922
+msgid "Failed to find the PK-INIT subjectAltName in the KDC certificate"
+msgstr ""
+
+#: lib/krb5/pkinit.c:938
+msgid "Failed to decode the PK-INIT subjectAltName in the KDC certificate"
+msgstr ""
+
+#: lib/krb5/pkinit.c:952
+msgid "KDC have wrong realm name in the certificate"
+msgstr ""
+
+#: lib/krb5/pkinit.c:974
+msgid "Address mismatch in the KDC certificate"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1001
+#: lib/krb5/pkinit.c:1048
+#: lib/krb5/pkinit.c:1149
+msgid "PKINIT: Invalid content type"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1171
+msgid "pkinit - dh reply contains wrong oid"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1182
+msgid "pkinit - failed to decode KDC DH Key Info"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1190
+msgid "PKINIT: DH nonce is wrong"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1198
+msgid "pkinit; got key expiration without server nonce"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1205
+msgid "pkinit; got DH reuse but no client nonce"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1213
+msgid "pkinit: got server nonce without key expiration"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1229
+msgid "pkinit: can't decode without key expiration"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1260
+msgid "PKINIT: Can't compute Diffie-Hellman key"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1279
+msgid "PKINIT: can't create key from DH key"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1325
+msgid "PKINIT: wrong padata recv"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1335
+msgid "Failed to decode pkinit AS rep"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1349
+msgid "PKINIT: -27 reply invalid content type"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1358
+#: lib/krb5/pkinit.c:1418
+msgid "PKINIT: failed to unwrap CI"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1401
+#, c-format
+msgid "PKINIT: Failed decoding windows pkinit reply %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1433
+msgid "PKINIT: win2k reply invalid content type"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1441
+msgid "PKINIT: unknown reply type"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1516
+msgid "PKINIT: No anchor given"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1522
+msgid "PKINIT: No user certificate given"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1655
+#, c-format
+msgid "Did not find a DH group parameter matching requirement of %lu bits"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1718
+#, c-format
+msgid "moduli file %s missing %s on line %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1725
+#, c-format
+msgid "moduli file %s failed parsing %s on line %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1765
+#, c-format
+msgid "moduli file %s missing name on line %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1772
+msgid "malloc: out of memeory"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1779
+#, c-format
+msgid "moduli file %s missing bits on line %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1787
+#, c-format
+msgid "moduli file %s have un-parsable bits on line %d"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1981
+#, c-format
+msgid "PKINIT: DH group parameter %s no accepted, not enough bits generated"
+msgstr ""
+
+#: lib/krb5/pkinit.c:1994
+msgid "PKINIT: DH group parameter no ok"
+msgstr ""
+
+#: lib/krb5/pkinit.c:2051
+msgid "PKINIT: on non extendable opt"
+msgstr ""
+
+#: lib/krb5/pkinit.c:2146
+msgid "pkinit: failed to generate DH key"
+msgstr ""
+
+#: lib/krb5/principal.c:169
+msgid "Can't require both realm and no realm at the same time"
+msgstr ""
+
+#: lib/krb5/principal.c:184
+#: lib/krb5/principal.c:224
+msgid "trailing \\ in principal name"
+msgstr ""
+
+#: lib/krb5/principal.c:234
+#: lib/krb5/principal.c:256
+msgid "part after realm in principal name"
+msgstr ""
+
+#: lib/krb5/principal.c:265
+msgid "realm found in 'short' principal expected to be without one"
+msgstr ""
+
+#: lib/krb5/principal.c:282
+msgid "realm NOT found in principal expected to be with one"
+msgstr ""
+
+#: lib/krb5/principal.c:379
+msgid "Realm missing from principal, can't unparse"
+msgstr ""
+
+#: lib/krb5/principal.c:390
+msgid "Out of space printing principal"
+msgstr ""
+
+#: lib/krb5/principal.c:410
+msgid "Out of space printing realm of principal"
+msgstr ""
+
+#: lib/krb5/principal.c:1233
+#, c-format
+msgid "cannot convert a %d component principal"
+msgstr ""
+
+#: lib/krb5/principal.c:1260
+msgid "too long name component to convert"
+msgstr ""
+
+#: lib/krb5/principal.c:1265
+msgid "too long instance component to convert"
+msgstr ""
+
+#: lib/krb5/principal.c:1270
+msgid "too long realm component to convert"
+msgstr ""
+
+#: lib/krb5/principal.c:1305
+#, c-format
+msgid "unsupported name type %d"
+msgstr ""
+
+#: lib/krb5/principal.c:1314
+msgid "Failed to get local hostname"
+msgstr ""
+
+#: lib/krb5/principal.c:1374
+#, c-format
+msgid "Failed to find name type %s"
+msgstr ""
+
+#: lib/krb5/rd_cred.c:160
+msgid "Failed to decode encrypte credential part"
+msgstr ""
+
+#: lib/krb5/rd_cred.c:180
+msgid "sender address is wrong in received creds"
+msgstr ""
+
+#: lib/krb5/rd_cred.c:202
+#: lib/krb5/rd_cred.c:211
+msgid "receiver address is wrong in received creds"
+msgstr ""
+
+#: lib/krb5/rd_error.c:95
+#, c-format
+msgid "Client %s%s%s expired"
+msgstr ""
+
+#: lib/krb5/rd_error.c:102
+#, c-format
+msgid "Server %s%s%s expired"
+msgstr ""
+
+#: lib/krb5/rd_error.c:109
+#, c-format
+msgid "Client %s%s%s unknown"
+msgstr ""
+
+#: lib/krb5/rd_error.c:116
+#, c-format
+msgid "Server %s%s%s unknown"
+msgstr ""
+
+#: lib/krb5/rd_rep.c:87
+msgid "Failed to decode EncAPRepPart"
+msgstr ""
+
+#: lib/krb5/rd_req.c:64
+msgid "Failed to decode encrypted ticket part"
+msgstr ""
+
+#: lib/krb5/rd_req.c:817
+msgid "krb5_rd_req: user to user auth without session key given"
+msgstr ""
+
+#: lib/krb5/rd_safe.c:103
+msgid "rd_safe: need outdata to return data"
+msgstr ""
+
+#: lib/krb5/recvauth.c:111
+msgid "Failed to receive sendauth data"
+msgstr ""
+
+#: lib/krb5/recvauth.c:149
+#, c-format
+msgid "wrong sendauth version (%s)"
+msgstr ""
+
+#: lib/krb5/replay.c:65
+#: lib/krb5/replay.c:89
+#, c-format
+msgid "replay cache type %s not supported"
+msgstr ""
+
+#: lib/krb5/scache.c:200
+#, c-format
+msgid "Failed to prepare stmt %s: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:216
+#, c-format
+msgid "scache execute %s: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:342
+#, c-format
+msgid "Error opening scache file %s: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:365
+#, c-format
+msgid "Failed to add scache: %d"
+msgstr ""
+
+#: lib/krb5/scache.c:462
+#, c-format
+msgid "scache bind principal: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:513
+#, c-format
+msgid "Cache name of wrong type for scache %ld"
+msgstr ""
+
+#: lib/krb5/scache.c:578
+#, c-format
+msgid "Failed to delete old credentials: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:597
+#, c-format
+msgid "Failed to bind principal to cache %s"
+msgstr ""
+
+#: lib/krb5/scache.c:639
+#, c-format
+msgid "Failed to destroy cache %s: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:662
+msgid "Failed to store credential in scache"
+msgstr ""
+
+#: lib/krb5/scache.c:671
+msgid "Failed to encode credential in scache"
+msgstr ""
+
+#: lib/krb5/scache.c:693
+msgid "Failed to read credential in scache"
+msgstr ""
+
+#: lib/krb5/scache.c:754
+#, c-format
+msgid "Failed to add credential: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:773
+#: lib/krb5/scache.c:791
+#, c-format
+msgid "Failed to add principal: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:828
+#, c-format
+msgid "No principal for cache SCACHE:%s:%s"
+msgstr ""
+
+#: lib/krb5/scache.c:836
+#, c-format
+msgid "Principal data of wrong type for SCACHE:%s:%s"
+msgstr ""
+
+#: lib/krb5/scache.c:846
+#, c-format
+msgid "Principal not set for SCACHE:%s:%s"
+msgstr ""
+
+#: lib/krb5/scache.c:891
+#, c-format
+msgid "Iterating a invalid scache %s"
+msgstr ""
+
+#: lib/krb5/scache.c:982
+#: lib/krb5/scache.c:1071
+#, c-format
+msgid "scache Database failed: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:1001
+#, c-format
+msgid "credential of wrong type for SCACHE:%s:%s"
+msgstr ""
+
+#: lib/krb5/scache.c:1079
+#, c-format
+msgid "Credential of wrong type for SCACHE:%s:%s"
+msgstr ""
+
+#: lib/krb5/scache.c:1117
+msgid "failed to delete scache credental"
+msgstr ""
+
+#: lib/krb5/scache.c:1244
+#, c-format
+msgid "Database failed: %s"
+msgstr ""
+
+#: lib/krb5/scache.c:1285
+#, c-format
+msgid "Can't handle cross database credential move: %s -> %s"
+msgstr ""
+
+#: lib/krb5/scache.c:1309
+#, c-format
+msgid "Failed to delete old cache: %d"
+msgstr ""
+
+#: lib/krb5/scache.c:1324
+#, c-format
+msgid "Failed to update new cache: %d"
+msgstr ""
+
+#: lib/krb5/scache.c:1373
+#, c-format
+msgid "Trying to set a invalid cache as default %s"
+msgstr ""
+
+#: lib/krb5/scache.c:1383
+msgid "Failed to set name of default cache"
+msgstr ""
+
+#: lib/krb5/scache.c:1393
+msgid "Failed to update default cache"
+msgstr ""
+
+#: lib/krb5/send_to_kdc.c:351
+#, c-format
+msgid "Plugin send_to_kdc failed to lookup with error: %d"
+msgstr ""
+
+#: lib/krb5/send_to_kdc.c:635
+#, c-format
+msgid "unable to reach any KDC in realm %s"
+msgstr ""
+
+#: lib/krb5/ticket.c:141
+#, c-format
+msgid "Authorization data nested deeper then %d levels, stop searching"
+msgstr ""
+
+#: lib/krb5/ticket.c:172
+#, c-format
+msgid "Failed to decode IF_RELEVANT with %d"
+msgstr ""
+
+#: lib/krb5/ticket.c:194
+#, c-format
+msgid "Failed to decode AD_KDCIssued with %d"
+msgstr ""
+
+#: lib/krb5/ticket.c:241
+msgid ""
+"Authorization data contains AND-OR element that is unknown to the application"
+msgstr ""
+
+#: lib/krb5/ticket.c:250
+#, c-format
+msgid "Authorization data contains unknown type (%d) "
+msgstr ""
+
+#: lib/krb5/ticket.c:287
+msgid "Ticket have not authorization data"
+msgstr ""
+
+#: lib/krb5/ticket.c:297
+#, c-format
+msgid "Ticket have not authorization data of type %d"
+msgstr ""
+
+#: lib/krb5/transited.c:457
+#: lib/krb5/transited.c:490
+#, c-format
+msgid "no transit allowed through realm %s"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:153
+#: lib/krb5/v4_glue.c:299
+msgid "Failed getting the krb4 credentials cache name"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:162
+#, c-format
+msgid "Failed opening krb4 credential cache %s: %s"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:172
+#, c-format
+msgid "krb4 credential cache %s is not a file"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:187
+#, c-format
+msgid "Failed to lock credentail cache %s"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:199
+#, c-format
+msgid "Failed to truncate krb4 cc %s"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:307
+#, c-format
+msgid "Failed removing the cache %s with error %s"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:457
+#: lib/krb5/v4_glue.c:517
+#: lib/krb5/v4_glue.c:570
+msgid "Failed to encode kerberos 4 ticket"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:788
+msgid "Failed reading v4 pvno"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:794
+msgid "Failed v4 pvno not 4"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:800
+msgid "Failed readin v4 type"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:810
+msgid "Not a valid v4 request type"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:823
+msgid "Failed reading v4 ticket"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:839
+msgid "Failed reading v4 authenticator"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:874
+msgid "v4 principal mismatch"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:881
+msgid "v4 bad address in ticket"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:889
+msgid "v4 clock skew"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:900
+msgid "v4 clock skew for expiration"
+msgstr ""
+
+#: lib/krb5/v4_glue.c:906
+msgid "v4 ticket expired"
+msgstr ""
+
+#: lib/krb5/verify_init.c:228
+msgid "Validation credentials and client doesn't match"
+msgstr ""

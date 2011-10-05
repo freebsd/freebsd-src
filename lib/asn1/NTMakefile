@@ -1,0 +1,356 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\asn1
+
+intcflags=-I$(SRCDIR) -I$(OBJ)
+
+!include ../../windows/NTMakefile.w32
+
+gen_files_krb5		= $(OBJ)\asn1_krb5_asn1.x
+
+gen_files_cms		= $(OBJ)\asn1_cms_asn1.x
+
+gen_files_rfc2459	= $(OBJ)\asn1_rfc2459_asn1.x
+
+gen_files_pkinit	= $(OBJ)\asn1_pkinit_asn1.x
+
+gen_files_pkcs12	= $(OBJ)\asn1_pkcs12_asn1.x
+
+gen_files_pkcs8		= $(OBJ)\asn1_pkcs8_asn1.x
+
+gen_files_pkcs9		= $(OBJ)\asn1_pkcs9_asn1.x
+
+gen_files_test		= $(OBJ)\asn1_test_asn1.x
+
+gen_files_digest	= $(OBJ)\asn1_digest_asn1.x
+
+gen_files_kx509		= $(OBJ)\asn1_kx509_asn1.x
+
+ASN1_BINARIES =						    \
+	$(LIBEXECDIR)\asn1_compile.exe
+
+$(BINDIR)\asn1_compile.exe:				    \
+	$(OBJ)\asn1parse.obj				    \
+	$(OBJ)\gen.obj					    \
+	$(OBJ)\gen_copy.obj				    \
+	$(OBJ)\gen_decode.obj				    \
+	$(OBJ)\gen_encode.obj				    \
+	$(OBJ)\gen_free.obj				    \
+	$(OBJ)\gen_glue.obj				    \
+	$(OBJ)\gen_length.obj				    \
+	$(OBJ)\gen_seq.obj				    \
+	$(OBJ)\gen_template.obj				    \
+	$(OBJ)\hash.obj					    \
+	$(OBJ)\lex.obj					    \
+	$(OBJ)\main.obj					    \
+	$(OBJ)\symbol.obj				    \
+	$(OBJ)\asn1_compile-version.res
+	$(EXECONLINK) $(LIBROKEN) $(LIBVERS)
+	$(EXEPREP_NOHEIM)
+
+$(OBJ)\lex.c: lex.l $(OBJ)\asn1parse.h
+	$(LEX) -o$@ lex.l
+
+$(OBJ)\lex.obj: $(OBJ)\lex.c
+	$(C2OBJ) -DYY_NO_UNISTD_H
+
+$(OBJ)\asn1parse.c $(OBJ)\asn1parse.h: asn1parse.y
+	$(YACC) -o $(OBJ)\asn1parse.c --defines=$(OBJ)\asn1parse.h $**
+
+$(OBJ)\asn1_err.c $(OBJ)\asn1_err.h: asn1_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\asn1_err.et
+	cd $(SRCDIR)
+
+$(BINDIR)\asn1_print.exe: $(OBJ)\asn1_print.obj $(LIBHEIMDAL)
+	$(EXECONLINK) $(LIBVERS) $(LIBROKEN) $(LIBCOMERR)
+	$(EXEPREP)
+
+$(BINDIR)\asn1_gen.exe: $(OBJ)\asn1_gen.obj $(LIBHEIMDAL)
+	$(EXECONLINK) $(LIBVERS) $(LIBROKEN)
+	$(EXEPREP)
+
+LIBASN1_OBJS=	\
+	$(OBJ)\der.obj			\
+	$(OBJ)\der_get.obj		\
+	$(OBJ)\der_put.obj		\
+	$(OBJ)\der_free.obj		\
+	$(OBJ)\der_length.obj		\
+	$(OBJ)\der_copy.obj		\
+	$(OBJ)\der_cmp.obj		\
+	$(OBJ)\der_format.obj		\
+	$(OBJ)\extra.obj		\
+	$(OBJ)\timegm.obj		\
+	$(gen_files_rfc2459:.x=.obj)	\
+	$(gen_files_cms:.x=.obj)	\
+	$(gen_files_krb5:.x=.obj)		\
+	$(gen_files_pkinit:.x=.obj)	\
+	$(gen_files_pkcs8:.x=.obj)	\
+	$(gen_files_pkcs9:.x=.obj)	\
+	$(gen_files_pkcs12:.x=.obj)	\
+	$(gen_files_digest:.x=.obj)	\
+	$(gen_files_kx509:.x=.obj)	\
+	$(OBJ)\asn1_err.obj
+
+$(LIBASN1): $(LIBASN1_OBJS)
+	$(LIBCON_C) -out:$@ @<<
+$(**: =
+)
+<<
+
+clean::
+	-$(RM) $(LIBASN1)
+
+#
+# Generate list of exports
+#
+# This target is only used during development to generate a list of
+# symbols that are exported from all the object files in LIBASN1_OBJS.
+#
+exports-list.txt: $(LIBASN1_OBJS)
+	$(PERL) ..\..\cf\w32-list-externs-from-objs.pl -q -u @<< > $@
+$(**: =
+)
+<<
+
+$(gen_files_krb5:.x=.c)	    : $$(@R).x
+
+$(gen_files_pkinit:.x=.c)   : $$(@R).x
+
+$(gen_files_pkcs8:.x=.c)    : $$(@R).x
+
+$(gen_files_pkcs9:.x=.c)    : $$(@R).x
+
+$(gen_files_pkcs12:.x=.c)   : $$(@R).x
+
+$(gen_files_digest:.x=.c)   : $$(@R).x
+
+$(gen_files_kx509:.x=.c)    : $$(@R).x
+
+$(gen_files_rfc2459:.x=.c)  : $$(@R).x
+
+$(gen_files_cms:.x=.c)	    : $$(@R).x
+
+$(gen_files_test:.x=.c)	    : $$(@R).x
+
+$(gen_files_krb5) $(OBJ)\krb5_asn1.hx: $(BINDIR)\asn1_compile.exe krb5.asn1 krb5.opt
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe \
+		--one-code-file	\
+		--option-file=$(SRCDIR)\krb5.opt \
+		$(SRCDIR)\krb5.asn1 krb5_asn1 \
+	|| ($(RM) $(OBJ)\krb5_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_pkinit) $(OBJ)\pkinit_asn1.hx: $(BINDIR)\asn1_compile.exe pkinit.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\pkinit.asn1 pkinit_asn1 \
+	|| ($(RM) $(OBJ)\pkinit_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_pkcs8) $(OBJ)\pkcs8_asn1.hx: $(BINDIR)\asn1_compile.exe pkcs8.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\pkcs8.asn1 pkcs8_asn1 \
+	|| ($(RM) $(OBJ)\pkcs8_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_pkcs9) $(OBJ)\pkcs9_asn1.hx: $(BINDIR)\asn1_compile.exe pkcs9.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\pkcs9.asn1 pkcs9_asn1 \
+	|| ($(RM) $(OBJ)\pkcs9_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_pkcs12) $(OBJ)\pkcs12_asn1.hx: $(BINDIR)\asn1_compile.exe pkcs12.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\pkcs12.asn1 pkcs12_asn1 \
+	|| ($(RM) $(OBJ)\pkcs12_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_digest) $(OBJ)\digest_asn1.hx: $(BINDIR)\asn1_compile.exe digest.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\digest.asn1 digest_asn1 \
+	|| ($(RM) $(OBJ)\digest_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_kx509) $(OBJ)\kx509_asn1.hx: $(BINDIR)\asn1_compile.exe kx509.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\kx509.asn1 kx509_asn1 \
+	|| ($(RM) $(OBJ)\kx509_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_rfc2459) $(OBJ)\rfc2459_asn1.hx: $(BINDIR)\asn1_compile.exe rfc2459.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe \
+		--one-code-file \
+		--preserve-binary=TBSCertificate \
+		--preserve-binary=TBSCRLCertList \
+		--preserve-binary=Name \
+		--sequence=GeneralNames \
+		--sequence=Extensions \
+		--sequence=CRLDistributionPoints \
+		$(SRCDIR)\rfc2459.asn1 rfc2459_asn1 \
+	|| ($(RM) $(OBJ)\rfc2459_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_cms) $(OBJ)\cms_asn1.hx: $(BINDIR)\asn1_compile.exe cms.asn1 cms.opt
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe \
+		--one-code-file --option-file=$(SRCDIR)\cms.opt \
+		$(SRCDIR)\cms.asn1 cms_asn1 \
+	|| ($(RM) $(OBJ)\cms_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+$(gen_files_test) $(OBJ)\test_asn1.hx: $(BINDIR)\asn1_compile.exe test.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe \
+		--one-code-file --sequence=TESTSeqOf \
+		$(SRCDIR)\test.asn1 test_asn1 \
+	|| ($(RM) $(OBJ)\test_asn1.h ; exit /b 1)
+	cd $(SRCDIR)
+
+INCFILES=			    \
+	$(INCDIR)\der.h		    \
+	$(INCDIR)\heim_asn1.h	    \
+	$(INCDIR)\der-protos.h	    \
+	$(INCDIR)\der-private.h	    \
+	$(INCDIR)\asn1-common.h	    \
+	$(INCDIR)\asn1-template.h   \
+	$(OBJ)\asn1_err.h
+
+$(INCDIR)\der-protos.h: $(OBJ)\der-protos.h
+
+GENINCFILES=			    \
+	$(INCDIR)\asn1_err.h	    \
+	$(INCDIR)\cms_asn1.h	    \
+	$(INCDIR)\digest_asn1.h	    \
+	$(INCDIR)\krb5_asn1.h	    \
+	$(INCDIR)\kx509_asn1.h	    \
+	$(INCDIR)\pkcs12_asn1.h	    \
+	$(INCDIR)\pkcs8_asn1.h	    \
+	$(INCDIR)\pkcs9_asn1.h	    \
+	$(INCDIR)\pkinit_asn1.h	    \
+	$(INCDIR)\rfc2459_asn1.h    \
+	$(OBJ)\krb5_asn1-priv.h	    \
+	$(OBJ)\pkinit_asn1-priv.h   \
+	$(OBJ)\cms_asn1-priv.h	    \
+	$(OBJ)\rfc2459_asn1-priv.h  \
+	$(OBJ)\pkcs8_asn1-priv.h    \
+	$(OBJ)\pkcs9_asn1-priv.h    \
+	$(OBJ)\pkcs12_asn1-priv.h   \
+	$(OBJ)\digest_asn1-priv.h   \
+	$(OBJ)\kx509_asn1-priv.h    \
+	$(OBJ)\test_asn1.h	    \
+	$(OBJ)\test_asn1-priv.h
+
+libasn1_SOURCES=	\
+	der_locl.h 	\
+	der.c		\
+	der.h		\
+	der_get.c	\
+	der_put.c	\
+	der_free.c	\
+	der_length.c	\
+	der_copy.c	\
+	der_cmp.c	\
+	der_format.c	\
+	heim_asn1.h	\
+	extra.c		\
+	timegm.c
+
+$(OBJ)\der-protos.h: $(libasn1_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl -q -P remove -o $(OBJ)\der-protos.h $(libasn1_SOURCES) || $(RM) $(OBJ)\der-protos.h
+
+$(OBJ)\der-private.h: $(libasn1_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl -q -P remove -p $(OBJ)\der-private.h $(libasn1_SOURCES) || $(RM) $(OBJ)\der-private.h
+
+clean::
+	-$(RM) $(INCDIR)\der-protos.h
+
+all:: $(INCFILES) $(GENINCFILES) $(ASN1_BINARIES) $(LIBASN1)
+
+all-tools:: $(LIBEXECDIR)\asn1_print.exe $(BINDIR)\asn1_gen.exe
+
+clean::
+	-$(RM) $(INCFILES)
+	-$(RM) $(GENINCFILES)
+	-$(RM) $(ASN1_BINARIES:.exe=.*)
+	-$(RM) $(LIBASN1)
+	-$(RM) $(LIBEXECDIR)\asn1_print.*
+	-$(RM) $(LIBEXECDIR)\asn1_gen.*
+
+TEST_BINARIES=\
+	$(OBJ)\check-der.exe	\
+	$(OBJ)\check-gen.exe	\
+	$(OBJ)\check-timegm.exe \
+	$(OBJ)\check-ber.exe	\
+	$(OBJ)\check-template.exe \
+
+test-binaries: $(TEST_BINARIES)
+
+test-run:
+	cd $(OBJ)
+	check-der.exe
+	check-gen.exe
+	check-timegm.exe
+	check-ber.exe
+	check-template.exe
+	cd $(SRC)
+
+test:: test-binaries test-run
+
+clean::
+	-$(RM) $(TEST_BINARIES:.exe=*)
+
+$(OBJ)\check-ber.exe: $(OBJ)\check-ber.obj \
+		$(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\check-der.exe: $(OBJ)\check-der.obj $(OBJ)\check-common.obj \
+		$(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\check-gen.exe: $(OBJ)\check-gen.obj $(OBJ)\check-common.obj \
+		$(LIBHEIMDAL) $(LIBROKEN) $(gen_files_test:.x=.obj)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\check-timegm.exe: $(OBJ)\check-timegm.obj \
+		$(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\check-template.exe: $(OBJ)\check-template.obj $(OBJ)\check-common.obj \
+		$(LIBHEIMDAL) $(LIBROKEN) $(gen_files_test:.x=.obj)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)

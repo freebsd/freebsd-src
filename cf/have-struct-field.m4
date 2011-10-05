@@ -1,4 +1,4 @@
-dnl $Id: have-struct-field.m4 18314 2006-10-07 17:31:56Z lha $
+dnl $Id$
 dnl
 dnl check for fields in a structure
 dnl

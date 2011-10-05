@@ -1,0 +1,598 @@
+
+KRB5.CONF(5)                BSD File Formats Manual               KRB5.CONF(5)
+
+NNAAMMEE
+     kkrrbb55..ccoonnff -- configuration file for Kerberos 5
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55..ccoonnff file specifies several configuration parameters for the
+     Kerberos 5 library, as well as for some programs.
+
+     The file consists of one or more sections, containing a number of bind-
+     ings.  The value of each binding can be either a string or a list of
+     other bindings.  The grammar looks like:
+
+           file:
+                   /* empty */
+                   sections
+
+           sections:
+                   section sections
+                   section
+
+           section:
+                   '[' section_name ']' bindings
+
+           section_name:
+                   STRING
+
+           bindings:
+                   binding bindings
+                   binding
+
+           binding:
+                   name '=' STRING
+                   name '=' '{' bindings '}'
+
+           name:
+                   STRING
+
+     STRINGs consists of one or more non-whitespace characters.
+
+     STRINGs that are specified later in this man-page uses the following
+     notation.
+
+           boolean
+                values can be either yes/true or no/false.
+
+           time
+                values can be a list of year, month, day, hour, min, second.
+                Example: 1 month 2 days 30 min.  If no unit is given, seconds
+                is assumed.
+
+           etypes
+                valid encryption types are: des-cbc-crc, des-cbc-md4, des-cbc-
+                md5, des3-cbc-sha1, arcfour-hmac-md5, aes128-cts-hmac-sha1-96,
+                and aes256-cts-hmac-sha1-96 .
+
+           address
+                an address can be either a IPv4 or a IPv6 address.
+
+     Currently recognised sections and bindings are:
+
+           [appdefaults]
+                Specifies the default values to be used for Kerberos applica-
+                tions.  You can specify defaults per application, realm, or a
+                combination of these.  The preference order is:
+                1.   _a_p_p_l_i_c_a_t_i_o_n _r_e_a_l_m _o_p_t_i_o_n
+                2.   _a_p_p_l_i_c_a_t_i_o_n _o_p_t_i_o_n
+                3.   _r_e_a_l_m _o_p_t_i_o_n
+                4.   _o_p_t_i_o_n
+
+                The supported options are:
+
+                      forwardable = _b_o_o_l_e_a_n
+                           When obtaining initial credentials, make the cre-
+                           dentials forwardable.
+
+                      proxiable = _b_o_o_l_e_a_n
+                           When obtaining initial credentials, make the cre-
+                           dentials proxiable.
+
+                      no-addresses = _b_o_o_l_e_a_n
+                           When obtaining initial credentials, request them
+                           for an empty set of addresses, making the tickets
+                           valid from any address.
+
+                      ticket_lifetime = _t_i_m_e
+                           Default ticket lifetime.
+
+                      renew_lifetime = _t_i_m_e
+                           Default renewable ticket lifetime.
+
+                      encrypt = _b_o_o_l_e_a_n
+                           Use encryption, when available.
+
+                      forward = _b_o_o_l_e_a_n
+                           Forward credentials to remote host (for rsh(1),
+                           telnet(1), etc).
+
+           [libdefaults]
+
+                      default_realm = _R_E_A_L_M
+                           Default realm to use, this is also known as your
+                           ``local realm''.  The default is the result of
+                           kkrrbb55__ggeett__hhoosstt__rreeaallmm(_l_o_c_a_l _h_o_s_t_n_a_m_e).
+
+                      allow_weak_crypto = _b_o_o_l_e_a_n
+                           is weaks crypto algorithms allowed to be used,
+                           among others, DES is considered weak.
+
+                      clockskew = _t_i_m_e
+                           Maximum time differential (in seconds) allowed when
+                           comparing times.  Default is 300 seconds (five min-
+                           utes).
+
+                      kdc_timeout = _t_i_m_e
+                           Maximum time to wait for a reply from the kdc,
+                           default is 3 seconds.
+
+                      v4_name_convert
+
+                      v4_instance_resolve
+                           These are described in the
+                           krb5_425_conv_principal(3) manual page.
+
+                      capath = {
+
+                                 _d_e_s_t_i_n_a_t_i_o_n_-_r_e_a_l_m = _n_e_x_t_-_h_o_p_-_r_e_a_l_m
+
+                                 ...
+
+                                 }
+                           This is deprecated, see the capaths section below.
+
+                      default_cc_type = _c_c_t_y_p_e
+                           sets the default credentials type.
+
+                      default_cc_name = _c_c_n_a_m_e
+                           the default credentials cache name.  If you want to
+                           change the type only use default_cc_type.  The
+                           string can contain variables that are expanded on
+                           runtime.  Only support variable now is %{uid} that
+                           expands to the current user id.
+
+                      default_etypes = _e_t_y_p_e_s _._._.
+                           A list of default encryption types to use.
+                           (Default: all enctypes if allow_weak_crypto = TRUE,
+                           else all enctypes except single DES enctypes.)
+
+                      default_as_etypes = _e_t_y_p_e_s _._._.
+                           A list of default encryption types to use in AS
+                           requests.  (Default: the value of default_etypes.)
+
+                      default_tgs_etypes = _e_t_y_p_e_s _._._.
+                           A list of default encryption types to use in TGS
+                           requests.  (Default: the value of default_etypes.)
+
+                      default_etypes_des = _e_t_y_p_e_s _._._.
+                           A list of default encryption types to use when
+                           requesting a DES credential.
+
+                      default_keytab_name = _k_e_y_t_a_b
+                           The keytab to use if no other is specified, default
+                           is ``FILE:/etc/krb5.keytab''.
+
+                      dns_lookup_kdc = _b_o_o_l_e_a_n
+                           Use DNS SRV records to lookup KDC services loca-
+                           tion.
+
+                      dns_lookup_realm = _b_o_o_l_e_a_n
+                           Use DNS TXT records to lookup domain to realm map-
+                           pings.
+
+                      kdc_timesync = _b_o_o_l_e_a_n
+                           Try to keep track of the time differential between
+                           the local machine and the KDC, and then compensate
+                           for that when issuing requests.
+
+                      max_retries = _n_u_m_b_e_r
+                           The max number of times to try to contact each KDC.
+
+                      large_msg_size = _n_u_m_b_e_r
+                           The threshold where protocols with tiny maximum
+                           message sizes are not considered usable to send
+                           messages to the KDC.
+
+                      ticket_lifetime = _t_i_m_e
+                           Default ticket lifetime.
+
+                      renew_lifetime = _t_i_m_e
+                           Default renewable ticket lifetime.
+
+                      forwardable = _b_o_o_l_e_a_n
+                           When obtaining initial credentials, make the cre-
+                           dentials forwardable.  This option is also valid in
+                           the [realms] section.
+
+                      proxiable = _b_o_o_l_e_a_n
+                           When obtaining initial credentials, make the cre-
+                           dentials proxiable.  This option is also valid in
+                           the [realms] section.
+
+                      verify_ap_req_nofail = _b_o_o_l_e_a_n
+                           If enabled, failure to verify credentials against a
+                           local key is a fatal error.  The application has to
+                           be able to read the corresponding service key for
+                           this to work.  Some applications, like su(1),
+                           enable this option unconditionally.
+
+                      warn_pwexpire = _t_i_m_e
+                           How soon to warn for expiring password.  Default is
+                           seven days.
+
+                      http_proxy = _p_r_o_x_y_-_s_p_e_c
+                           A HTTP-proxy to use when talking to the KDC via
+                           HTTP.
+
+                      dns_proxy = _p_r_o_x_y_-_s_p_e_c
+                           Enable using DNS via HTTP.
+
+                      extra_addresses = _a_d_d_r_e_s_s _._._.
+                           A list of addresses to get tickets for along with
+                           all local addresses.
+
+                      time_format = _s_t_r_i_n_g
+                           How to print time strings in logs, this string is
+                           passed to strftime(3).
+
+                      date_format = _s_t_r_i_n_g
+                           How to print date strings in logs, this string is
+                           passed to strftime(3).
+
+                      log_utc = _b_o_o_l_e_a_n
+                           Write log-entries using UTC instead of your local
+                           time zone.
+
+                      scan_interfaces = _b_o_o_l_e_a_n
+                           Scan all network interfaces for addresses, as
+                           opposed to simply using the address associated with
+                           the system's host name.
+
+                      fcache_version = _i_n_t
+                           Use file credential cache format version specified.
+
+                      krb4_get_tickets = _b_o_o_l_e_a_n
+                           Also get Kerberos 4 tickets in kkiinniitt, llooggiinn, and
+                           other programs.  This option is also valid in the
+                           [realms] section.
+
+                      fcc-mit-ticketflags = _b_o_o_l_e_a_n
+                           Use MIT compatible format for file credential
+                           cache.  It's the field ticketflags that is stored
+                           in reverse bit order for older than Heimdal 0.7.
+                           Setting this flag to TRUE make it store the MIT
+                           way, this is default for Heimdal 0.7.
+
+                      check-rd-req-server
+                           If set to "ignore", the framework will ignore any
+                           the server input to krb5_rd_req(3,) this is very
+                           useful when the GSS-API server input the wrong
+                           server name into the gss_accept_sec_context call.
+
+           [domain_realm]
+                This is a list of mappings from DNS domain to Kerberos realm.
+                Each binding in this section looks like:
+
+                      domain = realm
+
+                The domain can be either a full name of a host or a trailing
+                component, in the latter case the domain-string should start
+                with a period.  The trailing component only matches hosts that
+                are in the same domain, ie ``.example.com'' matches
+                ``foo.example.com'', but not ``foo.test.example.com''.
+
+                The realm may be the token `dns_locate', in which case the
+                actual realm will be determined using DNS (independently of
+                the setting of the `dns_lookup_realm' option).
+
+           [realms]
+
+                      _R_E_A_L_M = {
+
+                                 kdc = _[_s_e_r_v_i_c_e_/_]_h_o_s_t_[_:_p_o_r_t_]
+                                      Specifies a list of kdcs for this realm.
+                                      If the optional _p_o_r_t is absent, the
+                                      default value for the ``kerberos/udp''
+                                      ``kerberos/tcp'', and ``http/tcp'' port
+                                      (depending on service) will be used.
+                                      The kdcs will be used in the order that
+                                      they are specified.
+
+                                      The optional _s_e_r_v_i_c_e specifies over what
+                                      medium the kdc should be contacted.
+                                      Possible services are ``udp'', ``tcp'',
+                                      and ``http''.  Http can also be written
+                                      as ``http://''.  Default service is
+                                      ``udp'' and ``tcp''.
+
+                                 admin_server = _h_o_s_t_[_:_p_o_r_t_]
+                                      Specifies the admin server for this
+                                      realm, where all the modifications to
+                                      the database are performed.
+
+                                 kpasswd_server = _h_o_s_t_[_:_p_o_r_t_]
+                                      Points to the server where all the pass-
+                                      word changes are performed.  If there is
+                                      no such entry, the kpasswd port on the
+                                      admin_server host will be tried.
+
+                                 krb524_server = _h_o_s_t_[_:_p_o_r_t_]
+                                      Points to the server that does 524 con-
+                                      versions.  If it is not mentioned, the
+                                      krb524 port on the kdcs will be tried.
+
+                                 v4_instance_convert
+
+                                 v4_name_convert
+
+                                 default_domain
+                                      See krb5_425_conv_principal(3).
+
+                                 tgs_require_subkey
+                                      a boolan variable that defaults to
+                                      false.  Old DCE secd (pre 1.1) might
+                                      need this to be true.
+
+                      }
+
+           [capaths]
+
+                      _c_l_i_e_n_t_-_r_e_a_l_m = {
+
+                                 _s_e_r_v_e_r_-_r_e_a_l_m = _h_o_p_-_r_e_a_l_m _._._.
+                                      This serves two purposes. First the
+                                      first listed _h_o_p_-_r_e_a_l_m tells a client
+                                      which realm it should contact in order
+                                      to ultimately obtain credentials for a
+                                      service in the _s_e_r_v_e_r_-_r_e_a_l_m.  Secondly,
+                                      it tells the KDC (and other servers)
+                                      which realms are allowed in a multi-hop
+                                      traversal from _c_l_i_e_n_t_-_r_e_a_l_m to
+                                      _s_e_r_v_e_r_-_r_e_a_l_m.  Except for the client
+                                      case, the order of the realms are not
+                                      important.
+
+                      _}
+
+           [logging]
+
+                      _e_n_t_i_t_y = _d_e_s_t_i_n_a_t_i_o_n
+                           Specifies that _e_n_t_i_t_y should use the specified
+                           destination for logging.  See the krb5_openlog(3)
+                           manual page for a list of defined destinations.
+
+           [kdc]
+
+                      database = {
+
+                                 dbname = _D_A_T_A_B_A_S_E_N_A_M_E
+                                      Use this database for this realm.  See
+                                      the info documetation how to configure
+                                      different database backends.
+
+                                 realm = _R_E_A_L_M
+                                      Specifies the realm that will be stored
+                                      in this database.  It realm isn't set,
+                                      it will used as the default database,
+                                      there can only be one entry that doesn't
+                                      have a realm stanza.
+
+                                 mkey_file = _F_I_L_E_N_A_M_E
+                                      Use this keytab file for the master key
+                                      of this database.  If not specified
+                                      _D_A_T_A_B_A_S_E_N_A_M_E.mkey will be used.
+
+                                 acl_file = PA FILENAME
+                                      Use this file for the ACL list of this
+                                      database.
+
+                                 log_file = _F_I_L_E_N_A_M_E
+                                      Use this file as the log of changes per-
+                                      formed to the database.  This file is
+                                      used by iipprrooppdd--mmaasstteerr for propagating
+                                      changes to slaves.
+
+                      }
+
+                      max-request = _S_I_Z_E
+                           Maximum size of a kdc request.
+
+                      require-preauth = _B_O_O_L
+                           If set pre-authentication is required.  Since krb4
+                           requests are not pre-authenticated they will be
+                           rejected.
+
+                      ports = _l_i_s_t _o_f _p_o_r_t_s
+                           List of ports the kdc should listen to.
+
+                      addresses = _l_i_s_t _o_f _i_n_t_e_r_f_a_c_e_s
+                           List of addresses the kdc should bind to.
+
+                      enable-kerberos4 = _B_O_O_L
+                           Turn on Kerberos 4 support.
+
+                      v4-realm = _R_E_A_L_M
+                           To what realm v4 requests should be mapped.
+
+                      enable-524 = _B_O_O_L
+                           Should the Kerberos 524 converting facility be
+                           turned on.  Default is the same as
+                           _e_n_a_b_l_e_-_k_e_r_b_e_r_o_s_4.
+
+                      enable-http = _B_O_O_L
+                           Should the kdc answer kdc-requests over http.
+
+                      enable-kaserver = _B_O_O_L
+                           If this kdc should emulate the AFS kaserver.
+
+                      as-use-strongest-session-key = _B_O_O_L
+                           If this is TRUE then the KDC will prefer the
+                           strongest key from the client's AS-REQ enctype
+                           list, that is also supported by the KDC and the
+                           target principal, for the ticket session key. Else
+                           it will prefer the first key from the client's AS-
+                           REQ enctype list that is also supported by the KDC
+                           and the target principal. Defaults to TRUE.
+
+                      preauth-use-strongest-session-key = _B_O_O_L
+                           Like as-use-strongest-session-key, but applies to
+                           the session key enctype selection for PA-ETYPE-
+                           INFO2 (i.e., for password-based pre-authentica-
+                           tion). Defaults to TRUE.
+
+                      tgs-use-strongest-session-key = _B_O_O_L
+                           Like as-use-strongest-session-key, but applies to
+                           the session key enctype of tickets issued by the
+                           TGS. Defaults to TRUE.
+
+                      use-strongest-server-key = _B_O_O_L
+                           If TRUE then the KDC picks, for the ticket
+                           encrypted part's key, the first supported enctype
+                           from the target service principal's hdb entry's
+                           current keyset. Else the KDC picks the first sup-
+                           ported enctype from the target service principal's
+                           hdb entry's current keyset. Defaults to TRUE.
+
+                      check-ticket-addresses = _B_O_O_L
+                           Verify the addresses in the tickets used in tgs
+                           requests.
+
+                      allow-null-ticket-addresses = _B_O_O_L
+                           Allow address-less tickets.
+
+                      allow-anonymous = _B_O_O_L
+                           If the kdc is allowed to hand out anonymous tick-
+                           ets.
+
+                      encode_as_rep_as_tgs_rep = _B_O_O_L
+                           Encode as-rep as tgs-rep tobe compatible with mis-
+                           takes older DCE secd did.
+
+                      kdc_warn_pwexpire = _T_I_M_E
+                           The time before expiration that the user should be
+                           warned that her password is about to expire.
+
+                      logging = _L_o_g_g_i_n_g
+                           What type of logging the kdc should use, see also
+                           [logging]/kdc.
+
+                      use_2b = {
+
+                                 _p_r_i_n_c_i_p_a_l = _B_O_O_L
+                                      boolean value if the 524 daemon should
+                                      return AFS 2b tokens for _p_r_i_n_c_i_p_a_l.
+
+                                 ...
+
+                      }
+
+                      hdb-ldap-structural-object _s_t_r_u_c_t_u_r_a_l _o_b_j_e_c_t
+                           If the LDAP backend is used for storing principals,
+                           this is the structural object that will be used
+                           when creating and when reading objects.  The
+                           default value is account .
+
+                      hdb-ldap-create-base _c_r_e_a_t_i_o_n _d_n
+                           is the dn that will be appended to the principal
+                           when creating entries.  Default value is the search
+                           dn.
+
+                      enable-digest = _B_O_O_L
+                           Should the kdc answer digest requests. The default
+                           is FALSE.
+
+                      digests_allowed = _l_i_s_t _o_f _d_i_g_e_s_t_s
+                           Specifies the digests the kdc will reply to. The
+                           default is ntlm-v2.
+
+           [kadmin]
+
+                      require-preauth = _B_O_O_L
+                           If pre-authentication is required to talk to the
+                           kadmin server.
+
+                      password_lifetime = _t_i_m_e
+                           If a principal already have its password set for
+                           expiration, this is the time it will be valid for
+                           after a change.
+
+                      default_keys = _k_e_y_t_y_p_e_s_._._.
+                           For each entry in _d_e_f_a_u_l_t___k_e_y_s try to parse it as a
+                           sequence of _e_t_y_p_e_:_s_a_l_t_t_y_p_e_:_s_a_l_t syntax of this if
+                           something like:
+
+                           [(des|des3|etype):](pw-salt|afs3-salt)[:string]
+
+                           If _e_t_y_p_e is omitted it means everything, and if
+                           string is omitted it means the default salt string
+                           (for that principal and encryption type).  Addi-
+                           tional special values of keytypes are:
+
+                                 v5   The Kerberos 5 salt _p_w_-_s_a_l_t
+
+                                 v4   The Kerberos 4 salt _d_e_s_:_p_w_-_s_a_l_t_:
+
+                      use_v4_salt = _B_O_O_L
+                           When true, this is the same as
+
+                           _d_e_f_a_u_l_t___k_e_y_s _= _d_e_s_3_:_p_w_-_s_a_l_t _v_4
+
+                           and is only left for backwards compatibility.
+
+           [password_quality]
+                Check the Password quality assurance in the info documentation
+                for more information.
+
+                      check_library = _l_i_b_r_a_r_y_-_n_a_m_e
+                           Library name that contains the password check_func-
+                           tion
+
+                      check_function = _f_u_n_c_t_i_o_n_-_n_a_m_e
+                           Function name for checking passwords in
+                           check_library
+
+                      policy_libraries = _l_i_b_r_a_r_y_1 _._._. _l_i_b_r_a_r_y_N
+                           List of libraries that can do password policy
+                           checks
+
+                      policies = _p_o_l_i_c_y_1 _._._. _p_o_l_i_c_y_N
+                           List of policy names to apply to the password.
+                           Builtin policies are among other minimum-length,
+                           character-class, external-check.
+
+EENNVVIIRROONNMMEENNTT
+     KRB5_CONFIG points to the configuration file to read.
+
+FFIILLEESS
+     /etc/krb5.conf  configuration file for Kerberos 5.
+
+EEXXAAMMPPLLEESS
+           [libdefaults]
+                   default_realm = FOO.SE
+           [domain_realm]
+                   .foo.se = FOO.SE
+                   .bar.se = FOO.SE
+           [realms]
+                   FOO.SE = {
+                           kdc = kerberos.foo.se
+                           v4_name_convert = {
+                                   rcmd = host
+                           }
+                           v4_instance_convert = {
+                                   xyz = xyz.bar.se
+                           }
+                           default_domain = foo.se
+                   }
+           [logging]
+                   kdc = FILE:/var/heimdal/kdc.log
+                   kdc = SYSLOG:INFO
+                   default = SYSLOG:INFO:USER
+
+DDIIAAGGNNOOSSTTIICCSS
+     Since kkrrbb55..ccoonnff is read and parsed by the krb5 library, there is not a
+     lot of opportunities for programs to report parsing errors in any useful
+     format.  To help overcome this problem, there is a program
+     vveerriiffyy__kkrrbb55__ccoonnff that reads kkrrbb55..ccoonnff and tries to emit useful diagnos-
+     tics from parsing errors.  Note that this program does not have any way
+     of knowing what options are actually used and thus cannot warn about
+     unknown or misspelled ones.
+
+SSEEEE AALLSSOO
+     kinit(1), krb5_425_conv_principal(3), krb5_openlog(3), strftime(3),
+     verify_krb5_conf(8)
+
+HEIMDAL                           May 4, 2005                          HEIMDAL

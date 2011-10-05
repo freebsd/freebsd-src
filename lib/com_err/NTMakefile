@@ -1,0 +1,91 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR = lib\com_err
+
+intcflags=-DBUILD_KRB5_LIB
+
+!include ../../windows/NTMakefile.w32
+
+INCFILES=$(INCDIR)\com_err.h $(INCDIR)\com_right.h
+
+libcomerr_OBJs=$(OBJ)\error.obj $(OBJ)\com_err.obj
+
+COMERRDLL=$(BINDIR)\com_err.dll
+
+!ifdef STATICLIBS
+
+$(LIBCOMERR): $(libcomerr_OBJs)
+	$(LIBCON)
+
+!else
+
+$(LIBCOMERR): $(COMERRDLL)
+
+$(COMERRDLL): $(libcomerr_OBJs) $(OBJ)\libcom_err-version.res
+	$(DLLGUILINK_C) -out:$(COMERRDLL) -implib:$(LIBCOMERR) $** \
+		$(LIBROKEN) \
+		-def:libcom_err-exports.def
+	$(DLLPREP_NODIST)
+
+!endif
+
+$(BINDIR)\compile_et.exe:  $(OBJ)\parse.obj $(OBJ)\lex.obj $(OBJ)\compile_et.obj $(OBJ)\compile_et-version.res
+	$(EXECONLINK) $(LIBROKEN) $(LIBVERS)
+	$(EXEPREP_NOHEIM)
+
+$(OBJ)\parse.obj: $(OBJ)\parse.c
+	$(C2OBJ) -I$(SRC)\$(RELDIR)
+
+$(OBJ)\lex.obj: $(OBJ)\lex.c
+	$(C2OBJ) -I$(SRC)\$(RELDIR) -DYY_NO_UNISTD_H
+
+$(OBJ)\compile_et.obj: compile_et.c
+	$(C2OBJ) -I$(OBJ)
+
+$(OBJ)\parse.c: parse.y
+	$(YACC) -o $@ --defines=$(OBJ)\parse.h parse.y
+
+$(OBJ)\lex.c: lex.l
+	$(LEX) -o$@ lex.l
+
+all:: $(INCFILES) $(LIBCOMERR) $(BINDIR)\compile_et.exe
+
+clean::
+	-$(RM) $(LIBCOMERR)
+	-$(RM) $(INCFILES)
+	-$(RM) $(COMERRDLL:.dll=.*)
+	-$(RM) $(BINDIR)\compile_et.*
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libcom_err-exports.def
+
+test:: test-exports

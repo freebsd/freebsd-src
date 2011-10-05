@@ -1,0 +1,83 @@
+.\" Copyright (c) 1996 - 1997, 2001 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd September 27, 1996
+.Dt KXD 8
+.Os KTH-KRB
+.Sh NAME
+.Nm kxd
+.Nd securely forward X conections
+.Sh SYNOPSIS
+.Ar kxd
+.Op Fl t
+.Op Fl i
+.Op Fl p Ar port
+.Sh DESCRIPTION
+This is the daemon for
+.Nm kx .
+.Pp
+Options supported by
+.Nm kxd :
+.Bl -tag -width Ds
+.It Fl t
+TCP.  Normally
+.Nm kxd
+will only listen for X connections on a UNIX socket, but some machines
+(for example, Cray) have X libraries that are not able to use UNIX
+sockets and thus you need to use TCP to talk to the pseudo-xserver
+created by
+.Nm kxd .
+This option decreases the security significantly and should only be
+used when it is necessary and you have considered the consequences of
+doing so.
+.It Fl i
+Interactive.  Do not expect to be started by
+.Nm inetd ,
+but allocate and listen to the socket yourself.  Handy for testing
+and debugging.
+.It Fl p
+Port.  Listen on the port
+.Ar port .
+Only usable with
+.Fl i .
+.El
+.Sh EXAMPLES
+Put the following in
+.Pa /etc/inetd.conf :
+.Bd -literal
+kx	stream	tcp	nowait	root	/usr/athena/libexec/kxd	kxd
+.Ed
+.Sh SEE ALSO
+.Xr kx 1 ,
+.Xr rxtelnet 1 ,
+.Xr rxterm 1

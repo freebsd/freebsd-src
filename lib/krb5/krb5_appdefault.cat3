@@ -1,0 +1,57 @@
+
+KRB5_APPDEFAULT(3)       BSD Library Functions Manual       KRB5_APPDEFAULT(3)
+
+NNAAMMEE
+     kkrrbb55__aappppddeeffaauulltt__bboooolleeaann, kkrrbb55__aappppddeeffaauulltt__ssttrriinngg, kkrrbb55__aappppddeeffaauulltt__ttiimmee --
+     get application configuration value
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _v_o_i_d
+     kkrrbb55__aappppddeeffaauulltt__bboooolleeaann(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_a_p_p_n_a_m_e,
+         _k_r_b_5___r_e_a_l_m _r_e_a_l_m, _c_o_n_s_t _c_h_a_r _*_o_p_t_i_o_n, _k_r_b_5___b_o_o_l_e_a_n _d_e_f___v_a_l,
+         _k_r_b_5___b_o_o_l_e_a_n _*_r_e_t___v_a_l);
+
+     _v_o_i_d
+     kkrrbb55__aappppddeeffaauulltt__ssttrriinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_a_p_p_n_a_m_e,
+         _k_r_b_5___r_e_a_l_m _r_e_a_l_m, _c_o_n_s_t _c_h_a_r _*_o_p_t_i_o_n, _c_o_n_s_t _c_h_a_r _*_d_e_f___v_a_l,
+         _c_h_a_r _*_*_r_e_t___v_a_l);
+
+     _v_o_i_d
+     kkrrbb55__aappppddeeffaauulltt__ttiimmee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_a_p_p_n_a_m_e,
+         _k_r_b_5___r_e_a_l_m _r_e_a_l_m, _c_o_n_s_t _c_h_a_r _*_o_p_t_i_o_n, _t_i_m_e___t _d_e_f___v_a_l,
+         _t_i_m_e___t _*_r_e_t___v_a_l);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions get application defaults from the appdefaults section of
+     the krb5.conf(5) configuration file. These defaults can be specified per
+     application, and/or per realm.
+
+     These values will be looked for in krb5.conf(5), in order of descending
+     importance.
+
+           [appdefaults]
+                   appname = {
+                           realm = {
+                                   option = value
+                           }
+                   }
+                   appname = {
+                           option = value
+                   }
+                   realm = {
+                           option = value
+                   }
+                   option = value
+     _a_p_p_n_a_m_e is the name of the application, and _r_e_a_l_m is the realm name. If
+     the realm is omitted it will not be used for resolving values.  _d_e_f___v_a_l
+     is the value to return if no value is found in krb5.conf(5).
+
+SSEEEE AALLSSOO
+     krb5_config(3), krb5.conf(5)
+
+HEIMDAL                          July 25, 2000                         HEIMDAL

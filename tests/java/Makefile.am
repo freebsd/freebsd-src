@@ -37,6 +37,7 @@ CLEANFILES= \
 
 
 EXTRA_DIST = \
+	NTMakefile \
 	KerberosInit.java \
 	jaas.conf \
 	check-kinit.in \

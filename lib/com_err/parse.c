@@ -93,42 +93,40 @@
 #line 1 "parse.y"
 
 /*
- * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "compile_et.h"
 #include "lex.h"
-
-RCSID("$Id: parse.y 15426 2005-06-16 19:21:42Z lha $");
 
 void yyerror (char *s);
 static long name2number(const char *str);
@@ -140,6 +138,9 @@ extern char *yytext;
 #if !defined(alloca) && !defined(HAVE_ALLOCA)
 #define alloca(x) malloc(x)
 #endif
+
+#define YYMALLOC malloc
+#define YYFREE free
 
 
 
@@ -163,13 +164,13 @@ extern char *yytext;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 53 "parse.y"
+#line 54 "parse.y"
 {
   char *string;
   int number;
 }
 /* Line 193 of yacc.c.  */
-#line 173 "parse.c"
+#line 174 "parse.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -182,7 +183,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 186 "parse.c"
+#line 187 "parse.c"
 
 #ifdef short
 # undef short
@@ -469,8 +470,8 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    64,    64,    65,    68,    69,    72,    78,    84,    93,
-      94,    97,   101,   109,   116,   136
+       0,    65,    65,    66,    69,    70,    73,    79,    85,    94,
+      95,    98,   102,   110,   117,   137
 };
 #endif
 
@@ -1381,14 +1382,14 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 73 "parse.y"
+#line 74 "parse.y"
     {
 		    id_str = (yyvsp[(2) - (2)].string);
 		}
     break;
 
   case 7:
-#line 79 "parse.y"
+#line 80 "parse.y"
     {
 		    base_id = name2number((yyvsp[(2) - (2)].string));
 		    strlcpy(name, (yyvsp[(2) - (2)].string), sizeof(name));
@@ -1397,7 +1398,7 @@ yyreduce:
     break;
 
   case 8:
-#line 85 "parse.y"
+#line 86 "parse.y"
     {
 		    base_id = name2number((yyvsp[(2) - (3)].string));
 		    strlcpy(name, (yyvsp[(3) - (3)].string), sizeof(name));
@@ -1407,14 +1408,14 @@ yyreduce:
     break;
 
   case 11:
-#line 98 "parse.y"
+#line 99 "parse.y"
     {
 			number = (yyvsp[(2) - (2)].number);
 		}
     break;
 
   case 12:
-#line 102 "parse.y"
+#line 103 "parse.y"
     {
 		    free(prefix);
 		    asprintf (&prefix, "%s_", (yyvsp[(2) - (2)].string));
@@ -1425,7 +1426,7 @@ yyreduce:
     break;
 
   case 13:
-#line 110 "parse.y"
+#line 111 "parse.y"
     {
 		    prefix = realloc(prefix, 1);
 		    if (prefix == NULL)
@@ -1435,10 +1436,10 @@ yyreduce:
     break;
 
   case 14:
-#line 117 "parse.y"
+#line 118 "parse.y"
     {
 		    struct error_code *ec = malloc(sizeof(*ec));
-		    
+
 		    if (ec == NULL)
 			errx(1, "malloc");
 
@@ -1458,7 +1459,7 @@ yyreduce:
     break;
 
   case 15:
-#line 137 "parse.y"
+#line 138 "parse.y"
     {
 			YYACCEPT;
 		}
@@ -1466,7 +1467,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1470 "parse.c"
+#line 1471 "parse.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1680,7 +1681,7 @@ yyreturn:
 }
 
 
-#line 142 "parse.y"
+#line 143 "parse.y"
 
 
 static long
@@ -1711,6 +1712,6 @@ name2number(const char *str)
 void
 yyerror (char *s)
 {
-     error_message ("%s\n", s);
+     _lex_error_message ("%s\n", s);
 }
 

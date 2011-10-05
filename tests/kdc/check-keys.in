@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,21 +30,22 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id$
-#
 
-srcdir="@srcdir@"
-objdir="@objdir@"
-EGREP="@EGREP@"
+top_builddir="@top_builddir@"
+env_setup="@env_setup@"
+objdir="."
+
+. ${env_setup}
+
+srcdir="${top_srcdir}/tests/kdc"
 
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
 
 R=TEST.H5L.SE
 principal=host/datan.test.h5l.se@${R}
 
-kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -r $R -l"
+kadmin="${kadmin} -l -r $R"
 
 CIN=${srcdir}/krb5.conf.keys.in
 COUT=${objdir}/krb5.conf.keys

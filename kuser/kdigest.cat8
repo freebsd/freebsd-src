@@ -1,0 +1,133 @@
+
+KDIGEST(8)                BSD System Manager's Manual               KDIGEST(8)
+
+NNAAMMEE
+     kkddiiggeesstt -- userland tool to access digest interface in the KDC
+
+SSYYNNOOPPSSIISS
+     kkddiiggeesstt [----ccccaacchhee==_s_t_r_i_n_g] [----vveerrssiioonn] [----hheellpp] command [arguments]
+
+DDEESSCCRRIIPPTTIIOONN
+     Supported options:
+
+     ----ccccaacchhee==_s_t_r_i_n_g
+             credential cache
+
+     ----vveerrssiioonn
+             print version
+
+     ----hheellpp
+
+     Available commands are:
+
+     digest-probe [----rreeaallmm==_s_t_r_i_n_g] [--hh | ----hheellpp]
+
+             ----rreeaallmm==_s_t_r_i_n_g
+                     Kerberos realm to communicate with
+
+     digest-server-init [----ttyyppee==_s_t_r_i_n_g] [----kkeerrbbeerrooss--rreeaallmm==_r_e_a_l_m]
+             [----ddiiggeesstt==_d_i_g_e_s_t_-_t_y_p_e] [----ccbb--ttyyppee==_t_y_p_e] [----ccbb--vvaalluuee==_v_a_l_u_e]
+             [----hhoossttnnaammee==_h_o_s_t_n_a_m_e] [----rreeaallmm==_s_t_r_i_n_g]
+
+             ----ttyyppee==_s_t_r_i_n_g
+                     digest type
+
+             ----kkeerrbbeerrooss--rreeaallmm==_r_e_a_l_m
+
+             ----ddiiggeesstt==_d_i_g_e_s_t_-_t_y_p_e
+                     digest type to use in the algorithm
+
+             ----ccbb--ttyyppee==_t_y_p_e
+                     type of channel bindings
+
+             ----ccbb--vvaalluuee==_v_a_l_u_e
+                     value of channel bindings
+
+             ----hhoossttnnaammee==_h_o_s_t_n_a_m_e
+                     hostname of the server
+
+             ----rreeaallmm==_s_t_r_i_n_g
+                     Kerberos realm to communicate with
+
+     digest-server-request [----ttyyppee==_s_t_r_i_n_g] [----kkeerrbbeerrooss--rreeaallmm==_r_e_a_l_m]
+             [----uusseerrnnaammee==_n_a_m_e] [----sseerrvveerr--nnoonnccee==_n_o_n_c_e]
+             [----sseerrvveerr--iiddeennttiiffiieerr==_n_o_n_c_e] [----cclliieenntt--nnoonnccee==_n_o_n_c_e]
+             [----cclliieenntt--rreessppoonnssee==_r_e_s_p_o_n_s_e] [----ooppaaqquuee==_s_t_r_i_n_g]
+             [----aauutthheennttiiccaattiioonn--nnaammee==_n_a_m_e] [----rreeaallmm==_r_e_a_l_m] [----mmeetthhoodd==_m_e_t_h_o_d]
+             [----uurrii==_u_r_i] [----nnoouunnccee--ccoouunntt==_c_o_u_n_t] [----qqoopp==_q_o_p] [----ccccaacchhee==_c_c_a_c_h_e]
+
+             ----ttyyppee==_s_t_r_i_n_g
+                     digest type
+
+             ----kkeerrbbeerrooss--rreeaallmm==_r_e_a_l_m
+
+             ----uusseerrnnaammee==_n_a_m_e
+                     digest type
+
+             ----sseerrvveerr--nnoonnccee==_n_o_n_c_e
+
+             ----sseerrvveerr--iiddeennttiiffiieerr==_n_o_n_c_e
+
+             ----cclliieenntt--nnoonnccee==_n_o_n_c_e
+
+             ----cclliieenntt--rreessppoonnssee==_r_e_s_p_o_n_s_e
+
+             ----ooppaaqquuee==_s_t_r_i_n_g
+
+             ----aauutthheennttiiccaattiioonn--nnaammee==_n_a_m_e
+
+             ----rreeaallmm==_r_e_a_l_m
+
+             ----mmeetthhoodd==_m_e_t_h_o_d
+
+             ----uurrii==_u_r_i
+
+             ----nnoouunnccee--ccoouunntt==_c_o_u_n_t
+
+             ----qqoopp==_q_o_p
+
+             ----ccccaacchhee==_c_c_a_c_h_e
+                     Where the the credential cache is created when the KDC
+                     returns tickets
+
+     digest-client-request [----ttyyppee==_s_t_r_i_n_g] [----uusseerrnnaammee==_n_a_m_e]
+             [----ppaasssswwoorrdd==_p_a_s_s_w_o_r_d] [----sseerrvveerr--nnoonnccee==_n_o_n_c_e]
+             [----sseerrvveerr--iiddeennttiiffiieerr==_n_o_n_c_e] [----cclliieenntt--nnoonnccee==_n_o_n_c_e]
+             [----ooppaaqquuee==_s_t_r_i_n_g] [----rreeaallmm==_r_e_a_l_m] [----mmeetthhoodd==_m_e_t_h_o_d] [----uurrii==_u_r_i]
+             [----nnoouunnccee--ccoouunntt==_c_o_u_n_t] [----qqoopp==_q_o_p]
+
+             ----ttyyppee==_s_t_r_i_n_g
+                     digest type
+
+             ----uusseerrnnaammee==_n_a_m_e
+                     digest type
+
+             ----ppaasssswwoorrdd==_p_a_s_s_w_o_r_d
+
+             ----sseerrvveerr--nnoonnccee==_n_o_n_c_e
+
+             ----sseerrvveerr--iiddeennttiiffiieerr==_n_o_n_c_e
+
+             ----cclliieenntt--nnoonnccee==_n_o_n_c_e
+
+             ----ooppaaqquuee==_s_t_r_i_n_g
+
+             ----rreeaallmm==_r_e_a_l_m
+
+             ----mmeetthhoodd==_m_e_t_h_o_d
+
+             ----uurrii==_u_r_i
+
+             ----nnoouunnccee--ccoouunntt==_c_o_u_n_t
+
+             ----qqoopp==_q_o_p
+
+     ntlm-server-init [----vveerrssiioonn==_i_n_t_e_g_e_r] [----kkeerrbbeerrooss--rreeaallmm==_s_t_r_i_n_g]
+
+             ----vveerrssiioonn==_i_n_t_e_g_e_r
+                     ntlm version
+
+             ----kkeerrbbeerrooss--rreeaallmm==_s_t_r_i_n_g
+                     Kerberos realm to communicate with
+
+HEIMDAL                       September 25, 2008                       HEIMDAL

@@ -1,0 +1,37 @@
+
+TENLETXR(1)               BSD General Commands Manual              TENLETXR(1)
+
+NNAAMMEE
+     tteennlleettxxrr -- forward X-connections backwards.
+
+SSYYNNOOPPSSIISS
+     tteennlleettxxrr [--ll _u_s_e_r_n_a_m_e] [--kk] _h_o_s_t [_p_o_r_t]
+
+DDEESSCCRRIIPPTTIIOONN
+     The tteennlleettxxrr program enables forwarding of X-connections from this
+     machine to host _h_o_s_t.  If _p_o_r_t is given, that port will be used instead
+     of the default.
+
+     The supported options are:
+
+     --ll      Log in on the remote host as user _u_s_e_r_n_a_m_e
+
+     --kk      Disables keep-alives.
+
+EEXXAAMMPPLLEE
+     To login from host _f_o_o to host _b_a_r (where your display is), you might do
+     the following.
+
+     1.   On foo: tteennlleettxxrr _b_a_r
+
+     2.   You will get a new shell where you will be able to start X clients
+          that will show their windows on _b_a_r.
+
+BBUUGGSS
+     It currently checks if you have permission to run it by checking if you
+     own _/_d_e_v_/_c_o_n_s_o_l_e on the remote host.
+
+SSEEEE AALLSSOO
+     kx(1), rxtelnet(1), rxterm(1), telnet(1), kxd(8)
+
+KTH_KRB                         March 31, 1997                         KTH_KRB

@@ -1,0 +1,134 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=kadmin 
+cincdirs=-I$(OBJ) -I$(INCDIR)\gssapi
+
+!include ../windows/NTMakefile.w32 
+
+SBIN_PROGRAMS=$(SBINDIR)\kadmin.exe
+
+# Disable kadmind.exe since currently it doesn't build
+#LIBEXEC_PROGRAMS=$(LIBEXECDIR)\kadmind.exe
+#
+
+COMMON_LIBS=		\
+	$(LIBHDB)	\
+	$(LIBHEIMDAL)	\
+	$(LIBROKEN)
+
+KADMIN_OBJS=			    \
+	$(OBJ)\ank.obj		    \
+	$(OBJ)\add_enctype.obj	    \
+	$(OBJ)\check.obj	    \
+	$(OBJ)\cpw.obj		    \
+	$(OBJ)\del.obj		    \
+	$(OBJ)\del_enctype.obj	    \
+	$(OBJ)\dump.obj		    \
+	$(OBJ)\ext.obj		    \
+	$(OBJ)\get.obj		    \
+	$(OBJ)\init.obj		    \
+	$(OBJ)\kadmin.obj	    \
+	$(OBJ)\load.obj		    \
+	$(OBJ)\mod.obj		    \
+	$(OBJ)\rename.obj	    \
+	$(OBJ)\stash.obj	    \
+	$(OBJ)\util.obj		    \
+	$(OBJ)\pw_quality.obj	    \
+	$(OBJ)\random_password.obj  \
+	$(OBJ)\kadmin-commands.obj  \
+	$(OBJ)\kadmin-version.res
+
+KADMIN_LIBS=	\
+	$(LIBKADM5CLNT)	\
+	$(LIBKADM5SRV)	\
+	$(LIBSL)	\
+	$(COMMON_LIBS)	\
+	$(LIBVERS)	\
+	$(LIBCOMERR)
+
+INCFILES=$(OBJ)\kadmin-commands.h
+
+$(OBJ)\kadmin-commands.c $(OBJ)\kadmin-commands.h: kadmin-commands.in
+	cd $(OBJ)
+	$(CP) $(SRCDIR)\kadmin-commands.in $(OBJ)
+	$(BINDIR)\slc.exe kadmin-commands.in
+	cd $(SRCDIR)
+
+$(SBINDIR)\kadmin.exe: $(KADMIN_OBJS) $(KADMIN_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+KADMIND_OBJS=		    \
+	$(OBJ)\rpc.obj	    \
+	$(OBJ)\server.obj   \
+	$(OBJ)\kadmind.obj  \
+	$(OBJ)\kadm_conn.obj \
+	$(OBJ)\kadmind-version.res
+
+KADMIND_LIBS=\
+	$(LIBKADM5SRV)	\
+	$(LIBGSSAPI)	\
+	$(COMMON_LIBS)
+
+$(LIBEXECDIR)\kadmind.exe: $(KADMIND_OBJS) $(KADMIND_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+all:: $(INCFILES) $(SBIN_PROGRAMS) $(LIBEXEC_PROGRAMS)
+
+clean::
+	-$(RM) $(SBIN_PROGRAMS:.exe=.*)
+	-$(RM) $(LIBEXEC_PROGRAMS:.exe=.*)
+
+
+
+
+NOINST_PROGRAMS=$(OBJ)\add_random_users.exe
+
+$(OBJ)\add_random_users.exe: $(OBJ)\add_random_users.obj $(LIBKADM5SRV) $(LIBKADM5CLNT) $(COMMON_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+TEST_BINARIES=$(OBJ)\test_util.exe
+
+$(OBJ)\test_util.exe: $(OBJ)\test_util.obj $(OBJ)\util.obj $(KADMIN_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+test-binaries: $(TEST_BINARIES)
+
+test-run:
+	cd $(OBJ)
+	test_util.exe
+	cd $(SRCDIR)
+
+test:: test-binaries test-run

@@ -1,4 +1,4 @@
-# $Id: Makefile.am 20513 2007-04-22 10:23:27Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -13,6 +13,7 @@ check_SCRIPTS = $(SCRIPT_TESTS)
 port = 49188
 
 do_subst = sed -e 's,[@]srcdir[@],$(srcdir),g' \
+	-e 's,[@]env_setup[@],$(top_builddir)/tests/bin/setup-env,g' \
 	-e 's,[@]port[@],$(port),g' \
 	-e 's,[@]objdir[@],$(top_builddir)/tests/gss,g'
 
@@ -60,6 +61,7 @@ CLEANFILES= \
 	krb5.conf \
 	current-db* \
 	*.log \
+	tempfile \
 	check-basic.tmp \
 	check-gss.tmp \
 	check-gssmask.tmp \
@@ -68,6 +70,7 @@ CLEANFILES= \
 	check-context.tmp
 
 EXTRA_DIST = \
+	NTMakefile \
 	check-basic.in \
 	check-gss.in \
 	check-gssmask.in \

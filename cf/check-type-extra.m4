@@ -1,4 +1,4 @@
-dnl $Id: check-type-extra.m4 13338 2004-02-12 14:21:14Z lha $
+dnl $Id$
 dnl
 dnl ac_check_type + extra headers
 

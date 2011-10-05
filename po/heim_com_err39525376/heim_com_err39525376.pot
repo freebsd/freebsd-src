@@ -1,0 +1,274 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Heimdal 1.2.99\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-09-07 15:23+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. 000
+#: ../lib/krb5/krb_err.c:11
+msgid "Kerberos 4 successful"
+msgstr ""
+
+#. 001
+#: ../lib/krb5/krb_err.c:12
+msgid "Kerberos 4 principal expired"
+msgstr ""
+
+#. 002
+#: ../lib/krb5/krb_err.c:13
+msgid "Kerberos 4 service expired"
+msgstr ""
+
+#. 003
+#: ../lib/krb5/krb_err.c:14
+msgid "Kerberos 4 auth expired"
+msgstr ""
+
+#. 004
+#. 005
+#. 006
+#: ../lib/krb5/krb_err.c:15 ../lib/krb5/krb_err.c:16 ../lib/krb5/krb_err.c:17
+msgid "Incorrect Kerberos 4 master key version"
+msgstr ""
+
+#. 007
+#: ../lib/krb5/krb_err.c:18
+msgid "Kerberos 4 byte order unknown"
+msgstr ""
+
+#. 008
+#: ../lib/krb5/krb_err.c:19
+msgid "Kerberos 4 principal unknown"
+msgstr ""
+
+#. 009
+#: ../lib/krb5/krb_err.c:20
+msgid "Kerberos 4 principal not unique"
+msgstr ""
+
+#. 010
+#: ../lib/krb5/krb_err.c:21
+msgid "Kerberos 4 principal has null key"
+msgstr ""
+
+#. 011
+#. 012
+#. 013
+#. 014
+#. 015
+#. 016
+#. 017
+#. 018
+#. 019
+#. 020
+#: ../lib/krb5/krb_err.c:31
+msgid "Generic error from KDC (Kerberos 4)"
+msgstr ""
+
+#. 021
+#: ../lib/krb5/krb_err.c:32
+msgid "Can't read Kerberos 4 ticket file"
+msgstr ""
+
+#. 022
+#: ../lib/krb5/krb_err.c:33
+msgid "Can't find Kerberos 4 ticket or TGT"
+msgstr ""
+
+#. 023
+#. 024
+#. 025
+#. 026
+#: ../lib/krb5/krb_err.c:37
+msgid "Kerberos 4 TGT Expired"
+msgstr ""
+
+#. 027
+#. 028
+#. 029
+#. 030
+#. 031
+#: ../lib/krb5/krb_err.c:42
+msgid "Kerberos 4: Can't decode authenticator"
+msgstr ""
+
+#. 032
+#: ../lib/krb5/krb_err.c:43
+msgid "Kerberos 4 ticket expired"
+msgstr ""
+
+#. 033
+#: ../lib/krb5/krb_err.c:44
+msgid "Kerberos 4 ticket not yet valid"
+msgstr ""
+
+#. 034
+#: ../lib/krb5/krb_err.c:45
+msgid "Kerberos 4: Repeated request"
+msgstr ""
+
+#. 035
+#: ../lib/krb5/krb_err.c:46
+msgid "The Kerberos 4 ticket isn't for us"
+msgstr ""
+
+#. 036
+#: ../lib/krb5/krb_err.c:47
+msgid "Kerberos 4 request inconsistent"
+msgstr ""
+
+#. 037
+#: ../lib/krb5/krb_err.c:48
+msgid "Kerberos 4: delta_t too big"
+msgstr ""
+
+#. 038
+#: ../lib/krb5/krb_err.c:49
+msgid "Kerberos 4: incorrect net address"
+msgstr ""
+
+#. 039
+#: ../lib/krb5/krb_err.c:50
+msgid "Kerberos protocol not version 4"
+msgstr ""
+
+#. 040
+#: ../lib/krb5/krb_err.c:51
+msgid "Kerberos 4: invalid msg type"
+msgstr ""
+
+#. 041
+#: ../lib/krb5/krb_err.c:52
+msgid "Kerberos 4: message stream modified"
+msgstr ""
+
+#. 042
+#: ../lib/krb5/krb_err.c:53
+msgid "Kerberos 4: message out of order"
+msgstr ""
+
+#. 043
+#: ../lib/krb5/krb_err.c:54
+msgid "Kerberos 4: unauthorized request"
+msgstr ""
+
+#. 044
+#. 045
+#. 046
+#. 047
+#. 048
+#. 049
+#. 050
+#. 051
+#: ../lib/krb5/krb_err.c:62
+msgid "Kerberos 4: current PW is null"
+msgstr ""
+
+#. 052
+#: ../lib/krb5/krb_err.c:63
+msgid "Kerberos 4: Incorrect current password"
+msgstr ""
+
+#. 053
+#: ../lib/krb5/krb_err.c:64
+msgid "Kerberos 4 protocol error"
+msgstr ""
+
+#. 054
+#: ../lib/krb5/krb_err.c:65
+msgid "Error returned by KDC (Kerberos 4)"
+msgstr ""
+
+#. 055
+#: ../lib/krb5/krb_err.c:66
+msgid "Null Kerberos 4 ticket returned by KDC"
+msgstr ""
+
+#. 056
+#: ../lib/krb5/krb_err.c:67
+msgid "Kerberos 4: Retry count exceeded"
+msgstr ""
+
+#. 057
+#: ../lib/krb5/krb_err.c:68
+msgid "Kerberos 4: Can't send request"
+msgstr ""
+
+#. 058
+#. 059
+#. 060
+#. 061
+#: ../lib/krb5/krb_err.c:72
+msgid "Kerberos 4: not all tickets returned"
+msgstr ""
+
+#. 062
+#: ../lib/krb5/krb_err.c:73
+msgid "Kerberos 4: incorrect password"
+msgstr ""
+
+#. 063
+#: ../lib/krb5/krb_err.c:74
+msgid "Kerberos 4: Protocol Error"
+msgstr ""
+
+#. 064
+#. 065
+#. 066
+#. 067
+#. 068
+#. 069
+#. 070
+#: ../lib/krb5/krb_err.c:81
+msgid "Other error in Kerberos 4"
+msgstr ""
+
+#. 071
+#: ../lib/krb5/krb_err.c:82
+msgid "Don't have Kerberos 4 ticket-granting ticket"
+msgstr ""
+
+#. 072
+#. 073
+#. 074
+#. 075
+#. 076
+#: ../lib/krb5/krb_err.c:87
+msgid "No Kerberos 4 ticket file found"
+msgstr ""
+
+#. 077
+#: ../lib/krb5/krb_err.c:88
+msgid "Couldn't access Kerberos 4 ticket file"
+msgstr ""
+
+#. 078
+#: ../lib/krb5/krb_err.c:89
+msgid "Couldn't lock Kerberos 4 ticket file"
+msgstr ""
+
+#. 079
+#: ../lib/krb5/krb_err.c:90
+msgid "Bad Kerberos 4 ticket file format"
+msgstr ""
+
+#. 080
+#: ../lib/krb5/krb_err.c:91
+msgid "Kerberos 4: tf_init not called first"
+msgstr ""
+
+#. 081
+#: ../lib/krb5/krb_err.c:92
+msgid "Bad Kerberos 4 name format"
+msgstr ""

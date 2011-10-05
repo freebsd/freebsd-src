@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: telnet.c 16285 2005-11-03 18:38:57Z lha $");
+RCSID("$Id$");
 
 #define	strip(x) (eight ? (x) : ((x) & 0x7f))
 
@@ -1631,7 +1631,7 @@ telrcv(void)
 		telrcv_state = TS_IAC;
 		break;
 	    }
-		    /* 
+		    /*
 		     * The 'crmod' hack (see following) is needed
 		     * since we can't set CRMOD on output only.
 		     * Machines like MULTICS like to send \r without
@@ -2036,7 +2036,7 @@ void
 my_telnet(char *user)
 {
     int printed_encrypt = 0;
-    
+
     sys_telnet_init();
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
@@ -2079,7 +2079,7 @@ my_telnet(char *user)
     /*
      * Note: we assume a tie to the authentication option here.  This
      * is necessary so that authentication fails, we don't spin
-     * forever. 
+     * forever.
      */
     if (telnetport && wantencryption) {
 	time_t timeout = time(0) + 60;
@@ -2116,7 +2116,7 @@ my_telnet(char *user)
 		    printed_encrypt = 1;
 		    printf("Waiting for encryption to be negotiated...\n");
 		    /*
-		     * Turn on MODE_TRAPSIG and then turn off localchars 
+		     * Turn on MODE_TRAPSIG and then turn off localchars
 		     * so that ^C will cause telnet to exit.
 		     */
 		    TerminalNewMode(getconnmode()|MODE_TRAPSIG);
@@ -2130,7 +2130,7 @@ my_telnet(char *user)
 		    printf("\nServer disconnected.\n");
 		    Exit(1);
 	    }
-		
+
 	}
 	if (printed_encrypt) {
 		printf("Encryption negotiated.\n");

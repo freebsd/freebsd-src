@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997-2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "rsh_locl.h"
 #include "login_locl.h"
-RCSID("$Id: rshd.c 21515 2007-07-12 12:47:07Z lha $");
+RCSID("$Id$");
 
 int
 login_access( struct passwd *user, char *from);
@@ -52,11 +52,6 @@ krb5_keyblock *keyblock;
 krb5_crypto crypto;
 #endif
 
-#ifdef KRB4
-des_key_schedule schedule;
-des_cblock iv;
-#endif
-
 #ifdef KRB5
 krb5_ccache ccache, ccache2;
 int kerberos_status = 0;
@@ -71,7 +66,6 @@ static int do_inetd = 1;
 static char *port_str;
 static int do_rhosts = 1;
 static int do_kerberos = 0;
-#define DO_KRB4 2
 #define DO_KRB5 4
 static int do_vacuous = 0;
 static int do_log = 1;
@@ -113,7 +107,7 @@ fatal (int sock, const char *what, const char *m, ...)
     len = min(len, sizeof(buf) - 1);
     va_end(args);
     if(what != NULL)
-	syslog (LOG_ERR, "%s: %m: %s", what, buf + 1);
+	syslog (LOG_ERR, "%s: %s: %s", what, strerror(errno), buf + 1);
     else
 	syslog (LOG_ERR, "%s", buf + 1);
     net_write (sock, buf, len + 1);
@@ -129,7 +123,7 @@ read_str (int s, size_t sz, char *expl)
 	fatal(s, NULL, "%s too long", expl);
     while(p < str + sz) {
 	if(net_read(s, p, 1) != 1)
-	    syslog_and_die("read: %m");
+	    syslog_and_die("read: %s", strerror(errno));
 	if(*p == '\0')
 	    return str;
 	p++;
@@ -146,7 +140,7 @@ recv_bsd_auth (int s, u_char *buf,
 	       char **cmd)
 {
     struct passwd *pwd;
-    
+
     *client_username = read_str (s, USERNAME_SZ, "local username");
     *server_username = read_str (s, USERNAME_SZ, "remote username");
     *cmd = read_str (s, ARG_MAX + 1, "command");
@@ -159,72 +153,8 @@ recv_bsd_auth (int s, u_char *buf,
     return 0;
 }
 
-#ifdef KRB4
-static int
-recv_krb4_auth (int s, u_char *buf,
-		struct sockaddr *thisaddr,
-		struct sockaddr *thataddr,
-		char **client_username,
-		char **server_username,
-		char **cmd)
-{
-    int status;
-    int32_t options;
-    KTEXT_ST ticket;
-    AUTH_DAT auth;
-    char instance[INST_SZ + 1];
-    char version[KRB_SENDAUTH_VLEN + 1];
-
-    if (memcmp (buf, KRB_SENDAUTH_VERS, 4) != 0)
-	return -1;
-    if (net_read (s, buf + 4, KRB_SENDAUTH_VLEN - 4) !=
-	KRB_SENDAUTH_VLEN - 4)
-	syslog_and_die ("reading auth info: %m");
-    if (memcmp (buf, KRB_SENDAUTH_VERS, KRB_SENDAUTH_VLEN) != 0)
-	syslog_and_die("unrecognized auth protocol: %.8s", buf);
-
-    options = KOPT_IGNORE_PROTOCOL;
-    if (do_encrypt)
-	options |= KOPT_DO_MUTUAL;
-    k_getsockinst (s, instance, sizeof(instance));
-    status = krb_recvauth (options,
-			   s,
-			   &ticket,
-			   "rcmd",
-			   instance,
-			   (struct sockaddr_in *)thataddr,
-			   (struct sockaddr_in *)thisaddr,
-			   &auth,
-			   "",
-			   schedule,
-			   version);
-    if (status != KSUCCESS)
-	syslog_and_die ("recvauth: %s", krb_get_err_text(status));
-    if (strncmp (version, KCMD_OLD_VERSION, KRB_SENDAUTH_VLEN) != 0)
-	syslog_and_die ("bad version: %s", version);
-
-    *server_username = read_str (s, USERNAME_SZ, "remote username");
-    if (kuserok (&auth, *server_username) != 0)
-	fatal (s, NULL, "Permission denied.");
-    *cmd = read_str (s, ARG_MAX + 1, "command");
-
-    syslog(LOG_INFO|LOG_AUTH,
-	   "kerberos v4 shell from %s on %s as %s, cmd '%.80s'",
-	   krb_unparse_name_long(auth.pname, auth.pinst, auth.prealm),
-
-	   inet_ntoa(((struct sockaddr_in *)thataddr)->sin_addr),
-	   *server_username,
-	   *cmd);
-
-    memcpy (iv, auth.session, sizeof(iv));
-
-    return 0;
-}
-
-#endif /* KRB4 */
-
 #ifdef KRB5
-static int 
+static int
 save_krb5_creds (int s,
                  krb5_auth_context auth_context,
                  krb5_principal client)
@@ -232,7 +162,7 @@ save_krb5_creds (int s,
 {
     int ret;
     krb5_data remote_cred;
- 
+
     krb5_data_zero (&remote_cred);
     ret= krb5_read_message (context, (void *)&s, &remote_cred);
     if (ret) {
@@ -241,13 +171,13 @@ save_krb5_creds (int s,
     }
     if (remote_cred.length == 0)
 	return 0;
- 
-    ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &ccache);
+
+    ret = krb5_cc_new_unique(context, krb5_cc_type_memory, NULL, &ccache);
     if (ret) {
 	krb5_data_free(&remote_cred);
 	return 0;
     }
-  
+
     krb5_cc_initialize(context,ccache,client);
     ret = krb5_rd_cred2(context, auth_context, ccache, &remote_cred);
     if(ret != 0)
@@ -268,8 +198,8 @@ krb5_start_session (void)
     ret = krb5_cc_resolve (context, tkfile, &ccache2);
     if (ret) {
 	estr = krb5_get_error_string(context);
-	syslog(LOG_WARNING, "resolve cred cache %s: %s", 
-	       tkfile, 
+	syslog(LOG_WARNING, "resolve cred cache %s: %s",
+	       tkfile,
 	       estr ? estr : krb5_get_err_text(context, ret));
 	free(estr);
 	krb5_cc_destroy(context, ccache);
@@ -279,7 +209,7 @@ krb5_start_session (void)
     ret = krb5_cc_copy_cache (context, ccache, ccache2);
     if (ret) {
 	estr = krb5_get_error_string(context);
-	syslog(LOG_WARNING, "storing credentials: %s", 
+	syslog(LOG_WARNING, "storing credentials: %s",
 	       estr ? estr : krb5_get_err_text(context, ret));
 	free(estr);
 	krb5_cc_destroy(context, ccache);
@@ -328,13 +258,13 @@ recv_krb5_auth (int s, u_char *buf,
     if (memcmp (buf, "\x00\x00\x00\x13", 4) != 0)
 	return -1;
     len = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | (buf[3]);
-	
+
     if (net_read(s, buf, len) != len)
-	syslog_and_die ("reading auth info: %m");
+	syslog_and_die ("reading auth info: %s", strerror(errno));
     if (len != sizeof(KRB5_SENDAUTH_VERSION)
 	|| memcmp (buf, KRB5_SENDAUTH_VERSION, len) != 0)
 	syslog_and_die ("bad sendauth version: %.8s", buf);
-    
+
     status = krb5_sock_to_principal (context,
 				     s,
 				     "host",
@@ -363,7 +293,7 @@ recv_krb5_auth (int s, u_char *buf,
     *client_username = read_str (s, ARG_MAX + 1, "local username");
 
     if(protocol_version == 2) {
-	status = krb5_auth_con_getremotesubkey(context, auth_context, 
+	status = krb5_auth_con_getremotesubkey(context, auth_context,
 					       &keyblock);
 	if(status != 0 || keyblock == NULL)
 	    syslog_and_die("failed to get remote subkey");
@@ -378,10 +308,10 @@ recv_krb5_auth (int s, u_char *buf,
 
     status = krb5_crypto_init(context, keyblock, 0, &crypto);
     if(status)
-	syslog_and_die("krb5_crypto_init: %s", 
+	syslog_and_die("krb5_crypto_init: %s",
 		       krb5_get_err_text(context, status));
 
-    
+
     cksum_data.length = asprintf (&str,
 				  "%u:%s%s",
 				  ntohs(socket_get_port (thisaddr)),
@@ -391,9 +321,9 @@ recv_krb5_auth (int s, u_char *buf,
 	syslog_and_die ("asprintf: out of memory");
     cksum_data.data = str;
 
-    status = krb5_verify_authenticator_checksum(context, 
+    status = krb5_verify_authenticator_checksum(context,
 						auth_context,
-						cksum_data.data, 
+						cksum_data.data,
 						cksum_data.length);
 
     if (status)
@@ -464,7 +394,9 @@ recv_krb5_auth (int s, u_char *buf,
 		   *cmd);
 	    free (name);
 	}
-    }	   
+    }
+
+    krb5_auth_con_free(context, auth_context);
 
     return 0;
 }
@@ -508,12 +440,12 @@ rshd_loop (int from0, int to0,
 	    if (errno == EINTR)
 		continue;
 	    else
-		syslog_and_die ("select: %m");
+		syslog_and_die ("select: %s", strerror(errno));
 	}
 	if (FD_ISSET(from0, &readset)) {
 	    ret = do_read (from0, buf, RSHD_BUFSIZ, ivec_in[0]);
 	    if (ret < 0)
-		syslog_and_die ("read: %m");
+		syslog_and_die ("read: %s", strerror(errno));
 	    else if (ret == 0) {
 		close (from0);
 		close (to0);
@@ -524,7 +456,7 @@ rshd_loop (int from0, int to0,
 	if (FD_ISSET(from1, &readset)) {
 	    ret = read (from1, buf, RSH_BUFSIZ);
 	    if (ret < 0)
-		syslog_and_die ("read: %m");
+		syslog_and_die ("read: %s", strerror(errno));
 	    else if (ret == 0) {
 		close (from1);
 		close (to1);
@@ -537,7 +469,7 @@ rshd_loop (int from0, int to0,
 	if (FD_ISSET(from2, &readset)) {
 	    ret = read (from2, buf, RSH_BUFSIZ);
 	    if (ret < 0)
-		syslog_and_die ("read: %m");
+		syslog_and_die ("read: %s", strerror(errno));
 	    else if (ret == 0) {
 		close (from2);
 		close (to2);
@@ -683,10 +615,10 @@ doit (void)
 
     thisaddr_len = sizeof(thisaddr_ss);
     if (getsockname (s, thisaddr, &thisaddr_len) < 0)
-	syslog_and_die("getsockname: %m");
+	syslog_and_die("getsockname: %s", strerror(errno));
     thataddr_len = sizeof(thataddr_ss);
     if (getpeername (s, thataddr, &thataddr_len) < 0)
-	syslog_and_die ("getpeername: %m");
+	syslog_and_die ("getpeername: %s", strerror(errno));
 
     /* check for V4MAPPED addresses? */
 
@@ -697,7 +629,7 @@ doit (void)
     port = 0;
     for(;;) {
 	if (net_read (s, p, 1) != 1)
-	    syslog_and_die ("reading port number: %m");
+	    syslog_and_die ("reading port number: %s", strerror(errno));
 	if (*p == '\0')
 	    break;
 	else if (isdigit(*p))
@@ -712,7 +644,7 @@ doit (void)
     if (port) {
 	int priv_port = IPPORT_RESERVED - 1;
 
-	/* 
+	/*
 	 * There's no reason to require a ``privileged'' port number
 	 * here, but for some reason the brain dead rsh clients
 	 * do... :-(
@@ -732,28 +664,19 @@ doit (void)
 	else
 	    errsock = socket (erraddr->sa_family, SOCK_STREAM, 0);
 	if (errsock < 0)
-	    syslog_and_die ("socket: %m");
+	    syslog_and_die ("socket: %s", strerror(errno));
 	if (connect (errsock,
 		     erraddr,
 		     socket_sockaddr_size (erraddr)) < 0) {
-	    syslog (LOG_WARNING, "connect: %m");
+	    syslog (LOG_WARNING, "connect: %s", strerror(errno));
 	    close (errsock);
 	}
     }
-    
+
     if(do_kerberos) {
 	if (net_read (s, buf, 4) != 4)
-	    syslog_and_die ("reading auth info: %m");
-    
-#ifdef KRB4
-	if ((do_kerberos & DO_KRB4) && 
-	    recv_krb4_auth (s, buf, thisaddr, thataddr,
-			    &client_user,
-			    &server_user,
-			    &cmd) == 0)
-	    auth_method = AUTH_KRB4;
-	else
-#endif /* KRB4 */
+	    syslog_and_die ("reading auth info: %s", strerror(errno));
+
 #ifdef KRB5
 	    if((do_kerberos & DO_KRB5) &&
 	       recv_krb5_auth (s, buf, thisaddr, thataddr,
@@ -811,26 +734,26 @@ doit (void)
     {
 	struct spwd *sp;
 	long    today;
-    
+
 	sp = getspnam(server_user);
 	if (sp != NULL) {
 	    today = time(0)/(24L * 60 * 60);
-	    if (sp->sp_expire > 0) 
-		if (today > sp->sp_expire) 
+	    if (sp->sp_expire > 0)
+		if (today > sp->sp_expire)
 		    fatal(s, NULL, "Account has expired.");
 	}
     }
 #endif
-    
+
 
 #ifdef HAVE_SETLOGIN
     if (setlogin(pwd->pw_name) < 0)
-	syslog(LOG_ERR, "setlogin() failed: %m");
+	syslog(LOG_ERR, "setlogin() failed: %s", strerror(errno));
 #endif
 
 #ifdef HAVE_SETPCRED
     if (setpcred (pwd->pw_name, NULL) == -1)
-	syslog(LOG_ERR, "setpcred() failure: %m");
+	syslog(LOG_ERR, "setpcred() failure: %s", strerror(errno));
 #endif /* HAVE_SETPCRED */
 
     /* Apply limits if not root */
@@ -863,7 +786,7 @@ doit (void)
 #ifdef KRB5
     {
 	int fd;
- 
+
 	if (!do_unique_tkfile)
 	    snprintf(tkfile,sizeof(tkfile),"FILE:/tmp/krb5cc_%lu",
 		     (unsigned long)pwd->pw_uid);
@@ -873,7 +796,7 @@ doit (void)
 	    close(fd);
 	    unlink(tkfile+5);
 	}
- 
+
 	if (kerberos_status)
 	    krb5_start_session();
     }
@@ -888,19 +811,13 @@ doit (void)
 	    fatal (s, "net_write", "write failed");
     }
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     if(k_hasafs()) {
 	char cell[64];
 
 	if(do_newpag)
 	    k_setpag();
-#ifdef KRB4
-	if (k_afs_cell_of_file (pwd->pw_dir, cell, sizeof(cell)) == 0)
-	    krb_afslog_uid_home (cell, NULL, pwd->pw_uid, pwd->pw_dir);
-	krb_afslog_uid_home(NULL, NULL, pwd->pw_uid, pwd->pw_dir);
-#endif
 
-#ifdef KRB5
 	/* XXX */
        if (kerberos_status) {
 	   krb5_ccache ccache;
@@ -916,9 +833,8 @@ doit (void)
 	       krb5_cc_close (context, ccache);
 	   }
        }
-#endif /* KRB5 */
     }
-#endif /* KRB5 || KRB4 */
+#endif /* KRB5 */
     execle (pwd->pw_shell, pwd->pw_shell, "-c", cmd, NULL, env);
     err(1, "exec %s", pwd->pw_shell);
 }
@@ -928,7 +844,7 @@ struct getargs args[] = {
     { "keepalive",	'n',	arg_negative_flag,	&do_keepalive },
     { "inetd",		'i',	arg_negative_flag,	&do_inetd,
       "Not started from inetd" },
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     { "kerberos",	'k',	arg_flag,	&do_kerberos,
       "Implement kerberised services" },
     { "encrypt",	'x',	arg_flag,		&do_encrypt,
@@ -940,7 +856,7 @@ struct getargs args[] = {
       "port" },
     { "vacuous",	'v',	arg_flag, &do_vacuous,
       "Don't accept non-kerberised connections" },
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     { NULL,		'P',	arg_negative_flag, &do_newpag,
       "Don't put process in new PAG" },
 #endif
@@ -985,12 +901,12 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     if (do_encrypt)
 	do_kerberos = 1;
 
     if(do_kerberos)
-	do_kerberos = DO_KRB4 | DO_KRB5;
+	do_kerberos = DO_KRB5;
 #endif
 
 #ifdef KRB5
@@ -1002,19 +918,19 @@ main(int argc, char **argv)
 	int error;
 	struct addrinfo *ai = NULL, hints;
 	char portstr[NI_MAXSERV];
-	
+
 	memset (&hints, 0, sizeof(hints));
 	hints.ai_flags    = AI_PASSIVE;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_family   = PF_UNSPEC;
-	
+
 	if(port_str != NULL) {
 	    error = getaddrinfo (NULL, port_str, &hints, &ai);
 	    if (error)
 		errx (1, "getaddrinfo: %s", gai_strerror (error));
 	}
 	if (ai == NULL) {
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 	    if (do_kerberos) {
 		if (do_encrypt) {
 		    error = getaddrinfo(NULL, "ekshell", &hints, &ai);
@@ -1022,7 +938,7 @@ main(int argc, char **argv)
 			snprintf(portstr, sizeof(portstr), "%d", 545);
 			error = getaddrinfo(NULL, portstr, &hints, &ai);
 		    }
-		    if(error) 
+		    if(error)
 			errx (1, "getaddrinfo: %s", gai_strerror (error));
 		} else {
 		    error = getaddrinfo(NULL, "kshell", &hints, &ai);
@@ -1030,7 +946,7 @@ main(int argc, char **argv)
 			snprintf(portstr, sizeof(portstr), "%d", 544);
 			error = getaddrinfo(NULL, portstr, &hints, &ai);
 		    }
-		    if(error) 
+		    if(error)
 			errx (1, "getaddrinfo: %s", gai_strerror (error));
 		}
 	    } else
@@ -1041,18 +957,18 @@ main(int argc, char **argv)
 			snprintf(portstr, sizeof(portstr), "%d", 514);
 			error = getaddrinfo(NULL, portstr, &hints, &ai);
 		    }
-		    if(error) 
+		    if(error)
 			errx (1, "getaddrinfo: %s", gai_strerror (error));
 		}
 	}
-	mini_inetd_addrinfo (ai);
+	mini_inetd_addrinfo (ai, NULL);
 	freeaddrinfo(ai);
     }
 
     if (do_keepalive &&
 	setsockopt(0, SOL_SOCKET, SO_KEEPALIVE, (char *)&on,
 		   sizeof(on)) < 0)
-	syslog(LOG_WARNING, "setsockopt (SO_KEEPALIVE): %m");
+	syslog(LOG_WARNING, "setsockopt (SO_KEEPALIVE): %s", strerror(errno));
 
     /* set SO_LINGER? */
 

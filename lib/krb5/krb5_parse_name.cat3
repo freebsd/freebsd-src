@@ -1,0 +1,31 @@
+
+KRB5_PARSE_NAME(3)       BSD Library Functions Manual       KRB5_PARSE_NAME(3)
+
+NNAAMMEE
+     kkrrbb55__ppaarrssee__nnaammee -- string to principal conversion
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ppaarrssee__nnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_n_a_m_e,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _*_p_r_i_n_c_i_p_a_l);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ppaarrssee__nnaammee() converts a string representation of a principal name to
+     kkrrbb55__pprriinncciippaall.  The _p_r_i_n_c_i_p_a_l will point to allocated data that should
+     be freed with kkrrbb55__ffrreeee__pprriinncciippaall().
+
+     The string should consist of one or more name components separated with
+     slashes (``/''), optionally followed with an ``@'' and a realm name. A
+     slash or @ may be contained in a name component by quoting it with a
+     backslash (``\'').  A realm should not contain slashes or colons.
+
+SSEEEE AALLSSOO
+     krb5_425_conv_principal(3), krb5_build_principal(3),
+     krb5_free_principal(3), krb5_sname_to_principal(3), krb5_unparse_name(3)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

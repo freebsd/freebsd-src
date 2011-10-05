@@ -1,40 +1,42 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "test_locl.h"
-#include <gssapi.h>
+#include <gssapi/gssapi.h>
+#include <gssapi/gssapi_krb5.h>
+#include <gssapi/gssapi_spnego.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_client.c 21521 2007-07-12 13:13:40Z lha $");
+RCSID("$Id$");
 
 static int
 do_trans (int sock, gss_ctx_id_t context_hdl)
@@ -92,6 +94,8 @@ do_trans (int sock, gss_ctx_id_t context_hdl)
     return 0;
 }
 
+extern char *password;
+
 static int
 proto (int sock, const char *hostname, const char *service)
 {
@@ -100,6 +104,7 @@ proto (int sock, const char *hostname, const char *service)
 
     int context_established = 0;
     gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
+    gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
     gss_buffer_desc real_input_token, real_output_token;
     gss_buffer_t input_token = &real_input_token,
 	output_token = &real_output_token;
@@ -119,7 +124,7 @@ proto (int sock, const char *hostname, const char *service)
     if (str == NULL)
 	errx(1, "malloc - out of memory");
     name_token.value = str;
-	
+
     maj_stat = gss_import_name (&min_stat,
 				&name_token,
 				GSS_C_NT_HOSTBASED_SERVICE,
@@ -127,6 +132,26 @@ proto (int sock, const char *hostname, const char *service)
     if (GSS_ERROR(maj_stat))
 	gss_err (1, min_stat,
 		 "Error importing name `%s@%s':\n", service, hostname);
+
+    if (password) {
+        gss_buffer_desc pw;
+
+        pw.value = password;
+        pw.length = strlen(password);
+
+        maj_stat = gss_acquire_cred_with_password(&min_stat,
+						  GSS_C_NO_NAME,
+						  &pw,
+						  GSS_C_INDEFINITE,
+						  GSS_C_NO_OID_SET,
+						  GSS_C_INITIATE,
+						  &cred,
+						  NULL,
+						  NULL);
+        if (GSS_ERROR(maj_stat))
+            gss_err (1, min_stat,
+                     "Error acquiring default initiator credentials");
+    }
 
     addrlen = sizeof(local);
     if (getsockname (sock, (struct sockaddr *)&local, &addrlen) < 0
@@ -156,7 +181,7 @@ proto (int sock, const char *hostname, const char *service)
     acct_buf[2] = (remote.sin_addr.s_addr >>  8) & 0xFF;
     acct_buf[3] = (remote.sin_addr.s_addr >>  0) & 0xFF;
     input_chan_bindings.acceptor_address.value = acct_buf;
-    
+
 #if 0
     input_chan_bindings.application_data.value = emalloc(4);
     * (unsigned short*)input_chan_bindings.application_data.value = local.sin_port;
@@ -170,7 +195,7 @@ proto (int sock, const char *hostname, const char *service)
     while(!context_established) {
 	maj_stat =
 	    gss_init_sec_context(&min_stat,
-				 GSS_C_NO_CREDENTIAL,
+				 cred,
 				 &context_hdl,
 				 server,
 				 mech_oid,

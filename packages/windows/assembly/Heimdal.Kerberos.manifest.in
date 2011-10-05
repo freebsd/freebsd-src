@@ -1,0 +1,15 @@
+<?xml version="1" encoding="UTF-8" standalone="yes" ?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" name="@name@"
+		    processorArchitecture="@cpu@"
+		    version="@version@"
+		    publicKeyToken="@pkt@" />
+  <file name="heimdal.dll" hashalg="SHA1" />
+  <file name="com_err.dll" hashalg="SHA1" />
+  <file name="heimntlm.dll" hashalg="SHA1" />
+  <file name="gssapi.dll" hashalg="SHA1" />
+  <file name="heimdal.pdb" hashalg="SHA1" />
+  <file name="com_err.pdb" hashalg="SHA1" />
+  <file name="heimntlm.pdb" hashalg="SHA1" />
+  <file name="gssapi.pdb" hashalg="SHA1" />
+</assembly>

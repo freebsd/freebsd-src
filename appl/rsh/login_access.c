@@ -25,7 +25,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: login_access.c 10020 2001-06-04 14:10:19Z assar $");
+RCSID("$Id$");
 
  /* Delimiters for fields and for lists of users, ttys or hosts. */
 
@@ -101,13 +101,13 @@ int login_access(struct passwd *user, char *from)
 		|| !(users = strtok_r(NULL, fs, &foo))
 		|| !(froms = strtok_r(NULL, fs, &foo))
 		|| strtok_r(NULL, fs, &foo)) {
-		syslog(LOG_ERR, "%s: line %d: bad field count", 
+		syslog(LOG_ERR, "%s: line %d: bad field count",
 		       _PATH_LOGACCESS,
 		       lineno);
 		continue;
 	    }
 	    if (perm[0] != '+' && perm[0] != '-') {
-		syslog(LOG_ERR, "%s: line %d: bad first field", 
+		syslog(LOG_ERR, "%s: line %d: bad first field",
 		       _PATH_LOGACCESS,
 		       lineno);
 		continue;

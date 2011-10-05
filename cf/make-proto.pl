@@ -1,16 +1,19 @@
 # Make prototypes from .c files
-# $Id: make-proto.pl 14183 2004-09-03 08:50:57Z lha $
+# $Id$
 
 ##use Getopt::Std;
 require 'getopts.pl';
 
-$brace = 0;
-$line = "";
-$debug = 0;
-$oproto = 1;
-$private_func_re = "^_";
+my $comment = 0;
+my $if_0 = 0;
+my $brace = 0;
+my $line = "";
+my $debug = 0;
+my $oproto = 1;
+my $private_func_re = "^_";
+my %depfunction = ();
 
-do Getopts('x:m:o:p:dqE:R:P:') || die "foo";
+Getopts('x:m:o:p:dqE:R:P:') || die "foo";
 
 if($opt_d) {
     $debug = 1;
@@ -23,7 +26,7 @@ if($opt_q) {
 if($opt_R) {
     $private_func_re = $opt_R;
 }
-%flags = (
+my %flags = (
 	  'multiline-proto' => 1,
 	  'header' => 1,
 	  'function-blocking' => 0,
@@ -65,6 +68,14 @@ if($opt_x) {
 
 while(<>) {
     print $brace, " ", $_ if($debug);
+    
+    # Handle C comments
+    s@/\*.*\*/@@;
+    s@//.*/@@;
+    if ( s@/\*.*@@) { $comment = 1;
+    } elsif ($comment && s@.*\*/@@) { $comment = 0;
+    } elsif ($comment) { next; }
+
     if(/^\#if 0/) {
 	$if_0 = 1;
     }
@@ -92,11 +103,19 @@ while(<>) {
 	s/\s+/ /g;
 	if($_ =~ /\)$/){
 	    if(!/^static/ && !/^PRIVATE/){
-		if(/(.*)(__attribute__\s?\(.*\))/) {
-		    $attr = $2;
+		$attr = "";
+		if(m/(.*)(__attribute__\s?\(.*\))/) {
+		    $attr .= " $2";
 		    $_ = $1;
-		} else {
-		    $attr = "";
+		}
+		if(m/(.*)\s(\w+DEPRECATED_FUNCTION)\s?(\(.*\))(.*)/) {
+		    $depfunction{$2} = 1;
+		    $attr .= " $2$3";
+		    $_ = "$1 $4";
+		}
+		if(m/(.*)\s(\w+DEPRECATED)(.*)/) {
+		    $attr .= " $2";
+		    $_ = "$1 $3";
 		}
 		# remove outer ()
 		s/\s*\(/</;
@@ -167,6 +186,7 @@ sub foo {
     local ($arg) = @_;
     $_ = $arg;
     s/.*\/([^\/]*)/$1/;
+    s/.*\\([^\\]*)/$1/;
     s/[^a-zA-Z0-9]/_/g;
     "__" . $_ . "__";
 }
@@ -240,8 +260,14 @@ $private_h_trailer = "";
 
 foreach(sort keys %funcs){
     if(/^(main)$/) { next }
+    if ($funcs{$_} =~ /\^/) {
+	$beginblock = "#ifdef __BLOCKS__\n";
+	$endblock = "#endif /* __BLOCKS__ */\n";
+    } else {
+	$beginblock = $endblock = "";
+    }
     if(!defined($exported{$_}) && /$private_func_re/) {
-	$private_h .= $funcs{$_} . "\n\n";
+	$private_h .= $beginblock . $funcs{$_} . "\n" . $endblock . "\n";
 	if($funcs{$_} =~ /__attribute__/) {
 	    $private_attribute_seen = 1;
 	}
@@ -254,7 +280,7 @@ foreach(sort keys %funcs){
 		$public_h .= "#ifndef HAVE_$fupper\n";
 	    }
 	}
-	$public_h .= $funcs{$_} . "\n";
+	$public_h .= $beginblock . $funcs{$_} . "\n" . $endblock;
 	if($funcs{$_} =~ /__attribute__/) {
 	    $public_attribute_seen = 1;
 	}
@@ -282,41 +308,82 @@ if($flags{"gnuc-attribute"}) {
 ";
     }
 }
+
+my $depstr = "";
+my $undepstr = "";
+foreach (keys %depfunction) {
+    $depstr .= "#ifndef $_
+#if defined(__GNUC__) && ((__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 1 )))
+#define $_(X) __attribute__((__deprecated__))
+#else
+#define $_(X)
+#endif
+#endif
+
+
+";
+    $public_h_trailer .= "#undef $_
+
+";
+    $private_h_trailer .= "#undef $_
+#define $_(X)
+
+";
+}
+
+$public_h_header .= $depstr;
+$private_h_header .= $depstr;
+
+
 if($flags{"cxx"}) {
     $public_h_header .= "#ifdef __cplusplus
 extern \"C\" {
 #endif
 
 ";
-    $public_h_trailer .= "#ifdef __cplusplus
+    $public_h_trailer = "#ifdef __cplusplus
 }
 #endif
 
-";
+" . $public_h_trailer;
 
 }
 if ($opt_E) {
     $public_h_header .= "#ifndef $opt_E
+#ifndef ${opt_E}_FUNCTION
 #if defined(_WIN32)
-#define $opt_E _stdcall
+#define ${opt_E}_FUNCTION __declspec(dllimport)
+#define ${opt_E}_CALL __stdcall
+#define ${opt_E}_VARIABLE __declspec(dllimport)
 #else
-#define $opt_E
+#define ${opt_E}_FUNCTION
+#define ${opt_E}_CALL
+#define ${opt_E}_VARIABLE
 #endif
 #endif
-
+#endif
 ";
     
     $private_h_header .= "#ifndef $opt_E
+#ifndef ${opt_E}_FUNCTION
 #if defined(_WIN32)
-#define $opt_E _stdcall
+#define ${opt_E}_FUNCTION __declspec(dllimport)
+#define ${opt_E}_CALL __stdcall
+#define ${opt_E}_VARIABLE __declspec(dllimport)
 #else
-#define $opt_E
+#define ${opt_E}_FUNCTION
+#define ${opt_E}_CALL
+#define ${opt_E}_VARIABLE
+#endif
 #endif
 #endif
 
 ";
 }
     
+$public_h_trailer .= $undepstr;
+$private_h_trailer .= $undepstr;
+
 if ($public_h ne "" && $flags{"header"}) {
     $public_h = $public_h_header . $public_h . 
 	$public_h_trailer . "#endif /* $block */\n";

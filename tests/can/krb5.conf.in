@@ -1,4 +1,4 @@
-# $Id: krb5.conf.in 20965 2007-06-07 06:03:29Z lha $
+# $Id$
 
 [libdefaults]
 	default_realm = TEST.H5L.SE

@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: kadm5_err.et 16683 2006-02-02 13:11:47Z lha $"
+id "$Id$"
 
 error_table ovk kadm5
 

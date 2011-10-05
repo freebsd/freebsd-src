@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 - 2007 Kungliga Tekniska Högskolan
+ * Copyright (c) 2005 - 2007 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -30,10 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: hxtool-commands.in 21343 2007-06-26 14:21:55Z lha $ */
+/* $Id$ */
 
 command = {
 	name = "cms-create-sd"
+	name = "cms-sign"
 	option = {
 		long = "certificate"
 		short = "c"
@@ -94,11 +95,26 @@ command = {
 		help = "create a detached signature"
 	}
 	option = {
+		long = "signer"
+		type = "-flag"
+		help = "do not sign"
+	}
+	option = {
 		long = "id-by-name"
 		type = "flag"
 		help = "use subject name for CMS Identifier"
 	}
-	min_args="2"
+	option = {
+		long = "embedded-certs"
+		type = "-flag"
+		help = "dont embedded certficiates"
+	}
+	option = {
+		long = "embed-leaf-only"
+		type = "flag"
+		help = "only embed leaf certificate"
+	}
+	min_args="1"
 	max_args="2"
 	argument="in-file out-file"
 	help = "Wrap a file within a SignedData object"
@@ -107,6 +123,7 @@ command = {
 	name = "cms-verify-sd"
 	option = {
 		long = "anchors"
+		short = "D"
 		type = "strings"
 		argument = "certificate-store"
 		help = "trust anchors"
@@ -135,13 +152,28 @@ command = {
 		help = "unwrap in-data that's in a ContentInfo"
 	}
 	option = {
+		long = "pem"
+		type = "flag"
+		help = "unwrap in-data from PEM armor"
+	}
+	option = {
+		long = "signer-allowed"
+		type = "-flag"
+		help = "allow no signer"
+	}
+	option = {
+		long = "allow-wrong-oid"
+		type = "flag"
+		help = "allow wrong oid flag"
+	}
+	option = {
 		long = "signed-content"
 		type = "string"
 		help = "file containing content"
 	}
-	min_args="2"
+	min_args="1"
 	max_args="2"
-	argument="in-file out-file"
+	argument="in-file [out-file]"
 	help = "Verify a file within a SignedData object"
 }
 command = {
@@ -163,6 +195,11 @@ command = {
 		long = "content-info"
 		type = "flag"
 		help = "wrapped out-data in a ContentInfo"
+	}
+	option = {
+		long = "allow-weak-crypto"
+		type = "flag"
+		help = "allow weak crypto"
 	}
 	min_args="2"
 	argument="in-file out-file"
@@ -200,6 +237,11 @@ command = {
 		long = "content-info"
 		type = "flag"
 		help = "wrapped out-data in a ContentInfo"
+	}
+	option = {
+		long = "allow-weak-crypto"
+		type = "flag"
+		help = "allow weak crypto"
 	}
 	min_args="2"
 	argument="in-file out-file"
@@ -261,6 +303,11 @@ command = {
 		long = "content"
 		type = "flag"
 		help = "print the content of the certificates"
+	}
+	option = {
+		long = "never-fail"
+		type = "flag"
+		help = "never fail with an error code"
 	}
 	option = {
 		long = "info"
@@ -438,6 +485,18 @@ command = {
 		help = "match on friendly name"
 	}
 	option = {
+		long = "eku"
+		type = "string"
+		argument = "oid-string"
+		help = "match on EKU"
+	}
+	option = {
+		long = "expr"
+		type = "string"
+		argument = "expression"
+		help = "match on expression"
+	}
+	option = {
 		long = "keyEncipherment"
 		type = "flag"
 		help = "match keyEncipherment certificates"
@@ -557,7 +616,7 @@ command = {
 	option = {
 		long = "type"
 		type = "strings"
-		help = "Type of certificate to issue"
+		help = "Types of certificate to issue (can be used more then once)"
 	}
 	option = {
 		long = "lifetime"

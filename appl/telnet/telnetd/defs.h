@@ -57,11 +57,11 @@
 #ifndef TIOCPKT_FLUSHWRITE
 #define TIOCPKT_FLUSHWRITE      0x02
 #endif
- 
+
 #ifndef TIOCPKT_NOSTOP
 #define TIOCPKT_NOSTOP  0x10
 #endif
- 
+
 #ifndef TIOCPKT_DOSTOP
 #define TIOCPKT_DOSTOP  0x20
 #endif

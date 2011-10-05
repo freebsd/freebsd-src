@@ -1,0 +1,39 @@
+
+KRB5_ANAME_TO_LOCALNA... BSD Library Functions Manual KRB5_ANAME_TO_LOCALNA...
+
+NNAAMMEE
+     kkrrbb55__aannaammee__ttoo__llooccaallnnaammee -- converts a principal to a system local name
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__aannaammee__ttoo__llooccaallnnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _n_a_m_e,
+         _s_i_z_e___t _l_n_s_i_z_e, _c_h_a_r _*_l_n_a_m_e);
+
+DDEESSCCRRIIPPTTIIOONN
+     This function takes a principal _n_a_m_e, verifies that it is in the local
+     realm (using kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmmss()) and then returns the local name
+     of the principal.
+
+     If _n_a_m_e isn't in one of the local realms an error is returned.
+
+     If the size (_l_n_s_i_z_e) of the local name (_l_n_a_m_e) is too small, an error is
+     returned.
+
+     kkrrbb55__aannaammee__ttoo__llooccaallnnaammee() should only be use by an application that
+     implements protocols that don't transport the login name and thus needs
+     to convert a principal to a local name.
+
+     Protocols should be designed so that they authenticate using Kerberos,
+     send over the login name and then verify the principal that is authenti-
+     cated is allowed to login and the login name.  A way to check if a user
+     is allowed to login is using the function kkrrbb55__kkuusseerrookk().
+
+SSEEEE AALLSSOO
+     krb5_get_default_realms(3), krb5_kuserok(3)
+
+HEIMDAL                        February 18, 2006                       HEIMDAL

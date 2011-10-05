@@ -1,0 +1,274 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\roken
+
+!include ../../windows/NTMakefile.w32
+
+libroken_la_OBJS =			\
+	$(OBJ)\base64.obj		\
+	$(OBJ)\bswap.obj		\
+	$(OBJ)\concat.obj		\
+	$(OBJ)\cloexec.obj		\
+	$(OBJ)\ct.obj			\
+	$(OBJ)\dirent.obj		\
+	$(OBJ)\dlfcn_w32.obj		\
+	$(OBJ)\dumpdata.obj		\
+	$(OBJ)\ecalloc.obj		\
+	$(OBJ)\emalloc.obj		\
+	$(OBJ)\environment.obj		\
+	$(OBJ)\eread.obj		\
+	$(OBJ)\erealloc.obj		\
+	$(OBJ)\err.obj			\
+	$(OBJ)\errx.obj			\
+	$(OBJ)\esetenv.obj		\
+	$(OBJ)\estrdup.obj		\
+	$(OBJ)\ewrite.obj		\
+	$(OBJ)\flock.obj		\
+	$(OBJ)\fnmatch.obj		\
+	$(OBJ)\getaddrinfo_hostspec.obj	\
+	$(OBJ)\get_default_username.obj	\
+	$(OBJ)\get_window_size.obj	\
+	$(OBJ)\getarg.obj		\
+	$(OBJ)\getifaddrs_w32.obj	\
+	$(OBJ)\getnameinfo_verified.obj	\
+	$(OBJ)\getopt.obj		\
+	$(OBJ)\getprogname.obj		\
+	$(OBJ)\gettimeofday.obj		\
+	$(OBJ)\hex.obj			\
+	$(OBJ)\hostent_find_fqdn.obj	\
+	$(OBJ)\inet_aton.obj		\
+	$(OBJ)\issuid.obj		\
+	$(OBJ)\localtime_r.obj		\
+	$(OBJ)\lstat.obj		\
+	$(OBJ)\mini_inetd.obj		\
+	$(OBJ)\mkstemp.obj		\
+	$(OBJ)\net_read.obj		\
+	$(OBJ)\net_write.obj		\
+	$(OBJ)\parse_bytes.obj		\
+	$(OBJ)\parse_time.obj		\
+	$(OBJ)\parse_units.obj		\
+	$(OBJ)\realloc.obj		\
+	$(OBJ)\rename.obj		\
+	$(OBJ)\resolve.obj		\
+	$(OBJ)\rand.obj			\
+	$(OBJ)\roken_gethostby.obj	\
+	$(OBJ)\rtbl.obj			\
+	$(OBJ)\sendmsg.obj		\
+	$(OBJ)\setenv.obj		\
+	$(OBJ)\setprogname.obj		\
+	$(OBJ)\simple_exec_w32.obj	\
+	$(OBJ)\sleep.obj		\
+	$(OBJ)\snprintf.obj		\
+	$(OBJ)\socket.obj		\
+	$(OBJ)\sockstartup_w32.obj	\
+	$(OBJ)\strcollect.obj		\
+	$(OBJ)\strerror_r.obj		\
+	$(OBJ)\strlcat.obj		\
+	$(OBJ)\strlcpy.obj		\
+	$(OBJ)\strpool.obj		\
+	$(OBJ)\strptime.obj		\
+	$(OBJ)\strsep.obj		\
+	$(OBJ)\strsep_copy.obj		\
+	$(OBJ)\strtok_r.obj		\
+	$(OBJ)\syslogc.obj		\
+	$(OBJ)\timegm.obj		\
+	$(OBJ)\timeval.obj		\
+	$(OBJ)\tm2time.obj		\
+	$(OBJ)\tsearch.obj		\
+	$(OBJ)\unvis.obj		\
+	$(OBJ)\verr.obj			\
+	$(OBJ)\verrx.obj		\
+	$(OBJ)\vis.obj			\
+	$(OBJ)\vwarn.obj		\
+	$(OBJ)\vwarnx.obj		\
+	$(OBJ)\warn.obj			\
+	$(OBJ)\warnerr.obj		\
+	$(OBJ)\warnx.obj		\
+	$(OBJ)\xfree.obj
+
+!if $(NMAKE_WINVER) < 0x0600
+libroken_la_OBJS=$(libroken_la_OBJS) \
+	$(OBJ)\inet_ntop.obj		\
+	$(OBJ)\inet_pton.obj
+!endif
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -DBUILD_ROKEN_LIB
+
+$(LIBROKEN): $(libroken_la_OBJS)
+	$(LIBCON_C) -out:$@ @<<
+$(**: =
+)
+<<
+
+$(OBJ)\make-roken.exe: $(OBJ)\make-roken.obj
+	$(EXECONLINK)
+
+$(OBJ)\make-roken.c: roken.h.in roken.awk $(INCDIR)\config.h
+	$(AWK) -f roken.awk roken.h.in > $(OBJ)\make-roken.c || $(RM) $(OBJ)\make-roken.c
+
+$(INCDIR)\roken.h: $(OBJ)\make-roken.exe
+	$(OBJ)\make-roken.exe > $@ || $(RM) $@
+
+INCFILES = 			\
+	$(INCDIR)\base64.h	\
+	$(INCDIR)\dirent.h	\
+	$(INCDIR)\dlfcn.h	\
+	$(INCDIR)\err.h		\
+	$(INCDIR)\fnmatch.h	\
+	$(INCDIR)\getarg.h	\
+	$(INCDIR)\glob.h	\
+	$(INCDIR)\hex.h		\
+	$(INCDIR)\ifaddrs.h	\
+	$(INCDIR)\parse_bytes.h	\
+	$(INCDIR)\parse_time.h	\
+	$(INCDIR)\parse_units.h	\
+	$(INCDIR)\resolve.h	\
+	$(INCDIR)\roken.h	\
+	$(INCDIR)\roken-common.h	\
+	$(INCDIR)\rtbl.h	\
+	$(INCDIR)\search.h	\
+	$(INCDIR)\stdbool.h	\
+	$(INCDIR)\syslog.h	\
+	$(INCDIR)\vis.h		\
+	$(INCDIR)\xdbm.h
+
+clean::
+	-$(RM) $(XHEADERS)
+
+all:: $(INCFILES) $(LIBROKEN)
+
+clean::
+	-$(RM) $(LIBROKEN)
+
+TMP_PROGS = $(OBJ)\snprintf-test.exe $(OBJ)\resolve-test.exe
+
+# Tests
+
+TEST_PROGS =			    \
+	$(OBJ)\base64-test.exe	    \
+	$(OBJ)\getaddrinfo-test.exe \
+	$(OBJ)\getifaddrs-test.exe  \
+	$(OBJ)\hex-test.exe	    \
+	$(OBJ)\test-readenv.exe	    \
+	$(OBJ)\parse_bytes-test.exe \
+	$(OBJ)\parse_reply-test.exe \
+	$(OBJ)\parse_time-test.exe  \
+	$(OBJ)\snprintf-test.exe    \
+	$(OBJ)\strpftime-test.exe   \
+	$(OBJ)\dirent-test.exe	    \
+	$(OBJ)\test-mini_inetd.exe
+
+$(OBJ)\strftime_test.obj: strftime.c
+	$(C2OBJ) -DTEST_SNPRINTF -DTEST_STRPFTIME -DBUILD_ROKEN_LIB
+
+$(OBJ)\strptime_test.obj: strptime.c
+	$(C2OBJ) -DTEST_SNPRINTF -DTEST_STRPFTIME -DBUILD_ROKEN_LIB
+
+$(OBJ)\snprintf_test.obj: snprintf.c
+	$(C2OBJ) -DTEST_SNPRINTF -DTEST_STRPFTIME -DBUILD_ROKEN_LIB
+
+$(OBJ)\libtest.lib: $(OBJ)\strftime_test.obj $(OBJ)\strptime_test.obj $(OBJ)\snprintf_test.obj
+	$(LIBCON)
+
+$(OBJ)\parse_reply-test.obj: parse_reply-test.c
+	$(C2OBJ) -DTEST_RESOLVE -DBUILD_ROKEN_LIB
+
+$(OBJ)\resolve_test.obj: resolve.c
+	$(C2OBJ) -DTEST_RESOLVE -DBUILD_ROKEN_LIB
+
+$(OBJ)\parse_reply-test.exe: $(OBJ)\parse_reply-test.obj $(OBJ)\resolve_test.obj $(LIBROKEN)
+	$(EXECONLINK) DnsAPI.lib
+
+$(OBJ)\test-readenv.exe: $(OBJ)\test-readenv.obj $(OBJ)\test-mem.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\parse_time-test.exe: $(OBJ)\parse_time-test.obj $(OBJ)\test-mem.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\strpftime-test.obj: strpftime-test.c
+	$(C2OBJ) -DTEST_STRPFTIME -DBUILD_ROKEN_LIB
+
+$(OBJ)\strpftime-test.exe: $(OBJ)\strpftime-test.obj $(OBJ)\libtest.lib $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\snprintf-test.obj: snprintf-test.c
+	$(C2OBJ) -DTEST_SNPRINTF -DBUILD_ROKEN_LIB
+
+$(OBJ)\snprintf-test.exe: $(OBJ)\snprintf-test.obj $(OBJ)\libtest.lib $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\resolve-test.exe: $(OBJ)\resolve-test.obj $(LIBROKEN)
+	$(EXECONLINK) DnsAPI.lib
+
+$(OBJ)\base64-test.exe: $(OBJ)\base64-test.obj $(OBJ)\base64.obj
+	$(EXECONLINK)
+
+$(OBJ)\getaddrinfo-test.exe: $(OBJ)\getaddrinfo-test.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\hex-test.exe: $(OBJ)\hex-test.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\parse_bytes-test.exe: $(OBJ)\parse_bytes-test.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\dirent-test.exe: $(OBJ)\dirent-test.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\getifaddrs-test.exe: $(OBJ)\getifaddrs-test.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+$(OBJ)\test-mini_inetd.exe: $(OBJ)\test-mini_inetd.obj $(LIBROKEN)
+	$(EXECONLINK)
+
+test-binaries: $(TEST_PROGS) $(TMP_PROGS)
+
+test-run:
+	cd $(OBJ)
+	test-mini_inetd.exe
+	dirent-test.exe
+	base64-test.exe
+	getaddrinfo-test.exe
+	getifaddrs-test.exe
+	hex-test.exe
+	test-readenv.exe
+	parse_bytes-test.exe
+# Need to rewrite this test:
+#	parse_reply-test.exe
+	parse_time-test.exe
+	snprintf-test.exe
+	strpftime-test.exe
+	cd $(SRCDIR)
+
+test:: test-binaries test-run
+

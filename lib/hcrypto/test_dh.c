@@ -1,0 +1,476 @@
+/*
+* Copyright (c) 2007, Novell, Inc.
+* Author: Matthias Koenig <mkoenig@suse.de>
+*
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*
+* * Redistributions of source code must retain the above copyright notice, this
+*   list of conditions and the following disclaimer.
+*
+* * Redistributions in binary form must reproduce the above copyright notice,
+*   this list of conditions and the following disclaimer in the documentation
+*   and/or other materials provided with the distribution.
+*
+* * Neither the name of the Novell nor the names of its contributors may be used
+*   to endorse or promote products derived from this software without specific
+*   prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+* SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+* CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+* POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/* openssl diffie-hellman test code
+ * works with openssl-0.9.8e
+ * primes with 3072 and 6144 bits as specified in RFC3526
+ * fail since openssl-0.9.8f
+ */
+
+#include <config.h>
+
+#include <stdio.h>
+#include <ctype.h>
+
+#include <roken.h>
+#include <getarg.h>
+
+#include <dh.h>
+#include <evp.h>
+
+/*
+ *
+ */
+
+static char *id_string;
+static int verbose;
+static int version_flag;
+static int help_flag;
+
+static struct getargs args[] = {
+    { "id",	0,		arg_string,	&id_string,
+      "type of ENGINE", NULL },
+    { "verbose",	0,	arg_flag,	&verbose,
+      "verbose output from tests", NULL },
+    { "version",	0,	arg_flag,	&version_flag,
+      "print version", NULL },
+    { "help",		0,	arg_flag,	&help_flag,
+      NULL, 	NULL }
+};
+
+/*
+ *
+ */
+
+#define OAKLEY_PRIME_MODP768					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A63A3620 FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP1024					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE65381"	\
+    "FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP1536					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA237327 FFFFFFFF FFFFFFFF"
+
+/* RFC 3526 */
+#define OAKLEY_PRIME_MODP2048					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA18217C 32905E46 2E36CE3B"	\
+    "E39E772C 180E8603 9B2783A2 EC07A28F B5C55DF0 6F4C52C9"	\
+    "DE2BCBF6 95581718 3995497C EA956AE5 15D22618 98FA0510"	\
+    "15728E5A 8AACAA68 FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP3072					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA18217C 32905E46 2E36CE3B"	\
+    "E39E772C 180E8603 9B2783A2 EC07A28F B5C55DF0 6F4C52C9"	\
+    "DE2BCBF6 95581718 3995497C EA956AE5 15D22618 98FA0510"	\
+    "15728E5A 8AAAC42D AD33170D 04507A33 A85521AB DF1CBA64"	\
+    "ECFB8504 58DBEF0A 8AEA7157 5D060C7D B3970F85 A6E1E4C7"	\
+    "ABF5AE8C DB0933D7 1E8C94E0 4A25619D CEE3D226 1AD2EE6B"	\
+    "F12FFA06 D98A0864 D8760273 3EC86A64 521F2B18 177B200C"	\
+    "BBE11757 7A615D6C 770988C0 BAD946E2 08E24FA0 74E5AB31"	\
+    "43DB5BFC E0FD108E 4B82D120 A93AD2CA FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP4096					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA18217C 32905E46 2E36CE3B"	\
+    "E39E772C 180E8603 9B2783A2 EC07A28F B5C55DF0 6F4C52C9"	\
+    "DE2BCBF6 95581718 3995497C EA956AE5 15D22618 98FA0510"	\
+    "15728E5A 8AAAC42D AD33170D 04507A33 A85521AB DF1CBA64"	\
+    "ECFB8504 58DBEF0A 8AEA7157 5D060C7D B3970F85 A6E1E4C7"	\
+    "ABF5AE8C DB0933D7 1E8C94E0 4A25619D CEE3D226 1AD2EE6B"	\
+    "F12FFA06 D98A0864 D8760273 3EC86A64 521F2B18 177B200C"	\
+    "BBE11757 7A615D6C 770988C0 BAD946E2 08E24FA0 74E5AB31"	\
+    "43DB5BFC E0FD108E 4B82D120 A9210801 1A723C12 A787E6D7"	\
+    "88719A10 BDBA5B26 99C32718 6AF4E23C 1A946834 B6150BDA"	\
+    "2583E9CA 2AD44CE8 DBBBC2DB 04DE8EF9 2E8EFC14 1FBECAA6"	\
+    "287C5947 4E6BC05D 99B2964F A090C3A2 233BA186 515BE7ED"	\
+    "1F612970 CEE2D7AF B81BDD76 2170481C D0069127 D5B05AA9"	\
+    "93B4EA98 8D8FDDC1 86FFB7DC 90A6C08F 4DF435C9 34063199"	\
+    "FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP6144					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA18217C 32905E46 2E36CE3B"	\
+    "E39E772C 180E8603 9B2783A2 EC07A28F B5C55DF0 6F4C52C9"	\
+    "DE2BCBF6 95581718 3995497C EA956AE5 15D22618 98FA0510"	\
+    "15728E5A 8AAAC42D AD33170D 04507A33 A85521AB DF1CBA64"	\
+    "ECFB8504 58DBEF0A 8AEA7157 5D060C7D B3970F85 A6E1E4C7"	\
+    "ABF5AE8C DB0933D7 1E8C94E0 4A25619D CEE3D226 1AD2EE6B"	\
+    "F12FFA06 D98A0864 D8760273 3EC86A64 521F2B18 177B200C"	\
+    "BBE11757 7A615D6C 770988C0 BAD946E2 08E24FA0 74E5AB31"	\
+    "43DB5BFC E0FD108E 4B82D120 A9210801 1A723C12 A787E6D7"	\
+    "88719A10 BDBA5B26 99C32718 6AF4E23C 1A946834 B6150BDA"	\
+    "2583E9CA 2AD44CE8 DBBBC2DB 04DE8EF9 2E8EFC14 1FBECAA6"	\
+    "287C5947 4E6BC05D 99B2964F A090C3A2 233BA186 515BE7ED"	\
+    "1F612970 CEE2D7AF B81BDD76 2170481C D0069127 D5B05AA9"	\
+    "93B4EA98 8D8FDDC1 86FFB7DC 90A6C08F 4DF435C9 34028492"	\
+    "36C3FAB4 D27C7026 C1D4DCB2 602646DE C9751E76 3DBA37BD"	\
+    "F8FF9406 AD9E530E E5DB382F 413001AE B06A53ED 9027D831"	\
+    "179727B0 865A8918 DA3EDBEB CF9B14ED 44CE6CBA CED4BB1B"	\
+    "DB7F1447 E6CC254B 33205151 2BD7AF42 6FB8F401 378CD2BF"	\
+    "5983CA01 C64B92EC F032EA15 D1721D03 F482D7CE 6E74FEF6"	\
+    "D55E702F 46980C82 B5A84031 900B1C9E 59E7C97F BEC7E8F3"	\
+    "23A97A7E 36CC88BE 0F1D45B7 FF585AC5 4BD407B2 2B4154AA"	\
+    "CC8F6D7E BF48E1D8 14CC5ED2 0F8037E0 A79715EE F29BE328"	\
+    "06A1D58B B7C5DA76 F550AA3D 8A1FBFF0 EB19CCB1 A313D55C"	\
+    "DA56C9EC 2EF29632 387FE8D7 6E3C0468 043E8F66 3F4860EE"	\
+    "12BF2D5B 0B7474D6 E694F91E 6DCC4024 FFFFFFFF FFFFFFFF"
+
+#define OAKLEY_PRIME_MODP8192					\
+    "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"	\
+    "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"	\
+    "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"	\
+    "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"	\
+    "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE45B3D"	\
+    "C2007CB8 A163BF05 98DA4836 1C55D39A 69163FA8 FD24CF5F"	\
+    "83655D23 DCA3AD96 1C62F356 208552BB 9ED52907 7096966D"	\
+    "670C354E 4ABC9804 F1746C08 CA18217C 32905E46 2E36CE3B"	\
+    "E39E772C 180E8603 9B2783A2 EC07A28F B5C55DF0 6F4C52C9"	\
+    "DE2BCBF6 95581718 3995497C EA956AE5 15D22618 98FA0510"	\
+    "15728E5A 8AAAC42D AD33170D 04507A33 A85521AB DF1CBA64"	\
+    "ECFB8504 58DBEF0A 8AEA7157 5D060C7D B3970F85 A6E1E4C7"	\
+    "ABF5AE8C DB0933D7 1E8C94E0 4A25619D CEE3D226 1AD2EE6B"	\
+    "F12FFA06 D98A0864 D8760273 3EC86A64 521F2B18 177B200C"	\
+    "BBE11757 7A615D6C 770988C0 BAD946E2 08E24FA0 74E5AB31"	\
+    "43DB5BFC E0FD108E 4B82D120 A9210801 1A723C12 A787E6D7"	\
+    "88719A10 BDBA5B26 99C32718 6AF4E23C 1A946834 B6150BDA"	\
+    "2583E9CA 2AD44CE8 DBBBC2DB 04DE8EF9 2E8EFC14 1FBECAA6"	\
+    "287C5947 4E6BC05D 99B2964F A090C3A2 233BA186 515BE7ED"	\
+    "1F612970 CEE2D7AF B81BDD76 2170481C D0069127 D5B05AA9"	\
+    "93B4EA98 8D8FDDC1 86FFB7DC 90A6C08F 4DF435C9 34028492"	\
+    "36C3FAB4 D27C7026 C1D4DCB2 602646DE C9751E76 3DBA37BD"	\
+    "F8FF9406 AD9E530E E5DB382F 413001AE B06A53ED 9027D831"	\
+    "179727B0 865A8918 DA3EDBEB CF9B14ED 44CE6CBA CED4BB1B"	\
+    "DB7F1447 E6CC254B 33205151 2BD7AF42 6FB8F401 378CD2BF"	\
+    "5983CA01 C64B92EC F032EA15 D1721D03 F482D7CE 6E74FEF6"	\
+    "D55E702F 46980C82 B5A84031 900B1C9E 59E7C97F BEC7E8F3"	\
+    "23A97A7E 36CC88BE 0F1D45B7 FF585AC5 4BD407B2 2B4154AA"	\
+    "CC8F6D7E BF48E1D8 14CC5ED2 0F8037E0 A79715EE F29BE328"	\
+    "06A1D58B B7C5DA76 F550AA3D 8A1FBFF0 EB19CCB1 A313D55C"	\
+    "DA56C9EC 2EF29632 387FE8D7 6E3C0468 043E8F66 3F4860EE"	\
+    "12BF2D5B 0B7474D6 E694F91E 6DBE1159 74A3926F 12FEE5E4"	\
+    "38777CB6 A932DF8C D8BEC4D0 73B931BA 3BC832B6 8D9DD300"	\
+    "741FA7BF 8AFC47ED 2576F693 6BA42466 3AAB639C 5AE4F568"	\
+    "3423B474 2BF1C978 238F16CB E39D652D E3FDB8BE FC848AD9"	\
+    "22222E04 A4037C07 13EB57A8 1A23F0C7 3473FC64 6CEA306B"	\
+    "4BCBC886 2F8385DD FA9D4B7F A2C087E8 79683303 ED5BDD3A"	\
+    "062B3CF5 B3A278A6 6D2A13F8 3F44F82D DF310EE0 74AB6A36"	\
+    "4597E899 A0255DC1 64F31CC5 0846851D F9AB4819 5DED7EA1"	\
+    "B1D510BD 7EE74D73 FAF36BC3 1ECFA268 359046F4 EB879F92"	\
+    "4009438B 481C6CD7 889A002E D5EE382B C9190DA6 FC026E47"	\
+    "9558E447 5677E9AA 9E3050E2 765694DF C81F56E8 80B96E71"	\
+    "60C980DD 98EDD3DF FFFFFFFF FFFFFFFF"
+
+struct prime {
+    char *name;
+    char *value;
+} primes[] = {
+    { "modp768", OAKLEY_PRIME_MODP768 },
+    { "modp1024", OAKLEY_PRIME_MODP1024 },
+    { "modp1536", OAKLEY_PRIME_MODP1536 },
+    { "modp2048", OAKLEY_PRIME_MODP2048 },
+    { "modp3072", OAKLEY_PRIME_MODP3072 },
+    { "modp4096", OAKLEY_PRIME_MODP4096 },
+    { "modp6144", OAKLEY_PRIME_MODP6144 },
+    { "modp8192", OAKLEY_PRIME_MODP8192 },
+    { NULL, NULL }
+};
+
+/*
+ * exchange a string based "base" to a value.
+ *
+ */
+static char *
+str2val(const char *str, int base, size_t *len)
+{
+    int f;
+    size_t i;
+    char *dst;
+    char *rp;
+    const char *p;
+    char b[3];
+
+    i = 0;
+    for (p = str; *p != '\0'; p++) {
+	if (isxdigit((int)*p))
+	    i++;
+	else if (isspace((int)*p))
+	    ;
+	else
+	    return NULL;
+    }
+    if (i == 0 || (i % 2) != 0)
+	return NULL;
+    i /= 2;
+
+    if ((dst = malloc(i)) == NULL)
+	return NULL;
+
+    i = 0;
+    f = 0;
+    for (rp = dst, p = str; *p != '\0'; p++) {
+	if (isxdigit((int)*p)) {
+	    if (!f) {
+		b[0] = *p;
+		f = 1;
+	    } else {
+		b[1] = *p;
+		b[2] = '\0';
+		*rp++ = (char)strtol(b, NULL, base);
+		i++;
+		f = 0;
+	    }
+	}
+    }
+
+    *len = i;
+
+    return(dst);
+}
+
+static void set_prime(BIGNUM *p, char *str)
+{
+    size_t len = 0;
+    unsigned char *prime;
+
+    prime = (unsigned char *)str2val(str, 16, &len);
+    if (prime == NULL)
+	errx(1, "failed to parse %s", str);
+    BN_bin2bn(prime, len, p);
+}
+
+static void set_generator(BIGNUM *g)
+{
+    BN_set_word(g, 2);
+}
+
+static void print_secret(unsigned char *sec, size_t len)
+{
+    size_t i;
+
+    for (i = 0; i < len; ++i)
+	printf("%x", sec[i]);
+
+    printf("\n");
+}
+
+static int check_prime(ENGINE *engine, struct prime *pr)
+{
+    DH *dh1, *dh2;
+    BIGNUM *p, *g;
+    unsigned char *sec1, *sec2;
+    size_t size;
+    int ret;
+
+    if (verbose)
+	printf("Testing %s\n", pr->name);
+
+    p = BN_new();
+    g = BN_new();
+    dh1 = DH_new_method(engine);
+    dh2 = DH_new_method(engine);
+
+    /* 1. set shared parameter */
+    set_prime(p, pr->value);
+    set_generator(g);
+    dh1->p = BN_dup(p);
+    dh1->g = BN_dup(g);
+    dh2->p = BN_dup(p);
+    dh2->g = BN_dup(g);
+
+    /* 2. set keys */
+    ret = DH_generate_key(dh1);
+    if (ret == 0) {
+	fprintf(stderr, "DH_generate_key\n");
+	exit(EXIT_FAILURE);
+    }
+    ret = DH_generate_key(dh2);
+    if (ret == 0) {
+	fprintf(stderr, "DH_generate_key\n");
+	exit(EXIT_FAILURE);
+    }
+
+    /* 3. compute shared secret */
+    size = DH_size(dh1);
+    if (size != DH_size(dh2)) {
+	fprintf(stderr, "size does not match!\n");
+	exit(EXIT_FAILURE);
+    }
+    sec1 = malloc(size);
+    sec2 = malloc(size);
+    if (!sec1 || !sec2) {
+	perror("malloc");
+	exit(EXIT_FAILURE);
+    }
+    ret = DH_compute_key(sec1, dh2->pub_key, dh1);
+    if (ret == -1) {
+	fprintf(stderr, "DH_compute_key");
+	exit(EXIT_FAILURE);
+    }
+    ret = DH_compute_key(sec2, dh1->pub_key, dh2);
+    if (ret == -1) {
+	fprintf(stderr, "DH_compute_key");
+	exit(EXIT_FAILURE);
+    }
+
+    /* 4. compare shared secret */
+    if (verbose) {
+	printf("shared secret 1\n");
+	print_secret(sec1, size);
+	printf("shared secret 2\n");
+	print_secret(sec2, size);
+    }
+
+    if (memcmp(sec1, sec2, size) == 0)
+	ret = 1;
+    else
+	ret = 0;
+
+    free(sec2);
+    free(sec1);
+    DH_free(dh2);
+    DH_free(dh1);
+    BN_free(g);
+    BN_free(p);
+
+    return ret;
+}
+
+/*
+ *
+ */
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args)/sizeof(*args),
+		    NULL,
+		    "");
+    exit (ret);
+}
+
+int
+main(int argc, char **argv)
+{
+    ENGINE *engine = NULL;
+    int idx = 0;
+
+    setprogname(argv[0]);
+
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &idx))
+	usage(1);
+
+    if (help_flag)
+	usage(0);
+
+    if(version_flag){
+	print_version(NULL);
+	exit(0);
+    }
+
+    argc -= idx;
+    argv += idx;
+
+    OpenSSL_add_all_algorithms();
+#ifdef OPENSSL
+    ENGINE_load_openssl();
+#endif
+    ENGINE_load_builtin_engines();
+
+    if (id_string) {
+	engine = ENGINE_by_id(id_string);
+	if (engine == NULL)
+	    engine = ENGINE_by_dso(id_string, id_string);
+    } else {
+	engine = ENGINE_by_id("builtin");
+    }
+    if (engine == NULL)
+	errx(1, "ENGINE_by_dso failed");
+
+    printf("dh %s\n", ENGINE_get_DH(engine)->name);
+
+    {
+	struct prime *p = primes;
+
+	for (; p->name; ++p)
+	    if (check_prime(engine, p))
+		printf("%s: shared secret OK\n", p->name);
+	    else
+		printf("%s: shared secret FAILURE\n", p->name);
+
+	return 0;
+    }
+
+    return 0;
+}

@@ -1,0 +1,273 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\kadm5 
+
+!include ../../windows/NTMakefile.w32 
+
+dist_libkadm5clnt_la_SOURCES =	\
+	ad.c			\
+	chpass_c.c		\
+	client_glue.c		\
+	common_glue.c		\
+	create_c.c		\
+	delete_c.c		\
+	destroy_c.c		\
+	flush_c.c		\
+	free.c			\
+	get_c.c			\
+	get_princs_c.c		\
+	init_c.c		\
+	kadm5_locl.h		\
+	marshall.c		\
+	modify_c.c		\
+	private.h		\
+	privs_c.c		\
+	randkey_c.c		\
+	rename_c.c		\
+	send_recv.c		\
+	kadm5-pwcheck.h		\
+	admin.h
+
+dist_libkadm5srv_la_SOURCES =	\
+	acl.c			\
+	admin.h			\
+	bump_pw_expire.c	\
+	chpass_s.c		\
+	common_glue.c		\
+	context_s.c		\
+	create_s.c		\
+	delete_s.c		\
+	destroy_s.c		\
+	ent_setup.c		\
+	error.c			\
+	flush_s.c		\
+	free.c			\
+	get_princs_s.c		\
+	get_s.c			\
+	init_s.c		\
+	kadm5_locl.h		\
+	keys.c			\
+	log.c			\
+	marshall.c		\
+	modify_s.c		\
+	password_quality.c	\
+	private.h		\
+	privs_s.c		\
+	randkey_s.c		\
+	rename_s.c		\
+	server_glue.c		\
+	set_keys.c		\
+	set_modifier.c		\
+	kadm5-pwcheck.h		\
+	admin.h
+
+LIBKADM5CLNT_OBJS=		    \
+	$(OBJ)\ad.obj		    \
+	$(OBJ)\chpass_c.obj	    \
+	$(OBJ)\client_glue.obj	    \
+	$(OBJ)\common_glue.obj	    \
+	$(OBJ)\create_c.obj	    \
+	$(OBJ)\delete_c.obj	    \
+	$(OBJ)\destroy_c.obj	    \
+	$(OBJ)\flush_c.obj	    \
+	$(OBJ)\free.obj		    \
+	$(OBJ)\get_c.obj	    \
+	$(OBJ)\get_princs_c.obj	    \
+	$(OBJ)\init_c.obj	    \
+	$(OBJ)\marshall.obj	    \
+	$(OBJ)\modify_c.obj	    \
+	$(OBJ)\privs_c.obj	    \
+	$(OBJ)\randkey_c.obj	    \
+	$(OBJ)\rename_c.obj	    \
+	$(OBJ)\send_recv.obj	    \
+	$(OBJ)\kadm5_err.obj
+
+LIBKADM5SRV_OBJS=		    \
+	$(OBJ)\acl.obj		    \
+	$(OBJ)\bump_pw_expire.obj   \
+	$(OBJ)\chpass_s.obj	    \
+	$(OBJ)\common_glue.obj	    \
+	$(OBJ)\context_s.obj	    \
+	$(OBJ)\create_s.obj	    \
+	$(OBJ)\delete_s.obj	    \
+	$(OBJ)\destroy_s.obj	    \
+	$(OBJ)\ent_setup.obj	    \
+	$(OBJ)\error.obj	    \
+	$(OBJ)\flush_s.obj	    \
+	$(OBJ)\free.obj		    \
+	$(OBJ)\get_princs_s.obj	    \
+	$(OBJ)\get_s.obj	    \
+	$(OBJ)\init_s.obj	    \
+	$(OBJ)\keys.obj		    \
+	$(OBJ)\log.obj		    \
+	$(OBJ)\marshall.obj	    \
+	$(OBJ)\modify_s.obj	    \
+	$(OBJ)\password_quality.obj \
+	$(OBJ)\privs_s.obj	    \
+	$(OBJ)\randkey_s.obj	    \
+	$(OBJ)\rename_s.obj	    \
+	$(OBJ)\server_glue.obj	    \
+	$(OBJ)\set_keys.obj	    \
+	$(OBJ)\set_modifier.obj	    \
+	$(OBJ)\kadm5_err.obj
+
+
+proto_opts = -q -R "^(_|kadm5_c_|kadm5_s_|kadm5_log)" -P remove
+
+$(OBJ)\kadm5-protos.h: $(dist_libkadm5srv_la_SOURCES) $(dist_libkadm5clnt_la_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl $(proto_opts) \
+		-o $@ \
+		$(dist_libkadm5srv_la_SOURCES) \
+		$(dist_libkadm5clnt_la_SOURCES) \
+	|| $(RM) $@
+
+$(OBJ)\kadm5-private.h: $(dist_libkadm5srv_la_SOURCES) $(dist_libkadm5clnt_la_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl $(proto_opts) \
+		-p $@ \
+		$(dist_libkadm5srv_la_SOURCES) \
+		$(dist_libkadm5clnt_la_SOURCES) \
+	|| $(RM) $@
+
+$(OBJ)\iprop-commands.c $(OBJ)\iprop-commands.h: iprop-commands.in
+	cd $(OBJ)
+	$(CP) $(SRCDIR)\iprop-commands.in $(OBJ)
+	$(BINDIR)\slc.exe iprop-commands.in
+	cd $(SRCDIR)
+
+$(OBJ)\kadm5_err.h $(OBJ)kadm5_err.c: kadm5_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\kadm5_err.et
+	cd $(SRCDIR)
+
+$(KADM5INCDIR)\kadm5_err.h: $(OBJ)\kadm5_err.h
+
+KADM5INCDIR=$(INCDIR)\kadm5
+
+INCFILES=\
+	$(KADM5INCDIR)\kadm5_err.h	\
+	$(KADM5INCDIR)\admin.h	\
+	$(KADM5INCDIR)\private.h	\
+	$(KADM5INCDIR)\kadm5-protos.h	\
+	$(KADM5INCDIR)\kadm5-private.h	\
+	$(OBJ)\iprop-commands.h
+
+SBINPROGRAMS=$(SBINDIR)\iprop-log.exe
+
+LIBEXECPROGRAMS=$(LIBEXECDIR)\ipropd-master.exe $(LIBEXECDIR)\ipropd-slave.exe
+
+EXELIBDEPS= \
+	$(LIBKADM5SRV) \
+	$(LIBROKEN) \
+	$(LIBHEIMDAL) \
+	$(LIBHDB) \
+	$(LIBSQLITE) \
+	$(LIBSL) \
+	$(LIBCOMERR) \
+	$(LIBVERS)
+
+$(SBINDIR)\iprop-log.exe: $(OBJ)\iprop-log.obj $(OBJ)\iprop-commands.obj $(EXELIBDEPS) \
+		$(OBJ)\iprop-log-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(LIBEXECDIR)\ipropd-master.exe: $(OBJ)\ipropd_master.obj $(OBJ)\ipropd_common.obj \
+		$(EXELIBDEPS) $(OBJ)\ipropd-master-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(LIBEXECDIR)\ipropd-slave.exe: $(OBJ)\ipropd_slave.obj $(OBJ)\ipropd_common.obj \
+		$(EXELIBDEPS) $(OBJ)\ipropd-slave-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(LIBKADM5CLNT): $(LIBKADM5CLNT_OBJS)
+	$(LIBCON)
+
+LIBKADM5SRVRES=$(OBJ)\libkadm5srv-version.res
+
+$(LIBKADM5SRV): $(BINDIR)\libkadm5srv.dll
+
+$(BINDIR)\libkadm5srv.dll: $(LIBKADM5SRV_OBJS) $(LIBHEIMDAL) $(LIBROKEN) $(LIBHDB) $(LIBCOMERR) $(LIBSQLITE) $(LIBKADM5SRVRES)
+	$(DLLGUILINK) -implib:$(LIBKADM5SRV) -def:libkadm5srv-exports.def
+	$(DLLPREP)
+
+all:: $(INCFILES) $(LIBKADM5SRV) $(LIBKADM5CLNT)
+
+all-tools:: $(SBINPROGRAMS) $(LIBEXECPROGRAMS)
+
+clean::
+	-$(RM) $(INCFILES)
+	-$(RM) $(LIBKADM5CLNT)
+	-$(RM) $(LIBKADM5SRV)
+	-$(RM) $(BINDIR)\libkadm5srv.*
+	-$(RM) $(SBINPROGRAMS:.exe=.*)
+	-$(RM) $(LIBEXECPROGRAMS:.exe=.*)
+
+test:: test-binaries test-run
+
+test-binaries:	\
+	$(OBJ)\default_keys.exe	\
+	$(OBJ)\test_pw_quality.exe \
+	$(OBJ)\sample_passwd_check.dll
+
+$(OBJ)\default_keys.exe: $(OBJ)\default_keys.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBHDB)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_pw_quality.exe: $(OBJ)\test_pw_quality.obj	\
+	$(LIBROKEN) $(LIBKADM5SRV) $(LIBVERS) $(LIBHEIMDAL)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\sample_passwd_check.dll: $(OBJ)\sample_passwd_check.obj $(LIBHEIMDAL)
+	$(DLLGUILINK) /DEF:<<
+EXPORTS
+	version DATA
+	check_length
+<<
+	$(DLLPREP_NODIST)
+
+test-run:
+
+{$(OBJ)}.h{$(KADM5INCDIR)}.h:
+	$(CP) $< $@
+
+{}.h{$(KADM5INCDIR)}.h:
+	$(CP) $< $@
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -I$(OBJ) -I$(KADM5INCDIR)
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libkadm5srv-exports.def
+
+test:: test-exports

@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995 - 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -48,7 +48,7 @@ print_cred(krb5_context context, krb5_creds *cred)
 	krb5_format_time(context, cred->times.starttime, t1, sizeof(t1), 1);
     else
 	krb5_format_time(context, cred->times.authtime, t1, sizeof(t1), 1);
-    
+
     if(cred->times.endtime > sec)
 	krb5_format_time(context, cred->times.endtime, t2, sizeof(t2), 1);
     else
@@ -81,7 +81,7 @@ print_tickets (krb5_context context,
 	return 500;
     }
 
-    lreply(200, "%17s: %s:%s", 
+    lreply(200, "%17s: %s:%s",
 	   "Credentials cache",
 	   krb5_cc_get_type(context, ccache),
 	   krb5_cc_get_name(context, ccache));
@@ -101,7 +101,7 @@ print_tickets (krb5_context context,
 				     &cursor,
 				     &cred)) == 0) {
 	if (print_cred(context, &cred))
-	    return 500;		
+	    return 500;
 	krb5_free_cred_contents (context, &cred);
     }
     if (ret != KRB5_CC_END) {
@@ -137,7 +137,7 @@ klist5(void)
     else
 	ret = krb5_cc_default (context, &ccache);
     if (ret) {
-	lreply(500, "krb5_cc_default: %d", ret);	    
+	lreply(500, "krb5_cc_default: %d", ret);
 	return 500;
     }
 
@@ -155,7 +155,7 @@ klist5(void)
 
     ret = krb5_cc_close (context, ccache);
     if (ret) {
-	lreply(500, "krb5_cc_close: %d", ret);	    
+	lreply(500, "krb5_cc_close: %d", ret);
 	exit_status = 500;
     }
 

@@ -1,0 +1,58 @@
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add man_MANS to EXTRA_DIST
+	
+2005-05-29  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: add LIB_roken as a explit dependency
+	
+2003-09-03  Love Hörquist Åstrand <lha@it.su.se>
+
+	* otpprint.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
+	
+	* otp.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
+	
+2003-02-25  Love Hörquist Åstrand <lha@it.su.se>
+
+	* otp.c: remove \n from errx, from NetBSD
+	
+2000-11-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* otpprint.1: sort parameters and close a list
+
+	* otp.1: sort parameters and close a list
+
+1999-09-14  Assar Westerlund  <assar@sics.se>
+
+	* otp.c (verify_user_otp): check return value from
+ 	des_read_pw_string
+
+Thu Apr  1 16:51:07 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* otpprint.c: use getarg
+
+	* otp.c: use getarg
+
+Thu Mar 18 12:08:58 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Thu Mar  4 19:45:40 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: DESTDIR
+
+Sat Feb 27 19:44:25 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: add
+
+Sun Nov 22 10:32:50 1998  Assar Westerlund  <assar@sics.se>
+
+	* otpprint.c: more braces
+
+	* Makefile.in (WFLAGS): set
+
+Sun Dec 21 09:31:30 1997  Assar Westerlund  <assar@sics.se>
+
+	* otp.c (renew): don't set the OTP if the reading of the string
+ 	fails.
+

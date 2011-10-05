@@ -1,34 +1,34 @@
 /*
- * Copyright (c) 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "der_locl.h"
@@ -40,13 +40,13 @@
 #include <hex.h>
 #include <err.h>
 
-RCSID("$Id: asn1_gen.c 16666 2006-01-30 15:06:03Z lha $");
+RCSID("$Id$");
 
 static int
 doit(const char *fn)
 {
     char buf[2048];
-    char *fnout;
+    char *fnout = NULL;
     const char *bname;
     unsigned long line = 0;
     FILE *f, *fout;
@@ -62,8 +62,7 @@ doit(const char *fn)
     else
 	bname = fn;
 
-    asprintf(&fnout, "%s.out", bname);
-    if (fnout == NULL)
+    if (asprintf(&fnout, "%s.out", bname) < 0 || fnout == NULL)
 	errx(1, "malloc");
 
     fout = fopen(fnout, "w");
@@ -107,8 +106,8 @@ doit(const char *fn)
 	l = atoi(length);
 
 	printf("line: %3lu offset: %3lu class: %d type: %d "
-	       "tag: %3d length: %3d %s\n", 
-	       line, (unsigned long)offset, c, ty, ta, l, 
+	       "tag: %3d length: %3d %s\n",
+	       line, (unsigned long)offset, c, ty, ta, l,
 	       data ? "<have data>" : "<no data>");
 
 	ret = der_put_length_and_tag(p + sizeof(p) - 1, sizeof(p),
@@ -119,29 +118,29 @@ doit(const char *fn)
 				     &sz);
 	if (ret)
 	    errx(1, "der_put_length_and_tag: %d", ret);
-	
+
 	if (fwrite(p + sizeof(p) - sz , sz, 1, fout) != 1)
 	    err(1, "fwrite length/tag failed");
 	offset += sz;
-	
+
 	if (data) {
 	    size_t datalen;
-	    
+
 	    datalen = strlen(data) / 2;
 	    pdata = emalloc(sz);
-	    
+
 	    if (hex_decode(data, pdata, datalen) != datalen)
 		errx(1, "failed to decode data");
-	    
+
 	    if (fwrite(pdata, datalen, 1, fout) != 1)
 		err(1, "fwrite data failed");
 	    offset += datalen;
-	    
+
 	    free(pdata);
 	}
     }
     printf("line: eof offset: %lu\n", (unsigned long)offset);
-    
+
     fclose(fout);
     fclose(f);
     return 0;

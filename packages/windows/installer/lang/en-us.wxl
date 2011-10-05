@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id='LanguageCode'>1033</String>
+  <String Id='Codepage'>1252</String>
+  <String Id='ProductName'>Heimdal</String>
+  <String Id='Manufacturer'>Heimdal Developers</String>
+  <String Id='Description'>Heimdal Kerberos tools and libraries</String>
+  <String Id='Comments'></String>
+  <String Id='FeaMainTitle'>Heimdal</String>
+  <String Id='FeaMainDesc'>Command line tools and libraries for Heimdal Kerberos</String>
+  <String Id='Fea32BitTitle'>32-bit tools and libraries</String>
+  <String Id='Fea32BitDesc'>Compatibility libraries for 32-bit applications</String>
+  <String Id='AdminRequired'>Installation of this package requires elevation</String>
+  <String Id='AlreadyInstalled'>A current or newer version of Heimdal is already installed on this machine.  Please use the Add/Remove Programs control panel to manage the existing installation.</String>
+</WixLocalization> 

@@ -1,0 +1,52 @@
+
+KRB5_RD_ERROR(3)         BSD Library Functions Manual         KRB5_RD_ERROR(3)
+
+NNAAMMEE
+     kkrrbb55__rrdd__eerrrroorr, kkrrbb55__ffrreeee__eerrrroorr, kkrrbb55__ffrreeee__eerrrroorr__ccoonntteennttss,
+     kkrrbb55__eerrrroorr__ffrroomm__rrdd__eerrrroorr -- parse, free and read error from KRB-ERROR
+     message
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrdd__eerrrroorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_m_s_g,
+         _K_R_B___E_R_R_O_R _*_r_e_s_u_l_t);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__eerrrroorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_r_r_o_r _*_e_r_r_o_r);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__eerrrroorr__ccoonntteennttss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_r_r_o_r _*_e_r_r_o_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eerrrroorr__ffrroomm__rrdd__eerrrroorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___e_r_r_o_r _*_e_r_r_o_r,
+         _c_o_n_s_t _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s);
+
+DDEESSCCRRIIPPTTIIOONN
+     Usually applications never needs to parse and understand Kerberos error
+     messages since higher level functions will parse and push up the error in
+     the krb5_context.  These functions are described for completeness.
+
+     kkrrbb55__rrdd__eerrrroorr() parses and returns the kerboeros error message, the
+     structure should be freed with kkrrbb55__ffrreeee__eerrrroorr__ccoonntteennttss() when the caller
+     is done with the structure.
+
+     kkrrbb55__ffrreeee__eerrrroorr() frees the content and the memory region holding the
+     structure iself.
+
+     kkrrbb55__ffrreeee__eerrrroorr__ccoonntteennttss() free the content of the KRB-ERROR message.
+
+     kkrrbb55__eerrrroorr__ffrroomm__rrdd__eerrrroorr() will parse the error message and set the error
+     buffer in krb5_context to the error string passed back or the matching
+     error code in the KRB-ERROR message.  Caller should pick up the message
+     with kkrrbb55__ggeett__eerrrroorr__ssttrriinngg(_3) (don't forget to free the returned string
+     with kkrrbb55__ffrreeee__eerrrroorr__ssttrriinngg()).
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_set_error_string(3), krb5_get_error_string(3), krb5.conf(5)
+
+HEIMDAL                          July 26, 2004                         HEIMDAL

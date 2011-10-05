@@ -1,0 +1,113 @@
+
+NAME(3)                  BSD Library Functions Manual                  NAME(3)
+
+NNAAMMEE
+     kkrrbb55__cchheecckkssuumm, kkrrbb55__cchheecckkssuumm__ddiissaabbllee, kkrrbb55__cchheecckkssuumm__iiss__ccoolllliissiioonn__pprrooooff,
+     kkrrbb55__cchheecckkssuumm__iiss__kkeeyyeedd, kkrrbb55__cchheecckkssuummssiizzee, kkrrbb55__cckkssuummttyyppee__vvaalliidd,
+     kkrrbb55__ccooppyy__cchheecckkssuumm, kkrrbb55__ccrreeaattee__cchheecckkssuumm, kkrrbb55__ccrryyppttoo__ggeett__cchheecckkssuumm__ttyyppee
+     kkrrbb55__ffrreeee__cchheecckkssuumm, kkrrbb55__ffrreeee__cchheecckkssuumm__ccoonntteennttss, kkrrbb55__hhmmaacc,
+     kkrrbb55__vveerriiffyy__cchheecckkssuumm -- creates, handles and verifies checksums
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     typedef Checksum krb5_checksum;
+
+     _v_o_i_d
+     kkrrbb55__cchheecckkssuumm__ddiissaabbllee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _t_y_p_e);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cchheecckkssuumm__iiss__ccoolllliissiioonn__pprrooooff(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___c_k_s_u_m_t_y_p_e _t_y_p_e);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cchheecckkssuumm__iiss__kkeeyyeedd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cckkssuummttyyppee__vvaalliidd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _c_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cchheecckkssuummssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _t_y_p_e,
+         _s_i_z_e___t _*_s_i_z_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrreeaattee__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _k_r_b_5___k_e_y___u_s_a_g_e _u_s_a_g_e, _i_n_t _t_y_p_e, _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n,
+         _C_h_e_c_k_s_u_m _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _k_r_b_5___k_e_y___u_s_a_g_e _u_s_a_g_e, _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _C_h_e_c_k_s_u_m _*_c_k_s_u_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__ggeett__cchheecckkssuumm__ttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _k_r_b_5___c_k_s_u_m_t_y_p_e _*_t_y_p_e);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__cchheecckkssuumm__ccoonntteennttss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__hhmmaacc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _c_k_t_y_p_e, _c_o_n_s_t _v_o_i_d _*_d_a_t_a,
+         _s_i_z_e___t _l_e_n, _u_n_s_i_g_n_e_d _u_s_a_g_e, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y, _C_h_e_c_k_s_u_m _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccooppyy__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___c_h_e_c_k_s_u_m _*_o_l_d,
+         _k_r_b_5___c_h_e_c_k_s_u_m _*_*_n_e_w);
+
+DDEESSCCRRIIPPTTIIOONN
+     The krb5_checksum structure holds a Kerberos checksum.  There is no com-
+     ponent inside krb5_checksum that is directly referable.
+
+     The functions are used to create and verify checksums.
+     kkrrbb55__ccrreeaattee__cchheecckkssuumm() creates a checksum of the specified data, and puts
+     it in _r_e_s_u_l_t.  If _c_r_y_p_t_o is NULL, _u_s_a_g_e___o_r___t_y_p_e specifies the checksum
+     type to use; it must not be keyed. Otherwise _c_r_y_p_t_o is an encryption con-
+     text created by kkrrbb55__ccrryyppttoo__iinniitt(), and _u_s_a_g_e___o_r___t_y_p_e specifies a key-
+     usage.
+
+     kkrrbb55__vveerriiffyy__cchheecckkssuumm() verifies the _c_h_e_c_k_s_u_m against the provided data.
+
+     kkrrbb55__cchheecckkssuumm__iiss__ccoolllliissiioonn__pprrooooff() returns true is the specified checksum
+     is collision proof (that it's very unlikely that two strings has the same
+     hash value, and that it's hard to find two strings that has the same
+     hash). Examples of collision proof checksums are MD5, and SHA1, while
+     CRC32 is not.
+
+     kkrrbb55__cchheecckkssuumm__iiss__kkeeyyeedd() returns true if the specified checksum type is
+     keyed (that the hash value is a function of both the data, and a separate
+     key). Examples of keyed hash algorithms are HMAC-SHA1-DES3, and RSA-
+     MD5-DES. The ``plain'' hash functions MD5, and SHA1 are not keyed.
+
+     kkrrbb55__ccrryyppttoo__ggeett__cchheecckkssuumm__ttyyppee() returns the checksum type that will be
+     used when creating a checksum for the given _c_r_y_p_t_o context.  This func-
+     tion is useful in combination with kkrrbb55__cchheecckkssuummssiizzee() when you want to
+     know the size a checksum will use when you create it.
+
+     kkrrbb55__cckkssuummttyyppee__vvaalliidd() returns 0 or an error if the checksumtype is
+     implemented and not currently disabled in this kerberos library.
+
+     kkrrbb55__cchheecckkssuummssiizzee() returns the size of the outdata of checksum function.
+
+     kkrrbb55__ccooppyy__cchheecckkssuumm() returns a copy of the checksum kkrrbb55__ffrreeee__cchheecckkssuumm()
+     should use used to free the _n_e_w checksum.
+
+     kkrrbb55__ffrreeee__cchheecckkssuumm() free the checksum and the content of the checksum.
+
+     kkrrbb55__ffrreeee__cchheecckkssuumm__ccoonntteennttss() frees the content of checksum in _c_k_s_u_m.
+
+     kkrrbb55__hhmmaacc() calculates the HMAC over _d_a_t_a (with length _l_e_n) using the
+     keyusage _u_s_a_g_e and keyblock _k_e_y.  Note that keyusage is not always used
+     in checksums.
+
+     kkrrbb55__cchheecckkssuumm__ddiissaabbllee globally disables the checksum type.
+
+SSEEEE AALLSSOO
+     krb5_crypto_init(3), krb5_c_encrypt(3), krb5_encrypt(3)
+
+HEIMDAL                         August 12, 2005                        HEIMDAL

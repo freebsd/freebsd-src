@@ -1,5 +1,5 @@
 dnl
-dnl $Id: with-all.m4 14147 2004-08-25 14:14:01Z joda $
+dnl $Id$
 dnl
 
 dnl AC_WITH_ALL(name)

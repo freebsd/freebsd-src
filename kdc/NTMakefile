@@ -1,0 +1,161 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=kdc 
+
+!include ../windows/NTMakefile.w32 
+
+BINPROGRAMS=$(BINDIR)\string2key.exe
+
+SBINPROGRAMS=$(SBINDIR)\kstash.exe
+
+LIBEXECPROGRAMS= \
+	$(LIBEXECDIR)\hprop.exe \
+	$(LIBEXECDIR)\hpropd.exe \
+	$(LIBEXECDIR)\kdc.exe \
+#	$(LIBEXECDIR)\digest-service.exe
+
+NOINST_PROGRAMS=$(OBJ)\kdc-replay.exe
+
+INCFILES=\
+	$(INCDIR)\kdc.h		\
+	$(INCDIR)\kdc-protos.h	\
+	$(INCDIR)\kdc-private.h	\
+	$(INCDIR)\krb5\windc_plugin.h
+
+all:: $(INCFILES) $(LIBKDC) $(BINPROGRAMS) $(SBINPROGRAMS) $(LIBEXECPROGRAMS)
+
+clean::
+	-$(RM) $(LIBKDC)
+	-$(RM) $(BINPROGRAMS:.exe=.*) $(SBINPROGRAMS:.exe=.*) $(LIBEXECPROGRAMS:.exe=.*)
+
+BIN_LIBS=\
+	$(LIBHDB)	\
+	$(LIBHEIMDAL)	\
+	$(LIBROKEN)	\
+	$(LIBVERS)
+
+$(LIBEXECDIR)\hprop.exe: $(OBJ)\hprop.obj $(OBJ)\mit_dump.obj $(BIN_LIBS) $(OBJ)\hprop-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+!ifdef KRB4
+$(LIBEXECDIR)\hprop.exe: $(OBJ)\v4_dump.obj
+!endif
+
+
+$(LIBEXECDIR)\hpropd.exe: $(OBJ)\hpropd.obj $(BIN_LIBS) $(OBJ)\hpropd-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(SBINDIR)\kstash.exe: $(OBJ)\kstash.obj $(BIN_LIBS) $(OBJ)\kstash-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(BINDIR)\string2key.exe: $(OBJ)\string2key.obj $(BIN_LIBS) $(OBJ)\string2key-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(BINDIR)\digest-service.exe: $(OBJ)\digest-service.obj $(BIN_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(LIBEXECDIR)\kdc.exe: \
+		$(OBJ)\connect.obj $(OBJ)\config.obj $(OBJ)\announce.obj \
+		$(OBJ)\main.obj $(OBJ)\kdc-version.res \
+		$(LIBKDC) $(BIN_LIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+LIBKDC_OBJS=\
+	$(OBJ)\default_config.obj	\
+	$(OBJ)\set_dbinfo.obj 	\
+	$(OBJ)\digest.obj	\
+	$(OBJ)\kerberos5.obj	\
+	$(OBJ)\krb5tgs.obj	\
+	$(OBJ)\pkinit.obj	\
+	$(OBJ)\log.obj		\
+	$(OBJ)\misc.obj		\
+	$(OBJ)\kx509.obj	\
+	$(OBJ)\process.obj	\
+	$(OBJ)\windc.obj
+
+!ifdef KRB4
+LIBKDC_OBJS=$(LIBKDC_OBJS) \
+	$(OBJ)\524.obj		\
+	$(OBJ)\kerberos4.obj
+!endif
+
+LIBKDC_LIBS=\
+	$(LIBHDB)	\
+	$(LIBHEIMDAL)	\
+	$(LIBHEIMNTLM)	\
+	$(LIBROKEN)
+
+LIBKDCRES=$(OBJ)\libkdc-version.res
+
+$(LIBEXECDIR)\libkdc.dll: $(LIBKDC_OBJS) $(LIBKDC_LIBS) $(LIBKDCRES)
+	$(DLLGUILINK) -implib:$(LIBKDC) -def:libkdc-exports.def
+	$(DLLPREP)
+
+$(LIBKDC): $(LIBEXECDIR)\libkdc.dll
+
+clean::
+	-$(RM) $(LIBEXECDIR)\libkdc.*
+
+libkdc_la_SOURCES = 		\
+	default_config.c 	\
+	set_dbinfo.c	 	\
+	digest.c		\
+	kdc_locl.h		\
+	kerberos5.c		\
+	krb5tgs.c		\
+	pkinit.c		\
+	log.c			\
+	misc.c			\
+	kx509.c			\
+	process.c		\
+	windc.c			\
+	rx.h
+
+!ifdef KRB4
+libkdc_la_SOURCES=$(libkdc_la_SOURCES) \
+	524.c			\
+	kerberos4.c
+!endif
+
+$(OBJ)\kdc-protos.h: $(libkdc_la_SOURCES)
+	$(PERL) ..\cf\make-proto.pl -q -P remove -o $@ $(libkdc_la_SOURCES) \
+	|| $(RM) $@
+
+$(OBJ)\kdc-private.h: $(libkdc_la_SOURCES)
+	$(PERL) ..\cf\make-proto.pl -q -P remove -p $@ $(libkdc_la_SOURCES) \
+	|| $(RM) $@

@@ -1,0 +1,71 @@
+
+KIMPERSONATE(8)           BSD System Manager's Manual          KIMPERSONATE(8)
+
+NNAAMMEE
+     kkiimmppeerrssoonnaattee -- impersonate a user when there exist a srvtab, keyfile or
+     KeyFile
+
+SSYYNNOOPPSSIISS
+     kkiimmppeerrssoonnaattee [--ss _s_t_r_i_n_g | ----sseerrvveerr==_s_t_r_i_n_g] [--cc _s_t_r_i_n_g | ----cclliieenntt==_s_t_r_i_n_g]
+                  [--kk _s_t_r_i_n_g | ----kkeeyyttaabb==_s_t_r_i_n_g] [--55 | ----kkrrbb55]
+                  [--ee _i_n_t_e_g_e_r | ----eexxppiirree--ttiimmee==_i_n_t_e_g_e_r]
+                  [--aa _s_t_r_i_n_g | ----cclliieenntt--aaddddrreessss==_s_t_r_i_n_g]
+                  [--tt _s_t_r_i_n_g | ----eenncc--ttyyppee==_s_t_r_i_n_g]
+                  [--ff _s_t_r_i_n_g | ----ttiicckkeett--ffllaaggss==_s_t_r_i_n_g] [----vveerrbboossee] [----vveerrssiioonn]
+                  [----hheellpp]
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkiimmppeerrssoonnaattee program creates a "fake" ticket using the service-key of
+     the service.  The service key can be read from a Kerberos 5 keytab, AFS
+     KeyFile or (if compiled with support for Kerberos 4) a Kerberos 4 srvtab.
+     Supported options:
+
+     --ss _s_t_r_i_n_g, ----sseerrvveerr==_s_t_r_i_n_g
+             name of server principal
+
+     --cc _s_t_r_i_n_g, ----cclliieenntt==_s_t_r_i_n_g
+             name of client principal
+
+     --kk _s_t_r_i_n_g, ----kkeeyyttaabb==_s_t_r_i_n_g
+             name of keytab file
+
+     --55, ----kkrrbb55
+             create a Kerberos 5 ticket
+
+     --ee _i_n_t_e_g_e_r, ----eexxppiirree--ttiimmee==_i_n_t_e_g_e_r
+             lifetime of ticket in seconds
+
+     --aa _s_t_r_i_n_g, ----cclliieenntt--aaddddrreessss==_s_t_r_i_n_g
+             address of client
+
+     --tt _s_t_r_i_n_g, ----eenncc--ttyyppee==_s_t_r_i_n_g
+             encryption type
+
+     --ff _s_t_r_i_n_g, ----ttiicckkeett--ffllaaggss==_s_t_r_i_n_g
+             ticket flags for krb5 ticket
+
+     ----vveerrbboossee
+             Verbose output
+
+     ----vveerrssiioonn
+             Print version
+
+     ----hheellpp
+
+FFIILLEESS
+     Uses _/_e_t_c_/_k_r_b_5_._k_e_y_t_a_b_, _/_e_t_c_/_s_r_v_t_a_b and _/_u_s_r_/_a_f_s_/_e_t_c_/_K_e_y_F_i_l_e when avail-
+     able and the --kk option is used with an appropriate prefix.
+
+EEXXAAMMPPLLEESS
+     kkiimmppeerrssoonnaattee can be used in ssaammbbaa root preexec option or for debugging.
+     kkiimmppeerrssoonnaattee -s host/hummel.e.kth.se@E.KTH.SE -c lha@E.KTH.SE -5 will
+     create a Kerberos 5 ticket for lha@E.KTH.SE for the host hummel.e.kth.se
+     if there exists a keytab entry for it in _/_e_t_c_/_k_r_b_5_._k_e_y_t_a_b.
+
+SSEEEE AALLSSOO
+     kinit(1), klist(1)
+
+AAUUTTHHOORRSS
+     Love Hornquist Astrand <lha@kth.se>
+
+Heimdal                       September 18, 2006                       Heimdal

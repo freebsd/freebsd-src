@@ -1,5 +1,5 @@
 dnl
-dnl $Id: telnet.m4 15435 2005-06-16 19:45:52Z lha $
+dnl $Id$
 dnl
 dnl stuff used by telnet
 
@@ -57,9 +57,6 @@ case "$host" in
 esac
 
 AH_BOTTOM([
-#if defined(ENCRYPTION) && !defined(AUTHENTICATION)
-#define AUTHENTICATION 1
-#endif
 
 /* Set this to the default system lead string for telnetd 
  * can contain %-escapes: %s=sysname, %m=machine, %r=os-release

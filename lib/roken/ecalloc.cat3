@@ -1,0 +1,47 @@
+
+ECALLOC(3)               BSD Library Functions Manual               ECALLOC(3)
+
+NNAAMMEE
+     eeccaalllloocc, eemmaalllloocc, eerreeaadd, eerreeaalllloocc, eesseetteennvv, eessttrrdduupp, eewwrriittee -- exit-on-
+     failure wrapper functions
+
+LLIIBBRRAARRYY
+     The roken library (libroken, -lroken)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<rrookkeenn..hh>>
+
+     _v_o_i_d _*
+     eeccaalllloocc(_s_i_z_e___t _n_u_m_b_e_r, _s_i_z_e___t _s_i_z_e);
+
+     _v_o_i_d _*
+     eemmaalllloocc(_s_i_z_e___t _s_z);
+
+     _s_s_i_z_e___t
+     eerreeaadd(_i_n_t _f_d, _v_o_i_d _*_b_u_f, _s_i_z_e___t _n_b_y_t_e_s);
+
+     _v_o_i_d _*
+     eerreeaalllloocc(_v_o_i_d _*_p_t_r, _s_i_z_e___t _s_z);
+
+     _v_o_i_d
+     eesseetteennvv(_c_o_n_s_t _c_h_a_r _*_v_a_r, _c_o_n_s_t _c_h_a_r _*_v_a_l, _i_n_t _r_e_w_r_i_t_e);
+
+     _c_h_a_r _*
+     eessttrrdduupp(_c_o_n_s_t _c_h_a_r _*_s_t_r);
+
+     _s_s_i_z_e___t
+     eewwrriittee(_i_n_t _f_d, _c_o_n_s_t _v_o_i_d _*_b_u_f, _s_i_z_e___t _n_b_y_t_e_s);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions do the same as the ones without the ``e'' prefix, but if
+     there is an error they will print a message with errx(3), and exit. For
+     eerreeaadd and eewwrriittee this is also true for partial data.
+
+     This is useful in applications when there is no need for a more advanced
+     failure mode.
+
+SSEEEE AALLSSOO
+     read(2), write(2), calloc(3), errx(3), malloc(3), realloc(3), setenv(3),
+     strdup(3)
+
+HEIMDAL                         August 14, 2003                        HEIMDAL

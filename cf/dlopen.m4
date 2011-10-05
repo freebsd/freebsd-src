@@ -1,5 +1,5 @@
 dnl
-dnl $Id: dlopen.m4 15433 2005-06-16 19:40:59Z lha $
+dnl $Id$
 dnl
 
 AC_DEFUN([rk_DLOPEN], [

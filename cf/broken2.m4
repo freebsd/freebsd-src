@@ -1,4 +1,4 @@
-dnl $Id: broken2.m4 14181 2004-08-31 12:53:36Z joda $
+dnl $Id$
 dnl
 dnl AC_BROKEN but with more arguments
 

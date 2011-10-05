@@ -1,8 +1,10 @@
-# $Id: Makefile.am.common 22488 2008-01-21 11:47:22Z lha $
+# $Id$
 
 SUFFIXES = .et .h
 
-AM_CPPFLAGS = -I$(top_builddir)/include $(INCLUDES_roken)
+DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include
+
+AM_CPPFLAGS = $(INCLUDES_roken)
 
 if do_roken_rename
 ROKEN_RENAME = -DROKEN_RENAME
@@ -58,6 +60,8 @@ INCLUDE_readline = @INCLUDE_readline@
 LIB_readline = @LIB_readline@
 
 LEXLIB = @LEXLIB@
+
+libexec_heimdaldir = $(libexecdir)/heimdal
 
 install-suid-programs:
 	@foo='$(bin_SUIDS)'; \
@@ -125,9 +129,12 @@ check-local::
 	  test "$$failed" -eq 0 || exit 1; \
 	fi
 
-SUFFIXES += .x .z
+SUFFIXES += .x .z .hx
 
 .x.c:
+	@cmp -s $< $@ 2> /dev/null || cp $< $@
+
+.hx.h:
 	@cmp -s $< $@ 2> /dev/null || cp $< $@
 
 SUFFIXES += .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8
@@ -220,8 +227,9 @@ if KRB5
 LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 	$(top_builddir)/lib/asn1/libasn1.la
 LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
-LIB_tsasl = $(top_builddir)/lib/tsasl/libtsasl.la
 endif
+
+LIB_heimbase = $(top_builddir)/base/libheimbase.la
 
 if DCE
 LIB_kdfs = $(top_builddir)/lib/kdfs/libkdfs.la
@@ -234,7 +242,7 @@ endif
 check-valgrind:
 	tobjdir=`cd $(top_builddir) && pwd` ; \
 	tsrcdir=`cd $(top_srcdir) && pwd` ; \
-	env TESTS_ENVIRONMENT="$${tobjdir}/libtool --mode execute valgrind --leak-check=full --trace-children=yes --quiet -q --num-callers=30 --suppressions=$${tsrcdir}/cf/valgrind-suppressions" make check
+	env TESTS_ENVIRONMENT="$${tsrcdir}/cf/maybe-valgrind.sh -s $${tsrcdir} -o $${tobjdir}" make check
 
 #
 # Target to please samba build farm, builds distfiles in-tree.

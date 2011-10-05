@@ -30,9 +30,7 @@
  * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
-
-RCSID("$Id: inquire_sec_context_by_oid.c 19031 2006-11-13 18:02:57Z lha $");
+#include "gsskrb5_locl.h"
 
 static int
 oid_prefix_equal(gss_OID oid_enc, gss_OID prefix_enc, unsigned *suffix)
@@ -40,7 +38,7 @@ oid_prefix_equal(gss_OID oid_enc, gss_OID prefix_enc, unsigned *suffix)
     int ret;
     heim_oid oid;
     heim_oid prefix;
- 
+
     *suffix = 0;
 
     ret = der_get_oid(oid_enc->elements, oid_enc->length,
@@ -84,7 +82,7 @@ static OM_uint32 inquire_sec_context_tkt_flags
 
     if (context_handle->ticket == NULL) {
 	HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
-	_gsskrb5_set_status("No ticket from which to obtain flags");
+	_gsskrb5_set_status(EINVAL, "No ticket from which to obtain flags");
 	*minor_status = EINVAL;
 	return GSS_S_BAD_MECH;
     }
@@ -137,15 +135,15 @@ static OM_uint32 inquire_sec_context_get_subkey
 	ret = _gsskrb5i_get_token_key(context_handle, context, &key);
 	break;
     default:
-	_gsskrb5_set_status("%d is not a valid subkey type", keytype);
+	_gsskrb5_set_status(EINVAL, "%d is not a valid subkey type", keytype);
 	ret = EINVAL;
 	break;
    }
     HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
-    if (ret) 
+    if (ret)
 	goto out;
     if (key == NULL) {
-	_gsskrb5_set_status("have no subkey of type %d", keytype);
+	_gsskrb5_set_status(EINVAL, "have no subkey of type %d", keytype);
 	ret = EINVAL;
 	goto out;
     }
@@ -161,10 +159,10 @@ static OM_uint32 inquire_sec_context_get_subkey
 
     {
 	gss_buffer_desc value;
-	
+
 	value.length = data.length;
 	value.value = data.data;
-	
+
 	maj_stat = gss_add_buffer_set_member(minor_status,
 					     &value,
 					     data_set);
@@ -177,6 +175,46 @@ out:
     if (ret) {
 	*minor_status = ret;
 	maj_stat = GSS_S_FAILURE;
+    }
+    return maj_stat;
+}
+
+static OM_uint32 inquire_sec_context_get_sspi_session_key
+            (OM_uint32 *minor_status,
+             const gsskrb5_ctx context_handle,
+             krb5_context context,
+             gss_buffer_set_t *data_set)
+{
+    krb5_keyblock *key;
+    OM_uint32 maj_stat = GSS_S_COMPLETE;
+    krb5_error_code ret;
+    gss_buffer_desc value;
+
+    HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
+    ret = _gsskrb5i_get_token_key(context_handle, context, &key);
+    HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
+
+    if (ret)
+        goto out;
+    if (key == NULL) {
+        ret = EINVAL;
+        goto out;
+    }
+
+    value.length = key->keyvalue.length;
+    value.value = key->keyvalue.data;
+
+    maj_stat = gss_add_buffer_set_member(minor_status,
+                                         &value,
+                                         data_set);
+    krb5_free_keyblock(context, key);
+
+    /* MIT also returns the enctype encoded as an OID in data_set[1] */
+
+out:
+    if (ret) {
+        *minor_status = ret;
+        maj_stat = GSS_S_FAILURE;
     }
     return maj_stat;
 }
@@ -199,7 +237,7 @@ static OM_uint32 inquire_sec_context_authz_data
     if (context_handle->ticket == NULL) {
 	HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
 	*minor_status = EINVAL;
-	_gsskrb5_set_status("No ticket to obtain authz data from");
+	_gsskrb5_set_status(EINVAL, "No ticket to obtain authz data from");
 	return GSS_S_NO_CONTEXT;
     }
 
@@ -242,7 +280,7 @@ static OM_uint32 inquire_sec_context_has_updated_spnego
      * mechanism.
      */
     HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
-    _gsskrb5i_is_cfx(context_handle, &is_updated);
+    is_updated = (context_handle->more_flags & IS_CFX);
     if (is_updated == 0) {
 	krb5_keyblock *acceptor_subkey;
 
@@ -277,12 +315,12 @@ export_lucid_sec_context_v1(OM_uint32 *minor_status,
     int32_t number;
     int is_cfx;
     krb5_data data;
-    
+
     *minor_status = 0;
 
     HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
 
-    _gsskrb5i_is_cfx(context_handle, &is_cfx);
+    is_cfx = (context_handle->more_flags & IS_CFX);
 
     sp = krb5_storage_emem();
     if (sp == NULL) {
@@ -301,12 +339,16 @@ export_lucid_sec_context_v1(OM_uint32 *minor_status,
 				     context_handle->auth_context,
 				     &number);
     ret = krb5_store_uint32(sp, (uint32_t)0); /* store top half as zero */
+    if (ret) goto out;
     ret = krb5_store_uint32(sp, (uint32_t)number);
-    krb5_auth_getremoteseqnumber (context,
-				  context_handle->auth_context,
-				  &number);
+    if (ret) goto out;
+    krb5_auth_con_getremoteseqnumber (context,
+				      context_handle->auth_context,
+				      &number);
     ret = krb5_store_uint32(sp, (uint32_t)0); /* store top half as zero */
+    if (ret) goto out;
     ret = krb5_store_uint32(sp, (uint32_t)number);
+    if (ret) goto out;
     ret = krb5_store_int32(sp, (is_cfx) ? 1 : 0);
     if (ret) goto out;
 
@@ -390,7 +432,7 @@ out:
 
 static OM_uint32
 get_authtime(OM_uint32 *minor_status,
-	     gsskrb5_ctx ctx, 
+	     gsskrb5_ctx ctx,
 	     gss_buffer_set_t *data_set)
 
 {
@@ -401,13 +443,13 @@ get_authtime(OM_uint32 *minor_status,
     HEIMDAL_MUTEX_lock(&ctx->ctx_id_mutex);
     if (ctx->ticket == NULL) {
 	HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
-	_gsskrb5_set_status("No ticket to obtain auth time from");
+	_gsskrb5_set_status(EINVAL, "No ticket to obtain auth time from");
 	*minor_status = EINVAL;
 	return GSS_S_FAILURE;
     }
-    
+
     authtime = ctx->ticket->ticket.authtime;
-    
+
     HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 
     _gsskrb5_encode_om_uint32(authtime, buf);
@@ -420,17 +462,17 @@ get_authtime(OM_uint32 *minor_status,
 }
 
 
-static OM_uint32 
+static OM_uint32
 get_service_keyblock
         (OM_uint32 *minor_status,
-	 gsskrb5_ctx ctx, 
+	 gsskrb5_ctx ctx,
 	 gss_buffer_set_t *data_set)
 {
     krb5_storage *sp = NULL;
     krb5_data data;
     OM_uint32 maj_stat = GSS_S_COMPLETE;
     krb5_error_code ret = EINVAL;
-    
+
     sp = krb5_storage_emem();
     if (sp == NULL) {
 	_gsskrb5_clear_status();
@@ -441,9 +483,10 @@ get_service_keyblock
     HEIMDAL_MUTEX_lock(&ctx->ctx_id_mutex);
     if (ctx->service_keyblock == NULL) {
 	HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
-	_gsskrb5_set_status("No service keyblock on gssapi context");
+	krb5_storage_free(sp);
+	_gsskrb5_set_status(EINVAL, "No service keyblock on gssapi context");
 	*minor_status = EINVAL;
-	return GSS_S_FAILURE; 
+	return GSS_S_FAILURE;
     }
 
     krb5_data_zero(&data);
@@ -461,10 +504,10 @@ get_service_keyblock
 
     {
 	gss_buffer_desc value;
-	
+
 	value.length = data.length;
 	value.value = data.data;
-	
+
 	maj_stat = gss_add_buffer_set_member(minor_status,
 					     &value,
 					     data_set);
@@ -484,7 +527,7 @@ out:
  *
  */
 
-OM_uint32 _gsskrb5_inquire_sec_context_by_oid
+OM_uint32 GSSAPI_CALLCONV _gsskrb5_inquire_sec_context_by_oid
            (OM_uint32 *minor_status,
             const gss_ctx_id_t context_handle,
             const gss_OID desired_object,
@@ -527,6 +570,11 @@ OM_uint32 _gsskrb5_inquire_sec_context_by_oid
 					      context,
 					      ACCEPTOR_KEY,
 					      data_set);
+    } else if (gss_oid_equal(desired_object, GSS_C_INQ_SSPI_SESSION_KEY)) {
+        return inquire_sec_context_get_sspi_session_key(minor_status,
+                                                        ctx,
+                                                        context,
+                                                        data_set);
     } else if (gss_oid_equal(desired_object, GSS_KRB5_GET_AUTHTIME_X)) {
 	return get_authtime(minor_status, ctx, data_set);
     } else if (oid_prefix_equal(desired_object,

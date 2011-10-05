@@ -1,5 +1,5 @@
 dnl
-dnl $Id: destdirs.m4 11082 2002-08-12 15:12:50Z joda $
+dnl $Id$
 dnl
 
 AC_DEFUN([rk_DESTDIRS], [

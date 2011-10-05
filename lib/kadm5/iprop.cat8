@@ -1,0 +1,106 @@
+
+IPROP(8)                  BSD System Manager's Manual                 IPROP(8)
+
+NNAAMMEE
+     iipprroopp, iipprrooppdd--mmaasstteerr, iipprrooppdd--ssllaavvee -- propagate changes to a Heimdal Ker-
+     beros master KDC to slave KDCs
+
+SSYYNNOOPPSSIISS
+     iipprrooppdd--mmaasstteerr [--cc _s_t_r_i_n_g | ----ccoonnffiigg--ffiillee==_s_t_r_i_n_g] [--rr _s_t_r_i_n_g |
+                   ----rreeaallmm==_s_t_r_i_n_g] [--kk _k_s_p_e_c | ----kkeeyyttaabb==_k_s_p_e_c] [--dd _f_i_l_e |
+                   ----ddaattaabbaassee==_f_i_l_e] [----ssllaavvee--ssttaattss--ffiillee==_f_i_l_e]
+                   [----ttiimmee--mmiissssiinngg==_t_i_m_e] [----ttiimmee--ggoonnee==_t_i_m_e] [----ddeettaacchh]
+                   [----vveerrssiioonn] [----hheellpp]
+     iipprrooppdd--ssllaavvee [--cc _s_t_r_i_n_g | ----ccoonnffiigg--ffiillee==_s_t_r_i_n_g] [--rr _s_t_r_i_n_g |
+                   ----rreeaallmm==_s_t_r_i_n_g] [--kk _k_s_p_e_c | ----kkeeyyttaabb==_k_s_p_e_c]
+                   [----ttiimmee--lloosstt==_t_i_m_e] [----ddeettaacchh] [----vveerrssiioonn] [----hheellpp] _m_a_s_t_e_r
+
+DDEESSCCRRIIPPTTIIOONN
+     iipprrooppdd--mmaasstteerr is used to propagate changes to a Heimdal Kerberos database
+     from the master Kerberos server on which it runs to slave Kerberos
+     servers running iipprrooppdd--ssllaavvee.
+
+     The slaves are specified by the contents of the _s_l_a_v_e_s file in the KDC's
+     database directory, e.g. _/_v_a_r_/_h_e_i_m_d_a_l_/_s_l_a_v_e_s.  This has principals one
+     per-line of the form
+           iprop/_s_l_a_v_e@_R_E_A_L_M
+     where _s_l_a_v_e is the hostname of the slave server in the given _R_E_A_L_M, e.g.
+           iprop/kerberos-1.example.com@EXAMPLE.COM
+     On a slave, the argument _m_a_s_t_e_r specifies the hostname of the master
+     server from which to receive updates.
+
+     In contrast to hprop(8), which sends the whole database to the slaves
+     regularly, iipprroopp normally sends only the changes as they happen on the
+     master.  The master keeps track of all the changes by assigning a version
+     number to every change to the database.  The slaves know which was the
+     latest version they saw, and in this way it can be determined if they are
+     in sync or not.  A log of all the changes is kept on the master.  When a
+     slave is at an older version than the oldest one in the log, the whole
+     database has to be sent.
+
+     The changes are propagated over a secure channel (on port 2121 by
+     default).  This should normally be defined as ``iprop/tcp'' in
+     _/_e_t_c_/_s_e_r_v_i_c_e_s or another source of the services database.  The master and
+     slaves must each have access to a keytab with keys for the iipprroopp service
+     principal on the local host.
+
+     There is a keep-alive feature logged in the master's _s_l_a_v_e_-_s_t_a_t_s file
+     (e.g. _/_v_a_r_/_h_e_i_m_d_a_l_/_s_l_a_v_e_-_s_t_a_t_s).
+
+     Supported options for iipprrooppdd--mmaasstteerr:
+
+     --cc _s_t_r_i_n_g, ----ccoonnffiigg--ffiillee==_s_t_r_i_n_g
+
+     --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+
+     --kk _k_s_p_e_c, ----kkeeyyttaabb==_k_s_p_e_c
+             keytab to get authentication from
+
+     --dd _f_i_l_e, ----ddaattaabbaassee==_f_i_l_e
+             Database (default per KDC)
+
+     ----ssllaavvee--ssttaattss--ffiillee==_f_i_l_e
+             file for slave status information
+
+     ----ttiimmee--mmiissssiinngg==_t_i_m_e
+             time before slave is polled for presence (default 2 min)
+
+     ----ttiimmee--ggoonnee==_t_i_m_e
+             time of inactivity after which a slave is considered gone
+             (default 5 min)
+
+     ----ddeettaacchh
+             detach from console
+
+     ----vveerrssiioonn
+
+     ----hheellpp
+
+     Supported options for iipprrooppdd--ssllaavvee:
+
+     --cc _s_t_r_i_n_g, ----ccoonnffiigg--ffiillee==_s_t_r_i_n_g
+
+     --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+
+     --kk _k_s_p_e_c, ----kkeeyyttaabb==_k_s_p_e_c
+             keytab to get authentication from
+
+     ----ttiimmee--lloosstt==_t_i_m_e
+             time before server is considered lost (default 5 min)
+
+     ----ddeettaacchh
+             detach from console
+
+     ----vveerrssiioonn
+
+     ----hheellpp
+     Time arguments for the relevant options above may be specified in forms
+     like 5 min, 300 s, or simply a number of seconds.
+
+FFIILLEESS
+     _s_l_a_v_e_s, _s_l_a_v_e_-_s_t_a_t_s in the database directory.
+
+SSEEEE AALLSSOO
+     krb5.conf(5), hprop(8), hpropd(8), iprop-log(8), kdc(8).
+
+Heimdal                          May 24, 2005                          Heimdal

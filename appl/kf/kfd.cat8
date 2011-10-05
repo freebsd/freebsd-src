@@ -1,0 +1,31 @@
+
+KFD(8)                    BSD System Manager's Manual                   KFD(8)
+
+NNAAMMEE
+     kkffdd -- receive forwarded tickets
+
+SSYYNNOOPPSSIISS
+     kkffdd [--pp _p_o_r_t | ----ppoorrtt=_p_o_r_t] [--ii | ----iinneettdd] [--RR _r_e_g_p_a_g | ----rreeggppaagg=_r_e_g_p_a_g]
+         [--hh | ----hheellpp] [----vveerrssiioonn]
+
+DDEESSCCRRIIPPTTIIOONN
+     This is the daemon for kf(1).  Supported options:
+
+     --pp _p_o_r_t, ----ppoorrtt=_p_o_r_t
+             port to listen to
+
+     --ii, ----iinneettdd
+             not started from inetd
+
+     --RR _r_e_g_p_a_g, ----rreeggppaagg==_r_e_g_p_a_g
+             path to regpag binary
+
+EEXXAAMMPPLLEESS
+     Put the following in _/_e_t_c_/_i_n_e_t_d_._c_o_n_f:
+
+     kf      stream  tcp     nowait  root    /usr/heimdal/libexec/kfd        kfd
+
+SSEEEE AALLSSOO
+     kf(1)
+
+Heimdal                          July 2, 2000                          Heimdal

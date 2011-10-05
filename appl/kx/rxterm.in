@@ -1,0 +1,45 @@
+#!/bin/sh
+# $Id$
+#
+usage="Usage: $0 [-l username] [-k] [-f] [-r rsh_args] [-x xterm_args] [-K kx_args] [-w term_emulator] [-b rsh_binary][-v] [-h | --help] [--version] host"
+binary=rsh
+term=xterm
+while true
+do
+  case $1 in
+  -l) rsh_args="${rsh_args} -l $2 "; kx_args="${kx_args} -l $2"; title="${2}@"; shift 2;;
+  -r) rsh_args="${rsh_args} $2 "; shift 2;;
+  -x) xterm_args="${xterm_args} $2 "; shift 2;;
+  -f) rsh_args="${rsh_args} -f"; shift;;
+  -k) kx_args="${kx_args} -k"; shift;;
+  -K) kx_args="${kx_args} $2 "; shift 2;;
+  -w) term=$2; shift 2;;
+  -b) binary=$2; shift 2;;
+  --version) echo "$0: %PACKAGE% %VERSION%"; exit 0;;
+  -h) echo $usage; exit 0;;
+  --help) echo $usage; exit 0;;
+  -v) set -x; shift;;
+  -*) echo "$0: Bad option $1"; echo $usage; exit 1;;
+  *) break;;
+  esac
+done
+if test $# -lt 1; then
+  echo "Usage: $0 host [arguments to $term]"
+  exit 1
+fi
+host=$1
+title="${title}${host}"
+bindir=%bindir%
+pdc_trams=`dirname $0`
+PATH=$pdc_trams:$bindir:$PATH
+export PATH
+set -- `kx $kx_args $host`
+if test $# -ne 3; then
+  exit 1
+fi
+screen=`echo $DISPLAY | sed -ne 's/[^:]*:[0-9]*\(\.[0-9]*\)/\1/p'`
+pid=$1
+disp=${2}${screen}
+auth=$3
+kill -USR1 $pid
+$binary -n $rsh_args $host "/bin/sh -c 'DISPLAY=$disp XAUTHORITY=$auth $term -T $title -n $title $xterm_args </dev/null >/dev/null 2>/dev/null &'"

@@ -1,0 +1,146 @@
+
+KRB5_DIGEST(3)           BSD Library Functions Manual           KRB5_DIGEST(3)
+
+NNAAMMEE
+     kkrrbb55__ddiiggeesstt, kkrrbb55__ddiiggeesstt__aalllloocc, kkrrbb55__ddiiggeesstt__ffrreeee,
+     kkrrbb55__ddiiggeesstt__sseett__sseerrvveerr__ccbb, kkrrbb55__ddiiggeesstt__sseett__ttyyppee,
+     kkrrbb55__ddiiggeesstt__sseett__hhoossttnnaammee, kkrrbb55__ddiiggeesstt__ggeett__sseerrvveerr__nnoonnccee,
+     kkrrbb55__ddiiggeesstt__sseett__sseerrvveerr__nnoonnccee, kkrrbb55__ddiiggeesstt__ggeett__ooppaaqquuee,
+     kkrrbb55__ddiiggeesstt__sseett__ooppaaqquuee, kkrrbb55__ddiiggeesstt__ggeett__iiddeennttiiffiieerr,
+     kkrrbb55__ddiiggeesstt__sseett__iiddeennttiiffiieerr, kkrrbb55__ddiiggeesstt__iinniitt__rreeqquueesstt,
+     kkrrbb55__ddiiggeesstt__sseett__cclliieenntt__nnoonnccee, kkrrbb55__ddiiggeesstt__sseett__ddiiggeesstt,
+     kkrrbb55__ddiiggeesstt__sseett__uusseerrnnaammee, kkrrbb55__ddiiggeesstt__sseett__aauutthhiidd,
+     kkrrbb55__ddiiggeesstt__sseett__aauutthheennttiiccaattiioonn__uusseerr, kkrrbb55__ddiiggeesstt__sseett__rreeaallmm,
+     kkrrbb55__ddiiggeesstt__sseett__mmeetthhoodd, kkrrbb55__ddiiggeesstt__sseett__uurrii, kkrrbb55__ddiiggeesstt__sseett__nnoonncceeCCoouunntt,
+     kkrrbb55__ddiiggeesstt__sseett__qqoopp, kkrrbb55__ddiiggeesstt__rreeqquueesstt, kkrrbb55__ddiiggeesstt__ggeett__rreessppoonnsseeDDaattaa,
+     kkrrbb55__ddiiggeesstt__ggeett__rrsspp, kkrrbb55__ddiiggeesstt__ggeett__ttiicckkeettss,
+     kkrrbb55__ddiiggeesstt__ggeett__cclliieenntt__bbiinnddiinngg, kkrrbb55__ddiiggeesstt__ggeett__aa11__hhaasshh -- remote digest
+     (HTTP-DIGEST, SASL, CHAP) suppport
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     typedef struct krb5_digest *krb5_digest;
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__aalllloocc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _*_d_i_g_e_s_t);
+
+     _v_o_i_d
+     kkrrbb55__ddiiggeesstt__ffrreeee(_k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__ttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__sseerrvveerr__ccbb(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_t_y_p_e, _c_o_n_s_t _c_h_a_r _*_b_i_n_d_i_n_g);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__hhoossttnnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_h_o_s_t_n_a_m_e);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__ddiiggeesstt__ggeett__sseerrvveerr__nnoonnccee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__sseerrvveerr__nnoonnccee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_n_o_n_c_e);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__ddiiggeesstt__ggeett__ooppaaqquuee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__ooppaaqquuee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_o_p_a_q_u_e);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__ddiiggeesstt__ggeett__iiddeennttiiffiieerr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__iiddeennttiiffiieerr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__iinniitt__rreeqquueesstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _k_r_b_5___r_e_a_l_m _r_e_a_l_m, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__cclliieenntt__nnoonnccee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_n_o_n_c_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__ddiiggeesstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_d_g_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__uusseerrnnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_u_s_e_r_n_a_m_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__aauutthhiidd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_a_u_t_h_i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__aauutthheennttiiccaattiioonn__uusseerr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t, _k_r_b_5___p_r_i_n_c_i_p_a_l _a_u_t_h_e_n_t_i_c_a_t_i_o_n___u_s_e_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__mmeetthhoodd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_m_e_t_h_o_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__uurrii(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_u_r_i);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__nnoonncceeCCoouunntt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_n_o_n_c_e___c_o_u_n_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__sseett__qqoopp(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_o_n_s_t _c_h_a_r _*_q_o_p);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__rreeqquueesstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _k_r_b_5___r_e_a_l_m _r_e_a_l_m, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__ddiiggeesstt__ggeett__rreessppoonnsseeDDaattaa(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__ddiiggeesstt__ggeett__rrsspp(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__ggeett__ttiicckkeettss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _T_i_c_k_e_t _*_*_t_i_c_k_e_t_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__ggeett__cclliieenntt__bbiinnddiinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _c_h_a_r _*_*_t_y_p_e, _c_h_a_r _*_*_b_i_n_d_i_n_g);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddiiggeesstt__ggeett__aa11__hhaasshh(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_i_g_e_s_t _d_i_g_e_s_t,
+         _k_r_b_5___d_a_t_a _*_d_a_t_a);
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55__ddiiggeesstt__aalllloocc() function allocatates the _d_i_g_e_s_t structure.  The
+     structure should be freed with kkrrbb55__ddiiggeesstt__ffrreeee() when it is no longer
+     being used.
+
+     kkrrbb55__ddiiggeesstt__aalllloocc() returns 0 to indicate success.  Otherwise an kerberos
+     code is returned and the pointer that _d_i_g_e_s_t points to is set to NULL.
+
+     kkrrbb55__ddiiggeesstt__ffrreeee() free the structure _d_i_g_e_s_t.
+
+SSEEEE AALLSSOO
+     krb5(3), kerberos(8)
+
+HEIMDAL                        February 18, 2007                       HEIMDAL

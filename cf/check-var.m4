@@ -1,4 +1,4 @@
-dnl $Id: check-var.m4 15422 2005-06-16 18:59:29Z lha $
+dnl $Id$
 dnl
 dnl rk_CHECK_VAR(variable, includes)
 AC_DEFUN([rk_CHECK_VAR], [
@@ -9,7 +9,8 @@ m4_ifval([$2],[
 	void * foo(void) { return &$1; }]],[[foo()]])],
 	    [ac_cv_var_$1=yes],[ac_cv_var_$1=no])])
 if test "$ac_cv_var_$1" != yes ; then
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern int $1;
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[$2
+extern int $1;
 int foo(void) { return $1; }]],[[foo()]])],
 	    [ac_cv_var_$1=yes],[ac_cv_var_$1=no])
 fi

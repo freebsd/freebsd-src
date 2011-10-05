@@ -1,0 +1,185 @@
+
+KRB5_CONTEXT(3)          BSD Library Functions Manual          KRB5_CONTEXT(3)
+
+NNAAMMEE
+     kkrrbb55__aadddd__eett__lliisstt, kkrrbb55__aadddd__eexxttrraa__aaddddrreesssseess, kkrrbb55__aadddd__iiggnnoorree__aaddddrreesssseess,
+     kkrrbb55__ccoonntteexxtt, kkrrbb55__ffrreeee__ccoonnffiigg__ffiilleess, kkrrbb55__ffrreeee__ccoonntteexxtt,
+     kkrrbb55__ggeett__ddeeffaauulltt__ccoonnffiigg__ffiilleess, kkrrbb55__ggeett__ddnnss__ccaannoonniizzee__hhoossttnnaammee,
+     kkrrbb55__ggeett__eexxttrraa__aaddddrreesssseess, kkrrbb55__ggeett__ffccaacchhee__vveerrssiioonn,
+     kkrrbb55__ggeett__iiggnnoorree__aaddddrreesssseess, kkrrbb55__ggeett__kkddcc__sseecc__ooffffsseett,
+     kkrrbb55__ggeett__mmaaxx__ttiimmee__sskkeeww, kkrrbb55__ggeett__uussee__aaddmmiinn__kkddcc kkrrbb55__iinniitt__ccoonntteexxtt,
+     kkrrbb55__iinniitt__eettss, kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess,
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess__ddeeffaauulltt, kkrrbb55__sseett__ccoonnffiigg__ffiilleess,
+     kkrrbb55__sseett__ddnnss__ccaannoonniizzee__hhoossttnnaammee, kkrrbb55__sseett__eexxttrraa__aaddddrreesssseess,
+     kkrrbb55__sseett__ffccaacchhee__vveerrssiioonn, kkrrbb55__sseett__iiggnnoorree__aaddddrreesssseess,
+     kkrrbb55__sseett__mmaaxx__ttiimmee__sskkeeww, kkrrbb55__sseett__uussee__aaddmmiinn__kkddcc, -- create, modify and
+     delete krb5_context structures
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     struct krb5_context;
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__iinniitt__ccoonntteexxtt(_k_r_b_5___c_o_n_t_e_x_t _*_c_o_n_t_e_x_t);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__ccoonntteexxtt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _v_o_i_d
+     kkrrbb55__iinniitt__eettss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aadddd__eett__lliisstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _v_o_i_d _(_*_f_u_n_c_)_(_s_t_r_u_c_t _e_t___l_i_s_t _*_*_));
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aadddd__eexxttrraa__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__eexxttrraa__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__eexxttrraa__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aadddd__iiggnnoorree__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__iiggnnoorree__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iiggnnoorree__aaddddrreesssseess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__ffccaacchhee__vveerrssiioonn(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _i_n_t _v_e_r_s_i_o_n);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ffccaacchhee__vveerrssiioonn(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _i_n_t _*_v_e_r_s_i_o_n);
+
+     _v_o_i_d
+     kkrrbb55__sseett__ddnnss__ccaannoonniizzee__hhoossttnnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___b_o_o_l_e_a_n _f_l_a_g);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__ggeett__ddnnss__ccaannoonniizzee__hhoossttnnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__kkddcc__sseecc__ooffffsseett(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _i_n_t_3_2___t _*_s_e_c,
+         _i_n_t_3_2___t _*_u_s_e_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__ccoonnffiigg__ffiilleess(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_h_a_r _*_*_f_i_l_e_n_a_m_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess(_c_o_n_s_t _c_h_a_r _*_f_i_l_e_l_i_s_t, _c_h_a_r _*_*_p_q,
+         _c_h_a_r _*_*_*_r_e_t___p_p);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess__ddeeffaauulltt(_c_o_n_s_t _c_h_a_r _*_f_i_l_e_l_i_s_t,
+         _c_h_a_r _*_*_*_p_f_i_l_e_n_a_m_e_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ddeeffaauulltt__ccoonnffiigg__ffiilleess(_c_h_a_r _*_*_*_p_f_i_l_e_n_a_m_e_s);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__ccoonnffiigg__ffiilleess(_c_h_a_r _*_*_f_i_l_e_n_a_m_e_s);
+
+     _v_o_i_d
+     kkrrbb55__sseett__uussee__aaddmmiinn__kkddcc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___b_o_o_l_e_a_n _f_l_a_g);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__ggeett__uussee__aaddmmiinn__kkddcc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _t_i_m_e___t
+     kkrrbb55__ggeett__mmaaxx__ttiimmee__sskkeeww(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__mmaaxx__ttiimmee__sskkeeww(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _t_i_m_e___t _t_i_m_e);
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55__iinniitt__ccoonntteexxtt() function initializes the _c_o_n_t_e_x_t structure and
+     reads the configuration file _/_e_t_c_/_k_r_b_5_._c_o_n_f.
+
+     The structure should be freed by calling kkrrbb55__ffrreeee__ccoonntteexxtt() when it is
+     no longer being used.
+
+     kkrrbb55__iinniitt__ccoonntteexxtt() returns 0 to indicate success.  Otherwise an errno
+     code is returned.  Failure means either that something bad happened dur-
+     ing initialization (typically [ENOMEM]) or that Kerberos should not be
+     used [ENXIO].
+
+     kkrrbb55__iinniitt__eettss() adds all com_err(3) libs to _c_o_n_t_e_x_t.  This is done by
+     kkrrbb55__iinniitt__ccoonntteexxtt().
+
+     kkrrbb55__aadddd__eett__lliisstt() adds a com_err(3) error-code handler _f_u_n_c to the spec-
+     ified _c_o_n_t_e_x_t.  The error handler must generated by the the re-rentrant
+     version of the compile_et(1) program.  kkrrbb55__aadddd__eexxttrraa__aaddddrreesssseess() add a
+     list of addresses that should be added when requesting tickets.
+
+     kkrrbb55__aadddd__iiggnnoorree__aaddddrreesssseess() add a list of addresses that should be
+     ignored when requesting tickets.
+
+     kkrrbb55__ggeett__eexxttrraa__aaddddrreesssseess() get the list of addresses that should be added
+     when requesting tickets.
+
+     kkrrbb55__ggeett__iiggnnoorree__aaddddrreesssseess() get the list of addresses that should be
+     ignored when requesting tickets.
+
+     kkrrbb55__sseett__iiggnnoorree__aaddddrreesssseess() set the list of addresses that should be
+     ignored when requesting tickets.
+
+     kkrrbb55__sseett__eexxttrraa__aaddddrreesssseess() set the list of addresses that should be added
+     when requesting tickets.
+
+     kkrrbb55__sseett__ffccaacchhee__vveerrssiioonn() sets the version of file credentials caches
+     that should be used.
+
+     kkrrbb55__ggeett__ffccaacchhee__vveerrssiioonn() gets the version of file credentials caches
+     that should be used.
+
+     kkrrbb55__sseett__ddnnss__ccaannoonniizzee__hhoossttnnaammee() sets if the context is configured to
+     canonicalize hostnames using DNS.
+
+     kkrrbb55__ggeett__ddnnss__ccaannoonniizzee__hhoossttnnaammee() returns if the context is configured to
+     canonicalize hostnames using DNS.
+
+     kkrrbb55__ggeett__kkddcc__sseecc__ooffffsseett() returns the offset between the localtime and
+     the KDC's time.  _s_e_c and _u_s_e_c are both optional argument and NULL can be
+     passed in.
+
+     kkrrbb55__sseett__ccoonnffiigg__ffiilleess() set the list of configuration files to use and
+     re-initialize the configuration from the files.
+
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess() parse the _f_i_l_e_l_i_s_t and prepend the result to
+     the already existing list _p_q The result is returned in _r_e_t___p_p and should
+     be freed with kkrrbb55__ffrreeee__ccoonnffiigg__ffiilleess().
+
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess__ddeeffaauulltt() parse the _f_i_l_e_l_i_s_t and append that to
+     the default list of configuration files.
+
+     kkrrbb55__ggeett__ddeeffaauulltt__ccoonnffiigg__ffiilleess() get a list of default configuration
+     files.
+
+     kkrrbb55__ffrreeee__ccoonnffiigg__ffiilleess() free a list of configuration files returned by
+     kkrrbb55__ggeett__ddeeffaauulltt__ccoonnffiigg__ffiilleess(), kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess__ddeeffaauulltt(), or
+     kkrrbb55__pprreeppeenndd__ccoonnffiigg__ffiilleess().
+
+     kkrrbb55__sseett__uussee__aaddmmiinn__kkddcc() sets if all KDC requests should go admin KDC.
+
+     kkrrbb55__ggeett__uussee__aaddmmiinn__kkddcc() gets if all KDC requests should go admin KDC.
+
+     kkrrbb55__ggeett__mmaaxx__ttiimmee__sskkeeww() and kkrrbb55__sseett__mmaaxx__ttiimmee__sskkeeww() get and sets the
+     maximum allowed time skew between client and server.
+
+SSEEEE AALLSSOO
+     errno(2), krb5(3), krb5_config(3), krb5_context(3), kerberos(8)
+
+HEIMDAL                        December 8, 2004                        HEIMDAL

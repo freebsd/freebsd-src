@@ -1,0 +1,32 @@
+
+KSWITCH(SECTION)                     LOCAL                    KSWITCH(SECTION)
+
+NNAAMMEE
+     kksswwiittcchh -- switch between default credential caches
+
+SSYYNNOOPPSSIISS
+     kksswwiittcchh [--tt _t_y_p_e | ----ttyyppee==_t_y_p_e] [--cc _c_a_c_h_e | ----ccaacchhee==_c_a_c_h_e] [--pp _p_r_i_n_c_i_p_a_l
+             | ----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--ii | ----iinntteerraaccttiivvee] [----vveerrssiioonn]
+             [----hheellpp]
+
+DDEESSCCRRIIPPTTIIOONN
+     Supported options:
+
+     --tt _t_y_p_e, ----ttyyppee==_t_y_p_e
+             type of credential cache
+
+     --cc _c_a_c_h_e, ----ccaacchhee==_c_a_c_h_e
+             name of credential cache to switch to
+
+     --pp _p_r_i_n_c_i_p_a_l, ----pprriinncciippaall==_p_r_i_n_c_i_p_a_l
+             name of principal to switch to
+
+     --ii, ----iinntteerraaccttiivvee
+             interactive switching between credentials.
+
+     ----vveerrssiioonn
+             print version
+
+     ----hheellpp
+
+OPERATING_SYSTEM               Augusti 25, 2009               OPERATING_SYSTEM

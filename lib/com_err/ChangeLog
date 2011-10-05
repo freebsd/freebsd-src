@@ -1,34 +1,34 @@
-2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: split source files in dist and nodist.
 
-2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Only do roken rename for the library.
 
-2007-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: use version script.
 	
 	* version-script.map: use version script.
 
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: New library version.
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am (compile_et_SOURCES): add lex.h
 	
-2005-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-12-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* com_err.3: Document the _r functions.
 	
-2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* com_err.h: Include <stdarg.h> for va_list to help AIX 5.2.
 	
-2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: rename base to base_id since flex defines a function
 	with the argument base
@@ -43,7 +43,7 @@
 	
 	* compile_et.c: rename optind to optidx
 	
-2005-05-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: check allocation errors
 
@@ -57,11 +57,11 @@
 
 	* Makefile.am (LDADD): Add libcom_err.la
 
-2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* include strlcpy and *printf and use them
 
-2005-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* com_right.h: de-__P
 

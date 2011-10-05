@@ -1,4 +1,4 @@
-dnl $Id: roken.m4 14162 2004-08-26 11:27:32Z joda $
+dnl $Id$
 dnl
 dnl try to look for an installed roken library with sufficient stuff
 dnl

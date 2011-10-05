@@ -1,0 +1,639 @@
+########################################################################
+#
+# Copyright (c) 2009-2011, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\gssapi 
+
+!include ../../windows/NTMakefile.w32 
+
+krb5src = \
+	krb5/8003.c \
+	krb5/accept_sec_context.c \
+	krb5/acquire_cred.c \
+	krb5/add_cred.c \
+	krb5/address_to_krb5addr.c \
+	krb5/aeap.c \
+	krb5/arcfour.c \
+        krb5/authorize_localname.c \
+	krb5/canonicalize_name.c \
+	krb5/creds.c \
+	krb5/ccache_name.c \
+	krb5/cfx.c \
+	krb5/cfx.h \
+	krb5/compare_name.c \
+	krb5/compat.c \
+	krb5/context_time.c \
+	krb5/copy_ccache.c \
+	krb5/decapsulate.c \
+	krb5/delete_sec_context.c \
+	krb5/display_name.c \
+	krb5/display_status.c \
+	krb5/duplicate_name.c \
+	krb5/encapsulate.c \
+	krb5/export_name.c \
+	krb5/export_sec_context.c \
+	krb5/external.c \
+	krb5/get_mic.c \
+	krb5/gsskrb5_locl.h \
+	krb5/import_name.c \
+	krb5/import_sec_context.c \
+	krb5/indicate_mechs.c \
+	krb5/init.c \
+	krb5/init_sec_context.c \
+	krb5/inquire_context.c \
+	krb5/inquire_cred.c \
+	krb5/inquire_cred_by_mech.c \
+	krb5/inquire_cred_by_oid.c \
+	krb5/inquire_mechs_for_name.c \
+	krb5/inquire_names_for_mech.c \
+	krb5/inquire_sec_context_by_oid.c \
+        krb5/pname_to_uid.c \
+	krb5/process_context_token.c \
+	krb5/prf.c \
+	krb5/release_buffer.c \
+	krb5/release_cred.c \
+	krb5/release_name.c \
+	krb5/sequence.c \
+	krb5/store_cred.c \
+	krb5/set_cred_option.c \
+	krb5/set_sec_context_option.c \
+	krb5/ticket_flags.c \
+	krb5/unwrap.c \
+	krb5/verify_mic.c \
+	krb5/wrap.c
+
+mechsrc = \
+	mech/context.h \
+	mech/context.c \
+	mech/cred.h \
+	mech/gss_accept_sec_context.c \
+	mech/gss_acquire_cred.c \
+	mech/gss_acquire_cred_ext.c \
+	mech/gss_acquire_cred_with_password.c \
+	mech/gss_add_cred.c \
+	mech/gss_add_cred_with_password.c \
+	mech/gss_add_oid_set_member.c \
+	mech/gss_aeap.c \
+        mech/gss_authorize_localname.c \
+	mech/gss_buffer_set.c \
+	mech/gss_canonicalize_name.c \
+	mech/gss_compare_name.c \
+	mech/gss_context_time.c \
+	mech/gss_create_empty_oid_set.c \
+	mech/gss_cred.c \
+	mech/gss_decapsulate_token.c \
+	mech/gss_delete_name_attribute.c \
+	mech/gss_delete_sec_context.c \
+	mech/gss_display_name.c \
+	mech/gss_display_name_ext.c \
+	mech/gss_display_status.c \
+	mech/gss_duplicate_name.c \
+	mech/gss_duplicate_oid.c \
+	mech/gss_encapsulate_token.c \
+	mech/gss_export_name.c \
+	mech/gss_export_name_composite.c \
+	mech/gss_export_sec_context.c \
+	mech/gss_get_mic.c \
+	mech/gss_get_name_attribute.c \
+	mech/gss_import_name.c \
+	mech/gss_import_sec_context.c \
+	mech/gss_indicate_mechs.c \
+	mech/gss_init_sec_context.c \
+	mech/gss_inquire_context.c \
+	mech/gss_inquire_cred.c \
+	mech/gss_inquire_cred_by_mech.c \
+	mech/gss_inquire_cred_by_oid.c \
+	mech/gss_inquire_mechs_for_name.c \
+	mech/gss_inquire_name.c \
+	mech/gss_inquire_names_for_mech.c \
+	mech/gss_krb5.c \
+	mech/gss_mech_switch.c \
+	mech/gss_mo.c \
+	mech/gss_names.c \
+	mech/gss_oid.c \
+	mech/gss_oid_equal.c \
+	mech/gss_oid_to_str.c \
+	mech/gss_pname_to_uid.c \
+	mech/gss_process_context_token.c \
+	mech/gss_pseudo_random.c \
+	mech/gss_release_buffer.c \
+	mech/gss_release_cred.c \
+	mech/gss_release_name.c \
+	mech/gss_release_oid.c \
+	mech/gss_release_oid_set.c \
+	mech/gss_seal.c \
+	mech/gss_set_cred_option.c \
+	mech/gss_set_name_attribute.c \
+	mech/gss_set_sec_context_option.c \
+	mech/gss_sign.c \
+	mech/gss_store_cred.c \
+	mech/gss_test_oid_set_member.c \
+	mech/gss_unseal.c \
+	mech/gss_unwrap.c \
+	mech/gss_utils.c \
+	mech/gss_verify.c \
+	mech/gss_verify_mic.c \
+	mech/gss_wrap.c \
+	mech/gss_wrap_size_limit.c \
+	mech/gss_inquire_sec_context_by_oid.c \
+	mech/mech_switch.h \
+	mech/mechqueue.h \
+	mech/mech_locl.h \
+	mech/name.h \
+	mech/utils.h
+
+spnegosrc = \
+	spnego/accept_sec_context.c \
+	spnego/compat.c \
+	spnego/context_stubs.c \
+	spnego/cred_stubs.c \
+	spnego/external.c \
+	spnego/init_sec_context.c \
+	spnego/spnego_locl.h
+
+ntlmsrc = \
+	ntlm/accept_sec_context.c \
+	ntlm/acquire_cred.c \
+	ntlm/add_cred.c \
+	ntlm/canonicalize_name.c \
+	ntlm/compare_name.c \
+	ntlm/context_time.c \
+        ntlm/creds.c \
+	ntlm/crypto.c \
+	ntlm/delete_sec_context.c \
+	ntlm/display_name.c \
+	ntlm/display_status.c \
+	ntlm/duplicate_name.c \
+	ntlm/export_name.c \
+	ntlm/export_sec_context.c \
+	ntlm/external.c \
+	ntlm/ntlm.h \
+	ntlm/import_name.c \
+	ntlm/import_sec_context.c \
+	ntlm/indicate_mechs.c \
+	ntlm/init_sec_context.c \
+	ntlm/inquire_context.c \
+	ntlm/inquire_cred_by_mech.c \
+	ntlm/inquire_mechs_for_name.c \
+	ntlm/inquire_names_for_mech.c \
+        ntlm/inquire_sec_context_by_oid.c \
+        ntlm/iter_cred.c \
+	ntlm/process_context_token.c \
+	ntlm/release_cred.c \
+	ntlm/release_name.c \
+	ntlm/kdc.c
+
+$(OBJ)\ntlm\ntlm-private.h: $(ntlmsrc)
+	$(PERL) ../../cf/make-proto.pl -q -P remove -p $@ $(ntlmsrc)
+
+$(OBJ)\krb5\gsskrb5-private.h: $(krb5src)
+	$(PERL) ../../cf/make-proto.pl -q -P remove -p $@ $(krb5src)
+
+$(OBJ)\spnego\spnego-private.h: $(spnegosrc)
+	$(PERL) ../../cf/make-proto.pl -q -P remove -p $@ $(spnegosrc)
+
+gssapi_files = $(OBJ)\gssapi\asn1_gssapi_asn1.x
+
+spnego_files = $(OBJ)\spnego\asn1_spnego_asn1.x
+
+$(gssapi_files:.x=.c): $$(@R).x
+
+$(spnego_files:.x=.c): $$(@R).x
+
+$(gssapi_files) $(OBJ)\gssapi\gssapi_asn1.hx $(OBJ)\gssapi\gssapi_asn1-priv.hx: \
+$(BINDIR)\asn1_compile.exe mech\gssapi.asn1
+	cd $(OBJ)\gssapi
+	$(BINDIR)\asn1_compile.exe --one-code-file $(SRCDIR)\mech\gssapi.asn1 gssapi_asn1 \
+	|| ( $(RM) $(OBJ)\gssapi\gssapi_asn1.h ; exit /b 1 )
+	cd $(SRCDIR)
+
+$(spnego_files) $(OBJ)\spnego\spnego_asn1.hx $(OBJ)\spnego\spnego_asn1-priv.hx: \
+$(BINDIR)\asn1_compile.exe spnego\spnego.asn1
+	cd $(OBJ)\spnego
+	$(BINDIR)\asn1_compile --one-code-file --sequence=MechTypeList \
+		$(SRCDIR)\spnego\spnego.asn1 spnego_asn1 \
+	|| ( $(RM) $(OBJ)\spnego\spnego_asn1.h ; exit /b 1 )
+	cd $(SRCDIR)
+
+$(OBJ)\gkrb5_err.c $(OBJ)\gkrb5_err.h: krb5\gkrb5_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\krb5\gkrb5_err.et
+	cd $(SRCDIR)
+
+INCFILES=				\
+    $(INCDIR)\gssapi.h			\
+    $(INCDIR)\gssapi\gssapi.h		\
+    $(INCDIR)\gssapi\gssapi_krb5.h	\
+    $(INCDIR)\gssapi\gssapi_oid.h	\
+    $(INCDIR)\gssapi\gssapi_ntlm.h	\
+    $(INCDIR)\gssapi\gssapi_spnego.h	\
+    $(INCDIR)\gssapi\gkrb5_err.h	\
+    $(OBJ)\ntlm\ntlm-private.h		\
+    $(OBJ)\spnego\spnego-private.h	\
+    $(OBJ)\krb5\gsskrb5-private.h	\
+    $(OBJ)\gkrb5_err.h			\
+    $(OBJ)\gssapi\gssapi_asn1.h		\
+    $(OBJ)\gssapi\gssapi_asn1-priv.h	\
+    $(OBJ)\spnego\spnego_asn1.h		\
+    $(OBJ)\spnego\spnego_asn1-priv.h
+
+all:: $(INCFILES)
+
+libgssapi_OBJs = \
+	$(OBJ)\krb5/8003.obj \
+	$(OBJ)\krb5/accept_sec_context.obj \
+	$(OBJ)\krb5/acquire_cred.obj \
+	$(OBJ)\krb5/add_cred.obj \
+	$(OBJ)\krb5/address_to_krb5addr.obj \
+        $(OBJ)\krb5/authorize_localname.obj \
+	$(OBJ)\krb5/aeap.obj \
+	$(OBJ)\krb5/arcfour.obj \
+	$(OBJ)\krb5/canonicalize_name.obj \
+	$(OBJ)\krb5/creds.obj \
+	$(OBJ)\krb5/ccache_name.obj \
+	$(OBJ)\krb5/cfx.obj \
+	$(OBJ)\krb5/compare_name.obj \
+	$(OBJ)\krb5/compat.obj \
+	$(OBJ)\krb5/context_time.obj \
+	$(OBJ)\krb5/copy_ccache.obj \
+	$(OBJ)\krb5/decapsulate.obj \
+	$(OBJ)\krb5/delete_sec_context.obj \
+	$(OBJ)\krb5/display_name.obj \
+	$(OBJ)\krb5/display_status.obj \
+	$(OBJ)\krb5/duplicate_name.obj \
+	$(OBJ)\krb5/encapsulate.obj \
+	$(OBJ)\krb5/export_name.obj \
+	$(OBJ)\krb5/export_sec_context.obj \
+	$(OBJ)\krb5/external.obj \
+	$(OBJ)\krb5/get_mic.obj \
+	$(OBJ)\krb5/import_name.obj \
+	$(OBJ)\krb5/import_sec_context.obj \
+	$(OBJ)\krb5/indicate_mechs.obj \
+	$(OBJ)\krb5/init.obj \
+	$(OBJ)\krb5/init_sec_context.obj \
+	$(OBJ)\krb5/inquire_context.obj \
+	$(OBJ)\krb5/inquire_cred.obj \
+	$(OBJ)\krb5/inquire_cred_by_mech.obj \
+	$(OBJ)\krb5/inquire_cred_by_oid.obj \
+	$(OBJ)\krb5/inquire_mechs_for_name.obj \
+	$(OBJ)\krb5/inquire_names_for_mech.obj \
+	$(OBJ)\krb5/inquire_sec_context_by_oid.obj \
+        $(OBJ)\krb5/pname_to_uid.obj \
+	$(OBJ)\krb5/process_context_token.obj \
+	$(OBJ)\krb5/prf.obj \
+	$(OBJ)\krb5/release_buffer.obj \
+	$(OBJ)\krb5/release_cred.obj \
+	$(OBJ)\krb5/release_name.obj \
+	$(OBJ)\krb5/sequence.obj \
+	$(OBJ)\krb5/store_cred.obj \
+	$(OBJ)\krb5/set_cred_option.obj \
+	$(OBJ)\krb5/set_sec_context_option.obj \
+	$(OBJ)\krb5/ticket_flags.obj \
+	$(OBJ)\krb5/unwrap.obj \
+	$(OBJ)\krb5/verify_mic.obj \
+	$(OBJ)\krb5/wrap.obj \
+	$(OBJ)\mech/context.obj \
+	$(OBJ)\mech/gss_accept_sec_context.obj \
+	$(OBJ)\mech/gss_acquire_cred.obj \
+	$(OBJ)\mech/gss_acquire_cred_ext.obj \
+	$(OBJ)\mech/gss_acquire_cred_with_password.obj \
+	$(OBJ)\mech/gss_add_cred.obj \
+	$(OBJ)\mech/gss_add_cred_with_password.obj \
+	$(OBJ)\mech/gss_add_oid_set_member.obj \
+	$(OBJ)\mech/gss_aeap.obj \
+	$(OBJ)\mech/gss_authorize_localname.obj \
+	$(OBJ)\mech/gss_buffer_set.obj \
+	$(OBJ)\mech/gss_canonicalize_name.obj \
+	$(OBJ)\mech/gss_compare_name.obj \
+	$(OBJ)\mech/gss_context_time.obj \
+	$(OBJ)\mech/gss_create_empty_oid_set.obj \
+	$(OBJ)\mech/gss_cred.obj \
+	$(OBJ)\mech/gss_decapsulate_token.obj \
+	$(OBJ)\mech/gss_delete_name_attribute.obj \
+	$(OBJ)\mech/gss_delete_sec_context.obj \
+	$(OBJ)\mech/gss_display_name.obj \
+	$(OBJ)\mech/gss_display_name_ext.obj \
+	$(OBJ)\mech/gss_display_status.obj \
+	$(OBJ)\mech/gss_duplicate_name.obj \
+	$(OBJ)\mech/gss_duplicate_oid.obj \
+	$(OBJ)\mech/gss_encapsulate_token.obj \
+	$(OBJ)\mech/gss_export_name.obj \
+	$(OBJ)\mech/gss_export_name_composite.obj \
+	$(OBJ)\mech/gss_export_sec_context.obj \
+	$(OBJ)\mech/gss_get_mic.obj \
+	$(OBJ)\mech/gss_get_name_attribute.obj \
+	$(OBJ)\mech/gss_import_name.obj \
+	$(OBJ)\mech/gss_import_sec_context.obj \
+	$(OBJ)\mech/gss_indicate_mechs.obj \
+	$(OBJ)\mech/gss_init_sec_context.obj \
+	$(OBJ)\mech/gss_inquire_context.obj \
+	$(OBJ)\mech/gss_inquire_cred.obj \
+	$(OBJ)\mech/gss_inquire_cred_by_mech.obj \
+	$(OBJ)\mech/gss_inquire_cred_by_oid.obj \
+	$(OBJ)\mech/gss_inquire_mechs_for_name.obj \
+	$(OBJ)\mech/gss_inquire_name.obj \
+	$(OBJ)\mech/gss_inquire_names_for_mech.obj \
+	$(OBJ)\mech/gss_krb5.obj \
+	$(OBJ)\mech/gss_mech_switch.obj \
+	$(OBJ)\mech/gss_mo.obj \
+	$(OBJ)\mech/gss_names.obj \
+	$(OBJ)\mech/gss_oid.obj \
+	$(OBJ)\mech/gss_oid_equal.obj \
+	$(OBJ)\mech/gss_oid_to_str.obj \
+	$(OBJ)\mech/gss_pname_to_uid.obj \
+	$(OBJ)\mech/gss_process_context_token.obj \
+	$(OBJ)\mech/gss_pseudo_random.obj \
+	$(OBJ)\mech/gss_release_buffer.obj \
+	$(OBJ)\mech/gss_release_cred.obj \
+	$(OBJ)\mech/gss_release_name.obj \
+	$(OBJ)\mech/gss_release_oid.obj \
+	$(OBJ)\mech/gss_release_oid_set.obj \
+	$(OBJ)\mech/gss_seal.obj \
+	$(OBJ)\mech/gss_set_cred_option.obj \
+	$(OBJ)\mech/gss_set_name_attribute.obj \
+	$(OBJ)\mech/gss_set_sec_context_option.obj \
+	$(OBJ)\mech/gss_sign.obj \
+	$(OBJ)\mech/gss_store_cred.obj \
+	$(OBJ)\mech/gss_test_oid_set_member.obj \
+	$(OBJ)\mech/gss_unseal.obj \
+	$(OBJ)\mech/gss_unwrap.obj \
+	$(OBJ)\mech/gss_utils.obj \
+	$(OBJ)\mech/gss_verify.obj \
+	$(OBJ)\mech/gss_verify_mic.obj \
+	$(OBJ)\mech/gss_wrap.obj \
+	$(OBJ)\mech/gss_wrap_size_limit.obj \
+	$(OBJ)\mech/gss_inquire_sec_context_by_oid.obj \
+	$(OBJ)\spnego/accept_sec_context.obj \
+	$(OBJ)\spnego/compat.obj \
+	$(OBJ)\spnego/context_stubs.obj \
+	$(OBJ)\spnego/cred_stubs.obj \
+	$(OBJ)\spnego/external.obj \
+	$(OBJ)\spnego/init_sec_context.obj \
+	$(OBJ)\ntlm/accept_sec_context.obj \
+	$(OBJ)\ntlm/acquire_cred.obj \
+	$(OBJ)\ntlm/add_cred.obj \
+	$(OBJ)\ntlm/canonicalize_name.obj \
+	$(OBJ)\ntlm/compare_name.obj \
+	$(OBJ)\ntlm/context_time.obj \
+        $(OBJ)\ntlm/creds.obj \
+	$(OBJ)\ntlm/crypto.obj \
+	$(OBJ)\ntlm/delete_sec_context.obj \
+	$(OBJ)\ntlm/display_name.obj \
+	$(OBJ)\ntlm/display_status.obj \
+	$(OBJ)\ntlm/duplicate_name.obj \
+	$(OBJ)\ntlm/export_name.obj \
+	$(OBJ)\ntlm/export_sec_context.obj \
+	$(OBJ)\ntlm/external.obj \
+	$(OBJ)\ntlm/import_name.obj \
+	$(OBJ)\ntlm/import_sec_context.obj \
+	$(OBJ)\ntlm/indicate_mechs.obj \
+	$(OBJ)\ntlm/init_sec_context.obj \
+	$(OBJ)\ntlm/inquire_context.obj \
+	$(OBJ)\ntlm/inquire_cred_by_mech.obj \
+	$(OBJ)\ntlm/inquire_mechs_for_name.obj \
+	$(OBJ)\ntlm/inquire_names_for_mech.obj \
+        $(OBJ)\ntlm/inquire_sec_context_by_oid.obj \
+        $(OBJ)\ntlm/iter_cred.obj \
+	$(OBJ)\ntlm/process_context_token.obj \
+	$(OBJ)\ntlm/release_cred.obj \
+	$(OBJ)\ntlm/release_name.obj \
+	$(OBJ)\ntlm/kdc.obj \
+	$(OBJ)\gkrb5_err.obj \
+	$(spnego_files:.x=.obj) \
+	$(gssapi_files:.x=.obj)
+
+GCOPTS=-I$(SRCDIR) -I$(OBJ) -Igssapi -DBUILD_GSSAPI_LIB
+
+{$(OBJ)\krb5}.c{$(OBJ)\krb5}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\krb5\ -Fd$(OBJ)\krb5\ -I$(OBJ)\krb5 $(GCOPTS)
+
+{krb5}.c{$(OBJ)\krb5}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\krb5\ -Fd$(OBJ)\krb5\ -I$(OBJ)\krb5 $(GCOPTS) -DASN1_LIB
+
+{$(OBJ)\mech}.c{$(OBJ)\mech}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\mech\ -Fd$(OBJ)\mech\ -I$(OBJ)\mech $(GCOPTS)
+
+{mech}.c{$(OBJ)\mech}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\mech\ -Fd$(OBJ)\mech\ -I$(OBJ)\mech -I$(OBJ)\gssapi $(GCOPTS) -DASN1_LIB
+
+{$(OBJ)\ntlm}.c{$(OBJ)\ntlm}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\ntlm\ -Fd$(OBJ)\ntlm\ -I$(OBJ)\ntlm $(GCOPTS)
+
+{ntlm}.c{$(OBJ)\ntlm}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\ntlm\ -Fd$(OBJ)\ntlm\ -I$(OBJ)\ntlm $(GCOPTS) -DASN1_LIB
+
+{$(OBJ)\spnego}.c{$(OBJ)\spnego}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\spnego\ -Fd$(OBJ)\spnego\ -I$(OBJ)\spnego $(GCOPTS)
+
+{spnego}.c{$(OBJ)\spnego}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\spnego\ -Fd$(OBJ)\spnego\ -I$(OBJ)\spnego -Imech $(GCOPTS) -DASN1_LIB
+
+{$(OBJ)\gssapi}.c{$(OBJ)\gssapi}.obj::
+	$(C2OBJ_NP) -Fo$(OBJ)\gssapi\ -Fd$(OBJ)\gssapi\ -I$(OBJ)\gssapi $(GCOPTS)
+
+{$(OBJ)}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) $(GCOPTS)
+
+{$(OBJ)\spnego}.x{$(OBJ)\spnego}.c:
+	$(CP) $** $@
+
+{$(OBJ)\gssapi}.x{$(OBJ)\gssapi}.c:
+	$(CP) $** $@
+
+{gssapi}.h{$(INCDIR)\gssapi}.h:
+	$(CP) $** $@
+
+{$(OBJ)}.h{$(INCDIR)\gssapi}.h:
+	$(CP) $** $@
+
+{$(OBJ)\gssapi}.hx{$(OBJ)\gssapi}.h:
+	$(CP) $** $@
+
+{$(OBJ)\spnego}.hx{$(OBJ)\spnego}.h:
+	$(CP) $** $@
+
+LIBGSSAPI_LIBS=\
+        $(LIBHEIMBASE)  \
+	$(LIBROKEN)	\
+	$(LIBHEIMDAL)	\
+	$(LIBHEIMNTLM)	\
+	$(LIBCOMERR)
+
+LIBGSSAPI_SDKLIBS=\
+	$(PTHREAD_LIB)
+
+!ifndef STATICLIBS
+
+RES=$(OBJ)\libgssapi-version.res
+
+$(BINDIR)\gssapi.dll: $(libgssapi_OBJs) $(RES)
+	$(DLLGUILINK_C) -implib:$(LIBGSSAPI)	\
+		-out:$(BINDIR)\gssapi.dll	\
+		-def:libgssapi-exports.def	\
+		$(LIBGSSAPI_LIBS) $(RES) $(LIBGSSAPI_SDKLIBS) @<<
+$(libgssapi_OBJs: =
+)
+<<
+	$(DLLPREP_NODIST)
+
+$(LIBGSSAPI): $(BINDIR)\gssapi.dll
+
+clean::
+	-$(RM) $(BINDIR)\gssapi.*
+
+!else
+
+$(LIBGSSAPI): $(libgssapi_OBJs)
+	$(LIBCON_C) -OUT:$@ $(LIBGSSAPI_LIBS) $(LIBGSSAPI_SDKLIBS) @<<
+$(libgssapi_OBJs: =
+)
+<<
+
+!endif
+
+all:: $(LIBGSSAPI)
+
+clean::
+	-$(RM) $(LIBGSSAPI)
+
+prep:: mkdirs-gss
+
+mkdirs-gss:
+!if !exist($(OBJ)\ntlm)
+	$(MKDIR) $(OBJ)\ntlm
+!endif
+!if !exist($(OBJ)\krb5)
+	$(MKDIR) $(OBJ)\krb5
+!endif
+!if !exist($(OBJ)\spnego)
+	$(MKDIR) $(OBJ)\spnego
+!endif
+!if !exist($(OBJ)\mech)
+	$(MKDIR) $(OBJ)\mech
+!endif
+!if !exist($(OBJ)\gssapi)
+	$(MKDIR) $(OBJ)\gssapi
+!endif
+
+clean::
+	-$(RM) $(OBJ)\ntlm\*.*
+	-$(RM) $(OBJ)\krb5\*.*
+	-$(RM) $(OBJ)\spnego\*.*
+	-$(RM) $(OBJ)\mech\*.*
+	-$(RM) $(OBJ)\gssapi\*.*
+
+all-tools:: $(BINDIR)\gsstool.exe
+
+$(BINDIR)\gsstool.exe: $(OBJ)\gsstool.obj $(OBJ)\gss-commands.obj $(LIBGSSAPI) $(LIBROKEN) $(LIBSL) $(LIBVERS)
+	$(EXECONLINK)
+
+$(OBJ)\gss-commands.c $(OBJ)\gss-commands.h: gss-commands.in
+	cd $(OBJ)
+	$(CP) $(SRCDIR)\gss-commands.in gss-commands.in
+	$(BINDIR)\slc.exe gss-commands.in
+	cd $(SRCDIR)
+
+!ifdef ELISP
+# This macro invocation is used to update the libgssapi_OBJs
+# definition below (generate-obj-macro is defined in maint.el):
+
+(generate-obj-macro "libgssapi_OBJs"
+	            (concat "\t$(OBJ)\\gkrb5_err.obj \\\n"
+                            "\t$(spnego_files:.x=.obj) \\\n"
+                            "\t$(gssapi_files:.x=.obj)")
+                    "krb5src" "mechsrc" "spnegosrc" "ntlmsrc")
+!endif
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libgssapi-exports.def
+
+test:: test-exports
+
+
+TEST_BINARIES=\
+	$(OBJ)\test_oid.exe	\
+	$(OBJ)\test_names.exe	\
+	$(OBJ)\test_cfx.exe	\
+	$(OBJ)\test_acquire_cred.exe	\
+	$(OBJ)\test_cred.exe	\
+	$(OBJ)\test_kcred.exe	\
+	$(OBJ)\test_context.exe	\
+	$(OBJ)\test_ntlm.exe
+
+$(OBJ)\test_oid.exe: $(OBJ)\test_oid.obj $(LIBGSSAPI) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_names.exe: $(OBJ)\test_names.obj $(LIBGSSAPI) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_cfx.exe: $(OBJ)\krb5\test_cfx.obj $(LIBHEIMDAL) $(LIBGSSAPI) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_acquire_cred.exe: $(OBJ)\test_acquire_cred.obj $(OBJ)\test_common.obj \
+		$(LIBGSSAPI) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_cred.exe: $(OBJ)\test_cred.obj $(LIBGSSAPI) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_kcred.exe: $(OBJ)\test_kcred.obj $(LIBGSSAPI) $(LIBHEIMDAL)	\
+		$(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_context.exe: $(OBJ)\test_context.obj $(OBJ)\test_common.obj	\
+		$(LIBGSSAPI) $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_ntlm.exe: $(OBJ)\test_ntlm.obj $(OBJ)\test_common.obj	\
+		$(LIBGSSAPI) $(LIBHEIMNTLM) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -I$(OBJ)\krb5 -I$(OBJ) -I$(SRCDIR) -I$(SRCDIR)\gssapi
+
+test-binaries: $(LIBGSSAPI) $(TEST_BINARIES)
+
+run-test:
+	cd $(OBJ)
+	test_oid
+	test_names
+	test_cfx
+	test_kcred
+	cd $(SRCDIR)
+
+test:: test-binaries run-test

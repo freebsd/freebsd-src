@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,15 +30,13 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id: wait-kdc.sh 21881 2007-08-09 07:14:08Z lha $
-#
 
 name=${1:-KDC}
 log=${2:-messages.log}
+waitfor=${3:-${name} started}
 
 t=0
-waitsec=20
+waitsec=35
 
 echo "Waiting for ${name} to start, looking logfile ${log}"
 
@@ -46,7 +44,7 @@ while true ; do
     t=`expr ${t} + 2`
     sleep 2
     echo "Have waited $t seconds"
-    if tail -30 ${log} | grep "${name} started" > /dev/null; then
+    if tail -30 ${log} | grep "${waitfor}" > /dev/null; then
 	break
     fi
     if tail -30 ${log} | grep "No sockets" ; then

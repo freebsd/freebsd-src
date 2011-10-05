@@ -47,11 +47,11 @@
 .Op Fl p Ar port
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
-.Op Fl -gss-bindings
-.Op Fl I | Fl -no-insecure-oob
+.Op Fl Fl gss-bindings
+.Op Fl I | Fl Fl no-insecure-oob
 .Op Fl u Ar default umask
-.Op Fl B | Fl -builtin-ls
-.Op Fl -good-chars= Ns Ar string
+.Op Fl B | Fl Fl builtin-ls
+.Op Fl Fl good-chars= Ns Ar string
 .Sh DESCRIPTION
 .Nm Ftpd
 is the
@@ -101,7 +101,7 @@ Debugging information is written to the syslog using LOG_FTP.
 .It Fl g
 Anonymous users will get a umask of
 .Ar umask .
-.It Fl -gss-bindings
+.It Fl Fl gss-bindings
 require the peer to use GSS-API bindings (ie make sure IP addresses match).
 .It Fl i
 Open a socket and wait for a connection. This is mainly used for
@@ -144,16 +144,16 @@ revert to the old behavior.
 Verbose mode.
 .It Xo
 .Fl B ,
-.Fl -builtin-ls
+.Fl Fl builtin-ls
 .Xc
 use built-in ls to list files
 .It Xo
-.Fl -good-chars= Ns Ar string
+.Fl Fl good-chars= Ns Ar string
 .Xc
 allowed anonymous upload filename chars
 .It Xo
 .Fl I
-.Fl -no-insecure-oob
+.Fl Fl no-insecure-oob
 .Xc
 don't allow insecure out of band.
 Heimdal ftp clients before 0.6.3 doesn't support secure oob, so turning

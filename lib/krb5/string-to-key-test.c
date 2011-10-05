@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -33,8 +33,6 @@
 #include "krb5_locl.h"
 #include <err.h>
 
-RCSID("$Id: string-to-key-test.c 16344 2005-12-02 15:15:43Z lha $");
-
 enum { MAXSIZE = 24 };
 
 static struct testcase {
@@ -43,12 +41,26 @@ static struct testcase {
     krb5_enctype enctype;
     unsigned char res[MAXSIZE];
 } tests[] = {
+#ifdef HEIM_WEAK_CRYPTO
     {"@", "", ETYPE_DES_CBC_MD5,
      {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xf1}},
     {"nisse@FOO.SE", "hej", ETYPE_DES_CBC_MD5,
      {0xfe, 0x67, 0xbf, 0x9e, 0x57, 0x6b, 0xfe, 0x52}},
     {"assar/liten@FOO.SE", "hemligt", ETYPE_DES_CBC_MD5,
      {0x5b, 0x9b, 0xcb, 0xf2, 0x97, 0x43, 0xc8, 0x40}},
+    {"raeburn@ATHENA.MIT.EDU", "password", ETYPE_DES_CBC_MD5,
+     {0xcb, 0xc2, 0x2f, 0xae, 0x23, 0x52, 0x98, 0xe3}},
+    {"danny@WHITEHOUSE.GOV", "potatoe", ETYPE_DES_CBC_MD5,
+     {0xdf, 0x3d, 0x32, 0xa7, 0x4f, 0xd9, 0x2a, 0x01}},
+    {"buckaroo@EXAMPLE.COM", "penny", ETYPE_DES_CBC_MD5,
+     {0x94, 0x43, 0xa2, 0xe5, 0x32, 0xfd, 0xc4, 0xf1}},
+    {"Juri\xc5\xa1i\xc4\x87@ATHENA.MIT.EDU", "\xc3\x9f", ETYPE_DES_CBC_MD5,
+     {0x62, 0xc8, 0x1a, 0x52, 0x32, 0xb5, 0xe6, 0x9d}},
+    {"AAAAAAAA", "11119999", ETYPE_DES_CBC_MD5,
+     {0x98, 0x40, 0x54, 0xd0, 0xf1, 0xa7, 0x3e, 0x31}},
+    {"FFFFAAAA", "NNNN6666", ETYPE_DES_CBC_MD5,
+     {0xc4, 0xbf, 0x6b, 0x25, 0xad, 0xf7, 0xa4, 0xf8}},
+#endif
 #if 0
     {"@", "", ETYPE_DES3_CBC_SHA1,
      {0xce, 0xa2, 0x2f, 0x9b, 0x52, 0x2c, 0xb0, 0x15, 0x6e, 0x6b, 0x64,
@@ -66,18 +78,6 @@ static struct testcase {
     {"does/not@MATTER", "foo", ETYPE_ARCFOUR_HMAC_MD5,
      {0xac, 0x8e, 0x65, 0x7f, 0x83, 0xdf, 0x82, 0xbe,
       0xea, 0x5d, 0x43, 0xbd, 0xaf, 0x78, 0x00, 0xcc}},
-    {"raeburn@ATHENA.MIT.EDU", "password", ETYPE_DES_CBC_MD5,
-     {0xcb, 0xc2, 0x2f, 0xae, 0x23, 0x52, 0x98, 0xe3}},
-    {"danny@WHITEHOUSE.GOV", "potatoe", ETYPE_DES_CBC_MD5,
-     {0xdf, 0x3d, 0x32, 0xa7, 0x4f, 0xd9, 0x2a, 0x01}},
-    {"buckaroo@EXAMPLE.COM", "penny", ETYPE_DES_CBC_MD5,
-     {0x94, 0x43, 0xa2, 0xe5, 0x32, 0xfd, 0xc4, 0xf1}},
-    {"Juri\xc5\xa1i\xc4\x87@ATHENA.MIT.EDU", "\xc3\x9f", ETYPE_DES_CBC_MD5,
-     {0x62, 0xc8, 0x1a, 0x52, 0x32, 0xb5, 0xe6, 0x9d}},
-    {"AAAAAAAA", "11119999", ETYPE_DES_CBC_MD5,
-     {0x98, 0x40, 0x54, 0xd0, 0xf1, 0xa7, 0x3e, 0x31}},
-    {"FFFFAAAA", "NNNN6666", ETYPE_DES_CBC_MD5,
-     {0xc4, 0xbf, 0x6b, 0x25, 0xad, 0xf7, 0xa4, 0xf8}},
     {"raeburn@ATHENA.MIT.EDU", "password", ETYPE_DES3_CBC_SHA1,
      {0x85, 0x0b, 0xb5, 0x13, 0x58, 0x54, 0x8c, 0xd0, 0x5e, 0x86, 0x76, 0x8c, 0x31, 0x3e, 0x3b, 0xfe, 0xf7, 0x51, 0x19, 0x37, 0xdc, 0xf7, 0x2c, 0x3e}},
     {"danny@WHITEHOUSE.GOV", "potatoe", ETYPE_DES3_CBC_SHA1,

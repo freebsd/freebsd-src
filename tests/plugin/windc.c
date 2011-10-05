@@ -1,5 +1,6 @@
 #include <krb5.h>
 #include <hdb.h>
+#include <kdc.h>
 #include <windc_plugin.h>
 
 static krb5_error_code
@@ -15,7 +16,7 @@ windc_fini(void *ctx)
 {
 }
 
-static krb5_error_code 
+static krb5_error_code
 pac_generate(void *ctx, krb5_context context,
 	     struct hdb_entry_ex *client, krb5_pac *pac)
 {
@@ -38,11 +39,13 @@ pac_generate(void *ctx, krb5_context context,
     return 0;
 }
 
-static krb5_error_code 
+static krb5_error_code
 pac_verify(void *ctx, krb5_context context,
-	   const krb5_principal client_principal,
-	   struct hdb_entry_ex *client, 
-	   struct hdb_entry_ex *server,
+	   const krb5_principal new_ticket_client,
+	   const krb5_principal delegation_proxy,
+	   struct hdb_entry_ex * client,
+	   struct hdb_entry_ex * server,
+	   struct hdb_entry_ex * krbtgt,
 	   krb5_pac *pac)
 {
     krb5_error_code ret;
@@ -59,9 +62,14 @@ pac_verify(void *ctx, krb5_context context,
     return 0;
 }
 
-static krb5_error_code 
-client_access(void *ctx, krb5_context context, 
-	      struct hdb_entry_ex *client, KDC_REQ *req)
+static krb5_error_code
+client_access(void *ctx,
+	      krb5_context context,
+	      krb5_kdc_configuration *config,
+	      hdb_entry_ex *client, const char *client_name,
+	      hdb_entry_ex *server, const char *server_name,
+	      KDC_REQ *req,
+	      krb5_data *e_data)
 {
     krb5_warnx(context, "client_access");
     return 0;

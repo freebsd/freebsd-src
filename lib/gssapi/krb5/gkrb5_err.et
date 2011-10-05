@@ -2,7 +2,7 @@
 # extended gss krb5 error messages
 #
 
-id "$Id: gkrb5_err.et 20049 2007-01-24 00:14:24Z lha $"
+id "$Id$"
 
 error_table gk5
 

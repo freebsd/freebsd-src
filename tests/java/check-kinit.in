@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #

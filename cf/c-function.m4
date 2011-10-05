@@ -1,5 +1,5 @@
 dnl
-dnl $Id: c-function.m4 15422 2005-06-16 18:59:29Z lha $
+dnl $Id$
 dnl
 
 dnl

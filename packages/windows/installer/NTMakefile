@@ -1,0 +1,211 @@
+########################################################################
+#
+# Copyright (c) 2010, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=packages\windows\installer
+
+!include ../../../windows/NTMakefile.w32
+
+!ifdef BUILD_INSTALLERS
+
+VERSIOND=$(VER_PRODUCT_MAJOR)-$(VER_PRODUCT_MINOR)-$(VER_PRODUCT_AUX)-$(VER_PRODUCT_PATCH)
+VERSION=$(VER_PRODUCT_MAJOR).$(VER_PRODUCT_MINOR).$(VER_PRODUCT_AUX).$(VER_PRODUCT_PATCH)
+POLPREFIX=policy.$(VER_PRODUCT_MAJOR).$(VER_PRODUCT_MINOR)
+
+!if "$(CPU)"=="AMD64"
+PLATFORM=x64
+!else
+PLATFORM=x86
+!endif
+
+!if "$(BUILD)"=="rel"
+DEBUGOPT=
+!else
+DEBUGOPT=-$(BUILD)
+!endif
+
+######################################################################
+# Heimdal Merge Modules
+
+ASSEMBLYMODULE=$(INSTDIR)\Heimdal.msm
+
+$(ASSEMBLYMODULE): $(OBJ)\heimdal-assemblies.wixobj
+	$(LIGHT) -out $@ $**
+
+$(OBJ)\heimdal-assemblies.wixobj: heimdal-assemblies.wxs
+	$(CANDLE) -arch $(PLATFORM) -o $@ $**	\
+		-dVersion=$(VERSION)		\
+		-dBinDir=$(BINDIR)		\
+		-dPlatform=$(PLATFORM)
+
+$(SDKREDISTDIR)\Heimdal.msm: $(ASSEMBLYMODULE)
+	$(CP) $** $@
+
+POLICYMODULE=$(INSTDIR)\Heimdal.Policy.msm
+
+$(POLICYMODULE): $(OBJ)\heimdal-policy.wixobj
+	$(LIGHT) -out $@ $**
+
+$(OBJ)\heimdal-policy.wixobj: heimdal-policy.wxs
+	$(CANDLE) -arch $(PLATFORM) -o $@ $**	\
+		-dVersion=$(VERSION)		\
+		-dBinDir=$(BINDIR)		\
+		-dPlatform=$(PLATFORM)		\
+		-dPolPrefix=$(POLPREFIX)
+
+$(SDKREDISTDIR)\Heimdal.Policy.msm: $(POLICYMODULE)
+	$(CP) $** $@
+
+all:: $(ASSEMBLYMODULE) $(SDKREDISTDIR)\Heimdal.msm
+
+all:: $(POLICYMODULE) $(SDKREDISTDIR)\Heimdal.Policy.msm
+
+clean::
+	-$(RM) $(ASSEMBLYMODULE)
+	-$(RM) $(POLICYMODULE)
+	-$(RM) $(SDKREDISTDIR)\Heimdal.msm
+	-$(RM) $(SDKREDISTDIR)\Heimdal.Policy.msm
+
+######################################################################
+# Runtime modules
+
+!if [ $(PERL) $(SRC)\cf\w32-detect-vc-version.pl $(CC) ]==15
+VCVER=VC90
+!elseif [ $(PERL) $(SRC)\cf\w32-detect-vc-version.pl $(CC) ]==14
+VCVER=VC80
+!else
+!  error Cant determine Visual C compiler version
+!endif
+
+!if "$(BUILD)"=="rel"
+CRTNAME=CRT
+!else
+CRTNAME=DebugCRT
+!endif
+
+!if "$(MMDIR)"==""
+MMDIR=$(ProgramFiles)\Common Files\Merge Modules
+!if !exist($(MMDIR))
+MMDIR=$(SystemDrive)\Program Files (x86)\Common Files\Merge Modules
+!endif
+!endif
+
+!if exist("$(MMDIR)")
+
+RUNTIMEMODULE32="$(MMDIR)\Microsoft_$(VCVER)_$(CRTNAME)_x86.msm"
+RUNTIMEMODULE64="$(MMDIR)\Microsoft_$(VCVER)_$(CRTNAME)_x86_x64.msm"
+
+!else
+
+RUNTIMEMODULE32="$(MSSDK)\Redist\VC\microsoft.vcxx.crt.x86_msm.msm"
+RUNTIMEMODULE64="$(MSSDK)\Redist\VC\microsoft.vcxx.crt.x64_msm.msm"
+
+!endif
+
+
+######################################################################
+# Heimdal installer
+
+CANDLEOPTS=	\
+	-dVersion=$(VERSION)			\
+	-dBinDir=$(BINDIR)			\
+	-dDocDir=$(DOCDIR)			\
+	-dSrcDir=$(SRC)				\
+	-dPlatform=$(PLATFORM)			\
+	-dPolPrefix=$(POLPREFIX)		\
+
+!if "$(CPU)"=="AMD64"
+
+INSTDIR32=$(INSTDIR:AMD64=i386)
+
+CANDLEOPTS=$(CANDLEOPTS) -dTarget64	\
+	-dInstDir32=$(INSTDIR32)	\
+	-dInstDir64=$(INSTDIR)			\
+	-dRuntimeModule32=$(RUNTIMEMODULE32)	\
+	-dRuntimeModule64=$(RUNTIMEMODULE64)	\
+
+!ifdef MULTIPLATFORM_INSTALLER
+CANDLEOPTS=$(CANDLEOPTS) -dTarget32
+TYPEOPT=-full
+!else
+!  message Excluding 32-bit components from installer
+TYPEOPT=
+!endif
+
+INSTDEPS=$(INSTDIR32)\Heimdal.msm \
+	$(INSTDIR32)\Heimdal.Policy.msm	\
+	$(ASSEMBLYMODULE) $(POLICYMODULE)
+
+!else
+
+CANDLEOPTS=$(CANDLEOPTS) -dTarget32		\
+	-dInstDir32=$(INSTDIR)			\
+	-dRuntimeModule32=$(RUNTIMEMODULE32)	\
+
+!endif
+
+!if exist($(SRC)\thirdparty)
+THIRDPARTYOBJS=$(INSTDIR)\apicache.wixobj $(INSTDIR)\lsacache.wixobj
+THIRDPARTYOPTS=-dApiCache=1 -dLsaCache=1
+
+!if "$(CPU)"=="AMD64"
+THIRDPARTYOBJS=$(THIRDPARTYOBJS) $(INSTDIR32)\apicache.wixobj $(INSTDIR32)\lsacache.wixobj
+!endif
+!endif
+
+!if exist($(SRC)\thirdparty\MKShim)
+THIRDPARTYOBJS=$(THIRDPARTYOBJS) $(INSTDIR)\MKShim.wixlib
+THIRDPARTYOPTS=$(THIRDPARTYOPTS) -dMKShim=1
+
+!if "$(CPU)"=="AMD64"
+THIRDPARTYOBJS=$(THIRDPARTYOBJS) $(INSTDIR32)\MKShim.wixlib
+!endif
+!endif
+
+INSTALLER=$(INSTDIR)\Heimdal-$(CPU)$(DEBUGOPT)$(TYPEOPT)-$(VERSIOND).msi
+WIXOBJ=$(OBJ)\heimdal-installer$(TYPEOPT).wixobj
+
+$(INSTALLER): $(WIXOBJ) $(THIRDPARTYOBJS) $(INSTDEPS) lang\en-us.wxl
+	$(LIGHT) -out $@ $(WIXOBJ) $(THIRDPARTYOBJS)	\
+		-sval -cultures:en-us -loc lang\en-us.wxl	\
+		-dWixUILicenseRtf=lang\license-en-us.rtf	\
+		-ext WixUIExtension
+	$(_CODESIGN)
+
+$(WIXOBJ): heimdal-installer.wxs
+	$(CANDLE) -arch $(PLATFORM) -o $@ heimdal-installer.wxs \
+		$(CANDLEOPTS) $(THIRDPARTYOPTS)
+
+all:: $(INSTALLER)
+
+clean::
+	-$(RM) $(INSTALLER)
+
+!endif				# BUILD_INSTALLERS

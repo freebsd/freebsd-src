@@ -1,8 +1,59 @@
-2008-01-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-06-01  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+
+	* kdc/check-kadmin.in: Test globbing acl's
+
+2008-04-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/Makefile.am: test SDB cache.
+	
+	* kdc/check-cc.in: Test SDB combinations.
+
+2008-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/check-kpasswdd.in: Wait for success, use password command to
+	test it.
+
+	* kdc/check-kpasswd.in: use rkpty to test kpasswd/kpasswdd
+
+2008-03-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/check-referral.in: Fix status messages.
+	
+2008-03-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/check-kdc.in: Ident.
+
+2008-03-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/check-kdc.in: More verbose checks, disable check that no
+	longer works with referrals.
+
+2008-03-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* kdc/check-referral.in: Test TGS referrals.
+
+2008-03-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* gss/check-context.in: Test gsskrb5_register_acceptor_identity.
+	
+2008-02-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* ldap/check-ldap.in: check tgs req too
+
+2008-02-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	
+	* gss/check-context.in: Does not work yet error case.
+
+2008-01-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* gss/check-context.in: Test unreadable/non existant keytab and
+	its error message.
+
+2008-01-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc: Test the PKCS11 provider built-in to libhx509.
 
-2007-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ldap/init.ldif: Add space to make valid ldiff file, from Buchan
 	Milne
@@ -10,31 +61,31 @@
 	* ldap/slapd-init.in: Another place where schemas are installed,
 	from Buchan Milne.
 
-2007-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kadmin.in: Check that admin-less principal works.
 
-2007-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-ntlm.in: test kdigest digest-probe command.
 
-2007-12-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-basic.in: Test GSS_C_NO_NAME too.
 
-2007-10-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-10-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Try multiple enctypes.
 
-2007-08-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* java/Makefile.am: EXTRA_DIST += jaas.conf
 	
-2007-08-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* java/Makefile.am: Add java source code.
 
-2007-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-iprop.in: Don't run this test in AFS since AFS is
 	missing unix sockets.
@@ -42,7 +93,7 @@
 	* kdc/wait-kdc.sh: Catch bind ../../tests/kdc/signal: Operation
 	not permitted
 
-2007-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-iprop.in: use wait-kdc.sh for all diffrent places we
 	start ipropd-{master,slave}.
@@ -59,11 +110,11 @@
 	* kdc/check-iprop.in: Checking master going backward, create
 	iprop-stats.
 
-2007-08-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* java/have-java.sh: GNU GCC Java doesn't support Kerberos
 
-2007-08-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-iprop.in: wait longer for iprop, dump messages.log on
 	failure.
@@ -72,7 +123,7 @@
 
 	* kdc/check-iprop.in: more iprop tests.
 
-2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: Add check-iprop and related files.
 
@@ -82,19 +133,19 @@
 
 	* kdc/iprop-acl: ACL file for iprop.
 
-2007-07-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/donotexists.txt: missing file.
 
-2007-07-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: EXTRA_DIST += donotexists.txt
 
-2007-07-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Test renewing.
 	
-2007-07-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: Test for simple salt types.
 
@@ -102,7 +153,7 @@
 
 	* kdc/check-keys.in: Test some simple salt types.
 
-2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* java/Makefile.am: EXTRA_DIST += have_java.sh
 
@@ -111,15 +162,15 @@
 
 	* java/check-kinit.in: Disable test if we use socket wrapper.
 
-2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kadmin.in: Give more hints of what went wrong.
 
-2007-07-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: add check-kadmin.in
 	
-2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ldap/slapd.conf: add samba.schema.
 
@@ -127,13 +178,13 @@
 
 	* ldap/init.ldif: Samba entry to do testing with.
 
-2007-07-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* java/check-kinit.in: Only print when there is an error.
 
 	* java/krb5.conf.in: Move the AES enctypes first.
 
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kadmin.in: Send kill outout to /dev/null.
 
@@ -145,13 +196,13 @@
 
 	* kdc/heimdal.acl: ACL file for check-admin test.
 
-2007-07-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add java.
 
 	* java: simple java kinit test
 
-2007-06-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ldap/check-ldap.in: Add one more principal and list the
 	database.
@@ -160,21 +211,21 @@
 
 	* kdc/check-referral.in: Spelling.
 	
-2007-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-context.in: disable dns canon on test, break on some
 	buildfarm hosts.
 	
-2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* can/test_can.in: readline seems strange, try diffrent way to
 	setup the database.
 
-2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* can/test_can.in: spoon feed kadmin diffrently
 
-2007-06-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Also test rename user to anther realm.
 
@@ -185,15 +236,15 @@
 	* kdc/check-referral.in: Add some more as-req canon tests, add
 	disable tgs-req tests.
 	
-2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* can/check-can.in: Check is there is a working db backend here.
 	
-2007-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* can/Makefile.am: Clean up more cruft.
 	
-2007-06-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* can/Makefile.am: More files we want in the dist.
 
@@ -219,11 +270,11 @@
 
 	* Makefile.am: SUBDIRS += can
 	
-2007-06-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-uu.in: Use stdout from uu_server.
 	
-2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-pkinit.in: Try pkinit in w2k mode, also add tests for
 	MS SAN.
@@ -232,15 +283,15 @@
 
 	* kdc/krb5-pkinit.conf.in: W2K tests.
 	
-2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: remove more files
 	
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-pkinit.in: try principal subject in DB
 	
-2007-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-basic.in: test using test_kcred
 
@@ -249,7 +300,7 @@
 	* ldap/check-ldap.in: check in /usr/lib/openldap too for slapd and
 	slapadd
 	
-2007-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/add-modify-delete.in: Remove comment.
 
@@ -259,47 +310,47 @@
 
 	* db/add-modify-delete.in: try iprop-log commands.
 	
-2007-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/krb5.conf.in: Add longer example.
 	
-2007-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db: basic tests for dbinfo
 
-2007-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/Makefile.am: Add check-ntlm.
 
 	* gss/check-ntlm.in: test ntlm client credentials code.
 	
-2007-04-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/loaddump-db.in: make kstash quiet
 	
-2007-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-basic.in: more gss_acquire_cred tests
 	
-2007-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/Makefile.am: add check-basic
 
 	* gss/check-basic.in: basic tests that might require a KDC.
 	
-2007-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/Makefile.am: CLEANFILES += sdigest-init
 	
-2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ldap/slapd-init.in: Add Id tag
 	
-2007-02-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: test new kadmin add_enctype functionallity
 	
-2007-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: add ldap
 
@@ -307,33 +358,33 @@
 	
 	* kdc/Makefile.am: add check-referral
 	
-2007-02-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* tests/ldap: simple ldap test, inspried by samba ldb ldap test
 
-2007-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-digest.in: Test ms-chap-v2 (client response, server
 	response, session key)
 	
-2007-02-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/krb5.conf.in: allow ms-chap-v2
 	
-2007-02-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-digest.in: Negative check too.
 	
-2007-01-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-uu.in: save log, wait longer
 	
-2007-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-pkinit.in: tell me about certifiate that we have
 	generated
 	
-2007-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* no random, no RSA/DH tests
 
@@ -343,7 +394,7 @@
 
 	* gss/Makefile.am: add ntlm-user-file.txt
 
-2007-01-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/ap-req.c: --verify-pac no means verify existance of PAC in
 	ticket, the signature checking is done by the kerberos library.
@@ -356,11 +407,11 @@
 	* Makefile.am: Only traverse into plugin if there is shared
 	library support.
 	
-2007-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-pkinit.in: Prefix key with FILE:
 	
-2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* plugin/Makefile.am: EXTRA_DIST += krb5.conf.in
 
@@ -386,7 +437,7 @@
 
 	* kdc/krb5-pkinit.conf.in: pkinit specific krb5.conf
 	
-2007-01-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* plugin/check-pac.in: test tgs-req
 
@@ -398,15 +449,15 @@
 	
 	* Makefile.am: Include plugin in tests
 	
-2006-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/ntlm-user-file.txt: Correct DOMAIN name
 	
-2006-12-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/krb5.conf.in: Add digests acls (all)
 	
-2006-12-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-spnego.in: test wrapunwrap
 
@@ -415,7 +466,7 @@
 	* gss/check-context.in: don't need to set GSSAPI_SPNEGO_NAME any
 	longer
 	
-2006-12-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-context.in: Define GSSAPI_SPNEGO_NAME and re-add
 	spnego
@@ -431,63 +482,63 @@
 
 	* gss/check-spnego.in: check spnego combinations.
 	
-2006-12-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-digest.in: test more combinations of names
 	
-2006-12-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/ntlm-user-file.txt: ntlm username and password file
 
 	* kdc/check-digest.in: Check that ntlm works.
 	
-2006-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-digest.in: prefix digest commands with digest-
 	
-2006-11-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Don't (afs) unlog using kdestroy
 	
-2006-11-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: Add LIB_roken and (implictly by that libvers
 	for print_version) to LDADD
 	
-2006-11-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: check that the getarg -- option works for
 	delete and add.
 
 	* kdc/check-kdc.in: Test proxy cert.
 	
-2006-11-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/krb5.conf.in: revert the enable-pkinit change, and make it
 	consistant with all other other enable- options
 
-2006-11-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-context.in: Add dce-style context building test.
 
 	* gss/check-context.in: test more combination of context building
 	
-2006-11-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Use TEST{,2}.H5L.SE for testing
 
-2006-11-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/Makefile.am: Use EGREP.
 
 	* kdc/check-kdc.in: Use EGREP.
 	
-2006-10-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: run eval on the testfailed variable so we run
 	all commands
 	
-2006-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* db/Makefile.am: make have-db being built in the "make all"
 	target.
@@ -495,13 +546,13 @@
 	* kdc/check-kdc.in: tell more what the kdc though about the
 	failure.
 	
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/add-modify-delete.in: Use EGREP.
 
 	* db/Makefile.am: add EGREP to do_subst
 	
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/Makefile.am: Clean temporary files
 
@@ -513,7 +564,7 @@
 	
 	* db/Makefile.am: more files
 
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-context.in: give path to have-db
 	
@@ -542,7 +593,7 @@
 
 	* kdc/check-kdc.in: Fix awk statement, put RE on the right side.
 	
-2006-10-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-gssmask.in: remove dup exit
 
@@ -550,15 +601,15 @@
 
 	* gss/check-context.in: test with and without dns-canon
 	
-2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-kdc.in: Be more explit about what test failed.
 	
-2006-10-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-context.in: et KRB5CCNAME in global enviorment
 	
-2006-10-12  Love Hörnquist Åstrand <lha@it.su.se>
+2006-10-12  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 	
 	* gss/Makefile.am: Check if the gss context tester test_context
 	works ok.
@@ -566,7 +617,7 @@
 	* gss/check-context.in: Check if the gss context tester
 	test_context works ok.
 	
-2006-10-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-gssmask.in: use wait-kdc.sh script
 
@@ -578,7 +629,7 @@
 	directly from the Makefile.  This now uses the same for the
 	scripts, so we can run them under valgrind. From Andrew Bartlet
 
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/Makefile.am: splits script tests and binary tests
 
@@ -586,36 +637,36 @@
 
 	* kdc/Makefile.am: Split script tests and binary tests
 	
-2006-10-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Test pkinit encKey case.
 	
-2006-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-gssmask.in: Catch failures from gssmaestro.
 	
-2006-09-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-gssmask.in: Add a third client
 	
-2006-09-19 Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-19 Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gss/check-gssmask.in: test for gssmask + gssmaestro.
 
 	* gss/krb5.conf.in: Add krb5.conf for krb5.conf
 	
-2006-09-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gss/check-gss.in: Add (c)
 
 	* kdc/check-kdc.in: Test constrained delegation impersonation.
 	
-2006-09-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Change the password on krbtgt a couple of
 	times to have a non boring kvno.
 	
-2006-08-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-08-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-digest.in: Use the server as the server and set
 	diffrent password for the user and service.
@@ -629,45 +680,45 @@
 
 	* kdc/check-kdc.in: Test aes only krbtgt and des3 only service.
 	
-2006-08-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-08-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Remove empty lines for picky awks
 	
-2006-07-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-07-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Check for cross realm case where remove user
 	doesn't exists in the database, this is ok assuming the cross
 	realm isn't local. In the general case this isn't true.
 
-2006-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: run kadmin check
 	
-2006-06-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-06-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: test that delegated cred works too
 
 	* kdc/check-kdc.in: Test delegation
 	
-2006-06-06 Love Hörnquist Åstrand <lha@it.su.se>
+2006-06-06 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 	
 	* kdc/check-kdc.in: Add impersonation tests.
 	
-2006-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-06-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Less verbose, spelling.
 
 	* kdc/check-kdc.in: test cross realm and deleted user
 	
-2006-05-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kdc/check-kdc.in: Check password protected pk-init keyfile.
 	
-2006-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-kdc.in: Don't try pkinit if there is no rsa
 	
-2006-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/pki-mapping: change pki-mapping
 	
@@ -677,11 +728,11 @@
 
 	* kdc/krb5.conf.in: Add pkinit glue
 
-2006-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/pki-mapping: Add pk-init mapping file
 	
-2006-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* kdc/check-kdc.in: Sprinkle more ap-req now that the credential
 	is removed from the cache using kdestroy --credential=
@@ -696,7 +747,7 @@
 	* kdc/ap-req.c: simple test program checking that as ap-req/as-rep
 	exchange works
 	
-2006-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* {,kdc/,db/}.cvsignore: ignore Makefile.in
 
@@ -728,15 +779,15 @@
 
 	* db/Makefile.am: clean messages file
 	
-2006-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/krb5.conf.in: Set [libdefaults] default_realm = EXAMPLE.ORG.
 
-2005-11-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-11-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db/loaddump-db.in: Specifify explicitly that the database is in
 	the current directory.
 
-2005-08-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test loading and dumping of the database

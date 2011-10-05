@@ -10,15 +10,15 @@
 	database = {
 		label = {
 			realm = LABEL.TEST.H5L.SE
-			dbname = @objdir@/label-db
+			dbname = @type@@objdir@/label-db
 			mkey_file = @objdir@/mkey.file
 		}
 		label2 = {
-			dbname = @objdir@/lable2-db
+			dbname = @type@@objdir@/lable2-db
 			realm = LABEL2.TEST.H5L.SE
 			mkey_file = @objdir@/mkey2.file
 		}
-		dbname = @objdir@/current-db
+		dbname = @type@@objdir@/current-db
 		realm = EXAMPLE.ORG
 		mkey_file = @objdir@/mkey.file
 		log_file = @objdir@/log.current-db.log

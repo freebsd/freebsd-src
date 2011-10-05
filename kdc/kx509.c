@@ -1,34 +1,34 @@
 /*
- * Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kdc_locl.h"
@@ -36,14 +36,14 @@
 #include <rfc2459_asn1.h>
 #include <hx509.h>
 
-RCSID("$Id: kx509.c 21607 2007-07-17 07:04:52Z lha $");
+#ifdef KX509
 
 /*
  *
  */
 
 krb5_error_code
-_kdc_try_kx509_request(void *ptr, size_t len, Kx509Request *req, size_t *size)
+_kdc_try_kx509_request(void *ptr, size_t len, struct Kx509Request *req, size_t *size)
 {
     if (len < 4)
 	return -1;
@@ -59,22 +59,23 @@ _kdc_try_kx509_request(void *ptr, size_t len, Kx509Request *req, size_t *size)
 static const unsigned char version_2_0[4] = {0 , 0, 2, 0};
 
 static krb5_error_code
-verify_req_hash(krb5_context context, 
+verify_req_hash(krb5_context context,
 		const Kx509Request *req,
 		krb5_keyblock *key)
 {
     unsigned char digest[SHA_DIGEST_LENGTH];
     HMAC_CTX ctx;
-    
+
     if (req->pk_hash.length != sizeof(digest)) {
-	krb5_set_error_string(context, "pk-hash have wrong length: %lu",
-			      (unsigned long)req->pk_hash.length);
+	krb5_set_error_message(context, KRB5KDC_ERR_PREAUTH_FAILED,
+			       "pk-hash have wrong length: %lu",
+			       (unsigned long)req->pk_hash.length);
 	return KRB5KDC_ERR_PREAUTH_FAILED;
     }
 
     HMAC_CTX_init(&ctx);
-    HMAC_Init_ex(&ctx, 
-		 key->keyvalue.data, key->keyvalue.length, 
+    HMAC_Init_ex(&ctx,
+		 key->keyvalue.data, key->keyvalue.length,
 		 EVP_sha1(), NULL);
     if (sizeof(digest) != HMAC_size(&ctx))
 	krb5_abortx(context, "runtime error, hmac buffer wrong size in kx509");
@@ -84,7 +85,8 @@ verify_req_hash(krb5_context context,
     HMAC_CTX_cleanup(&ctx);
 
     if (memcmp(req->pk_hash.data, digest, sizeof(digest)) != 0) {
-	krb5_set_error_string(context, "pk-hash is not correct");
+	krb5_set_error_message(context, KRB5KDC_ERR_PREAUTH_FAILED,
+			       "pk-hash is not correct");
 	return KRB5KDC_ERR_PREAUTH_FAILED;
     }
     return 0;
@@ -95,18 +97,17 @@ calculate_reply_hash(krb5_context context,
 		     krb5_keyblock *key,
 		     Kx509Response *rep)
 {
+    krb5_error_code ret;
     HMAC_CTX ctx;
-    
+
     HMAC_CTX_init(&ctx);
 
-    HMAC_Init_ex(&ctx, 
-		 key->keyvalue.data, key->keyvalue.length, 
+    HMAC_Init_ex(&ctx, key->keyvalue.data, key->keyvalue.length,
 		 EVP_sha1(), NULL);
-    rep->hash->length = HMAC_size(&ctx);
-    rep->hash->data = malloc(rep->hash->length);
-    if (rep->hash->data == NULL) {
+    ret = krb5_data_alloc(rep->hash, HMAC_size(&ctx));
+    if (ret) {
 	HMAC_CTX_cleanup(&ctx);
-	krb5_set_error_string(context, "out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
 
@@ -131,18 +132,17 @@ calculate_reply_hash(krb5_context context,
 }
 
 /*
- * Build a certifate for `principal´ that will expire at `endtime´.
+ * Build a certifate for `principalÂ´ that will expire at `endtimeÂ´.
  */
 
 static krb5_error_code
-build_certificate(krb5_context context, 
+build_certificate(krb5_context context,
 		  krb5_kdc_configuration *config,
 		  const krb5_data *key,
 		  time_t endtime,
 		  krb5_principal principal,
 		  krb5_data *certificate)
 {
-    hx509_context hxctx = NULL;
     hx509_ca_tbs tbs = NULL;
     hx509_env env = NULL;
     hx509_cert cert = NULL;
@@ -154,15 +154,7 @@ build_certificate(krb5_context context,
 	return EINVAL;
     }
 
-    ret = hx509_context_init(&hxctx);
-    if (ret)
-	goto out;
-
-    ret = hx509_env_init(hxctx, &env);
-    if (ret)
-	goto out;
-
-    ret = hx509_env_add(hxctx, env, "principal-name", 
+    ret = hx509_env_add(context->hx509ctx, &env, "principal-name",
 			krb5_principal_get_comp_string(context, principal, 0));
     if (ret)
 	goto out;
@@ -171,14 +163,14 @@ build_certificate(krb5_context context,
 	hx509_certs certs;
 	hx509_query *q;
 
-	ret = hx509_certs_init(hxctx, config->kx509_ca, 0,
+	ret = hx509_certs_init(context->hx509ctx, config->kx509_ca, 0,
 			       NULL, &certs);
 	if (ret) {
 	    kdc_log(context, config, 0, "Failed to load CA %s",
 		    config->kx509_ca);
 	    goto out;
 	}
-	ret = hx509_query_alloc(hxctx, &q);
+	ret = hx509_query_alloc(context->hx509ctx, &q);
 	if (ret) {
 	    hx509_certs_free(&certs);
 	    goto out;
@@ -187,8 +179,8 @@ build_certificate(krb5_context context,
 	hx509_query_match_option(q, HX509_QUERY_OPTION_PRIVATE_KEY);
 	hx509_query_match_option(q, HX509_QUERY_OPTION_KU_KEYCERTSIGN);
 
-	ret = hx509_certs_find(hxctx, certs, q, &signer);
-	hx509_query_free(hxctx, q);
+	ret = hx509_certs_find(context->hx509ctx, certs, q, &signer);
+	hx509_query_free(context->hx509ctx, q);
 	hx509_certs_free(&certs);
 	if (ret) {
 	    kdc_log(context, config, 0, "Failed to find a CA in %s",
@@ -197,7 +189,7 @@ build_certificate(krb5_context context,
 	}
     }
 
-    ret = hx509_ca_tbs_init(hxctx, &tbs);
+    ret = hx509_ca_tbs_init(context->hx509ctx, &tbs);
     if (ret)
 	goto out;
 
@@ -210,14 +202,14 @@ build_certificate(krb5_context context,
 	spki.subjectPublicKey.data = key->data;
 	spki.subjectPublicKey.length = key->length * 8;
 
-	ret = der_copy_oid(oid_id_pkcs1_rsaEncryption(), 
+	ret = der_copy_oid(&asn1_oid_id_pkcs1_rsaEncryption,
 			   &spki.algorithm.algorithm);
 
 	any.data = "\x05\x00";
 	any.length = 2;
 	spki.algorithm.parameters = &any;
 
-	ret = hx509_ca_tbs_set_spki(hxctx, tbs, &spki);
+	ret = hx509_ca_tbs_set_spki(context->hx509ctx, tbs, &spki);
 	der_free_oid(&spki.algorithm.algorithm);
 	if (ret)
 	    goto out;
@@ -227,21 +219,21 @@ build_certificate(krb5_context context,
 	hx509_certs certs;
 	hx509_cert template;
 
-	ret = hx509_certs_init(hxctx, config->kx509_template, 0,
+	ret = hx509_certs_init(context->hx509ctx, config->kx509_template, 0,
 			       NULL, &certs);
 	if (ret) {
 	    kdc_log(context, config, 0, "Failed to load template %s",
 		    config->kx509_template);
 	    goto out;
 	}
-	ret = hx509_get_one_cert(hxctx, certs, &template);
+	ret = hx509_get_one_cert(context->hx509ctx, certs, &template);
 	hx509_certs_free(&certs);
 	if (ret) {
 	    kdc_log(context, config, 0, "Failed to find template in %s",
 		    config->kx509_template);
 	    goto out;
 	}
-	ret = hx509_ca_tbs_set_template(hxctx, tbs, 
+	ret = hx509_ca_tbs_set_template(context->hx509ctx, tbs,
 					HX509_CA_TEMPLATE_SUBJECT|
 					HX509_CA_TEMPLATE_KU|
 					HX509_CA_TEMPLATE_EKU,
@@ -251,24 +243,22 @@ build_certificate(krb5_context context,
 	    goto out;
     }
 
-    hx509_ca_tbs_set_notAfter(hxctx, tbs, endtime);
+    hx509_ca_tbs_set_notAfter(context->hx509ctx, tbs, endtime);
 
-    hx509_ca_tbs_subject_expand(hxctx, tbs, env);
+    hx509_ca_tbs_subject_expand(context->hx509ctx, tbs, env);
     hx509_env_free(&env);
 
-    ret = hx509_ca_sign(hxctx, tbs, signer, &cert);
+    ret = hx509_ca_sign(context->hx509ctx, tbs, signer, &cert);
     hx509_cert_free(signer);
     if (ret)
 	goto out;
 
     hx509_ca_tbs_free(&tbs);
 
-    ret = hx509_cert_binary(hxctx, cert, certificate);
+    ret = hx509_cert_binary(context->hx509ctx, cert, certificate);
     hx509_cert_free(cert);
     if (ret)
 	goto out;
-		      
-    hx509_context_free(&hxctx);
 
     return 0;
 out:
@@ -278,9 +268,7 @@ out:
 	hx509_ca_tbs_free(&tbs);
     if (signer)
 	hx509_cert_free(signer);
-    if (hxctx)
-	hx509_context_free(&hxctx);
-    krb5_set_error_string(context, "cert creation failed");
+    krb5_set_error_message(context, ret, "cert creation failed");
     return ret;
 }
 
@@ -289,9 +277,9 @@ out:
  */
 
 krb5_error_code
-_kdc_do_kx509(krb5_context context, 
+_kdc_do_kx509(krb5_context context,
 	      krb5_kdc_configuration *config,
-	      const Kx509Request *req, krb5_data *reply,
+	      const struct Kx509Request *req, krb5_data *reply,
 	      const char *from, struct sockaddr *addr)
 {
     krb5_error_code ret;
@@ -309,7 +297,7 @@ _kdc_do_kx509(krb5_context context,
     memset(&rep, 0, sizeof(rep));
 
     if(!config->enable_kx509) {
-	kdc_log(context, config, 0, 
+	kdc_log(context, config, 0,
 		"Rejected kx509 request (disabled) from %s", from);
 	return KRB5KDC_ERR_POLICY;
     }
@@ -322,7 +310,7 @@ _kdc_do_kx509(krb5_context context,
 	goto out;
     }
 
-    ret = krb5_rd_req(context, 
+    ret = krb5_rd_req(context,
 		      &ac,
 		      &req->authenticator,
 		      NULL,
@@ -339,7 +327,7 @@ _kdc_do_kx509(krb5_context context,
     ret = krb5_unparse_name(context, cprincipal, &cname);
     if (ret)
 	goto out;
-    
+
     /* verify server principal */
 
     ret = krb5_sname_to_principal(context, NULL, "kca_service",
@@ -357,20 +345,36 @@ _kdc_do_kx509(krb5_context context,
 	ret = krb5_principal_compare(context, sprincipal, principal);
 	krb5_free_principal(context, principal);
 	if (ret != TRUE) {
+	    char *expected, *used;
+
+	    ret = krb5_unparse_name(context, sprincipal, &expected);
+	    if (ret)
+		goto out;
+	    ret = krb5_unparse_name(context, principal, &used);
+	    if (ret) {
+		krb5_xfree(expected);
+		goto out;
+	    }
+
 	    ret = KRB5KDC_ERR_SERVER_NOMATCH;
-	    krb5_set_error_string(context, 
-				  "User %s used wrong Kx509 service principal",
-				  cname);
+	    krb5_set_error_message(context, ret,
+				   "User %s used wrong Kx509 service "
+				   "principal, expected: %s, used %s",
+				   cname, expected, used);
+	    krb5_xfree(expected);
+	    krb5_xfree(used);
 	    goto out;
 	}
     }
-    
+
     ret = krb5_auth_con_getkey(context, ac, &key);
-    if (ret || key == NULL) {
-	krb5_set_error_string(context, "Kx509 can't get session key");
+    if (ret == 0 && key == NULL)
+	ret = KRB5KDC_ERR_NULL_KEY;
+    if (ret) {
+	krb5_set_error_message(context, ret, "Kx509 can't get session key");
 	goto out;
     }
-    
+
     ret = verify_req_hash(context, req, key);
     if (ret)
 	goto out;
@@ -385,8 +389,10 @@ _kdc_do_kx509(krb5_context context,
 	if (ret)
 	    goto out;
 	free_RSAPublicKey(&key);
-	if (size != req->pk_key.length)
-	    ;
+	if (size != req->pk_key.length) {
+	    ret = ASN1_EXTRA_DATA;
+	    goto out;
+	}
     }
 
     ALLOC(rep.certificate);
@@ -398,7 +404,7 @@ _kdc_do_kx509(krb5_context context,
 	goto out;
     krb5_data_zero(rep.hash);
 
-    ret = build_certificate(context, config, &req->pk_key, 
+    ret = build_certificate(context, config, &req->pk_key,
 			    krb5_ticket_get_endtime(context, ticket),
 			    cprincipal, rep.certificate);
     if (ret)
@@ -418,7 +424,7 @@ _kdc_do_kx509(krb5_context context,
 	ASN1_MALLOC_ENCODE(Kx509Response, data.data, data.length, &rep,
 			   &size, ret);
 	if (ret) {
-	    krb5_set_error_string(context, "Failed to encode kx509 reply");
+	    krb5_set_error_message(context, ret, "Failed to encode kx509 reply");
 	    goto out;
 	}
 	if (size != data.length)
@@ -458,3 +464,5 @@ out:
 
     return 0;
 }
+
+#endif /* KX509 */

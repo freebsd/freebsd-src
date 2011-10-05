@@ -1,0 +1,164 @@
+########################################################################
+#
+# Copyright (c) 2010, Secure Endpoints Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+#
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+
+RELDIR=packages\windows\assembly
+
+!include ../../../windows/NTMakefile.w32
+
+# CODESIGN_PKT should be set to the public key token of the code
+# signing certificate in use.  You can use :
+#
+# pktextract <path to certificate>
+#
+# ..to derive the public key token.
+#
+!ifndef CODESIGN_PKT
+!  error CODESIGN_PKT should be set to the public key token for codesigning certificate
+!endif
+
+prep:: mk-asm-dirs
+
+# ----------------------------------------------------------------------
+# Heimdal.Kerberos Assembly
+
+ASMKRBDIR=$(ASMDIR)\Heimdal.Kerberos
+ASMKRBVER=$(VER_PRODUCT_MAJOR).$(VER_PRODUCT_MINOR).$(VER_PRODUCT_AUX).$(VER_PRODUCT_PATCH)
+ASMKRBMAN=$(ASMKRBNAME).manifest
+
+ASMKRBBINS=\
+	$(ASMKRBDIR)\heimdal.dll	\
+	$(ASMKRBDIR)\com_err.dll	\
+	$(ASMKRBDIR)\heimntlm.dll	\
+	$(ASMKRBDIR)\gssapi.dll		\
+	$(ASMKRBDIR)\heimdal.pdb	\
+	$(ASMKRBDIR)\com_err.pdb	\
+	$(ASMKRBDIR)\heimntlm.pdb	\
+	$(ASMKRBDIR)\gssapi.pdb
+
+$(ASMKRBDIR)\$(ASMKRBMAN).nohash: Heimdal.Kerberos.manifest.in
+	$(SED)  -e "s,[@]name[@],$(ASMKRBNAME),g" \
+		-e "s,[@]cpu[@],$(MCPU),g" \
+		-e "s,[@]version[@],$(ASMKRBVER),g" \
+		-e "s,[@]pkt[@],$(CODESIGN_PKT),g" < $** > $@
+
+$(ASMKRBDIR)\$(ASMKRBMAN) $(ASMKRBDIR)\$(ASMKRBMAN).cdf: \
+		$(ASMKRBDIR)\$(ASMKRBMAN).nohash $(ASMKRBBINS)
+	-$(RM) $(ASMKRBDIR)\$(ASMKRBMAN)
+	-$(RM) $(ASMKRBDIR)\$(ASMKRBMAN).cdf
+	$(MT) -manifest $(ASMKRBDIR)\$(ASMKRBMAN).nohash -out:$(ASMKRBDIR)\$(ASMKRBMAN) -hashupdate -makecdfs
+
+$(ASMKRBDIR)\$(ASMKRBNAME).cat: $(ASMKRBDIR)\$(ASMKRBMAN).cdf
+	cd $(ASMKRBDIR)
+	$(MAKECAT) $**
+	$(_CODESIGN)
+#	$(RM) $(ASMKRBMAN).cdf
+#	$(RM) $(ASMKRBMAN).nohash
+	cd $(SRCDIR)
+
+asm-krb: \
+	$(APPMANIFEST)	\
+	$(ASMKRBBINS)	\
+	$(ASMKRBDIR)\$(ASMKRBMAN)	\
+	$(ASMKRBDIR)\$(ASMKRBNAME).cat	\
+
+all:: asm-krb
+
+clean::
+	-$(RM) $(ASMKRBDIR)\*.*
+
+test::
+	$(MT) -manifest $(ASMKRBDIR)\$(ASMKRBMAN) -validate_manifest
+
+{$(BINDIR)}.dll{$(ASMKRBDIR)}.dll:
+	$(CP) $< $@
+	$(DLLPREP_MERGE)
+
+{$(BINDIR)}.pdb{$(ASMKRBDIR)}.pdb:
+	$(CP) $< $@
+
+# ----------------------------------------------------------------------
+# Application manifests
+
+all:: $(APPMANIFEST)
+
+clean::
+	-$(RM) $(APPMANIFEST)
+
+$(APPMANIFEST): Heimdal.Application.manifest.in
+	$(SED)	-e "s,[@]krbname[@],$(ASMKRBNAME),g" \
+		-e "s,[@]krbversion[@],$(ASMKRBVER),g" \
+		-e "s,[@]cpu[@],$(MCPU),g" \
+		-e "s,[@]pkt[@],$(CODESIGN_PKT),g" < $** > $@
+
+test::
+	$(MT) -manifest $(APPMANIFEST) -validate_manifest
+
+# ----------------------------------------------------------------------
+# Publisher configuration files
+
+POLKRB=policy.$(VER_PRODUCT_MAJOR).$(VER_PRODUCT_MINOR).Heimdal.Kerberos
+POLKRBDIR=$(ASMDIR)\$(POLKRB)
+POLKRBFILE=$(POLKRBDIR)\$(ASMKRBVER).pol
+POLKRBCAT=$(POLKRBDIR)\$(ASMKRBVER).cat
+
+$(POLKRBFILE): policy.Heimdal.Kerberos.in
+	$(SED)  -e "s,[@]krbname[@],$(ASMKRBNAME),g"	\
+		-e "s,[@]krbversion[@],$(ASMKRBVER),g"	\
+		-e "s,[@]krbverfrom[@],$(VER_PRODUCT_MAJOR).$(VER_PRODUCT_MINOR),g"	\
+		-e "s,[@]krbpolname[@],$(POLKRB),g"	\
+		-e "s,[@]cpu[@],$(MCPU),g"	\
+		-e "s,[@]pkt[@],$(CODESIGN_PKT),g" < $** > $@
+
+$(POLKRBFILE).cdf: $(POLKRBFILE)
+	$(MT) -manifest $(POLKRBFILE) -makecdfs
+
+$(POLKRBCAT): $(POLKRBFILE).cdf
+	cd $(POLKRBDIR)
+	$(MAKECAT) $**
+	$(_CODESIGN)
+	cd $(SRCDIR)
+
+all:: $(POLKRBFILE) $(POLKRBCAT)
+
+clean::
+	-$(RM) $(POLKRBDIR)\*.*
+
+# ----------------------------------------------------------------------
+
+.SUFFIXES: .dll .pdb
+
+mk-asm-dirs:
+!  if !exist($(ASMKRBDIR))
+	$(MKDIR) $(ASMKRBDIR)
+!  endif
+!  if !exist($(POLKRBDIR))
+	$(MKDIR) $(POLKRBDIR)
+!  endif

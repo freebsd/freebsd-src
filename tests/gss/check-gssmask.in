@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-gssmask.in 21845 2007-08-08 06:54:48Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -116,6 +116,8 @@ n3pid=$!
 trap "kill ${kdcpid} ${n1pid} ${n2pid} ${n3pid} 2> /dev/null; echo signal killing kdc and maskar; exit 1;" EXIT
 
 sleep 10
+
+#    --wrap-ext
 
 ${gssmaestro} \
     --slaves=localhost:8889 \

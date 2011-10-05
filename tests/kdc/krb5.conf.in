@@ -1,32 +1,50 @@
-# $Id: krb5.conf.in 21754 2007-07-31 21:13:56Z lha $
-
 [libdefaults]
-	default_realm = TEST.H5L.SE
+	default_realm = TEST.H5L.SE TEST2.H5L.SE
 	no-addresses = TRUE
+	allow_weak_crypto = @WEAK@
 
 [appdefaults]
 	pkinit_anchors = FILE:@srcdir@/../../lib/hx509/data/ca.crt
+	reconnect-min = 2s
+	reconnect-backoff = 2s
+	reconnect-max = 10s
 
 [realms]
 	TEST.H5L.SE = {
 		kdc = localhost:@port@
 		admin_server = localhost:@admport@
+		kpasswd_server = localhost:@pwport@
 	}
 	SUB.TEST.H5L.SE = {
 		kdc = localhost:@port@
 	}
 	TEST2.H5L.SE = {
 		kdc = localhost:@port@
+		kpasswd_server = localhost:@pwport@
+	}
+	TEST3.H5L.SE = {
+		kdc = localhost:@port@
+	}
+	TEST4.H5L.SE = {
+		kdc = localhost:@port@
+	}
+	TEST-HTTP.H5L.SE = {
+		kdc = http/localhost:@port@
 	}
 
-[domain_realms]
+[domain_realm]
+	.test.h5l.se = TEST.H5L.SE
 	.sub.test.h5l.se = SUB.TEST.H5L.SE
+	.example.com = TEST2.H5L.SE
 	localhost = TEST.H5L.SE
 	
 
 [kdc]
 	enable-digest = true
+	allow-anonymous = true
 	digests_allowed = chap-md5,digest-md5,ntlm-v1,ntlm-v1-session,ntlm-v2,ms-chap-v2
+
+	enable-http = true
 
 	enable-pkinit = true
 	pkinit_identity = FILE:@srcdir@/../../lib/hx509/data/kdc.crt,@srcdir@/../../lib/hx509/data/kdc.key
@@ -37,11 +55,20 @@
 	pkinit_allow_proxy_certificate = true
 
 	database = {
-		dbname = @objdir@/current-db@kdc@
-		realm = TEST.H5L.SE
-		mkey_file = @objdir@/mkey.file
-		acl_file = @srcdir@/heimdal.acl
-		log_file = @objdir@/current@kdc@.log
+		label = { 
+			dbname = @objdir@/current-db@kdc@
+			realm = TEST.H5L.SE
+			mkey_file = @objdir@/mkey.file
+			acl_file = @srcdir@/heimdal.acl
+			log_file = @objdir@/current@kdc@.log
+		}
+		label2 = { 
+			dbname = @objdir@/current-db@kdc@
+			realm = TEST2.H5L.SE
+			mkey_file = @objdir@/mkey.file
+			acl_file = @srcdir@/heimdal.acl
+			log_file = @objdir@/current@kdc@.log
+		}
 	}
 
 	signal_socket = @objdir@/signal
@@ -54,3 +81,13 @@
 
 [kadmin]
 	save-password = true
+	@dk@
+
+[capaths]
+	TEST.H5L.SE = {
+		TEST3.H5L.SE = TEST2.H5L.SE
+	}
+	TEST.H5L.SE = {
+		TEST4.H5L.SE = TEST2.H5L.SE
+		TEST4.H5L.SE = TEST3.H5L.SE
+	}

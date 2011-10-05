@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2004 - 2005 Kungliga Tekniska Högskolan
+# Copyright (c) 2004 - 2005 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: test_nist_pkcs12.in 22256 2007-12-09 06:04:02Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"

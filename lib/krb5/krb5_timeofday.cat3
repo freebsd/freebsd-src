@@ -1,0 +1,55 @@
+
+KRB5_TIMEOFDAY(3)        BSD Library Functions Manual        KRB5_TIMEOFDAY(3)
+
+NNAAMMEE
+     kkrrbb55__ttiimmeeooffddaayy, kkrrbb55__sseett__rreeaall__ttiimmee, kkrrbb55__uuss__ttiimmeeooffddaayy, kkrrbb55__ffoorrmmaatt__ttiimmee,
+     kkrrbb55__ssttrriinngg__ttoo__ddeellttaatt -- Kerberos 5 time handling functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     krb5_timestamp;
+
+     krb5_deltat;
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__rreeaall__ttiimmee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___t_i_m_e_s_t_a_m_p _s_e_c,
+         _i_n_t_3_2___t _u_s_e_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ttiimmeeooffddaayy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___t_i_m_e_s_t_a_m_p _*_t_i_m_e_r_e_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__uuss__ttiimmeeooffddaayy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___t_i_m_e_s_t_a_m_p _*_s_e_c,
+         _i_n_t_3_2___t _*_u_s_e_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffoorrmmaatt__ttiimmee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _t_i_m_e___t _t, _c_h_a_r _*_s, _s_i_z_e___t _l_e_n,
+         _k_r_b_5___b_o_o_l_e_a_n _i_n_c_l_u_d_e___t_i_m_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__ddeellttaatt(_c_o_n_s_t _c_h_a_r _*_s_t_r_i_n_g, _k_r_b_5___d_e_l_t_a_t _*_d_e_l_t_a_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__sseett__rreeaall__ttiimmee sets the absolute time that the caller knows the KDC
+     has.  With this the Kerberos library can calculate the relative differ-
+     ence between the KDC time and the local system time and store it in the
+     _c_o_n_t_e_x_t.  With this information the Kerberos library can adjust all time
+     stamps in Kerberos packages.
+
+     kkrrbb55__ttiimmeeooffddaayy() returns the current time, but adjusted with the time
+     difference between the local host and the KDC.  kkrrbb55__uuss__ttiimmeeooffddaayy() also
+     returns microseconds.
+
+     kkrrbb55__ffoorrmmaatt__ttiimmee formats the time _t into the string _s of length _l_e_n.  If
+     _i_n_c_l_u_d_e___t_i_m_e is set, the time is set include_time.
+
+     kkrrbb55__ssttrriinngg__ttoo__ddeellttaatt parses delta time _s_t_r_i_n_g into _d_e_l_t_a_t.
+
+SSEEEE AALLSSOO
+     gettimeofday(2), krb5(3)
+
+HEIMDAL                        Sepember 16, 2006                       HEIMDAL

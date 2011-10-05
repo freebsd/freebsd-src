@@ -1,0 +1,14 @@
+[libdefaults]
+	default_realm = EXAMPLE.ORG
+
+[kdc]
+	database = {
+		label = {
+			realm = EXAMPLE.ORG
+			dbname = mit-db:@srcdir@/mit-db
+			mkey_file = @srcdir@/mit-db-master-stash
+		}
+	}
+
+[logging]
+	default = 0-/FILE:@objdir@/messages.log

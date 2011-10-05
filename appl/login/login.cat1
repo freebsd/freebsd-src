@@ -1,0 +1,164 @@
+
+LOGIN(1)                  BSD General Commands Manual                 LOGIN(1)
+
+NNAAMMEE
+     llooggiinn -- authenticate a user and start new session
+
+SSYYNNOOPPSSIISS
+     llooggiinn [--ffpp] [--aa _l_e_v_e_l] [--hh _h_o_s_t_n_a_m_e] _[_u_s_e_r_n_a_m_e_]
+
+DDEESSCCRRIIPPTTIIOONN
+     This manual page documents  the llooggiinn program distributed with the Heim-
+     dal Kerberos 5 implementation, it may differ in important ways from your
+     system version.
+
+     The llooggiinn programs logs users into the system. It is intended to be run
+     by system daemons like getty(8) or telnetd(8).  If you are already logged
+     in, but want to change to another user, you should use su(1).
+
+     A username can be given on the command line, else one will be prompted
+     for.
+
+     A password is required to login, unless the --ff option is given (indicat-
+     ing that the calling program has already done proper authentication).
+     With --ff the user will be logged in without further questions.
+
+     For password authentication Kerberos 5, Kerberos 4 (if compiled in), OTP
+     (if compiled in) and local (_/_e_t_c_/_p_a_s_s_w_d) passwords are supported. OTP
+     will be used if the the user is registered to use it, and llooggiinn is given
+     the option --aa otp.  When using OTP, a challenge is shown to the user.
+
+     Further options are:
+
+     --aa _s_t_r_i_n_g
+             Which authentication mode to use, the only supported value is
+             currently ``otp''.
+
+     --ff      Indicates that the user is already authenticated. This happens,
+             for instance, when login is started by telnetd, and the user has
+             proved authentic via Kerberos.
+
+     --hh _h_o_s_t_n_a_m_e
+             Indicates which host the user is logging in from. This is passed
+             from telnetd, and is entered into the login database.
+
+     --pp      This tells llooggiinn to preserve all environment variables. If not
+             given, only the TERM and TZ variables are preserved. It could be
+             a security risk to pass random variables to llooggiinn or the user
+             shell, so the calling daemon should make sure it only passes
+             ``safe'' variables.
+
+     The process of logging user in proceeds as follows.
+
+     First a check is made that logins are allowed at all. This usually means
+     checking _/_e_t_c_/_n_o_l_o_g_i_n.  If it exists, and the user trying to login is not
+     root, the contents is printed, and then login exits.
+
+     Then various system parameters are set up, like changing the owner of the
+     tty to the user, setting up signals, setting the group list, and user and
+     group id. Also various machine specific tasks are performed.
+
+     Next llooggiinn changes to the users home directory, or if that fails, to _/.
+     The environment is setup, by adding some required variables (such as
+     PATH), and also authentication related ones (such as KRB5CCNAME).  If an
+     environment file exists (_/_e_t_c_/_e_n_v_i_r_o_n_m_e_n_t), variables are set according
+     to it.
+
+     If one or more login message files are configured, their contents is
+     printed to the terminal.
+
+     If a login time command is configured, it is executed. A logout time com-
+     mand can also be configured, which makes llooggiinn fork, and wait for the
+     user shell to exit, and then run the command.  This can be used to clean
+     up user credentials.
+
+     Finally, the user's shell is executed. If the user logging in is root,
+     and root's login shell does not exist, a default shell (usually _/_b_i_n_/_s_h)
+     is also tried before giving up.
+
+EENNVVIIRROONNMMEENNTT
+     These environment variables are set by login (not including ones set by
+     _/_e_t_c_/_e_n_v_i_r_o_n_m_e_n_t):
+
+     PATH           the default system path
+     HOME           the user's home directory (or possibly _/)
+     USER, LOGNAME  both set to the username
+     SHELL          the user's shell
+     TERM, TZ       set to whatever is passed to llooggiinn
+     KRB5CCNAME     if the password is verified via Kerberos 5, this will
+                    point to the credentials cache file
+     KRBTKFILE      if the password is verified via Kerberos 4, this will
+                    point to the ticket file
+
+FFIILLEESS
+     /etc/environment
+             Contains a set of environment variables that should be set in
+             addition to the ones above. It should contain sh-style assign-
+             ments like ``VARIABLE=value''.  Note that they are not parsed the
+             way a shell would. No variable expansion is performed, and all
+             strings are literal, and quotation marks should not be used.
+             Everything after a hash mark is considered a comment. The follow-
+             ing are all different (the last will set the variable BAR, not
+             FOO).
+
+                   FOO=this is a string
+                   FOO="this is a string"
+                   BAR= FOO='this is a string'
+     /etc/login.access
+             See login.access(5).
+     /etc/login.conf
+             This is a termcap style configuration file, that contains various
+             settings used by llooggiinn.  Currently only the ``default'' capabil-
+             ity record is used. The possible capability strings include:
+
+             environment
+                     This is a comma separated list of environment files that
+                     are read in the order specified. If this is missing the
+                     default _/_e_t_c_/_e_n_v_i_r_o_n_m_e_n_t is used.
+             login_program
+                     This program will be executed just before the user's
+                     shell is started.  It will be called without arguments.
+             logout_program
+                     This program will be executed just after the user's shell
+                     has terminated. It will be called without arguments. This
+                     program will be the parent process of the spawned shell.
+             motd    A comma separated list of text files that will be printed
+                     to the user's terminal before starting the shell. The
+                     string welcome works similarly, but points to a single
+                     file.
+             limits  Points to a file containing ulimit settings for various
+                     users. Syntax is inspired by what pam_limits uses, and
+                     the default is _/_e_t_c_/_s_e_c_u_r_i_t_y_/_l_i_m_i_t_s_._c_o_n_f.
+     /etc/nologin
+             If it exists, login is denied to all but root. The contents of
+             this file is printed before login exits.
+
+     Other llooggiinn programs typically print all sorts of information by default,
+     such as last time you logged in, if you have mail, and system message
+     files.  This version of llooggiinn does not, so there is no reason for
+     _._h_u_s_h_l_o_g_i_n files or similar. We feel that these tasks are best left to
+     the user's shell, but the login_program facility allows for a shell inde-
+     pendent solution, if that is desired.
+
+EEXXAAMMPPLLEESS
+     A _l_o_g_i_n_._c_o_n_f file could look like:
+
+           default:\
+                   :motd=/etc/motd,/etc/motd.local:\
+                   :limits=/etc/limits.conf:
+
+     The _l_i_m_i_t_s_._c_o_n_f file consists of a table with four whitespace separated
+     fields. First field is a username or a groupname (prefixed with `@'), or
+     `*'.  Second field is `soft', `hard', or `-' (the last meaning both soft
+     and hard).  Third field is a limit name (such as `cpu' or `core').  Last
+     field is the limit value (a number or `-' for unlimited). In the case of
+     data sizes, the value is in kilobytes, and cputime is in minutes.
+
+SSEEEE AALLSSOO
+     su(1), login.access(5), getty(8), telnetd(8)
+
+AAUUTTHHOORRSS
+     This login program was written for the Heimdal Kerberos 5 implementation.
+     The login.access code was written by Wietse Venema.
+
+HEIMDAL                         April 22, 2005                         HEIMDAL

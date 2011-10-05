@@ -30,55 +30,23 @@
  * SUCH DAMAGE.
  */
 
-#include "spnego/spnego_locl.h"
+#include "spnego_locl.h"
 
-RCSID("$Id: cred_stubs.c 20619 2007-05-08 13:43:45Z lha $");
-
-OM_uint32
+OM_uint32 GSSAPI_CALLCONV
 _gss_spnego_release_cred(OM_uint32 *minor_status, gss_cred_id_t *cred_handle)
 {
-    gssspnego_cred cred;
     OM_uint32 ret;
-    
+
     *minor_status = 0;
 
-    if (*cred_handle == GSS_C_NO_CREDENTIAL) {
+    if (cred_handle == NULL || *cred_handle == GSS_C_NO_CREDENTIAL)
 	return GSS_S_COMPLETE;
-    }
-    cred = (gssspnego_cred)*cred_handle;
 
-    ret = gss_release_cred(minor_status, &cred->negotiated_cred_id);
+    ret = gss_release_cred(minor_status, cred_handle);
 
-    free(cred);
     *cred_handle = GSS_C_NO_CREDENTIAL;
 
     return ret;
-}
-
-OM_uint32
-_gss_spnego_alloc_cred(OM_uint32 *minor_status,
-		       gss_cred_id_t mech_cred_handle,
-		       gss_cred_id_t *cred_handle)
-{
-    gssspnego_cred cred;
-
-    if (*cred_handle != GSS_C_NO_CREDENTIAL) {
-	*minor_status = EINVAL;
-	return GSS_S_FAILURE;
-    }
-
-    cred = calloc(1, sizeof(*cred));
-    if (cred == NULL) {
-	*cred_handle = GSS_C_NO_CREDENTIAL;
-	*minor_status = ENOMEM;
-	return GSS_S_FAILURE;
-    }
-
-    cred->negotiated_cred_id = mech_cred_handle;
-
-    *cred_handle = (gss_cred_id_t)cred;
-
-    return GSS_S_COMPLETE; 
 }
 
 /*
@@ -86,7 +54,7 @@ _gss_spnego_alloc_cred(OM_uint32 *minor_status,
  * we support gss_{get,set}_neg_mechs() we will need to expose
  * more functionality.
  */
-OM_uint32 _gss_spnego_acquire_cred
+OM_uint32 GSSAPI_CALLCONV _gss_spnego_acquire_cred
 (OM_uint32 *minor_status,
  const gss_name_t desired_name,
  OM_uint32 time_req,
@@ -102,9 +70,7 @@ OM_uint32 _gss_spnego_acquire_cred
     OM_uint32 ret, tmp;
     gss_OID_set_desc actual_desired_mechs;
     gss_OID_set mechs;
-    int i, j;
-    gss_cred_id_t cred_handle = GSS_C_NO_CREDENTIAL;
-    gssspnego_cred cred;
+    size_t i, j;
 
     *output_cred_handle = GSS_C_NO_CREDENTIAL;
 
@@ -114,7 +80,7 @@ OM_uint32 _gss_spnego_acquire_cred
 	    return ret;
 	}
     }
-    
+
     ret = gss_indicate_mechs(minor_status, &mechs);
     if (ret != GSS_S_COMPLETE) {
 	gss_release_name(minor_status, &name);
@@ -140,21 +106,13 @@ OM_uint32 _gss_spnego_acquire_cred
     }
     actual_desired_mechs.count = j;
 
-    ret = _gss_spnego_alloc_cred(minor_status, GSS_C_NO_CREDENTIAL,
-				 &cred_handle);
-    if (ret != GSS_S_COMPLETE)
-	goto out;
-
-    cred = (gssspnego_cred)cred_handle;
     ret = gss_acquire_cred(minor_status, name,
 			   time_req, &actual_desired_mechs,
 			   cred_usage,
-			   &cred->negotiated_cred_id,
+			   output_cred_handle,
 			   actual_mechs, time_rec);
     if (ret != GSS_S_COMPLETE)
 	goto out;
-
-    *output_cred_handle = cred_handle;
 
 out:
     gss_release_name(minor_status, &name);
@@ -163,13 +121,13 @@ out:
 	free(actual_desired_mechs.elements);
     }
     if (ret != GSS_S_COMPLETE) {
-	_gss_spnego_release_cred(&tmp, &cred_handle);
+	_gss_spnego_release_cred(&tmp, output_cred_handle);
     }
 
     return ret;
 }
 
-OM_uint32 _gss_spnego_inquire_cred
+OM_uint32 GSSAPI_CALLCONV _gss_spnego_inquire_cred
            (OM_uint32 * minor_status,
             const gss_cred_id_t cred_handle,
             gss_name_t * name,
@@ -178,7 +136,6 @@ OM_uint32 _gss_spnego_inquire_cred
             gss_OID_set * mechanisms
            )
 {
-    gssspnego_cred cred;
     spnego_name sname = NULL;
     OM_uint32 ret;
 
@@ -195,10 +152,8 @@ OM_uint32 _gss_spnego_inquire_cred
 	}
     }
 
-    cred = (gssspnego_cred)cred_handle;
-
     ret = gss_inquire_cred(minor_status,
-			   cred->negotiated_cred_id,
+			   cred_handle,
 			   sname ? &sname->mech : NULL,
 			   lifetime,
 			   cred_usage,
@@ -214,56 +169,7 @@ OM_uint32 _gss_spnego_inquire_cred
     return ret;
 }
 
-OM_uint32 _gss_spnego_add_cred (
-            OM_uint32 * minor_status,
-            const gss_cred_id_t input_cred_handle,
-            const gss_name_t desired_name,
-            const gss_OID desired_mech,
-            gss_cred_usage_t cred_usage,
-            OM_uint32 initiator_time_req,
-            OM_uint32 acceptor_time_req,
-            gss_cred_id_t * output_cred_handle,
-            gss_OID_set * actual_mechs,
-            OM_uint32 * initiator_time_rec,
-            OM_uint32 * acceptor_time_rec
-           )
-{
-    gss_cred_id_t spnego_output_cred_handle = GSS_C_NO_CREDENTIAL;
-    OM_uint32 ret, tmp;
-    gssspnego_cred input_cred, output_cred;
-
-    *output_cred_handle = GSS_C_NO_CREDENTIAL;
-
-    ret = _gss_spnego_alloc_cred(minor_status, GSS_C_NO_CREDENTIAL,
-				 &spnego_output_cred_handle);
-    if (ret)
-	return ret;
-
-    input_cred = (gssspnego_cred)input_cred_handle;
-    output_cred = (gssspnego_cred)spnego_output_cred_handle;
-
-    ret = gss_add_cred(minor_status,
-		       input_cred->negotiated_cred_id,
-		       desired_name,
-		       desired_mech,
-		       cred_usage,
-		       initiator_time_req,
-		       acceptor_time_req,
-		       &output_cred->negotiated_cred_id,
-		       actual_mechs,
-		       initiator_time_rec,
-		       acceptor_time_rec);
-    if (ret) {
-	_gss_spnego_release_cred(&tmp, &spnego_output_cred_handle);
-	return ret;
-    }
-
-    *output_cred_handle = spnego_output_cred_handle;
-
-    return GSS_S_COMPLETE;
-}
-
-OM_uint32 _gss_spnego_inquire_cred_by_mech (
+OM_uint32 GSSAPI_CALLCONV _gss_spnego_inquire_cred_by_mech (
             OM_uint32 * minor_status,
             const gss_cred_id_t cred_handle,
             const gss_OID mech_type,
@@ -273,7 +179,6 @@ OM_uint32 _gss_spnego_inquire_cred_by_mech (
             gss_cred_usage_t * cred_usage
            )
 {
-    gssspnego_cred cred;
     spnego_name sname = NULL;
     OM_uint32 ret;
 
@@ -290,10 +195,8 @@ OM_uint32 _gss_spnego_inquire_cred_by_mech (
 	}
     }
 
-    cred = (gssspnego_cred)cred_handle;
-
     ret = gss_inquire_cred_by_mech(minor_status,
-				   cred->negotiated_cred_id,
+				   cred_handle,
 				   mech_type,
 				   sname ? &sname->mech : NULL,
 				   initiator_lifetime,
@@ -311,26 +214,58 @@ OM_uint32 _gss_spnego_inquire_cred_by_mech (
     return GSS_S_COMPLETE;
 }
 
-OM_uint32 _gss_spnego_inquire_cred_by_oid
+OM_uint32 GSSAPI_CALLCONV _gss_spnego_inquire_cred_by_oid
            (OM_uint32 * minor_status,
             const gss_cred_id_t cred_handle,
             const gss_OID desired_object,
             gss_buffer_set_t *data_set)
 {
-    gssspnego_cred cred;
     OM_uint32 ret;
 
     if (cred_handle == GSS_C_NO_CREDENTIAL) {
 	*minor_status = 0;
 	return GSS_S_NO_CRED;
     }
-    cred = (gssspnego_cred)cred_handle;
 
     ret = gss_inquire_cred_by_oid(minor_status,
-				  cred->negotiated_cred_id,
+				  cred_handle,
 				  desired_object,
 				  data_set);
 
     return ret;
+}
+
+OM_uint32 GSSAPI_CALLCONV
+_gss_spnego_set_cred_option (OM_uint32 *minor_status,
+			     gss_cred_id_t *cred_handle,
+			     const gss_OID object,
+			     const gss_buffer_t value)
+{
+    if (cred_handle == NULL || *cred_handle == GSS_C_NO_CREDENTIAL) {
+	*minor_status = 0;
+	return GSS_S_NO_CRED;
+    }
+
+    return gss_set_cred_option(minor_status,
+			      cred_handle,
+			      object,
+			      value);
+}
+
+
+OM_uint32 GSSAPI_CALLCONV
+_gss_spnego_export_cred (OM_uint32 *minor_status,
+			 gss_cred_id_t cred_handle,
+			 gss_buffer_t value)
+{
+    return gss_export_cred(minor_status, cred_handle, value);
+}
+
+OM_uint32 GSSAPI_CALLCONV
+_gss_spnego_import_cred (OM_uint32 *minor_status,
+			 gss_buffer_t value,
+			 gss_cred_id_t *cred_handle)
+{
+    return gss_import_cred(minor_status, value, cred_handle);
 }
 

@@ -1,4 +1,4 @@
-2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* push.c: catch when snprint needs a larger buffer
 
@@ -10,7 +10,7 @@
 
 	* push.c: fixed one incorrect fprintf to stderr
 
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* push.c: add names of pop states, add some more debugging and use
 	fprintf(stderr) for all dbg stmts.

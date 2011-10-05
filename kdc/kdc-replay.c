@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kdc_locl.h"
-
-RCSID("$Id: kdc-replay.c 21945 2007-10-03 21:52:24Z lha $");
 
 static int version_flag;
 static int help_flag;
@@ -62,13 +60,13 @@ main(int argc, char **argv)
     int fd, optidx = 0;
 
     setprogname(argv[0]);
-    
+
     if(getarg(args, num_args, argc, argv, &optidx))
 	usage(1);
 
     if(help_flag)
 	usage(0);
-    
+
     if(version_flag){
 	print_version(NULL);
 	exit(0);
@@ -82,11 +80,28 @@ main(int argc, char **argv)
     if (ret)
 	krb5_err(context, 1, ret, "krb5_kdc_default_config");
 
-    kdc_openlog(context, config);
+    kdc_openlog(context, "kdc-replay", config);
 
     ret = krb5_kdc_set_dbinfo(context, config);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_kdc_set_dbinfo");
+
+#ifdef PKINIT
+    if (config->enable_pkinit) {
+	if (config->pkinit_kdc_identity == NULL)
+	    krb5_errx(context, 1, "pkinit enabled but no identity");
+
+	if (config->pkinit_kdc_anchors == NULL)
+	    krb5_errx(context, 1, "pkinit enabled but no X509 anchors");
+
+	krb5_kdc_pk_initialize(context, config,
+			       config->pkinit_kdc_identity,
+			       config->pkinit_kdc_anchors,
+			       config->pkinit_kdc_cert_pool,
+			       config->pkinit_kdc_revoke);
+
+    }
+#endif /* PKINIT */
 
     if (argc != 2)
 	errx(1, "argc != 2");
@@ -145,7 +160,7 @@ main(int argc, char **argv)
 	if (ret)
 	    krb5_err(context, 1, ret, "krb5_print_address");
 
-	printf("processing request from %s, %lu bytes\n", 
+	printf("processing request from %s, %lu bytes\n",
 	       astr, (unsigned long)d.length);
 
 	r.length = 0;

@@ -1,0 +1,159 @@
+
+KRB5_OPENLOG(3)          BSD Library Functions Manual          KRB5_OPENLOG(3)
+
+NNAAMMEE
+     kkrrbb55__iinniittlloogg, kkrrbb55__ooppeennlloogg, kkrrbb55__cclloosseelloogg, kkrrbb55__aaddddlloogg__ddeesstt,
+     kkrrbb55__aaddddlloogg__ffuunncc, kkrrbb55__lloogg, kkrrbb55__vvlloogg, kkrrbb55__lloogg__mmssgg, kkrrbb55__vvlloogg__mmssgg --
+     Heimdal logging functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _t_y_p_e_d_e_f _v_o_i_d
+     (**kkrrbb55__lloogg__lloogg__ffuunncc__tt)(_c_o_n_s_t _c_h_a_r _*_t_i_m_e, _c_o_n_s_t _c_h_a_r _*_m_e_s_s_a_g_e,
+         _v_o_i_d _*_d_a_t_a);
+
+     _t_y_p_e_d_e_f _v_o_i_d
+     (**kkrrbb55__lloogg__cclloossee__ffuunncc__tt)(_v_o_i_d _*_d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaddddlloogg__ddeesstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y,
+         _c_o_n_s_t _c_h_a_r _*_d_e_s_t_i_n_a_t_i_o_n);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaddddlloogg__ffuunncc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y,
+         _i_n_t _m_i_n, _i_n_t _m_a_x, _k_r_b_5___l_o_g___l_o_g___f_u_n_c___t _l_o_g,
+         _k_r_b_5___l_o_g___c_l_o_s_e___f_u_n_c___t _c_l_o_s_e, _v_o_i_d _*_d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cclloosseelloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__iinniittlloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_p_r_o_g_r_a_m,
+         _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_*_f_a_c_i_l_i_t_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__lloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y, _i_n_t _l_e_v_e_l,
+         _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _._._.);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__lloogg__mmssgg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y,
+         _c_h_a_r _*_*_r_e_p_l_y, _i_n_t _l_e_v_e_l, _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _._._.);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ooppeennlloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_p_r_o_g_r_a_m,
+         _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_*_f_a_c_i_l_i_t_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vvlloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y, _i_n_t _l_e_v_e_l,
+         _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _v_a___l_i_s_t _a_r_g_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vvlloogg__mmssgg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___l_o_g___f_a_c_i_l_i_t_y _*_f_a_c_i_l_i_t_y,
+         _c_h_a_r _*_*_r_e_p_l_y, _i_n_t _l_e_v_e_l, _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _v_a___l_i_s_t _a_r_g_l_i_s_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions logs messages to one or more destinations.
+
+     The kkrrbb55__ooppeennlloogg() function creates a logging _f_a_c_i_l_i_t_y, that is used to
+     log messages. A facility consists of one or more destinations (which can
+     be files or syslog or some other device). The _p_r_o_g_r_a_m parameter should be
+     the generic name of the program that is doing the logging. This name is
+     used to lookup which destinations to use. This information is contained
+     in the logging section of the _k_r_b_5_._c_o_n_f configuration file.  If no entry
+     is found for _p_r_o_g_r_a_m, the entry for default is used, or if that is miss-
+     ing too, SYSLOG will be used as destination.
+
+     To close a logging facility, use the kkrrbb55__cclloosseelloogg() function.
+
+     To log a message to a facility use one of the functions kkrrbb55__lloogg(),
+     kkrrbb55__lloogg__mmssgg(), kkrrbb55__vvlloogg(), or kkrrbb55__vvlloogg__mmssgg().  The functions ending in
+     _msg return in _r_e_p_l_y a pointer to the message that just got logged. This
+     string is allocated, and should be freed with ffrreeee().  The _f_o_r_m_a_t is a
+     standard pprriinnttff() style format string (but see the BUGS section).
+
+     If you want better control of where things gets logged, you can instead
+     of using kkrrbb55__ooppeennlloogg() call kkrrbb55__iinniittlloogg(), which just initializes a
+     facility, but doesn't define any actual logging destinations. You can
+     then add destinations with the kkrrbb55__aaddddlloogg__ddeesstt() and kkrrbb55__aaddddlloogg__ffuunncc()
+     functions.  The first of these takes a string specifying a logging desti-
+     nation, and adds this to the facility. If you want to do some non-stan-
+     dard logging you can use the kkrrbb55__aaddddlloogg__ffuunncc() function, which takes a
+     function to use when logging.  The _l_o_g function is called for each mes-
+     sage with _t_i_m_e being a string specifying the current time, and _m_e_s_s_a_g_e
+     the message to log.  _c_l_o_s_e is called when the facility is closed. You can
+     pass application specific data in the _d_a_t_a parameter. The _m_i_n and _m_a_x
+     parameter are the same as in a destination (defined below). To specify a
+     max of infinity, pass -1.
+
+     kkrrbb55__ooppeennlloogg() calls kkrrbb55__iinniittlloogg() and then calls kkrrbb55__aaddddlloogg__ddeesstt() for
+     each destination found.
+
+   DDeessttiinnaattiioonnss
+     The defined destinations (as specified in _k_r_b_5_._c_o_n_f) follows:
+
+           STDERR
+                This logs to the program's stderr.
+
+           FILE:_/_f_i_l_e
+
+           FILE=_/_f_i_l_e
+                Log to the specified file. The form using a colon appends to
+                the file, the form with an equal truncates the file. The trun-
+                cating form keeps the file open, while the appending form
+                closes it after each log message (which makes it possible to
+                rotate logs). The truncating form is mainly for compatibility
+                with the MIT libkrb5.
+
+           DEVICE=_/_d_e_v_i_c_e
+                This logs to the specified device, at present this is the same
+                as FILE:/device.
+
+           CONSOLE
+                Log to the console, this is the same as DEVICE=/dev/console.
+
+           SYSLOG[:priority[:facility]]
+                Send messages to the syslog system, using priority, and facil-
+                ity. To get the name for one of these, you take the name of
+                the macro passed to syslog(3), and remove the leading LOG_
+                (LOG_NOTICE becomes NOTICE).  The default values (as well as
+                the values used for unrecognised values), are ERR, and AUTH,
+                respectively.  See syslog(3) for a list of priorities and
+                facilities.
+
+     Each destination may optionally be prepended with a range of logging lev-
+     els, specified as min-max/.  If the _l_e_v_e_l parameter to kkrrbb55__lloogg() is
+     within this range (inclusive) the message gets logged to this destina-
+     tion, otherwise not. Either of the min and max valued may be omitted, in
+     this case min is assumed to be zero, and max is assumed to be infinity.
+     If you don't include a dash, both min and max gets set to the specified
+     value. If no range is specified, all messages gets logged.
+
+EEXXAAMMPPLLEESS
+           [logging]
+                   kdc = 0/FILE:/var/log/kdc.log
+                   kdc = 1-/SYSLOG:INFO:USER
+                   default = STDERR
+
+     This will log all messages from the kkddcc program with level 0 to
+     _/_v_a_r_/_l_o_g_/_k_d_c_._l_o_g, other messages will be logged to syslog with priority
+     LOG_INFO, and facility LOG_USER.  All other programs will log all mes-
+     sages to their stderr.
+
+SSEEEE AALLSSOO
+     syslog(3), krb5.conf(5)
+
+BBUUGGSS
+     These functions use aasspprriinnttff() to format the message. If your operating
+     system does not have a working aasspprriinnttff(), a replacement will be used. At
+     present this replacement does not handle some correct conversion specifi-
+     cations (like floating point numbers). Until this is fixed, the use of
+     these conversions should be avoided.
+
+     If logging is done to the syslog facility, these functions might not be
+     thread-safe, depending on the implementation of ooppeennlloogg(), and ssyysslloogg().
+
+HEIMDAL                         August 6, 1997                         HEIMDAL

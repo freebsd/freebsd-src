@@ -1,0 +1,485 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\krb5
+
+!include ../../windows/NTMakefile.w32
+
+libkrb5_OBJS =			\
+	$(OBJ)\acache.obj		    \
+	$(OBJ)\acl.obj			    \
+	$(OBJ)\add_et_list.obj		    \
+	$(OBJ)\addr_families.obj	    \
+	$(OBJ)\aname_to_localname.obj	    \
+	$(OBJ)\appdefault.obj		    \
+	$(OBJ)\asn1_glue.obj		    \
+	$(OBJ)\auth_context.obj		    \
+	$(OBJ)\build_ap_req.obj		    \
+	$(OBJ)\build_auth.obj		    \
+	$(OBJ)\cache.obj		    \
+	$(OBJ)\changepw.obj		    \
+	$(OBJ)\codec.obj		    \
+	$(OBJ)\config_file.obj		    \
+	$(OBJ)\config_reg.obj		    \
+	$(OBJ)\constants.obj		    \
+	$(OBJ)\context.obj		    \
+	$(OBJ)\copy_host_realm.obj	    \
+	$(OBJ)\crc.obj			    \
+	$(OBJ)\creds.obj		    \
+	$(OBJ)\crypto.obj		    \
+	$(OBJ)\crypto-aes.obj		    \
+	$(OBJ)\crypto-algs.obj		    \
+	$(OBJ)\crypto-arcfour.obj	    \
+	$(OBJ)\crypto-des-common.obj	    \
+	$(OBJ)\crypto-des.obj		    \
+	$(OBJ)\crypto-des3.obj		    \
+	$(OBJ)\crypto-evp.obj		    \
+	$(OBJ)\crypto-null.obj		    \
+	$(OBJ)\crypto-pk.obj		    \
+	$(OBJ)\crypto-rand.obj		    \
+	$(OBJ)\data.obj			    \
+	$(OBJ)\deprecated.obj		    \
+	$(OBJ)\digest.obj		    \
+	$(OBJ)\dll.obj			    \
+	$(OBJ)\eai_to_heim_errno.obj	    \
+	$(OBJ)\error_string.obj		    \
+	$(OBJ)\expand_hostname.obj	    \
+	$(OBJ)\expand_path.obj	    	    \
+	$(OBJ)\fcache.obj		    \
+	$(OBJ)\free.obj			    \
+	$(OBJ)\free_host_realm.obj	    \
+	$(OBJ)\generate_seq_number.obj	    \
+	$(OBJ)\generate_subkey.obj	    \
+	$(OBJ)\get_addrs.obj		    \
+	$(OBJ)\get_cred.obj		    \
+	$(OBJ)\get_default_principal.obj    \
+	$(OBJ)\get_default_realm.obj	    \
+	$(OBJ)\get_for_creds.obj	    \
+	$(OBJ)\get_host_realm.obj	    \
+	$(OBJ)\get_in_tkt.obj		    \
+	$(OBJ)\get_port.obj		    \
+	$(OBJ)\init_creds.obj		    \
+	$(OBJ)\init_creds_pw.obj	    \
+	$(OBJ)\kcm.obj			    \
+	$(OBJ)\keyblock.obj		    \
+	$(OBJ)\keytab.obj		    \
+	$(OBJ)\keytab_any.obj		    \
+	$(OBJ)\keytab_file.obj		    \
+	$(OBJ)\keytab_keyfile.obj	    \
+	$(OBJ)\keytab_memory.obj	    \
+	$(OBJ)\krbhst.obj		    \
+	$(OBJ)\kuserok.obj		    \
+	$(OBJ)\log.obj			    \
+	$(OBJ)\mcache.obj		    \
+	$(OBJ)\misc.obj			    \
+	$(OBJ)\mit_glue.obj		    \
+	$(OBJ)\mk_error.obj		    \
+	$(OBJ)\mk_priv.obj		    \
+	$(OBJ)\mk_rep.obj		    \
+	$(OBJ)\mk_req.obj		    \
+	$(OBJ)\mk_req_ext.obj		    \
+	$(OBJ)\mk_safe.obj		    \
+	$(OBJ)\net_read.obj		    \
+	$(OBJ)\net_write.obj		    \
+	$(OBJ)\n-fold.obj		    \
+	$(OBJ)\pac.obj			    \
+	$(OBJ)\padata.obj		    \
+	$(OBJ)\pkinit.obj		    \
+	$(OBJ)\principal.obj		    \
+	$(OBJ)\prog_setup.obj		    \
+	$(OBJ)\prompter_posix.obj	    \
+	$(OBJ)\rd_cred.obj		    \
+	$(OBJ)\rd_error.obj		    \
+	$(OBJ)\rd_priv.obj		    \
+	$(OBJ)\rd_rep.obj		    \
+	$(OBJ)\rd_req.obj		    \
+	$(OBJ)\rd_safe.obj		    \
+	$(OBJ)\read_message.obj		    \
+	$(OBJ)\recvauth.obj		    \
+	$(OBJ)\replay.obj		    \
+	$(OBJ)\salt-aes.obj		    \
+	$(OBJ)\salt-arcfour.obj		    \
+	$(OBJ)\salt-des.obj		    \
+	$(OBJ)\salt-des3.obj		    \
+	$(OBJ)\salt.obj			    \
+	$(OBJ)\scache.obj		    \
+	$(OBJ)\send_to_kdc.obj		    \
+	$(OBJ)\sendauth.obj		    \
+	$(OBJ)\set_default_realm.obj	    \
+	$(OBJ)\sock_principal.obj	    \
+	$(OBJ)\store.obj		    \
+	$(OBJ)\store-int.obj		    \
+	$(OBJ)\store_emem.obj		    \
+	$(OBJ)\store_fd.obj		    \
+	$(OBJ)\store_mem.obj		    \
+	$(OBJ)\pcache.obj		    \
+	$(OBJ)\plugin.obj		    \
+	$(OBJ)\ticket.obj		    \
+	$(OBJ)\time.obj			    \
+	$(OBJ)\transited.obj		    \
+	$(OBJ)\verify_init.obj		    \
+	$(OBJ)\verify_user.obj		    \
+	$(OBJ)\version.obj		    \
+	$(OBJ)\warn.obj			    \
+	$(OBJ)\write_message.obj
+
+libkrb5_gen_OBJS=	    \
+	$(OBJ)\krb5_err.obj \
+	$(OBJ)\krb_err.obj  \
+	$(OBJ)\heim_err.obj \
+	$(OBJ)\k524_err.obj
+
+INCFILES=			\
+	$(INCDIR)\heim_err.h	\
+	$(INCDIR)\k524_err.h	\
+        $(INCDIR)\kcm.h         \
+	$(INCDIR)\krb_err.h	\
+	$(INCDIR)\krb5.h	\
+	$(INCDIR)\krb5_ccapi.h	\
+	$(INCDIR)\krb5_err.h	\
+	$(INCDIR)\krb5_locl.h	\
+	$(INCDIR)\krb5-protos.h	\
+	$(INCDIR)\krb5-private.h	\
+	$(INCDIR)\krb5-v4compat.h	\
+	$(INCDIR)\crypto.h
+
+all:: $(INCFILES)
+
+clean::
+	-$(RM) $(INCFILES)
+
+dist_libkrb5_la_SOURCES =			\
+	acache.c				\
+	acl.c					\
+	add_et_list.c				\
+	addr_families.c				\
+	aname_to_localname.c			\
+	appdefault.c				\
+	asn1_glue.c				\
+	auth_context.c				\
+	build_ap_req.c				\
+	build_auth.c				\
+	cache.c					\
+	changepw.c				\
+	codec.c					\
+	config_file.c				\
+	config_reg.c				\
+	constants.c				\
+	context.c				\
+	copy_host_realm.c			\
+	crc.c					\
+	creds.c					\
+	crypto.c				\
+	crypto.h				\
+	crypto-aes.c				\
+	crypto-algs.c				\
+	crypto-arcfour.c			\
+	crypto-des.c				\
+	crypto-des-common.c			\
+	crypto-des3.c				\
+	crypto-evp.c				\
+	crypto-pk.c				\
+	crypto-rand.c				\
+	doxygen.c				\
+	data.c					\
+	deprecated.c				\
+	digest.c				\
+	eai_to_heim_errno.c			\
+	error_string.c				\
+	expand_hostname.c			\
+	expand_path.c				\
+	fcache.c				\
+	free.c					\
+	free_host_realm.c			\
+	generate_seq_number.c			\
+	generate_subkey.c			\
+	get_addrs.c				\
+	get_cred.c				\
+	get_default_principal.c			\
+	get_default_realm.c			\
+	get_for_creds.c				\
+	get_host_realm.c			\
+	get_in_tkt.c				\
+	get_port.c				\
+	init_creds.c				\
+	init_creds_pw.c				\
+	kcm.c					\
+	kcm.h					\
+	keyblock.c				\
+	keytab.c				\
+	keytab_any.c				\
+	keytab_file.c				\
+	keytab_keyfile.c			\
+	keytab_memory.c				\
+	krb5_locl.h				\
+	krb5-v4compat.h				\
+	krbhst.c				\
+	kuserok.c				\
+	log.c					\
+	mcache.c				\
+	misc.c					\
+	mk_error.c				\
+	mk_priv.c				\
+	mk_rep.c				\
+	mk_req.c				\
+	mk_req_ext.c				\
+	mk_safe.c				\
+	mit_glue.c				\
+	net_read.c				\
+	net_write.c				\
+	n-fold.c				\
+	pac.c					\
+	padata.c				\
+	pkinit.c				\
+	principal.c				\
+	prog_setup.c				\
+	prompter_posix.c			\
+	rd_cred.c				\
+	rd_error.c				\
+	rd_priv.c				\
+	rd_rep.c				\
+	rd_req.c				\
+	rd_safe.c				\
+	read_message.c				\
+	recvauth.c				\
+	replay.c				\
+	salt.c					\
+	salt-aes.c				\
+	salt-arcfour.c				\
+	salt-des.c				\
+	salt-des3.c				\
+	scache.c				\
+	send_to_kdc.c				\
+	sendauth.c				\
+	set_default_realm.c			\
+	sock_principal.c			\
+	store.c					\
+	store-int.c				\
+	store-int.h				\
+	store_emem.c				\
+	store_fd.c				\
+	store_mem.c				\
+	pcache.c				\
+	plugin.c				\
+	ticket.c				\
+	time.c					\
+	transited.c				\
+	verify_init.c				\
+	verify_user.c				\
+	version.c				\
+	warn.c					\
+	write_message.c
+
+$(OBJ)\krb5-protos.h: $(dist_libkrb5_la_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl -E KRB5_LIB -q -P remove -o $(OBJ)\krb5-protos.h $(dist_libkrb5_la_SOURCES) || $(RM) -f $(OBJ)\krb5-protos.h
+
+$(OBJ)\krb5-private.h: $(dist_libkrb5_la_SOURCES)
+	$(PERL) ..\..\cf\make-proto.pl -q -P remove -p $(OBJ)\krb5-private.h $(dist_libkrb5_la_SOURCES) || $(RM) -f $(OBJ)\krb5-private.h
+
+$(OBJ)\krb5_err.c $(OBJ)\krb5_err.h: krb5_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\krb5_err.et
+	cd $(SRCDIR)
+
+$(OBJ)\krb_err.c $(OBJ)\krb_err.h: krb_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\krb_err.et
+	cd $(SRCDIR)
+
+$(OBJ)\heim_err.c $(OBJ)\heim_err.h: heim_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\heim_err.et
+	cd $(SRCDIR)
+
+$(OBJ)\k524_err.c $(OBJ)\k524_err.h: k524_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\k524_err.et
+	cd $(SRCDIR)
+
+#----------------------------------------------------------------------
+# libkrb5
+
+$(LIBKRB5): $(libkrb5_OBJS) $(libkrb5_gen_OBJS)
+	$(LIBCON)
+
+all:: $(LIBKRB5)
+
+clean::
+	-$(RM) $(LIBKRB5)
+
+$(OBJ)\libkrb5-exports.def: libkrb5-exports.def.in $(INCDIR)\config.h
+	$(CPREPROCESSOUT) libkrb5-exports.def.in > $@ || $(RM) $@
+
+all:: $(OBJ)\libkrb5-exports.def
+
+clean::
+	-$(RM) $(OBJ)\libkrb5-exports.def
+
+#----------------------------------------------------------------------
+# librfc3961
+
+librfc3961_OBJS=\
+	$(OBJ)\crc.obj			\
+	$(OBJ)\crypto.obj		\
+	$(OBJ)\crypto-aes.obj		\
+	$(OBJ)\crypto-algs.obj		\
+	$(OBJ)\crypto-arcfour.obj	\
+	$(OBJ)\crypto-des.obj		\
+	$(OBJ)\crypto-des-common.obj	\
+	$(OBJ)\crypto-des3.obj		\
+	$(OBJ)\crypto-evp.obj		\
+	$(OBJ)\crypto-null.obj		\
+	$(OBJ)\crypto-pk.obj		\
+	$(OBJ)\crypto-rand.obj		\
+	$(OBJ)\crypto-stubs.obj		\
+	$(OBJ)\data.obj			\
+	$(OBJ)\error_string.obj		\
+	$(OBJ)\keyblock.obj		\
+	$(OBJ)\n-fold.obj		\
+	$(OBJ)\salt.obj			\
+	$(OBJ)\salt-aes.obj		\
+	$(OBJ)\salt-arcfour.obj		\
+	$(OBJ)\salt-des.obj		\
+	$(OBJ)\salt-des3.obj		\
+	$(OBJ)\store-int.obj		\
+	$(OBJ)\warn.obj
+
+$(LIBRFC3961): $(librfc3961_OBJS)
+	$(LIBCON)
+
+all:: $(LIBRFC3961)
+
+clean::
+	-$(RM) $(LIBRFC3961)
+
+#----------------------------------------------------------------------
+# Tools
+
+all-tools:: $(BINDIR)\verify_krb5_conf.exe
+
+clean::
+	-$(RM) $(BINDIR)\verify_krb5_conf.*
+
+$(BINDIR)\verify_krb5_conf.exe: $(OBJ)\verify_krb5_conf.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS) $(OBJ)\verify_krb5_conf-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -DBUILD_KRB5_LIB -DASN1_LIB
+
+{$(OBJ)}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -DBUILD_KRB5_LIB -DASN1_LIB
+
+#----------------------------------------------------------------------
+# Tests
+
+test:: test-binaries test-files test-run
+
+test_binaries =				\
+	$(OBJ)\aes-test.exe		\
+	$(OBJ)\derived-key-test.exe	\
+	$(OBJ)\krbhst-test.exe		\
+	$(OBJ)\n-fold-test.exe		\
+	$(OBJ)\parse-name-test.exe	\
+	$(OBJ)\store-test.exe		\
+	$(OBJ)\string-to-key-test.exe	\
+	$(OBJ)\test_acl.exe		\
+	$(OBJ)\test_addr.exe		\
+	$(OBJ)\test_alname.exe		\
+	$(OBJ)\test_cc.exe		\
+	$(OBJ)\test_config.exe		\
+	$(OBJ)\test_crypto.exe		\
+	$(OBJ)\test_crypto_wrapping.exe	\
+	$(OBJ)\test_forward.exe		\
+	$(OBJ)\test_get_addrs.exe	\
+	$(OBJ)\test_hostname.exe	\
+	$(OBJ)\test_keytab.exe		\
+	$(OBJ)\test_kuserok.exe		\
+	$(OBJ)\test_mem.exe		\
+	$(OBJ)\test_pac.exe		\
+	$(OBJ)\test_pkinit_dh2key.exe	\
+	$(OBJ)\test_pknistkdf.exe	\
+	$(OBJ)\test_plugin.exe		\
+	$(OBJ)\test_prf.exe		\
+	$(OBJ)\test_princ.exe		\
+	$(OBJ)\test_renew.exe		\
+	$(OBJ)\test_rfc3961.exe		\
+	$(OBJ)\test_store.exe		\
+	$(OBJ)\test_time.exe		\
+
+test-binaries: $(test_binaries)
+
+test-files: $(OBJ)\test_config_strings.out
+
+$(OBJ)\test_config_strings.out: test_config_strings.cfg
+	$(CP) $** $@
+
+test-run:
+	cd $(OBJ)
+	aes-test.exe
+	derived-key-test.exe
+	n-fold-test.exe
+	parse-name-test.exe
+	store-test.exe
+	string-to-key-test.exe
+	test_acl.exe
+	test_addr.exe
+	test_cc.exe
+	test_config.exe
+	test_prf.exe
+	test_store.exe
+	test_crypto.exe
+	test_crypto_wrapping.exe
+	test_keytab.exe
+	test_mem.exe
+	test_pac.exe
+	test_plugin.exe
+	test_princ.exe
+	test_pkinit_dh2key.exe
+	test_pknistkdf.exe
+	test_time.exe
+	cd $(SRCDIR)
+
+$(test_binaries): $$(@R).obj $(LIBHEIMDAL) $(LIBVERS) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_rfc3961.exe: $(OBJ)\test_rfc3961.obj $(LIBRFC3961) $(LIBHEIMDAL) $(LIBVERS) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(test_binaries:.exe=.obj): $$(@B).c
+	$(C2OBJ_C) -Fo$@ -Fd$(@D)\ $** -DBlah
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libkrb5-exports.def.in
+
+test:: test-exports

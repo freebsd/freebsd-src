@@ -1,0 +1,70 @@
+
+KRB5_SET_DEFAULT_REAL... BSD Library Functions Manual KRB5_SET_DEFAULT_REAL...
+
+NNAAMMEE
+     kkrrbb55__ccooppyy__hhoosstt__rreeaallmm, kkrrbb55__ffrreeee__hhoosstt__rreeaallmm, kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmm,
+     kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmmss, kkrrbb55__ggeett__hhoosstt__rreeaallmm, kkrrbb55__sseett__ddeeffaauulltt__rreeaallmm --
+     default and host realm read and manipulation routines
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccooppyy__hhoosstt__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___r_e_a_l_m _*_f_r_o_m,
+         _k_r_b_5___r_e_a_l_m _*_*_t_o);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffrreeee__hhoosstt__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmmss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_e_a_l_m _*_*_r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__hhoosstt__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_h_o_s_t,
+         _k_r_b_5___r_e_a_l_m _*_*_r_e_a_l_m_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__sseett__ddeeffaauulltt__rreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ccooppyy__hhoosstt__rreeaallmm() copies the list of realms from _f_r_o_m to _t_o.  _t_o
+     should be freed by the caller using _k_r_b_5___f_r_e_e___h_o_s_t___r_e_a_l_m.
+
+     kkrrbb55__ffrreeee__hhoosstt__rreeaallmm() frees all memory allocated by _r_e_a_l_m_l_i_s_t.
+
+     kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmm() returns the first default realm for this host.
+     The realm returned should be freed with ffrreeee().
+
+     kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmmss() returns a NULL terminated list of default
+     realms for this context.  Realms returned by kkrrbb55__ggeett__ddeeffaauulltt__rreeaallmmss()
+     should be freed with kkrrbb55__ffrreeee__hhoosstt__rreeaallmm().
+
+     kkrrbb55__ggeett__hhoosstt__rreeaallmm() returns a NULL terminated list of realms for _h_o_s_t
+     by looking up the information in the [domain_realm] in _k_r_b_5_._c_o_n_f or in
+     DNS.  If the mapping in [domain_realm] results in the string dns_locate,
+     DNS is used to lookup the realm.
+
+     When using DNS to a resolve the domain for the host a.b.c,
+     kkrrbb55__ggeett__hhoosstt__rreeaallmm() looks for a TXT resource record named
+     _kerberos.a.b.c, and if not found, it strips off the first component and
+     tries a again (_kerberos.b.c) until it reaches the root.
+
+     If there is no configuration or DNS information found,
+     kkrrbb55__ggeett__hhoosstt__rreeaallmm() assumes it can use the domain part of the _h_o_s_t to
+     form a realm.  Caller must free _r_e_a_l_m_l_i_s_t with kkrrbb55__ffrreeee__hhoosstt__rreeaallmm().
+
+     kkrrbb55__sseett__ddeeffaauulltt__rreeaallmm() sets the default realm for the _c_o_n_t_e_x_t.  If NULL
+     is used as a _r_e_a_l_m, the [libdefaults]default_realm stanza in _k_r_b_5_._c_o_n_f is
+     used.  If there is no such stanza in the configuration file, the
+     kkrrbb55__ggeett__hhoosstt__rreeaallmm() function is used to form a default realm.
+
+SSEEEE AALLSSOO
+     free(3), krb5.conf(5)
+
+HEIMDAL                         April 24, 2005                         HEIMDAL

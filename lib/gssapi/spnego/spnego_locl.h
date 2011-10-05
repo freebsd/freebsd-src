@@ -30,14 +30,12 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: spnego_locl.h 19411 2006-12-18 15:42:03Z lha $ */
+/* $Id$ */
 
 #ifndef SPNEGO_LOCL_H
 #define SPNEGO_LOCL_H
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -46,12 +44,15 @@
 #include <sys/param.h>
 #endif
 
+#include <roken.h>
+
 #ifdef HAVE_PTHREAD_H
 #include <pthread.h>
 #endif
 
-#include <gssapi/gssapi_spnego.h>
 #include <gssapi.h>
+#include <gssapi_krb5.h>
+#include <gssapi_spnego.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,16 +68,12 @@
 #include <gssapi_mech.h>
 
 #include "spnego_asn1.h"
-#include "mech/utils.h"
+#include "utils.h"
 #include <der.h>
 
-#include <roken.h>
+#include <heimbase.h>
 
 #define ALLOC(X, N) (X) = calloc((N), sizeof(*(X)))
-
-typedef struct {
-	gss_cred_id_t		negotiated_cred_id;
-} *gssspnego_cred;
 
 typedef struct {
 	MechTypeList		initiator_mech_types;
@@ -86,7 +83,6 @@ typedef struct {
 	OM_uint32		mech_flags;
 	OM_uint32		mech_time_rec;
 	gss_name_t		mech_src_name;
-	gss_cred_id_t		delegated_cred_id;
 	unsigned int		open : 1;
 	unsigned int		local : 1;
 	unsigned int		require_mic : 1;
@@ -110,6 +106,6 @@ typedef struct {
 extern gss_OID_desc _gss_spnego_mskrb_mechanism_oid_desc;
 extern gss_OID_desc _gss_spnego_krb5_mechanism_oid_desc;
 
-#include <spnego/spnego-private.h>
+#include <spnego-private.h>
 
 #endif /* SPNEGO_LOCL_H */

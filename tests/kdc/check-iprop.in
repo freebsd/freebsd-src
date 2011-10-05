@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,16 +30,16 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id$
-#
 
-srcdir="@srcdir@"
+top_builddir="@top_builddir@"
+env_setup="@env_setup@"
 objdir="@objdir@"
-EGREP="@EGREP@"
+
+. ${env_setup}
 
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
+
 
 # Dont run this test in AFS, since it lacks support for AF_UNIX
 expr "X`/bin/pwd || pwd`" : "X/afs/.*" > /dev/null 2>/dev/null && exit 77
@@ -52,13 +52,9 @@ cache="FILE:${objdir}/cache.krb5"
 keytabfile=${objdir}/iprop.keytab
 keytab="FILE:${keytabfile}"
 
-kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
-kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -r $R"
-ipropdslave="${TESTS_ENVIRONMENT} ../../lib/kadm5/ipropd-slave"
-ipropdmaster="${TESTS_ENVIRONMENT} ../../lib/kadm5/ipropd-master"
-iproplog="${TESTS_ENVIRONMENT} ../../lib/kadm5/iprop-log"
-
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
+kdc="${kdc} --addresses=localhost -P $port"
+kadmin="${kadmin} -r $R"
+kinit="${kinit} -c $cache ${afs_no_afslog}"
 
 KRB5_CONFIG="${objdir}/krb5.conf"
 export KRB5_CONFIG
@@ -83,8 +79,8 @@ ${kadmin} -l add -p foo --use-defaults user@${R} || exit 1
 
 ${kadmin} -l add --random-key --use-defaults iprop/localhost@${R} || exit 1
 ${kadmin} -l ext -k ${keytab} iprop/localhost@${R} || exit 1
-${kadmin} -l add --random-key --use-defaults iprop/slave@${R} || exit 1
-${kadmin} -l ext -k ${keytab} iprop/slave@${R} || exit 1
+${kadmin} -l add --random-key --use-defaults iprop/slave.test.h5l.se@${R} || exit 1
+${kadmin} -l ext -k ${keytab} iprop/slave.test.h5l.se@${R} || exit 1
 
 echo foo > ${objdir}/foopassword
 
@@ -94,28 +90,30 @@ ipdm=
 kdcpid=
 
 > iprop-stats
-trap "echo 'killing ipropd s + m + kdc'; kill \${ipdm} \${ipds} \${kdcpid} >/dev/null 2>/dev/null; tail messages.log ; tail iprop-stats; exit 1;" EXIT
+trap "echo 'killing ipropd s + m + kdc'; kill -9 \${ipdm} \${ipds} \${kdcpid} >/dev/null 2>/dev/null; tail messages.log ; tail iprop-stats; exit 1;" EXIT
 
 echo Starting kdc
 ${kdc} &
 kdcpid=$!
 
-sh ${srcdir}/wait-kdc.sh || exit 1
+sh ${wait_kdc} || exit 1
 
 echo "starting master"
-${ipropdmaster} --hostname=localhost -k ${keytab} \
+env ${HEIM_MALLOC_DEBUG} \
+${ipropd_master} --hostname=localhost -k ${keytab} \
     --database=${objdir}/current-db &
 ipdm=$!
-sh ${srcdir}/wait-kdc.sh ipropd-master || exit 1
+sh ${wait_kdc} ipropd-master || exit 1
 
 echo "starting slave"
+env ${HEIM_MALLOC_DEBUG} \
 KRB5_CONFIG="${objdir}/krb5-slave.conf" \
-${ipropdslave} --hostname=slave -k ${keytab} localhost &
+${ipropd_slave} --hostname=slave.test.h5l.se -k ${keytab} localhost &
 ipds=$!
-sh ${srcdir}/wait-kdc.sh ipropd-slave || exit 1
+sh ${wait_kdc} ipropd-slave || exit 1
 
 echo "checking slave is up"
-${EGREP} 'iprop/slave@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
+${EGREP} 'iprop/slave.test.h5l.se@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
 
 # ----------------- checking: pushing lives changes
 
@@ -141,10 +139,10 @@ ${kadmin} -l get host/bar@${R} > /dev/null 2>/dev/null && exit 1
 
 echo "kill slave"
 > iprop-stats
-kill ${ipds}
+sh ${leaks_kill} ipropd-slave $ipds || exit 1
 sleep 2
 
-${EGREP} 'iprop/slave@TEST.H5L.SE.*Down' iprop-stats >/dev/null || exit 1
+${EGREP} 'iprop/slave.test.h5l.se@TEST.H5L.SE.*Down' iprop-stats >/dev/null || exit 1
 
 # ----------------- checking: slave is missing changes while down
 
@@ -160,30 +158,32 @@ cp ${objdir}/current.log ${objdir}/current.log.tmp
 echo "starting slave again"
 > iprop-stats
 > messages.log
+env ${HEIM_MALLOC_DEBUG} \
 KRB5_CONFIG="${objdir}/krb5-slave.conf" \
-${ipropdslave} --hostname=slave -k ${keytab} localhost &
+${ipropd_slave} --hostname=slave.test.h5l.se -k ${keytab} localhost &
 ipds=$!
-sh ${srcdir}/wait-kdc.sh ipropd-slave || exit 1
+sh ${wait_kdc} ipropd-slave || exit 1
 
 echo "checking slave is up again"
-${EGREP} 'iprop/slave@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
+${EGREP} 'iprop/slave.test.h5l.se@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
 echo "checking for replay problems"
 ${EGREP} 'Entry already exists in database' messages.log && exit 1
 
 echo "kill slave and remove log and database"
-kill ${ipds}
+sh ${leaks_kill} ipropd-slave $ipds || exit 1
 sleep 2
 
 rm current.slave.log current-db.slave* || exit 1
 > iprop-stats
 > messages.log
+env ${HEIM_MALLOC_DEBUG} \
 KRB5_CONFIG="${objdir}/krb5-slave.conf" \
-${ipropdslave} --hostname=slave -k ${keytab} localhost &
+${ipropd_slave} --hostname=slave.test.h5l.se -k ${keytab} localhost &
 ipds=$!
-sh ${srcdir}/wait-kdc.sh ipropd-slave || exit 1
+sh ${wait_kdc} ipropd-slave || exit 1
 
 echo "checking slave is up again"
-${EGREP} 'iprop/slave@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
+${EGREP} 'iprop/slave.test.h5l.se@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
 echo "checking for replay problems"
 ${EGREP} 'Entry already exists in database' messages.log && exit 1
 
@@ -193,19 +193,20 @@ ${kadmin} -l cpw --random-password user@${R} > /dev/null || exit 1
 sleep 2
 
 echo "live truncate on master log"
-${iproplog} truncate || exit 1
+${iprop_log} truncate || exit 1
 sleep 2
 
 echo "Killing master and slave"
-kill ${ipdm} ${ipds} >/dev/null 2>/dev/null
+sh ${leaks_kill} ipropd-master $ipdm || exit 1
+sh ${leaks_kill} ipropd-slave $ipds || exit 1
 
-sleep 2
-${EGREP} "^master down at " iprop-stats > /dev/null || exit 1
+#sleep 2
+#${EGREP} "^master down at " iprop-stats > /dev/null || exit 1
 
 echo "compare versions on master and slave logs"
 KRB5_CONFIG=${objdir}/krb5-slave.conf \
-${iproplog} last-version > slave-last.tmp
-${iproplog} last-version > master-last.tmp
+${iprop_log} last-version > slave-last.tmp
+${iprop_log} last-version > master-last.tmp
 cmp master-last.tmp slave-last.tmp || exit 1
 
 # ----------------- checking: master going backward
@@ -216,19 +217,21 @@ echo "Going back to old version of the master log file"
 cp ${objdir}/current.log.tmp ${objdir}/current.log
 
 echo "starting master"
-${ipropdmaster} --hostname=localhost -k ${keytab} \
+env ${HEIM_MALLOC_DEBUG} \
+${ipropd_master} --hostname=localhost -k ${keytab} \
     --database=${objdir}/current-db &
 ipdm=$!
-sh ${srcdir}/wait-kdc.sh ipropd-master || exit 1
+sh ${wait_kdc} ipropd-master || exit 1
 
 echo "starting slave"
+env ${HEIM_MALLOC_DEBUG} \
 KRB5_CONFIG="${objdir}/krb5-slave.conf" \
-${ipropdslave} --hostname=slave -k ${keytab} localhost &
+${ipropd_slave} --hostname=slave.test.h5l.se -k ${keytab} localhost &
 ipds=$!
-sh ${srcdir}/wait-kdc.sh ipropd-slave || exit 1
+sh ${wait_kdc} ipropd-slave || exit 1
 
 echo "checking slave is up again"
-${EGREP} 'iprop/slave@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
+${EGREP} 'iprop/slave.test.h5l.se@TEST.H5L.SE.*Up' iprop-stats >/dev/null || exit 1
 echo "checking for replay problems"
 ${EGREP} 'Entry already exists in database' messages.log && exit 1
 
@@ -236,13 +239,50 @@ echo "pushing one change"
 ${kadmin} -l cpw --random-password user@${R} > /dev/null || exit 1
 sleep 2
 
+echo "Killing master"
+sh ${leaks_kill} ipropd-master $ipdm || exit 1
+
+sleep 4
+
+if ! tail -30 messages.log | grep 'disconnected for server' > /dev/null; then
+    echo "client didnt disconnect"
+    exit 1
+fi
+
+echo "probing for slave pid"
+kill -0 ${ipds}  || { echo "slave no longer there"; exit 1; }
+
+> messages.log
+
+echo "Staring master again"
+env ${HEIM_MALLOC_DEBUG} \
+${ipropd_master} --hostname=localhost -k ${keytab} \
+    --database=${objdir}/current-db &
+ipdm=$!
+sh ${wait_kdc} ipropd-master || exit 1
+
+echo "probing for slave pid"
+kill -0 ${ipds}  || { echo "slave no longer there"; exit 1; }
+
+sh ${wait_kdc} ipropd-slave messages.log "connection successful to master" || exit 1
+
+sh ${wait_kdc} ipropd-slave messages.log "ipropd-slave started at version" || exit 1
+
+echo "pushing one change"
+${kadmin} -l cpw --random-password user@${R} > /dev/null || exit 1
+sleep 2
+
+echo "shutting down all services"
+
 trap "" EXIT
-kill ${ipdm} ${ipds} ${kdcpid}
+sh ${leaks_kill} kdc $kdcpid || exit 1
+sh ${leaks_kill} ipropd-master $ipdm || exit 1
+sh ${leaks_kill} ipropd-slave $ipds || exit 1
 
 echo "compare versions on master and slave logs"
 KRB5_CONFIG=${objdir}/krb5-slave.conf \
-${iproplog} last-version > slave-last.tmp
-${iproplog} last-version > master-last.tmp
+${iprop_log} last-version > slave-last.tmp
+${iprop_log} last-version > master-last.tmp
 cmp master-last.tmp slave-last.tmp || exit 1
 
 exit $ec

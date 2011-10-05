@@ -1,0 +1,142 @@
+
+KRB5_C_MAKE_CHECKSUM(3)  BSD Library Functions Manual  KRB5_C_MAKE_CHECKSUM(3)
+
+NNAAMMEE
+     kkrrbb55__cc__bblloocckk__ssiizzee, kkrrbb55__cc__ddeeccrryypptt, kkrrbb55__cc__eennccrryypptt, kkrrbb55__cc__eennccrryypptt__lleennggtthh,
+     kkrrbb55__cc__eennccttyyppee__ccoommppaarree, kkrrbb55__cc__ggeett__cchheecckkssuumm, kkrrbb55__cc__iiss__ccoollll__pprrooooff__cckkssuumm,
+     kkrrbb55__cc__iiss__kkeeyyeedd__cckkssuumm, kkrrbb55__cc__kkeeyylleennggtthh, kkrrbb55__cc__mmaakkee__cchheecckkssuumm,
+     kkrrbb55__cc__mmaakkee__rraannddoomm__kkeeyy, kkrrbb55__cc__sseett__cchheecckkssuumm, kkrrbb55__cc__vvaalliidd__cckkssuummttyyppee,
+     kkrrbb55__cc__vvaalliidd__eennccttyyppee, kkrrbb55__cc__vveerriiffyy__cchheecckkssuumm, kkrrbb55__cc__cchheecckkssuumm__lleennggtthh --
+     Kerberos 5 crypto API
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__bblloocckk__ssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _s_i_z_e___t _*_b_l_o_c_k_s_i_z_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__ddeeccrryypptt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___k_e_y_b_l_o_c_k _k_e_y,
+         _k_r_b_5___k_e_y_u_s_a_g_e _u_s_a_g_e, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_i_v_e_c, _k_r_b_5___e_n_c___d_a_t_a _*_i_n_p_u_t,
+         _k_r_b_5___d_a_t_a _*_o_u_t_p_u_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__eennccrryypptt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y,
+         _k_r_b_5___k_e_y_u_s_a_g_e _u_s_a_g_e, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_i_v_e_c, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_i_n_p_u_t,
+         _k_r_b_5___e_n_c___d_a_t_a _*_o_u_t_p_u_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__eennccrryypptt__lleennggtthh(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _s_i_z_e___t _i_n_p_u_t_l_e_n, _s_i_z_e___t _*_l_e_n_g_t_h);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__eennccttyyppee__ccoommppaarree(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_1,
+         _k_r_b_5___e_n_c_t_y_p_e _e_2, _k_r_b_5___b_o_o_l_e_a_n _*_s_i_m_i_l_a_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__mmaakkee__rraannddoomm__kkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _k_r_b_5___k_e_y_b_l_o_c_k _*_r_a_n_d_o_m___k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__mmaakkee__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _c_k_s_u_m_t_y_p_e,
+         _c_o_n_s_t _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y, _k_r_b_5___k_e_y_u_s_a_g_e _u_s_a_g_e,
+         _c_o_n_s_t _k_r_b_5___d_a_t_a _*_i_n_p_u_t, _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__vveerriiffyy__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y,
+         _k_r_b_5___k_e_y_u_s_a_g_e _u_s_a_g_e, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_d_a_t_a,
+         _c_o_n_s_t _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m, _k_r_b_5___b_o_o_l_e_a_n _*_v_a_l_i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__cchheecckkssuumm__lleennggtthh(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_k_s_u_m_t_y_p_e _c_k_s_u_m_t_y_p_e,
+         _s_i_z_e___t _*_l_e_n_g_t_h);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__ggeett__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m,
+         _k_r_b_5___c_k_s_u_m_t_y_p_e _*_t_y_p_e, _k_r_b_5___d_a_t_a _*_*_d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__sseett__cchheecckkssuumm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_h_e_c_k_s_u_m _*_c_k_s_u_m,
+         _k_r_b_5___c_k_s_u_m_t_y_p_e _t_y_p_e, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_d_a_t_a);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cc__vvaalliidd__eennccttyyppee(_k_r_b_5___e_n_c_t_y_p_e, _e_t_y_p_e_");
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cc__vvaalliidd__cckkssuummttyyppee(_k_r_b_5___c_k_s_u_m_t_y_p_e _c_t_y_p_e);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cc__iiss__ccoollll__pprrooooff__cckkssuumm(_k_r_b_5___c_k_s_u_m_t_y_p_e _c_t_y_p_e);
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__cc__iiss__kkeeyyeedd__cckkssuumm(_k_r_b_5___c_k_s_u_m_t_y_p_e _c_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cc__kkeeyylleennggtthhss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _s_i_z_e___t _*_i_n_l_e_n_g_t_h, _s_i_z_e___t _*_k_e_y_l_e_n_g_t_h);
+
+DDEESSCCRRIIPPTTIIOONN
+     The functions starting with krb5_c are compat functions with MIT ker-
+     beros.
+
+     The krb5_enc_data structure holds and encrypted data.  There are two pub-
+     lic accessable members of krb5_enc_data.  enctype that holds the encryp-
+     tion type of the data encrypted and ciphertext that is a _k_r_b_5___d_a_t_a that
+     might contain the encrypted data.
+
+     kkrrbb55__cc__bblloocckk__ssiizzee() returns the blocksize of the encryption type.
+
+     kkrrbb55__cc__ddeeccrryypptt() decrypts _i_n_p_u_t and store the data in _o_u_t_p_u_t_. If _i_v_e_c is
+     NULL the default initialization vector for that encryption type will be
+     used.
+
+     kkrrbb55__cc__eennccrryypptt() encrypts the plaintext in _i_n_p_u_t and store the ciphertext
+     in _o_u_t_p_u_t.
+
+     kkrrbb55__cc__eennccrryypptt__lleennggtthh() returns the length the encrypted data given the
+     plaintext length.
+
+     kkrrbb55__cc__eennccttyyppee__ccoommppaarree() compares to encryption types and returns if they
+     use compatible encryption key types.
+
+     kkrrbb55__cc__mmaakkee__cchheecckkssuumm() creates a checksum _c_k_s_u_m with the checksum type
+     _c_k_s_u_m_t_y_p_e of the data in _d_a_t_a.  _k_e_y and _u_s_a_g_e are used if the checksum is
+     a keyed checksum type.  Returns 0 or an error code.
+
+     kkrrbb55__cc__vveerriiffyy__cchheecckkssuumm() verifies the checksum of _d_a_t_a in _c_k_s_u_m that was
+     created with _k_e_y using the key usage _u_s_a_g_e.  _v_e_r_i_f_y is set to non-zero if
+     the checksum verifies correctly and zero if not.  Returns 0 or an error
+     code.
+
+     kkrrbb55__cc__cchheecckkssuumm__lleennggtthh() returns the length of the checksum.
+
+     kkrrbb55__cc__sseett__cchheecckkssuumm() sets the krb5_checksum structure given _t_y_p_e and
+     _d_a_t_a.  The content of _c_k_s_u_m should be freeed with
+     kkrrbb55__cc__ffrreeee__cchheecckkssuumm__ccoonntteennttss().
+
+     kkrrbb55__cc__ggeett__cchheecckkssuumm() retrieves the components of the krb5_checksum.
+     structure.  _d_a_t_a should be free with kkrrbb55__ffrreeee__ddaattaa().  If some either of
+     _d_a_t_a or _c_h_e_c_k_s_u_m is not needed for the application, NULL can be passed
+     in.
+
+     kkrrbb55__cc__vvaalliidd__eennccttyyppee() returns true if _e_t_y_p_e is a valid encryption type.
+
+     kkrrbb55__cc__vvaalliidd__cckkssuummttyyppee() returns true if _c_t_y_p_e is a valid checksum type.
+
+     kkrrbb55__cc__iiss__kkeeyyeedd__cckkssuumm() return true if _c_t_y_p_e is a keyed checksum type.
+
+     kkrrbb55__cc__iiss__ccoollll__pprrooooff__cckkssuumm() returns true if _c_t_y_p_e is a collision proof
+     checksum type.
+
+     kkrrbb55__cc__kkeeyylleennggtthhss() return the minimum length (_i_n_l_e_n_g_t_h) bytes needed to
+     create a key and the length (_k_e_y_l_e_n_g_t_h) of the resulting key for the
+     _e_n_c_t_y_p_e.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_create_checksum(3), krb5_free_data(3), kerberos(8)
+
+HEIMDAL                          Nov 17, 2006                          HEIMDAL

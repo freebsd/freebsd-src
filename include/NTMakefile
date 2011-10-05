@@ -1,0 +1,118 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=include
+
+SUBDIRS=kadm5 hcrypto gssapi
+
+!include ../windows/NTMakefile.w32
+!include ../windows/NTMakefile.config
+
+INCFILES=			\
+	$(INCDIR)\config.h	\
+	$(INCDIR)\crypto-headers.h	\
+	$(INCDIR)\heim_threads.h	\
+	$(INCDIR)\krb5-types.h	\
+	$(INCDIR)\version.h
+
+$(INCDIR)\krb5-types.h: $(OBJ)\bits.exe
+	$(OBJ)\bits.exe $(INCDIR)\krb5-types.h
+
+$(OBJ)\bits.exe: $(OBJ)\bits.obj
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(INCDIR)\config.h: config.h.w32 ..\windows\NTMakefile.config NTMakefile
+	$(PERL) << < config.h.w32 > $@
+
+while(<>) {
+
+  if (m/\@FEATURE_DEFS\@/) {
+
+    if ("$(KRB5)") { print "#define KRB5 1\n"; }
+    if ("$(KRB4)") { print "#define KRB4 1\n"; }
+    if ("$(WEAK_CRYPTO)") { print "#define HEIM_WEAK_CRYPTO 1\n"; }
+    if ("$(PKINIT)") { print "#define PKINIT 1\n"; }
+    if ("$(NO_AFS)") { print "#define NO_AFS 1\n"; }
+    if ("$(OPENLDAP)") { print "#define OPENLDAP 1\n"; }
+    if ("$(OPENLDAP_MODULE)") { print "#define OPENLDAP_MODULE 1\n"; }
+    if ("$(OTP)") { print "#define OTP 1 \n"; }
+    if ("$(AUTHENTICATION)") { print "#define AUTHENTICATION 1\n"; }
+    if ("$(DIAGNOSTICS)") { print "#define DIAGNOSTICS 1\n"; }
+    if ("$(ENCRYPTION)") { print "#define ENCRYPTION 1\n"; }
+    if ("$(ENABLE_AFS_STRING_TO_KEY)") { print "#define ENABLE_AFS_STRING_TO_KEY 1\n"; }
+    if ("$(ENABLE_PTHREAD_SUPPORT)") { print "#define ENABLE_PTHREAD_SUPPORT 1\n"; }
+    if ("$(HAVE_PTHREAD_H)") { print "#define HAVE_PTHREAD_H 1\n"; }
+    if ("$(ENV_HACK)") { print "#define ENV_HACK 1\n"; }
+    if ("$(HAVE_KCM)") { print "#define HAVE_KCM 1\n"; }
+    if ("$(HAVE_SCC)") { print "#define HAVE_SCC 1\n"; }
+    if ("$(DIR_hdbdir)") { print "#define HDB_DB_DIR \"".'$(DIR_hdbdir)'."\"\n"; }
+    if ("$(HAVE_MSLSA_CACHE)") { print "#define HAVE_MSLSA_CACHE 1\n"; }
+    if ("$(NO_LOCALNAME)") { print "#define NO_LOCALNAME 1\n"; }
+
+  } elsif (m/\@VERSION_OPTDEFS\@/) {
+
+    if ("$(VER_PRERELEASE)") { print "#define VER_PRERELEASE 1\n"; }
+    if ("$(VER_PRIVATE)") { print "#define VER_PRIVATE \"$(VER_PRIVATE)\"\n"; }
+    if ("$(VER_SPECIAL)") { print "#define VER_SPECIAL \"$(VER_SPECIAL)\"\n"; }
+    if ("$(BUILD)" =~ "dbg") { print "#define VER_DEBUG 1\n"; }
+    print "#define HOST \"$(COMPUTERNAME)\"\n";
+
+  } else {
+
+    s/\@PACKAGE\@/$(VER_PACKAGE)/;
+    s/\@PACKAGE_NAME\@/$(VER_PACKAGE_NAME)/;
+    s/\@PACKAGE_BUGREPORT\@/$(VER_PACKAGE_BUGREPORT:@=\@)/;
+    s/\@PACKAGE_VERSION\@/$(VER_PACKAGE_VERSION)/;
+    s/\@PACKAGE_COPYRIGHT\@/$(VER_PACKAGE_COPYRIGHT)/;
+    s/\@PACKAGE_COMPANY\@/$(VER_PACKAGE_COMPANY)/;
+    s/\@MAJOR\@/$(VER_PRODUCT_MAJOR)/;
+    s/\@MINOR\@/$(VER_PRODUCT_MINOR)/;
+    s/\@AUX\@/$(VER_PRODUCT_AUX)/;
+    s/\@PATCH\@/$(VER_PRODUCT_PATCH)/;
+
+    print $_;
+  }
+}
+
+<<
+
+$(INCDIR)\version.h: ..\windows\NTMakefile.config NTMakefile
+	$(CP) << $@
+const char *heimdal_long_version = "@(#)$$Version: $(VER_PACKAGE_NAME) $(VER_PACKAGE_VERSION) by $(USERNAME) on $(COMPUTERNAME) ($(CPU)-pc-windows) $$";
+const char *heimdal_version = "$(VER_PACKAGE_NAME) $(VER_PACKAGE_VERSION)";
+<<
+
+all:: $(INCFILES)
+
+clean::
+	-$(RM) $(INCFILES)
+

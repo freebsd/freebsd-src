@@ -1,0 +1,245 @@
+
+KRB5_GET_INIT_CREDS(3)   BSD Library Functions Manual   KRB5_GET_INIT_CREDS(3)
+
+NNAAMMEE
+     kkrrbb55__ggeett__iinniitt__ccrreeddss, kkrrbb55__ggeett__iinniitt__ccrreeddss__kkeeyyttaabb, kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__aalllloocc, kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__ffrreeee,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__iinniitt, kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreessss__lliisstt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreesssslleessss,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aannoonnyymmoouuss,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ddeeffaauulltt__ffllaaggss,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__eettyyppee__lliisstt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ffoorrwwaarrddaabbllee,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaa__ppaasssswwoorrdd,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaaqq__rreeqquueesstt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprreeaauutthh__lliisstt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprrooxxiiaabbllee,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__rreenneeww__lliiffee, kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ssaalltt,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ttkktt__lliiffee,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ccaannoonniiccaalliizzee,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__wwiinn22kk, kkrrbb55__ggeett__iinniitt__ccrreeddss__ppaasssswwoorrdd,
+     kkrrbb55__pprroommpptt, kkrrbb55__pprroommpptteerr__ppoossiixx -- Kerberos 5 initial authentication
+     functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t_;
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__aalllloocc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__ffrreeee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__iinniitt(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreessss__lliisstt(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_e_s_s_e_s);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreesssslleessss(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___b_o_o_l_e_a_n _a_d_d_r_e_s_s_l_e_s_s);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aannoonnyymmoouuss(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _i_n_t _a_n_o_n_y_m_o_u_s);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ddeeffaauulltt__ffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _c_h_a_r _*_a_p_p_n_a_m_e, _k_r_b_5___c_o_n_s_t___r_e_a_l_m _r_e_a_l_m,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__eettyyppee__lliisstt(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e___l_i_s_t, _i_n_t _e_t_y_p_e___l_i_s_t___l_e_n_g_t_h);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ffoorrwwaarrddaabbllee(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _i_n_t _f_o_r_w_a_r_d_a_b_l_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaa__ppaasssswwoorrdd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d,
+         _k_r_b_5___s_2_k___p_r_o_c _k_e_y___p_r_o_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaaqq__rreeqquueesstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t, _k_r_b_5___b_o_o_l_e_a_n _r_e_q___p_a_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppkkiinniitt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t, _c_o_n_s_t _c_h_a_r _*_c_e_r_t___f_i_l_e,
+         _c_o_n_s_t _c_h_a_r _*_k_e_y___f_i_l_e, _c_o_n_s_t _c_h_a_r _*_x_5_0_9___a_n_c_h_o_r_s, _i_n_t _f_l_a_g_s,
+         _c_h_a_r _*_p_a_s_s_w_o_r_d);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprreeaauutthh__lliisstt(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_r_e_a_u_t_h___l_i_s_t, _i_n_t _p_r_e_a_u_t_h___l_i_s_t___l_e_n_g_t_h);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprrooxxiiaabbllee(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _i_n_t _p_r_o_x_i_a_b_l_e);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__rreenneeww__lliiffee(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___d_e_l_t_a_t _r_e_n_e_w___l_i_f_e);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ssaalltt(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___d_a_t_a _*_s_a_l_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ttkktt__lliiffee(_k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t,
+         _k_r_b_5___d_e_l_t_a_t _t_k_t___l_i_f_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ccaannoonniiccaalliizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t, _k_r_b_5___b_o_o_l_e_a_n _r_e_q);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__wwiinn22kk(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t, _k_r_b_5___b_o_o_l_e_a_n _r_e_q);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _c_l_i_e_n_t, _k_r_b_5___p_r_o_m_p_t_e_r___f_c_t _p_r_o_m_p_t_e_r,
+         _v_o_i_d _*_p_r_o_m_p_t_e_r___d_a_t_a, _k_r_b_5___d_e_l_t_a_t _s_t_a_r_t___t_i_m_e,
+         _c_o_n_s_t _c_h_a_r _*_i_n___t_k_t___s_e_r_v_i_c_e, _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t_i_o_n_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__ppaasssswwoorrdd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _c_l_i_e_n_t, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d,
+         _k_r_b_5___p_r_o_m_p_t_e_r___f_c_t _p_r_o_m_p_t_e_r, _v_o_i_d _*_p_r_o_m_p_t_e_r___d_a_t_a,
+         _k_r_b_5___d_e_l_t_a_t _s_t_a_r_t___t_i_m_e, _c_o_n_s_t _c_h_a_r _*_i_n___t_k_t___s_e_r_v_i_c_e,
+         _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_i_n___o_p_t_i_o_n_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__kkeeyyttaabb(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _c_l_i_e_n_t, _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b, _k_r_b_5___d_e_l_t_a_t _s_t_a_r_t___t_i_m_e,
+         _c_o_n_s_t _c_h_a_r _*_i_n___t_k_t___s_e_r_v_i_c_e, _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t_i_o_n_s);
+
+     _i_n_t
+     kkrrbb55__pprroommpptteerr__ppoossiixx(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _v_o_i_d _*_d_a_t_a, _c_o_n_s_t _c_h_a_r _*_n_a_m_e,
+         _c_o_n_s_t _c_h_a_r _*_b_a_n_n_e_r, _i_n_t _n_u_m___p_r_o_m_p_t_s, _k_r_b_5___p_r_o_m_p_t _p_r_o_m_p_t_s_[_]);
+
+DDEESSCCRRIIPPTTIIOONN
+     Getting initial credential ticket for a principal.  That may include
+     changing an expired password, and doing preauthentication.  This inter-
+     face that replaces the deprecated _k_r_b_5___i_n___t_k_t and _k_r_b_5___i_n___c_r_e_d functions.
+
+     If you only want to verify a username and password, consider using
+     krb5_verify_user(3) instead, since it also verifies that initial creden-
+     tials with using a keytab to make sure the response was from the KDC.
+
+     First a krb5_get_init_creds_opt structure is initialized with
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__aalllloocc() or kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__iinniitt().
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__aalllloocc() allocates a extendible structures that
+     needs to be freed with kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__ffrreeee().  The structure may
+     be modified by any of the kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett() functions to
+     change request parameters and authentication information.
+
+     If the caller want to use the default options, NULL can be passed
+     instead.
+
+     The the actual request to the KDC is done by any of the
+     kkrrbb55__ggeett__iinniitt__ccrreeddss(), kkrrbb55__ggeett__iinniitt__ccrreeddss__ppaasssswwoorrdd(), or
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__kkeeyyttaabb() functions.  kkrrbb55__ggeett__iinniitt__ccrreeddss() is the
+     least specialized function and can, with the right in data, behave like
+     the latter two.  The latter two are there for compatibility with older
+     releases and they are slightly easier to use.
+
+     krb5_prompt is a structure containing the following elements:
+
+     typedef struct {
+         const char *prompt;
+         int hidden;
+         krb5_data *reply;
+         krb5_prompt_type type
+     } krb5_prompt;
+
+     _p_r_o_m_p_t is the prompt that should shown to the user If _h_i_d_d_e_n is set, the
+     prompter function shouldn't echo the output to the display device.  _r_e_p_l_y
+     must be preallocated; it will not be allocated by the prompter function.
+     Possible values for the _t_y_p_e element are:
+
+           KRB5_PROMPT_TYPE_PASSWORD
+           KRB5_PROMPT_TYPE_NEW_PASSWORD
+           KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN
+           KRB5_PROMPT_TYPE_PREAUTH
+           KRB5_PROMPT_TYPE_INFO
+
+     kkrrbb55__pprroommpptteerr__ppoossiixx() is the default prompter function in a POSIX envi-
+     ronment.  It matches the _k_r_b_5___p_r_o_m_p_t_e_r___f_c_t and can be used in the
+     _k_r_b_5___g_e_t___i_n_i_t___c_r_e_d_s functions.  kkrrbb55__pprroommpptteerr__ppoossiixx() doesn't require
+     _p_r_o_m_p_t_e_r___d_a_t_a_.
+
+     If the _s_t_a_r_t___t_i_m_e is zero, then the requested ticket will be valid begin-
+     ning immediately.  Otherwise, the _s_t_a_r_t___t_i_m_e indicates how far in the
+     future the ticket should be postdated.
+
+     If the _i_n___t_k_t___s_e_r_v_i_c_e name is non-NULL, that principal name will be used
+     as the server name for the initial ticket request.  The realm of the name
+     specified will be ignored and will be set to the realm of the client
+     name.  If no in_tkt_service name is specified, krbtgt/CLIENT-
+     REALM@CLIENT-REALM will be used.
+
+     For the rest of arguments, a configuration or library default will be
+     used if no value is specified in the options structure.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreessss__lliisstt() sets the list of _a_d_d_r_e_s_s_e_s
+     that is should be stored in the ticket.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreesssslleessss() controls if the ticket is
+     requested with addresses or not,
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aaddddrreessss__lliisstt() overrides this option.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__aannoonnyymmoouuss() make the request anonymous if the
+     _a_n_o_n_y_m_o_u_s parameter is non-zero.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ddeeffaauulltt__ffllaaggss() sets the default flags using
+     the configuration file.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__eettyyppee__lliisstt() set a list of enctypes that the
+     client is willing to support in the request.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ffoorrwwaarrddaabbllee() request a forwardable ticket.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaa__ppaasssswwoorrdd() set the _p_a_s_s_w_o_r_d and _k_e_y___p_r_o_c
+     that is going to be used to get a new ticket.  _p_a_s_s_w_o_r_d or _k_e_y___p_r_o_c can
+     be NULL if the caller wants to use the default values.  If the _p_a_s_s_w_o_r_d
+     is unset and needed, the user will be prompted for it.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ppaaqq__rreeqquueesstt() sets the password that is going
+     to be used to get a new ticket.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprreeaauutthh__lliisstt() sets the list of client-sup-
+     ported preauth types.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__pprrooxxiiaabbllee() makes the request proxiable.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__rreenneeww__lliiffee() sets the requested renewable
+     lifetime.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ssaalltt() sets the salt that is going to be used
+     in the request.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ttkktt__lliiffee() sets requested ticket lifetime.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__ccaannoonniiccaalliizzee() requests that the KDC canoni-
+     calize the client pricipal if possible.
+
+     kkrrbb55__ggeett__iinniitt__ccrreeddss__oopptt__sseett__wwiinn22kk() turns on compatibility with Windows
+     2000.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_creds(3), krb5_verify_user(3), krb5.conf(5), kerberos(8)
+
+HEIMDAL                          Sep 16, 2006                          HEIMDAL

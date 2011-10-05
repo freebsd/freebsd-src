@@ -1,4 +1,4 @@
-dnl $Id: auth-modules.m4 13338 2004-02-12 14:21:14Z lha $
+dnl $Id$
 dnl
 dnl Figure what authentication modules should be built
 dnl

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?if $(var.Platform)=x64 ?>
+
+  <?define Win64=yes ?>
+  <?define GuidPackage=4F062DF3-5C5F-44E9-8F9B-E8D2684ED608 ?>
+  <?define GuidKerberos=78905402-0F4B-48E1-924C-B0E18657C5C5 ?>
+
+  <?else?>
+
+  <?define Win64=no ?>
+  <?define GuidPackage=AD5288E3-A024-4BD3-ABBE-4999AF130169 ?>
+  <?define GuidKerberos=C5919968-FEC4-4D17-89A4-8697B95F115E ?>
+
+  <?endif?>
+
+  <Module Id="Heimdal" Language="0" Version="$(var.Version)">
+
+    <Package Id="$(var.GuidPackage)"
+             InstallerVersion="200"
+             Languages="1033" Manufacturer="Heimdal"
+             SummaryCodepage="1252" AdminImage="no"
+             Platform="$(var.Platform)" />
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id="dir.Heimdal.Kerberos" Name="Heimdal.Kerberos"
+                 FileSource="$(var.BinDir)\Heimdal.Kerberos">
+        <Component Id="comp.Heimdal.Kerberos"
+                   Guid="$(var.GuidKerberos)"
+                   Win64="$(var.Win64)">
+          <File Name="heimdal.dll" KeyPath="yes" Assembly="win32"
+                AssemblyManifest="id.Heimdal.Kerberos.manifest" />
+          <File Name="com_err.dll" />
+          <File Name="heimntlm.dll" />
+          <File Name="gssapi.dll" />
+          <File Name="heimdal.pdb" />
+          <File Name="com_err.pdb" />
+          <File Name="heimntlm.pdb" />
+          <File Name="gssapi.pdb" />
+          <File Name="Heimdal.Kerberos.cat" />
+          <File Name="Heimdal.Kerberos.manifest" Id="id.Heimdal.Kerberos.manifest" />
+        </Component>
+      </Directory>
+    </Directory>
+
+  </Module>
+</Wix>

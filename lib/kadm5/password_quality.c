@@ -1,40 +1,40 @@
 /*
- * Copyright (c) 1997-2000, 2003-2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2000, 2003-2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadm5_locl.h"
 #include "kadm5-pwcheck.h"
 
-RCSID("$Id: password_quality.c 17595 2006-05-30 21:51:55Z lha $");
+RCSID("$Id$");
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -95,8 +95,8 @@ char_class_passwd_quality (krb5_context context,
 	"1234567890",
 	"!@#$%^&*()/?<>,.{[]}\\|'~`\" "
     };
-    int i, counter = 0, req_classes;
-    size_t len;
+    int counter = 0, req_classes;
+    size_t i, len;
     char *pw;
 
     req_classes = krb5_config_get_int_default(context, NULL, 3,
@@ -148,7 +148,7 @@ external_passwd_quality (krb5_context context,
     char reply[1024];
     FILE *in = NULL, *out = NULL, *error = NULL;
 
-    if (memchr(pwd->data, pwd->length, '\n') != NULL) {
+    if (memchr(pwd->data, '\n', pwd->length) != NULL) {
 	snprintf(message, length, "password contains newline, "
 		 "not valid for external test");
 	return 1;
@@ -170,7 +170,7 @@ external_passwd_quality (krb5_context context,
 	return 1;
     }
 
-    child = pipe_execv(&in, &out, &error, program, p, NULL);
+    child = pipe_execv(&in, &out, &error, program, program, p, NULL);
     if (child < 0) {
 	snprintf(message, length, "external password quality "
 		 "program failed to execute for principal %s", p);
@@ -182,7 +182,7 @@ external_passwd_quality (krb5_context context,
 	    "new-password: %.*s\n"
 	    "end\n",
 	    p, (int)pwd->length, (char *)pwd->data);
-    
+
     fclose(in);
 
     if (fgets(reply, sizeof(reply), out) == NULL) {
@@ -199,7 +199,7 @@ external_passwd_quality (krb5_context context,
 
 	fclose(out);
 	fclose(error);
-	waitpid(child, &status, 0);
+	wait_for_process(child);
 	return 1;
     }
     reply[strcspn(reply, "\n")] = '\0';
@@ -207,12 +207,9 @@ external_passwd_quality (krb5_context context,
     fclose(out);
     fclose(error);
 
-    if (waitpid(child, &status, 0) < 0) {
-	snprintf(message, length, "external program failed: %s", reply);
-	free(p);
-	return 1;
-    }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    status = wait_for_process(child);
+
+    if (SE_IS_ERROR(status) || SE_PROCSTATUS(status) != 0) {
 	snprintf(message, length, "external program failed: %s", reply);
 	free(p);
 	return 1;
@@ -230,18 +227,18 @@ external_passwd_quality (krb5_context context,
 }
 
 
-static kadm5_passwd_quality_check_func_v0 passwd_quality_check = 
+static kadm5_passwd_quality_check_func_v0 passwd_quality_check =
 	min_length_passwd_quality_v0;
 
 struct kadm5_pw_policy_check_func builtin_funcs[] = {
     { "minimum-length", min_length_passwd_quality },
     { "character-class", char_class_passwd_quality },
     { "external-check", external_passwd_quality },
-    { NULL }
+    { NULL, NULL }
 };
 struct kadm5_pw_policy_verifier builtin_verifier = {
-    "builtin", 
-    KADM5_PASSWD_VERSION_V1, 
+    "builtin",
+    KADM5_PASSWD_VERSION_V1,
     "Heimdal builtin",
     builtin_funcs
 };
@@ -269,17 +266,17 @@ kadm5_setup_passwd_quality_check(krb5_context context,
     const char *tmp;
 
     if(check_library == NULL) {
-	tmp = krb5_config_get_string(context, NULL, 
-				     "password_quality", 
-				     "check_library", 
+	tmp = krb5_config_get_string(context, NULL,
+				     "password_quality",
+				     "check_library",
 				     NULL);
 	if(tmp != NULL)
 	    check_library = tmp;
     }
     if(check_function == NULL) {
-	tmp = krb5_config_get_string(context, NULL, 
-				     "password_quality", 
-				     "check_function", 
+	tmp = krb5_config_get_string(context, NULL,
+				     "password_quality",
+				     "check_function",
 				     NULL);
 	if(tmp != NULL)
 	    check_function = tmp;
@@ -294,7 +291,7 @@ kadm5_setup_passwd_quality_check(krb5_context context,
 	krb5_warnx(context, "failed to open `%s'", check_library);
 	return;
     }
-    version = dlsym(handle, "version");
+    version = (int *) dlsym(handle, "version");
     if(version == NULL) {
 	krb5_warnx(context,
 		   "didn't find `version' symbol in `%s'", check_library);
@@ -310,8 +307,8 @@ kadm5_setup_passwd_quality_check(krb5_context context,
     }
     sym = dlsym(handle, check_function);
     if(sym == NULL) {
-	krb5_warnx(context, 
-		   "didn't find `%s' symbol in `%s'", 
+	krb5_warnx(context,
+		   "didn't find `%s' symbol in `%s'",
 		   check_function, check_library);
 	dlclose(handle);
 	return;
@@ -334,7 +331,7 @@ add_verifier(krb5_context context, const char *check_library)
 	krb5_warnx(context, "failed to open `%s'", check_library);
 	return ENOENT;
     }
-    v = dlsym(handle, "kadm5_password_verifier");
+    v = (struct kadm5_pw_policy_verifier *) dlsym(handle, "kadm5_password_verifier");
     if(v == NULL) {
 	krb5_warnx(context,
 		   "didn't find `kadm5_password_verifier' symbol "
@@ -385,21 +382,23 @@ kadm5_add_passwd_quality_verifier(krb5_context context,
 	krb5_error_code ret;
 	char **tmp;
 
-	tmp = krb5_config_get_strings(context, NULL, 
-				      "password_quality", 
-				      "policy_libraries", 
+	tmp = krb5_config_get_strings(context, NULL,
+				      "password_quality",
+				      "policy_libraries",
 				      NULL);
-	if(tmp == NULL)
+	if(tmp == NULL || *tmp == NULL)
 	    return 0;
 
-	while(tmp) {
+	while (*tmp) {
 	    ret = add_verifier(context, *tmp);
 	    if (ret)
 		return ret;
 	    tmp++;
 	}
+	return 0;
+    } else {
+	return add_verifier(context, check_library);
     }
-    return add_verifier(context, check_library);
 #else
     return 0;
 #endif /* HAVE_DLOPEN */
@@ -419,10 +418,12 @@ find_func(krb5_context context, const char *name)
 
     p = strchr(name, ':');
     if (p) {
+	size_t len = p - name + 1;
 	func = p + 1;
-	module = strndup(name, p - name);
+	module = malloc(len);
 	if (module == NULL)
 	    return NULL;
+	strlcpy(module, name, len);
     } else
 	func = name;
 
@@ -431,7 +432,7 @@ find_func(krb5_context context, const char *name)
 	if (module && strcmp(module, verifiers[i]->name) != 0)
 	    continue;
 	for (f = verifiers[i]->funcs; f->name ; f++)
-	    if (strcmp(name, f->name) == 0) {
+	    if (strcmp(func, f->name) == 0) {
 		if (module)
 		    free(module);
 		return f;
@@ -466,13 +467,13 @@ kadm5_check_password_quality (krb5_context context,
      * Check if we should use the old version of policy function.
      */
 
-    v = krb5_config_get_strings(context, NULL, 
-				"password_quality", 
-				"policies", 
+    v = krb5_config_get_strings(context, NULL,
+				"password_quality",
+				"policies",
 				NULL);
     if (v == NULL) {
 	msg = (*passwd_quality_check) (context, principal, pwd_data);
-	krb5_set_error_string(context, "password policy failed: %s", msg);
+	krb5_set_error_message(context, 0, "password policy failed: %s", msg);
 	return msg;
     }
 
@@ -483,16 +484,16 @@ kadm5_check_password_quality (krb5_context context,
 	proc = find_func(context, *vp);
 	if (proc == NULL) {
 	    msg = "failed to find password verifier function";
-	    krb5_set_error_string(context, "Failed to find password policy "
-				  "function: %s", *vp);
+	    krb5_set_error_message(context, 0, "Failed to find password policy "
+				   "function: %s", *vp);
 	    break;
 	}
 	ret = (proc->func)(context, principal, pwd_data, NULL,
 			   error_msg, sizeof(error_msg));
 	if (ret) {
-	    krb5_set_error_string(context, "Password policy "
-				  "%s failed with %s", 
-				  proc->name, error_msg);
+	    krb5_set_error_message(context, 0, "Password policy "
+				   "%s failed with %s",
+				   proc->name, error_msg);
 	    msg = error_msg;
 	    break;
 	}
@@ -504,9 +505,9 @@ kadm5_check_password_quality (krb5_context context,
     if (msg == NULL && passwd_quality_check != min_length_passwd_quality_v0) {
 	msg = (*passwd_quality_check) (context, principal, pwd_data);
 	if (msg)
-	    krb5_set_error_string(context, "(old) password policy "
-				  "failed with %s", msg);
-	    
+	    krb5_set_error_message(context, 0, "(old) password policy "
+				   "failed with %s", msg);
+
     }
     return msg;
 }

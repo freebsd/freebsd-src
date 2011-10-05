@@ -1,0 +1,89 @@
+
+KRB5_MK_REQ(3)           BSD Library Functions Manual           KRB5_MK_REQ(3)
+
+NNAAMMEE
+     kkrrbb55__mmkk__rreeqq, kkrrbb55__mmkk__rreeqq__eexxaacctt, kkrrbb55__mmkk__rreeqq__eexxtteennddeedd, kkrrbb55__rrdd__rreeqq,
+     kkrrbb55__rrdd__rreeqq__wwiitthh__kkeeyybblloocckk, kkrrbb55__mmkk__rreepp, kkrrbb55__mmkk__rreepp__eexxaacctt,
+     kkrrbb55__mmkk__rreepp__eexxtteennddeedd, kkrrbb55__rrdd__rreepp, kkrrbb55__bbuuiilldd__aapp__rreeqq, kkrrbb55__vveerriiffyy__aapp__rreeqq
+     -- create and read application authentication request
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__mmkk__rreeqq(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___f_l_a_g_s _a_p___r_e_q___o_p_t_i_o_n_s, _c_o_n_s_t _c_h_a_r _*_s_e_r_v_i_c_e,
+         _c_o_n_s_t _c_h_a_r _*_h_o_s_t_n_a_m_e, _k_r_b_5___d_a_t_a _*_i_n___d_a_t_a, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e,
+         _k_r_b_5___d_a_t_a _*_o_u_t_b_u_f);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__mmkk__rreeqq__eexxtteennddeedd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___f_l_a_g_s _a_p___r_e_q___o_p_t_i_o_n_s,
+         _k_r_b_5___d_a_t_a _*_i_n___d_a_t_a, _k_r_b_5___c_r_e_d_s _*_i_n___c_r_e_d_s, _k_r_b_5___d_a_t_a _*_o_u_t_b_u_f);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrdd__rreeqq(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___d_a_t_a _*_i_n_b_u_f, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _s_e_r_v_e_r,
+         _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b, _k_r_b_5___f_l_a_g_s _*_a_p___r_e_q___o_p_t_i_o_n_s,
+         _k_r_b_5___t_i_c_k_e_t _*_*_t_i_c_k_e_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__bbuuiilldd__aapp__rreeqq(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _k_r_b_5___c_r_e_d_s _*_c_r_e_d, _k_r_b_5___f_l_a_g_s _a_p___o_p_t_i_o_n_s, _k_r_b_5___d_a_t_a _a_u_t_h_e_n_t_i_c_a_t_o_r,
+         _k_r_b_5___d_a_t_a _*_r_e_t_d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__aapp__rreeqq(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t,
+         _k_r_b_5___a_p___r_e_q _*_a_p___r_e_q, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _s_e_r_v_e_r,
+         _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y_b_l_o_c_k, _k_r_b_5___f_l_a_g_s _f_l_a_g_s,
+         _k_r_b_5___f_l_a_g_s _*_a_p___r_e_q___o_p_t_i_o_n_s, _k_r_b_5___t_i_c_k_e_t _*_*_t_i_c_k_e_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     The functions documented in this manual page document the functions that
+     facilitates the exchange between a Kerberos client and server.  They are
+     the core functions used in the authentication exchange between the client
+     and the server.
+
+     The kkrrbb55__mmkk__rreeqq and kkrrbb55__mmkk__rreeqq__eexxtteennddeedd creates the Kerberos message
+     KRB_AP_REQ that is sent from the client to the server as the first packet
+     in a client/server exchange.  The result that should be sent to server is
+     stored in _o_u_t_b_u_f.
+
+     _a_u_t_h___c_o_n_t_e_x_t should be allocated with kkrrbb55__aauutthh__ccoonn__iinniitt() or NULL passed
+     in, in that case, it will be allocated and freed internally.
+
+     The input data _i_n___d_a_t_a will have a checksum calculated over it and check-
+     sum will be transported in the message to the server.
+
+     _a_p___r_e_q___o_p_t_i_o_n_s can be set to one or more of the following flags:
+
+     AP_OPTS_USE_SESSION_KEY
+             Use the session key when creating the request, used for user to
+             user authentication.
+
+     AP_OPTS_MUTUAL_REQUIRED
+             Mark the request as mutual authenticate required so that the
+             receiver returns a mutual authentication packet.
+
+     The kkrrbb55__rrdd__rreeqq read the AP_REQ in _i_n_b_u_f and verify and extract the con-
+     tent.  If _s_e_r_v_e_r is specified, that server will be fetched from the
+     _k_e_y_t_a_b and used unconditionally.  If _s_e_r_v_e_r is NULL, the _k_e_y_t_a_b will be
+     search for a matching principal.
+
+     The _k_e_y_t_a_b argument specifies what keytab to search for receiving princi-
+     pals.  The arguments _a_p___r_e_q___o_p_t_i_o_n_s and _t_i_c_k_e_t returns the content.
+
+     When the AS-REQ is a user to user request, neither of _k_e_y_t_a_b or _p_r_i_n_c_i_p_a_l
+     are used, instead kkrrbb55__rrdd__rreeqq() expects the session key to be set in
+     _a_u_t_h___c_o_n_t_e_x_t.
+
+     The kkrrbb55__vveerriiffyy__aapp__rreeqq and kkrrbb55__bbuuiilldd__aapp__rreeqq both constructs and verify
+     the AP_REQ message, should not be used by external code.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                         August 27, 2005                        HEIMDAL

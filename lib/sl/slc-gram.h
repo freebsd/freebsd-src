@@ -52,7 +52,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 54 "slc-gram.y"
+#line 57 "slc-gram.y"
 {
 	char *string;
 	struct assignment *assignment;

@@ -1,0 +1,49 @@
+
+KRB5_CHECK_TRANSITED(3)  BSD Library Functions Manual  KRB5_CHECK_TRANSITED(3)
+
+NNAAMMEE
+     kkrrbb55__cchheecckk__ttrraannssiitteedd, kkrrbb55__cchheecckk__ttrraannssiitteedd__rreeaallmmss,
+     kkrrbb55__ddoommaaiinn__xx550000__ddeeccooddee, kkrrbb55__ddoommaaiinn__xx550000__eennccooddee -- realm transit verifi-
+     cation and encoding/decoding functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cchheecckk__ttrraannssiitteedd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_o_n_s_t___r_e_a_l_m _c_l_i_e_n_t___r_e_a_l_m,
+         _k_r_b_5___c_o_n_s_t___r_e_a_l_m _s_e_r_v_e_r___r_e_a_l_m, _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m_s, _i_n_t _n_u_m___r_e_a_l_m_s,
+         _i_n_t _*_b_a_d___r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__cchheecckk__ttrraannssiitteedd__rreeaallmmss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _c_h_a_r _*_c_o_n_s_t _*_r_e_a_l_m_s, _i_n_t _n_u_m___r_e_a_l_m_s, _i_n_t _*_b_a_d___r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddoommaaiinn__xx550000__ddeeccooddee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___d_a_t_a _t_r,
+         _c_h_a_r _*_*_*_r_e_a_l_m_s, _i_n_t _*_n_u_m___r_e_a_l_m_s, _c_o_n_s_t _c_h_a_r _*_c_l_i_e_n_t___r_e_a_l_m,
+         _c_o_n_s_t _c_h_a_r _*_s_e_r_v_e_r___r_e_a_l_m);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddoommaaiinn__xx550000__eennccooddee(_c_h_a_r _*_*_r_e_a_l_m_s, _i_n_t _n_u_m___r_e_a_l_m_s,
+         _k_r_b_5___d_a_t_a _*_e_n_c_o_d_i_n_g);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__cchheecckk__ttrraannssiitteedd() checks the path from _c_l_i_e_n_t___r_e_a_l_m to _s_e_r_v_e_r___r_e_a_l_m
+     where _r_e_a_l_m_s and _n_u_m___r_e_a_l_m_s is the realms between them.  If the function
+     returns an error value, _b_a_d___r_e_a_l_m will be set to the realm in the list
+     causing the error.  kkrrbb55__cchheecckk__ttrraannssiitteedd() is used internally by the KDC
+     and libkrb5 and should not be called by client applications.
+
+     kkrrbb55__cchheecckk__ttrraannssiitteedd__rreeaallmmss() is deprecated.
+
+     kkrrbb55__ddoommaaiinn__xx550000__eennccooddee() and kkrrbb55__ddoommaaiinn__xx550000__ddeeccooddee() encodes and
+     decodes the realm names in the X500 format that Kerberos uses to describe
+     the transited realms in krbtgts.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

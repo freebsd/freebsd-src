@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,18 +30,17 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id: check-referral.in 21854 2007-08-08 06:58:49Z lha $
-#
 
-srcdir="@srcdir@"
+top_builddir="@top_builddir@"
+env_setup="@env_setup@"
 objdir="@objdir@"
-EGREP="@EGREP@"
+
+. ${env_setup}
 
 testfailed="echo test failed; cat messages.log; exit 1"
 
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
 
 R=TEST.H5L.SE
 R2=SUB.TEST.H5L.SE
@@ -50,21 +49,20 @@ service=ldap/host.sub.test.h5l.se
 
 port=@port@
 
-kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
-kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
+kadmin="${kadmin} -l -r $R"
+kdc="${kdc} --addresses=localhost -P $port"
 
 cache="FILE:${objdir}/cache.krb5"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
-klist="${TESTS_ENVIRONMENT} ../../kuser/klist -c $cache"
-kgetcred="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache"
-kdestroy="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache --no-unlog"
+kinit="${kinit} -c $cache ${afs_no_afslog}"
+klist="${klist} -c $cache"
+kgetcred="${kgetcred} -c $cache"
+kdestroy="${kdestroy} -c $cache ${afs_no_unlog}"
 
 
 KRB5_CONFIG="${objdir}/krb5.conf"
 export KRB5_CONFIG
 
-rm -f ${keytabfile}
 rm -f current-db*
 rm -f out-*
 rm -f mkey.file*
@@ -86,8 +84,12 @@ ${kadmin} \
 
 ${kadmin} add -p foo --use-defaults foo@${R} || exit 1
 ${kadmin} modify --alias=alias1 --alias=alias2 foo@${R} || exit 1
+${kadmin} get foo@${R} | grep alias1@${R} >/dev/null || exit 1
 
 ${kadmin} add -p foo --use-defaults  ${service}@${R2} || exit 1
+
+${kadmin} add -p foo --use-defaults bar@${R} || exit 1
+${kadmin} add -p foo --use-defaults 'baz\@realm.foo@'${R} || exit 1
 
 ${kadmin} add -p cross1 --use-defaults krbtgt/${R2}@${R} || exit 1
 ${kadmin} add -p cross2 --use-defaults krbtgt/${R}@${R2} || exit 1
@@ -102,15 +104,34 @@ echo Starting kdc
 ${kdc} &
 kdcpid=$!
 
-sh ${srcdir}/wait-kdc.sh
+sh ${wait_kdc}
 if [ "$?" != 0 ] ; then
-    kill ${kdcpid}
+    kill -9 ${kdcpid}
     exit 1
 fi
 
-trap "kill ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
+trap "kill -9 ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
 
 ec=0
+
+
+echo "Getting client bar"; > messages.log
+${kinit} --password-file=${objdir}/foopassword bar@${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "checking that we got back right principal"
+${klist} | grep "Principal: bar@${R}" > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "Getting client baz"; > messages.log
+${kinit} --password-file=${objdir}/foopassword 'baz\@realm.foo@'${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "checking that we got back right principal"
+${klist} | grep 'Principal: baz' > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+
 
 echo "Test AS-REQ"
 
@@ -165,35 +186,33 @@ ${kinit} --canonicalize \
 echo "Remove alias"
 ${kadmin} modify --alias= foo@${R} || { ec=1 ; eval "${testfailed}"; }
 
-echo "Test TGS-REQ"
+echo "Test server referrals"
 
-#echo "Getting client for ${service}@${R} (kdc referral)"
-#> messages.log
-#${kinit} --password-file=${objdir}/foopassword foo@${R} || \
-#	{ ec=1 ; eval "${testfailed}"; }
-#${kgetcred} --server ${service}@${R} ||
-#	{ ec=1 ; eval "${testfailed}"; }
-#${klist}
-#echo "checking that we got back right principal"
-#${klist} | grep "${service}@${R2}" > /dev/null || \
-#	{ ec=1 ; eval "${testfailed}"; }
-#${kdestroy}
-#
-#echo "Getting client for ${service}@${R2} (client side guessing)"
-#> messages.log
-#${kinit} --password-file=${objdir}/foopassword foo@${R} || \
-#	{ ec=1 ; eval "${testfailed}"; }
-#${kgetcred} --server ${service}@${R2} ||
-#	{ ec=1 ; eval "${testfailed}"; }
-#${klist}
-#echo "checking that we got back right principal"
-#${klist} | grep "${service}@${R2}" > /dev/null || \
-#	{ ec=1 ; eval "${testfailed}"; }
-#${kdestroy}
+echo "Getting client for ${service}@${R} (tgs kdc referral)"
+> messages.log
+${kinit} --password-file=${objdir}/foopassword foo@${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kgetcred} --canonicalize ${service}@${R} ||
+	{ ec=1 ; eval "${testfailed}"; }
+echo "checking that we got back right principal"
+${klist} | grep "${service}@${R2}" > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "Getting client for ${service}@${R2} (tgs client side guessing)"
+> messages.log
+${kinit} --password-file=${objdir}/foopassword foo@${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kgetcred} ${service}@${R2} ||
+	{ ec=1 ; eval "${testfailed}"; }
+echo "checking that we got back right principal"
+${klist} | grep "${service}@${R2}" > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
 
 
 echo "killing kdc (${kdcpid})"
-kill $kdcpid || exit 1
+sh ${leaks_kill} kdc $kdcpid || exit 1
 
 trap "" EXIT
 

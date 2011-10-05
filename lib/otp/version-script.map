@@ -1,0 +1,25 @@
+HEIMDAL_OTP_1.0 {
+	global:
+		otp_challenge;
+		otp_checksum;
+		otp_db_close;
+		otp_db_open;
+		otp_delete;
+		otp_error;
+		otp_find_alg;		
+		otp_get;
+		otp_parse;
+		otp_parse_altdict;
+		otp_parse_hex;
+		otp_parse_stddict;
+		otp_print_hex;
+		otp_print_hex_extended;
+		otp_print_stddict;
+		otp_print_stddict_extended;
+		otp_put;
+		otp_simple_get;
+		otp_verify_user;
+		otp_verify_user_1;
+	local:
+		*;
+};

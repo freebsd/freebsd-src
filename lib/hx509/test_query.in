@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2005 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2005 - 2008 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: test_query.in 20782 2007-06-02 00:46:00Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -44,7 +44,14 @@ hxtool="${TESTS_ENVIRONMENT} ./hxtool ${stat}"
 echo "try printing"
 ${hxtool} print \
 	--pass=PASS:foobar \
+        --info --content \
 	PKCS12:$srcdir/data/test.p12 >/dev/null 2>/dev/null || exit 1
+
+echo "try printing"
+${hxtool} print \
+	--pass=PASS:foobar \
+        --info --content \
+	FILE:$srcdir/data/kdc.crt  >/dev/null 2>/dev/null || exit 1
 
 ${hxtool} print \
 	--pass=PASS:foobar \
@@ -62,6 +69,16 @@ ${hxtool} query \
 	--pass=PASS:foobar \
 	--friendlyname=friendlyname-test-not  \
 	PKCS12:$srcdir/data/test.p12 >/dev/null 2>/dev/null && exit 1
+
+echo "make sure entry is found (eku)"
+${hxtool} query \
+	--eku=1.3.6.1.5.2.3.5  \
+	FILE:$srcdir/data/kdc.crt  >/dev/null 2>/dev/null || exit 1
+
+echo "make sure entry is not found  (eku)"
+${hxtool} query \
+	--eku=1.3.6.1.5.2.3.6  \
+	FILE:$srcdir/data/kdc.crt >/dev/null 2>/dev/null && exit 1
 
 echo "make sure entry is found (friendlyname, no-pw)"
 ${hxtool} query \
@@ -142,5 +159,45 @@ ${hxtool} query \
 	--keyEncipherment \
 	FILE:$srcdir/data/test-ke-only.crt >/dev/null 2>/dev/null && exit 1
 
-exit 0
+echo "make sure entry is found (eku) in query language"
+${hxtool} query \
+	--expr='"1.3.6.1.5.2.3.5" IN %{certificate.eku}'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
 
+echo "make sure entry is not found (eku) in query language"
+${hxtool} query \
+	--expr='"1.3.6.1.5.2.3.6" IN %{certificate.eku}'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null && exit 1
+
+echo "make sure entry is found (subject) in query language"
+${hxtool} query \
+	--expr='%{certificate.subject} == "CN=kdc,C=SE"'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
+
+echo "make sure entry is found using TAILMATCH (subject) in query language"
+${hxtool} query \
+	--expr='%{certificate.subject} TAILMATCH "C=SE"'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
+
+echo "make sure entry is not found using TAILMATCH (subject) in query language"
+${hxtool} query \
+	--expr='%{certificate.subject} TAILMATCH "C=FI"'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null && exit 1
+
+echo "make sure entry is found (issuer) in query language"
+${hxtool} query \
+	--expr='%{certificate.issuer} == "C=SE,CN=hx509 Test Root CA"'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
+
+echo "make sure entry match with EKU and TAILMATCH in query language"
+${hxtool} query \
+	--expr='"1.3.6.1.5.2.3.5" IN %{certificate.eku} AND %{certificate.subject} TAILMATCH "C=SE"'  \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
+
+echo "make sure entry match with hash.sha1"
+${hxtool} query \
+	--expr='"%{certificate.hash.sha1}EQ "412120212A2CBFD777DE5499ECB4724345F33F16"' \
+	FILE:$srcdir/data/kdc.crt > /dev/null || exit 1
+
+
+exit 0

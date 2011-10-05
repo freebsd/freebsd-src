@@ -1,0 +1,108 @@
+The hunt for getting a DES with plain BSD license w/o advertisement clause
+==========================================================================
+
+$Id$
+
+This all feels very silly given that DES is about 30 years old and now
+is deprecated.
+
+Helpful documents on the way:
+
+Schider's crypto wasn't that useful since it only told how to do DES,
+not how to do des fast or how to not use DES. I find this to be a
+common thread in the book, it explain each tool in great detail, but
+not its limitations.
+
+Dag Arne Osvik: Efficient Implementation of the Data Encryption Standard
+
+Some threads on sci.crypto was also useful.
+
+PC1 transformations
+===================
+
+
+Getting the PC1 bit mangling working was hard, I never got it to work.
+
+Printning out the bit usage made me realize a lookup table could be
+used since only 12 bits are used from the first half and 16 from the
+second.
+
+01110000 01110000 01110000 01110000 01111000 01111000 01111000 01111000 
+00001111 00001111 00001111 00001111 00000111 00000111 00000111 00000111 
+
+The pattern is getting more obvious if it's printed out where the bits
+are coming from.
+
+ 8 16 24  -  -  -  -  - 
+ 7 15 23  -  -  -  -  - 
+ 6 14 22  -  -  -  -  - 
+ 5 13 21  -  -  -  -  - 
+ 4 12 20 28  -  -  -  - 
+ 3 11 19 27  -  -  -  - 
+ 2 10 18 26  -  -  -  - 
+ 1  9 17 25  -  -  -  - 
+
+ -  -  - 60 56 48 40  - 
+ -  -  - 59 55 47 39  - 
+ -  -  - 58 54 46 38  - 
+ -  -  - 57 53 45 37  - 
+ -  -  -  - 52 44 36  - 
+ -  -  -  - 51 43 35  - 
+ -  -  -  - 50 42 34  - 
+ -  -  -  - 49 41 33  - 
+
+Only 3 bits-table is needed for the first half and 4 bits for the
+second half because they are on diffrent shift offsets.
+
+So to get the bitpattern bit-pattern
+
+gen_pattern("pc1_c_3", 7,  [ 5, 13, 21 ], 0, 0x1000000);
+gen_pattern("pc1_c_4", 15, [ 1, 9, 17, 25 ], 0, 0x1000000);
+gen_pattern("pc1_d_3", 7, [ 49, 41, 33 ], 32, 0x1000000);
+gen_pattern("pc1_d_4", 15, [ 57, 53, 45, 37 ], 32, 0x1000000);
+
+PC2 transformations
+===================
+
+PC2 is also a table lookup, since it's a 24 bit field, I use 4 6-bit
+lookup tables. Printing the reverse of the PC2 table reveal that some
+of the bits are not used, namely (9, 18, 22, 25) from c and (7, 10,
+15, 26) from d.
+
+pc2 from c
+----------
+
+ 5 24  7 16  6 10 20 
+18  - 12  3 15 23  1 
+ 9 19  2  - 14 22 11 
+ - 13  4  - 17 21  8 
+
+pc2 from d
+----------
+
+51 35 31 52 39 45  - 
+50 32  - 43 36 29 48 
+ - 41 38 47 33 40 42 
+49 37 30 46  - 34 44 
+
+So we generate tables for that too.
+
+gen_pattern("pc2_c_1", 63, [  5, 24,  7, 16,  6, 10 ], 0, 0x800000);
+gen_pattern("pc2_c_2", 63, [ 20, 18, 12,  3, 15, 23 ], 0, 0x800000);
+gen_pattern("pc2_c_3", 63, [  1,  9, 19,  2, 14, 22 ], 0, 0x800000);
+gen_pattern("pc2_c_4", 63, [ 11, 13,  4, 17, 21,  8 ], 0, 0x800000);
+
+gen_pattern("pc2_d_1", 63, [ 51, 35, 31, 52, 39, 45 ], 28, 0x800000);
+gen_pattern("pc2_d_2", 63, [ 50, 32, 43, 36, 29, 48 ], 28, 0x800000);
+gen_pattern("pc2_d_3", 63, [ 41, 38, 47, 33, 40, 42 ], 28, 0x800000);
+gen_pattern("pc2_d_4", 63, [ 49, 37, 30, 46, 34, 44 ], 28, 0x800000);
+
+
+SBOX transformations
+====================
+
+The SBOX transformations are 6 bit to 4 bit transformations.
+
+Here I grew tired and used Richard Outerbridge SBOXes. Thank you
+Richard.
+

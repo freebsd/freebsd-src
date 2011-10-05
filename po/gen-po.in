@@ -1,0 +1,39 @@
+#!/bin/sh
+
+top_srcdir=@top_srcdir@
+name="@PACKAGE_NAME@"
+version="@PACKAGE_VERSION@"
+
+domain=$1
+shift
+
+outdir=${top_srcdir}/po/${domain}
+outfile=${outdir}/${domain}.pot
+
+test -d $outdir || mkdir $outdir
+
+xgettext \
+    --package-name="${name}" \
+    --package-version="${version}" \
+    --foreign-user \
+    --default-domain=${domain} \
+    --add-comments \
+    --keyword=N_ \
+    --keyword=NP_ \
+    -o ${outfile}.new \
+    "$@"
+
+test -f ${outfile}.new && \
+    perl -pi -e "s@${top_srcdir}/@@" ${outfile}.new
+
+grep -v "POT-Creation-Date:" ${outfile}.new > ${outfile}.new2
+grep -v "POT-Creation-Date:" ${outfile} > ${outfile}.old
+
+if ! diff ${outfile}.old ${outfile}.new2 >/dev/null; then
+    echo "${outfile} changed"
+    cp ${outfile}.new ${outfile}
+fi
+rm ${outfile}.new* ${outfile}.old
+
+exit 0
+

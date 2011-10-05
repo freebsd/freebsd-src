@@ -1,0 +1,221 @@
+
+KRB5_AUTH_CONTEXT(3)     BSD Library Functions Manual     KRB5_AUTH_CONTEXT(3)
+
+NNAAMMEE
+     kkrrbb55__aauutthh__ccoonn__aaddddffllaaggss, kkrrbb55__aauutthh__ccoonn__ffrreeee, kkrrbb55__aauutthh__ccoonn__ggeennaaddddrrss,
+     kkrrbb55__aauutthh__ccoonn__ggeenneerraatteellooccaallssuubbkkeeyy, kkrrbb55__aauutthh__ccoonn__ggeettaaddddrrss,
+     kkrrbb55__aauutthh__ccoonn__ggeettaauutthheennttiiccaattoorr, kkrrbb55__aauutthh__ccoonn__ggeettffllaaggss,
+     kkrrbb55__aauutthh__ccoonn__ggeettkkeeyy, kkrrbb55__aauutthh__ccoonn__ggeettllooccaallssuubbkkeeyy,
+     kkrrbb55__aauutthh__ccoonn__ggeettrrccaacchhee, kkrrbb55__aauutthh__ccoonn__ggeettrreemmootteessuubbkkeeyy,
+     kkrrbb55__aauutthh__ccoonn__ggeettuusseerrkkeeyy, kkrrbb55__aauutthh__ccoonn__iinniitt, kkrrbb55__aauutthh__ccoonn__iinniittiivveeccttoorr,
+     kkrrbb55__aauutthh__ccoonn__rreemmoovveeffllaaggss, kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss,
+     kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss__ffrroomm__ffdd, kkrrbb55__aauutthh__ccoonn__sseettffllaaggss,
+     kkrrbb55__aauutthh__ccoonn__sseettiivveeccttoorr, kkrrbb55__aauutthh__ccoonn__sseettkkeeyy,
+     kkrrbb55__aauutthh__ccoonn__sseettllooccaallssuubbkkeeyy, kkrrbb55__aauutthh__ccoonn__sseettrrccaacchhee,
+     kkrrbb55__aauutthh__ccoonn__sseettrreemmootteessuubbkkeeyy, kkrrbb55__aauutthh__ccoonn__sseettuusseerrkkeeyy,
+     kkrrbb55__aauutthh__ccoonntteexxtt, kkrrbb55__aauutthh__ggeettcckkssuummttyyppee, kkrrbb55__aauutthh__ggeettkkeeyyttyyppee,
+     kkrrbb55__aauutthh__ggeettllooccaallsseeqqnnuummbbeerr, kkrrbb55__aauutthh__ggeettrreemmootteesseeqqnnuummbbeerr,
+     kkrrbb55__aauutthh__sseettcckkssuummttyyppee, kkrrbb55__aauutthh__sseettkkeeyyttyyppee,
+     kkrrbb55__aauutthh__sseettllooccaallsseeqqnnuummbbeerr, kkrrbb55__aauutthh__sseettrreemmootteesseeqqnnuummbbeerr,
+     kkrrbb55__ffrreeee__aauutthheennttiiccaattoorr -- manage authentication on connection level
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__iinniitt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t);
+
+     _v_o_i_d
+     kkrrbb55__aauutthh__ccoonn__ffrreeee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__sseettffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _i_n_t_3_2___t _f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeettffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _i_n_t_3_2___t _*_f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__aaddddffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _i_n_t_3_2___t _a_d_d_f_l_a_g_s, _i_n_t_3_2___t _*_f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__rreemmoovveeffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _i_n_t_3_2___t _r_e_m_o_v_e_l_a_g_s, _i_n_t_3_2___t _*_f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___a_d_d_r_e_s_s _*_l_o_c_a_l___a_d_d_r,
+         _k_r_b_5___a_d_d_r_e_s_s _*_r_e_m_o_t_e___a_d_d_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeettaaddddrrss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___a_d_d_r_e_s_s _*_*_l_o_c_a_l___a_d_d_r,
+         _k_r_b_5___a_d_d_r_e_s_s _*_*_r_e_m_o_t_e___a_d_d_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeennaaddddrrss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _i_n_t _f_d, _i_n_t _f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss__ffrroomm__ffdd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _v_o_i_d _*_p___f_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeettkkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___k_e_y_b_l_o_c_k _*_*_k_e_y_b_l_o_c_k);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeettllooccaallssuubbkkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___k_e_y_b_l_o_c_k _*_*_k_e_y_b_l_o_c_k);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeettrreemmootteessuubbkkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___k_e_y_b_l_o_c_k _*_*_k_e_y_b_l_o_c_k);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__ggeenneerraatteellooccaallssuubbkkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___k_e_y_b_l_o_c_k, _*_k_e_y_");
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__iinniittiivveeccttoorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aauutthh__ccoonn__sseettiivveeccttoorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _*_a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___p_o_i_n_t_e_r _i_v_e_c_t_o_r);
+
+     _v_o_i_d
+     kkrrbb55__ffrreeee__aauutthheennttiiccaattoorr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h_e_n_t_i_c_a_t_o_r _*_a_u_t_h_e_n_t_i_c_a_t_o_r);
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55__aauutthh__ccoonntteexxtt structure holds all context related to an authenti-
+     cated connection, in a similar way to kkrrbb55__ccoonntteexxtt that holds the context
+     for the thread or process.  kkrrbb55__aauutthh__ccoonntteexxtt is used by various func-
+     tions that are directly related to authentication between the
+     server/client. Example of data that this structure contains are various
+     flags, addresses of client and server, port numbers, keyblocks (and sub-
+     keys), sequence numbers, replay cache, and checksum-type.
+
+     kkrrbb55__aauutthh__ccoonn__iinniitt() allocates and initializes the kkrrbb55__aauutthh__ccoonntteexxtt
+     structure. Default values can be changed with
+     kkrrbb55__aauutthh__ccoonn__sseettcckkssuummttyyppee() and kkrrbb55__aauutthh__ccoonn__sseettffllaaggss().  The
+     aauutthh__ccoonntteexxtt structure must be freed by kkrrbb55__aauutthh__ccoonn__ffrreeee().
+
+     kkrrbb55__aauutthh__ccoonn__ggeettffllaaggss(), kkrrbb55__aauutthh__ccoonn__sseettffllaaggss(),
+     kkrrbb55__aauutthh__ccoonn__aaddddffllaaggss() and kkrrbb55__aauutthh__ccoonn__rreemmoovveeffllaaggss() gets and modi-
+     fies the flags for a kkrrbb55__aauutthh__ccoonntteexxtt structure. Possible flags to set
+     are:
+
+     KRB5_AUTH_CONTEXT_DO_SEQUENCE
+             Generate and check sequence-number on each packet.
+
+     KRB5_AUTH_CONTEXT_DO_TIME
+             Check timestamp on incoming packets.
+
+     KRB5_AUTH_CONTEXT_RET_SEQUENCE, KRB5_AUTH_CONTEXT_RET_TIME
+             Return sequence numbers and time stamps in the outdata parame-
+             ters.
+
+     KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED
+             will force kkrrbb55__ggeett__ffoorrwwaarrddeedd__ccrreeddss() and kkrrbb55__ffwwdd__ttggtt__ccrreeddss() to
+             create unencrypted ) ENCTYPE_NULL) credentials.  This is for use
+             with old MIT server and JAVA based servers as they can't handle
+             encrypted KRB-CRED.  Note that sending such KRB-CRED is clear
+             exposes crypto keys and tickets and is insecure, make sure the
+             packet is encrypted in the protocol.  krb5_rd_cred(3),
+             krb5_rd_priv(3), krb5_rd_safe(3), krb5_mk_priv(3) and
+             krb5_mk_safe(3).  Setting this flag requires that parameter to be
+             passed to these functions.
+
+             The flags KRB5_AUTH_CONTEXT_DO_TIME also modifies the behavior
+             the function kkrrbb55__ggeett__ffoorrwwaarrddeedd__ccrreeddss() by removing the timestamp
+             in the forward credential message, this have backward compatibil-
+             ity problems since not all versions of the heimdal supports time-
+             less credentional messages.  Is very useful since it always the
+             sender of the message to cache forward message and thus avoiding
+             a round trip to the KDC for each time a credential is forwarded.
+             The same functionality can be obtained by using address-less
+             tickets.
+
+     kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss(), kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss__ffrroomm__ffdd() and
+     kkrrbb55__aauutthh__ccoonn__ggeettaaddddrrss() gets and sets the addresses that are checked
+     when a packet is received.  It is mandatory to set an address for the
+     remote host. If the local address is not set, it iss deduced from the
+     underlaying operating system.  kkrrbb55__aauutthh__ccoonn__ggeettaaddddrrss() will call
+     kkrrbb55__ffrreeee__aaddddrreessss() on any address that is passed in _l_o_c_a_l___a_d_d_r or
+     _r_e_m_o_t_e___a_d_d_r.  kkrrbb55__aauutthh__ccoonn__sseettaaddddrr() allows passing in a NULL pointer as
+     _l_o_c_a_l___a_d_d_r and _r_e_m_o_t_e___a_d_d_r, in that case it will just not set that
+     address.
+
+     kkrrbb55__aauutthh__ccoonn__sseettaaddddrrss__ffrroomm__ffdd() fetches the addresses from a file
+     descriptor.
+
+     kkrrbb55__aauutthh__ccoonn__ggeennaaddddrrss() fetches the address information from the given
+     file descriptor _f_d depending on the bitmap argument _f_l_a_g_s.
+
+     Possible values on _f_l_a_g_s are:
+
+     _K_R_B_5___A_U_T_H___C_O_N_T_E_X_T___G_E_N_E_R_A_T_E___L_O_C_A_L___A_D_D_R
+             fetches the local address from _f_d.
+
+     _K_R_B_5___A_U_T_H___C_O_N_T_E_X_T___G_E_N_E_R_A_T_E___R_E_M_O_T_E___A_D_D_R
+             fetches the remote address from _f_d.
+
+     kkrrbb55__aauutthh__ccoonn__sseettkkeeyy(), kkrrbb55__aauutthh__ccoonn__sseettuusseerrkkeeyy() and
+     kkrrbb55__aauutthh__ccoonn__ggeettkkeeyy() gets and sets the key used for this auth context.
+     The keyblock returned by kkrrbb55__aauutthh__ccoonn__ggeettkkeeyy() should be freed with
+     kkrrbb55__ffrreeee__kkeeyybblloocckk().  The keyblock send into kkrrbb55__aauutthh__ccoonn__sseettkkeeyy() is
+     copied into the kkrrbb55__aauutthh__ccoonntteexxtt, and thus no special handling is
+     needed.  NULL is not a valid keyblock to kkrrbb55__aauutthh__ccoonn__sseettkkeeyy().
+
+     kkrrbb55__aauutthh__ccoonn__sseettuusseerrkkeeyy() is only useful when doing user to user authen-
+     tication.  kkrrbb55__aauutthh__ccoonn__sseettkkeeyy() is equivalent to
+     kkrrbb55__aauutthh__ccoonn__sseettuusseerrkkeeyy().
+
+     kkrrbb55__aauutthh__ccoonn__ggeettllooccaallssuubbkkeeyy(), kkrrbb55__aauutthh__ccoonn__sseettllooccaallssuubbkkeeyy(),
+     kkrrbb55__aauutthh__ccoonn__ggeettrreemmootteessuubbkkeeyy() and kkrrbb55__aauutthh__ccoonn__sseettrreemmootteessuubbkkeeyy() gets
+     and sets the keyblock for the local and remote subkey.  The keyblock
+     returned by kkrrbb55__aauutthh__ccoonn__ggeettllooccaallssuubbkkeeyy() and
+     kkrrbb55__aauutthh__ccoonn__ggeettrreemmootteessuubbkkeeyy() must be freed with kkrrbb55__ffrreeee__kkeeyybblloocckk().
+
+     kkrrbb55__aauutthh__sseettcckkssuummttyyppee() and kkrrbb55__aauutthh__ggeettcckkssuummttyyppee() sets and gets the
+     checksum type that should be used for this connection.
+
+     kkrrbb55__aauutthh__ccoonn__ggeenneerraatteellooccaallssuubbkkeeyy() generates a local subkey that have
+     the same encryption type as _k_e_y.
+
+     kkrrbb55__aauutthh__ggeettrreemmootteesseeqqnnuummbbeerr() kkrrbb55__aauutthh__sseettrreemmootteesseeqqnnuummbbeerr(),
+     kkrrbb55__aauutthh__ggeettllooccaallsseeqqnnuummbbeerr() and kkrrbb55__aauutthh__sseettllooccaallsseeqqnnuummbbeerr() gets and
+     sets the sequence-number for the local and remote sequence-number
+     counter.
+
+     kkrrbb55__aauutthh__sseettkkeeyyttyyppee() and kkrrbb55__aauutthh__ggeettkkeeyyttyyppee() gets and gets the key-
+     type of the keyblock in kkrrbb55__aauutthh__ccoonntteexxtt.
+
+     kkrrbb55__aauutthh__ccoonn__ggeettaauutthheennttiiccaattoorr() Retrieves the authenticator that was
+     used during mutual authentication. The authenticator returned should be
+     freed by calling kkrrbb55__ffrreeee__aauutthheennttiiccaattoorr().
+
+     kkrrbb55__aauutthh__ccoonn__ggeettrrccaacchhee() and kkrrbb55__aauutthh__ccoonn__sseettrrccaacchhee() gets and sets the
+     replay-cache.
+
+     kkrrbb55__aauutthh__ccoonn__iinniittiivveeccttoorr() allocates memory for and zeros the initial
+     vector in the _a_u_t_h___c_o_n_t_e_x_t keyblock.
+
+     kkrrbb55__aauutthh__ccoonn__sseettiivveeccttoorr() sets the i_vector portion of _a_u_t_h___c_o_n_t_e_x_t to
+     _i_v_e_c_t_o_r.
+
+     kkrrbb55__ffrreeee__aauutthheennttiiccaattoorr() free the content of _a_u_t_h_e_n_t_i_c_a_t_o_r and
+     _a_u_t_h_e_n_t_i_c_a_t_o_r itself.
+
+SSEEEE AALLSSOO
+     krb5_context(3), kerberos(8)
+
+HEIMDAL                          May 17, 2005                          HEIMDAL

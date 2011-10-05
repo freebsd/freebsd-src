@@ -1,0 +1,119 @@
+#!/bin/sh
+#
+# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+#
+# $Id$
+#
+
+srcdir="@srcdir@"
+
+rsa="${TESTS_ENVIRONMENT} ./test_rsa@exeext@"
+engine="${TESTS_ENVIRONMENT} ./test_engine_dso@exeext@"
+rand="${TESTS_ENVIRONMENT} ./test_rand@exeext@"
+
+${engine} --test-random > /dev/null || { echo "missing random"; exit 77; }
+
+${rsa} --key=${srcdir}/rsakey.der || \
+	{ echo "rsa test failed" ; exit 1; }
+
+${rsa} --time-key=${srcdir}/rsakey.der || \
+	{ echo "rsa test failed" ; exit 1; }
+
+${rsa} --time-key=${srcdir}/rsakey2048.der || \
+	{ echo "rsa test failed" ; exit 1; }
+
+${rsa} --time-key=generate || \
+	{ echo "rsa test failed" ; exit 1; }
+
+${engine} --rsa=${srcdir}/rsakey.der || \
+	{ echo "engine test failed" ; exit 1; }
+
+${rsa} --loops=4 || { echo "rsa test for 4 loops failed" ; exit 1; }
+
+for a in unix fortuna egd w32crypto ;do
+	${rand} --method=${a} --file=crypto-test 2>error
+	res=$?
+	if test "X$res" != X0 ; then
+            grep "unknown method" error && \
+                { echo "random $a is not available" ; continue; }
+	    grep "random not ready yet" error || \
+		{ echo "random $a ready failing" ; cat error; exit 1; }
+	    echo "random method $a out for lunch"
+	    continue
+	fi
+	${rand} --method=${a} --file=crypto-test2 2>error
+	res=$?
+	if test "X$res" != X0 ; then
+	    grep "random not ready yet" error || \
+		{ echo "random $a ready failing" ; cat error; exit 1; }
+	    echo "random metod $a out for dinner"
+	    continue
+	fi
+	cmp crypto-test crypto-test2 && { echo "rand output same!" ; exit 1; }
+done
+
+./example_evp_cipher 1 ${srcdir}/test_crypto.in test-out-1 || \
+    { echo "1 failed" ; exit 1; }
+
+for a in 7 15 16 17 31 32 33 ; do
+    ./example_evp_cipher $a ${srcdir}/test_crypto.in test-out-$a
+    cmp test-out-1 test-out-$a || { echo "cmp $a failed" ; exit 1; }
+done
+
+#
+# Last time we run is w/o HOME and RANDFILE to make sure we can do
+# RAND_file_name() when the enviroment is lacking those.
+#
+
+if [ -e /dev/random -o -e /dev/urandom -o -e /dev/srandom -o -e /dev/arandom ] ; then
+
+    # try hard to unset HOME and RANDFILE
+    HOME=
+    RANDFILE=
+
+    unset HOME
+    unset RANDFILE
+
+    ${rand} --method=unix --file=unix 2>error
+    res=$?
+    if test "X$res" != X0 ; then
+        grep "unknown method" error && \
+        { echo "random unix is not available"; exit 0; }
+        grep "random not ready yet" error || \
+    	{ echo "random unix ready failing" ; cat error; exit 1; }
+        echo "random method unix out for lunch"
+        continue
+    fi
+
+fi
+
+exit 0

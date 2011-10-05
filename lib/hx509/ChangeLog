@@ -1,12 +1,120 @@
-2008-01-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-07-14  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+
+	* hxtool.c: Break out print_eval_types().
+	
+2008-06-21  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+
+	* ks_p12.c: pass in time_now to unevelope
+
+	* cms.c: Pass in time_now to unevelope, us verify context time in
+	verify_signed.
+
+2008-05-23  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+	
+	* hx_locl.h: Include <limits.h> for TYPE_MAX defines.
+
+2008-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* sel-lex.l: Use _hx509_sel_yyerror() instead of error_message().
+	
+2008-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	
+	* sel-lex.l: Include <config.h>
+
+2008-04-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Makefile.am: Update make-proto usage.
+
+2008-04-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* ca.c: BasicConstraints.pathLenConstraint unsigned int.
+
+	* sel-lex.l: Prefix sel_error with _hx509_ since its global on
+	platforms w/o symbol versioning.
+	
+	* sel.h: rename yyerror to sel_yyerror in the whole library, not
+	just the lexer
+
+	* sel-lex.l: rename yyerror to sel_yyerror in the whole library,
+	not just the lexer
+	
+2008-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* sel-lex.l: Rename yyerror to sel_yyerror and make it static.
+
+2008-04-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* hx509.h: Make self-standing by including missing files.
+
+2008-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* ks_p11.c: Use unsigned where appropriate.
+
+	* softp11.c: call va_start before using vsnprintf.
+
+	* crypto.c: make refcount slightly more sane.
+
+	* keyset.c: make refcount slightly more sane.
+
+	* cert.c: make refcount slightly more sane.
+
+2008-03-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* test_nist2.in: Try to find unzip.
+
+2008-03-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* version-script.map: add missing symbols
+
+	* spnego: Make delegated credentials delegated directly, Oleg
+	Sharoiko pointed out that it always didnt work with the old
+	code. Also add som missing cred and context pass-thou functions in
+	the SPNEGO layer.
+	
+2008-03-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* rename to be more consistent, export for teting
+
+	* Add language to support querying certificates to find a
+	match. Support constructs like "1.3.6.1.5.2.3.5" IN
+	%{certificate.eku} AND %{certificate.subject} TAILMATCH "C=SE".
+
+2008-02-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* version-script.map: add hx509_pem_read
+
+	* hxtool-commands.in: Add --pem to cms-verify-sd.
+
+	* test_cms.in: Test verifying PEM signature files.
+
+	* hxtool.c: Support verifying PEM signature files.
+
+2008-02-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Makefile.am: libhx509_la_OBJECTS depends on hx_locl.h
+
+2008-02-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Use ldap-prep (with libwind) to compare names
+
+2008-01-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* cert.c (hx509_query_match_eku): update to support the NULL
+	eku (reset), clearify the old behaivor with regards repetitive
+	calls.
+
+	* Add matching on EKU, validate EKUs, add hxtool matching glue,
+	add check. Adapted from pach from Tim Miller of Mitre
+
+2008-01-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_soft_pkcs11.c: use func for more C_ functions.
 	
-2008-01-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* version-script.map: Export hx509_free_error_string().
 
-2008-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* version-script.map: only export C_GetFunctionList
 
@@ -17,7 +125,7 @@
 	* softp11.c: Add option app-fatal to control if softtoken should
 	abort() on erroneous input from applications.
 
-2008-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_pkcs11.in: Test password less certificates too
 
@@ -29,7 +137,7 @@
 
 	* test_soft_pkcs11.c: Only log in if needed.
 
-2008-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* softp11.c: Support PINs to login to the store.
 
@@ -45,20 +153,20 @@
 	* softp11.c: Add more glue to figure out what keytype this
 	certificate is using.
 
-2008-01-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_pkcs11.in: test debug
 
 	* Add a PKCS11 provider supporting signing and verifing sigatures.
 
-2008-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* version-script.map: Replace hx509_name_to_der_name with
 	hx509_name_binary.
 
 	* print.c: make print_func static
 
-2007-12-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print.c: doxygen
 
@@ -68,15 +176,15 @@
 
 	* ca.c: doxygen.
 
-2007-12-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ca.c: doxygen
 
-2007-12-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* error.c: doxygen
 	
-2007-12-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* More documentation
 	
@@ -86,17 +194,17 @@
 
 	* cms.c: Doxygen documentation.
 
-2007-12-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* *.[ch]: More documentation
 
-2007-12-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* handle refcount on NULL.
 
 	* test_nist_pkcs12.in: drop echo -n, doesn't work with posix sh
 
-2007-12-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_nist2.in: Print that this is version 2 of the tests
 
@@ -118,20 +226,20 @@
 
 	* revoke.c (_hx509_revoke_ref): new function.
 
-2007-11-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-11-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_keychain.c: Check if SecKeyGetCSPHandle needs prototype.
 
-2007-08-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* data/nist-data: Make work on case senstive filesystems too.
 	
-2007-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c: match rfc822 contrains better, provide better error
 	strings.
 
-2007-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c: "self-signed doesn't count" doesn't apply to trust
 	anchor certificate.  make trust anchor check consistant.
@@ -145,7 +253,7 @@
 
 	* cert.c: Fix NC, comment on how to use _hx509_check_key_usage.
 
-2007-08-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_nist2.in, Makefile, test/nist*: Add nist pkits tests. 
 
@@ -160,12 +268,12 @@
 	* revoke.c: Search for the right issuer when looking for the
 	issuer of the CRL signer.
 
-2007-08-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* revoke.c: Handle CRL signing certificate better, try to not
 	revalidate invalid CRLs over and over.
 
-2007-08-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: remove stale comment.
 
@@ -177,21 +285,21 @@
 
 	* Makefile.am: clean PKITS_data
 
-2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add version-script.map to EXTRA_DIST
 
-2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add depenency on asn1_compile for asn1 built files.
 	
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* peer.c: update (c), indent.
 
 	* Makefile.am: New library version.
 
-2007-06-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c: Add sha2 types.
 
@@ -207,7 +315,7 @@
 
 	* print.c: Rename proxyCertInfo oid.
 	
-2007-06-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_ca.in: Adapt to new request handling.
 
@@ -231,7 +339,7 @@
 
 	* version-script.map: add missing ;
 
-2007-06-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: Use hx509_crypto_random_iv.
 
@@ -285,7 +393,7 @@
 
 	* hxtool.c: Verify hostname and test max-depth.
 
-2007-06-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_cms.in: Test --id-by-name.
 
@@ -302,7 +410,7 @@
 	* cert.c (match_general_name): more strict rfc822Name matching.
 	(hx509_verify_hostname): add hostname type for matching.
 
-2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: Make compile again.
 
@@ -317,7 +425,7 @@
 
 	* test_cert.in: more cert and keyset tests.
 
-2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* revoke.c: Avoid stomping on NULL.
 
@@ -333,7 +441,7 @@
 
 	* crypto.c: Free memory in failure case.
 
-2007-06-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* *.c: Add hx509_cert_init_data and use everywhere
 
@@ -352,13 +460,13 @@
 	* cert.c: Change logic for default trust anchors, make it be
 	either default trust anchor, the user supplied, or non at all.
 
-2007-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add data/j.pem.
 
 	* Makefile.am: Add test_windows.in.
 	
-2007-06-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_keychain.c: rename functions, leaks less memory and more
 	paranoia.
@@ -383,7 +491,7 @@
 
 	* Makefile.am: add wcrl.crl
 	
-2007-06-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hx_locl.h: Disable KEYCHAIN for now, its slow.
 
@@ -407,7 +515,7 @@
 	special and be the system X509Anchors file. By not specifing any
 	keychain ("KEYCHAIN:"), all keychains are probed.
 	
-2007-06-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c (verify): Friendlier error message.
 
@@ -465,7 +573,7 @@
 
 	* name.c: Reset name before parsing it.
 	
-2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* revoke.c (hx509_crl_*): fix sizeof() mistakes to fix memory
 	corruption.
@@ -491,7 +599,7 @@
 
 	* cert.c (hx509_context_free): free querystat
 	
-2007-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_chain.in: test ocsp-verify
 	
@@ -505,7 +613,7 @@
 
 	* hxtool-commands.in: New command ocsp-verify.
 	
-2007-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_ca.in: Create crl and verify that is works.
 
@@ -558,7 +666,7 @@
 
 	* ca.c (hx509_ca_tbs_add_crl_dp_uri): plug memory leak
 	
-2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print.c: print utf8 type SAN's
 
@@ -577,7 +685,7 @@
 
 	* hxtool-commands.in: make ca and alias of certificate-sign
 	
-2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.c (hx509_crypto_select): copy AI to the right place.
 
@@ -608,11 +716,11 @@
 
 	* hx509.h: Add HX509_SELECT_SECRET_ENC.
 	
-2007-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c: add more mechtypes
 	
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* print.c: Indent.
 
@@ -632,17 +740,17 @@
 
 	* ks_p11.c: Add some more hashes.
 	
-2007-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c (crypto_select): stop memory leak
 	
-2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* peer.c (hx509_peer_info_free): free memory used too
 
 	* hxtool.c (crypto_select): only free peer if it was used.
 	
-2007-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: free template
 
@@ -663,18 +771,18 @@
 	* ks_mem.c (mem_getkeys): allocate one more the we have elements
 	so its possible to store the NULL pointer at the end.
 	
-2007-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: CLEANFILES += cert-null.pem cert-sub-ca2.pem
 	
-2007-02-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ca.c: Disable CRLDistributionPoints for now, its IMPLICIT code
 	in the asn1 parser.
 
 	* print.c: Add some more \n's.
 	
-2007-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* file.c: Allow mapping using heim_octet_string.
 
@@ -693,7 +801,7 @@
 
 	* cert.c: Fix printing and plug leak-on-error.
 	
-2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* test_ca.in: Add test for ca --crl-uri.
 
@@ -710,27 +818,27 @@
 
 	* cert.c (is_proxy_cert): free info if we wont return it.
 	
-2007-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hxtool.c: Try to help how to use this command.
 	
-2007-01-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* switch to sha256 as default digest for signing
 
-2007-01-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_ca.in: Really test sub-ca code, add basic constraints tests
 	
-2007-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: Fix makefile problem.
 	
-2007-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: Set num of bits before we generate the key.
 	
-2007-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* cms.c (hx509_cms_create_signed_1): use hx509_cert_binary
 
@@ -741,7 +849,7 @@
 	* cert.c (hx509_cert_binary): return binary encoded
 	certificate (DER format)
 	
-2007-01-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ca.c (hx509_ca_tbs_subject_expand): new function.
 
@@ -763,7 +871,7 @@
 
 	* cert.c: Export more stuff from certificate.
 	
-2007-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ca.c: update (c)
 
@@ -782,7 +890,7 @@
 
 	* env.c: key-value pair help functions
 	
-2007-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ca.c: Don't issue certs with subject DN that is NULL and have no
 	SANs
@@ -808,7 +916,7 @@
 
 	* print.c: Print id-pkix-on-xmppAddr OtherName.
 	
-2007-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* no random, no RSA/DH tests
 
@@ -838,7 +946,7 @@
 
 	* Makefile.am: add data/test-nopw.p12 to EXTRA_DIST
 	
-2007-01-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* print.c: BasicConstraints vs criticality bit is complicated and
 	not really possible to evaluate on its own, silly RFC3280.
@@ -851,7 +959,7 @@
 
 	* name.c (hx509_name_cmp): add
 	
-2007-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c (collect_private_key): Missing CKA_MODULUS is ok
 	too (XXX why should these be fetched given they are not used).
@@ -867,11 +975,11 @@
  
 	* data/gen-req.sh: Generate a no password pkcs12 file.
 	
-2007-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: Check for internal ASN1 encoder error.
 	
-2007-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: Drop most of the pkcs11 files.
 
@@ -888,7 +996,7 @@
 	* ref: Replace with Marcus Brinkmann of g10 Code GmbH pkcs11
 	headerfile that is compatible with GPL (file taken from scute)
 
-2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_ca.in: Test to generate key and use them.
 
@@ -914,7 +1022,7 @@
 
 	* hxtool.c (pcert_verify): Fix format string.
 
-2006-12-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: Allow setting path length
 
@@ -944,7 +1052,7 @@
 
 	* name.c: Split building RDN to a separate function.
 	
-2006-12-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: clean test_ca files.
 
@@ -987,7 +1095,7 @@
 
 	* ocsp.asn1: remove id-kp-OCSPSigning, its in rfc2459.asn1 now
 	
-2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ca.c: Add KeyUsage extension.
 
@@ -1008,21 +1116,21 @@
 
 	* ca.c: Naive certificate signer.
 	
-2006-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hxtool.c: add hxtool_hex
 	
-2006-12-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: use top_builddir for libasn1.la
 	
-2006-12-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hxtool.c (print_certificate): print serial number.
 
 	* name.c (no): add S=stateOrProvinceName
 	
-2006-12-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* crypto.c (_hx509_private_key_assign_rsa): set a default sig alg
 
@@ -1030,7 +1138,7 @@
 	uses to do sigatures so there is no need to hardcode RSA into this
 	function.
 	
-2006-12-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_file.c: Pass filename to the parse functions and use it in
 	the error messages
@@ -1050,7 +1158,7 @@
 	* cert.c: Clairfy and make proxy cert handling work for multiple
 	levels, before it was too restrictive. More helpful error message.
 	
-2006-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* cert.c (check_key_usage): tell what keyusages are missing
 
@@ -1061,7 +1169,7 @@
 
 	* Makefile.am: CLEANFILES += test
 	
-2006-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am (EXTRA_DIST): add data/pkinit-proxy* files
 
@@ -1094,7 +1202,7 @@
 	* test_cms.in: Tests for CMS SignedData with incomplete chain from
 	the signer.
 	
-2006-11-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c (hx509_cms_verify_signed): specify what signature we
 	failed to verify
@@ -1116,7 +1224,7 @@
 	* crypto.c: use unsigned int as counter to fit better with the
 	asn1 compiler
 	
-2006-11-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* cms.c: Remove trailing white space.
 
@@ -1142,7 +1250,7 @@
 	* crypto.c (hx509_crypto_select): improve
 	(hx509_crypto_available): new function
 	
-2006-11-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* cert.c: Sprinkle more error string and hx509_contexts.
 
@@ -1168,17 +1276,17 @@
 	
 	* cert.c: Handle that _hx509_verify_signature takes a context.
 	
-2006-11-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: Sprinkle error strings.
 
 	* crypto.c: Sprinkle context and error strings.
 	
-2006-11-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* name.c: Handle printing and parsing raw oids in name.
 
-2006-11-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c (_hx509_calculate_path): allow to calculate optimistic
 	path when we don't know the trust anchors, just follow the chain
@@ -1192,27 +1300,27 @@
 
 	* data/gen-req.sh: Build pk-init proxy cert.
 	
-2006-11-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* error.c (hx509_get_error_string): Put ", " between strings in
 	error message.
 	
-2006-11-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* data/openssl.cnf: Change realm to TEST.H5L.SE
 	
-2006-11-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* revoke.c: Sprinkle error strings.
 	
-2006-11-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hx_locl.h: add context variable to cmp function.
 
 	* cert.c (hx509_query_match_cmp_func): allow setting the match
 	function.
 	
-2006-10-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c: Return less EINVAL.
 
@@ -1243,7 +1351,7 @@
 	* cert.c (hx509_cert_get_base_subject): one less EINVAL
 	(_hx509_cert_private_decrypt): one less EINVAL
 	
-2006-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* collector.c: indent
 
@@ -1255,7 +1363,7 @@
 
 	* req.c: Try to not leak memory.
 	
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_crypto.in: Read 50 kilobyte random data
 	
@@ -1273,22 +1381,22 @@
 
 	* cms.c: Try harder to free certificate.
 	
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add make check data.
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c (p11_list_keys): make element of search_data[0]
 	constants and set them later
 
 	* Makefile.am: Add more files.
 	
-2006-10-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_file.c: set ret, remember to free ivdata
 	
-2006-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hx_locl.h: Include <parse_bytes.h>.
 
@@ -1307,7 +1415,7 @@
 
 	* ks_p11.c: Remember to release certs.
 	
-2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* prefix der primitives with der_
 
@@ -1315,7 +1423,7 @@
 
 	* hx_locl.h: Drop heim_any.h
 	
-2006-10-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c (p11_release_module): j needs to be used as inter loop
 	index. From Douglas Engert.
@@ -1323,12 +1431,12 @@
 	* ks_file.c (parse_rsa_private_key): try all passwords and
 	prompter.
 	
-2006-10-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* test_*.in: Parameterise the invocation of hxtool, so we can make
 	it run under TESTS_ENVIRONMENT. From Andrew Bartlett
 
-2006-10-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_crypto.in: Put all test stuck at 2006-09-25 since all their
 	chains where valied then.
@@ -1348,14 +1456,14 @@
 	keystore related error.  Patched based on code from Douglas
 	Engert.
 	
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Make depenency for slc built files just like
 	everywhere else.
 
 	* cert.c: Add all openssl algs and init asn1 et
 	
-2006-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_file.c (parse_rsa_private_key): free type earlier.
 
@@ -1363,18 +1471,18 @@
 
 	* name.c (_hx509_Name_to_string): remove dup const
 	
-2006-10-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: Add more libs to libhx509
 	
-2006-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c: Fix double free's, NULL ptr de-reference, and conform
 	better to pkcs11.  From Douglas Engert.
 
 	* ref: remove ^M, it breaks solaris 10s cc. From Harald Barth
 
-2006-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_crypto.in: Bleichenbacher bad cert from Ralf-Philipp
 	Weinmann and Andrew Pyshkin, pad right.
@@ -1382,7 +1490,7 @@
 	* data: starfield test root cert and Ralf-Philipp and Andreis
 	correctly padded bad cert
 
-2006-09-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_crypto.in: Add test for yutaka certs.
 
@@ -1393,12 +1501,12 @@
 
 	* hxtool.c: Improve printing and error reporting.
 	
-2006-09-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_crypto.in,Makefile.am,data/bleichenbacher-{bad,good}.pem:
 	test bleichenbacher from eay
 
-2006-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: Make common function for all getarg_strings and
 	hx509_certs_append commonly used.
@@ -1406,7 +1514,7 @@
 	* cms.c: HX509_CMS_UE_DONT_REQUIRE_KU_ENCIPHERMENT is a negative
 	flag, treat it was such.
 	
-2006-09-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* req.c: Use the new add_GeneralNames function.
 
@@ -1419,14 +1527,14 @@
 	* cms.c: Allow passing in encryptedContent and flag.  Add new flag
 	HX509_CMS_UE_DONT_REQUIRE_KU_ENCIPHERMENT.
 	
-2006-09-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c: cast void * to char * when using it for %s formating
 	in printf.
 
 	* name.c: New function _hx509_Name_to_string.
 	
-2006-09-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_file.c: Sprinkle error messages.
 
@@ -1440,7 +1548,7 @@
 	* ks_p11.c: Don't build most of the pkcs11 module if there are no
 	dlopen().
 	
-2006-09-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c (hx509_cms_unenvelope): try to save the error string from
 	find_CMSIdentifier so we have one more bit of information what
@@ -1455,7 +1563,7 @@
 	* ks_p11.c (p11_list_keys): fetch CKA_LABEL and use it to set the
 	friendlyname for the certificate.
 	
-2006-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* crypto.c: check that there are no extra bytes in the checksum
 	and that the parameters are NULL or the NULL-type. All to avoid
@@ -1482,7 +1590,7 @@
 
 	* ks_p11.c (p11_get_session): return better error messages
 	
-2006-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ref: update to pkcs11 reference files 2.20
 
@@ -1517,12 +1625,12 @@
 	* crypto.c: Start to hang the private key operations of the
 	private key, pass hx509_context to create_checksum.
 	
-2006-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c: Iterate over all slots, not just the first/selected
 	one.
 	
-2006-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c: Add release function for certifiates so backend knowns
 	when its no longer used.
@@ -1532,11 +1640,11 @@
 
 	* cms.c: sprinkle more hx509_clear_error_string
 
-2006-05-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_p11.c: Sprinkle some hx509_set_error_strings
 	
-2006-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hxtool.c: Avoid shadowing.
 
@@ -1546,7 +1654,7 @@
 
 	* cert.c: Avoid shadowing.
 	
-2006-05-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* lock.c (hx509_prompt_hidden): reshuffle to avoid gcc warning
 	
@@ -1557,7 +1665,7 @@
 
 	* revoke.c (hx509_revoke_free): allow free of NULL.
 	
-2006-05-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ks_file.c (file_init): Avoid shadowing ret (and thus avoiding
 	crashing).
@@ -1566,7 +1674,7 @@
 
 	* ks_p11.c: Catch more errors.
 	
-2006-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* crypto.c (hx509_crypto_encrypt): free correctly in error
 	path. From Andrew Bartlett.
@@ -1574,11 +1682,11 @@
 	* crypto.c: If RAND_bytes fails, then we will attempt to
 	double-free crypt->key.data.  From Andrew Bartlett.
 	
-2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* name.c: Rename u_intXX_t to uintXX_t
 	
-2006-05-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* TODO: More to do about the about the PKCS11 code.
 
@@ -1589,7 +1697,7 @@
 
 	* hx509.h: Make hx509_prompt.reply not a pointer.
 	
-2006-05-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* keyset.c: Sprinkle setting error strings.
 
@@ -1599,7 +1707,7 @@
 
 	* cms.c: Sprinkle setting error strings.
 	
-2006-05-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* test_name.c: renamed one error code
 
@@ -1638,7 +1746,7 @@
 
 	* keyset.c (hx509_certs_init): pass the right error code back
 	
-2006-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* revoke.c: Revert previous patch.
 	(hx509_ocsp_verify): new function that returns the expiration of
@@ -1656,7 +1764,7 @@
 
 	* cert.c: remove _hx509_cert_private_sigature
 	
-2006-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* name.c: Expose more of Name.
 
@@ -1670,7 +1778,7 @@
 	copy_octet_string
 	(hx509_cert_find_subjectAltName_otherName): make work
 	
-2006-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* data/{pkinit,kdc}.{crt,key}: pkinit certificates
 
@@ -1680,11 +1788,11 @@
 
 	* cert.c (hx509_verify_hostname): implement stub function
 	
-2006-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* TODO: CRL delta support
 
-2006-04-26 Love Hörnquist Åstrand <lha@it.su.se>
+2006-04-26 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 	
 	* data/.cvsignore: ignore leftover from OpenSSL cert generation
 
@@ -1757,7 +1865,7 @@
 
 	* cert.c: Initial support for proxy certificates.
 	
-2006-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: some error checking
 
@@ -1765,7 +1873,7 @@
 
 	* TODO: merge with old todo file
 	
-2006-04-23 Love Hörnquist Åstrand <lha@it.su.se>
+2006-04-23 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* test_query.in: make quiet
 
@@ -1779,7 +1887,7 @@
 
 	* test_nist.in: SKIP test if there is no RSA support.
 	
-2006-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool-commands.in: Allow passing in pool and anchor to
 	signedData
@@ -1814,7 +1922,7 @@
 
 	* cert.c (hx509_query_match_friendly_name): New function.
 	
-2006-04-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c: Add support for parsing slot-number.
 
@@ -1861,7 +1969,7 @@
 
 	* crypto.c: Handle rsa private keys better.
 	
-2006-04-20  Love Hörnquist Åstrand <lha@it.su.se>
+2006-04-20  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* hxtool.c: Use hx509_cms_{,un}wrap_ContentInfo
 
@@ -1875,14 +1983,14 @@
 	
 	* crypto.c: Use the right length for the sha256 checksums.
 	
-2006-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.c: Fix breakage from sha256 code.
 
 	* crypto.c: Add SHA256 support, and symbols for the other new
 	SHA-2 types.
 	
-2006-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_cms.in: test rc2-40 rc2-64 rc2-128 enveloped data
 	
@@ -1893,13 +2001,13 @@
 	* crypto.c: Break out the parameter handling code for encrypting
 	data to handle RC2.  Needed for Windows 2k pk-init support.
 	
-2006-04-04  Love Hörnquist Åstrand <lha@it.su.se>
+2006-04-04  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* Makefile.am: Split libhx509_la_SOURCES into build file and
 	distributed files so we can avoid building prototypes for
 	build-files.
 	
-2006-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* TODO: split certificate request into pkcs10 and CRMF
 
@@ -1951,7 +2059,7 @@
 	* crypto.c: Add _hx509_private_key2SPKI and support
 	functions (only support RSA for now).
 	
-2006-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* hxtool-commands.in: Add pkcs10-create command.
 
@@ -1968,7 +2076,7 @@
 
 	* name.c (hx509_name_copy): new function.
 	
-2006-04-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* TODO: fill out what do
 
@@ -2049,7 +2157,7 @@
 	* cert.c: Add ocsp glue, use new
 	_hx509_verify_signature_bitstring, add eku checking function.
 	
-2006-03-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add id_kp_OCSPSigning.x
 
@@ -2076,17 +2184,17 @@
 	* hx_locl.h: rename HX509_CTX_CRL_MISSING_OK to
 	HX509_CTX_VERIFY_MISSING_OK now that we have OCSP glue
 	
-2006-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hx_locl.h: Add <krb5-types.h> to make it compile on Solaris,
 	from Alex V. Labuta.
 	
-2006-03-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* crypto.c (_hx509_pbe_decrypt): try all passwords, not just the
 	first one.
 	
-2006-03-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print.c (check_altName): Print the othername oid.
 
@@ -2110,7 +2218,7 @@
 
 	* cms.c: Check for signature error, check consitency of error
 	
-2006-03-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* collector.c (_hx509_collector_alloc): handle errors
 
@@ -2138,7 +2246,7 @@
 
 	* hx509.h: Add hx509_query.
 	
-2006-02-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-02-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c: Add exceptions for null (empty) subjectNames
 
@@ -2157,17 +2265,17 @@
 	If the name restrictions are merged to a list, the certificate
 	will pass this test.
 
-2006-02-14 Love Hörnquist Åstrand <lha@it.su.se>
+2006-02-14 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* cert.c: Handle more name constraints cases.
 
 	* crypto.c (dsa_verify_signature): if test if malloc failed
 
-2006-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: Drop partial pkcs12 string2key implementation.
 	
-2006-01-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* data/nist-data: Add commited out DSA tests (they fail).
 
@@ -2191,7 +2299,7 @@
 
 	* test_nist_cert.in: test parse all nist certs
 	
-2006-01-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hx509_err.et: Add HX509_CRL_UNKNOWN_EXTENSION.
 
@@ -2228,7 +2336,7 @@
 
 	* test_cms.in: Use static file, add --missing-crl.
 	
-2006-01-18  Love Hörnquist Åstrand <lha@it.su.se>
+2006-01-18  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* print.c: Its cRLReason, not cRLReasons.
 
@@ -2246,17 +2354,17 @@
 
 	* hx509.h: Add hx509_revoke_ctx.
 	
-2006-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* delete crypto_headers.h, use global file instead.
 
 	* crypto.c (PBE_string2key): libdes now supports PKCS12_key_gen
 	
-2006-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto_headers.h: Need BN_is_negative too.
 	
-2006-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ks_p11.c (p11_rsa_public_decrypt): since is wrong, don't provide
 	it. PKCS11 can't do public_decrypt, it support verify though. All
@@ -2265,7 +2373,7 @@
 	* crypto_headers.h: Provide glue to compile with less warnings
 	with OpenSSL
 	
-2006-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: Depend on LIB_des
 
@@ -2282,7 +2390,7 @@
 	and use "crypto-headers.h".
 	
 
-2006-01-04 Love Hörnquist Åstrand <lha@it.su.se>
+2006-01-04 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 	
 	* add a hx509_context where we can store configuration
 
@@ -2337,7 +2445,7 @@
 	* hxtool.c (print_f): print if there is a friendly name and if
 	there is a private key
 	
-2006-01-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* name.c: Avoid warning from missing __attribute__((noreturn))
 
@@ -2380,7 +2488,7 @@
 
 	* name.c: use _hx509_abort
 	
-2006-01-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* name.c (hx509_name_to_string): don't cut bmpString in half.
 
@@ -2404,7 +2512,7 @@
 	* ks_dir.c: Add new keystore that treats all files in a directory
 	a keystore, useful for regression tests.
 	
-2005-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-12-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_nist_pkcs12.in: Test parse PKCS12 files from NIST.
 
@@ -2412,16 +2520,16 @@
 	
 	* hxtool.c: Print error code on failure.
 	
-2005-10-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.c: Support DSA signature operations.
 	
-2005-10-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print.c: Validate that issuerAltName and subjectAltName isn't
 	empty.
 	
-2005-09-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* p11.c: Cast to unsigned char to avoid warning.
 
@@ -2431,7 +2539,7 @@
 	
 	* ks_p11.c: Starting point of a pkcs11 module.
 	
-2005-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* lock.c: Implement prompter.
 
@@ -2447,7 +2555,7 @@
 	* name.c: Add DC, handle all Directory strings, fix signless
 	problems.
 	
-2005-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_query.in: Pass in --pass to all commands.
 
@@ -2473,11 +2581,11 @@
 
 	* test_query.in: Use echo, the function check isn't defined here.
 	
-2005-08-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool-commands.in: Add more options that was missing.
 
-2005-07-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_cms.in: Use --certificate= for enveloped/unenvelope.
 
@@ -2498,7 +2606,7 @@
 	
 	* crypto.c: add "new" RC2 oid
 	
-2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hx_locl.h, cert.c: Add HX509_QUERY_MATCH_FUNCTION that allows
 	caller to match by function, note that this doesn't not work
@@ -2571,7 +2679,7 @@
 	
 	* hxtool.c,Makefile.am,hxtool-commands.in: switch to slc
 
-2005-07-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cert.c (hx509_verify_destroy_ctx): add
 	
@@ -2579,7 +2687,7 @@
 	
 	* name.c (_hx509_name_ds_cmp): make sure all strings are not equal
 
-2005-07-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hxtool.c: return error
 	
@@ -2618,7 +2726,7 @@
 
 	* cert.c: more checks on KeyUsage, allow to query on them too
 
-2005-07-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* cms.c: Add missing break.
 	

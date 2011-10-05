@@ -1,0 +1,33 @@
+
+KRB5_FIND_PADATA(3)      BSD Library Functions Manual      KRB5_FIND_PADATA(3)
+
+NNAAMMEE
+     kkrrbb55__ffiinndd__ppaaddaattaa, kkrrbb55__ppaaddaattaa__aadddd -- Kerberos 5 pre-authentication data
+     handling functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _P_A___D_A_T_A _*
+     kkrrbb55__ffiinndd__ppaaddaattaa(_P_A___D_A_T_A _*_v_a_l, _u_n_s_i_g_n_e_d _l_e_n, _i_n_t _t_y_p_e, _i_n_t _*_i_n_d_e_x);
+
+     _i_n_t
+     kkrrbb55__ppaaddaattaa__aadddd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _M_E_T_H_O_D___D_A_T_A _*_m_d, _i_n_t _t_y_p_e,
+         _v_o_i_d _*_b_u_f, _s_i_z_e___t _l_e_n);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ffiinndd__ppaaddaattaa() tries to find the pre-authentication data entry of
+     type _t_y_p_e in the array _v_a_l of length _l_e_n.  The search is started at entry
+     pointed out by _*_i_n_d_e_x (zero based indexing).  If the type isn't found,
+     NULL is returned.
+
+     kkrrbb55__ppaaddaattaa__aadddd() adds a pre-authentication data entry of type _t_y_p_e
+     pointed out by _b_u_f and _l_e_n to _m_d.
+
+SSEEEE AALLSSOO
+     krb5(3), kerberos(8)
+
+HEIMDAL                         March 21, 2004                         HEIMDAL

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,18 +30,17 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id: check-uu.in 21855 2007-08-08 06:59:09Z lha $
-#
 
-srcdir="@srcdir@"
+env_setup="@env_setup@"
 objdir="@objdir@"
-EGREP="@EGREP@"
+srcdir="@srcdir@"
 
 testfailed="echo test failed; cat messages.log; exit 1"
 
+. ${env_setup}
+
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
 
 R=TEST.H5L.SE
 
@@ -55,10 +54,10 @@ kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
 cache1="FILE:${objdir}/cache1.krb5"
 cache2="FILE:${objdir}/cache2.krb5"
 
-kinit1="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache1 --no-afslog"
-kinit2="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache2 --no-afslog"
-kdestroy1="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache1 --no-unlog"
-kdestroy2="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache2 --no-unlog"
+kinit1="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache1 ${afs_no_afslog}"
+kinit2="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache2 ${afs_no_afslog}"
+kdestroy1="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache1 ${afs_no_unlog}"
+kdestroy2="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache2 ${afs_no_unlog}"
 uu_server="${TESTS_ENVIRONMENT} ../../appl/test/uu_server"
 uu_client="${TESTS_ENVIRONMENT} ../../appl/test/uu_client"
 
@@ -91,13 +90,13 @@ echo Starting kdc
 ${kdc} &
 kdcpid=$!
 
-sh ${srcdir}/wait-kdc.sh
+sh ${wait_kdc}
 if [ "$?" != 0 ] ; then
-    kill ${kdcpid}
+    kill -9 ${kdcpid}
     exit 1
 fi
 
-trap "kill ${kdcpid} ${uuspid}; echo signal killing kdc; exit 1;" EXIT
+trap "kill -9 ${kdcpid} ${uuspid}; echo signal killing kdc; exit 1;" EXIT
 
 ec=0
 
@@ -131,7 +130,8 @@ ${kdestroy1}
 ${kdestroy2}
 
 echo "killing kdc uu_server (${kdcpid} ${uuspid})"
-kill $kdcpid $uuspid || exit 1
+sh ${leaks_kill} kdc $kdcpid || exit 1
+
 
 trap "" EXIT
 

@@ -1,4 +1,4 @@
-# $Id: Makefile.am 20202 2007-02-08 00:59:47Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -39,5 +39,6 @@ CLEANFILES= \
 	messages.log
 
 EXTRA_DIST = \
+	NTMakefile \
 	check-pac.in \
 	krb5.conf.in

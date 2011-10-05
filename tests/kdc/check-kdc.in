@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -30,29 +30,38 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
-#
-# $Id: check-kdc.in 22019 2007-10-24 20:47:59Z lha $
-#
 
-srcdir="@srcdir@"
+top_builddir="@top_builddir@"
+env_setup="@env_setup@"
 objdir="@objdir@"
-EGREP="@EGREP@"
+
+. ${env_setup}
+
+KRB5_CONFIG="${1-${objdir}/krb5.conf}"
+export KRB5_CONFIG
 
 testfailed="echo test failed; cat messages.log; exit 1"
 
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
 
 R=TEST.H5L.SE
 R2=TEST2.H5L.SE
+R3=TEST-HTTP.H5L.SE
 
 port=@port@
 
-kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
-kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
+kadmin="${kadmin} -l -r $R"
+kdc="${kdc} --addresses=localhost -P $port"
 
 server=host/datan.test.h5l.se
 server2=host/computer.example.com
+serverip=host/10.11.12.13
+serveripname=host/ip.test.h5l.org
+serveripname2=host/10.11.12.14
+alias1=host/datan.example.com
+alias2=host/datan
+aliaskeytab=host/datan
 cache="FILE:${objdir}/cache.krb5"
 ocache="FILE:${objdir}/ocache.krb5"
 o2cache="FILE:${objdir}/o2cache.krb5"
@@ -62,18 +71,12 @@ keytab="FILE:${keytabfile}"
 ps="proxy-service@${R}"
 aesenctype="aes256-cts-hmac-sha1-96"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
-klist="${TESTS_ENVIRONMENT} ../../kuser/klist -c $cache"
-kgetcred="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache"
-kgetcred_imp="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache --out-cache=${ocache}"
-kdestroy="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache --no-unlog"
-ktutil="${TESTS_ENVIRONMENT} ../../admin/ktutil"
-hxtool="${TESTS_ENVIRONMENT} ../../lib/hx509/hxtool"
-kimpersonate="${TESTS_ENVIRONMENT} ../../kuser/kimpersonate -k ${keytab} --ccache=${ocache}"
-test_renew="${TESTS_ENVIRONMENT} ../../lib/krb5/test_renew"
-
-KRB5_CONFIG="${objdir}/krb5.conf"
-export KRB5_CONFIG
+kinit="${kinit} -c $cache ${afs_no_afslog}"
+klist="${klist} -c $cache"
+kgetcred="${kgetcred} -c $cache"
+kgetcred_imp="${kgetcred} -c $cache --out-cache=${ocache}"
+kdestroy="${kdestroy} -c $cache ${afs_no_unlog}"
+kimpersonate="${kimpersonate} -k ${keytab} --ccache=${ocache}"
 
 rm -f ${keytabfile}
 rm -f current-db*
@@ -95,6 +98,12 @@ ${kadmin} \
     --realm-max-renewable-life=1month \
     ${R2} || exit 1
 
+${kadmin} \
+    init \
+    --realm-max-ticket-life=1day \
+    --realm-max-renewable-life=1month \
+    ${R3} || exit 1
+
 ${kadmin} cpw -r krbtgt/${R}@${R} || exit 1
 ${kadmin} cpw -r krbtgt/${R}@${R} || exit 1
 ${kadmin} cpw -r krbtgt/${R}@${R} || exit 1
@@ -105,6 +114,7 @@ ${kadmin} add -p bar --use-defaults bar@${R} || exit 1
 ${kadmin} add -p foo --use-defaults remove@${R} || exit 1
 ${kadmin} add -p kaka --use-defaults ${server}@${R} || exit 1
 ${kadmin} add -p kaka --use-defaults ${server}-des3@${R} || exit 1
+${kadmin} add -p kaka --use-defaults kt-des3@${R} || exit 1
 ${kadmin} add -p foo --use-defaults ${ps} || exit 1
 ${kadmin} modify --attributes=+trusted-for-delegation ${ps} || exit 1
 ${kadmin} modify --constrained-delegation=${server} ${ps} || exit 1
@@ -113,11 +123,26 @@ ${kadmin} ext -k ${keytab} ${ps} || exit 1
 
 ${kadmin} add -p kaka --use-defaults ${server2}@${R2} || exit 1
 ${kadmin} ext -k ${keytab} ${server2}@${R2} || exit 1
+${kadmin} add -p kaka --use-defaults ${serverip}@${R} || exit 1
+${kadmin} ext -k ${keytab} ${serverip}@${R} || exit 1
+${kadmin} add -p kaka --use-defaults ${serveripname}@${R} || exit 1
+${kadmin} ext -k ${keytab} ${serveripname}@${R} || exit 1
+${kadmin} modify --alias=${serveripname2}@${R} ${serveripname}@${R}
 ${kadmin} add -p foo --use-defaults remove2@${R2} || exit 1
+
+${kadmin} add -p kaka --use-defaults ${alias1}@${R} || exit 1
+${kadmin} ext -k ${keytab} ${alias1}@${R} || exit 1
+${kadmin} modify --alias=${alias2}@${R} ${alias1}@${R}
 
 ${kadmin} add -p cross1 --use-defaults krbtgt/${R2}@${R} || exit 1
 ${kadmin} add -p cross2 --use-defaults krbtgt/${R}@${R2} || exit 1
 
+${kadmin} add -p foo --use-defaults pw-expire@${R} || exit 1
+${kadmin} modify --pw-expiration-time=+1day  pw-expire@${R} || exit 1
+
+${kadmin} add -p foo --use-defaults foo@${R3} || exit 1
+
+echo "Check parser"
 ${kadmin} add -p foo --use-defaults -- -p || exit 1
 ${kadmin} delete -- -p || exit 1
 
@@ -136,19 +161,26 @@ enctypes=`grep Keytypes: tempfile | sed 's/(pw-salt)//g' | sed 's/,//g' | sed 's
 enctype_sans_aes=`echo $enctypes | sed 's/aes[^ ]*//g'`
 enctype_sans_des3=`echo $enctypes | sed 's/des3-cbc-sha1//g'`
 
+echo "deleting all but des enctypes on kt-des3 in keytab"
+${kadmin} ext -k ${keytab} kt-des3@${R} || exit 1
+for a in ${enctype_sans_des3} ; do
+   ${ktutil} -k ${keytab} remove -p kt-des3@${R} -e $a
+done
+
 echo foo > ${objdir}/foopassword
 
 echo Starting kdc
+env MallocStackLogging=1 MallocStackLoggingNoCompact=1 MallocErrorAbort=1 MallocLogFile=${objdir}/malloc-log \
 ${kdc} &
 kdcpid=$!
 
-sh ${srcdir}/wait-kdc.sh
+sh ${wait_kdc}
 if [ "$?" != 0 ] ; then
-    kill ${kdcpid}
+    kill -9 ${kdcpid}
     exit 1
 fi
 
-trap "kill ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
+trap "kill -9 ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
 
 ec=0
 
@@ -159,7 +191,12 @@ echo "Getting tickets"; > messages.log
 ${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 echo "Listing tickets"; > messages.log
 ${klist} > /dev/null || { ec=1 ; eval "${testfailed}"; }
-./ap-req ${server}@${R} ${keytab} ${cache} || \
+${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "Getting client initial tickets (http transport)"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@${R3} || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
@@ -174,7 +211,7 @@ for a in $enctypes; do
 	${kinit} --enctype=$a --password-file=${objdir}/foopassword foo@$R || { ec=1 ; eval "${testfailed}"; }
 	echo "Getting tickets"; > messages.log
 	${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
-	./ap-req ${server}@${R} ${keytab} ${cache} || { ec=1 ; eval "${testfailed}"; }
+	${test_ap_req} ${server}@${R} ${keytab} ${cache} || { ec=1 ; eval "${testfailed}"; }
 	${kdestroy}
 done
 
@@ -185,7 +222,7 @@ ${kinit} --password-file=${objdir}/foopassword foo@$R || \
 for a in $enctypes; do
 	echo "Getting tickets ($a)"; > messages.log
 	${kgetcred} -e $a ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
-	./ap-req ${server}@${R} ${keytab} ${cache} || \
+	${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kdestroy} --credential=${server}@${R}
 done
@@ -196,7 +233,10 @@ ${kinit} --password-file=${objdir}/foopassword foo@$R || { ec=1 ; eval "${testfa
 for a in $enctypes; do
 	echo "Getting cross realm tickets ($a)"; > messages.log
 	${kgetcred} -e $a ${server2}@${R2} || { ec=1 ; eval "${testfailed}"; }
-	./ap-req ${server2}@${R2} ${keytab} ${cache} || \
+	echo "  checking we we got back right ticket"
+	${klist} | grep ${server2}@ > /dev/null || { ec=1 ; eval "${testfailed}"; }
+	echo "  checking if ticket is useful"
+	${test_ap_req} ${server2}@${R2} ${keytab} ${cache} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kdestroy} --credential=${server2}@${R2}
 done
@@ -211,17 +251,47 @@ for a in $enctypes; do
 		echo "Getting tickets ($a ->  $b)"; > messages.log
 		${kgetcred} -e $b ${server}@${R} || \
 			{ ec=1 ; eval "${testfailed}"; }
-		./ap-req ${server}@${R} ${keytab} ${cache} || \
+		${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
 			{ ec=1 ; eval "${testfailed}"; }
 		${kdestroy} --credential=${server}@${R}
 	done
 	${kdestroy}
 done
 
+echo "Getting client initial tickets ip based name"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@$R || { ec=1 ; eval "${testfailed}"; }
+echo "Getting ip based name tickets"; > messages.log
+${kgetcred} ${serverip}@${R} || { ec=1 ; eval "${testfailed}"; }
+echo "  checking we we got back right ticket"
+${klist} | grep ${serverip}@ > /dev/null || { ec=1 ; eval "${testfailed}"; }
+echo "  checking if ticket is useful"
+${test_ap_req} ${serverip}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "Getting client initial tickets ip based name (alias)"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@$R || { ec=1 ; eval "${testfailed}"; }
+for a in ${serveripname} ${serveripname2} ; do
+    echo "Getting ip based name tickets (alias) $a"; > messages.log
+    ${kgetcred} ${a}@${R} || { ec=1 ; eval "${testfailed}"; }
+    echo "  checking we we got back right ticket"
+    ${klist} | grep ${a}@ > /dev/null || { ec=1 ; eval "${testfailed}"; }
+    echo "  checking if ticket is useful"
+    ${test_ap_req} --server-any ${a}@${R} ${keytab} ${cache} || \
+    	{ ec=1 ; eval "${testfailed}"; }
+done
+${kdestroy}
+
 echo "Getting server initial tickets"; > messages.log
 ${kinit} --keytab=${keytab} ${server}@$R || { ec=1 ; eval "${testfailed}"; }
 echo "Listing tickets"; > messages.log
 ${klist} | grep "Principal: ${server}" > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "Getting key for key that are a subset in keytab compared to kdb"
+${kinit} --keytab=${keytab} kt-des3@${R}
+${klist} | grep "Principal: kt-des3" > /dev/null || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
@@ -233,7 +303,7 @@ echo "try getting ticket with deleted user"; > messages.log
 ${kgetcred} ${server}@${R} 2> /dev/null && { ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
-echo "cross realm case (removed user)"; > messages.log
+echo "cross realm case (deleted user)"; > messages.log
 ${kinit} --password-file=${objdir}/foopassword remove2@$R2 || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kgetcred} krbtgt/${R}@${R2} 2> /dev/null || \
@@ -279,13 +349,13 @@ for a in $enctypes; do
 		echo "Getting tickets ($a ->  $b)"; > messages.log
 		${kgetcred} -e $b ${server}@${R} || \
 			{ ec=1 ; eval "${testfailed}"; }
-		./ap-req ${server}@${R} ${keytab} ${cache} || \
+		${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
 			{ ec=1 ; eval "${testfailed}"; }
 
 		echo "Getting tickets ($a ->  $b) (server des3 only)"; > messages.log
 		${kgetcred} ${server}-des3@${R} || \
 			{ ec=1 ; eval "${testfailed}"; }
-		./ap-req ${server}-des3@${R} ${keytab} ${cache} || \
+		${test_ap_req} ${server}-des3@${R} ${keytab} ${cache} || \
 			{ ec=1 ; eval "${testfailed}"; }
 
 		${kdestroy} --credential=${server}@${R}
@@ -306,8 +376,10 @@ ${kadmin} add_enctype -r krbtgt/${R}@${R} aes256-cts-hmac-sha1-96 || \
 echo "try initial ticket with random aes key on krbtgt"
 ${kinit} --password-file=${objdir}/foopassword foo@${R} || \
 	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
 
 rsa=yes
+ecdsa=yes
 pkinit=no
 if ${hxtool} info | grep 'rsa: hx509 null RSA' > /dev/null ; then
     rsa=no
@@ -319,38 +391,59 @@ if ${kinit} --help 2>&1 | grep "CA certificates" > /dev/null; then
     pkinit=yes
 fi
 
+if ${hxtool} info | grep 'ecdsa: hcrypto null' > /dev/null ; then
+    ecdsa=no
+fi
+
+
 # If we support pkinit and have RSA, lets try that
 if test "$pkinit" = yes -a "$rsa" = yes ; then
 
+    echo "try anonymous pkinit"; > messages.log
+    ${kinit} --anonymous ${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+    ${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
+    ${kdestroy}
+
     for type in "" "--pk-use-enckey"; do
 	echo "Trying pk-init (principal in certificate) $type"; > messages.log
-	base="${srcdir}/../../lib/hx509/data"
-	${kinit} $type -C FILE:${base}/pkinit.crt,${base}/pkinit.key bar@${R} || \
+	${kinit} $type -C FILE:${hx509_data}/pkinit.crt,${hx509_data}/pkinit.key bar@${R} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 	${kdestroy}
 
 	echo "Trying pk-init (principal in pki-mapping) $type"; > messages.log
-	${kinit} $type -C FILE:${base}/pkinit.crt,${base}/pkinit.key foo@${R} || \
+	${kinit} $type -C FILE:${hx509_data}/pkinit.crt,${hx509_data}/pkinit.key foo@${R} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 	${kdestroy}
 
 	echo "Trying pk-init (password protected key) $type"; > messages.log
-	${kinit} $type -C FILE:${base}/pkinit.crt,${base}/pkinit-pw.key --password-file=${objdir}/foopassword foo@${R} || \
+	${kinit} $type -C FILE:${hx509_data}/pkinit.crt,${hx509_data}/pkinit-pw.key --password-file=${objdir}/foopassword foo@${R} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kgetcred} ${server}@${R} || \
 	{ ec=1 ; eval "${testfailed}"; }
 	${kdestroy}
 
 	echo "Trying pk-init (proxy cert) $type"; > messages.log
-	base="${srcdir}/../../lib/hx509/data"
-	${kinit} $type -C FILE:${base}/pkinit-proxy-chain.crt,${base}/pkinit-proxy.key foo@${R} || \
+	${kinit} $type -C FILE:${hx509_data}/pkinit-proxy-chain.crt,${hx509_data}/pkinit-proxy.key foo@${R} || \
 		{ ec=1 ; eval "${testfailed}"; }
 	${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 	${kdestroy}
 
     done
+
+    if test "$ecdsa" = yes > /dev/null ; then
+	echo "Trying pk-init (ec certificate)"
+	> messages.log
+	${kinit} -C FILE:${hx509_data}/pkinit-ec.crt,${hx509_data}/pkinit-ec.key bar@${R} || \
+	    { ec=1 ; eval "${testfailed}"; }
+	${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
+	${kdestroy}
+	grep 'PK-INIT using ecdh' messages.log > /dev/null || \
+	    { ec=1 ; eval "${testfailed}"; }
+    fi
+
 else
 	echo "no pkinit (pkinit: $pkinit, rsa: $rsa)"; > messages.log
 fi
@@ -360,18 +453,28 @@ ${kinit} --forwardable --password-file=${objdir}/foopassword ${ps} || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kgetcred_imp} --impersonate=bar@${R} ${ps} || \
 	{ ec=1 ; eval "${testfailed}"; }
-./ap-req ${ps} ${keytab} ${ocache} || \
+${test_ap_req} ${ps} ${keytab} ${ocache} || \
 	{ ec=1 ; eval "${testfailed}"; }
+echo "  negative check"
 ${kgetcred_imp} --impersonate=bar@${R} foo@${R} 2>/dev/null && \
 	{ ec=1 ; eval "${testfailed}"; }
-echo test constrained delegation
+
+echo "test constrained delegation"; > messages.log
 ${kgetcred_imp} --forward --impersonate=bar@${R} ${ps} || \
 	{ ec=1 ; eval "${testfailed}"; }
-${kgetcred} --out-cache=${o2cache} --delegation-credential-cache=${ocache} ${server}@${R} || \
+${kgetcred} \
+	--out-cache=${o2cache} \
+	--delegation-credential-cache=${ocache} \
+	${server}@${R} || \
 	{ ec=1 ; eval "${testfailed}"; }
-./ap-req ${server}@${R} ${keytab} ${o2cache} || \
+echo "  try using the credential"
+${test_ap_req} ${server}@${R} ${keytab} ${o2cache} || \
 	{ ec=1 ; eval "${testfailed}"; }
-${kgetcred} --out-cache=${o2cache} --delegation-credential-cache=${ocache} bar@${R} 2>/dev/null && \
+echo "  negative check"
+${kgetcred} \
+	--out-cache=${o2cache} \
+	--delegation-credential-cache=${ocache} \
+	bar@${R} 2>/dev/null && \
 	{ ec=1 ; eval "${testfailed}"; }
 
 echo "test constrained delegation impersonation (non forward)"; > messages.log
@@ -404,9 +507,45 @@ env KRB5CCNAME=${cache} ${test_renew} || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
+echo "checking server aliases"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@$R || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "Getting tickets"; > messages.log
+${kgetcred} ${alias1}@${R} || { ec=1 ; eval "${testfailed}"; }
+${kgetcred} ${alias2}@${R} || { ec=1 ; eval "${testfailed}"; }
+echo "   verify entry in keytab"
+${test_ap_req} ${alias1}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "   verify entry in keytab with any"
+${test_ap_req} --server-any ${alias1}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "   verify failure with alias entry"
+${test_ap_req} ${alias2}@${R} ${keytab} ${cache} 2>/dev/null && \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "   verify alias entry in keytab with any"
+${test_ap_req} --server-any ${alias2}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "testing removal of keytab"
+${ktutil} -k ${keytab} destroy || { ec=1 ; eval "${testfailed}"; }
+test -f ${keytabfile} && { ec=1 ; eval "${testfailed}"; }
+
+echo "Getting client pw expire"; > messages.log
+${kinit} --password-file=${objdir}/foopassword \
+        pw-expire@${R} 2>kinit-log.tmp|| \
+	{ ec=1 ; eval "${testfailed}"; }
+grep 'Your password will expire' kinit-log.tmp > /dev/null || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "   kinit passes"
+${test_gic} --client=pw-expire@${R} --password=foo > kinit-log.tmp 2>/dev/null
+${EGREP} "^e type: 6" kinit-log.tmp > /dev/null  || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "   test_gic passes"
+${kdestroy}
 
 echo "killing kdc (${kdcpid})"
-kill $kdcpid || exit 1
+sh ${leaks_kill} kdc $kdcpid || exit 1
 
 trap "" EXIT
 

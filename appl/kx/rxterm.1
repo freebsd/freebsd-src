@@ -1,0 +1,120 @@
+.\" Copyright (c) 1996 - 1997, 2001 - 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 11, 2003
+.Dt RXTERM 1
+.Os KTH_KRB
+.Sh NAME
+.Nm rxterm
+.Nd start a secure remote xterm
+.Sh SYNOPSIS
+.Nm rxterm
+.Op Fl l Ar username
+.Op Fl k
+.Op Fl r Ar rsh_args
+.Op Fl x Ar xterm_args
+.Op Fl K Ar kx_args
+.Op Fl w Ar term_emulator
+.Op Fl b Ar rsh_program
+.Ar host
+.Op Ar port
+.Sh DESCRIPTION
+The
+.Nm
+program starts an
+.Nm xterm
+window on host
+.Ar host .
+From this window you will also be able to run X clients that will be
+able to connect securely to your X server. If
+.Ar port
+is given, that port will be used instead of the default.
+.Pp
+The supported options are:
+.Bl -tag -width Ds
+.It Fl l
+Log in on the remote host as user
+.Ar username .
+.It Fl k
+Disable keep-alives.
+.It Fl r
+Send
+.Ar rsh_args
+as arguments to
+.Nm rsh .
+.It Fl x
+Send
+.Ar xterm_args
+as arguments to
+.Nm xterm .
+.It Fl X
+Send
+.Ar kx_args
+as arguments to
+.Nm kx .
+.It Fl w
+Use
+.Ar term_emulator
+instead of xterm.
+.It Fl b
+Use
+.Ar rsh_program
+instead of rsh.
+.It Fl v
+Be verbose.
+.El
+.Sh EXAMPLE
+To login from host
+.Va foo
+(where your display is)
+to host
+.Va bar ,
+you might do the following.
+.Bl -enum
+.It
+On foo:
+.Nm
+.Va bar
+.It
+You will get a new window running an
+.Nm xterm
+on host
+.Va bar .
+In this window you will be able to start X clients.
+.El
+.Sh SEE ALSO
+.Xr kx 1 ,
+.Xr rsh 1 ,
+.Xr rxtelnet 1 ,
+.Xr tenletxr 1 ,
+.Xr kxd 8

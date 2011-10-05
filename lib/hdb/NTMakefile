@@ -1,0 +1,184 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\hdb
+
+!include ../../windows/NTMakefile.w32 
+
+gen_files_hdb = $(OBJ)\asn1_hdb_asn1.x
+
+$(gen_files_hdb) $(OBJ)\hdb_asn1.hx $(OBJ)\hdb_asn1-priv.hx: $(BINDIR)\asn1_compile.exe hdb.asn1
+	cd $(OBJ)
+	$(BINDIR)\asn1_compile.exe --sequence=HDB-Ext-Keyset --sequence=Keys --one-code-file $(SRCDIR)\hdb.asn1 hdb_asn1
+	cd $(SRCDIR)
+
+$(gen_files_hdb:.x=.c): $$(@R).x
+
+!ifdef OPENLDAP_MODULE
+
+ldap_dll = $(BINDIR)\hdb_ldap.dll
+ldap_lib = $(LIBDIR)\hdb_ldap.lib
+ldap_objs = $(OBJ)\hdb-ldap.obj
+
+$(ldap_dll): $(ldap_objs)
+	$(DLLGUILINK) -implib:$(ldap_lib)
+	$(DLLPREP)
+
+clean::
+	-$(RM) $(ldap_dll)
+	-$(RM) $(ldap_lib)
+
+!else
+
+ldap = $(OBJ)\hdb-ldap.obj
+ldap_c = hdb-ldap.c
+
+!endif
+
+dist_libhdb_la_SOURCES =			\
+	common.c				\
+	db.c					\
+	db3.c					\
+	ext.c					\
+	$(ldap_c)				\
+	hdb.c					\
+	hdb-sqlite.c				\
+	hdb-keytab.c				\
+	hdb-mitdb.c				\
+	hdb_locl.h				\
+	keys.c					\
+	keytab.c				\
+	dbinfo.c				\
+	mkey.c					\
+	ndbm.c					\
+	print.c
+
+libhdb_OBJs = \
+	$(OBJ)\common.obj	\
+	$(OBJ)\db.obj		\
+	$(OBJ)\db3.obj		\
+	$(OBJ)\ext.obj		\
+	$(ldap)			\
+	$(OBJ)\hdb.obj		\
+	$(OBJ)\hdb-sqlite.obj	\
+	$(OBJ)\hdb-keytab.obj	\
+	$(OBJ)\hdb-mitdb.obj	\
+	$(OBJ)\keys.obj		\
+	$(OBJ)\keytab.obj	\
+	$(OBJ)\dbinfo.obj	\
+	$(OBJ)\mkey.obj		\
+	$(OBJ)\ndbm.obj		\
+	$(OBJ)\print.obj	\
+	$(gen_files_hdb:.x=.obj)	\
+	$(OBJ)\hdb_err.obj
+
+$(OBJ)\hdb_err.c $(OBJ)\hdb_err.h: hdb_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\hdb_err.et
+	cd $(SRCDIR)
+
+$(OBJ)\hdb-protos.h: $(dist_libhdb_la_SOURCES)
+	$(PERL) ../../cf/make-proto.pl -q -P remove -o $@ $(dist_libhdb_la_SOURCES) \
+		|| $(RM) $@
+
+$(OBJ)\hdb-private.h: $(dist_libhdb_la_SOURCES)
+	$(PERL) ../../cf/make-proto.pl -q -P remote -p $@ $(dist_libhdb_la_SOURCES) \
+		|| $(RM) $@
+
+INCFILES=			\
+	$(INCDIR)\hdb.h		\
+	$(INCDIR)\hdb-protos.h	\
+	$(OBJ)\hdb-private.h	\
+	$(INCDIR)\hdb_err.h	\
+	$(INCDIR)\hdb_asn1.h	\
+	$(INCDIR)\hdb_asn1-priv.h
+
+!ifndef STATICLIBS
+
+RES=$(OBJ)\libhdb-version.res
+
+$(LIBHDB): $(BINDIR)\libhdb.dll
+
+$(BINDIR)\libhdb.dll: $(libhdb_OBJs) $(ldap_lib) $(LIBHEIMDAL) $(LIBSQLITE) $(LIBCOMERR) $(LIBROKEN) $(RES)
+	$(DLLGUILINK) -def:libhdb-exports.def -implib:$(LIBHDB)
+	$(DLLPREP)
+
+clean::
+	-$(RM) $(BINDIR)\libhdb.*
+
+!else
+
+$(LIBHDB): $(libhdb_OBJs) $(ldap_lib)
+	$(LIBCON)
+
+!endif
+
+all:: $(INCFILES) $(LIBHDB)
+
+clean::
+	-$(RM) $(INCFILES)
+	-$(RM) $(LIBHDB)
+
+test:: test-binaries test-run
+
+test-binaries: $(OBJ)\test_dbinfo.exe $(OBJ)\test_hdbkeys.exe
+
+$(OBJ)\test_dbinfo.exe: $(OBJ)\test_dbinfo.obj $(LIBHDB) $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_hdbkeys.exe: $(OBJ)\test_hdbkeys.obj $(LIBHDB) $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+test-run:
+	cd $(OBJ)
+	test_dbinfo.exe
+	cd $(SRCDIR)
+
+!ifdef OPENLDAP_INC
+openldap_inc_flag=-I$(OPENLDAP_INC)
+!else
+openldap_inc_flag=
+!endif
+
+hdb_cflags=$(openldap_inc_flag) -I$(OBJ)
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) $(hdb_cflags) -DASN1_LIB
+
+{$(OBJ)}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) $(hdb_cflags)
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libhdb-exports.def
+
+test:: test-exports

@@ -1,20 +1,47 @@
-2007-12-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* libtelnet/enc_des.c: Use RAND_bytes() + DES_is_weak_key() to
+	generate random DES key. Introdunce random by feeding the des
+	session key into the random pool when the keys is recived instead
+	of encrypt the random key with the kerberos key.
+	
+	This avoid depenency on DES_new_random_key() that doesn't exists
+	in OpenSSL.
+
+2008-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* libtelnet/enc_des.c: No need to call
+	DES_init_random_number_generator, hcrypto is sane now.
+
+	* libtelnet/enc_des.c: Use DES_new_random_key().
+
+2008-04-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	
+	* telnetd/sys_term.c: Really, mac os uses wtmpx (or asl).
+
+2008-03-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: Dont need to set this as the controlling PTY
+	on steams sockets, don't abort on failure. From Harald Barth and
+	Ian Delahorne.
+
+2007-12-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c: Use strlcpy instead of strncpy, thanks to
 	Antoine Brodin.
 	
-2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c (usage): use exit_code, add --version and
 	--help.
 
 	* telnetd/telnetd.c: Add --help, reported by David Love.
 
-2007-07-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/main.c: Catch --help, reported by David Love.
 	
-2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c: GLIBC made the choice that ut_tv should be
 	shared between 32 and 64 bit platforms so now we can no longer use
@@ -22,7 +49,7 @@
 	pointer (gettimeofday for example) since ut_tv is now not a struct
 	timeval but rather a struct { int32_t tv_sec; int32_t tv_usec; };
 
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/telnet_locl.h: Include roken.h before the local
 	headerfiles.
@@ -36,13 +63,13 @@
 	* telnetd/telnetd.h: includes some STREAMSPTY header here to avoid
 	ioctl vs socket_wrapper horror.
 	
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/Makefile.am: more files
 	
 	* telnetd/Makefile.am: more files
 	
-2006-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* telnetd/telnetd.8: Add documentation for -e, require encryption.
 
@@ -54,50 +81,50 @@
 	* telnetd/state.c: If encryption is required, don't allow it to be
 	turned off.
 	
-2006-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* libtelnet/kerberos5.c (kerberos5_forward): use KDCOptions2int on
 	flags before passing them to krb5_get_forwarded_creds.
 	
-2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Rename u_intXX_t to uintXX_t
 
-2006-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-03-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* libtelnet/encrypt.c: Spelling.
 
-2005-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-12-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* telnetd/telnetd.c: Initialize the slc mapping table before its
 	used.  Based on bug report from Russell Sanford
 	<rrs@clyde.dcccd.edu>
 	
-2005-11-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-11-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* telnet/telnet.c: Spelling in comments, from Dave Love
 	<fx@gnu.org>
 	
-2005-10-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* libtelnet/kerberos5.c (Data): Use right variable. From Tomas
 	Olsson
 	
-2005-10-22  Love Hörnquist Åstrand <lha@it.su.se>
+2005-10-22  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* telnet/commands.c: Check return value from asprintf instead of
-	string != NULL since it undefined behavior on Linux. From Björn
+	string != NULL since it undefined behavior on Linux. From BjÃ¶rn
 	Sandell
 
 	* libtelnet/kerberos5.c: Check return value from asprintf instead
-	of string != NULL since it undefined behavior on Linux. From Björn
+	of string != NULL since it undefined behavior on Linux. From BjÃ¶rn
 	Sandell
 
 	* libtelnet/kerberos.c: Check return value from asprintf instead
-	of string != NULL since it undefined behavior on Linux. From Björn
+	of string != NULL since it undefined behavior on Linux. From BjÃ¶rn
 	Sandell
 	
-2005-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c: Fix printing of /etc/issue{,.net}.
 	
@@ -115,7 +142,7 @@
 	* libtelnet/kerberos.c: Do not assume that des_key_schedule is an
 	array.
 
-2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* libtelnet/kerberos5.c: case uid_t to unsigned long in printf
 	format
@@ -123,7 +150,7 @@
 	* telnetd/sys_term.c (set_termbuf): use {} around if to make else
 	unambiguous
 
-2005-05-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c (start_login): put utmpx code into a new
 	scope to avoid pre c99 problems.
@@ -153,33 +180,33 @@
 
 	* telnetd/sys_term.c (getpty): Declare p.
 
-2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c: use strlcpy
 	
-2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/global.c, telnetd/state.c, telnetd/telnetd.c,
 	telentd/ext.h: remove another strcpy
 
-2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c: rewrite getpty to make use openpty when its
 	found, save the slave fd so that cleanopen can use it if its
 	available
 
-2005-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c: clean_ttyname might be unused, mark it so
 	with __attribute__
 	
-2005-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/sys_term.c: use NULL as last argument to execl, not 0
 
 	* telnet/commands.c: use NULL as last argument to execl, not 0
 	
-2005-03-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/telnet.c: From FreeBSD:
 	
@@ -205,20 +232,20 @@
 	These fixes are based in part on patches Submitted by: Solar
 	Designer <solar@openwall.com>
 
-2005-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c: remove setting of DES_check_key, all code
 	uses DES_set_key_checked
 
 	* libtelnet/enc_des.c: use DES_set_key_checked
 	
-2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/telnet.c: cast argument to toupper to unsigned char
 
 	* telnet/commands.c: cast argument to is* to unsigned char
 
-2004-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-06-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/network.c: make network rings larger From: MAAAAA MOOOR
 	<huaraz@btinternet.com>
@@ -229,19 +256,19 @@
 	* libtelnet/kerberos5.c (Data): allocate the data needed to be
 	send From: MAAAAA MOOOR <huaraz@btinternet.com>
 	
-2004-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/main.c: make encrypt, forwardable, forward use appdefault
 	(that also searches libdefaults), prompted by Thomas Nystrom
 	<thn@saeab.se>
 	
-2004-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-03-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c: call setprogname to make libvers happy
 
 	* telnet/main.c: call setprogname to make libvers happy
 
-2003-09-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/externs.h: export Scheduler and scheduler_lockout_tty
 	
@@ -251,13 +278,13 @@
 	* telnet/authenc.c (telnet_spin): if Scheduler() returns failure
 	(-1) propagate to higher level
 
-2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnetd/telnetd.c: use new DES_ api
 	
 	* libtelnet/enc_des.c: use new DES_ api
 	
-2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* telnet/telnet.1: replace <,> with \*[Lt],\*[Gt]
 	

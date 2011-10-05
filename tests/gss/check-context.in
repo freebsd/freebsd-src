@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2008 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2008 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-context.in 22425 2008-01-13 09:46:01Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -46,11 +46,15 @@ port=@port@
 
 keytabfile=${objdir}/server.keytab
 keytab="FILE:${keytabfile}"
+nokeytab="FILE:no-such-keytab"
 cache="FILE:krb5ccfile"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
+kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache ${afs_no_afslog}"
+klist="${TESTS_ENVIRONMENT} ../../kuser/klist -c $cache"
+kgetcred="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache"
 kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
 kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
+ktutil="${TESTS_ENVIRONMENT} ../../admin/ktutil"
 
 context="${TESTS_ENVIRONMENT} ../../lib/gssapi/test_context"
 
@@ -79,9 +83,28 @@ ${kadmin} add -p p1 --use-defaults host/lucid.test.h5l.se@${R} || exit 1
 ${kadmin} ext -k ${keytab} host/lucid.test.h5l.se@${R} || exit 1
 ${kadmin} add -p p1 --use-defaults host/lucid@${R} || exit 1
 ${kadmin} ext -k ${keytab} host/lucid@${R} || exit 1
+
+${kadmin} add -p p1 --use-defaults host/ok-delegate.test.h5l.se@${R} || exit 1
+${kadmin} mod --attributes=+ok-as-delegate host/ok-delegate.test.h5l.se@${R} || exit 1
+${kadmin} ext -k ${keytab} host/ok-delegate.test.h5l.se@${R} || exit 1
+
+
+${kadmin} add -p p1 --use-defaults host/short@${R} || exit 1
+${kadmin} mod --alias=host/long.test.h5l.se@${R} host/short@${R} || exit 1
+# XXX ext should ext aliases too
+${kadmin} ext -k ${keytab} host/short@${R} || exit 1
+${ktutil} -k ${keytab} rename --no-delete host/short@${R} host/long.test.h5l.se@${R} || exit 1
+
 ${kadmin} add -p kaka --use-defaults digest/${R}@${R} || exit 1
 
 ${kadmin} add -p u1 --use-defaults user1@${R} || exit 1
+
+# Create a server principal with no AES
+${kadmin} add -p p1 --use-defaults host/no-aes.test.h5l.se@${R} || exit 1
+${kadmin} get host/no-aes.test.h5l.se@${R} > tempfile || exit 1
+${kadmin} del_enctype host/no-aes.test.h5l.se@${R} \
+    aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 || exit 1
+${kadmin} ext -k ${keytab} host/no-aes.test.h5l.se@${R} || exit 1
 
 echo "Doing database check"
 ${kadmin} check ${R} || exit 1
@@ -100,89 +123,327 @@ fi
 
 trap "kill ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
 
-exitcode=0
+testfailed="echo test failed; cat messages.log; exit 1"
 
-echo "Getting client initial tickets"
-${kinit} --password-file=${objdir}/foopassword user1@${R} || exitcode=1
+echo "Getting client initial tickets" ; > messages.log
+${kinit} --password-file=${objdir}/foopassword --forwardable user1@${R} || \
+	{ eval "$testfailed"; }
+
+echo "======test unreadable/non existant keytab and its error message" ; > messages.log
+${context} --mech-type=krb5 host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+mv ${keytabfile} ${keytabfile}.no
+
+echo "checking non existant keytabfile (krb5)" ; > messages.log
+${context} --mech-type=krb5 host@lucid.test.h5l.se  > test_context.log 2>&1 && \
+	{ eval "$testfailed"; }
+grep ${keytabfile} test_context.log > /dev/null || \
+	{ echo "string missing failed"; cat test_context.log ; eval "$testfailed"; }
+echo "checking non existant keytabfile (spengo)" ; > messages.log
+${context} --mech-type=spnego host@lucid.test.h5l.se > test_context.log 2>&1 && \
+	{ eval "$testfailed"; }
+grep ${keytabfile} test_context.log > /dev/null || \
+	{ echo "string missing failed"; cat test_context.log ; eval "$testfailed"; }
+
+mv ${keytabfile}.no ${keytabfile}
 
 echo "======test naming combinations"
-echo "plain"
+echo "plain"  ; > messages.log
 ${context} --name-type=hostbased-service host@lucid.test.h5l.se || \
-	{ exitcode=1 ; echo test failed; }
-echo "plain (krb5)"
+	{ eval "$testfailed"; }
+echo "plain (krb5)" ; > messages.log
 ${context} --name-type=krb5-principal-name host/lucid.test.h5l.se@${R} || \
-	{ exitcode=1 ; echo test failed; }
-echo "plain (krb5 realmless)"
+	{ eval "$testfailed"; }
+echo "plain (krb5 realmless)" ; > messages.log
 ${context} --name-type=krb5-principal-name host/lucid.test.h5l.se || \
-	{ exitcode=1 ; echo test failed; }
-echo "dns canon on (long name) OFF, need dns_wrapper"
+	{ eval "$testfailed"; }
+echo "dns canon on (long name) OFF, need dns_wrapper" ; > messages.log
 #${context} --dns-canon host@lucid.test.h5l.se || \
-#	{ exitcode=1 ; echo test failed; }
-echo "dns canon off (long name)"
+#	{ eval "$testfailed"; }
+echo "dns canon off (long name)" ; > messages.log
 ${context} --no-dns-canon host@lucid.test.h5l.se || \
-	{ exitcode=1 ; echo test failed; }
-echo "dns canon off (short name)"
+	{ eval "$testfailed"; }
+echo "dns canon off (short name)" ; > messages.log
 ${context} --no-dns-canon host@lucid || \
-	{ exitcode=1 ; echo test failed; }
-echo "dns canon off (short name, krb5)"
+	{ eval "$testfailed"; }
+echo "dns canon off (short name, krb5)" ; > messages.log
 ${context}  --no-dns-canon --name-type=krb5-principal-name host/lucid@${R} || \
-	{ exitcode=1 ; echo test failed; }
-echo "dns canon off (short name, krb5)"
+	{ eval "$testfailed"; }
+echo "dns canon off (short name, krb5)" ; > messages.log
 ${context}  --no-dns-canon --name-type=krb5-principal-name host/lucid || \
-	{ exitcode=1 ; echo test failed; }
+	{ eval "$testfailed"; }
 
 echo "======test context building"
-for mech in krb5 spnego ; do
-	echo "${mech} no-mutual"
-	${context} --mech-type=${mech} \
-	    --name-type=hostbased-service host@lucid.test.h5l.se || \
-		{ exitcode=1 ; echo test failed; }
+for mech in krb5 krb5iov spnego spnegoiov; do
+	if [ "$mech" = "krb5iov" ] ; then
+	    mech="krb5"
+	    iov="--iov"
+	fi
+	if [ "$mech" = "spnegoiov" ] ; then
+	    mech="spnego"
+	    iov="--iov"
+	fi
 
-	echo "${mech} mutual"
+	echo "${mech} no-mutual ${iov}" ; > messages.log
+	${context} --mech-type=${mech} \
+	    --wrapunwrap ${iov} \
+	    --name-type=hostbased-service host@lucid.test.h5l.se || \
+		{ eval "$testfailed"; }
+
+	echo "${mech} mutual ${iov}" ; > messages.log
 	${context} --mech-type=${mech} \
 	    --mutual \
+	    --wrapunwrap ${iov} \
 	    --name-type=hostbased-service host@lucid.test.h5l.se || \
-		{ exitcode=1 ; echo test failed; }
+		{ eval "$testfailed"; }
 
-	echo "${mech} delegate"
+	echo "${mech} delegate ${iov}" ; > messages.log
 	${context} --mech-type=${mech} \
 	    --delegate \
+	    --wrapunwrap ${iov} \
 	    --name-type=hostbased-service host@lucid.test.h5l.se || \
-		{ exitcode=1 ; echo test failed; }
+		{ eval "$testfailed"; }
 
-	echo "${mech} mutual delegate"
+	echo "${mech} mutual delegate ${iov}" ; > messages.log
 	${context} --mech-type=${mech} \
 	    --mutual --delegate \
+	    --wrapunwrap ${iov} \
 	    --name-type=hostbased-service host@lucid.test.h5l.se || \
-		{ exitcode=1 ; echo test failed; }
+		{ eval "$testfailed"; }
 done
 
-#add spnego !
 echo "======dce-style"
-for mech in krb5 ; do
+for mech in krb5 krb5iov spnego; do
+	iov=""
+	if [ "$mech" = "krb5iov" ] ; then
+	    mech="krb5"
+	    iov="--iov"
+	fi
+	if [ "$mech" = "spnegoiov" ] ; then
+	    mech="spnego"
+	    iov="--iov"
+	fi
 
-	echo "${mech}: dce-style"
+	echo "${mech}: dce-style ${iov}" ; > messages.log
 	${context} \
 	    --mech-type=${mech} \
 	    --mutual \
 	    --dce-style \
+	    --wrapunwrap ${iov} \
 	    --name-type=hostbased-service host@lucid.test.h5l.se || \
-	    { exitcode=1 ; echo test failed; }
+	    { eval "$testfailed"; }
 
 done
+
+echo "test gsskrb5_register_acceptor_identity (both positive and negative)"
+
+cp ${keytabfile} ${keytabfile}.new
+for mech in krb5 spnego; do
+	echo "${mech}: acceptor_identity positive" ; > messages.log
+	${context} --gsskrb5-acceptor-identity=${keytabfile}.new \
+		--mech-type=$mech host@lucid.test.h5l.se || \
+		{ eval "$testfailed"; }
+
+	echo "${mech}: acceptor_identity positive (prefix)" ; > messages.log
+	${context} --gsskrb5-acceptor-identity=FILE:${keytabfile}.new \
+		--mech-type=$mech host@lucid.test.h5l.se || \
+		{ eval "$testfailed"; }
+
+	echo "${mech}: acceptor_identity negative" ; > messages.log
+	${context} --gsskrb5-acceptor-identity=${keytabfile}.foo \
+		--mech-type=$mech host@lucid.test.h5l.se 2>/dev/null && \
+		{ eval "$testfailed"; }
+done
+
+rm ${keytabfile}.new
+
 
 #echo "sasl-digest-md5"
 #${context}  --mech-type=sasl-digest-md5 \
 #    --name-type=hostbased-service \
 #    host@lucid.test.h5l.se || \
-#	{ exitcode=1 ; echo test failed; }
+#	{ eval "$testfailed"; }
 
+
+echo "====== gss-api session key check"
+
+# this will break when oneone invents a cooler enctype then aes256-cts-hmac-sha1-96
+coolenctype="aes256-cts-hmac-sha1-96"
+limit_enctype="des3-cbc-sha1"
+
+echo "Getting client initial tickets" ; > messages.log
+${kinit} --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+
+
+echo "Building context on cred w/o aes, but still ${coolenctype} session key" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --mutual-auth \
+    --session-enctype=${coolenctype} \
+    --name-type=hostbased-service host@no-aes.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Building context on cred, check if its limited still" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --client-name=user1@${R} \
+    --limit-enctype="${limit_enctype}" \
+    --mutual-auth \
+    --name-type=hostbased-service host@no-aes.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+
+echo "====== ok-as-delegate"
+
+echo "Getting client initial tickets" ; > messages.log
+${kinit} --forwardable \
+    --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+
+echo "ok-as-delegate not used" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --delegate \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "host without ok-as-delegate with policy-delegate" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --policy-delegate \
+    --server-no-delegate \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "ok-as-delegate used by policy" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --policy-delegate \
+    --name-type=hostbased-service host@ok-delegate.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Getting client initial tickets with --ok-as-delgate" ; > messages.log
+${kinit} --ok-as-delegate  --forwardable \
+    --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+
+echo "policy delegate to non delegate host" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --policy-delegate \
+    --server-no-delegate \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "ok-as-delegate" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --delegate \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "======export/import cred"
+
+echo "export-import cred (krb5)" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --delegate \
+    --export-import-cred \
+    --name-type=hostbased-service host@ok-delegate.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "export-import cred (spnego)" ; > messages.log
+${context} \
+    --mech-type=spnego \
+    --delegate \
+    --export-import-cred \
+    --name-type=hostbased-service host@ok-delegate.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+
+echo "======time diffs between client and server"
+
+echo "Getting client initial ticket" ; > messages.log
+${kinit} --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+
+echo "No time offset" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Getting client initial ticket" ; > messages.log
+${kinit} --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+
+echo "Server time offset" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --mutual-auth \
+    --server-time-offset=3600 \
+    --max-loops=3 \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Server time offset (cached ?)" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --mutual-auth \
+    --server-time-offset=3600 \
+    --max-loops=2 \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Getting client initial ticket" ; > messages.log
+${kinit} --password-file=${objdir}/foopassword user1@${R} || \
+	{ eval "$testfailed"; }
+# Pre-poplute the cache since tgs-req will fail since our time is wrong
+${kgetcred} host/lucid.test.h5l.se@${R} || \
+	{ eval "$testfailed"; }
+
+echo "Client time offset" ; > messages.log
+${context} \
+    --mech-type=krb5 \
+    --mutual-auth \
+    --client-time-offset=3600 \
+    --name-type=hostbased-service host@lucid.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+echo "Getting client initial tickets (use-referrals)" ; > messages.log
+${kinit} \
+    --password-file=${objdir}/foopassword \
+    --use-referrals user1@${R} || \
+	{ eval "$testfailed"; }
+
+# XXX these tests really need to use somethat that resolve to something
+${context} \
+    --mech-type=krb5 \
+    host@short || \
+	{ eval "$testfailed"; }
+
+${context} \
+    --mech-type=krb5 \
+    --name-type=krb5-principal-name host/short || \
+	{ eval "$testfailed"; }
+
+${context} \
+    --mech-type=krb5 \
+    host@long.test.h5l.se || \
+	{ eval "$testfailed"; }
+
+${context} \
+    --mech-type=krb5 \
+    --name-type=krb5-principal-name \
+    host/long.test.h5l.se || \
+	{ eval "$testfailed"; }
 
 trap "" EXIT
 
 echo "killing kdc (${kdcpid})"
 kill ${kdcpid} 2> /dev/null
 
-exit $exitcode
-
+exit 0
 

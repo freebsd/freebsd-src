@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -30,11 +30,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: gss-commands.in 17870 2006-07-22 14:48:58Z lha $ */
+/* $Id$ */
 
 command = {
 	name = "supported-mechanisms"
 	help = "Print the supported mechanisms"
+}
+command = {
+	name = "attrs-for-mech"
+	help = "Print the attributes for mechs"
+	option = {
+		long = "all"
+		type = "flag"
+	}
+	option = {
+		long = "mech"
+		type = "string"
+		argument = "mechanism"
+	}
 }
 command = {
 	name = "help"

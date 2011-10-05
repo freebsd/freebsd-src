@@ -1,0 +1,132 @@
+
+KRB5_GET_IN_TKT(3)       BSD Library Functions Manual       KRB5_GET_IN_TKT(3)
+
+NNAAMMEE
+     kkrrbb55__ggeett__iinn__ttkktt, kkrrbb55__ggeett__iinn__ccrreedd, kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__ppaasssswwoorrdd,
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__kkeeyyttaabb, kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__sskkeeyy,
+     kkrrbb55__ffrreeee__kkddcc__rreepp, kkrrbb55__ppaasssswwoorrdd__kkeeyy__pprroocc -- deprecated initial authenti-
+     cation functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinn__ttkktt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s,
+         _c_o_n_s_t _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_s, _c_o_n_s_t _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e_s,
+         _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_t_y_p_e_s, _k_r_b_5___k_e_y___p_r_o_c _k_e_y___p_r_o_c,
+         _k_r_b_5___c_o_n_s_t___p_o_i_n_t_e_r _k_e_y_s_e_e_d, _k_r_b_5___d_e_c_r_y_p_t___p_r_o_c _d_e_c_r_y_p_t___p_r_o_c,
+         _k_r_b_5___c_o_n_s_t___p_o_i_n_t_e_r _d_e_c_r_y_p_t_a_r_g, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e,
+         _k_r_b_5___k_d_c___r_e_p _*_r_e_t___a_s___r_e_p_l_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinn__ccrreedd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s,
+         _c_o_n_s_t _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_s, _c_o_n_s_t _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e_s,
+         _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_t_y_p_e_s, _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_d_a_t_a _*_p_r_e_a_u_t_h,
+         _k_r_b_5___k_e_y___p_r_o_c _k_e_y___p_r_o_c, _k_r_b_5___c_o_n_s_t___p_o_i_n_t_e_r _k_e_y_s_e_e_d,
+         _k_r_b_5___d_e_c_r_y_p_t___p_r_o_c _d_e_c_r_y_p_t___p_r_o_c, _k_r_b_5___c_o_n_s_t___p_o_i_n_t_e_r _d_e_c_r_y_p_t_a_r_g,
+         _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s, _k_r_b_5___k_d_c___r_e_p _*_r_e_t___a_s___r_e_p_l_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__ppaasssswwoorrdd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_s, _c_o_n_s_t _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e_s,
+         _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_r_e___a_u_t_h___t_y_p_e_s, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s, _k_r_b_5___k_d_c___r_e_p _*_r_e_t___a_s___r_e_p_l_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__kkeeyyttaabb(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_s, _c_o_n_s_t _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e_s,
+         _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_r_e___a_u_t_h___t_y_p_e_s, _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s, _k_r_b_5___k_d_c___r_e_p _*_r_e_t___a_s___r_e_p_l_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__sskkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s,
+         _k_r_b_5___a_d_d_r_e_s_s_e_s _*_a_d_d_r_s, _c_o_n_s_t _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e_s,
+         _c_o_n_s_t _k_r_b_5___p_r_e_a_u_t_h_t_y_p_e _*_p_r_e___a_u_t_h___t_y_p_e_s, _c_o_n_s_t _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s, _k_r_b_5___k_d_c___r_e_p _*_r_e_t___a_s___r_e_p_l_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffrreeee__kkddcc__rreepp(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___k_d_c___r_e_p _*_r_e_p);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ppaasssswwoorrdd__kkeeyy__pprroocc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _t_y_p_e,
+         _k_r_b_5___s_a_l_t _s_a_l_t, _k_r_b_5___c_o_n_s_t___p_o_i_n_t_e_r _k_e_y_s_e_e_d, _k_r_b_5___k_e_y_b_l_o_c_k _*_*_k_e_y);
+
+DDEESSCCRRIIPPTTIIOONN
+     _A_l_l _t_h_e _f_u_n_c_t_i_o_n_s _i_n _t_h_i_s _m_a_n_u_a_l _p_a_g_e _a_r_e _d_e_p_r_e_c_a_t_e_d _i_n _t_h_e _M_I_T _i_m_p_l_e_m_e_n_-
+     _t_a_t_i_o_n_, _a_n_d _w_i_l_l _s_o_o_n _b_e _d_e_p_r_e_c_a_t_e_d _i_n _H_e_i_m_d_a_l _t_o_o_, _d_o_n_'_t _u_s_e _t_h_e_m_.
+
+     Getting initial credential ticket for a principal.  kkrrbb55__ggeett__iinn__ccrreedd is
+     the function all other krb5_get_in function uses to fetch tickets.  The
+     other krb5_get_in function are more specialized and therefor somewhat
+     easier to use.
+
+     If your need is only to verify a user and password, consider using
+     krb5_verify_user(3) instead, it have a much simpler interface.
+
+     kkrrbb55__ggeett__iinn__ttkktt and kkrrbb55__ggeett__iinn__ccrreedd fetches initial credential, queries
+     after key using the _k_e_y___p_r_o_c argument.  The differences between the two
+     function is that kkrrbb55__ggeett__iinn__ttkktt stores the credential in a krb5_creds
+     while kkrrbb55__ggeett__iinn__ccrreedd stores the credential in a krb5_ccache.
+
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__ppaasssswwoorrdd, kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__kkeeyyttaabb, and
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__sskkeeyy does the same work as kkrrbb55__ggeett__iinn__ccrreedd but are
+     more specialized.
+
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__ppaasssswwoorrdd uses the clients password to authenticate.
+     If the password argument is NULL the user user queried with the default
+     password query function.
+
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__kkeeyyttaabb searches the given keytab for a service entry
+     for the client principal.  If the keytab is NULL the default keytab is
+     used.
+
+     kkrrbb55__ggeett__iinn__ttkktt__wwiitthh__sskkeeyy uses a key to get the initial credential.
+
+     There are some common arguments to the krb5_get_in functions, these are:
+
+     _o_p_t_i_o_n_s are the KDC_OPT flags.
+
+     _e_t_y_p_e_s is a NULL terminated array of encryption types that the client
+     approves.
+
+     _a_d_d_r_s a list of the addresses that the initial ticket.  If it is NULL the
+     list will be generated by the library.
+
+     _p_r_e___a_u_t_h___t_y_p_e_s a NULL terminated array of pre-authentication types.  If
+     _p_r_e___a_u_t_h___t_y_p_e_s is NULL the function will try without pre-authentication
+     and return those pre-authentication that the KDC returned.
+
+     _r_e_t___a_s___r_e_p_l_y will (if not NULL) be filled in with the response of the KDC
+     and should be free with kkrrbb55__ffrreeee__kkddcc__rreepp().
+
+     _k_e_y___p_r_o_c is a pointer to a function that should return a key salted
+     appropriately.  Using NULL will use the default password query function.
+
+     _d_e_c_r_y_p_t___p_r_o_c Using NULL will use the default decryption function.
+
+     _d_e_c_r_y_p_t_a_r_g will be passed to the decryption function _d_e_c_r_y_p_t___p_r_o_c.
+
+     _c_r_e_d_s creds should be filled in with the template for a credential that
+     should be requested.  The client and server elements of the creds struc-
+     ture must be filled in.  Upon return of the function it will be contain
+     the content of the requested credential (_k_r_b_5___g_e_t___i_n___c_r_e_d), or it will be
+     freed with krb5_free_creds(3) (all the other krb5_get_in functions).
+
+     _c_c_a_c_h_e will store the credential in the credential cache _c_c_a_c_h_e.  The
+     credential cache will not be initialized, thats up the the caller.
+
+     kkrrbb55__ppaasssswwoorrdd__kkeeyy__pprroocc is a library function that is suitable using as
+     the _k_r_b_5___k_e_y___p_r_o_c argument to kkrrbb55__ggeett__iinn__ccrreedd or kkrrbb55__ggeett__iinn__ttkktt.
+     _k_e_y_s_e_e_d should be a pointer to a NUL terminated string or NULL.
+     kkrrbb55__ppaasssswwoorrdd__kkeeyy__pprroocc will query the user for the pass on the console if
+     the password isn't given as the argument _k_e_y_s_e_e_d.
+
+     kkrrbb55__ffrreeee__kkddcc__rreepp() frees the content of _r_e_p.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_verify_user(3), krb5.conf(5), kerberos(8)
+
+HEIMDAL                          May 31, 2003                          HEIMDAL

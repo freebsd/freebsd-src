@@ -1,4 +1,4 @@
-dnl $Id: crypto.m4 22080 2007-11-16 11:10:54Z lha $
+dnl $Id$
 dnl
 dnl test for crypto libraries:
 dnl - libcrypto (from openssl)
@@ -17,6 +17,7 @@ m4_define([test_headers], [
 		#include <openssl/des.h>
 		#include <openssl/rc4.h>
 		#include <openssl/aes.h>
+		#include <openssl/ec.h>
 		#include <openssl/engine.h>
 		#include <openssl/ui.h>
 		#include <openssl/rand.h>
@@ -37,19 +38,20 @@ m4_define([test_headers], [
 		])
 m4_define([test_body], [
 		void *schedule = 0;
-		MD4_CTX md4;
-		MD5_CTX md5;
-		SHA_CTX sha1;
-		SHA256_CTX sha256;
+		EVP_MD_CTX mdctx;
 
-		MD4_Init(&md4);
-		MD5_Init(&md5);
-		SHA1_Init(&sha1);
-		SHA256_Init(&sha256);
+		EVP_md4();
+		EVP_md5();
+		EVP_sha1();
+		EVP_sha256();
+
+		EVP_MD_CTX_init(&mdctx);
+		EVP_DigestInit_ex(&mdctx, EVP_sha1(), (ENGINE *)0);
 		EVP_CIPHER_iv_length(((EVP_CIPHER*)0));
-		#ifdef HAVE_OPENSSL
-		RAND_status();
 		UI_UTIL_read_pw_string(0,0,0,0);
+		RAND_status();
+		#ifdef HAVE_OPENSSL
+		EC_KEY_new();
 		#endif
 
 		OpenSSL_add_all_algorithms();

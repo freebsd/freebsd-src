@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-spnego.in 21847 2007-08-08 06:55:32Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -49,8 +49,8 @@ keytab="FILE:${keytabfile}"
 cache="FILE:krb5ccfile"
 cacheds="FILE:krb5ccfile-ds"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
-kinitds="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cacheds --no-afslog"
+kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache ${afs_no_afslog} --forwardable"
+kinitds="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cacheds ${afs_no_afslog}"
 kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
 kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
 
@@ -161,6 +161,7 @@ for arg in \
     NTLM_ACCEPTOR_CCACHE="${cacheds}-no"
     ${context} --mech-type=spnego \
         $arg \
+	--client-name=user1@TEST.H5L.SE \
         --name-type=hostbased-service \
         --ret-mech-type=krb5  \
         host@host.test.h5l.se || \
@@ -171,6 +172,7 @@ for arg in \
     NTLM_USER_FILE="${srcdir}/ntlm-user-file.txt-no"
     ${context} --mech-type=spnego \
         $arg \
+	--client-name=user1@TEST.H5L.SE \
         --name-type=hostbased-service \
         --ret-mech-type=krb5 \
         host@host.test.h5l.se || \
@@ -181,6 +183,8 @@ for arg in \
     KRB5_KTNAME="${keytab}-no"
     ${context} --mech-type=spnego \
         $arg \
+	--client-name=user1@TEST.H5L.SE \
+	--server-no-delegate \
         --name-type=hostbased-service \
         --ret-mech-type=ntlm \
         host@host.test.h5l.se || \
@@ -191,6 +195,8 @@ for arg in \
     KRB5CCNAME="${cache}-no"
     ${context} --mech-type=spnego \
         $arg \
+	--client-name=user1@TEST.H5L.SE \
+	--server-no-delegate \
         --name-type=hostbased-service \
         --ret-mech-type=ntlm \
         host@host.test.h5l.se || \

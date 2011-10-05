@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995 - 2004 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2004 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,9 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
+
 #include <config.h>
-#endif
+
 #include "roken.h"
 #include "getarg.h"
 #ifdef HAVE_ARPA_NAMESER_H
@@ -43,8 +43,6 @@
 #include <resolv.h>
 #endif
 #include "resolve.h"
-
-RCSID("$Id: resolve-test.c 15415 2005-06-16 16:58:45Z lha $");
 
 static int version_flag = 0;
 static int help_flag	= 0;
@@ -69,15 +67,15 @@ usage (int ret)
 int
 main(int argc, char **argv)
 {
-    struct dns_reply *r;
-    struct resource_record *rr;
+    struct rk_dns_reply *r;
+    struct rk_resource_record *rr;
     int optidx = 0;
 
     setprogname (argv[0]);
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 
@@ -92,16 +90,16 @@ main(int argc, char **argv)
     if (argc != 2)
 	usage(1);
 
-    r = dns_lookup(argv[0], argv[1]);
+    r = rk_dns_lookup(argv[0], argv[1]);
     if(r == NULL){
 	printf("No reply.\n");
 	return 1;
     }
     if(r->q.type == rk_ns_t_srv)
-	dns_srv_order(r);
+	rk_dns_srv_order(r);
 
     for(rr = r->head; rr;rr=rr->next){
-	printf("%-30s %-5s %-6d ", rr->domain, dns_type_to_string(rr->type), rr->ttl);
+	printf("%-30s %-5s %-6d ", rr->domain, rk_dns_type_to_string(rr->type), rr->ttl);
 	switch(rr->type){
 	case rk_ns_t_ns:
 	case rk_ns_t_cname:
@@ -117,8 +115,8 @@ main(int argc, char **argv)
 	    break;
 	}
 	case rk_ns_t_srv:{
-	    struct srv_record *srv = rr->u.srv;
-	    printf("%d %d %d %s\n", srv->priority, srv->weight, 
+	    struct rk_srv_record *srv = rr->u.srv;
+	    printf("%d %d %d %s\n", srv->priority, srv->weight,
 		   srv->port, srv->target);
 	    break;
 	}
@@ -127,8 +125,8 @@ main(int argc, char **argv)
 	    break;
 	}
 	case rk_ns_t_sig : {
-	    struct sig_record *sig = rr->u.sig;
-	    const char *type_string = dns_type_to_string (sig->type);
+	    struct rk_sig_record *sig = rr->u.sig;
+	    const char *type_string = rk_dns_type_to_string (sig->type);
 
 	    printf ("type %u (%s), algorithm %u, labels %u, orig_ttl %u, sig_expiration %u, sig_inception %u, key_tag %u, signer %s\n",
 		    sig->type, type_string ? type_string : "",
@@ -138,17 +136,17 @@ main(int argc, char **argv)
 	    break;
 	}
 	case rk_ns_t_key : {
-	    struct key_record *key = rr->u.key;
+	    struct rk_key_record *key = rr->u.key;
 
 	    printf ("flags %u, protocol %u, algorithm %u\n",
 		    key->flags, key->protocol, key->algorithm);
 	    break;
 	}
 	case rk_ns_t_sshfp : {
-	    struct sshfp_record *sshfp = rr->u.sshfp;
-	    int i;
+	    struct rk_sshfp_record *sshfp = rr->u.sshfp;
+	    size_t i;
 
-	    printf ("alg %u type %u length %lu data ", sshfp->algorithm, 
+	    printf ("alg %u type %u length %lu data ", sshfp->algorithm,
 		    sshfp->type,  (unsigned long)sshfp->sshfp_len);
 	    for (i = 0; i < sshfp->sshfp_len; i++)
 		printf("%02X", sshfp->sshfp_data[i]);
@@ -157,12 +155,12 @@ main(int argc, char **argv)
 	    break;
 	}
 	case rk_ns_t_ds : {
-	    struct ds_record *ds = rr->u.ds;
-	    int i;
+	    struct rk_ds_record *ds = rr->u.ds;
+	    size_t i;
 
-	    printf ("key tag %u alg %u type %u length %u data ",
-		    ds->key_tag, ds->algorithm, ds->digest_type, 
-		    ds->digest_len);
+	    printf ("key tag %u alg %u type %u length %lu data ",
+		    ds->key_tag, ds->algorithm, ds->digest_type,
+		    (unsigned long)ds->digest_len);
 	    for (i = 0; i < ds->digest_len; i++)
 		printf("%02X", ds->digest_data[i]);
 	    printf("\n");
@@ -174,6 +172,6 @@ main(int argc, char **argv)
 	    break;
 	}
     }
-    
+
     return 0;
 }

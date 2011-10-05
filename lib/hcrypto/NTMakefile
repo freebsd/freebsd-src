@@ -1,0 +1,248 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+SUBDIRS=libtommath
+
+RELDIR=lib\hcrypto
+
+intcflags=-DKRB5 -DASN1_LIB -I$(HCRYPTOINCLUDEDIR) -DUSE_HCRYPTO_LTM=1
+
+!include ../../windows/NTMakefile.w32
+
+# Do dependencies first
+
+all:: subdirs
+
+clean:: clean-subdirs
+
+test:: test-subdirs
+
+# Include files
+
+HCRYPTOINCLUDEDIR=$(INCDIR)\hcrypto
+
+INCFILES=	\
+	$(HCRYPTOINCLUDEDIR)\aes.h	\
+	$(HCRYPTOINCLUDEDIR)\bn.h	\
+	$(HCRYPTOINCLUDEDIR)\des.h	\
+	$(HCRYPTOINCLUDEDIR)\dh.h	\
+	$(HCRYPTOINCLUDEDIR)\dsa.h	\
+	$(HCRYPTOINCLUDEDIR)\ec.h	\
+	$(HCRYPTOINCLUDEDIR)\ecdh.h	\
+	$(HCRYPTOINCLUDEDIR)\ecdsa.h	\
+	$(HCRYPTOINCLUDEDIR)\engine.h	\
+	$(HCRYPTOINCLUDEDIR)\evp.h	\
+	$(HCRYPTOINCLUDEDIR)\evp-hcrypto.h	\
+	$(HCRYPTOINCLUDEDIR)\evp-cc.h	\
+	$(HCRYPTOINCLUDEDIR)\hmac.h	\
+	$(HCRYPTOINCLUDEDIR)\md2.h	\
+	$(HCRYPTOINCLUDEDIR)\md4.h	\
+	$(HCRYPTOINCLUDEDIR)\md5.h	\
+	$(HCRYPTOINCLUDEDIR)\pkcs12.h	\
+	$(HCRYPTOINCLUDEDIR)\rand.h	\
+	$(HCRYPTOINCLUDEDIR)\randi.h	\
+	$(HCRYPTOINCLUDEDIR)\rc2.h	\
+	$(HCRYPTOINCLUDEDIR)\rc4.h	\
+	$(HCRYPTOINCLUDEDIR)\rsa.h	\
+	$(HCRYPTOINCLUDEDIR)\sha.h	\
+	$(HCRYPTOINCLUDEDIR)\ui.h
+
+mkincdir:
+!if !exist($(HCRYPTOINCLUDEDIR))
+	$(MKDIR) $(HCRYPTOINCLUDEDIR)
+!endif
+
+{}.h{$(HCRYPTOINCLUDEDIR)}.h:
+	$(CP) $** $@
+
+all:: mkincdir
+
+all:: $(INCFILES)
+
+# libhcrypto
+
+libhcrypto_OBJs = 			\
+	$(OBJ)\aes.obj			\
+	$(OBJ)\bn.obj			\
+	$(OBJ)\camellia.obj		\
+	$(OBJ)\camellia-ntt.obj		\
+	$(OBJ)\common.obj		\
+	$(OBJ)\des.obj			\
+	$(OBJ)\dh.obj			\
+	$(OBJ)\dh-ltm.obj		\
+	$(OBJ)\dh-tfm.obj		\
+	$(OBJ)\dsa.obj			\
+	$(OBJ)\evp.obj			\
+	$(OBJ)\evp-hcrypto.obj		\
+	$(OBJ)\evp-cc.obj		\
+	$(OBJ)\engine.obj		\
+	$(OBJ)\hmac.obj			\
+	$(OBJ)\md2.obj			\
+	$(OBJ)\md4.obj			\
+	$(OBJ)\md5.obj			\
+	$(OBJ)\pkcs5.obj		\
+	$(OBJ)\pkcs12.obj		\
+	$(OBJ)\rand-w32.obj		\
+	$(OBJ)\rand.obj			\
+	$(OBJ)\rc2.obj			\
+	$(OBJ)\rc4.obj			\
+	$(OBJ)\rijndael-alg-fst.obj	\
+	$(OBJ)\rnd_keys.obj		\
+	$(OBJ)\rsa.obj			\
+	$(OBJ)\rsa-gmp.obj		\
+	$(OBJ)\rsa-ltm.obj		\
+	$(OBJ)\rsa-tfm.obj		\
+	$(OBJ)\sha.obj			\
+	$(OBJ)\sha256.obj		\
+	$(OBJ)\sha512.obj		\
+	$(OBJ)\ui.obj			\
+	$(OBJ)\validate.obj
+
+$(LIBHCRYPTO): $(libhcrypto_OBJs)
+	$(LIBCON)
+
+all:: $(LIBHCRYPTO)
+
+clean::
+	-$(RM) $(LIBHCRYPTO)
+
+# Tests
+
+TESTLIB=$(OBJ)\libhctest.lib
+
+$(TESTLIB):		    \
+	$(OBJ)\des.obj	    \
+	$(OBJ)\ui.obj
+	$(LIBCON)
+
+test-binaries:				\
+	$(OBJ)\destest.exe		\
+	$(OBJ)\example_evp_cipher.exe	\
+	$(OBJ)\mdtest.exe		\
+	$(OBJ)\rc2test.exe		\
+	$(OBJ)\rctest.exe		\
+	$(OBJ)\test_bn.exe		\
+	$(OBJ)\test_cipher.exe		\
+	$(OBJ)\test_engine_dso.exe	\
+	$(OBJ)\test_hmac.exe		\
+	$(OBJ)\test_pkcs5.exe		\
+	$(OBJ)\test_pkcs12.exe		\
+	$(OBJ)\test_rsa.exe		\
+	$(OBJ)\test_dh.exe		\
+	$(OBJ)\test_rand.exe		\
+	$(OBJ)\test_crypto.sh
+
+$(OBJ)\destest.exe: $(OBJ)\destest.obj $(TESTLIB) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\example_evp_cipher.exe: $(OBJ)\example_evp_cipher.obj $(TESTLIB) $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\mdtest.exe: $(OBJ)\mdtest.obj $(LIBHEIMDAL) $(LIBROKEN) $(OBJ)\sha512.obj
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\rc2test.exe: $(OBJ)\rc2test.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\rctest.exe: $(OBJ)\rctest.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_bn.exe: $(OBJ)\test_bn.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_cipher.exe: $(OBJ)\test_cipher.obj $(TESTLIB) $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_engine_dso.exe: $(OBJ)\test_engine_dso.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_hmac.exe: $(OBJ)\test_hmac.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_pkcs5.exe: $(OBJ)\test_pkcs5.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_pkcs12.exe: $(OBJ)\test_pkcs12.obj $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_rsa.exe: $(OBJ)\test_rsa.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_dh.exe: $(OBJ)\test_dh.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test_rand.exe: $(OBJ)\test_rand.obj $(LIBHEIMDAL) $(LIBROKEN) $(LIBVERS)
+	$(EXECONLINK)
+	$(EXEPREP_NODIST)
+
+SRCDIR2=$(SRCDIR:\=\\\\)
+
+$(OBJ)\test_crypto.sh: test_crypto.in NTMakefile
+	$(SED) -e "s,[@]srcdir[@],$(SRCDIR2),g" -e "s,[@]exeext[@],.exe,g" -e "s,\r,," < test_crypto.in > $@ || $(RM) $@
+
+test-run:
+	cd $(OBJ)
+!ifdef SH
+	$(SH) test_crypto.sh
+!endif
+	destest.exe
+	mdtest.exe
+	rc2test.exe
+	rctest.exe
+	test_bn.exe
+	test_cipher.exe
+	test_engine_dso.exe
+	test_hmac.exe
+	test_pkcs5.exe
+	test_pkcs12.exe
+	test_rsa.exe
+	test_dh.exe
+	cd $(SRCDIR)
+
+test:: $(TESTLIB) test-binaries test-run
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libhcrypto-exports.def
+
+test:: test-exports
