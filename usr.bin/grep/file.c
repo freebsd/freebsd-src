@@ -34,13 +34,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <bzlib.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <lzma.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,10 +58,12 @@ __FBSDID("$FreeBSD$");
 
 static gzFile gzbufdesc;
 static BZFILE* bzbufdesc;
+static lzma_stream lstrm = LZMA_STREAM_INIT;
 
-static unsigned char buffer[MAXBUFSIZ];
+static unsigned char *buffer;
 static unsigned char *bufpos;
 static size_t bufrem;
+static size_t fsiz;
 
 static unsigned char *lnbuf;
 static size_t lnbuflen;
@@ -69,6 +73,9 @@ grep_refill(struct file *f)
 {
 	ssize_t nr;
 	int bzerr;
+
+	if (filebehave == FILE_MMAP)
+		return (0);
 
 	bufpos = buffer;
 	bufrem = 0;
@@ -101,6 +108,36 @@ grep_refill(struct file *f)
 			/* Make sure we exit with an error */
 			nr = -1;
 		}
+	} else if ((filebehave == FILE_XZ) || (filebehave == FILE_LZMA)) {
+		lzma_action action = LZMA_RUN;
+		uint8_t in_buf[MAXBUFSIZ];
+		lzma_ret ret;
+
+		ret = (filebehave == FILE_XZ) ?
+		    lzma_stream_decoder(&lstrm, UINT64_MAX,
+		    LZMA_CONCATENATED) :
+		    lzma_alone_decoder(&lstrm, UINT64_MAX);
+
+		if (ret != LZMA_OK)
+			return (-1);
+
+		lstrm.next_out = buffer;
+		lstrm.avail_out = MAXBUFSIZ;
+		lstrm.next_in = in_buf;
+		nr = read(f->fd, in_buf, MAXBUFSIZ);
+
+		if (nr < 0)
+			return (-1);
+		else if (nr == 0)
+			action = LZMA_FINISH;
+
+		lstrm.avail_in = nr;
+		ret = lzma_code(&lstrm, action);
+
+		if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+			return (-1);
+		bufrem = MAXBUFSIZ - lstrm.avail_out;
+		return (0);
 	} else
 		nr = read(f->fd, buffer, MAXBUFSIZ);
 
@@ -186,33 +223,6 @@ error:
 	return (NULL);
 }
 
-static inline struct file *
-grep_file_init(struct file *f)
-{
-
-	if (filebehave == FILE_GZIP &&
-	    (gzbufdesc = gzdopen(f->fd, "r")) == NULL)
-		goto error;
-
-	if (filebehave == FILE_BZIP &&
-	    (bzbufdesc = BZ2_bzdopen(f->fd, "r")) == NULL)
-		goto error;
-
-	/* Fill read buffer, also catches errors early */
-	if (grep_refill(f) != 0)
-		goto error;
-
-	/* Check for binary stuff, if necessary */
-	if (binbehave != BINFILE_TEXT && memchr(bufpos, '\0', bufrem) != NULL)
-		f->binary = true;
-
-	return (f);
-error:
-	close(f->fd);
-	free(f);
-	return (NULL);
-}
-
 /*
  * Opens a file for processing.
  */
@@ -227,12 +237,59 @@ grep_open(const char *path)
 		/* Processing stdin implies --line-buffered. */
 		lbflag = true;
 		f->fd = STDIN_FILENO;
-	} else if ((f->fd = open(path, O_RDONLY)) == -1) {
-		free(f);
-		return (NULL);
+	} else if ((f->fd = open(path, O_RDONLY)) == -1)
+		goto error1;
+
+	if (filebehave == FILE_MMAP) {
+		struct stat st;
+
+		if ((fstat(f->fd, &st) == -1) || (st.st_size > OFF_MAX) ||
+		    (!S_ISREG(st.st_mode)))
+			filebehave = FILE_STDIO;
+		else {
+			int flags = MAP_PRIVATE | MAP_NOCORE | MAP_NOSYNC;
+#ifdef MAP_PREFAULT_READ
+			flags |= MAP_PREFAULT_READ;
+#endif
+			fsiz = st.st_size;
+			buffer = mmap(NULL, fsiz, PROT_READ, flags,
+			     f->fd, (off_t)0);
+			if (buffer == MAP_FAILED)
+				filebehave = FILE_STDIO;
+			else {
+				bufrem = st.st_size;
+				bufpos = buffer;
+				madvise(buffer, st.st_size, MADV_SEQUENTIAL);
+			}
+		}
 	}
 
-	return (grep_file_init(f));
+	if ((buffer == NULL) || (buffer == MAP_FAILED))
+		buffer = grep_malloc(MAXBUFSIZ);
+
+	if (filebehave == FILE_GZIP &&
+	    (gzbufdesc = gzdopen(f->fd, "r")) == NULL)
+		goto error2;
+
+	if (filebehave == FILE_BZIP &&
+	    (bzbufdesc = BZ2_bzdopen(f->fd, "r")) == NULL)
+		goto error2;
+
+	/* Fill read buffer, also catches errors early */
+	if (bufrem == 0 && grep_refill(f) != 0)
+		goto error2;
+
+	/* Check for binary stuff, if necessary */
+	if (binbehave != BINFILE_TEXT && memchr(bufpos, '\0', bufrem) != NULL)
+	f->binary = true;
+
+	return (f);
+
+error2:
+	close(f->fd);
+error1:
+	free(f);
+	return (NULL);
 }
 
 /*
@@ -245,6 +302,10 @@ grep_close(struct file *f)
 	close(f->fd);
 
 	/* Reset read buffer and line buffer */
+	if (filebehave == FILE_MMAP) {
+		munmap(buffer, fsiz);
+		buffer = NULL;
+	}
 	bufpos = buffer;
 	bufrem = 0;
 
