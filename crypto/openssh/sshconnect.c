@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.232 2011/01/16 11:50:36 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.234 2011/05/24 07:15:47 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -712,28 +712,30 @@ get_hostfile_hostname_ipaddr(char *hostname, struct sockaddr *hostaddr,
 
 /*
  * check whether the supplied host key is valid, return -1 if the key
- * is not valid. the user_hostfile will not be updated if 'readonly' is true.
+ * is not valid. user_hostfile[0] will not be updated if 'readonly' is true.
  */
 #define RDRW	0
 #define RDONLY	1
 #define ROQUIET	2
 static int
 check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
-    Key *host_key, int readonly, char *user_hostfile,
-    char *system_hostfile)
+    Key *host_key, int readonly,
+    char **user_hostfiles, u_int num_user_hostfiles,
+    char **system_hostfiles, u_int num_system_hostfiles)
 {
-	Key *raw_key = NULL;
-	const char *type;
-	char *ip = NULL, *host = NULL;
-	char hostline[1000], *hostp, *fp, *ra;
 	HostStatus host_status;
 	HostStatus ip_status;
-	int r, want_cert = key_is_cert(host_key), host_ip_differ = 0;
-	int local = sockaddr_is_local(hostaddr);
+	Key *raw_key = NULL;
+	char *ip = NULL, *host = NULL;
+	char hostline[1000], *hostp, *fp, *ra;
 	char msg[1024];
-	int len, cancelled_forwarding = 0;
-	struct hostkeys *host_hostkeys, *ip_hostkeys;
+	const char *type;
 	const struct hostkey_entry *host_found, *ip_found;
+	int len, cancelled_forwarding = 0;
+	int local = sockaddr_is_local(hostaddr);
+	int r, want_cert = key_is_cert(host_key), host_ip_differ = 0;
+	struct hostkeys *host_hostkeys, *ip_hostkeys;
+	u_int i;
 
 	/*
 	 * Force accepting of the host key for loopback/localhost. The
@@ -765,14 +767,18 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		options.check_host_ip = 0;
 
 	host_hostkeys = init_hostkeys();
-	load_hostkeys(host_hostkeys, host, user_hostfile);
-	load_hostkeys(host_hostkeys, host, system_hostfile);
+	for (i = 0; i < num_user_hostfiles; i++)
+		load_hostkeys(host_hostkeys, host, user_hostfiles[i]);
+	for (i = 0; i < num_system_hostfiles; i++)
+		load_hostkeys(host_hostkeys, host, system_hostfiles[i]);
 
 	ip_hostkeys = NULL;
 	if (!want_cert && options.check_host_ip) {
 		ip_hostkeys = init_hostkeys();
-		load_hostkeys(ip_hostkeys, ip, user_hostfile);
-		load_hostkeys(ip_hostkeys, ip, system_hostfile);
+		for (i = 0; i < num_user_hostfiles; i++)
+			load_hostkeys(ip_hostkeys, ip, user_hostfiles[i]);
+		for (i = 0; i < num_system_hostfiles; i++)
+			load_hostkeys(ip_hostkeys, ip, system_hostfiles[i]);
 	}
 
  retry:
@@ -817,11 +823,12 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				logit("%s host key for IP address "
 				    "'%.128s' not in list of known hosts.",
 				    type, ip);
-			else if (!add_host_to_hostfile(user_hostfile, ip,
+			else if (!add_host_to_hostfile(user_hostfiles[0], ip,
 			    host_key, options.hash_known_hosts))
 				logit("Failed to add the %s host key for IP "
 				    "address '%.128s' to the list of known "
-				    "hosts (%.30s).", type, ip, user_hostfile);
+				    "hosts (%.30s).", type, ip,
+				    user_hostfiles[0]);
 			else
 				logit("Warning: Permanently added the %s host "
 				    "key for IP address '%.128s' to the list "
@@ -840,7 +847,8 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		    port != SSH_DEFAULT_PORT) {
 			debug("checking without port identifier");
 			if (check_host_key(hostname, hostaddr, 0, host_key,
-			    ROQUIET, user_hostfile, system_hostfile) == 0) {
+			    ROQUIET, user_hostfiles, num_user_hostfiles,
+			    system_hostfiles, num_system_hostfiles) == 0) {
 				debug("found matching key w/out port");
 				break;
 			}
@@ -905,25 +913,25 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			hostp = hostline;
 			if (options.hash_known_hosts) {
 				/* Add hash of host and IP separately */
-				r = add_host_to_hostfile(user_hostfile, host,
-				    host_key, options.hash_known_hosts) &&
-				    add_host_to_hostfile(user_hostfile, ip,
+				r = add_host_to_hostfile(user_hostfiles[0],
+				    host, host_key, options.hash_known_hosts) &&
+				    add_host_to_hostfile(user_hostfiles[0], ip,
 				    host_key, options.hash_known_hosts);
 			} else {
 				/* Add unhashed "host,ip" */
-				r = add_host_to_hostfile(user_hostfile,
+				r = add_host_to_hostfile(user_hostfiles[0],
 				    hostline, host_key,
 				    options.hash_known_hosts);
 			}
 		} else {
-			r = add_host_to_hostfile(user_hostfile, host, host_key,
-			    options.hash_known_hosts);
+			r = add_host_to_hostfile(user_hostfiles[0], host,
+			    host_key, options.hash_known_hosts);
 			hostp = host;
 		}
 
 		if (!r)
 			logit("Failed to add the host to the list of known "
-			    "hosts (%.500s).", user_hostfile);
+			    "hosts (%.500s).", user_hostfiles[0]);
 		else
 			logit("Warning: Permanently added '%.200s' (%s) to the "
 			    "list of known hosts.", hostp, type);
@@ -984,7 +992,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		/* The host key has changed. */
 		warn_changed_key(host_key);
 		error("Add correct host key in %.100s to get rid of this message.",
-		    user_hostfile);
+		    user_hostfiles[0]);
 		error("Offending %s key in %s:%lu", key_type(host_found->key),
 		    host_found->file, host_found->line);
 
@@ -1129,7 +1137,6 @@ fail:
 int
 verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
-	struct stat st;
 	int flags = 0;
 	char *fp;
 
@@ -1140,7 +1147,6 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 	/* XXX certs are not yet supported for DNS */
 	if (!key_is_cert(host_key) && options.verify_host_key_dns &&
 	    verify_host_key_dns(host, hostaddr, host_key, &flags) == 0) {
-
 		if (flags & DNS_VERIFY_FOUND) {
 
 			if (options.verify_host_key_dns == 1 &&
@@ -1158,16 +1164,9 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 		}
 	}
 
-	/* return ok if the key can be found in an old keyfile */
-	if (stat(options.system_hostfile2, &st) == 0 ||
-	    stat(options.user_hostfile2, &st) == 0) {
-		if (check_host_key(host, hostaddr, options.port, host_key,
-		    RDONLY, options.user_hostfile2,
-		    options.system_hostfile2) == 0)
-			return 0;
-	}
-	return check_host_key(host, hostaddr, options.port, host_key,
-	    RDRW, options.user_hostfile, options.system_hostfile);
+	return check_host_key(host, hostaddr, options.port, host_key, RDRW,
+	    options.user_hostfiles, options.num_user_hostfiles,
+	    options.system_hostfiles, options.num_system_hostfiles);
 }
 
 /*

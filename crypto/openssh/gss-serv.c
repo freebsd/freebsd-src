@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.22 2008/05/08 12:02:23 djm Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.23 2011/08/01 19:18:15 markus Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -229,6 +229,8 @@ ssh_gssapi_parse_ename(Gssctxt *ctx, gss_buffer_t ename, gss_buffer_t name)
 	name->length = get_u32(tok+offset);
 	offset += 4;
 
+	if (UINT_MAX - offset < name->length)
+		return GSS_S_FAILURE;
 	if (ename->length < offset+name->length)
 		return GSS_S_FAILURE;
 

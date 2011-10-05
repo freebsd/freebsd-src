@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.165 2011/05/05 01:19:15 djm Exp $ */
+/* $Id: defines.h,v 1.167 2011/06/03 01:17:49 tim Exp $ */
 
 
 /* Constants */
@@ -130,6 +130,10 @@ enum
 #if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
 # define O_NONBLOCK      00004	/* Non Blocking Open */
 #endif
+
+#ifndef S_IFSOCK
+# define S_IFSOCK 0
+#endif /* S_IFSOCK */
 
 #ifndef S_ISDIR
 # define S_ISDIR(mode)	(((mode) & (_S_IFMT)) == (_S_IFDIR))
@@ -385,17 +389,14 @@ struct winsize {
 # define _PATH_DEVNULL "/dev/null"
 #endif
 
-#ifndef MAIL_DIRECTORY
-# define MAIL_DIRECTORY "/var/spool/mail"
-#endif
+/* user may have set a different path */
+#if defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY)
+# undef _PATH_MAILDIR MAILDIR
+#endif /* defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY) */
 
-#ifndef MAILDIR
-# define MAILDIR MAIL_DIRECTORY
+#ifdef MAIL_DIRECTORY
+# define _PATH_MAILDIR MAIL_DIRECTORY
 #endif
-
-#if !defined(_PATH_MAILDIR) && defined(MAILDIR)
-# define _PATH_MAILDIR MAILDIR
-#endif /* !defined(_PATH_MAILDIR) && defined(MAILDIR) */
 
 #ifndef _PATH_NOLOGIN
 # define _PATH_NOLOGIN "/etc/nologin"

@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.146 2010/12/08 04:02:47 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.153 2011/08/02 01:22:11 djm Exp $
 .\" $FreeBSD$
-.Dd December 8, 2010
+.Dd August 2, 2011
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -112,6 +112,15 @@ The host is the
 .Ar hostname
 argument given on the command line (i.e. the name is not converted to
 a canonicalized host name before matching).
+.Pp
+A pattern entry may be negated by prefixing it with an exclamation mark
+.Pq Sq !\& .
+If a negated entry is matched, then the
+.Cm Host
+entry is ignored, regardless of whether any other patterns on the line
+match.
+Negated matches are therefore useful to provide exceptions for wildcard
+matches.
 .Pp
 See
 .Sx PATTERNS
@@ -306,14 +315,22 @@ section above or the string
 .Dq none
 to disable connection sharing.
 In the path,
+.Ql %L
+will be substituted by the first component of the local host name,
 .Ql %l
-will be substituted by the local host name,
+will be substituted by the local host name (including any domain name),
 .Ql %h
 will be substituted by the target host name,
+.Ql %n
+will be substituted by the original target host name
+specified on the command line,
 .Ql %p
-the port, and
+the port,
 .Ql %r
-by the remote login username.
+by the remote login username, and
+.Ql %u
+by the username of the user running
+.Xr ssh 1 .
 It is recommended that any
 .Cm ControlPath
 used for opportunistic connection sharing include
@@ -501,9 +518,11 @@ or
 The default is
 .Dq no .
 .It Cm GlobalKnownHostsFile
-Specifies a file to use for the global
-host key database instead of
-.Pa /etc/ssh/ssh_known_hosts .
+Specifies one or more files to use for the global
+host key database, separated by whitespace.
+The default is
+.Pa /etc/ssh/ssh_known_hosts ,
+.Pa /etc/ssh/ssh_known_hosts2 .
 .It Cm GSSAPIAuthentication
 Specifies whether user authentication based on GSSAPI is allowed.
 The default is
@@ -570,7 +589,7 @@ Specifies the real host name to log into.
 This can be used to specify nicknames or abbreviations for hosts.
 If the hostname contains the character sequence
 .Ql %h ,
-then this will be replaced with the host name specified on the commandline
+then this will be replaced with the host name specified on the command line
 (this is useful for manipulating unqualified names).
 The default is the name given on the command line.
 Numeric IP addresses are also permitted (both on the command line and in
@@ -630,6 +649,10 @@ escape characters:
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+Multiple
+.Cm IdentityFile
+directives will add to the list of identities tried (this behaviour
+differs from that of other configuration directives).
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for connections.
 Accepted values are
@@ -771,7 +794,9 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
+hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
+hmac-sha2-512-96
 .Ed
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.
@@ -944,6 +969,23 @@ will only succeed if the server's
 .Cm GatewayPorts
 option is enabled (see
 .Xr sshd_config 5 ) .
+.It Cm RequestTTY
+Specifies whether to request a pseudo-tty for the session.
+The argument may be one of:
+.Dq no
+(never request a TTY),
+.Dq yes
+(always request a TTY when standard input is a TTY),
+.Dq force
+(always request a TTY) or
+.Dq auto
+(request a TTY when opening a login session).
+This option mirrors the
+.Fl t
+and
+.Fl T
+flags for
+.Xr ssh 1 .
 .It Cm RhostsRSAAuthentication
 Specifies whether to try rhosts based authentication with RSA host
 authentication.
@@ -1138,9 +1180,11 @@ This can be useful when a different user name is used on different machines.
 This saves the trouble of
 having to remember to give the user name on the command line.
 .It Cm UserKnownHostsFile
-Specifies a file to use for the user
-host key database instead of
-.Pa ~/.ssh/known_hosts .
+Specifies one or more files to use for the user
+host key database, separated by whitespace.
+The default is
+.Pa ~/.ssh/known_hosts ,
+.Pa ~/.ssh/known_hosts2 .
 .It Cm VerifyHostKeyDNS
 Specifies whether to verify the remote key using DNS and SSHFP resource
 records.
@@ -1173,7 +1217,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20110503 .
+.Dq FreeBSD-20111001 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,
