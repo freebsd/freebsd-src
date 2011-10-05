@@ -1810,9 +1810,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ia->ia_flags & IFA_ROUTE)
+	if (!(ia->ia_flags & IFA_RTSELF)
 	    && (V_nd6_useloopback
-		|| (ifp->if_flags & IFF_LOOPBACK))) {
+		&& !(ifp->if_flags & IFF_LOOPBACK))) {
 		error = ifa_add_loopback_route((struct ifaddr *)ia,
 				       (struct sockaddr *)&ia->ia_addr);
 		if (error == 0)
