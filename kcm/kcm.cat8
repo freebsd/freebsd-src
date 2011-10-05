@@ -1,0 +1,92 @@
+
+KCM(8)                    BSD System Manager's Manual                   KCM(8)
+
+NNAAMMEE
+     kkccmm -- process-based credential cache for Kerberos tickets.
+
+SSYYNNOOPPSSIISS
+     kkccmm [----ccaacchhee--nnaammee==_c_a_c_h_e_n_a_m_e] [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--gg _g_r_o_u_p |
+         ----ggrroouupp==_g_r_o_u_p] [----mmaaxx--rreeqquueesstt==_s_i_z_e] [----ddiissaallllooww--ggeettttiinngg--kkrrbbttggtt]
+         [----ddeettaacchh] [--hh | ----hheellpp] [--kk _p_r_i_n_c_i_p_a_l |
+         ----ssyysstteemm--pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--ll _t_i_m_e | ----lliiffeettiimmee==_t_i_m_e] [--mm _m_o_d_e |
+         ----mmooddee==_m_o_d_e] [--nn | ----nnoo--nnaammee--ccoonnssttrraaiinnttss] [--rr _t_i_m_e |
+         ----rreenneewwaabbllee--lliiffee==_t_i_m_e] [--ss _p_a_t_h | ----ssoocckkeett--ppaatthh==_p_a_t_h]
+         [----ddoooorr--ppaatthh==_p_a_t_h] [--SS _p_r_i_n_c_i_p_a_l | ----sseerrvveerr==_p_r_i_n_c_i_p_a_l] [--tt _k_e_y_t_a_b |
+         ----kkeeyyttaabb==_k_e_y_t_a_b] [--uu _u_s_e_r | ----uusseerr==_u_s_e_r] [--vv | ----vveerrssiioonn]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkccmm is a process based credential cache.  To use it, set the KRB5CCNAME
+     enviroment variable to `KCM:_u_i_d' or add the stanza
+
+
+     [libdefaults]
+             default_cc_name = KCM:%{uid}
+
+     to the _/_e_t_c_/_k_r_b_5_._c_o_n_f configuration file and make sure kkccmm is started in
+     the system startup files.
+
+     The kkccmm daemon can hold the credentials for all users in the system.
+     Access control is done with Unix-like permissions.  The daemon checks the
+     access on all operations based on the uid and gid of the user.  The tick-
+     ets are renewed as long as is permitted by the KDC's policy.
+
+     The kkccmm daemon can also keep a SYSTEM credential that server processes
+     can use to access services.  One example of usage might be an nss_ldap
+     module that quickly needs to get credentials and doesn't want to renew
+     the ticket itself.
+
+     Supported options:
+
+     ----ccaacchhee--nnaammee==_c_a_c_h_e_n_a_m_e
+             system cache name
+
+     --cc _f_i_l_e, ----ccoonnffiigg--ffiillee==_f_i_l_e
+             location of config file
+
+     --gg _g_r_o_u_p, ----ggrroouupp==_g_r_o_u_p
+             system cache group
+
+     ----mmaaxx--rreeqquueesstt==_s_i_z_e
+             max size for a kcm-request
+
+     ----ddiissaallllooww--ggeettttiinngg--kkrrbbttggtt
+             disallow extracting any krbtgt from the kkccmm daemon.
+
+     ----ddeettaacchh
+             detach from console
+
+     --hh, ----hheellpp
+
+     --kk _p_r_i_n_c_i_p_a_l, ----ssyysstteemm--pprriinncciippaall==_p_r_i_n_c_i_p_a_l
+             system principal name
+
+     --ll _t_i_m_e, ----lliiffeettiimmee==_t_i_m_e
+             lifetime of system tickets
+
+     --mm _m_o_d_e, ----mmooddee==_m_o_d_e
+             octal mode of system cache
+
+     --nn, ----nnoo--nnaammee--ccoonnssttrraaiinnttss
+             disable credentials cache name constraints
+
+     --rr _t_i_m_e, ----rreenneewwaabbllee--lliiffee==_t_i_m_e
+             renewable lifetime of system tickets
+
+     --ss _p_a_t_h, ----ssoocckkeett--ppaatthh==_p_a_t_h
+             path to kcm domain socket
+
+     ----ddoooorr--ppaatthh==_p_a_t_h
+             path to kcm door socket
+
+     --SS _p_r_i_n_c_i_p_a_l, ----sseerrvveerr==_p_r_i_n_c_i_p_a_l
+             server to get system ticket for
+
+     --tt _k_e_y_t_a_b, ----kkeeyyttaabb==_k_e_y_t_a_b
+             system keytab name
+
+     --uu _u_s_e_r, ----uusseerr==_u_s_e_r
+             system cache owner
+
+     --vv, ----vveerrssiioonn
+
+Heimdal                          May 29, 2005                          Heimdal

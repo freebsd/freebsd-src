@@ -1,4 +1,4 @@
-dnl $Id: otp.m4 14147 2004-08-25 14:14:01Z joda $
+dnl $Id$
 dnl
 dnl check requirements for OTP library
 dnl

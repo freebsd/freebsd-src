@@ -26,5 +26,3 @@
 	default_keys = aes256-cts-hmac-sha1-96:pw-salt
 	default_keys = aes128-cts-hmac-sha1-96:pw-salt
 	default_keys = des3-cbc-sha1:pw-salt
-        default_keys = des:pw-salt
-	default_keys = des:pw-salt:

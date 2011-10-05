@@ -1,0 +1,43 @@
+
+KRB524_CONVERT_CREDS_... BSD Library Functions Manual KRB524_CONVERT_CREDS_...
+
+NNAAMMEE
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc, kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc__ccccaacchhee -- converts
+     Kerberos 5 credentials to Kerberos 4 credentials
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_e_d_s _*_i_n___c_r_e_d,
+         _s_t_r_u_c_t _c_r_e_d_e_n_t_i_a_l_s _*_v_4_c_r_e_d_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc__ccccaacchhee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e,
+         _k_r_b_5___c_r_e_d_s _*_i_n___c_r_e_d, _s_t_r_u_c_t _c_r_e_d_e_n_t_i_a_l_s _*_v_4_c_r_e_d_s);
+
+DDEESSCCRRIIPPTTIIOONN
+     Convert the Kerberos 5 credential to Kerberos 4 credential.  This is done
+     by sending them to the 524 service in the KDC.
+
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc() converts the Kerberos 5 credential in _i_n___c_r_e_d
+     to Kerberos 4 credential that is stored in _c_r_e_d_e_n_t_i_a_l_s.
+
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc__ccccaacchhee() is different from
+     kkrrbb552244__ccoonnvveerrtt__ccrreeddss__kkddcc() in that way that if _i_n___c_r_e_d doesn't contain a
+     DES session key, then a new one is fetched from the KDC and stored in the
+     cred cache _c_c_a_c_h_e, and then the KDC is queried to convert the credential.
+
+     This interfaces are used to make the migration to Kerberos 5 from Ker-
+     beros 4 easier.  There are few services that still need Kerberos 4, and
+     this is mainly for compatibility for those services.  Some services, like
+     AFS, really have Kerberos 5 supports, but still uses the 524 interface to
+     make the migration easier.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                         March 20, 2004                         HEIMDAL

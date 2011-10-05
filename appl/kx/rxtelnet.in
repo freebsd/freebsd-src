@@ -1,0 +1,72 @@
+#!/bin/sh
+# $Id$
+#
+usage="Usage: $0 [-l username] [-k] [-fF] [-t args_to_telnet] [-x args_to_xterm] [-K args_to_kx] [-w term_emulator] [-b telnet_binary] [-n] [-v] [-h | --help] [--version] host [port]"
+binary=telnet
+term=
+kx_args=-P
+while true
+do
+  case $1 in
+  -l) telnet_args="${telnet_args} -l $2 "; kx_args="${kx_args} -l $2"; title="${2}@"; shift 2;;
+  -t) telnet_args="${telnet_args} $2 "; shift 2;;
+  -x) xterm_args="${xterm_args} $2 "; shift 2;;
+  -f) telnet_args="${telnet_args} -f"; shift;;
+  -F) telnet_args="${telnet_args} -F"; shift;;
+  -k) kx_args="${kx_args} -k"; shift;;
+  -K) kx_args="${kx_args} $2 "; shift 2;;
+  -n) term=none; shift;;
+  -w) term=$2; shift 2;;
+  -b) binary=$2; shift 2;;
+  --version) echo "$0: %PACKAGE% %VERSION%"; exit 0;;
+  -h) echo $usage; exit 0;;
+  --help) echo $usage; exit 0;;
+  -v) set -x; verb=1; shift;;
+  -*) echo "$0: Bad option $1"; echo $usage; exit 1;;
+  *) break;;
+  esac
+done
+if test $# -lt 1; then
+  echo $usage
+  exit 1
+fi
+host=$1
+port=$2
+title="${title}${host}"
+bindir=%bindir%
+pdc_trams=`dirname $0`
+PATH=$pdc_trams:$bindir:$PATH
+export PATH
+set -- `kx $kx_args $host`
+if test $# -ne 3; then
+  echo "Warning: Cound not setup X forwarding"
+  pid=NO  
+  disp=""
+  auth=""
+else
+  screen=`echo $DISPLAY | sed -ne 's/[^:]*:[0-9]*\(\.[0-9]*\)/\1/p'`
+  pid=$1
+  disp=${2}${screen}
+  auth=$3
+fi
+oldifs=$IFS
+IFS=:
+set -- $PATH
+IFS=$oldifs
+if test -z "$term"; then
+  for j in xterm dtterm aixterm dxterm hpterm; do
+    for i in $*; do
+      test -n "$i" || i="."
+      if test -x $i/$j; then
+	term=$j; break 2
+      fi
+    done
+  done
+fi
+test "$verb" && echo "Telnet command used is `type $binary`."
+if test -n "$term" -a "$term" != "none"; then
+  ($term -title $title -n $title $xterm_args -e env DISPLAY=$disp XAUTHORITY=$auth $binary -D $telnet_args $host $port; test x"$pid" != xNO && kill -USR2 $pid) &
+else
+  env DISPLAY=$disp XAUTHORITY=$auth $binary -D $telnet_args $host $port
+  test x"$pid" != xNO && kill -USR2 $pid
+fi

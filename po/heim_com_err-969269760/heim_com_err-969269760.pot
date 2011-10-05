@@ -1,0 +1,71 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Heimdal 1.2.99\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-09-07 15:23+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. 000
+#: ../lib/wind/wind_err.c:11
+msgid "No error"
+msgstr ""
+
+#. 001
+#: ../lib/wind/wind_err.c:12
+msgid "No such profile"
+msgstr ""
+
+#. 002
+#: ../lib/wind/wind_err.c:13
+msgid "Buffer overrun"
+msgstr ""
+
+#. 003
+#: ../lib/wind/wind_err.c:14
+msgid "Buffer underrun"
+msgstr ""
+
+#. 004
+#: ../lib/wind/wind_err.c:15
+msgid "Lenght not mod2"
+msgstr ""
+
+#. 005
+#: ../lib/wind/wind_err.c:16
+msgid "Lenght not mod4"
+msgstr ""
+
+#. 006
+#: ../lib/wind/wind_err.c:17
+msgid "Invalid UTF-8 combination in string"
+msgstr ""
+
+#. 007
+#: ../lib/wind/wind_err.c:18
+msgid "Invalid UTF-16 combination in string"
+msgstr ""
+
+#. 008
+#: ../lib/wind/wind_err.c:19
+msgid "Invalid UTF-32 combination in string"
+msgstr ""
+
+#. 009
+#: ../lib/wind/wind_err.c:20
+msgid "No byte order mark (BOM) in string"
+msgstr ""
+
+#. 010
+#: ../lib/wind/wind_err.c:21
+msgid "Code can't be represented as UTF-16"
+msgstr ""

@@ -1,5 +1,5 @@
 dnl
-dnl $Id: aix.m4 14147 2004-08-25 14:14:01Z joda $
+dnl $Id$
 dnl
 
 AC_DEFUN([rk_AIX],[
@@ -9,20 +9,22 @@ case "$host" in
 *-*-aix3*)
 	aix=3
 	;;
-*-*-aix4*|*-*-aix5*)
+*-*-aix[[4-9]]*)
 	aix=4
 	;;
 esac
 
 AM_CONDITIONAL(AIX, test "$aix" != no)dnl
-AM_CONDITIONAL(AIX4, test "$aix" = 4)
-
+AM_CONDITIONAL(AIX4, test "$aix" = 4)dnl
 
 AC_ARG_ENABLE(dynamic-afs,
 	AS_HELP_STRING([--disable-dynamic-afs],
 		[do not use loaded AFS library with AIX]))
 
 if test "$aix" != no; then
+
+	AC_DEFINE(NEED_QSORT, 1, [if your qsort is not a stable sort])
+
 	if test "$enable_dynamic_afs" != no; then
 		AC_REQUIRE([rk_DLOPEN])
 		if test "$ac_cv_func_dlopen" = no; then
@@ -45,8 +47,11 @@ fi
 AM_CONDITIONAL(AIX_DYNAMIC_AFS, test "$enable_dynamic_afs" != no)dnl
 AC_SUBST(AIX_EXTRA_KAFS)dnl
 
+if test "$aix" != no; then
+	AC_DEFINE([_ALL_SOURCE],1,[Required for functional/sane headers on AIX])
+fi
+
 AH_BOTTOM([#if _AIX
-#define _ALL_SOURCE
 /* XXX this is gross, but kills about a gazillion warnings */
 struct ether_addr;
 struct sockaddr;

@@ -1,0 +1,979 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Heimdal 1.2.99\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-09-07 15:23+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. 000
+#: ../lib/krb5/krb5_err.c:11
+msgid "No error"
+msgstr ""
+
+#. 001
+#: ../lib/krb5/krb5_err.c:12
+msgid "Client's entry in database has expired"
+msgstr ""
+
+#. 002
+#: ../lib/krb5/krb5_err.c:13
+msgid "Server's entry in database has expired"
+msgstr ""
+
+#. 003
+#: ../lib/krb5/krb5_err.c:14
+msgid "Requested protocol version not supported"
+msgstr ""
+
+#. 004
+#: ../lib/krb5/krb5_err.c:15
+msgid "Client's key is encrypted in an old master key"
+msgstr ""
+
+#. 005
+#: ../lib/krb5/krb5_err.c:16
+msgid "Server's key is encrypted in an old master key"
+msgstr ""
+
+#. 006
+#: ../lib/krb5/krb5_err.c:17
+msgid "Client not found in Kerberos database"
+msgstr ""
+
+#. 007
+#: ../lib/krb5/krb5_err.c:18
+msgid "Server not found in Kerberos database"
+msgstr ""
+
+#. 008
+#: ../lib/krb5/krb5_err.c:19
+msgid "Principal has multiple entries in Kerberos database"
+msgstr ""
+
+#. 009
+#: ../lib/krb5/krb5_err.c:20
+msgid "Client or server has a null key"
+msgstr ""
+
+#. 010
+#: ../lib/krb5/krb5_err.c:21
+msgid "Ticket is ineligible for postdating"
+msgstr ""
+
+#. 011
+#: ../lib/krb5/krb5_err.c:22
+msgid "Requested effective lifetime is negative or too short"
+msgstr ""
+
+#. 012
+#: ../lib/krb5/krb5_err.c:23
+msgid "KDC policy rejects request"
+msgstr ""
+
+#. 013
+#: ../lib/krb5/krb5_err.c:24
+msgid "KDC can't fulfill requested option"
+msgstr ""
+
+#. 014
+#: ../lib/krb5/krb5_err.c:25
+msgid "KDC has no support for encryption type"
+msgstr ""
+
+#. 015
+#: ../lib/krb5/krb5_err.c:26
+msgid "KDC has no support for checksum type"
+msgstr ""
+
+#. 016
+#: ../lib/krb5/krb5_err.c:27
+msgid "KDC has no support for padata type"
+msgstr ""
+
+#. 017
+#: ../lib/krb5/krb5_err.c:28
+msgid "KDC has no support for transited type"
+msgstr ""
+
+#. 018
+#: ../lib/krb5/krb5_err.c:29
+msgid "Clients credentials have been revoked"
+msgstr ""
+
+#. 019
+#: ../lib/krb5/krb5_err.c:30
+msgid "Credentials for server have been revoked"
+msgstr ""
+
+#. 020
+#: ../lib/krb5/krb5_err.c:31
+msgid "TGT has been revoked"
+msgstr ""
+
+#. 021
+#: ../lib/krb5/krb5_err.c:32
+msgid "Client not yet valid - try again later"
+msgstr ""
+
+#. 022
+#: ../lib/krb5/krb5_err.c:33
+msgid "Server not yet valid - try again later"
+msgstr ""
+
+#. 023
+#: ../lib/krb5/krb5_err.c:34
+msgid "Password has expired"
+msgstr ""
+
+#. 024
+#: ../lib/krb5/krb5_err.c:35
+msgid "Preauthentication failed"
+msgstr ""
+
+#. 025
+#: ../lib/krb5/krb5_err.c:36
+msgid "Additional pre-authentication required"
+msgstr ""
+
+#. 026
+#: ../lib/krb5/krb5_err.c:37
+msgid "Requested server and ticket don't match"
+msgstr ""
+
+#. 027
+#: ../lib/krb5/krb5_err.c:38
+msgid "Server principal valid for user2user only"
+msgstr ""
+
+#. 028
+#: ../lib/krb5/krb5_err.c:39
+msgid "KDC Policy rejects transited path"
+msgstr ""
+
+#. 029
+#: ../lib/krb5/krb5_err.c:40
+msgid "A service is not available"
+msgstr ""
+
+#. 030
+#. 031
+#: ../lib/krb5/krb5_err.c:42
+msgid "Decrypt integrity check failed"
+msgstr ""
+
+#. 032
+#: ../lib/krb5/krb5_err.c:43
+msgid "Ticket expired"
+msgstr ""
+
+#. 033
+#: ../lib/krb5/krb5_err.c:44
+msgid "Ticket not yet valid"
+msgstr ""
+
+#. 034
+#: ../lib/krb5/krb5_err.c:45
+msgid "Request is a replay"
+msgstr ""
+
+#. 035
+#: ../lib/krb5/krb5_err.c:46
+msgid "The ticket isn't for us"
+msgstr ""
+
+#. 036
+#: ../lib/krb5/krb5_err.c:47
+msgid "Ticket/authenticator don't match"
+msgstr ""
+
+#. 037
+#: ../lib/krb5/krb5_err.c:48
+msgid "Clock skew too great"
+msgstr ""
+
+#. 038
+#: ../lib/krb5/krb5_err.c:49
+msgid "Incorrect net address"
+msgstr ""
+
+#. 039
+#: ../lib/krb5/krb5_err.c:50
+msgid "Protocol version mismatch"
+msgstr ""
+
+#. 040
+#: ../lib/krb5/krb5_err.c:51
+msgid "Invalid message type"
+msgstr ""
+
+#. 041
+#: ../lib/krb5/krb5_err.c:52
+msgid "Message stream modified"
+msgstr ""
+
+#. 042
+#: ../lib/krb5/krb5_err.c:53
+msgid "Message out of order"
+msgstr ""
+
+#. 043
+#: ../lib/krb5/krb5_err.c:54
+msgid "Invalid cross-realm ticket"
+msgstr ""
+
+#. 044
+#: ../lib/krb5/krb5_err.c:55
+msgid "Key version is not available"
+msgstr ""
+
+#. 045
+#: ../lib/krb5/krb5_err.c:56
+msgid "Service key not available"
+msgstr ""
+
+#. 046
+#. 158
+#: ../lib/krb5/krb5_err.c:57 ../lib/krb5/krb5_err.c:169
+msgid "Mutual authentication failed"
+msgstr ""
+
+#. 047
+#: ../lib/krb5/krb5_err.c:58
+msgid "Incorrect message direction"
+msgstr ""
+
+#. 048
+#: ../lib/krb5/krb5_err.c:59
+msgid "Alternative authentication method required"
+msgstr ""
+
+#. 049
+#: ../lib/krb5/krb5_err.c:60
+msgid "Incorrect sequence number in message"
+msgstr ""
+
+#. 050
+#: ../lib/krb5/krb5_err.c:61
+msgid "Inappropriate type of checksum in message"
+msgstr ""
+
+#. 051
+#: ../lib/krb5/krb5_err.c:62
+msgid "Policy rejects transited path"
+msgstr ""
+
+#. 052
+#: ../lib/krb5/krb5_err.c:63
+msgid "Response too big for UDP, retry with TCP"
+msgstr ""
+
+#. 053
+#. 054
+#. 055
+#. 056
+#. 057
+#. 058
+#. 059
+#. 060
+#: ../lib/krb5/krb5_err.c:71
+msgid "Generic error (see e-text)"
+msgstr ""
+
+#. 061
+#: ../lib/krb5/krb5_err.c:72
+msgid "Field is too long for this implementation"
+msgstr ""
+
+#. 062
+#: ../lib/krb5/krb5_err.c:73
+msgid "Client not trusted"
+msgstr ""
+
+#. 063
+#: ../lib/krb5/krb5_err.c:74
+msgid "KDC not trusted"
+msgstr ""
+
+#. 064
+#: ../lib/krb5/krb5_err.c:75
+msgid "Invalid signature"
+msgstr ""
+
+#. 065
+#: ../lib/krb5/krb5_err.c:76
+msgid "DH parameters not accepted"
+msgstr ""
+
+#. 066
+#. 067
+#. 068
+#: ../lib/krb5/krb5_err.c:79
+msgid "Wrong realm"
+msgstr ""
+
+#. 069
+#: ../lib/krb5/krb5_err.c:80
+msgid "User to user required"
+msgstr ""
+
+#. 070
+#: ../lib/krb5/krb5_err.c:81
+msgid "Cannot verify certificate"
+msgstr ""
+
+#. 071
+#: ../lib/krb5/krb5_err.c:82
+msgid "Certificate invalid"
+msgstr ""
+
+#. 072
+#: ../lib/krb5/krb5_err.c:83
+msgid "Certificate revoked"
+msgstr ""
+
+#. 073
+#: ../lib/krb5/krb5_err.c:84
+msgid "Revocation status unknown"
+msgstr ""
+
+#. 074
+#: ../lib/krb5/krb5_err.c:85
+msgid "Revocation status unavaible"
+msgstr ""
+
+#. 075
+#: ../lib/krb5/krb5_err.c:86
+msgid "Client name mismatch in certificate"
+msgstr ""
+
+#. 076
+#: ../lib/krb5/krb5_err.c:87
+msgid "Inconsistent key purpose"
+msgstr ""
+
+#. 077
+#: ../lib/krb5/krb5_err.c:88
+msgid "Digest in certificate not accepted"
+msgstr ""
+
+#. 078
+#: ../lib/krb5/krb5_err.c:89
+msgid "paChecksum must be included"
+msgstr ""
+
+#. 079
+#: ../lib/krb5/krb5_err.c:90
+msgid "Digest in signedData not accepted"
+msgstr ""
+
+#. 080
+#: ../lib/krb5/krb5_err.c:91
+msgid "Public key encryption not supported"
+msgstr ""
+
+#. 081
+#. 082
+#. 083
+#. 084
+#. 085
+#. 086
+#. 087
+#. 088
+#. 089
+#. 090
+#. 091
+#. 092
+#. 093
+#. 094
+#. 095
+#. 096
+#. 097
+#. 098
+#. 099
+#. 100
+#. 101
+#. 102
+#. 103
+#. 104
+#. 105
+#. 106
+#. 107
+#. 108
+#. 109
+#. 110
+#. 111
+#. 112
+#. 113
+#. 114
+#. 115
+#. 116
+#. 117
+#. 118
+#. 119
+#. 120
+#. 121
+#. 122
+#. 123
+#. 124
+#. 125
+#. 126
+#. 127
+#. 128
+#: ../lib/krb5/krb5_err.c:139
+msgid "$Id$"
+msgstr ""
+
+#. 129
+#: ../lib/krb5/krb5_err.c:140
+msgid "Invalid flag for file lock mode"
+msgstr ""
+
+#. 130
+#: ../lib/krb5/krb5_err.c:141
+msgid "Cannot read password"
+msgstr ""
+
+#. 131
+#: ../lib/krb5/krb5_err.c:142
+msgid "Password mismatch"
+msgstr ""
+
+#. 132
+#: ../lib/krb5/krb5_err.c:143
+msgid "Password read interrupted"
+msgstr ""
+
+#. 133
+#: ../lib/krb5/krb5_err.c:144
+msgid "Invalid character in component name"
+msgstr ""
+
+#. 134
+#: ../lib/krb5/krb5_err.c:145
+msgid "Malformed representation of principal"
+msgstr ""
+
+#. 135
+#: ../lib/krb5/krb5_err.c:146
+msgid "Can't open/find configuration file"
+msgstr ""
+
+#. 136
+#: ../lib/krb5/krb5_err.c:147
+msgid "Improper format of configuration file"
+msgstr ""
+
+#. 137
+#: ../lib/krb5/krb5_err.c:148
+msgid "Insufficient space to return complete information"
+msgstr ""
+
+#. 138
+#: ../lib/krb5/krb5_err.c:149
+msgid "Invalid message type specified for encoding"
+msgstr ""
+
+#. 139
+#: ../lib/krb5/krb5_err.c:150
+msgid "Credential cache name malformed"
+msgstr ""
+
+#. 140
+#: ../lib/krb5/krb5_err.c:151
+msgid "Unknown credential cache type"
+msgstr ""
+
+#. 141
+#: ../lib/krb5/krb5_err.c:152
+msgid "Matching credential not found"
+msgstr ""
+
+#. 142
+#: ../lib/krb5/krb5_err.c:153
+msgid "End of credential cache reached"
+msgstr ""
+
+#. 143
+#: ../lib/krb5/krb5_err.c:154
+msgid "Request did not supply a ticket"
+msgstr ""
+
+#. 144
+#: ../lib/krb5/krb5_err.c:155
+msgid "Wrong principal in request"
+msgstr ""
+
+#. 145
+#: ../lib/krb5/krb5_err.c:156
+msgid "Ticket has invalid flag set"
+msgstr ""
+
+#. 146
+#: ../lib/krb5/krb5_err.c:157
+msgid "Requested principal and ticket don't match"
+msgstr ""
+
+#. 147
+#: ../lib/krb5/krb5_err.c:158
+msgid "KDC reply did not match expectations"
+msgstr ""
+
+#. 148
+#: ../lib/krb5/krb5_err.c:159
+msgid "Clock skew too great in KDC reply"
+msgstr ""
+
+#. 149
+#: ../lib/krb5/krb5_err.c:160
+msgid "Client/server realm mismatch in initial ticket request"
+msgstr ""
+
+#. 150
+#: ../lib/krb5/krb5_err.c:161
+msgid "Program lacks support for encryption type"
+msgstr ""
+
+#. 151
+#: ../lib/krb5/krb5_err.c:162
+msgid "Program lacks support for key type"
+msgstr ""
+
+#. 152
+#: ../lib/krb5/krb5_err.c:163
+msgid "Requested encryption type not used in message"
+msgstr ""
+
+#. 153
+#: ../lib/krb5/krb5_err.c:164
+msgid "Program lacks support for checksum type"
+msgstr ""
+
+#. 154
+#: ../lib/krb5/krb5_err.c:165
+msgid "Cannot find KDC for requested realm"
+msgstr ""
+
+#. 155
+#: ../lib/krb5/krb5_err.c:166
+msgid "Kerberos service unknown"
+msgstr ""
+
+#. 156
+#: ../lib/krb5/krb5_err.c:167
+msgid "Cannot contact any KDC for requested realm"
+msgstr ""
+
+#. 157
+#: ../lib/krb5/krb5_err.c:168
+msgid "No local name found for principal name"
+msgstr ""
+
+#. 159
+#: ../lib/krb5/krb5_err.c:170
+msgid "Replay cache type is already registered"
+msgstr ""
+
+#. 160
+#: ../lib/krb5/krb5_err.c:171
+msgid "No more memory to allocate (in replay cache code)"
+msgstr ""
+
+#. 161
+#: ../lib/krb5/krb5_err.c:172
+msgid "Replay cache type is unknown"
+msgstr ""
+
+#. 162
+#: ../lib/krb5/krb5_err.c:173
+msgid "Generic unknown RC error"
+msgstr ""
+
+#. 163
+#: ../lib/krb5/krb5_err.c:174
+msgid "Message is a replay"
+msgstr ""
+
+#. 164
+#: ../lib/krb5/krb5_err.c:175
+msgid "Replay I/O operation failed XXX"
+msgstr ""
+
+#. 165
+#: ../lib/krb5/krb5_err.c:176
+msgid "Replay cache type does not support non-volatile storage"
+msgstr ""
+
+#. 166
+#: ../lib/krb5/krb5_err.c:177
+msgid "Replay cache name parse/format error"
+msgstr ""
+
+#. 167
+#: ../lib/krb5/krb5_err.c:178
+msgid "End-of-file on replay cache I/O"
+msgstr ""
+
+#. 168
+#: ../lib/krb5/krb5_err.c:179
+msgid "No more memory to allocate (in replay cache I/O code)"
+msgstr ""
+
+#. 169
+#: ../lib/krb5/krb5_err.c:180
+msgid "Permission denied in replay cache code"
+msgstr ""
+
+#. 170
+#: ../lib/krb5/krb5_err.c:181
+msgid "I/O error in replay cache i/o code"
+msgstr ""
+
+#. 171
+#: ../lib/krb5/krb5_err.c:182
+msgid "Generic unknown RC/IO error"
+msgstr ""
+
+#. 172
+#: ../lib/krb5/krb5_err.c:183
+msgid "Insufficient system space to store replay information"
+msgstr ""
+
+#. 173
+#: ../lib/krb5/krb5_err.c:184
+msgid "Can't open/find realm translation file"
+msgstr ""
+
+#. 174
+#: ../lib/krb5/krb5_err.c:185
+msgid "Improper format of realm translation file"
+msgstr ""
+
+#. 175
+#: ../lib/krb5/krb5_err.c:186
+msgid "Can't open/find lname translation database"
+msgstr ""
+
+#. 176
+#: ../lib/krb5/krb5_err.c:187
+msgid "No translation available for requested principal"
+msgstr ""
+
+#. 177
+#: ../lib/krb5/krb5_err.c:188
+msgid "Improper format of translation database entry"
+msgstr ""
+
+#. 178
+#: ../lib/krb5/krb5_err.c:189
+msgid "Cryptosystem internal error"
+msgstr ""
+
+#. 179
+#: ../lib/krb5/krb5_err.c:190
+msgid "Key table name malformed"
+msgstr ""
+
+#. 180
+#: ../lib/krb5/krb5_err.c:191
+msgid "Unknown Key table type"
+msgstr ""
+
+#. 181
+#: ../lib/krb5/krb5_err.c:192
+msgid "Key table entry not found"
+msgstr ""
+
+#. 182
+#: ../lib/krb5/krb5_err.c:193
+msgid "End of key table reached"
+msgstr ""
+
+#. 183
+#: ../lib/krb5/krb5_err.c:194
+msgid "Cannot write to specified key table"
+msgstr ""
+
+#. 184
+#: ../lib/krb5/krb5_err.c:195
+msgid "Error writing to key table"
+msgstr ""
+
+#. 185
+#: ../lib/krb5/krb5_err.c:196
+msgid "Cannot find ticket for requested realm"
+msgstr ""
+
+#. 186
+#: ../lib/krb5/krb5_err.c:197
+msgid "DES key has bad parity"
+msgstr ""
+
+#. 187
+#: ../lib/krb5/krb5_err.c:198
+msgid "DES key is a weak key"
+msgstr ""
+
+#. 188
+#: ../lib/krb5/krb5_err.c:199
+msgid "Bad encryption type"
+msgstr ""
+
+#. 189
+#: ../lib/krb5/krb5_err.c:200
+msgid "Key size is incompatible with encryption type"
+msgstr ""
+
+#. 190
+#: ../lib/krb5/krb5_err.c:201
+msgid "Message size is incompatible with encryption type"
+msgstr ""
+
+#. 191
+#: ../lib/krb5/krb5_err.c:202
+msgid "Credentials cache type is already registered."
+msgstr ""
+
+#. 192
+#: ../lib/krb5/krb5_err.c:203
+msgid "Key table type is already registered."
+msgstr ""
+
+#. 193
+#: ../lib/krb5/krb5_err.c:204
+msgid "Credentials cache I/O operation failed XXX"
+msgstr ""
+
+#. 194
+#: ../lib/krb5/krb5_err.c:205
+msgid "Credentials cache file permissions incorrect"
+msgstr ""
+
+#. 195
+#: ../lib/krb5/krb5_err.c:206
+msgid "No credentials cache file found"
+msgstr ""
+
+#. 196
+#: ../lib/krb5/krb5_err.c:207
+msgid "Internal file credentials cache error"
+msgstr ""
+
+#. 197
+#: ../lib/krb5/krb5_err.c:208
+msgid "Error writing to credentials cache file"
+msgstr ""
+
+#. 198
+#: ../lib/krb5/krb5_err.c:209
+msgid "No more memory to allocate (in credentials cache code)"
+msgstr ""
+
+#. 199
+#: ../lib/krb5/krb5_err.c:210
+msgid "Bad format in credentials cache"
+msgstr ""
+
+#. 200
+#: ../lib/krb5/krb5_err.c:211
+msgid "No credentials found with supported encryption types"
+msgstr ""
+
+#. 201
+#: ../lib/krb5/krb5_err.c:212
+msgid "Invalid KDC option combination (library internal error)"
+msgstr ""
+
+#. 202
+#: ../lib/krb5/krb5_err.c:213
+msgid "Request missing second ticket"
+msgstr ""
+
+#. 203
+#: ../lib/krb5/krb5_err.c:214
+msgid "No credentials supplied to library routine"
+msgstr ""
+
+#. 204
+#: ../lib/krb5/krb5_err.c:215
+msgid "Bad sendauth version was sent"
+msgstr ""
+
+#. 205
+#: ../lib/krb5/krb5_err.c:216
+msgid "Bad application version was sent (via sendauth)"
+msgstr ""
+
+#. 206
+#: ../lib/krb5/krb5_err.c:217
+msgid "Bad response (during sendauth exchange)"
+msgstr ""
+
+#. 207
+#: ../lib/krb5/krb5_err.c:218
+msgid "Server rejected authentication (during sendauth exchange)"
+msgstr ""
+
+#. 208
+#: ../lib/krb5/krb5_err.c:219
+msgid "Unsupported preauthentication type"
+msgstr ""
+
+#. 209
+#: ../lib/krb5/krb5_err.c:220
+msgid "Required preauthentication key not supplied"
+msgstr ""
+
+#. 210
+#: ../lib/krb5/krb5_err.c:221
+msgid "Generic preauthentication failure"
+msgstr ""
+
+#. 211
+#: ../lib/krb5/krb5_err.c:222
+msgid "Unsupported replay cache format version number"
+msgstr ""
+
+#. 212
+#: ../lib/krb5/krb5_err.c:223
+msgid "Unsupported credentials cache format version number"
+msgstr ""
+
+#. 213
+#: ../lib/krb5/krb5_err.c:224
+msgid "Unsupported key table format version number"
+msgstr ""
+
+#. 214
+#: ../lib/krb5/krb5_err.c:225
+msgid "Program lacks support for address type"
+msgstr ""
+
+#. 215
+#: ../lib/krb5/krb5_err.c:226
+msgid "Message replay detection requires rcache parameter"
+msgstr ""
+
+#. 216
+#: ../lib/krb5/krb5_err.c:227
+msgid "Hostname cannot be canonicalized"
+msgstr ""
+
+#. 217
+#: ../lib/krb5/krb5_err.c:228
+msgid "Cannot determine realm for host"
+msgstr ""
+
+#. 218
+#: ../lib/krb5/krb5_err.c:229
+msgid "Conversion to service principal undefined for name type"
+msgstr ""
+
+#. 219
+#: ../lib/krb5/krb5_err.c:230
+msgid "Initial Ticket response appears to be Version 4"
+msgstr ""
+
+#. 220
+#: ../lib/krb5/krb5_err.c:231
+msgid "Cannot resolve KDC for requested realm"
+msgstr ""
+
+#. 221
+#: ../lib/krb5/krb5_err.c:232
+msgid "Requesting ticket can't get forwardable tickets"
+msgstr ""
+
+#. 222
+#: ../lib/krb5/krb5_err.c:233
+msgid "Bad principal name while trying to forward credentials"
+msgstr ""
+
+#. 223
+#: ../lib/krb5/krb5_err.c:234
+msgid "Looping detected inside krb5_get_in_tkt"
+msgstr ""
+
+#. 224
+#: ../lib/krb5/krb5_err.c:235
+msgid "Configuration file does not specify default realm"
+msgstr ""
+
+#. 225
+#: ../lib/krb5/krb5_err.c:236
+msgid "Bad SAM flags in obtain_sam_padata"
+msgstr ""
+
+#. 226
+#: ../lib/krb5/krb5_err.c:237
+msgid "Invalid encryption type in SAM challenge"
+msgstr ""
+
+#. 227
+#: ../lib/krb5/krb5_err.c:238
+msgid "Missing checksum in SAM challenge"
+msgstr ""
+
+#. 228
+#: ../lib/krb5/krb5_err.c:239
+msgid "Bad checksum in SAM challenge"
+msgstr ""
+
+#. 229
+#. 230
+#. 231
+#. 232
+#. 233
+#. 234
+#. 235
+#. 236
+#. 237
+#. 238
+#: ../lib/krb5/krb5_err.c:249
+msgid "Program called an obsolete, deleted function"
+msgstr ""
+
+#. 239
+#. 240
+#. 241
+#. 242
+#. 243
+#. 244
+#. 245
+#: ../lib/krb5/krb5_err.c:256
+msgid "Invalid key generation parameters from KDC"
+msgstr ""
+
+#. 246
+#: ../lib/krb5/krb5_err.c:257
+msgid "Service not available"
+msgstr ""
+
+#. 247
+#: ../lib/krb5/krb5_err.c:258
+msgid "Credential cache function not supported"
+msgstr ""
+
+#. 248
+#: ../lib/krb5/krb5_err.c:259
+msgid "Invalid format of Kerberos lifetime or clock skew string"
+msgstr ""
+
+#. 249
+#: ../lib/krb5/krb5_err.c:260
+msgid "Supplied data not handled by this plugin"
+msgstr ""
+
+#. 250
+#: ../lib/krb5/krb5_err.c:261
+msgid "Plugin does not support the operaton"
+msgstr ""

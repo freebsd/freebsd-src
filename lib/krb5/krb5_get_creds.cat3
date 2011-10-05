@@ -1,0 +1,92 @@
+
+KRB5_GET_CREDS(3)        BSD Library Functions Manual        KRB5_GET_CREDS(3)
+
+NNAAMMEE
+     kkrrbb55__ggeett__ccrreeddss, kkrrbb55__ggeett__ccrreeddss__oopptt__aadddd__ooppttiioonnss, kkrrbb55__ggeett__ccrreeddss__oopptt__aalllloocc,
+     kkrrbb55__ggeett__ccrreeddss__oopptt__ffrreeee, kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__eennccttyyppee,
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__iimmppeerrssoonnaattee, kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ooppttiioonnss,
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ttiicckkeett -- get credentials from the KDC
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ccrreeddss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _i_n_p_r_i_n_c,
+         _k_r_b_5___c_r_e_d_s _*_*_o_u_t___c_r_e_d_s);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__ccrreeddss__oopptt__aadddd__ooppttiioonnss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ccrreeddss__oopptt__aalllloocc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__ccrreeddss__oopptt__ffrreeee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__eennccttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__iimmppeerrssoonnaattee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _s_e_l_f);
+
+     _v_o_i_d
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ooppttiioonnss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t, _k_r_b_5___f_l_a_g_s _o_p_t_i_o_n_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ttiicckkeett(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___g_e_t___c_r_e_d_s___o_p_t _o_p_t, _c_o_n_s_t _T_i_c_k_e_t _*_t_i_c_k_e_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ggeett__ccrreeddss() fetches credentials specified by _o_p_t by first looking in
+     the _c_c_a_c_h_e, and then it doesn't exists, fetch the credential from the KDC
+     using the krbtgts in _c_c_a_c_h_e.  The credential is returned in _o_u_t___c_r_e_d_s and
+     should be freed using the function kkrrbb55__ffrreeee__ccrreeddss().
+
+     The structure krb5_get_creds_opt controls the behavior of
+     kkrrbb55__ggeett__ccrreeddss().  The structure is opaque to consumers that can set the
+     content of the structure with accessors functions. All accessor functions
+     make copies of the data that is passed into accessor functions, so exter-
+     nal consumers free the memory before calling kkrrbb55__ggeett__ccrreeddss().
+
+     The structure krb5_get_creds_opt is allocated with
+     kkrrbb55__ggeett__ccrreeddss__oopptt__aalllloocc() and freed with kkrrbb55__ggeett__ccrreeddss__oopptt__ffrreeee().  The
+     free function also frees the content of the structure set by the accessor
+     functions.
+
+     kkrrbb55__ggeett__ccrreeddss__oopptt__aadddd__ooppttiioonnss() and kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ooppttiioonnss()
+     adds and sets options to the structure .  The possible options to set are
+     KRB5_GC_CACHED     Only check the _c_c_a_c_h_e, don't got out on network to
+                        fetch credential.
+     KRB5_GC_USER_USER  request a user to user ticket.  This options doesn't
+                        store the resulting user to user credential in the
+                        _c_c_a_c_h_e.
+     KRB5_GC_EXPIRED_OK
+                        returns the credential even if it is expired, default
+                        behavior is trying to refetch the credential from the
+                        KDC.
+     KRB5_GC_NO_STORE   Do not store the resulting credentials in the _c_c_a_c_h_e.
+
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__eennccttyyppee() sets the preferred encryption type of
+     the application. Don't set this unless you have to since if there is no
+     match in the KDC, the function call will fail.
+
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__iimmppeerrssoonnaattee() sets the principal to impersonate.,
+     Returns a ticket that have the impersonation principal as a client and
+     the requestor as the service. Note that the requested principal have to
+     be the same as the client principal in the krbtgt.
+
+     kkrrbb55__ggeett__ccrreeddss__oopptt__sseett__ttiicckkeett() sets the extra ticket used in user-to-
+     user or contrained delegation use case.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_get_credentials(3), krb5.conf(5)
+
+HEIMDAL                          June 15, 2006                         HEIMDAL

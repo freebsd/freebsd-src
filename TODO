@@ -1,0 +1,30 @@
+-*- indented-text -*-
+
+** lib/gssapi
+
+cache delegation credentials to avoid hitting the kdc ?  require time
+stampless tickets, and was supported in the recv'ing end with 0.6.1.
+
+make iov work for arcfour
+
+make iov work for ntlm
+
+interop test
+
+make TYPE_STREAM work
+
+** lib/kadm5
+
+add policies?
+
+** lib/krb5
+
+verify_user: handle non-secure verification failing because of
+host->realm mapping
+
+* windows stuff
+
+-- drop all double negation #ifndef NO_
+-- got though windows specific ifdefs to minimized them
+-- switch to use heim-ipc for services, like the kadmin change notification socket
+-- Unify lib/krb5/expand_path_w32.c

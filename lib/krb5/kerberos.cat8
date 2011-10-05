@@ -1,0 +1,57 @@
+
+KERBEROS(8)               BSD System Manager's Manual              KERBEROS(8)
+
+NNAAMMEE
+     kkeerrbbeerrooss -- introduction to the Kerberos system
+
+DDEESSCCRRIIPPTTIIOONN
+     Kerberos is a network authentication system. Its purpose is to securely
+     authenticate users and services in an insecure network environment.
+
+     This is done with a Kerberos server acting as a trusted third party,
+     keeping a database with secret keys for all users and services (collec-
+     tively called _p_r_i_n_c_i_p_a_l_s).
+
+     Each principal belongs to exactly one _r_e_a_l_m, which is the administrative
+     domain in Kerberos. A realm usually corresponds to an organisation, and
+     the realm should normally be derived from that organisation's domain
+     name. A realm is served by one or more Kerberos servers.
+
+     The authentication process involves exchange of `tickets' and
+     `authenticators' which together prove the principal's identity.
+
+     When you login to the Kerberos system, either through the normal system
+     login or with the kinit(1) program, you acquire a _t_i_c_k_e_t _g_r_a_n_t_i_n_g _t_i_c_k_e_t
+     which allows you to get new tickets for other services, such as tteellnneett or
+     ffttpp, without giving your password.
+
+     For more information on how Kerberos works, and other general Kerberos
+     questions see the Kerberos FAQ at
+     _h_t_t_p_:_/_/_w_w_w_._n_r_l_._n_a_v_y_._m_i_l_/_C_C_S_/_p_e_o_p_l_e_/_k_e_n_h_/_k_e_r_b_e_r_o_s_-_f_a_q_._h_t_m_l.
+
+     For setup instructions see the Heimdal Texinfo manual.
+
+SSEEEE AALLSSOO
+     ftp(1), kdestroy(1), kinit(1), klist(1), kpasswd(1), telnet(1)
+
+HHIISSTTOORRYY
+     The Kerberos authentication system was developed in the late 1980's as
+     part of the Athena Project at the Massachusetts Institute of Technology.
+     Versions one through three never reached outside MIT, but version 4 was
+     (and still is) quite popular, especially in the academic community, but
+     is also used in commercial products like the AFS filesystem.
+
+     The problems with version 4 are that it has many limitations, the code
+     was not too well written (since it had been developed over a long time),
+     and it has a number of known security problems. To resolve many of these
+     issues work on version five started, and resulted in IETF RFC 1510 in
+     1993. IETF RFC 1510 was obsoleted in 2005 with IETF RFC 4120, also known
+     as Kerberos clarifications. With the arrival of IETF RFC 4120, the work
+     on adding extensibility and internationalization have started (Kerberos
+     extensions), and a new RFC will hopefully appear soon.
+
+     This manual page is part of the HHeeiimmddaall Kerberos 5 distribution, which
+     has been in development at the Royal Institute of Technology in Stock-
+     holm, Sweden, since about 1997.
+
+HEIMDAL                        September 1, 2000                       HEIMDAL

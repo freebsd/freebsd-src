@@ -1,0 +1,44 @@
+
+SU(1)                     BSD General Commands Manual                    SU(1)
+
+NNAAMMEE
+     ssuu -- substitute user identity
+
+SSYYNNOOPPSSIISS
+     ssuu [--KK | ----nnoo--kkeerrbbeerrooss] [--ff] [--ll | ----ffuullll] [--mm] [--ii _i_n_s_t_a_n_c_e |
+        ----iinnssttaannccee==_i_n_s_t_a_n_c_e] [--cc _c_o_m_m_a_n_d | ----ccoommmmaanndd==_c_o_m_m_a_n_d] [_l_o_g_i_n [_s_h_e_l_l
+        _a_r_g_u_m_e_n_t_s]]
+
+DDEESSCCRRIIPPTTIIOONN
+     ssuu will use Kerberos authentication provided that an instance for the
+     user wanting to change effective UID is present in a file named _._k_5_l_o_g_i_n
+     in the target user id's home directory
+
+     A special case exists where `root's' _~_/_._k_5_l_o_g_i_n needs to contain an entry
+     for: `user/<instance>@REALM' for ssuu to succed (where <instance> is `root'
+     unless changed with --ii).
+
+     In the absence of either an entry for current user in said file or other
+     problems like missing `host/hostname@REALM' keys in the system's keytab,
+     or user typing the wrong password, ssuu will fall back to traditional
+     _/_e_t_c_/_p_a_s_s_w_d authentication.
+
+     When using _/_e_t_c_/_p_a_s_s_w_d authentication, ssuu allows `root' access only to
+     members of the group `wheel', or to any user (with knowledge of the
+     `root' password) if that group does not exist, or has no members.
+
+     The options are as follows:
+
+     --KK, ----nnoo--kkeerrbbeerrooss don't use Kerberos.
+
+     --ff don't read .cshrc.
+
+     --ll, ----ffuullll simulate full login.
+
+     --mm leave environment unmodified.
+
+     --ii _i_n_s_t_a_n_c_e, ----iinnssttaannccee==_i_n_s_t_a_n_c_e root instance to use.
+
+     --cc _c_o_m_m_a_n_d, ----ccoommmmaanndd==_c_o_m_m_a_n_d command to execute.
+
+HEIMDAL                        January 12, 2006                        HEIMDAL

@@ -1,4 +1,4 @@
-dnl $Id: krb-prog-ln-s.m4 13338 2004-02-12 14:21:14Z lha $
+dnl $Id$
 dnl
 dnl
 dnl Better test for ln -s, ln or cp

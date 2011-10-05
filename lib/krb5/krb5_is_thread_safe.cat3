@@ -1,0 +1,26 @@
+
+KRB5_IS_THREAD_SAFE(3)   BSD Library Functions Manual   KRB5_IS_THREAD_SAFE(3)
+
+NNAAMMEE
+     kkrrbb55__iiss__tthhrreeaadd__ssaaffee -- is the Kerberos library compiled with multithread
+     support
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___b_o_o_l_e_a_n
+     kkrrbb55__iiss__tthhrreeaadd__ssaaffee(_v_o_i_d);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__iiss__tthhrreeaadd__ssaaffee returns TRUE if the library was compiled with with
+     multithread support.  If the library isn't compiled, the consumer have to
+     use a global lock to make sure Kerboros functions are not called at the
+     same time by different threads.
+
+SSEEEE AALLSSOO
+     krb5_create_checksum(3), krb5_encrypt(3)
+
+HEIMDAL                           May 5, 2006                          HEIMDAL

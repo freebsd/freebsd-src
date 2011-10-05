@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-pac.in 21857 2007-08-08 06:59:36Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -55,10 +55,11 @@ cache="FILE:${objdir}/cache.krb5"
 keytabfile=${objdir}/server.keytab
 keytab="FILE:${keytabfile}"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
+kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache ${afs_no_afslog}"
 klist="${TESTS_ENVIRONMENT} ../../kuser/klist -c $cache"
 kgetcred="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache"
-kdestroy="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache --no-unlog"
+kdestroy="${TESTS_ENVIRONMENT} ../../kuser/kdestroy -c $cache ${afs_no_unlog}"
+test_apreq="${TESTS_ENVIRONMENT} ../../lib/krb5/test_ap-req"
 
 KRB5_CONFIG="${objdir}/krb5.conf"
 export KRB5_CONFIG
@@ -114,7 +115,7 @@ ${kinit} --password-file=${objdir}/foopassword foo@${R} || \
 echo "Getting tickets" ; > messages.log
 ${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 echo "Verify PAC on server"; > messages.log
-../kdc/ap-req --verify-pac ${server}@${R} ${keytab} ${cache} || \
+${test_apreq} --verify-pac ${server}@${R} ${keytab} ${cache} || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
@@ -124,7 +125,7 @@ ${kinit} --request-pac --password-file=${objdir}/foopassword foo@${R} || \
 echo "Getting tickets" ; > messages.log
 ${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 echo "Verify PAC on server (pag)"; > messages.log
-../kdc/ap-req --verify-pac ${server}@${R} ${keytab} ${cache} || \
+${test_apreq} --verify-pac ${server}@${R} ${keytab} ${cache} || \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 
@@ -134,7 +135,7 @@ ${kinit} --no-request-pac --password-file=${objdir}/foopassword foo@${R} || \
 echo "Getting tickets" ; > messages.log
 ${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
 echo "Verify PAC on server (no pag)"; > messages.log
-../kdc/ap-req --verify-pac ${server}@${R} ${keytab} ${cache} 2> /dev/null && \
+${test_apreq} --verify-pac ${server}@${R} ${keytab} ${cache} 2> /dev/null && \
 	{ ec=1 ; eval "${testfailed}"; }
 ${kdestroy}
 

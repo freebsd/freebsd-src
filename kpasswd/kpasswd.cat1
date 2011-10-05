@@ -1,0 +1,32 @@
+
+KPASSWD(1)                BSD General Commands Manual               KPASSWD(1)
+
+NNAAMMEE
+     kkppaasssswwdd -- Kerberos 5 password changing program
+
+SSYYNNOOPPSSIISS
+     kkppaasssswwdd [----aaddmmiinn--pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--cc _c_a_c_h_e | ----ccaacchhee==_c_a_c_h_e]
+             [_p_r_i_n_c_i_p_a_l _._._.]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkppaasssswwdd is the client for changing passwords.
+
+     If administrator principal is given that principal is used to change the
+     password.
+
+     Multiple passwords for different users can be changed at the same time,
+     then the administrator principal will be used.  If the administrator
+     isn't specified on the command prompt, the principal of the default cre-
+     dential cache will be used.
+
+     If a credential cache is given, the ----aaddmmiinn--pprriinncciippaall flag is ignored and
+     use the default name of the credential cache is used instead.
+
+DDIIAAGGNNOOSSTTIICCSS
+     If the password quality check fails or some other error occurs, an expla-
+     nation is printed.
+
+SSEEEE AALLSSOO
+     kpasswdd(8)
+
+HEIMDAL                         January 5, 2005                        HEIMDAL

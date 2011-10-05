@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 - 2008 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2008 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -33,14 +33,12 @@
 
 #include "config.h"
 
+#include <roken.h>
 #include <stdio.h>
 #include <gssapi.h>
 #include <err.h>
-#include <roken.h>
 #include <getarg.h>
 #include "test_common.h"
-
-RCSID("$Id: test_ntlm.c 22423 2008-01-13 09:45:03Z lha $");
 
 #include <krb5.h>
 #include <heimntlm.h>
@@ -48,7 +46,7 @@ RCSID("$Id: test_ntlm.c 22423 2008-01-13 09:45:03Z lha $");
 static int
 test_libntlm_v1(int flags)
 {
-    const char *user = "foo", 
+    const char *user = "foo",
 	*domain = "mydomain",
 	*password = "digestpassword";
     OM_uint32 maj_stat, min_stat;
@@ -60,7 +58,7 @@ test_libntlm_v1(int flags)
     struct ntlm_buf data;
     krb5_error_code ret;
     gss_name_t src_name = GSS_C_NO_NAME;
-    
+
     memset(&type1, 0, sizeof(type1));
     memset(&type2, 0, sizeof(type2));
     memset(&type3, 0, sizeof(type3));
@@ -120,7 +118,7 @@ test_libntlm_v1(int flags)
 	heim_ntlm_nt_key(password, &key);
 
 	heim_ntlm_calculate_ntlm1(key.data, key.length,
-				  type2.challange,
+				  type2.challenge,
 				  &type3.ntlm);
 
 	if (flags & NTLM_NEG_KEYEX) {
@@ -175,7 +173,7 @@ test_libntlm_v1(int flags)
 static int
 test_libntlm_v2(int flags)
 {
-    const char *user = "foo", 
+    const char *user = "foo",
 	*domain = "mydomain",
 	*password = "digestpassword";
     OM_uint32 maj_stat, min_stat;
@@ -186,7 +184,7 @@ test_libntlm_v2(int flags)
     struct ntlm_type3 type3;
     struct ntlm_buf data;
     krb5_error_code ret;
-    
+
     memset(&type1, 0, sizeof(type1));
     memset(&type2, 0, sizeof(type2));
     memset(&type3, 0, sizeof(type3));
@@ -247,7 +245,7 @@ test_libntlm_v2(int flags)
 	heim_ntlm_calculate_ntlm2(key.data, key.length,
 				  user,
 				  type2.targetname,
-				  type2.challange,
+				  type2.challenge,
 				  &type2.targetinfo,
 				  ntlmv2,
 				  &type3.ntlm);
@@ -317,7 +315,7 @@ main(int argc, char **argv)
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 

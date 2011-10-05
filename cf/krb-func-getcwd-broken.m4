@@ -1,4 +1,4 @@
-dnl $Id: krb-func-getcwd-broken.m4 15455 2005-06-16 21:03:43Z lha $
+dnl $Id$
 dnl
 dnl
 dnl test for broken getcwd in (SunOS braindamage)

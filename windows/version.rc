@@ -1,0 +1,147 @@
+/***********************************************************************
+ * Copyright (c) 2010, Secure Endpoints Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the
+ *   distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ **********************************************************************/
+
+/*
+ * This version script is not meant to be used as-is.  It requires the
+ * following parameters that must be supplied using preprocessor
+ * macros:
+ *
+ * RC_FILE_TYPE         (Set to either VFT_DLL or VFT_APP)
+ * RC_FILE_DESC_0409    (File description (English))
+ * RC_FILE_ORIG_0409    (Original file name (English))
+ *
+ * The following macros are optional:
+ *
+ * RC_FILE_SUBTYPE      (File subtype. See MSDN.)
+ * RC_FILEVER_C         (Comma separated file version, if different from
+ *                       product version)
+ * RC_FILE_COMMENT_0409 (File comment (English))
+ */
+
+#include<windows.h>
+#include<config.h>
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef VER_PRIVATE
+#define P_PRIVATE VS_FF_PRIVATEBUILD
+#else
+#define P_PRIVATE 0
+#endif
+
+#ifdef VER_SPECIAL
+#define P_SPECIAL VS_FF_SPECIALBUILD
+#else
+#define P_SPECIAL 0
+#endif
+
+#ifdef VER_PRERELEASE
+#define P_PRE VS_FF_PRERELEASE
+#else
+#define P_PRE 0
+#endif
+
+#ifdef VER_DEBUG
+#define P_DEBUG VS_FF_DEBUG
+#else
+#define P_DEBUG 0
+#endif
+
+/* If some per-file values aren't specified, we use the application
+values as a substitute */
+
+#ifndef RC_FILEVER_C
+#define RC_FILEVER_C RC_PRODVER_C
+#define RC_FILE_VER_0409 RC_PRODUCT_VER_0409
+#endif
+
+#ifndef RC_FILE_INTERNAL_0409
+#define RC_FILE_INTERNAL_0409 RC_FILE_ORIG_0409
+#endif
+
+#ifndef RC_FILE_PRODUCT_NAME_0409
+#define RC_FILE_PRODUCT_NAME_0409 RC_PRODUCT_NAME_0409
+#endif
+
+#ifndef RC_FILE_PRODUCT_VER_0409
+#define RC_FILE_PRODUCT_VER_0409 RC_PRODUCT_VER_0409
+#endif
+
+#ifndef RC_FILE_COMPANY_0409
+#define RC_FILE_COMPANY_0409 RC_COMPANY_0409
+#endif
+
+#ifndef RC_FILE_COPYRIGHT_0409
+#define RC_FILE_COPYRIGHT_0409 RC_COPYRIGHT_0409
+#endif
+
+1 VERSIONINFO
+    FILEVERSION RC_FILEVER_C
+    PRODUCTVERSION RC_PRODVER_C
+    FILEFLAGSMASK (VS_FF_DEBUG|VS_FF_PRERELEASE|VS_FF_PRIVATEBUILD|VS_FF_SPECIALBUILD)
+    FILEFLAGS (P_DEBUG|P_PRE|P_PRIVATE|P_SPECIAL)
+    FILEOS VOS_NT
+    FILETYPE RC_FILE_TYPE
+#ifdef RC_FILE_SUBTYPE
+    FILESUBTYPE RC_FILE_SUBTYPE
+#endif
+    BEGIN
+       BLOCK "StringFileInfo"
+       BEGIN
+           BLOCK "040904E4"
+	   BEGIN
+	       VALUE "ProductName", RC_FILE_PRODUCT_NAME_0409
+	       VALUE "ProductVersion", RC_FILE_PRODUCT_VER_0409
+	       VALUE "CompanyName", RC_FILE_COMPANY_0409
+	       VALUE "LegalCopyright", RC_FILE_COPYRIGHT_0409
+
+#ifdef RC_FILE_COMMENT_0409
+	       VALUE "Comments", RC_FILE_COMMENT_0409
+#endif
+	       VALUE "FileDescription", RC_FILE_DESC_0409
+	       VALUE "FileVersion", RC_FILE_VER_0409
+	       VALUE "InternalName", RC_FILE_INTERNAL_0409
+	       VALUE "OriginalFilename", RC_FILE_ORIG_0409
+#ifdef VER_PRIVATE
+	       VALUE "PrivateBuild", VER_PRIVATE
+#endif
+#ifdef VER_SPECIAL
+	       VALUE "SpecialBuild", VER_SPECIAL
+#endif
+	   END
+       END
+
+       BLOCK "VarFileInfo"
+       BEGIN
+           VALUE "Translation", 0x0409	/* US English */, 1252 /* Multilingual */
+       END
+    END

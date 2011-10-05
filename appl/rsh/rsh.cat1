@@ -1,0 +1,139 @@
+
+RSH(1)                    BSD General Commands Manual                   RSH(1)
+
+NNAAMMEE
+     rrsshh -- remote shell
+
+SSYYNNOOPPSSIISS
+     rrsshh [--4455FFGGKKddeeffnnuuxxzz] [--UU _s_t_r_i_n_g] [--pp _p_o_r_t] [--ll _u_s_e_r_n_a_m_e] [--PP _N_|_O] _h_o_s_t
+         _[_c_o_m_m_a_n_d_]
+
+DDEESSCCRRIIPPTTIIOONN
+     rrsshh authenticates to the rshd(8) daemon on the remote _h_o_s_t, and then exe-
+     cutes the specified _c_o_m_m_a_n_d.
+
+     rrsshh copies its standard input to the remote command, and the standard
+     output and error of the remote command to its own.
+
+     Valid options are:
+
+     --44, ----kkrrbb44
+             The --44 option requests Kerberos 4 authentication. Normally all
+             supported authentication mechanisms will be tried, but in some
+             cases more explicit control is desired.
+
+     --55, ----kkrrbb55
+             The --55 option requests Kerberos 5 authentication. This is analo-
+             gous to the --44 option.
+
+     --KK, ----bbrrookkeenn
+             The --KK option turns off all Kerberos authentication. The security
+             in this mode relies on reserved ports. The long name is an indi-
+             cation of how good this is.
+
+     --nn, ----nnoo--iinnppuutt
+             The --nn option directs the input from the _/_d_e_v_/_n_u_l_l device (see
+             the _B_U_G_S section of this manual page).
+
+     --dd      Enable setsockopt(2) socket debugging.
+
+     --ee, ----nnoo--ssttddeerrrr
+             Don't use a separate socket for the stderr stream. This can be
+             necessary if rsh-ing through a NAT bridge.
+
+     --xx, ----eennccrryypptt
+             The --xx option enables encryption for all data exchange. This is
+             only valid for Kerberos authenticated connections (see the _B_U_G_S
+             section for limitations).
+
+     --zz      The opposite of --xx.  This is the default, and is mainly useful if
+             encryption has been enabled by default, for instance in the
+             appdefaults section of _/_e_t_c_/_k_r_b_5_._c_o_n_f when using Kerberos 5.
+
+     --ff, ----ffoorrwwaarrdd
+             Forward Kerberos 5 credentials to the remote host.  Also settable
+             via appdefaults (see krb5.conf).
+
+     --FF, ----ffoorrwwaarrddaabbllee
+             Make the forwarded credentials re-forwardable.  Also settable via
+             appdefaults (see krb5.conf).
+
+     --ll _s_t_r_i_n_g, ----uusseerr==_s_t_r_i_n_g
+             By default the remote username is the same as the local. The --ll
+             option or the _u_s_e_r_n_a_m_e_@_h_o_s_t format allow the remote name to be
+             specified.
+
+     --nn, ----nnoo--iinnppuutt
+             Direct input from _/_d_e_v_/_n_u_l_l (see the _B_U_G_S section).
+
+     --pp _n_u_m_b_e_r_-_o_r_-_s_e_r_v_i_c_e, ----ppoorrtt==_n_u_m_b_e_r_-_o_r_-_s_e_r_v_i_c_e
+             Connect to this port instead of the default (which is 514 when
+             using old port based authentication, 544 for Kerberos 5 and non-
+             encrypted Kerberos 4, and 545 for encrytpted Kerberos 4; subject
+             of course to the contents of _/_e_t_c_/_s_e_r_v_i_c_e_s).
+
+     --PP _N_|_O_|_1_|_2, ----pprroottooccooll==_N_|_O_|_1_|_2
+             Specifies the protocol version to use with Kerberos 5.  _N and _2
+             select protocol version 2, while _O and _1 select version 1. Ver-
+             sion 2 is believed to be more secure, and is the default. Unless
+             asked for a specific version, rrsshh will try both.  This behaviour
+             may change in the future.
+
+     --uu, ----uunniiqquuee
+             Make sure the remote credentials cache is unique, that is, don't
+             reuse any existing cache. Mutually exclusive to --UU.
+
+     --UU _s_t_r_i_n_g, ----ttkkffiillee==_s_t_r_i_n_g
+             Name of the remote credentials cache. Mutually exclusive to --uu.
+
+     --xx, ----eennccrryypptt
+             The --xx option enables encryption for all data exchange. This is
+             only valid for Kerberos authenticated connections (see the _B_U_G_S
+             section for limitations).
+
+     --zz      The opposite of --xx.  This is the default, but encryption can be
+             enabled when using Kerberos 5, by setting the libdefaults/encrypt
+             option in krb5.conf(5).
+
+EEXXAAMMPPLLEESS
+     Care should be taken when issuing commands containing shell meta charac-
+     ters. Without quoting, these will be expanded on the local machine.
+
+     The following command:
+
+           rsh otherhost cat remotefile > localfile
+
+     will write the contents of the remote _r_e_m_o_t_e_f_i_l_e to the local _l_o_c_a_l_f_i_l_e,
+     but:
+
+           rsh otherhost 'cat remotefile > remotefile2'
+
+     will write it to the remote _r_e_m_o_t_e_f_i_l_e_2.
+
+FFIILLEESS
+     /etc/hosts
+
+SSEEEE AALLSSOO
+     rlogin(1), krb_realmofhost(3), krb_sendauth(3), hosts.equiv(5),
+     krb5.conf(5), rhosts(5), kerberos(8) rshd(8)
+
+HHIISSTTOORRYY
+     The rrsshh command appeared in 4.2BSD.
+
+AAUUTTHHOORRSS
+     This implementation of rrsshh was written as part of the Heimdal Kerberos 5
+     implementation.
+
+BBUUGGSS
+     Some shells (notably csh(1)) will cause rrsshh to block if run in the back-
+     ground, unless the standard input is directed away from the terminal.
+     This is what the --nn option is for.
+
+     The --xx options enables encryption for the session, but for both Kerberos
+     4 and 5 the actual command is sent unencrypted, so you should not send
+     any secret information in the command line (which is probably a bad idea
+     anyway, since the command line can usually be read with tools like
+     ps(1)).  Forthermore in Kerberos 4 the command is not even integrity pro-
+     tected, so anyone with the right tools can modify the command.
+
+HEIMDAL                        February 20, 2004                       HEIMDAL

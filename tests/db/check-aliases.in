@@ -1,0 +1,110 @@
+#!/bin/sh
+#
+# Copyright (c) 2008 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+#
+
+srcdir="@srcdir@"
+objdir="@objdir@"
+EGREP="@EGREP@"
+
+testfailed="echo test failed; cat messages.log; exit 1"
+
+# If there is no useful db support compile in, disable test
+../db/have-db || exit 77
+
+R=TEST.H5L.SE
+
+kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l"
+
+KRB5_CONFIG="${objdir}/krb5.conf"
+export KRB5_CONFIG
+
+rm -f current-db*
+rm -f out-*
+rm -f mkey.file*
+
+> messages.log
+
+echo Creating database
+${kadmin} \
+    init \
+    --realm-max-ticket-life=1day \
+    --realm-max-renewable-life=1month \
+    ${R} || exit 1
+
+echo "Adding foo"
+${kadmin} add -p foo --use-defaults foo@${R} || exit 1
+${kadmin} modify --alias=foo-alias1@${R} --alias=foo-alias2@${R} foo@${R} || exit 1
+
+echo "Adding bar"
+${kadmin} add -p foo --use-defaults  bar@${R} || exit 1
+${kadmin} modify --alias=bar-alias1@${R} bar@${R} || exit 1
+
+echo "Baz does not exists"
+
+echo "Checking dup keys"
+${kadmin} modify --alias=foo-alias1@${R} bar@${R} 2>/dev/null && exit 1
+${kadmin} modify --alias=foo@${R} bar@${R} 2>/dev/null && exit 1
+${kadmin} modify --alias=foo@${R} baz@${R} 2>/dev/null && exit 1
+
+echo "Rename over dup key"
+${kadmin} rename bar${R} foo-alias1${R} 2>/dev/null && exit 1
+${kadmin} rename bar${R} foo${R} 2>/dev/null && exit 1
+${kadmin} rename baz${R} foo-alias1${R} 2>/dev/null && exit 1
+${kadmin} rename baz${R} foo${R} 2>/dev/null && exit 1
+
+echo "Delete alias"
+${kadmin} delete foo-alias1${R} 2>/dev/null && exit 1
+${kadmin} delete bar-alias1${R} 2>/dev/null && exit 1
+${kadmin} delete baz-alias1${R} 2>/dev/null && exit 1
+
+echo "Delete"
+${kadmin} delete bar@${R} || exit 1
+${kadmin} delete bar@${R} 2>/dev/null && exit 1
+${kadmin} delete baz@${R} 2>/dev/null && exit 1
+
+echo "Add alias to deleted name"
+${kadmin} modify --alias=bar-alias1@${R} foo@${R} || exit 1
+${kadmin} modify --alias=bar@${R} foo@${R} || exit 1
+${kadmin} modify --alias=bar@${R} --alias=baz@${R} foo@${R} || exit 1
+
+echo "Rename over self alias key"
+${kadmin} rename foo@${R} foo-alias1@${R} 2>/dev/null && exit 1
+${kadmin} modify --alias= foo@${R} || exit 1
+${kadmin} rename foo@${R} foo-alias1@${R} || exit 1
+${kadmin} modify --alias=foo foo-alias1@${R} || exit 1
+
+echo "Doing database check"
+${kadmin} check ${R} || exit 1
+
+
+exit $ec

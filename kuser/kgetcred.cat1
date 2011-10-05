@@ -1,0 +1,38 @@
+
+KGETCRED(1)               BSD General Commands Manual              KGETCRED(1)
+
+NNAAMMEE
+     kkggeettccrreedd -- get a ticket for a particular service
+
+SSYYNNOOPPSSIISS
+     kkggeettccrreedd [----ccaannoonniiccaalliizzee] [--cc --ccaacchhee | ----ccaacchhee==_c_a_c_h_e] [--ee _e_n_c_t_y_p_e |
+              ----eennccttyyppee==_e_n_c_t_y_p_e] [----nnoo--ttrraannssiitt--cchheecckk] [----vveerrssiioonn] [----hheellpp]
+              _s_e_r_v_i_c_e
+
+DDEESSCCRRIIPPTTIIOONN
+     kkggeettccrreedd obtains a ticket for a service.  Usually tickets for services
+     are obtained automatically when needed but sometimes for some odd reason
+     you want to obtain a particular ticket or of a special type.
+
+     Supported options:
+
+     ----ccaannoonniiccaalliizzee
+             requests that the KDC canonicalize the principal.
+
+     --cc _c_a_c_h_e, ----ccaacchhee==_c_a_c_h_e
+             the credential cache to use.
+
+     --ee _e_n_c_t_y_p_e, ----eennccttyyppee==_e_n_c_t_y_p_e
+             encryption type to use.
+
+     ----nnoo--ttrraannssiitt--cchheecckk
+             requests that the KDC doesn't do transit checking.
+
+     ----vveerrssiioonn
+
+     ----hheellpp
+
+SSEEEE AALLSSOO
+     kinit(1), klist(1)
+
+HEIMDAL                         March 12, 2004                         HEIMDAL

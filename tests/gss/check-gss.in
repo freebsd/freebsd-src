@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,14 +31,19 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-gss.in 18389 2006-10-10 09:30:20Z lha $
+# $Id$
 #
 
-objdir="@objdir@"
-gssdir="${objdir}/../../lib/gssapi"
+env_setup="@env_setup@"
+confdir="@confdir@"
+testdir="@testdir@"
 
-${TESTS_ENVIRONMENT} ${gssdir}/gss help > /dev/null || exit 1
-${TESTS_ENVIRONMENT} ${gssdir}/gss supported-mechanisms > /dev/null || exit 1
+. ${env_setup}
+
+${TESTS_ENVIRONMENT} ${gsstool} help > /dev/null || exit 1
+${TESTS_ENVIRONMENT} ${gsstool} supported-mechanisms > /dev/null || exit 1
+${TESTS_ENVIRONMENT} ${gsstool} attrs-for-mech --all > /dev/null || exit 1
+${TESTS_ENVIRONMENT} ${gsstool} attrs-for-mech --mech=Kerberos > /dev/null || exit 1
 
 exit 0
 

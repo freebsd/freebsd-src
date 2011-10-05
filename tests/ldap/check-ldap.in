@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-ldap.in 21856 2007-08-08 06:59:23Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -42,9 +42,11 @@ R=TEST.H5L.SE
 
 port=@port@
 
+server=host/datan.test.h5l.se
 cache="FILE:${objdir}/cache.krb5"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
+kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache ${afs_no_afslog}"
+kgetcred="${TESTS_ENVIRONMENT} ../../kuser/kgetcred -c $cache"
 kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
 kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
 
@@ -98,6 +100,7 @@ ${kadmin} \
 
 ${kadmin} add -p foo --use-defaults foo@${R} || exit 1
 ${kadmin} add -p foo --use-defaults bar@${R} || exit 1
+${kadmin} add -p kaka --use-defaults ${server}@${R} || exit 1
 
 ${kadmin} cpw --random-password bar@${R} > /dev/null || exit 1
 ${kadmin} cpw --random-password bar@${R} > /dev/null || exit 1
@@ -127,6 +130,14 @@ ec=0
 
 echo "Getting client initial tickets";
 ${kinit} --password-file=${objdir}/foopassword foo@$R || \
+	{ ec=1 ; eval "${testfailed}"; }
+
+echo "Getting ${server} ticket"
+${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
+
+
+echo "Getting *@$R inital ticket (fail)";
+${kinit} --password-file=${objdir}/foopassword '*'@$R 2>/dev/null && \
 	{ ec=1 ; eval "${testfailed}"; }
 
 

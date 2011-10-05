@@ -1,0 +1,61 @@
+
+KRB5_ACL_MATCH_FILE(3)   BSD Library Functions Manual   KRB5_ACL_MATCH_FILE(3)
+
+NNAAMMEE
+     kkrrbb55__aaccll__mmaattcchh__ffiillee, kkrrbb55__aaccll__mmaattcchh__ssttrriinngg -- ACL matching functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaccll__mmaattcchh__ffiillee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_f_i_l_e,
+         _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _._._.);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaccll__mmaattcchh__ssttrriinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_s_t_r_i_n_g,
+         _c_o_n_s_t _c_h_a_r _*_f_o_r_m_a_t, _._._.);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__aaccll__mmaattcchh__ffiillee matches ACL format against each line in a file.
+     Lines starting with # are treated like comments and ignored.
+
+     kkrrbb55__aaccll__mmaattcchh__ssttrriinngg matches ACL format against a string.
+
+     The ACL format has three format specifiers: s, f, and r.  Each specifier
+     will retrieve one argument from the variable arguments for either match-
+     ing or storing data.  The input string is split up using " " and "\t" as
+     a delimiter; multiple " " and "\t" in a row are considered to be the
+     same.
+
+           s    Matches a string using strcmp(3) (case sensitive).
+
+           f    Matches the string with fnmatch(3).  The _f_l_a_g_s argument (the
+                last argument) passed to the fnmatch function is 0.
+
+           r    Returns a copy of the string in the char ** passed in; the
+                copy must be freed with free(3).  There is no need to free(3)
+                the string on error: the function will clean up and set the
+                pointer to NULL.
+
+     All unknown format specifiers cause an error.
+
+EEXXAAMMPPLLEESS
+           char *s;
+
+           ret = krb5_acl_match_string(context, "foo", "s", "foo");
+           if (ret)
+               krb5_errx(context, 1, "acl didn't match");
+           ret = krb5_acl_match_string(context, "foo foo baz/kaka",
+               "ss", "foo", &s, "foo/*");
+           if (ret) {
+               /* no need to free(s) on error */
+               assert(s == NULL);
+               krb5_errx(context, 1, "acl didn't match");
+           }
+           free(s);
+
+SSEEEE AALLSSOO
+     krb5(3)
+
+HEIMDAL                          May 12, 2006                          HEIMDAL

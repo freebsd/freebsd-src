@@ -1,0 +1,198 @@
+#!/bin/sh
+#
+# Copyright (c) 2006 - 2008 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+
+top_builddir="@top_builddir@"
+env_setup="@env_setup@"
+objdir="@objdir@"
+
+. ${env_setup}
+
+# If there is no useful db support compile in, disable test
+${have_db} || exit 77
+
+testfailed="echo test failed; cat messages.log; exit \$ec"
+
+# If there is no useful db support compile in, disable test
+${have_db} || exit 77
+
+R=TEST.H5L.SE
+R2=TEST2.H5L.SE
+
+port=@port@
+pwport=@pwport@
+
+kadmin="${kadmin} -l -r $R"
+kdc="${kdc} --addresses=localhost -P $port"
+kpasswdd="${kpasswdd} --addresses=localhost -p $pwport"
+
+server=host/datan.test.h5l.se
+cache="FILE:${objdir}/cache.krb5"
+keytabfile=${objdir}/server.keytab
+keytab="FILE:${keytabfile}"
+
+kinit="${kinit} -c $cache ${afs_no_afslog}"
+klist="${klist} -c $cache"
+kgetcred="${kgetcred} -c $cache"
+kdestroy="${kdestroy} -c $cache ${afs_no_unlog}"
+
+KRB5_CONFIG="${objdir}/krb5.conf"
+export KRB5_CONFIG
+
+rm -f ${keytabfile}
+rm -f current-db*
+rm -f out-*
+rm -f mkey.file*
+
+> messages.log
+
+echo "Creating database for $R"
+${kadmin} \
+    init \
+    --realm-max-ticket-life=1day \
+    --realm-max-renewable-life=1month \
+    ${R} || exit 1
+
+${kadmin} add -p foo --use-defaults foo@${R} || exit 1
+${kadmin} add -p kaka --use-defaults ${server}@${R} || exit 1
+${kadmin} ext -k ${keytab} ${server}@${R} || exit 1
+
+echo "Creating database for ${R2}"
+${kadmin} \
+    init \
+    --realm-max-ticket-life=1day \
+    --realm-max-renewable-life=1month \
+    ${R2} || exit 1
+
+${kadmin} add -p foo --use-defaults bar@${R2} || exit 1
+
+echo "Doing database check for ${R} ${R2}"
+${kadmin} check ${R} || exit 1
+${kadmin} check ${R2} || exit 1
+
+echo foo > ${objdir}/foopassword
+
+echo Starting kdc
+env ${HEIM_MALLOC_DEBUG} ${kdc} &
+kdcpid=$!
+
+sh ${wait_kdc}
+if [ "$?" != 0 ] ; then
+    kill -9 ${kdcpid}
+    exit 1
+fi
+
+echo Starting kpasswdd
+env ${HEIM_MALLOC_DEBUG} ${kpasswdd} &
+kpasswddpid=$!
+
+trap "kill -9 ${kdcpid} ${kpasswddpid}; echo signal killing kdc; exit \$ec;" EXIT
+
+ec=0
+
+echo "Getting client initial tickets"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@$R || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "Getting tickets"; > messages.log
+${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
+echo "Listing tickets"; > messages.log
+${klist} > /dev/null || { ec=1 ; eval "${testfailed}"; }
+${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+echo "checking ${R}"
+
+pw=ak4unandsop39NuJ
+
+echo "Changing password"
+cat > cpw.tmp <<EOF
+expect Password
+password foo\n
+expect New password
+send ${pw}\n
+expect New password
+send ${pw}\n
+expect Success
+EOF
+
+${rkpty} cpw.tmp env ${kpasswd} foo@${R} || \
+	{ ec=$? ; eval "${testfailed}"; }
+
+rm cpw.tmp
+
+echo ${pw} > ${objdir}/barpassword
+
+
+echo "Getting client initial tickets for ${R}"; > messages.log
+${kinit} --password-file=${objdir}/barpassword foo@$R || \
+	{ ec=1 ; eval "${testfailed}"; }
+echo "Getting tickets"; > messages.log
+${kgetcred} ${server}@${R} || { ec=1 ; eval "${testfailed}"; }
+echo "Listing tickets"; > messages.log
+${klist} > /dev/null || { ec=1 ; eval "${testfailed}"; }
+${test_ap_req} ${server}@${R} ${keytab} ${cache} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+
+echo "checking ${R2}"
+
+cat > cpw.tmp <<EOF
+expect Password
+password foo\n
+expect New password
+send ${pw}\n
+expect New password
+send ${pw}\n
+expect Success
+EOF
+
+${rkpty} cpw.tmp ../../kpasswd/kpasswd bar@${R2} || \
+	{ ec=$? ; eval "${testfailed}"; }
+
+rm cpw.tmp
+
+
+echo "Getting client initial tickets for ${R2}"; > messages.log
+${kinit} --password-file=${objdir}/barpassword bar@${R2} || \
+	{ ec=1 ; eval "${testfailed}"; }
+${kdestroy}
+
+
+echo "killing kdc (${kdcpid} ${kpasswddpid})"
+sh ${leaks_kill} kdc $kdcpid || exit 1
+sh ${leaks_kill} kpasswdd $kpasswddpid || exit 1
+
+trap "" EXIT
+
+exit $ec

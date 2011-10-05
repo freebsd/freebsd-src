@@ -1,4 +1,4 @@
-dnl $Id: have-type.m4 14166 2004-08-26 12:35:42Z joda $
+dnl $Id$
 dnl
 dnl check for existance of a type
 

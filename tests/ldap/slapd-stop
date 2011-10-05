@@ -1,5 +1,5 @@
 #!/bin/sh 
-# $Id: slapd-stop 20220 2007-02-15 00:11:18Z lha $
+# $Id$
 
 echo stoping slapd
 

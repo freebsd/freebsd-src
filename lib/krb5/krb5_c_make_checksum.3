@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 - 2006 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2003 - 2006 Kungliga Tekniska HÃ¶gskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden).
 .\" All rights reserved.
 .\"
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: krb5_c_make_checksum.3 19066 2006-11-17 22:09:25Z lha $
+.\" $Id$
 .\"
 .Dd Nov  17, 2006
 .Dt KRB5_C_MAKE_CHECKSUM 3
@@ -112,7 +112,7 @@ Kerberos 5 Library (libkrb5, -lkrb5)
 .Fc
 .Ft krb5_error_code
 .Fo krb5_c_verify_checksum
-.Fa "krb5_context context
+.Fa "krb5_context context"
 .Fa "const krb5_keyblock *key"
 .Fa "krb5_keyusage usage"
 .Fa "const krb5_data *data"
@@ -185,7 +185,7 @@ decrypts
 .Fa input
 and store the data in
 .Fa output.
-If 
+If
 .Fa ivec
 is
 .Dv NULL
@@ -257,7 +257,7 @@ If some either of
 .Fa data
 or
 .Fa checksum
-is not needed for the application, 
+is not needed for the application,
 .Dv NULL
 can be passed in.
 .Pp
@@ -279,14 +279,14 @@ is a keyed checksum type.
 .Fn krb5_c_is_coll_proof_cksum
 returns true if
 .Fa ctype
-is a collition proof checksum type.
+is a collision proof checksum type.
 .Pp
 .Fn krb5_c_keylengths
-return the minimum length (
-.Fa inlength )
+return the minimum length
+.Fa ( inlength )
 bytes needed to create a key and the
-length (
-.Fa keylength )
+length
+.Fa ( keylength )
 of the resulting key
 for the
 .Fa enctype .

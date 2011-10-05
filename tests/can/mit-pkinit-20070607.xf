@@ -1,4 +1,4 @@
-# $Id: mit-pkinit-20070607.xf 20992 2007-06-07 21:46:13Z lha $
+# $Id$
 
 [libdefaults]
 	default_realm = HEIMDAL.CITI.UMICH.EDU

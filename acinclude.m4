@@ -1,4 +1,4 @@
-dnl $Id: acinclude.m4 13337 2004-02-12 14:19:16Z lha $
+dnl $Id$
 dnl
 dnl Only put things that for some reason can't live in the `cf'
 dnl directory in this file.

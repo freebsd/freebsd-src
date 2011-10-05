@@ -1,12 +1,11 @@
-.\" $Id: login.access.5 11902 2003-03-24 15:49:30Z joda $
-.\" 
+.\" $Id$
+.\"
 .Dd March 21, 2003
 .Dt LOGIN.ACCESS 5
 .Os HEIMDAL
 .Sh NAME
 .Nm login.access
-.Nd
-login access control table
+.Nd login access control table
 .Sh DESCRIPTION
 The
 .Nm login.access
@@ -14,7 +13,7 @@ file specifies on which ttys or from which hosts certain users are
 allowed to login.
 .Pp
 At login, the
-.Pa /etc/login.access 
+.Pa /etc/login.access
 file is checked for the first entry that matches a specific user/host
 or user/tty combination. That entry can either allow or deny login
 access to that user.
@@ -52,5 +51,5 @@ make the group match if the user also matches.
 .Sh AUTHORS
 The
 .Fn login_access
-function was written by 
+function was written by
 Wietse Venema. This manual page was written for Heimdal.

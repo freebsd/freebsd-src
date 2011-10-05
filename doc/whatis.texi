@@ -1,4 +1,4 @@
-@c $Id: whatis.texi 16769 2006-02-27 12:26:50Z joda $
+@c $Id$
 
 @node What is Kerberos?, Building and Installing, Introduction, Top
 @chapter What is Kerberos?

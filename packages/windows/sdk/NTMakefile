@@ -1,0 +1,151 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+#
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+
+RELDIR=packages\sdk
+
+!include ../../../windows/NTMakefile.w32
+
+# This package pulls in all the SDK components into a single directory
+# structure.
+
+prep:: mksdkdirs
+
+mksdkdirs:
+! if !exist($(SDKSRCDIR))
+	$(MKDIR) $(SDKSRCDIR)
+! endif
+! if !exist($(SDKINCDIR))
+	$(MKDIR) $(SDKINCDIR)
+! endif
+! if !exist($(SDKINCDIR)\krb5)
+	$(MKDIR) $(SDKINCDIR)\krb5
+! endif
+! if !exist($(SDKINCDIR)\heimdal)
+	$(MKDIR) $(SDKINCDIR)\heimdal
+! endif
+! if !exist($(SDKINCDIR)\kadm5)
+	$(MKDIR) $(SDKINCDIR)\kadm5
+! endif
+! if !exist($(SDKINCDIR)\gssapi)
+	$(MKDIR) $(SDKINCDIR)\gssapi
+! endif
+! if !exist($(SDKLIBDIR))
+	$(MKDIR) $(SDKLIBDIR)
+! endif
+! if !exist($(SDKREDISTDIR))
+	$(MKDIR) $(SDKREDISTDIR)
+! endif
+
+INCFILES=\
+	$(SDKINCDIR)\com_err.h	\
+	$(SDKINCDIR)\com_right.h	\
+	$(SDKINCDIR)\krb5\asn1_err.h	\
+	$(SDKINCDIR)\krb5\heim_err.h	\
+	$(SDKINCDIR)\krb5\k524_err.h	\
+	$(SDKINCDIR)\krb5\krb5-protos.h	\
+	$(SDKINCDIR)\krb5\krb5-types.h	\
+	$(SDKINCDIR)\krb5\krb5-v4compat.h	\
+	$(SDKINCDIR)\krb5\krb5.h	\
+	$(SDKINCDIR)\krb5\krb5_asn1.h	\
+	$(SDKINCDIR)\krb5\krb5_ccapi.h	\
+	$(SDKINCDIR)\krb5\krb5_err.h	\
+	$(SDKINCDIR)\krb5\krb5_locl.h	\
+	$(SDKINCDIR)\kadm5\kadm5_err.h	\
+	$(SDKINCDIR)\kadm5\kadm5-protos.h	\
+	$(SDKINCDIR)\heimdal\asn1_err.h	\
+	$(SDKINCDIR)\heimdal\heim_err.h	\
+	$(SDKINCDIR)\heimdal\k524_err.h	\
+	$(SDKINCDIR)\heimdal\krb5-protos.h	\
+	$(SDKINCDIR)\heimdal\krb5-types.h	\
+	$(SDKINCDIR)\heimdal\krb5-v4compat.h	\
+	$(SDKINCDIR)\heimdal\krb5.h	\
+	$(SDKINCDIR)\heimdal\krb5_asn1.h	\
+	$(SDKINCDIR)\heimdal\krb5_ccapi.h	\
+	$(SDKINCDIR)\heimdal\krb5_err.h	\
+	$(SDKINCDIR)\heimdal\krb5_locl.h	\
+	$(SDKINCDIR)\heimdal\gkrb5_err.h	\
+	$(SDKINCDIR)\heimdal\wind_err.h		\
+	$(SDKINCDIR)\heimdal\krb_err.h		\
+	$(SDKINCDIR)\heimdal\hx509_err.h	\
+	$(SDKINCDIR)\heimdal\roken.h		\
+	$(SDKINCDIR)\heimdal\roken-common.h	\
+	$(SDKINCDIR)\heimdal\syslog.h		\
+	$(SDKINCDIR)\heimdal\err.h		\
+	$(SDKINCDIR)\heimdal\dirent.h		\
+	$(SDKINCDIR)\heimdal\gkrb5_err.h	\
+	$(SDKINCDIR)\gssapi\gssapi.h		\
+	$(SDKINCDIR)\gssapi\gssapi_krb5.h	\
+	$(SDKINCDIR)\gssapi\gssapi_oid.h	\
+	$(SDKINCDIR)\gssapi\gssapi_ntlm.h	\
+	$(SDKINCDIR)\gssapi\gssapi_spnego.h	\
+	$(SDKINCDIR)\Heimdal.Application.$(MCPU).manifest	\
+
+LIBFILES=\
+	$(SDKLIBDIR)\heimdal.lib	\
+	$(SDKLIBDIR)\libcom_err.lib	\
+	$(SDKLIBDIR)\libroken.lib	\
+	$(SDKLIBDIR)\libgssapi.lib
+
+all:: $(INCFILES) $(LIBFILES)
+
+.SUFFIXES: .h .c .lib
+
+{$(LIBDIR)}.lib{$(SDKLIBDIR)}.lib:
+	$(CP) $** $@
+
+{$(INCDIR)}.h{$(SDKINCDIR)}.h:
+	$(CP) $** $@
+
+{$(INCDIR)}.h{$(SDKINCDIR)\krb5}.h:
+	$(CP) $** $@
+
+{$(INCDIR)}.h{$(SDKINCDIR)\heimdal}.h:
+	$(CP) $** $@
+
+{$(INCDIR)\kadm5}.h{$(SDKINCDIR)\kadm5}.h:
+	$(CP) $** $@
+
+{$(INCDIR)\gssapi}.h{$(SDKINCDIR)\gssapi}.h:
+	$(CP) $** $@
+
+{$(INCDIR)\gssapi}.h{$(SDKINCDIR)\heimdal}.h:
+	$(CP) $** $@
+
+$(SDKINCDIR)\Heimdal.Application.$(MCPU).manifest: $(APPMANIFEST)
+	$(CP) $** $@
+
+clean::
+	-$(RM) $(SDKINCDIR)\*.*
+	-$(RM) $(SDKINCDIR)\krb5\*.*
+	-$(RM) $(SDKINCDIR)\heimdal\*.*
+	-$(RM) $(SDKINCDIR)\kadm5\*.*
+	-$(RM) $(SDKLIBDIR)\*.*
+	-$(RM) $(SDKREDISTDIR)\*.*

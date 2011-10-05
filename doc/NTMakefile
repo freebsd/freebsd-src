@@ -1,0 +1,119 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=doc 
+
+!include ../windows/NTMakefile.w32 
+
+heimdal_TEXINFOS = \
+	$(OBJ)\ack.texi \
+	$(OBJ)\apps.texi \
+	$(OBJ)\copyright.texi \
+	$(OBJ)\heimdal.texi \
+	$(OBJ)\install.texi \
+	$(OBJ)\intro.texi \
+	$(OBJ)\kerberos4.texi \
+	$(OBJ)\migration.texi \
+	$(OBJ)\misc.texi \
+	$(OBJ)\programming.texi \
+	$(OBJ)\setup.texi \
+	$(OBJ)\vars.texi \
+	$(OBJ)\whatis.texi \
+	$(OBJ)\win2k.texi
+
+hx509_TEXINFOS = \
+	$(OBJ)\hx509.texi
+
+{}.texi{$(OBJ)}.texi:
+	$(CP) $** $@
+
+{}.tin{$(OBJ)}.texi:
+	$(SED) -e "s,[@]dbdir[@],x,g"	\
+	-e "s,[@]PACKAGE_VERSION[@],$(VER_PACKAGE_VERSION),g" < $** > $@
+
+MAKEINFOFLAGS = --css-include=$(SRCDIR)/heimdal.css
+
+######################################################################
+# Build heimdal.chm
+
+# Copyrights-and-Licenses.html is where the table of contents ends up
+# when generating HTML output using makeinfo.  Same goes for
+# How-to-use-the-PKCS11-module.html below.
+
+$(OBJ)\heimdal\index.html $(OBJ)\heimdal\Copyrights-and-Licenses.html: $(heimdal_TEXINFOS)
+	cd $(OBJ)
+	$(MAKEINFO) $(MAKEINFOFLAGS) --html heimdal.texi
+	cd $(SRCDIR)
+
+$(OBJ)\heimdal\toc.hhc: $(OBJ)\heimdal\Copyrights-and-Licenses.html
+	$(PERL) $(SRC)\cf\w32-hh-toc-from-info.pl -o$@ $**
+
+$(OBJ)\heimdal\heimdal.hhp: heimdal.hhp
+	$(CP) $** $@
+
+$(DOCDIR)\heimdal.chm: $(OBJ)\heimdal\heimdal.hhp $(OBJ)\heimdal\toc.hhc
+	cd $(OBJ)\heimdal
+	-$(HHC) heimdal.hhp
+	$(CP) heimdal.chm $@
+	cd $(SRCDIR)
+
+######################################################################
+# Build hx509.chm
+
+$(OBJ)\hx509\index.html $(OBJ)\hx509\How-to-use-the-PKCS11-module.html: $(hx509_TEXINFOS)
+	cd $(OBJ)
+	$(MAKEINFO) $(MAKEINFOFLAGS) --html hx509.texi
+	cd $(SRCDIR)
+
+$(OBJ)\hx509\toc.hhc: $(OBJ)\hx509\How-to-use-the-PKCS11-module.html
+	$(PERL) $(SRC)\cf\w32-hh-toc-from-info.pl -o$@ $**
+
+$(OBJ)\hx509\hx509.hhp: hx509.hhp
+	$(CP) $** $@
+
+$(DOCDIR)\hx509.chm: $(OBJ)\hx509\hx509.hhp $(OBJ)\hx509\toc.hhc
+	cd $(OBJ)\hx509
+	-$(HHC) hx509.hhp
+	$(CP) hx509.chm $@
+	cd $(SRCDIR)
+
+!ifndef NO_DOC
+all:: $(OBJ)\heimdal\index.html $(OBJ)\hx509\index.html \
+	$(DOCDIR)\heimdal.chm $(DOCDIR)\hx509.chm
+!endif
+
+clean::
+	-$(RM) $(OBJ)\heimdal\*.*
+	-$(RM) $(OBJ)\hx509\*.*
+	-$(RM) $(DOCDIR)\heimdal.chm
+	-$(RM) $(DOCDIR)\hx509.chm
+
+.SUFFIXES: .texi .tin

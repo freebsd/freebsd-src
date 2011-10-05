@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-ntlm.in 22160 2007-12-04 20:05:17Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -49,8 +49,8 @@ keytab="FILE:${keytabfile}"
 cache="FILE:krb5ccfile"
 cacheds="FILE:krb5ccfile-ds"
 
-kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache --no-afslog"
-kinitds="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cacheds --no-afslog"
+kinit="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cache ${afs_no_afslog}"
+kinitds="${TESTS_ENVIRONMENT} ../../kuser/kinit -c $cacheds ${afs_no_afslog}"
 kadmin="${TESTS_ENVIRONMENT} ../../kadmin/kadmin -l -r $R"
 kdc="${TESTS_ENVIRONMENT} ../../kdc/kdc --addresses=localhost -P $port"
 kdigest="${TESTS_ENVIRONMENT} ../../kuser/kdigest"

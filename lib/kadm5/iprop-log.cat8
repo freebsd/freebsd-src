@@ -1,0 +1,82 @@
+
+IPROP-LOG(8)              BSD System Manager's Manual             IPROP-LOG(8)
+
+NNAAMMEE
+     iipprroopp--lloogg -- maintain the iprop log file
+
+SSYYNNOOPPSSIISS
+     iipprroopp--lloogg [----vveerrssiioonn] [--hh | ----hheellpp] _c_o_m_m_a_n_d
+
+     iipprroopp--lloogg ttrruunnccaattee [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--rr _s_t_r_i_n_g |
+               ----rreeaallmm==_s_t_r_i_n_g] [--hh | ----hheellpp]
+
+     iipprroopp--lloogg dduummpp [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--rr _s_t_r_i_n_g |
+               ----rreeaallmm==_s_t_r_i_n_g] [--hh | ----hheellpp]
+
+     iipprroopp--lloogg rreeppllaayy [----ssttaarrtt--vveerrssiioonn==_v_e_r_s_i_o_n_-_n_u_m_b_e_r]
+               [----eenndd--vveerrssiioonn==_v_e_r_s_i_o_n_-_n_u_m_b_e_r] [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e]
+               [--rr _s_t_r_i_n_g | ----rreeaallmm==_s_t_r_i_n_g] [--hh | ----hheellpp]
+
+DDEESSCCRRIIPPTTIIOONN
+     Supported options:
+
+     ----vveerrssiioonn
+
+     --hh, ----hheellpp
+
+     command can be one of the following:
+
+     truncate
+
+               --cc _f_i_l_e, ----ccoonnffiigg--ffiillee==_f_i_l_e
+                       configuration file
+
+               --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+                       realm
+
+               Truncates the log. Sets the new logs version number for the to
+               the last entry of the old log.  If the log is truncted by emp-
+               tying the file, the log will start over at the first version
+               (0).
+
+     dump
+
+               --cc _f_i_l_e, ----ccoonnffiigg--ffiillee==_f_i_l_e
+                       configuration file
+
+               --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+                       realm
+
+               Print out all entries in the log to standard output.
+
+     replay
+
+               ----ssttaarrtt--vveerrssiioonn==_v_e_r_s_i_o_n_-_n_u_m_b_e_r
+                       start replay with this version
+
+               ----eenndd--vveerrssiioonn==_v_e_r_s_i_o_n_-_n_u_m_b_e_r
+                       end replay with this version
+
+               --cc _f_i_l_e, ----ccoonnffiigg--ffiillee==_f_i_l_e
+                       configuration file
+
+               --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+                       realm
+
+               Replay the changes from specified entries (or all if none is
+               specified) in the transaction log to the database.
+
+     last-version
+
+               --cc _f_i_l_e, ----ccoonnffiigg--ffiillee==_f_i_l_e
+                       configuration file
+
+               --rr _s_t_r_i_n_g, ----rreeaallmm==_s_t_r_i_n_g
+                       realm
+
+               prints the version of the last log entry.
+
+SSEEEE AALLSSOO
+     iprop(8)
+
+Heimdal                        February 18, 2007                       Heimdal

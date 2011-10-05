@@ -1,0 +1,158 @@
+#!/bin/sh
+#
+# Copyright (c) 2006 - 2008 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+
+env_setup="@env_setup@"
+objdir="@objdir@"
+
+. ${env_setup}
+
+# If there is no useful db support compile in, disable test
+${have_db} || exit 77
+
+R=TEST.H5L.SE
+R2=TEST2.H5L.SE
+R3=TEST3.H5L.SE
+R4=TEST4.H5L.SE
+
+port=@port@
+
+kadmin="${kadmin} -l -r ${R}"
+kdc="${kdc} --addresses=localhost -P $port"
+
+server=host/datan.test4.h5l.se@TEST4.H5L.ORG
+cache="FILE:${objdir}/cache.krb5"
+
+kinit="${kinit} -c $cache ${afs_no_afslog}"
+klist="${klist} -c $cache"
+kgetcred="${kgetcred} -c $cache"
+kdestroy="${kdestroy} -c $cache ${afs_no_unlog}"
+
+KRB5_CONFIG="${objdir}/krb5.conf"
+export KRB5_CONFIG
+
+testfailed="echo test failed; ${klist} -v ; exit 1"
+
+rm -f ${keytabfile}
+rm -f current-db*
+rm -f out-*
+rm -f mkey.file*
+
+> messages.log
+
+echo Creating database
+initflags="init --realm-max-ticket-life=1day --realm-max-renewable-life=1month"
+
+${kadmin} ${initflags} ${R} || exit 1
+${kadmin} ${initflags} ${R2} || exit 1
+${kadmin} ${initflags} ${R3} || exit 1
+${kadmin} ${initflags} ${R4} || exit 1
+
+${kadmin} add -p foo --use-defaults foo@${R} || exit 1
+
+${kadmin} add -p cross1 --use-defaults krbtgt/${R2}@${R} || exit 1
+${kadmin} add -p cross2 --use-defaults krbtgt/${R3}@${R2} || exit 1
+${kadmin} add -p cross3 --use-defaults krbtgt/${R4}@${R3} || exit 1
+
+${kadmin} modify --attributes=+ok-as-delegate krbtgt/${R2}@${R} || exit 1
+${kadmin} modify --attributes=+ok-as-delegate krbtgt/${R3}@${R2} || exit 1
+
+${kadmin} add -p foo --use-defaults host/server.test3.h5l.se@${R3} || exit 1
+${kadmin} modify --attributes=+ok-as-delegate host/server.test3.h5l.se@${R3} || exit 1
+${kadmin} add -p foo --use-defaults host/noserver.test3.h5l.se@${R3} || exit 1
+
+${kadmin} add -p foo --use-defaults host/server.test4.h5l.se@${R4} || exit 1
+${kadmin} modify --attributes=+ok-as-delegate host/server.test4.h5l.se@${R4} || exit 1
+
+echo "Doing database check"
+${kadmin} check ${R} || exit 1
+${kadmin} check ${R2} || exit 1
+${kadmin} check ${R3} || exit 1
+${kadmin} check ${R4} || exit 1
+
+echo foo > ${objdir}/foopassword
+
+echo Starting kdc
+${kdc} &
+kdcpid=$!
+
+sh ${wait_kdc}
+if [ "$?" != 0 ] ; then
+    kill -9 ${kdcpid}
+    exit 1
+fi
+
+trap "kill -9 ${kdcpid}; echo signal killing kdc; exit 1;" EXIT
+
+ec=0
+
+echo "Getting client initial tickets"; > messages.log
+${kinit} --password-file=${objdir}/foopassword foo@${R} || \
+	{ ec=1 ; eval "${testfailed}"; }
+
+echo "get cross realm manually"
+${kgetcred} krbtgt/${R2}@${R} || { ec=1 ; eval "${testfailed}"; }
+${kgetcred} krbtgt/${R3}@${R2} || { ec=1 ; eval "${testfailed}"; }
+${kgetcred} krbtgt/${R4}@${R3} || { ec=1 ; eval "${testfailed}"; }
+${kgetcred} host/server.test3.h5l.se@${R3} || { ec=1 ; eval "${testfailed}"; }
+${kgetcred} host/server.test4.h5l.se@${R4} || { ec=1 ; eval "${testfailed}"; }
+
+
+echo "check result"
+${klist} -v | awk '/Server:.*host.server.test3/{c=8}{if(c-->0){print}}' | grep 'Ticket flags:.*ok-as-delegate' > /dev/null || \
+    { ec=1 ; echo "server.test3 failed";  eval "${testfailed}"; }
+${klist} -v | awk '/Server:.*host.noserver.test3/{c=8}{if(c-->0){print}}' | grep 'Ticket flags:.*ok-as-delegate' 2> /dev/null && \
+    { ec=1 ; echo "noserver.test3 failed"; eval "${testfailed}"; }
+${klist} -v | awk '/Server:.*host.server.test4/{c=8}{if(c-->0){print}}' | grep 'Ticket flags:.*ok-as-delegate' 2> /dev/null && \
+    { ec=1 ; echo "server.test4 failed" ; eval "${testfailed}"; }
+
+${kdestroy}
+
+#echo "Getting client initial tickets"; > messages.log
+#${kinit} --password-file=${objdir}/foopassword foo@${R} || \
+#	{ ec=1 ; eval "${testfailed}"; }
+#
+#echo "get cross realm automagicly"
+#${kgetcred} host/server.test4.h5l.se@${R4} || { ec=1 ; eval "${testfailed}"; }
+#
+#echo "check result"
+#${klist} -v | grep -A8 -e 'Server:.*server.test4' | grep 'Ticket flags:.*ok-as-delegate' && { ec=1 ; eval "${testfailed}"; }
+#
+#${kdestroy}
+
+
+echo "killing kdc (${kdcpid})"
+sh ${leaks_kill} kdc $kdcpid || exit 1
+
+trap "" EXIT
+
+exit $ec

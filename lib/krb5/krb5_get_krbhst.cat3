@@ -1,0 +1,56 @@
+
+KRB5_GET_KRBHST(3)       BSD Library Functions Manual       KRB5_GET_KRBHST(3)
+
+NNAAMMEE
+     kkrrbb55__ggeett__kkrrbbhhsstt, kkrrbb55__ggeett__kkrrbb__aaddmmiinn__hhsstt, kkrrbb55__ggeett__kkrrbb__cchhaannggeeppww__hhsstt,
+     kkrrbb55__ggeett__kkrrbb552244hhsstt, kkrrbb55__ffrreeee__kkrrbbhhsstt -- lookup Kerberos KDC hosts
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__kkrrbbhhsstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m,
+         _c_h_a_r _*_*_*_h_o_s_t_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__kkrrbb__aaddmmiinn__hhsstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m,
+         _c_h_a_r _*_*_*_h_o_s_t_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__kkrrbb__cchhaannggeeppww__hhsstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m,
+         _c_h_a_r _*_*_*_h_o_s_t_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__kkrrbb552244hhsstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___r_e_a_l_m _*_r_e_a_l_m,
+         _c_h_a_r _*_*_*_h_o_s_t_l_i_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffrreeee__kkrrbbhhsstt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_h_a_r _*_*_h_o_s_t_l_i_s_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions implement the old API to get a list of Kerberos hosts,
+     and are thus similar to the kkrrbb55__kkrrbbhhsstt__iinniitt() functions. However, since
+     these functions returns _a_l_l hosts in one go, they potentially have to do
+     more lookups than necessary. These functions remain for compatibility
+     reasons.
+
+     After a call to one of these functions, _h_o_s_t_l_i_s_t is a NULL terminated
+     list of strings, pointing to the requested Kerberos hosts. These should
+     be freed with kkrrbb55__ffrreeee__kkrrbbhhsstt() when done with.
+
+EEXXAAMMPPLLEESS
+     The following code will print the KDCs of the realm ``MY.REALM''.
+
+           char **hosts, **p;
+           krb5_get_krbhst(context, "MY.REALM", &hosts);
+           for(p = hosts; *p; p++)
+               printf("%s\n", *p);
+           krb5_free_krbhst(context, hosts);
+
+SSEEEE AALLSSOO
+     krb5_krbhst_init(3)
+
+HEIMDAL                         April 24, 2005                         HEIMDAL

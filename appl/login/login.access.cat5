@@ -1,0 +1,45 @@
+
+LOGIN.ACCESS(5)             BSD File Formats Manual            LOGIN.ACCESS(5)
+
+NNAAMMEE
+     llooggiinn..aacccceessss -- login access control table
+
+DDEESSCCRRIIPPTTIIOONN
+     The llooggiinn..aacccceessss file specifies on which ttys or from which hosts certain
+     users are allowed to login.
+
+     At login, the _/_e_t_c_/_l_o_g_i_n_._a_c_c_e_s_s file is checked for the first entry that
+     matches a specific user/host or user/tty combination. That entry can
+     either allow or deny login access to that user.
+
+     Each entry have three fields separated by colon:
+
+     ++oo   The first field indicates the permission given if the entry matches.
+         It can be either ``+'' (allow access) or ``-'' (deny access) .
+
+     ++oo   The second field is a comma separated list of users or groups for
+         which the current entry applies. NIS netgroups can used (if config-
+         ured) if preceeded by @. The magic string ALL matches all users.  A
+         group will match if the user is a member of that group, or it is the
+         user's primary group.
+
+     ++oo   The third field is a list of ttys, or network names. A network name
+         can be either a hostname, a domain (indicated by a starting period),
+         or a netgroup. As with the user list, ALL matches anything. LOCAL
+         matches a string not containing a period.
+
+     If the string EXCEPT is found in either the user or from list, the rest
+     of the list are exceptions to the list before EXCEPT.
+
+BBUUGGSS
+     If there's a user and a group with the same name, there is no way to make
+     the group match if the user also matches.
+
+SSEEEE AALLSSOO
+     login(1)
+
+AAUUTTHHOORRSS
+     The llooggiinn__aacccceessss() function was written by Wietse Venema. This manual
+     page was written for Heimdal.
+
+HEIMDAL                         March 21, 2003                         HEIMDAL

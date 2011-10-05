@@ -1,4 +1,4 @@
-# $Id: Makefile.am 17775 2006-06-30 20:26:15Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -25,3 +25,5 @@ SUBDIRS = 					\
 	  kx					\
 	  kf					\
 	  $(dir_dce)
+
+EXTRA_DIST = NTMakefile

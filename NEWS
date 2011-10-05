@@ -1,3 +1,162 @@
+Release Notes - Heimdal - Version Heimdal 1.5
+
+New features
+
+ - Support GSS name extensions/attributes
+ - SHA512 support
+ - No Kerberos 4 support
+ - Basic support for MIT Admin protocol (SECGSS flavor)
+   in kadmind (extract keytab)
+ - Replace editline with libedit
+
+Release Notes - Heimdal - Version Heimdal 1.4
+
+ New features
+ 
+ - Support for reading MIT database file directly
+ - KCM is polished up and now used in production
+ - NTLM first class citizen, credentials stored in KCM
+ - Table driven ASN.1 compiler, smaller!, not enabled by default
+ - Native Windows client support
+
+Notes
+
+ - Disabled write support NDBM hdb backend (read still in there) since
+   it can't handle large records, please migrate to a diffrent backend
+   (like BDB4)
+
+Release Notes - Heimdal - Version Heimdal 1.3.3
+
+ Bug fixes
+ - Check the GSS-API checksum exists before trying to use it [CVE-2010-1321]
+ - Check NULL pointers before dereference them [kdc]
+
+Release Notes - Heimdal - Version Heimdal 1.3.2
+
+ Bug fixes
+
+ - Don't mix length when clearing hmac (could memset too much)
+ - More paranoid underrun checking when decrypting packets
+ - Check the password change requests and refuse to answer empty packets
+ - Build on OpenSolaris 
+ - Renumber AD-SIGNED-TICKET since it was stolen from US
+ - Don't cache /dev/*random file descriptor, it doesn't get unloaded
+ - Make C++ safe
+ - Misc warnings
+
+Release Notes - Heimdal - Version Heimdal 1.3.1
+
+ Bug fixes
+
+ - Store KDC offset in credentials
+ - Many many more bug fixes
+
+Release Notes - Heimdal - Version Heimdal 1.3.1
+
+ New features
+
+ - Make work with OpenLDAPs krb5 overlay
+
+Release Notes - Heimdal - Version Heimdal 1.3
+
+ New features
+
+ - Partial support for MIT kadmind rpc protocol in kadmind
+ - Better support for finding keytab entries when using SPN aliases in the KDC
+ - Support BER in ASN.1 library (needed for CMS)
+ - Support decryption in Keychain private keys
+ - Support for new sqlite based credential cache
+ - Try both KDC referals and the common DNS reverse lookup in GSS-API
+ - Fix the KCM to not leak resources on failure
+ - Add IPv6 support to iprop
+ - Support localization of error strings in
+   kinit/klist/kdestroy and Kerberos library
+ - Remove Kerberos 4 support in application (still in KDC)
+ - Deprecate DES
+ - Support i18n password in windows domains (using UTF-8)
+ - More complete API emulation of OpenSSL in hcrypto
+ - Support for ECDSA and ECDH when linking with OpenSSL
+
+ API changes
+
+ - Support for settin friendly name on credential caches
+ - Move to using doxygen to generate documentation.
+ - Sprinkling __attribute__((depricated)) for old function to be removed
+ - Support to export LAST-REQUST information in AS-REQ
+ - Support for client deferrals in in AS-REQ
+ - Add seek support for krb5_storage.
+ - Support for split AS-REQ, first step for IA-KERB
+ - Fix many memory leaks and bugs
+ - Improved regression test
+ - Support krb5_cccol
+ - Switch to krb5_set_error_message
+ - Support krb5_crypto_*_iov	
+ - Switch to use EVP for most function
+ - Use SOCK_CLOEXEC and O_CLOEXEC (close on exec)
+ - Add support for GSS_C_DELEG_POLICY_FLAG
+ - Add krb5_cc_[gs]et_config to store data in the credential caches
+ - PTY testing application
+
+Bugfixes
+ - Make building on AIX6 possible.
+ - Bugfixes in LDAP KDC code to make it more stable
+ - Make ipropd-slave reconnect when master down gown
+
+
+Release Notes - Heimdal - Version Heimdal 1.2.1
+
+* Bug
+
+  [HEIMDAL-147] - Heimdal 1.2 not compiling on Solaris
+  [HEIMDAL-151] - Make canned tests work again after cert expired
+  [HEIMDAL-152] - iprop test: use full hostname to avoid realm
+                  resolving errors
+  [HEIMDAL-153] - ftp: Use the correct length for unmap, msync
+
+Release Notes - Heimdal - Version Heimdal 1.2
+
+* Bug
+
+  [HEIMDAL-10] - Follow-up on bug report for SEGFAULT in
+  		 gss_display_name/gss_export_name when using SPNEGO
+  [HEIMDAL-15] - Re: [Heimdal-bugs] potential bug in Heimdal 1.1
+  [HEIMDAL-17] - Remove support for depricated [libdefaults]capath
+  [HEIMDAL-52] - hdb overwrite aliases for db databases
+  [HEIMDAL-54] - Two issues which affect credentials delegation
+  [HEIMDAL-58] - sockbuf.c calls setsockopt with bad args
+  [HEIMDAL-62] - Fix printing of sig_atomic_t
+  [HEIMDAL-87] - heimdal 1.1 not building under cygwin in hcrypto
+  [HEIMDAL-105] - rcp: sync rcp with upstream bsd rcp codebase
+  [HEIMDAL-117] - Use libtool to detect symbol versioning (Debian Bug#453241)
+
+* Improvement
+  [HEIMDAL-67] - Fix locking and store credential in atomic writes
+                 in the FILE credential cache
+  [HEIMDAL-106] - make compile on cygwin again
+  [HEIMDAL-107] - Replace old random key generation in des module
+                  and use it with RAND_ function instead
+  [HEIMDAL-115] - Better documentation and compatibility in hcrypto
+                  in regards to OpenSSL
+
+* New Feature
+  [HEIMDAL-3] - pkinit alg agility PRF test vectors
+  [HEIMDAL-14] - Add libwind to Heimdal
+  [HEIMDAL-16] - Use libwind in hx509
+  [HEIMDAL-55] - Add flag to krb5 to not add GSS-API INT|CONF to
+                 the negotiation
+  [HEIMDAL-74] - Add support to report extended error message back
+                 in AS-REQ to support windows clients
+  [HEIMDAL-116] - test pty based application (using rkpty)
+  [HEIMDAL-120] - Use new OpenLDAP API (older deprecated)
+
+* Task
+  [HEIMDAL-63] - Dont try key usage KRB5_KU_AP_REQ_AUTH for TGS-REQ.
+                 This drop compatibility with pre 0.3d KDCs.
+  [HEIMDAL-64] - kcm: first implementation of kcm-move-cache
+  [HEIMDAL-65] - Failed to compile with --disable-pk-init
+  [HEIMDAL-80] - verify that [VU#162289]: gcc silently discards some
+                 wraparound checks doesn't apply to Heimdal
+
 Changes in release 1.1
 
  * Read-only PKCS11 provider built-in to hx509.

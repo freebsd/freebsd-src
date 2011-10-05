@@ -1,0 +1,43 @@
+
+OTP(1)                    BSD General Commands Manual                   OTP(1)
+
+NNAAMMEE
+     oottpp -- manages one-time passwords
+
+SSYYNNOOPPSSIISS
+     oottpp [--ddhhlloorr] [--ff _a_l_g_o_r_i_t_h_m] [--uu _u_s_e_r] _s_e_q_u_e_n_c_e_-_n_u_m_b_e_r _s_e_e_d
+
+DDEESSCCRRIIPPTTIIOONN
+     The oottpp program initializes and updates your current series of one-time
+     passwords (OTPs).
+
+     Use this to set a new series of one-time passwords.  Only perform this on
+     the console or over an encrypted link as you will have to supply your
+     pass-phrase.  The other two parameters are _s_e_q_u_e_n_c_e_-_n_u_m_b_e_r and _s_e_e_d.
+
+     Options are:
+
+     --dd      To delete a one-time password.
+
+     --ff      Choose a different _a_l_g_o_r_i_t_h_m from the default md5.  Pick any of:
+             md4, md5, and sha.
+
+     --hh      For getting a help message.
+
+     --ll      List the current table of one-time passwords.
+
+     --oo      To open (unlock) the otp-entry for a user.
+
+     --rr      To renew a one-time password series.  This operation can be per-
+             formed over an potentially eavesdropped link because you do not
+             supply the pass-phrase.  First you need to supply the current
+             one-time password and then the new one corresponding to the sup-
+             plied _s_e_q_u_e_n_c_e_-_n_u_m_b_e_r and _s_e_e_d.
+
+     --uu      To choose a different _u_s_e_r to set one-time passwords for.  This
+             only works when running oottpp as root.
+
+SSEEEE AALLSSOO
+     otpprint(1)
+
+KTH-KRB                        November 17, 1996                       KTH-KRB

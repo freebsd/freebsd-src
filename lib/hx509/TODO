@@ -1,0 +1,61 @@
+Handle private_key_ops better, esp wrt ->key_oid
+
+Better support for keyex negotiation, DH and ECDH.
+
+x501 name
+	parsing
+	comparing (ldap canonlisation rules)
+
+DSA support
+DSA2 support
+
+Rewrite the pkcs11 code to support the following:
+
+	* Reset the pin on card change.
+	* Ref count the lock structure to make sure we have a
+          prompter when we need it.
+	* Add support for CK_TOKEN_INFO.CKF_PROTECTED_AUTHENTICATION_PATH
+
+x509 policy mappings support
+
+CRL delta support
+
+Qualified statement
+	https://bugzilla.mozilla.org/show_bug.cgi?id=277797#c2
+
+
+Signed Receipts
+	http://www.faqs.org/rfcs/rfc2634.html
+	chapter 2
+
+tests
+	nist tests
+		name constrains
+		policy mappings
+		http://csrc.nist.gov/pki/testing/x509paths.html
+
+	building path using Subject/Issuer vs SubjKeyID vs AuthKeyID
+	negative tests
+		all checksums
+		conditions/branches
+
+pkcs7
+	handle pkcs7 support in CMS ?
+
+certificate request
+	generate pkcs10 request
+		from existing cert
+	generate CRMF request
+		pk-init KDC/client
+		web server/client
+		jabber server/client 
+		email
+
+
+x509 issues:
+
+ OtherName is left unspecified, but it's used by other
+ specs. creating this hole where a application/CA can't specify
+ policy for SubjectAltName what covers whole space. For example, a
+ CA is trusted to provide authentication but not authorization.
+

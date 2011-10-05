@@ -1,0 +1,23 @@
+
+KRB5_GENERATE_RANDOM_... BSD Library Functions Manual KRB5_GENERATE_RANDOM_...
+
+NNAAMMEE
+     kkrrbb55__ggeenneerraattee__rraannddoomm__bblloocckk -- Kerberos 5 random functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _v_o_i_d
+     kkrrbb55__ggeenneerraattee__rraannddoomm__bblloocckk(_v_o_i_d _*_b_u_f, _s_i_z_e___t _l_e_n);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ggeenneerraattee__rraannddoomm__bblloocckk() generates a cryptographically strong pseudo-
+     random block into the buffer _b_u_f of length _l_e_n.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                         March 21, 2004                         HEIMDAL

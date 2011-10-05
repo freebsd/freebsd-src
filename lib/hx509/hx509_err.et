@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: hx509_err.et 22329 2007-12-15 05:13:14Z lha $"
+id "$Id$"
 
 error_table hx
 prefix HX509
@@ -62,9 +62,11 @@ error_code OID_MISMATCH, "Mismatch bewteen oids"
 error_code NO_PROMPTER, "No prompter function defined"
 error_code SIGNATURE_WITHOUT_SIGNER, "Signature require signer, but non available"
 error_code RSA_PUBLIC_ENCRYPT, "RSA public encyption failed"
-error_code RSA_PRIVATE_ENCRYPT, "RSA public encyption failed"
-error_code RSA_PUBLIC_DECRYPT, "RSA private decryption failed"
+error_code RSA_PRIVATE_ENCRYPT, "RSA private encyption failed"
+error_code RSA_PUBLIC_DECRYPT, "RSA public decryption failed"
 error_code RSA_PRIVATE_DECRYPT, "RSA private decryption failed"
+error_code ALGORITHM_BEST_BEFORE, "Algorithm has passed its best before date"
+error_code KEY_FORMAT_UNSUPPORTED, "Key format is unsupported"
 
 # revoke related errors
 index 96

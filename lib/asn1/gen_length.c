@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_length.c 21503 2007-07-12 11:57:19Z lha $");
+RCSID("$Id$");
 
 static void
 length_primitive (const char *typename,
@@ -43,11 +43,12 @@ length_primitive (const char *typename,
     fprintf (codefile, "%s += der_length_%s(%s);\n", variable, typename, name);
 }
 
+/* XXX same as der_length_tag */
 static size_t
 length_tag(unsigned int tag)
 {
     size_t len = 0;
-    
+
     if(tag <= 30)
 	return 1;
     while(tag) {
@@ -59,7 +60,7 @@ length_tag(unsigned int tag)
 
 
 static int
-length_type (const char *name, const Type *t, 
+length_type (const char *name, const Type *t,
 	     const char *variable, const char *tmpstr)
 {
     switch (t->type) {
@@ -86,7 +87,7 @@ length_type (const char *name, const Type *t,
 	} else if (t->range->min == 0 && t->range->max == INT_MAX) {
 	    length_primitive ("unsigned", name, variable);
 	} else
-	    errx(1, "%s: unsupported range %d -> %d", 
+	    errx(1, "%s: unsupported range %d -> %d",
 		 name, t->range->min, t->range->max);
 
 	break;
@@ -133,13 +134,13 @@ length_type (const char *name, const Type *t,
 
 	if (t->members == NULL)
 	    break;
-      
+
 	if(t->type == TChoice)
 	    fprintf (codefile, "switch((%s)->element) {\n", name);
 
 	ASN1_TAILQ_FOREACH(m, t->members, members) {
 	    char *s;
-	    
+
 	    if (m->ellipsis) {
 		have_ellipsis = m;
 		continue;
@@ -148,10 +149,9 @@ length_type (const char *name, const Type *t,
 	    if(t->type == TChoice)
 		fprintf(codefile, "case %s:\n", m->label);
 
-	    asprintf (&s, "%s(%s)->%s%s",
-		      m->optional ? "" : "&", name, 
-		      t->type == TChoice ? "u." : "", m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s(%s)->%s%s",
+			  m->optional ? "" : "&", name,
+			  t->type == TChoice ? "u." : "", m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
 	    if (m->optional)
 		fprintf (codefile, "if(%s)", s);
@@ -182,24 +182,22 @@ length_type (const char *name, const Type *t,
     }
     case TSetOf:
     case TSequenceOf: {
-	char *n;
-	char *sname;
+	char *n = NULL;
+	char *sname = NULL;
 
 	fprintf (codefile,
 		 "{\n"
-		 "int %s_oldret = %s;\n"
+		 "size_t %s_oldret = %s;\n"
 		 "int i;\n"
 		 "%s = 0;\n",
 		 tmpstr, variable, variable);
 
 	fprintf (codefile, "for(i = (%s)->len - 1; i >= 0; --i){\n", name);
-	fprintf (codefile, "int %s_for_oldret = %s;\n"
+	fprintf (codefile, "size_t %s_for_oldret = %s;\n"
 		 "%s = 0;\n", tmpstr, variable, variable);
-	asprintf (&n, "&(%s)->val[i]", name);
-	if (n == NULL)
+	if (asprintf (&n, "&(%s)->val[i]", name) < 0  || n == NULL)
 	    errx(1, "malloc");
-	asprintf (&sname, "%s_S_Of", tmpstr);
-	if (sname == NULL)
+	if (asprintf (&sname, "%s_S_Of", tmpstr) < 0 || sname == NULL)
 	    errx(1, "malloc");
 	length_type(n, t->subtype, variable, sname);
 	fprintf (codefile, "%s += %s_for_oldret;\n",
@@ -217,6 +215,9 @@ length_type (const char *name, const Type *t,
 	length_primitive ("generalized_time", name, variable);
 	break;
     case TGeneralString:
+	length_primitive ("general_string", name, variable);
+	break;
+    case TTeletexString:
 	length_primitive ("general_string", name, variable);
 	break;
     case TUTCTime:
@@ -244,12 +245,11 @@ length_type (const char *name, const Type *t,
 	fprintf (codefile, "/* NULL */\n");
 	break;
     case TTag:{
-    	char *tname;
-	asprintf(&tname, "%s_tag", tmpstr);
-	if (tname == NULL)
+    	char *tname = NULL;
+	if (asprintf(&tname, "%s_tag", tmpstr) < 0 || tname == NULL)
 	    errx(1, "malloc");
 	length_type (name, t->subtype, variable, tname);
-	fprintf (codefile, "ret += %lu + der_length_len (ret);\n", 
+	fprintf (codefile, "ret += %lu + der_length_len (ret);\n",
 		 (unsigned long)length_tag(t->tag.tagvalue));
 	free(tname);
 	break;
@@ -266,17 +266,13 @@ length_type (const char *name, const Type *t,
 void
 generate_type_length (const Symbol *s)
 {
-    fprintf (headerfile,
-	     "size_t length_%s(const %s *);\n",
-	     s->gen_name, s->gen_name);
-    
     fprintf (codefile,
-	     "size_t\n"
+	     "size_t ASN1CALL\n"
 	     "length_%s(const %s *data)\n"
 	     "{\n"
 	     "size_t ret = 0;\n",
 	     s->gen_name, s->gen_name);
-    
+
     length_type ("data", s->type, "ret", "Top");
     fprintf (codefile, "return ret;\n}\n\n");
 }

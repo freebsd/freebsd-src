@@ -1,39 +1,38 @@
 /*
- * Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2010 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
 #include <pkinit_asn1.h>
-RCSID("$Id: ca.c 22456 2008-01-15 20:22:53Z lha $");
 
 /**
  * @page page_ca Hx509 CA functions
@@ -54,11 +53,15 @@ struct hx509_ca_tbs {
 	unsigned int key:1;
 	unsigned int serial:1;
 	unsigned int domaincontroller:1;
+	unsigned int xUniqueID:1;
     } flags;
     time_t notBefore;
     time_t notAfter;
     int pathLenConstraint; /* both for CA and Proxy */
     CRLDistributionPoints crldp;
+    heim_bit_string subjectUniqueID;
+    heim_bit_string issuerUniqueID;
+
 };
 
 /**
@@ -80,15 +83,6 @@ hx509_ca_tbs_init(hx509_context context, hx509_ca_tbs *tbs)
     *tbs = calloc(1, sizeof(**tbs));
     if (*tbs == NULL)
 	return ENOMEM;
-
-    (*tbs)->subject = NULL;
-    (*tbs)->san.len = 0;
-    (*tbs)->san.val = NULL;
-    (*tbs)->eku.len = 0;
-    (*tbs)->eku.val = NULL;
-    (*tbs)->pathLenConstraint = 0;
-    (*tbs)->crldp.len = 0;
-    (*tbs)->crldp.val = NULL;
 
     return 0;
 }
@@ -112,7 +106,8 @@ hx509_ca_tbs_free(hx509_ca_tbs *tbs)
     free_ExtKeyUsage(&(*tbs)->eku);
     der_free_heim_integer(&(*tbs)->serial);
     free_CRLDistributionPoints(&(*tbs)->crldp);
-
+    der_free_bit_string(&(*tbs)->subjectUniqueID);
+    der_free_bit_string(&(*tbs)->issuerUniqueID);
     hx509_name_free(&(*tbs)->subject);
 
     memset(*tbs, 0, sizeof(**tbs));
@@ -236,7 +231,7 @@ hx509_ca_tbs_set_template(hx509_context context,
 	    hx509_name_free(&tbs->subject);
 	ret = hx509_cert_get_subject(cert, &tbs->subject);
 	if (ret) {
-	    hx509_set_error_string(context, 0, ret, 
+	    hx509_set_error_string(context, 0, ret,
 				   "Failed to get subject from template");
 	    return ret;
 	}
@@ -246,7 +241,7 @@ hx509_ca_tbs_set_template(hx509_context context,
 	ret = hx509_cert_get_serialnumber(cert, &tbs->serial);
 	tbs->flags.serial = !ret;
 	if (ret) {
-	    hx509_set_error_string(context, 0, ret, 
+	    hx509_set_error_string(context, 0, ret,
 				   "Failed to copy serial number");
 	    return ret;
 	}
@@ -271,7 +266,7 @@ hx509_ca_tbs_set_template(hx509_context context,
     }
     if (flags & HX509_CA_TEMPLATE_EKU) {
 	ExtKeyUsage eku;
-	int i;
+	size_t i;
 	ret = _hx509_cert_get_eku(context, cert, &eku);
 	if (ret)
 	    return ret;
@@ -473,7 +468,7 @@ hx509_ca_tbs_add_crl_dp_uri(hx509_context context,
     int ret;
 
     memset(&dp, 0, sizeof(dp));
-    
+
     dp.distributionPoint = ecalloc(1, sizeof(*dp.distributionPoint));
 
     {
@@ -486,10 +481,11 @@ hx509_ca_tbs_add_crl_dp_uri(hx509_context context,
 	name.u.fullName.val = &gn;
 
 	gn.element = choice_GeneralName_uniformResourceIdentifier;
-	gn.u.uniformResourceIdentifier = rk_UNCONST(uri);
+	gn.u.uniformResourceIdentifier.data = rk_UNCONST(uri);
+	gn.u.uniformResourceIdentifier.length = strlen(uri);
 
-	ASN1_MALLOC_ENCODE(DistributionPointName, 
-			   dp.distributionPoint->data, 
+	ASN1_MALLOC_ENCODE(DistributionPointName,
+			   dp.distributionPoint->data,
 			   dp.distributionPoint->length,
 			   &name, &size, ret);
 	if (ret) {
@@ -509,7 +505,7 @@ hx509_ca_tbs_add_crl_dp_uri(hx509_context context,
 	hx509_set_error_string(context, 0, EINVAL,
 			       "CRLDistributionPoints.name.issuername not yet supported");
 	return EINVAL;
-#else 
+#else
 	GeneralNames *crlissuer;
 	GeneralName gn;
 	Name n;
@@ -579,7 +575,7 @@ hx509_ca_tbs_add_san_otherName(hx509_context context,
     gn.element = choice_GeneralName_otherName;
     gn.u.otherName.type_id = *oid;
     gn.u.otherName.value = *os;
-    
+
     return add_GeneralNames(&tbs->san, &gn);
 }
 
@@ -614,14 +610,14 @@ hx509_ca_tbs_add_san_pkinit(hx509_context context,
 	const char *str;
 	char *q;
 	int n;
-	
+
 	/* count number of component */
 	n = 1;
 	for(str = principal; *str != '\0' && *str != '@'; str++){
 	    if(*str=='\\'){
 		if(str[1] == '\0' || str[1] == '@') {
 		    ret = HX509_PARSING_NAME_FAILED;
-		    hx509_set_error_string(context, 0, ret, 
+		    hx509_set_error_string(context, 0, ret,
 					   "trailing \\ in principal name");
 		    goto out;
 		}
@@ -629,7 +625,7 @@ hx509_ca_tbs_add_san_pkinit(hx509_context context,
 	    } else if(*str == '/')
 		n++;
 	}
-	p.principalName.name_string.val = 
+	p.principalName.name_string.val =
 	    calloc(n, sizeof(*p.principalName.name_string.val));
 	if (p.principalName.name_string.val == NULL) {
 	    ret = ENOMEM;
@@ -637,7 +633,7 @@ hx509_ca_tbs_add_san_pkinit(hx509_context context,
 	    goto out;
 	}
 	p.principalName.name_string.len = n;
-	
+
 	p.principalName.name_type = KRB5_NT_PRINCIPAL;
 	q = s = strdup(principal);
 	if (q == NULL) {
@@ -661,7 +657,7 @@ hx509_ca_tbs_add_san_pkinit(hx509_context context,
 		*q++ = '\0';
 	}
     }
-    
+
     ASN1_MALLOC_ENCODE(KRB5PrincipalName, os.data, os.length, &p, &size, ret);
     if (ret) {
 	hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -669,10 +665,10 @@ hx509_ca_tbs_add_san_pkinit(hx509_context context,
     }
     if (size != os.length)
 	_hx509_abort("internal ASN.1 encoder error");
-    
+
     ret = hx509_ca_tbs_add_san_otherName(context,
 					 tbs,
-					 oid_id_pkinit_san(),
+					 &asn1_oid_id_pkinit_san,
 					 &os);
     free(os.data);
 out:
@@ -682,7 +678,7 @@ out:
 	free(s);
     return ret;
 }
-    
+
 /*
  *
  */
@@ -693,7 +689,7 @@ add_utf8_san(hx509_context context,
 	     const heim_oid *oid,
 	     const char *string)
 {
-    const PKIXXmppAddr ustring = (const PKIXXmppAddr)string;
+    const PKIXXmppAddr ustring = (const PKIXXmppAddr)(intptr_t)string;
     heim_octet_string os;
     size_t size;
     int ret;
@@ -708,7 +704,7 @@ add_utf8_san(hx509_context context,
     }
     if (size != os.length)
 	_hx509_abort("internal ASN.1 encoder error");
-    
+
     ret = hx509_ca_tbs_add_san_otherName(context,
 					 tbs,
 					 oid,
@@ -736,7 +732,7 @@ hx509_ca_tbs_add_san_ms_upn(hx509_context context,
 			    hx509_ca_tbs tbs,
 			    const char *principal)
 {
-    return add_utf8_san(context, tbs, oid_id_pkinit_ms_san(), principal);
+    return add_utf8_san(context, tbs, &asn1_oid_id_pkinit_ms_san, principal);
 }
 
 /**
@@ -757,7 +753,7 @@ hx509_ca_tbs_add_san_jid(hx509_context context,
 			 hx509_ca_tbs tbs,
 			 const char *jid)
 {
-    return add_utf8_san(context, tbs, oid_id_pkix_on_xmppAddr(), jid);
+    return add_utf8_san(context, tbs, &asn1_oid_id_pkix_on_xmppAddr, jid);
 }
 
 
@@ -786,8 +782,9 @@ hx509_ca_tbs_add_san_hostname(hx509_context context,
 
     memset(&gn, 0, sizeof(gn));
     gn.element = choice_GeneralName_dNSName;
-    gn.u.dNSName = rk_UNCONST(dnsname);
-    
+    gn.u.dNSName.data = rk_UNCONST(dnsname);
+    gn.u.dNSName.length = strlen(dnsname);
+
     return add_GeneralNames(&tbs->san, &gn);
 }
 
@@ -813,8 +810,9 @@ hx509_ca_tbs_add_san_rfc822name(hx509_context context,
 
     memset(&gn, 0, sizeof(gn));
     gn.element = choice_GeneralName_rfc822Name;
-    gn.u.rfc822Name = rk_UNCONST(rfc822Name);
-    
+    gn.u.rfc822Name.data = rk_UNCONST(rfc822Name);
+    gn.u.rfc822Name.length = strlen(rfc822Name);
+
     return add_GeneralNames(&tbs->san, &gn);
 }
 
@@ -841,6 +839,50 @@ hx509_ca_tbs_set_subject(hx509_context context,
 }
 
 /**
+ * Set the issuerUniqueID and subjectUniqueID
+ *
+ * These are only supposed to be used considered with version 2
+ * certificates, replaced by the two extensions SubjectKeyIdentifier
+ * and IssuerKeyIdentifier. This function is to allow application
+ * using legacy protocol to issue them.
+ *
+ * @param context A hx509 context.
+ * @param tbs object to be signed.
+ * @param issuerUniqueID to be set
+ * @param subjectUniqueID to be set
+ *
+ * @return An hx509 error code, see hx509_get_error_string().
+ *
+ * @ingroup hx509_ca
+ */
+
+int
+hx509_ca_tbs_set_unique(hx509_context context,
+			hx509_ca_tbs tbs,
+			const heim_bit_string *subjectUniqueID,
+			const heim_bit_string *issuerUniqueID)
+{
+    int ret;
+
+    der_free_bit_string(&tbs->subjectUniqueID);
+    der_free_bit_string(&tbs->issuerUniqueID);
+
+    if (subjectUniqueID) {
+	ret = der_copy_bit_string(subjectUniqueID, &tbs->subjectUniqueID);
+	if (ret)
+	    return ret;
+    }
+
+    if (issuerUniqueID) {
+	ret = der_copy_bit_string(issuerUniqueID, &tbs->issuerUniqueID);
+	if (ret)
+	    return ret;
+    }
+
+    return 0;
+}
+
+/**
  * Expand the the subject name in the to-be-signed certificate object
  * using hx509_name_expand().
  *
@@ -861,6 +903,10 @@ hx509_ca_tbs_subject_expand(hx509_context context,
 {
     return hx509_name_expand(context, tbs->subject, env);
 }
+
+/*
+ *
+ */
 
 static int
 add_extension(hx509_context context,
@@ -926,7 +972,7 @@ build_proxy_prefix(hx509_context context, const Name *issuer, Name *subject)
 	return ENOMEM;
     }
     /* prefix with CN=<ts>,...*/
-    ret = _hx509_name_modify(context, subject, 1, oid_id_at_commonName(), tstr);
+    ret = _hx509_name_modify(context, subject, 1, &asn1_oid_id_at_commonName, tstr);
     free(tstr);
     if (ret)
 	free_Name(subject);
@@ -1005,7 +1051,7 @@ ca_sign(hx509_context context,
 	    return EINVAL;
 	}
 	if (hx509_name_is_null_p(tbs->subject) && tbs->san.len == 0) {
-	    hx509_set_error_string(context, 0, EINVAL, 
+	    hx509_set_error_string(context, 0, EINVAL,
 				   "NULL subject and no SubjectAltNames");
 	    return EINVAL;
 	}
@@ -1017,7 +1063,7 @@ ca_sign(hx509_context context,
     }
     if (tbs->flags.proxy) {
 	if (tbs->san.len > 0) {
-	    hx509_set_error_string(context, 0, EINVAL, 
+	    hx509_set_error_string(context, 0, EINVAL,
 				   "Proxy certificate is not allowed "
 				   "to have SubjectAltNames");
 	    return EINVAL;
@@ -1091,7 +1137,35 @@ ca_sign(hx509_context context,
 	goto out;
     }
     /* issuerUniqueID  [1]  IMPLICIT BIT STRING OPTIONAL */
+    if (tbs->issuerUniqueID.length) {
+	tbsc->issuerUniqueID = calloc(1, sizeof(*tbsc->issuerUniqueID));
+	if (tbsc->issuerUniqueID == NULL) {
+	    ret = ENOMEM;
+	    hx509_set_error_string(context, 0, ret, "Out of memory");
+	    goto out;
+	}
+	ret = der_copy_bit_string(&tbs->issuerUniqueID, tbsc->issuerUniqueID);
+	if (ret) {
+	    hx509_set_error_string(context, 0, ret, "Out of memory");
+	    goto out;
+	}
+    }
     /* subjectUniqueID [2]  IMPLICIT BIT STRING OPTIONAL */
+    if (tbs->subjectUniqueID.length) {
+	tbsc->subjectUniqueID = calloc(1, sizeof(*tbsc->subjectUniqueID));
+	if (tbsc->subjectUniqueID == NULL) {
+	    ret = ENOMEM;
+	    hx509_set_error_string(context, 0, ret, "Out of memory");
+	    goto out;
+	}
+
+	ret = der_copy_bit_string(&tbs->subjectUniqueID, tbsc->subjectUniqueID);
+	if (ret) {
+	    hx509_set_error_string(context, 0, ret, "Out of memory");
+	    goto out;
+	}
+    }
+
     /* extensions      [3]  EXPLICIT Extensions OPTIONAL */
     tbsc->extensions = calloc(1, sizeof(*tbsc->extensions));
     if (tbsc->extensions == NULL) {
@@ -1099,7 +1173,7 @@ ca_sign(hx509_context context,
 	hx509_set_error_string(context, 0, ret, "Out of memory");
 	goto out;
     }
-    
+
     /* Add the text BMP string Domaincontroller to the cert */
     if (tbs->flags.domaincontroller) {
 	data.data = rk_UNCONST("\x1e\x20\x00\x44\x00\x6f\x00\x6d"
@@ -1110,7 +1184,7 @@ ca_sign(hx509_context context,
 	data.length = 34;
 
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_ms_cert_enroll_domaincontroller(),
+			    &asn1_oid_id_ms_cert_enroll_domaincontroller,
 			    &data);
 	if (ret)
 	    goto out;
@@ -1129,7 +1203,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 1,
-			    oid_id_x509_ce_keyUsage(), &data);
+			    &asn1_oid_id_x509_ce_keyUsage, &data);
 	free(data.data);
 	if (ret)
 	    goto out;
@@ -1137,7 +1211,7 @@ ca_sign(hx509_context context,
 
     /* add ExtendedKeyUsage */
     if (tbs->eku.len > 0) {
-	ASN1_MALLOC_ENCODE(ExtKeyUsage, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(ExtKeyUsage, data.data, data.length,
 			   &tbs->eku, &size, ret);
 	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -1146,7 +1220,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_x509_ce_extKeyUsage(), &data);
+			    &asn1_oid_id_x509_ce_extKeyUsage, &data);
 	free(data.data);
 	if (ret)
 	    goto out;
@@ -1154,7 +1228,7 @@ ca_sign(hx509_context context,
 
     /* add Subject Alternative Name */
     if (tbs->san.len > 0) {
-	ASN1_MALLOC_ENCODE(GeneralNames, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(GeneralNames, data.data, data.length,
 			   &tbs->san, &size, ret);
 	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -1163,7 +1237,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_x509_ce_subjectAltName(),
+			    &asn1_oid_id_x509_ce_subjectAltName,
 			    &data);
 	free(data.data);
 	if (ret)
@@ -1172,7 +1246,7 @@ ca_sign(hx509_context context,
 
     /* Add Authority Key Identifier */
     if (ai) {
-	ASN1_MALLOC_ENCODE(AuthorityKeyIdentifier, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(AuthorityKeyIdentifier, data.data, data.length,
 			   ai, &size, ret);
 	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -1181,7 +1255,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_x509_ce_authorityKeyIdentifier(),
+			    &asn1_oid_id_x509_ce_authorityKeyIdentifier,
 			    &data);
 	free(data.data);
 	if (ret)
@@ -1194,18 +1268,20 @@ ca_sign(hx509_context context,
 	unsigned char hash[SHA_DIGEST_LENGTH];
 
 	{
-	    SHA_CTX m;
-	    
-	    SHA1_Init(&m);
-	    SHA1_Update(&m, tbs->spki.subjectPublicKey.data,
-			tbs->spki.subjectPublicKey.length / 8);
-	    SHA1_Final (hash, &m);
+	    EVP_MD_CTX *ctx;
+
+	    ctx = EVP_MD_CTX_create();
+	    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+	    EVP_DigestUpdate(ctx, tbs->spki.subjectPublicKey.data,
+			     tbs->spki.subjectPublicKey.length / 8);
+	    EVP_DigestFinal_ex(ctx, hash, NULL);
+	    EVP_MD_CTX_destroy(ctx);
 	}
 
 	si.data = hash;
 	si.length = sizeof(hash);
 
-	ASN1_MALLOC_ENCODE(SubjectKeyIdentifier, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(SubjectKeyIdentifier, data.data, data.length,
 			   &si, &size, ret);
 	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -1214,18 +1290,18 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_x509_ce_subjectKeyIdentifier(),
+			    &asn1_oid_id_x509_ce_subjectKeyIdentifier,
 			    &data);
 	free(data.data);
 	if (ret)
 	    goto out;
     }
 
-    /* Add BasicConstraints */ 
+    /* Add BasicConstraints */
     {
 	BasicConstraints bc;
 	int aCA = 1;
-	uint32_t path;
+	unsigned int path;
 
 	memset(&bc, 0, sizeof(bc));
 
@@ -1237,7 +1313,7 @@ ca_sign(hx509_context context,
 	    }
 	}
 
-	ASN1_MALLOC_ENCODE(BasicConstraints, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(BasicConstraints, data.data, data.length,
 			   &bc, &size, ret);
 	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
@@ -1247,7 +1323,7 @@ ca_sign(hx509_context context,
 	    _hx509_abort("internal ASN.1 encoder error");
 	/* Critical if this is a CA */
 	ret = add_extension(context, tbsc, tbs->flags.ca,
-			    oid_id_x509_ce_basicConstraints(),
+			    &asn1_oid_id_x509_ce_basicConstraints,
 			    &data);
 	free(data.data);
 	if (ret)
@@ -1261,7 +1337,7 @@ ca_sign(hx509_context context,
 	memset(&info, 0, sizeof(info));
 
 	if (tbs->pathLenConstraint >= 0) {
-	    info.pCPathLenConstraint = 
+	    info.pCPathLenConstraint =
 		malloc(sizeof(*info.pCPathLenConstraint));
 	    if (info.pCPathLenConstraint == NULL) {
 		ret = ENOMEM;
@@ -1271,7 +1347,7 @@ ca_sign(hx509_context context,
 	    *info.pCPathLenConstraint = tbs->pathLenConstraint;
 	}
 
-	ret = der_copy_oid(oid_id_pkix_ppl_inheritAll(),
+	ret = der_copy_oid(&asn1_oid_id_pkix_ppl_inheritAll,
 			   &info.proxyPolicy.policyLanguage);
 	if (ret) {
 	    free_ProxyCertInfo(&info);
@@ -1279,7 +1355,7 @@ ca_sign(hx509_context context,
 	    goto out;
 	}
 
-	ASN1_MALLOC_ENCODE(ProxyCertInfo, data.data, data.length, 
+	ASN1_MALLOC_ENCODE(ProxyCertInfo, data.data, data.length,
 			   &info, &size, ret);
 	free_ProxyCertInfo(&info);
 	if (ret) {
@@ -1289,7 +1365,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, 0,
-			    oid_id_pkix_pe_proxyCertInfo(),
+			    &asn1_oid_id_pkix_pe_proxyCertInfo,
 			    &data);
 	free(data.data);
 	if (ret)
@@ -1307,7 +1383,7 @@ ca_sign(hx509_context context,
 	if (size != data.length)
 	    _hx509_abort("internal ASN.1 encoder error");
 	ret = add_extension(context, tbsc, FALSE,
-			    oid_id_x509_ce_cRLDistributionPoints(),
+			    &asn1_oid_id_x509_ce_cRLDistributionPoints,
 			    &data);
 	free(data.data);
 	if (ret)
@@ -1377,14 +1453,14 @@ get_AuthorityKeyIdentifier(hx509_context context,
 	memset(&gns, 0, sizeof(gns));
 	memset(&name, 0, sizeof(name));
 
-	ai->authorityCertIssuer = 
+	ai->authorityCertIssuer =
 	    calloc(1, sizeof(*ai->authorityCertIssuer));
 	if (ai->authorityCertIssuer == NULL) {
 	    ret = ENOMEM;
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
 	    goto out;
 	}
-	ai->authorityCertSerialNumber = 
+	ai->authorityCertSerialNumber =
 	    calloc(1, sizeof(*ai->authorityCertSerialNumber));
 	if (ai->authorityCertSerialNumber == NULL) {
 	    ret = ENOMEM;
@@ -1392,22 +1468,21 @@ get_AuthorityKeyIdentifier(hx509_context context,
 	    goto out;
 	}
 
-	/* 
+	/*
 	 * XXX unbreak when asn1 compiler handle IMPLICIT
 	 *
 	 * This is so horrible.
 	 */
 
 	ret = copy_Name(&certificate->tbsCertificate.subject, &name);
-	if (ai->authorityCertSerialNumber == NULL) {
-	    ret = ENOMEM;
+	if (ret) {
 	    hx509_set_error_string(context, 0, ret, "Out of memory");
 	    goto out;
 	}
 
 	memset(&gn, 0, sizeof(gn));
 	gn.element = choice_GeneralName_directoryName;
-	gn.u.directoryName.element = 
+	gn.u.directoryName.element =
 	    choice_GeneralName_directoryName_rdnSequence;
 	gn.u.directoryName.u.rdnSequence = name.u.rdnSequence;
 
@@ -1436,7 +1511,7 @@ out:
 
 
 /**
- * Sign a to-be-signed certificate object with a issuer certificate. 
+ * Sign a to-be-signed certificate object with a issuer certificate.
  *
  * The caller needs to at least have called the following functions on the
  * to-be-signed certificate object:
@@ -1478,7 +1553,7 @@ hx509_ca_sign(hx509_context context,
 	goto out;
 
     ret = ca_sign(context,
-		  tbs, 
+		  tbs,
 		  _hx509_cert_private_key(signer),
 		  &ai,
 		  &signer_cert->tbsCertificate.subject,
@@ -1510,7 +1585,7 @@ hx509_ca_sign_self(hx509_context context,
 		   hx509_cert *certificate)
 {
     return ca_sign(context,
-		   tbs, 
+		   tbs,
 		   signer,
 		   NULL,
 		   NULL,

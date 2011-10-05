@@ -1,0 +1,39 @@
+2007-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add missing files, from Buchan Milne.
+	
+2006-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* k5dcecon.c: Check for seteuid failure, prompted by MIT advisory.
+	
+2005-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* testpag.c: use NULL as last argument to execl, not 0
+
+2002-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: rename dpagaix_LDFLAGS etc to appease automake
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (dpagaix): make sure of using $(EXEEXT) just to
+	please automake (this is aix-only code)
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (dpagaix): needs to be linked with ld, add an
+	explicit command for it.  from Ake Sandgren <ake@cs.umu.se>
+
+2000-10-02  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: link with roken on everything except irix, where
+	apperently it fails.  reported by Ake Sandgren <ake@cs.umu.se>
+
+2000-07-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: set compiler flags
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	* imported stuff from Ake Sandgren <ake@cs.umu.se>
+

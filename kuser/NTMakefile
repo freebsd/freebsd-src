@@ -1,0 +1,132 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=kuser
+
+intcflags=-I$(OBJ)
+
+!include ../windows/NTMakefile.w32 
+
+BINPROGRAMS=\
+	$(BINDIR)\kinit.exe	\
+	$(BINDIR)\kcc.exe	\
+	$(BINDIR)\kdestroy.exe	\
+	$(BINDIR)\kgetcred.exe	\
+	$(BINDIR)\kvno.exe	\
+	$(BINDIR)\kcpytkt.exe	\
+	$(BINDIR)\kdeltkt.exe
+
+LIBEXECPROGRAMS=\
+	$(LIBEXECDIR)\kdigest.exe	\
+	$(LIBEXECDIR)\kimpersonate.exe
+
+NOINSTPROGRAMS=\
+	$(OBJ)\kverify.exe	\
+	$(OBJ)\kdecode_ticket.exe	\
+	$(OBJ)\generate-requests.exe
+
+
+BINLIBS=\
+	$(LIBHEIMDAL)	\
+	$(LIBHEIMNTLM)	\
+	$(LIBROKEN)	\
+	$(LIBVERS)
+
+all:: $(BINPROGRAMS) $(LIBEXECPROGRAMS)
+
+clean::
+	-$(RM) $(BINPROGRAMS:.exe=.*) $(LIBEXECPROGRAMS:.exe=.*)
+
+
+$(BINDIR)\kinit.exe: $(OBJ)\kinit.obj $(BINLIBS) $(OBJ)\kinit-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+KCC_OBJS =				\
+	$(OBJ)\kcc-commands.obj		\
+	$(OBJ)\kcc.obj			\
+	$(OBJ)\kswitch.obj		\
+	$(OBJ)\klist.obj		\
+	$(OBJ)\copy_cred_cache.obj
+
+KCCLIBS=\
+	$(BINLIBS)	\
+	$(LIBSL)
+
+$(BINDIR)\kcc.exe: $(KCC_OBJS) $(KCCLIBS) $(OBJ)\kcc-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+
+$(BINDIR)\kdestroy.exe: $(OBJ)\kdestroy.obj $(BINLIBS) $(OBJ)\kdestroy-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+
+$(BINDIR)\kgetcred.exe: $(OBJ)\kgetcred.obj $(BINLIBS) $(OBJ)\kgetcred-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+
+$(LIBEXECDIR)\kdigest.exe: $(OBJ)\kdigest-commands.obj $(OBJ)\kdigest.obj $(BINLIBS) $(LIBSL) $(OBJ)\kdigest-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(OBJ)\kdigest.obj: kdigest.c
+	$(C2OBJ) -I$(OBJ)
+
+$(OBJ)\kdigest-commands.c $(OBJ)\kdigest-commands.h: kdigest-commands.in
+	cd $(OBJ)
+	$(CP) $(SRCDIR)\kdigest-commands.in $(OBJ)
+	$(BINDIR)\slc.exe kdigest-commands.in
+	cd $(SRCDIR)
+
+$(OBJ)\kcc-commands.c $(OBJ)\kcc-commands.h: kcc-commands.in
+	cd $(OBJ)
+	$(CP) $(SRCDIR)\kcc-commands.in $(OBJ)
+	$(BINDIR)\slc.exe kcc-commands.in
+	cd $(SRCDIR)
+
+$(LIBEXECDIR)\kimpersonate.exe: $(OBJ)\kimpersonate.obj $(BINLIBS) $(OBJ)\kimpersonate-version.res
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(BINDIR)\kvno.exe: $(OBJ)\kvno.obj $(BINLIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(BINDIR)\kcpytkt.exe: $(OBJ)\kcpytkt.obj $(BINLIBS)
+	$(EXECONLINK)
+	$(EXEPREP)
+
+$(BINDIR)\kdeltkt.exe: $(OBJ)\kdeltkt.obj $(BINLIBS)
+	$(EXECONLINK)
+	$(EXEPREP)

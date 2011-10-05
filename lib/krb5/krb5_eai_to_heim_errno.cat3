@@ -1,0 +1,29 @@
+
+KRB5_EAI_TO_HEIM_ERRN... BSD Library Functions Manual KRB5_EAI_TO_HEIM_ERRN...
+
+NNAAMMEE
+     kkrrbb55__eeaaii__ttoo__hheeiimm__eerrrrnnoo, kkrrbb55__hh__eerrrrnnoo__ttoo__hheeiimm__eerrrrnnoo -- convert resolver
+     error code to com_err error codes
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eeaaii__ttoo__hheeiimm__eerrrrnnoo(_i_n_t _e_a_i___e_r_r_n_o, _i_n_t _s_y_s_t_e_m___e_r_r_o_r);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__hh__eerrrrnnoo__ttoo__hheeiimm__eerrrrnnoo(_i_n_t _e_a_i___e_r_r_n_o);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__eeaaii__ttoo__hheeiimm__eerrrrnnoo() and kkrrbb55__hh__eerrrrnnoo__ttoo__hheeiimm__eerrrrnnoo() convert
+     getaddrinfo(3), getnameinfo(3), and h_errno(3) to com_err error code that
+     are used by Heimdal, this is useful for for function returning kerberos
+     errors and needs to communicate failures from resolver function.
+
+SSEEEE AALLSSOO
+     krb5(3), kerberos(8)
+
+HEIMDAL                         April 13, 2004                         HEIMDAL

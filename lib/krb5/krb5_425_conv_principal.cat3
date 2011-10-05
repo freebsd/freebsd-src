@@ -1,0 +1,141 @@
+
+KRB5_425_CONV_PRINCIP... BSD Library Functions Manual KRB5_425_CONV_PRINCIP...
+
+NNAAMMEE
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall, kkrrbb55__442255__ccoonnvv__pprriinncciippaall__eexxtt,
+     kkrrbb55__552244__ccoonnvv__pprriinncciippaall -- converts to and from version 4 principals
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_n_a_m_e,
+         _c_o_n_s_t _c_h_a_r _*_i_n_s_t_a_n_c_e, _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m, _k_r_b_5___p_r_i_n_c_i_p_a_l _*_p_r_i_n_c_i_p_a_l);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall__eexxtt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_n_a_m_e,
+         _c_o_n_s_t _c_h_a_r _*_i_n_s_t_a_n_c_e, _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m,
+         _k_r_b_5___b_o_o_l_e_a_n _(_*_f_u_n_c_)_(_k_r_b_5___c_o_n_t_e_x_t_, _k_r_b_5___p_r_i_n_c_i_p_a_l_),
+         _k_r_b_5___b_o_o_l_e_a_n _r_e_s_o_l_v_e, _k_r_b_5___p_r_i_n_c_i_p_a_l _*_p_r_i_n_c_i_p_a_l);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__552244__ccoonnvv__pprriinncciippaall(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l, _c_h_a_r _*_n_a_m_e, _c_h_a_r _*_i_n_s_t_a_n_c_e,
+         _c_h_a_r _*_r_e_a_l_m);
+
+DDEESSCCRRIIPPTTIIOONN
+     Converting between version 4 and version 5 principals can at best be
+     described as a mess.
+
+     A version 4 principal consists of a name, an instance, and a realm. A
+     version 5 principal consists of one or more components, and a realm. In
+     some cases also the first component/name will differ between version 4
+     and version 5.  Furthermore the second component of a host principal will
+     be the fully qualified domain name of the host in question, while the
+     instance of a version 4 principal will only contain the first part (short
+     hostname).  Because of these problems the conversion between principals
+     will have to be site customized.
+
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall__eexxtt() will try to convert a version 4 principal,
+     given by _n_a_m_e, _i_n_s_t_a_n_c_e, and _r_e_a_l_m, to a version 5 principal. This can
+     result in several possible principals, and if _f_u_n_c is non-NULL, it will
+     be called for each candidate principal.  _f_u_n_c should return true if the
+     principal was ``good''.  To accomplish this,
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall__eexxtt() will look up the name in _k_r_b_5_._c_o_n_f.  It
+     first looks in the v4_name_convert/host subsection, which should contain
+     a list of version 4 names whose instance should be treated as a hostname.
+     This list can be specified for each realm (in the realms section), or in
+     the libdefaults section.  If the name is found the resulting name of the
+     principal will be the value of this binding. The instance is then first
+     looked up in v4_instance_convert for the specified realm. If found the
+     resulting value will be used as instance (this can be used for special
+     cases), no further attempts will be made to find a conversion if this
+     fails (with _f_u_n_c).  If the _r_e_s_o_l_v_e parameter is true, the instance will
+     be looked up with ggeetthhoossttbbyynnaammee().  This can be a time consuming, error
+     prone, and unsafe operation.  Next a list of hostnames will be created
+     from the instance and the v4_domains variable, which should contain a
+     list of possible domains for the specific realm.
+
+     On the other hand, if the name is not found in a host section, it is
+     looked up in a v4_name_convert/plain binding. If found here the name will
+     be converted, but the instance will be untouched.
+
+     This list of default host-type conversions is compiled-in:
+
+           v4_name_convert = {
+                   host = {
+                           ftp = ftp
+                           hprop = hprop
+                           imap = imap
+                           pop = pop
+                           rcmd = host
+                           smtp = smtp
+                   }
+           }
+
+     It will only be used if there isn't an entry for these names in the con-
+     fig file, so you can override these defaults.
+
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall() will call kkrrbb55__442255__ccoonnvv__pprriinncciippaall__eexxtt() with
+     NULL as _f_u_n_c, and the value of v4_instance_resolve (from the libdefaults
+     section) as _r_e_s_o_l_v_e.
+
+     kkrrbb55__552244__ccoonnvv__pprriinncciippaall() basically does the opposite of
+     kkrrbb55__442255__ccoonnvv__pprriinncciippaall(), it just doesn't have to look up any names, but
+     will instead truncate instances found to belong to a host principal. The
+     _n_a_m_e, _i_n_s_t_a_n_c_e, and _r_e_a_l_m should be at least 40 characters long.
+
+EEXXAAMMPPLLEESS
+     Since this is confusing an example is in place.
+
+     Assume that we have the ``foo.com'', and ``bar.com'' domains that have
+     shared a single version 4 realm, FOO.COM. The version 4 _k_r_b_._r_e_a_l_m_s file
+     looked like:
+
+           foo.com         FOO.COM
+           .foo.com        FOO.COM
+           .bar.com        FOO.COM
+
+     A _k_r_b_5_._c_o_n_f file that covers this case might look like:
+
+           [libdefaults]
+                   v4_instance_resolve = yes
+           [realms]
+                   FOO.COM = {
+                           kdc = kerberos.foo.com
+                           v4_instance_convert = {
+                                   foo = foo.com
+                           }
+                           v4_domains = foo.com
+                   }
+
+     With this setup and the following host table:
+
+           foo.com
+           a-host.foo.com
+           b-host.bar.com
+     the following conversions will be made:
+
+           rcmd.a-host     -> host/a-host.foo.com
+           ftp.b-host      -> ftp/b-host.bar.com
+           pop.foo         -> pop/foo.com
+           ftp.other       -> ftp/other.foo.com
+           other.a-host    -> other/a-host
+
+     The first three are what you expect. If you remove the ``v4_domains'',
+     the fourth entry will result in an error (since the host ``other'' can't
+     be found). Even if ``a-host'' is a valid host name, the last entry will
+     not be converted, since the ``other'' name is not known to represent a
+     host-type principal.  If you turn off ``v4_instance_resolve'' the second
+     example will result in ``ftp/b-host.foo.com'' (because of the default
+     domain). And all of this is of course only valid if you have working name
+     resolving.
+
+SSEEEE AALLSSOO
+     krb5_build_principal(3), krb5_free_principal(3), krb5_parse_name(3),
+     krb5_sname_to_principal(3), krb5_unparse_name(3), krb5.conf(5)
+
+HEIMDAL                        September 3, 2003                       HEIMDAL

@@ -1,32 +1,32 @@
-2007-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-10-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: don't run local checks.
 	
-2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print_version.c: Update (c).
 	
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* make-print-version.c: include <string.h>
 
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* make-print-version.c: Avoid creating a file called --version.
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: fix spelling of build_HEADERZ
 
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: Add build_HEADERZ to EXTRA_DIST
 	
-2005-01-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print_version.c: Happy New Year
 
-2004-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-01-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* print_version.c: add year 2004
 	

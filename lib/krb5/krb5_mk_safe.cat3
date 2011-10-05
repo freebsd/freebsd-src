@@ -1,0 +1,36 @@
+
+KRB5_MK_SAFE(3)          BSD Library Functions Manual          KRB5_MK_SAFE(3)
+
+NNAAMMEE
+     kkrrbb55__mmkk__ssaaffee, kkrrbb55__mmkk__pprriivv -- generates integrity protected and/or
+     encrypted messages
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__mmkk__pprriivv(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___d_a_t_a _*_u_s_e_r_d_a_t_a, _k_r_b_5___d_a_t_a _*_o_u_t_b_u_f,
+         _k_r_b_5___r_e_p_l_a_y___d_a_t_a _*_o_u_t_d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__mmkk__ssaaffee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___d_a_t_a _*_u_s_e_r_d_a_t_a, _k_r_b_5___d_a_t_a _*_o_u_t_b_u_f,
+         _k_r_b_5___r_e_p_l_a_y___d_a_t_a _*_o_u_t_d_a_t_a);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__mmkk__ssaaffee() and kkrrbb55__mmkk__pprriivv() formats KRB-SAFE (integrity protected)
+     and KRB-PRIV (also encrypted) messages into _o_u_t_b_u_f.  The actual message
+     data is taken from _u_s_e_r_d_a_t_a.  If the KRB5_AUTH_CONTEXT_DO_SEQUENCE or
+     KRB5_AUTH_CONTEXT_DO_TIME flags are set in the _a_u_t_h___c_o_n_t_e_x_t, sequence
+     numbers and time stamps are generated.  If the
+     KRB5_AUTH_CONTEXT_RET_SEQUENCE or KRB5_AUTH_CONTEXT_RET_TIME flags are
+     set they are also returned in the _o_u_t_d_a_t_a parameter.
+
+SSEEEE AALLSSOO
+     krb5_auth_con_init(3), krb5_rd_priv(3), krb5_rd_safe(3)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

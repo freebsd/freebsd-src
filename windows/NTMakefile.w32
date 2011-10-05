@@ -1,0 +1,574 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+all::
+
+clean::
+
+test::
+
+prep::
+
+all:: prep
+
+!include <Win32.Mak>
+
+!ifdef NODEBUG
+BUILD=rel
+!else
+BUILD=dbg
+!endif
+
+!if exist($(MAKEDIR)\windows\NTMakefile.w32)
+SRC=$(MAKEDIR)
+!elseif exist($(MAKEDIR)\..\windows\NTMakefile.w32)
+SRC=$(MAKEDIR)\..
+!elseif exist($(MAKEDIR)\..\..\windows\NTMakefile.w32)
+SRC=$(MAKEDIR)\..\..
+!elseif exist($(MAKEDIR)\..\..\..\windows\NTMakefile.w32)
+SRC=$(MAKEDIR)\..\..\..
+!elseif exist($(MAKEDIR)\..\..\..\..\windows\NTMakefile.w32)
+SRC=$(MAKEDIR)\..\..\..\..
+!else
+!  error Cant determine source directory
+!endif
+
+!  if "$(CPU)"=="i386" || "$(CPU)"=="x86"
+MCPU=x86
+!  elseif "$(CPU)"=="AMD64"
+MCPU=amd64
+!  else
+!    error Unknown CPU
+!  endif
+
+!include "NTMakefile.config"
+
+#----------------------------------------------------------------
+# Directory macros
+
+DESTDIR		=$(SRC)\out\dest_$(CPU)
+OBJDIR		=$(SRC)\out\obj_$(CPU)
+
+INCDIR		=$(DESTDIR)\inc
+LIBDIR		=$(DESTDIR)\lib
+BINDIR		=$(DESTDIR)\bin
+PLUGINDIR	=$(BINDIR)\plugin\krb5
+DOCDIR		=$(DESTDIR)\doc
+SBINDIR		=$(BINDIR)
+LIBEXECDIR	=$(BINDIR)
+ASMDIR		=$(BINDIR)
+INSTDIR		=$(DESTDIR)\install
+SDKDIR		=$(SRC)\out\sdk
+SDKINCDIR	=$(SDKDIR)\inc
+SDKLIBDIR	=$(SDKDIR)\lib\$(CPU)
+SDKSRCDIR	=$(SDKDIR)\src
+SDKREDISTDIR	=$(SDKDIR)\redist\$(CPU)
+
+!ifdef RELDIR
+SRCDIR =$(SRC)\$(RELDIR)
+OBJ    =$(OBJDIR)\$(RELDIR)
+!else
+OBJ    =$(OBJDIR)
+!endif
+
+# For tests:
+PATH=$(PATH);$(BINDIR)
+
+#----------------------------------------------------------------
+# Command macros
+
+RMAKE=nmake /nologo /f NTMakefile RECURSE=1
+MKDIR=md
+CP=copy /Y
+LINK=link
+LM=lib
+RM=del /q
+ECHO=echo
+RC=rc
+
+#----------------------------------------------------------------
+# Program macros
+
+AWK_CMD=gawk.exe
+YACC_CMD=bison.exe
+LEX_CMD=flex.exe
+PYTHON=python.exe
+PERL=perl.exe
+CMP=cmp.exe
+SIGNTOOL=signtool.exe
+MAKECAT=makecat.exe
+HHC=hhc.exe
+MAKEINFO=makeinfo.exe
+SED=sed.exe
+
+CANDLE_CMD=candle.exe
+LIGHT_CMD=light.exe
+
+# Only used for tests
+SH=sh.exe
+
+# Commands
+AWK=$(AWK_CMD)
+YACC=$(YACC_CMD) -y
+LEX=$(LEX_CMD)
+CANDLE=$(CANDLE_CMD) -nologo
+LIGHT=$(LIGHT_CMD) -nologo
+
+#----------------------------------------------------------------
+# External dependencies
+
+# For pthread support to be enabled, both PTHREAD_INC and PTHREAD_LIB
+# should be defined.  PTHREAD_INC should be the include directory
+# where pthread.h is to be found (i.e. $(PTHREAD_INC)\pthread.h should
+# exist), and PTHREAD_LIB is the full path to the pthread import
+# library.
+#
+# Note that both paths should not contain any whitespace.
+
+!ifdef PTHREAD_INC
+pthreadinc= -I$(PTHREAD_INC)
+!endif
+
+#----------------------------------------------------------------
+# Build options
+
+cincdirs=$(cincdirs) -I$(INCDIR) -I$(INCDIR)\krb5 $(pthreadinc)
+cdefines=$(cdefines) -DHAVE_CONFIG_H
+cdebug=$(cdebug) /Zi
+ldebug=$(ldebug) /DEBUG
+
+# ---------------------------------------------------------------
+# time_t issues
+
+!if "$(MCPU)"=="x86"
+cdefines=$(cdefines) -D_USE_32BIT_TIME_T
+!endif
+
+# Disable warnings:
+#
+# C4996: 'function' was declared deprecated
+# C4127: Conditional expression is constant
+# C4244: Conversion from 'type1' to 'type2', possible loss of data
+# C4100: 'identifier': unreferenced formal parameter
+# C4706: Assignment within conditional expression
+# C4214: Nonstandard extension used
+# C4267: '': Conversion from 'type1' to 'type2', possible loss of data
+# C4018: '': Signed/unsigned mismatch
+# C4204: Nonstandard extension used: non-constant aggregate initializer
+# C4221: Nonstandard extension used: 'v1': cannot be initialized using address of automatic variable 'v2'
+# C4295: '': Array is too small to include a terminating null character
+# C4146: Unary minus operator applied to unsigned type, result still unsigned.
+#
+cwarn=$(cwarn) -D_CRT_SECURE_NO_WARNINGS -wd4996 -wd4127 -wd4244 -wd4100 -wd4706
+cwarn=$(cwarn) -wd4214 -wd4267 -wd4018 -wd4389 -wd4204 -wd4221 -wd4295 -wd4146
+
+!if "$(CPU)"=="i386"
+libmach=/machine:X86
+!elseif "$(CPU)"=="AMD64"
+libmach=/machine:X64
+!else
+!  error Unknown CPU value
+!endif
+
+!ifdef NO_MP
+MPOPT=
+!else
+MPOPT=/MP
+!endif
+
+!ifndef STATICRUNTIME
+
+C2OBJ_C = $(CC) $(cdebug) $(cflags) $(cvarsdll) $(AUXCFLAGS) $(intcflags) $(cdefines) $(cincdirs) $(cwarn)
+EXECONLINK_C = $(LINK) $(ldebug) $(conlflags) $(conlibsdll) $(libmach)
+EXEGUILINK_C = $(LINK) $(ldebug) $(guilflags) $(guilibsdll) $(libmach)
+DLLCONLINK_C = $(LINK) $(ldebug) $(dlllflags) $(conlibsdll) $(libmach)
+DLLGUILINK_C = $(LINK) $(ldebug) $(dlllflags) $(guilibsdll) $(libmach)
+
+!else # STATICRUNTIME
+
+C2OBJ_C = $(CC) $(cdebug) $(cflags) $(cvarsmt) $(AUXCFLAGS) $(intcflags) $(cdefines) $(cincdirs) $(cwarn)
+EXECONLINK_C = $(LINK) $(ldebug) $(conlflags) $(conlibsmt) $(libmach)
+EXEGUILINK_C = $(LINK) $(ldebug) $(guilflags) $(guilibsmt) $(libmach)
+DLLCONLINK_C = $(LINK) $(ldebug) $(dlllflags) $(conlibsmt) $(libmach)
+DLLGUILINK_C = $(LINK) $(ldebug) $(dlllflags) $(guilibsmt) $(libmach)
+
+!endif
+
+LIBGUI_C = $(LM) /nologo $(libmach) /SUBSYSTEM:WINDOWS
+LIBCON_C = $(LM) /nologo $(libmach) /SUBSYSTEM:CONSOLE
+
+C2OBJ = $(C2OBJ_C) -Fo$@ -Fd$(@D)\ $**
+C2OBJ_NP = $(C2OBJ_C) $(MPOPT) $<
+C2OBJ_P = $(C2OBJ_NP) -Fo$(OBJ)\ -Fd$(OBJ)\ #
+EXECONLINK = $(EXECONLINK_C) -OUT:$@ $**
+EXEGUILINK = $(EXEGUILINK_C) -OUT:$@ $**
+DLLCONLINK = $(DLLCONLINK_C) -OUT:$@ $**
+DLLGUILINK = $(DLLGUILINK_C) -OUT:$@ $**
+LIBGUI = $(LIBGUI_C) /OUT:$@ $**
+LIBCON = $(LIBCON_C) /OUT:$@ $**
+
+# Preprocess files to stdout using config.h
+CPREPROCESSOUT = $(CC) /EP /FI$(INCDIR)\config.h /TC /DCPP_ONLY=1
+
+# Resources
+
+RC2RES_C = $(RC) $(cincdirs) $(AUXRCFLAGS)
+RC2RES = $(RC2RES_C) -fo $@ $**
+
+#----------------------------------------------------------------------
+# If this is the initial invocation, we check if all the build
+# utilities are there.  Also show the commands macros.
+
+!ifndef RECURSE
+
+REQUIRED_TOOLS= \
+	"$(AWK_CMD)" "$(YACC_CMD)" "$(LEX_CMD)" "$(PYTHON)" "$(PERL)" \
+	"$(CMP)" "$(SED)" "$(SIGNTOOL)" "$(MAKECAT)" "$(MAKEINFO)" "$(HHC)"
+
+!ifdef BUILD_INSTALLERS
+REQUIRED_TOOLS=$(REQUIRED_TOOLS) "$(CANDLE_CMD)" "$(LIGHT_CMD)"
+!endif
+
+OPTIONAL_TOOLS="$(SH)" 
+
+check-utils:
+	@for %%g in ( $(REQUIRED_TOOLS) ) do @( \
+	for /f %%f in ( "%%g" ) do @( \
+		if exist %%f @( \
+			echo Found %%f \
+		) else if "%%~$$PATH:f"=="" @( \
+			echo Could not find %%f in PATH && \
+			exit /b 1 \
+		) else @( \
+			echo Found %%~$$PATH:f \
+		) \
+	) \
+	)
+	@for %%g in ( $(OPTIONAL_TOOLS) ) do @( \
+	for /f %%f in ( "%%g" ) do @( \
+		if exist %%f @( \
+			echo Found %%f \
+		) else if "%%~$$PATH:f"=="" @( \
+			echo Could not find %%f in PATH && \
+			echo Optional targets may fail. \
+		) else @( \
+			echo Found %%~$$PATH:f \
+		) \
+	) \
+	)
+
+
+prep:: check-utils
+
+show-cmds:
+	@$(ECHO) C2OBJ=$(C2OBJ_C:\=\\)
+	@$(ECHO).
+	@$(ECHO) EXECONLINK=$(EXECONLINK_C)
+	@$(ECHO).
+	@$(ECHO) EXEGUILINK=$(EXEGUILINK_C)
+	@$(ECHO).
+	@$(ECHO) DLLCONLINK=$(DLLCONLINK_C)
+	@$(ECHO).
+	@$(ECHO) DLLGUILINK=$(DLLGUILINK_C)
+	@$(ECHO).
+	@$(ECHO) LIBGUI=$(LIBGUI_C)
+	@$(ECHO).
+	@$(ECHO) LIBCON=$(LIBCON_C)
+
+prep:: show-cmds
+
+!endif				# RECURSE
+
+{}.c{$(OBJ)}.obj::
+	$(C2OBJ_C) /Fd$(OBJ)\ /Fo$(OBJ)\ $(localcflags) $(MPOPT) @<<
+$<
+<<
+
+{$(OBJ)}.c{$(OBJ)}.obj::
+	$(C2OBJ_C) /Fd$(OBJ)\ /Fo$(OBJ)\ $(extcflags) $(MPOPT) @<<
+$<
+<<
+
+{}.cpp{$(OBJ)}.obj::
+	$(C2OBJ_C) /Fd$(OBJ)\ /Fo$(OBJ)\ $(localcflags) $(MPOPT) @<<
+$<
+<<
+
+{$(OBJ)}.cpp{$(OBJ)}.obj::
+	$(C2OBJ_C) /Fd$(OBJ)\ /Fo$(OBJ)\ $(extcflags) $(MPOPT) @<<
+$<
+<<
+
+{}.hin{$(INCDIR)}.h:
+	$(CP) $< $@
+
+{}.h{$(INCDIR)}.h:
+	$(CP) $< $@
+
+{}.h{$(INCDIR)\krb5}.h:
+	$(CP) $< $@
+
+{$(OBJ)}.h{$(INCDIR)}.h:
+	$(CP) $< $@
+
+{$(OBJ)}.x{$(OBJ)}.c:
+	$(CP) $< $@
+
+{$(OBJ)}.hx{$(INCDIR)}.h:
+	$(CP) $< $@
+
+{$(OBJ)}.hx{$(OBJ)}.h:
+	$(CP) $< $@
+
+{}.rc{$(OBJ)}.res:
+	$(RC2RES)
+
+#----------------------------------------------------------------------
+# Announce the build directory
+
+!ifdef RELDIR
+all:: announce
+
+all-tools:: announce-tools
+
+test:: announce
+
+clean:: announce
+
+announce:
+	@echo.
+	@echo --------- Entering $(RELDIR:\= ):
+
+announce-tools:
+	@echo.
+	@echo --------- Entering $(RELDIR:\= ) tools:
+!endif
+
+#----------------------------------------------------------------------
+# Create any required directories if they don't already exist
+
+prep:: mkdirs
+
+mkdirs:
+!  if !exist($(OBJ))
+	$(MKDIR) $(OBJ)
+!  endif
+!  if !exist($(DESTDIR))
+	$(MKDIR) $(DESTDIR)
+!  endif
+!  if !exist($(LIBDIR))
+	$(MKDIR) $(LIBDIR)
+!  endif
+!  if !exist($(BINDIR))
+	$(MKDIR) $(BINDIR)
+!  endif
+!  if !exist($(PLUGINDIR))
+	$(MKDIR) $(PLUGINDIR)
+!  endif
+!  if !exist($(INCDIR))
+	$(MKDIR) $(INCDIR)
+!  endif
+!  if !exist($(DOCDIR))
+	$(MKDIR) $(DOCDIR)
+!  endif
+!  if !exist($(INCDIR)\gssapi)
+	$(MKDIR) $(INCDIR)\gssapi
+!  endif
+!  if !exist($(INCDIR)\hcrypto)
+	$(MKDIR) $(INCDIR)\hcrypto
+!  endif
+!  if !exist($(INCDIR)\kadm5)
+	$(MKDIR) $(INCDIR)\kadm5
+!  endif
+!  if !exist($(INCDIR)\krb5)
+	$(MKDIR) $(INCDIR)\krb5
+!  endif
+
+#----------------------------------------------------------------------
+# If SUBDIRS is defined, we should recurse into the subdirectories
+
+!ifdef SUBDIRS
+subdirs:
+	@for %%f in ( $(SUBDIRS) ) do @ (pushd %%f && $(RMAKE) && popd) || exit /b 1
+
+clean-subdirs:
+	@for %%f in ( $(SUBDIRS) ) do @ (pushd %%f && $(RMAKE) clean && popd) || exit /b 1
+
+test-subdirs:
+	@for %%f in ( $(SUBDIRS) ) do @ (pushd %%f && $(RMAKE) test && popd) || exit /b 1
+
+all:: subdirs
+
+clean:: clean-subdirs
+
+test:: test-subdirs
+
+!endif
+
+#----------------------------------------------------------------------
+# Clean targets
+
+!ifdef CLEANFILES
+clean::
+	-$(RM) $(CLEANFILES)
+!endif
+!ifdef RELDIR
+clean::
+	-$(RM) $(OBJ)\*.*
+!endif
+
+.SUFFIXES: .c .cpp .hin .h .x .hx
+
+#----------------------------------------------------------------------
+# Manifest handling
+#
+# Starting with Visual Studio 8, the C compiler and the linker
+# generate manifests so that the applications will link with the
+# correct side-by-side DLLs at run-time.  These are required for
+# correct operation under Windows XP and later.  We also have custom
+# manifests which need to be merged with the manifests that VS
+# creates.
+#
+# The syntax for invoking the _VC_MANIFEST_EMBED_FOO macro is:
+# $(_VC_MANIFEST_EMBED_???) <additional manifests>
+#
+
+MT=mt.exe -nologo
+
+_VC_MANIFEST_EMBED_EXE= \
+( if exist $@.manifest $(MT) -outputresource:$@;1 -manifest $@.manifest $(APPMANIFEST) )
+
+_VC_MANIFEST_EMBED_EXE_NOHEIM= \
+( if exist $@.manifest $(MT) -outputresource:$@;1 -manifest $@.manifest )
+
+_VC_MANIFEST_EMBED_DLL= \
+( if exist $@.manifest $(MT) -outputresource:$@;2 -manifest $@.manifest )
+
+_MERGE_MANIFEST_DLL= \
+( $(MT) -inputresource:$@;2 -manifest $(APPMANIFEST) -outputresource:$@;2 )
+
+_INSERT_APPMANIFEST_DLL= \
+( $(MT) -manifest $(APPMANIFEST) -outputresource:$@;2 )
+
+# Note that if you are merging manifests, then the VS generated
+# manifest should be cleaned up after calling _VC_MANIFEST_EMBED_???.
+# This ensures that even if the DLL or EXE is executed in-place, the
+# embedded manifest will be used.  Otherwise the $@.manifest file will
+# be used.
+
+_VC_MANIFEST_CLEAN= \
+( if exist $@.manifest $(RM) $@.manifest )
+
+# End of manifest handling
+
+#----------------------------------------------------------------------
+# Code and assembly signing
+#
+# SIGNTOOL_C is any set of options required for certificate/private
+# key selection for code signging.
+#
+# SIGNTOOL_O is any set of additional options to signtool.exe
+#
+# SIGNTOOL_T is the timestamp option
+
+!ifdef CODESIGN
+_CODESIGN=( $(CODESIGN) $@ )
+!else
+
+!ifdef SIGNTOOL_C
+
+!ifndef SIGNTOOL_T
+SIGNTOOL_T=/t http://timestamp.verisign.com/scripts/timstamp.dll
+!endif
+
+_CODESIGN=( $(SIGNTOOL) sign $(SIGNTOOL_O) $(SIGNTOOL_T) $(SIGNTOOL_C) /v $@ )
+!else
+_CODESIGN=( echo Skipping code sign )
+!endif
+
+!endif
+
+#----------------------------------------------------------------------
+# Convenience macros for preparing EXEs and DLLs.  These are multiline
+# macros that deal with manifests and code signing.  Unless we need to
+# include custom manifests, these are what we should be using to
+# prepare binaries.
+
+EXEPREP=\
+( $(_VC_MANIFEST_EMBED_EXE) && $(_VC_MANIFEST_CLEAN) && $(_CODESIGN) ) || ( $(RM) $@ && exit /b 1 )
+
+EXEPREP_NOHEIM=\
+( $(_VC_MANIFEST_EMBED_EXE_NOHEIM) && $(_VC_MANIFEST_CLEAN) && $(_CODESIGN) ) || ( $(RM) $@ && exit /b 1 )
+
+EXEPREP_NODIST=\
+( $(_VC_MANIFEST_EMBED_EXE_NOHEIM) && $(_VC_MANIFEST_CLEAN) ) || ( $(RM) $@ && exit /b 1 )
+
+DLLPREP=\
+( $(_VC_MANIFEST_EMBED_DLL) && $(_VC_MANIFEST_CLEAN) && $(_CODESIGN) ) || ( $(RM) $@ && exit /b 1 )
+
+DLLPREP_NODIST=\
+( $(_VC_MANIFEST_EMBED_DLL) && $(_VC_MANIFEST_CLEAN) ) || ( $(RM) $@ && exit /b 1 )
+
+DLLPREP_MERGE=\
+( ( $(_MERGE_MANIFEST_DLL) || $(_INSERT_APPMANIFEST_DLL) ) && $(_CODESIGN) ) || ( $(RM) $@ && exit /b 1 )
+
+#----------------------------------------------------------------------
+# Convenience macros for import libraries and assemblies
+#
+
+LIBASN1	    =$(LIBDIR)\libasn1.lib
+LIBCOMERR   =$(LIBDIR)\libcom_err.lib
+LIBEDITLINE =$(LIBDIR)\libeditline.lib
+LIBGSSAPI   =$(LIBDIR)\libgssapi.lib
+LIBHCRYPTO  =$(LIBDIR)\libhcrypto.lib
+LIBHDB	    =$(LIBDIR)\libhdb.lib
+LIBHEIMBASE =$(LIBDIR)\libheimbase.lib
+LIBHEIMDAL  =$(LIBDIR)\heimdal.lib
+LIBHEIMIPCC =$(LIBDIR)\libheim-ipcc.lib
+LIBHEIMIPCS =$(LIBDIR)\libheim-ipcs.lib
+LIBHEIMNTLM =$(LIBDIR)\libheimntlm.lib
+LIBHX509    =$(LIBDIR)\libhx509.lib
+LIBKADM5CLNT=$(LIBDIR)\libkadm5clnt.lib
+LIBKADM5SRV =$(LIBDIR)\libkadm5srv.lib
+LIBKDC	    =$(LIBDIR)\libkdc.lib
+LIBLTM	    =$(LIBDIR)\libltm.lib
+LIBKRB5	    =$(LIBDIR)\libkrb5.lib
+LIBRFC3961  =$(LIBDIR)\librfc3961.lib
+LIBROKEN    =$(LIBDIR)\libroken.lib
+LIBSL	    =$(LIBDIR)\libsl.lib
+LIBSQLITE   =$(LIBDIR)\libsqlite.lib
+LIBVERS	    =$(LIBDIR)\libvers.lib
+LIBWIND	    =$(LIBDIR)\libwind.lib
+
+ASMKRBNAME  =Heimdal.Kerberos
+ASMGSSNAME  =Heimdal.GSSAPI
+APPMANIFEST =$(INCDIR)\Heimdal.Application.$(MCPU).manifest
+

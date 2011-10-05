@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hdb_locl.h"
-
-RCSID("$Id: dbinfo.c 22306 2007-12-14 12:22:38Z lha $");
 
 struct hdb_dbinfo {
     char *label;
@@ -63,7 +61,7 @@ get_dbinfo(krb5_context context,
 
     di = calloc(1, sizeof(*di));
     if (di == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
     di->label = strdup(label);
@@ -104,24 +102,24 @@ hdb_get_dbinfo(krb5_context context, struct hdb_dbinfo **dbp)
     dt = NULL;
     databases = NULL;
 
-    db_binding = krb5_config_get(context, NULL, krb5_config_list,
-				 "kdc", 
-				 "database",
-				 NULL);
+    db_binding = krb5_config_get_list(context, NULL,
+				      "kdc",
+				      "database",
+				      NULL);
     if (db_binding) {
 
 	ret = get_dbinfo(context, db_binding, "default", &di);
 	if (ret == 0 && di) {
 	    databases = di;
 	    dt = &di->next;
-	}		
+	}
 
 	for ( ; db_binding != NULL; db_binding = db_binding->next) {
 
 	    if (db_binding->type != krb5_config_list)
 		continue;
 
-	    ret = get_dbinfo(context, db_binding->u.list, 
+	    ret = get_dbinfo(context, db_binding->u.list,
 			     db_binding->name, &di);
 	    if (ret)
 		krb5_err(context, 1, ret, "failed getting realm");
@@ -159,7 +157,7 @@ hdb_get_dbinfo(krb5_context context, struct hdb_dbinfo **dbp)
 	    else
 		/* the filename is something.else, replace .else with
                    .mkey */
-		asprintf(&di->mkey_file, "%.*s.mkey", 
+		asprintf(&di->mkey_file, "%.*s.mkey",
 			 (int)(p - di->dbname), di->dbname);
 	}
 	if(di->acl_file == NULL)
@@ -228,10 +226,12 @@ hdb_free_dbinfo(krb5_context context, struct hdb_dbinfo **dbp)
 
     for(di = *dbp; di != NULL; di = ndi) {
 	ndi = di->next;
+	free (di->label);
 	free (di->realm);
 	free (di->dbname);
-	if (di->mkey_file)
-	    free (di->mkey_file);
+	free (di->mkey_file);
+	free (di->acl_file);
+	free (di->log_file);
 	free(di);
     }
     *dbp = NULL;

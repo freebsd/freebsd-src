@@ -2,6 +2,8 @@
  * Copyright (c) 2005, PADL Software Pty Ltd.
  * All rights reserved.
  *
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,8 +34,6 @@
 
 #include "kcm_locl.h"
 
-RCSID("$Id: acl.c 20472 2007-04-20 10:43:25Z lha $");
-
 krb5_error_code
 kcm_access(krb5_context context,
 	   kcm_client *client,
@@ -57,6 +57,9 @@ kcm_access(krb5_context context,
     case KCM_OP_CHMOD:
     case KCM_OP_GET_INITIAL_TICKET:
     case KCM_OP_GET_TICKET:
+    case KCM_OP_MOVE_CACHE:
+    case KCM_OP_SET_DEFAULT_CACHE:
+    case KCM_OP_SET_KDC_OFFSET:
 	write_p = 1;
 	read_p = 0;
 	break;
@@ -66,52 +69,70 @@ kcm_access(krb5_context context,
     case KCM_OP_GEN_NEW:
     case KCM_OP_RETRIEVE:
     case KCM_OP_GET_PRINCIPAL:
-    case KCM_OP_GET_FIRST:
-    case KCM_OP_GET_NEXT:
-    case KCM_OP_END_GET:
-    case KCM_OP_MAX:
+    case KCM_OP_GET_CRED_UUID_LIST:
+    case KCM_OP_GET_CRED_BY_UUID:
+    case KCM_OP_GET_CACHE_UUID_LIST:
+    case KCM_OP_GET_CACHE_BY_UUID:
+    case KCM_OP_GET_DEFAULT_CACHE:
+    case KCM_OP_GET_KDC_OFFSET:
 	write_p = 0;
 	read_p = 1;
 	break;
+    default:
+	ret = KRB5_FCC_PERM;
+	goto out;
     }
 
     if (ccache->flags & KCM_FLAGS_OWNER_IS_SYSTEM) {
 	/* System caches cannot be reinitialized or destroyed by users */
 	if (opcode == KCM_OP_INITIALIZE ||
 	    opcode == KCM_OP_DESTROY ||
-	    opcode == KCM_OP_REMOVE_CRED) {
+	    opcode == KCM_OP_REMOVE_CRED ||
+	    opcode == KCM_OP_MOVE_CACHE) {
 	    ret = KRB5_FCC_PERM;
 	    goto out;
 	}
 
 	/* Let root always read system caches */
-	if (client->uid == 0) {
+	if (CLIENT_IS_ROOT(client)) {
 	    ret = 0;
 	    goto out;
 	}
     }
 
-    mask = 0;
+    /* start out with "other" mask */
+    mask = S_IROTH|S_IWOTH;
 
-    /* Root may do whatever they like */
-    if (client->uid == ccache->uid || CLIENT_IS_ROOT(client)) {
+    /* root can do anything */
+    if (CLIENT_IS_ROOT(client)) {
 	if (read_p)
-	    mask |= S_IRUSR;
+	    mask |= S_IRUSR|S_IRGRP|S_IROTH;
 	if (write_p)
-	    mask |= S_IWUSR;
-    } else if (client->gid == ccache->gid || CLIENT_IS_ROOT(client)) {
-	if (read_p)
-	    mask |= S_IRGRP;
-	if (write_p)
-	    mask |= S_IWGRP;
-    } else {
+	    mask |= S_IWUSR|S_IWGRP|S_IWOTH;
+    }
+    /* same session same as owner */
+    if (kcm_is_same_session(client, ccache->uid, ccache->session)) {
 	if (read_p)
 	    mask |= S_IROTH;
 	if (write_p)
 	    mask |= S_IWOTH;
     }
+    /* owner */
+    if (client->uid == ccache->uid) {
+	if (read_p)
+	    mask |= S_IRUSR;
+	if (write_p)
+	    mask |= S_IWUSR;
+    }
+    /* group */
+    if (client->gid == ccache->gid) {
+	if (read_p)
+	    mask |= S_IRGRP;
+	if (write_p)
+	    mask |= S_IWGRP;
+    }
 
-    ret = ((ccache->mode & mask) == mask) ? 0 : KRB5_FCC_PERM;
+    ret = (ccache->mode & mask) ? 0 : KRB5_FCC_PERM;
 
 out:
     if (ret) {

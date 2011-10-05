@@ -1,0 +1,33 @@
+
+KRB5_GET_FORWARDED_CR... BSD Library Functions Manual KRB5_GET_FORWARDED_CR...
+
+NNAAMMEE
+     kkrrbb55__ggeett__ffoorrwwaarrddeedd__ccrreeddss, kkrrbb55__ffwwdd__ttggtt__ccrreeddss -- get forwarded credentials
+     from the KDC
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ffoorrwwaarrddeedd__ccrreeddss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _k_r_b_5___f_l_a_g_s _f_l_a_g_s,
+         _c_o_n_s_t _c_h_a_r _*_h_o_s_t_n_a_m_e, _k_r_b_5___c_r_e_d_s _*_i_n___c_r_e_d_s, _k_r_b_5___d_a_t_a _*_o_u_t___d_a_t_a);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffwwdd__ttggtt__ccrreeddss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___a_u_t_h___c_o_n_t_e_x_t _a_u_t_h___c_o_n_t_e_x_t,
+         _c_o_n_s_t _c_h_a_r _*_h_o_s_t_n_a_m_e, _k_r_b_5___p_r_i_n_c_i_p_a_l _c_l_i_e_n_t, _k_r_b_5___p_r_i_n_c_i_p_a_l _s_e_r_v_e_r,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _i_n_t _f_o_r_w_a_r_d_a_b_l_e, _k_r_b_5___d_a_t_a _*_o_u_t___d_a_t_a);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ggeett__ffoorrwwaarrddeedd__ccrreeddss() and kkrrbb55__ffwwdd__ttggtt__ccrreeddss() get tickets forwarded
+     to _h_o_s_t_n_a_m_e_. If the tickets that are forwarded are address-less, the for-
+     warded tickets will also be address-less, otherwise _h_o_s_t_n_a_m_e will be used
+     for figure out the address to forward the ticket too.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_get_credentials(3), krb5.conf(5)
+
+HEIMDAL                          July 26, 2004                         HEIMDAL

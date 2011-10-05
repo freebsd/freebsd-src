@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2005 Kungliga Tekniska Högskolan
+# Copyright (c) 2005 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: loaddump-db.in 20500 2007-04-21 21:48:17Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -47,11 +47,15 @@ kstash="../../kdc/kstash"
 hprop="../../kdc/hprop"
 hpropd="../../kdc/hpropd"
 
-propdb="${hprop} --database=./current-db -n"
-propddb="${hpropd} --database=./current-db -n"
+type="${1}"
+typesep="${type:+:}"
+typeconf="${type:+-}"
 
 
-KRB5_CONFIG="${objdir}/krb5.conf"
+propdb="${hprop} --database=${type}${typesep}./current-db -n"
+propddb="${hpropd} --database=${type}${typesep}./current-db -n"
+
+KRB5_CONFIG="${objdir}/krb5.conf${typeconf}${type}"
 export KRB5_CONFIG
 
 rm -f current-db*

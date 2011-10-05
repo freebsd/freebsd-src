@@ -1,4 +1,4 @@
-@c $Id: apps.texi 22071 2007-11-14 20:04:50Z lha $
+@c $Id$
 
 @node Applications, Things in search for a better place, Setting up a realm, Top
 
@@ -173,6 +173,32 @@ AFS is a distributed filesystem that uses Kerberos for authentication.
 For more information about AFS see OpenAFS
 @url{http://www.openafs.org/} and Arla
 @url{http://www.stacken.kth.se/projekt/arla/}.
+
+@subsection kafs and afslog
+@cindex afslog
+
+@manpage{afslog,1} will obtains AFS tokens for a number of cells. What cells to get
+tokens for can either be specified as an explicit list, as file paths to
+get tokens for, or be left unspecified, in which case will use whatever
+magic @manpage{kafs,3} decides upon.
+
+If not told what cell to get credentials for, @manpage{kafs,3} will
+search for the files ThisCell and TheseCells in the locations
+specified in @manpage{kafs,3} and try to get tokens for these cells
+and the cells specified in $HOME/.TheseCells.
+
+More usefully it will look at and ~/.TheseCells in your home directory
+and for each line which is a cell get afs token for these cells.
+
+The TheseCells file defines the the cells to which applications on the
+local client machine should try to aquire tokens for. It must reside in
+the directories searched by @manpage{kafs,3} on every AFS client machine.
+
+The file is in ASCII format and contains one character string, the cell
+name, per line. Cell names are case sensitive, but most cell names
+are lower case.
+
+See manpage for @manpage{kafs,3} for search locations of ThisCell and TheseCells.
 
 @subsection How to get a KeyFile
 

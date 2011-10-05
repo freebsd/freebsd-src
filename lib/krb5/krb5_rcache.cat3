@@ -1,0 +1,84 @@
+
+KRB5_RCACHE(3)           BSD Library Functions Manual           KRB5_RCACHE(3)
+
+NNAAMMEE
+     kkrrbb55__rrccaacchhee, kkrrbb55__rrcc__cclloossee, kkrrbb55__rrcc__ddeeffaauulltt, kkrrbb55__rrcc__ddeeffaauulltt__nnaammee,
+     kkrrbb55__rrcc__ddeeffaauulltt__ttyyppee, kkrrbb55__rrcc__ddeessttrrooyy, kkrrbb55__rrcc__eexxppuunnggee,
+     kkrrbb55__rrcc__ggeett__lliiffeessppaann, kkrrbb55__rrcc__ggeett__nnaammee, kkrrbb55__rrcc__ggeett__ttyyppee,
+     kkrrbb55__rrcc__iinniittiiaalliizzee, kkrrbb55__rrcc__rreeccoovveerr, kkrrbb55__rrcc__rreessoollvvee,
+     kkrrbb55__rrcc__rreessoollvvee__ffuullll, kkrrbb55__rrcc__rreessoollvvee__ttyyppee, kkrrbb55__rrcc__ssttoorree,
+     kkrrbb55__ggeett__sseerrvveerr__rrccaacchhee -- Kerberos 5 replay cache
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     struct krb5_rcache;
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__cclloossee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__ddeeffaauulltt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _*_i_d);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__rrcc__ddeeffaauulltt__nnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _c_o_n_s_t _c_h_a_r _*
+     kkrrbb55__rrcc__ddeeffaauulltt__ttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__ddeessttrrooyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__eexxppuunnggee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__ggeett__lliiffeessppaann(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d,
+         _k_r_b_5___d_e_l_t_a_t _*_a_u_t_h___l_i_f_e_s_p_a_n);
+
+     _c_o_n_s_t _c_h_a_r_*
+     kkrrbb55__rrcc__ggeett__nnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _c_o_n_s_t _c_h_a_r_*
+     kkrrbb55__rrcc__ggeett__ttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__iinniittiiaalliizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d,
+         _k_r_b_5___d_e_l_t_a_t _a_u_t_h___l_i_f_e_s_p_a_n);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__rreeccoovveerr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__rreessoollvvee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d, _c_o_n_s_t _c_h_a_r _*_n_a_m_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__rreessoollvvee__ffuullll(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _*_i_d,
+         _c_o_n_s_t _c_h_a_r _*_s_t_r_i_n_g___n_a_m_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__rreessoollvvee__ttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _*_i_d,
+         _c_o_n_s_t _c_h_a_r _*_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__rrcc__ssttoorree(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___r_c_a_c_h_e _i_d,
+         _k_r_b_5___d_o_n_o_t___r_e_p_l_a_y _*_r_e_p);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__sseerrvveerr__rrccaacchhee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _k_r_b_5___d_a_t_a _*_p_i_e_c_e,
+         _k_r_b_5___r_c_a_c_h_e _*_i_d);
+
+DDEESSCCRRIIPPTTIIOONN
+     The krb5_rcache structure holds a storage element that is used for data
+     manipulation.  The structure contains no public accessible elements.
+
+     kkrrbb55__rrcc__iinniittiiaalliizzee() Creates the reply cache _i_d and sets it lifespan to
+     _a_u_t_h___l_i_f_e_s_p_a_n.  If the cache already exists, the content is destroyed.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_data(3), kerberos(8)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

@@ -1,4 +1,4 @@
-dnl $Id: broken-snprintf.m4 15455 2005-06-16 21:03:43Z lha $
+dnl $Id$
 dnl
 AC_DEFUN([AC_BROKEN_SNPRINTF], [
 AC_CACHE_CHECK(for working snprintf,ac_cv_func_snprintf_working,

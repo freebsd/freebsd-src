@@ -1,4 +1,4 @@
-dnl $Id: pthreads.m4 20295 2007-04-11 11:08:08Z lha $
+Dnl $Id$
 
 AC_DEFUN([KRB_PTHREADS], [
 AC_MSG_CHECKING(if compiling threadsafe libraries)
@@ -12,29 +12,46 @@ case "$host" in
 *-*-solaris2*)
 	native_pthread_support=yes
 	if test "$GCC" = yes; then
-		PTHREADS_CFLAGS=-pthreads
-		PTHREADS_LIBS=-pthreads
+		PTHREAD_CFLAGS=-pthreads
+		PTHREAD_LIBADD=-pthreads
 	else
-		PTHREADS_CFLAGS=-mt
-		PTHREADS_LIBS=-mt
+		PTHREAD_CFLAGS=-mt
+		PTHREAD_LDADD=-mt
+		PTHREAD_LIBADD=-mt
 	fi
 	;;
-*-*-netbsd*)
+*-*-netbsd[[12]]*)
 	native_pthread_support="if running netbsd 1.6T or newer"
 	dnl heim_threads.h knows this
-	PTHREADS_LIBS=""
+	PTHREAD_LIBADD="-lpthread"
 	;;
-*-*-freebsd5*)
+*-*-netbsd[[3456789]]*)
+	native_pthread_support="netbsd 3 uses explict pthread"
+	dnl heim_threads.h knows this
+	PTHREAD_LIBADD="-lpthread"
+	;;
+*-*-freebsd[[56789]]*)
 	native_pthread_support=yes
+	PTHREAD_LIBADD="-pthread"
+	;;
+*-*-openbsd*)
+	native_pthread_support=yes
+	PTHREAD_CFLAGS=-pthread
+	PTHREAD_LIBADD=-pthread
 	;;
 *-*-linux* | *-*-linux-gnu)
 	case `uname -r` in
-	2.*)
+	2.*|3.*)
 		native_pthread_support=yes
-		PTHREADS_CFLAGS=-pthread
-		PTHREADS_LIBS=-pthread
+		PTHREAD_CFLAGS=-pthread
+		PTHREAD_LIBADD=-pthread
 		;;
 	esac
+	;;
+*-*-kfreebsd*-gnu*)
+	native_pthread_support=yes
+	PTHREAD_CFLAGS=-pthread
+	PTHREAD_LIBADD=-pthread
 	;;
 *-*-aix*)
 	dnl AIX is disabled since we don't handle the utmp/utmpx
@@ -43,7 +60,7 @@ case "$host" in
 	;;
 mips-sgi-irix6.[[5-9]])  # maybe works for earlier versions too
 	native_pthread_support=yes
-	PTHREADS_LIBS="-lpthread"
+	PTHREAD_LIBADD="-lpthread"
 	;;
 *-*-darwin*)
 	native_pthread_support=yes
@@ -62,14 +79,15 @@ if test "$enable_pthread_support" != no; then
 	[Define if you want have a thread safe libraries])
     dnl This sucks, but libtool doesn't save the depenecy on -pthread
     dnl for libraries.
-    LIBS="$PTHREADS_LIBS $LIBS"
+    LIBS="$PTHREAD_LIBADD $LIBS"
 else
-  PTHREADS_CFLAGS=""
-  PTHREADS_LIBS=""
+  PTHREAD_CFLAGS=""
+  PTHREAD_LIBADD=""
 fi
 
-AC_SUBST(PTHREADS_CFLAGS)
-AC_SUBST(PTHREADS_LIBS)
+AC_SUBST(PTHREAD_CFLAGS)
+AC_SUBST(PTHREAD_LDADD)
+AC_SUBST(PTHREAD_LIBADD)
 
 AC_MSG_RESULT($enable_pthread_support)
 ])

@@ -1,0 +1,52 @@
+
+KRB5_VERIFY_INIT_CRED... BSD Library Functions Manual KRB5_VERIFY_INIT_CRED...
+
+NNAAMMEE
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__iinniitt,
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__sseett__aapp__rreeqq__nnooffaaiill, kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss --
+     verifies a credential cache is correct by using a local keytab
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     struct krb5_verify_init_creds_opt;
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__iinniitt(_k_r_b_5___v_e_r_i_f_y___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t_i_o_n_s);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__sseett__aapp__rreeqq__nnooffaaiill(_k_r_b_5___v_e_r_i_f_y___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t_i_o_n_s,
+         _i_n_t _a_p___r_e_q___n_o_f_a_i_l);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_e_d_s _*_c_r_e_d_s,
+         _k_r_b_5___p_r_i_n_c_i_p_a_l _a_p___r_e_q___s_e_r_v_e_r, _k_r_b_5___c_c_a_c_h_e _*_c_c_a_c_h_e,
+         _k_r_b_5___v_e_r_i_f_y___i_n_i_t___c_r_e_d_s___o_p_t _*_o_p_t_i_o_n_s);
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss function verifies the initial tickets with the
+     local keytab to make sure the response of the KDC was spoof-ed.
+
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss will use principal _a_p___r_e_q___s_e_r_v_e_r from the local
+     keytab, if NULL is passed in, the code will guess the local hostname and
+     use that to form host/hostname/GUESSED-REALM-FOR-HOSTNAME.  _c_r_e_d_s is the
+     credential that kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss should verify.  If _c_c_a_c_h_e is given
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss() stores all credentials it fetched from the KDC
+     there, otherwise it will use a memory credential cache that is destroyed
+     when done.
+
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__iinniitt() cleans the the structure, must be used
+     before trying to pass it in to kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss().
+
+     kkrrbb55__vveerriiffyy__iinniitt__ccrreeddss__oopptt__sseett__aapp__rreeqq__nnooffaaiill() controls controls the
+     behavior if _a_p___r_e_q___s_e_r_v_e_r doesn't exists in the local keytab or in the
+     KDC's database, if it's true, the error will be ignored.  Note that this
+     use is possible insecure.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_get_init_creds(3), krb5_verify_user(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

@@ -38,7 +38,7 @@
 #include "ftp_locl.h"
 #include <getarg.h>
 
-RCSID("$Id: main.c 16160 2005-10-12 09:42:47Z joda $");
+RCSID("$Id$");
 
 static int help_flag;
 static int version_flag;
@@ -142,7 +142,7 @@ main(int argc, char **argv)
 	}
 	if (argc > 0) {
 	    char *xargv[5];
-	    
+
 	    if (setjmp(toplevel))
 		exit(0);
 	    signal(SIGINT, intr);
@@ -217,7 +217,7 @@ tail(filename)
 	char *filename;
 {
 	char *s;
-	
+
 	while (*filename) {
 		s = strrchr(filename, '/');
 		if (s == NULL)
@@ -555,10 +555,9 @@ help(int argc, char **argv)
 		for (i = 0; i < lines; i++) {
 			for (j = 0; j < columns; j++) {
 				c = cmdtab + j * lines + i;
-				if (c->c_name && (!proxy || c->c_proxy)) {
+				if ((!proxy || c->c_proxy)) {
 					printf("%s", c->c_name);
-				}
-				else if (c->c_name) {
+				} else {
 					for (k=0; k < strlen(c->c_name); k++) {
 						putchar(' ');
 					}

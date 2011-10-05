@@ -1,0 +1,90 @@
+.\" Copyright (c) 1996, 2000 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd November 17, 1996
+.Dt OTP 1
+.Os KTH-KRB
+.Sh NAME
+.Nm otp
+.Nd manages one-time passwords
+.Sh SYNOPSIS
+.Nm otp
+.Op Fl dhlor
+.Op Fl f Ar algorithm
+.Op Fl u Ar user
+.Ar sequence-number
+.Ar seed
+.Sh DESCRIPTION
+The
+.Nm
+program initializes and updates your current series of one-time
+passwords (OTPs).
+.Pp
+Use this to set a new series of one-time passwords.  Only perform this
+on the console or over an encrypted link as you will have to supply
+your pass-phrase.  The other two parameters are
+.Ar sequence-number
+and
+.Ar seed .
+.Pp
+Options are:
+.Bl -tag -width Ds
+.It Fl d
+To delete a one-time password.
+.It Fl f
+Choose a different
+.Ar algorithm
+from the default md5.  Pick any of: md4, md5, and sha.
+.It Fl h
+For getting a help message.
+.It Fl l
+List the current table of one-time passwords.
+.It Fl o
+To open (unlock) the otp-entry for a user.
+.It Fl r
+To renew a one-time password series.  This operation can be performed
+over an potentially eavesdropped link because you do not supply the
+pass-phrase.  First you need to supply the current one-time password
+and then the new one corresponding to the supplied
+.Ar sequence-number
+and
+.Ar seed .
+.It Fl u
+To choose a different
+.Ar user
+to set one-time passwords for.  This only works when running
+.Nm
+as root.
+.El
+.Sh SEE ALSO
+.Xr otpprint 1

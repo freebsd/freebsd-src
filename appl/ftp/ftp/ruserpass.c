@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: ruserpass.c 16161 2005-10-12 09:44:24Z joda $");
+RCSID("$Id$");
 
 static	int token (void);
 static	FILE *cfile;
@@ -59,7 +59,7 @@ static struct toktab {
 	{ "account",	ACCOUNT },
 	{ "machine",	MACH },
 	{ "macdef",	MACDEF },
-	{ "prot", 	PROT }, 
+	{ "prot", 	PROT },
 	{ NULL,		0 }
 };
 
@@ -105,7 +105,7 @@ guess_domain (char *hostname_str, size_t sz)
 }
 
 int
-ruserpass(char *host, char **aname, char **apass, char **aacct)
+ruserpassword(char *host, char **aname, char **apass, char **aacct)
 {
     char *hdir, buf[BUFSIZ], *tmp;
     int t, i, c, usedefault = 0;
@@ -137,7 +137,7 @@ next:
 		continue;
 	    /*
 	     * Allow match either for user's input host name
-	     * or official hostname.  Also allow match of 
+	     * or official hostname.  Also allow match of
 	     * incompletely-specified host in local domain.
 	     */
 	    if (strcasecmp(host, tokval) == 0)
@@ -163,7 +163,7 @@ next:
 
 	case LOGIN:
 	    if (token()) {
-		if (*aname == 0) { 
+		if (*aname == 0) {
 		    *aname = strdup(tokval);
 		} else {
 		    if (strcmp(*aname, tokval))
@@ -199,7 +199,7 @@ next:
 		fclose(cfile);
 		return (0);
 	    }
-	    while ((c=getc(cfile)) != EOF && 
+	    while ((c=getc(cfile)) != EOF &&
 		   (c == ' ' || c == '\t'));
 	    if (c == EOF || c == '\n') {
 		printf("Missing macdef name argument.\n");

@@ -1,8 +1,7 @@
-# $Id: krb5-pkinit.conf.in 20738 2007-05-31 16:52:40Z lha $
-
 [libdefaults]
 	default_realm = TEST.H5L.SE
 	no-addresses = TRUE
+	allow_weak_crypto = TRUE
 
 [appdefaults]
 	pkinit_anchors = FILE:@objdir@/ca.crt

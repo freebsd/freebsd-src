@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2000 - 2002, 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2002, 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,10 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getifaddrs.c 21745 2007-07-31 16:11:25Z lha $");
-#endif
 #include "roken.h"
 
 #ifdef __osf__
@@ -95,7 +92,7 @@ struct mbuf;
  * 3. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -193,9 +190,9 @@ ifa_sa_len(sa_family_t family, int len)
   return size;
 }
 
-static void 
-ifa_make_sockaddr(sa_family_t family, 
-		  struct sockaddr *sa, 
+static void
+ifa_make_sockaddr(sa_family_t family,
+		  struct sockaddr *sa,
 		  void *p, size_t len,
 		  uint32_t scope, uint32_t scopeid)
 {
@@ -227,8 +224,8 @@ ifa_make_sockaddr(sa_family_t family,
 
 #ifndef IFA_NETMASK
 static struct sockaddr *
-ifa_make_sockaddr_mask(sa_family_t family, 
-		       struct sockaddr *sa, 
+ifa_make_sockaddr_mask(sa_family_t family,
+		       struct sockaddr *sa,
 		       uint32_t prefixlen)
 {
   int i;
@@ -274,7 +271,7 @@ ifa_make_sockaddr_mask(sa_family_t family,
 #endif
 
 /* ====================================================================== */
-static int 
+static int
 nl_sendreq(int sd, int request, int flags, int *seq)
 {
   char reqbuf[NLMSG_ALIGN(sizeof(struct nlmsghdr)) +
@@ -300,9 +297,9 @@ nl_sendreq(int sd, int request, int flags, int *seq)
 		 (struct sockaddr *)&nladdr, sizeof(nladdr)));
 }
 
-static int 
-nl_recvmsg(int sd, int request, int seq, 
-	   void *buf, size_t buflen, 
+static int
+nl_recvmsg(int sd, int request, int seq,
+	   void *buf, size_t buflen,
 	   int *flags)
 {
   struct msghdr msg;
@@ -327,8 +324,8 @@ nl_recvmsg(int sd, int request, int seq,
   return read_len;
 }
 
-static int 
-nl_getmsg(int sd, int request, int seq, 
+static int
+nl_getmsg(int sd, int request, int seq,
 	  struct nlmsghdr **nlhp,
 	  int *done)
 {
@@ -447,7 +444,7 @@ nl_getlist(int sd, int seq,
 }
 
 /* ---------------------------------------------------------------------- */
-static void 
+static void
 free_nlmsglist(struct nlmsg_list *nlm0)
 {
   struct nlmsg_list *nlm, *nlm_next;
@@ -464,7 +461,7 @@ free_nlmsglist(struct nlmsg_list *nlm0)
   __set_errno(saved_errno);
 }
 
-static void 
+static void
 free_data(void *data, void *ifdata)
 {
   int saved_errno = errno;
@@ -474,7 +471,7 @@ free_data(void *data, void *ifdata)
 }
 
 /* ---------------------------------------------------------------------- */
-static void 
+static void
 nl_close(int sd)
 {
   int saved_errno = errno;
@@ -483,7 +480,7 @@ nl_close(int sd)
 }
 
 /* ---------------------------------------------------------------------- */
-static int 
+static int
 nl_open(void)
 {
   struct sockaddr_nl nladdr;
@@ -501,7 +498,7 @@ nl_open(void)
 }
 
 /* ====================================================================== */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rk_getifaddrs(struct ifaddrs **ifap)
 {
   int sd;
@@ -561,7 +558,7 @@ rk_getifaddrs(struct ifaddrs **ifap)
 		    NLMSG_ALIGN(sizeof(struct ifaddrs[icnt]))
 		    + dlen + xlen + nlen);
       ifa = (struct ifaddrs *)data;
-      ifdata = calloc(1, 
+      ifdata = calloc(1,
 		      NLMSG_ALIGN(sizeof(char *[max_ifindex+1]))
 		      + NLMSG_ALIGN(sizeof(uint16_t [max_ifindex+1])));
       if (ifap != NULL)
@@ -588,8 +585,8 @@ rk_getifaddrs(struct ifaddrs **ifap)
       int nlmlen = nlm->size;
       if (!(nlh0 = nlm->nlh))
 	continue;
-      for (nlh = nlh0; 
-	   NLMSG_OK(nlh, nlmlen); 
+      for (nlh = nlh0;
+	   NLMSG_OK(nlh, nlmlen);
 	   nlh=NLMSG_NEXT(nlh,nlmlen)){
 	struct ifinfomsg *ifim = NULL;
 	struct ifaddrmsg *ifam = NULL;
@@ -635,7 +632,7 @@ rk_getifaddrs(struct ifaddrs **ifap)
 	default:
 	  continue;
 	}
-	
+
 	if (!build){
 	  if (max_ifindex < nlm_index)
 	    max_ifindex = nlm_index;
@@ -826,8 +823,8 @@ rk_getifaddrs(struct ifaddrs **ifap)
 	  if (ifa->ifa_name == NULL)
 	    ifa->ifa_name = iflist[nlm_index];
 #ifndef IFA_NETMASK
-	  if (ifa->ifa_addr && 
-	      ifa->ifa_addr->sa_family != AF_UNSPEC && 
+	  if (ifa->ifa_addr &&
+	      ifa->ifa_addr->sa_family != AF_UNSPEC &&
 	      ifa->ifa_addr->sa_family != AF_PACKET){
 	    ifa->ifa_netmask = (struct sockaddr *)data;
 	    ifa_make_sockaddr_mask(ifa->ifa_addr->sa_family, ifa->ifa_netmask, nlm_prefixlen);
@@ -856,6 +853,13 @@ rk_getifaddrs(struct ifaddrs **ifap)
   return 0;
 }
 
+void ROKEN_LIB_FUNCTION
+rk_freeifaddrs(struct ifaddrs *ifp)
+{
+    /* AF_NETLINK method uses a single allocation for all interfaces */
+    free(ifp);
+}
+
 #else /* !AF_NETLINK */
 
 /*
@@ -863,7 +867,7 @@ rk_getifaddrs(struct ifaddrs **ifap)
  */
 
 static int
-getifaddrs2(struct ifaddrs **ifap, 
+getifaddrs2(struct ifaddrs **ifap,
 	    int af, int siocgifconf, int siocgifflags,
 	    size_t ifreq_sz)
 {
@@ -970,7 +974,7 @@ getifaddrs2(struct ifaddrs **ifap,
 		ret = ENOMEM;
 		goto error_out;
 	    }
-	    memcpy((*end)->ifa_broadaddr, &ifr->ifr_broadaddr, 
+	    memcpy((*end)->ifa_broadaddr, &ifr->ifr_broadaddr,
 		   sizeof(ifr->ifr_broadaddr));
 	} else if(ifreq.ifr_flags & IFF_POINTOPOINT) {
 	    (*end)->ifa_dstaddr = malloc(sizeof(ifr->ifr_dstaddr));
@@ -978,7 +982,7 @@ getifaddrs2(struct ifaddrs **ifap,
 		ret = ENOMEM;
 		goto error_out;
 	    }
-	    memcpy((*end)->ifa_dstaddr, &ifr->ifr_dstaddr, 
+	    memcpy((*end)->ifa_dstaddr, &ifr->ifr_dstaddr,
 		   sizeof(ifr->ifr_dstaddr));
 	} else
 	    (*end)->ifa_dstaddr = NULL;
@@ -989,7 +993,7 @@ getifaddrs2(struct ifaddrs **ifap,
 	(*end)->ifa_data = NULL;
 
 	end = &(*end)->ifa_next;
-	
+
     }
     *ifap = start;
     close(fd);
@@ -1005,7 +1009,7 @@ getifaddrs2(struct ifaddrs **ifap,
 
 #if defined(HAVE_IPV6) && defined(SIOCGLIFCONF) && defined(SIOCGLIFFLAGS)
 static int
-getlifaddrs2(struct ifaddrs **ifap, 
+getlifaddrs2(struct ifaddrs **ifap,
 	     int af, int siocgifconf, int siocgifflags,
 	     size_t ifreq_sz)
 {
@@ -1035,7 +1039,7 @@ getlifaddrs2(struct ifaddrs **ifap,
 	    goto error_out;
 	}
 #ifndef __hpux
-	ifconf.lifc_family = AF_UNSPEC;
+	ifconf.lifc_family = af;
 	ifconf.lifc_flags  = 0;
 #endif
 	ifconf.lifc_len    = buf_size;
@@ -1116,7 +1120,7 @@ getlifaddrs2(struct ifaddrs **ifap,
 		ret = ENOMEM;
 		goto error_out;
 	    }
-	    memcpy((*end)->ifa_broadaddr, &ifr->ifr_broadaddr, 
+	    memcpy((*end)->ifa_broadaddr, &ifr->ifr_broadaddr,
 		   sizeof(ifr->ifr_broadaddr));
 	} else if(ifreq.ifr_flags & IFF_POINTOPOINT) {
 	    (*end)->ifa_dstaddr = malloc(sizeof(ifr->ifr_dstaddr));
@@ -1124,7 +1128,7 @@ getlifaddrs2(struct ifaddrs **ifap,
 		ret = ENOMEM;
 		goto error_out;
 	    }
-	    memcpy((*end)->ifa_dstaddr, &ifr->ifr_dstaddr, 
+	    memcpy((*end)->ifa_dstaddr, &ifr->ifr_dstaddr,
 		   sizeof(ifr->ifr_dstaddr));
 	} else
 	    (*end)->ifa_dstaddr = NULL;
@@ -1135,7 +1139,7 @@ getlifaddrs2(struct ifaddrs **ifap,
 	(*end)->ifa_data = NULL;
 
 	end = &(*end)->ifa_next;
-	
+
     }
     *ifap = start;
     close(fd);
@@ -1150,8 +1154,29 @@ getlifaddrs2(struct ifaddrs **ifap,
 }
 #endif /* defined(HAVE_IPV6) && defined(SIOCGLIFCONF) && defined(SIOCGLIFFLAGS) */
 
-int ROKEN_LIB_FUNCTION
-rk_getifaddrs(struct ifaddrs **ifap) 
+/**
+ * Join two struct ifaddrs lists by appending supp to base.
+ * Either may be NULL. The new list head (usually base) will be
+ * returned.
+ */
+static struct ifaddrs *
+append_ifaddrs(struct ifaddrs *base, struct ifaddrs *supp) {
+    if (!base)
+	return supp;
+
+    if (!supp)
+	return base;
+
+    while (base->ifa_next)
+	base = base->ifa_next;
+
+    base->ifa_next = supp;
+
+    return base;
+}
+
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+rk_getifaddrs(struct ifaddrs **ifap)
 {
     int ret = -1;
     errno = ENXIO;
@@ -1161,9 +1186,43 @@ rk_getifaddrs(struct ifaddrs **ifap)
 			   sizeof(struct in6_ifreq));
 #endif
 #if defined(HAVE_IPV6) && defined(SIOCGLIFCONF) && defined(SIOCGLIFFLAGS)
-    if (ret)
-	ret = getlifaddrs2 (ifap, AF_INET6, SIOCGLIFCONF, SIOCGLIFFLAGS,
+    /* Do IPv6 and IPv4 queries separately then join the result.
+     *
+     * HP-UX only returns IPv6 addresses using SIOCGLIFCONF,
+     * SIOCGIFCONF has to be used for IPv4 addresses. The result is then
+     * merged.
+     *
+     * Solaris needs particular care, because a SIOCGLIFCONF lookup using
+     * AF_UNSPEC can fail in a Zone requiring an AF_INET lookup, so we just
+     * do them separately the same as for HP-UX. See
+     * http://repo.or.cz/w/heimdal.git/commitdiff/76afc31e9ba2f37e64c70adc006ade9e37e9ef73
+     */
+    if (ret) {
+	int v6err, v4err;
+	struct ifaddrs *v6addrs, *v4addrs;
+
+	v6err = getlifaddrs2 (&v6addrs, AF_INET6, SIOCGLIFCONF, SIOCGLIFFLAGS,
 			    sizeof(struct lifreq));
+	v4err = getifaddrs2 (&v4addrs, AF_INET, SIOCGIFCONF, SIOCGIFFLAGS,
+			    sizeof(struct ifreq));
+	if (v6err)
+	    v6addrs = NULL;
+	if (v4err)
+	    v4addrs = NULL;
+
+	if (v6addrs) {
+	    if (v4addrs)
+		*ifap = append_ifaddrs(v6addrs, v4addrs);
+	    else
+		*ifap = v6addrs;
+	} else if (v4addrs) {
+	    *ifap = v4addrs;
+	} else {
+	    *ifap = NULL;
+	}
+
+	ret = (v6err || v4err) ? -1 : 0;
+    }
 #endif
 #if defined(HAVE_IPV6) && defined(SIOCGIFCONF)
     if (ret)
@@ -1178,20 +1237,18 @@ rk_getifaddrs(struct ifaddrs **ifap)
     return ret;
 }
 
-#endif /* !AF_NETLINK */
-
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 rk_freeifaddrs(struct ifaddrs *ifp)
 {
     struct ifaddrs *p, *q;
-    
+
     for(p = ifp; p; ) {
 	free(p->ifa_name);
 	if(p->ifa_addr)
 	    free(p->ifa_addr);
-	if(p->ifa_dstaddr) 
+	if(p->ifa_dstaddr)
 	    free(p->ifa_dstaddr);
-	if(p->ifa_netmask) 
+	if(p->ifa_netmask)
 	    free(p->ifa_netmask);
 	if(p->ifa_data)
 	    free(p->ifa_data);
@@ -1200,6 +1257,8 @@ rk_freeifaddrs(struct ifaddrs *ifp)
 	free(q);
     }
 }
+
+#endif /* !AF_NETLINK */
 
 #ifdef TEST
 
@@ -1212,25 +1271,25 @@ print_addr(const char *s, struct sockaddr *sa)
     for(i = 0; i < sa->sa_len - ((long)sa->sa_data - (long)&sa->sa_family); i++)
 	printf("%02x", ((unsigned char*)sa->sa_data)[i]);
 #else
-    for(i = 0; i < sizeof(sa->sa_data); i++) 
+    for(i = 0; i < sizeof(sa->sa_data); i++)
 	printf("%02x", ((unsigned char*)sa->sa_data)[i]);
 #endif
     printf("\n");
 }
 
-void 
+void
 print_ifaddrs(struct ifaddrs *x)
 {
     struct ifaddrs *p;
-    
+
     for(p = x; p; p = p->ifa_next) {
 	printf("%s\n", p->ifa_name);
 	printf("  flags=%x\n", p->ifa_flags);
 	if(p->ifa_addr)
 	    print_addr("addr", p->ifa_addr);
-	if(p->ifa_dstaddr) 
+	if(p->ifa_dstaddr)
 	    print_addr("dstaddr", p->ifa_dstaddr);
-	if(p->ifa_netmask) 
+	if(p->ifa_netmask)
 	    print_addr("netmask", p->ifa_netmask);
 	printf("  %p\n", p->ifa_data);
     }

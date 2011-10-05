@@ -1,4 +1,4 @@
-dnl $Id: check-getpwnam_r-posix.m4 15435 2005-06-16 19:45:52Z lha $
+dnl $Id$
 dnl
 dnl check for getpwnam_r, and if it's posix or not
 

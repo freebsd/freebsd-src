@@ -31,17 +31,36 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-can.in 21033 2007-06-09 14:49:35Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
 objdir="@objdir@"
 
+env_setup="@env_setup@"
+
+. ${env_setup}
+
 # If there is no useful db support compile in, disable test
-../db/have-db || exit 77
+${have_db} || exit 77
 
 ./test_can TEST.H5L.SE heim-0.8 || exit 1
 ./test_can TEST.H5L.SE apple-10.4 || exit 1
-./test_can HEIMDAL.CITI.UMICH.EDU mit-pkinit-20070607 || exit 1
+
+rsa=yes
+pkinit=no
+if ${hxtool} info | grep 'rsa: hx509 null RSA' > /dev/null ; then
+    rsa=no
+fi
+if ${hxtool} info | grep 'rand: not available' > /dev/null ; then
+    rsa=no
+fi
+if ${kinit} --help 2>&1 | grep "CA certificates" > /dev/null; then
+    pkinit=yes
+fi
+
+if test "$pkinit" = yes -a "$rsa" = yes ; then
+    ./test_can HEIMDAL.CITI.UMICH.EDU mit-pkinit-20070607 || exit 1
+fi
 
 exit 0

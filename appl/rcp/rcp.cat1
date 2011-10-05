@@ -1,0 +1,38 @@
+
+RCP(1)                    BSD General Commands Manual                   RCP(1)
+
+NNAAMMEE
+     rrccpp -- copy file to and from remote machines
+
+SSYYNNOOPPSSIISS
+     rrccpp [--4455FFKKppxxzz] [--PP _p_o_r_t] _f_i_l_e_1 _f_i_l_e_2
+     rrccpp [--4455FFKKpprrxxzz] [--PP _p_o_r_t] _f_i_l_e_._._. _d_i_r_e_c_t_o_r_y
+
+DDEESSCCRRIIPPTTIIOONN
+     rrccpp copies files between machines. Each file argument is either a remote
+     file name of the form ``rname@rhost:path'' or a local file (containing no
+     colon or with a slash before the first colon).
+
+     Supported options:
+
+     --44, --55, --KK, --FF, --xx, --zz
+             These options are passed on to rsh(1).
+
+     --PP _p_o_r_t
+             This will pass the option --pp _p_o_r_t to rsh(1).
+
+     --pp      Preserve file permissions.
+
+     --rr      Copy source directories recursively.
+
+DDIIAAGGNNOOSSTTIICCSS
+     rrccpp is implemented as a protocol on top of rsh(1), and thus requires a
+     working rsh. If you intend to use Kerberos authentication, rsh needs to
+     be Kerberos aware, else you may see more or less strange errors, such as
+     "login incorrect", or "lost connection".
+
+HHIISSTTOORRYY
+     The rrccpp utility first appeared in 4.2BSD. This version is derived from
+     4.3BSD-Reno.
+
+HEIMDAL                         April 16, 2003                         HEIMDAL

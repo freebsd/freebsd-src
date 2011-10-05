@@ -1,4 +1,4 @@
-dnl $Id: have-pragma-weak.m4 15435 2005-06-16 19:45:52Z lha $
+dnl $Id$
 dnl
 AC_DEFUN([AC_HAVE_PRAGMA_WEAK], [
 if test "${enable_shared}" = "yes"; then

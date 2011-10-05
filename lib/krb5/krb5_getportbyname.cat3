@@ -1,0 +1,29 @@
+
+NAME(3)                  BSD Library Functions Manual                  NAME(3)
+
+NNAAMMEE
+     kkrrbb55__ggeettppoorrttbbyynnaammee -- get port number by name
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _i_n_t
+     kkrrbb55__ggeettppoorrttbbyynnaammee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_s_e_r_v_i_c_e,
+         _c_o_n_s_t _c_h_a_r _*_p_r_o_t_o, _i_n_t _d_e_f_a_u_l_t___p_o_r_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55__ggeettppoorrttbbyynnaammee() gets the port number for _s_e_r_v_i_c_e _/ _p_r_o_t_o pair from
+     the global service table for and returns it in network order.  If it
+     isn't found in the global table, the _d_e_f_a_u_l_t___p_o_r_t (given in host order)
+     is returned.
+
+EEXXAAMMPPLLEE
+     int port = krb5_getportbyname(context, "kerberos", "tcp", 88);
+
+SSEEEE AALLSSOO
+     krb5(3)
+
+HEIMDAL                         August 15, 2004                        HEIMDAL

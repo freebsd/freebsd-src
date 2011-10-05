@@ -1,5 +1,5 @@
 dnl
-dnl $Id: krb-bigendian.m4 15456 2005-06-16 21:04:43Z lha $
+dnl $Id$
 dnl
 
 dnl check if this computer is little or big-endian
@@ -51,7 +51,7 @@ if test "$krb_cv_c_bigendian_compile" = "yes"; then
   AC_DEFINE(ENDIANESS_IN_SYS_PARAM_H, 1, [define if sys/param.h defines the endiness])dnl
 fi
 AH_BOTTOM([
-#if ENDIANESS_IN_SYS_PARAM_H
+#ifdef ENDIANESS_IN_SYS_PARAM_H
 #  include <sys/types.h>
 #  include <sys/param.h>
 #  if BYTE_ORDER == BIG_ENDIAN

@@ -1,5 +1,5 @@
 #!/bin/sh 
-# $Id: slapd-init.in 22295 2007-12-14 05:59:04Z lha $
+# $Id$
 
 srcdir=@srcdir@
 

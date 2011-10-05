@@ -1,0 +1,1227 @@
+2008-06-26  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* ui.c: Send newline from use to stderr, just like the
+	prompt. From Ted Percival.
+	
+2008-05-20  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* rand-fortuna.c: If we forked, force a reseed again. Add the pid
+	as part of the reseed().
+
+2008-04-29  Björn Sandell <biorn@chalmers.se>
+
+	* des.h: Add DES_set_key_unchecked
+
+	* version-script.map: Export DES_set_key_unchecked
+
+2008-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* evp.c: EVP_MD_CTX_init already implemented.
+
+2008-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* evp.[ch]: deprecate functions that are needed for exported
+	EVP_MD_CTX.
+
+	* evp.h: Internalize hc_EVP_MD_CTX.
+	
+	* evp.c: Internalize hc_EVP_MD_CTX.
+	
+	* mdtest.c: Use EVP_MD_CTX_create()/EVP_MD_CTX_destroy().
+	
+	* test_cipher.c: unbreak des-test
+
+	* evp.c: Fixup key parity before going ahead and using the key.
+
+	* evp.c: use DES_set_key_unchecked().
+
+	* des.c: Remove inifinite loop in DES_set_key().
+
+2008-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.c: Document missing functions, add DES_check_key_parity().
+
+	* des.h: Add DES_check_key_parity, deprecate DES_set_key.
+
+	* version-script.map: Export DES_check_key_parity.
+
+	* des.h: DES_set_odd_parity "returns" void.
+
+	* rand.c: Drop const warnings.
+
+	* des.h: Sort options.
+
+2008-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* pkcs5.c: Document PKCS5_PBKDF2_HMAC_SHA1.
+
+	* des.c: DES is withdrawn.
+
+	* des.c: Document using doxygen.
+
+	* des.c: History of DES.
+
+	* doxygen.c: History of hcrypto.
+
+	* test_rand.c: do a head vs tail test on the random buffer.
+
+	* test_crypto.in: Use --file to test_rand.
+
+	* rand.c: Document, implement RAND_set_rand_engine().
+	
+	* doxygen.c: Add reference to DES, more quick links.
+
+	* rnd_keys.c: Reimplement using RAND_ interface.
+
+	* des.h: Undeprecate DES_new_random_key.
+
+	* des.c: Add documentation.
+
+2008-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* camellia-ntt.h: Move the typedef u<num> to camellia-ntt.h header
+	file.  Use u32 to define KEY_TABLE_TYPE, avoids warning on
+	platfors where u32 is not unsigned int.
+
+	* camellia-ntt.c: Move the typedef u<num> to camellia-ntt.h
+	header file.
+
+	* camellia.h: Drop need to camellia-ntt.h by including some more
+	defines.
+
+2008-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rnd_keys.c: deprecated.
+	
+	* des.h: c++ wrappers + deprecated.
+
+	* aes.h: c++ wrappers
+
+	* des.h: c++ wrappers + deprecated
+
+	* rnd_keys.c: Use matching prototypes, prompted by bug report by
+	David Rosenstrauch.
+
+2008-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* camellia.h: Drop unused defined that originates from aes.
+	
+2008-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add extra files missing from dist.
+
+2007-12-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: ENGINE_get_default_RSA can return NULL.
+
+	* dh.c: more doxygen.
+
+2007-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* evp.c: Add last of the doxygen documentation for functions in
+	this module.
+
+	* evp.c: complete the EVP_MD functions doxygen.
+
+2007-12-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* version-script.map: export RSA_gmp_method.
+
+	* doxygen.c: More documentation.
+
+	* rsa.h: add RSA_gmp_method
+
+	* rsa-gmp.c: RSA implementation written using GMP.
+
+	* test_dh.c: Test of DH by Matthias Koenig.
+
+2007-12-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* bn.h (BN_is_negative): make argument const.
+
+2007-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c: Can't call getpwuid(getuid()) at all since that causes
+	recursive lookups. Pointed out by Hai Zaar.
+
+2007-08-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_cipher.c: Use test from camellia samples.
+
+	* version-script.map: Export camellia.
+
+	* test_cipher.c: Make camellia-128-cbc tests pass.
+
+2007-08-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_cipher.c: Sprinkle EVP cipher names.
+	
+2007-07-30  David Love  <fx@gnu.org>
+
+	* camellia-ntt.c: Include <krb5-types.h>
+	
+2007-07-24  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Add Camellia.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+
+2007-06-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* hmac.c (HMAC_Init_ex): also zero out key material on re-init.
+
+2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c: Default to fortuna due to weired /dev/*random that
+	failes to deliver random data for us in hi load situations.
+
+	* rand-fortuna.c: Reseed the random generator now and then from
+	external sources.
+
+2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand-egd.c: Avoid stoping unrelated memory.
+
+2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand-fortuna.c: Use /etc/shadow, not /dev/shadow, pointed out by
+	Andrew Bartlett
+
+	* Makefile.am: add rand-timer.c
+
+	* rand-fortuna.c: Fall back to gattering data from timer and
+	secret files, this is really the last resort.
+
+	* rand-timer.c: Pick up timing diffrences in the timeing info from
+	realtime timer, only in use as a last resort.
+
+	* version-script.map: Add hc_RAND_timer_method.
+	
+2007-06-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_bn.c: Add <rand.h>.
+
+	* test_crypto.in: Test for random device before running the tests.
+
+	* test_engine_dso.c: Test for random device.
+
+	* test_bn.c (test_BN_rand): skip this test if there is no random
+	device
+
+2007-06-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Include more ui.[ch] in libbctest.
+
+	* version-script.map: Unexport _hc_DES_ipfp_test now there is a
+	separate test lib.
+
+	* Makefile.am: Build library libhctest.la for testing and link
+	with that when testing.
+
+	* version-script.map: export _hc_DES_ipfp_test
+
+2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* imath: new update from Michael Fromberger
+
+	* test_imath.c: Try to find ABR in mp_int_mul.
+
+	* engine.c: Don't try to load gmp module.
+	
+2007-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_bn.c: Plug memory leak.
+	
+2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* imath/imath.[ch]: New snapshot for Michael Fromberger, lets see if
+	this corrupts memory less.
+	
+2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* version-script.map: Don't prefix all symbols with _
+	
+2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_pkcs12.c: test the difference between "" and NULL password.
+
+	* test_pkcs12.c: one more pkcs12-pbe-s2k check
+	
+2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Add version-script
+
+	* test_crypto.in: try generate a couple of rsa keys of
+	diffrent (random) sizes, spelling.
+
+	* test_rsa.c: try generate a couple of rsa keys of
+	diffrent (random) sizes.
+	
+2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mdtest.c: stop leaking memory
+
+	* test_imath.c: fix warnings, make test into function.
+
+	* test_imath.c: shortest program causing the problem.
+
+	* test_imath.c: basic imath test
+	
+2007-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_cipher.c (test_cipher): avoid leaking memory
+	
+2007-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rsa.c: plug memory leak
+	
+2007-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: CLEANFILES += test.file
+	
+2007-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: Add randi.h.
+
+2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: spelling.
+	
+2007-02-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c: Name the random file ~/.rnd, this is the same as
+	OpenSSL.
+	
+2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand-egd.c: Make get_bytes static.
+
+	* rand.c (RAND_write_file): default to failure.
+	
+2007-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c: Implement RAND_file_name.
+
+	* test_rand.c: test RAND_file_name().
+
+	* rand.c: Provide dummy implementation of RAND_file_name.
+
+	* rand.h: add RAND_file_name
+	
+2007-01-21  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: clean more files
+
+	* rand-egd.c: access private functions though the RAND_METHOD
+	switch, move global egd function to rand-egd.c
+
+	* rand-fortuna.c: access private functions though the RAND_METHOD
+	switch
+
+	* rand-unix.c: unexport private functions.
+
+	* randi.h: Unexport internal functions.
+
+	* rand.c: access private functions though the RAND_METHOD switch,
+	don't truncate the seed-file, move global egd function to
+	rand-egd.c
+
+	* test_crypto.in: add basic random tests
+
+	* rand-egd.c: SGI cc doesn' like return void_returning_function();
+	in a void returning function.
+	
+2007-01-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_rand.c: Allow select rand method.
+
+	* rand-unix.c: expose _hc_rand_unix_status
+	
+	* randi.h: expose _hc_rand_unix_status and the internal
+	RAND_METHODs
+
+	* rand.c: Implement RAND_load_file and RAND_write_file.  Select
+	UNIX random device if available, otherwise use Fortuna.
+
+	* Add EGD/PRNGD support
+
+2007-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* fortuna: Add fortuna based on Marko Kreen's pgcrypt, no enabled yet
+
+2007-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_rsa.c: if RAND is unhappy, don't run the tests.
+
+	* test_engine_dso.c: if RAND is unhappy, don't run the tests.
+
+	* imath/imath.c: Update to imath-1.8 from Michael Fromberger
+	
+	Fixed a bug in s_udiv() affecting the computation of quotient
+	digits.  Thanks to Love Åstrand for isolating this bug.  Also in
+	this release, defining USELLONG=Y or USELLONG=N on the command
+	line for make will switch support for the "long long" data type on
+	or off without having to edit the Makefile.  The default is still
+	to permit use of "long long", even though the type is not standard
+	ANSI C90.
+
+	* imath/imath.c (s_udiv): Allocate one more for q, remove debug
+	printfs
+	
+2007-01-10  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* imath/imath.c (s_udiv): make a copy of a and b before we start
+	to make sure there is something un-tainted to print in cause of
+	failure. XXX remove this delta
+	(s_embar): make static
+	
+2007-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: Correct the test if the rsa is a complete RSA private
+	key.
+	
+2007-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* imath/imath.c: More verbose debugging in case of assertion
+	failure. XXX temporary for AIX problem.
+	
+2007-01-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa-imath.c: Fix a silly typo, and with that enable CRT since
+	now it works.
+
+	* rsa-imath.c: With this crt works, but something is wrong in the
+	key generation, so keep it turned off for now.
+
+	* test_rsa.c: Allow testing effect of key-blinding
+
+	* test_rsa.c: Add timing info to rsa keygen.
+	
+	* rsa-imath.c: don't include <imath/rsamath.h>
+	
+2007-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* imath: prune off stuff we dont use
+
+	* imath/import.sh: Prune off stuff we don't use from imathsource
+
+	* Makefile.am: Prune off stuff we don't use from imathsource
+
+	* rsa-imath.c: Use mp_int_exptmod directly.
+
+	* imath/iprime.c: Use a larger table of small primes, cut down
+	genenration in best cases to half compared to using a small table.
+
+	* rsa.h: add RSA_FLAG_NO_BLINDING
+
+	* rsa-imath.c: Add keyblinding, add a commented out CRT based RSA.
+
+	* rsa.c: Add iqmp.
+
+2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: add missing ;
+
+	* rsa.c: Add i2d_RSAPrivateKey.
+
+	* rsa.h: Add i2d_RSAPrivateKey.
+
+	* test_rsa.c: test RSA_generate_key_ex
+
+	* rsa-imath.c: Add imath_rsa_generate_key.
+	
+2006-12-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: add RSA_generate_key_ex
+
+	* rsa.h: add RSA_generate_key_ex
+	
+2006-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: CLEANFILES += test_crypto
+	
+2006-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add rsakey.der to EXTRA_DIST.
+	
+2006-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add test_crypto.in to EXTRA_DIST.
+
+	* test_crypto.in: Add more spaces to allow sh to parse this
+
+	* test_rsa.c: Explain what the fixed "sha1" checksum test tries to
+	test.
+	
+	* test_crypto.in: test rsa, dh and engine code
+	
+2006-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: rsa and crypto engine test cases
+
+	* test_rsa.c: Make faster and less verbose
+
+	* rsakey.der: test rsa key
+
+	* test_rsa.c: Test rsa operations
+
+	* rsa-imath.c: Fix the rsa-decrypt failed case that been hauting
+	me for a while.
+	
+2006-12-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa-imath.c: Use mp_int_to_binary to encode bignums
+
+	* rsa-imath.c: Check if header is there
+	
+2006-11-27  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rsa-imath.c: Return -1 for failure.
+
+	* rsa-imath.c: Its ok with smaller signatures.
+
+	* rsa-imath.c: Split error codes for now
+	
+2006-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: Try to not leak memory.
+	
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand-unix.c (unix_bytes): read until the other side give us all
+	or fail.
+
+	* imath: import imath-1.7, fixes buffer overrun problems
+
+	* rsa.c (RSA_free): free the whole key
+
+	* test_engine_dso.c: Add more dh tests.
+
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* imath/imath.c: Allocate more bits.
+
+	* dh-imath.c (dh_compute_key): fix signness test
+
+	* dh-imath.c: Try harder to generate a good keypair.
+
+	* dh-imath.c: Return -1 dh_compute_key on failure, pointed out by
+	Olga Kornievskaia.
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add hash.h and des-tables.h.
+
+	* dh.c (DH_compute_key): return -1 on bad public key.
+
+	* rsa.c: remove stray ;
+
+	* engine.c: Does function typecasts instead of void * type-casts.
+
+	* evp.c: Does function typecasts instead of void * type-casts.
+	
+2006-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: add rand-unix.c
+
+	* rand.c: Move out rand-unix functions from the core lib.
+
+	* rand-unix.c: Move out rand-unix functions from the core lib.
+	
+2006-10-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* hmac.c (HMAC_CTX_cleanup): destroy the EVP_MD_CTX, so it will be
+	freed.
+	
+2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* bn.c: Drop heim_any.h, prefix der primitives with der_
+
+	* rsa.c: Drop heim_any.h.
+	
+2006-10-11  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* rsa.c (RSA_free): Call the meth->finish before releasing the
+	engine.
+	
+2006-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* imath/imath.c: Cast argument to ctype(3) functions to (unsigned
+	char).
+
+	* imath/imrat.c: Cast argument to ctype(3) functions to (unsigned
+	char).
+	
+2006-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ui.c (read_string): Try to not call signaction for signal 0 and
+	use NSIG if it exists to determin how many signals there exists,
+	also, only restore those signalhandlers that we got out.
+	
+	Bug reported by and patch tested by Harald Barth.
+	
+2006-09-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa-imath.c: Add commeted out test that exponent is > 3
+	
+2006-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* bn.c (BN_rand): avoid shadowing.
+	
+2006-05-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa-imath.c: Fix the last one of the asserts.
+	
+2006-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c (get_device_fd): use /dev/urandom first.
+
+	* rctest.c: Less "pointer targets in passing argument differ in
+	signedness" warnings.
+
+	* rc2test.c: Less "pointer targets in passing argument differ in
+	signedness" warnings.
+	
+2006-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rsa-imath.c: Fix a off by one.
+	
+	* test_engine_dso.c: print the lengths when they don't match.
+
+	* engine.c (ENGINE_load_builtin_engines): use RSA_imath_method for
+	the building engine.
+
+	* rsa.h: expose RSA_imath_method
+
+	* rsa.c (RSA_check_key): Do sign/verify instead.
+
+	* dsa.c: rename the DSA_METHOD
+
+	* dh.c: rename the DH_METHOD
+
+	* dh-imath.c: rename the DH_METHOD
+
+	* rsa.c: Default to use rsa-imath.
+
+	* Makefile.am: Add rsa-imath.c to libhcrypto
+
+	* rsa-imath.c: Add RSA support using imath.
+	
+2006-05-06 Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* imath: Add imath-1.1.9
+
+	* dh.h: Expose DH_imath_method.
+
+	* Makefile.am: Add imath source, add test_engine_dso to TESTS.
+
+	* engine.c: Lets say we have RSA_null_method(), not really
+	useable, but still.
+
+	* test_engine_dso.c: If there are no arguments, use the internal
+	engine.
+
+	* engine.h: Cpp rename some ENGINE symbols.
+
+	* engine.c (ENGINE_load_builtin_engines): Load the internal
+	engine.
+
+	* dh.c: Default to use DH-imath.
+
+	* dh.c (DH_check_pubkey): describe what the function do
+
+2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* dh.c (DH_compute_key): check return status value from
+	DH_check_pubkey
+
+	* Rename u_intXX_t to uintXX_t
+	
+2006-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* pkcs5.c: include <krb5-types.h>
+
+	* evp.c: Sprinkel some assertions.
+
+	* des.c: Move assertion and add another restriction, used as hint
+	to beam that its ok
+	
+2006-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c (RSA_check_key): don't do any checking if there is no
+	private key
+
+	* engine.c (add_engine): reassign engines variable after realloc
+	
+2006-04-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* evp.h: Add EVP_get_cipherbyname, unbreak EVP_BytesToKey
+
+	* evp.h: Add prototype for EVP_BytesToKey
+
+	* evp.c: Add stub for EVP_BytesToKey
+	
+2006-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* dh.h: Add cpp-rename for DH_check_pubkey
+	
+2006-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.h: Add more RAND functions.
+
+	* rand.c: Split out unix /dev/random to a RAND_METHOD
+
+	* engine.h: add RAND support
+
+	* engine.c: add RAND support
+
+	* evp.h: s/rc4_64/rc2_64/
+
+	* rand.c: Add RAND_METHOD and some associated functions.
+
+	* rand.h: Add RAND_METHOD and some associated functions.
+
+	* test_bn.c: Test BN_rand
+	
+2006-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* engine.c (ENGINE_by_dso): less printf
+
+	* rsa.h (i2d_RSAPublicKey): fix prototype
+
+	* rsa.c (i2d_RSAPublicKey): fix prototype
+	
+2006-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* evp.h: Add EVP_rc2_64_cbc
+
+	* evp.c: Add EVP_rc2_64_cbc
+
+	* evp.h: Add SHA-256 symbols.
+
+	* evp.c: Add SHA-256.
+
+	* sha.h: Add SHA-256 symbols.
+
+	* mdtest.c: Test SHA-256.
+
+	* sha256.c: Inital (naive) SHA-256 implementation.
+	
+2006-04-14 Love Hörnquist Åstrand <lha@it.su.se>
+
+	* des.c (DES_cfb64_encrypt): add asserts that the *num pointers is
+	>= 0, because if it is, its a programmer error.
+	
+2006-04-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rc2.c (RC2_set_key): abort on erroneous input (len <= 0) size
+	that will case out out bound indexing, and its invalid input.
+
+	* rsa.c: Make compile again.
+	
+2006-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsa.c: Implement i2d_RSAPublicKey
+
+	* rsa.h: Add i2d_RSAPublicKey
+	
+2006-03-07 Love Hörnquist Åstrand <lha@it.su.se>
+
+	* Makefile.am: EVP interface depends on dlopen, add it to LIBFLAGS
+	
+2006-02-28  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: Add pkcs5 files.
+
+	* test_pkcs5.c: Testcases for pkcs5 pbe2.
+
+	* pkcs5.c (PKCS5_PBKDF2_HMAC_SHA1): new function.
+
+	* hmac.c: Digest key when it exceeds block size, not when it
+	exceeds the size of the output block.
+	
+2006-02-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rand.c (RAND_bytes): Don't abort() on failure, return error.
+
+	* bn.c (BN_rand): check return value from RAND_bytes
+	
+2006-01-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* dh.c (DH_compute_key): check public key
+
+	* dh.h: Add DH_check_pubkey and defines it uses.
+
+	* dh.c (DH_check_pubkey): New function.
+
+	* bn.c: Remove unused fragment.
+
+	* test_bn.c: Compare numbers with BN_cmp().
+	
+2006-01-17  David Love  <fx@gnu.org>
+
+	* bn.c: Include <limits.h>.
+	
+2006-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* *.h: use #include <hcrypto/...>
+
+	* Makefile.am: provide a symlink so the directory hcrypto/ seems
+	to exists
+
+	* engine.h: Expose dsa symbols
+
+	* Makefile.am: Rename library to hcrypto and install headerfiles
+	in hcrypto/.
+
+	* test_pkcs12.c: Test for PKCS12_key_gen.
+
+	* hmac.h: Drop HMAC_CTX_create and HMAC_CTX_destroy.
+
+	* engine.c (ENGINE_add_conf_module): Also load DH
+
+	* dh.h: Reorder includes to avoid compile errors, provide
+	DH_new_method().
+
+	* dh.c: Indent.
+
+	* bn.c: BN_get_negative was really named BN_is_negative, a comment
+	confused me.
+
+	* bn.h: BN_get_negative was really named BN_is_negative, a comment
+	confused me.
+
+	* pkcs12.h: Add PKCS12_key_gen().
+
+	* pkcs12.c: Add PKCS12_key_gen().
+
+	* Makefile.am: Add test_cipher, test_pkcs12, add pkcs12.[ch].
+
+	* evp.c: Rename rc2_40_cbc internal variable to something better.
+	Unbreak des-ede3-cbc.
+	
+2006-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_bn.c: Test BN_uadd.
+
+	* bn.c (BN_rand): don't leak memory on failure, catch malloc(0)
+	case
+	
+	* bn.c (BN_rand): clear the bits above the bits that user
+	requested.
+	(BN_uadd): new function.
+	
+	* bn.h (BN_uadd): new function.
+	
+2006-01-10  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* evp.c (EVP_CIPHER_CTX_cleanup): clean up less aggressively
+
+	* Makefile.am (check_PROGRAMS): add test_hmac
+
+	* test_hmac.c: Simple regression test for HMAC.
+
+	* hmac.c: Make hmac work.
+
+	* evp.c: return the right blocksize for digests.
+	
+2006-01-09  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* test_engine_dso.c: Add test for DH.
+
+	* dh.c: Add DH_new_method, add ENGINE refcounting.
+
+	* engine.[ch]: Add ENGINE_set_default_DH and ENGINE_get_default_DH
+
+	* test_engine_dso.c: Add test for RSA encryption.
+	
+2006-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_engine_dso.c: Add test for RSA.
+
+	* implement enough glue to support OpenSSLs EVP, RSA, DSA, DH,
+	HMAC, RAND and ENGINE interfaces for use in hx509. rename all
+	symbols to start with hc_ to avoid clobbering namespaces. contains
+	no RSA/DH/DSA code, just glue to support using dynamic
+	ENGINE. hx509 supports this via pkcs11 and there is a gmp ENGINE
+	module supporting RSA. Also contains a MD2 digest for completion.
+
+2005-07-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.c,des.h,rnd_keys.c: change unsigned char * to void *
+
+2005-06-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c: const poision for unwriteable strings
+
+2005-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.c,aes.c,rc2.c: Rename parameter, as encrypt shadows a
+	global, from Andrew Bartlett
+
+2005-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c: Include <stdlib.h> for srandom/random.
+
+2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.c (DES_cbc_cksum): init u to make sure it have a value in
+	case of the empty in data
+
+	* destest.c: add test for the empty password ""
+
+2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rctest.c (cipher3): used unsigned char to avoid problems with
+	platforms using "signed char"
+	
+2005-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rc2.c: use unsigned char to avoid signess warning
+
+	* des.c: use unsigned char to avoid signess warning
+
+	* aes.c (AES_cbc_encrypt): use unsigned char to avoid signess
+	warning
+
+2005-05-03  Dave Love  <fx@gnu.org>
+
+	* mdtest.c: Fix typo for HAVE_STDLIB_H.
+
+2005-05-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c: Enabled to build on cygwin, based on patch from
+	David Love <fx@gnu.org>
+
+2005-05-02  Dave Love  <fx@gnu.org>
+
+	* mdtest.c: Include <krb5-types.h>.
+
+2005-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ui.c: Include <des.h>.
+	(UI_UTIL_read_pw_string): make the prompt argument const.
+
+	* des.h (UI_UTIL_read_pw_string): make the prompt argument const
+
+	* ui.c (UI_UTIL_read_pw_string): remove unused variable plen
+	
+	* des.c: replace <strings.h> with <string.h>
+	
+2005-04-29  Dave Love  <fx@gnu.org>
+
+	* Makefile.am: Add LIB_roken.
+	
+2005-04-27  Dave Love  <fx@gnu.org>
+
+	* sha.c: Include hash.h first.
+	
+	* md4.c: Include hash.h first.
+	
+	* md5.c: Include hash.h first.
+	
+	* hash.h: Include krb5-types.h
+	
+2005-04-26  Dave Love  <fx@gnu.org>
+
+	* mdtest.c: Maybe include stdlib.h
+	
+2005-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sha.h,md5.h, md4.h: don't include bit types, the user must do
+	that #ifdef wrap
+	
+	* aes.h: #ifdef wrap
+
+2005-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.h: fix prototype for DES_random_key
+
+	* rnd_keys.c: fix prototype for DES_random_key
+
+	* des.[ch]: provide compatibility function DES_key_sched, same as
+	DES_set_key
+
+2005-03-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* destest.c: include config.h and protect some headers
+	
+	* rnd_keys.c: move <des.h> to after include <krb5-types.h> so the
+	C99 integer types exists
+
+2005-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.c: add DES_set_key_checked
+
+	* des.h: add DES_set_key_checked
+
+2005-03-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* des-tables.h: Add the missing file
+	
+2005-02-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ui.c: remove dependency on asprintf
+
+	* Makefile.am: make destest only once
+
+	* Replace the eay DES code with key scheule setup code by me and DES
+	s-box and p permutation from Richard Outerbridge implemtation (in
+	public domain).  The DES modes are implemented by me. ui.c code are
+	from appl/login.
+
+	The implementation is about 3 times slower then Eric for encryption,
+	and about the same speed for key setup.
+
+
+2004-08-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c (DES_rand_data): also try /dev/arandom
+
+2004-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c: don't include krb4 headers
+	
+	* rijndael-alg-fst.c: don't include krb4 headers
+	
+	* aes.c: don't include krb4 headers
+	
+	* aes.h: define AES_{EN,DE}CRYPT; remove #ifdefs, this is an
+	installed file
+
+2004-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rc2.c: handle non blocksized cbc messages
+
+	* aes.[ch]: add AES_cbc_encrypt
+
+2004-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rc2test.c: test vectors from RFC2268
+	
+	* rc2.c (RC2_set_key): rewrite the mask calculation
+	
+	* rc2.c (RC2_set_key): handle keys where effective bits are
+	diffrent from keylength
+
+2004-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rc2.c: rc2 implementation
+	
+	* rc2.h: rc2 implementation
+	
+	* rc2test.c: rc2 implementation
+	
+	* Makefile.am: rc2 implementation
+
+2004-03-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: new arcfour implementation
+	
+	* rc4.c: implemented from description in
+	draft-kaukonen-cipher-arcfour-03.txt
+	
+	* rc4.h: replace with new implementation
+	
+	* rc4_enc.c rc4_skey.c: remove 
+
+	* rctest.c: test for arcfour
+	
+2003-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rnd_keys.c: uninitialized variable, from Panasas Inc
+	
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* md4.c (MD4_Final): make the function threadsafe by removing
+	static on the local variable zeros
+	
+	* md5.c (MD5_Final): make the function threadsafe by removing
+	static on the local variable zeros
+
+	* switch to the DES_ api, dont provide any compat glue
+
+2003-08-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sha.c: make the function threadsafe by removing static on the
+	local variable zeros
+
+2003-07-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rijndael-alg-fst.h,rijndael-alg-fst.c,aes.c,aes.h:
+	Makefile.am: add AES support
+
+2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.1: sunOS -> SunOS, from jmc <jmc@prioris.mini.pw.edu.pl>
+	
+2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* des.1: spelling, from <jmc@prioris.mini.pw.edu.pl>
+	
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* read_pwd.c: move NeXT SGTTY stuff here
+
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 3:1:0
+
+2001-05-11  Assar Westerlund  <assar@sics.se>
+
+	* str2key.c (des_string_to_key, des_string_to_2keys): avoid weak
+	keys
+
+2001-02-16  Assar Westerlund  <assar@sics.se>
+
+	* set_key.c: correct weak keys and update comment
+
+2001-02-14  Assar Westerlund  <assar@sics.se>
+
+	* set_key.c: correct the two last weak keys in accordance with
+	FIPS 74.  noted by <jhutz@cmu.edu>
+
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libdes_la_LDFLAGS): bump version to 3:0:0
+
+2000-10-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (LIBSRC, LIBOBJ): add rc4* and enc_{read,write}
+	files so that this library contains the same things as libdes in
+	Heimdal
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 2:1:0
+
+2000-08-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* enc_writ.c: BSIZE -> des_BSIZE to avoid conflicts with AIX
+	jfs/fsparam.h
+
+	* enc_read.c: BSIZE -> des_BSIZE to avoid conflicts with AIX
+	jfs/fsparam.h
+
+	* des_locl.h: BSIZE -> des_BSIZE to avoid conflicts with AIX
+	jfs/fsparam.h
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 2:0:0
+
+2000-01-26  Assar Westerlund  <assar@sics.se>
+
+	* mdtest.c: update to pseudo-standard APIs for md4,md5,sha.
+	* md4.c, md4.h, md5.c, md5.h, sha.c, sha.h: move to the
+	pseudo-standard APIs
+
+1999-12-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+1999-11-29  Assar Westerlund  <assar@sics.se>
+
+	* fcrypt.c (crypt_md5): add trailing $
+	
+1999-11-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (include_HEADERS): add rc4.h
+	(libdes_la_SOURCES): add rc4_skey.c
+
+1999-10-28  Assar Westerlund  <assar@sics.se>
+
+	* md5crypt_test.c: change the test case.  apparently we should not
+ 	include $ after the salt.  also make it print more useful stuff
+ 	when failing.
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 0:2:0
+
+1999-09-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* des.h: make this work with mips 64-bit abi
+
+1999-08-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* fcrypt.c (crypt_md5): don't use snprintf
+
+1999-08-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add md5crypt_test
+
+	* Makefile.in: add md5crypt_test
+
+	* md5crypt_test.c: test md5 crypt
+
+	* fcrypt.c: always enable md5 crypt
+
+1999-07-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version number (changes to md*, sha)
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* sha.c (swap_u_int32_t): add _CRAY
+
+Sat Apr 10 23:02:30 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* destest.c: fixes for crays
+
+Thu Apr  1 11:26:38 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: noinst_PROGRAMS -> check_PROGRAMS; add TESTS; don't
+ 	build rpw, and speed
+
+Mon Mar 22 20:16:26 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: hash.h
+
+	* sha.c: use hash.h; fixes for crays
+
+	* md5.c: use hash.h; fixes for crays
+
+	* md4.c: use hash.h; fixes for crays
+
+	* hash.h: common stuff from md4, md5, and sha1
+
+Sat Mar 20 00:16:53 1999  Assar Westerlund  <assar@sics.se>
+
+	* rnd_keys.c (des_rand_data): move declaration to get rid of
+ 	warning
+
+Thu Mar 18 11:22:28 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Mon Mar 15 17:36:41 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* rnd_keys.c (des_rand_data): if not using setitimer, block
+ 	SIGCHLD around fork(), also make sure we get the status of the
+ 	child process
+	(fake_signal): emulate signal using sigaction
+
+Tue Jan 12 05:06:54 1999  Assar Westerlund  <assar@sics.se>
+
+	* des.h: sparcv9 is also 64 bits, use `unsigned int' instead of
+ 	`unsigned long'
+
+Sun Nov 22 10:40:09 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (WFLAGS): set
+
+Mon May 25 05:24:56 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): try to remove shared library debris
+
+Sun Apr 19 09:50:53 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add symlink magic for linux
+
+Sun Nov  9 07:14:45 1997  Assar Westerlund  <assar@sics.se>
+
+	* mdtest.c: print out old and new string
+

@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,14 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: net_read.c 21005 2007-06-08 01:54:35Z lha $");
-#endif
-
-#include <sys/types.h>
-#include <unistd.h>
-#include <errno.h>
 
 #include "roken.h"
 
@@ -46,19 +39,17 @@ RCSID("$Id: net_read.c 21005 2007-06-08 01:54:35Z lha $");
  * Like read but never return partial data.
  */
 
-ssize_t ROKEN_LIB_FUNCTION
-net_read (int fd, void *buf, size_t nbytes)
+#ifndef _WIN32
+
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
+net_read (rk_socket_t fd, void *buf, size_t nbytes)
 {
     char *cbuf = (char *)buf;
     ssize_t count;
     size_t rem = nbytes;
 
     while (rem > 0) {
-#ifdef WIN32
-	count = recv (fd, cbuf, rem, 0);
-#else
 	count = read (fd, cbuf, rem);
-#endif
 	if (count < 0) {
 	    if (errno == EINTR)
 		continue;
@@ -72,3 +63,56 @@ net_read (int fd, void *buf, size_t nbytes)
     }
     return nbytes;
 }
+
+#else
+
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
+net_read(rk_socket_t sock, void *buf, size_t nbytes)
+{
+    char *cbuf = (char *)buf;
+    ssize_t count;
+    size_t rem = nbytes;
+
+#ifdef SOCKET_IS_NOT_AN_FD
+    int use_read = 0;
+#endif
+
+    while (rem > 0) {
+#ifdef SOCKET_IS_NOT_AN_FD
+	if (use_read)
+	    count = _read (sock, cbuf, rem);
+	else
+	    count = recv (sock, cbuf, rem, 0);
+
+	if (use_read == 0 &&
+	    rk_IS_SOCKET_ERROR(count) &&
+            (rk_SOCK_ERRNO == WSANOTINITIALISED ||
+             rk_SOCK_ERRNO == WSAENOTSOCK)) {
+	    use_read = 1;
+
+	    count = _read (sock, cbuf, rem);
+	}
+#else
+	count = recv (sock, cbuf, rem, 0);
+#endif
+	if (count < 0) {
+
+	    /* With WinSock, the error EINTR (WSAEINTR), is used to
+	       indicate that a blocking call was cancelled using
+	       WSACancelBlockingCall(). */
+
+#ifndef HAVE_WINSOCK
+	    if (rk_SOCK_ERRNO == EINTR)
+		continue;
+#endif
+	    return count;
+	} else if (count == 0) {
+	    return count;
+	}
+	cbuf += count;
+	rem -= count;
+    }
+    return nbytes;
+}
+
+#endif

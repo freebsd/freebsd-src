@@ -1,5 +1,5 @@
 -- From rfc2560
--- $Id: ocsp.asn1 19576 2006-12-30 12:40:43Z lha $
+-- $Id$
 OCSP DEFINITIONS EXPLICIT TAGS::=
 
 BEGIN

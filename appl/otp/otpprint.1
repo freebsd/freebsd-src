@@ -1,0 +1,82 @@
+.\" Copyright (c) 1996, 2000 - 2001 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd November 17, 1996
+.Dt OTP 1
+.Os KTH-KRB
+.Sh NAME
+.Nm otpprint
+.Nd print lists of one-time passwords
+.Sh SYNOPSIS
+.Nm otp
+.Op Fl n Ar count
+.Op Fl e
+.Op Fl h
+.Op Fl f Ar algorithm
+.Ar sequence-number
+.Ar seed
+.Sh DESCRIPTION
+The
+.Nm
+program prints lists of OTPs.
+.Pp
+Use this to print out a series of one-time passwords.  You will have
+to supply the
+.Ar sequence number
+and the
+.Ar seed
+as arguments and then the program will prompt you for your pass-phrase.
+.Pp
+There are several different print formats.  The default is to print
+each password with six short english words.
+.Pp
+Options are:
+.Bl -tag -width Ds
+.It Fl e
+Print the passwords in ``extended'' format.  In this format a prefix
+that says ``hex:'' or ``word:'' is included.
+.It Fl f
+To choose a different
+.Ar algorithm
+from the default md5.  Pick any of: md4, md5, and sha.
+.It Fl h
+Print the passwords in hex.
+.It Fl n
+Print
+.Ar count
+one-time passwords, starting at
+.Ar sequence-number
+and going backwards. The default is 10.
+.El
+.Sh SEE ALSO
+.Xr otp 1

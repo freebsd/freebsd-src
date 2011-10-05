@@ -22,7 +22,7 @@ loginShell: /bin/bash
 gecos: Netbios root user
 structuralObjectClass: inetOrgPerson
 creatorsName: cn=root,dc=test,dc=h5l,dc=se
-userPassword:: AAAAAA
+userPassword: password
 objectClass: krb5KDCEntry
 krb5KeyVersionNumber: 2
 krb5PrincipalName: suser@TEST.H5L.SE

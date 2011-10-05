@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: set_keys.c 15888 2005-08-11 13:40:35Z lha $");
+RCSID("$Id$");
 
 /*
  * Set the keys of `ent' to the string-to-key of `password'
@@ -41,7 +41,7 @@ RCSID("$Id: set_keys.c 15888 2005-08-11 13:40:35Z lha $");
 
 kadm5_ret_t
 _kadm5_set_keys(kadm5_server_context *context,
-		hdb_entry *ent, 
+		hdb_entry *ent,
 		const char *password)
 {
     Key *keys;
@@ -49,7 +49,7 @@ _kadm5_set_keys(kadm5_server_context *context,
     kadm5_ret_t ret;
 
     ret = hdb_generate_key_set_password(context->context,
-					ent->principal, 
+					ent->principal,
 					password, &keys, &num_keys);
     if (ret)
 	return ret;
@@ -60,7 +60,7 @@ _kadm5_set_keys(kadm5_server_context *context,
 
     hdb_entry_set_pw_change_time(context->context, ent, 0);
 
-    if (krb5_config_get_bool_default(context->context, NULL, FALSE, 
+    if (krb5_config_get_bool_default(context->context, NULL, FALSE,
 				     "kadmin", "save-password", NULL))
     {
 	ret = hdb_entry_set_password(context->context, context->db,
@@ -78,8 +78,8 @@ _kadm5_set_keys(kadm5_server_context *context,
 
 kadm5_ret_t
 _kadm5_set_keys2(kadm5_server_context *context,
-		 hdb_entry *ent, 
-		 int16_t n_key_data, 
+		 hdb_entry *ent,
+		 int16_t n_key_data,
 		 krb5_key_data *key_data)
 {
     krb5_error_code ret;
@@ -89,7 +89,7 @@ _kadm5_set_keys2(kadm5_server_context *context,
 
     len  = n_key_data;
     keys = malloc (len * sizeof(*keys));
-    if (keys == NULL)
+    if (keys == NULL && len != 0)
 	return ENOMEM;
 
     _kadm5_init_keys (keys, len);
@@ -105,14 +105,14 @@ _kadm5_set_keys2(kadm5_server_context *context,
 	if(key_data[i].key_data_ver == 2) {
 	    Salt *salt;
 
-	    salt = malloc(sizeof(*salt));
+	    salt = calloc(1, sizeof(*salt));
 	    if(salt == NULL) {
 		ret = ENOMEM;
 		goto out;
 	    }
 	    keys[i].salt = salt;
 	    salt->type = key_data[i].key_data_type[1];
-	    krb5_data_copy(&salt->salt, 
+	    krb5_data_copy(&salt->salt,
 			   key_data[i].key_data_contents[1],
 			   key_data[i].key_data_length[1]);
 	} else
@@ -148,7 +148,7 @@ _kadm5_set_keys3(kadm5_server_context *context,
 
     len  = n_keys;
     keys = malloc (len * sizeof(*keys));
-    if (keys == NULL)
+    if (keys == NULL && len != 0)
 	return ENOMEM;
 
     _kadm5_init_keys (keys, len);
@@ -201,8 +201,8 @@ _kadm5_set_keys_randomly (kadm5_server_context *context,
 {
    krb5_keyblock *kblock = NULL;
    kadm5_ret_t ret = 0;
-   int i, des_keyblock;
-   size_t num_keys;
+   int des_keyblock;
+   size_t i, num_keys;
    Key *keys;
 
    ret = hdb_generate_key_set(context->context, ent->principal,
@@ -221,7 +221,7 @@ _kadm5_set_keys_randomly (kadm5_server_context *context,
    des_keyblock = -1;
    for (i = 0; i < num_keys; i++) {
 
-	/* 
+	/*
 	 * To make sure all des keys are the the same we generate only
 	 * the first one and then copy key to all other des keys.
 	 */
@@ -259,7 +259,7 @@ out:
 	_kadm5_free_keys (context->context, num_keys, keys);
 	return ret;
    }
-   
+
    _kadm5_free_keys (context->context, ent->keys.len, ent->keys.val);
    ent->keys.val = keys;
    ent->keys.len = num_keys;

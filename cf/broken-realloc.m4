@@ -1,5 +1,5 @@
 dnl
-dnl $Id: broken-realloc.m4 15435 2005-06-16 19:45:52Z lha $
+dnl $Id$
 dnl
 dnl Test for realloc that doesn't handle NULL as first parameter
 dnl

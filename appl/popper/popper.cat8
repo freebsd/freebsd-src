@@ -1,0 +1,56 @@
+
+POPPER(8)                 BSD System Manager's Manual                POPPER(8)
+
+NNAAMMEE
+     ppooppppeerr -- POP3 server
+
+SSYYNNOOPPSSIISS
+     ppooppppeerr [--kk] [--aa _p_l_a_i_n_t_e_x_t|_o_t_p|_s_a_s_l] [--tt _f_i_l_e] [--TT _s_e_c_o_n_d_s] [--dd] [--ii]
+            [--pp _p_o_r_t] [----aaddddrreessss--lloogg==_f_i_l_e]
+
+DDEESSCCRRIIPPTTIIOONN
+     ppooppppeerr serves mail via the Post Office Protocol.  Supported options
+     include:
+
+     --aa _p_l_a_i_n_t_e_x_t|_o_t_p|_s_a_s_l
+             Tells ppooppppeerr which authentication mode is acceptable, _s_a_s_l
+             enables SASL (RFC2222),  and _o_t_p enables OTP (RFC1938) authenti-
+             cation. Both disable plaintext passwords.
+
+     ----aaddddrreessss--lloogg==_f_i_l_e
+             Logs the addresses (along with a timestamp) of all clients to the
+             specified file. This can be used to implement POP-before-SMTP
+             authentication.
+
+     --dd      Enables more verbose log messages.
+
+     --ii      When not started by inetd, this flag tells ppooppppeerr that it has to
+             create a socket by itself.
+
+     --kk      Tells ppooppppeerr to use Kerberos for authentication. This is the tra-
+             ditional way of doing Kerberos authentication, and is normally
+             done on a separate port (as it doesn't follow RFC1939), and
+             should be used instead of using SASL.
+
+     --pp _p_o_r_t
+             Port to listen to, in combination with --ii.
+
+     --tt _f_i_l_e
+             Trace all commands to file.
+
+     --TT _s_e_c_o_n_d_s
+             Set timeout to something other than the default of 120 seconds.
+
+SSEEEE AALLSSOO
+     push(8), movemail(8)
+
+SSTTAANNDDAARRDDSS
+     RFC1939 (Post Office Protocol - Version 3)
+
+AAUUTTHHOORRSS
+     The server was initially developed at the University of California,
+     Berkeley.
+
+     Many changes have been made as part of the KTH Kerberos distributions.
+
+HEIMDAL                          July 14, 2004                         HEIMDAL

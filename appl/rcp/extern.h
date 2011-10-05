@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD: vendor-crypto/heimdal/dist/appl/rcp/extern.h 225864 2011-09-29 05:23:57Z stas $
+ * $FreeBSD: src/bin/rcp/extern.h,v 1.5 1999/08/27 23:14:57 peter Exp $
  */
 
 typedef struct {
@@ -43,9 +43,10 @@ extern int iamremote;
 
 BUF	*allocbuf (BUF *, int, int);
 char	*colon (char *);
+char    *unbracket(char *);
 void	 lostconn (int);
 void	 nospace (void);
 int	 okname (char *);
 void	 run_err (const char *, ...);
-int	 susystem (char *, int);
+int	 susystem (char *);
 void	 verifydir (char *);

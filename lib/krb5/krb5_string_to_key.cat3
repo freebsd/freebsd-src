@@ -1,0 +1,74 @@
+
+KRB5_STRING_TO_KEY(3)    BSD Library Functions Manual    KRB5_STRING_TO_KEY(3)
+
+NNAAMMEE
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy, kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa,
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt, kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt__ooppaaqquuee,
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ssaalltt, kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ssaalltt__ooppaaqquuee,
+     kkrrbb55__ggeett__ppww__ssaalltt, kkrrbb55__ffrreeee__ssaalltt -- turns a string to a Kerberos key
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _k_r_b_5___d_a_t_a _p_a_s_s_w_o_r_d, _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _k_r_b_5___d_a_t_a _p_a_s_s_w_o_r_d, _k_r_b_5___s_a_l_t _s_a_l_t, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt__ooppaaqquuee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e, _k_r_b_5___d_a_t_a _p_a_s_s_w_o_r_d, _k_r_b_5___s_a_l_t _s_a_l_t,
+         _k_r_b_5___d_a_t_a _o_p_a_q_u_e, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ssaalltt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e,
+         _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___s_a_l_t _s_a_l_t, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ssaalltt__ooppaaqquuee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___e_n_c_t_y_p_e _e_n_c_t_y_p_e, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___s_a_l_t _s_a_l_t,
+         _k_r_b_5___d_a_t_a _o_p_a_q_u_e, _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ggeett__ppww__ssaalltt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_o_n_s_t___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l,
+         _k_r_b_5___s_a_l_t _*_s_a_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ffrreeee__ssaalltt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___s_a_l_t _s_a_l_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     The string to key functions convert a string to a kerberos key.
+
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt__ooppaaqquuee() is the function that does all the
+     work, the rest of the functions are just wrappers around
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt__ooppaaqquuee() that calls it with default values.
+
+     kkrrbb55__ssttrriinngg__ttoo__kkeeyy__ddaattaa__ssaalltt__ooppaaqquuee() transforms the _p_a_s_s_w_o_r_d with the
+     given salt-string _s_a_l_t and the opaque, encryption type specific parameter
+     _o_p_a_q_u_e to a encryption key _k_e_y according to the string to key function
+     associated with _e_n_c_t_y_p_e.
+
+     The _k_e_y should be freed with kkrrbb55__ffrreeee__kkeeyybblloocckk__ccoonntteennttss().
+
+     If one of the functions that doesn't take a krb5_salt as it argument
+     kkrrbb55__ggeett__ppww__ssaalltt() is used to get the salt value.
+
+     kkrrbb55__ggeett__ppww__ssaalltt() get the default password salt for a principal, use
+     kkrrbb55__ffrreeee__ssaalltt() to free the salt when done.
+
+     kkrrbb55__ffrreeee__ssaalltt() frees the content of _s_a_l_t.
+
+SSEEEE AALLSSOO
+     krb5(3), krb5_data(3), krb5_keyblock(3), kerberos(8)
+
+HEIMDAL                          July 10, 2006                         HEIMDAL

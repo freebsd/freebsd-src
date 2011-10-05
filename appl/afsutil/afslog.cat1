@@ -1,0 +1,69 @@
+
+AFSLOG(1)                 BSD General Commands Manual                AFSLOG(1)
+
+NNAAMMEE
+     aaffsslloogg -- obtain AFS tokens
+
+SSYYNNOOPPSSIISS
+     aaffsslloogg [--hh | ----hheellpp] [----nnoo--vv44] [----nnoo--vv55] [--uu | ----uunnlloogg] [--vv | ----vveerrbboossee]
+            [----vveerrssiioonn] [--cc _c_e_l_l | ----cceellll==_c_e_l_l] [--kk _r_e_a_l_m | ----rreeaallmm==_r_e_a_l_m] [--PP
+            _p_r_i_n_c_i_p_a_l | ----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--pp _p_a_t_h | ----ffiillee==_p_a_t_h]
+            [_c_e_l_l | _p_a_t_h _._._.]
+
+DDEESSCCRRIIPPTTIIOONN
+     aaffsslloogg obtains AFS tokens for a number of cells. What cells to get tokens
+     for can either be specified as an explicit list, as file paths to get
+     tokens for, or be left unspecified, in which case aaffsslloogg will use what-
+     ever magic krb_afslog(3) decides upon.
+
+     Supported options:
+
+     ----nnoo--vv44
+             This makes aaffsslloogg not try using Kerberos 4.
+
+     ----nnoo--vv55
+             This makes aaffsslloogg not try using Kerberos 5.
+
+     --PP _p_r_i_n_c_i_p_a_l, ----pprriinncciippaall _p_r_i_n_c_i_p_a_l
+             select what Kerberos 5 principal to use.
+
+     ----ccaacchhee _c_a_c_h_e
+             select what Kerberos 5 credential cache to use.  ----pprriinncciippaall
+             overrides this option.
+
+     --uu, ----uunnlloogg
+             Destroy tokens instead of obtaining new. If this is specified,
+             all other options are ignored (except for ----hheellpp and ----vveerrssiioonn).
+
+     --vv, ----vveerrbboossee
+             Adds more verbosity for what is actually going on.
+
+     --cc _c_e_l_l_, ----cceellll==_c_e_l_l
+             This specified one or more cell names to get tokens for.
+
+     --kk _r_e_a_l_m, ----rreeaallmm==_r_e_a_l_m
+             This is the Kerberos realm the AFS servers live in, this should
+             normally not be specified.
+
+     --pp _p_a_t_h, ----ffiillee==_p_a_t_h
+             This specified one or more file paths for which tokens should be
+             obtained.
+
+     Instead of using --cc and --pp, you may also pass a list of cells and file
+     paths after any other options. These arguments are considered files if
+     they are either the strings ``.''  or ``..'' or they contain a slash, or
+     if there exists a file by that name.
+
+EEXXAAMMPPLLEESS
+     Assuming that there is no file called ``openafs.org'' in the current
+     directory, and that _/_a_f_s_/_o_p_e_n_a_f_s_._o_r_g points to that cell, the follwing
+     should be identical:
+
+           $ afslog -c openafs.org
+           $ afslog openafs.org
+           $ afslog /afs/openafs.org/some/file
+
+SSEEEE AALLSSOO
+     krb_afslog(3)
+
+HEIMDAL                        November 26, 2002                       HEIMDAL

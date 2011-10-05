@@ -1,0 +1,123 @@
+.\" xnlock -- Dan Heller 1985 <argv@sun.com>
+.TH XNLOCK 1 "19 April 1990"
+.SH NAME
+xnlock \- amusing lock screen program with message for passers-by
+.SH SYNOPSIS
+.B xnlock
+[
+\fIoptions\fP
+]
+[
+\fImessage\fP
+]
+.SH DESCRIPTION
+.I xnlock
+is a program that acts as a screen saver for workstations running X11.
+It also "locks" the screen such that the workstation can be left
+unattended without worry that someone else will walk up to it and
+mess everything up.  When \fIxnlock\fP is running, a little man with
+a big nose and a hat runs around spewing out messages to the screen.
+By default, the messages are "humorous", but that depends on your
+sense of humor.
+.LP
+If a key or mouse button is pressed, a prompt is printed requesting the
+user's password.  If a RETURN is not typed within 30 seconds,
+the little man resumes running around.
+.LP
+Text on the command line is used as the message.  For example:
+.br
+	% xnlock I\'m out to lunch for a couple of hours.
+.br
+Note the need to quote shell metacharacters.
+.LP
+In the absence of flags or text, \fIxnlock\fP displays random fortunes.
+.SH OPTIONS
+Command line options override all resource specifications.
+All arguments that are not associated with a command line option
+is taken to be message text that the little man will "say" every
+once in a while.  The resource \fBxnlock.text\fP may be set to
+a string.
+.TP
+.BI \-fn " fontname"
+The default font is the first 18 point font in the \fInew century schoolbook\fP
+family.  While larger fonts are recokmmended over smaller ones, any font
+in the server's font list will work.  The resource to use for this option
+is \fBxnlock.font\fP.
+.TP
+.BI \-filename "  filename"
+Take the message to be displayed from the file \fIfilename\fP.
+If \fIfilename\fP is not specified, \fI$HOME/.msgfile\fP is used.
+If the contents of the file are changed during runtime, the most recent text
+of the file is used (allowing the displayed message to be altered remotely).
+Carriage returns within the text are allowed, but tabs or other control
+characters are not translated and should not be used.
+The resource available for this option is \fBxnlock.file\fP.
+.TP
+.BI \-ar
+Accept root's password to unlock screen.  This option is true by
+default.  The reason for this is so that someone's screen may be
+unlocked by autorized users in case of emergency and the person
+running the program is still out to lunch.  The resource available
+for specifying this option is \fBxnlock.acceptRootPasswd\fP.
+.TP
+.BI \-noar
+Don't accept root's password.  This option is for paranoids who
+fear their peers might breakin using root's password and remove
+their files anyway.  Specifying this option on the command line
+overrides the \fBxnlock.acceptRootPasswd\fP if set to True.
+.TP
+.BI \-ip
+Ignore password prompt.
+The resource available for this option is \fBxnlock.ignorePasswd\fP.
+.TP
+.BI \-noip
+Don't ignore password prompt.  This is available in order to
+override the resource \fBignorePasswd\fP if set to True.
+.TP
+.BI -fg " color"
+Specifies the foreground color.  The resource available for this
+is \fBxnlock.foreground\fP.
+.TP
+.BI -bg " color"
+Specifies the background color.  The resource available for this
+is \fBxnlock.background\fP.
+.TP
+.BI \-rv
+Reverse the foreground and background colors.
+The resource for this is \fBxvnlock.reverseVideo\fP.
+.TP
+.BI \-norv
+Don't use reverse video.  This is available to override the reverseVideo
+resource if set to True.
+.TP
+.BI \-prog " program"
+Receive message text from the running program \fIprogram\fP. If there
+are arguments to \fIprogram\fP, encase them with the name of the program in
+quotes (e.g. xnlock -t "fortune -o").
+The resource for this is \fBxnlock.program\fP.
+.SH RESOURCES
+.br
+xnlock.font:               fontname
+.br
+xnlock.foreground:         color
+.br
+xnlock.background:         color
+.br
+xnlock.reverseVideo:       True/False
+.br
+xnlock.text:               Some random text string
+.br
+xnlock.program:            program [args]
+.br
+xnlock.ignorePasswd:       True/False
+.br
+xnlock.acceptRootPasswd:   True/False
+.SH FILES
+\fIxnlock\fP               executable file
+.br
+~/.msgfile                 default message file
+.SH AUTHOR
+Dan Heller <argv@sun.com>  Copyright (c) 1985, 1990.
+.br
+The original version of this program was written using pixrects on
+a Sun 2 running SunOS 1.1.

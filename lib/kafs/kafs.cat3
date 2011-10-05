@@ -1,0 +1,175 @@
+
+KAFS(3)                  BSD Library Functions Manual                  KAFS(3)
+
+NNAAMMEE
+     kk__hhaassaaffss, kk__hhaassaaffss__rreecchheecckk, kk__ppiiooccttll, kk__uunnlloogg, kk__sseettppaagg,
+     kk__aaffss__cceellll__ooff__ffiillee, kkaaffss__sseett__vveerrbboossee, kkaaffss__sseettttookkeenn__rrxxkkaadd, kkaaffss__sseettttookkeenn,
+     kkrrbb__aaffsslloogg, kkrrbb__aaffsslloogg__uuiidd, kkaaffss__sseettttookkeenn55, kkrrbb55__aaffsslloogg, kkrrbb55__aaffsslloogg__uuiidd
+     -- AFS library
+
+LLIIBBRRAARRYY
+     AFS cache manager access library (libkafs, -lkafs)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkaaffss..hh>>
+
+     _i_n_t
+     kk__aaffss__cceellll__ooff__ffiillee(_c_o_n_s_t _c_h_a_r _*_p_a_t_h, _c_h_a_r _*_c_e_l_l, _i_n_t _l_e_n);
+
+     _i_n_t
+     kk__hhaassaaffss(_v_o_i_d);
+
+     _i_n_t
+     kk__hhaassaaffss__rreecchheecckk(_v_o_i_d);
+
+     _i_n_t
+     kk__ppiiooccttll(_c_h_a_r _*_a___p_a_t_h, _i_n_t _o___o_p_c_o_d_e, _s_t_r_u_c_t _V_i_c_e_I_o_c_t_l _*_a___p_a_r_a_m_s_P,
+         _i_n_t _a___f_o_l_l_o_w_S_y_m_l_i_n_k_s);
+
+     _i_n_t
+     kk__sseettppaagg(_v_o_i_d);
+
+     _i_n_t
+     kk__uunnlloogg(_v_o_i_d);
+
+     _v_o_i_d
+     kkaaffss__sseett__vveerrbboossee(_v_o_i_d _(_*_f_u_n_c_)_(_v_o_i_d _*_, _c_o_n_s_t _c_h_a_r _*_, _i_n_t_), _v_o_i_d _*);
+
+     _i_n_t
+     kkaaffss__sseettttookkeenn__rrxxkkaadd(_c_o_n_s_t _c_h_a_r _*_c_e_l_l, _s_t_r_u_c_t _C_l_e_a_r_T_o_k_e_n _*_t_o_k_e_n,
+         _v_o_i_d _*_t_i_c_k_e_t, _s_i_z_e___t _t_i_c_k_e_t___l_e_n);
+
+     _i_n_t
+     kkaaffss__sseettttookkeenn(_c_o_n_s_t _c_h_a_r _*_c_e_l_l, _u_i_d___t _u_i_d, _C_R_E_D_E_N_T_I_A_L_S _*_c);
+
+     kkrrbb__aaffsslloogg(_c_h_a_r _*_c_e_l_l, _c_h_a_r _*_r_e_a_l_m);
+
+     _i_n_t
+     kkrrbb__aaffsslloogg__uuiidd(_c_h_a_r _*_c_e_l_l, _c_h_a_r _*_r_e_a_l_m, _u_i_d___t _u_i_d);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaffsslloogg__uuiidd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_c_a_c_h_e _i_d, _c_o_n_s_t _c_h_a_r _*_c_e_l_l,
+         _k_r_b_5___c_o_n_s_t___r_e_a_l_m _r_e_a_l_m, _u_i_d___t _u_i_d);
+
+     _i_n_t
+     kkaaffss__sseettttookkeenn55(_c_o_n_s_t _c_h_a_r _*_c_e_l_l, _u_i_d___t _u_i_d, _k_r_b_5___c_r_e_d_s _*_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__aaffsslloogg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_c_a_c_h_e _i_d, _c_o_n_s_t _c_h_a_r _*_c_e_l_l,
+         _k_r_b_5___c_o_n_s_t___r_e_a_l_m _r_e_a_l_m);
+
+DDEESSCCRRIIPPTTIIOONN
+     kk__hhaassaaffss() initializes some library internal structures, and tests for
+     the presence of AFS in the kernel, none of the other functions should be
+     called before kk__hhaassaaffss() is called, or if it fails.
+
+     kk__hhaassaaffss__rreecchheecckk() forces a recheck if a AFS client has started since
+     last time kk__hhaassaaffss() or kk__hhaassaaffss__rreecchheecckk() was called.
+
+     kkaaffss__sseett__vveerrbboossee() set a log function that will be called each time the
+     kafs library does something important so that the application using
+     libkafs can output verbose logging.  Calling the function
+     _k_a_f_s___s_e_t___v_e_r_b_o_s_e with the function argument set to NULL will stop libkafs
+     from calling the logging function (if set).
+
+     kkaaffss__sseettttookkeenn__rrxxkkaadd() set rxkad with the _t_o_k_e_n and _t_i_c_k_e_t (that have the
+     length _t_i_c_k_e_t___l_e_n) for a given _c_e_l_l.
+
+     kkaaffss__sseettttookkeenn() and kkaaffss__sseettttookkeenn55() work the same way as
+     kkaaffss__sseettttookkeenn__rrxxkkaadd() but internally converts the Kerberos 4 or 5 creden-
+     tial to a afs cleartoken and ticket.
+
+     kkrrbb__aaffsslloogg(), and kkrrbb__aaffsslloogg__uuiidd() obtains new tokens (and possibly tick-
+     ets) for the specified _c_e_l_l and _r_e_a_l_m.  If _c_e_l_l is NULL, the local cell
+     is used. If _r_e_a_l_m is NULL, the function tries to guess what realm to use.
+     Unless you  have some good knowledge of what cell or realm to use, you
+     should pass NULL.  kkrrbb__aaffsslloogg() will use the real user-id for the ViceId
+     field in the token, kkrrbb__aaffsslloogg__uuiidd() will use _u_i_d.
+
+     kkrrbb55__aaffsslloogg(), and kkrrbb55__aaffsslloogg__uuiidd() are the Kerberos 5 equivalents of
+     kkrrbb__aaffsslloogg(), and kkrrbb__aaffsslloogg__uuiidd().
+
+     kkrrbb55__aaffsslloogg(), kkaaffss__sseettttookkeenn55() can be configured to behave differently
+     via a kkrrbb55__aappppddeeffaauulltt option afs-use-524 in _k_r_b_5_._c_o_n_f.  Possible values
+     for afs-use-524 are:
+
+     yes    use the 524 server in the realm to convert the ticket
+
+     no     use the Kerberos 5 ticket directly, can be used with if the afs
+            cell support 2b token.
+
+     local, 2b
+            convert the Kerberos 5 credential to a 2b token locally (the same
+            work as a 2b 524 server should have done).
+
+     Example:
+
+     [appdefaults]
+             SU.SE = { afs-use-524 = local }
+             PDC.KTH.SE = { afs-use-524 = yes }
+             afs-use-524 = yes
+
+     libkafs will use the libkafs as application name when running the
+     kkrrbb55__aappppddeeffaauulltt function call.
+
+     The (uppercased) cell name is used as the realm to the kkrrbb55__aappppddeeffaauulltt
+     ffuunnccttiioonn..
+
+     kk__aaffss__cceellll__ooff__ffiillee() will in _c_e_l_l return the cell of a specified file, no
+     more than _l_e_n characters is put in _c_e_l_l.
+
+     kk__ppiiooccttll() does a ppiiooccttll() system call with the specified arguments. This
+     function is equivalent to llppiiooccttll().
+
+     kk__sseettppaagg() initializes a new PAG.
+
+     kk__uunnlloogg() removes destroys all tokens in the current PAG.
+
+RREETTUURRNN VVAALLUUEESS
+     kk__hhaassaaffss() returns 1 if AFS is present in the kernel, 0 otherwise.
+     kkrrbb__aaffsslloogg() and kkrrbb__aaffsslloogg__uuiidd() returns 0 on success, or a Kerberos
+     error number on failure.  kk__aaffss__cceellll__ooff__ffiillee(), kk__ppiiooccttll(), kk__sseettppaagg(),
+     and kk__uunnlloogg() all return the value of the underlaying system call, 0 on
+     success.
+
+EENNVVIIRROONNMMEENNTT
+     The following environment variable affect the mode of operation of kkaaffss:
+
+     AFS_SYSCALL  Normally, kkaaffss will try to figure out the correct system
+                  call(s) that are used by AFS by itself.  If it does not man-
+                  age to do that, or does it incorrectly, you can set this
+                  variable to the system call number or list of system call
+                  numbers that should be used.
+
+EEXXAAMMPPLLEESS
+     The following code from llooggiinn will obtain a new PAG and tokens for the
+     local cell and the cell of the users home directory.
+
+     if (k_hasafs()) {
+             char cell[64];
+             k_setpag();
+             if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
+                     krb_afslog(cell, NULL);
+             krb_afslog(NULL, NULL);
+     }
+
+EERRRROORRSS
+     If any of these functions (apart from kk__hhaassaaffss()) is called without AFS
+     being present in the kernel, the process will usually (depending on the
+     operating system) receive a SIGSYS signal.
+
+SSEEEE AALLSSOO
+     krb5_appdefault(3), krb5.conf(5)
+
+     Transarc Corporation, "File Server/Cache Manager Interface", _A_F_S_-_3
+     _P_r_o_g_r_a_m_m_e_r_'_s _R_e_f_e_r_e_n_c_e, 1991.
+
+FFIILLEESS
+     libkafs will search for _T_h_i_s_C_e_l_l _a_n_d _T_h_e_s_e_C_e_l_l_s in the following loca-
+     tions: _/_u_s_r_/_v_i_c_e_/_e_t_c, _/_e_t_c_/_o_p_e_n_a_f_s, _/_v_a_r_/_d_b_/_o_p_e_n_a_f_s_/_e_t_c, _/_u_s_r_/_a_r_l_a_/_e_t_c,
+     _/_e_t_c_/_a_r_l_a, and _/_e_t_c_/_a_f_s
+
+BBUUGGSS
+     AFS_SYSCALL has no effect under AIX.
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

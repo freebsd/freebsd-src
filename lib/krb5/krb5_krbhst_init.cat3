@@ -1,0 +1,119 @@
+
+KRB5_KRBHST_INIT(3)      BSD Library Functions Manual      KRB5_KRBHST_INIT(3)
+
+NNAAMMEE
+     kkrrbb55__kkrrbbhhsstt__iinniitt, kkrrbb55__kkrrbbhhsstt__iinniitt__ffllaaggss, kkrrbb55__kkrrbbhhsstt__nneexxtt,
+     kkrrbb55__kkrrbbhhsstt__nneexxtt__aass__ssttrriinngg, kkrrbb55__kkrrbbhhsstt__rreesseett, kkrrbb55__kkrrbbhhsstt__ffrreeee,
+     kkrrbb55__kkrrbbhhsstt__ffoorrmmaatt__ssttrriinngg, kkrrbb55__kkrrbbhhsstt__ggeett__aaddddrriinnffoo -- lookup Kerberos
+     KDC hosts
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__iinniitt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m,
+         _u_n_s_i_g_n_e_d _i_n_t _t_y_p_e, _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _*_h_a_n_d_l_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__iinniitt__ffllaaggss(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_r_e_a_l_m,
+         _u_n_s_i_g_n_e_d _i_n_t _t_y_p_e, _i_n_t _f_l_a_g_s, _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _*_h_a_n_d_l_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__nneexxtt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _h_a_n_d_l_e,
+         _k_r_b_5___k_r_b_h_s_t___i_n_f_o _*_*_h_o_s_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__nneexxtt__aass__ssttrriinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _h_a_n_d_l_e, _c_h_a_r _*_h_o_s_t_n_a_m_e, _s_i_z_e___t _h_o_s_t_l_e_n);
+
+     _v_o_i_d
+     kkrrbb55__kkrrbbhhsstt__rreesseett(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _h_a_n_d_l_e);
+
+     _v_o_i_d
+     kkrrbb55__kkrrbbhhsstt__ffrreeee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___k_r_b_h_s_t___h_a_n_d_l_e _h_a_n_d_l_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__ffoorrmmaatt__ssttrriinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t,
+         _c_o_n_s_t _k_r_b_5___k_r_b_h_s_t___i_n_f_o _*_h_o_s_t, _c_h_a_r _*_h_o_s_t_n_a_m_e, _s_i_z_e___t _h_o_s_t_l_e_n);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__kkrrbbhhsstt__ggeett__aaddddrriinnffoo(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___k_r_b_h_s_t___i_n_f_o _*_h_o_s_t,
+         _s_t_r_u_c_t _a_d_d_r_i_n_f_o _*_*_a_i);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions are used to sequence through all Kerberos hosts of a par-
+     ticular realm and service. The service type can be the KDCs, the adminis-
+     trative servers, the password changing servers, or the servers for Ker-
+     beros 4 ticket conversion.
+
+     First a handle to a particular service is obtained by calling
+     kkrrbb55__kkrrbbhhsstt__iinniitt() (or kkrrbb55__kkrrbbhhsstt__iinniitt__ffllaaggss()) with the _r_e_a_l_m of inter-
+     est and the type of service to lookup. The _t_y_p_e can be one of:
+
+           KRB5_KRBHST_KDC
+           KRB5_KRBHST_ADMIN
+           KRB5_KRBHST_CHANGEPW
+           KRB5_KRBHST_KRB524
+
+     The _h_a_n_d_l_e is returned to the caller, and should be passed to the other
+     functions.
+
+     The _f_l_a_g argument to kkrrbb55__kkrrbbhhsstt__iinniitt__ffllaaggss is the same flags as
+     kkrrbb55__sseenndd__ttoo__kkddcc__ffllaaggss() uses.  Possible values are:
+
+           KRB5_KRBHST_FLAGS_MASTER     only talk to master (readwrite) KDC
+           KRB5_KRBHST_FLAGS_LARGE_MSG  this is a large message, so use trans-
+                                        port that can handle that.
+
+     For each call to kkrrbb55__kkrrbbhhsstt__nneexxtt() information on a new host is
+     returned. The former function returns in _h_o_s_t a pointer to a structure
+     containing information about the host, such as protocol, hostname, and
+     port:
+
+           typedef struct krb5_krbhst_info {
+               enum { KRB5_KRBHST_UDP,
+                      KRB5_KRBHST_TCP,
+                      KRB5_KRBHST_HTTP } proto;
+               unsigned short port;
+               struct addrinfo *ai;
+               struct krb5_krbhst_info *next;
+               char hostname[1];
+           } krb5_krbhst_info;
+
+     The related function, kkrrbb55__kkrrbbhhsstt__nneexxtt__aass__ssttrriinngg(), return the same
+     information as a URL-like string.
+
+     When there are no more hosts, these functions return KRB5_KDC_UNREACH.
+
+     To re-iterate over all hosts, call kkrrbb55__kkrrbbhhsstt__rreesseett() and the next call
+     to kkrrbb55__kkrrbbhhsstt__nneexxtt() will return the first host.
+
+     When done with the handle, kkrrbb55__kkrrbbhhsstt__ffrreeee() should be called.
+
+     To use a _k_r_b_5___k_r_b_h_s_t___i_n_f_o, there are two functions:
+     kkrrbb55__kkrrbbhhsstt__ffoorrmmaatt__ssttrriinngg() that will return a printable representation
+     of that struct and kkrrbb55__kkrrbbhhsstt__ggeett__aaddddrriinnffoo() that will return a _s_t_r_u_c_t
+     _a_d_d_r_i_n_f_o that can then be used for communicating with the server men-
+     tioned.
+
+EEXXAAMMPPLLEESS
+     The following code will print the KDCs of the realm ``MY.REALM'':
+
+           krb5_krbhst_handle handle;
+           char host[MAXHOSTNAMELEN];
+           krb5_krbhst_init(context, "MY.REALM", KRB5_KRBHST_KDC, &handle);
+           while(krb5_krbhst_next_as_string(context, handle,
+                                            host, sizeof(host)) == 0)
+               printf("%s\n", host);
+           krb5_krbhst_free(context, handle);
+
+SSEEEE AALLSSOO
+     getaddrinfo(3), krb5_get_krbhst(3), krb5_send_to_kdc_flags(3)
+
+HHIISSTTOORRYY
+     These functions first appeared in Heimdal 0.3g.
+
+HEIMDAL                          May 10, 2005                          HEIMDAL

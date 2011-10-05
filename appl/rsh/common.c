@@ -1,40 +1,40 @@
 /*
- * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: common.c 17450 2006-05-05 11:11:43Z lha $");
+RCSID("$Id$");
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 
 #ifdef KRB5
 int key_usage = 1026;
@@ -74,11 +74,6 @@ ssize_t
 do_read (int fd, void *buf, size_t sz, void *ivec)
 {
     if (do_encrypt) {
-#ifdef KRB4
-	if (auth_method == AUTH_KRB4) {
-	    return des_enc_read (fd, buf, sz, schedule, &iv);
-	} else
-#endif /* KRB4 */
 #ifdef KRB5
         if(auth_method == AUTH_KRB5) {
 	    krb5_error_code ret;
@@ -102,13 +97,15 @@ do_read (int fd, void *buf, size_t sz, void *ivec)
 	    if (edata == NULL)
 		errx (1, "malloc: cannot allocate %u bytes", outer_len);
 	    ret = krb5_net_read (context, &fd, edata, outer_len);
-	    if (ret <= 0)
+	    if (ret <= 0) {
+		free(edata);
 		return ret;
+	    }
 
-	    status = krb5_decrypt_ivec(context, crypto, key_usage, 
+	    status = krb5_decrypt_ivec(context, crypto, key_usage,
 				       edata, outer_len, &data, ivec);
 	    free (edata);
-	    
+
 	    if (status)
 		krb5_err (context, 1, status, "decrypting data");
 	    if(ivec != NULL) {
@@ -134,11 +131,6 @@ ssize_t
 do_write (int fd, void *buf, size_t sz, void *ivec)
 {
     if (do_encrypt) {
-#ifdef KRB4
-	if(auth_method == AUTH_KRB4) {
-	    return des_enc_write (fd, buf, sz, schedule, &iv);
-	} else
-#endif /* KRB4 */
 #ifdef KRB5
 	if(auth_method == AUTH_KRB5) {
 	    krb5_error_code status;
@@ -177,4 +169,4 @@ do_write (int fd, void *buf, size_t sz, void *ivec)
     } else
 	return write (fd, buf, sz);
 }
-#endif /* KRB4 || KRB5 */
+#endif /* KRB5 */

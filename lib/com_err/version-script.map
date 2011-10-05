@@ -3,6 +3,7 @@
 HEIMDAL_COM_ERR_1.0 {
 	global:
 		com_right;
+		com_right_r;
 		free_error_table;
 		initialize_error_table_r;
 		add_to_error_table;
@@ -13,6 +14,7 @@ HEIMDAL_COM_ERR_1.0 {
 		init_error_table;
 		reset_com_err_hook;
 		set_com_err_hook;
+		_et_list;
 	local:
 		*;
 };

@@ -29,7 +29,7 @@
 #     	policies = builtin:external-check
 #     	external_program = <your-path>/check-cracklib.pl
 #
-# $Id: check-cracklib.pl 20578 2007-05-07 22:21:51Z lha $
+# $Id$
 
 use strict;
 use Crypt::Cracklib;
@@ -39,6 +39,9 @@ use Digest::MD5;
 my $database = '/usr/lib/cracklib_dict';
 my $historydb = '/var/heimdal/historydb';
 # NEED TO CHANGE THESE TO MATCH YOUR SYSTEM
+
+# seconds password reuse allowed (to catch retries from clients)
+my $reusetime = 60; 
 
 my %params;
 
@@ -60,6 +63,7 @@ sub check_repeat
     my $result  = 'Do not reuse passwords';
     my %DB;
     my $md5context = new Digest::MD5;
+    my $timenow = scalar(time());
 
     $md5context->reset();
     $md5context->add($principal, ":", $passwd);
@@ -67,8 +71,10 @@ sub check_repeat
     my $key=$md5context->hexdigest();
 
     dbmopen(%DB,$historydb,0600) or die "Internal: Could not open $historydb";
-    $result = "ok" if (!$DB{$key});
-    $DB{$key}=scalar(time());
+    if (!$DB{$key} || ($timenow - $DB{$key} < $reusetime)) { 
+	$result = "ok";
+	$DB{$key}=$timenow;
+    }
     dbmclose(%DB) or die "Internal: Could not close $historydb";
     return $result;
 }
@@ -80,7 +86,7 @@ sub badpassword
     exit 0
 }
 
-while (<>) {
+while (<STDIN>) {
     last if /^end$/;
     if (!/^([^:]+): (.+)$/) {
 	die "key value pair not correct: $_";

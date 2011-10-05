@@ -1,31 +1,94 @@
-2007-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-07-26  Love HÃ¶rnquist Ã…strand  <lha@h5l.org>
+
+	* krb-ipv6.m4: Patch from BjÃ¶rn SchlÃ¶gl to enable disable-ness of
+	ipv6.
+
+2008-05-20  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+	
+	* sunos.m4: Detect solaris2.11 and later and assume its sunos=58.
+	Bug report from Klas Heggemann.
+
+2008-05-05  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+	
+	* version-script.m4: Add -rpath to avoid building a convince
+	library, also sprinkle some other options to make the link line
+	more like automake's.
+	
+2008-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* version-script.m4: use libtool to probe for version script to
+	make it work on amd64/ia64 where -fpic in needed to build shared
+	objects.
+
+2008-04-24  BjÃ¶rn Sandell <biorn@chalmers.se>
+
+	* pthreads.m4: macros for OpenBSD
+
+2008-04-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* make-proto.pl: Define both export variables.
+
+	* win32.m4: Export _FUNCTION and _VARIABLE for _win32 magic
+
+	* krb-ipv6.m4: Rename cache variable to AC_CACHE_CHECK to make the
+	cached.
+	
+	* win32.m4: replace _export with __declspec(dllexport)
+
+	* make-proto.pl: Add __declspec(dllimport) to the exported
+	functions.
+	
+2008-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* wflags.m4: Add -Wstrict-overflow=5 as an example.
+
+2008-03-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* install-catman.sh: Match man_MANS = files with directories in
+	them.
+	
+2008-02-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* make-proto.pl: Handle c-comments.
+
+	* Makefile.am.common: Make DEFAULT_INCLUDES work better, avoid
+	picking up the wrong headerfiles. $(top_builddir)/include vs
+	${builddir}.
+
+2008-01-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	
+	* Makefile.am.common: remove the check-symbols check
+	
+	* check-symbols.sh: removed, use version script instead
+	
+2007-10-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: openssl might require -ldl too, so lets check that.
 
-2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common (check-local::): exit on failure to perform
 	test.
 
-2007-07-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common (check-local): also check that --help works.
 	
-2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* crypto.m4: depend on EVP_CIPHER_iv_length
 
-2007-06-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: Need absolute reference to the top source
 	directory and top build directory.
 	
-2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* wflags.m4: Add --enable-developer and make it cause -Werror to
 	be included.
 	
-2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: Merge from samba config.
 
@@ -34,85 +97,85 @@
 	* valgrind-suppressions: Unknown suppression in runtime link
 	editor
 
-2007-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: Add heimdal-lorikeet target distdir-in-tree
 
-2007-06-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* framework-security.m4: test for -framework Security
 	
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* roken-frag.m4: we have a fnmatch.h only if there is a working
 	implementation and a header file. If we do use roken, lets use our
 	own headerfile that does symbol renaming.
 	
-2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* version-script.m4: check if ld supports --version-script
 	
-2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: drop broken-getnameinfo.m4
 	
 	* roken-frag.m4: drop test for broken getnameinfo, that old aix is
 	no longer relevant.
 	
-2007-02-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* install-catman.sh: Stop overwriting cmd.
 	
-2007-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* install-catman.sh: Use test instead of [.
 
 	* install-catman.sh: Use = instead of ==, make solaris more happy.
 	
-2007-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: More headerfiles for iruserok prototype check.
 
 	* check-symbols.sh: Add fc_softc for AIX as ignore syms.
 	
-2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Check if iruserok needs a prototype.
 	
-2006-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-compile-et.m4: set automake symbol COM_ERR when we build
 	local com_err
 	
-2006-11-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* valgrind-suppressions: We shouldn't be running /bin/ls under
 	valgrind, but for now, at least make it easier to see any other
 	warnings. From Andrew Bartlett.
 	
-2006-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am.common: Add target for valgrind debugging
 	
 	* valgrind-suppressions: valgrind suppressions
 	
-2006-10-21  Love Hörnquist Åstrand <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 	
 	* check-lex.m4: Borrow test for autoconf cvs to help hpux hosts
 	
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am.common: provide uninstall hook for cat/manpages.
 
 	* install-catman.sh: provide uninstall command
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* roken-frag.m4: Add check for timegm.
 
 	* roken-frag.m4: Include sys/types.h for sys/socket.h and netdb.h.
 	
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common (install-build-headers): make this function
 	convoluted and deal with dist_, nodist, nobase and all its
@@ -126,56 +189,56 @@
 
 	* crypto.m4: Require openssl have OpenSSL_add_all_algorithms
 	
-2006-10-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* autobuild.m4: Add autobuild, GPLed, but free to use in projects
 	not avaible under GPL or LGPL (just like autoconf).
 	
-2006-09-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Add samba_SOCKET_WRAPPER fragment
 	
-2006-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket-wrapper.m4: Add socket-wrapper test
 	
-2006-05-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: Move up evp.h to please OpenSSL, from Douglas
 	E. Engert.
 
-2006-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Add check for fnmatch.h, its needed to be done
 	for the automake conditional below.
 	
-2006-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: Require SHA256
 	
-2006-01-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4 Check for <openssl/engine.h> if we are to consider
 	using OpenSSL, also check for <hcrypto/...> headers since
 	make_crypto.c assumes that the name of the files.
 	
-2006-01-13 Love Hörnquist Åstrand <lha@it.su.se>
+2006-01-13 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* crypto.m4: libdes is renamed to hcrypto
 
 	* crypto.m4: Remove support for old hash names.
 	
-2005-10-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* install-catman.sh: Add variable INSTALL_CATPAGES that controls
 	if cat pages are installed, defaults to true. From Johnny Lam
 	<jlam@pkgsrc.org>.
 	
-2005-09-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Check for <stdint.h> and uintptr_t
 	
-2005-09-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Resolver check moved to rk_RESOLV, from Andrew
 	Bartlet <abartlet@samba.org>
@@ -183,25 +246,25 @@
 	* resolv.m4: Resolver checks, broken out so samba can use it From
 	Andrew Bartlet <abartlet@samba.org>
 	
-2005-08-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: Check for res_ndestroy.
 
-2005-08-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: Add <sys/types.h>, OpenSSL 0.9.8 needs it for size_t.
 	From: Quanah Gibson-Mount <quanah@stanford.edu>
 
-2005-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-compile-et.m4: check that initialize_conf_error_table_r
 	have the right argument
 
-2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: allow symbols to start with ., aix uses this
 
-2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* krb-bigendian.m4: use ansi c prototypes
 	
@@ -229,18 +292,18 @@
 	* broken-getaddrinfo.m4: check for brokenness in getaddrinfo on
 	AIX that can't handle "0" as port number.
 	
-2005-06-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* db.m4: Add an option to disable ndbm, from Stefan Metzmacher
 	<metze@samba.org>
 
-2005-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pthreads.m4: rework how pthreads support to turned on/off,
 	always run though the switch to figure out what the
 	linker/compiler flag are
 
-2005-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* pthreads.m4: s/else if/elif/
 	
@@ -251,7 +314,7 @@
 	non-gcc case, use the compiler as hint (xlc vs xlc_r) if this
 	environment handles threads or not
 
-2005-05-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: ignore weak symbols too
 
@@ -270,16 +333,16 @@
 	but masked by a feature test), just to avoid a warning, since it
 	has int args.
 
-2005-05-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-var.m4: AC_CHECK_DECL and AC_CHECK_DECLS have a subtile
 	diffrence, the later defines HAVE_ cpp symbols, the first doesn't.
 
-2005-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: ignore N symbols too
 
-2005-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* broken-snprintf.m4: include checking if snprintf(NULL, 0, "")
 	works
@@ -288,7 +351,7 @@
 	initialize_FOO_error_table_r (they are used in libkrb5), and
 	always check for initialize_error_table_r
 
-2005-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: add LIB_com_err
 	
@@ -300,7 +363,7 @@
 
 	* pthreads.m4: Set PTHREADS_LIBS on Irix.
 
-2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* broken-realloc.m4: use rk_realloc if realloc is broken, this
 	makes "host-tools" not beeing able to use realloc
@@ -308,32 +371,32 @@
 	* pthreads.m4: Add support for Solaris, Irix, and modern
 	Linux. From David Love <fx@gnu.org>
 
-2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: limit the units functions to
 	asn1_[A-Za-z0-9]*_units$
 
-2005-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: this lib include com_err, add -com_err to
 	CHECK_SYMBOLS
 
 	* check-symbols.sh: print the type so I don't need to ask for it
 
-2005-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: ignore filename symbols
 	
-2005-04-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: assume symbols prefixed with _ is a sideeffekt
 	of the local linker and also just fine
 	
-2005-03-16 Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-16 Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: include <sys/socket.h> for <netinet6/in6_var.h>
 	
-2005-03-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sunos.m4: Match solaris 10.  From: Joakim Fallsjo
 	<fallsjo@sanchin.se>
@@ -342,18 +405,18 @@
 
 	* check-symbols.sh: add -asn1compile symbols
 
-2004-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-12-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-symbols.sh: add exported symbols test
 	
 	* Makefile.am.common: add CHECK_SYMBOLS tests, so that we don't
 	export to much stuff
 	
-2004-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* make-proto.pl: add cpluscplus extern "C" support
 	
-2004-07-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-07-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pthreads.m4: add -pthread to LIBS since libtool doesn't preserve
 	it for us when adding is as a dependency on libs
@@ -362,7 +425,7 @@
 
 	* largefile.m4: like AC_SYS_LARGEFILE, but also add to CPPFLAGS
 	
-2004-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-compile-et.m4: even more evil stuff for cross-compiling
 	
@@ -371,20 +434,20 @@
 	* check-compile-et.m4: use AC_RUN_IFELSE so we can handle cross
 	compiling
 
-2004-04-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* make-proto.pl: if -E, add windows standard calling conv to
 	headerfile if needed
 
 	* win32.m4: add rk_WIN32_EXPORT
 	
-2004-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* configure.in: rename AC_WFLAGS to rk_WFLAGS
 	
 	* *.m4: overquote to pacify automake1.8
 
-2004-02-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-frag.m4: resolv.h is even more special
 	
@@ -396,7 +459,7 @@
 	--with-PACKAGE-config, go seach for path/PACKEGE-config and use it
 	if it exists.  Inspired by Harald Barth <haba@pdc.kth.se>
 
-2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: check for DES_, AES_, and if openssl UI_
 	
@@ -406,17 +469,17 @@
 
 	* roken-frag.m4: test for poll and poll.h
 
-2003-08-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-08-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: don't try doing local checks if CHECK_LOCAL
 	is set to no-check-local
 
-2003-08-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-08-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-compile-et.m4: check if compile_et support ``error_table N
 	M'' also, don't be overly aggressivly reset CFLAGS
 	
-2003-07-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-07-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pthreads.m4: pthread test
 	
@@ -429,26 +492,26 @@
 
 	* crypto.m4: define OPENSSL_DES_LIBDES_COMPATIBILITY
 
-2003-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: check if libcrypto needs -lnsl or -lsocket
 	
-2003-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* crypto.m4: in the case where se don't link with kerberos 4, use
 	${with_openssl_include} if its are set (not
 	${with_openssl}/include) same for with_openssl_lib
 	
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am.common: always define LIB_kafs
 	
-2003-03-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-compile-et.m4: check if the output of compile_et needs
 	initialize_error_table_r
 
-2003-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-02-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-var.m4: add a check if the variable is avaible when we
 	include the headerfiles

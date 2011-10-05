@@ -1,0 +1,138 @@
+
+KRB5_ENCRYPT(3)          BSD Library Functions Manual          KRB5_ENCRYPT(3)
+
+NNAAMMEE
+     kkrrbb55__ccrryyppttoo__ggeettbblloocckkssiizzee, kkrrbb55__ccrryyppttoo__ggeettccoonnffoouunnddeerrssiizzee
+     kkrrbb55__ccrryyppttoo__ggeetteennccttyyppee, kkrrbb55__ccrryyppttoo__ggeettppaaddssiizzee, kkrrbb55__ccrryyppttoo__oovveerrhheeaadd,
+     kkrrbb55__ddeeccrryypptt, kkrrbb55__ddeeccrryypptt__EEnnccrryypptteeddDDaattaa, kkrrbb55__ddeeccrryypptt__iivveecc,
+     kkrrbb55__ddeeccrryypptt__ttiicckkeett, kkrrbb55__eennccrryypptt, kkrrbb55__eennccrryypptt__EEnnccrryypptteeddDDaattaa,
+     kkrrbb55__eennccrryypptt__iivveecc, kkrrbb55__eennccttyyppee__ddiissaabbllee, kkrrbb55__eennccttyyppee__kkeeyyssiizzee,
+     kkrrbb55__eennccttyyppee__ttoo__ssttrriinngg, kkrrbb55__eennccttyyppee__vvaalliidd, kkrrbb55__ggeett__wwrraappppeedd__lleennggtthh,
+     kkrrbb55__ssttrriinngg__ttoo__eennccttyyppee -- encrypt and decrypt data, set and get encryp-
+     tion type parameters
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccrryypptt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o, _u_n_s_i_g_n_e_d _u_s_a_g_e,
+         _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _k_r_b_5___d_a_t_a _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccrryypptt__EEnnccrryypptteeddDDaattaa(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _u_n_s_i_g_n_e_d _u_s_a_g_e, _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _i_n_t _k_v_n_o,
+         _E_n_c_r_y_p_t_e_d_D_a_t_a _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccrryypptt__iivveecc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _u_n_s_i_g_n_e_d _u_s_a_g_e, _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _k_r_b_5___d_a_t_a _*_r_e_s_u_l_t,
+         _v_o_i_d _*_i_v_e_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddeeccrryypptt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o, _u_n_s_i_g_n_e_d _u_s_a_g_e,
+         _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _k_r_b_5___d_a_t_a _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddeeccrryypptt__EEnnccrryypptteeddDDaattaa(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _u_n_s_i_g_n_e_d _u_s_a_g_e, _E_n_c_r_y_p_t_e_d_D_a_t_a _*_e, _k_r_b_5___d_a_t_a _*_r_e_s_u_l_t);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddeeccrryypptt__iivveecc(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _u_n_s_i_g_n_e_d _u_s_a_g_e, _v_o_i_d _*_d_a_t_a, _s_i_z_e___t _l_e_n, _k_r_b_5___d_a_t_a _*_r_e_s_u_l_t,
+         _v_o_i_d _*_i_v_e_c);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ddeeccrryypptt__ttiicckkeett(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _T_i_c_k_e_t _*_t_i_c_k_e_t,
+         _k_r_b_5___k_e_y_b_l_o_c_k _*_k_e_y, _E_n_c_T_i_c_k_e_t_P_a_r_t _*_o_u_t, _k_r_b_5___f_l_a_g_s _f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__ggeettbblloocckkssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _s_i_z_e___t _*_b_l_o_c_k_s_i_z_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__ggeetteennccttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _k_r_b_5___e_n_c_t_y_p_e _*_e_n_c_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__ggeettppaaddssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _s_i_z_e___t, _*_p_a_d_s_i_z_e_");
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__ggeettccoonnffoouunnddeerrssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _s_i_z_e___t, _*_c_o_n_f_o_u_n_d_e_r_s_i_z_e_");
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccttyyppee__kkeeyyssiizzee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _t_y_p_e,
+         _s_i_z_e___t _*_k_e_y_s_i_z_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ccrryyppttoo__oovveerrhheeaadd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _s_i_z_e___t, _*_p_a_d_s_i_z_e_");
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__ssttrriinngg__ttoo__eennccttyyppee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _c_o_n_s_t _c_h_a_r _*_s_t_r_i_n_g,
+         _k_r_b_5___e_n_c_t_y_p_e _*_e_t_y_p_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccttyyppee__ttoo__ssttrriinngg(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_t_y_p_e,
+         _c_h_a_r _*_*_s_t_r_i_n_g);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__eennccttyyppee__vvaalliidd(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_t_y_p_e);
+
+     _v_o_i_d
+     kkrrbb55__eennccttyyppee__ddiissaabbllee(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___e_n_c_t_y_p_e _e_t_y_p_e);
+
+     _s_i_z_e___t
+     kkrrbb55__ggeett__wwrraappppeedd__lleennggtthh(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___c_r_y_p_t_o _c_r_y_p_t_o,
+         _s_i_z_e___t _d_a_t_a___l_e_n);
+
+DDEESSCCRRIIPPTTIIOONN
+     These functions are used to encrypt and decrypt data.
+
+     kkrrbb55__eennccrryypptt__iivveecc() puts the encrypted version of _d_a_t_a (of size _l_e_n) in
+     _r_e_s_u_l_t.  If the encryption type supports using derived keys, _u_s_a_g_e should
+     be the appropriate key-usage.  _i_v_e_c is a pointer to a initial IV, it is
+     modified to the end IV at the end of the round.  Ivec should be the size
+     of If NULL is passed in, the default IV is used.  kkrrbb55__eennccrryypptt() does the
+     same as kkrrbb55__eennccrryypptt__iivveecc() but with _i_v_e_c being NULL.
+     kkrrbb55__eennccrryypptt__EEnnccrryypptteeddDDaattaa() does the same as kkrrbb55__eennccrryypptt(), but it puts
+     the encrypted data in a _E_n_c_r_y_p_t_e_d_D_a_t_a structure instead. If _k_v_n_o is not
+     zero, it will be put in the (optional) _k_v_n_o field in the _E_n_c_r_y_p_t_e_d_D_a_t_a.
+
+     kkrrbb55__ddeeccrryypptt__iivveecc(), kkrrbb55__ddeeccrryypptt(), and kkrrbb55__ddeeccrryypptt__EEnnccrryypptteeddDDaattaa()
+     works similarly.
+
+     kkrrbb55__ddeeccrryypptt__ttiicckkeett() decrypts the encrypted part of _t_i_c_k_e_t with _k_e_y.
+     kkrrbb55__ddeeccrryypptt__ttiicckkeett() also verifies the timestamp in the ticket, invalid
+     flag and if the KDC haven't verified the transited path, the transit
+     path.
+
+     kkrrbb55__eennccttyyppee__kkeeyyssiizzee(), kkrrbb55__ccrryyppttoo__ggeettccoonnffoouunnddeerrssiizzee(),
+     kkrrbb55__ccrryyppttoo__ggeettbblloocckkssiizzee(), kkrrbb55__ccrryyppttoo__ggeetteennccttyyppee(),
+     kkrrbb55__ccrryyppttoo__ggeettppaaddssiizzee(), kkrrbb55__ccrryyppttoo__oovveerrhheeaadd() all returns various
+     (sometimes) useful information from a crypto context.
+     kkrrbb55__ccrryyppttoo__oovveerrhheeaadd() is the combination of krb5_crypto_getconfounder-
+     size, krb5_crypto_getblocksize and krb5_crypto_getpadsize and return the
+     maximum overhead size.
+
+     kkrrbb55__eennccttyyppee__ttoo__ssttrriinngg() converts a encryption type number to a string
+     that can be printable and stored. The strings returned should be freed
+     with free(3).
+
+     kkrrbb55__ssttrriinngg__ttoo__eennccttyyppee() converts a encryption type strings to a encryp-
+     tion type number that can use used for other Kerberos crypto functions.
+
+     kkrrbb55__eennccttyyppee__vvaalliidd() returns 0 if the encrypt is supported and not dis-
+     abled, otherwise and error code is returned.
+
+     kkrrbb55__eennccttyyppee__ddiissaabbllee() (globally, for all contextes) disables the
+     _e_n_c_t_y_p_e.
+
+     kkrrbb55__ggeett__wwrraappppeedd__lleennggtthh() returns the size of an encrypted packet by
+     _c_r_y_p_t_o of length _d_a_t_a___l_e_n.
+
+SSEEEE AALLSSOO
+     krb5_create_checksum(3), krb5_crypto_init(3)
+
+HEIMDAL                         March 20, 2004                         HEIMDAL

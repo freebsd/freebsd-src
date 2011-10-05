@@ -1,4 +1,4 @@
-@c $Id: setup.texi 22191 2007-12-06 17:26:30Z lha $
+@c $Id$
 
 @node Setting up a realm, Applications, Building and Installing, Top
 
@@ -24,12 +24,14 @@ doing so.  It will make life easier for you and everyone else.
 * Slave Servers::
 * Incremental propagation::
 * Encryption types and salting::
+* Credential cache server - KCM::
 * Cross realm::
 * Transit policy::
 * Setting up DNS::
 * Using LDAP to store the database::
 * Providing Kerberos credentials to servers and programs::
 * Setting up PK-INIT::
+* Debugging Kerberos problems::
 @end menu
 
 @node  Configuration file, Creating the database, Setting up a realm, Setting up a realm
@@ -92,6 +94,8 @@ with contents similar to the following.
         MY.REALM = @{
                 kdc = my.kdc my.slave.kdc
                 kdc = my.third.kdc
+                kdc = 130.237.237.17
+                kdc = [2001:6b0:1:ea::100]:88
         @}
 [domain_realm]
         .my.domain = MY.REALM
@@ -267,14 +271,14 @@ check are for existence and flags on important principals. The
 database check by run by the following command :
 
 @example
-kadmin check REALM.EXAMPLE.ORG
+kadmin -l check REALM.EXAMPLE.ORG
 @end example
 
 @node keytabs, Serving Kerberos 4/524/kaserver, Checking the setup, Setting up a realm
 @section keytabs
 
 To extract a service ticket from the database and put it in a keytab, you
-need to first create the principal in the database with @samp{ank}
+need to first create the principal in the database with @samp{add}
 (using the @kbd{--random-key} flag to get a random key) and then
 extract it with @samp{ext_keytab}.
 
@@ -306,7 +310,7 @@ on Kerberos 4 support having been included at compile-time, using
 
 524 is a service that allows the KDC to convert Kerberos 5 tickets to
 Kerberos 4 tickets for backward compatibility. See also Using 2b
-tokens with AFS in @xref{Things in search for a better place}.
+tokens with AFS in @xref{AFS}.
 
 524 can be turned on by adding this to the configuration file
 
@@ -403,7 +407,17 @@ To allow users to change their passwords, you should run @command{kpasswdd}.
 It is not run from @command{inetd}.
 
 You might need to add @samp{kpasswd} to your @file{/etc/services} as
-@samp{464/udp}.
+@samp{464/udp}.  If your realm is not setup to use DNS, you might also
+need to add a @samp{kpasswd_server} entry to the realm configuration
+in @file{/etc/krb5.conf} on client machines:
+
+@example
+[realms]
+        MY.REALM = @{
+                kdc = my.kdc my.slave.kdc
+                kpasswd_server = my.kdc
+        @}
+@end example
 
 @subsection Password quality assurance
 
@@ -419,16 +433,18 @@ controls, add lines similar to the following to your
 
 @example
 [password_quality]
-	policies = external-check builtin:minimum-length module:policyname
+	policies = external-check builtin:minimum-length modulename:policyname
 	external_program = /bin/false
 	policy_libraries = @var{library1.so} @var{library2.so}
 @end example
 
 In @samp{[password_quality]policies} the module name is optional if
 the policy name is unique in all modules (members of
-@samp{policy_libraries}).
+@samp{policy_libraries}).  All built-in policies can be qualified with
+a module name of @samp{builtin} to unambiguously specify the built-in
+policy and not a policy by the same name from a loaded module.
 
-The built-in polices are
+The built-in policies are
 
 @itemize @bullet
 
@@ -488,7 +504,7 @@ If no password quality checking function is configured, the only check
 performed is that the password is at least six characters long.
 
 To check the password policy settings, use the command
-@command{password-quality} in @command{kadmin} program. The password
+@command{verify-password-quality} in @command{kadmin} program. The password
 verification is only performed locally, on the client.  It may be
 convenient to set the environment variable @samp{KRB5_CONFIG} to point
 to a test version of @file{krb5.conf} while you're testing the
@@ -555,7 +571,7 @@ good idea.
 @node Incremental propagation, Encryption types and salting, Slave Servers, Setting up a realm
 @section Incremental propagation
 
-There is also a newer, and still somewhat experimental, mechanism for
+There is also a newer mechanism for
 doing incremental propagation in Heimdal.  Instead of sending the whole
 database regularly, it sends the changes as they happen on the master to
 the slaves.  The master keeps track of all the changes by assigning a
@@ -571,6 +587,14 @@ master then responds by sending all the changes between that version and
 the current version at the master (a series of @samp{FORYOU} messages)
 or the whole database in a @samp{TELLYOUEVERYTHING} message.  There is
 also a keep-alive protocol that makes sure all slaves are up and running.
+
+In addition on listening on the network to get connection from new
+slaves, the ipropd-master also listens on a status unix
+socket. kadmind and kpasswdd both open that socket when a transation
+is done and written a notification to the socket. That cause
+ipropd-master to check for new version in the log file. As a fallback in
+case a notification is lost by the unix socket, the log file is
+checked after 30 seconds of no event.
 
 @subsection Configuring incremental propagation
 
@@ -596,6 +620,11 @@ for every slave.
 master# /usr/heimdal/sbin/ktutil get iprop/`hostname`
 @end example
 
+@example
+slave# /usr/heimdal/sbin/ktutil get iprop/`hostname`
+@end example
+
+
 The next step is to start the @command{ipropd-master} process on the master
 server.  The @command{ipropd-master} listens on the UNIX domain socket
 @file{/var/heimdal/signal} to know when changes have been made to the
@@ -612,7 +641,7 @@ slave#  /usr/heimdal/libexec/ipropd-slave master &
 To manage the iprop log file you should use the @command{iprop-log}
 command. With it you can dump, truncate and replay the logfile.
 
-@node Encryption types and salting, Cross realm, Incremental propagation, Setting up a realm
+@node Encryption types and salting, Credential cache server - KCM, Incremental propagation, Setting up a realm
 @section Encryption types and salting
 @cindex Salting
 @cindex Encryption types
@@ -673,7 +702,76 @@ the cell name appended to the password.
 
 @end itemize
 
-@node Cross realm, Transit policy, Encryption types and salting, Setting up a realm
+@node Credential cache server - KCM, Cross realm, Encryption types and salting, Setting up a realm
+@section Credential cache server - KCM
+@cindex KCM
+@cindex Credential cache server
+
+When KCM running is easy for users to switch between different
+kerberos principals using @file{kswitch} or built in support in
+application, like OpenSSH's GSSAPIClientIdentity.
+
+Other advantages are that there is the long term credentials are not
+written to disk and on reboot the credential is removed when kcm
+process stopps running.
+
+Configure the system startup script to start the kcm process,
+@file{/usr/heimdal/libexec/kcm} and then configure the system to use kcm in @file{krb5.conf}.
+
+@example
+[libdefaults]
+	default_cc_type = KCM
+@end example
+
+Now when you run @command{kinit} it doesn't overwrite your existing
+credentials but rather just add them to the set of
+credentials. @command{klist -l} lists the credentials and the star
+marks the default credential.
+
+@example
+$ kinit lha@@KTH.SE
+lha@@KTH.SE's Password: 
+$ klist -l
+  Name         Cache name               Expires         
+lha@@KTH.SE   0                        Nov 22 23:09:40   *
+lha@@SU.SE    Initial default ccache   Nov 22 14:14:24   
+@end example
+
+When switching between credentials you can use @command{kswitch}.
+
+@example
+$ kswitch -i
+     Principal
+1    lha@@KTH.SE
+2    lha@@SU.SE
+Select number: 2
+@end example
+
+After switching, a new set of credentials are used as default.
+
+@example
+$ klist -l
+  Name         Cache name               Expires         
+lha@@SU.SE    Initial default ccache   Nov 22 14:14:24   *
+lha@@KTH.SE   0                        Nov 22 23:09:40   
+@end example
+
+Som applications, like openssh with Simon Wilkinsons patch applied,
+support specifiying that credential to use.  The example below will
+login to the host computer.kth.se using lha@@KTH.SE (not the current
+default credential).
+
+@example
+$ ssh \
+   -o GSSAPIAuthentication=yes \
+   -o GSSAPIKeyExchange=yes \
+   -o GSSAPIClientIdentity=lha@@KTH.SE \
+   computer.kth.se
+@end example
+
+
+
+@node Cross realm, Transit policy, Credential cache server - KCM, Setting up a realm
 @section Cross realm
 @cindex Cross realm
 
@@ -740,17 +838,36 @@ May  3 14:10:54  May  3 23:55:54  host/hummel.it.su.se@@SU.SE
 @section Transit policy
 @cindex Transit policy
 
-If you want to use cross realm authentication through an intermediate
-realm, it must be explicitly allowed by either the KDCs or the server
-receiving the request. This is done in @file{krb5.conf} in the
+Under some circumstances, you may not wish to set up direct
+cross-realm trust with every realm to which you wish to authenticate
+or from which you wish to accept authentications. Kerberos supports
+multi-hop cross-realm trust where a client principal in realm A
+authenticates to a service in realm C through a realm B with which
+both A and C have cross-realm trust relationships. In this situation,
+A and C need not set up cross-realm principals between each other.
+
+If you want to use cross-realm authentication through an intermediate
+realm, it must be explicitly allowed by either the KDCs for the realm
+to which the client is authenticating (in this case, realm C), or the
+server receiving the request. This is done in @file{krb5.conf} in the
 @code{[capaths]} section.
+
+In addition, the client in realm A need to be configured to know how
+to reach realm C via realm B. This can be done either on the client or
+via KDC configuration in the KDC for realm A.
+
+@subsection Allowing cross-realm transits
 
 When the ticket transits through a realm to another realm, the
 destination realm adds its peer to the "transited-realms" field in the
-ticket. The field is unordered, since there is no way to know if
-know if one of the transited-realms changed the order of the list.
+ticket. The field is unordered, since there is no way to know if know
+if one of the transited-realms changed the order of the list. For the
+authentication to be accepted by the final destination realm, all of
+the transited realms must be listed as trusted in the @code{[capaths]}
+configuration, either in the KDC for the destination realm or on the
+server receiving the authentication.
 
-The syntax for @code{[capaths]} section:
+The syntax for @code{[capaths]} section is:
 
 @example
 [capaths]
@@ -759,11 +876,15 @@ The syntax for @code{[capaths]} section:
         @}
 @end example
 
-The realm @code{STACKEN.KTH.SE} allows clients from @code{SU.SE} and
-@code{DSV.SU.SE} to cross it. Since @code{STACKEN.KTH.SE} only has
-direct cross realm setup with @code{KTH.SE}, and @code{DSV.SU.SE} only
-has direct cross realm setup with @code{SU.SE} they need to use both
-@code{SU.SE} and @code{KTH.SE} as transit realms.
+In the following example, the realm @code{STACKEN.KTH.SE} only has
+direct cross-realm set up with @code{KTH.SE}.  @code{KTH.SE} has
+direct cross-realm set up with @code{STACKEN.KTH.SE} and @code{SU.SE}.
+@code{DSV.SU.SE} only has direct cross-realm set up with @code{SU.SE}.
+The goal is to allow principals in the @code{DSV.SU.SE} or
+@code{SU.SE} realms to authenticate to services in
+@code{STACKEN.KTH.SE}.  This is done with the following
+@code{[capaths]} entry on either the server accepting authentication
+or on the KDC for @code{STACKEN.KTH.SE}.
 
 @example
 [capaths]
@@ -773,17 +894,100 @@ has direct cross realm setup with @code{SU.SE} they need to use both
 	DSV.SU.SE = @{
                     STACKEN.KTH.SE = SU.SE KTH.SE
 	@}
-
 @end example
+
+The first entry allows cross-realm authentication from clients in
+@code{SU.SE} transiting through @code{KTH.SE} to
+@code{STACKEN.KTH.SE}.  The second entry allows cross-realm
+authentication from clients in @code{DSV.SU.SE} transiting through
+both @code{SU.SE} and @code{KTH.SE} to @code{STACKEN.KTH.SE}.
+
+Be careful of which realm goes where; it's easy to put realms in the
+wrong place.  The block is tagged with the client realm (the realm of
+the principal authenticating), and the realm before the equal sign is
+the final destination realm: the realm to which the client is
+authenticating.  After the equal sign go all the realms that the
+client transits through.
 
 The order of the @code{PERMITTED-CROSS-REALMS} is not important when
 doing transit cross realm verification.
 
-However, the order is important when the @code{[capaths]} section is used
-to figure out the intermediate realm to go to when doing multi-realm
-transit. When figuring out the next realm, the first realm of the list
-of @code{PERMITTED-CROSS-REALMS} is chosen. This is done in both the
-client kerberos library and the KDC.
+@subsection Configuring client cross-realm transits
+
+The @code{[capaths]} section is also used for another purpose: to tell
+clients which realm to transit through to reach a realm with which
+their local realm does not have cross-realm trust.  This can be done
+by either putting a @code{[capaths]} entry in the configuration of the
+client or by putting the entry in the configuration of the KDC for the
+client's local realm.  In the latter case, the KDC will then hand back
+a referral to the client when the client requests a cross-realm ticket
+to the destination realm, telling the client to try to go through an
+intermediate realm.
+
+For client configuration, the order of @code{PERMITTED-CROSS-REALMS}
+is significant, since only the first realm in this section (after the
+equal sign) is used by the client.
+
+For example, again consider the @code{[capaths]} entry above for the
+case of a client in the @code{SU.SE} realm, and assume that the client
+or the @code{SU.SE} KDC has that @code{[capaths]} entry.  If the
+client attempts to authenticate to a service in the
+@code{STACKEN.KTH.SE} realm, that entry says to first authenticate
+cross-realm to the @code{KTH.SE} realm (the first realm listed in the
+@code{PERMITTED-CROSS-REALMS} section), and then from there to
+@code{STACKEN.KTH.SE}.
+
+Each entry in @code{[capaths]} can only give the next hop, since only
+the first realm in @code{PERMITTED-CROSS-REALMS} is used.  If, for
+instance, a client in @code{DSV.SU.SE} had a @code{[capaths]}
+configuration as above but without the first block for @code{SU.SE},
+they would not be able to reach @code{STACKEN.KTH.SE}.  They would get
+as far as @code{SU.SE} based on the @code{DSV.SU.SE} entry in
+@code{[capaths]} and then attempt to go directly from there to
+@code{STACKEN.KTH.SE} and get stuck (unless, of course, the
+@code{SU.SE} KDC had the additional entry required to tell the client
+to go through @code{KTH.SE}).
+
+@subsection Active Directory forest example
+
+One common place where a @code{[capaths]} configuration is desirable
+is with Windows Active Directory forests.  One common Active Directory
+configuration is to have one top-level Active Directory realm but then
+divide systems, services, and users into child realms (perhaps based
+on organizational unit).  One generally establishes cross-realm trust
+only with the top-level realm, and then uses transit policy to permit
+authentications to and from the child realms.
+
+For example, suppose an organization has a Heimdal realm
+@code{EXAMPLE.COM}, a Windows Active Directory realm
+@code{WIN.EXAMPLE.COM}, and then child Active Directory realms
+@code{ENGR.WIN.EXAMPLE.COM} and @code{SALES.WIN.EXAMPLE.COM}.  The
+goal is to allow users in any of these realms to authenticate to
+services in any of these realms.  The @code{EXAMPLE.COM} KDC (and
+possibly client) configuration should therefore contain a
+@code{[capaths]} section as follows:
+
+@example
+[capaths]
+	ENGR.WIN.EXAMPLE.COM = @{
+		EXAMPLE.COM = WIN.EXAMPLE.COM
+	@}
+	SALES.WIN.EXAMPLE.COM = @{
+		EXAMPLE.COM = WIN.EXAMPLE.COM
+	@}
+	EXAMPLE.COM = @{
+		ENGR.WIN.EXAMPLE.COM = WIN.EXAMPLE.COM
+		SALES.WIN.EXAMPLE.COM = WIN.EXAMPLE.COM
+	@}
+@end example
+
+The first two blocks allow clients in the @code{ENGR.WIN.EXAMPLE.COM}
+and @code{SALES.WIN.EXAMPLE.COM} realms to authenticate to services in
+the @code{EXAMPLE.COM} realm.  The third block tells the client (or
+tells the KDC to tell the client via referrals) to transit through
+@code{WIN.EXAMPLE.COM} to reach these realms.  Both sides of the
+configuration are needed for bi-directional transited cross-realm
+authentication.
 
 @c To test the cross realm configuration, use:
 @c    kmumble transit-check client server transit-realms ...
@@ -863,6 +1067,8 @@ suitable authorisation policy, it is possible to set this up in a
 secure fashion. A knowledge of LDAP, Kerberos, and C is necessary to
 install this backend. The HDB schema was devised by Leif Johansson.
 
+This assumes, OpenLDAP 2.3 or later.
+
 Requirements:
 
 @itemize @bullet
@@ -880,9 +1086,7 @@ Its also possible to configure the ldap backend as a shared module,
 see option --hdb-openldap-module to configure.
 
 @item
-OpenLDAP 2.0.x. Configure OpenLDAP with @kbd{--enable-local} to enable the
-local transport. (A patch to support SASL EXTERNAL authentication is
-necessary in order to use OpenLDAP 2.1.x.)
+Configure OpenLDAP with @kbd{--enable-local} to enable the local transport.
 
 @item
 Add the hdb schema to the LDAP server, it's included in the source-tree
@@ -901,7 +1105,7 @@ access to *
         by dn.exact="uid=heimdal,dc=services,dc=example,dc=com" write
         ...
 
-sasl-regexp "uidNumber=0\\\+gidNumber=.*,cn=peercred,cn=external,cn=auth"
+authz-regexp "gidNumber=.*\\\+uidNumber=0,cn=peercred,cn=external,cn=auth''
 	"uid=heimdal,dc=services,dc=example,dc=com"
 
 @end example
@@ -970,7 +1174,7 @@ kdc# kadmin -l
 kadmin> init EXAMPLE.COM
 Realm max ticket life [unlimited]:
 Realm max renewable ticket life [unlimited]:
-kadmin> ank lukeh
+kadmin> add lukeh
 Max ticket life [1 day]:
 Max renewable life [1 week]:
 Principal expiration time [never]:
@@ -1003,6 +1207,14 @@ index	krb5PrincipalName	eq
 @end example
 
 @end itemize
+
+@subsection smbk5pwd overlay
+
+The smbk5pwd overlay, updates the krb5Key and krb5KeyVersionNumber
+appropriately when it receives an LDAP Password change Extended
+Operation:
+
+@url{http://www.openldap.org/devel/cvsweb.cgi/contrib/slapd-modules/smbk5pwd/README?hideattic=1&sortbydate=0}
 
 @subsection Troubleshooting guide
 
@@ -1073,21 +1285,22 @@ service@@host$ kinit --cache=/var/run/service_krb5_cache \
 @end example
 
 
-@node Setting up PK-INIT, , Providing Kerberos credentials to servers and programs, Setting up a realm
+@node Setting up PK-INIT, Debugging Kerberos problems, Providing Kerberos credentials to servers and programs, Setting up a realm
 @section Setting up PK-INIT
 
-PK-INIT is levering the existing PKI infrastructure to use
-certificates to get the initial ticket, that is usually the krbtgt.
+PK-INIT leverages an existing PKI (public key infrastructure), using
+certificates to get the initial ticket (usually the krbtgt
+ticket-granting ticket).
 
-To use PK-INIT you must first have a PKI, so if you don't have one,
-it is time to create it. Note that you should read the whole chapter
-of the document to see the requirements on the CA software.
+To use PK-INIT you must first have a PKI. If you don't have one, it is
+time to create it. You should first read the whole chapter of the
+document to see the requirements imposed on the CA software.
 
-There needs to exist a mapping between the certificate and what
-principals that certificate is allowed to use. There are several ways
-to do this. The administrator can use a configuration file, storing
-the principal in the SubjectAltName extension of the certificate, or store the
-mapping in the principals entry in the kerberos database.
+A mapping between the PKI certificate and what principals that
+certificate is allowed to use must exist. There are several ways to do
+this. The administrator can use a configuration file, store the
+principal in the SubjectAltName extension of the certificate, or store
+the mapping in the principals entry in the kerberos database.
 
 @section Certificates
 
@@ -1097,27 +1310,28 @@ extention.
 
 @subsection KDC certificate
 
-The certificate for the KDC have serveral requirements.
+The certificate for the KDC has serveral requirements.
 
-First the certificate should have an Extended Key Usage (EKU)
-id-pkkdcekuoid (1.3.6.1.5.2.3.5) set. Second there must be a
-subjectAltName otherName using oid id-pkinit-san (1.3.6.1.5.2.2) in
+First, the certificate should have an Extended Key Usage (EKU)
+id-pkkdcekuoid (1.3.6.1.5.2.3.5) set. Second, there must be a
+subjectAltName otherName using OID id-pkinit-san (1.3.6.1.5.2.2) in
 the type field and a DER encoded KRB5PrincipalName that matches the
-name of the TGS of the target realm.
+name of the TGS of the target realm.  Also, if the certificate has a
+nameConstraints extention with a Generalname with dNSName or iPAdress,
+it must match the hostname or adress of the KDC.
 
-Both of these two requirements are not required by the standard to be
-checked by the client if it have external information what the
-certificate the KDC is supposed to be used. So it's in the interest of
-minimum amount of configuration on the clients they should be included.
+The client is not required by the standard to check the server
+certificate for this information if the client has external
+information confirming which certificate the KDC is supposed to be
+using. However, adding this information to the KDC certificate removes
+the need to specially configure the client to recognize the KDC
+certificate.
 
 Remember that if the client would accept any certificate as the KDC's
 certificate, the client could be fooled into trusting something that
 isn't a KDC and thus expose the user to giving away information (like
-password or other private information) that it is supposed to secret.
-
-Also, if the certificate has a nameConstraints extention with a
-Generalname with dNSName or iPAdress it must match the hostname or
-adress of the KDC.
+a password or other private information) that it is supposed to keep
+secret.
 
 @subsection Client certificate
 
@@ -1128,14 +1342,23 @@ It possible to store the principal (if allowed by the KDC) in the
 certificate and thus delegate responsibility to do the mapping between
 certificates and principals to the CA.
 
+This behavior is controlled by KDC configuration option:
+
+@example
+[kdc]
+	pkinit_principal_in_certificate = yes
+@end example
+
 @subsubsection Using KRB5PrincipalName in id-pkinit-san
 
-OtherName extention in the GeneralName is used to do the
-mapping between certifiate and principal in the certifiate or storing
-the krbtgt principal in the KDC certificate.
+The OtherName extention in the GeneralName is used to do the mapping
+between certificate and principal.  For the KDC certificate, this
+stores the krbtgt principal name for that KDC.  For the client
+certificate, this stores the principal for which that certificate is
+allowed to get tickets.
 
 The principal is stored in a SubjectAltName in the certificate using
-OtherName. The oid in the type is id-pkinit-san.
+OtherName. The OID in the type is id-pkinit-san.
 
 @example
 id-pkinit-san OBJECT IDENTIFIER ::= @{ iso (1) org (3) dod (6)
@@ -1152,32 +1375,32 @@ KRB5PrincipalName ::= SEQUENCE @{
 @}
 @end example
 
-where Realm and PrincipalName is defined by the Kerberos ASN.1 specification.
+where Realm and PrincipalName is defined by the Kerberos ASN.1
+specification.
 
 @section Naming certificate using hx509
 
 hx509 is the X.509 software used in Heimdal to handle
-certificates. hx509 uses different syntaxes to specify the different
-formats the certificates are stored in and what formats they exist in.
+certificates. hx509 supports several different syntaxes for specifying
+certificate files or formats. Several formats may be used:  PEM,
+certificates embedded in PKCS#12 files, certificates embedded in
+PKCS#11 devices, and raw DER encoded certificates.
 
-There are several formats that can be used, PEM, embedded into PKCS12
-files, embedded into PKCS11 devices and raw DER encoded certificates.
-Below is a list of types to use.
-
+Those formats may be specified as follows:
 
 @table @asis
 
 @item DIR:
 
-DIR is reading all certificates in a directory that is DER or PEM
-formatted.
+DIR specifies a directory which contains certificates in the DER or
+PEM format.
 
 The main feature of DIR is that the directory is read on demand when
-iterating over certificates, that way applictions can for some cases
-avoid to store all certificates in memory. It's very useful for tests
-that iterate over larger amount of certificates.
+iterating over certificates. This allows applications, in some
+situations, to avoid having to store all certificates in memory.  It's
+very useful for tests that iterate over large numbers of certificates.
 
-Syntax is:
+The syntax is:
 
 @example
 DIR:/path/to/der/files
@@ -1185,15 +1408,16 @@ DIR:/path/to/der/files
 
 @item FILE:
 
-FILE: is used to have the lib pick up a certificate chain and a
-private key. The file can be either a PEM (openssl) file or a raw DER
-encoded certificate. If it's a PEM file it can contain several keys and
+FILE: specifies a file that contains a certificate or private key.
+The file can be either a PEM (openssl) file or a raw DER encoded
+certificate. If it's a PEM file, it can contain several keys and
 certificates and the code will try to match the private key and
-certificate together.
+certificate together. Multiple files may be specified, separated by
+commas.
 
-Its useful to have one PEM file that contains all the trust anchors.
+It's useful to have one PEM file that contains all the trust anchors.
 
-Syntax is:
+The syntax is:
 
 @example
 FILE:certificate.pem,private-key.key,other-cert.pem,....
@@ -1201,11 +1425,12 @@ FILE:certificate.pem,private-key.key,other-cert.pem,....
 
 @item PKCS11:
 
-PKCS11: is used to handle smartcards via PKCS11 drivers, for example
-soft-token, opensc, or muscle. The default is to use all slots on the
-device/token.
+PKCS11: is used to handle smartcards via PKCS#11 drivers, such as
+soft-token, opensc, or muscle. The argument specifies a shared object
+that implements the PKCS#11 API. The default is to use all slots on
+the device/token.
 
-Syntax is:
+The syntax is:
 
 @example
 PKCS11:shared-object.so
@@ -1213,10 +1438,10 @@ PKCS11:shared-object.so
 
 @item PKCS12:
 
-PKCS12: is used to handle PKCS12 files. PKCS12 files commonly have the
-extension pfx or p12.
+PKCS12: is used to handle PKCS#12 files. PKCS#12 files commonly have
+the extension pfx or p12.
 
-Syntax is:
+The syntax is:
 
 @example
 PKCS12:/path/to/file.pfx
@@ -1227,8 +1452,8 @@ PKCS12:/path/to/file.pfx
 @section Configure the Kerberos software
 
 First configure the client's trust anchors and what parameters to
-verify, see subsection below how to do that. Now you can use kinit to
-get yourself tickets. One example how that can look like is:
+verify. See the subsections below for how to do that. Then, you can
+use kinit to get yourself tickets. For example:
 
 @example
 $ kinit -C FILE:$HOME/.certs/lha.crt,$HOME/.certs/lha.key lha@@EXAMPLE.ORG
@@ -1241,10 +1466,10 @@ Credentials cache: FILE:/tmp/krb5cc_19100a
 Apr 20 02:08:08  Apr 20 12:08:08  krbtgt/EXAMPLE.ORG@@EXAMPLE.ORG
 @end example
 
-Using PKCS11 it can look like this instead:
+Using PKCS#11 it can look like this instead:
 
 @example
-$ kinit -C PKCS11:/tmp/pkcs11/lib/soft-pkcs11.so lha@@EXAMPLE.ORG
+$ kinit -C PKCS11:/usr/heimdal/lib/hx509.so lha@@EXAMPLE.ORG
 PIN code for SoftToken (slot):
 $ klist
 Credentials cache: API:4
@@ -1254,8 +1479,7 @@ Credentials cache: API:4
 Mar 26 23:40:10  Mar 27 09:40:10  krbtgt/EXAMPLE.ORG@@EXAMPLE.ORG
 @end example
 
-
-Write about the kdc.
+TODO: Write about the KDC.
 
 @section Configure the client
 
@@ -1282,8 +1506,9 @@ Write about the kdc.
 	pkinit_anchors = FILE:/path/to/trust-anchors.pem
 	pkinit_pool = PKCS12:/path/to/useful-intermediate-certs.pfx
 	pkinit_pool = FILE:/path/to/other-useful-intermediate-certs.pem
-	pkinit_allow_proxy_certificate = false
+	pkinit_allow_proxy_certificate = no
 	pkinit_win2k_require_binding = yes
+	pkinit_principal_in_certificate = no
 @end example
 
 @subsection Using pki-mapping file
@@ -1303,10 +1528,11 @@ lha@@EXAMPLE.ORG:CN=Love,UID=lha
 
 @subsection Generate certificates
 
-First you need to generate a CA certificate, change the --subject to
-something appropriate, the CA certificate will be valid for 10 years.
+First, you need to generate a CA certificate. This example creates a
+CA certificate that will be valid for 10 years.
 
-You need to change --subject in the command below.
+You need to change --subject in the command below to something
+appropriate for your site.
 
 @example
 hxtool issue-certificate \
@@ -1322,7 +1548,8 @@ The KDC needs to have a certificate, so generate a certificate of the
 type ``pkinit-kdc'' and set the PK-INIT specifial SubjectAltName to the
 name of the krbtgt of the realm.
 
-You need to change --subject and --pk-init-principal in the command below.
+You need to change --subject and --pk-init-principal in the command
+below to something appropriate for your site.
 
 @example
 hxtool issue-certificate \
@@ -1334,12 +1561,14 @@ hxtool issue-certificate \
     --certificate="FILE:kdc.pem"
 @end example
 
-The users also needs to have a certificate, so generate a certificate
-of the type ``pkinit-client''. The client doesn't need to have the PK-INIT
-SubjectAltName set, you can have the Subject DN in the ACL file
-(pki-mapping) instead.
+The users also needs to have certificates. For your first client,
+generate a certificate of type ``pkinit-client''. The client doesn't
+need to have the PK-INIT SubjectAltName set; you can have the Subject
+DN in the ACL file (pki-mapping) instead.
 
-You need to change --subject and --pk-init-principal in the command below.
+You need to change --subject and --pk-init-principal in the command
+below to something appropriate for your site. You can omit
+--pk-init-principal if you're going to use the ACL file instead.
 
 @example
 hxtool issue-certificate \
@@ -1353,9 +1582,10 @@ hxtool issue-certificate \
 
 @subsection Validate the certificate
 
-hxtool also contains a tool that will validate certificates according to
-rules from the PKIX document. These checks are not complete, but a good test
-to check if you got all of the basic bits right in your certificates.
+hxtool also contains a tool that will validate certificates according
+to rules from the PKIX document. These checks are not complete, but
+they provide a good test of whether you got all of the basic bits
+right in your certificates.
 
 @example
 hxtool validate FILE:user.pem
@@ -1368,7 +1598,7 @@ certificates using OpenSSL (or CA software based on OpenSSL).
 
 @subsection Using OpenSSL to create certificates with krb5PrincipalName
 
-To make OpenSSL create certificates with krb5PrincipalName use
+To make OpenSSL create certificates with krb5PrincipalName, use an
 @file{openssl.cnf} as described below. To see a complete example of
 creating client and KDC certificates, see the test-data generation
 script @file{lib/hx509/data/gen-req.sh} in the source-tree. The
@@ -1395,7 +1625,7 @@ princ1 = GeneralString:userid
 
 @end example
 
-Command usage
+Command usage:
 
 @example
 openssl x509 -extensions user_certificate
@@ -1425,9 +1655,9 @@ Clients using a Windows KDC with PK-INIT need configuration since
 windows uses pre-standard format and this can't be autodetected.
 
 The pkinit_win2k_require_binding option requires the reply for the KDC
-to be of the new, secure, type that binds the request to reply. Before
-clients should fake the reply from the KDC. To use this option you
-have to apply a fix from Microsoft.
+to be of the new, secure, type that binds the request to
+reply. Before, clients could fake the reply from the KDC. To use this
+option you have to apply a fix from Microsoft.
 
 @example
 [realms]
@@ -1440,16 +1670,32 @@ have to apply a fix from Microsoft.
 @subsection Certificates
 
 The client certificates need to have the extended keyusage ``Microsoft
-Smartcardlogin'' (openssl have the oid shortname msSmartcardLogin).
+Smartcardlogin'' (openssl has the OID shortname msSmartcardLogin).
 
 See Microsoft Knowledge Base Article - 281245 ``Guidelines for Enabling
 Smart Card Logon with Third-Party Certification Authorities'' for a
-more extensive description of how set setup an external CA to it
-includes all information that will make a Windows KDC happy.
+more extensive description of how set setup an external CA so that it
+includes all the information required to make a Windows KDC happy.
 
 @subsection Configure Windows 2000 CA
 
-To enable Microsoft Smartcardlogin> for certificates in your Windows
-2000 CA, you want to look at Microsoft Knowledge Base Article -
-313274 ``HOW TO: Configure a Certification Authority to Issue
-Smart Card Certificates in Windows''.
+To enable Microsoft Smartcardlogin for certificates in your Windows
+2000 CA, you want to look at Microsoft Knowledge Base Article - 313274
+``HOW TO: Configure a Certification Authority to Issue Smart Card
+Certificates in Windows''.
+
+@node Debugging Kerberos problems, , Setting up PK-INIT, Setting up a realm
+@section Debugging Kerberos problems
+
+To debug Kerberos client and server problems you can enable debug
+traceing by adding the following to @file{/etc/krb5,conf}. Note that the
+trace logging is sparse at the moment, but will continue to improve.
+
+@example
+[logging]
+        libkrb5 = 0-/SYSLOG:
+@end example
+
+
+
+

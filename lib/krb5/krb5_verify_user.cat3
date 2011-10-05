@@ -1,0 +1,141 @@
+
+KRB5_VERIFY_USER(3)      BSD Library Functions Manual      KRB5_VERIFY_USER(3)
+
+NNAAMMEE
+     kkrrbb55__vveerriiffyy__uusseerr, kkrrbb55__vveerriiffyy__uusseerr__llrreeaallmm, kkrrbb55__vveerriiffyy__uusseerr__oopptt,
+     kkrrbb55__vveerriiffyy__oopptt__iinniitt, kkrrbb55__vveerriiffyy__oopptt__aalllloocc, kkrrbb55__vveerriiffyy__oopptt__ffrreeee,
+     kkrrbb55__vveerriiffyy__oopptt__sseett__ccccaacchhee, kkrrbb55__vveerriiffyy__oopptt__sseett__ffllaaggss,
+     kkrrbb55__vveerriiffyy__oopptt__sseett__sseerrvviiccee, kkrrbb55__vveerriiffyy__oopptt__sseett__sseeccuurree,
+     kkrrbb55__vveerriiffyy__oopptt__sseett__kkeeyyttaabb -- Heimdal password verifying functions
+
+LLIIBBRRAARRYY
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkrrbb55..hh>>
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__uusseerr(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___b_o_o_l_e_a_n _s_e_c_u_r_e,
+         _c_o_n_s_t _c_h_a_r _*_s_e_r_v_i_c_e);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__uusseerr__llrreeaallmm(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l,
+         _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e, _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___b_o_o_l_e_a_n _s_e_c_u_r_e,
+         _c_o_n_s_t _c_h_a_r _*_s_e_r_v_i_c_e);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__iinniitt(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__aalllloocc(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__ffrreeee(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__sseett__ccccaacchhee(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t, _k_r_b_5___c_c_a_c_h_e _c_c_a_c_h_e);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__sseett__kkeeyyttaabb(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t, _k_r_b_5___k_e_y_t_a_b _k_e_y_t_a_b);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__sseett__sseeccuurree(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t, _k_r_b_5___b_o_o_l_e_a_n _s_e_c_u_r_e);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__sseett__sseerrvviiccee(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t, _c_o_n_s_t _c_h_a_r _*_s_e_r_v_i_c_e);
+
+     _v_o_i_d
+     kkrrbb55__vveerriiffyy__oopptt__sseett__ffllaaggss(_k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t, _u_n_s_i_g_n_e_d _i_n_t _f_l_a_g_s);
+
+     _k_r_b_5___e_r_r_o_r___c_o_d_e
+     kkrrbb55__vveerriiffyy__uusseerr__oopptt(_k_r_b_5___c_o_n_t_e_x_t _c_o_n_t_e_x_t, _k_r_b_5___p_r_i_n_c_i_p_a_l _p_r_i_n_c_i_p_a_l,
+         _c_o_n_s_t _c_h_a_r _*_p_a_s_s_w_o_r_d, _k_r_b_5___v_e_r_i_f_y___o_p_t _*_o_p_t);
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkrrbb55__vveerriiffyy__uusseerr function verifies the password supplied by a user.
+     The principal whose password will be verified is specified in _p_r_i_n_c_i_p_a_l.
+     New tickets will be obtained as a side-effect and stored in _c_c_a_c_h_e (if
+     NULL, the default ccache is used).  kkrrbb55__vveerriiffyy__uusseerr() will call
+     kkrrbb55__cccc__iinniittiiaalliizzee() on the given _c_c_a_c_h_e, so _c_c_a_c_h_e must only initialized
+     with kkrrbb55__cccc__rreessoollvvee() or kkrrbb55__cccc__ggeenn__nneeww().  If the password is not sup-
+     plied in _p_a_s_s_w_o_r_d (and is given as NULL) the user will be prompted for
+     it.  If _s_e_c_u_r_e the ticket will be verified against the locally stored
+     service key _s_e_r_v_i_c_e (by default `host' if given as NULL ).
+
+     The kkrrbb55__vveerriiffyy__uusseerr__llrreeaallmm() function does the same, except that it
+     ignores the realm in _p_r_i_n_c_i_p_a_l and tries all the local realms (see
+     krb5.conf(5)).  After a successful return, the principal is set to the
+     authenticated realm. If the call fails, the principal will not be mean-
+     ingful, and should only be freed with krb5_free_principal(3).
+
+     kkrrbb55__vveerriiffyy__oopptt__aalllloocc() and kkrrbb55__vveerriiffyy__oopptt__ffrreeee() allocates and frees a
+     krb5_verify_opt.  You should use the the alloc and free function instead
+     of allocation the structure yourself, this is because in a future release
+     the structure wont be exported.
+
+     kkrrbb55__vveerriiffyy__oopptt__iinniitt() resets all opt to default values.
+
+     None of the krb5_verify_opt_set function makes a copy of the data struc-
+     ture that they are called with. It's up the caller to free them after the
+     kkrrbb55__vveerriiffyy__uusseerr__oopptt() is called.
+
+     kkrrbb55__vveerriiffyy__oopptt__sseett__ccccaacchhee() sets the _c_c_a_c_h_e that user of _o_p_t will use.
+     If not set, the default credential cache will be used.
+
+     kkrrbb55__vveerriiffyy__oopptt__sseett__kkeeyyttaabb() sets the _k_e_y_t_a_b that user of _o_p_t will use.
+     If not set, the default keytab will be used.
+
+     kkrrbb55__vveerriiffyy__oopptt__sseett__sseeccuurree() if _s_e_c_u_r_e if true, the password verification
+     will require that the ticket will be verified against the locally stored
+     service key. If not set, default value is true.
+
+     kkrrbb55__vveerriiffyy__oopptt__sseett__sseerrvviiccee() sets the _s_e_r_v_i_c_e principal that user of _o_p_t
+     will use. If not set, the `host' service will be used.
+
+     kkrrbb55__vveerriiffyy__oopptt__sseett__ffllaaggss() sets _f_l_a_g_s that user of _o_p_t will use.  If the
+     flag KRB5_VERIFY_LREALMS is used, the _p_r_i_n_c_i_p_a_l will be modified like
+     kkrrbb55__vveerriiffyy__uusseerr__llrreeaallmm() modifies it.
+
+     kkrrbb55__vveerriiffyy__uusseerr__oopptt() function verifies the _p_a_s_s_w_o_r_d supplied by a user.
+     The principal whose password will be verified is specified in _p_r_i_n_c_i_p_a_l.
+     Options the to the verification process is pass in in _o_p_t.
+
+EEXXAAMMPPLLEESS
+     Here is a example program that verifies a password. it uses the
+     `host/`hostname`' service principal in _k_r_b_5_._k_e_y_t_a_b.
+
+     #include <krb5.h>
+
+     int
+     main(int argc, char **argv)
+     {
+         char *user;
+         krb5_error_code error;
+         krb5_principal princ;
+         krb5_context context;
+
+         if (argc != 2)
+             errx(1, "usage: verify_passwd <principal-name>");
+
+         user = argv[1];
+
+         if (krb5_init_context(&context) < 0)
+             errx(1, "krb5_init_context");
+
+         if ((error = krb5_parse_name(context, user, &princ)) != 0)
+             krb5_err(context, 1, error, "krb5_parse_name");
+
+         error = krb5_verify_user(context, princ, NULL, NULL, TRUE, NULL);
+         if (error)
+             krb5_err(context, 1, error, "krb5_verify_user");
+
+         return 0;
+     }
+
+SSEEEE AALLSSOO
+     krb5_cc_gen_new(3), krb5_cc_initialize(3), krb5_cc_resolve(3),
+     krb5_err(3), krb5_free_principal(3), krb5_init_context(3),
+     krb5_kt_default(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

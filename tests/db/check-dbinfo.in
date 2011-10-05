@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: check-dbinfo.in 20537 2007-04-23 08:00:04Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -41,5 +41,9 @@ KRB5_CONFIG="${objdir}/krb5.conf"
 export KRB5_CONFIG
 
 ../../lib/hdb/test_dbinfo > dbinfo.out || exit 1
+
+../../lib/hdb/test_mkey --mkey-file="${srcdir}/../../lib/hdb/data-mkey.mit.des3.le" || exit 1
+../../lib/hdb/test_mkey --mkey-file="${srcdir}/../../lib/hdb/data-mkey.mit.des3.be" || exit 1
+
 
 exit 0

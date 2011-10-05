@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: mac.sh 22177 2007-12-05 01:43:30Z lha $
+# $Id$
 
 dbase=`dirname $0`
 base=`cd $dbase && pwd`
@@ -21,9 +21,9 @@ version=`sh ${config} --help 2>/dev/null | head -1 | sed 's/.*Heimdal \([^ ]*\).
 echo "Building Mac universal binary package for Heimdal ${version}"
 echo "Configure"
 env \
-  CFLAGS="-arch i386 -arch ppc" \
-  LDFLAGS="-arch i386 -arch ppc" \
-  ${config} > log || exit 1
+  CFLAGS="-arch i386 -arch x86_64" \
+  LDFLAGS="-arch i386 -arch x86_64" \
+  ${config} --disable-dependency-tracking > log || exit 1
 echo "Build"
 make all > /dev/null || exit 1
 echo "Run regression suite"

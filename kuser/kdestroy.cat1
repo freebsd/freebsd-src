@@ -1,0 +1,37 @@
+
+KDESTROY(1)               BSD General Commands Manual              KDESTROY(1)
+
+NNAAMMEE
+     kkddeessttrrooyy -- remove one credential or destroy the current ticket file
+
+SSYYNNOOPPSSIISS
+     kkddeessttrrooyy [--cc _c_a_c_h_e_f_i_l_e] [----ccrreeddeennttiiaall==_p_r_i_n_c_i_p_a_l] [----ccaacchhee==_c_a_c_h_e_f_i_l_e]
+              [--AA | ----aallll] [----nnoo--uunnlloogg] [----nnoo--ddeelleettee--vv44] [----vveerrssiioonn] [----hheellpp]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkddeessttrrooyy removes one credential or the current set of tickets.
+
+     Supported options:
+
+     --ccrreeddeennttiiaall==_p_r_i_n_c_i_p_a_l
+             remove _p_r_i_n_c_i_p_a_l from the credential cache if it exists.
+
+     --cc _c_a_c_h_e_f_i_l_e
+
+     --ccaacchhee==_c_a_c_h_e_f_i_l_e
+             The cache file to remove.
+
+     --AA
+
+     ----aallll   remove all credential caches.
+
+     ----nnoo--uunnlloogg
+             Do not remove AFS tokens.
+
+     ----nnoo--ddeelleettee--vv44
+             Do not remove v4 tickets.
+
+SSEEEE AALLSSOO
+     kinit(1), klist(1)
+
+HEIMDAL                         April 27, 2006                         HEIMDAL

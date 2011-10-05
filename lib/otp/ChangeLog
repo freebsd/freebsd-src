@@ -1,0 +1,128 @@
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: split source files in dist and nodist.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version
+
+2007-06-07  Assar Westerlund  <assar@kth.se>
+
+	* otp_parse.c: NIIL should be NIL
+
+2006-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* otp_parse.c: Less "pointer targets in passing argument differ in
+	signedness" warnings.
+	
+2005-07-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* otp.h: remove parameter names to avoid shadow warnings
+
+2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* otp_parse.c (parse_words): avoid const warnings by making a
+	(shorter) copy of the string instead of truncating it
+
+2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* otp_parse.c: cast argument to tolower to unsigned char
+	
+2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* roken_rename.h: rename strlcat, strlcpy
+	* Makefile.am: (ES): add strlcpy.c and strlcat.c
+	* otp_db.c: use strlcpy, from openbsd
+	* otp_md.c: use strlcat/strlcpy, from openbsd
+	* otp_challenge.c: do strdup again, we desupport ultrix
+	
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* otp_md.c: if we only have old hash names, we need to include
+	functions here that do the work
+
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* otp_db.c: fix ndbm test
+
+2002-05-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: add hooks for ndbm_wrap
+
+	* otp_db.c: use ndbm_wrap
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add required library dependencies
+
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libotp_la_LDFLAGS): bump version to 1:2:1
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* otp_md.c: update to new md4/md5/sha API
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (INCLUDES): add krb4 includes here, which are
+	somewhat bogusly used when linking against libdes supplied by krb4
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 1:1:1
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	*  const-ify
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: update version to 1:0:1
+
+2000-01-26  Assar Westerlund  <assar@sics.se>
+
+	* otp_md.c: update to pseudo-standard APIs for md4,md5,sha.
+	* otp_md.c: start using the pseudo-standard APIs for the hash
+	functions
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 0:1:0
+
+Fri Mar 19 14:52:48 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: add version-info
+
+Thu Mar 18 11:24:19 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Sat Mar 13 22:27:10 1999  Assar Westerlund  <assar@sics.se>
+
+	* otp_parse.c: unsigned-ify
+
+Sun Nov 22 10:44:16 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (WFLAGS): set
+
+Mon May 25 05:27:07 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): try to remove shared library debris
+
+Sat May 23 20:54:28 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: link with DBLIB
+
+Sun Apr 19 09:59:46 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add symlink magic for linux
+
+Sat Feb  7 07:27:18 1998  Assar Westerlund  <assar@sics.se>
+
+	* otp_db.c (otp_put): make sure we don't overrun `buf'
+
+Sun Nov  9 07:14:59 1997  Assar Westerlund  <assar@sics.se>
+
+	* otp_locl.h: use xdbm.h
+
