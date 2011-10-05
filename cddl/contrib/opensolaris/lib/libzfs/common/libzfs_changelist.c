@@ -467,7 +467,6 @@ change_one(zfs_handle_t *zhp, void *data)
 			 * This is necessary when the original mountpoint
 			 * is legacy or none.
 			 */
-			ASSERT(!clp->cl_alldependents);
 			verify(uu_list_insert_before(clp->cl_list,
 			    uu_list_first(clp->cl_list), cn) == 0);
 		}
