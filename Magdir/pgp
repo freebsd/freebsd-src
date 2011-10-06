@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: pgp,v 1.9 2009/09/19 16:28:11 christos Exp $
 # pgp:  file(1) magic for Pretty Good Privacy
 # see http://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
 #

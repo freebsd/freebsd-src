@@ -1,3 +1,257 @@
+2011-09-01  12:12  Christos Zoulas <christos@zoulas.com>
+
+	* Don't wait for any subprocess, just the one we forked.
+
+2011-08-26  16:40  Christos Zoulas <christos@zoulas.com>
+
+	* If the application name is not set in a cdf file, try to see
+	  if it has a directory with the application name on it.
+
+2011-08-17  14:32  Christos Zoulas <christos@zoulas.com>
+
+	* Fix ELF lseek(2) madness. Inspired by PR/134 by Jan Kaluza
+
+2011-08-14  09:03  Christos Zoulas <christos@zoulas.com>
+
+	* Don't use variable string formats.
+
+2011-07-12  12:32  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix detection of Zip files (Mantis #128).
+	* Make some minor improvements to file(1).
+	* Rename MIME types for filesystem objects for consistency with
+	  xdg-utils. Typically this means that application/x-foo becomes
+	  inode/foo, but some names also change slightly, e.g.
+	  application/x-character-device becomes inode/chardevice.
+
+2011-05-10  20:57  Christos Zoulas <christos@zoulas.com>
+
+	* fix mingw compilation (Abradoks)
+
+2011-05-10  20:57  Christos Zoulas <christos@zoulas.com>
+
+	* remove patchlevel.h
+	* Fix read past allocated memory caused by double-incrementing
+	  a pointer in a loop (reported by Roberto Maar)
+
+2011-03-30  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* Fix cdf string buffer setting (Sven Anders)
+
+2011-03-20  16:35  Christos Zoulas <christos@zoulas.com>
+
+	* Eliminate MAXPATHLEN and use dynamic allocation for
+	  path and file buffers.
+
+2011-03-15  18:15  Christos Zoulas <christos@zoulas.com>
+
+	* binary tests on magic entries with masks could spuriously
+	  get converted to ascii.
+
+2011-03-12  18:06  Reuben Thomas <rrt@sc3d.org>
+
+	* Improve file.man (remove BUGS, present email addresses consistently).
+
+2011-03-07  19:38  Christos Zoulas <christos@zoulas.com>
+
+	* add lrzip support (from Ville Skytta)
+
+2011-02-10  16:36  Christos Zoulas <christos@zoulas.com>
+
+	* fix CDF bounds checking (Guy Helmer)
+
+2011-02-10  12:03  Christos Zoulas <christos@zoulas.com>
+
+	* add cdf_ctime() that prints a meaningful error when time cannot
+	  be converted.
+
+2011-02-02  20:40  Christos Zoulas <christos@zoulas.com>
+
+	* help and version output to stdout.
+
+	* When matching softmagic for ascii files, don't just print
+	  the softmagic classification, keep going and print the
+	  text classification too. This fixes broken troff files when
+	  we moved them from keyword recognition to softmagic
+	  (they stopped printing "with CRLF" etc.)
+	  Reported by Doug McIlroy.
+
+2011-01-16  19:31  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix two potential buffer overruns in apprentice_list.
+
+2011-01-14  22:33  Reuben Thomas <rrt@sc3d.org>
+
+	* New Python binding in pure Python.
+	* Update libmagic(3).
+
+2011-01-06  21:40  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix Python bindings (including recent Python 3 compatibility
+	  update).
+
+2011-01-04  18:43  Reuben Thomas <rrt@sc3d.org>
+
+	* magic/Makefile.am: make it easier to recover from magic build failures.
+	* Fix pstring length specifier parsing to avoid generating invalid
+	  magic files.
+	* Add pstring length "J" (for "JPEG") to specify that the length
+	  include itself.
+	* Fix JPEG comment parsing at last using pstring/HJ!
+	* Ignore section 5 man pages in doc/.cvsignore.
+
+2010-12-22  13:12  Christos Zoulas <christos@zoulas.com>
+
+	* Add pstring/BHhLl to specify the type of the length of pascal
+	  strings.
+
+2010-11-26  18:39  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix "-e soft": it was ignored when softmagic was called
+	  during asciimagic.
+	* Improve comments and use "unsigned char" in tar.h/is_tar.c.
+
+2010-11-05  17:26  Reuben Thomas <rrt@sc3d.org>
+
+	* Make bug reporting addresses more visible.
+
+2010-11-01  18:35  Reuben Thomas <rrt@sc3d.org>
+
+	* Add tcl magic from Gustaf Neumann
+
+2010-10-24  10:42  Christos Zoulas <christos@zoulas.com>
+
+	* Fix the whitespace comparing code (Christopher Chittleborough)
+
+2010-10-06  21:05  Christos Zoulas <christos@zoulas.com>
+
+	* allow string/t to work (Jan Kaluza)
+
+2010-09-20  22:11  Reuben Thomas <rrt@sc3d.org>
+
+	* Apply some patches from Ubuntu and Fedora.
+
+2010-09-20  21:16  Reuben Thomas <rrt@sc3d.org>
+
+	* Apply all patches from Debian package 5.04-6 which have not
+	  already been applied and are not Debian-specific.
+
+2010-09-20  15:24  Reuben Thomas <rrt@sc3d.org>
+
+	* Minor security fix to softmagic.c (don't use untrusted
+	  string as printf format).
+
+2010-07-21  12:20  Christos Zoulas <christos@zoulas.com>
+
+	* MINGW32 portability from LRN
+
+	* Don't warn about escaping magic regex chars when we are in a regex.
+
+2010-07-19  10:55  Christos Zoulas <christos@zoulas.com>
+
+	* Only try to print prpsinfo for core files. (Jan Kaluza)
+
+2010-04-22  12:55  Christos Zoulas <christos@zoulas.com>
+
+	* Try more elf offsets for Debian core files.  (Arnaud Giersch)
+
+2010-02-20  15:18  Reuben Thomas <rrt@sc3d.org>
+
+	* Clarify which sort of CDF we mean.
+
+2010-02-14  22:58  Reuben Thomas <rrt@sc3d.org>
+
+	* Re-jig Zip file type magic so that unsupported special
+	  Zip types (those with "mimetype" at offset 30) can be
+	  recognized.
+
+2010-02-02  21:50  Reuben Thomas <rrt@sc3d.org>
+
+	* Add support for OCF (EPUB) files (application/epub+zip)
+
+2010-01-28  18:25  Christos Zoulas <christos@zoulas.com>
+
+	* Fix core-dump from unbound loop:
+	  https://bugzilla.redhat.com/show_bug.cgi?id=533245
+
+2010-01-22  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* print proper mime for crystal reports file
+
+	* print the last summary information of a cdf document, not the
+	  first so that nested documents print the right info
+
+2010-01-16  18:42  Charles Longeau <chl@tuxfamily.org>
+
+	* bring back some fixes from OpenBSD:
+		- make gcc2 builds file
+		- fix typos in a magic file comment
+
+2009-11-17  18:35  Christos Zoulas <christos@zoulas.com>
+
+	* ctime/asctime can return NULL on some OS's although
+	  they should not (Toshit Antani)
+
+2009-09-14  13:49  Christos Zoulas <christos@zoulas.com>
+
+	* Centralize magic path handling routines and remove the
+	  special-casing from file.c so that the python module for
+	  example comes up with the same magic path (Fixes ~/.magic
+	  handling) (from Gab)
+
+2009-09-11  23:38  Reuben Thomas <rrt@sc3d.org>
+
+	* When magic argument is a directory, read the files in
+	  strcmp-sorted order (fixes Debian bug #488562 and our own FIXME).
+
+2009-09-11  13:11  Reuben Thomas <rrt@sc3d.org>
+
+	* Combine overlapping epoc and psion magic files into one (epoc).
+
+	* Add some more EPOC MIME types.
+
+2009-08-19  15:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix 3 bugs (From Ian Darwin):
+	    - file_showstr could move one past the end of the array
+	    - parse_apple did not nul terminate the string in the overflow case
+	    - parse_mime truncated the wrong string in the overflow case
+
+2009-08-12  12:28  Robert Byrnes  <byrnes@wildpumpkin.net>
+
+	* Include Localstuff when compiling magic.
+
+2009-07-15  10:05  Christos Zoulas <christos@zoulas.com>
+
+	* Fix logic for including mygetopts.h
+
+	* Make cdf.c compile again with debugging
+
+	* Add the necessary field handling for crystal reports files to work
+
+2009-06-23 01:34  Reuben Thomas <rrt@sc3d.org>
+
+	* Stop "(if" identifying Lisp files, that's plain dumb!
+
+2009-06-09 22:13  Reuben Thomas <rrt@sc3d.org>
+
+	* Add a couple of missing MP3 MIME types.
+
+2009-05-27 23:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Add full range of hash-bang tests for Python and Ruby.
+
+	* Add MIME types for Python and Ruby scripts.
+
+2009-05-13  10:44  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in parsing hw capabilities in elf
+	  (Cheng Renquan)
+
+2009-05-08  13:40  Christos Zoulas <christos@zoulas.com>
+	
+	* lint fixes and more from NetBSD
+
 2009-05-06  10:25  Christos Zoulas <christos@zoulas.com>
 
 	* Avoid null dereference in cdf code (Drew Yao)

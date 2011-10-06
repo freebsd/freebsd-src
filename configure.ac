@@ -1,8 +1,10 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(file, 5.03, christos@astron.com)
-AM_INIT_AUTOMAKE
+AC_INIT(file, 5.09, christos@astron.com)
+AM_INIT_AUTOMAKE()
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
 AM_CONFIG_HEADER(config.h)
-#AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_MSG_CHECKING(for builtin ELF support)
 AC_ARG_ENABLE(elf,
@@ -47,6 +49,18 @@ fi], [
   fsect=4
 ])
 
+AC_CANONICAL_HOST
+case "$host_os" in
+   mingw32*)
+      MINGW=1
+      ;;
+   *)
+      MINGW=0
+      ;;
+esac
+AC_SUBST(MINGW)
+AM_CONDITIONAL(MINGW, test "$MINGW" = 1)
+
 AC_SUBST([pkgdatadir], ['$(datadir)/misc'])
 AC_SUBST(fsect)
 AM_CONDITIONAL(FSECT5, test x$fsect = x5)
@@ -86,7 +100,7 @@ AC_TYPE_MBSTATE_T
 
 AC_STRUCT_OPTION_GETOPT_H
 
-AC_CHECK_TYPES([uint8_t, uint16_t, uint32_t, int32_t, uint64_t, int64_t])
+AC_CHECK_TYPES([pid_t, uint8_t, uint16_t, uint32_t, int32_t, uint64_t, int64_t])
 AC_CHECK_SIZEOF(long long)
 AH_BOTTOM([
 #ifndef HAVE_UINT8_T
@@ -128,27 +142,30 @@ else
    WARNINGS="-Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith \
        -Wmissing-declarations -Wredundant-decls -Wnested-externs \
        -Wsign-compare -Wreturn-type -Wswitch -Wshadow \
-       -Wcast-qual -Wwrite-strings -Wextra -Wunused-parameter"
+       -Wcast-qual -Wwrite-strings -Wextra -Wunused-parameter -Wformat=2"
 fi], [
-if test "$GCC" = no; then
-   WARNINGS=
-   AC_MSG_RESULT(no)
-else
+if test "$GCC" = yes; then
    AC_MSG_RESULT(yes)
    WARNINGS="-Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith \
        -Wmissing-declarations -Wredundant-decls -Wnested-externs \
        -Wsign-compare -Wreturn-type -Wswitch -Wshadow \
-       -Wcast-qual -Wwrite-strings -Wextra -Wunused-parameter"
+       -Wcast-qual -Wwrite-strings -Wextra -Wunused-parameter -Wformat=2"
+else
+   WARNINGS=
+   AC_MSG_RESULT(no)
 fi])
 
 dnl Checks for functions
-AC_CHECK_FUNCS(mmap strerror strndup strtoul mbrtowc mkstemp utimes utime wcwidth strtof)
+AC_CHECK_FUNCS(mmap strerror strndup strtoul mbrtowc mkstemp utimes utime wcwidth strtof fork)
 
 dnl Provide implementation of some required functions if necessary
-AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat)
+AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat getline)
 
 dnl Checks for libraries
 AC_CHECK_LIB(z,gzopen)
+if test "$MINGW" = 1; then
+  AC_CHECK_LIB(gnurx,regexec,,AC_MSG_ERROR([libgnurx is required to build file(1) with MinGW]))
+fi
 
 dnl See if we are cross-compiling
 AM_CONDITIONAL(IS_CROSS_COMPILE, test "$cross_compiling" = yes)

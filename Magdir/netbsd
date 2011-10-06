@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: netbsd,v 1.18 2009/09/19 16:28:11 christos Exp $
 # netbsd:  file(1) magic for NetBSD objects
 #
 # All new-style magic numbers are in network byte order.

@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: palm,v 1.7 2009/09/19 16:28:11 christos Exp $
 # palm:  file(1) magic for PalmOS {.prc,.pdb}: applications, docfiles, and hacks
 #
 # Brian Lalor <blalor@hcirisc.cs.binghamton.edu>

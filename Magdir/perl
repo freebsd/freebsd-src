@@ -1,18 +1,20 @@
+
 #------------------------------------------------------------------------------
+# $File: perl,v 1.16 2009/09/19 16:28:11 christos Exp $
 # perl:  file(1) magic for Larry Wall's perl language.
 #
 # The `eval' lines recognizes an outrageously clever hack.
 # Keith Waclena <keith@cerberus.uchicago.edu>
 # Send additions to <perl5-porters@perl.org>
-0	search/1/b	#!\ /bin/perl			Perl script text executable
+0	search/1/w	#!\ /bin/perl			Perl script text executable
 !:mime	text/x-perl
 0	search/1	eval\ "exec\ /bin/perl		Perl script text
 !:mime	text/x-perl
-0	search/1/b	#!\ /usr/bin/perl		Perl script text executable
+0	search/1/w	#!\ /usr/bin/perl		Perl script text executable
 !:mime	text/x-perl
 0	search/1	eval\ "exec\ /usr/bin/perl	Perl script text
 !:mime	text/x-perl
-0	search/1/b	#!\ /usr/local/bin/perl		Perl script text executable
+0	search/1/w	#!\ /usr/local/bin/perl		Perl script text executable
 !:mime	text/x-perl
 0	search/1	eval\ "exec\ /usr/local/bin/perl	Perl script text
 !:mime	text/x-perl
@@ -33,12 +35,12 @@
 
 # Perl POD documents
 # From: Tom Hukins <tom@eborcom.com>
-0	search/1/B	\=pod\n		Perl POD document text
-0	search/1/B	\n\=pod\n	Perl POD document text
-0	search/1/B	\=head1\ 	Perl POD document text
-0	search/1/B	\n\=head1\ 	Perl POD document text
-0	search/1/B	\=head2\ 	Perl POD document text
-0	search/1/B	\n\=head2\ 	Perl POD document text
+0	search/1/W	\=pod\n		Perl POD document text
+0	search/1/W	\n\=pod\n	Perl POD document text
+0	search/1/W	\=head1\ 	Perl POD document text
+0	search/1/W	\n\=head1\ 	Perl POD document text
+0	search/1/W	\=head2\ 	Perl POD document text
+0	search/1/W	\n\=head2\ 	Perl POD document text
 
 # Perl Storable data files.
 0	string	perl-store	perl Storable (v0.6) data

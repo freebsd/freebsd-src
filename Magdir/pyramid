@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: pyramid,v 1.7 2009/09/19 16:28:12 christos Exp $
 # pyramid:  file(1) magic for Pyramids
 #
 # XXX - byte order?

@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: mcrypt,v 1.5 2009/09/19 16:28:10 christos Exp $
 # Mavroyanopoulos Nikos <nmav@hellug.gr>
 # mcrypt:   file(1) magic for mcrypt 2.2.x;
 0	string		\0m\3		mcrypt 2.5 encrypted data,

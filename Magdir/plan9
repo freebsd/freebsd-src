@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: plan9,v 1.5 2009/09/19 16:28:11 christos Exp $
 # plan9:  file(1) magic for AT&T Bell Labs' Plan 9 executables
 # From: "Stefan A. Haubenthal" <polluks@web.de>
 #

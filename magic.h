@@ -43,6 +43,7 @@
 #define	MAGIC_MIME_ENCODING	0x000400 /* Return the MIME encoding */
 #define MAGIC_MIME		(MAGIC_MIME_TYPE|MAGIC_MIME_ENCODING)
 #define	MAGIC_APPLE		0x000800 /* Return the Apple creator and type */
+
 #define	MAGIC_NO_CHECK_COMPRESS	0x001000 /* Don't check for compressed files */
 #define	MAGIC_NO_CHECK_TAR	0x002000 /* Don't check for tar files */
 #define	MAGIC_NO_CHECK_SOFT	0x004000 /* Don't check magic entries */
@@ -52,6 +53,9 @@
 #define	MAGIC_NO_CHECK_CDF	0x040000 /* Don't check for cdf files */
 #define	MAGIC_NO_CHECK_TOKENS	0x100000 /* Don't check tokens */
 #define MAGIC_NO_CHECK_ENCODING 0x200000 /* Don't check text encodings */
+
+/* No built-in tests; only consult the magic file */
+#define MAGIC_NO_CHECK_BUILTIN	0x3fb000
 
 /* Defined for backwards compatibility (renamed) */
 #define	MAGIC_NO_CHECK_ASCII	MAGIC_NO_CHECK_TEXT
@@ -69,6 +73,7 @@ typedef struct magic_set *magic_t;
 magic_t magic_open(int);
 void magic_close(magic_t);
 
+const char *magic_getpath(const char *, int);
 const char *magic_file(magic_t, const char *);
 const char *magic_descriptor(magic_t, int);
 const char *magic_buffer(magic_t, const void *, size_t);
@@ -79,6 +84,7 @@ int magic_setflags(magic_t, int);
 int magic_load(magic_t, const char *);
 int magic_compile(magic_t, const char *);
 int magic_check(magic_t, const char *);
+int magic_list(magic_t, const char *);
 int magic_errno(magic_t);
 
 #ifdef __cplusplus

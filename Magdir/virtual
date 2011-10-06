@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: virtual,v 1.1 2009/12/25 16:04:30 christos Exp $
+# From: James Nobis <quel@quelrod.net>
+# Microsoft hard disk images for:
+# Virtual Server
+# Virtual PC
+# http://technet.microsoft.com/en-us/virtualserver/bb676673.aspx
+# .vhd
+0	string	conectix	Microsoft Disk Image, Virtual Server or Virtual PC
+
+# Sun xVM VirtualBox Disk Image
+# string  <<< Sun xVM VirtualBox Disk Image >>>
+# .vdi
+0	string	\<\<\<\ Sun\ xVM\ VirtualBox\ Disk	Sun xVM VirtualBox Disk Image
+
+
