@@ -90,6 +90,7 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 	int oldv6size;
 	struct sockaddr_in6 *sin6;
 #endif
+	char *name;
 	int alloclen, hdrlen, namelen;
 
 	if (osalen < 2 || osalen > UCHAR_MAX || !osa)
@@ -158,8 +159,15 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 
 	if (bdom == AF_LOCAL && osalen > sizeof(struct sockaddr_un)) {
 		hdrlen = offsetof(struct sockaddr_un, sun_path);
-		namelen = strnlen(((struct sockaddr_un *)kosa)->sun_path,
-		    osalen - hdrlen);
+		name = ((struct sockaddr_un *)kosa)->sun_path;
+		if (*name == '\0') {
+			/*
+		 	 * Linux abstract namespace starts with a NULL byte.
+			 * XXX We do not support abstract namespace yet.
+			 */
+			namelen = strnlen(name + 1, osalen - hdrlen - 1) + 1;
+		} else
+			namelen = strnlen(name, osalen - hdrlen);
 		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
 			error = ENAMETOOLONG;
 			goto out;
