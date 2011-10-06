@@ -158,7 +158,7 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 		namelen = strnlen(((struct sockaddr_un *)kosa)->sun_path,
 		    osalen - hdrlen);
 		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
-			error = EINVAL;
+			error = ENAMETOOLONG;
 			goto out;
 		}
 		alloclen = sizeof(struct sockaddr_un);
