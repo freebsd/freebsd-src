@@ -185,6 +185,7 @@ mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 mdf [label="Matthew Fleming\nmdf@FreeBSD.org\n2010/06/04"]
 mdodd [label="Matthew N. Dodd\nmdodd@FreeBSD.org\n1999/07/27"]
+melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
@@ -272,6 +273,8 @@ day1 -> dg
 
 adrian -> ray
 adrian -> rmh
+
+ae -> melifaro
 
 andre -> qingli
 
@@ -438,6 +441,7 @@ kan -> kib
 kib -> ae
 kib -> dchagin
 kib -> lulf
+kib -> melifaro
 kib -> pho
 kib -> pluknet
 kib -> rdivacky
