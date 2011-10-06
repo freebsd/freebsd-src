@@ -166,11 +166,11 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int salen)
 			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
 		} else
 			namelen = strnlen(name, salen - hdrlen);
-		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
+		salen = hdrlen + namelen;
+		if (salen > sizeof(struct sockaddr_un)) {
 			error = ENAMETOOLONG;
 			goto out;
 		}
-		salen = sizeof(struct sockaddr_un);
 	}
 
 	sa = (struct sockaddr *)kosa;
