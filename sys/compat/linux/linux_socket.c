@@ -128,22 +128,25 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 	 *
 	 * Still accept addresses for which the scope id is not used.
 	 */
-	if (oldv6size && bdom == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *)kosa;
-		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
-		    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
-			sin6->sin6_scope_id = 0;
-		} else {
-			log(LOG_DEBUG,
-			    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
-			error = EINVAL;
-			goto out;
-		}
-	} else
+	if (oldv6size) {
+		if (bdom == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)kosa;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
+			    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
+				sin6->sin6_scope_id = 0;
+			} else {
+				log(LOG_DEBUG,
+				    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+				error = EINVAL;
+				goto out;
+			}
+		} else
+			alloclen -= sizeof(u_int32_t);
+	}
 #endif
 	if (bdom == AF_INET) {
 		alloclen = sizeof(struct sockaddr_in);
