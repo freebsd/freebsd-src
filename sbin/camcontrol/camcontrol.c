@@ -1907,7 +1907,9 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		int error_code, sense_key, asc, ascq;
 
 		sense = &ccb->csio.sense_data;
-		scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
+		scsi_extract_sense_len(sense, ccb->csio.sense_len -
+		    ccb->csio.sense_resid, &error_code, &sense_key, &asc,
+		    &ascq, /*show_errors*/ 1);
 
 		/*
 		 * According to the SCSI spec, if the disk doesn't support
@@ -3798,8 +3800,9 @@ doreport:
 			int error_code, sense_key, asc, ascq;
 
 			sense = &ccb->csio.sense_data;
-			scsi_extract_sense(sense, &error_code, &sense_key,
-					   &asc, &ascq);
+			scsi_extract_sense_len(sense, ccb->csio.sense_len -
+			    ccb->csio.sense_resid, &error_code, &sense_key,
+			    &asc, &ascq, /*show_errors*/ 1);
 
 			/*
 			 * According to the SCSI-2 and SCSI-3 specs, a
@@ -3810,15 +3813,15 @@ doreport:
 			 */
 			if ((sense_key == SSD_KEY_NOT_READY)
 			 && (asc == 0x04) && (ascq == 0x04)) {
-				if ((sense->extra_len >= 10)
-				 && ((sense->sense_key_spec[0] &
-				      SSD_SCS_VALID) != 0)
+				uint8_t sks[3];
+
+				if ((scsi_get_sks(sense, ccb->csio.sense_len -
+				     ccb->csio.sense_resid, sks) == 0)
 				 && (quiet == 0)) {
 					int val;
 					u_int64_t percentage;
 
-					val = scsi_2btoul(
-						&sense->sense_key_spec[1]);
+					val = scsi_2btoul(&sks[1]);
 					percentage = 10000 * val;
 
 					fprintf(stdout,
