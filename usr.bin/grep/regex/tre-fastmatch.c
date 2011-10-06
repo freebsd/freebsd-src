@@ -163,7 +163,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
       shift = bc;							\
     else								\
       {									\
-	ts = ((long)u - v < 0) ? 0 : (u - v);				\
+	ts = (u >= v) ? (u - v) : 0;					\
 	shift = MAX(ts, bc);						\
 	shift = MAX(shift, gs);						\
 	if (shift == gs)						\
