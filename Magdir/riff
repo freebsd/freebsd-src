@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: riff,v 1.22 2011/09/06 11:00:06 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -39,12 +40,14 @@
 >>20	leshort		2		\b, Microsoft ADPCM
 >>20	leshort		6		\b, ITU G.711 A-law
 >>20	leshort		7		\b, ITU G.711 mu-law
+>>20	leshort		8		\b, Microsoft DTS
 >>20	leshort		17		\b, IMA ADPCM
 >>20	leshort		20		\b, ITU G.723 ADPCM (Yamaha)
 >>20	leshort		49		\b, GSM 6.10
 >>20	leshort		64		\b, ITU G.721 ADPCM
 >>20	leshort		80		\b, MPEG
 >>20	leshort		85		\b, MPEG Layer 3
+>>20	leshort		0x2001		\b, DTS
 >>22	leshort		=1		\b, mono
 >>22	leshort		=2		\b, stereo
 >>22	leshort		>2		\b, %d channels
@@ -176,6 +179,8 @@
 # MPEG-1 wrapped in a RIFF, apparently
 >8      string          CDXA            \b, wrapped MPEG-1 (CDXA)
 >8	string		4XMV		\b, 4X Movie file 
+# AMV-type AVI file: http://wiki.multimedia.cx/index.php?title=AMV
+>8	string		AMV\040		\b, AMV 
 
 #
 # XXX - some of the below may only appear in little-endian form.
@@ -223,3 +228,31 @@
 >8	string		NIFF		\b, Notation Interchange File Format
 # SoundFont 2 <mpruett@sgi.com>
 >8	string		sfbk		SoundFont/Bank
+
+#------------------------------------------------------------------------------
+# Sony Wave64
+# see http://www.vcs.de/fileadmin/user_upload/MBS/PDF/Whitepaper/Informations_about_Sony_Wave64.pdf
+# 128 bit RIFF-GUID { 66666972-912E-11CF-A5D6-28DB04C10000 } in little-endian 
+0	string	riff\x2E\x91\xCF\x11\xA5\xD6\x28\xDB\x04\xC1\x00\x00		Sony Wave64 RIFF data
+# 128 bit + total file size (64 bits) so 24 bytes
+# then WAVE-GUID { 65766177-ACF3-11D3-8CD1-00C04F8EDB8A }
+>24	string		wave\xF3\xAC\xD3\x11\x8C\xD1\x00\xC0\x4F\x8E\xDB\x8A		\b, WAVE 64 audio
+!:mime	audio/x-w64
+# FMT-GUID { 20746D66-ACF3-11D3-8CD1-00C04F8EDB8A }
+>>40	search/256	fmt\x20\xF3\xAC\xD3\x11\x8C\xD1\x00\xC0\x4F\x8E\xDB\x8A		\b
+>>>&10	leshort		=1		\b, mono
+>>>&10	leshort		=2		\b, stereo
+>>>&10	leshort		>2		\b, %d channels
+>>>&12	lelong		>0		%d Hz
+
+#------------------------------------------------------------------------------
+# MBWF/RF64
+# see EBU – TECH 3306 http://tech.ebu.ch/docs/tech/tech3306-2009.pdf
+0	string	RF64\xff\xff\xff\xffWAVEds64		MBWF/RF64 audio
+!:mime	audio/x-wav
+>40	search/256	fmt\x20		\b
+>>&6	leshort		=1		\b, mono
+>>&6	leshort		=2		\b, stereo
+>>&6	leshort		>2		\b, %d channels
+>>&8	lelong		>0		%d Hz
+

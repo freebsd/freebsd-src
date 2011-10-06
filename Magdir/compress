@@ -1,5 +1,5 @@
-
 #------------------------------------------------------------------------------
+# $File: compress,v 1.47 2011/03/08 00:39:46 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -19,7 +19,7 @@
 #   Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
 #	* Original filename is only at offset 10 if "extra field" absent
 #	* Produce shorter output - notably, only report compression methods
-#	  other than 8 ("deflate", the only method defined in RFC 1952).
+#         other than 8 ("deflate", the only method defined in RFC 1952).
 0       string          \037\213        gzip compressed data
 !:mime	application/x-gzip
 >2	byte		<8		\b, reserved method
@@ -182,22 +182,28 @@
 >4	belong		0x090A0C0D	best compression
 
 # 7-zip archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
-# http://www.7-zip.org or DOC/7zFormat.txt 
+# http://www.7-zip.org or DOC/7zFormat.txt
 #
 0	string		7z\274\257\047\034	7-zip archive data,
 >6	byte		x			version %d
 >7	byte		x			\b.%d
+!:mime	application/x-7z-compressed
 
 # Type: LZMA
-# URL:  http://www.7-zip.org/sdk.html
-# From: Robert Millan <rmh@aybabtu.com> and Reuben Thomas <rrt@sc3d.org>
-# Commented out because apparently not reliable (according to Debian
-# bug #364260)
-#0	string		]\000\000\200\000	LZMA compressed data
+0	lelong		0x8000005d		LZMA compressed data,
+>5	lequad		=0xffffffffffffffff	streamed
+>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
+!:mime	application/x-lzma
 
 # http://tukaani.org/xz/xz-file-format.txt
-0	ustring		\xFD7zXZ\x00		xz compressed data
+0	ustring		\xFD7zXZ\x00		XZ compressed data
 !:mime	application/x-xz
+
+# https://github.com/ckolivas/lrzip/blob/master/doc/magic.header.txt
+0	string		LRZI			LRZIP compressed data
+>4	byte		x			- version %d
+>5	byte		x			\b.%d
+!:mime	application/x-lrzip
 
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data
@@ -213,7 +219,12 @@
 >5	byte		x		\b.%d
 >6	belong		x		(%d bytes)
 
-# Type: XZ
-# URL: http://tukaani.org/xz/
-0	string		\xfd\x37\x7a\x58\x5a\x00	XZ compressed data
-!:mime application/x-xz
+0	string		ArC\x01		FreeArc archive <http://freearc.org>
+
+# Type:	DACT compressed files
+0	long	0x444354C3	DACT compressed data
+>4	byte	>-1		(version %i.
+>5	byte	>-1		%i.
+>6	byte	>-1		%i)
+>7	long	>0		, original size: %i bytes
+>15	long	>30		, block size: %i bytes

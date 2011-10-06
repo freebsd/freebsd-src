@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: pulsar,v 1.5 2009/09/19 16:28:12 christos Exp $
 # pulsar:  file(1) magic for Pulsar POP3 daemon binary files
 #
 # http://pulsar.sourceforge.net

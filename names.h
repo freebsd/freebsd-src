@@ -32,7 +32,7 @@
  * appear at fixed offsets into the file. Don't make HOWMANY
  * too high unless you have a very fast CPU.
  *
- * $File: names.h,v 1.32 2008/02/11 00:19:29 rrt Exp $
+ * $File: names.h,v 1.33 2010/10/08 21:58:44 christos Exp $
  */
 
 /*
@@ -115,59 +115,62 @@ static const struct {
  */
 static const struct names {
 	char name[14];
-	short type;
+	unsigned char type;
+	unsigned char score;
+
 } names[] = {
 	/* These must be sorted by eye for optimal hit rate */
 	/* Add to this list only after substantial meditation */
-	{"msgid",	L_PO},
-	{"dnl",		L_M4},
-	{"import",	L_JAVA},
-	{"\"libhdr\"",	L_BCPL},
-	{"\"LIBHDR\"",	L_BCPL},
-	{"//",		L_CC},
-	{"template",	L_CC},
-	{"virtual",	L_CC},
-	{"class",	L_CC},
-	{"public:",	L_CC},
-	{"private:",	L_CC},
-	{"/*",		L_C},	/* must precede "The", "the", etc. */
-	{"#include",	L_C},
-	{"char",	L_C},
-	{"The",		L_ENG},
-	{"the",		L_ENG},
-	{"double",	L_C},
-	{"extern",	L_C},
-	{"float",	L_C},
-	{"struct",	L_C},
-	{"union",	L_C},
-	{"CFLAGS",	L_MAKE},
-	{"LDFLAGS",	L_MAKE},
-	{"all:",	L_MAKE},
-	{".PRECIOUS",	L_MAKE},
-	{".ascii",	L_MACH},
-	{".asciiz",	L_MACH},
-	{".byte",	L_MACH},
-	{".even",	L_MACH},
-	{".globl",	L_MACH},
-	{".text",	L_MACH},
-	{"clr",		L_MACH},
-	{"(input,",	L_PAS},
-	{"program",	L_PAS},
-	{"record",	L_PAS},
-	{"dcl",		L_PLI},
-	{"Received:",	L_MAIL},
-	{">From",	L_MAIL},
-	{"Return-Path:",L_MAIL},
-	{"Cc:",		L_MAIL},
-	{"Newsgroups:",	L_NEWS},
-	{"Path:",	L_NEWS},
-	{"Organization:",L_NEWS},
-	{"href=",	L_HTML},
-	{"HREF=",	L_HTML},
-	{"<body",	L_HTML},
-	{"<BODY",	L_HTML},
-	{"<html",	L_HTML},
-	{"<HTML",	L_HTML},
-	{"<!--",	L_HTML},
+	{"msgid",	L_PO, 1 },
+	{"dnl",		L_M4, 2 },
+	{"import",	L_JAVA, 2 },
+	{"\"libhdr\"",	L_BCPL, 2 },
+	{"\"LIBHDR\"",	L_BCPL, 2 },
+	{"//",		L_CC, 2 },
+	{"template",	L_CC, 1 },
+	{"virtual",	L_CC, 1 },
+	{"class",	L_CC, 2 },
+	{"public:",	L_CC, 2 },
+	{"private:",	L_CC, 2 },
+	{"/*",		L_C, 2 },	/* must precede "The", "the", etc. */
+	{"#include",	L_C, 2 },
+	{"char",	L_C, 2 },
+	{"The",		L_ENG, 2 },
+	{"the",		L_ENG, 2 },
+	{"double",	L_C, 1 },
+	{"extern",	L_C, 2 },
+	{"float",	L_C, 1 },
+	{"struct",	L_C, 1 },
+	{"union",	L_C, 1 },
+	{"main(",	L_C, 2 },
+	{"CFLAGS",	L_MAKE, 2 },
+	{"LDFLAGS",	L_MAKE, 2 },
+	{"all:",	L_MAKE, 2 },
+	{".PRECIOUS",	L_MAKE, 2 },
+	{".ascii",	L_MACH, 2 },
+	{".asciiz",	L_MACH, 2 },
+	{".byte",	L_MACH, 2 },
+	{".even",	L_MACH, 2 },
+	{".globl",	L_MACH, 2 },
+	{".text",	L_MACH, 2 },
+	{"clr",		L_MACH, 2 },
+	{"(input,",	L_PAS, 2 },
+	{"program",	L_PAS, 1 },
+	{"record",	L_PAS, 1 },
+	{"dcl",		L_PLI, 2 },
+	{"Received:",	L_MAIL, 2 },
+	{">From",	L_MAIL, 2 },
+	{"Return-Path:",L_MAIL, 2 },
+	{"Cc:",		L_MAIL, 2 },
+	{"Newsgroups:",	L_NEWS, 2 },
+	{"Path:",	L_NEWS, 2 },
+	{"Organization:",L_NEWS, 2 },
+	{"href=",	L_HTML, 2 },
+	{"HREF=",	L_HTML, 2 },
+	{"<body",	L_HTML, 2 },
+	{"<BODY",	L_HTML, 2 },
+	{"<html",	L_HTML, 2 },
+	{"<HTML",	L_HTML, 2 },
+	{"<!--",	L_HTML, 2 },
 };
 #define NNAMES (sizeof(names)/sizeof(struct names))

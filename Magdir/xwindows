@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: xwindows,v 1.7 2011/05/03 01:44:17 christos Exp $
 # xwindows:  file(1) magic for various X/Window system file formats.
 
 # Compiled X Keymap 
@@ -19,10 +20,10 @@
 0	long	395726				Jaleo XFS file
 >4	long	x				- version %ld
 >8	long	x				- [%ld -
->20	long	x				%ldx
->24	long	x				%ldx
->28	long	1008				YUV422]
->28	long	1000				RGB24]
+>20	long	x				\b%ldx
+>24	long	x				\b%ldx
+>28	long	1008				\bYUV422]
+>28	long	1000				\bRGB24]
 
 # Xcursor data
 # X11 mouse cursor format defined in libXcursor, see

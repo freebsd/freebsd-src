@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: freebsd,v 1.7 2009/09/19 16:28:09 christos Exp $
 # freebsd:  file(1) magic for FreeBSD objects
 #
 # All new-style FreeBSD magic numbers are in host byte order (i.e.,

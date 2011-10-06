@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------
+# $File: java,v 1.12 2009/09/19 16:28:10 christos Exp $
 # Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
 # same magic number, 0xcafebabe, so they are both handled
 # in the entry called "cafebabe".
