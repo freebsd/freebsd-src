@@ -72,29 +72,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
-static int do_sa_get(struct sockaddr **, const struct osockaddr *, int *,
-    struct malloc_type *);
 static int linux_to_bsd_domain(int);
 
 /*
  * Reads a linux sockaddr and does any necessary translation.
  * Linux sockaddrs don't have a length field, only a family.
- */
-static int
-linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int len)
-{
-	int osalen = len;
-
-	return (do_sa_get(sap, osa, &osalen, M_SONAME));
-}
-
-/*
  * Copy the osockaddr structure pointed to by osa to kernel, adjust
  * family and convert to sockaddr.
  */
 static int
-do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
-    struct malloc_type *mtype)
+linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen)
 {
 	int error=0, bdom;
 	struct sockaddr *sa;
@@ -105,10 +92,10 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 #endif
 	int alloclen, hdrlen, namelen;
 
-	if (*osalen < 2 || *osalen > UCHAR_MAX || !osa)
+	if (osalen < 2 || osalen > UCHAR_MAX || !osa)
 		return (EINVAL);
 
-	alloclen = *osalen;
+	alloclen = osalen;
 #ifdef INET6
 	oldv6size = 0;
 	/*
@@ -122,9 +109,9 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	}
 #endif
 
-	kosa = malloc(alloclen, mtype, M_WAITOK);
+	kosa = malloc(alloclen, M_SONAME, M_WAITOK);
 
-	if ((error = copyin(osa, kosa, *osalen)))
+	if ((error = copyin(osa, kosa, osalen)))
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
@@ -160,16 +147,16 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 #endif
 	if (bdom == AF_INET) {
 		alloclen = sizeof(struct sockaddr_in);
-		if (*osalen < alloclen) {
+		if (osalen < alloclen) {
 			error = EINVAL;
 			goto out;
 		}
 	}
 
-	if (bdom == AF_LOCAL && *osalen > sizeof(struct sockaddr_un)) {
+	if (bdom == AF_LOCAL && osalen > sizeof(struct sockaddr_un)) {
 		hdrlen = offsetof(struct sockaddr_un, sun_path);
 		namelen = strnlen(((struct sockaddr_un *)kosa)->sun_path,
-		    *osalen - hdrlen);
+		    osalen - hdrlen);
 		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
 			error = EINVAL;
 			goto out;
@@ -182,11 +169,10 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	sa->sa_len = alloclen;
 
 	*sap = sa;
-	*osalen = alloclen;
 	return (0);
 
 out:
-	free(kosa, mtype);
+	free(kosa, M_SONAME);
 	return (error);
 }
 
