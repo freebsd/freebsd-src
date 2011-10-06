@@ -99,12 +99,11 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	int error=0, bdom;
 	struct sockaddr *sa;
 	struct osockaddr *kosa;
-	int alloclen;
 #ifdef INET6
 	int oldv6size;
 	struct sockaddr_in6 *sin6;
 #endif
-	int namelen;
+	int alloclen, hdrlen, namelen;
 
 	if (*osalen < 2 || *osalen > UCHAR_MAX || !osa)
 		return (EINVAL);
@@ -167,14 +166,11 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 		}
 	}
 
-	if ((bdom == AF_LOCAL) && (*osalen > sizeof(struct sockaddr_un))) {
-		for (namelen = 0;
-		    namelen < *osalen - offsetof(struct sockaddr_un, sun_path);
-		    namelen++)
-			if (!((struct sockaddr_un *)kosa)->sun_path[namelen])
-				break;
-		if (namelen + offsetof(struct sockaddr_un, sun_path) >
-		    sizeof(struct sockaddr_un)) {
+	if (bdom == AF_LOCAL && *osalen > sizeof(struct sockaddr_un)) {
+		hdrlen = offsetof(struct sockaddr_un, sun_path);
+		namelen = strnlen(((struct sockaddr_un *)kosa)->sun_path,
+		    *osalen - hdrlen);
+		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
 			error = EINVAL;
 			goto out;
 		}
