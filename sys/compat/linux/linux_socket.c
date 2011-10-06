@@ -83,15 +83,14 @@ static int linux_to_bsd_domain(int);
 static int
 linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen)
 {
-	int error=0, bdom;
 	struct sockaddr *sa;
 	struct osockaddr *kosa;
 #ifdef INET6
-	int oldv6size;
 	struct sockaddr_in6 *sin6;
+	int oldv6size;
 #endif
 	char *name;
-	int alloclen, hdrlen, namelen;
+	int alloclen, bdom, error, hdrlen, namelen;
 
 	if (osalen < 2 || osalen > UCHAR_MAX || !osa)
 		return (EINVAL);
@@ -104,8 +103,8 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 	 * if it's a v4-mapped address, so reserve the proper space
 	 * for it.
 	 */
-	if (alloclen == sizeof (struct sockaddr_in6) - sizeof (u_int32_t)) {
-		alloclen = sizeof (struct sockaddr_in6);
+	if (alloclen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
+		alloclen = sizeof(struct sockaddr_in6);
 		oldv6size = 1;
 	}
 #endif
@@ -146,7 +145,7 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 				goto out;
 			}
 		} else
-			alloclen -= sizeof(u_int32_t);
+			alloclen -= sizeof(uint32_t);
 	}
 #endif
 	if (bdom == AF_INET) {
@@ -175,7 +174,7 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 		alloclen = sizeof(struct sockaddr_un);
 	}
 
-	sa = (struct sockaddr *) kosa;
+	sa = (struct sockaddr *)kosa;
 	sa->sa_family = bdom;
 	sa->sa_len = alloclen;
 
@@ -1232,9 +1231,9 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 			cmsg->cmsg_len = CMSG_LEN(datalen);
 
 			error = ENOBUFS;
-			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t) cmsg))
+			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t)cmsg))
 				goto bad;
-			if (!m_append(control, datalen, (c_caddr_t) data))
+			if (!m_append(control, datalen, (c_caddr_t)data))
 				goto bad;
 		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
 
@@ -1373,7 +1372,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 				 * effect for Linux so no need to worry
 				 * about sockcred
 				 */
-				if (datalen != sizeof (*cmcred)) {
+				if (datalen != sizeof(*cmcred)) {
 					error = EMSGSIZE;
 					goto bad;
 				}
