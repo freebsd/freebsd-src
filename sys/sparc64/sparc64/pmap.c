@@ -100,13 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tsb.h>
 #include <machine/ver.h>
 
-/* XXX */
-#include "opt_sched.h"
-#ifndef SCHED_4BSD
-#error "sparc64 only works with SCHED_4BSD which uses a global scheduler lock."
-#endif
-extern struct mtx sched_lock;
-
 /*
  * Virtual address of message buffer
  */
@@ -1232,11 +1225,9 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb_obj == NULL)
 		pm->pm_tsb_obj = vm_object_allocate(OBJT_PHYS, TSB_PAGES);
 
-	mtx_lock_spin(&sched_lock);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
 	CPU_ZERO(&pm->pm_active);
-	mtx_unlock_spin(&sched_lock);
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
@@ -1263,7 +1254,9 @@ pmap_release(pmap_t pm)
 {
 	vm_object_t obj;
 	vm_page_t m;
+#ifdef SMP
 	struct pcpu *pc;
+#endif
 
 	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
 	    pm->pm_context[curcpu], pm->pm_tsb);
@@ -1283,11 +1276,18 @@ pmap_release(pmap_t pm)
 	 * - A process that referenced this pmap ran on a CPU, but we switched
 	 *   to a kernel thread, leaving the pmap pointer unchanged.
 	 */
-	mtx_lock_spin(&sched_lock);
+#ifdef SMP
+	sched_pin();
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
-		if (pc->pc_pmap == pm)
-			pc->pc_pmap = NULL;
-	mtx_unlock_spin(&sched_lock);
+		atomic_cmpset_rel_ptr((uintptr_t *)&pc->pc_pmap,
+		    (uintptr_t)pm, (uintptr_t)NULL);
+	sched_unpin();
+#else
+	critical_enter();
+	if (PCPU_GET(pmap) == pm)
+		PCPU_SET(pmap, NULL);
+	critical_exit();
+#endif
 
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	obj = pm->pm_tsb_obj;
@@ -2232,11 +2232,14 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
-	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
+#ifdef SMP
+	CPU_SET_ATOMIC(PCPU_GET(cpuid), &pm->pm_active);
+	atomic_store_ptr((uintptr_t *)PCPU_PTR(pmap), (uintptr_t)pm);
+#else
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
-	mtx_unlock_spin(&sched_lock);
+#endif
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
