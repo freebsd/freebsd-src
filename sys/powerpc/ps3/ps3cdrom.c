@@ -506,21 +506,19 @@ ps3cdrom_intr(void *arg)
 
 			if (!ps3cdrom_decode_lv1_status(status, &sense_key,
 			    &asc, &ascq)) {
-				struct scsi_sense_data sense_data;
 
 				CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
 				   ("sense key 0x%02x asc 0x%02x ascq 0x%02x\n",
 				    sense_key, asc, ascq));
 
-				bzero(&sense_data, sizeof(sense_data));
-				sense_data.error_code = SSD_CURRENT_ERROR;
-				sense_data.flags |= sense_key;
-				sense_data.extra_len = 0xa;
-				sense_data.add_sense_code = asc;
-				sense_data.add_sense_code_qual = ascq;
-				ccb->csio.sense_len = sizeof(sense_data);
-				bcopy(&sense_data, &ccb->csio.sense_data,
-				    ccb->csio.sense_len);
+				scsi_set_sense_data(&ccb->csio.sense_data,
+				    /*sense_format*/ SSD_TYPE_NONE,
+				    /*current_error*/ 1,
+				    sense_key,
+				    asc,
+				    ascq,
+				    SSD_ELEM_NONE);
+				ccb->csio.sense_len = SSD_FULL_SIZE;
 				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 				    CAM_AUTOSNS_VALID;
 			}
@@ -643,8 +641,6 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	}
 
 	if (err) {
-		struct scsi_sense_data sense_data;
-
 		device_printf(dev, "ATAPI command 0x%02x failed (%d)\n",
 		    cdb[0], err);
 
@@ -653,11 +649,18 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		xp->x_ccb = NULL;
 		TAILQ_INSERT_TAIL(&sc->sc_free_xferq, xp, x_queue);
 
-		bzero(&sense_data, sizeof(sense_data));
-		sense_data.error_code = SSD_CURRENT_ERROR;
-		sense_data.flags |= SSD_KEY_ILLEGAL_REQUEST;
-		ccb->csio.sense_len = sizeof(sense_data);
-		bcopy(&sense_data, &ccb->csio.sense_data, ccb->csio.sense_len);
+		bzero(&ccb->csio.sense_data, sizeof(ccb->csio.sense_data));
+		/* Invalid field in parameter list */
+		scsi_set_sense_data(&ccb->csio.sense_data,
+				    /*sense_format*/ SSD_TYPE_NONE,
+				    /*current_error*/ 1,
+				    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+				    /*asc*/ 0x26,
+				    /*ascq*/ 0x00,
+				    SSD_ELEM_NONE);
+
+		ccb->csio.sense_len = SSD_FULL_SIZE;
+		ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		xpt_done(ccb);
 	} else {

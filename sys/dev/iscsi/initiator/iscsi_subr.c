@@ -153,6 +153,7 @@ getSenseData(u_int status, union ccb *ccb, pduq_t *pq)
      scsi_rsp_t		*cmd = &pp->ipdu.scsi_rsp;
      caddr_t		bp;
      int		sense_len, mustfree = 0;
+     int		error_code, sense_key, asc, ascq;
 
      bp = mtod(pq->mp, caddr_t);
      if((sense_len = scsi_2btoul(bp)) == 0)
@@ -174,10 +175,14 @@ getSenseData(u_int status, union ccb *ccb, pduq_t *pq)
      scsi->sense_resid = 0;
      if(cmd->flag & (BIT(1)|BIT(2)))
 	  scsi->sense_resid = ntohl(pp->ipdu.scsi_rsp.rcnt);
+
+     scsi_extract_sense_len(sense, scsi->sense_len - scsi->sense_resid,
+	&error_code, &sense_key, &asc, &ascq, /*show_errors*/ 1);
+
      debug(3, "sense_len=%d rcnt=%d sense_resid=%d dsl=%d error_code=%x flags=%x",
 	   sense_len,
 	   ntohl(pp->ipdu.scsi_rsp.rcnt), scsi->sense_resid,
-	   pp->ds_len, sense->error_code, sense->flags);
+	   pp->ds_len, error_code, sense_key);
 
      if(mustfree)
 	  free(bp, M_ISCSI);

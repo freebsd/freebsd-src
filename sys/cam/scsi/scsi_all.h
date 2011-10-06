@@ -25,6 +25,7 @@
 #define	_SCSI_SCSI_ALL_H 1
 
 #include <sys/cdefs.h>
+#include <machine/stdarg.h>
 
 #ifdef _KERNEL
 /*
@@ -171,7 +172,8 @@ struct scsi_inquiry
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
-#define	SI_EVPD 0x01
+#define	SI_EVPD 	0x01
+#define	SI_CMDDT	0x02
 	u_int8_t page_code;
 	u_int8_t reserved;
 	u_int8_t length;
@@ -200,7 +202,9 @@ struct scsi_mode_sense_6
 #define	SMS_PAGE_CTRL_CHANGEABLE 	0x40
 #define	SMS_PAGE_CTRL_DEFAULT 		0x80
 #define	SMS_PAGE_CTRL_SAVED 		0xC0
-	u_int8_t unused;
+	u_int8_t subpage;
+#define	SMS_SUBPAGE_PAGE_0		0x00
+#define	SMS_SUBPAGE_ALL			0xff
 	u_int8_t length;
 	u_int8_t control;
 };
@@ -209,8 +213,10 @@ struct scsi_mode_sense_10
 {
 	u_int8_t opcode;
 	u_int8_t byte2;		/* same bits as small version */
+#define	SMS10_LLBAA			0x10
 	u_int8_t page; 		/* same bits as small version */
-	u_int8_t unused[4];
+	u_int8_t subpage;
+	u_int8_t unused[3];
 	u_int8_t length[2];
 	u_int8_t control;
 };
@@ -262,6 +268,120 @@ struct scsi_mode_block_descr
 	u_int8_t reserved;
 	u_int8_t block_len[3];
 };
+
+struct scsi_per_res_in
+{
+	u_int8_t opcode;
+	u_int8_t action;
+#define	SPRI_RK	0x00
+#define	SPRI_RR	0x01
+#define	SPRI_RC	0x02
+#define	SPRI_RS	0x03
+	u_int8_t reserved[5];
+	u_int8_t length[2];
+	u_int8_t control;
+};
+
+struct scsi_per_res_in_header
+{
+	u_int8_t generation[4];
+	u_int8_t length[4];
+};
+
+struct scsi_per_res_key
+{
+	u_int8_t key[8];
+};
+
+struct scsi_per_res_in_keys
+{
+	struct scsi_per_res_in_header header;
+	struct scsi_per_res_key keys[0];
+};
+
+struct scsi_per_res_cap
+{
+	uint8_t length[2];
+	uint8_t flags1;
+#define	SPRI_CRH	0x10
+#define	SPRI_SIP_C	0x08
+#define	SPRI_ATP_C	0x04
+#define	SPRI_PTPL_C	0x01
+	uint8_t flags2;
+#define	SPRI_TMV	0x80
+#define	SPRI_PTPL_A	0x01
+	uint8_t type_mask[2];
+#define	SPRI_TM_WR_EX_AR	0x8000
+#define	SPRI_TM_EX_AC_RO	0x4000
+#define	SPRI_TM_WR_EX_RO	0x2000
+#define	SPRI_TM_EX_AC		0x0800
+#define	SPRI_TM_WR_EX		0x0200
+#define	SPRI_TM_EX_AC_AR	0x0001
+	uint8_t reserved[2];
+};
+
+struct scsi_per_res_in_rsrv_data
+{
+	uint8_t reservation[8];
+	uint8_t obsolete1[4];
+	uint8_t reserved;
+	uint8_t scopetype;
+#define	SPRT_WE    0x01
+#define	SPRT_EA    0x03
+#define	SPRT_WERO  0x05
+#define	SPRT_EARO  0x06
+#define	SPRT_WEAR  0x07
+#define	SPRT_EAAR  0x08
+	uint8_t obsolete2[2];
+};
+
+struct scsi_per_res_in_rsrv
+{
+	struct scsi_per_res_in_header header;
+	struct scsi_per_res_in_rsrv_data data;
+};
+
+struct scsi_per_res_out
+{
+	u_int8_t opcode;
+	u_int8_t action;
+#define	SPRO_REGISTER		0x00
+#define	SPRO_RESERVE		0x01
+#define	SPRO_RELEASE		0x02
+#define	SPRO_CLEAR		0x03
+#define	SPRO_PREEMPT		0x04
+#define	SPRO_PRE_ABO		0x05
+#define	SPRO_REG_IGNO		0x06
+#define	SPRO_REG_MOVE		0x07
+#define	SPRO_ACTION_MASK	0x1f
+	u_int8_t scope_type;
+#define	SPR_SCOPE_MASK		0xf0
+#define	SPR_LU_SCOPE		0x00
+#define	SPR_TYPE_MASK		0x0f
+#define	SPR_TYPE_WR_EX		0x01
+#define	SPR_TYPE_EX_AC		0x03
+#define	SPR_TYPE_WR_EX_RO	0x05
+#define	SPR_TYPE_EX_AC_RO	0x06
+#define	SPR_TYPE_WR_EX_AR	0x07
+#define	SPR_TYPE_EX_AC_AR	0x08
+	u_int8_t reserved[2];
+	u_int8_t length[4];
+	u_int8_t control;
+};
+
+struct scsi_per_res_out_parms
+{
+	struct scsi_per_res_key res_key;
+	u_int8_t serv_act_res_key[8];
+	u_int8_t obsolete1[4];
+	u_int8_t flags;
+#define	SPR_SPEC_I_PT		0x08
+#define	SPR_ALL_TG_PT		0x04
+#define	SPR_APTPL		0x01
+	u_int8_t reserved1;
+	u_int8_t obsolete2[2];
+};
+
 
 struct scsi_log_sense
 {
@@ -337,7 +457,16 @@ struct scsi_control_page {
 	u_int8_t page_code;
 	u_int8_t page_length;
 	u_int8_t rlec;
-#define	SCB_RLEC			0x01	/*Report Log Exception Cond*/
+#define	SCP_RLEC			0x01	/*Report Log Exception Cond*/
+#define	SCP_GLTSD			0x02	/*Global Logging target
+						  save disable */
+#define	SCP_DSENSE			0x04	/*Descriptor Sense */
+#define	SCP_DPICZ			0x08	/*Disable Prot. Info Check
+						  if Prot. Field is Zero */
+#define	SCP_TMF_ONLY			0x10	/*TM Functions Only*/
+#define	SCP_TST_MASK			0xE0	/*Task Set Type Mask*/
+#define	SCP_TST_ONE			0x00	/*One Task Set*/
+#define	SCP_TST_SEPARATE		0x20	/*Separate Task Sets*/
 	u_int8_t queue_flags;
 #define	SCP_QUEUE_ALG_MASK		0xF0
 #define	SCP_QUEUE_ALG_RESTRICTED	0x00
@@ -366,6 +495,41 @@ struct scsi_cache_page {
 	u_int8_t min_prefetch[2];
 	u_int8_t max_prefetch[2];
 	u_int8_t max_prefetch_ceil[2];
+};
+
+/*
+ * XXX KDM
+ * Updated version of the cache page, as of SBC.  Update this to SBC-3 and
+ * rationalize the two.
+ */
+struct scsi_caching_page {
+	uint8_t page_code;
+#define	SMS_CACHING_PAGE		0x08
+	uint8_t page_length;
+	uint8_t flags1;
+#define	SCP_IC		0x80
+#define	SCP_ABPF	0x40
+#define	SCP_CAP		0x20
+#define	SCP_DISC	0x10
+#define	SCP_SIZE	0x08
+#define	SCP_WCE		0x04
+#define	SCP_MF		0x02
+#define	SCP_RCD		0x01
+	uint8_t ret_priority;
+	uint8_t disable_pf_transfer_len[2];
+	uint8_t min_prefetch[2];
+	uint8_t max_prefetch[2];
+	uint8_t max_pf_ceiling[2];
+	uint8_t flags2;
+#define	SCP_FSW		0x80
+#define	SCP_LBCSS	0x40
+#define	SCP_DRA		0x20
+#define	SCP_VS1		0x10
+#define	SCP_VS2		0x08
+	uint8_t cache_segments;
+	uint8_t cache_seg_size[2];
+	uint8_t reserved;
+	uint8_t non_cache_seg_size[3];
 };
 
 struct scsi_info_exceptions_page {
@@ -406,18 +570,47 @@ struct scsi_reserve
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
-	u_int8_t unused[2];
-	u_int8_t length;
+#define	SR_EXTENT	0x01
+#define	SR_ID_MASK	0x0e
+#define	SR_3RDPTY	0x10
+#define	SR_LUN_MASK	0xe0
+	u_int8_t resv_id;
+	u_int8_t length[2];
 	u_int8_t control;
 };
+
+struct scsi_reserve_10 {
+	uint8_t	opcode;
+	uint8_t	byte2;
+#define	SR10_3RDPTY	0x10
+#define	SR10_LONGID	0x02
+#define	SR10_EXTENT	0x01
+	uint8_t resv_id;
+	uint8_t thirdparty_id;
+	uint8_t reserved[3];
+	uint8_t length[2];
+	uint8_t control;
+};
+
 
 struct scsi_release
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
-	u_int8_t unused[2];
+	u_int8_t resv_id;
+	u_int8_t unused[1];
 	u_int8_t length;
 	u_int8_t control;
+};
+
+struct scsi_release_10 {
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t resv_id;
+	uint8_t thirdparty_id;
+	uint8_t reserved[3];
+	uint8_t length[2];
+	uint8_t control;
 };
 
 struct scsi_prevent
@@ -435,12 +628,60 @@ struct scsi_sync_cache
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
+#define	SSC_IMMED	0x02
+#define	SSC_RELADR	0x01
 	u_int8_t begin_lba[4];
 	u_int8_t reserved;
 	u_int8_t lb_count[2];
 	u_int8_t control;	
 };
 
+struct scsi_sync_cache_16
+{
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t begin_lba[8];
+	uint8_t lb_count[4];
+	uint8_t reserved;
+	uint8_t control;
+};
+
+struct scsi_format {
+	uint8_t opcode;
+	uint8_t byte2;
+#define	SF_LONGLIST		0x20
+#define	SF_FMTDATA		0x10
+#define	SF_CMPLIST		0x08
+#define	SF_FORMAT_MASK		0x07
+#define	SF_FORMAT_BLOCK		0x00
+#define	SF_FORMAT_LONG_BLOCK	0x03
+#define	SF_FORMAT_BFI		0x04
+#define	SF_FORMAT_PHYS		0x05
+	uint8_t vendor;
+	uint8_t interleave[2];
+	uint8_t control;
+};
+
+struct scsi_format_header_short {
+	uint8_t reserved;
+#define	SF_DATA_FOV	0x80
+#define	SF_DATA_DPRY	0x40
+#define	SF_DATA_DCRT	0x20
+#define	SF_DATA_STPF	0x10
+#define	SF_DATA_IP	0x08
+#define	SF_DATA_DSP	0x04
+#define	SF_DATA_IMMED	0x02
+#define	SF_DATA_VS	0x01
+	uint8_t byte2;
+	uint8_t defect_list_len[2];
+};
+
+struct scsi_format_header_long {
+	uint8_t reserved;
+	uint8_t byte2;
+	uint8_t reserved2[2];
+	uint8_t defect_list_len[4];
+};
 
 struct scsi_changedef
 {
@@ -459,6 +700,7 @@ struct scsi_read_buffer
 	u_int8_t byte2;
 #define	RWB_MODE		0x07
 #define	RWB_MODE_HDR_DATA	0x00
+#define	RWB_MODE_VENDOR		0x01
 #define	RWB_MODE_DATA		0x02
 #define	RWB_MODE_DOWNLOAD	0x04
 #define	RWB_MODE_DOWNLOAD_SAVE	0x05
@@ -529,6 +771,40 @@ struct scsi_rw_16
 	u_int8_t control;
 };
 
+struct scsi_write_verify_10
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+#define	SWV_BYTCHK		0x02
+#define	SWV_DPO			0x10
+#define	SWV_WRPROECT_MASK	0xe0
+	uint8_t	addr[4];
+	uint8_t	group;
+	uint8_t length[2];
+	uint8_t	control;
+};
+
+struct scsi_write_verify_12
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[4];
+	uint8_t	length[4];
+	uint8_t	group;
+	uint8_t	control;
+};
+
+struct scsi_write_verify_16
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[8];
+	uint8_t	length[4];
+	uint8_t	group;
+	uint8_t	control;
+};
+
+
 struct scsi_start_stop_unit
 {
 	u_int8_t opcode;
@@ -538,6 +814,14 @@ struct scsi_start_stop_unit
 	u_int8_t how;
 #define	SSS_START		0x01
 #define	SSS_LOEJ		0x02
+#define	SSS_PC_MASK		0xf0
+#define	SSS_PC_START_VALID	0x00
+#define	SSS_PC_ACTIVE		0x10
+#define	SSS_PC_IDLE		0x20
+#define	SSS_PC_STANDBY		0x30
+#define	SSS_PC_LU_CONTROL	0x70
+#define	SSS_PC_FORCE_IDLE_0	0xa0
+#define	SSS_PC_FORCE_STANDBY_0	0xb0
 	u_int8_t control;
 };
 
@@ -560,6 +844,18 @@ struct ata_pass_12 {
 	u_int8_t command;
 	u_int8_t reserved;
 	u_int8_t control;
+};
+
+struct scsi_maintenance_in
+{
+        uint8_t  opcode;
+        uint8_t  byte2;
+#define SERVICE_ACTION_MASK  0x1f
+#define SA_RPRT_TRGT_GRP     0x0a
+        uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
 };
 
 struct ata_pass_16 {
@@ -607,6 +903,7 @@ struct ata_pass_16 {
 #define	READ_10			0x28
 #define	WRITE_10		0x2A
 #define	POSITION_TO_ELEMENT	0x2B
+#define	WRITE_VERIFY_10		0x2E
 #define	SYNCHRONIZE_CACHE	0x35
 #define	READ_DEFECT_DATA_10	0x37
 #define	WRITE_BUFFER            0x3B
@@ -615,10 +912,16 @@ struct ata_pass_16 {
 #define	LOG_SELECT		0x4C
 #define	LOG_SENSE		0x4D
 #define	MODE_SELECT_10		0x55
+#define	RESERVE_10		0x56
+#define	RELEASE_10		0x57
 #define	MODE_SENSE_10		0x5A
+#define	PERSISTENT_RES_IN	0x5E
+#define	PERSISTENT_RES_OUT	0x5F
 #define	ATA_PASS_16		0x85
 #define	READ_16			0x88
 #define	WRITE_16		0x8A
+#define	WRITE_VERIFY_16		0x8E
+#define	SYNCHRONIZE_CACHE_16	0x91
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
@@ -627,6 +930,7 @@ struct ata_pass_16 {
 #define	MOVE_MEDIUM     	0xA5
 #define	READ_12			0xA8
 #define	WRITE_12		0xAA
+#define	WRITE_VERIFY_12		0xAE
 #define	READ_ELEMENT_STATUS	0xB8
 
 /* Maintenance In Service Action Codes */
@@ -737,10 +1041,12 @@ struct scsi_inquiry_data
 	u_int8_t response_format;
 #define	SID_AENC	0x80
 #define	SID_TrmIOP	0x40
+#define	SID_NormACA	0x20
+#define	SID_HiSup	0x10
 	u_int8_t additional_length;
 #define	SID_ADDITIONAL_LENGTH(iqd)					\
 	((iqd)->additional_length +					\
-	offsetof(struct scsi_inquiry_data, additional_length) + 1)
+	__offsetof(struct scsi_inquiry_data, additional_length) + 1)
 	u_int8_t spc3_flags;
 #define	SPC3_SID_PROTECT	0x01
 #define	SPC3_SID_3PC		0x08
@@ -750,6 +1056,7 @@ struct scsi_inquiry_data
 #define	SPC3_SID_ACC		0x40
 #define	SPC3_SID_SCCS		0x80
 	u_int8_t spc2_flags;
+#define	SPC2_SID_ADDR16		0x01
 #define	SPC2_SID_MChngr 	0x08
 #define	SPC2_SID_MultiP 	0x10
 #define	SPC2_SID_EncServ	0x40
@@ -809,6 +1116,10 @@ struct scsi_inquiry_data
 	u_int8_t vendor_specific1[SID_VENDOR_SPECIFIC_1_SIZE];
 };
 
+/*
+ * This structure is more suited to initiator operation, because the
+ * maximum number of supported pages is already allocated.
+ */
 struct scsi_vpd_supported_page_list
 {
 	u_int8_t device;
@@ -852,11 +1163,11 @@ struct scsi_vpd_device_id
 	u_int8_t device;
 	u_int8_t page_code;
 #define	SVPD_DEVICE_ID			0x83
-#define	SVPD_DEVICE_ID_MAX_SIZE		0xffff
-#define	SVPD_DEVICE_ID_HDR_LEN		4
-#define	SVPD_DEVICE_ID_DESC_HDR_LEN	4
+#define	SVPD_DEVICE_ID_MAX_SIZE		252
+#define	SVPD_DEVICE_ID_HDR_LEN \
+    __offsetof(struct scsi_vpd_device_id, desc_list)
 	u_int8_t length[2];
-	u_int8_t desc_list[0];
+	u_int8_t desc_list[];
 };
 
 struct scsi_vpd_id_descriptor
@@ -872,11 +1183,13 @@ struct scsi_vpd_id_descriptor
 #define	SVPD_ID_PROTO_SHIFT	4
 #define	SVPD_ID_CODESET_BINARY	0x01
 #define	SVPD_ID_CODESET_ASCII	0x02
+#define	SVPD_ID_CODESET_MASK	0x0f
 	u_int8_t	id_type;
 #define	SVPD_ID_PIV		0x80
 #define	SVPD_ID_ASSOC_LUN	0x00
 #define	SVPD_ID_ASSOC_PORT	0x10
 #define	SVPD_ID_ASSOC_TARGET	0x20
+#define	SVPD_ID_ASSOC_MASK	0x30
 #define	SVPD_ID_TYPE_VENDOR	0x00
 #define	SVPD_ID_TYPE_T10	0x01
 #define	SVPD_ID_TYPE_EUI64	0x02
@@ -889,7 +1202,9 @@ struct scsi_vpd_id_descriptor
 #define	SVPD_ID_TYPE_MASK	0x0f
 	u_int8_t	reserved;
 	u_int8_t	length;
-	u_int8_t	identifier[0];
+#define	SVPD_DEVICE_ID_DESC_HDR_LEN \
+    __offsetof(struct scsi_vpd_id_descriptor, identifier) 
+	u_int8_t	identifier[];
 };
 
 struct scsi_vpd_id_t10
@@ -990,12 +1305,23 @@ struct scsi_vpd_id_scsi_name
 	uint8_t name_string[256];
 };
 
+struct scsi_service_action_in
+{
+	uint8_t opcode;
+	uint8_t service_action;
+	uint8_t action_dependent[13];
+	uint8_t control;
+};
+
 struct scsi_read_capacity
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
+#define	SRC_RELADR	0x01
 	u_int8_t addr[4];
-	u_int8_t unused[3];
+	u_int8_t unused[2];
+	u_int8_t pmi;
+#define	SRC_PMI		0x01
 	u_int8_t control;
 };
 
@@ -1038,18 +1364,11 @@ struct scsi_report_luns
 	uint8_t control;
 };
 
-struct scsi_report_luns_data {
-	u_int8_t length[4];	/* length of LUN inventory, in bytes */
-	u_int8_t reserved[4];	/* unused */
-	/*
-	 * LUN inventory- we only support the type zero form for now.
-	 */
-	struct {
-		u_int8_t lundata[8];
-	} luns[0];
-};
+struct scsi_report_luns_lundata {
+	uint8_t lundata[8];
 #define	RPL_LUNDATA_PERIPH_BUS_MASK	0x3f
 #define	RPL_LUNDATA_FLAT_LUN_MASK	0x3f
+#define	RPL_LUNDATA_FLAT_LUN_BITS	0x06
 #define	RPL_LUNDATA_LUN_TARG_MASK	0x3f
 #define	RPL_LUNDATA_LUN_BUS_MASK	0xe0
 #define	RPL_LUNDATA_LUN_LUN_MASK	0x1f
@@ -1062,6 +1381,16 @@ struct scsi_report_luns_data {
 #define	RPL_LUNDATA_ATYP_FLAT	0x40
 #define	RPL_LUNDATA_ATYP_LUN	0x80
 #define	RPL_LUNDATA_ATYP_EXTLUN	0xc0
+};
+
+struct scsi_report_luns_data {
+	u_int8_t length[4];	/* length of LUN inventory, in bytes */
+	u_int8_t reserved[4];	/* unused */
+	/*
+	 * LUN inventory- we only support the type zero form for now.
+	 */
+	struct scsi_report_luns_lundata luns[0];
+};
 
 struct scsi_target_group
 {
@@ -1103,6 +1432,9 @@ struct scsi_target_port_group_descriptor {
 	uint8_t target_port_group[2];
 	uint8_t reserved;
 	uint8_t status;
+#define TPG_UNAVLBL      0
+#define TPG_SET_BY_STPG  0x01
+#define TPG_IMPLICIT     0x02
 	uint8_t vendor_specific;
 	uint8_t	target_port_count;
 	struct scsi_target_port_descriptor descriptors[];
@@ -1122,7 +1454,48 @@ struct scsi_target_group_data_extended {
 };
 
 
+typedef enum {
+	SSD_TYPE_NONE,
+	SSD_TYPE_FIXED,
+	SSD_TYPE_DESC
+} scsi_sense_data_type;
+
+typedef enum {
+	SSD_ELEM_NONE,
+	SSD_ELEM_SKIP,
+	SSD_ELEM_DESC,
+	SSD_ELEM_SKS,
+	SSD_ELEM_COMMAND,
+	SSD_ELEM_INFO,
+	SSD_ELEM_FRU,
+	SSD_ELEM_STREAM,
+	SSD_ELEM_MAX
+} scsi_sense_elem_type;
+
+
 struct scsi_sense_data
+{
+	uint8_t error_code;
+	/*
+	 * SPC-4 says that the maximum length of sense data is 252 bytes.
+	 * So this structure is exactly 252 bytes log.
+	 */
+#define	SSD_FULL_SIZE 252
+	uint8_t sense_buf[SSD_FULL_SIZE - 1];
+	/*
+	 * XXX KDM is this still a reasonable minimum size?
+	 */
+#define	SSD_MIN_SIZE 18
+	/*
+	 * Maximum value for the extra_len field in the sense data.
+	 */
+#define	SSD_EXTRA_MAX 244
+};
+
+/*
+ * Fixed format sense data.
+ */
+struct scsi_sense_data_fixed
 {
 	u_int8_t error_code;
 #define	SSD_ERRCODE			0x7F
@@ -1147,7 +1520,7 @@ struct scsi_sense_data
 #define		SSD_KEY_EQUAL		0x0c
 #define		SSD_KEY_VOLUME_OVERFLOW	0x0d
 #define		SSD_KEY_MISCOMPARE	0x0e
-#define		SSD_KEY_RESERVED	0x0f			
+#define		SSD_KEY_COMPLETED	0x0f			
 #define	SSD_ILI		0x20
 #define	SSD_EOM		0x40
 #define	SSD_FILEMARK	0x80
@@ -1162,9 +1535,313 @@ struct scsi_sense_data
 #define	SSD_FIELDPTR_CMD	0x40
 #define	SSD_BITPTR_VALID	0x08
 #define	SSD_BITPTR_VALUE	0x07
-#define	SSD_MIN_SIZE 18
 	u_int8_t extra_bytes[14];
-#define	SSD_FULL_SIZE sizeof(struct scsi_sense_data)
+#define	SSD_FIXED_IS_PRESENT(sense, length, field) 			\
+	((length >= (offsetof(struct scsi_sense_data_fixed, field) +	\
+	sizeof(sense->field))) ? 1 :0)
+#define	SSD_FIXED_IS_FILLED(sense, field) 				\
+	((((offsetof(struct scsi_sense_data_fixed, field) +		\
+	sizeof(sense->field)) -						\
+	(offsetof(struct scsi_sense_data_fixed, extra_len) +		\
+	sizeof(sense->extra_len))) <= sense->extra_len) ? 1 : 0)
+};
+
+/*
+ * Descriptor format sense data definitions.
+ * Introduced in SPC-3.
+ */
+struct scsi_sense_data_desc 
+{
+	uint8_t	error_code;
+#define	SSD_DESC_CURRENT_ERROR	0x72
+#define	SSD_DESC_DEFERRED_ERROR	0x73
+	uint8_t sense_key;
+	uint8_t	add_sense_code;
+	uint8_t	add_sense_code_qual;
+	uint8_t	reserved[3];
+	/*
+	 * Note that SPC-4, section 4.5.2.1 says that the extra_len field
+	 * must be less than or equal to 244.
+	 */
+	uint8_t	extra_len;
+	uint8_t	sense_desc[0];
+#define	SSD_DESC_IS_PRESENT(sense, length, field) 			\
+	((length >= (offsetof(struct scsi_sense_data_desc, field) +	\
+	sizeof(sense->field))) ? 1 :0)
+};
+
+struct scsi_sense_desc_header
+{
+	uint8_t desc_type;
+	uint8_t length;
+};
+/*
+ * The information provide in the Information descriptor is device type or
+ * command specific information, and defined in a command standard.
+ *
+ * Note that any changes to the field names or positions in this structure,
+ * even reserved fields, should be accompanied by an examination of the
+ * code in ctl_set_sense() that uses them.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_info
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_INFO	0x00
+	uint8_t	length;
+	uint8_t	byte2;
+#define	SSD_INFO_VALID	0x80
+	uint8_t	reserved;
+	uint8_t	info[8];
+};
+
+/*
+ * Command-specific information depends on the command for which the
+ * reported condition occured.
+ *
+ * Note that any changes to the field names or positions in this structure,
+ * even reserved fields, should be accompanied by an examination of the
+ * code in ctl_set_sense() that uses them.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_command
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_COMMAND	0x01
+	uint8_t	length;
+	uint8_t	reserved[2];
+	uint8_t	command_info[8];
+};
+
+/*
+ * Sense key specific descriptor.  The sense key specific data format
+ * depends on the sense key in question.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_sks
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_SKS		0x02
+	uint8_t	length;
+	uint8_t reserved1[2];
+	uint8_t	sense_key_spec[3];
+#define	SSD_SKS_VALID		0x80
+	uint8_t reserved2;
+};
+
+/*
+ * This is used for the Illegal Request sense key (0x05) only.
+ */
+struct scsi_sense_sks_field
+{
+	uint8_t	byte0;
+#define	SSD_SKS_FIELD_VALID	0x80
+#define	SSD_SKS_FIELD_CMD	0x40
+#define	SSD_SKS_BPV		0x08
+#define	SSD_SKS_BIT_VALUE	0x07
+	uint8_t	field[2];
+};
+
+
+/* 
+ * This is used for the Hardware Error (0x04), Medium Error (0x03) and
+ * Recovered Error (0x01) sense keys.
+ */
+struct scsi_sense_sks_retry
+{
+	uint8_t byte0;
+#define	SSD_SKS_RETRY_VALID	0x80
+	uint8_t actual_retry_count[2];
+};
+
+/*
+ * Used with the NO Sense (0x00) or Not Ready (0x02) sense keys.
+ */
+struct scsi_sense_sks_progress
+{
+	uint8_t byte0;
+#define	SSD_SKS_PROGRESS_VALID	0x80
+	uint8_t progress[2];
+#define	SSD_SKS_PROGRESS_DENOM	0x10000
+};
+
+/*
+ * Used with the Copy Aborted (0x0a) sense key.
+ */
+struct scsi_sense_sks_segment
+{
+	uint8_t byte0;
+#define	SSD_SKS_SEGMENT_VALID	0x80
+#define	SSD_SKS_SEGMENT_SD	0x20
+#define	SSD_SKS_SEGMENT_BPV	0x08
+#define	SSD_SKS_SEGMENT_BITPTR	0x07
+	uint8_t field[2];
+};
+
+/*
+ * Used with the Unit Attention (0x06) sense key.
+ *
+ * This is currently used to indicate that the unit attention condition
+ * queue has overflowed (when the overflow bit is set).
+ */
+struct scsi_sense_sks_overflow
+{
+	uint8_t byte0;
+#define	SSD_SKS_OVERFLOW_VALID	0x80
+#define	SSD_SKS_OVERFLOW_SET	0x01
+	uint8_t	reserved[2];
+};
+
+/*
+ * This specifies which component is associated with the sense data.  There
+ * is no standard meaning for the fru value.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_fru
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_FRU		0x03
+	uint8_t	length;
+	uint8_t reserved;
+	uint8_t fru;
+};
+
+/*
+ * Used for Stream commands, defined in SSC-4.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+ 
+struct scsi_sense_stream
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_STREAM		0x04
+	uint8_t	length;
+	uint8_t	reserved;
+	uint8_t	byte3;
+#define	SSD_DESC_STREAM_FM	0x80
+#define	SSD_DESC_STREAM_EOM	0x40
+#define	SSD_DESC_STREAM_ILI	0x20
+};
+
+/*
+ * Used for Block commands, defined in SBC-3.
+ *
+ * This is currently (as of SBC-3) only used for the Incorrect Length
+ * Indication (ILI) bit, which says that the data length requested in the
+ * READ LONG or WRITE LONG command did not match the length of the logical
+ * block.
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_block
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_BLOCK		0x05
+	uint8_t	length;
+	uint8_t	reserved;
+	uint8_t	byte3;
+#define	SSD_DESC_BLOCK_ILI	0x20
+};
+
+/*
+ * Used for Object-Based Storage Devices (OSD-3).
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_osd_objid
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_OSD_OBJID	0x06
+	uint8_t	length;
+	uint8_t	reserved[6];
+	/*
+	 * XXX KDM provide the bit definitions here?  There are a lot of
+	 * them, and we don't have an OSD driver yet.
+	 */
+	uint8_t	not_init_cmds[4];
+	uint8_t	completed_cmds[4];
+	uint8_t	partition_id[8];
+	uint8_t	object_id[8];
+};
+
+/*
+ * Used for Object-Based Storage Devices (OSD-3).
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_osd_integrity
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_OSD_INTEGRITY	0x07
+	uint8_t	length;
+	uint8_t	integ_check_val[32];
+};
+
+/*
+ * Used for Object-Based Storage Devices (OSD-3).
+ *
+ * Maximum descriptors allowed: 1 (as of SPC-4)
+ */
+struct scsi_sense_osd_attr_id
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_OSD_ATTR_ID	0x08
+	uint8_t	length;
+	uint8_t	reserved[2];
+	uint8_t	attr_desc[0];
+};
+
+/*
+ * Used with Sense keys No Sense (0x00) and Not Ready (0x02).
+ *
+ * Maximum descriptors allowed: 32 (as of SPC-4)
+ */
+struct scsi_sense_progress
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_PROGRESS	0x0a
+	uint8_t	length;
+	uint8_t	sense_key;
+	uint8_t	add_sense_code;
+	uint8_t	add_sense_code_qual;
+	uint8_t reserved;
+	uint8_t	progress[2];
+};
+
+/*
+ * This is typically forwarded as the result of an EXTENDED COPY command.
+ *
+ * Maximum descriptors allowed: 2 (as of SPC-4)
+ */
+struct scsi_sense_forwarded
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_FORWARDED	0x0c
+	uint8_t	length;
+	uint8_t	byte2;
+#define	SSD_FORWARDED_FSDT	0x80
+#define	SSD_FORWARDED_SDS_MASK	0x0f
+#define	SSD_FORWARDED_SDS_UNK	0x00
+#define	SSD_FORWARDED_SDS_EXSRC	0x01
+#define	SSD_FORWARDED_SDS_EXDST	0x02
+};
+
+/*
+ * Vendor-specific sense descriptor.  The desc_type field will be in the
+ * range bewteen MIN and MAX inclusive.
+ */
+struct scsi_sense_vendor
+{
+	uint8_t	desc_type;
+#define	SSD_DESC_VENDOR_MIN	0x80
+#define	SSD_DESC_VENDOR_MAX	0xff
+	uint8_t length;
+	uint8_t	data[0];
 };
 
 struct scsi_mode_header_6
@@ -1187,8 +1864,19 @@ struct scsi_mode_header_10
 struct scsi_mode_page_header
 {
 	u_int8_t page_code;
+#define	SMPH_PS		0x80
+#define	SMPH_SPF	0x40
+#define	SMPH_PC_MASK	0x3f
 	u_int8_t page_length;
 };
+
+struct scsi_mode_page_header_sp
+{
+	uint8_t page_code;
+	uint8_t subpage;
+	uint8_t page_length[2];
+};
+
 
 struct scsi_mode_blk_desc
 {
@@ -1292,6 +1980,84 @@ scsi_sense_action scsi_error_action(struct ccb_scsiio* csio,
 				    struct scsi_inquiry_data *inq_data,
 				    u_int32_t sense_flags);
 const char *	scsi_status_string(struct ccb_scsiio *csio);
+
+void scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
+		       int (*iter_func)(struct scsi_sense_data_desc *sense,
+					u_int, struct scsi_sense_desc_header *,
+					void *), void *arg);
+uint8_t *scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
+			uint8_t desc_type);
+void scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+			 scsi_sense_data_type sense_format, int current_error,
+			 int sense_key, int asc, int ascq, ...) ;
+void scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
+			    scsi_sense_data_type sense_format,
+			    int current_error, int sense_key, int asc,
+			    int ascq, va_list ap);
+int scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
+			uint8_t info_type, uint64_t *info,
+			int64_t *signed_info);
+int scsi_get_sks(struct scsi_sense_data *sense_data, u_int sense_len,
+		 uint8_t *sks);
+int scsi_get_block_info(struct scsi_sense_data *sense_data, u_int sense_len,
+			struct scsi_inquiry_data *inq_data,
+			uint8_t *block_bits);
+int scsi_get_stream_info(struct scsi_sense_data *sense_data, u_int sense_len,
+			 struct scsi_inquiry_data *inq_data,
+			 uint8_t *stream_bits);
+void scsi_info_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
+		    struct scsi_inquiry_data *inq_data, uint64_t info);
+void scsi_command_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
+		       struct scsi_inquiry_data *inq_data, uint64_t csi);
+void scsi_progress_sbuf(struct sbuf *sb, uint16_t progress);
+int scsi_sks_sbuf(struct sbuf *sb, int sense_key, uint8_t *sks);
+void scsi_fru_sbuf(struct sbuf *sb, uint64_t fru);
+void scsi_stream_sbuf(struct sbuf *sb, uint8_t stream_bits, uint64_t info);
+void scsi_block_sbuf(struct sbuf *sb, uint8_t block_bits, uint64_t info);
+void scsi_sense_info_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			  u_int sense_len, uint8_t *cdb, int cdb_len,
+			  struct scsi_inquiry_data *inq_data,
+			  struct scsi_sense_desc_header *header);
+
+void scsi_sense_command_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			     u_int sense_len, uint8_t *cdb, int cdb_len,
+			     struct scsi_inquiry_data *inq_data,
+			     struct scsi_sense_desc_header *header);
+void scsi_sense_sks_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header);
+void scsi_sense_fru_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header);
+void scsi_sense_stream_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			    u_int sense_len, uint8_t *cdb, int cdb_len,
+			    struct scsi_inquiry_data *inq_data,
+			    struct scsi_sense_desc_header *header);
+void scsi_sense_block_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			   u_int sense_len, uint8_t *cdb, int cdb_len,
+			   struct scsi_inquiry_data *inq_data,
+			   struct scsi_sense_desc_header *header);
+void scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			      u_int sense_len, uint8_t *cdb, int cdb_len,
+			      struct scsi_inquiry_data *inq_data,
+			      struct scsi_sense_desc_header *header);
+void scsi_sense_generic_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			     u_int sense_len, uint8_t *cdb, int cdb_len,
+			     struct scsi_inquiry_data *inq_data,
+			     struct scsi_sense_desc_header *header);
+void scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			  u_int sense_len, uint8_t *cdb, int cdb_len,
+			  struct scsi_inquiry_data *inq_data,
+			  struct scsi_sense_desc_header *header);
+scsi_sense_data_type scsi_sense_type(struct scsi_sense_data *sense_data);
+
+void scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
+			  struct sbuf *sb, char *path_str,
+			  struct scsi_inquiry_data *inq_data, uint8_t *cdb,
+			  int cdb_len);
+
 #ifdef _KERNEL
 int		scsi_command_string(struct ccb_scsiio *csio, struct sbuf *sb);
 int		scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
@@ -1497,30 +2263,28 @@ int		scsi_static_inquiry_match(caddr_t inqbuffer,
 int		scsi_devid_match(uint8_t *rhs, size_t rhs_len,
 				 uint8_t *lhs, size_t lhs_len);
 
-static __inline void scsi_extract_sense(struct scsi_sense_data *sense,
-					int *error_code, int *sense_key,
-					int *asc, int *ascq);
+void scsi_extract_sense(struct scsi_sense_data *sense, int *error_code,
+			int *sense_key, int *asc, int *ascq);
+void scsi_extract_sense_len(struct scsi_sense_data *sense,
+			    u_int sense_len, int *error_code, int *sense_key,
+			    int *asc, int *ascq, int show_errors);
+int scsi_get_sense_key(struct scsi_sense_data *sense, u_int sense_len,
+		       int show_errors);
+int scsi_get_asc(struct scsi_sense_data *sense, u_int sense_len,
+		 int show_errors);
+int scsi_get_ascq(struct scsi_sense_data *sense, u_int sense_len,
+		  int show_errors);
 static __inline void scsi_ulto2b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto3b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto4b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_u64to8b(u_int64_t val, u_int8_t *bytes);
-static __inline u_int32_t scsi_2btoul(u_int8_t *bytes);
-static __inline u_int32_t scsi_3btoul(u_int8_t *bytes);
-static __inline int32_t scsi_3btol(u_int8_t *bytes);
-static __inline u_int32_t scsi_4btoul(u_int8_t *bytes);
-static __inline u_int64_t scsi_8btou64(u_int8_t *bytes);
+static __inline uint32_t scsi_2btoul(const uint8_t *bytes);
+static __inline uint32_t scsi_3btoul(const uint8_t *bytes);
+static __inline int32_t scsi_3btol(const uint8_t *bytes);
+static __inline uint32_t scsi_4btoul(const uint8_t *bytes);
+static __inline uint64_t scsi_8btou64(const uint8_t *bytes);
 static __inline void *find_mode_page_6(struct scsi_mode_header_6 *mode_header);
 static __inline void *find_mode_page_10(struct scsi_mode_header_10 *mode_header);
-
-static __inline void scsi_extract_sense(struct scsi_sense_data *sense,
-					int *error_code, int *sense_key,
-					int *asc, int *ascq)
-{
-	*error_code = sense->error_code & SSD_ERRCODE;
-	*sense_key = sense->flags & SSD_KEY;
-	*asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
-	*ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
-}
 
 static __inline void
 scsi_ulto2b(u_int32_t val, u_int8_t *bytes)
@@ -1563,20 +2327,20 @@ scsi_u64to8b(u_int64_t val, u_int8_t *bytes)
 	bytes[7] = val & 0xff;
 }
 
-static __inline u_int32_t
-scsi_2btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_2btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 8) |
 	     bytes[1];
 	return (rv);
 }
 
-static __inline u_int32_t
-scsi_3btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_3btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 16) |
 	     (bytes[1] << 8) |
@@ -1585,9 +2349,9 @@ scsi_3btoul(u_int8_t *bytes)
 }
 
 static __inline int32_t 
-scsi_3btol(u_int8_t *bytes)
+scsi_3btol(const uint8_t *bytes)
 {
-	u_int32_t rc = scsi_3btoul(bytes);
+	uint32_t rc = scsi_3btoul(bytes);
  
 	if (rc & 0x00800000)
 		rc |= 0xff000000;
@@ -1595,10 +2359,10 @@ scsi_3btol(u_int8_t *bytes)
 	return (int32_t) rc;
 }
 
-static __inline u_int32_t
-scsi_4btoul(u_int8_t *bytes)
+static __inline uint32_t
+scsi_4btoul(const uint8_t *bytes)
 {
-	u_int32_t rv;
+	uint32_t rv;
 
 	rv = (bytes[0] << 24) |
 	     (bytes[1] << 16) |
@@ -1608,7 +2372,7 @@ scsi_4btoul(u_int8_t *bytes)
 }
 
 static __inline uint64_t
-scsi_8btou64(uint8_t *bytes)
+scsi_8btou64(const uint8_t *bytes)
 {
         uint64_t rv;
  
