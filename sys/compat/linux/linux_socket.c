@@ -81,7 +81,7 @@ static int linux_to_bsd_domain(int);
  * family and convert to sockaddr.
  */
 static int
-linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen)
+linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int salen)
 {
 	struct sockaddr *sa;
 	struct osockaddr *kosa;
@@ -90,12 +90,11 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 	int oldv6size;
 #endif
 	char *name;
-	int alloclen, bdom, error, hdrlen, namelen;
+	int bdom, error, hdrlen, namelen;
 
-	if (osalen < 2 || osalen > UCHAR_MAX || !osa)
+	if (salen < 2 || salen > UCHAR_MAX || !osa)
 		return (EINVAL);
 
-	alloclen = osalen;
 #ifdef INET6
 	oldv6size = 0;
 	/*
@@ -103,15 +102,15 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 	 * if it's a v4-mapped address, so reserve the proper space
 	 * for it.
 	 */
-	if (alloclen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
-		alloclen = sizeof(struct sockaddr_in6);
+	if (salen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
+		salen += sizeof(uint32_t);
 		oldv6size = 1;
 	}
 #endif
 
-	kosa = malloc(alloclen, M_SONAME, M_WAITOK);
+	kosa = malloc(salen, M_SONAME, M_WAITOK);
 
-	if ((error = copyin(osa, kosa, osalen)))
+	if ((error = copyin(osa, kosa, salen)))
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
@@ -145,18 +144,18 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 				goto out;
 			}
 		} else
-			alloclen -= sizeof(uint32_t);
+			salen -= sizeof(uint32_t);
 	}
 #endif
 	if (bdom == AF_INET) {
-		alloclen = sizeof(struct sockaddr_in);
-		if (osalen < alloclen) {
+		if (salen < sizeof(struct sockaddr_in)) {
 			error = EINVAL;
 			goto out;
 		}
+		salen = sizeof(struct sockaddr_in);
 	}
 
-	if (bdom == AF_LOCAL && osalen > sizeof(struct sockaddr_un)) {
+	if (bdom == AF_LOCAL && salen > sizeof(struct sockaddr_un)) {
 		hdrlen = offsetof(struct sockaddr_un, sun_path);
 		name = ((struct sockaddr_un *)kosa)->sun_path;
 		if (*name == '\0') {
@@ -164,19 +163,19 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int osalen
 		 	 * Linux abstract namespace starts with a NULL byte.
 			 * XXX We do not support abstract namespace yet.
 			 */
-			namelen = strnlen(name + 1, osalen - hdrlen - 1) + 1;
+			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
 		} else
-			namelen = strnlen(name, osalen - hdrlen);
+			namelen = strnlen(name, salen - hdrlen);
 		if (hdrlen + namelen > sizeof(struct sockaddr_un)) {
 			error = ENAMETOOLONG;
 			goto out;
 		}
-		alloclen = sizeof(struct sockaddr_un);
+		salen = sizeof(struct sockaddr_un);
 	}
 
 	sa = (struct sockaddr *)kosa;
 	sa->sa_family = bdom;
-	sa->sa_len = alloclen;
+	sa->sa_len = salen;
 
 	*sap = sa;
 	return (0);
