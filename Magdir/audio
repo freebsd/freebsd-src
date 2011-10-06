@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: audio,v 1.63 2011/09/06 11:00:06 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -116,7 +118,7 @@
 # Real Audio (Magic .ra\0375)
 0	belong		0x2e7261fd	RealAudio sound file
 !:mime	audio/x-pn-realaudio
-0	string		.RMF		RealMedia file
+0	string		.RMF\0\0\0	RealMedia file
 !:mime	application/vnd.rn-realmedia
 #video/x-pn-realvideo
 #video/vnd.rn-realvideo
@@ -250,12 +252,17 @@
 >0x36	string		>\0			author: "%s"
 >0x56	string		>\0			copyright: "%s"
 
-# IRCAM <mpruett@sgi.com>
-# VAX and MIPS files are little-endian; Sun and NeXT are big-endian
-0	belong		0x64a30100		IRCAM file (VAX)
-0	belong		0x64a30200		IRCAM file (Sun)
+# IRCAM sound files - Michael Pruett <michael@68k.org>
+# http://www-mmsp.ece.mcgill.ca/documents/AudioFormats/IRCAM/IRCAM.html
+0	belong		0x64a30100		IRCAM file (VAX little-endian)
+0	belong		0x0001a364		IRCAM file (VAX big-endian)
+0	belong		0x64a30200		IRCAM file (Sun big-endian)
+0	belong		0x0002a364		IRCAM file (Sun little-endian)
 0	belong		0x64a30300		IRCAM file (MIPS little-endian)
-0	belong		0x64a30400		IRCAM file (NeXT)
+0	belong		0x0003a364		IRCAM file (MIPS big-endian)
+0	belong		0x64a30400		IRCAM file (NeXT big-endian)
+0	belong		0x64a30400		IRCAM file (NeXT big-endian)
+0	belong		0x0004a364		IRCAM file (NeXT little-endian)
 
 # NIST SPHERE <mpruett@sgi.com>
 0	string		NIST_1A\n\ \ \ 1024\n	NIST SPHERE file
@@ -276,8 +283,8 @@
 >21	ubyte		<128			note %d,
 >22	byte		=0			replay 5.485 KHz
 >22	byte		=1			replay 8.084 KHz
->22	byte		=2			replay 10.971 Khz
->22	byte		=3			replay 16.168 Khz
+>22	byte		=2			replay 10.971 KHz
+>22	byte		=3			replay 16.168 KHz
 >22	byte		=4			replay 21.942 KHz
 >22	byte		=5			replay 32.336 KHz
 >22	byte		=6			replay 43.885 KHz
@@ -305,6 +312,15 @@
 >122	byte&0x2	=1		dual PAL/NTSC
 >122	byte&0x1	=1		PAL
 >122	byte&0x1	=0		NTSC
+
+# Type: SNES SPC700 sound files
+# From: Josh Triplett <josh@freedesktop.org>
+0	string	SNES-SPC700\ Sound\ File\ Data\ v	SNES SPC700 sound file
+>&0	string	0.30					\b, version %s
+>>0x23	byte	0x1B					\b, without ID666 tag
+>>0x23	byte	0x1A					\b, with ID666 tag
+>>>0x2E	string	>\0					\b, song "%.32s"
+>>>0x4E	string	>\0					\b, game "%.32s"
 
 # Impulse tracker module (audio/x-it)
 0	string		IMPM		Impulse Tracker module sound data -
@@ -604,3 +620,18 @@
 # URL:  http://filext.com/detaillist.php?extdetail=AMR
 # From: Russell Coker <russell@coker.com.au>
 0	string	#!AMR		Adaptive Multi-Rate Codec (GSM telephony)
+
+# Type: SuperCollider 3 Synth Definition File Format
+# From: Mario Lang <mlang@debian.org>
+0	string	SCgf	SuperCollider3 Synth Definition file,
+>4	belong	x	version %d
+
+# Type: True Audio Lossless Audio
+# URL:  http://wiki.multimedia.cx/index.php?title=True_Audio
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	TTA1	True Audio Lossless Audio
+
+# Type: WavPack Lossless Audio
+# URL:  http://wiki.multimedia.cx/index.php?title=WavPack
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	wvpk	WavPack Lossless Audio

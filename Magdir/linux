@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: linux,v 1.41 2011/04/20 18:57:10 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -43,38 +45,49 @@
 # this can be overridden by the DOS executable (COM) entry
 2	string		LILO		Linux/i386 LILO boot/chain loader
 #
+# Linux make config build file, from Ole Aamot <oka@oka.no>
+28 	string		make\ config	Linux make config build file
+#
 # PSF fonts, from H. Peter Anvin <hpa@yggdrasil.com>
-0	leshort		0x0436		Linux/i386 PC Screen Font data,
->2	byte		0		256 characters, no directory,
->2	byte		1		512 characters, no directory,
->2	byte		2		256 characters, Unicode directory,
->2	byte		3		512 characters, Unicode directory,
+# Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
+# See: http://www.win.tue.nl/~aeb/linux/kbd/font-formats-1.html
+0	leshort		0x0436		Linux/i386 PC Screen Font v1 data,
+>2	byte&0x01	0		256 characters,
+>2	byte&0x01	!0		512 characters,
+>2	byte&0x02	0		no directory,
+>2	byte&0x02	!0		Unicode directory,
 >3	byte		>0		8x%d
+0	string		\x72\xb5\x4a\x86\x00\x00 Linux/i386 PC Screen Font v2 data,
+>16	lelong		x		%d characters,
+>12	lelong&0x01	0		no directory,
+>12	lelong&0x01	!0		Unicode directory,
+>24	lelong		x		%d
+>28	lelong		x		\bx%d
+
 # Linux swap file, from Daniel Quinlan <quinlan@yggdrasil.com>
 4086	string		SWAP-SPACE	Linux/i386 swap file
 # From: Jeff Bailey <jbailey@ubuntu.com>
 # Linux swap file with swsusp1 image, from Jeff Bailey <jbailey@ubuntu.com>
 4076	string		SWAPSPACE2S1SUSPEND	Linux/i386 swap file (new style) with SWSUSP1 image
+# From: James Hunt <james.hunt@ubuntu.com>
+4076    string          SWAPSPACE2LINHIB0001    Linux/i386 swap file (new style) (compressed hibernate)
 # according to man page of mkswap (8) March 1999
-4086	string		SWAPSPACE2	Linux/i386 swap file (new style)
->0x400	long		x		%d (4K pages)
->0x404	long		x		size %d pages
->>4086	string		SWAPSPACE2	
->>>1052	string		>\0		Label %s
-# ECOFF magic for OSF/1 and Linux (only tested under Linux though)
-#
-#	from Erik Troan (ewt@redhat.com) examining od dumps, so this
-#		could be wrong
-#      updated by David Mosberger (davidm@azstarnet.com) based on
-#      GNU BFD and MIPS info found below.
-#
-0	leshort		0x0183		ECOFF alpha
->24	leshort		0407		executable
->24	leshort		0410		pure
->24	leshort		0413		demand paged
->8	long		>0		not stripped
->8	long		0		stripped
->23	leshort		>0		- version %ld.
+# volume label and UUID Russell Coker
+# http://etbe.coker.com.au/2008/07/08/label-vs-uuid-vs-device/
+4086	string		SWAPSPACE2	Linux/i386 swap file (new style),
+>0x400	long		x		version %d (4K pages),
+>0x404	long		x		size %d pages,
+>1052	string		\0		no label,
+>1052	string		>\0		LABEL=%s,
+>0x40c	belong		x		UUID=%08x
+>0x410	beshort		x		\b-%04x
+>0x412	beshort		x		\b-%04x
+>0x414	beshort		x		\b-%04x
+>0x416	belong		x		\b-%08x
+>0x41a	beshort		x		\b%04x
+# From Daniel Novotny <dnovotny@redhat.com>
+# swap file for PowerPC
+65526	string		SWAPSPACE2	Linux/ppc swap file
 #
 # Linux kernel boot images, from Albert Cahalan <acahalan@cs.uml.edu>
 # and others such as Axel Kohlmeyer <akohlmey@rincewind.chemie.uni-ulm.de>
@@ -154,6 +167,22 @@
 >0x1e6		belong		!0x454c4b53	style boot sector
 
 ############################################################################
+# Linux S390 kernel image
+# Created by: Jan Kaluza <jkaluza@redhat.com>
+8 string \x02\x00\x00\x18\x60\x00\x00\x50\x02\x00\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40\x40\x40\x40\x40 Linux S390
+>0x00010000 search/b/4096 \x00\x0a\x00\x00\x8b\xad\xcc\xcc
+# 64bit
+>>&0 string \xc1\x00\xef\xe3\xf0\x68\x00\x00 Z10 64bit kernel
+>>&0 string \xc1\x00\xef\xc3\x00\x00\x00\x00 Z9-109 64bit kernel
+>>&0 string \xc0\x00\x20\x00\x00\x00\x00\x00 Z990 64bit kernel
+>>&0 string \x00\x00\x00\x00\x00\x00\x00\x00 Z900 64bit kernel
+# 32bit
+>>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z10 32bit kernel
+>>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z9-109 32bit kernel
+>>&0 string \x80\x00\x20\x00\x00\x00\x00\x00 Z990 32bit kernel
+>>&0 string \x80\x00\x00\x00\x00\x00\x00\x00 Z900 32bit kernel
+
+############################################################################
 # Linux 8086 executable
 0	lelong&0xFF0000FF 0xC30000E9	Linux-Dev86 executable, headerless
 >5	string		.		
@@ -217,19 +246,55 @@
 #
 # 0x200 seems to be the common case
 
-0x218		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
+0x218           string  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
 # read the offset to add to the start of the header, and the header
 # start in 0x200
->(0x214.l+0x200) string	>\0		, UUID: %s
+>&(&-12.l-0x21) byte    x
+# display UUID in LVM format + display all 32 bytes (instead of max string length: 31)
+>>&0x0          string  >\x2f          \b, UUID: %.6s
+>>&0x6          string  >\x2f          \b-%.4s
+>>&0xa          string  >\x2f          \b-%.4s
+>>&0xe          string  >\x2f          \b-%.4s
+>>&0x12         string  >\x2f          \b-%.4s
+>>&0x16         string  >\x2f          \b-%.4s
+>>&0x1a         string  >\x2f          \b-%.6s
+>>&0x20         lequad  x              \b, size: %lld
 
-0x018		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
->(0x014.l)	 string	>\0		, UUID: %s
+0x018           string  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x21) byte    x
+# display UUID in LVM format + display all 32 bytes (instead of max string length: 31)
+>>&0x0          string  >\x2f          \b, UUID: %.6s
+>>&0x6          string  >\x2f          \b-%.4s
+>>&0xa          string  >\x2f          \b-%.4s
+>>&0xe          string  >\x2f          \b-%.4s
+>>&0x12         string  >\x2f          \b-%.4s
+>>&0x16         string  >\x2f          \b-%.4s
+>>&0x1a         string  >\x2f          \b-%.6s
+>>&0x20         lequad  x              \b, size: %lld
 
-0x418		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
->(0x414.l+0x400) string	>\0		, UUID: %s
+0x418           string  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x21) byte    x
+# display UUID in LVM format + display all 32 bytes (instead of max string length: 31)
+>>&0x0          string  >\x2f          \b, UUID: %.6s
+>>&0x6          string  >\x2f          \b-%.4s
+>>&0xa          string  >\x2f          \b-%.4s
+>>&0xe          string  >\x2f          \b-%.4s
+>>&0x12         string  >\x2f          \b-%.4s
+>>&0x16         string  >\x2f          \b-%.4s
+>>&0x1a         string  >\x2f          \b-%.6s
+>>&0x20         lequad  x              \b, size: %lld
 
-0x618		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
->(0x614.l+0x600) string	>\0		, UUID: %s
+0x618           string  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x21) byte    x              
+# display UUID in LVM format + display all 32 bytes (instead of max string length: 31)
+>>&0x0          string  >\x2f          \b, UUID: %.6s
+>>&0x6          string  >\x2f          \b-%.4s
+>>&0xa          string  >\x2f          \b-%.4s
+>>&0xe          string  >\x2f          \b-%.4s
+>>&0x12         string  >\x2f          \b-%.4s
+>>&0x16         string  >\x2f          \b-%.4s
+>>&0x1a         string  >\x2f          \b-%.6s
+>>&0x20         lequad  x              \b, size: %lld
 
 # LVM snapshot
 # from Jason Farrel
@@ -262,3 +327,9 @@
 >20	search/256	(name			
 >>&1	string		x			(name %s)
 
+# Type: Xen, the virtual machine monitor
+# From: Radek Vokal <rvokal@redhat.com>
+0	string		LinuxGuestRecord	Xen saved domain
+#>2	regex		\(name\ [^)]*\)		%s
+>20	search/256	(name			(name
+>>&1	string		x			%s...)

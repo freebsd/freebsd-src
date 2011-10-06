@@ -26,8 +26,7 @@
  * SUCH DAMAGE.
  */
 /*
- * ASCII magic -- file types that we know based on keywords
- * that can appear anywhere in the file.
+ * ASCII magic -- try to detect text encoding.
  *
  * Extensively modified by Eric Fischer <enf@pobox.com> in July, 2000,
  * to handle character codes other than ASCII on a unified basis.
@@ -36,7 +35,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.75 2009/02/03 20:27:51 christos Exp $")
+FILE_RCSID("@(#)$File: ascmagic.c,v 1.81 2011/03/15 22:16:29 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -93,7 +92,7 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 		goto done;
 	}
 
-	rv = file_ascmagic_with_encoding(ms, buf, nbytes, ubuf, ulen, code, 
+	rv = file_ascmagic_with_encoding(ms, buf, nbytes, ubuf, ulen, code,
 	    type);
 
  done:
@@ -125,6 +124,7 @@ file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
 	int n_lf = 0;
 	int n_cr = 0;
 	int n_nel = 0;
+	int score, curtype, executable = 0;
 
 	size_t last_line_end = (size_t)-1;
 	int has_long_lines = 0;
@@ -140,27 +140,32 @@ file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
 		goto done;
 	}
 
-	/* Convert ubuf to UTF-8 and try text soft magic */
-	/* malloc size is a conservative overestimate; could be
-	   improved, or at least realloced after conversion. */
-	mlen = ulen * 6;
-	if ((utf8_buf = CAST(unsigned char *, malloc(mlen))) == NULL) {
-		file_oomem(ms, mlen);
-		goto done;
+	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0) {
+		/* Convert ubuf to UTF-8 and try text soft magic */
+		/* malloc size is a conservative overestimate; could be
+		   improved, or at least realloced after conversion. */
+		mlen = ulen * 6;
+		if ((utf8_buf = CAST(unsigned char *, malloc(mlen))) == NULL) {
+			file_oomem(ms, mlen);
+			goto done;
+		}
+		if ((utf8_end = encode_utf8(utf8_buf, mlen, ubuf, ulen))
+		    == NULL)
+			goto done;
+		if ((rv = file_softmagic(ms, utf8_buf,
+		    (size_t)(utf8_end - utf8_buf), TEXTTEST)) != 0)
+			goto subtype_identified;
+		else
+			rv = -1;
 	}
-	if ((utf8_end = encode_utf8(utf8_buf, mlen, ubuf, ulen)) == NULL)
-		goto done;
-	if ((rv = file_softmagic(ms, utf8_buf, (size_t)(utf8_end - utf8_buf),
-	    TEXTTEST)) != 0)
-		goto done;
-	else
-		rv = -1;
 
 	/* look for tokens from names.h - this is expensive! */
 	if ((ms->flags & MAGIC_NO_CHECK_TOKENS) != 0)
 		goto subtype_identified;
 
 	i = 0;
+	score = 0;
+	curtype = -1;
 	while (i < ulen) {
 		size_t end;
 
@@ -179,9 +184,18 @@ file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
 		for (p = names; p < names + NNAMES; p++) {
 			if (ascmatch((const unsigned char *)p->name, ubuf + i,
 			    end - i)) {
-				subtype = types[p->type].human;
-				subtype_mime = types[p->type].mime;
-				goto subtype_identified;
+				if (curtype == -1)
+					curtype = p->type;
+				else if (curtype != p->type) {
+					score = p->score;
+					curtype = p->type;
+				} else
+					score += p->score;
+				if (score > 1) {
+					subtype = types[p->type].human;
+					subtype_mime = types[p->type].mime;
+					goto subtype_identified;
+				}
 			}
 		}
 
@@ -232,7 +246,7 @@ subtype_identified:
 		goto done;
 	}
 	if (mime) {
-		if ((mime & MAGIC_MIME_TYPE) != 0) {
+		if (!file_printedlen(ms) && (mime & MAGIC_MIME_TYPE) != 0) {
 			if (subtype_mime) {
 				if (file_printf(ms, "%s", subtype_mime) == -1)
 					goto done;
@@ -242,6 +256,28 @@ subtype_identified:
 			}
 		}
 	} else {
+		if (file_printedlen(ms)) {
+			switch (file_replace(ms, " text$", ", ")) {
+			case 0:
+				switch (file_replace(ms, " text executable$",
+				    ", ")) {
+				case 0:
+					if (file_printf(ms, ", ") == -1)
+						goto done;
+				case -1:
+					goto done;
+				default:
+					executable = 1;
+					break;
+				}
+				break;
+			case -1:
+				goto done;
+			default:
+				break;
+			}
+		}
+
 		if (file_printf(ms, "%s", code) == -1)
 			goto done;
 
@@ -252,6 +288,10 @@ subtype_identified:
 
 		if (file_printf(ms, " %s", type) == -1)
 			goto done;
+
+		if (executable)
+			if (file_printf(ms, " executable") == -1)
+				goto done;
 
 		if (has_long_lines)
 			if (file_printf(ms, ", with very long lines") == -1)

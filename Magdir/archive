@@ -1,4 +1,5 @@
 #------------------------------------------------------------------------------
+# $File: archive,v 1.68 2011/09/07 15:47:51 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -243,13 +244,13 @@
 # MS Compress
 4	string	\x88\xf0\x27 MS Compress archive data
 # updated by Joerg Jenderek
->9	string	\0		
->>0	string	KWAJ		
+>9	string	\0
+>>0	string	KWAJ
 >>>7	string	\321\003	MS Compress archive data
 >>>>14	ulong	>0		\b, original size: %ld bytes
->>>>18		ubyte	>0x65  	
->>>>>18		string	x    	\b, was %.8s
->>>>>(10.b-4)	string	x    	\b.%.3s
+>>>>18		ubyte	>0x65
+>>>>>18		string	x       \b, was %.8s
+>>>>>(10.b-4)	string	x       \b.%.3s
 # MP3 (archiver, not lossy audio compression)
 0	string	MP3\x1a MP3-Archiver archive data
 # ZET
@@ -274,7 +275,7 @@
 # Splint
 0	string	\x93\xb9\x06 Splint archive data
 # InstallShield
-0	string	 \x13\x5d\x65\x8c InstallShield Z archive Data
+0	string	\x13\x5d\x65\x8c InstallShield Z archive Data
 # Gather
 1	string	GTH Gather archive data
 # BOA
@@ -533,7 +534,7 @@
 >20	byte		x		- header level %d
 # taken from idarc [JW]
 2   string      -lZ         PUT archive data
-2   string      -lz         LZS archive data 
+2   string      -lz         LZS archive data
 2   string      -sw1-       Swag archive data
 
 # RAR archiver (Greg Roelofs, newt@uchicago.edu)
@@ -560,79 +561,140 @@
 # [JW] see exe section for self-extracting version
 0	string		UC2\x1a		UC2 archive data
 
-# ZIP archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+# PKZIP multi-volume archive
+0	string		PK\x07\x08PK\x03\x04	Zip multi-volume archive data, at least PKZIP v2.50 to extract
+!:mime	application/zip
+
+# Zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 0	string		PK\003\004
->4	byte		0x00		Zip archive data
-!:mime	application/zip
->4	byte		0x09		Zip archive data, at least v0.9 to extract
-!:mime	application/zip
->4	byte		0x0a		Zip archive data, at least v1.0 to extract
-!:mime	application/zip
->4	byte		0x0b		Zip archive data, at least v1.1 to extract
-!:mime	application/zip
->0x161	string		WINZIP          Zip archive data, WinZIP self-extracting
-!:mime	application/zip
->4	byte		0x14
->>30	ubelong		!0x6d696d65	Zip archive data, at least v2.0 to extract
-!:mime	application/zip
 
-# OpenOffice.org / KOffice / StarOffice documents
-# Listed here because they ARE zip files
-#
-# From: Abel Cheung <abel@oaka.org>
->4	byte		0x14
->>30	string		mimetype
+# Specialised zip formats which start with a member named 'mimetype'
+# (stored uncompressed, with no 'extra field') containing the file's MIME type.
+# Check for have 8-byte name, 0-byte extra field, name "mimetype", and
+#  contents starting with "application/":
+>26	string		\x8\0\0\0mimetypeapplication/
 
-# KOffice (1.2 or above) formats
->>>50	string	vnd.kde.		KOffice (>=1.2)
->>>>58	string	karbon			Karbon document
->>>>58	string	kchart			KChart document
->>>>58	string	kformula		KFormula document
->>>>58	string	kivio			Kivio document
->>>>58	string	kontour			Kontour document
->>>>58	string	kpresenter		KPresenter document
->>>>58	string	kspread			KSpread document
->>>>58	string	kword			KWord document
+#  KOffice / OpenOffice & StarOffice / OpenDocument formats
+#    From: Abel Cheung <abel@oaka.org>
 
-# OpenOffice formats (for OpenOffice 1.x / StarOffice 6/7)
->>>50	string	vnd.sun.xml.		OpenOffice.org 1.x
->>>>62	string	writer			Writer
->>>>>68	byte	!0x2e			document
->>>>>68	string	.template		template
->>>>>68	string	.global			global document
->>>>62	string	calc			Calc
->>>>>66	byte	!0x2e			spreadsheet
->>>>>66	string	.template		template
->>>>62	string	draw			Draw
->>>>>66	byte	!0x2e			document
->>>>>66	string	.template		template
->>>>62	string	impress			Impress
->>>>>69	byte	!0x2e			presentation
->>>>>69	string	.template		template
->>>>62	string	math			Math document
->>>>62	string	base			Database file
+#   KOffice (1.2 or above) formats
+#    (mimetype contains "application/vnd.kde.<SUBTYPE>")
+>>50	string	vnd.kde.		KOffice (>=1.2)
+>>>58	string	karbon			Karbon document
+>>>58	string	kchart			KChart document
+>>>58	string	kformula		KFormula document
+>>>58	string	kivio			Kivio document
+>>>58	string	kontour			Kontour document
+>>>58	string	kpresenter		KPresenter document
+>>>58	string	kspread			KSpread document
+>>>58	string	kword			KWord document
 
-# OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
-# http://lists.oasis-open.org/archives/office/200505/msg00006.html
->>>50	string	vnd.oasis.opendocument.	OpenDocument
->>>>73	string	text
->>>>>77	byte	!0x2d			Text
+#   OpenOffice formats (for OpenOffice 1.x / StarOffice 6/7)
+#    (mimetype contains "application/vnd.sun.xml.<SUBTYPE>")
+>>50	string	vnd.sun.xml.		OpenOffice.org 1.x
+>>>62	string	writer			Writer
+>>>>68	byte	!0x2e			document
+>>>>68	string	.template		template
+>>>>68	string	.global			global document
+>>>62	string	calc			Calc
+>>>>66	byte	!0x2e			spreadsheet
+>>>>66	string	.template		template
+>>>62	string	draw			Draw
+>>>>66	byte	!0x2e			document
+>>>>66	string	.template		template
+>>>62	string	impress			Impress
+>>>>69	byte	!0x2e			presentation
+>>>>69	string	.template		template
+>>>62	string	math			Math document
+>>>62	string	base			Database file
+
+#   OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
+#    http://lists.oasis-open.org/archives/office/200505/msg00006.html
+#    (mimetype contains "application/vnd.oasis.opendocument.<SUBTYPE>")
+>>50	string	vnd.oasis.opendocument.	OpenDocument
+>>>73	string	text
+>>>>77	byte	!0x2d			Text
 !:mime	application/vnd.oasis.opendocument.text
->>>>>77	string	-template		Text Template
->>>>>77	string	-web			HTML Document Template
->>>>>77	string	-master			Master Document
->>>>73	string	graphics		Drawing
->>>>>81	string	-template		Template
->>>>73	string	presentation		Presentation
->>>>>85	string	-template		Template
->>>>73	string	spreadsheet		Spreadsheet
->>>>>84	string	-template		Template
->>>>73	string	chart			Chart
->>>>>78	string	-template		Template
->>>>73	string	formula			Formula
->>>>>80	string	-template		Template
->>>>73	string	database		Database
->>>>73	string	image			Image
+>>>>77	string	-template		Text Template
+!:mime	application/vnd.oasis.opendocument.text-template
+>>>>77	string	-web			HTML Document Template
+!:mime	application/vnd.oasis.opendocument.text-web
+>>>>77	string	-master			Master Document
+!:mime	application/vnd.oasis.opendocument.text-master
+>>>73	string	graphics
+>>>>81	byte	!0x2d			Drawing
+!:mime	application/vnd.oasis.opendocument.graphics
+>>>>81	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.graphics-template
+>>>73	string	presentation
+>>>>85	byte	!0x2d			Presentation
+!:mime	application/vnd.oasis.opendocument.presentation
+>>>>85	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.presentation-template
+>>>73	string	spreadsheet
+>>>>84	byte	!0x2d			Spreadsheet
+!:mime	application/vnd.oasis.opendocument.spreadsheet
+>>>>84	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.spreadsheet-template
+>>>73	string	chart
+>>>>78	byte	!0x2d			Chart
+!:mime	application/vnd.oasis.opendocument.chart
+>>>>78	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.chart-template
+>>>73	string	formula
+>>>>80	byte	!0x2d			Formula
+!:mime	application/vnd.oasis.opendocument.formula
+>>>>80	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.formula-template
+>>>73	string	database		Database
+!:mime	application/vnd.oasis.opendocument.database
+>>>73	string	image
+>>>>78	byte	!0x2d			Image
+!:mime	application/vnd.oasis.opendocument.image
+>>>>78	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.image-template
+
+#  EPUB (OEBPS) books using OCF (OEBPS Container Format)
+#    From: Adam Buchbinder <adam.buchbinder@gmail.com>
+#    http://www.idpf.org/ocf/ocf1.0/download/ocf10.htm, section 4.
+#    (mimetype contains "application/epub+zip")
+>>50	string	epub+zip		EPUB ebook data
+!:mime	application/epub+zip
+
+#  Catch other ZIP-with-mimetype formats
+#	In a ZIP file, the bytes immediately after a member's contents are
+#	always "PK". The 2 regex rules here print the "mimetype" member's
+#	contents up to the first 'P'. Luckily, most MIME types don't contain
+#	any capital 'P's. This is a kludge.
+#    (mimetype contains "application/<OTHER>")
+>>50		string	!epub+zip
+>>>50		string	!vnd.oasis.opendocument.
+>>>>50		string	!vnd.sun.xml.
+>>>>>50		string	!vnd.kde.
+>>>>>>38	regex	[!-OQ-~]+		Zip data (MIME type "%s"?)
+!:mime	application/zip
+#    (mimetype contents other than "application/*")
+>26		string	\x8\0\0\0mimetype
+>>38		string	!application/
+>>>38		regex	[!-OQ-~]+		Zip data (MIME type "%s"?)
+!:mime	application/zip
+
+# Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+#   Next line excludes specialized formats:
+>26    string          !\x8\0\0\0mimetype	Zip archive data
+!:mime	application/zip
+>>4	byte		0x09		\b, at least v0.9 to extract
+>>4	byte		0x0a		\b, at least v1.0 to extract
+>>4	byte		0x0b		\b, at least v1.1 to extract
+>>4	byte		0x14		\b, at least v2.0 to extract
+>>4	byte		0x2d		\b, at least v3.0 to extract
+>>0x161	string		WINZIP		\b, WinZIP self-extracting
+
+# StarView Metafile
+# From Pierre Ducroquet <pinaraf@pinaraf.info>
+0	string	VCLMTF	StarView MetaFile
+>6	beshort	x	\b, version %d
+>8	belong	x	\b, size %d
 
 # Zoo archiver
 20	lelong		0xfdc4a7dc	Zoo archive data
@@ -651,7 +713,7 @@
 !:mime	application/octet-stream
 
 #
-# LBR. NB: May conflict with the questionable 
+# LBR. NB: May conflict with the questionable
 #          "binary Computer Graphics Metafile" format.
 #
 0       string  \0\ \ \ \ \ \ \ \ \ \ \ \0\0    LBR archive data
@@ -667,10 +729,10 @@
 # From Rafael Laboissiere <rafael@laboissiere.net>
 # The Project Revision Control System (see
 # http://prcs.sourceforge.net) generates a packaged project
-# file which is recognized by the following entry: 
+# file which is recognized by the following entry:
 0	leshort		0xeb81	PRCS packaged project
 
-# Microsoft cabinets 
+# Microsoft cabinets
 # by David Necas (Yeti) <yeti@physics.muni.cz>
 #0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
 #>25	byte	x		v%d
@@ -678,7 +740,7 @@
 # MPi: All CABs have version 1.3, so this is pointless.
 # Better magic in debian-additions.
 
-# GTKtalog catalogs 
+# GTKtalog catalogs
 # by David Necas (Yeti) <yeti@physics.muni.cz>
 4	string	gtktalog\ 	GTKtalog catalog data,
 >13	string	3		version 3
@@ -697,12 +759,12 @@
 !:mime	application/x-bittorrent
 
 # Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
-0       beshort 0x0e0f          Atari MSA archive data
->2      beshort x       	\b, %d sectors per track
->4      beshort 0       	\b, 1 sided
->4      beshort 1       	\b, 2 sided
->6      beshort x       	\b, starting track: %d
->8      beshort x       	\b, ending track: %d
+0	beshort 0x0e0f		Atari MSA archive data
+>2	beshort x		\b, %d sectors per track
+>4	beshort 0		\b, 1 sided
+>4	beshort 1		\b, 2 sided
+>6	beshort x		\b, starting track: %d
+>8	beshort x		\b, ending track: %d
 
 # Alternate ZIP string (amc@arwen.cs.berkeley.edu)
 0	string	PK00PK\003\004	Zip archive data
@@ -747,7 +809,7 @@
 
 # DR-DOS 7.03 Packed File *.??_
 0	string	Packed\ File\ 	Personal NetWare Packed File
->12	string	x    		\b, was "%.12s"
+>12	string	x		\b, was "%.12s"
 
 # EET archive
 # From: Tilman Sauerbeck <tilman@code-monkey.de>
@@ -803,3 +865,38 @@
 >24	belong	1		SHA-1 checksum
 >24	belong	2		MD5 checksum
 
+# Type: Parity Archive
+# From: Daniel van Eeden <daniel_e@dds.nl>
+0	string	PAR2		Parity Archive Volume Set
+
+# Bacula volume format. (Volumes always start with a block header.)
+# URL: http://bacula.org/3.0.x-manuals/en/developers/developers/Block_Header.html
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+12	string	BB02		Bacula volume
+>20	bedate	x		\b, started %s
+
+# ePub is XHTML + XML inside a ZIP archive.  The first member of the
+#   archive must be an uncompressed file called 'mimetype' with contents
+#   'application/epub+zip'
+
+# start by checking that this is a ZIP archive, then check for the
+#   proper mimetype file
+# From: Ralf Brown <ralf.brown@gmail.com>
+0	string	PK\003\004
+>0x1E	string	mimetypeapplication/epub+zip	EPUB document
+!:mime application/epub+zip
+
+# From: "Michał Górny" <mgorny@gentoo.org>
+# ZPAQ: http://mattmahoney.net/dc/zpaq.html
+0	string	zPQ	ZPAQ stream
+>3	byte	x	\b, level %d
+
+# BBeB ebook, unencrypted (LRF format)
+# URL: http://www.sven.de/librie/Librie/LrfFormat
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+0	string	L\0R\0F\0\0\0	BBeB ebook data, unencrypted
+>8	beshort	x		\b, version %d
+>36	byte	1		\b, front-to-back
+>36	byte	16		\b, back-to-front
+>42	beshort	x		\b, (%dx,
+>44	beshort	x		%d)

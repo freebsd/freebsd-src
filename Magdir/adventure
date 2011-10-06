@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: adventure,v 1.13 2010/12/31 16:32:54 christos Exp $
 # adventure: file(1) magic for Adventure game files
 #
 # from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
@@ -16,18 +17,26 @@
 # Infocom (see z-machine)
 #------------------------------------------------------------------------------
 # Z-machine:  file(1) magic for Z-machine binaries.
+# Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
 #
-# This will match ${TEX_BASE}/texmf/omega/ocp/char2uni/inbig5.ocp which
-# appears to be a version-0 Z-machine binary.
+#http://www.gnelson.demon.co.uk/zspec/sect11.html
+#http://www.jczorkmid.net/~jpenney/ZSpec11-latest.txt
+#http://en.wikipedia.org/wiki/Z-machine
+# The first byte is the Z-machine revision; it is always between 1 and 8. We
+# had false matches (for instance, inbig5.ocp from the Omega TeX extension as
+# well as an occasional MP3 file), so we sanity-check the version number.
 #
-# The (false match) message is to correct that behavior.  Perhaps it is
-# not needed.
+# It might be possible to sanity-check the release number as well, as it seems
+# (at least in classic Infocom games) to always be a relatively small number,
+# always under 150 or so, but as this isn't rigorous, we'll wait on that until
+# it becomes clear that it's needed.
 #
-16	belong&0xfe00f0f0	0x3030	Infocom game data
->0	ubyte			0	(false match)
->0	ubyte			>0	(Z-machine %d,
->>2	ubeshort		x	Release %d /
->>18	string			>\0	Serial %.6s)
+0	ubyte			>0
+>0	ubyte			<9
+>>16	belong&0xfe00f0f0	0x3030	Infocom game data
+>>>0	ubyte			x	(Z-machine %d,
+>>>>2	ubeshort		x	Release %d /
+>>>>18	string			>\0	Serial %.6s)
 
 #------------------------------------------------------------------------------
 # Glulx:  file(1) magic for Glulx binaries.
@@ -45,10 +54,9 @@
 # For Quetzal and blorb magic see iff
 
 
-# TADS (Text Adventure Development System)
+# TADS (Text Adventure Development System) version 2
 #  All files are machine-independent (games compile to byte-code) and are tagged
-#  with a version string of the form "V2.<digit>.<digit>\0" (but TADS 3 is
-#  on the way).
+#  with a version string of the form "V2.<digit>.<digit>\0".
 #  Game files start with "TADS2 bin\n\r\032\0" then the compiler version.
 0	string	TADS2\ bin	TADS
 >9	belong  !0x0A0D1A00	game data, CORRUPTED
@@ -72,6 +80,19 @@
 >10	belong	!0x0A0D1A00	saved game data, CORRUPTED
 >10	belong	 0x0A0D1A00
 >>14	string	>\0		%s saved game data
+
+# TADS (Text Adventure Development System) version 3
+#  Game files start with "T3-image\015\012\032"
+0	string	T3-image\015\012\032
+>11	leshort	x		TADS 3 game data (format version %d)
+#  Saved game files start with "T3-state-v####\015\012\032"
+#  where #### is a format version number
+0	string	T3-state-v
+>14	string	\015\012\032	TADS 3 saved game data (format version
+>>10	byte	x		%c
+>>11	byte	x		\b%c
+>>12	byte	x		\b%c
+>>13	byte	x		\b%c)
 
 # Danny Milosavljevic <danny.milo@gmx.net>
 # this are adrift (adventure game standard) game files, extension .taf
