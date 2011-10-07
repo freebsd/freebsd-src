@@ -138,15 +138,34 @@ extern char *__progname;
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
 
+/*
+ * Client connection count; incremented in new_socket() and decremented in
+ * close_socket().  When it reaches 0, ssh-agent will exit.  Since it is
+ * normally initialized to 1, it will never reach 0.  However, if the -x
+ * option is specified, it is initialized to 0 in main(); in that case,
+ * ssh-agent will exit as soon as it has had at least one client but no
+ * longer has any.
+ */
+static int xcount = 1;
+
 static void
 close_socket(SocketEntry *e)
 {
+	int last = 0;
+
+	if (e->type == AUTH_CONNECTION) {
+		debug("xcount %d -> %d", xcount, xcount - 1);
+		if (--xcount == 0)
+			last = 1;
+	}
 	close(e->fd);
 	e->fd = -1;
 	e->type = AUTH_UNUSED;
 	buffer_free(&e->input);
 	buffer_free(&e->output);
 	buffer_free(&e->request);
+	if (last)
+		cleanup_exit(0);
 }
 
 static void
@@ -901,6 +920,10 @@ new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc, new_alloc;
 
+	if (type == AUTH_CONNECTION) {
+		debug("xcount %d -> %d", xcount, xcount + 1);
+		++xcount;
+	}
 	set_nonblock(fd);
 
 	if (fd > max_fd)
@@ -1121,6 +1144,7 @@ usage(void)
 	fprintf(stderr, "  -d          Debug mode.\n");
 	fprintf(stderr, "  -a socket   Bind agent socket to given name.\n");
 	fprintf(stderr, "  -t life     Default identity lifetime (seconds).\n");
+	fprintf(stderr, "  -x          Exit when the last client disconnects.\n");
 	exit(1);
 }
 
@@ -1162,7 +1186,7 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cdksa:t:")) != -1) {
+	while ((ch = getopt(ac, av, "cdksa:t:x")) != -1) {
 		switch (ch) {
 		case 'c':
 			if (s_flag)
@@ -1190,6 +1214,9 @@ main(int ac, char **av)
 				fprintf(stderr, "Invalid lifetime\n");
 				usage();
 			}
+			break;
+		case 'x':
+			xcount = 0;
 			break;
 		default:
 			usage();
@@ -1350,8 +1377,7 @@ skip:
 	if (ac > 0)
 		parent_alive_interval = 10;
 	idtab_init();
-	if (!d_flag)
-		signal(SIGINT, SIG_IGN);
+	signal(SIGINT, d_flag ? cleanup_handler : SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, cleanup_handler);
 	signal(SIGTERM, cleanup_handler);
