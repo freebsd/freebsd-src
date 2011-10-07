@@ -130,14 +130,17 @@ getfile(void)
 	char *p;
 	char *endp;
 	char **ep;
+	int c;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
 
 	while (skip--) {
-		getline();
+		c = getline();
 		if (flags & SKIPPRINT)
 			puts(curline);
+		if (c == EOF)
+			return;
 	}
 	getline();
 	if (flags & NOARGS && curlen < owidth)
