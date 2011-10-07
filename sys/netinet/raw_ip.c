@@ -99,6 +99,7 @@ int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
 void	(*ip_divert_ptr)(struct mbuf *, int);
 int	(*ng_ipfw_input_p)(struct mbuf **, int,
 			struct ip_fw_args *, int);
+int	(*diffuse_ctl_ptr)(struct sockopt *);
 
 /* Hook for telling pf that the destination address changed */
 void	(*m_addr_chg_pf_p)(struct mbuf *m);
@@ -583,6 +584,13 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = ENOPROTOOPT;
 			break ;
 
+		case IP_DIFFUSE:	/* IPFW DIFFUSE functions. */
+			if (diffuse_ctl_ptr != NULL)
+				error = diffuse_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT;
+			break;
+
 		case MRT_INIT:
 		case MRT_DONE:
 		case MRT_ADD_VIF:
@@ -647,6 +655,13 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			else
 				error = ENOPROTOOPT ;
 			break ;
+
+		case IP_DIFFUSE:	/* IPFW DIFFUSE functions. */
+			if (diffuse_ctl_ptr != NULL)
+				error = diffuse_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT;
+			break;
 
 		case IP_RSVP_ON:
 			error = priv_check(curthread, PRIV_NETINET_MROUTE);

@@ -436,6 +436,7 @@ __END_DECLS
 #define	IP_FW_TABLE_GETSIZE	43   /* get table size */
 #define	IP_FW_TABLE_LIST	44   /* list table contents */
 
+#define	IP_DIFFUSE		47   /* ipfw DIFFUSE options */
 #define	IP_FW3			48   /* generic ipfw v.3 sockopts */
 #define	IP_DUMMYNET3		49   /* generic dummynet v.3 sockopts */
 

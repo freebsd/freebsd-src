@@ -305,6 +305,9 @@ extern int	(*ng_ipfw_input_p)(struct mbuf **, int,
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
 
+/* DIFFUSE. */
+extern int	(*diffuse_ctl_ptr)(struct sockopt *);
+
 VNET_DECLARE(int, ip_do_randomid);
 #define	V_ip_do_randomid	VNET(ip_do_randomid)
 #define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
