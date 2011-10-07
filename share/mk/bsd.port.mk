@@ -18,10 +18,10 @@ _WITHOUT_SRCCONF=
 .if !defined(BEFOREPORTMK) && !defined(INOPTIONSMK)
 # Work around an issue where FreeBSD 10.0 is detected as FreeBSD 1.x.
 run-autotools-fixup:
-	find ${WRKSRC} -type f \( -name config.libpath -o \
+	test -d ${WRKSRC} && find ${WRKSRC} -type f \( -name config.libpath -o \
 		-name config.rpath -o -name configure -o -name libtool.m4 \) \
 		-exec sed -i '' -e 's/freebsd1\*)/SHOULDNOTMATCHANYTHING1)/' \
-		-e 's/freebsd\[123\]\*)/SHOULDNOTMATCHANYTHING2)/' {} +
+		-e 's/freebsd\[123\]\*)/SHOULDNOTMATCHANYTHING2)/' {} + || /usr/bin/true
 
 .ORDER: run-autotools run-autotools-fixup do-configure
 do-configure: run-autotools-fixup
