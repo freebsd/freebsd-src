@@ -609,27 +609,52 @@ svc_rpc_gss_release_client(struct svc_rpc_gss_client *client)
 }
 
 /*
+ * Remove a client from our global lists.
+ * Must be called with svc_rpc_gss_lock held.
+ */
+static void
+svc_rpc_gss_forget_client_locked(struct svc_rpc_gss_client *client)
+{
+	struct svc_rpc_gss_client_list *list;
+
+	sx_assert(&svc_rpc_gss_lock, SX_XLOCKED);
+	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
+	TAILQ_REMOVE(list, client, cl_link);
+	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
+	svc_rpc_gss_client_count--;
+}
+
+/*
  * Remove a client from our global lists and free it if we can.
  */
 static void
 svc_rpc_gss_forget_client(struct svc_rpc_gss_client *client)
 {
 	struct svc_rpc_gss_client_list *list;
+	struct svc_rpc_gss_client *tclient;
 
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
 	sx_xlock(&svc_rpc_gss_lock);
-	TAILQ_REMOVE(list, client, cl_link);
-	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
-	svc_rpc_gss_client_count--;
+	TAILQ_FOREACH(tclient, list, cl_link) {
+		/*
+		 * Make sure this client has not already been removed
+		 * from the lists by svc_rpc_gss_forget_client() or
+		 * svc_rpc_gss_forget_client_locked() already.
+		 */
+		if (client == tclient) {
+			svc_rpc_gss_forget_client_locked(client);
+			sx_xunlock(&svc_rpc_gss_lock);
+			svc_rpc_gss_release_client(client);
+			return;
+		}
+	}
 	sx_xunlock(&svc_rpc_gss_lock);
-	svc_rpc_gss_release_client(client);
 }
 
 static void
 svc_rpc_gss_timeout_clients(void)
 {
 	struct svc_rpc_gss_client *client;
-	struct svc_rpc_gss_client *nclient;
 	time_t now = time_uptime;
 
 	rpc_gss_log_debug("in svc_rpc_gss_timeout_clients()");
@@ -638,16 +663,29 @@ svc_rpc_gss_timeout_clients(void)
 	 * First enforce the max client limit. We keep
 	 * svc_rpc_gss_clients in LRU order.
 	 */
-	while (svc_rpc_gss_client_count > CLIENT_MAX)
-		svc_rpc_gss_forget_client(TAILQ_LAST(&svc_rpc_gss_clients,
-			    svc_rpc_gss_client_list));
-	TAILQ_FOREACH_SAFE(client, &svc_rpc_gss_clients, cl_alllink, nclient) {
+	sx_xlock(&svc_rpc_gss_lock);
+	client = TAILQ_LAST(&svc_rpc_gss_clients, svc_rpc_gss_client_list);
+	while (svc_rpc_gss_client_count > CLIENT_MAX && client != NULL) {
+		svc_rpc_gss_forget_client_locked(client);
+		sx_xunlock(&svc_rpc_gss_lock);
+		svc_rpc_gss_release_client(client);
+		sx_xlock(&svc_rpc_gss_lock);
+		client = TAILQ_LAST(&svc_rpc_gss_clients,
+		    svc_rpc_gss_client_list);
+	}
+again:
+	TAILQ_FOREACH(client, &svc_rpc_gss_clients, cl_alllink) {
 		if (client->cl_state == CLIENT_STALE
 		    || now > client->cl_expiration) {
+			svc_rpc_gss_forget_client_locked(client);
+			sx_xunlock(&svc_rpc_gss_lock);
 			rpc_gss_log_debug("expiring client %p", client);
-			svc_rpc_gss_forget_client(client);
+			svc_rpc_gss_release_client(client);
+			sx_xlock(&svc_rpc_gss_lock);
+			goto again;
 		}
 	}
+	sx_xunlock(&svc_rpc_gss_lock);
 }
 
 #ifdef DEBUG
