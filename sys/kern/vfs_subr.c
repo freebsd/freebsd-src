@@ -3054,7 +3054,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct xvfsconf xvfsp;
 
-	printf("WARNING: userland calling deprecated sysctl, "
+	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
 
 #if 1 || defined(COMPAT_PRELITE2)
