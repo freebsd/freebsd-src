@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_CPU_WIN	5
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)

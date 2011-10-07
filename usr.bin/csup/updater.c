@@ -238,7 +238,7 @@ updater(void *arg)
 
 	/*
 	 * Make sure to close the fixups even in case of an error,
-	 * so that the lister thread doesn't block indefinitely.
+	 * so that the detailer thread doesn't block indefinitely.
 	 */
 	fixups_close(up->config->fixups);
 	if (!error)

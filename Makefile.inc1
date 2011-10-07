@@ -1106,7 +1106,6 @@ build-tools:
     ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
-    usr.sbin/sysinstall \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \

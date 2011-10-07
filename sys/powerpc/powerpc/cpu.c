@@ -65,7 +65,6 @@
 #include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
@@ -554,11 +553,6 @@ cpu_idle_60x(void)
 	vers = mfpvr() >> 16;
 
 #ifdef AIM
-	mtmsr(msr & ~PSL_EE);
-	if (sched_runnable()) {
-		mtmsr(msr);
-		return;
-	}
 	switch (vers) {
 	case IBM970:
 	case IBM970FX:
@@ -589,11 +583,6 @@ cpu_idle_e500(void)
 	msr = mfmsr();
 
 #ifdef E500
-	mtmsr(msr & ~PSL_EE);
-	if (sched_runnable()) {
-		mtmsr(msr);
-		return;
-	}
 	/* Freescale E500 core RM section 6.4.1. */
 	__asm __volatile("msync; mtmsr %0; isync" ::
 	    "r" (msr | PSL_WE));

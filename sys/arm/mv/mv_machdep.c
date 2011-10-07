@@ -91,9 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
 #include <arm/mv/mvwin.h>
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else

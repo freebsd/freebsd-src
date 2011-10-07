@@ -67,10 +67,21 @@ struct mdproc {
 	/* empty */
 };
 
+#ifdef _KERNEL
 struct thread;
 
 void	mips_cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	mips_cpu_throw(struct thread *, struct thread *);
+
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+	struct trapframe *trapframe;
+};
+#define	HAVE_SYSCALL_ARGS_DEF 1
+#endif
 
 #ifdef __mips_n64
 #define	KINFO_PROC_SIZE 1088

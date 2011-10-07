@@ -1411,6 +1411,8 @@ static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
 	struct rtentry *rt;
+	struct ifnet *xifp;
+	int error = 0;
 
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
@@ -1418,30 +1420,64 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 
+	if (rt == NULL)
+		return (EINVAL);
+
 	/*
 	 * If the gateway for an existing host route matches the target L3
-	 * address, allow for ARP to proceed.
+	 * address, which is a special route inserted by some implementation
+	 * such as MANET, and the interface is of the correct type, then
+	 * allow for ARP to proceed.
 	 */
-	if (rt != NULL && (rt->rt_flags & (RTF_HOST|RTF_GATEWAY)) &&
-	    rt->rt_gateway->sa_family == AF_INET &&
-	    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data, 4) == 0) {
-		RTFREE_LOCKED(rt);
-		return (0);
+	if (rt->rt_flags & (RTF_GATEWAY | RTF_HOST)) {
+		xifp = rt->rt_ifp;
+		
+		if (xifp && (xifp->if_type != IFT_ETHER ||
+		     (xifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0))
+			error = EINVAL;
+
+		if (memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
+		    sizeof(in_addr_t)) != 0)
+			error = EINVAL;
 	}
 
-	if (rt == NULL || (!(flags & LLE_PUB) &&
-			   ((rt->rt_flags & RTF_GATEWAY) || 
-			    (rt->rt_ifp != ifp)))) {
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
-		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
-#endif
-		if (rt != NULL)
-			RTFREE_LOCKED(rt);
+	if (rt->rt_flags & RTF_GATEWAY) {
+		RTFREE_LOCKED(rt);
 		return (EINVAL);
 	}
+
+	/*
+	 * Make sure that at least the destination address is covered 
+	 * by the route. This is for handling the case where 2 or more 
+	 * interfaces have the same prefix. An incoming packet arrives
+	 * on one interface and the corresponding outgoing packet leaves
+	 * another interface.
+	 * 
+	 */
+	if (rt->rt_ifp != ifp) {
+		char *sa, *mask, *addr, *lim;
+		int len;
+
+		sa = (char *)rt_key(rt);
+		mask = (char *)rt_mask(rt);
+		addr = (char *)__DECONST(struct sockaddr *, l3addr);
+		len = ((struct sockaddr_in *)__DECONST(struct sockaddr *, l3addr))->sin_len;
+		lim = addr + len;
+
+		for ( ; addr < lim; sa++, mask++, addr++) {
+			if ((*sa ^ *addr) & *mask) {
+				error = EINVAL;
+#ifdef DIAGNOSTIC
+				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
+				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+#endif
+				break;
+			}
+		}
+	}
+
 	RTFREE_LOCKED(rt);
-	return 0;
+	return (error);
 }
 
 /*

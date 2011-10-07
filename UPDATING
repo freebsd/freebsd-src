@@ -22,6 +22,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110930:
+	sysinstall has been removed
+
 20110923:
 	The stable/9 branch created in subversion.  This corresponds to the
 	RELENG_9 branch in CVS.

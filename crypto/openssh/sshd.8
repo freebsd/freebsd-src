@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.260 2010/10/28 18:33:28 jmc Exp $
+.\" $OpenBSD: sshd.8,v 1.263 2011/08/02 01:22:11 djm Exp $
 .\" $FreeBSD$
-.Dd October 28, 2010
+.Dd August 2, 2011
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -315,7 +315,8 @@ The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
 through a cryptographic message authentication code
-(hmac-md5, hmac-sha1, umac-64 or hmac-ripemd160).
+(hmac-md5, hmac-sha1, umac-64, hmac-ripemd160,
+hmac-sha2-256 or hmac-sha2-512).
 .Pp
 Finally, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
@@ -465,10 +466,12 @@ is run, and if that
 does not exist either, xauth is used to add the cookie.
 .Sh AUTHORIZED_KEYS FILE FORMAT
 .Cm AuthorizedKeysFile
-specifies the file containing public keys for
+specifies the files containing public keys for
 public key authentication;
 if none is specified, the default is
-.Pa ~/.ssh/authorized_keys .
+.Pa ~/.ssh/authorized_keys
+and
+.Pa ~/.ssh/authorized_keys2 .
 Each line of the file contains one
 key (empty lines and lines starting with a
 .Ql #

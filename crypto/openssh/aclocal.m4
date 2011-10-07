@@ -1,7 +1,25 @@
-dnl $Id: aclocal.m4,v 1.6 2005/09/19 16:33:39 tim Exp $
+dnl $Id: aclocal.m4,v 1.8 2011/05/20 01:45:25 djm Exp $
 dnl
 dnl OpenSSH-specific autoconf macros
 dnl
+
+dnl OSSH_CHECK_CFLAG_COMPILE(check_flag[, define_flag])
+dnl Check that $CC accepts a flag 'check_flag'. If it is supported append
+dnl 'define_flag' to $CFLAGS. If 'define_flag' is not specified, then append
+dnl 'check_flag'.
+AC_DEFUN([OSSH_CHECK_CFLAG_COMPILE], [{
+	AC_MSG_CHECKING([if $CC supports $1])
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $1"
+	_define_flag="$2"
+	test "x$_define_flag" = "x" && _define_flag="$1"
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int main(void) { return 0; }]])],
+		[ AC_MSG_RESULT([yes])
+		  CFLAGS="$saved_CFLAGS $_define_flag"],
+		[ AC_MSG_RESULT([no])
+		  CFLAGS="$saved_CFLAGS" ]
+	)
+}])
 
 
 dnl OSSH_CHECK_HEADER_FOR_FIELD(field, header, symbol)
@@ -31,16 +49,6 @@ AC_DEFUN(OSSH_CHECK_HEADER_FOR_FIELD, [
 	else
 		AC_MSG_RESULT(no)
 	fi
-])
-
-dnl OSSH_PATH_ENTROPY_PROG(variablename, command):
-dnl Tidiness function, sets 'undef' if not found, and does the AC_SUBST
-AC_DEFUN(OSSH_PATH_ENTROPY_PROG, [
-	AC_PATH_PROG($1, $2)
-	if test -z "[$]$1" ; then
-		$1="undef"
-	fi
-	AC_SUBST($1)
 ])
 
 dnl Check for socklen_t: historically on BSD it is an int, and in
