@@ -312,6 +312,16 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (link->rrl_exceeded != 0)
 				continue;
 
+			/*
+			 * If the process state is not fully initialized yet,
+			 * we can't access most of the required fields, e.g.
+			 * p->p_comm.  This happens when called from fork1().
+			 * Ignore this rule for now; it will be processed just
+			 * after fork, when called from racct_proc_fork_done().
+			 */
+			if (p->p_state != PRS_NORMAL)
+				continue;
+
 			if (!ppsratecheck(&lasttime, &curtime, 10))
 				continue;
 
@@ -335,6 +345,9 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (link->rrl_exceeded != 0)
 				continue;
 
+			if (p->p_state != PRS_NORMAL)
+				continue;
+	
 			buf = malloc(RCTL_LOG_BUFSIZE, M_RCTL, M_NOWAIT);
 			if (buf == NULL) {
 				printf("rctl_enforce: out of memory\n");
@@ -357,21 +370,13 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (link->rrl_exceeded != 0)
 				continue;
 
+			if (p->p_state != PRS_NORMAL)
+				continue;
+
 			KASSERT(rule->rr_action > 0 &&
 			    rule->rr_action <= RCTL_ACTION_SIGNAL_MAX,
 			    ("rctl_enforce: unknown action %d",
 			     rule->rr_action));
-
-			/*
-			 * We're supposed to send a signal, but the process
-			 * is not fully initialized yet, probably because we
-			 * got called from fork1().  For now just deny the
-			 * allocation instead.
-			 */
-			if (p->p_state != PRS_NORMAL) {
-				should_deny = 1;
-				continue;
-			}
 
 			/*
 			 * We're using the fact that RCTL_ACTION_SIG* values
