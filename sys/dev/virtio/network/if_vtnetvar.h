@@ -63,7 +63,7 @@ struct vtnet_softc {
 #define VTNET_FLAG_VLAN_FILTER	 0x0010
 #define VTNET_FLAG_TSO_ECN	 0x0020
 #define VTNET_FLAG_MRG_RXBUFS	 0x0040
-#define VTNET_FLAG_LRO_NOMGR	 0x0080
+#define VTNET_FLAG_LRO_NOMRG	 0x0080
 
 	struct virtqueue	*vtnet_rx_vq;
 	struct virtqueue	*vtnet_tx_vq;
@@ -184,7 +184,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_GUEST_TSO6		| \
      VIRTIO_NET_F_GUEST_ECN		| \
      VIRTIO_NET_F_MRG_RXBUF		| \
-     VIRTIO_F_RING_INDIRECT_DESC)
+     VIRTIO_RING_F_INDIRECT_DESC)
 
 /*
  * The VIRTIO_NET_F_GUEST_TSO[46] features permit the host to send us
@@ -218,7 +218,7 @@ CTASSERT(((VTNET_MAX_TX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_MTU);
  * hold both the vtnet_rx_header and the maximum receivable data.
  */
 #define VTNET_NEEDED_RX_MBUFS(_sc)					\
-	((_sc)->vtnet_flags & VTNET_FLAG_LRO_NOMGR) == 0 ? 1 :		\
+	((_sc)->vtnet_flags & VTNET_FLAG_LRO_NOMRG) == 0 ? 1 :		\
 	    howmany(sizeof(struct vtnet_rx_header) + VTNET_MAX_RX_SIZE,	\
 	        (_sc)->vtnet_rx_mbuf_size)
 

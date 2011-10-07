@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/atomic.h>
-
+#include <machine/cpu.h>
 #include <machine/bus.h>
+#include <machine/atomic.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
@@ -135,7 +135,7 @@ virtqueue_filter_features(uint64_t features)
 	uint64_t mask;
 
 	mask = (1 << VIRTIO_TRANSPORT_F_START) - 1;
-	mask |= VIRTIO_F_RING_INDIRECT_DESC;
+	mask |= VIRTIO_RING_F_INDIRECT_DESC;
 
 	return (features & mask);
 }
@@ -221,7 +221,7 @@ virtqueue_init_indirect(struct virtqueue *vq, int indirect_size)
 
 	dev = vq->vq_dev;
 
-	if (VIRTIO_BUS_WITH_FEATURE(dev, VIRTIO_F_RING_INDIRECT_DESC) == 0) {
+	if (VIRTIO_BUS_WITH_FEATURE(dev, VIRTIO_RING_F_INDIRECT_DESC) == 0) {
 		/*
 		 * Indirect descriptors requested by the driver but not
 		 * negotiated. Return zero to keep the initialization
@@ -532,6 +532,17 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 }
 
 void *
+virtqueue_poll(struct virtqueue *vq, uint32_t *len)
+{
+	void *cookie;
+
+	while ((cookie = virtqueue_dequeue(vq, len)) == NULL)
+		cpu_spinwait();
+
+	return (cookie);
+}
+
+void *
 virtqueue_drain(struct virtqueue *vq, int *last)
 {
 	void *cookie;
@@ -599,7 +610,7 @@ vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 	 * it usable to the host. The chain is made available now rather than
 	 * deferring to virtqueue_notify() in the hopes that if the host is
 	 * currently running on another CPU, we can keep it processing the new
-	 * frames.
+	 * descriptor.
 	 */
 	avail_idx = vq->vq_ring.avail->idx & (vq->vq_nentries - 1);
 	vq->vq_ring.avail->ring[avail_idx] = desc_idx;

@@ -81,7 +81,7 @@ struct vtpci_softc {
 	struct vtpci_virtqueue {
 		struct virtqueue *vq;
 
-		/* Index into vtpci_intr_res[] below, Unused, then -1. */
+		/* Index into vtpci_intr_res[] below. Unused, then -1. */
 		int		  ires_idx;
 	} vtpci_vqx[VIRTIO_MAX_VIRTQUEUES];
 
@@ -651,6 +651,9 @@ vtpci_set_status(device_t dev, uint8_t status)
 
 	sc = device_get_softc(dev);
 
+	if (status != VIRTIO_CONFIG_STATUS_RESET)
+		status |= vtpci_get_status(dev);
+
 	vtpci_write_config_1(sc, VIRTIO_PCI_STATUS, status);
 }
 
@@ -822,7 +825,7 @@ static int
 vtpci_alloc_msi(struct vtpci_softc *sc)
 {
 	device_t dev;
-	int nmsi, cnt;	
+	int nmsi, cnt;
 
 	dev = sc->vtpci_dev;
 	nmsi = pci_msi_count(dev);

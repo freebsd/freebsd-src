@@ -18,6 +18,7 @@ struct vq_alloc_info;
 #define VIRTIO_ID_CONSOLE	0x03
 #define VIRTIO_ID_ENTROPY	0x04
 #define VIRTIO_ID_BALLOON	0x05
+#define VIRTIO_ID_IOMEMORY	0x06
 #define VIRTIO_ID_9P		0x09
 
 /* Status byte for guest to report progress. */

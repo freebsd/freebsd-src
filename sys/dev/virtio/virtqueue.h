@@ -35,7 +35,14 @@ struct virtqueue;
 struct sglist;
 
 /* Support for indirect buffer descriptors. */
-#define VIRTIO_F_RING_INDIRECT_DESC	(1 << 28)
+#define VIRTIO_RING_F_INDIRECT_DESC	(1 << 28)
+
+/* The guest publishes the used index for which it expects an interrupt
+ * at the end of the avail ring. Host should ignore the avail->flags field.
+ * The host publishes the avail index for which it expects a kick
+ * at the end of the used ring. Guest should ignore the used->flags field.
+ */
+#define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
 
 /* Device callback for a virtqueue interrupt. */
 typedef int virtqueue_intr_t(void *);
@@ -86,5 +93,6 @@ void	 virtqueue_dump(struct virtqueue *vq);
 int	 virtqueue_enqueue(struct virtqueue *vq, void *cookie,
 	     struct sglist *sg, int readable, int writable);
 void	*virtqueue_dequeue(struct virtqueue *vq, uint32_t *len);
+void	*virtqueue_poll(struct virtqueue *vq, uint32_t *len);
 
 #endif /* _VIRTIO_VIRTQUEUE_H */

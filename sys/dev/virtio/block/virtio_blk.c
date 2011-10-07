@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_disk.h>
 #include <vm/uma.h>
 
-#include <machine/cpu.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -69,14 +68,19 @@ struct vtblk_softc {
 	struct mtx		 vtblk_mtx;
 	uint64_t		 vtblk_features;
 	uint32_t		 vtblk_flags;
-#define VTBLK_FLAG_READONLY	0x0001
-#define VTBLK_FLAG_DETACHING	0x0002
+#define VTBLK_FLAG_INDIRECT	0x0001
+#define VTBLK_FLAG_READONLY	0x0002
+#define VTBLK_FLAG_DETACHING	0x0004
+#define VTBLK_FLAG_SUSPENDED	0x0008
+#define VTBLK_FLAG_DUMPING	0x0010
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
 	struct disk		*vtblk_disk;
 
 	struct bio_queue_head	 vtblk_bioq;
+	TAILQ_HEAD(, vtblk_request)
+				 vtblk_req_free;
 	TAILQ_HEAD(, vtblk_request)
 				 vtblk_req_ready;
 
@@ -86,6 +90,9 @@ struct vtblk_softc {
 	int			 vtblk_sector_size;
 	int			 vtblk_max_nsegs;
 	int			 vtblk_unit;
+	int			 vtblk_request_count;
+
+	struct vtblk_request	 vtblk_dump_request;
 };
 
 static struct virtio_feature_desc vtblk_feature_desc[] = {
@@ -112,6 +119,8 @@ static int	vtblk_resume(device_t);
 static int	vtblk_shutdown(device_t);
 
 static void	vtblk_negotiate_features(struct vtblk_softc *);
+static int	vtblk_maximum_segments(struct vtblk_softc *,
+		    struct virtio_blk_config *);
 static int	vtblk_alloc_virtqueue(struct vtblk_softc *);
 static void	vtblk_alloc_disk(struct vtblk_softc *,
 		    struct virtio_blk_config *);
@@ -126,7 +135,7 @@ static void	vtblk_strategy(struct bio *);
 static void	vtblk_startio(struct vtblk_softc *);
 static struct vtblk_request * vtblk_bio_request(struct vtblk_softc *);
 static int	vtblk_execute_request(struct vtblk_softc *,
-		    struct vtblk_request **);
+		    struct vtblk_request *);
 
 static int	vtblk_vq_intr(void *);
 static void	vtblk_intr_task(void *, int);
@@ -135,15 +144,19 @@ static void	vtblk_stop(struct vtblk_softc *);
 
 static void	vtblk_get_ident(struct vtblk_softc *);
 static void	vtblk_prepare_dump(struct vtblk_softc *);
-static int	vtblk_write_dump(struct vtblk_softc *, void *, off_t,
-		    size_t, struct vtblk_request **);
-static int	vtblk_flush_dump(struct vtblk_softc *,
-		    struct vtblk_request **);
+static int	vtblk_write_dump(struct vtblk_softc *, void *, off_t, size_t);
+static int	vtblk_flush_dump(struct vtblk_softc *);
 static int	vtblk_poll_request(struct vtblk_softc *,
-		    struct vtblk_request **);
+		    struct vtblk_request *);
 
 static void	vtblk_drain_vq(struct vtblk_softc *, int);
 static void	vtblk_drain(struct vtblk_softc *);
+
+static int	vtblk_alloc_requests(struct vtblk_softc *);
+static void	vtblk_free_requests(struct vtblk_softc *);
+static struct vtblk_request * vtblk_dequeue_request(struct vtblk_softc *);
+static void	vtblk_enqueue_request(struct vtblk_softc *,
+		    struct vtblk_request *);
 
 static struct vtblk_request * vtblk_dequeue_ready(struct vtblk_softc *);
 static void	vtblk_enqueue_ready(struct vtblk_softc *,
@@ -164,7 +177,7 @@ TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
      VIRTIO_BLK_F_RO			| \
      VIRTIO_BLK_F_BLK_SIZE		| \
      VIRTIO_BLK_F_FLUSH			| \
-     VIRTIO_F_RING_INDIRECT_DESC)
+     VIRTIO_RING_F_INDIRECT_DESC)
 
 #define VTBLK_MTX(_sc)		&(_sc)->vtblk_mtx
 #define VTBLK_LOCK_INIT(_sc, _name) \
@@ -178,7 +191,15 @@ TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
 #define VTBLK_LOCK_ASSERT_NOTOWNED(_sc) \
 				mtx_assert(VTBLK_MTX((_sc)), MA_NOTOWNED)
 
+#define VTBLK_BIO_SEGMENTS(_bp)	sglist_count((_bp)->bio_data, (_bp)->bio_bcount)
+
 #define VTBLK_DISK_NAME		"vtbd"
+
+/*
+ * Each block request uses at least two segments - one for the header
+ * and one for the status.
+ */
+#define VTBLK_MIN_SEGMENTS	2
 
 static uma_zone_t vtblk_req_zone;
 
@@ -264,10 +285,17 @@ vtblk_attach(device_t dev)
 	VTBLK_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	bioq_init(&sc->vtblk_bioq);
+	TAILQ_INIT(&sc->vtblk_req_free);
 	TAILQ_INIT(&sc->vtblk_req_ready);
 
 	virtio_set_feature_desc(dev, vtblk_feature_desc);
 	vtblk_negotiate_features(sc);
+
+	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
+		sc->vtblk_flags |= VTBLK_FLAG_INDIRECT;
+
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
+		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
 
 	/* Get local copy of config. */
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY) == 0) {
@@ -284,26 +312,16 @@ vtblk_attach(device_t dev)
 	 * segments are coalesced. For now, just make sure it's larger
 	 * than the maximum supported transfer size.
 	 */
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_SIZE_MAX) &&
-	    blkcfg.size_max < MAXPHYS) {
-		error = ENOTSUP;
-		device_printf(dev, "host requires unsupported maximum segment "
-		    "size feature\n");
-		goto fail;
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_SIZE_MAX)) {
+		if (blkcfg.size_max < MAXPHYS) {
+			error = ENOTSUP;
+			device_printf(dev, "host requires unsupported "
+			    "maximum segment size feature\n");
+			goto fail;
+		}
 	}
 
-	/* Two segments are needed for the header and status. */
-	sc->vtblk_max_nsegs = 2;
-
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_SEG_MAX)) {
-		sc->vtblk_max_nsegs += MIN(blkcfg.seg_max,
-		    MAXPHYS/PAGE_SIZE + 1);
-	} else
-		sc->vtblk_max_nsegs += 1;
-
-	if (virtio_with_feature(dev, VIRTIO_F_RING_INDIRECT_DESC))
-		if (sc->vtblk_max_nsegs > VIRTIO_MAX_INDIRECT)
-			sc->vtblk_max_nsegs = VIRTIO_MAX_INDIRECT;
+	sc->vtblk_max_nsegs = vtblk_maximum_segments(sc, &blkcfg);
 
 	/*
 	 * Allocate working sglist. The number of segments may be too
@@ -322,8 +340,11 @@ vtblk_attach(device_t dev)
 		goto fail;
 	}
 
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
-		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
+	error = vtblk_alloc_requests(sc);
+	if (error) {
+		device_printf(dev, "cannot preallocate requests\n");
+		goto fail;
+	}
 
 	vtblk_alloc_disk(sc, &blkcfg);
 
@@ -399,7 +420,10 @@ vtblk_suspend(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* TODO */
+	VTBLK_LOCK(sc);
+	sc->vtblk_flags |= VTBLK_FLAG_SUSPENDED;
+	/* TODO Wait for any inflight IO to complete? */
+	VTBLK_UNLOCK(sc);
 
 	return (0);
 }
@@ -411,7 +435,10 @@ vtblk_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* TODO */
+	VTBLK_LOCK(sc);
+	sc->vtblk_flags &= ~VTBLK_FLAG_SUSPENDED;
+	/* TODO Resume IO? */
+	VTBLK_UNLOCK(sc);
 
 	return (0);
 }
@@ -420,7 +447,7 @@ static int
 vtblk_shutdown(device_t dev)
 {
 
-	return (vtblk_suspend(dev));
+	return (0);
 }
 
 static int
@@ -461,10 +488,8 @@ static int
 vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
     size_t length)
 {
-	static struct vtblk_request *req = NULL;
-	static struct bio buf;
-	struct vtblk_softc *sc;
 	struct disk *dp;
+	struct vtblk_softc *sc;
 	int error;
 
 	dp = arg;
@@ -475,31 +500,19 @@ vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 
 	if (VTBLK_TRYLOCK(sc) == 0) {
 		device_printf(sc->vtblk_dev,
-		    "softc lock already acquired, cannot dump...\n");
+		    "softc already locked, cannot dump...\n");
 		return (EBUSY);
 	}
 
-	if (req == NULL) {
-		/*
-		 * Allocate request structure. It isn't safe to use one
-		 * off the stack because it could cross a page boundary.
-		 */
-		req = uma_zalloc(vtblk_req_zone, M_NOWAIT | M_ZERO);
-		if (req == NULL) {
-			VTBLK_UNLOCK(sc);
-			return (ENOMEM);
-		}
-
+	if ((sc->vtblk_flags & VTBLK_FLAG_DUMPING) == 0) {
 		vtblk_prepare_dump(sc);
+		sc->vtblk_flags |= VTBLK_FLAG_DUMPING;
 	}
 
-	req->vbr_bp = &buf;
-	bzero(req->vbr_bp, sizeof(struct bio));
-
 	if (length > 0)
-		error = vtblk_write_dump(sc, virtual, offset, length, &req);
+		error = vtblk_write_dump(sc, virtual, offset, length);
 	else if (virtual == NULL && offset == 0)
-		error = vtblk_flush_dump(sc, &req);
+		error = vtblk_flush_dump(sc);
 
 	VTBLK_UNLOCK(sc);
 
@@ -526,6 +539,18 @@ vtblk_strategy(struct bio *bp)
 		return;
 	}
 
+	/*
+	 * Prevent read/write buffers spanning too many segments from
+	 * getting into the queue.
+	 */
+	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+		KASSERT(VTBLK_BIO_SEGMENTS(bp) <= sc->vtblk_max_nsegs -
+		    VTBLK_MIN_SEGMENTS,
+		    ("bio spanned too many segments: %d, max: %d",
+		    VTBLK_BIO_SEGMENTS(bp),
+		    sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS));
+	}
+
 	VTBLK_LOCK(sc);
 	if ((sc->vtblk_flags & VTBLK_FLAG_DETACHING) == 0) {
 		bioq_disksort(&sc->vtblk_bioq, bp);
@@ -545,6 +570,26 @@ vtblk_negotiate_features(struct vtblk_softc *sc)
 	features = VTBLK_FEATURES;
 
 	sc->vtblk_features = virtio_negotiate_features(dev, features);
+}
+
+static int
+vtblk_maximum_segments(struct vtblk_softc *sc,
+    struct virtio_blk_config *blkcfg)
+{
+	device_t dev;
+	int nsegs;
+
+	dev = sc->vtblk_dev;
+	nsegs = VTBLK_MIN_SEGMENTS;
+
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_SEG_MAX)) {
+		nsegs += MIN(blkcfg->seg_max, MAXPHYS / PAGE_SIZE + 1);
+		if (sc->vtblk_flags & VTBLK_FLAG_INDIRECT)
+			nsegs = MIN(nsegs, VIRTIO_MAX_INDIRECT);
+	} else
+		nsegs += 1;
+
+	return (nsegs);
 }
 
 static int
@@ -596,15 +641,16 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	 * However, FreeBSD limits I/O size by logical buffer size, not
 	 * by physically contiguous pages. Therefore, we have to assume
 	 * no pages are contiguous. This may impose an artificially low
-	 * maximum I/O size. But in practice, since QEMU/KVM advertises
-	 * 128 segments, this gives us a max IO size of 125 * PAGE_SIZE,
+	 * maximum I/O size. But in practice, since QEMU advertises 128
+	 * segments, this gives us a maxinum IO size of 125 * PAGE_SIZE,
 	 * which is typically greater than MAXPHYS. Eventually we should
 	 * just advertise MAXPHYS and split buffers that are too big.
 	 *
-	 * Note three segments are reserved for the header, ack and non
+	 * Note we must subtract one additional segment in case of non
 	 * page aligned buffers.
 	 */
-	dp->d_maxsize = (sc->vtblk_max_nsegs - 3) * PAGE_SIZE;
+	dp->d_maxsize = (sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS - 1) *
+	    PAGE_SIZE;
 	if (dp->d_maxsize < PAGE_SIZE)
 		dp->d_maxsize = PAGE_SIZE; /* XXX */
 
@@ -631,19 +677,16 @@ vtblk_startio(struct vtblk_softc *sc)
 
 	VTBLK_LOCK_ASSERT(sc);
 
+	if (sc->vtblk_flags & VTBLK_FLAG_SUSPENDED)
+		return;
+
 	while (!virtqueue_full(vq)) {
 		if ((req = vtblk_dequeue_ready(sc)) == NULL)
 			req = vtblk_bio_request(sc);
 		if (req == NULL)
 			break;
 
-		if (vtblk_execute_request(sc, &req) != 0) {
-			if (req == NULL)
-				continue;
-			/*
-			 * Requeue request; we will process it
-			 * first later.
-			 */
+		if (vtblk_execute_request(sc, req) != 0) {
 			vtblk_enqueue_ready(sc, req);
 			break;
 		}
@@ -667,7 +710,7 @@ vtblk_bio_request(struct vtblk_softc *sc)
 	if (bioq_first(bioq) == NULL)
 		return (NULL);
 
-	req = uma_zalloc(vtblk_req_zone, M_NOWAIT | M_ZERO);
+	req = vtblk_dequeue_request(sc);
 	if (req == NULL)
 		return (NULL);
 
@@ -701,14 +744,12 @@ vtblk_bio_request(struct vtblk_softc *sc)
 }
 
 static int
-vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request **reqp)
+vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
-	struct vtblk_request *req;
 	struct sglist *sg;
 	struct bio *bp;
 	int writable, error;
 
-	req = *reqp;
 	sg = sc->vtblk_sglist;
 	bp = req->vbr_bp;
 	writable = 0;
@@ -718,23 +759,13 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request **reqp)
 	sglist_reset(sg);
 	error = sglist_append(sg, &req->vbr_hdr,
 	    sizeof(struct virtio_blk_outhdr));
-	KASSERT(error == 0 && sg->sg_nseg == 1, ("error adding header "
-	    "to sglist; error=%d, nsegs=%d", error, sg->sg_nseg));
+	KASSERT(error == 0, ("error adding header to sglist"));
+	KASSERT(sg->sg_nseg == 1,
+	    ("header spanned multiple segments: %d", sg->sg_nseg));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
-		if (error) {
-			device_printf(sc->vtblk_dev,
-			    "buffer spanned too many segments; max: %d; "
-			    "needed: %d\n", sc->vtblk_max_nsegs,
-			    sglist_count(bp->bio_data, bp->bio_bcount));
-
-			*reqp = NULL;
-			uma_zfree(vtblk_req_zone, req);
-			vtblk_bio_error(bp, E2BIG);
-
-			return (error);
-		}
+		KASSERT(error == 0, ("error adding buffer to sglist"));
 
 		/* BIO_READ means the host writes into our buffer. */
 		if (bp->bio_cmd == BIO_READ)
@@ -744,6 +775,9 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request **reqp)
 	error = sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
 	KASSERT(error == 0, ("error adding ack to sglist"));
 	writable++;
+
+	KASSERT(sg->sg_nseg >= VTBLK_MIN_SEGMENTS,
+	    ("fewer than min segments: %d", sg->sg_nseg));
 
 	error = virtqueue_enqueue(sc->vtblk_vq, req, sg,
 	    sg->sg_nseg - writable, writable);
@@ -795,7 +829,7 @@ vtblk_intr_task(void *arg, int pending)
 		}
 
 		biodone(bp);
-		uma_zfree(vtblk_req_zone, req);
+		vtblk_enqueue_request(sc, req);
 	}
 
 	vtblk_startio(sc);
@@ -830,7 +864,7 @@ vtblk_get_ident(struct vtblk_softc *sc)
 	dp = sc->vtblk_disk;
 	len = MIN(VIRTIO_BLK_ID_BYTES, DISK_IDENT_SIZE);
 
-	req = uma_zalloc(vtblk_req_zone, M_NOWAIT | M_ZERO);
+	req = vtblk_dequeue_request(sc);
 	if (req == NULL)
 		return;
 
@@ -847,15 +881,14 @@ vtblk_get_ident(struct vtblk_softc *sc)
 	buf.bio_bcount = len;
 
 	VTBLK_LOCK(sc);
-	error = vtblk_poll_request(sc, &req);
+	error = vtblk_poll_request(sc, req);
+	vtblk_enqueue_request(sc, req);
 	VTBLK_UNLOCK(sc);
 
-	if (req != NULL)
-		uma_zfree(vtblk_req_zone, req);
-
-	if (error)
-		device_printf(sc->vtblk_dev, "error getting device "
-		    "identifier\n");
+	if (error) {
+		device_printf(sc->vtblk_dev,
+		    "error getting device identifier: %d\n", error);
+	}
 }
 
 static void
@@ -886,78 +919,78 @@ vtblk_prepare_dump(struct vtblk_softc *sc)
 
 static int
 vtblk_write_dump(struct vtblk_softc *sc, void *virtual, off_t offset,
-    size_t length, struct vtblk_request **reqp)
+    size_t length)
 {
+	struct bio buf;
 	struct vtblk_request *req;
-	struct bio *bp;
 
-	req = *reqp;
-
+	req = &sc->vtblk_dump_request;
 	req->vbr_ack = -1;
 	req->vbr_hdr.type = VIRTIO_BLK_T_OUT;
 	req->vbr_hdr.ioprio = 1;
 	req->vbr_hdr.sector = offset / 512;
 
-	bp = req->vbr_bp;
-	bp->bio_cmd = BIO_WRITE;
-	bp->bio_data = virtual;
-	bp->bio_bcount = length;
+	req->vbr_bp = &buf;
+	bzero(&buf, sizeof(struct bio));
 
-	return (vtblk_poll_request(sc, reqp));
+	buf.bio_cmd = BIO_WRITE;
+	buf.bio_data = virtual;
+	buf.bio_bcount = length;
+
+	return (vtblk_poll_request(sc, req));
 }
 
 static int
-vtblk_flush_dump(struct vtblk_softc *sc, struct vtblk_request **reqp)
+vtblk_flush_dump(struct vtblk_softc *sc)
 {
+	struct bio buf;
 	struct vtblk_request *req;
-	struct bio *bp;
 
-	req = *reqp;
-
+	req = &sc->vtblk_dump_request;
 	req->vbr_ack = -1;
 	req->vbr_hdr.type = VIRTIO_BLK_T_FLUSH;
 	req->vbr_hdr.ioprio = 1;
 	req->vbr_hdr.sector = 0;
 
-	bp = req->vbr_bp;
-	bp->bio_cmd = BIO_FLUSH;
-	bp->bio_data = NULL;
-	bp->bio_bcount = 0;
-	bp->bio_done = NULL;
+	req->vbr_bp = &buf;
+	bzero(&buf, sizeof(struct bio));
 
-	return (vtblk_poll_request(sc, reqp));
+	buf.bio_cmd = BIO_FLUSH;
+
+	return (vtblk_poll_request(sc, req));
 }
 
 static int
-vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request **reqp)
+vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
 	device_t dev;
 	struct virtqueue *vq;
-	struct vtblk_request *r, *req;
+	struct vtblk_request *r;
 	int error;
 
 	dev = sc->vtblk_dev;
 	vq = sc->vtblk_vq;
-	req = *reqp;
 
 	if (!virtqueue_empty(vq))
 		return (EBUSY);
 
-	error = vtblk_execute_request(sc, reqp);
+	error = vtblk_execute_request(sc, req);
 	if (error)
 		return (error);
+
 	virtqueue_notify(vq);
 
-	while ((r = virtqueue_dequeue(vq, NULL)) == NULL)
-		cpu_spinwait();
-	KASSERT(r == req, ("vtblk_poll_request: unexpected request response"));
+	r = virtqueue_poll(vq, NULL);
+	KASSERT(r == req, ("unexpected request response"));
 
 	if (req->vbr_ack != VIRTIO_BLK_S_OK) {
-		device_printf(dev, "vtblk_poll_request: I/O error\n");
-		return (EIO);
+		error = req->vbr_ack == VIRTIO_BLK_S_UNSUPP ? ENOTSUP : EIO;
+		if (bootverbose)
+			device_printf(dev,
+			    "vtblk_poll_request: IO error: %d\n", error);
 	}
 
-	return (0);
+	return (error);
 }
 
 static void
@@ -974,7 +1007,7 @@ vtblk_drain_vq(struct vtblk_softc *sc, int skip_done)
 		if (!skip_done)
 			vtblk_bio_error(req->vbr_bp, ENXIO);
 
-		uma_zfree(vtblk_req_zone, req);
+		vtblk_enqueue_request(sc, req);
 	}
 
 	KASSERT(virtqueue_empty(vq), ("virtqueue not empty"));
@@ -994,13 +1027,76 @@ vtblk_drain(struct vtblk_softc *sc)
 
 	while ((req = vtblk_dequeue_ready(sc)) != NULL) {
 		vtblk_bio_error(req->vbr_bp, ENXIO);
-		uma_zfree(vtblk_req_zone, req);
+		vtblk_enqueue_request(sc, req);
 	}
 
 	while (bioq_first(bioq) != NULL) {
 		bp = bioq_takefirst(bioq);
 		vtblk_bio_error(bp, ENXIO);
 	}
+
+	vtblk_free_requests(sc);
+}
+
+static int
+vtblk_alloc_requests(struct vtblk_softc *sc)
+{
+	struct vtblk_request *req;
+	int i, size;
+
+	size = virtqueue_size(sc->vtblk_vq);
+
+	/*
+	 * Preallocate sufficient requests to keep the virtqueue full. Each
+	 * request consumes VTBLK_MIN_SEGMENTS or more descriptors so reduce
+	 * the number allocated when indirect descriptors are not available.
+	 */
+	if ((sc->vtblk_flags & VTBLK_FLAG_INDIRECT) == 0)
+		size /= VTBLK_MIN_SEGMENTS;
+
+	for (i = 0; i < size; i++) {
+		req = uma_zalloc(vtblk_req_zone, M_NOWAIT);
+		if (req == NULL)
+			return (ENOMEM);
+
+		sc->vtblk_request_count++;
+		vtblk_enqueue_request(sc, req);
+	}
+
+	return (0);
+}
+
+static void
+vtblk_free_requests(struct vtblk_softc *sc)
+{
+	struct vtblk_request *req;
+
+	while ((req = vtblk_dequeue_request(sc)) != NULL) {
+		sc->vtblk_request_count--;
+		uma_zfree(vtblk_req_zone, req);
+	}
+
+	KASSERT(sc->vtblk_request_count == 0, ("leaked requests"));
+}
+
+static struct vtblk_request *
+vtblk_dequeue_request(struct vtblk_softc *sc)
+{
+	struct vtblk_request *req;
+
+	req = TAILQ_FIRST(&sc->vtblk_req_free);
+	if (req != NULL)
+		TAILQ_REMOVE(&sc->vtblk_req_free, req, vbr_link);
+
+	return (req);
+}
+
+static void
+vtblk_enqueue_request(struct vtblk_softc *sc, struct vtblk_request *req)
+{
+
+	bzero(req, sizeof(struct vtblk_request));
+	TAILQ_INSERT_HEAD(&sc->vtblk_req_free, req, vbr_link);
 }
 
 static struct vtblk_request *

@@ -57,6 +57,7 @@ static struct virtio_ident {
 	{ VIRTIO_ID_CONSOLE,	"Console"	},
 	{ VIRTIO_ID_ENTROPY,	"Entropy"	},
 	{ VIRTIO_ID_BALLOON,	"Balloon"	},
+	{ VIRTIO_ID_IOMEMORY,	"IOMemory"	},
 	{ VIRTIO_ID_9P,		"9P Transport"	},
 
 	{ 0, NULL }
@@ -65,7 +66,8 @@ static struct virtio_ident {
 /* Device independent features. */
 static struct virtio_feature_desc virtio_common_feature_desc[] = {
 	{ VIRTIO_F_NOTIFY_ON_EMPTY,	"NotifyOnEmpty"	},
-	{ VIRTIO_F_RING_INDIRECT_DESC,	"RingIndirect"	},
+	{ VIRTIO_RING_F_INDIRECT_DESC,	"RingIndirect"	},
+	{ VIRTIO_RING_F_EVENT_IDX,	"EventIdx"	},
 	{ VIRTIO_F_BAD_FEATURE,		"BadFeature"	},
 
 	{ 0, NULL }

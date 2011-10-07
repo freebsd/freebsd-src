@@ -624,8 +624,8 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 		 * available.
 		 */
 
-		if (virtio_with_feature(dev, VIRTIO_F_RING_INDIRECT_DESC))
-			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMGR;
+		if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
+			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
 		else {
 			sc->vtnet_features = virtio_negotiate_features(dev,
 			    features & ~VTNET_LRO_FEATURES);
@@ -655,7 +655,7 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	 * always physically contiguous.
 	 */
 	if ((sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) == 0) {
-		rxsegs = sc->vtnet_flags & VTNET_FLAG_LRO_NOMGR ?
+		rxsegs = sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG ?
 		    VTNET_MAX_RX_SEGS : VTNET_MIN_RX_SEGS;
 	} else
 		rxsegs = 0;
@@ -1096,8 +1096,8 @@ vtnet_alloc_rxbuf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 	m_tail = m_head;
 
 	if (nbufs > 1) {
-		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMGR,
-		    ("chained Rx mbuf requested without LRO_NOMGR"));
+		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
+		    ("chained Rx mbuf requested without LRO_NOMRG"));
 
 		for (i = 0; i < nbufs - 1; i++) {
 			m = m_getjcl(M_DONTWAIT, MT_DATA, 0, clsize);
@@ -1130,18 +1130,19 @@ vtnet_replace_rxbuf(struct vtnet_softc *sc, struct mbuf *m0, int len0)
 	int len, clsize, nreplace, error;
 
 	m = m0;
+	m_prev = NULL;
 	len = len0;
 
-	m_tail = m_prev = NULL;
+	m_tail = NULL;
 	clsize = sc->vtnet_rx_mbuf_size;
 	nreplace = 0;
 
 	if (m->m_next != NULL)
-		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMGR,
-		    ("chained Rx mbuf without LRO_NOMGR"));
+		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
+		    ("chained Rx mbuf without LRO_NOMRG"));
 
 	/*
-	 * Since LRO_NOMGR mbuf chains are so large, we want to avoid
+	 * Since LRO_NOMRG mbuf chains are so large, we want to avoid
 	 * allocating an entire chain for each received frame. When
 	 * the received frame's length is less than that of the chain,
 	 * the unused mbufs are reassigned to the new chain.
@@ -1268,7 +1269,7 @@ vtnet_enqueue_rxbuf(struct vtnet_softc *sc, struct mbuf *m)
 	int offset, error;
 
 	VTNET_LOCK_ASSERT(sc);
-	if ((sc->vtnet_flags & VTNET_FLAG_LRO_NOMGR) == 0)
+	if ((sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG) == 0)
 		KASSERT(m->m_next == NULL, ("chained Rx mbuf"));
 
 	sglist_init(&sg, VTNET_MAX_RX_SEGS, segs);
@@ -2295,9 +2296,7 @@ vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
 	 * virtqueues. We do not support sharing both a Vq and config
 	 * changed notification on the same MSIX vector.
 	 */
-	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
-		cpu_spinwait();
-
+	c = virtqueue_poll(vq, NULL);
 	KASSERT(c == cookie, ("unexpected control command response"));
 }
 
