@@ -90,25 +90,30 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, NULL,
     0, kdb_sysctl_current, "A", "currently selected KDB backend");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, enter,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_panic, "I", "set to panic the kernel");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap, "I", "set to cause a page fault via data access");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger, CTLTYPE_INT | CTLFLAG_RW |
-    CTLFLAG_TUN, &kdb_break_to_debugger, 0, "Enable break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_break_to_debugger, 0, "Enable break to debugger");
 TUNABLE_INT("debug.kdb.break_to_debugger", &kdb_break_to_debugger);
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger, CTLTYPE_INT |
-    CTLFLAG_RW | CTLFLAG_TUN, &kdb_alt_break_to_debugger, 0,
-    "Enable alternative break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_alt_break_to_debugger, 0, "Enable alternative break to debugger");
 TUNABLE_INT("debug.kdb.alt_break_to_debugger", &kdb_alt_break_to_debugger);
 
 /*
