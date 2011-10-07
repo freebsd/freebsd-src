@@ -486,6 +486,7 @@ default:							\
 
 #define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
 		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
+		memset(&(xs)->sense_data, 0, sizeof(&(xs)->sense_data));\
 		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
 		       slen)); 						\
 		if (slen < (xs)->sense_len) 				\
