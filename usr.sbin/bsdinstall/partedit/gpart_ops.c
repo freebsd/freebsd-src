@@ -365,38 +365,36 @@ gpart_partcode(struct gprovider *pp)
 }
 
 void
-gpart_destroy(struct ggeom *lg_geom, int force)
+gpart_destroy(struct ggeom *lg_geom)
 {
-	struct gprovider *pp;
 	struct gctl_req *r;
+	struct gprovider *pp;
 	const char *errstr;
+	int force = 1;
 
-	/* Begin with the hosing: delete all partitions */
+	/* Delete all child metadata */
 	LIST_FOREACH(pp, &lg_geom->lg_provider, lg_provider)
 		gpart_delete(pp);
+
+	/* Revert any local changes to get this geom into a pristine state */
+	r = gctl_get_handle();
+	gctl_ro_param(r, "class", -1, "PART");
+	gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
+	gctl_ro_param(r, "verb", -1, "undo");
+	gctl_issue(r); /* Ignore errors -- these are non-fatal */
+	gctl_free(r);
 
 	/* Now destroy the geom itself */
 	r = gctl_get_handle();
 	gctl_ro_param(r, "class", -1, "PART");
 	gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
 	gctl_ro_param(r, "flags", -1, GPART_FLAGS);
+	gctl_ro_param(r, "force", sizeof(force), &force);
 	gctl_ro_param(r, "verb", -1, "destroy");
 	errstr = gctl_issue(r);
 	if (errstr != NULL && errstr[0] != '\0') 
 		gpart_show_error("Error", NULL, errstr);
 	gctl_free(r);
-
-	/* If asked, commit the change */
-	if (force) {
-		r = gctl_get_handle();
-		gctl_ro_param(r, "class", -1, "PART");
-		gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
-		gctl_ro_param(r, "verb", -1, "commit");
-		errstr = gctl_issue(r);
-		if (errstr != NULL && errstr[0] != '\0') 
-			gpart_show_error("Error", NULL, errstr);
-		gctl_free(r);
-	}
 
 	/* And any metadata associated with the partition scheme itself */
 	delete_part_metadata(lg_geom->lg_name);
@@ -439,28 +437,21 @@ gpart_edit(struct gprovider *pp)
 	geom = NULL;
 	LIST_FOREACH(cp, &pp->lg_consumers, lg_consumers)
 		if (strcmp(cp->lg_geom->lg_class->lg_name, "PART") == 0) {
-			char message[512];
-			/*
-			 * The PART object is a consumer, so the user wants to
-			 * edit the partition table. gpart doesn't really
-			 * support this, so we have to hose the whole table
-			 * first.
-			 */
-
-			sprintf(message, "Changing the partition scheme on "
-			    "this disk (%s) requires deleting all existing "
-			    "partitions on this drive. This will PERMANENTLY "
-			    "ERASE any data stored here. Are you sure you want "
-			    "to proceed?", cp->lg_geom->lg_name);
-			dialog_vars.defaultno = TRUE;
-			choice = dialog_yesno("Warning", message, 0, 0);
-			dialog_vars.defaultno = FALSE;
-
-			if (choice == 1) /* cancel */
+			/* Check for zombie geoms, treating them as blank */
+			scheme = NULL;
+			LIST_FOREACH(gc, &cp->lg_geom->lg_config, lg_config) {
+				if (strcmp(gc->lg_name, "scheme") == 0) {
+					scheme = gc->lg_val;
+					break;
+				}
+			}
+			if (scheme == NULL || strcmp(scheme, "(none)") == 0) {
+				gpart_partition(cp->lg_geom->lg_name, NULL);
 				return;
+			}
 
 			/* Destroy the geom and all sub-partitions */
-			gpart_destroy(cp->lg_geom, 0);
+			gpart_destroy(cp->lg_geom);
 
 			/* Now re-partition and return */
 			gpart_partition(cp->lg_geom->lg_name, NULL);
@@ -1004,7 +995,7 @@ gpart_delete(struct gprovider *pp)
 	struct gctl_req *r;
 	const char *errstr;
 	intmax_t idx;
-	int choice, is_partition;
+	int is_partition;
 
 	/* Is it a partition? */
 	is_partition = (strcmp(pp->lg_geom->lg_class->lg_name, "PART") == 0);
@@ -1017,32 +1008,21 @@ gpart_delete(struct gprovider *pp)
 			break;
 		}
 
-	/* Destroy all consumers */
+	/* If so, destroy all children */
 	if (geom != NULL) {
+		gpart_destroy(geom);
+
+		/* If this is a partition, revert it, so it can be deleted */
 		if (is_partition) {
-			char message[512];
-			/*
-			 * We have to actually really delete the sub-partition
-			 * tree so that the consumers will go away and the
-			 * partition can be deleted. Warn the user.
-			 */
-
-			sprintf(message, "Deleting this partition (%s) "
-			    "requires deleting all existing sub-partitions. "
-			    "This will PERMANENTLY ERASE any data stored here "
-			    "and CANNOT BE REVERTED. Are you sure you want to "
-			    "proceed?", cp->lg_geom->lg_name);
-			dialog_vars.defaultno = TRUE;
-			choice = dialog_yesno("Warning", message, 0, 0);
-			dialog_vars.defaultno = FALSE;
-
-			if (choice == 1) /* cancel */
-				return;
+			r = gctl_get_handle();
+			gctl_ro_param(r, "class", -1, "PART");
+			gctl_ro_param(r, "arg0", -1, geom->lg_name);
+			gctl_ro_param(r, "verb", -1, "undo");
+			gctl_issue(r); /* Ignore non-fatal errors */
+			gctl_free(r);
 		}
-
-		gpart_destroy(geom, is_partition);
 	}
- 
+
 	/*
 	 * If this is not a partition, see if that is a problem, complain if
 	 * necessary, and return always, since we need not do anything further,

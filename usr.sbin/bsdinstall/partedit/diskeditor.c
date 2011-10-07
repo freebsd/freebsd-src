@@ -44,8 +44,8 @@ print_partedit_item(WINDOW *partitions, struct partedit_item *items,
 
 	wattrset(partitions, selected ? item_selected_attr : item_attr);
 	wmove(partitions, y, MARGIN + items[item].indentation*2);
-	dlg_print_text(partitions, items[item].name, 8, &attr);
-	wmove(partitions, y, 15);
+	dlg_print_text(partitions, items[item].name, 10, &attr);
+	wmove(partitions, y, 17);
 	wattrset(partitions, item_attr);
 
 	humanize_number(sizetext, 7, items[item].size, "B", HN_AUTOSCALE,
