@@ -153,6 +153,7 @@ iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
+jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
@@ -306,6 +307,7 @@ bz -> anchie
 bz -> jamie
 bz -> syrinx
 
+cognet -> jceel
 cognet -> kevlo
 
 cperciva -> flz
@@ -572,6 +574,8 @@ ume -> suz
 ume -> tshiozak
 
 wes -> scf
+
+wkoszek -> jceel
 
 wollman -> gad
 
