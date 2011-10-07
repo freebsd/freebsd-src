@@ -77,7 +77,7 @@ int	msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen,
 void	msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size);
 
 #ifndef MSGBUF_SIZE
-#define	MSGBUF_SIZE	(32768 * 2)
+#define	MSGBUF_SIZE	(32768 * 3)
 #endif
 #endif /* KERNEL */
 
