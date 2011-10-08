@@ -265,8 +265,8 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 	u_long size;
 
 	vm_map_lock_read(kmem_map);
-	size = kmem_map->root != NULL ?
-	    kmem_map->root->max_free : kmem_map->size;
+	size = kmem_map->root != NULL ? kmem_map->root->max_free :
+	    kmem_map->max_offset - kmem_map->min_offset;
 	vm_map_unlock_read(kmem_map);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
