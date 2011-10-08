@@ -499,7 +499,8 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 		char c = '(';
 		if (fancy &&
 		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
-			if (ktr->ktr_code == SYS_ioctl) {
+			switch (ktr->ktr_code) {
+			case SYS_ioctl: {
 				const char *cp;
 				print_number(ip,narg,c);
 				if ((cp = ioctlname(*ip)) != NULL)
@@ -513,80 +514,88 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				c = ',';
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_ptrace) {
+				break;
+			}
+			case SYS_ptrace:
 				(void)putchar('(');
 				ptraceopname ((int)*ip);
 				c = ',';
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_access ||
-				   ktr->ktr_code == SYS_eaccess) {
+				break;
+			case SYS_access:
+			case SYS_eaccess:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				accessmodename ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_open) {
-				int	flags;
-				int	mode;
+				break;
+			case SYS_open:
 				print_number(ip,narg,c);
-				flags = *ip;
-				mode = *++ip;
 				(void)putchar(',');
-				flagsandmodename (flags, mode, decimal);
-				ip++;
-				narg-=2;
-			} else if (ktr->ktr_code == SYS_wait4) {
+				flagsandmodename(ip[0], ip[1], decimal);
+				ip += 2;
+				narg -= 2;
+				break;
+			case SYS_wait4:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				wait4optname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_chmod ||
-				   ktr->ktr_code == SYS_fchmod ||
-				   ktr->ktr_code == SYS_lchmod) {
+				break;
+			case SYS_chmod:
+			case SYS_fchmod:
+			case SYS_lchmod:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				modename ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_mknod) {
+				break;
+			case SYS_mknod:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				modename ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_getfsstat) {
+				break;
+			case SYS_getfsstat:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				getfsstatflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_mount) {
+				break;
+			case SYS_mount:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				mountflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_unmount) {
+				break;
+			case SYS_unmount:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				mountflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_recvmsg ||
-				   ktr->ktr_code == SYS_sendmsg) {
+				break;
+			case SYS_recvmsg:
+			case SYS_sendmsg:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				sendrecvflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_recvfrom ||
-				   ktr->ktr_code == SYS_sendto) {
+				break;
+			case SYS_recvfrom:
+			case SYS_sendto:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
@@ -594,39 +603,45 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				sendrecvflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_chflags ||
-				   ktr->ktr_code == SYS_fchflags ||
-				   ktr->ktr_code == SYS_lchflags) {
+				break;
+			case SYS_chflags:
+			case SYS_fchflags:
+			case SYS_lchflags:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				modename((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_kill) {
+				break;
+			case SYS_kill:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				signame((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_reboot) {
+				break;
+			case SYS_reboot:
 				(void)putchar('(');
 				rebootoptname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_umask) {
+				break;
+			case SYS_umask:
 				(void)putchar('(');
 				modename((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_msync) {
+				break;
+			case SYS_msync:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				msyncflagsname((int)*ip);
 				ip++;
 				narg--;
+				break;
 #ifdef SYS_freebsd6_mmap
-			} else if (ktr->ktr_code == SYS_freebsd6_mmap) {
+			case SYS_freebsd6_mmap:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
@@ -637,8 +652,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				mmapflagsname ((int)*ip);
 				ip++;
 				narg--;
+				break;
 #endif
-			} else if (ktr->ktr_code == SYS_mmap) {
+			case SYS_mmap:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
@@ -649,38 +665,39 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				mmapflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_mprotect) {
+				break;
+			case SYS_mprotect:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				mmapprotname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_madvise) {
+				break;
+			case SYS_madvise:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				madvisebehavname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_setpriority) {
+				break;
+			case SYS_setpriority:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				prioname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_fcntl) {
-				int cmd;
-				int arg;
+				break;
+			case SYS_fcntl:
 				print_number(ip,narg,c);
-				cmd = *ip;
-				arg = *++ip;
 				(void)putchar(',');
-				fcntlcmdname(cmd, arg, decimal);
-				ip++;
-				narg-=2;
-			} else if (ktr->ktr_code == SYS_socket) {
+				fcntlcmdname(ip[0], ip[1], decimal);
+				ip += 2;
+				narg -= 2;
+				break;
+			case SYS_socket: {
 				int sockdomain;
 				(void)putchar('(');
 				sockdomain=(int)*ip;
@@ -699,8 +716,10 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 					narg--;
 				}
 				c = ',';
-			} else if (ktr->ktr_code == SYS_setsockopt ||
-				   ktr->ktr_code == SYS_getsockopt) {
+				break;
+			}
+			case SYS_setsockopt:
+			case SYS_getsockopt:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				sockoptlevelname((int)*ip, decimal);
@@ -712,8 +731,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				}
 				ip++;
 				narg--;
+				break;
 #ifdef SYS_freebsd6_lseek
-			} else if (ktr->ktr_code == SYS_freebsd6_lseek) {
+			case SYS_freebsd6_lseek:
 				print_number(ip,narg,c);
 				/* Hidden 'pad' argument, not in lseek(2) */
 				print_number(ip,narg,c);
@@ -722,8 +742,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				whencename ((int)*ip);
 				ip++;
 				narg--;
+				break;
 #endif
-			} else if (ktr->ktr_code == SYS_lseek) {
+			case SYS_lseek:
 				print_number(ip,narg,c);
 				/* Hidden 'pad' argument, not in lseek(2) */
 				print_number(ip,narg,c);
@@ -731,27 +752,30 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				whencename ((int)*ip);
 				ip++;
 				narg--;
-
-			} else if (ktr->ktr_code == SYS_flock) {
+				break;
+			case SYS_flock:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				flockname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_mkfifo ||
-				   ktr->ktr_code == SYS_mkdir) {
+				break;
+			case SYS_mkfifo:
+			case SYS_mkdir:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				modename((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_shutdown) {
+				break;
+			case SYS_shutdown:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				shutdownhowname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_socketpair) {
+				break;
+			case SYS_socketpair:
 				(void)putchar('(');
 				sockdomainname((int)*ip);
 				ip++;
@@ -761,102 +785,118 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_getrlimit ||
-				   ktr->ktr_code == SYS_setrlimit) {
+				break;
+			case SYS_getrlimit:
+			case SYS_setrlimit:
 				(void)putchar('(');
 				rlimitname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_quotactl) {
+				break;
+			case SYS_quotactl:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				quotactlname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_nfssvc) {
+				break;
+			case SYS_nfssvc:
 				(void)putchar('(');
 				nfssvcname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_rtprio) {
+				break;
+			case SYS_rtprio:
 				(void)putchar('(');
 				rtprioname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS___semctl) {
+				break;
+			case SYS___semctl:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				semctlname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_semget) {
+				break;
+			case SYS_semget:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				semgetname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_msgctl) {
+				break;
+			case SYS_msgctl:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				shmctlname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_shmat) {
+				break;
+			case SYS_shmat:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				shmatname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_shmctl) {
+				break;
+			case SYS_shmctl:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				shmctlname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_minherit) {
+				break;
+			case SYS_minherit:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				minheritname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_rfork) {
+				break;
+			case SYS_rfork:
 				(void)putchar('(');
 				rforkname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_lio_listio) {
+				break;
+			case SYS_lio_listio:
 				(void)putchar('(');
 				lio_listioname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_mlockall) {
+				break;
+			case SYS_mlockall:
 				(void)putchar('(');
 				mlockallname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_sched_setscheduler) {
+				break;
+			case SYS_sched_setscheduler:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				schedpolicyname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_sched_get_priority_max ||
-				   ktr->ktr_code == SYS_sched_get_priority_min) {
+				break;
+			case SYS_sched_get_priority_max:
+			case SYS_sched_get_priority_min:
 				(void)putchar('(');
 				schedpolicyname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_sendfile) {
+				break;
+			case SYS_sendfile:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
@@ -867,73 +907,83 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				sendfileflagsname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_kldsym) {
+				break;
+			case SYS_kldsym:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				kldsymcmdname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_sigprocmask) {
+				break;
+			case SYS_sigprocmask:
 				(void)putchar('(');
 				sigprocmaskhowname((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS___acl_get_file ||
-				   ktr->ktr_code == SYS___acl_set_file ||
-				   ktr->ktr_code == SYS___acl_get_fd ||
-				   ktr->ktr_code == SYS___acl_set_fd ||
-				   ktr->ktr_code == SYS___acl_delete_file ||
-				   ktr->ktr_code == SYS___acl_delete_fd ||
-				   ktr->ktr_code == SYS___acl_aclcheck_file ||
-				   ktr->ktr_code == SYS___acl_aclcheck_fd ||
-				   ktr->ktr_code == SYS___acl_get_link ||
-				   ktr->ktr_code == SYS___acl_set_link ||
-				   ktr->ktr_code == SYS___acl_delete_link ||
-				   ktr->ktr_code == SYS___acl_aclcheck_link) {
+				break;
+			case SYS___acl_get_file:
+			case SYS___acl_set_file:
+			case SYS___acl_get_fd:
+			case SYS___acl_set_fd:
+			case SYS___acl_delete_file:
+			case SYS___acl_delete_fd:
+			case SYS___acl_aclcheck_file:
+			case SYS___acl_aclcheck_fd:
+			case SYS___acl_get_link:
+			case SYS___acl_set_link:
+			case SYS___acl_delete_link:
+			case SYS___acl_aclcheck_link:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				acltypename((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_sigaction) {
+				break;
+			case SYS_sigaction:
 				(void)putchar('(');
 				signame((int)*ip);
 				ip++;
 				narg--;
 				c = ',';
-			} else if (ktr->ktr_code == SYS_extattrctl) {
+				break;
+			case SYS_extattrctl:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				extattrctlname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_nmount) {
+				break;
+			case SYS_nmount:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				mountflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_thr_create) {
+				break;
+			case SYS_thr_create:
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				thrcreateflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_thr_kill) {
+				break;
+			case SYS_thr_kill:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				signame ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_kldunloadf) {
+				break;
+			case SYS_kldunloadf:
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				kldunloadfflagsname ((int)*ip);
 				ip++;
 				narg--;
+				break;
 			}
 		}
 		while (narg > 0) {
