@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.17 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: errno2result.c,v 1.17 2007-06-19 23:47:18 tbox Exp $ */
 
 /*! \file */
 

@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/capability.h>
 #include <sys/eventhandler.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
@@ -942,7 +943,7 @@ aio_process(struct aiocblist *aiocbe)
 			}
 			if (sigpipe) {
 				PROC_LOCK(aiocbe->userproc);
-				psignal(aiocbe->userproc, SIGPIPE);
+				kern_psignal(aiocbe->userproc, SIGPIPE);
 				PROC_UNLOCK(aiocbe->userproc);
 			}
 		}
@@ -1056,7 +1057,7 @@ aio_daemon(void *_id)
 	aiop->aiothreadflags = 0;
 
 	/* The daemon resides in its own pgrp. */
-	setsid(td, NULL);
+	sys_setsid(td, NULL);
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
@@ -1577,17 +1578,30 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
 
-	/* Fetch the file object for the specified file descriptor. */
+	/*
+	 * Validate the opcode and fetch the file object for the specified
+	 * file descriptor.
+	 *
+	 * XXXRW: Moved the opcode validation up here so that we don't
+	 * retrieve a file descriptor without knowing what the capabiltity
+	 * should be.
+	 */
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, &fp);
+		error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, &fp);
+		error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+		break;
+	case LIO_SYNC:
+		error = fget(td, fd, CAP_FSYNC, &fp);
+		break;
+	case LIO_NOP:
+		error = fget(td, fd, 0, &fp);
 		break;
 	default:
-		error = fget(td, fd, &fp);
+		error = EINVAL;
 	}
 	if (error) {
 		uma_zfree(aiocb_zone, aiocbe);
@@ -1622,11 +1636,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		return (0);
-	}
-	if ((opcode != LIO_READ) && (opcode != LIO_WRITE) &&
-	    (opcode != LIO_SYNC)) {
-		error = EINVAL;
-		goto aqueue_fail;
 	}
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT)
@@ -1858,7 +1867,7 @@ kern_aio_return(struct thread *td, struct aiocb *uaiocb, struct aiocb_ops *ops)
 }
 
 int
-aio_return(struct thread *td, struct aio_return_args *uap)
+sys_aio_return(struct thread *td, struct aio_return_args *uap)
 {
 
 	return (kern_aio_return(td, uap->aiocbp, &aiocb_ops));
@@ -1927,7 +1936,7 @@ RETURN:
 }
 
 int
-aio_suspend(struct thread *td, struct aio_suspend_args *uap)
+sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 {
 	struct timespec ts, *tsp;
 	struct aiocb **ujoblist;
@@ -1957,7 +1966,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
  * progress.
  */
 int
-aio_cancel(struct thread *td, struct aio_cancel_args *uap)
+sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct kaioinfo *ki;
@@ -1971,7 +1980,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, uap->fd, 0, &fp);
 	if (error)
 		return (error);
 
@@ -2097,7 +2106,7 @@ kern_aio_error(struct thread *td, struct aiocb *aiocbp, struct aiocb_ops *ops)
 }
 
 int
-aio_error(struct thread *td, struct aio_error_args *uap)
+sys_aio_error(struct thread *td, struct aio_error_args *uap)
 {
 
 	return (kern_aio_error(td, uap->aiocbp, &aiocb_ops));
@@ -2105,7 +2114,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 
 /* syscall - asynchronous read from a file (REALTIME) */
 int
-oaio_read(struct thread *td, struct oaio_read_args *uap)
+sys_oaio_read(struct thread *td, struct oaio_read_args *uap)
 {
 
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READ,
@@ -2113,7 +2122,7 @@ oaio_read(struct thread *td, struct oaio_read_args *uap)
 }
 
 int
-aio_read(struct thread *td, struct aio_read_args *uap)
+sys_aio_read(struct thread *td, struct aio_read_args *uap)
 {
 
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_READ, &aiocb_ops));
@@ -2121,7 +2130,7 @@ aio_read(struct thread *td, struct aio_read_args *uap)
 
 /* syscall - asynchronous write to a file (REALTIME) */
 int
-oaio_write(struct thread *td, struct oaio_write_args *uap)
+sys_oaio_write(struct thread *td, struct oaio_write_args *uap)
 {
 
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
@@ -2129,7 +2138,7 @@ oaio_write(struct thread *td, struct oaio_write_args *uap)
 }
 
 int
-aio_write(struct thread *td, struct aio_write_args *uap)
+sys_aio_write(struct thread *td, struct aio_write_args *uap)
 {
 
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITE, &aiocb_ops));
@@ -2272,7 +2281,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 
 /* syscall - list directed I/O (REALTIME) */
 int
-olio_listio(struct thread *td, struct olio_listio_args *uap)
+sys_olio_listio(struct thread *td, struct olio_listio_args *uap)
 {
 	struct aiocb **acb_list;
 	struct sigevent *sigp, sig;
@@ -2309,7 +2318,7 @@ olio_listio(struct thread *td, struct olio_listio_args *uap)
 
 /* syscall - list directed I/O (REALTIME) */
 int
-lio_listio(struct thread *td, struct lio_listio_args *uap)
+sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 {
 	struct aiocb **acb_list;
 	struct sigevent *sigp, sig;
@@ -2456,7 +2465,7 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **aiocbp,
 }
 
 int
-aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
+sys_aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 {
 	struct timespec ts, *tsp;
 	int error;
@@ -2489,7 +2498,7 @@ kern_aio_fsync(struct thread *td, int op, struct aiocb *aiocbp,
 }
 
 int
-aio_fsync(struct thread *td, struct aio_fsync_args *uap)
+sys_aio_fsync(struct thread *td, struct aio_fsync_args *uap)
 {
 
 	return (kern_aio_fsync(td, uap->op, uap->aiocbp, &aiocb_ops));
@@ -2827,7 +2836,7 @@ int
 freebsd32_aio_cancel(struct thread *td, struct freebsd32_aio_cancel_args *uap)
 {
 
-	return (aio_cancel(td, (struct aio_cancel_args *)uap));
+	return (sys_aio_cancel(td, (struct aio_cancel_args *)uap));
 }
 
 int

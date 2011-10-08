@@ -28,14 +28,6 @@
 using namespace llvm;
 
 namespace {
-class ARMMachObjectWriter : public MCMachObjectTargetWriter {
-public:
-  ARMMachObjectWriter(bool Is64Bit, uint32_t CPUType,
-                      uint32_t CPUSubtype)
-    : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype,
-                               /*UseAggressiveSymbolFolding=*/true) {}
-};
-
 class ARMELFObjectWriter : public MCELFObjectTargetWriter {
 public:
   ARMELFObjectWriter(Triple::OSType OSType)
@@ -76,7 +68,7 @@ public:
 { "fixup_arm_thumb_blx",     7,            21,  MCFixupKindInfo::FKF_IsPCRel },
 { "fixup_arm_thumb_cb",      0,            16,  MCFixupKindInfo::FKF_IsPCRel },
 { "fixup_arm_thumb_cp",      1,             8,  MCFixupKindInfo::FKF_IsPCRel },
-{ "fixup_arm_thumb_bcc",     1,             8,  MCFixupKindInfo::FKF_IsPCRel },
+{ "fixup_arm_thumb_bcc",     0,             8,  MCFixupKindInfo::FKF_IsPCRel },
 // movw / movt: 16-bits immediate but scattered into two chunks 0 - 12, 16 - 19.
 { "fixup_arm_movt_hi16",     0,            20,  0 },
 { "fixup_arm_movw_lo16",     0,            20,  0 },
@@ -164,23 +156,26 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
   case FK_Data_4:
     return Value;
   case ARM::fixup_arm_movt_hi16:
-  case ARM::fixup_arm_movt_hi16_pcrel:
     Value >>= 16;
     // Fallthrough
   case ARM::fixup_arm_movw_lo16:
+  case ARM::fixup_arm_movt_hi16_pcrel:
   case ARM::fixup_arm_movw_lo16_pcrel: {
     unsigned Hi4 = (Value & 0xF000) >> 12;
     unsigned Lo12 = Value & 0x0FFF;
+    assert ((((int64_t)Value) >= -0x8000) && (((int64_t)Value) <= 0x7fff) &&
+            "Out of range pc-relative fixup value!");
     // inst{19-16} = Hi4;
     // inst{11-0} = Lo12;
     Value = (Hi4 << 16) | (Lo12);
     return Value;
   }
   case ARM::fixup_t2_movt_hi16:
-  case ARM::fixup_t2_movt_hi16_pcrel:
     Value >>= 16;
     // Fallthrough
   case ARM::fixup_t2_movw_lo16:
+  case ARM::fixup_t2_movt_hi16_pcrel:  //FIXME: Shouldn't this be shifted like
+                                       // the other hi16 fixup?
   case ARM::fixup_t2_movw_lo16_pcrel: {
     unsigned Hi4 = (Value & 0xF000) >> 12;
     unsigned i = (Value & 0x800) >> 11;
@@ -190,8 +185,11 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     // inst{26} = i;
     // inst{14-12} = Mid3;
     // inst{7-0} = Lo8;
+    // The value comes in as the whole thing, not just the portion required
+    // for this fixup, so we need to mask off the bits not handled by this
+    // portion (lo vs. hi).
+    Value &= 0xffff;
     Value = (Hi4 << 16) | (i << 26) | (Mid3 << 12) | (Lo8);
-
     uint64_t swapped = (Value & 0xFFFF0000) >> 16;
     swapped |= (Value & 0x0000FFFF) << 16;
     return swapped;
@@ -246,7 +244,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     }
 
     uint32_t out = (opc << 21);
-    out |= (Value & 0x800) << 14;
+    out |= (Value & 0x800) << 15;
     out |= (Value & 0x700) << 4;
     out |= (Value & 0x0FF);
 
@@ -305,7 +303,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     //
     // Note that the halfwords are stored high first, low second; so we need
     // to transpose the fixup value here to map properly.
-    unsigned isNeg = (int64_t(Value) < 0) ? 1 : 0;
+    unsigned isNeg = (int64_t(Value - 4) < 0) ? 1 : 0;
     uint32_t Binary = 0;
     Value = 0x3fffff & ((Value - 4) >> 1);
     Binary  = (Value & 0x7ff) << 16;    // Low imm11 value.
@@ -323,7 +321,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     //
     // Note that the halfwords are stored high first, low second; so we need
     // to transpose the fixup value here to map properly.
-    unsigned isNeg = (int64_t(Value) < 0) ? 1 : 0;
+    unsigned isNeg = (int64_t(Value-4) < 0) ? 1 : 0;
     uint32_t Binary = 0;
     Value = 0xfffff & ((Value - 2) >> 2);
     Binary  = (Value & 0x3ff) << 17;    // Low imm10L value.
@@ -404,7 +402,6 @@ void ELFARMAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
   if (!Value) return;           // Doesn't change encoding.
 
   unsigned Offset = Fixup.getOffset();
-  assert(Offset % NumBytes == 0 && "Offset mod NumBytes is nonzero!");
 
   // For each byte of the fragment that the fixup touches, mask in the bits from
   // the fixup value. The Value has been "split up" into the appropriate
@@ -416,20 +413,18 @@ void ELFARMAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
 // FIXME: This should be in a separate file.
 class DarwinARMAsmBackend : public ARMAsmBackend {
 public:
-  DarwinARMAsmBackend(const Target &T) : ARMAsmBackend(T) { }
+  const object::mach::CPUSubtypeARM Subtype;
+  DarwinARMAsmBackend(const Target &T, object::mach::CPUSubtypeARM st)
+    : ARMAsmBackend(T), Subtype(st) { }
+
+  MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
+    return createARMMachObjectWriter(OS, /*Is64Bit=*/false,
+                                     object::mach::CTM_ARM,
+                                     Subtype);
+  }
 
   void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value) const;
-
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    // FIXME: Subtarget info should be derived. Force v7 for now.
-    return createMachObjectWriter(new ARMMachObjectWriter(
-                                    /*Is64Bit=*/false,
-                                    object::mach::CTM_ARM,
-                                    object::mach::CSARM_V7),
-                                  OS,
-                                  /*IsLittleEndian=*/true);
-  }
 
   virtual bool doesSectionRequireSymbols(const MCSection &Section) const {
     return false;
@@ -499,14 +494,23 @@ void DarwinARMAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
 
 TargetAsmBackend *llvm::createARMAsmBackend(const Target &T,
                                             const std::string &TT) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
-    return new DarwinARMAsmBackend(T);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    assert(0 && "Windows not supported on ARM");
-  default:
-    return new ELFARMAsmBackend(T, Triple(TT).getOS());
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin()) {
+    if (TheTriple.getArchName() == "armv4t" ||
+        TheTriple.getArchName() == "thumbv4t")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V4T);
+    else if (TheTriple.getArchName() == "armv5e" ||
+        TheTriple.getArchName() == "thumbv5e")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V5TEJ);
+    else if (TheTriple.getArchName() == "armv6" ||
+        TheTriple.getArchName() == "thumbv6")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V6);
+    return new DarwinARMAsmBackend(T, object::mach::CSARM_V7);
   }
+
+  if (TheTriple.isOSWindows())
+    assert(0 && "Windows not supported on ARM");
+
+  return new ELFARMAsmBackend(T, Triple(TT).getOS());
 }

@@ -470,6 +470,7 @@ static const ACPI_PREDEFINED_INFO     PredefinedNames[] =
     {{"_SWS", 0, ACPI_RTYPE_INTEGER}},
     {{"_TC1", 0, ACPI_RTYPE_INTEGER}},
     {{"_TC2", 0, ACPI_RTYPE_INTEGER}},
+    {{"_TDL", 0, ACPI_RTYPE_INTEGER}},
     {{"_TIP", 1, ACPI_RTYPE_INTEGER}},
     {{"_TIV", 1, ACPI_RTYPE_INTEGER}},
     {{"_TMP", 0, ACPI_RTYPE_INTEGER}},

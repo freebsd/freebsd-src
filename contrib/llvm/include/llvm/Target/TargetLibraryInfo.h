@@ -23,8 +23,20 @@ namespace llvm {
       // void *memcpy(void *s1, const void *s2, size_t n);
       memcpy,
       
+      // void *memmove(void *s1, const void *s2, size_t n);
+      memmove,
+      
       /// void memset_pattern16(void *b, const void *pattern16, size_t len);
       memset_pattern16,
+      
+      /// int iprintf(const char *format, ...);
+      iprintf,
+      
+      /// int siprintf(char *str, const char *format, ...);
+      siprintf,
+      
+      /// int fiprintf(FILE *stream, const char *format, ...);
+      fiprintf,
       
       NumLibFuncs
     };
@@ -39,6 +51,7 @@ public:
   static char ID;
   TargetLibraryInfo();
   TargetLibraryInfo(const Triple &T);
+  explicit TargetLibraryInfo(const TargetLibraryInfo &TLI);
   
   /// has - This function is used by optimizations that want to match on or form
   /// a given library function.

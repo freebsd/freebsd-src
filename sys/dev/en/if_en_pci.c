@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
  * thanks to Matt Thomas for figuring out FreeBSD vs NetBSD vs etc.. diffs.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>

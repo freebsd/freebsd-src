@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,14 +11,17 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
-su_int __udivsi3(su_int n, su_int d);
+su_int COMPILER_RT_ABI __udivsi3(su_int n, su_int d);
 
 /* Returns: a / b */
 
-si_int
+ARM_EABI_FNALIAS(idiv, divsi3);
+
+COMPILER_RT_ABI si_int
 __divsi3(si_int a, si_int b)
 {
     const int bits_in_word_m1 = (int)(sizeof(si_int) * CHAR_BIT) - 1;

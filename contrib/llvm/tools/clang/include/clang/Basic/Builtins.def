@@ -443,7 +443,7 @@ BUILTIN(__builtin_dwarf_sp_column, "Ui", "n")
 BUILTIN(__builtin_extend_pointer, "ULLiv*", "n") // _Unwind_Word == uint64_t
 
 // GCC Object size checking builtins
-BUILTIN(__builtin_object_size, "zv*i", "n")
+BUILTIN(__builtin_object_size, "zvC*i", "n")
 BUILTIN(__builtin___memcpy_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___memmove_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___mempcpy_chk, "v*v*vC*zz", "nF")
@@ -577,6 +577,13 @@ BUILTIN(__sync_lock_release_4, "viD*.", "n")
 BUILTIN(__sync_lock_release_8, "vLLiD*.", "n")
 BUILTIN(__sync_lock_release_16, "vLLLiD*.", "n")
 
+BUILTIN(__sync_swap, "v.", "")
+BUILTIN(__sync_swap_1, "ccD*c.", "n")
+BUILTIN(__sync_swap_2, "ssD*s.", "n")
+BUILTIN(__sync_swap_4, "iiD*i.", "n")
+BUILTIN(__sync_swap_8, "LLiLLiD*LLi.", "n")
+BUILTIN(__sync_swap_16, "LLLiLLLiD*LLLi.", "n")
+
 
 
 // Non-overloaded atomic builtins.
@@ -597,6 +604,8 @@ BUILTIN(__builtin_rindex, "c*cC*i", "Fn")
 // Microsoft builtins.
 BUILTIN(__assume, "vb", "n")
 BUILTIN(__noop, "v.", "n")
+BUILTIN(__debugbreak, "v", "n")
+
 
 // C99 library functions
 // C99 stdlib.h
@@ -719,6 +728,10 @@ LIBBUILTIN(sinf, "ff", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(cos, "dd", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(cosl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(cosf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(fma, "dddd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fmal, "LdLdLdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fmaf, "ffff", "fc", "math.h", ALL_LANGUAGES)
 
 // Blocks runtime Builtin math library functions
 LIBBUILTIN(_Block_object_assign, "vv*vC*iC", "f", "Blocks.h", ALL_LANGUAGES)

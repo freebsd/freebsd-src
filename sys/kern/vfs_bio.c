@@ -654,7 +654,7 @@ bufinit(void)
  * To support extreme low-memory systems, make sure hidirtybuffers cannot
  * eat up all available buffer space.  This occurs when our minimum cannot
  * be met.  We try to size hidirtybuffers to 3/4 our buffer space assuming
- * BKVASIZE'd (8K) buffers.
+ * BKVASIZE'd buffers.
  */
 	while ((long)hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
 		hidirtybuffers >>= 1;
@@ -1625,6 +1625,7 @@ vfs_vmio_release(struct buf *bp)
 	int i;
 	vm_page_t m;
 
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -1658,7 +1659,6 @@ vfs_vmio_release(struct buf *bp)
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
-	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	
 	if (bp->b_bufsize) {
 		bufspacewakeup();
@@ -2234,7 +2234,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 		}
 		lodirtybuffers = lodirtysave;
 
@@ -3012,6 +3012,10 @@ allocbuf(struct buf *bp, int size)
 			if (desiredpages < bp->b_npages) {
 				vm_page_t m;
 
+				pmap_qremove((vm_offset_t)trunc_page(
+				    (vm_offset_t)bp->b_data) +
+				    (desiredpages << PAGE_SHIFT),
+				    (bp->b_npages - desiredpages));
 				VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
@@ -3032,8 +3036,6 @@ allocbuf(struct buf *bp, int size)
 					vm_page_unlock(m);
 				}
 				VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
-				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
-				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
 			}
 		} else if (size > bp->b_bcount) {
@@ -3999,10 +4001,11 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_dep = %p\n",
+	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_lblkno = %jd, "
+	    "b_dep = %p\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno,
-	    bp->b_dep.lh_first);
+	    (intmax_t)bp->b_lblkno, bp->b_dep.lh_first);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
@@ -4017,7 +4020,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		db_printf("\n");
 	}
 	db_printf(" ");
-	lockmgr_printinfo(&bp->b_lock);
+	BUF_LOCKPRINTINFO(bp);
 }
 
 DB_SHOW_COMMAND(lockedbufs, lockedbufs)

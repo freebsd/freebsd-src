@@ -2,6 +2,7 @@
 
 LIB=	ufs
 SHLIBDIR?= /lib
+SHLIB_MAJOR=	6
 
 SRCS=	block.c cgroup.c inode.c sblock.c type.c ffs_subr.c ffs_tables.c
 INCS=	libufs.h

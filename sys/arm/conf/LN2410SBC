@@ -45,7 +45,7 @@ options		ROOTDEVNAME=\"ufs:da0s1\"
 
 #options 	BOOTP
 #options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
-#options 	NFSCLIENT		#Network File System client
+#options 	NFSCL			#New Network Filesystem Client
 #options 	NFS_ROOT		#NFS usable as root device
 
 options 	PSEUDOFS		#Pseudo-filesystem framework

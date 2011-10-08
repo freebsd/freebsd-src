@@ -1428,11 +1428,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* kldstat */
+	/* freebsd32_kldstat */
 	case 308: {
-		struct kldstat_args *p = params;
+		struct freebsd32_kldstat_args *p = params;
 		iarg[0] = p->fileid; /* int */
-		uarg[1] = (intptr_t) p->stat; /* struct kld_file_stat * */
+		uarg[1] = (intptr_t) p->stat; /* struct kld32_file_stat * */
 		*n_args = 2;
 		break;
 	}
@@ -2918,6 +2918,22 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cap_new */
+	case 514: {
+		struct cap_new_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->rights; /* u_int64_t */
+		*n_args = 2;
+		break;
+	}
+	/* cap_getrights */
+	case 515: {
+		struct cap_getrights_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		*n_args = 2;
+		break;
+	}
 	/* cap_enter */
 	case 516: {
 		*n_args = 0;
@@ -2955,6 +2971,67 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct setloginclass_args *p = params;
 		uarg[0] = (intptr_t) p->namebuf; /* const char * */
 		*n_args = 1;
+		break;
+	}
+	/* rctl_get_racct */
+	case 525: {
+		struct rctl_get_racct_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_rules */
+	case 526: {
+		struct rctl_get_rules_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_limits */
+	case 527: {
+		struct rctl_get_limits_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_add_rule */
+	case 528: {
+		struct rctl_add_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_remove_rule */
+	case 529: {
+		struct rctl_remove_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_posix_fallocate */
+	case 530: {
+		struct freebsd32_posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->offsetlo; /* uint32_t */
+		uarg[2] = p->offsethi; /* uint32_t */
+		uarg[3] = p->lenlo; /* uint32_t */
+		uarg[4] = p->lenhi; /* uint32_t */
+		*n_args = 5;
 		break;
 	}
 	default:
@@ -5217,14 +5294,14 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kldstat */
+	/* freebsd32_kldstat */
 	case 308:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct kld_file_stat *";
+			p = "struct kld32_file_stat *";
 			break;
 		default:
 			break;
@@ -7812,6 +7889,32 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cap_new */
+	case 514:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_getrights */
+	case 515:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* cap_enter */
 	case 516:
 		break;
@@ -7868,6 +7971,123 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_racct */
+	case 525:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_rules */
+	case 526:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_limits */
+	case 527:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_add_rule */
+	case 528:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_remove_rule */
+	case 529:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
 			break;
 		default:
 			break;

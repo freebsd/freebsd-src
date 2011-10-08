@@ -94,6 +94,7 @@ put_sbuf_line(const char *cs)
 		;
 	if (s - cs >= LINECHARS) {
 		errmsg = "line too long";
+		free(lp);
 		return NULL;
 	}
 	len = s - cs;
@@ -102,6 +103,7 @@ put_sbuf_line(const char *cs)
 		if (fseeko(sfp, (off_t)0, SEEK_END) < 0) {
 			fprintf(stderr, "%s\n", strerror(errno));
 			errmsg = "cannot seek temp file";
+			free(lp);
 			return NULL;
 		}
 		sfseek = ftello(sfp);
@@ -112,6 +114,7 @@ put_sbuf_line(const char *cs)
 		sfseek = -1;
 		fprintf(stderr, "%s\n", strerror(errno));
 		errmsg = "cannot write temp file";
+		free(lp);
 		return NULL;
 	}
 	lp->len = len;

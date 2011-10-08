@@ -246,24 +246,17 @@ g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_pc98_table *table;
-	uint32_t cyl, msize;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
-
 	if (pp->sectorsize < SECSIZE || pp->mediasize < BOOTSIZE)
 		return (ENOSPC);
 	if (pp->sectorsize > SECSIZE)
 		return (ENXIO);
 
-	cyl = basetable->gpt_heads * basetable->gpt_sectors;
-
-	msize = MIN(pp->mediasize / SECSIZE, 0xffffffff);
-	basetable->gpt_first = cyl;
-	basetable->gpt_last = msize - (msize % cyl) - 1;
+	basetable->gpt_first = basetable->gpt_heads * basetable->gpt_sectors;
+	basetable->gpt_last = MIN(pp->mediasize / SECSIZE, UINT32_MAX) - 1;
 
 	table = (struct g_part_pc98_table *)basetable;
 	le16enc(table->boot + DOSMAGICOFFSET, DOSMAGIC);
@@ -451,7 +444,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_pc98_table *)basetable;
-	msize = pp->mediasize / SECSIZE;
+	msize = MIN(pp->mediasize / SECSIZE, UINT32_MAX);
 
 	buf = g_read_data(cp, 0L, BOOTSIZE, &error);
 	if (buf == NULL)
@@ -491,7 +484,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_entries = NDOSPART;
 	basetable->gpt_first = cyl;
-	basetable->gpt_last = msize - (msize % cyl) - 1;
+	basetable->gpt_last = msize - 1;
 
 	g_free(buf);
 	return (0);

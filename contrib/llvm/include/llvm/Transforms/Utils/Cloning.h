@@ -107,12 +107,6 @@ BasicBlock *CloneBasicBlock(const BasicBlock *BB,
                             const Twine &NameSuffix = "", Function *F = 0,
                             ClonedCodeInfo *CodeInfo = 0);
 
-
-/// CloneLoop - Clone Loop. Clone dominator info for loop insiders. Populate
-/// VMap using old blocks to new blocks mapping.
-Loop *CloneLoop(Loop *L, LPPassManager *LPM, LoopInfo *LI, 
-                ValueToValueMapTy &VMap, Pass *P);
-
 /// CloneFunction - Return a copy of the specified function, but without
 /// embedding the function into another module.  Also, any references specified
 /// in the VMap are changed to refer to their mapped value instead of the
@@ -207,7 +201,7 @@ public:
 ///
 /// Note that this only does one level of inlining.  For example, if the
 /// instruction 'call B' is inlined, and 'B' calls 'C', then the call to 'C' now
-/// exists in the instruction stream.  Similiarly this will inline a recursive
+/// exists in the instruction stream.  Similarly this will inline a recursive
 /// function by one level.
 ///
 bool InlineFunction(CallInst *C, InlineFunctionInfo &IFI);

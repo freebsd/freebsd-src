@@ -360,7 +360,12 @@ usb_proc_is_gone(struct usb_process *up)
 	if (up->up_gone)
 		return (1);
 
-	mtx_assert(up->up_mtx, MA_OWNED);
+	/*
+	 * Allow calls when up_mtx is NULL, before the USB process
+	 * structure is initialised.
+	 */
+	if (up->up_mtx != NULL)
+		mtx_assert(up->up_mtx, MA_OWNED);
 	return (0);
 }
 

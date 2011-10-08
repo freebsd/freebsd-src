@@ -447,7 +447,7 @@ int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 void	in_rtqdrain(void);
 void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
-void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
+void	in_ifscrub(struct ifnet *, struct in_ifaddr *, u_int);
 struct	mbuf	*ip_fastforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);

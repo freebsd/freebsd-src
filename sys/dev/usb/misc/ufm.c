@@ -118,19 +118,23 @@ DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
 MODULE_DEPEND(ufm, usb, 1, 1, 1);
 MODULE_VERSION(ufm, 1);
 
+static const STRUCT_USB_HOST_ID ufm_devs[] = {
+	{USB_VPI(USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_FMRADIO, 0)},
+};
+
 static int
 ufm_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if ((uaa->info.idVendor == USB_VENDOR_CYPRESS) &&
-	    (uaa->info.idProduct == USB_PRODUCT_CYPRESS_FMRADIO)) {
-		return (0);
-	}
-	return (ENXIO);
+	if (uaa->info.bConfigIndex != 0)
+		return (ENXIO);
+	if (uaa->info.bIfaceIndex != 0)
+		return (ENXIO);
+
+	return (usbd_lookup_id_by_uaa(ufm_devs, sizeof(ufm_devs), uaa));
 }
 
 static int

@@ -78,8 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/mips_opcode.h>
 #include <machine/asm.h>
-#include <mips/rmi/rmi_mips_exts.h>
-#include <machine/cpuregs.h>
 
 #include <machine/param.h>
 #include <machine/intr_machdep.h>

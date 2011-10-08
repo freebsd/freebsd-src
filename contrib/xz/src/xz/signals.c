@@ -179,7 +179,7 @@ signals_exit(void)
 // console window.
 
 static BOOL WINAPI
-signal_handler(DWORD type lzma_attribute((unused)))
+signal_handler(DWORD type lzma_attribute((__unused__)))
 {
 	// Since we don't get a signal number which we could raise() at
 	// signals_exit() like on POSIX, just set the exit status to

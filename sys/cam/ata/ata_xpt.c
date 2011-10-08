@@ -87,6 +87,7 @@ typedef enum {
 	PROBE_SETPM,
 	PROBE_SETAPST,
 	PROBE_SETDMAAA,
+	PROBE_SETAN,
 	PROBE_SET_MULTI,
 	PROBE_INQUIRY,
 	PROBE_FULL_INQUIRY,
@@ -103,6 +104,7 @@ static char *probe_action_text[] = {
 	"PROBE_SETPM",
 	"PROBE_SETAPST",
 	"PROBE_SETDMAAA",
+	"PROBE_SETAN",
 	"PROBE_SET_MULTI",
 	"PROBE_INQUIRY",
 	"PROBE_FULL_INQUIRY",
@@ -386,6 +388,11 @@ negotiate:
 		/* If SIM disagree - renegotiate. */
 		if (mode != wantmode)
 			goto negotiate;
+		/* Remember what transport thinks about DMA. */
+		if (mode < ATA_DMA)
+			path->device->inq_flags &= ~SID_DMA;
+		else
+			path->device->inq_flags |= SID_DMA;
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -435,6 +442,19 @@ negotiate:
 		ata_28bit_cmd(ataio, ATA_SETFEATURES,
 		    (softc->caps & CTS_SATA_CAPS_H_DMAAA) ? 0x10 : 0x90,
 		    0, 0x02);
+		break;
+	case PROBE_SETAN:
+		cam_fill_ataio(ataio,
+		    1,
+		    probedone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    30*1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES,
+		    (softc->caps & CTS_SATA_CAPS_H_AN) ? 0x10 : 0x90,
+		    0, 0x05);
 		break;
 	case PROBE_SET_MULTI:
 	{
@@ -1027,6 +1047,16 @@ noerror:
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETDMAAA:
+		if ((ident_buf->satasupport & ATA_SUPPORT_ASYNCNOTIF) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_AN)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_ASYNCNOTIF))) {
+			PROBE_SET_ACTION(softc, PROBE_SETAN);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		/* FALLTHROUGH */
+	case PROBE_SETAN:
 notsata:
 		if (path->device->protocol == PROTO_ATA) {
 			PROBE_SET_ACTION(softc, PROBE_SET_MULTI);
@@ -1553,12 +1583,14 @@ ata_device_transport(struct cam_path *path)
 	cts.proto_specific.valid = 0;
 	if (ident_buf) {
 		if (path->device->transport == XPORT_ATA) {
-			cts.xport_specific.ata.atapi = 
+			cts.xport_specific.ata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.ata.valid = CTS_ATA_VALID_ATAPI;
 		} else {
-			cts.xport_specific.sata.atapi = 
+			cts.xport_specific.sata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.sata.valid = CTS_SATA_VALID_ATAPI;
@@ -1566,6 +1598,34 @@ ata_device_transport(struct cam_path *path)
 	} else
 		cts.xport_specific.valid = 0;
 	xpt_action((union ccb *)&cts);
+}
+
+static void
+ata_dev_advinfo(union ccb *start_ccb)
+{
+	struct cam_ed *device;
+	struct ccb_dev_advinfo *cdai;
+	off_t amt; 
+
+	start_ccb->ccb_h.status = CAM_REQ_INVALID;
+	device = start_ccb->ccb_h.path->device;
+	cdai = &start_ccb->cdai;
+	switch(cdai->buftype) {
+	case CDAI_TYPE_SERIAL_NUM:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			break;
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
+		cdai->provsiz = device->serial_num_len;
+		if (device->serial_num_len == 0)
+			break;
+		amt = device->serial_num_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->serial_num, amt);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -1608,7 +1668,9 @@ ata_action(union ccb *start_ccb)
 			uint16_t p =
 			    device->ident_data.config & ATA_PROTO_MASK;
 
-			maxlen = (p == ATA_PROTO_ATAPI_16) ? 16 :
+			maxlen =
+			    (device->ident_data.config == ATA_PROTO_CFA) ? 0 :
+			    (p == ATA_PROTO_ATAPI_16) ? 16 :
 			    (p == ATA_PROTO_ATAPI_12) ? 12 : 0;
 		}
 		if (start_ccb->csio.cdb_len > maxlen) {
@@ -1616,7 +1678,13 @@ ata_action(union ccb *start_ccb)
 			xpt_done(start_ccb);
 			break;
 		}
-		/* FALLTHROUGH */
+		xpt_action_default(start_ccb);
+		break;
+	}
+	case XPT_DEV_ADVINFO:
+	{
+		ata_dev_advinfo(start_ccb);
+		break;
 	}
 	default:
 		xpt_action_default(start_ccb);

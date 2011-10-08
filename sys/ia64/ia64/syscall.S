@@ -239,21 +239,22 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 	;;
 }
 {	.mmi
-	mov		ar.bspstore=r15
+	mov		r13=ar.k4
 	add		r30=-SIZEOF_TRAPFRAME,r14
 	mov		r20=sp
 	;;
 }
 {	.mii
-	mov		r13=ar.k4
+	mov		r21=ar.unat
 	dep		r30=0,r30,0,10
 	;;
 	add		sp=-16,r30
 	;;
 }
 {	.mmi
+	mov		ar.bspstore=r15
+	;;
 	mov		ar.rnat=r19
-	mov		r21=ar.unat
 	add		r31=8,r30
 	;;
 }

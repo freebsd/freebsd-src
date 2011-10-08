@@ -17,7 +17,6 @@
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Allocator.h"
-#include <vector>
 #include <cassert>
 
 namespace clang {
@@ -43,6 +42,10 @@ class MacroInfo {
   /// ReplacementTokens - This is the list of tokens that the macro is defined
   /// to.
   llvm::SmallVector<Token, 8> ReplacementTokens;
+
+  /// \brief Length in characters of the macro definition.
+  mutable unsigned DefinitionLength;
+  mutable bool IsDefinitionLengthCached : 1;
 
   /// IsFunctionLike - True if this macro is a function-like macro, false if it
   /// is an object-like macro.
@@ -117,6 +120,13 @@ public:
   /// getDefinitionEndLoc - Return the location of the last token in the macro.
   ///
   SourceLocation getDefinitionEndLoc() const { return EndLocation; }
+  
+  /// \brief Get length in characters of the macro definition.
+  unsigned getDefinitionLength(SourceManager &SM) const {
+    if (IsDefinitionLengthCached)
+      return DefinitionLength;
+    return getDefinitionLengthSlow(SM);
+  }
 
   /// isIdenticalTo - Return true if the specified macro definition is equal to
   /// this macro in spelling, arguments, and whitespace.  This is used to emit
@@ -233,6 +243,8 @@ public:
   /// AddTokenToBody - Add the specified token to the replacement text for the
   /// macro.
   void AddTokenToBody(const Token &Tok) {
+    assert(!IsDefinitionLengthCached &&
+          "Changing replacement tokens after definition length got calculated");
     ReplacementTokens.push_back(Tok);
   }
 
@@ -249,6 +261,9 @@ public:
     assert(!IsDisabled && "Cannot disable an already-disabled macro!");
     IsDisabled = true;
   }
+
+private:
+  unsigned getDefinitionLengthSlow(SourceManager &SM) const;
 };
 
 }  // end namespace clang

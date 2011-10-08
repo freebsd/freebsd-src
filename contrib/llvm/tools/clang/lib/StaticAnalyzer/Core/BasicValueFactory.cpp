@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/BasicValueFactory.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
 
 using namespace clang;
 using namespace ento;
@@ -25,8 +26,9 @@ void CompoundValData::Profile(llvm::FoldingSetNodeID& ID, QualType T,
 }
 
 void LazyCompoundValData::Profile(llvm::FoldingSetNodeID& ID,
-                                  const void *store,const TypedRegion *region) {
-  ID.AddPointer(store);
+                                  const StoreRef &store,
+                                  const TypedRegion *region) {
+  ID.AddPointer(store.getStore());
   ID.AddPointer(region);
 }
 
@@ -99,7 +101,8 @@ const llvm::APSInt& BasicValueFactory::getValue(uint64_t X, unsigned BitWidth,
 const llvm::APSInt& BasicValueFactory::getValue(uint64_t X, QualType T) {
 
   unsigned bits = Ctx.getTypeSize(T);
-  llvm::APSInt V(bits, T->isUnsignedIntegerType() || Loc::isLocType(T));
+  llvm::APSInt V(bits, 
+                 T->isUnsignedIntegerOrEnumerationType() || Loc::isLocType(T));
   V = X;
   return getValue(V);
 }
@@ -124,7 +127,7 @@ BasicValueFactory::getCompoundValData(QualType T,
 }
 
 const LazyCompoundValData*
-BasicValueFactory::getLazyCompoundValData(const void *store,
+BasicValueFactory::getLazyCompoundValData(const StoreRef &store,
                                           const TypedRegion *region) {
   llvm::FoldingSetNodeID ID;
   LazyCompoundValData::Profile(ID, store, region);

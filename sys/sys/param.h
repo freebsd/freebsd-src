@@ -58,9 +58,10 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 900034	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000000	/* Master, propagated to newvers */
 
 #ifdef _KERNEL
+#define	P_OSREL_SIGWAIT		700000
 #define	P_OSREL_SIGSEGV		700004
 #define	P_OSREL_MAP_ANON	800104
 #endif
@@ -318,5 +319,11 @@ __END_DECLS
  */
 #define	member2struct(s, m, x)						\
 	((struct s *)(void *)((char *)(x) - offsetof(struct s, m)))
+
+/*
+ * Access a variable length array that has been declared as a fixed
+ * length array.
+ */
+#define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
 
 #endif	/* _SYS_PARAM_H_ */

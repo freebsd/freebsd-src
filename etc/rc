@@ -84,8 +84,10 @@ fi
 #
 files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
 
+_rc_elem_done=' '
 for _rc_elem in ${files}; do
 	run_rc_script ${_rc_elem} ${_boot}
+	_rc_elem_done="${_rc_elem_done}${_rc_elem} "
 
 	case "$_rc_elem" in
 	*/${early_late_divider})	break ;;
@@ -103,14 +105,9 @@ case ${local_startup} in
 esac
 
 files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
-_skip_early=1
 for _rc_elem in ${files}; do
-	case "$_skip_early" in
-	1)	case "$_rc_elem" in
-		*/${early_late_divider})	_skip_early=0 ;;
-		esac
-		continue
-		;;
+	case "$_rc_elem_done" in
+	*" $_rc_elem "*)	continue ;;
 	esac
 
 	run_rc_script ${_rc_elem} ${_boot}

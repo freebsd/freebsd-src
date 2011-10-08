@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 
 #include "g_part_if.h"
 
+#define	BOOT1_SIZE	512
+#define	LABEL_SIZE	512
+#define	BOOT2_OFF	(BOOT1_SIZE + LABEL_SIZE)
+#define	BOOT2_SIZE	(BBSIZE - BOOT2_OFF)
+
 FEATURE(geom_part_bsd, "GEOM partitioning class for BSD disklabels");
 
 struct g_part_bsd_table {
@@ -170,22 +175,16 @@ g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_bsd_table *table;
 	const u_char *codeptr;
-	size_t hdsz, tlsz;
-	size_t codesz, tlofs;
 
-	hdsz = 512;
-	tlofs = hdsz + 148 + basetable->gpt_entries * 16;
-	tlsz = BBSIZE - tlofs;
+	if (gpp->gpp_codesize != BOOT1_SIZE && gpp->gpp_codesize != BBSIZE)
+		return (ENODEV);
+
 	table = (struct g_part_bsd_table *)basetable;
-	bzero(table->bbarea, hdsz);
-	bzero(table->bbarea + tlofs, tlsz);
 	codeptr = gpp->gpp_codeptr;
-	codesz = MIN(hdsz, gpp->gpp_codesize);
-	if (codesz > 0)
-		bcopy(codeptr, table->bbarea, codesz);
-	codesz = MIN(tlsz, gpp->gpp_codesize - tlofs);
-	if (codesz > 0)
-		bcopy(codeptr + tlofs, table->bbarea + tlofs, codesz);
+	bcopy(codeptr, table->bbarea, BOOT1_SIZE);
+	if (gpp->gpp_codesize == BBSIZE)
+		bcopy(codeptr + BOOT2_OFF, table->bbarea + BOOT2_OFF,
+		    BOOT2_SIZE);
 	return (0);
 }
 
@@ -206,7 +205,7 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (BBSIZE % pp->sectorsize)
 		return (ENOTBLK);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	ncyls = msize / secpercyl;
 
@@ -365,7 +364,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	table->bbarea = g_read_data(cp, 0, BBSIZE, &error);
 	if (table->bbarea == NULL)

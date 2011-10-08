@@ -652,8 +652,32 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 * that is, this address might make other addresses detached.
 		 */
 		pfxlist_onlink_check();
-		if (error == 0 && ia)
+		if (error == 0 && ia) {
+			if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+				/*
+				 * Try to clear the flag when a new
+				 * IPv6 address is added onto an
+				 * IFDISABLED interface and it
+				 * succeeds.
+				 */
+				struct in6_ndireq nd;
+
+				memset(&nd, 0, sizeof(nd));
+				nd.ndi.flags = ND_IFINFO(ifp)->flags;
+				nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
+				if (nd6_ioctl(SIOCSIFINFO_FLAGS,
+				    (caddr_t)&nd, ifp) < 0)
+					log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
+					    "SIOCSIFINFO_FLAGS for -ifdisabled "
+					    "failed.");
+				/*
+				 * Ignore failure of clearing the flag
+				 * intentionally.  The failure means
+				 * address duplication was detected.
+				 */
+			}
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+		}
 		break;
 	}
 
@@ -1786,9 +1810,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ia->ia_flags & IFA_ROUTE)
+	if (!(ia->ia_flags & IFA_RTSELF)
 	    && (V_nd6_useloopback
-		|| (ifp->if_flags & IFF_LOOPBACK))) {
+		&& !(ifp->if_flags & IFF_LOOPBACK))) {
 		error = ifa_add_loopback_route((struct ifaddr *)ia,
 				       (struct sockaddr *)&ia->ia_addr);
 		if (error == 0)
@@ -1992,6 +2016,27 @@ in6_localaddr(struct in6_addr *in6)
 
 	return (0);
 }
+
+/*
+ * Return 1 if an internet address is for the local host and configured
+ * on one of its interfaces.
+ */
+int
+in6_localip(struct in6_addr *in6)
+{
+	struct in6_ifaddr *ia;
+
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
+			IN6_IFADDR_RUNLOCK();
+			return (1);
+		}
+	}
+	IN6_IFADDR_RUNLOCK();
+	return (0);
+}
+
 
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
@@ -2376,19 +2421,25 @@ in6_lltable_free(struct lltable *llt, struct llentry *lle)
 static void
 in6_lltable_prefix_free(struct lltable *llt, 
 			const struct sockaddr *prefix,
-			const struct sockaddr *mask)
+			const struct sockaddr *mask,
+			u_int flags)
 {
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
 	struct llentry *lle, *next;
 	register int i;
 
+	/*
+	 * (flags & LLE_STATIC) means deleting all entries 
+	 * including static ND6 entries
+	 */
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (IN6_ARE_MASKED_ADDR_EQUAL(
 				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
 				    &pfx->sin6_addr, 
-				    &msk->sin6_addr)) {
+				    &msk->sin6_addr) &&
+			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
 				int canceled;
 
 				canceled = callout_drain(&lle->la_timer);
@@ -2606,10 +2657,8 @@ in6_domifattach(struct ifnet *ifp)
 	ext->scope6_id = scope6_ifattach(ifp);
 	ext->lltable = lltable_init(ifp, AF_INET6);
 	if (ext->lltable != NULL) {
-		ext->lltable->llt_new = in6_lltable_new;
 		ext->lltable->llt_free = in6_lltable_free;
 		ext->lltable->llt_prefix_free = in6_lltable_prefix_free;
-		ext->lltable->llt_rtcheck = in6_lltable_rtcheck;
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_dump = in6_lltable_dump;
 	}

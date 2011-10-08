@@ -47,6 +47,8 @@ TWA_DEBUG		opt_twa.h
 TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Debugging options.
+ALT_BREAK_TO_DEBUGGER	opt_kdb.h
+BREAK_TO_DEBUGGER	opt_kdb.h
 DDB
 DDB_BUFR_SIZE	opt_ddb.h
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
@@ -63,7 +65,8 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
-CAPABILITIES	opt_capabilities.h
+CAPABILITIES	opt_capsicum.h
+CAPABILITY_MODE	opt_capsicum.h
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
@@ -102,6 +105,7 @@ GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
 GEOM_PC98	opt_geom.h
+GEOM_RAID	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
@@ -135,6 +139,7 @@ MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
+NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
@@ -146,11 +151,11 @@ PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
+PROCDESC	opt_procdesc.h
 QUOTA
 SCHED_4BSD	opt_sched.h
 SCHED_STATS	opt_sched.h
 SCHED_ULE	opt_sched.h
-SHOW_BUSYBUFS
 SLEEPQUEUE_PROFILING
 SLHCI_DEBUG	opt_slhci.h
 SPX_HACK
@@ -161,7 +166,6 @@ MSGMNI		opt_sysvipc.h
 MSGSEG		opt_sysvipc.h
 MSGSSZ		opt_sysvipc.h
 MSGTQL		opt_sysvipc.h
-SEMMAP		opt_sysvipc.h
 SEMMNI		opt_sysvipc.h
 SEMMNS		opt_sysvipc.h
 SEMMNU		opt_sysvipc.h
@@ -304,6 +308,9 @@ SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
+# Options used only in cam/ata/ata_da.c
+ADA_TEST_FAILURE       opt_ada.h
+
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
 CHANGER_MAX_BUSY_SECONDS	opt_cd.h
@@ -414,13 +421,13 @@ MROUTING		opt_mrouting.h
 NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
+PCBGROUP		opt_pcbgroup.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
-TCP_SORECEIVE_STREAM	opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
 FLOWTABLE		opt_route.h
@@ -565,6 +572,7 @@ DFLTPHYS		opt_global.h
 DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
+MAXCPU			opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
@@ -573,7 +581,6 @@ LOCK_PROFILING		opt_global.h
 LOCK_PROFILING_FAST	opt_global.h
 MSIZE			opt_global.h
 REGRESSION		opt_global.h
-RESTARTABLE_PANICS	opt_global.h
 RWLOCK_NOINLINE		opt_global.h
 SX_NOINLINE		opt_global.h
 VFS_BIO_DEBUG		opt_global.h
@@ -630,9 +637,6 @@ BKTR_430_FX_MODE		opt_bktr.h
 BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
 BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
-
-BREAK_TO_DEBUGGER	opt_comconsole.h
-ALT_BREAK_TO_DEBUGGER	opt_comconsole.h
 
 # Options to support PPS
 UART_PPS_ON_CTS		opt_uart.h
@@ -767,9 +771,14 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_ENABLE_11N		opt_ath.h
+ATH_ENABLE_DFS		opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
+# XXX For now, this breaks non-AR9130 chipsets, so only use it
+# XXX when actually targetting AR9130.
+AH_SUPPORT_AR9130	opt_ah.h
 
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h
@@ -783,7 +792,10 @@ AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
 AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
-AH_ENABLE_11N		opt_ah.h
+
+# AR5416 and later interrupt mitigation
+# XXX do not use this for AR9130
+AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
@@ -827,6 +839,7 @@ IEEE80211_AMPDU_AGE	opt_wlan.h
 IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
+IEEE80211_ALQ		opt_wlan.h
 
 # 802.11 TDMA support
 TDMA_SLOTLEN_DEFAULT	opt_tdma.h
@@ -871,3 +884,15 @@ SDP		opt_ofed.h
 SDP_DEBUG	opt_ofed.h
 IPOIB_DEBUG	opt_ofed.h
 IPOIB_CM	opt_ofed.h
+
+# Resource Accounting
+RACCT		opt_global.h
+
+# Resource Limits
+RCTL		opt_global.h
+
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+AR71XX_REALMEM    opt_global.h
+

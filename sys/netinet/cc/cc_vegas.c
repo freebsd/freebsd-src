@@ -6,9 +6,9 @@
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by David Hayes and Lawrence Stewart,
- * made possible in part by a grant from the Cisco University Research Program
- * Fund at Community Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by David Hayes and
+ * Lawrence Stewart, made possible in part by a grant from the Cisco University
+ * Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced Internet
  * Architectures, Swinburne University of Technology, Melbourne, Australia by
@@ -46,10 +46,10 @@
  * the original paper.
  *
  * Originally released as part of the NewTCP research project at Swinburne
- * University's Centre for Advanced Internet Architectures, Melbourne,
- * Australia, which was made possible in part by a grant from the Cisco
- * University Research Program Fund at Community Foundation Silicon Valley. More
- * details are available at:
+ * University of Technology's Centre for Advanced Internet Architectures,
+ * Melbourne, Australia, which was made possible in part by a grant from the
+ * Cisco University Research Program Fund at Community Foundation Silicon
+ * Valley. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
@@ -105,8 +105,7 @@ static VNET_DEFINE(uint32_t, vegas_beta) = 3;
 #define	V_vegas_alpha	VNET(vegas_alpha)
 #define	V_vegas_beta	VNET(vegas_beta)
 
-MALLOC_DECLARE(M_VEGAS);
-MALLOC_DEFINE(M_VEGAS, "vegas data",
+static MALLOC_DEFINE(M_VEGAS, "vegas data",
     "Per connection data required for the Vegas congestion control algorithm");
 
 struct cc_algo vegas_cc_algo = {

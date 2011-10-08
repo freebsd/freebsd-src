@@ -734,12 +734,13 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 	{
 		struct statfs sfs;
 
-		if (statfs(path, &sfs) != 0) {
+		ret = statfs(path, &sfs);
+		if (ret == 0)
+			statfs2mnttab(&sfs, &entry);
+		else {
 			(void) fprintf(stderr, "%s: %s\n", path,
 			    strerror(errno));
-			ret = -1;
 		}
-		statfs2mnttab(&sfs, &entry);
 	}
 #endif	/* sun */
 	if (ret != 0) {

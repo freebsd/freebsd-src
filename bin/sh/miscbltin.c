@@ -465,7 +465,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 					"(-%c) ", l->option);
 			out1fmt("%-18s %18s ", l->name, optbuf);
 			if (val == RLIM_INFINITY)
-				out1fmt("unlimited\n");
+				out1str("unlimited\n");
 			else
 			{
 				val /= l->factor;
@@ -491,7 +491,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			val = limit.rlim_max;
 
 		if (val == RLIM_INFINITY)
-			out1fmt("unlimited\n");
+			out1str("unlimited\n");
 		else
 		{
 			val /= l->factor;

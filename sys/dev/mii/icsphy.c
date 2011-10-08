@@ -83,11 +83,6 @@ __FBSDID("$FreeBSD$");
 static int	icsphy_probe(device_t dev);
 static int	icsphy_attach(device_t dev);
 
-struct icsphy_softc {
-	struct mii_softc mii_sc;
-	int mii_model;
-};
-
 static device_method_t icsphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		icsphy_probe),
@@ -102,7 +97,7 @@ static devclass_t icsphy_devclass;
 static driver_t icsphy_driver = {
 	"icsphy",
 	icsphy_methods,
-	sizeof(struct icsphy_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(icsphy, miibus, icsphy_driver, icsphy_devclass, 0, 0);
@@ -112,11 +107,17 @@ static void	icsphy_status(struct mii_softc *);
 static void	icsphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc icsphys[] = {
-	MII_PHY_DESC(xxICS, 1889),
-	MII_PHY_DESC(xxICS, 1890),
-	MII_PHY_DESC(xxICS, 1892),
-	MII_PHY_DESC(xxICS, 1893),
+	MII_PHY_DESC(ICS, 1889),
+	MII_PHY_DESC(ICS, 1890),
+	MII_PHY_DESC(ICS, 1892),
+	MII_PHY_DESC(ICS, 1893),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs icsphy_funcs = {
+	icsphy_service,
+	icsphy_status,
+	icsphy_reset
 };
 
 static int
@@ -129,40 +130,9 @@ icsphy_probe(device_t dev)
 static int
 icsphy_attach(device_t dev)
 {
-	struct icsphy_softc *isc;
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	isc = device_get_softc(dev);
-	sc = &isc->mii_sc;
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = icsphy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-	ifmedia_add(&mii->mii_media,
-	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    MII_MEDIA_100_TX, NULL);
-
-	isc->mii_model = MII_MODEL(ma->mii_id2);
-	icsphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
-
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &icsphy_funcs, 1);
 	return (0);
 }
 
@@ -191,7 +161,7 @@ icsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	icsphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -240,7 +210,8 @@ icsphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_10_T;
 		if (qpr & QPR_FDX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
@@ -250,16 +221,15 @@ icsphy_status(struct mii_softc *sc)
 static void
 icsphy_reset(struct mii_softc *sc)
 {
-	struct icsphy_softc *isc = (struct icsphy_softc *)sc;
 
 	mii_phy_reset(sc);
 	/* set powerdown feature */
-	switch (isc->mii_model) {
-		case MII_MODEL_xxICS_1890:
-		case MII_MODEL_xxICS_1893:
+	switch (sc->mii_mpd_model) {
+		case MII_MODEL_ICS_1890:
+		case MII_MODEL_ICS_1893:
 			PHY_WRITE(sc, MII_ICSPHY_ECR2, ECR2_100AUTOPWRDN);
 			break;
-		case MII_MODEL_xxICS_1892:
+		case MII_MODEL_ICS_1892:
 			PHY_WRITE(sc, MII_ICSPHY_ECR2,
 			    ECR2_10AUTOPWRDN|ECR2_100AUTOPWRDN);
 			break;

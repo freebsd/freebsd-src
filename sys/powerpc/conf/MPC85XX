@@ -43,7 +43,7 @@ options 	MD_ROOT
 options 	MPC85XX
 options 	MSDOSFS
 options 	NFS_ROOT
-options 	NFSCLIENT
+options 	NFSCL
 options 	NFSLOCKD
 options 	PROCFS
 options 	PSEUDOFS
@@ -56,7 +56,7 @@ options 	WITNESS
 options 	WITNESS_SKIPSPIN
 
 device		ata
-device		atadisk
+options 	ATA_CAM
 device		bpf
 device		cfi
 device		crypto
@@ -72,6 +72,7 @@ device		iicbus
 device		loop
 device		md
 device		miibus
+device		pass
 device		pci
 device		pty
 device		quicc

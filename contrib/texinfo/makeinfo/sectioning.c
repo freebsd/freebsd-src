@@ -256,13 +256,13 @@ current_chapter_number (void)
     return xstrdup ("");
   else if (enum_marker == APPENDIX_MAGIC)
     {
-      char s[1];
+      char s[2];
       sprintf (s, "%c", numbers[0] + 64);
       return xstrdup (s);
     }
   else
     {
-      char s[5];
+      char s[11];
       sprintf (s, "%d", numbers[0]);
       return xstrdup (s);
     }

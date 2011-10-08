@@ -51,7 +51,7 @@ struct ar71xx_cpu_def {
 	 * This flush is done before the IRQ is handled to make
 	 * sure the driver correctly sees any memory updates.
 	 */
-	void (* ar71xx_chip_irq_flush_ip2) (void);
+	void (* ar71xx_chip_ddr_flush_ip2) (void);
 	/*
 	 * The USB peripheral init code is subtly different for
 	 * each chip.
@@ -104,6 +104,11 @@ static inline void ar71xx_device_flush_ddr_ge1(void)
 static inline void ar71xx_init_usb_peripheral(void)
 {
 	ar71xx_cpu_ops->ar71xx_chip_init_usb_peripheral();
+}
+
+static inline void ar71xx_device_ddr_flush_ip2(void)
+{
+	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ip2();
 }
 
 /* XXX shouldn't be here! */

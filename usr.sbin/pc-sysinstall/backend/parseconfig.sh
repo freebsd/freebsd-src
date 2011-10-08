@@ -58,12 +58,8 @@ fi
 # Set our config file variable
 CFGF="$1"
 
-# Check the dirname of the provided CFGF and make sure its a full path
-DIR="`dirname ${CFGF}`"
-if [ "${DIR}" = "." ]
-then
-  CFGF="`pwd`/${CFGF}"
-fi
+# Resolve any relative pathing
+CFGF="`realpath ${CFGF}`"
 export CFGF
 
 # Start by doing a sanity check, which will catch any obvious mistakes in the config
@@ -72,7 +68,7 @@ file_sanity_check "installMode installType installMedium packageType"
 # We passed the Sanity check, lets grab some of the universal config settings and store them
 check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
-check_value installMedium "dvd usb ftp rsync image"
+check_value installMedium "dvd usb ftp rsync image local"
 check_value packageType "uzip tar rsync split"
 if_check_value_exists partition "all s1 s2 s3 s4 free image"
 if_check_value_exists mirrorbal "load prefer round-robin split"
@@ -82,16 +78,16 @@ echo "File Sanity Check -> OK"
 
 # Lets load the various universal settings now
 get_value_from_cfg installMode
-INSTALLMODE="${VAL}" ; export INSTALLMODE
+export INSTALLMODE="${VAL}"
 
 get_value_from_cfg installType
-INSTALLTYPE="${VAL}" ; export INSTALLTYPE
+export INSTALLTYPE="${VAL}"
 
 get_value_from_cfg installMedium
-INSTALLMEDIUM="${VAL}" ; export INSTALLMEDIUM
+export INSTALLMEDIUM="${VAL}"
 
 get_value_from_cfg packageType
-PACKAGETYPE="${VAL}" ; export PACKAGETYPE
+export PACKAGETYPE="${VAL}"
 
 # Check if we are doing any networking setup
 start_networking
@@ -110,7 +106,7 @@ case "${INSTALLMODE}" in
   extract)
     # Extracting only, make sure we have a valid target directory
     get_value_from_cfg installLocation
-    FSMNT="${VAL}" ; export FSMNT
+    export FSMNT="${VAL}"
     if [ -z "$FSMNT" ] ; then exit_err "Missing installLocation=" ; fi
     if [ ! -d "$FSMNT" ] ; then exit_err "No such directory: $FSMNT" ; fi
 

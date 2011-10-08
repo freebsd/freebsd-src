@@ -12,7 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
@@ -20,7 +24,6 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngineBuilders.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/GRStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
@@ -123,6 +126,7 @@ public:
 /// ArgEffect is used to summarize a function/method call's effect on a
 /// particular argument.
 enum ArgEffect { Autorelease, Dealloc, DecRef, DecRefMsg, DoNothing,
+                 DecRefBridgedTransfered,
                  DoNothingByRef, IncRefMsg, IncRef, MakeCollectable, MayEscape,
                  NewAutoreleasePool, SelfOwn, StopTracking };
 
@@ -145,7 +149,8 @@ namespace {
 class RetEffect {
 public:
   enum Kind { NoRet, Alias, OwnedSymbol, OwnedAllocatedSymbol,
-              NotOwnedSymbol, GCNotOwnedSymbol, ReceiverAlias,
+              NotOwnedSymbol, GCNotOwnedSymbol, ARCNotOwnedSymbol,
+              ReceiverAlias,
               OwnedWhenTrackedReceiver };
 
   enum ObjKind { CF, ObjC, AnyObj };
@@ -192,7 +197,9 @@ public:
   static RetEffect MakeGCNotOwned() {
     return RetEffect(GCNotOwnedSymbol, ObjC);
   }
-
+  static RetEffect MakeARCNotOwned() {
+    return RetEffect(ARCNotOwnedSymbol, ObjC);
+  }
   static RetEffect MakeNoRet() {
     return RetEffect(NoRet);
   }
@@ -633,6 +640,9 @@ class RetainSummaryManager {
   /// GCEnabled - Records whether or not the analyzed code runs in GC mode.
   const bool GCEnabled;
 
+  /// Records whether or not the analyzed code runs in ARC mode.
+  const bool ARCEnabled;
+
   /// FuncSummaries - A map from FunctionDecls to summaries.
   FuncSummariesTy FuncSummaries;
 
@@ -785,14 +795,20 @@ private:
 
 public:
 
-  RetainSummaryManager(ASTContext& ctx, bool gcenabled)
+  RetainSummaryManager(ASTContext& ctx, bool gcenabled, bool usesARC)
    : Ctx(ctx),
      CFDictionaryCreateII(&ctx.Idents.get("CFDictionaryCreate")),
-     GCEnabled(gcenabled), AF(BPAlloc), ScratchArgs(AF.getEmptyMap()),
-     ObjCAllocRetE(gcenabled ? RetEffect::MakeGCNotOwned()
-                             : RetEffect::MakeOwned(RetEffect::ObjC, true)),
-     ObjCInitRetE(gcenabled ? RetEffect::MakeGCNotOwned()
-                            : RetEffect::MakeOwnedWhenTrackedReceiver()),
+     GCEnabled(gcenabled),
+     ARCEnabled(usesARC),
+     AF(BPAlloc), ScratchArgs(AF.getEmptyMap()),
+     ObjCAllocRetE(gcenabled
+                    ? RetEffect::MakeGCNotOwned()
+                    : (usesARC ? RetEffect::MakeARCNotOwned()
+                               : RetEffect::MakeOwned(RetEffect::ObjC, true))),
+     ObjCInitRetE(gcenabled 
+                    ? RetEffect::MakeGCNotOwned()
+                    : (usesARC ? RetEffect::MakeARCNotOwned()
+                               : RetEffect::MakeOwnedWhenTrackedReceiver())),
      DefaultSummary(AF.getEmptyMap() /* per-argument effects (none) */,
                     RetEffect::MakeNoRet() /* return effect */,
                     MayEscape, /* default argument effect */
@@ -868,6 +884,10 @@ public:
 
   bool isGCEnabled() const { return GCEnabled; }
 
+  bool isARCEnabled() const { return ARCEnabled; }
+  
+  bool isARCorGCEnabled() const { return GCEnabled || ARCEnabled; }
+
   RetainSummary *copySummary(RetainSummary *OldSumm) {
     RetainSummary *Summ = (RetainSummary*) BPAlloc.Allocate<RetainSummary>();
     new (Summ) RetainSummary(*OldSumm);
@@ -924,6 +944,13 @@ RetainSummary* RetainSummaryManager::getSummary(const FunctionDecl* FD) {
   do {
     // We generate "stop" summaries for implicitly defined functions.
     if (FD->isImplicit()) {
+      S = getPersistentStopSummary();
+      break;
+    }
+    // For C++ methods, generate an implicit "stop" summary as well.  We
+    // can relax this once we have a clear policy for C++ methods and
+    // ownership attributes.
+    if (isa<CXXMethodDecl>(FD)) {
       S = getPersistentStopSummary();
       break;
     }
@@ -1108,15 +1135,10 @@ RetainSummary* RetainSummaryManager::getSummary(const FunctionDecl* FD) {
 RetainSummary*
 RetainSummaryManager::getCFCreateGetRuleSummary(const FunctionDecl* FD,
                                                 StringRef FName) {
-
-  if (FName.find("Create") != StringRef::npos ||
-      FName.find("Copy") != StringRef::npos)
+  if (coreFoundation::followsCreateRule(FName))
     return getCFSummaryCreateRule(FD);
 
-  if (FName.find("Get") != StringRef::npos)
-    return getCFSummaryGetRule(FD);
-
-  return getDefaultSummary();
+  return getCFSummaryGetRule(FD);
 }
 
 RetainSummary*
@@ -1183,7 +1205,8 @@ RetainSummaryManager::getInitMethodSummary(QualType RetTy) {
   assert(ScratchArgs.isEmpty());
   // 'init' methods conceptually return a newly allocated object and claim
   // the receiver.
-  if (cocoa::isCocoaObjectRef(RetTy) || cocoa::isCFObjectRef(RetTy))
+  if (cocoa::isCocoaObjectRef(RetTy) ||
+      coreFoundation::isCFObjectRef(RetTy))
     return getPersistentSummary(ObjCInitRetE, DecRefMsg);
 
   return getDefaultSummary();
@@ -1198,7 +1221,7 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   // Effects on the parameters.
   unsigned parm_idx = 0;
   for (FunctionDecl::param_const_iterator pi = FD->param_begin(), 
-       pe = FD->param_end(); pi != pe; ++pi) {
+         pe = FD->param_end(); pi != pe; ++pi, ++parm_idx) {
     const ParmVarDecl *pd = *pi;
     if (pd->getAttr<NSConsumedAttr>()) {
       if (!GCEnabled)
@@ -1229,6 +1252,9 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   else if (RetTy->getAs<PointerType>()) {
     if (FD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
+    }
+    else if (FD->getAttr<CFReturnsNotRetainedAttr>()) {
+      Summ.setRetEffect(RetEffect::MakeNotOwned(RetEffect::CF));
     }
   }
 }
@@ -1323,15 +1349,15 @@ RetainSummaryManager::getCommonMethodSummary(const ObjCMethodDecl* MD,
   if (cocoa::isCocoaObjectRef(RetTy)) {
     // EXPERIMENTAL: assume the Cocoa conventions for all objects returned
     //  by instance methods.
-    RetEffect E = cocoa::followsFundamentalRule(S)
+    RetEffect E = cocoa::followsFundamentalRule(S, MD)
                   ? ObjCAllocRetE : RetEffect::MakeNotOwned(RetEffect::ObjC);
 
     return getPersistentSummary(E, ReceiverEff, MayEscape);
   }
 
   // Look for methods that return an owned core foundation object.
-  if (cocoa::isCFObjectRef(RetTy)) {
-    RetEffect E = cocoa::followsFundamentalRule(S)
+  if (coreFoundation::isCFObjectRef(RetTy)) {
+    RetEffect E = cocoa::followsFundamentalRule(S, MD)
       ? RetEffect::MakeOwned(RetEffect::CF, true)
       : RetEffect::MakeNotOwned(RetEffect::CF);
 
@@ -1402,7 +1428,7 @@ RetainSummaryManager::getInstanceMethodSummary(Selector S,
     assert(ScratchArgs.isEmpty());
 
     // "initXXX": pass-through for receiver.
-    if (cocoa::deriveNamingConvention(S) == cocoa::InitRule)
+    if (cocoa::deriveNamingConvention(S, MD) == cocoa::InitRule)
       Summ = getInitMethodSummary(RetTy);
     else
       Summ = getCommonMethodSummary(MD, S, RetTy);
@@ -1645,7 +1671,6 @@ public:
                        const char* nl, const char* sep);
   };
 
-private:
   typedef llvm::DenseMap<const ExplodedNode*, const RetainSummary*>
     SummaryLogTy;
 
@@ -1682,7 +1707,7 @@ private:
 
 public:
   CFRefCount(ASTContext& Ctx, bool gcenabled, const LangOptions& lopts)
-    : Summaries(Ctx, gcenabled),
+    : Summaries(Ctx, gcenabled, (bool)lopts.ObjCAutoRefCount),
       LOpts(lopts), useAfterRelease(0), releaseNotOwned(0),
       deallocGC(0), deallocNotOwned(0),
       leakWithinFunction(0), leakAtReturn(0), overAutorelease(0),
@@ -1697,6 +1722,8 @@ public:
   }
 
   bool isGCEnabled() const { return Summaries.isGCEnabled(); }
+  bool isARCorGCEnabled() const { return Summaries.isARCorGCEnabled(); }
+  
   const LangOptions& getLangOptions() const { return LOpts; }
 
   const RetainSummary *getSummaryOfNode(const ExplodedNode *N) const {
@@ -1755,6 +1782,15 @@ public:
                           StmtNodeBuilder& Builder,
                           const ReturnStmt* S,
                           ExplodedNode* Pred);
+  
+  void evalReturnWithRetEffect(ExplodedNodeSet& Dst,
+                               ExprEngine& Engine,
+                               StmtNodeBuilder& Builder,
+                               const ReturnStmt* S,
+                               ExplodedNode* Pred,
+                               RetEffect RE, RefVal X,
+                               SymbolRef Sym, const GRState *state);
+
 
   // Assumptions.
 
@@ -1889,7 +1925,7 @@ namespace {
       CFRefBug(tf, "Method should return an owned object") {}
 
     const char *getDescription() const {
-      return "Object with +0 retain counts returned to caller where a +1 "
+      return "Object with a +0 retain count returned to caller where a +1 "
              "(owning) retain count is expected";
     }
   };
@@ -2072,17 +2108,17 @@ PathDiagnosticPiece* CFRefReport::VisitNode(const ExplodedNode* N,
     }
 
     if (CurrV.isOwned()) {
-      os << "+1 retain count (owning reference).";
+      os << "+1 retain count";
 
       if (static_cast<CFRefBug&>(getBugType()).getTF().isGCEnabled()) {
         assert(CurrV.getObjKind() == RetEffect::CF);
-        os << "  "
+        os << ".  "
         "Core Foundation objects are not automatically garbage collected.";
       }
     }
     else {
       assert (CurrV.isNotOwned());
-      os << "+0 retain count (non-owning reference).";
+      os << "+0 retain count";
     }
 
     PathDiagnosticLocation Pos(S, BRC.getSourceManager());
@@ -2214,11 +2250,11 @@ PathDiagnosticPiece* CFRefReport::VisitNode(const ExplodedNode* N,
 
         case RefVal::ReturnedOwned:
           os << "Object returned to caller as an owning reference (single retain "
-          "count transferred to caller).";
+          "count transferred to caller)";
           break;
 
         case RefVal::ReturnedNotOwned:
-          os << "Object returned to caller with a +0 (non-owning) retain count.";
+          os << "Object returned to caller with a +0 retain count";
           break;
 
         default:
@@ -2351,12 +2387,7 @@ CFRefLeakReport::getEndPath(BugReporterContext& BRC,
   llvm::tie(AllocNode, FirstBinding) =
     GetAllocationSite(BRC.getStateManager(), EndN, Sym);
 
-  // Get the allocate site.
-  assert(AllocNode);
-  const Stmt* FirstStmt = cast<PostStmt>(AllocNode->getLocation()).getStmt();
-
   SourceManager& SMgr = BRC.getSourceManager();
-  unsigned AllocLine =SMgr.getInstantiationLineNumber(FirstStmt->getLocStart());
 
   // Compute an actual location for the leak.  Sometimes a leak doesn't
   // occur at an actual statement (e.g., transition between blocks; end
@@ -2389,24 +2420,38 @@ CFRefLeakReport::getEndPath(BugReporterContext& BRC,
   std::string sbuf;
   llvm::raw_string_ostream os(sbuf);
 
-  os << "Object allocated on line " << AllocLine;
+  os << "Object leaked: ";
 
-  if (FirstBinding)
-    os << " and stored into '" << FirstBinding->getString() << '\'';
+  if (FirstBinding) {
+    os << "object allocated and stored into '"
+       << FirstBinding->getString() << '\'';
+  }
+  else
+    os << "allocated object";
 
   // Get the retain count.
   const RefVal* RV = EndN->getState()->get<RefBindings>(Sym);
 
   if (RV->getKind() == RefVal::ErrorLeakReturned) {
     // FIXME: Per comments in rdar://6320065, "create" only applies to CF
-    // ojbects.  Only "copy", "alloc", "retain" and "new" transfer ownership
+    // objects.  Only "copy", "alloc", "retain" and "new" transfer ownership
     // to the caller for NS objects.
-    ObjCMethodDecl& MD = cast<ObjCMethodDecl>(EndN->getCodeDecl());
-    os << " is returned from a method whose name ('"
-       << MD.getSelector().getAsString()
-    << "') does not contain 'copy' or otherwise starts with"
-    " 'new' or 'alloc'.  This violates the naming convention rules given"
-    " in the Memory Management Guide for Cocoa (object leaked)";
+    const Decl *D = &EndN->getCodeDecl();
+    if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
+      os << " is returned from a method whose name ('"
+         << MD->getSelector().getAsString()
+         << "') does not start with 'copy', 'mutableCopy', 'alloc' or 'new'."
+            "  This violates the naming convention rules"
+            " given in the Memory Management Guide for Cocoa";
+    }
+    else {
+      const FunctionDecl *FD = cast<FunctionDecl>(D);
+      os << " is return from a function whose name ('"
+         << FD->getNameAsString()
+         << "') does not contain 'Copy' or 'Create'.  This violates the naming"
+            " convention rules given the Memory Management Guide for Core"
+            " Foundation";
+    }    
   }
   else if (RV->getKind() == RefVal::ErrorGCLeakReturned) {
     ObjCMethodDecl& MD = cast<ObjCMethodDecl>(EndN->getCodeDecl());
@@ -2418,7 +2463,7 @@ CFRefLeakReport::getEndPath(BugReporterContext& BRC,
   }
   else
     os << " is not referenced later in this execution path and has a retain "
-          "count of +" << RV->getCount() << " (object leaked)";
+          "count of +" << RV->getCount();
 
   return new PathDiagnosticEventPiece(L, os.str());
 }
@@ -2428,7 +2473,7 @@ CFRefLeakReport::CFRefLeakReport(CFRefBug& D, const CFRefCount &tf,
                                  SymbolRef sym, ExprEngine& Eng)
 : CFRefReport(D, tf, n, sym) {
 
-  // Most bug reports are cached at the location where they occured.
+  // Most bug reports are cached at the location where they occurred.
   // With leaks, we want to unique them by the location where they were
   // allocated, and only report a single path.  To do this, we need to find
   // the allocation site of a piece of tracked memory, which we do via a
@@ -2491,6 +2536,23 @@ static QualType GetReturnType(const Expr* RetE, ASTContext& Ctx) {
   return RetTy;
 }
 
+
+// HACK: Symbols that have ref-count state that are referenced directly
+//  (not as structure or array elements, or via bindings) by an argument
+//  should not have their ref-count state stripped after we have
+//  done an invalidation pass.
+//
+// FIXME: This is a global to currently share between CFRefCount and
+// RetainReleaseChecker.  Eventually all functionality in CFRefCount should
+// be migrated to RetainReleaseChecker, and we can make this a non-global.
+llvm::DenseSet<SymbolRef> WhitelistedSymbols;
+namespace {
+struct ResetWhiteList {
+  ResetWhiteList() {}
+  ~ResetWhiteList() { WhitelistedSymbols.clear(); } 
+};
+}
+
 void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
                              ExprEngine& Eng,
                              StmtNodeBuilder& Builder,
@@ -2507,12 +2569,9 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
   SymbolRef ErrorSym = 0;
 
   llvm::SmallVector<const MemRegion*, 10> RegionsToInvalidate;
-
-  // HACK: Symbols that have ref-count state that are referenced directly
-  //  (not as structure or array elements, or via bindings) by an argument
-  //  should not have their ref-count state stripped after we have
-  //  done an invalidation pass.
-  llvm::DenseSet<SymbolRef> WhitelistedSymbols;
+  
+  // Use RAII to make sure the whitelist is properly cleared.
+  ResetWhiteList resetWhiteList;
 
   // Invalidate all instance variables of the receiver of a message.
   // FIXME: We should be able to do better with inter-procedural analysis.
@@ -2524,6 +2583,14 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
     }
     if (const MemRegion *region = V.getAsRegion())
       RegionsToInvalidate.push_back(region);
+  }
+  
+  // Invalidate all instance variables for the callee of a C++ method call.
+  // FIXME: We should be able to do better with inter-procedural analysis.
+  // FIXME: we can probably do better for const versus non-const methods.
+  if (callOrMsg.isCXXCall()) {
+    if (const MemRegion *callee = callOrMsg.getCXXCallee().getAsRegion())
+      RegionsToInvalidate.push_back(callee);
   }
   
   for (unsigned idx = 0, e = callOrMsg.getNumArgs(); idx != e; ++idx) {
@@ -2613,20 +2680,14 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
 
   // NOTE: Even if RegionsToInvalidate is empty, we must still invalidate
   //  global variables.
-  state = state->invalidateRegions(RegionsToInvalidate.data(),
-                                   RegionsToInvalidate.data() +
-                                   RegionsToInvalidate.size(),
-                                   Ex, Count, &IS,
-                                   /* invalidateGlobals = */ true);
-
-  for (StoreManager::InvalidatedSymbols::iterator I = IS.begin(),
-       E = IS.end(); I!=E; ++I) {
-    SymbolRef sym = *I;
-    if (WhitelistedSymbols.count(sym))
-      continue;
-    // Remove any existing reference-count binding.
-    state = state->remove<RefBindings>(*I);
-  }
+  // NOTE: RetainReleaseChecker handles the actual invalidation of symbols.
+  state =
+    state->invalidateRegions(RegionsToInvalidate.data(),
+                             RegionsToInvalidate.data() +
+                             RegionsToInvalidate.size(),
+                             Ex, Count, &IS,
+                             /* invalidateGlobals = */
+                             Eng.doesInvalidateGlobals(callOrMsg));
 
   // Evaluate the effect on the message receiver.
   if (!ErrorRange.isValid() && Receiver) {
@@ -2678,11 +2739,14 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
       // FIXME: We eventually should handle structs and other compound types
       // that are returned by value.
 
-      QualType T = callOrMsg.getResultType(Eng.getContext());
-      if (Loc::isLocType(T) || (T->isIntegerType() && T->isScalarType())) {
+      // Use the result type from callOrMsg as it automatically adjusts
+      // for methods/functions that return references.
+      QualType resultTy = callOrMsg.getResultType(Eng.getContext());
+      if (Loc::isLocType(resultTy) || 
+            (resultTy->isIntegerType() && resultTy->isScalarType())) {
         unsigned Count = Builder.getCurrentBlockCount();
         SValBuilder &svalBuilder = Eng.getSValBuilder();
-        SVal X = svalBuilder.getConjuredSymbolVal(NULL, Ex, T, Count);
+        SVal X = svalBuilder.getConjuredSymbolVal(NULL, Ex, resultTy, Count);
         state = state->BindExpr(Ex, X, false);
       }
 
@@ -2709,9 +2773,12 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
       unsigned Count = Builder.getCurrentBlockCount();
       SValBuilder &svalBuilder = Eng.getSValBuilder();
       SymbolRef Sym = svalBuilder.getConjuredSymbol(Ex, Count);
-      QualType RetT = GetReturnType(Ex, svalBuilder.getContext());
+
+      // Use the result type from callOrMsg as it automatically adjusts
+      // for methods/functions that return references.      
+      QualType resultTy = callOrMsg.getResultType(Eng.getContext());
       state = state->set<RefBindings>(Sym, RefVal::makeOwned(RE.getObjKind(),
-                                                            RetT));
+                                                            resultTy));
       state = state->BindExpr(Ex, svalBuilder.makeLoc(Sym), false);
 
       // FIXME: Add a flag to the checker where allocations are assumed to
@@ -2728,6 +2795,7 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
     }
 
     case RetEffect::GCNotOwnedSymbol:
+    case RetEffect::ARCNotOwnedSymbol:
     case RetEffect::NotOwnedSymbol: {
       unsigned Count = Builder.getCurrentBlockCount();
       SValBuilder &svalBuilder = Eng.getSValBuilder();
@@ -2764,11 +2832,17 @@ void CFRefCount::evalCall(ExplodedNodeSet& Dst,
   if (dyn_cast_or_null<BlockDataRegion>(L.getAsRegion())) {
     Summ = Summaries.getPersistentStopSummary();
   }
-  else {
-    const FunctionDecl* FD = L.getAsFunctionDecl();
-    Summ = !FD ? Summaries.getDefaultSummary() :
-                 Summaries.getSummary(FD);
+  else if (const FunctionDecl* FD = L.getAsFunctionDecl()) {
+    Summ = Summaries.getSummary(FD);
   }
+  else if (const CXXMemberCallExpr *me = dyn_cast<CXXMemberCallExpr>(CE)) {
+    if (const CXXMethodDecl *MD = me->getMethodDecl())
+      Summ = Summaries.getSummary(MD);
+    else
+      Summ = Summaries.getDefaultSummary();    
+  }
+  else
+    Summ = Summaries.getDefaultSummary();
 
   assert(Summ);
   evalSummary(Dst, Eng, Builder, CE,
@@ -2923,30 +2997,50 @@ void CFRefCount::evalReturn(ExplodedNodeSet& Dst,
   assert(T);
   X = *T;
 
+  // Consult the summary of the enclosing method.
+  Decl const *CD = &Pred->getCodeDecl();
+
+  if (const ObjCMethodDecl* MD = dyn_cast<ObjCMethodDecl>(CD)) {
+    const RetainSummary &Summ = *Summaries.getMethodSummary(MD);
+    return evalReturnWithRetEffect(Dst, Eng, Builder, S, 
+                                   Pred, Summ.getRetEffect(), X,
+                                   Sym, state);
+  }
+
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CD)) {
+    if (!isa<CXXMethodDecl>(FD))
+      if (const RetainSummary *Summ = Summaries.getSummary(FD))
+        return evalReturnWithRetEffect(Dst, Eng, Builder, S, 
+                                       Pred, Summ->getRetEffect(), X,
+                                       Sym, state);
+  }
+}
+
+void CFRefCount::evalReturnWithRetEffect(ExplodedNodeSet &Dst, 
+                                         ExprEngine &Eng,
+                                         StmtNodeBuilder &Builder,
+                                         const ReturnStmt *S,
+                                         ExplodedNode *Pred,
+                                         RetEffect RE, RefVal X,
+                                         SymbolRef Sym, const GRState *state) {
   // Any leaks or other errors?
   if (X.isReturnedOwned() && X.getCount() == 0) {
-    Decl const *CD = &Pred->getCodeDecl();
-    if (const ObjCMethodDecl* MD = dyn_cast<ObjCMethodDecl>(CD)) {
-      const RetainSummary &Summ = *Summaries.getMethodSummary(MD);
-      RetEffect RE = Summ.getRetEffect();
+    if (RE.getKind() != RetEffect::NoRet) {
       bool hasError = false;
-
-      if (RE.getKind() != RetEffect::NoRet) {
-        if (isGCEnabled() && RE.getObjKind() == RetEffect::ObjC) {
-          // Things are more complicated with garbage collection.  If the
-          // returned object is suppose to be an Objective-C object, we have
-          // a leak (as the caller expects a GC'ed object) because no
-          // method should return ownership unless it returns a CF object.
-          hasError = true;
-          X = X ^ RefVal::ErrorGCLeakReturned;
-        }
-        else if (!RE.isOwned()) {
-          // Either we are using GC and the returned object is a CF type
-          // or we aren't using GC.  In either case, we expect that the
-          // enclosing method is expected to return ownership.
-          hasError = true;
-          X = X ^ RefVal::ErrorLeakReturned;
-        }
+      if (isGCEnabled() && RE.getObjKind() == RetEffect::ObjC) {
+        // Things are more complicated with garbage collection.  If the
+        // returned object is suppose to be an Objective-C object, we have
+        // a leak (as the caller expects a GC'ed object) because no
+        // method should return ownership unless it returns a CF object.
+        hasError = true;
+        X = X ^ RefVal::ErrorGCLeakReturned;
+      }
+      else if (!RE.isOwned()) {
+        // Either we are using GC and the returned object is a CF type
+        // or we aren't using GC.  In either case, we expect that the
+        // enclosing method is expected to return ownership.
+        hasError = true;
+        X = X ^ RefVal::ErrorLeakReturned;
       }
 
       if (hasError) {
@@ -2964,26 +3058,24 @@ void CFRefCount::evalReturn(ExplodedNodeSet& Dst,
         }
       }
     }
+    return;
   }
-  else if (X.isReturnedNotOwned()) {
-    Decl const *CD = &Pred->getCodeDecl();
-    if (const ObjCMethodDecl* MD = dyn_cast<ObjCMethodDecl>(CD)) {
-      const RetainSummary &Summ = *Summaries.getMethodSummary(MD);
-      if (Summ.getRetEffect().isOwned()) {
-        // Trying to return a not owned object to a caller expecting an
-        // owned object.
 
-        static int ReturnNotOwnedForOwnedTag = 0;
-        state = state->set<RefBindings>(Sym, X ^ RefVal::ErrorReturnedNotOwned);
-        if (ExplodedNode *N =
-            Builder.generateNode(PostStmt(S, Pred->getLocationContext(),
-                                          &ReturnNotOwnedForOwnedTag),
-                                 state, Pred)) {
-            CFRefReport *report =
-                new CFRefReport(*static_cast<CFRefBug*>(returnNotOwnedForOwned),
-                                *this, N, Sym);
-            BR->EmitReport(report);
-        }
+  if (X.isReturnedNotOwned()) {
+    if (RE.isOwned()) {
+      // Trying to return a not owned object to a caller expecting an
+      // owned object.
+
+      static int ReturnNotOwnedForOwnedTag = 0;
+      state = state->set<RefBindings>(Sym, X ^ RefVal::ErrorReturnedNotOwned);
+      if (ExplodedNode *N =
+          Builder.generateNode(PostStmt(S, Pred->getLocationContext(),
+                                        &ReturnNotOwnedForOwnedTag),
+                               state, Pred)) {
+          CFRefReport *report =
+              new CFRefReport(*static_cast<CFRefBug*>(returnNotOwnedForOwned),
+                              *this, N, Sym);
+          BR->EmitReport(report);
       }
     }
   }
@@ -3030,8 +3122,8 @@ const GRState * CFRefCount::Update(const GRState * state, SymbolRef sym,
   // In GC mode [... release] and [... retain] do nothing.
   switch (E) {
     default: break;
-    case IncRefMsg: E = isGCEnabled() ? DoNothing : IncRef; break;
-    case DecRefMsg: E = isGCEnabled() ? DoNothing : DecRef; break;
+    case IncRefMsg: E = isARCorGCEnabled() ? DoNothing : IncRef; break;
+    case DecRefMsg: E = isARCorGCEnabled() ? DoNothing : DecRef; break;
     case MakeCollectable: E = isGCEnabled() ? DecRef : DoNothing; break;
     case NewAutoreleasePool: E = isGCEnabled() ? DoNothing :
                                                  NewAutoreleasePool; break;
@@ -3045,9 +3137,13 @@ const GRState * CFRefCount::Update(const GRState * state, SymbolRef sym,
   }
 
   switch (E) {
-    default:
-      assert (false && "Unhandled CFRef transition.");
-
+    case DecRefMsg:
+    case IncRefMsg:
+    case MakeCollectable:
+      assert(false &&
+             "DecRefMsg/IncRefMsg/MakeCollectable already transformed");
+      return state;
+      
     case Dealloc:
       // Any use of -dealloc in GC is *bad*.
       if (isGCEnabled()) {
@@ -3120,6 +3216,7 @@ const GRState * CFRefCount::Update(const GRState * state, SymbolRef sym,
       V = V ^ RefVal::NotOwned;
       // Fall-through.
     case DecRef:
+    case DecRefBridgedTransfered:
       switch (V.getKind()) {
         default:
           // case 'RefVal::Released' handled above.
@@ -3127,7 +3224,9 @@ const GRState * CFRefCount::Update(const GRState * state, SymbolRef sym,
 
         case RefVal::Owned:
           assert(V.getCount() > 0);
-          if (V.getCount() == 1) V = V ^ RefVal::Released;
+          if (V.getCount() == 1)
+            V = V ^ (E == DecRefBridgedTransfered ? 
+                      RefVal::NotOwned : RefVal::Released);
           V = V - 1;
           break;
 
@@ -3207,15 +3306,10 @@ CFRefCount::HandleAutoreleaseCounts(const GRState * state,
 
     std::string sbuf;
     llvm::raw_string_ostream os(sbuf);
-    os << "Object over-autoreleased: object was sent -autorelease";
+    os << "Object over-autoreleased: object was sent -autorelease ";
     if (V.getAutoreleaseCount() > 1)
-      os << V.getAutoreleaseCount() << " times";
-    os << " but the object has ";
-    if (V.getCount() == 0)
-      os << "zero (locally visible)";
-    else
-      os << "+" << V.getCount();
-    os << " retain counts";
+      os << V.getAutoreleaseCount() << " times ";
+    os << "but the object has a +" << V.getCount() << " retain count";
 
     CFRefReport *report =
       new CFRefReport(*static_cast<CFRefBug*>(overAutorelease),
@@ -3395,19 +3489,51 @@ void CFRefCount::ProcessNonLeakError(ExplodedNodeSet& Dst,
 
 namespace {
 class RetainReleaseChecker
-  : public CheckerVisitor<RetainReleaseChecker> {
-  CFRefCount *TF;
+  : public Checker< check::PostStmt<BlockExpr>,
+                    check::PostStmt<CastExpr>,
+                    check::RegionChanges > {
 public:
-    RetainReleaseChecker(CFRefCount *tf) : TF(tf) {}
-    static void* getTag() { static int x = 0; return &x; }
+    bool wantsRegionUpdate;
+    
+    RetainReleaseChecker() : wantsRegionUpdate(true) {}
+    
+    
+    void checkPostStmt(const BlockExpr *BE, CheckerContext &C) const;
+                      
+    void checkPostStmt(const CastExpr *CE, CheckerContext &C) const;
 
-    void PostVisitBlockExpr(CheckerContext &C, const BlockExpr *BE);
+    const GRState *checkRegionChanges(const GRState *state,
+                            const StoreManager::InvalidatedSymbols *invalidated,
+                                      const MemRegion * const *begin,
+                                      const MemRegion * const *end) const;
+                                          
+    bool wantsRegionChangeUpdate(const GRState *state) const {
+      return wantsRegionUpdate;
+    }
 };
 } // end anonymous namespace
 
+const GRState *
+RetainReleaseChecker::checkRegionChanges(const GRState *state,
+                            const StoreManager::InvalidatedSymbols *invalidated,
+                                         const MemRegion * const *begin,
+                                         const MemRegion * const *end) const {
+  if (!invalidated)
+    return state;
 
-void RetainReleaseChecker::PostVisitBlockExpr(CheckerContext &C,
-                                              const BlockExpr *BE) {
+  for (StoreManager::InvalidatedSymbols::const_iterator I=invalidated->begin(),
+       E = invalidated->end(); I!=E; ++I) {
+    SymbolRef sym = *I;
+    if (WhitelistedSymbols.count(sym))
+      continue;
+    // Remove any existing reference-count binding.
+    state = state->remove<RefBindings>(sym);
+  }
+  return state;
+}
+
+void RetainReleaseChecker::checkPostStmt(const BlockExpr *BE,
+                                         CheckerContext &C) const {
 
   // Scan the BlockDecRefExprs for any object the retain/release checker
   // may be tracking.
@@ -3443,6 +3569,48 @@ void RetainReleaseChecker::PostVisitBlockExpr(CheckerContext &C,
     state->scanReachableSymbols<StopTrackingCallback>(Regions.data(),
                                     Regions.data() + Regions.size()).getState();
   C.addTransition(state);
+}
+
+void RetainReleaseChecker::checkPostStmt(const CastExpr *CE,
+                                         CheckerContext &C) const {
+  const ObjCBridgedCastExpr *BE = dyn_cast<ObjCBridgedCastExpr>(CE);
+  if (!BE)
+    return;
+  
+  ArgEffect AE = IncRef;
+  
+  switch (BE->getBridgeKind()) {
+    case clang::OBC_Bridge:
+      // Do nothing.
+      return;
+    case clang::OBC_BridgeRetained:
+      AE = IncRef;
+      break;      
+    case clang::OBC_BridgeTransfer:
+      AE = DecRefBridgedTransfered;
+      break;
+  }
+  
+  const GRState *state = C.getState();
+  SymbolRef Sym = state->getSVal(CE).getAsLocSymbol();
+  if (!Sym)
+    return;
+  const RefVal* T = state->get<RefBindings>(Sym);
+  if (!T)
+    return;
+
+  // This is gross.  Once the checker and CFRefCount are unified,
+  // this will go away.
+  CFRefCount &cf = static_cast<CFRefCount&>(C.getEngine().getTF());
+  RefVal::Kind hasErr = (RefVal::Kind) 0;
+  state = cf.Update(state, Sym, *T, AE, hasErr);
+  
+  if (hasErr) {
+    
+    return;
+  }
+
+  C.generateNode(state);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3510,7 +3678,9 @@ void CFRefCount::RegisterChecks(ExprEngine& Eng) {
   // Register the RetainReleaseChecker with the ExprEngine object.
   // Functionality in CFRefCount will be migrated to RetainReleaseChecker
   // over time.
-  Eng.registerCheck(new RetainReleaseChecker(this));
+  // FIXME: HACK! Remove TransferFuncs and turn all of CFRefCount into fully
+  // using the checker mechanism.
+  Eng.getCheckerManager().registerChecker<RetainReleaseChecker>();
 }
 
 TransferFuncs* ento::MakeCFRefCountTF(ASTContext& Ctx, bool GCEnabled,

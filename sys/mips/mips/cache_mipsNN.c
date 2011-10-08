@@ -54,15 +54,36 @@ __FBSDID("$FreeBSD$");
 #define	round_line32(x)		(((x) + 31) & ~31)
 #define	trunc_line32(x)		((x) & ~31)
 
+#if defined(CPU_NLM)
+static __inline void
+xlp_sync(void)
+{
+        __asm __volatile (
+	    ".set push              \n"
+	    ".set noreorder         \n"
+	    ".set mips64            \n"
+	    "dla    $8, 1f          \n"
+	    "/* jr.hb $8 */         \n"
+	    ".word 0x1000408        \n"
+	    "nop                    \n"
+	 "1: nop                    \n"
+	    ".set pop               \n"
+	    : : : "$8");
+}
+#endif
 
-#ifdef SB1250_PASS1
+#if defined(SB1250_PASS1)
 #define	SYNC	__asm volatile("sync; sync")
+#elif defined(CPU_NLM)
+#define SYNC	xlp_sync()
 #else
 #define	SYNC	__asm volatile("sync")
 #endif
 
-#ifdef CPU_CNMIPS
+#if defined(CPU_CNMIPS)
 #define SYNCI  mips_sync_icache();
+#elif defined(CPU_NLM)
+#define SYNCI	xlp_sync()
 #else
 #define SYNCI
 #endif

@@ -359,26 +359,3 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 
 	return (bus_generic_rl_release_resource(bus, child, type, rid, res));
 }
-
-int
-isa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
-{
-
-	/*
-	 * Just pass through. This is going to be handled by either
-	 * one of the parent PCI buses or the nexus device.
-	 * The interrupt had been routed before it was added to the
-	 * resource list of the child.
-	 */
-	return (bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
-	    arg, cookiep));
-}
-
-int
-isa_teardown_intr(device_t dev, device_t child, struct resource *irq,
-    void *cookie)
-{
-
-	return (bus_generic_teardown_intr(dev, child, irq, cookie));
-}

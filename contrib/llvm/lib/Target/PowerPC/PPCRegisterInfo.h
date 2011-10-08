@@ -16,8 +16,10 @@
 #define POWERPC32_REGISTERINFO_H
 
 #include "PPC.h"
-#include "PPCGenRegisterInfo.h.inc"
 #include <map>
+
+#define GET_REGINFO_HEADER
+#include "PPCGenRegisterInfo.inc"
 
 namespace llvm {
 class PPCSubtarget;
@@ -68,6 +70,7 @@ public:
   unsigned getEHHandlerRegister() const;
 
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 };
 
 } // end namespace llvm

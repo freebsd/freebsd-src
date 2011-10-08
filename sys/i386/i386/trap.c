@@ -179,10 +179,12 @@ extern int has_f00f_bug;
 static int kdb_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
 	&kdb_on_nmi, 0, "Go to KDB on NMI");
+TUNABLE_INT("machdep.kdb_on_nmi", &kdb_on_nmi);
 #endif
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
+TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
@@ -610,7 +612,7 @@ trap(struct trapframe *frame)
 				PCPU_GET(curpcb)->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
-				psignal(p, SIGBUS);
+				kern_psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
 #endif				
 				goto out;
@@ -829,6 +831,11 @@ trap_pfault(frame, usermode, eva)
 			goto nogo;
 
 		map = &vm->vm_map;
+		if (!usermode && (td->td_intr_nesting_level != 0 ||
+		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
 	}
 
 	/*
@@ -1051,6 +1058,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		
 	return (error);
 }
+
+#include "../../kern/subr_syscall.c"
 
 /*
  *	syscall -	system call request C handler

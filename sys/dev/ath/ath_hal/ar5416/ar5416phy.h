@@ -21,6 +21,25 @@
 
 #include "ar5212/ar5212phy.h"
 
+/* For AR_PHY_RADAR0 */
+#define	AR_PHY_RADAR_0_FFT_ENA		0x80000000
+
+#define	AR_PHY_RADAR_EXT		0x9940
+#define	AR_PHY_RADAR_EXT_ENA		0x00004000
+
+#define	AR_PHY_RADAR_1			0x9958
+#define	AR_PHY_RADAR_1_RELPWR_ENA	0x00800000
+#define	AR_PHY_RADAR_1_USE_FIR128	0x00400000
+#define	AR_PHY_RADAR_1_RELPWR_THRESH	0x003F0000
+#define	AR_PHY_RADAR_1_RELPWR_THRESH_S	16
+#define	AR_PHY_RADAR_1_BLOCK_CHECK	0x00008000
+#define	AR_PHY_RADAR_1_MAX_RRSSI	0x00004000
+#define	AR_PHY_RADAR_1_RELSTEP_CHECK	0x00002000
+#define	AR_PHY_RADAR_1_RELSTEP_THRESH	0x00001F00
+#define	AR_PHY_RADAR_1_RELSTEP_THRESH_S	8
+#define	AR_PHY_RADAR_1_MAXLEN		0x000000FF
+#define	AR_PHY_RADAR_1_MAXLEN_S		0
+
 #define AR_PHY_CHIP_ID_REV_0    0x80        /* 5416 Rev 0 (owl 1.0) BB */
 #define AR_PHY_CHIP_ID_REV_1    0x81        /* 5416 Rev 1 (owl 2.0) BB */
 
@@ -93,6 +112,8 @@
 #define AR9280_PHY_RXGAIN_TXRX_MARGIN	0x001FC000
 #define AR9280_PHY_RXGAIN_TXRX_MARGIN_S	14
 
+#define	AR_PHY_SEARCH_START_DELAY	0x9918		/* search start delay */
+
 #define AR_PHY_EXT_CCA          0x99bc
 #define AR_PHY_EXT_CCA_CYCPWR_THR1      0x0000FE00
 #define AR_PHY_EXT_CCA_CYCPWR_THR1_S    9
@@ -100,6 +121,13 @@
 #define AR_PHY_EXT_MINCCA_PWR_S 23
 #define AR_PHY_EXT_CCA_THRESH62	0x007F0000
 #define AR_PHY_EXT_CCA_THRESH62_S	16
+/*
+ * This duplicates AR_PHY_EXT_CCA_CYCPWR_THR1; it reads more like
+ * an ANI register this way.
+ */
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1		0x0000FE00
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1_S	9
+
 #define AR9280_PHY_EXT_MINCCA_PWR       0x01FF0000
 #define AR9280_PHY_EXT_MINCCA_PWR_S     16
 
@@ -128,8 +156,14 @@
 #define	AR_PHY_CAL_MEAS_0(_i)	(0x9c10 + ((_i) << 12))
 #define	AR_PHY_CAL_MEAS_1(_i)	(0x9c14 + ((_i) << 12))
 #define	AR_PHY_CAL_MEAS_2(_i)	(0x9c18 + ((_i) << 12))
+/* This is AR9130 and later */
 #define	AR_PHY_CAL_MEAS_3(_i)	(0x9c1c + ((_i) << 12))
 
+/*
+ * AR5416 still uses AR_PHY(263) for current RSSI;
+ * AR9130 and later uses AR_PHY(271).
+ */
+#define	AR9130_PHY_CURRENT_RSSI	0x9c3c		/* rssi of current frame rx'd */
 
 #define AR_PHY_CCA          0x9864
 #define AR_PHY_MINCCA_PWR   0x0FF80000
@@ -291,5 +325,7 @@
 #define	AR_PHY_TX_DESIRED_SCALE_CCK_S		10
 #define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL	0x80000000
 #define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL_S	31
+
+#define	AR_PHY_MODE_ASYNCFIFO			0x80	/* Enable async fifo */
 
 #endif /* _DEV_ATH_AR5416PHY_H_ */

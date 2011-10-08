@@ -1,9 +1,9 @@
 /*
- * $Id: dialog.c,v 1.177 2010/01/18 09:21:14 tom Exp $
+ * $Id: dialog.c,v 1.193 2011/06/29 09:10:56 tom Exp $
  *
  *  cdialog - Display simple dialog boxes from shell scripts
  *
- *  Copyright 2000-2008,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -71,7 +71,9 @@ typedef enum {
     ,o_gauge
     ,o_help
     ,o_help_button
+    ,o_help_file
     ,o_help_label
+    ,o_help_line
     ,o_help_status
     ,o_icon
     ,o_ignore
@@ -95,6 +97,8 @@ typedef enum {
     ,o_no_kill
     ,o_no_label
     ,o_no_lines
+    ,o_no_mouse
+    ,o_no_nl_expand
     ,o_no_shadow
     ,o_nocancel
     ,o_noitem
@@ -105,9 +109,11 @@ typedef enum {
     ,o_passwordbox
     ,o_passwordform
     ,o_pause
+    ,o_prgbox
     ,o_print_maxsize
     ,o_print_size
     ,o_print_version
+    ,o_programbox
     ,o_progressbox
     ,o_quoted
     ,o_radiolist
@@ -134,6 +140,7 @@ typedef enum {
     ,o_title
     ,o_trim
     ,o_under_mouse
+    ,o_version
     ,o_visit_items
     ,o_wmclass
     ,o_yes_label
@@ -212,6 +219,8 @@ static const Options options[] = {
     { "help-button",	o_help_button,		1, "" },
     { "help-label",	o_help_label,		1, "<str>" },
     { "help-status",	o_help_status,		1, "" },
+    { "hfile",		o_help_file,		1, "<str>" },
+    { "hline",		o_help_line,		1, "<str>" },
     { "icon",		o_icon,			1, NULL },
     { "ignore",		o_ignore,		1, "" },
     { "infobox",	o_infobox,		2, "<text> <height> <width>" },
@@ -235,6 +244,8 @@ static const Options options[] = {
     { "no-kill",	o_no_kill,		1, "" },
     { "no-label",	o_no_label,		1, "<str>" },
     { "no-lines",	o_no_lines, 		1, "" },
+    { "no-mouse",	o_no_mouse,		1, "" },
+    { "no-nl-expand",	o_no_nl_expand,		1, "" },
     { "no-ok",		o_nook,			1, "" },
     { "no-shadow",	o_no_shadow,		1, "" },
     { "nocancel",	o_nocancel,		1, NULL }, /* see --no-cancel */
@@ -246,10 +257,12 @@ static const Options options[] = {
     { "passwordbox",	o_passwordbox,		2, "<text> <height> <width> [<init>]" },
     { "passwordform",	o_passwordform,		2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>..." },
     { "pause",		o_pause,		2, "<text> <height> <width> <seconds>" },
+    { "prgbox",		o_prgbox,		2, "<text> <command> <height> <width>" },
     { "print-maxsize",	o_print_maxsize,	1, "" },
     { "print-size",	o_print_size,		1, "" },
     { "print-version",	o_print_version,	5, "" },
-    { "progressbox",	o_progressbox,		2, "<height> <width>" },
+    { "programbox",	o_programbox,		2, "<text> <height> <width>" },
+    { "progressbox",	o_progressbox,		2, "<text> <height> <width>" },
     { "quoted",		o_quoted,		1, "" },
     { "radiolist",	o_radiolist,		2, "<text> <height> <width> <list height> <tag1> <item1> <status1>..." },
     { "screen-center",	o_screen_center,	1, NULL },
@@ -275,7 +288,7 @@ static const Options options[] = {
     { "title",		o_title,		1, "<title>" },
     { "trim",		o_trim,			1, "" },
     { "under-mouse", 	o_under_mouse,		1, NULL },
-    { "version",	o_print_version,	5, "" },
+    { "version",	o_version,		5, "" },
     { "visit-items", 	o_visit_items,		1, "" },
     { "wmclass",	o_wmclass,		1, NULL },
     { "yes-label",	o_yes_label,		1, "<str>" },
@@ -285,109 +298,6 @@ static const Options options[] = {
 #endif
 };
 /* *INDENT-ON* */
-
-/*
- * Convert a string to an argv[], returning a char** index (which must be
- * freed by the caller).  The string is modified (replacing gaps between
- * tokens with nulls).
- */
-static char **
-string_to_argv(char *blob)
-{
-    size_t n;
-    int pass;
-    size_t length = strlen(blob);
-    char **result = 0;
-
-    for (pass = 0; pass < 2; ++pass) {
-	bool inparm = FALSE;
-	bool quoted = FALSE;
-	char *param = blob;
-	size_t count = 0;
-
-	for (n = 0; n < length; ++n) {
-	    if (quoted && blob[n] == '"') {
-		quoted = FALSE;
-	    } else if (blob[n] == '"') {
-		quoted = TRUE;
-		if (!inparm) {
-		    if (pass)
-			result[count] = param;
-		    ++count;
-		    inparm = TRUE;
-		}
-	    } else if (blob[n] == '\\') {
-		if (quoted && !isspace(UCH(blob[n + 1]))) {
-		    if (!inparm) {
-			if (pass)
-			    result[count] = param;
-			++count;
-			inparm = TRUE;
-		    }
-		    if (pass) {
-			*param++ = blob[n];
-			*param++ = blob[n + 1];
-		    }
-		}
-		++n;
-	    } else if (!quoted && isspace(UCH(blob[n]))) {
-		inparm = FALSE;
-		if (pass) {
-		    *param++ = '\0';
-		}
-	    } else {
-		if (!inparm) {
-		    if (pass)
-			result[count] = param;
-		    ++count;
-		    inparm = TRUE;
-		}
-		if (pass) {
-		    *param++ = blob[n];
-		}
-	    }
-	}
-
-	if (!pass) {
-	    if (count) {
-		result = dlg_calloc(char *, count + 1);
-		assert_ptr(result, "string_to_argv");
-	    } else {
-		break;		/* no tokens found */
-	    }
-	} else {
-	    *param = '\0';
-	}
-    }
-    return result;
-}
-
-/*
- * Count the entries in an argv list.
- */
-static int
-count_argv(char **argv)
-{
-    int result = 0;
-
-    if (argv != 0) {
-	while (argv[result] != 0)
-	    ++result;
-    }
-    return result;
-}
-
-static int
-eat_argv(int *argcp, char ***argvp, int start, int count)
-{
-    int k;
-
-    *argcp -= count;
-    for (k = start; k <= *argcp; k++)
-	(*argvp)[k] = (*argvp)[k + count];
-    (*argvp)[*argcp] = 0;
-    return TRUE;
-}
 
 /*
  * Make an array showing which argv[] entries are options.  Use "--" as a
@@ -419,13 +329,13 @@ unescape_argv(int *argcp, char ***argvp)
 	bool escaped = FALSE;
 	if (!strcmp((*argvp)[j], "--")) {
 	    escaped = TRUE;
-	    changed = eat_argv(argcp, argvp, j, 1);
+	    changed = dlg_eat_argv(argcp, argvp, j, 1);
 	} else if (!strcmp((*argvp)[j], "--args")) {
 	    fprintf(stderr, "Showing arguments at arg%d\n", j);
 	    for (k = 0; k < *argcp; ++k) {
 		fprintf(stderr, " arg%d:%s\n", k, (*argvp)[k]);
 	    }
-	    changed = eat_argv(argcp, argvp, j, 1);
+	    changed = dlg_eat_argv(argcp, argvp, j, 1);
 	} else if (!strcmp((*argvp)[j], "--file")) {
 	    if (++count_includes > limit_includes)
 		dlg_exiterr("Too many --file options");
@@ -453,7 +363,7 @@ unescape_argv(int *argcp, char ***argvp)
 			assert_ptr(blob, "unescape_argv");
 			bytes_read = fread(blob + length,
 					   sizeof(char),
-					   BUFSIZ,
+					     (size_t) BUFSIZ,
 					   fp);
 			length += bytes_read;
 			if (ferror(fp))
@@ -463,8 +373,8 @@ unescape_argv(int *argcp, char ***argvp)
 
 		    blob[length] = '\0';
 
-		    list = string_to_argv(blob);
-		    if ((added = count_argv(list)) != 0) {
+		    list = dlg_string_to_argv(blob);
+		    if ((added = dlg_count_argv(list)) != 0) {
 			if (added > 2) {
 			    size_t need = (size_t) (*argcp + added + 1);
 			    if (doalloc) {
@@ -505,7 +415,7 @@ unescape_argv(int *argcp, char ***argvp)
 	}
 	if (!escaped
 	    && (*argvp)[j] != 0
-	    && !strncmp((*argvp)[j], "--", 2)
+	    && !strncmp((*argvp)[j], "--", (size_t) 2)
 	    && isalpha(UCH((*argvp)[j][2]))) {
 	    dialog_opts[j] = TRUE;
 	}
@@ -538,7 +448,7 @@ isOption(const char *arg)
 		    break;
 		}
 	    }
-	} else if (!strncmp(arg, "--", 2) && isalpha(UCH(arg[2]))) {
+	} else if (!strncmp(arg, "--", (size_t) 2) && isalpha(UCH(arg[2]))) {
 	    result = TRUE;
 	}
     }
@@ -614,7 +524,7 @@ static int
 numeric_arg(char **av, int n)
 {
     char *last = 0;
-    int result = strtol(av[n], &last, 10);
+    int result = (int) strtol(av[n], &last, 10);
     char msg[80];
 
     if (last == 0 || *last != 0) {
@@ -666,7 +576,8 @@ show_result(int ret)
 		  dialog_state.output);
 	    either = TRUE;
 	}
-	if (dialog_vars.input_result[0] != '\0') {
+	if (dialog_vars.input_result != 0
+	    && dialog_vars.input_result[0] != '\0') {
 	    fputs(dialog_vars.input_result, dialog_state.output);
 	    either = TRUE;
 	}
@@ -740,24 +651,33 @@ static int
 call_inputmenu(CALLARGS)
 {
     int tags = howmany_tags(av + 5, MENUBOX_TAGS);
+    bool free_extra_label = FALSE;
+    int result;
 
     dialog_vars.input_menu = TRUE;
 
     if (dialog_vars.max_input == 0)
 	dialog_vars.max_input = MAX_LEN / 2;
 
-    if (dialog_vars.extra_label == 0)
-	dialog_vars.extra_label = _("Rename");
+    if (dialog_vars.extra_label == 0) {
+	free_extra_label = TRUE;
+	dialog_vars.extra_label = dlg_strclone(_("Rename"));
+    }
 
     dialog_vars.extra_button = TRUE;
 
     *offset_add = 5 + tags * MENUBOX_TAGS;
-    return dialog_menu(t,
-		       av[1],
-		       numeric_arg(av, 2),
-		       numeric_arg(av, 3),
-		       numeric_arg(av, 4),
-		       tags, av + 5);
+    result = dialog_menu(t,
+			 av[1],
+			 numeric_arg(av, 2),
+			 numeric_arg(av, 3),
+			 numeric_arg(av, 4),
+			 tags, av + 5);
+    if (free_extra_label) {
+	free(dialog_vars.extra_label);
+	dialog_vars.extra_label = 0;
+    }
+    return result;
 }
 
 static int
@@ -961,6 +881,55 @@ call_mixed_gauge(CALLARGS)
 
 #ifdef HAVE_DLG_GAUGE
 static int
+call_prgbox(CALLARGS)
+{
+    *offset_add = arg_rest(av);
+    /* the original version does not accept a prompt string, but for
+     * consistency we allow it.
+     */
+    return ((*offset_add == 5)
+	    ? dialog_prgbox(t,
+			    av[1],
+			    av[2],
+			    numeric_arg(av, 3),
+			    numeric_arg(av, 4), TRUE)
+	    : dialog_prgbox(t,
+			    "",
+			    av[1],
+			    numeric_arg(av, 2),
+			    numeric_arg(av, 3), TRUE));
+}
+#endif
+
+#ifdef HAVE_DLG_GAUGE
+static int
+call_programbox(CALLARGS)
+{
+    int result;
+
+    *offset_add = arg_rest(av);
+    /* this function is a compromise between --prgbox and --progressbox.
+     */
+    result = ((*offset_add == 4)
+	      ? dlg_progressbox(t,
+				av[1],
+				numeric_arg(av, 2),
+				numeric_arg(av, 3),
+				TRUE,
+				dialog_state.pipe_input)
+	      : dlg_progressbox(t,
+				"",
+				numeric_arg(av, 1),
+				numeric_arg(av, 2),
+				TRUE,
+				dialog_state.pipe_input));
+    dialog_state.pipe_input = 0;
+    return result;
+}
+#endif
+
+#ifdef HAVE_DLG_GAUGE
+static int
 call_progressbox(CALLARGS)
 {
     *offset_add = arg_rest(av);
@@ -1018,6 +987,8 @@ static const Mode modes[] =
 #ifdef HAVE_DLG_GAUGE
     {o_gauge,           4, 5, call_gauge},
     {o_pause,           5, 5, call_pause},
+    {o_prgbox,          4, 5, call_prgbox},
+    {o_programbox,      3, 4, call_programbox},
     {o_progressbox,     3, 4, call_progressbox},
 #endif
 #ifdef HAVE_DLG_FORMBOX
@@ -1067,7 +1038,7 @@ optionValue(char **argv, int *num)
     int result = 0;
 
     if (src != 0) {
-	result = strtol(src, &tmp, 0);
+	result = (int) strtol(src, &tmp, 0);
 	if (tmp == 0 || *tmp != 0)
 	    src = 0;
     }
@@ -1127,6 +1098,15 @@ compare_opts(const void *a, const void *b)
 }
 
 /*
+ * Print program's version.
+ */
+static void
+PrintVersion(FILE *fp)
+{
+    fprintf(fp, "Version: %s\n", dialog_version());
+}
+
+/*
  * Print program help-message
  */
 static void
@@ -1135,7 +1115,7 @@ Help(void)
     static const char *const tbl_1[] =
     {
 	"cdialog (ComeOn Dialog!) version %s",
-	"Copyright 2000-2007,2008 Thomas E. Dickey",
+	"Copyright 2000-2008,2011 Thomas E. Dickey",
 	"This is free software; see the source for copying conditions.  There is NO",
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
 	"",
@@ -1156,9 +1136,12 @@ Help(void)
 	"Global-auto-size if also menu_height/list_height = 0.",
 	0
     };
-    unsigned limit = sizeof(options) / sizeof(options[0]);
-    unsigned j, k;
+    size_t limit = sizeof(options) / sizeof(options[0]);
+    size_t j, k;
     const Options **opts;
+
+    end_dialog();
+    dialog_state.output = stdout;
 
     opts = dlg_calloc(const Options *, limit);
     assert_ptr(opts, "Help");
@@ -1172,7 +1155,7 @@ Help(void)
     for (j = k = 0; j < limit; j++) {
 	if ((opts[j]->pass & 1)
 	    && opts[j]->help != 0) {
-	    unsigned len = 6 + strlen(opts[j]->name) + strlen(opts[j]->help);
+	    size_t len = 6 + strlen(opts[j]->name) + strlen(opts[j]->help);
 	    k += len;
 	    if (k > 75) {
 		fprintf(dialog_state.output, "\n ");
@@ -1204,6 +1187,9 @@ Help(void)
 static int
 process_common_options(int argc, char **argv, int offset, bool output)
 {
+#ifdef HAVE_DLG_TRACE
+    int n;
+#endif
     bool done = FALSE;
 
     while (offset < argc && !done) {	/* Common options */
@@ -1225,6 +1211,9 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_cr_wrap:
 	    dialog_vars.cr_wrap = TRUE;
+	    break;
+	case o_no_nl_expand:
+	    dialog_vars.no_nl_expand = TRUE;
 	    break;
 	case o_no_collapse:
 	    dialog_vars.nocollapse = TRUE;
@@ -1271,6 +1260,12 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	case o_item_help:
 	    dialog_vars.item_help = TRUE;
 	    break;
+	case o_help_line:
+	    dialog_vars.help_line = optionString(argv, &offset);
+	    break;
+	case o_help_file:
+	    dialog_vars.help_file = optionString(argv, &offset);
+	    break;
 	case o_help_button:
 	    dialog_vars.help_button = TRUE;
 	    break;
@@ -1309,7 +1304,7 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_print_version:
 	    if (output) {
-		fprintf(stdout, "Version: %s\n", dialog_version());
+		PrintVersion(dialog_state.output);
 	    }
 	    break;
 	case o_separator:
@@ -1389,6 +1384,10 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    dialog_vars.no_lines = TRUE;
 	    dialog_vars.ascii_lines = FALSE;
 	    break;
+	case o_no_mouse:
+	    dialog_state.no_mouse = TRUE;
+	    mouse_close();
+	    break;
 	case o_noitem:
 	case o_fullbutton:
 	    /* ignore */
@@ -1418,6 +1417,9 @@ process_common_options(int argc, char **argv, int offset, bool output)
 #ifdef HAVE_DLG_TRACE
 	case o_trace:
 	    dlg_trace(optionString(argv, &offset));
+	    for (n = 0; argv[n] != 0; ++n) {
+		dlg_trace_msg("argv[%d] = %s\n", n, argv[n]);
+	    }
 	    break;
 #endif
 	}
@@ -1453,8 +1455,8 @@ init_result(char *buffer)
 	if (env != 0)
 	    env = dlg_strclone(env);
 	if (env != 0) {
-	    special_argv = string_to_argv(env);
-	    special_argc = count_argv(special_argv);
+	    special_argv = dlg_string_to_argv(env);
+	    special_argc = dlg_count_argv(special_argv);
 	}
     }
     if (special_argv != 0) {
@@ -1487,8 +1489,8 @@ main(int argc, char *argv[])
 #if defined(ENABLE_NLS)
     /* initialize locale support */
     setlocale(LC_ALL, "");
-    bindtextdomain(PACKAGE, LOCALEDIR);
-    textdomain(PACKAGE);
+    bindtextdomain(NLS_TEXTDOMAIN, LOCALEDIR);
+    textdomain(NLS_TEXTDOMAIN);
 #elif defined(HAVE_SETLOCALE)
     (void) setlocale(LC_ALL, "");
 #endif
@@ -1503,6 +1505,9 @@ main(int argc, char *argv[])
      * that.  We can only write to one of them.  If --stdout is used, that
      * can interfere with initializing the curses library, so we want to
      * know explicitly if it is used.
+     *
+     * Also, look for any --version or --help message, processing those
+     * immediately.
      */
     while (offset < argc) {
 	int base = offset;
@@ -1526,6 +1531,14 @@ main(int argc, char *argv[])
 	case o_keep_tite:
 	    keep_tite = TRUE;
 	    break;
+	case o_version:
+	    dialog_state.output = stdout;
+	    PrintVersion(dialog_state.output);
+	    exit(DLG_EXIT_OK);
+	    break;
+	case o_help:
+	    Help();
+	    break;
 	default:
 	    ++offset;
 	    continue;
@@ -1541,7 +1554,11 @@ main(int argc, char *argv[])
     offset = 1;
     init_result(my_buffer);
 
-    if (argc == 2) {		/* if we don't want clear screen */
+    /*
+     * Dialog's output may be redirected (see above).  Handle the special
+     * case of options that only report information without interaction.
+     */
+    if (argc == 2) {
 	switch (lookupOption(argv[1], 7)) {
 	case o_print_maxsize:
 	    (void) initscr();
@@ -1550,7 +1567,7 @@ main(int argc, char *argv[])
 	    fprintf(dialog_state.output, "MaxSize: %d, %d\n", SLINES, SCOLS);
 	    break;
 	case o_print_version:
-	    fprintf(stdout, "Version: %s\n", dialog_version());
+	    PrintVersion(dialog_state.output);
 	    break;
 	case o_clear:
 	    initscr();
@@ -1560,8 +1577,6 @@ main(int argc, char *argv[])
 	case o_ignore:
 	    break;
 	default:
-	case o_help:
-	    dialog_state.output = stdout;
 	    Help();
 	    break;
 	}
@@ -1650,6 +1665,8 @@ main(int argc, char *argv[])
 	    case o_unknown:
 	    case o_title:
 	    case o_backtitle:
+	    case o_help_line:
+	    case o_help_file:
 		break;
 	    default:
 		if (argv[j] != 0) {
@@ -1664,8 +1681,10 @@ main(int argc, char *argv[])
 						   &offset_add));
 	offset += offset_add;
 
-	if (dialog_vars.input_result != my_buffer)
+	if (dialog_vars.input_result != my_buffer) {
 	    free(dialog_vars.input_result);
+	    dialog_vars.input_result = 0;
+	}
 
 	if (retval == DLG_EXIT_ESC) {
 	    esc_pressed = TRUE;

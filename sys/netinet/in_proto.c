@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
 #include "opt_sctp.h"
@@ -50,14 +51,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
+/*
+ * While this file provides the domain and protocol switch tables for IPv4, it
+ * also provides the sysctl node declarations for net.inet.* often shared with
+ * IPv6 for common features or by upper layer protocols.  In case of no IPv4
+ * support compile out everything but these sysctl nodes.
+ */
+#ifdef INET
 #include <net/if.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
 #include <net/vnet.h>
+#endif /* INET */
 
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -92,6 +105,8 @@ static struct pr_usrreqs nousrreqs;
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 #endif
+
+FEATURE(inet, "Internet Protocol version 4");
 
 extern	struct domain inetdomain;
 
@@ -148,7 +163,7 @@ struct protosw inetsw[] = {
 },
 #ifdef SCTP
 { 
-	.pr_type =		SOCK_DGRAM,
+	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
@@ -162,18 +177,6 @@ struct protosw inetsw[] = {
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
-{
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
-	.pr_usrreqs =		&sctp_usrreqs
-},
-
 { 
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
@@ -372,6 +375,7 @@ struct domain inetdomain = {
 };
 
 VNET_DOMAIN_SET(inet);
+#endif /* INET */
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");

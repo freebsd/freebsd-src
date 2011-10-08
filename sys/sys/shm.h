@@ -124,6 +124,7 @@ struct shmid_kernel {
 	struct shmid_ds u;
 	vm_object_t object;
 	struct label *label;	/* MAC label */
+	struct ucred *cred;	/* creator's credendials */
 };
 
 extern struct shminfo	shminfo;

@@ -68,6 +68,23 @@ BOOLEAN
 AcpiEvIsNotifyObject (
     ACPI_NAMESPACE_NODE     *Node);
 
+UINT32
+AcpiEvGetGpeNumberIndex (
+    UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiEvQueueNotifyRequest (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT32                  NotifyValue);
+
+
+/*
+ * evglock - Global Lock support
+ */
+ACPI_STATUS
+AcpiEvInitGlobalLockHandler (
+    void);
+
 ACPI_STATUS
 AcpiEvAcquireGlobalLock(
     UINT16                  Timeout);
@@ -77,17 +94,8 @@ AcpiEvReleaseGlobalLock(
     void);
 
 ACPI_STATUS
-AcpiEvInitGlobalLockHandler (
+AcpiEvRemoveGlobalLockHandler (
     void);
-
-UINT32
-AcpiEvGetGpeNumberIndex (
-    UINT32                  GpeNumber);
-
-ACPI_STATUS
-AcpiEvQueueNotifyRequest (
-    ACPI_NAMESPACE_NODE     *Node,
-    UINT32                  NotifyValue);
 
 
 /*

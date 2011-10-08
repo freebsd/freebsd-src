@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -729,6 +729,20 @@ v433  6/28/09   Cleanup search code.
 v434  6/29/09   More cleanup.
 v435  7/04/09   Fix bugs with non-regex filtering.
 v436  7/05/09   Fix memory leak.
+-----------------------------------------------------------------
+v437  7/14/09   Fix bug in handling some long option names;
+                make percentage calculation more accurate.
+v438  12/29/10  Fix bugs with -i/-I and & filtering; 
+                exit with status 2 on ctrl-C with -K.
+v439  12/31/10  Add -A option.
+v440  1/5/11    Fix bug displaying prompt after = command.
+v441  1/21/11   Fix semi-infinite loop if no newlines in file;
+                make new -A behavior the default.
+-----------------------------------------------------------------
+v442  3/2/11    Fix search bug.
+                Add ctrl-G line edit command.
+v443  4/9/11    Fix Windows build.
+v444  6/8/11    Fix ungetc bug; remove vestiges of obsolete -l option.
 */
 
-char version[] = "436";
+char version[] = "444";

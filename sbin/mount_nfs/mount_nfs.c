@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 				} else if (strcmp(opt, "nfsv4") == 0) {
 					pass_flag_to_nmount=0;
 					mountmode = V4;
-					fstype = "newnfs";
+					fstype = "nfs";
 					nfsproto = IPPROTO_TCP;
 					if (portspec == NULL)
 						portspec = "2049";
@@ -381,14 +381,10 @@ main(int argc, char *argv[])
 		retrycnt = 0;
 
 	/*
-	 * If the experimental nfs subsystem is loaded into the kernel
-	 * and the regular one is not, use it. Otherwise, use it if the
-	 * fstype is set to "newnfs", either via "mount -t newnfs ..."
-	 * or by specifying an nfsv4 mount.
+	 * If the fstye is "oldnfs", run the old NFS client unless the
+	 * "nfsv4" option was specified.
 	 */
-	if (modfind("nfscl") >= 0 && modfind("nfs") < 0) {
-		fstype = "newnfs";
-	} else if (strcmp(fstype, "newnfs") == 0) {
+	if (strcmp(fstype, "nfs") == 0) {
 		if (modfind("nfscl") < 0) {
 			/* Not present in kernel, try loading it */
 			if (kldload("nfscl") < 0 ||

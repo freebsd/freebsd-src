@@ -47,6 +47,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
@@ -186,6 +187,7 @@ fdesc_statfs(mp, sbp)
 	int i;
 	int last;
 	int freefd;
+	uint64_t limit;
 
 	td = curthread;
 
@@ -200,6 +202,9 @@ fdesc_statfs(mp, sbp)
 	PROC_UNLOCK(td->td_proc);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
+	limit = racct_get_limit(td->td_proc, RACCT_NOFILE);
+	if (lim > limit)
+		lim = limit;
 	last = min(fdp->fd_nfiles, lim);
 	freefd = 0;
 	for (i = fdp->fd_freefile; i < last; i++)

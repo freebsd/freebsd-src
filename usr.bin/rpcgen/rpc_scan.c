@@ -329,10 +329,9 @@ findstrconst(char **str, const char **val)
 		error("unterminated string constant");
 	}
 	p++;
-	size = p - *str;
-	tmp = xmalloc(size + 1);
-	(void) strncpy(tmp, *str, size);
-	tmp[size] = 0;
+	size = p - *str + 1;
+	tmp = xmalloc(size);
+	(void) strlcpy(tmp, *str, size);
 	*val = tmp;
 	*str = p;
 }
@@ -352,13 +351,12 @@ findchrconst(char **str, const char **val)
 		error("unterminated string constant");
 	}
 	p++;
-	size = p - *str;
-	if (size != 3) {
+	size = p - *str + 1;
+	if (size != 4) {
 		error("empty char string");
 	}
-	tmp = xmalloc(size + 1);
-	(void) strncpy(tmp, *str, size);
-	tmp[size] = 0;
+	tmp = xmalloc(size);
+	(void) strlcpy(tmp, *str, size);
 	*val = tmp;
 	*str = p;
 }
@@ -381,10 +379,9 @@ findconst(char **str, const char **val)
 			p++;
 		} while (isdigit(*p));
 	}
-	size = p - *str;
-	tmp = xmalloc(size + 1);
-	(void) strncpy(tmp, *str, size);
-	tmp[size] = 0;
+	size = p - *str + 1;
+	tmp = xmalloc(size);
+	(void) strlcpy(tmp, *str, size);
 	*val = tmp;
 	*str = p;
 }
@@ -438,8 +435,7 @@ findkind(char **mark, token *tokp)
 	tokp->kind = TOK_IDENT;
 	for (len = 0; isalnum(str[len]) || str[len] == '_'; len++);
 	tmp = xmalloc(len + 1);
-	(void) strncpy(tmp, str, len);
-	tmp[len] = 0;
+	(void) strlcpy(tmp, str, len + 1);
 	tokp->str = tmp;
 	*mark = str + len;
 }

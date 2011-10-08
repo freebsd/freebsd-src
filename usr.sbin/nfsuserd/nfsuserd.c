@@ -76,6 +76,8 @@ static bool_t	xdr_retval(XDR *, caddr_t);
 #define	MAXNAME		1024
 #define	MAXNFSUSERD	20
 #define	DEFNFSUSERD	4
+#define	MAXUSERMAX	100000
+#define	MINUSERMAX	10
 #define	DEFUSERMAX	200
 #define	DEFUSERTIMEOUT	(1 * 60)
 struct info {
@@ -96,8 +98,8 @@ pid_t slaves[MAXNFSUSERD];
 int
 main(int argc, char *argv[])
 {
-	int i;
-	int error, len, mustfreeai = 0;
+	int i, j;
+	int error, fnd_dup, len, mustfreeai = 0, start_uidpos;
 	struct nfsd_idargs nid;
 	struct passwd *pwd;
 	struct group *grp;
@@ -107,6 +109,7 @@ main(int argc, char *argv[])
 	sigset_t signew;
 	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
+	static uid_t check_dups[MAXUSERMAX];
 
 	if (modfind("nfscommon") < 0) {
 		/* Not present in kernel, try loading it */
@@ -163,9 +166,10 @@ main(int argc, char *argv[])
 			argc--;
 			argv++;
 			i = atoi(*argv);
-			if (i < 10 || i > 100000) {
+			if (i < MINUSERMAX || i > MAXUSERMAX) {
 				fprintf(stderr,
-				    "usermax %d out of range 10<->100000\n", i);
+				    "usermax %d out of range %d<->%d\n", i,
+				    MINUSERMAX, MAXUSERMAX);
 				usage();
 			}
 			nid.nid_usermax = i;
@@ -326,8 +330,25 @@ main(int argc, char *argv[])
 	/*
 	 * Loop around adding all users.
 	 */
+	start_uidpos = i;
 	setpwent();
 	while (i < nid.nid_usermax && (pwd = getpwent())) {
+		fnd_dup = 0;
+		/*
+		 * Yes, this is inefficient, but it is only done once when
+		 * the daemon is started and will run in a fraction of a second
+		 * for nid_usermax at 10000. If nid_usermax is cranked up to
+		 * 100000, it will take several seconds, depending on the CPU.
+		 */
+		for (j = 0; j < (i - start_uidpos); j++)
+			if (check_dups[j] == pwd->pw_uid) {
+				/* Found another entry for uid, so skip it */
+				fnd_dup = 1;
+				break;
+			}
+		if (fnd_dup != 0)
+			continue;
+		check_dups[i - start_uidpos] = pwd->pw_uid;
 		nid.nid_uid = pwd->pw_uid;
 		nid.nid_name = pwd->pw_name;
 		nid.nid_namelen = strlen(pwd->pw_name);

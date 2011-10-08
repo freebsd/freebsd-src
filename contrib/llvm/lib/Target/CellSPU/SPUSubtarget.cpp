@@ -7,19 +7,25 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the CellSPU-specific subclass of TargetSubtarget.
+// This file implements the CellSPU-specific subclass of TargetSubtargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
 #include "SPUSubtarget.h"
 #include "SPU.h"
-#include "SPUGenSubtarget.inc"
-#include "llvm/ADT/SmallVector.h"
 #include "SPURegisterInfo.h"
+#include "llvm/Target/TargetRegistry.h"
+#include "llvm/ADT/SmallVector.h"
+
+#define GET_SUBTARGETINFO_TARGET_DESC
+#define GET_SUBTARGETINFO_CTOR
+#include "SPUGenSubtargetInfo.inc"
 
 using namespace llvm;
 
-SPUSubtarget::SPUSubtarget(const std::string &TT, const std::string &FS) :
+SPUSubtarget::SPUSubtarget(const std::string &TT, const std::string &CPU,
+                           const std::string &FS) :
+  SPUGenSubtargetInfo(TT, CPU, FS),
   StackAlignment(16),
   ProcDirective(SPU::DEFAULT_PROC),
   UseLargeMem(false)
@@ -29,7 +35,10 @@ SPUSubtarget::SPUSubtarget(const std::string &TT, const std::string &FS) :
   std::string default_cpu("v0");
 
   // Parse features string.
-  ParseSubtargetFeatures(FS, default_cpu);
+  ParseSubtargetFeatures(default_cpu, FS);
+
+  // Initialize scheduling itinerary for the specified CPU.
+  InstrItins = getInstrItineraryForCPU(default_cpu);
 }
 
 /// SetJITMode - This is called to inform the subtarget info that we are
@@ -40,9 +49,9 @@ void SPUSubtarget::SetJITMode() {
 /// Enable PostRA scheduling for optimization levels -O2 and -O3.
 bool SPUSubtarget::enablePostRAScheduler(
                        CodeGenOpt::Level OptLevel,
-                       TargetSubtarget::AntiDepBreakMode& Mode,
+                       TargetSubtargetInfo::AntiDepBreakMode& Mode,
                        RegClassVector& CriticalPathRCs) const {
-  Mode = TargetSubtarget::ANTIDEP_CRITICAL;
+  Mode = TargetSubtargetInfo::ANTIDEP_CRITICAL;
   // CriticalPathsRCs seems to be the set of
   // RegisterClasses that antidep breakings are performed for.
   // Do it for all register classes 

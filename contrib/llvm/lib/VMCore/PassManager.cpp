@@ -14,6 +14,7 @@
 
 #include "llvm/PassManagers.h"
 #include "llvm/PassManager.h"
+#include "llvm/DebugInfoProbe.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
@@ -25,6 +26,7 @@
 #include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/ADT/StringMap.h"
 #include <algorithm>
 #include <cstdio>
 #include <map>
@@ -63,11 +65,13 @@ PassOptionList;
 // Print IR out before/after specified passes.
 static PassOptionList
 PrintBefore("print-before",
-            llvm::cl::desc("Print IR before specified passes"));
+            llvm::cl::desc("Print IR before specified passes"),
+            cl::Hidden);
 
 static PassOptionList
 PrintAfter("print-after",
-           llvm::cl::desc("Print IR after specified passes"));
+           llvm::cl::desc("Print IR after specified passes"),
+           cl::Hidden);
 
 static cl::opt<bool>
 PrintBeforeAll("print-before-all",
@@ -440,6 +444,20 @@ char PassManagerImpl::ID = 0;
 namespace {
 
 //===----------------------------------------------------------------------===//
+// DebugInfoProbe
+
+static DebugInfoProbeInfo *TheDebugProbe;
+static void createDebugInfoProbe() {
+  if (TheDebugProbe) return;
+
+  // Constructed the first time this is called. This guarantees that the
+  // object will be constructed, if -enable-debug-info-probe is set,
+  // before static globals, thus it will be destroyed before them.
+  static ManagedStatic<DebugInfoProbeInfo> DIP;
+  TheDebugProbe = &*DIP;
+}
+
+//===----------------------------------------------------------------------===//
 /// TimingInfo Class - This class is used to calculate information about the
 /// amount of time each pass takes to execute.  This only happens when
 /// -time-passes is enabled on the command line.
@@ -614,6 +632,7 @@ void PMTopLevelManager::schedulePass(Pass *P) {
       Pass *AnalysisPass = findAnalysisPass(*I);
       if (!AnalysisPass) {
         const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(*I);
+        assert(PI && "Expected required passes to be initialized");
         AnalysisPass = PI->createPass();
         if (P->getPotentialPassManagerType () ==
             AnalysisPass->getPotentialPassManagerType())
@@ -668,6 +687,7 @@ Pass *PMTopLevelManager::findAnalysisPass(AnalysisID AID) {
     // If Pass not found then check the interfaces implemented by Immutable Pass
     const PassInfo *PassInf =
       PassRegistry::getPassRegistry()->getPassInfo(PI);
+    assert(PassInf && "Expected all immutable passes to be initialized");
     const std::vector<const PassInfo*> &ImmPI =
       PassInf->getInterfacesImplemented();
     for (std::vector<const PassInfo*>::const_iterator II = ImmPI.begin(),
@@ -709,9 +729,11 @@ void PMTopLevelManager::dumpArguments() const {
   for (SmallVector<ImmutablePass *, 8>::const_iterator I =
        ImmutablePasses.begin(), E = ImmutablePasses.end(); I != E; ++I)
     if (const PassInfo *PI =
-          PassRegistry::getPassRegistry()->getPassInfo((*I)->getPassID()))
+        PassRegistry::getPassRegistry()->getPassInfo((*I)->getPassID())) {
+      assert(PI && "Expected all immutable passes to be initialized");
       if (!PI->isAnalysisGroup())
         dbgs() << " -" << PI->getPassArgument();
+    }
   for (SmallVector<PMDataManager *, 8>::const_iterator I = PassManagers.begin(),
          E = PassManagers.end(); I != E; ++I)
     (*I)->dumpPassArguments();
@@ -964,7 +986,7 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
       // Keep track of higher level analysis used by this manager.
       HigherLevelAnalysis.push_back(PRequired);
     } else
-      llvm_unreachable("Unable to accomodate Required Pass");
+      llvm_unreachable("Unable to accommodate Required Pass");
   }
 
   // Set P as P's last user until someone starts using P.
@@ -1165,6 +1187,12 @@ void PMDataManager::dumpAnalysisUsage(StringRef Msg, const Pass *P,
   for (unsigned i = 0; i != Set.size(); ++i) {
     if (i) dbgs() << ',';
     const PassInfo *PInf = PassRegistry::getPassRegistry()->getPassInfo(Set[i]);
+    if (!PInf) {
+      // Some preserved passes, such as AliasAnalysis, may not be initialized by
+      // all drivers.
+      dbgs() << " Uninitialized Pass";
+      continue;
+    }
     dbgs() << ' ' << PInf->getPassName();
   }
   dbgs() << '\n';
@@ -1428,6 +1456,7 @@ void FunctionPassManagerImpl::releaseMemoryOnTheFly() {
 bool FunctionPassManagerImpl::run(Function &F) {
   bool Changed = false;
   TimingInfo::createTheTimeInfo();
+  createDebugInfoProbe();
 
   initializeAllAnalysisInfo();
   for (unsigned Index = 0; Index < getNumContainedManagers(); ++Index)
@@ -1475,13 +1504,16 @@ bool FPPassManager::runOnFunction(Function &F) {
     dumpRequiredSet(FP);
 
     initializeAnalysisImpl(FP);
-
+    if (TheDebugProbe)
+      TheDebugProbe->initialize(FP, F);
     {
       PassManagerPrettyStackEntry X(FP, F);
       TimeRegion PassTimer(getPassTimer(FP));
 
       LocalChanged |= FP->runOnFunction(F);
     }
+    if (TheDebugProbe)
+      TheDebugProbe->finalize(FP, F);
 
     Changed |= LocalChanged;
     if (LocalChanged)
@@ -1629,6 +1661,7 @@ Pass* MPPassManager::getOnTheFlyPass(Pass *MP, AnalysisID PI, Function &F){
 bool PassManagerImpl::run(Module &M) {
   bool Changed = false;
   TimingInfo::createTheTimeInfo();
+  createDebugInfoProbe();
 
   dumpArguments();
   dumpPasses();

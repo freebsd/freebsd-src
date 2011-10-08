@@ -291,11 +291,11 @@ pfind(pid)
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	sx_sunlock(&allproc_lock);
@@ -608,8 +608,8 @@ orphanpg(pg)
 			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
-				psignal(p, SIGHUP);
-				psignal(p, SIGCONT);
+				kern_psignal(p, SIGHUP);
+				kern_psignal(p, SIGCONT);
 				PROC_UNLOCK(p);
 			}
 			return;
@@ -756,7 +756,6 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_sigcatch = ps->ps_sigcatch;
 		mtx_unlock(&ps->ps_mtx);
 	}
-	PROC_SLOCK(p);
 	if (p->p_state != PRS_NEW &&
 	    p->p_state != PRS_ZOMBIE &&
 	    p->p_vmspace != NULL) {
@@ -782,12 +781,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
-	rufetch(p, &kp->ki_rusage);
-	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
-	PROC_SUNLOCK(p);
 	kp->ki_start = p->p_stats->p_start;
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_SLOCK(p);
+	rufetch(p, &kp->ki_rusage);
+	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
 	PROC_SUNLOCK(p);
 	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
@@ -850,12 +848,14 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_tdaddr = td;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
+	if (preferthread)
+		PROC_SLOCK(p);
 	thread_lock(td);
 	if (td->td_wmesg != NULL)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
-	strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
+	strlcpy(kp->ki_tdname, td->td_name, sizeof(kp->ki_tdname));
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,
@@ -901,6 +901,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_pri.pri_user = td->td_user_pri;
 
 	if (preferthread) {
+		rufetchtd(td, &kp->ki_rusage);
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
 		kp->ki_estcpu = td->td_estcpu;
@@ -913,6 +914,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		kp->ki_siglist = td->td_siglist;
 	kp->ki_sigmask = td->td_sigmask;
 	thread_unlock(td);
+	if (preferthread)
+		PROC_SUNLOCK(p);
 }
 
 /*
@@ -1056,7 +1059,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_rqindex);
 	CP(*ki, *ki32, ki_oncpu);
 	CP(*ki, *ki32, ki_lastcpu);
-	bcopy(ki->ki_ocomm, ki32->ki_ocomm, OCOMMLEN + 1);
+	bcopy(ki->ki_tdname, ki32->ki_tdname, TDNAMLEN + 1);
 	bcopy(ki->ki_wmesg, ki32->ki_wmesg, WMESGLEN + 1);
 	bcopy(ki->ki_login, ki32->ki_login, LOGNAMELEN + 1);
 	bcopy(ki->ki_lockname, ki32->ki_lockname, LOCKNAMELEN + 1);
@@ -1213,13 +1216,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Skip embryonic processes.
 			 */
-			PROC_SLOCK(p);
+			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW) {
-				PROC_SUNLOCK(p);
+				PROC_UNLOCK(p);
 				continue;
 			}
-			PROC_SUNLOCK(p);
-			PROC_LOCK(p);
 			KASSERT(p->p_ucred != NULL,
 			    ("process credential is NULL for non-NEW proc"));
 			/*
@@ -1390,7 +1391,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	pa = p->p_args;
 	pargs_hold(pa);
 	PROC_UNLOCK(p);
-	if (req->oldptr != NULL && pa != NULL)
+	if (pa != NULL)
 		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
 	pargs_drop(pa);
 	if (error != 0 || req->newptr == NULL)
@@ -1761,8 +1762,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
 
-		kve->kve_fileid = 0;
-		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
@@ -1804,12 +1803,18 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
+				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
-					kve->kve_fileid = va.va_fileid;
-					kve->kve_fsid = va.va_fsid;
+					kve->kve_vn_fileid = va.va_fileid;
+					kve->kve_vn_fsid = va.va_fsid;
+					kve->kve_vn_mode =
+					    MAKEIMODE(va.va_type, va.va_mode);
+					kve->kve_vn_size = va.va_size;
+					kve->kve_vn_rdev = va.va_rdev;
+					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
 				VFS_UNLOCK_GIANT(vfslocked);

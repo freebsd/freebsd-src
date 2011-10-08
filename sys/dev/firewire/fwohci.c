@@ -2072,8 +2072,9 @@ fwohci_check_stat(struct fwohci_softc *sc)
 	FW_GLOCK_ASSERT(&sc->fc);
 	stat = OREAD(sc, FWOHCI_INTSTAT);
 	if (stat == 0xffffffff) {
-		device_printf(sc->fc.dev, 
-			"device physically ejected?\n");
+		if (!bus_child_present(sc->fc.dev))
+			return (FILTER_HANDLED);
+		device_printf(sc->fc.dev, "device physically ejected?\n");
 		return (FILTER_STRAY);
 	}
 	if (stat)

@@ -400,9 +400,7 @@ mi_switch(int flags, struct thread *newtd)
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
-	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
-	    (td->td_owepreempt) && (flags & SW_INVOL) != 0 &&
-	    newtd == NULL) || panicstr,
+	KASSERT(td->td_critnest == 1 || panicstr,
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
@@ -551,7 +549,7 @@ maybe_yield(void)
 {
 
 	if (should_yield())
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 }
 
 void
@@ -562,6 +560,8 @@ kern_yield(int prio)
 	td = curthread;
 	DROP_GIANT();
 	thread_lock(td);
+	if (prio == PRI_USER)
+		prio = td->td_user_pri;
 	if (prio >= 0)
 		sched_prio(td, prio);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
@@ -573,7 +573,7 @@ kern_yield(int prio)
  * General purpose yield system call.
  */
 int
-yield(struct thread *td, struct yield_args *uap)
+sys_yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);

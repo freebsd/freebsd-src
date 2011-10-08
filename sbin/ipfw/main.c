@@ -262,7 +262,7 @@ ipfw_main(int oldac, char **oldav)
 	save_av = av;
 
 	optind = optreset = 1;	/* restart getopt() */
-	while ((ch = getopt(ac, av, "abcdefhinNqs:STtv")) != -1)
+	while ((ch = getopt(ac, av, "abcdefhinNp:qs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
 			do_acct = 1;
@@ -305,6 +305,10 @@ ipfw_main(int oldac, char **oldav)
 		case 'N':
 			co.do_resolv = 1;
 			break;
+
+		case 'p':
+			errx(EX_USAGE, "An absolute pathname must be used "
+			    "with -p option.");
 
 		case 'q':
 			co.do_quiet = 1;
@@ -356,8 +360,9 @@ ipfw_main(int oldac, char **oldav)
 	 */
 	co.do_nat = 0;
 	co.do_pipe = 0;
+	co.use_set = 0;
 	if (!strncmp(*av, "nat", strlen(*av)))
- 	        co.do_nat = 1;
+ 		co.do_nat = 1;
  	else if (!strncmp(*av, "pipe", strlen(*av)))
 		co.do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
@@ -426,7 +431,7 @@ ipfw_main(int oldac, char **oldav)
 		else if (_substrcmp(*av, "resetlog") == 0)
 			ipfw_zero(ac, av, 1 /* IP_FW_RESETLOG */);
 		else if (_substrcmp(*av, "print") == 0 ||
-		         _substrcmp(*av, "list") == 0)
+			 _substrcmp(*av, "list") == 0)
 			ipfw_list(ac, av, do_acct);
 		else if (_substrcmp(*av, "show") == 0)
 			ipfw_list(ac, av, 1 /* show counters */);
@@ -444,7 +449,7 @@ static void
 ipfw_readfile(int ac, char *av[])
 {
 #define MAX_ARGS	32
-	char	buf[BUFSIZ];
+	char buf[4096];
 	char *progname = av[0];		/* original program name */
 	const char *cmd = NULL;		/* preprocessor name, if any */
 	const char *filename = av[ac-1]; /* file to read */
@@ -552,7 +557,7 @@ ipfw_readfile(int ac, char *av[])
 		}
 	}
 
-	while (fgets(buf, BUFSIZ, f)) {		/* read commands */
+	while (fgets(buf, sizeof(buf), f)) {		/* read commands */
 		char linename[20];
 		char *args[2];
 
@@ -591,7 +596,7 @@ main(int ac, char *av[])
 		ret = WSAStartup(wVersionRequested, &wsaData);
 		if (ret != 0) {
 			/* Tell the user that we could not find a usable */
-			/* Winsock DLL.                                  */
+			/* Winsock DLL.				  */
 			printf("WSAStartup failed with error: %d\n", ret);
 			return 1;
 		}
@@ -602,9 +607,12 @@ main(int ac, char *av[])
 	 * as a file to be preprocessed.
 	 */
 
-	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0)
-		ipfw_readfile(ac, av);
-	else {
+	if (ac > 1 && av[ac - 1][0] == '/') {
+		if (access(av[ac - 1], R_OK) == 0)
+			ipfw_readfile(ac, av);
+		else
+			err(EX_USAGE, "pathname: %s", av[ac - 1]);
+	} else {
 		if (ipfw_main(ac, av)) {
 			errx(EX_USAGE,
 			    "usage: ipfw [options]\n"

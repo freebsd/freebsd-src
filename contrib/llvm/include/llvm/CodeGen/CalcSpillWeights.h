@@ -11,7 +11,7 @@
 #ifndef LLVM_CODEGEN_CALCSPILLWEIGHTS_H
 #define LLVM_CODEGEN_CALCSPILLWEIGHTS_H
 
-#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
@@ -29,28 +29,25 @@ namespace llvm {
   /// @param Size       Size of live interval as returnexd by getSize()
   ///
   static inline float normalizeSpillWeight(float UseDefFreq, unsigned Size) {
-    // The magic constant 200 corresponds to approx. 25 instructions since
-    // SlotIndexes allocate 8 slots per instruction.
-    //
-    // The constant is added to avoid depending too much on accidental SlotIndex
-    // gaps for small intervals. The effect is that small intervals have a spill
-    // weight that is mostly proportional to the number of uses, while large
-    // intervals get a spill weight that is closer to a use density.
-    //
-    return UseDefFreq / (Size + 200);
+    // The constant 25 instructions is added to avoid depending too much on
+    // accidental SlotIndex gaps for small intervals. The effect is that small
+    // intervals have a spill weight that is mostly proportional to the number
+    // of uses, while large intervals get a spill weight that is closer to a use
+    // density.
+    return UseDefFreq / (Size + 25*SlotIndex::InstrDist);
   }
 
   /// VirtRegAuxInfo - Calculate auxiliary information for a virtual
   /// register such as its spill weight and allocation hint.
   class VirtRegAuxInfo {
-    MachineFunction &mf_;
-    LiveIntervals &lis_;
-    const MachineLoopInfo &loops_;
-    DenseMap<unsigned, float> hint_;
+    MachineFunction &MF;
+    LiveIntervals &LIS;
+    const MachineLoopInfo &Loops;
+    DenseMap<unsigned, float> Hint;
   public:
     VirtRegAuxInfo(MachineFunction &mf, LiveIntervals &lis,
                    const MachineLoopInfo &loops) :
-      mf_(mf), lis_(lis), loops_(loops) {}
+      MF(mf), LIS(lis), Loops(loops) {}
 
     /// CalculateRegClass - recompute the register class for reg from its uses.
     /// Since the register class can affect the allocation hint, this function

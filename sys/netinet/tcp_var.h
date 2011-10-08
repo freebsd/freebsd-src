@@ -203,9 +203,9 @@ struct tcpcb {
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
-	int	t_ispare;		/* explicit pad for 64bit alignment */
+	uint32_t t_ispare[12];		/* 4 keep timers, 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
-	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
 
 /*
@@ -224,6 +224,7 @@ struct tcpcb {
 #define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
 #define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
 #define	TF_NOPUSH	0x001000	/* don't push */
+#define	TF_PREVVALID	0x002000	/* saved values for bad rxmit valid */
 #define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x040000	/* connection was previously idle */
@@ -299,6 +300,7 @@ struct tcpopt {
 	u_int16_t	to_mss;		/* maximum segment size */
 	u_int8_t	to_wscale;	/* window scaling */
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
+	u_int32_t	to_spare;	/* UTO */
 };
 
 /*
@@ -484,6 +486,13 @@ struct	tcpstat {
 	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
 	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
+
+	/* TCP_SIGNATURE related stats */
+	u_long	tcps_sig_rcvgoodsig;	/* Total matching signature received */
+	u_long	tcps_sig_rcvbadsig;	/* Total bad signature received */
+	u_long	tcps_sig_err_buildsig;	/* Mismatching signature received */
+	u_long	tcps_sig_err_sigopt;	/* No signature expected by socket */
+	u_long	tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
 	u_long	_pad[12];		/* 6 UTO, 6 TBD */
 };
@@ -684,6 +693,8 @@ int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
+int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
+	    struct tcphdr *, u_int);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *

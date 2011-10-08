@@ -30,7 +30,7 @@ INCS=		taclib.h
 CFLAGS+=	-Wall
 DPADD=		${LIBMD}
 LDADD=		-lmd
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5
 MAN=		libtacplus.3 tacplus.conf.5
 
 WARNS?=		2

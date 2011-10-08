@@ -17,7 +17,7 @@ CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-WARNS?=		3
+WARNS?=		2
 
 MAN=		dnssec-signzone.8
 

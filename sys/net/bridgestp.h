@@ -358,6 +358,7 @@ struct bstp_state {
 	LIST_HEAD(, bstp_port)	bs_bplist;
 	bstp_state_cb_t		bs_state_cb;
 	bstp_rtage_cb_t		bs_rtage_cb;
+	struct vnet		*bs_vnet;
 };
 
 #define	BSTP_LOCK_INIT(_bs)	mtx_init(&(_bs)->bs_mtx, "bstp", NULL, MTX_DEF)

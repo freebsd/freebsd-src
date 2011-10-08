@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.50 2010/08/16 03:15:23 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.51 2010/10/07 10:25:29 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -211,6 +211,10 @@ char *user_from_uid(uid_t, int);
 
 #ifndef HAVE_GROUP_FROM_GID
 char *group_from_gid(gid_t, int);
+#endif
+
+#ifndef HAVE_TIMINGSAFE_BCMP
+int timingsafe_bcmp(const void *, const void *, size_t);
 #endif
 
 void *xmmap(size_t size);

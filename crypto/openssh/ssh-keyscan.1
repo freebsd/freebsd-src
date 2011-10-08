@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.28 2010/01/09 23:04:13 dtucker Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.29 2010/08/31 11:54:45 djm Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
@@ -7,7 +7,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd January 9, 2010
+.Dd August 31, 2010
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -89,9 +89,10 @@ Specifies the type of the key to fetch from the scanned hosts.
 The possible values are
 .Dq rsa1
 for protocol version 1 and
-.Dq rsa
+.Dq dsa ,
+.Dq ecdsa
 or
-.Dq dsa
+.Dq rsa
 for protocol version 2.
 Multiple values may be specified by separating them with commas.
 The default is
@@ -123,7 +124,7 @@ attacks which have begun after the ssh_known_hosts file was created.
 host-or-namelist bits exponent modulus
 .Ed
 .Pp
-.Pa Output format for rsa and dsa keys:
+.Pa Output format for rsa, dsa and ecdsa keys:
 .Bd -literal
 host-or-namelist keytype base64-encoded-key
 .Ed
@@ -131,9 +132,12 @@ host-or-namelist keytype base64-encoded-key
 Where
 .Pa keytype
 is either
-.Dq ssh-rsa
+.Dq ecdsa-sha2-nistp256 ,
+.Dq ecdsa-sha2-nistp384 ,
+.Dq ecdsa-sha2-nistp521 ,
+.Dq ssh-dss
 or
-.Dq ssh-dss .
+.Dq ssh-rsa .
 .Pp
 .Pa /etc/ssh/ssh_known_hosts
 .Sh EXAMPLES
@@ -150,7 +154,7 @@ Find all hosts from the file
 which have new or different keys from those in the sorted file
 .Pa ssh_known_hosts :
 .Bd -literal
-$ ssh-keyscan -t rsa,dsa -f ssh_hosts | \e
+$ ssh-keyscan -t rsa,dsa,ecdsa -f ssh_hosts | \e
 	sort -u - ssh_known_hosts | diff ssh_known_hosts -
 .Ed
 .Sh SEE ALSO

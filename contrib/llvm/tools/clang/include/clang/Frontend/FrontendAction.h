@@ -51,6 +51,7 @@ class FrontendAction {
   llvm::OwningPtr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
   friend class ASTMergeAction;
+  friend class WrapperFrontendAction;
 
 private:
   ASTConsumer* CreateWrappedASTConsumer(CompilerInstance &CI,
@@ -76,6 +77,14 @@ protected:
   /// \return The new AST consumer, or 0 on failure.
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          llvm::StringRef InFile) = 0;
+
+  /// \brief Callback before starting processing a single input, giving the
+  /// opportunity to modify the CompilerInvocation or do some other action
+  /// before BeginSourceFileAction is called.
+  ///
+  /// \return True on success; on failure \see BeginSourceFileAction() and
+  /// ExecutionAction() and EndSourceFileAction() will not be called.
+  virtual bool BeginInvocation(CompilerInstance &CI) { return true; }
 
   /// BeginSourceFileAction - Callback at the start of processing a single
   /// input.
@@ -251,6 +260,36 @@ protected:
 
 public:
   virtual bool usesPreprocessorOnly() const { return true; }
+};
+
+/// WrapperFrontendAction - A frontend action which simply wraps some other
+/// runtime specified frontend action. Deriving from this class allows an
+/// action to inject custom logic around some existing action's behavior. It
+/// implements every virtual method in the FrontendAction interface by
+/// forwarding to the wrapped action.
+class WrapperFrontendAction : public FrontendAction {
+  llvm::OwningPtr<FrontendAction> WrappedAction;
+
+protected:
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                         llvm::StringRef InFile);
+  virtual bool BeginInvocation(CompilerInstance &CI);
+  virtual bool BeginSourceFileAction(CompilerInstance &CI,
+                                     llvm::StringRef Filename);
+  virtual void ExecuteAction();
+  virtual void EndSourceFileAction();
+
+public:
+  /// Construct a WrapperFrontendAction from an existing action, taking
+  /// ownership of it.
+  WrapperFrontendAction(FrontendAction *WrappedAction);
+
+  virtual bool usesPreprocessorOnly() const;
+  virtual bool usesCompleteTranslationUnit();
+  virtual bool hasPCHSupport() const;
+  virtual bool hasASTFileSupport() const;
+  virtual bool hasIRSupport() const;
+  virtual bool hasCodeCompletionSupport() const;
 };
 
 }  // end namespace clang

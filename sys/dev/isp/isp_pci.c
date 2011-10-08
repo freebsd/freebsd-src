@@ -347,7 +347,11 @@ static int isp_pci_detach (device_t);
 struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
 	device_t			pci_dev;
-	struct resource *		pci_reg;
+	struct resource *		regs;
+	void *				irq;
+	int				iqd;
+	int				rtp;
+	int				rgd;
 	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
 	bus_dma_tag_t			dmat;
@@ -645,8 +649,7 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 static int
 isp_pci_attach(device_t dev)
 {
-	struct resource *regs, *irq;
-	int rtp, rgd, iqd, i, m1, m2, locksetup = 0;
+	int i, m1, m2, locksetup = 0;
 	int isp_nvports = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
@@ -687,32 +690,31 @@ isp_pci_attach(device_t dev)
 	isp_get_pci_options(dev, &m1, &m2);
 
 	linesz = PCI_DFLT_LNSZ;
-	irq = regs = NULL;
-	rgd = rtp = iqd = 0;
+	pcs->irq = pcs->regs = NULL;
+	pcs->rgd = pcs->rtp = pcs->iqd = 0;
 
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (cmd & m1) {
-		rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		regs = bus_alloc_resource_any(dev, rtp, &rgd, RF_ACTIVE);
+		pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
 	}
-	if (regs == NULL && (cmd & m2)) {
-		rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		regs = bus_alloc_resource_any(dev, rtp, &rgd, RF_ACTIVE);
+	if (pcs->regs == NULL && (cmd & m2)) {
+		pcs->rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		pcs->rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
 	}
-	if (regs == NULL) {
+	if (pcs->regs == NULL) {
 		device_printf(dev, "unable to map any ports\n");
 		goto bad;
 	}
 	if (bootverbose) {
-		device_printf(dev, "using %s space register mapping\n", (rgd == IO_MAP_REG)? "I/O" : "Memory");
+		device_printf(dev, "using %s space register mapping\n", (pcs->rgd == IO_MAP_REG)? "I/O" : "Memory");
 	}
-	isp->isp_bus_tag = rman_get_bustag(regs);
-	isp->isp_bus_handle = rman_get_bushandle(regs);
+	isp->isp_bus_tag = rman_get_bustag(pcs->regs);
+	isp->isp_bus_handle = rman_get_bushandle(pcs->regs);
 
 	pcs->pci_dev = dev;
-	pcs->pci_reg = regs;
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS_OFF;
 	pcs->pci_poff[SXP_BLOCK >> _BLK_REG_SHFT] = PCI_SXP_REGS_OFF;
@@ -931,13 +933,13 @@ isp_pci_attach(device_t dev)
 			pcs->msicount = 1;
 		}
 		if (pci_alloc_msi(dev, &pcs->msicount) == 0) {
-			iqd = 1;
+			pcs->iqd = 1;
 		} else {
-			iqd = 0;
+			pcs->iqd = 0;
 		}
 	}
-	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd, RF_ACTIVE | RF_SHAREABLE);
-	if (irq == NULL) {
+	pcs->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &pcs->iqd, RF_ACTIVE | RF_SHAREABLE);
+	if (pcs->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
 	}
@@ -946,7 +948,7 @@ isp_pci_attach(device_t dev)
 	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 	locksetup++;
 
-	if (isp_setup_intr(dev, irq, ISP_IFLAGS, NULL, isp_platform_intr, isp, &pcs->ih)) {
+	if (isp_setup_intr(dev, pcs->irq, ISP_IFLAGS, NULL, isp_platform_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
@@ -982,19 +984,19 @@ isp_pci_attach(device_t dev)
 
 bad:
 	if (pcs->ih) {
-		(void) bus_teardown_intr(dev, irq, pcs->ih);
+		(void) bus_teardown_intr(dev, pcs->irq, pcs->ih);
 	}
 	if (locksetup) {
 		mtx_destroy(&isp->isp_osinfo.lock);
 	}
-	if (irq) {
-		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
+	if (pcs->irq) {
+		(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->iqd, pcs->irq);
 	}
 	if (pcs->msicount) {
 		pci_release_msi(dev);
 	}
-	if (regs) {
-		(void) bus_release_resource(dev, rtp, rgd, regs);
+	if (pcs->regs) {
+		(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
 	}
 	if (pcs->pci_isp.isp_param) {
 		free(pcs->pci_isp.isp_param, M_DEVBUF);
@@ -1012,14 +1014,36 @@ isp_pci_detach(device_t dev)
 {
 	struct isp_pcisoftc *pcs;
 	ispsoftc_t *isp;
+	int status;
 
 	pcs = device_get_softc(dev);
 	if (pcs == NULL) {
 		return (ENXIO);
 	}
 	isp = (ispsoftc_t *) pcs;
-	ISP_DISABLE_INTS(isp);
+	status = isp_detach(isp);
+	if (status)
+		return (status);
+	ISP_LOCK(isp);
+	isp_uninit(isp);
+	if (pcs->ih) {
+		(void) bus_teardown_intr(dev, pcs->irq, pcs->ih);
+	}
+	ISP_UNLOCK(isp);
 	mtx_destroy(&isp->isp_osinfo.lock);
+	(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->iqd, pcs->irq);
+	if (pcs->msicount) {
+		pci_release_msi(dev);
+	}
+	(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
+	if (pcs->pci_isp.isp_param) {
+		free(pcs->pci_isp.isp_param, M_DEVBUF);
+		pcs->pci_isp.isp_param = NULL;
+	}
+	if (pcs->pci_isp.isp_osinfo.pc.ptr) {
+		free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
+		pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
+	}
 	return (0);
 }
 

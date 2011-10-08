@@ -680,7 +680,6 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
-	IF_ADDR_LOCK(ifp);
 
 	/*
 	 * Switch to MLDv1 host compatibility mode.
@@ -693,6 +692,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	if (timer == 0)
 		timer = 1;
 
+	IF_ADDR_LOCK(ifp);
 	if (is_general_query) {
 		/*
 		 * For each reporting group joined on this
@@ -888,7 +888,6 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
-	IF_ADDR_LOCK(ifp);
 
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
@@ -936,14 +935,18 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * Queries for groups we are not a member of on this
 		 * link are simply ignored.
 		 */
+		IF_ADDR_LOCK(ifp);
 		inm = in6m_lookup_locked(ifp, &mld->mld_addr);
-		if (inm == NULL)
+		if (inm == NULL) {
+			IF_ADDR_UNLOCK(ifp);
 			goto out_locked;
+		}
 		if (nsrc > 0) {
 			if (!ratecheck(&inm->in6m_lastgsrtv,
 			    &V_mld_gsrdelay)) {
 				CTR1(KTR_MLD, "%s: GS query throttled.",
 				    __func__);
+				IF_ADDR_UNLOCK(ifp);
 				goto out_locked;
 			}
 		}
@@ -961,10 +964,10 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 		/* XXX Clear embedded scope ID as userland won't expect it. */
 		in6_clearscope(&mld->mld_addr);
+		IF_ADDR_UNLOCK(ifp);
 	}
 
 out_locked:
-	IF_ADDR_UNLOCK(ifp);
 	MLD_UNLOCK();
 	IN6_MULTI_UNLOCK();
 

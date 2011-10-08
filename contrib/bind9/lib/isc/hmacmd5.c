@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacmd5.c,v 1.14 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: hmacmd5.c,v 1.16 2009-02-06 23:47:42 tbox Exp $ */
 
 /*! \file
  * This code implements the HMAC-MD5 keyed hash algorithm
@@ -27,9 +27,39 @@
 #include <isc/assertions.h>
 #include <isc/hmacmd5.h>
 #include <isc/md5.h>
+#include <isc/platform.h>
 #include <isc/string.h>
 #include <isc/types.h>
 #include <isc/util.h>
+
+#ifdef ISC_PLATFORM_OPENSSLHASH
+
+void
+isc_hmacmd5_init(isc_hmacmd5_t *ctx, const unsigned char *key,
+		 unsigned int len)
+{
+	HMAC_Init(ctx, (const void *) key, (int) len, EVP_md5());
+}
+
+void
+isc_hmacmd5_invalidate(isc_hmacmd5_t *ctx) {
+	HMAC_CTX_cleanup(ctx);
+}
+
+void
+isc_hmacmd5_update(isc_hmacmd5_t *ctx, const unsigned char *buf,
+		   unsigned int len)
+{
+	HMAC_Update(ctx, buf, (int) len);
+}
+
+void
+isc_hmacmd5_sign(isc_hmacmd5_t *ctx, unsigned char *digest) {
+	HMAC_Final(ctx, digest, NULL);
+	HMAC_CTX_cleanup(ctx);
+}
+
+#else
 
 #define PADLEN 64
 #define IPAD 0x36
@@ -98,6 +128,7 @@ isc_hmacmd5_sign(isc_hmacmd5_t *ctx, unsigned char *digest) {
 	isc_md5_final(&ctx->md5ctx, digest);
 	isc_hmacmd5_invalidate(ctx);
 }
+#endif /* !ISC_PLATFORM_OPENSSLHASH */
 
 /*!
  * Verify signature - finalize MD5 operation and reapply MD5, then

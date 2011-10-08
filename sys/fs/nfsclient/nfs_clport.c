@@ -34,13 +34,38 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
+#include <sys/capability.h>
+
 /*
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
  */
+#include <sys/hash.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
+
+#include <fs/nfsclient/nfs_kdtrace.h>
+
+#ifdef KDTRACE_HOOKS
+dtrace_nfsclient_attrcache_flush_probe_func_t
+		dtrace_nfscl_attrcache_flush_done_probe;
+uint32_t	nfscl_attrcache_flush_done_id;
+
+dtrace_nfsclient_attrcache_get_hit_probe_func_t
+		dtrace_nfscl_attrcache_get_hit_probe;
+uint32_t	nfscl_attrcache_get_hit_id;
+
+dtrace_nfsclient_attrcache_get_miss_probe_func_t
+		dtrace_nfscl_attrcache_get_miss_probe;
+uint32_t	nfscl_attrcache_get_miss_id;
+
+dtrace_nfsclient_attrcache_load_probe_func_t
+		dtrace_nfscl_attrcache_load_done_probe;
+uint32_t	nfscl_attrcache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern struct vop_vector newnfs_vnodeops;
@@ -84,7 +109,7 @@ newnfs_vncmpf(struct vnode *vp, void *arg)
 int
 nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
     struct componentname *cnp, struct thread *td, struct nfsnode **npp,
-    void *stuff)
+    void *stuff, int lkflags)
 {
 	struct nfsnode *np, *dnp;
 	struct vnode *vp, *nvp;
@@ -99,12 +124,12 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 
 	hash = fnv_32_buf(nfhp->nfh_fh, nfhp->nfh_len, FNV1_32_INIT);
 
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_get(mntp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
 		/*
 		 * I believe there is a slight chance that vgonel() could
-		 * get called on this vnode between when vn_lock() drops
+		 * get called on this vnode between when NFSVOPLOCK() drops
 		 * the VI_LOCK() and vget() acquires it again, so that it
 		 * hasn't yet had v_usecount incremented. If this were to
 		 * happen, the VI_DOOMED flag would be set, so check for
@@ -243,7 +268,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE, 
+	error = vfs_hash_insert(vp, hash, lkflags, 
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error)
 		return (error);
@@ -294,7 +319,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	error = vfs_hash_get(mntp, hash, (LK_EXCLUSIVE | LK_NOWAIT), td, &nvp,
 	    newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
-		VOP_UNLOCK(nvp, 0);
+		NFSVOPUNLOCK(nvp, 0);
 	} else if (error == EBUSY) {
 		/*
 		 * The LK_EXCLOTHER lock type tells nfs_lock1() to not try
@@ -365,6 +390,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		np->n_vattr.na_mtime = nap->na_mtime;
 		np->n_vattr.na_ctime = nap->na_ctime;
 		np->n_vattr.na_fsid = nap->na_fsid;
+		np->n_vattr.na_mode = nap->na_mode;
 	} else {
 		NFSBCOPY((caddr_t)nap, (caddr_t)&np->n_vattr,
 		    sizeof (struct nfsvattr));
@@ -377,12 +403,23 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * be the same as a local fs, but since this is in an NFS mount
 	 * point, I don't think that will cause any problems?
 	 */
-	if ((nmp->nm_flag & (NFSMNT_NFSV4 | NFSMNT_HASSETFSID)) ==
-	    (NFSMNT_NFSV4 | NFSMNT_HASSETFSID) &&
+	if (NFSHASNFSV4(nmp) && NFSHASHASSETFSID(nmp) &&
 	    (nmp->nm_fsid[0] != np->n_vattr.na_filesid[0] ||
-	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1]))
-		vap->va_fsid = np->n_vattr.na_filesid[0];
-	else
+	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1])) {
+		/*
+		 * va_fsid needs to be set to some value derived from
+		 * np->n_vattr.na_filesid that is not equal
+		 * vp->v_mount->mnt_stat.f_fsid[0], so that it changes
+		 * from the value used for the top level server volume
+		 * in the mounted subtree.
+		 */
+		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
+		    (uint32_t)np->n_vattr.na_filesid[0])
+			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
+		else
+			vap->va_fsid = (uint32_t)hash32_buf(
+			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
+	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
@@ -395,6 +432,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				 */
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -427,9 +465,11 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * We detect this by for the mtime moving back. We invalidate the 
 	 * attrcache when this happens.
 	 */
-	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
 		/* Size changed or mtime went backwards */
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
 	if (vaper != NULL) {
 		NFSBCOPY((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -439,6 +479,10 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+#ifdef KDTRACE_HOOKS
+	if (np->n_attrstamp != 0)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
+#endif
 	NFSUNLOCKNODE(np);
 	return (0);
 }
@@ -488,7 +532,7 @@ nfscl_fillclid(u_int64_t clval, char *uuid, u_int8_t *cp, u_int16_t idlen)
  * Fill in a lock owner name. For now, pid + the process's creation time.
  */
 void
-nfscl_filllockowner(struct thread *td, u_int8_t *cp)
+nfscl_filllockowner(void *id, u_int8_t *cp, int flags)
 {
 	union {
 		u_int32_t	lval;
@@ -496,37 +540,35 @@ nfscl_filllockowner(struct thread *td, u_int8_t *cp)
 	} tl;
 	struct proc *p;
 
-if (td == NULL) {
-	printf("NULL td\n");
-	bzero(cp, 12);
-	return;
-}
-	p = td->td_proc;
-if (p == NULL) {
-	printf("NULL pid\n");
-	bzero(cp, 12);
-	return;
-}
-	tl.lval = p->p_pid;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-if (p->p_stats == NULL) {
-	printf("pstats null\n");
-	bzero(cp, 8);
-	return;
-}
-	tl.lval = p->p_stats->p_start.tv_sec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-	tl.lval = p->p_stats->p_start.tv_usec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp = tl.cval[3];
+	if (id == NULL) {
+		printf("NULL id\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+		return;
+	}
+	if ((flags & F_POSIX) != 0) {
+		p = (struct proc *)id;
+		tl.lval = p->p_pid;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_sec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_usec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp = tl.cval[3];
+	} else if ((flags & F_FLOCK) != 0) {
+		bcopy(&id, cp, sizeof(id));
+		bzero(&cp[sizeof(id)], NFSV4CL_LOCKNAMELEN - sizeof(id));
+	} else {
+		printf("nfscl_filllockowner: not F_POSIX or F_FLOCK\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+	}
 }
 
 /*
@@ -791,8 +833,8 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		(void) nfsv4_fillattr(nd, vp, NULL, vap, NULL, 0, &attrbits,
-		    NULL, NULL, 0, 0);
+		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
+		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 		break;
 	};
 }
@@ -826,21 +868,33 @@ void
 nfscl_loadsbinfo(struct nfsmount *nmp, struct nfsstatfs *sfp, void *statfs)
 {
 	struct statfs *sbp = (struct statfs *)statfs;
-	nfsquad_t tquad;
 
 	if (nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) {
 		sbp->f_bsize = NFS_FABLKSIZE;
-		tquad.qval = sfp->sf_tbytes;
-		sbp->f_blocks = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_fbytes;
-		sbp->f_bfree = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_abytes;
-		sbp->f_bavail = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_tfiles;
-		sbp->f_files = (tquad.lval[0] & 0x7fffffff);
-		tquad.qval = sfp->sf_ffiles;
-		sbp->f_ffree = (tquad.lval[0] & 0x7fffffff);
+		sbp->f_blocks = sfp->sf_tbytes / NFS_FABLKSIZE;
+		sbp->f_bfree = sfp->sf_fbytes / NFS_FABLKSIZE;
+		/*
+		 * Although sf_abytes is uint64_t and f_bavail is int64_t,
+		 * the value after dividing by NFS_FABLKSIZE is small
+		 * enough that it will fit in 63bits, so it is ok to
+		 * assign it to f_bavail without fear that it will become
+		 * negative.
+		 */
+		sbp->f_bavail = sfp->sf_abytes / NFS_FABLKSIZE;
+		sbp->f_files = sfp->sf_tfiles;
+		/* Since f_ffree is int64_t, clip it to 63bits. */
+		if (sfp->sf_ffiles > INT64_MAX)
+			sbp->f_ffree = INT64_MAX;
+		else
+			sbp->f_ffree = sfp->sf_ffiles;
 	} else if ((nmp->nm_flag & NFSMNT_NFSV4) == 0) {
+		/*
+		 * The type casts to (int32_t) ensure that this code is
+		 * compatible with the old NFS client, in that it will
+		 * propagate bit31 to the high order bits. This may or may
+		 * not be correct for NFSv2, but since it is a legacy
+		 * environment, I'd rather retain backwards compatibility.
+		 */
 		sbp->f_bsize = (int32_t)sfp->sf_bsize;
 		sbp->f_blocks = (int32_t)sfp->sf_blocks;
 		sbp->f_bfree = (int32_t)sfp->sf_bfree;
@@ -919,6 +973,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad.sin_family = AF_INET;
 		sad.sin_len = sizeof (struct sockaddr_in);
 		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -932,6 +987,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #ifdef INET6
 	} else if (nmp->nm_nam->sa_family == AF_INET6) {
 		struct sockaddr_in6 sad6, *sin6;
@@ -942,6 +998,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad6.sin6_family = AF_INET6;
 		sad6.sin6_len = sizeof (struct sockaddr_in6);
 		sad6.sin6_addr = sin6->sin6_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad6, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -956,6 +1013,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #endif
 	}
 	return (retp);
@@ -1102,11 +1160,11 @@ pfind_locked(pid_t pid)
 
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	return (p);
@@ -1175,7 +1233,13 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, nfscbdarg.sock, &fp)) != 0) {
+		/*
+		 * Since we don't know what rights might be required,
+		 * pretend that we need them all. It is better to be too
+		 * careful than too reckless.
+		 */
+		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
+		    != 0) {
 			return (error);
 		}
 		if (fp->f_type != DTYPE_SOCKET) {

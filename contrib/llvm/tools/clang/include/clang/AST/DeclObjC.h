@@ -112,17 +112,20 @@ class ObjCMethodDecl : public NamedDecl, public DeclContext {
 public:
   enum ImplementationControl { None, Required, Optional };
 private:
-  /// Bitfields must be first fields in this class so they pack with those
-  /// declared in class Decl.
+  // The conventional meaning of this method; an ObjCMethodFamily.
+  // This is not serialized; instead, it is computed on demand and
+  // cached.
+  mutable unsigned Family : ObjCMethodFamilyBitWidth;
+
   /// instance (true) or class (false) method.
-  bool IsInstance : 1;
-  bool IsVariadic : 1;
+  unsigned IsInstance : 1;
+  unsigned IsVariadic : 1;
 
   // Synthesized declaration method for a property setter/getter
-  bool IsSynthesized : 1;
+  unsigned IsSynthesized : 1;
   
   // Method has a definition.
-  bool IsDefined : 1;
+  unsigned IsDefined : 1;
 
   // NOTE: VC++ treats enums as signed, avoid using ImplementationControl enum
   /// @required/@optional
@@ -132,6 +135,9 @@ private:
   /// in, inout, etc.
   unsigned objcDeclQualifier : 6;
 
+  /// \brief Indicates whether this method has a related result type.
+  unsigned RelatedResultType : 1;
+  
   // Number of args separated by ':' in a method declaration.
   unsigned NumSelectorArgs;
 
@@ -168,15 +174,16 @@ private:
                  bool isSynthesized = false,
                  bool isDefined = false,
                  ImplementationControl impControl = None,
+                 bool HasRelatedResultType = false,
                  unsigned numSelectorArgs = 0)
   : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
-    DeclContext(ObjCMethod),
+    DeclContext(ObjCMethod), Family(InvalidObjCMethodFamily),
     IsInstance(isInstance), IsVariadic(isVariadic),
     IsSynthesized(isSynthesized),
     IsDefined(isDefined),
     DeclImplementation(impControl), objcDeclQualifier(OBJC_TQ_None),
-    NumSelectorArgs(numSelectorArgs), MethodDeclType(T), 
-    ResultTInfo(ResultTInfo),
+    RelatedResultType(HasRelatedResultType), NumSelectorArgs(numSelectorArgs), 
+    MethodDeclType(T), ResultTInfo(ResultTInfo),
     EndLoc(endLoc), Body(0), SelfDecl(0), CmdDecl(0) {}
 
   /// \brief A definition will return its interface declaration.
@@ -196,6 +203,7 @@ public:
                                 bool isSynthesized = false,
                                 bool isDefined = false,
                                 ImplementationControl impControl = None,
+                                bool HasRelatedResultType = false,
                                 unsigned numSelectorArgs = 0);
 
   virtual ObjCMethodDecl *getCanonicalDecl();
@@ -208,6 +216,13 @@ public:
   }
   void setObjCDeclQualifier(ObjCDeclQualifier QV) { objcDeclQualifier = QV; }
 
+  /// \brief Determine whether this method has a result type that is related
+  /// to the message receiver's type.
+  bool hasRelatedResultType() const { return RelatedResultType; }
+  
+  /// \brief Note whether this method has a related result type.
+  void SetRelatedResultType(bool RRT = true) { RelatedResultType = RRT; }
+  
   unsigned getNumSelectorArgs() const { return NumSelectorArgs; }
   void setNumSelectorArgs(unsigned numSelectorArgs) { 
     NumSelectorArgs = numSelectorArgs; 
@@ -278,6 +293,9 @@ public:
   void setSelfDecl(ImplicitParamDecl *SD) { SelfDecl = SD; }
   ImplicitParamDecl * getCmdDecl() const { return CmdDecl; }
   void setCmdDecl(ImplicitParamDecl *CD) { CmdDecl = CD; }
+
+  /// Determines the family of this method.
+  ObjCMethodFamily getMethodFamily() const;
 
   bool isInstanceMethod() const { return IsInstance; }
   void setInstanceMethod(bool isInst) { IsInstance = isInst; }
@@ -453,7 +471,7 @@ class ObjCInterfaceDecl : public ObjCContainerDecl {
   ///
   /// Categories are stored as a linked list in the AST, since the categories
   /// and class extensions come long after the initial interface declaration,
-  /// and we avoid dynamically-resized arrays in the AST whereever possible.
+  /// and we avoid dynamically-resized arrays in the AST wherever possible.
   ObjCCategoryDecl *CategoryList;
   
   /// IvarList - List of all ivars defined by this class; including class
@@ -623,6 +641,18 @@ public:
     return false;
   }
 
+  /// isArcWeakrefUnavailable - Checks for a class or one of its super classes
+  /// to be incompatible with __weak references. Returns true if it is.
+  bool isArcWeakrefUnavailable() const {
+    const ObjCInterfaceDecl *Class = this;
+    while (Class) {
+      if (Class->hasAttr<ArcWeakrefUnavailableAttr>())
+        return true;
+      Class = Class->getSuperClass();
+   }
+   return false; 
+  }
+
   ObjCIvarDecl *lookupInstanceVariable(IdentifierInfo *IVarName,
                                        ObjCInterfaceDecl *&ClassDeclared);
   ObjCIvarDecl *lookupInstanceVariable(IdentifierInfo *IVarName) {
@@ -701,15 +731,18 @@ public:
   };
 
 private:
-  ObjCIvarDecl(ObjCContainerDecl *DC, SourceLocation L, IdentifierInfo *Id,
+  ObjCIvarDecl(ObjCContainerDecl *DC, SourceLocation StartLoc,
+               SourceLocation IdLoc, IdentifierInfo *Id,
                QualType T, TypeSourceInfo *TInfo, AccessControl ac, Expr *BW,
                bool synthesized)
-    : FieldDecl(ObjCIvar, DC, L, Id, T, TInfo, BW, /*Mutable=*/false),
-      NextIvar(0), DeclAccess(ac),  Synthesized(synthesized) {}
+    : FieldDecl(ObjCIvar, DC, StartLoc, IdLoc, Id, T, TInfo, BW,
+                /*Mutable=*/false, /*HasInit=*/false),
+      NextIvar(0), DeclAccess(ac), Synthesized(synthesized) {}
 
 public:
   static ObjCIvarDecl *Create(ASTContext &C, ObjCContainerDecl *DC,
-                              SourceLocation L, IdentifierInfo *Id, QualType T,
+                              SourceLocation StartLoc, SourceLocation IdLoc,
+                              IdentifierInfo *Id, QualType T,
                               TypeSourceInfo *TInfo,
                               AccessControl ac, Expr *BW = NULL,
                               bool synthesized=false);
@@ -753,17 +786,18 @@ private:
 ///  @defs(...).
 class ObjCAtDefsFieldDecl : public FieldDecl {
 private:
-  ObjCAtDefsFieldDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
+  ObjCAtDefsFieldDecl(DeclContext *DC, SourceLocation StartLoc,
+                      SourceLocation IdLoc, IdentifierInfo *Id,
                       QualType T, Expr *BW)
-    : FieldDecl(ObjCAtDefsField, DC, L, Id, T,
+    : FieldDecl(ObjCAtDefsField, DC, StartLoc, IdLoc, Id, T,
                 /*TInfo=*/0, // FIXME: Do ObjCAtDefs have declarators ?
-                BW, /*Mutable=*/false) {}
+                BW, /*Mutable=*/false, /*HasInit=*/false) {}
 
 public:
   static ObjCAtDefsFieldDecl *Create(ASTContext &C, DeclContext *DC,
-                                     SourceLocation L,
-                                     IdentifierInfo *Id, QualType T,
-                                     Expr *BW);
+                                     SourceLocation StartLoc,
+                                     SourceLocation IdLoc, IdentifierInfo *Id,
+                                     QualType T, Expr *BW);
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -773,7 +807,7 @@ public:
 
 /// ObjCProtocolDecl - Represents a protocol declaration. ObjC protocols
 /// declare a pure abstract type (i.e no instance variables are permitted).
-/// Protocols orginally drew inspiration from C++ pure virtual functions (a C++
+/// Protocols originally drew inspiration from C++ pure virtual functions (a C++
 /// feature with nice semantics and lousy syntax:-). Here is an example:
 ///
 /// @protocol NSDraggingInfo <refproto1, refproto2>
@@ -1218,6 +1252,9 @@ class ObjCImplementationDecl : public ObjCImplDecl {
   /// IvarInitializers - The arguments used to initialize the ivars
   CXXCtorInitializer **IvarInitializers;
   unsigned NumIvarInitializers;
+
+  /// true if class has a .cxx_[construct,destruct] method.
+  bool HasCXXStructors : 1;
   
   /// true of class extension has at least one bitfield ivar.
   bool HasSynthBitfield : 1;
@@ -1227,7 +1264,7 @@ class ObjCImplementationDecl : public ObjCImplDecl {
                          ObjCInterfaceDecl *superDecl)
     : ObjCImplDecl(ObjCImplementation, DC, L, classInterface),
        SuperClass(superDecl), IvarInitializers(0), NumIvarInitializers(0),
-       HasSynthBitfield(false) {}
+       HasCXXStructors(false), HasSynthBitfield(false) {}
 public:
   static ObjCImplementationDecl *Create(ASTContext &C, DeclContext *DC,
                                         SourceLocation L,
@@ -1265,6 +1302,9 @@ public:
   void setIvarInitializers(ASTContext &C,
                            CXXCtorInitializer ** initializers,
                            unsigned numInitializers);
+
+  bool hasCXXStructors() const { return HasCXXStructors; }
+  void setHasCXXStructors(bool val) { HasCXXStructors = val; }
   
   bool hasSynthBitfield() const { return HasSynthBitfield; }
   void setHasSynthBitfield (bool val) { HasSynthBitfield = val; }
@@ -1371,7 +1411,16 @@ public:
     OBJC_PR_copy      = 0x20,
     OBJC_PR_nonatomic = 0x40,
     OBJC_PR_setter    = 0x80,
-    OBJC_PR_atomic    = 0x100
+    OBJC_PR_atomic    = 0x100,
+    OBJC_PR_weak      = 0x200,
+    OBJC_PR_strong    = 0x400,
+    OBJC_PR_unsafe_unretained = 0x800
+    // Adding a property should change NumPropertyAttrsBits
+  };
+
+  enum {
+    /// \brief Number of bits fitting all the property attributes.
+    NumPropertyAttrsBits = 12
   };
 
   enum SetterKind { Assign, Retain, Copy };
@@ -1379,8 +1428,8 @@ public:
 private:
   SourceLocation AtLoc;   // location of @property
   TypeSourceInfo *DeclType;
-  unsigned PropertyAttributes : 9;
-  unsigned PropertyAttributesAsWritten : 9;
+  unsigned PropertyAttributes : NumPropertyAttrsBits;
+  unsigned PropertyAttributesAsWritten : NumPropertyAttrsBits;
   // @required/@optional
   unsigned PropertyImplementation : 2;
 
@@ -1423,6 +1472,12 @@ public:
   PropertyAttributeKind getPropertyAttributesAsWritten() const {
     return PropertyAttributeKind(PropertyAttributesAsWritten);
   }
+
+  bool hasWrittenStorageAttribute() const {
+    return PropertyAttributesAsWritten & (OBJC_PR_assign | OBJC_PR_copy |
+        OBJC_PR_unsafe_unretained | OBJC_PR_retain | OBJC_PR_strong |
+        OBJC_PR_weak);
+  }
   
   void setPropertyAttributesAsWritten(PropertyAttributeKind PRVal) {
     PropertyAttributesAsWritten = PRVal;
@@ -1444,7 +1499,7 @@ public:
   /// the property setter. This is only valid if the property has been
   /// defined to have a setter.
   SetterKind getSetterKind() const {
-    if (PropertyAttributes & OBJC_PR_retain)
+    if (PropertyAttributes & (OBJC_PR_retain|OBJC_PR_strong))
       return Retain;
     if (PropertyAttributes & OBJC_PR_copy)
       return Copy;

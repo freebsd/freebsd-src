@@ -167,6 +167,14 @@ struct syscall_module_data {
 static struct sysent syscallname##_sysent = {			\
 	(sizeof(struct syscallname ## _args )			\
 	    / sizeof(register_t)),				\
+	(sy_call_t *)& sys_##syscallname,	       		\
+	SYS_AUE_##syscallname					\
+}
+
+#define	MAKE_SYSENT_COMPAT(syscallname)				\
+static struct sysent syscallname##_sysent = {			\
+	(sizeof(struct syscallname ## _args )			\
+	    / sizeof(register_t)),				\
 	(sy_call_t *)& syscallname,				\
 	SYS_AUE_##syscallname					\
 }
@@ -204,6 +212,15 @@ struct syscall_helper_data {
 	int registered;
 };
 #define SYSCALL_INIT_HELPER(syscallname) {			\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
+	.sy_auevent = SYS_AUE_##syscallname			\
+    },								\
+    .syscall_no = SYS_##syscallname				\
+}
+#define SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
 	    / sizeof(register_t)),				\

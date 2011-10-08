@@ -53,7 +53,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	}
 	for (; i < dlen + flen + separator; i++)
 		filename[i] = 'b';
-	filename[i++] = '\0';
+	filename[i] = '\0';
 
 	strcpy(dirname, filename);
 

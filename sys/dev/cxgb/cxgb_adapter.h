@@ -510,7 +510,7 @@ int t3_sge_alloc(struct adapter *);
 int t3_sge_free(struct adapter *);
 int t3_sge_alloc_qset(adapter_t *, uint32_t, int, int, const struct qset_params *,
     int, struct port_info *);
-void t3_free_sge_resources(adapter_t *);
+void t3_free_sge_resources(adapter_t *, int);
 void t3_sge_start(adapter_t *);
 void t3_sge_stop(adapter_t *);
 void t3b_intr(void *data);

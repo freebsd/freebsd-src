@@ -24,7 +24,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetAsmBackend.h"
-#include "llvm/Target/TargetAsmInfo.h"
 
 using namespace llvm;
 
@@ -44,6 +43,8 @@ public:
 
   virtual void InitSections();
   virtual void EmitLabel(MCSymbol *Symbol);
+  virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
+                                   MCSymbol *EHSymbol);
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
   virtual void EmitThumbFunc(MCSymbol *Func);
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
@@ -99,6 +100,18 @@ void MCMachOStreamer::InitSections() {
                                     MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
                                     0, SectionKind::getText()));
 
+}
+
+void MCMachOStreamer::EmitEHSymAttributes(const MCSymbol *Symbol,
+                                          MCSymbol *EHSymbol) {
+  MCSymbolData &SD =
+    getAssembler().getOrCreateSymbolData(*Symbol);
+  if (SD.isExternal())
+    EmitSymbolAttribute(EHSymbol, MCSA_Global);
+  if (SD.getFlags() & SF_WeakDefinition)
+    EmitSymbolAttribute(EHSymbol, MCSA_WeakDefinition);
+  if (SD.isPrivateExtern())
+    EmitSymbolAttribute(EHSymbol, MCSA_PrivateExtern);
 }
 
 void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
@@ -363,6 +376,8 @@ void MCMachOStreamer::EmitInstToData(const MCInst &Inst) {
 }
 
 void MCMachOStreamer::Finish() {
+  EmitFrames(true);
+
   // We have to set the fragment atom associations so we can relax properly for
   // Mach-O.
 

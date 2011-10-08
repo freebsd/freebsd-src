@@ -160,7 +160,18 @@ public:
   bool isIllegalInteger(unsigned Width) const {
     return !isLegalInteger(Width);
   }
-  
+
+  /// fitsInLegalInteger - This function returns true if the specified type fits
+  /// in a native integer type supported by the CPU.  For example, if the CPU
+  /// only supports i32 as a native integer type, then i27 fits in a legal
+  // integer type but i45 does not.
+  bool fitsInLegalInteger(unsigned Width) const {
+    for (unsigned i = 0, e = (unsigned)LegalIntWidths.size(); i != e; ++i)
+      if (Width <= LegalIntWidths[i])
+        return true;
+    return false;
+  }
+
   /// Target pointer alignment
   unsigned getPointerABIAlignment() const { return PointerABIAlign; }
   /// Return target's alignment for stack-based pointers
@@ -248,7 +259,7 @@ public:
   /// getIntPtrType - Return an unsigned integer type that is the same size or
   /// greater to the host pointer size.
   ///
-  const IntegerType *getIntPtrType(LLVMContext &C) const;
+  IntegerType *getIntPtrType(LLVMContext &C) const;
 
   /// getIndexedOffset - return the offset from the beginning of the type for
   /// the specified indices.  This is used to implement getelementptr.
@@ -260,12 +271,6 @@ public:
   /// of the struct, its size, and the offsets of its fields.  Note that this
   /// information is lazily cached.
   const StructLayout *getStructLayout(const StructType *Ty) const;
-
-  /// InvalidateStructLayoutInfo - TargetData speculatively caches StructLayout
-  /// objects.  If a TargetData object is alive when types are being refined and
-  /// removed, this method must be called whenever a StructType is removed to
-  /// avoid a dangling pointer in this cache.
-  void InvalidateStructLayoutInfo(const StructType *Ty) const;
 
   /// getPreferredAlignment - Return the preferred alignment of the specified
   /// global.  This includes an explicitly requested alignment (if the global

@@ -247,17 +247,16 @@ void PTHWriter::EmitToken(const Token& T) {
   } else {
     // We cache *un-cleaned* spellings. This gives us 100% fidelity with the
     // source code.
-    const char* s = T.getLiteralData();
-    unsigned len = T.getLength();
+    llvm::StringRef s(T.getLiteralData(), T.getLength());
 
     // Get the string entry.
-    llvm::StringMapEntry<OffsetOpt> *E = &CachedStrs.GetOrCreateValue(s, s+len);
+    llvm::StringMapEntry<OffsetOpt> *E = &CachedStrs.GetOrCreateValue(s);
 
     // If this is a new string entry, bump the PTH offset.
     if (!E->getValue().hasOffset()) {
       E->getValue().setOffset(CurStrOffset);
       StrEntries.push_back(E);
-      CurStrOffset += len + 1;
+      CurStrOffset += s.size() + 1;
     }
 
     // Emit the relative offset into the PTH file for the spelling string.
@@ -288,12 +287,12 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
 
     if ((Tok.isAtStartOfLine() || Tok.is(tok::eof)) &&
         ParsingPreprocessorDirective) {
-      // Insert an eom token into the token cache.  It has the same
+      // Insert an eod token into the token cache.  It has the same
       // position as the next token that is not on the same line as the
       // preprocessor directive.  Observe that we continue processing
       // 'Tok' when we exit this branch.
       Token Tmp = Tok;
-      Tmp.setKind(tok::eom);
+      Tmp.setKind(tok::eod);
       Tmp.clearFlag(Token::StartOfLine);
       Tmp.setIdentifierInfo(0);
       EmitToken(Tmp);
@@ -473,7 +472,7 @@ void PTHWriter::GeneratePTH(const std::string &MainFile) {
   for (SourceManager::fileinfo_iterator I = SM.fileinfo_begin(),
        E = SM.fileinfo_end(); I != E; ++I) {
     const SrcMgr::ContentCache &C = *I->second;
-    const FileEntry *FE = C.Entry;
+    const FileEntry *FE = C.OrigEntry;
 
     // FIXME: Handle files with non-absolute paths.
     if (llvm::sys::path::is_relative(FE->getName()))

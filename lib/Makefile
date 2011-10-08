@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libefi} \
 	libexpat \
 	libfetch \
-	libftpio \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -89,9 +88,9 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libopie \
 	libpam \
 	libpcap \
-	${_libpkg} \
 	${_libpmc} \
 	${_libproc} \
+	libprocstat \
 	librt \
 	${_librtld_db} \
 	${_libsdp} \
@@ -192,12 +191,6 @@ _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
@@ -212,10 +205,6 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
-.endif
-
-.if ${MK_PKGTOOLS} != "no"
-_libpkg=	libpkg
 .endif
 
 .if ${MK_SENDMAIL} != "no"

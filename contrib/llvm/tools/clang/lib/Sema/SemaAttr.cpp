@@ -129,6 +129,12 @@ void Sema::AddAlignmentAttributesForRecord(RecordDecl *RD) {
   }
 }
 
+void Sema::AddMsStructLayoutForRecord(RecordDecl *RD) {
+  if (!MSStructPragmaOn)
+    return;
+  RD->addAttr(::new (Context) MsStructAttr(SourceLocation(), Context));
+}
+
 void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
                                    SourceLocation PragmaLoc,
                                    SourceLocation KindLoc) {
@@ -263,6 +269,10 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
   }
 }
 
+void Sema::ActOnPragmaMSStruct(PragmaMSStructKind Kind) { 
+  MSStructPragmaOn = (Kind == PMSST_ON);
+}
+
 void Sema::ActOnPragmaUnused(const Token &IdTok, Scope *curScope,
                              SourceLocation PragmaLoc) {
 
@@ -297,7 +307,7 @@ void Sema::AddPushedVisibilityAttribute(Decl *D) {
   if (!VisContext)
     return;
 
-  if (D->hasAttr<VisibilityAttr>())
+  if (isa<NamedDecl>(D) && cast<NamedDecl>(D)->getExplicitVisibility())
     return;
 
   VisStack *Stack = static_cast<VisStack*>(VisContext);

@@ -67,7 +67,7 @@ options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options 	NFSCLIENT
+options 	NFSCL
 options 	NFS_ROOT
 #
 options 	BOOTP

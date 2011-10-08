@@ -36,7 +36,7 @@
 //     evaluated each time through the tail recursion.  Safely keeping allocas
 //     in the entry block requires analysis to proves that the tail-called
 //     function does not read or write the stack object.
-//  2. Tail recursion is only performed if the call immediately preceeds the
+//  2. Tail recursion is only performed if the call immediately precedes the
 //     return instruction.  It's possible that there could be a jump between
 //     the call and the return.
 //  3. There can be intervening operations between the call and the return that
@@ -59,6 +59,7 @@
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/InlineCost.h"
@@ -209,10 +210,10 @@ bool TailCallElim::runOnFunction(Function &F) {
     }
   }
 
-  // Finally, if this function contains no non-escaping allocas, mark all calls
-  // in the function as eligible for tail calls (there is no stack memory for
-  // them to access).
-  if (!FunctionContainsEscapingAllocas)
+  // Finally, if this function contains no non-escaping allocas, or calls
+  // setjmp, mark all calls in the function as eligible for tail calls
+  //(there is no stack memory for them to access).
+  if (!FunctionContainsEscapingAllocas && !F.callsFunctionThatReturnsTwice())
     for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
       for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)
         if (CallInst *CI = dyn_cast<CallInst>(I)) {
@@ -433,7 +434,7 @@ bool TailCallElim::EliminateRecursiveTailCall(CallInst *CI, ReturnInst *Ret,
     if (CanMoveAboveCall(BBI, CI)) continue;
     
     // If we can't move the instruction above the call, it might be because it
-    // is an associative and commutative operation that could be tranformed
+    // is an associative and commutative operation that could be transformed
     // using accumulator recursion elimination.  Check to see if this is the
     // case, and if so, remember the initial accumulator value for later.
     if ((AccumulatorRecursionEliminationInitVal =
@@ -496,7 +497,7 @@ bool TailCallElim::EliminateRecursiveTailCall(CallInst *CI, ReturnInst *Ret,
     Instruction *InsertPos = OldEntry->begin();
     for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
          I != E; ++I) {
-      PHINode *PN = PHINode::Create(I->getType(),
+      PHINode *PN = PHINode::Create(I->getType(), 2,
                                     I->getName() + ".tr", InsertPos);
       I->replaceAllUsesWith(PN); // Everyone use the PHI node now!
       PN->addIncoming(I, NewEntry);
@@ -527,8 +528,10 @@ bool TailCallElim::EliminateRecursiveTailCall(CallInst *CI, ReturnInst *Ret,
   if (AccumulatorRecursionEliminationInitVal) {
     Instruction *AccRecInstr = AccumulatorRecursionInstr;
     // Start by inserting a new PHI node for the accumulator.
+    pred_iterator PB = pred_begin(OldEntry), PE = pred_end(OldEntry);
     PHINode *AccPN =
       PHINode::Create(AccumulatorRecursionEliminationInitVal->getType(),
+                      std::distance(PB, PE) + 1,
                       "accumulator.tr", OldEntry->begin());
 
     // Loop over all of the predecessors of the tail recursion block.  For the
@@ -537,8 +540,7 @@ bool TailCallElim::EliminateRecursiveTailCall(CallInst *CI, ReturnInst *Ret,
     // other tail recursions eliminated) the accumulator is not modified.
     // Because we haven't added the branch in the current block to OldEntry yet,
     // it will not show up as a predecessor.
-    for (pred_iterator PI = pred_begin(OldEntry), PE = pred_end(OldEntry);
-         PI != PE; ++PI) {
+    for (pred_iterator PI = PB; PI != PE; ++PI) {
       BasicBlock *P = *PI;
       if (P == &F->getEntryBlock())
         AccPN->addIncoming(AccumulatorRecursionEliminationInitVal, P);
@@ -572,7 +574,9 @@ bool TailCallElim::EliminateRecursiveTailCall(CallInst *CI, ReturnInst *Ret,
 
   // Now that all of the PHI nodes are in place, remove the call and
   // ret instructions, replacing them with an unconditional branch.
-  BranchInst::Create(OldEntry, Ret);
+  BranchInst *NewBI = BranchInst::Create(OldEntry, Ret);
+  NewBI->setDebugLoc(CI->getDebugLoc());
+
   BB->getInstList().erase(Ret);  // Remove return.
   BB->getInstList().erase(CI);   // Remove call.
   ++NumEliminated;

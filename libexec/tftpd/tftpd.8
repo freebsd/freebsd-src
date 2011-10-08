@@ -32,7 +32,7 @@
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2000
+.Dd June 22, 2011
 .Dt TFTPD 8
 .Os
 .Sh NAME
@@ -150,9 +150,27 @@ compatible format string for the creation of the suffix if
 .Fl W
 is specified.
 By default the string "%Y%m%d" is used.
-.It Fl d
+.It Fl d, d Ar [value]
 Enables debug output.
-If specified twice, it will log DATA and ACK packets too.
+If
+.Ar value
+is not specified, then the debug level is increased by one
+for each instance of
+.Fl d
+which is specified.
+.Pp
+If
+.Ar value
+is specified, then the debug level is set to 
+.Ar value .
+The debug level is a bitmask implemented in 
+.Pa src/libexec/tftpd/tftp-utils.h .
+Valid values are 0 (DEBUG_NONE), 1 (DEBUG_PACKETS), 2, (DEBUG_SIMPLE),
+4 (DEBUG_OPTIONS), and 8 (DEBUG_ACCESS).  Multiple debug values can be combined
+in the bitmask by logically OR'ing the values.  For example, specifying
+.Fl d
+.Ar 15
+will enable all the debug values.
 .It Fl l
 Log all requests using
 .Xr syslog 3
@@ -217,12 +235,34 @@ option.
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
 .Xr inetd 8
+.Pp
+The following RFC's are supported:
 .Rs
-.%A K. R. Sollins
+RFC 1350
 .%T The TFTP Protocol (Revision 2)
-.%D July 1992
-.%O RFC 1350, STD 33
 .Re
+.Rs
+RFC 2347
+.%T TFTP Option Extension
+.Re
+.Rs
+RFC 2348
+.%T TFTP Blocksize Option
+.Re
+.Rs
+RFC 2349
+.%T TFTP Timeout Interval and Transfer Size Options
+.Re
+.Pp
+The non-standard
+.Cm rollover
+and
+.Cm blksize2
+TFTP options are mentioned here:
+.Rs
+.%T Extending TFTP
+.%U http://www.compuphase.com/tftp.htm
+.Re 
 .Sh HISTORY
 The
 .Nm
@@ -253,8 +293,22 @@ was introduced in
 support for the TFTP Blocksize Option (RFC2348) and the blksize2 option
 was introduced in
 .Fx 7.4 .
-.Sh BUGS
-Files larger than 33488896 octets (65535 blocks) cannot be transferred
-without client and server supporting blocksize negotiation (RFC2348).
 .Pp
-Many tftp clients will not transfer files over 16744448 octets (32767 blocks).
+Edwin Groothuis <edwin@FreeBSD.org> performed a major rewrite of the
+.Nm
+and
+.Xr tftp 1
+code to support RFC2348.
+.Sh NOTES
+Files larger than 33,553,919 octets (65535 blocks, last one <512
+octets) cannot be correctly transferred without client and server
+supporting blocksize negotiation (RFCs 2347 and 2348),
+or the non-standard TFTP rollover option.
+As a kludge,
+.Nm
+accepts a sequence of block number which wrap to zero after 65535,
+even if the rollover option is not specified.
+.Pp
+Many tftp clients will not transfer files over 16,776,703 octets
+(32767 blocks), as they incorrectly count the block number using
+a signed rather than unsigned 16-bit integer.

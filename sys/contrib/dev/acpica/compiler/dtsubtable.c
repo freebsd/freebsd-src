@@ -288,16 +288,58 @@ DtGetSubtableLength (
     ACPI_DMTABLE_INFO       *Info)
 {
     UINT32                  ByteLength = 0;
+    UINT8                   Step;
+    UINT8                   i;
 
 
     /* Walk entire Info table; Null name terminates */
 
     for (; Info->Name; Info++)
     {
+        if (!Field)
+        {
+            goto Error;
+        }
+
         ByteLength += DtGetFieldLength (Field, Info);
+
+        switch (Info->Opcode)
+        {
+        case ACPI_DMT_GAS:
+            Step = 5;
+            break;
+
+        case ACPI_DMT_HESTNTFY:
+            Step = 9;
+            break;
+
+        default:
+            Step = 1;
+            break;
+        }
+
+        for (i = 0; i < Step; i++)
+        {
+            if (!Field)
+            {
+                goto Error;
+            }
+
+            Field = Field->Next;
+        }
     }
 
     return (ByteLength);
+
+Error:
+    if (!Field)
+    {
+        sprintf (MsgBuffer, "Found NULL field - Field name \"%s\" needed",
+            Info->Name);
+        DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, MsgBuffer);
+    }
+
+    return (ASL_EOF);
 }
 
 

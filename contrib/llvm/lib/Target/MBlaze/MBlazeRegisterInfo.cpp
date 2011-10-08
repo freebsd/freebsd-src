@@ -37,12 +37,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "MBlazeGenRegisterInfo.inc"
+
 using namespace llvm;
 
 MBlazeRegisterInfo::
 MBlazeRegisterInfo(const MBlazeSubtarget &ST, const TargetInstrInfo &tii)
-  : MBlazeGenRegisterInfo(MBlaze::ADJCALLSTACKDOWN, MBlaze::ADJCALLSTACKUP),
-    Subtarget(ST), TII(tii) {}
+  : MBlazeGenRegisterInfo(), Subtarget(ST), TII(tii) {}
 
 /// getRegisterNumbering - Given the enum value for some register, e.g.
 /// MBlaze::R0, return the number that it corresponds to (e.g. 0).
@@ -179,6 +181,26 @@ unsigned MBlazeRegisterInfo::getSpecialRegisterFromNumbering(unsigned Reg) {
     default: llvm_unreachable("Unknown register number!");
   }
   return 0; // Not reached
+}
+
+bool MBlazeRegisterInfo::isRegister(unsigned Reg) {
+  return Reg <= 31;
+}
+
+bool MBlazeRegisterInfo::isSpecialRegister(unsigned Reg) {
+  switch (Reg) {
+    case 0x0000 : case 0x0001 : case 0x0003 : case 0x0005 : 
+    case 0x0007 : case 0x000B : case 0x000D : case 0x1000 : 
+    case 0x1001 : case 0x1002 : case 0x1003 : case 0x1004 : 
+    case 0x2000 : case 0x2001 : case 0x2002 : case 0x2003 : 
+    case 0x2004 : case 0x2005 : case 0x2006 : case 0x2007 : 
+    case 0x2008 : case 0x2009 : case 0x200A : case 0x200B : 
+      return true;
+
+    default:
+      return false;
+  }
+  return false; // Not reached
 }
 
 unsigned MBlazeRegisterInfo::getPICCallReg() {
@@ -336,5 +358,6 @@ int MBlazeRegisterInfo::getDwarfRegNum(unsigned RegNo, bool isEH) const {
   return MBlazeGenRegisterInfo::getDwarfRegNumFull(RegNo,0);
 }
 
-#include "MBlazeGenRegisterInfo.inc"
-
+int MBlazeRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  return MBlazeGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
+}

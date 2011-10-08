@@ -16,6 +16,7 @@
 
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include <utility>
+#include <functional>
 #include <cassert>
 
 namespace llvm {
@@ -53,6 +54,9 @@ public:
 
 private:
   friend class SourceManager;
+  friend class ASTWriter;
+  friend class ASTReader;
+  
   static FileID get(unsigned V) {
     FileID F;
     F.ID = V;
@@ -294,6 +298,14 @@ public:
     assert(SrcMgr == Loc.SrcMgr && "Loc comes from another SourceManager!");
     return isBeforeInTranslationUnitThan((SourceLocation)Loc);
   }
+
+  /// \brief Comparison function class, useful for sorting FullSourceLocs.
+  struct BeforeThanCompare : public std::binary_function<FullSourceLoc,
+                                                         FullSourceLoc, bool> {
+    bool operator()(const FullSourceLoc& lhs, const FullSourceLoc& rhs) const {
+      return lhs.isBeforeInTranslationUnitThan(rhs);
+    }
+  };
 
   /// Prints information about this FullSourceLoc to stderr. Useful for
   ///  debugging.

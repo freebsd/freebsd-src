@@ -153,7 +153,7 @@ static const struct ucom_callback uipaq_callback = {
  * support the same hardware. Numeric values are used where no usbdevs
  * entries exist.
  */
-static const struct usb_device_id uipaq_devs[] = {
+static const STRUCT_USB_HOST_ID uipaq_devs[] = {
 	/* Socket USB Sync */
 	{USB_VPI(0x0104, 0x00be, 0)},
 	/* USB Sync 0301 */

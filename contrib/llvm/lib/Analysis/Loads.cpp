@@ -17,6 +17,7 @@
 #include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Operator.h"
 using namespace llvm;
 
 /// AreEquivalentAddressValues - Test if A and B will obviously have the same
@@ -30,7 +31,7 @@ using namespace llvm;
 static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
   // Test if the values are trivially equivalent.
   if (A == B) return true;
-  
+
   // Test if the values come from identical arithmetic instructions.
   // Use isIdenticalToWhenDefined instead of isIdenticalTo because
   // this function is only used when one address use dominates the
@@ -41,7 +42,7 @@ static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
     if (const Instruction *BI = dyn_cast<Instruction>(B))
       if (cast<Instruction>(A)->isIdenticalToWhenDefined(BI))
         return true;
-  
+
   // Otherwise they may not be equivalent.
   return false;
 }

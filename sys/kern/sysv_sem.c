@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/racct.h>
 #include <sys/sem.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -148,9 +149,6 @@ struct sem_undo {
 #endif
 
 /* shouldn't need tuning */
-#ifndef SEMMAP
-#define SEMMAP	30		/* # of entries in semaphore map */
-#endif
 #ifndef SEMMSL
 #define SEMMSL	SEMMNS		/* max # of semaphores per id */
 #endif
@@ -181,7 +179,6 @@ struct sem_undo {
  * semaphore info struct
  */
 struct seminfo seminfo = {
-                SEMMAP,         /* # of entries in semaphore map */
                 SEMMNI,         /* # of semaphore identifiers */
                 SEMMNS,         /* # of semaphores in system */
                 SEMMNU,         /* # of undo structures in system */
@@ -193,8 +190,6 @@ struct seminfo seminfo = {
                 SEMAEM          /* adjust on exit max value */
 };
 
-SYSCTL_INT(_kern_ipc, OID_AUTO, semmap, CTLFLAG_RW, &seminfo.semmap, 0,
-    "Number of entries in the semaphore map");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RDTUN, &seminfo.semmni, 0,
     "Number of semaphore identifiers");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmns, CTLFLAG_RDTUN, &seminfo.semmns, 0,
@@ -223,7 +218,7 @@ static struct syscall_helper_data sem_syscalls[] = {
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 	SYSCALL_INIT_HELPER(semsys),
-	SYSCALL_INIT_HELPER(freebsd7___semctl),
+	SYSCALL_INIT_HELPER_COMPAT(freebsd7___semctl),
 #endif
 	SYSCALL_INIT_LAST
 };
@@ -238,8 +233,8 @@ static struct syscall_helper_data sem_syscalls[] = {
 
 static struct syscall_helper_data sem32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_semctl),
-	SYSCALL32_INIT_HELPER(semget),
-	SYSCALL32_INIT_HELPER(semop),
+	SYSCALL32_INIT_HELPER_COMPAT(semget),
+	SYSCALL32_INIT_HELPER_COMPAT(semop),
 	SYSCALL32_INIT_HELPER(freebsd32_semsys),
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -254,7 +249,6 @@ seminit(void)
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.semmap", &seminfo.semmap);
 	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
 	TUNABLE_INT_FETCH("kern.ipc.semmns", &seminfo.semmns);
 	TUNABLE_INT_FETCH("kern.ipc.semmnu", &seminfo.semmnu);
@@ -524,7 +518,7 @@ struct __semctl_args {
 };
 #endif
 int
-__semctl(struct thread *td, struct __semctl_args *uap)
+sys___semctl(struct thread *td, struct __semctl_args *uap)
 {
 	struct semid_ds dsbuf;
 	union semun arg, semun;
@@ -656,6 +650,9 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		semakptr->u.sem_perm.cuid = cred->cr_uid;
 		semakptr->u.sem_perm.uid = cred->cr_uid;
 		semakptr->u.sem_perm.mode = 0;
+		racct_sub_cred(semakptr->cred, RACCT_NSEM, semakptr->u.sem_nsems);
+		crfree(semakptr->cred);
+		semakptr->cred = NULL;
 		SEMUNDO_LOCK();
 		semundo_clear(semidx, -1);
 		SEMUNDO_UNLOCK();
@@ -859,7 +856,7 @@ struct semget_args {
 };
 #endif
 int
-semget(struct thread *td, struct semget_args *uap)
+sys_semget(struct thread *td, struct semget_args *uap)
 {
 	int semid, error = 0;
 	int key = uap->key;
@@ -927,6 +924,15 @@ semget(struct thread *td, struct semget_args *uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#ifdef RACCT
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_NSEM, nsems);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = ENOSPC;
+			goto done2;
+		}
+#endif
 		DPRINTF(("semid %d is available\n", semid));
 		mtx_lock(&sema_mtx[semid]);
 		KASSERT((sema[semid].u.sem_perm.mode & SEM_ALLOC) == 0,
@@ -937,6 +943,7 @@ semget(struct thread *td, struct semget_args *uap)
 		sema[semid].u.sem_perm.cgid = cred->cr_gid;
 		sema[semid].u.sem_perm.gid = cred->cr_gid;
 		sema[semid].u.sem_perm.mode = (semflg & 0777) | SEM_ALLOC;
+		sema[semid].cred = crhold(cred);
 		sema[semid].u.sem_perm.seq =
 		    (sema[semid].u.sem_perm.seq + 1) & 0x7fff;
 		sema[semid].u.sem_nsems = nsems;
@@ -973,7 +980,7 @@ struct semop_args {
 };
 #endif
 int
-semop(struct thread *td, struct semop_args *uap)
+sys_semop(struct thread *td, struct semop_args *uap)
 {
 #define SMALL_SOPS	8
 	struct sembuf small_sops[SMALL_SOPS];
@@ -1006,12 +1013,21 @@ semop(struct thread *td, struct semop_args *uap)
 	/* Allocate memory for sem_ops */
 	if (nsops <= SMALL_SOPS)
 		sops = small_sops;
-	else if (nsops <= seminfo.semopm)
-		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
-	else {
+	else if (nsops > seminfo.semopm) {
 		DPRINTF(("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
 		    nsops));
 		return (E2BIG);
+	} else {
+#ifdef RACCT
+		PROC_LOCK(td->td_proc);
+		if (nsops > racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+			PROC_UNLOCK(td->td_proc);
+			return (E2BIG);
+		}
+		PROC_UNLOCK(td->td_proc);
+#endif
+
+		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
 	}
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
 		DPRINTF(("error = %d from copyin(%p, %p, %d)\n", error,
@@ -1366,15 +1382,15 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
-	(sy_call_t *)freebsd7___semctl, (sy_call_t *)semget,
-	(sy_call_t *)semop
+	(sy_call_t *)freebsd7___semctl, (sy_call_t *)sys_semget,
+	(sy_call_t *)sys_semop
 };
 
 /*
  * Entry point for all SEM calls.
  */
 int
-semsys(td, uap)
+sys_semsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct semsys_args /* {
@@ -1494,7 +1510,7 @@ freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 		return (freebsd7_freebsd32_semctl(td,
 		    (struct freebsd7_freebsd32_semctl_args *)&uap->a2));
 	default:
-		return (semsys(td, (struct semsys_args *)uap));
+		return (sys_semsys(td, (struct semsys_args *)uap));
 	}
 #else
 	return (nosys(td, NULL));

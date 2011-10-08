@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2003-2004, 2007, 2009 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 2003-2004, 2007, 2009-2011 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: worker.c,v 8.17 2009/06/15 15:34:54 ca Exp $")
+SM_RCSID("@(#)$Id: worker.c,v 8.19 2011/02/14 23:33:48 ca Exp $")
 
 #include "libmilter.h"
 
@@ -165,7 +165,9 @@ mi_start_session(ctx)
 {
 	static long id = 0;
 
-	SM_ASSERT(Tskmgr.tm_signature == TM_SIGNATURE);
+	/* this can happen if the milter is shutting down */
+	if (Tskmgr.tm_signature != TM_SIGNATURE)
+		return MI_FAILURE;
 	SM_ASSERT(ctx != NULL);
 	POOL_LEV_DPRINTF(4, ("PIPE r=[%d] w=[%d]", RD_PIPE, WR_PIPE));
 	TASKMGR_LOCK();
@@ -216,6 +218,41 @@ mi_close_session(ctx)
 }
 
 /*
+**  NONBLOCKING -- set nonblocking mode for a file descriptor.
+**
+**	Parameters:
+**		fd -- file descriptor
+**		name -- name for (error) logging
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+static int
+nonblocking(int fd, const char *name)
+{
+	int r;
+
+	errno = 0;
+	r = fcntl(fd, F_GETFL, 0);
+	if (r == -1)
+	{
+		smi_log(SMI_LOG_ERR, "fcntl(%s, F_GETFL)=%s",
+			name, sm_errstring(errno));
+		return MI_FAILURE;
+	}
+	errno = 0;
+	r = fcntl(fd, F_SETFL, r | O_NONBLOCK);
+	if (r == -1)
+	{
+		smi_log(SMI_LOG_ERR, "fcntl(%s, F_SETFL, O_NONBLOCK)=%s",
+			name, sm_errstring(errno));
+		return MI_FAILURE;
+	}
+	return MI_SUCCESS;
+}
+
+/*
 **  MI_POOL_CONTROLER_INIT -- Launch the worker pool controller
 **		Must be called before starting sessions.
 **
@@ -246,6 +283,12 @@ mi_pool_controller_init()
 			sm_errstring(errno));
 		return MI_FAILURE;
 	}
+	r = nonblocking(WR_PIPE, "WR_PIPE");
+	if (r != MI_SUCCESS)
+		return r;
+	r = nonblocking(RD_PIPE, "RD_PIPE");
+	if (r != MI_SUCCESS)
+		return r;
 
 	(void) smutex_init(&Tskmgr.tm_w_mutex);
 	(void) scond_init(&Tskmgr.tm_w_cond);
@@ -495,25 +538,23 @@ mi_pool_controller(arg)
 			/* has a worker signaled an end of task ? */
 			if (WAIT_FD(i) == RD_PIPE)
 			{
-				char evt = 0;
-				int r = 0;
+				char evts[256];
+				ssize_t r;
 
 				POOL_LEV_DPRINTF(4,
 					("PIPE WILL READ evt = %08X %08X",
 					pfd[i].events, pfd[i].revents));
 
-				if ((pfd[i].revents & MI_POLL_RD_FLAGS) != 0)
+				r = 1;
+				while ((pfd[i].revents & MI_POLL_RD_FLAGS) != 0
+					&& r != -1)
 				{
-					r = read(RD_PIPE, &evt, sizeof(evt));
-					if (r == sizeof(evt))
-					{
-						/* Do nothing */
-					}
+					r = read(RD_PIPE, evts, sizeof(evts));
 				}
 
 				POOL_LEV_DPRINTF(4,
 					("PIPE DONE READ i=[%d] fd=[%d] r=[%d] evt=[%d]",
-					i, RD_PIPE, r, evt));
+					i, RD_PIPE, (int) r, evts[0]));
 
 				if ((pfd[i].revents & ~MI_POLL_RD_FLAGS) != 0)
 				{

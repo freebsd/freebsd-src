@@ -981,7 +981,9 @@ tdfind(lwpid_t tid, pid_t pid)
 				td = NULL;
 				break;
 			}
+			PROC_LOCK(td->td_proc);
 			if (td->td_proc->p_state == PRS_NEW) {
+				PROC_UNLOCK(td->td_proc);
 				td = NULL;
 				break;
 			}
@@ -990,12 +992,10 @@ tdfind(lwpid_t tid, pid_t pid)
 					LIST_REMOVE(td, td_hash);
 					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
 						td, td_hash);
-					PROC_LOCK(td->td_proc);
 					rw_wunlock(&tidhash_lock);
 					return (td);
 				}
 			}
-			PROC_LOCK(td->td_proc);
 			break;
 		}
 		run++;

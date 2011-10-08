@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
- * Copyright (c) 2010 Juniper Networks, Inc.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson under contract
@@ -64,6 +64,7 @@ struct netisr_proto {
 	netisr_drainedcpu_t *np_drainedcpu; /* Callback when drained a queue. */
 	u_int		 np_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 np_policy;	/* Work placement policy. */
+	u_int		 np_dispatch;	/* Work dispatch policy. */
 };
 
 #define	NETISR_MAXPROT	16		/* Compile-time limit. */

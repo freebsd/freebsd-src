@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwpacket.c,v 1.18 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: lwpacket.c,v 1.18 2007-06-19 23:47:22 tbox Exp $ */
 
 /*! \file */
 

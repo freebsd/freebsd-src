@@ -40,6 +40,7 @@
 #define	_MACHINE_PMAP_H_
 
 #include <sys/queue.h>
+#include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <machine/cache.h>
@@ -61,7 +62,7 @@ struct pmap {
 	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
-	cpumask_t pm_active;
+	cpuset_t pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
@@ -89,12 +90,9 @@ void	pmap_kremove_flags(vm_offset_t va);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
-void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
 
 int	pmap_remove_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
 			vm_offset_t va);
-int	pmap_protect_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
-			 vm_offset_t va);
 
 void	pmap_map_tsb(void);
 void	pmap_set_kctx(void);

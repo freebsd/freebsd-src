@@ -13,12 +13,13 @@ SRCS=	AggExprVisitor.cpp \
 	BugReporterVisitors.cpp \
 	CFRefCount.cpp \
 	CXXExprEngine.cpp \
-	Checker.cpp \
+	CheckerContext.cpp \
 	CheckerHelpers.cpp \
 	CheckerManager.cpp \
 	CoreEngine.cpp \
 	Environment.cpp \
 	ExplodedGraph.cpp \
+	ExprEngine.cpp \
 	FlatStore.cpp \
 	GRState.cpp \
 	HTMLDiagnostics.cpp \

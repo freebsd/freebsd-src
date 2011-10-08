@@ -57,6 +57,12 @@
 #define IP_FW_TABLEARG		65535	/* XXX should use 0 */
 
 /*
+ * Number of entries in the call stack of the call/return commands.
+ * Call stack currently is an uint16_t array with rule numbers.
+ */
+#define	IPFW_CALLSTACK_SIZE	16
+
+/*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
@@ -195,6 +201,10 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	
 	O_SOCKARG,		/* socket argument */
 
+	O_CALLRETURN,		/* arg1=called rule number */
+
+	O_FORWARD_IP6,		/* fwd sockaddr_in6             */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -291,6 +301,14 @@ typedef struct  _ipfw_insn_sa {
 } ipfw_insn_sa;
 
 /*
+ * This is used to forward to a given address (ipv6).
+ */
+typedef struct _ipfw_insn_sa6 {
+	ipfw_insn o;
+	struct sockaddr_in6 sa;
+} ipfw_insn_sa6;
+
+/*
  * This is used for MAC addr-mask pairs.
  */
 typedef struct	_ipfw_insn_mac {
@@ -382,8 +400,6 @@ struct cfg_redir {
 	LIST_HEAD(spool_chain, cfg_spool) spool_chain;
 };
 #endif
-
-#define NAT_BUF_LEN     1024
 
 #ifdef IPFW_INTERNAL
 /* Nat configuration data struct. */

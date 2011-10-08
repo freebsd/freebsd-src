@@ -69,6 +69,7 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
 
   // Floating point operations which are not supported
   setOperationAction(ISD::FREM,       MVT::f32, Expand);
+  setOperationAction(ISD::FMA,        MVT::f32, Expand);
   setOperationAction(ISD::UINT_TO_FP, MVT::i8,  Expand);
   setOperationAction(ISD::UINT_TO_FP, MVT::i16, Expand);
   setOperationAction(ISD::UINT_TO_FP, MVT::i32, Expand);
@@ -180,17 +181,14 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setLoadExtAction(ISD::EXTLOAD, MVT::f32, Expand);
   setTruncStoreAction(MVT::f64, MVT::f32, Expand);
 
+  setMinFunctionAlignment(2);
+
   setStackPointerRegisterToSaveRestore(MBlaze::R1);
   computeRegisterProperties();
 }
 
 MVT::SimpleValueType MBlazeTargetLowering::getSetCCResultType(EVT VT) const {
   return MVT::i32;
-}
-
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned MBlazeTargetLowering::getFunctionAlignment(const Function *) const {
-  return 2;
 }
 
 SDValue MBlazeTargetLowering::LowerOperation(SDValue Op,
@@ -274,7 +272,7 @@ MBlazeTargetLowering::EmitCustomShift(MachineInstr *MI,
   F->insert(It, loop);
   F->insert(It, finish);
 
-  // Update machine-CFG edges by transfering adding all successors and
+  // Update machine-CFG edges by transferring adding all successors and
   // remaining instructions from the current block to the new block which
   // will contain the Phi node for the select.
   finish->splice(finish->begin(), MBB,
@@ -420,7 +418,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
   // All atomic instructions on the Microblaze are implemented using the
   // load-linked / store-conditional style atomic instruction sequences.
   // Thus, all operations will look something like the following:
-  // 
+  //
   //  start:
   //    lwx     RV, RP, 0
   //    <do stuff>
@@ -456,7 +454,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
   F->insert(It, start);
   F->insert(It, exit);
 
-  // Update machine-CFG edges by transfering adding all successors and
+  // Update machine-CFG edges by transferring adding all successors and
   // remaining instructions from the current block to the new block which
   // will contain the Phi node for the select.
   exit->splice(exit->begin(), MBB, llvm::next(MachineBasicBlock::iterator(MI)),
@@ -701,8 +699,8 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(), ArgLocs,
-                 *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_MBlaze);
 
   // Get a count of how many bytes are to be pushed on the stack.
@@ -778,7 +776,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
 
   // Build a sequence of copy-to-reg nodes chained together with token
   // chain and flag operands which copy the outgoing args into registers.
-  // The InFlag in necessary since all emited instructions must be
+  // The InFlag in necessary since all emitted instructions must be
   // stuck together.
   SDValue InFlag;
   for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
@@ -840,8 +838,8 @@ LowerCallResult(SDValue Chain, SDValue InFlag, CallingConv::ID CallConv,
                 SmallVectorImpl<SDValue> &InVals) const {
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_MBlaze);
 
@@ -883,8 +881,8 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_MBlaze);
   SDValue StackPtr;
@@ -1015,8 +1013,8 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   SmallVector<CCValAssign, 16> RVLocs;
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
   // Analize return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_MBlaze);
@@ -1046,9 +1044,9 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
   // If this function is using the interrupt_handler calling convention
   // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
-  unsigned Ret = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet 
+  unsigned Ret = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet
                                                               : MBlazeISD::Ret;
-  unsigned Reg = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlaze::R14 
+  unsigned Reg = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlaze::R14
                                                               : MBlaze::R15;
   SDValue DReg = DAG.getRegister(Reg, MVT::i32);
 
@@ -1117,47 +1115,25 @@ MBlazeTargetLowering::getSingleConstraintMatchWeight(
   return weight;
 }
 
-/// getRegClassForInlineAsmConstraint - Given a constraint letter (e.g. "r"),
-/// return a list of registers that can be used to satisfy the constraint.
-/// This should only be used for C_RegisterClass constraints.
+/// Given a register class constraint, like 'r', if this corresponds directly
+/// to an LLVM register class, return a register of 0 and the register class
+/// pointer.
 std::pair<unsigned, const TargetRegisterClass*> MBlazeTargetLowering::
 getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
       return std::make_pair(0U, MBlaze::GPRRegisterClass);
+      // TODO: These can't possibly be right, but match what was in
+      // getRegClassForInlineAsmConstraint.
+    case 'd':
+    case 'y':
     case 'f':
       if (VT == MVT::f32)
         return std::make_pair(0U, MBlaze::GPRRegisterClass);
     }
   }
   return TargetLowering::getRegForInlineAsmConstraint(Constraint, VT);
-}
-
-/// Given a register class constraint, like 'r', if this corresponds directly
-/// to an LLVM register class, return a register of 0 and the register class
-/// pointer.
-std::vector<unsigned> MBlazeTargetLowering::
-getRegClassForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
-  if (Constraint.size() != 1)
-    return std::vector<unsigned>();
-
-  switch (Constraint[0]) {
-    default : break;
-    case 'r':
-    // GCC MBlaze Constraint Letters
-    case 'd':
-    case 'y':
-    case 'f':
-      return make_vector<unsigned>(
-        MBlaze::R3,  MBlaze::R4,  MBlaze::R5,  MBlaze::R6,
-        MBlaze::R7,  MBlaze::R9,  MBlaze::R10, MBlaze::R11,
-        MBlaze::R12, MBlaze::R19, MBlaze::R20, MBlaze::R21,
-        MBlaze::R22, MBlaze::R23, MBlaze::R24, MBlaze::R25,
-        MBlaze::R26, MBlaze::R27, MBlaze::R28, MBlaze::R29,
-        MBlaze::R30, MBlaze::R31, 0);
-  }
-  return std::vector<unsigned>();
 }
 
 bool MBlazeTargetLowering::

@@ -200,7 +200,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		}
 
 		#ifdef __powerpc64__
-		db_printf("0x%16lx: ", stackframe);
+		db_printf("0x%016lx: ", stackframe);
 		#else
 		db_printf("0x%08x: ", stackframe);
 		#endif

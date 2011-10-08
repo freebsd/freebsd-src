@@ -17,21 +17,31 @@
 #include "ScheduleDAGSDNodes.h"
 #include "InstrEmitter.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtarget.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 STATISTIC(LoadsClustered, "Number of loads clustered together");
+
+// This allows latency based scheduler to notice high latency instructions
+// without a target itinerary. The choise if number here has more to do with
+// balancing scheduler heursitics than with the actual machine latency.
+static cl::opt<int> HighLatencyCycles(
+  "sched-high-latency-cycles", cl::Hidden, cl::init(10),
+  cl::desc("Roughly estimate the number of cycles that 'long latency'"
+           "instructions take for targets with no itinerary"));
 
 ScheduleDAGSDNodes::ScheduleDAGSDNodes(MachineFunction &mf)
   : ScheduleDAG(mf),
@@ -72,11 +82,15 @@ SUnit *ScheduleDAGSDNodes::Clone(SUnit *Old) {
   SUnit *SU = NewSUnit(Old->getNode());
   SU->OrigNode = Old->OrigNode;
   SU->Latency = Old->Latency;
+  SU->isVRegCycle = Old->isVRegCycle;
   SU->isCall = Old->isCall;
+  SU->isCallOp = Old->isCallOp;
   SU->isTwoAddress = Old->isTwoAddress;
   SU->isCommutable = Old->isCommutable;
   SU->hasPhysRegDefs = Old->hasPhysRegDefs;
   SU->hasPhysRegClobbers = Old->hasPhysRegClobbers;
+  SU->isScheduleHigh = Old->isScheduleHigh;
+  SU->isScheduleLow = Old->isScheduleLow;
   SU->SchedulingPref = Old->SchedulingPref;
   Old->isCloned = true;
   return SU;
@@ -98,7 +112,7 @@ static void CheckForPhysRegDependency(SDNode *Def, SDNode *User, unsigned Op,
 
   unsigned ResNo = User->getOperand(2).getResNo();
   if (Def->isMachineOpcode()) {
-    const TargetInstrDesc &II = TII->get(Def->getMachineOpcode());
+    const MCInstrDesc &II = TII->get(Def->getMachineOpcode());
     if (ResNo >= II.getNumDefs() &&
         II.ImplicitDefs[ResNo - II.getNumDefs()] == Reg) {
       PhysReg = Reg;
@@ -242,8 +256,8 @@ void ScheduleDAGSDNodes::ClusterNodes() {
       continue;
 
     unsigned Opc = Node->getMachineOpcode();
-    const TargetInstrDesc &TID = TII->get(Opc);
-    if (TID.mayLoad())
+    const MCInstrDesc &MCID = TII->get(Opc);
+    if (MCID.mayLoad())
       // Cluster loads from "near" addresses into combined SUnits.
       ClusterNeighboringLoads(Node);
   }
@@ -273,6 +287,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
   Worklist.push_back(DAG->getRoot().getNode());
   Visited.insert(DAG->getRoot().getNode());
 
+  SmallVector<SUnit*, 8> CallSUnits;
   while (!Worklist.empty()) {
     SDNode *NI = Worklist.pop_back_val();
 
@@ -325,6 +340,15 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
       if (!HasGlueUse) break;
     }
 
+    if (NodeSUnit->isCall)
+      CallSUnits.push_back(NodeSUnit);
+
+    // Schedule zero-latency TokenFactor below any nodes that may increase the
+    // schedule height. Otherwise, ancestors of the TokenFactor may appear to
+    // have false stalls.
+    if (NI->getOpcode() == ISD::TokenFactor)
+      NodeSUnit->isScheduleLow = true;
+
     // If there are glue operands involved, N is now the bottom-most node
     // of the sequence of nodes that are glued together.
     // Update the SUnit.
@@ -338,10 +362,24 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
     // Assign the Latency field of NodeSUnit using target-provided information.
     ComputeLatency(NodeSUnit);
   }
+
+  // Find all call operands.
+  while (!CallSUnits.empty()) {
+    SUnit *SU = CallSUnits.pop_back_val();
+    for (const SDNode *SUNode = SU->getNode(); SUNode;
+         SUNode = SUNode->getGluedNode()) {
+      if (SUNode->getOpcode() != ISD::CopyToReg)
+        continue;
+      SDNode *SrcN = SUNode->getOperand(2).getNode();
+      if (isPassiveNode(SrcN)) continue;   // Not scheduled.
+      SUnit *SrcSU = &SUnits[SrcN->getNodeId()];
+      SrcSU->isCallOp = true;
+    }
+  }
 }
 
 void ScheduleDAGSDNodes::AddSchedEdges() {
-  const TargetSubtarget &ST = TM.getSubtarget<TargetSubtarget>();
+  const TargetSubtargetInfo &ST = TM.getSubtarget<TargetSubtargetInfo>();
 
   // Check to see if the scheduler cares about latencies.
   bool UnitLatencies = ForceUnitLatencies();
@@ -353,14 +391,14 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
 
     if (MainNode->isMachineOpcode()) {
       unsigned Opc = MainNode->getMachineOpcode();
-      const TargetInstrDesc &TID = TII->get(Opc);
-      for (unsigned i = 0; i != TID.getNumOperands(); ++i) {
-        if (TID.getOperandConstraint(i, TOI::TIED_TO) != -1) {
+      const MCInstrDesc &MCID = TII->get(Opc);
+      for (unsigned i = 0; i != MCID.getNumOperands(); ++i) {
+        if (MCID.getOperandConstraint(i, MCOI::TIED_TO) != -1) {
           SU->isTwoAddress = true;
           break;
         }
       }
-      if (TID.isCommutable())
+      if (MCID.isCommutable())
         SU->isCommutable = true;
     }
 
@@ -398,11 +436,15 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
         // it requires a cross class copy (cost < 0). That means we are only
         // treating "expensive to copy" register dependency as physical register
         // dependency. This may change in the future though.
-        if (Cost >= 0)
+        if (Cost >= 0 && !StressSched)
           PhysReg = 0;
 
         // If this is a ctrl dep, latency is 1.
         unsigned OpLatency = isChain ? 1 : OpSU->Latency;
+        // Special-case TokenFactor chains as zero-latency.
+        if(isChain && OpN->getOpcode() == ISD::TokenFactor)
+          OpLatency = 0;
+
         const SDep &dep = SDep(OpSU, isChain ? SDep::Order : SDep::Data,
                                OpLatency, PhysReg);
         if (!isChain && !UnitLatencies) {
@@ -410,11 +452,15 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
           ST.adjustSchedDependency(OpSU, SU, const_cast<SDep &>(dep));
         }
 
-        if (!SU->addPred(dep) && !dep.isCtrl() && OpSU->NumRegDefsLeft > 0) {
+        if (!SU->addPred(dep) && !dep.isCtrl() && OpSU->NumRegDefsLeft > 1) {
           // Multiple register uses are combined in the same SUnit. For example,
           // we could have a set of glued nodes with all their defs consumed by
           // another set of glued nodes. Register pressure tracking sees this as
           // a single use, so to keep pressure balanced we reduce the defs.
+          //
+          // We can't tell (without more book-keeping) if this results from
+          // glued nodes or duplicate operands. As long as we don't reduce
+          // NumRegDefsLeft to zero, we handle the common cases well.
           --OpSU->NumRegDefsLeft;
         }
       }
@@ -437,6 +483,10 @@ void ScheduleDAGSDNodes::BuildSchedGraph(AliasAnalysis *AA) {
 
 // Initialize NumNodeDefs for the current Node's opcode.
 void ScheduleDAGSDNodes::RegDefIter::InitNodeNumDefs() {
+  // Check for phys reg copy.
+  if (!Node)
+    return;
+
   if (!Node->isMachineOpcode()) {
     if (Node->getOpcode() == ISD::CopyFromReg)
       NodeNumDefs = 1;
@@ -471,14 +521,7 @@ void ScheduleDAGSDNodes::RegDefIter::Advance() {
     for (;DefIdx < NodeNumDefs; ++DefIdx) {
       if (!Node->hasAnyUseOfValue(DefIdx))
         continue;
-      if (Node->isMachineOpcode() &&
-          Node->getMachineOpcode() == TargetOpcode::EXTRACT_SUBREG) {
-        // Propagate the incoming (full-register) type. I doubt it's needed.
-        ValueType = Node->getOperand(0).getValueType();
-      }
-      else {
-        ValueType = Node->getValueType(DefIdx);
-      }
+      ValueType = Node->getValueType(DefIdx);
       ++DefIdx;
       return; // Found a normal regdef.
     }
@@ -499,6 +542,16 @@ void ScheduleDAGSDNodes::InitNumRegDefsLeft(SUnit *SU) {
 }
 
 void ScheduleDAGSDNodes::ComputeLatency(SUnit *SU) {
+  SDNode *N = SU->getNode();
+
+  // TokenFactor operands are considered zero latency, and some schedulers
+  // (e.g. Top-Down list) may rely on the fact that operand latency is nonzero
+  // whenever node latency is nonzero.
+  if (N && N->getOpcode() == ISD::TokenFactor) {
+    SU->Latency = 0;
+    return;
+  }
+
   // Check to see if the scheduler cares about latencies.
   if (ForceUnitLatencies()) {
     SU->Latency = 1;
@@ -506,7 +559,11 @@ void ScheduleDAGSDNodes::ComputeLatency(SUnit *SU) {
   }
 
   if (!InstrItins || InstrItins->isEmpty()) {
-    SU->Latency = 1;
+    if (N && N->isMachineOpcode() &&
+        TII->isHighLatencyDef(N->getMachineOpcode()))
+      SU->Latency = HighLatencyCycles;
+    else
+      SU->Latency = 1;
     return;
   }
 
@@ -573,7 +630,7 @@ namespace {
   };
 }
 
-/// ProcessSDDbgValues - Process SDDbgValues assoicated with this node.
+/// ProcessSDDbgValues - Process SDDbgValues associated with this node.
 static void ProcessSDDbgValues(SDNode *N, SelectionDAG *DAG,
                                InstrEmitter &Emitter,
                     SmallVector<std::pair<unsigned, MachineInstr*>, 32> &Orders,
@@ -586,7 +643,7 @@ static void ProcessSDDbgValues(SDNode *N, SelectionDAG *DAG,
   // order number right after the N.
   MachineBasicBlock *BB = Emitter.getBlock();
   MachineBasicBlock::iterator InsertPos = Emitter.getInsertPos();
-  SmallVector<SDDbgValue*,2> &DVs = DAG->GetDbgValues(N);
+  ArrayRef<SDDbgValue*> DVs = DAG->GetDbgValues(N);
   for (unsigned i = 0, e = DVs.size(); i != e; ++i) {
     if (DVs[i]->isInvalidated())
       continue;

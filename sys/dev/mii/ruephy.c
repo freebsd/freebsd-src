@@ -88,6 +88,12 @@ static const struct mii_phydesc ruephys[] = {
 	MII_PHY_END
 };
 
+static const struct mii_phy_funcs ruephy_funcs = {
+	ruephy_service,
+	ruephy_status,
+	ruephy_reset
+};
+
 static int
 ruephy_probe(device_t dev)
 {
@@ -101,35 +107,9 @@ ruephy_probe(device_t dev)
 static int
 ruephy_attach(device_t dev)
 {
-	struct mii_softc	*sc;
-	struct mii_attach_args	*ma;
-	struct mii_data		*mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = ruephy_service;
-	sc->mii_pdata = mii;
-
-	/*
-	 * Apparently, we can neither isolate nor do loopback on this PHY.
-	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	ruephy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &ruephy_funcs, 1);
 	return (0);
 }
 
@@ -181,14 +161,14 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 
 		sc->mii_ticks = 0;
-		ruephy_reset(sc);
+		PHY_RESET(sc);
 		if (mii_phy_auto(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	ruephy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -244,7 +224,8 @@ ruephy_status(struct mii_softc *phy)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (msr & RUEPHY_MSR_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(phy);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2000, 2001, 2008, 2011, David E. O'Brien
  * Copyright (c) 1998 John D. Polstra.
  * All rights reserved.
  *
@@ -295,6 +296,7 @@ typedef struct {
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
 #define	SHT_AMD64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_MIPS_DWARF		0x7000001e	/* MIPS gcc uses MIPS_DWARF */
 #define	SHT_HIPROC		0x7fffffff	/* specific section header types */
 #define	SHT_LOUSER		0x80000000	/* reserved range for application */
 #define	SHT_HIUSER		0xffffffff	/* specific indexes */

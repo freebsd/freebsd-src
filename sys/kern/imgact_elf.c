@@ -31,10 +31,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_core.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
@@ -577,6 +580,15 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	u_long base_addr = 0;
 	int vfslocked, error, i, numsegs;
 
+#ifdef CAPABILITY_MODE
+	/*
+	 * XXXJA: This check can go away once we are sufficiently confident
+	 * that the checks in namei() are correct.
+	 */
+	if (IN_CAPABILITY_MODE(curthread))
+		return (ECAPMODE);
+#endif
+
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
@@ -874,7 +886,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	PROC_LOCK(imgp->proc);
 	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
 	    text_size > maxtsiz ||
-	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM)) {
+	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM) ||
+	    racct_set(imgp->proc, RACCT_DATA, data_size) != 0 ||
+	    racct_set(imgp->proc, RACCT_VMEM, total_size) != 0) {
 		PROC_UNLOCK(imgp->proc);
 		return (ENOMEM);
 	}
@@ -1101,6 +1115,15 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = 0;
 	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
+#ifdef RACCT
+	PROC_LOCK(td->td_proc);
+	error = racct_add(td->td_proc, RACCT_CORE, hdrsize + seginfo.size);
+	PROC_UNLOCK(td->td_proc);
+	if (error != 0) {
+		error = EFAULT;
+		goto done;
+	}
+#endif
 	if (hdrsize + seginfo.size >= limit) {
 		error = EFAULT;
 		goto done;

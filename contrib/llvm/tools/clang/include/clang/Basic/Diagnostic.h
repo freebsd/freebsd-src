@@ -32,6 +32,7 @@ namespace clang {
   class LangOptions;
   class Preprocessor;
   class DiagnosticErrorTrap;
+  class StoredDiagnostic;
 
 /// \brief Annotates a diagnostic with some code that should be
 /// inserted, removed, or replaced to fix the problem.
@@ -250,6 +251,14 @@ private:
   bool ErrorOccurred;
   bool FatalErrorOccurred;
 
+  /// \brief Indicates that an unrecoverable error has occurred.
+  bool UnrecoverableErrorOccurred;
+  
+  /// \brief Toggles for DiagnosticErrorTrap to check whether an error occurred
+  /// during a parsing section, e.g. during parsing a function.
+  bool TrapErrorOccurred;
+  bool TrapUnrecoverableErrorOccurred;
+
   /// LastDiagLevel - This is the level of the last diagnostic emitted.  This is
   /// used to emit continuation diagnostics with the same level as the
   /// diagnostic that they follow.
@@ -268,13 +277,15 @@ private:
   /// can use this information to avoid redundancy across arguments.
   ///
   /// This is a hack to avoid a layering violation between libbasic and libsema.
-  typedef void (*ArgToStringFnTy)(ArgumentKind Kind, intptr_t Val,
-                                  const char *Modifier, unsigned ModifierLen,
-                                  const char *Argument, unsigned ArgumentLen,
-                                  const ArgumentValue *PrevArgs,
-                                  unsigned NumPrevArgs,
-                                  llvm::SmallVectorImpl<char> &Output,
-                                  void *Cookie);
+  typedef void (*ArgToStringFnTy)(
+      ArgumentKind Kind, intptr_t Val,
+      const char *Modifier, unsigned ModifierLen,
+      const char *Argument, unsigned ArgumentLen,
+      const ArgumentValue *PrevArgs,
+      unsigned NumPrevArgs,
+      llvm::SmallVectorImpl<char> &Output,
+      void *Cookie,
+      llvm::SmallVectorImpl<intptr_t> &QualTypeVals);
   void *ArgToStringCookie;
   ArgToStringFnTy ArgToStringFn;
 
@@ -400,6 +411,7 @@ public:
   void setExtensionHandlingBehavior(ExtensionHandling H) {
     ExtBehavior = H;
   }
+  ExtensionHandling getExtensionHandlingBehavior() const { return ExtBehavior; }
 
   /// AllExtensionsSilenced - This is a counter bumped when an __extension__
   /// block is encountered.  When non-zero, all extension diagnostics are
@@ -423,14 +435,19 @@ public:
   ///
   /// 'Loc' is the source location that this change of diagnostic state should
   /// take affect. It can be null if we are setting the state from command-line.
-  bool setDiagnosticGroupMapping(const char *Group, diag::Mapping Map,
+  bool setDiagnosticGroupMapping(llvm::StringRef Group, diag::Mapping Map,
                                  SourceLocation Loc = SourceLocation()) {
     return Diags->setDiagnosticGroupMapping(Group, Map, Loc, *this);
   }
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
-
+  
+  /// \brief Determine whether any kind of unrecoverable error has occurred.
+  bool hasUnrecoverableErrorOccurred() const {
+    return FatalErrorOccurred || UnrecoverableErrorOccurred;
+  }
+  
   unsigned getNumWarnings() const { return NumWarnings; }
 
   void setNumWarnings(unsigned NumWarnings) {
@@ -450,9 +467,11 @@ public:
                           const char *Modifier, unsigned ModLen,
                           const char *Argument, unsigned ArgLen,
                           const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
-                          llvm::SmallVectorImpl<char> &Output) const {
+                          llvm::SmallVectorImpl<char> &Output,
+                          llvm::SmallVectorImpl<intptr_t> &QualTypeVals) const {
     ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
-                  PrevArgs, NumPrevArgs, Output, ArgToStringCookie);
+                  PrevArgs, NumPrevArgs, Output, ArgToStringCookie,
+                  QualTypeVals);
   }
 
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
@@ -486,6 +505,8 @@ public:
   /// which can be an invalid location if no position information is available.
   inline DiagnosticBuilder Report(SourceLocation Pos, unsigned DiagID);
   inline DiagnosticBuilder Report(unsigned DiagID);
+
+  void Report(const StoredDiagnostic &storedDiag);
 
   /// \brief Determine whethere there is already a diagnostic in flight.
   bool isDiagnosticInFlight() const { return CurDiagID != ~0U; }
@@ -585,7 +606,7 @@ private:
 
   /// DiagArgumentsVal - The values for the various substitution positions. This
   /// is used when the argument is not an std::string.  The specific value is
-  /// mangled into an intptr_t and the intepretation depends on exactly what
+  /// mangled into an intptr_t and the interpretation depends on exactly what
   /// sort of argument kind it is.
   intptr_t DiagArgumentsVal[MaxArguments];
 
@@ -617,20 +638,28 @@ private:
 /// queried.
 class DiagnosticErrorTrap {
   Diagnostic &Diag;
-  unsigned PrevErrors;
 
 public:
   explicit DiagnosticErrorTrap(Diagnostic &Diag)
-    : Diag(Diag), PrevErrors(Diag.NumErrors) {}
+    : Diag(Diag) { reset(); }
 
   /// \brief Determine whether any errors have occurred since this
   /// object instance was created.
   bool hasErrorOccurred() const {
-    return Diag.NumErrors > PrevErrors;
+    return Diag.TrapErrorOccurred;
+  }
+
+  /// \brief Determine whether any unrecoverable errors have occurred since this
+  /// object instance was created.
+  bool hasUnrecoverableErrorOccurred() const {
+    return Diag.TrapUnrecoverableErrorOccurred;
   }
 
   // Set to initial state of "no errors occurred".
-  void reset() { PrevErrors = Diag.NumErrors; }
+  void reset() {
+    Diag.TrapErrorOccurred = false;
+    Diag.TrapUnrecoverableErrorOccurred = false;
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -741,9 +770,6 @@ public:
   }
 
   void AddFixItHint(const FixItHint &Hint) const {
-    if (Hint.isNull())
-      return;
-    
     assert(NumFixItHints < Diagnostic::MaxFixItHints &&
            "Too many fix-it hints!");
     if (DiagObj)
@@ -842,8 +868,11 @@ inline DiagnosticBuilder Diagnostic::Report(unsigned DiagID) {
 /// about the currently in-flight diagnostic.
 class DiagnosticInfo {
   const Diagnostic *DiagObj;
+  llvm::StringRef StoredDiagMessage;
 public:
   explicit DiagnosticInfo(const Diagnostic *DO) : DiagObj(DO) {}
+  DiagnosticInfo(const Diagnostic *DO, llvm::StringRef storedDiagMessage)
+    : DiagObj(DO), StoredDiagMessage(storedDiagMessage) {}
 
   const Diagnostic *getDiags() const { return DiagObj; }
   unsigned getID() const { return DiagObj->CurDiagID; }

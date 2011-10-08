@@ -15,7 +15,9 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/Options.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace clang::driver;
 
@@ -47,7 +49,26 @@ bool ToolChain::HasNativeLLVMSupport() const {
   return false;
 }
 
-/// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targetting.
+void ToolChain::configureObjCRuntime(ObjCRuntime &runtime) const {
+  switch (runtime.getKind()) {
+  case ObjCRuntime::NeXT:
+    // Assume a minimal NeXT runtime.
+    runtime.HasARC = false;
+    runtime.HasWeak = false;
+    runtime.HasTerminate = false;
+    return;
+
+  case ObjCRuntime::GNU:
+    // Assume a maximal GNU runtime.
+    runtime.HasARC = true;
+    runtime.HasWeak = true;
+    runtime.HasTerminate = false; // to be added
+    return;
+  }
+  llvm_unreachable("invalid runtime kind!");
+}
+
+/// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targeting.
 //
 // FIXME: tblgen this.
 static const char *getARMTargetCPU(const ArgList &Args,
@@ -101,6 +122,8 @@ static const char *getARMTargetCPU(const ArgList &Args,
     return "iwmmxt";
   if (MArch == "xscale")
     return "xscale";
+  if (MArch == "armv6m" || MArch == "armv6-m")
+    return "cortex-m0";
 
   // If all else failed, return the most base CPU LLVM supports.
   return "arm7tdmi";
@@ -137,6 +160,12 @@ static const char *getLLVMArchSuffixForARM(llvm::StringRef CPU) {
   if (CPU == "cortex-a8" || CPU == "cortex-a9")
     return "v7";
 
+  if (CPU == "cortex-m3")
+    return "v7m";
+
+  if (CPU == "cortex-m0")
+    return "v6m";
+
   return "";
 }
 
@@ -168,10 +197,10 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args) const {
 }
 
 std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args) const {
-  // Diagnose use of -mmacosx-version-min and -miphoneos-version-min on
-  // non-Darwin.
+  // Diagnose use of Darwin OS deployment target arguments on non-Darwin.
   if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ,
-                               options::OPT_miphoneos_version_min_EQ))
+                               options::OPT_miphoneos_version_min_EQ,
+                               options::OPT_mios_simulator_version_min_EQ))
     getDriver().Diag(clang::diag::err_drv_clang_unsupported)
       << A->getAsString(Args);
 
@@ -193,18 +222,21 @@ ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
 }
 
 void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs) const {
+                                             ArgStringList &CmdArgs,
+                                             bool ObjCXXAutoRefCount) const {
   CXXStdlibType Type = GetCXXStdlibType(Args);
+
+  // Header search paths are handled by the mass of goop in InitHeaderSearch.
 
   switch (Type) {
   case ToolChain::CST_Libcxx:
-    CmdArgs.push_back("-nostdinc++");
-    CmdArgs.push_back("-cxx-isystem");
-    CmdArgs.push_back("/usr/include/c++/v1");
+    if (ObjCXXAutoRefCount)
+      CmdArgs.push_back("-fobjc-arc-cxxlib=libc++");
     break;
 
   case ToolChain::CST_Libstdcxx:
-    // Currently handled by the mass of goop in InitHeaderSearch.
+    if (ObjCXXAutoRefCount)
+      CmdArgs.push_back("-fobjc-arc-cxxlib=libstdc++");
     break;
   }
 }

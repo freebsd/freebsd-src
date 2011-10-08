@@ -16,7 +16,6 @@
 #include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreSubtarget.h"
-#include "XCoreMCAsmInfo.h"
 #include "XCoreTargetMachine.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
@@ -27,6 +26,7 @@
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
@@ -114,7 +114,7 @@ void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
 
   
   MCSymbol *GVSym = Mang->getSymbol(GV);
-  Constant *C = GV->getInitializer();
+  const Constant *C = GV->getInitializer();
   unsigned Align = (unsigned)TD->getPreferredTypeAlignmentShift(C->getType());
   
   // Mark the start of the global

@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
@@ -182,6 +183,7 @@ int
 vslock(void *addr, size_t len)
 {
 	vm_offset_t end, last, start;
+	unsigned long nsize;
 	vm_size_t npages;
 	int error;
 
@@ -194,9 +196,13 @@ vslock(void *addr, size_t len)
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	PROC_LOCK(curproc);
-	if (ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))) >
-	    lim_cur(curproc, RLIMIT_MEMLOCK)) {
+	nsize = ptoa(npages +
+	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)));
+	if (nsize > lim_cur(curproc, RLIMIT_MEMLOCK)) {
+		PROC_UNLOCK(curproc);
+		return (ENOMEM);
+	}
+	if (racct_set(curproc, RACCT_MEMLOCK, nsize)) {
 		PROC_UNLOCK(curproc);
 		return (ENOMEM);
 	}
@@ -216,6 +222,14 @@ vslock(void *addr, size_t len)
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+#ifdef RACCT
+	if (error != KERN_SUCCESS) {
+		PROC_LOCK(curproc);
+		racct_set(curproc, RACCT_MEMLOCK, 
+		    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
+		PROC_UNLOCK(curproc);
+	}
+#endif
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
@@ -231,6 +245,13 @@ vsunlock(void *addr, size_t len)
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+
+#ifdef RACCT
+	PROC_LOCK(curproc);
+	racct_set(curproc, RACCT_MEMLOCK,
+	    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
+	PROC_UNLOCK(curproc);
+#endif
 }
 
 /*
@@ -730,7 +751,8 @@ loop:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_flag & (P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) {
+		if (p->p_state == PRS_NEW ||
+		    p->p_flag & (P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) {
 			PROC_UNLOCK(p);
 			continue;
 		}

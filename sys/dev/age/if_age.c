@@ -301,10 +301,8 @@ age_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	AGE_LOCK(sc);
 	mii = device_get_softc(sc->age_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	AGE_UNLOCK(sc);
 
@@ -346,7 +344,7 @@ age_get_macaddr(struct age_softc *sc)
 		CSR_WRITE_4(sc, AGE_SPI_CTRL, reg);
 	}
 
-	if (pci_find_extcap(sc->age_dev, PCIY_VPD, &vpdc) == 0) {
+	if (pci_find_cap(sc->age_dev, PCIY_VPD, &vpdc) == 0) {
 		/*
 		 * PCI VPD capability found, let TWSI reload EEPROM.
 		 * This will set ethernet address of controller.
@@ -563,7 +561,7 @@ age_attach(device_t dev)
 
 
 	/* Get DMA parameters from PCIe device control register. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->age_flags |= AGE_FLAG_PCIE;
 		burst = pci_read_config(dev, i + 0x08, 2);
 		/* Max read request size. */
@@ -610,7 +608,7 @@ age_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = AGE_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
 		sc->age_flags |= AGE_FLAG_PMCAP;
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 	}
@@ -1092,11 +1090,14 @@ again:
 	 * Create Tx/Rx buffer parent tag.
 	 * L1 supports full 64bit DMA addressing in Tx/Rx buffers
 	 * so it needs separate parent DMA tag.
+	 * XXX
+	 * It seems enabling 64bit DMA causes data corruption. Limit
+	 * DMA address space to 32bit.
 	 */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->age_dev), /* parent */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -1329,7 +1330,7 @@ age_setwol(struct age_softc *sc)
 
 	AGE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
 		CSR_WRITE_4(sc, AGE_WOL_CFG, 0);
 		/*
 		 * No PME capability, PHY power down.
@@ -2421,6 +2422,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 	bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 	    sc->age_cdata.age_rr_ring_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_POSTWRITE);
 
 	for (prog = 0; rr_cons != rr_prod; prog++) {
 		if (count <= 0)
@@ -2452,6 +2455,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		/* Update the consumer index. */
 		sc->age_cdata.age_rr_cons = rr_cons;
 
+		bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+		    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 		/* Sync descriptors. */
 		bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 		    sc->age_cdata.age_rr_ring_map,
@@ -2978,8 +2983,7 @@ age_init_rx_ring(struct age_softc *sc)
 	}
 
 	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
-	    sc->age_cdata.age_rx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }

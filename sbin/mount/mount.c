@@ -109,6 +109,7 @@ static struct opt {
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
+	{ MNT_SUJ,		"journaled soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
@@ -141,8 +142,8 @@ use_mountprog(const char *vfstype)
 	 */
 	unsigned int i;
 	const char *fs[] = {
-	"cd9660", "mfs", "msdosfs", "newnfs", "nfs", "ntfs",
-	"nwfs", "nullfs", "portalfs", "smbfs", "udf", "unionfs",
+	"cd9660", "mfs", "msdosfs", "nfs", "ntfs",
+	"nwfs", "nullfs", "oldnfs", "portalfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
 
@@ -243,7 +244,7 @@ main(int argc, char *argv[])
 	const char *mntfromname, **vfslist, *vfstype;
 	struct fstab *fs;
 	struct statfs *mntbuf;
-	int all, ch, i, init_flags, late, mntsize, rval, have_fstab, ro;
+	int all, ch, i, init_flags, late, failok, mntsize, rval, have_fstab, ro;
 	char *cp, *ep, *options;
 
 	all = init_flags = late = 0;
@@ -328,6 +329,10 @@ main(int argc, char *argv[])
 					continue;
 				if (hasopt(fs->fs_mntops, "late") && !late)
 					continue;
+				if (hasopt(fs->fs_mntops, "failok"))
+					failok = 1;
+				else
+					failok = 0;
 				if (!(init_flags & MNT_UPDATE) &&
 				    ismounted(fs, mntbuf, mntsize))
 					continue;
@@ -335,7 +340,7 @@ main(int argc, char *argv[])
 				    mntbuf->f_flags);
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
-				    fs->fs_mntops))
+				    fs->fs_mntops) && !failok)
 					rval = 1;
 			}
 		} else if (fstab_style) {
@@ -584,6 +589,9 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		for (i = 1; i < mnt_argv.c; i++)
 			(void)printf(" %s", mnt_argv.a[i]);
 		(void)printf("\n");
+		free(optbuf);
+		free(mountprog);
+		mountprog = NULL;
 		return (0);
 	}
 
@@ -594,6 +602,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	}
 
 	free(optbuf);
+	free(mountprog);
+	mountprog = NULL;
 
 	if (verbose) {
 		if (statfs(name, &sf) < 0) {
@@ -715,6 +725,14 @@ mangle(char *options, struct cpa *a)
 				 * in the boot cycle; for instance,
 				 * loopback NFS mounts can't be mounted
 				 * before mountd starts.
+				 */
+				continue;
+			} else if (strcmp(p, "failok") == 0) {
+				/*
+				 * "failok" is used to prevent certain file
+				 * systems from being causing the system to
+				 * drop into single user mode in the boot
+				 * cycle, and is not a real mount option.
 				 */
 				continue;
 			} else if (strncmp(p, "mountprog", 9) == 0) {

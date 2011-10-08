@@ -190,6 +190,7 @@ typedef enum
     ASL_MSG_LEADING_ASTERISK,
     ASL_MSG_RESERVED_NO_RETURN_VAL,
     ASL_MSG_GPE_NAME_CONFLICT,
+    ASL_MSG_NO_REGION,
 
     ASL_MSG_INVALID_FIELD_NAME,
     ASL_MSG_INTEGER_SIZE,
@@ -343,6 +344,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_LEADING_ASTERISK */           "Invalid leading asterisk",
 /*    ASL_MSG_RESERVED_NO_RETURN_VAL */     "Reserved method should not return a value",
 /*    ASL_MSG_GPE_NAME_CONFLICT */          "Name conflicts with a previous GPE method",
+/*    ASL_MSG_NO_REGION */                  "_REG has no corresponding Operation Region",
 
 /* These messages are used by the data table compiler only */
 
@@ -359,7 +361,6 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_UNKNOWN_LABEL */              "Label is undefined",
 /*    ASL_MSG_INVALID_EXPRESSION */         "Invalid expression",
 /*    ASL_MSG_DIVIDE_BY_ZERO */             "Expression contains divide-by-zero"
-
 };
 
 

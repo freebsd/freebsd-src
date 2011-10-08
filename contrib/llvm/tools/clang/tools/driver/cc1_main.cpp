@@ -126,6 +126,8 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
 
   // Initialize targets first, so that --version shows registered targets.
   llvm::InitializeAllTargets();
+  llvm::InitializeAllMCAsmInfos();
+  llvm::InitializeAllMCSubtargetInfos();
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
 
@@ -168,7 +170,7 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
 
   // When running with -disable-free, don't do any destruction or shutdown.
   if (Clang->getFrontendOpts().DisableFree) {
-    if (Clang->getFrontendOpts().ShowStats)
+    if (llvm::AreStatisticsEnabled() || Clang->getFrontendOpts().ShowStats)
       llvm::PrintStatistics();
     Clang.take();
     return !Success;

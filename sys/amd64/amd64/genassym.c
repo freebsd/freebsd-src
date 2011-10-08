@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 #include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -87,6 +87,7 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_TID, offsetof(struct thread, td_tid));
+ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
@@ -201,7 +202,6 @@ ASSYM(UC_EFLAGS, offsetof(ucontext_t, uc_mcontext.mc_rflags));
 ASSYM(ENOENT, ENOENT);
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
-ASSYM(MAXCPU, MAXCPU);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXPATHLEN, MAXPATHLEN);
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));

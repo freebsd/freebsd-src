@@ -59,6 +59,7 @@ struct ata_serialize {
 
 /* local prototypes */
 static int ata_acard_chipinit(device_t dev);
+static int ata_acard_chipdeinit(device_t dev);
 static int ata_acard_ch_attach(device_t dev);
 static int ata_acard_status(device_t dev);
 static int ata_acard_850_setmode(device_t dev, int target, int mode);
@@ -93,6 +94,7 @@ ata_acard_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_acard_chipinit;
+    ctlr->chipdeinit = ata_acard_chipdeinit;
     return (BUS_PROBE_DEFAULT);
 }
 
@@ -111,13 +113,28 @@ ata_acard_chipinit(device_t dev)
 	ctlr->setmode = ata_acard_850_setmode;
 	ctlr->locking = ata_serialize;
 	serial = malloc(sizeof(struct ata_serialize),
-			      M_TEMP, M_WAITOK | M_ZERO);
+			      M_ATAPCI, M_WAITOK | M_ZERO);
 	ata_serialize_init(serial);
 	ctlr->chipset_data = serial;
     }
     else
 	ctlr->setmode = ata_acard_86X_setmode;
     return 0;
+}
+
+static int
+ata_acard_chipdeinit(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+	struct ata_serialize *serial;
+
+	if (ctlr->chip->cfg1 == ATP_OLD) {
+		serial = ctlr->chipset_data;
+		mtx_destroy(&serial->locked_mtx);
+		free(serial, M_ATAPCI);
+		ctlr->chipset_data = NULL;
+	}
+	return (0);
 }
 
 static int

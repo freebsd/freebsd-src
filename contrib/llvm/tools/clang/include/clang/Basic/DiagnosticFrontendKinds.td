@@ -79,6 +79,8 @@ def warn_fe_macro_contains_embedded_newline : Warning<
     "macro '%0' contains embedded newline, text after the newline is ignored.">;
 def warn_fe_cc_print_header_failure : Warning<
     "unable to open CC_PRINT_HEADERS file: %0 (using stderr)">;
+def warn_fe_cc_log_diagnostics_failure : Warning<
+    "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)">;
 
 def err_verify_missing_start : Error<
     "cannot find start ('{{') of expected %0">;
@@ -113,6 +115,9 @@ def warn_pch_target_triple : Error<
 def warn_pch_c99 : Error<
     "C99 support was %select{disabled|enabled}0 in PCH file but is "
     "currently %select{disabled|enabled}1">;
+def warn_pch_c1x : Error<
+    "C1X support was %select{disabled|enabled}0 in PCH file but is "
+    "currently %select{disabled|enabled}1">;
 def warn_pch_cplusplus : Error<
     "C++ support was %select{disabled|enabled}0 in PCH file but is "
     "currently %select{disabled|enabled}1">;
@@ -132,6 +137,9 @@ def warn_pch_nonfragile_abi2 : Error<
     "PCH file was compiled with the %select{32-bit|enhanced non-fragile}0 "
     "Objective-C ABI but the %select{32-bit|enhanced non-fragile}1 "
     "Objective-C ABI is selected">;
+def warn_pch_auto_ref_count : Error<
+    "PCH file was compiled %select{without|with} automated reference counting,"
+    "which is currently %select{disabled|enabled}">;
 def warn_pch_apple_kext : Error<
     "PCH file was compiled %select{with|without}0 support for Apple's kernel "
     "extensions ABI but it is currently %select{disabled|enabled}1">;
@@ -230,6 +238,9 @@ def warn_pch_gnu_inline : Error<
 def warn_pch_no_inline : Error<
     "the macro '__NO_INLINE__' was %select{not defined|defined}0 in "
     "the PCH file but is currently %select{undefined|defined}1">;
+def warn_pch_deprecated : Error<
+    "the macro '__DEPRECATED' was %select{not defined|defined}0 in "
+    "the PCH file but is currently %select{undefined|defined}1">;
 def warn_pch_gc_mode : Error<
     "the PCH file was built with %select{no||hybrid}0 garbage collection but "
     "the current translation unit will compiled with %select{no||hybrid}1 "
@@ -273,6 +284,9 @@ def err_not_a_pch_file : Error<
 def warn_unknown_warning_option : Warning<
     "unknown warning option '%0'">,
     InGroup<DiagGroup<"unknown-warning-option"> >;
+def warn_unknown_negative_warning_option : Warning<
+    "unknown warning option '%0'">,
+    InGroup<DiagGroup<"unknown-warning-option"> >, DefaultIgnore;
 def warn_unknown_warning_specifier : Warning<
     "unknown %0 warning specifier: '%1'">,
     InGroup<DiagGroup<"unknown-warning-option"> >;

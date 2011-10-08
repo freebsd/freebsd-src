@@ -16,7 +16,6 @@ ports
 powerpc
 sparc64
 standards
-sun4v
 threads
 usb
 www

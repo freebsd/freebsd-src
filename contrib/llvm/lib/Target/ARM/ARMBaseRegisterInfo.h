@@ -16,7 +16,9 @@
 
 #include "ARM.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "ARMGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "ARMGenRegisterInfo.inc"
 
 namespace llvm {
   class ARMSubtarget;
@@ -128,16 +130,23 @@ public:
 
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
 
-  std::pair<TargetRegisterClass::iterator,TargetRegisterClass::iterator>
-  getAllocationOrder(const TargetRegisterClass *RC,
-                     unsigned HintType, unsigned HintReg,
-                     const MachineFunction &MF) const;
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
+
+  ArrayRef<unsigned> getRawAllocationOrder(const TargetRegisterClass *RC,
+                                           unsigned HintType, unsigned HintReg,
+                                           const MachineFunction &MF) const;
 
   unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
                                const MachineFunction &MF) const;
 
   void UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const;
+
+  virtual bool avoidWriteAfterWrite(const TargetRegisterClass *RC) const;
 
   bool hasBasePointer(const MachineFunction &MF) const;
 
@@ -164,6 +173,7 @@ public:
   unsigned getEHHandlerRegister() const;
 
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 
   bool isLowRegister(unsigned Reg) const;
 
@@ -176,7 +186,8 @@ public:
                                  unsigned DestReg, unsigned SubIdx,
                                  int Val,
                                  ARMCC::CondCodes Pred = ARMCC::AL,
-                                 unsigned PredReg = 0) const;
+                                 unsigned PredReg = 0,
+                                 unsigned MIFlags = MachineInstr::NoFlags)const;
 
   /// Code Generation virtual methods...
   virtual bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;

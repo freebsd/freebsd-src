@@ -124,8 +124,8 @@
 #define IA64_RR_BASE(n)         (((uint64_t) (n)) << 61)
 #define IA64_RR_MASK(x)         ((x) & ((1L << 61) - 1))
 
-#define	IA64_PHYS_TO_RR6(x)     ((x) | IA64_RR_BASE(6))
-#define	IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))
+#define	IA64_PHYS_TO_RR6(x)	((x) | IA64_RR_BASE(6))
+#define	IA64_PHYS_TO_RR7(x)	((x) | IA64_RR_BASE(7))
 
 /*
  * The Itanium architecture defines that all implementations support at
@@ -137,18 +137,6 @@
  */
 #define	IA64_REGION_GAP_START	0x0004000000000000
 #define	IA64_REGION_GAP_EXTEND	0x1ffc000000000000
-
-/*
- * Page size of the identity mappings in region 7.
- */
-#ifndef LOG2_ID_PAGE_SIZE
-#define	LOG2_ID_PAGE_SIZE	28		/* 256M */
-#endif
-
-#define	IA64_ID_PAGE_SHIFT	(LOG2_ID_PAGE_SIZE)
-#define	IA64_ID_PAGE_SIZE	(1<<(LOG2_ID_PAGE_SIZE))
-#define	IA64_ID_PAGE_MASK	(IA64_ID_PAGE_SIZE-1)
-
 
 /*
  * Parameters for Pre-Boot Virtual Memory (PBVM).
@@ -194,7 +182,8 @@
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION)
 #define	VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
-#define	VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(IA64_VM_MINKERN_REGION + 2) - 1)
+#define	VM_MAX_KERNEL_ADDRESS	\
+		(VM_MIN_KERNEL_ADDRESS + IA64_REGION_GAP_START - 1)
 #define	VM_MAX_ADDRESS		~0UL
 
 #define	KERNBASE		VM_MAXUSER_ADDRESS
@@ -225,5 +214,7 @@
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
 
 #endif	/* !_MACHINE_VMPARAM_H_ */

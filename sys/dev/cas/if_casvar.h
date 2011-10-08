@@ -196,6 +196,8 @@ struct cas_softc {
 	u_int		sc_rxcptr;	/* next ready RX completion */
 	u_int		sc_rxdptr;	/* next ready RX descriptor */
 
+	uint32_t	sc_mac_rxcfg;	/* RX MAC conf. % CAS_MAC_RX_CONF_EN */
+
 	int		sc_ifflags;
 };
 

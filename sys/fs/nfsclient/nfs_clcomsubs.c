@@ -289,8 +289,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_size = fxdr_hyper(&fp->fa3_size);
 		nap->na_blocksize = NFS_FABLKSIZE;
 		nap->na_bytes = fxdr_hyper(&fp->fa3_used);
-		nap->na_fileid = fxdr_unsigned(int32_t,
-		    fp->fa3_fileid.nfsuquad[1]);
+		nap->na_fileid = fxdr_hyper(&fp->fa3_fileid);
 		fxdr_nfsv3time(&fp->fa3_atime, &nap->na_atime);
 		fxdr_nfsv3time(&fp->fa3_ctime, &nap->na_ctime);
 		fxdr_nfsv3time(&fp->fa3_mtime, &nap->na_mtime);
@@ -317,7 +316,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_bytes =
 		    (u_quad_t)fxdr_unsigned(int32_t, fp->fa2_blocks) *
 		    NFS_FABLKSIZE;
-		nap->na_fileid = fxdr_unsigned(int32_t, fp->fa2_fileid);
+		nap->na_fileid = fxdr_unsigned(uint64_t, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &nap->na_atime);
 		fxdr_nfsv2time(&fp->fa2_mtime, &nap->na_mtime);
 		nap->na_flags = 0;
@@ -483,7 +482,7 @@ nfscl_lockexcl(struct nfsv4lock *lckp, void *mutex)
 	int igotlock;
 
 	do {
-		igotlock = nfsv4_lock(lckp, 1, NULL, mutex);
+		igotlock = nfsv4_lock(lckp, 1, NULL, mutex, NULL);
 	} while (!igotlock);
 }
 

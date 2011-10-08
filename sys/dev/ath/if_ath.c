@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
 
@@ -94,10 +95,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
 #include <dev/ath/if_ath_keycache.h>
+#include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
+
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -198,6 +201,8 @@ static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 
 static void	ath_announce(struct ath_softc *);
 
+static void	ath_dfs_tasklet(void *, int);
+
 #ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
 		    u_int32_t bintval);
@@ -208,24 +213,6 @@ static void	ath_tdma_update(struct ieee80211_node *ni,
 		    const struct ieee80211_tdma_param *tdma, int);
 static void	ath_tdma_beacon_send(struct ath_softc *sc,
 		    struct ieee80211vap *vap);
-
-static __inline void
-ath_hal_setcca(struct ath_hal *ah, int ena)
-{
-	/*
-	 * NB: fill me in; this is not provided by default because disabling
-	 *     CCA in most locales violates regulatory.
-	 */
-}
-
-static __inline int
-ath_hal_getcca(struct ath_hal *ah)
-{
-	u_int32_t diag;
-	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
-		return 1;
-	return ((diag & 0x500000) == 0);
-}
 
 #define	TDMA_EP_MULTIPLIER	(1<<10) /* pow2 to optimize out * and / */
 #define	TDMA_LPF_LEN		6
@@ -470,6 +457,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad2;
 	}
 
+	/* Attach DFS module */
+	if (! ath_dfs_attach(sc)) {
+		device_printf(sc->sc_dev, "%s: unable to attach DFS\n", __func__);
+		error = EIO;
+		goto bad2;
+	}
+
+	/* Start DFS processing tasklet */
+	TASK_INIT(&sc->sc_dfstask, 0, ath_dfs_tasklet, sc);
+
 	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
@@ -513,6 +510,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
+#ifdef	ATH_ENABLE_DFS
+		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+#endif
 		;
 	/*
 	 * Query the hal to figure out h/w crypto support.
@@ -594,6 +594,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmask = ath_hal_hasbssidmask(ah);
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
+	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
+	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -612,7 +614,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Don't think of doing that unless you know what you're doing.
 	 */
 
-#ifdef	AH_ENABLE_11N
+#ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
 	 */
@@ -625,12 +627,21 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
 			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
 			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-		/* At the present time, the hardware doesn't support short-GI in 20mhz mode */
-#if 0
-			    | IEEE80211_HTCAP_SHORTGI20		/* short GI in 20MHz */
-#endif
 			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
 			;
+
+		/*
+		 * Enable short-GI for HT20 only if the hardware
+		 * advertises support.
+		 * Notably, anything earlier than the AR9287 doesn't.
+		 */
+		if ((ath_hal_getcapability(ah,
+		    HAL_CAP_HT20_SGI, 0, NULL) == HAL_OK) &&
+		    (wmodes & HAL_MODE_HT20)) {
+			device_printf(sc->sc_dev,
+			    "[HT] enabling short-GI in 20MHz mode\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_SHORTGI20;
+		}
 
 		if (wmodes & HAL_MODE_HT40)
 			ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40
@@ -713,6 +724,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	ath_sysctlattach(sc);
 	ath_sysctl_stats_attach(sc);
+	ath_sysctl_hal_attach(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -760,6 +772,8 @@ ath_detach(struct ath_softc *sc)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
 	ath_rate_detach(sc->sc_rc);
+
+	ath_dfs_detach(sc);
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
@@ -972,6 +986,21 @@ ath_vap_create(struct ieee80211com *ic,
 	vap->iv_newstate = ath_newstate;
 	avp->av_bmiss = vap->iv_bmiss;
 	vap->iv_bmiss = ath_bmiss_vap;
+
+	/* Set default parameters */
+
+	/*
+	 * Anything earlier than some AR9300 series MACs don't
+	 * support a smaller MPDU density.
+	 */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_8;
+	/*
+	 * All NICs can handle the maximum size, however
+	 * AR5416 based MACs can only TX aggregates w/ RTS
+	 * protection when the total aggregate size is <= 8k.
+	 * However, for now that's enforced by the TX path.
+	 */
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	avp->av_bslot = -1;
 	if (needbeacon) {
@@ -1219,6 +1248,10 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
@@ -1240,6 +1273,8 @@ ath_resume(struct ath_softc *sc)
 		    HAL_GPIO_MUX_MAC_NETWORK_LED);
 		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
+
+	/* XXX beacons ? */
 }
 
 void
@@ -1263,7 +1298,7 @@ ath_intr(void *arg)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_INT status;
+	HAL_INT status = 0;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1294,6 +1329,11 @@ ath_intr(void *arg)
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	status &= sc->sc_imask;			/* discard unasked for bits */
+
+	/* Short-circuit un-handled interrupts */
+	if (status == 0x0)
+		return;
+
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
@@ -1332,13 +1372,32 @@ ath_intr(void *arg)
 			}
 		}
 		if (status & HAL_INT_RXEOL) {
+			int imask = sc->sc_imask;
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
 			 *     least on older hardware revs.
 			 */
 			sc->sc_stats.ast_rxeol++;
+			/*
+			 * Disable RXEOL/RXORN - prevent an interrupt
+			 * storm until the PCU logic can be reset.
+			 * In case the interface is reset some other
+			 * way before "sc_kickpcu" is called, don't
+			 * modify sc_imask - that way if it is reset
+			 * by a call to ath_reset() somehow, the
+			 * interrupt mask will be correctly reprogrammed.
+			 */
+			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+			ath_hal_intrset(ah, imask);
+			/*
+			 * Enqueue an RX proc, to handled whatever
+			 * is in the RX queue.
+			 * This will then kick the PCU.
+			 */
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 			sc->sc_rxlink = NULL;
+			sc->sc_kickpcu = 1;
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -1353,6 +1412,10 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_bmiss++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
 		}
+		if (status & HAL_INT_GTT)
+			sc->sc_stats.ast_tx_timeout++;
+		if (status & HAL_INT_CST)
+			sc->sc_stats.ast_tx_cst++;
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
 			/*
@@ -1519,6 +1582,9 @@ ath_init(void *arg)
 	}
 	ath_chan_change(sc, ic->ic_curchan);
 
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	/*
 	 * Likewise this is set during reset so update
 	 * state cached in the driver.
@@ -1530,6 +1596,12 @@ ath_init(void *arg)
 	sc->sc_lastani = 0;
 	sc->sc_lastshortcal = 0;
 	sc->sc_doresetcal = AH_FALSE;
+	/*
+	 * Beacon timers were cleared here; give ath_newstate()
+	 * a hint that the beacon timers should be poked when
+	 * things transition to the RUN state.
+	 */
+	sc->sc_beacons = 0;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -1556,6 +1628,13 @@ ath_init(void *arg)
 	 */
 	if (sc->sc_needmib && ic->ic_opmode == IEEE80211_M_STA)
 		sc->sc_imask |= HAL_INT_MIB;
+
+	/* Enable global TX timeout and carrier sense timeout if available */
+	if (ath_hal_gtxto_supported(ah))
+		sc->sc_imask |= HAL_INT_GTT;
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: imask=0x%x\n",
+		__func__, sc->sc_imask);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	callout_reset(&sc->sc_wd_ch, hz, ath_watchdog, sc);
@@ -1657,6 +1736,10 @@ ath_reset(struct ifnet *ifp)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -1927,6 +2010,17 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
+
+	/*
+	 * Enable hardware PS-POLL RX only for hostap mode;
+	 * STA mode sends PS-POLL frames but never
+	 * receives them.
+	 */
+	if (ath_hal_getcapability(sc->sc_ah, HAL_CAP_PSPOLL,
+	    0, NULL) == HAL_OK &&
+	    ic->ic_opmode == IEEE80211_M_HOSTAP)
+		rfilt |= HAL_RX_FILTER_PSPOLL;
+
 	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
 		if (sc->sc_hasbmatch)
@@ -1936,8 +2030,18 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	if (sc->sc_dodfs) {
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+	}
+
+	/*
+	 * Enable RX of compressed BAR frames only when doing
+	 * 802.11n. Required for A-MPDU.
+	 */
 	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_COMPBAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -2515,9 +2619,10 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			sc->sc_stats.ast_cabq_xmit += nmcastq;
 		}
 		/* NB: gated by beacon so safe to start here */
-		ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(cabq);
+		if (! STAILQ_EMPTY(&(cabq->axq_q)))
+			ath_hal_txstart(ah, cabq->axq_qnum);
 		ATH_TXQ_UNLOCK(&avp->av_mcastq);
+		ATH_TXQ_UNLOCK(cabq);
 	}
 	return bf;
 }
@@ -2835,16 +2940,31 @@ ath_descdma_setup(struct ath_softc *sc,
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
+	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ath_desc *ds;
+	uint8_t *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
+	int desc_len;
+
+	desc_len = sizeof(struct ath_desc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers %u desc/buf\n",
 	    __func__, name, nbuf, ndesc);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = sizeof(struct ath_desc) * nbuf * ndesc;
+	dd->dd_desc_len = desc_len * nbuf * ndesc;
+
+	/*
+	 * Merlin work-around:
+	 * Descriptors that cross the 4KB boundary can't be used.
+	 * Assume one skipped descriptor per 4KB page.
+	 */
+	if (! ath_hal_split4ktrans(sc->sc_ah)) {
+		int numdescpage = 4096 / (desc_len * ndesc);
+		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
+	}
 
 	/*
 	 * Setup DMA descriptor area.
@@ -2893,7 +3013,7 @@ ath_descdma_setup(struct ath_softc *sc,
 		goto fail2;
 	}
 
-	ds = dd->dd_desc;
+	ds = (uint8_t *) dd->dd_desc;
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
 	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
@@ -2909,9 +3029,23 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_bufptr = bf;
 
 	STAILQ_INIT(head);
-	for (i = 0; i < nbuf; i++, bf++, ds += ndesc) {
-		bf->bf_desc = ds;
+	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
+		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
+		if (! ath_hal_split4ktrans(sc->sc_ah)) {
+			/*
+			 * Merlin WAR: Skip descriptor addresses which
+			 * cause 4KB boundary crossing along any point
+			 * in the descriptor.
+			 */
+			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
+			     desc_len * ndesc)) {
+				/* Start at the next page */
+				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
+				bf->bf_desc = (struct ath_desc *) ds;
+				bf->bf_daddr = DS2PHYS(dd, ds);
+			}
+		}
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
@@ -2934,6 +3068,7 @@ fail0:
 	memset(dd, 0, sizeof(*dd));
 	return error;
 #undef DS2PHYS
+#undef ATH_DESC_4KB_BOUND_CHECK
 }
 
 static void
@@ -3115,8 +3250,17 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 	 * descriptor list.  This insures the hardware always has
 	 * someplace to write a new frame.
 	 */
+	/*
+	 * 11N: we can no longer afford to self link the last descriptor.
+	 * MAC acknowledges BA status as long as it copies frames to host
+	 * buffer (or rx fifo). This can incorrectly acknowledge packets
+	 * to a sender if last desc is self-linked.
+	 */
 	ds = bf->bf_desc;
-	ds->ds_link = bf->bf_daddr;	/* link to self */
+	if (sc->sc_rxslink)
+		ds->ds_link = bf->bf_daddr;	/* link to self */
+	else
+		ds->ds_link = 0;		/* terminate the list */
 	ds->ds_data = bf->bf_segs[0].ds_addr;
 	ath_hal_setuprxdesc(ah, ds
 		, m->m_len		/* buffer size */
@@ -3134,11 +3278,46 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
  * a full 64-bit TSF using the specified TSF.
  */
 static __inline u_int64_t
-ath_extend_tsf(u_int32_t rstamp, u_int64_t tsf)
+ath_extend_tsf15(u_int32_t rstamp, u_int64_t tsf)
 {
 	if ((tsf & 0x7fff) < rstamp)
 		tsf -= 0x8000;
+
 	return ((tsf &~ 0x7fff) | rstamp);
+}
+
+/*
+ * Extend 32-bit time stamp from rx descriptor to
+ * a full 64-bit TSF using the specified TSF.
+ */
+static __inline u_int64_t
+ath_extend_tsf32(u_int32_t rstamp, u_int64_t tsf)
+{
+	u_int32_t tsf_low = tsf & 0xffffffff;
+	u_int64_t tsf64 = (tsf & ~0xffffffffULL) | rstamp;
+
+	if (rstamp > tsf_low && (rstamp - tsf_low > 0x10000000))
+		tsf64 -= 0x100000000ULL;
+
+	if (rstamp < tsf_low && (tsf_low - rstamp > 0x10000000))
+		tsf64 += 0x100000000ULL;
+
+	return tsf64;
+}
+
+/*
+ * Extend the TSF from the RX descriptor to a full 64 bit TSF.
+ * Earlier hardware versions only wrote the low 15 bits of the
+ * TSF into the RX descriptor; later versions (AR5416 and up)
+ * include the 32 bit TSF value.
+ */
+static __inline u_int64_t
+ath_extend_tsf(struct ath_softc *sc, u_int32_t rstamp, u_int64_t tsf)
+{
+	if (sc->sc_rxtsf32)
+		return ath_extend_tsf32(rstamp, tsf);
+	else
+		return ath_extend_tsf15(rstamp, tsf);
 }
 
 /*
@@ -3174,7 +3353,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
 		    vap->iv_state == IEEE80211_S_RUN) {
 			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
-			uint64_t tsf = ath_extend_tsf(rstamp,
+			uint64_t tsf = ath_extend_tsf(sc, rstamp,
 				ath_hal_gettsf64(sc->sc_ah));
 			/*
 			 * Handle ibss merge as needed; check the tsf on the
@@ -3246,7 +3425,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 #endif
-	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(rs->rs_tstamp, tsf));
+	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	/* XXX propagate other error flags from descriptor */
@@ -3301,8 +3480,15 @@ ath_rx_proc(void *arg, int npending)
 	tsf = ath_hal_gettsf64(ah);
 	do {
 		bf = STAILQ_FIRST(&sc->sc_rxbuf);
-		if (bf == NULL) {		/* NB: shouldn't happen */
+		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
+			break;
+		} else if (bf == NULL) {
+			/*
+			 * End of List:
+			 * this can happen for non-self-linked RX chains
+			 */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		m = bf->bf_m;
@@ -3319,6 +3505,7 @@ ath_rx_proc(void *arg, int npending)
 		ds = bf->bf_desc;
 		if (ds->ds_link == bf->bf_daddr) {
 			/* NB: never process the self-linked entry at the end */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		/* XXX sync descriptor memory */
@@ -3365,6 +3552,17 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_fifoerr++;
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
+				/* Process DFS radar events */
+				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
+				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
+					/* Since we're touching the frame data, sync it */
+					bus_dmamap_sync(sc->sc_dmat,
+					    bf->bf_dmamap,
+					    BUS_DMASYNC_POSTREAD);
+					/* Now pass it to the radar processing code */
+					ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+				}
+
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
 				if (rs->rs_phyerr < 64)
 					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
@@ -3532,14 +3730,14 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
-		/* Keep statistics on the number of aggregate packets received */
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
 
 		if (ni != NULL) {
 			/*
- 			 * Only punt packets for ampdu reorder processing for 11n nodes;
- 			 * net80211 enforces that M_AMPDU is only set for 11n nodes.
+ 			 * Only punt packets for ampdu reorder processing for
+			 * 11n nodes; net80211 enforces that M_AMPDU is only
+			 * set for 11n nodes.
  			 */
 			if (ni->ni_flags & IEEE80211_NODE_HT)
 				m->m_flags |= M_AMPDU;
@@ -3577,6 +3775,12 @@ rx_accept:
 			} else
 				sc->sc_rxotherant = 0;
 		}
+
+		/* Newer school diversity - kite specific for now */
+		/* XXX perhaps migrate the normal diversity code to this? */
+		if ((ah)->ah_rxAntCombDiversity)
+			(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+
 		if (sc->sc_softled) {
 			/*
 			 * Blink for any data frame.  Otherwise do a
@@ -3599,6 +3803,29 @@ rx_next:
 	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
 	if (ngood)
 		sc->sc_lastrx = tsf;
+
+	/* Queue DFS tasklet if needed */
+	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
+
+	/*
+	 * Now that all the RX frames were handled that
+	 * need to be handled, kick the PCU if there's
+	 * been an RXEOL condition.
+	 */
+	if (sc->sc_kickpcu) {
+		sc->sc_kickpcu = 0;
+		ath_stoprecv(sc);
+		sc->sc_imask |= (HAL_INT_RXEOL | HAL_INT_RXORN);
+		if (ath_startrecv(sc) != 0) {
+			if_printf(ifp,
+			    "%s: couldn't restart RX after RXEOL; resetting\n",
+			    __func__);
+			ath_reset(ifp);
+			return;
+		}
+		ath_hal_intrset(ah, sc->sc_imask);
+	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -3908,9 +4135,21 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 					sc->sc_stats.ast_tx_fifoerr++;
 				if (ts->ts_status & HAL_TXERR_FILT)
 					sc->sc_stats.ast_tx_filtered++;
+				if (ts->ts_status & HAL_TXERR_XTXOP)
+					sc->sc_stats.ast_tx_xtxop++;
+				if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
+					sc->sc_stats.ast_tx_timerexpired++;
+
+				/* XXX HAL_TX_DATA_UNDERRUN */
+				/* XXX HAL_TX_DELIM_UNDERRUN */
+
 				if (bf->bf_m->m_flags & M_FF)
 					sc->sc_stats.ast_ff_txerr++;
 			}
+			/* XXX when is this valid? */
+			if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
+				sc->sc_stats.ast_tx_desccfgerr++;
+
 			sr = ts->ts_shortretry;
 			lr = ts->ts_longretry;
 			sc->sc_stats.ast_tx_shortretry += sr;
@@ -4305,6 +4544,9 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		}
 		sc->sc_diversity = ath_hal_getdiversity(ah);
 
+		/* Let DFS at it in case it's a DFS channel */
+		ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 		/*
 		 * Re-enable rx framework.
 		 */
@@ -4319,6 +4561,19 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * if we're switching; e.g. 11a to 11b/g.
 		 */
 		ath_chan_change(sc, chan);
+
+		/*
+		 * Reset clears the beacon timers; reset them
+		 * here if needed.
+		 */
+		if (sc->sc_beacons) {		/* restart beacons */
+#ifdef IEEE80211_SUPPORT_TDMA
+			if (sc->sc_tdma)
+				ath_tdma_config(sc, NULL);
+			else
+#endif
+			ath_beacon_config(sc, NULL);
+		}
 
 		/*
 		 * Re-enable interrupts.
@@ -4525,6 +4780,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211_node *ni = NULL;
 	int i, error, stamode;
 	u_int32_t rfilt;
+	int csa_run_transition = 0;
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
@@ -4539,6 +4795,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: %s -> %s\n", __func__,
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
+
+	if (vap->iv_state == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
+		csa_run_transition = 1;
 
 	callout_drain(&sc->sc_cal_ch);
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
@@ -4646,8 +4905,14 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Defer beacon timer configuration to the next
 			 * beacon frame so we have a current TSF to use
 			 * (any TSF collected when scanning is likely old).
+			 * However if it's due to a CSA -> RUN transition,
+			 * force a beacon update so we pick up a lack of
+			 * beacons from an AP in CAC and thus force a
+			 * scan.
 			 */
 			sc->sc_syncbeacon = 1;
+			if (csa_run_transition)
+				ath_beacon_config(sc, vap);
 			break;
 		case IEEE80211_M_MONITOR:
 			/*
@@ -4785,6 +5050,7 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *reg,
 		    __func__, status);
 		return EINVAL;		/* XXX */
 	}
+
 	return 0;
 }
 
@@ -5151,9 +5417,10 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_tdma_tsfadjm = TDMA_AVG(sc->sc_avgtsfdeltam);
 #endif
 		rt = sc->sc_currates;
-		/* XXX HT rates */
 		sc->sc_stats.ast_tx_rate =
 		    rt->info[sc->sc_txrix].dot11Rate &~ IEEE80211_RATE_BASIC;
+		if (rt->info[sc->sc_txrix].phy & IEEE80211_T_HT)
+			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCZATHSTATS:
@@ -5164,6 +5431,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
+		break;
+	case SIOCGATHPHYERR:
+		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
 	case SIOCGIFADDR:
@@ -5209,20 +5479,6 @@ ath_announce(struct ath_softc *sc)
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
-static __inline uint32_t
-ath_hal_getnexttbtt(struct ath_hal *ah)
-{
-#define	AR_TIMER0	0x8028
-	return OS_REG_READ(ah, AR_TIMER0);
-}
-
-static __inline void
-ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta)
-{
-	/* XXX handle wrap/overflow */
-	OS_REG_WRITE(ah, AR_TSF_L32, OS_REG_READ(ah, AR_TSF_L32) + tsfdelta);
-}
-
 static void
 ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 {
@@ -5234,6 +5490,8 @@ ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 	bt.bt_nextdba = (nexttbtt<<3) - sc->sc_tdmadbaprep;
 	bt.bt_nextswba = (nexttbtt<<3) - sc->sc_tdmaswbaprep;
 	bt.bt_nextatim = nexttbtt+1;
+	/* Enables TBTT, DBA, SWBA timers by default */
+	bt.bt_flags = 0;
 	ath_hal_beaconsettimers(ah, &bt);
 }
 
@@ -5376,8 +5634,8 @@ ath_tdma_update(struct ieee80211_node *ni,
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	u_int64_t tsf, rstamp, nextslot;
-	u_int32_t txtime, nextslottu, timer0;
+	u_int64_t tsf, rstamp, nextslot, nexttbtt;
+	u_int32_t txtime, nextslottu;
 	int32_t tudelta, tsfdelta;
 	const struct ath_rx_status *rs;
 	int rix;
@@ -5408,7 +5666,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	/* extend rx timestamp to 64 bits */
 	rs = sc->sc_lastrs;
 	tsf = ath_hal_gettsf64(ah);
-	rstamp = ath_extend_tsf(rs->rs_tstamp, tsf);
+	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
 	/*
 	 * The rx timestamp is set by the hardware on completing
 	 * reception (at the point where the rx descriptor is DMA'd
@@ -5424,15 +5682,15 @@ ath_tdma_update(struct ieee80211_node *ni,
 	nextslottu = TSF_TO_TU(nextslot>>32, nextslot) & HAL_BEACON_PERIOD;
 
 	/*
-	 * TIMER0 is the h/w's idea of NextTBTT (in TU's).  Convert
-	 * to usecs and calculate the difference between what the
+	 * Retrieve the hardware NextTBTT in usecs
+	 * and calculate the difference between what the
 	 * other station thinks and what we have programmed.  This
 	 * lets us figure how to adjust our timers to match.  The
 	 * adjustments are done by pulling the TSF forward and possibly
 	 * rewriting the beacon timers.
 	 */
-	timer0 = ath_hal_getnexttbtt(ah);
-	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD+1)) - TU_TO_TSF(timer0));
+	nexttbtt = ath_hal_getnexttbtt(ah);
+	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "tsfdelta %d avg +%d/-%d\n", tsfdelta,
@@ -5452,7 +5710,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
 		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
 	}
-	tudelta = nextslottu - timer0;
+	tudelta = nextslottu - TSF_TO_TU(nexttbtt >> 32, nexttbtt);
 
 	/*
 	 * Copy sender's timetstamp into tdma ie so they can
@@ -5471,10 +5729,9 @@ ath_tdma_update(struct ieee80211_node *ni,
 		&ni->ni_tstamp.data, 8);
 #if 0
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "tsf %llu nextslot %llu (%d, %d) nextslottu %u timer0 %u (%d)\n",
+	    "tsf %llu nextslot %llu (%d, %d) nextslottu %u nexttbtt %llu (%d)\n",
 	    (unsigned long long) tsf, (unsigned long long) nextslot,
-	    (int)(nextslot - tsf), tsfdelta,
-	    nextslottu, timer0, tudelta);
+	    (int)(nextslot - tsf), tsfdelta, nextslottu, nexttbtt, tudelta);
 #endif
 	/*
 	 * Adjust the beacon timers only when pulling them forward
@@ -5570,3 +5827,23 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
 
+static void
+ath_dfs_tasklet(void *p, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) p;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	/*
+	 * If previous processing has found a radar event,
+	 * signal this to the net80211 layer to begin DFS
+	 * processing.
+	 */
+	if (ath_dfs_process_radar_event(sc, sc->sc_curchan)) {
+		/* DFS event found, initiate channel change */
+		ieee80211_dfs_notify_radar(ic, sc->sc_curchan);
+	}
+}
+
+MODULE_VERSION(if_ath, 1);
+MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */

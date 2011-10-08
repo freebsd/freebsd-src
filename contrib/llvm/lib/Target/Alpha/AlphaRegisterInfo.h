@@ -15,7 +15,9 @@
 #define ALPHAREGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "AlphaGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "AlphaGenRegisterInfo.inc"
 
 namespace llvm {
 
@@ -48,6 +50,7 @@ struct AlphaRegisterInfo : public AlphaGenRegisterInfo {
   unsigned getEHHandlerRegister() const;
 
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 
   static std::string getPrettyName(unsigned reg);
 };

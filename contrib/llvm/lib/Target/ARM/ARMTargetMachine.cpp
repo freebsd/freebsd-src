@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMTargetMachine.h"
-#include "ARMMCAsmInfo.h"
 #include "ARMFrameLowering.h"
 #include "ARM.h"
 #include "llvm/PassManager.h"
@@ -22,18 +21,6 @@
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-static cl::opt<bool>ExpandMLx("expand-fp-mlx", cl::init(false), cl::Hidden);
-
-static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
-  Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
-    return new ARMMCAsmInfoDarwin();
-  default:
-    return new ARMELFMCAsmInfo();
-  }
-}
-
 // This is duplicated code. Refactor this.
 static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCContext &Ctx, TargetAsmBackend &TAB,
@@ -41,27 +28,23 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCCodeEmitter *Emitter,
                                     bool RelaxAll,
                                     bool NoExecStack) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin())
     return createMachOStreamer(Ctx, TAB, OS, Emitter, RelaxAll);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
+
+  if (TheTriple.isOSWindows()) {
     llvm_unreachable("ARM does not support Windows COFF format");
     return NULL;
-  default:
-    return createELFStreamer(Ctx, TAB, OS, Emitter, RelaxAll, NoExecStack);
   }
+
+  return createELFStreamer(Ctx, TAB, OS, Emitter, RelaxAll, NoExecStack);
 }
 
 extern "C" void LLVMInitializeARMTarget() {
   // Register the target.
   RegisterTargetMachine<ARMTargetMachine> X(TheARMTarget);
   RegisterTargetMachine<ThumbTargetMachine> Y(TheThumbTarget);
-
-  // Register the target asm info.
-  RegisterAsmInfoFn A(TheARMTarget, createMCAsmInfo);
-  RegisterAsmInfoFn B(TheThumbTarget, createMCAsmInfo);
 
   // Register the MC Code Emitter
   TargetRegistry::RegisterCodeEmitter(TheARMTarget, createARMMCCodeEmitter);
@@ -81,19 +64,23 @@ extern "C" void LLVMInitializeARMTarget() {
 ///
 ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T,
                                            const std::string &TT,
-                                           const std::string &FS,
-                                           bool isThumb)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS, isThumb),
+                                           const std::string &CPU,
+                                           const std::string &FS)
+  : LLVMTargetMachine(T, TT, CPU, FS),
+    Subtarget(TT, CPU, FS),
     JITInfo(),
-    InstrItins(Subtarget.getInstrItineraryData())
-{
+    InstrItins(Subtarget.getInstrItineraryData()) {
   DefRelocModel = getRelocationModel();
+
+  // Default to soft float ABI
+  if (FloatABIType == FloatABI::Default)
+    FloatABIType = FloatABI::Soft;
 }
 
 ARMTargetMachine::ARMTargetMachine(const Target &T, const std::string &TT,
+                                   const std::string &CPU,
                                    const std::string &FS)
-  : ARMBaseTargetMachine(T, TT, FS, false), InstrInfo(Subtarget),
+  : ARMBaseTargetMachine(T, TT, CPU, FS), InstrInfo(Subtarget),
     DataLayout(Subtarget.isAPCS_ABI() ?
                std::string("e-p:32:32-f64:32:64-i64:32:64-"
                            "v128:32:128-v64:32:64-n32") :
@@ -109,8 +96,9 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, const std::string &TT,
 }
 
 ThumbTargetMachine::ThumbTargetMachine(const Target &T, const std::string &TT,
+                                       const std::string &CPU,
                                        const std::string &FS)
-  : ARMBaseTargetMachine(T, TT, FS, true),
+  : ARMBaseTargetMachine(T, TT, CPU, FS),
     InstrInfo(Subtarget.hasThumb2()
               ? ((ARMBaseInstrInfo*)new Thumb2InstrInfo(Subtarget))
               : ((ARMBaseInstrInfo*)new Thumb1InstrInfo(Subtarget))),
@@ -149,8 +137,7 @@ bool ARMBaseTargetMachine::addPreRegAlloc(PassManagerBase &PM,
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
   if (OptLevel != CodeGenOpt::None && !Subtarget.isThumb1Only())
     PM.add(createARMLoadStoreOptimizationPass(true));
-  if (ExpandMLx &&
-      OptLevel != CodeGenOpt::None && Subtarget.hasVFP2())
+  if (OptLevel != CodeGenOpt::None && Subtarget.isCortexA9())
     PM.add(createMLxExpansionPass());
 
   return true;

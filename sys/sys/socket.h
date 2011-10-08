@@ -515,7 +515,7 @@ struct sockcred {
 	  _ALIGN(sizeof(struct cmsghdr)) > \
 	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)0 : \
-	    (struct cmsghdr *)((char *)(cmsg) + \
+	    (struct cmsghdr *)(void *)((char *)(cmsg) + \
 	    _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len)))
 
 /*

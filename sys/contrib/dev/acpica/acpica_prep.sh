@@ -67,7 +67,7 @@ find ${wrk} -type f -print | xargs -J % mv % ${dst}
 
 # canonify include paths
 for H in ${src_headers}; do
-	find ${dst} -name "*.[chy]" -type f -print |	\
+	find ${dst} -name "*.[chly]" -type f -print |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do

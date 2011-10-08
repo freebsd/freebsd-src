@@ -21,6 +21,7 @@ namespace llvm {
 
 class BlockAddress;
 class ConstantFP;
+class ConstantInt;
 class GlobalValue;
 class MachineBasicBlock;
 class MachineInstr;
@@ -38,6 +39,7 @@ public:
   enum MachineOperandType {
     MO_Register,               ///< Register operand.
     MO_Immediate,              ///< Immediate operand
+    MO_CImmediate,             ///< Immediate >64bit operand
     MO_FPImmediate,            ///< Floating-point immediate operand
     MO_MachineBasicBlock,      ///< MachineBasicBlock reference
     MO_FrameIndex,             ///< Abstract Stack Frame Index
@@ -94,8 +96,8 @@ private:
   /// not a real instruction.  Such uses should be ignored during codegen.
   bool IsDebug : 1;
 
-  /// SmallContents - Thisreally should be part of the Contents union, but lives
-  /// out here so we can get a better packed struct.
+  /// SmallContents - This really should be part of the Contents union, but
+  /// lives out here so we can get a better packed struct.
   /// MO_Register: Register number.
   /// OffsetedInfo: Low bits of offset.
   union {
@@ -111,6 +113,7 @@ private:
   union {
     MachineBasicBlock *MBB;   // For MO_MachineBasicBlock.
     const ConstantFP *CFP;    // For MO_FPImmediate.
+    const ConstantInt *CI;    // For MO_CImmediate. Integers > 64bit.
     int64_t ImmVal;           // For MO_Immediate.
     const MDNode *MD;         // For MO_Metadata.
     MCSymbol *Sym;            // For MO_MCSymbol
@@ -173,6 +176,8 @@ public:
   bool isReg() const { return OpKind == MO_Register; }
   /// isImm - Tests if this is a MO_Immediate operand.
   bool isImm() const { return OpKind == MO_Immediate; }
+  /// isCImm - Test if t his is a MO_CImmediate operand.
+  bool isCImm() const { return OpKind == MO_CImmediate; }
   /// isFPImm - Tests if this is a MO_FPImmediate operand.
   bool isFPImm() const { return OpKind == MO_FPImmediate; }
   /// isMBB - Tests if this is a MO_MachineBasicBlock operand.
@@ -333,6 +338,11 @@ public:
     return Contents.ImmVal;
   }
 
+  const ConstantInt *getCImm() const {
+    assert(isCImm() && "Wrong MachineOperand accessor");
+    return Contents.CI;
+  }
+
   const ConstantFP *getFPImm() const {
     assert(isFPImm() && "Wrong MachineOperand accessor");
     return Contents.CFP;
@@ -440,6 +450,12 @@ public:
     return Op;
   }
 
+  static MachineOperand CreateCImm(const ConstantInt *CI) {
+    MachineOperand Op(MachineOperand::MO_CImmediate);
+    Op.Contents.CI = CI;
+    return Op;
+  }
+
   static MachineOperand CreateFPImm(const ConstantFP *CFP) {
     MachineOperand Op(MachineOperand::MO_FPImmediate);
     Op.Contents.CFP = CFP;
@@ -473,7 +489,7 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
-  static MachineOperand CreateFI(unsigned Idx) {
+  static MachineOperand CreateFI(int Idx) {
     MachineOperand Op(MachineOperand::MO_FrameIndex);
     Op.setIndex(Idx);
     return Op;

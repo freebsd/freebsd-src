@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
- * Copyright (c) 2010 Juniper Networks, Inc.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson under contract
@@ -71,6 +71,15 @@
 #define	NETISR_POLICY_CPU	3	/* Protocol determines CPU placement. */
 
 /*
+ * Protocol dispatch policy constants; selects whether and when direct
+ * dispatch is permitted.
+ */
+#define	NETISR_DISPATCH_DEFAULT		0	/* Use global default. */
+#define	NETISR_DISPATCH_DEFERRED	1	/* Always defer dispatch. */
+#define	NETISR_DISPATCH_HYBRID		2	/* Allow hybrid dispatch. */
+#define	NETISR_DISPATCH_DIRECT		3	/* Always direct dispatch. */
+
+/*
  * Monitoring data structures, exported by sysctl(2).
  *
  * Three sysctls are defined.  First, a per-protocol structure exported by
@@ -84,7 +93,8 @@ struct sysctl_netisr_proto {
 	u_int	snp_qlimit;			/* nh_qlimit */
 	u_int	snp_policy;			/* nh_policy */
 	u_int	snp_flags;			/* Various flags. */
-	u_int	_snp_ispare[7];
+	u_int	snp_dispatch;			/* Dispatch policy. */
+	u_int	_snp_ispare[6];
 };
 
 /*
@@ -173,6 +183,8 @@ typedef struct mbuf	*netisr_m2cpuid_t(struct mbuf *m, uintptr_t source,
 typedef	struct mbuf	*netisr_m2flow_t(struct mbuf *m, uintptr_t source);
 typedef void		 netisr_drainedcpu_t(u_int cpuid);
 
+#define	NETISR_CPUID_NONE	((u_int)-1)	/* No affinity returned. */
+
 /*
  * Data structure describing a protocol handler.
  */
@@ -185,7 +197,8 @@ struct netisr_handler {
 	u_int		 nh_proto;	/* Integer protocol ID. */
 	u_int		 nh_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 nh_policy;	/* Work placement policy. */
-	u_int		 nh_ispare[5];	/* For future use. */
+	u_int		 nh_dispatch;	/* Dispatch policy. */
+	u_int		 nh_ispare[4];	/* For future use. */
 	void		*nh_pspare[4];	/* For future use. */
 };
 

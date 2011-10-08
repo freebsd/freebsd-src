@@ -53,12 +53,14 @@ checksum		{ DP; return CHECKSUM; }
 compression		{ DP; return COMPRESSION; }
 timeout			{ DP; return TIMEOUT; }
 exec			{ DP; return EXEC; }
+metaflush		{ DP; return METAFLUSH; }
 resource		{ DP; return RESOURCE; }
 name			{ DP; return NAME; }
 local			{ DP; return LOCAL; }
 remote			{ DP; return REMOTE; }
 source			{ DP; return SOURCE; }
 on			{ DP; return ON; }
+off			{ DP; return OFF; }
 fullsync		{ DP; return FULLSYNC; }
 memsync			{ DP; return MEMSYNC; }
 async			{ DP; return ASYNC; }
@@ -68,7 +70,7 @@ sha256			{ DP; return SHA256; }
 hole			{ DP; return HOLE; }
 lzf			{ DP; return LZF; }
 [0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-[a-zA-Z0-9\.\-_/\:]+	{ DP; yylval.str = strdup(yytext); return STR; }
+[a-zA-Z0-9\.\-_/\:\[\]]+ { DP; yylval.str = strdup(yytext); return STR; }
 \{			{ DP; depth++; return OB; }
 \}			{ DP; depth--; return CB; }
 #.*$			/* ignore comments */;

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.166 2010/04/16 01:47:26 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.172 2011/06/03 01:37:40 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -138,15 +138,34 @@ extern char *__progname;
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
 
+/*
+ * Client connection count; incremented in new_socket() and decremented in
+ * close_socket().  When it reaches 0, ssh-agent will exit.  Since it is
+ * normally initialized to 1, it will never reach 0.  However, if the -x
+ * option is specified, it is initialized to 0 in main(); in that case,
+ * ssh-agent will exit as soon as it has had at least one client but no
+ * longer has any.
+ */
+static int xcount = 1;
+
 static void
 close_socket(SocketEntry *e)
 {
+	int last = 0;
+
+	if (e->type == AUTH_CONNECTION) {
+		debug("xcount %d -> %d", xcount, xcount - 1);
+		if (--xcount == 0)
+			last = 1;
+	}
 	close(e->fd);
 	e->fd = -1;
 	e->type = AUTH_UNUSED;
 	buffer_free(&e->input);
 	buffer_free(&e->output);
 	buffer_free(&e->request);
+	if (last)
+		cleanup_exit(0);
 }
 
 static void
@@ -469,6 +488,11 @@ process_add_identity(SocketEntry *e, int version)
 	int type, success = 0, death = 0, confirm = 0;
 	char *type_name, *comment;
 	Key *k = NULL;
+#ifdef OPENSSL_HAS_ECC
+	BIGNUM *exponent;
+	EC_POINT *q;
+	char *curve;
+#endif
 	u_char *cert;
 	u_int len;
 
@@ -491,7 +515,6 @@ process_add_identity(SocketEntry *e, int version)
 	case 2:
 		type_name = buffer_get_string(&e->request, NULL);
 		type = key_type_from_name(type_name);
-		xfree(type_name);
 		switch (type) {
 		case KEY_DSA:
 			k = key_new_private(type);
@@ -510,6 +533,59 @@ process_add_identity(SocketEntry *e, int version)
 			key_add_private(k);
 			buffer_get_bignum2(&e->request, k->dsa->priv_key);
 			break;
+#ifdef OPENSSL_HAS_ECC
+		case KEY_ECDSA:
+			k = key_new_private(type);
+			k->ecdsa_nid = key_ecdsa_nid_from_name(type_name);
+			curve = buffer_get_string(&e->request, NULL);
+			if (k->ecdsa_nid != key_curve_name_to_nid(curve))
+				fatal("%s: curve names mismatch", __func__);
+			xfree(curve);
+			k->ecdsa = EC_KEY_new_by_curve_name(k->ecdsa_nid);
+			if (k->ecdsa == NULL)
+				fatal("%s: EC_KEY_new_by_curve_name failed",
+				    __func__);
+			q = EC_POINT_new(EC_KEY_get0_group(k->ecdsa));
+			if (q == NULL)
+				fatal("%s: BN_new failed", __func__);
+			if ((exponent = BN_new()) == NULL)
+				fatal("%s: BN_new failed", __func__);
+			buffer_get_ecpoint(&e->request,
+				EC_KEY_get0_group(k->ecdsa), q);
+			buffer_get_bignum2(&e->request, exponent);
+			if (EC_KEY_set_public_key(k->ecdsa, q) != 1)
+				fatal("%s: EC_KEY_set_public_key failed",
+				    __func__);
+			if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1)
+				fatal("%s: EC_KEY_set_private_key failed",
+				    __func__);
+			if (key_ec_validate_public(EC_KEY_get0_group(k->ecdsa),
+			    EC_KEY_get0_public_key(k->ecdsa)) != 0)
+				fatal("%s: bad ECDSA public key", __func__);
+			if (key_ec_validate_private(k->ecdsa) != 0)
+				fatal("%s: bad ECDSA private key", __func__);
+			BN_clear_free(exponent);
+			EC_POINT_free(q);
+			break;
+		case KEY_ECDSA_CERT:
+			cert = buffer_get_string(&e->request, &len);
+			if ((k = key_from_blob(cert, len)) == NULL)
+				fatal("Certificate parse failed");
+			xfree(cert);
+			key_add_private(k);
+			if ((exponent = BN_new()) == NULL)
+				fatal("%s: BN_new failed", __func__);
+			buffer_get_bignum2(&e->request, exponent);
+			if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1)
+				fatal("%s: EC_KEY_set_private_key failed",
+				    __func__);
+			if (key_ec_validate_public(EC_KEY_get0_group(k->ecdsa),
+			    EC_KEY_get0_public_key(k->ecdsa)) != 0 ||
+			    key_ec_validate_private(k->ecdsa) != 0)
+				fatal("%s: bad ECDSA key", __func__);
+			BN_clear_free(exponent);
+			break;
+#endif /* OPENSSL_HAS_ECC */
 		case KEY_RSA:
 			k = key_new_private(type);
 			buffer_get_bignum2(&e->request, k->rsa->n);
@@ -535,9 +611,11 @@ process_add_identity(SocketEntry *e, int version)
 			buffer_get_bignum2(&e->request, k->rsa->q);
 			break;
 		default:
+			xfree(type_name);
 			buffer_clear(&e->request);
 			goto send;
 		}
+		xfree(type_name);
 		break;
 	}
 	/* enable blinding */
@@ -842,6 +920,10 @@ new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc, new_alloc;
 
+	if (type == AUTH_CONNECTION) {
+		debug("xcount %d -> %d", xcount, xcount + 1);
+		++xcount;
+	}
 	set_nonblock(fd);
 
 	if (fd > max_fd)
@@ -1039,7 +1121,11 @@ cleanup_handler(int sig)
 static void
 check_parent_exists(void)
 {
-	if (parent_pid != -1 && kill(parent_pid, 0) < 0) {
+	/*
+	 * If our parent has exited then getppid() will return (pid_t)1,
+	 * so testing for that should be safe.
+	 */
+	if (parent_pid != -1 && getppid() != parent_pid) {
 		/* printf("Parent has died - Authentication agent exiting.\n"); */
 		cleanup_socket();
 		_exit(2);
@@ -1058,6 +1144,7 @@ usage(void)
 	fprintf(stderr, "  -d          Debug mode.\n");
 	fprintf(stderr, "  -a socket   Bind agent socket to given name.\n");
 	fprintf(stderr, "  -t life     Default identity lifetime (seconds).\n");
+	fprintf(stderr, "  -x          Exit when the last client disconnects.\n");
 	exit(1);
 }
 
@@ -1094,13 +1181,12 @@ main(int ac, char **av)
 	prctl(PR_SET_DUMPABLE, 0);
 #endif
 
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 
 	__progname = ssh_get_progname(av[0]);
-	init_rng();
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cdksa:t:")) != -1) {
+	while ((ch = getopt(ac, av, "cdksa:t:x")) != -1) {
 		switch (ch) {
 		case 'c':
 			if (s_flag)
@@ -1128,6 +1214,9 @@ main(int ac, char **av)
 				fprintf(stderr, "Invalid lifetime\n");
 				usage();
 			}
+			break;
+		case 'x':
+			xcount = 0;
 			break;
 		default:
 			usage();
@@ -1175,7 +1264,7 @@ main(int ac, char **av)
 
 	if (agentsocket == NULL) {
 		/* Create private directory for agent socket */
-		strlcpy(socket_dir, "/tmp/ssh-XXXXXXXXXX", sizeof socket_dir);
+		mktemp_proto(socket_dir, sizeof(socket_dir));
 		if (mkdtemp(socket_dir) == NULL) {
 			perror("mkdtemp: private socket dir");
 			exit(1);
@@ -1288,8 +1377,7 @@ skip:
 	if (ac > 0)
 		parent_alive_interval = 10;
 	idtab_init();
-	if (!d_flag)
-		signal(SIGINT, SIG_IGN);
+	signal(SIGINT, d_flag ? cleanup_handler : SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, cleanup_handler);
 	signal(SIGTERM, cleanup_handler);

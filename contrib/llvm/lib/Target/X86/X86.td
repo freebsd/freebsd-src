@@ -1,13 +1,13 @@
 //===- X86.td - Target definition file for the Intel X86 ---*- tablegen -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
-// This is a target description file for the Intel i386 architecture, refered to
+// This is a target description file for the Intel i386 architecture, referred to
 // here as the "X86" architecture.
 //
 //===----------------------------------------------------------------------===//
@@ -15,6 +15,13 @@
 // Get the target-independent interfaces which we are implementing...
 //
 include "llvm/Target/Target.td"
+
+//===----------------------------------------------------------------------===//
+// X86 Subtarget state.
+//
+
+def Mode64Bit : SubtargetFeature<"64bit-mode", "In64BitMode", "true",
+                                  "64-bit mode (x86_64)">;
 
 //===----------------------------------------------------------------------===//
 // X86 Subtarget features.
@@ -32,7 +39,7 @@ def FeatureMMX     : SubtargetFeature<"mmx","X86SSELevel", "MMX",
 def FeatureSSE1    : SubtargetFeature<"sse", "X86SSELevel", "SSE1",
                                       "Enable SSE instructions",
                                       // SSE codegen depends on cmovs, and all
-                                      // SSE1+ processors support them. 
+                                      // SSE1+ processors support them.
                                       [FeatureMMX, FeatureCMOV]>;
 def FeatureSSE2    : SubtargetFeature<"sse2", "X86SSELevel", "SSE2",
                                       "Enable SSE2 instructions",
@@ -50,7 +57,8 @@ def FeatureSSE42   : SubtargetFeature<"sse42", "X86SSELevel", "SSE42",
                                       "Enable SSE 4.2 instructions",
                                       [FeatureSSE41, FeaturePOPCNT]>;
 def Feature3DNow   : SubtargetFeature<"3dnow", "X863DNowLevel", "ThreeDNow",
-                                      "Enable 3DNow! instructions">;
+                                      "Enable 3DNow! instructions",
+                                      [FeatureMMX]>;
 def Feature3DNowA  : SubtargetFeature<"3dnowa", "X863DNowLevel", "ThreeDNowA",
                                       "Enable 3DNow! Athlon instructions",
                                       [Feature3DNow]>;
@@ -100,8 +108,10 @@ def : Proc<"i686",            []>;
 def : Proc<"pentiumpro",      [FeatureCMOV]>;
 def : Proc<"pentium2",        [FeatureMMX, FeatureCMOV]>;
 def : Proc<"pentium3",        [FeatureSSE1]>;
+def : Proc<"pentium3m",       [FeatureSSE1, FeatureSlowBTMem]>;
 def : Proc<"pentium-m",       [FeatureSSE2, FeatureSlowBTMem]>;
 def : Proc<"pentium4",        [FeatureSSE2]>;
+def : Proc<"pentium4m",       [FeatureSSE2, FeatureSlowBTMem]>;
 def : Proc<"x86-64",          [FeatureSSE2,   Feature64Bit, FeatureSlowBTMem]>;
 def : Proc<"yonah",           [FeatureSSE3, FeatureSlowBTMem]>;
 def : Proc<"prescott",        [FeatureSSE3, FeatureSlowBTMem]>;
@@ -121,14 +131,14 @@ def : Proc<"westmere",        [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem,
 // SSE is not listed here since llvm treats AVX as a reimplementation of SSE,
 // rather than a superset.
 // FIXME: Disabling AVX for now since it's not ready.
-def : Proc<"sandybridge",     [FeatureSSE42, Feature64Bit,
+def : Proc<"corei7-avx",      [FeatureSSE42, Feature64Bit,
                                FeatureAES, FeatureCLMUL]>;
 
 def : Proc<"k6",              [FeatureMMX]>;
-def : Proc<"k6-2",            [FeatureMMX,    Feature3DNow]>;
-def : Proc<"k6-3",            [FeatureMMX,    Feature3DNow]>;
-def : Proc<"athlon",          [FeatureMMX,    Feature3DNowA, FeatureSlowBTMem]>;
-def : Proc<"athlon-tbird",    [FeatureMMX,    Feature3DNowA, FeatureSlowBTMem]>;
+def : Proc<"k6-2",            [Feature3DNow]>;
+def : Proc<"k6-3",            [Feature3DNow]>;
+def : Proc<"athlon",          [Feature3DNowA, FeatureSlowBTMem]>;
+def : Proc<"athlon-tbird",    [Feature3DNowA, FeatureSlowBTMem]>;
 def : Proc<"athlon-4",        [FeatureSSE1,   Feature3DNowA, FeatureSlowBTMem]>;
 def : Proc<"athlon-xp",       [FeatureSSE1,   Feature3DNowA, FeatureSlowBTMem]>;
 def : Proc<"athlon-mp",       [FeatureSSE1,   Feature3DNowA, FeatureSlowBTMem]>;
@@ -156,8 +166,8 @@ def : Proc<"shanghai",        [Feature3DNowA, Feature64Bit, FeatureSSE4A,
                                Feature3DNowA]>;
 
 def : Proc<"winchip-c6",      [FeatureMMX]>;
-def : Proc<"winchip2",        [FeatureMMX, Feature3DNow]>;
-def : Proc<"c3",              [FeatureMMX, Feature3DNow]>;
+def : Proc<"winchip2",        [Feature3DNow]>;
+def : Proc<"c3",              [Feature3DNow]>;
 def : Proc<"c3-2",            [FeatureSSE1]>;
 
 //===----------------------------------------------------------------------===//

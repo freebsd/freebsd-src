@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -399,6 +399,7 @@ fexpand(s)
 	*to = '\0';
 	return (e);
 }
+
 
 #if TAB_COMPLETE_FILENAME
 
@@ -1057,3 +1058,22 @@ shell_coption()
 {
 	return ("-c");
 }
+
+/*
+ * Return last component of a pathname.
+ */
+	public char *
+last_component(name)
+	char *name;
+{
+	char *slash;
+
+	for (slash = name + strlen(name);  slash > name; )
+	{
+		--slash;
+		if (*slash == *PATHNAME_SEP || *slash == '/')
+			return (slash + 1);
+	}
+	return (name);
+}
+

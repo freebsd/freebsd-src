@@ -49,11 +49,11 @@ public:
   SVal Retrieve(Store store, Loc loc, QualType T = QualType());
 
   StoreRef invalidateRegion(Store store, const MemRegion *R, const Expr *E,
-                            unsigned Count, InvalidatedSymbols *IS);
+                            unsigned Count, InvalidatedSymbols &IS);
 
   StoreRef invalidateRegions(Store store, const MemRegion * const *Begin,
                              const MemRegion * const *End, const Expr *E,
-                             unsigned Count, InvalidatedSymbols *IS,
+                             unsigned Count, InvalidatedSymbols &IS,
                              bool invalidateGlobals,
                              InvalidatedRegions *Regions);
 
@@ -429,12 +429,15 @@ StoreRef BasicStoreManager::getInitialStore(const LocationContext *InitLoc) {
   }
 
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(InitLoc->getDecl())) {
-    // For C++ methods add symbolic region for 'this' in initial stack frame.
-    QualType ThisT = MD->getThisType(StateMgr.getContext());
-    MemRegionManager &RegMgr = svalBuilder.getRegionManager();
-    const CXXThisRegion *ThisR = RegMgr.getCXXThisRegion(ThisT, InitLoc);
-    SVal ThisV = svalBuilder.getRegionValueSymbolVal(ThisR);
-    St = Bind(St.getStore(), svalBuilder.makeLoc(ThisR), ThisV);
+    // For C++ non-static member variables, add a symbolic region for 'this' in
+    // the initial stack frame.
+    if (MD->isInstance()) {
+      QualType ThisT = MD->getThisType(StateMgr.getContext());
+      MemRegionManager &RegMgr = svalBuilder.getRegionManager();
+      const CXXThisRegion *ThisR = RegMgr.getCXXThisRegion(ThisT, InitLoc);
+      SVal ThisV = svalBuilder.getRegionValueSymbolVal(ThisR);
+      St = Bind(St.getStore(), svalBuilder.makeLoc(ThisR), ThisV);
+    }
   }
 
   return St;
@@ -535,7 +538,7 @@ StoreRef BasicStoreManager::invalidateRegions(Store store,
                                               const MemRegion * const *I,
                                               const MemRegion * const *End,
                                               const Expr *E, unsigned Count,
-                                              InvalidatedSymbols *IS,
+                                              InvalidatedSymbols &IS,
                                               bool invalidateGlobals,
                                               InvalidatedRegions *Regions) {
   StoreRef newStore(store, *this);
@@ -584,18 +587,16 @@ StoreRef BasicStoreManager::invalidateRegion(Store store,
                                              const MemRegion *R,
                                              const Expr *E,
                                              unsigned Count,
-                                             InvalidatedSymbols *IS) {
+                                             InvalidatedSymbols &IS) {
   R = R->StripCasts();
 
   if (!(isa<VarRegion>(R) || isa<ObjCIvarRegion>(R)))
       return StoreRef(store, *this);
 
-  if (IS) {
-    BindingsTy B = GetBindings(store);
-    if (BindingsTy::data_type *Val = B.lookup(R)) {
-      if (SymbolRef Sym = Val->getAsSymbol())
-        IS->insert(Sym);
-    }
+  BindingsTy B = GetBindings(store);
+  if (BindingsTy::data_type *Val = B.lookup(R)) {
+    if (SymbolRef Sym = Val->getAsSymbol())
+      IS.insert(Sym);
   }
 
   QualType T = cast<TypedRegion>(R)->getValueType();

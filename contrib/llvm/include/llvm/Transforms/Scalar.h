@@ -128,7 +128,7 @@ Pass *createLoopInstSimplifyPass();
 //
 // LoopUnroll - This pass is a simple loop unrolling pass.
 //
-Pass *createLoopUnrollPass();
+Pass *createLoopUnrollPass(int Threshold = -1, int Count = -1, int AllowPartial = -1);
 
 //===----------------------------------------------------------------------===//
 //
@@ -301,12 +301,6 @@ FunctionPass *createSimplifyLibCallsPass();
 
 //===----------------------------------------------------------------------===//
 //
-/// createSimplifyHalfPowrLibCallsPass - This is an experimental pass that
-/// optimizes specific half_pow functions.
-FunctionPass *createSimplifyHalfPowrLibCallsPass();
-
-//===----------------------------------------------------------------------===//
-//
 // CodeGenPrepare - This pass prepares a function for instruction selection.
 //
 FunctionPass *createCodeGenPreparePass(const TargetLowering *TLI = 0);
@@ -344,10 +338,36 @@ Pass *createCorrelatedValuePropagationPass();
 
 //===----------------------------------------------------------------------===//
 //
+// ObjCARCExpand - ObjC ARC preliminary simplifications.
+//
+Pass *createObjCARCExpandPass();
+
+//===----------------------------------------------------------------------===//
+//
+// ObjCARCContract - Late ObjC ARC cleanups.
+//
+Pass *createObjCARCContractPass();
+
+//===----------------------------------------------------------------------===//
+//
+// ObjCARCOpt - ObjC ARC optimization.
+//
+Pass *createObjCARCOptPass();
+
+//===----------------------------------------------------------------------===//
+//
 // InstructionSimplifier - Remove redundant instructions.
 //
 FunctionPass *createInstructionSimplifierPass();
 extern char &InstructionSimplifierID;
+
+
+//===----------------------------------------------------------------------===//
+//
+// LowerExpectIntriniscs - Removes llvm.expect intrinsics and creates
+// "block_weights" metadata.
+FunctionPass *createLowerExpectIntrinsicPass();
+
 
 } // End llvm namespace
 

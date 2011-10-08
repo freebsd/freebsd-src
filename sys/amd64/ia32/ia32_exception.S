@@ -46,7 +46,7 @@ IDTVEC(int0x80_syscall)
 	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)

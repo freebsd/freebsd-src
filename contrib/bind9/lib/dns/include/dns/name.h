@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.h,v 1.126.332.5 2010-07-09 23:45:55 tbox Exp $ */
+/* $Id: name.h,v 1.137 2011-01-13 04:59:26 tbox Exp $ */
 
 #ifndef DNS_NAME_H
 #define DNS_NAME_H 1
@@ -121,21 +121,27 @@ struct dns_name {
 
 #define DNS_NAME_MAGIC			ISC_MAGIC('D','N','S','n')
 
-#define DNS_NAMEATTR_ABSOLUTE		0x0001
-#define DNS_NAMEATTR_READONLY		0x0002
-#define DNS_NAMEATTR_DYNAMIC		0x0004
-#define DNS_NAMEATTR_DYNOFFSETS		0x0008
-#define DNS_NAMEATTR_NOCOMPRESS		0x0010
+#define DNS_NAMEATTR_ABSOLUTE		0x00000001
+#define DNS_NAMEATTR_READONLY		0x00000002
+#define DNS_NAMEATTR_DYNAMIC		0x00000004
+#define DNS_NAMEATTR_DYNOFFSETS		0x00000008
+#define DNS_NAMEATTR_NOCOMPRESS		0x00000010
 /*
  * Attributes below 0x0100 reserved for name.c usage.
  */
-#define DNS_NAMEATTR_CACHE		0x0100		/*%< Used by resolver. */
-#define DNS_NAMEATTR_ANSWER		0x0200		/*%< Used by resolver. */
-#define DNS_NAMEATTR_NCACHE		0x0400		/*%< Used by resolver. */
-#define DNS_NAMEATTR_CHAINING		0x0800		/*%< Used by resolver. */
-#define DNS_NAMEATTR_CHASE		0x1000		/*%< Used by resolver. */
-#define DNS_NAMEATTR_WILDCARD		0x2000		/*%< Used by server. */
+#define DNS_NAMEATTR_CACHE		0x00000100	/*%< Used by resolver. */
+#define DNS_NAMEATTR_ANSWER		0x00000200	/*%< Used by resolver. */
+#define DNS_NAMEATTR_NCACHE		0x00000400	/*%< Used by resolver. */
+#define DNS_NAMEATTR_CHAINING		0x00000800	/*%< Used by resolver. */
+#define DNS_NAMEATTR_CHASE		0x00001000	/*%< Used by resolver. */
+#define DNS_NAMEATTR_WILDCARD		0x00002000	/*%< Used by server. */
+#define DNS_NAMEATTR_PREREQUISITE	0x00004000	/*%< Used by client. */
+#define DNS_NAMEATTR_UPDATE		0x00008000	/*%< Used by client. */
+#define DNS_NAMEATTR_HASUPDATEREC	0x00010000	/*%< Used by client. */
 
+/*
+ * Various flags.
+ */
 #define DNS_NAME_DOWNCASE		0x0001
 #define DNS_NAME_CHECKNAMES		0x0002		/*%< Used by rdata. */
 #define DNS_NAME_CHECKNAMESFAIL		0x0004		/*%< Used by rdata. */
@@ -750,7 +756,7 @@ dns_name_towire(const dns_name_t *name, dns_compress_t *cctx,
 
 isc_result_t
 dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
-		  dns_name_t *origin, unsigned int options,
+		  const dns_name_t *origin, unsigned int options,
 		  isc_buffer_t *target);
 /*%<
  * Convert the textual representation of a DNS name at source
@@ -1136,6 +1142,56 @@ dns_name_format(dns_name_t *name, char *cp, unsigned int size);
  *
  *\li	'size' > 0.
  *
+ */
+
+isc_result_t
+dns_name_tostring(dns_name_t *source, char **target, isc_mem_t *mctx);
+/*%<
+ * Convert 'name' to string format, allocating sufficient memory to
+ * hold it (free with isc_mem_free()).
+ *
+ * Differs from dns_name_format in that it allocates its own memory.
+ *
+ * Requires:
+ *
+ *\li	'name' is a valid name.
+ *\li	'target' is not NULL.
+ *\li	'*target' is NULL.
+ *
+ * Returns:
+ *
+ *\li	ISC_R_SUCCESS
+ *
+ *\li	Any error that dns_name_totext() can return.
+ */
+
+isc_result_t
+dns_name_fromstring(dns_name_t *target, const char *src, unsigned int options,
+		    isc_mem_t *mctx);
+isc_result_t
+dns_name_fromstring2(dns_name_t *target, const char *src,
+		     const dns_name_t *origin, unsigned int options,
+		     isc_mem_t *mctx);
+/*%<
+ * Convert a string to a name and place it in target, allocating memory
+ * as necessary.  'options' has the same semantics as that of
+ * dns_name_fromtext().
+ *
+ * If 'target' has a buffer then the name will be copied into it rather than
+ * memory being allocated.
+ *
+ * Requires:
+ *
+ * \li	'target' is a valid name that is not read-only.
+ * \li	'src' is not NULL.
+ *
+ * Returns:
+ *
+ *\li	#ISC_R_SUCCESS
+ *
+ *\li	Any error that dns_name_fromtext() can return.
+ *
+ *\li	Any error that dns_name_dup() can return.
  */
 
 isc_result_t

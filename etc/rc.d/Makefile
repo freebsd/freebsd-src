@@ -16,20 +16,20 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
-	ipnat ipsec ipxrouted \
+	ipnat ipsec \
 	jail \
-	kadmind kerberos keyserv kldxref kpasswdd \
+	kadmind kerberos keyserv kld kldxref kpasswdd \
 	ldconfig local localpkg lockd lpd \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
-	named natd netif netoptions \
+	named natd netif netoptions netwait \
 	newsyslog nfsclient nfscbd nfsd \
-	nfsserver nfsuserd nisdomain nsswitch ntpd ntpdate \
+	nfsuserd nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
-	random rarpd resolv rfcomm_pppd_server root \
+	random rarpd rctl resolv rfcomm_pppd_server root \
 	route6d routed routing rpcbind rtadvd rtsold rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp statd static_arp stf swap1 \
@@ -41,6 +41,10 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd \
 	zfs zvol
+
+.if ${MK_IPX} != "no"
+FILES+=	ipxrouted
+.endif
 
 .if ${MK_OFED} != "no"
 FILES+= opensm

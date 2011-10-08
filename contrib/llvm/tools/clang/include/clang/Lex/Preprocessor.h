@@ -25,9 +25,11 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Allocator.h"
 #include <vector>
 
@@ -53,7 +55,7 @@ class PreprocessingRecord;
 /// single source file, and don't know anything about preprocessor-level issues
 /// like the #include stack, token expansion, etc.
 ///
-class Preprocessor {
+class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   Diagnostic        *Diags;
   LangOptions        Features;
   const TargetInfo  &Target;
@@ -83,6 +85,7 @@ class Preprocessor {
   IdentifierInfo *Ident_Pragma, *Ident__pragma;    // _Pragma, __pragma
   IdentifierInfo *Ident__VA_ARGS__;                // __VA_ARGS__
   IdentifierInfo *Ident__has_feature;              // __has_feature
+  IdentifierInfo *Ident__has_extension;            // __has_extension
   IdentifierInfo *Ident__has_builtin;              // __has_builtin
   IdentifierInfo *Ident__has_attribute;            // __has_attribute
   IdentifierInfo *Ident__has_include;              // __has_include
@@ -118,7 +121,7 @@ class Preprocessor {
 
   /// Selectors - This table contains all the selectors in the program. Unlike
   /// IdentifierTable above, this table *isn't* populated by the preprocessor.
-  /// It is declared/instantiated here because it's role/lifetime is
+  /// It is declared/expanded here because it's role/lifetime is
   /// conceptually similar the IdentifierTable. In addition, the current control
   /// flow (in clang::ParseAST()), make it convenient to put here.
   /// FIXME: Make sure the lifetime of Identifiers/Selectors *isn't* tied to
@@ -217,6 +220,10 @@ class Preprocessor {
   /// previous macro value.
   llvm::DenseMap<IdentifierInfo*, std::vector<MacroInfo*> > PragmaPushMacroInfo;
 
+  /// \brief Expansion source location for the last macro that expanded
+  /// to no tokens.
+  SourceLocation LastEmptyMacroExpansionLoc;
+
   // Various statistics we track for performance analysis.
   unsigned NumDirectives, NumIncluded, NumDefined, NumUndefined, NumPragma;
   unsigned NumIf, NumElse, NumEndif;
@@ -234,7 +241,15 @@ class Preprocessor {
   unsigned NumCachedTokenLexers;
   TokenLexer *TokenLexerCache[TokenLexerCacheSize];
 
-  /// \brief A record of the macro definitions and instantiations that
+  /// \brief Keeps macro expanded tokens for TokenLexers.
+  //
+  /// Works like a stack; a TokenLexer adds the macro expanded tokens that is
+  /// going to lex in the cache and when it finishes the tokens are removed
+  /// from the end of the cache.
+  llvm::SmallVector<Token, 16> MacroExpandedTokens;
+  std::vector<std::pair<TokenLexer *, size_t> > MacroExpandingLexersStack;
+
+  /// \brief A record of the macro definitions and expansions that
   /// occurred during preprocessing. 
   ///
   /// This is an optional side structure that can be enabled with
@@ -365,6 +380,12 @@ public:
   macro_iterator macro_begin(bool IncludeExternalMacros = true) const;
   macro_iterator macro_end(bool IncludeExternalMacros = true) const;
 
+  /// \brief Expansion source location for the last macro that expanded
+  /// to no tokens.
+  SourceLocation getLastEmptyMacroExpansionLoc() const {
+    return LastEmptyMacroExpansionLoc;
+  }
+
   const std::string &getPredefines() const { return Predefines; }
   /// setPredefines - Set the predefines for this Preprocessor.  These
   /// predefines are automatically injected when parsing the main file.
@@ -430,7 +451,7 @@ public:
   
   /// \brief Create a new preprocessing record, which will keep track of 
   /// all macro expansions, macro definitions, etc.
-  void createPreprocessingRecord();
+  void createPreprocessingRecord(bool IncludeNestedMacroExpansions);
   
   /// EnterMainSourceFile - Enter the specified FileID as the main source file,
   /// which implicitly adds the builtin defines etc.
@@ -644,13 +665,26 @@ public:
     return Diags->Report(Tok.getLocation(), DiagID);
   }
 
+  /// getSpelling() - Return the 'spelling' of the token at the given
+  /// location; does not go up to the spelling location or down to the
+  /// expansion location.
+  ///
+  /// \param buffer A buffer which will be used only if the token requires
+  ///   "cleaning", e.g. if it contains trigraphs or escaped newlines
+  /// \param invalid If non-null, will be set \c true if an error occurs.
+  llvm::StringRef getSpelling(SourceLocation loc,
+                              llvm::SmallVectorImpl<char> &buffer,
+                              bool *invalid = 0) const {
+    return Lexer::getSpelling(loc, buffer, SourceMgr, Features, invalid);
+  }
+
   /// getSpelling() - Return the 'spelling' of the Tok token.  The spelling of a
   /// token is the characters used to represent the token in the source file
   /// after trigraph expansion and escaped-newline folding.  In particular, this
   /// wants to get the true, uncanonicalized, spelling of things like digraphs
   /// UCNs, etc.
   ///
-  /// \param Invalid If non-NULL, will be set \c true if an error occurs.
+  /// \param Invalid If non-null, will be set \c true if an error occurs.
   std::string getSpelling(const Token &Tok, bool *Invalid = 0) const {
     return Lexer::getSpelling(Tok, SourceMgr, Features, Invalid);
   }
@@ -696,7 +730,7 @@ public:
 
   /// CreateString - Plop the specified string into a scratch buffer and set the
   /// specified token's location and length to it.  If specified, the source
-  /// location provides a location of the instantiation point of the token.
+  /// location provides a location of the expansion point of the token.
   void CreateString(const char *Buf, unsigned Len,
                     Token &Tok, SourceLocation SourceLoc = SourceLocation());
 
@@ -717,6 +751,18 @@ public:
   /// a source location pointing to the last character in the token, etc.
   SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset = 0) {
     return Lexer::getLocForEndOfToken(Loc, Offset, SourceMgr, Features);
+  }
+
+  /// \brief Returns true if the given MacroID location points at the first
+  /// token of the macro expansion.
+  bool isAtStartOfMacroExpansion(SourceLocation loc) const {
+    return Lexer::isAtStartOfMacroExpansion(loc, SourceMgr, Features);
+  }
+
+  /// \brief Returns true if the given MacroID location points at the last
+  /// token of the macro expansion.
+  bool isAtEndOfMacroExpansion(SourceLocation loc) const {
+    return Lexer::isAtEndOfMacroExpansion(loc, SourceMgr, Features);
   }
 
   /// DumpToken - Print the token to stderr, used for debugging.
@@ -745,6 +791,8 @@ public:
 
   void PrintStats();
 
+  size_t getTotalMemory() const;
+
   /// HandleMicrosoftCommentPaste - When the macro expander pastes together a
   /// comment (/##/) in microsoft mode, this method handles updating the current
   /// state, returning the token on the next source line.
@@ -758,6 +806,38 @@ public:
   /// identifier information for the token and install it into the token,
   /// updating the token kind accordingly.
   IdentifierInfo *LookUpIdentifierInfo(Token &Identifier) const;
+
+private:
+  llvm::DenseMap<IdentifierInfo*,unsigned> PoisonReasons;
+
+public:
+
+  // SetPoisonReason - Call this function to indicate the reason for
+  // poisoning an identifier. If that identifier is accessed while
+  // poisoned, then this reason will be used instead of the default
+  // "poisoned" diagnostic.
+  void SetPoisonReason(IdentifierInfo *II, unsigned DiagID);
+
+  // HandlePoisonedIdentifier - Display reason for poisoned
+  // identifier.
+  void HandlePoisonedIdentifier(Token & Tok);
+
+  void MaybeHandlePoisonedIdentifier(Token & Identifier) {
+    if(IdentifierInfo * II = Identifier.getIdentifierInfo()) {
+      if(II->isPoisoned()) {
+        HandlePoisonedIdentifier(Identifier);
+      }
+    }
+  }
+
+private:
+  /// Identifiers used for SEH handling in Borland. These are only
+  /// allowed in particular circumstances
+  IdentifierInfo *Ident__exception_code, *Ident___exception_code, *Ident_GetExceptionCode; // __except block
+  IdentifierInfo *Ident__exception_info, *Ident___exception_info, *Ident_GetExceptionInfo; // __except filter expression
+  IdentifierInfo *Ident__abnormal_termination, *Ident___abnormal_termination, *Ident_AbnormalTermination; // __finally
+public:
+  void PoisonSEHIdentifiers(bool Poison = true); // Borland
 
   /// HandleIdentifier - This callback is invoked when the lexer reads an
   /// identifier and has filled in the tokens IdentifierInfo member.  This
@@ -782,13 +862,13 @@ public:
   /// read is the correct one.
   void HandleDirective(Token &Result);
 
-  /// CheckEndOfDirective - Ensure that the next token is a tok::eom token.  If
-  /// not, emit a diagnostic and consume up until the eom.  If EnableMacros is
+  /// CheckEndOfDirective - Ensure that the next token is a tok::eod token.  If
+  /// not, emit a diagnostic and consume up until the eod.  If EnableMacros is
   /// true, then we consider macros that expand to zero tokens as being ok.
   void CheckEndOfDirective(const char *Directive, bool EnableMacros = false);
 
   /// DiscardUntilEndOfDirective - Read and discard all tokens remaining on the
-  /// current line until the tok::eom token is found.
+  /// current line until the tok::eod token is found.
   void DiscardUntilEndOfDirective();
 
   /// SawDateOrTime - This returns true if the preprocessor has seen a use of
@@ -819,7 +899,9 @@ public:
   /// for system #include's or not (i.e. using <> instead of "").
   const FileEntry *LookupFile(llvm::StringRef Filename,
                               bool isAngled, const DirectoryLookup *FromDir,
-                              const DirectoryLookup *&CurDir);
+                              const DirectoryLookup *&CurDir,
+                              llvm::SmallVectorImpl<char> *SearchPath,
+                              llvm::SmallVectorImpl<char> *RelativePath);
 
   /// GetCurLookup - The DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.  This allows us to
@@ -839,12 +921,12 @@ public:
   ///
   /// This code concatenates and consumes tokens up to the '>' token.  It
   /// returns false if the > was found, otherwise it returns true if it finds
-  /// and consumes the EOM marker.
+  /// and consumes the EOD marker.
   bool ConcatenateIncludeName(llvm::SmallString<128> &FilenameBuffer,
                               SourceLocation &End);
 
   /// LexOnOffSwitch - Lex an on-off-switch (C99 6.10.6p2) and verify that it is
-  /// followed by EOM.  Return true if the token is not a valid on-off-switch.
+  /// followed by EOD.  Return true if the token is not a valid on-off-switch.
   bool LexOnOffSwitch(tok::OnOffSwitch &OOS);
 
 private:
@@ -875,7 +957,7 @@ private:
   void ReleaseMacroInfo(MacroInfo* MI);
 
   /// ReadMacroName - Lex and validate a macro name, which occurs after a
-  /// #define or #undef.  This emits a diagnostic, sets the token kind to eom,
+  /// #define or #undef.  This emits a diagnostic, sets the token kind to eod,
   /// and discards the rest of the macro line if the macro name is invalid.
   void ReadMacroName(Token &MacroNameTok, char isDefineUndef = 0);
 
@@ -918,6 +1000,16 @@ private:
   /// the macro should not be expanded return true, otherwise return false.
   bool HandleMacroExpandedIdentifier(Token &Tok, MacroInfo *MI);
 
+  /// \brief Cache macro expanded tokens for TokenLexers.
+  //
+  /// Works like a stack; a TokenLexer adds the macro expanded tokens that is
+  /// going to lex in the cache and when it finishes the tokens are removed
+  /// from the end of the cache.
+  Token *cacheMacroExpandedTokens(TokenLexer *tokLexer,
+                                  llvm::ArrayRef<Token> tokens);
+  void removeCachedMacroExpandedTokensOfLastLexer();
+  friend void TokenLexer::ExpandFunctionArguments();
+
   /// isNextPPTokenLParen - Determine whether the next preprocessor token to be
   /// lexed is a '('.  If so, consume the token and return true, if not, this
   /// method should have no observable side-effect on the lexed tokens.
@@ -927,7 +1019,7 @@ private:
   /// invoked to read all of the formal arguments specified for the macro
   /// invocation.  This returns null on error.
   MacroArgs *ReadFunctionLikeMacroArgs(Token &MacroName, MacroInfo *MI,
-                                       SourceLocation &InstantiationEnd);
+                                       SourceLocation &ExpansionEnd);
 
   /// ExpandBuiltinMacro - If an identifier token is read that is to be expanded
   /// as a builtin macro, handle it and return the next token as 'Tok'.

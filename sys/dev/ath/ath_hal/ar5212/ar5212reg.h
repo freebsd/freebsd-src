@@ -300,6 +300,7 @@
 #define AR_QUIET1_NEXT_QUIET    0xffff
 #define AR_QUIET1_QUIET_ENABLE  0x10000 /* Enable Quiet time operation */
 #define AR_QUIET1_QUIET_ACK_CTS_ENABLE  0x20000 /* Do we ack/cts during quiet period */
+#define	AR_QUIET1_QUIET_ACK_CTS_ENABLE_S 17
 
 #define AR_QUIET2   0x8100  /* More Quiet time programming */
 #define AR_QUIET2_QUIET_PER_S   0   /* Periodicity of quiet period (TU) */

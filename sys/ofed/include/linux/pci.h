@@ -299,7 +299,7 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 {
 	int reg;
 
-	if (pci_find_extcap(pdev->dev.bsddev, capid, &reg))
+	if (pci_find_cap(pdev->dev.bsddev, capid, &reg))
 		return (0);
 	return (reg);
 }

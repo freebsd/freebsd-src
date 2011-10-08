@@ -75,6 +75,7 @@ struct tdb_crypto {
 	int			tc_protoff;	/* current protocol offset */
 	int			tc_skip;	/* data offset */
 	caddr_t			tc_ptr;		/* associated crypto data */
+	struct secasvar 	*tc_sav;	/* related SA */
 };
 
 struct secasvar;

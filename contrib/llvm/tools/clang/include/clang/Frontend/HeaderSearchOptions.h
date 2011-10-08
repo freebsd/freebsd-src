@@ -17,10 +17,12 @@ namespace clang {
 
 namespace frontend {
   /// IncludeDirGroup - Identifiers the group a include entry belongs to, which
-  /// represents its relative positive in the search list.
+  /// represents its relative positive in the search list.  A #include of a ""
+  /// path starts at the -iquote group, then searches the Angled group, then
+  /// searches the system group, etc.
   enum IncludeDirGroup {
-    Quoted = 0,     ///< `#include ""` paths. Thing `gcc -iquote`.
-    Angled,         ///< Paths for both `#include ""` and `#include <>`. (`-I`)
+    Quoted = 0,     ///< '#include ""' paths, added by'gcc -iquote'.
+    Angled,         ///< Paths for '#include <>' added by '-I'.
     System,         ///< Like Angled, but marks system directories.
     CXXSystem,      ///< Like System, but only used for C++.
     After           ///< Like System, but searched after the system directories.
@@ -37,15 +39,15 @@ public:
     unsigned IsUserSupplied : 1;
     unsigned IsFramework : 1;
     
-    /// IsSysRootRelative - This is true if an absolute path should be treated
-    /// relative to the sysroot, or false if it should always be the absolute
+    /// IgnoreSysRoot - This is false if an absolute path should be treated
+    /// relative to the sysroot, or true if it should always be the absolute
     /// path.
-    unsigned IsSysRootRelative : 1;
+    unsigned IgnoreSysRoot : 1;
 
     Entry(llvm::StringRef path, frontend::IncludeDirGroup group,
-          bool isUserSupplied, bool isFramework, bool isSysRootRelative)
+          bool isUserSupplied, bool isFramework, bool ignoreSysRoot)
       : Path(path), Group(group), IsUserSupplied(isUserSupplied),
-        IsFramework(isFramework), IsSysRootRelative(isSysRootRelative) {}
+        IsFramework(isFramework), IgnoreSysRoot(ignoreSysRoot) {}
   };
 
   /// If non-empty, the directory to use as a "virtual system root" for include
@@ -80,20 +82,23 @@ public:
   /// Include the system standard C++ library include search directories.
   unsigned UseStandardCXXIncludes : 1;
 
+  /// Use libc++ instead of the default libstdc++.
+  unsigned UseLibcxx : 1;
+
   /// Whether header search information should be output as for -v.
   unsigned Verbose : 1;
 
 public:
   HeaderSearchOptions(llvm::StringRef _Sysroot = "/")
     : Sysroot(_Sysroot), UseBuiltinIncludes(true),
-      UseStandardIncludes(true), UseStandardCXXIncludes(true),
+      UseStandardIncludes(true), UseStandardCXXIncludes(true), UseLibcxx(false),
       Verbose(false) {}
 
   /// AddPath - Add the \arg Path path to the specified \arg Group list.
   void AddPath(llvm::StringRef Path, frontend::IncludeDirGroup Group,
-               bool IsUserSupplied, bool IsFramework, bool IsSysRootRelative) {
+               bool IsUserSupplied, bool IsFramework, bool IgnoreSysRoot) {
     UserEntries.push_back(Entry(Path, Group, IsUserSupplied, IsFramework,
-                                IsSysRootRelative));
+                                IgnoreSysRoot));
   }
 };
 

@@ -24,6 +24,23 @@
 using namespace clang;
 
 namespace {
+  /// \brief RAII object that enables printing of the ARC __strong lifetime
+  /// qualifier.
+  class IncludeStrongLifetimeRAII {
+    PrintingPolicy &Policy;
+    bool Old;
+    
+  public:
+    explicit IncludeStrongLifetimeRAII(PrintingPolicy &Policy) 
+      : Policy(Policy), Old(Policy.SuppressStrongLifetime) {
+      Policy.SuppressStrongLifetime = false;
+    }
+    
+    ~IncludeStrongLifetimeRAII() {
+      Policy.SuppressStrongLifetime = Old;
+    }
+  };
+  
   class TypePrinter {
     PrintingPolicy Policy;
 
@@ -78,7 +95,7 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
   // "int * const", printing "const int *" is different.  Only do this when the
   // type expands to a simple string.
   bool CanPrefixQualifiers = false;
-  
+  bool NeedARCStrongQualifier = false;
   Type::TypeClass TC = T->getTypeClass();
   if (const AutoType *AT = dyn_cast<AutoType>(T))
     TC = AT->desugar()->getTypeClass();
@@ -94,6 +111,7 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
     case Type::TypeOfExpr:
     case Type::TypeOf:
     case Type::Decltype:
+    case Type::UnaryTransform:
     case Type::Record:
     case Type::Enum:
     case Type::Elaborated:
@@ -113,15 +131,18 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
         T->isObjCQualifiedIdType() || T->isObjCQualifiedClassType();
       break;
       
+    case Type::ConstantArray:
+    case Type::IncompleteArray:
+    case Type::VariableArray:
+    case Type::DependentSizedArray:
+      NeedARCStrongQualifier = true;
+      // Fall through
+      
     case Type::Pointer:
     case Type::BlockPointer:
     case Type::LValueReference:
     case Type::RValueReference:
     case Type::MemberPointer:
-    case Type::ConstantArray:
-    case Type::IncompleteArray:
-    case Type::VariableArray:
-    case Type::DependentSizedArray:
     case Type::DependentSizedExtVector:
     case Type::Vector:
     case Type::ExtVector:
@@ -138,13 +159,20 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
   
   if (!CanPrefixQualifiers && !Quals.empty()) {
     std::string qualsBuffer;
-    Quals.getAsStringInternal(qualsBuffer, Policy);
-    
-    if (!buffer.empty()) {
-      qualsBuffer += ' ';
-      qualsBuffer += buffer;
+    if (NeedARCStrongQualifier) {
+      IncludeStrongLifetimeRAII Strong(Policy);
+      Quals.getAsStringInternal(qualsBuffer, Policy);
+    } else {
+      Quals.getAsStringInternal(qualsBuffer, Policy);
     }
-    std::swap(buffer, qualsBuffer);
+    
+    if (!qualsBuffer.empty()) {
+      if (!buffer.empty()) {
+        qualsBuffer += ' ';
+        qualsBuffer += buffer;
+      }
+      std::swap(buffer, qualsBuffer);
+    }
   }
   
   switch (T->getTypeClass()) {
@@ -158,13 +186,20 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
   // If we're adding the qualifiers as a prefix, do it now.
   if (CanPrefixQualifiers && !Quals.empty()) {
     std::string qualsBuffer;
-    Quals.getAsStringInternal(qualsBuffer, Policy);
-    
-    if (!buffer.empty()) {
-      qualsBuffer += ' ';
-      qualsBuffer += buffer;
+    if (NeedARCStrongQualifier) {
+      IncludeStrongLifetimeRAII Strong(Policy);
+      Quals.getAsStringInternal(qualsBuffer, Policy);
+    } else {
+      Quals.getAsStringInternal(qualsBuffer, Policy);
     }
-    std::swap(buffer, qualsBuffer);
+
+    if (!qualsBuffer.empty()) {
+      if (!buffer.empty()) {
+        qualsBuffer += ' ';
+        qualsBuffer += buffer;
+      }
+      std::swap(buffer, qualsBuffer);
+    }
   }
 }
 
@@ -191,6 +226,7 @@ void TypePrinter::printPointer(const PointerType *T, std::string &S) {
   if (isa<ArrayType>(T->getPointeeType()))
     S = '(' + S + ')';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getPointeeType(), S);
 }
 
@@ -208,6 +244,7 @@ void TypePrinter::printLValueReference(const LValueReferenceType *T,
   if (isa<ArrayType>(T->getPointeeTypeAsWritten()))
     S = '(' + S + ')';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getPointeeTypeAsWritten(), S);
 }
 
@@ -220,6 +257,7 @@ void TypePrinter::printRValueReference(const RValueReferenceType *T,
   if (isa<ArrayType>(T->getPointeeTypeAsWritten()))
     S = '(' + S + ')';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getPointeeTypeAsWritten(), S);
 }
 
@@ -235,6 +273,7 @@ void TypePrinter::printMemberPointer(const MemberPointerType *T,
   if (isa<ArrayType>(T->getPointeeType()))
     S = '(' + S + ')';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getPointeeType(), S);
 }
 
@@ -244,12 +283,14 @@ void TypePrinter::printConstantArray(const ConstantArrayType *T,
   S += llvm::utostr(T->getSize().getZExtValue());
   S += ']';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getElementType(), S);
 }
 
 void TypePrinter::printIncompleteArray(const IncompleteArrayType *T, 
                                        std::string &S) {
   S += "[]";
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getElementType(), S);
 }
 
@@ -275,6 +316,7 @@ void TypePrinter::printVariableArray(const VariableArrayType *T,
   }
   S += ']';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getElementType(), S);
 }
 
@@ -290,6 +332,7 @@ void TypePrinter::printDependentSizedArray(const DependentSizedArrayType *T,
   }
   S += ']';
   
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getElementType(), S);
 }
 
@@ -400,6 +443,12 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
   case CC_X86Pascal:
     S += " __attribute__((pascal))";
     break;
+  case CC_AAPCS:
+    S += " __attribute__((pcs(\"aapcs\")))";
+    break;
+  case CC_AAPCS_VFP:
+    S += " __attribute__((pcs(\"aapcs-vfp\")))";
+    break;
   }
   if (Info.getNoReturn())
     S += " __attribute__((noreturn))";
@@ -421,12 +470,12 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
     S += " &&";
     break;
   }
-  
-  if (T->hasExceptionSpec()) {
+
+  if (T->hasDynamicExceptionSpec()) {
     S += " throw(";
-    if (T->hasAnyExceptionSpec())
+    if (T->getExceptionSpecType() == EST_MSAny)
       S += "...";
-    else 
+    else
       for (unsigned I = 0, N = T->getNumExceptions(); I != N; ++I) {
         if (I)
           S += ", ";
@@ -436,6 +485,16 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
         S += ExceptionType;
       }
     S += ")";
+  } else if (isNoexceptExceptionSpec(T->getExceptionSpecType())) {
+    S += " noexcept";
+    if (T->getExceptionSpecType() == EST_ComputedNoexcept) {
+      S += "(";
+      llvm::raw_string_ostream EOut(S);
+      T->getNoexceptExpr()->printPretty(EOut, 0, Policy);
+      EOut.flush();
+      S += EOut.str();
+      S += ")";
+    }
   }
 
   print(T->getResultType(), S);
@@ -496,6 +555,21 @@ void TypePrinter::printDecltype(const DecltypeType *T, std::string &S) {
   S = "decltype(" + s.str() + ")" + S;
 }
 
+void TypePrinter::printUnaryTransform(const UnaryTransformType *T,
+                                           std::string &S) {
+  if (!S.empty())
+    S = ' ' + S;
+  std::string Str;
+  IncludeStrongLifetimeRAII Strong(Policy);
+  print(T->getBaseType(), Str);
+
+  switch (T->getUTTKind()) {
+    case UnaryTransformType::EnumUnderlyingType:
+      S = "__underlying_type(" + Str + ")" + S;
+      break;
+  }
+}
+
 void TypePrinter::printAuto(const AutoType *T, std::string &S) { 
   // If the type has been deduced, do not print 'auto'.
   if (T->isDeduced()) {
@@ -521,6 +595,7 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
       Buffer += "<anonymous>";
   } else if (ClassTemplateSpecializationDecl *Spec
                = dyn_cast<ClassTemplateSpecializationDecl>(DC)) {
+    IncludeStrongLifetimeRAII Strong(Policy);
     const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
     std::string TemplateArgsStr
       = TemplateSpecializationType::PrintTemplateArgumentList(
@@ -530,7 +605,7 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
     Buffer += Spec->getIdentifier()->getName();
     Buffer += TemplateArgsStr;
   } else if (TagDecl *Tag = dyn_cast<TagDecl>(DC)) {
-    if (TypedefDecl *Typedef = Tag->getTypedefForAnonDecl())
+    if (TypedefNameDecl *Typedef = Tag->getTypedefNameForAnonDecl())
       Buffer += Typedef->getIdentifier()->getName();
     else if (Tag->getIdentifier())
       Buffer += Tag->getIdentifier()->getName();
@@ -547,9 +622,13 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
   std::string Buffer;
   bool HasKindDecoration = false;
 
+  // bool SuppressTagKeyword
+  //   = Policy.LangOpts.CPlusPlus || Policy.SuppressTagKeyword;
+
   // We don't print tags unless this is an elaborated type.
   // In C, we just assume every RecordType is an elaborated type.
-  if (!Policy.LangOpts.CPlusPlus && !D->getTypedefForAnonDecl()) {
+  if (!(Policy.LangOpts.CPlusPlus || Policy.SuppressTagKeyword ||
+        D->getTypedefNameForAnonDecl())) {
     HasKindDecoration = true;
     Buffer += D->getKindName();
     Buffer += ' ';
@@ -563,7 +642,7 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
 
   if (const IdentifierInfo *II = D->getIdentifier())
     Buffer += II->getNameStart();
-  else if (TypedefDecl *Typedef = D->getTypedefForAnonDecl()) {
+  else if (TypedefNameDecl *Typedef = D->getTypedefNameForAnonDecl()) {
     assert(Typedef->getIdentifier() && "Typedef without identifier?");
     Buffer += Typedef->getIdentifier()->getNameStart();
   } else {
@@ -607,6 +686,7 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
       Args = TemplateArgs.data();
       NumArgs = TemplateArgs.size();
     }
+    IncludeStrongLifetimeRAII Strong(Policy);
     Buffer += TemplateSpecializationType::PrintTemplateArgumentList(Args,
                                                                     NumArgs,
                                                                     Policy);
@@ -632,28 +712,31 @@ void TypePrinter::printTemplateTypeParm(const TemplateTypeParmType *T,
                                         std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'parmname X'.
     S = ' ' + S;
-  
-  if (!T->getName())
+
+  if (IdentifierInfo *Id = T->getIdentifier())
+    S = Id->getName().str() + S;
+  else
     S = "type-parameter-" + llvm::utostr_32(T->getDepth()) + '-' +
         llvm::utostr_32(T->getIndex()) + S;
-  else
-    S = T->getName()->getName().str() + S;  
 }
 
 void TypePrinter::printSubstTemplateTypeParm(const SubstTemplateTypeParmType *T, 
                                              std::string &S) { 
+  IncludeStrongLifetimeRAII Strong(Policy);
   print(T->getReplacementType(), S);
 }
 
 void TypePrinter::printSubstTemplateTypeParmPack(
                                         const SubstTemplateTypeParmPackType *T, 
                                              std::string &S) { 
+  IncludeStrongLifetimeRAII Strong(Policy);
   printTemplateTypeParm(T->getReplacedParameter(), S);
 }
 
 void TypePrinter::printTemplateSpecialization(
                                             const TemplateSpecializationType *T, 
                                               std::string &S) { 
+  IncludeStrongLifetimeRAII Strong(Policy);
   std::string SpecString;
   
   {
@@ -691,6 +774,7 @@ void TypePrinter::printElaborated(const ElaboratedType *T, std::string &S) {
   
   std::string TypeStr;
   PrintingPolicy InnerPolicy(Policy);
+  InnerPolicy.SuppressTagKeyword = true;
   InnerPolicy.SuppressScope = true;
   TypePrinter(InnerPolicy).print(T->getNamedType(), TypeStr);
   
@@ -729,6 +813,7 @@ void TypePrinter::printDependentName(const DependentNameType *T, std::string &S)
 
 void TypePrinter::printDependentTemplateSpecialization(
         const DependentTemplateSpecializationType *T, std::string &S) { 
+  IncludeStrongLifetimeRAII Strong(Policy);
   std::string MyString;
   {
     llvm::raw_string_ostream OS(MyString);
@@ -737,7 +822,8 @@ void TypePrinter::printDependentTemplateSpecialization(
     if (T->getKeyword() != ETK_None)
       OS << " ";
     
-    T->getQualifier()->print(OS, Policy);    
+    if (T->getQualifier())
+      T->getQualifier()->print(OS, Policy);    
     OS << T->getIdentifier()->getName();
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                             T->getArgs(),
@@ -759,10 +845,15 @@ void TypePrinter::printPackExpansion(const PackExpansionType *T,
 
 void TypePrinter::printAttributed(const AttributedType *T,
                                   std::string &S) {
+  // Prefer the macro forms of the GC and ownership qualifiers.
+  if (T->getAttrKind() == AttributedType::attr_objc_gc ||
+      T->getAttrKind() == AttributedType::attr_objc_ownership)
+    return print(T->getEquivalentType(), S);
+
   print(T->getModifiedType(), S);
 
   // TODO: not all attributes are GCC-style attributes.
-  S += "__attribute__((";
+  S += " __attribute__((";
   switch (T->getAttrKind()) {
   case AttributedType::attr_address_space:
     S += "address_space(";
@@ -825,12 +916,34 @@ void TypePrinter::printAttributed(const AttributedType *T,
     break;
   }
 
+  case AttributedType::attr_objc_ownership:
+    S += "objc_ownership(";
+    switch (T->getEquivalentType().getObjCLifetime()) {
+    case Qualifiers::OCL_None: llvm_unreachable("no ownership!"); break;
+    case Qualifiers::OCL_ExplicitNone: S += "none"; break;
+    case Qualifiers::OCL_Strong: S += "strong"; break;
+    case Qualifiers::OCL_Weak: S += "weak"; break;
+    case Qualifiers::OCL_Autoreleasing: S += "autoreleasing"; break;
+    }
+    S += ")";
+    break;
+
   case AttributedType::attr_noreturn: S += "noreturn"; break;
   case AttributedType::attr_cdecl: S += "cdecl"; break;
   case AttributedType::attr_fastcall: S += "fastcall"; break;
   case AttributedType::attr_stdcall: S += "stdcall"; break;
   case AttributedType::attr_thiscall: S += "thiscall"; break;
   case AttributedType::attr_pascal: S += "pascal"; break;
+  case AttributedType::attr_pcs: {
+   S += "pcs(";
+   QualType t = T->getEquivalentType();
+   while (!t->isFunctionType())
+     t = t->getPointeeType();
+   S += (t->getAs<FunctionType>()->getCallConv() == CC_AAPCS ?
+         "\"aapcs\"" : "\"aapcs-vfp\"");
+   S += ")";
+   break;
+  }
   }
   S += "))";
 }
@@ -927,7 +1040,7 @@ TemplateSpecializationType::PrintTemplateArgumentList(
     SpecString += '<';
   
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    if (SpecString.size() > !SkipBrackets)
+    if (SpecString.size() > unsigned(!SkipBrackets))
       SpecString += ", ";
     
     // Print the argument into a string.
@@ -1029,22 +1142,37 @@ std::string Qualifiers::getAsString() const {
 // prefix a space if the string is non-empty.  Will not append a final
 // space.
 void Qualifiers::getAsStringInternal(std::string &S,
-                                     const PrintingPolicy&) const {
+                                     const PrintingPolicy& Policy) const {
   AppendTypeQualList(S, getCVRQualifiers());
-  if (unsigned AddressSpace = getAddressSpace()) {
+  if (unsigned addrspace = getAddressSpace()) {
     if (!S.empty()) S += ' ';
     S += "__attribute__((address_space(";
-    S += llvm::utostr_32(AddressSpace);
+    S += llvm::utostr_32(addrspace);
     S += ")))";
   }
-  if (Qualifiers::GC GCAttrType = getObjCGCAttr()) {
+  if (Qualifiers::GC gc = getObjCGCAttr()) {
     if (!S.empty()) S += ' ';
-    S += "__attribute__((objc_gc(";
-    if (GCAttrType == Qualifiers::Weak)
-      S += "weak";
+    if (gc == Qualifiers::Weak)
+      S += "__weak";
     else
-      S += "strong";
-    S += ")))";
+      S += "__strong";
+  }
+  if (Qualifiers::ObjCLifetime lifetime = getObjCLifetime()) {
+    if (!S.empty() && 
+        !(lifetime == Qualifiers::OCL_Strong && Policy.SuppressStrongLifetime))
+      S += ' ';
+    
+    switch (lifetime) {
+    case Qualifiers::OCL_None: llvm_unreachable("none but true");
+    case Qualifiers::OCL_ExplicitNone: S += "__unsafe_unretained"; break;
+    case Qualifiers::OCL_Strong: 
+      if (!Policy.SuppressStrongLifetime)
+        S += "__strong"; 
+      break;
+        
+    case Qualifiers::OCL_Weak: S += "__weak"; break;
+    case Qualifiers::OCL_Autoreleasing: S += "__autoreleasing"; break;
+    }
   }
 }
 

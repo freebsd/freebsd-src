@@ -1061,7 +1061,7 @@ nge_attach(device_t dev)
 	 * supply(3VAUX) to drive PME such that checking PCI power
 	 * management capability is necessary.
 	 */
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &i) == 0)
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &i) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -2396,10 +2396,8 @@ nge_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	NGE_LOCK(sc);
 	mii = device_get_softc(sc->nge_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	NGE_UNLOCK(sc);
 
@@ -2689,7 +2687,7 @@ nge_wol(struct nge_softc *sc)
 
 	NGE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	ifp = sc->nge_ifp;
@@ -2776,7 +2774,7 @@ nge_resume(device_t dev)
 
 	NGE_LOCK(sc);
 	ifp = sc->nge_ifp;
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->nge_dev,
 		    pmc + PCIR_POWER_STATUS, 2);

@@ -51,7 +51,7 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_vlan_fltr_mbox *filter;
-	int i;
+	int i, j;
 	int err = 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -61,8 +61,9 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 	filter = mailbox->buf;
 	memset(filter, 0, sizeof *filter);
 	if (vlans)
-		for (i = 0; i < VLAN_FLTR_SIZE; i ++)
-			filter->entry[i] = cpu_to_be32(vlans[i]);
+		for (i = 0, j = VLAN_FLTR_SIZE - 1; i < VLAN_FLTR_SIZE;
+		    i++, j--)
+			filter->entry[j] = cpu_to_be32(vlans[i]);
 	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_VLAN_FLTR,
 		       MLX4_CMD_TIME_CLASS_B);
 	mlx4_free_cmd_mailbox(dev, mailbox);

@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			break;
+			usage();
 		}
 
 	argc -= optind;

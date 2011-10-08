@@ -398,7 +398,6 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 
 		item = ng_package_data(m, NG_NOFLAGS);
 		if (item == NULL) {
-			m_free(m);
 			free(t, M_NETFLOW_GENERAL);
 			return (NULL);
 		}

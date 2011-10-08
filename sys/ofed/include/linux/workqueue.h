@@ -160,9 +160,11 @@ flush_taskqueue(struct taskqueue *tq)
 {
 	struct task flushtask;
 
+	PHOLD(curproc);
 	TASK_INIT(&flushtask, 0, _flush_fn, NULL);
 	taskqueue_enqueue(tq, &flushtask);
 	taskqueue_drain(tq, &flushtask);
+	PRELE(curproc);
 }
 
 static inline int

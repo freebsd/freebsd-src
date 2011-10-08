@@ -8,8 +8,8 @@ SRCS=	ARMAsmLexer.cpp \
 	ARMAsmParser.cpp
 
 TGHDRS=	ARMGenAsmMatcher \
-	ARMGenInstrNames \
-	ARMGenRegisterInfo.h \
-	ARMGenRegisterNames
+	ARMGenInstrInfo \
+	ARMGenRegisterInfo \
+	ARMGenSubtargetInfo
 
 .include "../clang.lib.mk"

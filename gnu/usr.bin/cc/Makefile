@@ -15,10 +15,6 @@ SUBDIR+= cpp
 SUBDIR+= cc1plus c++ c++filt
 .endif
 
-.if ${MK_OBJC} != "no"
-SUBDIR+= cc1obj
-.endif
-
 .if ${MK_GCOV} != "no"
 SUBDIR+= gcov
 .endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: proforma.c,v 1.36 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: proforma.c,v 1.38 2009-12-04 22:06:37 tbox Exp $ */
 
 #ifndef RDATA_GENERIC_#_#_C
 #define RDATA_GENERIC_#_#_C
@@ -168,6 +168,23 @@ checknames_#(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_#(ARGS_COMPARE) {
+	isc_region_t r1;
+	isc_region_t r2;
+
+	REQUIRE(rdata1->type == rdata2->type);
+	REQUIRE(rdata1->rdclass == rdata2->rdclass);
+	REQUIRE(rdata1->type == #);
+	REQUIRE(rdata1->rdclass == #);
+	REQUIRE(rdata1->length != 0);	/* XXX */
+	REQUIRE(rdata2->length != 0);	/* XXX */
+
+	dns_rdata_toregion(rdata1, &r1);
+	dns_rdata_toregion(rdata2, &r2);
+	return (isc_region_compare(&r1, &r2));
 }
 
 #endif	/* RDATA_GENERIC_#_#_C */

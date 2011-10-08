@@ -20,8 +20,8 @@ using namespace ento;
 namespace {
 class SimpleSValBuilder : public SValBuilder {
 protected:
-  virtual SVal evalCastNL(NonLoc val, QualType castTy);
-  virtual SVal evalCastL(Loc val, QualType castTy);
+  virtual SVal evalCastFromNonLoc(NonLoc val, QualType castTy);
+  virtual SVal evalCastFromLoc(Loc val, QualType castTy);
 
 public:
   SimpleSValBuilder(llvm::BumpPtrAllocator &alloc, ASTContext &context,
@@ -57,7 +57,7 @@ SValBuilder *ento::createSimpleSValBuilder(llvm::BumpPtrAllocator &alloc,
 // Transfer function for Casts.
 //===----------------------------------------------------------------------===//
 
-SVal SimpleSValBuilder::evalCastNL(NonLoc val, QualType castTy) {
+SVal SimpleSValBuilder::evalCastFromNonLoc(NonLoc val, QualType castTy) {
 
   bool isLocType = Loc::isLocType(castTy);
 
@@ -97,7 +97,8 @@ SVal SimpleSValBuilder::evalCastNL(NonLoc val, QualType castTy) {
     return UnknownVal();
 
   llvm::APSInt i = cast<nonloc::ConcreteInt>(val).getValue();
-  i.setIsUnsigned(castTy->isUnsignedIntegerType() || Loc::isLocType(castTy));
+  i.setIsUnsigned(castTy->isUnsignedIntegerOrEnumerationType() || 
+                  Loc::isLocType(castTy));
   i = i.extOrTrunc(Context.getTypeSize(castTy));
 
   if (isLocType)
@@ -106,7 +107,7 @@ SVal SimpleSValBuilder::evalCastNL(NonLoc val, QualType castTy) {
     return makeIntVal(i);
 }
 
-SVal SimpleSValBuilder::evalCastL(Loc val, QualType castTy) {
+SVal SimpleSValBuilder::evalCastFromLoc(Loc val, QualType castTy) {
 
   // Casts from pointers -> pointers, just return the lval.
   //
@@ -129,7 +130,8 @@ SVal SimpleSValBuilder::evalCastL(Loc val, QualType castTy) {
       return makeLocAsInteger(val, BitWidth);
 
     llvm::APSInt i = cast<loc::ConcreteInt>(val).getValue();
-    i.setIsUnsigned(castTy->isUnsignedIntegerType() || Loc::isLocType(castTy));
+    i.setIsUnsigned(castTy->isUnsignedIntegerOrEnumerationType() || 
+                    Loc::isLocType(castTy));
     i = i.extOrTrunc(BitWidth);
     return makeIntVal(i);
   }
@@ -255,11 +257,12 @@ SVal SimpleSValBuilder::MakeSymIntVal(const SymExpr *LHS,
   }
 
   // Idempotent ops (like a*1) can still change the type of an expression.
-  // Wrap the LHS up in a NonLoc again and let evalCastNL do the dirty work.
+  // Wrap the LHS up in a NonLoc again and let evalCastFromNonLoc do the
+  // dirty work.
   if (isIdempotent) {
     if (SymbolRef LHSSym = dyn_cast<SymbolData>(LHS))
-      return evalCastNL(nonloc::SymbolVal(LHSSym), resultTy);
-    return evalCastNL(nonloc::SymExprVal(LHS), resultTy);
+      return evalCastFromNonLoc(nonloc::SymbolVal(LHSSym), resultTy);
+    return evalCastFromNonLoc(nonloc::SymExprVal(LHS), resultTy);
   }
 
   // If we reach this point, the expression cannot be simplified.
@@ -289,7 +292,7 @@ SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
         return makeIntVal(0, resultTy);
       case BO_Or:
       case BO_And:
-        return evalCastNL(lhs, resultTy);
+        return evalCastFromNonLoc(lhs, resultTy);
     }
 
   while (1) {
@@ -412,6 +415,24 @@ SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
     case nonloc::ConcreteIntKind: {
       const nonloc::ConcreteInt& lhsInt = cast<nonloc::ConcreteInt>(lhs);
 
+      // Is the RHS a symbol we can simplify?
+      // FIXME: This was mostly copy/pasted from the LHS-is-a-symbol case.
+      if (const nonloc::SymbolVal *srhs = dyn_cast<nonloc::SymbolVal>(&rhs)) {
+        SymbolRef RSym = srhs->getSymbol();
+        if (RSym->getType(Context)->isIntegerType()) {
+          if (const llvm::APSInt *Constant = state->getSymVal(RSym)) {
+            // The symbol evaluates to a constant.
+            const llvm::APSInt *rhs_I;
+            if (BinaryOperator::isRelationalOp(op))
+              rhs_I = &BasicVals.Convert(lhsInt.getValue(), *Constant);
+            else
+              rhs_I = &BasicVals.Convert(resultTy, *Constant);
+
+            rhs = nonloc::ConcreteInt(*rhs_I);
+          }
+        }
+      }
+
       if (isa<nonloc::ConcreteInt>(rhs)) {
         return lhsInt.evalBinOp(*this, op, cast<nonloc::ConcreteInt>(rhs));
       } else {
@@ -458,13 +479,22 @@ SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
     case nonloc::SymbolValKind: {
       nonloc::SymbolVal *slhs = cast<nonloc::SymbolVal>(&lhs);
       SymbolRef Sym = slhs->getSymbol();
+      QualType lhsType = Sym->getType(Context);
+
+      // The conversion type is usually the result type, but not in the case
+      // of relational expressions.
+      QualType conversionType = resultTy;
+      if (BinaryOperator::isRelationalOp(op))
+        conversionType = lhsType;
+
       // Does the symbol simplify to a constant?  If so, "fold" the constant
       // by setting 'lhs' to a ConcreteInt and try again.
-      if (Sym->getType(Context)->isIntegerType())
+      if (lhsType->isIntegerType())
         if (const llvm::APSInt *Constant = state->getSymVal(Sym)) {
           // The symbol evaluates to a constant. If necessary, promote the
           // folded constant (LHS) to the result type.
-          const llvm::APSInt &lhs_I = BasicVals.Convert(resultTy, *Constant);
+          const llvm::APSInt &lhs_I = BasicVals.Convert(conversionType,
+                                                        *Constant);
           lhs = nonloc::ConcreteInt(lhs_I);
           
           // Also promote the RHS (if necessary).
@@ -476,7 +506,7 @@ SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
           // Other operators: do an implicit conversion.  This shouldn't be
           // necessary once we support truncation/extension of symbolic values.
           if (nonloc::ConcreteInt *rhs_I = dyn_cast<nonloc::ConcreteInt>(&rhs)){
-            rhs = nonloc::ConcreteInt(BasicVals.Convert(resultTy,
+            rhs = nonloc::ConcreteInt(BasicVals.Convert(conversionType,
                                                         rhs_I->getValue()));
           }
           
@@ -489,7 +519,8 @@ SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
         if (RSym->getType(Context)->isIntegerType()) {
           if (const llvm::APSInt *Constant = state->getSymVal(RSym)) {
             // The symbol evaluates to a constant.
-            const llvm::APSInt &rhs_I = BasicVals.Convert(resultTy, *Constant);
+            const llvm::APSInt &rhs_I = BasicVals.Convert(conversionType,
+                                                          *Constant);
             rhs = nonloc::ConcreteInt(rhs_I);
           }
         }
@@ -552,7 +583,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
       default:
         break;
       case BO_Sub:
-        return evalCastL(lhs, resultTy);
+        return evalCastFromLoc(lhs, resultTy);
       case BO_EQ:
       case BO_LE:
       case BO_LT:
@@ -588,7 +619,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
       SVal ResultVal = cast<loc::ConcreteInt>(lhs).evalBinOp(BasicVals, op,
                                                              *rInt);
       if (Loc *Result = dyn_cast<Loc>(&ResultVal))
-        return evalCastL(*Result, resultTy);
+        return evalCastFromLoc(*Result, resultTy);
       else
         return UnknownVal();
     }
@@ -633,7 +664,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
         default:
           break;
         case BO_Sub:
-          return evalCastL(lhs, resultTy);
+          return evalCastFromLoc(lhs, resultTy);
         case BO_EQ:
         case BO_LT:
         case BO_LE:
@@ -698,7 +729,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
         NonLoc *LeftIndex = dyn_cast<NonLoc>(&LeftIndexVal);
         if (!LeftIndex)
           return UnknownVal();
-        LeftIndexVal = evalCastNL(*LeftIndex, resultTy);
+        LeftIndexVal = evalCastFromNonLoc(*LeftIndex, resultTy);
         LeftIndex = dyn_cast<NonLoc>(&LeftIndexVal);
         if (!LeftIndex)
           return UnknownVal();
@@ -708,7 +739,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
         NonLoc *RightIndex = dyn_cast<NonLoc>(&RightIndexVal);
         if (!RightIndex)
           return UnknownVal();
-        RightIndexVal = evalCastNL(*RightIndex, resultTy);
+        RightIndexVal = evalCastFromNonLoc(*RightIndex, resultTy);
         RightIndex = dyn_cast<NonLoc>(&RightIndexVal);
         if (!RightIndex)
           return UnknownVal();
@@ -872,7 +903,8 @@ SVal SimpleSValBuilder::evalBinOpLN(const GRState *state,
     QualType elementType;
 
     if (const ElementRegion *elemReg = dyn_cast<ElementRegion>(region)) {
-      index = evalBinOpNN(state, BO_Add, elemReg->getIndex(), rhs,
+      assert(op == BO_Add || op == BO_Sub);
+      index = evalBinOpNN(state, op, elemReg->getIndex(), rhs,
                           getArrayIndexType());
       superR = elemReg->getSuperRegion();
       elementType = elemReg->getElementType();

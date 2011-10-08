@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <paths.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,6 +80,7 @@ static const char rcsid[] =
 struct uufsd disk;
 
 int	dumpfs(const char *);
+int	dumpfsid(void);
 int	dumpcg(void);
 int	dumpfreespace(const char *, int);
 void	dumpfreespacecg(int);
@@ -92,17 +94,20 @@ int
 main(int argc, char *argv[])
 {
 	const char *name;
-	int ch, dofreespace, domarshal, eval;
+	int ch, dofreespace, domarshal, dolabel, eval;
 
-	dofreespace = domarshal = eval = 0;
+	dofreespace = domarshal = dolabel = eval = 0;
 
-	while ((ch = getopt(argc, argv, "fm")) != -1) {
+	while ((ch = getopt(argc, argv, "lfm")) != -1) {
 		switch (ch) {
 		case 'f':
 			dofreespace++;
 			break;
 		case 'm':
 			domarshal = 1;
+			break;
+		case 'l':
+			dolabel = 1;
 			break;
 		case '?':
 		default:
@@ -129,11 +134,21 @@ main(int argc, char *argv[])
 			eval |= dumpfreespace(name, dofreespace);
 		else if (domarshal)
 			eval |= marshal(name);
+		else if (dolabel)
+			eval |= dumpfsid();
 		else
 			eval |= dumpfs(name);
 		ufs_disk_close(&disk);
 	}
 	exit(eval);
+}
+
+int
+dumpfsid(void)
+{
+
+	printf("%sufsid/%08x%08x\n", _PATH_DEV, afs.fs_id[0], afs.fs_id[1]);
+	return 0;
 }
 
 int
@@ -402,7 +417,9 @@ marshal(const char *name)
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
 	/* -i is dumb */
-	/* -j..l unimplemented */
+	if (fs->fs_flags & FS_SUJ)
+		printf("-j ");
+	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");
@@ -419,6 +436,8 @@ marshal(const char *name)
 	}
 	/* -p..r unimplemented */
 	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
+	if (fs->fs_flags & FS_TRIM)
+		printf("-t ");
 	printf("%s ", disk.d_name);
 	printf("\n");
 

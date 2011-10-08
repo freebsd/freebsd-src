@@ -115,7 +115,6 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
 
 int cold = 1;
 
-u_int64_t pa_bootinfo;
 struct bootinfo *bootinfo;
 
 struct pcpu pcpu0;
@@ -128,8 +127,9 @@ extern u_int64_t epc_sigtramp[];
 
 struct fpswa_iface *fpswa_iface;
 
-u_int64_t ia64_pal_base;
-u_int64_t ia64_port_base;
+vm_size_t ia64_pal_size;
+vm_paddr_t ia64_pal_base;
+vm_offset_t ia64_port_base;
 
 u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
 
@@ -232,6 +232,9 @@ identifycpu(void)
 		case 0x00:
 			model_name = "Montecito";
 			break;
+		case 0x01:
+			model_name = "Montvale";
+			break;
 		}
 		break;
 	}
@@ -316,7 +319,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Create sysctl tree for per-CPU information.
 	 */
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
 		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
 		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
@@ -341,6 +344,11 @@ cpu_startup(void *dummy)
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nextints", CTLFLAG_RD, &pcs->pcs_nextints,
 		    "Number of ExtINT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhardclocks", CTLFLAG_RD, &pcs->pcs_nhardclocks,
+		    "Number of IPI_HARDCLOCK interrupts");
 
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
@@ -411,12 +419,30 @@ cpu_halt()
 void
 cpu_idle(int busy)
 {
-	struct ia64_pal_result res;
+	register_t ie;
 
-	if (cpu_idle_hook != NULL)
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+
+	ie = intr_disable();
+	KASSERT(ie != 0, ("%s called with interrupts disabled\n", __func__));
+
+	if (sched_runnable())
+		ia64_enable_intr();
+	else if (cpu_idle_hook != NULL) {
 		(*cpu_idle_hook)();
-	else
-		res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		/* The hook must enable interrupts! */
+	} else {
+		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		ia64_enable_intr();
+	}
+
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
 }
 
 int
@@ -445,11 +471,11 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		atomic_store_rel_ptr(&old->td_lock, mtx);
-
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+		atomic_store_rel_ptr(&old->td_lock, mtx);
 
 #if defined(SCHED_ULE) && defined(SMP)
 		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
@@ -548,15 +574,15 @@ map_vhpt(uintptr_t vhpt)
 	pte |= vhpt & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1" :: "r"(vhpt),
-	    "r"(IA64_ID_PAGE_SHIFT<<2));
+	    "r"(pmap_vhpt_log2size << 2));
 
 	__asm __volatile("mov   %0=psr" : "=r"(psr));
 	__asm __volatile("rsm   psr.ic|psr.i");
 	ia64_srlz_i();
 	ia64_set_ifa(vhpt);
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_itir(pmap_vhpt_log2size << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 }
@@ -565,25 +591,36 @@ void
 map_pal_code(void)
 {
 	pt_entry_t pte;
+	vm_offset_t va;
+	vm_size_t sz;
 	uint64_t psr;
+	u_int shft;
 
-	if (ia64_pal_base == 0)
+	if (ia64_pal_size == 0)
 		return;
+
+	va = IA64_PHYS_TO_RR7(ia64_pal_base);
+
+	sz = ia64_pal_size;
+	shft = 0;
+	while (sz > 1) {
+		shft++;
+		sz >>= 1;
+	}
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_RWX;
 	pte |= ia64_pal_base & PTE_PPN_MASK;
 
-	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(IA64_ID_PAGE_SHIFT<<2));
+	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" :: "r"(va), "r"(shft<<2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(IA64_PHYS_TO_RR7(ia64_pal_base));
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_ifa(va);
+	ia64_set_itir(shft << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(4), "r"(pte));
 	ia64_srlz_d();
 	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
@@ -598,7 +635,7 @@ map_gateway_page(void)
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_X_RX;
-	pte |= (uint64_t)ia64_gateway_page & PTE_PPN_MASK;
+	pte |= ia64_tpa((uint64_t)ia64_gateway_page) & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
 	    "r"(VM_MAXUSER_ADDRESS), "r"(PAGE_SHIFT << 2));
@@ -609,9 +646,9 @@ map_gateway_page(void)
 	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(5), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(2), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 
@@ -633,9 +670,12 @@ calculate_frequencies(void)
 {
 	struct ia64_sal_result sal;
 	struct ia64_pal_result pal;
+	register_t ie;
 
+	ie = intr_disable();
 	sal = ia64_sal_entry(SAL_FREQ_BASE, 0, 0, 0, 0, 0, 0, 0);
 	pal = ia64_call_pal_static(PAL_FREQ_RATIOS, 0, 0, 0);
+	intr_restore(ie);
 
 	if (sal.sal_status == 0 && pal.pal_status == 0) {
 		if (bootverbose) {
@@ -681,17 +721,6 @@ ia64_init(void)
 	 */
 
 	/*
-	 * pa_bootinfo is the physical address of the bootinfo block as
-	 * passed to us by the loader and set in locore.s.
-	 */
-	bootinfo = (struct bootinfo *)(IA64_PHYS_TO_RR7(pa_bootinfo));
-
-	if (bootinfo->bi_magic != BOOTINFO_MAGIC || bootinfo->bi_version != 1) {
-		bzero(bootinfo, sizeof(*bootinfo));
-		bootinfo->bi_kernend = (vm_offset_t)round_page(_end);
-	}
-
-	/*
 	 * Look for the I/O ports first - we need them for console
 	 * probing.
 	 */
@@ -702,6 +731,7 @@ ia64_init(void)
 			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
+			ia64_pal_size = md->md_pages * EFI_PAGE_SIZE;
 			ia64_pal_base = md->md_phys;
 			break;
 		}
@@ -742,34 +772,14 @@ ia64_init(void)
 		kernend = round_page(bootinfo->bi_kernend);
 
 	/*
-	 * Setup the PCPU data for the bootstrap processor. It is needed
-	 * by printf(). Also, since printf() has critical sections, we
-	 * need to initialize at least pc_curthread.
+	 * Region 6 is direct mapped UC and region 7 is direct mapped
+	 * WC. The details of this is controlled by the Alt {I,D}TLB
+	 * handlers. Here we just make sure that they have the largest
+	 * possible page size to minimise TLB usage.
 	 */
-	pcpup = &pcpu0;
-	ia64_set_k4((u_int64_t)pcpup);
-	pcpu_init(pcpup, 0, sizeof(pcpu0));
-	dpcpu_init((void *)kernend, 0);
-	kernend += DPCPU_SIZE;
-	PCPU_SET(curthread, &thread0);
-
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	/* OUTPUT NOW ALLOWED */
-
-	if (ia64_pal_base != 0) {
-		ia64_pal_base &= ~IA64_ID_PAGE_MASK;
-		/*
-		 * We use a TR to map the first 256M of memory - this might
-		 * cover the palcode too.
-		 */
-		if (ia64_pal_base == 0)
-			printf("PAL code mapped by the kernel's TR\n");
-	} else
-		printf("PAL code not found\n");
+	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+	ia64_srlz_d();
 
 	/*
 	 * Wire things up so we can call the firmware.
@@ -779,6 +789,28 @@ ia64_init(void)
 	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
+
+	set_cputicker(ia64_get_itc, (u_long)itc_freq * 1000000, 0);
+
+	/*
+	 * Setup the PCPU data for the bootstrap processor. It is needed
+	 * by printf(). Also, since printf() has critical sections, we
+	 * need to initialize at least pc_curthread.
+	 */
+	pcpup = &pcpu0;
+	ia64_set_k4((u_int64_t)pcpup);
+	pcpu_init(pcpup, 0, sizeof(pcpu0));
+	dpcpu_init((void *)kernend, 0);
+	PCPU_SET(md.lid, ia64_get_lid());
+	kernend += DPCPU_SIZE;
+	PCPU_SET(curthread, &thread0);
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	/* OUTPUT NOW ALLOWED */
 
 	if (metadata_missing)
 		printf("WARNING: loader(8) metadata is missing!\n");
@@ -1123,7 +1155,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * MPSAFE
  */
 int
-sigreturn(struct thread *td,
+sys_sigreturn(struct thread *td,
 	struct sigreturn_args /* {
 		ucontext_t *sigcntxp;
 	} */ *uap)
@@ -1160,7 +1192,7 @@ int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
 
-	return sigreturn(td, (struct sigreturn_args *)uap);
+	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
 

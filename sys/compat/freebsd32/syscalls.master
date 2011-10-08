@@ -89,7 +89,8 @@
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int flags); }
-19	AUE_LSEEK	OBSOL	olseek
+19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
+				    int whence); }
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
 21	AUE_MOUNT	NOPROTO	{ int mount(char *type, char *path, \
 				    int flags, caddr_t data); }
@@ -117,9 +118,11 @@
 35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, int flags); }
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
 37	AUE_KILL	NOPROTO	{ int kill(int pid, int signum); }
-38	AUE_STAT	UNIMPL	ostat
+38	AUE_STAT	COMPAT	{ int freebsd32_stat(char *path, \
+				    struct ostat32 *ub); }
 39	AUE_GETPPID	NOPROTO	{ pid_t getppid(void); }
-40	AUE_LSTAT	UNIMPL	olstat
+40	AUE_LSTAT	COMPAT	{ int freebsd32_lstat(char *path, \
+				    struct ostat *ub); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
 42	AUE_PIPE	NOPROTO	{ int pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
@@ -153,9 +156,11 @@
 60	AUE_UMASK	NOPROTO	{ int umask(int newmask); } umask \
 				    umask_args int
 61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
-62	AUE_FSTAT	OBSOL	ofstat
+62	AUE_FSTAT	COMPAT	{ int freebsd32_fstat(int fd, \
+				    struct ostat32 *ub); }
 63	AUE_NULL	OBSOL	ogetkerninfo
-64	AUE_NULL	OBSOL	ogetpagesize
+64	AUE_NULL	COMPAT	{ int freebsd32_getpagesize( \
+				    int32_t dummy); }
 65	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
 				    int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
@@ -210,7 +215,8 @@
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
 101	AUE_NULL	OBSOL	osend
 102	AUE_NULL	OBSOL	orecv
-103	AUE_NULL	OBSOL	osigreturn
+103	AUE_NULL	COMPAT	{ int freebsd32_sigreturn( \
+				    struct ia32_sigcontext3 *sigcntxp); }
 104	AUE_BIND	NOPROTO	{ int bind(int s, caddr_t name, \
 				    int namelen); }
 105	AUE_SETSOCKOPT	NOPROTO	{ int setsockopt(int s, int level, \
@@ -292,7 +298,8 @@
 ; 155 is initialized by the NFS code, if present.
 ; XXX this is a problem!!!
 155	AUE_NFS_SVC	UNIMPL	nfssvc
-156	AUE_GETDIRENTRIES	OBSOL	ogetdirentries
+156	AUE_GETDIRENTRIES COMPAT { int freebsd32_getdirentries(int fd, \
+				    char *buf, u_int count, uint32_t *basep); }
 157	AUE_STATFS	COMPAT4	{ int freebsd32_statfs(char *path, \
 				    struct statfs32 *buf); }
 158	AUE_FSTATFS	COMPAT4	{ int freebsd32_fstatfs(int fd, \
@@ -533,8 +540,8 @@
 305	AUE_MODUNLOAD	NOPROTO	{ int kldunload(int fileid); }
 306	AUE_NULL	NOPROTO	{ int kldfind(const char *file); }
 307	AUE_NULL	NOPROTO	{ int kldnext(int fileid); }
-308	AUE_NULL	NOPROTO	{ int kldstat(int fileid, \
-				    struct kld_file_stat* stat); }
+308	AUE_NULL	STD	{ int freebsd32_kldstat(int fileid, \
+				    struct kld32_file_stat* stat); }
 309	AUE_NULL	NOPROTO	{ int kldfirstmod(int fileid); }
 310	AUE_GETSID	NOPROTO	{ int getsid(pid_t pid); }
 311	AUE_SETRESUID	NOPROTO	{ int setresuid(uid_t ruid, uid_t euid, \
@@ -950,8 +957,9 @@
 512	AUE_SHMCTL	NOSTD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	UNIMPL	cap_new
-515	AUE_CAP_GETRIGHTS	UNIMPL	cap_getrights
+514	AUE_CAP_NEW	NOPROTO	{ int cap_new(int fd, u_int64_t rights); }
+515	AUE_CAP_GETRIGHTS	NOPROTO	{ int cap_getrights(int fd, \
+				    u_int64_t *rightsp); }
 516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	UNIMPL	pdfork
@@ -965,3 +973,22 @@
 523	AUE_NULL	NOPROTO	{ int getloginclass(char *namebuf, \
 				    size_t namelen); }
 524	AUE_NULL	NOPROTO	{ int setloginclass(const char *namebuf); }
+525	AUE_NULL	NOPROTO	{ int rctl_get_racct(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+526	AUE_NULL	NOPROTO	{ int rctl_get_rules(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+527	AUE_NULL	NOPROTO	{ int rctl_get_limits(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+528	AUE_NULL	NOPROTO	{ int rctl_add_rule(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+529	AUE_NULL	NOPROTO	{ int rctl_remove_rule(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
+				     uint32_t offsetlo, uint32_t offsethi,\
+				     uint32_t lenlo, uint32_t lenhi); }
+531	AUE_NULL	UNIMPL	posix_fadvise

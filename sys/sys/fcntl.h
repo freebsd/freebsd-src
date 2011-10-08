@@ -123,9 +123,11 @@ typedef	__pid_t		pid_t;
 #define	FEXEC		O_EXEC
 #endif
 
-/* Defined by POSIX 1003.1-2008; BSD default, but reserve for future use. */
 #if __POSIX_VISIBLE >= 200809
+/* Defined by POSIX 1003.1-2008; BSD default, but reserve for future use. */
 #define	O_TTY_INIT	0x00080000	/* Restore default termios attributes */
+
+#define	O_CLOEXEC	0x00100000
 #endif
 
 /*
@@ -276,7 +278,7 @@ struct oflock {
 #endif
 
 /*
- * XXX missing posix_fadvise() and posix_fallocate(), and POSIX_FADV_* macros.
+ * XXX missing posix_fadvise() and POSIX_FADV_* macros.
  */
 
 #ifndef _KERNEL
@@ -286,6 +288,9 @@ int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);
+#endif
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112
+int	posix_fallocate(int, off_t, off_t);
 #endif
 #if __BSD_VISIBLE
 int	flock(int, int);

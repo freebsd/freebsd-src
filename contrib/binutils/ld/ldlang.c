@@ -4274,9 +4274,10 @@ lang_size_sections_1
 			   " section %s\n"), os->name);
 
 		input = os->children.head->input_section.section;
-		bfd_set_section_vma (os->bfd_section->owner,
-				     os->bfd_section,
-				     bfd_section_vma (input->owner, input));
+		(void) bfd_set_section_vma (os->bfd_section->owner,
+					    os->bfd_section,
+					    bfd_section_vma (input->owner,
+							     input));
 		os->bfd_section->size = input->size;
 		break;
 	      }
@@ -4361,7 +4362,7 @@ lang_size_sections_1
 			     os->name, (unsigned long) (newdot - savedot));
 		  }
 
-		bfd_set_section_vma (0, os->bfd_section, newdot);
+		(void) bfd_set_section_vma (0, os->bfd_section, newdot);
 
 		os->bfd_section->output_offset = 0;
 	      }

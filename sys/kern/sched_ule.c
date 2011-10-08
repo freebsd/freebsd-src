@@ -76,7 +76,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__sparc64__)
+#if defined(__powerpc__) && defined(E500)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -84,7 +84,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 #define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__XSTRING(MAXCPU)))
-#define	TDQ_LOADNAME_LEN	(PCPU_NAME_LEN + sizeof(" load"))
+#define	TDQ_LOADNAME_LEN	(sizeof("CPU ") + sizeof(__XSTRING(MAXCPU)) - 1 + sizeof(" load"))
 
 /*
  * Thread scheduler specific section.  All fields are protected
@@ -564,7 +564,7 @@ struct cpu_search {
 
 #define	CPUSET_FOREACH(cpu, mask)				\
 	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
-		if ((mask) & 1 << (cpu))
+		if (CPU_ISSET(cpu, &mask))
 
 static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match);
@@ -839,6 +839,7 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 	int low_load;
 	int moved;
 	int move;
+	int cpu;
 	int diff;
 	int i;
 
@@ -860,10 +861,14 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		for (i = 0; i < move; i++)
 			moved += tdq_move(high, low);
 		/*
-		 * IPI the target cpu to force it to reschedule with the new
-		 * workload.
+		 * In case the target isn't the current cpu IPI it to force a
+		 * reschedule with the new workload.
 		 */
-		ipi_cpu(TDQ_ID(low), IPI_PREEMPT);
+		cpu = TDQ_ID(low);
+		sched_pin();
+		if (cpu != PCPU_GET(cpuid))
+			ipi_cpu(cpu, IPI_PREEMPT);
+		sched_unpin();
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -1783,7 +1788,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	tdq->tdq_switchcnt++;
 	/*
@@ -2021,7 +2027,7 @@ sched_exit(struct proc *p, struct thread *child)
 	struct thread *td;
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "proc exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	td = FIRST_THREAD_IN_PROC(p);
 	sched_exit_thread(td, child);
@@ -2038,7 +2044,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "thread exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	/*
 	 * Give the child's runtime to the parent without returning the
 	 * sleep time as a penalty to the parent.  This causes shells that
@@ -2649,15 +2655,16 @@ static int
 sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
     int indent)
 {
+	char cpusetbuf[CPUSETBUFSIZ];
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
 	    "", 1 + indent / 2, cg->cg_level);
-	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
-	    cg->cg_count, cg->cg_mask);
+	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"%s\">", indent, "",
+	    cg->cg_count, cpusetobj_strprint(cpusetbuf, &cg->cg_mask));
 	first = TRUE;
 	for (i = 0; i < MAXCPU; i++) {
-		if ((cg->cg_mask & (1 << i)) != 0) {
+		if (CPU_ISSET(i, &cg->cg_mask)) {
 			if (!first)
 				sbuf_printf(sb, ", ");
 			else

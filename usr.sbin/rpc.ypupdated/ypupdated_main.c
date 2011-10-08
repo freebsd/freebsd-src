@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <errno.h>
 #include <err.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include "ypupdated_extern.h"
 #include "yp_extern.h"

@@ -500,9 +500,11 @@ spa_history_log_version(spa_t *spa, history_internal_events_t event)
 		    utsname.nodename, utsname.release, utsname.version,
 		    utsname.machine);
 	}
+#if 0
 	cmn_err(CE_CONT, "!%s version %llu pool %s using %llu",
 	    event == LOG_POOL_IMPORT ? "imported" :
 	    event == LOG_POOL_CREATE ? "created" : "accessed",
 	    (u_longlong_t)current_vers, spa_name(spa), SPA_VERSION);
+#endif
 #endif
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,7 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 	    !IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
 	sin4 = (struct sockaddr_in *)sin6;
-	addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+	addr = *(u_int32_t *)(uintptr_t)&sin6->sin6_addr.s6_addr[12];
 	port = sin6->sin6_port;
 	memset(sin4, 0, sizeof(struct sockaddr_in));
 	sin4->sin_addr.s_addr = addr;
@@ -633,13 +633,12 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 	/* check flags */
 	low = CHECK_FLAG('l');
-	pasv = CHECK_FLAG('p');
+	pasv = CHECK_FLAG('p') || !CHECK_FLAG('P');
 	verbose = CHECK_FLAG('v');
 
 	/* passive mode */
-	if (!pasv)
-		pasv = ((s = getenv("FTP_PASSIVE_MODE")) != NULL &&
-		    strncasecmp(s, "no", 2) != 0);
+	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL)
+		pasv = (strncasecmp(s, "no", 2) != 0);
 
 	/* isolate filename */
 	filename = ftp_filename(file, &filenamelen, &type);

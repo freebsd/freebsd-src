@@ -69,6 +69,7 @@ static bus_print_child_t fhc_print_child;
 static bus_probe_nomatch_t fhc_probe_nomatch;
 static bus_setup_intr_t fhc_setup_intr;
 static bus_alloc_resource_t fhc_alloc_resource;
+static bus_adjust_resource_t fhc_adjust_resource;
 static bus_get_resource_list_t fhc_get_resource_list;
 static ofw_bus_get_devinfo_t fhc_get_devinfo;
 
@@ -93,6 +94,7 @@ static device_method_t fhc_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	fhc_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	fhc_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	fhc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -473,6 +475,15 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	}
 	return (res);
+}
+
+static int
+fhc_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, u_long start __unused,
+    u_long end __unused)
+{
+
+	return (ENXIO);
 }
 
 static struct resource_list *

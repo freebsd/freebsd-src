@@ -82,7 +82,7 @@ ptsname(int fildes)
 	/* Make sure fildes points to a master device. */
 	if (__isptmaster(fildes) != 0)
 		goto done;
-	
+
 	if (fdevname_r(fildes, pt_slave + (sizeof _PATH_DEV - 1),
 	    sizeof pt_slave - (sizeof _PATH_DEV - 1)) != NULL)
 		ret = pt_slave;

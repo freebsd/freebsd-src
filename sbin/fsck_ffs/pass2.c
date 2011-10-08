@@ -524,7 +524,7 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 	struct inodesc dotdesc;
 	char oldname[MAXPATHLEN + 1];
 	char newname[MAXPATHLEN + 1];
-	
+
 	/*
 	 * If we have not yet found "..", look it up now so we know
 	 * which inode the directory itself believes is its parent.

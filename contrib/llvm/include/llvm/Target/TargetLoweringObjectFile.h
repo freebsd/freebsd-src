@@ -68,6 +68,11 @@ protected:
   /// LSDASection - If exception handling is supported by the target, this is
   /// the section the Language Specific Data Area information is emitted to.
   const MCSection *LSDASection;
+
+  /// CompactUnwindSection - If exception handling is supported by the target
+  /// and the target can support a compact representation of the CIE and FDE,
+  /// this is the section to emit them into.
+  const MCSection *CompactUnwindSection;
   
   // Dwarf sections for debug info.  If a target supports debug info, these must
   // be set.
@@ -97,17 +102,13 @@ protected:
   /// weak_definition of constant 0 for an omitted EH frame.
   bool SupportsWeakOmittedEHFrame;
   
-  /// IsFunctionEHSymbolGlobal - This flag is set to true if the ".eh" symbol
-  /// for a function should be marked .globl.
-  bool IsFunctionEHSymbolGlobal;
-  
   /// IsFunctionEHFrameSymbolPrivate - This flag is set to true if the
   /// "EH_frame" symbol for EH information should be an assembler temporary (aka
   /// private linkage, aka an L or .L label) or false if it should be a normal
   /// non-.globl label.  This defaults to true.
   bool IsFunctionEHFrameSymbolPrivate;
+
 public:
-  
   MCContext &getContext() const { return *Ctx; }
   
   virtual ~TargetLoweringObjectFile();
@@ -119,16 +120,12 @@ public:
     Ctx = &ctx;
   }
   
-  bool isFunctionEHSymbolGlobal() const {
-    return IsFunctionEHSymbolGlobal;
-  }
   bool isFunctionEHFrameSymbolPrivate() const {
     return IsFunctionEHFrameSymbolPrivate;
   }
   bool getSupportsWeakOmittedEHFrame() const {
     return SupportsWeakOmittedEHFrame;
   }
-  
   bool getCommDirectiveSupportsAlignment() const {
     return CommDirectiveSupportsAlignment;
   }
@@ -139,7 +136,11 @@ public:
   const MCSection *getStaticCtorSection() const { return StaticCtorSection; }
   const MCSection *getStaticDtorSection() const { return StaticDtorSection; }
   const MCSection *getLSDASection() const { return LSDASection; }
+  const MCSection *getCompactUnwindSection() const{return CompactUnwindSection;}
   virtual const MCSection *getEHFrameSection() const = 0;
+  virtual void emitPersonalityValue(MCStreamer &Streamer,
+                                    const TargetMachine &TM,
+                                    const MCSymbol *Sym) const;
   const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
   const MCSection *getDwarfLineSection() const { return DwarfLineSection; }
@@ -159,6 +160,8 @@ public:
   const MCSection *getTLSExtraDataSection() const {
     return TLSExtraDataSection;
   }
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef suffix)const=0;
+  virtual const MCSection *getWin64EHTableSection(StringRef suffix) const = 0;
   
   /// shouldEmitUsedDirectiveFor - This hook allows targets to selectively
   /// decide not to emit the UsedDirective for some symbols in llvm.used.
@@ -218,15 +221,19 @@ public:
                                  MachineModuleInfo *MMI, unsigned Encoding,
                                  MCStreamer &Streamer) const;
 
+  // getCFIPersonalitySymbol - The symbol that gets passed to .cfi_personality.
+  virtual MCSymbol *
+  getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                          MachineModuleInfo *MMI) const;
+
   /// 
   const MCExpr *
-  getExprForDwarfReference(const MCSymbol *Sym, Mangler *Mang,
-                           MachineModuleInfo *MMI, unsigned Encoding,
+  getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
                            MCStreamer &Streamer) const;
   
   virtual unsigned getPersonalityEncoding() const;
   virtual unsigned getLSDAEncoding() const;
-  virtual unsigned getFDEEncoding() const;
+  virtual unsigned getFDEEncoding(bool CFI) const;
   virtual unsigned getTTypeEncoding() const;
 
 protected:

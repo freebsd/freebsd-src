@@ -3,6 +3,8 @@ $FreeBSD$
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+3.1:	Add the about, reboot and pbvm commands.
+	I-cache coherency is maintained.
 3.0:	Add support for PBVM.
 2.2:	Create direct mapping based on start address instead of mapping
 	first 256M.

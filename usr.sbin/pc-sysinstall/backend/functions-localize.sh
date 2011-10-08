@@ -64,7 +64,7 @@ localize_x_desktops() {
   ##########################################################################
 
   # See if GDM is enabled and customize its lang
-  cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep "gdm_enable=\"YES\"" >/dev/null 2>/dev/null
+  cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q "gdm_enable=\"YES\"" 2>/dev/null
   if [ "$?" = "0" ] ; then
     echo "gdm_lang=\"${LOCALE}.UTF-8\"" >> ${FSMNT}/etc/rc.conf
   fi
@@ -192,7 +192,7 @@ localize_key_layout()
         ;;
   esac
 
-  if [ ! -z "${KEYLAYOUT_CONSOLE}" ]
+  if [ -n "${KEYLAYOUT_CONSOLE}" ]
   then
     echo "keymap=\"${KEYLAYOUT_CONSOLE}\"" >>${FSMNT}/etc/rc.conf
   fi
@@ -214,10 +214,10 @@ localize_prune_langs()
   # Create the script to do uninstalls
   echo '#!/bin/sh
 
-  for i in `pkg_info | grep "kde-l10n" | cut -d " " -f 1`
+  for i in `pkg_info -xEI kde-l10n`
   do
     echo "$i" | grep "${KEEPLANG}-kde"
-    if [ "$?" != "0" ] ; then
+    if [ $? -ne 0 ] ; then
       pkg_delete ${i}
     fi
   done
@@ -439,15 +439,15 @@ set_ntp()
   ENABLED="$1"
   if [ "$ENABLED" = "yes" -o "${ENABLED}" = "YES" ]
   then
-    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep 'ntpd_enable="YES"' >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q 'ntpd_enable="YES"' 2>/dev/null
+    if [ $? -ne 0 ]
     then
       echo 'ntpd_enable="YES"' >>${FSMNT}/etc/rc.conf
       echo 'ntpd_sync_on_start="YES"' >>${FSMNT}/etc/rc.conf
     fi
   else
-    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep 'ntpd_enable="YES"' >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q 'ntpd_enable="YES"' 2>/dev/null
+    if [ $? -ne 0 ]
     then
       sed -i.bak 's|ntpd_enable="YES"||g' ${FSMNT}/etc/rc.conf
     fi
@@ -464,8 +464,8 @@ run_localize()
   while read line
   do
     # Check if we need to do any localization
-    echo $line | grep "^localizeLang=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^localizeLang=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
 
       # Set our country / lang / locale variables
@@ -487,37 +487,37 @@ run_localize()
     fi
 
     # Check if we need to do any keylayouts
-    echo $line | grep "^localizeKeyLayout=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^localizeKeyLayout=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       KEYLAYOUT="$VAL"
     fi
 
     # Check if we need to do any key models
-    echo $line | grep "^localizeKeyModel=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^localizeKeyModel=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       KEYMOD="$VAL"
     fi
 
     # Check if we need to do any key variant
-    echo $line | grep "^localizeKeyVariant=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^localizeKeyVariant=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       KEYVAR="$VAL"
     fi
 
 
     # Check if we need to set a timezone
-    echo $line | grep "^timeZone=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^timeZone=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       set_timezone "$VAL"
     fi
 
     # Check if we need to set a timezone
-    echo $line | grep "^enableNTP=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^enableNTP=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       set_ntp "$VAL"
     fi

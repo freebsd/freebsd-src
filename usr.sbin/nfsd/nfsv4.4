@@ -24,14 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2009
+.Dd May 15, 2011
 .Dt NFSV4 4
 .Os
 .Sh NAME
 .Nm NFSv4
 .Nd NFS Version 4 Protocol
 .Sh DESCRIPTION
-The experimental NFS client and server provides support for the
+The NFS client and server provides support for the
 .Tn NFSv4
 specification; see
 .%T "Network File System (NFS) Version 4 Protocol RFC 3530" .
@@ -54,12 +54,13 @@ open/lock state changing operations.
 To provide for correct recovery semantics, a small file described by
 .Xr stablerestart 5
 is used by the server during the recovery phase.
-If this file is missing,
-the server will not start.
-If this file is lost, it should be recovered from backups, since creating
-an empty
-.Xr stablerestart 5
-file will result in the server starting without providing a grace period
+If this file is missing or empty, there is a backup copy maintained by
+.Xr nfsd 8
+that will be used. If either file is missing, they will be
+created by the
+.Xr nfsd 8 .
+If both the file and the backup copy are empty,
+it will result in the server starting without providing a grace period
 for recovery.
 Note that recovery only occurs when the server
 machine is rebooted, not when the
@@ -152,27 +153,11 @@ with RPCSEC_GSS (sec=krb5, krb5i, krb5p), only names and KerberosV tickets
 will go on the wire.
 .Sh SERVER SETUP
 .Pp
-To set up the experimental NFS server that supports
+To set up the NFS server that supports
 .Nm ,
-you will need to either build a kernel with:
-.sp
-.Bd -literal -offset indent -compact
-options	NFSD
-.Ed
-and not
-.Bd -literal -offset indent -compact
-options	NFSSERVER
-.Ed
-.sp
-or start
-.Xr mountd 8
-and
-.Xr nfsd 8
-with the ``-e'' option to force use of the experimental server.
-The
-.Xr nfsuserd 8
-daemon must also be running.
-This will occur if
+you will need to either set the variables in
+.Xr rc.conf 5
+as follows:
 .sp
 .Bd -literal -offset indent -compact
 nfs_server_enable="YES"
@@ -180,30 +165,20 @@ nfsv4_server_enable="YES"
 nfsuserd_enable="YES"
 .Ed
 .sp
-are set in
-.Xr rc.conf 5 .
+or start
+.Xr mountd 8
+and
+.Xr nfsd 8
+without the ``-o'' option, which would force use of the old server.
+The
+.Xr nfsuserd 8
+daemon must also be running.
 .Pp
 You will also need to add at least one ``V4:'' line to the
 .Xr exports 5
-file and, before starting the server for the first time, create an empty
-.sp
-.Bd -literal -offset indent -compact
-/var/db/nfs-stablerestart
-.Ed
-.sp
-file.
-The command
-.sp
-.Bd -literal -offset indent -compact
-install -o root -g wheel -m 600 /dev/null /var/db/nfs-stablerestart
-.Ed
-.sp
-executed as ``su'' should suffice.
-This can only be done when the server is not running and there are no
+file for
 .Nm
-file system mounts against the server.
-If this file is lost during a crash, recovery from backups is
-recommended.
+to work.
 .Pp
 If the file systems you are exporting are only being accessed via
 .Nm
@@ -211,7 +186,7 @@ there are a couple of
 .Xr sysctl 8
 variables that you can change, which might improve performance.
 .Bl -tag -width Ds
-.It Cm vfs.newnfs.issue_delegations
+.It Cm vfs.nfsd.issue_delegations
 when set non-zero, allows the server to issue Open Delegations to
 clients.
 These delegations permit the client to manipulate the file
@@ -223,7 +198,7 @@ This can only be enabled when the file systems being exported to
 clients are not being accessed locally on the server and, if being
 accessed via NFS Version 2 or 3 clients, these clients cannot be
 using the NLM.
-.It Cm vfs.newnfs.enable_locallocks
+.It Cm vfs.nfsd.enable_locallocks
 can be set to 0 to disable acquisition of local byte range locks.
 Disabling local locking can only be done if neither local accesses
 to the exported file systems nor the NLM is operating on them.
@@ -232,7 +207,7 @@ to the exported file systems nor the NLM is operating on them.
 Note that Samba server access would be considered ``local access'' for the above
 discussion.
 .Pp
-To build a kernel with the experimental
+To build a kernel with the NFS server that supports
 .Nm
 linked into it, the
 .sp
@@ -250,7 +225,9 @@ To do an
 mount, specify the ``nfsv4'' option on the
 .Xr mount_nfs 8
 command line.
-This will force use of the experimental client plus set ``tcp'' and
+This will force use of the client that supports
+.Nm
+plus set ``tcp'' and
 .Nm .
 .Pp
 The
@@ -284,16 +261,16 @@ To get callbacks to work when behind a NAT gateway, a port for the callback
 service will need to be set up on the NAT gateway and then the address
 of the NAT gateway (host IP plus port#) will need to be set by assigning the
 .Xr sysctl 8
-variable vfs.newnfs.callback_addr to a string of the form:
+variable vfs.nfs.callback_addr to a string of the form:
 .sp
 N.N.N.N.N.N
 .sp
 where the first 4 Ns are the host IP address and the last two are the
 port# in network byte order (all decimal #s in the range 0-255).
 .Pp
-To build a kernel with the experimental
+To build a kernel with the client that supports
 .Nm
-client linked into it, the option
+linked into it, the option
 .sp
 .Bd -literal -offset indent -compact
 options	NFSCL
@@ -311,9 +288,11 @@ daemons at boot time via the ``nfsuserd_flags'' and ``nfscbd_flags''
 .Xr rc.conf 5
 variables.
 .Sh FILES
-.Bl -tag -width /var/db/nfs-stablerestart -compact
+.Bl -tag -width /var/db/nfs-stablerestart.bak -compact
 .It Pa /var/db/nfs-stablerestart
 NFS V4 stable restart file
+.It Pa /var/db/nfs-stablerestart.bak
+backup copy of the file
 .El
 .Sh SEE ALSO
 .Xr stablerestart 5 ,

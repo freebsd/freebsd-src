@@ -258,6 +258,7 @@ sgregister(struct cam_periph *periph, void *arg)
 {
 	struct sg_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	int no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -284,6 +285,11 @@ sgregister(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->rdwr_done);
 	periph->softc = softc;
 
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	/*
 	 * We pass in 0 for all blocksize, since we don't know what the
 	 * blocksize of the device is, if it even has a blocksize.
@@ -295,7 +301,7 @@ sgregister(struct cam_periph *periph, void *arg)
 			DEVSTAT_NO_BLOCKSIZE
 			| (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			softc->pd_type |
-			DEVSTAT_TYPE_IF_SCSI |
+			XPORT_DEVSTAT_TYPE(cpi.transport) |
 			DEVSTAT_TYPE_PASS,
 			DEVSTAT_PRIORITY_PASS);
 

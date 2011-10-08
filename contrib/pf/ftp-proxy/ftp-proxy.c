@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftp-proxy.c,v 1.13 2006/12/30 13:24:00 camield Exp $ */
+/*	$OpenBSD: ftp-proxy.c,v 1.19 2008/06/13 07:25:26 claudio Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -61,6 +61,14 @@ __FBSDID("$FreeBSD$");
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
 
+#ifndef LIST_END
+#define LIST_END(a)     NULL
+#endif
+
+#ifndef getrtable
+#define getrtable(a)    0
+#endif
+
 #define	sstosa(ss)	((struct sockaddr *)(ss))
 
 enum { CMD_NONE = 0, CMD_PORT, CMD_EPRT, CMD_PASV, CMD_EPSV };
@@ -94,7 +102,7 @@ int	client_parse_cmd(struct session *s);
 void	client_read(struct bufferevent *, void *);
 int	drop_privs(void);
 void	end_session(struct session *);
-int	exit_daemon(void);
+void	exit_daemon(void);
 int	getline(char *, size_t *);
 void	handle_connection(const int, short, void *);
 void	handle_signal(int, short, void *);
@@ -105,6 +113,7 @@ u_int16_t pick_proxy_port(void);
 void	proxy_reply(int, struct sockaddr *, u_int16_t);
 void	server_error(struct bufferevent *, short, void *);
 int	server_parse(struct session *s);
+int	allow_data_connection(struct session *s);
 void	server_read(struct bufferevent *, void *);
 const char *sock_ntop(struct sockaddr *);
 void	usage(void);
@@ -115,14 +124,14 @@ size_t linelen;
 char ntop_buf[NTOP_BUFS][INET6_ADDRSTRLEN];
 
 struct sockaddr_storage fixed_server_ss, fixed_proxy_ss;
-char *fixed_server, *fixed_server_port, *fixed_proxy, *listen_ip, *listen_port,
-    *qname;
+const char *fixed_server, *fixed_server_port, *fixed_proxy, *listen_ip, *listen_port,
+    *qname, *tagname;
 int anonymous_only, daemonize, id_count, ipv6_mode, loglevel, max_sessions,
     rfc_mode, session_count, timeout, verbose;
 extern char *__progname;
 
 void
-client_error(struct bufferevent *bufev, short what, void *arg)
+client_error(struct bufferevent *bufev __unused, short what, void *arg)
 {
 	struct session *s = arg;
 
@@ -152,8 +161,19 @@ client_parse(struct session *s)
 		return (1);
 
 	if (linebuf[0] == 'P' || linebuf[0] == 'p' ||
-	    linebuf[0] == 'E' || linebuf[0] == 'e')
-		return (client_parse_cmd(s));
+	    linebuf[0] == 'E' || linebuf[0] == 'e') {
+		if (!client_parse_cmd(s))
+			return (0);
+
+		/*
+		 * Allow active mode connections immediately, instead of
+		 * waiting for a positive reply from the server.  Some
+		 * rare servers/proxies try to probe or setup the data
+		 * connection before an actual transfer request.
+		 */
+		if (s->cmd == CMD_PORT || s->cmd == CMD_EPRT)
+			return (allow_data_connection(s));
+	}
 	
 	if (anonymous_only && (linebuf[0] == 'U' || linebuf[0] == 'u'))
 		return (client_parse_anon(s));
@@ -220,14 +240,14 @@ void
 client_read(struct bufferevent *bufev, void *arg)
 {
 	struct session	*s = arg;
-	size_t		 buf_avail, read;
+	size_t		 buf_avail, clientread;
 	int		 n;
 
 	do {
 		buf_avail = sizeof s->cbuf - s->cbuf_valid;
-		read = bufferevent_read(bufev, s->cbuf + s->cbuf_valid,
+		clientread = bufferevent_read(bufev, s->cbuf + s->cbuf_valid,
 		    buf_avail);
-		s->cbuf_valid += read;
+		s->cbuf_valid += clientread;
 
 		while ((n = getline(s->cbuf, &s->cbuf_valid)) > 0) {
 			logmsg(LOG_DEBUG, "#%d client: %s", s->id, linebuf);
@@ -244,7 +264,7 @@ client_read(struct bufferevent *bufev, void *arg)
 			end_session(s);
 			return;
 		}
-	} while (read == buf_avail);
+	} while (clientread == buf_avail);
 }
 
 int
@@ -269,9 +289,15 @@ drop_privs(void)
 void
 end_session(struct session *s)
 {
-	int err;
+	int serr;
 
 	logmsg(LOG_INFO, "#%d ending session", s->id);
+
+	/* Flush output buffers. */
+	if (s->client_bufev && s->client_fd != -1)
+		evbuffer_write(s->client_bufev->output, s->client_fd);
+	if (s->server_bufev && s->server_fd != -1)
+		evbuffer_write(s->server_bufev->output, s->server_fd);
 
 	if (s->client_fd != -1)
 		close(s->client_fd);
@@ -284,33 +310,29 @@ end_session(struct session *s)
 		bufferevent_free(s->server_bufev);
 
 	/* Remove rulesets by commiting empty ones. */
-	err = 0;
+	serr = 0;
 	if (prepare_commit(s->id) == -1)
-		err = errno;
+		serr = errno;
 	else if (do_commit() == -1) {
-		err = errno;
+		serr = errno;
 		do_rollback();
 	}
-	if (err)
+	if (serr)
 		logmsg(LOG_ERR, "#%d pf rule removal failed: %s", s->id,
-		    strerror(err));
+		    strerror(serr));
 
 	LIST_REMOVE(s, entry);
 	free(s);
 	session_count--;
 }
 
-int
+void
 exit_daemon(void)
 {
 	struct session *s, *next;
 
-#ifdef __FreeBSD__
-	LIST_FOREACH_SAFE(s, &sessions, entry, next) {
-#else
 	for (s = LIST_FIRST(&sessions); s != LIST_END(&sessions); s = next) {
 		next = LIST_NEXT(s, entry);
-#endif
 		end_session(s);
 	}
 
@@ -318,9 +340,6 @@ exit_daemon(void)
 		closelog();
 
 	exit(0);
-
-	/* NOTREACHED */
-	return (-1);
 }
 
 int
@@ -361,7 +380,7 @@ getline(char *buf, size_t *valid)
 }
 
 void
-handle_connection(const int listen_fd, short event, void *ev)
+handle_connection(const int listen_fd, short event __unused, void *ev __unused)
 {
 	struct sockaddr_storage tmp_ss;
 	struct sockaddr *client_sa, *server_sa, *fixed_server_sa;
@@ -508,13 +527,13 @@ handle_connection(const int listen_fd, short event, void *ev)
 }
 
 void
-handle_signal(int sig, short event, void *arg)
+handle_signal(int sig, short event __unused, void *arg __unused)
 {
 	/*
 	 * Signal handler rules don't apply, libevent decouples for us.
 	 */
 
-	logmsg(LOG_ERR, "%s exiting on signal %d", __progname, sig);
+	logmsg(LOG_ERR, "exiting on signal %d", sig);
 
 	exit_daemon();
 }
@@ -567,10 +586,7 @@ logmsg(int pri, const char *message, ...)
 		/* We don't care about truncation. */
 		vsnprintf(buf, sizeof buf, message, ap);
 #ifdef __FreeBSD__
-		/* XXX: strnvis might be nice to have */
-		strvisx(visbuf, buf,
-		    MIN((sizeof(visbuf) / 4) - 1, strlen(buf)),
-		    VIS_CSTYLE | VIS_NL);
+		strvis(visbuf, buf, VIS_CSTYLE | VIS_NL);
 #else
 		strnvis(visbuf, buf, sizeof visbuf, VIS_CSTYLE | VIS_NL);
 #endif
@@ -602,6 +618,7 @@ main(int argc, char *argv[])
 	max_sessions	= 100;
 	qname		= NULL;
 	rfc_mode	= 0;
+	tagname		= NULL;
 	timeout		= 24 * 3600;
 	verbose		= 0;
 
@@ -609,7 +626,7 @@ main(int argc, char *argv[])
 	id_count	= 1;
 	session_count	= 0;
 
-	while ((ch = getopt(argc, argv, "6Aa:b:D:dm:P:p:q:R:rt:v")) != -1) {
+	while ((ch = getopt(argc, argv, "6Aa:b:D:dm:P:p:q:R:rT:t:v")) != -1) {
 		switch (ch) {
 		case '6':
 			ipv6_mode = 1;
@@ -653,6 +670,11 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			rfc_mode = 1;
+			break;
+		case 'T':
+			if (strlen(optarg) >= PF_TAG_NAME_SIZE)
+				errx(1, "tagname too long");
+			tagname = optarg;
 			break;
 		case 't':
 			timeout = strtonum(optarg, 0, 86400, &errstr);
@@ -734,7 +756,7 @@ main(int argc, char *argv[])
 	freeaddrinfo(res);
 
 	/* Initialize pf. */
-	init_filter(qname, verbose);
+	init_filter(qname, tagname, verbose);
 
 	if (daemonize) {
 		if (daemon(0, 0) == -1)
@@ -830,14 +852,15 @@ u_int16_t
 pick_proxy_port(void)
 {
 	/* Random should be good enough for avoiding port collisions. */
-	return (IPPORT_HIFIRSTAUTO + (arc4random() %
-	    (IPPORT_HILASTAUTO - IPPORT_HIFIRSTAUTO)));
+	return (IPPORT_HIFIRSTAUTO +
+	    arc4random_uniform(IPPORT_HILASTAUTO - IPPORT_HIFIRSTAUTO));
 }
 
 void
 proxy_reply(int cmd, struct sockaddr *sa, u_int16_t port)
 {
-	int i, r;
+	u_int i;
+	int r = 0;
 
 	switch (cmd) {
 	case CMD_PORT:
@@ -864,7 +887,7 @@ proxy_reply(int cmd, struct sockaddr *sa, u_int16_t port)
 		break;
 	}
 
-	if (r < 0 || r >= sizeof linebuf) {
+	if (r < 0 || ((u_int)r) >= sizeof linebuf) {
 		logmsg(LOG_ERR, "proxy_reply failed: %d", r);
 		linebuf[0] = '\0';
 		linelen = 0;
@@ -881,7 +904,7 @@ proxy_reply(int cmd, struct sockaddr *sa, u_int16_t port)
 }
 
 void
-server_error(struct bufferevent *bufev, short what, void *arg)
+server_error(struct bufferevent *bufev __unused, short what, void *arg)
 {
 	struct session *s = arg;
 
@@ -902,11 +925,25 @@ server_error(struct bufferevent *bufev, short what, void *arg)
 int
 server_parse(struct session *s)
 {
-	struct sockaddr *client_sa, *orig_sa, *proxy_sa, *server_sa;
-	int prepared = 0;
-
 	if (s->cmd == CMD_NONE || linelen < 4 || linebuf[0] != '2')
 		goto out;
+
+	if ((s->cmd == CMD_PASV && strncmp("227 ", linebuf, 4) == 0) ||
+	    (s->cmd == CMD_EPSV && strncmp("229 ", linebuf, 4) == 0))
+		return (allow_data_connection(s));
+
+ out:
+	s->cmd = CMD_NONE;
+	s->port = 0;
+
+	return (1);
+}
+
+int
+allow_data_connection(struct session *s)
+{
+	struct sockaddr *client_sa, *orig_sa, *proxy_sa, *server_sa;
+	int prepared = 0;
 
 	/*
 	 * The pf rules below do quite some NAT rewriting, to keep up
@@ -932,8 +969,7 @@ server_parse(struct session *s)
 		orig_sa = sstosa(&s->server_ss);
 
 	/* Passive modes. */
-	if ((s->cmd == CMD_PASV && strncmp("227 ", linebuf, 4) == 0) ||
-	    (s->cmd == CMD_EPSV && strncmp("229 ", linebuf, 4) == 0)) {
+	if (s->cmd == CMD_PASV || s->cmd == CMD_EPSV) {
 		s->port = parse_port(s->cmd);
 		if (s->port < MIN_PORT) {
 			logmsg(LOG_CRIT, "#%d bad port in '%s'", s->id,
@@ -974,8 +1010,7 @@ server_parse(struct session *s)
 	}
 
 	/* Active modes. */
-	if ((s->cmd == CMD_PORT || s->cmd == CMD_EPRT) &&
-	    strncmp("200 ", linebuf, 4) == 0) {
+	if (s->cmd == CMD_PORT || s->cmd == CMD_EPRT) {
 		logmsg(LOG_INFO, "#%d active: server to client port %d"
 		    " via port %d", s->id, s->port, s->proxy_port);
 
@@ -1025,7 +1060,6 @@ server_parse(struct session *s)
 			goto fail;
 	}
 
- out:
 	s->cmd = CMD_NONE;
 	s->port = 0;
 
@@ -1042,16 +1076,16 @@ void
 server_read(struct bufferevent *bufev, void *arg)
 {
 	struct session	*s = arg;
-	size_t		 buf_avail, read;
+	size_t		 buf_avail, srvread;
 	int		 n;
 
 	bufferevent_settimeout(bufev, timeout, 0);
 
 	do {
 		buf_avail = sizeof s->sbuf - s->sbuf_valid;
-		read = bufferevent_read(bufev, s->sbuf + s->sbuf_valid,
+		srvread = bufferevent_read(bufev, s->sbuf + s->sbuf_valid,
 		    buf_avail);
-		s->sbuf_valid += read;
+		s->sbuf_valid += srvread;
 
 		while ((n = getline(s->sbuf, &s->sbuf_valid)) > 0) {
 			logmsg(LOG_DEBUG, "#%d server: %s", s->id, linebuf);
@@ -1068,7 +1102,7 @@ server_read(struct bufferevent *bufev, void *arg)
 			end_session(s);
 			return;
 		}
-	} while (read == buf_avail);
+	} while (srvread == buf_avail);
 }
 
 const char *
@@ -1102,6 +1136,7 @@ usage(void)
 {
 	fprintf(stderr, "usage: %s [-6Adrv] [-a address] [-b address]"
 	    " [-D level] [-m maxsessions]\n                 [-P port]"
-	    " [-p port] [-q queue] [-R address] [-t timeout]\n", __progname);
+	    " [-p port] [-q queue] [-R address] [-T tag]\n"
+            "                 [-t timeout]\n", __progname);
 	exit(1);
 }

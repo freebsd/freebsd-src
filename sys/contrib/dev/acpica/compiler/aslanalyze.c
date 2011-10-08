@@ -483,3 +483,56 @@ ApCheckForGpeNameConflict (
 
     return;
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApCheckRegMethod
+ *
+ * PARAMETERS:  Op                  - Current parse op
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Ensure that a _REG method has a corresponding Operation
+ *              Region declaration within the same scope. Note: _REG is defined
+ *              to have two arguments and must therefore be defined as a
+ *              control method.
+ *
+ ******************************************************************************/
+
+void
+ApCheckRegMethod (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *Next;
+    ACPI_PARSE_OBJECT       *Parent;
+
+
+    /* We are only interested in _REG methods */
+
+    if (!ACPI_COMPARE_NAME (METHOD_NAME__REG, &Op->Asl.NameSeg))
+    {
+        return;
+    }
+
+    /* Get the start of the current scope */
+
+    Parent = Op->Asl.Parent;
+    Next = Parent->Asl.Child;
+
+    /* Search entire scope for an operation region declaration */
+
+    while (Next)
+    {
+        if (Next->Asl.ParseOpcode == PARSEOP_OPERATIONREGION)
+        {
+            return; /* Found region, OK */
+        }
+
+        Next = Next->Asl.Next;
+    }
+
+    /* No region found, issue warning */
+
+    AslError (ASL_WARNING, ASL_MSG_NO_REGION, Op, NULL);
+}

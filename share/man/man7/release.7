@@ -37,11 +37,12 @@ full releases of the
 .Fx
 operating system.
 All of the tools necessary to build a release are available from the
-CVS repository in
+.Fx
+source code repository in
 .Pa src/release .
 A complete release can actually be built with only a single command,
 including the creation of ISO images suitable for burning to CD-ROM,
-installation floppies, and an FTP install directory.
+memory stick images, and an FTP install directory.
 This command is aptly named
 .Dq Li "make release" .
 .Pp
@@ -64,7 +65,9 @@ and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" .
+.Dq Li "make buildworld" 
+and
+.Dq Li "make buildkernel" .
 This is necessary to provide the object files for the release or, when
 using
 .Pa generate-release.sh ,
@@ -153,17 +156,17 @@ The release makefile
 is fairly abstruse.
 Most developers will only be concerned with the
 .Cm release
-target.
+and
+.Cm install
+targets.
 .\" XXX: Some sort of introduction to this list?  All the others have one.
 .Bl -tag -width ".Cm packagesystem"
 .It Cm release
 Meta-target to build all release media and distributions applicable to this
-platform. All output goes to
-.Pa ${.OBJDIR} ,
-which will likely be either
-.Pa src/release
-or the equivalent path in
-.Pa /usr/obj .
+platform.
+.It Cm install
+Copy all produced release media to 
+.Pa ${DESTDIR} .
 .It Cm cdrom
 Builds installation CD-ROM images. On some systems, this may require that
 .Xr mkisofs 8
@@ -173,8 +176,10 @@ and possibly that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module). This target
-produces a file called
+produces files called
 .Pa release.iso
+and
+.Pa bootonly.iso
 as its output.
 .It Cm memstick
 Builds an installation memory stick image named
@@ -291,14 +296,15 @@ The following sequence of commands can be used to build a
 cd /usr
 svn co svn://svn.freebsd.org/base/head src
 cd src
-make buildworld
+make buildworld buildkernel
 cd release
-make obj release 
+make release
+make install DESTDIR=/var/freebsd-snapshot
 .Ed
 .Pp
-After running these commands, a complete system suitable for FTP or
-CD-ROM distribution is available in the
-.Pa /usr/obj/usr/src/release
+After running these commands, all produced distribution files (tarballs
+for FTP, CD-ROM images, etc.) are available in the
+.Pa /var/freebsd-snapshot
 directory.
 .Pp
 The following sequence of commands can be used to build a

@@ -634,14 +634,13 @@ pcn_attach(dev)
 	ifp->if_snd.ifq_maxlen = PCN_TX_LIST_CNT - 1;
 
 	/*
-	 * Do MII setup.  Note that loopback support isn't implemented.
+	 * Do MII setup.
 	 * See the comment in pcn_miibus_readreg() for why we can't
 	 * universally pass MIIF_NOISOLATE here.
 	 */
 	sc->pcn_extphyaddr = -1;
 	error = mii_attach(dev, &sc->pcn_miibus, ifp, pcn_ifmedia_upd,
-	   pcn_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
-	   MIIF_NOLOOP);
+	   pcn_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;

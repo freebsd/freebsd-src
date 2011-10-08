@@ -17,9 +17,11 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "clang/Basic/AttrKinds.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/VersionTuple.h"
 #include <cassert>
 #include <cstring>
 #include <algorithm>
@@ -118,6 +120,19 @@ public:
     return A->getKind() <= attr::LAST_INHERITABLE;
   }
   static bool classof(const InheritableAttr *) { return true; }
+};
+
+class InheritableParamAttr : public InheritableAttr {
+protected:
+  InheritableParamAttr(attr::Kind AK, SourceLocation L)
+    : InheritableAttr(AK, L) {}
+
+public:
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Attr *A) {
+    return A->getKind() <= attr::LAST_INHERITABLE_PARAM;
+  }
+  static bool classof(const InheritableParamAttr *) { return true; }
 };
 
 #include "clang/AST/Attrs.inc"

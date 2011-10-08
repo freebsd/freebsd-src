@@ -27,7 +27,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Mutex.h"
 #include <string>
-#include <vector>
 
 namespace llvm {
 
@@ -143,7 +142,7 @@ void JITDebugRegisterer::RegisterFunction(const Function *F, DebugInfo &I) {
 
   // Add a mapping from F to the entry and buffer, so we can delete this
   // info later.
-  FnMap[F] = std::make_pair<std::string, jit_code_entry*>(Buffer, JITCodeEntry);
+  FnMap[F] = std::make_pair(Buffer, JITCodeEntry);
 
   // Acquire the lock and do the registration.
   {

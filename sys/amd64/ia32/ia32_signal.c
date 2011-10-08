@@ -300,6 +300,109 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
+
+#ifdef COMPAT_43
+static void
+ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
+{
+	struct ia32_sigframe3 sf, *fp;
+	struct proc *p;
+	struct thread *td;
+	struct sigacts *psp;
+	struct trapframe *regs;
+	int sig;
+	int oonstack;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+	regs = td->td_frame;
+	oonstack = sigonstack(regs->tf_rsp);
+
+	/* Allocate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		fp = (struct ia32_sigframe3 *)(td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(sf));
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+	} else
+		fp = (struct ia32_sigframe3 *)regs->tf_rsp - 1;
+
+	/* Translate the signal if appropriate. */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+
+	/* Build the argument list for the signal handler. */
+	sf.sf_signum = sig;
+	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
+		/* Signal handler installed with SA_SIGINFO. */
+		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
+		sf.sf_siginfo.si_signo = sig;
+		sf.sf_siginfo.si_code = ksi->ksi_code;
+		sf.sf_ah = (uintptr_t)catcher;
+	} else {
+		/* Old FreeBSD-style arguments. */
+		sf.sf_arg2 = ksi->ksi_code;
+		sf.sf_addr = (register_t)ksi->ksi_addr;
+		sf.sf_ah = (uintptr_t)catcher;
+	}
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(p);
+
+	/* Save most if not all of trap frame. */
+	sf.sf_siginfo.si_sc.sc_eax = regs->tf_rax;
+	sf.sf_siginfo.si_sc.sc_ebx = regs->tf_rbx;
+	sf.sf_siginfo.si_sc.sc_ecx = regs->tf_rcx;
+	sf.sf_siginfo.si_sc.sc_edx = regs->tf_rdx;
+	sf.sf_siginfo.si_sc.sc_esi = regs->tf_rsi;
+	sf.sf_siginfo.si_sc.sc_edi = regs->tf_rdi;
+	sf.sf_siginfo.si_sc.sc_cs = regs->tf_cs;
+	sf.sf_siginfo.si_sc.sc_ds = regs->tf_ds;
+	sf.sf_siginfo.si_sc.sc_ss = regs->tf_ss;
+	sf.sf_siginfo.si_sc.sc_es = regs->tf_es;
+	sf.sf_siginfo.si_sc.sc_fs = regs->tf_fs;
+	sf.sf_siginfo.si_sc.sc_gs = regs->tf_gs;
+	sf.sf_siginfo.si_sc.sc_isp = regs->tf_rsp;
+
+	/* Build the signal context to be used by osigreturn(). */
+	sf.sf_siginfo.si_sc.sc_onstack = (oonstack) ? 1 : 0;
+	SIG2OSIG(*mask, sf.sf_siginfo.si_sc.sc_mask);
+	sf.sf_siginfo.si_sc.sc_esp = regs->tf_rsp;
+	sf.sf_siginfo.si_sc.sc_ebp = regs->tf_rbp;
+	sf.sf_siginfo.si_sc.sc_eip = regs->tf_rip;
+	sf.sf_siginfo.si_sc.sc_eflags = regs->tf_rflags;
+	sf.sf_siginfo.si_sc.sc_trapno = regs->tf_trapno;
+	sf.sf_siginfo.si_sc.sc_err = regs->tf_err;
+
+	/*
+	 * Copy the sigframe out to the user's stack.
+	 */
+	if (copyout(&sf, fp, sizeof(*fp)) != 0) {
+#ifdef DEBUG
+		printf("process %ld has trashed its stack\n", (long)p->p_pid);
+#endif
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
+
+	regs->tf_rsp = (uintptr_t)fp;
+	regs->tf_rip = p->p_sysent->sv_psstrings - sz_ia32_osigcode;
+	regs->tf_rflags &= ~(PSL_T | PSL_D);
+	regs->tf_cs = _ucode32sel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
+	regs->tf_ss = _udatasel;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
+}
+#endif
+
 #ifdef COMPAT_FREEBSD4
 static void
 freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
@@ -441,6 +544,12 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		return;
 	}
 #endif
+#ifdef COMPAT_43
+	if (SIGISMEMBER(psp->ps_osigset, sig)) {
+		ia32_osendsig(catcher, ksi, mask);
+		return;
+	}
+#endif
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
@@ -547,6 +656,64 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
+
+#ifdef COMPAT_43
+int
+ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
+{
+	struct ia32_sigcontext3 sc, *scp;
+	struct trapframe *regs;
+	int eflags, error;
+	ksiginfo_t ksi;
+
+	regs = td->td_frame;
+	error = copyin(uap->sigcntxp, &sc, sizeof(sc));
+	if (error != 0)
+		return (error);
+	scp = &sc;
+	eflags = scp->sc_eflags;
+	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+		return (EINVAL);
+	}
+	if (!CS_SECURE(scp->sc_cs)) {
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)regs->tf_rip;
+		trapsignal(td, &ksi);
+		return (EINVAL);
+	}
+	regs->tf_ds = scp->sc_ds;
+	regs->tf_es = scp->sc_es;
+	regs->tf_fs = scp->sc_fs;
+	regs->tf_gs = scp->sc_gs;
+
+	regs->tf_rax = scp->sc_eax;
+	regs->tf_rbx = scp->sc_ebx;
+	regs->tf_rcx = scp->sc_ecx;
+	regs->tf_rdx = scp->sc_edx;
+	regs->tf_rsi = scp->sc_esi;
+	regs->tf_rdi = scp->sc_edi;
+	regs->tf_cs = scp->sc_cs;
+	regs->tf_ss = scp->sc_ss;
+	regs->tf_rbp = scp->sc_ebp;
+	regs->tf_rsp = scp->sc_esp;
+	regs->tf_rip = scp->sc_eip;
+	regs->tf_rflags = eflags;
+
+	if (scp->sc_onstack & 1)
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
+
+	kern_sigprocmask(td, SIG_SETMASK, (sigset_t *)&scp->sc_mask, NULL,
+	    SIGPROCMASK_OLD);
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+	return (EJUSTRETURN);
+}
+#endif
+
 #ifdef COMPAT_FREEBSD4
 /*
  * MPSAFE
@@ -734,6 +901,9 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 		user_ldt_free(td);
 	else
 		mtx_unlock(&dt_lock);
+#ifdef COMPAT_43
+	setup_lcall_gate();
+#endif
 
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;

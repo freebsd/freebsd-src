@@ -91,18 +91,18 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
 						idesc->id_number);
-                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+				pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
 					pathbuf);
-                        	if (reply("ADJUST LENGTH") == 1) {
+				if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP_SET(dp, di_size,
+					DIP_SET(dp, di_size,
 					    i * sblock.fs_bsize);
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-                                	inodirty();
-					
-                        	}
+					inodirty();
+
+				}
 			}
 			continue;
 		}
@@ -130,19 +130,19 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
 						idesc->id_number);
-                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+				pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
 					pathbuf);
-                        	if (reply("ADJUST LENGTH") == 1) {
+				if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP_SET(dp, di_size,
+					DIP_SET(dp, di_size,
 					    DIP(dp, di_size) - remsize);
 					remsize = 0;
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-                                	inodirty();
+					inodirty();
 					break;
-                        	}
+				}
 			}
 		}
 		remsize -= sizepb;
@@ -209,20 +209,20 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize)
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
 						idesc->id_number);
-                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+				pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
 					pathbuf);
-                        	if (reply("ADJUST LENGTH") == 1) {
+				if (reply("ADJUST LENGTH") == 1) {
 					dp = ginode(idesc->id_number);
-                                	DIP_SET(dp, di_size,
+					DIP_SET(dp, di_size,
 					    DIP(dp, di_size) - isize);
 					isize = 0;
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-                                	inodirty();
+					inodirty();
 					bp->b_flags &= ~B_INUSE;
 					return(STOP);
-                        	}
+				}
 			}
 		}
 		isize -= sizepb;

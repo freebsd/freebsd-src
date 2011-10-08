@@ -818,6 +818,7 @@ public:
   APInt usub_ov(const APInt &RHS, bool &Overflow) const;
   APInt sdiv_ov(const APInt &RHS, bool &Overflow) const;
   APInt smul_ov(const APInt &RHS, bool &Overflow) const;
+  APInt umul_ov(const APInt &RHS, bool &Overflow) const;
   APInt sshl_ov(unsigned Amt, bool &Overflow) const;
 
   /// @returns the bit value at bitPosition
@@ -1240,18 +1241,19 @@ public:
 
   /// toString - Converts an APInt to a string and append it to Str.  Str is
   /// commonly a SmallString.
-  void toString(SmallVectorImpl<char> &Str, unsigned Radix, bool Signed) const;
+  void toString(SmallVectorImpl<char> &Str, unsigned Radix, bool Signed,
+                bool formatAsCLiteral = false) const;
 
   /// Considers the APInt to be unsigned and converts it into a string in the
   /// radix given. The radix can be 2, 8, 10 or 16.
   void toStringUnsigned(SmallVectorImpl<char> &Str, unsigned Radix = 10) const {
-    toString(Str, Radix, false);
+    toString(Str, Radix, false, false);
   }
 
   /// Considers the APInt to be signed and converts it into a string in the
   /// radix given. The radix can be 2, 8, 10 or 16.
   void toStringSigned(SmallVectorImpl<char> &Str, unsigned Radix = 10) const {
-    toString(Str, Radix, true);
+    toString(Str, Radix, true, false);
   }
 
   /// toString - This returns the APInt as a std::string.  Note that this is an
@@ -1372,7 +1374,7 @@ public:
 
   /// Calculate the magic number for unsigned division by a constant.
   struct mu;
-  mu magicu() const;
+  mu magicu(unsigned LeadingZeros = 0) const;
 
   /// @}
   /// @name Building-block Operations for APInt and APFloat

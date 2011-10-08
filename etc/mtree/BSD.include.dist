@@ -84,7 +84,7 @@
         ..
     ..
     clang
-        2.9
+        3.0
         ..
     ..
     crypto
@@ -95,6 +95,8 @@
         an
         ..
         bktr
+        ..
+        ciss
         ..
         firewire
         ..
@@ -135,6 +137,10 @@
         vkbd
         ..
         wi
+        ..
+    ..
+    edit
+        readline
         ..
     ..
     fs
@@ -189,6 +195,8 @@
         multipath
         ..
         nop
+        ..
+        raid
         ..
         raid3
         ..
@@ -276,8 +284,6 @@
     nfsclient
     ..
     nfsserver
-    ..
-    objc
     ..
     openssl
     ..

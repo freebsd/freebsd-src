@@ -6,7 +6,7 @@ FILES=	999.local
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ACCT} != "no"
+.if ${MK_UTMPX} != "no"
 FILES+=	200.accounting
 .endif
 

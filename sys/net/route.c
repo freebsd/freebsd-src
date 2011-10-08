@@ -116,12 +116,6 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
-#if 0
-/* default fib for tunnels to use */
-u_int tunnel_fib = 0;
-SYSCTL_INT(_net, OID_AUTO, tunnelfib, CTLFLAG_RD, &tunnel_fib, 0, "");
-#endif
-
 /*
  * handler for net.my_fibnum
  */
@@ -266,7 +260,7 @@ struct setfib_args {
 };
 #endif
 int
-setfib(struct thread *td, struct setfib_args *uap)
+sys_setfib(struct thread *td, struct setfib_args *uap)
 {
 	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
 		return EINVAL;
@@ -390,7 +384,7 @@ miss:
 		 */
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_DST] = dst;
-		rt_missmsg(msgtype, &info, 0, err);
+		rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
 	}	
 done:
 	if (newrt)
@@ -615,7 +609,7 @@ out:
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_NETMASK] = netmask;
 	info.rti_info[RTAX_AUTHOR] = src;
-	rt_missmsg(RTM_REDIRECT, &info, flags, error);
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
 	if (ifa != NULL)
 		ifa_free(ifa);
 }
@@ -1189,6 +1183,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt0 = NULL;
 		/* XXX
 		 * "flow-table" only support IPv4 at the moment.
+		 * XXX-BZ as of r205066 it would support IPv6.
 		 */
 #ifdef INET
 		if (dst->sa_family == AF_INET) {
@@ -1483,7 +1478,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 */
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_ifa = ifa;
-		info.rti_flags = flags | ifa->ifa_flags;
+		info.rti_flags = flags | (ifa->ifa_flags & ~IFA_RTSELF);
 		info.rti_info[RTAX_DST] = dst;
 		/* 
 		 * doing this for compatibility reasons
@@ -1527,7 +1522,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			}
 			RT_ADDREF(rt);
 			RT_UNLOCK(rt);
-			rt_newaddrmsg(cmd, ifa, error, rt);
+			rt_newaddrmsg_fib(cmd, ifa, error, rt, fibnum);
 			RT_LOCK(rt);
 			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {

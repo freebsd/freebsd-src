@@ -18,7 +18,7 @@
 #ifndef IN_1_SRV_33_H
 #define IN_1_SRV_33_H 1
 
-/* $Id: srv_33.h,v 1.19 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: srv_33.h,v 1.19 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 

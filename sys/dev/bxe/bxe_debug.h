@@ -41,21 +41,22 @@ extern uint32_t bxe_debug;
  * Debugging macros and definitions.
  */
 
-#define	BXE_CP_LOAD		0x00000001
-#define	BXE_CP_SEND		0x00000002
-#define	BXE_CP_RECV		0x00000004
-#define	BXE_CP_INTR		0x00000008
-#define	BXE_CP_UNLOAD		0x00000010
-#define	BXE_CP_RESET		0x00000020
-#define	BXE_CP_IOCTL		0x00000040
-#define	BXE_CP_STATS		0x00000080
-#define	BXE_CP_MISC		0x00000100
-#define	BXE_CP_PHY		0x00000200
-#define	BXE_CP_RAMROD		0x00000400
-#define	BXE_CP_NVRAM		0x00000800
-#define	BXE_CP_REGS		0x00001000
-#define	BXE_CP_ALL		0x00FFFFFF
-#define	BXE_CP_MASK		0x00FFFFFF
+#define	BXE_CP_LOAD			0x00000001
+#define	BXE_CP_SEND			0x00000002
+#define	BXE_CP_RECV			0x00000004
+#define	BXE_CP_INTR			0x00000008
+#define	BXE_CP_UNLOAD			0x00000010
+#define	BXE_CP_RESET			0x00000020
+#define	BXE_CP_IOCTL			0x00000040
+#define	BXE_CP_STATS			0x00000080
+#define	BXE_CP_MISC			0x00000100
+#define	BXE_CP_PHY			0x00000200
+#define	BXE_CP_RAMROD			0x00000400
+#define	BXE_CP_NVRAM			0x00000800
+#define	BXE_CP_REGS			0x00001000
+#define	BXE_CP_TPA			0x00002000
+#define	BXE_CP_ALL			0x00FFFFFF
+#define	BXE_CP_MASK			0x00FFFFFF
 
 #define BXE_LEVEL_FATAL			0x00000000
 #define BXE_LEVEL_WARN			0x01000000
@@ -144,12 +145,18 @@ extern uint32_t bxe_debug;
 #define BXE_EXTREME_REGS		(BXE_CP_REGS | BXE_LEVEL_EXTREME)
 #define BXE_INSANE_REGS			(BXE_CP_REGS | BXE_LEVEL_INSANE)
 
-#define BXE_FATAL				(BXE_CP_ALL | BXE_LEVEL_FATAL)
-#define BXE_WARN				(BXE_CP_ALL | BXE_LEVEL_WARN)
-#define BXE_INFO				(BXE_CP_ALL | BXE_LEVEL_INFO)
-#define BXE_VERBOSE				(BXE_CP_ALL | BXE_LEVEL_VERBOSE)
-#define BXE_EXTREME				(BXE_CP_ALL | BXE_LEVEL_EXTREME)
-#define BXE_INSANE				(BXE_CP_ALL | BXE_LEVEL_INSANE)
+#define BXE_WARN_TPA			(BXE_CP_TPA | BXE_LEVEL_WARN)
+#define BXE_INFO_TPA			(BXE_CP_TPA | BXE_LEVEL_INFO)
+#define BXE_VERBOSE_TPA			(BXE_CP_TPA | BXE_LEVEL_VERBOSE)
+#define BXE_EXTREME_TPA			(BXE_CP_TPA | BXE_LEVEL_EXTREME)
+#define BXE_INSANE_TPA			(BXE_CP_TPA | BXE_LEVEL_INSANE)
+
+#define BXE_FATAL			(BXE_CP_ALL | BXE_LEVEL_FATAL)
+#define BXE_WARN			(BXE_CP_ALL | BXE_LEVEL_WARN)
+#define BXE_INFO			(BXE_CP_ALL | BXE_LEVEL_INFO)
+#define BXE_VERBOSE			(BXE_CP_ALL | BXE_LEVEL_VERBOSE)
+#define BXE_EXTREME			(BXE_CP_ALL | BXE_LEVEL_EXTREME)
+#define BXE_INSANE			(BXE_CP_ALL | BXE_LEVEL_INSANE)
 
 #define BXE_CODE_PATH(cp)		((cp & BXE_CP_MASK) & bxe_debug)
 #define BXE_MSG_LEVEL(lv)		((lv & BXE_LEVEL_MASK) <= (bxe_debug & BXE_LEVEL_MASK))
@@ -159,50 +166,50 @@ extern uint32_t bxe_debug;
 #ifdef BXE_DEBUG
 
 /* Print a message based on the logging level and code path. */
-#define DBPRINT(sc, level, format, args...)					\
-	do {													\
-		if (BXE_LOG_MSG(level)) {							\
-			device_printf(sc->bxe_dev, format, ## args);	\
-		}													\
+#define DBPRINT(sc, level, format, args...)				\
+	do {								\
+		if (BXE_LOG_MSG(level)) {				\
+			device_printf(sc->dev, format, ## args);	\
+		}							\
 	} while (0)
 
 /* Runs a particular command when debugging is enabled. */
-#define DBRUN(args...)			\
-	do {						\
-		args;					\
+#define DBRUN(args...)							\
+	do {								\
+		args;							\
 	} while (0)
 
 /* Runs a particular command based on the logging level. */
-#define DBRUNLV(level, args...) \
-	if (BXE_MSG_LEVEL(level)) { \
-		args; 					\
+#define DBRUNLV(level, args...) 					\
+	if (BXE_MSG_LEVEL(level)) { 					\
+		args; 							\
 	}
 
 /* Runs a particular command based on the code path. */
-#define DBRUNCP(cp, args...) 	\
-	if (BXE_CODE_PATH(cp)) { 	\
-		args; 					\
+#define DBRUNCP(cp, args...) 						\
+	if (BXE_CODE_PATH(cp)) { 					\
+		args; 							\
 	}
 
 /* Runs a particular command based on a condition. */
-#define DBRUNIF(cond, args...)	\
-	if (cond) {					\
-		args;					\
+#define DBRUNIF(cond, args...)						\
+	if (cond) {							\
+		args;							\
 	}
 
 /* Runs a particular command based on the logging level and code path. */
-#define DBRUNMSG(msg, args...)	\
-	if (BXE_LOG_MSG(msg)) {		\
-		args;					\
+#define DBRUNMSG(msg, args...)						\
+	if (BXE_LOG_MSG(msg)) {						\
+		args;							\
 	}
 
 /* Announces function entry. */
-#define DBENTER(cond)	\
-	DBPRINT(sc, (cond), "%s(enter:%d)\n", __FUNCTION__, curcpu) \
+#define DBENTER(cond)							\
+	DBPRINT(sc, (cond), "%s(enter:%d)\n", __FUNCTION__, curcpu)
 
 /* Announces function exit. */
-#define DBEXIT(cond)	\
-	DBPRINT(sc, (cond), "%s(exit:%d)\n", __FUNCTION__, curcpu) \
+#define DBEXIT(cond)							\
+	DBPRINT(sc, (cond), "%s(exit:%d)\n", __FUNCTION__, curcpu)
 
 /* Needed for random() function which is only used in debugging. */
 #include <sys/random.h>
@@ -210,7 +217,7 @@ extern uint32_t bxe_debug;
 /* Returns FALSE in "defects" per 2^31 - 1 calls, otherwise returns TRUE. */
 #define DB_RANDOMFALSE(defects)        (random() > defects)
 #define DB_OR_RANDOMFALSE(defects)  || (random() > defects)
-#define DB_AND_RANDOMFALSE(defects) && (random() > ddfects)
+#define DB_AND_RANDOMFALSE(defects) && (random() > defects)
 
 /* Returns TRUE in "defects" per 2^31 - 1 calls, otherwise returns FALSE. */
 #define DB_RANDOMTRUE(defects)         (random() < defects)

@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/callout.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
@@ -101,11 +100,6 @@ static VNET_DEFINE(int, ipsendredirects) = 1;	/* XXX */
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
-
-VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
-    &VNET_NAME(ip_defttl), 0,
-    "Maximum TTL on IP packets");
 
 static VNET_DEFINE(int, ip_keepfaith);
 #define	V_ip_keepfaith		VNET(ip_keepfaith)
@@ -194,8 +188,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,
     "Maximum number of IPv4 fragments allowed per packet");
 
-struct callout	ipport_tick_callout;
-
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
     &ip_mtu, 0, "Default MTU");
@@ -217,8 +209,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
     &VNET_NAME(ip_output_flowtable_size), 2048,
     "number of entries in the per-cpu output flow caches");
 #endif
-
-VNET_DEFINE(int, fw_one_pass) = 1;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
@@ -354,11 +344,6 @@ ip_init(void)
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 		}
 
-	/* Start ipport_tick. */
-	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
-	callout_reset(&ipport_tick_callout, 1, ipport_tick, NULL);
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
-		SHUTDOWN_PRI_DEFAULT);
 	EVENTHANDLER_REGISTER(nmbclusters_change, ipq_zone_change,
 		NULL, EVENTHANDLER_PRI_ANY);
 
@@ -382,13 +367,6 @@ ip_destroy(void)
 	uma_zdestroy(V_ipq_zone);
 }
 #endif
-
-void
-ip_fini(void *xtp)
-{
-
-	callout_stop(&ipport_tick_callout);
-}
 
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented
@@ -510,7 +488,7 @@ tooshort:
 	}
 #ifdef IPSEC
 	/*
-	 * Bypass packet filtering for packets from a tunnel (gif).
+	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (ip_ipsec_filtertunnel(m))
 		goto passin;

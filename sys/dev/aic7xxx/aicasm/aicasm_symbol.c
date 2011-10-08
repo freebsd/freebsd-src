@@ -43,11 +43,11 @@
  */
 
 #include <sys/types.h>
-
-#ifdef __linux__
-#include "aicdb.h"
-#else
+#include <sys/param.h>
+#ifdef BSD
 #include <db.h>
+#else
+#include <db_185.h>
 #endif
 #include <ctype.h>
 #include <fcntl.h>

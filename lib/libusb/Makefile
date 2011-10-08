@@ -22,7 +22,7 @@ MLINKS+=	libusb.3 usb.3
 
 # libusb 0.1 compat
 INCS+=		usb.h
-SRCS+=		libusb20_compat01.c
+SRCS+=		libusb01.c
 
 # libusb 1.0 compat
 INCS+=		libusb.h
@@ -40,11 +40,13 @@ CFLAGS+=	-DCOMPAT_32BIT
 MLINKS += libusb.3 libusb_init.3
 MLINKS += libusb.3 libusb_exit.3
 MLINKS += libusb.3 libusb_strerror.3
+MLINKS += libusb.3 libusb_error_name.3
 MLINKS += libusb.3 libusb_set_debug.3
 MLINKS += libusb.3 libusb_get_device_list.3
 MLINKS += libusb.3 libusb_free_device_list.3
 MLINKS += libusb.3 libusb_get_bus_number.3
 MLINKS += libusb.3 libusb_get_device_address.3
+MLINKS += libusb.3 libusb_get_device_speed.3
 MLINKS += libusb.3 libusb_get_max_packet_size.3
 MLINKS += libusb.3 libusb_ref_device.3
 MLINKS += libusb.3 libusb_unref_device.3
@@ -184,6 +186,8 @@ MLINKS += libusb20.3 libusb20_dev_get_device_desc.3
 MLINKS += libusb20.3 libusb20_dev_alloc_config.3
 MLINKS += libusb20.3 libusb20_dev_alloc.3
 MLINKS += libusb20.3 libusb20_dev_get_address.3
+MLINKS += libusb20.3 libusb20_dev_get_parent_address.3
+MLINKS += libusb20.3 libusb20_dev_get_parent_port.3
 MLINKS += libusb20.3 libusb20_dev_get_bus_number.3
 MLINKS += libusb20.3 libusb20_dev_get_mode.3
 MLINKS += libusb20.3 libusb20_dev_get_speed.3
@@ -207,3 +211,5 @@ MLINKS += libusb20.3 libusb20_me_get_2.3
 MLINKS += libusb20.3 libusb20_me_encode.3
 MLINKS += libusb20.3 libusb20_me_decode.3
 MLINKS += libusb20.3 libusb20_desc_foreach.3
+MLINKS += libusb20.3 libusb20_strerror.3
+MLINKS += libusb20.3 libusb20_error_name.3

@@ -288,6 +288,12 @@ static const struct usb_config uep_config[UEP_N_TRANSFER] = {
 	},
 };
 
+static const STRUCT_USB_HOST_ID uep_devs[] = {
+	{USB_VPI(USB_VENDOR_EGALAX, USB_PRODUCT_EGALAX_TPANEL, 0)},
+	{USB_VPI(USB_VENDOR_EGALAX, USB_PRODUCT_EGALAX_TPANEL2, 0)},
+	{USB_VPI(USB_VENDOR_EGALAX2, USB_PRODUCT_EGALAX2_TPANEL, 0)},
+};
+
 static int
 uep_probe(device_t dev)
 {
@@ -295,17 +301,12 @@ uep_probe(device_t dev)
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
+	if (uaa->info.bConfigIndex != 0)
+		return (ENXIO);
+	if (uaa->info.bIfaceIndex != 0)
+		return (ENXIO);
 
-	if ((uaa->info.idVendor == USB_VENDOR_EGALAX) &&
-	    ((uaa->info.idProduct == USB_PRODUCT_EGALAX_TPANEL) ||
-	    (uaa->info.idProduct == USB_PRODUCT_EGALAX_TPANEL2)))
-		return (BUS_PROBE_SPECIFIC);
-
-	if ((uaa->info.idVendor == USB_VENDOR_EGALAX2) &&
-	    (uaa->info.idProduct == USB_PRODUCT_EGALAX2_TPANEL))
-		return (BUS_PROBE_SPECIFIC);
-
-	return (ENXIO);
+	return (usbd_lookup_id_by_uaa(uep_devs, sizeof(uep_devs), uaa));
 }
 
 static int

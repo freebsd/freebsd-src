@@ -193,7 +193,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
-	callout_init(&vap->iv_swbmiss, CALLOUT_MPSAFE);
+	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
@@ -896,6 +896,15 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 		return;
 
 	/*
+	 * Clear the wme cap_info field so a qoscount from a previous
+	 * vap doesn't confuse later code which only parses the beacon
+	 * field and updates hardware when said field changes.
+	 * Otherwise the hardware is programmed with defaults, not what
+	 * the beacon actually announces.
+	 */
+	wme->wme_wmeChanParams.cap_info = 0;
+
+	/*
 	 * Select mode; we can be called early in which case we
 	 * always use auto mode.  We know we'll be called when
 	 * entering the RUN state with bsschan setup properly
@@ -1394,7 +1403,7 @@ beacon_miss(void *arg, int npending)
 	struct ieee80211com *ic = arg;
 	struct ieee80211vap *vap;
 
-	/* XXX locking */
+	IEEE80211_LOCK(ic);
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		/*
 		 * We only pass events through for sta vap's in RUN state;
@@ -1406,18 +1415,21 @@ beacon_miss(void *arg, int npending)
 		    vap->iv_bmiss != NULL)
 			vap->iv_bmiss(vap);
 	}
+	IEEE80211_UNLOCK(ic);
 }
 
 static void
 beacon_swmiss(void *arg, int npending)
 {
 	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
 
-	if (vap->iv_state != IEEE80211_S_RUN)
-		return;
-
-	/* XXX Call multiple times if npending > zero? */
-	vap->iv_bmiss(vap);
+	IEEE80211_LOCK(ic);
+	if (vap->iv_state == IEEE80211_S_RUN) {
+		/* XXX Call multiple times if npending > zero? */
+		vap->iv_bmiss(vap);
+	}
+	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -1430,6 +1442,8 @@ ieee80211_swbmiss(void *arg)
 {
 	struct ieee80211vap *vap = arg;
 	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	/* XXX sleep state? */
 	KASSERT(vap->iv_state == IEEE80211_S_RUN,
@@ -1492,6 +1506,11 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	ieee80211_notify_csa(ic, c, mode, count);
 }
 
+/*
+ * Complete the channel switch by transitioning all CSA VAPs to RUN.
+ * This is called by both the completion and cancellation functions
+ * so each VAP is placed back in the RUN state and can thus transmit.
+ */
 static void
 csa_completeswitch(struct ieee80211com *ic)
 {
@@ -1509,15 +1528,27 @@ csa_completeswitch(struct ieee80211com *ic)
  * Complete an 802.11h channel switch started by ieee80211_csa_startswitch.
  * We clear state and move all vap's in CSA state to RUN state
  * so they can again transmit.
+ *
+ * Although this may not be completely correct, update the BSS channel
+ * for each VAP to the newly configured channel. The setcurchan sets
+ * the current operating channel for the interface (so the radio does
+ * switch over) but the VAP BSS isn't updated, leading to incorrectly
+ * reported information via ioctl.
  */
 void
 ieee80211_csa_completeswitch(struct ieee80211com *ic)
 {
+	struct ieee80211vap *vap;
+
 	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT(ic->ic_flags & IEEE80211_F_CSAPENDING, ("csa not pending"));
 
 	ieee80211_setcurchan(ic, ic->ic_csa_newchan);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_state == IEEE80211_S_CSA)
+			vap->iv_bss->ni_chan = ic->ic_curchan;
+
 	csa_completeswitch(ic);
 }
 

@@ -18,3 +18,5 @@ device		uart_ns8250
 options 	GEOM_PART_BSD
 options 	GEOM_PART_GPT
 options 	GEOM_PART_MBR
+
+options 	NEW_PCIB

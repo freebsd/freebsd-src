@@ -260,12 +260,12 @@ bool MachineCSE::isCSECandidate(MachineInstr *MI) {
     return false;
 
   // Ignore stuff that we obviously can't move.
-  const TargetInstrDesc &TID = MI->getDesc();  
-  if (TID.mayStore() || TID.isCall() || TID.isTerminator() ||
+  const MCInstrDesc &MCID = MI->getDesc();  
+  if (MCID.mayStore() || MCID.isCall() || MCID.isTerminator() ||
       MI->hasUnmodeledSideEffects())
     return false;
 
-  if (TID.mayLoad()) {
+  if (MCID.mayLoad()) {
     // Okay, this instruction does a load. As a refinement, we allow the target
     // to decide whether the loaded value is actually a constant. If so, we can
     // actually use it as a load.
@@ -365,6 +365,8 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     if (!FoundCSE) {
       // Look for trivial copy coalescing opportunities.
       if (PerformTrivialCoalescing(MI, MBB)) {
+        Changed = true;
+
         // After coalescing MI itself may become a copy.
         if (MI->isCopyLike())
           continue;
@@ -379,10 +381,11 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       if (NewMI) {
         Commuted = true;
         FoundCSE = VNT.count(NewMI);
-        if (NewMI != MI)
+        if (NewMI != MI) {
           // New instruction. It doesn't need to be kept.
           NewMI->eraseFromParent();
-        else if (!FoundCSE)
+          Changed = true;
+        } else if (!FoundCSE)
           // MI was changed but it didn't help, commute it back!
           (void)TII->commuteInstruction(MI);
       }
@@ -450,6 +453,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         ++NumPhysCSEs;
       if (Commuted)
         ++NumCommutes;
+      Changed = true;
     } else {
       DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
       VNT.insert(MI, CurrVN++);

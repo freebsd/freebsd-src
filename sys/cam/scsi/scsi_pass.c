@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/devicestat.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -70,12 +71,14 @@ typedef enum {
 #define ccb_bp		ppriv_ptr1
 
 struct pass_softc {
-	pass_state		state;
-	pass_flags		flags;
-	u_int8_t		pd_type;
-	union ccb		saved_ccb;
-	struct devstat		*device_stats;
-	struct cdev *dev;
+	pass_state	 state;
+	pass_flags	 flags;
+	u_int8_t	 pd_type;
+	union ccb	 saved_ccb;
+	struct devstat	*device_stats;
+	struct cdev	*dev;
+	struct cdev	*alias_dev;
+	struct task	 add_physpath_task;
 };
 
 
@@ -88,6 +91,7 @@ static	periph_ctor_t	passregister;
 static	periph_oninv_t	passoninvalidate;
 static	periph_dtor_t	passcleanup;
 static	periph_start_t	passstart;
+static void		pass_add_physpath(void *context, int pending);
 static	void		passasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
 static	void		passdone(struct cam_periph *periph, 
@@ -168,14 +172,42 @@ passcleanup(struct cam_periph *periph)
 	if (bootverbose)
 		xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
+
 	cam_periph_unlock(periph);
+	taskqueue_drain(taskqueue_thread, &softc->add_physpath_task);
+
 	/*
 	 * passcleanup() is indirectly a d_close method via passclose,
 	 * so using destroy_dev(9) directly can result in deadlock.
 	 */
 	destroy_dev_sched(softc->dev);
 	cam_periph_lock(periph);
+
 	free(softc, M_DEVBUF);
+}
+
+static void
+pass_add_physpath(void *context, int pending)
+{
+	struct cam_periph *periph;
+	struct pass_softc *softc;
+	char *physpath;
+
+	/*
+	 * If we have one, create a devfs alias for our
+	 * physical path.
+	 */
+	periph = context;
+	softc = periph->softc;
+	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
+	if (xpt_getattr(physpath, MAXPATHLEN,
+			"GEOM::physpath", periph->path) == 0
+	 && strlen(physpath) != 0) {
+
+		make_dev_physpath_alias(MAKEDEV_WAITOK, &softc->alias_dev,
+					softc->dev, softc->alias_dev, physpath);
+	}
+	free(physpath, M_DEVBUF);
 }
 
 static void
@@ -219,6 +251,20 @@ passasync(void *callback_arg, u_int32_t code,
 
 		break;
 	}
+	case AC_ADVINFO_CHANGED:
+	{
+		uintptr_t buftype;
+
+		buftype = (uintptr_t)arg;
+		if (buftype == CDAI_TYPE_PHYS_PATH) {
+			struct pass_softc *softc;
+
+			softc = (struct pass_softc *)periph->softc;
+			taskqueue_enqueue(taskqueue_thread,
+					  &softc->add_physpath_task);
+		}
+		break;
+	}
 	default:
 		cam_periph_async(periph, code, path, arg);
 		break;
@@ -230,6 +276,7 @@ passregister(struct cam_periph *periph, void *arg)
 {
 	struct pass_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -254,9 +301,19 @@ passregister(struct cam_periph *periph, void *arg)
 
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
-	softc->pd_type = SID_TYPE(&cgd->inq_data);
+	if (cgd->protocol == PROTO_SCSI || cgd->protocol == PROTO_ATAPI)
+		softc->pd_type = SID_TYPE(&cgd->inq_data);
+	else if (cgd->protocol == PROTO_SATAPM)
+		softc->pd_type = T_ENCLOSURE;
+	else
+		softc->pd_type = T_DIRECT;
 
 	periph->softc = softc;
+
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
 
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
@@ -270,7 +327,7 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
-			  DEVSTAT_TYPE_IF_SCSI |
+			  XPORT_DEVSTAT_TYPE(cpi.transport) |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
 
@@ -281,11 +338,22 @@ passregister(struct cam_periph *periph, void *arg)
 	mtx_lock(periph->sim->mtx);
 	softc->dev->si_drv1 = periph;
 
+	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
+		  pass_add_physpath, periph);
+
 	/*
-	 * Add an async callback so that we get
-	 * notified if this device goes away.
+	 * See if physical path information is already available.
 	 */
-	xpt_register_async(AC_LOST_DEVICE, passasync, periph, periph->path);
+	taskqueue_enqueue(taskqueue_thread, &softc->add_physpath_task);
+
+	/*
+	 * Add an async callback so that we get notified if
+	 * this device goes away or its physical path
+	 * (stored in the advanced info data of the EDT) has
+	 * changed.
+	 */
+	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
+			   passasync, periph, periph->path);
 
 	if (bootverbose)
 		xpt_announce_periph(periph, NULL);
@@ -537,8 +605,8 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
 	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH)
 	  || (ccb->ccb_h.func_code == XPT_SMP_IO)
-	  || ((ccb->ccb_h.func_code == XPT_GDEV_ADVINFO)
-	   && (ccb->cgdai.bufsiz > 0)))) {
+	  || ((ccb->ccb_h.func_code == XPT_DEV_ADVINFO)
+	   && (ccb->cdai.bufsiz > 0)))) {
 
 		bzero(&mapinfo, sizeof(mapinfo));
 

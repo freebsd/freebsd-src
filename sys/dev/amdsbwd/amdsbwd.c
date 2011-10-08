@@ -25,8 +25,8 @@
  */
 
 /*
- * This is a driver for watchdog timer present in AMD SB600/SB7xx
- * south bridges and other watchdog timers advertised via WDRT ACPI table.
+ * This is a driver for watchdog timer present in AMD SB600/SB7xx/SB8xx
+ * southbridges.
  * Please see the following specifications for the descriptions of the
  * registers and flags:
  * - AMD SB600 Register Reference Guide, Public Version,  Rev. 3.03 (SB600 RRG)
@@ -35,11 +35,13 @@
  *   http://developer.amd.com/assets/43009_sb7xx_rrg_pub_1.00.pdf
  * - AMD SB700/710/750 Register Programming Requirements (RPR)
  *   http://developer.amd.com/assets/42413_sb7xx_rpr_pub_1.00.pdf
+ * - AMD SB800-Series Southbridges Register Reference Guide (RRG)
+ *   http://support.amd.com/us/Embedded_TechDocs/45482.pdf
  * Please see the following for Watchdog Resource Table specification:
  * - Watchdog Timer Hardware Requirements for Windows Server 2003 (WDRT)
  *   http://www.microsoft.com/whdc/system/sysinternals/watchdog.mspx
- * AMD SB600/SB7xx watchdog hardware seems to conform to the above,
- * but my system doesn't provide the table.
+ * AMD SB600/SB7xx/SB8xx watchdog hardware seems to conform to the above
+ * specifications, but the table hasn't been spotted in the wild yet.
  */
 
 #include <sys/cdefs.h>
@@ -59,15 +61,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <isa/isavar.h>
 
-/* RRG 2.3.3.1.1, page 161. */
+/* SB7xx RRG 2.3.3.1.1. */
 #define	AMDSB_PMIO_INDEX		0xcd6
 #define	AMDSB_PMIO_DATA			(PMIO_INDEX + 1)
 #define	AMDSB_PMIO_WIDTH		2
-/* RRG 2.3.3.2, page 181. */
+/* SB7xx RRG 2.3.3.2. */
 #define	AMDSB_PM_RESET_STATUS0		0x44
 #define	AMDSB_PM_RESET_STATUS1		0x45
 #define		AMDSB_WD_RST_STS	0x02
-/* RRG 2.3.3.2, page 188; RPR 2.36, page 30. */
+/* SB7xx RRG 2.3.3.2, RPR 2.36. */
 #define	AMDSB_PM_WDT_CTRL		0x69
 #define		AMDSB_WDT_DISABLE	0x01
 #define		AMDSB_WDT_RES_MASK	(0x02 | 0x04)
@@ -77,7 +79,18 @@ __FBSDID("$FreeBSD$");
 #define		AMDSB_WDT_RES_1S	0x06
 #define	AMDSB_PM_WDT_BASE_LSB		0x6c
 #define	AMDSB_PM_WDT_BASE_MSB		0x6f
-/* RRG 2.3.4, page 223, WDRT. */
+/* SB8xx RRG 2.3.3. */
+#define	AMDSB8_PM_WDT_EN		0x48
+#define		AMDSB8_WDT_DEC_EN	0x01
+#define		AMDSB8_WDT_DISABLE	0x02
+#define	AMDSB8_PM_WDT_CTRL		0x4c
+#define		AMDSB8_WDT_32KHZ	0x00
+#define		AMDSB8_WDT_1HZ		0x03
+#define		AMDSB8_WDT_RES_MASK	0x03
+#define	AMDSB8_PM_RESET_STATUS0		0xC0
+#define	AMDSB8_PM_RESET_STATUS1		0xC1
+#define		AMDSB8_WD_RST_STS	0x20
+/* SB7xx RRG 2.3.4, WDRT. */
 #define	AMDSB_WD_CTRL			0x00
 #define		AMDSB_WD_RUN		0x01
 #define		AMDSB_WD_FIRED		0x02
@@ -90,8 +103,9 @@ __FBSDID("$FreeBSD$");
 #define	AMDSB_WDIO_REG_WIDTH		4
 /* WDRT */
 #define	MAXCOUNT_MIN_VALUE		511
-/* RRG 2.3.1.1, page 122; SB600 RRG 2.3.1.1, page 97. */
-#define	AMDSB7xx_SMBUS_DEVID		0x43851002
+/* SB7xx RRG 2.3.1.1, SB600 RRG 2.3.1.1, SB8xx RRG 2.3.1.  */
+#define	AMDSB_SMBUS_DEVID		0x43851002
+#define	AMDSB8_SMBUS_REVID		0x40
 
 #define	amdsbwd_verbose_printf(dev, ...)	\
 	do {						\
@@ -265,7 +279,7 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	smb_dev = pci_find_bsf(0, 20, 0);
 	if (smb_dev == NULL)
 		return;
-	if (pci_get_devid(smb_dev) != AMDSB7xx_SMBUS_DEVID)
+	if (pci_get_devid(smb_dev) != AMDSB_SMBUS_DEVID)
 		return;
 
 	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", -1);
@@ -273,15 +287,102 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 		device_printf(parent, "add amdsbwd child failed\n");
 }
 
+
+static void
+amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
+{
+	uint32_t	val;
+	int		i;
+
+	/* Report cause of previous reset for user's convenience. */
+	val = pmio_read(pmres, AMDSB_PM_RESET_STATUS0);
+	if (val != 0)
+		amdsbwd_verbose_printf(dev, "ResetStatus0 = %#04x\n", val);
+	val = pmio_read(pmres, AMDSB_PM_RESET_STATUS1);
+	if (val != 0)
+		amdsbwd_verbose_printf(dev, "ResetStatus1 = %#04x\n", val);
+	if ((val & AMDSB_WD_RST_STS) != 0)
+		device_printf(dev, "Previous Reset was caused by Watchdog\n");
+
+	/* Find base address of memory mapped WDT registers. */
+	for (*addr = 0, i = 0; i < 4; i++) {
+		*addr <<= 8;
+		*addr |= pmio_read(pmres, AMDSB_PM_WDT_BASE_MSB - i);
+	}
+	/* Set watchdog timer tick to 1s. */
+	val = pmio_read(pmres, AMDSB_PM_WDT_CTRL);
+	val &= ~AMDSB_WDT_RES_MASK;
+	val |= AMDSB_WDT_RES_10MS;
+	pmio_write(pmres, AMDSB_PM_WDT_CTRL, val);
+
+	/* Enable watchdog device (in stopped state). */
+	val = pmio_read(pmres, AMDSB_PM_WDT_CTRL);
+	val &= ~AMDSB_WDT_DISABLE;
+	pmio_write(pmres, AMDSB_PM_WDT_CTRL, val);
+
+	/*
+	 * XXX TODO: Ensure that watchdog decode is enabled
+	 * (register 0x41, bit 3).
+	 */
+	device_set_desc(dev, "AMD SB600/SB7xx Watchdog Timer");
+}
+
+static void
+amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
+{
+	uint32_t	val;
+	int		i;
+
+	/* Report cause of previous reset for user's convenience. */
+	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS0);
+	if (val != 0)
+		amdsbwd_verbose_printf(dev, "ResetStatus0 = %#04x\n", val);
+	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS1);
+	if (val != 0)
+		amdsbwd_verbose_printf(dev, "ResetStatus1 = %#04x\n", val);
+	if ((val & AMDSB8_WD_RST_STS) != 0)
+		device_printf(dev, "Previous Reset was caused by Watchdog\n");
+
+	/* Find base address of memory mapped WDT registers. */
+	for (*addr = 0, i = 0; i < 4; i++) {
+		*addr <<= 8;
+		*addr |= pmio_read(pmres, AMDSB8_PM_WDT_EN + 3 - i);
+	}
+	*addr &= ~0x07u;
+
+	/* Set watchdog timer tick to 1s. */
+	val = pmio_read(pmres, AMDSB8_PM_WDT_CTRL);
+	val &= ~AMDSB8_WDT_RES_MASK;
+	val |= AMDSB8_WDT_1HZ;
+	pmio_write(pmres, AMDSB8_PM_WDT_CTRL, val);
+#ifdef AMDSBWD_DEBUG
+	val = pmio_read(pmres, AMDSB8_PM_WDT_CTRL);
+	amdsbwd_verbose_printf(dev, "AMDSB8_PM_WDT_CTRL value = %#02x\n", val);
+#endif
+
+	/*
+	 * Enable watchdog device (in stopped state)
+	 * and decoding of its address.
+	 */
+	val = pmio_read(pmres, AMDSB8_PM_WDT_EN);
+	val &= ~AMDSB8_WDT_DISABLE;
+	val |= AMDSB8_WDT_DEC_EN;
+	pmio_write(pmres, AMDSB8_PM_WDT_EN, val);
+#ifdef AMDSBWD_DEBUG
+	val = pmio_read(pmres, AMDSB8_PM_WDT_EN);
+	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#02x\n", val);
+#endif
+	device_set_desc(dev, "AMD SB8xx Watchdog Timer");
+}
+
 static int
 amdsbwd_probe(device_t dev)
 {
 	struct resource		*res;
+	device_t		smb_dev;
 	uint32_t		addr;
-	uint32_t		val;
 	int			rid;
 	int			rc;
-	int			i;
 
 	/* Do not claim some ISA PnP device by accident. */
 	if (isa_get_logicalid(dev) != 0)
@@ -301,21 +402,16 @@ amdsbwd_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Report cause of previous reset for user's convenience. */
-	val = pmio_read(res, AMDSB_PM_RESET_STATUS0);
-	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus0 = %#04x\n", val);
-	val = pmio_read(res, AMDSB_PM_RESET_STATUS1);
-	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus1 = %#04x\n", val);
-	if ((val & AMDSB_WD_RST_STS) != 0)
-		device_printf(dev, "Previous Reset was caused by Watchdog\n");
+	smb_dev = pci_find_bsf(0, 20, 0);
+	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
+	if (pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
+		amdsbwd_probe_sb7xx(dev, res, &addr);
+	else
+		amdsbwd_probe_sb8xx(dev, res, &addr);
 
-	/* Find base address of memory mapped WDT registers. */
-	for (addr = 0, i = 0; i < 4; i++) {
-		addr <<= 8;
-		addr |= pmio_read(res, AMDSB_PM_WDT_BASE_MSB - i);
-	}
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
+
 	amdsbwd_verbose_printf(dev, "memory base address = %#010x\n", addr);
 	rc = bus_set_resource(dev, SYS_RES_MEMORY, 0, addr + AMDSB_WD_CTRL,
 	    AMDSB_WDIO_REG_WIDTH);
@@ -330,35 +426,24 @@ amdsbwd_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Set watchdog timer tick to 10ms. */
-	val = pmio_read(res, AMDSB_PM_WDT_CTRL);
-	val &= ~AMDSB_WDT_RES_MASK;
-	val |= AMDSB_WDT_RES_10MS;
-	pmio_write(res, AMDSB_PM_WDT_CTRL, val);
-
-	/* Enable watchdog device (in stopped state). */
-	val = pmio_read(res, AMDSB_PM_WDT_CTRL);
-	val &= ~AMDSB_WDT_DISABLE;
-	pmio_write(res, AMDSB_PM_WDT_CTRL, val);
-
-	/*
-	 * XXX TODO: Ensure that watchdog decode is enabled
-	 * (register 0x41, bit 3).
-	 */
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
-	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
-
-	device_set_desc(dev, "AMD SB600/SB7xx Watchdog Timer");
 	return (0);
 }
 
 static int
 amdsbwd_attach_sb(device_t dev, struct amdsbwd_softc *sc)
 {
+	device_t	smb_dev;
+
 	sc->max_ticks = UINT16_MAX;
-	sc->ms_per_tick = 10;
 	sc->rid_ctrl = 0;
 	sc->rid_count = 1;
+
+	smb_dev = pci_find_bsf(0, 20, 0);
+	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
+	if (pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
+		sc->ms_per_tick = 10;
+	else
+		sc->ms_per_tick = 1000;
 
 	sc->res_ctrl = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->rid_ctrl, RF_ACTIVE);
@@ -387,6 +472,11 @@ amdsbwd_attach(device_t dev)
 	rc = amdsbwd_attach_sb(dev, sc);
 	if (rc != 0)
 		goto fail;
+
+#ifdef AMDSBWD_DEBUG
+	device_printf(dev, "wd ctrl = %#04x\n", wdctrl_read(sc));
+	device_printf(dev, "wd count = %#04x\n", wdcount_read(sc));
+#endif
 
 	/* Setup initial state of Watchdog Control. */
 	wdctrl_write(sc, AMDSB_WD_FIRED);

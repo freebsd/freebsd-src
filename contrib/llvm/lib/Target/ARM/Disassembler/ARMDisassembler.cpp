@@ -18,6 +18,7 @@
 #include "ARMDisassembler.h"
 #include "ARMDisassemblerCore.h"
 
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/MC/EDInstInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -94,6 +95,9 @@ static unsigned decodeARMInstruction(uint32_t &insn) {
   // As a result, the decoder fails to deocode USAT properly.
   if (slice(insn, 27, 21) == 0x37 && slice(insn, 5, 4) == 1)
     return ARM::USAT;
+  // As a result, the decoder fails to deocode UQADD16 properly.
+  if (slice(insn, 27, 20) == 0x66 && slice(insn, 7, 4) == 1)
+    return ARM::UQADD16;
 
   // Ditto for ADDSrs, which is a super-instruction for A8.6.7 & A8.6.8.
   // As a result, the decoder fails to decode UMULL properly.
@@ -280,6 +284,24 @@ static unsigned T2Morph2LoadLiteral(unsigned Opcode) {
   }
 }
 
+// Helper function for special case handling of PLD (literal) and friends.
+// See A8.6.117 T1 & T2 and friends for why we morphed the opcode
+// before returning it.
+static unsigned T2Morph2PLDLiteral(unsigned Opcode) {
+  switch (Opcode) {
+  default:
+    return Opcode; // Return unmorphed opcode.
+
+  case ARM::t2PLDi8:   case ARM::t2PLDs:
+  case ARM::t2PLDWi12: case ARM::t2PLDWi8:
+  case ARM::t2PLDWs:
+    return ARM::t2PLDi12;
+
+  case ARM::t2PLIi8:   case ARM::t2PLIs:
+    return ARM::t2PLIi12;
+  }
+}
+
 /// decodeThumbSideEffect is a decorator function which can potentially twiddle
 /// the instruction or morph the returned opcode under Thumb2.
 ///
@@ -330,12 +352,27 @@ static unsigned decodeThumbSideEffect(bool IsThumb2, unsigned &insn) {
     }
     // --------- Transform End Marker ---------
 
+    unsigned unmorphed = decodeThumbInstruction(insn);
+
     // See, for example, A6.3.7 Load word: Table A6-18 Load word.
     // See A8.6.57 T3, T4 & A8.6.60 T2 and friends for why we morphed the opcode
     // before returning it to our caller.
     if (op1 == 3 && slice(op2, 6, 5) == 0 && slice(op2, 0, 0) == 1
-        && slice(insn, 19, 16) == 15)
-      return T2Morph2LoadLiteral(decodeThumbInstruction(insn));
+        && slice(insn, 19, 16) == 15) {
+      unsigned morphed = T2Morph2LoadLiteral(unmorphed);
+      if (morphed != unmorphed)
+        return morphed;
+    }
+
+    // See, for example, A8.6.117 PLD,PLDW (immediate) T1 & T2, and friends for
+    // why we morphed the opcode before returning it to our caller.
+    if (slice(insn, 31, 25) == 0x7C && slice(insn, 15, 12) == 0xF
+        && slice(insn, 22, 22) == 0 && slice(insn, 20, 20) == 1
+        && slice(insn, 19, 16) == 15) {
+      unsigned morphed = T2Morph2PLDLiteral(unmorphed);
+      if (morphed != unmorphed)
+        return morphed;
+    }
 
     // One last check for NEON/VFP instructions.
     if ((op1 == 1 || op1 == 3) && slice(op2, 6, 6) == 1)
@@ -375,20 +412,22 @@ bool ARMDisassembler::getInstruction(MCInst &MI,
   Size = 4;
 
   DEBUG({
-      errs() << "Opcode=" << Opcode << " Name=" << ARMUtils::OpcodeName(Opcode)
+      errs() << "\nOpcode=" << Opcode << " Name=" <<ARMUtils::OpcodeName(Opcode)
              << " Format=" << stringForARMFormat(Format) << '(' << (int)Format
              << ")\n";
       showBitVector(errs(), insn);
     });
 
-  ARMBasicMCBuilder *Builder = CreateMCBuilder(Opcode, Format);
+  OwningPtr<ARMBasicMCBuilder> Builder(CreateMCBuilder(Opcode, Format));
   if (!Builder)
     return false;
 
+  Builder->setupBuilderForSymbolicDisassembly(getLLVMOpInfoCallback(),
+                                              getDisInfoBlock(), getMCContext(),
+                                              Address);
+
   if (!Builder->Build(MI, insn))
     return false;
-
-  delete Builder;
 
   return true;
 }
@@ -398,7 +437,7 @@ bool ThumbDisassembler::getInstruction(MCInst &MI,
                                        const MemoryObject &Region,
                                        uint64_t Address,
                                        raw_ostream &os) const {
-  // The Thumb instruction stream is a sequence of halhwords.
+  // The Thumb instruction stream is a sequence of halfwords.
 
   // This represents the first halfword as well as the machine instruction
   // passed to decodeThumbInstruction().  For 16-bit Thumb instruction, the top
@@ -463,16 +502,18 @@ bool ThumbDisassembler::getInstruction(MCInst &MI,
       showBitVector(errs(), insn);
     });
 
-  ARMBasicMCBuilder *Builder = CreateMCBuilder(Opcode, Format);
+  OwningPtr<ARMBasicMCBuilder> Builder(CreateMCBuilder(Opcode, Format));
   if (!Builder)
     return false;
 
   Builder->SetSession(const_cast<Session *>(&SO));
 
+  Builder->setupBuilderForSymbolicDisassembly(getLLVMOpInfoCallback(),
+                                              getDisInfoBlock(), getMCContext(),
+                                              Address);
+
   if (!Builder->Build(MI, insn))
     return false;
-
-  delete Builder;
 
   return true;
 }

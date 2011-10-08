@@ -48,12 +48,8 @@ namespace llvm {
 
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const;
-    std::vector<unsigned>
-    getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                      EVT VT) const;
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
     const char *getTargetNodeName(unsigned Opcode) const;
-    unsigned getFunctionAlignment(const Function *F) const;
 
   private:
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;

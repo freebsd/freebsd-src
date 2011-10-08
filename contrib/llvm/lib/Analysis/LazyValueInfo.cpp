@@ -29,7 +29,6 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include <map>
-#include <set>
 #include <stack>
 using namespace llvm;
 
@@ -268,6 +267,8 @@ public:
 } // end anonymous namespace.
 
 namespace llvm {
+raw_ostream &operator<<(raw_ostream &OS, const LVILatticeVal &Val)
+    LLVM_ATTRIBUTE_USED;
 raw_ostream &operator<<(raw_ostream &OS, const LVILatticeVal &Val) {
   if (Val.isUndefined())
     return OS << "undefined";
@@ -588,16 +589,18 @@ static bool InstructionDereferencesPointer(Instruction *I, Value *Ptr) {
   }
   if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(I)) {
     if (MI->isVolatile()) return false;
-    if (MI->getAddressSpace() != 0) return false;
 
     // FIXME: check whether it has a valuerange that excludes zero?
     ConstantInt *Len = dyn_cast<ConstantInt>(MI->getLength());
     if (!Len || Len->isZero()) return false;
 
-    if (MI->getRawDest() == Ptr || MI->getDest() == Ptr)
-      return true;
+    if (MI->getDestAddressSpace() == 0)
+      if (MI->getRawDest() == Ptr || MI->getDest() == Ptr)
+        return true;
     if (MemTransferInst *MTI = dyn_cast<MemTransferInst>(MI))
-      return MTI->getRawSource() == Ptr || MTI->getSource() == Ptr;
+      if (MTI->getSourceAddressSpace() == 0)
+        if (MTI->getRawSource() == Ptr || MTI->getSource() == Ptr)
+          return true;
   }
   return false;
 }

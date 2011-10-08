@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,7 +24,6 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *propt();
 static char *optstring();
 static int flip_triple();
 
@@ -32,6 +31,35 @@ extern int screen_trashed;
 extern int less_is_more;
 extern int quit_at_eof;
 extern char *every_first_cmd;
+
+/*
+ * Return a printable description of an option.
+ */
+	static char *
+opt_desc(o)
+	struct loption *o;
+{
+	static char buf[OPTNAME_MAX + 10];
+	if (o->oletter == OLETTER_NONE)
+		SNPRINTF1(buf, sizeof(buf), "--%s", o->onames->oname);
+	else
+		SNPRINTF2(buf, sizeof(buf), "-%c (--%s)", o->oletter, o->onames->oname);
+	return (buf);
+}
+
+/*
+ * Return a string suitable for printing as the "name" of an option.
+ * For example, if the option letter is 'x', just return "-x".
+ */
+	public char *
+propt(c)
+	int c;
+{
+	static char buf[8];
+
+	sprintf(buf, "-%s", prchar(c));
+	return (buf);
+}
 
 /* 
  * Scan an argument (either from the command line or from the 
@@ -69,7 +97,7 @@ scan_option(s)
 			(*pendopt->ofunc)(INIT, s);
 			break;
 		case NUMBER:
-			printopt = propt(pendopt->oletter);
+			printopt = opt_desc(pendopt);
 			*(pendopt->ovar) = getnum(&s, printopt, (int*)NULL);
 			break;
 		}
@@ -261,12 +289,12 @@ scan_option(s)
  *	OPT_SET		set to the inverse of the default value
  */
 	public void
-toggle_option(c, s, how_toggle)
-	int c;
+toggle_option(o, lower, s, how_toggle)
+	struct loption *o;
+	int lower;
 	char *s;
 	int how_toggle;
 {
-	register struct loption *o;
 	register int num;
 	int no_prompt;
 	int err;
@@ -275,27 +303,22 @@ toggle_option(c, s, how_toggle)
 	no_prompt = (how_toggle & OPT_NO_PROMPT);
 	how_toggle &= ~OPT_NO_PROMPT;
 
-	/*
-	 * Look up the option letter in the option table.
-	 */
-	o = findopt(c);
 	if (o == NULL)
 	{
-		parg.p_string = propt(c);
-		error("There is no %s option", &parg);
+		error("No such option", NULL_PARG);
 		return;
 	}
 
 	if (how_toggle == OPT_TOGGLE && (o->otype & NO_TOGGLE))
 	{
-		parg.p_string = propt(c);
+		parg.p_string = opt_desc(o);
 		error("Cannot change the %s option", &parg);
 		return;
-	} 
+	}
 
 	if (how_toggle == OPT_NO_TOGGLE && (o->otype & NO_QUERY))
 	{
-		parg.p_string = propt(c);
+		parg.p_string = opt_desc(o);
 		error("Cannot query the %s option", &parg);
 		return;
 	} 
@@ -355,15 +378,13 @@ toggle_option(c, s, how_toggle)
 			switch (how_toggle)
 			{
 			case OPT_TOGGLE:
-				*(o->ovar) = flip_triple(*(o->ovar), 
-						ASCII_IS_LOWER(c));
+				*(o->ovar) = flip_triple(*(o->ovar), lower);
 				break;
 			case OPT_UNSET:
 				*(o->ovar) = o->odefault;
 				break;
 			case OPT_SET:
-				*(o->ovar) = flip_triple(o->odefault,
-						ASCII_IS_LOWER(c));
+				*(o->ovar) = flip_triple(o->odefault, lower);
 				break;
 			}
 			break;
@@ -465,33 +486,17 @@ flip_triple(val, lc)
 }
 
 /*
- * Return a string suitable for printing as the "name" of an option.
- * For example, if the option letter is 'x', just return "-x".
- */
-	static char *
-propt(c)
-	int c;
-{
-	static char buf[8];
-
-	sprintf(buf, "-%s", prchar(c));
-	return (buf);
-}
-
-/*
- * Determine if an option is a single character option (BOOL or TRIPLE),
- * or if it a multi-character option (NUMBER).
+ * Determine if an option takes a parameter.
  */
 	public int
-single_char_option(c)
-	int c;
+opt_has_param(o)
+	struct loption *o;
 {
-	register struct loption *o;
-
-	o = findopt(c);
 	if (o == NULL)
-		return (TRUE);
-	return ((o->otype & (BOOL|TRIPLE|NOVAR|NO_TOGGLE)) != 0);
+		return (0);
+	if (o->otype & (BOOL|TRIPLE|NOVAR|NO_TOGGLE))
+		return (0);
+	return (1);
 }
 
 /*
@@ -499,14 +504,11 @@ single_char_option(c)
  * Only string and number valued options have prompts.
  */
 	public char *
-opt_prompt(c)
-	int c;
+opt_prompt(o)
+	struct loption *o;
 {
-	register struct loption *o;
-
-	o = findopt(c);
 	if (o == NULL || (o->otype & (STRING|NUMBER)) == 0)
-		return (NULL);
+		return ("?");
 	return (o->odesc[0]);
 }
 
@@ -541,7 +543,7 @@ nostring(printopt)
 	public void
 nopendopt()
 {
-	nostring(propt(pendopt->oletter));
+	nostring(opt_desc(pendopt));
 }
 
 /*

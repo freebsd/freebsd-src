@@ -13,8 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
-#include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/StmtVisitor.h"
@@ -57,7 +56,7 @@ static bool IsStdString(QualType T) {
   if (!TT)
     return false;
 
-  const TypedefDecl *TD = TT->getDecl();
+  const TypedefNameDecl *TD = TT->getDecl();
 
   if (!InNamespace(TD, "std"))
     return false;
@@ -289,7 +288,7 @@ void ASTFieldVisitor::ReportError(QualType T) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class LLVMConventionsChecker : public CheckerV2<
+class LLVMConventionsChecker : public Checker<
                                                 check::ASTDecl<CXXRecordDecl>,
                                                 check::ASTCodeBody > {
 public:

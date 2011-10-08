@@ -173,7 +173,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 enter:
 	if ((m->flags & PG_FICTITIOUS) == 0) {
 		data |= TD_CP;
-		if ((m->flags & PG_UNMANAGED) == 0) {
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
 			pm->pm_stats.resident_count++;
 			data |= TD_PV;
 		}

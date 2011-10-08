@@ -92,7 +92,7 @@ ext2_update(vp, waitfor)
 	}
 	ext2_i2ei(ip, (struct ext2fs_dinode *)((char *)bp->b_data +
 	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)));
-	if (waitfor && (vp->v_mount->mnt_kern_flag & MNTK_ASYNC) == 0)
+	if (waitfor && !DOINGASYNC(vp))
 		return (bwrite(bp));
 	else {
 		bdwrite(bp);
@@ -125,7 +125,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	struct buf *bp;
 	int offset, size, level;
 	long count, nblocks, blocksreleased = 0;
-	int aflags, error, i, allerror;
+	int error, i, allerror;
 	off_t osize;
 
 	oip = VTOI(ovp);
@@ -164,10 +164,8 @@ ext2_truncate(vp, length, flags, cred, td)
 		vnode_pager_setsize(ovp, length);
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
-		aflags = B_CLRBUF;
-		if (flags & IO_SYNC)
-			aflags |= B_SYNC;
-		error = ext2_balloc(oip, lbn, offset + 1, cred, &bp, aflags);
+		flags |= BA_CLRBUF;
+		error = ext2_balloc(oip, lbn, offset + 1, cred, &bp, flags);
 		if (error) {
 			vnode_pager_setsize(vp, osize);
 			return (error);
@@ -175,9 +173,9 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		if (bp->b_bufsize == fs->e2fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & B_SYNC)
+		if (flags & IO_SYNC)
 			bwrite(bp);
-		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+		else if (DOINGASYNC(ovp))
 			bdwrite(bp);
 		else
 			bawrite(bp);
@@ -197,10 +195,8 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 	} else {
 		lbn = lblkno(fs, length);
-		aflags = B_CLRBUF;
-		if (flags & IO_SYNC)
-			aflags |= B_SYNC;
-		error = ext2_balloc(oip, lbn, offset, cred, &bp, aflags);
+		flags |= BA_CLRBUF;
+		error = ext2_balloc(oip, lbn, offset, cred, &bp, flags);
 		if (error)
 			return (error);
 		oip->i_size = length;
@@ -209,9 +205,9 @@ ext2_truncate(vp, length, flags, cred, td)
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->e2fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & B_SYNC)
+		if (flags & IO_SYNC)
 			bwrite(bp);
-		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+		else if (DOINGASYNC(ovp))
 			bdwrite(bp);
 		else
 			bawrite(bp);

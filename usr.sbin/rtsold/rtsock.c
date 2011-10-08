@@ -83,7 +83,7 @@ int
 rtsock_open(void)
 {
 
-	return socket(PF_ROUTE, SOCK_RAW, 0);
+	return (socket(PF_ROUTE, SOCK_RAW, 0));
 }
 
 int
@@ -130,7 +130,7 @@ rtsock_input(int s)
 		}
 	}
 
-	return ret;
+	return (ret);
 }
 
 #ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
@@ -142,7 +142,7 @@ rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 
 	ifan = (struct if_announcemsghdr *)rtm;
 	if ((char *)(ifan + 1) > lim)
-		return -1;
+		return (-1);
 
 	switch (ifan->ifan_what) {
 	case IFAN_ARRIVAL:
@@ -170,6 +170,6 @@ rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 		break;
 	}
 
-	return 0;
+	return (0);
 }
 #endif

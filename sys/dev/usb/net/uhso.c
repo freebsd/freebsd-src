@@ -247,8 +247,10 @@ static char *uhso_port_type_sysctl[] = {
 /* ifnet device unit allocations */
 static struct unrhdr *uhso_ifnet_unit = NULL;
 
-static const struct usb_device_id uhso_devs[] = {
+static const STRUCT_USB_HOST_ID uhso_devs[] = {
 #define	UHSO_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	/* Option GlobeTrotter MAX 7.2 with upgraded firmware */
+	UHSO_DEV(OPTION, GTMAX72, UHSO_STATIC_IFACE),
 	/* Option GlobeSurfer iCON 7.2 */
 	UHSO_DEV(OPTION, GSICON72, UHSO_STATIC_IFACE),
 	/* Option iCON 225 */
@@ -1754,6 +1756,7 @@ uhso_if_rxflush(void *arg)
 
 		/* Dispatch to IP layer */
 		BPF_MTAP(sc->sc_ifp, m);
+		M_SETFIB(m, ifp->if_fib);
 		netisr_dispatch(isr, m);
 		m = m0 != NULL ? m0 : NULL;
 		mtx_lock(&sc->sc_mtx);

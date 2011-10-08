@@ -267,7 +267,7 @@ void LowerSetJmp::TransformLongJmpCall(CallInst* Inst)
   CastInst* CI = 
     new BitCastInst(Inst->getArgOperand(0), SBPTy, "LJBuf", Inst);
   Value *Args[] = { CI, Inst->getArgOperand(1) };
-  CallInst::Create(ThrowLongJmp, Args, Args + 2, "", Inst);
+  CallInst::Create(ThrowLongJmp, Args, "", Inst);
 
   SwitchValuePair& SVP = SwitchValMap[Inst->getParent()->getParent()];
 
@@ -386,7 +386,7 @@ void LowerSetJmp::TransformSetJmpCall(CallInst* Inst)
     GetSetJmpMap(Func), BufPtr,
     ConstantInt::get(Type::getInt32Ty(Inst->getContext()), SetJmpIDMap[Func]++)
   };
-  CallInst::Create(AddSJToMap, Args, Args + 3, "", Inst);
+  CallInst::Create(AddSJToMap, Args, "", Inst);
 
   // We are guaranteed that there are no values live across basic blocks
   // (because we are "not in SSA form" yet), but there can still be values live
@@ -430,7 +430,7 @@ void LowerSetJmp::TransformSetJmpCall(CallInst* Inst)
 
   // This PHI node will be in the new block created from the
   // splitBasicBlock call.
-  PHINode* PHI = PHINode::Create(Type::getInt32Ty(Inst->getContext()),
+  PHINode* PHI = PHINode::Create(Type::getInt32Ty(Inst->getContext()), 2,
                                  "SetJmpReturn", Inst);
 
   // Coming from a call to setjmp, the return is 0.
@@ -482,7 +482,7 @@ void LowerSetJmp::visitCallInst(CallInst& CI)
   std::vector<Value*> Params(CS.arg_begin(), CS.arg_end());
   InvokeInst* II =
     InvokeInst::Create(CI.getCalledValue(), NewBB, PrelimBBMap[Func],
-                       Params.begin(), Params.end(), CI.getName(), Term);
+                       Params, CI.getName(), Term);
   II->setCallingConv(CI.getCallingConv());
   II->setAttributes(CI.getAttributes());
 

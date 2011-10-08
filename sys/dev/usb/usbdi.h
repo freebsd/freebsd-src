@@ -37,6 +37,7 @@ struct usb_page_search;
 struct usb_process;
 struct usb_proc_msg;
 struct usb_mbuf;
+struct usb_fs_privdata;
 struct mbuf;
 
 typedef enum {	/* keep in sync with usb_errstr_table */
@@ -228,6 +229,18 @@ struct usb_config {
 };
 
 /*
+ * Use these macro when defining USB device ID arrays if you want to
+ * have your driver module automatically loaded in host, device or
+ * both modes respectivly:
+ */
+#define	STRUCT_USB_HOST_ID \
+    struct usb_device_id __section("usb_host_id")
+#define	STRUCT_USB_DEVICE_ID \
+    struct usb_device_id __section("usb_device_id")
+#define	STRUCT_USB_DUAL_ID \
+    struct usb_device_id __section("usb_dual_id")
+
+/*
  * The following structure is used when looking up an USB driver for
  * an USB device. It is inspired by the Linux structure called
  * "usb_device_id".
@@ -258,12 +271,15 @@ struct usb_device_id {
 	uint8_t	match_flag_product:1;
 	uint8_t	match_flag_dev_lo:1;
 	uint8_t	match_flag_dev_hi:1;
+
 	uint8_t	match_flag_dev_class:1;
 	uint8_t	match_flag_dev_subclass:1;
 	uint8_t	match_flag_dev_protocol:1;
 	uint8_t	match_flag_int_class:1;
+
 	uint8_t	match_flag_int_subclass:1;
 	uint8_t	match_flag_int_protocol:1;
+	uint8_t match_flag_unused:6;
 
 #if USB_HAVE_COMPAT_LINUX
 	/* which fields to match against */
@@ -279,7 +295,10 @@ struct usb_device_id {
 #define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
 #endif
-};
+} __aligned(32);
+
+/* check that the size of the structure above is correct */
+extern char usb_device_id_assert[(sizeof(struct usb_device_id) == 32) ? 1 : -1];
 
 #define	USB_VENDOR(vend)			\
   .match_flag_vendor = 1, .idVendor = (vend)
@@ -357,7 +376,6 @@ struct usb_attach_arg {
 	struct usb_interface *iface;	/* current interface */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
-	uint8_t	use_generic;		/* hint for generic drivers */
 	uint8_t dev_state;
 #define UAA_DEV_READY		0
 #define UAA_DEV_DISABLED	1
@@ -432,7 +450,7 @@ struct usb_fifo_methods {
 
 struct usb_fifo_sc {
 	struct usb_fifo *fp[2];
-	struct cdev* dev;
+	struct usb_fs_privdata *dev;
 };
 
 const char *usbd_errstr(usb_error_t error);
@@ -457,6 +475,8 @@ void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
 usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
 			uint8_t iface_index, const char *pnpinfo);
+usb_error_t	usbd_add_dynamic_quirk(struct usb_device *udev,
+			uint16_t quirk);
 
 const struct usb_device_id *usbd_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,
@@ -496,6 +516,8 @@ void	usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_device_attached(struct usb_device *udev);
 
+usb_frlength_t
+	usbd_xfer_old_frame_length(struct usb_xfer *xfer, usb_frcount_t frindex);
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,
 	    int *aframes, int *nframes);
 struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *xfer,
@@ -541,6 +563,7 @@ void	usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
 	    struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len);
 void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 	    usb_frlength_t len);
+void	usbd_start_re_enumerate(struct usb_device *udev);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

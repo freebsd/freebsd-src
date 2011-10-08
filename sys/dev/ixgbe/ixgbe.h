@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -153,6 +153,11 @@
 #define IXGBE_FC_PAUSE		0xFFFF
 #define IXGBE_FC_HI		0x20000
 #define IXGBE_FC_LO		0x10000
+
+/* Keep older OS drivers building... */
+#if !defined(SYSCTL_ADD_UQUAD)
+#define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
+#endif
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -496,5 +501,20 @@ drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
         return (!buf_ring_empty(br));
 }
 #endif
+
+/*
+** Find the number of unrefreshed RX descriptors
+*/
+static inline u16
+ixgbe_rx_unrefreshed(struct rx_ring *rxr)
+{       
+	struct adapter  *adapter = rxr->adapter;
+        
+	if (rxr->next_to_check > rxr->next_to_refresh)
+		return (rxr->next_to_check - rxr->next_to_refresh - 1);
+	else
+		return ((adapter->num_rx_desc + rxr->next_to_check) -
+		    rxr->next_to_refresh - 1);
+}       
 
 #endif /* _IXGBE_H_ */

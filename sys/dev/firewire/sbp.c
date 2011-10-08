@@ -1515,10 +1515,10 @@ static void
 sbp_scsi_status(struct sbp_status *sbp_status, struct sbp_ocb *ocb)
 {
 	struct sbp_cmd_status *sbp_cmd_status;
-	struct scsi_sense_data *sense;
+	struct scsi_sense_data_fixed *sense;
 
 	sbp_cmd_status = (struct sbp_cmd_status *)sbp_status->data;
-	sense = &ocb->ccb->csio.sense_data;
+	sense = (struct scsi_sense_data_fixed *)&ocb->ccb->csio.sense_data;
 
 SBP_DEBUG(0)
 	sbp_print_scsi_cmd(ocb);

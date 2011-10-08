@@ -341,7 +341,7 @@ ae_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 		sc->flags |= AE_FLAG_PMG;
 	}
@@ -903,10 +903,8 @@ ae_mediachange(struct ifnet *ifp)
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL", __LINE__));
 	AE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(mii_sc, &mii->mii_phys, mii_list)
-			mii_phy_reset(mii_sc);
-	}
+	LIST_FOREACH(mii_sc, &mii->mii_phys, mii_list)
+		PHY_RESET(mii_sc);
 	error = mii_mediachg(mii);
 	AE_UNLOCK(sc);
 
@@ -929,7 +927,7 @@ ae_check_eeprom_present(ae_softc_t *sc, int *vpdc)
 		val &= ~AE_SPICTL_VPD_EN;
 		AE_WRITE_4(sc, AE_SPICTL_REG, val);
 	}
-	error = pci_find_extcap(sc->dev, PCIY_VPD, vpdc);
+	error = pci_find_cap(sc->dev, PCIY_VPD, vpdc);
 	return (error);
 }
 
@@ -1383,7 +1381,7 @@ ae_pm_init(ae_softc_t *sc)
 	/*
 	 * Configure PME.
 	 */
-	pci_find_extcap(sc->dev, PCIY_PMG, &pmc);
+	pci_find_cap(sc->dev, PCIY_PMG, &pmc);
 	pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)

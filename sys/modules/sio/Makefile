@@ -7,7 +7,7 @@
 
 KMOD=	sio
 SRCS=	bus_if.h card_if.h device_if.h isa_if.h pci_if.h serdev_if.h \
-	opt_comconsole.h opt_compat.h opt_gdb.h opt_kdb.h opt_sio.h \
+	opt_compat.h opt_gdb.h opt_kdb.h opt_sio.h \
 	sio.c sio_pccard.c sio_pci.c sio_puc.c pccarddevs.h
 .if ${MACHINE} == "pc98"
 SRCS+=	sio_cbus.c

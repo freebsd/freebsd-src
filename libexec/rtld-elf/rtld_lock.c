@@ -182,8 +182,6 @@ rtld_lock_t	rtld_bind_lock = &rtld_locks[0];
 rtld_lock_t	rtld_libc_lock = &rtld_locks[1];
 rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 
-#define print_ebp(str) do {register long ebp asm("ebp"); printf("%s 0x%0lx\n", str, ebp);} while (0)
-
 void
 rlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {

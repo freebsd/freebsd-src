@@ -80,13 +80,7 @@ struct vte_chain_data {
 	bus_dmamap_t		vte_tx_ring_map;
 	bus_dma_tag_t		vte_rx_ring_tag;
 	bus_dmamap_t		vte_rx_ring_map;
-	bus_dma_tag_t		vte_rr_ring_tag;
-	bus_dmamap_t		vte_rr_ring_map;
 	bus_dmamap_t		vte_rx_sparemap;
-	bus_dma_tag_t		vte_cmb_tag;
-	bus_dmamap_t		vte_cmb_map;
-	bus_dma_tag_t		vte_smb_tag;
-	bus_dmamap_t		vte_smb_map;
 	struct vte_tx_desc	*vte_tx_ring;
 	bus_addr_t		vte_tx_ring_paddr;
 	struct vte_rx_desc	*vte_rx_ring;

@@ -51,6 +51,7 @@ void GlobalValue::copyAttributesFrom(const GlobalValue *Src) {
   setAlignment(Src->getAlignment());
   setSection(Src->getSection());
   setVisibility(Src->getVisibility());
+  setUnnamedAddr(Src->hasUnnamedAddr());
 }
 
 void GlobalValue::setAlignment(unsigned Align) {
@@ -59,6 +60,20 @@ void GlobalValue::setAlignment(unsigned Align) {
          "Alignment is greater than MaximumAlignment!");
   Alignment = Log2_32(Align) + 1;
   assert(getAlignment() == Align && "Alignment representation error!");
+}
+
+bool GlobalValue::isDeclaration() const {
+  // Globals are definitions if they have an initializer.
+  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(this))
+    return GV->getNumOperands() == 0;
+
+  // Functions are definitions if they have a body.
+  if (const Function *F = dyn_cast<Function>(this))
+    return F->empty();
+
+  // Aliases are always definitions.
+  assert(isa<GlobalAlias>(this));
+  return false;
 }
   
 //===----------------------------------------------------------------------===//
@@ -201,39 +216,26 @@ void GlobalAlias::eraseFromParent() {
   getParent()->getAliasList().erase(this);
 }
 
-bool GlobalAlias::isDeclaration() const {
-  const GlobalValue* AV = getAliasedGlobal();
-  if (AV)
-    return AV->isDeclaration();
-  else
-    return false;
-}
-
-void GlobalAlias::setAliasee(Constant *Aliasee) 
-{
-  if (Aliasee)
-    assert(Aliasee->getType() == getType() &&
-           "Alias and aliasee types should match!");
+void GlobalAlias::setAliasee(Constant *Aliasee) {
+  assert((!Aliasee || Aliasee->getType() == getType()) &&
+         "Alias and aliasee types should match!");
   
   setOperand(0, Aliasee);
 }
 
 const GlobalValue *GlobalAlias::getAliasedGlobal() const {
   const Constant *C = getAliasee();
-  if (C) {
-    if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
-      return GV;
-    else {
-      const ConstantExpr *CE = 0;
-      if ((CE = dyn_cast<ConstantExpr>(C)) &&
-          (CE->getOpcode() == Instruction::BitCast || 
-           CE->getOpcode() == Instruction::GetElementPtr))
-        return dyn_cast<GlobalValue>(CE->getOperand(0));
-      else
-        llvm_unreachable("Unsupported aliasee");
-    }
-  }
-  return 0;
+  if (C == 0) return 0;
+  
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
+    return GV;
+
+  const ConstantExpr *CE = cast<ConstantExpr>(C);
+  assert((CE->getOpcode() == Instruction::BitCast || 
+          CE->getOpcode() == Instruction::GetElementPtr) &&
+         "Unsupported aliasee");
+  
+  return dyn_cast<GlobalValue>(CE->getOperand(0));
 }
 
 const GlobalValue *GlobalAlias::resolveAliasedGlobal(bool stopOnWeak) const {
@@ -254,7 +256,7 @@ const GlobalValue *GlobalAlias::resolveAliasedGlobal(bool stopOnWeak) const {
     GV = GA->getAliasedGlobal();
 
     if (!Visited.insert(GV))
-      return NULL;
+      return 0;
   }
 
   return GV;

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -67,7 +68,7 @@ struct obreak_args {
  */
 /* ARGSUSED */
 int
-obreak(td, uap)
+sys_obreak(td, uap)
 	struct thread *td;
 	struct obreak_args *uap;
 {
@@ -116,9 +117,33 @@ obreak(td, uap)
 			error = ENOMEM;
 			goto done;
 		}
+#ifdef RACCT
+		PROC_LOCK(td->td_proc);
+		error = racct_set(td->td_proc, RACCT_DATA, new - base);
+		if (error != 0) {
+			PROC_UNLOCK(td->td_proc);
+			error = ENOMEM;
+			goto done;
+		}
+		error = racct_set(td->td_proc, RACCT_VMEM,
+		    vm->vm_map.size + (new - old));
+		if (error != 0) {
+			racct_set_force(td->td_proc, RACCT_DATA, old - base);
+			PROC_UNLOCK(td->td_proc);
+			error = ENOMEM;
+			goto done;
+		}
+		PROC_UNLOCK(td->td_proc);
+#endif
 		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
 		    VM_PROT_RW, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
+#ifdef RACCT
+			PROC_LOCK(td->td_proc);
+			racct_set_force(td->td_proc, RACCT_DATA, old - base);
+			racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
+			PROC_UNLOCK(td->td_proc);
+#endif
 			error = ENOMEM;
 			goto done;
 		}
@@ -144,6 +169,12 @@ obreak(td, uap)
 			goto done;
 		}
 		vm->vm_dsize -= btoc(old - new);
+#ifdef RACCT
+		PROC_LOCK(td->td_proc);
+		racct_set_force(td->td_proc, RACCT_DATA, new - base);
+		racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
+		PROC_UNLOCK(td->td_proc);
+#endif
 	}
 done:
 	vm_map_unlock(&vm->vm_map);
@@ -166,7 +197,7 @@ struct ovadvise_args {
  */
 /* ARGSUSED */
 int
-ovadvise(td, uap)
+sys_ovadvise(td, uap)
 	struct thread *td;
 	struct ovadvise_args *uap;
 {

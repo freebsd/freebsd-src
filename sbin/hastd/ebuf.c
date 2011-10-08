@@ -32,14 +32,20 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <strings.h>
 #include <unistd.h>
 
+#include <pjdlog.h>
+
 #include "ebuf.h"
+
+#ifndef	PJDLOG_ASSERT
+#include <assert.h>
+#define	PJDLOG_ASSERT(...)	assert(__VA_ARGS__)
+#endif
 
 #define	EBUF_MAGIC	0xeb0f41c
 struct ebuf {
@@ -91,7 +97,7 @@ void
 ebuf_free(struct ebuf *eb)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	eb->eb_magic = 0;
 
@@ -103,7 +109,7 @@ int
 ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	if (size > (size_t)(eb->eb_used - eb->eb_start)) {
 		/*
@@ -113,7 +119,7 @@ ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 		if (ebuf_head_extend(eb, size) < 0)
 			return (-1);
 	}
-	assert(size <= (size_t)(eb->eb_used - eb->eb_start));
+	PJDLOG_ASSERT(size <= (size_t)(eb->eb_used - eb->eb_start));
 
 	eb->eb_size += size;
 	eb->eb_used -= size;
@@ -130,7 +136,7 @@ int
 ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	if (size > (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size))) {
 		/*
@@ -140,7 +146,8 @@ ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 		if (ebuf_tail_extend(eb, size) < 0)
 			return (-1);
 	}
-	assert(size <= (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size)));
+	PJDLOG_ASSERT(size <=
+	    (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size)));
 
 	/*
 	 * If data is NULL the caller just wants to reserve space.
@@ -156,8 +163,8 @@ void
 ebuf_del_head(struct ebuf *eb, size_t size)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
-	assert(size <= eb->eb_size);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(size <= eb->eb_size);
 
 	eb->eb_used += size;
 	eb->eb_size -= size;
@@ -167,8 +174,8 @@ void
 ebuf_del_tail(struct ebuf *eb, size_t size)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
-	assert(size <= eb->eb_size);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(size <= eb->eb_size);
 
 	eb->eb_size -= size;
 }
@@ -180,7 +187,7 @@ void *
 ebuf_data(struct ebuf *eb, size_t *sizep)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	if (sizep != NULL)
 		*sizep = eb->eb_size;
@@ -194,7 +201,7 @@ size_t
 ebuf_size(struct ebuf *eb)
 {
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	return (eb->eb_size);
 }
@@ -208,7 +215,7 @@ ebuf_head_extend(struct ebuf *eb, size_t size)
 	unsigned char *newstart, *newused;
 	size_t newsize;
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	newsize = eb->eb_end - eb->eb_start + (PAGE_SIZE / 4) + size;
 
@@ -236,7 +243,7 @@ ebuf_tail_extend(struct ebuf *eb, size_t size)
 	unsigned char *newstart;
 	size_t newsize;
 
-	assert(eb != NULL && eb->eb_magic == EBUF_MAGIC);
+	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	newsize = eb->eb_end - eb->eb_start + size + ((3 * PAGE_SIZE) / 4);
 

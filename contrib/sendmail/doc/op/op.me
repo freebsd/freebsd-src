@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.745 2009/12/13 04:12:46 ca Exp $
+.\"	$Id: op.me,v 8.747 2010/05/08 04:18:27 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.745 $
+.Ve $Revision: 8.747 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
@@ -1095,6 +1095,9 @@ The number of envelope recipients for this message
 (after aliasing and forwarding).
 .ip msgid
 The message id of the message (from the header).
+.ip bodytype
+The message body type (7BIT or 8BITMIME),
+as determined from the envelope.
 .ip proto
 The protocol used to receive this message (e.g., ESMTP or UUCP)
 .ip daemon
@@ -5154,7 +5157,8 @@ FAIL	cert presented but could not be verified,
 	e.g., the signing CA is missing.
 NONE	STARTTLS has not been performed.
 TEMP	temporary error occurred.
-PROTOCOL	some protocol error occurred.
+PROTOCOL	some protocol error occurred
+	at the ESMTP level (not TLS).
 SOFTWARE	STARTTLS handshake failed,
 	which is a fatal error for this session,
 	the e-mail will be queued.
@@ -11463,7 +11467,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.745 $
+.\"Version $Revision: 8.747 $
 .\".ce 0
 .bp 3
 .ce

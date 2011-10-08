@@ -212,6 +212,7 @@
 #define	PCIM_BRPM_64		0x1
 #define	PCIM_BRPM_MASK		0xf
 
+#define	PCIR_BIOS_1	0x38
 #define	PCIR_BRIDGECTL_1 0x3e
 
 /* config registers for header type 2 (CardBus) devices */
@@ -366,6 +367,7 @@
 #define	PCIP_SERIALBUS_USB_UHCI		0x00
 #define	PCIP_SERIALBUS_USB_OHCI		0x10
 #define	PCIP_SERIALBUS_USB_EHCI		0x20
+#define	PCIP_SERIALBUS_USB_XHCI		0x30
 #define	PCIP_SERIALBUS_USB_DEVICE	0xfe
 #define	PCIS_SERIALBUS_FC	0x04
 #define	PCIS_SERIALBUS_SMBUS	0x05

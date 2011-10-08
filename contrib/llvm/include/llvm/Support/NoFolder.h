@@ -22,17 +22,16 @@
 #ifndef LLVM_SUPPORT_NOFOLDER_H
 #define LLVM_SUPPORT_NOFOLDER_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 
 namespace llvm {
 
-class LLVMContext;
-
 /// NoFolder - Create "constants" (actually, instructions) with no folding.
 class NoFolder {
 public:
-  explicit NoFolder(LLVMContext &) {}
+  explicit NoFolder() {}
 
   //===--------------------------------------------------------------------===//
   // Binary Operators
@@ -271,15 +270,14 @@ public:
     return new ShuffleVectorInst(V1, V2, Mask);
   }
 
-  Instruction *CreateExtractValue(Constant *Agg, const unsigned *IdxList,
-                                  unsigned NumIdx) const {
-    return ExtractValueInst::Create(Agg, IdxList, IdxList+NumIdx);
+  Instruction *CreateExtractValue(Constant *Agg,
+                                  ArrayRef<unsigned> IdxList) const {
+    return ExtractValueInst::Create(Agg, IdxList);
   }
 
   Instruction *CreateInsertValue(Constant *Agg, Constant *Val,
-                                 const unsigned *IdxList,
-                                 unsigned NumIdx) const {
-    return InsertValueInst::Create(Agg, Val, IdxList, IdxList+NumIdx);
+                                 ArrayRef<unsigned> IdxList) const {
+    return InsertValueInst::Create(Agg, Val, IdxList);
   }
 };
 

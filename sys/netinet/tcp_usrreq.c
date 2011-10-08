@@ -2,7 +2,11 @@
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2006-2007 Robert N. M. Watson
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,17 +68,13 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
+#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
@@ -92,8 +92,10 @@ __FBSDID("$FreeBSD$");
  * TCP protocol interface to socket abstraction.
  */
 static int	tcp_attach(struct socket *);
+#ifdef INET
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
+#endif /* INET */
 #ifdef INET6
 static int	tcp6_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
@@ -229,6 +231,7 @@ tcp_usr_detach(struct socket *so)
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
+#ifdef INET
 /*
  * Give the socket an address.
  */
@@ -252,7 +255,6 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EAFNOSUPPORT);
 
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
@@ -262,14 +264,16 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbbind(inp, nam, td->td_ucred);
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	TCPDEBUG2(PRU_BIND);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -292,7 +296,6 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EAFNOSUPPORT);
 
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
@@ -302,8 +305,10 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+	INP_HASH_WLOCK(&V_tcbinfo);
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
+#ifdef INET
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6p->sin6_addr))
 			inp->inp_vflag |= INP_IPV4;
@@ -315,18 +320,21 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			inp->inp_vflag &= ~INP_IPV6;
 			error = in_pcbbind(inp, (struct sockaddr *)&sin,
 			    td->td_ucred);
+			INP_HASH_WUNLOCK(&V_tcbinfo);
 			goto out;
 		}
 	}
+#endif
 	error = in6_pcbbind(inp, nam, td->td_ucred);
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	TCPDEBUG2(PRU_BIND);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Prepare to accept connections.
  */
@@ -338,7 +346,6 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	struct tcpcb *tp = NULL;
 
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
@@ -350,8 +357,10 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	TCPDEBUG1();
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
+	INP_HASH_WLOCK(&V_tcbinfo);
 	if (error == 0 && inp->inp_lport == 0)
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
 		solisten_proto(so, backlog);
@@ -362,9 +371,9 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -375,7 +384,6 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	struct tcpcb *tp = NULL;
 
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
@@ -387,12 +395,14 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	TCPDEBUG1();
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
+	INP_HASH_WLOCK(&V_tcbinfo);
 	if (error == 0 && inp->inp_lport == 0) {
 		inp->inp_vflag &= ~INP_IPV4;
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
 			inp->inp_vflag |= INP_IPV4;
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	}
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
 		solisten_proto(so, backlog);
@@ -402,11 +412,11 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Initiate connection to peer.
  * Create a template for use in transmissions on this connection.
@@ -435,7 +445,6 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
@@ -451,9 +460,9 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -476,7 +485,6 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
 		return (EAFNOSUPPORT);
 
-	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
@@ -486,6 +494,12 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+#ifdef INET
+	/*
+	 * XXXRW: Some confusion: V4/V6 flags relate to binding, and
+	 * therefore probably require the hash lock, which isn't held here.
+	 * Is this a significant problem?
+	 */
 	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
 		struct sockaddr_in sin;
 
@@ -505,6 +519,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = tcp_output_connect(so, nam);
 		goto out;
 	}
+#endif
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
@@ -517,7 +532,6 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
 #endif /* INET6 */
@@ -559,6 +573,7 @@ out:
 	return (error);
 }
 
+#ifdef INET
 /*
  * Accept a connection.  Essentially all the work is done at higher levels;
  * just return the address of the peer, storing through addr.
@@ -610,6 +625,7 @@ out:
 		*nam = in_sockaddr(port, &addr);
 	return error;
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -629,6 +645,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
+	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
@@ -654,6 +671,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 out:
 	TCPDEBUG2(PRU_ACCEPT);
 	INP_WUNLOCK(inp);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	if (error == 0) {
 		if (v4)
 			*nam = in6_v4mapsin6_sockaddr(port, &addr);
@@ -740,25 +758,17 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
-	int headlocked = 0;
 #ifdef INET6
 	int isipv6;
 #endif
 	TCPDEBUG0;
 
 	/*
-	 * We require the pcbinfo lock in two cases:
-	 *
-	 * (1) An implied connect is taking place, which can result in
-	 *     binding IPs and ports and hence modification of the pcb hash
-	 *     chains.
-	 *
-	 * (2) PRUS_EOF is set, resulting in explicit close on the send.
+	 * We require the pcbinfo lock if we will close the socket as part of
+	 * this call.
 	 */
-	if ((nam != NULL) || (flags & PRUS_EOF)) {
+	if (flags & PRUS_EOF)
 		INP_INFO_WLOCK(&V_tcbinfo);
-		headlocked = 1;
-	}
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
@@ -795,13 +805,16 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * initialize maxseg/maxopd using peer's cached
 			 * MSS.
 			 */
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 #ifdef INET6
 			if (isipv6)
 				error = tcp6_connect(tp, nam, td);
-			else
 #endif /* INET6 */
-			error = tcp_connect(tp, nam, td);
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+				error = tcp_connect(tp, nam, td);
+#endif
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
@@ -815,10 +828,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 			socantsendmore(so);
 			tcp_usrclosed(tp);
-		}
-		if (headlocked) {
-			INP_INFO_WUNLOCK(&V_tcbinfo);
-			headlocked = 0;
 		}
 		if (!(inp->inp_flags & INP_DROPPED)) {
 			if (flags & PRUS_MORETOCOME)
@@ -855,22 +864,20 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * initialize maxseg/maxopd using peer's cached
 			 * MSS.
 			 */
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 #ifdef INET6
 			if (isipv6)
 				error = tcp6_connect(tp, nam, td);
-			else
 #endif /* INET6 */
-			error = tcp_connect(tp, nam, td);
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+				error = tcp_connect(tp, nam, td);
+#endif
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
-			INP_INFO_WUNLOCK(&V_tcbinfo);
-			headlocked = 0;
-		} else if (nam) {
-			INP_INFO_WUNLOCK(&V_tcbinfo);
-			headlocked = 0;
 		}
 		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
 		tp->t_flags |= TF_FORCEDATA;
@@ -881,7 +888,7 @@ out:
 	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :
 		  ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	INP_WUNLOCK(inp);
-	if (headlocked)
+	if (flags & PRUS_EOF)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
@@ -1005,6 +1012,7 @@ out:
 	return (error);
 }
 
+#ifdef INET
 struct pr_usrreqs tcp_usrreqs = {
 	.pru_abort =		tcp_usr_abort,
 	.pru_accept =		tcp_usr_accept,
@@ -1024,6 +1032,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
+#endif /* INET */
 
 #ifdef INET6
 struct pr_usrreqs tcp6_usrreqs = {
@@ -1047,6 +1056,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 };
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Common subroutine to open a TCP connection to remote host specified
  * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
@@ -1066,13 +1076,13 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	u_short lport;
 	int error;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK(&V_tcbinfo);
 
 	if (inp->inp_lport == 0) {
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
-			return error;
+			goto out;
 	}
 
 	/*
@@ -1085,11 +1095,14 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	error = in_pcbconnect_setup(inp, nam, &laddr.s_addr, &lport,
 	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
 	if (error && oinp == NULL)
-		return error;
-	if (oinp)
-		return EADDRINUSE;
+		goto out;
+	if (oinp) {
+		error = EADDRINUSE;
+		goto out;
+	}
 	inp->inp_laddr = laddr;
 	in_pcbrehash(inp);
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 
 	/*
 	 * Compute window scaling to request:
@@ -1108,7 +1121,12 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tcp_sendseqinit(tp);
 
 	return 0;
+
+out:
+	INP_HASH_WUNLOCK(&V_tcbinfo);
+	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -1120,13 +1138,13 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	struct in6_addr addr6;
 	int error;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK(&V_tcbinfo);
 
 	if (inp->inp_lport == 0) {
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
-			return error;
+			goto out;
 	}
 
 	/*
@@ -1134,18 +1152,23 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	 * earlier incarnation of this same connection still in
 	 * TIME_WAIT state, creating an ADDRINUSE error.
 	 * in6_pcbladdr() also handles scope zone IDs.
+	 *
+	 * XXXRW: We wouldn't need to expose in6_pcblookup_hash_locked()
+	 * outside of in6_pcb.c if there were an in6_pcbconnect_setup().
 	 */
 	error = in6_pcbladdr(inp, nam, &addr6);
 	if (error)
-		return error;
-	oinp = in6_pcblookup_hash(inp->inp_pcbinfo,
+		goto out;
+	oinp = in6_pcblookup_hash_locked(inp->inp_pcbinfo,
 				  &sin6->sin6_addr, sin6->sin6_port,
 				  IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
 				  ? &addr6
 				  : &inp->in6p_laddr,
 				  inp->inp_lport,  0, NULL);
-	if (oinp)
-		return EADDRINUSE;
+	if (oinp) {
+		error = EADDRINUSE;
+		goto out;
+	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		inp->in6p_laddr = addr6;
 	inp->in6p_faddr = sin6->sin6_addr;
@@ -1156,6 +1179,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 	in_pcbrehash(inp);
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
@@ -1170,6 +1194,10 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tcp_sendseqinit(tp);
 
 	return 0;
+
+out:
+	INP_HASH_WUNLOCK(&V_tcbinfo);
+	return error;
 }
 #endif /* INET6 */
 
@@ -1257,11 +1285,15 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
-		} else {
+		}
 #endif /* INET6 */
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET
+		{
 			INP_WUNLOCK(inp);
 			error = ip_ctloutput(so, sopt);
-#ifdef INET6
 		}
 #endif
 		return (error);

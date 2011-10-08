@@ -1,9 +1,9 @@
 /*
- *  $Id: yesno.c,v 1.49 2010/01/15 10:54:54 tom Exp $
+ *  $Id: yesno.c,v 1.51 2011/06/27 08:20:57 tom Exp $
  *
  *  yesno.c -- implements the yes/no box
  *
- *  Copyright 1999-2009,2010	Thomas E. Dickey
+ *  Copyright 1999-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -35,6 +35,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ),
@@ -89,6 +90,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
     dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
+    dlg_draw_helpline(dialog, FALSE);
 
     wattrset(dialog, dialog_attr);
 

@@ -69,6 +69,7 @@
 extern int                          yydebug;
 extern FILE                         *AslCompilerin;
 extern int                          AslCompilerdebug;
+extern int                          DtParserdebug;
 extern const ASL_MAPPING_ENTRY      AslKeywordMapping[];
 extern char                         *AslCompilertext;
 

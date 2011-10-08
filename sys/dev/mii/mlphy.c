@@ -102,6 +102,12 @@ static int	mlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	mlphy_reset(struct mii_softc *);
 static void	mlphy_status(struct mii_softc *);
 
+static const struct mii_phy_funcs mlphy_funcs = {
+	mlphy_service,
+	mlphy_status,
+	mlphy_reset
+};
+
 static int
 mlphy_probe(dev)
 	device_t		dev;
@@ -137,37 +143,21 @@ mlphy_attach(dev)
 {
 	struct mlphy_softc *msc;
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	msc = device_get_softc(dev);
 	sc = &msc->ml_mii;
 	msc->ml_dev = dev;
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &mlphy_funcs, 0);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = mlphy_service;
-	sc->mii_pdata = mii;
+	PHY_RESET(sc);
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    MII_MEDIA_100_TX);
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	/* Let the companion PHY (if any) only handle the media we don't. */
-	ma->mii_capmask = ~sc->mii_capabilities;
+	sc->mii_capmask = ~sc->mii_capabilities;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
+
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }
@@ -230,7 +220,7 @@ mlphy_service(xsc, mii, cmd)
 			 */
 			msc->ml_state = ML_STATE_AUTO_SELF;
 			if (other != NULL) {
-				mii_phy_reset(other);
+				PHY_RESET(other);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
 			(void)mii_phy_auto(sc);
@@ -247,7 +237,7 @@ mlphy_service(xsc, mii, cmd)
 			 * BMCR data is stored in the ifmedia entry.
 			 */
 			if (other != NULL) {
-				mii_phy_reset(other);
+				PHY_RESET(other);
 				PHY_WRITE(other, MII_BMCR, ife->ifm_data);
 			}
 			mii_phy_setmedia(sc);
@@ -262,7 +252,7 @@ mlphy_service(xsc, mii, cmd)
 			 * BMCR data is stored in the ifmedia entry.
 			 */
 			if (other != NULL) {
-				mii_phy_reset(other);
+				PHY_RESET(other);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
 			mii_phy_setmedia(sc);
@@ -307,7 +297,7 @@ mlphy_service(xsc, mii, cmd)
 		if (reg & BMSR_LINK) {
 			if (!msc->ml_linked) {
 				msc->ml_linked = 1;
-				mlphy_status(sc);
+				PHY_STATUS(sc);
 			}
 			break;
 		}
@@ -321,10 +311,10 @@ mlphy_service(xsc, mii, cmd)
 		sc->mii_ticks = 0;
 		msc->ml_linked = 0;
 		mii->mii_media_active = IFM_NONE;
-		mii_phy_reset(sc);
+		PHY_RESET(sc);
 		msc->ml_state = ML_STATE_AUTO_SELF;
 		if (other != NULL) {
-			mii_phy_reset(other);
+			PHY_RESET(other);
 			PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 		}
 		mii_phy_auto(sc);
@@ -337,7 +327,7 @@ mlphy_service(xsc, mii, cmd)
 		other_inst = other->mii_inst;
 		other->mii_inst = sc->mii_inst;
 		if (IFM_INST(ife->ifm_media) == other->mii_inst)
-			(void)(*other->mii_service)(other, mii, MII_POLLSTAT);
+			(void)PHY_SERVICE(other, mii, MII_POLLSTAT);
 		other->mii_inst = other_inst;
 		sc->mii_media_active = other->mii_media_active;
 		sc->mii_media_status = other->mii_media_status;
@@ -386,15 +376,15 @@ mlphy_status(sc)
 
 	if (IFM_SUBTYPE(mii->mii_media_active) != IFM_10_T) {
 		msc->ml_state = ML_STATE_AUTO_SELF;
-		mii_phy_reset(other);
+		PHY_RESET(other);
 		PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 	}
 
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
 		msc->ml_state = ML_STATE_AUTO_OTHER;
-		mlphy_reset(&msc->ml_mii);
+		PHY_RESET(&msc->ml_mii);
 		PHY_WRITE(&msc->ml_mii, MII_BMCR, BMCR_ISO);
-		mii_phy_reset(other);
+		PHY_RESET(other);
 		mii_phy_auto(other);
 	}
 }

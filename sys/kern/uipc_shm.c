@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006, 2011 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,30 @@
  *
  * TODO:
  *
- * (2) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
+ * (1) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
  *     and ipcrm(1) be expanded or should new tools to manage both POSIX
  *     kernel semaphores and POSIX shared memory be written?
  *
- * (3) Add support for this file type to fstat(1).
+ * (2) Add support for this file type to fstat(1).
  *
- * (4) Resource limits?  Does this need its own resource limits or are the
+ * (3) Resource limits?  Does this need its own resource limits or are the
  *     existing limits in mmap(2) sufficient?
  *
- * (5) Partial page truncation.  vnode_pager_setsize() will zero any parts
+ * (4) Partial page truncation.  vnode_pager_setsize() will zero any parts
  *     of a partially mapped page as a result of ftruncate(2)/truncate(2).
  *     We can do the same (with the same pmap evil), but do we need to
  *     worry about the bits on disk if the page is swapped out or will the
  *     swapper zero the parts of a page that are invalid if the page is
  *     swapped back in for us?
- *
- * (6) Add MAC support in mac_biba(4) and mac_mls(4).
- *
- * (7) Add a MAC check_create() hook for creating new named objects.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
+
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -65,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
@@ -120,6 +120,8 @@ static fo_poll_t	shm_poll;
 static fo_kqfilter_t	shm_kqfilter;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
+static fo_chmod_t	shm_chmod;
+static fo_chown_t	shm_chown;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
@@ -131,6 +133,8 @@ static struct fileops shm_ops = {
 	.fo_kqfilter = shm_kqfilter,
 	.fo_stat = shm_stat,
 	.fo_close = shm_close,
+	.fo_chmod = shm_chmod,
+	.fo_chown = shm_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -215,16 +219,18 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	 * descriptor.
 	 */
 	bzero(sb, sizeof(*sb));
-	sb->st_mode = S_IFREG | shmfd->shm_mode;		/* XXX */
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
 	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
+	mtx_lock(&shm_timestamp_lock);
 	sb->st_atim = shmfd->shm_atime;
 	sb->st_ctim = shmfd->shm_ctime;
 	sb->st_mtim = shmfd->shm_mtime;
-	sb->st_birthtim = shmfd->shm_birthtime;	
+	sb->st_birthtim = shmfd->shm_birthtime;
+	sb->st_mode = S_IFREG | shmfd->shm_mode;		/* XXX */
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
+	mtx_unlock(&shm_timestamp_lock);
 
 	return (0);
 }
@@ -264,7 +270,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		/* Toss in memory pages. */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-			    FALSE);
+			    0);
 
 		/* Toss pages from swap. */
 		if (object->type == OBJT_SWAP)
@@ -392,14 +398,18 @@ static int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
 	accmode_t accmode;
+	int error;
 
 	accmode = 0;
 	if (flags & FREAD)
 		accmode |= VREAD;
 	if (flags & FWRITE)
 		accmode |= VWRITE;
-	return (vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
-	    accmode, ucred, NULL));
+	mtx_lock(&shm_timestamp_lock);
+	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
+	    accmode, ucred, NULL);
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
 }
 
 /*
@@ -476,7 +486,7 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 
 /* System calls. */
 int
-shm_open(struct thread *td, struct shm_open_args *uap)
+sys_shm_open(struct thread *td, struct shm_open_args *uap)
 {
 	struct filedesc *fdp;
 	struct shmfd *shmfd;
@@ -485,6 +495,14 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * shm_open(2) is only allowed for anonymous objects.
+	 */
+	if (IN_CAPABILITY_MODE(td) && (uap->path != SHM_ANON))
+		return (ECAPMODE);
+#endif
 
 	if ((uap->flags & O_ACCMODE) != O_RDONLY &&
 	    (uap->flags & O_ACCMODE) != O_RDWR)
@@ -496,7 +514,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	fdp = td->td_proc->p_fd;
 	cmode = (uap->mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 
@@ -529,8 +547,16 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 		if (shmfd == NULL) {
 			/* Object does not yet exist, create it if requested. */
 			if (uap->flags & O_CREAT) {
-				shmfd = shm_alloc(td->td_ucred, cmode);
-				shm_insert(path, fnv, shmfd);
+#ifdef MAC
+				error = mac_posixshm_check_create(td->td_ucred,
+				    path);
+				if (error == 0) {
+#endif
+					shmfd = shm_alloc(td->td_ucred, cmode);
+					shm_insert(path, fnv, shmfd);
+#ifdef MAC
+				}
+#endif
 			} else {
 				free(path, M_SHMFD);
 				error = ENOENT;
@@ -547,7 +573,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 			else {
 #ifdef MAC
 				error = mac_posixshm_check_open(td->td_ucred,
-				    shmfd);
+				    shmfd, FFLAGS(uap->flags & O_ACCMODE));
 				if (error == 0)
 #endif
 				error = shm_access(shmfd, td->td_ucred,
@@ -594,7 +620,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 }
 
 int
-shm_unlink(struct thread *td, struct shm_unlink_args *uap)
+sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
 	Fnv32_t fnv;
@@ -639,4 +665,63 @@ shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	vm_object_reference(shmfd->shm_object);
 	*obj = shmfd->shm_object;
 	return (0);
+}
+
+static int
+shm_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct shmfd *shmfd;
+	int error;
+
+	error = 0;
+	shmfd = fp->f_data;
+	mtx_lock(&shm_timestamp_lock);
+	/*
+	 * SUSv4 says that x bits of permission need not be affected.
+	 * Be consistent with our shm_open there.
+	 */
+#ifdef MAC
+	error = mac_posixshm_check_setmode(active_cred, shmfd, mode);
+	if (error != 0)
+		goto out;
+#endif
+	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid,
+	    shmfd->shm_gid, VADMIN, active_cred, NULL);
+	if (error != 0)
+		goto out;
+	shmfd->shm_mode = mode & ACCESSPERMS;
+out:
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
+}
+
+static int
+shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct shmfd *shmfd;
+	int error;
+
+	error = 0;
+	shmfd = fp->f_data;
+	mtx_lock(&shm_timestamp_lock);
+#ifdef MAC
+	error = mac_posixshm_check_setowner(active_cred, shmfd, uid, gid);
+	if (error != 0)
+		goto out;
+#endif
+	if (uid == (uid_t)-1)
+		uid = shmfd->shm_uid;
+	if (gid == (gid_t)-1)
+                 gid = shmfd->shm_gid;
+	if (((uid != shmfd->shm_uid && uid != active_cred->cr_uid) ||
+	    (gid != shmfd->shm_gid && !groupmember(gid, active_cred))) &&
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+		goto out;
+	shmfd->shm_uid = uid;
+	shmfd->shm_gid = gid;
+out:
+	mtx_unlock(&shm_timestamp_lock);
+	return (error);
 }

@@ -278,6 +278,11 @@ int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
 		const char *_fmt, ...) __printflike(8, 9);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
 		__printflike(2, 3);
+int	make_dev_alias_p(int _flags, struct cdev **_cdev, struct cdev *_pdev,
+		const char *_fmt, ...) __printflike(4, 5);
+int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
+	        struct cdev *_pdev, struct cdev *_old_alias,
+                const char *_physpath);
 void	dev_lock(void);
 void	dev_unlock(void);
 void	setconf(void);
@@ -295,6 +300,9 @@ int	devfs_get_cdevpriv(void **datap);
 int	devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t dtr);
 void	devfs_clear_cdevpriv(void);
 void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
+
+ino_t	devfs_alloc_cdp_inode(void);
+void	devfs_free_cdp_inode(ino_t ino);
 
 #define		UID_ROOT	0
 #define		UID_BIN		3
@@ -330,6 +338,7 @@ struct dumperinfo {
 int set_dumper(struct dumperinfo *);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
 void dumpsys(struct dumperinfo *);
+int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 
 #endif /* _KERNEL */

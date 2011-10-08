@@ -42,43 +42,58 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <libutil.h>
 
+static const int maxscale = 7;
+
 int
-humanize_number(char *buf, size_t len, int64_t bytes,
+humanize_number(char *buf, size_t len, int64_t quotient,
     const char *suffix, int scale, int flags)
 {
 	const char *prefixes, *sep;
-	int	b, i, r, maxscale, s1, s2, sign;
+	int	i, r, remainder, s1, s2, sign;
 	int64_t	divisor, max;
 	size_t	baselen;
 
 	assert(buf != NULL);
 	assert(suffix != NULL);
 	assert(scale >= 0);
+	assert(scale < maxscale || (((scale & (HN_AUTOSCALE | HN_GETSCALE)) != 0)));
+	assert(!((flags & HN_DIVISOR_1000) && (flags & HN_IEC_PREFIXES)));
 
-	if (flags & HN_DIVISOR_1000) {
-		/* SI for decimal multiplies */
-		divisor = 1000;
-		if (flags & HN_B)
-			prefixes = "B\0k\0M\0G\0T\0P\0E";
-		else
-			prefixes = "\0\0k\0M\0G\0T\0P\0E";
-	} else {
+	remainder = 0;
+
+	if (flags & HN_IEC_PREFIXES) {
+		baselen = 2;
 		/*
-		 * binary multiplies
-		 * XXX IEC 60027-2 recommends Ki, Mi, Gi...
+		 * Use the prefixes for power of two recommended by
+		 * the International Electrotechnical Commission
+		 * (IEC) in IEC 80000-3 (i.e. Ki, Mi, Gi...).
+		 *
+		 * HN_IEC_PREFIXES implies a divisor of 1024 here
+		 * (use of HN_DIVISOR_1000 would have triggered
+		 * an assertion earlier).
 		 */
 		divisor = 1024;
 		if (flags & HN_B)
-			prefixes = "B\0K\0M\0G\0T\0P\0E";
+			prefixes = "B\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 		else
-			prefixes = "\0\0K\0M\0G\0T\0P\0E";
+			prefixes = "\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
+	} else {
+		baselen = 1;
+		if (flags & HN_DIVISOR_1000)
+			divisor = 1000;
+		else
+			divisor = 1024;
+
+		if (flags & HN_B)
+			prefixes = "B\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
+		else
+			prefixes = "\0\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
 	}
 
-#define	SCALE2PREFIX(scale)	(&prefixes[(scale) << 1])
-	maxscale = 7;
+#define	SCALE2PREFIX(scale)	(&prefixes[(scale) * 3])
 
-	if (scale >= maxscale &&
-	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0)
+	if (scale < 0 || (scale >= maxscale &&
+	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0))
 		return (-1);
 
 	if (buf == NULL || suffix == NULL)
@@ -86,14 +101,13 @@ humanize_number(char *buf, size_t len, int64_t bytes,
 
 	if (len > 0)
 		buf[0] = '\0';
-	if (bytes < 0) {
+	if (quotient < 0) {
 		sign = -1;
-		bytes *= -100;
-		baselen = 3;		/* sign, digit, prefix */
+		quotient = -quotient;
+		baselen += 2;		/* sign, digit */
 	} else {
 		sign = 1;
-		bytes *= 100;
-		baselen = 2;		/* digit, prefix */
+		baselen += 1;		/* digit */
 	}
 	if (flags & HN_NOSPACE)
 		sep = "";
@@ -109,7 +123,7 @@ humanize_number(char *buf, size_t len, int64_t bytes,
 
 	if (scale & (HN_AUTOSCALE | HN_GETSCALE)) {
 		/* See if there is additional columns can be used. */
-		for (max = 100, i = len - baselen; i-- > 0;)
+		for (max = 1, i = len - baselen; i-- > 0;)
 			max *= 10;
 
 		/*
@@ -117,30 +131,37 @@ humanize_number(char *buf, size_t len, int64_t bytes,
 		 * If there will be an overflow by the rounding below,
 		 * divide once more.
 		 */
-		for (i = 0; bytes >= max - 50 && i < maxscale; i++)
-			bytes /= divisor;
+		for (i = 0;
+		    (quotient >= max || (quotient == max - 1 && remainder >= 950)) &&
+		    i < maxscale; i++) {
+			remainder = quotient % divisor;
+			quotient /= divisor;
+		}
 
 		if (scale & HN_GETSCALE)
 			return (i);
-	} else
-		for (i = 0; i < scale && i < maxscale; i++)
-			bytes /= divisor;
+	} else {
+		for (i = 0; i < scale && i < maxscale; i++) {
+			remainder = quotient % divisor;
+			quotient /= divisor;
+		}
+	}
 
 	/* If a value <= 9.9 after rounding and ... */
-	if (bytes < 995 && i > 0 && flags & HN_DECIMAL) {
+	if (quotient <= 9 && remainder < 950 && i > 0 && flags & HN_DECIMAL) {
 		/* baselen + \0 + .N */
 		if (len < baselen + 1 + 2)
 			return (-1);
-		b = ((int)bytes + 5) / 10;
-		s1 = b / 10;
-		s2 = b % 10;
+		s1 = (int)quotient + ((remainder + 50) / 1000);
+		s2 = ((remainder + 50) / 100) % 10;
 		r = snprintf(buf, len, "%d%s%d%s%s%s",
 		    sign * s1, localeconv()->decimal_point, s2,
 		    sep, SCALE2PREFIX(i), suffix);
 	} else
 		r = snprintf(buf, len, "%" PRId64 "%s%s%s",
-		    sign * ((bytes + 50) / 100),
+		    sign * (quotient + (remainder + 50) / 1000),
 		    sep, SCALE2PREFIX(i), suffix);
 
 	return (r);
 }
+

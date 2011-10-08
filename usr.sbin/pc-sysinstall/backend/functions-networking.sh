@@ -1,6 +1,11 @@
 #!/bin/sh
 #-
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2011 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -45,8 +50,8 @@ Type=Application" > ${FSMNT}/usr/share/skel/.kde4/Autostart/tray-${NIC}.desktop
 check_is_wifi()
 {
   NIC="$1"
-  ifconfig ${NIC} | grep "802.11" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  ifconfig ${NIC} | grep -q "802.11" 2>/dev/null
+  if [ $? -eq 0 ]
   then
     return 0
   else 
@@ -66,15 +71,15 @@ get_first_wired_nic()
     do
       NIC="`echo $line | cut -d ':' -f 1`"
       check_is_wifi ${NIC}
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
-        VAL="${NIC}" ; export VAL
+        export VAL="${NIC}"
         return
       fi
     done < ${TMPDIR}/.niclist
   fi
 
-  VAL="" ; export VAL
+  export VAL=""
   return
 };
 
@@ -95,14 +100,14 @@ enable_dhcp_all()
       DESC="`echo $line | cut -d ':' -f 2`"
       echo_log "Setting $NIC to DHCP on the system."
       check_is_wifi ${NIC}
-      if [ "$?" = "0" ]
+      if [ $? -eq 0 ]
       then
         # We have a wifi device, setup a wlan* entry for it
         WLAN="wlan${WLANCOUNT}"
         echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
         echo "ifconfig_${WLAN}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
-        WLANCOUNT="`expr ${WLANCOUNT} + 1`"
+        WLANCOUNT=$((WLANCOUNT+1))
       else
         echo "ifconfig_${NIC}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${NIC}"
@@ -117,6 +122,61 @@ enable_dhcp_all()
 save_auto_dhcp()
 {
   enable_dhcp_all
+};
+
+# Function which simply enables iPv6 SLAAC on all detected nics
+enable_slaac_all()
+{
+  rm ${TMPDIR}/.niclist >/dev/null 2>/dev/null
+  # start by getting a list of nics on this system
+  ${QUERYDIR}/detect-nics.sh > ${TMPDIR}/.niclist
+  if [ -e "${TMPDIR}/.niclist" ]
+  then
+    echo "# Auto-Enabled NICs from pc-sysinstall" >>${FSMNT}/etc/rc.conf
+    WLANCOUNT="0"
+    while read line
+    do
+      NIC="`echo $line | cut -d ':' -f 1`"
+      DESC="`echo $line | cut -d ':' -f 2`"
+      echo_log "Setting $NIC to acceptign RAs on the system."
+      check_is_wifi ${NIC}
+      if [ $? -eq 0 ]
+      then
+        # We have a wifi device, setup a wlan* entry for it
+        # Given we cannot have DHCP and SLAAC the same time currently
+	# it's save to just duplicate.
+        WLAN="wlan${WLANCOUNT}"
+        echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
+        echo "ifconfig_${WLAN}=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+        CNIC="${WLAN}"
+        WLANCOUNT=$((WLANCOUNT+1))
+      else
+	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
+        echo "ifconfig_${NIC}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+        CNIC="${NIC}"
+      fi
+ 
+    done < ${TMPDIR}/.niclist 
+  fi
+
+  # Given we cannot yet rely on RAs to provide DNS information as much
+  # as we can in the DHCP world, we should append a given nameserver.
+  : > ${FSMNT}/etc/resolv.conf
+  get_value_from_cfg netSaveIPv6NameServer
+  NAMESERVER="${VAL}"
+  if [ -n "${NAMESERVER}" ]
+  then
+    echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+  fi
+
+};
+
+
+# Function which detects available nics, and enables IPv6 SLAAC on them
+save_auto_slaac()
+{
+  enable_slaac_all
 };
 
 
@@ -137,45 +197,78 @@ save_manual_nic()
   fi
 
   # If we get here, we have a manual setup, lets do so now
+  IFARGS=""
+  IF6ARGS=""
 
   # Set the manual IP
-  IFARGS="inet ${NETIP}"
-
-  # Check if we have a netmask to set
-  get_value_from_cfg netSaveMask
-  NETMASK="${VAL}"
-  if [ ! -z "${NETMASK}" ]
+  if [ -n "${NETIP}" ]
   then
-    IFARGS="${IFARGS} netmask ${NETMASK}"
+    IFARGS="inet ${NETIP}"
+
+    # Check if we have a netmask to set
+    get_value_from_cfg netSaveMask
+    NETMASK="${VAL}"
+    if [ -n "${NETMASK}" ]
+    then
+      IFARGS="${IFARGS} netmask ${NETMASK}"
+    fi
   fi
 
+  get_value_from_cfg netSaveIPv6
+  NETIP6="${VAL}"
+  if [ -n "${NETIP6}" ]
+  then
+    # Make sure we have one inet6 prefix.
+    IF6ARGS=`echo "${NETIP6}" | awk '{ if ("^inet6 ") { print $0; } else
+      { printf "inet6 %s", $0; } }'`
+  fi
 
   echo "# Auto-Enabled NICs from pc-sysinstall" >>${FSMNT}/etc/rc.conf
-  echo "ifconfig_${NIC}=\"${IFARGS}\"" >>${FSMNT}/etc/rc.conf
+  if [ -n "${IFARGS}" ]
+  then
+    echo "ifconfig_${NIC}=\"${IFARGS}\"" >>${FSMNT}/etc/rc.conf
+  fi
+  if [ -n "${IF6ARGS}" ]
+  then
+    echo "ifconfig_${NIC}_ipv6=\"${IF6ARGS}\"" >>${FSMNT}/etc/rc.conf
+  fi
 
   # Check if we have a default router to set
   get_value_from_cfg netSaveDefaultRouter
   NETROUTE="${VAL}"
-  if [ ! -z "${NETROUTE}" ]
+  if [ -n "${NETROUTE}" ]
   then
     echo "defaultrouter=\"${NETROUTE}\"" >>${FSMNT}/etc/rc.conf
   fi
+  get_value_from_cfg netSaveIPv6DefaultRouter
+  NETROUTE="${VAL}"
+  if [ -n "${NETROUTE}" ]
+  then
+    echo "ipv6_defaultrouter=\"${NETROUTE}\"" >>${FSMNT}/etc/rc.conf
+  fi
 
   # Check if we have a nameserver to enable
+  : > ${FSMNT}/etc/resolv.conf
   get_value_from_cfg netSaveNameServer
   NAMESERVER="${VAL}"
-  if [ ! -z "${NAMESERVER}" ]
+  if [ -n "${NAMESERVER}" ]
   then
-    echo "nameserver ${NAMESERVER}" >${FSMNT}/etc/resolv.conf
+    echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
   fi
- 
+  get_value_from_cfg netSaveIPv6NameServer
+  NAMESERVER="${VAL}"
+  if [ -n "${NAMESERVER}" ]
+  then
+    echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+  fi
+
 };
 
 # Function which determines if a nic is active / up
 is_nic_active()
 {
-  ifconfig ${1} | grep "status: active" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
+  ifconfig ${1} | grep -q "status: active" 2>/dev/null
+  if [ $? -eq 0 ] ; then
     return 0
   else
     return 1
@@ -195,18 +288,43 @@ enable_auto_dhcp()
     DESC="`echo $line | cut -d ':' -f 2`"
 
     is_nic_active "${NIC}"
-    if [ "$?" = "0" ] ; then
+    if [ $? -eq 0 ] ; then
       echo_log "Trying DHCP on $NIC $DESC"
       dhclient ${NIC} >/dev/null 2>/dev/null
-      if [ "$?" = "0" ] ; then
+      if [ $? -eq 0 ] ; then
         # Got a valid DHCP IP, we can return now
-	    WRKNIC="$NIC" ; export WRKNIC
+	    export WRKNIC="$NIC"
    	    return 0
 	  fi
     fi
   done < ${TMPDIR}/.niclist 
 
 };
+
+# Function which detects available nics, and runs rtsol on them.
+enable_auto_slaac()
+{
+
+  # start by getting a list of nics on this system
+  ${QUERYDIR}/detect-nics.sh > ${TMPDIR}/.niclist
+  ALLNICS=""
+  while read line
+  do
+    NIC="`echo $line | cut -d ':' -f 1`"
+    DESC="`echo $line | cut -d ':' -f 2`"
+
+    is_nic_active "${NIC}"
+    if [ $? -eq 0 ] ; then
+      echo_log "Will try IPv6 SLAAC on $NIC $DESC"
+      ifconfig ${NIC} inet6 -ifdisabled accept_rtadv up
+      ALLNICS="${ALLNICS} ${NIC}"
+    fi
+  done < ${TMPDIR}/.niclist 
+
+  # XXX once we support it in-tree call /sbin/resovconf here.
+  echo_log "Running rtsol on ${ALLNICS}"
+  rtsol -F ${ALLNICS} >/dev/null 2>/dev/null
+}
 
 # Get the mac address of a target NIC
 get_nic_mac()
@@ -236,34 +354,63 @@ enable_manual_nic()
 
   # If we get here, we have a manual setup, lets do so now
 
-  # Set the manual IP
-  rc_halt "ifconfig ${NIC} ${NETIP}"
+  # IPv4:
 
-  # Check if we have a netmask to set
-  get_value_from_cfg netMask
-  NETMASK="${VAL}"
-  if [ ! -z "${NETMASK}" ]
+  # Set the manual IP
+  if [ -n "${NETIP}" ]
   then
-    rc_halt "ifconfig ${NIC} netmask ${NETMASK}"
+    # Check if we have a netmask to set
+    get_value_from_cfg netMask
+    NETMASK="${VAL}"
+    if [ -n "${NETMASK}" ]
+    then
+      rc_halt "ifconfig inet ${NIC} netmask ${NETMASK}"
+    else
+      rc_halt "ifconfig inet ${NIC} ${NETIP}"
+    fi
   fi
 
   # Check if we have a default router to set
   get_value_from_cfg netDefaultRouter
   NETROUTE="${VAL}"
-  if [ ! -z "${NETROUTE}" ]
+  if [ -n "${NETROUTE}" ]
   then
-    rc_halt "route add default ${NETROUTE}"
+    rc_halt "route add -inet default ${NETROUTE}"
+  fi
+
+  # IPv6:
+
+  # Set static IPv6 address
+  get_value_from_cfg netIPv6
+  NETIP="${VAL}"
+  if [ -n ${NETIP} ]
+  then
+      rc_halt "ifconfig inet6 ${NIC} ${NETIP} -ifdisabled up"
+  fi
+
+  # Default router
+  get_value_from_cfg netIPv6DefaultRouter
+  NETROUTE="${VAL}"
+  if [ -n "${NETROUTE}" ]
+  then
+    rc_halt "route add -inet6 default ${NETROUTE}"
   fi
 
   # Check if we have a nameserver to enable
+  : >/etc/resolv.conf
   get_value_from_cfg netNameServer
   NAMESERVER="${VAL}"
-  if [ ! -z "${NAMESERVER}" ]
+  if [ -n "${NAMESERVER}" ]
   then
-    echo "nameserver ${NAMESERVER}" >/etc/resolv.conf
+    echo "nameserver ${NAMESERVER}" >>/etc/resolv.conf
   fi
-  
-  
+  get_value_from_cfg netIPv6NameServer
+  NAMESERVER="${VAL}"
+  if [ -n "${NAMESERVER}" ]
+  then
+    echo "nameserver ${NAMESERVER}" >>/etc/resolv.conf
+  fi
+
 };
 
 
@@ -281,6 +428,9 @@ start_networking()
   if [ "$NETDEV" = "AUTO-DHCP" ]
   then
     enable_auto_dhcp
+  elif [ "$NETDEV" = "IPv6-SLAAC" ]
+  then
+    enable_auto_slaac
   else
     enable_manual_nic ${NETDEV}
   fi
@@ -304,9 +454,11 @@ save_networking_install()
   if [ "$NETDEV" = "AUTO-DHCP" ]
   then
     save_auto_dhcp
+  elif [ "$NETDEV" = "IPv6-SLAAC" ]
+  then
+    save_auto_slaac
   else
     save_manual_nic ${NETDEV}
   fi
 
 };
-

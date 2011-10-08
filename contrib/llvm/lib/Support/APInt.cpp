@@ -1375,7 +1375,7 @@ APInt APInt::sqrt() const {
                  uint64_t(::round(::sqrt(double(isSingleWord()?VAL:pVal[0])))));
 #else
     return APInt(BitWidth,
-                 uint64_t(::sqrt(double(isSingleWord()?VAL:pVal[0]))) + 0.5);
+                 uint64_t(::sqrt(double(isSingleWord()?VAL:pVal[0])) + 0.5));
 #endif
   }
 
@@ -1517,13 +1517,15 @@ APInt::ms APInt::magic() const {
 /// division by a constant as a sequence of multiplies, adds and shifts.
 /// Requires that the divisor not be 0.  Taken from "Hacker's Delight", Henry
 /// S. Warren, Jr., chapter 10.
-APInt::mu APInt::magicu() const {
+/// LeadingZeros can be used to simplify the calculation if the upper bits
+/// of the divided value are known zero.
+APInt::mu APInt::magicu(unsigned LeadingZeros) const {
   const APInt& d = *this;
   unsigned p;
   APInt nc, delta, q1, r1, q2, r2;
   struct mu magu;
   magu.a = 0;               // initialize "add" indicator
-  APInt allOnes = APInt::getAllOnesValue(d.getBitWidth());
+  APInt allOnes = APInt::getAllOnesValue(d.getBitWidth()).lshr(LeadingZeros);
   APInt signedMin = APInt::getSignedMinValue(d.getBitWidth());
   APInt signedMax = APInt::getSignedMaxValue(d.getBitWidth());
 
@@ -2076,6 +2078,16 @@ APInt APInt::smul_ov(const APInt &RHS, bool &Overflow) const {
   return Res;
 }
 
+APInt APInt::umul_ov(const APInt &RHS, bool &Overflow) const {
+  APInt Res = *this * RHS;
+
+  if (*this != 0 && RHS != 0)
+    Overflow = Res.udiv(RHS) != *this || Res.udiv(*this) != RHS;
+  else
+    Overflow = false;
+  return Res;
+}
+
 APInt APInt::sshl_ov(unsigned ShAmt, bool &Overflow) const {
   Overflow = ShAmt >= getBitWidth();
   if (Overflow)
@@ -2152,12 +2164,33 @@ void APInt::fromString(unsigned numbits, StringRef str, uint8_t radix) {
 }
 
 void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
-                     bool Signed) const {
+                     bool Signed, bool formatAsCLiteral) const {
   assert((Radix == 10 || Radix == 8 || Radix == 16 || Radix == 2) &&
          "Radix should be 2, 8, 10, or 16!");
 
+  const char *Prefix = "";
+  if (formatAsCLiteral) {
+    switch (Radix) {
+      case 2:
+        // Binary literals are a non-standard extension added in gcc 4.3:
+        // http://gcc.gnu.org/onlinedocs/gcc-4.3.0/gcc/Binary-constants.html
+        Prefix = "0b";
+        break;
+      case 8:
+        Prefix = "0";
+        break;
+      case 16:
+        Prefix = "0x";
+        break;
+    }
+  }
+
   // First, check for a zero value and just short circuit the logic below.
   if (*this == 0) {
+    while (*Prefix) {
+      Str.push_back(*Prefix);
+      ++Prefix;
+    };
     Str.push_back('0');
     return;
   }
@@ -2181,6 +2214,11 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
       }
     }
 
+    while (*Prefix) {
+      Str.push_back(*Prefix);
+      ++Prefix;
+    };
+
     while (N) {
       *--BufPtr = Digits[N % Radix];
       N /= Radix;
@@ -2199,6 +2237,11 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
     Tmp++;
     Str.push_back('-');
   }
+
+  while (*Prefix) {
+    Str.push_back(*Prefix);
+    ++Prefix;
+  };
 
   // We insert the digits backward, then reverse them to get the right order.
   unsigned StartDig = Str.size();
@@ -2239,7 +2282,7 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
 /// to the methods above.
 std::string APInt::toString(unsigned Radix = 10, bool Signed = true) const {
   SmallString<40> S;
-  toString(S, Radix, Signed);
+  toString(S, Radix, Signed, /* formatAsCLiteral = */false);
   return S.str();
 }
 
@@ -2254,7 +2297,7 @@ void APInt::dump() const {
 
 void APInt::print(raw_ostream &OS, bool isSigned) const {
   SmallString<40> S;
-  this->toString(S, 10, isSigned);
+  this->toString(S, 10, isSigned, /* formatAsCLiteral = */false);
   OS << S.str();
 }
 

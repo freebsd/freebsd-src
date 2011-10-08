@@ -24,8 +24,8 @@ arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/identcpu.c		standard
-arm/arm/in_cksum.c		optional	inet
-arm/arm/in_cksum_arm.S		optional	inet
+arm/arm/in_cksum.c		optional	inet | inet6
+arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/intr.c			standard
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bit.h,v 1.14 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: bit.h,v 1.14 2007-06-19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_BIT_H
 #define DNS_BIT_H 1

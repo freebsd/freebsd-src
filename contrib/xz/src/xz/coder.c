@@ -102,7 +102,7 @@ coder_add_filter(lzma_vli id, void *options)
 }
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 memlimit_too_small(uint64_t memory_usage)
 {
 	message(V_ERROR, _("Memory usage limit is too low for the given "

@@ -71,8 +71,8 @@ __FBSDID("$FreeBSD$");
 #define USB_DEBUG_VAR run_debug
 #include <dev/usb/usb_debug.h>
 
-#include "if_runreg.h"
-#include "if_runvar.h"
+#include <dev/usb/wlan/if_runreg.h>
+#include <dev/usb/wlan/if_runvar.h>
 
 #define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
 
@@ -96,7 +96,7 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
  */
 #define RUN_CMDQ_GET(c)	(atomic_fetchadd_32((c), 1) & RUN_CMDQ_MASQ)
 
-static const struct usb_device_id run_devs[] = {
+static const STRUCT_USB_HOST_ID run_devs[] = {
 #define RUN_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     RUN_DEV(ABOCOM,		RT2770),
     RUN_DEV(ABOCOM,		RT2870),
@@ -523,7 +523,7 @@ static const struct usb_config run_config[RUN_N_XFER] = {
     }
 };
 
-int
+static int
 run_match(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
@@ -604,7 +604,7 @@ run_attach(device_t self)
 	RUN_UNLOCK(sc);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if(ifp == NULL){
+	if (ifp == NULL) {
 		device_printf(sc->sc_dev, "can not if_alloc()\n");
 		goto detach;
 	}
@@ -958,7 +958,7 @@ run_unsetup_tx_list(struct run_softc *sc, struct run_endpoint_queue *pq)
 	}
 }
 
-int
+static int
 run_load_microcode(struct run_softc *sc)
 {
 	usb_device_request_t req;
@@ -1018,7 +1018,8 @@ run_load_microcode(struct run_softc *sc)
 	USETW(req.wValue, 8);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
-	if ((error = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL)) != 0) {
+	if ((error = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL))
+	    != 0) {
 		device_printf(sc->sc_dev, "firmware reset failed\n");
 		goto fail;
 	}

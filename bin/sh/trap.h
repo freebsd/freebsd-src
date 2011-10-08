@@ -37,7 +37,6 @@ extern int pendingsigs;
 extern int in_dotrap;
 extern volatile sig_atomic_t gotwinch;
 
-int trapcmd(int, char **);
 void clear_traps(void);
 int have_traps(void);
 void setsignal(int);

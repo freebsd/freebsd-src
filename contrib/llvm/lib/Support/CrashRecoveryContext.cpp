@@ -57,17 +57,68 @@ public:
 static sys::Mutex gCrashRecoveryContexMutex;
 static bool gCrashRecoveryEnabled = false;
 
+static sys::ThreadLocal<const CrashRecoveryContextCleanup> 
+       tlIsRecoveringFromCrash;
+
+CrashRecoveryContextCleanup::~CrashRecoveryContextCleanup() {}
+
 CrashRecoveryContext::~CrashRecoveryContext() {
+  // Reclaim registered resources.
+  CrashRecoveryContextCleanup *i = head;
+  tlIsRecoveringFromCrash.set(head);
+  while (i) {
+    CrashRecoveryContextCleanup *tmp = i;
+    i = tmp->next;
+    tmp->cleanupFired = true;
+    tmp->recoverResources();
+    delete tmp;
+  }
+  tlIsRecoveringFromCrash.erase();
+  
   CrashRecoveryContextImpl *CRCI = (CrashRecoveryContextImpl *) Impl;
   delete CRCI;
 }
 
+bool CrashRecoveryContext::isRecoveringFromCrash() {
+  return tlIsRecoveringFromCrash.get() != 0;
+}
+
 CrashRecoveryContext *CrashRecoveryContext::GetCurrent() {
+  if (!gCrashRecoveryEnabled)
+    return 0;
+
   const CrashRecoveryContextImpl *CRCI = CurrentContext.get();
   if (!CRCI)
     return 0;
 
   return CRCI->CRC;
+}
+
+void CrashRecoveryContext::registerCleanup(CrashRecoveryContextCleanup *cleanup)
+{
+  if (!cleanup)
+    return;
+  if (head)
+    head->prev = cleanup;
+  cleanup->next = head;
+  head = cleanup;
+}
+
+void
+CrashRecoveryContext::unregisterCleanup(CrashRecoveryContextCleanup *cleanup) {
+  if (!cleanup)
+    return;
+  if (cleanup == head) {
+    head = cleanup->next;
+    if (head)
+      head->prev = 0;
+  }
+  else {
+    cleanup->prev->next = cleanup->next;
+    if (cleanup->next)
+      cleanup->next->prev = cleanup->prev;
+  }
+  delete cleanup;
 }
 
 #ifdef LLVM_ON_WIN32

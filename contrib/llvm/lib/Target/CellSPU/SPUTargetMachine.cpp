@@ -12,8 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "SPU.h"
-#include "SPURegisterNames.h"
-#include "SPUMCAsmInfo.h"
 #include "SPUTargetMachine.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
@@ -25,7 +23,6 @@ using namespace llvm;
 extern "C" void LLVMInitializeCellSPUTarget() { 
   // Register the target.
   RegisterTargetMachine<SPUTargetMachine> X(TheCellSPUTarget);
-  RegisterAsmInfo<SPULinuxMCAsmInfo> Y(TheCellSPUTarget);
 }
 
 const std::pair<unsigned, int> *
@@ -35,9 +32,9 @@ SPUFrameLowering::getCalleeSaveSpillSlots(unsigned &NumEntries) const {
 }
 
 SPUTargetMachine::SPUTargetMachine(const Target &T, const std::string &TT,
-                                   const std::string &FS)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS),
+                                   const std::string &CPU,const std::string &FS)
+  : LLVMTargetMachine(T, TT, CPU, FS),
+    Subtarget(TT, CPU, FS),
     DataLayout(Subtarget.getTargetDataString()),
     InstrInfo(*this),
     FrameLowering(Subtarget),

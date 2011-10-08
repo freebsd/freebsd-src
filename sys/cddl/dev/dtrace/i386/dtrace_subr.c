@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
@@ -113,12 +114,12 @@ dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 void
 dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
-	cpumask_t cpus;
+	cpuset_t cpus;
 
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t)1 << cpu;
+		CPU_SETOF(cpu, &cpus);
 
 	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
 	    smp_no_rendevous_barrier, arg);
@@ -359,26 +360,6 @@ static uint64_t	nsec_scale;
 #define SCALE_SHIFT	28
 
 static void
-dtrace_gethrtime_init_sync(void *arg)
-{
-#ifdef CHECK_SYNC
-	/*
-	 * Delay this function from returning on one
-	 * of the CPUs to check that the synchronisation
-	 * works.
-	 */
-	uintptr_t cpu = (uintptr_t) arg;
-
-	if (cpu == curcpu) {
-		int i;
-		for (i = 0; i < 1000000000; i++)
-			tgt_cpu_tsc = rdtsc();
-		tgt_cpu_tsc = 0;
-	}
-#endif
-}
-
-static void
 dtrace_gethrtime_init_cpu(void *arg)
 {
 	uintptr_t cpu = (uintptr_t) arg;
@@ -392,9 +373,9 @@ dtrace_gethrtime_init_cpu(void *arg)
 static void
 dtrace_gethrtime_init(void *arg)
 {
+	cpuset_t map;
 	struct pcpu *pc;
 	uint64_t tsc_f;
-	cpumask_t map;
 	int i;
 
 	/*
@@ -403,7 +384,7 @@ dtrace_gethrtime_init(void *arg)
 	 * Otherwise tick->time conversion will be inaccurate, but
 	 * will preserve monotonic property of TSC.
 	 */
-	tsc_f = tsc_freq;
+	tsc_f = atomic_load_acq_64(&tsc_freq);
 
 	/*
 	 * The following line checks that nsec_scale calculated below
@@ -432,9 +413,10 @@ dtrace_gethrtime_init(void *arg)
 			continue;
 
 		pc = pcpu_find(i);
-		map = PCPU_GET(cpumask) | pc->pc_cpumask;
+		CPU_SETOF(PCPU_GET(cpuid), &map);
+		CPU_SET(pc->pc_cpuid, &map);
 
-		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
+		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
 		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
 

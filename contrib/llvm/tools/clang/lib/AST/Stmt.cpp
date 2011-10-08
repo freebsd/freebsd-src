@@ -20,7 +20,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/Basic/TargetInfo.h"
-#include <cstdio>
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 static struct StmtClassNameTable {
@@ -54,23 +54,24 @@ void Stmt::PrintStats() {
   getStmtInfoTableEntry(Stmt::NullStmtClass);
 
   unsigned sum = 0;
-  fprintf(stderr, "*** Stmt/Expr Stats:\n");
+  llvm::errs() << "\n*** Stmt/Expr Stats:\n";
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
     if (StmtClassInfo[i].Name == 0) continue;
     sum += StmtClassInfo[i].Counter;
   }
-  fprintf(stderr, "  %d stmts/exprs total.\n", sum);
+  llvm::errs() << "  " << sum << " stmts/exprs total.\n";
   sum = 0;
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
     if (StmtClassInfo[i].Name == 0) continue;
     if (StmtClassInfo[i].Counter == 0) continue;
-    fprintf(stderr, "    %d %s, %d each (%d bytes)\n",
-            StmtClassInfo[i].Counter, StmtClassInfo[i].Name,
-            StmtClassInfo[i].Size,
-            StmtClassInfo[i].Counter*StmtClassInfo[i].Size);
+    llvm::errs() << "    " << StmtClassInfo[i].Counter << " "
+                 << StmtClassInfo[i].Name << ", " << StmtClassInfo[i].Size
+                 << " each (" << StmtClassInfo[i].Counter*StmtClassInfo[i].Size
+                 << " bytes)\n";
     sum += StmtClassInfo[i].Counter*StmtClassInfo[i].Size;
   }
-  fprintf(stderr, "Total bytes = %d\n", sum);
+
+  llvm::errs() << "Total bytes = " << sum << "\n";
 }
 
 void Stmt::addStmtClass(StmtClass s) {
@@ -82,6 +83,18 @@ static bool StatSwitch = false;
 bool Stmt::CollectingStats(bool Enable) {
   if (Enable) StatSwitch = true;
   return StatSwitch;
+}
+
+Stmt *Stmt::IgnoreImplicit() {
+  Stmt *s = this;
+
+  if (ExprWithCleanups *ewc = dyn_cast<ExprWithCleanups>(s))
+    s = ewc->getSubExpr();
+
+  while (ImplicitCastExpr *ice = dyn_cast<ImplicitCastExpr>(s))
+    s = ice->getSubExpr();
+
+  return s;
 }
 
 namespace {
@@ -365,6 +378,10 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
     // Handle %x4 and %x[foo] by capturing x as the modifier character.
     char Modifier = '\0';
     if (isalpha(EscapedChar)) {
+      if (CurPtr == StrEnd) { // Premature end.
+        DiagOffs = CurPtr-StrStart-1;
+        return diag::err_asm_invalid_escape;
+      }
       Modifier = EscapedChar;
       EscapedChar = *CurPtr++;
     }
@@ -540,6 +557,40 @@ CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
   std::copy(handlers, handlers + NumHandlers, Stmts + 1);
 }
 
+CXXForRangeStmt::CXXForRangeStmt(DeclStmt *Range, DeclStmt *BeginEndStmt,
+                                 Expr *Cond, Expr *Inc, DeclStmt *LoopVar,
+                                 Stmt *Body, SourceLocation FL,
+                                 SourceLocation CL, SourceLocation RPL)
+  : Stmt(CXXForRangeStmtClass), ForLoc(FL), ColonLoc(CL), RParenLoc(RPL) {
+  SubExprs[RANGE] = Range;
+  SubExprs[BEGINEND] = BeginEndStmt;
+  SubExprs[COND] = reinterpret_cast<Stmt*>(Cond);
+  SubExprs[INC] = reinterpret_cast<Stmt*>(Inc);
+  SubExprs[LOOPVAR] = LoopVar;
+  SubExprs[BODY] = Body;
+}
+
+Expr *CXXForRangeStmt::getRangeInit() {
+  DeclStmt *RangeStmt = getRangeStmt();
+  VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
+  assert(RangeDecl &&& "for-range should have a single var decl");
+  return RangeDecl->getInit();
+}
+
+const Expr *CXXForRangeStmt::getRangeInit() const {
+  return const_cast<CXXForRangeStmt*>(this)->getRangeInit();
+}
+
+VarDecl *CXXForRangeStmt::getLoopVariable() {
+  Decl *LV = cast<DeclStmt>(getLoopVarStmt())->getSingleDecl();
+  assert(LV && "No loop variable in CXXForRangeStmt");
+  return cast<VarDecl>(LV);
+}
+
+const VarDecl *CXXForRangeStmt::getLoopVariable() const {
+  return const_cast<CXXForRangeStmt*>(this)->getLoopVariable();
+}
+
 IfStmt::IfStmt(ASTContext &C, SourceLocation IL, VarDecl *var, Expr *cond, 
                Stmt *then, SourceLocation EL, Stmt *elsev)
   : Stmt(IfStmtClass), IfLoc(IL), ElseLoc(EL)
@@ -628,14 +679,14 @@ void SwitchStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
 }
 
 Stmt *SwitchCase::getSubStmt() {
-  if (isa<CaseStmt>(this)) return cast<CaseStmt>(this)->getSubStmt();
+  if (isa<CaseStmt>(this))
+    return cast<CaseStmt>(this)->getSubStmt();
   return cast<DefaultStmt>(this)->getSubStmt();
 }
 
 WhileStmt::WhileStmt(ASTContext &C, VarDecl *Var, Expr *cond, Stmt *body, 
                      SourceLocation WL)
-: Stmt(WhileStmtClass)
-{
+  : Stmt(WhileStmtClass) {
   setConditionVariable(C, Var);
   SubExprs[COND] = reinterpret_cast<Stmt*>(cond);
   SubExprs[BODY] = body;
@@ -675,4 +726,62 @@ const Expr* ReturnStmt::getRetValue() const {
 }
 Expr* ReturnStmt::getRetValue() {
   return cast_or_null<Expr>(RetExpr);
+}
+
+SEHTryStmt::SEHTryStmt(bool IsCXXTry,
+                       SourceLocation TryLoc,
+                       Stmt *TryBlock,
+                       Stmt *Handler)
+  : Stmt(SEHTryStmtClass),
+    IsCXXTry(IsCXXTry),
+    TryLoc(TryLoc)
+{
+  Children[TRY]     = TryBlock;
+  Children[HANDLER] = Handler;
+}
+
+SEHTryStmt* SEHTryStmt::Create(ASTContext &C,
+                               bool IsCXXTry,
+                               SourceLocation TryLoc,
+                               Stmt *TryBlock,
+                               Stmt *Handler) {
+  return new(C) SEHTryStmt(IsCXXTry,TryLoc,TryBlock,Handler);
+}
+
+SEHExceptStmt* SEHTryStmt::getExceptHandler() const {
+  return dyn_cast<SEHExceptStmt>(getHandler());
+}
+
+SEHFinallyStmt* SEHTryStmt::getFinallyHandler() const {
+  return dyn_cast<SEHFinallyStmt>(getHandler());
+}
+
+SEHExceptStmt::SEHExceptStmt(SourceLocation Loc,
+                             Expr *FilterExpr,
+                             Stmt *Block)
+  : Stmt(SEHExceptStmtClass),
+    Loc(Loc)
+{
+  Children[FILTER_EXPR] = reinterpret_cast<Stmt*>(FilterExpr);
+  Children[BLOCK]       = Block;
+}
+
+SEHExceptStmt* SEHExceptStmt::Create(ASTContext &C,
+                                     SourceLocation Loc,
+                                     Expr *FilterExpr,
+                                     Stmt *Block) {
+  return new(C) SEHExceptStmt(Loc,FilterExpr,Block);
+}
+
+SEHFinallyStmt::SEHFinallyStmt(SourceLocation Loc,
+                               Stmt *Block)
+  : Stmt(SEHFinallyStmtClass),
+    Loc(Loc),
+    Block(Block)
+{}
+
+SEHFinallyStmt* SEHFinallyStmt::Create(ASTContext &C,
+                                       SourceLocation Loc,
+                                       Stmt *Block) {
+  return new(C)SEHFinallyStmt(Loc,Block);
 }

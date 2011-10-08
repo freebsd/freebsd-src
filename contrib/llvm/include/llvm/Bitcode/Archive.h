@@ -25,7 +25,6 @@
 
 namespace llvm {
   class MemoryBuffer;
-  class raw_ostream;
 
 // Forward declare classes
 class Module;              // From VMCore
@@ -436,7 +435,7 @@ class Archive {
     /// to determine just enough information to create an ArchiveMember object
     /// which is then inserted into the Archive object's ilist at the location
     /// given by \p where.
-    /// @returns true if an error occured, false otherwise
+    /// @returns true if an error occurred, false otherwise
     /// @brief Add a file to the archive.
     bool addFileBefore(
       const sys::Path& filename, ///< The file to be added
@@ -483,7 +482,7 @@ class Archive {
     bool loadSymbolTable(std::string* ErrMessage);
 
     /// @brief Write the symbol table to an ofstream.
-    void writeSymbolTable(raw_ostream& ARFile);
+    void writeSymbolTable(std::ofstream& ARFile);
 
     /// Writes one ArchiveMember to an ofstream. If an error occurs, returns
     /// false, otherwise true. If an error occurs and error is non-null then
@@ -492,7 +491,7 @@ class Archive {
     /// @returns true Writing member failed, \p error set to error message
     bool writeMember(
       const ArchiveMember& member, ///< The member to be written
-      raw_ostream& ARFile,       ///< The file to write member onto
+      std::ofstream& ARFile,       ///< The file to write member onto
       bool CreateSymbolTable,      ///< Should symbol table be created?
       bool TruncateNames,          ///< Should names be truncated to 11 chars?
       bool ShouldCompress,         ///< Should the member be compressed?

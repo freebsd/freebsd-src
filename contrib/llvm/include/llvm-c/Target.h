@@ -41,6 +41,11 @@ typedef struct LLVMStructLayout *LLVMStructLayoutRef;
 #include "llvm/Config/Targets.def"
 #undef LLVM_TARGET  /* Explicit undef to make SWIG happier */
 
+#define LLVM_TARGET(TargetName) \
+  void LLVMInitialize##TargetName##MCAsmInfo(void);
+#include "llvm/Config/Targets.def"
+#undef LLVM_TARGET  /* Explicit undef to make SWIG happier */
+  
 /** LLVMInitializeAllTargetInfos - The main program should call this function if
     it wants access to all available targets that LLVM is configured to
     support. */
@@ -67,6 +72,7 @@ static inline LLVMBool LLVMInitializeNativeTarget(void) {
 #ifdef LLVM_NATIVE_TARGET
   LLVM_NATIVE_TARGETINFO();
   LLVM_NATIVE_TARGET();
+  LLVM_NATIVE_MCASMINFO();
   return 0;
 #else
   return 1;
@@ -140,12 +146,6 @@ unsigned LLVMElementAtOffset(LLVMTargetDataRef, LLVMTypeRef StructTy,
     See the method llvm::StructLayout::getElementContainingOffset. */
 unsigned long long LLVMOffsetOfElement(LLVMTargetDataRef, LLVMTypeRef StructTy,
                                        unsigned Element);
-
-/** Struct layouts are speculatively cached. If a TargetDataRef is alive when
-    types are being refined and removed, this method must be called whenever a
-    struct type is removed to avoid a dangling pointer in this cache.
-    See the method llvm::TargetData::InvalidateStructLayoutInfo. */
-void LLVMInvalidateStructLayout(LLVMTargetDataRef, LLVMTypeRef StructTy);
 
 /** Deallocates a TargetData.
     See the destructor llvm::TargetData::~TargetData. */

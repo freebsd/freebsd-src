@@ -292,7 +292,7 @@ svr4_semget(td, v)
 	ap.nsems = uap->nsems;
 	ap.semflg = uap->semflg;
 
-	return semget(td, &ap);
+	return sys_semget(td, &ap);
 }
 
 struct svr4_sys_semop_args {
@@ -315,7 +315,7 @@ svr4_semop(td, v)
 	ap.sops = (struct sembuf *) uap->sops;
 	ap.nsops = uap->nsops;
 
-	return semop(td, &ap);
+	return sys_semop(td, &ap);
 }
 
 int
@@ -400,7 +400,7 @@ svr4_msgsnd(td, v)
 	ap.msgsz = uap->msgsz;
 	ap.msgflg = uap->msgflg;
 
-	return msgsnd(td, &ap);
+	return sys_msgsnd(td, &ap);
 }
 
 struct svr4_sys_msgrcv_args {
@@ -426,7 +426,7 @@ svr4_msgrcv(td, v)
 	ap.msgtyp = uap->msgtyp;
 	ap.msgflg = uap->msgflg;
 
-	return msgrcv(td, &ap);
+	return sys_msgrcv(td, &ap);
 }
 	
 struct svr4_sys_msgget_args {
@@ -446,7 +446,7 @@ svr4_msgget(td, v)
 	ap.key = uap->key;
 	ap.msgflg = uap->msgflg;
 
-	return msgget(td, &ap);
+	return sys_msgget(td, &ap);
 }
 
 struct svr4_sys_msgctl_args {
@@ -569,7 +569,7 @@ svr4_shmat(td, v)
 	ap.shmaddr = uap->shmaddr;
 	ap.shmflg = uap->shmflg;
 
-	return shmat(td, &ap);
+	return sys_shmat(td, &ap);
 }
 
 struct svr4_sys_shmdt_args {
@@ -587,7 +587,7 @@ svr4_shmdt(td, v)
 
 	ap.shmaddr = uap->shmaddr;
 
-	return shmdt(td, &ap);
+	return sys_shmdt(td, &ap);
 }
 
 struct svr4_sys_shmget_args {
@@ -609,7 +609,7 @@ svr4_shmget(td, v)
 	ap.size = uap->size;
 	ap.shmflg = uap->shmflg;
 
-	return shmget(td, &ap);
+	return sys_shmget(td, &ap);
 }
 
 struct svr4_sys_shmctl_args {

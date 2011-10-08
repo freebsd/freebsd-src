@@ -4,7 +4,7 @@ xz
 
 The source code is pulled with git:
 
-	git clone http://git.tukaani.org/xz.git xz
+	git clone --branch=v5.0 http://git.tukaani.org/xz.git xz
 
 ChangeLog is generated with:
 	
@@ -25,4 +25,4 @@ To make local changes to xz, simply patch and commit to the trunk
 branch (aka HEAD).  Never make local changes on the vendor branch.
 
 mm@FreeBSD.org
-10-May-2010
+11-July-2011

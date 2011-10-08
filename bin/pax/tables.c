@@ -209,7 +209,7 @@ chk_lnk(ARCHD *arcn)
  * purg_lnk
  *	remove reference for a file that we may have added to the data base as
  *	a potential source for hard links. We ended up not using the file, so
- *	we do not want to accidently point another file at it later on.
+ *	we do not want to accidentally point another file at it later on.
  */
 
 void
@@ -306,14 +306,14 @@ lnk_end(void)
  * An append with an -u must read the archive and store the modification time
  * for every file on that archive before starting the write phase. It is clear
  * that this is one HUGE database. To save memory space, the actual file names
- * are stored in a scatch file and indexed by an in memory hash table. The
+ * are stored in a scratch file and indexed by an in memory hash table. The
  * hash table is indexed by hashing the file path. The nodes in the table store
  * the length of the filename and the lseek offset within the scratch file
  * where the actual name is stored. Since there are never any deletions to this
  * table, fragmentation of the scratch file is never an issue. Lookups seem to
  * not exhibit any locality at all (files in the database are rarely
  * looked up more than once...). So caching is just a waste of memory. The
- * only limitation is the amount of scatch file space available to store the
+ * only limitation is the amount of scratch file space available to store the
  * path names.
  */
 

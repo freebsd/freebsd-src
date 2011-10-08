@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 struct mbuf *
 sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb,
     struct sctp_scoping *scope,
     struct mbuf *m_at,
     int cnt_inits_to);
@@ -152,9 +153,9 @@ sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
 
 void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
-void sctp_send_sack(struct sctp_tcb *);
+void sctp_send_sack(struct sctp_tcb *, int);
 
-int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *);
+void sctp_send_hb(struct sctp_tcb *, struct sctp_nets *, int);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
 

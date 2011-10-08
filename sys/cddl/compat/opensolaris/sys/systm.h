@@ -42,9 +42,6 @@
 
 #define	delay(x)	pause("soldelay", (x))
 
-#define	xcopyin(u, k, s)	copyin(u, k, s)
-#define	xcopyout(k, u, s)	copyout(k, u, s)
-
 #endif	/* _KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_SYSTM_H_ */

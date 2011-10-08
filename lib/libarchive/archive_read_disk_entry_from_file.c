@@ -208,6 +208,12 @@ setup_acls_posix1e(struct archive_read_disk *a,
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_ACCESS);
+#else
+	else if ((!a->follow_symlinks)
+	    && (archive_entry_filetype(entry) == AE_IFLNK))
+		/* We can't get the ACL of a symlink, so we assume it can't
+		   have one. */
+		acl = NULL;
 #endif
 	else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
@@ -419,7 +425,8 @@ setup_xattrs(struct archive_read_disk *a,
 	return (ARCHIVE_OK);
 }
 
-#elif HAVE_EXTATTR_GET_FILE && HAVE_EXTATTR_LIST_FILE
+#elif HAVE_EXTATTR_GET_FILE && HAVE_EXTATTR_LIST_FILE && \
+    HAVE_DECL_EXTATTR_NAMESPACE_USER
 
 /*
  * FreeBSD extattr interface.
@@ -430,11 +437,11 @@ setup_xattrs(struct archive_read_disk *a,
  * to not include the system extattrs that hold ACLs; we handle
  * those separately.
  */
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd);
 
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd)
 {

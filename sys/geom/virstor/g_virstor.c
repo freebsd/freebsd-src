@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/bio.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
@@ -809,10 +810,9 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	/* If the provider name is hardcoded, use the offered provider only
 	 * if it's been offered with its proper name (the one used in
 	 * the label command). */
-	if (md.provider[0] != '\0') {
-		if (strcmp(md.provider, pp->name) != 0)
-			return (NULL);
-	}
+	if (md.provider[0] != '\0' &&
+	    !g_compare_names(md.provider, pp->name))
+		return (NULL);
 
 	/* Iterate all geoms this class already knows about to see if a new
 	 * geom instance of this class needs to be created (in case the provider

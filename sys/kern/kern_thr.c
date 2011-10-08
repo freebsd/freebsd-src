@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -96,7 +97,7 @@ static int create_thread(struct thread *td, mcontext_t *ctx,
  * System call interface.
  */
 int
-thr_create(struct thread *td, struct thr_create_args *uap)
+sys_thr_create(struct thread *td, struct thr_create_args *uap)
     /* ucontext_t *ctx, long *id, int flags */
 {
 	ucontext_t ctx;
@@ -111,7 +112,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 }
 
 int
-thr_new(struct thread *td, struct thr_new_args *uap)
+sys_thr_new(struct thread *td, struct thr_new_args *uap)
     /* struct thr_param * */
 {
 	struct thr_param param;
@@ -184,10 +185,20 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		}
 	}
 
+#ifdef RACCT
+	PROC_LOCK(td->td_proc);
+	error = racct_add(p, RACCT_NTHR, 1);
+	PROC_UNLOCK(td->td_proc);
+	if (error != 0)
+		return (EPROCLIM);
+#endif
+
 	/* Initialize our td */
 	newtd = thread_alloc(0);
-	if (newtd == NULL)
-		return (ENOMEM);
+	if (newtd == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
 
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't
@@ -203,7 +214,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    (parent_tid != NULL &&
 	    suword_lwpid(parent_tid, newtd->td_tid))) {
 		thread_free(newtd);
-		return (EFAULT);
+		error = EFAULT;
+		goto fail;
 	}
 
 	bzero(&newtd->td_startzero,
@@ -220,7 +232,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		if (error != 0) {
 			thread_free(newtd);
 			crfree(td->td_ucred);
-			return (error);
+			goto fail;
 		}
 	} else {
 		/* Set up our machine context. */
@@ -233,7 +245,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		if (error != 0) {
 			thread_free(newtd);
 			crfree(td->td_ucred);
-			return (error);
+			goto fail;
 		}
 	}
 
@@ -265,10 +277,18 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	thread_unlock(newtd);
 
 	return (0);
+
+fail:
+#ifdef RACCT
+	PROC_LOCK(p);
+	racct_sub(p, RACCT_NTHR, 1);
+	PROC_UNLOCK(p);
+#endif
+	return (error);
 }
 
 int
-thr_self(struct thread *td, struct thr_self_args *uap)
+sys_thr_self(struct thread *td, struct thr_self_args *uap)
     /* long *id */
 {
 	int error;
@@ -280,7 +300,7 @@ thr_self(struct thread *td, struct thr_self_args *uap)
 }
 
 int
-thr_exit(struct thread *td, struct thr_exit_args *uap)
+sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
 	struct proc *p;
@@ -294,7 +314,10 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	}
 
 	rw_wlock(&tidhash_lock);
+
 	PROC_LOCK(p);
+	racct_sub(p, RACCT_NTHR, 1);
+
 	/*
 	 * Shutting down last thread in the proc.  This will actually
 	 * call exit() in the trampoline when it returns.
@@ -314,7 +337,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 }
 
 int
-thr_kill(struct thread *td, struct thr_kill_args *uap)
+sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
     /* long id, int sig */
 {
 	ksiginfo_t ksi;
@@ -361,7 +384,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 }
 
 int
-thr_kill2(struct thread *td, struct thr_kill2_args *uap)
+sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
     /* pid_t pid, long id, int sig */
 {
 	ksiginfo_t ksi;
@@ -418,7 +441,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 }
 
 int
-thr_suspend(struct thread *td, struct thr_suspend_args *uap)
+sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 	/* const struct timespec *timeout */
 {
 	struct timespec ts, *tsp;
@@ -483,7 +506,7 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 }
 
 int
-thr_wake(struct thread *td, struct thr_wake_args *uap)
+sys_thr_wake(struct thread *td, struct thr_wake_args *uap)
 	/* long id */
 {
 	struct proc *p;
@@ -507,7 +530,7 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 }
 
 int
-thr_set_name(struct thread *td, struct thr_set_name_args *uap)
+sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 {
 	struct proc *p;
 	char name[MAXCOMLEN + 1];

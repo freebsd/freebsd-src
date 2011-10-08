@@ -170,8 +170,8 @@ cputime()
 {
 	u_int count;
 	int delta;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP) && \
-    defined(PERFMON) && defined(I586_PMC_GUPROF)
+#if (defined(I586_CPU) || defined(I686_CPU)) && \
+    defined(PERFMON) && defined(I586_PMC_GUPROF) && !defined(SMP)
 	u_quad_t event_count;
 #endif
 	u_char high, low;
@@ -286,21 +286,23 @@ void
 startguprof(gp)
 	struct gmonparam *gp;
 {
+#if defined(I586_CPU) || defined(I686_CPU)
+	uint64_t freq;
+
+	freq = atomic_load_acq_64(&tsc_freq);
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
-		cputime_clock = CPUTIME_CLOCK_I8254;
-#if defined(I586_CPU) || defined(I686_CPU)
-		if (tsc_freq != 0 && mp_ncpus == 1)
+		if (freq != 0 && mp_ncpus == 1)
 			cputime_clock = CPUTIME_CLOCK_TSC;
-#endif
+		else
+			cputime_clock = CPUTIME_CLOCK_I8254;
 	}
-	gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
-		gp->profrate = tsc_freq >> 1;
+		gp->profrate = freq >> 1;
 		cputime_prof_active = 1;
-	}
+	} else
+		gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
+	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
 		    perfmon_setup(0, cputime_clock_pmc_conf) == 0) {
 			if (perfmon_start(0) != 0)
@@ -325,6 +327,10 @@ startguprof(gp)
 		}
 	}
 #endif /* PERFMON && I586_PMC_GUPROF */
+#else /* !(I586_CPU || I686_CPU) */
+	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED)
+		cputime_clock = CPUTIME_CLOCK_I8254;
+	gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #endif /* I586_CPU || I686_CPU */
 	cputime_bias = 0;
 	cputime();

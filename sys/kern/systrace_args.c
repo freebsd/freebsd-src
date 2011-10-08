@@ -3096,6 +3096,22 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cap_new */
+	case 514: {
+		struct cap_new_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->rights; /* u_int64_t */
+		*n_args = 2;
+		break;
+	}
+	/* cap_getrights */
+	case 515: {
+		struct cap_getrights_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		*n_args = 2;
+		break;
+	}
 	/* cap_enter */
 	case 516: {
 		*n_args = 0;
@@ -3106,6 +3122,30 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cap_getmode_args *p = params;
 		uarg[0] = (intptr_t) p->modep; /* u_int * */
 		*n_args = 1;
+		break;
+	}
+	/* pdfork */
+	case 518: {
+		struct pdfork_args *p = params;
+		uarg[0] = (intptr_t) p->fdp; /* int * */
+		iarg[1] = p->flags; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* pdkill */
+	case 519: {
+		struct pdkill_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->signum; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* pdgetpid */
+	case 520: {
+		struct pdgetpid_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->pidp; /* pid_t * */
+		*n_args = 2;
 		break;
 	}
 	/* pselect */
@@ -3133,6 +3173,65 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct setloginclass_args *p = params;
 		uarg[0] = (intptr_t) p->namebuf; /* const char * */
 		*n_args = 1;
+		break;
+	}
+	/* rctl_get_racct */
+	case 525: {
+		struct rctl_get_racct_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_rules */
+	case 526: {
+		struct rctl_get_rules_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_limits */
+	case 527: {
+		struct rctl_get_limits_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_add_rule */
+	case 528: {
+		struct rctl_add_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_remove_rule */
+	case 529: {
+		struct rctl_remove_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* posix_fallocate */
+	case 530: {
+		struct posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* off_t */
+		iarg[2] = p->len; /* off_t */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -8267,6 +8366,32 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cap_new */
+	case 514:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_getrights */
+	case 515:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* cap_enter */
 	case 516:
 		break;
@@ -8275,6 +8400,45 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "u_int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdfork */
+	case 518:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdkill */
+	case 519:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdgetpid */
+	case 520:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "pid_t *";
 			break;
 		default:
 			break;
@@ -8323,6 +8487,117 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_racct */
+	case 525:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_rules */
+	case 526:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_limits */
+	case 527:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_add_rule */
+	case 528:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_remove_rule */
+	case 529:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		case 2:
+			p = "off_t";
 			break;
 		default:
 			break;

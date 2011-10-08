@@ -16,12 +16,13 @@
 
 PROG=	rtadvd
 MAN=	rtadvd.conf.5 rtadvd.8
-SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
+SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c timer_subr.c	\
+	control.c control_server.c
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DROUTEINFO
+CFLAGS+= -DHAVE_ARC4RANDOM
 
 WARNS?=	1
 

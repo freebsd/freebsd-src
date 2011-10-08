@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: var
-# REQUIRE: FILESYSTEMS
+# REQUIRE: FILESYSTEMS kld
 
 . /etc/rc.subr
 

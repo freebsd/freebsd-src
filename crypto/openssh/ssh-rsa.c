@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.44 2010/07/16 14:07:35 djm Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.45 2010/08/31 09:58:37 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -127,7 +127,7 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	}
 	buffer_init(&b);
 	buffer_append(&b, signature, signaturelen);
-	ktype = buffer_get_string(&b, NULL);
+	ktype = buffer_get_cstring(&b, NULL);
 	if (strcmp("ssh-rsa", ktype) != 0) {
 		error("ssh_rsa_verify: cannot handle type %s", ktype);
 		buffer_free(&b);

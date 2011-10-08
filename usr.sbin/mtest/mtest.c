@@ -204,14 +204,16 @@ main(int argc, char **argv)
 	s6 = -1;
 #ifdef INET
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (s == -1)
+	if (s == -1 && errno != EPROTONOSUPPORT)
 		err(1, "can't open IPv4 socket");
 #endif
 #ifdef INET6
 	s6 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (s6 == -1)
+	if (s6 == -1 && errno != EPROTONOSUPPORT)
 		err(1, "can't open IPv6 socket");
 #endif
+	if (s == -1 && s6 == -1)
+		errc(1, EPROTONOSUPPORT, "can't open socket");
 
 	if (argc < 2) {
 		if (isatty(STDIN_FILENO)) {
@@ -371,7 +373,7 @@ af2socklen(const int af)
 }
 
 static void
-process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
+process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 {
 	char			 str1[STR_SIZE];
 	char			 str2[STR_SIZE];
@@ -457,7 +459,10 @@ process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
 				optval = (void *)&mr.mr;
 				optlen = sizeof(mr.mr);
 			}
-			if (setsockopt(s, level, optname, optval,
+			if (s < 0) {
+				warnc(EPROTONOSUPPORT, "setsockopt %s",
+				    toptname);
+			} else if (setsockopt(s, level, optname, optval,
 			    optlen) == 0) {
 				printf("ok\n");
 				break;
@@ -496,7 +501,10 @@ process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
 				optval = (void *)&mr.mr6;
 				optlen = sizeof(mr.mr6);
 			}
-			if (setsockopt(s6, level, optname, optval,
+			if (s6 < 0) {
+				warnc(EPROTONOSUPPORT, "setsockopt %s",
+				    toptname);
+			} else if (setsockopt(s6, level, optname, optval,
 			    optlen) == 0) {
 				printf("ok\n");
 				break;
@@ -534,6 +542,10 @@ process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
 			break;
 		}
 		af = su.sa.sa_family;
+		if (af2sock(af, s, s6) == -1) {
+			warnc(EPROTONOSUPPORT, "setsourcefilter");
+			break;
+		}
 
 		memset(&hints, 0, sizeof(struct addrinfo));
 		hints.ai_flags = AI_NUMERICHOST;
@@ -593,6 +605,10 @@ process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
 			break;
 		}
 		af = su.sa.sa_family;
+		if (af2sock(af, s, s6) == -1) {
+			warnc(EPROTONOSUPPORT, "getsourcefilter");
+			break;
+		}
 
 		/* First determine our current filter mode. */
 		n = 0;
@@ -700,6 +716,10 @@ process_cmd(char *cmd, int s, int s6 __unused, FILE *fp __unused)
 		}
 
 		af = su.sa.sa_family;
+		if (af2sock(af, s, s6) == -1) {
+			warnc(EPROTONOSUPPORT, "getsourcefilter");
+			break;
+		}
 		nsrc = nreqsrc;
 		if (getsourcefilter(af2sock(af, s, s6), ifindex, &su.sa,
 		    su.sa.sa_len, &fmode, &nsrc, &sources[0].ss) != 0) {

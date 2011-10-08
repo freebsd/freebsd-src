@@ -63,6 +63,16 @@ static const struct {
 		"$3$"
 	},
 	{
+		"sha256",
+		crypt_sha256,
+		"$5$"
+	},
+	{
+		"sha512",
+		crypt_sha512,
+		"$6$"
+	},
+	{
 		NULL,
 		NULL,
 		NULL

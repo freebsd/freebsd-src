@@ -14,17 +14,21 @@
 #include "Alpha.h"
 #include "AlphaInstrInfo.h"
 #include "AlphaMachineFunctionInfo.h"
-#include "AlphaGenInstrInfo.inc"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/ErrorHandling.h"
+
+#define GET_INSTRINFO_CTOR
+#include "AlphaGenInstrInfo.inc"
 using namespace llvm;
 
 AlphaInstrInfo::AlphaInstrInfo()
-  : TargetInstrInfoImpl(AlphaInsts, array_lengthof(AlphaInsts)),
-    RI(*this) { }
+  : AlphaGenInstrInfo(Alpha::ADJUSTSTACKDOWN, Alpha::ADJUSTSTACKUP),
+    RI(*this) {
+}
 
 
 unsigned 

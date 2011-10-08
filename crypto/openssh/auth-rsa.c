@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.78 2010/07/13 23:13:16 djm Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.80 2011/05/23 03:30:07 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -94,9 +94,6 @@ auth_rsa_verify_response(Key *key, BIGNUM *challenge, u_char response[16])
 	MD5_CTX md;
 	int len;
 
-	if (auth_key_is_revoked(key))
-		return 0;
-
 	/* don't allow short keys */
 	if (BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE) {
 		error("auth_rsa_verify_response: RSA modulus too small: %d < minimum %d bits",
@@ -163,44 +160,27 @@ auth_rsa_challenge_dialog(Key *key)
 	return (success);
 }
 
-/*
- * check if there's user key matching client_n,
- * return key if login is allowed, NULL otherwise
- */
-
-int
-auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
+static int
+rsa_key_allowed_in_file(struct passwd *pw, char *file,
+    const BIGNUM *client_n, Key **rkey)
 {
-	char line[SSH_MAX_PUBKEY_BYTES], *file;
+	char line[SSH_MAX_PUBKEY_BYTES];
 	int allowed = 0;
 	u_int bits;
 	FILE *f;
 	u_long linenum = 0;
 	Key *key;
 
-	/* Temporarily use the user's uid. */
-	temporarily_use_uid(pw);
-
-	/* The authorized keys. */
-	file = authorized_keys_file(pw);
 	debug("trying public RSA key file %s", file);
-	f = auth_openkeyfile(file, pw, options.strict_modes);
-	if (!f) {
-		xfree(file);
-		restore_uid();
-		return (0);
-	}
-
-	/* Flag indicating whether the key is allowed. */
-	allowed = 0;
-
-	key = key_new(KEY_RSA1);
+	if ((f = auth_openkeyfile(file, pw, options.strict_modes)) == NULL)
+		return 0;
 
 	/*
 	 * Go though the accepted keys, looking for the current key.  If
 	 * found, perform a challenge-response dialog to verify that the
 	 * user really has the corresponding private key.
 	 */
+	key = key_new(KEY_RSA1);
 	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
 		char *cp;
 		char *key_options;
@@ -238,7 +218,10 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		}
 		/* cp now points to the comment part. */
 
-		/* Check if the we have found the desired key (identified by its modulus). */
+		/*
+		 * Check if the we have found the desired key (identified
+		 * by its modulus).
+		 */
 		if (BN_cmp(key->rsa->n, client_n) != 0)
 			continue;
 
@@ -248,6 +231,10 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 			logit("Warning: %s, line %lu: keysize mismatch: "
 			    "actual %d vs. announced %d.",
 			    file, linenum, BN_num_bits(key->rsa->n), bits);
+
+		/* Never accept a revoked key */
+		if (auth_key_is_revoked(key))
+			break;
 
 		/* We have found the desired key. */
 		/*
@@ -263,11 +250,7 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		break;
 	}
 
-	/* Restore the privileged uid. */
-	restore_uid();
-
 	/* Close the file. */
-	xfree(file);
 	fclose(f);
 
 	/* return key if allowed */
@@ -275,7 +258,33 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		*rkey = key;
 	else
 		key_free(key);
-	return (allowed);
+
+	return allowed;
+}
+
+/*
+ * check if there's user key matching client_n,
+ * return key if login is allowed, NULL otherwise
+ */
+
+int
+auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
+{
+	char *file;
+	u_int i, allowed = 0;
+
+	temporarily_use_uid(pw);
+
+	for (i = 0; !allowed && i < options.num_authkeys_files; i++) {
+		file = expand_authorized_keys(
+		    options.authorized_keys_files[i], pw);
+		allowed = rsa_key_allowed_in_file(pw, file, client_n, rkey);
+		xfree(file);
+	}
+
+	restore_uid();
+
+	return allowed;
 }
 
 /*

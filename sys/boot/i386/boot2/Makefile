@@ -2,9 +2,6 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=${CC:C/^(.*\/)?clang$/gcc/1}
-
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -31,6 +28,8 @@ CFLAGS=	-Os \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
+	-mregparm=3 \
+	-DUSE_XREAD \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
@@ -42,6 +41,13 @@ CFLAGS=	-Os \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
+
+.if ${CC:T:Mclang} == "clang"
+CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
+		-mllvm -enable-load-pre=false
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mboot1.S:C/^.+$/-no-integrated-as/}
+.endif
 
 LDFLAGS=-static -N --gc-sections
 
@@ -83,6 +89,9 @@ boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
+.if ${CC:T:Mclang} == "clang"
+	${CC} ${ACFLAGS} -c boot2.s
+.endif
 
 SRCS=	boot2.c boot2.h
 

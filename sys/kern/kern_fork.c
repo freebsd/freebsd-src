@@ -40,11 +40,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -55,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/pioctl.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/syscall.h>
@@ -98,12 +102,12 @@ struct fork_args {
 
 /* ARGSUSED */
 int
-fork(struct thread *td, struct fork_args *uap)
+sys_fork(struct thread *td, struct fork_args *uap)
 {
 	int error;
 	struct proc *p2;
 
-	error = fork1(td, RFFDG | RFPROC, 0, &p2);
+	error = fork1(td, RFFDG | RFPROC, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -111,9 +115,37 @@ fork(struct thread *td, struct fork_args *uap)
 	return (error);
 }
 
+/* ARGUSED */
+int
+sys_pdfork(td, uap)
+	struct thread *td;
+	struct pdfork_args *uap;
+{
+#ifdef PROCDESC
+	int error, fd;
+	struct proc *p2;
+
+	/*
+	 * It is necessary to return fd by reference because 0 is a valid file
+	 * descriptor number, and the child needs to be able to distinguish
+	 * itself from the parent using the return value.
+	 */
+	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2,
+	    &fd, uap->flags);
+	if (error == 0) {
+		td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
+		error = copyout(&fd, uap->fdp, sizeof(fd));
+	}
+	return (error);
+#else
+	return (ENOSYS);
+#endif
+}
+
 /* ARGSUSED */
 int
-vfork(struct thread *td, struct vfork_args *uap)
+sys_vfork(struct thread *td, struct vfork_args *uap)
 {
 	int error, flags;
 	struct proc *p2;
@@ -123,7 +155,7 @@ vfork(struct thread *td, struct vfork_args *uap)
 #else
 	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
 #endif		
-	error = fork1(td, flags, 0, &p2);
+	error = fork1(td, flags, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -132,7 +164,7 @@ vfork(struct thread *td, struct vfork_args *uap)
 }
 
 int
-rfork(struct thread *td, struct rfork_args *uap)
+sys_rfork(struct thread *td, struct rfork_args *uap)
 {
 	struct proc *p2;
 	int error;
@@ -142,7 +174,7 @@ rfork(struct thread *td, struct rfork_args *uap)
 		return (EINVAL);
 
 	AUDIT_ARG_FFLAGS(uap->flags);
-	error = fork1(td, uap->flags, 0, &p2);
+	error = fork1(td, uap->flags, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
@@ -336,7 +368,7 @@ fail:
 
 static void
 do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
-    struct vmspace *vm2)
+    struct vmspace *vm2, int pdflags)
 {
 	struct proc *p1, *pptr;
 	int p2_held, trypid;
@@ -475,7 +507,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
 	}
-	if (flags & RFLINUXTHPN) 
+
+	if (flags & RFTSIGZMB)
+	        p2->p_sigparent = RFTSIGNUM(flags);
+	else if (flags & RFLINUXTHPN)
 	        p2->p_sigparent = SIGUSR1;
 	else
 	        p2->p_sigparent = SIGCHLD;
@@ -524,7 +559,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 			 * to commit suicide.
 			 */
 			PROC_LOCK(p2);
-			psignal(p2, SIGKILL);
+			kern_psignal(p2, SIGKILL);
 			PROC_UNLOCK(p2);
 		} else
 			PROC_UNLOCK(p1->p_leader);
@@ -621,6 +656,16 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		    p2->p_vmspace->vm_ssize);
 	}
 
+#ifdef PROCDESC
+	/*
+	 * Associate the process descriptor with the process before anything
+	 * can happen that might cause that process to need the descriptor.
+	 * However, don't do this until after fork(2) can no longer fail.
+	 */
+	if (flags & RFPROCDESC)
+		procdesc_new(p2, pdflags);
+#endif
+
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
@@ -630,12 +675,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Set the child start time and mark the process as being complete.
 	 */
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
-	PROC_LOCK(p1);
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -643,11 +689,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
 	 * later on.
 	 */
-	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p2);
+	if (dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
-		PROC_UNLOCK(p2);
-	}
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
 	    P_FOLLOWFORK)) {
@@ -660,12 +703,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		 */
 		td->td_dbgflags |= TDB_FORK;
 		td->td_dbg_forked = p2->p_pid;
-		PROC_LOCK(p2);
 		td2->td_dbgflags |= TDB_STOPATFORK;
 		_PHOLD(p2);
 		p2_held = 1;
-		PROC_UNLOCK(p2);
 	}
+	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
@@ -709,7 +751,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 }
 
 int
-fork1(struct thread *td, int flags, int pages, struct proc **procp)
+fork1(struct thread *td, int flags, int pages, struct proc **procp,
+    int *procdescp, int pdflags)
 {
 	struct proc *p1;
 	struct proc *newproc;
@@ -720,10 +763,37 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	int error;
 	static int curfail;
 	static struct timeval lastfail;
+#ifdef PROCDESC
+	struct file *fp_procdesc = NULL;
+#endif
+
+	/* Check for the undefined or unimplemented flags. */
+	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
+		return (EINVAL);
+
+	/* Signal value requires RFTSIGZMB. */
+	if ((flags & RFTSIGFLAGS(RFTSIGMASK)) != 0 && (flags & RFTSIGZMB) == 0)
+		return (EINVAL);
 
 	/* Can't copy and clear. */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
+
+	/* Check the validity of the signal number. */
+	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
+		return (EINVAL);
+
+#ifdef PROCDESC
+	if ((flags & RFPROCDESC) != 0) {
+		/* Can't not create a process yet get a process descriptor. */
+		if ((flags & RFPROC) == 0)
+			return (EINVAL);
+
+		/* Must provide a place to put a procdesc if creating one. */
+		if (procdescp == NULL)
+			return (EINVAL);
+	}
+#endif
 
 	p1 = td->td_proc;
 
@@ -735,6 +805,19 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		*procp = NULL;
 		return (fork_norfproc(td, flags));
 	}
+
+#ifdef PROCDESC
+	/*
+	 * If required, create a process descriptor in the parent first; we
+	 * will abandon it if something goes wrong. We don't finit() until
+	 * later.
+	 */
+	if (flags & RFPROCDESC) {
+		error = falloc(td, &fp_procdesc, procdescp, 0);
+		if (error != 0)
+			return (error);
+	}
+#endif
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -780,6 +863,22 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		}
 	} else
 		vm2 = NULL;
+
+	/*
+	 * XXX: This is ugly; when we copy resource usage, we need to bump
+	 *      per-cred resource counters.
+	 */
+	newproc->p_ucred = p1->p_ucred;
+
+	/*
+	 * Initialize resource accounting for the child process.
+	 */
+	error = racct_proc_fork(p1, newproc);
+	if (error != 0) {
+		error = EAGAIN;
+		goto fail1;
+	}
+
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
@@ -819,12 +918,17 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		PROC_UNLOCK(p1);
 	}
 	if (ok) {
-		do_fork(td, flags, newproc, td2, vm2);
+		do_fork(td, flags, newproc, td2, vm2, pdflags);
 
 		/*
 		 * Return child proc pointer to parent.
 		 */
 		*procp = newproc;
+#ifdef PROCDESC
+		if (flags & RFPROCDESC)
+			procdesc_finit(newproc->p_procdesc, fp_procdesc);
+#endif
+		racct_proc_fork_done(newproc);
 		return (0);
 	}
 
@@ -839,9 +943,14 @@ fail:
 	mac_proc_destroy(newproc);
 #endif
 fail1:
+	racct_proc_exit(newproc);
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
+#ifdef PROCDESC
+	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL))
+		fdrop(fp_procdesc, td);
+#endif
 	pause("fork", hz / 2);
 	return (error);
 }

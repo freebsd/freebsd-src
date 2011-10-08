@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2008
+.Dd September 28, 2011
 .Dt LS 1
 .Os
 .Sh NAME
@@ -357,8 +357,7 @@ option is given,
 the numeric ID's are displayed.
 .Pp
 If the file is a character special or block special file,
-the major and minor device numbers for the file are displayed
-in the size field.
+the device number for the file is displayed in the size field.
 If the file is a symbolic link the pathname of the
 linked-to file is preceded by
 .Dq Li -> .
@@ -459,7 +458,7 @@ but not execute or search permission.
 (See
 .Xr chmod 1
 or
-.Xr sticky 8 . )
+.Xr sticky 7 . )
 .It Sy t
 The sticky bit is set (mode
 .Li 1000 ) ,
@@ -467,7 +466,7 @@ and is searchable or executable.
 (See
 .Xr chmod 1
 or
-.Xr sticky 8 . )
+.Xr sticky 7 . )
 .El
 .El
 .Pp
@@ -683,9 +682,9 @@ specification.
 .Xr strmode 3 ,
 .Xr termcap 5 ,
 .Xr maclabel 7 ,
+.Xr sticky 7 ,
 .Xr symlink 7 ,
-.Xr getfmac 8 ,
-.Xr sticky 8
+.Xr getfmac 8
 .Sh STANDARDS
 With the exception of options
 .Fl I , g , n

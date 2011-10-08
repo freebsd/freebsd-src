@@ -69,10 +69,22 @@
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
+struct	inpcbgroup *
+	in6_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
+struct	inpcbgroup *
+	in6_pcbgroup_byinpcb __P((struct inpcb *));
+struct inpcbgroup *
+	in6_pcbgroup_bymbuf(struct inpcbinfo *, struct mbuf *);
+struct	inpcbgroup *
+	in6_pcbgroup_bytuple __P((struct inpcbinfo *, const struct in6_addr *,
+	    u_short, const struct in6_addr *, u_short));
+
 void	in6_pcbpurgeif0 __P((struct inpcbinfo *, struct ifnet *));
 void	in6_losing __P((struct inpcb *));
 int	in6_pcbbind __P((struct inpcb *, struct sockaddr *, struct ucred *));
 int	in6_pcbconnect __P((struct inpcb *, struct sockaddr *, struct ucred *));
+int	in6_pcbconnect_mbuf __P((struct inpcb *, struct sockaddr *,
+	    struct ucred *, struct mbuf *));
 void	in6_pcbdisconnect __P((struct inpcb *));
 int	in6_pcbladdr(struct inpcb *, struct sockaddr *, struct in6_addr *);
 struct	inpcb *
@@ -80,9 +92,17 @@ struct	inpcb *
 				 struct in6_addr *, u_short, int,
 				 struct ucred *));
 struct	inpcb *
-	in6_pcblookup_hash __P((struct inpcbinfo *,
-				struct in6_addr *, u_int, struct in6_addr *,
-				u_int, int, struct ifnet *));
+	in6_pcblookup __P((struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *));
+struct	inpcb *
+	in6_pcblookup_hash_locked __P((struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *));
+struct	inpcb *
+	in6_pcblookup_mbuf __P((struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *ifp, struct mbuf *));
 void	in6_pcbnotify __P((struct inpcbinfo *, struct sockaddr *,
 			   u_int, const struct sockaddr *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int)));

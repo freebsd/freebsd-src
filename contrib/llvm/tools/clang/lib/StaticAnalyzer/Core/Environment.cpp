@@ -27,8 +27,21 @@ SVal Environment::lookupExpr(const Stmt* E) const {
   return UnknownVal();
 }
 
-SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
+SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
+			  bool useOnlyDirectBindings) const {
+
+  if (useOnlyDirectBindings) {
+    // This branch is rarely taken, but can be exercised by
+    // checkers that explicitly bind values to arbitrary
+    // expressions.  It is crucial that we do not ignore any
+    // expression here, and do a direct lookup.
+    return lookupExpr(E);
+  }
+
   for (;;) {
+    if (const Expr *Ex = dyn_cast<Expr>(E))
+      E = Ex->IgnoreParens();
+
     switch (E->getStmtClass()) {
       case Stmt::AddrLabelExprClass:
         return svalBuilder.makeLoc(cast<AddrLabelExpr>(E));
@@ -38,9 +51,10 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
         continue;        
       }        
       case Stmt::ParenExprClass:
-        // ParenExprs are no-ops.
-        E = cast<ParenExpr>(E)->getSubExpr();
-        continue;
+      case Stmt::GenericSelectionExprClass:
+        llvm_unreachable("ParenExprs and GenericSelectionExprs should "
+                         "have been handled by IgnoreParens()");
+        return UnknownVal();
       case Stmt::CharacterLiteralClass: {
         const CharacterLiteral* C = cast<CharacterLiteral>(E);
         return svalBuilder.makeIntVal(C->getValue(), C->getType());
@@ -60,26 +74,17 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
         else
           return svalBuilder.makeIntVal(cast<IntegerLiteral>(E));
       }
-      case Stmt::ImplicitCastExprClass:
-      case Stmt::CXXFunctionalCastExprClass:
-      case Stmt::CStyleCastExprClass: {
-        // We blast through no-op casts to get the descendant
-        // subexpression that has a value.
-        const CastExpr* C = cast<CastExpr>(E);
-        QualType CT = C->getType();
-        if (CT->isVoidType())
-          return UnknownVal();
-        if (C->getCastKind() == CK_NoOp) {
-          E = C->getSubExpr();
-          continue;
-        }
-        break;
-      }
+      // For special C0xx nullptr case, make a null pointer SVal.
+      case Stmt::CXXNullPtrLiteralExprClass:
+        return svalBuilder.makeNull();
       case Stmt::ExprWithCleanupsClass:
         E = cast<ExprWithCleanups>(E)->getSubExpr();
         continue;
       case Stmt::CXXBindTemporaryExprClass:
         E = cast<CXXBindTemporaryExpr>(E)->getSubExpr();
+        continue;
+      case Stmt::MaterializeTemporaryExprClass:
+        E = cast<MaterializeTemporaryExpr>(E)->GetTemporaryExpr();
         continue;
       // Handle all other Stmt* using a lookup.
       default:

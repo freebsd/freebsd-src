@@ -252,6 +252,7 @@ ptctor(struct cam_periph *periph, void *arg)
 {
 	struct pt_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -280,12 +281,18 @@ ptctor(struct cam_periph *periph, void *arg)
 	softc->io_timeout = SCSI_PT_DEFAULT_TIMEOUT * 1000;
 
 	periph->softc = softc;
-	
+
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	cam_periph_unlock(periph);
 	softc->device_stats = devstat_new_entry("pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
-			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data) |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_OTHER);
 
 	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,

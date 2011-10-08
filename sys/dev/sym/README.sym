@@ -70,7 +70,7 @@ using `man sym' for driver usage and features description, and
 I haven't removed this README file from the repository since 
 I may have to provide additional documentation to people 
 interested in understanding the driver sources and/or in helping 
-driver development and maintainance.
+driver development and maintenance.
 
 As a result, this file is now under reconstruction. :-)
 

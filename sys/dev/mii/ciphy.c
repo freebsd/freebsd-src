@@ -86,14 +86,20 @@ static void	ciphy_reset(struct mii_softc *);
 static void	ciphy_fixup(struct mii_softc *);
 
 static const struct mii_phydesc ciphys[] = {
-	MII_PHY_DESC(CICADA, CS8201),
-	MII_PHY_DESC(CICADA, CS8201A),
-	MII_PHY_DESC(CICADA, CS8201B),
-	MII_PHY_DESC(CICADA, CS8204),
-	MII_PHY_DESC(CICADA, VSC8211),
-	MII_PHY_DESC(CICADA, CS8244),
-	MII_PHY_DESC(VITESSE, VSC8601),
+	MII_PHY_DESC(xxCICADA, CS8201),
+	MII_PHY_DESC(xxCICADA, CS8201A),
+	MII_PHY_DESC(xxCICADA, CS8201B),
+	MII_PHY_DESC(xxCICADA, CS8204),
+	MII_PHY_DESC(xxCICADA, VSC8211),
+	MII_PHY_DESC(xxCICADA, CS8244),
+	MII_PHY_DESC(xxVITESSE, VSC8601),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs ciphy_funcs = {
+	ciphy_service,
+	ciphy_status,
+	ciphy_reset
 };
 
 static int
@@ -106,34 +112,9 @@ ciphy_probe(device_t dev)
 static int
 ciphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = ciphy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-	ciphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &ciphy_funcs, 1);
 	return (0);
 }
 
@@ -239,7 +220,7 @@ setit:
 	}
 
 	/* Update the media status. */
-	ciphy_status(sc);
+	PHY_STATUS(sc);
 
 	/*
 	 * Callback if something changed. Note that we need to poke
@@ -299,7 +280,7 @@ ciphy_status(struct mii_softc *sc)
 	}
 
 	if (bmsr & CIPHY_AUXCSR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
 
@@ -349,8 +330,8 @@ ciphy_fixup(struct mii_softc *sc)
 	}
 
 	switch (model) {
-	case MII_MODEL_CICADA_CS8204:
-	case MII_MODEL_CICADA_CS8201:
+	case MII_MODEL_xxCICADA_CS8204:
+	case MII_MODEL_xxCICADA_CS8201:
 
 		/* Turn off "aux mode" (whatever that means) */
 		PHY_SETBIT(sc, CIPHY_MII_AUXCSR, CIPHY_AUXCSR_MDPPS);
@@ -371,8 +352,8 @@ ciphy_fixup(struct mii_softc *sc)
 
 		break;
 
-	case MII_MODEL_CICADA_CS8201A:
-	case MII_MODEL_CICADA_CS8201B:
+	case MII_MODEL_xxCICADA_CS8201A:
+	case MII_MODEL_xxCICADA_CS8201B:
 
 		/*
 		 * Work around speed polling bug in VT3119/VT3216
@@ -386,9 +367,9 @@ ciphy_fixup(struct mii_softc *sc)
 		}
 
 		break;
-	case MII_MODEL_CICADA_VSC8211:
-	case MII_MODEL_CICADA_CS8244:
-	case MII_MODEL_VITESSE_VSC8601:
+	case MII_MODEL_xxCICADA_VSC8211:
+	case MII_MODEL_xxCICADA_CS8244:
+	case MII_MODEL_xxVITESSE_VSC8601:
 		break;
 	default:
 		device_printf(sc->mii_dev, "unknown CICADA PHY model %x\n",

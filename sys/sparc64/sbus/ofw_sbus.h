@@ -41,7 +41,7 @@ struct sbus_regs {
 	u_int32_t	sbr_size;
 };
 
-/* Address translation accross busses */
+/* Address translation across busses */
 struct sbus_ranges {
 	u_int32_t	cspace;		/* Client space */
 	u_int32_t	coffset;	/* Client offset */

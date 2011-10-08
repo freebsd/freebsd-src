@@ -53,7 +53,8 @@ public:
     LangOpts = 0;
   }
 
-  void PrintIncludeStack(SourceLocation Loc, const SourceManager &SM);
+  void PrintIncludeStack(Diagnostic::Level Level, SourceLocation Loc,
+                         const SourceManager &SM);
 
   void HighlightRange(const CharSourceRange &R,
                       const SourceManager &SrcMgr,
@@ -61,18 +62,17 @@ public:
                       std::string &CaretLine,
                       const std::string &SourceLine);
 
-  void EmitCaretDiagnostic(SourceLocation Loc,
-                           CharSourceRange *Ranges, unsigned NumRanges,
-                           const SourceManager &SM,
-                           const FixItHint *Hints,
-                           unsigned NumHints,
-                           unsigned Columns,  
-                           unsigned OnMacroInst,
-                           unsigned MacroSkipStart,
-                           unsigned MacroSkipEnd);
-
-  virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
+  virtual void HandleDiagnostic(Diagnostic::Level Level,
                                 const DiagnosticInfo &Info);
+
+private:
+  void EmitCaretDiagnostic(SourceLocation Loc, CharSourceRange *Ranges,
+                           unsigned NumRanges, const SourceManager &SM,
+                           const FixItHint *Hints,
+                           unsigned NumHints, unsigned Columns,  
+                           unsigned OnMacroInst, unsigned MacroSkipStart,
+                           unsigned MacroSkipEnd);
+  
 };
 
 } // end namespace clang

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: listenlist.c,v 1.14 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: listenlist.c,v 1.14 2007-06-19 23:46:59 tbox Exp $ */
 
 /*! \file */
 

@@ -43,9 +43,9 @@ ia64_platform_alloc(vm_offset_t va, vm_size_t sz __unused)
 	vm_paddr_t pa;
 
 	if (va == 0)
-		pa = 1024 * 1024;
+		pa = 2 * 1024 * 1024;
 	else
-		pa = (va - IA64_PBVM_BASE) + (64 * 1024 * 1024);
+		pa = (va - IA64_PBVM_BASE) + (32 * 1024 * 1024);
 
 	return (pa);
 }
@@ -65,7 +65,9 @@ ia64_platform_bootinfo(struct bootinfo *bi, struct bootinfo **res)
 	sal_stub_init();
 	acpi_stub_init();
 
-	*res = &bootinfo;
+	if (IS_LEGACY_KERNEL())
+		*res = &bootinfo;
+
 	return (0);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: apl_42.c,v 1.14 2008/01/22 23:28:04 tbox Exp $ */
+/* $Id: apl_42.c,v 1.16 2009-12-04 22:06:37 tbox Exp $ */
 
 /* RFC3123 */
 
@@ -448,6 +448,11 @@ checknames_in_apl(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_in_apl(ARGS_COMPARE) {
+	return (compare_in_apl(rdata1, rdata2));
 }
 
 #endif	/* RDATA_IN_1_APL_42_C */

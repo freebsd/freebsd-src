@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
+#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_isa.h"
 
@@ -78,7 +79,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
+#include <compat/ia32/ia32_signal.h>
+#include <machine/psl.h>
+#include <machine/segments.h>
+#include <machine/specialreg.h>
+#include <machine/sysarch.h>
+#include <machine/frame.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
+#include <machine/cpufunc.h>
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
@@ -152,6 +163,8 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 void
 ia32_syscall(struct trapframe *frame)
 {
@@ -198,3 +211,45 @@ ia32_syscall_disable(void *dummy)
 
 SYSINIT(ia32_syscall, SI_SUB_EXEC, SI_ORDER_ANY, ia32_syscall_enable, NULL);
 SYSUNINIT(ia32_syscall, SI_SUB_EXEC, SI_ORDER_ANY, ia32_syscall_disable, NULL);
+
+#ifdef COMPAT_43
+int
+setup_lcall_gate(void)
+{
+	struct i386_ldt_args uap;
+	struct user_segment_descriptor descs[2];
+	struct gate_descriptor *ssd;
+	uint32_t lcall_addr;
+	int error;
+
+	bzero(&uap, sizeof(uap));
+	uap.start = 0;
+	uap.num = 2;
+
+	/*
+	 * This is the easiest way to cut the space for system
+	 * descriptor in ldt.  Manually adjust the descriptor type to
+	 * the call gate later.
+	 */
+	bzero(&descs[0], sizeof(descs));
+	descs[0].sd_type = SDT_SYSNULL;
+	descs[1].sd_type = SDT_SYSNULL;
+	error = amd64_set_ldt(curthread, &uap, descs);
+	if (error != 0)
+		return (error);
+
+	lcall_addr = curproc->p_sysent->sv_psstrings - sz_lcall_tramp;
+	mtx_lock(&dt_lock);
+	ssd = (struct gate_descriptor *)(curproc->p_md.md_ldt->ldt_base);
+	bzero(ssd, sizeof(*ssd));
+	ssd->gd_looffset = lcall_addr;
+	ssd->gd_hioffset = lcall_addr >> 16;
+	ssd->gd_selector = _ucode32sel;
+	ssd->gd_type = SDT_SYSCGT;
+	ssd->gd_dpl = SEL_UPL;
+	ssd->gd_p = 1;
+	mtx_unlock(&dt_lock);
+
+	return (0);
+}
+#endif

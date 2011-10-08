@@ -2654,6 +2654,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 	}
 
 	/* Reset state */
+	adapter->last_hw_offload = 0;
 	adapter->next_avail_tx_desc = 0;
 	adapter->next_tx_to_clean = 0;
 	adapter->num_tx_desc_avail = adapter->num_tx_desc;
@@ -3939,7 +3940,7 @@ lem_enable_wakeup(device_t dev)
 	u32		pmc, ctrl, ctrl_ext, rctl;
 	u16     	status;
 
-	if ((pci_find_extcap(dev, PCIY_PMG, &pmc) != 0))
+	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
 		return;
 
 	/* Advertise the wakeup capability */

@@ -25,7 +25,7 @@ options 	LOG2_ID_PAGE_SIZE=27		# 128M
 # option: LOG2_PAGE_SIZE
 # Specify the log2 size of the page to be used for virtual memory management.
 # The page size being equal to 1<<LOG2_PAGE_SIZE.
-options 	LOG2_PAGE_SIZE=15		# 32K
+options 	LOG2_PAGE_SIZE=14		# 16K
 
 # option: SKI
 # Build support for running under the ski simulator.

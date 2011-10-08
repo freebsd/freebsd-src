@@ -13,8 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
-#include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/Visitors/CFGRecStmtVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
@@ -255,12 +254,12 @@ public:
             return;
             
           if (Expr* E = V->getInit()) {
+            while (ExprWithCleanups *exprClean = dyn_cast<ExprWithCleanups>(E))
+              E = exprClean->getSubExpr();
+            
             // Don't warn on C++ objects (yet) until we can show that their
             // constructors/destructors don't have side effects.
             if (isa<CXXConstructExpr>(E))
-              return;
-
-            if (isa<ExprWithCleanups>(E))
               return;
             
             // A dead initialization is a variable that is dead after it
@@ -342,7 +341,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 namespace {
-class DeadStoresChecker : public CheckerV2<check::ASTCodeBody> {
+class DeadStoresChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {

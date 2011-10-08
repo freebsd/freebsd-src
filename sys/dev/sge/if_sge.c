@@ -1715,16 +1715,14 @@ sge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sge_softc *sc;
 	struct mii_data *mii;
+		struct mii_softc *miisc;
 	int error;
 
 	sc = ifp->if_softc;
 	SGE_LOCK(sc);
 	mii = device_get_softc(sc->sge_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	SGE_UNLOCK(sc);
 

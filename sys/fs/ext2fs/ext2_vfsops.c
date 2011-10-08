@@ -973,7 +973,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
  *   those rights via. exflagsp and credanonp
  */
 static int
-ext2_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+ext2_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct inode *ip;
 	struct ufid *ufhp;
@@ -983,7 +983,7 @@ ext2_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 
 	ufhp = (struct ufid *)fhp;
 	fs = VFSTOEXT2(mp)->um_e2fs;
-	if (ufhp->ufid_ino < ROOTINO ||
+	if (ufhp->ufid_ino < EXT2_ROOTINO ||
 	    ufhp->ufid_ino > fs->e2fs_gcount * fs->e2fs->e2fs_ipg)
 		return (ESTALE);
 
@@ -1063,7 +1063,7 @@ ext2_root(struct mount *mp, int flags, struct vnode **vpp)
 	struct vnode *nvp;
 	int error;
 
-	error = VFS_VGET(mp, (ino_t)ROOTINO, LK_EXCLUSIVE, &nvp);
+	error = VFS_VGET(mp, EXT2_ROOTINO, LK_EXCLUSIVE, &nvp);
 	if (error)
 		return (error);
 	*vpp = nvp;

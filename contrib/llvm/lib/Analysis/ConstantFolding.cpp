@@ -23,6 +23,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/Operator.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/ADT/SmallVector.h"
@@ -770,12 +771,12 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I, const TargetData *TD) {
     return ConstantExpr::getInsertValue(
                                 cast<Constant>(IVI->getAggregateOperand()),
                                 cast<Constant>(IVI->getInsertedValueOperand()),
-                                IVI->idx_begin(), IVI->getNumIndices());
+                                IVI->getIndices());
 
   if (ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I))
     return ConstantExpr::getExtractValue(
                                     cast<Constant>(EVI->getAggregateOperand()),
-                                    EVI->idx_begin(), EVI->getNumIndices());
+                                    EVI->getIndices());
 
   return ConstantFoldInstOperands(I->getOpcode(), I->getType(),
                                   Ops.data(), Ops.size(), TD);
@@ -1048,11 +1049,12 @@ llvm::canConstantFoldCallTo(const Function *F) {
   case Intrinsic::ctpop:
   case Intrinsic::ctlz:
   case Intrinsic::cttz:
-  case Intrinsic::uadd_with_overflow:
-  case Intrinsic::usub_with_overflow:
   case Intrinsic::sadd_with_overflow:
+  case Intrinsic::uadd_with_overflow:
   case Intrinsic::ssub_with_overflow:
+  case Intrinsic::usub_with_overflow:
   case Intrinsic::smul_with_overflow:
+  case Intrinsic::umul_with_overflow:
   case Intrinsic::convert_from_fp16:
   case Intrinsic::convert_to_fp16:
   case Intrinsic::x86_sse_cvtss2si:
@@ -1083,7 +1085,7 @@ llvm::canConstantFoldCallTo(const Function *F) {
   case 'c':
     return Name == "cos" || Name == "ceil" || Name == "cosf" || Name == "cosh";
   case 'e':
-    return Name == "exp";
+    return Name == "exp" || Name == "exp2";
   case 'f':
     return Name == "fabs" || Name == "fmod" || Name == "floor";
   case 'l':
@@ -1219,6 +1221,12 @@ llvm::ConstantFoldCall(Function *F,
       case 'e':
         if (Name == "exp")
           return ConstantFoldFP(exp, V, Ty);
+  
+        if (Name == "exp2") {
+          // Constant fold exp2(x) as pow(2,x) in case the host doesn't have a
+          // C99 library.
+          return ConstantFoldBinaryFP(pow, 2.0, V, Ty);
+        }
         break;
       case 'f':
         if (Name == "fabs")
@@ -1362,7 +1370,8 @@ llvm::ConstantFoldCall(Function *F,
         case Intrinsic::uadd_with_overflow:
         case Intrinsic::ssub_with_overflow:
         case Intrinsic::usub_with_overflow:
-        case Intrinsic::smul_with_overflow: {
+        case Intrinsic::smul_with_overflow:
+        case Intrinsic::umul_with_overflow: {
           APInt Res;
           bool Overflow;
           switch (F->getIntrinsicID()) {
@@ -1382,12 +1391,15 @@ llvm::ConstantFoldCall(Function *F,
           case Intrinsic::smul_with_overflow:
             Res = Op1->getValue().smul_ov(Op2->getValue(), Overflow);
             break;
+          case Intrinsic::umul_with_overflow:
+            Res = Op1->getValue().umul_ov(Op2->getValue(), Overflow);
+            break;
           }
           Constant *Ops[] = {
             ConstantInt::get(F->getContext(), Res),
             ConstantInt::get(Type::getInt1Ty(F->getContext()), Overflow)
           };
-          return ConstantStruct::get(F->getContext(), Ops, 2, false);
+          return ConstantStruct::get(cast<StructType>(F->getReturnType()), Ops);
         }
         }
       }

@@ -337,6 +337,7 @@
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
 #define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 #define	PRIV_NET_SETIFDESCR	418	/* Set interface description. */
+#define	PRIV_NET_SETIFFIB	419	/* Set interface fib. */
 
 /*
  * 802.11-related privileges.
@@ -484,9 +485,18 @@
 #define	PRIV_AFS_DAEMON		661	/* Can become the AFS daemon. */
 
 /*
+ * Resource Limits privileges.
+ */
+#define	PRIV_RCTL_GET_RACCT	670
+#define	PRIV_RCTL_GET_RULES	671
+#define	PRIV_RCTL_GET_LIMITS	672
+#define	PRIV_RCTL_ADD_RULE	673
+#define	PRIV_RCTL_REMOVE_RULE	674
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		662
+#define	_PRIV_HIGHEST		675
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

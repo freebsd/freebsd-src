@@ -2527,6 +2527,7 @@ lmc_raw_input(struct ifnet *ifp, struct mbuf *mbuf)
   {
   softc_t *sc = IFP2SC(ifp);
 
+  M_SETFIB(mbuf, ifp->if_fib);
 # if INET
   if (mbuf->m_data[0]>>4 == 4)
     netisr_dispatch(NETISR_IP,   mbuf);

@@ -207,10 +207,8 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
-	if (pp->stripesize > 0) {
-		sbuf_printf(sb, "\t  <stripesize>%u</stripesize>\n", pp->stripesize);
-		sbuf_printf(sb, "\t  <stripeoffset>%u</stripeoffset>\n", pp->stripeoffset);
-	}
+	sbuf_printf(sb, "\t  <stripesize>%u</stripesize>\n", pp->stripesize);
+	sbuf_printf(sb, "\t  <stripeoffset>%u</stripeoffset>\n", pp->stripeoffset);
 	if (pp->geom->flags & G_GEOM_WITHER)
 		;
 	else if (pp->geom->dumpconf != NULL) {

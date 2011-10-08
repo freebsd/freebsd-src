@@ -17,11 +17,12 @@
 #define LLVM_CODEGEN_MACHINEINSTR_H
 
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/Target/TargetInstrDesc.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Target/TargetOpcodes.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/DebugLoc.h"
 #include <vector>
@@ -30,7 +31,6 @@ namespace llvm {
 
 template <typename T> class SmallVectorImpl;
 class AliasAnalysis;
-class TargetInstrDesc;
 class TargetInstrInfo;
 class TargetRegisterInfo;
 class MachineFunction;
@@ -50,13 +50,22 @@ public:
   enum CommentFlag {
     ReloadReuse = 0x1
   };
-  
+
+  enum MIFlag {
+    NoFlags    = 0,
+    FrameSetup = 1 << 0                 // Instruction is used as a part of
+                                        // function frame setup code.
+  };
 private:
-  const TargetInstrDesc *TID;           // Instruction descriptor.
-  unsigned short NumImplicitOps;        // Number of implicit operands (which
+  const MCInstrDesc *MCID;              // Instruction descriptor.
+  uint16_t NumImplicitOps;              // Number of implicit operands (which
                                         // are determined at construction time).
 
-  unsigned short AsmPrinterFlags;       // Various bits of information used by
+  uint8_t Flags;                        // Various bits of additional
+                                        // information about machine
+                                        // instruction.
+
+  uint8_t AsmPrinterFlags;              // Various bits of information used by
                                         // the AsmPrinter to emit helpful
                                         // comments.  This is *not* semantic
                                         // information.  Do not use this for
@@ -85,7 +94,7 @@ private:
   MachineInstr(MachineFunction &, const MachineInstr &);
 
   /// MachineInstr ctor - This constructor creates a dummy MachineInstr with
-  /// TID NULL and no operands.
+  /// MCID NULL and no operands.
   MachineInstr();
 
   // The next two constructors have DebugLoc and non-DebugLoc versions;
@@ -94,25 +103,25 @@ private:
 
   /// MachineInstr ctor - This constructor creates a MachineInstr and adds the
   /// implicit operands.  It reserves space for the number of operands specified
-  /// by the TargetInstrDesc.  The version with a DebugLoc should be preferred.
-  explicit MachineInstr(const TargetInstrDesc &TID, bool NoImp = false);
+  /// by the MCInstrDesc.  The version with a DebugLoc should be preferred.
+  explicit MachineInstr(const MCInstrDesc &MCID, bool NoImp = false);
 
   /// MachineInstr ctor - Work exactly the same as the ctor above, except that
   /// the MachineInstr is created and added to the end of the specified basic
   /// block.  The version with a DebugLoc should be preferred.
-  MachineInstr(MachineBasicBlock *MBB, const TargetInstrDesc &TID);
+  MachineInstr(MachineBasicBlock *MBB, const MCInstrDesc &MCID);
 
   /// MachineInstr ctor - This constructor create a MachineInstr and add the
   /// implicit operands.  It reserves space for number of operands specified by
-  /// TargetInstrDesc.  An explicit DebugLoc is supplied.
-  explicit MachineInstr(const TargetInstrDesc &TID, const DebugLoc dl, 
+  /// MCInstrDesc.  An explicit DebugLoc is supplied.
+  explicit MachineInstr(const MCInstrDesc &MCID, const DebugLoc dl,
                         bool NoImp = false);
 
   /// MachineInstr ctor - Work exactly the same as the ctor above, except that
   /// the MachineInstr is created and added to the end of the specified basic
   /// block.
-  MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl, 
-               const TargetInstrDesc &TID);
+  MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl,
+               const MCInstrDesc &MCID);
 
   ~MachineInstr();
 
@@ -125,12 +134,12 @@ public:
 
   /// getAsmPrinterFlags - Return the asm printer flags bitvector.
   ///
-  unsigned short getAsmPrinterFlags() const { return AsmPrinterFlags; }
+  uint8_t getAsmPrinterFlags() const { return AsmPrinterFlags; }
 
   /// clearAsmPrinterFlags - clear the AsmPrinter bitvector
   ///
   void clearAsmPrinterFlags() { AsmPrinterFlags = 0; }
-  
+
   /// getAsmPrinterFlag - Return whether an AsmPrinter flag is set.
   ///
   bool getAsmPrinterFlag(CommentFlag Flag) const {
@@ -140,9 +149,28 @@ public:
   /// setAsmPrinterFlag - Set a flag for the AsmPrinter.
   ///
   void setAsmPrinterFlag(CommentFlag Flag) {
-    AsmPrinterFlags |= (unsigned short)Flag;
+    AsmPrinterFlags |= (uint8_t)Flag;
   }
-  
+
+  /// getFlags - Return the MI flags bitvector.
+  uint8_t getFlags() const {
+    return Flags;
+  }
+
+  /// getFlag - Return whether an MI flag is set.
+  bool getFlag(MIFlag Flag) const {
+    return Flags & Flag;
+  }
+
+  /// setFlag - Set a MI flag.
+  void setFlag(MIFlag Flag) {
+    Flags |= (uint8_t)Flag;
+  }
+
+  void setFlags(unsigned flags) {
+    Flags = flags;
+  }
+
   /// clearAsmPrinterFlag - clear specific AsmPrinter flags
   ///
   void clearAsmPrinterFlag(CommentFlag Flag) {
@@ -152,14 +180,23 @@ public:
   /// getDebugLoc - Returns the debug location id of this MachineInstr.
   ///
   DebugLoc getDebugLoc() const { return debugLoc; }
-  
+
+  /// emitError - Emit an error referring to the source location of this
+  /// instruction. This should only be used for inline assembly that is somehow
+  /// impossible to compile. Other errors should have been handled much
+  /// earlier.
+  ///
+  /// If this method returns, the caller should try to recover from the error.
+  ///
+  void emitError(StringRef Msg) const;
+
   /// getDesc - Returns the target instruction descriptor of this
   /// MachineInstr.
-  const TargetInstrDesc &getDesc() const { return *TID; }
+  const MCInstrDesc &getDesc() const { return *MCID; }
 
   /// getOpcode - Returns the opcode of this MachineInstr.
   ///
-  int getOpcode() const { return TID->Opcode; }
+  int getOpcode() const { return MCID->Opcode; }
 
   /// Access to explicit operands of the instruction.
   ///
@@ -201,6 +238,7 @@ public:
 
   enum MICheckType {
     CheckDefs,      // Check all operands for equality
+    CheckKillDead,  // Check all operands including kill / dead markers
     IgnoreDefs,     // Ignore all definitions
     IgnoreVRegDefs  // Ignore virtual register definitions
   };
@@ -213,7 +251,7 @@ public:
   /// removeFromParent - This method unlinks 'this' from the containing basic
   /// block, and returns it, but does not delete it.
   MachineInstr *removeFromParent();
-  
+
   /// eraseFromParent - This method unlinks 'this' from the containing basic
   /// block and deletes it.
   void eraseFromParent();
@@ -225,14 +263,14 @@ public:
            getOpcode() == TargetOpcode::EH_LABEL ||
            getOpcode() == TargetOpcode::GC_LABEL;
   }
-  
+
   bool isPrologLabel() const {
     return getOpcode() == TargetOpcode::PROLOG_LABEL;
   }
   bool isEHLabel() const { return getOpcode() == TargetOpcode::EH_LABEL; }
   bool isGCLabel() const { return getOpcode() == TargetOpcode::GC_LABEL; }
   bool isDebugValue() const { return getOpcode() == TargetOpcode::DBG_VALUE; }
-  
+
   bool isPHI() const { return getOpcode() == TargetOpcode::PHI; }
   bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
   bool isImplicitDef() const { return getOpcode()==TargetOpcode::IMPLICIT_DEF; }
@@ -249,6 +287,9 @@ public:
   }
   bool isCopy() const {
     return getOpcode() == TargetOpcode::COPY;
+  }
+  bool isFullCopy() const {
+    return isCopy() && !getOperand(0).getSubReg() && !getOperand(1).getSubReg();
   }
 
   /// isCopyLike - Return true if the instruction behaves like a copy.
@@ -329,7 +370,7 @@ public:
     int Idx = findRegisterUseOperandIdx(Reg, isKill, TRI);
     return (Idx == -1) ? NULL : &getOperand(Idx);
   }
-  
+
   /// findRegisterDefOperandIdx() - Returns the operand index that is a def of
   /// the specified register or -1 if it is not found. If isDead is true, defs
   /// that are not dead are skipped. If Overlap is true, then it also looks for
@@ -351,7 +392,7 @@ public:
   /// operand list that is used to represent the predicate. It returns -1 if
   /// none is found.
   int findFirstPredOperandIdx() const;
-  
+
   /// isRegTiedToUseOperand - Given the index of a register def operand,
   /// check if the register def is tied to a source operand, due to either
   /// two-address elimination or inline assembly constraints. Returns the
@@ -399,8 +440,8 @@ public:
   void addRegisterDefined(unsigned IncomingReg,
                           const TargetRegisterInfo *RegInfo = 0);
 
-  /// setPhysRegsDeadExcept - Mark every physreg used by this instruction as dead
-  /// except those in the UsedRegs list.
+  /// setPhysRegsDeadExcept - Mark every physreg used by this instruction as
+  /// dead except those in the UsedRegs list.
   void setPhysRegsDeadExcept(const SmallVectorImpl<unsigned> &UsedRegs,
                              const TargetRegisterInfo &TRI);
 
@@ -435,8 +476,8 @@ public:
 
   /// hasUnmodeledSideEffects - Return true if this instruction has side
   /// effects that are not modeled by mayLoad / mayStore, etc.
-  /// For all instructions, the property is encoded in TargetInstrDesc::Flags
-  /// (see TargetInstrDesc::hasUnmodeledSideEffects(). The only exception is
+  /// For all instructions, the property is encoded in MCInstrDesc::Flags
+  /// (see MCInstrDesc::hasUnmodeledSideEffects(). The only exception is
   /// INLINEASM instruction, in which case the side effect property is encoded
   /// in one of its operands (see InlineAsm::Extra_HasSideEffect).
   ///
@@ -462,13 +503,13 @@ public:
   /// addOperand - Add the specified operand to the instruction.  If it is an
   /// implicit operand, it is added to the end of the operand list.  If it is
   /// an explicit operand it is added at the end of the explicit operand list
-  /// (before the first implicit operand). 
+  /// (before the first implicit operand).
   void addOperand(const MachineOperand &Op);
-  
+
   /// setDesc - Replace the instruction descriptor (thus opcode) of
   /// the current instruction with a new one.
   ///
-  void setDesc(const TargetInstrDesc &tid) { TID = &tid; }
+  void setDesc(const MCInstrDesc &tid) { MCID = &tid; }
 
   /// setDebugLoc - Replace current source information with new such.
   /// Avoid using this, the constructor argument is preferable.
@@ -501,12 +542,12 @@ private:
   /// addImplicitDefUseOperands - Add all implicit def and use operands to
   /// this instruction.
   void addImplicitDefUseOperands();
-  
+
   /// RemoveRegOperandsFromUseLists - Unlink all of the register operands in
   /// this instruction from their respective use lists.  This requires that the
   /// operands already be on their use lists.
   void RemoveRegOperandsFromUseLists();
-  
+
   /// AddRegOperandsToUseLists - Add all of the register operands in
   /// this instruction from their respective use lists.  This requires that the
   /// operands not be on their use lists yet.

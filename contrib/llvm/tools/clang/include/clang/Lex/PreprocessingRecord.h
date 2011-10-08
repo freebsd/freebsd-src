@@ -38,13 +38,13 @@ namespace clang {
   class FileEntry;
 
   /// \brief Base class that describes a preprocessed entity, which may be a
-  /// preprocessor directive or macro instantiation.
+  /// preprocessor directive or macro expansion.
   class PreprocessedEntity {
   public:
     /// \brief The kind of preprocessed entity an object describes.
     enum EntityKind {
-      /// \brief A macro instantiation.
-      MacroInstantiationKind,
+      /// \brief A macro expansion.
+      MacroExpansionKind,
       
       /// \brief A preprocessing directive whose kind is not specified.
       ///
@@ -110,31 +110,31 @@ namespace clang {
     void operator delete(void* data) throw();
   };
   
-  /// \brief Records the location of a macro instantiation.
-  class MacroInstantiation : public PreprocessedEntity {
-    /// \brief The name of the macro being instantiation.
+  /// \brief Records the location of a macro expansion.
+  class MacroExpansion : public PreprocessedEntity {
+    /// \brief The name of the macro being expanded.
     IdentifierInfo *Name;
     
     /// \brief The definition of this macro.
     MacroDefinition *Definition;
     
   public:
-    MacroInstantiation(IdentifierInfo *Name, SourceRange Range,
-                       MacroDefinition *Definition)
-      : PreprocessedEntity(MacroInstantiationKind, Range), Name(Name), 
+    MacroExpansion(IdentifierInfo *Name, SourceRange Range,
+                   MacroDefinition *Definition)
+      : PreprocessedEntity(MacroExpansionKind, Range), Name(Name),
         Definition(Definition) { }
     
-    /// \brief The name of the macro being instantiated.
+    /// \brief The name of the macro being expanded.
     IdentifierInfo *getName() const { return Name; }
     
-    /// \brief The definition of the macro being instantiated.
+    /// \brief The definition of the macro being expanded.
     MacroDefinition *getDefinition() const { return Definition; }
 
     // Implement isa/cast/dyncast/etc.
     static bool classof(const PreprocessedEntity *PE) {
-      return PE->getKind() == MacroInstantiationKind;
+      return PE->getKind() == MacroExpansionKind;
     }
-    static bool classof(const MacroInstantiation *) { return true; }
+    static bool classof(const MacroExpansion *) { return true; }
 
   };
   
@@ -256,8 +256,12 @@ namespace clang {
   
   /// \brief A record of the steps taken while preprocessing a source file,
   /// including the various preprocessing directives processed, macros 
-  /// instantiated, etc.
+  /// expanded, etc.
   class PreprocessingRecord : public PPCallbacks {
+    /// \brief Whether we should include nested macro expansions in
+    /// the preprocessing record.
+    bool IncludeNestedMacroExpansions;
+    
     /// \brief Allocator used to store preprocessing objects.
     llvm::BumpPtrAllocator BumpAlloc;
 
@@ -281,7 +285,8 @@ namespace clang {
     void MaybeLoadPreallocatedEntities() const ;
     
   public:
-    PreprocessingRecord();
+    /// \brief Construct 
+    explicit PreprocessingRecord(bool IncludeNestedMacroExpansions);
     
     /// \brief Allocate memory in the preprocessing record.
     void *Allocate(unsigned Size, unsigned Align = 8) {
@@ -290,6 +295,10 @@ namespace clang {
     
     /// \brief Deallocate memory in the preprocessing record.
     void Deallocate(void *Ptr) { }
+    
+    size_t getTotalMemory() const {
+      return BumpAlloc.getTotalMemory();
+    }
     
     // Iteration over the preprocessed entities.
     typedef std::vector<PreprocessedEntity *>::iterator iterator;
@@ -341,7 +350,9 @@ namespace clang {
                                     llvm::StringRef FileName,
                                     bool IsAngled,
                                     const FileEntry *File,
-                                    SourceLocation EndLoc);
+                                    SourceLocation EndLoc,
+                                    llvm::StringRef SearchPath,
+                                    llvm::StringRef RelativePath);
   };
 } // end namespace clang
 

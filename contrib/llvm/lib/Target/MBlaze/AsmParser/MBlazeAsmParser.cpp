@@ -32,7 +32,6 @@ struct MBlazeOperand;
 
 class MBlazeAsmParser : public TargetAsmParser {
   MCAsmParser &Parser;
-  TargetMachine &TM;
 
   MCAsmParser &getParser() const { return Parser; }
   MCAsmLexer &getLexer() const { return Parser.getLexer(); }
@@ -64,8 +63,8 @@ class MBlazeAsmParser : public TargetAsmParser {
 
 
 public:
-  MBlazeAsmParser(const Target &T, MCAsmParser &_Parser, TargetMachine &_TM)
-    : TargetAsmParser(T), Parser(_Parser), TM(_TM) {}
+  MBlazeAsmParser(MCSubtargetInfo &_STI, MCAsmParser &_Parser)
+    : TargetAsmParser(), Parser(_Parser) {}
 
   virtual bool ParseInstruction(StringRef Name, SMLoc NameLoc,
                                 SmallVectorImpl<MCParsedAsmOperand*> &Operands);
@@ -220,7 +219,7 @@ public:
     return StringRef(Tok.Data, Tok.Length);
   }
 
-  virtual void dump(raw_ostream &OS) const;
+  virtual void print(raw_ostream &OS) const;
 
   static MBlazeOperand *CreateToken(StringRef Str, SMLoc S) {
     MBlazeOperand *Op = new MBlazeOperand(Token);
@@ -280,7 +279,7 @@ public:
 
 } // end anonymous namespace.
 
-void MBlazeOperand::dump(raw_ostream &OS) const {
+void MBlazeOperand::print(raw_ostream &OS) const {
   switch (Kind) {
   case Immediate:
     getImm()->print(OS);

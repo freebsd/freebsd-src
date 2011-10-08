@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -50,6 +45,7 @@ __FBSDID("$FreeBSD$");
  
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
@@ -60,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_chip.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
+
+#include <mips/sentry5/s5reg.h>
 
 /* XXX these should replace the current definitions in ar71xxreg.h */
 /* XXX perhaps an ar71xx_chip.h header file? */
@@ -199,6 +197,12 @@ ar71xx_chip_ddr_flush_ge1(void)
 	ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE1);
 }
 
+static void
+ar71xx_chip_ddr_flush_ip2(void)
+{
+	ar71xx_ddr_flush(AR71XX_WB_FLUSH_PCI);
+}
+
 static uint32_t
 ar71xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
@@ -235,6 +239,6 @@ struct ar71xx_cpu_def ar71xx_chip_def = {
 	&ar71xx_chip_ddr_flush_ge0,
 	&ar71xx_chip_ddr_flush_ge1,
 	&ar71xx_chip_get_eth_pll,
-	NULL,
+	&ar71xx_chip_ddr_flush_ip2,
 	&ar71xx_chip_init_usb_peripheral,
 };

@@ -782,7 +782,7 @@ struct ktrace_args {
 #endif
 /* ARGSUSED */
 int
-ktrace(td, uap)
+sys_ktrace(td, uap)
 	struct thread *td;
 	register struct ktrace_args *uap;
 {
@@ -882,7 +882,8 @@ ktrace(td, uap)
 		nfound = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p_cansee(td, p) != 0) {
 				PROC_UNLOCK(p); 
 				continue;
 			}
@@ -935,7 +936,7 @@ done:
 
 /* ARGSUSED */
 int
-utrace(td, uap)
+sys_utrace(td, uap)
 	struct thread *td;
 	register struct utrace_args *uap;
 {

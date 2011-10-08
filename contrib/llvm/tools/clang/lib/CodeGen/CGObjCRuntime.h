@@ -17,7 +17,6 @@
 #define CLANG_CODEGEN_OBCJRUNTIME_H
 #include "clang/Basic/IdentifierTable.h" // Selector
 #include "clang/AST/DeclObjC.h"
-#include <string>
 
 #include "CGBuilder.h"
 #include "CGCall.h"
@@ -87,6 +86,26 @@ protected:
                                   const ObjCIvarDecl *Ivar,
                                   unsigned CVRQualifiers,
                                   llvm::Value *Offset);
+  /// Emits a try / catch statement.  This function is intended to be called by
+  /// subclasses, and provides a generic mechanism for generating these, which
+  /// should be usable by all runtimes.  The caller must provide the functions to
+  /// call when entering and exiting a @catch() block, and the function used to
+  /// rethrow exceptions.  If the begin and end catch functions are NULL, then
+  /// the function assumes that the EH personality function provides the
+  /// thrown object directly.
+  void EmitTryCatchStmt(CodeGenFunction &CGF,
+                        const ObjCAtTryStmt &S,
+                        llvm::Constant *beginCatchFn,
+                        llvm::Constant *endCatchFn,
+                        llvm::Constant *exceptionRethrowFn);
+  /// Emits an @synchronize() statement, using the syncEnterFn and syncExitFn
+  /// arguments as the functions called to lock and unlock the object.  This
+  /// function can be called by subclasses that use zero-cost exception
+  /// handling.
+  void EmitAtSynchronizedStmt(CodeGenFunction &CGF,
+                            const ObjCAtSynchronizedStmt &S,
+                            llvm::Function *syncEnterFn,
+                            llvm::Function *syncExitFn);
 
 public:
   virtual ~CGObjCRuntime();
@@ -118,7 +137,7 @@ public:
   /// accompanying metadata) and a list of protocols.
   virtual void GenerateCategory(const ObjCCategoryImplDecl *OCD) = 0;
 
-  /// Generate a class stucture for this class.
+  /// Generate a class structure for this class.
   virtual void GenerateClass(const ObjCImplementationDecl *OID) = 0;
 
   /// Generate an Objective-C message send operation.
@@ -186,7 +205,13 @@ public:
   /// interface decl.
   virtual llvm::Value *GetClass(CGBuilderTy &Builder,
                                 const ObjCInterfaceDecl *OID) = 0;
-
+  
+  
+  virtual llvm::Value *EmitNSAutoreleasePoolClassRef(CGBuilderTy &Builder) {
+    assert(false &&"autoreleasepool unsupported in this ABI");
+    return 0;
+  }
+  
   /// EnumerationMutationFunction - Return the function that's called by the
   /// compiler when a mutation is detected during foreach iteration.
   virtual llvm::Constant *EnumerationMutationFunction() = 0;
@@ -224,13 +249,13 @@ public:
                                         llvm::Value *Size) = 0;
   virtual llvm::Constant *BuildGCBlockLayout(CodeGen::CodeGenModule &CGM,
                                   const CodeGen::CGBlockInfo &blockInfo) = 0;
+  virtual llvm::GlobalVariable *GetClassGlobal(const std::string &Name) = 0;
 };
 
 /// Creates an instance of an Objective-C runtime class.
 //TODO: This should include some way of selecting which runtime to target.
 CGObjCRuntime *CreateGNUObjCRuntime(CodeGenModule &CGM);
 CGObjCRuntime *CreateMacObjCRuntime(CodeGenModule &CGM);
-CGObjCRuntime *CreateMacNonFragileABIObjCRuntime(CodeGenModule &CGM);
 }
 }
 #endif

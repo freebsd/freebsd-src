@@ -28,3 +28,5 @@ options 	GEOM_PART_MBR
 # enable support for native hardware
 options 	NATIVE
 device		atpic
+
+options 	NEW_PCIB

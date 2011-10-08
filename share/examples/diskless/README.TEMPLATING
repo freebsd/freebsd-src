@@ -136,7 +136,7 @@ be useful to set up clients and server for diskless boot.
 		should never be overwritten by the templating copy.
 
 
-		TYPICAL CUSTOMIZED CONFIGRATION SOFTLINKS
+		TYPICAL CUSTOMIZED CONFIGURATION SOFTLINKS
 
     The following files typically need to be turned into softlinks 
     to /conf/ME/<filename>:
@@ -261,9 +261,9 @@ be useful to set up clients and server for diskless boot.
 	identity.pub
 
     WHEN INITIALLY CONVERTING A TARGET MACHINE TO USE TEMPLATING, ALWAYS
-    MAKE A FULL BACKUP OF THE TARGET MACHINE FIRST!  You may accidently delete
-    files on the target during the conversion due to forgetting to enter
-    items into appropriate .cpignore files on the source.
+    MAKE A FULL BACKUP OF THE TARGET MACHINE FIRST!  You may accidentally
+    delete files on the target during the conversion due to forgetting to
+    enter items into appropriate .cpignore files on the source.
 
 	SECURITY CONSIDERATIONS WITH NFS ROOT EXPORT FROM TEMPLATE MACHINE
 	SECURITY CONSIDERATIONS WITH NFS USR EXPORT FROM TEMPLATE MACHINE

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ali_chipinit(device_t dev);
+static int ata_ali_chipdeinit(device_t dev);
 static int ata_ali_ch_attach(device_t dev);
 static int ata_ali_sata_ch_attach(device_t dev);
 static void ata_ali_reset(device_t dev);
@@ -95,6 +96,7 @@ ata_ali_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_ali_chipinit;
+    ctlr->chipdeinit = ata_ali_chipdeinit;
     return (BUS_PROBE_DEFAULT);
 }
 
@@ -122,7 +124,7 @@ ata_ali_chipinit(device_t dev)
             return 0;
 
 	/* Allocate resources for later use by channel attach routines. */
-	res = malloc(sizeof(struct ali_sata_resources), M_TEMP, M_WAITOK);
+	res = malloc(sizeof(struct ali_sata_resources), M_ATAPCI, M_WAITOK);
 	for (i = 0; i < 4; i++) {
 		rid = PCIR_BAR(i);
 		res->bars[i] = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
@@ -170,6 +172,27 @@ ata_ali_chipinit(device_t dev)
 	break;
     }
     return 0;
+}
+
+static int
+ata_ali_chipdeinit(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+	struct ali_sata_resources *res;
+	int i;
+
+	if (ctlr->chip->cfg2 == ALI_SATA) {
+		res = ctlr->chipset_data;
+		for (i = 0; i < 4; i++) {
+			if (res->bars[i] != NULL) {
+				bus_release_resource(dev, SYS_RES_IOPORT,
+				    PCIR_BAR(i), res->bars[i]);
+			}
+		}
+		free(res, M_ATAPCI);
+		ctlr->chipset_data = NULL;
+	}
+	return (0);
 }
 
 static int

@@ -387,7 +387,7 @@ vnode_pager_setsize(vp, nsize)
 		 */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-			    FALSE);
+			    0);
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
@@ -1089,7 +1089,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	count = bytecount / PAGE_SIZE;
 
 	for (i = 0; i < count; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 
 	if ((int64_t)ma[0]->pindex < 0) {
 		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
@@ -1132,7 +1132,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				m = ma[ncount - 1];
 				KASSERT(m->busy > 0,
 		("vnode_pager_generic_putpages: page %p is not busy", m));
-				KASSERT((m->flags & PG_WRITEABLE) == 0,
+				KASSERT((m->aflags & PGA_WRITEABLE) == 0,
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);
@@ -1190,4 +1190,27 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
+}
+
+void
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+{
+	vm_object_t obj;
+	int i, pos;
+
+	if (written == 0)
+		return;
+	obj = ma[0]->object;
+	VM_OBJECT_LOCK(obj);
+	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
+		if (pos < trunc_page(written)) {
+			rtvals[i] = VM_PAGER_OK;
+			vm_page_undirty(ma[i]);
+		} else {
+			/* Partially written page. */
+			rtvals[i] = VM_PAGER_AGAIN;
+			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
+		}
+	}
+	VM_OBJECT_UNLOCK(obj);
 }

@@ -17,7 +17,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include <cstring>
-#include <string>
 
 namespace llvm {
   template<typename ValueT>
@@ -81,16 +80,6 @@ protected:
   StringMapImpl(unsigned InitSize, unsigned ItemSize);
   void RehashTable();
 
-  /// ShouldRehash - Return true if the table should be rehashed after a new
-  /// element was recently inserted.
-  bool ShouldRehash() const {
-    // If the hash table is now more than 3/4 full, or if fewer than 1/8 of
-    // the buckets are empty (meaning that many are filled with tombstones),
-    // grow the table.
-    return NumItems*4 > NumBuckets*3 ||
-           NumBuckets-(NumItems+NumTombstones) < NumBuckets/8;
-  }
-
   /// LookupBucketFor - Look up the bucket that the specified string should end
   /// up in.  If it already exists as a key in the map, the Item pointer for the
   /// specified bucket will be non-null.  Otherwise, it will be null.  In either
@@ -151,7 +140,7 @@ public:
   /// StringMapEntry object.
   const char *getKeyData() const {return reinterpret_cast<const char*>(this+1);}
 
-  const char *first() const { return getKeyData(); }
+  StringRef first() const { return StringRef(getKeyData(), getKeyLength()); }
 
   /// Create - Create a StringMapEntry for the specified key and default
   /// construct the value.
@@ -318,7 +307,7 @@ public:
     return ValueTy();
   }
 
-  ValueTy& operator[](StringRef Key) {
+  ValueTy &operator[](StringRef Key) {
     return GetOrCreateValue(Key).getValue();
   }
 
@@ -339,9 +328,9 @@ public:
       --NumTombstones;
     Bucket.Item = KeyValue;
     ++NumItems;
+    assert(NumItems + NumTombstones <= NumBuckets);
 
-    if (ShouldRehash())
-      RehashTable();
+    RehashTable();
     return true;
   }
 
@@ -359,14 +348,14 @@ public:
     }
 
     NumItems = 0;
+    NumTombstones = 0;
   }
 
   /// GetOrCreateValue - Look up the specified key in the table.  If a value
   /// exists, return it.  Otherwise, default construct a value, insert it, and
   /// return.
   template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(StringRef Key,
-                                            InitTy Val) {
+  MapEntryTy &GetOrCreateValue(StringRef Key, InitTy Val) {
     unsigned BucketNo = LookupBucketFor(Key);
     ItemBucket &Bucket = TheTable[BucketNo];
     if (Bucket.Item && Bucket.Item != getTombstoneVal())
@@ -378,30 +367,18 @@ public:
     if (Bucket.Item == getTombstoneVal())
       --NumTombstones;
     ++NumItems;
+    assert(NumItems + NumTombstones <= NumBuckets);
 
     // Fill in the bucket for the hash table.  The FullHashValue was already
     // filled in by LookupBucketFor.
     Bucket.Item = NewItem;
 
-    if (ShouldRehash())
-      RehashTable();
+    RehashTable();
     return *NewItem;
   }
 
-  StringMapEntry<ValueTy> &GetOrCreateValue(StringRef Key) {
+  MapEntryTy &GetOrCreateValue(StringRef Key) {
     return GetOrCreateValue(Key, ValueTy());
-  }
-
-  template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd,
-                                            InitTy Val) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart), Val);
-  }
-
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart));
   }
 
   /// remove - Remove the specified key/value pair from the map, but do not

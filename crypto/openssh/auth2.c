@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.121 2009/06/22 05:39:28 dtucker Exp $ */
+/* $OpenBSD: auth2.c,v 1.123 2011/03/10 02:52:57 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -184,7 +184,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 	Authctxt *authctxt = ctxt;
 	u_int len;
 	int acceptit = 0;
-	char *service = packet_get_string(&len);
+	char *service = packet_get_cstring(&len);
 	packet_check_eom();
 
 	if (authctxt == NULL)
@@ -230,9 +230,9 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	if (authctxt == NULL)
 		fatal("input_userauth_request: no authctxt");
 
-	user = packet_get_string(NULL);
-	service = packet_get_string(NULL);
-	method = packet_get_string(NULL);
+	user = packet_get_cstring(NULL);
+	service = packet_get_cstring(NULL);
+	method = packet_get_cstring(NULL);
 	debug("userauth-request for user %s service %s method %s", user, service, method);
 	debug("attempt %d failures %d", authctxt->attempt, authctxt->failures);
 
@@ -304,6 +304,7 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 #endif
 
 	authctxt->postponed = 0;
+	authctxt->server_caused_failure = 0;
 
 	/* try to authenticate user */
 	m = authmethod_lookup(method);
@@ -376,7 +377,8 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 	} else {
 
 		/* Allow initial try of "none" auth without failure penalty */
-		if (authctxt->attempt > 1 || strcmp(method, "none") != 0)
+		if (!authctxt->server_caused_failure &&
+		    (authctxt->attempt > 1 || strcmp(method, "none") != 0))
 			authctxt->failures++;
 		if (authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS

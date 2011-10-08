@@ -53,6 +53,7 @@
 /* Socket-level control message types */
 
 #define LINUX_SCM_RIGHTS	0x01
+#define LINUX_SCM_CREDENTIALS   0x02
 
 /* Ancilliary data object information macros */
 
@@ -66,13 +67,14 @@
 #define LINUX_CMSG_FIRSTHDR(msg) \
 				((msg)->msg_controllen >= \
 				    sizeof(struct l_cmsghdr) ? \
-				    (struct l_cmsghdr *)((msg)->msg_control) : \
+				    (struct l_cmsghdr *) \
+				        PTRIN((msg)->msg_control) : \
 				    (struct l_cmsghdr *)(NULL))
 #define LINUX_CMSG_NXTHDR(msg, cmsg) \
 				((((char *)(cmsg) + \
 				    LINUX_CMSG_ALIGN((cmsg)->cmsg_len) + \
 				    sizeof(*(cmsg))) > \
-				    (((char *)(msg)->msg_control) + \
+				    (((char *)PTRIN((msg)->msg_control)) + \
 				    (msg)->msg_controllen)) ? \
 				    (struct l_cmsghdr *) NULL : \
 				    (struct l_cmsghdr *)((char *)(cmsg) + \

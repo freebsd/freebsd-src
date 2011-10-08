@@ -141,8 +141,11 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	struct vnode *vp;
 	int major, minor;
 
+	/*
+	 * No capability rights required here.
+	 */
 	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, &fp) != 0)
+	    fget(td, fd, 0, &fp) != 0)
 		return;
 	vp = fp->f_vnode;
 	if (vp != NULL && vp->v_rdev != NULL &&

@@ -24,6 +24,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NeonEmitter.h"
+#include "Error.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -462,9 +463,34 @@ static std::string MangleName(const std::string &name, StringRef typestr,
   return s;
 }
 
+/// UseMacro - Examine the prototype string to determine if the intrinsic
+/// should be defined as a preprocessor macro instead of an inline function.
+static bool UseMacro(const std::string &proto) {
+  // If this builtin takes an immediate argument, we need to #define it rather
+  // than use a standard declaration, so that SemaChecking can range check
+  // the immediate passed by the user.
+  if (proto.find('i') != std::string::npos)
+    return true;
+
+  // Pointer arguments need to use macros to avoid hiding aligned attributes
+  // from the pointer type.
+  if (proto.find('p') != std::string::npos ||
+      proto.find('c') != std::string::npos)
+    return true;
+
+  return false;
+}
+
+/// MacroArgUsedDirectly - Return true if argument i for an intrinsic that is
+/// defined as a macro should be accessed directly instead of being first
+/// assigned to a local temporary.
+static bool MacroArgUsedDirectly(const std::string &proto, unsigned i) {
+  return (proto[i] == 'i' || proto[i] == 'p' || proto[i] == 'c');
+}
+
 // Generate the string "(argtype a, argtype b, ...)"
 static std::string GenArgs(const std::string &proto, StringRef typestr) {
-  bool define = proto.find('i') != std::string::npos;
+  bool define = UseMacro(proto);
   char arg = 'a';
 
   std::string s;
@@ -472,10 +498,10 @@ static std::string GenArgs(const std::string &proto, StringRef typestr) {
 
   for (unsigned i = 1, e = proto.size(); i != e; ++i, ++arg) {
     if (define) {
-      // Immediate macro arguments are used directly instead of being assigned
+      // Some macro arguments are used directly instead of being assigned
       // to local temporaries; prepend an underscore prefix to make their
       // names consistent with the local temporaries.
-      if (proto[i] == 'i')
+      if (MacroArgUsedDirectly(proto, i))
         s += "__";
     } else {
       s += TypeString(proto[i], typestr) + " __";
@@ -494,11 +520,28 @@ static std::string GenArgs(const std::string &proto, StringRef typestr) {
 static std::string GenMacroLocals(const std::string &proto, StringRef typestr) {
   char arg = 'a';
   std::string s;
+  bool generatedLocal = false;
 
   for (unsigned i = 1, e = proto.size(); i != e; ++i, ++arg) {
     // Do not create a temporary for an immediate argument.
     // That would defeat the whole point of using a macro!
-    if (proto[i] == 'i') continue;
+    if (proto[i] == 'i')
+      continue;
+    generatedLocal = true;
+
+    // For other (non-immediate) arguments that are used directly, a local
+    // temporary is still needed to get the correct type checking, even though
+    // that temporary is not used for anything.
+    if (MacroArgUsedDirectly(proto, i)) {
+      s += TypeString(proto[i], typestr) + " __";
+      s.push_back(arg);
+      s += "_ = (__";
+      s.push_back(arg);
+      s += "); (void)__";
+      s.push_back(arg);
+      s += "_; ";
+      continue;
+    }
 
     s += TypeString(proto[i], typestr) + " __";
     s.push_back(arg);
@@ -507,7 +550,8 @@ static std::string GenMacroLocals(const std::string &proto, StringRef typestr) {
     s += "); ";
   }
 
-  s += "\\\n  ";
+  if (generatedLocal)
+    s += "\\\n  ";
   return s;
 }
 
@@ -568,11 +612,7 @@ static std::string GenOpString(OpKind op, const std::string &proto,
                                StringRef typestr) {
   bool quad;
   unsigned nElts = GetNumElements(typestr, quad);
-
-  // If this builtin takes an immediate argument, we need to #define it rather
-  // than use a standard declaration, so that SemaChecking can range check
-  // the immediate passed by the user.
-  bool define = proto.find('i') != std::string::npos;
+  bool define = UseMacro(proto);
 
   std::string ts = TypeString(proto[0], typestr);
   std::string s;
@@ -608,16 +648,9 @@ static std::string GenOpString(OpKind op, const std::string &proto,
   case OpMul:
     s += "__a * __b;";
     break;
-  case OpMullN:
-    s += Extend(typestr, "__a") + " * " +
-      Extend(typestr, Duplicate(nElts << (int)quad, typestr, "__b")) + ";";
-    break;
   case OpMullLane:
-    s += Extend(typestr, "__a") + " * " +
-      Extend(typestr, SplatLane(nElts, "__b", "__c")) + ";";
-    break;
-  case OpMull:
-    s += Extend(typestr, "__a") + " * " + Extend(typestr, "__b") + ";";
+    s += MangleName("vmull", typestr, ClassS) + "(__a, " +
+      SplatLane(nElts, "__b", "__c") + ");";
     break;
   case OpMlaN:
     s += "__a + (__b * " + Duplicate(nElts, typestr, "__c") + ");";
@@ -629,16 +662,15 @@ static std::string GenOpString(OpKind op, const std::string &proto,
     s += "__a + (__b * __c);";
     break;
   case OpMlalN:
-    s += "__a + (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, Duplicate(nElts, typestr, "__c")) + ");";
+    s += "__a + " + MangleName("vmull", typestr, ClassS) + "(__b, " +
+      Duplicate(nElts, typestr, "__c") + ");";
     break;
   case OpMlalLane:
-    s += "__a + (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, SplatLane(nElts, "__c", "__d")) + ");";
+    s += "__a + " + MangleName("vmull", typestr, ClassS) + "(__b, " +
+      SplatLane(nElts, "__c", "__d") + ");";
     break;
   case OpMlal:
-    s += "__a + (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, "__c") + ");";
+    s += "__a + " + MangleName("vmull", typestr, ClassS) + "(__b, __c);";
     break;
   case OpMlsN:
     s += "__a - (__b * " + Duplicate(nElts, typestr, "__c") + ");";
@@ -650,16 +682,15 @@ static std::string GenOpString(OpKind op, const std::string &proto,
     s += "__a - (__b * __c);";
     break;
   case OpMlslN:
-    s += "__a - (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, Duplicate(nElts, typestr, "__c")) + ");";
+    s += "__a - " + MangleName("vmull", typestr, ClassS) + "(__b, " +
+      Duplicate(nElts, typestr, "__c") + ");";
     break;
   case OpMlslLane:
-    s += "__a - (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, SplatLane(nElts, "__c", "__d")) + ");";
+    s += "__a - " + MangleName("vmull", typestr, ClassS) + "(__b, " +
+      SplatLane(nElts, "__c", "__d") + ");";
     break;
   case OpMlsl:
-    s += "__a - (" + Extend(typestr, "__b") + " * " +
-      Extend(typestr, "__c") + ");";
+    s += "__a - " + MangleName("vmull", typestr, ClassS) + "(__b, __c);";
     break;
   case OpQDMullLane:
     s += MangleName("vqdmull", typestr, ClassS) + "(__a, " +
@@ -867,10 +898,7 @@ static std::string GenBuiltin(const std::string &name, const std::string &proto,
   // sret-like argument.
   bool sret = (proto[0] >= '2' && proto[0] <= '4');
 
-  // If this builtin takes an immediate argument, we need to #define it rather
-  // than use a standard declaration, so that SemaChecking can range check
-  // the immediate passed by the user.
-  bool define = proto.find('i') != std::string::npos;
+  bool define = UseMacro(proto);
 
   // Check if the prototype has a scalar operand with the type of the vector
   // elements.  If not, bitcasting the args will take care of arg checking.
@@ -1008,7 +1036,7 @@ static std::string GenIntrinsic(const std::string &name,
                                 StringRef outTypeStr, StringRef inTypeStr,
                                 OpKind kind, ClassKind classKind) {
   assert(!proto.empty() && "");
-  bool define = proto.find('i') != std::string::npos;
+  bool define = UseMacro(proto);
   std::string s;
 
   // static always inline + return type
@@ -1148,17 +1176,20 @@ void NeonEmitter::run(raw_ostream &OS) {
 
   std::vector<Record*> RV = Records.getAllDerivedDefinitions("Inst");
 
-  // Emit vmovl and vabd intrinsics first so they can be used by other
+  // Emit vmovl, vmull and vabd intrinsics first so they can be used by other
   // intrinsics.  (Some of the saturating multiply instructions are also
   // used to implement the corresponding "_lane" variants, but tablegen
   // sorts the records into alphabetical order so that the "_lane" variants
   // come after the intrinsics they use.)
   emitIntrinsic(OS, Records.getDef("VMOVL"));
+  emitIntrinsic(OS, Records.getDef("VMULL"));
   emitIntrinsic(OS, Records.getDef("VABD"));
 
   for (unsigned i = 0, e = RV.size(); i != e; ++i) {
     Record *R = RV[i];
-    if (R->getName() != "VMOVL" && R->getName() != "VABD")
+    if (R->getName() != "VMOVL" &&
+        R->getName() != "VMULL" &&
+        R->getName() != "VABD")
       emitIntrinsic(OS, R);
   }
 
@@ -1368,9 +1399,14 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     for (unsigned ti = 0, te = TypeVec.size(); ti != te; ++ti) {
       std::string namestr, shiftstr, rangestr;
 
-      // Builtins which are overloaded by type will need to have their upper
-      // bound computed at Sema time based on the type constant.
-      if (Proto.find('s') == std::string::npos) {
+      if (R->getValueAsBit("isVCVT_N")) {
+        // VCVT between floating- and fixed-point values takes an immediate
+        // in the range 1 to 32.
+        ck = ClassB;
+        rangestr = "l = 1; u = 31"; // upper bound = l + u
+      } else if (Proto.find('s') == std::string::npos) {
+        // Builtins which are overloaded by type will need to have their upper
+        // bound computed at Sema time based on the type constant.
         ck = ClassB;
         if (R->getValueAsBit("isShift")) {
           shiftstr = ", true";

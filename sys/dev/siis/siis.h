@@ -387,8 +387,8 @@ struct siis_channel {
 	uint32_t		toslots;	/* Slots in timeout */
 	int			numrslots;	/* Number of running slots */
 	int			numtslots[SIIS_MAX_SLOTS]; /* Number of tagged slots */
-	int			numhslots;	/* Number of holden slots */
-	int			readlog;	/* Our READ LOG active */
+	int			numhslots;	/* Number of held slots */
+	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			recovery;	/* Some slots are in error */
 	union ccb		*frozen;	/* Frozen command */

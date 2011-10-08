@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,10 @@
 #ifdef _KERNEL
 #include <sys/bio.h>
 #include <sys/libkern.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/tree.h>
 #include <geom/geom.h>
 #else
 #include <stdio.h>
@@ -59,10 +63,19 @@
  * 2 - Added G_ELI_FLAG_READONLY.
  * 3 - Added 'configure' subcommand.
  * 4 - IV is generated from offset converted to little-endian
- *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
+ *     (the G_ELI_FLAG_NATIVE_BYTE_ORDER flag will be set for older versions).
  * 5 - Added multiple encrypton keys and AES-XTS support.
+ * 6 - Fixed usage of multiple keys for authenticated providers (the
+ *     G_ELI_FLAG_FIRST_KEY flag will be set for older versions).
  */
-#define	G_ELI_VERSION		5
+#define	G_ELI_VERSION_00	0
+#define	G_ELI_VERSION_01	1
+#define	G_ELI_VERSION_02	2
+#define	G_ELI_VERSION_03	3
+#define	G_ELI_VERSION_04	4
+#define	G_ELI_VERSION_05	5
+#define	G_ELI_VERSION_06	6
+#define	G_ELI_VERSION		G_ELI_VERSION_06
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -88,6 +101,8 @@
 #define	G_ELI_FLAG_SINGLE_KEY		0x00080000
 /* Device suspended. */
 #define	G_ELI_FLAG_SUSPEND		0x00100000
+/* Provider uses first encryption key. */
+#define	G_ELI_FLAG_FIRST_KEY		0x00200000
 
 #define	G_ELI_NEW_BIO	255
 
@@ -150,31 +165,35 @@ struct g_eli_worker {
 };
 
 struct g_eli_softc {
-	struct g_geom	 *sc_geom;
-	u_int		  sc_crypto;
-	uint8_t		  sc_mkey[G_ELI_DATAIVKEYLEN];
-	uint8_t		**sc_ekeys;
-	u_int		  sc_nekeys;
-	u_int		  sc_ealgo;
-	u_int		  sc_ekeylen;
-	uint8_t		  sc_akey[G_ELI_AUTHKEYLEN];
-	u_int		  sc_aalgo;
-	u_int		  sc_akeylen;
-	u_int		  sc_alen;
-	SHA256_CTX	  sc_akeyctx;
-	uint8_t		  sc_ivkey[G_ELI_IVKEYLEN];
-	SHA256_CTX	  sc_ivctx;
-	int		  sc_nkey;
-	uint32_t	  sc_flags;
-	int		  sc_inflight;
-	off_t		  sc_mediasize;
-	size_t		  sc_sectorsize;
-	u_int		  sc_bytes_per_sector;
-	u_int		  sc_data_per_sector;
+	struct g_geom	*sc_geom;
+	u_int		 sc_crypto;
+	uint8_t		 sc_mkey[G_ELI_DATAIVKEYLEN];
+	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
+	TAILQ_HEAD(, g_eli_key) sc_ekeys_queue;
+	RB_HEAD(g_eli_key_tree, g_eli_key) sc_ekeys_tree;
+	struct mtx	 sc_ekeys_lock;
+	uint64_t	 sc_ekeys_total;
+	uint64_t	 sc_ekeys_allocated;
+	u_int		 sc_ealgo;
+	u_int		 sc_ekeylen;
+	uint8_t		 sc_akey[G_ELI_AUTHKEYLEN];
+	u_int		 sc_aalgo;
+	u_int		 sc_akeylen;
+	u_int		 sc_alen;
+	SHA256_CTX	 sc_akeyctx;
+	uint8_t		 sc_ivkey[G_ELI_IVKEYLEN];
+	SHA256_CTX	 sc_ivctx;
+	int		 sc_nkey;
+	uint32_t	 sc_flags;
+	int		 sc_inflight;
+	off_t		 sc_mediasize;
+	size_t		 sc_sectorsize;
+	u_int		 sc_bytes_per_sector;
+	u_int		 sc_data_per_sector;
 
 	/* Only for software cryptography. */
 	struct bio_queue_head sc_queue;
-	struct mtx	  sc_queue_mtx;
+	struct mtx	 sc_queue_mtx;
 	LIST_HEAD(, g_eli_worker) sc_workers;
 };
 #define	sc_name		 sc_geom->name
@@ -246,7 +265,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 }
 
 static __inline int
-eli_metadata_decode_v1v2v3v4v5(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4v5v6(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -277,15 +296,16 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + sizeof(md->md_magic));
 	switch (md->md_version) {
-	case 0:
+	case G_ELI_VERSION_00:
 		error = eli_metadata_decode_v0(data, md);
 		break;
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-		error = eli_metadata_decode_v1v2v3v4v5(data, md);
+	case G_ELI_VERSION_01:
+	case G_ELI_VERSION_02:
+	case G_ELI_VERSION_03:
+	case G_ELI_VERSION_04:
+	case G_ELI_VERSION_05:
+	case G_ELI_VERSION_06:
+		error = eli_metadata_decode_v1v2v3v4v5v6(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -501,8 +521,6 @@ void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
 void g_eli_read_done(struct bio *bp);
 void g_eli_write_done(struct bio *bp);
 int g_eli_crypto_rerun(struct cryptop *crp);
-uint8_t *g_eli_crypto_key(struct g_eli_softc *sc, off_t offset,
-    size_t blocksize);
 void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size);
 
@@ -539,4 +557,11 @@ void g_eli_crypto_hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
 void g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize);
 void g_eli_crypto_hmac(const uint8_t *hkey, size_t hkeysize,
     const uint8_t *data, size_t datasize, uint8_t *md, size_t mdsize);
+
+#ifdef _KERNEL
+void g_eli_key_init(struct g_eli_softc *sc);
+void g_eli_key_destroy(struct g_eli_softc *sc);
+uint8_t *g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize);
+void g_eli_key_drop(struct g_eli_softc *sc, uint8_t *rawkey);
+#endif
 #endif	/* !_G_ELI_H_ */

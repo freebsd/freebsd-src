@@ -14,8 +14,12 @@
 #ifndef LLVM_CLANG_FRONTEND_UTILS_H
 #define LLVM_CLANG_FRONTEND_UTILS_H
 
+#include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/Basic/Diagnostic.h"
 
 namespace llvm {
 class Triple;
@@ -24,6 +28,7 @@ class Triple;
 namespace clang {
 class ASTConsumer;
 class CompilerInstance;
+class CompilerInvocation;
 class Decl;
 class DependencyOutputOptions;
 class Diagnostic;
@@ -67,9 +72,6 @@ void ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
 void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
                               const PreprocessorOutputOptions &Opts);
 
-/// CheckDiagnostics - Gather the expected diagnostics and check them.
-bool CheckDiagnostics(Preprocessor &PP);
-
 /// AttachDependencyFileGen - Create a dependency file generator, and attach
 /// it to the given preprocessor.  This takes ownership of the output stream.
 void AttachDependencyFileGen(Preprocessor &PP,
@@ -85,11 +87,22 @@ void AttachDependencyFileGen(Preprocessor &PP,
 /// \param OutputPath - If non-empty, a path to write the header include
 /// information to, instead of writing to stderr.
 void AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders = false,
-                            llvm::StringRef OutputPath = "");
+                            llvm::StringRef OutputPath = "",
+                            bool ShowDepth = true);
 
 /// CacheTokens - Cache tokens for use with PCH. Note that this requires
 /// a seekable stream.
 void CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS);
+
+/// createInvocationFromCommandLine - Construct a compiler invocation object for
+/// a command line argument vector.
+///
+/// \return A CompilerInvocation, or 0 if none was built for the given
+/// argument vector.
+CompilerInvocation *
+createInvocationFromCommandLine(llvm::ArrayRef<const char *> Args,
+                                llvm::IntrusiveRefCntPtr<Diagnostic> Diags =
+                                    llvm::IntrusiveRefCntPtr<Diagnostic>());
 
 }  // end namespace clang
 

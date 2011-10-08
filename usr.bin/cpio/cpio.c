@@ -136,19 +136,19 @@ main(int argc, char *argv[])
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
 
-	/* Need progname before calling warnc. */
+	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
-		progname = "bsdcpio";
+		lafe_progname = "bsdcpio";
 	else {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-		progname = strrchr(*argv, '\\');
+		lafe_progname = strrchr(*argv, '\\');
 #else
-		progname = strrchr(*argv, '/');
+		lafe_progname = strrchr(*argv, '/');
 #endif
-		if (progname != NULL)
-			progname++;
+		if (lafe_progname != NULL)
+			lafe_progname++;
 		else
-			progname = *argv;
+			lafe_progname = *argv;
 	}
 
 	cpio->uid_override = -1;
@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 		case 'C': /* NetBSD/OpenBSD */
 			cpio->bytes_per_block = atoi(cpio->optarg);
 			if (cpio->bytes_per_block <= 0)
-				errc(1, 0, "Invalid blocksize %s", cpio->optarg);
+				lafe_errc(1, 0, "Invalid blocksize %s", cpio->optarg);
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -198,14 +198,14 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			include_from_file(&cpio->matching,
+			lafe_include_from_file(&cpio->matching,
 			    cpio->optarg, cpio->option_null);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
 			cpio->filename = cpio->optarg;
 			break;
 		case 'f': /* POSIX 1997 */
-			exclude(&cpio->matching, cpio->optarg);
+			lafe_exclude(&cpio->matching, cpio->optarg);
 			break;
 		case 'H': /* GNU cpio (also --format) */
 			cpio->format = cpio->optarg;
@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 			break;
 		case 'i': /* POSIX 1997 */
 			if (cpio->mode != '\0')
-				errc(1, 0,
+				lafe_errc(1, 0,
 				    "Cannot use both -i and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
@@ -255,13 +255,13 @@ main(int argc, char *argv[])
 			break;
 		case 'o': /* POSIX 1997 */
 			if (cpio->mode != '\0')
-				errc(1, 0,
+				lafe_errc(1, 0,
 				    "Cannot use both -o and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
 		case 'p': /* POSIX 1997 */
 			if (cpio->mode != '\0')
-				errc(1, 0,
+				lafe_errc(1, 0,
 				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
@@ -277,7 +277,7 @@ main(int argc, char *argv[])
 			 * also; use that to set [ug]name_override. */
 			errmsg = owner_parse(cpio->optarg, &uid, &gid);
 			if (errmsg) {
-				warnc(-1, "%s", errmsg);
+				lafe_warnc(-1, "%s", errmsg);
 				usage();
 			}
 			if (uid != -1) {
@@ -335,16 +335,16 @@ main(int argc, char *argv[])
 		cpio->mode = 'i';
 	/* -t requires -i */
 	if (cpio->option_list && cpio->mode != 'i')
-		errc(1, 0, "Option -t requires -i");
+		lafe_errc(1, 0, "Option -t requires -i");
 	/* -n requires -it */
 	if (cpio->option_numeric_uid_gid && !cpio->option_list)
-		errc(1, 0, "Option -n requires -it");
+		lafe_errc(1, 0, "Option -n requires -it");
 	/* Can only specify format when writing */
 	if (cpio->format != NULL && cpio->mode != 'o')
-		errc(1, 0, "Option --format requires -o");
+		lafe_errc(1, 0, "Option --format requires -o");
 	/* -l requires -p */
 	if (cpio->option_link && cpio->mode != 'p')
-		errc(1, 0, "Option -l requires -p");
+		lafe_errc(1, 0, "Option -l requires -p");
 	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
@@ -358,7 +358,7 @@ main(int argc, char *argv[])
 		break;
 	case 'i':
 		while (*cpio->argv != NULL) {
-			include(&cpio->matching, *cpio->argv);
+			lafe_include(&cpio->matching, *cpio->argv);
 			--cpio->argc;
 			++cpio->argv;
 		}
@@ -369,12 +369,12 @@ main(int argc, char *argv[])
 		break;
 	case 'p':
 		if (*cpio->argv == NULL || **cpio->argv == '\0')
-			errc(1, 0,
+			lafe_errc(1, 0,
 			    "-p mode requires a target directory");
 		mode_pass(cpio, *cpio->argv);
 		break;
 	default:
-		errc(1, 0,
+		lafe_errc(1, 0,
 		    "Must specify at least one of -i, -o, or -p");
 	}
 
@@ -388,7 +388,7 @@ usage(void)
 {
 	const char	*p;
 
-	p = progname;
+	p = lafe_progname;
 
 	fprintf(stderr, "Brief Usage:\n");
 	fprintf(stderr, "  List:    %s -it < archive\n", p);
@@ -426,7 +426,7 @@ long_help(void)
 	const char	*prog;
 	const char	*p;
 
-	prog = progname;
+	prog = lafe_progname;
 
 	fflush(stderr);
 
@@ -459,16 +459,16 @@ static void
 mode_out(struct cpio *cpio)
 {
 	struct archive_entry *entry, *spare;
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
 
 	if (cpio->option_append)
-		errc(1, 0, "Append mode not yet supported.");
+		lafe_errc(1, 0, "Append mode not yet supported.");
 
 	cpio->archive_read_disk = archive_read_disk_new();
 	if (cpio->archive_read_disk == NULL)
-		errc(1, 0, "Failed to allocate archive object");
+		lafe_errc(1, 0, "Failed to allocate archive object");
 	if (cpio->option_follow_links)
 		archive_read_disk_set_symlink_logical(cpio->archive_read_disk);
 	else
@@ -477,7 +477,7 @@ mode_out(struct cpio *cpio)
 
 	cpio->archive = archive_write_new();
 	if (cpio->archive == NULL)
-		errc(1, 0, "Failed to allocate archive object");
+		lafe_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
 	case 'J':
 		r = archive_write_set_compression_xz(cpio->archive);
@@ -499,10 +499,10 @@ mode_out(struct cpio *cpio)
 		break;
 	}
 	if (r < ARCHIVE_WARN)
-		errc(1, 0, "Requested compression not available");
+		lafe_errc(1, 0, "Requested compression not available");
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(cpio->archive));
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 	archive_write_set_bytes_per_block(cpio->archive, cpio->bytes_per_block);
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
@@ -513,11 +513,11 @@ mode_out(struct cpio *cpio)
 	 */
 	r = archive_write_open_file(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(cpio->archive));
-	lr = line_reader("-", cpio->option_null);
-	while ((p = line_reader_next(lr)) != NULL)
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
+	lr = lafe_line_reader("-", cpio->option_null);
+	while ((p = lafe_line_reader_next(lr)) != NULL)
 		file_to_archive(cpio, p);
-	line_reader_free(lr);
+	lafe_line_reader_free(lr);
 
 	/*
 	 * The hardlink detection may have queued up a couple of entries
@@ -534,7 +534,7 @@ mode_out(struct cpio *cpio)
 
 	r = archive_write_close(cpio->archive);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(cpio->archive));
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
 	if (!cpio->quiet) {
 		int64_t blocks =
@@ -566,15 +566,15 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	 */
 	entry = archive_entry_new();
 	if (entry == NULL)
-		errc(1, 0, "Couldn't allocate entry");
+		lafe_errc(1, 0, "Couldn't allocate entry");
 	archive_entry_copy_sourcepath(entry, srcpath);
 	r = archive_read_disk_entry_from_file(cpio->archive_read_disk,
 	    entry, -1, NULL);
 	if (r < ARCHIVE_FAILED)
-		errc(1, 0, "%s",
+		lafe_errc(1, 0, "%s",
 		    archive_error_string(cpio->archive_read_disk));
 	if (r < ARCHIVE_OK)
-		warnc(0, "%s",
+		lafe_warnc(0, "%s",
 		    archive_error_string(cpio->archive_read_disk));
 	if (r <= ARCHIVE_FAILED) {
 		cpio->return_value = 1;
@@ -607,7 +607,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 			free(cpio->pass_destpath);
 			cpio->pass_destpath = malloc(cpio->pass_destpath_alloc);
 			if (cpio->pass_destpath == NULL)
-				errc(1, ENOMEM,
+				lafe_errc(1, ENOMEM,
 				    "Can't allocate path buffer");
 		}
 		strcpy(cpio->pass_destpath, cpio->destdir);
@@ -673,7 +673,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		/* Save the original entry in case we need it later. */
 		t = archive_entry_clone(entry);
 		if (t == NULL)
-			errc(1, ENOMEM, "Can't create link");
+			lafe_errc(1, ENOMEM, "Can't create link");
 		/* Note: link(2) doesn't create parent directories,
 		 * so we use archive_write_header() instead as a
 		 * convenience. */
@@ -683,7 +683,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		r = archive_write_header(cpio->archive, t);
 		archive_entry_free(t);
 		if (r != ARCHIVE_OK)
-			warnc(archive_errno(cpio->archive),
+			lafe_warnc(archive_errno(cpio->archive),
 			    "%s", archive_error_string(cpio->archive));
 		if (r == ARCHIVE_FATAL)
 			exit(1);
@@ -691,7 +691,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		if (r != ARCHIVE_OK && archive_errno(cpio->archive) == EXDEV) {
 			/* Cross-device link:  Just fall through and use
 			 * the original entry to copy the file over. */
-			warnc(0, "Copying file instead");
+			lafe_warnc(0, "Copying file instead");
 		} else
 #endif
 		return (0);
@@ -705,7 +705,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		if (archive_entry_size(entry) > 0) {
 			fd = open(srcpath, O_RDONLY | O_BINARY);
 			if (fd < 0) {
-				warnc(errno,
+				lafe_warnc(errno,
 				    "%s: could not open file", srcpath);
 				goto cleanup;
 			}
@@ -717,7 +717,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	r = archive_write_header(cpio->archive, entry);
 
 	if (r != ARCHIVE_OK)
-		warnc(archive_errno(cpio->archive),
+		lafe_warnc(archive_errno(cpio->archive),
 		    "%s: %s",
 		    srcpath,
 		    archive_error_string(cpio->archive));
@@ -731,10 +731,10 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 			r = archive_write_data(cpio->archive,
 			    cpio->buff, bytes_read);
 			if (r < 0)
-				errc(1, archive_errno(cpio->archive),
+				lafe_errc(1, archive_errno(cpio->archive),
 				    "%s", archive_error_string(cpio->archive));
 			if (r < bytes_read) {
-				warnc(0,
+				lafe_warnc(0,
 				    "Truncated write; file may have grown while being archived.");
 			}
 			bytes_read = read(fd, cpio->buff, cpio->buff_size);
@@ -763,7 +763,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 	(void)name; /* UNUSED */
 
 	if (!warned)
-		warnc(0, "Can't restore access times on this platform");
+		lafe_warnc(0, "Can't restore access times on this platform");
 	warned = 1;
 	return (fd);
 #else
@@ -801,7 +801,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
         if ((AE_IFLNK != archive_entry_filetype(entry))
 			&& utimes(name, times) != 0)
 #endif
-                warnc(errno, "Can't update time for %s", name);
+                lafe_warnc(errno, "Can't update time for %s", name);
 #endif
 	return (fd);
 }
@@ -818,28 +818,28 @@ mode_in(struct cpio *cpio)
 
 	ext = archive_write_disk_new();
 	if (ext == NULL)
-		errc(1, 0, "Couldn't allocate restore object");
+		lafe_errc(1, 0, "Couldn't allocate restore object");
 	r = archive_write_disk_set_options(ext, cpio->extract_flags);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(ext));
+		lafe_errc(1, 0, "%s", archive_error_string(ext));
 	a = archive_read_new();
 	if (a == NULL)
-		errc(1, 0, "Couldn't allocate archive object");
+		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
-		errc(1, archive_errno(a),
+		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r != ARCHIVE_OK) {
-			errc(1, archive_errno(a),
+			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (excluded(cpio->matching, archive_entry_pathname(entry)))
+		if (lafe_excluded(cpio->matching, archive_entry_pathname(entry)))
 			continue;
 		if (cpio->option_rename) {
 			destpath = cpio_rename(archive_entry_pathname(entry));
@@ -867,10 +867,10 @@ mode_in(struct cpio *cpio)
 	}
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	r = archive_write_close(ext);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(ext));
+		lafe_errc(1, 0, "%s", archive_error_string(ext));
 	if (!cpio->quiet) {
 		int64_t blocks = (archive_position_uncompressed(a) + 511)
 			      / 512;
@@ -899,13 +899,13 @@ extract_data(struct archive *ar, struct archive *aw)
 		if (r == ARCHIVE_EOF)
 			return (ARCHIVE_OK);
 		if (r != ARCHIVE_OK) {
-			warnc(archive_errno(ar),
+			lafe_warnc(archive_errno(ar),
 			    "%s", archive_error_string(ar));
 			exit(1);
 		}
 		r = archive_write_data_block(aw, block, size, offset);
 		if (r != ARCHIVE_OK) {
-			warnc(archive_errno(aw),
+			lafe_warnc(archive_errno(aw),
 			    "%s", archive_error_string(aw));
 			return (r);
 		}
@@ -921,22 +921,22 @@ mode_list(struct cpio *cpio)
 
 	a = archive_read_new();
 	if (a == NULL)
-		errc(1, 0, "Couldn't allocate archive object");
+		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
-		errc(1, archive_errno(a),
+		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r != ARCHIVE_OK) {
-			errc(1, archive_errno(a),
+			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (excluded(cpio->matching, archive_entry_pathname(entry)))
+		if (lafe_excluded(cpio->matching, archive_entry_pathname(entry)))
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
@@ -945,7 +945,7 @@ mode_list(struct cpio *cpio)
 	}
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (!cpio->quiet) {
 		int64_t blocks = (archive_position_uncompressed(a) + 511)
 			      / 512;
@@ -1040,7 +1040,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 static void
 mode_pass(struct cpio *cpio, const char *destdir)
 {
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
 
@@ -1052,31 +1052,31 @@ mode_pass(struct cpio *cpio, const char *destdir)
 
 	cpio->archive = archive_write_disk_new();
 	if (cpio->archive == NULL)
-		errc(1, 0, "Failed to allocate archive object");
+		lafe_errc(1, 0, "Failed to allocate archive object");
 	r = archive_write_disk_set_options(cpio->archive, cpio->extract_flags);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(cpio->archive));
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_write_disk_set_standard_lookup(cpio->archive);
 
 	cpio->archive_read_disk = archive_read_disk_new();
 	if (cpio->archive_read_disk == NULL)
-		errc(1, 0, "Failed to allocate archive object");
+		lafe_errc(1, 0, "Failed to allocate archive object");
 	if (cpio->option_follow_links)
 		archive_read_disk_set_symlink_logical(cpio->archive_read_disk);
 	else
 		archive_read_disk_set_symlink_physical(cpio->archive_read_disk);
 	archive_read_disk_set_standard_lookup(cpio->archive_read_disk);
 
-	lr = line_reader("-", cpio->option_null);
-	while ((p = line_reader_next(lr)) != NULL)
+	lr = lafe_line_reader("-", cpio->option_null);
+	while ((p = lafe_line_reader_next(lr)) != NULL)
 		file_to_archive(cpio, p);
-	line_reader_free(lr);
+	lafe_line_reader_free(lr);
 
 	archive_entry_linkresolver_free(cpio->linkresolver);
 	r = archive_write_close(cpio->archive);
 	if (r != ARCHIVE_OK)
-		errc(1, 0, "%s", archive_error_string(cpio->archive));
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
 	if (!cpio->quiet) {
 		int64_t blocks =
@@ -1160,7 +1160,7 @@ lookup_name(struct cpio *cpio, struct name_cache **name_cache_variable,
 	if (*name_cache_variable == NULL) {
 		*name_cache_variable = malloc(sizeof(struct name_cache));
 		if (*name_cache_variable == NULL)
-			errc(1, ENOMEM, "No more memory");
+			lafe_errc(1, ENOMEM, "No more memory");
 		memset(*name_cache_variable, 0, sizeof(struct name_cache));
 		(*name_cache_variable)->size = name_cache_size;
 	}
@@ -1217,7 +1217,7 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (pwent == NULL) {
 		*name = NULL;
 		if (errno != 0 && errno != ENOENT)
-			warnc(errno, "getpwuid(%d) failed", id);
+			lafe_warnc(errno, "getpwuid(%d) failed", id);
 		return (errno);
 	}
 
@@ -1244,7 +1244,7 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (grent == NULL) {
 		*name = NULL;
 		if (errno != 0)
-			warnc(errno, "getgrgid(%d) failed", id);
+			lafe_warnc(errno, "getgrgid(%d) failed", id);
 		return (errno);
 	}
 

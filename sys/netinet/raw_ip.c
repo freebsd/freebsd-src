@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
@@ -72,6 +74,11 @@ __FBSDID("$FreeBSD$");
 #endif /*IPSEC*/
 
 #include <security/mac/mac_framework.h>
+
+VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
+SYSCTL_VNET_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
+    &VNET_NAME(ip_defttl), 0,
+    "Maximum TTL on IP packets");
 
 VNET_DEFINE(struct inpcbhead, ripcb);
 VNET_DEFINE(struct inpcbinfo, ripcbinfo);
@@ -93,6 +100,10 @@ void	(*ip_divert_ptr)(struct mbuf *, int);
 int	(*ng_ipfw_input_p)(struct mbuf **, int,
 			struct ip_fw_args *, int);
 
+/* Hook for telling pf that the destination address changed */
+void	(*m_addr_chg_pf_p)(struct mbuf *m);
+
+#ifdef INET
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
  * initialized and rely on BSS being set to 0.
@@ -118,6 +129,15 @@ u_long (*ip_mcast_src)(int);
 void (*rsvp_input_p)(struct mbuf *m, int off);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
+#endif /* INET */
+
+u_long	rip_sendspace = 9216;
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
+    &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
+
+u_long	rip_recvspace = 9216;
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
+    &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
 /*
  * Hash functions
@@ -127,6 +147,7 @@ void (*ip_rsvp_force_done)(struct socket *);
 #define INP_PCBHASH_RAW(proto, laddr, faddr, mask) \
         (((proto) + (laddr) + (faddr)) % (mask) + 1)
 
+#ifdef INET
 static void
 rip_inshash(struct inpcb *inp)
 {
@@ -157,6 +178,7 @@ rip_delhash(struct inpcb *inp)
 
 	LIST_REMOVE(inp, inp_hash);
 }
+#endif /* INET */
 
 /*
  * Raw interface to IP protocol.
@@ -186,7 +208,8 @@ rip_init(void)
 {
 
 	in_pcbinfo_init(&V_ripcbinfo, "rip", &V_ripcb, INP_PCBHASH_RAW_SIZE,
-	    1, "ripcb", rip_inpcb_init, NULL, UMA_ZONE_NOFREE);
+	    1, "ripcb", rip_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    IPI_HASHFIELDS_NONE);
 	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -200,13 +223,14 @@ rip_destroy(void)
 }
 #endif
 
+#ifdef INET
 static int
 rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
     struct sockaddr_in *ripsrc)
 {
 	int policyfail = 0;
 
-	INP_RLOCK_ASSERT(last);
+	INP_LOCK_ASSERT(last);
 
 #ifdef IPSEC
 	/* check AH/ESP integrity. */
@@ -265,6 +289,13 @@ rip_input(struct mbuf *m, int off)
 	last = NULL;
 
 	ifp = m->m_pkthdr.rcvif;
+	/*
+	 * Add back the IP header length which was
+	 * removed by ip_input().  Raw sockets do
+	 * not modify the packet except for some
+	 * byte order swaps.
+	 */
+	ip->ip_len += off;
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
@@ -702,7 +733,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				/*
 				 * in_ifscrub kills the interface route.
 				 */
-				in_ifscrub(ia->ia_ifp, ia);
+				in_ifscrub(ia->ia_ifp, ia, 0);
 				/*
 				 * in_ifadown gets rid of all the rest of the
 				 * routes.  This is not quite the right thing
@@ -737,24 +768,22 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    || (ifp->if_flags & IFF_POINTOPOINT))
 			flags |= RTF_HOST;
 
+		err = ifa_del_loopback_route((struct ifaddr *)ia, sa);
+		if (err == 0)
+			ia->ia_flags &= ~IFA_RTSELF;
+
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
+
 		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
 		if (err == 0)
 			ia->ia_flags |= IFA_RTSELF;
+
 		ifa_free(&ia->ia_ifa);
 		break;
 	}
 }
-
-u_long	rip_sendspace = 9216;
-u_long	rip_recvspace = 9216;
-
-SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
-    &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
-SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
-    &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
@@ -816,16 +845,19 @@ rip_detach(struct socket *so)
 static void
 rip_dodisconnect(struct socket *so, struct inpcb *inp)
 {
+	struct inpcbinfo *pcbinfo;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_WLOCK_ASSERT(inp);
-
+	pcbinfo = inp->inp_pcbinfo;
+	INP_INFO_WLOCK(pcbinfo);
+	INP_WLOCK(inp);
 	rip_delhash(inp);
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	rip_inshash(inp);
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;
 	SOCK_UNLOCK(so);
+	INP_WUNLOCK(inp);
+	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 static void
@@ -836,11 +868,7 @@ rip_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
 static void
@@ -851,11 +879,7 @@ rip_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_close: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
 static int
@@ -869,11 +893,7 @@ rip_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	return (0);
 }
 
@@ -980,6 +1000,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 	return (rip_output(m, so, dst));
 }
+#endif /* INET */
 
 static int
 rip_pcblist(SYSCTL_HANDLER_ARGS)
@@ -1058,9 +1079,9 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
-		if (!in_pcbrele(inp))
-			INP_WUNLOCK(inp);
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 
@@ -1086,6 +1107,7 @@ SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
 
+#ifdef INET
 struct pr_usrreqs rip_usrreqs = {
 	.pru_abort =		rip_abort,
 	.pru_attach =		rip_attach,
@@ -1101,3 +1123,4 @@ struct pr_usrreqs rip_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		rip_close,
 };
+#endif /* INET */

@@ -7,61 +7,62 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
 "PO-Revision-Date: 2009-05-01 03:07+0300\n"
 "Last-Translator: Emanuel Feruzi <emanuel.feruzi@trilabs.co.tz>\n"
 "Language-Team: Swahili <translation-team-sw@lists.sourceforge.net>\n"
+"Language: sw\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: buttons.c:385
+#: buttons.c:387
 msgid "Yes"
 msgstr "Ndio"
 
-#: buttons.c:393
+#: buttons.c:395
 msgid "No"
 msgstr "Hapana"
 
-#: buttons.c:401
+#: buttons.c:403
 msgid "OK"
 msgstr "Sawa"
 
-#: buttons.c:409
+#: buttons.c:411
 msgid "Cancel"
 msgstr "Ghahiri"
 
-#: buttons.c:417
+#: buttons.c:419
 msgid "EXIT"
 msgstr "Funga"
 
-#: buttons.c:425
+#: buttons.c:427
 msgid "Extra"
 msgstr "Nyongeza"
 
-#: buttons.c:433
+#: buttons.c:435
 msgid "Help"
 msgstr "Msaada"
 
 #. Headline "Month"
-#: calendar.c:273
+#: calendar.c:298
 msgid "Month"
 msgstr "Mwezi"
 
 #. Headline "Year"
-#: calendar.c:293
+#: calendar.c:318
 msgid "Year"
 msgstr "Mwaka"
 
-#: dialog.c:741
+#: dialog.c:756
 msgid "Rename"
 msgstr "Badili jina"
 
-#: fselect.c:550
+#: fselect.c:571
 msgid "Directories"
 msgstr "Masaraka"
 
-#: fselect.c:551
+#: fselect.c:572
 msgid "Files"
 msgstr "Mafaili"
 
@@ -105,6 +106,6 @@ msgstr "Haitumiki"
 msgid "Overall Progress"
 msgstr "Maendeleo kwa ujumla"
 
-#: textbox.c:489
+#: textbox.c:468
 msgid "Search"
 msgstr "Tafuta"

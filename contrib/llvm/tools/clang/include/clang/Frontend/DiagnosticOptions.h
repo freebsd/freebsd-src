@@ -31,10 +31,16 @@ public:
   unsigned ShowFixits : 1;       /// Show fixit information.
   unsigned ShowSourceRanges : 1; /// Show source ranges in numeric form.
   unsigned ShowParseableFixits : 1; /// Show machine parseable fix-its.
-  unsigned ShowOptionNames : 1;  /// Show the diagnostic name for mappable
+  unsigned ShowNames : 1;        /// Show the diagnostic name
+  unsigned ShowOptionNames : 1;  /// Show the option name for mappable
                                  /// diagnostics.
+  unsigned ShowNoteIncludeStack : 1; /// Show include stacks for notes.
   unsigned ShowCategories : 2;   /// Show categories: 0 -> none, 1 -> Number,
                                  /// 2 -> Full Name.
+                                 
+  unsigned Format : 2;           /// Format for diagnostics: 
+  enum TextDiagnosticFormat { Clang, Msvc, Vi };
+  
   unsigned ShowColors : 1;       /// Show diagnostics with ANSI color sequences.
   unsigned ShowOverloads : 1;    /// Overload candidates to show.  Values from
                                  /// Diagnostic::OverloadsShown
@@ -43,8 +49,7 @@ public:
                                  /// input source file.
 
   unsigned ErrorLimit;           /// Limit # errors emitted.
-  unsigned MacroBacktraceLimit;  /// Limit depth of macro instantiation 
-                                 /// backtrace.
+  unsigned MacroBacktraceLimit;  /// Limit depth of macro expansion backtrace.
   unsigned TemplateBacktraceLimit; /// Limit depth of instantiation backtrace.
 
   /// The distance between tab stops.
@@ -59,6 +64,9 @@ public:
   /// If non-empty, a file to log extended build information to, for development
   /// testing and analysis.
   std::string DumpBuildInformation;
+
+  /// The file to log diagnostic output to.
+  std::string DiagnosticLogFile;
 
   /// The list of -W... options used to alter the diagnostic mappings, with the
   /// prefixes removed.
@@ -78,8 +86,10 @@ public:
     ShowColumn = 1;
     ShowFixits = 1;
     ShowLocation = 1;
+    ShowNames = 0;
     ShowOptionNames = 0;
     ShowCategories = 0;
+    Format = Clang;
     ShowSourceRanges = 0;
     ShowParseableFixits = 0;
     VerifyDiagnostics = 0;

@@ -105,6 +105,9 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ufs2_daddr_t *lbns_remfree, lbns[NIADDR + 1];
 	int unwindidx = -1;
 	int saved_inbdflush;
+	static struct timeval lastfail;
+	static int curfail;
+	int reclaimed;
 
 	ip = VTOI(vp);
 	dp = ip->i_din1;
@@ -112,6 +115,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ump = ip->i_ump;
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
+	reclaimed = 0;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc_ufs1: blk too big");
 	*bpp = NULL;
@@ -230,9 +234,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	if (num < 1)
 		panic ("ffs_balloc_ufs1: ufs_getlbns returned indirect block");
 #endif
-	saved_inbdflush = ~TDP_INBDFLUSH | (curthread->td_pflags &
-	    TDP_INBDFLUSH);
-	curthread->td_pflags |= TDP_INBDFLUSH;
+	saved_inbdflush = curthread_pflags_set(TDP_INBDFLUSH);
 	/*
 	 * Fetch the first indirect block allocating if necessary.
 	 */
@@ -246,7 +248,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
-			curthread->td_pflags &= saved_inbdflush;
+			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
 		nb = newb;
@@ -276,6 +278,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	/*
 	 * Fetch through the indirect blocks, allocating as necessary.
 	 */
+retry:
 	for (i = 1;;) {
 		error = bread(vp,
 		    indirs[i].in_lbn, (int)fs->fs_bsize, NOCRED, &bp);
@@ -296,8 +299,20 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		if (pref == 0)
 			pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
-		    flags, cred, &newb)) != 0) {
+		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
+			if (++reclaimed == 1) {
+				UFS_LOCK(ump);
+				softdep_request_cleanup(fs, vp, cred,
+				    FLUSH_BLOCKS_WAIT);
+				UFS_UNLOCK(ump);
+				goto retry;
+			}
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				ffs_fserr(fs, ip->i_number, "filesystem full");
+				uprintf("\n%s: write failed, filesystem "
+				    "is full\n", fs->fs_fsmnt);
+			}
 			goto fail;
 		}
 		nb = newb;
@@ -339,7 +354,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * If asked only for the indirect block, then return it.
 	 */
 	if (flags & BA_METAONLY) {
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = bp;
 		return (0);
 	}
@@ -349,10 +364,22 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	if (nb == 0) {
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off, &bap[0]);
-		error = ffs_alloc(ip,
-		    lbn, pref, (int)fs->fs_bsize, flags, cred, &newb);
+		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
+		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
+			if (++reclaimed == 1) {
+				UFS_LOCK(ump);
+				softdep_request_cleanup(fs, vp, cred,
+				    FLUSH_BLOCKS_WAIT);
+				UFS_UNLOCK(ump);
+				goto retry;
+			}
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				ffs_fserr(fs, ip->i_number, "filesystem full");
+				uprintf("\n%s: write failed, filesystem "
+				    "is full\n", fs->fs_fsmnt);
+			}
 			goto fail;
 		}
 		nb = newb;
@@ -377,7 +404,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = nbp;
 		return (0);
 	}
@@ -399,11 +426,11 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
 	return (0);
 fail:
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	/*
 	 * If we have failed to allocate any blocks, simply return the error.
 	 * This is the usual case and avoids the need to fsync the file.
@@ -477,7 +504,7 @@ fail:
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }
@@ -506,6 +533,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
 	int saved_inbdflush;
+	static struct timeval lastfail;
+	static int curfail;
+	int reclaimed;
 
 	ip = VTOI(vp);
 	dp = ip->i_din2;
@@ -513,6 +543,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	ump = ip->i_ump;
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
+	reclaimed = 0;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc_ufs2: blk too big");
 	*bpp = NULL;
@@ -741,9 +772,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (num < 1)
 		panic ("ffs_balloc_ufs2: ufs_getlbns returned indirect block");
 #endif
-	saved_inbdflush = ~TDP_INBDFLUSH | (curthread->td_pflags &
-	    TDP_INBDFLUSH);
-	curthread->td_pflags |= TDP_INBDFLUSH;
+	saved_inbdflush = curthread_pflags_set(TDP_INBDFLUSH);
 	/*
 	 * Fetch the first indirect block allocating if necessary.
 	 */
@@ -757,7 +786,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
-			curthread->td_pflags &= saved_inbdflush;
+			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
 		nb = newb;
@@ -787,6 +816,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	/*
 	 * Fetch through the indirect blocks, allocating as necessary.
 	 */
+retry:
 	for (i = 1;;) {
 		error = bread(vp,
 		    indirs[i].in_lbn, (int)fs->fs_bsize, NOCRED, &bp);
@@ -807,8 +837,20 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		if (pref == 0)
 			pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
-		    flags, cred, &newb)) != 0) {
+		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
+			if (++reclaimed == 1) {
+				UFS_LOCK(ump);
+				softdep_request_cleanup(fs, vp, cred,
+				    FLUSH_BLOCKS_WAIT);
+				UFS_UNLOCK(ump);
+				goto retry;
+			}
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				ffs_fserr(fs, ip->i_number, "filesystem full");
+				uprintf("\n%s: write failed, filesystem "
+				    "is full\n", fs->fs_fsmnt);
+			}
 			goto fail;
 		}
 		nb = newb;
@@ -850,7 +892,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * If asked only for the indirect block, then return it.
 	 */
 	if (flags & BA_METAONLY) {
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = bp;
 		return (0);
 	}
@@ -860,10 +902,22 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (nb == 0) {
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off, &bap[0]);
-		error = ffs_alloc(ip,
-		    lbn, pref, (int)fs->fs_bsize, flags, cred, &newb);
+		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
+		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
+			if (++reclaimed == 1) {
+				UFS_LOCK(ump);
+				softdep_request_cleanup(fs, vp, cred,
+				    FLUSH_BLOCKS_WAIT);
+				UFS_UNLOCK(ump);
+				goto retry;
+			}
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				ffs_fserr(fs, ip->i_number, "filesystem full");
+				uprintf("\n%s: write failed, filesystem "
+				    "is full\n", fs->fs_fsmnt);
+			}
 			goto fail;
 		}
 		nb = newb;
@@ -888,7 +942,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = nbp;
 		return (0);
 	}
@@ -916,11 +970,11 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
 	return (0);
 fail:
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	/*
 	 * If we have failed to allocate any blocks, simply return the error.
 	 * This is the usual case and avoids the need to fsync the file.
@@ -994,7 +1048,7 @@ fail:
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }

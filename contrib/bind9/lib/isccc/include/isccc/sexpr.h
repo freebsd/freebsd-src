@@ -29,7 +29,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sexpr.h,v 1.11 2007/08/28 07:20:43 tbox Exp $ */
+/* $Id: sexpr.h,v 1.11 2007-08-28 07:20:43 tbox Exp $ */
 
 #ifndef ISCCC_SEXPR_H
 #define ISCCC_SEXPR_H 1

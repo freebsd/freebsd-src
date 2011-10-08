@@ -467,7 +467,10 @@ send_again:
 		    cu->cu_waitflag, "rpccwnd", 0);
 		if (error) {
 			errp->re_errno = error;
-			errp->re_status = stat = RPC_CANTSEND;
+			if (error == EINTR || error == ERESTART)
+				errp->re_status = stat = RPC_INTR;
+			else
+				errp->re_status = stat = RPC_CANTSEND;
 			goto out;
 		}
 	}
@@ -636,7 +639,7 @@ get_reply:
 		 */
 		if (error != EWOULDBLOCK) {
 			errp->re_errno = error;
-			if (error == EINTR)
+			if (error == EINTR || error == ERESTART)
 				errp->re_status = stat = RPC_INTR;
 			else
 				errp->re_status = stat = RPC_CANTRECV;
@@ -1086,11 +1089,13 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		/*
 		 * The XID is in the first uint32_t of the reply.
 		 */
-		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid))
+		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid)) {
 			/*
 			 * Should never happen.
 			 */
+			m_freem(m);
 			continue;
+		}
 
 		m_copydata(m, 0, sizeof(xid), (char *)&xid);
 		xid = ntohl(xid);

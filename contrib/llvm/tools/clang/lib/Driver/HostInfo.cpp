@@ -113,14 +113,9 @@ ToolChain *DarwinHostInfo::CreateToolChain(const ArgList &Args,
     TCTriple.setArch(Arch);
 
     // If we recognized the arch, match it to the toolchains we support.
-    const char *UseNewToolChain = ::getenv("CCC_ENABLE_NEW_DARWIN_TOOLCHAIN");
-    if (UseNewToolChain || 
-        Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64 ||
+    if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64 ||
         Arch == llvm::Triple::arm || Arch == llvm::Triple::thumb) {
       TC = new toolchains::DarwinClang(*this, TCTriple);
-    } else if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64) {
-      // We still use the legacy DarwinGCC toolchain on X86.
-      TC = new toolchains::DarwinGCC(*this, TCTriple);
     } else
       TC = new toolchains::Darwin_Generic_GCC(*this, TCTriple);
   }
@@ -419,14 +414,19 @@ ToolChain *NetBSDHostInfo::CreateToolChain(const ArgList &Args,
         (A->getOption().matches(options::OPT_m32)) ? "powerpc" : "powerpc64";
     }
   }
+  llvm::Triple TargetTriple(getTriple());
+  TargetTriple.setArchName(ArchName);
 
-  ToolChain *&TC = ToolChains[ArchName];
-  if (!TC) {
-    llvm::Triple TCTriple(getTriple());
-    TCTriple.setArchName(ArchName);
+  ToolChain *TC;
 
-    TC = new toolchains::NetBSD(*this, TCTriple);
+  // XXX Cache toolchain even if -m32 is used
+  if (Arch == ArchName) {
+    TC = ToolChains[ArchName];
+    if (TC)
+      return TC;
   }
+
+  TC = new toolchains::NetBSD(*this, TargetTriple, getTriple());
 
   return TC;
 }

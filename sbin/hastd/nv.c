@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 
-#include <assert.h>
 #include <bitstring.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -44,7 +43,17 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <ebuf.h>
-#include <nv.h>
+#include <pjdlog.h>
+
+#include "nv.h"
+
+#ifndef	PJDLOG_ASSERT
+#include <assert.h>
+#define	PJDLOG_ASSERT(...)	assert(__VA_ARGS__)
+#endif
+#ifndef	PJDLOG_ABORT
+#define	PJDLOG_ABORT(...)	abort()
+#endif
 
 #define	NV_TYPE_NONE		0
 
@@ -98,8 +107,8 @@ struct nvhdr {
 #define	NVH_SIZE(nvh)	(NVH_HSIZE(nvh) + roundup2(NVH_DSIZE(nvh), 8))
 
 #define	NV_CHECK(nv)	do {						\
-	assert((nv) != NULL);						\
-	assert((nv)->nv_magic == NV_MAGIC);				\
+	PJDLOG_ASSERT((nv) != NULL);					\
+	PJDLOG_ASSERT((nv)->nv_magic == NV_MAGIC);			\
 } while (0)
 
 static void nv_add(struct nv *nv, const unsigned char *value, size_t vsize,
@@ -200,7 +209,7 @@ nv_validate(struct nv *nv, size_t *extrap)
 	}
 
 	NV_CHECK(nv);
-	assert(nv->nv_error == 0);
+	PJDLOG_ASSERT(nv->nv_error == 0);
 
 	/* TODO: Check that names are unique? */
 
@@ -308,7 +317,7 @@ nv_validate(struct nv *nv, size_t *extrap)
 			}
 			break;
 		default:
-			assert(!"invalid condition");
+			PJDLOG_ABORT("invalid condition");
 		}
 		if (error != 0)
 			break;
@@ -338,7 +347,7 @@ nv_hton(struct nv *nv)
 	size_t size;
 
 	NV_CHECK(nv);
-	assert(nv->nv_error == 0);
+	PJDLOG_ASSERT(nv->nv_error == 0);
 
 	ptr = ebuf_data(nv->nv_ebuf, &size);
 	while (size > 0) {
@@ -346,9 +355,9 @@ nv_hton(struct nv *nv)
 		 * Minimum size at this point is size of nvhdr structure,
 		 * one character long name plus terminating '\0'.
 		 */
-		assert(size >= sizeof(*nvh) + 2);
+		PJDLOG_ASSERT(size >= sizeof(*nvh) + 2);
 		nvh = (struct nvhdr *)ptr;
-		assert(NVH_SIZE(nvh) <= size);
+		PJDLOG_ASSERT(NVH_SIZE(nvh) <= size);
 		nv_swap(nvh, false);
 		ptr += NVH_SIZE(nvh);
 		size -= NVH_SIZE(nvh);
@@ -367,7 +376,7 @@ nv_ntoh(struct ebuf *eb)
 	size_t extra;
 	int rerrno;
 
-	assert(eb != NULL);
+	PJDLOG_ASSERT(eb != NULL);
 
 	nv = malloc(sizeof(*nv));
 	if (nv == NULL)
@@ -494,8 +503,8 @@ nv_get_##type(struct nv *nv, const char *namefmt, ...)			\
 	va_end(nameap);							\
 	if (nvh == NULL)						\
 		return (0);						\
-	assert((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);	\
-	assert(sizeof(value) == nvh->nvh_dsize);			\
+	PJDLOG_ASSERT((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);\
+	PJDLOG_ASSERT(sizeof(value) == nvh->nvh_dsize);			\
 	bcopy(NVH_DATA(nvh), &value, sizeof(value));			\
 									\
 	return (value);							\
@@ -525,8 +534,8 @@ nv_get_##type##_array(struct nv *nv, size_t *sizep,			\
 	va_end(nameap);							\
 	if (nvh == NULL)						\
 		return (NULL);						\
-	assert((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);	\
-	assert((nvh->nvh_dsize % sizeof(type##_t)) == 0);		\
+	PJDLOG_ASSERT((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);\
+	PJDLOG_ASSERT((nvh->nvh_dsize % sizeof(type##_t)) == 0);	\
 	if (sizep != NULL)						\
 		*sizep = nvh->nvh_dsize / sizeof(type##_t);		\
 	return ((type##_t *)(void *)NVH_DATA(nvh));			\
@@ -555,11 +564,11 @@ nv_get_string(struct nv *nv, const char *namefmt, ...)
 	va_end(nameap);
 	if (nvh == NULL)
 		return (NULL);
-	assert((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);
-	assert(nvh->nvh_dsize >= 1);
+	PJDLOG_ASSERT((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);
+	PJDLOG_ASSERT(nvh->nvh_dsize >= 1);
 	str = NVH_DATA(nvh);
-	assert(str[nvh->nvh_dsize - 1] == '\0');
-	assert(strlen(str) == nvh->nvh_dsize - 1);
+	PJDLOG_ASSERT(str[nvh->nvh_dsize - 1] == '\0');
+	PJDLOG_ASSERT(strlen(str) == nvh->nvh_dsize - 1);
 	return (str);
 }
 
@@ -602,7 +611,7 @@ nv_assert(struct nv *nv, const char *namefmt, ...)
 	va_list nameap;
 
 	va_start(nameap, namefmt);
-	assert(nv_vexists(nv, namefmt, nameap));
+	PJDLOG_ASSERT(nv_vexists(nv, namefmt, nameap));
 	va_end(nameap);
 }
 
@@ -624,13 +633,13 @@ nv_dump(struct nv *nv)
 	}
 
 	NV_CHECK(nv);
-	assert(nv->nv_error == 0);
+	PJDLOG_ASSERT(nv->nv_error == 0);
 
 	ptr = ebuf_data(nv->nv_ebuf, &size);
 	while (size > 0) {
-		assert(size >= sizeof(*nvh) + 2);
+		PJDLOG_ASSERT(size >= sizeof(*nvh) + 2);
 		nvh = (struct nvhdr *)ptr;
-		assert(size >= NVH_SIZE(nvh));
+		PJDLOG_ASSERT(size >= NVH_SIZE(nvh));
 		swap = ((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_NETWORK);
 		dsize = NVH_DSIZE(nvh);
 		data = NVH_DATA(nvh);
@@ -734,7 +743,7 @@ nv_dump(struct nv *nv)
 			printf("(string): %s", (char *)data);
 			break;
 		default:
-			assert(!"invalid condition");
+			PJDLOG_ABORT("invalid condition");
 		}
 		printf("\n");
 		ptr += NVH_SIZE(nvh);
@@ -776,7 +785,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 
 	/* Add header first. */
 	if (ebuf_add_tail(nv->nv_ebuf, nvh, NVH_HSIZE(nvh)) < 0) {
-		assert(errno != 0);
+		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
 		free(nvh);
@@ -785,7 +794,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	free(nvh);
 	/* Add the actual data. */
 	if (ebuf_add_tail(nv->nv_ebuf, value, vsize) < 0) {
-		assert(errno != 0);
+		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
 		return;
@@ -794,9 +803,9 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	vsize = roundup2(vsize, 8) - vsize;
 	if (vsize == 0)
 		return;
-	assert(vsize > 0 && vsize <= sizeof(align));
+	PJDLOG_ASSERT(vsize > 0 && vsize <= sizeof(align));
 	if (ebuf_add_tail(nv->nv_ebuf, align, vsize) < 0) {
-		assert(errno != 0);
+		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
 		return;
@@ -811,7 +820,7 @@ nv_addv(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	size_t namesize;
 
 	namesize = vsnprintf(name, sizeof(name), namefmt, nameap);
-	assert(namesize > 0 && namesize < sizeof(name));
+	PJDLOG_ASSERT(namesize > 0 && namesize < sizeof(name));
 
 	nv_add(nv, value, vsize, type, name);
 }
@@ -832,14 +841,14 @@ nv_find(struct nv *nv, int type, const char *namefmt, va_list nameap)
 	NV_CHECK(nv);
 
 	namesize = vsnprintf(name, sizeof(name), namefmt, nameap);
-	assert(namesize > 0 && namesize < sizeof(name));
+	PJDLOG_ASSERT(namesize > 0 && namesize < sizeof(name));
 	namesize++;
 
 	ptr = ebuf_data(nv->nv_ebuf, &size);
 	while (size > 0) {
-		assert(size >= sizeof(*nvh) + 2);
+		PJDLOG_ASSERT(size >= sizeof(*nvh) + 2);
 		nvh = (struct nvhdr *)ptr;
-		assert(size >= NVH_SIZE(nvh));
+		PJDLOG_ASSERT(size >= NVH_SIZE(nvh));
 		nv_swap(nvh, true);
 		if (strcmp(nvh->nvh_name, name) == 0) {
 			if (type != NV_TYPE_NONE &&
@@ -927,7 +936,7 @@ nv_swap(struct nvhdr *nvh, bool tohost)
 					    le64toh(*(uint64_t *)(void *)p);
 					break;
 				default:
-					assert(!"invalid condition");
+					PJDLOG_ABORT("invalid condition");
 				}
 			} else {
 				switch (vsize) {
@@ -944,7 +953,7 @@ nv_swap(struct nvhdr *nvh, bool tohost)
 					    htole64(*(uint64_t *)(void *)p);
 					break;
 				default:
-					assert(!"invalid condition");
+					PJDLOG_ABORT("invalid condition");
 				}
 			}
 		}
@@ -952,6 +961,6 @@ nv_swap(struct nvhdr *nvh, bool tohost)
 	case NV_TYPE_STRING:
 		break;
 	default:
-		assert(!"unrecognized type");
+		PJDLOG_ABORT("unrecognized type");
 	}
 }

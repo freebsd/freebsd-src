@@ -18,13 +18,15 @@
 #include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
-  class MCOperand;
+
+class MCOperand;
   
 class X86IntelInstPrinter : public MCInstPrinter {
 public:
   X86IntelInstPrinter(const MCAsmInfo &MAI)
     : MCInstPrinter(MAI) {}
-  
+
+  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
   virtual void printInst(const MCInst *MI, raw_ostream &OS);
   virtual StringRef getOpcodeName(unsigned Opcode) const;
   
@@ -32,7 +34,6 @@ public:
   void printInstruction(const MCInst *MI, raw_ostream &O);
   static const char *getRegisterName(unsigned RegNo);
   static const char *getInstructionName(unsigned Opcode);
-
 
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printMemReference(const MCInst *MI, unsigned Op, raw_ostream &O);

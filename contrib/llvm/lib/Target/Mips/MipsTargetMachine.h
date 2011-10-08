@@ -35,7 +35,8 @@ namespace llvm {
     MipsSelectionDAGInfo TSInfo;
   public:
     MipsTargetMachine(const Target &T, const std::string &TT,
-                      const std::string &FS, bool isLittle);
+                      const std::string &CPU, const std::string &FS,
+                      bool isLittle);
 
     virtual const MipsInstrInfo   *getInstrInfo()     const
     { return &InstrInfo; }
@@ -63,6 +64,9 @@ namespace llvm {
                                  CodeGenOpt::Level OptLevel);
     virtual bool addPreEmitPass(PassManagerBase &PM,
                                 CodeGenOpt::Level OptLevel);
+    virtual bool addPreRegAlloc(PassManagerBase &PM,
+                                CodeGenOpt::Level OptLevel);
+    virtual bool addPostRegAlloc(PassManagerBase &, CodeGenOpt::Level);
   };
 
 /// MipselTargetMachine - Mipsel target machine.
@@ -70,7 +74,7 @@ namespace llvm {
 class MipselTargetMachine : public MipsTargetMachine {
 public:
   MipselTargetMachine(const Target &T, const std::string &TT,
-                      const std::string &FS);
+                      const std::string &CPU, const std::string &FS);
 };
 
 } // End llvm namespace

@@ -272,6 +272,27 @@ libusb_get_device_address(libusb_device *dev)
 	return (libusb20_dev_get_address(dev->os_priv));
 }
 
+enum libusb_speed
+libusb_get_device_speed(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (LIBUSB_SPEED_UNKNOWN);	/* should not happen */
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+		return (LIBUSB_SPEED_LOW);
+	case LIBUSB20_SPEED_FULL:
+		return (LIBUSB_SPEED_FULL);
+	case LIBUSB20_SPEED_HIGH:
+		return (LIBUSB_SPEED_HIGH);
+	case LIBUSB20_SPEED_SUPER:
+		return (LIBUSB_SPEED_SUPER);
+	default:
+		break;
+	}
+	return (LIBUSB_SPEED_UNKNOWN);
+}
+
 int
 libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 {
@@ -636,7 +657,7 @@ libusb_clear_halt(struct libusb20_device *pdev, uint8_t endpoint)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	CTX_LOCK(dev->ctx);
-	err = libusb20_tr_open(xfer, 0, 0, endpoint);
+	err = libusb20_tr_open(xfer, 0, 1, endpoint);
 	CTX_UNLOCK(dev->ctx);
 
 	if (err != 0 && err != LIBUSB20_ERROR_BUSY)
@@ -719,6 +740,8 @@ libusb_get_driver(struct libusb20_device *pdev, int interface,
 		return (LIBUSB_ERROR_INVALID_PARAM);
 	if (namelen < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen > 255)
+		namelen = 255;
 
 	err = libusb20_dev_get_iface_desc(
 	    pdev, interface, name, namelen);
@@ -1426,6 +1449,73 @@ libusb_le16_to_cpu(uint16_t x)
 const char *
 libusb_strerror(int code)
 {
-	/* TODO */
-	return ("Unknown error");
+	switch (code) {
+	case LIBUSB_SUCCESS:
+		return ("Success");
+	case LIBUSB_ERROR_IO:
+		return ("I/O error");
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return ("Invalid parameter");
+	case LIBUSB_ERROR_ACCESS:
+		return ("Permissions error");
+	case LIBUSB_ERROR_NO_DEVICE:
+		return ("No device");
+	case LIBUSB_ERROR_NOT_FOUND:
+		return ("Not found");
+	case LIBUSB_ERROR_BUSY:
+		return ("Device busy");
+	case LIBUSB_ERROR_TIMEOUT:
+		return ("Timeout");
+	case LIBUSB_ERROR_OVERFLOW:
+		return ("Overflow");
+	case LIBUSB_ERROR_PIPE:
+		return ("Pipe error");
+	case LIBUSB_ERROR_INTERRUPTED:
+		return ("Interrupted");
+	case LIBUSB_ERROR_NO_MEM:
+		return ("Out of memory");
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return ("Not supported");
+	case LIBUSB_ERROR_OTHER:
+		return ("Other error");
+	default:
+		return ("Unknown error");
+	}
+}
+
+const char *
+libusb_error_name(int code)
+{
+	switch (code) {
+	case LIBUSB_SUCCESS:
+		return ("LIBUSB_SUCCESS");
+	case LIBUSB_ERROR_IO:
+		return ("LIBUSB_ERROR_IO");
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return ("LIBUSB_ERROR_INVALID_PARAM");
+	case LIBUSB_ERROR_ACCESS:
+		return ("LIBUSB_ERROR_ACCESS");
+	case LIBUSB_ERROR_NO_DEVICE:
+		return ("LIBUSB_ERROR_NO_DEVICE");
+	case LIBUSB_ERROR_NOT_FOUND:
+		return ("LIBUSB_ERROR_NOT_FOUND");
+	case LIBUSB_ERROR_BUSY:
+		return ("LIBUSB_ERROR_BUSY");
+	case LIBUSB_ERROR_TIMEOUT:
+		return ("LIBUSB_ERROR_TIMEOUT");
+	case LIBUSB_ERROR_OVERFLOW:
+		return ("LIBUSB_ERROR_OVERFLOW");
+	case LIBUSB_ERROR_PIPE:
+		return ("LIBUSB_ERROR_PIPE");
+	case LIBUSB_ERROR_INTERRUPTED:
+		return ("LIBUSB_ERROR_INTERRUPTED");
+	case LIBUSB_ERROR_NO_MEM:
+		return ("LIBUSB_ERROR_NO_MEM");
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return ("LIBUSB_ERROR_NOT_SUPPORTED");
+	case LIBUSB_ERROR_OTHER:
+		return ("LIBUSB_ERROR_OTHER");
+	default:
+		return ("LIBUSB_ERROR_UNKNOWN");
+	}
 }

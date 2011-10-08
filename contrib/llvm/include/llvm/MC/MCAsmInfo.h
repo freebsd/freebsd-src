@@ -20,20 +20,35 @@
 #include <cassert>
 
 namespace llvm {
+  class MCExpr;
   class MCSection;
+  class MCStreamer;
+  class MCSymbol;
   class MCContext;
+
+  namespace ExceptionHandling {
+    enum ExceptionsType { None, DwarfCFI, SjLj, ARM, Win64 };
+  }
 
   /// MCAsmInfo - This class is intended to be used as a base class for asm
   /// properties and features specific to the target.
-  namespace ExceptionHandling {
-    enum ExceptionsType { None, DwarfTable, DwarfCFI, SjLj };
-  }
-
   class MCAsmInfo {
   protected:
     //===------------------------------------------------------------------===//
     // Properties to be set by the target writer, used to configure asm printer.
     //
+    
+    /// PointerSize - Pointer size in bytes.
+    ///               Default is 4.
+    unsigned PointerSize;
+
+    /// IsLittleEndian - True if target is little endian.
+    ///                  Default is true.
+    bool IsLittleEndian;
+
+    /// StackGrowsUp - True if target stack grow up.
+    ///                Default is false.
+    bool StackGrowsUp;
 
     /// HasSubsectionsViaSymbols - True if this target has the MachO
     /// .subsections_via_symbols directive.
@@ -66,10 +81,9 @@ namespace llvm {
     /// relative expressions.
     const char *PCSymbol;                    // Defaults to "$".
 
-    /// SeparatorChar - This character, if specified, is used to separate
-    /// instructions from each other when on the same line.  This is used to
-    /// measure inline asm instructions.
-    char SeparatorChar;                      // Defaults to ';'
+    /// SeparatorString - This string, if specified, is used to separate
+    /// instructions from each other when on the same line.
+    const char *SeparatorString;             // Defaults to ';'
 
     /// CommentColumn - This indicates the comment num (zero-based) at
     /// which asm comments should be printed.
@@ -267,9 +281,6 @@ namespace llvm {
     /// SupportsExceptionHandling - True if target supports exception handling.
     ExceptionHandling::ExceptionsType ExceptionsType; // Defaults to None
 
-    /// RequiresFrameSection - true if the Dwarf2 output needs a frame section
-    bool DwarfRequiresFrameSection;          // Defaults to true.
-
     /// DwarfUsesInlineInfoSection - True if DwarfDebugInlineSection is used to
     /// encode inline subroutine information.
     bool DwarfUsesInlineInfoSection;         // Defaults to false.
@@ -277,13 +288,17 @@ namespace llvm {
     /// DwarfSectionOffsetDirective - Special section offset directive.
     const char* DwarfSectionOffsetDirective; // Defaults to NULL
 
-    /// DwarfUsesAbsoluteLabelForStmtList - True if DW_AT_stmt_list needs
-    /// absolute label instead of offset.
-    bool DwarfUsesAbsoluteLabelForStmtList;  // Defaults to true;
+    /// DwarfRequiresRelocationForSectionOffset - True if we need to produce a
+    // relocation when we want a section offset in dwarf.
+    bool DwarfRequiresRelocationForSectionOffset;  // Defaults to true;
 
     // DwarfUsesLabelOffsetDifference - True if Dwarf2 output can
     // use EmitLabelOffsetDifference.
     bool DwarfUsesLabelOffsetForRanges;
+
+    /// DwarfRegNumForCFI - True if dwarf register numbers are printed
+    /// instead of symbolic register names in .cfi_* directives.
+    bool DwarfRegNumForCFI;  // Defaults to false;
 
     //===--- CBE Asm Translation Table -----------------------------------===//
 
@@ -296,6 +311,21 @@ namespace llvm {
     // FIXME: move these methods to DwarfPrinter when the JIT stops using them.
     static unsigned getSLEB128Size(int Value);
     static unsigned getULEB128Size(unsigned Value);
+
+    /// getPointerSize - Get the pointer size in bytes.
+    unsigned getPointerSize() const {
+      return PointerSize;
+    }
+
+    /// islittleendian - True if the target is little endian.
+    bool isLittleEndian() const {
+      return IsLittleEndian;
+    }
+
+    /// isStackGrowthDirectionUp - True if target stack grow up.
+    bool isStackGrowthDirectionUp() const {
+      return StackGrowsUp;
+    }
 
     bool hasSubsectionsViaSymbols() const { return HasSubsectionsViaSymbols; }
 
@@ -321,6 +351,16 @@ namespace llvm {
     virtual const MCSection *getNonexecutableStackSection(MCContext &Ctx) const{
       return 0;
     }
+
+    virtual const MCExpr *
+    getExprForPersonalitySymbol(const MCSymbol *Sym,
+                                unsigned Encoding,
+                                MCStreamer &Streamer) const;
+
+    const MCExpr *
+    getExprForFDESymbol(const MCSymbol *Sym,
+                        unsigned Encoding,
+                        MCStreamer &Streamer) const;
 
     bool usesSunStyleELFSectionSwitchSyntax() const {
       return SunStyleELFSectionSwitchSyntax;
@@ -350,8 +390,8 @@ namespace llvm {
     const char *getPCSymbol() const {
       return PCSymbol;
     }
-    char getSeparatorChar() const {
-      return SeparatorChar;
+    const char *getSeparatorString() const {
+      return SeparatorString;
     }
     unsigned getCommentColumn() const {
       return CommentColumn;
@@ -450,12 +490,9 @@ namespace llvm {
     }
     bool isExceptionHandlingDwarf() const {
       return
-        (ExceptionsType == ExceptionHandling::DwarfTable ||
-         ExceptionsType == ExceptionHandling::DwarfCFI);
-    }
-
-    bool doesDwarfRequireFrameSection() const {
-      return DwarfRequiresFrameSection;
+        (ExceptionsType == ExceptionHandling::DwarfCFI ||
+         ExceptionsType == ExceptionHandling::ARM ||
+         ExceptionsType == ExceptionHandling::Win64);
     }
     bool doesDwarfUsesInlineInfoSection() const {
       return DwarfUsesInlineInfoSection;
@@ -463,11 +500,14 @@ namespace llvm {
     const char *getDwarfSectionOffsetDirective() const {
       return DwarfSectionOffsetDirective;
     }
-    bool doesDwarfUsesAbsoluteLabelForStmtList() const {
-      return DwarfUsesAbsoluteLabelForStmtList;
+    bool doesDwarfRequireRelocationForSectionOffset() const {
+      return DwarfRequiresRelocationForSectionOffset;
     }
     bool doesDwarfUsesLabelOffsetForRanges() const {
       return DwarfUsesLabelOffsetForRanges;
+    }
+    bool useDwarfRegNumForCFI() const {
+      return DwarfRegNumForCFI;
     }
     const char *const *getAsmCBE() const {
       return AsmTransCBE;

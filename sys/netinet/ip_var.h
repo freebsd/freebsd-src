@@ -206,7 +206,6 @@ int	inp_setmoptions(struct inpcb *, struct sockopt *);
 
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
-void	ip_fini(void *xtp);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
 void	ip_forward(struct mbuf *m, int srcrt);
@@ -287,6 +286,7 @@ enum {
 };
 #define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 #define MTAG_IPFW_RULE	1262273568	/* rule reference */
+#define	MTAG_IPFW_CALL	1308397630	/* call stack */
 
 struct ip_fw_args;
 typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);

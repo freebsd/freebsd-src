@@ -94,6 +94,15 @@ namespace llvm {
       // one's or all zero's.
       SETCC_CARRY,  // R = carry_bit ? ~0 : 0
 
+      /// X86 FP SETCC, implemented with CMP{cc}SS/CMP{cc}SD.
+      /// Operands are two FP values to compare; result is a mask of
+      /// 0s or 1s.  Generally DTRT for C/C++ with NaNs.
+      FSETCCss, FSETCCsd,
+
+      /// X86 MOVMSK{pd|ps}, extracts sign bits of two or four FP values,
+      /// result in an integer GPR.  Needs masking for scalar result.
+      FGETSIGNx86,
+
       /// X86 conditional moves. Operand 0 and operand 1 are the two values
       /// to select from. Operand 2 is the condition code, and operand 3 is the
       /// flag operand produced by a CMP or TEST instruction. It also writes a
@@ -160,8 +169,8 @@ namespace llvm {
       /// PSHUFB - Shuffle 16 8-bit values within a vector.
       PSHUFB,
 
-      /// PANDN - and with not'd value.
-      PANDN,
+      /// ANDNP - Bitwise Logical AND NOT of Packed FP values.
+      ANDNP,
 
       /// PSIGNB/W/D - Copy integer sign.
       PSIGNB, PSIGNW, PSIGND,
@@ -457,6 +466,12 @@ namespace llvm {
     /// fit into displacement field of the instruction.
     bool isOffsetSuitableForCodeModel(int64_t Offset, CodeModel::Model M,
                                       bool hasSymbolicDisplacement = true);
+
+
+    /// isCalleePop - Determines whether the callee is required to pop its
+    /// own arguments. Callee pop is necessary to support tail calls.
+    bool isCalleePop(CallingConv::ID CallingConv,
+                     bool is64Bit, bool IsVarArg, bool TailCallOpt);
   }
 
   //===--------------------------------------------------------------------===//
@@ -581,10 +596,6 @@ namespace llvm {
     virtual ConstraintWeight getSingleConstraintMatchWeight(
       AsmOperandInfo &info, const char *constraint) const;
 
-    std::vector<unsigned>
-      getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                        EVT VT) const;
-
     virtual const char *LowerXConstraint(EVT ConstraintVT) const;
 
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
@@ -592,7 +603,7 @@ namespace llvm {
     /// true it means one of the asm constraint of the inline asm instruction
     /// being processed is 'm'.
     virtual void LowerAsmOperandForConstraint(SDValue Op,
-                                              char ConstraintLetter,
+                                              std::string &Constraint,
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
 
@@ -674,17 +685,14 @@ namespace llvm {
     /// or null if the target does not support "fast" ISel.
     virtual FastISel *createFastISel(FunctionLoweringInfo &funcInfo) const;
 
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
-
-    unsigned getRegPressureLimit(const TargetRegisterClass *RC,
-                                 MachineFunction &MF) const;
-
     /// getStackCookieLocation - Return true if the target stores stack
     /// protector cookies at a fixed offset in some non-standard address
     /// space, and populates the address space and offset as
     /// appropriate.
     virtual bool getStackCookieLocation(unsigned &AddressSpace, unsigned &Offset) const;
+
+    SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
+                      SelectionDAG &DAG) const;
 
   protected:
     std::pair<const TargetRegisterClass*, uint8_t>
@@ -776,9 +784,7 @@ namespace llvm {
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
-    SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
-                      SelectionDAG &DAG) const;
+    SDValue LowerShiftParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBITCAST(SDValue op, SelectionDAG &DAG) const;
     SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerUINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
@@ -789,6 +795,7 @@ namespace llvm {
     SDValue LowerFABS(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFNEG(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFGETSIGN(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerToBT(SDValue And, ISD::CondCode CC,
                       DebugLoc dl, SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
@@ -811,13 +818,14 @@ namespace llvm {
     SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerMUL_V2I64(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSHL(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerREADCYCLECOUNTER(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSIGN_EXTEND_INREG(SDValue Op, SelectionDAG &DAG) const;
 
     // Utility functions to help LowerVECTOR_SHUFFLE
     SDValue LowerVECTOR_SHUFFLEv8i16(SDValue Op, SelectionDAG &DAG) const;
@@ -846,10 +854,17 @@ namespace llvm {
 
     virtual bool isUsedByReturnOnly(SDNode *N) const;
 
+    virtual bool mayBeEmittedAsTailCall(CallInst *CI) const;
+
+    virtual EVT
+    getTypeForExtArgOrReturn(LLVMContext &Context, EVT VT,
+                             ISD::NodeType ExtendKind) const;
+
     virtual bool
-      CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
-                     const SmallVectorImpl<ISD::OutputArg> &Outs,
-                     LLVMContext &Context) const;
+    CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+		   bool isVarArg,
+		   const SmallVectorImpl<ISD::OutputArg> &Outs,
+		   LLVMContext &Context) const;
 
     void ReplaceATOMIC_BINARY_64(SDNode *N, SmallVectorImpl<SDValue> &Results,
                                  SelectionDAG &DAG, unsigned NewOp) const;

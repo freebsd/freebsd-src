@@ -23,8 +23,8 @@ class formatted_raw_ostream;
 
 struct CPPTargetMachine : public TargetMachine {
   CPPTargetMachine(const Target &T, const std::string &TT,
-                   const std::string &FS)
-    : TargetMachine(T) {}
+                   const std::string &CPU, const std::string &FS)
+    : TargetMachine(T, TT, CPU, FS) {}
 
   virtual bool addPassesToEmitFile(PassManagerBase &PM,
                                    formatted_raw_ostream &Out,

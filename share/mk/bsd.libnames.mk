@@ -100,7 +100,6 @@ LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
-LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBODIALOG?=	${DESTDIR}${LIBDIR}/libodialog.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
@@ -130,7 +129,6 @@ MINUSLPAM+=	-lypclnt
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
-LIBPKG?=	${DESTDIR}${LIBDIR}/libpkg.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
 LIBPROC?=	${DESTDIR}${LIBDIR}/libproc.a
 LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a

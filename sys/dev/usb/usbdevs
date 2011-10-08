@@ -484,6 +484,7 @@ vendor SHANTOU		0x0a46	ShanTou
 vendor MEDIAGEAR	0x0a48	MediaGear
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
+vendor MEDELI		0x0a67	Medeli
 vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
@@ -628,6 +629,7 @@ vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
 vendor SPARKLAN		0x15a9	SparkLAN
+vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
@@ -681,6 +683,7 @@ vendor HAUPPAUGE2	0x2040	Hauppauge Computer Works
 vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ENCORE		0x203d	Encore
 vendor PARA		0x20b8	PARA Industrial
+vendor SIMTEC		0x20df	Simtec Electronics
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -897,6 +900,7 @@ product AIRPLUS MCD650		0x3198	MCD650 modem
 
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
+product AIRPRIME USB308		0x68A3	USB308 HSPA+ USB Modem
 
 /* AirTies products */
 product AIRTIES RT3070		0x2310	RT3070
@@ -1041,6 +1045,7 @@ product ASIX AX88172		0x1720	10/100 Ethernet
 product ASIX AX88178		0x1780	AX88178
 product ASIX AX88772		0x7720	AX88772
 product ASIX AX88772A		0x772a	AX88772A USB 2.0 10/100 Ethernet
+product ASIX AX88772B		0x772b	AX88772B USB 2.0 10/100 Ethernet
 
 /* ASUS products */
 product ASUS2 USBN11		0x0b05	USB-N11
@@ -1564,7 +1569,9 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
 
 /* FEIYA products */
+product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+product FEIYA AC110		0x6300	AC-110 Card Reader
 
 /* Fiberline */
 product FIBERLINE WL430U	0x6003	WL-430U
@@ -1868,6 +1875,8 @@ product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
+product HUAWEI E173		0x1c05	3G modem
+product HUAWEI E173_INIT	0x1c0b	3G modem initial
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -2011,6 +2020,7 @@ product KODAK DC280		0x0130	Digital Science DC280
 
 /* Kontron AG products */
 product KONTRON DM9601		0x8101	USB Ethernet
+product KONTRON JP1082		0x9700	USB Ethernet
 
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera
@@ -2103,6 +2113,7 @@ product LOGITEC RT2870_3	0x0164	RT2870
 product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA
 product LONGCHEER W14		0x9603	Mobilcom W14
 product LONGCHEER DISK		0xf000	Driver disk
+product LONGCHEER XSSTICK	0x9605	4G Systems XSStick P14
 
 
 /* Lucent products */
@@ -2125,6 +2136,9 @@ product MCT HUB0100		0x0100	Hub
 product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 product MCT USB232		0x0210	USB-232 Interface
 product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
+
+/* Medeli */
+product MEDELI DD305		0x5011	DD305 Digital Drum Set
 
 /* MediaTek, Inc. */
 product MEDIATEK MTK3329	0x3329	MTK II GPS Receiver
@@ -2270,7 +2284,9 @@ product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
 /* MosChip products */
 product MOSCHIP MCS7703		0x7703	MCS7703 Serial Port Adapter
 product MOSCHIP MCS7730		0x7730  MCS7730 Ethernet
+product MOSCHIP MCS7820		0x7820	MCS7820 Serial Port Adapter
 product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
+product MOSCHIP MCS7840		0x7840	MCS7840 Serial Port Adapter
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
@@ -2435,6 +2451,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTMAX72		0x6711	GlobeTrotter Max 7.2 HSDPA
 product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
@@ -2511,6 +2528,9 @@ product PANASONIC TYTP50P6S	0x3900	TY-TP50P6-S 50in Touch Panel
 
 /* PARA Industrial products */
 product PARA RT3070		0x8888	RT3070
+
+/* Simtec Electronics products */
+product SIMTEC ENTROPYKEY	0x0001	Entropy Key
 
 /* Pegatron products */
 product PEGATRON RT2870		0x0002	RT2870
@@ -2761,6 +2781,7 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
+product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
@@ -3135,6 +3156,10 @@ product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
 product SPARKLAN RT2573		0x0004	RT2573
 product SPARKLAN RT2870_1	0x0006	RT2870
 product SPARKLAN RT3070		0x0010	RT3070
+
+/* Soundgraph products */
+product SOUNDGRAPH IMON_VFD	0x0044	Antec Veris Elite VFD Panel, Knob, and Remote
+product SOUNDGRAPH SSTONE_LC16	0xffdc	Silverstone LC16 VFD Panel, Knob, and Remote
 
 /* Speed Dragon Multimedia products */
 product SPEEDDRAGON MS3303H	0x110b	MS3303H Serial

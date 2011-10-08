@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataclass.h,v 1.24 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rdataclass.h,v 1.24 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef DNS_RDATACLASS_H
 #define DNS_RDATACLASS_H 1

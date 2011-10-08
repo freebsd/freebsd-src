@@ -2,8 +2,8 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,11 +11,15 @@
 // with the IEEE-754 default rounding (to nearest, ties to even).
 //
 //===----------------------------------------------------------------------===//
+#include "abi.h"
 
 #define SINGLE_PRECISION
 #include "fp_lib.h"
 
-fp_t __mulsf3(fp_t a, fp_t b) {
+ARM_EABI_FNALIAS(fmul, mulsf3);
+
+COMPILER_RT_ABI fp_t
+__mulsf3(fp_t a, fp_t b) {
     
     const unsigned int aExponent = toRep(a) >> significandBits & maxExponent;
     const unsigned int bExponent = toRep(b) >> significandBits & maxExponent;

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_nvidia_chipinit(device_t dev);
 static int ata_nvidia_ch_attach(device_t dev);
+static int ata_nvidia_ch_attach_dumb(device_t dev);
 static int ata_nvidia_status(device_t dev);
 static void ata_nvidia_reset(device_t dev);
 static int ata_nvidia_setmode(device_t dev, int target, int mode);
@@ -62,6 +63,7 @@ static int ata_nvidia_setmode(device_t dev, int target, int mode);
 #define NV4             0x01
 #define NVQ             0x02
 #define NVAHCI          0x04
+#define NVNOFORCE       0x08
 
 
 /*
@@ -158,7 +160,7 @@ ata_nvidia_probe(device_t dev)
      { ATA_NFORCE_MCP79_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
      { ATA_NFORCE_MCP79_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
      { ATA_NFORCE_MCP89_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
-     { ATA_NFORCE_MCP89_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A1, 0, NVAHCI|NVNOFORCE, 0, ATA_SA300, "nForce MCP89" },
      { ATA_NFORCE_MCP89_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
      { ATA_NFORCE_MCP89_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
      { ATA_NFORCE_MCP89_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
@@ -178,7 +180,9 @@ ata_nvidia_probe(device_t dev)
 	return ENXIO;
 
     ata_set_desc(dev);
-    if (ctlr->chip->cfg1 & NVAHCI)
+    if ((ctlr->chip->cfg1 & NVAHCI) &&
+	((ctlr->chip->cfg1 & NVNOFORCE) == 0 ||
+	 pci_get_subclass(dev) != PCIS_STORAGE_IDE))
 	ctlr->chipinit = ata_ahci_chipinit;
     else
 	ctlr->chipinit = ata_nvidia_chipinit;
@@ -193,7 +197,10 @@ ata_nvidia_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    if (ctlr->chip->max_dma >= ATA_SA150) {
+    if (ctlr->chip->cfg1 & NVAHCI) {
+	ctlr->ch_attach = ata_nvidia_ch_attach_dumb;
+	ctlr->setmode = ata_sata_setmode;
+    } else if (ctlr->chip->max_dma >= ATA_SA150) {
 	if (pci_read_config(dev, PCIR_BAR(5), 1) & 1)
 	    ctlr->r_type2 = SYS_RES_IOPORT;
 	else
@@ -260,6 +267,17 @@ ata_nvidia_ch_attach(device_t dev)
 
     ch->hw.status = ata_nvidia_status;
     ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
+    return 0;
+}
+
+static int
+ata_nvidia_ch_attach_dumb(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ata_pci_ch_attach(dev))
+	return ENXIO;
     ch->flags |= ATA_SATA;
     return 0;
 }

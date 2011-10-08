@@ -30,6 +30,7 @@ using namespace llvm;
 
 STATISTIC(NumLandingPadsSplit,     "Number of landing pads split");
 STATISTIC(NumUnwindsLowered,       "Number of unwind instructions lowered");
+STATISTIC(NumResumesLowered,       "Number of eh.resume calls lowered");
 STATISTIC(NumExceptionValuesMoved, "Number of eh.exception calls moved");
 
 namespace {
@@ -63,7 +64,7 @@ namespace {
     BBSet LandingPads;
 
     bool NormalizeLandingPads();
-    bool LowerUnwinds();
+    bool LowerUnwindsAndResumes();
     bool MoveExceptionValueCalls();
 
     Instruction *CreateExceptionValueCall(BasicBlock *BB);
@@ -93,7 +94,8 @@ namespace {
     /// with the eh.exception call. This recursively looks past instructions
     /// which don't change the EH pointer value, like casts or PHI nodes.
     bool FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
-                             SmallPtrSet<IntrinsicInst*, 8> &SelCalls);
+                             SmallPtrSet<IntrinsicInst*, 8> &SelCalls,
+                             SmallPtrSet<PHINode*, 32> &SeenPHIs);
       
   public:
     static char ID; // Pass identification, replacement for typeid.
@@ -199,8 +201,8 @@ bool DwarfEHPrepare::CleanupSelectors(SmallPtrSet<IntrinsicInst*, 32> &Sels) {
 /// change the EH pointer value, like casts or PHI nodes.
 bool
 DwarfEHPrepare::FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
-                                    SmallPtrSet<IntrinsicInst*, 8> &SelCalls) {
-  SmallPtrSet<PHINode*, 32> SeenPHIs;
+                                    SmallPtrSet<IntrinsicInst*, 8> &SelCalls,
+                                    SmallPtrSet<PHINode*, 32> &SeenPHIs) {
   bool Changed = false;
 
   for (Value::use_iterator
@@ -215,11 +217,11 @@ DwarfEHPrepare::FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
       if (Invoke->getCalledFunction() == URoR)
         URoRInvoke = true;
     } else if (CastInst *CI = dyn_cast<CastInst>(II)) {
-      Changed |= FindSelectorAndURoR(CI, URoRInvoke, SelCalls);
+      Changed |= FindSelectorAndURoR(CI, URoRInvoke, SelCalls, SeenPHIs);
     } else if (PHINode *PN = dyn_cast<PHINode>(II)) {
       if (SeenPHIs.insert(PN))
         // Don't process a PHI node more than once.
-        Changed |= FindSelectorAndURoR(PN, URoRInvoke, SelCalls);
+        Changed |= FindSelectorAndURoR(PN, URoRInvoke, SelCalls, SeenPHIs);
     }
   }
 
@@ -250,10 +252,7 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
 
   if (!URoR) {
     URoR = F->getParent()->getFunction("_Unwind_Resume_or_Rethrow");
-    if (!URoR) {
-      URoR = F->getParent()->getFunction("_Unwind_SjLj_Resume");
-      if (!URoR) return CleanupSelectors(CatchAllSels);
-    }
+    if (!URoR) return CleanupSelectors(CatchAllSels);
   }
 
   SmallPtrSet<InvokeInst*, 32> URoRInvokes;
@@ -294,7 +293,8 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
 
       bool URoRInvoke = false;
       SmallPtrSet<IntrinsicInst*, 8> SelCalls;
-      Changed |= FindSelectorAndURoR(EHPtr, URoRInvoke, SelCalls);
+      SmallPtrSet<PHINode*, 32> SeenPHIs;
+      Changed |= FindSelectorAndURoR(EHPtr, URoRInvoke, SelCalls, SeenPHIs);
 
       if (URoRInvoke) {
         // This EH pointer is being used by an invoke of an URoR instruction and
@@ -336,8 +336,7 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
       Args.push_back(EHCatchAllValue->getInitializer()); // Catch-all indicator.
 
       CallInst *NewSelector =
-        CallInst::Create(SelectorIntrinsic, Args.begin(), Args.end(),
-                         "eh.sel.catch.all", II);
+        CallInst::Create(SelectorIntrinsic, Args, "eh.sel.catch.all", II);
 
       NewSelector->setTailCall(II->isTailCall());
       NewSelector->setAttributes(II->getAttributes());
@@ -437,8 +436,9 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
       if (InVal == 0) {
         // Different unwind edges have different values.  Create a new PHI node
         // in NewBB.
-        PHINode *NewPN = PHINode::Create(PN->getType(), PN->getName()+".unwind",
-                                         NewBB);
+        PHINode *NewPN = PHINode::Create(PN->getType(),
+                                         PN->getNumIncomingValues(),
+                                         PN->getName()+".unwind", NewBB);
         // Add an entry for each unwind edge, using the value from the old PHI.
         for (pred_iterator PI = PB; PI != PE; ++PI)
           NewPN->addIncoming(PN->getIncomingValueForBlock(*PI), *PI);
@@ -477,48 +477,63 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
 /// rethrowing any previously caught exception.  This will crash horribly
 /// at runtime if there is no such exception: using unwind to throw a new
 /// exception is currently not supported.
-bool DwarfEHPrepare::LowerUnwinds() {
-  SmallVector<TerminatorInst*, 16> UnwindInsts;
+bool DwarfEHPrepare::LowerUnwindsAndResumes() {
+  SmallVector<Instruction*, 16> ResumeInsts;
 
-  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-    TerminatorInst *TI = I->getTerminator();
-    if (isa<UnwindInst>(TI))
-      UnwindInsts.push_back(TI);
+  for (Function::iterator fi = F->begin(), fe = F->end(); fi != fe; ++fi) {
+    for (BasicBlock::iterator bi = fi->begin(), be = fi->end(); bi != be; ++bi){
+      if (isa<UnwindInst>(bi))
+        ResumeInsts.push_back(bi);
+      else if (CallInst *call = dyn_cast<CallInst>(bi))
+        if (Function *fn = dyn_cast<Function>(call->getCalledValue()))
+          if (fn->getName() == "llvm.eh.resume")
+            ResumeInsts.push_back(bi);
+    }
   }
 
-  if (UnwindInsts.empty()) return false;
+  if (ResumeInsts.empty()) return false;
 
   // Find the rewind function if we didn't already.
   if (!RewindFunction) {
-    LLVMContext &Ctx = UnwindInsts[0]->getContext();
-    std::vector<const Type*>
-      Params(1, Type::getInt8PtrTy(Ctx));
+    LLVMContext &Ctx = ResumeInsts[0]->getContext();
     FunctionType *FTy = FunctionType::get(Type::getVoidTy(Ctx),
-                                          Params, false);
+                                          Type::getInt8PtrTy(Ctx), false);
     const char *RewindName = TLI->getLibcallName(RTLIB::UNWIND_RESUME);
     RewindFunction = F->getParent()->getOrInsertFunction(RewindName, FTy);
   }
 
   bool Changed = false;
 
-  for (SmallVectorImpl<TerminatorInst*>::iterator
-         I = UnwindInsts.begin(), E = UnwindInsts.end(); I != E; ++I) {
-    TerminatorInst *TI = *I;
+  for (SmallVectorImpl<Instruction*>::iterator
+         I = ResumeInsts.begin(), E = ResumeInsts.end(); I != E; ++I) {
+    Instruction *RI = *I;
 
-    // Replace the unwind instruction with a call to _Unwind_Resume (or the
-    // appropriate target equivalent) followed by an UnreachableInst.
+    // Replace the resuming instruction with a call to _Unwind_Resume (or the
+    // appropriate target equivalent).
+
+    llvm::Value *ExnValue;
+    if (isa<UnwindInst>(RI))
+      ExnValue = CreateExceptionValueCall(RI->getParent());
+    else
+      ExnValue = cast<CallInst>(RI)->getArgOperand(0);
 
     // Create the call...
-    CallInst *CI = CallInst::Create(RewindFunction,
-                                    CreateExceptionValueCall(TI->getParent()),
-                                    "", TI);
+    CallInst *CI = CallInst::Create(RewindFunction, ExnValue, "", RI);
     CI->setCallingConv(TLI->getLibcallCallingConv(RTLIB::UNWIND_RESUME));
-    // ...followed by an UnreachableInst.
-    new UnreachableInst(TI->getContext(), TI);
 
-    // Nuke the unwind instruction.
-    TI->eraseFromParent();
-    ++NumUnwindsLowered;
+    // ...followed by an UnreachableInst, if it was an unwind.
+    // Calls to llvm.eh.resume are typically already followed by this.
+    if (isa<UnwindInst>(RI))
+      new UnreachableInst(RI->getContext(), RI);
+
+    if (isa<UnwindInst>(RI))
+      ++NumUnwindsLowered;
+    else
+      ++NumResumesLowered;
+
+    // Nuke the resume instruction.
+    RI->eraseFromParent();
+
     Changed = true;
   }
 
@@ -654,8 +669,8 @@ bool DwarfEHPrepare::runOnFunction(Function &Fn) {
   // basic block where an invoke unwind edge ends).
   Changed |= NormalizeLandingPads();
 
-  // Turn unwind instructions into libcalls.
-  Changed |= LowerUnwinds();
+  // Turn unwind instructions and eh.resume calls into libcalls.
+  Changed |= LowerUnwindsAndResumes();
 
   // TODO: Move eh.selector calls to landing pads and combine them.
 

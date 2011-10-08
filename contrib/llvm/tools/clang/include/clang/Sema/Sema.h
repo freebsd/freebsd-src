@@ -20,6 +20,8 @@
 #include "clang/Sema/IdentifierResolver.h"
 #include "clang/Sema/ObjCMethodList.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/LocInfoType.h"
+#include "clang/Sema/TypoCorrection.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/ExternalASTSource.h"
@@ -27,6 +29,7 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TypeTraits.h"
+#include "clang/Basic/ExpressionTraits.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -43,6 +46,9 @@ namespace clang {
   class ADLResult;
   class ASTConsumer;
   class ASTContext;
+  class ASTMutationListener;
+  class ASTReader;
+  class ASTWriter;
   class ArrayType;
   class AttributeList;
   class BlockDecl;
@@ -106,10 +112,12 @@ namespace clang {
   class ObjCInterfaceDecl;
   class ObjCIvarDecl;
   template <class T> class ObjCList;
+  class ObjCMessageExpr;
   class ObjCMethodDecl;
   class ObjCPropertyDecl;
   class ObjCProtocolDecl;
   class OverloadCandidateSet;
+  class OverloadExpr;
   class ParenListExpr;
   class ParmVarDecl;
   class Preprocessor;
@@ -128,7 +136,9 @@ namespace clang {
   class TemplatePartialOrderingContext;
   class TemplateTemplateParmDecl;
   class Token;
+  class TypeAliasDecl;
   class TypedefDecl;
+  class TypedefNameDecl;
   class TypeLoc;
   class UnqualifiedId;
   class UnresolvedLookupExpr;
@@ -150,43 +160,6 @@ namespace sema {
   class FunctionScopeInfo;
   class TemplateDeductionInfo;
 }
-
-/// \brief Holds a QualType and a TypeSourceInfo* that came out of a declarator
-/// parsing.
-///
-/// LocInfoType is a "transient" type, only needed for passing to/from Parser
-/// and Sema, when we want to preserve type source info for a parsed type.
-/// It will not participate in the type system semantics in any way.
-class LocInfoType : public Type {
-  enum {
-    // The last number that can fit in Type's TC.
-    // Avoids conflict with an existing Type class.
-    LocInfo = Type::TypeLast + 1
-  };
-
-  TypeSourceInfo *DeclInfo;
-
-  LocInfoType(QualType ty, TypeSourceInfo *TInfo)
-    : Type((TypeClass)LocInfo, ty, ty->isDependentType(), 
-           ty->isVariablyModifiedType(),
-           ty->containsUnexpandedParameterPack()), 
-      DeclInfo(TInfo) {
-    assert(getTypeClass() == (TypeClass)LocInfo && "LocInfo didn't fit in TC?");
-  }
-  friend class Sema;
-
-public:
-  QualType getType() const { return getCanonicalTypeInternal(); }
-  TypeSourceInfo *getTypeSourceInfo() const { return DeclInfo; }
-
-  void getAsStringInternal(std::string &Str,
-                                   const PrintingPolicy &Policy) const;
-
-  static bool classof(const Type *T) {
-    return T->getTypeClass() == (TypeClass)LocInfo;
-  }
-  static bool classof(const LocInfoType *) { return true; }
-};
 
 // FIXME: No way to easily map from TemplateTypeParmTypes to
 // TemplateTypeParmDecls, so we have this horrible PointerUnion.
@@ -220,6 +193,9 @@ public:
   Diagnostic &Diags;
   SourceManager &SourceMgr;
 
+  /// \brief Flag indicating whether or not to collect detailed statistics.
+  bool CollectStats;
+
   /// \brief Source of additional semantic information.
   ExternalSemaSource *ExternalSource;
 
@@ -236,9 +212,15 @@ public:
   /// PackContext - Manages the stack for #pragma pack. An alignment
   /// of 0 indicates default alignment.
   void *PackContext; // Really a "PragmaPackStack*"
+    
+  bool MSStructPragmaOn; // True when #pragma ms_struct on
 
   /// VisContext - Manages the stack for #pragma GCC visibility.
   void *VisContext; // Really a "PragmaVisStack*"
+
+  /// ExprNeedsCleanups - True if the current evaluation context
+  /// requires cleanups to be run at its conclusion.
+  bool ExprNeedsCleanups;
 
   /// \brief Stack containing information about each of the nested
   /// function, block, and method scopes that are currently active.
@@ -255,7 +237,7 @@ public:
   /// ExtVectorDecls - This is a list all the extended vector types. This allows
   /// us to associate a raw vector type with one of the ext_vector type names.
   /// This is only necessary for issuing pretty diagnostics.
-  llvm::SmallVector<TypedefDecl*, 24> ExtVectorDecls;
+  llvm::SmallVector<TypedefNameDecl*, 24> ExtVectorDecls;
 
   /// FieldCollector - Collects CXXFieldDecls during parsing of C++ classes.
   llvm::OwningPtr<CXXFieldCollector> FieldCollector;
@@ -304,6 +286,27 @@ public:
   /// \brief The set of file scoped decls seen so far that have not been used
   /// and must warn if not used. Only contains the first declaration.
   llvm::SmallVector<const DeclaratorDecl*, 4> UnusedFileScopedDecls;
+
+  /// \brief All the delegating constructors seen so far in the file, used for
+  /// cycle detection at the end of the TU.
+  llvm::SmallVector<CXXConstructorDecl*, 4> DelegatingCtorDecls;
+
+  /// \brief All the overriding destructors seen during a class definition
+  /// (there could be multiple due to nested classes) that had their exception
+  /// spec checks delayed, plus the overridden destructor.
+  llvm::SmallVector<std::pair<const CXXDestructorDecl*,
+                              const CXXDestructorDecl*>, 2>
+      DelayedDestructorExceptionSpecChecks;
+
+  /// \brief Callback to the parser to parse templated functions when needed.
+  typedef void LateTemplateParserCB(void *P, const FunctionDecl *FD);
+  LateTemplateParserCB *LateTemplateParser;
+  void *OpaqueParser; 
+
+  void SetLateTemplateParser(LateTemplateParserCB *LTP, void *P) {
+    LateTemplateParser = LTP;
+    OpaqueParser = P; 
+  }
 
   class DelayedDiagnostics;
 
@@ -527,6 +530,9 @@ public:
     /// \brief The expression evaluation context.
     ExpressionEvaluationContext Context;
 
+    /// \brief Whether the enclosing context needed a cleanup.
+    bool ParentNeedsCleanups;
+
     /// \brief The number of temporaries that were active when we
     /// entered this expression evaluation context.
     unsigned NumTemporaries;
@@ -545,8 +551,10 @@ public:
     PotentiallyEmittedDiagnostics *PotentiallyDiagnosed;
 
     ExpressionEvaluationContextRecord(ExpressionEvaluationContext Context,
-                                      unsigned NumTemporaries)
-      : Context(Context), NumTemporaries(NumTemporaries),
+                                      unsigned NumTemporaries,
+                                      bool ParentNeedsCleanups)
+      : Context(Context), ParentNeedsCleanups(ParentNeedsCleanups),
+        NumTemporaries(NumTemporaries),
         PotentiallyReferenced(0), PotentiallyDiagnosed(0) { }
 
     void addReferencedDecl(SourceLocation Loc, Decl *Decl) {
@@ -571,6 +579,44 @@ public:
 
   /// A stack of expression evaluation contexts.
   llvm::SmallVector<ExpressionEvaluationContextRecord, 8> ExprEvalContexts;
+
+  /// SpecialMemberOverloadResult - The overloading result for a special member
+  /// function.
+  ///
+  /// This is basically a wrapper around PointerIntPair. The lowest bit of the
+  /// integer is used to determine whether we have a parameter qualification
+  /// match, the second-lowest is whether we had success in resolving the
+  /// overload to a unique non-deleted function.
+  ///
+  /// The ConstParamMatch bit represents whether, when looking up a copy
+  /// constructor or assignment operator, we found a potential copy
+  /// constructor/assignment operator whose first parameter is const-qualified.
+  /// This is used for determining parameter types of other objects and is
+  /// utterly meaningless on other types of special members.
+  class SpecialMemberOverloadResult : public llvm::FastFoldingSetNode {
+    llvm::PointerIntPair<CXXMethodDecl*, 2> Pair;
+  public:
+    SpecialMemberOverloadResult(const llvm::FoldingSetNodeID &ID)
+      : FastFoldingSetNode(ID)
+    {}
+
+    CXXMethodDecl *getMethod() const { return Pair.getPointer(); }
+    void setMethod(CXXMethodDecl *MD) { Pair.setPointer(MD); }
+
+    bool hasSuccess() const { return Pair.getInt() & 0x1; }
+    void setSuccess(bool B) {
+      Pair.setInt(unsigned(B) | hasConstParamMatch() << 1);
+    }
+
+    bool hasConstParamMatch() const { return Pair.getInt() & 0x2; }
+    void setConstParamMatch(bool B) {
+      Pair.setInt(B << 1 | unsigned(hasSuccess()));
+    }
+  };
+
+  /// \brief A cache of special member function overload resolution results
+  /// for C++ records.
+  llvm::FoldingSet<SpecialMemberOverloadResult> SpecialMemberCache;
 
   /// \brief Whether the code handled by Sema should be considered a
   /// complete translation unit or not.
@@ -645,7 +691,10 @@ public:
   Preprocessor &getPreprocessor() const { return PP; }
   ASTContext &getASTContext() const { return Context; }
   ASTConsumer &getASTConsumer() const { return Consumer; }
-  
+  ASTMutationListener *getASTMutationListener() const;
+
+  void PrintStats() const;
+
   /// \brief Helper class that creates diagnostics with optional
   /// template instantiation stacks.
   ///
@@ -678,11 +727,15 @@ public:
   /// \brief Build a partial diagnostic.
   PartialDiagnostic PDiag(unsigned DiagID = 0); // in SemaInternal.h
 
+  bool findMacroSpelling(SourceLocation &loc, llvm::StringRef name);
+
   ExprResult Owned(Expr* E) { return E; }
   ExprResult Owned(ExprResult R) { return R; }
   StmtResult Owned(Stmt* S) { return S; }
 
   void ActOnEndOfTranslationUnit();
+
+  void CheckDelegatingCtorCycles();
 
   Scope *getScopeForContext(DeclContext *Ctx);
 
@@ -695,7 +748,7 @@ public:
     return FunctionScopes.back();
   }
 
-  bool hasAnyErrorsInThisFunction() const;
+  bool hasAnyUnrecoverableErrorsInThisFunction() const;
 
   /// \brief Retrieve the current block, if any.
   sema::BlockScopeInfo *getCurBlock();
@@ -707,7 +760,6 @@ public:
   // Type Analysis / Processing: SemaType.cpp.
   //
 
-  QualType adjustParameterType(QualType T);
   QualType BuildQualifiedType(QualType T, SourceLocation Loc, Qualifiers Qs);
   QualType BuildQualifiedType(QualType T, SourceLocation Loc, unsigned CVR) {
     return BuildQualifiedType(T, Loc, Qualifiers::fromCVRMask(CVR));
@@ -734,9 +786,8 @@ public:
                                  SourceLocation Loc, DeclarationName Entity);
   QualType BuildParenType(QualType T);
 
-  TypeSourceInfo *GetTypeForDeclarator(Declarator &D, Scope *S,
-                                       TagDecl **OwnedDecl = 0,
-                                       bool AllowAutoInTypeName = false);
+  TypeSourceInfo *GetTypeForDeclarator(Declarator &D, Scope *S);
+  TypeSourceInfo *GetTypeForDeclaratorCast(Declarator &D, QualType FromTy);
   TypeSourceInfo *GetTypeSourceInfoForDeclarator(Declarator &D, QualType T,
                                                TypeSourceInfo *ReturnTypeInfo);
   /// \brief Package the given type and TSI into a ParsedType.
@@ -755,7 +806,9 @@ public:
       const FunctionProtoType *Old, SourceLocation OldLoc,
       const FunctionProtoType *New, SourceLocation NewLoc,
       bool *MissingExceptionSpecification = 0,
-      bool *MissingEmptyExceptionSpecification = 0);
+      bool *MissingEmptyExceptionSpecification = 0,
+      bool AllowNoexceptAllMatchWithNoSpec = false,
+      bool IsOperatorNew = false);
   bool CheckExceptionSpecSubset(
       const PartialDiagnostic &DiagID, const PartialDiagnostic & NoteID,
       const FunctionProtoType *Superset, SourceLocation SuperLoc,
@@ -765,7 +818,7 @@ public:
       const FunctionProtoType *Source, SourceLocation SourceLoc);
 
   TypeResult ActOnTypeName(Scope *S, Declarator &D);
-
+  
   bool RequireCompleteType(SourceLocation Loc, QualType T,
                            const PartialDiagnostic &PD,
                            std::pair<SourceLocation, PartialDiagnostic> Note);
@@ -773,18 +826,25 @@ public:
                            const PartialDiagnostic &PD);
   bool RequireCompleteType(SourceLocation Loc, QualType T,
                            unsigned DiagID);
+  bool RequireCompleteExprType(Expr *E, const PartialDiagnostic &PD,
+                               std::pair<SourceLocation,
+                                         PartialDiagnostic> Note);
+
 
   QualType getElaboratedType(ElaboratedTypeKeyword Keyword,
                              const CXXScopeSpec &SS, QualType T);
 
   QualType BuildTypeofExprType(Expr *E, SourceLocation Loc);
   QualType BuildDecltypeType(Expr *E, SourceLocation Loc);
+  QualType BuildUnaryTransformType(QualType BaseType,
+                                   UnaryTransformType::UTTKind UKind,
+                                   SourceLocation Loc);
 
   //===--------------------------------------------------------------------===//
   // Symbol table / Decl tracking callbacks: SemaDecl.cpp.
   //
 
-  DeclGroupPtrTy ConvertDeclToDeclGroup(Decl *Ptr);
+  DeclGroupPtrTy ConvertDeclToDeclGroup(Decl *Ptr, Decl *OwnedType = 0);
 
   void DiagnoseUseOfUnimplementedSelectors();
 
@@ -792,14 +852,117 @@ public:
                          Scope *S, CXXScopeSpec *SS = 0,
                          bool isClassName = false,
                          bool HasTrailingDot = false,
-                         ParsedType ObjectType = ParsedType());
+                         ParsedType ObjectType = ParsedType(),
+                         bool WantNontrivialTypeSourceInfo = false);
   TypeSpecifierType isTagName(IdentifierInfo &II, Scope *S);
+  bool isMicrosoftMissingTypename(const CXXScopeSpec *SS);
   bool DiagnoseUnknownTypeName(const IdentifierInfo &II,
                                SourceLocation IILoc,
                                Scope *S,
                                CXXScopeSpec *SS,
                                ParsedType &SuggestedType);
 
+  /// \brief Describes the result of the name lookup and resolution performed
+  /// by \c ClassifyName().
+  enum NameClassificationKind {
+    NC_Unknown,
+    NC_Error,
+    NC_Keyword,
+    NC_Type,
+    NC_Expression,
+    NC_NestedNameSpecifier,
+    NC_TypeTemplate,
+    NC_FunctionTemplate
+  };
+  
+  class NameClassification {
+    NameClassificationKind Kind;
+    ExprResult Expr;
+    TemplateName Template;
+    ParsedType Type;
+    const IdentifierInfo *Keyword;
+    
+    explicit NameClassification(NameClassificationKind Kind) : Kind(Kind) {}
+    
+  public:
+    NameClassification(ExprResult Expr) : Kind(NC_Expression), Expr(Expr) {}
+    
+    NameClassification(ParsedType Type) : Kind(NC_Type), Type(Type) {}
+    
+    NameClassification(const IdentifierInfo *Keyword) 
+      : Kind(NC_Keyword), Keyword(Keyword) { }
+    
+    static NameClassification Error() { 
+      return NameClassification(NC_Error); 
+    }
+    
+    static NameClassification Unknown() { 
+      return NameClassification(NC_Unknown); 
+    }
+    
+    static NameClassification NestedNameSpecifier() {
+      return NameClassification(NC_NestedNameSpecifier);
+    }
+    
+    static NameClassification TypeTemplate(TemplateName Name) {
+      NameClassification Result(NC_TypeTemplate);
+      Result.Template = Name;
+      return Result;
+    }
+
+    static NameClassification FunctionTemplate(TemplateName Name) {
+      NameClassification Result(NC_FunctionTemplate);
+      Result.Template = Name;
+      return Result;
+    }
+    
+    NameClassificationKind getKind() const { return Kind; }
+    
+    ParsedType getType() const {
+      assert(Kind == NC_Type);
+      return Type;
+    }
+    
+    ExprResult getExpression() const {
+      assert(Kind == NC_Expression);
+      return Expr;
+    }
+    
+    TemplateName getTemplateName() const {
+      assert(Kind == NC_TypeTemplate || Kind == NC_FunctionTemplate);
+      return Template;
+    }
+
+    TemplateNameKind getTemplateNameKind() const {
+      assert(Kind == NC_TypeTemplate || Kind == NC_FunctionTemplate);
+      return Kind == NC_TypeTemplate? TNK_Type_template : TNK_Function_template;
+    }
+};
+  
+  /// \brief Perform name lookup on the given name, classifying it based on
+  /// the results of name lookup and the following token.
+  ///
+  /// This routine is used by the parser to resolve identifiers and help direct
+  /// parsing. When the identifier cannot be found, this routine will attempt
+  /// to correct the typo and classify based on the resulting name.
+  ///
+  /// \param S The scope in which we're performing name lookup.
+  ///
+  /// \param SS The nested-name-specifier that precedes the name.
+  ///
+  /// \param Name The identifier. If typo correction finds an alternative name,
+  /// this pointer parameter will be updated accordingly.
+  ///
+  /// \param NameLoc The location of the identifier.
+  ///
+  /// \param NextToken The token following the identifier. Used to help 
+  /// disambiguate the name.
+  NameClassification ClassifyName(Scope *S,
+                                  CXXScopeSpec &SS,
+                                  IdentifierInfo *&Name,
+                                  SourceLocation NameLoc,
+                                  const Token &NextToken);
+  
   Decl *ActOnDeclarator(Scope *S, Declarator &D);
 
   Decl *HandleDeclarator(Scope *S, Declarator &D,
@@ -808,13 +971,17 @@ public:
   void RegisterLocallyScopedExternCDecl(NamedDecl *ND,
                                         const LookupResult &Previous,
                                         Scope *S);
+  bool DiagnoseClassNameShadow(DeclContext *DC, DeclarationNameInfo Info);
   void DiagnoseFunctionSpecifiers(Declarator& D);
   void CheckShadow(Scope *S, VarDecl *D, const LookupResult& R);
   void CheckShadow(Scope *S, VarDecl *D);
   void CheckCastAlign(Expr *Op, QualType T, SourceRange TRange);
+  void CheckTypedefForVariablyModifiedType(Scope *S, TypedefNameDecl *D);
   NamedDecl* ActOnTypedefDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                     QualType R, TypeSourceInfo *TInfo,
                                     LookupResult &Previous, bool &Redeclaration);
+  NamedDecl* ActOnTypedefNameDecl(Scope* S, DeclContext* DC, TypedefNameDecl *D,
+                                  LookupResult &Previous, bool &Redeclaration);
   NamedDecl* ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                      QualType R, TypeSourceInfo *TInfo,
                                      LookupResult &Previous,
@@ -840,12 +1007,10 @@ public:
   ParmVarDecl *BuildParmVarDeclForTypedef(DeclContext *DC,
                                           SourceLocation Loc,
                                           QualType T);
-  ParmVarDecl *CheckParameter(DeclContext *DC,
-                              TypeSourceInfo *TSInfo, QualType T,
-                              IdentifierInfo *Name,
-                              SourceLocation NameLoc,
-                              StorageClass SC,
-                              StorageClass SCAsWritten);
+  ParmVarDecl *CheckParameter(DeclContext *DC, SourceLocation StartLoc,
+                              SourceLocation NameLoc, IdentifierInfo *Name,
+                              QualType T, TypeSourceInfo *TSInfo,
+                              StorageClass SC, StorageClass SCAsWritten);
   void ActOnParamDefaultArgument(Decl *param,
                                  SourceLocation EqualLoc,
                                  Expr *defarg);
@@ -860,7 +1025,9 @@ public:
                             bool TypeMayContainAuto);
   void ActOnUninitializedDecl(Decl *dcl, bool TypeMayContainAuto);
   void ActOnInitializerError(Decl *Dcl);
+  void ActOnCXXForRangeDecl(Decl *D);
   void SetDeclDeleted(Decl *dcl, SourceLocation DelLoc);
+  void SetDeclDefaulted(Decl *dcl, SourceLocation DefaultLoc);
   void FinalizeDeclaration(Decl *D);
   DeclGroupPtrTy FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
                                          Decl **Group,
@@ -869,6 +1036,7 @@ public:
                                       bool TypeMayContainAuto = true);
   void ActOnFinishKNRParamDeclarations(Scope *S, Declarator &D,
                                        SourceLocation LocAfterDecls);
+  void CheckForFunctionRedefinition(FunctionDecl *FD);
   Decl *ActOnStartOfFunctionDef(Scope *S, Declarator &D);
   Decl *ActOnStartOfFunctionDef(Scope *S, Decl *D);
   void ActOnStartOfObjCMethodDef(Scope *S, Decl *D);
@@ -890,16 +1058,19 @@ public:
                                               NamedDecl *D);
 
   void DiagnoseInvalidJumps(Stmt *Body);
-  Decl *ActOnFileScopeAsmDecl(SourceLocation Loc, Expr *expr);
+  Decl *ActOnFileScopeAsmDecl(Expr *expr,
+                              SourceLocation AsmLoc,
+                              SourceLocation RParenLoc);
 
   /// Scope actions.
   void ActOnPopScope(SourceLocation Loc, Scope *S);
   void ActOnTranslationUnitScope(Scope *S);
 
-  /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
-  /// no declarator (e.g. "struct foo;") is parsed.
   Decl *ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS,
                                    DeclSpec &DS);
+  Decl *ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS,
+                                   DeclSpec &DS,
+                                   MultiTemplateParamsArg TemplateParams);
   
   StmtResult ActOnVlaStmt(const DeclSpec &DS);
 
@@ -911,7 +1082,7 @@ public:
                                        RecordDecl *Record);
 
   bool isAcceptableTagRedeclaration(const TagDecl *Previous,
-                                    TagTypeKind NewTag,
+                                    TagTypeKind NewTag, bool isDefinition,
                                     SourceLocation NewTagLoc,
                                     const IdentifierInfo &Name);
 
@@ -952,23 +1123,25 @@ public:
                    Declarator &D, Expr *BitfieldWidth);
 
   FieldDecl *HandleField(Scope *S, RecordDecl *TagD, SourceLocation DeclStart,
-                         Declarator &D, Expr *BitfieldWidth,
+                         Declarator &D, Expr *BitfieldWidth, bool HasInit,
                          AccessSpecifier AS);
 
   FieldDecl *CheckFieldDecl(DeclarationName Name, QualType T,
                             TypeSourceInfo *TInfo,
                             RecordDecl *Record, SourceLocation Loc,
-                            bool Mutable, Expr *BitfieldWidth,
+                            bool Mutable, Expr *BitfieldWidth, bool HasInit,
                             SourceLocation TSSL,
                             AccessSpecifier AS, NamedDecl *PrevDecl,
                             Declarator *D = 0);
 
   enum CXXSpecialMember {
-    CXXInvalid = -1,
-    CXXConstructor = 0,
-    CXXCopyConstructor = 1,
-    CXXCopyAssignment = 2,
-    CXXDestructor = 3
+    CXXDefaultConstructor,
+    CXXCopyConstructor,
+    CXXMoveConstructor,
+    CXXCopyAssignment,
+    CXXMoveAssignment,
+    CXXDestructor,
+    CXXInvalid
   };
   bool CheckNontrivialField(FieldDecl *FD);
   void DiagnoseNontrivial(const RecordType* Record, CXXSpecialMember mem);
@@ -994,7 +1167,7 @@ public:
   /// C++ record definition's base-specifiers clause and are starting its
   /// member declarations.
   void ActOnStartCXXMemberDeclarations(Scope *S, Decl *TagDecl,
-                                       ClassVirtSpecifiers &CVS,
+                                       SourceLocation FinalLoc,
                                        SourceLocation LBraceLoc);
 
   /// ActOnTagFinishDefinition - Invoked once we have finished parsing
@@ -1055,7 +1228,12 @@ public:
   /// isDeclInScope - If 'Ctx' is a function/method, isDeclInScope returns true
   /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
   /// true if 'D' belongs to the given declaration context.
-  bool isDeclInScope(NamedDecl *&D, DeclContext *Ctx, Scope *S = 0);
+  ///
+  /// \param ExplicitInstantiationOrSpecialization When true, we are checking
+  /// whether the declaration is in scope for the purposes of explicit template
+  /// instantiation or specialization. The default is false.
+  bool isDeclInScope(NamedDecl *&D, DeclContext *Ctx, Scope *S = 0,
+                     bool ExplicitInstantiationOrSpecialization = false);
 
   /// Finds the scope corresponding to the given decl context, if it
   /// happens to be an enclosing scope.  Otherwise return NULL.
@@ -1064,11 +1242,13 @@ public:
   /// Subroutines of ActOnDeclarator().
   TypedefDecl *ParseTypedefDecl(Scope *S, Declarator &D, QualType T,
                                 TypeSourceInfo *TInfo);
-  void MergeTypeDefDecl(TypedefDecl *New, LookupResult &OldDecls);
+  void MergeTypedefNameDecl(TypedefNameDecl *New, LookupResult &OldDecls);
   bool MergeFunctionDecl(FunctionDecl *New, Decl *Old);
   bool MergeCompatibleFunctionDecls(FunctionDecl *New, FunctionDecl *Old);
-  void MergeVarDeclTypes(VarDecl *New, VarDecl *Old);
+  void mergeObjCMethodDecls(ObjCMethodDecl *New, const ObjCMethodDecl *Old);
   void MergeVarDecl(VarDecl *New, LookupResult &OldDecls);
+  void MergeVarDeclTypes(VarDecl *New, VarDecl *Old);
+  void MergeVarDeclExceptionSpecs(VarDecl *New, VarDecl *Old);
   bool MergeCXXFunctionDecl(FunctionDecl *New, FunctionDecl *Old);
 
   // AssignmentAction - This is used by all the assignment diagnostic functions
@@ -1104,13 +1284,20 @@ public:
                              bool IsForUsingDecl);
   bool IsOverload(FunctionDecl *New, FunctionDecl *Old, bool IsForUsingDecl);
 
-  bool TryImplicitConversion(InitializationSequence &Sequence,
-                             const InitializedEntity &Entity,
-                             Expr *From,
-                             bool SuppressUserConversions,
-                             bool AllowExplicit,
-                             bool InOverloadResolution,
-                             bool CStyle);
+  /// \brief Checks availability of the function depending on the current
+  /// function context.Inside an unavailable function,unavailability is ignored.
+  ///
+  /// \returns true if \arg FD is unavailable and current context is inside
+  /// an available function, false otherwise.
+  bool isFunctionConsideredUnavailable(FunctionDecl *FD);
+
+  ImplicitConversionSequence
+  TryImplicitConversion(Expr *From, QualType ToType,
+                        bool SuppressUserConversions,
+                        bool AllowExplicit,
+                        bool InOverloadResolution,
+                        bool CStyle,
+                        bool AllowObjCWritebackConversion);
 
   bool IsIntegralPromotion(Expr *From, QualType FromType, QualType ToType);
   bool IsFloatingPointPromotion(QualType FromType, QualType ToType);
@@ -1120,6 +1307,8 @@ public:
                            QualType& ConvertedType, bool &IncompatibleObjC);
   bool isObjCPointerConversion(QualType FromType, QualType ToType,
                                QualType& ConvertedType, bool &IncompatibleObjC);
+  bool isObjCWritebackConversion(QualType FromType, QualType ToType,
+                                 QualType &ConvertedType);
   bool IsBlockPointerConversion(QualType FromType, QualType ToType,
                                 QualType& ConvertedType);
   bool FunctionArgTypesAreEqual(const FunctionProtoType *OldType, 
@@ -1137,25 +1326,30 @@ public:
                                     CXXCastPath &BasePath,
                                     bool IgnoreBaseAccess);
   bool IsQualificationConversion(QualType FromType, QualType ToType,
-                                 bool CStyle);
+                                 bool CStyle, bool &ObjCLifetimeConversion);
+  bool IsNoReturnConversion(QualType FromType, QualType ToType,
+                            QualType &ResultTy);
   bool DiagnoseMultipleUserDefinedConversion(Expr *From, QualType ToType);
 
 
   ExprResult PerformMoveOrCopyInitialization(const InitializedEntity &Entity,
                                              const VarDecl *NRVOCandidate,
                                              QualType ResultType,
-                                             Expr *Value);
+                                             Expr *Value,
+                                             bool AllowNRVO = true);
   
+  bool CanPerformCopyInitialization(const InitializedEntity &Entity,
+                                    ExprResult Init);
   ExprResult PerformCopyInitialization(const InitializedEntity &Entity,
                                        SourceLocation EqualLoc,
                                        ExprResult Init);
-  bool PerformObjectArgumentInitialization(Expr *&From,
-                                           NestedNameSpecifier *Qualifier,
-                                           NamedDecl *FoundDecl,
-                                           CXXMethodDecl *Method);
+  ExprResult PerformObjectArgumentInitialization(Expr *From,
+                                                 NestedNameSpecifier *Qualifier,
+                                                 NamedDecl *FoundDecl,
+                                                 CXXMethodDecl *Method);
 
-  bool PerformContextuallyConvertToBool(Expr *&From);
-  bool PerformContextuallyConvertToObjCId(Expr *&From);
+  ExprResult PerformContextuallyConvertToBool(Expr *From);
+  ExprResult PerformContextuallyConvertToObjCId(Expr *From);
 
   ExprResult 
   ConvertToIntegralOrEnumerationType(SourceLocation Loc, Expr *FromE,
@@ -1167,10 +1361,10 @@ public:
                                      const PartialDiagnostic &AmbigNote,
                                      const PartialDiagnostic &ConvDiag);
   
-  bool PerformObjectMemberConversion(Expr *&From,
-                                     NestedNameSpecifier *Qualifier,
-                                     NamedDecl *FoundDecl,
-                                     NamedDecl *Member);
+  ExprResult PerformObjectMemberConversion(Expr *From,
+                                           NestedNameSpecifier *Qualifier,
+                                           NamedDecl *FoundDecl,
+                                           NamedDecl *Member);
 
   // Members have to be NamespaceDecl* or TranslationUnitDecl*.
   // TODO: make this is a typesafe union.
@@ -1208,7 +1402,7 @@ public:
   void AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
                                   DeclAccessPair FoundDecl,
                                   CXXRecordDecl *ActingContext,
-                         const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                   QualType ObjectType,
                                   Expr::Classification ObjectClassification,
                                   Expr **Args, unsigned NumArgs,
@@ -1216,7 +1410,7 @@ public:
                                   bool SuppressUserConversions = false);
   void AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
                                     DeclAccessPair FoundDecl,
-                      const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                     Expr **Args, unsigned NumArgs,
                                     OverloadCandidateSet& CandidateSet,
                                     bool SuppressUserConversions = false);
@@ -1253,9 +1447,10 @@ public:
   void AddArgumentDependentLookupCandidates(DeclarationName Name,
                                             bool Operator,
                                             Expr **Args, unsigned NumArgs,
-                        const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                TemplateArgumentListInfo *ExplicitTemplateArgs,
                                             OverloadCandidateSet& CandidateSet,
-                                            bool PartialOverloading = false);
+                                            bool PartialOverloading = false,
+                                        bool StdNamespaceIsAssociated = false);
 
   // Emit as a 'note' the specific overload candidate
   void NoteOverloadCandidate(FunctionDecl *Fn);
@@ -1276,9 +1471,17 @@ public:
                                                    bool Complain,
                                                    DeclAccessPair &Found);
 
-  FunctionDecl *ResolveSingleFunctionTemplateSpecialization(Expr *From,
+  FunctionDecl *ResolveSingleFunctionTemplateSpecialization(OverloadExpr *ovl,
                                                    bool Complain = false,
                                                    DeclAccessPair* Found = 0);
+
+  ExprResult ResolveAndFixSingleFunctionTemplateSpecialization(
+                      Expr *SrcExpr, bool DoFunctionPointerConverion = false, 
+                      bool Complain = false, 
+                      const SourceRange& OpRangeForComplaining = SourceRange(), 
+                      QualType DestTypeForComplaining = QualType(), 
+                      unsigned DiagIDForComplaining = 0);
+
 
   Expr *FixOverloadedFunctionReference(Expr *E,
                                        DeclAccessPair FoundDecl,
@@ -1402,6 +1605,8 @@ public:
     LookupRedeclarationWithLinkage,
     /// Look up the name of an Objective-C protocol.
     LookupObjCProtocolName,
+    /// Look up implicit 'self' parameter of an objective-c method.
+    LookupObjCImplicitSelfParam,
     /// \brief Look up any declaration with any name.
     LookupAnyName
   };
@@ -1420,6 +1625,24 @@ public:
 private:
   bool CppLookupName(LookupResult &R, Scope *S);
 
+  SpecialMemberOverloadResult *LookupSpecialMember(CXXRecordDecl *D,
+                                                   CXXSpecialMember SM,
+                                                   bool ConstArg,
+                                                   bool VolatileArg,
+                                                   bool RValueThis,
+                                                   bool ConstThis,
+                                                   bool VolatileThis);
+
+  // \brief The set of known/encountered (unique, canonicalized) NamespaceDecls.
+  //
+  // The boolean value will be true to indicate that the namespace was loaded
+  // from an AST/PCH file, or false otherwise.
+  llvm::DenseMap<NamespaceDecl*, bool> KnownNamespaces;
+
+  /// \brief Whether we have already loaded known namespaces from an extenal
+  /// source.
+  bool LoadedExternalKnownNamespaces;
+  
 public:
   /// \brief Look up a name, looking for a single declaration.  Return
   /// null if the results were absent, ambiguous, or overloaded.
@@ -1444,15 +1667,23 @@ public:
                                     QualType T1, QualType T2,
                                     UnresolvedSetImpl &Functions);
 
-  LabelDecl *LookupOrCreateLabel(IdentifierInfo *II, SourceLocation Loc,
-                                 bool isLocalLabel = false);
-  
+  LabelDecl *LookupOrCreateLabel(IdentifierInfo *II, SourceLocation IdentLoc,
+                                 SourceLocation GnuLabelLoc = SourceLocation());
+
   DeclContextLookupResult LookupConstructors(CXXRecordDecl *Class);
+  CXXConstructorDecl *LookupDefaultConstructor(CXXRecordDecl *Class);
+  CXXConstructorDecl *LookupCopyingConstructor(CXXRecordDecl *Class,
+                                               unsigned Quals,
+                                               bool *ConstParam = 0);
+  CXXMethodDecl *LookupCopyingAssignment(CXXRecordDecl *Class, unsigned Quals,
+                                         bool RValueThis, unsigned ThisQuals,
+                                         bool *ConstParam = 0);
   CXXDestructorDecl *LookupDestructor(CXXRecordDecl *Class);
 
   void ArgumentDependentLookup(DeclarationName Name, bool Operator,
                                Expr **Args, unsigned NumArgs,
-                               ADLResult &Functions);
+                               ADLResult &Functions,
+                               bool StdNamespaceIsAssociated = false);
 
   void LookupVisibleDecls(Scope *S, LookupNameKind Kind,
                           VisibleDeclConsumer &Consumer,
@@ -1488,15 +1719,21 @@ public:
     CTC_ObjCMessageReceiver
   };
 
-  DeclarationName CorrectTypo(LookupResult &R, Scope *S, CXXScopeSpec *SS,
-                              DeclContext *MemberContext = 0,
-                              bool EnteringContext = false,
-                              CorrectTypoContext CTC = CTC_Unknown,
-                              const ObjCObjectPointerType *OPT = 0);
+  TypoCorrection CorrectTypo(const DeclarationNameInfo &Typo,
+                             Sema::LookupNameKind LookupKind,
+                             Scope *S, CXXScopeSpec *SS,
+                             DeclContext *MemberContext = NULL,
+                             bool EnteringContext = false,
+                             CorrectTypoContext CTC = CTC_Unknown,
+                             const ObjCObjectPointerType *OPT = NULL);
 
   void FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
                                    AssociatedNamespaceSet &AssociatedNamespaces,
                                    AssociatedClassSet &AssociatedClasses);
+
+  void FilterLookupForScope(LookupResult &R, DeclContext *Ctx, Scope *S,
+                            bool ConsiderLinkage,
+                            bool ExplicitInstantiationOrSpecialization);
 
   bool DiagnoseAmbiguousLookup(LookupResult &Result);
   //@}
@@ -1624,14 +1861,20 @@ public:
   void AtomicPropertySetterGetterRules(ObjCImplDecl* IMPDecl,
                                        ObjCContainerDecl* IDecl);
 
+  void DiagnoseOwningPropertyGetterSynthesis(const ObjCImplementationDecl *D);
+
   void DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID, ObjCInterfaceDecl *SID);
+
+  enum MethodMatchStrategy {
+    MMS_loose,
+    MMS_strict
+  };
 
   /// MatchTwoMethodDeclarations - Checks if two methods' type match and returns
   /// true, or false, accordingly.
   bool MatchTwoMethodDeclarations(const ObjCMethodDecl *Method,
                                   const ObjCMethodDecl *PrevMethod,
-                                  bool matchBasedOnSizeAndAlignment = false,
-                                  bool matchBasedOnStrictEqulity = false);
+                                  MethodMatchStrategy strategy = MMS_strict);
 
   /// MatchAllMethodDeclarations - Check methods declaraed in interface or
   /// or protocol against those declared in their implementations.
@@ -1695,6 +1938,7 @@ public:
   /// initialization.
   void CollectIvarsToConstructOrDestruct(ObjCInterfaceDecl *OI,
                                   llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
+
   //===--------------------------------------------------------------------===//
   // Statement Parsing Callbacks: SemaStmt.cpp.
 public:
@@ -1734,7 +1978,7 @@ public:
   StmtResult ActOnExprStmt(FullExprArg Expr);
 
   StmtResult ActOnNullStmt(SourceLocation SemiLoc,
-                           bool LeadingEmptyMacro = false);
+                        SourceLocation LeadingEmptyMacroLoc = SourceLocation());
   StmtResult ActOnCompoundStmt(SourceLocation L, SourceLocation R,
                                        MultiStmtArg Elts,
                                        bool isStmtExpr);
@@ -1782,6 +2026,17 @@ public:
                                         SourceLocation LParenLoc,
                                         Stmt *First, Expr *Second,
                                         SourceLocation RParenLoc, Stmt *Body);
+  StmtResult ActOnCXXForRangeStmt(SourceLocation ForLoc,
+                                  SourceLocation LParenLoc, Stmt *LoopVar,
+                                  SourceLocation ColonLoc, Expr *Collection,
+                                  SourceLocation RParenLoc);
+  StmtResult BuildCXXForRangeStmt(SourceLocation ForLoc,
+                                  SourceLocation ColonLoc,
+                                  Stmt *RangeDecl, Stmt *BeginEndDecl,
+                                  Expr *Cond, Expr *Inc,
+                                  Stmt *LoopVarDecl,
+                                  SourceLocation RParenLoc);
+  StmtResult FinishCXXForRangeStmt(Stmt *ForRange, Stmt *Body);
 
   StmtResult ActOnGotoStmt(SourceLocation GotoLoc,
                            SourceLocation LabelLoc,
@@ -1811,7 +2066,8 @@ public:
 
 
   VarDecl *BuildObjCExceptionDecl(TypeSourceInfo *TInfo, QualType ExceptionType,
-                                  IdentifierInfo *Name, SourceLocation NameLoc,
+                                  SourceLocation StartLoc,
+                                  SourceLocation IdLoc, IdentifierInfo *Id,
                                   bool Invalid = false);
 
   Decl *ActOnObjCExceptionDecl(Scope *S, Declarator &D);
@@ -1831,16 +2087,32 @@ public:
                                          Expr *SynchExpr,
                                          Stmt *SynchBody);
 
-  VarDecl *BuildExceptionDeclaration(Scope *S, 
-                                     TypeSourceInfo *TInfo,
-                                     IdentifierInfo *Name,
-                                     SourceLocation Loc);
+  StmtResult ActOnObjCAutoreleasePoolStmt(SourceLocation AtLoc, Stmt *Body);
+
+  VarDecl *BuildExceptionDeclaration(Scope *S, TypeSourceInfo *TInfo,
+                                     SourceLocation StartLoc,
+                                     SourceLocation IdLoc,
+                                     IdentifierInfo *Id);
+
   Decl *ActOnExceptionDeclarator(Scope *S, Declarator &D);
 
   StmtResult ActOnCXXCatchBlock(SourceLocation CatchLoc,
                                 Decl *ExDecl, Stmt *HandlerBlock);
   StmtResult ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
                               MultiStmtArg Handlers);
+
+  StmtResult ActOnSEHTryBlock(bool IsCXXTry, // try (true) or __try (false) ?
+                              SourceLocation TryLoc,
+                              Stmt *TryBlock,
+                              Stmt *Handler);
+
+  StmtResult ActOnSEHExceptBlock(SourceLocation Loc,
+                                 Expr *FilterExpr,
+                                 Stmt *Block);
+
+  StmtResult ActOnSEHFinallyBlock(SourceLocation Loc,
+                                  Stmt *Block);
+
   void DiagnoseReturnInConstructorExceptionHandler(CXXTryStmt *TryBlock);
 
   bool ShouldWarnIfUnusedFileScopedDecl(const DeclaratorDecl *D) const;
@@ -1870,15 +2142,20 @@ public:
   }
 
   void EmitDeprecationWarning(NamedDecl *D, llvm::StringRef Message,
-                              SourceLocation Loc, bool UnknownObjCClass=false);
+                              SourceLocation Loc, 
+                              const ObjCInterfaceDecl *UnknownObjCClass=0);
 
   void HandleDelayedDeprecationCheck(sema::DelayedDiagnostic &DD, Decl *Ctx);
+
+  bool makeUnavailableInSystemHeader(SourceLocation loc,
+                                     llvm::StringRef message);
 
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks: SemaExpr.cpp.
 
   bool DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc, 
-                         bool UnknownObjCClass=false);
+                         const ObjCInterfaceDecl *UnknownObjCClass=0);
+  std::string getDeletedOrUnavailableSuffix(const FunctionDecl *FD);
   bool DiagnosePropertyAccessorMismatch(ObjCPropertyDecl *PD,
                                         ObjCMethodDecl *Getter,
                                         SourceLocation Loc);
@@ -1889,10 +2166,19 @@ public:
 
   void PopExpressionEvaluationContext();
 
+  void DiscardCleanupsInEvaluationContext();
+
   void MarkDeclarationReferenced(SourceLocation Loc, Decl *D);
   void MarkDeclarationsReferencedInType(SourceLocation Loc, QualType T);
   void MarkDeclarationsReferencedInExpr(Expr *E);
-  
+
+  /// \brief Figure out if an expression could be turned into a call.
+  bool isExprCallable(const Expr &E, QualType &ZeroArgCallReturnTy,
+                      UnresolvedSetImpl &NonTemplateOverloads);
+  /// \brief Give notes for a set of overloads.
+  void NoteOverloads(const UnresolvedSetImpl &Overloads,
+                     const SourceLocation FinalNoteLoc);
+
   /// \brief Conditionally issue a diagnostic based on the current
   /// evaluation context.
   ///
@@ -1906,8 +2192,17 @@ public:
   // Primary Expressions.
   SourceRange getExprRange(Expr *E) const;
 
+  ObjCIvarDecl *SynthesizeProvisionalIvar(LookupResult &Lookup,
+                                          IdentifierInfo *II,
+                                          SourceLocation NameLoc);
+  
   ExprResult ActOnIdExpression(Scope *S, CXXScopeSpec &SS, UnqualifiedId &Name,
                                bool HasTrailingLParen, bool IsAddressOfOperand);
+
+  void DecomposeUnqualifiedId(const UnqualifiedId &Id,
+                              TemplateArgumentListInfo &Buffer,
+                              DeclarationNameInfo &NameInfo,
+                              const TemplateArgumentListInfo *&TemplateArgs);
 
   bool DiagnoseEmptyLookup(Scope *S, CXXScopeSpec &SS, LookupResult &R,
                            CorrectTypoContext CTC = CTC_Unknown);
@@ -1964,12 +2259,25 @@ public:
   ExprResult ActOnParenExpr(SourceLocation L, SourceLocation R, Expr *Val);
   ExprResult ActOnParenOrParenListExpr(SourceLocation L,
                                        SourceLocation R,
-                                       MultiExprArg Val,
-                                       ParsedType TypeOfCast = ParsedType());
+                                       MultiExprArg Val);
 
   /// ActOnStringLiteral - The specified tokens were lexed as pasted string
   /// fragments (e.g. "foo" "bar" L"baz").
   ExprResult ActOnStringLiteral(const Token *Toks, unsigned NumToks);
+
+  ExprResult ActOnGenericSelectionExpr(SourceLocation KeyLoc,
+                                       SourceLocation DefaultLoc,
+                                       SourceLocation RParenLoc,
+                                       Expr *ControllingExpr,
+                                       MultiTypeArg Types,
+                                       MultiExprArg Exprs);
+  ExprResult CreateGenericSelectionExpr(SourceLocation KeyLoc,
+                                        SourceLocation DefaultLoc,
+                                        SourceLocation RParenLoc,
+                                        Expr *ControllingExpr,
+                                        TypeSourceInfo **Types,
+                                        Expr **Exprs,
+                                        unsigned NumAssocs);
 
   // Binary/Unary Operators.  'Tok' is the token for the operator.
   ExprResult CreateBuiltinUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
@@ -1979,19 +2287,25 @@ public:
   ExprResult ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
                           tok::TokenKind Op, Expr *Input);
 
-  ExprResult CreateSizeOfAlignOfExpr(TypeSourceInfo *T,
-                                     SourceLocation OpLoc,
-                                     bool isSizeOf, SourceRange R);
-  ExprResult CreateSizeOfAlignOfExpr(Expr *E, SourceLocation OpLoc,
-                                     bool isSizeOf, SourceRange R);
+  ExprResult CreateUnaryExprOrTypeTraitExpr(TypeSourceInfo *T,
+                                            SourceLocation OpLoc,
+                                            UnaryExprOrTypeTrait ExprKind,
+                                            SourceRange R);
+  ExprResult CreateUnaryExprOrTypeTraitExpr(Expr *E, SourceLocation OpLoc,
+                                            UnaryExprOrTypeTrait ExprKind);
   ExprResult
-    ActOnSizeOfAlignOfExpr(SourceLocation OpLoc, bool isSizeof, bool isType,
-                           void *TyOrEx, const SourceRange &ArgRange);
+    ActOnUnaryExprOrTypeTraitExpr(SourceLocation OpLoc,
+                                  UnaryExprOrTypeTrait ExprKind,
+                                  bool isType, void *TyOrEx,
+                                  const SourceRange &ArgRange);
 
-  ExprResult CheckPlaceholderExpr(Expr *E, SourceLocation Loc);
+  ExprResult CheckPlaceholderExpr(Expr *E);
+  bool CheckVecStepExpr(Expr *E);
 
-  bool CheckSizeOfAlignOfOperand(QualType type, SourceLocation OpLoc,
-                                 SourceRange R, bool isSizeof);
+  bool CheckUnaryExprOrTypeTraitOperand(Expr *E, UnaryExprOrTypeTrait ExprKind);
+  bool CheckUnaryExprOrTypeTraitOperand(QualType type, SourceLocation OpLoc,
+                                        SourceRange R,
+                                        UnaryExprOrTypeTrait ExprKind);
   ExprResult ActOnSizeofParameterPackExpr(Scope *S,
                                           SourceLocation OpLoc,
                                           IdentifierInfo &Name,
@@ -2020,7 +2334,7 @@ public:
                                  const TemplateArgumentListInfo *TemplateArgs,
                                       bool SuppressQualifierCheck = false);
 
-  ExprResult LookupMemberExpr(LookupResult &R, Expr *&Base,
+  ExprResult LookupMemberExpr(LookupResult &R, ExprResult &Base,
                               bool &IsArrow, SourceLocation OpLoc,
                               CXXScopeSpec &SS,
                               Decl *ObjCImpDecl,
@@ -2068,21 +2382,19 @@ public:
                                 MultiExprArg ExecConfig, SourceLocation GGGLoc);
 
   ExprResult ActOnCastExpr(Scope *S, SourceLocation LParenLoc,
-                           ParsedType Ty, SourceLocation RParenLoc,
-                           Expr *Op);
+                           Declarator &D, ParsedType &Ty,
+                           SourceLocation RParenLoc, Expr *Op);
   ExprResult BuildCStyleCastExpr(SourceLocation LParenLoc,
                                  TypeSourceInfo *Ty,
                                  SourceLocation RParenLoc,
                                  Expr *Op);
 
-  bool TypeIsVectorType(ParsedType Ty) {
-    return GetTypeFromParser(Ty)->isVectorType();
-  }
+  /// \brief Build an altivec or OpenCL literal.
+  ExprResult BuildVectorLiteral(SourceLocation LParenLoc,
+                                SourceLocation RParenLoc, Expr *E,
+                                TypeSourceInfo *TInfo);
 
   ExprResult MaybeConvertParenListExprToParenExpr(Scope *S, Expr *ME);
-  ExprResult ActOnCastOfParenListExpr(Scope *S, SourceLocation LParenLoc,
-                                      SourceLocation RParenLoc, Expr *E,
-                                      TypeSourceInfo *TInfo);
 
   ExprResult ActOnCompoundLiteral(SourceLocation LParenLoc,
                                   ParsedType Ty,
@@ -2163,6 +2475,10 @@ public:
   // __null
   ExprResult ActOnGNUNullExpr(SourceLocation TokenLoc);
 
+  bool CheckCaseExpression(Expr *expr);
+
+  bool CheckMicrosoftIfExistsSymbol(CXXScopeSpec &SS, UnqualifiedId &Name);
+
   //===------------------------- "Block" Extension ------------------------===//
 
   /// ActOnBlockStart - This callback is invoked when a block literal is
@@ -2182,10 +2498,18 @@ public:
   ExprResult ActOnBlockStmtExpr(SourceLocation CaretLoc,
                                         Stmt *Body, Scope *CurScope);
 
+  //===---------------------------- OpenCL Features -----------------------===//
+    
+  /// __builtin_astype(...)
+  ExprResult ActOnAsTypeExpr(Expr *expr, ParsedType DestTy,
+                             SourceLocation BuiltinLoc, 
+                             SourceLocation RParenLoc);
+  
   //===---------------------------- C++ Features --------------------------===//
 
   // Act on C++ namespaces
   Decl *ActOnStartNamespaceDef(Scope *S, SourceLocation InlineLoc,
+                               SourceLocation NamespaceLoc,
                                SourceLocation IdentLoc,
                                IdentifierInfo *Ident,
                                SourceLocation LBrace,
@@ -2250,6 +2574,12 @@ public:
                               AttributeList *AttrList,
                               bool IsTypeName,
                               SourceLocation TypenameLoc);
+  Decl *ActOnAliasDeclaration(Scope *CurScope,
+                              AccessSpecifier AS,
+                              MultiTemplateParamsArg TemplateParams,
+                              SourceLocation UsingLoc,
+                              UnqualifiedId &Name,
+                              TypeResult Type);
 
   /// AddCXXDirectInitializerToDecl - This action is called immediately after
   /// ActOnDeclarator, when a C++ direct initializer is present.
@@ -2295,6 +2625,111 @@ public:
   /// constructed variable.
   void FinalizeVarWithDestructor(VarDecl *VD, const RecordType *DeclInitType);
 
+  /// \brief Helper class that collects exception specifications for 
+  /// implicitly-declared special member functions.
+  class ImplicitExceptionSpecification {
+    // Pointer to allow copying
+    ASTContext *Context;
+    // We order exception specifications thus:
+    // noexcept is the most restrictive, but is only used in C++0x.
+    // throw() comes next.
+    // Then a throw(collected exceptions)
+    // Finally no specification.
+    // throw(...) is used instead if any called function uses it.
+    //
+    // If this exception specification cannot be known yet (for instance,
+    // because this is the exception specification for a defaulted default
+    // constructor and we haven't finished parsing the deferred parts of the
+    // class yet), the C++0x standard does not specify how to behave. We
+    // record this as an 'unknown' exception specification, which overrules
+    // any other specification (even 'none', to keep this rule simple).
+    ExceptionSpecificationType ComputedEST;
+    llvm::SmallPtrSet<CanQualType, 4> ExceptionsSeen;
+    llvm::SmallVector<QualType, 4> Exceptions;
+
+    void ClearExceptions() {
+      ExceptionsSeen.clear();
+      Exceptions.clear();
+    }
+
+  public:
+    explicit ImplicitExceptionSpecification(ASTContext &Context) 
+      : Context(&Context), ComputedEST(EST_BasicNoexcept) {
+      if (!Context.getLangOptions().CPlusPlus0x)
+        ComputedEST = EST_DynamicNone;
+    }
+
+    /// \brief Get the computed exception specification type.
+    ExceptionSpecificationType getExceptionSpecType() const {
+      assert(ComputedEST != EST_ComputedNoexcept &&
+             "noexcept(expr) should not be a possible result");
+      return ComputedEST;
+    }
+
+    /// \brief The number of exceptions in the exception specification.
+    unsigned size() const { return Exceptions.size(); }
+
+    /// \brief The set of exceptions in the exception specification.
+    const QualType *data() const { return Exceptions.data(); }
+
+    /// \brief Integrate another called method into the collected data.
+    void CalledDecl(CXXMethodDecl *Method);
+
+    /// \brief Integrate an invoked expression into the collected data.
+    void CalledExpr(Expr *E);
+
+    /// \brief Specify that the exception specification can't be detemined yet.
+    void SetDelayed() {
+      ClearExceptions();
+      ComputedEST = EST_Delayed;
+    }
+
+    FunctionProtoType::ExtProtoInfo getEPI() const {
+      FunctionProtoType::ExtProtoInfo EPI;
+      EPI.ExceptionSpecType = getExceptionSpecType();
+      EPI.NumExceptions = size();
+      EPI.Exceptions = data();
+      return EPI;
+    }
+  };
+
+  /// \brief Determine what sort of exception specification a defaulted
+  /// copy constructor of a class will have.
+  ImplicitExceptionSpecification
+  ComputeDefaultedDefaultCtorExceptionSpec(CXXRecordDecl *ClassDecl);
+
+  /// \brief Determine what sort of exception specification a defaulted
+  /// default constructor of a class will have, and whether the parameter
+  /// will be const.
+  std::pair<ImplicitExceptionSpecification, bool>
+  ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl);
+
+  /// \brief Determine what sort of exception specification a defautled
+  /// copy assignment operator of a class will have, and whether the
+  /// parameter will be const.
+  std::pair<ImplicitExceptionSpecification, bool>
+  ComputeDefaultedCopyAssignmentExceptionSpecAndConst(CXXRecordDecl *ClassDecl);
+
+  /// \brief Determine what sort of exception specification a defaulted
+  /// destructor of a class will have.
+  ImplicitExceptionSpecification
+  ComputeDefaultedDtorExceptionSpec(CXXRecordDecl *ClassDecl);
+
+  /// \brief Determine if a defaulted default constructor ought to be
+  /// deleted.
+  bool ShouldDeleteDefaultConstructor(CXXConstructorDecl *CD);
+
+  /// \brief Determine if a defaulted copy constructor ought to be
+  /// deleted.
+  bool ShouldDeleteCopyConstructor(CXXConstructorDecl *CD);
+
+  /// \brief Determine if a defaulted copy assignment operator ought to be
+  /// deleted.
+  bool ShouldDeleteCopyAssignmentOperator(CXXMethodDecl *MD);
+
+  /// \brief Determine if a defaulted destructor ought to be deleted.
+  bool ShouldDeleteDestructor(CXXDestructorDecl *DD);
+
   /// \brief Declare the implicit default constructor for the given class.
   ///
   /// \param ClassDecl The class declaration into which the implicit 
@@ -2322,6 +2757,13 @@ public:
   void DefineImplicitDestructor(SourceLocation CurrentLocation,
                                 CXXDestructorDecl *Destructor);
 
+  /// \brief Build an exception spec for destructors that don't have one.
+  ///
+  /// C++11 says that user-defined destructors with no exception spec get one
+  /// that looks as if the destructor was implicitly declared.
+  void AdjustDestructorExceptionSpec(CXXRecordDecl *ClassDecl,
+                                     CXXDestructorDecl *Destructor);
+
   /// \brief Declare all inherited constructors for the given class.
   ///
   /// \param ClassDecl The class declaration into which the inherited
@@ -2342,8 +2784,7 @@ public:
   /// DefineImplicitCopyConstructor - Checks for feasibility of
   /// defining this constructor as the copy constructor.
   void DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
-                                     CXXConstructorDecl *Constructor,
-                                     unsigned TypeQuals);
+                                     CXXConstructorDecl *Constructor);
 
   /// \brief Declare the implicit copy assignment operator for the given class.
   ///
@@ -2380,11 +2821,15 @@ public:
                                ParsedType ObjectType,
                                bool EnteringContext);
 
+  // Checks that reinterpret casts don't have undefined behavior.
+  void CheckCompatibleReinterpretCast(QualType SrcType, QualType DestType,
+                                      bool IsDereference, SourceRange Range);
+
   /// ActOnCXXNamedCast - Parse {dynamic,static,reinterpret,const}_cast's.
   ExprResult ActOnCXXNamedCast(SourceLocation OpLoc,
                                tok::TokenKind Kind,
                                SourceLocation LAngleBracketLoc,
-                               ParsedType Ty,
+                               Declarator &D,
                                SourceLocation RAngleBracketLoc,
                                SourceLocation LParenLoc,
                                Expr *E,
@@ -2431,10 +2876,9 @@ public:
   //// ActOnCXXThis -  Parse 'this' pointer.
   ExprResult ActOnCXXThis(SourceLocation loc);
 
-  /// tryCaptureCXXThis - Try to capture a 'this' pointer.  Returns a
-  /// pointer to an instance method whose 'this' pointer is
-  /// capturable, or null if this is not possible.
-  CXXMethodDecl *tryCaptureCXXThis();
+  /// getAndCaptureCurrentThisType - Try to capture a 'this' pointer.  Returns
+  /// the type of the 'this' pointer, or a null type if this is not possible.
+  QualType getAndCaptureCurrentThisType();
 
   /// ActOnCXXBoolLiteral - Parse {true,false} literals.
   ExprResult ActOnCXXBoolLiteral(SourceLocation OpLoc, tok::TokenKind Kind);
@@ -2443,8 +2887,11 @@ public:
   ExprResult ActOnCXXNullPtrLiteral(SourceLocation Loc);
 
   //// ActOnCXXThrow -  Parse throw expressions.
-  ExprResult ActOnCXXThrow(SourceLocation OpLoc, Expr *expr);
-  bool CheckCXXThrowOperand(SourceLocation ThrowLoc, Expr *&E);
+  ExprResult ActOnCXXThrow(Scope *S, SourceLocation OpLoc, Expr *expr);
+  ExprResult BuildCXXThrow(SourceLocation OpLoc, Expr *Ex, 
+                           bool IsThrownVarInScope);
+  ExprResult CheckCXXThrowOperand(SourceLocation ThrowLoc, Expr *E, 
+                                  bool IsThrownVarInScope);
 
   /// ActOnCXXTypeConstructExpr - Parse construction of a specified type.
   /// Can be interpreted either as function-style casting ("int(x)")
@@ -2492,14 +2939,16 @@ public:
   bool FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
                               DeclarationName Name, Expr** Args,
                               unsigned NumArgs, DeclContext *Ctx,
-                              bool AllowMissing, FunctionDecl *&Operator);
+                              bool AllowMissing, FunctionDecl *&Operator,
+                              bool Diagnose = true);
   void DeclareGlobalNewDelete();
   void DeclareGlobalAllocationFunction(DeclarationName Name, QualType Return,
                                        QualType Argument,
                                        bool addMallocAttr = false);
 
   bool FindDeallocationFunction(SourceLocation StartLoc, CXXRecordDecl *RD,
-                                DeclarationName Name, FunctionDecl* &Operator);
+                                DeclarationName Name, FunctionDecl* &Operator,
+                                bool Diagnose = true);
 
   /// ActOnCXXDelete - Parsed a C++ 'delete' expression
   ExprResult ActOnCXXDelete(SourceLocation StartLoc,
@@ -2540,6 +2989,32 @@ public:
                                   SourceLocation KWLoc,
                                   TypeSourceInfo *LhsT,
                                   TypeSourceInfo *RhsT,
+                                  SourceLocation RParen);
+
+  /// ActOnArrayTypeTrait - Parsed one of the bianry type trait support
+  /// pseudo-functions.
+  ExprResult ActOnArrayTypeTrait(ArrayTypeTrait ATT,
+                                 SourceLocation KWLoc,
+                                 ParsedType LhsTy,
+                                 Expr *DimExpr,
+                                 SourceLocation RParen);
+
+  ExprResult BuildArrayTypeTrait(ArrayTypeTrait ATT,
+                                 SourceLocation KWLoc,
+                                 TypeSourceInfo *TSInfo,
+                                 Expr *DimExpr,
+                                 SourceLocation RParen);
+
+  /// ActOnExpressionTrait - Parsed one of the unary type trait support
+  /// pseudo-functions.
+  ExprResult ActOnExpressionTrait(ExpressionTrait OET,
+                                  SourceLocation KWLoc,
+                                  Expr *Queried,
+                                  SourceLocation RParen);
+
+  ExprResult BuildExpressionTrait(ExpressionTrait OET,
+                                  SourceLocation KWLoc,
+                                  Expr *Queried,
                                   SourceLocation RParen);
 
   ExprResult ActOnStartCXXMemberReference(Scope *S,
@@ -2659,25 +3134,41 @@ public:
                                  ParsedType ObjectType,
                                  bool EnteringContext);
 
-  /// \brief The parser has parsed a nested-name-specifier 'type::'.
+  /// \brief The parser has parsed a nested-name-specifier 
+  /// 'template[opt] template-name < template-args >::'.
   ///
   /// \param S The scope in which this nested-name-specifier occurs.
   ///
-  /// \param Type The type, which will be a template specialization
-  /// type, preceding the '::'.
-  ///
-  /// \param CCLoc The location of the '::'.
+  /// \param TemplateLoc The location of the 'template' keyword, if any.
   ///
   /// \param SS The nested-name-specifier, which is both an input
   /// parameter (the nested-name-specifier before this type) and an
   /// output parameter (containing the full nested-name-specifier,
   /// including this new type).
+  /// 
+  /// \param TemplateLoc the location of the 'template' keyword, if any.
+  /// \param TemplateName The template name.
+  /// \param TemplateNameLoc The location of the template name.
+  /// \param LAngleLoc The location of the opening angle bracket  ('<').
+  /// \param TemplateArgs The template arguments.
+  /// \param RAngleLoc The location of the closing angle bracket  ('>').
+  /// \param CCLoc The location of the '::'.
+  
+  /// \param EnteringContext Whether we're entering the context of the 
+  /// nested-name-specifier.
+  ///
   ///
   /// \returns true if an error occurred, false otherwise.
   bool ActOnCXXNestedNameSpecifier(Scope *S,
-                                   ParsedType Type,
+                                   SourceLocation TemplateLoc, 
+                                   CXXScopeSpec &SS, 
+                                   TemplateTy Template,
+                                   SourceLocation TemplateNameLoc,
+                                   SourceLocation LAngleLoc,
+                                   ASTTemplateArgsPtr TemplateArgs,
+                                   SourceLocation RAngleLoc,
                                    SourceLocation CCLoc,
-                                   CXXScopeSpec &SS);
+                                   bool EnteringContext);
 
   /// \brief Given a C++ nested-name-specifier, produce an annotation value
   /// that the parser can use later to reconstruct the given 
@@ -2736,7 +3227,7 @@ public:
                                     Expr **Strings,
                                     unsigned NumStrings);
 
-  Expr *BuildObjCEncodeExpression(SourceLocation AtLoc,
+  ExprResult BuildObjCEncodeExpression(SourceLocation AtLoc,
                                   TypeSourceInfo *EncodedTypeInfo,
                                   SourceLocation RParenLoc);
   ExprResult BuildCXXMemberCallExpr(Expr *Exp, NamedDecl *FoundDecl,
@@ -2789,8 +3280,10 @@ public:
                                  Declarator &D,
                                  MultiTemplateParamsArg TemplateParameterLists,
                                  Expr *BitfieldWidth, const VirtSpecifiers &VS,
-                                 Expr *Init, bool IsDefinition,
-                                 bool Deleted = false);
+                                 Expr *Init, bool HasDeferredInit,
+                                 bool IsDefinition);
+  void ActOnCXXInClassMemberInitializer(Decl *VarDecl, SourceLocation EqualLoc,
+                                        Expr *Init);
 
   MemInitResult ActOnMemInitializer(Decl *ConstructorD,
                                     Scope *S,
@@ -2818,10 +3311,13 @@ public:
 
   MemInitResult BuildDelegatingInitializer(TypeSourceInfo *TInfo,
                                            Expr **Args, unsigned NumArgs,
+                                           SourceLocation BaseLoc,
                                            SourceLocation RParenLoc,
                                            SourceLocation LParenLoc,
-                                           CXXRecordDecl *ClassDecl,
-                                           SourceLocation EllipsisLoc);
+                                           CXXRecordDecl *ClassDecl);
+
+  bool SetDelegatingInitializer(CXXConstructorDecl *Constructor,
+                                CXXCtorInitializer *Initializer);
 
   bool SetCtorInitializers(CXXConstructorDecl *Constructor,
                            CXXCtorInitializer **Initializers,
@@ -2887,15 +3383,20 @@ public:
                                          AttributeList *AttrList);
 
   void ActOnReenterTemplateScope(Scope *S, Decl *Template);
+  void ActOnReenterDeclaratorTemplateScope(Scope *S, DeclaratorDecl *D);
   void ActOnStartDelayedMemberDeclarations(Scope *S, Decl *Record);
   void ActOnStartDelayedCXXMethodDeclaration(Scope *S, Decl *Method);
   void ActOnDelayedCXXMethodParameter(Scope *S, Decl *Param);
-  void ActOnFinishDelayedCXXMethodDeclaration(Scope *S, Decl *Method);
   void ActOnFinishDelayedMemberDeclarations(Scope *S, Decl *Record);
+  void ActOnFinishDelayedCXXMethodDeclaration(Scope *S, Decl *Method);
+  void ActOnFinishDelayedMemberInitializers(Decl *Record);
+  void MarkAsLateParsedTemplate(FunctionDecl *FD, bool Flag = true);
+  bool IsInsideALocalClassWithinATemplateFunction();
 
-  Decl *ActOnStaticAssertDeclaration(SourceLocation AssertLoc,
+  Decl *ActOnStaticAssertDeclaration(SourceLocation StaticAssertLoc,
                                      Expr *AssertExpr,
-                                     Expr *AssertMessageExpr);
+                                     Expr *AssertMessageExpr,
+                                     SourceLocation RParenLoc);
 
   FriendDecl *CheckFriendTypeDecl(SourceLocation FriendLoc,
                                   TypeSourceInfo *TSInfo);
@@ -2913,6 +3414,12 @@ public:
   void CheckConversionDeclarator(Declarator &D, QualType &R,
                                  StorageClass& SC);
   Decl *ActOnConversionDeclarator(CXXConversionDecl *Conversion);
+
+  void CheckExplicitlyDefaultedMethods(CXXRecordDecl *Record);
+  void CheckExplicitlyDefaultedDefaultConstructor(CXXConstructorDecl *Ctor);
+  void CheckExplicitlyDefaultedCopyConstructor(CXXConstructorDecl *Ctor);
+  void CheckExplicitlyDefaultedCopyAssignment(CXXMethodDecl *Method);
+  void CheckExplicitlyDefaultedDestructor(CXXDestructorDecl *Dtor);
 
   //===--------------------------------------------------------------------===//
   // C++ Derived Classes
@@ -3001,12 +3508,17 @@ public:
   AccessResult CheckAllocationAccess(SourceLocation OperatorLoc,
                                      SourceRange PlacementRange,
                                      CXXRecordDecl *NamingClass,
-                                     DeclAccessPair FoundDecl);
+                                     DeclAccessPair FoundDecl,
+                                     bool Diagnose = true);
   AccessResult CheckConstructorAccess(SourceLocation Loc,
                                       CXXConstructorDecl *D,
                                       const InitializedEntity &Entity,
                                       AccessSpecifier Access,
                                       bool IsCopyBindingRefToTemp = false);
+  AccessResult CheckConstructorAccess(SourceLocation Loc,
+                                      CXXConstructorDecl *D,
+                                      AccessSpecifier Access,
+                                      PartialDiagnostic PD);
   AccessResult CheckDestructorAccess(SourceLocation Loc,
                                      CXXDestructorDecl *Dtor,
                                      const PartialDiagnostic &PDiag);
@@ -3071,18 +3583,21 @@ public:
   //===--------------------------------------------------------------------===//
   // C++ Templates [C++ 14]
   //
+  void FilterAcceptableTemplateNames(LookupResult &R);
+  bool hasAnyAcceptableTemplateNames(LookupResult &R);
+  
   void LookupTemplateName(LookupResult &R, Scope *S, CXXScopeSpec &SS,
                           QualType ObjectType, bool EnteringContext,
                           bool &MemberOfUnknownSpecialization);
 
   TemplateNameKind isTemplateName(Scope *S,
-                                          CXXScopeSpec &SS,
-                                          bool hasTemplateKeyword,
-                                          UnqualifiedId &Name,
-                                          ParsedType ObjectType,
-                                          bool EnteringContext,
-                                          TemplateTy &Template,
-                                          bool &MemberOfUnknownSpecialization);
+                                  CXXScopeSpec &SS,
+                                  bool hasTemplateKeyword,
+                                  UnqualifiedId &Name,
+                                  ParsedType ObjectType,
+                                  bool EnteringContext,
+                                  TemplateTy &Template,
+                                  bool &MemberOfUnknownSpecialization);
 
   bool DiagnoseUnknownTemplateName(const IdentifierInfo &II,
                                    SourceLocation IILoc,
@@ -3135,7 +3650,8 @@ public:
     TPC_FunctionTemplate,
     TPC_ClassTemplateMember,
     TPC_FriendFunctionTemplate,
-    TPC_FriendFunctionTemplateDefinition
+    TPC_FriendFunctionTemplateDefinition,
+    TPC_TypeAliasTemplate
   };
 
   bool CheckTemplateParameterList(TemplateParameterList *NewParams,
@@ -3143,6 +3659,7 @@ public:
                                   TemplateParamListContext TPC);
   TemplateParameterList *
   MatchTemplateParametersToScopeSpecifier(SourceLocation DeclStartLoc,
+                                          SourceLocation DeclLoc,
                                           const CXXScopeSpec &SS,
                                           TemplateParameterList **ParamLists,
                                           unsigned NumParamLists,
@@ -3155,27 +3672,41 @@ public:
                                 IdentifierInfo *Name, SourceLocation NameLoc,
                                 AttributeList *Attr,
                                 TemplateParameterList *TemplateParams,
-                                AccessSpecifier AS);
+                                AccessSpecifier AS,
+                                unsigned NumOuterTemplateParamLists,
+                            TemplateParameterList **OuterTemplateParamLists);
 
   void translateTemplateArguments(const ASTTemplateArgsPtr &In,
                                   TemplateArgumentListInfo &Out);
 
+  void NoteAllFoundTemplates(TemplateName Name);
+  
   QualType CheckTemplateIdType(TemplateName Template,
                                SourceLocation TemplateLoc,
-                               const TemplateArgumentListInfo &TemplateArgs);
+                              TemplateArgumentListInfo &TemplateArgs);
 
   TypeResult
-  ActOnTemplateIdType(TemplateTy Template, SourceLocation TemplateLoc,
+  ActOnTemplateIdType(CXXScopeSpec &SS,
+                      TemplateTy Template, SourceLocation TemplateLoc,
                       SourceLocation LAngleLoc,
                       ASTTemplateArgsPtr TemplateArgs,
                       SourceLocation RAngleLoc);
 
-  TypeResult ActOnTagTemplateIdType(CXXScopeSpec &SS,
-                                    TypeResult Type,
-                                    TagUseKind TUK,
+  /// \brief Parsed an elaborated-type-specifier that refers to a template-id,
+  /// such as \c class T::template apply<U>.
+  ///
+  /// \param TUK 
+  TypeResult ActOnTagTemplateIdType(TagUseKind TUK,
                                     TypeSpecifierType TagSpec,
-                                    SourceLocation TagLoc);
+                                    SourceLocation TagLoc,
+                                    CXXScopeSpec &SS,
+                                    TemplateTy TemplateD, 
+                                    SourceLocation TemplateLoc,
+                                    SourceLocation LAngleLoc,
+                                    ASTTemplateArgsPtr TemplateArgsIn,
+                                    SourceLocation RAngleLoc);
 
+  
   ExprResult BuildTemplateIdExpr(const CXXScopeSpec &SS,
                                  LookupResult &R,
                                  bool RequiresADL,
@@ -3225,7 +3756,7 @@ public:
                                                     LookupResult &Previous);
 
   bool CheckFunctionTemplateSpecialization(FunctionDecl *FD,
-                        const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                         TemplateArgumentListInfo *ExplicitTemplateArgs,
                                            LookupResult &Previous);
   bool CheckMemberSpecialization(NamedDecl *Member, LookupResult &Previous);
 
@@ -3291,9 +3822,30 @@ public:
                            llvm::SmallVectorImpl<TemplateArgument> &Converted,
                              CheckTemplateArgumentKind CTAK = CTAK_Specified);
 
+  /// \brief Check that the given template arguments can be be provided to
+  /// the given template, converting the arguments along the way.
+  ///
+  /// \param Template The template to which the template arguments are being
+  /// provided.
+  ///
+  /// \param TemplateLoc The location of the template name in the source.
+  ///
+  /// \param TemplateArgs The list of template arguments. If the template is
+  /// a template template parameter, this function may extend the set of
+  /// template arguments to also include substituted, defaulted template
+  /// arguments.
+  ///
+  /// \param PartialTemplateArgs True if the list of template arguments is
+  /// intentionally partial, e.g., because we're checking just the initial
+  /// set of template arguments.
+  ///
+  /// \param Converted Will receive the converted, canonicalized template
+  /// arguments.
+  ///
+  /// \returns True if an error occurred, false otherwise.
   bool CheckTemplateArgumentList(TemplateDecl *Template,
                                  SourceLocation TemplateLoc,
-                                 const TemplateArgumentListInfo &TemplateArgs,
+                                 TemplateArgumentListInfo &TemplateArgs,
                                  bool PartialTemplateArgs,
                            llvm::SmallVectorImpl<TemplateArgument> &Converted);
 
@@ -3305,10 +3857,10 @@ public:
                              TypeSourceInfo *Arg);
   bool CheckTemplateArgumentPointerToMember(Expr *Arg,
                                             TemplateArgument &Converted);
-  bool CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
-                             QualType InstantiatedParamType, Expr *&Arg,
-                             TemplateArgument &Converted,
-                             CheckTemplateArgumentKind CTAK = CTAK_Specified);
+  ExprResult CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
+                                   QualType InstantiatedParamType, Expr *Arg,
+                                   TemplateArgument &Converted,
+                                   CheckTemplateArgumentKind CTAK = CTAK_Specified);
   bool CheckTemplateArgument(TemplateTemplateParmDecl *Param,
                              const TemplateArgumentLoc &Arg);
 
@@ -3384,17 +3936,25 @@ public:
   /// \param TypenameLoc the location of the 'typename' keyword
   /// \param SS the nested-name-specifier following the typename (e.g., 'T::').
   /// \param TemplateLoc the location of the 'template' keyword, if any.
-  /// \param Ty the type that the typename specifier refers to.
+  /// \param TemplateName The template name.
+  /// \param TemplateNameLoc The location of the template name.
+  /// \param LAngleLoc The location of the opening angle bracket  ('<').
+  /// \param TemplateArgs The template arguments.
+  /// \param RAngleLoc The location of the closing angle bracket  ('>').
   TypeResult
   ActOnTypenameType(Scope *S, SourceLocation TypenameLoc, 
-                    const CXXScopeSpec &SS, SourceLocation TemplateLoc, 
-                    ParsedType Ty);
+                    const CXXScopeSpec &SS, 
+                    SourceLocation TemplateLoc, 
+                    TemplateTy Template,
+                    SourceLocation TemplateNameLoc,
+                    SourceLocation LAngleLoc,
+                    ASTTemplateArgsPtr TemplateArgs,
+                    SourceLocation RAngleLoc);
 
   QualType CheckTypenameType(ElaboratedTypeKeyword Keyword,
-                             NestedNameSpecifier *NNS,
-                             const IdentifierInfo &II,
                              SourceLocation KeywordLoc,
-                             SourceRange NNSRange,
+                             NestedNameSpecifierLoc QualifierLoc,
+                             const IdentifierInfo &II,
                              SourceLocation IILoc);
 
   TypeSourceInfo *RebuildTypeInCurrentInstantiation(TypeSourceInfo *T,
@@ -3480,7 +4040,7 @@ public:
   /// \param T The type that is being checked for unexpanded parameter
   /// packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(SourceLocation Loc, TypeSourceInfo *T,
                                        UnexpandedParameterPackContext UPPC);
 
@@ -3490,7 +4050,7 @@ public:
   /// \param E The expression that is being checked for unexpanded
   /// parameter packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(Expr *E,
                        UnexpandedParameterPackContext UPPC = UPPC_Expression);
 
@@ -3500,7 +4060,7 @@ public:
   /// \param SS The nested-name-specifier that is being checked for
   /// unexpanded parameter packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(const CXXScopeSpec &SS,
                                        UnexpandedParameterPackContext UPPC);
 
@@ -3510,7 +4070,7 @@ public:
   /// \param NameInfo The name (with source location information) that
   /// is being checked for unexpanded parameter packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(const DeclarationNameInfo &NameInfo,
                                        UnexpandedParameterPackContext UPPC);
 
@@ -3522,7 +4082,7 @@ public:
   /// \param Template The template name that is being checked for unexpanded 
   /// parameter packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(SourceLocation Loc,
                                        TemplateName Template,
                                        UnexpandedParameterPackContext UPPC);
@@ -3533,7 +4093,7 @@ public:
   /// \param Arg The template argument that is being checked for unexpanded 
   /// parameter packs.
   ///
-  /// \returns true if an error ocurred, false otherwise.
+  /// \returns true if an error occurred, false otherwise.
   bool DiagnoseUnexpandedParameterPack(TemplateArgumentLoc Arg,
                                        UnexpandedParameterPackContext UPPC);
   
@@ -3751,29 +4311,44 @@ public:
 
   TemplateDeductionResult
   SubstituteExplicitTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                        const TemplateArgumentListInfo &ExplicitTemplateArgs,
+                              TemplateArgumentListInfo &ExplicitTemplateArgs,
                       llvm::SmallVectorImpl<DeducedTemplateArgument> &Deduced,
                                  llvm::SmallVectorImpl<QualType> &ParamTypes,
                                       QualType *FunctionType,
                                       sema::TemplateDeductionInfo &Info);
 
+  /// brief A function argument from which we performed template argument 
+  // deduction for a call.
+  struct OriginalCallArg {
+    OriginalCallArg(QualType OriginalParamType,
+                    unsigned ArgIdx,
+                    QualType OriginalArgType)
+      : OriginalParamType(OriginalParamType), ArgIdx(ArgIdx), 
+        OriginalArgType(OriginalArgType) { }
+    
+    QualType OriginalParamType;
+    unsigned ArgIdx;
+    QualType OriginalArgType;
+  };
+  
   TemplateDeductionResult
   FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
                       llvm::SmallVectorImpl<DeducedTemplateArgument> &Deduced,
                                   unsigned NumExplicitlySpecified,
                                   FunctionDecl *&Specialization,
-                                  sema::TemplateDeductionInfo &Info);
+                                  sema::TemplateDeductionInfo &Info,
+           llvm::SmallVectorImpl<OriginalCallArg> const *OriginalCallArgs = 0);
 
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                          const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                          TemplateArgumentListInfo *ExplicitTemplateArgs,
                           Expr **Args, unsigned NumArgs,
                           FunctionDecl *&Specialization,
                           sema::TemplateDeductionInfo &Info);
 
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                          const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                          TemplateArgumentListInfo *ExplicitTemplateArgs,
                           QualType ArgFunctionType,
                           FunctionDecl *&Specialization,
                           sema::TemplateDeductionInfo &Info);
@@ -3786,11 +4361,12 @@ public:
 
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                          const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                          TemplateArgumentListInfo *ExplicitTemplateArgs,
                           FunctionDecl *&Specialization,
                           sema::TemplateDeductionInfo &Info);
 
-  bool DeduceAutoType(QualType AutoType, Expr *Initializer, QualType &Result);
+  bool DeduceAutoType(TypeSourceInfo *AutoType, Expr *Initializer,
+                      TypeSourceInfo *&Result);
 
   FunctionTemplateDecl *getMoreSpecializedTemplate(FunctionTemplateDecl *FT1,
                                                    FunctionTemplateDecl *FT2,
@@ -4167,7 +4743,7 @@ public:
   /// \brief The number of typos corrected by CorrectTypo.
   unsigned TyposCorrected;
 
-  typedef llvm::DenseMap<IdentifierInfo *, std::pair<llvm::StringRef, bool> >
+  typedef llvm::DenseMap<IdentifierInfo *, TypoCorrection>
     UnqualifiedTyposCorrectedMap;
   
   /// \brief A cache containing the results of typo correction for unqualified
@@ -4224,6 +4800,7 @@ public:
                                         DeclarationName Entity);
   ParmVarDecl *SubstParmVarDecl(ParmVarDecl *D,
                             const MultiLevelTemplateArgumentList &TemplateArgs,
+                                int indexAdjustment,
                                 llvm::Optional<unsigned> NumExpansions);
   bool SubstParmTypes(SourceLocation Loc, 
                       ParmVarDecl **Params, unsigned NumParams,
@@ -4271,7 +4848,7 @@ public:
                    bool Complain = true);
 
   void InstantiateAttrs(const MultiLevelTemplateArgumentList &TemplateArgs,
-                        Decl *Pattern, Decl *Inst);
+                        const Decl *Pattern, Decl *Inst);
 
   bool
   InstantiateClassTemplateSpecialization(SourceLocation PointOfInstantiation,
@@ -4289,11 +4866,6 @@ public:
                            ClassTemplateSpecializationDecl *ClassTemplateSpec,
                                                 TemplateSpecializationKind TSK);
 
-  NestedNameSpecifier *
-  SubstNestedNameSpecifier(NestedNameSpecifier *NNS,
-                           SourceRange Range,
-                           const MultiLevelTemplateArgumentList &TemplateArgs);
-
   NestedNameSpecifierLoc
   SubstNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS,
                            const MultiLevelTemplateArgumentList &TemplateArgs);
@@ -4302,7 +4874,8 @@ public:
   SubstDeclarationNameInfo(const DeclarationNameInfo &NameInfo,
                            const MultiLevelTemplateArgumentList &TemplateArgs);
   TemplateName
-  SubstTemplateName(TemplateName Name, SourceLocation Loc,
+  SubstTemplateName(NestedNameSpecifierLoc QualifierLoc, TemplateName Name, 
+                    SourceLocation Loc,
                     const MultiLevelTemplateArgumentList &TemplateArgs);
   bool Subst(const TemplateArgumentLoc *Args, unsigned NumArgs,
              TemplateArgumentListInfo &Result,
@@ -4344,7 +4917,7 @@ public:
                     IdentifierInfo *AliasName,  SourceLocation AliasLocation,
                     IdentifierInfo *ClassName, SourceLocation ClassLocation);
 
-  void CheckForwardProtocolDeclarationForCircularDependency(
+  bool CheckForwardProtocolDeclarationForCircularDependency(
     IdentifierInfo *PName,
     SourceLocation &PLoc, SourceLocation PrevLoc,
     const ObjCList<ObjCProtocolDecl> &PList);
@@ -4451,6 +5024,15 @@ public:
                               IdentifierInfo *PropertyIvar,
                               SourceLocation PropertyIvarLoc);
 
+  enum ObjCSpecialMethodKind {
+    OSMK_None,
+    OSMK_Alloc,
+    OSMK_New,
+    OSMK_Copy,
+    OSMK_RetainingInit,
+    OSMK_NonRetainingInit
+  };
+
   struct ObjCArgInfo {
     IdentifierInfo *Name;
     SourceLocation NameLoc;
@@ -4469,13 +5051,13 @@ public:
     SourceLocation EndLoc,   // location of the ; or {.
     tok::TokenKind MethodType,
     Decl *ClassDecl, ObjCDeclSpec &ReturnQT, ParsedType ReturnType,
-    Selector Sel,
+    SourceLocation SelectorStartLoc, Selector Sel,
     // optional arguments. The number of types/arguments is obtained
     // from the Sel.getNumArgs().
     ObjCArgInfo *ArgInfo,
     DeclaratorChunk::ParamInfo *CParamInfo, unsigned CNumArgs, // c-style args
     AttributeList *AttrList, tok::ObjCKeywordKind MethodImplKind,
-    bool isVariadic = false);
+    bool isVariadic, bool MethodDefinition);
 
   // Helper method for ActOnClassMethod/ActOnInstanceMethod.
   // Will search "local" class/category implementations for a method decl.
@@ -4485,10 +5067,16 @@ public:
                                            ObjCInterfaceDecl *CDecl);
   ObjCMethodDecl *LookupPrivateInstanceMethod(Selector Sel,
                                               ObjCInterfaceDecl *ClassDecl);
+  ObjCMethodDecl *LookupMethodInQualifiedType(Selector Sel,
+                                              const ObjCObjectPointerType *OPT,
+                                              bool IsInstance);
 
+  bool inferObjCARCLifetime(ValueDecl *decl);
+    
   ExprResult
   HandleExprPropertyRefExpr(const ObjCObjectPointerType *OPT,
                             Expr *BaseExpr,
+                            SourceLocation OpLoc,
                             DeclarationName MemberName,
                             SourceLocation MemberLoc,
                             SourceLocation SuperLoc, QualType SuperType,
@@ -4564,7 +5152,34 @@ public:
                                   SourceLocation RBracLoc,
                                   MultiExprArg Args);
 
+  ExprResult BuildObjCBridgedCast(SourceLocation LParenLoc,
+                                  ObjCBridgeCastKind Kind,
+                                  SourceLocation BridgeKeywordLoc,
+                                  TypeSourceInfo *TSInfo,
+                                  Expr *SubExpr);
+  
+  ExprResult ActOnObjCBridgedCast(Scope *S,
+                                  SourceLocation LParenLoc,
+                                  ObjCBridgeCastKind Kind,
+                                  SourceLocation BridgeKeywordLoc,
+                                  ParsedType Type,
+                                  SourceLocation RParenLoc,
+                                  Expr *SubExpr);
+  
+  bool checkInitMethod(ObjCMethodDecl *method, QualType receiverTypeIfCall);
+  
+  /// \brief Check whether the given new method is a valid override of the
+  /// given overridden method, and set any properties that should be inherited.
+  ///
+  /// \returns True if an error occurred.
+  bool CheckObjCMethodOverride(ObjCMethodDecl *NewMethod, 
+                               const ObjCMethodDecl *Overridden,
+                               bool IsImplementation);
 
+  /// \brief Check whether the given method overrides any methods in its class,
+  /// calling \c CheckObjCMethodOverride for each overridden method.
+  bool CheckObjCMethodOverrides(ObjCMethodDecl *NewMethod, DeclContext *DC);
+  
   enum PragmaOptionsAlignKind {
     POAK_Native,  // #pragma options align=native
     POAK_Natural, // #pragma options align=natural
@@ -4586,6 +5201,11 @@ public:
     PPK_Pop      // #pragma pack(pop, [identifier], [n])
   };
 
+  enum PragmaMSStructKind {
+    PMSST_OFF,  // #pragms ms_struct off
+    PMSST_ON    // #pragms ms_struct on
+  };
+
   /// ActOnPragmaPack - Called on well formed #pragma pack(...).
   void ActOnPragmaPack(PragmaPackKind Kind,
                        IdentifierInfo *Name,
@@ -4593,6 +5213,9 @@ public:
                        SourceLocation PragmaLoc,
                        SourceLocation LParenLoc,
                        SourceLocation RParenLoc);
+    
+  /// ActOnPragmaMSStruct - Called on well formed #pragms ms_struct [on|off].
+  void ActOnPragmaMSStruct(PragmaMSStructKind Kind);
 
   /// ActOnPragmaUnused - Called on well-formed '#pragma unused'.
   void ActOnPragmaUnused(const Token &Identifier,
@@ -4626,6 +5249,9 @@ public:
   /// a the record decl, to handle '#pragma pack' and '#pragma options align'.
   void AddAlignmentAttributesForRecord(RecordDecl *RD);
 
+  /// AddMsStructLayoutForRecord - Adds ms_struct layout attribute to record.
+  void AddMsStructLayoutForRecord(RecordDecl *RD);
+
   /// FreePackedContext - Deallocate and null out PackContext.
   void FreePackedContext();
 
@@ -4652,41 +5278,59 @@ public:
   /// from the inner expression.
   ExprValueKind CastCategory(Expr *E);
 
+  /// \brief The kind of conversion being performed.
+  enum CheckedConversionKind {
+    /// \brief An implicit conversion.
+    CCK_ImplicitConversion,
+    /// \brief A C-style cast.
+    CCK_CStyleCast,
+    /// \brief A functional-style cast.
+    CCK_FunctionalCast,
+    /// \brief A cast other than a C-style cast.
+    CCK_OtherCast
+  };
+
   /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit
   /// cast.  If there is already an implicit cast, merge into the existing one.
   /// If isLvalue, the result of the cast is an lvalue.
-  void ImpCastExprToType(Expr *&Expr, QualType Type, CastKind CK,
-                         ExprValueKind VK = VK_RValue,
-                         const CXXCastPath *BasePath = 0);
+  ExprResult ImpCastExprToType(Expr *E, QualType Type, CastKind CK,
+                               ExprValueKind VK = VK_RValue,
+                               const CXXCastPath *BasePath = 0,
+                               CheckedConversionKind CCK 
+                                  = CCK_ImplicitConversion);
+
+  /// ScalarTypeToBooleanCastKind - Returns the cast kind corresponding
+  /// to the conversion from scalar type ScalarTy to the Boolean type.
+  static CastKind ScalarTypeToBooleanCastKind(QualType ScalarTy);
 
   /// IgnoredValueConversions - Given that an expression's result is
   /// syntactically ignored, perform any conversions that are
   /// required.
-  void IgnoredValueConversions(Expr *&expr);
+  ExprResult IgnoredValueConversions(Expr *E);
 
   // UsualUnaryConversions - promotes integers (C99 6.3.1.1p2) and converts
   // functions and arrays to their respective pointers (C99 6.3.2.1).
-  Expr *UsualUnaryConversions(Expr *&expr);
+  ExprResult UsualUnaryConversions(Expr *E);
 
   // DefaultFunctionArrayConversion - converts functions and arrays
   // to their respective pointers (C99 6.3.2.1).
-  void DefaultFunctionArrayConversion(Expr *&expr);
+  ExprResult DefaultFunctionArrayConversion(Expr *E);
 
   // DefaultFunctionArrayLvalueConversion - converts functions and
   // arrays to their respective pointers and performs the
   // lvalue-to-rvalue conversion.
-  void DefaultFunctionArrayLvalueConversion(Expr *&expr);
+  ExprResult DefaultFunctionArrayLvalueConversion(Expr *E);
 
   // DefaultLvalueConversion - performs lvalue-to-rvalue conversion on
   // the operand.  This is DefaultFunctionArrayLvalueConversion,
   // except that it assumes the operand isn't of function or array
   // type.
-  void DefaultLvalueConversion(Expr *&expr);
+  ExprResult DefaultLvalueConversion(Expr *E);
 
   // DefaultArgumentPromotion (C99 6.5.2.2p6). Used for function calls that
   // do not have a prototype. Integer promotions are performed on each
   // argument, and arguments that have type float are promoted to double.
-  void DefaultArgumentPromotion(Expr *&Expr);
+  ExprResult DefaultArgumentPromotion(Expr *E);
 
   // Used for emitting the right warning by DefaultVariadicArgumentPromotion
   enum VariadicCallType {
@@ -4709,15 +5353,15 @@ public:
 
   // DefaultVariadicArgumentPromotion - Like DefaultArgumentPromotion, but
   // will warn if the resulting type is not a POD type.
-  bool DefaultVariadicArgumentPromotion(Expr *&Expr, VariadicCallType CT,
-                                        FunctionDecl *FDecl);
+  ExprResult DefaultVariadicArgumentPromotion(Expr *E, VariadicCallType CT,
+                                              FunctionDecl *FDecl);
 
   // UsualArithmeticConversions - performs the UsualUnaryConversions on it's
   // operands and then handles various conversions that are common to binary
   // operators (C99 6.3.1.8). If both operands aren't arithmetic, this
   // routine returns the first non-arithmetic type found. The client is
   // responsible for emitting appropriate error diagnostics.
-  QualType UsualArithmeticConversions(Expr *&lExpr, Expr *&rExpr,
+  QualType UsualArithmeticConversions(ExprResult &lExpr, ExprResult &rExpr,
                                       bool isCompAssign = false);
 
   /// AssignConvertType - All of the 'assignment' semantic checks return this
@@ -4783,6 +5427,10 @@ public:
     /// "id <XXX>" = "Foo *", where "Foo *" doesn't implement the XXX protocol.
     IncompatibleObjCQualifiedId,
 
+    /// IncompatibleObjCWeakRef - Assigning a weak-unavailable object to an
+    /// object with __weak qualifier.
+    IncompatibleObjCWeakRef,
+
     /// Incompatible - We reject this conversion outright, it is invalid to
     /// represent it in the AST.
     Incompatible
@@ -4805,94 +5453,104 @@ public:
 
   /// Check assignment constraints and prepare for a conversion of the
   /// RHS to the LHS type.
-  AssignConvertType CheckAssignmentConstraints(QualType lhs, Expr *&rhs,
+  AssignConvertType CheckAssignmentConstraints(QualType lhs, ExprResult &rhs,
                                                CastKind &Kind);
 
   // CheckSingleAssignmentConstraints - Currently used by
   // CheckAssignmentOperands, and ActOnReturnStmt. Prior to type checking,
   // this routine performs the default function/array converions.
   AssignConvertType CheckSingleAssignmentConstraints(QualType lhs,
-                                                     Expr *&rExpr);
+                                                     ExprResult &rExprRes);
 
   // \brief If the lhs type is a transparent union, check whether we
   // can initialize the transparent union with the given expression.
   AssignConvertType CheckTransparentUnionArgumentConstraints(QualType lhs,
-                                                             Expr *&rExpr);
+                                                             ExprResult &rExpr);
 
   bool IsStringLiteralToNonConstPointerConversion(Expr *From, QualType ToType);
 
   bool CheckExceptionSpecCompatibility(Expr *From, QualType ToType);
 
-  bool PerformImplicitConversion(Expr *&From, QualType ToType,
-                                 AssignmentAction Action,
-                                 bool AllowExplicit = false);
-  bool PerformImplicitConversion(Expr *&From, QualType ToType,
-                                 AssignmentAction Action,
-                                 bool AllowExplicit,
-                                 ImplicitConversionSequence& ICS);
-  bool PerformImplicitConversion(Expr *&From, QualType ToType,
-                                 const ImplicitConversionSequence& ICS,
-                                 AssignmentAction Action,
-                                 bool CStyle = false);
-  bool PerformImplicitConversion(Expr *&From, QualType ToType,
-                                 const StandardConversionSequence& SCS,
-                                 AssignmentAction Action,
-                                 bool CStyle);
+  ExprResult PerformImplicitConversion(Expr *From, QualType ToType,
+                                       AssignmentAction Action,
+                                       bool AllowExplicit = false);
+  ExprResult PerformImplicitConversion(Expr *From, QualType ToType,
+                                       AssignmentAction Action,
+                                       bool AllowExplicit,
+                                       ImplicitConversionSequence& ICS);
+  ExprResult PerformImplicitConversion(Expr *From, QualType ToType,
+                                       const ImplicitConversionSequence& ICS,
+                                       AssignmentAction Action,
+                                       CheckedConversionKind CCK
+                                          = CCK_ImplicitConversion);
+  ExprResult PerformImplicitConversion(Expr *From, QualType ToType,
+                                       const StandardConversionSequence& SCS,
+                                       AssignmentAction Action,
+                                       CheckedConversionKind CCK);
 
   /// the following "Check" methods will return a valid/converted QualType
   /// or a null QualType (indicating an error diagnostic was issued).
 
   /// type checking binary operators (subroutines of CreateBuiltinBinOp).
-  QualType InvalidOperands(SourceLocation l, Expr *&lex, Expr *&rex);
+  QualType InvalidOperands(SourceLocation l, ExprResult &lex, ExprResult &rex);
   QualType CheckPointerToMemberOperands( // C++ 5.5
-    Expr *&lex, Expr *&rex, ExprValueKind &VK,
+    ExprResult &lex, ExprResult &rex, ExprValueKind &VK,
     SourceLocation OpLoc, bool isIndirect);
   QualType CheckMultiplyDivideOperands( // C99 6.5.5
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign,
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, bool isCompAssign,
                                        bool isDivide);
   QualType CheckRemainderOperands( // C99 6.5.5
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, bool isCompAssign = false);
   QualType CheckAdditionOperands( // C99 6.5.6
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, QualType* CompLHSTy = 0);
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, QualType* CompLHSTy = 0);
   QualType CheckSubtractionOperands( // C99 6.5.6
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, QualType* CompLHSTy = 0);
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, QualType* CompLHSTy = 0);
   QualType CheckShiftOperands( // C99 6.5.7
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc,
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, unsigned Opc,
     bool isCompAssign = false);
   QualType CheckCompareOperands( // C99 6.5.8/9
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc,
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, unsigned Opc,
                                 bool isRelational);
   QualType CheckBitwiseOperands( // C99 6.5.[10...12]
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, bool isCompAssign = false);
   QualType CheckLogicalOperands( // C99 6.5.[13,14]
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc);
+    ExprResult &lex, ExprResult &rex, SourceLocation OpLoc, unsigned Opc);
   // CheckAssignmentOperands is used for both simple and compound assignment.
   // For simple assignment, pass both expressions and a null converted type.
   // For compound assignment, pass both expressions and the converted type.
   QualType CheckAssignmentOperands( // C99 6.5.16.[1,2]
-    Expr *lex, Expr *&rex, SourceLocation OpLoc, QualType convertedType);
+    Expr *lex, ExprResult &rex, SourceLocation OpLoc, QualType convertedType);
   
-  void ConvertPropertyForRValue(Expr *&E);
-  void ConvertPropertyForLValue(Expr *&LHS, Expr *&RHS, QualType& LHSTy);
+  void ConvertPropertyForLValue(ExprResult &LHS, ExprResult &RHS, QualType& LHSTy);
+  ExprResult ConvertPropertyForRValue(Expr *E);
                                    
   QualType CheckConditionalOperands( // C99 6.5.15
-    Expr *&cond, Expr *&lhs, Expr *&rhs,
+    ExprResult &cond, ExprResult &lhs, ExprResult &rhs,
     ExprValueKind &VK, ExprObjectKind &OK, SourceLocation questionLoc);
   QualType CXXCheckConditionalOperands( // C++ 5.16
-    Expr *&cond, Expr *&lhs, Expr *&rhs,
+    ExprResult &cond, ExprResult &lhs, ExprResult &rhs,
     ExprValueKind &VK, ExprObjectKind &OK, SourceLocation questionLoc);
   QualType FindCompositePointerType(SourceLocation Loc, Expr *&E1, Expr *&E2,
                                     bool *NonStandardCompositeType = 0);
+  QualType FindCompositePointerType(SourceLocation Loc, ExprResult &E1, ExprResult &E2,
+                                    bool *NonStandardCompositeType = 0) {
+    Expr *E1Tmp = E1.take(), *E2Tmp = E2.take();
+    QualType Composite = FindCompositePointerType(Loc, E1Tmp, E2Tmp, NonStandardCompositeType);
+    E1 = Owned(E1Tmp);
+    E2 = Owned(E2Tmp);
+    return Composite;
+  }
 
-  QualType FindCompositeObjCPointerType(Expr *&LHS, Expr *&RHS,
+  QualType FindCompositeObjCPointerType(ExprResult &LHS, ExprResult &RHS,
                                         SourceLocation questionLoc);
 
   bool DiagnoseConditionalForNull(Expr *LHS, Expr *RHS,
                                   SourceLocation QuestionLoc);
 
   /// type checking for vector binary operators.
-  QualType CheckVectorOperands(SourceLocation l, Expr *&lex, Expr *&rex);
-  QualType CheckVectorCompareOperands(Expr *&lex, Expr *&rx,
+  QualType CheckVectorOperands(ExprResult &lex, ExprResult &rex,
+                               SourceLocation Loc, bool isCompAssign);
+  QualType CheckVectorCompareOperands(ExprResult &lex, ExprResult &rx,
                                       SourceLocation l, bool isRel);
 
   /// type checking declaration initializers (C99 6.7.8)
@@ -4926,13 +5584,19 @@ public:
   ReferenceCompareResult CompareReferenceRelationship(SourceLocation Loc,
                                                       QualType T1, QualType T2,
                                                       bool &DerivedToBase,
-                                                      bool &ObjCConversion);
+                                                      bool &ObjCConversion,
+                                                bool &ObjCLifetimeConversion);
 
   /// CheckCastTypes - Check type constraints for casting between types under
   /// C semantics, or forward to CXXCheckCStyleCast in C++.
-  bool CheckCastTypes(SourceRange TyRange, QualType CastTy, Expr *&CastExpr,
-                      CastKind &Kind, ExprValueKind &VK, CXXCastPath &BasePath,
-                      bool FunctionalStyle = false);
+  ExprResult CheckCastTypes(SourceLocation CastStartLoc, SourceRange TyRange, 
+                            QualType CastTy, Expr *CastExpr, CastKind &Kind, 
+                            ExprValueKind &VK, CXXCastPath &BasePath,
+                            bool FunctionalStyle = false);
+
+  ExprResult checkUnknownAnyCast(SourceRange TyRange, QualType castType,
+                                 Expr *castExpr, CastKind &castKind,
+                                 ExprValueKind &valueKind, CXXCastPath &BasePath);
 
   // CheckVectorCast - check type constraints for vectors.
   // Since vectors are an extension, there are no C standard reference for this.
@@ -4945,25 +5609,63 @@ public:
   // Since vectors are an extension, there are no C standard reference for this.
   // We allow casting between vectors and integer datatypes of the same size,
   // or vectors and the element type of that vector.
-  // returns true if the cast is invalid
-  bool CheckExtVectorCast(SourceRange R, QualType VectorTy, Expr *&CastExpr,
-                          CastKind &Kind);
+  // returns the cast expr
+  ExprResult CheckExtVectorCast(SourceRange R, QualType VectorTy, Expr *CastExpr,
+                                CastKind &Kind);
 
   /// CXXCheckCStyleCast - Check constraints of a C-style or function-style
   /// cast under C++ semantics.
-  bool CXXCheckCStyleCast(SourceRange R, QualType CastTy, ExprValueKind &VK,
-                          Expr *&CastExpr, CastKind &Kind,
-                          CXXCastPath &BasePath, bool FunctionalStyle);
+  ExprResult CXXCheckCStyleCast(SourceRange R, QualType CastTy, ExprValueKind &VK,
+                                Expr *CastExpr, CastKind &Kind,
+                                CXXCastPath &BasePath, bool FunctionalStyle);
+    
+  /// \brief Checks for valid expressions which can be cast to an ObjC
+  /// pointer without needing a bridge cast.
+  bool ValidObjCARCNoBridgeCastExpr(Expr *&Exp, QualType castType);
+    
+  /// \brief Checks for invalid conversions and casts between
+  /// retainable pointers and other pointer kinds.
+  void CheckObjCARCConversion(SourceRange castRange, QualType castType, 
+                              Expr *&op, CheckedConversionKind CCK);
+    
+  bool CheckObjCARCUnavailableWeakConversion(QualType castType,
+                                             QualType ExprType);
+
+  /// checkRetainCycles - Check whether an Objective-C message send
+  /// might create an obvious retain cycle.
+  void checkRetainCycles(ObjCMessageExpr *msg);
+  void checkRetainCycles(Expr *receiver, Expr *argument);
+
+  /// checkUnsafeAssigns - Check whether +1 expr is being assigned
+  /// to weak/__unsafe_unretained type.
+  bool checkUnsafeAssigns(SourceLocation Loc, QualType LHS, Expr *RHS);
+
+  /// checkUnsafeExprAssigns - Check whether +1 expr is being assigned
+  /// to weak/__unsafe_unretained expression.
+  void checkUnsafeExprAssigns(SourceLocation Loc, Expr *LHS, Expr *RHS);
 
   /// CheckMessageArgumentTypes - Check types in an Obj-C message send.
   /// \param Method - May be null.
   /// \param [out] ReturnType - The return type of the send.
   /// \return true iff there were any incompatible types.
-  bool CheckMessageArgumentTypes(Expr **Args, unsigned NumArgs, Selector Sel,
+  bool CheckMessageArgumentTypes(QualType ReceiverType,
+                                 Expr **Args, unsigned NumArgs, Selector Sel,
                                  ObjCMethodDecl *Method, bool isClassMessage,
+                                 bool isSuperMessage,
                                  SourceLocation lbrac, SourceLocation rbrac,
                                  QualType &ReturnType, ExprValueKind &VK);
 
+  /// \brief Determine the result of a message send expression based on
+  /// the type of the receiver, the method expected to receive the message,
+  /// and the form of the message send.
+  QualType getMessageSendResultType(QualType ReceiverType,
+                                    ObjCMethodDecl *Method,
+                                    bool isClassMessage, bool isSuperMessage);
+
+  /// \brief If the given expression involves a message send to a method
+  /// with a related result type, emit a note describing what happened.
+  void EmitRelatedResultTypeNote(const Expr *E);
+  
   /// CheckBooleanCondition - Diagnose problems involving the use of
   /// the given expression as a boolean condition (e.g. in an if
   /// statement).  Also performs the standard function and array
@@ -4972,7 +5674,7 @@ public:
   /// \param Loc - A location associated with the condition, e.g. the
   /// 'if' keyword.
   /// \return true iff there were any errors
-  bool CheckBooleanCondition(Expr *&CondExpr, SourceLocation Loc);
+  ExprResult CheckBooleanCondition(Expr *CondExpr, SourceLocation Loc);
 
   ExprResult ActOnBooleanCondition(Scope *S, SourceLocation Loc,
                                            Expr *SubExpr);
@@ -4986,7 +5688,7 @@ public:
   void DiagnoseEqualityWithExtraParens(ParenExpr *parenE);
 
   /// CheckCXXBooleanCondition - Returns true if conversion to bool is invalid.
-  bool CheckCXXBooleanCondition(Expr *&CondExpr);
+  ExprResult CheckCXXBooleanCondition(Expr *CondExpr);
 
   /// ConvertIntegerToTypeWarnOnOverflow - Convert the specified APInt to have
   /// the specified width and sign.  If an overflow occurs, detect it and emit
@@ -5164,8 +5866,6 @@ public:
                   llvm::SmallVectorImpl<CodeCompletionResult> &Results);
   //@}
 
-  void PrintStats() const {}
-
   //===--------------------------------------------------------------------===//
   // Extra semantic analysis beyond the C type system
 
@@ -5174,7 +5874,7 @@ public:
                                                 unsigned ByteNo) const;
 
 private:  
-  void CheckArrayAccess(const ArraySubscriptExpr *E);
+  void CheckArrayAccess(const Expr *E);
   bool CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall);
   bool CheckBlockCall(NamedDecl *NDecl, CallExpr *TheCall);
 
@@ -5210,11 +5910,24 @@ private:
                          bool isPrintf);
 
   void CheckNonNullArguments(const NonNullAttr *NonNull,
-                             const CallExpr *TheCall);
+                             const Expr * const *ExprArgs,
+                             SourceLocation CallSiteLoc);
 
   void CheckPrintfScanfArguments(const CallExpr *TheCall, bool HasVAListArg,
                                  unsigned format_idx, unsigned firstDataArg,
                                  bool isPrintf);
+
+  /// \brief Enumeration used to describe which of the memory setting or copying
+  /// functions is being checked by \c CheckMemsetcpymoveArguments().
+  enum CheckedMemoryFunction {
+    CMF_Memset,
+    CMF_Memcpy,
+    CMF_Memmove
+  };
+  
+  void CheckMemsetcpymoveArguments(const CallExpr *Call, 
+                                   CheckedMemoryFunction CMF,
+                                   IdentifierInfo *FnName);
 
   void CheckReturnStackAddr(Expr *RetValExp, QualType lhsType,
                             SourceLocation ReturnLoc);
@@ -5231,10 +5944,20 @@ private:
   
 protected:
   friend class Parser;
-  friend class InitializationSequence;
+  friend class InitializationSequence;  
+  friend class ASTReader;
+  friend class ASTWriter;
   
+public:
   /// \brief Retrieve the parser's current scope.
-  Scope *getCurScope() const { return CurScope; }  
+  ///
+  /// This routine must only be used when it is certain that semantic analysis
+  /// and the parser are in precisely the same context, which is not the case
+  /// when, e.g., we are performing any kind of template instantiation.
+  /// Therefore, the only safe places to use this scope are in the parser
+  /// itself and in routines directly invoked from the parser and *never* from
+  /// template substitution or instantiation.
+  Scope *getCurScope() const { return CurScope; }
 };
 
 /// \brief RAII object that enters a new expression evaluation context.

@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */
-#include <string.h>
 #include <string.h> /* strcmp */
 #include <syslog.h>
 #include <unistd.h>

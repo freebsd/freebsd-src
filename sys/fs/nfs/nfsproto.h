@@ -66,6 +66,14 @@
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
 
 /* Stat numbers for rpc returns (version 2, 3 and 4) */
+/*
+ * These numbers are hard-wired in the RFCs, so they can't be changed.
+ * The code currently assumes that the ones < 10000 are the same as
+ * sys/errno.h and that sys/errno.h will never go as high as 10000.
+ * If the value in sys/errno.h of any entry listed below is changed,
+ * the NFS code must be modified to do the mapping between them.
+ * (You can ignore NFSERR_WFLUSH, since it is never actually used.)
+ */
 #define	NFSERR_OK		0
 #define	NFSERR_PERM		1
 #define	NFSERR_NOENT		2
@@ -216,6 +224,48 @@
 #define	NFSPROC_FSINFO		19
 #define	NFSPROC_PATHCONF	20
 #define	NFSPROC_COMMIT		21
+
+/*
+ * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
+ * numbers used by NFSv4.
+ * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
+ * one greater than the last number.
+ */
+#ifndef	NFS_V3NPROCS
+#define	NFS_V3NPROCS		22
+
+#define	NFSPROC_LOOKUPP		22
+#define	NFSPROC_SETCLIENTID	23
+#define	NFSPROC_SETCLIENTIDCFRM	24
+#define	NFSPROC_LOCK		25
+#define	NFSPROC_LOCKU		26
+#define	NFSPROC_OPEN		27
+#define	NFSPROC_CLOSE		28
+#define	NFSPROC_OPENCONFIRM	29
+#define	NFSPROC_LOCKT		30
+#define	NFSPROC_OPENDOWNGRADE	31
+#define	NFSPROC_RENEW		32
+#define	NFSPROC_PUTROOTFH	33
+#define	NFSPROC_RELEASELCKOWN	34
+#define	NFSPROC_DELEGRETURN	35
+#define	NFSPROC_RETDELEGREMOVE	36
+#define	NFSPROC_RETDELEGRENAME1	37
+#define	NFSPROC_RETDELEGRENAME2	38
+#define	NFSPROC_GETACL		39
+#define	NFSPROC_SETACL		40
+
+/*
+ * Must be defined as one higher than the last Proc# above.
+ */
+#define	NFSV4_NPROCS		41
+#endif	/* NFS_V3NPROCS */
+
+/*
+ * Define NFS_NPROCS as NFSV4_NPROCS for the experimental kernel code.
+ */
+#ifndef	NFS_NPROCS
+#define	NFS_NPROCS		NFSV4_NPROCS
+#endif
 
 /*
  * NFSPROC_NOOP is a fake op# that can't be the same as any V2/3/4 Procedure
@@ -818,15 +868,24 @@ struct nfsv3_sattr {
  * NFSATTRBIT_WRITEGETATTR0 - bits 0<->31
  */
 #define	NFSATTRBIT_WRITEGETATTR0					\
- 	(NFSATTRBM_CHANGE |						\
+ 	(NFSATTRBM_SUPPORTEDATTRS |					\
+ 	NFSATTRBM_TYPE |						\
+ 	NFSATTRBM_CHANGE |						\
  	NFSATTRBM_SIZE |						\
- 	NFSATTRBM_FSID)
+ 	NFSATTRBM_FSID |						\
+ 	NFSATTRBM_FILEID |						\
+ 	NFSATTRBM_MAXREAD)
 
 /*
  * NFSATTRBIT_WRITEGETATTR1 - bits 32<->63
  */
 #define	NFSATTRBIT_WRITEGETATTR1					\
- 	(NFSATTRBM_TIMEMETADATA |					\
+ 	(NFSATTRBM_MODE |						\
+ 	NFSATTRBM_NUMLINKS |						\
+ 	NFSATTRBM_RAWDEV |						\
+ 	NFSATTRBM_SPACEUSED |						\
+ 	NFSATTRBM_TIMEACCESS |						\
+ 	NFSATTRBM_TIMEMETADATA |					\
  	NFSATTRBM_TIMEMODIFY)
 
 /*

@@ -57,16 +57,6 @@ public:
     // 1+ - This is a node which has this many unprocessed operands.
   };
 private:
-  enum LegalizeAction {
-    Legal,           // The target natively supports this type.
-    PromoteInteger,  // Replace this integer type with a larger one.
-    ExpandInteger,   // Split this integer type into two of half the size.
-    SoftenFloat,     // Convert this float type to a same size integer type.
-    ExpandFloat,     // Split this float type into two of half the size.
-    ScalarizeVector, // Replace this one-element vector with its element type.
-    SplitVector,     // Split this vector type into two of half the size.
-    WidenVector      // This vector type should be widened into a larger vector.
-  };
 
   /// ValueTypeActions - This is a bitvector that contains two bits for each
   /// simple value type, where the two bits correspond to the LegalizeAction
@@ -74,41 +64,13 @@ private:
   TargetLowering::ValueTypeActionImpl ValueTypeActions;
 
   /// getTypeAction - Return how we should legalize values of this type.
-  LegalizeAction getTypeAction(EVT VT) const {
-    switch (ValueTypeActions.getTypeAction(VT)) {
-    default:
-      assert(false && "Unknown legalize action!");
-    case TargetLowering::Legal:
-      return Legal;
-    case TargetLowering::Promote:
-      // Promote can mean
-      //   1) For integers, use a larger integer type (e.g. i8 -> i32).
-      //   2) For vectors, use a wider vector type (e.g. v3i32 -> v4i32).
-      if (!VT.isVector())
-        return PromoteInteger;
-      return WidenVector;
-    case TargetLowering::Expand:
-      // Expand can mean
-      // 1) split scalar in half, 2) convert a float to an integer,
-      // 3) scalarize a single-element vector, 4) split a vector in two.
-      if (!VT.isVector()) {
-        if (VT.isInteger())
-          return ExpandInteger;
-        if (VT.getSizeInBits() ==
-                TLI.getTypeToTransformTo(*DAG.getContext(), VT).getSizeInBits())
-          return SoftenFloat;
-        return ExpandFloat;
-      }
-
-      if (VT.getVectorNumElements() == 1)
-        return ScalarizeVector;
-      return SplitVector;
-    }
+  TargetLowering::LegalizeTypeAction getTypeAction(EVT VT) const {
+    return TLI.getTypeAction(*DAG.getContext(), VT);
   }
 
   /// isTypeLegal - Return true if this type is legal on this target.
   bool isTypeLegal(EVT VT) const {
-    return ValueTypeActions.getTypeAction(VT) == TargetLowering::Legal;
+    return TLI.getTypeAction(*DAG.getContext(), VT) == TargetLowering::TypeLegal;
   }
 
   /// IgnoreNodeResults - Pretend all of this node's results are legal.
@@ -239,7 +201,7 @@ private:
     EVT OldVT = Op.getValueType();
     DebugLoc dl = Op.getDebugLoc();
     Op = GetPromotedInteger(Op);
-    return DAG.getZeroExtendInReg(Op, dl, OldVT);
+    return DAG.getZeroExtendInReg(Op, dl, OldVT.getScalarType());
   }
 
   // Integer Result Promotion.
@@ -248,6 +210,11 @@ private:
   SDValue PromoteIntRes_AssertZext(SDNode *N);
   SDValue PromoteIntRes_Atomic1(AtomicSDNode *N);
   SDValue PromoteIntRes_Atomic2(AtomicSDNode *N);
+  SDValue PromoteIntRes_EXTRACT_SUBVECTOR(SDNode *N);
+  SDValue PromoteIntRes_VECTOR_SHUFFLE(SDNode *N);
+  SDValue PromoteIntRes_BUILD_VECTOR(SDNode *N);
+  SDValue PromoteIntRes_SCALAR_TO_VECTOR(SDNode *N);
+  SDValue PromoteIntRes_INSERT_VECTOR_ELT(SDNode *N);
   SDValue PromoteIntRes_BITCAST(SDNode *N);
   SDValue PromoteIntRes_BSWAP(SDNode *N);
   SDValue PromoteIntRes_BUILD_PAIR(SDNode *N);
@@ -289,6 +256,9 @@ private:
   SDValue PromoteIntOp_BUILD_VECTOR(SDNode *N);
   SDValue PromoteIntOp_CONVERT_RNDSAT(SDNode *N);
   SDValue PromoteIntOp_INSERT_VECTOR_ELT(SDNode *N, unsigned OpNo);
+  SDValue PromoteIntOp_EXTRACT_ELEMENT(SDNode *N);
+  SDValue PromoteIntOp_EXTRACT_VECTOR_ELT(SDNode *N);
+  SDValue PromoteIntOp_CONCAT_VECTORS(SDNode *N);
   SDValue PromoteIntOp_MEMBARRIER(SDNode *N);
   SDValue PromoteIntOp_SCALAR_TO_VECTOR(SDNode *N);
   SDValue PromoteIntOp_SELECT(SDNode *N, unsigned OpNo);
@@ -348,7 +318,7 @@ private:
 
   void ExpandIntRes_SADDSUBO          (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandIntRes_UADDSUBO          (SDNode *N, SDValue &Lo, SDValue &Hi);
-  void ExpandIntRes_UMULSMULO	      (SDNode *N, SDValue &Lo, SDValue &Hi);
+  void ExpandIntRes_XMULO             (SDNode *N, SDValue &Lo, SDValue &Hi);
 
   void ExpandShiftByConstant(SDNode *N, unsigned Amt,
                              SDValue &Lo, SDValue &Hi);
@@ -408,6 +378,7 @@ private:
   SDValue SoftenFloatRes_FLOG(SDNode *N);
   SDValue SoftenFloatRes_FLOG2(SDNode *N);
   SDValue SoftenFloatRes_FLOG10(SDNode *N);
+  SDValue SoftenFloatRes_FMA(SDNode *N);
   SDValue SoftenFloatRes_FMUL(SDNode *N);
   SDValue SoftenFloatRes_FNEARBYINT(SDNode *N);
   SDValue SoftenFloatRes_FNEG(SDNode *N);
@@ -472,6 +443,7 @@ private:
   void ExpandFloatRes_FLOG      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FLOG2     (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FLOG10    (SDNode *N, SDValue &Lo, SDValue &Hi);
+  void ExpandFloatRes_FMA       (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FMUL      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FNEARBYINT(SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FNEG      (SDNode *N, SDValue &Lo, SDValue &Hi);
@@ -523,6 +495,7 @@ private:
   SDValue ScalarizeVecRes_BITCAST(SDNode *N);
   SDValue ScalarizeVecRes_CONVERT_RNDSAT(SDNode *N);
   SDValue ScalarizeVecRes_EXTRACT_SUBVECTOR(SDNode *N);
+  SDValue ScalarizeVecRes_FP_ROUND(SDNode *N);
   SDValue ScalarizeVecRes_FPOWI(SDNode *N);
   SDValue ScalarizeVecRes_INSERT_VECTOR_ELT(SDNode *N);
   SDValue ScalarizeVecRes_LOAD(LoadSDNode *N);
@@ -566,7 +539,6 @@ private:
   void SplitVecRes_BUILD_PAIR(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_BUILD_VECTOR(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_CONCAT_VECTORS(SDNode *N, SDValue &Lo, SDValue &Hi);
-  void SplitVecRes_CONVERT_RNDSAT(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_EXTRACT_SUBVECTOR(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_FPOWI(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_INSERT_VECTOR_ELT(SDNode *N, SDValue &Lo, SDValue &Hi);

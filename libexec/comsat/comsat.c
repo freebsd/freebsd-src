@@ -180,7 +180,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", utp->ut_user, tty);
 		return;
 	}
-	dsyslog(LOG_DEBUG, "notify %s on %s\n", utp->ut_user, tty);
+	dsyslog(LOG_DEBUG, "notify %s on %s", utp->ut_user, tty);
 	switch (fork()) {
 	case -1:
 		syslog(LOG_NOTICE, "fork failed (%m)");

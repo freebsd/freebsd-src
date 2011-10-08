@@ -214,6 +214,7 @@ tap_destroy(struct tap_softc *tp)
 	KASSERT(!(tp->tap_flags & TAP_OPEN),
 		("%s flags is out of sync", ifp->if_xname));
 
+	seldrain(&tp->tap_rsel);
 	knlist_destroy(&tp->tap_rsel.si_note);
 	destroy_dev(tp->tap_dev);
 	ether_ifdetach(ifp);

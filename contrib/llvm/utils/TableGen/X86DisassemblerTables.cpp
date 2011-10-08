@@ -18,6 +18,7 @@
 #include "X86DisassemblerTables.h"
 
 #include "TableGenBackend.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 
@@ -46,9 +47,11 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_OPSIZE:
     return(inheritsFrom(child, IC_64BIT_OPSIZE));
   case IC_XD:
-    return(inheritsFrom(child, IC_64BIT_XD));
+    return(inheritsFrom(child, IC_64BIT_XD) ||
+           inheritsFrom(child, IC_VEX_XD));
   case IC_XS:
-    return(inheritsFrom(child, IC_64BIT_XS));
+    return(inheritsFrom(child, IC_64BIT_XS) ||
+           inheritsFrom(child, IC_VEX_XS));
   case IC_64BIT_REXW:
     return(inheritsFrom(child, IC_64BIT_REXW_XS) ||
            inheritsFrom(child, IC_64BIT_REXW_XD) ||
@@ -65,6 +68,35 @@ static inline bool inheritsFrom(InstructionContext child,
     return false;
   case IC_64BIT_REXW_OPSIZE:
     return false;
+  case IC_VEX:
+    return(inheritsFrom(child, IC_VEX_XS) ||
+           inheritsFrom(child, IC_VEX_XD) ||
+           inheritsFrom(child, IC_VEX_L) ||
+           inheritsFrom(child, IC_VEX_W) ||
+           inheritsFrom(child, IC_VEX_OPSIZE));
+  case IC_VEX_XS:
+    return(inheritsFrom(child, IC_VEX_L_XS) ||
+           inheritsFrom(child, IC_VEX_W_XS));
+  case IC_VEX_XD:
+    return(inheritsFrom(child, IC_VEX_L_XD) ||
+           inheritsFrom(child, IC_VEX_W_XD));
+  case IC_VEX_L:
+    return(inheritsFrom(child, IC_VEX_L_XS) ||
+           inheritsFrom(child, IC_VEX_L_XD));
+  case IC_VEX_L_XS:
+    return false;
+  case IC_VEX_L_XD:
+    return false;
+  case IC_VEX_W:
+    return(inheritsFrom(child, IC_VEX_W_XS) ||
+           inheritsFrom(child, IC_VEX_W_XD) ||
+           inheritsFrom(child, IC_VEX_W_OPSIZE));
+  case IC_VEX_W_XS:
+    return false;
+  case IC_VEX_W_XD:
+    return false;
+  case IC_VEX_OPSIZE:
+    return inheritsFrom(child, IC_VEX_W_OPSIZE);
   default:
     return false;
   }
@@ -236,7 +268,7 @@ static const char* stringForModifierType(ModifierType mt)
 DisassemblerTables::DisassemblerTables() {
   unsigned i;
   
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < array_lengthof(Tables); i++) {
     Tables[i] = new ContextDecision;
     memset(Tables[i], 0, sizeof(ContextDecision));
   }
@@ -247,7 +279,7 @@ DisassemblerTables::DisassemblerTables() {
 DisassemblerTables::~DisassemblerTables() {
   unsigned i;
   
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < array_lengthof(Tables); i++)
     delete Tables[i];
 }
   
@@ -461,7 +493,29 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, uint32_t &i) const {
   for (index = 0; index < 256; ++index) {
     o.indent(i * 2);
 
-    if ((index & ATTR_64BIT) && (index & ATTR_REXW) && (index & ATTR_XS))
+    if ((index & ATTR_VEXL) && (index & ATTR_OPSIZE))
+      o << "IC_VEX_L_OPSIZE";
+    else if ((index & ATTR_VEXL) && (index & ATTR_XD))
+      o << "IC_VEX_L_XD";
+    else if ((index & ATTR_VEXL) && (index & ATTR_XS))
+      o << "IC_VEX_L_XS";
+    else if ((index & ATTR_VEX) && (index & ATTR_REXW) && (index & ATTR_OPSIZE))
+      o << "IC_VEX_W_OPSIZE";
+    else if ((index & ATTR_VEX) && (index & ATTR_REXW) && (index & ATTR_XD))
+      o << "IC_VEX_W_XD";
+    else if ((index & ATTR_VEX) && (index & ATTR_REXW) && (index & ATTR_XS))
+      o << "IC_VEX_W_XS";
+    else if (index & ATTR_VEXL)
+      o << "IC_VEX_L";
+    else if ((index & ATTR_VEX) && (index & ATTR_REXW))
+      o << "IC_VEX_W";
+    else if ((index & ATTR_VEX) && (index & ATTR_OPSIZE))
+      o << "IC_VEX_OPSIZE";
+    else if ((index & ATTR_VEX) && (index & ATTR_XD))
+      o << "IC_VEX_XD";
+    else if ((index & ATTR_VEX) && (index & ATTR_XS))
+      o << "IC_VEX_XS";
+    else if ((index & ATTR_64BIT) && (index & ATTR_REXW) && (index & ATTR_XS))
       o << "IC_64BIT_REXW_XS";
     else if ((index & ATTR_64BIT) && (index & ATTR_REXW) && (index & ATTR_XD))
       o << "IC_64BIT_REXW_XD";
@@ -484,6 +538,8 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, uint32_t &i) const {
       o << "IC_XD";
     else if (index & ATTR_OPSIZE)
       o << "IC_OPSIZE";
+    else if (index & ATTR_VEX)
+      o << "IC_VEX";
     else
       o << "IC";
 
@@ -510,6 +566,8 @@ void DisassemblerTables::emitContextDecisions(raw_ostream &o1,
   emitContextDecision(o1, o2, i1, i2, *Tables[1], TWOBYTE_STR);
   emitContextDecision(o1, o2, i1, i2, *Tables[2], THREEBYTE38_STR);
   emitContextDecision(o1, o2, i1, i2, *Tables[3], THREEBYTE3A_STR);
+  emitContextDecision(o1, o2, i1, i2, *Tables[4], THREEBYTEA6_STR);
+  emitContextDecision(o1, o2, i1, i2, *Tables[5], THREEBYTEA7_STR);
 }
 
 void DisassemblerTables::emit(raw_ostream &o) const {

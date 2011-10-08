@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -208,7 +209,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (vm_offset_t)args->dsend;
 	tmp.nsize = (char *)new;
-	if (((caddr_t)new > vm->vm_daddr) && !obreak(td, &tmp))
+	if (((caddr_t)new > vm->vm_daddr) && !sys_obreak(td, &tmp))
 		td->td_retval[0] = (long)new;
 	else
 		td->td_retval[0] = (long)old;
@@ -357,7 +358,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 */
 	PROC_LOCK(td->td_proc);
 	if (a_out->a_text > maxtsiz ||
-	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA)) {
+	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA) ||
+	    racct_set(td->td_proc, RACCT_DATA, a_out->a_data +
+	    bss_size) != 0) {
 		PROC_UNLOCK(td->td_proc);
 		error = ENOMEM;
 		goto cleanup;
@@ -606,7 +609,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 		bsd_args.addr =
 		    (caddr_t)((uintptr_t)args->addr + args->new_len);
 		bsd_args.len = args->old_len - args->new_len;
-		error = munmap(td, &bsd_args);
+		error = sys_munmap(td, &bsd_args);
 	}
 
 	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
@@ -626,7 +629,7 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 	bsd_args.len = (uintptr_t)args->len;
 	bsd_args.flags = args->fl & ~LINUX_MS_SYNC;
 
-	return (msync(td, &bsd_args));
+	return (sys_msync(td, &bsd_args));
 }
 
 int
@@ -1082,7 +1085,7 @@ linux_nice(struct thread *td, struct linux_nice_args *args)
 	bsd_args.which = PRIO_PROCESS;
 	bsd_args.who = 0;		/* current process */
 	bsd_args.prio = args->inc;
-	return (setpriority(td, &bsd_args));
+	return (sys_setpriority(td, &bsd_args));
 }
 
 int
@@ -1314,7 +1317,7 @@ linux_sched_setscheduler(struct thread *td,
 
 	bsd.pid = args->pid;
 	bsd.param = (struct sched_param *)args->param;
-	return (sched_setscheduler(td, &bsd));
+	return (sys_sched_setscheduler(td, &bsd));
 }
 
 int
@@ -1330,7 +1333,7 @@ linux_sched_getscheduler(struct thread *td,
 #endif
 
 	bsd.pid = args->pid;
-	error = sched_getscheduler(td, &bsd);
+	error = sys_sched_getscheduler(td, &bsd);
 
 	switch (td->td_retval[0]) {
 	case SCHED_OTHER:
@@ -1371,7 +1374,7 @@ linux_sched_get_priority_max(struct thread *td,
 	default:
 		return (EINVAL);
 	}
-	return (sched_get_priority_max(td, &bsd));
+	return (sys_sched_get_priority_max(td, &bsd));
 }
 
 int
@@ -1398,7 +1401,7 @@ linux_sched_get_priority_min(struct thread *td,
 	default:
 		return (EINVAL);
 	}
-	return (sched_get_priority_min(td, &bsd));
+	return (sys_sched_get_priority_min(td, &bsd));
 }
 
 #define REBOOT_CAD_ON	0x89abcdef
@@ -1451,7 +1454,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	default:
 		return (EINVAL);
 	}
-	return (reboot(td, &bsd_args));
+	return (sys_reboot(td, &bsd_args));
 }
 
 
@@ -1589,7 +1592,7 @@ linux_getsid(struct thread *td, struct linux_getsid_args *args)
 #endif
 
 	bsd.pid = args->pid;
-	return (getsid(td, &bsd));
+	return (sys_getsid(td, &bsd));
 }
 
 int
@@ -1612,7 +1615,7 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 
 	bsd_args.which = args->which;
 	bsd_args.who = args->who;
-	error = getpriority(td, &bsd_args);
+	error = sys_getpriority(td, &bsd_args);
 	td->td_retval[0] = 20 - td->td_retval[0];
 	return (error);
 }
@@ -1679,6 +1682,100 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	return (0);
 }
 
+#define _LINUX_CAPABILITY_VERSION  0x19980330
+
+struct l_user_cap_header {
+	l_int	version;
+	l_int	pid;
+};
+
+struct l_user_cap_data {
+	l_int	effective;
+	l_int	permitted;
+	l_int	inheritable;
+};
+
+int
+linux_capget(struct thread *td, struct linux_capget_args *args)
+{
+	struct l_user_cap_header luch;
+	struct l_user_cap_data lucd;
+	int error;
+
+	if (args->hdrp == NULL)
+		return (EFAULT);
+
+	error = copyin(args->hdrp, &luch, sizeof(luch));
+	if (error != 0)
+		return (error);
+
+	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+		luch.version = _LINUX_CAPABILITY_VERSION;
+		error = copyout(&luch, args->hdrp, sizeof(luch));
+		if (error)
+			return (error);
+		return (EINVAL);
+	}
+
+	if (luch.pid)
+		return (EPERM);
+
+	if (args->datap) {
+		/*
+		 * The current implementation doesn't support setting
+		 * a capability (it's essentially a stub) so indicate
+		 * that no capabilities are currently set or available
+		 * to request.
+		 */
+		bzero (&lucd, sizeof(lucd));
+		error = copyout(&lucd, args->datap, sizeof(lucd));
+	}
+
+	return (error);
+}
+
+int
+linux_capset(struct thread *td, struct linux_capset_args *args)
+{
+	struct l_user_cap_header luch;
+	struct l_user_cap_data lucd;
+	int error;
+
+	if (args->hdrp == NULL || args->datap == NULL)
+		return (EFAULT);
+
+	error = copyin(args->hdrp, &luch, sizeof(luch));
+	if (error != 0)
+		return (error);
+
+	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+		luch.version = _LINUX_CAPABILITY_VERSION;
+		error = copyout(&luch, args->hdrp, sizeof(luch));
+		if (error)
+			return (error);
+		return (EINVAL);
+	}
+
+	if (luch.pid)
+		return (EPERM);
+
+	error = copyin(args->datap, &lucd, sizeof(lucd));
+	if (error != 0)
+		return (error);
+
+	/* We currently don't support setting any capabilities. */
+	if (lucd.effective || lucd.permitted || lucd.inheritable) {
+		linux_msg(td,
+			  "capset effective=0x%x, permitted=0x%x, "
+			  "inheritable=0x%x is not implemented",
+			  (int)lucd.effective, (int)lucd.permitted,
+			  (int)lucd.inheritable);
+		return (EPERM);
+	}
+
+	return (0);
+}
+
 int
 linux_prctl(struct thread *td, struct linux_prctl_args *args)
 {
@@ -1711,6 +1808,21 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal));
+		break;
+	case LINUX_PR_GET_KEEPCAPS:
+		/*
+		 * Indicate that we always clear the effective and
+		 * permitted capability sets when the user id becomes
+		 * non-zero (actually the capability sets are simply
+		 * always zero in the current implementation).
+		 */
+		td->td_retval[0] = 0;
+		break;
+	case LINUX_PR_SET_KEEPCAPS:
+		/*
+		 * Ignore requests to keep the effective and permitted
+		 * capability sets when the user id becomes non-zero.
+		 */
 		break;
 	case LINUX_PR_SET_NAME:
 		/*
@@ -1781,7 +1893,7 @@ linux_sched_getaffinity(struct thread *td,
 	cga.cpusetsize = sizeof(cpuset_t);
 	cga.mask = (cpuset_t *) args->user_mask_ptr;
 
-	if ((error = cpuset_getaffinity(td, &cga)) == 0)
+	if ((error = sys_cpuset_getaffinity(td, &cga)) == 0)
 		td->td_retval[0] = sizeof(cpuset_t);
 
 	return (error);
@@ -1810,5 +1922,5 @@ linux_sched_setaffinity(struct thread *td,
 	csa.cpusetsize = sizeof(cpuset_t);
 	csa.mask = (cpuset_t *) args->user_mask_ptr;
 
-	return (cpuset_setaffinity(td, &csa));
+	return (sys_cpuset_setaffinity(td, &csa));
 }

@@ -75,6 +75,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
@@ -88,6 +89,8 @@
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
+
+#include <machine/vmparam.h>
 
 #define MD_MODVER 1
 
@@ -514,10 +517,12 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct mount *mp;
 	struct vnode *vp;
 	struct thread *td;
+	off_t end, zerosize;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
+	case BIO_DELETE:
 	case BIO_FLUSH:
 		break;
 	default:
@@ -547,6 +552,44 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	}
 
 	bzero(&auio, sizeof(auio));
+
+	/*
+	 * Special case for BIO_DELETE.  On the surface, this is very
+	 * similar to BIO_WRITE, except that we write from our own
+	 * fixed-length buffer, so we have to loop.  The net result is
+	 * that the two cases end up having very little in common.
+	 */
+	if (bp->bio_cmd == BIO_DELETE) {
+		zerosize = ZERO_REGION_SIZE -
+		    (ZERO_REGION_SIZE % sc->sectorsize);
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = (vm_ooffset_t)bp->bio_offset;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_rw = UIO_WRITE;
+		auio.uio_td = td;
+		end = bp->bio_offset + bp->bio_length;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		(void) vn_start_write(vp, &mp, V_WAIT);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		error = 0;
+		while (auio.uio_offset < end) {
+			aiov.iov_base = __DECONST(void *, zero_region);
+			aiov.iov_len = end - auio.uio_offset;
+			if (aiov.iov_len > zerosize)
+				aiov.iov_len = zerosize;
+			auio.uio_resid = aiov.iov_len;
+			error = VOP_WRITE(vp, &auio,
+			    sc->flags & MD_ASYNC ? 0 : IO_SYNC, sc->cred);
+			if (error != 0)
+				break;
+		}
+		VOP_UNLOCK(vp, 0);
+		vn_finished_write(mp);
+		bp->bio_resid = end - auio.uio_offset;
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 
 	aiov.iov_base = bp->bio_data;
 	aiov.iov_len = bp->bio_length;

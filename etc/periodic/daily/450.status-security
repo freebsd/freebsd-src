@@ -23,16 +23,17 @@ case "$daily_status_security_enable" in
 		export security_output="${daily_status_security_output}"
 		case "${daily_status_security_output}" in
 		    "")
-			;;
+			rc=3;;
 		    /*)
-			echo "    (output logged separately)";;
+			echo "    (output logged separately)"
+			rc=0;;
 		    *)
-			echo "    (output mailed separately)";;
+			echo "    (output mailed separately)"
+			rc=0;;
 		esac;;
 	esac
 
-	periodic security
-	rc=3;;
+	periodic security || rc=3;;
 
     *)  rc=0;;
 esac

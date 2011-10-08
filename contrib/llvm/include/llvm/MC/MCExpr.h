@@ -19,6 +19,7 @@ class MCAsmInfo;
 class MCAsmLayout;
 class MCAssembler;
 class MCContext;
+class MCSection;
 class MCSectionData;
 class MCSymbol;
 class MCValue;
@@ -92,6 +93,12 @@ public:
   /// @result - True on success.
   bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout &Layout) const;
 
+  /// FindAssociatedSection - Find the "associated section" for this expression,
+  /// which is currently defined as the absolute section for constants, or
+  /// otherwise the section associated with the first defined symbol in the
+  /// expression.
+  const MCSection *FindAssociatedSection() const;
+
   /// @}
 
   static bool classof(const MCExpr *) { return true; }
@@ -164,8 +171,10 @@ public:
     VK_ARM_GOTTPOFF,
 
     VK_PPC_TOC,
-    VK_PPC_HA16,  // ha16(symbol)
-    VK_PPC_LO16   // lo16(symbol)
+    VK_PPC_DARWIN_HA16,  // ha16(symbol)
+    VK_PPC_DARWIN_LO16,  // lo16(symbol)
+    VK_PPC_GAS_HA16,     // symbol@ha
+    VK_PPC_GAS_LO16      // symbol@l
   };
 
 private:
@@ -420,6 +429,7 @@ public:
   virtual bool EvaluateAsRelocatableImpl(MCValue &Res,
                                          const MCAsmLayout *Layout) const = 0;
   virtual void AddValueSymbols(MCAssembler *) const = 0;
+  virtual const MCSection *FindAssociatedSection() const = 0;
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;

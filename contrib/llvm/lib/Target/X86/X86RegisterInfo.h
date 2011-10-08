@@ -15,7 +15,9 @@
 #define X86REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "X86GenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "X86GenRegisterInfo.inc"
 
 namespace llvm {
   class Type;
@@ -56,10 +58,6 @@ private:
   ///
   unsigned SlotSize;
 
-  /// StackAlign - Default stack alignment.
-  ///
-  unsigned StackAlign;
-
   /// StackPtr - X86 physical register used as stack ptr.
   ///
   unsigned StackPtr;
@@ -75,11 +73,17 @@ public:
   /// register identifier.
   static unsigned getX86RegNum(unsigned RegNo);
 
-  unsigned getStackAlignment() const { return StackAlign; }
-
   /// getDwarfRegNum - allows modification of X86GenRegisterInfo::getDwarfRegNum
   /// (created by TableGen) for target dependencies.
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
+
+  // FIXME: This should be tablegen'd like getDwarfRegNum is
+  int getSEHRegNum(unsigned i) const;
+
+  /// getCompactUnwindRegNum - This function maps the register to the number for
+  /// compact unwind encoding. Return -1 if the register isn't valid.
+  int getCompactUnwindRegNum(unsigned RegNum, bool isEH) const;
 
   /// Code Generation virtual methods...
   /// 
@@ -91,6 +95,9 @@ public:
   getMatchingSuperRegClass(const TargetRegisterClass *A,
                            const TargetRegisterClass *B, unsigned Idx) const;
 
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
@@ -100,6 +107,9 @@ public:
   /// between a two registers of the specified class.
   const TargetRegisterClass *
   getCrossCopyRegClass(const TargetRegisterClass *RC) const;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
 
   /// getCalleeSavedRegs - Return a null-terminated list of all of the
   /// callee-save registers on this target.

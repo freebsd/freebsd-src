@@ -67,6 +67,23 @@ const Attributes StackAlignment  = 7<<26; ///< Alignment of stack for
                                           ///alignstack(1))
 const Attributes Hotpatch    = 1<<29;     ///< Function should have special
                                           ///'hotpatch' sequence in prologue
+const Attributes UWTable     = 1<<30;     ///< Function must be in a unwind
+                                          ///table
+const Attributes NonLazyBind = 1U<<31;    ///< Function is called early and/or
+                                          ///  often, so lazy binding isn't
+                                          ///  worthwhile.
+
+/// Note that uwtable is about the ABI or the user mandating an entry in the
+/// unwind table. The nounwind attribute is about an exception passing by the
+/// function.
+/// In a theoretical system that uses tables for profiling and sjlj for
+/// exceptions, they would be fully independent. In a normal system that
+/// uses tables for both, the semantics are:
+/// nil                = Needs an entry because an exception might pass by.
+/// nounwind           = No need for an entry
+/// uwtable            = Needs an entry because the ABI says so and because
+///                      an exception might pass by.
+/// uwtable + nounwind = Needs an entry because the ABI says so.
 
 /// @brief Attributes that only apply to function parameters.
 const Attributes ParameterOnly = ByVal | Nest | StructRet | NoCapture;
@@ -76,7 +93,7 @@ const Attributes ParameterOnly = ByVal | Nest | StructRet | NoCapture;
 const Attributes FunctionOnly = NoReturn | NoUnwind | ReadNone | ReadOnly |
   NoInline | AlwaysInline | OptimizeForSize | StackProtect | StackProtectReq |
   NoRedZone | NoImplicitFloat | Naked | InlineHint | StackAlignment |
-  Hotpatch;
+  Hotpatch | UWTable | NonLazyBind;
 
 /// @brief Parameter attributes that do not apply to vararg call arguments.
 const Attributes VarArgsIncompatible = StructRet;

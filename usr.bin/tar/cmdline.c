@@ -221,7 +221,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			if (p[1] == ':') {
 				bsdtar->optarg = *bsdtar->argv;
 				if (bsdtar->optarg == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option %c requires an argument",
 					    opt);
 					return ('?');
@@ -288,7 +288,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 				/* Otherwise, pick up the next word. */
 				opt_word = *bsdtar->argv;
 				if (opt_word == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
 					return ('?');
@@ -339,13 +339,13 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 
 		/* Fail if there wasn't a unique match. */
 		if (match == NULL) {
-			bsdtar_warnc(0,
+			lafe_warnc(0,
 			    "Option %s%s is not supported",
 			    long_prefix, opt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
-			bsdtar_warnc(0,
+			lafe_warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
 			    long_prefix, opt_word, match->name, match2->name);
 			return ('?');
@@ -357,7 +357,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			if (bsdtar->optarg == NULL) {
 				bsdtar->optarg = *bsdtar->argv;
 				if (bsdtar->optarg == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
 					return ('?');
@@ -368,7 +368,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		} else {
 			/* Argument forbidden: fail if there is one. */
 			if (bsdtar->optarg != NULL) {
-				bsdtar_warnc(0,
+				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
 				return ('?');

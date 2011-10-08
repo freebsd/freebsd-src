@@ -1,4 +1,5 @@
-/* $OpenBSD: misc.c,v 1.80 2010/07/21 02:10:58 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.85 2011/03/29 18:54:17 stevesk Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -35,9 +36,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #include <netinet/tcp.h>
 
 #include <errno.h>
@@ -850,15 +854,150 @@ ms_to_timeval(struct timeval *tv, int ms)
 	tv->tv_usec = (ms % 1000) * 1000;
 }
 
-int
-timingsafe_bcmp(const void *b1, const void *b2, size_t n)
+void
+bandwidth_limit_init(struct bwlimit *bw, u_int64_t kbps, size_t buflen)
 {
-	const unsigned char *p1 = b1, *p2 = b2;
-	int ret = 0;
+	bw->buflen = buflen;
+	bw->rate = kbps;
+	bw->thresh = bw->rate;
+	bw->lamt = 0;
+	timerclear(&bw->bwstart);
+	timerclear(&bw->bwend);
+}	
 
-	for (; n > 0; n--)
-		ret |= *p1++ ^ *p2++;
-	return (ret != 0);
+/* Callback from read/write loop to insert bandwidth-limiting delays */
+void
+bandwidth_limit(struct bwlimit *bw, size_t read_len)
+{
+	u_int64_t waitlen;
+	struct timespec ts, rm;
+
+	if (!timerisset(&bw->bwstart)) {
+		gettimeofday(&bw->bwstart, NULL);
+		return;
+	}
+
+	bw->lamt += read_len;
+	if (bw->lamt < bw->thresh)
+		return;
+
+	gettimeofday(&bw->bwend, NULL);
+	timersub(&bw->bwend, &bw->bwstart, &bw->bwend);
+	if (!timerisset(&bw->bwend))
+		return;
+
+	bw->lamt *= 8;
+	waitlen = (double)1000000L * bw->lamt / bw->rate;
+
+	bw->bwstart.tv_sec = waitlen / 1000000L;
+	bw->bwstart.tv_usec = waitlen % 1000000L;
+
+	if (timercmp(&bw->bwstart, &bw->bwend, >)) {
+		timersub(&bw->bwstart, &bw->bwend, &bw->bwend);
+
+		/* Adjust the wait time */
+		if (bw->bwend.tv_sec) {
+			bw->thresh /= 2;
+			if (bw->thresh < bw->buflen / 4)
+				bw->thresh = bw->buflen / 4;
+		} else if (bw->bwend.tv_usec < 10000) {
+			bw->thresh *= 2;
+			if (bw->thresh > bw->buflen * 8)
+				bw->thresh = bw->buflen * 8;
+		}
+
+		TIMEVAL_TO_TIMESPEC(&bw->bwend, &ts);
+		while (nanosleep(&ts, &rm) == -1) {
+			if (errno != EINTR)
+				break;
+			ts = rm;
+		}
+	}
+
+	bw->lamt = 0;
+	gettimeofday(&bw->bwstart, NULL);
+}
+
+/* Make a template filename for mk[sd]temp() */
+void
+mktemp_proto(char *s, size_t len)
+{
+	const char *tmpdir;
+	int r;
+
+	if ((tmpdir = getenv("TMPDIR")) != NULL) {
+		r = snprintf(s, len, "%s/ssh-XXXXXXXXXXXX", tmpdir);
+		if (r > 0 && (size_t)r < len)
+			return;
+	}
+	r = snprintf(s, len, "/tmp/ssh-XXXXXXXXXXXX");
+	if (r < 0 || (size_t)r >= len)
+		fatal("%s: template string too short", __func__);
+}
+
+static const struct {
+	const char *name;
+	int value;
+} ipqos[] = {
+	{ "af11", IPTOS_DSCP_AF11 },
+	{ "af12", IPTOS_DSCP_AF12 },
+	{ "af13", IPTOS_DSCP_AF13 },
+	{ "af14", IPTOS_DSCP_AF21 },
+	{ "af22", IPTOS_DSCP_AF22 },
+	{ "af23", IPTOS_DSCP_AF23 },
+	{ "af31", IPTOS_DSCP_AF31 },
+	{ "af32", IPTOS_DSCP_AF32 },
+	{ "af33", IPTOS_DSCP_AF33 },
+	{ "af41", IPTOS_DSCP_AF41 },
+	{ "af42", IPTOS_DSCP_AF42 },
+	{ "af43", IPTOS_DSCP_AF43 },
+	{ "cs0", IPTOS_DSCP_CS0 },
+	{ "cs1", IPTOS_DSCP_CS1 },
+	{ "cs2", IPTOS_DSCP_CS2 },
+	{ "cs3", IPTOS_DSCP_CS3 },
+	{ "cs4", IPTOS_DSCP_CS4 },
+	{ "cs5", IPTOS_DSCP_CS5 },
+	{ "cs6", IPTOS_DSCP_CS6 },
+	{ "cs7", IPTOS_DSCP_CS7 },
+	{ "ef", IPTOS_DSCP_EF },
+	{ "lowdelay", IPTOS_LOWDELAY },
+	{ "throughput", IPTOS_THROUGHPUT },
+	{ "reliability", IPTOS_RELIABILITY },
+	{ NULL, -1 }
+};
+
+int
+parse_ipqos(const char *cp)
+{
+	u_int i;
+	char *ep;
+	long val;
+
+	if (cp == NULL)
+		return -1;
+	for (i = 0; ipqos[i].name != NULL; i++) {
+		if (strcasecmp(cp, ipqos[i].name) == 0)
+			return ipqos[i].value;
+	}
+	/* Try parsing as an integer */
+	val = strtol(cp, &ep, 0);
+	if (*cp == '\0' || *ep != '\0' || val < 0 || val > 255)
+		return -1;
+	return val;
+}
+
+const char *
+iptos2str(int iptos)
+{
+	int i;
+	static char iptos_str[sizeof "0xff"];
+
+	for (i = 0; ipqos[i].name != NULL; i++) {
+		if (ipqos[i].value == iptos)
+			return ipqos[i].name;
+	}
+	snprintf(iptos_str, sizeof iptos_str, "0x%02x", iptos);
+	return iptos_str;
 }
 void
 sock_set_v6only(int s)
@@ -870,4 +1009,35 @@ sock_set_v6only(int s)
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1)
 		error("setsockopt IPV6_V6ONLY: %s", strerror(errno));
 #endif
+}
+
+void
+sock_get_rcvbuf(int *size, int rcvbuf)
+{
+	int sock, socksize;
+	socklen_t socksizelen = sizeof(socksize);
+
+	/*
+	 * Create a socket but do not connect it.  We use it
+	 * only to get the rcv socket size.
+	 */
+	sock = socket(AF_INET6, SOCK_STREAM, 0);
+	if (sock < 0)
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		return;
+
+	/*
+	 * If the tcp_rcv_buf option is set and passed in, attempt to set the
+	 *  buffer size to its value.
+	 */
+	if (rcvbuf)
+		setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (void *)&rcvbuf,
+		    sizeof(rcvbuf));
+
+	if (getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+	    &socksize, &socksizelen) == 0)
+		if (size != NULL)
+			*size = socksize;
+	close(sock);
 }

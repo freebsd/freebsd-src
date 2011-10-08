@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "config.h"
 #include "common.h"
 
 int testnum = 1;
@@ -230,7 +231,7 @@ test_kqueue_close(void)
 int 
 main(int argc, char **argv)
 {
-    int test_proc = 0;  /* XXX-FIXME */
+    int test_proc = 1;
     int test_socket = 1;
     int test_signal = 1;
     int test_vnode = 1;

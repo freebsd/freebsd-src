@@ -611,14 +611,16 @@ int state_set::is_in(int_value_state i)
   return (intset & (1 << (int)i)) != 0;
 }
 
+// Note: this used to have a bug s.t. it always tested for bit 0 (benl 18/5/11)
 int state_set::is_in(units_value_state u)
 {
-  return (unitsset & (1 << (int)u) != 0);
+  return (unitsset & (1 << (int)u)) != 0;
 }
 
+// Note: this used to have a bug s.t. it always tested for bit 0 (benl 18/5/11)
 int state_set::is_in(string_value_state s)
 {
-  return (stringset & (1 << (int)s) != 0);
+  return (stringset & (1 << (int)s)) != 0;
 }
 
 void state_set::add(units_value_state, int n)

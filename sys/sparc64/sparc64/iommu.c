@@ -28,6 +28,7 @@
 /*-
  * Copyright (c) 1999-2002 Eduardo Horvath
  * Copyright (c) 2001-2003 Thomas Moestl
+ * Copyright (c) 2007, 2009 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +78,6 @@ __FBSDID("$FreeBSD$");
  * - When running out of DVMA space, return EINPROGRESS in the non-
  *   BUS_DMA_NOWAIT case and delay the callback until sufficient space
  *   becomes available.
- * - Use the streaming cache unless BUS_DMA_COHERENT is specified.
  */
 
 #include "opt_iommu.h"
@@ -564,17 +564,8 @@ static __inline int
 iommu_use_streaming(struct iommu_state *is, bus_dmamap_t map, bus_size_t size)
 {
 
-	/*
-	 * This cannot be enabled yet, as many driver are still missing
-	 * bus_dmamap_sync() calls.  As soon as there is a BUS_DMA_STREAMING
-	 * flag, this should be reenabled conditionally on it.
-	 */
-#ifdef notyet
 	return (size >= IOMMU_STREAM_THRESH && IOMMU_HAS_SB(is) &&
 	    (map->dm_flags & DMF_COHERENT) == 0);
-#else
-	return (0);
-#endif
 }
 
 /*
@@ -1182,9 +1173,6 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 
 	if ((map->dm_flags & DMF_LOADED) == 0)
 		return;
-	/* XXX This is probably bogus. */
-	if ((op & BUS_DMASYNC_PREREAD) != 0)
-		membar(Sync);
 	if ((map->dm_flags & DMF_STREAMED) != 0 &&
 	    ((op & BUS_DMASYNC_POSTREAD) != 0 ||
 	    (op & BUS_DMASYNC_PREWRITE) != 0)) {

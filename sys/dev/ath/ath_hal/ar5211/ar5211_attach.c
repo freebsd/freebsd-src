@@ -148,6 +148,7 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_beaconInit			= ar5211BeaconInit,
 	.ah_setStationBeaconTimers	= ar5211SetStaBeaconTimers,
 	.ah_resetStationBeaconTimers	= ar5211ResetStaBeaconTimers,
+	.ah_getNextTBTT			= ar5211GetNextTBTT,
 
 	/* Interrupt Functions */
 	.ah_isInterruptPending		= ar5211IsInterruptPending,
@@ -510,6 +511,7 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	pCap->halHasRxSelfLinkedTail = AH_TRUE;
 
 	/* XXX might be ok w/ some chip revs */
 	ahpriv->ah_rxornIsFatal = AH_TRUE;

@@ -362,7 +362,7 @@ siba_scan(struct siba_softc *siba)
 		case SIBA_DEVID_PCI:
 		case SIBA_DEVID_PCIE:
 			n_pci++;
-			error = pci_find_extcap(siba->siba_dev, PCIY_EXPRESS,
+			error = pci_find_cap(siba->siba_dev, PCIY_EXPRESS,
 			    &base);
 			is_pcie = (error == 0) ? 1 : 0;
 

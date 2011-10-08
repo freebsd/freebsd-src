@@ -1,9 +1,9 @@
 /*
- *  $Id: buttons.c,v 1.81 2010/04/28 20:57:29 tom Exp $
+ *  $Id: buttons.c,v 1.86 2011/06/28 10:46:46 tom Exp $
  *
- * buttons.c -- draw buttons, e.g., OK/Cancel
+ *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
- * Copyright 2000-2007,2010 Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -252,7 +252,7 @@ dlg_draw_buttons(WINDOW *win,
 		 int vertical,
 		 int limit)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int n;
     int step = 0;
     int length;
@@ -442,16 +442,23 @@ const char **
 dlg_exit_label(void)
 {
     const char **result;
+    DIALOG_VARS save;
 
     if (dialog_vars.extra_button) {
+	dlg_save_vars(&save);
+	dialog_vars.nocancel = TRUE;
 	result = dlg_ok_labels();
+	dlg_restore_vars(&save);
     } else {
 	static const char *labels[3];
 	int n = 0;
 
-	labels[n++] = my_exit_label();
+	if (!dialog_vars.nook)
+	    labels[n++] = my_exit_label();
 	if (dialog_vars.help_button)
 	    labels[n++] = my_help_label();
+	if (n == 0)
+	    labels[n++] = my_exit_label();
 	labels[n] = 0;
 
 	result = labels;
@@ -465,15 +472,16 @@ dlg_exit_label(void)
 int
 dlg_exit_buttoncode(int button)
 {
-    int result = DLG_EXIT_ERROR;
+    int result;
+    DIALOG_VARS save;
 
-    if (dialog_vars.extra_button) {
-	result = dlg_ok_buttoncode(button);
-    } else if (button == 0) {
-	result = DLG_EXIT_OK;
-    } else if (button == 1 && dialog_vars.help_button) {
-	result = DLG_EXIT_HELP;
-    }
+    dlg_save_vars(&save);
+    dialog_vars.nocancel = TRUE;
+
+    result = dlg_ok_buttoncode(button);
+
+    dlg_restore_vars(&save);
+
     return result;
 }
 

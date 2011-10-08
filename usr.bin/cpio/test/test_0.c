@@ -39,11 +39,11 @@ DEFINE_TEST(test_0)
 {
 	struct stat st;
 
-	failure("File %s does not exist?!", testprog);
-	if (!assertEqualInt(0, stat(testprog, &st)))
+	failure("File %s does not exist?!", testprogfile);
+	if (!assertEqualInt(0, stat(testprogfile, &st)))
 		exit(1);
 
-	failure("%s is not executable?!", testprog);
+	failure("%s is not executable?!", testprogfile);
 	if (!assert((st.st_mode & 0111) != 0))
 		exit(1);
 

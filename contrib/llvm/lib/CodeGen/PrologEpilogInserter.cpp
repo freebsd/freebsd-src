@@ -145,6 +145,7 @@ void PEI::getAnalysisUsage(AnalysisUsage &AU) const {
 /// pseudo instructions.
 void PEI::calculateCallsInformation(MachineFunction &Fn) {
   const TargetRegisterInfo *RegInfo = Fn.getTarget().getRegisterInfo();
+  const TargetInstrInfo &TII = *Fn.getTarget().getInstrInfo();
   const TargetFrameLowering *TFI = Fn.getTarget().getFrameLowering();
   MachineFrameInfo *MFI = Fn.getFrameInfo();
 
@@ -152,8 +153,8 @@ void PEI::calculateCallsInformation(MachineFunction &Fn) {
   bool AdjustsStack = MFI->adjustsStack();
 
   // Get the function call frame set-up and tear-down instruction opcode
-  int FrameSetupOpcode   = RegInfo->getCallFrameSetupOpcode();
-  int FrameDestroyOpcode = RegInfo->getCallFrameDestroyOpcode();
+  int FrameSetupOpcode   = TII.getCallFrameSetupOpcode();
+  int FrameDestroyOpcode = TII.getCallFrameDestroyOpcode();
 
   // Early exit for targets which have no call frame setup/destroy pseudo
   // instructions.
@@ -337,7 +338,7 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
         --BeforeI;
 
       // Restore all registers immediately before the return and any
-      // terminators that preceed it.
+      // terminators that precede it.
       if (!TFI->restoreCalleeSavedRegisters(*MBB, I, CSI, TRI)) {
         for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
           unsigned Reg = CSI[i].getReg();
@@ -437,7 +438,7 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
       --BeforeI;
 
     // Restore all registers immediately before the return and any
-    // terminators that preceed it.
+    // terminators that precede it.
     for (unsigned i = 0, e = blockCSI.size(); i != e; ++i) {
       unsigned Reg = blockCSI[i].getReg();
       const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
@@ -559,7 +560,8 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // Make sure the special register scavenging spill slot is closest to the
   // frame pointer if a frame pointer is required.
   const TargetRegisterInfo *RegInfo = Fn.getTarget().getRegisterInfo();
-  if (RS && TFI.hasFP(Fn) && !RegInfo->needsStackRealignment(Fn)) {
+  if (RS && TFI.hasFP(Fn) && RegInfo->useFPForScavengingIndex(Fn) &&
+      !RegInfo->needsStackRealignment(Fn)) {
     int SFI = RS->getScavengingFrameIndex();
     if (SFI >= 0)
       AdjustStackOffset(MFI, SFI, StackGrowsDown, Offset, MaxAlign);
@@ -641,7 +643,8 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &Fn) {
 
   // Make sure the special register scavenging spill slot is closest to the
   // stack pointer.
-  if (RS && (!TFI.hasFP(Fn) || RegInfo->needsStackRealignment(Fn))) {
+  if (RS && (!TFI.hasFP(Fn) || RegInfo->needsStackRealignment(Fn) ||
+             !RegInfo->useFPForScavengingIndex(Fn))) {
     int SFI = RS->getScavengingFrameIndex();
     if (SFI >= 0)
       AdjustStackOffset(MFI, SFI, StackGrowsDown, Offset, MaxAlign);
@@ -703,12 +706,13 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
 
   const TargetMachine &TM = Fn.getTarget();
   assert(TM.getRegisterInfo() && "TM::getRegisterInfo() must be implemented!");
+  const TargetInstrInfo &TII = *Fn.getTarget().getInstrInfo();
   const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
   const TargetFrameLowering *TFI = TM.getFrameLowering();
   bool StackGrowsDown =
     TFI->getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
-  int FrameSetupOpcode   = TRI.getCallFrameSetupOpcode();
-  int FrameDestroyOpcode = TRI.getCallFrameDestroyOpcode();
+  int FrameSetupOpcode   = TII.getCallFrameSetupOpcode();
+  int FrameDestroyOpcode = TII.getCallFrameDestroyOpcode();
 
   for (MachineFunction::iterator BB = Fn.begin(),
          E = Fn.end(); BB != E; ++BB) {
@@ -811,7 +815,6 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
     // directly.
     for (MachineBasicBlock::iterator I = BB->begin(); I != BB->end(); ) {
       MachineInstr *MI = I;
-      bool DoIncr = true;
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         if (MI->getOperand(i).isReg()) {
           MachineOperand &MO = MI->getOperand(i);
@@ -842,10 +845,8 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
 
         }
       }
-      if (DoIncr) {
-        RS->forward(I);
-        ++I;
-      }
+      RS->forward(I);
+      ++I;
     }
   }
 }

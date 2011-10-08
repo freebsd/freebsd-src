@@ -27,13 +27,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -111,8 +114,8 @@ SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
     NULL, 0, sysctl_kern_ps_strings, "LU", "");
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_usrstack, "LU", "");
+SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|
+    CTLFLAG_CAPRD, NULL, 0, sysctl_kern_usrstack, "LU", "");
 
 SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD,
     NULL, 0, sysctl_kern_stackprot, "I", "");
@@ -189,7 +192,7 @@ struct execve_args {
 #endif
 
 int
-execve(td, uap)
+sys_execve(td, uap)
 	struct thread *td;
 	struct execve_args /* {
 		char *fname;
@@ -215,7 +218,7 @@ struct fexecve_args {
 }
 #endif
 int
-fexecve(struct thread *td, struct fexecve_args *uap)
+sys_fexecve(struct thread *td, struct fexecve_args *uap)
 {
 	int error;
 	struct image_args args;
@@ -239,7 +242,7 @@ struct __mac_execve_args {
 #endif
 
 int
-__mac_execve(td, uap)
+sys___mac_execve(td, uap)
 	struct thread *td;
 	struct __mac_execve_args /* {
 		char *fname;
@@ -415,6 +418,18 @@ do_execve(td, args, mac_p)
 
 interpret:
 	if (args->fname != NULL) {
+#ifdef CAPABILITY_MODE
+		/*
+		 * While capability mode can't reach this point via direct
+		 * path arguments to execve(), we also don't allow
+		 * interpreters to be used in capability mode (for now).
+		 * Catch indirect lookups and return a permissions error.
+		 */
+		if (IN_CAPABILITY_MODE(td)) {
+			error = ECAPMODE;
+			goto exec_fail;
+		}
+#endif
 		error = namei(&nd);
 		if (error)
 			goto exec_fail;
@@ -424,7 +439,11 @@ interpret:
 		imgp->vp = binvp;
 	} else {
 		AUDIT_ARG_FD(args->fd);
-		error = fgetvp(td, args->fd, &binvp);
+		/*
+		 * Some might argue that CAP_READ and/or CAP_MMAP should also
+		 * be required here; such arguments will be entertained.
+		 */
+		error = fgetvp_read(td, args->fd, CAP_FEXECVE, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
@@ -631,6 +650,13 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 *
+	 * We disable setuid/setgid/etc in compatibility mode on the basis
+	 * that most setugid applications are not written with that
+	 * environment in mind, and will therefore almost certainly operate
+	 * incorrectly. In principle there's no reason that setugid
+	 * applications might not be useful in capability mode, so we may want
+	 * to reconsider this conservative design choice in the future.
+	 *
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
@@ -646,6 +672,9 @@ interpret:
 #endif
 
 	if (credential_changing &&
+#ifdef CAPABILITY_MODE
+	    ((oldcred->cr_flags & CRED_FLAG_CAPMODE) == 0) &&
+#endif
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*
@@ -747,16 +776,6 @@ interpret:
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
 	p->p_flag &= ~P_INEXEC;
-
-	/*
-	 * If tracing the process, trap to the debugger so that
-	 * breakpoints can be set before the program executes.  We
-	 * have to use tdsignal() to deliver the signal to the current
-	 * thread since any other threads in this process will exit if
-	 * execve() succeeds.
-	 */
-	if (p->p_flag & P_TRACED)
-		tdsignal(td, SIGTRAP);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;

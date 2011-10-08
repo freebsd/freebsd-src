@@ -64,6 +64,8 @@ struct fileops	socketops = {
 	.fo_kqfilter = soo_kqfilter,
 	.fo_stat = soo_stat,
 	.fo_close = soo_close,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 

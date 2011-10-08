@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
@@ -18,6 +19,8 @@
 #include <cctype>
 #include <cstdlib>
 using namespace clang;
+
+static const LangAS::Map DefaultAddrSpaceMap = { 0 };
 
 // TargetInfo Constructor.
 TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
@@ -64,6 +67,13 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
 
   // Default to using the Itanium ABI.
   CXXABI = CXXABI_Itanium;
+
+  // Default to an empty address space map.
+  AddrSpaceMap = &DefaultAddrSpaceMap;
+
+  // Default to an unknown platform name.
+  PlatformName = "unknown";
+  PlatformMinVersion = VersionTuple();
 }
 
 // Out of line virtual dtor for TargetInfo.
@@ -171,6 +181,14 @@ static llvm::StringRef removeGCCRegisterPrefix(llvm::StringRef Name) {
   return Name;
 }
 
+/// isValidClobber - Returns whether the passed in string is
+/// a valid clobber in an inline asm statement. This is used by
+/// Sema.
+bool TargetInfo::isValidClobber(llvm::StringRef Name) const {
+  return (isValidGCCRegisterName(Name) ||
+	  Name == "memory" || Name == "cc");
+}
+
 /// isValidGCCRegisterName - Returns whether the passed in string
 /// is a valid register name according to GCC. This is used by Sema for
 /// inline asm statements.
@@ -183,9 +201,6 @@ bool TargetInfo::isValidGCCRegisterName(llvm::StringRef Name) const {
 
   // Get rid of any register prefix.
   Name = removeGCCRegisterPrefix(Name);
-
-  if (Name == "memory" || Name == "cc")
-    return true;
 
   getGCCRegNames(Names, NumNames);
 
@@ -200,6 +215,20 @@ bool TargetInfo::isValidGCCRegisterName(llvm::StringRef Name) const {
   for (unsigned i = 0; i < NumNames; i++) {
     if (Name == Names[i])
       return true;
+  }
+
+  // Check any additional names that we have.
+  const AddlRegName *AddlNames;
+  unsigned NumAddlNames;
+  getGCCAddlRegNames(AddlNames, NumAddlNames);
+  for (unsigned i = 0; i < NumAddlNames; i++)
+    for (unsigned j = 0; j < llvm::array_lengthof(AddlNames[i].Names); j++) {
+      if (!AddlNames[i].Names[j])
+	break;
+      // Make sure the register that the additional name is for is within
+      // the bounds of the register names from above.
+      if (AddlNames[i].Names[j] == Name && AddlNames[i].RegNum < NumNames)
+	return true;
   }
 
   // Now check aliases.
@@ -240,6 +269,20 @@ TargetInfo::getNormalizedGCCRegisterName(llvm::StringRef Name) const {
       return Names[n];
     }
   }
+
+  // Check any additional names that we have.
+  const AddlRegName *AddlNames;
+  unsigned NumAddlNames;
+  getGCCAddlRegNames(AddlNames, NumAddlNames);
+  for (unsigned i = 0; i < NumAddlNames; i++)
+    for (unsigned j = 0; j < llvm::array_lengthof(AddlNames[i].Names); j++) {
+      if (!AddlNames[i].Names[j])
+	break;
+      // Make sure the register that the additional name is for is within
+      // the bounds of the register names from above.
+      if (AddlNames[i].Names[j] == Name && AddlNames[i].RegNum < NumNames)
+	return Name;
+    }
 
   // Now check aliases.
   const GCCRegAlias *Aliases;
@@ -422,7 +465,7 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
     case ',': // multiple alternative constraint.  Ignore comma.
       break;
     case '?': // Disparage slightly code.
-    case '!': // Disparage severly.
+    case '!': // Disparage severely.
       break;  // Pass them.
     }
 

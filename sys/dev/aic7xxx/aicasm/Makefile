@@ -24,12 +24,7 @@ WARNS?=	5
 DEPENDFILE=	.depend_aicasm
 .endif
 
-.if ${CC:T:Micc} == "icc"
-CFLAGS+=	-restrict
-NOSTDINC=	-X
-.else
 NOSTDINC=	-nostdinc
-.endif
 CFLAGS+= ${NOSTDINC} -I/usr/include -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}

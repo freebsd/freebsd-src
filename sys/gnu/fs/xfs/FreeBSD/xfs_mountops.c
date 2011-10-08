@@ -370,9 +370,10 @@ _xfs_vget(mp, ino, flags, vpp)
 }
 
 static int
-_xfs_fhtovp(mp, fidp, vpp)
+_xfs_fhtovp(mp, fidp, flags, vpp)
 	struct mount *mp;
 	struct fid *fidp;
+	int flags;
 	struct vnode **vpp;
 {
 	printf("xfs_fhtovp\n");

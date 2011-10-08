@@ -40,9 +40,11 @@
 
 #ifndef LOCORE
 
+#include <sys/_cpuset.h>
+
 void	ipi_all_but_self(int ipi);
 void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpumask_t cpus, int ipi);
+void	ipi_selected(cpuset_t cpus, int ipi);
 
 struct cpuref {
 	uintptr_t	cr_hwref;

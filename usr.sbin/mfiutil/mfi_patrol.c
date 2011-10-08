@@ -80,7 +80,7 @@ show_patrol(int ac, char **av)
 	struct mfi_pr_status status;
 	struct mfi_pd_list *list;
 	struct mfi_pd_info info;
-	char label[16];
+	char label[24];
 	time_t now;
 	uint32_t at;
 	int error, fd;
@@ -96,8 +96,10 @@ show_patrol(int ac, char **av)
 	time(&now);
 	mfi_get_time(fd, &at);
 	error = patrol_get_props(fd, &prop);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 	printf("Operation Mode: ");
 	switch (prop.op_mode) {
 	case MFI_PR_OPMODE_AUTO:
@@ -128,6 +130,7 @@ show_patrol(int ac, char **av)
 	    sizeof(status), NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to get patrol read properties");
+		close(fd);
 		return (error);
 	}
 	printf("Runs Completed: %u\n", status.num_iteration);
@@ -153,6 +156,7 @@ show_patrol(int ac, char **av)
 		if (mfi_pd_get_list(fd, &list, NULL) < 0) {
 			error = errno;
 			warn("Failed to get drive list");
+			close(fd);
 			return (error);
 		}
 
@@ -165,15 +169,20 @@ show_patrol(int ac, char **av)
 				error = errno;
 				warn("Failed to fetch info for drive %u",
 				    list->addr[i].device_id);
+				free(list);
+				close(fd);
 				return (error);
 			}
 			if (info.prog_info.active & MFI_PD_PROGRESS_PATROL) {
-				snprintf(label, sizeof(label), "    Drive %u",
-				    list->addr[i].device_id);
+				snprintf(label, sizeof(label), "    Drive %s",
+				    mfi_drive_name(NULL,
+				    list->addr[i].device_id,
+				    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 				mfi_display_progress(label,
 				    &info.prog_info.patrol);
 			}
 		}
+		free(list);
 	}
 
 	close(fd);
@@ -198,6 +207,7 @@ start_patrol(int ac, char **av)
 	    0) {
 		error = errno;
 		warn("Failed to start patrol read");
+		close(fd);
 		return (error);
 	}
 
@@ -223,6 +233,7 @@ stop_patrol(int ac, char **av)
 	    0) {
 		error = errno;
 		warn("Failed to stop patrol read");
+		close(fd);
 		return (error);
 	}
 
@@ -252,7 +263,7 @@ patrol_config(int ac, char **av)
 	if (strcasecmp(av[1], "auto") == 0) {
 		op_mode = MFI_PR_OPMODE_AUTO;
 		if (ac > 2) {
-			if (strcasecmp(av[2], "continously") == 0)
+			if (strcasecmp(av[2], "continuously") == 0)
 				exec_freq = 0xffffffff;
 			else {
 				val = strtol(av[2], &cp, 0);
@@ -289,8 +300,10 @@ patrol_config(int ac, char **av)
 	}
 
 	error = patrol_get_props(fd, &prop);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 	prop.op_mode = op_mode;
 	if (op_mode == MFI_PR_OPMODE_AUTO) {
 		if (ac > 2)
@@ -298,8 +311,10 @@ patrol_config(int ac, char **av)
 		if (ac > 3) {
 			time(&now);
 			mfi_get_time(fd, &at);
-			if (at == 0)
+			if (at == 0) {
+				close(fd);
 				return (ENXIO);
+			}
 			prop.next_exec = at + next_exec;
 			printf("Starting next patrol read at %s",
 			    adapter_time(now, at, prop.next_exec));
@@ -309,6 +324,7 @@ patrol_config(int ac, char **av)
 	    sizeof(prop), NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to set patrol read properties");
+		close(fd);
 		return (error);
 	}
 

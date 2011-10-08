@@ -466,7 +466,10 @@ _mm_loadr_pd(double const *dp)
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadu_pd(double const *dp)
 {
-  return __builtin_ia32_loadupd(dp);
+  struct __loadu_pd {
+    __m128d v;
+  } __attribute__((packed, may_alias));
+  return ((struct __loadu_pd*)dp)->v;
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
@@ -478,13 +481,13 @@ _mm_load_sd(double const *dp)
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadh_pd(__m128d a, double const *dp)
 {
-  return __builtin_shufflevector(a, *(__m128d *)dp, 0, 2);
+  return (__m128d){ a[0], *dp };
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadl_pd(__m128d a, double const *dp)
 {
-  return __builtin_shufflevector(a, *(__m128d *)dp, 2, 1);
+  return (__m128d){ *dp, a[1] };
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
@@ -1011,7 +1014,10 @@ _mm_load_si128(__m128i const *p)
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))
 _mm_loadu_si128(__m128i const *p)
 {
-  return (__m128i)__builtin_ia32_loaddqu((char const *)p);
+  struct __loadu_si128 {
+    __m128i v;
+  } __attribute__((packed, may_alias));
+  return ((struct __loadu_si128*)p)->v;
 }
 
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))
@@ -1210,16 +1216,18 @@ _mm_movemask_epi8(__m128i a)
 }
 
 #define _mm_shuffle_epi32(a, imm) \
-  ((__m128i)__builtin_shufflevector((__v4si)(a), (__v4si) {0}, \
+  ((__m128i)__builtin_shufflevector((__v4si)(a), (__v4si) _mm_set1_epi32(0), \
                                     (imm) & 0x3, ((imm) & 0xc) >> 2, \
                                     ((imm) & 0x30) >> 4, ((imm) & 0xc0) >> 6))
+
+
 #define _mm_shufflelo_epi16(a, imm) \
-  ((__m128i)__builtin_shufflevector((__v8hi)(a), (__v8hi) {0}, \
+  ((__m128i)__builtin_shufflevector((__v8hi)(a), (__v8hi) _mm_set1_epi16(0), \
                                     (imm) & 0x3, ((imm) & 0xc) >> 2, \
                                     ((imm) & 0x30) >> 4, ((imm) & 0xc0) >> 6, \
                                     4, 5, 6, 7))
 #define _mm_shufflehi_epi16(a, imm) \
-  ((__m128i)__builtin_shufflevector((__v8hi)(a), (__v8hi) {0}, 0, 1, 2, 3, \
+  ((__m128i)__builtin_shufflevector((__v8hi)(a), (__v8hi) _mm_set1_epi16(0), 0, 1, 2, 3, \
                                     4 + (((imm) & 0x03) >> 0), \
                                     4 + (((imm) & 0x0c) >> 2), \
                                     4 + (((imm) & 0x30) >> 4), \

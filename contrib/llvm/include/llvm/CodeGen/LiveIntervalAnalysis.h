@@ -159,7 +159,11 @@ namespace llvm {
     /// range to just the remaining uses. This method does not compute reaching
     /// defs for new uses, and it doesn't remove dead defs.
     /// Dead PHIDef values are marked as unused.
-    void shrinkToUses(LiveInterval *li);
+    /// New dead machine instructions are added to the dead vector.
+    /// Return true if the interval may have been separated into multiple
+    /// connected components.
+    bool shrinkToUses(LiveInterval *li,
+                      SmallVectorImpl<MachineInstr*> *dead = 0);
 
     // Interval removal
 
@@ -272,7 +276,7 @@ namespace llvm {
     /// (if any is created) by reference. This is temporary.
     std::vector<LiveInterval*>
     addIntervalsForSpills(const LiveInterval& i,
-                          const SmallVectorImpl<LiveInterval*> &SpillIs,
+                          const SmallVectorImpl<LiveInterval*> *SpillIs,
                           const MachineLoopInfo *loopInfo, VirtRegMap& vrm);
 
     /// spillPhysRegAroundRegDefsUses - Spill the specified physical register
@@ -285,7 +289,7 @@ namespace llvm {
     /// val# of the specified interval is re-materializable. Also returns true
     /// by reference if all of the defs are load instructions.
     bool isReMaterializable(const LiveInterval &li,
-                            const SmallVectorImpl<LiveInterval*> &SpillIs,
+                            const SmallVectorImpl<LiveInterval*> *SpillIs,
                             bool &isLoad);
 
     /// isReMaterializable - Returns true if the definition MI of the specified
@@ -372,7 +376,7 @@ namespace llvm {
     /// by reference if the def is a load.
     bool isReMaterializable(const LiveInterval &li, const VNInfo *ValNo,
                             MachineInstr *MI,
-                            const SmallVectorImpl<LiveInterval*> &SpillIs,
+                            const SmallVectorImpl<LiveInterval*> *SpillIs,
                             bool &isLoad);
 
     /// tryFoldMemoryOperand - Attempts to fold either a spill / restore from

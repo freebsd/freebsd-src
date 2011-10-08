@@ -2157,7 +2157,7 @@ void glyph_node::debug_node()
   if (c)
     fprintf(stderr, "%c", c);
   else
-    fprintf(stderr, ci->nm.contents());
+    fputs(ci->nm.contents(), stderr);
   if (push_state)
     fprintf(stderr, " <push_state>");
   if (state)

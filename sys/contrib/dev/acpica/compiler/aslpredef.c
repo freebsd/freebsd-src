@@ -150,7 +150,7 @@ static const ACPI_PREDEFINED_INFO      ScopeNames[] = {
  *
  ******************************************************************************/
 
-void
+BOOLEAN
 ApCheckForPredefinedMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
@@ -171,7 +171,7 @@ ApCheckForPredefinedMethod (
     case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
 
         /* Just return, nothing to do */
-        break;
+        return (FALSE);
 
 
     case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
@@ -238,6 +238,8 @@ ApCheckForPredefinedMethod (
         }
         break;
     }
+
+    return (TRUE);
 }
 
 

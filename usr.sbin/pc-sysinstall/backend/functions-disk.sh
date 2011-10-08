@@ -32,7 +32,7 @@ is_disk()
 {
   for _dsk in `sysctl -n kern.disks`
   do
-    if [ "$_dsk" = "${1}" ] ; then return 0 ; fi
+    [ "$_dsk" = "${1}" ] && return 0
   done
 
   return 1
@@ -47,8 +47,8 @@ get_partition_sysid_mbr()
   fdisk ${DISK} >${TMPDIR}/disk-${DISK} 2>/dev/null
   while read i
   do
-    echo "$i" | grep "The data for partition"  >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo "$i" | grep -q "The data for partition" 2>/dev/null
+    if [ $? -eq 0 ] ; then
        INPART="0"
        PART="`echo ${i} | cut -d ' ' -f 5`"
        if [ "$PART" = "$PARTNUM" ] ; then
@@ -58,8 +58,8 @@ get_partition_sysid_mbr()
 
     # In the partition section
     if [ "$INPART" = "1" ] ; then
-       echo "$i" | grep "^sysid" >/dev/null 2>/dev/null
-       if [ "$?" = "0" ] ; then
+       echo "$i" | grep -q "^sysid" 2>/dev/null
+       if [ $? -eq 0 ] ; then
          SYSID="`echo ${i} | tr -s '\t' ' ' | cut -d ' ' -f 2`"
          break
        fi
@@ -69,8 +69,7 @@ get_partition_sysid_mbr()
   done < ${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
 
-  VAL="${SYSID}"
-  export VAL
+  export VAL="${SYSID}"
 };
 
 # Get the partitions MBR label
@@ -82,8 +81,8 @@ get_partition_label_mbr()
   fdisk ${DISK} >${TMPDIR}/disk-${DISK} 2>/dev/null
   while read i
   do
-    echo "$i" | grep "The data for partition"  >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo "$i" | grep -q "The data for partition" 2>/dev/null
+    if [ $? -eq 0 ] ; then
        INPART="0"
        PART="`echo ${i} | cut -d ' ' -f 5`"
        if [ "$PART" = "$PARTNUM" ] ; then
@@ -93,8 +92,8 @@ get_partition_label_mbr()
 
     # In the partition section
     if [ "$INPART" = "1" ] ; then
-       echo "$i" | grep "^sysid" >/dev/null 2>/dev/null
-       if [ "$?" = "0" ] ; then
+       echo "$i" | grep -q "^sysid" 2>/dev/null
+       if [ $? -eq 0 ] ; then
          LABEL="`echo ${i} | tr -s '\t' ' ' | cut -d ',' -f 2-10`"
          break
        fi
@@ -104,8 +103,7 @@ get_partition_label_mbr()
   done < ${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
 
-  VAL="${LABEL}"
-  export VAL
+  export VAL="${LABEL}"
 };
 
 # Get a GPT partitions label
@@ -125,8 +123,7 @@ get_partition_label_gpt()
   done <${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
 
-  VAL="${LABEL}"
-  export VAL
+  export VAL="${LABEL}"
 };
 
 # Get a partitions startblock
@@ -146,8 +143,7 @@ get_partition_startblock()
   done <${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
 
-  VAL="${SB}"
-  export VAL
+  export VAL="${SB}"
 };
 
 # Get a partitions blocksize
@@ -167,16 +163,15 @@ get_partition_blocksize()
   done <${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
 
-  VAL="${BS}"
-  export VAL
+  export VAL="${BS}"
 };
 
 # Function which returns the partitions on a target disk
 get_disk_partitions()
 {
   gpart show ${1} >/dev/null 2>/dev/null
-  if [ "$?" != "0" ] ; then
-    VAL="" ; export VAL
+  if [ $? -ne 0 ] ; then
+    export VAL=""
     return
   fi
 
@@ -198,35 +193,35 @@ get_disk_partitions()
     fi
   done
 
-  VAL="${RSLICES}" ; export VAL
+  export VAL="${RSLICES}"
 };
 
 # Function which returns a target disks cylinders
 get_disk_cyl()
 {
   cyl=`diskinfo -v ${1} | grep "# Cylinders" | tr -s ' ' | cut -f 2`
-  VAL="${cyl}" ; export VAL
+  export VAL="${cyl}"
 };
 
 # Function which returns a target disks sectors
 get_disk_sectors()
 {
   sec=`diskinfo -v ${1} | grep "# Sectors" | tr -s ' ' | cut -f 2`
-  VAL="${sec}" ; export VAL
+  export VAL="${sec}"
 };
 
 # Function which returns a target disks heads
 get_disk_heads()
 {
   head=`diskinfo -v ${1} | grep "# Heads" | tr -s ' ' | cut -f 2`
-  VAL="${head}" ; export VAL
+  export VAL="${head}"
 };
 
 # Function which returns a target disks mediasize in sectors
 get_disk_mediasize()
 {
   mediasize=`diskinfo -v ${1} | grep "# mediasize in sectors" | tr -s ' ' | cut -f 2`
-  VAL="${mediasize}" ; export VAL
+  export VAL="${mediasize}"
 };
 
 # Function which exports all zpools, making them safe to overwrite potentially
@@ -246,16 +241,15 @@ delete_all_gpart()
   local DISK="$1"
 
   # Check for any swaps to stop
-  for i in `gpart show ${DISK} 2>/dev/null | grep 'freebsd-swap' | tr -s ' ' | cut -d ' ' -f 4`
+  for i in `swapctl -l | grep "$DISK" | awk '{print $1}'`
   do
-    swapoff /dev/${DISK}s${i}b >/dev/null 2>/dev/null
-    swapoff /dev/${DISK}p${i} >/dev/null 2>/dev/null
+    swapoff ${i} >/dev/null 2>/dev/null
   done
 
   # Delete the gparts now
   for i in `gpart show ${DISK} 2>/dev/null | tr -s ' ' | cut -d ' ' -f 4`
   do
-   if [ "${i}" != "${DISK}" -a "${i}" != "-" ] ; then
+   if [ "/dev/${i}" != "${DISK}" -a "${i}" != "-" ] ; then
      rc_nohalt "gpart delete -i ${i} ${DISK}"
    fi
   done
@@ -267,7 +261,7 @@ delete_all_gpart()
   clear_backup_gpt_table "${DISK}"
 
   # Wipe out front of disk
-  rc_nohalt "dd if=/dev/zero of=/dev/${DISK} count=3000"
+  rc_nohalt "dd if=/dev/zero of=${DISK} count=3000"
 
 };
 
@@ -284,12 +278,12 @@ stop_all_zfs()
 # Function which stops all gmirrors before doing any disk manipulation
 stop_all_gmirror()
 {
-  DISK="${1}"
+  local DISK="`echo ${1} | sed 's|/dev/||g'`"
   GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
   for gprov in $GPROV 
   do
-    gmirror list | grep "Name: ${DISK}" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    gmirror list | grep -q "Name: ${DISK}" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       echo_log "Stopping mirror $gprov $DISK"
       rc_nohalt "gmirror remove $gprov $DISK"
@@ -301,13 +295,13 @@ stop_all_gmirror()
 # Make sure we don't have any geli providers active on this disk
 stop_all_geli()
 {
-  _geld="${1}"
+  local _geld="`echo ${1} | sed 's|/dev/||g'`"
   cd /dev
 
   for i in `ls ${_geld}*`
   do
-    echo $i | grep '.eli' >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $i | grep -q '.eli' 2>/dev/null
+    if [ $? -eq 0 ]
     then
       echo_log "Detaching GELI on ${i}"
       rc_halt "geli detach ${i}"
@@ -326,8 +320,9 @@ setup_disk_slice()
   rm -rf ${MIRRORCFGDIR} >/dev/null 2>/dev/null
   mkdir ${MIRRORCFGDIR}
 
-  # Start with disk0
+  # Start with disk0 and gm0
   disknum="0"
+  gmnum="0"
 
   # Make sure all zpools are exported
   export_all_zpools
@@ -335,18 +330,20 @@ setup_disk_slice()
   # We are ready to start setting up the disks, lets read the config and do the actions
   while read line
   do
-    echo $line | grep "^disk${disknum}=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^disk${disknum}=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
 
       # Found a disk= entry, lets get the disk we are working on
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       DISK="$VAL"
+
+      echo "${DISK}" | grep -q '^/dev/'
+      if [ $? -ne 0 ] ; then DISK="/dev/$DISK" ; fi
      
       # Before we go further, lets confirm this disk really exists
-      if [ ! -e "/dev/${DISK}" ]
-      then
+      if [ ! -e "${DISK}" ] ; then
         exit_err "ERROR: The disk ${DISK} does not exist!"
       fi
 
@@ -359,28 +356,30 @@ setup_disk_slice()
       # Make sure we don't have any zpools loaded
       stop_all_zfs
 
-    fi
+     fi
 
     # Lets look if this device will be mirrored on another disk
-    echo $line | grep "^mirror=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^mirror=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
 
       # Found a disk= entry, lets get the disk we are working on
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       MIRRORDISK="$VAL"
+      echo "${MIRRORDISK}" | grep -q '^/dev/'
+      if [ $? -ne 0 ] ; then MIRRORDISK="/dev/$MIRRORDISK" ; fi
      
       # Before we go further, lets confirm this disk really exists
-      if [ ! -e "/dev/${MIRRORDISK}" ]
+      if [ ! -e "${MIRRORDISK}" ]
       then
         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
       fi
     fi
 
     # Lets see if we have been given a mirror balance choice
-    echo $line | grep "^mirrorbal=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^mirrorbal=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
 
       # Found a disk= entry, lets get the disk we are working on
@@ -389,8 +388,8 @@ setup_disk_slice()
       MIRRORBAL="$VAL"
     fi
 
-    echo $line | grep "^partition=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^partition=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found a partition= entry, lets read / set it 
       get_value_from_string "${line}"
@@ -413,7 +412,7 @@ setup_disk_slice()
         then
           LASTSLICE="1"
         else
-          LASTSLICE="`expr $LASTSLICE + 1`"
+            LASTSLICE=$((LASTSLICE+1))
         fi
 
         if [ $LASTSLICE -gt 4 ]
@@ -425,8 +424,8 @@ setup_disk_slice()
     fi
 
     # Check if we have an image file defined
-    echo $line | grep "^image=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^image=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       # Found an image= entry, lets read / set it
       get_value_from_string "${line}"
       strip_white_space "$VAL"
@@ -437,8 +436,8 @@ setup_disk_slice()
     fi
 
     # Check if we have a partscheme specified
-    echo $line | grep "^partscheme=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $line | grep -q "^partscheme=" 2>/dev/null
+    if [ $? -eq 0 ] ; then
       # Found a partscheme= entry, lets read / set it 
       get_value_from_string "${line}"
       strip_white_space "$VAL"
@@ -448,8 +447,8 @@ setup_disk_slice()
       fi
     fi
 
-    echo $line | grep "^bootManager=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^bootManager=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found a bootManager= entry, lets read /set it
       get_value_from_string "${line}"
@@ -457,14 +456,28 @@ setup_disk_slice()
       BMANAGER="$VAL"
     fi
 
-    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^commitDiskPart" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found our flag to commit this disk setup / lets do sanity check and do it
       if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
       then
+
         case ${PTYPE} in
           all)
+            # If we have a gmirror, lets set it up
+            if [ -n "$MIRRORDISK" ]; then
+              # Default to round-robin if the user didn't specify
+              if [ -z "$MIRRORBAL" ]; then MIRRORBAL="round-robin" ; fi
+
+              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$DISK
+	      init_gmirror "$gmnum" "$MIRRORBAL" "$DISK" "$MIRRORDISK"
+
+	      # Reset DISK to the gmirror device
+	      DISK="/dev/mirror/gm${gmnum}"
+              gmnum=$((gmknum+1))
+            fi
+
             if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
               PSCHEME="MBR"
               tmpSLICE="${DISK}s1"  
@@ -516,23 +529,13 @@ setup_disk_slice()
         # Now save which disk<num> this is, so we can parse it later during slice partition setup
         if [ -z "${IMAGE}" ]
         then
-          echo "disk${disknum}" >${SLICECFGDIR}/$tmpSLICE
-        fi
-
-        # Save any mirror config
-        if [ ! -z "$MIRRORDISK" ]
-        then
-          # Default to round-robin if the user didn't specify
-          if [ -z "$MIRRORBAL" ]
-          then
-            MIRRORBAL="round-robin"
-          fi
-          echo "$MIRRORDISK:$MIRRORBAL" >${MIRRORCFGDIR}/$DISK
+	  _sFile=`echo $tmpSLICE | sed 's|/|-|g'`
+          echo "disk${disknum}" >${SLICECFGDIR}/$_sFile
         fi
 
         # Increment our disk counter to look for next disk and unset
         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME IMAGE
-        disknum="`expr $disknum + 1`"
+        disknum=$((disknum+1))
       else
         exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
       fi
@@ -542,13 +545,28 @@ setup_disk_slice()
 
 };
 
+
+# Init the gmirror device
+init_gmirror()
+{
+    local _mNum=$1
+    local _mBal=$2
+    local _mDisk=$3
+
+    # Create this mirror device
+    rc_halt "gmirror label -vb ${_mBal} gm${_mNum} ${_mDisk}"
+
+    sleep 3
+
+}
+
 # Stop all gjournals on disk / slice
 stop_gjournal()
 {
-  _gdsk="$1"
+  _gdsk="`echo $1 | sed 's|/dev/||g'`"
   # Check if we need to shutdown any journals on this drive
   ls /dev/${_gdsk}*.journal >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
     cd /dev
     for i in `ls ${_gdsk}*.journal`
@@ -564,17 +582,9 @@ stop_gjournal()
 # Function to wipe the potential backup gpt table from a disk
 clear_backup_gpt_table()
 {
-  # Get the disk block size
-  local dSize="`gpart show $1 | grep $1 | tr -s ' ' | cut -d ' ' -f 3`"
-
-  # Make sure this is a valid number
-  is_num "${dSize}" >/dev/null 2>/dev/null
-  if [ "$?" != "0" ] ; then return ; fi
-
-  # Die backup label, DIE
   echo_log "Clearing gpt backup table location on disk"
-  rc_nohalt "dd if=/dev/zero of=${1} bs=512 seek=${dSize}"
-
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m count=1"
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
 } ;
 
 
@@ -596,7 +606,7 @@ init_gpt_full_disk()
 
   echo_log "Running gpart on ${_intDISK}"
   rc_halt "gpart create -s GPT ${_intDISK}"
-  rc_halt "gpart add -b 34 -s 64 -t freebsd-boot ${_intDISK}"
+  rc_halt "gpart add -b 34 -s 128 -t freebsd-boot ${_intDISK}"
   
   echo_log "Stamping boot sector on ${_intDISK}"
   rc_halt "gpart bootcode -b /boot/pmbr ${_intDISK}"
@@ -639,8 +649,8 @@ init_mbr_full_disk()
   sec="${VAL}"
 
   # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head}`"
-  totalblocks="`expr ${totalblocks} \* ${sec}`"
+  totalblocks="`expr ${cyl} \* ${head} 2>/dev/null`"
+  totalblocks="`expr ${totalblocks} \* ${sec} 2>/dev/null`"
   if [ -z "${totalblocks}" ]
   then
     totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
@@ -655,7 +665,7 @@ init_mbr_full_disk()
   sleep 2
   
   echo_log "Cleaning up ${_intDISK}s1"
-  rc_halt "dd if=/dev/zero of=/dev/${_intDISK}s1 count=1024"
+  rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
   
   if [ "$_intBOOT" = "bsd" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
@@ -676,10 +686,10 @@ run_gpart_full()
 
   if [ "$SCHEME" = "MBR" ] ; then
     init_mbr_full_disk "$DISK" "$BOOT"
-    slice="${DISK}-1-mbr"
+    slice=`echo "${DISK}:1:mbr" | sed 's|/|-|g'`
   else
     init_gpt_full_disk "$DISK"
-    slice="${DISK}-1-gpt"
+    slice=`echo "${DISK}:1:gpt" | sed 's|/|-|g'`
   fi
 
   # Lets save our slice, so we know what to look for in the config file later on
@@ -697,7 +707,7 @@ run_gpart_full()
 run_gpart_slice()
 {
   DISK=$1
-  if [ ! -z "$2" ]
+  if [ -n "$2" ]
   then
     BMANAGER="$2"
   fi
@@ -728,7 +738,7 @@ run_gpart_slice()
 
   # Clean up old partition
   echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=/dev/${DISK}s${slicenum} count=1024"
+  rc_halt "dd if=/dev/zero of=${DISK}s${slicenum} count=1024"
 
   sleep 1
 
@@ -739,7 +749,7 @@ run_gpart_slice()
   fi
 
   # Set the slice to the format we'll be using for gpart later
-  slice="${1}-${3}-mbr"
+  slice=`echo "${1}:${3}:mbr" | sed 's|/|-|g'`
 
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]
@@ -757,7 +767,7 @@ run_gpart_free()
 {
   DISK=$1
   SLICENUM=$2
-  if [ ! -z "$3" ]
+  if [ -n "$3" ]
   then
     BMANAGER="$3"
   fi
@@ -770,7 +780,7 @@ run_gpart_free()
 
   # Working on the first slice, make sure we have MBR setup
   gpart show ${DISK} >/dev/null 2>/dev/null
-  if [ "$?" != "0" -a "$SLICENUM" = "1" ] ; then
+  if [ $? -ne 0 -a "$SLICENUM" = "1" ] ; then
     echo_log "Initializing disk, no existing MBR setup"
     rc_halt "gpart create -s mbr ${DISK}"
   fi
@@ -781,12 +791,12 @@ run_gpart_free()
      startblock="63"
   else
      # Lets figure out where the prior slice ends
-     checkslice="`expr ${slicenum} - 1`"
+     checkslice=$((slicenum-1))
 
      # Get starting block of this slice
      sblk=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 2`
      blksize=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 3`
-     startblock="`expr ${sblk} + ${blksize}`"
+     startblock=$((sblk+blksiz))
   fi
 
   # No slice after the new slice, lets figure out the free space remaining and use it
@@ -803,12 +813,12 @@ run_gpart_free()
   sec="${VAL}"
 
   # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head}`"
-  totalblocks="`expr ${totalblocks} \* ${sec}`"
+  totalblocks=$((cyl*head))
+  totalblocks=$((totalblocks*sec))
 
 
   # Now set the ending block to the total disk block size
-  sizeblock="`expr ${totalblocks} - ${startblock}`"
+  sizeblock=$((totalblocks-startblock))
 
   # Install new partition setup
   echo_log "Running gpart on ${DISK}"
@@ -816,7 +826,7 @@ run_gpart_free()
   sleep 2
   
   echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=/dev/${slice} count=1024"
+  rc_halt "dd if=/dev/zero of=${slice} count=1024"
 
   sleep 1
 
@@ -826,7 +836,7 @@ run_gpart_free()
     rc_halt "gpart bootcode -b /boot/boot0 ${DISK}"
   fi
 
-  slice="${DISK}-${SLICENUM}-mbr"
+  slice=`echo "${DISK}:${SLICENUM}:mbr" | sed 's|/|-|g'`
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]
   then

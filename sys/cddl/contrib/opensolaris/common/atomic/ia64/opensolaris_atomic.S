@@ -39,7 +39,7 @@ ENTRY(atomic_cas_32, 3)
 	cmpxchg4.acq    r8 = [r32], r34, ar.ccv
 	;;
 	br.ret.sptk     rp
-END(atomic_cas_64)
+END(atomic_cas_32)
 
 /*
  * uint64_t atomic_cas_64(volatile uint64_t *p, uint64_t cmp, uint64_t v)

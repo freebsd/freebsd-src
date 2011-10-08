@@ -423,7 +423,7 @@ txp_attach(device_t dev)
 	 * advertise the whole capability anyway.
 	 */
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	/* Enable all capabilities. */
 	ifp->if_capenable = ifp->if_capabilities;
@@ -1153,7 +1153,7 @@ txp_suspend(device_t dev)
 	WRITE_REG(sc, TXP_IER, TXP_INTR_NONE);
 	WRITE_REG(sc, TXP_IMR, TXP_INTR_ALL);
 	txp_sleep(sc, sc->sc_ifp->if_capenable);
-	if (pci_find_extcap(sc->sc_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->sc_dev, PCIY_PMG, &pmc) == 0) {
 		/* Request PME. */
 		pmstat = pci_read_config(sc->sc_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
@@ -1178,7 +1178,7 @@ txp_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	TXP_LOCK(sc);
-	if (pci_find_extcap(sc->sc_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->sc_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->sc_dev,
 		    pmc + PCIR_POWER_STATUS, 2);

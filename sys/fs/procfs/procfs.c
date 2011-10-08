@@ -67,20 +67,23 @@
 int
 procfs_doprocfile(PFS_FILL_ARGS)
 {
-	char *fullpath = "unknown";
-	char *freepath = NULL;
+	char *fullpath;
+	char *freepath;
 	struct vnode *textvp;
+	int error;
 
+	freepath = NULL;
 	PROC_LOCK(p);
 	textvp = p->p_textvp;
 	vhold(textvp);
 	PROC_UNLOCK(p);
-	vn_fullpath(td, textvp, &fullpath, &freepath);
+	error = vn_fullpath(td, textvp, &fullpath, &freepath);
 	vdrop(textvp);
-	sbuf_printf(sb, "%s", fullpath);
-	if (freepath)
+	if (error == 0)
+		sbuf_printf(sb, "%s", fullpath);
+	if (freepath != NULL)
 		free(freepath, M_TEMP);
-	return (0);
+	return (error);
 }
 
 /*

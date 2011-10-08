@@ -28,11 +28,17 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_patterns)
 {
-	int fd, r;
+	FILE *f;
+	int r;
 	const char *reffile2 = "test_patterns_2.tar";
 	const char *reffile3 = "test_patterns_3.tar";
 	const char *reffile4 = "test_patterns_4.tar";
-	const char *p;
+
+	const char *tar2aExpected[] = {
+		"/tmp/foo/bar/",
+		"/tmp/foo/bar/baz",
+		NULL
+	};
 
 	/*
 	 * Test basic command-line pattern handling.
@@ -44,12 +50,12 @@ DEFINE_TEST(test_patterns)
 	 *
 	 * John Baldwin reported this problem in PR bin/121598
 	 */
-	fd = open("foo", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fclose(f);
 	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
-	r = systemf("%s xfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
+	r = systemf("%s xv --no-same-owner -f tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
@@ -61,12 +67,7 @@ DEFINE_TEST(test_patterns)
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
-#else
-	p = "/tmp/foo/bar/\r\n/tmp/foo/bar/baz\r\n";
-#endif
-	assertFileContents(p, strlen(p), "tar2a.out");
+	assertFileContainsLinesAnyOrder("tar2a.out", tar2aExpected);
 	assertEmptyFile("tar2a.err");
 
 	/*
@@ -75,7 +76,7 @@ DEFINE_TEST(test_patterns)
 	extract_reference_file(reffile3);
 
 	/* Test 3a:  Pattern tmp/foo/bar should not match /tmp/foo/bar */
-	r = systemf("%s xf %s tmp/foo/bar > tar3a.out 2> tar3a.err",
+	r = systemf("%s x --no-same-owner -f %s tmp/foo/bar > tar3a.out 2> tar3a.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3a.out");
@@ -83,26 +84,26 @@ DEFINE_TEST(test_patterns)
 	/* Test 3b:  Pattern /tmp/foo/baz should not match tmp/foo/baz */
 	assertNonEmptyFile("tar3a.err");
 	/* Again, with the '/' */
-	r = systemf("%s xf %s /tmp/foo/baz > tar3b.out 2> tar3b.err",
+	r = systemf("%s x --no-same-owner -f %s /tmp/foo/baz > tar3b.out 2> tar3b.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3b.out");
 	assertNonEmptyFile("tar3b.err");
 
 	/* Test 3c: ./tmp/foo/bar should not match /tmp/foo/bar */
-	r = systemf("%s xf %s ./tmp/foo/bar > tar3c.out 2> tar3c.err",
+	r = systemf("%s x --no-same-owner -f %s ./tmp/foo/bar > tar3c.out 2> tar3c.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3c.out");
 	assertNonEmptyFile("tar3c.err");
 
 	/* Test 3d: ./tmp/foo/baz should match tmp/foo/baz */
-	r = systemf("%s xf %s ./tmp/foo/baz > tar3d.out 2> tar3d.err",
+	r = systemf("%s x --no-same-owner -f %s ./tmp/foo/baz > tar3d.out 2> tar3d.err",
 	    testprog, reffile3);
 	assertEqualInt(r, 0);
 	assertEmptyFile("tar3d.out");
 	assertEmptyFile("tar3d.err");
-	assertEqualInt(0, access("tmp/foo/baz/bar", F_OK));
+	assertFileExists("tmp/foo/baz/bar");
 
 	/*
 	 * Test 4 archive has some entries starting with windows drive letters
@@ -110,7 +111,7 @@ DEFINE_TEST(test_patterns)
 	 */
 	extract_reference_file(reffile4);
 
-	r = systemf("%s xf %s -C tmp > tar4.out 2> tar4.err",
+	r = systemf("%s x --no-same-owner -f %s -C tmp > tar4.out 2> tar4.err",
 	    testprog, reffile4);
 	assert(r != 0);
 	assertEmptyFile("tar4.out");
@@ -167,16 +168,16 @@ DEFINE_TEST(test_patterns)
 			 * c:../..\file43
 			 * \/?\UnC\../file54
 			 */
-			assertEqualInt(-1, access(filex, F_OK));
+			assertFileNotExists(filex);
 			filex = file_c;
 			xsize = sizeof(file_c);
 			filex[xsize-3] = '0' + r / 10;
 			filex[xsize-2] = '0' + r % 10;
-			assertEqualInt(-1, access(filex, F_OK));
+			assertFileNotExists(filex);
 			break;
 		default:
 			/* Extracted patterns. */
-			assertEqualInt(0, access(filex, F_OK));
+			assertFileExists(filex);
 			break;
 		}
 	}

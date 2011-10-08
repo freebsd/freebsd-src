@@ -1,4 +1,4 @@
-/*	$OpenBSD: pflogd.c,v 1.37 2006/10/26 13:34:47 jmc Exp $	*/
+/*	$OpenBSD: pflogd.c,v 1.46 2008/10/22 08:16:49 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Theo de Raadt
@@ -37,9 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#ifdef __FreeBSD__
-#include <net/bpf.h>	/* BIOCLOCK */
-#endif
+#include <sys/socket.h>
+#include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,15 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <pcap.h>
 #include <syslog.h>
 #include <signal.h>
+#include <err.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <fcntl.h>
 #ifdef __FreeBSD__
+#include <ifaddrs.h>
 #include "pidfile.h"
 #else
 #include <util.h>
 #endif
-
 #include "pflogd.h"
 
 pcap_t *hpcap;
@@ -66,7 +66,7 @@ int Debug = 0;
 static int snaplen = DEF_SNAPLEN;
 static int cur_snaplen = DEF_SNAPLEN;
 
-volatile sig_atomic_t gotsig_close, gotsig_alrm, gotsig_hup;
+volatile sig_atomic_t gotsig_close, gotsig_alrm, gotsig_hup, gotsig_usr1;
 
 char *filename = PFLOGD_LOG_FILE;
 char *interface = PFLOGD_DEFAULT_IF;
@@ -80,7 +80,9 @@ unsigned int delay = FLUSH_DELAY;
 char *copy_argv(char * const *);
 void  dump_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 void  dump_packet_nobuf(u_char *, const struct pcap_pkthdr *, const u_char *);
+void  log_pcap_stats(void);
 int   flush_buffer(FILE *);
+int   if_exists(char *);
 int   init_pcap(void);
 void  logmsg(int, const char *, ...);
 void  purge_buffer(void);
@@ -89,6 +91,7 @@ int   scan_dump(FILE *, off_t);
 int   set_snaplen(int);
 void  set_suspended(int);
 void  sig_alrm(int);
+void  sig_usr1(int);
 void  sig_close(int);
 void  sig_hup(int);
 void  usage(void);
@@ -166,8 +169,8 @@ __dead void
 usage(void)
 {
 	fprintf(stderr, "usage: pflogd [-Dx] [-d delay] [-f filename]");
-	fprintf(stderr, " [-i interface] [-s snaplen]\n");
-	fprintf(stderr, "              [expression]\n");
+	fprintf(stderr, " [-i interface] [-p pidfile]\n");
+	fprintf(stderr, "              [-s snaplen] [expression]\n");
 	exit(1);
 }
 
@@ -190,6 +193,12 @@ sig_alrm(int sig)
 }
 
 void
+sig_usr1(int sig)
+{
+	gotsig_usr1 = 1;
+}
+
+void
 set_pcap_filter(void)
 {
 	struct bpf_program bprog;
@@ -201,6 +210,51 @@ set_pcap_filter(void)
 			logmsg(LOG_WARNING, "%s", pcap_geterr(hpcap));
 		pcap_freecode(&bprog);
 	}
+}
+
+int
+if_exists(char *ifname)
+{
+#ifdef __FreeBSD__
+	struct ifaddrs *ifdata, *mb;
+	int exists = 0;
+
+	getifaddrs(&ifdata);
+        if (ifdata == NULL)
+		return (0);
+
+	for (mb = ifdata; mb != NULL; mb = mb->ifa_next) {
+		if (mb == NULL)
+			continue;
+		if (strlen(ifname) != strlen(mb->ifa_name))
+			continue;
+		if (strncmp(ifname, mb->ifa_name, strlen(ifname)) != 0)
+			continue;
+		exists = 1;
+		break;
+	}
+	freeifaddrs(ifdata);
+
+	return (exists);
+#else
+	int s;
+	struct ifreq ifr;
+	struct if_data ifrdat;
+
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+		err(1, "socket");
+	bzero(&ifr, sizeof(ifr));
+	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
+		sizeof(ifr.ifr_name))
+			errx(1, "main ifr_name: strlcpy");
+	ifr.ifr_data = (caddr_t)&ifrdat;
+	if (ioctl(s, SIOCGIFDATA, (caddr_t)&ifr) == -1)
+		return (0);
+	if (close(s))
+		err(1, "close");
+
+	return (1);
+#endif
 }
 
 int
@@ -554,10 +608,10 @@ dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 		return;
 	}
 
- append:	
+ append:       
 #ifdef __FreeBSD__
- 	sh.ts.tv_sec = (bpf_int32)h->ts.tv_sec;
- 	sh.ts.tv_usec = (bpf_int32)h->ts.tv_usec;
+	sh.ts.tv_sec = (bpf_int32)h->ts.tv_sec;
+	sh.ts.tv_usec = (bpf_int32)h->ts.tv_usec;
 	sh.caplen = h->caplen;
 	sh.len = h->len;
 
@@ -575,17 +629,31 @@ dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	return;
 }
 
+void
+log_pcap_stats(void)
+{
+	struct pcap_stat pstat;
+	if (pcap_stats(hpcap, &pstat) < 0)
+		logmsg(LOG_WARNING, "Reading stats: %s", pcap_geterr(hpcap));
+	else
+		logmsg(LOG_NOTICE,
+			"%u packets received, %u/%u dropped (kernel/pflogd)",
+			pstat.ps_recv, pstat.ps_drop, packets_dropped);
+}
+
 int
 main(int argc, char **argv)
 {
-	struct pcap_stat pstat;
-	int ch, np, Xflag = 0;
+	int ch, np, ret, Xflag = 0;
 	pcap_handler phandler = dump_packet;
 	const char *errstr = NULL;
+	char *pidf = NULL;
+
+	ret = 0;
 
 	closefrom(STDERR_FILENO + 1);
 
-	while ((ch = getopt(argc, argv, "Dxd:f:i:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "Dxd:f:i:p:s:")) != -1) {
 		switch (ch) {
 		case 'D':
 			Debug = 1;
@@ -600,6 +668,9 @@ main(int argc, char **argv)
 			break;
 		case 'i':
 			interface = optarg;
+			break;
+		case 'p':
+			pidf = optarg;
 			break;
 		case 's':
 			snaplen = strtonum(optarg, 0, PFLOGD_MAXSNAPLEN,
@@ -622,13 +693,21 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	/* does interface exist */
+	if (!if_exists(interface)) {
+		warn("Failed to initialize: %s", interface);
+		logmsg(LOG_ERR, "Failed to initialize: %s", interface);
+		logmsg(LOG_ERR, "Exiting, init failure");
+		exit(1);
+	}
+
 	if (!Debug) {
 		openlog("pflogd", LOG_PID | LOG_CONS, LOG_DAEMON);
 		if (daemon(0, 0)) {
 			logmsg(LOG_WARNING, "Failed to become daemon: %s",
 			    strerror(errno));
 		}
-		pidfile(NULL);
+		pidfile(pidf);
 	}
 
 	tzset();
@@ -659,6 +738,7 @@ main(int argc, char **argv)
 	signal(SIGINT, sig_close);
 	signal(SIGQUIT, sig_close);
 	signal(SIGALRM, sig_alrm);
+	signal(SIGUSR1, sig_usr1);
 	signal(SIGHUP, sig_hup);
 	alarm(delay);
 
@@ -686,13 +766,12 @@ main(int argc, char **argv)
 		np = pcap_dispatch(hpcap, PCAP_NUM_PKTS,
 		    phandler, (u_char *)dpcap);
 		if (np < 0) {
-#ifdef __FreeBSD__
-			if (errno == ENXIO) {
-				logmsg(LOG_ERR,
-				    "Device not/no longer configured");
+			if (!if_exists(interface) == -1) {
+				logmsg(LOG_NOTICE, "interface %s went away",
+				    interface);
+				ret = -1;
 				break;
 			}
-#endif
 			logmsg(LOG_NOTICE, "%s", pcap_geterr(hpcap));
 		}
 
@@ -715,6 +794,11 @@ main(int argc, char **argv)
 			gotsig_alrm = 0;
 			alarm(delay);
 		}
+
+		if (gotsig_usr1) {
+			log_pcap_stats();
+			gotsig_usr1 = 0;
+		}
 	}
 
 	logmsg(LOG_NOTICE, "Exiting");
@@ -724,15 +808,9 @@ main(int argc, char **argv)
 	}
 	purge_buffer();
 
-	if (pcap_stats(hpcap, &pstat) < 0)
-		logmsg(LOG_WARNING, "Reading stats: %s", pcap_geterr(hpcap));
-	else
-		logmsg(LOG_NOTICE,
-		    "%u packets received, %u/%u dropped (kernel/pflogd)",
-		    pstat.ps_recv, pstat.ps_drop, packets_dropped);
-
+	log_pcap_stats();
 	pcap_close(hpcap);
 	if (!Debug)
 		closelog();
-	return (0);
+	return (ret);
 }

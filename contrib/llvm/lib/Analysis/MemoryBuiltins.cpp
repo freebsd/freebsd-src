@@ -35,7 +35,13 @@ static bool isMallocCall(const CallInst *CI) {
     return false;
 
   Function *Callee = CI->getCalledFunction();
-  if (Callee == 0 || !Callee->isDeclaration() || Callee->getName() != "malloc")
+  if (Callee == 0 || !Callee->isDeclaration())
+    return false;
+  if (Callee->getName() != "malloc" &&
+      Callee->getName() != "_Znwj" && // operator new(unsigned int)
+      Callee->getName() != "_Znwm" && // operator new(unsigned long)
+      Callee->getName() != "_Znaj" && // operator new[](unsigned int)
+      Callee->getName() != "_Znam")   // operator new[](unsigned long)
     return false;
 
   // Check malloc prototype.
@@ -44,13 +50,8 @@ static bool isMallocCall(const CallInst *CI) {
   const FunctionType *FTy = Callee->getFunctionType();
   if (FTy->getNumParams() != 1)
     return false;
-  if (IntegerType *ITy = dyn_cast<IntegerType>(FTy->param_begin()->get())) {
-    if (ITy->getBitWidth() != 32 && ITy->getBitWidth() != 64)
-      return false;
-    return true;
-  }
-
-  return false;
+  return FTy->getParamType(0)->isIntegerTy(32) ||
+         FTy->getParamType(0)->isIntegerTy(64);
 }
 
 /// extractMallocCall - Returns the corresponding CallInst if the instruction
@@ -189,7 +190,12 @@ const CallInst *llvm::isFreeCall(const Value *I) {
   if (!CI)
     return 0;
   Function *Callee = CI->getCalledFunction();
-  if (Callee == 0 || !Callee->isDeclaration() || Callee->getName() != "free")
+  if (Callee == 0 || !Callee->isDeclaration())
+    return 0;
+
+  if (Callee->getName() != "free" &&
+      Callee->getName() != "_ZdlPv" && // operator delete(void*)
+      Callee->getName() != "_ZdaPv")   // operator delete[](void*)
     return 0;
 
   // Check free prototype.
@@ -200,7 +206,7 @@ const CallInst *llvm::isFreeCall(const Value *I) {
     return 0;
   if (FTy->getNumParams() != 1)
     return 0;
-  if (FTy->param_begin()->get() != Type::getInt8PtrTy(Callee->getContext()))
+  if (FTy->getParamType(0) != Type::getInt8PtrTy(Callee->getContext()))
     return 0;
 
   return CI;

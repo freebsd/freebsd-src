@@ -979,7 +979,7 @@ bwn_attach(device_t dev)
 	/*
 	 * setup PCI resources and interrupt.
 	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(sc->sc_dev, "MSI count : %d\n", msic);

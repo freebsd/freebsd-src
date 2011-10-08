@@ -1,0 +1,60 @@
+.\" Copyright (C) 2009 Internet Systems Consortium, Inc. ("ISC")
+.\" 
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: named-journalprint.8,v 1.4 2010-05-19 01:14:14 tbox Exp $
+.\"
+.hy 0
+.ad l
+.\"     Title: named\-journalprint
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
+.\"      Date: Feb 18, 2009
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
+.TH "NAMED\-JOURNALPRINT" "8" "Feb 18, 2009" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+named\-journalprint \- print zone journal in human\-readable form
+.SH "SYNOPSIS"
+.HP 19
+\fBnamed\-journalprint\fR {\fIjournal\fR}
+.SH "DESCRIPTION"
+.PP
+\fBnamed\-journalprint\fR
+prints the contents of a zone journal file in a human\-readable form.
+.PP
+Journal files are automatically created by
+\fBnamed\fR
+when changes are made to dynamic zones (e.g., by
+\fBnsupdate\fR). They record each addition or deletion of a resource record, in binary format, allowing the changes to be re\-applied to the zone when the server is restarted after a shutdown or crash. By default, the name of the journal file is formed by appending the extension
+\fI.jnl\fR
+to the name of the corresponding zone file.
+.PP
+\fBnamed\-journalprint\fR
+converts the contents of a given journal file into a human\-readable text format. Each line begins with "add" or "del", to indicate whether the record was added or deleted, and continues with the resource record in master\-file format.
+.SH "SEE ALSO"
+.PP
+\fBnamed\fR(8),
+\fBnsupdate\fR(8),
+BIND 9 Administrator Reference Manual.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2009 Internet Systems Consortium, Inc. ("ISC")
+.br

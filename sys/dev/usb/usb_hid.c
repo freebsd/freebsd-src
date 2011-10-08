@@ -702,6 +702,43 @@ hid_get_data_unsigned(const uint8_t *buf, usb_size_t len, struct hid_location *l
 }
 
 /*------------------------------------------------------------------------*
+ *	hid_put_data
+ *------------------------------------------------------------------------*/
+void
+hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+    struct hid_location *loc, unsigned int value)
+{
+	uint32_t hpos = loc->pos;
+	uint32_t hsize = loc->size;
+	uint64_t data;
+	uint64_t mask;
+	uint32_t rpos;
+	uint8_t n;
+
+	DPRINTFN(11, "hid_put_data: loc %d/%d = %u\n", hpos, hsize, value);
+
+	/* Range check and limit */
+	if (hsize == 0)
+		return;
+	if (hsize > 32)
+		hsize = 32;
+
+	/* Put data in a safe way */	
+	rpos = (hpos / 8);
+	n = (hsize + 7) / 8;
+	data = ((uint64_t)value) << (hpos % 8);
+	mask = ((1ULL << hsize) - 1ULL) << (hpos % 8);
+	rpos += n;
+	while (n--) {
+		rpos--;
+		if (rpos < len) {
+			buf[rpos] &= ~(mask >> (8 * n));
+			buf[rpos] |= (data >> (8 * n));
+		}
+	}
+}
+
+/*------------------------------------------------------------------------*
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int

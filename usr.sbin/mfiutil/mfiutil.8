@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2009
+.Dd September 2, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .Op Fl u Ar unit
 .Cm show battery
 .Nm
+.Op Fl d
+.Op Fl e
 .Op Fl u Ar unit
 .Cm show config
 .Nm
@@ -63,8 +65,15 @@
 .Op Fl u Ar unit
 .Cm show logstate
 .Nm
+.Op Fl d
+.Op Fl e
 .Op Fl u Ar unit
 .Cm show patrol
+.Nm
+.Op Fl d
+.Op Fl e
+.Op Fl u Ar unit
+.Cm show progress
 .Nm
 .Op Fl u Ar unit
 .Cm show volumes
@@ -94,7 +103,7 @@
 .Cm locate Ar drive Brq "on | off"
 .Nm
 .Op Fl u Ar unit
-.Cm cache Ar volume Op Ar setting Op Ar value
+.Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
 .Nm
 .Op Fl u Ar unit
 .Cm name Ar volume Ar name
@@ -152,15 +161,19 @@ If no unit is specified,
 then unit 0 is used.
 .El
 .Pp
-Volumes may be specified in two forms.
-First,
-a volume may be identified by its target ID.
-Second,
-on the volume may be specified by the corresponding
-.Em mfidX
-device,
-such as
-.Em mfid0 .
+Various commands accept either or both of the two options:
+.Bl -tag -width indent
+.It Fl d
+Print numeric device IDs as drive identifier.
+This is the default.
+Useful in combination with
+.Fl e
+to print both, numeric device IDs and enclosure:slot information.
+.It Fl e
+Print drive identifiers in enclosure:slot form.
+See next paragraph on format details in context of input rather than
+output.
+.El
 .Pp
 Drives may be specified in two forms.
 First,
@@ -180,6 +193,16 @@ and
 .Ar yy
 is the slot for each drive as displayed in
 .Cm show drives .
+.Pp
+Volumes may be specified in two forms.
+First,
+a volume may be identified by its target ID.
+Second,
+on the volume may be specified by the corresponding
+.Em mfidX
+device,
+such as
+.Em mfid0 .
 .Pp
 The
 .Nm
@@ -296,6 +319,9 @@ Lists all of the firmware images present on the controller.
 Display the various sequence numbers associated with the event log.
 .It Cm show patrol
 Display the status of the controller's patrol read operation.
+.It Cm show progress
+Report the current progress and estimated completion time for active
+operations on all volumes and drives.
 .It Cm show volumes
 Lists all of the logical volumes managed by the controller.
 .El
@@ -341,19 +367,23 @@ Change the state of the external LED associated with
 .Pp
 The logical volume management commands include:
 .Bl -tag -width indent
-.It Cm cache Ar volume Op Ar setting Op Ar value
+.It Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
 If no
 .Ar setting
-argument is supplied, then the current cache policy for
+arguments are supplied, then the current cache policy for
 .Ar volume
 is displayed;
 otherwise,
 the cache policy for
 .Ar volume
 is modified.
-The optional
+One or more
 .Ar setting
-argument can be one of the following values:
+arguments may be given.
+Some settings take an additional
+.Ar value
+argument as noted below.
+The valid settings are:
 .Bl -tag -width indent
 .It Cm enable
 Enable caching for both read and write I/O operations.
@@ -367,7 +397,7 @@ Enable caching only for write I/O operations.
 Use write-back policy for cached writes.
 .It Cm write-through
 Use write-through policy for cached writes.
-.It Cm read-ahead Op Ar value
+.It Cm read-ahead Ar value
 Set the read ahead policy for cached reads.
 The
 .Ar value
@@ -376,7 +406,18 @@ argument can be set to either
 .Dq adaptive ,
 or
 .Dq always .
-.It Cm write-cache Op Ar value
+.It Cm bad-bbu-write-cache Ar value
+Control the behavior of I/O write caching if the battery is dead or
+missing.
+The
+.Ar value
+argument can be set to either
+.Dq disable
+or
+.Dq enable .
+In general this setting should be left disabled to avoid data loss when
+the system loses power.
+.It Cm write-cache Ar value
 Control the write caches on the physical drives backing
 .Ar volume .
 The

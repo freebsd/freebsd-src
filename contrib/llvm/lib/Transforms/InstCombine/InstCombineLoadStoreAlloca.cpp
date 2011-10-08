@@ -57,12 +57,14 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
       Value *Idx[2];
       Idx[0] = NullIdx;
       Idx[1] = NullIdx;
-      Value *V = GetElementPtrInst::CreateInBounds(New, Idx, Idx + 2,
-                                                   New->getName()+".sub", It);
+      Instruction *GEP =
+           GetElementPtrInst::CreateInBounds(New, Idx, Idx + 2,
+                                             New->getName()+".sub");
+      InsertNewInstBefore(GEP, *It);
 
       // Now make everything use the getelementptr instead of the original
       // allocation.
-      return ReplaceInstUsesWith(AI, V);
+      return ReplaceInstUsesWith(AI, GEP);
     } else if (isa<UndefValue>(AI.getArraySize())) {
       return ReplaceInstUsesWith(AI, Constant::getNullValue(AI.getType()));
     }
@@ -364,34 +366,12 @@ static bool equivalentAddressValues(Value *A, Value *B) {
   return false;
 }
 
-// If this instruction has two uses, one of which is a llvm.dbg.declare,
-// return the llvm.dbg.declare.
-DbgDeclareInst *InstCombiner::hasOneUsePlusDeclare(Value *V) {
-  if (!V->hasNUses(2))
-    return 0;
-  for (Value::use_iterator UI = V->use_begin(), E = V->use_end();
-       UI != E; ++UI) {
-    User *U = *UI;
-    if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(U))
-      return DI;
-    if (isa<BitCastInst>(U) && U->hasOneUse()) {
-      if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(*U->use_begin()))
-        return DI;
-      }
-  }
-  return 0;
-}
-
 Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   Value *Val = SI.getOperand(0);
   Value *Ptr = SI.getOperand(1);
 
   // If the RHS is an alloca with a single use, zapify the store, making the
   // alloca dead.
-  // If the RHS is an alloca with a two uses, the other one being a 
-  // llvm.dbg.declare, zapify the store and the declare, making the
-  // alloca dead.  We must do this to prevent declares from affecting
-  // codegen.
   if (!SI.isVolatile()) {
     if (Ptr->hasOneUse()) {
       if (isa<AllocaInst>(Ptr)) 
@@ -400,16 +380,8 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
         if (isa<AllocaInst>(GEP->getOperand(0))) {
           if (GEP->getOperand(0)->hasOneUse())
             return EraseInstFromFunction(SI);
-          if (DbgDeclareInst *DI = hasOneUsePlusDeclare(GEP->getOperand(0))) {
-            EraseInstFromFunction(*DI);
-            return EraseInstFromFunction(SI);
-          }
         }
       }
-    }
-    if (DbgDeclareInst *DI = hasOneUsePlusDeclare(Ptr)) {
-      EraseInstFromFunction(*DI);
-      return EraseInstFromFunction(SI);
     }
   }
 
@@ -621,8 +593,7 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   // Insert a PHI node now if we need it.
   Value *MergedVal = OtherStore->getOperand(0);
   if (MergedVal != SI.getOperand(0)) {
-    PHINode *PN = PHINode::Create(MergedVal->getType(), "storemerge");
-    PN->reserveOperandSpace(2);
+    PHINode *PN = PHINode::Create(MergedVal->getType(), 2, "storemerge");
     PN->addIncoming(SI.getOperand(0), SI.getParent());
     PN->addIncoming(OtherStore->getOperand(0), OtherBB);
     MergedVal = InsertNewInstBefore(PN, DestBB->front());
@@ -631,10 +602,12 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   // Advance to a place where it is safe to insert the new store and
   // insert it.
   BBI = DestBB->getFirstNonPHI();
-  InsertNewInstBefore(new StoreInst(MergedVal, SI.getOperand(1),
-                                    OtherStore->isVolatile(),
-                                    SI.getAlignment()), *BBI);
-  
+  StoreInst *NewSI = new StoreInst(MergedVal, SI.getOperand(1),
+                                   OtherStore->isVolatile(),
+                                   SI.getAlignment());
+  InsertNewInstBefore(NewSI, *BBI);
+  NewSI->setDebugLoc(OtherStore->getDebugLoc()); 
+
   // Nuke the old stores.
   EraseInstFromFunction(SI);
   EraseInstFromFunction(*OtherStore);

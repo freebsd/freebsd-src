@@ -4008,21 +4008,18 @@ stack_protect_epilogue (void)
 
   /* Allow the target to compare Y with X without leaking either into
      a register.  */
-  switch (HAVE_stack_protect_test != 0)
+  if (HAVE_stack_protect_test != 0)
     {
-    case 1:
       tmp = gen_stack_protect_test (x, y, label);
       if (tmp)
 	{
 	  emit_insn (tmp);
-	  break;
+	  goto done;
 	}
-      /* FALLTHRU */
-
-    default:
-      emit_cmp_and_jump_insns (x, y, EQ, NULL_RTX, ptr_mode, 1, label);
-      break;
     }
+
+  emit_cmp_and_jump_insns (x, y, EQ, NULL_RTX, ptr_mode, 1, label);
+ done:
 
   /* The noreturn predictor has been moved to the tree level.  The rtl-level
      predictors estimate this branch about 20%, which isn't enough to get

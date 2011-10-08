@@ -689,6 +689,9 @@ zfs_secpolicy_destroy(zfs_cmd_t *zc, cred_t *cr)
  * and destroying snapshots requires descendent permissions, a successfull
  * check of the top level snapshot applies to snapshots of all descendent
  * datasets as well.
+ *
+ * The top level snapshot may not exist when doing a recursive destroy.
+ * In this case fallback to permissions of the parent dataset.
  */
 static int
 zfs_secpolicy_destroy_snaps(zfs_cmd_t *zc, cred_t *cr)
@@ -699,6 +702,9 @@ zfs_secpolicy_destroy_snaps(zfs_cmd_t *zc, cred_t *cr)
 	dsname = kmem_asprintf("%s@%s", zc->zc_name, zc->zc_value);
 
 	error = zfs_secpolicy_destroy_perms(dsname, cr);
+
+ 	if (error == ENOENT)
+ 		error = zfs_secpolicy_destroy_perms(zc->zc_name, cr);
 
 	strfree(dsname);
 	return (error);
@@ -1957,8 +1963,10 @@ top:
 		uint64_t cookie = 0;
 		int len = sizeof (zc->zc_name) - (p - zc->zc_name);
 
-		while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0)
-			(void) dmu_objset_prefetch(zc->zc_name, NULL);
+		while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0) {
+			if (!dataset_name_hidden(zc->zc_name))
+				(void) dmu_objset_prefetch(zc->zc_name, NULL);
+		}
 	}
 
 	do {
@@ -4068,9 +4076,9 @@ zfs_ioc_userspace_many(zfs_cmd_t *zc)
 	    buf, &zc->zc_nvlist_dst_size);
 
 	if (error == 0) {
-		error = xcopyout(buf,
+		error = ddi_copyout(buf,
 		    (void *)(uintptr_t)zc->zc_nvlist_dst,
-		    zc->zc_nvlist_dst_size);
+		    zc->zc_nvlist_dst_size, zc->zc_iflags);
 	}
 	kmem_free(buf, bufsize);
 	zfsvfs_rele(zfsvfs, FTAG);
@@ -4807,7 +4815,7 @@ zfsdev_minor_alloc(void)
 	static minor_t last_minor;
 	minor_t m;
 
-	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	for (m = last_minor + 1; m != last_minor; m++) {
 		if (m > ZFSDEV_MAX_MINOR)
@@ -4827,7 +4835,7 @@ zfs_ctldev_init(struct cdev *devp)
 	minor_t minor;
 	zfs_soft_state_t *zs;
 
-	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	minor = zfsdev_minor_alloc();
 	if (minor == 0)
@@ -4848,7 +4856,7 @@ zfs_ctldev_init(struct cdev *devp)
 static void
 zfs_ctldev_destroy(zfs_onexit_t *zo, minor_t minor)
 {
-	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	zfs_onexit_destroy(zo);
 	ddi_soft_state_free(zfsdev_state, minor);
@@ -4878,9 +4886,9 @@ zfsdev_open(struct cdev *devp, int flag, int mode, struct thread *td)
 
 	/* This is the control device. Allocate a new minor if requested. */
 	if (flag & FEXCL) {
-		mutex_enter(&zfsdev_state_lock);
+		mutex_enter(&spa_namespace_lock);
 		error = zfs_ctldev_init(devp);
-		mutex_exit(&zfsdev_state_lock);
+		mutex_exit(&spa_namespace_lock);
 	}
 
 	return (error);
@@ -4895,14 +4903,14 @@ zfsdev_close(void *data)
 	if (minor == 0)
 		return;
 
-	mutex_enter(&zfsdev_state_lock);
+	mutex_enter(&spa_namespace_lock);
 	zo = zfsdev_get_soft_state(minor, ZSST_CTLDEV);
 	if (zo == NULL) {
-		mutex_exit(&zfsdev_state_lock);
+		mutex_exit(&spa_namespace_lock);
 		return;
 	}
 	zfs_ctldev_destroy(zo, minor);
-	mutex_exit(&zfsdev_state_lock);
+	mutex_exit(&spa_namespace_lock);
 }
 
 static int

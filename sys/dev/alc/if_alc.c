@@ -365,10 +365,8 @@ alc_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ALC_LOCK(sc);
 	mii = device_get_softc(sc->alc_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	ALC_UNLOCK(sc);
 
@@ -534,13 +532,11 @@ alc_phy_reset(struct alc_softc *sc)
 	uint16_t data;
 
 	/* Reset magic from Linux. */
-	CSR_WRITE_2(sc, ALC_GPHY_CFG,
-	    GPHY_CFG_HIB_EN | GPHY_CFG_HIB_PULSE | GPHY_CFG_SEL_ANA_RESET);
+	CSR_WRITE_2(sc, ALC_GPHY_CFG, GPHY_CFG_SEL_ANA_RESET);
 	CSR_READ_2(sc, ALC_GPHY_CFG);
 	DELAY(10 * 1000);
 
-	CSR_WRITE_2(sc, ALC_GPHY_CFG,
-	    GPHY_CFG_EXT_RESET | GPHY_CFG_HIB_EN | GPHY_CFG_HIB_PULSE |
+	CSR_WRITE_2(sc, ALC_GPHY_CFG, GPHY_CFG_EXT_RESET |
 	    GPHY_CFG_SEL_ANA_RESET);
 	CSR_READ_2(sc, ALC_GPHY_CFG);
 	DELAY(10 * 1000);
@@ -625,6 +621,23 @@ alc_phy_reset(struct alc_softc *sc)
 	alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
 	    ALC_MII_DBG_DATA, data);
 	DELAY(1000);
+
+	/* Disable hibernation. */
+	alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr, ALC_MII_DBG_ADDR,
+	    0x0029);
+	data = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+	    ALC_MII_DBG_DATA);
+	data &= ~0x8000;
+	alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr, ALC_MII_DBG_DATA,
+	    data);
+
+	alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr, ALC_MII_DBG_ADDR,
+	    0x000B);
+	data = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+	    ALC_MII_DBG_DATA);
+	data &= ~0x8000;
+	alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr, ALC_MII_DBG_DATA,
+	    data);
 }
 
 static void
@@ -650,8 +663,7 @@ alc_phy_down(struct alc_softc *sc)
 		break;
 	default:
 		/* Force PHY down. */
-		CSR_WRITE_2(sc, ALC_GPHY_CFG,
-		    GPHY_CFG_EXT_RESET | GPHY_CFG_HIB_EN | GPHY_CFG_HIB_PULSE |
+		CSR_WRITE_2(sc, ALC_GPHY_CFG, GPHY_CFG_EXT_RESET |
 		    GPHY_CFG_SEL_ANA_RESET | GPHY_CFG_PHY_IDDQ |
 		    GPHY_CFG_PWDOWN_HW);
 		DELAY(1000);
@@ -783,7 +795,7 @@ alc_attach(device_t dev)
 	sc->alc_dma_rd_burst = 0;
 	sc->alc_dma_wr_burst = 0;
 	sc->alc_rcb = DMA_CFG_RCB_64;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &base) == 0) {
 		sc->alc_flags |= ALC_FLAG_PCIE;
 		sc->alc_expcap = base;
 		burst = CSR_READ_2(sc, base + PCIR_EXPRESS_DEVICE_CTL);
@@ -963,7 +975,7 @@ alc_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = ALC_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &base) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 		sc->alc_flags |= ALC_FLAG_PM;
 		sc->alc_pmcap = base;

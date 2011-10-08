@@ -233,10 +233,7 @@ ng_gif_demux_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_GIF_DEMUX,
-	    M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_GIF_DEMUX, M_WAITOK | M_ZERO);
 	priv->node = node;
 
 	NG_NODE_SET_PRIVATE(node, priv);

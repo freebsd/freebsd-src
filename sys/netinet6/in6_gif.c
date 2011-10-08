@@ -262,6 +262,8 @@ in6_gif_output(struct ifnet *ifp,
 #endif
 	}
 
+	m_addr_changed(m);
+
 #ifdef IPV6_MINMTU
 	/*
 	 * force fragmentation to minimum MTU, to avoid path MTU discovery.

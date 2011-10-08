@@ -21,6 +21,7 @@ Currently, the library automatically detects and reads the following:
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
+  * lzma and xz compression
   * GNU tar format (including GNU long filenames, long link names, and
     sparse files)
   * Solaris 9 extended tar format (including ACLs)
@@ -30,18 +31,26 @@ Currently, the library automatically detects and reads the following:
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
   * Binary cpio (big-endian or little-endian)
-  * ISO9660 CD-ROM images (with optional Rockridge extensions)
+  * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * GNU and BSD 'ar' archives
+  * 'mtree' format
 
 The library can write:
   * gzip compression
   * bzip2 compression
+  * compress/LZW compression
+  * lzma and xz compression
   * POSIX ustar
   * POSIX pax interchange format
   * "restricted" pax format, which will create ustar archives except for
     entries that require pax extensions (for long filenames, ACLs, etc).
   * POSIX octet-oriented cpio
+  * SVR4 "newc" cpio
   * shar archives
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * GNU and BSD 'ar' archives
+  * 'mtree' format
 
 Notes:
  * This is a heavily stream-oriented system.  There is no direct

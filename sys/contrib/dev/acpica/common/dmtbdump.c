@@ -1408,12 +1408,12 @@ AcpiDmDumpSlit (
 
             if ((j+1) < Localities)
             {
-                AcpiOsPrintf (",");
+                AcpiOsPrintf (" ");
 
                 if (j && (((j+1) % 16) == 0))
                 {
-                    AcpiOsPrintf ("\n");
-                    AcpiDmLineHeader (Offset, 0, "");
+                    AcpiOsPrintf ("\\\n"); /* With line continuation char */
+                    AcpiDmLineHeader (Offset, 0, NULL);
                 }
             }
         }

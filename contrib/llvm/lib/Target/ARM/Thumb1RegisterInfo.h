@@ -28,6 +28,11 @@ struct Thumb1RegisterInfo : public ARMBaseRegisterInfo {
 public:
   Thumb1RegisterInfo(const ARMBaseInstrInfo &tii, const ARMSubtarget &STI);
 
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
+  const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
+
   /// emitLoadConstPool - Emits a load from constpool to materialize the
   /// specified immediate.
  void emitLoadConstPool(MachineBasicBlock &MBB,
@@ -35,7 +40,8 @@ public:
                         DebugLoc dl,
                         unsigned DestReg, unsigned SubIdx, int Val,
                         ARMCC::CondCodes Pred = ARMCC::AL,
-                        unsigned PredReg = 0) const;
+                        unsigned PredReg = 0,
+                        unsigned MIFlags = MachineInstr::NoFlags) const;
 
   /// Code Generation virtual methods...
   void eliminateCallFramePseudoInstr(MachineFunction &MF,

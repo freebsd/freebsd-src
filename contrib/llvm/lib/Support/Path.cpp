@@ -15,11 +15,15 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Endian.h"
 #include <cassert>
 #include <cstring>
 #include <ostream>
 using namespace llvm;
 using namespace sys;
+namespace {
+using support::ulittle32_t;
+}
 
 //===----------------------------------------------------------------------===//
 //=== WARNING: Implementation here must contain only TRULY operating system
@@ -88,15 +92,21 @@ sys::IdentifyFileType(const char *magic, unsigned length) {
       }
       break;
 
+      // The two magic numbers for mach-o are:
+      // 0xfeedface - 32-bit mach-o
+      // 0xfeedfacf - 64-bit mach-o
     case 0xFE:
-    case 0xCE: {
+    case 0xCE:
+    case 0xCF: {
       uint16_t type = 0;
       if (magic[0] == char(0xFE) && magic[1] == char(0xED) &&
-          magic[2] == char(0xFA) && magic[3] == char(0xCE)) {
+          magic[2] == char(0xFA) && 
+          (magic[3] == char(0xCE) || magic[3] == char(0xCF))) {
         /* Native endian */
         if (length >= 16) type = magic[14] << 8 | magic[15];
-      } else if (magic[0] == char(0xCE) && magic[1] == char(0xFA) &&
-                 magic[2] == char(0xED) && magic[3] == char(0xFE)) {
+      } else if ((magic[0] == char(0xCE) || magic[0] == char(0xCF)) &&
+                 magic[1] == char(0xFA) && magic[2] == char(0xED) &&
+                 magic[3] == char(0xFE)) {
         /* Reverse endian */
         if (length >= 14) type = magic[13] << 8 | magic[12];
       }
@@ -129,6 +139,16 @@ sys::IdentifyFileType(const char *magic, unsigned length) {
       if (magic[1] == 0x02)
         return COFF_FileType;
       break;
+
+    case 0x4d: // Possible MS-DOS stub on Windows PE file
+      if (magic[1] == 0x5a) {
+        uint32_t off = *reinterpret_cast<const ulittle32_t *>(magic + 0x3c);
+        // PE/COFF file, either EXE or DLL.
+        if (off < length && memcmp(magic + off, "PE\0\0",4) == 0)
+          return COFF_FileType;
+      }
+      break;
+
     case 0x64: // x86-64 Windows.
       if (magic[1] == char(0x86))
         return COFF_FileType;

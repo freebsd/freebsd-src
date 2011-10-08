@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_setup.h>
 
 #undef APB_DEBUG
 #ifdef APB_DEBUG
@@ -337,6 +338,20 @@ apb_intr(void *arg)
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
+
+			switch (ar71xx_soc) {
+			case AR71XX_SOC_AR7240:
+			case AR71XX_SOC_AR7241:
+			case AR71XX_SOC_AR7242:
+				/* Ack/clear the irq on status register for AR724x */
+				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
+				    reg & ~(1 << irq));
+				break;
+			default:
+				/* fallthrough */
+				break;
+			}
+
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				/* Ignore timer interrupts */

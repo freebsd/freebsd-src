@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 LIB=		rtld_db
-SHLIB_MAJOR= 	1
+SHLIB_MAJOR= 	2
 MAN=		librtld_db.3
 
 SRCS=		rtld_db.c

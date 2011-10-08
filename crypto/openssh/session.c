@@ -1,4 +1,5 @@
-/* $OpenBSD: session.c,v 1.256 2010/06/25 07:20:04 djm Exp $ */
+/* $OpenBSD: session.c,v 1.258 2010/11/25 04:10:09 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -95,6 +96,10 @@ __RCSID("$FreeBSD$");
 
 #if defined(KRB5) && defined(USE_AFS)
 #include <kafs.h>
+#endif
+
+#ifdef WITH_SELINUX
+#include <selinux/selinux.h>
 #endif
 
 #define IS_INTERNAL_SFTP(c) \
@@ -232,7 +237,10 @@ auth_input_request_forwarding(struct passwd * pw)
 		goto authsock_err;
 	}
 
-	/* Allocate a channel for the authentication agent socket. */
+	/*
+	 * Allocate a channel for the authentication agent socket.
+	 * Ignore HPN on that one given no improvement expected.
+	 */
 	nc = channel_new("auth socket",
 	    SSH_CHANNEL_AUTH_SOCKET, sock, sock, -1,
 	    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
@@ -586,7 +594,8 @@ do_exec_no_pty(Session *s, const char *command)
 
 	s->pid = pid;
 	/* Set interactive/non-interactive mode. */
-	packet_set_interactive(s->display != NULL);
+	packet_set_interactive(s->display != NULL,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	/*
 	 * Clear loginmsg, since it's the child's responsibility to display
@@ -740,7 +749,8 @@ do_exec_pty(Session *s, const char *command)
 
 	/* Enter interactive session. */
 	s->ptymaster = ptymaster;
-	packet_set_interactive(1);
+	packet_set_interactive(1, 
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 	if (compat20) {
 		session_set_fds(s, ptyfd, fdout, -1, 1, 1);
 	} else {
@@ -1481,36 +1491,16 @@ do_setusercontext(struct passwd *pw)
 {
 	char *chroot_path, *tmp;
 
-#ifdef WITH_SELINUX
-	/* Cache selinux status for later use */
-	(void)ssh_selinux_enabled();
-#endif
+	platform_setusercontext(pw);
 
-#ifndef HAVE_CYGWIN
-	if (getuid() == 0 || geteuid() == 0)
-#endif /* HAVE_CYGWIN */
-	{
+	if (platform_privileged_uidswap()) {
 #ifdef HAVE_LOGIN_CAP
-# ifdef __bsdi__
-		setpgid(0, 0);
-# endif
-# ifdef USE_PAM
-		if (options.use_pam) {
-			do_pam_setcred(use_privsep);
-		}
-# endif /* USE_PAM */
 		if (setusercontext(lc, pw, pw->pw_uid,
 		    (LOGIN_SETALL & ~(LOGIN_SETENV|LOGIN_SETPATH|LOGIN_SETUSER))) < 0) {
 			perror("unable to set user context");
 			exit(1);
 		}
 #else
-# if defined(HAVE_GETLUID) && defined(HAVE_SETLUID)
-		/* Sets login uid for accounting */
-		if (getluid() == -1 && setluid(pw->pw_uid) == -1)
-			error("setluid: %s", strerror(errno));
-# endif /* defined(HAVE_GETLUID) && defined(HAVE_SETLUID) */
-
 		if (setlogin(pw->pw_name) < 0)
 			error("setlogin failed: %s", strerror(errno));
 		if (setgid(pw->pw_gid) < 0) {
@@ -1523,50 +1513,9 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 		endgrent();
-# ifdef USE_PAM
-		/*
-		 * PAM credentials may take the form of supplementary groups.
-		 * These will have been wiped by the above initgroups() call.
-		 * Reestablish them here.
-		 */
-		if (options.use_pam) {
-			do_pam_setcred(use_privsep);
-		}
-# endif /* USE_PAM */
-# if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
-		irix_setusercontext(pw);
-# endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
-# ifdef _AIX
-		aix_usrinfo(pw);
-# endif /* _AIX */
-# ifdef USE_LIBIAF
-		if (set_id(pw->pw_name) != 0) {
-			exit(1);
-		}
-# endif /* USE_LIBIAF */
 #endif
-#ifdef HAVE_SETPCRED
-		/*
-		 * If we have a chroot directory, we set all creds except real
-		 * uid which we will need for chroot.  If we don't have a
-		 * chroot directory, we don't override anything.
-		 */
-		{
-			char **creds = NULL, *chroot_creds[] =
-			    { "REAL_USER=root", NULL };
 
-			if (options.chroot_directory != NULL &&
-			    strcasecmp(options.chroot_directory, "none") != 0)
-				creds = chroot_creds;
-
-			if (setpcred(pw->pw_name, creds) == -1)
-				fatal("Failed to set process credentials");
-		}
-#endif /* HAVE_SETPCRED */
-
-#ifdef WITH_SELINUX
-		ssh_selinux_setup_exec_context(pw->pw_name);
-#endif
+		platform_setusercontext_post_groups(pw);
 
 		if (options.chroot_directory != NULL &&
 		    strcasecmp(options.chroot_directory, "none") != 0) {
@@ -1602,6 +1551,9 @@ do_pwchange(Session *s)
 	if (s->ttyfd != -1) {
 		fprintf(stderr,
 		    "You must change your password now and login again!\n");
+#ifdef WITH_SELINUX
+		setexeccon(NULL);
+#endif
 #ifdef PASSWD_NEEDS_USERNAME
 		execl(_PATH_PASSWD_PROG, "passwd", s->pw->pw_name,
 		    (char *)NULL);
@@ -1640,8 +1592,6 @@ launch_login(struct passwd *pw, const char *hostname)
 static void
 child_close_fds(void)
 {
-	int i;
-
 	if (packet_get_connection_in() == packet_get_connection_out())
 		close(packet_get_connection_in());
 	else {
@@ -1667,8 +1617,7 @@ child_close_fds(void)
 	 * initgroups, because at least on Solaris 2.3 it leaves file
 	 * descriptors open.
 	 */
-	for (i = 3; i < 64; i++)
-		close(i);
+	closefrom(STDERR_FILENO + 1);
 }
 
 /*
@@ -2345,10 +2294,14 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr, int ignore_fderr,
 	 */
 	if (s->chanid == -1)
 		fatal("no channel for session %d", s->self);
-	channel_set_fds(s->chanid,
-	    fdout, fdin, fderr,
-	    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
-	    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
+	if (options.hpn_disabled)
+		channel_set_fds(s->chanid, fdout, fdin, fderr,
+		    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+		    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
+	else
+		channel_set_fds(s->chanid, fdout, fdin, fderr,
+		    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+		    1, is_tty, options.hpn_buffer_size);
 }
 
 /*

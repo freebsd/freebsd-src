@@ -220,7 +220,7 @@ enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
 #endif
 
 struct iso_mnt {
-	int im_flags;
+	uint64_t im_flags;
 
 	struct mount *im_mountp;
 	struct cdev *im_dev;

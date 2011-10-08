@@ -40,6 +40,7 @@
 cpu_core_t	cpu_core[MAXCPU];
 kmutex_t	cpu_lock;
 solaris_cpu_t	solaris_cpu[MAXCPU];
+int		nsec_per_tick;
 
 /*
  *  OpenSolaris subsystem initialisation.
@@ -60,6 +61,8 @@ opensolaris_load(void *dummy)
 	}
 
 	mutex_init(&cpu_lock, "OpenSolaris CPU lock", MUTEX_DEFAULT, NULL);
+
+	nsec_per_tick = NANOSEC / hz;
 }
 
 SYSINIT(opensolaris_register, SI_SUB_OPENSOLARIS, SI_ORDER_FIRST, opensolaris_load, NULL);

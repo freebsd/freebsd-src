@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.138 2010/08/04 05:37:01 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.153 2011/08/02 01:22:11 djm Exp $
 .\" $FreeBSD$
-.Dd August 4, 2010
+.Dd August 2, 2011
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -113,6 +112,15 @@ The host is the
 .Ar hostname
 argument given on the command line (i.e. the name is not converted to
 a canonicalized host name before matching).
+.Pp
+A pattern entry may be negated by prefixing it with an exclamation mark
+.Pq Sq !\& .
+If a negated entry is matched, then the
+.Cm Host
+entry is ignored, regardless of whether any other patterns on the line
+match.
+Negated matches are therefore useful to provide exceptions for wildcard
+matches.
 .Pp
 See
 .Sx PATTERNS
@@ -307,14 +315,22 @@ section above or the string
 .Dq none
 to disable connection sharing.
 In the path,
+.Ql %L
+will be substituted by the first component of the local host name,
 .Ql %l
-will be substituted by the local host name,
+will be substituted by the local host name (including any domain name),
 .Ql %h
 will be substituted by the target host name,
+.Ql %n
+will be substituted by the original target host name
+specified on the command line,
 .Ql %p
-the port, and
+the port,
 .Ql %r
-by the remote login username.
+by the remote login username, and
+.Ql %u
+by the username of the user running
+.Xr ssh 1 .
 It is recommended that any
 .Cm ControlPath
 used for opportunistic connection sharing include
@@ -502,9 +518,11 @@ or
 The default is
 .Dq no .
 .It Cm GlobalKnownHostsFile
-Specifies a file to use for the global
-host key database instead of
-.Pa /etc/ssh/ssh_known_hosts .
+Specifies one or more files to use for the global
+host key database, separated by whitespace.
+The default is
+.Pa /etc/ssh/ssh_known_hosts ,
+.Pa /etc/ssh/ssh_known_hosts2 .
 .It Cm GSSAPIAuthentication
 Specifies whether user authentication based on GSSAPI is allowed.
 The default is
@@ -548,7 +566,18 @@ is similar to
 Specifies the protocol version 2 host key algorithms
 that the client wants to use in order of preference.
 The default for this option is:
-.Dq ssh-rsa,ssh-dss .
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,ssh-dss-cert-v01@openssh.com,
+ssh-rsa-cert-v00@openssh.com,ssh-dss-cert-v00@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-rsa,ssh-dss
+.Ed
+.Pp
+If hostkeys are known for the destination host then this default is modified
+to prefer their algorithms.
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
@@ -560,7 +589,7 @@ Specifies the real host name to log into.
 This can be used to specify nicknames or abbreviations for hosts.
 If the hostname contains the character sequence
 .Ql %h ,
-then this will be replaced with the host name specified on the commandline
+then this will be replaced with the host name specified on the command line
 (this is useful for manipulating unqualified names).
 The default is the name given on the command line.
 Numeric IP addresses are also permitted (both on the command line and in
@@ -584,14 +613,15 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's RSA or DSA authentication identity
-is read.
+Specifies a file from which the user's DSA, ECDSA or DSA authentication
+identity is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
-.Pa ~/.ssh/id_rsa
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa
 and
-.Pa ~/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa
 for protocol version 2.
 Additionally, any identities represented by the authentication agent
 will be used for authentication.
@@ -619,6 +649,47 @@ escape characters:
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+Multiple
+.Cm IdentityFile
+directives will add to the list of identities tried (this behaviour
+differs from that of other configuration directives).
+.It Cm IPQoS
+Specifies the IPv4 type-of-service or DSCP class for connections.
+Accepted values are
+.Dq af11 ,
+.Dq af12 ,
+.Dq af13 ,
+.Dq af14 ,
+.Dq af22 ,
+.Dq af23 ,
+.Dq af31 ,
+.Dq af32 ,
+.Dq af33 ,
+.Dq af41 ,
+.Dq af42 ,
+.Dq af43 ,
+.Dq cs0 ,
+.Dq cs1 ,
+.Dq cs2 ,
+.Dq cs3 ,
+.Dq cs4 ,
+.Dq cs5 ,
+.Dq cs6 ,
+.Dq cs7 ,
+.Dq ef ,
+.Dq lowdelay ,
+.Dq throughput ,
+.Dq reliability ,
+or a numeric value.
+This option may take one or two arguments, separated by whitespace.
+If one argument is specified, it is used as the packet class unconditionally.
+If two values are specified, the first is automatically selected for
+interactive sessions and the second for non-interactive sessions.
+The default is
+.Dq lowdelay
+for interactive sessions and
+.Dq throughput
+for non-interactive sessions.
 .It Cm KbdInteractiveAuthentication
 Specifies whether to use keyboard-interactive authentication.
 The argument to this keyword must be
@@ -638,6 +709,17 @@ it may be zero or more of:
 .Dq pam ,
 and
 .Dq skey .
+.It Cm KexAlgorithms
+Specifies the available KEX (Key Exchange) algorithms.
+Multiple algorithms must be comma-separated.
+The default is:
+.Bd -literal -offset indent
+ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+diffie-hellman-group-exchange-sha256,
+diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha1,
+diffie-hellman-group1-sha1
+.Ed
 .It Cm LocalCommand
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
@@ -712,7 +794,9 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
+hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
+hmac-sha2-512-96
 .Ed
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.
@@ -751,7 +835,7 @@ The default is
 .Dq no .
 .It Cm PKCS11Provider
 Specifies which PKCS#11 provider to use.
-The argument to this keyword is the PKCS#11 shared libary
+The argument to this keyword is the PKCS#11 shared library
 .Xr ssh 1
 should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
@@ -885,6 +969,23 @@ will only succeed if the server's
 .Cm GatewayPorts
 option is enabled (see
 .Xr sshd_config 5 ) .
+.It Cm RequestTTY
+Specifies whether to request a pseudo-tty for the session.
+The argument may be one of:
+.Dq no
+(never request a TTY),
+.Dq yes
+(always request a TTY when standard input is a TTY),
+.Dq force
+(always request a TTY) or
+.Dq auto
+(request a TTY when opening a login session).
+This option mirrors the
+.Fl t
+and
+.Fl T
+flags for
+.Xr ssh 1 .
 .It Cm RhostsRSAAuthentication
 Specifies whether to try rhosts based authentication with RSA host
 authentication.
@@ -1079,9 +1180,11 @@ This can be useful when a different user name is used on different machines.
 This saves the trouble of
 having to remember to give the user name on the command line.
 .It Cm UserKnownHostsFile
-Specifies a file to use for the user
-host key database instead of
-.Pa ~/.ssh/known_hosts .
+Specifies one or more files to use for the user
+host key database, separated by whitespace.
+The default is
+.Pa ~/.ssh/known_hosts ,
+.Pa ~/.ssh/known_hosts2 .
 .It Cm VerifyHostKeyDNS
 Specifies whether to verify the remote key using DNS and SSHFP resource
 records.
@@ -1114,7 +1217,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20101111 .
+.Dq FreeBSD-20111001 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

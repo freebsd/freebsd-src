@@ -39,6 +39,7 @@
 
 #include "llvm/ADT/OwningPtr.h"
 #include "LiveIntervalUnion.h"
+#include "RegisterClassInfo.h"
 
 namespace llvm {
 
@@ -61,6 +62,11 @@ class LiveVirtRegQueue;
 /// assignment order.
 class RegAllocBase {
   LiveIntervalUnion::Allocator UnionAllocator;
+
+  // Cache tag for PhysReg2LiveUnion entries. Increment whenever virtual
+  // registers may have changed.
+  unsigned UserTag;
+
 protected:
   // Array of LiveIntervalUnions indexed by physical register.
   class LiveUnionArray {
@@ -86,13 +92,14 @@ protected:
   MachineRegisterInfo *MRI;
   VirtRegMap *VRM;
   LiveIntervals *LIS;
+  RegisterClassInfo RegClassInfo;
   LiveUnionArray PhysReg2LiveUnion;
 
   // Current queries, one per physreg. They must be reinitialized each time we
   // query on a new live virtual register.
   OwningArrayPtr<LiveIntervalUnion::Query> Queries;
 
-  RegAllocBase(): TRI(0), MRI(0), VRM(0), LIS(0) {}
+  RegAllocBase(): UserTag(0), TRI(0), MRI(0), VRM(0), LIS(0) {}
 
   virtual ~RegAllocBase() {}
 
@@ -104,9 +111,13 @@ protected:
   // before querying a new live virtual register. This ties Queries and
   // PhysReg2LiveUnion together.
   LiveIntervalUnion::Query &query(LiveInterval &VirtReg, unsigned PhysReg) {
-    Queries[PhysReg].init(&VirtReg, &PhysReg2LiveUnion[PhysReg]);
+    Queries[PhysReg].init(UserTag, &VirtReg, &PhysReg2LiveUnion[PhysReg]);
     return Queries[PhysReg];
   }
+
+  // Invalidate all cached information about virtual registers - live ranges may
+  // have changed.
+  void invalidateVirtRegs() { ++UserTag; }
 
   // The top-level driver. The output is a VirtRegMap that us updated with
   // physical register assignments.

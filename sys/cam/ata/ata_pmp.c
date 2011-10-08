@@ -215,11 +215,8 @@ pmprelease(struct cam_periph *periph, int mask)
 static void
 pmponinvalidate(struct cam_periph *periph)
 {
-	struct pmp_softc *softc;
 	struct cam_path *dpath;
 	int i;
-
-	softc = (struct pmp_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
@@ -533,7 +530,8 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 0x60, 15, 0xf);
+		ata_pm_write_cmd(ataio, 0x60, 15, 0x07 |
+		    ((softc->caps & CTS_SATA_CAPS_H_AN) ? 0x08 : 0));
 		break;
 	default:
 		break;
@@ -547,7 +545,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_trans_settings cts;
 	struct pmp_softc *softc;
 	struct ccb_ataio *ataio;
-	struct cam_path *path, *dpath;
+	struct cam_path *dpath;
 	u_int32_t  priority, res;
 	int i;
 
@@ -556,7 +554,6 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("pmpdone\n"));
 
-	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -582,10 +579,10 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
-		softc->pm_ports = (done_ccb->ataio.res.lba_high << 24) +
-		    (done_ccb->ataio.res.lba_mid << 16) +
-		    (done_ccb->ataio.res.lba_low << 8) +
-		    done_ccb->ataio.res.sector_count;
+		softc->pm_ports = (ataio->res.lba_high << 24) +
+		    (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) +
+		    ataio->res.sector_count;
 		/* This PMP declares 6 ports, while only 5 of them are real.
 		 * Port 5 is enclosure management bridge port, which has implementation
 		 * problems, causing probe faults. Hide it for now. */
@@ -649,10 +646,10 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_schedule(periph, priority);
 		return;
 	case PMP_STATE_CHECK:
-		res = (done_ccb->ataio.res.lba_high << 24) +
-		    (done_ccb->ataio.res.lba_mid << 16) +
-		    (done_ccb->ataio.res.lba_low << 8) +
-		    done_ccb->ataio.res.sector_count;
+		res = (ataio->res.lba_high << 24) +
+		    (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) +
+		    ataio->res.sector_count;
 		if (((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) ||
 		    (res & 0x600) != 0) {
 			if (bootverbose) {
@@ -672,7 +669,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
 				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
 				cts.xport_specific.sata.caps = softc->caps &
-				    (CTS_SATA_CAPS_H_PMREQ | CTS_SATA_CAPS_H_DMAAA);
+				    (CTS_SATA_CAPS_H_PMREQ |
+				     CTS_SATA_CAPS_H_DMAAA |
+				     CTS_SATA_CAPS_H_AN);
 				cts.xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 				xpt_action((union ccb *)&cts);
 				xpt_free_path(dpath);

@@ -15,6 +15,8 @@
 #ifndef LLVM_SUPPORT_DEBUGLOC_H
 #define LLVM_SUPPORT_DEBUGLOC_H
 
+#include "llvm/ADT/DenseMapInfo.h"
+
 namespace llvm {
   class MDNode;
   class LLVMContext;
@@ -23,6 +25,24 @@ namespace llvm {
   /// and MachineInstr to compactly encode file/line/scope information for an
   /// operation.
   class DebugLoc {
+    friend struct DenseMapInfo<DebugLoc>;
+
+    /// getEmptyKey() - A private constructor that returns an unknown that is
+    /// not equal to the tombstone key or DebugLoc().
+    static DebugLoc getEmptyKey() {
+      DebugLoc DL;
+      DL.LineCol = 1;
+      return DL;
+    }
+
+    /// getTombstoneKey() - A private constructor that returns an unknown that
+    /// is not equal to the empty key or DebugLoc().
+    static DebugLoc getTombstoneKey() {
+      DebugLoc DL;
+      DL.LineCol = 2;
+      return DL;
+    }
+
     /// LineCol - This 32-bit value encodes the line and column number for the
     /// location, encoded as 24-bits for line and 8 bits for col.  A value of 0
     /// for either means unknown.
@@ -41,7 +61,10 @@ namespace llvm {
     
     /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
     static DebugLoc getFromDILocation(MDNode *N);
-    
+
+    /// getFromDILexicalBlock - Translate the DILexicalBlock into a DebugLoc.
+    static DebugLoc getFromDILexicalBlock(MDNode *N);
+
     /// isUnknown - Return true if this is an unknown location.
     bool isUnknown() const { return ScopeIdx == 0; }
     
@@ -74,6 +97,16 @@ namespace llvm {
       return LineCol == DL.LineCol && ScopeIdx == DL.ScopeIdx;
     }
     bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
+
+    void dump(const LLVMContext &Ctx) const;
+  };
+
+  template <>
+  struct DenseMapInfo<DebugLoc> {
+    static DebugLoc getEmptyKey();
+    static DebugLoc getTombstoneKey();
+    static unsigned getHashValue(const DebugLoc &Key);
+    static bool isEqual(const DebugLoc &LHS, const DebugLoc &RHS);
   };
 } // end namespace llvm
 

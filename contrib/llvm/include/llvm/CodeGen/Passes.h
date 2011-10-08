@@ -73,15 +73,8 @@ namespace llvm {
   ///  This pass is still in development
   extern char &StrongPHIEliminationID;
 
-  extern char &PreAllocSplittingID;
-
   /// LiveStacks pass. An analysis keeping track of the liveness of stack slots.
   extern char &LiveStacksID;
-
-  /// SimpleRegisterCoalescing pass.  Aggressively coalesces every register
-  /// copy it can.
-  ///
-  extern char &SimpleRegisterCoalescingID;
 
   /// TwoAddressInstruction pass - This pass reduces two-address instructions to
   /// use two operands. This destroys SSA information but it is desired by
@@ -132,10 +125,10 @@ namespace llvm {
   ///
   FunctionPass *createDefaultPBQPRegisterAllocator();
 
-  /// SimpleRegisterCoalescing Pass - Coalesce all copies possible.  Can run
+  /// RegisterCoalescer Pass - Coalesce all copies possible.  Can run
   /// independently of the register allocator.
   ///
-  RegisterCoalescer *createSimpleRegisterCoalescer();
+  RegisterCoalescer *createRegisterCoalescer();
 
   /// PrologEpilogCodeInserter Pass - This pass inserts prolog and epilog code,
   /// and eliminates abstract frame references.

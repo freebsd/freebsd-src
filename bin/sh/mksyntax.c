@@ -64,6 +64,7 @@ struct synclass synclass[] = {
 	{ "CWORD",	"character is nothing special" },
 	{ "CNL",	"newline character" },
 	{ "CBACK",	"a backslash character" },
+	{ "CSBACK",	"a backslash character in single quotes" },
 	{ "CSQUOTE",	"single quote" },
 	{ "CDQUOTE",	"double quote" },
 	{ "CENDQUOTE",	"a terminating quote" },
@@ -224,6 +225,7 @@ main(int argc __unused, char **argv __unused)
 	init();
 	fputs("\n/* syntax table used when in single quotes */\n", cfile);
 	add("\n", "CNL");
+	add("\\", "CSBACK");
 	add("'", "CENDQUOTE");
 	/* ':/' for tilde expansion, '-' for [a\-x] pattern ranges */
 	add("!*?[=~:/-", "CCTL");

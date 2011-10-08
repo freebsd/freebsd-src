@@ -53,13 +53,11 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct net_device *dev, u16 vid)
 
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
-
 	en_dbg(HW, priv, "adding VLAN:%d\n", vid);
-
-	spin_lock(&priv->vlan_lock);
-	priv->vlgrp_modified = true;
 	idx = vid >> 5;
 	field = 1 << (vid & 0x1f);
+	spin_lock(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
 	if (priv->vlan_unregister[idx] & field)
 		priv->vlan_unregister[idx] &= ~field;
 	else
@@ -77,10 +75,10 @@ static void mlx4_en_vlan_rx_kill_vid(void *arg, struct net_device *dev, u16 vid)
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
 	en_dbg(HW, priv, "Killing VID:%d\n", vid);
-	spin_lock(&priv->vlan_lock);
-	priv->vlgrp_modified = true;
 	idx = vid >> 5;
 	field = 1 << (vid & 0x1f);
+	spin_lock(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
 	if (priv->vlan_register[idx] & field)
 		priv->vlan_register[idx] &= ~field;
 	else
@@ -534,6 +532,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	struct mlx4_en_tx_ring *tx_ring;
+	u64 config;
 	int rx_index = 0;
 	int tx_index = 0;
 	int err = 0;
@@ -664,6 +663,25 @@ int mlx4_en_start_port(struct net_device *dev)
 	else
 		priv->rx_csum = 0;
 
+	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to get WoL info, unable to modify\n");
+		goto wol_err;
+	}
+	if (dev->if_capenable & IFCAP_WOL_MAGIC) {
+		config |= MLX4_EN_WOL_DO_MODIFY | MLX4_EN_WOL_ENABLED |
+		    MLX4_EN_WOL_MAGIC;
+	} else {
+		config &= ~(MLX4_EN_WOL_ENABLED | MLX4_EN_WOL_MAGIC);
+		config |= MLX4_EN_WOL_DO_MODIFY;
+	}
+
+	err = mlx4_wol_write(priv->mdev->dev, config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to set WoL information\n");
+		goto wol_err;
+	}
+
 	priv->port_up = true;
 
 	/* Populate multicast list */
@@ -677,6 +695,10 @@ int mlx4_en_start_port(struct net_device *dev)
 	    mlx4_en_watchdog_timeout, priv);
 
 	return 0;
+
+wol_err:
+	/* close port*/
+	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 mac_err:
 	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
@@ -1097,6 +1119,8 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 			dev->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (mask & IFCAP_VLAN_HWFILTER)
 			dev->if_capenable ^= IFCAP_VLAN_HWFILTER;
+		if (mask & IFCAP_WOL_MAGIC)
+			dev->if_capenable ^= IFCAP_WOL_MAGIC;
 		if (dev->if_drv_flags & IFF_DRV_RUNNING)
 			mlx4_en_init(priv);
 		VLAN_CAPABILITIES(dev);
@@ -1536,17 +1560,23 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
 	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
-#if 0 /* Not yet */
-	dev->if_capabilities |= IFCAP_WOL;
-#endif
 	if (mdev->LSO_support)
 		dev->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
-
-	/* Don't enable LOR unless the user requests. */
-	dev->if_capenable = dev->if_capabilities;
-
 	if (mdev->profile.num_lro)
 		dev->if_capabilities |= IFCAP_LRO;
+	dev->if_capenable = dev->if_capabilities;
+	/*
+	 * Setup wake-on-lan.
+	 */
+	if (priv->mdev->dev->caps.wol) {
+		u64 config;
+		if (mlx4_wol_read(priv->mdev->dev, &config, priv->port) == 0) {
+			if (config & MLX4_EN_WOL_MAGIC)
+				dev->if_capabilities |= IFCAP_WOL_MAGIC;
+			if (config & MLX4_EN_WOL_ENABLED)
+				dev->if_capenable |= IFCAP_WOL_MAGIC;
+		}
+	}
 
         /* Register for VLAN events */
 	priv->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,

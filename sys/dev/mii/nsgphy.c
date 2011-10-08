@@ -100,10 +100,16 @@ static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);
 
 static const struct mii_phydesc nsgphys[] = {
-	MII_PHY_DESC(NATSEMI, DP83861),
-	MII_PHY_DESC(NATSEMI, DP83865),
-	MII_PHY_DESC(NATSEMI, DP83891),
+	MII_PHY_DESC(xxNATSEMI, DP83861),
+	MII_PHY_DESC(xxNATSEMI, DP83865),
+	MII_PHY_DESC(xxNATSEMI, DP83891),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs nsgphy_funcs = {
+	nsgphy_service,
+	nsgphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -117,34 +123,19 @@ static int
 nsgphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	if (bootverbose)
-		device_printf(dev, "<rev. %d>\n", MII_REV(ma->mii_id2));
-	device_printf(dev, " ");
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = nsgphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &nsgphy_funcs, 0);
 
-	sc->mii_flags |= MIIF_NOMANPAUSE;
-
-	mii_phy_reset(sc);
+	PHY_RESET(sc);
 
 	/*
 	 * NB: the PHY has the 10BASE-T BMSR bits hard-wired to 0,
 	 * even though it supports 10BASE-T.
 	 */
 	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) |
-	    BMSR_10TFDX | BMSR_10THDX) & ma->mii_capmask;
+	    BMSR_10TFDX | BMSR_10THDX) & sc->mii_capmask;
 	/*
 	 * Note that as documented manual 1000BASE-T modes of DP83865 only
 	 * work together with other National Semiconductor PHYs.
@@ -184,7 +175,7 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	nsgphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

@@ -1251,8 +1251,8 @@ LkNamespaceLocateBegin (
             SpaceIdOp = OwningOp->Asl.Child->Asl.Next;
             switch ((UINT32) SpaceIdOp->Asl.Value.Integer)
             {
-            case REGION_EC:
-            case REGION_CMOS:
+            case ACPI_ADR_SPACE_EC:
+            case ACPI_ADR_SPACE_CMOS:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BYTE)
                 {
@@ -1260,8 +1260,8 @@ LkNamespaceLocateBegin (
                 }
                 break;
 
-            case REGION_SMBUS:
-            case REGION_IPMI:
+            case ACPI_ADR_SPACE_SMBUS:
+            case ACPI_ADR_SPACE_IPMI:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
                 {

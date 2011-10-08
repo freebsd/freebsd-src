@@ -51,7 +51,8 @@ public:
   bool canSimplifyCallFramePseudos(const MachineFunction &MF) const;
   int getFrameIndexReference(const MachineFunction &MF, int FI,
                              unsigned &FrameReg) const;
-  int ResolveFrameIndexReference(const MachineFunction &MF, int FI,
+  int ResolveFrameIndexReference(const MachineFunction &MF,
+                                 int FI,
                                  unsigned &FrameReg, int SPAdj) const;
   int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
 
@@ -62,7 +63,8 @@ public:
   void emitPushInst(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
                     const std::vector<CalleeSavedInfo> &CSI, unsigned StmOpc,
                     unsigned StrOpc, bool NoGap,
-                    bool(*Func)(unsigned, bool)) const;
+                    bool(*Func)(unsigned, bool),
+                    unsigned MIFlags = 0) const;
   void emitPopInst(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
                    const std::vector<CalleeSavedInfo> &CSI, unsigned LdmOpc,
                    unsigned LdrOpc, bool isVarArg, bool NoGap,

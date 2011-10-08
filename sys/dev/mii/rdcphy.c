@@ -55,7 +55,6 @@ static device_attach_t	rdcphy_attach;
 
 struct rdcphy_softc {
 	struct mii_softc mii_sc;
-	int mii_model;
 	int mii_link_tick;
 #define	RDCPHY_MANNEG_TICK	3
 };
@@ -87,6 +86,12 @@ static const struct mii_phydesc rdcphys[] = {
 	MII_PHY_END
 };
 
+static const struct mii_phy_funcs rdcphy_funcs = {
+	rdcphy_service,
+	rdcphy_status,
+	mii_phy_reset
+};
+
 static int
 rdcphy_probe(device_t dev)
 {
@@ -97,40 +102,8 @@ rdcphy_probe(device_t dev)
 static int
 rdcphy_attach(device_t dev)
 {
-	struct rdcphy_softc *rsc;
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	rsc = device_get_softc(dev);
-	sc = &rsc->mii_sc;
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = rdcphy_service;
-	sc->mii_pdata = mii;
-
-	rsc->mii_model = MII_MODEL(ma->mii_id2);
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    MII_OUI(ma->mii_id1, ma->mii_id2), MII_MODEL(ma->mii_id2),
-		    MII_REV(ma->mii_id2));
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &rdcphy_funcs, 1);
 	return (0);
 }
 
@@ -205,7 +178,7 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	rdcphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

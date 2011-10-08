@@ -85,12 +85,12 @@ fi
 
 # If this is an empty disk, see if we need to create a new scheme for it
 gpart show ${DISK} >/dev/null 2>/dev/null
-if [ "$?" != "0" -a "${SLICENUM}" = "1" ] ; then
+if [ $? -eq 0 -a "${SLICENUM}" = "1" ] ; then
  gpart create -s ${TYPE} ${DISK}
 fi
 
 # If we have a starting block, use it
-if [ -z "$STARTBLOCK" ] ; then
+if [ -n "$STARTBLOCK" ] ; then
   sBLOCK="-b $STARTBLOCK"
 fi
 

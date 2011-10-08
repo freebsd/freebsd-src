@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/cpuset.h>
 #include <sys/gmon.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
@@ -1435,7 +1436,7 @@ pmcstat_analyze_log(void)
 			cpu = PMC_CALLCHAIN_CPUFLAGS_TO_CPU(cpuflags);
 
 			/* Filter on the CPU id. */
-			if ((args.pa_cpumask & (1 << cpu)) == 0) {
+			if (!CPU_ISSET(cpu, &(args.pa_cpumask))) {
 				pmcstat_stats.ps_samples_skipped++;
 				break;
 			}

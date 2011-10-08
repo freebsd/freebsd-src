@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This provides C++ code generation targetting the Itanium C++ ABI.  The class
+// This provides C++ code generation targeting the Itanium C++ ABI.  The class
 // in this file generates structures that follow the Itanium C++ ABI, which is
 // documented at:
 //  http://www.codesourcery.com/public/cxx-abi/abi.html
@@ -24,6 +24,7 @@
 #include "CodeGenModule.h"
 #include <clang/AST/Mangle.h>
 #include <clang/AST/Type.h>
+#include <llvm/Intrinsics.h>
 #include <llvm/Target/TargetData.h>
 #include <llvm/Value.h>
 
@@ -33,15 +34,15 @@ using namespace CodeGen;
 namespace {
 class ItaniumCXXABI : public CodeGen::CGCXXABI {
 private:
-  const llvm::IntegerType *PtrDiffTy;
+  llvm::IntegerType *PtrDiffTy;
 protected:
   bool IsARM;
 
   // It's a little silly for us to cache this.
-  const llvm::IntegerType *getPtrDiffTy() {
+  llvm::IntegerType *getPtrDiffTy() {
     if (!PtrDiffTy) {
       QualType T = getContext().getPointerDiffType();
-      const llvm::Type *Ty = CGM.getTypes().ConvertTypeRecursive(T);
+      llvm::Type *Ty = CGM.getTypes().ConvertType(T);
       PtrDiffTy = cast<llvm::IntegerType>(Ty);
     }
     return PtrDiffTy;
@@ -57,7 +58,7 @@ public:
 
   bool isZeroInitializable(const MemberPointerType *MPT);
 
-  const llvm::Type *ConvertMemberPointerType(const MemberPointerType *MPT);
+  llvm::Type *ConvertMemberPointerType(const MemberPointerType *MPT);
 
   llvm::Value *EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
                                                llvm::Value *&This,
@@ -175,13 +176,11 @@ CodeGen::CGCXXABI *CodeGen::CreateARMCXXABI(CodeGenModule &CGM) {
   return new ARMCXXABI(CGM);
 }
 
-const llvm::Type *
+llvm::Type *
 ItaniumCXXABI::ConvertMemberPointerType(const MemberPointerType *MPT) {
   if (MPT->isMemberDataPointer())
     return getPtrDiffTy();
-  else
-    return llvm::StructType::get(CGM.getLLVMContext(),
-                                 getPtrDiffTy(), getPtrDiffTy(), NULL);
+  return llvm::StructType::get(getPtrDiffTy(), getPtrDiffTy(), NULL);
 }
 
 /// In the Itanium and ARM ABIs, method pointers have the form:
@@ -282,8 +281,7 @@ ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
   
   // We're done.
   CGF.EmitBlock(FnEnd);
-  llvm::PHINode *Callee = Builder.CreatePHI(FTy->getPointerTo());
-  Callee->reserveOperandSpace(2);
+  llvm::PHINode *Callee = Builder.CreatePHI(FTy->getPointerTo(), 2);
   Callee->addIncoming(VirtualFn, FnVirtual);
   Callee->addIncoming(NonVirtualFn, FnNonVirtual);
   return Callee;
@@ -474,8 +472,7 @@ ItaniumCXXABI::EmitMemberPointerConversion(llvm::Constant *C,
   else
     Values[1] = llvm::ConstantExpr::getAdd(CS->getOperand(1), Offset);
 
-  return llvm::ConstantStruct::get(CGM.getLLVMContext(), Values, 2,
-                                   /*Packed=*/false);
+  return llvm::ConstantStruct::get(CS->getType(), Values);
 }        
 
 
@@ -490,8 +487,7 @@ ItaniumCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
 
   llvm::Constant *Zero = llvm::ConstantInt::get(ptrdiff_t, 0);
   llvm::Constant *Values[2] = { Zero, Zero };
-  return llvm::ConstantStruct::get(CGM.getLLVMContext(), Values, 2,
-                                   /*Packed=*/false);
+  return llvm::ConstantStruct::getAnon(Values);
 }
 
 llvm::Constant *
@@ -515,10 +511,10 @@ llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
   if (MD->isVirtual()) {
     uint64_t Index = CGM.getVTables().getMethodVTableIndex(MD);
 
-    // FIXME: We shouldn't use / 8 here.
-    uint64_t PointerWidthInBytes =
-      getContext().Target.getPointerWidth(0) / 8;
-    uint64_t VTableOffset = (Index * PointerWidthInBytes);
+    const ASTContext &Context = getContext();
+    CharUnits PointerWidth =
+      Context.toCharUnitsFromBits(Context.Target.getPointerWidth(0));
+    uint64_t VTableOffset = (Index * PointerWidth.getQuantity());
 
     if (IsARM) {
       // ARM C++ ABI 3.2.1:
@@ -538,25 +534,25 @@ llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
       MemPtr[1] = llvm::ConstantInt::get(ptrdiff_t, 0);
     }
   } else {
-    const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+    const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
     const llvm::Type *Ty;
     // Check whether the function has a computable LLVM signature.
-    if (!CodeGenTypes::VerifyFuncTypeComplete(FPT)) {
+    if (Types.isFuncTypeConvertible(FPT)) {
       // The function has a computable LLVM signature; use the correct type.
-      Ty = Types.GetFunctionType(Types.getFunctionInfo(MD), FPT->isVariadic());
+      Ty = Types.GetFunctionType(Types.getFunctionInfo(MD),
+                                 FPT->isVariadic());
     } else {
       // Use an arbitrary non-function type to tell GetAddrOfFunction that the
       // function type is incomplete.
       Ty = ptrdiff_t;
     }
+    llvm::Constant *addr = CGM.GetAddrOfFunction(MD, Ty);
 
-    llvm::Constant *Addr = CGM.GetAddrOfFunction(MD, Ty);
-    MemPtr[0] = llvm::ConstantExpr::getPtrToInt(Addr, ptrdiff_t);
+    MemPtr[0] = llvm::ConstantExpr::getPtrToInt(addr, ptrdiff_t);
     MemPtr[1] = llvm::ConstantInt::get(ptrdiff_t, 0);
   }
   
-  return llvm::ConstantStruct::get(CGM.getLLVMContext(),
-                                   MemPtr, 2, /*Packed=*/false);
+  return llvm::ConstantStruct::getAnon(MemPtr);
 }
 
 /// The comparison algorithm is pretty easy: the member pointers are
@@ -651,20 +647,21 @@ ItaniumCXXABI::EmitMemberPointerIsNotNull(CodeGenFunction &CGF,
     return Builder.CreateICmpNE(MemPtr, NegativeOne, "memptr.tobool");
   }
   
-  // In Itanium, a member function pointer is null if 'ptr' is null.
+  // In Itanium, a member function pointer is not null if 'ptr' is not null.
   llvm::Value *Ptr = Builder.CreateExtractValue(MemPtr, 0, "memptr.ptr");
 
   llvm::Constant *Zero = llvm::ConstantInt::get(Ptr->getType(), 0);
   llvm::Value *Result = Builder.CreateICmpNE(Ptr, Zero, "memptr.tobool");
 
-  // In ARM, it's that, plus the low bit of 'adj' must be zero.
+  // On ARM, a member function pointer is also non-null if the low bit of 'adj'
+  // (the virtual bit) is set.
   if (IsARM) {
     llvm::Constant *One = llvm::ConstantInt::get(Ptr->getType(), 1);
     llvm::Value *Adj = Builder.CreateExtractValue(MemPtr, 1, "memptr.adj");
     llvm::Value *VirtualBit = Builder.CreateAnd(Adj, One, "memptr.virtualbit");
-    llvm::Value *IsNotVirtual = Builder.CreateICmpEQ(VirtualBit, Zero,
-                                                     "memptr.notvirtual");
-    Result = Builder.CreateAnd(Result, IsNotVirtual);
+    llvm::Value *IsVirtual = Builder.CreateICmpNE(VirtualBit, Zero,
+                                                  "memptr.isvirtual");
+    Result = Builder.CreateOr(Result, IsVirtual);
   }
 
   return Result;
@@ -745,7 +742,7 @@ void ItaniumCXXABI::BuildInstanceFunctionParams(CodeGenFunction &CGF,
     ImplicitParamDecl *VTTDecl
       = ImplicitParamDecl::Create(Context, 0, MD->getLocation(),
                                   &Context.Idents.get("vtt"), T);
-    Params.push_back(std::make_pair(VTTDecl, VTTDecl->getType()));
+    Params.push_back(VTTDecl);
     getVTTDecl(CGF) = VTTDecl;
   }
 }
@@ -757,7 +754,7 @@ void ARMCXXABI::BuildInstanceFunctionParams(CodeGenFunction &CGF,
 
   // Return 'this' from certain constructors and destructors.
   if (HasThisReturn(CGF.CurGD))
-    ResTy = Params[0].second;
+    ResTy = Params[0]->getType();
 }
 
 void ItaniumCXXABI::EmitInstanceFunctionProlog(CodeGenFunction &CGF) {
@@ -801,10 +798,27 @@ bool ItaniumCXXABI::NeedsArrayCookie(const CXXNewExpr *expr) {
   if (expr->doesUsualArrayDeleteWantSize())
     return true;
 
+  // Automatic Reference Counting:
+  //   We need an array cookie for pointers with strong or weak lifetime.
+  QualType AllocatedType = expr->getAllocatedType();
+  if (getContext().getLangOptions().ObjCAutoRefCount &&
+      AllocatedType->isObjCLifetimeType()) {
+    switch (AllocatedType.getObjCLifetime()) {
+    case Qualifiers::OCL_None:
+    case Qualifiers::OCL_ExplicitNone:
+    case Qualifiers::OCL_Autoreleasing:
+      return false;
+      
+    case Qualifiers::OCL_Strong:
+    case Qualifiers::OCL_Weak:
+      return true;
+    }
+  }
+
   // Otherwise, if the class has a non-trivial destructor, it always
   // needs a cookie.
   const CXXRecordDecl *record =
-    expr->getAllocatedType()->getBaseElementTypeUnsafe()->getAsCXXRecordDecl();
+    AllocatedType->getBaseElementTypeUnsafe()->getAsCXXRecordDecl();
   return (record && !record->hasTrivialDestructor());
 }
 
@@ -815,6 +829,22 @@ bool ItaniumCXXABI::NeedsArrayCookie(const CXXDeleteExpr *expr,
   if (expr->doesUsualArrayDeleteWantSize())
     return true;
 
+  // Automatic Reference Counting:
+  //   We need an array cookie for pointers with strong or weak lifetime.
+  if (getContext().getLangOptions().ObjCAutoRefCount &&
+      elementType->isObjCLifetimeType()) {
+    switch (elementType.getObjCLifetime()) {
+    case Qualifiers::OCL_None:
+    case Qualifiers::OCL_ExplicitNone:
+    case Qualifiers::OCL_Autoreleasing:
+      return false;
+
+    case Qualifiers::OCL_Strong:
+    case Qualifiers::OCL_Weak:
+      return true;
+    }
+  }
+  
   // Otherwise, if the class has a non-trivial destructor, it always
   // needs a cookie.
   const CXXRecordDecl *record =
@@ -1004,39 +1034,34 @@ void ARMCXXABI::ReadArrayCookie(CodeGenFunction &CGF,
 /*********************** Static local initialization **************************/
 
 static llvm::Constant *getGuardAcquireFn(CodeGenModule &CGM,
-                                         const llvm::PointerType *GuardPtrTy) {
+                                         llvm::PointerType *GuardPtrTy) {
   // int __cxa_guard_acquire(__guard *guard_object);
-  
-  std::vector<const llvm::Type*> Args(1, GuardPtrTy);  
+  llvm::Type *ArgTys[] = { GuardPtrTy };
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(CGM.getTypes().ConvertType(CGM.getContext().IntTy),
-                            Args, /*isVarArg=*/false);
+                            ArgTys, /*isVarArg=*/false);
   
   return CGM.CreateRuntimeFunction(FTy, "__cxa_guard_acquire");
 }
 
 static llvm::Constant *getGuardReleaseFn(CodeGenModule &CGM,
-                                         const llvm::PointerType *GuardPtrTy) {
+                                         llvm::PointerType *GuardPtrTy) {
   // void __cxa_guard_release(__guard *guard_object);
-  
-  std::vector<const llvm::Type*> Args(1, GuardPtrTy);
-  
+  llvm::Type *ArgTys[] = { GuardPtrTy };
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGM.getLLVMContext()),
-                            Args, /*isVarArg=*/false);
+                            ArgTys, /*isVarArg=*/false);
   
   return CGM.CreateRuntimeFunction(FTy, "__cxa_guard_release");
 }
 
 static llvm::Constant *getGuardAbortFn(CodeGenModule &CGM,
-                                       const llvm::PointerType *GuardPtrTy) {
+                                       llvm::PointerType *GuardPtrTy) {
   // void __cxa_guard_abort(__guard *guard_object);
-  
-  std::vector<const llvm::Type*> Args(1, GuardPtrTy);
-  
+  llvm::Type *ArgTys[] = { GuardPtrTy };
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGM.getLLVMContext()),
-                            Args, /*isVarArg=*/false);
+                            ArgTys, /*isVarArg=*/false);
   
   return CGM.CreateRuntimeFunction(FTy, "__cxa_guard_abort");
 }
@@ -1046,7 +1071,7 @@ namespace {
     llvm::GlobalVariable *Guard;
     CallGuardAbort(llvm::GlobalVariable *Guard) : Guard(Guard) {}
 
-    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+    void Emit(CodeGenFunction &CGF, Flags flags) {
       CGF.Builder.CreateCall(getGuardAbortFn(CGF.CGM, Guard->getType()), Guard)
         ->setDoesNotThrow();
     }
@@ -1062,13 +1087,21 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
 
   // We only need to use thread-safe statics for local variables;
   // global initialization is always single-threaded.
-  bool ThreadsafeStatics = (getContext().getLangOptions().ThreadsafeStatics &&
-                            D.isLocalVarDecl());
-  
-  // Guard variables are 64 bits in the generic ABI and 32 bits on ARM.
-  const llvm::IntegerType *GuardTy
-    = (IsARM ? Builder.getInt32Ty() : Builder.getInt64Ty());
-  const llvm::PointerType *GuardPtrTy = GuardTy->getPointerTo();
+  bool threadsafe =
+    (getContext().getLangOptions().ThreadsafeStatics && D.isLocalVarDecl());
+
+  const llvm::IntegerType *GuardTy;
+
+  // If we have a global variable with internal linkage and thread-safe statics
+  // are disabled, we can just let the guard variable be of type i8.
+  bool useInt8GuardVariable = !threadsafe && GV->hasInternalLinkage();
+  if (useInt8GuardVariable) {
+    GuardTy = CGF.Int8Ty;
+  } else {
+    // Guard variables are 64 bits in the generic ABI and 32 bits on ARM.
+    GuardTy = (IsARM ? CGF.Int32Ty : CGF.Int64Ty);
+  }
+  llvm::PointerType *GuardPtrTy = GuardTy->getPointerTo();
 
   // Create the guard variable.
   llvm::SmallString<256> GuardVName;
@@ -1098,7 +1131,7 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
   //       if (__cxa_guard_acquire(&obj_guard))
   //         ...
   //     }
-  if (IsARM) {
+  if (IsARM && !useInt8GuardVariable) {
     llvm::Value *V = Builder.CreateLoad(GuardVariable);
     V = Builder.CreateAnd(V, Builder.getInt32(1));
     IsInitialized = Builder.CreateIsNull(V, "guard.uninitialized");
@@ -1129,13 +1162,16 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
   llvm::BasicBlock *InitCheckBlock = CGF.createBasicBlock("init.check");
   llvm::BasicBlock *EndBlock = CGF.createBasicBlock("init.end");
 
+  llvm::BasicBlock *NoCheckBlock = EndBlock;
+  if (threadsafe) NoCheckBlock = CGF.createBasicBlock("init.barrier");
+
   // Check if the first byte of the guard variable is zero.
-  Builder.CreateCondBr(IsInitialized, InitCheckBlock, EndBlock);
+  Builder.CreateCondBr(IsInitialized, InitCheckBlock, NoCheckBlock);
 
   CGF.EmitBlock(InitCheckBlock);
 
   // Variables used when coping with thread-safe statics and exceptions.
-  if (ThreadsafeStatics) {    
+  if (threadsafe) {    
     // Call __cxa_guard_acquire.
     llvm::Value *V
       = Builder.CreateCall(getGuardAcquireFn(CGM, GuardPtrTy), GuardVariable);
@@ -1154,7 +1190,7 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
   // Emit the initializer and add a global destructor if appropriate.
   CGF.EmitCXXGlobalVarDeclInit(D, GV);
 
-  if (ThreadsafeStatics) {
+  if (threadsafe) {
     // Pop the guard-abort cleanup if we pushed one.
     CGF.PopCleanupBlock();
 
@@ -1162,6 +1198,24 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
     Builder.CreateCall(getGuardReleaseFn(CGM, GuardPtrTy), GuardVariable);
   } else {
     Builder.CreateStore(llvm::ConstantInt::get(GuardTy, 1), GuardVariable);
+  }
+
+  // Emit an acquire memory barrier if using thread-safe statics:
+  // Itanium ABI:
+  //   An implementation supporting thread-safety on multiprocessor
+  //   systems must also guarantee that references to the initialized
+  //   object do not occur before the load of the initialization flag.
+  if (threadsafe) {
+    Builder.CreateBr(EndBlock);
+    CGF.EmitBlock(NoCheckBlock);
+
+    llvm::Value *_false = Builder.getFalse();
+    llvm::Value *_true = Builder.getTrue();
+
+    Builder.CreateCall5(CGM.getIntrinsic(llvm::Intrinsic::memory_barrier),
+                        /* load-load, load-store */ _true, _true,
+                        /* store-load, store-store */ _false, _false,
+                        /* device or I/O */ _false);
   }
 
   CGF.EmitBlock(EndBlock);

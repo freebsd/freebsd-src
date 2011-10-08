@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.c,v 1.8 2007/09/13 04:45:18 each Exp $ */
+/* $Id: syslog.c,v 1.8 2007-09-13 04:45:18 each Exp $ */
 
 /*! \file */
 

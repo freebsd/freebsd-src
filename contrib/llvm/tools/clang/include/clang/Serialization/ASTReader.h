@@ -54,6 +54,7 @@ class Decl;
 class DeclContext;
 class NestedNameSpecifier;
 class CXXBaseSpecifier;
+class CXXConstructorDecl;
 class CXXCtorInitializer;
 class GotoStmt;
 class MacroDefinition;
@@ -69,6 +70,7 @@ class ASTStmtReader;
 class ASTIdentifierLookupTrait;
 class TypeLocReader;
 struct HeaderFileInfo;
+class VersionTuple;
 
 struct PCHPredefinesBlock {
   /// \brief The file ID for this predefines buffer in a PCH file.
@@ -213,6 +215,10 @@ private:
   /// \brief The AST consumer.
   ASTConsumer *Consumer;
 
+  /// \brief AST buffers for chained PCHs created and stored in memory.
+  /// First (not depending on another) PCH in chain is in front.
+  std::vector<llvm::MemoryBuffer *> ASTBuffers;
+
   /// \brief Information that is needed for every module.
   struct PerFileData {
     PerFileData(ASTFileType Ty);
@@ -250,6 +256,13 @@ private:
     /// \brief Offsets for all of the source location entries in the
     /// AST file.
     const uint32_t *SLocOffsets;
+
+    /// \brief The number of source location file entries in this AST file.
+    unsigned LocalNumSLocFileEntries;
+
+    /// \brief Offsets for all of the source location file entries in the
+    /// AST file.
+    const uint32_t *SLocFileOffsets;
 
     /// \brief The entire size of this module's source location offset range.
     unsigned LocalSLocSize;
@@ -559,6 +572,10 @@ private:
   /// generating warnings.
   llvm::SmallVector<uint64_t, 16> UnusedFileScopedDecls;
 
+  /// \brief A list of all the delegating constructors we've seen, to diagnose
+  /// cycles.
+  llvm::SmallVector<uint64_t, 4> DelegatingCtorDecls;
+
   /// \brief A snapshot of Sema's weak undeclared identifier tracking, for
   /// generating warnings.
   llvm::SmallVector<uint64_t, 64> WeakUndeclaredIdentifiers;
@@ -608,6 +625,9 @@ private:
   /// \brief The OpenCL extension settings.
   llvm::SmallVector<uint64_t, 1> OpenCLExtensions;
 
+  /// \brief A list of the namespaces we've seen.
+  llvm::SmallVector<uint64_t, 4> KnownNamespaces;
+
   //@}
 
   /// \brief Diagnostic IDs and their mappings that the user changed.
@@ -621,6 +641,10 @@ private:
   /// AST file.
   std::string ActualOriginalFileName;
 
+  /// \brief The file ID for the original file that was used to build the
+  /// primary AST file.
+  FileID OriginalFileID;
+  
   /// \brief The directory that the PCH was originally created in. Used to
   /// allow resolving headers even after headers+PCH was moved to a new path.
   std::string OriginalDir;
@@ -775,6 +799,10 @@ private:
   /// \brief Reads a statement from the specified cursor.
   Stmt *ReadStmtFromStream(PerFileData &F);
 
+  /// \brief Get a FileEntry out of stored-in-PCH filename, making sure we take
+  /// into account all the necessary relocations.
+  const FileEntry *getFileEntry(llvm::StringRef filename);
+
   void MaybeAddSystemRootToFilename(std::string &Filename);
 
   ASTReadResult ReadASTCore(llvm::StringRef FileName, ASTFileType Type);
@@ -806,7 +834,9 @@ private:
   ///
   /// This routine should only be used for fatal errors that have to
   /// do with non-routine failures (e.g., corrupted AST file).
-  void Error(const char *Msg);
+  void Error(llvm::StringRef Msg);
+  void Error(unsigned DiagID, llvm::StringRef Arg1 = llvm::StringRef(),
+             llvm::StringRef Arg2 = llvm::StringRef());
 
   ASTReader(const ASTReader&); // do not implement
   ASTReader &operator=(const ASTReader &); // do not implement
@@ -872,6 +902,10 @@ public:
   /// name.
   ASTReadResult ReadAST(const std::string &FileName, ASTFileType Type);
 
+  /// \brief Checks that no file that is stored in PCH is out-of-sync with
+  /// the actual file in the file system.
+  ASTReadResult validateFileEntries();
+
   /// \brief Set the AST callbacks listener.
   void setListener(ASTReaderListener *listener) {
     Listener.reset(listener);
@@ -885,6 +919,13 @@ public:
 
   /// \brief Sets and initializes the given Context.
   void InitializeContext(ASTContext &Context);
+
+  /// \brief Set AST buffers for chained PCHs created and stored in memory.
+  /// First (not depending on another) PCH in chain is first in array.
+  void setASTMemoryBuffers(llvm::MemoryBuffer **bufs, unsigned numBufs) {
+    ASTBuffers.clear();
+    ASTBuffers.insert(ASTBuffers.begin(), bufs, bufs + numBufs);
+  }
 
   /// \brief Retrieve the name of the named (primary) AST file
   const std::string &getFileName() const { return Chain[0]->FileName; }
@@ -1029,7 +1070,7 @@ public:
   ///
   /// \returns true if there was an error while reading the
   /// declarations for this declaration context.
-  virtual bool FindExternalLexicalDecls(const DeclContext *DC,
+  virtual ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
                                         bool (*isKindWeWant)(Decl::Kind),
                                         llvm::SmallVectorImpl<Decl*> &Decls);
 
@@ -1051,6 +1092,10 @@ public:
 
   /// \brief Print some statistics about AST usage.
   virtual void PrintStats();
+
+  /// Return the amount of memory used by memory buffers, breaking down
+  /// by heap-backed versus mmap'ed memory.
+  virtual void getMemoryBufferSizes(MemoryBufferSizes &sizes) const;
 
   /// \brief Initialize the semantic source with the Sema instance
   /// being used to perform semantic analysis on the abstract syntax
@@ -1083,6 +1128,11 @@ public:
   virtual std::pair<ObjCMethodList, ObjCMethodList>
     ReadMethodPool(Selector Sel);
 
+  /// \brief Load the set of namespaces that are known to the external source,
+  /// which will be used during typo correction.
+  virtual void ReadKnownNamespaces(
+                           llvm::SmallVectorImpl<NamespaceDecl *> &Namespaces);
+
   /// \brief Load a selector from disk, registering its ID if it exists.
   void LoadSelector(Selector Sel);
 
@@ -1108,7 +1158,7 @@ public:
   }
 
   /// \brief Read the source location entry with index ID.
-  virtual void ReadSLocEntry(unsigned ID);
+  virtual bool ReadSLocEntry(unsigned ID);
 
   Selector DecodeSelector(unsigned Idx);
 
@@ -1196,6 +1246,9 @@ public:
 
   // \brief Read a string
   std::string ReadString(const RecordData &Record, unsigned &Idx);
+
+  /// \brief Read a version tuple.
+  VersionTuple ReadVersionTuple(const RecordData &Record, unsigned &Idx);
 
   CXXTemporary *ReadCXXTemporary(const RecordData &Record, unsigned &Idx);
       

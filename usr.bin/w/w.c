@@ -497,7 +497,7 @@ ttystat(char *line)
 	char ttybuf[MAXPATHLEN];
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%s", _PATH_DEV, line);
-	if (stat(ttybuf, &sb) == 0) {
+	if (stat(ttybuf, &sb) == 0 && S_ISCHR(sb.st_mode)) {
 		return (&sb);
 	} else
 		return (NULL);

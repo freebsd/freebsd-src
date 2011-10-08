@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
-#include <nfsclient/nfs_kdtrace.h>
+#include <nfs/nfs_kdtrace.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
@@ -442,7 +442,7 @@ nfs_printf(const char *fmt, ...)
 
 	mtx_lock(&Giant);
 	va_start(ap, fmt);
-	printf(fmt, ap);
+	vprintf(fmt, ap);
 	va_end(ap);
 	mtx_unlock(&Giant);
 }
@@ -653,10 +653,10 @@ out:
 
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
-SYSCTL_DECL(_vfs_nfs);
+SYSCTL_DECL(_vfs_oldnfs);
 static int nfs_acdebug;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0,
-    "Toggle acdebug (access cache debug) flag");
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0,
+    "Toggle acdebug (attribute cache debug) flag");
 #endif
 
 /*
@@ -713,6 +713,9 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	if ((time_second - np->n_attrstamp) >= timeo) {
 		nfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
+#ifdef NFS_ACDEBUG
+		mtx_unlock(&Giant);	/* nfs_printf() */
+#endif
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return (ENOENT);
 	}

@@ -140,7 +140,7 @@ void llvm::CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
 Function *llvm::CloneFunction(const Function *F, ValueToValueMapTy &VMap,
                               bool ModuleLevelChanges,
                               ClonedCodeInfo *CodeInfo) {
-  std::vector<const Type*> ArgTypes;
+  std::vector<Type*> ArgTypes;
 
   // The user might be deleting arguments to the function by specifying them in
   // the VMap.  If so, we need to not add the arguments to the arg ty vector
@@ -342,18 +342,6 @@ ConstantFoldMappedInstruction(const Instruction *I) {
                                   Ops.size(), TD);
 }
 
-static DebugLoc
-UpdateInlinedAtInfo(const DebugLoc &InsnDL, const DebugLoc &TheCallDL,
-                    LLVMContext &Ctx) {
-  DebugLoc NewLoc = TheCallDL;
-  if (MDNode *IA = InsnDL.getInlinedAt(Ctx))
-    NewLoc = UpdateInlinedAtInfo(DebugLoc::getFromDILocation(IA), TheCallDL,
-                                 Ctx);
-
-  return DebugLoc::get(InsnDL.getLine(), InsnDL.getCol(),
-                       InsnDL.getScope(Ctx), NewLoc.getAsMDNode(Ctx));
-}
-
 /// CloneAndPruneFunctionInto - This works exactly like CloneFunctionInto,
 /// except that it does some simple constant prop and DCE on the fly.  The
 /// effect of this is to copy significantly less code in cases where (for
@@ -418,50 +406,14 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
     if (PHINode *PN = dyn_cast<PHINode>(I)) {
       // Skip over all PHI nodes, remembering them for later.
       BasicBlock::const_iterator OldI = BI->begin();
-      for (; (PN = dyn_cast<PHINode>(I)); ++I, ++OldI) {
-        if (I->hasMetadata()) {
-          if (!TheCallDL.isUnknown()) {
-            DebugLoc IDL = I->getDebugLoc();
-            if (!IDL.isUnknown()) {
-              DebugLoc NewDL = UpdateInlinedAtInfo(IDL, TheCallDL,
-                                                   I->getContext());
-              I->setDebugLoc(NewDL);
-            }
-          } else {
-            // The cloned instruction has dbg info but the call instruction
-            // does not have dbg info. Remove dbg info from cloned instruction.
-            I->setDebugLoc(DebugLoc());
-          }
-        }
+      for (; (PN = dyn_cast<PHINode>(I)); ++I, ++OldI)
         PHIToResolve.push_back(cast<PHINode>(OldI));
-      }
     }
-    
-    // FIXME:
-    // FIXME:
-    // FIXME: Unclone all this metadata stuff.
-    // FIXME:
-    // FIXME:
     
     // Otherwise, remap the rest of the instructions normally.
-    for (; I != NewBB->end(); ++I) {
-      if (I->hasMetadata()) {
-        if (!TheCallDL.isUnknown()) {
-          DebugLoc IDL = I->getDebugLoc();
-          if (!IDL.isUnknown()) {
-            DebugLoc NewDL = UpdateInlinedAtInfo(IDL, TheCallDL,
-                                                 I->getContext());
-            I->setDebugLoc(NewDL);
-          }
-        } else {
-          // The cloned instruction has dbg info but the call instruction
-          // does not have dbg info. Remove dbg info from cloned instruction.
-          I->setDebugLoc(DebugLoc());
-        }
-      }
+    for (; I != NewBB->end(); ++I)
       RemapInstruction(I, VMap,
                        ModuleLevelChanges ? RF_None : RF_NoModuleLevelChanges);
-    }
   }
   
   // Defer PHI resolution until rest of function is resolved, PHI resolution
@@ -572,12 +524,12 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
     // removed, so we just need to splice the blocks.
     BI->eraseFromParent();
     
-    // Move all the instructions in the succ to the pred.
-    I->getInstList().splice(I->end(), Dest->getInstList());
-    
     // Make all PHI nodes that referred to Dest now refer to I as their source.
     Dest->replaceAllUsesWith(I);
 
+    // Move all the instructions in the succ to the pred.
+    I->getInstList().splice(I->end(), Dest->getInstList());
+    
     // Remove the dest block.
     Dest->eraseFromParent();
     

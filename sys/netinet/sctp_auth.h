@@ -89,7 +89,7 @@ typedef struct sctp_hmaclist {
 }             sctp_hmaclist_t;
 
 /* authentication info */
-typedef struct sctp_authinfo {
+typedef struct sctp_authinformation {
 	sctp_key_t *random;	/* local random key (concatenated) */
 	uint32_t random_len;	/* local random number length for param */
 	sctp_key_t *peer_random;/* peer's random key (concatenated) */
@@ -98,7 +98,7 @@ typedef struct sctp_authinfo {
 	uint16_t active_keyid;	/* active send keyid */
 	uint16_t assoc_keyid;	/* current send keyid (cached) */
 	uint16_t recv_keyid;	/* last recv keyid (cached) */
-}             sctp_authinfo_t;
+}                    sctp_authinfo_t;
 
 
 
@@ -156,7 +156,9 @@ sctp_copy_skeylist(const struct sctp_keyhead *src,
 
 /* ref counts on shared keys, by key id */
 extern void sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t keyid);
-extern void sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid);
+extern void 
+sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
+    int so_locked);
 
 
 /* hmac list handling */

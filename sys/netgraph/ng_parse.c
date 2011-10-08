@@ -374,9 +374,6 @@ ng_int8_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -473,9 +470,6 @@ ng_int16_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -575,9 +569,6 @@ ng_int32_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -673,9 +664,6 @@ ng_int64_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);

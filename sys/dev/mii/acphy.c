@@ -105,11 +105,17 @@ static void	acphy_reset(struct mii_softc *);
 static void	acphy_status(struct mii_softc *);
 
 static const struct mii_phydesc acphys[] = {
-	MII_PHY_DESC(xxALTIMA, AC101),
-	MII_PHY_DESC(xxALTIMA, AC101L),
+	MII_PHY_DESC(ALTIMA, AC101),
+	MII_PHY_DESC(ALTIMA, AC101L),
 	/* XXX This is reported to work, but it's not from any data sheet. */
-	MII_PHY_DESC(xxALTIMA, ACXXX),
+	MII_PHY_DESC(ALTIMA, ACXXX),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs acphy_funcs = {
+	acphy_service,
+	acphy_status,
+	acphy_reset
 };
 
 static int
@@ -123,27 +129,17 @@ static int
 acphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = acphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &acphy_funcs, 0);
 
-	acphy_reset(sc);
+	PHY_RESET(sc);
 
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 	if ((PHY_READ(sc, MII_ACPHY_MCTL) & AC_MCTL_FX_SEL) != 0) {
 		sc->mii_flags |= MIIF_HAVEFIBER;
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
@@ -200,7 +196,7 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	acphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -245,7 +241,8 @@ acphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (diag & AC_DIAG_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

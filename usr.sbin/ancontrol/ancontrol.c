@@ -40,7 +40,6 @@ static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 

@@ -914,14 +914,15 @@
 512	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	UNIMPL	cap_new
-515	AUE_CAP_GETRIGHTS	UNIMPL	cap_getrights
+514	AUE_CAP_NEW	STD	{ int cap_new(int fd, u_int64_t rights); }
+515	AUE_CAP_GETRIGHTS	STD	{ int cap_getrights(int fd, \
+				    u_int64_t *rightsp); }
 516	AUE_CAP_ENTER	STD	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	STD	{ int cap_getmode(u_int *modep); }
-518	AUE_PDFORK	UNIMPL	pdfork
-519	AUE_PDKILL	UNIMPL	pdkill
-520	AUE_PDGETPID	UNIMPL	pdgetpid
-521	AUE_PDWAIT	UNIMPL	pdwait
+518	AUE_PDFORK	STD	{ int pdfork(int *fdp, int flags); }
+519	AUE_PDKILL	STD	{ int pdkill(int fd, int signum); }
+520	AUE_PDGETPID	STD	{ int pdgetpid(int fd, pid_t *pidp); }
+521	AUE_PDWAIT	UNIMPL	pdwait4
 522	AUE_SELECT	STD	{ int pselect(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec *ts, \
@@ -929,5 +930,23 @@
 523	AUE_NULL	STD	{ int getloginclass(char *namebuf, \
 				    size_t namelen); }
 524	AUE_NULL	STD	{ int setloginclass(const char *namebuf); }
+525	AUE_NULL	STD	{ int rctl_get_racct(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+526	AUE_NULL	STD	{ int rctl_get_rules(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+527	AUE_NULL	STD	{ int rctl_get_limits(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+528	AUE_NULL	STD	{ int rctl_add_rule(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+529	AUE_NULL	STD	{ int rctl_remove_rule(const void *inbufp, \
+				    size_t inbuflen, void *outbufp, \
+				    size_t outbuflen); }
+530	AUE_NULL	STD	{ int posix_fallocate(int fd, \
+				    off_t offset, off_t len); }
+531	AUE_NULL	UNIMPL	posix_fadvise
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

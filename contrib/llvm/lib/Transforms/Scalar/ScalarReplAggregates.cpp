@@ -30,6 +30,8 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
+#include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -151,7 +153,8 @@ namespace {
     void RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
                                       SmallVector<AllocaInst*, 32> &NewElts);
 
-    static MemTransferInst *isOnlyCopiedFromConstantGlobal(AllocaInst *AI);
+    static MemTransferInst *isOnlyCopiedFromConstantGlobal(
+        AllocaInst *AI, SmallVector<Instruction*, 4> &ToDelete);
   };
   
   // SROA_DT - SROA that uses DominatorTree.
@@ -219,7 +222,7 @@ namespace {
 /// optimization, which scans the uses of an alloca and determines if it can
 /// rewrite it in terms of a single new alloca that can be mem2reg'd.
 class ConvertToScalarInfo {
-  /// AllocaSize - The size of the alloca being considered.
+  /// AllocaSize - The size of the alloca being considered in bytes.
   unsigned AllocaSize;
   const TargetData &TD;
 
@@ -227,30 +230,47 @@ class ConvertToScalarInfo {
   /// which means that mem2reg can't promote it.
   bool IsNotTrivial;
 
+  /// ScalarKind - Tracks the kind of alloca being considered for promotion,
+  /// computed based on the uses of the alloca rather than the LLVM type system.
+  enum {
+    Unknown,
+
+    // Accesses via GEPs that are consistent with element access of a vector
+    // type. This will not be converted into a vector unless there is a later
+    // access using an actual vector type.
+    ImplicitVector,
+
+    // Accesses via vector operations and GEPs that are consistent with the
+    // layout of a vector type.
+    Vector,
+
+    // An integer bag-of-bits with bitwise operations for insertion and
+    // extraction. Any combination of types can be converted into this kind
+    // of scalar.
+    Integer
+  } ScalarKind;
+
   /// VectorTy - This tracks the type that we should promote the vector to if
   /// it is possible to turn it into a vector.  This starts out null, and if it
   /// isn't possible to turn into a vector type, it gets set to VoidTy.
-  const Type *VectorTy;
+  const VectorType *VectorTy;
 
-  /// HadAVector - True if there is at least one vector access to the alloca.
-  /// We don't want to turn random arrays into vectors and use vector element
-  /// insert/extract, but if there are element accesses to something that is
-  /// also declared as a vector, we do want to promote to a vector.
-  bool HadAVector;
+  /// HadNonMemTransferAccess - True if there is at least one access to the 
+  /// alloca that is not a MemTransferInst.  We don't want to turn structs into
+  /// large integers unless there is some potential for optimization.
+  bool HadNonMemTransferAccess;
 
 public:
   explicit ConvertToScalarInfo(unsigned Size, const TargetData &td)
-    : AllocaSize(Size), TD(td) {
-    IsNotTrivial = false;
-    VectorTy = 0;
-    HadAVector = false;
-  }
+    : AllocaSize(Size), TD(td), IsNotTrivial(false), ScalarKind(Unknown),
+      VectorTy(0), HadNonMemTransferAccess(false) { }
 
   AllocaInst *TryConvert(AllocaInst *AI);
 
 private:
   bool CanConvertToScalar(Value *V, uint64_t Offset);
-  void MergeInType(const Type *In, uint64_t Offset);
+  void MergeInTypeForLoadOrStore(const Type *In, uint64_t Offset);
+  bool MergeInVectorType(const VectorType *VInTy, uint64_t Offset);
   void ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI, uint64_t Offset);
 
   Value *ConvertScalar_ExtractValue(Value *NV, const Type *ToType,
@@ -270,6 +290,16 @@ AllocaInst *ConvertToScalarInfo::TryConvert(AllocaInst *AI) {
   if (!CanConvertToScalar(AI, 0) || !IsNotTrivial)
     return 0;
 
+  // If an alloca has only memset / memcpy uses, it may still have an Unknown
+  // ScalarKind. Treat it as an Integer below.
+  if (ScalarKind == Unknown)
+    ScalarKind = Integer;
+
+  // FIXME: It should be possible to promote the vector type up to the alloca's
+  // size.
+  if (ScalarKind == Vector && VectorTy->getBitWidth() != AllocaSize * 8)
+    ScalarKind = Integer;
+
   // If we were able to find a vector type that can handle this with
   // insert/extract elements, and if there was at least one use that had
   // a vector type, promote this to a vector.  We don't want to promote
@@ -277,36 +307,48 @@ AllocaInst *ConvertToScalarInfo::TryConvert(AllocaInst *AI) {
   // we just get a lot of insert/extracts.  If at least one vector is
   // involved, then we probably really do have a union of vector/array.
   const Type *NewTy;
-  if (VectorTy && VectorTy->isVectorTy() && HadAVector) {
+  if (ScalarKind == Vector) {
+    assert(VectorTy && "Missing type for vector scalar.");
     DEBUG(dbgs() << "CONVERT TO VECTOR: " << *AI << "\n  TYPE = "
           << *VectorTy << '\n');
     NewTy = VectorTy;  // Use the vector type.
   } else {
+    unsigned BitWidth = AllocaSize * 8;
+    if ((ScalarKind == ImplicitVector || ScalarKind == Integer) &&
+        !HadNonMemTransferAccess && !TD.fitsInLegalInteger(BitWidth))
+      return 0;
+
     DEBUG(dbgs() << "CONVERT TO SCALAR INTEGER: " << *AI << "\n");
     // Create and insert the integer alloca.
-    NewTy = IntegerType::get(AI->getContext(), AllocaSize*8);
+    NewTy = IntegerType::get(AI->getContext(), BitWidth);
   }
   AllocaInst *NewAI = new AllocaInst(NewTy, 0, "", AI->getParent()->begin());
   ConvertUsesToScalar(AI, NewAI, 0);
   return NewAI;
 }
 
-/// MergeInType - Add the 'In' type to the accumulated vector type (VectorTy)
-/// so far at the offset specified by Offset (which is specified in bytes).
+/// MergeInTypeForLoadOrStore - Add the 'In' type to the accumulated vector type
+/// (VectorTy) so far at the offset specified by Offset (which is specified in
+/// bytes).
 ///
-/// There are two cases we handle here:
+/// There are three cases we handle here:
 ///   1) A union of vector types of the same size and potentially its elements.
 ///      Here we turn element accesses into insert/extract element operations.
 ///      This promotes a <4 x float> with a store of float to the third element
 ///      into a <4 x float> that uses insert element.
-///   2) A fully general blob of memory, which we turn into some (potentially
+///   2) A union of vector types with power-of-2 size differences, e.g. a float,
+///      <2 x float> and <4 x float>.  Here we turn element accesses into insert
+///      and extract element operations, and <2 x float> accesses into a cast to
+///      <2 x double>, an extract, and a cast back to <2 x float>.
+///   3) A fully general blob of memory, which we turn into some (potentially
 ///      large) integer type with extract and insert operations where the loads
 ///      and stores would mutate the memory.  We mark this by setting VectorTy
 ///      to VoidTy.
-void ConvertToScalarInfo::MergeInType(const Type *In, uint64_t Offset) {
+void ConvertToScalarInfo::MergeInTypeForLoadOrStore(const Type *In,
+                                                    uint64_t Offset) {
   // If we already decided to turn this into a blob of integer memory, there is
   // nothing to be done.
-  if (VectorTy && VectorTy->isVoidTy())
+  if (ScalarKind == Integer)
     return;
 
   // If this could be contributing to a vector, analyze it.
@@ -314,39 +356,113 @@ void ConvertToScalarInfo::MergeInType(const Type *In, uint64_t Offset) {
   // If the In type is a vector that is the same size as the alloca, see if it
   // matches the existing VecTy.
   if (const VectorType *VInTy = dyn_cast<VectorType>(In)) {
-    // Remember if we saw a vector type.
-    HadAVector = true;
-
-    if (VInTy->getBitWidth()/8 == AllocaSize && Offset == 0) {
-      // If we're storing/loading a vector of the right size, allow it as a
-      // vector.  If this the first vector we see, remember the type so that
-      // we know the element size.  If this is a subsequent access, ignore it
-      // even if it is a differing type but the same size.  Worst case we can
-      // bitcast the resultant vectors.
-      if (VectorTy == 0)
-        VectorTy = VInTy;
+    if (MergeInVectorType(VInTy, Offset))
       return;
-    }
   } else if (In->isFloatTy() || In->isDoubleTy() ||
              (In->isIntegerTy() && In->getPrimitiveSizeInBits() >= 8 &&
               isPowerOf2_32(In->getPrimitiveSizeInBits()))) {
+    // Full width accesses can be ignored, because they can always be turned
+    // into bitcasts.
+    unsigned EltSize = In->getPrimitiveSizeInBits()/8;
+    if (EltSize == AllocaSize)
+      return;
+
     // If we're accessing something that could be an element of a vector, see
     // if the implied vector agrees with what we already have and if Offset is
     // compatible with it.
-    unsigned EltSize = In->getPrimitiveSizeInBits()/8;
     if (Offset % EltSize == 0 && AllocaSize % EltSize == 0 &&
-        (VectorTy == 0 ||
-         cast<VectorType>(VectorTy)->getElementType()
-               ->getPrimitiveSizeInBits()/8 == EltSize)) {
-      if (VectorTy == 0)
+        (!VectorTy || Offset * 8 < VectorTy->getPrimitiveSizeInBits())) {
+      if (!VectorTy) {
+        ScalarKind = ImplicitVector;
         VectorTy = VectorType::get(In, AllocaSize/EltSize);
-      return;
+        return;
+      }
+
+      unsigned CurrentEltSize = VectorTy->getElementType()
+                                ->getPrimitiveSizeInBits()/8;
+      if (EltSize == CurrentEltSize)
+        return;
+
+      if (In->isIntegerTy() && isPowerOf2_32(AllocaSize / EltSize))
+        return;
     }
   }
 
   // Otherwise, we have a case that we can't handle with an optimized vector
   // form.  We can still turn this into a large integer.
-  VectorTy = Type::getVoidTy(In->getContext());
+  ScalarKind = Integer;
+}
+
+/// MergeInVectorType - Handles the vector case of MergeInTypeForLoadOrStore,
+/// returning true if the type was successfully merged and false otherwise.
+bool ConvertToScalarInfo::MergeInVectorType(const VectorType *VInTy,
+                                            uint64_t Offset) {
+  // TODO: Support nonzero offsets?
+  if (Offset != 0)
+    return false;
+
+  // Only allow vectors that are a power-of-2 away from the size of the alloca.
+  if (!isPowerOf2_64(AllocaSize / (VInTy->getBitWidth() / 8)))
+    return false;
+
+  // If this the first vector we see, remember the type so that we know the
+  // element size.
+  if (!VectorTy) {
+    ScalarKind = Vector;
+    VectorTy = VInTy;
+    return true;
+  }
+
+  unsigned BitWidth = VectorTy->getBitWidth();
+  unsigned InBitWidth = VInTy->getBitWidth();
+
+  // Vectors of the same size can be converted using a simple bitcast.
+  if (InBitWidth == BitWidth && AllocaSize == (InBitWidth / 8)) {
+    ScalarKind = Vector;
+    return true;
+  }
+
+  const Type *ElementTy = VectorTy->getElementType();
+  const Type *InElementTy = VInTy->getElementType();
+
+  // Do not allow mixed integer and floating-point accesses from vectors of
+  // different sizes.
+  if (ElementTy->isFloatingPointTy() != InElementTy->isFloatingPointTy())
+    return false;
+
+  if (ElementTy->isFloatingPointTy()) {
+    // Only allow floating-point vectors of different sizes if they have the
+    // same element type.
+    // TODO: This could be loosened a bit, but would anything benefit?
+    if (ElementTy != InElementTy)
+      return false;
+
+    // There are no arbitrary-precision floating-point types, which limits the
+    // number of legal vector types with larger element types that we can form
+    // to bitcast and extract a subvector.
+    // TODO: We could support some more cases with mixed fp128 and double here.
+    if (!(BitWidth == 64 || BitWidth == 128) ||
+        !(InBitWidth == 64 || InBitWidth == 128))
+      return false;
+  } else {
+    assert(ElementTy->isIntegerTy() && "Vector elements must be either integer "
+                                       "or floating-point.");
+    unsigned BitWidth = ElementTy->getPrimitiveSizeInBits();
+    unsigned InBitWidth = InElementTy->getPrimitiveSizeInBits();
+
+    // Do not allow integer types smaller than a byte or types whose widths are
+    // not a multiple of a byte.
+    if (BitWidth < 8 || InBitWidth < 8 ||
+        BitWidth % 8 != 0 || InBitWidth % 8 != 0)
+      return false;
+  }
+
+  // Pick the largest of the two vector types.
+  ScalarKind = Vector;
+  if (InBitWidth > BitWidth)
+    VectorTy = VInTy;
+
+  return true;
 }
 
 /// CanConvertToScalar - V is a pointer.  If we can convert the pointee and all
@@ -369,7 +485,8 @@ bool ConvertToScalarInfo::CanConvertToScalar(Value *V, uint64_t Offset) {
       // Don't touch MMX operations.
       if (LI->getType()->isX86_MMXTy())
         return false;
-      MergeInType(LI->getType(), Offset);
+      HadNonMemTransferAccess = true;
+      MergeInTypeForLoadOrStore(LI->getType(), Offset);
       continue;
     }
 
@@ -379,7 +496,8 @@ bool ConvertToScalarInfo::CanConvertToScalar(Value *V, uint64_t Offset) {
       // Don't touch MMX operations.
       if (SI->getOperand(0)->getType()->isX86_MMXTy())
         return false;
-      MergeInType(SI->getOperand(0)->getType(), Offset);
+      HadNonMemTransferAccess = true;
+      MergeInTypeForLoadOrStore(SI->getOperand(0)->getType(), Offset);
       continue;
     }
 
@@ -403,17 +521,31 @@ bool ConvertToScalarInfo::CanConvertToScalar(Value *V, uint64_t Offset) {
       if (!CanConvertToScalar(GEP, Offset+GEPOffset))
         return false;
       IsNotTrivial = true;  // Can't be mem2reg'd.
+      HadNonMemTransferAccess = true;
       continue;
     }
 
     // If this is a constant sized memset of a constant value (e.g. 0) we can
     // handle it.
     if (MemSetInst *MSI = dyn_cast<MemSetInst>(User)) {
-      // Store of constant value and constant size.
-      if (!isa<ConstantInt>(MSI->getValue()) ||
-          !isa<ConstantInt>(MSI->getLength()))
+      // Store of constant value.
+      if (!isa<ConstantInt>(MSI->getValue()))
         return false;
+
+      // Store of constant size.
+      ConstantInt *Len = dyn_cast<ConstantInt>(MSI->getLength());
+      if (!Len)
+        return false;
+
+      // If the size differs from the alloca, we can only convert the alloca to
+      // an integer bag-of-bits.
+      // FIXME: This should handle all of the cases that are currently accepted
+      // as vector element insertions.
+      if (Len->getZExtValue() != AllocaSize || Offset != 0)
+        ScalarKind = Integer;
+
       IsNotTrivial = true;  // Can't be mem2reg'd.
+      HadNonMemTransferAccess = true;
       continue;
     }
 
@@ -575,6 +707,63 @@ void ConvertToScalarInfo::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI,
   }
 }
 
+/// getScaledElementType - Gets a scaled element type for a partial vector
+/// access of an alloca. The input types must be integer or floating-point
+/// scalar or vector types, and the resulting type is an integer, float or
+/// double.
+static const Type *getScaledElementType(const Type *Ty1, const Type *Ty2,
+                                        unsigned NewBitWidth) {
+  bool IsFP1 = Ty1->isFloatingPointTy() ||
+               (Ty1->isVectorTy() &&
+                cast<VectorType>(Ty1)->getElementType()->isFloatingPointTy());
+  bool IsFP2 = Ty2->isFloatingPointTy() ||
+               (Ty2->isVectorTy() &&
+                cast<VectorType>(Ty2)->getElementType()->isFloatingPointTy());
+
+  LLVMContext &Context = Ty1->getContext();
+
+  // Prefer floating-point types over integer types, as integer types may have
+  // been created by earlier scalar replacement.
+  if (IsFP1 || IsFP2) {
+    if (NewBitWidth == 32)
+      return Type::getFloatTy(Context);
+    if (NewBitWidth == 64)
+      return Type::getDoubleTy(Context);
+  }
+
+  return Type::getIntNTy(Context, NewBitWidth);
+}
+
+/// CreateShuffleVectorCast - Creates a shuffle vector to convert one vector
+/// to another vector of the same element type which has the same allocation
+/// size but different primitive sizes (e.g. <3 x i32> and <4 x i32>).
+static Value *CreateShuffleVectorCast(Value *FromVal, const Type *ToType,
+                                      IRBuilder<> &Builder) {
+  const Type *FromType = FromVal->getType();
+  const VectorType *FromVTy = cast<VectorType>(FromType);
+  const VectorType *ToVTy = cast<VectorType>(ToType);
+  assert((ToVTy->getElementType() == FromVTy->getElementType()) &&
+         "Vectors must have the same element type");
+   Value *UnV = UndefValue::get(FromType);
+   unsigned numEltsFrom = FromVTy->getNumElements();
+   unsigned numEltsTo = ToVTy->getNumElements();
+
+   SmallVector<Constant*, 3> Args;
+   const Type* Int32Ty = Builder.getInt32Ty();
+   unsigned minNumElts = std::min(numEltsFrom, numEltsTo);
+   unsigned i;
+   for (i=0; i != minNumElts; ++i)
+     Args.push_back(ConstantInt::get(Int32Ty, i));
+
+   if (i < numEltsTo) {
+     Constant* UnC = UndefValue::get(Int32Ty);
+     for (; i != numEltsTo; ++i)
+       Args.push_back(UnC);
+   }
+   Constant *Mask = ConstantVector::get(Args);
+   return Builder.CreateShuffleVector(FromVal, UnV, Mask, "tmpV");
+}
+
 /// ConvertScalar_ExtractValue - Extract a value of type ToType from an integer
 /// or vector value FromVal, extracting the bits from the offset specified by
 /// Offset.  This returns the value, which is of type ToType.
@@ -589,14 +778,47 @@ Value *ConvertToScalarInfo::
 ConvertScalar_ExtractValue(Value *FromVal, const Type *ToType,
                            uint64_t Offset, IRBuilder<> &Builder) {
   // If the load is of the whole new alloca, no conversion is needed.
-  if (FromVal->getType() == ToType && Offset == 0)
+  const Type *FromType = FromVal->getType();
+  if (FromType == ToType && Offset == 0)
     return FromVal;
 
   // If the result alloca is a vector type, this is either an element
   // access or a bitcast to another vector type of the same size.
-  if (const VectorType *VTy = dyn_cast<VectorType>(FromVal->getType())) {
-    if (ToType->isVectorTy())
-      return Builder.CreateBitCast(FromVal, ToType, "tmp");
+  if (const VectorType *VTy = dyn_cast<VectorType>(FromType)) {
+    unsigned FromTypeSize = TD.getTypeAllocSize(FromType);
+    unsigned ToTypeSize = TD.getTypeAllocSize(ToType);
+    if (FromTypeSize == ToTypeSize) {
+      // If the two types have the same primitive size, use a bit cast.
+      // Otherwise, it is two vectors with the same element type that has
+      // the same allocation size but different number of elements so use
+      // a shuffle vector.
+      if (FromType->getPrimitiveSizeInBits() ==
+          ToType->getPrimitiveSizeInBits())
+        return Builder.CreateBitCast(FromVal, ToType, "tmp");
+      else
+        return CreateShuffleVectorCast(FromVal, ToType, Builder);
+    }
+
+    if (isPowerOf2_64(FromTypeSize / ToTypeSize)) {
+      assert(!(ToType->isVectorTy() && Offset != 0) && "Can't extract a value "
+             "of a smaller vector type at a nonzero offset.");
+
+      const Type *CastElementTy = getScaledElementType(FromType, ToType,
+                                                       ToTypeSize * 8);
+      unsigned NumCastVectorElements = FromTypeSize / ToTypeSize;
+
+      LLVMContext &Context = FromVal->getContext();
+      const Type *CastTy = VectorType::get(CastElementTy,
+                                           NumCastVectorElements);
+      Value *Cast = Builder.CreateBitCast(FromVal, CastTy, "tmp");
+
+      unsigned EltSize = TD.getTypeAllocSizeInBits(CastElementTy);
+      unsigned Elt = Offset/EltSize;
+      assert(EltSize*Elt == Offset && "Invalid modulus in validity checking");
+      Value *Extract = Builder.CreateExtractElement(Cast, ConstantInt::get(
+                                        Type::getInt32Ty(Context), Elt), "tmp");
+      return Builder.CreateBitCast(Extract, ToType, "tmp");
+    }
 
     // Otherwise it must be an element access.
     unsigned Elt = 0;
@@ -714,21 +936,49 @@ ConvertScalar_InsertValue(Value *SV, Value *Old,
 
     // Changing the whole vector with memset or with an access of a different
     // vector type?
-    if (ValSize == VecSize)
-      return Builder.CreateBitCast(SV, AllocaType, "tmp");
+    if (ValSize == VecSize) {
+      // If the two types have the same primitive size, use a bit cast.
+      // Otherwise, it is two vectors with the same element type that has
+      // the same allocation size but different number of elements so use
+      // a shuffle vector.
+      if (VTy->getPrimitiveSizeInBits() ==
+          SV->getType()->getPrimitiveSizeInBits())
+        return Builder.CreateBitCast(SV, AllocaType, "tmp");
+      else
+        return CreateShuffleVectorCast(SV, VTy, Builder);
+    }
 
-    uint64_t EltSize = TD.getTypeAllocSizeInBits(VTy->getElementType());
+    if (isPowerOf2_64(VecSize / ValSize)) {
+      assert(!(SV->getType()->isVectorTy() && Offset != 0) && "Can't insert a "
+             "value of a smaller vector type at a nonzero offset.");
+
+      const Type *CastElementTy = getScaledElementType(VTy, SV->getType(),
+                                                       ValSize);
+      unsigned NumCastVectorElements = VecSize / ValSize;
+
+      LLVMContext &Context = SV->getContext();
+      const Type *OldCastTy = VectorType::get(CastElementTy,
+                                              NumCastVectorElements);
+      Value *OldCast = Builder.CreateBitCast(Old, OldCastTy, "tmp");
+
+      Value *SVCast = Builder.CreateBitCast(SV, CastElementTy, "tmp");
+
+      unsigned EltSize = TD.getTypeAllocSizeInBits(CastElementTy);
+      unsigned Elt = Offset/EltSize;
+      assert(EltSize*Elt == Offset && "Invalid modulus in validity checking");
+      Value *Insert =
+        Builder.CreateInsertElement(OldCast, SVCast, ConstantInt::get(
+                                        Type::getInt32Ty(Context), Elt), "tmp");
+      return Builder.CreateBitCast(Insert, AllocaType, "tmp");
+    }
 
     // Must be an element insertion.
+    assert(SV->getType() == VTy->getElementType());
+    uint64_t EltSize = TD.getTypeAllocSizeInBits(VTy->getElementType());
     unsigned Elt = Offset/EltSize;
-
-    if (SV->getType() != VTy->getElementType())
-      SV = Builder.CreateBitCast(SV, VTy->getElementType(), "tmp");
-
-    SV = Builder.CreateInsertElement(Old, SV,
+    return Builder.CreateInsertElement(Old, SV,
                      ConstantInt::get(Type::getInt32Ty(SV->getContext()), Elt),
                                      "tmp");
-    return SV;
   }
 
   // If SV is a first-class aggregate value, insert each value recursively.
@@ -845,15 +1095,37 @@ bool SROA::runOnFunction(Function &F) {
 namespace {
 class AllocaPromoter : public LoadAndStorePromoter {
   AllocaInst *AI;
+  DIBuilder *DIB;
+  SmallVector<DbgDeclareInst *, 4> DDIs;
+  SmallVector<DbgValueInst *, 4> DVIs;
 public:
-  AllocaPromoter(const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S)
-    : LoadAndStorePromoter(Insts, S), AI(0) {}
+  AllocaPromoter(const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S,
+                 DIBuilder *DB)
+    : LoadAndStorePromoter(Insts, S), AI(0), DIB(DB) {}
   
   void run(AllocaInst *AI, const SmallVectorImpl<Instruction*> &Insts) {
     // Remember which alloca we're promoting (for isInstInList).
     this->AI = AI;
+    if (MDNode *DebugNode = MDNode::getIfExists(AI->getContext(), AI))
+      for (Value::use_iterator UI = DebugNode->use_begin(),
+             E = DebugNode->use_end(); UI != E; ++UI)
+        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(*UI))
+          DDIs.push_back(DDI);
+        else if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(*UI))
+          DVIs.push_back(DVI);
+
     LoadAndStorePromoter::run(Insts);
     AI->eraseFromParent();
+    for (SmallVector<DbgDeclareInst *, 4>::iterator I = DDIs.begin(), 
+           E = DDIs.end(); I != E; ++I) {
+      DbgDeclareInst *DDI = *I;
+      DDI->eraseFromParent();
+    }
+    for (SmallVector<DbgValueInst *, 4>::iterator I = DVIs.begin(), 
+           E = DVIs.end(); I != E; ++I) {
+      DbgValueInst *DVI = *I;
+      DVI->eraseFromParent();
+    }
   }
   
   virtual bool isInstInList(Instruction *I,
@@ -861,6 +1133,45 @@ public:
     if (LoadInst *LI = dyn_cast<LoadInst>(I))
       return LI->getOperand(0) == AI;
     return cast<StoreInst>(I)->getPointerOperand() == AI;
+  }
+
+  virtual void updateDebugInfo(Instruction *Inst) const {
+    for (SmallVector<DbgDeclareInst *, 4>::const_iterator I = DDIs.begin(), 
+           E = DDIs.end(); I != E; ++I) {
+      DbgDeclareInst *DDI = *I;
+      if (StoreInst *SI = dyn_cast<StoreInst>(Inst))
+        ConvertDebugDeclareToDebugValue(DDI, SI, *DIB);
+      else if (LoadInst *LI = dyn_cast<LoadInst>(Inst))
+        ConvertDebugDeclareToDebugValue(DDI, LI, *DIB);
+    }
+    for (SmallVector<DbgValueInst *, 4>::const_iterator I = DVIs.begin(), 
+           E = DVIs.end(); I != E; ++I) {
+      DbgValueInst *DVI = *I;
+      if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
+        Instruction *DbgVal = NULL;
+        // If an argument is zero extended then use argument directly. The ZExt
+        // may be zapped by an optimization pass in future.
+        Argument *ExtendedArg = NULL;
+        if (ZExtInst *ZExt = dyn_cast<ZExtInst>(SI->getOperand(0)))
+          ExtendedArg = dyn_cast<Argument>(ZExt->getOperand(0));
+        if (SExtInst *SExt = dyn_cast<SExtInst>(SI->getOperand(0)))
+          ExtendedArg = dyn_cast<Argument>(SExt->getOperand(0));
+        if (ExtendedArg)
+          DbgVal = DIB->insertDbgValueIntrinsic(ExtendedArg, 0, 
+                                                DIVariable(DVI->getVariable()),
+                                                SI);
+        else
+          DbgVal = DIB->insertDbgValueIntrinsic(SI->getOperand(0), 0, 
+                                                DIVariable(DVI->getVariable()),
+                                                SI);
+        DbgVal->setDebugLoc(DVI->getDebugLoc());
+      } else if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
+        Instruction *DbgVal = 
+          DIB->insertDbgValueIntrinsic(LI->getOperand(0), 0, 
+                                       DIVariable(DVI->getVariable()), LI);
+        DbgVal->setDebugLoc(DVI->getDebugLoc());
+      }
+    }
   }
 };
 } // end anon namespace
@@ -1053,7 +1364,7 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const TargetData *TD) {
         LoadInst *TrueLoad = 
           Builder.CreateLoad(SI->getTrueValue(), LI->getName()+".t");
         LoadInst *FalseLoad = 
-          Builder.CreateLoad(SI->getFalseValue(), LI->getName()+".t");
+          Builder.CreateLoad(SI->getFalseValue(), LI->getName()+".f");
         
         // Transfer alignment and TBAA info if present.
         TrueLoad->setAlignment(LI->getAlignment());
@@ -1083,7 +1394,8 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const TargetData *TD) {
     }
     
     const Type *LoadTy = cast<PointerType>(PN->getType())->getElementType();
-    PHINode *NewPN = PHINode::Create(LoadTy, PN->getName()+".ld", PN);
+    PHINode *NewPN = PHINode::Create(LoadTy, PN->getNumIncomingValues(),
+                                     PN->getName()+".ld", PN);
 
     // Get the TBAA tag and alignment to use from one of the loads.  It doesn't
     // matter which one we get and if any differ, it doesn't matter.
@@ -1123,7 +1435,6 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const TargetData *TD) {
   return true;
 }
 
-
 bool SROA::performPromotion(Function &F) {
   std::vector<AllocaInst*> Allocas;
   DominatorTree *DT = 0;
@@ -1131,7 +1442,7 @@ bool SROA::performPromotion(Function &F) {
     DT = &getAnalysis<DominatorTree>();
 
   BasicBlock &BB = F.getEntryBlock();  // Get the entry node for the function
-
+  DIBuilder DIB(*F.getParent());
   bool Changed = false;
   SmallVector<Instruction*, 64> Insts;
   while (1) {
@@ -1157,8 +1468,7 @@ bool SROA::performPromotion(Function &F) {
         for (Value::use_iterator UI = AI->use_begin(), E = AI->use_end();
              UI != E; ++UI)
           Insts.push_back(cast<Instruction>(*UI));
-        
-        AllocaPromoter(Insts, SSA).run(AI, Insts);
+        AllocaPromoter(Insts, SSA, &DIB).run(AI, Insts);
         Insts.clear();
       }
     }
@@ -1186,8 +1496,8 @@ static bool ShouldAttemptScalarRepl(AllocaInst *AI) {
 
 
 // performScalarRepl - This algorithm is a simple worklist driven algorithm,
-// which runs on all of the malloc/alloca instructions in the function, removing
-// them if they are only used by getelementptr instructions.
+// which runs on all of the alloca instructions in the function, removing them
+// if they are only used by getelementptr instructions.
 //
 bool SROA::performScalarRepl(Function &F) {
   std::vector<AllocaInst*> WorkList;
@@ -1221,12 +1531,15 @@ bool SROA::performScalarRepl(Function &F) {
     // the constant global instead.  This is commonly produced by the CFE by
     // constructs like "void foo() { int A[] = {1,2,3,4,5,6,7,8,9...}; }" if 'A'
     // is only subsequently read.
-    if (MemTransferInst *TheCopy = isOnlyCopiedFromConstantGlobal(AI)) {
+    SmallVector<Instruction *, 4> ToDelete;
+    if (MemTransferInst *Copy = isOnlyCopiedFromConstantGlobal(AI, ToDelete)) {
       DEBUG(dbgs() << "Found alloca equal to global: " << *AI << '\n');
-      DEBUG(dbgs() << "  memcpy = " << *TheCopy << '\n');
-      Constant *TheSrc = cast<Constant>(TheCopy->getSource());
+      DEBUG(dbgs() << "  memcpy = " << *Copy << '\n');
+      for (unsigned i = 0, e = ToDelete.size(); i != e; ++i)
+        ToDelete[i]->eraseFromParent();
+      Constant *TheSrc = cast<Constant>(Copy->getSource());
       AI->replaceAllUsesWith(ConstantExpr::getBitCast(TheSrc, AI->getType()));
-      TheCopy->eraseFromParent();  // Don't mutate the global.
+      Copy->eraseFromParent();  // Don't mutate the global.
       AI->eraseFromParent();
       ++NumGlobals;
       Changed = true;
@@ -1625,9 +1938,10 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         //   %insert = insertvalue { i32, i32 } %insert.0, i32 %load.1, 1
         // (Also works for arrays instead of structs)
         Value *Insert = UndefValue::get(LIType);
+        IRBuilder<> Builder(LI);
         for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
-          Value *Load = new LoadInst(NewElts[i], "load", LI);
-          Insert = InsertValueInst::Create(Insert, Load, i, "insert", LI);
+          Value *Load = Builder.CreateLoad(NewElts[i], "load");
+          Insert = Builder.CreateInsertValue(Insert, Load, i, "insert");
         }
         LI->replaceAllUsesWith(Insert);
         DeadInsts.push_back(LI);
@@ -1652,9 +1966,10 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         //   %val.1 = extractvalue { i32, i32 } %val, 1
         //   store i32 %val.1, i32* %alloc.1
         // (Also works for arrays instead of structs)
+        IRBuilder<> Builder(SI);
         for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
-          Value *Extract = ExtractValueInst::Create(Val, i, Val->getName(), SI);
-          new StoreInst(Extract, NewElts[i], SI);
+          Value *Extract = Builder.CreateExtractValue(Val, i, Val->getName());
+          Builder.CreateStore(Extract, NewElts[i]);
         }
         DeadInsts.push_back(SI);
       } else if (SIType->isIntegerTy() &&
@@ -2248,8 +2563,14 @@ static bool PointsToConstantGlobal(Value *V) {
 /// the uses.  If we see a memcpy/memmove that targets an unoffseted pointer to
 /// the alloca, and if the source pointer is a pointer to a constant global, we
 /// can optimize this.
-static bool isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
-                                           bool isOffset) {
+static bool
+isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
+                               bool isOffset,
+                               SmallVector<Instruction *, 4> &LifetimeMarkers) {
+  // We track lifetime intrinsics as we encounter them.  If we decide to go
+  // ahead and replace the value with the global, this lets the caller quickly
+  // eliminate the markers.
+
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI!=E; ++UI) {
     User *U = cast<Instruction>(*UI);
 
@@ -2261,7 +2582,8 @@ static bool isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
 
     if (BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
       // If uses of the bitcast are ok, we are ok.
-      if (!isOnlyCopiedFromConstantGlobal(BCI, TheCopy, isOffset))
+      if (!isOnlyCopiedFromConstantGlobal(BCI, TheCopy, isOffset,
+                                          LifetimeMarkers))
         return false;
       continue;
     }
@@ -2269,27 +2591,41 @@ static bool isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
       // If the GEP has all zero indices, it doesn't offset the pointer.  If it
       // doesn't, it does.
       if (!isOnlyCopiedFromConstantGlobal(GEP, TheCopy,
-                                         isOffset || !GEP->hasAllZeroIndices()))
+                                          isOffset || !GEP->hasAllZeroIndices(),
+                                          LifetimeMarkers))
         return false;
       continue;
     }
 
     if (CallSite CS = U) {
-      // If this is a readonly/readnone call site, then we know it is just a
-      // load and we can ignore it.
-      if (CS.onlyReadsMemory())
-        continue;
-
       // If this is the function being called then we treat it like a load and
       // ignore it.
       if (CS.isCallee(UI))
         continue;
 
+      // If this is a readonly/readnone call site, then we know it is just a
+      // load (but one that potentially returns the value itself), so we can
+      // ignore it if we know that the value isn't captured.
+      unsigned ArgNo = CS.getArgumentNo(UI);
+      if (CS.onlyReadsMemory() &&
+          (CS.getInstruction()->use_empty() ||
+           CS.paramHasAttr(ArgNo+1, Attribute::NoCapture)))
+        continue;
+
       // If this is being passed as a byval argument, the caller is making a
       // copy, so it is only a read of the alloca.
-      unsigned ArgNo = CS.getArgumentNo(UI);
       if (CS.paramHasAttr(ArgNo+1, Attribute::ByVal))
         continue;
+    }
+
+    // Lifetime intrinsics can be handled by the caller.
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+      if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == Intrinsic::lifetime_end) {
+        assert(II->use_empty() && "Lifetime markers have no result to use!");
+        LifetimeMarkers.push_back(II);
+        continue;
+      }
     }
 
     // If this is isn't our memcpy/memmove, reject it as something we can't
@@ -2328,9 +2664,11 @@ static bool isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
 /// isOnlyCopiedFromConstantGlobal - Return true if the specified alloca is only
 /// modified by a copy from a constant global.  If we can prove this, we can
 /// replace any uses of the alloca with uses of the global directly.
-MemTransferInst *SROA::isOnlyCopiedFromConstantGlobal(AllocaInst *AI) {
+MemTransferInst *
+SROA::isOnlyCopiedFromConstantGlobal(AllocaInst *AI,
+                                     SmallVector<Instruction*, 4> &ToDelete) {
   MemTransferInst *TheCopy = 0;
-  if (::isOnlyCopiedFromConstantGlobal(AI, TheCopy, false))
+  if (::isOnlyCopiedFromConstantGlobal(AI, TheCopy, false, ToDelete))
     return TheCopy;
   return 0;
 }

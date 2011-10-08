@@ -19,7 +19,7 @@ check_cmd="pf_check"
 reload_cmd="pf_reload"
 resync_cmd="pf_resync"
 status_cmd="pf_status"
-extra_commands="check reload resync status"
+extra_commands="check reload resync"
 required_files="$pf_rules"
 required_modules="pf"
 

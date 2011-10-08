@@ -14,7 +14,6 @@ SRCS+=	xmphy.c
 
 EXPORT_SYMS=	mii_attach	\
 		mii_mediachg	\
-		mii_phy_reset	\
 		mii_pollstat	\
 		mii_tick
 

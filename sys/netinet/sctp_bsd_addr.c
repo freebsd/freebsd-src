@@ -74,22 +74,6 @@ MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
 
 /* Global NON-VNET structure that controls the iterator */
 struct iterator_control sctp_it_ctl;
-static int __sctp_thread_based_iterator_started = 0;
-
-
-static void
-sctp_cleanup_itqueue(void)
-{
-	struct sctp_iterator *it, *nit;
-
-	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
-		if (it->function_atend != NULL) {
-			(*it->function_atend) (it->pointer, it->val);
-		}
-		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-		SCTP_FREE(it, SCTP_M_ITER);
-	}
-}
 
 
 void
@@ -102,17 +86,11 @@ static void
 sctp_iterator_thread(void *v)
 {
 	SCTP_IPI_ITERATOR_WQ_LOCK();
+	/* In FreeBSD this thread never terminates. */
 	while (1) {
 		msleep(&sctp_it_ctl.iterator_running,
 		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
-		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
-			SCTP_IPI_ITERATOR_WQ_DESTROY();
-			SCTP_ITERATOR_LOCK_DESTROY();
-			sctp_cleanup_itqueue();
-			__sctp_thread_based_iterator_started = 0;
-			kthread_exit();
-		}
 		sctp_iterator_worker();
 	}
 }
@@ -120,21 +98,21 @@ sctp_iterator_thread(void *v)
 void
 sctp_startup_iterator(void)
 {
-	if (__sctp_thread_based_iterator_started) {
+	static int called = 0;
+	int ret;
+
+	if (called) {
 		/* You only get one */
 		return;
 	}
 	/* init the iterator head */
-	__sctp_thread_based_iterator_started = 1;
+	called = 1;
 	sctp_it_ctl.iterator_running = 0;
 	sctp_it_ctl.iterator_flags = 0;
 	sctp_it_ctl.cur_it = NULL;
 	SCTP_ITERATOR_LOCK_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
-
-	int ret;
-
 	ret = kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
 	    &sctp_it_ctl.thread_proc,
@@ -228,9 +206,13 @@ sctp_init_ifns_for_vrf(int vrfid)
 	 */
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
-	struct in6_ifaddr *ifa6;
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
+
+#ifdef INET6
+	struct in6_ifaddr *ifa6;
+
+#endif
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
@@ -239,29 +221,44 @@ sctp_init_ifns_for_vrf(int vrfid)
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
-			if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
-				/* non inet/inet6 skip */
-				continue;
-			}
-			if (ifa->ifa_addr->sa_family == AF_INET6) {
+			switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+					continue;
+				}
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
 				if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 					/* skip unspecifed addresses */
 					continue;
 				}
-			} else {
-				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
-					continue;
-				}
+				break;
+#endif
+			default:
+				continue;
 			}
 			if (sctp_is_desired_interface_type(ifa) == 0) {
 				/* non desired type */
 				continue;
 			}
-			if (ifa->ifa_addr->sa_family == AF_INET6) {
+			switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				ifa_flags = 0;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
 				ifa6 = (struct in6_ifaddr *)ifa;
 				ifa_flags = ifa6->ia6_flags;
-			} else {
+				break;
+#endif
+			default:
 				ifa_flags = 0;
+				break;
 			}
 			sctp_ifa = sctp_add_addr_to_vrf(vrfid,
 			    (void *)ifn,
@@ -320,20 +317,26 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
-	if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
-		/* non inet/inet6 skip */
-		return;
-	}
-	if (ifa->ifa_addr->sa_family == AF_INET6) {
+	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+			return;
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		ifa_flags = ((struct in6_ifaddr *)ifa)->ia6_flags;
 		if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 			/* skip unspecifed addresses */
 			return;
 		}
-	} else {
-		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
-			return;
-		}
+		break;
+#endif
+	default:
+		/* non inet/inet6 skip */
+		return;
 	}
 
 	if (sctp_is_desired_interface_type(ifa) == 0) {

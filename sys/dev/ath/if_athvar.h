@@ -43,6 +43,14 @@
 
 #define	ATH_TIMEOUT		1000
 
+/*
+ * 802.11n requires more TX and RX buffers to do AMPDU.
+ */
+#ifdef	ATH_ENABLE_11N
+#define	ATH_TXBUF	512
+#define	ATH_RXBUF	512
+#endif
+
 #ifndef ATH_RXBUF
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #endif
@@ -56,7 +64,7 @@
 #define	ATH_TXMGTTRY	4		/* xmit attempts for mgt/ctl frames */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
-#define	ATH_BEACON_AIFS_DEFAULT	 0	/* default aifs for ap beacon q */
+#define	ATH_BEACON_AIFS_DEFAULT	 1	/* default aifs for ap beacon q */
 #define	ATH_BEACON_CWMIN_DEFAULT 0	/* default cwmin for ap beacon q */
 #define	ATH_BEACON_CWMAX_DEFAULT 0	/* default cwmax for ap beacon q */
 
@@ -245,7 +253,10 @@ struct ath_softc {
 				sc_resume_up: 1,/* on resume, start all vaps */
 				sc_tdma	    : 1,/* TDMA in use */
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
-				sc_resetcal : 1;/* reset cal state next trip */
+				sc_resetcal : 1,/* reset cal state next trip */
+				sc_rxslink  : 1,/* do self-linked final descriptor */
+				sc_kickpcu  : 1,/* kick PCU RX on next RX proc */
+				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
@@ -348,6 +359,11 @@ struct ath_softc {
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
+
+	/* DFS related state */
+	void			*sc_dfs;	/* Used by an optional DFS module */
+	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
+	struct task		sc_dfstask;	/* DFS processing task */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -467,6 +483,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setBeaconTimers)((_ah), (_bt)))
 #define	ath_hal_beacontimers(_ah, _bs) \
 	((*(_ah)->ah_setStationBeaconTimers)((_ah), (_bs)))
+#define	ath_hal_getnexttbtt(_ah) \
+	((*(_ah)->ah_getNextTBTT)((_ah)))
 #define	ath_hal_setassocid(_ah, _bss, _associd) \
 	((*(_ah)->ah_writeAssocid)((_ah), (_bss), (_associd)))
 #define	ath_hal_phydisable(_ah) \
@@ -625,11 +643,11 @@ void	ath_intr(void *);
 #define	ath_hal_settpcts(_ah, _tpcts) \
 	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
 #define	ath_hal_hasintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_PRESENT, NULL) == HAL_OK)
 #define	ath_hal_getintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 1, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, NULL) == HAL_OK)
 #define	ath_hal_setintmit(_ah, _v) \
-	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
+	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
@@ -637,7 +655,13 @@ void	ath_intr(void *);
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
 #define	ath_hal_split4ktrans(_ah) \
-	(ath_hal_getcapability(_ah, HAP_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+#define	ath_hal_self_linked_final_rxdesc(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXDESC_SELFLINK, 0, NULL) == HAL_OK)
+#define	ath_hal_gtxto_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_GTXTO, 0, NULL) == HAL_OK)
+#define	ath_hal_has_long_rxdesc_tsf(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_LONG_RXDESC_TSF, 0, NULL) == HAL_OK)
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
@@ -680,6 +704,21 @@ void	ath_intr(void *);
 	((*(_ah)->ah_set11nAggrMiddle((_ah), (_ds), (_num))))
 #define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
+
+/*
+ * This is badly-named; you need to set the correct parameters
+ * to begin to receive useful radar events; and even then
+ * it doesn't "enable" DFS. See the ath_dfs/null/ module for
+ * more information.
+ */
+#define	ath_hal_enabledfs(_ah, _param) \
+	((*(_ah)->ah_enableDfs)((_ah), (_param)))
+#define	ath_hal_getdfsthresh(_ah, _param) \
+	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
+#define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
+	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), (_buf), (_event)))
+#define	ath_hal_is_fast_clock_enabled(_ah) \
+	((*(_ah)->ah_isFastClockEnabled)((_ah)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

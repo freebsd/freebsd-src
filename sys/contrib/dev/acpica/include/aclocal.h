@@ -1198,6 +1198,7 @@ typedef struct acpi_db_method_info
     UINT32                          NumLoops;
     char                            Pathname[128];
     char                            **Args;
+    ACPI_OBJECT_TYPE                *Types;
 
     /*
      * Arguments to be passed to method for the command
@@ -1206,6 +1207,7 @@ typedef struct acpi_db_method_info
      *   Index of current thread inside all them created.
      */
     char                            InitArgs;
+    ACPI_OBJECT_TYPE                ArgTypes[4];
     char                            *Arguments[4];
     char                            NumThreadsStr[11];
     char                            IdOfThreadStr[11];

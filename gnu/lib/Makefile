@@ -11,8 +11,4 @@ SUBDIR= csu libgcc libgcov libdialog libgomp libodialog libregex libreadline \
 SUBDIR+= libstdc++ libsupc++
 .endif
 
-.if ${MK_OBJC} != "no"
-SUBDIR+= libobjc
-.endif
-
 .include <bsd.subdir.mk>

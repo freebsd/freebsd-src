@@ -263,7 +263,7 @@ static const struct usb_ether_methods cdce_ue_methods = {
 	.ue_setpromisc = cdce_setpromisc,
 };
 
-static const struct usb_device_id cdce_devs[] = {
+static const STRUCT_USB_HOST_ID cdce_host_devs[] = {
 	{USB_VPI(USB_VENDOR_ACERLABS, USB_PRODUCT_ACERLABS_M5632, CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_AMBIT, USB_PRODUCT_AMBIT_NTL_250, CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_COMPAQ, USB_PRODUCT_COMPAQ_IPAQLINUX, CDCE_FLAG_NO_UNION)},
@@ -277,7 +277,9 @@ static const struct usb_device_id cdce_devs[] = {
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLA300, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC700, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC750, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
+};
 
+static const STRUCT_USB_DUAL_ID cdce_dual_devs[] = {
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL, 0)},
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_MOBILE_DIRECT_LINE_MODEL, 0)},
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_NETWORK_CONTROL_MODEL, 0)},
@@ -472,8 +474,12 @@ static int
 cdce_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	int error;
 
-	return (usbd_lookup_id_by_uaa(cdce_devs, sizeof(cdce_devs), uaa));
+	error = usbd_lookup_id_by_uaa(cdce_host_devs, sizeof(cdce_host_devs), uaa);
+	if (error)
+		error = usbd_lookup_id_by_uaa(cdce_dual_devs, sizeof(cdce_dual_devs), uaa);
+	return (error);
 }
 
 static void

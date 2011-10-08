@@ -58,6 +58,8 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
+#include <sys/priv.h>
+
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
@@ -465,8 +467,8 @@ if_alloc(u_char type)
 }
 
 /*
- * Do the actual work of freeing a struct ifnet, associated index, and layer
- * 2 common structure.  This call is made when the last reference to an
+ * Do the actual work of freeing a struct ifnet, and layer 2 common
+ * structure.  This call is made when the last reference to an
  * interface is released.
  */
 static void
@@ -475,13 +477,6 @@ if_free_internal(struct ifnet *ifp)
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
-
-	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
-	ifindex_free_locked(ifp->if_index);
-	IFNET_WUNLOCK();
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
@@ -513,6 +508,14 @@ if_free_type(struct ifnet *ifp, u_char type)
 	    ifp->if_alloctype));
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+
+	IFNET_WLOCK();
+	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	    ("%s: freeing unallocated ifnet", ifp->if_xname));
+
+	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
 	if (!refcount_release(&ifp->if_refcount))
 		return;
 	if_free_internal(ifp);
@@ -2134,6 +2137,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		free(odescrbuf, M_IFDESCR);
 		break;
 
+	case SIOCGIFFIB:
+		ifr->ifr_fib = ifp->if_fib;
+		break;
+
+	case SIOCSIFFIB:
+		error = priv_check(td, PRIV_NET_SETIFFIB);
+		if (error)
+			return (error);
+		if (ifr->ifr_fib >= rt_numfibs)
+			return (EINVAL);
+
+		ifp->if_fib = ifr->ifr_fib;
+		break;
+
 	case SIOCSIFFLAGS:
 		error = priv_check(td, PRIV_NET_SETIFFLAGS);
 		if (error)
@@ -2466,6 +2483,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 			error = ifconf(SIOCGIFCONF, (void *)&ifc);
 			CURVNET_RESTORE();
+			if (error == 0)
+				ifc32->ifc_len = ifc.ifc_len;
 			return (error);
 		}
 #endif

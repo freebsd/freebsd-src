@@ -14,6 +14,7 @@
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 
+#include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
@@ -34,7 +35,8 @@ namespace tools {
                                  const InputInfo &Output,
                                  const InputInfoList &Inputs) const;
 
-    void AddARMTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddARMTargetArgs(const ArgList &Args, ArgStringList &CmdArgs,
+                          bool KernelOrKext) const;
     void AddMIPSTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddSparcTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddX86TargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
@@ -337,9 +339,12 @@ namespace freebsd {
   /// netbsd -- Directly call GNU Binutils assembler and linker
 namespace netbsd {
   class LLVM_LIBRARY_VISIBILITY Assemble : public Tool  {
+  private:
+    const llvm::Triple ToolTriple;
+
   public:
-    Assemble(const ToolChain &TC) : Tool("netbsd::Assemble", "assembler",
-                                         TC) {}
+    Assemble(const ToolChain &TC, const llvm::Triple &ToolTriple)
+      : Tool("netbsd::Assemble", "assembler", TC), ToolTriple(ToolTriple) {}
 
     virtual bool hasIntegratedCPP() const { return false; }
 
@@ -350,8 +355,12 @@ namespace netbsd {
                               const char *LinkingOutput) const;
   };
   class LLVM_LIBRARY_VISIBILITY Link : public Tool  {
+  private:
+    const llvm::Triple ToolTriple;
+
   public:
-    Link(const ToolChain &TC) : Tool("netbsd::Link", "linker", TC) {}
+    Link(const ToolChain &TC, const llvm::Triple &ToolTriple)
+      : Tool("netbsd::Link", "linker", TC), ToolTriple(ToolTriple) {}
 
     virtual bool hasIntegratedCPP() const { return false; }
 

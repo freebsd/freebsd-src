@@ -15,18 +15,21 @@
 #include "MSP430InstrInfo.h"
 #include "MSP430MachineFunctionInfo.h"
 #include "MSP430TargetMachine.h"
-#include "MSP430GenInstrInfo.inc"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+
+#define GET_INSTRINFO_CTOR
+#include "MSP430GenInstrInfo.inc"
 
 using namespace llvm;
 
 MSP430InstrInfo::MSP430InstrInfo(MSP430TargetMachine &tm)
-  : TargetInstrInfoImpl(MSP430Insts, array_lengthof(MSP430Insts)),
+  : MSP430GenInstrInfo(MSP430::ADJCALLSTACKDOWN, MSP430::ADJCALLSTACKUP),
     RI(tm, *this), TM(tm) {}
 
 void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -158,13 +161,13 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
 }
 
 bool MSP430InstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
-  const TargetInstrDesc &TID = MI->getDesc();
-  if (!TID.isTerminator()) return false;
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (!MCID.isTerminator()) return false;
 
   // Conditional branch is a special case.
-  if (TID.isBranch() && !TID.isBarrier())
+  if (MCID.isBranch() && !MCID.isBarrier())
     return true;
-  if (!TID.isPredicable())
+  if (!MCID.isPredicable())
     return true;
   return !isPredicated(MI);
 }
@@ -293,7 +296,7 @@ MSP430InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
 /// instruction may be.  This returns the maximum number of bytes.
 ///
 unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
-  const TargetInstrDesc &Desc = MI->getDesc();
+  const MCInstrDesc &Desc = MI->getDesc();
 
   switch (Desc.TSFlags & MSP430II::SizeMask) {
   default:

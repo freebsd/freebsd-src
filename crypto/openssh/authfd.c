@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.83 2010/04/16 01:47:26 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.86 2011/07/06 18:09:21 tedu Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -102,6 +102,7 @@ ssh_get_authentication_socket(void)
 	if (!authsocket)
 		return -1;
 
+	bzero(&sunaddr, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
 
@@ -110,7 +111,7 @@ ssh_get_authentication_socket(void)
 		return -1;
 
 	/* close on exec */
-	if (fcntl(sock, F_SETFD, 1) == -1) {
+	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
 		close(sock);
 		return -1;
 	}
@@ -509,6 +510,21 @@ ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 		    buffer_len(&key->cert->certblob));
 		buffer_put_bignum2(b, key->dsa->priv_key);
 		break;
+#ifdef OPENSSL_HAS_ECC
+	case KEY_ECDSA:
+		buffer_put_cstring(b, key_curve_nid_to_name(key->ecdsa_nid));
+		buffer_put_ecpoint(b, EC_KEY_get0_group(key->ecdsa),
+		    EC_KEY_get0_public_key(key->ecdsa));
+		buffer_put_bignum2(b, EC_KEY_get0_private_key(key->ecdsa));
+		break;
+	case KEY_ECDSA_CERT:
+		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
+			fatal("%s: no cert/certblob", __func__);
+		buffer_put_string(b, buffer_ptr(&key->cert->certblob),
+		    buffer_len(&key->cert->certblob));
+		buffer_put_bignum2(b, EC_KEY_get0_private_key(key->ecdsa));
+		break;
+#endif
 	}
 	buffer_put_cstring(b, comment);
 }
@@ -541,6 +557,8 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 	case KEY_DSA:
 	case KEY_DSA_CERT:
 	case KEY_DSA_CERT_V00:
+	case KEY_ECDSA:
+	case KEY_ECDSA_CERT:
 		type = constrained ?
 		    SSH2_AGENTC_ADD_ID_CONSTRAINED :
 		    SSH2_AGENTC_ADD_IDENTITY;
@@ -589,7 +607,8 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 		buffer_put_bignum(&msg, key->rsa->e);
 		buffer_put_bignum(&msg, key->rsa->n);
 	} else if (key_type_plain(key->type) == KEY_DSA ||
-	    key_type_plain(key->type) == KEY_RSA) {
+	    key_type_plain(key->type) == KEY_RSA ||
+	    key_type_plain(key->type) == KEY_ECDSA) {
 		key_to_blob(key, &blob, &blen);
 		buffer_put_char(&msg, SSH2_AGENTC_REMOVE_IDENTITY);
 		buffer_put_string(&msg, blob, blen);

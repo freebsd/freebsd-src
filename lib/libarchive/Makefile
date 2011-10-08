@@ -2,8 +2,8 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBZ} ${LIBMD}
-LDADD=	-lz -lmd
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 DPADD+= ${LIBBZ2}
 LDADD+= -lbz2
@@ -12,6 +12,9 @@ CFLAGS+= -DHAVE_BZLIB_H=1
 DPADD+= ${LIBLZMA}
 LDADD+= -llzma
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+
+DPADD+= ${LIBBSDXML}
+LDADD+= -lbsdxml
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -24,6 +27,9 @@ CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-DWITH_OPENSSL
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
+.else
+DPADD+=	${LIBMD}
+LDADD+=	-lmd
 .endif
 
 # Headers to be installed in /usr/include
@@ -53,6 +59,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_compression_program.c	\
+	archive_read_support_compression_rpm.c		\
 	archive_read_support_compression_uu.c		\
 	archive_read_support_compression_xz.c		\
 	archive_read_support_format_all.c		\
@@ -63,6 +70,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_format_mtree.c		\
 	archive_read_support_format_raw.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_xar.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string_sprintf.c			\

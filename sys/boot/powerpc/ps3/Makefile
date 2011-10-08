@@ -10,13 +10,14 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c metadata.c vers.c main.c devicename.c ppc64_elf_freebsd.c
-SRCS+=		lv1call.S ps3cons.c font.h ps3mmu.c ps3net.c
+SRCS+=		lv1call.S ps3cons.c font.h ps3mmu.c ps3net.c ps3repo.c \
+		ps3stor.c ps3disk.c ps3cdrom.c
 SRCS+=		ucmpdi2.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
-LOADER_EXT2FS_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
@@ -113,10 +114,17 @@ loader.help: help.common help.ps3
 
 .PATH: ${.CURDIR}/../../forth
 FILES=	loader.help loader.4th support.4th loader.conf
+FILES+=	screen.4th frames.4th
+FILES+=	beastie.4th brand.4th check-password.4th color.4th delay.4th
+FILES+=	menu.4th menu-commands.4th shortcuts.4th version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+= loader.rc
+.endif
+
+.if !exists(${DESTDIR}/boot/menu.rc)
+FILES+= menu.rc
 .endif
 
 .include <bsd.prog.mk>

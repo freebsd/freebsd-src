@@ -78,7 +78,7 @@ pci_hostb_attach(device_t dev)
 	 * If AGP capabilities are present on this device, then create
 	 * an AGP child.
 	 */
-	if (pci_find_extcap(dev, PCIY_AGP, NULL) == 0)
+	if (pci_find_cap(dev, PCIY_AGP, NULL) == 0)
 		device_add_child(dev, "agp", -1);
 	bus_generic_attach(dev);
 	return (0);

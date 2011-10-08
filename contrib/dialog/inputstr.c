@@ -1,9 +1,9 @@
 /*
- * $Id: inputstr.c,v 1.66 2010/01/15 23:13:36 tom Exp $
+ *  $Id: inputstr.c,v 1.69 2011/01/16 21:52:35 tom Exp $
  *
- * inputstr.c -- functions for input/display of a string
+ *  inputstr.c -- functions for input/display of a string
  *
- * Copyright 2000-2009,2010 Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -54,8 +54,8 @@ typedef struct _cache {
     struct _cache *cache_at;	/* unique: associate caches by CACHE */
     const char *string_at;	/* unique: associate caches by char* */
 #endif
-    unsigned s_len;		/* strlen(string) - we add 1 for EOS */
-    unsigned i_len;		/* length(list) - we add 1 for EOS */
+    size_t s_len;		/* strlen(string) - we add 1 for EOS */
+    size_t i_len;		/* length(list) - we add 1 for EOS */
     char *string;		/* a copy of the last-processed string */
     int *list;			/* indices into the string */
 } CACHE;
@@ -95,9 +95,9 @@ compare_cache(const void *a, const void *b)
     const CACHE *p = (const CACHE *) a;
     const CACHE *q = (const CACHE *) b;
     int result = 0;
-    result = p->cache_at - q->cache_at;
+    result = (int) (p->cache_at - q->cache_at);
     if (result == 0)
-	result = p->string_at - q->string_at;
+	result = (int) (p->string_at - q->string_at);
     return result;
 }
 #endif
@@ -187,12 +187,12 @@ static bool
 same_cache2(CACHE * cache, const char *string, unsigned i_len)
 {
     unsigned need;
-    unsigned s_len = strlen(string);
+    size_t s_len = strlen(string);
 
     if (cache->s_len != 0
 	&& cache->s_len >= s_len
 	&& cache->list != 0
-	&& SAME_CACHE(cache, string, s_len)) {
+	&& SAME_CACHE(cache, string, (size_t) s_len)) {
 	return TRUE;
     }
 
@@ -222,12 +222,12 @@ same_cache2(CACHE * cache, const char *string, unsigned i_len)
  * string and its associated length.
  */
 static bool
-same_cache1(CACHE * cache, const char *string, unsigned i_len)
+same_cache1(CACHE * cache, const char *string, size_t i_len)
 {
-    unsigned s_len = strlen(string);
+    size_t s_len = strlen(string);
 
     if (cache->s_len == s_len
-	&& SAME_CACHE(cache, string, s_len)) {
+	&& SAME_CACHE(cache, string, (size_t) s_len)) {
 	return TRUE;
     }
 
@@ -422,10 +422,10 @@ dlg_index_columns(const char *string)
 			result = wcwidth(temp[0]);
 		    }
 		    if (result < 0) {
-			wchar_t *printable;
-			cchar_t temp2;
-			setcchar(&temp2, temp, 0, 0, 0);
-			printable = wunctrl(&temp2);
+			const wchar_t *printable;
+			cchar_t temp2, *temp2p = &temp2;
+			setcchar(temp2p, temp, 0, 0, 0);
+			printable = wunctrl(temp2p);
 			result = printable ? (int) wcslen(printable) : 1;
 		    }
 		}

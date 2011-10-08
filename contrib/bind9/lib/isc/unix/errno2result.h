@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.h,v 1.12 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: errno2result.h,v 1.12 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef UNIX_ERRNO2RESULT_H
 #define UNIX_ERRNO2RESULT_H 1

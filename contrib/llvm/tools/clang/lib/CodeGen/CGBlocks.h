@@ -17,7 +17,6 @@
 #include "CodeGenTypes.h"
 #include "clang/AST/Type.h"
 #include "llvm/Module.h"
-#include "llvm/ADT/SmallVector.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Expr.h"
@@ -89,7 +88,7 @@ enum BlockFieldFlag_t {
                                     variable */
   BLOCK_FIELD_IS_WEAK     = 0x10,  /* declared __weak, only used in byref copy
                                     helpers */
-
+  BLOCK_FIELD_IS_ARC      = 0x40,  /* field has ARC-specific semantics */
   BLOCK_BYREF_CALLER      = 128,   /* called from __block (byref) copy/dispose
                                       support routines */
   BLOCK_BYREF_CURRENT_MAX = 256
@@ -172,6 +171,10 @@ public:
   /// HasCXXObject - True if the block's custom copy/dispose functions
   /// need to be run even in GC mode.
   bool HasCXXObject : 1;
+
+  /// UsesStret : True if the block uses an stret return.  Mutable
+  /// because it gets set later in the block-creation process.
+  mutable bool UsesStret : 1;
 
   const llvm::StructType *StructureType;
   const BlockExpr *Block;

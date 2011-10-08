@@ -33,12 +33,13 @@
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
 
-#include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
@@ -59,15 +60,19 @@ static struct hast_resource *curres;
 static bool mynode, hadmynode;
 
 static char depth0_control[HAST_ADDRSIZE];
-static char depth0_listen[HAST_ADDRSIZE];
+static char depth0_listen_tcp4[HAST_ADDRSIZE];
+static char depth0_listen_tcp6[HAST_ADDRSIZE];
+static TAILQ_HEAD(, hastd_listen) depth0_listen;
 static int depth0_replication;
 static int depth0_checksum;
 static int depth0_compression;
 static int depth0_timeout;
 static char depth0_exec[PATH_MAX];
+static int depth0_metaflush;
 
 static char depth1_provname[PATH_MAX];
 static char depth1_localpath[PATH_MAX];
+static int depth1_metaflush;
 
 extern void yyrestart(FILE *);
 
@@ -92,8 +97,10 @@ isitme(const char *name)
 	 * Now check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
-	if (pos != NULL && pos != buf && strncmp(buf, name, pos - buf) == 0)
+	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
+	    strncmp(buf, name, pos - buf) == 0) {
 		return (1);
+	}
 
 	/*
 	 * At the end check if name is equal to our host's UUID.
@@ -110,6 +117,19 @@ isitme(const char *name)
 	 * Looks like this isn't about us.
 	 */
 	return (0);
+}
+
+static bool
+family_supported(int family)
+{
+	int sock;
+
+	sock = socket(family, SOCK_STREAM, 0);
+	if (sock == -1 && errno == EPROTONOSUPPORT)
+		return (false);
+	if (sock >= 0)
+		(void)close(sock);
+	return (true);
 }
 
 static int
@@ -169,12 +189,17 @@ yy_config_parse(const char *config, bool exitonerror)
 	lineno = 0;
 
 	depth0_timeout = HAST_TIMEOUT;
-	depth0_replication = HAST_REPLICATION_MEMSYNC;
+	depth0_replication = HAST_REPLICATION_FULLSYNC;
 	depth0_checksum = HAST_CHECKSUM_NONE;
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
-	strlcpy(depth0_listen, HASTD_LISTEN, sizeof(depth0_listen));
+	TAILQ_INIT(&depth0_listen);
+	strlcpy(depth0_listen_tcp4, HASTD_LISTEN_TCP4,
+	    sizeof(depth0_listen_tcp4));
+	strlcpy(depth0_listen_tcp6, HASTD_LISTEN_TCP6,
+	    sizeof(depth0_listen_tcp6));
 	depth0_exec[0] = '\0';
+	depth0_metaflush = 1;
 
 	lconfig = calloc(1, sizeof(*lconfig));
 	if (lconfig == NULL) {
@@ -184,6 +209,7 @@ yy_config_parse(const char *config, bool exitonerror)
 		return (NULL);
 	}
 
+	TAILQ_INIT(&lconfig->hc_listen);
 	TAILQ_INIT(&lconfig->hc_resources);
 
 	yyin = fopen(config, "r");
@@ -212,14 +238,55 @@ yy_config_parse(const char *config, bool exitonerror)
 		strlcpy(lconfig->hc_controladdr, depth0_control,
 		    sizeof(lconfig->hc_controladdr));
 	}
-	if (lconfig->hc_listenaddr[0] == '\0') {
-		strlcpy(lconfig->hc_listenaddr, depth0_listen,
-		    sizeof(lconfig->hc_listenaddr));
+	if (!TAILQ_EMPTY(&depth0_listen))
+		TAILQ_CONCAT(&lconfig->hc_listen, &depth0_listen, hl_next);
+	if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+		struct hastd_listen *lst;
+
+		if (family_supported(AF_INET)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp4,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv4 support in the kernel, not listening on IPv4 address.");
+		}
+		if (family_supported(AF_INET6)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp6,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv6 support in the kernel, not listening on IPv6 address.");
+		}
+		if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+			pjdlog_error("No address to listen on.");
+			yy_config_free(lconfig);
+			if (exitonerror)
+				exit(EX_TEMPFAIL);
+			return (NULL);
+		}
 	}
 	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
-		assert(curres->hr_provname[0] != '\0');
-		assert(curres->hr_localpath[0] != '\0');
-		assert(curres->hr_remoteaddr[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_provname[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_localpath[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_remoteaddr[0] != '\0');
 
 		if (curres->hr_replication == -1) {
 			/*
@@ -227,6 +294,13 @@ yy_config_parse(const char *config, bool exitonerror)
 			 * Use global or default setting.
 			 */
 			curres->hr_replication = depth0_replication;
+		}
+		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC ||
+		    curres->hr_replication == HAST_REPLICATION_ASYNC) {
+			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
+			    curres->hr_replication == HAST_REPLICATION_MEMSYNC ?
+			    "memsync" : "async", "fullsync");
+			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
 		}
 		if (curres->hr_checksum == -1) {
 			/*
@@ -257,6 +331,13 @@ yy_config_parse(const char *config, bool exitonerror)
 			strlcpy(curres->hr_exec, depth0_exec,
 			    sizeof(curres->hr_exec));
 		}
+		if (curres->hr_metaflush == -1) {
+			/*
+			 * Metaflush is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_metaflush = depth0_metaflush;
+		}
 	}
 
 	return (lconfig);
@@ -265,8 +346,17 @@ yy_config_parse(const char *config, bool exitonerror)
 void
 yy_config_free(struct hastd_config *config)
 {
+	struct hastd_listen *lst;
 	struct hast_resource *res;
 
+	while ((lst = TAILQ_FIRST(&depth0_listen)) != NULL) {
+		TAILQ_REMOVE(&depth0_listen, lst, hl_next);
+		free(lst);
+	}
+	while ((lst = TAILQ_FIRST(&config->hc_listen)) != NULL) {
+		TAILQ_REMOVE(&config->hc_listen, lst, hl_next);
+		free(lst);
+	}
 	while ((res = TAILQ_FIRST(&config->hc_resources)) != NULL) {
 		TAILQ_REMOVE(&config->hc_resources, res, hr_next);
 		free(res);
@@ -275,14 +365,16 @@ yy_config_free(struct hastd_config *config)
 }
 %}
 
-%token CONTROL LISTEN PORT REPLICATION CHECKSUM COMPRESSION
-%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE SOURCE ON
+%token CONTROL LISTEN PORT REPLICATION CHECKSUM COMPRESSION METAFLUSH
+%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE SOURCE ON OFF
 %token FULLSYNC MEMSYNC ASYNC NONE CRC32 SHA256 HOLE LZF
 %token NUM STR OB CB
 
+%type <str> remote_str
 %type <num> replication_type
 %type <num> checksum_type
 %type <num> compression_type
+%type <num> boolean
 
 %union
 {
@@ -315,6 +407,8 @@ statement:
 	|
 	exec_statement
 	|
+	metaflush_statement
+	|
 	node_statement
 	|
 	resource_statement
@@ -344,7 +438,7 @@ control_statement:	CONTROL STR
 			}
 			break;
 		default:
-			assert(!"control at wrong depth level");
+			PJDLOG_ABORT("control at wrong depth level");
 		}
 		free($2);
 	}
@@ -352,29 +446,33 @@ control_statement:	CONTROL STR
 
 listen_statement:	LISTEN STR
 	{
+		struct hastd_listen *lst;
+
+		lst = calloc(1, sizeof(*lst));
+		if (lst == NULL) {
+			pjdlog_error("Unable to allocate memory for listen address.");
+			free($2);
+			return (1);
+		}
+		if (strlcpy(lst->hl_addr, $2, sizeof(lst->hl_addr)) >=
+		    sizeof(lst->hl_addr)) {
+			pjdlog_error("listen argument is too long.");
+			free($2);
+			free(lst);
+			return (1);
+		}
 		switch (depth) {
 		case 0:
-			if (strlcpy(depth0_listen, $2,
-			    sizeof(depth0_listen)) >=
-			    sizeof(depth0_listen)) {
-				pjdlog_error("listen argument is too long.");
-				free($2);
-				return (1);
-			}
+			TAILQ_INSERT_TAIL(&depth0_listen, lst, hl_next);
 			break;
 		case 1:
-			if (!mynode)
-				break;
-			if (strlcpy(lconfig->hc_listenaddr, $2,
-			    sizeof(lconfig->hc_listenaddr)) >=
-			    sizeof(lconfig->hc_listenaddr)) {
-				pjdlog_error("listen argument is too long.");
-				free($2);
-				return (1);
-			}
+			if (mynode)
+				TAILQ_INSERT_TAIL(&depth0_listen, lst, hl_next);
+			else
+				free(lst);
 			break;
 		default:
-			assert(!"listen at wrong depth level");
+			PJDLOG_ABORT("listen at wrong depth level");
 		}
 		free($2);
 	}
@@ -387,11 +485,11 @@ replication_statement:	REPLICATION replication_type
 			depth0_replication = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_replication = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_replication = $2;
 			break;
 		default:
-			assert(!"replication at wrong depth level");
+			PJDLOG_ABORT("replication at wrong depth level");
 		}
 	}
 	;
@@ -411,11 +509,11 @@ checksum_statement:	CHECKSUM checksum_type
 			depth0_checksum = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_checksum = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_checksum = $2;
 			break;
 		default:
-			assert(!"checksum at wrong depth level");
+			PJDLOG_ABORT("checksum at wrong depth level");
 		}
 	}
 	;
@@ -435,11 +533,11 @@ compression_statement:	COMPRESSION compression_type
 			depth0_compression = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_compression = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_compression = $2;
 			break;
 		default:
-			assert(!"compression at wrong depth level");
+			PJDLOG_ABORT("compression at wrong depth level");
 		}
 	}
 	;
@@ -454,16 +552,20 @@ compression_type:
 
 timeout_statement:	TIMEOUT NUM
 	{
+		if ($2 <= 0) {
+			pjdlog_error("Negative or zero timeout.");
+			return (1);
+		}
 		switch (depth) {
 		case 0:
 			depth0_timeout = $2;
 			break;
 		case 1:
-			if (curres != NULL)
-				curres->hr_timeout = $2;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_timeout = $2;
 			break;
 		default:
-			assert(!"timeout at wrong depth level");
+			PJDLOG_ABORT("timeout at wrong depth level");
 		}
 	}
 	;
@@ -480,8 +582,7 @@ exec_statement:		EXEC STR
 			}
 			break;
 		case 1:
-			if (curres == NULL)
-				break;
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_exec, $2,
 			    sizeof(curres->hr_exec)) >=
 			    sizeof(curres->hr_exec)) {
@@ -491,10 +592,38 @@ exec_statement:		EXEC STR
 			}
 			break;
 		default:
-			assert(!"exec at wrong depth level");
+			PJDLOG_ABORT("exec at wrong depth level");
 		}
 		free($2);
 	}
+	;
+
+metaflush_statement:	METAFLUSH boolean
+	{
+		switch (depth) {
+		case 0:
+			depth0_metaflush = $2;
+			break;
+		case 1:
+			PJDLOG_ASSERT(curres != NULL);
+			depth1_metaflush = $2;
+			break;
+		case 2:
+			if (!mynode)
+				break;
+			PJDLOG_ASSERT(curres != NULL);
+			curres->hr_metaflush = $2;
+			break;
+		default:
+			PJDLOG_ABORT("metaflush at wrong depth level");
+		}
+	}
+	;
+
+boolean:
+	ON		{ $$ = 1; }
+	|
+	OFF		{ $$ = 0; }
 	;
 
 node_statement:		ON node_start OB node_entries CB
@@ -515,7 +644,7 @@ node_start:	STR
 			mynode = true;
 			break;
 		default:
-			assert(!"invalid isitme() return value");
+			PJDLOG_ABORT("invalid isitme() return value");
 		}
 		free($1);
 	}
@@ -550,7 +679,7 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 			}
 
 			/*
-			 * Let's see there are some resource-level settings
+			 * Let's see if there are some resource-level settings
 			 * that we can use for node-level settings.
 			 */
 			if (curres->hr_provname[0] == '\0' &&
@@ -571,6 +700,13 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 				 */
 				strlcpy(curres->hr_localpath, depth1_localpath,
 				    sizeof(curres->hr_localpath));
+			}
+			if (curres->hr_metaflush == -1 && depth1_metaflush != -1) {
+				/*
+				 * Metaflush is not set at node-level,
+				 * but is set at resource-level, use it.
+				 */
+				curres->hr_metaflush = depth1_metaflush;
 			}
 
 			/*
@@ -625,6 +761,7 @@ resource_start:	STR
 		 */
 		depth1_provname[0] = '\0';
 		depth1_localpath[0] = '\0';
+		depth1_metaflush = -1;
 		hadmynode = false;
 
 		curres = calloc(1, sizeof(*curres));
@@ -651,6 +788,8 @@ resource_start:	STR
 		curres->hr_provname[0] = '\0';
 		curres->hr_localpath[0] = '\0';
 		curres->hr_localfd = -1;
+		curres->hr_localflush = true;
+		curres->hr_metaflush = -1;
 		curres->hr_remoteaddr[0] = '\0';
 		curres->hr_sourceaddr[0] = '\0';
 		curres->hr_ggateunit = -1;
@@ -672,6 +811,8 @@ resource_entry:
 	timeout_statement
 	|
 	exec_statement
+	|
+	metaflush_statement
 	|
 	name_statement
 	|
@@ -695,7 +836,7 @@ name_statement:		NAME STR
 		case 2:
 			if (!mynode)
 				break;
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_provname, $2,
 			    sizeof(curres->hr_provname)) >=
 			    sizeof(curres->hr_provname)) {
@@ -705,7 +846,7 @@ name_statement:		NAME STR
 			}
 			break;
 		default:
-			assert(!"name at wrong depth level");
+			PJDLOG_ABORT("name at wrong depth level");
 		}
 		free($2);
 	}
@@ -726,7 +867,7 @@ local_statement:	LOCAL STR
 		case 2:
 			if (!mynode)
 				break;
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_localpath, $2,
 			    sizeof(curres->hr_localpath)) >=
 			    sizeof(curres->hr_localpath)) {
@@ -736,7 +877,7 @@ local_statement:	LOCAL STR
 			}
 			break;
 		default:
-			assert(!"local at wrong depth level");
+			PJDLOG_ABORT("local at wrong depth level");
 		}
 		free($2);
 	}
@@ -761,7 +902,7 @@ resource_node_start:	STR
 				mynode = hadmynode = true;
 				break;
 			default:
-				assert(!"invalid isitme() return value");
+				PJDLOG_ABORT("invalid isitme() return value");
 			}
 		}
 		free($1);
@@ -781,13 +922,15 @@ resource_node_entry:
 	remote_statement
 	|
 	source_statement
+	|
+	metaflush_statement
 	;
 
-remote_statement:	REMOTE STR
+remote_statement:	REMOTE remote_str
 	{
-		assert(depth == 2);
+		PJDLOG_ASSERT(depth == 2);
 		if (mynode) {
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_remoteaddr, $2,
 			    sizeof(curres->hr_remoteaddr)) >=
 			    sizeof(curres->hr_remoteaddr)) {
@@ -800,11 +943,17 @@ remote_statement:	REMOTE STR
 	}
 	;
 
+remote_str:
+	NONE		{ $$ = strdup("none"); }
+	|
+	STR		{ }
+	;
+
 source_statement:	SOURCE STR
 	{
-		assert(depth == 2);
+		PJDLOG_ASSERT(depth == 2);
 		if (mynode) {
-			assert(curres != NULL);
+			PJDLOG_ASSERT(curres != NULL);
 			if (strlcpy(curres->hr_sourceaddr, $2,
 			    sizeof(curres->hr_sourceaddr)) >=
 			    sizeof(curres->hr_sourceaddr)) {

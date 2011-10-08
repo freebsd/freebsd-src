@@ -141,19 +141,20 @@ AcpiInstallAddressSpaceHandler (
     case ACPI_ADR_SPACE_PCI_CONFIG:
     case ACPI_ADR_SPACE_DATA_TABLE:
 
-        if (AcpiGbl_RegMethodsExecuted)
+        if (!AcpiGbl_RegMethodsExecuted)
         {
-            /* Run all _REG methods for this address space */
-
-            Status = AcpiEvExecuteRegMethods (Node, SpaceId);
+            /* We will defer execution of the _REG methods for this space */
+            goto UnlockAndExit;
         }
         break;
 
     default:
-
-        Status = AcpiEvExecuteRegMethods (Node, SpaceId);
         break;
     }
+
+    /* Run all _REG methods for this address space */
+
+    Status = AcpiEvExecuteRegMethods (Node, SpaceId);
 
 
 UnlockAndExit:

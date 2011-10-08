@@ -94,7 +94,7 @@ namespace llvm {
     typedef std::map<PBQP::Graph::ConstNodeItr, unsigned,
                      PBQP::NodeItrComparator>  Node2VReg;
     typedef DenseMap<unsigned, PBQP::Graph::NodeItr> VReg2Node;
-    typedef std::map<unsigned, AllowedSet> AllowedSetMap;
+    typedef DenseMap<unsigned, AllowedSet> AllowedSetMap;
 
     PBQP::Graph graph;
     Node2VReg node2VReg;
@@ -161,7 +161,8 @@ namespace llvm {
                             PBQP::PBQPNum benefit);
   };
 
-  FunctionPass* createPBQPRegisterAllocator(std::auto_ptr<PBQPBuilder> builder);
+  FunctionPass* createPBQPRegisterAllocator(std::auto_ptr<PBQPBuilder> builder,
+                                            char *customPassID=0);
 }
 
 #endif /* LLVM_CODEGEN_REGALLOCPBQP_H */

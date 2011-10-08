@@ -32,8 +32,8 @@
 #include "arm-tdep.h"
 
 #include <sys/types.h>
-#include <sys/ptrace.h>
 #ifndef CROSS_DEBUGGER
+#include <sys/ptrace.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
 #endif

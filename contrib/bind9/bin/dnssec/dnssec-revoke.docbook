@@ -1,0 +1,149 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+               [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-revoke.docbook,v 1.7 2009-11-03 21:44:46 each Exp $ -->
+<refentry id="man.dnssec-revoke">
+  <refentryinfo>
+    <date>June 1, 2009</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-revoke</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-revoke</application></refname>
+    <refpurpose>Set the REVOKED bit on a DNSSEC key</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2009</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-revoke</command>
+      <arg><option>-hr</option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
+      <arg><option>-f</option></arg>
+      <arg choice="req">keyfile</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>dnssec-revoke</command>
+      reads a DNSSEC key file, sets the REVOKED bit on the key as defined
+      in RFC 5011, and creates a new pair of key files containing the
+      now-revoked key.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+	<term>-h</term>
+        <listitem>
+	  <para>
+	    Emit usage message and exit.
+	  </para>
+        </listitem>
+      </varlistentry>
+  
+      <varlistentry>
+        <term>-K <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para>
+            Sets the directory in which the key files are to reside.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-r</term>
+        <listitem>
+	  <para>
+	    After writing the new keyset files remove the original keyset
+	    files.
+	  </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+        <listitem>
+          <para>
+            Sets the debugging level.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-E <replaceable class="parameter">engine</replaceable></term>
+        <listitem>
+          <para>
+            Use the given OpenSSL engine. When compiled with PKCS#11 support
+            it defaults to pkcs11; the empty name resets it to no engine.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-f</term>
+        <listitem>
+          <para>
+            Force overwrite: Causes <command>dnssec-revoke</command> to
+            write the new key pair even if a file already exists matching
+            the algorithm and key ID of the revoked key.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
+      <citetitle>RFC 5011</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -203,11 +204,9 @@ timing_loop(struct _a *a)
 		 * skipped.
 		 * The counter is incremented only on the initial port number,
 		 * so all destinations will see the same set of packets.
-		 *
-		 * XXXRW: Note alignment assumption.
 		 */
 		if (cur_port == a->port && a->packet_len >= 4) {
-			*((u_int32_t *)a->packet) = htonl(counter);
+			be32enc(a->packet, counter);
 			counter++;
 		}
 		if (a->port == a->port_max) { /* socket already bound */

@@ -18,6 +18,7 @@
 #include "llvm/Support/DataTypes.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/MCWin64EH.h"
 
 namespace llvm {
   class MCAsmInfo;
@@ -50,12 +51,19 @@ namespace llvm {
     MCStreamer(const MCStreamer&); // DO NOT IMPLEMENT
     MCStreamer &operator=(const MCStreamer&); // DO NOT IMPLEMENT
 
-    void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
-                         bool isPCRel, unsigned AddrSpace);
+    bool EmitEHFrame;
+    bool EmitDebugFrame;
 
     std::vector<MCDwarfFrameInfo> FrameInfos;
     MCDwarfFrameInfo *getCurrentFrameInfo();
     void EnsureValidFrame();
+
+    std::vector<MCWin64EHUnwindInfo *> W64UnwindInfos;
+    MCWin64EHUnwindInfo *CurrentW64UnwindInfo;
+    void setCurrentW64UnwindInfo(MCWin64EHUnwindInfo *Frame);
+    void EnsureValidW64UnwindInfo();
+
+    const MCSymbol* LastNonPrivate;
 
     /// SectionStack - This is stack of current and previous section
     /// values saved by PushSection.
@@ -64,6 +72,16 @@ namespace llvm {
 
   protected:
     MCStreamer(MCContext &Ctx);
+
+    const MCExpr *BuildSymbolDiff(MCContext &Context, const MCSymbol *A,
+                                  const MCSymbol *B);
+
+    const MCExpr *ForceExpAbs(const MCExpr* Expr);
+
+    void EmitFrames(bool usingCFI);
+
+    MCWin64EHUnwindInfo *getCurrentW64UnwindInfo(){return CurrentW64UnwindInfo;}
+    void EmitW64Tables();
 
   public:
     virtual ~MCStreamer();
@@ -76,6 +94,14 @@ namespace llvm {
 
     const MCDwarfFrameInfo &getFrameInfo(unsigned i) {
       return FrameInfos[i];
+    }
+
+    unsigned getNumW64UnwindInfos() {
+      return W64UnwindInfos.size();
+    }
+
+    MCWin64EHUnwindInfo &getW64UnwindInfo(unsigned i) {
+      return *W64UnwindInfos[i];
     }
 
     /// @name Assembly File Formatting.
@@ -169,6 +195,17 @@ namespace llvm {
       }
     }
 
+    /// SwitchSectionNoChange - Set the current section where code is being
+    /// emitted to @p Section.  This is required to update CurSection. This
+    /// version does not call ChangeSection.
+    void SwitchSectionNoChange(const MCSection *Section) {
+      assert(Section && "Cannot switch to a null section!");
+      const MCSection *curSection = SectionStack.back().first;
+      SectionStack.back().second = curSection;
+      if (Section != curSection)
+        SectionStack.back().first = Section;
+    }
+
     /// InitSections - Create the default sections and set the initial one.
     virtual void InitSections() = 0;
 
@@ -180,7 +217,10 @@ namespace llvm {
     /// @param Symbol - The symbol to emit. A given symbol should only be
     /// emitted as a label once, and symbols emitted as a label should never be
     /// used in an assignment.
-    virtual void EmitLabel(MCSymbol *Symbol) = 0;
+    virtual void EmitLabel(MCSymbol *Symbol);
+
+    virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
+                                     MCSymbol *EHSymbol);
 
     /// EmitAssemblerFlag - Note in the output the specified @p Flag
     virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) = 0;
@@ -280,6 +320,7 @@ namespace llvm {
     /// if non-zero.  This must be a power of 2 on some targets.
     virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                                 uint64_t Size, unsigned ByteAlignment = 0) = 0;
+
     /// @}
     /// @name Generating Data
     /// @{
@@ -300,12 +341,9 @@ namespace llvm {
     /// @param Size - The size of the integer (in bytes) to emit. This must
     /// match a native machine width.
     virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                               bool isPCRel, unsigned AddrSpace) = 0;
+                               unsigned AddrSpace) = 0;
 
     void EmitValue(const MCExpr *Value, unsigned Size, unsigned AddrSpace = 0);
-
-    void EmitPCRelValue(const MCExpr *Value, unsigned Size,
-                        unsigned AddrSpace = 0);
 
     /// EmitIntValue - Special case of EmitValue that avoids the client having
     /// to pass in a MCExpr for constant integers.
@@ -319,11 +357,9 @@ namespace llvm {
     void EmitAbsValue(const MCExpr *Value, unsigned Size,
                       unsigned AddrSpace = 0);
 
-    virtual void EmitULEB128Value(const MCExpr *Value,
-                                  unsigned AddrSpace = 0) = 0;
+    virtual void EmitULEB128Value(const MCExpr *Value) = 0;
 
-    virtual void EmitSLEB128Value(const MCExpr *Value,
-                                  unsigned AddrSpace = 0) = 0;
+    virtual void EmitSLEB128Value(const MCExpr *Value) = 0;
 
     /// EmitULEB128Value - Special case of EmitULEB128Value that avoids the
     /// client having to pass in a MCExpr for constant integers.
@@ -337,9 +373,6 @@ namespace llvm {
     /// having to pass in a MCExpr for MCSymbols.
     void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
                          unsigned AddrSpace = 0);
-
-    void EmitPCRelSymbolValue(const MCSymbol *Sym, unsigned Size,
-                              unsigned AddrSpace = 0);
 
     /// EmitGPRel32Value - Emit the expression @p Value into the output as a
     /// gprel32 (32-bit GP relative) value.
@@ -422,11 +455,13 @@ namespace llvm {
     virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                                        unsigned Column, unsigned Flags,
                                        unsigned Isa,
-                                       unsigned Discriminator);
+                                       unsigned Discriminator,
+                                       StringRef FileName);
 
     virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                           const MCSymbol *LastLabel,
-                                          const MCSymbol *Label) = 0;
+                                          const MCSymbol *Label,
+                                          unsigned PointerSize) = 0;
 
     virtual void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                            const MCSymbol *Label) {
@@ -435,17 +470,35 @@ namespace llvm {
     void EmitDwarfSetLineAddr(int64_t LineDelta, const MCSymbol *Label,
                               int PointerSize);
 
-    virtual bool EmitCFIStartProc();
-    virtual bool EmitCFIEndProc();
-    virtual bool EmitCFIDefCfa(int64_t Register, int64_t Offset);
-    virtual bool EmitCFIDefCfaOffset(int64_t Offset);
-    virtual bool EmitCFIDefCfaRegister(int64_t Register);
-    virtual bool EmitCFIOffset(int64_t Register, int64_t Offset);
-    virtual bool EmitCFIPersonality(const MCSymbol *Sym,
-                                    unsigned Encoding);
-    virtual bool EmitCFILsda(const MCSymbol *Sym, unsigned Encoding);
-    virtual bool EmitCFIRememberState();
-    virtual bool EmitCFIRestoreState();
+    virtual void EmitCFISections(bool EH, bool Debug);
+    virtual void EmitCFIStartProc();
+    virtual void EmitCFIEndProc();
+    virtual void EmitCFIDefCfa(int64_t Register, int64_t Offset);
+    virtual void EmitCFIDefCfaOffset(int64_t Offset);
+    virtual void EmitCFIDefCfaRegister(int64_t Register);
+    virtual void EmitCFIOffset(int64_t Register, int64_t Offset);
+    virtual void EmitCFIPersonality(const MCSymbol *Sym, unsigned Encoding);
+    virtual void EmitCFILsda(const MCSymbol *Sym, unsigned Encoding);
+    virtual void EmitCFIRememberState();
+    virtual void EmitCFIRestoreState();
+    virtual void EmitCFISameValue(int64_t Register);
+    virtual void EmitCFIRelOffset(int64_t Register, int64_t Offset);
+    virtual void EmitCFIAdjustCfaOffset(int64_t Adjustment);
+
+    virtual void EmitWin64EHStartProc(const MCSymbol *Symbol);
+    virtual void EmitWin64EHEndProc();
+    virtual void EmitWin64EHStartChained();
+    virtual void EmitWin64EHEndChained();
+    virtual void EmitWin64EHHandler(const MCSymbol *Sym, bool Unwind,
+                                    bool Except);
+    virtual void EmitWin64EHHandlerData();
+    virtual void EmitWin64EHPushReg(unsigned Register);
+    virtual void EmitWin64EHSetFrame(unsigned Register, unsigned Offset);
+    virtual void EmitWin64EHAllocStack(unsigned Size);
+    virtual void EmitWin64EHSaveReg(unsigned Register, unsigned Offset);
+    virtual void EmitWin64EHSaveXMM(unsigned Register, unsigned Offset);
+    virtual void EmitWin64EHPushFrame(bool Code);
+    virtual void EmitWin64EHEndProlog();
 
     /// EmitInstruction - Emit the given @p Instruction into the current
     /// section.
@@ -456,6 +509,19 @@ namespace llvm {
     /// indicated by the hasRawTextSupport() predicate.  By default this aborts.
     virtual void EmitRawText(StringRef String);
     void EmitRawText(const Twine &String);
+
+    /// ARM-related methods.
+    /// FIXME: Eventually we should have some "target MC streamer" and move
+    /// these methods there.
+    virtual void EmitFnStart();
+    virtual void EmitFnEnd();
+    virtual void EmitCantUnwind();
+    virtual void EmitPersonality(const MCSymbol *Personality);
+    virtual void EmitHandlerData();
+    virtual void EmitSetFP(unsigned FpReg, unsigned SpReg, int64_t Offset = 0);
+    virtual void EmitPad(int64_t Offset);
+    virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
+                             bool isVector);
 
     /// Finish - Finish emission of machine code.
     virtual void Finish() = 0;
@@ -482,9 +548,13 @@ namespace llvm {
   ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
+  ///
+  /// \param DecodeLSDA - If true, emit comments that translates the LSDA into a
+  /// human readable format. Only usable with CFI.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
                                 bool useLoc,
+                                bool useCFI,
                                 MCInstPrinter *InstPrint = 0,
                                 MCCodeEmitter *CE = 0,
                                 TargetAsmBackend *TAB = 0,

@@ -10,9 +10,6 @@
 # 13.amd (documentation is TeXinfo)
 # 16.security 17.password (encumbered)
 
-# The following modules are built with their programs:
-# 07.lpd
-
 SUBDIR=	title \
 	contents \
 	01.setup \
@@ -21,6 +18,7 @@ SUBDIR=	title \
 	04.quotas \
 	05.fastfs \
 	06.nfs \
+	07.lpd \
 	${_08.sendmailop} \
 	11.timedop \
 	12.timed \

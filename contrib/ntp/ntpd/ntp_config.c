@@ -414,7 +414,7 @@ enum gnn_type {
 static	int getnetnum P((const char *, struct sockaddr_storage *, int,
 			 enum gnn_type));
 static	void save_resolve P((char *, int, int, int, int, u_int, int,
-    keyid_t, u_char *));
+    keyid_t, u_char *, u_char));
 static	void do_resolve_internal P((void));
 static	void abort_resolve P((void));
 #if !defined(VMS) && !defined(SYS_WINNT)
@@ -870,9 +870,9 @@ getconfig(
 						stoa(&peeraddr));
 			    }
 			} else if (errflg == -1) {
-				save_resolve(tokens[1], hmode, peerversion,
+				save_resolve(tokens[istart - 1], hmode, peerversion,
 				    minpoll, maxpoll, peerflags, ttl,
-				    peerkey, peerkeystr);
+				    peerkey, peerkeystr, peeraddr.ss_family);
 			}
 			break;
 
@@ -2325,7 +2325,8 @@ save_resolve(
 	u_int flags,
 	int ttl,
 	keyid_t keyid,
-	u_char *keystr
+	u_char *keystr,
+	u_char peeraf
 	)
 {
 #ifndef SYS_VXWORKS
@@ -2365,11 +2366,11 @@ save_resolve(
 	}
 #endif
 
-	(void)fprintf(res_fp, "%s %d %d %d %d %d %d %u %s\n", name,
+	(void)fprintf(res_fp, "%s %u %d %d %d %d %d %d %u %s\n", name, peeraf,
 	    mode, version, minpoll, maxpoll, flags, ttl, keyid, keystr);
 #ifdef DEBUG
 	if (debug > 1)
-		printf("config: %s %d %d %d %d %x %d %u %s\n", name, mode,
+		printf("config: %s %u %d %d %d %d %x %d %u %s\n", name, peeraf, mode,
 		    version, minpoll, maxpoll, flags, ttl, keyid, keystr);
 #endif
 

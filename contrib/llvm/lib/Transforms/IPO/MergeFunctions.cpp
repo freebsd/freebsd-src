@@ -55,6 +55,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
@@ -125,7 +126,7 @@ private:
 const ComparableFunction ComparableFunction::EmptyKey = ComparableFunction(0);
 const ComparableFunction ComparableFunction::TombstoneKey =
     ComparableFunction(1);
-TargetData * const ComparableFunction::LookupOnly = (TargetData*)(-1);
+TargetData *const ComparableFunction::LookupOnly = (TargetData*)(-1);
 
 }
 
@@ -212,12 +213,11 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
     return false;
   }
 
-  switch(Ty1->getTypeID()) {
+  switch (Ty1->getTypeID()) {
   default:
     llvm_unreachable("Unknown type!");
     // Fall through in Release mode.
   case Type::IntegerTyID:
-  case Type::OpaqueTyID:
   case Type::VectorTyID:
     // Ty1 == Ty2 would have returned true earlier.
     return false;
@@ -732,7 +732,7 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
     ++i;
   }
 
-  CallInst *CI = Builder.CreateCall(F, Args.begin(), Args.end());
+  CallInst *CI = Builder.CreateCall(F, Args);
   CI->setTailCall();
   CI->setCallingConv(F->getCallingConv());
   if (NewG->getReturnType()->isVoidTy()) {

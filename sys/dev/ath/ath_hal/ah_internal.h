@@ -28,6 +28,7 @@
 #define	AH_MAX(a,b)	((a)>(b)?(a):(b))
 
 #include <net80211/_ieee80211.h>
+#include "opt_ah.h"			/* needed for AH_SUPPORT_AR5416 */
 
 #ifndef NBBY
 #define	NBBY	8			/* number of bits/byte */
@@ -136,11 +137,16 @@ typedef struct {
 #define	CHANNEL_IQVALID		0x01	/* IQ calibration valid */
 #define	CHANNEL_ANI_INIT	0x02	/* ANI state initialized */
 #define	CHANNEL_ANI_SETUP	0x04	/* ANI state setup */
+#define	CHANNEL_MIMO_NF_VALID	0x04	/* Mimo NF values are valid */
 	uint8_t		calValid;	/* bitmask of cal types */
 	int8_t		iCoff;
 	int8_t		qCoff;
 	int16_t		rawNoiseFloor;
 	int16_t		noiseFloorAdjust;
+#ifdef	AH_SUPPORT_AR5416
+	int16_t		noiseFloorCtl[AH_MIMO_MAX_CHAINS];
+	int16_t		noiseFloorExt[AH_MIMO_MAX_CHAINS];
+#endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
 } HAL_CHANNEL_INTERNAL;
 
@@ -178,6 +184,7 @@ typedef struct {
 			halChanHalfRate			: 1,
 			halChanQuarterRate		: 1,
 			halHTSupport			: 1,
+			halHTSGI20Support		: 1,
 			halRfSilentSupport		: 1,
 			halHwPhyCounterSupport		: 1,
 			halWowSupport			: 1,
@@ -191,12 +198,18 @@ typedef struct {
 			halCSTSupport			: 1,
 			halRifsRxSupport		: 1,
 			halRifsTxSupport		: 1,
+			hal4AddrAggrSupport		: 1,
 			halExtChanDfsSupport		: 1,
+			halUseCombinedRadarRssi		: 1,
 			halForcePpmSupport		: 1,
 			halEnhancedPmSupport		: 1,
+			halEnhancedDfsSupport		: 1,
 			halMbssidAggrSupport		: 1,
 			halBssidMatchSupport		: 1,
-			hal4kbSplitTransSupport		: 1;
+			hal4kbSplitTransSupport		: 1,
+			halHasRxSelfLinkedTail		: 1,
+			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halHasLongRxDescTsf		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -259,7 +272,7 @@ struct ath_hal_private {
 	uint16_t	ah_eeversion;		/* EEPROM version */
 	void		(*ah_eepromDetach)(struct ath_hal *);
 	HAL_STATUS	(*ah_eepromGet)(struct ath_hal *, int, void *);
-	HAL_BOOL	(*ah_eepromSet)(struct ath_hal *, int, int);
+	HAL_STATUS	(*ah_eepromSet)(struct ath_hal *, int, int);
 	uint16_t	(*ah_getSpurChan)(struct ath_hal *, int, HAL_BOOL);
 	HAL_BOOL	(*ah_eepromDiag)(struct ath_hal *, int request,
 			    const void *args, uint32_t argsize,
@@ -290,6 +303,8 @@ struct ath_hal_private {
 	 * State for regulatory domain handling.
 	 */
 	HAL_REG_DOMAIN	ah_currentRD;		/* EEPROM regulatory domain */
+	HAL_REG_DOMAIN	ah_currentRDext;	/* EEPROM extended regdomain flags */
+	HAL_DFS_DOMAIN	ah_dfsDomain;		/* current DFS domain */
 	HAL_CHANNEL_INTERNAL ah_channels[AH_MAXCHAN]; /* private chan state */
 	u_int		ah_nchan;		/* valid items in ah_channels */
 	const struct regDomain *ah_rd2GHz;	/* reg state for 2G band */
@@ -407,18 +422,6 @@ extern	HAL_BOOL ath_hal_setTxQProps(struct ath_hal *ah,
 extern	HAL_BOOL ath_hal_getTxQProps(struct ath_hal *ah,
 		HAL_TXQ_INFO *qInfo, const HAL_TX_QUEUE_INFO *qi);
 
-typedef enum {
-	HAL_ANI_PRESENT = 0x1,			/* is ANI support present */
-	HAL_ANI_NOISE_IMMUNITY_LEVEL = 0x2,	/* set level */
-	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x4,	/* enable/disable */
-	HAL_ANI_CCK_WEAK_SIGNAL_THR = 0x8,		/* enable/disable */
-	HAL_ANI_FIRSTEP_LEVEL = 0x10,			/* set level */
-	HAL_ANI_SPUR_IMMUNITY_LEVEL = 0x20,		/* set level */
-	HAL_ANI_MODE = 0x40,	/* 0 => manual, 1 => auto (XXX do not change) */
-	HAL_ANI_PHYERR_RESET =0x80,			/* reset phy error stats */
-	HAL_ANI_ALL = 0xff
-} HAL_ANI_CMD;
-
 #define	HAL_SPUR_VAL_MASK		0x3FFF
 #define	HAL_SPUR_CHAN_WIDTH		87
 #define	HAL_BIN_WIDTH_BASE_100HZ	3125
@@ -460,6 +463,8 @@ isBigEndian(void)
  */
 #define	SM(_v, _f)	(((_v) << _f##_S) & (_f))
 #define	MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
+#define OS_REG_RMW(_a, _r, _set, _clr)    \
+	OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) & ~(_clr)) | (_set))
 #define	OS_REG_RMW_FIELD(_a, _r, _f, _v) \
 	OS_REG_WRITE(_a, _r, \
 		(OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f)))
@@ -471,11 +476,6 @@ isBigEndian(void)
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
 	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
-
-/* system-configurable parameters */
-extern	int ath_hal_dma_beacon_response_time;	/* in TU's */
-extern	int ath_hal_sw_beacon_response_time;	/* in TU's */
-extern	int ath_hal_additional_swba_backoff;	/* in TU's */
 
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
@@ -500,10 +500,18 @@ extern	void ath_hal_free(void *);
 /* common debugging interfaces */
 #ifdef AH_DEBUG
 #include "ah_debug.h"
-extern	int ath_hal_debug;
+extern	int ath_hal_debug;	/* Global debug flags */
+
+/*
+ * The typecast is purely because some callers will pass in
+ * AH_NULL directly rather than using a NULL ath_hal pointer.
+ */
 #define	HALDEBUG(_ah, __m, ...) \
 	do {							\
-		if (ath_hal_debug & (__m)) {			\
+		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
+		    ath_hal_debug & (__m) ||			\
+		    ((_ah) != NULL &&				\
+		      ((struct ath_hal *) (_ah))->ah_config.ah_debug & (__m))) {	\
 			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
 		}						\
 	} while(0);
@@ -511,7 +519,7 @@ extern	int ath_hal_debug;
 extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
-#define HALDEBUG(_ah, __m, _fmt, ...)
+#define HALDEBUG(_ah, __m, ...)
 #endif /* AH_DEBUG */
 
 /*
@@ -793,5 +801,22 @@ extern	HAL_BOOL ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
 	uint8_t *pRetVpdList);
 extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
+
+/* Whether 5ghz fast clock is needed */
+/*
+ * The chipset (Merlin, AR9300/later) should set the capability flag below;
+ * this flag simply says that the hardware can do it, not that the EEPROM
+ * says it can.
+ *
+ * Merlin 2.0/2.1 chips with an EEPROM version > 16 do 5ghz fast clock
+ *   if the relevant eeprom flag is set.
+ * Merlin 2.0/2.1 chips with an EEPROM version <= 16 do 5ghz fast clock
+ *   by default.
+ */
+#define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
+	(IEEE80211_IS_CHAN_5GHZ(_c) && \
+	 AH_PRIVATE((_ah))->ah_caps.halSupportsFastClock5GHz && \
+	ath_hal_eepromGetFlag((_ah), AR_EEP_FSTCLK_5G))
+
 
 #endif /* _ATH_AH_INTERAL_H_ */

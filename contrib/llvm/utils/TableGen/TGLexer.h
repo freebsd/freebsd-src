@@ -15,8 +15,8 @@
 #define TGLEXER_H
 
 #include "llvm/Support/DataTypes.h"
-#include <vector>
 #include <string>
+#include <vector>
 #include <cassert>
 
 namespace llvm {
@@ -36,7 +36,7 @@ namespace tgtok {
     l_brace, r_brace,   // { }
     l_paren, r_paren,   // ( )
     less, greater,      // < >
-    colon, semi,        // ; :
+    colon, semi,        // : ;
     comma, period,      // , .
     equal, question,    // = ?
     
@@ -72,6 +72,8 @@ class TGLexer {
   /// CurBuffer - This is the current buffer index we're lexing from as managed
   /// by the SourceMgr object.
   int CurBuffer;
+  /// Dependencies - This is the list of all included files.
+  std::vector<std::string> Dependencies;
   
 public:
   TGLexer(SourceMgr &SrcMgr);
@@ -79,6 +81,10 @@ public:
   
   tgtok::TokKind Lex() {
     return CurCode = LexToken();
+  }
+
+  const std::vector<std::string> &getDependencies() const {
+    return Dependencies;
   }
   
   tgtok::TokKind getCode() const { return CurCode; }
@@ -95,9 +101,6 @@ public:
   }
 
   SMLoc getLoc() const;
-
-  void PrintError(const char *Loc, const Twine &Msg) const;
-  void PrintError(SMLoc Loc, const Twine &Msg) const;
   
 private:
   /// LexToken - Read the next token and return its code.

@@ -307,6 +307,8 @@ struct ieee80211com {
 				    int status, int baparamset, int batimeout);
 	void			(*ic_addba_stop)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
+	void			(*ic_addba_response_timeout)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
 	/* BAR response received */
 	void			(*ic_bar_response)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int status);
@@ -578,7 +580,7 @@ MALLOC_DECLARE(M_80211_VAP);
 
 #define	IEEE80211_FHT_BITS \
 	"\20\1NONHT_PR" \
-	"\23GF\24HT\25AMDPU_TX\26AMPDU_TX" \
+	"\23GF\24HT\25AMPDU_TX\26AMPDU_TX" \
 	"\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40" \
 	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 

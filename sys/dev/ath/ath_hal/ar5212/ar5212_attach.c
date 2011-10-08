@@ -127,6 +127,13 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getCTSTimeout		= ar5212GetCTSTimeout,
 	.ah_setDecompMask               = ar5212SetDecompMask,
 	.ah_setCoverageClass            = ar5212SetCoverageClass,
+	.ah_setQuiet			= ar5212SetQuiet,
+
+	/* DFS Functions */
+	.ah_enableDfs			= ar5212EnableDfs,
+	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
+	.ah_isFastClockEnabled		= ar5212IsFastClockEnabled,
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5212GetKeyCacheSize,
@@ -144,6 +151,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_beaconInit			= ar5212BeaconInit,
 	.ah_setStationBeaconTimers	= ar5212SetStaBeaconTimers,
 	.ah_resetStationBeaconTimers	= ar5212ResetStaBeaconTimers,
+	.ah_getNextTBTT			= ar5212GetNextTBTT,
 
 	/* Interrupt Functions */
 	.ah_isInterruptPending		= ar5212IsInterruptPending,
@@ -203,6 +211,9 @@ ar5212AniSetup(struct ath_hal *ah)
 		ar5212AniAttach(ah, &tmp, &tmp, AH_TRUE);
 	} else
 		ar5212AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
+
+	/* Set overridable ANI methods */
+	AH5212(ah)->ah_aniControl = ar5212AniControl;
 }
 
 /*
@@ -861,6 +872,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halIntrMask &= ~HAL_INT_TBTT;
 
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	pCap->halHasRxSelfLinkedTail = AH_TRUE;
 
 	return AH_TRUE;
 #undef IS_COBRA

@@ -51,8 +51,9 @@ uintptr_t moea64_get_unique_vsid(void);
 void moea64_release_vsid(uint64_t vsid);
 static void slb_zone_init(void *);
 
-uma_zone_t slbt_zone;
-uma_zone_t slb_cache_zone;
+static uma_zone_t slbt_zone;
+static uma_zone_t slb_cache_zone;
+int n_slbs = 64;
 
 SYSINIT(slb_zone_init, SI_SUB_KMEM, SI_ORDER_ANY, slb_zone_init, NULL);
 
@@ -426,16 +427,18 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 
 	/* Check for an unused slot, abusing the user slot as a full flag */
 	if (slbcache[USER_SLB_SLOT].slbe == 0) {
-		for (i = 0; i < USER_SLB_SLOT; i++) {
+		for (i = 0; i < n_slbs; i++) {
+			if (i == USER_SLB_SLOT)
+				continue;
 			if (!(slbcache[i].slbe & SLBE_VALID)) 
 				goto fillkernslb;
 		}
 
-		if (i == USER_SLB_SLOT)
+		if (i == n_slbs)
 			slbcache[USER_SLB_SLOT].slbe = 1;
 	}
 
-	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
+	for (i = mftb() % n_slbs, j = 0; j < n_slbs; j++, i = (i+1) % n_slbs) {
 		if (i == USER_SLB_SLOT)
 			continue;
 
@@ -443,9 +446,11 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 			break;
 	}
 
-	KASSERT(j < 64, ("All kernel SLB slots locked!"));
+	KASSERT(j < n_slbs, ("All kernel SLB slots locked!"));
 
 fillkernslb:
+	KASSERT(i != USER_SLB_SLOT,
+	    ("Filling user SLB slot with a kernel mapping"));
 	slbcache[i].slbv = slbv;
 	slbcache[i].slbe = slbe | (uint64_t)i;
 
@@ -466,11 +471,11 @@ slb_insert_user(pmap_t pm, struct slb *slb)
 
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 
-	if (pm->pm_slb_len < 64) {
+	if (pm->pm_slb_len < n_slbs) {
 		i = pm->pm_slb_len;
 		pm->pm_slb_len++;
 	} else {
-		i = mftb() % 64;
+		i = mftb() % n_slbs;
 	}
 
 	/* Note that this replacement is atomic with respect to trap_subr */
@@ -521,8 +526,9 @@ slb_zone_init(void *dummy)
 
 	slbt_zone = uma_zcreate("SLB tree node", sizeof(struct slbtnode),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb *),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	slb_cache_zone = uma_zcreate("SLB cache",
+	    (n_slbs + 1)*sizeof(struct slb *), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_VM);
 
 	if (platform_real_maxaddr() != VM_MAX_ADDRESS) {
 		uma_zone_set_allocf(slb_cache_zone, slb_uma_real_alloc);

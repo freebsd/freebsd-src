@@ -66,7 +66,6 @@ extern int exerrno;		/* last exec error */
 
 void shellexec(char **, char **, const char *, int) __dead2;
 char *padvance(const char **, const char *);
-int hashcmd(int, char **);
 void find_command(const char *, struct cmdentry *, int, const char *);
 int find_builtin(const char *, int *);
 void hashcd(void);
@@ -75,5 +74,4 @@ void addcmdentry(const char *, struct cmdentry *);
 void defun(const char *, union node *);
 int unsetfunc(const char *);
 int typecmd_impl(int, char **, int, const char *);
-int typecmd(int, char **);
 void clearcmdentry(void);

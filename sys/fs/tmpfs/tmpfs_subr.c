@@ -926,7 +926,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 		if (newpages < oldpages) {
 			swap_pager_freespace(uobj, newpages, oldpages -
 			    newpages);
-			vm_object_page_remove(uobj, newpages, 0, FALSE);
+			vm_object_page_remove(uobj, newpages, 0, 0);
 		}
 
 		/*

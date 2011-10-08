@@ -2254,6 +2254,19 @@ upgrade_oldall_to_oldnew () {
 	mv $2 $3
 }
 
+# Helper for upgrade_merge: Return zero true iff the two files differ only
+# in the contents of their $FreeBSD$ tags.
+samef () {
+	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
+	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
+
+	if [ $X = $Y ]; then
+		return 0;
+	else
+		return 1;
+	fi
+}
+
 # From the list of "old" files in $1, merge changes in $2 with those in $3,
 # and update $3 to reflect the hashes of merged files.
 upgrade_merge () {
@@ -2337,6 +2350,14 @@ upgrade_merge () {
 
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
+			# If the installed file differs from the version in
+			# the old release only due to $FreeBSD$ tag expansion
+			# then just use the version in the new release.
+			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
+				cp merge/${RELNUM}/${F} merge/new/${F}
+				continue
+			fi
+
 			cat <<-EOF
 
 The following file could not be merged automatically: ${F}
@@ -2351,9 +2372,18 @@ manually...
 		# Ask the user to confirm that he likes how the result
 		# of merging files.
 		while read F; do
-			# Skip files which haven't changed.
-			if [ -f merge/new/${F} ] &&
-			    cmp -s merge/old/${F} merge/new/${F}; then
+			# Skip files which haven't changed except possibly
+			# in their $FreeBSD$ tags.
+			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
+			    samef merge/old/${F} merge/new/${F}; then
+				continue
+			fi
+
+			# Skip files where the installed file differs from
+			# the old file only due to $FreeBSD$ tags.
+			if [ -f merge/old/${F} ] &&
+			    [ -f merge/${OLDRELNUM}/${F} ] &&
+			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				continue
 			fi
 

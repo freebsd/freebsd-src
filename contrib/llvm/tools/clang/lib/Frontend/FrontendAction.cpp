@@ -20,6 +20,7 @@
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
+#include "clang/Serialization/ChainedIncludesSource.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -129,6 +130,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   setCurrentFile(Filename, InputKind);
   setCompilerInstance(&CI);
 
+  if (!BeginInvocation(CI))
+    goto failure;
+
   // AST files follow a very different path, since they share objects via the
   // AST unit.
   if (InputKind == IK_AST) {
@@ -209,8 +213,16 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     CI.getASTContext().setASTMutationListener(Consumer->GetASTMutationListener());
 
-    /// Use PCH?
-    if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+    if (!CI.getPreprocessorOpts().ChainedIncludes.empty()) {
+      // Convert headers to PCH and chain them.
+      llvm::OwningPtr<ExternalASTSource> source;
+      source.reset(ChainedIncludesSource::create(CI));
+      if (!source)
+        goto failure;
+      CI.getASTContext().setExternalSource(source);
+
+    } else if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+      // Use PCH.
       assert(hasPCHSupport() && "This action does not have PCH support!");
       ASTDeserializationListener *DeserialListener
           = CI.getInvocation().getFrontendOpts().ChainedPCH ?
@@ -249,10 +261,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // matching EndSourceFile().
   failure:
   if (isCurrentFileAST()) {
-    CI.takeASTContext();
-    CI.takePreprocessor();
-    CI.takeSourceManager();
-    CI.takeFileManager();
+    CI.setASTContext(0);
+    CI.setPreprocessor(0);
+    CI.setSourceManager(0);
+    CI.setFileManager(0);
   }
 
   CI.getDiagnosticClient().EndSourceFile();
@@ -304,7 +316,7 @@ void FrontendAction::EndSourceFile() {
     CI.takeASTConsumer();
     if (!isCurrentFileAST()) {
       CI.takeSema();
-      CI.takeASTContext();
+      CI.resetAndLeakASTContext();
     }
   } else {
     if (!isCurrentFileAST()) {
@@ -333,10 +345,10 @@ void FrontendAction::EndSourceFile() {
 
   if (isCurrentFileAST()) {
     CI.takeSema();
-    CI.takeASTContext();
-    CI.takePreprocessor();
-    CI.takeSourceManager();
-    CI.takeFileManager();
+    CI.resetAndLeakASTContext();
+    CI.resetAndLeakPreprocessor();
+    CI.resetAndLeakSourceManager();
+    CI.resetAndLeakFileManager();
   }
 
   setCompilerInstance(0);
@@ -372,3 +384,46 @@ PreprocessorFrontendAction::CreateASTConsumer(CompilerInstance &CI,
                                               llvm::StringRef InFile) {
   llvm_unreachable("Invalid CreateASTConsumer on preprocessor action!");
 }
+
+ASTConsumer *WrapperFrontendAction::CreateASTConsumer(CompilerInstance &CI,
+                                                      llvm::StringRef InFile) {
+  return WrappedAction->CreateASTConsumer(CI, InFile);
+}
+bool WrapperFrontendAction::BeginInvocation(CompilerInstance &CI) {
+  return WrappedAction->BeginInvocation(CI);
+}
+bool WrapperFrontendAction::BeginSourceFileAction(CompilerInstance &CI,
+                                                  llvm::StringRef Filename) {
+  WrappedAction->setCurrentFile(getCurrentFile(), getCurrentFileKind());
+  WrappedAction->setCompilerInstance(&CI);
+  return WrappedAction->BeginSourceFileAction(CI, Filename);
+}
+void WrapperFrontendAction::ExecuteAction() {
+  WrappedAction->ExecuteAction();
+}
+void WrapperFrontendAction::EndSourceFileAction() {
+  WrappedAction->EndSourceFileAction();
+}
+
+bool WrapperFrontendAction::usesPreprocessorOnly() const {
+  return WrappedAction->usesPreprocessorOnly();
+}
+bool WrapperFrontendAction::usesCompleteTranslationUnit() {
+  return WrappedAction->usesCompleteTranslationUnit();
+}
+bool WrapperFrontendAction::hasPCHSupport() const {
+  return WrappedAction->hasPCHSupport();
+}
+bool WrapperFrontendAction::hasASTFileSupport() const {
+  return WrappedAction->hasASTFileSupport();
+}
+bool WrapperFrontendAction::hasIRSupport() const {
+  return WrappedAction->hasIRSupport();
+}
+bool WrapperFrontendAction::hasCodeCompletionSupport() const {
+  return WrappedAction->hasCodeCompletionSupport();
+}
+
+WrapperFrontendAction::WrapperFrontendAction(FrontendAction *WrappedAction)
+  : WrappedAction(WrappedAction) {}
+

@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/bpf.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
@@ -206,6 +208,7 @@ static moduledata_t lagg_mod = {
 };
 
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_lagg, 1);
 
 #if __FreeBSD_version >= 800000
 /*
@@ -1219,14 +1222,15 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *scifp = sc->sc_ifp;
 
+	LAGG_RLOCK(sc);
 	if ((scifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (lp->lp_flags & LAGG_PORT_DISABLED) ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
+		LAGG_RUNLOCK(sc);
 		m_freem(m);
 		return (NULL);
 	}
 
-	LAGG_RLOCK(sc);
 	ETHER_BPF_MTAP(scifp, m);
 
 	m = (*sc->sc_input)(sc, lp, m);
@@ -1792,7 +1796,7 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	etype = ntohs(eh->ether_type);
 
 	/* Tap off LACP control messages */
-	if (etype == ETHERTYPE_SLOW) {
+	if ((m->m_flags & M_VLANTAG) == 0 && etype == ETHERTYPE_SLOW) {
 		m = lacp_input(lp, m);
 		if (m == NULL)
 			return (NULL);

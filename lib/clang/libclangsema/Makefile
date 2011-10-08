@@ -7,8 +7,10 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	AttributeList.cpp \
 	CodeCompleteConsumer.cpp \
 	DeclSpec.cpp \
+	DelayedDiagnostic.cpp \
 	IdentifierResolver.cpp \
 	JumpDiagnostics.cpp \
+	Scope.cpp \
 	Sema.cpp \
 	SemaAccess.cpp \
 	SemaAttr.cpp \
@@ -19,6 +21,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaDecl.cpp \
 	SemaDeclAttr.cpp \
 	SemaDeclCXX.cpp \
+	SemaExprMember.cpp \
 	SemaDeclObjC.cpp \
 	SemaExceptionSpec.cpp \
 	SemaExpr.cpp \

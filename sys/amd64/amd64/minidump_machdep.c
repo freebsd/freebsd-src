@@ -27,6 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_pmap.h"
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -34,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
@@ -53,8 +59,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
-extern uint64_t KPDPphys;
-
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
@@ -64,7 +68,7 @@ static off_t dumplo;
 /* Handle chunked writes. */
 static size_t fragsz;
 static void *dump_va;
-static size_t counter, progress;
+static size_t counter, progress, dumpsize;
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
 
@@ -94,6 +98,40 @@ blk_flush(struct dumperinfo *di)
 	dumplo += fragsz;
 	fragsz = 0;
 	return (error);
+}
+
+static struct {
+	int min_per;
+	int max_per;
+	int visited;
+} progress_track[10] = {
+	{  0,  10, 0},
+	{ 10,  20, 0},
+	{ 20,  30, 0},
+	{ 30,  40, 0},
+	{ 40,  50, 0},
+	{ 50,  60, 0},
+	{ 60,  70, 0},
+	{ 70,  80, 0},
+	{ 80,  90, 0},
+	{ 90, 100, 0}
+};
+
+static void
+report_progress(size_t progress, size_t dumpsize)
+{
+	int sofar, i;
+
+	sofar = 100 - ((progress * 100) / dumpsize);
+	for (i = 0; i < 10; i++) {
+		if (sofar < progress_track[i].min_per || sofar > progress_track[i].max_per)
+			continue;
+		if (progress_track[i].visited)
+			return;
+		progress_track[i].visited = 1;
+		printf("..%d%%", sofar);
+		return;
+	}
 }
 
 static int
@@ -132,9 +170,12 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		counter += len;
 		progress -= len;
 		if (counter >> 24) {
-			printf(" %ld", PG2MB(progress >> PAGE_SHIFT));
+			report_progress(progress, dumpsize);
 			counter &= (1<<24) - 1;
 		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		if (ptr) {
 			error = dump_write(di, ptr, 0, dumplo, len);
 			if (error)
@@ -172,7 +213,6 @@ static pd_entry_t fakepd[NPDEPG];
 void
 minidumpsys(struct dumperinfo *di)
 {
-	uint64_t dumpsize;
 	uint32_t pmapsize;
 	vm_offset_t va;
 	int error;
@@ -292,8 +332,8 @@ minidumpsys(struct dumperinfo *di)
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
 
-	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
-	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
+	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
+	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
 	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));

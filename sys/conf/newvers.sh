@@ -31,7 +31,7 @@
 # $FreeBSD$
 
 TYPE="FreeBSD"
-REVISION="9.0"
+REVISION="10.0"
 BRANCH="CURRENT"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
@@ -139,4 +139,4 @@ int osreldate = ${RELDATE};
 char kern_ident[] = "${i}";
 EOF
 
-echo `expr ${v} + 1` > version
+echo $((v + 1)) > version

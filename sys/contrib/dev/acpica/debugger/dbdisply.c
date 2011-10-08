@@ -69,6 +69,50 @@ AcpiDbGetPointer (
     void                    *Target);
 
 
+/*
+ * System handler information.
+ * Used for Handlers command, in AcpiDbDisplayHandlers.
+ */
+#define ACPI_PREDEFINED_PREFIX          "%25s (%.2X) : "
+#define ACPI_HANDLER_NAME_STRING               "%30s : "
+#define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
+#define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
+
+/* All predefined Address Space IDs */
+
+static ACPI_ADR_SPACE_TYPE  AcpiGbl_SpaceIdList[] =
+{
+    ACPI_ADR_SPACE_SYSTEM_MEMORY,
+    ACPI_ADR_SPACE_SYSTEM_IO,
+    ACPI_ADR_SPACE_PCI_CONFIG,
+    ACPI_ADR_SPACE_EC,
+    ACPI_ADR_SPACE_SMBUS,
+    ACPI_ADR_SPACE_CMOS,
+    ACPI_ADR_SPACE_PCI_BAR_TARGET,
+    ACPI_ADR_SPACE_IPMI,
+    ACPI_ADR_SPACE_DATA_TABLE,
+    ACPI_ADR_SPACE_FIXED_HARDWARE
+};
+
+/* Global handler information */
+
+typedef struct acpi_handler_info
+{
+    void                    *Handler;
+    char                    *Name;
+
+} ACPI_HANDLER_INFO;
+
+static ACPI_HANDLER_INFO    AcpiGbl_HandlerList[] =
+{
+    {&AcpiGbl_SystemNotify.Handler,     "System Notifications"},
+    {&AcpiGbl_DeviceNotify.Handler,     "Device Notifications"},
+    {&AcpiGbl_TableHandler,             "ACPI Table Events"},
+    {&AcpiGbl_ExceptionHandler,         "Control Method Exceptions"},
+    {&AcpiGbl_InterfaceHandler,         "OSI Invocations"}
+};
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbGetPointer
@@ -887,6 +931,7 @@ AcpiDbDisplayGpes (
     }
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbDisplayHandlers
@@ -898,46 +943,6 @@ AcpiDbDisplayGpes (
  * DESCRIPTION: Display the currently installed global handlers
  *
  ******************************************************************************/
-
-#define ACPI_PREDEFINED_PREFIX          "%25s (%.2X) : "
-#define ACPI_HANDLER_NAME_STRING               "%30s : "
-#define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
-#define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
-
-/* All predefined Space IDs */
-
-static ACPI_ADR_SPACE_TYPE  SpaceIdList[] =
-{
-    ACPI_ADR_SPACE_SYSTEM_MEMORY,
-    ACPI_ADR_SPACE_SYSTEM_IO,
-    ACPI_ADR_SPACE_PCI_CONFIG,
-    ACPI_ADR_SPACE_EC,
-    ACPI_ADR_SPACE_SMBUS,
-    ACPI_ADR_SPACE_CMOS,
-    ACPI_ADR_SPACE_PCI_BAR_TARGET,
-    ACPI_ADR_SPACE_IPMI,
-    ACPI_ADR_SPACE_DATA_TABLE,
-    ACPI_ADR_SPACE_FIXED_HARDWARE
-};
-
-/* Global handler information */
-
-typedef struct acpi_handler_info
-{
-    void                    *Handler;
-    char                    *Name;
-
-} ACPI_HANDLER_INFO;
-
-ACPI_HANDLER_INFO           HandlerList[] =
-{
-    {&AcpiGbl_SystemNotify.Handler,     "System Notifications"},
-    {&AcpiGbl_DeviceNotify.Handler,     "Device Notifications"},
-    {&AcpiGbl_TableHandler,             "ACPI Table Events"},
-    {&AcpiGbl_ExceptionHandler,         "Control Method Exceptions"},
-    {&AcpiGbl_InterfaceHandler,         "OSI Invocations"}
-};
-
 
 void
 AcpiDbDisplayHandlers (
@@ -956,9 +961,9 @@ AcpiDbDisplayHandlers (
     ObjDesc = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
     if (ObjDesc)
     {
-        for (i = 0; i < ACPI_ARRAY_LENGTH (SpaceIdList); i++)
+        for (i = 0; i < ACPI_ARRAY_LENGTH (AcpiGbl_SpaceIdList); i++)
         {
-            SpaceId = SpaceIdList[i];
+            SpaceId = AcpiGbl_SpaceIdList[i];
             HandlerObj = ObjDesc->Device.Handler;
 
             AcpiOsPrintf (ACPI_PREDEFINED_PREFIX,
@@ -1008,13 +1013,13 @@ AcpiDbDisplayHandlers (
 
     AcpiOsPrintf ("\nMiscellaneous Global Handlers:\n");
 
-    for (i = 0; i < ACPI_ARRAY_LENGTH (HandlerList); i++)
+    for (i = 0; i < ACPI_ARRAY_LENGTH (AcpiGbl_HandlerList); i++)
     {
-        AcpiOsPrintf (ACPI_HANDLER_NAME_STRING, HandlerList[i].Name);
-        if (HandlerList[i].Handler)
+        AcpiOsPrintf (ACPI_HANDLER_NAME_STRING, AcpiGbl_HandlerList[i].Name);
+        if (AcpiGbl_HandlerList[i].Handler)
         {
             AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING, "User",
-                HandlerList[i].Handler);
+                AcpiGbl_HandlerList[i].Handler);
         }
         else
         {

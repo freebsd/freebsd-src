@@ -30,9 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -91,7 +93,7 @@ static const char	*dev_console_filename;
 			HUPCL|CLOCAL|CCTS_OFLOW|CRTS_IFLOW|CDTR_IFLOW|\
 			CDSR_OFLOW|CCAR_OFLOW)
 
-#define	TTY_CALLOUT(tp,d) ((d) != (tp)->t_dev && (d) != dev_console)
+#define	TTY_CALLOUT(tp,d) (dev2unit(d) & TTYUNIT_CALLOUT)
 
 /*
  * Set TTY buffer sizes.
@@ -470,10 +472,10 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			if (error)
 				goto done;
 		}
- 
- 		tp->t_flags |= TF_BUSY_OUT;
+
+		tp->t_flags |= TF_BUSY_OUT;
 		error = ttydisc_write(tp, uio, ioflag);
- 		tp->t_flags &= ~TF_BUSY_OUT;
+		tp->t_flags &= ~TF_BUSY_OUT;
 		cv_signal(&tp->t_outserwait);
 	}
 
@@ -764,13 +766,18 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
-	int error = 0;
+	int error;
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		error = ENODEV;
 		goto done;
 	}
+
+	error = ttydevsw_cioctl(tp, dev2unit(dev), cmd, data, td);
+	if (error != ENOIOCTL)
+		goto done;
+	error = 0;
 
 	switch (cmd) {
 	case TIOCGETA:
@@ -878,6 +885,13 @@ ttydevsw_defioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 }
 
 static int
+ttydevsw_defcioctl(struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
+{
+
+	return (ENOIOCTL);
+}
+
+static int
 ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
@@ -955,6 +969,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	PATCH_FUNC(outwakeup);
 	PATCH_FUNC(inwakeup);
 	PATCH_FUNC(ioctl);
+	PATCH_FUNC(cioctl);
 	PATCH_FUNC(param);
 	PATCH_FUNC(modem);
 	PATCH_FUNC(mmap);
@@ -1008,6 +1023,8 @@ tty_dealloc(void *arg)
 	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
 	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
 
+	seldrain(&tp->t_inpoll);
+	seldrain(&tp->t_outpoll);
 	knlist_destroy(&tp->t_inpoll.si_note);
 	knlist_destroy(&tp->t_outpoll.si_note);
 
@@ -1054,7 +1071,7 @@ tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 
 	if (tp->t_pgrp == pg)
 		tp->t_pgrp = NULL;
-	
+
 	tty_unlock(tp);
 }
 
@@ -1190,13 +1207,13 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_INIT, cred,
 		    uid, gid, mode, "%s%s.init", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
 		dev->si_drv2 = &tp->t_termios_init_in;
 
-		dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_LOCK, cred,
 		    uid, gid, mode, "%s%s.lock", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
@@ -1205,20 +1222,22 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttydev_cdevsw, TTYUNIT_CALLOUT, cred,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+			dev = make_dev_cred(&ttyil_cdevsw, 
+			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
 			dev->si_drv2 = &tp->t_termios_init_out;
 
-			dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+			dev = make_dev_cred(&ttyil_cdevsw,
+			    TTYUNIT_CALLOUT | TTYUNIT_LOCK, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
@@ -1241,11 +1260,11 @@ tty_signal_sessleader(struct tty *tp, int sig)
 
 	/* Make signals start output again. */
 	tp->t_flags &= ~TF_STOPPED;
-	
+
 	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
 		p = tp->t_session->s_leader;
 		PROC_LOCK(p);
-		psignal(p, sig);
+		kern_psignal(p, sig);
 		PROC_UNLOCK(p);
 	}
 }
@@ -1305,7 +1324,7 @@ tty_wait(struct tty *tp, struct cv *cv)
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
 		return (ERESTART);
-	
+
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
@@ -1327,7 +1346,7 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
 		return (ERESTART);
-	
+
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
@@ -1479,7 +1498,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 				return (error);
 
 			/* XXX: CLOCAL? */
-			
+
 			tp->t_termios.c_cflag = t->c_cflag & ~CIGNORE;
 			tp->t_termios.c_ispeed = t->c_ispeed;
 			tp->t_termios.c_ospeed = t->c_ospeed;
@@ -1715,7 +1734,7 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 
 	if (tty_gone(tp))
 		return (ENXIO);
-	
+
 	error = ttydevsw_ioctl(tp, cmd, data, td);
 	if (error == ENOIOCTL)
 		error = tty_generic_ioctl(tp, cmd, data, fflag, td);
@@ -1793,7 +1812,7 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 
 	if (ttyhook_rint_bypass(tp, &c, 1) != 1)
 		return (-1);
-	
+
 	return (0);
 }
 
@@ -1803,6 +1822,9 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 {
 	struct tty *tp;
 	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_cap;
+#endif
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
@@ -1819,7 +1841,14 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		error = EBADF;
 		goto done1;
 	}
-	
+
+#ifdef CAPABILITIES
+	fp_cap = fp;
+	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
+	if (error)
+		return (error);
+#endif
+
 	/*
 	 * Make sure the vnode is bound to a character device.
 	 * Unlocked check for the vnode type is ok there, because we
@@ -1917,7 +1946,7 @@ ttyconsdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	/* System console has no TTY associated. */
 	if (dev_console->si_drv1 == NULL)
 		return (ENXIO);
-	
+
 	return (ttydev_open(dev, oflags, devtype, td));
 }
 

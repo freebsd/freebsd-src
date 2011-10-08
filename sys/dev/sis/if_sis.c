@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
@@ -1192,7 +1191,7 @@ sis_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
 		if (sc->sis_type == SIS_TYPE_83815)
 			ifp->if_capabilities |= IFCAP_WOL;
 		else
@@ -2209,17 +2208,15 @@ sis_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
+	struct mii_softc	*miisc;
 	int			error;
 
 	sc = ifp->if_softc;
 
 	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	SIS_UNLOCK(sc);
 
@@ -2472,7 +2469,7 @@ sis_wol(struct sis_softc *sc)
 		/* Enable silent RX mode. */
 		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 	} else {
-		if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
+		if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
 			return;
 		val = 0;
 		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)

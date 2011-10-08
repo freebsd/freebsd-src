@@ -578,7 +578,7 @@ struct ieee80211req {
 	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
 	uint16_t	i_type;			/* req type */
 	int16_t		i_val;			/* Index or simple value */
-	int16_t		i_len;			/* Index or simple value */
+	uint16_t	i_len;			/* Index or simple value */
 	void		*i_data;		/* Extra data */
 };
 #define	SIOCS80211		 _IOW('i', 234, struct ieee80211req)

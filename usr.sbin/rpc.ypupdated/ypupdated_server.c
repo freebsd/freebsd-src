@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #include <sys/param.h>
-#include <sys/cdefs.h>
 #include <rpcsvc/yp.h>
 #include "ypupdate_prot.h"
 #include "ypupdated_extern.h"

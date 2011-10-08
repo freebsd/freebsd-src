@@ -116,6 +116,7 @@ The sysctl variable may be set using the following grammar:
       ( (<float> "%") | (<integer> "*" ) )*
       <type>
       [ "(" <integer> ")" ]
+      [ "[pid " <integer> "]" ]
 
   <float> ::
       <integer> [ "." <integer> ] |
@@ -161,6 +162,10 @@ For the purpose of this operator, the return() and print() operators
 are the only types that cascade.
 A return() term only cascades if the code executes, and a print()
 term only cascades when passed a non-zero argument.
+A pid can optionally be specified.
+The fail point term is only executed when invoked by a process with a
+matching p_pid.
+.Pp
 .Sh EXAMPLES
 .Bl -tag
 .It Sy sysctl debug.fail_point.foobar="2.1%return(5)"
@@ -181,6 +186,8 @@ After that, 1/1000th of the time, return 22.
 Return 5 for 1 in 1000 executions, but only 5 times total.
 .It Sy sysctl debug.fail_point.foobar="1%*sleep(50)"
 1/100th of the time, sleep 50ms.
+.It Sy sysctl debug.fail_point.foobar="1*return(5)[pid 1234]"
+Return 5 once, when pid 1234 executes the fail point.
 .El
 .Sh AUTHORS
 .An -nosplit

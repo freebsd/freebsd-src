@@ -53,7 +53,7 @@ mips/mips/db_disasm.c		optional	ddb
 mips/mips/db_interface.c	optional	ddb
 mips/mips/db_trace.c		optional	ddb
 mips/mips/dump_machdep.c	standard
-mips/mips/in_cksum.c		optional	inet
+mips/mips/in_cksum.c		optional	inet | inet6
 mips/mips/locore.S		standard	no-obj
 mips/mips/minidump_machdep.c	standard
 mips/mips/mem.c			optional	mem
@@ -105,3 +105,6 @@ dev/siba/siba_pcib.c		optional	siba pci
 
 dev/hwpmc/hwpmc_mips.c		optional hwpmc
 dev/hwpmc/hwpmc_mips24k.c	optional hwpmc
+
+dev/rt/if_rt.c			optional 	rt
+dev/nvram2env/nvram2env.c	optional	nvram2env

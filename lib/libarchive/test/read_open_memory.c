@@ -43,16 +43,13 @@ struct read_memory_data {
 	unsigned char	*end;
 	size_t	 read_size;
 	size_t copy_buff_size;
+	size_t copy_buff_offset;
 	char *copy_buff;
 };
 
 static int	memory_read_close(struct archive *, void *);
 static int	memory_read_open(struct archive *, void *);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
-#else
 static off_t	memory_read_skip(struct archive *, void *, off_t request);
-#endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static int	read_open_memory_internal(struct archive *a, void *buff,
     size_t size, size_t read_size, int fullapi);
@@ -89,8 +86,10 @@ read_open_memory_internal(struct archive *a, void *buff,
 	mine->buffer = (unsigned char *)buff;
 	mine->end = mine->buffer + size;
 	mine->read_size = read_size;
-	mine->copy_buff_size = read_size + 64;
+	mine->copy_buff_offset = 32;
+	mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
 	mine->copy_buff = malloc(mine->copy_buff_size);
+	memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
 	if (fullapi)
 		return (archive_read_open2(a, mine, memory_read_open,
 			    memory_read, memory_read_skip, memory_read_close));
@@ -126,9 +125,10 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 	size = mine->end - mine->buffer;
 	if (size > mine->read_size)
 		size = mine->read_size;
-	memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
-	memcpy(mine->copy_buff, mine->buffer, size);
-	*buff = mine->copy_buff;
+	else
+		memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
+	memcpy(mine->copy_buff + mine->copy_buff_offset, mine->buffer, size);
+	*buff = mine->copy_buff + mine->copy_buff_offset;
 
         mine->buffer += size;
 	return ((ssize_t)size);
@@ -137,13 +137,8 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 /*
  * How mean can a skip() routine be?  Let's try to find out.
  */
-#if ARCHIVE_VERSION_NUMBER < 2000000
-static ssize_t
-memory_read_skip(struct archive *a, void *client_data, size_t skip)
-#else
 static off_t
 memory_read_skip(struct archive *a, void *client_data, off_t skip)
-#endif
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 

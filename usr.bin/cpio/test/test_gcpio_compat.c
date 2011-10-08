@@ -28,15 +28,11 @@ __FBSDID("$FreeBSD$");
 static void
 unpack_test(const char *from, const char *options, const char *se)
 {
-	struct stat st, st2;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	char buff[128];
-#endif
 	int r;
 
 	/* Create a work dir named after the file we're unpacking. */
-	assertEqualInt(0, mkdir(from, 0775));
-	chdir(from);
+	assertMakeDir(from, 0775);
+	assertChdir(from);
 
 	/*
 	 * Use cpio to unpack the sample archive
@@ -49,96 +45,64 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 
 	/* Verify that nothing went to stderr. */
-	failure("Error invoking %s -i %s < %s", testprog, options, from);
-	assertTextFileContents(se, "unpack.err");
+	if (canSymlink()) {
+		failure("Error invoking %s -i %s < %s",
+		    testprog, options, from);
+		assertTextFileContents(se, "unpack.err");
+	}
 
 	/*
 	 * Verify unpacked files.
 	 */
 
 	/* Regular file with 2 links. */
-	r = lstat("file", &st);
-	failure("Failed to stat file %s/file, errno=%d", from, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0644, st.st_mode & 0777);
-#endif
-		failure("file %s/file", from);
-		assertEqualInt(10, st.st_size);
-		failure("file %s/file", from);
-		assertEqualInt(2, st.st_nlink);
-	}
+	assertIsReg("file", 0644);
+	failure("%s", from);
+	assertFileSize("file", 10);
+	assertFileSize("linkfile", 10);
+	failure("%s", from);
+	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	r = lstat("linkfile", &st2);
-	failure("Failed to stat file %s/linkfile, errno=%d", from, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st2.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st2.st_mode & 0700);
-#else
-		assertEqualInt(0644, st2.st_mode & 0777);
-#endif
-		failure("file %s/file", from);
-		assertEqualInt(10, st2.st_size);
-		failure("file %s/file", from);
-		assertEqualInt(2, st2.st_nlink);
-		failure("file and linkfile should be hardlinked");
-		assertEqualInt(st.st_dev, st2.st_dev);
-		failure("file %s/file", from);
-		assertEqualInt(st.st_ino, st2.st_ino);
-	}
+	failure("%s", from);
+	assertIsHardlink("linkfile", "file");
+	assertFileSize("file", 10);
+	assertFileSize("linkfile", 10);
 
 	/* Symlink */
-	r = lstat("symlink", &st);
-	failure("Failed to stat file %s/symlink, errno=%d", from, errno);
-	assertEqualInt(r, 0);
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	if (r == 0) {
-		failure("symlink should be a symlink; actual mode is %o",
-		    st.st_mode);
-		assert(S_ISLNK(st.st_mode));
-		if (S_ISLNK(st.st_mode)) {
-			r = readlink("symlink", buff, sizeof(buff));
-			assertEqualInt(r, 4);
-			buff[r] = '\0';
-			assertEqualString(buff, "file");
-		}
-	}
-#endif
+	if (canSymlink())
+		assertIsSymlink("symlink", "file");
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0700, st.st_mode & 0700);
-#else
-		assertEqualInt(0775, st.st_mode & 0777);
-#endif
-	}
+	assertIsDir("dir", 0775);
 
-	chdir("..");
+	assertChdir("..");
 }
 
 DEFINE_TEST(test_gcpio_compat)
 {
-	int oldumask;
-
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/* Dearchive sample files with a variety of options. */
-	unpack_test("test_gcpio_compat_ref.bin", "", "1 block\n");
-	unpack_test("test_gcpio_compat_ref.crc", "", "2 blocks\n");
-	unpack_test("test_gcpio_compat_ref.newc", "", "2 blocks\n");
-	/* gcpio-2.9 only reads 6 blocks here */
-	unpack_test("test_gcpio_compat_ref.ustar", "", "7 blocks\n");
-
-	umask(oldumask);
+	if (canSymlink()) {
+		unpack_test("test_gcpio_compat_ref.bin",
+		    "--no-preserve-owner", "1 block\n");
+		unpack_test("test_gcpio_compat_ref.crc",
+		    "--no-preserve-owner", "2 blocks\n");
+		unpack_test("test_gcpio_compat_ref.newc",
+		    "--no-preserve-owner", "2 blocks\n");
+		/* gcpio-2.9 only reads 6 blocks here */
+		unpack_test("test_gcpio_compat_ref.ustar",
+		    "--no-preserve-owner", "7 blocks\n");
+	} else {
+		unpack_test("test_gcpio_compat_ref_nosym.bin",
+		    "--no-preserve-owner", "1 block\n");
+		unpack_test("test_gcpio_compat_ref_nosym.crc",
+		    "--no-preserve-owner", "2 blocks\n");
+		unpack_test("test_gcpio_compat_ref_nosym.newc",
+		    "--no-preserve-owner", "2 blocks\n");
+		/* gcpio-2.9 only reads 6 blocks here */
+		unpack_test("test_gcpio_compat_ref_nosym.ustar",
+		    "--no-preserve-owner", "7 blocks\n");
+	}
 }

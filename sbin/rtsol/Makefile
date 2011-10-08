@@ -19,7 +19,7 @@ SRCDIR=	${.CURDIR}/../../usr.sbin/rtsold
 .PATH:	${SRCDIR}
 
 PROG=	rtsol
-SRCS=	rtsold.c rtsol.c if.c probe.c rtsock.c
+SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 NO_MAN=
 
 WARNS?=	3

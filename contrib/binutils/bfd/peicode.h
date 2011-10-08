@@ -607,7 +607,7 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
 
   bfd_set_section_flags (vars->abfd, sec, flags | extra_flags);
 
-  bfd_set_section_alignment (vars->abfd, sec, 2);
+  (void) bfd_set_section_alignment (vars->abfd, sec, 2);
 
   /* Check that we will not run out of space.  */
   BFD_ASSERT (vars->data + size < vars->bim->buffer + vars->bim->size);

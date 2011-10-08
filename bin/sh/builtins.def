@@ -60,7 +60,7 @@ echocmd		echo
 evalcmd		-s eval
 execcmd		-s exec
 exitcmd		-s exit
-expcmd		exp let
+letcmd		let
 exportcmd	-s export -s readonly
 #exprcmd		expr
 falsecmd	false

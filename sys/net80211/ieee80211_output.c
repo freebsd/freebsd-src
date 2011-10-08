@@ -57,8 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h> 
+#endif
+
+#ifdef INET
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -513,6 +516,7 @@ ieee80211_send_setup(
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_seq seqno;
 
@@ -580,9 +584,15 @@ ieee80211_send_setup(
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
 
-	seqno = ni->ni_txseqs[tid]++;
-	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-	M_SEQNO_SET(m, seqno);
+	tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
+		m->m_flags |= M_AMPDU_MPDU;
+	else {
+		seqno = ni->ni_txseqs[tid]++;
+		*(uint16_t *)&wh->i_seq[0] =
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		M_SEQNO_SET(m, seqno);
+	}
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		m->m_flags |= M_MCAST;
@@ -2782,6 +2792,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
+	struct ieee80211_frame *wh;
+	ieee80211_seq seqno;
 
 	IEEE80211_LOCK(ic);
 	/*
@@ -2812,6 +2824,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		IEEE80211_UNLOCK(ic);
 		return 1;		/* just assume length changed */
 	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	*(uint16_t *)&wh->i_seq[0] =
+		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
 
 	/* XXX faster to recalculate entirely or just changes? */
 	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);

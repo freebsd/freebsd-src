@@ -93,7 +93,7 @@ static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
 static int zfs_sync(vfs_t *vfsp, int waitfor);
 static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
     struct ucred **credanonp, int *numsecflavors, int **secflavors);
-static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
+static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
 
@@ -364,6 +364,14 @@ vscan_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+acl_mode_changed_cb(void *arg, uint64_t newval)
+{
+	zfsvfs_t *zfsvfs = arg;
+
+	zfsvfs->z_acl_mode = newval;
+}
+
+static void
 acl_inherit_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
@@ -488,6 +496,8 @@ zfs_register_callbacks(vfs_t *vfsp)
 	error = error ? error : dsl_prop_register(ds,
 	    "snapdir", snapdir_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
+	    "aclmode", acl_mode_changed_cb, zfsvfs);
+	error = error ? error : dsl_prop_register(ds,
 	    "aclinherit", acl_inherit_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
 	    "vscan", vscan_changed_cb, zfsvfs);
@@ -525,6 +535,7 @@ unregister:
 	(void) dsl_prop_unregister(ds, "setuid", setuid_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "exec", exec_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "aclinherit", acl_inherit_changed_cb,
 	    zfsvfs);
 	(void) dsl_prop_unregister(ds, "vscan", vscan_changed_cb, zfsvfs);
@@ -1200,6 +1211,9 @@ zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb,
+		    zfsvfs) == 0);
+
+		VERIFY(dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb,
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "aclinherit",
@@ -2007,7 +2021,7 @@ CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
 CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
-zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
+zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 {
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
@@ -2069,7 +2083,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
@@ -2096,7 +2110,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else

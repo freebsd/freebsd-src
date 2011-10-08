@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/AST/StmtVisitor.h"
 
@@ -26,7 +26,7 @@ class WalkAST : public StmtVisitor<WalkAST> {
 
 public:
   WalkAST(BugReporter &br) : BR(br) {}
-  void VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
+  void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
   void VisitStmt(Stmt *S) { VisitChildren(S); }
   void VisitChildren(Stmt *S);
 };
@@ -39,8 +39,8 @@ void WalkAST::VisitChildren(Stmt *S) {
 }
 
 // CWE-467: Use of sizeof() on a Pointer Type
-void WalkAST::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
-  if (!E->isSizeOf())
+void WalkAST::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
+  if (E->getKind() != UETT_SizeOf)
     return;
 
   // If an explicit type is used in the code, usually the coder knows what he is
@@ -72,7 +72,7 @@ void WalkAST::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class SizeofPointerChecker : public CheckerV2<check::ASTCodeBody> {
+class SizeofPointerChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {

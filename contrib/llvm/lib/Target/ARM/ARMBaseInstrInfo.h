@@ -20,6 +20,9 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 
+#define GET_INSTRINFO_HEADER
+#include "ARMGenInstrInfo.inc"
+
 namespace llvm {
   class ARMSubtarget;
   class ARMBaseRegisterInfo;
@@ -34,46 +37,18 @@ namespace ARMII {
 
     //===------------------------------------------------------------------===//
     // This four-bit field describes the addressing mode used.
-
-    AddrModeMask  = 0x1f,
-    AddrModeNone    = 0,
-    AddrMode1       = 1,
-    AddrMode2       = 2,
-    AddrMode3       = 3,
-    AddrMode4       = 4,
-    AddrMode5       = 5,
-    AddrMode6       = 6,
-    AddrModeT1_1    = 7,
-    AddrModeT1_2    = 8,
-    AddrModeT1_4    = 9,
-    AddrModeT1_s    = 10, // i8 * 4 for pc and sp relative data
-    AddrModeT2_i12  = 11,
-    AddrModeT2_i8   = 12,
-    AddrModeT2_so   = 13,
-    AddrModeT2_pc   = 14, // +/- i12 for pc relative data
-    AddrModeT2_i8s4 = 15, // i8 * 4
-    AddrMode_i12    = 16,
-
-    // Size* - Flags to keep track of the size of an instruction.
-    SizeShift     = 5,
-    SizeMask      = 7 << SizeShift,
-    SizeSpecial   = 1,   // 0 byte pseudo or special case.
-    Size8Bytes    = 2,
-    Size4Bytes    = 3,
-    Size2Bytes    = 4,
+    AddrModeMask  = 0x1f, // The AddrMode enums are declared in ARMBaseInfo.h
 
     // IndexMode - Unindex, pre-indexed, or post-indexed are valid for load
     // and store ops only.  Generic "updating" flag is used for ld/st multiple.
-    IndexModeShift = 8,
+    // The index mode enums are declared in ARMBaseInfo.h
+    IndexModeShift = 5,
     IndexModeMask  = 3 << IndexModeShift,
-    IndexModePre   = 1,
-    IndexModePost  = 2,
-    IndexModeUpd   = 3,
 
     //===------------------------------------------------------------------===//
     // Instruction encoding formats.
     //
-    FormShift     = 10,
+    FormShift     = 7,
     FormMask      = 0x3f << FormShift,
 
     // Pseudo instructions
@@ -146,15 +121,15 @@ namespace ARMII {
 
     // UnaryDP - Indicates this is a unary data processing instruction, i.e.
     // it doesn't have a Rn operand.
-    UnaryDP       = 1 << 16,
+    UnaryDP       = 1 << 13,
 
     // Xform16Bit - Indicates this Thumb2 instruction may be transformed into
     // a 16-bit Thumb instruction if certain conditions are met.
-    Xform16Bit    = 1 << 17,
+    Xform16Bit    = 1 << 14,
 
     //===------------------------------------------------------------------===//
     // Code domain.
-    DomainShift   = 18,
+    DomainShift   = 15,
     DomainMask    = 7 << DomainShift,
     DomainGeneral = 0 << DomainShift,
     DomainVFP     = 1 << DomainShift,
@@ -192,7 +167,7 @@ namespace ARMII {
   };
 }
 
-class ARMBaseInstrInfo : public TargetInstrInfoImpl {
+class ARMBaseInstrInfo : public ARMGenInstrInfo {
   const ARMSubtarget &Subtarget;
 
 protected:
@@ -311,8 +286,8 @@ public:
                                        int64_t &Offset1, int64_t &Offset2)const;
 
   /// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
-  /// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
-  /// be scheduled togther. On some targets if two loads are loading from
+  /// determine (in conjunction with areLoadsFromSameBasePtr) if two loads
+  /// should be scheduled togther. On some targets if two loads are loading from
   /// addresses in the same cache line, it's better if they are scheduled
   /// together. This function takes two integers that represent the load offsets
   /// from the common base address. It returns true if it decides it's desirable
@@ -327,20 +302,20 @@ public:
                                     const MachineFunction &MF) const;
 
   virtual bool isProfitableToIfCvt(MachineBasicBlock &MBB,
-                                   unsigned NumCyles, unsigned ExtraPredCycles,
-                                   float Prob, float Confidence) const;
+                                   unsigned NumCycles, unsigned ExtraPredCycles,
+                                   const BranchProbability &Probability) const;
 
   virtual bool isProfitableToIfCvt(MachineBasicBlock &TMBB,
                                    unsigned NumT, unsigned ExtraT,
                                    MachineBasicBlock &FMBB,
                                    unsigned NumF, unsigned ExtraF,
-                                   float Probability, float Confidence) const;
+                                   const BranchProbability &Probability) const;
 
   virtual bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB,
-                                         unsigned NumCyles,
-                                         float Probability,
-                                         float Confidence) const {
-    return NumCyles == 1;
+                                         unsigned NumCycles,
+                                         const BranchProbability
+                                           &Probability) const {
+    return NumCycles == 1;
   }
 
   /// AnalyzeCompare - For a comparison instruction, return the source register
@@ -373,25 +348,25 @@ public:
                         SDNode *UseNode, unsigned UseIdx) const;
 private:
   int getVLDMDefCycle(const InstrItineraryData *ItinData,
-                      const TargetInstrDesc &DefTID,
+                      const MCInstrDesc &DefMCID,
                       unsigned DefClass,
                       unsigned DefIdx, unsigned DefAlign) const;
   int getLDMDefCycle(const InstrItineraryData *ItinData,
-                     const TargetInstrDesc &DefTID,
+                     const MCInstrDesc &DefMCID,
                      unsigned DefClass,
                      unsigned DefIdx, unsigned DefAlign) const;
   int getVSTMUseCycle(const InstrItineraryData *ItinData,
-                      const TargetInstrDesc &UseTID,
+                      const MCInstrDesc &UseMCID,
                       unsigned UseClass,
                       unsigned UseIdx, unsigned UseAlign) const;
   int getSTMUseCycle(const InstrItineraryData *ItinData,
-                     const TargetInstrDesc &UseTID,
+                     const MCInstrDesc &UseMCID,
                      unsigned UseClass,
                      unsigned UseIdx, unsigned UseAlign) const;
   int getOperandLatency(const InstrItineraryData *ItinData,
-                        const TargetInstrDesc &DefTID,
+                        const MCInstrDesc &DefMCID,
                         unsigned DefIdx, unsigned DefAlign,
-                        const TargetInstrDesc &UseTID,
+                        const MCInstrDesc &UseMCID,
                         unsigned UseIdx, unsigned UseAlign) const;
 
   int getInstrLatency(const InstrItineraryData *ItinData,
@@ -496,19 +471,19 @@ void emitARMRegPlusImmediate(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator &MBBI, DebugLoc dl,
                              unsigned DestReg, unsigned BaseReg, int NumBytes,
                              ARMCC::CondCodes Pred, unsigned PredReg,
-                             const ARMBaseInstrInfo &TII);
+                             const ARMBaseInstrInfo &TII, unsigned MIFlags = 0);
 
 void emitT2RegPlusImmediate(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator &MBBI, DebugLoc dl,
                             unsigned DestReg, unsigned BaseReg, int NumBytes,
                             ARMCC::CondCodes Pred, unsigned PredReg,
-                            const ARMBaseInstrInfo &TII);
+                            const ARMBaseInstrInfo &TII, unsigned MIFlags = 0);
 void emitThumbRegPlusImmediate(MachineBasicBlock &MBB,
-                               MachineBasicBlock::iterator &MBBI,
+                               MachineBasicBlock::iterator &MBBI, DebugLoc dl,
                                unsigned DestReg, unsigned BaseReg,
                                int NumBytes, const TargetInstrInfo &TII,
                                const ARMBaseRegisterInfo& MRI,
-                               DebugLoc dl);
+                               unsigned MIFlags = 0);
 
 
 /// rewriteARMFrameIndex / rewriteT2FrameIndex -

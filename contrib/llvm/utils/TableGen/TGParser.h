@@ -15,6 +15,7 @@
 #define TGPARSER_H
 
 #include "TGLexer.h"
+#include "Error.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/SourceMgr.h"
 #include <map>
@@ -24,7 +25,7 @@ namespace llvm {
   class RecordVal;
   class RecordKeeper;
   struct RecTy;
-  struct Init;
+  class Init;
   struct MultiClass;
   struct SubClassReference;
   struct SubMultiClassReference;
@@ -60,11 +61,14 @@ public:
   bool ParseFile();
   
   bool Error(SMLoc L, const Twine &Msg) const {
-    Lex.PrintError(L, Msg);
+    PrintError(L, Msg);
     return true;
   }
   bool TokError(const Twine &Msg) const {
     return Error(Lex.getLoc(), Msg);
+  }
+  const std::vector<std::string> &getDependencies() const {
+    return Lex.getDependencies();
   }
 private:  // Semantic analysis methods.
   bool AddValue(Record *TheRec, SMLoc Loc, const RecordVal &RV);

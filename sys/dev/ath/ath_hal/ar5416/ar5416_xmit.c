@@ -208,10 +208,11 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel2) 
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel3)
 		     ;
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);		/* XXX? */
-	ads->ds_ctl10 = (txPower << 24);	/* XXX? */
-	ads->ds_ctl11 = (txPower << 24);	/* XXX? */
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
+
 	if (keyIx != HAL_TXKEYIX_INVALID) {
 		/* XXX validate key index */
 		ads->ds_ctl1 |= SM(keyIx, AR_DestIdx);
@@ -232,11 +233,16 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
 	}
 
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
 	if (AR_SREV_KITE(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	return AH_TRUE;
 #undef RTSCTS
@@ -410,10 +416,10 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel3);
 	
 	/* NB: no V1 WAR */
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);
-	ads->ds_ctl10 = (txPower << 24);
-	ads->ds_ctl11 = (txPower << 24);
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
 
 	ads->ds_ctl6 &= ~(0xffff);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
@@ -424,11 +430,16 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
 	}
 
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
 	if (AR_SREV_KITE(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	
 	return AH_TRUE;
@@ -868,6 +879,7 @@ setTxQInterrupts(struct ath_hal *ah, HAL_TX_QUEUE_INFO *qi)
  * Assumes:
  *  phwChannel has been set to point to the current channel
  */
+#define	TU_TO_USEC(_tu)		((_tu) << 10)
 HAL_BOOL
 ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 {
@@ -875,7 +887,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	HAL_TX_QUEUE_INFO *qi;
-	uint32_t cwMin, chanCwMin, value, qmisc, dmisc;
+	uint32_t cwMin, chanCwMin, qmisc, dmisc;
 
 	if (q >= pCap->halTotalQueues) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid queue num %u\n",
@@ -945,7 +957,8 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		if (qi->tqi_cbrOverflowLimit)
 			qmisc |= AR_Q_MISC_CBR_EXP_CNTR_LIMIT;
 	}
-	if (qi->tqi_readyTime) {
+
+	if (qi->tqi_readyTime && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
 		OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT)
 			| AR_Q_RDYTIMECFG_ENA);
@@ -1016,18 +1029,46 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		qmisc |= AR_Q_MISC_FSP_DBA_GATED
 		      |  AR_Q_MISC_CBR_INCR_DIS1
 		      |  AR_Q_MISC_CBR_INCR_DIS0;
-
-		if (!qi->tqi_readyTime) {
+		HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: CAB: tqi_readyTime = %d\n",
+		    __func__, qi->tqi_readyTime);
+		if (qi->tqi_readyTime) {
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: using tqi_readyTime\n", __func__);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
+		} else {
+			int value;
 			/*
 			 * NB: don't set default ready time if driver
 			 * has explicitly specified something.  This is
 			 * here solely for backwards compatibility.
 			 */
-			value = (ahp->ah_beaconInterval
-				- (ath_hal_sw_beacon_response_time -
-					ath_hal_dma_beacon_response_time)
-				- ath_hal_additional_swba_backoff) * 1024;
-			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_ENA);
+			/*
+			 * XXX for now, hard-code a CAB interval of 70%
+			 * XXX of the total beacon interval.
+			 *
+			 * XXX This keeps Merlin and later based MACs
+			 * XXX quite a bit happier (stops stuck beacons,
+			 * XXX which I gather is because of such a long
+			 * XXX cabq time.)
+			 */
+			value = (ahp->ah_beaconInterval * 70 / 100)
+				- (ah->ah_config.ah_sw_beacon_response_time
+				+ ah->ah_config.ah_dma_beacon_response_time)
+				- ah->ah_config.ah_additional_swba_backoff;
+			/*
+			 * XXX Ensure it isn't too low - nothing lower
+			 * XXX than 10 TU
+			 */
+			if (value < 10)
+				value = 10;
+			HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+			    "%s: defaulting to rdytime = %d uS\n",
+			    __func__, value);
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			    SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_INT) |
+			    AR_Q_RDYTIMECFG_ENA);
 		}
 		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
 			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
@@ -1095,3 +1136,4 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 
 	return AH_TRUE;
 }
+#undef	TU_TO_USEC

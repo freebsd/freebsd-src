@@ -48,16 +48,6 @@ PROG=	${PROG_CXX}
 .if defined(PROG)
 .if defined(SRCS)
 
-# If there are Objective C sources, link with Objective C libraries.
-.if !empty(SRCS:M*.m)
-.if defined(OBJCLIBS)
-LDADD+=	${OBJCLIBS}
-.else
-DPADD+=	${LIBOBJC} ${LIBPTHREAD}
-LDADD+=	-lobjc -lpthread
-.endif
-.endif
-
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if target(beforelinking)

@@ -30,14 +30,12 @@ class Module;
 class MDNode;
 class NamedMDNode;
 class AttrListPtr;
-class TypeSymbolTable;
 class ValueSymbolTable;
 class MDSymbolTable;
 
 class ValueEnumerator {
 public:
-  // For each type, we remember its Type* and occurrence frequency.
-  typedef std::vector<std::pair<const Type*, unsigned> > TypeList;
+  typedef std::vector<const Type*> TypeList;
 
   // For each value, we remember its Value* and occurrence frequency.
   typedef std::vector<std::pair<const Value*, unsigned> > ValueList;
@@ -146,7 +144,6 @@ private:
   void EnumerateOperandType(const Value *V);
   void EnumerateAttributes(const AttrListPtr &PAL);
   
-  void EnumerateTypeSymbolTable(const TypeSymbolTable &ST);
   void EnumerateValueSymbolTable(const ValueSymbolTable &ST);
   void EnumerateNamedMetadata(const Module *M);
 };

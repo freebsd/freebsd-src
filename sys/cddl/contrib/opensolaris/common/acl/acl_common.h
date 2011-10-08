@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef	_ACL_COMMON_H
@@ -33,7 +34,14 @@
 extern "C" {
 #endif
 
-extern ace_t trivial_acl[6];
+typedef struct trivial_acl {
+	uint32_t	allow0;		/* allow mask for bits only in owner */
+	uint32_t	deny1;		/* deny mask for bits not in owner */
+	uint32_t	deny2;		/* deny mask for bits not in group */
+	uint32_t	owner;		/* allow mask matching mode */
+	uint32_t	group;		/* allow mask matching mode */
+	uint32_t	everyone;	/* allow mask matching mode */
+} trivial_acl_t;
 
 extern int acltrivial(const char *);
 extern void adjust_ace_pair(ace_t *pair, mode_t mode);
@@ -45,14 +53,14 @@ extern int ace_trivial_common(void *, int,
 #if !defined(_KERNEL)
 extern acl_t *acl_alloc(acl_type_t);
 extern void acl_free(acl_t *aclp);
-extern int acl_translate(acl_t *aclp, int target_flavor,
-    int isdir, uid_t owner, gid_t group);
+extern int acl_translate(acl_t *aclp, int target_flavor, boolean_t isdir,
+    uid_t owner, gid_t group);
 #endif	/* !_KERNEL */
 void ksort(caddr_t v, int n, int s, int (*f)());
 int cmp2acls(void *a, void *b);
-int acl_trivial_create(mode_t mode, ace_t **acl, int *count);
-void acl_trivial_access_masks(mode_t mode, uint32_t *allow0, uint32_t *deny1,
-    uint32_t *deny2, uint32_t *owner, uint32_t *group, uint32_t *everyone);
+int acl_trivial_create(mode_t mode, boolean_t isdir, ace_t **acl, int *count);
+void acl_trivial_access_masks(mode_t mode, boolean_t isdir,
+    trivial_acl_t *masks);
 
 #ifdef	__cplusplus
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Michael Smith <msmith@freebsd.org>
+ * Copyright (C) 1999 Michael Smith <msmith@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include "dev_net.h"
 #endif
 
+extern struct devsw ps3disk;
+extern struct devsw ps3cdrom;
+
 /*
  * We could use linker sets for some or all of these, but
  * then we would have to control what ended up linked into
@@ -45,10 +48,11 @@ __FBSDID("$FreeBSD$");
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-#if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
-#ifdef NOTYET
-    &ps3disk,
+#if defined(LOADER_CD9660_SUPPORT)
+    &ps3cdrom,
 #endif
+#if defined(LOADER_DISK_SUPPORT)
+    &ps3disk,
 #endif
 #if defined(LOADER_NET_SUPPORT)
     &netdev,

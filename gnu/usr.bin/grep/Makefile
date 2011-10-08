@@ -1,35 +1,50 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 GREP_LIBZ=YES
 
+.if ${MK_BSD_GREP} != "yes"
 PROG=	grep
+.else
+PROG=	gnugrep
+.endif
 SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
 	isdir.c kwset.c obstack.c quotearg.c savedir.c search.c xmalloc.c \
 	xstrtoumax.c
 
 CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
 
+.if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
 MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
+.endif
 
 DPADD=	${LIBGNUREGEX} ${LIBBZ2}
 LDADD=	-lgnuregex -lbz2
 
+.if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/bzgrep \
 	${BINDIR}/grep ${BINDIR}/bzegrep \
 	${BINDIR}/grep ${BINDIR}/bzfgrep
 MLINKS+=grep.1 bzgrep.1 grep.1 bzegrep.1 grep.1 bzfgrep.1
+.endif
 
 .if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
 LDADD+=	-lz
 DPADD+=	${LIBZ}
 CFLAGS+=-DHAVE_LIBZ=1
+.if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
 	${BINDIR}/grep ${BINDIR}/zfgrep
 MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 .endif
+.endif
+
+gnugrep.1: grep.1
+	cp ${.ALLSRC} ${.TARGET}
 
 SUBDIR+=doc
 

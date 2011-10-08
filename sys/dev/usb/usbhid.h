@@ -233,6 +233,8 @@ int32_t hid_get_data(const uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc);
 uint32_t hid_get_data_unsigned(const uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc);
+void hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+	    struct hid_location *loc, unsigned int value);
 int	hid_is_collection(const void *desc, usb_size_t size, uint32_t usage);
 struct usb_hid_descriptor *hid_get_descriptor_from_usb(
 	    struct usb_config_descriptor *cd,

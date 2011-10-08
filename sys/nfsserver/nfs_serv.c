@@ -157,6 +157,7 @@ ndclear(struct nameidata *nd)
 	nd->ni_vp = NULL;
 	nd->ni_dvp = NULL;
 	nd->ni_startdir = NULL;
+	nd->ni_strictrelative = 0;
 }
 
 /*

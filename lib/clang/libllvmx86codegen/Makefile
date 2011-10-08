@@ -16,7 +16,6 @@ SRCS=	SSEDomainFix.cpp \
 	X86ISelLowering.cpp \
 	X86InstrInfo.cpp \
 	X86JITInfo.cpp \
-	X86MCAsmInfo.cpp \
 	X86MCCodeEmitter.cpp \
 	X86MCInstLower.cpp \
 	X86MachObjectWriter.cpp \
@@ -31,10 +30,7 @@ TGHDRS=	Intrinsics \
 	X86GenDAGISel \
 	X86GenFastISel \
 	X86GenInstrInfo \
-	X86GenInstrNames \
 	X86GenRegisterInfo \
-	X86GenRegisterInfo.h \
-	X86GenRegisterNames \
-	X86GenSubtarget
+	X86GenSubtargetInfo
 
 .include "../clang.lib.mk"

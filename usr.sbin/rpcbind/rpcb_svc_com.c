@@ -1076,7 +1076,7 @@ netbuffree(struct netbuf *ap)
 extern bool_t __svc_clean_idle(fd_set *, int, bool_t);
 
 void
-my_svc_run()
+my_svc_run(void)
 {
 	size_t nfds;
 	struct pollfd pollfds[FD_SETSIZE];

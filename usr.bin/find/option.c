@@ -172,7 +172,7 @@ find_create(char ***argvp)
 	argv = *argvp;
 
 	if ((p = lookup_option(*argv)) == NULL)
-		errx(1, "%s: unknown option", *argv);
+		errx(1, "%s: unknown primary or operator", *argv);
 	++argv;
 
 	new = (p->create)(p, &argv);

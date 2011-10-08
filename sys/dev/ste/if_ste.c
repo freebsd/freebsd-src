@@ -458,10 +458,8 @@ ste_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	STE_UNLOCK(sc);
 
@@ -1176,7 +1174,7 @@ ste_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -2157,7 +2155,7 @@ ste_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 	STE_LOCK(sc);
-	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->ste_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
@@ -2261,7 +2259,7 @@ ste_setwol(struct ste_softc *sc)
 
 	STE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
 		/* Disable WOL. */
 		CSR_READ_1(sc, STE_WAKE_EVENT);
 		CSR_WRITE_1(sc, STE_WAKE_EVENT, 0);

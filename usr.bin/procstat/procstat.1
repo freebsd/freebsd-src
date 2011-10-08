@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007-2008 Robert N. M. Watson
+.\" Copyright (c) 2007-2009 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2010
+.Dd August 14, 2011
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm
 .Op Fl h
 .Op Fl n
+.Op Fl C
 .Op Fl w Ar interval
 .Op Fl b | c | f | i | j | k | s | t | v
 .Op Fl a | Ar pid ...
@@ -88,6 +89,11 @@ If the
 .Fl w
 flag is not specified, the output will not repeat.
 .Pp
+The
+.Fl C
+flag requests the printing of additional capability information in the file
+descriptor view.
+.Pp
 Some information, such as VM and file descriptor information, is available
 only to the owner of a process or the superuser.
 .Ss Binary Information
@@ -116,7 +122,8 @@ command line arguments (if available)
 Display detailed information about each file descriptor referenced by a
 process, including the process ID, command, file descriptor number, and
 per-file descriptor object information, such as object type and file system
-path:
+path.
+By default, the following information will be printed:
 .Pp
 .Bl -tag -width indent -compact
 .It PID
@@ -208,7 +215,17 @@ non-blocking
 direct I/O
 .It l
 lock held
+.It c
+descriptor is a capability
 .El
+.Pp
+If the
+.Fl C
+flag is specified, the vnode type, reference count, and offset fields will be
+omitted, and a new capabilities field will be included listing capabilities,
+as described in
+.Xr cap_new 2 ,
+present for each capability descriptor.
 .Ss Signal Disposition Information
 Display signal pending and disposition for a process:
 .Pp
@@ -306,8 +323,17 @@ effective group ID
 real group ID
 .It SVGID
 saved group ID
+.It FLAGS
+credential flags
 .It GROUPS
 group set
+.El
+.Pp
+The following credential flags may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It C
+capability mode
 .El
 .Ss Thread Information
 Display per-thread information, including process ID, per-thread ID, name,
@@ -402,6 +428,8 @@ needs copy
 .Xr fstat 1 ,
 .Xr ps 1 ,
 .Xr sockstat 1 ,
+.Xr cap_enter 2 ,
+.Xr cap_new 2 ,
 .Xr ddb 4 ,
 .Xr stack 9
 .Sh AUTHORS

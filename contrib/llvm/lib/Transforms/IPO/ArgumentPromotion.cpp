@@ -493,7 +493,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   // Start by computing a new prototype for the function, which is the same as
   // the old function, but has modified arguments.
   const FunctionType *FTy = F->getFunctionType();
-  std::vector<const Type*> Params;
+  std::vector<Type*> Params;
 
   typedef std::set<IndicesVector> ScalarizeTable;
 
@@ -733,12 +733,12 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
     Instruction *New;
     if (InvokeInst *II = dyn_cast<InvokeInst>(Call)) {
       New = InvokeInst::Create(NF, II->getNormalDest(), II->getUnwindDest(),
-                               Args.begin(), Args.end(), "", Call);
+                               Args, "", Call);
       cast<InvokeInst>(New)->setCallingConv(CS.getCallingConv());
       cast<InvokeInst>(New)->setAttributes(AttrListPtr::get(AttributesVec.begin(),
                                                           AttributesVec.end()));
     } else {
-      New = CallInst::Create(NF, Args.begin(), Args.end(), "", Call);
+      New = CallInst::Create(NF, Args, "", Call);
       cast<CallInst>(New)->setCallingConv(CS.getCallingConv());
       cast<CallInst>(New)->setAttributes(AttrListPtr::get(AttributesVec.begin(),
                                                         AttributesVec.end()));
@@ -771,8 +771,8 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   // function empty.
   NF->getBasicBlockList().splice(NF->begin(), F->getBasicBlockList());
 
-  // Loop over the argument list, transfering uses of the old arguments over to
-  // the new arguments, also transfering over the names as well.
+  // Loop over the argument list, transferring uses of the old arguments over to
+  // the new arguments, also transferring over the names as well.
   //
   for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(),
        I2 = NF->arg_begin(); I != E; ++I) {

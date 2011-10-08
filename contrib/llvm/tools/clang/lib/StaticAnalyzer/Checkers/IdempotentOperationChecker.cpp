@@ -46,7 +46,7 @@
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
@@ -59,14 +59,13 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <deque>
 
 using namespace clang;
 using namespace ento;
 
 namespace {
 class IdempotentOperationChecker
-  : public CheckerV2<check::PreStmt<BinaryOperator>,
+  : public Checker<check::PreStmt<BinaryOperator>,
                      check::PostStmt<BinaryOperator>,
                      check::EndAnalysis> {
 public:
@@ -336,10 +335,9 @@ void IdempotentOperationChecker::checkPostStmt(const BinaryOperator *B,
     = cast<StmtPoint>(C.getPredecessor()->getLocation()).getStmt();
   
   // Ignore implicit calls to setters.
-  if (isa<ObjCPropertyRefExpr>(predStmt))
+  if (!isa<BinaryOperator>(predStmt))
     return;
-  
-  assert(isa<BinaryOperator>(predStmt));
+
   Data.explodedNodes.Add(C.getPredecessor());
 }
 
@@ -532,12 +530,12 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
                                                       const CFGBlock *CB,
                                                       const CoreEngine &CE) {
 
-  CFGReachabilityAnalysis *CRA = AC->getCFGReachablityAnalysis();
+  CFGReverseBlockReachabilityAnalysis *CRA = AC->getCFGReachablityAnalysis();
   
   // Test for reachability from any aborted blocks to this block
-  typedef CoreEngine::BlocksAborted::const_iterator AbortedIterator;
-  for (AbortedIterator I = CE.blocks_aborted_begin(),
-      E = CE.blocks_aborted_end(); I != E; ++I) {
+  typedef CoreEngine::BlocksExhausted::const_iterator ExhaustedIterator;
+  for (ExhaustedIterator I = CE.blocks_exhausted_begin(),
+      E = CE.blocks_exhausted_end(); I != E; ++I) {
     const BlockEdge &BE =  I->first;
 
     // The destination block on the BlockEdge is the first block that was not
@@ -551,16 +549,25 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
     if (destBlock == CB || CRA->isReachable(destBlock, CB))
       return false;
   }
+
+  // Test for reachability from blocks we just gave up on.
+  typedef CoreEngine::BlocksAborted::const_iterator AbortedIterator;
+  for (AbortedIterator I = CE.blocks_aborted_begin(),
+       E = CE.blocks_aborted_end(); I != E; ++I) {
+    const CFGBlock *destBlock = I->first;
+    if (destBlock == CB || CRA->isReachable(destBlock, CB))
+      return false;
+  }
   
   // For the items still on the worklist, see if they are in blocks that
   // can eventually reach 'CB'.
   class VisitWL : public WorkList::Visitor {
     const CFGStmtMap *CBM;
     const CFGBlock *TargetBlock;
-    CFGReachabilityAnalysis &CRA;
+    CFGReverseBlockReachabilityAnalysis &CRA;
   public:
     VisitWL(const CFGStmtMap *cbm, const CFGBlock *targetBlock,
-            CFGReachabilityAnalysis &cra)
+            CFGReverseBlockReachabilityAnalysis &cra)
       : CBM(cbm), TargetBlock(targetBlock), CRA(cra) {}
     virtual bool visit(const WorkListUnit &U) {
       ProgramPoint P = U.getNode()->getLocation();
@@ -580,7 +587,7 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
       if (!B)
         return true;
       
-      return CRA.isReachable(B, TargetBlock);
+      return B == TargetBlock || CRA.isReachable(B, TargetBlock);
     }
   };
   VisitWL visitWL(AC->getCFGStmtMap(), CB, *CRA);
@@ -641,9 +648,10 @@ bool IdempotentOperationChecker::CanVary(const Expr *Ex,
     return false;
 
   // Cases requiring custom logic
-  case Stmt::SizeOfAlignOfExprClass: {
-    const SizeOfAlignOfExpr *SE = cast<const SizeOfAlignOfExpr>(Ex);
-    if (!SE->isSizeOf())
+  case Stmt::UnaryExprOrTypeTraitExprClass: {
+    const UnaryExprOrTypeTraitExpr *SE = 
+                       cast<const UnaryExprOrTypeTraitExpr>(Ex);
+    if (SE->getKind() != UETT_SizeOf)
       return false;
     return SE->getTypeOfArgument()->isVariableArrayType();
   }

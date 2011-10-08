@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "MBlaze.h"
-#include "MBlazeMCAsmInfo.h"
 #include "MBlazeTargetMachine.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
@@ -21,14 +20,6 @@
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
-  Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  default:
-    return new MBlazeMCAsmInfo();
-  }
-}
-
 static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCContext &Ctx, TargetAsmBackend &TAB,
                                     raw_ostream &_OS,
@@ -36,28 +27,24 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     bool RelaxAll,
                                     bool NoExecStack) {
   Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
+
+  if (TheTriple.isOSDarwin()) {
     llvm_unreachable("MBlaze does not support Darwin MACH-O format");
     return NULL;
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
+  }
+
+  if (TheTriple.isOSWindows()) {
     llvm_unreachable("MBlaze does not support Windows COFF format");
     return NULL;
-  default:
-    return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll,
-                             NoExecStack);
   }
+
+  return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll, NoExecStack);
 }
 
 
 extern "C" void LLVMInitializeMBlazeTarget() {
   // Register the target.
   RegisterTargetMachine<MBlazeTargetMachine> X(TheMBlazeTarget);
-
-  // Register the target asm info.
-  RegisterAsmInfoFn A(TheMBlazeTarget, createMCAsmInfo);
 
   // Register the MC code emitter
   TargetRegistry::RegisterCodeEmitter(TheMBlazeTarget,
@@ -81,13 +68,14 @@ extern "C" void LLVMInitializeMBlazeTarget() {
 // an easier handling.
 MBlazeTargetMachine::
 MBlazeTargetMachine(const Target &T, const std::string &TT,
-                    const std::string &FS):
-  LLVMTargetMachine(T, TT),
-  Subtarget(TT, FS),
+                    const std::string &CPU, const std::string &FS):
+  LLVMTargetMachine(T, TT, CPU, FS),
+  Subtarget(TT, CPU, FS),
   DataLayout("E-p:32:32:32-i8:8:8-i16:16:16"),
   InstrInfo(*this),
   FrameLowering(Subtarget),
-  TLInfo(*this), TSInfo(*this), ELFWriterInfo(*this) {
+  TLInfo(*this), TSInfo(*this), ELFWriterInfo(*this),
+  InstrItins(Subtarget.getInstrItineraryData()) {
   if (getRelocationModel() == Reloc::Default) {
       setRelocationModel(Reloc::Static);
   }

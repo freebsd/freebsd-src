@@ -111,10 +111,16 @@ static void	exphy_reset(struct mii_softc *);
  */
 static const struct mii_phydesc exphys[] = {
 	{ 0, 0, "3Com internal media interface" },
-	MII_PHY_DESC(BROADCOM, 3C905C),
+	MII_PHY_DESC(xxBROADCOM, 3C905C),
 	MII_PHY_END
 };
-	
+
+static const struct mii_phy_funcs exphy_funcs = {
+	exphy_service,
+	ukphy_status,
+	exphy_reset
+};
+
 static int
 exphy_probe(device_t dev)
 {
@@ -128,40 +134,12 @@ exphy_probe(device_t dev)
 static int
 exphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
-
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = exphy_service;
-	sc->mii_pdata = mii;
 
 	/*
 	 * The 3Com PHY can never be isolated.
 	 */
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    MII_MEDIA_100_TX);
-
-	exphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-#undef ADD
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &exphy_funcs, 1);
 	return (0);
 }
 
@@ -198,7 +176,7 @@ exphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	ukphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

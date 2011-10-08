@@ -171,6 +171,7 @@ dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
 dev/fdc/fdc_pccard.c		optional fdc pccard
 dev/fe/if_fe_isa.c		optional fe isa
+dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/hptmv/entry.c		optional hptmv
@@ -284,7 +285,7 @@ i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
-i386/i386/in_cksum.c		optional inet
+i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
@@ -352,7 +353,6 @@ i386/linux/linux_support.s	optional compat_linux	\
 	dependency 	"linux_assym.h"
 i386/linux/linux_sysent.c	optional compat_linux
 i386/linux/linux_sysvec.c	optional compat_linux
-i386/pci/pci_bus.c		optional pci
 i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci 
 i386/svr4/svr4_locore.s		optional compat_svr4	\
@@ -405,14 +405,15 @@ x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
-x86/pci/qpi.c			standard
+x86/pci/pci_bus.c		optional pci
+x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native
-x86/x86/mptable_pci.c		optional apic pci
+x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard

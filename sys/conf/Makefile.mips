@@ -50,7 +50,13 @@ HACK_EXTRA_FLAGS=-shared
 # is extremely poor, as well as -mno-abicalls to force no ABI usage.
 CFLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
 HACK_EXTRA_FLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
-TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} $(ARCH_FLAGS)
+TRAMP_ARCH_FLAGS?=$(ARCH_FLAGS)
+TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} ${TRAMP_ARCH_FLAGS}
+.if ${MACHINE_ARCH:Mmips64*} != ""
+TRAMP_ELFSIZE=64
+.else
+TRAMP_ELFSIZE=32
+.endif
 
 # XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
@@ -64,11 +70,12 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	sed -e s/${KERNLOADADDR}/${TRAMPLOADADDR}/ -e s/" + SIZEOF_HEADERS"// \
 		 ${LDSCRIPT_NAME} > ${LDSCRIPT_NAME}.tramp.noheader
 	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
-		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader  \
-		-DKERNNAME="\"${KERNEL_KO}.tmp\"" $S/$M/$M/elf_trampoline.c \
-		$S/$M/$M/inckern.S  -o ${KERNEL_KO}.tramp.noheader 
-	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-		${KERNEL_KO}.tramp.bin \
+		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader \
+		-DKERNNAME="\"${KERNEL_KO}.tmp\"" -DELFSIZE=${TRAMP_ELFSIZE} \
+		$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
+		-o ${KERNEL_KO}.tramp.elf
+	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.elf \
+		${KERNEL_KO}.tramp.bin
 
 %BEFORE_DEPEND
 
@@ -83,7 +90,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 %CLEAN
 
 CLEAN+=	${LDSCRIPT_NAME} ${LDSCRIPT_NAME}.tramp.noheader \
-	${KERNEL_KO}.tramp.noheader ${KERNEL_KO}.tramp.bin
+	${KERNEL_KO}.tramp.elf ${KERNEL_KO}.tramp.bin
 
 ${LDSCRIPT_NAME}: $S/conf/${LDSCRIPT_NAME}
 	sed s/KERNLOADADDR/${KERNLOADADDR}/g $S/conf/${LDSCRIPT_NAME} \

@@ -111,6 +111,12 @@ DRIVER_MODULE(gentbi, miibus, gentbi_driver, gentbi_devclass, 0, 0);
 static int	gentbi_service(struct mii_softc *, struct mii_data *, int);
 static void	gentbi_status(struct mii_softc *);
 
+static const struct mii_phy_funcs gentbi_funcs = {
+	gentbi_service,
+	gentbi_status,
+	mii_phy_reset
+};
+
 static int
 gentbi_probe(device_t dev)
 {
@@ -152,36 +158,19 @@ static int
 gentbi_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    MII_OUI(ma->mii_id1, ma->mii_id2),
-		    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &gentbi_funcs, 0);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = gentbi_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOMANPAUSE;
-
-	mii_phy_reset(sc);
+	PHY_RESET(sc);
 
 	/*
 	 * Mask out all media in the BMSR.  We only are really interested
 	 * in "auto".
 	 */
 	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask & ~BMSR_MEDIAMASK;
+	    PHY_READ(sc, MII_BMSR) & sc->mii_capmask & ~BMSR_MEDIAMASK;
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
@@ -218,7 +207,7 @@ gentbi_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	gentbi_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

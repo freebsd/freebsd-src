@@ -282,6 +282,18 @@ public:
     return NamingClass != 0;
   }
 
+  /// \brief Set whether the name lookup is triggered by a 
+  /// using declaration.
+  void setUsingDeclaration(bool U) {
+    UsingDeclaration = U;
+  }
+
+  /// \brief Returns whether the name lookup is triggered by a 
+  /// using declaration.
+  bool isUsingDeclaration() const {
+    return UsingDeclaration;
+  }
+
   /// \brief Returns the 'naming class' for this lookup, i.e. the
   /// class which was looked into to find these results.
   ///
@@ -439,6 +451,7 @@ public:
     Decls.clear();
     if (Paths) deletePaths(Paths);
     Paths = NULL;
+    NamingClass = 0;
   }
 
   /// \brief Clears out any current state and re-initializes for a
@@ -602,6 +615,10 @@ private:
   bool HideTags;
 
   bool Diagnose;
+
+  /// \brief True if the lookup is triggered by a using declaration.
+  /// Necessary to handle a MSVC bug.
+  bool UsingDeclaration;
 };
 
   /// \brief Consumes visible declarations found when searching for

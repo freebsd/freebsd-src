@@ -321,13 +321,15 @@ nullfs_vget(mp, ino, flags, vpp)
 }
 
 static int
-nullfs_fhtovp(mp, fidp, vpp)
+nullfs_fhtovp(mp, fidp, flags, vpp)
 	struct mount *mp;
 	struct fid *fidp;
+	int flags;
 	struct vnode **vpp;
 {
 	int error;
-	error = VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, vpp);
+	error = VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, LK_EXCLUSIVE,
+	    vpp);
 	if (error)
 		return (error);
 

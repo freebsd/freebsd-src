@@ -18,7 +18,6 @@
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/SmallVector.h"
 #include <string>
-#include <vector>
 #include <cassert>
 
 namespace clang {
@@ -96,8 +95,8 @@ public:
   /// _Pragma expansion.  This has a variety of magic semantics that this method
   /// sets up.  It returns a new'd Lexer that must be delete'd when done.
   static Lexer *Create_PragmaLexer(SourceLocation SpellingLoc,
-                                   SourceLocation InstantiationLocStart,
-                                   SourceLocation InstantiationLocEnd,
+                                   SourceLocation ExpansionLocStart,
+                                   SourceLocation ExpansionLocEnd,
                                    unsigned TokLen, Preprocessor &PP);
 
 
@@ -236,6 +235,20 @@ public:
                                  const SourceManager &SourceMgr,
                                  const LangOptions &Features, 
                                  bool *Invalid = 0);
+
+  /// getSpelling - This method is used to get the spelling of the
+  /// token at the given source location.  If, as is usually true, it
+  /// is not necessary to copy any data, then the returned string may
+  /// not point into the provided buffer.
+  ///
+  /// This method lexes at the expansion depth of the given
+  /// location and does not jump to the expansion or spelling
+  /// location.
+  static llvm::StringRef getSpelling(SourceLocation loc,
+                                     llvm::SmallVectorImpl<char> &buffer,
+                                     const SourceManager &SourceMgr,
+                                     const LangOptions &Features,
+                                     bool *invalid = 0);
   
   /// MeasureTokenLength - Relex the token at the specified location and return
   /// its length in bytes in the input file.  If the token needs cleaning (e.g.
@@ -280,7 +293,19 @@ public:
   static SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
                                             const SourceManager &SM,
                                             const LangOptions &Features);
-    
+
+  /// \brief Returns true if the given MacroID location points at the first
+  /// token of the macro expansion.
+  static bool isAtStartOfMacroExpansion(SourceLocation loc,
+                                            const SourceManager &SM,
+                                            const LangOptions &LangOpts);
+
+  /// \brief Returns true if the given MacroID location points at the last
+  /// token of the macro expansion.
+  static bool isAtEndOfMacroExpansion(SourceLocation loc,
+                                          const SourceManager &SM,
+                                          const LangOptions &LangOpts);
+
   /// \brief Compute the preamble of the given file.
   ///
   /// The preamble of a file contains the initial comments, include directives,

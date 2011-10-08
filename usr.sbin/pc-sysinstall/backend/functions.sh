@@ -91,18 +91,17 @@ strip_white_space()
     exit 1
   fi
 
-  VAL=`echo "$1" | tr -d ' '`
-  export VAL
+  export VAL=`echo "$1" | tr -d ' '`
 };
 
 # Displays an error message and exits with error 1
 exit_err()
 {
   # Echo the message for the users benefit
-  echo "$1"
+  echo "EXITERROR: $1"
 
   # Save this error to the log file
-  echo "${1}" >>$LOGOUT
+  echo "EXITERROR: ${1}" >>$LOGOUT
 
   # Check if we need to unmount any file-systems after this failure
   unmount_all_filesystems_failure
@@ -239,7 +238,7 @@ fetch_file()
 
     # Check if the download is finished
     ps -p ${PID} >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       break;
     fi
@@ -278,6 +277,7 @@ get_zpool_name()
     # Need to generate a zpool name for this device
     NUM=`ls ${TMPDIR}/.zpools/ | wc -l | sed 's| ||g'`
     NEWNAME="${BASENAME}${NUM}"
+    mkdir -p ${TMPDIR}/.zpools/`dirname $DEVICE`
     echo "$NEWNAME" >${TMPDIR}/.zpools/${DEVICE} 
     echo "${NEWNAME}"
     return
@@ -293,7 +293,7 @@ iscompressed()
   RES=1
 
   if echo "${FILE}" | \
-    grep -iE '\.(Z|lzo|lzw|lzma|gz|bz2|xz|zip)$' >/dev/null 2>&1
+    grep -qiE '\.(Z|lzo|lzw|lzma|gz|bz2|xz|zip)$' 2>&1
   then
     RES=0
   fi
@@ -446,11 +446,11 @@ install_fresh()
     # Now add any users
     setup_users
 
-    # Now run any commands specified
-    run_commands
-  
     # Do any last cleanup / setup before unmounting
     run_final_cleanup
+
+    # Now run any commands specified
+    run_commands
 
     # Unmount and finish up
     unmount_all_filesystems

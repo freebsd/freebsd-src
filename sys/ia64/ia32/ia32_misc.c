@@ -48,3 +48,14 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 
 	return (EOPNOTSUPP);
 }
+
+#ifdef COMPAT_43
+int
+ofreebsd32_getpagesize(struct thread *td,
+    struct ofreebsd32_getpagesize_args *uap)
+{
+
+	td->td_retval[0] = IA32_PAGE_SIZE;
+	return (0);
+}
+#endif

@@ -14,7 +14,7 @@ INFOENTRY_gccint= "* gccint: (gccint).		The GNU compiler family internal documen
 INFOENTRY_cppinternals= "* cppinternals: (cppinternals).		The GNU compiler preprocessor internal documentation."
 
 gcc.info: gcc.texi gcc-common.texi gcc-vers.texi frontends.texi		\
-	 standards.texi invoke.texi extend.texi md.texi objc.texi	\
+	 standards.texi invoke.texi extend.texi md.texi			\
 	 gcov.texi trouble.texi bugreport.texi service.texi		\
 	 contribute.texi compat.texi funding.texi gnu.texi gpl.texi	\
 	 fdl.texi contrib.texi cppenv.texi cppopts.texi			\

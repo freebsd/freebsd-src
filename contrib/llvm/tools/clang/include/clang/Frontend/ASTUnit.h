@@ -51,6 +51,7 @@ class HeaderSearch;
 class Preprocessor;
 class SourceManager;
 class TargetInfo;
+class ASTFrontendAction;
 
 using namespace idx;
   
@@ -71,12 +72,12 @@ public:
   
 private:
   llvm::IntrusiveRefCntPtr<Diagnostic> Diagnostics;
-  llvm::OwningPtr<FileManager>      FileMgr;
-  llvm::OwningPtr<SourceManager>    SourceMgr;
+  llvm::IntrusiveRefCntPtr<FileManager>      FileMgr;
+  llvm::IntrusiveRefCntPtr<SourceManager>    SourceMgr;
   llvm::OwningPtr<HeaderSearch>     HeaderInfo;
-  llvm::OwningPtr<TargetInfo>       Target;
-  llvm::OwningPtr<Preprocessor>     PP;
-  llvm::OwningPtr<ASTContext>       Ctx;
+  llvm::IntrusiveRefCntPtr<TargetInfo>       Target;
+  llvm::IntrusiveRefCntPtr<Preprocessor>     PP;
+  llvm::IntrusiveRefCntPtr<ASTContext>       Ctx;
 
   FileSystemOptions FileSystemOpts;
 
@@ -90,7 +91,7 @@ private:
   
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
-  llvm::OwningPtr<CompilerInvocation> Invocation;
+  llvm::IntrusiveRefCntPtr<CompilerInvocation> Invocation;
   
   /// \brief The set of target features.
   ///
@@ -115,6 +116,9 @@ private:
 
   /// \brief Whether we should time each operation.
   bool WantTiming;
+
+  /// \brief Whether the ASTUnit should delete the remapped buffers.
+  bool OwnsRemappedFileBuffers;
   
   /// Track the top-level decls which appeared in an ASTUnit which was loaded
   /// from a source file.
@@ -245,6 +249,10 @@ private:
   /// \brief Whether we should be caching code-completion results.
   bool ShouldCacheCodeCompletionResults;
   
+  /// \brief Whether we want to include nested macro expansions in the
+  /// detailed preprocessing record.
+  bool NestedMacroExpansions;
+  
   static void ConfigureDiags(llvm::IntrusiveRefCntPtr<Diagnostic> &Diags,
                              const char **ArgBegin, const char **ArgEnd,
                              ASTUnit &AST, bool CaptureDiagnostics);
@@ -355,7 +363,7 @@ private:
                   unsigned MaxLines, bool &CreatedBuffer);
   
   llvm::MemoryBuffer *getMainBufferWithPrecompiledPreamble(
-                                         CompilerInvocation PreambleInvocation,
+                               const CompilerInvocation &PreambleInvocationIn,
                                                      bool AllowRebuild = true,
                                                         unsigned MaxLines = 0);
   void RealizeTopLevelDeclsFromPreamble();
@@ -393,11 +401,11 @@ public:
   const SourceManager &getSourceManager() const { return *SourceMgr; }
         SourceManager &getSourceManager()       { return *SourceMgr; }
 
-  const Preprocessor &getPreprocessor() const { return *PP.get(); }
-        Preprocessor &getPreprocessor()       { return *PP.get(); }
+  const Preprocessor &getPreprocessor() const { return *PP; }
+        Preprocessor &getPreprocessor()       { return *PP; }
 
-  const ASTContext &getASTContext() const { return *Ctx.get(); }
-        ASTContext &getASTContext()       { return *Ctx.get(); }
+  const ASTContext &getASTContext() const { return *Ctx; }
+        ASTContext &getASTContext()       { return *Ctx; }
 
   bool hasSema() const { return TheSema; }
   Sema &getSema() const { 
@@ -421,6 +429,9 @@ public:
   }
                         
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
+
+  bool getOwnsRemappedFileBuffers() const { return OwnsRemappedFileBuffers; }
+  void setOwnsRemappedFileBuffers(bool val) { OwnsRemappedFileBuffers = val; }
 
   /// \brief Retrieve the maximum PCH level of declarations that a
   /// traversal of the translation unit should consider.
@@ -529,10 +540,16 @@ public:
   /// that might still be used as a precompiled header or preamble.
   bool isCompleteTranslationUnit() const { return CompleteTranslationUnit; }
 
+  typedef llvm::PointerUnion<const char *, const llvm::MemoryBuffer *>
+      FilenameOrMemBuf;
   /// \brief A mapping from a file name to the memory buffer that stores the
   /// remapped contents of that file.
-  typedef std::pair<std::string, const llvm::MemoryBuffer *> RemappedFile;
-  
+  typedef std::pair<std::string, FilenameOrMemBuf> RemappedFile;
+
+  /// \brief Create a ASTUnit. Gets ownership of the passed CompilerInvocation. 
+  static ASTUnit *create(CompilerInvocation *CI,
+                         llvm::IntrusiveRefCntPtr<Diagnostic> Diags);
+
   /// \brief Create a ASTUnit from an AST file.
   ///
   /// \param Filename - The AST file to load.
@@ -562,6 +579,21 @@ private:
   
 public:
   
+  /// \brief Create an ASTUnit from a source file, via a CompilerInvocation
+  /// object, by invoking the optionally provided ASTFrontendAction. 
+  ///
+  /// \param CI - The compiler invocation to use; it must have exactly one input
+  /// source file. The ASTUnit takes ownership of the CompilerInvocation object.
+  ///
+  /// \param Diags - The diagnostics engine to use for reporting errors; its
+  /// lifetime is expected to extend past that of the returned ASTUnit.
+  ///
+  /// \param Action - The ASTFrontendAction to invoke. Its ownership is not
+  /// transfered.
+  static ASTUnit *LoadFromCompilerInvocationAction(CompilerInvocation *CI,
+                                     llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
+                                             ASTFrontendAction *Action = 0);
+
   /// LoadFromCompilerInvocation - Create an ASTUnit from a source file, via a
   /// CompilerInvocation object.
   ///
@@ -579,7 +611,8 @@ public:
                                              bool CaptureDiagnostics = false,
                                              bool PrecompilePreamble = false,
                                           bool CompleteTranslationUnit = true,
-                                       bool CacheCodeCompletionResults = false);
+                                       bool CacheCodeCompletionResults = false,
+                                       bool NestedMacroExpansions = true);
 
   /// LoadFromCommandLine - Create an ASTUnit from a vector of command line
   /// arguments, which must specify exactly one source file.
@@ -603,11 +636,13 @@ public:
                                       bool CaptureDiagnostics = false,
                                       RemappedFile *RemappedFiles = 0,
                                       unsigned NumRemappedFiles = 0,
+                                      bool RemappedFilesKeepOriginalName = true,
                                       bool PrecompilePreamble = false,
                                       bool CompleteTranslationUnit = true,
                                       bool CacheCodeCompletionResults = false,
                                       bool CXXPrecompilePreamble = false,
-                                      bool CXXChainedPCH = false);
+                                      bool CXXChainedPCH = false,
+                                      bool NestedMacroExpansions = true);
   
   /// \brief Reparse the source files using the same command-line options that
   /// were originally used to produce this translation unit.
@@ -645,8 +680,13 @@ public:
 
   /// \brief Save this translation unit to a file with the given name.
   ///
+  /// \returns An indication of whether the save was successful or not.
+  CXSaveError Save(llvm::StringRef File);
+
+  /// \brief Serialize this translation unit with the given output stream.
+  ///
   /// \returns True if an error occurred, false otherwise.
-  bool Save(llvm::StringRef File);
+  bool serialize(llvm::raw_ostream &OS);
 };
 
 } // namespace clang

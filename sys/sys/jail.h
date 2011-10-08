@@ -135,6 +135,9 @@ MALLOC_DECLARE(M_PRISON);
 
 #define	HOSTUUIDLEN	64
 
+struct racct;
+struct prison_racct;
+
 /*
  * This structure describes a prison.  It is pointed to by all struct
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
@@ -166,7 +169,8 @@ struct prison {
 	int		 pr_ip6s;			/* (p) number of v6 IPs */
 	struct in_addr	*pr_ip4;			/* (p) v4 IPs of jail */
 	struct in6_addr	*pr_ip6;			/* (p) v6 IPs of jail */
-	void		*pr_sparep[4];
+	struct prison_racct *pr_prison_racct;		/* (c) racct jail proxy */
+	void		*pr_sparep[3];
 	int		 pr_childcount;			/* (a) number of child jails */
 	int		 pr_childmax;			/* (p) maximum child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
@@ -179,6 +183,13 @@ struct prison {
 	char		 pr_hostname[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
 	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
+};
+
+struct prison_racct {
+	LIST_ENTRY(prison_racct) prr_next;
+	char		prr_name[MAXHOSTNAMELEN];
+	u_int		prr_refcount;
+	struct racct	*prr_racct;
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
@@ -380,6 +391,11 @@ int prison_if(struct ucred *cred, struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
 int sysctl_jail_param(SYSCTL_HANDLER_ARGS);
+void prison_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3);
+struct prison_racct *prison_racct_find(const char *name);
+void prison_racct_hold(struct prison_racct *prr);
+void prison_racct_free(struct prison_racct *prr);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */

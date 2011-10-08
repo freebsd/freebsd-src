@@ -5,7 +5,7 @@
 
 # PROVIDE: NETWORKING NETWORK
 # REQUIRE: netif netoptions routing ppp ipfw stf faith
-# REQUIRE: defaultroute routed mrouted route6d mroute6d resolv
+# REQUIRE: defaultroute routed mrouted route6d mroute6d resolv bridge
 
 #	This is a dummy dependency, for services which require networking
 #	to be operational before starting.

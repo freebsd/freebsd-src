@@ -842,6 +842,9 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
 
   // Save the name
   path = FNBuffer;
+
+  // By default mkstemp sets the mode to 0600, so update mode bits now.
+  AddPermissionBits (*this, 0666);
 #elif defined(HAVE_MKTEMP)
   // If we don't have mkstemp, use the old and obsolete mktemp function.
   if (mktemp(FNBuffer) == 0)
@@ -869,18 +872,18 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
   return false;
 }
 
-const char *Path::MapInFilePages(int FD, uint64_t FileSize) {
+const char *Path::MapInFilePages(int FD, size_t FileSize, off_t Offset) {
   int Flags = MAP_PRIVATE;
 #ifdef MAP_FILE
   Flags |= MAP_FILE;
 #endif
-  void *BasePtr = ::mmap(0, FileSize, PROT_READ, Flags, FD, 0);
+  void *BasePtr = ::mmap(0, FileSize, PROT_READ, Flags, FD, Offset);
   if (BasePtr == MAP_FAILED)
     return 0;
   return (const char*)BasePtr;
 }
 
-void Path::UnMapFilePages(const char *BasePtr, uint64_t FileSize) {
+void Path::UnMapFilePages(const char *BasePtr, size_t FileSize) {
   ::munmap((void*)BasePtr, FileSize);
 }
 

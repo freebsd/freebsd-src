@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/racct.h>
 #include <sys/refcount.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -90,6 +91,7 @@ loginclass_free(struct loginclass *lc)
 
 	mtx_lock(&loginclasses_lock);
 	if (refcount_release(&lc->lc_refcount)) {
+		racct_destroy(&lc->lc_racct);
 		LIST_REMOVE(lc, lc_next);
 		mtx_unlock(&loginclasses_lock);
 		free(lc, M_LOGINCLASS);
@@ -115,6 +117,7 @@ loginclass_find(const char *name)
 		return (NULL);
 
 	newlc = malloc(sizeof(*newlc), M_LOGINCLASS, M_ZERO | M_WAITOK);
+	racct_create(&newlc->lc_racct);
 
 	mtx_lock(&loginclasses_lock);
 	LIST_FOREACH(lc, &loginclasses, lc_next) {
@@ -124,6 +127,7 @@ loginclass_find(const char *name)
 		/* Found loginclass with a matching name? */
 		loginclass_hold(lc);
 		mtx_unlock(&loginclasses_lock);
+		racct_destroy(&newlc->lc_racct);
 		free(newlc, M_LOGINCLASS);
 		return (lc);
 	}
@@ -148,7 +152,7 @@ struct getloginclass_args {
 #endif
 /* ARGSUSED */
 int
-getloginclass(struct thread *td, struct getloginclass_args *uap)
+sys_getloginclass(struct thread *td, struct getloginclass_args *uap)
 {
 	int error = 0;
 	size_t lcnamelen;
@@ -180,7 +184,7 @@ struct setloginclass_args {
 #endif
 /* ARGSUSED */
 int
-setloginclass(struct thread *td, struct setloginclass_args *uap)
+sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 {
 	struct proc *p = td->td_proc;
 	int error;
@@ -205,11 +209,25 @@ setloginclass(struct thread *td, struct setloginclass_args *uap)
 	newcred->cr_loginclass = newlc;
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
-
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	loginclass_free(oldcred->cr_loginclass);
 	crfree(oldcred);
 
 	return (0);
+}
+
+void
+loginclass_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3)
+{
+	struct loginclass *lc;
+
+	mtx_lock(&loginclasses_lock);
+	LIST_FOREACH(lc, &loginclasses, lc_next)
+		(callback)(lc->lc_racct, arg2, arg3);
+	mtx_unlock(&loginclasses_lock);
 }
 
 static void

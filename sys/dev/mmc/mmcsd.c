@@ -137,7 +137,7 @@ mmcsd_attach(device_t dev)
 	d->d_drv1 = sc;
 	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
-	d->d_mediasize = mmc_get_media_size(dev) * d->d_sectorsize;
+	d->d_mediasize = (off_t)mmc_get_media_size(dev) * d->d_sectorsize;
 	d->d_stripeoffset = 0;
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);

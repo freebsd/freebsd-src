@@ -18,9 +18,11 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/VectorExtras.h"
-#include <set>
 #include <map>
+#include <algorithm>
+#include <functional>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -121,7 +123,6 @@ namespace {
 } // end anonymous namespace.
 
 
-
 //===----------------------------------------------------------------------===//
 // Warning Tables (.inc file) generation.
 //===----------------------------------------------------------------------===//
@@ -162,7 +163,7 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
       OS << ", \"";
       OS.write_escaped(DI->getDef()->getValueAsString("GroupName")) << '"';
     } else {
-      OS << ", 0";
+      OS << ", \"\"";
     }
 
     // SFINAE bit
@@ -179,6 +180,14 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
 
     // Category number.
     OS << ", " << CategoryIDs.getID(getDiagnosticCategory(&R, DGParentMap));
+
+    // Brief
+    OS << ", \"";
+    OS.write_escaped(R.getValueAsString("Brief")) << '"';
+
+    // Explanation 
+    OS << ", \"";
+    OS.write_escaped(R.getValueAsString("Explanation")) << '"';
     OS << ")\n";
   }
 }
@@ -186,6 +195,15 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
 //===----------------------------------------------------------------------===//
 // Warning Group Tables generation
 //===----------------------------------------------------------------------===//
+
+static std::string getDiagCategoryEnum(llvm::StringRef name) {
+  if (name.empty())
+    return "DiagCat_None";
+  llvm::SmallString<256> enumName = llvm::StringRef("DiagCat_");
+  for (llvm::StringRef::iterator I = name.begin(), E = name.end(); I != E; ++I)
+    enumName += isalnum(*I) ? *I : '_';
+  return enumName.str();
+}
 
 namespace {
 struct GroupInfo {
@@ -267,7 +285,9 @@ void ClangDiagGroupsEmitter::run(raw_ostream &OS) {
   for (std::map<std::string, GroupInfo>::iterator
        I = DiagsInGroup.begin(), E = DiagsInGroup.end(); I != E; ++I) {
     // Group option string.
-    OS << "  { \"";
+    OS << "  { ";
+    OS << I->first.size() << ", ";
+    OS << "\"";
     OS.write_escaped(I->first) << "\","
                                << std::string(MaxLen-I->first.size()+1, ' ');
     
@@ -291,6 +311,52 @@ void ClangDiagGroupsEmitter::run(raw_ostream &OS) {
   OS << "\n#ifdef GET_CATEGORY_TABLE\n";
   for (DiagCategoryIDMap::iterator I = CategoriesByID.begin(),
        E = CategoriesByID.end(); I != E; ++I)
-    OS << "CATEGORY(\"" << *I << "\")\n";
+    OS << "CATEGORY(\"" << *I << "\", " << getDiagCategoryEnum(*I) << ")\n";
   OS << "#endif // GET_CATEGORY_TABLE\n\n";
+}
+
+//===----------------------------------------------------------------------===//
+// Diagnostic name index generation
+//===----------------------------------------------------------------------===//
+
+namespace {
+struct RecordIndexElement
+{
+  RecordIndexElement() {}
+  explicit RecordIndexElement(Record const &R):
+    Name(R.getName()) {}
+  
+  std::string Name;
+};
+
+struct RecordIndexElementSorter :
+  public std::binary_function<RecordIndexElement, RecordIndexElement, bool> {
+  
+  bool operator()(RecordIndexElement const &Lhs,
+                  RecordIndexElement const &Rhs) const {
+    return Lhs.Name < Rhs.Name;
+  }
+  
+};
+
+} // end anonymous namespace.
+
+void ClangDiagsIndexNameEmitter::run(raw_ostream &OS) {
+  const std::vector<Record*> &Diags =
+    Records.getAllDerivedDefinitions("Diagnostic");
+  
+  std::vector<RecordIndexElement> Index;
+  Index.reserve(Diags.size());
+  for (unsigned i = 0, e = Diags.size(); i != e; ++i) {
+    const Record &R = *(Diags[i]);    
+    Index.push_back(RecordIndexElement(R));
+  }
+  
+  std::sort(Index.begin(), Index.end(), RecordIndexElementSorter());
+  
+  for (unsigned i = 0, e = Index.size(); i != e; ++i) {
+    const RecordIndexElement &R = Index[i];
+    
+    OS << "DIAG_NAME_INDEX(" << R.Name << ")\n";
+  }
 }

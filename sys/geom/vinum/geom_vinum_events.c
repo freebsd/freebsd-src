@@ -109,6 +109,12 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 	buf = NULL;
 
 	G_VINUM_DEBUG(2, "tasted drive on '%s'", pp->name);
+	if ((GV_CFG_OFFSET % pp->sectorsize) != 0 ||
+	    (GV_CFG_LEN % pp->sectorsize) != 0) {
+		G_VINUM_DEBUG(0, "provider %s has unsupported sectorsize.",
+		    pp->name);
+		return;
+	}
 
 	gp = sc->geom;
 	g_topology_lock();

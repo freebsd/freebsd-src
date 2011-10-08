@@ -36,12 +36,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/ia64_cpu.h>
 #include <machine/pte.h>
 
-#include <ia64/include/vmparam.h>
-
 #include <efi.h>
 #include <efilib.h>
 
 #include "libia64.h"
+
+static u_int itr_idx = 0;
+static u_int dtr_idx = 0;
+
+static vm_offset_t ia64_text_start;
+static size_t ia64_text_size;
+
+static vm_offset_t ia64_data_start;
+static size_t ia64_data_size;
 
 static int elf64_exec(struct preloaded_file *amp);
 static int elf64_obj_exec(struct preloaded_file *amp);
@@ -60,6 +67,26 @@ struct file_format *file_formats[] = {
 	&ia64_elf_obj,
 	NULL
 };
+
+static u_int
+sz2shft(vm_offset_t ofs, vm_size_t sz)
+{
+	vm_size_t s;
+	u_int shft;
+
+	shft = 12;	/* Start with 4K */
+	s = 1 << shft;
+	while (s <= sz) {
+		shft++;
+		s <<= 1;
+	}
+	do {
+		shft--;
+		s >>= 1;
+	} while (ofs & (s - 1));
+
+	return (shft);
+}
 
 /*
  * Entered with psr.ic and psr.i both zero.
@@ -84,49 +111,43 @@ enter_kernel(uint64_t start, struct bootinfo *bi)
 	/* NOTREACHED */
 }
 
-static void
-mmu_wire(vm_offset_t va, vm_paddr_t pa, vm_size_t sz, u_int acc)
+static u_int
+mmu_wire(vm_offset_t va, vm_paddr_t pa, u_int pgshft, u_int acc)
 {
-	static u_int iidx = 0, didx = 0;
 	pt_entry_t pte;
-	u_int shft;
 
 	/* Round up to the smallest possible page size. */
-	if (sz < 4096)
-		sz = 4096;
-	/* Determine the exponent (base 2). */
-	shft = 0;
-	while (sz > 1) {
-		shft++;
-		sz >>= 1;
-	}
+	if (pgshft < 12)
+		pgshft = 12;
 	/* Truncate to the largest possible page size (256MB). */
-	if (shft > 28)
-		shft = 28;
+	if (pgshft > 28)
+		pgshft = 28;
 	/* Round down to a valid (mappable) page size. */
-	if (shft > 14 && (shft & 1) != 0)
-		shft--;
+	if (pgshft > 14 && (pgshft & 1) != 0)
+		pgshft--;
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | (acc & PTE_AR_MASK) | (pa & PTE_PPN_MASK);
 
 	__asm __volatile("mov cr.ifa=%0" :: "r"(va));
-	__asm __volatile("mov cr.itir=%0" :: "r"(shft << 2));
+	__asm __volatile("mov cr.itir=%0" :: "r"(pgshft << 2));
 	__asm __volatile("srlz.d;;");
 
-	__asm __volatile("ptr.d %0,%1" :: "r"(va), "r"(shft << 2));
+	__asm __volatile("ptr.d %0,%1" :: "r"(va), "r"(pgshft << 2));
 	__asm __volatile("srlz.d;;");
-	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(didx), "r"(pte));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(dtr_idx), "r"(pte));
 	__asm __volatile("srlz.d;;");
-	didx++;
+	dtr_idx++;
 
-	if (acc == PTE_AR_RWX) {
-		__asm __volatile("ptr.i %0,%1;;" :: "r"(va), "r"(shft << 2));
+	if (acc == PTE_AR_RWX || acc == PTE_AR_RX) {
+		__asm __volatile("ptr.i %0,%1;;" :: "r"(va), "r"(pgshft << 2));
 		__asm __volatile("srlz.i;;");
-		__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(iidx), "r"(pte));
+		__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(itr_idx), "r"(pte));
 		__asm __volatile("srlz.i;;");
-		iidx++;
+		itr_idx++;
 	}
+
+	return (pgshft);
 }
 
 static void
@@ -143,28 +164,43 @@ mmu_setup_legacy(uint64_t entry)
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 	__asm __volatile("srlz.i;;");
 
-	mmu_wire(entry, IA64_RR_MASK(entry), 1UL << 28, PTE_AR_RWX);
+	mmu_wire(entry, IA64_RR_MASK(entry), 28, PTE_AR_RWX);
 }
 
 static void
-mmu_setup_paged(vm_offset_t pbvm_top)
+mmu_setup_paged(struct bootinfo *bi)
 {
-	vm_size_t sz;
+	void *pa;
+	size_t sz;
+	u_int shft;
 
 	ia64_set_rr(IA64_RR_BASE(IA64_PBVM_RR),
 	    (IA64_PBVM_RR << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
 	__asm __volatile("srlz.i;;");
 
 	/* Wire the PBVM page table. */
-	mmu_wire(IA64_PBVM_PGTBL, (uintptr_t)ia64_pgtbl, ia64_pgtblsz,
-	    PTE_AR_RW);
+	mmu_wire(IA64_PBVM_PGTBL, (uintptr_t)ia64_pgtbl,
+	    sz2shft(IA64_PBVM_PGTBL, ia64_pgtblsz), PTE_AR_RW);
 
-	/* Wire as much of the PBVM we can. This must be a power of 2. */
-	sz = pbvm_top - IA64_PBVM_BASE;
-	sz = (sz + IA64_PBVM_PAGE_MASK) & ~IA64_PBVM_PAGE_MASK;
-	while (sz & (sz - 1))
-		sz -= IA64_PBVM_PAGE_SIZE;
-	mmu_wire(IA64_PBVM_BASE, ia64_pgtbl[0], sz, PTE_AR_RWX);
+	/* Wire as much of the text segment as we can. */
+	sz = ia64_text_size;	/* XXX */
+	pa = ia64_va2pa(ia64_text_start, &ia64_text_size);
+	ia64_text_size = sz;	/* XXX */
+	shft = sz2shft(ia64_text_start, ia64_text_size);
+	shft = mmu_wire(ia64_text_start, (uintptr_t)pa, shft, PTE_AR_RX);
+	ia64_copyin(&shft, (uintptr_t)&bi->bi_text_mapped, 4);
+
+	/* Wire as much of the data segment as well. */
+	sz = ia64_data_size;	/* XXX */
+	pa = ia64_va2pa(ia64_data_start, &ia64_data_size);
+	ia64_data_size = sz;	/* XXX */
+	shft = sz2shft(ia64_data_start, ia64_data_size);
+	shft = mmu_wire(ia64_data_start, (uintptr_t)pa, shft, PTE_AR_RW);
+	ia64_copyin(&shft, (uintptr_t)&bi->bi_data_mapped, 4);
+
+	/* Update the bootinfo with the number of TRs used. */
+	ia64_copyin(&itr_idx, (uintptr_t)&bi->bi_itr_used, 4);
+	ia64_copyin(&dtr_idx, (uintptr_t)&bi->bi_dtr_used, 4);
 }
 
 static int
@@ -196,7 +232,7 @@ elf64_exec(struct preloaded_file *fp)
 	if (IS_LEGACY_KERNEL())
 		mmu_setup_legacy(hdr->e_entry);
 	else
-		mmu_setup_paged((uintptr_t)(bi + 1));
+		mmu_setup_paged(bi);
 
 	enter_kernel(hdr->e_entry, bi);
 	/* NOTREACHED */
@@ -211,3 +247,22 @@ elf64_obj_exec(struct preloaded_file *fp)
 	    fp->f_name);
 	return (ENOSYS);
 }
+
+void
+ia64_loadseg(Elf_Ehdr *eh, Elf_Phdr *ph, uint64_t delta)
+{
+
+	if (eh->e_type != ET_EXEC)
+		return;
+
+	if (ph->p_flags & PF_X) {
+		ia64_text_start = ph->p_vaddr + delta;
+		ia64_text_size = ph->p_memsz;
+
+		ia64_sync_icache(ia64_text_start, ia64_text_size);
+	} else {
+		ia64_data_start = ph->p_vaddr + delta;
+		ia64_data_size = ph->p_memsz;
+	}
+}
+

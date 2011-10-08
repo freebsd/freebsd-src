@@ -44,48 +44,13 @@ def LR : Ri<15, "lr">, DwarfRegNum<[15]>;
 //
 def GRRegs : RegisterClass<"XCore", [i32], 32,
   // Return values and arguments
-  [R0, R1, R2, R3,
+  (add R0, R1, R2, R3,
   // Not preserved across procedure calls
   R11,
   // Callee save
-  R4, R5, R6, R7, R8, R9, R10]> {
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GRRegsClass::iterator
-    GRRegsClass::allocation_order_begin(const MachineFunction &MF) const {
-      return begin();
-    }
-    GRRegsClass::iterator
-    GRRegsClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      if (TFI->hasFP(MF))
-        return end()-1;  // don't allocate R10
-      else
-        return end();
-    }
-  }];
-}
+  R4, R5, R6, R7, R8, R9, R10)>;
 
-def RRegs : RegisterClass<"XCore", [i32], 32,
-  // Reserved
-  [CP, DP, SP, LR]> {
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    RRegsClass::iterator
-    RRegsClass::allocation_order_begin(const MachineFunction &MF) const {
-      return begin();
-    }
-    RRegsClass::iterator
-    RRegsClass::allocation_order_end(const MachineFunction &MF) const {
-      // No allocatable registers
-      return begin();
-    }
-  }];
+// Reserved
+def RRegs : RegisterClass<"XCore", [i32], 32, (add CP, DP, SP, LR)> {
+  let isAllocatable = 0;
 }

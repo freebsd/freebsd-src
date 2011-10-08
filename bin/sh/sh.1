@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2011
+.Dd July 10, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -124,8 +124,8 @@ If the environment variable
 .Ev ENV
 is set on entry to a shell, or is set in the
 .Pa .profile
-of a login shell, the shell then reads commands from the file named in
-.Ev ENV .
+of a login shell, the shell then subjects its value to parameter expansion
+and arithmetic expansion and reads commands from the named file.
 Therefore, a user should place commands that are to be executed only
 at login time in the
 .Pa .profile
@@ -241,6 +241,10 @@ tested, all commands of the function are considered to be tested as
 well.
 .It Fl f Li noglob
 Disable pathname expansion.
+.It Fl h Li trackall
+A do-nothing option for
+.Tn POSIX
+compliance.
 .It Fl I Li ignoreeof
 Ignore
 .Dv EOF Ap s
@@ -324,7 +328,7 @@ Useful for debugging.
 Write each command
 (preceded by the value of the
 .Va PS4
-variable)
+variable subjected to parameter expansion and arithmetic expansion)
 to standard error before it is executed.
 Useful for debugging.
 .El
@@ -372,7 +376,7 @@ The following is a list of valid operators:
 .It Control operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Li & Ta Li && Ta Li ( Ta Li ) Ta Li \en
-.It Li ;; Ta Li ; Ta Li | Ta Li ||
+.It Li ;; Ta Li ;& Ta Li ; Ta Li | Ta Li ||
 .El
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
@@ -396,13 +400,82 @@ Quoting is used to remove the special meaning of certain characters
 or words to the shell, such as operators, whitespace, keywords,
 or alias names.
 .Pp
-There are three types of quoting: matched single quotes,
+There are four types of quoting: matched single quotes,
+dollar-single quotes,
 matched double quotes, and backslash.
 .Bl -tag -width indent
 .It Single Quotes
 Enclosing characters in single quotes preserves the literal
 meaning of all the characters (except single quotes, making
 it impossible to put single-quotes in a single-quoted string).
+.It Dollar-Single Quotes
+Enclosing characters between
+.Li $'
+and
+.Li '
+preserves the literal meaning of all characters
+except backslashes and single quotes.
+A backslash introduces a C-style escape sequence:
+.Bl -tag -width xUnnnnnnnn
+.It \ea
+Alert (ring the terminal bell)
+.It \eb
+Backspace
+.It \ec Ns Ar c
+The control character denoted by
+.Li ^ Ns Ar c
+in
+.Xr stty 1 .
+If
+.Ar c
+is a backslash, it must be doubled.
+.It \ee
+The ESC character
+.Tn ( ASCII
+0x1b)
+.It \ef
+Formfeed
+.It \en
+Newline
+.It \er
+Carriage return
+.It \et
+Horizontal tab
+.It \ev
+Vertical tab
+.It \e\e
+Literal backslash
+.It \e\&'
+Literal single-quote
+.It \e\&"
+Literal double-quote
+.It \e Ns Ar nnn
+The byte whose octal value is
+.Ar nnn
+(one to three digits)
+.It \ex Ns Ar nn
+The byte whose hexadecimal value is
+.Ar nn
+(one or more digits only the last two of which are used)
+.It \eu Ns Ar nnnn
+The Unicode code point
+.Ar nnnn
+(four hexadecimal digits)
+.It \eU Ns Ar nnnnnnnn
+The Unicode code point
+.Ar nnnnnnnn
+(eight hexadecimal digits)
+.El
+.Pp
+The sequences for Unicode code points are currently only useful with
+UTF-8 locales.
+They reject code point 0 and UTF-16 surrogates.
+.Pp
+If an escape sequence would produce a byte with value 0,
+that byte and the rest of the string until the matching single-quote
+are ignored.
+.Pp
+Any other string starting with a backslash is an error.
 .It Double Quotes
 Enclosing characters within double quotes preserves the literal
 meaning of all characters except dollar sign
@@ -437,8 +510,8 @@ The following are keywords:
 An alias is a name and corresponding value set using the
 .Ic alias
 built-in command.
-Whenever a keyword may occur (see above),
-and after checking for keywords, the shell
+Wherever the command word of a simple command may occur,
+and after checking for keywords if a keyword may occur, the shell
 checks the word to see if it matches an alias.
 If it does, it replaces it in the input stream with its value.
 For example, if there is an alias called
@@ -788,7 +861,9 @@ causes asynchronous execution of the preceding AND-OR-list.
 .Ss Background Commands (&)
 If a command is terminated by the control operator ampersand
 .Pq Ql & ,
-the shell executes the command asynchronously;
+the shell executes the command in a subshell environment (see
+.Sx Grouping Commands Together
+below) and asynchronously;
 the shell does not wait for the command to finish
 before executing the next command.
 .Pp
@@ -921,6 +996,22 @@ described later),
 separated by
 .Ql \&|
 characters.
+Tilde expansion, parameter expansion, command substitution,
+arithmetic expansion and quote removal are applied to the word.
+Then, each pattern is expanded in turn using tilde expansion,
+parameter expansion, command substitution and arithmetic expansion and
+the expanded form of the word is checked against it.
+If a match is found, the corresponding list is executed.
+If the selected list is terminated by the control operator
+.Ql ;&
+instead of
+.Ql ;; ,
+execution continues with the next list,
+continuing until a list terminated with
+.Ql ;;
+or the end of the
+.Ic case
+command.
 The exit code of the
 .Ic case
 command is the exit code of the last command executed in the list or
@@ -935,7 +1026,41 @@ or
 .D1 Li { Ar list Ns Li \&; }
 .Pp
 The first form executes the commands in a subshell environment.
-Note that built-in commands thus executed do not affect the current shell.
+A subshell environment has its own copy of:
+.Pp
+.Bl -enum
+.It
+The current working directory as set by
+.Ic cd .
+.It
+The file creation mask as set by
+.Ic umask .
+.It
+References to open files.
+.It
+Traps as set by
+.Ic trap .
+.It
+Known jobs.
+.It
+Positional parameters and variables.
+.It
+Shell options.
+.It
+Shell functions.
+.It
+Shell aliases.
+.El
+.Pp
+These are copied from the parent shell environment,
+except that trapped (but not ignored) signals are reset to the default action
+and known jobs are cleared.
+Any changes do not affect the parent shell environment.
+.Pp
+A subshell environment may be implemented as a child process or differently.
+If job control is enabled in an interactive shell,
+commands grouped in parentheses can be suspended and continued as a unit.
+.Pp
 The second form never forks another shell,
 so it is slightly more efficient.
 Grouping commands together this way allows the user to
@@ -1463,14 +1588,13 @@ The command is executed in a subshell environment,
 except that the built-in commands
 .Ic jobid ,
 .Ic jobs ,
-.Ic times
 and
 .Ic trap
-return information about the main shell environment
-if they are the only command in a command substitution
-and the substitutions in the command cannot cause side effects
-(such as from assigning values to variables or referencing
-.Li $! ).
+return information about the parent shell environment
+and
+.Ic times
+returns information about the same process
+if they are the only command in a command substitution.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
@@ -1543,15 +1667,15 @@ There are two restrictions on this: first, a pattern cannot match
 a string containing a slash, and second,
 a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
-The next section describes the patterns used for both
-Pathname Expansion and the
+The next section describes the patterns used for
+Pathname Expansion,
+the four varieties of parameter expansion for substring processing and the
 .Ic case
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
 and meta-characters.
 The meta-characters are
-.Ql \&! ,
 .Ql * ,
 .Ql \&? ,
 and
@@ -1581,16 +1705,30 @@ matches a
 .Ql \&[
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
-A range of characters may be specified using a minus sign.
+A locale-dependent range of characters may be specified using a minus sign.
+A named class of characters (see
+.Xr wctype 3 )
+may be specified by surrounding the name with
+.Ql \&[:
+and
+.Ql :\&] .
+For example,
+.Ql \&[\&[:alpha:\&]\&]
+is a shell pattern that matches a single letter.
 The character class may be complemented by making an exclamation point
 .Pq Ql !\&
 the first character of the character class.
+A caret
+.Pq Ql ^
+has the same effect but is non-standard.
 .Pp
 To include a
 .Ql \&]
 in a character class, make it the first character listed
 (after the
-.Ql \&! ,
+.Ql \&!
+or
+.Ql ^ ,
 if any).
 To include a
 .Ql - ,
@@ -1660,7 +1798,7 @@ Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a built-in command.
-.It Ic cd Oo Fl L | P Oc Op Ar directory
+.It Ic cd Oo Fl L | P Oc Oo Fl e Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
 or to the directory specified in the
@@ -1709,6 +1847,15 @@ option is specified,
 .Pa ..
 is handled logically.
 This is the default.
+.Pp
+The
+.Fl e
+option causes
+.Ic cd
+to return exit status 1 if the full pathname of the new directory
+cannot be determined reliably or at all.
+Normally this is not considered an error,
+although a warning is printed.
 .It Ic chdir
 A synonym for the
 .Ic cd
@@ -2250,8 +2397,8 @@ If there are zero positional parameters, shifting does not do anything.
 A built-in equivalent of
 .Xr test 1 .
 .It Ic times
-Print the amount of time spent executing the shell and its children.
-The first output line shows the user and system times for the shell
+Print the amount of time spent executing the shell process and its children.
+The first output line shows the user and system times for the shell process
 itself, the second one contains the user and system times for the
 children.
 .It Ic trap Oo Ar action Oc Ar signal ...
@@ -2277,7 +2424,7 @@ Omitting the
 .Ar action
 is another way to request the default action, for compatibility reasons this
 usage is not recommended though.
-In a subshell environment,
+In a subshell or utility environment,
 the shell resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
@@ -2497,6 +2644,7 @@ will return the argument.
 .Xr execve 2 ,
 .Xr getrlimit 2 ,
 .Xr umask 2 ,
+.Xr wctype 3 ,
 .Xr editrc 5
 .Sh HISTORY
 A
@@ -2522,4 +2670,9 @@ was originally written by
 .Sh BUGS
 The
 .Nm
-utility does not recognize multibyte characters.
+utility does not recognize multibyte characters other than UTF-8.
+Splitting using
+.Va IFS
+and the line editing library
+.Xr editline 3
+do not recognize multibyte characters.

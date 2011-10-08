@@ -180,7 +180,7 @@ MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
 static int
 ubtbcmfw_probe(device_t dev)
 {
-	const struct usb_device_id	devs[] = {
+	static const STRUCT_USB_HOST_ID devs[] = {
 	/* Broadcom BCM2033 devices only */
 	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
 	};

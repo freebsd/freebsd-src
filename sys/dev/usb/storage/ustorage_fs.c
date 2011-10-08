@@ -334,10 +334,6 @@ ustorage_fs_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
-	if (uaa->use_generic == 0) {
-		/* give other drivers a try first */
-		return (ENXIO);
-	}
 	/* Check for a standards compliant device */
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if ((id == NULL) ||
@@ -346,7 +342,7 @@ ustorage_fs_probe(device_t dev)
 	    (id->bInterfaceProtocol != UIPROTO_MASS_BBB)) {
 		return (ENXIO);
 	}
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int

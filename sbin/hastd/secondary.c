@@ -183,6 +183,12 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	unsigned char *map;
 	size_t mapsize;
 
+#ifdef notyet
+	/* Setup direction. */
+	if (proto_send(res->hr_remoteout, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
+
 	map = NULL;
 	mapsize = 0;
 	nvout = nv_alloc();
@@ -201,7 +207,6 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    "Unable to allocate memory (%zu bytes) for activemap.",
 		    mapsize);
 	}
-	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	/*
 	 * When we work as primary and secondary is missing we will increase
 	 * localcnt in our metadata. When secondary is connected and synced
@@ -258,6 +263,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		} else {
 			memset(map, 0xff, mapsize);
 		}
+		nv_add_int8(nvout, 1, "virgin");
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
 	} else if (res->hr_resuid != resuid) {
 		char errmsg[256];
@@ -339,6 +345,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_localcnt,
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
+	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
 		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
@@ -346,6 +353,11 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (map != NULL)
 		free(map);
 	nv_free(nvout);
+#ifdef notyet
+	/* Setup direction. */
+	if (proto_recv(res->hr_remotein, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
@@ -378,16 +390,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
 	}
-	/*
-	 * Create communication channel for sending connection requests from
-	 * parent to child.
-	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
-		/* TODO: There's no need for this to be fatal error. */
-		KEEP_ERRNO((void)pidfile_remove(pfh));
-		pjdlog_exit(EX_OSERR,
-		    "Unable to create connection sockets between parent and child");
-	}
 
 	pid = fork();
 	if (pid < 0) {
@@ -405,7 +407,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		proto_recv(res->hr_event, NULL, 0);
 		/* Declare that we are sender. */
 		proto_send(res->hr_ctrl, NULL, 0);
-		proto_send(res->hr_conn, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
@@ -418,7 +419,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	proto_send(res->hr_event, NULL, 0);
 	/* Declare that we are receiver. */
 	proto_recv(res->hr_ctrl, NULL, 0);
-	proto_recv(res->hr_conn, NULL, 0);
 	descriptors_cleanup(res);
 
 	descriptors_assert(res, mode);
@@ -426,7 +426,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (secondary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
@@ -440,7 +440,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	init_local(res);
 	init_environment();
 
-	if (drop_privs(true) != 0)
+	if (drop_privs(res) != 0)
 		exit(EX_CONFIG);
 	pjdlog_info("Privileges successfully dropped.");
 
@@ -518,6 +518,7 @@ requnpack(struct hast_resource *res, struct hio *hio)
 		goto end;
 	}
 	switch (hio->hio_cmd) {
+	case HIO_FLUSH:
 	case HIO_KEEPALIVE:
 		break;
 	case HIO_READ:
@@ -615,6 +616,20 @@ recv_thread(void *arg)
 			QUEUE_INSERT(send, hio);
 			continue;
 		}
+		switch (hio->hio_cmd) {
+		case HIO_READ:
+			res->hr_stat_read++;
+			break;
+		case HIO_WRITE:
+			res->hr_stat_write++;
+			break;
+		case HIO_DELETE:
+			res->hr_stat_delete++;
+			break;
+		case HIO_FLUSH:
+			res->hr_stat_flush++;
+			break;
+		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);
 		if (hio->hio_cmd == HIO_KEEPALIVE) {
@@ -649,7 +664,7 @@ disk_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	ssize_t ret;
-	bool clear_activemap;
+	bool clear_activemap, logerror;
 
 	clear_activemap = true;
 
@@ -684,8 +699,10 @@ disk_thread(void *arg)
 			free(map);
 			clear_activemap = false;
 			pjdlog_debug(1, "Local activemap cleared.");
+			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio, "disk: (%p) Got request: ", hio);
+		logerror = true;
 		/* Handle the actual request. */
 		switch (hio->hio_cmd) {
 		case HIO_READ:
@@ -720,14 +737,23 @@ disk_thread(void *arg)
 				hio->hio_error = 0;
 			break;
 		case HIO_FLUSH:
+			if (!res->hr_localflush) {
+				ret = -1;
+				hio->hio_error = EOPNOTSUPP;
+				logerror = false;
+				break;
+			}
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0)
+			if (ret < 0) {
+				if (errno == EOPNOTSUPP)
+					res->hr_localflush = false;
 				hio->hio_error = errno;
-			else
+			} else {
 				hio->hio_error = 0;
+			}
 			break;
 		}
-		if (hio->hio_error != 0) {
+		if (logerror && hio->hio_error != 0) {
 			reqlog(LOG_ERR, 0, hio->hio_error, hio,
 			    "Request failed: ");
 		}
@@ -776,8 +802,8 @@ send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			abort();
-			break;
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
 		}
 		if (hio->hio_error != 0)
 			nv_add_int16(nvout, hio->hio_error, "error");

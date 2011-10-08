@@ -20,35 +20,21 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
+  template <typename T> class ArrayRef;
   class MCSection;
   class MCContext;
+  class MachineFunction;
   class TargetMachine;
   class TargetLoweringObjectFile;
 
 class TargetAsmInfo {
-  unsigned PointerSize;
-  bool IsLittleEndian;
-  TargetFrameLowering::StackDirection StackDir;
-  const TargetRegisterInfo *TRI;
   std::vector<MachineMove> InitialFrameState;
+  const TargetRegisterInfo *TRI;
+  const TargetFrameLowering *TFI;
   const TargetLoweringObjectFile *TLOF;
 
 public:
   explicit TargetAsmInfo(const TargetMachine &TM);
-
-  /// getPointerSize - Get the pointer size in bytes.
-  unsigned getPointerSize() const {
-    return PointerSize;
-  }
-
-  /// islittleendian - True if the target is little endian.
-  bool isLittleEndian() const {
-    return IsLittleEndian;
-  }
-
-  TargetFrameLowering::StackDirection getStackGrowthDirection() const {
-    return StackDir;
-  }
 
   const MCSection *getDwarfLineSection() const {
     return TLOF->getDwarfLineSection();
@@ -56,6 +42,40 @@ public:
 
   const MCSection *getEHFrameSection() const {
     return TLOF->getEHFrameSection();
+  }
+
+  const MCSection *getCompactUnwindSection() const {
+    return TLOF->getCompactUnwindSection();
+  }
+
+  const MCSection *getDwarfFrameSection() const {
+    return TLOF->getDwarfFrameSection();
+  }
+
+  const MCSection *getWin64EHFuncTableSection(StringRef Suffix) const {
+    return TLOF->getWin64EHFuncTableSection(Suffix);
+  }
+
+  const MCSection *getWin64EHTableSection(StringRef Suffix) const {
+    return TLOF->getWin64EHTableSection(Suffix);
+  }
+
+  unsigned getFDEEncoding(bool CFI) const {
+    return TLOF->getFDEEncoding(CFI);
+  }
+
+  bool isFunctionEHFrameSymbolPrivate() const {
+    return TLOF->isFunctionEHFrameSymbolPrivate();
+  }
+
+  int getCompactUnwindEncoding(ArrayRef<MCCFIInstruction> Instrs,
+                               int DataAlignmentFactor,
+                               bool IsEH) const {
+    return TFI->getCompactUnwindEncoding(Instrs, DataAlignmentFactor, IsEH);
+  }
+
+  const unsigned *getCalleeSavedRegs(MachineFunction *MF = 0) const {
+    return TRI->getCalleeSavedRegs(MF);
   }
 
   unsigned getDwarfRARegNum(bool isEH) const {
@@ -68,6 +88,14 @@ public:
 
   int getDwarfRegNum(unsigned RegNum, bool isEH) const {
     return TRI->getDwarfRegNum(RegNum, isEH);
+  }
+
+  int getLLVMRegNum(unsigned DwarfRegNum, bool isEH) const {
+    return TRI->getLLVMRegNum(DwarfRegNum, isEH);
+  }
+
+  int getSEHRegNum(unsigned RegNum) const {
+    return TRI->getSEHRegNum(RegNum);
   }
 };
 

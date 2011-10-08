@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2005
+.Dd July 5, 2011
 .Dt FLOWCTL 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@ control utility
 .Sh SYNOPSIS
 .Nm
 .Op Fl d Ar level
-.Ar node command
+.Ar path command
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,11 +55,16 @@ Currently,
 .Nm
 supports only one command.
 .Bl -tag -width ".Cm show"
-.It Cm show
+.It Cm show Op Cm ipv4|ipv6
 This command is the analog of the
 .Dq "show ip cache flow"
 command of a Cisco router.
 It dumps the contents of the flow cache in Cisco-like format.
+Specifing either
+.Cm ipv4
+or
+.Cm ipv6
+would extract only IPv4 or IPv6 flows respectively.
 It has optional parameter
 .Cm verbose ,
 which is analog of the

@@ -71,7 +71,7 @@ static std::string getStringValue(const Record &R, StringRef field) {
 
 namespace {
 struct GroupInfo {
-  std::vector<const Record*> Checkers;
+  llvm::DenseSet<const Record*> Checkers;
   llvm::DenseSet<const Record *> SubGroups;
   bool Hidden;
   unsigned Index;
@@ -80,33 +80,24 @@ struct GroupInfo {
 };
 }
 
+static void addPackageToCheckerGroup(const Record *package, const Record *group,
+                  llvm::DenseMap<const Record *, GroupInfo *> &recordGroupMap) {
+  llvm::DenseSet<const Record *> &checkers = recordGroupMap[package]->Checkers;
+  for (llvm::DenseSet<const Record *>::iterator
+         I = checkers.begin(), E = checkers.end(); I != E; ++I)
+    recordGroupMap[group]->Checkers.insert(*I);
+
+  llvm::DenseSet<const Record *> &subGroups = recordGroupMap[package]->SubGroups;
+  for (llvm::DenseSet<const Record *>::iterator
+         I = subGroups.begin(), E = subGroups.end(); I != E; ++I)
+    addPackageToCheckerGroup(*I, group, recordGroupMap);
+}
+
 void ClangSACheckersEmitter::run(raw_ostream &OS) {
   std::vector<Record*> checkers = Records.getAllDerivedDefinitions("Checker");
   llvm::DenseMap<const Record *, unsigned> checkerRecIndexMap;
   for (unsigned i = 0, e = checkers.size(); i != e; ++i)
     checkerRecIndexMap[checkers[i]] = i;
-  
-  OS << "\n#ifdef GET_CHECKERS\n";
-  for (unsigned i = 0, e = checkers.size(); i != e; ++i) {
-    const Record &R = *checkers[i];
-
-    OS << "CHECKER(" << "\"";
-    std::string name;
-    if (isCheckerNamed(&R))
-      name = getCheckerFullName(&R);
-    OS.write_escaped(name) << "\", ";
-    OS << R.getName() << ", ";
-    OS << getStringValue(R, "DescFile") << ", ";
-    OS << "\"";
-    OS.write_escaped(getStringValue(R, "HelpText")) << "\", ";
-    // Hidden bit
-    if (isHidden(R))
-      OS << "true";
-    else
-      OS << "false";
-    OS << ")\n";
-  }
-  OS << "#endif // GET_CHECKERS\n\n";
 
   // Invert the mapping of checkers to package/group into a one to many
   // mapping of packages/groups to checkers.
@@ -150,9 +141,9 @@ void ClangSACheckersEmitter::run(raw_ostream &OS) {
       GroupInfo &info = groupInfoByName[fullName];
       info.Hidden = R->getValueAsBit("Hidden");
       recordGroupMap[R] = &info;
-      info.Checkers.push_back(R);
+      info.Checkers.insert(R);
     } else {
-      recordGroupMap[package]->Checkers.push_back(R);
+      recordGroupMap[package]->Checkers.insert(R);
     }
 
     Record *currR = isCheckerNamed(R) ? R : package;
@@ -166,8 +157,93 @@ void ClangSACheckersEmitter::run(raw_ostream &OS) {
     }
     // Insert the checker into the set of its group.
     if (DefInit *DI = dynamic_cast<DefInit*>(R->getValueInit("Group")))
-      recordGroupMap[DI->getDef()]->Checkers.push_back(R);
+      recordGroupMap[DI->getDef()]->Checkers.insert(R);
   }
+
+  // If a package is in group, add all its checkers and its sub-packages
+  // checkers into the group.
+  for (unsigned i = 0, e = packages.size(); i != e; ++i)
+    if (DefInit *DI = dynamic_cast<DefInit*>(packages[i]->getValueInit("Group")))
+      addPackageToCheckerGroup(packages[i], DI->getDef(), recordGroupMap);
+
+  typedef std::map<std::string, const Record *> SortedRecords;
+  typedef llvm::DenseMap<const Record *, unsigned> RecToSortIndex;
+
+  SortedRecords sortedGroups;
+  RecToSortIndex groupToSortIndex;
+  OS << "\n#ifdef GET_GROUPS\n";
+  {
+    for (unsigned i = 0, e = checkerGroups.size(); i != e; ++i)
+      sortedGroups[checkerGroups[i]->getValueAsString("GroupName")]
+                   = checkerGroups[i];
+
+    unsigned sortIndex = 0;
+    for (SortedRecords::iterator
+           I = sortedGroups.begin(), E = sortedGroups.end(); I != E; ++I) {
+      const Record *R = I->second;
+  
+      OS << "GROUP(" << "\"";
+      OS.write_escaped(R->getValueAsString("GroupName")) << "\"";
+      OS << ")\n";
+
+      groupToSortIndex[R] = sortIndex++;
+    }
+  }
+  OS << "#endif // GET_GROUPS\n\n";
+
+  OS << "\n#ifdef GET_PACKAGES\n";
+  {
+    SortedRecords sortedPackages;
+    for (unsigned i = 0, e = packages.size(); i != e; ++i)
+      sortedPackages[getPackageFullName(packages[i])] = packages[i];
+  
+    for (SortedRecords::iterator
+           I = sortedPackages.begin(), E = sortedPackages.end(); I != E; ++I) {
+      const Record &R = *I->second;
+  
+      OS << "PACKAGE(" << "\"";
+      OS.write_escaped(getPackageFullName(&R)) << "\", ";
+      // Group index
+      if (DefInit *DI = dynamic_cast<DefInit*>(R.getValueInit("Group")))
+        OS << groupToSortIndex[DI->getDef()] << ", ";
+      else
+        OS << "-1, ";
+      // Hidden bit
+      if (isHidden(R))
+        OS << "true";
+      else
+        OS << "false";
+      OS << ")\n";
+    }
+  }
+  OS << "#endif // GET_PACKAGES\n\n";
+  
+  OS << "\n#ifdef GET_CHECKERS\n";
+  for (unsigned i = 0, e = checkers.size(); i != e; ++i) {
+    const Record &R = *checkers[i];
+
+    OS << "CHECKER(" << "\"";
+    std::string name;
+    if (isCheckerNamed(&R))
+      name = getCheckerFullName(&R);
+    OS.write_escaped(name) << "\", ";
+    OS << R.getName() << ", ";
+    OS << getStringValue(R, "DescFile") << ", ";
+    OS << "\"";
+    OS.write_escaped(getStringValue(R, "HelpText")) << "\", ";
+    // Group index
+    if (DefInit *DI = dynamic_cast<DefInit*>(R.getValueInit("Group")))
+      OS << groupToSortIndex[DI->getDef()] << ", ";
+    else
+      OS << "-1, ";
+    // Hidden bit
+    if (isHidden(R))
+      OS << "true";
+    else
+      OS << "false";
+    OS << ")\n";
+  }
+  OS << "#endif // GET_CHECKERS\n\n";
 
   unsigned index = 0;
   for (std::map<std::string, GroupInfo>::iterator
@@ -182,21 +258,34 @@ void ClangSACheckersEmitter::run(raw_ostream &OS) {
   for (std::map<std::string, GroupInfo>::iterator
          I = groupInfoByName.begin(), E = groupInfoByName.end(); I != E; ++I) {
     maxLen = std::max(maxLen, (unsigned)I->first.size());
-    
-    std::vector<const Record*> &V = I->second.Checkers;
-    if (!V.empty()) {
+
+    llvm::DenseSet<const Record *> &checkers = I->second.Checkers;
+    if (!checkers.empty()) {
       OS << "static const short CheckerArray" << I->second.Index << "[] = { ";
-      for (unsigned i = 0, e = V.size(); i != e; ++i)
-        OS << checkerRecIndexMap[V[i]] << ", ";
+      // Make the output order deterministic.
+      std::map<int, const Record *> sorted;
+      for (llvm::DenseSet<const Record *>::iterator
+             I = checkers.begin(), E = checkers.end(); I != E; ++I)
+        sorted[(*I)->getID()] = *I;
+
+      for (std::map<int, const Record *>::iterator
+             I = sorted.begin(), E = sorted.end(); I != E; ++I)
+        OS << checkerRecIndexMap[I->second] << ", ";
       OS << "-1 };\n";
     }
     
     llvm::DenseSet<const Record *> &subGroups = I->second.SubGroups;
     if (!subGroups.empty()) {
       OS << "static const short SubPackageArray" << I->second.Index << "[] = { ";
+      // Make the output order deterministic.
+      std::map<int, const Record *> sorted;
       for (llvm::DenseSet<const Record *>::iterator
-             I = subGroups.begin(), E = subGroups.end(); I != E; ++I) {
-        OS << recordGroupMap[*I]->Index << ", ";
+             I = subGroups.begin(), E = subGroups.end(); I != E; ++I)
+        sorted[(*I)->getID()] = *I;
+
+      for (std::map<int, const Record *>::iterator
+             I = sorted.begin(), E = sorted.end(); I != E; ++I) {
+        OS << recordGroupMap[I->second]->Index << ", ";
       }
       OS << "-1 };\n";
     }

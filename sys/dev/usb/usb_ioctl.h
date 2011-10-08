@@ -39,6 +39,20 @@
 #define	USB_DEVICE_NAME "usbctl"
 #define	USB_DEVICE_DIR "usb"
 #define	USB_GENERIC_NAME "ugen"
+#define	USB_TEMPLATE_SYSCTL "hw.usb.template"	/* integer type */
+
+/* Definition of valid template sysctl values */
+
+enum {
+	USB_TEMP_MSC,		/* USB Mass Storage */
+	USB_TEMP_CDCE,		/* USB CDC Ethernet */
+	USB_TEMP_MTP,		/* Message Transfer Protocol */
+	USB_TEMP_MODEM,		/* USB CDC Modem */
+	USB_TEMP_AUDIO,		/* USB Audio */
+	USB_TEMP_KBD,		/* USB Keyboard */
+	USB_TEMP_MOUSE,		/* USB Mouse */
+	USB_TEMP_MAX,
+};
 
 struct usb_read_dir {
 #ifdef COMPAT_32BIT

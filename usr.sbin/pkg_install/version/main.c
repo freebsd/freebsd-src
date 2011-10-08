@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <err.h>
 
-#include <pkg.h>
+#include "lib.h"
 #include "version.h"
 
 char	*LimitChars = NULL;
@@ -57,8 +57,6 @@ int
 main(int argc, char **argv)
 {
     int ch, cmp = 0;
-
-    pkg_wrap(PKG_INSTALL_VERSION, argv);
 
     if (argc == 4 && !strcmp(argv[1], "-t")) {
 	cmp = version_cmp(argv[2], argv[3]);

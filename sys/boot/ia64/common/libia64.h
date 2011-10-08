@@ -31,9 +31,9 @@
 
 #include <bootstrap.h>
 #include <ia64/include/bootinfo.h>
-#include <ia64/include/vmparam.h>
+#include <machine/vmparam.h>
 
-#define	IS_LEGACY_KERNEL()	(ia64_pgtbl == NULL || ia64_pgtblsz == 0)
+#define	IS_LEGACY_KERNEL()	(ia64_legacy_kernel)
 
 /*
  * Portability functions provided by the loader
@@ -48,15 +48,25 @@ int ia64_platform_enter(const char *);
  * Functions and variables provided by the ia64 common code
  * and shared by all loader implementations.
  */
+extern u_int ia64_legacy_kernel;
+
 extern uint64_t *ia64_pgtbl;
 extern uint32_t ia64_pgtblsz;
 
 int ia64_autoload(void);
 int ia64_bootinfo(struct preloaded_file *, struct bootinfo **);
+uint64_t ia64_loadaddr(u_int, void *, uint64_t);
+#ifdef __elfN
+void ia64_loadseg(Elf_Ehdr *, Elf_Phdr *, uint64_t);
+#else
+void ia64_loadseg(void *, void *, uint64_t);
+#endif
 
 ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
 ssize_t ia64_copyout(vm_offset_t, void *, size_t);
+void ia64_sync_icache(vm_offset_t, size_t);
 ssize_t ia64_readin(int, vm_offset_t, size_t);
+void *ia64_va2pa(vm_offset_t, size_t *);
 
 char *ia64_fmtdev(struct devdesc *);
 int ia64_getdev(void **, const char *, const char **);

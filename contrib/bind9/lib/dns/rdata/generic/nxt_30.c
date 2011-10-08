@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt_30.c,v 1.63 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: nxt_30.c,v 1.65 2009-12-04 22:06:37 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 
@@ -326,4 +326,8 @@ checknames_nxt(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_nxt(ARGS_COMPARE) {
+	return (compare_nxt(rdata1, rdata2));
+}
 #endif	/* RDATA_GENERIC_NXT_30_C */

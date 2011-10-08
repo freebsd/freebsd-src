@@ -6,6 +6,7 @@ FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
 	200.backup-passwd \
+	220.backup-pkgdb \
 	330.news \
 	400.status-disks \
 	405.status-ata-raid \

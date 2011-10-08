@@ -597,7 +597,7 @@ list_archive(const char *name)
   archive_read_support_format_all(a);
   archive_read_open(a, mydata, myopen, myread, myclose);
   while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
-    printf("%s\\n",archive_entry_pathname(entry));
+    printf("%s\en",archive_entry_pathname(entry));
     archive_read_data_skip(a);
   }
   archive_read_free(a);

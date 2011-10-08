@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the pass that optimize code placement and align loop
-// headers to target specific alignment boundary.
+// This file implements the pass that optimizes code placement and aligns loop
+// headers to target-specific alignment boundaries.
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,7 +40,7 @@ namespace {
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
     virtual const char *getPassName() const {
-      return "Code Placement Optimizater";
+      return "Code Placement Optimizer";
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -254,7 +254,7 @@ bool CodePlacementOpt::MoveDiscontiguousLoopBlocks(MachineFunction &MF,
 
   // Determine a position to move orphaned loop blocks to. If TopMBB is not
   // entered via fallthrough and BotMBB is exited via fallthrough, prepend them
-  // to the top of the loop to avoid loosing that fallthrough. Otherwise append
+  // to the top of the loop to avoid losing that fallthrough. Otherwise append
   // them to the bottom, even if it previously had a fallthrough, on the theory
   // that it's worth an extra branch to keep the loop contiguous.
   MachineFunction::iterator InsertPt =

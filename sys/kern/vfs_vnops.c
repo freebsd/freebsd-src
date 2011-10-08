@@ -61,7 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -81,6 +85,8 @@ struct 	fileops vnops = {
 	.fo_kqfilter = vn_kqfilter,
 	.fo_stat = vn_statfile,
 	.fo_close = vn_closefile,
+	.fo_chmod = vn_chmod,
+	.fo_chown = vn_chown,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -491,7 +497,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 			break;
 		offset += chunk;
 		base = (char *)base + chunk;
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 	} while (len);
 	if (aresid)
 		*aresid = len + iaresid;
@@ -1350,10 +1356,60 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	PROC_LOCK(td->td_proc);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-		psignal(td->td_proc, SIGXFSZ);
+		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
 	PROC_UNLOCK(td->td_proc);
 	return (0);
+}
+
+int
+vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfmode(td, active_cred, vp, mode);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+int
+vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfown(td, active_cred, vp, uid, gid);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+void
+vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	vm_object_page_remove(object, start, end, 0);
+	VM_OBJECT_UNLOCK(object);
 }

@@ -113,6 +113,8 @@ struct ath_rx_status {
 	uint32_t	rs_evm0;	/* evm bytes */
 	uint32_t	rs_evm1;
 	uint32_t	rs_evm2;	
+	uint32_t	rs_evm3;	/* needed for ar9300 and later */
+	uint32_t	rs_evm4;	/* needed for ar9300 and later */
 #endif /* AH_SUPPORT_AR5416 */
 };
 
@@ -142,7 +144,7 @@ enum {
 	HAL_PHYERR_RADAR		= 5,	/* Radar detect */
 	HAL_PHYERR_SERVICE		= 6,	/* Illegal service */
 	HAL_PHYERR_TOR			= 7,	/* Transmit override receive */
-	/* NB: these are specific to the 5212 */
+	/* NB: these are specific to the 5212 and later */
 	HAL_PHYERR_OFDM_TIMING		= 17,	/* */
 	HAL_PHYERR_OFDM_SIGNAL_PARITY	= 18,	/* */
 	HAL_PHYERR_OFDM_RATE_ILLEGAL	= 19,	/* */
@@ -150,11 +152,18 @@ enum {
 	HAL_PHYERR_OFDM_POWER_DROP	= 21,	/* */
 	HAL_PHYERR_OFDM_SERVICE		= 22,	/* */
 	HAL_PHYERR_OFDM_RESTART		= 23,	/* */
+	HAL_PHYERR_FALSE_RADAR_EXT	= 24,	/* */
 	HAL_PHYERR_CCK_TIMING		= 25,	/* */
 	HAL_PHYERR_CCK_HEADER_CRC	= 26,	/* */
 	HAL_PHYERR_CCK_RATE_ILLEGAL	= 27,	/* */
 	HAL_PHYERR_CCK_SERVICE		= 30,	/* */
 	HAL_PHYERR_CCK_RESTART		= 31,	/* */
+	HAL_PHYERR_CCK_LENGTH_ILLEGAL	= 32,	/* */
+	HAL_PHYERR_CCK_POWER_DROP	= 33,	/* */
+	/* AR5416 and later */
+	HAL_PHYERR_HT_CRC_ERROR		= 34,	/* */
+	HAL_PHYERR_HT_LENGTH_ILLEGAL	= 35,	/* */
+	HAL_PHYERR_HT_RATE_ILLEGAL	= 36,	/* */
 };
 
 /* value found in rs_keyix to mark invalid entries */

@@ -196,9 +196,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCaj";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzP";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -224,8 +224,10 @@ char *argv[];
 #define	CMD_wcputog	19
 #define	CMD_showargs	20
 #define	CMD_jidtog	21
+#define CMD_kidletog	22
+#define CMD_pcputog	23
 #ifdef ORDER
-#define CMD_order       22
+#define CMD_order       24
 #endif
 
     /* set the buffer for stdout */
@@ -258,6 +260,7 @@ char *argv[];
     ps.thread  = No;
     ps.wcpu    = 1;
     ps.jail    = No;
+    ps.kidle   = Yes;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -283,7 +286,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijnquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijnquvzs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -409,13 +412,17 @@ char *argv[];
 		break;
 
 	      case 'P':
-		pcpu_stats = Yes;
+		pcpu_stats = !pcpu_stats;
+		break;
+
+	      case 'z':
+		ps.kidle = !ps.kidle;
 		break;
 
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-abCHIijnPqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
@@ -1013,7 +1020,7 @@ restart:
 			    case CMD_thrtog:
 				ps.thread = !ps.thread;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying threads %s",
+				    " Displaying threads %s",
 				    ps.thread ? "separately" : "as a count");
 				header_text = format_header(uname_field);
 				reset_display();
@@ -1022,8 +1029,8 @@ restart:
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying %sCPU",
-				    ps.wcpu ? "W" : "");
+				    " Displaying %s CPU",
+				    ps.wcpu ? "weighted" : "raw");
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
@@ -1075,7 +1082,23 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
-	    
+			    case CMD_kidletog:
+				ps.kidle = !ps.kidle;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying system idle process.",
+				    ps.kidle ? "D" : "Not d");
+				putchar('\r');
+				break;
+			    case CMD_pcputog:
+				pcpu_stats = !pcpu_stats;
+				new_message(MT_standout | MT_delayed,
+				    " Displaying %sCPU statistics.",
+				    pcpu_stats ? "per-" : "global ");
+				toggle_pcpustats();
+				max_topn = display_updatecpus(&statics);
+				reset_display();
+				putchar('\r');
+				break;
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
 				putchar('\r');

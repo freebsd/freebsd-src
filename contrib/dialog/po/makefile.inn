@@ -8,6 +8,7 @@
 
 PACKAGE = @PACKAGE@
 VERSION = @VERSION@
+NLS_TEXTDOMAIN = @NLS_TEXTDOMAIN@
 
 SHELL = /bin/sh
 @SET_MAKE@
@@ -26,7 +27,6 @@ subdir = po
 
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
-MKINSTALLDIRS = @MKINSTALLDIRS@
 DESTDIR = @DESTDIR@
 
 CC = @CC@
@@ -84,7 +84,7 @@ all-yes: $(SOURCES) $(CATALOGS)
 all-no:
 
 $(srcdir)/$(PACKAGE).pot: $(POTFILES)
-	$(XGETTEXT) --default-domain=$(PACKAGE) --directory=$(top_srcdir) \
+	$(XGETTEXT) --default-domain=$(NLS_TEXTDOMAIN) --directory=$(top_srcdir) \
 	  --add-comments --keyword=_ --keyword=N_ \
 	  --files-from=$(srcdir)/POTFILES.in \
 	&& test ! -f $(PACKAGE).po \
@@ -111,12 +111,8 @@ install-exec:
 install-data: install-data-@USE_NLS@
 install-data-no: all
 install-data-yes: all
-	if test -r "$(MKINSTALLDIRS)"; then \
-	  $(MKINSTALLDIRS) $(DESTDIR)$(datadir); \
-	else \
-	  mkdir -p $(DESTDIR)$(datadir); \
-	fi
-	@catalogs='$(CATALOGS)'; \
+	@mkdir -p $(DESTDIR)$(datadir); \
+	catalogs='$(CATALOGS)'; \
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  case "$$cat" in \
@@ -125,39 +121,31 @@ install-data-yes: all
 	  esac; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
 	  dir=$(DESTDIR)$$destdir/$$lang/LC_MESSAGES; \
-	  if test -r "$(MKINSTALLDIRS)"; then \
-	    $(MKINSTALLDIRS) $$dir; \
-	  else \
-	    mkdir -p $$dir; \
-	  fi; \
+	  mkdir -p $$dir; \
 	  if test -r $$cat; then \
-	    $(INSTALL_DATA) $$cat $$dir/$(PACKAGE)$(INSTOBJEXT); \
-	    echo "installing $$cat as $$dir/$(PACKAGE)$(INSTOBJEXT)"; \
+	    $(INSTALL_DATA) $$cat $$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT); \
+	    echo "installing $$cat as $$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT)"; \
 	  else \
-	    $(INSTALL_DATA) $(srcdir)/$$cat $$dir/$(PACKAGE)$(INSTOBJEXT); \
+	    $(INSTALL_DATA) $(srcdir)/$$cat $$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT); \
 	    echo "installing $(srcdir)/$$cat as" \
-		 "$$dir/$(PACKAGE)$(INSTOBJEXT)"; \
+		 "$$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT)"; \
 	  fi; \
 	  if test -r $$cat.m; then \
-	    $(INSTALL_DATA) $$cat.m $$dir/$(PACKAGE)$(INSTOBJEXT).m; \
-	    echo "installing $$cat.m as $$dir/$(PACKAGE)$(INSTOBJEXT).m"; \
+	    $(INSTALL_DATA) $$cat.m $$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m; \
+	    echo "installing $$cat.m as $$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m"; \
 	  else \
 	    if test -r $(srcdir)/$$cat.m ; then \
 	      $(INSTALL_DATA) $(srcdir)/$$cat.m \
-		$$dir/$(PACKAGE)$(INSTOBJEXT).m; \
+		$$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m; \
 	      echo "installing $(srcdir)/$$cat as" \
-		   "$$dir/$(PACKAGE)$(INSTOBJEXT).m"; \
+		   "$$dir/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m"; \
 	    else \
 	      true; \
 	    fi; \
 	  fi; \
 	done
-	if test "$(PACKAGE)" = "gettext"; then \
-	  if test -r "$(MKINSTALLDIRS)"; then \
-	    $(MKINSTALLDIRS) $(DESTDIR)$(gettextsrcdir); \
-	  else \
-	    mkdir -p $(DESTDIR)$(gettextsrcdir); \
-	  fi; \
+	if test "$(NLS_TEXTDOMAIN)" = "gettext"; then \
+	  mkdir -p $(DESTDIR)$(gettextsrcdir); \
 	  $(INSTALL_DATA) $(srcdir)/makefile.inn \
 			  $(DESTDIR)$(gettextsrcdir)/makefile.inn; \
 	else \
@@ -172,10 +160,10 @@ uninstall:
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
-	  rm -f $(DESTDIR)$(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
-	  rm -f $(DESTDIR)$(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
-	  rm -f $(DESTDIR)$(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
-	  rm -f $(DESTDIR)$(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
+	  rm -f $(DESTDIR)$(localedir)/$$lang/LC_MESSAGES/$(NLS_TEXTDOMAIN)$(INSTOBJEXT); \
+	  rm -f $(DESTDIR)$(localedir)/$$lang/LC_MESSAGES/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m; \
+	  rm -f $(DESTDIR)$(gnulocaledir)/$$lang/LC_MESSAGES/$(NLS_TEXTDOMAIN)$(INSTOBJEXT); \
+	  rm -f $(DESTDIR)$(gnulocaledir)/$$lang/LC_MESSAGES/$(NLS_TEXTDOMAIN)$(INSTOBJEXT).m; \
 	done
 	rm -f $(gettextsrcdir)/po-makefile.inn
 

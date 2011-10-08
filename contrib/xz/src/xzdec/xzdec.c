@@ -40,7 +40,7 @@
 static unsigned int display_errors = 2;
 
 
-static void lzma_attribute((format(printf, 1, 2)))
+static void lzma_attribute((__format__(__printf__, 1, 2)))
 my_errorf(const char *fmt, ...)
 {
 	va_list ap;
@@ -57,7 +57,7 @@ my_errorf(const char *fmt, ...)
 }
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 help(void)
 {
 	printf(
@@ -81,7 +81,7 @@ PACKAGE_NAME " home page: <" PACKAGE_URL ">\n", progname);
 }
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 version(void)
 {
 	printf(TOOL_FORMAT "dec (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n"

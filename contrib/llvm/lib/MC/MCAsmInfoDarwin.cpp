@@ -13,6 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoDarwin.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
 MCAsmInfoDarwin::MCAsmInfoDarwin() {
@@ -53,7 +56,6 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   HasNoDeadStrip = true;
   HasSymbolResolver = true;
 
-  DwarfUsesAbsoluteLabelForStmtList = false;
+  DwarfRequiresRelocationForSectionOffset = false;
   DwarfUsesLabelOffsetForRanges = false;
 }
-

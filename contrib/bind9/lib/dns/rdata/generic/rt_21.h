@@ -18,7 +18,7 @@
 #ifndef GENERIC_RT_21_H
 #define GENERIC_RT_21_H 1
 
-/* $Id: rt_21.h,v 1.21 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rt_21.h,v 1.21 2007-06-19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC1183 */

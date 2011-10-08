@@ -18,7 +18,7 @@
 #ifndef GENERIC_RP_17_H
 #define GENERIC_RP_17_H 1
 
-/* $Id: rp_17.h,v 1.21 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rp_17.h,v 1.21 2007-06-19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC1183 */

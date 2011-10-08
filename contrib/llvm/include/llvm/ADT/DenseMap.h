@@ -53,13 +53,13 @@ public:
     CopyFrom(other);
   }
 
-  explicit DenseMap(unsigned NumInitBuckets = 64) {
+  explicit DenseMap(unsigned NumInitBuckets = 0) {
     init(NumInitBuckets);
   }
 
   template<typename InputIt>
   DenseMap(const InputIt &I, const InputIt &E) {
-    init(64);
+    init(NextPowerOf2(std::distance(I, E)));
     insert(I, E);
   }
   
@@ -72,7 +72,8 @@ public:
       P->first.~KeyT();
     }
 #ifndef NDEBUG
-    memset(Buckets, 0x5a, sizeof(BucketT)*NumBuckets);
+    if (NumBuckets)
+      memset((void*)Buckets, 0x5a, sizeof(BucketT)*NumBuckets);
 #endif
     operator delete(Buckets);
   }
@@ -98,7 +99,10 @@ public:
   unsigned size() const { return NumEntries; }
 
   /// Grow the densemap so that it has at least Size buckets. Does not shrink
-  void resize(size_t Size) { grow(Size); }
+  void resize(size_t Size) {
+    if (Size > NumBuckets)
+      grow(Size);
+  }
 
   void clear() {
     if (NumEntries == 0 && NumTombstones == 0) return;
@@ -248,23 +252,29 @@ private:
 
     if (NumBuckets) {
 #ifndef NDEBUG
-      memset(Buckets, 0x5a, sizeof(BucketT)*NumBuckets);
+      memset((void*)Buckets, 0x5a, sizeof(BucketT)*NumBuckets);
 #endif
       operator delete(Buckets);
     }
-    Buckets = static_cast<BucketT*>(operator new(sizeof(BucketT) *
-                                                 other.NumBuckets));
+
+    NumBuckets = other.NumBuckets;
+
+    if (NumBuckets == 0) {
+      Buckets = 0;
+      return;
+    }
+
+    Buckets = static_cast<BucketT*>(operator new(sizeof(BucketT) * NumBuckets));
 
     if (isPodLike<KeyInfoT>::value && isPodLike<ValueInfoT>::value)
-      memcpy(Buckets, other.Buckets, other.NumBuckets * sizeof(BucketT));
+      memcpy(Buckets, other.Buckets, NumBuckets * sizeof(BucketT));
     else
-      for (size_t i = 0; i < other.NumBuckets; ++i) {
+      for (size_t i = 0; i < NumBuckets; ++i) {
         new (&Buckets[i].first) KeyT(other.Buckets[i].first);
         if (!KeyInfoT::isEqual(Buckets[i].first, getEmptyKey()) &&
             !KeyInfoT::isEqual(Buckets[i].first, getTombstoneKey()))
           new (&Buckets[i].second) ValueT(other.Buckets[i].second);
       }
-    NumBuckets = other.NumBuckets;
   }
 
   BucketT *InsertIntoBucket(const KeyT &Key, const ValueT &Value,
@@ -279,9 +289,12 @@ private:
     // table completely filled with tombstones, no lookup would ever succeed,
     // causing infinite loops in lookup.
     ++NumEntries;
-    if (NumEntries*4 >= NumBuckets*3 ||
-        NumBuckets-(NumEntries+NumTombstones) < NumBuckets/8) {
+    if (NumEntries*4 >= NumBuckets*3) {
       this->grow(NumBuckets * 2);
+      LookupBucketFor(Key, TheBucket);
+    }
+    if (NumBuckets-(NumEntries+NumTombstones) < NumBuckets/8) {
+      this->grow(NumBuckets);
       LookupBucketFor(Key, TheBucket);
     }
 
@@ -312,6 +325,11 @@ private:
     unsigned BucketNo = getHashValue(Val);
     unsigned ProbeAmt = 1;
     BucketT *BucketsPtr = Buckets;
+
+    if (NumBuckets == 0) {
+      FoundBucket = 0;
+      return false;
+    }
 
     // FoundTombstone - Keep track of whether we find a tombstone while probing.
     BucketT *FoundTombstone = 0;
@@ -354,6 +372,12 @@ private:
     NumEntries = 0;
     NumTombstones = 0;
     NumBuckets = InitBuckets;
+
+    if (InitBuckets == 0) {
+      Buckets = 0;
+      return;
+    }
+
     assert(InitBuckets && (InitBuckets & (InitBuckets-1)) == 0 &&
            "# initial buckets must be a power of two!");
     Buckets = static_cast<BucketT*>(operator new(sizeof(BucketT)*InitBuckets));
@@ -366,6 +390,9 @@ private:
   void grow(unsigned AtLeast) {
     unsigned OldNumBuckets = NumBuckets;
     BucketT *OldBuckets = Buckets;
+
+    if (NumBuckets < 64)
+      NumBuckets = 64;
 
     // Double the number of buckets.
     while (NumBuckets < AtLeast)
@@ -398,7 +425,8 @@ private:
     }
 
 #ifndef NDEBUG
-    memset(OldBuckets, 0x5a, sizeof(BucketT)*OldNumBuckets);
+    if (OldNumBuckets)
+      memset((void*)OldBuckets, 0x5a, sizeof(BucketT)*OldNumBuckets);
 #endif
     // Free the old table.
     operator delete(OldBuckets);
@@ -431,12 +459,21 @@ private:
     }
 
 #ifndef NDEBUG
-    memset(OldBuckets, 0x5a, sizeof(BucketT)*OldNumBuckets);
+    memset((void*)OldBuckets, 0x5a, sizeof(BucketT)*OldNumBuckets);
 #endif
     // Free the old table.
     operator delete(OldBuckets);
 
     NumEntries = 0;
+  }
+  
+public:
+  /// Return the approximate size (in bytes) of the actual map.
+  /// This is just the raw memory used by DenseMap.
+  /// If entries are pointers to objects, the size of the referenced objects
+  /// are not included.
+  size_t getMemorySize() const {
+    return NumBuckets * sizeof(BucketT);
   }
 };
 

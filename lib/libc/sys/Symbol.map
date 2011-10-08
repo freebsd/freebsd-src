@@ -363,7 +363,18 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
+	cap_new;
+	cap_getrights;
 	getloginclass;
+	pdfork;
+	pdgetpid;
+	pdkill;
+	posix_fallocate;
+	rctl_get_racct;
+	rctl_get_rules;
+	rctl_get_limits;
+	rctl_add_rule;
+	rctl_remove_rule;
 	setloginclass;
 };
 

@@ -11,6 +11,7 @@
 #define INSTCOMBINE_INSTCOMBINE_H
 
 #include "InstCombineWorklist.h"
+#include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/IRBuilder.h"
@@ -69,7 +70,6 @@ class LLVM_LIBRARY_VISIBILITY InstCombiner
                              : public FunctionPass,
                                public InstVisitor<InstCombiner, Instruction*> {
   TargetData *TD;
-  bool MustPreserveLCSSA;
   bool MadeIRChange;
 public:
   /// Worklist - All of the instructions that need to be simplified.
@@ -217,8 +217,8 @@ private:
   Instruction *transformCallThroughTrampoline(CallSite CS);
   Instruction *transformZExtICmp(ICmpInst *ICI, Instruction &CI,
                                  bool DoXform = true);
+  Instruction *transformSExtICmp(ICmpInst *ICI, Instruction &CI);
   bool WillNotOverflowSignedAdd(Value *LHS, Value *RHS);
-  DbgDeclareInst *hasOneUsePlusDeclare(Value *V);
   Value *EmitGEPOffset(User *GEP);
 
 public:
@@ -233,7 +233,15 @@ public:
     Worklist.Add(New);
     return New;
   }
-      
+
+  // InsertNewInstWith - same as InsertNewInstBefore, but also sets the 
+  // debug loc.
+  //
+  Instruction *InsertNewInstWith(Instruction *New, Instruction &Old) {
+    New->setDebugLoc(Old.getDebugLoc());
+    return InsertNewInstBefore(New, Old);
+  }
+
   // ReplaceInstUsesWith - This method is to be used when an instruction is
   // found to be dead, replacable with another preexisting expression.  Here
   // we add all uses of I to the worklist, replace all uses of I with the new
@@ -247,7 +255,10 @@ public:
     // segment of unreachable code, so just clobber the instruction.
     if (&I == V) 
       V = UndefValue::get(I.getType());
-      
+
+    DEBUG(errs() << "IC: Replacing " << I << "\n"
+                    "    with " << *V << '\n');
+
     I.replaceAllUsesWith(V);
     return &I;
   }

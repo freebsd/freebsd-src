@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdio.h,v 1.13 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: stdio.h,v 1.13 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_STDIO_H
 #define ISC_STDIO_H 1

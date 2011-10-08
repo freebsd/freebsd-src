@@ -141,7 +141,7 @@ namespace  {
     void VisitFloatingLiteral(FloatingLiteral *Node);
     void VisitStringLiteral(StringLiteral *Str);
     void VisitUnaryOperator(UnaryOperator *Node);
-    void VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *Node);
+    void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *Node);
     void VisitMemberExpr(MemberExpr *Node);
     void VisitExtVectorElementExpr(ExtVectorElementExpr *Node);
     void VisitBinaryOperator(BinaryOperator *Node);
@@ -236,6 +236,9 @@ void StmtDumper::DumpDeclarator(Decl *D) {
   if (TypedefDecl *localType = dyn_cast<TypedefDecl>(D)) {
     OS << "\"typedef " << localType->getUnderlyingType().getAsString()
        << ' ' << localType << '"';
+  } else if (TypeAliasDecl *localType = dyn_cast<TypeAliasDecl>(D)) {
+    OS << "\"using " << localType << " = "
+       << localType->getUnderlyingType().getAsString() << '"';
   } else if (ValueDecl *VD = dyn_cast<ValueDecl>(D)) {
     OS << "\"";
     // Emit storage class for vardecls.
@@ -284,6 +287,12 @@ void StmtDumper::DumpDeclarator(Decl *D) {
     OS << ";\"";
   } else if (LabelDecl *LD = dyn_cast<LabelDecl>(D)) {
     OS << "label " << LD->getNameAsString();
+  } else if (StaticAssertDecl *SAD = dyn_cast<StaticAssertDecl>(D)) {
+    OS << "\"static_assert(\n";
+    DumpSubTree(SAD->getAssertExpr());
+    OS << ",\n";
+    DumpSubTree(SAD->getMessage());
+    OS << ");\"";
   } else {
     assert(0 && "Unexpected decl");
   }
@@ -360,6 +369,11 @@ void StmtDumper::VisitDeclRefExpr(DeclRefExpr *Node) {
 
   OS << " ";
   DumpDeclRef(Node->getDecl());
+  if (Node->getDecl() != Node->getFoundDecl()) {
+    OS << " (";
+    DumpDeclRef(Node->getFoundDecl());
+    OS << ")";
+  }
 }
 
 void StmtDumper::DumpDeclRef(Decl *d) {
@@ -441,9 +455,19 @@ void StmtDumper::VisitUnaryOperator(UnaryOperator *Node) {
   OS << " " << (Node->isPostfix() ? "postfix" : "prefix")
      << " '" << UnaryOperator::getOpcodeStr(Node->getOpcode()) << "'";
 }
-void StmtDumper::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *Node) {
+void StmtDumper::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *Node) {
   DumpExpr(Node);
-  OS << " " << (Node->isSizeOf() ? "sizeof" : "alignof") << " ";
+  switch(Node->getKind()) {
+  case UETT_SizeOf:
+    OS << " sizeof ";
+    break;
+  case UETT_AlignOf:
+    OS << " __alignof ";
+    break;
+  case UETT_VecStep:
+    OS << " vec_step ";
+    break;
+  }
   if (Node->isArgumentType())
     DumpType(Node->getArgumentType());
 }

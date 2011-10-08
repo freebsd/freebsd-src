@@ -358,7 +358,7 @@ arscp_copy(int ifd, int ofd)
 
 /*
  * Add all modules of archive to current archive, if list != NULL,
- * only those modules speicifed in 'list' will be added.
+ * only those modules specified in 'list' will be added.
  */
 static void
 arscp_addlib(char *archive, struct list *list)
@@ -545,7 +545,7 @@ arscp_end(int eval)
 }
 
 /*
- * Check if target spcified, i.e, whether OPEN or CREATE has been
+ * Check if target specified, i.e, whether OPEN or CREATE has been
  * issued by user.
  */
 static int

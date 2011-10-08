@@ -1099,7 +1099,7 @@ create_node (size_t size)
 
   obstack_blank (&irp, size);
   result = obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   /* Default values of members are NULL and zero.  */
   memset (result, 0, size);
   return result;
@@ -1170,7 +1170,7 @@ next_sep_el (const char **pstr, int sep, int par_flag)
     }
   obstack_1grow (&irp, '\0');
   out_str = obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
 
   *pstr = p;
   if (**pstr == sep)
@@ -1221,7 +1221,7 @@ get_str_vect (const char *str, int *els_num, int sep, int paren_p)
     return NULL;
   obstack_blank (&irp, sizeof (char *) * (*els_num + 1));
   vect = (char **) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   pstr = &str;
   for (i = 0; i < *els_num; i++)
     vect [i] = next_sep_el (pstr, sep, paren_p);
@@ -3343,7 +3343,7 @@ alloc_empty_reserv_sets (void)
 
   obstack_blank (&irp, els_in_reservs * sizeof (set_el_t));
   result = (reserv_sets_t) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   memset (result, 0, els_in_reservs * sizeof (set_el_t));
   return result;
 }
@@ -4117,10 +4117,10 @@ initiate_excl_sets (void)
 
   obstack_blank (&irp, els_in_cycle_reserv * sizeof (set_el_t));
   excl_set = (reserv_sets_t) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   obstack_blank (&irp, description->units_num * sizeof (reserv_sets_t));
   unit_excl_set_table = (reserv_sets_t *) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   /* Evaluate unit exclusion sets.  */
   for (i = 0; i < description->decls_num; i++)
     {
@@ -4129,7 +4129,7 @@ initiate_excl_sets (void)
 	{
 	  obstack_blank (&irp, els_in_cycle_reserv * sizeof (set_el_t));
 	  unit_excl_set = (reserv_sets_t) obstack_base (&irp);
-	  obstack_finish (&irp);
+	  (void) obstack_finish (&irp);
 	  memset (unit_excl_set, 0, els_in_cycle_reserv * sizeof (set_el_t));
 	  for (el = DECL_UNIT (decl)->excl_list;
 	       el != NULL;
@@ -4224,16 +4224,16 @@ initiate_presence_absence_pattern_sets (void)
 
   obstack_blank (&irp, description->units_num * sizeof (pattern_reserv_t));
   unit_presence_set_table = (pattern_reserv_t *) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   obstack_blank (&irp, description->units_num * sizeof (pattern_reserv_t));
   unit_final_presence_set_table = (pattern_reserv_t *) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   obstack_blank (&irp, description->units_num * sizeof (pattern_reserv_t));
   unit_absence_set_table = (pattern_reserv_t *) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   obstack_blank (&irp, description->units_num * sizeof (pattern_reserv_t));
   unit_final_absence_set_table = (pattern_reserv_t *) obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
   /* Evaluate unit presence/absence sets.  */
   for (i = 0; i < description->decls_num; i++)
     {
@@ -4935,7 +4935,7 @@ store_alt_unit_usage (regexp_t regexp, regexp_t unit, int cycle,
   
   obstack_blank (&unit_usages, sizeof (struct unit_usage));
   unit_usage_ptr = (struct unit_usage *) obstack_base (&unit_usages);
-  obstack_finish (&unit_usages);
+  (void) obstack_finish (&unit_usages);
   unit_usage_ptr->unit_decl = unit_decl;
   index = cycle * REGEXP_ONEOF (regexp)->regexps_num + alt_num;
   unit_usage_ptr->next = VEC_index (unit_usage_t, cycle_alt_unit_usages, index);
@@ -8975,7 +8975,7 @@ initiate_automaton_gen (int argc, char **argv)
 		strlen (STANDARD_OUTPUT_DESCRIPTION_FILE_SUFFIX) + 1);
   obstack_1grow (&irp, '\0');
   output_description_file_name = obstack_base (&irp);
-  obstack_finish (&irp);
+  (void) obstack_finish (&irp);
 }
 
 /* The following function checks existence at least one arc marked by

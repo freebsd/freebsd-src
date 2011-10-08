@@ -4,8 +4,8 @@
 # $FreeBSD$
 #
 # This script compares the file iso3166 (from head/share/misc) with the files
-# list-en1-semic-2.txt (from
-# http://www.iso.org/iso/list-en1-semic-2.txt) and iso3166-countrycodes.txt
+# list-en1-semic-3.txt (from
+# http://www.iso.org/iso/list-en1-semic-3.txt) and iso3166-countrycodes.txt
 # (from ftp://ftp.ripe.net/) to see if there any differences.
 #
 # Created by Edwin Groothuis <edwin@FreeBSD.org> for the FreeBSD project.
@@ -41,7 +41,7 @@ my %old = ();
 
 my %new1 = ();
 {
-	open(FIN, "iso3166-countrycodes.txt") or die "Cannot open iso3166-countrycodes.txt, which can be retrieved from ftp://ftp.ripe.net/";
+	open(FIN, "iso3166-countrycodes.txt") or die "Cannot open iso3166-countrycodes.txt, which can be retrieved from ftp://ftp.ripe.net/iso3166-countrycodes.txt";
 	my @lines = <FIN>;
 	close(FIN);
 	chomp(@lines);
@@ -56,7 +56,7 @@ my %new1 = ();
 		next if ($l eq "");
 
 		die "Invalid line: $l\n"
-			if ($l !~ /^(.+?)[\t ][\t ]+([A-Z]{2})[\t ]+([A-Z]{3})[\t ]+(\d+)[\t ]*$/);
+			if ($l !~ /^(.+?)[\t ]+([A-Z]{2})[\t ]+([A-Z]{3})[\t ]+(\d+)[\t ]*$/);
 		my $two = $2;
 		my $three = $3;
 		my $number = $4;
@@ -71,7 +71,7 @@ my %new1 = ();
 
 my %new2 = ();
 {
-	open(FIN, "list-en1-semic-2.txt") or die "Cannot open list-en1-semic-2.txt, which can be retrieved from http://www.iso.org/iso/list-en1-semic-2.txt";
+	open(FIN, "list-en1-semic-3.txt") or die "Cannot open list-en1-semic-3.txt, which can be retrieved from http://www.iso.org/iso/list-en1-semic-3.txt";
 	my @lines = <FIN>;
 	close(FIN);
 	chomp(@lines);

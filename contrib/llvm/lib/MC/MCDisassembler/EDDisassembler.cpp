@@ -23,6 +23,7 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
@@ -106,6 +107,7 @@ void EDDisassembler::initialize() {
   
   InitializeAllTargetInfos();
   InitializeAllTargets();
+  InitializeAllMCAsmInfos();
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
   InitializeAllDisassemblers();
@@ -167,11 +169,11 @@ EDDisassembler::EDDisassembler(CPUKey &key) :
   if (!Tgt)
     return;
   
+  std::string CPU;
   std::string featureString;
-  
-  TargetMachine.reset(Tgt->createTargetMachine(tripleString,
+  TargetMachine.reset(Tgt->createTargetMachine(tripleString, CPU,
                                                featureString));
-  
+
   const TargetRegisterInfo *registerInfo = TargetMachine->getRegisterInfo();
   
   if (!registerInfo)
@@ -179,11 +181,11 @@ EDDisassembler::EDDisassembler(CPUKey &key) :
     
   initMaps(*registerInfo);
   
-  AsmInfo.reset(Tgt->createAsmInfo(tripleString));
+  AsmInfo.reset(Tgt->createMCAsmInfo(tripleString));
   
   if (!AsmInfo)
     return;
-  
+
   Disassembler.reset(Tgt->createMCDisassembler());
   
   if (!Disassembler)
@@ -253,9 +255,11 @@ EDInst *EDDisassembler::createInst(EDByteReaderCallback byteReader,
     delete inst;
     return NULL;
   } else {
-    const llvm::EDInstInfo *thisInstInfo;
+    const llvm::EDInstInfo *thisInstInfo = NULL;
 
-    thisInstInfo = &InstInfos[inst->getOpcode()];
+    if (InstInfos) {
+      thisInstInfo = &InstInfos[inst->getOpcode()];
+    }
     
     EDInst* sdInst = new EDInst(inst, byteSize, *this, thisInstInfo);
     return sdInst;
@@ -331,6 +335,15 @@ int EDDisassembler::printInst(std::string &str, MCInst &inst) {
   return 0;
 }
 
+static void diag_handler(const SMDiagnostic &diag,
+                         void *context)
+{
+  if (context) {
+    EDDisassembler *disassembler = static_cast<EDDisassembler*>(context);
+    diag.Print("", disassembler->ErrorStream);
+  }
+}
+
 int EDDisassembler::parseInst(SmallVectorImpl<MCParsedAsmOperand*> &operands,
                               SmallVectorImpl<AsmToken> &tokens,
                               const std::string &str) {
@@ -353,14 +366,18 @@ int EDDisassembler::parseInst(SmallVectorImpl<MCParsedAsmOperand*> &operands,
   SMLoc instLoc;
   
   SourceMgr sourceMgr;
+  sourceMgr.setDiagHandler(diag_handler, static_cast<void*>(this));
   sourceMgr.AddNewSourceBuffer(buf, SMLoc()); // ownership of buf handed over
   MCContext context(*AsmInfo, NULL);
   OwningPtr<MCStreamer> streamer(createNullStreamer(context));
   OwningPtr<MCAsmParser> genericParser(createMCAsmParser(*Tgt, sourceMgr,
                                                          context, *streamer,
                                                          *AsmInfo));
-  OwningPtr<TargetAsmParser> TargetParser(Tgt->createAsmParser(*genericParser,
-                                                               *TargetMachine));
+
+  StringRef triple = tripleFromArch(Key.Arch);
+  OwningPtr<MCSubtargetInfo> STI(Tgt->createMCSubtargetInfo(triple, "", ""));
+  OwningPtr<TargetAsmParser> TargetParser(Tgt->createAsmParser(*STI,
+                                                               *genericParser));
   
   AsmToken OpcodeToken = genericParser->Lex();
   AsmToken NextToken = genericParser->Lex();  // consume next token, because specificParser expects us to

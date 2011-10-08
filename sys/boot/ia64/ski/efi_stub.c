@@ -28,8 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <machine/bootinfo.h>
 #include <machine/efi.h>
-#include <ia64/include/bootinfo.h>
 #include <stand.h>
 #include "libski.h"
 
@@ -223,39 +223,37 @@ ResetSystem(enum efi_reset type, efi_status status, u_long datasz,
 void
 efi_stub_init(struct bootinfo *bi)
 {
-	struct efi_md *memp;
+	static struct efi_md memmap[4];
 
 	/* Describe the SKI memory map. */
-	bi->bi_memmap = (u_int64_t)(bi + 1);
-	bi->bi_memmap_size = 4 * sizeof(struct efi_md);
+	bi->bi_memmap = (uintptr_t)(void *)memmap;
+	bi->bi_memmap_size = sizeof(memmap);
 	bi->bi_memdesc_size = sizeof(struct efi_md);
 	bi->bi_memdesc_version = 1;
 
-	memp = (struct efi_md *)bi->bi_memmap;
+	memmap[0].md_type = EFI_MD_TYPE_PALCODE;
+	memmap[0].md_phys = 0x100000;
+	memmap[0].md_virt = NULL;
+	memmap[0].md_pages = (1L*1024*1024)>>12;
+	memmap[0].md_attr = EFI_MD_ATTR_WB | EFI_MD_ATTR_RT;
 
-	memp[0].md_type = EFI_MD_TYPE_PALCODE;
-	memp[0].md_phys = 0x100000;
-	memp[0].md_virt = NULL;
-	memp[0].md_pages = (4L*1024*1024)>>12;
-	memp[0].md_attr = EFI_MD_ATTR_WB | EFI_MD_ATTR_RT;
+	memmap[1].md_type = EFI_MD_TYPE_FREE;
+	memmap[1].md_phys = 4L*1024*1024;
+	memmap[1].md_virt = NULL;
+	memmap[1].md_pages = (128L*1024*1024)>>12;
+	memmap[1].md_attr = EFI_MD_ATTR_WB;
 
-	memp[1].md_type = EFI_MD_TYPE_FREE;
-	memp[1].md_phys = 5L*1024*1024;
-	memp[1].md_virt = NULL;
-	memp[1].md_pages = (128L*1024*1024)>>12;
-	memp[1].md_attr = EFI_MD_ATTR_WB;
+	memmap[2].md_type = EFI_MD_TYPE_FREE;
+	memmap[2].md_phys = 4L*1024*1024*1024;
+	memmap[2].md_virt = NULL;
+	memmap[2].md_pages = (64L*1024*1024)>>12;
+	memmap[2].md_attr = EFI_MD_ATTR_WB;
 
-	memp[2].md_type = EFI_MD_TYPE_FREE;
-	memp[2].md_phys = 4L*1024*1024*1024;
-	memp[2].md_virt = NULL;
-	memp[2].md_pages = (64L*1024*1024)>>12;
-	memp[2].md_attr = EFI_MD_ATTR_WB;
-
-	memp[3].md_type = EFI_MD_TYPE_IOPORT;
-	memp[3].md_phys = 0xffffc000000;
-	memp[3].md_virt = NULL;
-	memp[3].md_pages = (64L*1024*1024)>>12;
-	memp[3].md_attr = EFI_MD_ATTR_UC;
+	memmap[3].md_type = EFI_MD_TYPE_IOPORT;
+	memmap[3].md_phys = 0xffffc000000;
+	memmap[3].md_virt = NULL;
+	memmap[3].md_pages = (64L*1024*1024)>>12;
+	memmap[3].md_attr = EFI_MD_ATTR_UC;
 
 	bi->bi_systab = (u_int64_t)&efi_systab;
 }

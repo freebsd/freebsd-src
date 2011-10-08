@@ -149,7 +149,7 @@ main(int argc, char **argv)
 			err(EX_OSERR, "cannot create output file %s", fname);
 	}
 
-	if ((fd = open(_devname, O_RDWR)) == -1)
+	if ((fd = open(_devname, O_RDONLY)) == -1)
 		err(EX_OSERR, "cannot open device %s", _devname);
 
 	return (numids? doreadid(fd, numids, trackno): doread(fd, of, _devname));

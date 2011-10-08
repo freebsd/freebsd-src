@@ -33,10 +33,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
+
+#define GET_REGINFO_TARGET_DESC
+#include "AlphaGenRegisterInfo.inc"
+
 using namespace llvm;
 
 AlphaRegisterInfo::AlphaRegisterInfo(const TargetInstrInfo &tii)
-  : AlphaGenRegisterInfo(Alpha::ADJUSTSTACKDOWN, Alpha::ADJUSTSTACKUP),
+  : AlphaGenRegisterInfo(),
     TII(tii) {
 }
 
@@ -69,6 +73,7 @@ const unsigned* AlphaRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
 BitVector AlphaRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(Alpha::R15);
+  Reserved.set(Alpha::R29);
   Reserved.set(Alpha::R30);
   Reserved.set(Alpha::R31);
   return Reserved;
@@ -198,10 +203,13 @@ int AlphaRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
   return -1;
 }
 
-#include "AlphaGenRegisterInfo.inc"
+int AlphaRegisterInfo::getLLVMRegNum(unsigned DwarfRegNum, bool isEH) const {
+  llvm_unreachable("What is the dwarf register number");
+  return -1;
+}
 
 std::string AlphaRegisterInfo::getPrettyName(unsigned reg)
 {
-  std::string s(RegisterDescriptors[reg].Name);
+  std::string s(AlphaRegDesc[reg].Name);
   return s;
 }

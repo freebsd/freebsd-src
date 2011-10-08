@@ -75,21 +75,21 @@ static int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 };
 
 
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfsd);
 
 SVCPOOL		*nfsrvd_pool;
 
 static int	nfs_privport = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_privport, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RW,
     &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2 and 3");
 
 static int	nfs_minvers = NFS_VER2;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
     &nfs_minvers, 0, "The lowest version of NFS handled by the server");
 
 static int	nfs_maxvers = NFS_VER4;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
     &nfs_maxvers, 0, "The highest version of NFS handled by the server");
 
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
@@ -115,7 +115,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (rqst->rq_proc > NFSV2PROC_STATFS) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = newnfs_nfsv3_procid[rqst->rq_proc];
 		nd.nd_flag = ND_NFSV2;
@@ -123,7 +123,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (rqst->rq_proc >= NFS_V3NPROCS) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = rqst->rq_proc;
 		nd.nd_flag = ND_NFSV3;
@@ -132,7 +132,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		    rqst->rq_proc != NFSV4PROC_COMPOUND) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
-			return;
+			goto out;
 		}
 		nd.nd_procnum = rqst->rq_proc;
 		nd.nd_flag = ND_NFSV4;
@@ -192,7 +192,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 	}
 
@@ -201,7 +201,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 
 		/* Set the flag based on credflavor */
@@ -215,7 +215,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
-			return;
+			goto out;
 		}
 
 #ifdef MAC
@@ -227,7 +227,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 				svcerr_weakauth(rqst);
 				svc_freereq(rqst);
 				m_freem(nd.nd_mrep);
-				return;
+				goto out;
 			}
 		}
 
@@ -248,13 +248,13 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (nd.nd_mreq != NULL)
 			m_freem(nd.nd_mreq);
 		svc_freereq(rqst);
-		return;
+		goto out;
 	}
 
 	if (nd.nd_mreq == NULL) {
 		svcerr_decode(rqst);
 		svc_freereq(rqst);
-		return;
+		goto out;
 	}
 
 	if (nd.nd_repstat & NFSERR_AUTHERR) {
@@ -267,6 +267,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	if (rp != NULL)
 		nfsrvd_sentcache(rp, xprt->xp_socket, 0);
 	svc_freereq(rqst);
+
+out:
+	NFSEXITCODE(0);
 }
 
 /*
@@ -329,6 +332,8 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 			cacherep = RC_REPLY;
 		*rpp = nfsrvd_updatecache(nd, so);
 	}
+
+	NFSEXITCODE2(0, nd);
 	return (cacherep);
 }
 
@@ -340,7 +345,7 @@ nfsrvd_addsock(struct file *fp)
 {
 	int siz;
 	struct socket *so;
-	int error;
+	int error = 0;
 	SVCXPRT *xprt;
 	static u_int64_t sockref = 0;
 
@@ -348,9 +353,8 @@ nfsrvd_addsock(struct file *fp)
 
 	siz = sb_max_adj;
 	error = soreserve(so, siz, siz);
-	if (error) {
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	/*
 	 * Steal the socket from userland so that it doesn't close
@@ -376,7 +380,9 @@ nfsrvd_addsock(struct file *fp)
 		SVC_RELEASE(xprt);
 	}
 
-	return (0);
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -386,18 +392,14 @@ nfsrvd_addsock(struct file *fp)
 int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
-#ifdef KGSSAPI
 	char principal[MAXHOSTNAMELEN + 5];
-	int error;
+	int error = 0;
 	bool_t ret2, ret3, ret4;
-#endif
 
-#ifdef KGSSAPI
 	error = copyinstr(args->principal, principal, sizeof (principal),
 	    NULL);
 	if (error)
-		return (error);
-#endif
+		goto out;
 
 	/*
 	 * Only the first nfsd actually does any work. The RPC code
@@ -412,38 +414,29 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 		NFSD_UNLOCK();
 
-#ifdef KGSSAPI
 		/* An empty string implies AUTH_SYS only. */
 		if (principal[0] != '\0') {
-			ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-			ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-			ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
+			ret2 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
+			ret3 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
+			ret4 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
 
-			if (!ret2 || !ret3 || !ret4) {
-				NFSD_LOCK();
-				newnfs_numnfsd--;
-				nfsrvd_init(1);
-				NFSD_UNLOCK();
-				return (EAUTH);
-			}
+			if (!ret2 || !ret3 || !ret4)
+				printf("nfsd: can't register svc name\n");
 		}
-#endif
 
 		nfsrvd_pool->sp_minthreads = args->minthreads;
 		nfsrvd_pool->sp_maxthreads = args->maxthreads;
 			
 		svc_run(nfsrvd_pool);
 
-#ifdef KGSSAPI
 		if (principal[0] != '\0') {
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
 		}
-#endif
 
 		NFSD_LOCK();
 		newnfs_numnfsd--;
@@ -451,7 +444,9 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	}
 	NFSD_UNLOCK();
 
-	return (0);
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -475,7 +470,7 @@ nfsrvd_init(int terminating)
 
 	NFSD_UNLOCK();
 
-	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_newnfs));
+	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 	nfsrvd_pool->sp_rcache = NULL;
 	nfsrvd_pool->sp_assign = NULL;
 	nfsrvd_pool->sp_done = NULL;

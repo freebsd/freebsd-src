@@ -1,0 +1,10 @@
+.\" $FreeBSD$
+Set to not build user accounting tools such as
+.Xr last 1 ,
+.Xr users 1 ,
+.Xr who 1 ,
+.Xr wtmpcvt 1 ,
+.Xr ac 8 ,
+.Xr lastlogin 8
+and
+.Xr utxrm 8 .

@@ -42,17 +42,23 @@ for dist in $DISTRIBUTIONS; do
 	    0 0 $percentage $items
 
 	CK=`sha256 -q $BSDINSTALL_DISTDIR/$dist`
-	awk -v checksum=$CK -v dist=$dist '{
+	awk -v checksum=$CK -v dist=$dist -v found=0 '{
 		if (dist == $1) {
+			found = 1
 			if (checksum == $2)
 				exit(0)
 			else
-				exit(1)
+				exit(2)
 		}
-	}' $BSDINSTALL_DISTDIR/MANIFEST
+	} END {if (!found) exit(1);}' $BSDINSTALL_DISTDIR/MANIFEST
 
-	if [ $? -eq 0 ]; then
-		eval "status_$distname=2"
+	CK_VALID=$?
+	if [ $CK_VALID -le 1 ]; then
+		if [ $CK_VALID -eq 0 ]; then
+			eval "status_$distname=2"
+		else
+			eval "status_$distname=6"
+		fi
 		percentage=$(echo $percentage + 100/`echo $DISTRIBUTIONS | wc -w` | bc)
 	else
 		eval "status_$distname=1"

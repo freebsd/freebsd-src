@@ -102,7 +102,7 @@ wdt_watchdog(void *argp, u_int cmd, int *error)
 	else if (interval > 0)
 		sc->cmd = interval | WD_ACTIVE;
 
-	/* We cannot turn of our watchdog so if user
+	/* We cannot turn off our watchdog so if user
 	 * fails to turn us on go to passive mode. */
 	if ((sc->cmd & WD_ACTIVE) == 0)
 		sc->cmd = WD_PASSIVE;

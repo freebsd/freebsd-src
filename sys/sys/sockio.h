@@ -110,6 +110,9 @@
 #define	SIOCSIFVNET	_IOWR('i', 90, struct ifreq)	/* move IF jail/vnet */
 #define	SIOCSIFRVNET	_IOWR('i', 91, struct ifreq)	/* reclaim vnet IF */
 
+#define	SIOCGIFFIB	_IOWR('i', 92, struct ifreq)	/* get IF fib */
+#define	SIOCSIFFIB	 _IOW('i', 93, struct ifreq)	/* set IF fib */
+
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */
 #define	SIOCGDRVSPEC	_IOWR('i', 123, struct ifdrv)	/* get driver-specific

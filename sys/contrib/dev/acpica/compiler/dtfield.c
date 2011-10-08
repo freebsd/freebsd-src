@@ -284,6 +284,7 @@ DtCompileInteger (
 {
     UINT64                  Value;
     UINT64                  MaxValue;
+    ACPI_STATUS             Status;
 
 
     /* Output buffer byte length must be in range 1-8 */
@@ -297,7 +298,11 @@ DtCompileInteger (
 
     /* Resolve integer expression to a single integer value */
 
-    Value = DtResolveIntegerExpression (Field);
+    Status = DtResolveIntegerExpression (Field, &Value);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Ensure that reserved fields are set to zero */
     /* TBD: should we set to zero, or just make this an ERROR? */

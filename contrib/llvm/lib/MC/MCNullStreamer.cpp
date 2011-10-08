@@ -44,7 +44,8 @@ namespace {
     virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol){}
     virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                           const MCSymbol *LastLabel,
-                                          const MCSymbol *Label) {}
+                                          const MCSymbol *Label,
+                                          unsigned PointerSize) {}
 
     virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute){}
 
@@ -67,11 +68,9 @@ namespace {
     virtual void EmitBytes(StringRef Data, unsigned AddrSpace) {}
 
     virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                               bool isPCRel, unsigned AddrSpace) {}
-    virtual void EmitULEB128Value(const MCExpr *Value,
-                                  unsigned AddrSpace = 0) {}
-    virtual void EmitSLEB128Value(const MCExpr *Value,
-                                  unsigned AddrSpace = 0) {}
+                               unsigned AddrSpace) {}
+    virtual void EmitULEB128Value(const MCExpr *Value) {}
+    virtual void EmitSLEB128Value(const MCExpr *Value) {}
     virtual void EmitGPRel32Value(const MCExpr *Value) {}
     virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                       unsigned ValueSize = 1,
@@ -89,7 +88,8 @@ namespace {
     }
     virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                                        unsigned Column, unsigned Flags,
-                                       unsigned Isa, unsigned Discriminator) {}
+                                       unsigned Isa, unsigned Discriminator,
+                                       StringRef FileName) {}
     virtual void EmitInstruction(const MCInst &Inst) {}
 
     virtual void Finish() {}

@@ -48,6 +48,11 @@ namespace llvm {
       /// this occurs when we see a may-aliased store to the memory location we
       /// care about.
       ///
+      /// There are several cases that may be interesting here:
+      ///   1. Loads are clobbered by may-alias stores.
+      ///   2. Loads are considered clobbered by partially-aliased loads.  The
+      ///      client may choose to analyze deeper into these cases.
+      ///
       /// A dependence query on the first instruction of the entry block will
       /// return a clobber(self) result.
       Clobber,
@@ -85,18 +90,27 @@ namespace llvm {
     /// get methods: These are static ctor methods for creating various
     /// MemDepResult kinds.
     static MemDepResult getDef(Instruction *Inst) {
+      assert(Inst && "Def requires inst");
       return MemDepResult(PairTy(Inst, Def));
     }
     static MemDepResult getClobber(Instruction *Inst) {
+      assert(Inst && "Clobber requires inst");
       return MemDepResult(PairTy(Inst, Clobber));
     }
     static MemDepResult getNonLocal() {
       return MemDepResult(PairTy(0, NonLocal));
     }
+    static MemDepResult getUnknown() {
+      return MemDepResult(PairTy(0, Clobber));
+    }
 
     /// isClobber - Return true if this MemDepResult represents a query that is
     /// a instruction clobber dependency.
-    bool isClobber() const { return Value.getInt() == Clobber; }
+    bool isClobber() const { return Value.getInt() == Clobber && getInst(); }
+
+    /// isUnknown - Return true if this MemDepResult represents a query which
+    /// cannot and/or will not be computed.
+    bool isUnknown() const { return Value.getInt() == Clobber && !getInst(); }
 
     /// isDef - Return true if this MemDepResult represents a query that is
     /// a instruction definition dependency.
@@ -349,6 +363,20 @@ namespace llvm {
                                           bool isLoad, 
                                           BasicBlock::iterator ScanIt,
                                           BasicBlock *BB);
+    
+    
+    /// getLoadLoadClobberFullWidthSize - This is a little bit of analysis that
+    /// looks at a memory location for a load (specified by MemLocBase, Offs,
+    /// and Size) and compares it against a load.  If the specified load could
+    /// be safely widened to a larger integer load that is 1) still efficient,
+    /// 2) safe for the target, and 3) would provide the specified memory
+    /// location value, then this function returns the size in bytes of the
+    /// load width to use.  If not, this returns zero.
+    static unsigned getLoadLoadClobberFullWidthSize(const Value *MemLocBase,
+                                                    int64_t MemLocOffs,
+                                                    unsigned MemLocSize,
+                                                    const LoadInst *LI,
+                                                    const TargetData &TD);
     
   private:
     MemDepResult getCallSiteDependencyFrom(CallSite C, bool isReadOnlyCall,

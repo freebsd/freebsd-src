@@ -66,6 +66,7 @@
 
 #include <sys/queue.h>
 #include <sys/tree.h>
+#include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <machine/sr.h>
@@ -98,7 +99,7 @@ struct	pmap {
     #else
 	register_t	pm_sr[16];
     #endif
-	cpumask_t	pm_active;
+	cpuset_t	pm_active;
 
 	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
@@ -126,10 +127,8 @@ LIST_HEAD(pvo_head, pvo_entry);
 #define	PVO_EXECUTABLE		0x040UL		/* PVO entry is executable */
 #define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
 						   bootstrap */
-#define PVO_FAKE		0x100UL		/* fictitious phys page */
 #define PVO_LARGE		0x200UL		/* large page */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
-#define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
 #define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
 #define	PVO_PTEGIDX_CLR(pvo)	\
@@ -175,7 +174,7 @@ void	slb_free_user_cache(struct slb **);
 struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
-	cpumask_t		pm_active;	/* active on cpus */
+	cpuset_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */

@@ -55,11 +55,15 @@ start_extract_uzip_tar()
 
   case ${PACKAGETYPE} in
     uzip)
+      if ! kldstat -v | grep -q "geom_uzip" ; then
+	exit_err "Kernel module geom_uzip not loaded"
+      fi
+
 	  # Start by mounting the uzip image
       MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
       mkdir -p ${FSMNT}.uzip
       mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
         exit_err "ERROR: Failed mounting the ${INSFILE}"
       fi
@@ -67,7 +71,7 @@ start_extract_uzip_tar()
 
       # Copy over all the files now!
       tar cvf - . 2>/dev/null | tar -xpv -C ${FSMNT} ${TAROPTS} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
         cd /
         echo "TAR failure occurred:" >>${LOGOUT}
@@ -84,7 +88,7 @@ start_extract_uzip_tar()
        ;;
     tar)
 	  tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
         exit_err "ERROR: Failed extracting the tar image"
       fi
@@ -127,7 +131,7 @@ start_extract_split()
     then
       echo_log "Extracting" `basename ${dir}`
       echo "y" | sh install.sh >/dev/null
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
         exit_err "ERROR: Failed extracting ${dir}"
       fi
@@ -143,7 +147,7 @@ start_extract_split()
   then
     echo_log "Extracting" `basename ${KERNELS}`
     echo "y" | sh install.sh generic >/dev/null
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       exit_err "ERROR: Failed extracting ${KERNELS}"
     fi
@@ -160,7 +164,7 @@ start_extract_split()
   then
     echo_log "Extracting" `basename ${SOURCE}`
     echo "y" | sh install.sh all >/dev/null
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       exit_err "ERROR: Failed extracting ${SOURCE}"
     fi
@@ -202,7 +206,7 @@ fetch_install_file()
   fetch_file "${FTPPATH}/${INSFILE}.md5" "${OUTFILE}.md5" "0"
 
   # Done fetching, now reset the INSFILE to our downloaded archived
-  INSFILE="${OUTFILE}" ; export INSFILE
+  export INSFILE="${OUTFILE}"
 
 };
 
@@ -244,7 +248,7 @@ fetch_split_files()
 
 
   NETRC="${OUTFILE}/.netrc"
-  cat<<EOF>"${NETRC}"
+  cat <<EOF >"${NETRC}"
 machine ${FTPHOST}
 login anonymous
 password anonymous
@@ -255,14 +259,14 @@ EOF
 
   for d in ${DIRS}
   do
-    cat<<EOF>>"${NETRC}"
+    cat <<EOF >>"${NETRC}"
 cd ${FTPDIR}/${d}
 lcd ${OUTFILE}/${d}
 mreget *
 EOF
   done
 
-  cat<<EOF>>"${NETRC}"
+  cat <<EOF >>"${NETRC}"
 bye
 
 
@@ -272,7 +276,7 @@ EOF
   echo "$ INSTALL" | ftp -N "${NETRC}" "${FTPHOST}"
 
   # Done fetching, now reset the INSFILE to our downloaded archived
-  INSFILE="${OUTFILE}" ; export INSFILE
+  export INSFILE="${OUTFILE}"
 }
 
 # Function which does the rsync download from the server specified in cfg
@@ -283,27 +287,27 @@ start_rsync_copy()
   if [ -z "${VAL}" ]; then
     exit_err "ERROR: rsyncPath is unset! Please check your config and try again."
   fi
-  RSYNCPATH="${VAL}" ; export RSYNCPATH
+  export RSYNCPATH="${VAL}"
 
   get_value_from_cfg rsyncHost
   if [  -z "${VAL}" ]; then
     exit_err "ERROR: rsyncHost is unset! Please check your config and try again."
   fi
-  RSYNCHOST="${VAL}" ; export RSYNCHOST
+  export RSYNCHOST="${VAL}"
 
   get_value_from_cfg rsyncUser
   if [ -z "${VAL}" ]; then
     exit_err "ERROR: rsyncUser is unset! Please check your config and try again."
   fi
-  RSYNCUSER="${VAL}" ; export RSYNCUSER
+  export RSYNCUSER="${VAL}"
 
   get_value_from_cfg rsyncPort
   if [ -z "${VAL}" ]; then
     exit_err "ERROR: rsyncPort is unset! Please check your config and try again."
   fi
-  RSYNCPORT="${VAL}" ; export RSYNCPORT
+  export RSYNCPORT="${VAL}"
 
-  COUNT="1"
+  COUNT=1
   while
   z=1
   do
@@ -317,14 +321,14 @@ start_rsync_copy()
     --rsync-path="rsync --fake-super" \
     -e "ssh -p ${RSYNCPORT}" \
     ${RSYNCUSER}@${RSYNCHOST}:${RSYNCPATH}/./ ${FSMNT}
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       echo "Rsync failed! Tries: ${COUNT}"
     else
       break
     fi
 
-    COUNT="`expr ${COUNT} + 1`"
+    COUNT=$((COUNT+1))
   done 
 
 };
@@ -339,8 +343,8 @@ start_image_install()
   # We are ready to start mounting, lets read the config and do it
   while read line
   do
-    echo $line | grep "^disk0=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^disk0=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found a disk= entry, lets get the disk we are working on
       get_value_from_string "${line}"
@@ -348,11 +352,11 @@ start_image_install()
       DISK="$VAL"
     fi
 
-    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^commitDiskPart" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found our flag to commit this disk setup / lets do sanity check and do it
-      if [ ! -z "${DISK}" ]
+      if [ -n "${DISK}" ]
       then
 
         # Write the image
@@ -376,9 +380,9 @@ init_extraction()
   # Figure out what file we are using to install from via the config
   get_value_from_cfg installFile
 
-  if [ ! -z "${VAL}" ]
+  if [ -n "${VAL}" ]
   then
-    INSFILE="${VAL}" ; export INSFILE
+    export INSFILE="${VAL}"
   else
     # If no installFile specified, try our defaults
     if [ "$INSTALLTYPE" = "FreeBSD" ]
@@ -407,7 +411,7 @@ init_extraction()
     dvd|usb)
       # Lets start by mounting the disk 
       opt_mount 
-      if [ ! -z "${INSDIR}" ]
+      if [ -n "${INSDIR}" ]
       then
         INSDIR="${CDMNT}/${INSDIR}" ; export INSDIR
 	    start_extract_split
@@ -435,6 +439,16 @@ init_extraction()
 
     rsync) start_rsync_copy ;;
     image) start_image_install ;;
+    local)
+      get_value_from_cfg localPath
+      if [ -z "$VAL" ]
+      then
+        exit_err "Install medium was set to local, but no localPath was provided!"
+      fi
+      LOCALPATH=$VAL
+      INSFILE="${LOCALPATH}/${INSFILE}" ; export INSFILE
+      start_extract_uzip_tar
+      ;;
     *) exit_err "ERROR: Unknown install medium" ;;
   esac
 

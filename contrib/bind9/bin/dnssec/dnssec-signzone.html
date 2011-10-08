@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dnssec-signzone.html,v 1.33.44.8 2009-11-07 01:56:11 tbox Exp $ -->
+<!-- $Id: dnssec-signzone.html,v 1.45 2009-12-04 01:13:44 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,21 +29,21 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dnssec-signzone</code>  [<code class="option">-a</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-e <em class="replaceable"><code>end-time</code></em></code>] [<code class="option">-f <em class="replaceable"><code>output-file</code></em></code>] [<code class="option">-g</code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>key</code></em></code>] [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-I <em class="replaceable"><code>input-format</code></em></code>] [<code class="option">-j <em class="replaceable"><code>jitter</code></em></code>] [<code class="option">-N <em class="replaceable"><code>soa-serial-format</code></em></code>] [<code class="option">-o <em class="replaceable"><code>origin</code></em></code>] [<code class="option">-O <em class="replaceable"><code>output-format</code></em></code>] [<code class="option">-p</code>] [<code class="option">-P</code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>start-time</code></em></code>] [<code class="option">-t</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-z</code>] [<code class="option">-3 <em class="replaceable"><code>salt</code></em></code>] [<code class="option">-H <em class="replaceable"><code>iterations</code></em></code>] [<code class="option">-A</code>] {zonefile} [key...]</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-signzone</code>  [<code class="option">-a</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-e <em class="replaceable"><code>end-time</code></em></code>] [<code class="option">-f <em class="replaceable"><code>output-file</code></em></code>] [<code class="option">-g</code>] [<code class="option">-h</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-k <em class="replaceable"><code>key</code></em></code>] [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-I <em class="replaceable"><code>input-format</code></em></code>] [<code class="option">-j <em class="replaceable"><code>jitter</code></em></code>] [<code class="option">-N <em class="replaceable"><code>soa-serial-format</code></em></code>] [<code class="option">-o <em class="replaceable"><code>origin</code></em></code>] [<code class="option">-O <em class="replaceable"><code>output-format</code></em></code>] [<code class="option">-p</code>] [<code class="option">-P</code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-S</code>] [<code class="option">-s <em class="replaceable"><code>start-time</code></em></code>] [<code class="option">-T <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-t</code>] [<code class="option">-u</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-x</code>] [<code class="option">-z</code>] [<code class="option">-3 <em class="replaceable"><code>salt</code></em></code>] [<code class="option">-H <em class="replaceable"><code>iterations</code></em></code>] [<code class="option">-A</code>] {zonefile} [key...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543558"></a><h2>DESCRIPTION</h2>
+<a name="id2543596"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-signzone</strong></span>
       signs a zone.  It generates
       NSEC and RRSIG records and produces a signed version of the
-      zone.  It also generates a <code class="filename">keyset-</code> file containing
-      the key-signing keys for the zone, and if signing a zone which
-      contains delegations, it can optionally generate DS records for
-      the child zones from their <code class="filename">keyset-</code> files.
+      zone. The security status of delegations from the signed zone
+      (that is, whether the child zones are secure or not) is
+      determined by the presence or absence of a
+      <code class="filename">keyset</code> file for each child zone.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543576"></a><h2>OPTIONS</h2>
+<a name="id2543611"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a</span></dt>
 <dd><p>
@@ -52,6 +52,38 @@
 <dt><span class="term">-c <em class="replaceable"><code>class</code></em></span></dt>
 <dd><p>
             Specifies the DNS class of the zone.
+          </p></dd>
+<dt><span class="term">-C</span></dt>
+<dd><p>
+            Compatibility mode: Generate a
+            <code class="filename">keyset-<em class="replaceable"><code>zonename</code></em></code>
+            file in addition to
+            <code class="filename">dsset-<em class="replaceable"><code>zonename</code></em></code>
+            when signing a zone, for use by older versions of
+            <span><strong class="command">dnssec-signzone</strong></span>.
+          </p></dd>
+<dt><span class="term">-d <em class="replaceable"><code>directory</code></em></span></dt>
+<dd><p>
+            Look for <code class="filename">dsset-</code> or
+            <code class="filename">keyset-</code> files in <code class="option">directory</code>.
+          </p></dd>
+<dt><span class="term">-E <em class="replaceable"><code>engine</code></em></span></dt>
+<dd><p>
+            Uses a crypto hardware (OpenSSL engine) for the crypto operations
+            it supports, for instance signing with private keys from
+            a secure key store. When compiled with PKCS#11 support
+            it defaults to pkcs11; the empty name resets it to no engine.
+          </p></dd>
+<dt><span class="term">-g</span></dt>
+<dd><p>
+            Generate DS records for child zones from
+            <code class="filename">dsset-</code> or <code class="filename">keyset-</code>
+            file.  Existing DS records will be removed.
+          </p></dd>
+<dt><span class="term">-K <em class="replaceable"><code>directory</code></em></span></dt>
+<dd><p>
+            Key repository: Specify a directory to search for DNSSEC keys.
+            If not specified, defaults to the current directory.
           </p></dd>
 <dt><span class="term">-k <em class="replaceable"><code>key</code></em></span></dt>
 <dd><p>
@@ -62,18 +94,6 @@
 <dd><p>
             Generate a DLV set in addition to the key (DNSKEY) and DS sets.
             The domain is appended to the name of the records.
-          </p></dd>
-<dt><span class="term">-d <em class="replaceable"><code>directory</code></em></span></dt>
-<dd><p>
-            Look for <code class="filename">keyset</code> files in
-            <code class="option">directory</code> as the directory
-          </p></dd>
-<dt><span class="term">-g</span></dt>
-<dd><p>
-            If the zone contains any delegations, and there are
-            <code class="filename">keyset-</code> files for any of the child zones,
-            then DS records for the child zones will be generated from the
-            keys in those files.  Existing DS records will be removed.
           </p></dd>
 <dt><span class="term">-s <em class="replaceable"><code>start-time</code></em></span></dt>
 <dd><p>
@@ -95,6 +115,8 @@
             the start time.  A time relative to the current time is
             indicated with now+N.  If no <code class="option">end-time</code> is
             specified, 30 days from the start time is used as a default.
+            <code class="option">end-time</code> must be later than
+            <code class="option">start-time</code>.
           </p></dd>
 <dt><span class="term">-f <em class="replaceable"><code>output-file</code></em></span></dt>
 <dd><p>
@@ -229,35 +251,119 @@
             <code class="filename">keyboard</code> indicates that keyboard
             input should be used.
           </p></dd>
+<dt><span class="term">-S</span></dt>
+<dd>
+<p>
+            Smart signing: Instructs <span><strong class="command">dnssec-signzone</strong></span> to
+            search the key repository for keys that match the zone being
+            signed, and to include them in the zone if appropriate.
+          </p>
+<p>
+            When a key is found, its timing metadata is examined to
+            determine how it should be used, according to the following
+            rules.  Each successive rule takes priority over the prior
+            ones:
+          </p>
+<div class="variablelist"><dl>
+<dt></dt>
+<dd><p>
+                  If no timing metadata has been set for the key, the key is
+                  published in the zone and used to sign the zone.
+                </p></dd>
+<dt></dt>
+<dd><p>
+                  If the key's publication date is set and is in the past, the
+                  key is published in the zone.
+                </p></dd>
+<dt></dt>
+<dd><p>
+                  If the key's activation date is set and in the past, the
+                  key is published (regardless of publication date) and
+                  used to sign the zone.  
+                </p></dd>
+<dt></dt>
+<dd><p>
+                  If the key's revocation date is set and in the past, and the
+                  key is published, then the key is revoked, and the revoked key
+                  is used to sign the zone.
+                </p></dd>
+<dt></dt>
+<dd><p>
+                  If either of the key's unpublication or deletion dates are set
+                  and in the past, the key is NOT published or used to sign the
+                  zone, regardless of any other metadata.
+                </p></dd>
+</dl></div>
+</dd>
+<dt><span class="term">-T <em class="replaceable"><code>ttl</code></em></span></dt>
+<dd><p>
+            Specifies the TTL to be used for new DNSKEY records imported
+            into the zone from the key repository.  If not specified,
+            the default is the minimum TTL value from the zone's SOA
+            record.  This option is ignored when signing without
+            <code class="option">-S</code>, since DNSKEY records are not imported
+            from the key repository in that case.  It is also ignored if
+            there are any pre-existing DNSKEY records at the zone apex,
+            in which case new records' TTL values will be set to match
+            them.
+          </p></dd>
 <dt><span class="term">-t</span></dt>
 <dd><p>
             Print statistics at completion.
+          </p></dd>
+<dt><span class="term">-u</span></dt>
+<dd><p>
+            Update NSEC/NSEC3 chain when re-signing a previously signed
+            zone.  With this option, a zone signed with NSEC can be
+            switched to NSEC3, or a zone signed with NSEC3 can
+            be switch to NSEC or to NSEC3 with different parameters.
+            Without this option, <span><strong class="command">dnssec-signzone</strong></span> will
+            retain the existing chain when re-signing.
           </p></dd>
 <dt><span class="term">-v <em class="replaceable"><code>level</code></em></span></dt>
 <dd><p>
             Sets the debugging level.
           </p></dd>
+<dt><span class="term">-x</span></dt>
+<dd><p>
+            Only sign the DNSKEY RRset with key-signing keys, and omit
+            signatures from zone-signing keys.  (This is similar to the
+            <span><strong class="command">dnssec-dnskey-kskonly yes;</strong></span> zone option in
+            <span><strong class="command">named</strong></span>.)
+          </p></dd>
 <dt><span class="term">-z</span></dt>
 <dd><p>
-            Ignore KSK flag on key when determining what to sign.
+            Ignore KSK flag on key when determining what to sign.  This
+            causes KSK-flagged keys to sign all records, not just the
+            DNSKEY RRset.  (This is similar to the
+            <span><strong class="command">update-check-ksk no;</strong></span> zone option in
+            <span><strong class="command">named</strong></span>.)
           </p></dd>
 <dt><span class="term">-3 <em class="replaceable"><code>salt</code></em></span></dt>
 <dd><p>
-            Generate a NSEC3 chain with the given hex encoded salt.
+            Generate an NSEC3 chain with the given hex encoded salt.
 	    A dash (<em class="replaceable"><code>salt</code></em>) can
 	    be used to indicate that no salt is to be used when generating		    the NSEC3 chain.
           </p></dd>
 <dt><span class="term">-H <em class="replaceable"><code>iterations</code></em></span></dt>
 <dd><p>
-	    When generating a NSEC3 chain use this many interations.  The
-	    default is 100.
+	    When generating an NSEC3 chain, use this many interations.  The
+	    default is 10.
           </p></dd>
 <dt><span class="term">-A</span></dt>
-<dd><p>
-	    When generating a NSEC3 chain set the OPTOUT flag on all
+<dd>
+<p>
+	    When generating an NSEC3 chain set the OPTOUT flag on all
 	    NSEC3 records and do not generate NSEC3 records for insecure
 	    delegations.
-          </p></dd>
+          </p>
+<p>
+	    Using this option twice (i.e., <code class="option">-AA</code>)
+	    turns the OPTOUT flag off for all records.  This is useful
+	    when using the <code class="option">-u</code> option to modify an NSEC3
+	    chain which previously had OPTOUT set.
+          </p>
+</dd>
 <dt><span class="term">zonefile</span></dt>
 <dd><p>
             The file containing the zone to be signed.
@@ -273,14 +379,15 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544503"></a><h2>EXAMPLE</h2>
+<a name="id2544896"></a><h2>EXAMPLE</h2>
 <p>
       The following command signs the <strong class="userinput"><code>example.com</code></strong>
       zone with the DSA key generated by <span><strong class="command">dnssec-keygen</strong></span>
-      (Kexample.com.+003+17247).  The zone's keys must be in the master
-      file (<code class="filename">db.example.com</code>).  This invocation looks
-      for <code class="filename">keyset</code> files, in the current directory,
-      so that DS records can be generated from them (<span><strong class="command">-g</strong></span>).
+      (Kexample.com.+003+17247).  Because the <span><strong class="command">-S</strong></span> option
+      is not being used, the zone's keys must be in the master file
+      (<code class="filename">db.example.com</code>).  This invocation looks
+      for <code class="filename">dsset</code> files, in the current directory,
+      so that DS records can be imported from them (<span><strong class="command">-g</strong></span>).
     </p>
 <pre class="programlisting">% dnssec-signzone -g -o example.com db.example.com \
 Kexample.com.+003+17247
@@ -302,39 +409,14 @@ db.example.com.signed
 %</pre>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544554"></a><h2>KNOWN BUGS</h2>
-<p>
-        <span><strong class="command">dnssec-signzone</strong></span> was designed so that it could
-        sign a zone partially, using only a subset of the DNSSEC keys
-        needed to produce a fully-signed zone.  This permits a zone
-        administrator, for example, to sign a zone with one key on one
-        machine, move the resulting partially-signed zone to a second
-        machine, and sign it again with a second key.
-    </p>
-<p>
-        An unfortunate side-effect of this flexibility is that
-        <span><strong class="command">dnssec-signzone</strong></span> does not check to make sure
-        it's signing a zone with any valid keys at all.  An attempt to
-        sign a zone without any keys will appear to succeed, producing
-        a "signed" zone with no signatures.  There is no warning issued
-        when a zone is not fully signed.
-    </p>
-<p>
-        This will be corrected in a future release.  In the meantime, ISC
-        recommends examining the output of <span><strong class="command">dnssec-signzone</strong></span>
-        to confirm that the zone is properly signed by all keys before
-        using it.
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2544716"></a><h2>SEE ALSO</h2>
+<a name="id2545019"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 4033</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544741"></a><h2>AUTHOR</h2>
+<a name="id2545044"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

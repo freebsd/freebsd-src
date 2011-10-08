@@ -101,8 +101,14 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 
 	/* Learn TLB size and L1 cache geometry. */
 	cfg1 = mips_rd_config1();
+#ifndef CPU_NLM
 	cpuinfo->tlb_nentries = 
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
+#else
+	/* Account for Extended TLB entries in XLP */
+	tmp = mips_rd_config6();
+	cpuinfo->tlb_nentries = ((tmp >> 16) & 0xffff) + 1;
+#endif
 
 	/* Add extended TLB size information from config4.  */
 #if defined(CPU_CNMIPS)

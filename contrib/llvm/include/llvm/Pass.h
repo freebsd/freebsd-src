@@ -13,7 +13,7 @@
 // Passes are designed this way so that it is possible to run passes in a cache
 // and organizationally optimal order without having to specify it at the front
 // end.  This allows arbitrary passes to be strung together and have them
-// executed as effeciently as possible.
+// executed as efficiently as possible.
 //
 // Passes should extend one of the classes below, depending on the guarantees
 // that it can make about what will be modified as it is run.  For example, most
@@ -114,7 +114,7 @@ public:
   void dump() const; // dump - Print to stderr.
 
   /// createPrinterPass - Get a Pass appropriate to print the IR this
-  /// pass operates one (Module, Function or MachineFunction).
+  /// pass operates on (Module, Function or MachineFunction).
   virtual Pass *createPrinterPass(raw_ostream &O,
                                   const std::string &Banner) const = 0;
 
@@ -320,7 +320,7 @@ class BasicBlockPass : public Pass {
 public:
   explicit BasicBlockPass(char &pid) : Pass(PT_BasicBlock, pid) {}
 
-  /// createPrinterPass - Get a function printer pass.
+  /// createPrinterPass - Get a basic block printer pass.
   Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const;
 
   /// doInitialization - Virtual method overridden by subclasses to do

@@ -496,7 +496,7 @@ linux_semop(struct thread *td, struct linux_semop_args *args)
 	bsd_args.semid = args->semid;
 	bsd_args.sops = PTRIN(args->tsops);
 	bsd_args.nsops = args->nsops;
-	return (semop(td, &bsd_args));
+	return (sys_semop(td, &bsd_args));
 }
 
 int
@@ -513,7 +513,7 @@ linux_semget(struct thread *td, struct linux_semget_args *args)
 	bsd_args.key = args->key;
 	bsd_args.nsems = args->nsems;
 	bsd_args.semflg = args->semflg;
-	return (semget(td, &bsd_args));
+	return (sys_semget(td, &bsd_args));
 }
 
 int
@@ -575,7 +575,15 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		return (error);
 	case LINUX_IPC_INFO:
 	case LINUX_SEM_INFO:
-		bcopy(&seminfo, &linux_seminfo, sizeof(linux_seminfo) );
+		bcopy(&seminfo, &linux_seminfo.semmni, sizeof(linux_seminfo) -
+		    sizeof(linux_seminfo.semmap) );
+		/*
+		 * Linux does not use the semmap field but populates it with
+		 * the defined value from SEMMAP, which really is redefined to
+		 * SEMMNS, which they define as SEMMNI * SEMMSL.  Try to
+		 * simulate this returning our dynamic semmns value.
+		 */
+		linux_seminfo.semmap = linux_seminfo.semmns;
 /* XXX BSD equivalent?
 #define used_semids 10
 #define used_sems 10
@@ -653,7 +661,7 @@ linux_msgget(struct thread *td, struct linux_msgget_args *args)
 
 	bsd_args.key = args->key;
 	bsd_args.msgflg = args->msgflg;
-	return (msgget(td, &bsd_args));
+	return (sys_msgget(td, &bsd_args));
 }
 
 int
@@ -745,7 +753,7 @@ linux_shmat(struct thread *td, struct linux_shmat_args *args)
 	bsd_args.shmid = args->shmid;
 	bsd_args.shmaddr = PTRIN(args->shmaddr);
 	bsd_args.shmflg = args->shmflg;
-	if ((error = shmat(td, &bsd_args)))
+	if ((error = sys_shmat(td, &bsd_args)))
 		return (error);
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 	addr = td->td_retval[0];
@@ -764,7 +772,7 @@ linux_shmdt(struct thread *td, struct linux_shmdt_args *args)
 	} */ bsd_args;
 
 	bsd_args.shmaddr = PTRIN(args->shmaddr);
-	return (shmdt(td, &bsd_args));
+	return (sys_shmdt(td, &bsd_args));
 }
 
 int
@@ -779,7 +787,7 @@ linux_shmget(struct thread *td, struct linux_shmget_args *args)
 	bsd_args.key = args->key;
 	bsd_args.size = args->size;
 	bsd_args.shmflg = args->shmflg;
-	return (shmget(td, &bsd_args));
+	return (sys_shmget(td, &bsd_args));
 }
 
 int

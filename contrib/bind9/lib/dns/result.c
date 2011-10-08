@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.125.48.2 2010-02-25 10:56:41 tbox Exp $ */
+/* $Id: result.c,v 1.132 2011-01-11 23:47:13 tbox Exp $ */
 
 /*! \file */
 
@@ -105,7 +105,7 @@ static const char *text[DNS_R_NRESULTS] = {
 	"no valid RRSIG",		       /*%< 59 DNS_R_NOVALIDSIG */
 
 	"no valid NSEC",		       /*%< 60 DNS_R_NOVALIDNSEC */
-	"not insecure",			       /*%< 61 DNS_R_NOTINSECURE */
+	"insecurity proof failed",	       /*%< 61 DNS_R_NOTINSECURE */
 	"unknown service",		       /*%< 62 DNS_R_UNKNOWNSERVICE */
 	"recoverable error occurred",	       /*%< 63 DNS_R_RECOVERABLE */
 	"unknown opt attribute record",	       /*%< 64 DNS_R_UNKNOWNOPT */
@@ -160,6 +160,7 @@ static const char *text[DNS_R_NRESULTS] = {
 
 	"not master",			       /*%< 105 DNS_R_NOTMASTER */
 	"broken trust chain",		       /*%< 106 DNS_R_BROKENCHAIN */
+	"expired",			       /*%< 106 DNS_R_EXPIRED */
 };
 
 static const char *rcode_text[DNS_R_NRCODERESULTS] = {

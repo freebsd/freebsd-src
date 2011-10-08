@@ -438,7 +438,7 @@ void Filter::recurse() {
     for (bitIndex = 0; bitIndex < NumBits; bitIndex++)
       BitValueArray[StartBit + bitIndex] = BIT_UNSET;
 
-    // Delegates to an inferior filter chooser for futher processing on this
+    // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
     FilterChooserMap.insert(std::pair<unsigned, FilterChooser*>(
                               (unsigned)-1,
@@ -471,7 +471,7 @@ void Filter::recurse() {
         BitValueArray[StartBit + bitIndex] = BIT_FALSE;
     }
 
-    // Delegates to an inferior filter chooser for futher processing on this
+    // Delegates to an inferior filter chooser for further processing on this
     // category of instructions.
     FilterChooserMap.insert(std::pair<unsigned, FilterChooser*>(
                               mapIterator->first,
@@ -611,7 +611,8 @@ void FilterChooser::emitTop(raw_ostream &o, unsigned Indentation) {
   o << '\n';
 
   o.indent(Indentation) <<
-    "static bool decodeInstruction(MCInst &MI, field_t insn) {\n";
+    "static bool decodeInstruction(MCInst &MI, field_t insn, "
+    "uint64_t Address, const void *Decoder) {\n";
   o.indent(Indentation) << "  unsigned tmp = 0;\n";
 
   ++Indentation; ++Indentation;
@@ -795,7 +796,8 @@ bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
          I = InsnOperands.begin(), E = InsnOperands.end(); I != E; ++I) {
       // If a custom instruction decoder was specified, use that.
       if (I->FieldBase == ~0U && I->FieldLength == ~0U) {
-        o.indent(Indentation) << "  " << I->Decoder << "(MI, insn);\n";
+        o.indent(Indentation) << "  " << I->Decoder
+                              << "(MI, insn, Address, Decoder);\n";
         break;
       }
 
@@ -803,7 +805,8 @@ bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
         << "  tmp = fieldFromInstruction(insn, " << I->FieldBase
         << ", " << I->FieldLength << ");\n";
       if (I->Decoder != "") {
-        o.indent(Indentation) << "  " << I->Decoder << "(MI, tmp);\n";
+        o.indent(Indentation) << "  " << I->Decoder
+                              << "(MI, tmp, Address, Decoder);\n";
       } else {
         o.indent(Indentation)
           << "  MI.addOperand(MCOperand::CreateImm(tmp));\n";
@@ -846,7 +849,8 @@ bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
        I = InsnOperands.begin(), E = InsnOperands.end(); I != E; ++I) {
     // If a custom instruction decoder was specified, use that.
     if (I->FieldBase == ~0U && I->FieldLength == ~0U) {
-      o.indent(Indentation) << "  " << I->Decoder << "(MI, insn);\n";
+      o.indent(Indentation) << "  " << I->Decoder
+                            << "(MI, insn, Address, Decoder);\n";
       break;
     }
 
@@ -854,7 +858,8 @@ bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
       << "  tmp = fieldFromInstruction(insn, " << I->FieldBase
       << ", " << I->FieldLength << ");\n";
     if (I->Decoder != "") {
-      o.indent(Indentation) << "  " << I->Decoder << "(MI, tmp);\n";
+      o.indent(Indentation) << "  " << I->Decoder
+                            << "(MI, tmp, Address, Decoder);\n";
     } else {
       o.indent(Indentation)
         << "  MI.addOperand(MCOperand::CreateImm(tmp));\n";
@@ -1220,12 +1225,13 @@ bool FixedLenDecoderEmitter::populateInstruction(const CodeGenInstruction &CGI,
   //
   // This also removes pseudo instructions from considerations of disassembly,
   // which is a better design and less fragile than the name matchings.
+  // Ignore "asm parser only" instructions.
+  if (Def.getValueAsBit("isAsmParserOnly") ||
+      Def.getValueAsBit("isCodeGenOnly"))
+    return false;
+
   BitsInit &Bits = getBitsField(Def, "Inst");
   if (Bits.allInComplete()) return false;
-
-  // Ignore "asm parser only" instructions.
-  if (Def.getValueAsBit("isAsmParserOnly"))
-    return false;
 
   std::vector<OperandInfo> InsnOperands;
 
@@ -1299,8 +1305,10 @@ bool FixedLenDecoderEmitter::populateInstruction(const CodeGenInstruction &CGI,
       RecordRecTy *Type = dynamic_cast<RecordRecTy*>(TI->getType());
       Record *TypeRecord = Type->getRecord();
       bool isReg = false;
+      if (TypeRecord->isSubClassOf("RegisterOperand"))
+        TypeRecord = TypeRecord->getValueAsDef("RegClass");
       if (TypeRecord->isSubClassOf("RegisterClass")) {
-        Decoder = "Decode" + Type->getRecord()->getName() + "RegisterClass";
+        Decoder = "Decode" + TypeRecord->getName() + "RegisterClass";
         isReg = true;
       }
 
@@ -1346,7 +1354,8 @@ bool FixedLenDecoderEmitter::populateInstruction(const CodeGenInstruction &CGI,
 void FixedLenDecoderEmitter::populateInstructions() {
   for (unsigned i = 0, e = NumberedInstructions.size(); i < e; ++i) {
     Record *R = NumberedInstructions[i]->TheDef;
-    if (R->getValueAsString("Namespace") == "TargetOpcode")
+    if (R->getValueAsString("Namespace") == "TargetOpcode" ||
+        R->getValueAsBit("isPseudo"))
       continue;
 
     if (populateInstruction(*NumberedInstructions[i], i))

@@ -1,9 +1,9 @@
 /*
- *  $Id: rc.c,v 1.45 2010/01/18 10:28:16 tom Exp $
+ *  $Id: rc.c,v 1.47 2011/06/20 22:30:04 tom Exp $
  *
  *  rc.c -- routines for processing the configuration file
  *
- *  Copyright 2000-2008,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -433,9 +433,7 @@ dlg_create_rc(const char *filename)
 			    dlg_color_table[i].hilite));
     }
 #endif /* HAVE_COLOR */
-#if 1
     dlg_dump_keys(rc_file);
-#endif
 
     (void) fclose(rc_file);
 }
@@ -455,9 +453,7 @@ dlg_parse_rc(void)
     char *tempptr;
     int result = 0;
     FILE *rc_file = 0;
-#if 1
     char *params;
-#endif
 
     /*
      *  At startup, dialog determines the settings to use as follows:
@@ -486,20 +482,21 @@ dlg_parse_rc(void)
 		sprintf(str, "%s%s", tempptr, DIALOGRC);
 	    else
 		sprintf(str, "%s/%s", tempptr, DIALOGRC);
-	    rc_file = fopen(str, "rt");
+	    rc_file = fopen(tempptr = str, "rt");
 	}
     }
 
     if (rc_file == NULL) {	/* step (b) failed? */
 	/* try step (c) */
 	strcpy(str, GLOBALRC);
-	if ((rc_file = fopen(str, "rt")) == NULL)
+	if ((rc_file = fopen(tempptr = str, "rt")) == NULL)
 	    return 0;		/* step (c) failed, use default values */
     }
 
+    DLG_TRACE(("opened rc file \"%s\"\n", tempptr));
     /* Scan each line and set variables */
     while ((result == 0) && (fgets(str, MAX_LEN, rc_file) != NULL)) {
-	dlg_trace_msg("rc:%s\n", str);
+	DLG_TRACE(("rc:%s", str));
 	if (*str == '\0' || lastch(str) != '\n') {
 	    /* ignore rest of file if line too long */
 	    fprintf(stderr, "\nParse error: line %d of configuration"

@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_CPU_WIN	5
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -122,7 +119,7 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
-	{ "mvrl,pcie", &decode_win_pcie_setup, NULL },
+	{ "mrvl,pcie", &decode_win_pcie_setup, NULL },
 	{ NULL, NULL, NULL },
 };
 

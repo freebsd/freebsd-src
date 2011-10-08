@@ -152,6 +152,11 @@ struct xtty {
 
 #ifdef _KERNEL
 
+/* Used to distinguish between normal, callout, lock and init devices. */
+#define	TTYUNIT_INIT		0x1
+#define	TTYUNIT_LOCK		0x2
+#define	TTYUNIT_CALLOUT		0x4
+
 /* Allocation and deallocation. */
 struct tty *tty_alloc(struct ttydevsw *tsw, void *softc);
 struct tty *tty_alloc_mutex(struct ttydevsw *tsw, void *softc, struct mtx *mtx);

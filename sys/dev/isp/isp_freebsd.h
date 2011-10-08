@@ -41,6 +41,7 @@
 
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -182,6 +183,8 @@ struct isp_fc {
 		ready		: 1;
 	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
+	struct task ltask;
+	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
 #ifdef	ISP_INTERNAL_TARGET
@@ -435,11 +438,19 @@ default:							\
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
 
 #define	XS_SNSLEN(ccb)		\
-	imin((sizeof((ccb)->sense_data)), ccb->sense_len)
+	imin((sizeof((ccb)->sense_data)), ccb->sense_len - ccb->sense_resid)
 
-#define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
-#define	XS_SNSASC(ccb)		((ccb)->sense_data.add_sense_code)
-#define	XS_SNSASCQ(ccb)		((ccb)->sense_data.add_sense_code_qual)
+#define	XS_SNSKEY(ccb)		(scsi_get_sense_key(&(ccb)->sense_data, \
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASC(ccb)		(scsi_get_asc(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASCQ(ccb)		(scsi_get_ascq(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
 #define	XS_TAG_P(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
@@ -473,9 +484,14 @@ default:							\
 #define	XS_INITERR(ccb)		\
 	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
 
-#define	XS_SAVE_SENSE(xs, sense_ptr, sense_len)		\
-	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;	\
-	memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs), sense_len))
+#define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
+		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
+		memset(&(xs)->sense_data, 0, sizeof(&(xs)->sense_data));\
+		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
+		       slen)); 						\
+		if (slen < (xs)->sense_len) 				\
+			(xs)->sense_resid = (xs)->sense_len - slen;	\
+	} while (0);
 
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
@@ -579,7 +595,7 @@ default:							\
  * prototypes for isp_pci && isp_freebsd to share
  */
 extern int isp_attach(ispsoftc_t *);
-extern void isp_detach(ispsoftc_t *);
+extern int isp_detach(ispsoftc_t *);
 extern void isp_uninit(ispsoftc_t *);
 extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
 
@@ -597,11 +613,22 @@ extern int isp_autoconfig;
  * Platform private flags
  */
 #define	ISP_SPRIV_ERRSET	0x1
+#define	ISP_SPRIV_TACTIVE	0x2
 #define	ISP_SPRIV_DONE		0x8
+#define	ISP_SPRIV_WPEND		0x10
+
+#define	XS_S_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_TACTIVE
+#define	XS_C_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_TACTIVE
+#define	XS_TACTIVE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_TACTIVE)
 
 #define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
 #define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
 #define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
+
+#define	XS_CMD_S_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_WPEND
+#define	XS_CMD_C_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_WPEND
+#define	XS_CMD_WPEND_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_WPEND)
+
 
 #define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 

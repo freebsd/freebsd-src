@@ -1,4 +1,5 @@
 /* $OpenBSD: cipher.c,v 1.82 2009/01/26 09:58:15 markus Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -163,7 +164,12 @@ ciphers_valid(const char *names)
 	for ((p = strsep(&cp, CIPHER_SEP)); p && *p != '\0';
 	    (p = strsep(&cp, CIPHER_SEP))) {
 		c = cipher_by_name(p);
-		if (c == NULL || c->number != SSH_CIPHER_SSH2) {
+#ifdef NONE_CIPHER_ENABLED
+		if (c == NULL || (c->number != SSH_CIPHER_SSH2 &&
+		    c->number != SSH_CIPHER_NONE)) {
+#else
+		if (c == NULL || (c->number != SSH_CIPHER_SSH2)) {
+#endif
 			debug("bad cipher %s [%s]", p, names);
 			xfree(cipher_list);
 			return 0;
@@ -337,6 +343,9 @@ cipher_get_keyiv(CipherContext *cc, u_char *iv, u_int len)
 	int evplen;
 
 	switch (c->number) {
+#ifdef	NONE_CIPHER_ENABLED
+	case SSH_CIPHER_NONE:
+#endif
 	case SSH_CIPHER_SSH2:
 	case SSH_CIPHER_DES:
 	case SSH_CIPHER_BLOWFISH:
@@ -371,6 +380,9 @@ cipher_set_keyiv(CipherContext *cc, u_char *iv)
 	int evplen = 0;
 
 	switch (c->number) {
+#ifdef	NONE_CIPHER_ENABLED
+	case SSH_CIPHER_NONE:
+#endif
 	case SSH_CIPHER_SSH2:
 	case SSH_CIPHER_DES:
 	case SSH_CIPHER_BLOWFISH:

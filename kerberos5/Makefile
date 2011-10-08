@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	doc tools lib libexec usr.bin usr.sbin
+SUBDIR=	doc lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on Kerberos.
 KPROGS=	lib/libpam \

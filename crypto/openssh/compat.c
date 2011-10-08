@@ -1,4 +1,5 @@
 /* $OpenBSD: compat.c,v 1.78 2008/09/11 14:22:37 markus Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -170,6 +171,16 @@ compat_datafellows(const char *version)
 		    strlen(check[i].pat), 0) == 1) {
 			debug("match: %s pat %s", version, check[i].pat);
 			datafellows = check[i].bugs;
+			/*
+			 * Check to see if the remote side is OpenSSH and not
+			 * HPN.  It is utterly strange to check it from the
+			 * version string and expose the option that way.
+			 */
+			if (strstr(version,"OpenSSH") != NULL &&
+			    strstr(version,"hpn") == NULL) {
+				datafellows |= SSH_BUG_LARGEWINDOW;
+				debug("Remote is not HPN-aware");
+			}
 			return;
 		}
 	}

@@ -397,6 +397,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 		sx_xunlock(&dmp->dm_lock);
 		return (ENOENT);
 	}
+loop:
 	DEVFS_DE_HOLD(de);
 	DEVFS_DMP_HOLD(dmp);
 	mtx_lock(&devfs_de_interlock);
@@ -405,16 +406,21 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 		VI_LOCK(vp);
 		mtx_unlock(&devfs_de_interlock);
 		sx_xunlock(&dmp->dm_lock);
-		error = vget(vp, lockmode | LK_INTERLOCK, curthread);
+		vget(vp, lockmode | LK_INTERLOCK | LK_RETRY, curthread);
 		sx_xlock(&dmp->dm_lock);
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
-			if (error == 0)
-				vput(vp);
+			vput(vp);
 			return (ENOENT);
 		}
-		else if (error) {
-			sx_xunlock(&dmp->dm_lock);
-			return (error);
+		else if ((vp->v_iflag & VI_DOOMED) != 0) {
+			mtx_lock(&devfs_de_interlock);
+			if (de->de_vnode == vp) {
+				de->de_vnode = NULL;
+				vp->v_data = NULL;
+			}
+			mtx_unlock(&devfs_de_interlock);
+			vput(vp);
+			goto loop;
 		}
 		sx_xunlock(&dmp->dm_lock);
 		*vpp = vp;
@@ -1659,6 +1665,8 @@ static struct fileops devfs_ops_f = {
 	.fo_kqfilter =	devfs_kqfilter_f,
 	.fo_stat =	devfs_stat_f,
 	.fo_close =	devfs_close_f,
+	.fo_chmod =	vn_chmod,
+	.fo_chown =	vn_chown,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

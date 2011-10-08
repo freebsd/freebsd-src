@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 16, 2008
+.Dd July 20, 2011
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -107,6 +107,9 @@ present file.
 Name of the kernel to be loaded.
 If no kernel name is set, no additional
 modules will be loaded.
+The name must be a subdirectory of
+.Pa /boot
+that contains a kernel.
 .It Ar kernel_options
 Flags to be passed to the kernel.
 .It Ar password
@@ -190,7 +193,7 @@ replacing it with
 .Dq spinning
 character (useful for embedded products and such).
 .It Va kernel
-.Pq Dq Pa /boot/kernel/kernel
+.Pq Dq kernel
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
 .It Va splash_bmp_load
@@ -215,14 +218,20 @@ be displayed.
 If set to
 .Dq YES ,
 the beastie boot menu will be skipped.
-.It Va loader_logo Pq Dq Li fbsdbw
+.It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:
+.Dq Li orbbw ,
+.Dq Li orb ,
 .Dq Li fbsdbw ,
 .Dq Li beastiebw ,
 .Dq Li beastie ,
 and
 .Dq Li none .
+.It Va loader_color
+If set to
+.Dq YES ,
+the beastie boot menu will be displayed using ANSI coloring where possible.
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact

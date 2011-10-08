@@ -212,4 +212,6 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
+
 #endif /* _MACHINE_VMPARAM_H_ */

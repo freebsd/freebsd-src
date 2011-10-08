@@ -55,6 +55,7 @@ struct ata_pci_controller {
     int                 channels;
     int			ichannels;
     int                 (*chipinit)(device_t);
+    int                 (*chipdeinit)(device_t);
     int                 (*suspend)(device_t);
     int                 (*resume)(device_t);
     int                 (*ch_attach)(device_t);
@@ -187,7 +188,7 @@ struct ata_pci_controller {
 #define ATA_I82801HBM_S2        0x28298086
 #define ATA_I82801HBM_S3        0x282a8086
 #define ATA_I82801IB_S1         0x29208086
-#define ATA_I82801IB_AH2        0x29218086
+#define ATA_I82801IB_S3         0x29218086
 #define ATA_I82801IB_AH6        0x29228086
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
@@ -232,6 +233,19 @@ struct ata_pci_controller {
 #define ATA_PBG_R1		0x1d048086
 #define ATA_PBG_R2		0x1d068086
 #define ATA_PBG_S2		0x1d088086
+
+#define ATA_PPT_S1		0x1e008086
+#define ATA_PPT_S2		0x1e018086
+#define ATA_PPT_AH1		0x1e028086
+#define ATA_PPT_AH2		0x1e038086
+#define ATA_PPT_R1		0x1e048086
+#define ATA_PPT_R2		0x1e058086
+#define ATA_PPT_R3		0x1e068086
+#define ATA_PPT_R4		0x1e078086
+#define ATA_PPT_S3		0x1e088086
+#define ATA_PPT_S4		0x1e098086
+#define ATA_PPT_R5		0x1e0e8086
+#define ATA_PPT_R6		0x1e0f8086
 
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
@@ -565,6 +579,8 @@ int ata_sii_chipinit(device_t);
 
 /* externs */
 extern devclass_t ata_pci_devclass;
+
+MALLOC_DECLARE(M_ATAPCI);
 
 /* macro for easy definition of all driver module stuff */
 #define ATA_DECLARE_DRIVER(dname) \

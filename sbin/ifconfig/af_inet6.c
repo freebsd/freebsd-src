@@ -69,6 +69,7 @@ static	int explicit_prefix = 0;
 
 extern void setnd6flags(const char *, int, int, const struct afswtch *);
 extern void setnd6defif(const char *, int, int, const struct afswtch *);
+extern void nd6_status(int);
 
 static	char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 
@@ -498,6 +499,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("no_radr",	ND6_IFF_NO_RADR,	setnd6flags),
+	DEF_CMD("-no_radr",	-ND6_IFF_NO_RADR,	setnd6flags),
 	DEF_CMD("defaultif",	1,			setnd6defif),
 	DEF_CMD("-defaultif",	-1,			setnd6defif),
 	DEF_CMD("ifdisabled",	ND6_IFF_IFDISABLED,	setnd6flags),
@@ -519,6 +522,7 @@ static struct afswtch af_inet6 = {
 	.af_status	= in6_status,
 	.af_getaddr	= in6_getaddr,
 	.af_getprefix	= in6_getprefix,
+	.af_other_status = nd6_status,
 	.af_postproc	= in6_postproc,
 	.af_status_tunnel = in6_status_tunnel,
 	.af_settunnel	= in6_set_tunnel,
@@ -540,6 +544,11 @@ inet6_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
+
+#ifndef RESCUE
+	if (!feature_present("inet6"))
+		return;
+#endif
 
 	for (i = 0; i < N(inet6_cmds);  i++)
 		cmd_register(&inet6_cmds[i]);

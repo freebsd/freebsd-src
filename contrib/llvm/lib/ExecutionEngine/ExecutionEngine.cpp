@@ -29,6 +29,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetMachine.h"
 #include <cmath>
 #include <cstring>
 using namespace llvm;
@@ -42,20 +43,14 @@ ExecutionEngine *(*ExecutionEngine::JITCtor)(
   JITMemoryManager *JMM,
   CodeGenOpt::Level OptLevel,
   bool GVsWithCode,
-  CodeModel::Model CMM,
-  StringRef MArch,
-  StringRef MCPU,
-  const SmallVectorImpl<std::string>& MAttrs) = 0;
+  TargetMachine *TM) = 0;
 ExecutionEngine *(*ExecutionEngine::MCJITCtor)(
   Module *M,
   std::string *ErrorStr,
   JITMemoryManager *JMM,
   CodeGenOpt::Level OptLevel,
   bool GVsWithCode,
-  CodeModel::Model CMM,
-  StringRef MArch,
-  StringRef MCPU,
-  const SmallVectorImpl<std::string>& MAttrs) = 0;
+  TargetMachine *TM) = 0;
 ExecutionEngine *(*ExecutionEngine::InterpCtor)(Module *M,
                                                 std::string *ErrorStr) = 0;
 
@@ -79,9 +74,10 @@ ExecutionEngine::~ExecutionEngine() {
 
 void ExecutionEngine::DeregisterAllTables() {
   if (ExceptionTableDeregister) {
-    for (std::vector<void*>::iterator it = AllExceptionTables.begin(),
-           ie = AllExceptionTables.end(); it != ie; ++it)
-      ExceptionTableDeregister(*it);
+    DenseMap<const Function*, void*>::iterator it = AllExceptionTables.begin();
+    DenseMap<const Function*, void*>::iterator ite = AllExceptionTables.end();
+    for (; it != ite; ++it)
+      ExceptionTableDeregister(it->second);
     AllExceptionTables.clear();
   }
 }
@@ -310,19 +306,19 @@ void ExecutionEngine::runStaticConstructorsDestructors(Module *module,
   // it.
   if (!GV || GV->isDeclaration() || GV->hasLocalLinkage()) return;
 
-  // Should be an array of '{ int, void ()* }' structs.  The first value is
+  // Should be an array of '{ i32, void ()* }' structs.  The first value is
   // the init priority, which we ignore.
-  ConstantArray *InitList = dyn_cast<ConstantArray>(GV->getInitializer());
-  if (!InitList) return;
+  if (isa<ConstantAggregateZero>(GV->getInitializer()))
+    return;
+  ConstantArray *InitList = cast<ConstantArray>(GV->getInitializer());
   for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i) {
-    ConstantStruct *CS =
-      dyn_cast<ConstantStruct>(InitList->getOperand(i));
-    if (!CS) continue;
-    if (CS->getNumOperands() != 2) return; // Not array of 2-element structs.
+    if (isa<ConstantAggregateZero>(InitList->getOperand(i)))
+      continue;
+    ConstantStruct *CS = cast<ConstantStruct>(InitList->getOperand(i));
 
     Constant *FP = CS->getOperand(1);
     if (FP->isNullValue())
-      break;  // Found a null terminator, exit.
+      continue;  // Found a sentinal value, ignore.
 
     // Strip off constant expression casts.
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(FP))
@@ -418,6 +414,35 @@ ExecutionEngine *ExecutionEngine::create(Module *M,
       .create();
 }
 
+/// createJIT - This is the factory method for creating a JIT for the current
+/// machine, it does not fall back to the interpreter.  This takes ownership
+/// of the module.
+ExecutionEngine *ExecutionEngine::createJIT(Module *M,
+                                            std::string *ErrorStr,
+                                            JITMemoryManager *JMM,
+                                            CodeGenOpt::Level OptLevel,
+                                            bool GVsWithCode,
+                                            CodeModel::Model CMM) {
+  if (ExecutionEngine::JITCtor == 0) {
+    if (ErrorStr)
+      *ErrorStr = "JIT has not been linked in.";
+    return 0;
+  }
+
+  // Use the defaults for extra parameters.  Users can use EngineBuilder to
+  // set them.
+  StringRef MArch = "";
+  StringRef MCPU = "";
+  SmallVector<std::string, 1> MAttrs;
+
+  TargetMachine *TM =
+          EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr);
+  if (!TM || (ErrorStr && ErrorStr->length() > 0)) return 0;
+  TM->setCodeModel(CMM);
+
+  return ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel, GVsWithCode, TM);
+}
+
 ExecutionEngine *EngineBuilder::create() {
   // Make sure we can resolve symbols in the program as well. The zero arg
   // to the function tells DynamicLibrary to load the program, not a library.
@@ -440,18 +465,21 @@ ExecutionEngine *EngineBuilder::create() {
   // Unless the interpreter was explicitly selected or the JIT is not linked,
   // try making a JIT.
   if (WhichEngine & EngineKind::JIT) {
-    if (UseMCJIT && ExecutionEngine::MCJITCtor) {
-      ExecutionEngine *EE =
-        ExecutionEngine::MCJITCtor(M, ErrorStr, JMM, OptLevel,
-                                   AllocateGVsWithCode, CMModel,
-                                   MArch, MCPU, MAttrs);
-      if (EE) return EE;
-    } else if (ExecutionEngine::JITCtor) {
-      ExecutionEngine *EE =
-        ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel,
-                                 AllocateGVsWithCode, CMModel,
-                                 MArch, MCPU, MAttrs);
-      if (EE) return EE;
+    if (TargetMachine *TM =
+        EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr)) {
+      TM->setCodeModel(CMModel);
+
+      if (UseMCJIT && ExecutionEngine::MCJITCtor) {
+        ExecutionEngine *EE =
+          ExecutionEngine::MCJITCtor(M, ErrorStr, JMM, OptLevel,
+                                     AllocateGVsWithCode, TM);
+        if (EE) return EE;
+      } else if (ExecutionEngine::JITCtor) {
+        ExecutionEngine *EE =
+          ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel,
+                                   AllocateGVsWithCode, TM);
+        if (EE) return EE;
+      }
     }
   }
 
@@ -838,7 +866,7 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
   case Type::PointerTyID:
     // Ensure 64 bit target pointers are fully initialized on 32 bit hosts.
     if (StoreBytes != sizeof(PointerTy))
-      memset(Ptr, 0, StoreBytes);
+      memset(&(Ptr->PointerVal), 0, StoreBytes);
 
     *((PointerTy*)Ptr) = Val.PointerVal;
     break;

@@ -156,6 +156,7 @@ xenbusb_front_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 
 	if (error == 0) {
 		ivars->xd_otherend_path = strdup(otherend_path, M_XENBUS);
+		ivars->xd_otherend_path_len = strlen(otherend_path);
 		free(otherend_path, M_XENSTORE);
 	}
 	return (error);
@@ -170,7 +171,7 @@ static device_method_t xenbusb_front_methods[] = {
 	DEVMETHOD(device_detach,        bus_generic_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
 	DEVMETHOD(device_suspend,       bus_generic_suspend), 
-	DEVMETHOD(device_resume,        bus_generic_resume), 
+	DEVMETHOD(device_resume,        xenbusb_resume), 
  
 	/* Bus Interface */ 
 	DEVMETHOD(bus_print_child,      xenbusb_print_child),

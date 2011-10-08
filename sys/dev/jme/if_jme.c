@@ -318,10 +318,8 @@ jme_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	JME_LOCK(sc);
 	mii = device_get_softc(sc->jme_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	JME_UNLOCK(sc);
 
@@ -778,7 +776,7 @@ jme_attach(device_t dev)
 		sc->jme_phyaddr = 0;
 
 	/* Set max allowable DMA size. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->jme_flags |= JME_FLAG_PCIE;
 		burst = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
 		if (bootverbose) {
@@ -827,7 +825,7 @@ jme_attach(device_t dev)
 	/* JMC250 supports Tx/Rx checksum offload as well as TSO. */
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = JME_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
 		sc->jme_flags |= JME_FLAG_PMCAP;
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	}
@@ -1591,7 +1589,7 @@ jme_setwol(struct jme_softc *sc)
 
 	JME_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
 		/* Remove Tx MAC/offload clock to save more power. */
 		if ((sc->jme_flags & JME_FLAG_TXCLK) != 0)
 			CSR_WRITE_4(sc, JME_GHC, CSR_READ_4(sc, JME_GHC) &
@@ -1663,7 +1661,7 @@ jme_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	JME_LOCK(sc);
-	if (pci_find_extcap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
 		pmstat = pci_read_config(sc->jme_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
 		/* Disable PME clear PME status. */

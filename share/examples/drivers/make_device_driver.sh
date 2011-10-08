@@ -485,7 +485,7 @@ ${1}_isa_probe (device_t device)
 				/*rid*/0, membase, memsize);
 			/*
 			 * We found one, return non-positive numbers..
-			 * Return -N if we cant handle it, but not well.
+			 * Return -N if we can't handle it, but not well.
 			 * Return -2 if we would LIKE the device.
 			 * Return -1 if we want it a lot.
 			 * Return 0 if we MUST get the device.

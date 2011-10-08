@@ -661,6 +661,16 @@ aac_detach(device_t dev)
 
 	callout_drain(&sc->aac_daemontime);
 
+	mtx_lock(&sc->aac_io_lock);
+	while (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
+		sc->aifflags |= AAC_AIFFLAGS_EXIT;
+		wakeup(sc->aifthread);
+		msleep(sc->aac_dev, &sc->aac_io_lock, PUSER, "aacdch", 0);
+	}
+	mtx_unlock(&sc->aac_io_lock);
+	KASSERT((sc->aifflags & AAC_AIFFLAGS_RUNNING) == 0,
+	    ("%s: invalid detach state", __func__));
+
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
 		error = device_delete_child(dev, co->co_disk);
@@ -678,15 +688,6 @@ aac_detach(device_t dev)
 			return (error);
 		free(sim, M_AACBUF);
 	}
-
-	if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-		sc->aifflags |= AAC_AIFFLAGS_EXIT;
-		wakeup(sc->aifthread);
-		tsleep(sc->aac_dev, PUSER | PCATCH, "aacdch", 30 * hz);
-	}
-
-	if (sc->aifflags & AAC_AIFFLAGS_RUNNING)
-		panic("Cannot shutdown AIF thread");
 
 	if ((error = aac_shutdown(dev)))
 		return(error);
@@ -1020,7 +1021,7 @@ aac_command_thread(struct aac_softc *sc)
 		/*
 		 * First see if any FIBs need to be allocated.  This needs
 		 * to be called without the driver lock because contigmalloc
-		 * will grab Giant, and would result in an LOR.
+		 * can sleep.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
 			mtx_unlock(&sc->aac_io_lock);
@@ -1372,7 +1373,9 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	if ((cm = aac_dequeue_free(sc)) == NULL) {
 		if (sc->total_fibs < sc->aac_max_fibs) {
+			mtx_lock(&sc->aac_io_lock);
 			sc->aifflags |= AAC_AIFFLAGS_ALLOCFIBS;
+			mtx_unlock(&sc->aac_io_lock);
 			wakeup(sc->aifthread);
 		}
 		return (EBUSY);

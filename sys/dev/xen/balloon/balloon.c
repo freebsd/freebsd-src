@@ -147,12 +147,6 @@ balloon_retrieve(void)
 	return page;
 }
 
-static void 
-balloon_alarm(void *unused)
-{
-	wakeup(balloon_process);
-}
-
 static unsigned long 
 current_target(void)
 {
@@ -378,6 +372,8 @@ balloon_process(void *unused)
 	
 	mtx_lock(&balloon_mutex);
 	for (;;) {
+		int sleep_time;
+
 		do {
 			credit = current_target() - bs.current_pages;
 			if (credit > 0)
@@ -389,9 +385,12 @@ balloon_process(void *unused)
 		
 		/* Schedule more work if there is some still to be done. */
 		if (current_target() != bs.current_pages)
-			timeout(balloon_alarm, NULL, ticks + hz);
+			sleep_time = hz;
+		else
+			sleep_time = 0;
 
-		msleep(balloon_process, &balloon_mutex, 0, "balloon", -1);
+		msleep(balloon_process, &balloon_mutex, 0, "balloon",
+		       sleep_time);
 	}
 	mtx_unlock(&balloon_mutex);
 }
@@ -474,9 +473,6 @@ balloon_init(void *arg)
 	bs.hard_limit    = ~0UL;
 
 	kproc_create(balloon_process, NULL, NULL, 0, 0, "balloon");
-//	init_timer(&balloon_timer);
-//	balloon_timer.data = 0;
-//	balloon_timer.function = balloon_alarm;
     
 #ifndef XENHVM
 	/* Initialise the balloon with excess memory space. */

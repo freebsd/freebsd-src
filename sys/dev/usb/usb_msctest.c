@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008,2011 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +62,6 @@
 #include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_msctest.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
@@ -84,7 +83,10 @@ enum {
 	DIR_NONE,
 };
 
+#define	SCSI_MAX_LEN	0x100
 #define	SCSI_INQ_LEN	0x24
+#define	SCSI_SENSE_LEN	0xFF
+
 static uint8_t scsi_test_unit_ready[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_inquiry[] = { 0x12, 0x00, 0x00, 0x00, SCSI_INQ_LEN, 0x00 };
 static uint8_t scsi_rezero_init[] =     { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -97,6 +99,10 @@ static uint8_t scsi_huawei_eject[] =	{ 0x11, 0x06, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_tct_eject[] =	{ 0x06, 0xf5, 0x04, 0x02, 0x52, 0x70 };
+static uint8_t scsi_sync_cache[] =	{ 0x35, 0x00, 0x00, 0x00, 0x00, 0x00,
+					  0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
+					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -150,7 +156,7 @@ struct bbb_transfer {
 	uint8_t	status_try;
 	int	error;
 
-	uint8_t	buffer[256];
+	uint8_t	buffer[SCSI_MAX_LEN] __aligned(4);
 };
 
 static usb_callback_t bbb_command_callback;
@@ -164,7 +170,7 @@ static void	bbb_done(struct bbb_transfer *, int);
 static void	bbb_transfer_start(struct bbb_transfer *, uint8_t);
 static void	bbb_data_clear_stall_callback(struct usb_xfer *, uint8_t,
 		    uint8_t);
-static uint8_t bbb_command_start(struct bbb_transfer *, uint8_t, uint8_t,
+static int	bbb_command_start(struct bbb_transfer *, uint8_t, uint8_t,
 		    void *, size_t, void *, size_t, usb_timeout_t);
 static struct bbb_transfer *bbb_attach(struct usb_device *, uint8_t);
 static void	bbb_detach(struct bbb_transfer *);
@@ -176,6 +182,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = sizeof(struct bbb_cbw),
+		.flags = {.ext_buffer = 1,},
 		.callback = &bbb_command_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -185,7 +192,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -204,7 +211,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,},
 		.callback = &bbb_data_write_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -223,7 +230,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = sizeof(struct bbb_csw),
-		.flags = {.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_status_callback,
 		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
@@ -455,7 +462,7 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
  * 0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static uint8_t
+static int
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
     void *data_ptr, size_t data_len, void *cmd_ptr, size_t cmd_len,
     usb_timeout_t data_timeout)
@@ -489,6 +496,24 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	struct usb_interface_descriptor *id;
 	struct bbb_transfer *sc;
 	usb_error_t err;
+	uint8_t do_unlock;
+
+	/* automatic locking */
+	if (usbd_enum_is_locked(udev)) {
+		do_unlock = 0;
+	} else {
+		do_unlock = 1;
+		usbd_enum_lock(udev);
+	}
+
+	/*
+	 * Make sure any driver which is hooked up to this interface,
+	 * like umass is gone:
+	 */
+	usb_detach_device(udev, iface_index, 0);
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	iface = usbd_get_iface(udev, iface_index);
 	if (iface == NULL)
@@ -549,9 +574,10 @@ int
 usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
 {
 	struct bbb_transfer *sc;
-	usb_error_t err;
-	uint8_t timeout, is_cdrom;
+	uint8_t timeout;
+	uint8_t is_cdrom;
 	uint8_t sid_type;
+	int err;
 
 	sc = bbb_attach(udev, iface_index);
 	if (sc == NULL)
@@ -575,6 +601,114 @@ usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
 	}
 	bbb_detach(sc);
 	return (is_cdrom);
+}
+
+usb_error_t
+usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
+{
+	struct bbb_transfer *sc;
+	uint8_t timeout;
+	uint8_t is_no_direct;
+	uint8_t sid_type;
+	int err;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (0);
+
+	/*
+	 * Some devices need a delay after that the configuration
+	 * value is set to function properly:
+	 */
+	usb_pause_mtx(NULL, hz);
+
+	is_no_direct = 1;
+	for (timeout = 4; timeout; timeout--) {
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+		    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
+		    USB_MS_HZ);
+
+		if (err == 0 && sc->actlen > 0) {
+			sid_type = sc->buffer[0] & 0x1F;
+			if (sid_type == 0x00)
+				is_no_direct = 0;
+			break;
+		} else if (err != ERR_CSW_FAILED)
+			break;	/* non retryable error */
+		usb_pause_mtx(NULL, hz);
+	}
+
+	if (is_no_direct) {
+		DPRINTF("Device is not direct access.\n");
+		goto done;
+	}
+
+	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+	    &scsi_test_unit_ready, sizeof(scsi_test_unit_ready),
+	    USB_MS_HZ);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
+	}
+
+	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+	    &scsi_sync_cache, sizeof(scsi_sync_cache),
+	    USB_MS_HZ);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
+
+		DPRINTF("Device doesn't handle synchronize cache\n");
+
+		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+	}
+
+	/* clear sense status of any failed commands on the device */
+
+	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+	    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
+	    USB_MS_HZ);
+
+	DPRINTF("Inquiry = %d\n", err);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
+	}
+
+	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+	    SCSI_SENSE_LEN, &scsi_request_sense,
+	    sizeof(scsi_request_sense), USB_MS_HZ);
+
+	DPRINTF("Request sense = %d\n", err);
+
+	if (err != 0) {
+
+		if (err != ERR_CSW_FAILED)
+			goto error;
+	}
+
+done:
+	bbb_detach(sc);
+	return (0);
+
+error:
+ 	bbb_detach(sc);
+
+	DPRINTF("Device did not respond, enabling all quirks\n");
+
+	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_TEST_UNIT_READY);
+
+	/* Need to re-enumerate the device */
+	usbd_req_re_enumerate(udev, NULL);
+
+	return (USB_ERR_STALLED);
 }
 
 usb_error_t

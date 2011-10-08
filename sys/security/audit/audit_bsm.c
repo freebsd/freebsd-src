@@ -1589,6 +1589,28 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
+	case AUE_CAP_NEW:
+		/*
+		 * XXXRW/XXXJA: Would be nice to audit socket/etc information.
+		 */
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_RIGHTS)) {
+			tok = au_to_arg64(2, "rights", ar->ar_arg_rights);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_CAP_GETRIGHTS:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_CAP_ENTER:
+	case AUE_CAP_GETMODE:
+		break;
+
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",

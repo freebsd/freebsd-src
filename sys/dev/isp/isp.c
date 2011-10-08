@@ -102,7 +102,6 @@ static const uint8_t alpa_map[] = {
 /*
  * Local function prototypes.
  */
-static void isp_prt_endcmd(ispsoftc_t *, XS_T *);
 static int isp_parse_async(ispsoftc_t *, uint16_t);
 static int isp_parse_async_fc(ispsoftc_t *, uint16_t);
 static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
@@ -5391,7 +5390,7 @@ out:
  * Support routines.
  */
 
-static void
+void
 isp_prt_endcmd(ispsoftc_t *isp, XS_T *xs)
 {
 	char cdbstr[16 * 5 + 1];

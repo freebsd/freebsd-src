@@ -204,7 +204,7 @@ ar_open(const char *name)
 	/*
 	 * set default blksz on read. APPNDs writes rdblksz on the last volume
 	 * On all new archive volumes, we shift to wrblksz (if the user
-	 * specified one, otherwize we will continue to use rdblksz). We
+	 * specified one, otherwise we will continue to use rdblksz). We
 	 * must to set blocksize based on what kind of device the archive is
 	 * stored.
 	 */
@@ -381,7 +381,7 @@ ar_close(void)
 
 	/*
 	 * If we have not determined the format yet, we just say how many bytes
-	 * we have skipped over looking for a header to id. there is no way we
+	 * we have skipped over looking for a header to id. There is no way we
 	 * could have written anything yet.
 	 */
 	if (frmt == NULL) {
@@ -595,7 +595,7 @@ ar_read(char *buf, int cnt)
  * Return:
  *	Number of bytes written. 0 indicates end of volume reached and with no
  *	flaws (as best that can be detected). A -1 indicates an unrecoverable
- *	error in the archive occured.
+ *	error in the archive occurred.
  */
 
 int
@@ -679,7 +679,7 @@ ar_write(char *buf, int bsz)
 	 * if this is a block aligned archive format, we may have a bad archive
 	 * if the format wants the header to start at a BLKMULT boundary. While
 	 * we can deal with the mis-aligned data, it violates spec and other
-	 * archive readers will likely fail. if the format is not block
+	 * archive readers will likely fail. If the format is not block
 	 * aligned, the user may be lucky (and the archive is ok).
 	 */
 	if (res >= 0) {
@@ -794,7 +794,7 @@ ar_rdsync(void)
 
 /*
  * ar_fow()
- *	Move the I/O position within the archive foward the specified number of
+ *	Move the I/O position within the archive forward the specified number of
  *	bytes as supported by the device. If we cannot move the requested
  *	number of bytes, return the actual number of bytes moved in skipped.
  * Return:
@@ -813,7 +813,7 @@ ar_fow(off_t sksz, off_t *skipped)
 		return(0);
 
 	/*
-	 * we cannot move foward at EOF or error
+	 * we cannot move forward at EOF or error
 	 */
 	if (lstrval <= 0)
 		return(lstrval);
@@ -822,7 +822,7 @@ ar_fow(off_t sksz, off_t *skipped)
 	 * Safer to read forward on devices where it is hard to find the end of
 	 * the media without reading to it. With tapes we cannot be sure of the
 	 * number of physical blocks to skip (we do not know physical block
-	 * size at this point), so we must only read foward on tapes!
+	 * size at this point), so we must only read forward on tapes!
 	 */
 	if (artyp != ISREG)
 		return(0);
@@ -907,7 +907,7 @@ ar_rev(off_t sksz)
 
 		/*
 		 * we may try to go backwards past the start when the archive
-		 * is only a single record. If this hapens and we are on a
+		 * is only a single record. If this happens and we are on a
 		 * multi volume archive, we need to go to the end of the
 		 * previous volume and continue our movement backwards from
 		 * there.
@@ -1046,7 +1046,7 @@ get_phys(void)
 	}
 
 	/*
-	 * read foward to the file mark, then back up in front of the filemark
+	 * read forward to the file mark, then back up in front of the filemark
 	 * (this is a bit paranoid, but should be safe to do).
 	 */
 	while ((res = read(arfd, scbuf, sizeof(scbuf))) > 0)

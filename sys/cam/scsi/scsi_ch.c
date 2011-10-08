@@ -322,6 +322,7 @@ chregister(struct cam_periph *periph, void *arg)
 {
 	struct ch_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -347,6 +348,11 @@ chregister(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->quirks = CH_Q_NONE;
 
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	/*
 	 * Changers don't have a blocksize, and obviously don't support
 	 * tagged queueing.
@@ -355,7 +361,8 @@ chregister(struct cam_periph *periph, void *arg)
 	softc->device_stats = devstat_new_entry("ch",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  SID_TYPE(&cgd->inq_data)| DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data) |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_OTHER);
 
 	/* Register the device */

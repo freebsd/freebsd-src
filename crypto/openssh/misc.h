@@ -1,4 +1,5 @@
-/* $OpenBSD: misc.h,v 1.43 2010/07/13 23:13:16 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.48 2011/03/29 18:54:17 stevesk Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -36,7 +37,7 @@ void	 sanitise_stdfd(void);
 void	 ms_subtract_diff(struct timeval *, int *);
 void	 ms_to_timeval(struct timeval *, int);
 void	 sock_set_v6only(int);
-int	 timingsafe_bcmp(const void *, const void *, size_t);
+void	 sock_get_rcvbuf(int *, int);
 
 struct passwd *pwcopy(struct passwd *);
 const char *ssh_gai_strerror(int);
@@ -80,6 +81,18 @@ void		put_u32(void *, u_int32_t)
 void		put_u16(void *, u_int16_t)
     __attribute__((__bounded__( __minbytes__, 1, 2)));
 
+struct bwlimit {
+	size_t buflen;
+	u_int64_t rate, thresh, lamt;
+	struct timeval bwstart, bwend;
+};
+
+void bandwidth_limit_init(struct bwlimit *, u_int64_t, size_t);
+void bandwidth_limit(struct bwlimit *, size_t);
+
+int parse_ipqos(const char *);
+const char *iptos2str(int);
+void mktemp_proto(char *, size_t);
 
 /* readpass.c */
 

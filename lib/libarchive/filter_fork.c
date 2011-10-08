@@ -31,7 +31,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#if defined(HAVE_POLL)
+#if defined(HAVE_POLL) && (defined(HAVE_POLL_H) || defined(HAVE_SYS_POLL_H))
 #  if defined(HAVE_POLL_H)
 #    include <poll.h>
 #  elif defined(HAVE_SYS_POLL_H)
@@ -121,7 +121,7 @@ state_allocated:
 void
 __archive_check_child(int in, int out)
 {
-#if defined(HAVE_POLL)
+#if defined(HAVE_POLL) && (defined(HAVE_POLL_H) || defined(HAVE_SYS_POLL_H))
 	struct pollfd fds[2];
 	int idx;
 

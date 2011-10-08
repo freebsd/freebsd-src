@@ -5,9 +5,9 @@
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by David Hayes, made possible in part by
- * a grant from the Cisco University Research Program Fund at Community
- * Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by David Hayes, made
+ * possible in part by a grant from the Cisco University Research Program Fund
+ * at Community Foundation Silicon Valley.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,12 +41,12 @@
  * "struct ertt".
  *
  * This software was first released in 2010 by David Hayes and Lawrence Stewart
- * whilst working on the NewTCP research project at Swinburne University's
- * Centre for Advanced Internet Architectures, Melbourne, Australia, which was
- * made possible in part by a grant from the Cisco University Research Program
- * Fund at Community Foundation Silicon Valley. Testing and development was
- * further assisted by a grant from the FreeBSD Foundation. More details are
- * available at:
+ * whilst working on the NewTCP research project at Swinburne University of
+ * Technology's Centre for Advanced Internet Architectures, Melbourne,
+ * Australia, which was made possible in part by a grant from the Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
+ * Testing and development was further assisted by a grant from the FreeBSD
+ * Foundation. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 

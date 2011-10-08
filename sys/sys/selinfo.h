@@ -51,6 +51,7 @@ struct selinfo {
 #define	SEL_WAITING(si)		(!TAILQ_EMPTY(&(si)->si_tdlist))
 
 #ifdef _KERNEL
+void	seldrain(struct selinfo *sip);
 void	selrecord(struct thread *selector, struct selinfo *sip);
 void	selwakeup(struct selinfo *sip);
 void	selwakeuppri(struct selinfo *sip, int pri);

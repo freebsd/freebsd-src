@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001-2007, by Weongyo Jeong. All rights reserved.
+ * Copyright (c) 2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -63,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SCTP
 
-void	inetprint(struct in_addr *, int, const char *, int);
 static void sctp_statesprint(uint32_t state);
 
 #define	NETSTAT_SCTP_STATES_CLOSED		0x0
@@ -101,6 +101,124 @@ struct xraddr_entry {
         struct xsctp_raddr *xraddr;
         LIST_ENTRY(xraddr_entry) xraddr_entries;
 };
+
+/*
+ * Construct an Internet address representation.
+ * If numeric_addr has been supplied, give
+ * numeric value, otherwise try for symbolic name.
+ */
+static char *
+inetname(struct in_addr *inp)
+{
+	char *cp;
+	static char line[MAXHOSTNAMELEN];
+	struct hostent *hp;
+	struct netent *np;
+
+	cp = 0;
+	if (!numeric_addr && inp->s_addr != INADDR_ANY) {
+		int net = inet_netof(*inp);
+		int lna = inet_lnaof(*inp);
+
+		if (lna == INADDR_ANY) {
+			np = getnetbyaddr(net, AF_INET);
+			if (np)
+				cp = np->n_name;
+		}
+		if (cp == 0) {
+			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
+			if (hp) {
+				cp = hp->h_name;
+				trimdomain(cp, strlen(cp));
+			}
+		}
+	}
+	if (inp->s_addr == INADDR_ANY)
+		strcpy(line, "*");
+	else if (cp) {
+		strlcpy(line, cp, sizeof(line));
+	} else {
+		inp->s_addr = ntohl(inp->s_addr);
+#define	C(x)	((u_int)((x) & 0xff))
+		sprintf(line, "%u.%u.%u.%u", C(inp->s_addr >> 24),
+		    C(inp->s_addr >> 16), C(inp->s_addr >> 8), C(inp->s_addr));
+		inp->s_addr = htonl(inp->s_addr);
+	}
+	return (line);
+}
+
+#ifdef INET6
+static char ntop_buf[INET6_ADDRSTRLEN];
+
+static char *
+inet6name(struct in6_addr *in6p)
+{
+	char *cp;
+	static char line[50];
+	struct hostent *hp;
+	static char domain[MAXHOSTNAMELEN];
+	static int first = 1;
+
+	if (first && !numeric_addr) {
+		first = 0;
+		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		    (cp = index(domain, '.')))
+			(void) strcpy(domain, cp + 1);
+		else
+			domain[0] = 0;
+	}
+	cp = 0;
+	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
+		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
+		if (hp) {
+			if ((cp = index(hp->h_name, '.')) &&
+			    !strcmp(cp + 1, domain))
+				*cp = 0;
+			cp = hp->h_name;
+		}
+	}
+	if (IN6_IS_ADDR_UNSPECIFIED(in6p))
+		strcpy(line, "*");
+	else if (cp)
+		strcpy(line, cp);
+	else
+		sprintf(line, "%s",
+			inet_ntop(AF_INET6, (void *)in6p, ntop_buf,
+				sizeof(ntop_buf)));
+	return (line);
+}
+#endif
+
+static void
+sctp_print_address(union sctp_sockstore *address, int port, int num_port)
+{
+	struct servent *sp = 0;
+	char line[80], *cp;
+	int width;
+
+	switch (address->sa.sa_family) {
+	case AF_INET:
+		sprintf(line, "%.*s.", Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
+		break;
+#ifdef INET6
+	case AF_INET6:
+		sprintf(line, "%.*s.", Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
+		break;
+#endif
+	default:
+		sprintf(line, "%.*s.", Wflag ? 39 : 16, "");
+		break;
+	}
+	cp = index(line, '\0');
+	if (!num_port && port)
+		sp = getservbyport((int)port, "sctp");
+	if (sp || port == 0)
+		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
+	else
+		sprintf(cp, "%d ", ntohs((u_short)port));
+	width = Wflag ? 45 : 22;
+	printf("%-*.*s ", width, width, line);
+}
 
 static int
 sctp_skip_xinpcb_ifneed(char *buf, const size_t buflen, size_t *offset)
@@ -150,18 +268,14 @@ sctp_skip_xinpcb_ifneed(char *buf, const size_t buflen, size_t *offset)
 }
 
 static void
-sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
+sctp_process_tcb(struct xsctp_tcb *xstcb,
     char *buf, const size_t buflen, size_t *offset, int *indent)
 {
 	int i, xl_total = 0, xr_total = 0, x_max;
-	struct sockaddr *sa;
 	struct xsctp_raddr *xraddr;
 	struct xsctp_laddr *xladdr;
 	struct xladdr_entry *prev_xl = NULL, *xl = NULL, *xl_tmp;
 	struct xraddr_entry *prev_xr = NULL, *xr = NULL, *xr_tmp;
-#ifdef INET6
-	struct sockaddr_in6 *in6;
-#endif
 
 	LIST_INIT(&xladdr_head);
 	LIST_INIT(&xraddr_head);
@@ -220,38 +334,22 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 	x_max = (xl_total > xr_total) ? xl_total : xr_total;
 	for (i = 0; i < x_max; i++) {
 		if (((*indent == 0) && i > 0) || *indent > 0)
-			printf("%-11s ", " ");
+			printf("%-12s ", " ");
 
 		if (xl != NULL) {
-			sa = &(xl->xladdr->address.sa);
-			if ((sa->sa_family) == AF_INET)
-				inetprint(&((struct sockaddr_in *)sa)->sin_addr,
-				    htons(xstcb->local_port),
-				    name, numeric_port);
-#ifdef INET6
-			else {
-				in6 = (struct sockaddr_in6 *)sa;
-				inet6print(&in6->sin6_addr,
-				    htons(xstcb->local_port),
-				    name, numeric_port);
+			sctp_print_address(&(xl->xladdr->address),
+			    htons(xstcb->local_port), numeric_port);
+		} else {
+			if (Wflag) {
+				printf("%-45s ", " ");
+			} else {
+				printf("%-22s ", " ");
 			}
-#endif
 		}
 
 		if (xr != NULL && !Lflag) {
-			sa = &(xr->xraddr->address.sa);
-			if ((sa->sa_family) == AF_INET)
-				inetprint(&((struct sockaddr_in *)sa)->sin_addr,
-				    htons(xstcb->remote_port),
-				    name, numeric_port);
-#ifdef INET6
-			else {
-				in6 = (struct sockaddr_in6 *)sa;
-				inet6print(&in6->sin6_addr,
-				    htons(xstcb->remote_port),
-				    name, numeric_port);
-			}
-#endif
+			sctp_print_address(&(xr->xraddr->address),
+			    htons(xstcb->remote_port), numeric_port);
 		}
 
 		if (xl != NULL)
@@ -285,52 +383,20 @@ out:
 	}
 }
 
-#ifdef SCTP_DEBUG
-uint32_t sctp_pdup[64];
-int sctp_pcnt = 0;
-#endif
-
 static void
-sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
+sctp_process_inpcb(struct xsctp_inpcb *xinpcb,
     char *buf, const size_t buflen, size_t *offset)
 {
-	int offset_backup, indent = 0, xladdr_total = 0, is_listening = 0;
+	int indent = 0, xladdr_total = 0, is_listening = 0;
 	static int first = 1;
-	char *tname;
+	char *tname, *pname;
 	struct xsctp_tcb *xstcb;
 	struct xsctp_laddr *xladdr;
-	struct sockaddr *sa;
-#ifdef INET6
-	struct sockaddr_in6 *in6;
-#endif
+	size_t offset_laddr;
+	int process_closed;
 
-	if ((xinpcb->flags & SCTP_PCB_FLAGS_TCPTYPE) ==
-	    SCTP_PCB_FLAGS_TCPTYPE && xinpcb->maxqlen > 0)
+	if (xinpcb->maxqlen > 0)
 		is_listening = 1;
-
-	if (!Lflag && !is_listening &&
-	    !(xinpcb->flags & SCTP_PCB_FLAGS_CONNECTED)) {
-#ifdef SCTP_DEBUG
-		int i, found = 0;
-
-		for (i = 0; i < sctp_pcnt; i++) {
-			if (sctp_pdup[i] == xinpcb->flags) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found) {
-			sctp_pdup[sctp_pcnt++] = xinpcb->flags;
-			if (sctp_pcnt >= 64)
-				sctp_pcnt = 0;
-			printf("[0x%08x]", xinpcb->flags);
-		}
-#endif
-		offset_backup = *offset;
-		if (!sctp_skip_xinpcb_ifneed(buf, buflen, offset))
-			return;
-		*offset = offset_backup;
-	}
 
 	if (first) {
 		if (!Lflag) {
@@ -340,90 +406,115 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
 		} else
 			printf("Current listen queue sizes (qlen/maxqlen)");
 		putchar('\n');
-		if (Aflag)
-			printf("%-8.8s ", "Socket");
 		if (Lflag)
-			printf("%-5.5s %-5.5s %-8.8s %-22.22s\n",
+			printf("%-6.6s %-5.5s %-8.8s %-22.22s\n",
 			    "Proto", "Type", "Listen", "Local Address");
 		else
-			printf((Aflag && !Wflag) ?
-			    "%-5.5s %-5.5s %-18.18s %-18.18s %s\n" :
-			    "%-5.5s %-5.5s %-22.22s %-22.22s %s\n",
-			    "Proto", "Type",
-			    "Local Address", "Foreign Address",
-			    "(state)");
+			if (Wflag)
+				printf("%-6.6s %-5.5s %-45.45s %-45.45s %s\n",
+				    "Proto", "Type",
+				    "Local Address", "Foreign Address",
+				    "(state)");
+			else
+				printf("%-6.6s %-5.5s %-22.22s %-22.22s %s\n",
+				    "Proto", "Type",
+				    "Local Address", "Foreign Address",
+				    "(state)");
 		first = 0;
 	}
-	if (Lflag && xinpcb->maxqlen == 0) {
+	xladdr = (struct xsctp_laddr *)(buf + *offset);
+	if (Lflag && !is_listening) {
 		sctp_skip_xinpcb_ifneed(buf, buflen, offset);
 		return;
 	}
-	if (Aflag)
-		printf("%8lx ", (u_long)xinpcb);
 
-	printf("%-5.5s ", name);
+	if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
+		/* Can't distinguish between sctp46 and sctp6 */
+		pname = "sctp46";
+	} else {
+		pname = "sctp4";
+	}
 
 	if (xinpcb->flags & SCTP_PCB_FLAGS_TCPTYPE)
 		tname = "1to1";
 	else if (xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE)
 		tname = "1toN";
 	else
-		return;
-
-	printf("%-5.5s ", tname);
+		tname = "????";
 
 	if (Lflag) {
 		char buf1[9];
 
 		snprintf(buf1, 9, "%hu/%hu", xinpcb->qlen, xinpcb->maxqlen);
+		printf("%-6.6s %-5.5s ", pname, tname);
 		printf("%-8.8s ", buf1);
 	}
-	/*
-	 * process the local address.  This routine are used for Lflag.
-	 */
+
+	offset_laddr = *offset;
+	process_closed = 0;
+retry:
 	while (*offset < buflen) {
 		xladdr = (struct xsctp_laddr *)(buf + *offset);
 		*offset += sizeof(struct xsctp_laddr);
-		if (xladdr->last == 1)
+		if (xladdr->last) {
+			if (aflag && !Lflag && (xladdr_total == 0) && process_closed) {
+				printf("%-6.6s %-5.5s ", pname, tname);
+				if (Wflag) {
+					printf("%-91.91s CLOSED", " ");
+				} else {
+					printf("%-45.45s CLOSED", " ");
+				}
+			}
+			if (process_closed || is_listening) {
+				putchar('\n');
+			}
 			break;
+		}
 
-		if (!Lflag && !is_listening)
+		if (!Lflag && !is_listening && !process_closed)
 			continue;
 
-		if (xladdr_total != 0)
+		if (xladdr_total == 0) {
+			printf("%-6.6s %-5.5s ", pname, tname);
+		} else {
 			putchar('\n');
-		if (xladdr_total > 0)
 			printf((Lflag) ?
-			    "%-20.20s " : "%-11.11s ", " ");
-
-		sa = &(xladdr->address.sa);
-		if ((sa->sa_family) == AF_INET)
-			inetprint(&((struct sockaddr_in *)sa)->sin_addr,
-			    htons(xinpcb->local_port), name, numeric_port);
-#ifdef INET6
-		else {
-			in6 = (struct sockaddr_in6 *)sa;
-			inet6print(&in6->sin6_addr,
-			    htons(xinpcb->local_port), name, numeric_port);
+			    "%-21.21s " : "%-12.12s ", " ");
 		}
-#endif
-
-		if (!Lflag && xladdr_total == 0 && is_listening == 1)
-			printf("%-22.22s LISTEN", " ");
-
+		sctp_print_address(&(xladdr->address),
+		    htons(xinpcb->local_port), numeric_port);
+		if (aflag && !Lflag && xladdr_total == 0) {
+			if (Wflag) {
+				if (process_closed) {
+					printf("%-45.45s CLOSED", " ");
+				} else {
+					printf("%-45.45s LISTEN", " ");
+				}
+			} else {
+				if (process_closed) {
+					printf("%-22.22s CLOSED", " ");
+				} else {
+					printf("%-22.22s LISTEN", " ");
+				}
+			}
+		}
 		xladdr_total++;
 	}
 
 	xstcb = (struct xsctp_tcb *)(buf + *offset);
 	*offset += sizeof(struct xsctp_tcb);
+	if (aflag && (xladdr_total == 0) && xstcb->last && !process_closed) {
+		process_closed = 1;
+		*offset = offset_laddr;
+		goto retry;
+	}
 	while (xstcb->last == 0 && *offset < buflen) {
-		sctp_process_tcb(xstcb, name, buf, buflen, offset, &indent);
+		printf("%-6.6s %-5.5s ", pname, tname);
+		sctp_process_tcb(xstcb, buf, buflen, offset, &indent);
 		indent++;
 		xstcb = (struct xsctp_tcb *)(buf + *offset);
 		*offset += sizeof(struct xsctp_tcb);
 	}
-
-	putchar('\n');
 }
 
 /*
@@ -461,7 +552,7 @@ sctp_protopr(u_long off __unused,
 	xinpcb = (struct xsctp_inpcb *)(buf + offset);
 	offset += sizeof(struct xsctp_inpcb);
 	while (xinpcb->last == 0 && offset < len) {
-		sctp_process_inpcb(xinpcb, name, buf, (const size_t)len,
+		sctp_process_inpcb(xinpcb, buf, (const size_t)len,
 		    &offset);
 
 		xinpcb = (struct xsctp_inpcb *)(buf + offset);

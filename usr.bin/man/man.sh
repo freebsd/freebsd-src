@@ -112,7 +112,11 @@ check_man() {
 		setup_cattool $manpage
 		decho "    Found manpage $manpage"
 
-		if exists "$2" && is_newer $found $manpage; then
+		if [ -n "${use_width}" ]; then
+			# non-standard width
+			unset use_cat
+			decho "    Skipping catpage: non-standard page width"
+		elif exists "$2" && is_newer $found $manpage; then
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
@@ -275,7 +279,7 @@ man_check_for_so() {
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
-	local EQN COL NROFF PIC TBL TROFF REFER VGRIND
+	local EQN NROFF PIC TBL TROFF REFER VGRIND
 	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# We are called with IFS set to colon. This causes really weird
@@ -290,10 +294,10 @@ man_display_page() {
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
-				decho "Command: $cattool $catpage | $PAGER"
+				decho "Command: $cattool $catpage | $MANPAGER"
 				ret=0
 			else
-				eval "$cattool $catpage | $PAGER"
+				eval "$cattool $catpage | $MANPAGER"
 				ret=$?
 			fi
 		fi
@@ -312,11 +316,10 @@ man_display_page() {
 	# device flag (-T) we have to pass to eqn(1) and groff(1). Then,
 	# setup the pipeline of commands based on the user's request.
 
-	# Apparently the locale flags are switched on where the manpage is
-	# found not just the locale env variables.
-	nroff_dev="ascii"
-	case "X${use_locale}X${manpage}" in
-	XyesX*/${man_lang}*${man_charset}/*)
+	# If the manpage is from a particular charset, we need to setup nroff
+	# to properly output for the correct device.
+	case "${manpage}" in
+	*.${man_charset}/*)
 		# I don't pretend to know this; I'm just copying from the
 		# previous version of man(1).
 		case "$man_charset" in
@@ -327,13 +330,24 @@ man_display_page() {
 		*)		nroff_dev="ascii" ;;
 		esac
 
-		NROFF="$NROFF -T$nroff_dev -dlocale=$man_lang.$man_charset"
+		NROFF="$NROFF -T$nroff_dev"
 		EQN="$EQN -T$nroff_dev"
+
+		# Iff the manpage is from the locale and not just the charset,
+		# then we need to define the locale string.
+		case "${manpage}" in
+		*/${man_lang}_${man_country}.${man_charset}/*)
+			NROFF="$NROFF -dlocale=$man_lang.$man_charset"
+			;;
+		*/${man_lang}.${man_charset}/*)
+			NROFF="$NROFF -dlocale=$man_lang.$man_charset"
+			;;
+		esac
 
 		# Allow language specific calls to override the default
 		# set of utilities.
 		l=$(echo $man_lang | tr [:lower:] [:upper:])
-		for tool in EQN COL NROFF PIC TBL TROFF REFER VGRIND; do
+		for tool in EQN NROFF PIC TBL TROFF REFER VGRIND; do
 			eval "$tool=\${${tool}_$l:-\$$tool}"
 		done
 		;;
@@ -341,6 +355,14 @@ man_display_page() {
 		EQN="$EQN -Tascii"
 		;;
 	esac
+
+	if [ -z "$MANCOLOR" ]; then
+		NROFF="$NROFF -P-c"
+	fi
+
+	if [ -n "${use_width}" ]; then
+		NROFF="$NROFF -rLL=${use_width}n -rLT=${use_width}n"
+	fi
 
 	if [ -n "$MANROFFSEQ" ]; then
 		set -- -$MANROFFSEQ
@@ -350,7 +372,7 @@ man_display_page() {
 			g)	;; # Ignore for compatability.
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
-			t)	pipeline="$pipeline | $TBL"; use_col=yes ;;
+			t)	pipeline="$pipeline | $TBL" ;;
 			v)	pipeline="$pipeline | $VGRIND" ;;
 			*)	usage ;;
 			esac
@@ -359,19 +381,12 @@ man_display_page() {
 		pipeline="${pipeline#" | "}"
 	else
 		pipeline="$TBL"
-		use_col=yes
 	fi
 
 	if [ -n "$tflag" ]; then
 		pipeline="$pipeline | $TROFF"
 	else
-		pipeline="$pipeline | $NROFF"
-
-		if [ -n "$use_col" ]; then
-			pipeline="$pipeline | $COL"
-		fi
-
-		pipeline="$pipeline | $PAGER"
+		pipeline="$pipeline | $NROFF | $MANPAGER"
 	fi
 
 	if [ $debug -gt 0 ]; then
@@ -473,7 +488,7 @@ man_parse_args() {
 	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
 		M)	MANPATH=$OPTARG ;;
-		P)	PAGER=$OPTARG ;;
+		P)	MANPAGER=$OPTARG ;;
 		S)	MANSECT=$OPTARG ;;
 		a)	aflag=aflag ;;
 		d)	debug=$(( $debug + 1 )) ;;
@@ -552,33 +567,72 @@ man_setup() {
 
 	build_manpath
 	man_setup_locale
+	man_setup_width
+}
+
+# Usage: man_setup_width
+# Set up page width.
+man_setup_width() {
+	local sizes
+
+	unset use_width
+	case "$MANWIDTH" in
+	[0-9]*)
+		if [ "$MANWIDTH" -gt 0 2>/dev/null ]; then
+			use_width=$MANWIDTH
+		fi
+		;;
+	[Tt][Tt][Yy])
+		if { sizes=$($STTY size 0>&3 2>/dev/null); } 3>&1; then
+			set -- $sizes
+			if [ $2 -gt 80 ]; then
+				use_width=$(($2-2))
+			fi
+		fi
+		;;
+	esac
+	if [ -n "$use_width" ]; then
+		decho "Using non-standard page width: ${use_width}"
+	else
+		decho 'Using standard page width'
+	fi
 }
 
 # Usage: man_setup_locale
 # Setup necessary locale variables.
 man_setup_locale() {
+	local lang_cc
+
+	locpaths='.'
+	man_charset='US-ASCII'
+
 	# Setup locale information.
 	if [ -n "$oflag" ]; then
-		decho "Using non-localized manpages"
-		unset use_locale
-	elif [ -n "$LC_ALL" ]; then
-		parse_locale "$LC_ALL"
-	elif [ -n "$LC_CTYPE" ]; then
-		parse_locale "$LC_CTYPE"
-	elif [ -n "$LANG" ]; then
-		parse_locale "$LANG"
+		decho 'Using non-localized manpages'
+	else
+		# Use the locale tool to give us the proper LC_CTYPE
+		eval $( $LOCALE )
+
+		case "$LC_CTYPE" in
+		C)		;;
+		POSIX)		;;
+		[a-z][a-z]_[A-Z][A-Z]\.*)
+				lang_cc="${LC_CTYPE%.*}"
+				man_lang="${LC_CTYPE%_*}"
+				man_country="${lang_cc#*_}"
+				man_charset="${LC_CTYPE#*.}"
+				locpaths="$LC_CTYPE"
+				locpaths="$locpaths:$man_lang.$man_charset"
+				if [ "$man_lang" != "en" ]; then
+					locpaths="$locpaths:en.$man_charset"
+				fi
+				locpaths="$locpaths:."
+				;;
+		*)		echo 'Unknown locale, assuming C' >&2
+				;;
+		esac
 	fi
 
-	if [ -n "$use_locale" ]; then
-		locpaths="${man_lang}_${man_country}.${man_charset}"
-		locpaths="$locpaths:$man_lang.$man_charset"
-		if [ "$man_lang" != "en" ]; then
-			locpaths="$locpaths:en.$man_charset"
-		fi
-		locpaths="$locpaths:."
-	else
-		locpaths="."
-	fi
 	decho "Using locale paths: $locpaths"
 }
 
@@ -647,7 +701,7 @@ parse_file() {
 				manlocales="$manlocales:$tstr"
 				;;
 		MANCONFIG*)	decho "    MANCONFIG" 3
-				trim "${line#MANCONF}"
+				trim "${line#MANCONFIG}"
 				config_local="$tstr"
 				;;
 		# Set variables in the form of FOO_BAR
@@ -658,28 +712,6 @@ parse_file() {
 				;;
 		esac
 	done < "$file"
-}
-
-# Usage: parse_locale localestring
-# Setup locale variables for proper parsing.
-parse_locale() {
-	local lang_cc
-
-	case "$1" in
-	C)				;;
-	POSIX)				;;
-	[a-z][a-z]_[A-Z][A-Z]\.*)	lang_cc="${1%.*}"
-					man_lang="${1%_*}"
-					man_country="${lang_cc#*_}"
-					man_charset="${1#*.}"
-					use_locale=yes
-					return 0
-					;;
-	*)				echo 'Unknown locale, assuming C' >&2
-					;;
-	esac
-
-	unset use_locale
 }
 
 # Usage: search_path
@@ -780,7 +812,7 @@ search_whatis() {
 	bad=${bad#\\n}
 
 	if [ -n "$good" ]; then
-		echo -e "$good" | $PAGER
+		echo -e "$good" | $MANPAGER
 	fi
 
 	if [ -n "$bad" ]; then
@@ -804,13 +836,21 @@ setup_cattool() {
 }
 
 # Usage: setup_pager
-# Correctly sets $PAGER
+# Correctly sets $MANPAGER
 setup_pager() {
 	# Setup pager.
-	if [ -z "$PAGER" ]; then
-		PAGER="more -s"
+	if [ -z "$MANPAGER" ]; then
+		if [ -n "$MANCOLOR" ]; then
+			MANPAGER="less -sR"
+		else
+			if [ -n "$PAGER" ]; then
+				MANPAGER="$PAGER"
+			else
+				MANPAGER="more -s"
+			fi
+		fi
 	fi
-	decho "Using pager: $PAGER"
+	decho "Using pager: $MANPAGER"
 }
 
 # Usage: trim string
@@ -891,15 +931,18 @@ do_whatis() {
 	search_whatis whatis "$@"
 }
 
-EQN=/usr/bin/eqn
-COL=/usr/bin/col
-NROFF='/usr/bin/groff -S -Wall -mtty-char -man'
-PIC=/usr/bin/pic
+# User's PATH setting decides on the groff-suite to pick up.
+EQN=eqn
+NROFF='groff -S -P-h -Wall -mtty-char -man'
+PIC=pic
+REFER=refer
+TBL=tbl
+TROFF='groff -S -man'
+VGRIND=vgrind
+
+LOCALE=/usr/bin/locale
+STTY=/bin/stty
 SYSCTL=/sbin/sysctl
-TBL=/usr/bin/tbl
-TROFF='/usr/bin/groff -S -man'
-REFER=/usr/bin/refer
-VGRIND=/usr/bin/vgrind
 
 debug=0
 man_default_sections='1:1aout:8:2:3:n:4:5:6:7:9:l'

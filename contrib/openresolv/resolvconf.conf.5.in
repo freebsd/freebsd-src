@@ -43,7 +43,7 @@ Listed below are the standard
 .Nm
 variables that may be set.
 .Pp
-After updaing this file, you may wish to run
+After updating this file, you may wish to run
 .Nm resolvconf -u
 to apply the new configuration.
 .Sh RESOLVCONF OPTIONS

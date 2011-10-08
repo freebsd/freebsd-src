@@ -1753,7 +1753,12 @@ void
 enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 {
 #ifdef MCAST
+#ifdef IP_MULTICAST_LOOP
 	/*u_char*/ TYPEOF_IP_MULTICAST_LOOP off = 0;
+#endif
+#ifdef IPV6_MULTICAST_LOOP
+	u_int off6 = 0;		/* RFC 3493, 5.2. defines type unsigned int */
+#endif
 
 	switch (maddr->ss_family)
 	{
@@ -1797,9 +1802,9 @@ enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 		 * Don't send back to itself, but allow it to fail to set it
 		 */
 		if (setsockopt(iface->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
-		       (char *) &off, sizeof(off)) == -1) {
+		       (char *) &off6, sizeof(off6)) == -1) {
 			netsyslog(LOG_ERR,
-			"setsockopt IP_MULTICAST_LOOP failure: %m on socket %d, addr %s for multicast address %s",
+			"setsockopt IPV6_MULTICAST_LOOP failure: %m on socket %d, addr %s for multicast address %s",
 			iface->fd, stoa(&iface->sin), stoa(maddr));
 		}
 #endif
@@ -2711,14 +2716,14 @@ sendpkt(
 
 	for (slot = ERRORCACHESIZE; --slot >= 0; )
 		if(dest->ss_family == AF_INET) {
-			if (badaddrs[slot].port == ((struct sockaddr_in*)dest)->sin_port &&
+			if (badaddrs[slot].port == SRCPORT(dest) &&
 				badaddrs[slot].addr.s_addr == ((struct sockaddr_in*)dest)->sin_addr.s_addr)
 			break;
 		}
 #ifdef INCLUDE_IPV6_SUPPORT
 		else if (dest->ss_family == AF_INET6) {
-			if (badaddrs6[slot].port == ((struct sockaddr_in6*)dest)->sin6_port &&
-				badaddrs6[slot].addr.s6_addr == ((struct sockaddr_in6*)dest)->sin6_addr.s6_addr)
+			if (badaddrs6[slot].port == SRCPORT(dest) &&
+				!memcmp(&badaddrs6[slot].addr, &((struct sockaddr_in6*)dest)->sin6_addr, sizeof(struct in6_addr)))
 			break;
 		}
 #endif /* INCLUDE_IPV6_SUPPORT */

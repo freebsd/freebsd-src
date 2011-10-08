@@ -95,7 +95,7 @@ int drm_sysctl_init(struct drm_device *dev)
 			SYSCTL_CHILDREN(top), 
 			OID_AUTO, 
 			drm_sysctl_list[i].name, 
-			CTLTYPE_INT | CTLFLAG_RD, 
+			CTLTYPE_STRING | CTLFLAG_RD, 
 			dev, 
 			0, 
 			drm_sysctl_list[i].f, 

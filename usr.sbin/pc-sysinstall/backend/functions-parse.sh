@@ -31,10 +31,9 @@
 # which gets the value of a setting in the provided line
 get_value_from_string()
 {
-  if [ ! -z "${1}" ]
+  if [ -n "${1}" ]
   then
-    VAL="`echo ${1} | cut -d '=' -f 2`"
-    export VAL
+    export VAL="`echo ${1} | cut -d '=' -f 2-15`"
   else
     echo "Error: Did we forgot to supply a string to parse?"
     exit 1
@@ -44,10 +43,9 @@ get_value_from_string()
 # Get the value from the cfg file including spaces
 get_value_from_cfg_with_spaces()
 {
-  if [ ! -z "${1}" ]
+  if [ -n "${1}" ]
   then
-    VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2`
-    export VAL
+    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2-15`
   else
     exit_err "Error: Did we forgot to supply a setting to grab?"
   fi
@@ -57,10 +55,9 @@ get_value_from_cfg_with_spaces()
 # Get the value from the cfg file
 get_value_from_cfg()
 {
-  if [ ! -z "${1}" ]
+  if [ -n "${1}" ]
   then
-    VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
-    export VAL
+    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2-15 | tr -d ' '`
   else
     exit_err "Error: Did we forgot to supply a setting to grab?"
   fi
@@ -70,7 +67,7 @@ get_value_from_cfg()
 # 1 = setting we are checking,  2 = list of valid values
 if_check_value_exists()
 {
-  if [ ! -z "${1}" -a ! -z "${2}" ]
+  if [ -n "${1}" -a -n "${2}" ]
   then
     # Get the first occurance of the setting from the config, strip out whitespace
 
@@ -104,7 +101,7 @@ if_check_value_exists()
 # 1 = setting we are checking,  2 = list of valid values
 check_value()
 {
-  if [ ! -z "${1}" -a ! -z "${2}" ]
+  if [ -n "${1}" -a -n "${2}" ]
   then
     # Get the first occurance of the setting from the config, strip out whitespace
     VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
@@ -129,12 +126,12 @@ check_value()
 # 1  = values to confirm exist
 file_sanity_check()
 {
-  if [ ! -z "$CFGF" -a ! -z "$1" ]
+  if [ -n "$CFGF" -a -n "$1" ]
   then
     for i in $1
     do
-      grep "^${i}=" $CFGF >/dev/null 2>/dev/null
-      if [ "$?" = "0" ]
+      grep -q "^${i}=" $CFGF 2>/dev/null
+      if [ $? -eq 0 ]
       then
         LN=`grep "^${i}=" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
         if [ -z "${LN}" ]
@@ -173,11 +170,11 @@ merge_config()
 
   while read newline
   do
-   echo ${newline} | grep "^#" >/dev/null 2>/dev/null
-   if [ "$?" != "0" ] ; then
+   echo ${newline} | grep -q "^#" 2>/dev/null
+   if [ $? -ne 0 ] ; then
      VAL="`echo ${newline} | cut -d '=' -f 1`"
-     cat ${OLDCFG} | grep ${VAL} >/dev/null 2>/dev/null
-     if [ "$?" != "0" ] ; then
+     cat ${OLDCFG} | grep -q ${VAL} 2>/dev/null
+     if [ $? -ne 0 ] ; then
        if [ "${FOUNDMERGE}" = "NO" ] ; then
          echo "" >> ${FINALCFG}
          echo "# Auto-merged values from newer ${NEWCFG}" >> ${FINALCFG}
@@ -219,7 +216,7 @@ get_next_cfg_line()
   while read line
   do
     if [ "$FOUND" = "0" ] ; then
-      VAL="$line" ; export VAL
+      export VAL="$line"
       return
     fi
     if [ "$line" = "${CURLINE}" ] ; then
@@ -228,5 +225,5 @@ get_next_cfg_line()
   done <${CURFILE}
 
   # Got here, couldn't find this line or at end of file, set VAL to ""
-  VAL="" ; export VAL
+  export VAL=""
 };

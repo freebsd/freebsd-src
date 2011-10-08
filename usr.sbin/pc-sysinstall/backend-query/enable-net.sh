@@ -1,6 +1,11 @@
 #!/bin/sh
 #-
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2011 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,23 +45,67 @@ NETMASK="$3"
 DNS="$4"
 GATEWAY="$5"
 MIRRORFETCH="$6"
+IPV6="$7"
+IPV6GATE="$8"
+IPV6DNS="$9"
 
 if [ -z "${NIC}" ]
 then
-  echo "ERROR: Usage enable-net <nic> <ip> <netmask> <dns> <gateway>"
+  echo "ERROR: Usage enable-net <nic> <ip> <netmask> <dns> <gateway> <ipv6> " \
+	"<ipv6gateway> <ipv6dns>"
   exit 150
 fi
 
 if [ "$NIC" = "AUTO-DHCP" ]
 then
   enable_auto_dhcp
+elif [ "$NIC" = "IPv6-SLAAC" ]
+then
+  enable_auto_slaac
+  # In addition, if static values were defined, add them as well.
+  # We might not get DNS information from RAs, for example.
+  if [ -n "${IPV6}" ]; then
+    VAL=""
+    get_first_wired_nic
+    if [ -n "${VAL}" ]; then
+      ifconfig ${VAL} inet6 ${IPV6} alias
+    fi
+  fi
+  # Append only here.
+  if [ -n "${IPV6DNS}" ]; then
+    echo "nameserver ${IPV6DNS}" >>/etc/resolv.conf
+  fi
+  # Do not 
+  if [ -n "${IPV6GATE}" ]; then
+    # Check if we have a default route already to not overwrite.
+    if ! route -n get -inet6 default > /dev/null 2>&1 ; then
+      route add -inet6 default ${IPV6GATE}
+    fi
+  fi
 else
   echo "Enabling NIC: $NIC"
-  ifconfig ${NIC} ${IP} ${NETMASK}
+  if [ -n "${IP}" ]; then
+    ifconfig ${NIC} inet ${IP} ${NETMASK}
+  fi
+  if [ -n "${IPV6}" ]; then
+    ifconfig ${NIC} inet6 ${IPV6} alias
+  fi
 
-  echo "nameserver ${DNS}" >/etc/resolv.conf
+  # Keep default from IPv4-only support times and clear the resolv.conf file.
+  : > /etc/resolv.conf
+  if [ -n "${DNS}" ]; then
+    echo "nameserver ${DNS}" >>/etc/resolv.conf
+  fi
+  if [ -n "${IPV6DNS}" ]; then
+    echo "nameserver ${IPV6DNS}" >>/etc/resolv.conf
+  fi
 
-  route add default ${GATE}
+  if [ -n "${GATE}" ]; then
+    route add -inet default ${GATE}
+  fi
+  if [ -n "${IPV6GATE}" ]; then
+    route add -inet6 default ${IPV6GATE}
+  fi
 fi
 
 case ${MIRRORFETCH} in

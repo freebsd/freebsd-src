@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
+#include <rpc/rpcsec_gss.h>
 
 #include <rpc/rpc_com.h>
 
@@ -68,6 +69,9 @@ extern	u_long sb_max_adj;	/* not defined in socketvar.h */
 #if __FreeBSD_version < 700000
 #define strrchr rindex
 #endif
+
+/* Provide an entry point hook for the rpcsec_gss module. */
+struct rpc_gss_entries	rpc_gss_entries;
 
 struct handle {
 	NCONF_HANDLE *nhandle;

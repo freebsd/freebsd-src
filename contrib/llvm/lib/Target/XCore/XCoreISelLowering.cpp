@@ -37,8 +37,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/VectorExtras.h"
-#include <queue>
-#include <set>
 using namespace llvm;
 
 const char *XCoreTargetLowering::
@@ -158,6 +156,8 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
   // We have target-specific dag combine patterns for the following nodes:
   setTargetDAGCombine(ISD::STORE);
   setTargetDAGCombine(ISD::ADD);
+
+  setMinFunctionAlignment(1);
 }
 
 SDValue XCoreTargetLowering::
@@ -203,12 +203,6 @@ void XCoreTargetLowering::ReplaceNodeResults(SDNode *N,
   }
 }
 
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned XCoreTargetLowering::
-getFunctionAlignment(const Function *) const {
-  return 1;
-}
-
 //===----------------------------------------------------------------------===//
 //  Misc Lower Operation implementation
 //===----------------------------------------------------------------------===//
@@ -250,9 +244,6 @@ LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const
 {
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
   SDValue GA = DAG.getTargetGlobalAddress(GV, Op.getDebugLoc(), MVT::i32);
-  // If it's a debug information descriptor, don't mess with it.
-  if (DAG.isVerifiedDebugInfoDesc(Op))
-    return GA;
   return getGlobalAddressWrapper(GA, GV, DAG);
 }
 
@@ -906,8 +897,8 @@ XCoreTargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   // The ABI dictates there should be one stack slot available to the callee
   // on function entry (for saving lr).
@@ -967,7 +958,7 @@ XCoreTargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
   // Build a sequence of copy-to-reg nodes chained together with token
   // chain and flag operands which copy the outgoing args into registers.
-  // The InFlag in necessary since all emited instructions must be
+  // The InFlag in necessary since all emitted instructions must be
   // stuck together.
   SDValue InFlag;
   for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
@@ -1029,8 +1020,8 @@ XCoreTargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_XCore);
 
@@ -1089,8 +1080,8 @@ XCoreTargetLowering::LowerCCCArguments(SDValue Chain,
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_XCore);
 
@@ -1194,12 +1185,12 @@ XCoreTargetLowering::LowerCCCArguments(SDValue Chain,
 //===----------------------------------------------------------------------===//
 
 bool XCoreTargetLowering::
-CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
+CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+	       bool isVarArg,
                const SmallVectorImpl<ISD::OutputArg> &Outs,
                LLVMContext &Context) const {
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, Context);
+  CCState CCInfo(CallConv, isVarArg, MF, getTargetMachine(), RVLocs, Context);
   return CCInfo.CheckReturn(Outs, RetCC_XCore);
 }
 
@@ -1215,10 +1206,10 @@ XCoreTargetLowering::LowerReturn(SDValue Chain,
   SmallVector<CCValAssign, 16> RVLocs;
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
-  // Analize return values.
+  // Analyze return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_XCore);
 
   // If this is the first return lowered for this function, add
@@ -1600,21 +1591,18 @@ XCoreTargetLowering::isLegalAddressingMode(const AddrMode &AM,
 //                           XCore Inline Assembly Support
 //===----------------------------------------------------------------------===//
 
-std::vector<unsigned> XCoreTargetLowering::
-getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                  EVT VT) const
-{
-  if (Constraint.size() != 1)
-    return std::vector<unsigned>();
-
-  switch (Constraint[0]) {
+std::pair<unsigned, const TargetRegisterClass*>
+XCoreTargetLowering::
+getRegForInlineAsmConstraint(const std::string &Constraint,
+			     EVT VT) const {
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
     default : break;
     case 'r':
-      return make_vector<unsigned>(XCore::R0, XCore::R1,  XCore::R2,
-                                   XCore::R3, XCore::R4,  XCore::R5,
-                                   XCore::R6, XCore::R7,  XCore::R8,
-                                   XCore::R9, XCore::R10, XCore::R11, 0);
-      break;
+      return std::make_pair(0U, XCore::GRRegsRegisterClass);
+    }
   }
-  return std::vector<unsigned>();
+  // Use the default implementation in TargetLowering to convert the register
+  // constraint into a member of a register class.
+  return TargetLowering::getRegForInlineAsmConstraint(Constraint, VT);
 }

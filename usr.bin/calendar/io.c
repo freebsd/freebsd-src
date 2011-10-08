@@ -346,7 +346,7 @@ closecal(FILE *fp)
 	write(pdes[1], pw->pw_name, strlen(pw->pw_name));
 	write(pdes[1], ">\nTo: <", 7);
 	write(pdes[1], pw->pw_name, strlen(pw->pw_name));
-	write(pdes[1], ">\nSubject: ", 12);
+	write(pdes[1], ">\nSubject: ", 11);
 	write(pdes[1], dayname, strlen(dayname));
 	write(pdes[1], "'s Calendar\nPrecedence: bulk\n\n", 30);
 

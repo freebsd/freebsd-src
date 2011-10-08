@@ -35,8 +35,9 @@
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
-
+#include "ar9002/ar9002phy.h"
 #include "ar9002/ar9285phy.h"
+#include "ar9002/ar9285an.h"
 
 /* Eeprom versioning macros. Returns true if the version is equal or newer than the ver specified */ 
 #define	EEP_MINOR(_ah) \
@@ -65,21 +66,6 @@ static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
-static uint16_t ar9285GetMaxEdgePower(uint16_t, CAL_CTL_EDGES *);
-
-/* XXX gag, this is sick */
-typedef enum Ar5416_Rates {
-	rate6mb,  rate9mb,  rate12mb, rate18mb,
-	rate24mb, rate36mb, rate48mb, rate54mb,
-	rate1l,   rate2l,   rate2s,   rate5_5l,
-	rate5_5s, rate11l,  rate11s,  rateXr,
-	rateHt20_0, rateHt20_1, rateHt20_2, rateHt20_3,
-	rateHt20_4, rateHt20_5, rateHt20_6, rateHt20_7,
-	rateHt40_0, rateHt40_1, rateHt40_2, rateHt40_3,
-	rateHt40_4, rateHt40_5, rateHt40_6, rateHt40_7,
-	rateDupCck, rateDupOfdm, rateExtCck, rateExtOfdm,
-	Ar5416RateSize
-} AR5416_RATES;
 
 HAL_BOOL
 ar9285SetTransmitPower(struct ath_hal *ah,
@@ -163,75 +149,26 @@ ar9285SetTransmitPower(struct ath_hal *ah,
     ar5416PrintPowerPerRate(ah, ratesArray);
 #endif
 
-    /* Write the OFDM power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
-        POW_SM(ratesArray[rate18mb], 24)
-          | POW_SM(ratesArray[rate12mb], 16)
-          | POW_SM(ratesArray[rate9mb], 8)
-          | POW_SM(ratesArray[rate6mb], 0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE2,
-        POW_SM(ratesArray[rate54mb], 24)
-          | POW_SM(ratesArray[rate48mb], 16)
-          | POW_SM(ratesArray[rate36mb], 8)
-          | POW_SM(ratesArray[rate24mb], 0)
-    );
-
-    /* Write the CCK power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE3,
-        POW_SM(ratesArray[rate2s], 24)
-          | POW_SM(ratesArray[rate2l],  16)
-          | POW_SM(ratesArray[rateXr],  8) /* XR target power */
-          | POW_SM(ratesArray[rate1l],   0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE4,
-        POW_SM(ratesArray[rate11s], 24)
-          | POW_SM(ratesArray[rate11l], 16)
-          | POW_SM(ratesArray[rate5_5s], 8)
-          | POW_SM(ratesArray[rate5_5l], 0)
-    );
-    HALDEBUG(ah, HAL_DEBUG_RESET,
-	"%s AR_PHY_POWER_TX_RATE3=0x%x AR_PHY_POWER_TX_RATE4=0x%x\n",
-	    __func__, OS_REG_READ(ah,AR_PHY_POWER_TX_RATE3),
-	    OS_REG_READ(ah,AR_PHY_POWER_TX_RATE4)); 
-
-    /* Write the HT20 power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE5,
-        POW_SM(ratesArray[rateHt20_3], 24)
-          | POW_SM(ratesArray[rateHt20_2], 16)
-          | POW_SM(ratesArray[rateHt20_1], 8)
-          | POW_SM(ratesArray[rateHt20_0], 0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE6,
-        POW_SM(ratesArray[rateHt20_7], 24)
-          | POW_SM(ratesArray[rateHt20_6], 16)
-          | POW_SM(ratesArray[rateHt20_5], 8)
-          | POW_SM(ratesArray[rateHt20_4], 0)
-    );
-
+    /*
+     * Adjust the HT40 power to meet the correct target TX power
+     * for 40MHz mode, based on TX power curves that are established
+     * for 20MHz mode.
+     *
+     * XXX handle overflow/too high power level?
+     */
     if (IEEE80211_IS_CHAN_HT40(chan)) {
-        /* Write the HT40 power per rate set */
-	/* Correct PAR difference between HT40 and HT20/LEGACY */
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE7,
-            POW_SM(ratesArray[rateHt40_3] + ht40PowerIncForPdadc, 24)
-              | POW_SM(ratesArray[rateHt40_2] + ht40PowerIncForPdadc, 16)
-              | POW_SM(ratesArray[rateHt40_1] + ht40PowerIncForPdadc, 8)
-              | POW_SM(ratesArray[rateHt40_0] + ht40PowerIncForPdadc, 0)
-        );
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE8,
-            POW_SM(ratesArray[rateHt40_7] + ht40PowerIncForPdadc, 24)
-              | POW_SM(ratesArray[rateHt40_6] + ht40PowerIncForPdadc, 16)
-              | POW_SM(ratesArray[rateHt40_5] + ht40PowerIncForPdadc, 8)
-              | POW_SM(ratesArray[rateHt40_4] + ht40PowerIncForPdadc, 0)
-        );
-        /* Write the Dup/Ext 40 power per rate set */
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE9,
-            POW_SM(ratesArray[rateExtOfdm], 24)
-              | POW_SM(ratesArray[rateExtCck], 16)
-              | POW_SM(ratesArray[rateDupOfdm], 8)
-              | POW_SM(ratesArray[rateDupCck], 0)
-        );
+        ratesArray[rateHt40_0] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_1] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_2] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_3] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_4] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_5] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_6] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_7] += ht40PowerIncForPdadc;
     }
+
+    /* Write the TX power rate registers */
+    ar5416WriteTxPowerRateRegisters(ah, chan, ratesArray);
 
     return AH_TRUE;
 #undef POW_SM
@@ -301,8 +238,6 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	const MODAL_EEP4K_HEADER *pModal;
 	uint8_t txRxAttenLocal;
 	uint8_t ob[5], db1[5], db2[5];
-	uint8_t ant_div_control1, ant_div_control2;
-	uint32_t regVal;
 
 	pModal = &eep->modalHeader;
 	txRxAttenLocal = 23;
@@ -312,36 +247,10 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* Single chain for 4K EEPROM*/
 	ar9285SetBoardGain(ah, pModal, eep, txRxAttenLocal);
 
-	/* Initialize Ant Diversity settings from EEPROM */
-	if (pModal->version >= 3) {
-		ant_div_control1 = pModal->antdiv_ctl1;
-		ant_div_control2 = pModal->antdiv_ctl2;
+	/* Initialize Ant Diversity settings if supported */
+	(void) ar9285SetAntennaSwitch(ah, AH5212(ah)->ah_antControl);
 
-		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
-		regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
-
-		regVal |= SM(ant_div_control1,
-			     AR_PHY_9285_ANT_DIV_CTL);
-		regVal |= SM(ant_div_control2,
-			     AR_PHY_9285_ANT_DIV_ALT_LNACONF);
-		regVal |= SM((ant_div_control2 >> 2),
-			     AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
-		regVal |= SM((ant_div_control1 >> 1),
-			     AR_PHY_9285_ANT_DIV_ALT_GAINTB);
-		regVal |= SM((ant_div_control1 >> 2),
-			     AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
-
-		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
-		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
-		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-		regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-		regVal |= SM((ant_div_control1 >> 3),
-			     AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-
-		OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
-		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-	}
-
+	/* Configure TX power calibration */
 	if (pModal->version >= 2) {
 		ob[0] = pModal->ob_0;
 		ob[1] = pModal->ob_1;
@@ -427,6 +336,43 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (IEEE80211_IS_CHAN_HT40(chan))
 			OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 			    AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
+	}
+
+	/*
+	 * Program the CCK TX gain factor appropriately if needed.
+	 * The AR9285/AR9271 has a non-constant PA tx gain behaviour
+	 * for CCK versus OFDM rates; other chips deal with this
+	 * differently.
+	 *
+	 * The mask/shift/multiply hackery is done so place the same
+	 * value (bb_desired_scale) into multiple 5-bit fields.
+	 * For example, AR_PHY_TX_PWRCTRL9 has bb_desired_scale written
+	 * to three fields: (0..4), (5..9) and (10..14).
+	 */
+	if (AR_SREV_9271(ah) || AR_SREV_KITE(ah)) {
+		uint8_t bb_desired_scale = (pModal->bb_scale_smrt_antenna & EEP_4K_BB_DESIRED_SCALE_MASK);
+		if ((eep->baseEepHeader.txGainType == 0) && (bb_desired_scale != 0)) {
+			ath_hal_printf(ah, "[ath]: adjusting cck tx gain factor\n");
+			uint32_t pwrctrl, mask, clr;
+
+			mask = (1<<0) | (1<<5) | (1<<10) | (1<<15) | (1<<20) | (1<<25);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL8, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL10, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL12, pwrctrl, clr);
+
+			mask = (1<<0) | (1<<5) | (1<<15);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL9, pwrctrl, clr);
+
+			mask = (1<<0) | (1<<5);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL11, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL13, pwrctrl, clr);
+		}
 	}
 
 	return AH_TRUE;
@@ -536,9 +482,9 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 				(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == 
 				 ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))) {
 				rep = &(pEepData->ctlData[i]);
-				twiceMinEdgePower = ar9285GetMaxEdgePower(freq,
+				twiceMinEdgePower = ar5416GetMaxEdgePower(freq,
 							rep->ctlEdges[
-							  owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask) - 1]);
+							  owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask) - 1], AH_TRUE);
 				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL) {
 					/* Find the minimum of all CTL edge powers that apply to this channel */
 					twiceMaxEdgePower = AH_MIN(twiceMaxEdgePower, twiceMinEdgePower);
@@ -587,32 +533,15 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 		}
 	} /* end ctl mode checking */
 
-	/* Set rates Array from collected data */
-	ratesArray[rate6mb] = ratesArray[rate9mb] = ratesArray[rate12mb] = ratesArray[rate18mb] = ratesArray[rate24mb] = targetPowerOfdm.tPow2x[0];
-	ratesArray[rate36mb] = targetPowerOfdm.tPow2x[1];
-	ratesArray[rate48mb] = targetPowerOfdm.tPow2x[2];
-	ratesArray[rate54mb] = targetPowerOfdm.tPow2x[3];
-	ratesArray[rateXr] = targetPowerOfdm.tPow2x[0];
+        /* Set rates Array from collected data */
+	ar5416SetRatesArrayFromTargetPower(ah, chan, ratesArray,
+	    &targetPowerCck,
+	    &targetPowerCckExt,
+	    &targetPowerOfdm,
+	    &targetPowerOfdmExt,
+	    &targetPowerHt20,
+	    &targetPowerHt40);
 
-	for (i = 0; i < N(targetPowerHt20.tPow2x); i++) {
-		ratesArray[rateHt20_0 + i] = targetPowerHt20.tPow2x[i];
-	}
-
-	ratesArray[rate1l]  = targetPowerCck.tPow2x[0];
-	ratesArray[rate2s] = ratesArray[rate2l]  = targetPowerCck.tPow2x[1];
-	ratesArray[rate5_5s] = ratesArray[rate5_5l] = targetPowerCck.tPow2x[2];
-	ratesArray[rate11s] = ratesArray[rate11l] = targetPowerCck.tPow2x[3];
-	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		for (i = 0; i < N(targetPowerHt40.tPow2x); i++) {
-			ratesArray[rateHt40_0 + i] = targetPowerHt40.tPow2x[i];
-		}
-		ratesArray[rateDupOfdm] = targetPowerHt40.tPow2x[0];
-		ratesArray[rateDupCck]  = targetPowerHt40.tPow2x[0];
-		ratesArray[rateExtOfdm] = targetPowerOfdmExt.tPow2x[0];
-		if (IEEE80211_IS_CHAN_2GHZ(chan)) {
-			ratesArray[rateExtCck]  = targetPowerCckExt.tPow2x[0];
-		}
-	}
 	return AH_TRUE;
 #undef EXT_ADDITIVE
 #undef CTL_11G_EXT
@@ -620,58 +549,6 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 #undef SUB_NUM_CTL_MODES_AT_2G_40
 #undef N
 }
-
-/**************************************************************************
- * fbin2freq
- *
- * Get channel value from binary representation held in eeprom
- * RETURNS: the frequency in MHz
- */
-static uint16_t
-fbin2freq(uint8_t fbin)
-{
-    /*
-     * Reserved value 0xFF provides an empty definition both as
-     * an fbin and as a frequency - do not convert
-     */
-    if (fbin == AR5416_BCHAN_UNUSED) {
-        return fbin;
-    }
-
-    return (uint16_t)(2300 + fbin);
-}
-
-/*
- * XXX almost the same as ar5416GetMaxEdgePower.
- */
-static uint16_t
-ar9285GetMaxEdgePower(uint16_t freq, CAL_CTL_EDGES *pRdEdgesPower)
-{
-    uint16_t twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
-    int      i;
-
-    /* Get the edge power */
-    for (i = 0; (i < AR5416_NUM_BAND_EDGES) && (pRdEdgesPower[i].bChannel != AR5416_BCHAN_UNUSED) ; i++) {
-        /*
-         * If there's an exact channel match or an inband flag set
-         * on the lower channel use the given rdEdgePower
-         */
-        if (freq == fbin2freq(pRdEdgesPower[i].bChannel)) {
-            twiceMaxEdgePower = MS(pRdEdgesPower[i].tPowerFlag, CAL_CTL_EDGES_POWER);
-            break;
-        } else if ((i > 0) && (freq < fbin2freq(pRdEdgesPower[i].bChannel))) {
-            if (fbin2freq(pRdEdgesPower[i - 1].bChannel) < freq && (pRdEdgesPower[i - 1].tPowerFlag & CAL_CTL_EDGES_FLAG) != 0) {
-                twiceMaxEdgePower = MS(pRdEdgesPower[i - 1].tPowerFlag, CAL_CTL_EDGES_POWER);
-            }
-            /* Leave loop - no more affecting edges possible in this monotonic increasing list */
-            break;
-        }
-    }
-    HALASSERT(twiceMaxEdgePower > 0);
-    return twiceMaxEdgePower;
-}
-
-
 
 static HAL_BOOL
 ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
@@ -728,7 +605,7 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
                                              &tMinCalPower, gainBoundaries,
                                              pdadcValues, numXpdGain);
 
-            if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
+            if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
                 /*
                  * Note the pdadc table may not start at 0 dBm power, could be
                  * negative or greater than 0.  Need to offset the power
@@ -842,7 +719,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         pPdGainBoundaries[i] = (uint16_t)AH_MIN(AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
 
 	/* NB: only applies to owl 1.0 */
-        if ((i == 0) && !AR_SREV_OWL_20_OR_LATER(ah) ) {
+        if ((i == 0) && !AR_SREV_5416_V20_OR_LATER(ah) ) {
 	    /*
              * fix the gain delta, but get a delta that can be applied to min to
              * keep the upper power values accurate, don't think max needs to
@@ -902,7 +779,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
     /* Fill out pdGainBoundaries - only up to 2 allowed here, but hardware allows up to 4 */
     while (i < AR5416_PD_GAINS_IN_MASK) {
-        pPdGainBoundaries[i] = pPdGainBoundaries[i-1];
+        pPdGainBoundaries[i] = AR5416_4K_EEP_PD_GAIN_BOUNDARY_DEFAULT;
         i++;
     }
 

@@ -320,6 +320,9 @@ struct ath_hal_5212 {
 	struct ar5212AniState	*ah_curani;	/* cached last reference */
 	struct ar5212AniState	ah_ani[AH_MAXCHAN]; /* per-channel state */
 
+	/* AR5416 uses some of the AR5212 ANI code; these are the ANI methods */
+	HAL_BOOL	(*ah_aniControl) (struct ath_hal *, HAL_ANI_CMD cmd, int param);
+
 	/*
 	 * Transmit power state.  Note these are maintained
 	 * here so they can be retrieved by diagnostic tools.
@@ -427,6 +430,7 @@ extern	void ar5212BeaconInit(struct ath_hal *ah,
 extern	void ar5212ResetStaBeaconTimers(struct ath_hal *ah);
 extern	void ar5212SetStaBeaconTimers(struct ath_hal *ah,
 		const HAL_BEACON_STATE *);
+extern	uint64_t ar5212GetNextTBTT(struct ath_hal *);
 
 extern	HAL_BOOL ar5212IsInterruptPending(struct ath_hal *ah);
 extern	HAL_BOOL ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *);
@@ -503,6 +507,8 @@ extern	HAL_BOOL ar5212SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5212GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
+		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
@@ -615,5 +621,11 @@ extern	void ar5212AniReset(struct ath_hal *, const struct ieee80211_channel *,
 
 extern	HAL_BOOL ar5212IsNFCalInProgress(struct ath_hal *ah);
 extern	HAL_BOOL ar5212WaitNFCalComplete(struct ath_hal *ah, int i);
+extern	void ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	void ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	HAL_BOOL ar5212ProcessRadarEvent(struct ath_hal *ah,
+	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
+	    HAL_DFS_EVENT *event);
+extern	HAL_BOOL ar5212IsFastClockEnabled(struct ath_hal *ah);
 
 #endif	/* _ATH_AR5212_H_ */

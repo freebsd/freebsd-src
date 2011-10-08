@@ -1,6 +1,11 @@
 #!/bin/sh
 #-
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2011 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.#
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,13 +31,20 @@
 # $FreeBSD$
 
 
-# Script which tests "fetch" when using a network connection, and saves
-# if we are using direct connect, or need FTP passive mode
+# Script which tries to ping "home" to see if Internet connectivity is
+# available.
 #############################################################################
 
 rm ${TMPDIR}/.testftp >/dev/null 2>/dev/null
 
 ping -c 2 www.pcbsd.org >/dev/null 2>/dev/null
+if [ "$?" = "0" ]
+then
+  echo "ftp: Up"
+  exit 0
+fi
+
+ping6 -c 2 www.pcbsd.org >/dev/null 2>/dev/null
 if [ "$?" = "0" ]
 then
   echo "ftp: Up"
@@ -45,6 +57,13 @@ then
   echo "ftp: Up"
   exit 0
 fi
-   
+
+ping6 -c 2 www.freebsd.org >/dev/null 2>/dev/null
+if [ "$?" = "0" ]
+then
+  echo "ftp: Up"
+  exit 0
+fi
+
 echo "ftp: Down"
 exit 1

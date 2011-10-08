@@ -147,7 +147,6 @@ static device_method_t udav_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
@@ -199,7 +198,7 @@ SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
 #define	UDAV_CLRBIT(sc, reg, x)	\
 	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) & ~(x))
 
-static const struct usb_device_id udav_devs[] = {
+static const STRUCT_USB_HOST_ID udav_devs[] = {
 	/* ShanTou DM9601 USB NIC */
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
 	/* ShanTou ST268 USB NIC */
@@ -210,6 +209,7 @@ static const struct usb_device_id udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
 	/* Kontron AG USB Ethernet */
 	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082, 0)},
 };
 
 static void
@@ -732,16 +732,13 @@ udav_ifmedia_upd(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 	return (0);
 }

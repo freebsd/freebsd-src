@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: eventclass.h,v 1.18 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: eventclass.h,v 1.18 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_EVENTCLASS_H
 #define ISC_EVENTCLASS_H 1

@@ -52,6 +52,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/fail.h>
 #include <sys/kernel.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
@@ -88,16 +90,20 @@ enum fail_point_t {
 	FAIL_POINT_BREAK,	/**< break into the debugger */
 	FAIL_POINT_PRINT,	/**< print a message */
 	FAIL_POINT_SLEEP,	/**< sleep for some msecs */
-	FAIL_POINT_INVALID,	/**< placeholder */
+	FAIL_POINT_NUMTYPES
 };
 
-static const char *fail_type_strings[] = {
-	"off",
-	"panic",
-	"return",
-	"break",
-	"print",
-	"sleep",
+static struct {
+	const char *name;
+	int	nmlen;
+} fail_type_strings[] = {
+#define	FP_TYPE_NM_LEN(s)	{ s, sizeof(s) - 1 }
+	[FAIL_POINT_OFF] =	FP_TYPE_NM_LEN("off"),
+	[FAIL_POINT_PANIC] =	FP_TYPE_NM_LEN("panic"),
+	[FAIL_POINT_RETURN] =	FP_TYPE_NM_LEN("return"),
+	[FAIL_POINT_BREAK] =	FP_TYPE_NM_LEN("break"),
+	[FAIL_POINT_PRINT] =	FP_TYPE_NM_LEN("print"),
+	[FAIL_POINT_SLEEP] =	FP_TYPE_NM_LEN("sleep"),
 };
 
 /**
@@ -109,7 +115,7 @@ struct fail_point_entry {
 	int		fe_arg;		/**< argument to type (e.g. return value) */
 	int		fe_prob;	/**< likelihood of firing in millionths */
 	int		fe_count;	/**< number of times to fire, 0 means always */
-
+	pid_t		fe_pid;		/**< only fail for this process */
 	TAILQ_ENTRY(fail_point_entry) fe_entries; /**< next entry in fail point */
 };
 
@@ -120,7 +126,7 @@ fail_point_sleep(struct fail_point *fp, struct fail_point_entry *ent,
 	/* convert from millisecs to ticks, rounding up */
 	int timo = ((msecs * hz) + 999) / 1000;
 
-	if (timo) {
+	if (timo > 0) {
 		if (fp->fp_sleep_fn == NULL) {
 			msleep(fp, &g_fp_mtx, PWAIT, "failpt", timo);
 		} else {
@@ -191,19 +197,13 @@ fail_point_init(struct fail_point *fp, const char *fmt, ...)
 void
 fail_point_destroy(struct fail_point *fp)
 {
-	struct fail_point_entry *ent;
 
-	if (fp->fp_flags & FAIL_POINT_DYNAMIC_NAME && fp->fp_name != NULL) {
-		fp_free((void *)(intptr_t)fp->fp_name);
+	if ((fp->fp_flags & FAIL_POINT_DYNAMIC_NAME) != 0) {
+		fp_free(__DECONST(void *, fp->fp_name));
 		fp->fp_name = NULL;
 	}
 	fp->fp_flags = 0;
-
-	while (!TAILQ_EMPTY(&fp->fp_entries)) {
-		ent = TAILQ_FIRST(&fp->fp_entries);
-		TAILQ_REMOVE(&fp->fp_entries, ent, fe_entries);
-		fp_free(ent);
-	}
+	clear_entries(&fp->fp_entries);
 }
 
 /**
@@ -222,16 +222,14 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 
 	FP_LOCK();
 
-	ent = TAILQ_FIRST(&fp->fp_entries);
-	while (ent) {
+	TAILQ_FOREACH_SAFE(ent, &fp->fp_entries, fe_entries, next) {
 		int cont = 0; /* don't continue by default */
-		next = TAILQ_NEXT(ent, fe_entries);
 
 		if (ent->fe_prob < PROB_MAX &&
-		    ent->fe_prob < random() % PROB_MAX) {
-			cont = 1;
-			goto loop_end;
-		}
+		    ent->fe_prob < random() % PROB_MAX)
+			continue;
+		if (ent->fe_pid != NO_PID && ent->fe_pid != curproc->p_pid)
+			continue;
 
 		switch (ent->fe_type) {
 		case FAIL_POINT_PANIC:
@@ -239,13 +237,14 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			/* NOTREACHED */
 
 		case FAIL_POINT_RETURN:
-			if (return_value)
+			if (return_value != NULL)
 				*return_value = ent->fe_arg;
 			ret = FAIL_POINT_RC_RETURN;
 			break;
 
 		case FAIL_POINT_BREAK:
-			printf("fail point %s breaking to debugger\n", fp->fp_name);
+			printf("fail point %s breaking to debugger\n",
+			    fp->fp_name);
 			breakpoint();
 			break;
 
@@ -273,13 +272,9 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			break;
 		}
 
-		if (ent && ent->fe_count > 0 && --ent->fe_count == 0)
+		if (ent != NULL && ent->fe_count > 0 && --ent->fe_count == 0)
 			free_entry(&fp->fp_entries, ent);
-
-loop_end:
-		if (cont)
-			ent = next;
-		else
+		if (cont == 0)
 			break;
 	}
 
@@ -290,7 +285,7 @@ loop_end:
 
 	FP_UNLOCK();
 
-	return ret;
+	return (ret);
 }
 
 /**
@@ -320,9 +315,11 @@ fail_point_get(struct fail_point *fp, struct sbuf *sb)
 		}
 		if (ent->fe_count > 0)
 			sbuf_printf(sb, "%d*", ent->fe_count);
-		sbuf_printf(sb, "%s", fail_type_strings[ent->fe_type]);
+		sbuf_printf(sb, "%s", fail_type_strings[ent->fe_type].name);
 		if (ent->fe_arg)
 			sbuf_printf(sb, "(%d)", ent->fe_arg);
+		if (ent->fe_pid != NO_PID)
+			sbuf_printf(sb, "[pid %d]", ent->fe_pid);
 		if (TAILQ_NEXT(ent, fe_entries))
 			sbuf_printf(sb, "->");
 	}
@@ -380,7 +377,7 @@ fail_point_set(struct fail_point *fp, char *buf)
 		    fp->fp_name, fp->fp_location, buf);
 #endif /* IWARNING */
 
-	return error;
+	return (error);
 }
 
 #define MAX_FAIL_POINT_BUF	1023
@@ -422,9 +419,8 @@ fail_point_sysctl(SYSCTL_HANDLER_ARGS)
         }
 
 out:
-	if (buf)
-		fp_free(buf);
-	return error;
+	fp_free(buf);
+	return (error);
 }
 
 /**
@@ -437,12 +433,17 @@ parse_fail_point(struct fail_point_entries *ents, char *p)
 	/*  <fail_point> ::
 	 *      <term> ( "->" <term> )*
 	 */
-	if (!(p = parse_term(ents, p)))
-		return 0;
-	while (*p)
-		if (p[0] != '-' || p[1] != '>' || !(p = parse_term(ents, p+2)))
-			return 0;
-	return p;
+	p = parse_term(ents, p);
+	if (p == NULL)
+		return (NULL);
+	while (*p != '\0') {
+		if (p[0] != '-' || p[1] != '>')
+			return (NULL);
+		p = parse_term(ents, p + 2);
+		if (p == NULL)
+			return (NULL);
+	}
+	return (p);
 }
 
 /**
@@ -455,6 +456,7 @@ parse_term(struct fail_point_entries *ents, char *p)
 
 	ent = fp_malloc(sizeof *ent, M_WAITOK | M_ZERO);
 	ent->fe_prob = PROB_MAX;
+	ent->fe_pid = NO_PID;
 	TAILQ_INSERT_TAIL(ents, ent, fe_entries);
 
 	/*
@@ -462,14 +464,16 @@ parse_term(struct fail_point_entries *ents, char *p)
 	 *     ( (<float> "%") | (<integer> "*" ) )*
 	 *     <type>
 	 *     [ "(" <integer> ")" ]
+	 *     [ "[pid " <integer> "]" ]
 	 */
 
 	/* ( (<float> "%") | (<integer> "*" ) )* */
-	while (('0' <= *p && *p <= '9') || *p == '.') {
+	while (isdigit(*p) || *p == '.') {
 		int units, decimal;
 
-		if (!(p = parse_number(&units, &decimal, p)))
-			return 0;
+		p = parse_number(&units, &decimal, p);
+		if (p == NULL)
+			return (NULL);
 
 		if (*p == '%') {
 			if (units > 100) /* prevent overflow early */
@@ -477,37 +481,44 @@ parse_term(struct fail_point_entries *ents, char *p)
 			ent->fe_prob = units * (PROB_MAX / 100) + decimal;
 			if (ent->fe_prob > PROB_MAX)
 				ent->fe_prob = PROB_MAX;
-
 		} else if (*p == '*') {
 			if (!units || decimal)
-				return 0;
+				return (NULL);
 			ent->fe_count = units;
-
-		} else {
-			return 0;
-		}
-
+		} else
+			return (NULL);
 		p++;
 	}
 
 	/* <type> */
-	if (!(p = parse_type(ent, p)))
-		return 0;
+	p = parse_type(ent, p);
+	if (p == NULL)
+		return (NULL);
 	if (*p == '\0')
-		return p;
+		return (p);
 
 	/* [ "(" <integer> ")" ] */
 	if (*p != '(')
 		return p;
 	p++;
-	if (('0' <= *p && *p <= '9') || *p == '-')
-		ent->fe_arg = strtol(p, &p, 0);
-	else
-		return 0;
+	if (!isdigit(*p) && *p != '-')
+		return (NULL);
+	ent->fe_arg = strtol(p, &p, 0);
 	if (*p++ != ')')
-		return 0;
+		return (NULL);
 
-	return p;
+	/* [ "[pid " <integer> "]" ] */
+#define	PID_STRING	"[pid "
+	if (strncmp(p, PID_STRING, sizeof(PID_STRING) - 1) != 0)
+		return (p);
+	p += sizeof(PID_STRING) - 1;
+	if (!isdigit(*p))
+		return (NULL);
+	ent->fe_pid = strtol(p, &p, 0);
+	if (*p++ != ']')
+		return (NULL);
+
+	return (p);
 }
 
 /**
@@ -528,14 +539,14 @@ parse_number(int *out_units, int *out_decimal, char *p)
 	old_p = p;
 	*out_units = strtol(p, &p, 10);
 	if (p == old_p && *p != '.')
-		return 0;
+		return (NULL);
 
 	/* fractional part */
 	*out_decimal = 0;
 	if (*p == '.') {
 		int digits = 0;
 		p++;
-		while ('0' <= *p && *p <= '9') {
+		while (isdigit(*p)) {
 			int digit = *p - '0';
 			if (digits < PROB_DIGITS - 2)
 				*out_decimal = *out_decimal * 10 + digit;
@@ -545,12 +556,12 @@ parse_number(int *out_units, int *out_decimal, char *p)
 			p++;
 		}
 		if (!digits) /* need at least one digit after '.' */
-			return 0;
+			return (NULL);
 		while (digits++ < PROB_DIGITS - 2) /* add implicit zeros */
 			*out_decimal *= 10;
 	}
 
-	return p; /* success */
+	return (p); /* success */
 }
 
 /**
@@ -560,21 +571,16 @@ static char *
 parse_type(struct fail_point_entry *ent, char *beg)
 {
 	enum fail_point_t type;
-	char *end = beg;
-	while ('a' <= *end && *end <= 'z')
-		end++;
-	if (beg == end)
-		return 0;
-	for (type = FAIL_POINT_OFF; type != FAIL_POINT_INVALID; type++) {
-		const char *p = fail_type_strings[type];
-		const char *q = beg;
-		while (q < end && *p++ == *q++);
-		if (q == end && *p == '\0') {
+	int len;
+
+	for (type = FAIL_POINT_OFF; type < FAIL_POINT_NUMTYPES; type++) {
+		len = fail_type_strings[type].nmlen;
+		if (strncmp(fail_type_strings[type].name, beg, len) == 0) {
 			ent->fe_type = type;
-			return end;
+			return (beg + len);
 		}
 	}
-	return 0;
+	return (NULL);
 }
 
 /**
@@ -595,6 +601,7 @@ static void
 clear_entries(struct fail_point_entries *ents)
 {
 	struct fail_point_entry *ent, *ent_next;
+
 	TAILQ_FOREACH_SAFE(ent, ents, fe_entries, ent_next)
 		fp_free(ent);
 	TAILQ_INIT(ents);

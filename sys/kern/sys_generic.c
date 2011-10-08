@@ -37,12 +37,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
@@ -135,7 +137,7 @@ struct read_args {
 };
 #endif
 int
-read(td, uap)
+sys_read(td, uap)
 	struct thread *td;
 	struct read_args *uap;
 {
@@ -168,7 +170,7 @@ struct pread_args {
 };
 #endif
 int
-pread(td, uap)
+sys_pread(td, uap)
 	struct thread *td;
 	struct pread_args *uap;
 {
@@ -199,7 +201,7 @@ freebsd6_pread(td, uap)
 	oargs.buf = uap->buf;
 	oargs.nbyte = uap->nbyte;
 	oargs.offset = uap->offset;
-	return (pread(td, &oargs));
+	return (sys_pread(td, &oargs));
 }
 
 /*
@@ -213,7 +215,7 @@ struct readv_args {
 };
 #endif
 int
-readv(struct thread *td, struct readv_args *uap)
+sys_readv(struct thread *td, struct readv_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -232,7 +234,7 @@ kern_readv(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, &fp);
+	error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -252,7 +254,7 @@ struct preadv_args {
 };
 #endif
 int
-preadv(struct thread *td, struct preadv_args *uap)
+sys_preadv(struct thread *td, struct preadv_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -275,7 +277,7 @@ kern_preadv(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, &fp);
+	error = fget_read(td, fd, CAP_READ, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -344,7 +346,7 @@ struct write_args {
 };
 #endif
 int
-write(td, uap)
+sys_write(td, uap)
 	struct thread *td;
 	struct write_args *uap;
 {
@@ -377,7 +379,7 @@ struct pwrite_args {
 };
 #endif
 int
-pwrite(td, uap)
+sys_pwrite(td, uap)
 	struct thread *td;
 	struct pwrite_args *uap;
 {
@@ -408,7 +410,7 @@ freebsd6_pwrite(td, uap)
 	oargs.buf = uap->buf;
 	oargs.nbyte = uap->nbyte;
 	oargs.offset = uap->offset;
-	return (pwrite(td, &oargs));
+	return (sys_pwrite(td, &oargs));
 }
 
 /*
@@ -422,7 +424,7 @@ struct writev_args {
 };
 #endif
 int
-writev(struct thread *td, struct writev_args *uap)
+sys_writev(struct thread *td, struct writev_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -441,7 +443,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, &fp);
+	error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -461,7 +463,7 @@ struct pwritev_args {
 };
 #endif
 int
-pwritev(struct thread *td, struct pwritev_args *uap)
+sys_pwritev(struct thread *td, struct pwritev_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -484,7 +486,7 @@ kern_pwritev(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, &fp);
+	error = fget_write(td, fd, CAP_WRITE, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -566,7 +568,7 @@ kern_ftruncate(td, fd, length)
 	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
-	error = fget(td, fd, &fp);
+	error = fget(td, fd, CAP_FTRUNCATE, &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -587,7 +589,7 @@ struct ftruncate_args {
 };
 #endif
 int
-ftruncate(td, uap)
+sys_ftruncate(td, uap)
 	struct thread *td;
 	struct ftruncate_args *uap;
 {
@@ -621,7 +623,7 @@ struct ioctl_args {
 #endif
 /* ARGSUSED */
 int
-ioctl(struct thread *td, struct ioctl_args *uap)
+sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
 	u_long com;
 	int arg, error;
@@ -696,7 +698,7 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_CMD(com);
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
@@ -753,7 +755,7 @@ poll_no_poll(int events)
 }
 
 int
-pselect(struct thread *td, struct pselect_args *uap)
+sys_pselect(struct thread *td, struct pselect_args *uap)
 {
 	struct timespec ts;
 	struct timeval tv, *tvp;
@@ -812,7 +814,7 @@ struct select_args {
 };
 #endif
 int
-select(struct thread *td, struct select_args *uap)
+sys_select(struct thread *td, struct select_args *uap)
 {
 	struct timeval tv, *tvp;
 	int error;
@@ -1054,6 +1056,37 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 	return (n);
 }
 
+static __inline int
+getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
+{
+	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_fromcap;
+	int error;
+#endif
+
+	if ((fp = fget_unlocked(fdp, fd)) == NULL)
+		return (EBADF);
+#ifdef CAPABILITIES
+	/*
+	 * If the file descriptor is for a capability, test rights and use
+	 * the file descriptor references by the capability.
+	 */
+	error = cap_funwrap(fp, CAP_POLL_EVENT, &fp_fromcap);
+	if (error) {
+		fdrop(fp, curthread);
+		return (error);
+	}
+	if (fp != fp_fromcap) {
+		fhold(fp_fromcap);
+		fdrop(fp, curthread);
+		fp = fp_fromcap;
+	}
+#endif /* CAPABILITIES */
+	*fpp = fp;
+	return (0);
+}
+
 /*
  * Traverse the list of fds attached to this thread's seltd and check for
  * completion.
@@ -1069,6 +1102,7 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 	struct file *fp;
 	fd_mask bit;
 	int fd, ev, n, idx;
+	int error;
 
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
@@ -1080,8 +1114,9 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		if ((fp = fget_unlocked(fdp, fd)) == NULL)
-			return (EBADF);
+		error = getselfd_cap(fdp, fd, &fp);
+		if (error)
+			return (error);
 		idx = fd / NFDBITS;
 		bit = (fd_mask)1 << (fd % NFDBITS);
 		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
@@ -1109,6 +1144,7 @@ selscan(td, ibits, obits, nfd)
 	fd_mask bit;
 	int ev, flags, end, fd;
 	int n, idx;
+	int error;
 
 	fdp = td->td_proc->p_fd;
 	n = 0;
@@ -1119,8 +1155,9 @@ selscan(td, ibits, obits, nfd)
 			flags = selflags(ibits, idx, bit);
 			if (flags == 0)
 				continue;
-			if ((fp = fget_unlocked(fdp, fd)) == NULL)
-				return (EBADF);
+			error = getselfd_cap(fdp, fd, &fp);
+			if (error)
+				return (error);
 			selfdalloc(td, (void *)(uintptr_t)fd);
 			ev = fo_poll(fp, flags, td->td_ucred, td);
 			fdrop(fp, td);
@@ -1141,7 +1178,7 @@ struct poll_args {
 };
 #endif
 int
-poll(td, uap)
+sys_poll(td, uap)
 	struct thread *td;
 	struct poll_args *uap;
 {
@@ -1242,11 +1279,17 @@ pollrescan(struct thread *td)
 		if (si != NULL)
 			continue;
 		fp = fdp->fd_ofiles[fd->fd];
+#ifdef CAPABILITIES
+		if ((fp == NULL)
+		    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 		if (fp == NULL) {
+#endif
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
 		}
+
 		/*
 		 * Note: backend also returns POLLHUP and
 		 * POLLERR if appropriate.
@@ -1307,7 +1350,12 @@ pollscan(td, fds, nfd)
 			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
+#ifdef CAPABILITIES
+			if ((fp == NULL)
+			    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+#else
 			if (fp == NULL) {
+#endif
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
@@ -1348,11 +1396,11 @@ struct openbsd_poll_args {
 };
 #endif
 int
-openbsd_poll(td, uap)
+sys_openbsd_poll(td, uap)
 	register struct thread *td;
 	register struct openbsd_poll_args *uap;
 {
-	return (poll(td, (struct poll_args *)uap));
+	return (sys_poll(td, (struct poll_args *)uap));
 }
 
 /*
@@ -1440,6 +1488,23 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
 	mtx_unlock(sfp->sf_mtx);
 	uma_zfree(selfd_zone, sfp);
+}
+
+/* Drain the waiters tied to all the selfd belonging the specified selinfo. */
+void
+seldrain(sip)
+        struct selinfo *sip;
+{
+
+	/*
+	 * This feature is already provided by doselwakeup(), thus it is
+	 * enough to go for it.
+	 * Eventually, the context, should take care to avoid races
+	 * between thread calling select()/poll() and file descriptor
+	 * detaching, but, again, the races are just the same as
+	 * selwakeup().
+	 */
+        doselwakeup(sip, -1);
 }
 
 /*

@@ -1233,24 +1233,12 @@ machdep.disable_mtrrs
 machdep.guessed_bootdev
 
 ---
-machdep.hlt_cpus
+machdep.hyperthreading_allowed
 bool
 
-This option will permit the halting
-of CPUs.
-For instance, to halt CPU 0,
-machdep.htl_cpus=1 can be used.
-It is possible to halt two CPUs by providing
-a comma separated list (i.e: cpu1,cpu2).
-
----
-machdep.hlt_logical_cpus
-bool
-
-This keeps the logical CPUs halted in the idle loop.
-By default the logical CPUs are halted at startup.
-It is also possible to halt any cpu in the idle loop now
-using machdep.hlt_cpus.
+Setting this tunable to zero disables
+the use of additional logical processors
+provided by Intel HTT technology.
 
 ---
 machdep.panic_on_nmi

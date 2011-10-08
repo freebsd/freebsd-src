@@ -81,11 +81,13 @@ int	ext2_checkpath(struct inode *, struct inode *, struct ucred *);
 int	cg_has_sb(int i);
 int	ext2_inactive(struct vop_inactive_args *);
 
-/* Flags to low-level allocation routines. */
-#define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
-#define B_SYNC		0x02	/* Do all allocations synchronously. */
-#define B_METAONLY	0x04	/* Return indirect block buffer. */
-#define B_NOWAIT	0x08	/* do not sleep to await lock */
+/* Flags to low-level allocation routines.
+ * The low 16-bits are reserved for IO_ flags from vnode.h.
+ */
+#define	BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
+#define	BA_SEQMASK	0x7F000000	/* Bits holding seq heuristic. */
+#define	BA_SEQSHIFT	24
+#define	BA_SEQMAX	0x7F
 
 extern struct vop_vector ext2_vnodeops;
 extern struct vop_vector ext2_fifoops;

@@ -30,7 +30,7 @@ class IntrinsicProperty;
 def IntrNoMem : IntrinsicProperty;
 
 // IntrReadArgMem - This intrinsic reads only from memory that one of its
-// arguments points to, but may read an unspecified amount.
+// pointer-typed arguments points to, but may read an unspecified amount.
 def IntrReadArgMem : IntrinsicProperty;
 
 // IntrReadMem - This intrinsic reads from unspecified memory, so it cannot be
@@ -46,6 +46,9 @@ def IntrReadWriteArgMem : IntrinsicProperty;
 
 // Commutative - This intrinsic is commutative: X op Y == Y op X.
 def Commutative : IntrinsicProperty;
+
+// Throws - This intrinsic can throw.
+def Throws : IntrinsicProperty;
 
 // NoCapture - The specified argument pointer is not captured by the intrinsic.
 class NoCapture<int argNo> : IntrinsicProperty {
@@ -208,7 +211,8 @@ def int_stackrestore  : Intrinsic<[], [llvm_ptr_ty]>,
 // however it does conveniently prevent the prefetch from being reordered
 // with respect to nearby accesses to the same memory.
 def int_prefetch      : Intrinsic<[],
-                                  [llvm_ptr_ty, llvm_i32_ty, llvm_i32_ty],
+                                  [llvm_ptr_ty, llvm_i32_ty, llvm_i32_ty,
+                                   llvm_i32_ty],
                                   [IntrReadWriteArgMem, NoCapture<0>]>;
 def int_pcmarker      : Intrinsic<[], [llvm_i32_ty]>;
 
@@ -251,6 +255,12 @@ let Properties = [IntrReadMem] in {
   def int_exp2 : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
 }
 
+let Properties = [IntrNoMem] in {
+  def int_fma  : Intrinsic<[llvm_anyfloat_ty],
+                         [LLVMMatchType<0>, LLVMMatchType<0>,
+                          LLVMMatchType<0>]>;
+}
+
 // NOTE: these are internal interfaces.
 def int_setjmp     : Intrinsic<[llvm_i32_ty],  [llvm_ptr_ty]>;
 def int_longjmp    : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty]>;
@@ -261,6 +271,11 @@ def int_siglongjmp : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty]>;
 def int_objectsize : Intrinsic<[llvm_anyint_ty], [llvm_ptr_ty, llvm_i1_ty],
                                [IntrNoMem]>,
                                GCCBuiltin<"__builtin_object_size">;
+
+//===------------------------- Expect Intrinsics --------------------------===//
+//
+def int_expect : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>,
+                                              LLVMMatchType<0>], [IntrNoMem]>;
 
 //===-------------------- Bit Manipulation Intrinsics ---------------------===//
 //
@@ -292,6 +307,7 @@ let Properties = [IntrNoMem] in {
 def int_eh_exception : Intrinsic<[llvm_ptr_ty], [], [IntrReadMem]>;
 def int_eh_selector  : Intrinsic<[llvm_i32_ty],
                                  [llvm_ptr_ty, llvm_ptr_ty, llvm_vararg_ty]>;
+def int_eh_resume    : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty], [Throws]>;
 
 def int_eh_typeid_for : Intrinsic<[llvm_i32_ty], [llvm_ptr_ty]>;
 
@@ -307,7 +323,7 @@ let Properties = [IntrNoMem] in {
   def int_eh_sjlj_lsda    : Intrinsic<[llvm_ptr_ty]>;
   def int_eh_sjlj_callsite: Intrinsic<[], [llvm_i32_ty]>;
 }
-def int_eh_sjlj_dispatch_setup : Intrinsic<[], [llvm_ptr_ty]>;
+def int_eh_sjlj_dispatch_setup : Intrinsic<[], [llvm_i32_ty]>;
 def int_eh_sjlj_setjmp  : Intrinsic<[llvm_i32_ty], [llvm_ptr_ty]>;
 def int_eh_sjlj_longjmp : Intrinsic<[], [llvm_ptr_ty]>;
 
@@ -490,3 +506,4 @@ include "llvm/IntrinsicsARM.td"
 include "llvm/IntrinsicsCellSPU.td"
 include "llvm/IntrinsicsAlpha.td"
 include "llvm/IntrinsicsXCore.td"
+include "llvm/IntrinsicsPTX.td"

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2004
+.Dd July 9, 2011
 .Dt VM_MAP 9
 .Os
 .Sh NAME
@@ -223,13 +223,9 @@ a user process's address space:
 .Bl -tag -width ".Va max_protection"
 .It Va protection
 Memory protection bits applied to this region.
-These are identical to those defined for
-.Xr vm_page_protect 9 .
 .It Va max_protection
 Mask for the memory protection bits which may be actually be applied to
 this region.
-These are identical to those defined for
-.Xr vm_page_protect 9 .
 .It Va inheritance
 Contains flags which specify how this entry should be treated
 during fork processing.
@@ -328,7 +324,6 @@ is backed by a
 .Sh SEE ALSO
 .Xr pmap 9 ,
 .Xr vm_map_check_protection 9 ,
-.Xr vm_map_clean 9 ,
 .Xr vm_map_create 9 ,
 .Xr vm_map_delete 9 ,
 .Xr vm_map_entry_resize_free 9 ,
@@ -348,8 +343,8 @@ is backed by a
 .Xr vm_map_simplify_entry 9 ,
 .Xr vm_map_stack 9 ,
 .Xr vm_map_submap 9 ,
-.Xr vm_map_wire 9 ,
-.Xr vm_page_protect 9
+.Xr vm_map_sync 9 ,
+.Xr vm_map_wire 9
 .Sh AUTHORS
 This manual page was written by
 .An Bruce M Simpson Aq bms@spc.org .

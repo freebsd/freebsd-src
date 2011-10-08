@@ -1860,6 +1860,8 @@ bstp_tick(void *arg)
 	if (bs->bs_running == 0)
 		return;
 
+	CURVNET_SET(bs->bs_vnet);
+
 	/* slow timer to catch missed link events */
 	if (bstp_timer_expired(&bs->bs_link_timer)) {
 		LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
@@ -1892,6 +1894,8 @@ bstp_tick(void *arg)
 		if (bp->bp_txcount > 0)
 			bp->bp_txcount--;
 	}
+
+	CURVNET_RESTORE();
 
 	callout_reset(&bs->bs_bstpcallout, hz, bstp_tick, bs);
 }
@@ -2126,6 +2130,7 @@ bstp_attach(struct bstp_state *bs, struct bstp_cb_ops *cb)
 	bs->bs_protover = BSTP_PROTO_RSTP;
 	bs->bs_state_cb = cb->bcb_state;
 	bs->bs_rtage_cb = cb->bcb_rtage;
+	bs->bs_vnet = curvnet;
 
 	getmicrotime(&bs->bs_last_tc_time);
 

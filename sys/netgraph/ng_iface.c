@@ -531,9 +531,7 @@ ng_iface_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate node and interface private structures */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_WAITOK | M_ZERO);
 	ifp = if_alloc(IFT_PROPVIRTUAL);
 	if (ifp == NULL) {
 		free(priv, M_NETGRAPH_IFACE);
@@ -779,6 +777,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);
 }

@@ -18,12 +18,6 @@ start_precmd="rtadvd_precmd"
 
 rtadvd_precmd()
 {
-	if ! checkyesno ipv6_gateway_enable ; then
-		warn \
-		  "${name} cannot be used on IPv6 host, only on an IPv6 router."
-		return 1
-	fi
-
 	# This should be enabled with a great care.
 	# You may want to fine-tune /etc/rtadvd.conf.
 	#
@@ -42,7 +36,7 @@ rtadvd_precmd()
 	#
 	case ${rtadvd_interfaces} in
 	[Aa][Uu][Tt][Oo]|'')
-		for i in `ifconfig -l` ; do
+		for i in `list_net_interfaces`; do
 			case $i in
 			lo0)	continue ;;
 			esac

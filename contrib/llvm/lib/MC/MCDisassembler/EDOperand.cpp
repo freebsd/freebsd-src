@@ -61,11 +61,14 @@ EDOperand::EDOperand(const EDDisassembler &disassembler,
     switch (operandType) {
     default:
     case kOperandTypeARMRegisterList:
+    case kOperandTypeARMDPRRegisterList:
+    case kOperandTypeARMSPRRegisterList:
       break;
     case kOperandTypeImmediate:
     case kOperandTypeRegister:
     case kOperandTypeARMBranchTarget:
     case kOperandTypeARMSoImm:
+    case kOperandTypeARMRotImm:
     case kOperandTypeThumb2SoImm:
     case kOperandTypeARMSoImm2Part:
     case kOperandTypeARMPredicate:
@@ -73,9 +76,12 @@ EDOperand::EDOperand(const EDDisassembler &disassembler,
     case kOperandTypeThumb2AddrModeImm8Offset:
     case kOperandTypeARMTBAddrMode:
     case kOperandTypeThumb2AddrModeImm8s4Offset:
+    case kOperandTypeARMAddrMode7:
+    case kOperandTypeThumb2AddrModeReg:
       numMCOperands = 1;
       break;
     case kOperandTypeThumb2SoReg:
+    case kOperandTypeAddrModeImm12:
     case kOperandTypeARMAddrMode2Offset:
     case kOperandTypeARMAddrMode3Offset:
     case kOperandTypeARMAddrMode4:
@@ -84,17 +90,22 @@ EDOperand::EDOperand(const EDDisassembler &disassembler,
     case kOperandTypeThumb2AddrModeImm8:
     case kOperandTypeThumb2AddrModeImm12:
     case kOperandTypeThumb2AddrModeImm8s4:
+    case kOperandTypeThumbAddrModeImmS1:
+    case kOperandTypeThumbAddrModeImmS2:
+    case kOperandTypeThumbAddrModeImmS4:
     case kOperandTypeThumbAddrModeRR:
     case kOperandTypeThumbAddrModeSP:
+    case kOperandTypeThumbAddrModePC:
       numMCOperands = 2;
       break;
     case kOperandTypeARMSoReg:
+    case kOperandTypeLdStSOReg:
     case kOperandTypeARMAddrMode2:
     case kOperandTypeARMAddrMode3:
     case kOperandTypeThumb2AddrModeSoReg:
-    case kOperandTypeThumbAddrModeS1:
-    case kOperandTypeThumbAddrModeS2:
-    case kOperandTypeThumbAddrModeS4:
+    case kOperandTypeThumbAddrModeRegS1:
+    case kOperandTypeThumbAddrModeRegS2:
+    case kOperandTypeThumbAddrModeRegS4:
     case kOperandTypeARMAddrMode6Offset:
       numMCOperands = 3;
       break;
@@ -196,15 +207,24 @@ int EDOperand::evaluate(uint64_t &result,
     default:
       return -1;
     case kOperandTypeImmediate:
+      if (!Inst.Inst->getOperand(MCOpIndex).isImm())
+        return -1;
+            
       result = Inst.Inst->getOperand(MCOpIndex).getImm();
       return 0;
     case kOperandTypeRegister:
     {
+      if (!Inst.Inst->getOperand(MCOpIndex).isReg())
+        return -1;
+        
       unsigned reg = Inst.Inst->getOperand(MCOpIndex).getReg();
       return callback(&result, reg, arg);
     }
     case kOperandTypeARMBranchTarget:
     {
+      if (!Inst.Inst->getOperand(MCOpIndex).isImm())
+        return -1;
+        
       int64_t displacement = Inst.Inst->getOperand(MCOpIndex).getImm();
       
       uint64_t pcVal;
@@ -256,11 +276,12 @@ int EDOperand::isMemory() {
   case kOperandTypeARMAddrMode4:
   case kOperandTypeARMAddrMode5:
   case kOperandTypeARMAddrMode6:
+  case kOperandTypeARMAddrMode7:
   case kOperandTypeARMAddrModePC:
   case kOperandTypeARMBranchTarget:
-  case kOperandTypeThumbAddrModeS1:
-  case kOperandTypeThumbAddrModeS2:
-  case kOperandTypeThumbAddrModeS4:
+  case kOperandTypeThumbAddrModeRegS1:
+  case kOperandTypeThumbAddrModeRegS2:
+  case kOperandTypeThumbAddrModeRegS4:
   case kOperandTypeThumbAddrModeRR:
   case kOperandTypeThumbAddrModeSP:
   case kOperandTypeThumb2SoImm:
@@ -269,6 +290,7 @@ int EDOperand::isMemory() {
   case kOperandTypeThumb2AddrModeImm12:
   case kOperandTypeThumb2AddrModeSoReg:
   case kOperandTypeThumb2AddrModeImm8s4:
+  case kOperandTypeThumb2AddrModeReg:
     return 1;
   }
 }

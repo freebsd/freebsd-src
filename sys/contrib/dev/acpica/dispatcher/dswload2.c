@@ -586,7 +586,7 @@ AcpiDsLoad2EndOp (
             }
             else
             {
-                RegionSpace = REGION_DATA_TABLE;
+                RegionSpace = ACPI_ADR_SPACE_DATA_TABLE;
             }
 
             /*

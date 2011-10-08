@@ -145,7 +145,8 @@ cfi_devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	sc = dev->si_drv1;
 	/* We allow only 1 open. */
-	if (!atomic_cmpset_acq_ptr(&sc->sc_opened, NULL, td->td_proc))
+	if (!atomic_cmpset_acq_ptr((uintptr_t *)&sc->sc_opened,
+	    (uintptr_t)NULL, (uintptr_t)td->td_proc))
 		return (EBUSY);
 	return (0);
 }

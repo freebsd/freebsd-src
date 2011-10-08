@@ -36,6 +36,8 @@
  * per pair of psychos.
  */
 struct psycho_softc {
+	struct bus_dma_methods		*sc_dma_methods;
+
 	device_t			sc_dev;
 
 	struct mtx			*sc_mtx;
@@ -63,7 +65,6 @@ struct psycho_softc {
 
 	/* Tags for PCI access */
 	bus_space_tag_t			sc_pci_cfgt;
-	bus_space_tag_t			sc_pci_memt;
 	bus_space_tag_t			sc_pci_iot;
 	bus_dma_tag_t			sc_pci_dmat;
 

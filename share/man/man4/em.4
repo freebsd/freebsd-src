@@ -227,6 +227,20 @@ If
 is non-zero, this tunable limits the maximum delay in which a transmit
 interrupt is generated.
 .El
+.Sh FILES
+.Bl -tag -width /dev/led/em*
+.It Pa /dev/led/em*
+identification LED device nodes
+.El
+.Sh EXAMPLES
+Make the identification LED of em0 blink:
+.Pp
+.Dl "echo f2 > /dev/led/em0"
+.Pp
+Turn the identification LED of em0 off again:
+.Pp
+.Dl "echo 0 > /dev/led/em0"
+.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "em%d: Unable to allocate bus resource: memory"
@@ -246,20 +260,6 @@ If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
 issue to
 .Aq freebsdnic@mailbox.intel.com .
-.Sh FILES
-.Bl -tag -width /dev/led/em*
-.It Pa /dev/led/em*
-identification LED device nodes
-.El
-.Sh EXAMPLES
-Make the identification LED of em0 blink:
-.Pp
-.Dl "echo f2 > /dev/led/em0"
-.Pp
-Turn the identification LED of em0 off again:
-.Pp
-.Dl "echo 0 > /dev/led/em0"
-.Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,

@@ -21,6 +21,8 @@ namespace llvm {
   class PHINode;
   template<typename T> class SmallVectorImpl;
   template<typename T> class SSAUpdaterTraits;
+  class DbgDeclareInst;
+  class DIBuilder;
   class BumpPtrAllocator;
 
 /// SSAUpdater - This class updates SSA form for a set of values defined in
@@ -156,6 +158,10 @@ public:
   virtual void instructionDeleted(Instruction *I) const {
   }
 
+  /// updateDebugInfo - This is called to update debug info associated with the
+  /// instruction.
+  virtual void updateDebugInfo(Instruction *I) const {
+  }
 };
 
 } // End llvm namespace

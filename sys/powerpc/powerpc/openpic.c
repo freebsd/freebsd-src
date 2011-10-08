@@ -231,7 +231,7 @@ openpic_common_attach(device_t dev, uint32_t node)
  */
 
 void
-openpic_bind(device_t dev, u_int irq, cpumask_t cpumask)
+openpic_bind(device_t dev, u_int irq, cpuset_t cpumask)
 {
 	struct openpic_softc *sc;
 
@@ -240,7 +240,12 @@ openpic_bind(device_t dev, u_int irq, cpumask_t cpumask)
 		return;
 
 	sc = device_get_softc(dev);
-	openpic_write(sc, OPENPIC_IDEST(irq), cpumask);
+
+	/*
+	 * XXX: openpic_write() is very special and just needs a 32 bits mask.
+	 * For the moment, just play dirty and get the first half word.
+	 */
+	openpic_write(sc, OPENPIC_IDEST(irq), cpumask.__bits[0] & 0xffffffff);
 }
 
 void

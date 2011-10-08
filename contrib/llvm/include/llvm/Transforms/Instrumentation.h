@@ -17,7 +17,6 @@
 namespace llvm {
 
 class ModulePass;
-class FunctionPass;
 
 // Insert edge profiling instrumentation
 ModulePass *createEdgeProfilerPass();
@@ -27,6 +26,10 @@ ModulePass *createOptimalEdgeProfilerPass();
 
 // Insert path profiling instrumentation
 ModulePass *createPathProfilerPass();
+
+// Insert GCOV profiling instrumentation
+ModulePass *createGCOVProfilerPass(bool EmitNotes = true, bool EmitData = true,
+                                   bool Use402Format = false);
 
 } // End llvm namespace
 

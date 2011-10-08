@@ -13,12 +13,23 @@
 name="devd"
 rcvar=`set_rcvar`
 command="/sbin/${name}"
-pidfile=/var/run/${name}.pid
 
 start_precmd=${name}_prestart
+stop_precmd=find_pidfile
+
+find_pidfile()
+{
+	if get_pidfile_from_conf pid-file /etc/devd.conf; then
+		pidfile="$_pidfile_from_conf"
+	else
+		pidfile="/var/run/${name}.pid"
+	fi
+}
 
 devd_prestart ()
 {
+	find_pidfile
+
 	# If devd is disabled, turn it off in the kernel to avoid memory leaks.
 	if ! checkyesno ${rcvar}; then
 	    $SYSCTL hw.bus.devctl_disable=1

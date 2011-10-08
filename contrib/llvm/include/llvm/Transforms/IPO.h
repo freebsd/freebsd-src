@@ -74,13 +74,6 @@ ModulePass *createGlobalOptimizerPass();
 
 
 //===----------------------------------------------------------------------===//
-/// createDeadTypeEliminationPass - Return a new pass that eliminates symbol
-/// table entries for types that are never used.
-///
-ModulePass *createDeadTypeEliminationPass();
-
-
-//===----------------------------------------------------------------------===//
 /// createGlobalDCEPass - This transform is designed to eliminate unreachable
 /// internal globals (functions or global variables)
 ///
@@ -152,7 +145,6 @@ ModulePass *createDeadArgHackingPass();
 /// equal to maxElements (maxElements == 0 means always promote).
 ///
 Pass *createArgumentPromotionPass(unsigned maxElements = 3);
-Pass *createStructRetPromotionPass();
 
 //===----------------------------------------------------------------------===//
 /// createIPConstantPropagationPass - This pass propagates constants from call

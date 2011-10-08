@@ -38,6 +38,120 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110930: sysinstall removed
+OLD_FILES+=usr/sbin/sysinstall
+OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
+OLD_FILES+=usr/lib/libftpio.a
+OLD_FILES+=usr/lib/libftpio.so
+OLD_LIBS+=usr/lib/libftpio.so.8
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libftpio.a
+OLD_FILES+=usr/lib32/libftpio.so
+OLD_LIBS+=usr/lib32/libftpio.so.8
+.endif
+OLD_FILES+=usr/include/ftpio.h
+OLD_FILES+=usr/share/man/man3/ftpio.3.gz
+# 20110915: rename congestion control manpages
+OLD_FILES+=usr/share/man/man4/cc.4.gz
+OLD_FILES+=usr/share/man/man9/cc.9.gz
+# 20110831: atomic page flags operations
+OLD_FILES+=usr/share/man/man9/vm_page_flag.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_clear.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_set.9.gz
+# 20110828: library version bump for 9.0
+OLD_LIBS+=lib/libcam.so.5
+OLD_LIBS+=lib/libpcap.so.7
+OLD_LIBS+=lib/libufs.so.5
+OLD_LIBS+=usr/lib/libbsnmp.so.5
+OLD_LIBS+=usr/lib/libdwarf.so.2
+OLD_LIBS+=usr/lib/libopie.so.6
+OLD_LIBS+=usr/lib/librtld_db.so.1
+OLD_LIBS+=usr/lib/libtacplus.so.4
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_LIBS+=usr/lib32/libcam.so.5
+OLD_LIBS+=usr/lib32/libpcap.so.7
+OLD_LIBS+=usr/lib32/libufs.so.5
+OLD_LIBS+=usr/lib32/libbsnmp.so.5
+OLD_LIBS+=usr/lib32/libdwarf.so.2
+OLD_LIBS+=usr/lib32/libopie.so.6
+OLD_LIBS+=usr/lib32/librtld_db.so.1
+OLD_LIBS+=usr/lib32/libtacplus.so.4
+.endif
+# 20110718: no longer useful in the age of rc.d
+OLD_FILES+=usr/sbin/named.reconfig
+OLD_FILES+=usr/sbin/named.reload
+# 20110716: bind 9.8.0 import
+OLD_LIBS+=usr/lib/liblwres.so.50
+# 20110709: vm_map_clean.9 -> vm_map_sync.9
+OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
+# 20110709: Catch up with removal of these functions.
+OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_zero_fill.9.gz
+# 20110707: script no longer needed by /etc/rc.d/nfsd
+OLD_FILES+=etc/rc.d/nfsserver
+# 20110705: files moved so both NFS clients can share them
+OLD_FILES+=usr/include/nfsclient/krpc.h
+OLD_FILES+=usr/include/nfsclient/nfsdiskless.h
+# 20110705: the switch of default NFS client to the new one
+OLD_FILES+=sbin/mount_newnfs
+OLD_FILES+=usr/share/man/man8/mount_newnfs.8.gz
+OLD_FILES+=usr/include/nfsclient/nfs_kdtrace.h
+# 20110628: calendar.msk removed
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
+# 20110517: libpkg removed
+OLD_FILES+=usr/include/pkg.h
+OLD_FILES+=usr/lib/libpkg.a
+OLD_FILES+=usr/lib/libpkg.so
+OLD_LIBS+=usr/lib/libpkg.so.0
+OLD_FILES+=usr/lib/libpkg_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libpkg.a
+OLD_FILES+=usr/lib32/libpkg.so
+OLD_LIBS+=usr/lib32/libpkg.so.0
+OLD_FILES+=usr/lib32/libpkg_p.a
+.endif
+# 20110517: libsbuf version bump
+OLD_LIBS+=lib/libsbuf.so.5
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_LIBS+=usr/lib32/libsbuf.so.5
+.endif
+# 20110502: new clang import which bumps version from 2.9 to 3.0
+OLD_FILES+=usr/include/clang/2.9/emmintrin.h
+OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.9/mmintrin.h
+OLD_FILES+=usr/include/clang/2.9/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.9
+# 20110417: removal of Objective-C support
+OLD_FILES+=usr/include/objc/encoding.h
+OLD_FILES+=usr/include/objc/hash.h
+OLD_FILES+=usr/include/objc/NXConstStr.h
+OLD_FILES+=usr/include/objc/objc-api.h
+OLD_FILES+=usr/include/objc/objc-decls.h
+OLD_FILES+=usr/include/objc/objc-list.h
+OLD_FILES+=usr/include/objc/objc.h
+OLD_FILES+=usr/include/objc/Object.h
+OLD_FILES+=usr/include/objc/Protocol.h
+OLD_FILES+=usr/include/objc/runtime.h
+OLD_FILES+=usr/include/objc/sarray.h
+OLD_FILES+=usr/include/objc/thr.h
+OLD_FILES+=usr/include/objc/typedstream.h
+OLD_FILES+=usr/lib/libobjc.a
+OLD_FILES+=usr/lib/libobjc.so
+OLD_FILES+=usr/lib/libobjc_p.a
+OLD_FILES+=usr/libexec/cc1obj
+OLD_LIBS+=usr/lib/libobjc.so.4
+OLD_DIRS+=usr/include/objc
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libobjc.a
+OLD_FILES+=usr/lib32/libobjc.so
+OLD_FILES+=usr/lib32/libobjc_p.a
+OLD_LIBS+=usr/lib32/libobjc.so.4
+.endif
+# 20110331: firmware.img created at build time
+OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
 # 20110224: sticky.8 -> sticky.7
 OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20110220: new clang import which bumps version from 2.8 to 2.9
@@ -48,6 +162,8 @@ OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
 OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
 OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
 OLD_DIRS+=usr/include/clang/2.8
+# 20110119: netinet/sctp_cc_functions.h removed
+OLD_FILES+=usr/include/netinet/sctp_cc_functions.h
 # 20110119: Remove SYSCTL_*X* sysctl additions.
 OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
     usr/share/man/man9/SYSCTL_XLONG.9.gz
@@ -103,6 +219,8 @@ OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101112: removed gasp.info
 OLD_FILES+=usr/share/info/gasp.info.gz
+# 20101109: machine/mutex.h removed
+OLD_FILES+=usr/include/machine/mutex.h
 # 20101109: headers moved from machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/mptable.h
@@ -153,7 +271,7 @@ OLD_FILES+=usr/include/machine/intr.h
 .endif
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/liblzma.so.0
 .endif
 # 20100511: move GCC-specific headers to /usr/include/gcc
@@ -1984,9 +2102,9 @@ OLD_FILES+=usr/share/man/man5/ipsend.5.gz
 OLD_FILES+=usr/bin/gtar
 OLD_FILES+=usr/share/man/man1/gtar.1.gz
 # 200503XX
-OLD_FILES+=share/man/man3/exp10.3.gz
-OLD_FILES+=share/man/man3/exp10f.3.gz
-OLD_FILES+=share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/exp10.3.gz
+OLD_FILES+=usr/share/man/man3/exp10f.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
 # 20050324: updated release infrastructure
 OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
 # 20050317: removed from BIND 9 distribution
@@ -2234,6 +2352,8 @@ OLD_FILES+=lib/libz.so
 OLD_FILES+=bin/cxconfig
 OLD_FILES+=sbin/cxconfig
 OLD_FILES+=usr/share/man/man8/cxconfig.8.gz
+# 20031016: MULTI_DRIVER_MODULE macro removed
+OLD_FILES+=usr/share/man/man9/MULTI_DRIVER_MODULE.9.gz
 # 200309XX
 OLD_FILES+=usr/bin/symorder
 OLD_FILES+=usr/share/man/man1/symorder.1.gz
@@ -2473,7 +2593,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign
@@ -4854,9 +4974,7 @@ OLD_FILES+=usr/include/netns/spidp.h
 OLD_FILES+=usr/include/netns/spp_debug.h
 OLD_FILES+=usr/include/netns/spp_timer.h
 OLD_FILES+=usr/include/netns/spp_var.h
-OLD_FILES+=usr/include/nfs/krpc.h
 OLD_FILES+=usr/include/nfs/nfs.h
-OLD_FILES+=usr/include/nfs/nfsdiskless.h
 OLD_FILES+=usr/include/nfs/nfsm_subs.h
 OLD_FILES+=usr/include/nfs/nfsmount.h
 OLD_FILES+=usr/include/nfs/nfsnode.h

@@ -173,7 +173,7 @@ static struct ucom_callback uslcom_callback = {
 	.ucom_poll = &uslcom_poll,
 };
 
-static const struct usb_device_id uslcom_devs[] = {
+static const STRUCT_USB_HOST_ID uslcom_devs[] = {
 #define	USLCOM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     USLCOM_DEV(BALTECH, CARDREADER),
     USLCOM_DEV(CLIPSAL, 5500PCU),

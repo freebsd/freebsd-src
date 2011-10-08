@@ -185,7 +185,8 @@ MacroArgs::getPreExpArgument(unsigned Arg, const MacroInfo *MI,
 /// a character literal for the Microsoft charize (#@) extension.
 ///
 Token MacroArgs::StringifyArgument(const Token *ArgToks,
-                                   Preprocessor &PP, bool Charify) {
+                                   Preprocessor &PP, bool Charify,
+                                   SourceLocation hashInstLoc) {
   Token Tok;
   Tok.startToken();
   Tok.setKind(Charify ? tok::char_constant : tok::string_literal);
@@ -273,21 +274,23 @@ Token MacroArgs::StringifyArgument(const Token *ArgToks,
     }
   }
 
-  PP.CreateString(&Result[0], Result.size(), Tok);
+  PP.CreateString(&Result[0], Result.size(), Tok, hashInstLoc);
   return Tok;
 }
 
 /// getStringifiedArgument - Compute, cache, and return the specified argument
 /// that has been 'stringified' as required by the # operator.
 const Token &MacroArgs::getStringifiedArgument(unsigned ArgNo,
-                                               Preprocessor &PP) {
+                                               Preprocessor &PP,
+                                               SourceLocation hashInstLoc) {
   assert(ArgNo < NumUnexpArgTokens && "Invalid argument number!");
   if (StringifiedArgs.empty()) {
     StringifiedArgs.resize(getNumArguments());
-    memset(&StringifiedArgs[0], 0,
+    memset((void*)&StringifiedArgs[0], 0,
            sizeof(StringifiedArgs[0])*getNumArguments());
   }
   if (StringifiedArgs[ArgNo].isNot(tok::string_literal))
-    StringifiedArgs[ArgNo] = StringifyArgument(getUnexpArgument(ArgNo), PP);
+    StringifiedArgs[ArgNo] = StringifyArgument(getUnexpArgument(ArgNo), PP,
+                                               /*Charify=*/false, hashInstLoc);
   return StringifiedArgs[ArgNo];
 }

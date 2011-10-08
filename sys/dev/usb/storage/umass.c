@@ -721,6 +721,11 @@ MODULE_VERSION(umass, 1);
  * USB device probe/attach/detach
  */
 
+static const STRUCT_USB_HOST_ID __used umass_devs[] = {
+	/* generic mass storage class */
+	{USB_IFACE_CLASS(UICLASS_MASS),},
+};
+
 static uint16_t
 umass_get_proto(struct usb_interface *iface)
 {
@@ -782,6 +787,7 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 	uint32_t proto = umass_get_proto(uaa->iface);
 
 	memset(&ret, 0, sizeof(ret));
+	ret.error = BUS_PROBE_GENERIC;
 
 	/* Search for protocol enforcement */
 
@@ -868,10 +874,6 @@ umass_probe(device_t dev)
 	struct umass_probe_proto temp;
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
-		return (ENXIO);
-	}
-	if (uaa->use_generic == 0) {
-		/* give other drivers a try first */
 		return (ENXIO);
 	}
 	temp = umass_probe_proto(dev, uaa);
@@ -1022,12 +1024,6 @@ umass_attach(device_t dev)
 	/* Prepare the SCSI command block */
 	sc->cam_scsi_sense.opcode = REQUEST_SENSE;
 	sc->cam_scsi_test_unit_ready.opcode = TEST_UNIT_READY;
-
-	/*
-	 * some devices need a delay after that the configuration value is
-	 * set to function properly:
-	 */
-	usb_pause_mtx(NULL, hz);
 
 	/* register the SIM */
 	err = umass_cam_attach_sim(sc);
@@ -1849,9 +1845,23 @@ umass_t_cbi_command_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	default:			/* Error */
-		umass_tr_error(xfer, error);
-		/* skip reset */
-		sc->sc_last_xfer_index = UMASS_T_CBI_COMMAND;
+		/*
+		 * STALL on the control pipe can be result of the command error.
+		 * Attempt to clear this STALL same as for bulk pipe also
+		 * results in command completion interrupt, but ASC/ASCQ there
+		 * look like not always valid, so don't bother about it.
+		 */
+		if ((error == USB_ERR_STALLED) ||
+		    (sc->sc_transfer.callback == &umass_cam_cb)) {
+			sc->sc_transfer.ccb = NULL;
+			(sc->sc_transfer.callback)
+			    (sc, ccb, sc->sc_transfer.data_len,
+			    STATUS_CMD_UNKNOWN);
+		} else {
+			umass_tr_error(xfer, error);
+			/* skip reset */
+			sc->sc_last_xfer_index = UMASS_T_CBI_COMMAND;
+		}
 		break;
 	}
 }
@@ -2334,14 +2344,14 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					if ((sc->sc_quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
 					    (sc->sc_transfer.cmd_data[1] & SI_EVPD)) {
-						struct scsi_sense_data *sense;
 
-						sense = &ccb->csio.sense_data;
-						bzero(sense, sizeof(*sense));
-						sense->error_code = SSD_CURRENT_ERROR;
-						sense->flags = SSD_KEY_ILLEGAL_REQUEST;
-						sense->add_sense_code = 0x24;
-						sense->extra_len = 10;
+						scsi_set_sense_data(&ccb->csio.sense_data,
+							/*sense_format*/ SSD_TYPE_NONE,
+							/*current_error*/ 1,
+							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+							/*asc*/ 0x24,
+							/*ascq*/ 0x00,
+							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 						    CAM_AUTOSNS_VALID;
@@ -2605,17 +2615,9 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		/*
 		 * The wire protocol failed and will hopefully have
 		 * recovered. We return an error to CAM and let CAM
-		 * retry the command if necessary. In case of SCSI IO
-		 * commands we ask the CAM layer to check the
-		 * condition first. This is a quick hack to make
-		 * certain devices work.
+		 * retry the command if necessary.
 		 */
-		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-		} else {
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		}
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		xpt_done(ccb);
 		break;
 	}
@@ -2629,20 +2631,23 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
     uint8_t status)
 {
 	uint8_t *cmd;
-	uint8_t key;
 
 	switch (status) {
 	case STATUS_CMD_OK:
 	case STATUS_CMD_UNKNOWN:
-	case STATUS_CMD_FAILED:
+	case STATUS_CMD_FAILED: {
+		int key, sense_len;
+
+		ccb->csio.sense_resid = residue;
+		sense_len = ccb->csio.sense_len - ccb->csio.sense_resid;
+		key = scsi_get_sense_key(&ccb->csio.sense_data, sense_len,
+					 /*show_errors*/ 1);
 
 		if (ccb->csio.ccb_h.flags & CAM_CDB_POINTER) {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_ptr);
 		} else {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_bytes);
 		}
-
-		key = (ccb->csio.sense_data.flags & SSD_KEY);
 
 		/*
 		 * Getting sense data always succeeds (apart from wire
@@ -2702,7 +2707,7 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		}
 		xpt_done(ccb);
 		break;
-
+	}
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);

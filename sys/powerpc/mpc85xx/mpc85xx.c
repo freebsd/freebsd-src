@@ -69,12 +69,13 @@ law_getmax(void)
 	uint32_t ver;
 
 	ver = SVR_VER(mfspr(SPR_SVR));
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
-		return (12);
-	else if (ver == SVR_MPC8548E || ver == SVR_MPC8548)
-		return (10);
-	else
+	if (ver == SVR_MPC8555E || ver == SVR_MPC8555)
 		return (8);
+	if (ver == SVR_MPC8548E || ver == SVR_MPC8548 ||
+	    ver == SVR_MPC8533E || ver == SVR_MPC8533)
+		return (10);
+
+	return (12);
 }
 
 #define	_LAW_SR(trgt,size)	(0x80000000 | (trgt << 20) | (ffsl(size) - 2))
@@ -152,10 +153,16 @@ law_pci_target(struct resource *res, int *trgt_mem, int *trgt_io)
 		trgt = 1;
 		break;
 	case 0xa000:
-		if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
-			trgt = 2;
+		if (ver == SVR_MPC8548E || ver == SVR_MPC8548)
+			trgt = 3;
 		else
+			trgt = 2;
+		break;
+	case 0xb000:
+		if (ver == SVR_MPC8548E || ver == SVR_MPC8548)
 			rv = EINVAL;
+		else
+			trgt = 3;
 		break;
 	default:
 		rv = ENXIO;

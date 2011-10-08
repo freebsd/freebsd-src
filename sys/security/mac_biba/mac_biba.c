@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -13,6 +13,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1622,6 +1625,42 @@ biba_posixsem_check_openunlink(struct ucred *cred, struct ksem *ks,
 }
 
 static int
+biba_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, mode_t mode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, uid_t uid, gid_t gid)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 biba_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
     struct ksem *ks, struct label *kslabel)
 {
@@ -1665,6 +1704,156 @@ biba_posixsem_create(struct ucred *cred, struct ksem *ks,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(kslabel);
+
+	biba_copy_effective(source, dest);
+}
+
+static int
+biba_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, int prot, int flags)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if (!biba_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
+		if (!biba_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, accmode_t accmode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
+		if (!biba_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+	if (accmode & VMODIFY_PERMS) {
+		if (!biba_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+    
+	return (0);
+}
+
+static void
+biba_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
 
 	biba_copy_effective(source, dest);
 }
@@ -3455,12 +3644,25 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_posixsem_check_getvalue = biba_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = biba_posixsem_check_write,
+	.mpo_posixsem_check_setmode = biba_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = biba_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = biba_posixsem_check_rdonly,
 	.mpo_posixsem_check_unlink = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = biba_posixsem_check_write,
 	.mpo_posixsem_create = biba_posixsem_create,
 	.mpo_posixsem_destroy_label = biba_destroy_label,
 	.mpo_posixsem_init_label = biba_init_label,
+
+	.mpo_posixshm_check_mmap = biba_posixshm_check_mmap,
+	.mpo_posixshm_check_open = biba_posixshm_check_open,
+	.mpo_posixshm_check_setmode = biba_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = biba_posixshm_check_setowner,
+	.mpo_posixshm_check_stat = biba_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = biba_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = biba_posixshm_check_unlink,
+	.mpo_posixshm_create = biba_posixshm_create,
+	.mpo_posixshm_destroy_label = biba_destroy_label,
+	.mpo_posixshm_init_label = biba_init_label,
 
 	.mpo_priv_check = biba_priv_check,
 

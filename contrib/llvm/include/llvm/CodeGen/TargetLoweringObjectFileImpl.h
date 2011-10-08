@@ -52,12 +52,20 @@ protected:
   const MCSection *MergeableConst8Section;
   const MCSection *MergeableConst16Section;
 public:
-  TargetLoweringObjectFileELF() {}
+  TargetLoweringObjectFileELF();
   ~TargetLoweringObjectFileELF() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
+
+  virtual void emitPersonalityValue(MCStreamer &Streamer,
+                                    const TargetMachine &TM,
+                                    const MCSymbol *Sym) const;
 
   const MCSection *getDataRelSection() const { return DataRelSection; }
 
@@ -81,6 +89,11 @@ public:
   getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
                                  MachineModuleInfo *MMI, unsigned Encoding,
                                  MCStreamer &Streamer) const;
+
+  // getCFIPersonalitySymbol - The symbol that gets passed to .cfi_personality.
+  virtual MCSymbol *
+  getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                          MachineModuleInfo *MMI) const;
 };
 
 
@@ -94,7 +107,7 @@ class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
   ///
   const MCSection *TLSBSSSection;         // Defaults to ".tbss".
   
-  /// TLSTLVSection - Section for thread local structure infomation.
+  /// TLSTLVSection - Section for thread local structure information.
   /// Contains the source code name of the variable, visibility and a pointer
   /// to the initial value (.tdata or .tbss).
   const MCSection *TLSTLVSection;         // Defaults to ".tlv".
@@ -118,12 +131,16 @@ class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
   const MCSection *LazySymbolPointerSection;
   const MCSection *NonLazySymbolPointerSection;
 public:
-  TargetLoweringObjectFileMachO() {}
+  TargetLoweringObjectFileMachO();
   ~TargetLoweringObjectFileMachO() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
 
   virtual const MCSection *
   SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
@@ -172,9 +189,14 @@ public:
                                  MachineModuleInfo *MMI, unsigned Encoding,
                                  MCStreamer &Streamer) const;
 
+  // getCFIPersonalitySymbol - The symbol that gets passed to .cfi_personality.
+  virtual MCSymbol *
+  getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                          MachineModuleInfo *MMI) const;
+
   virtual unsigned getPersonalityEncoding() const;
   virtual unsigned getLSDAEncoding() const;
-  virtual unsigned getFDEEncoding() const;
+  virtual unsigned getFDEEncoding(bool CFI) const;
   virtual unsigned getTTypeEncoding() const;
 };
 
@@ -182,13 +204,17 @@ public:
 
 class TargetLoweringObjectFileCOFF : public TargetLoweringObjectFile {
   const MCSection *DrectveSection;
+  const MCSection *PDataSection;
+  const MCSection *XDataSection;
 public:
-  TargetLoweringObjectFileCOFF() {}
+  TargetLoweringObjectFileCOFF();
   ~TargetLoweringObjectFileCOFF() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const;
+  virtual const MCSection *getWin64EHTableSection(StringRef) const;
 
   virtual const MCSection *getDrectveSection() const { return DrectveSection; }
 

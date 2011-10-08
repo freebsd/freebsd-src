@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -88,7 +89,7 @@ struct getpriority_args {
 };
 #endif
 int
-getpriority(td, uap)
+sys_getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
@@ -128,7 +129,8 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				if (p->p_nice < low)
 					low = p->p_nice;
 			}
@@ -142,11 +144,9 @@ getpriority(td, uap)
 			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			/* Do not bother to check PRS_NEW processes */
-			if (p->p_state == PRS_NEW)
-				continue;
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0 &&
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0 &&
 			    p->p_ucred->cr_uid == uap->who) {
 				if (p->p_nice < low)
 					low = p->p_nice;
@@ -174,7 +174,7 @@ struct setpriority_args {
 };
 #endif
 int
-setpriority(td, uap)
+sys_setpriority(td, uap)
 	struct thread *td;
 	struct setpriority_args *uap;
 {
@@ -216,7 +216,8 @@ setpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -231,7 +232,8 @@ setpriority(td, uap)
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_ucred->cr_uid == uap->who &&
+			if (p->p_state == PRS_NORMAL &&
+			    p->p_ucred->cr_uid == uap->who &&
 			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
@@ -282,7 +284,7 @@ struct rtprio_thread_args {
 };
 #endif
 int
-rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
+sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 {
 	struct proc *p;
 	struct rtprio rtp;
@@ -356,7 +358,7 @@ struct rtprio_args {
 };
 #endif
 int
-rtprio(td, uap)
+sys_rtprio(td, uap)
 	struct thread *td;		/* curthread */
 	register struct rtprio_args *uap;
 {
@@ -590,7 +592,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-setrlimit(td, uap)
+sys_setrlimit(td, uap)
 	struct thread *td;
 	register struct __setrlimit_args *uap;
 {
@@ -630,7 +632,7 @@ lim_cb(void *arg)
 		} else {
 			if (p->p_cpulimit < rlim.rlim_max)
 				p->p_cpulimit += 5;
-			psignal(p, SIGXCPU);
+			kern_psignal(p, SIGXCPU);
 		}
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
@@ -769,7 +771,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-getrlimit(td, uap)
+sys_getrlimit(td, uap)
 	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
@@ -811,7 +813,7 @@ void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 	struct thread *td;
-	uint64_t u;
+	uint64_t runtime, u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
@@ -824,7 +826,9 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	td = curthread;
 	if (td->td_proc == p) {
 		u = cpu_ticks();
-		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
 		PCPU_SET(switchtime, u);
 	}
 	/* Make sure the per-thread stats are current. */
@@ -834,6 +838,34 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		ruxagg(p, td);
 	}
 	calcru1(p, &p->p_rux, up, sp);
+}
+
+/* Collect resource usage for a single thread. */
+void
+rufetchtd(struct thread *td, struct rusage *ru)
+{
+	struct proc *p;
+	uint64_t runtime, u;
+
+	p = td->td_proc;
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*
+	 * If we are getting stats for the current thread, then add in the
+	 * stats that this thread has accumulated in its current time slice.
+	 * We reset the thread and CPU state as if we had performed a context
+	 * switch right here.
+	 */
+	if (td == curthread) {
+		u = cpu_ticks();
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
+		PCPU_SET(switchtime, u);
+	}
+	ruxagg(p, td);
+	*ru = td->td_ru;
+	calcru1(p, &td->td_rux, &ru->ru_utime, &ru->ru_stime);
 }
 
 static void
@@ -918,7 +950,7 @@ struct getrusage_args {
 };
 #endif
 int
-getrusage(td, uap)
+sys_getrusage(td, uap)
 	register struct thread *td;
 	register struct getrusage_args *uap;
 {
@@ -953,12 +985,10 @@ kern_getrusage(struct thread *td, int who, struct rusage *rup)
 
 	case RUSAGE_THREAD:
 		PROC_SLOCK(p);
-		ruxagg(p, td);
-		PROC_SUNLOCK(p);
 		thread_lock(td);
-		*rup = td->td_ru;
-		calcru1(p, &td->td_rux, &rup->ru_utime, &rup->ru_stime);
+		rufetchtd(td, rup);
 		thread_unlock(td);
+		PROC_SUNLOCK(p);
 		break;
 
 	default:
@@ -1203,6 +1233,7 @@ uifind(uid)
 	if (uip == NULL) {
 		rw_runlock(&uihashtbl_lock);
 		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
+		racct_create(&uip->ui_racct);
 		rw_wlock(&uihashtbl_lock);
 		/*
 		 * There's a chance someone created our uidinfo while we
@@ -1211,6 +1242,7 @@ uifind(uid)
 		 */
 		if ((old_uip = uilookup(uid)) != NULL) {
 			/* Someone else beat us to it. */
+			racct_destroy(&uip->ui_racct);
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
@@ -1266,6 +1298,7 @@ uifree(uip)
 	/* Prepare for suboptimal case. */
 	rw_wlock(&uihashtbl_lock);
 	if (refcount_release(&uip->ui_ref)) {
+		racct_destroy(&uip->ui_racct);
 		LIST_REMOVE(uip, ui_hash);
 		rw_wunlock(&uihashtbl_lock);
 		if (uip->ui_sbsize != 0)
@@ -1286,6 +1319,22 @@ uifree(uip)
 	 * rw_wlock(&uihashtbl_lock).
 	 */
 	rw_wunlock(&uihashtbl_lock);
+}
+
+void
+ui_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3)
+{
+	struct uidinfo *uip;
+	struct uihashhead *uih;
+
+	rw_rlock(&uihashtbl_lock);
+	for (uih = &uihashtbl[uihash]; uih >= uihashtbl; uih--) {
+		LIST_FOREACH(uip, uih, ui_hash) {
+			(callback)(uip->ui_racct, arg2, arg3);
+		}
+	}
+	rw_runlock(&uihashtbl_lock);
 }
 
 /*

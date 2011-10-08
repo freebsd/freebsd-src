@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This setuid helper utility writes user login records to disk.
- * Unprivileged processes are not capable of writing records to utmp,
- * wtmp and lastlog, but we do want to allow this for pseudo-terminals.
- * Because a file descriptor to a pseudo-terminal master device can only
- * be obtained by processes using the pseudo-terminal, we expect such a
- * descriptor on stdin.
+ * Unprivileged processes are not capable of writing records to utmpx,
+ * but we do want to allow this for pseudo-terminals.  Because a file
+ * descriptor to a pseudo-terminal master device can only be obtained by
+ * processes using the pseudo-terminal, we expect such a descriptor on
+ * stdin.
  *
  * It uses the real user ID of the calling process to determine the
  * username.  It does allow users to log arbitrary hostnames.
@@ -49,26 +49,22 @@ __FBSDID("$FreeBSD$");
 int
 main(int argc, char *argv[])
 {
-	const char *line;
+	const char *line, *user, *host;
 
 	/* Device line name. */
 	if ((line = ptsname(STDIN_FILENO)) == NULL)
 		return (EX_USAGE);
 
 	if ((argc == 2 || argc == 3) && strcmp(argv[1], "login") == 0) {
-		struct passwd *pwd;
-		const char *host = NULL;
-
 		/* Username. */
-		pwd = getpwuid(getuid());
-		if (pwd == NULL)
+		user = user_from_uid(getuid(), 1);
+		if (user == NULL)
 			return (EX_OSERR);
 
 		/* Hostname. */
-		if (argc == 3)
-			host = argv[2];
+		host = argc == 3 ? argv[2] : NULL;
 
-		ulog_login(line, pwd->pw_name, host);
+		ulog_login(line, user, host);
 		return (EX_OK);
 	} else if (argc == 2 && strcmp(argv[1], "logout") == 0) {
 		ulog_logout(line);

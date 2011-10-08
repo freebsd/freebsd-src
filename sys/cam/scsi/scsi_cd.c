@@ -688,6 +688,12 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->minimum_command_size = 6;
 
 	/*
+	 * Refcount and block open attempts until we are setup
+	 * Can't block
+	 */
+	(void)cam_periph_hold(periph, PRIBIO);
+	cam_periph_unlock(periph);
+	/*
 	 * Load the user's default, if any.
 	 */
 	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.cd.%d.minimum_cmd_size",
@@ -712,12 +718,12 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	cam_periph_unlock(periph);
 	softc->disk = disk_alloc();
-	softc->disk->d_devstat = devstat_new_entry("cd", 
+	softc->disk->d_devstat = devstat_new_entry("cd",
 			  periph->unit_number, 0,
-	  		  DEVSTAT_BS_UNAVAILABLE,
-			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_BS_UNAVAILABLE,
+			  DEVSTAT_TYPE_CDROM |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_CD);
 	softc->disk->d_open = cdopen;
 	softc->disk->d_close = cdclose;
@@ -968,12 +974,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	}
 
 cdregisterexit:
-
-	/*
-	 * Refcount and block open attempts until we are setup
-	 * Can't block
-	 */
-	(void)cam_periph_hold(periph, PRIBIO);
 
 	if ((softc->flags & CD_FLAG_CHANGER) == 0)
 		xpt_schedule(periph, CAM_PRIORITY_DEV);
@@ -1691,9 +1691,10 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 				if (have_sense) {
 					sense = &csio->sense_data;
-					scsi_extract_sense(sense, &error_code,
-							   &sense_key, 
-							   &asc, &ascq);
+					scsi_extract_sense_len(sense,
+					    csio->sense_len - csio->sense_resid,
+					    &error_code, &sense_key, &asc,
+					    &ascq, /*show_errors*/ 1);
 				}
 				/*
 				 * Attach to anything that claims to be a
@@ -2135,7 +2136,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 				  ("trying to do CDIOREADTOCHEADER\n"));
 
 			error = cdreadtoc(periph, 0, 0, (u_int8_t *)th, 
-				          sizeof (*th), /*sense_flags*/0);
+				          sizeof (*th), /*sense_flags*/SF_NO_PRINT);
 			if (error) {
 				free(th, M_SCSICD);
 				cam_periph_unlock(periph);
@@ -3126,8 +3127,9 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 && ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
 		int sense_key, error_code, asc, ascq;
 
- 		scsi_extract_sense(&ccb->csio.sense_data,
-				   &error_code, &sense_key, &asc, &ascq);
+ 		scsi_extract_sense_len(&ccb->csio.sense_data,
+		    ccb->csio.sense_len - ccb->csio.sense_resid, &error_code,
+		    &sense_key, &asc, &ascq, /*show_errors*/ 1);
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
  			error = cd6byteworkaround(ccb);
 	}

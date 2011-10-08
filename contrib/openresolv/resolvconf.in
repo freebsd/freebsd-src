@@ -368,17 +368,17 @@ fi
 
 if [ "$cmd" = a ]; then
 	# Read resolv.conf from stdin
-	resolv="$(cat)\n"
+	resolv="$(cat)"
 	# If what we are given matches what we have, then do nothing
 	if [ -e "$IFACEDIR/$iface" ]; then
-		if [ "$(printf "$resolv")" = \
+		if [ "$(echo "$resolv")" = \
 			"$(cat "$IFACEDIR/$iface")" ]
 		then
 			exit 0
 		fi
 		rm "$IFACEDIR/$iface"
 	fi
-	printf "$resolv" >"$IFACEDIR/$iface" || exit $?
+	echo "$resolv" >"$IFACEDIR/$iface" || exit $?
 	[ ! -d "$METRICDIR" ] && mkdir "$METRICDIR"
 	rm -f "$METRICDIR/"*" $iface"
 	if [ -n "$IF_METRIC" ]; then

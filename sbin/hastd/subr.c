@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -30,10 +31,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_CAPSICUM
 #include <sys/capability.h>
-#include <sys/types.h>
+#endif
+#include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/stat.h>
 
 #include <errno.h>
@@ -83,14 +87,13 @@ provinfo(struct hast_resource *res, bool dowrite)
 		res->hr_localfd = open(res->hr_localpath,
 		    dowrite ? O_RDWR : O_RDONLY);
 		if (res->hr_localfd < 0) {
-			KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to open %s",
-			    res->hr_localpath));
+			pjdlog_errno(LOG_ERR, "Unable to open %s",
+			    res->hr_localpath);
 			return (-1);
 		}
 	}
 	if (fstat(res->hr_localfd, &sb) < 0) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to stat %s",
-		    res->hr_localpath));
+		pjdlog_errno(LOG_ERR, "Unable to stat %s", res->hr_localpath);
 		return (-1);
 	}
 	if (S_ISCHR(sb.st_mode)) {
@@ -99,16 +102,16 @@ provinfo(struct hast_resource *res, bool dowrite)
 		 */
 		if (ioctl(res->hr_localfd, DIOCGMEDIASIZE,
 		    &res->hr_local_mediasize) < 0) {
-			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s mediasize",
-			    res->hr_localpath));
+			    res->hr_localpath);
 			return (-1);
 		}
 		if (ioctl(res->hr_localfd, DIOCGSECTORSIZE,
 		    &res->hr_local_sectorsize) < 0) {
-			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s sectorsize",
-			    res->hr_localpath));
+			    res->hr_localpath);
 			return (-1);
 		}
 	} else if (S_ISREG(sb.st_mode)) {
@@ -146,21 +149,15 @@ role2str(int role)
 }
 
 int
-drop_privs(bool usecapsicum)
+drop_privs(struct hast_resource *res)
 {
+	char jailhost[sizeof(res->hr_name) * 2];
+	struct jail jailst;
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
 	gid_t gidset[1];
-
-	if (usecapsicum) {
-		if (cap_enter() == 0) {
-			pjdlog_debug(1,
-			    "Privileges successfully dropped using capsicum.");
-			return (0);
-		}
-		pjdlog_errno(LOG_WARNING, "Unable to sandbox using capsicum");
-	}
+	bool capsicum, jailed;
 
 	/*
 	 * According to getpwnam(3) we have to clear errno before calling the
@@ -171,8 +168,8 @@ drop_privs(bool usecapsicum)
 	pw = getpwnam(HAST_USER);
 	if (pw == NULL) {
 		if (errno != 0) {
-			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-			    "Unable to find info about '%s' user", HAST_USER));
+			pjdlog_errno(LOG_ERR,
+			    "Unable to find info about '%s' user", HAST_USER);
 			return (-1);
 		} else {
 			pjdlog_error("'%s' user doesn't exist.", HAST_USER);
@@ -180,29 +177,69 @@ drop_privs(bool usecapsicum)
 			return (-1);
 		}
 	}
-	if (chroot(pw->pw_dir) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to change root directory to %s", pw->pw_dir));
-		return (-1);
+
+	bzero(&jailst, sizeof(jailst));
+	jailst.version = JAIL_API_VERSION;
+	jailst.path = pw->pw_dir;
+	if (res == NULL) {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastctl");
+	} else {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastd: %s (%s)",
+		    res->hr_name, role2str(res->hr_role));
+	}
+	jailst.hostname = jailhost;
+	jailst.jailname = NULL;
+	jailst.ip4s = 0;
+	jailst.ip4 = NULL;
+	jailst.ip6s = 0;
+	jailst.ip6 = NULL;
+	if (jail(&jailst) >= 0) {
+		jailed = true;
+	} else {
+		jailed = false;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to jail to directory to %s", pw->pw_dir);
+		if (chroot(pw->pw_dir) == -1) {
+			pjdlog_errno(LOG_ERR,
+			    "Unable to change root directory to %s",
+			    pw->pw_dir);
+			return (-1);
+		}
 	}
 	PJDLOG_VERIFY(chdir("/") == 0);
 	gidset[0] = pw->pw_gid;
 	if (setgroups(1, gidset) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to set groups to gid %u",
-		    (unsigned int)pw->pw_gid));
+		pjdlog_errno(LOG_ERR, "Unable to set groups to gid %u",
+		    (unsigned int)pw->pw_gid);
 		return (-1);
 	}
 	if (setgid(pw->pw_gid) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set gid to %u",
-		    (unsigned int)pw->pw_gid));
+		pjdlog_errno(LOG_ERR, "Unable to set gid to %u",
+		    (unsigned int)pw->pw_gid);
 		return (-1);
 	}
 	if (setuid(pw->pw_uid) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set uid to %u",
-		    (unsigned int)pw->pw_uid));
+		pjdlog_errno(LOG_ERR, "Unable to set uid to %u",
+		    (unsigned int)pw->pw_uid);
 		return (-1);
 	}
+
+	/*
+	 * Until capsicum doesn't allow ioctl(2) we cannot use it to sandbox
+	 * primary and secondary worker processes, as primary uses GGATE
+	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
+	 * For now capsicum is only used to sandbox hastctl.
+	 */
+#ifdef HAVE_CAPSICUM
+	if (res == NULL) {
+		capsicum = (cap_enter() == 0);
+		if (!capsicum) {
+			pjdlog_common(LOG_DEBUG, 1, errno,
+			    "Unable to sandbox using capsicum");
+		}
+	} else
+#endif
+		capsicum = false;
 
 	/*
 	 * Better be sure that everything succeeded.
@@ -220,7 +257,8 @@ drop_privs(bool usecapsicum)
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
 
 	pjdlog_debug(1,
-	    "Privileges successfully dropped using chroot+setgid+setuid.");
+	    "Privileges successfully dropped using %s%s+setgid+setuid.",
+	    capsicum ? "capsicum+" : "", jailed ? "jail" : "chroot");
 
 	return (0);
 }

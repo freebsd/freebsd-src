@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= adduser \
+SUBDIR=	adduser \
 	arp \
 	bootparamd \
 	burncd \
@@ -34,7 +34,6 @@ SUBDIR= adduser \
 	inetd \
 	iostat \
 	kldxref \
-	lastlogin \
 	mailwrapper \
 	makefs \
 	manctl \
@@ -89,7 +88,6 @@ SUBDIR= adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
-	utxrm \
 	vipw \
 	wake \
 	watch \
@@ -99,7 +97,6 @@ SUBDIR= adduser \
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_ACCT} != "no"
-SUBDIR+=	ac
 SUBDIR+=	accton
 SUBDIR+=	sa
 .endif
@@ -123,13 +120,20 @@ SUBDIR+=	authpf
 SUBDIR+=	dnssec-dsfromkey
 SUBDIR+=	dnssec-keyfromlabel
 SUBDIR+=	dnssec-keygen
+SUBDIR+=	dnssec-revoke
+SUBDIR+=	dnssec-settime
 SUBDIR+=	dnssec-signzone
 .endif
 .if ${MK_BIND_NAMED} != "no"
+SUBDIR+=	arpaname
+SUBDIR+=	ddns-confgen
+SUBDIR+=	genrandom
+SUBDIR+=	isc-hmac-fixup
 SUBDIR+=	named
 SUBDIR+=	named-checkconf
 SUBDIR+=	named-checkzone
-SUBDIR+=	named.reload
+SUBDIR+=	named-journalprint
+SUBDIR+=	nsec3hash
 SUBDIR+=	rndc
 SUBDIR+=	rndc-confgen
 .endif
@@ -173,6 +177,7 @@ SUBDIR+=	ndp
 SUBDIR+=	rip6query
 SUBDIR+=	route6d
 SUBDIR+=	rrenumd
+SUBDIR+=	rtadvctl
 SUBDIR+=	rtadvd
 SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
@@ -285,8 +290,6 @@ SUBDIR+=	praliases
 SUBDIR+=	sendmail
 .endif
 
-SUBDIR+=	sysinstall
-
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config
 SUBDIR+=	crunch
@@ -296,6 +299,13 @@ SUBDIR+=	crunch
 SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
+SUBDIR+=	usbdump
+.endif
+
+.if ${MK_UTMPX} != "no"
+SUBDIR+=	ac
+SUBDIR+=	lastlogin
+SUBDIR+=	utxrm
 .endif
 
 .if ${MK_WIRELESS} != "no"

@@ -151,7 +151,7 @@ nexus_probe(device_t dev)
 	}
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0u;
+	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "Memory addresses";
 	if (rman_init(&mem_rman) != 0 ||

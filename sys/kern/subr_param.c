@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/msgbuf.h>
 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 /*
  * System parameter formulae.
@@ -293,22 +295,17 @@ init_param2(long physpages)
 
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
-}
-
-/*
- * Boot time overrides that are scaled against the kmem map
- */
-void
-init_param3(long kmempages)
-{
 
 	/*
-	 * The default for maxpipekva is max(5% of the kmem map, 512KB).
-	 * See sys_pipe.c for more details.
+	 * The default for maxpipekva is min(1/64 of the kernel address space,
+	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
-	maxpipekva = (kmempages / 20) * PAGE_SIZE;
+	maxpipekva = (physpages / 64) * PAGE_SIZE;
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
+	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
+		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
+		    64;
 	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 

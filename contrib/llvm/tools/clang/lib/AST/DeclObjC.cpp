@@ -339,12 +339,14 @@ ObjCMethodDecl *ObjCMethodDecl::Create(ASTContext &C,
                                        bool isSynthesized,
                                        bool isDefined,
                                        ImplementationControl impControl,
+                                       bool HasRelatedResultType,
                                        unsigned numSelectorArgs) {
   return new (C) ObjCMethodDecl(beginLoc, endLoc,
                                 SelInfo, T, ResultTInfo, contextDecl,
                                 isInstance,
                                 isVariadic, isSynthesized, isDefined,
                                 impControl,
+                                HasRelatedResultType,
                                 numSelectorArgs);
 }
 
@@ -398,6 +400,93 @@ ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
   return this;
 }
 
+ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
+  ObjCMethodFamily family = static_cast<ObjCMethodFamily>(Family);
+  if (family != static_cast<unsigned>(InvalidObjCMethodFamily))
+    return family;
+
+  // Check for an explicit attribute.
+  if (const ObjCMethodFamilyAttr *attr = getAttr<ObjCMethodFamilyAttr>()) {
+    // The unfortunate necessity of mapping between enums here is due
+    // to the attributes framework.
+    switch (attr->getFamily()) {
+    case ObjCMethodFamilyAttr::OMF_None: family = OMF_None; break;
+    case ObjCMethodFamilyAttr::OMF_alloc: family = OMF_alloc; break;
+    case ObjCMethodFamilyAttr::OMF_copy: family = OMF_copy; break;
+    case ObjCMethodFamilyAttr::OMF_init: family = OMF_init; break;
+    case ObjCMethodFamilyAttr::OMF_mutableCopy: family = OMF_mutableCopy; break;
+    case ObjCMethodFamilyAttr::OMF_new: family = OMF_new; break;
+    }
+    Family = static_cast<unsigned>(family);
+    return family;
+  }
+
+  family = getSelector().getMethodFamily();
+  switch (family) {
+  case OMF_None: break;
+
+  // init only has a conventional meaning for an instance method, and
+  // it has to return an object.
+  case OMF_init:
+    if (!isInstanceMethod() || !getResultType()->isObjCObjectPointerType())
+      family = OMF_None;
+    break;
+
+  // alloc/copy/new have a conventional meaning for both class and
+  // instance methods, but they require an object return.
+  case OMF_alloc:
+  case OMF_copy:
+  case OMF_mutableCopy:
+  case OMF_new:
+    if (!getResultType()->isObjCObjectPointerType())
+      family = OMF_None;
+    break;
+
+  // These selectors have a conventional meaning only for instance methods.
+  case OMF_dealloc:
+  case OMF_retain:
+  case OMF_release:
+  case OMF_autorelease:
+  case OMF_retainCount:
+  case OMF_self:
+    if (!isInstanceMethod())
+      family = OMF_None;
+    break;
+      
+  case OMF_performSelector:
+    if (!isInstanceMethod() ||
+        !getResultType()->isObjCIdType())
+      family = OMF_None;
+    else {
+      unsigned noParams = param_size();
+      if (noParams < 1 || noParams > 3)
+        family = OMF_None;
+      else {
+        ObjCMethodDecl::arg_type_iterator it = arg_type_begin();
+        QualType ArgT = (*it);
+        if (!ArgT->isObjCSelType()) {
+          family = OMF_None;
+          break;
+        }
+        while (--noParams) {
+          it++;
+          ArgT = (*it);
+          if (!ArgT->isObjCIdType()) {
+            family = OMF_None;
+            break;
+          }
+        }
+      }
+    }
+    break;
+      
+  }
+
+  // Cache the result.
+  Family = static_cast<unsigned>(family);
+  return family;
+}
+
 void ObjCMethodDecl::createImplicitParams(ASTContext &Context,
                                           const ObjCInterfaceDecl *OID) {
   QualType selfTy;
@@ -413,8 +502,34 @@ void ObjCMethodDecl::createImplicitParams(ASTContext &Context,
   } else // we have a factory method.
     selfTy = Context.getObjCClassType();
 
-  setSelfDecl(ImplicitParamDecl::Create(Context, this, SourceLocation(),
-                                        &Context.Idents.get("self"), selfTy));
+  bool selfIsPseudoStrong = false;
+  bool selfIsConsumed = false;
+  if (isInstanceMethod() && Context.getLangOptions().ObjCAutoRefCount) {
+    selfIsConsumed = hasAttr<NSConsumesSelfAttr>();
+
+    // 'self' is always __strong.  It's actually pseudo-strong except
+    // in init methods, though.
+    Qualifiers qs;
+    qs.setObjCLifetime(Qualifiers::OCL_Strong);
+    selfTy = Context.getQualifiedType(selfTy, qs);
+
+    // In addition, 'self' is const unless this is an init method.
+    if (getMethodFamily() != OMF_init) {
+      selfTy = selfTy.withConst();
+      selfIsPseudoStrong = true;
+    }
+  }
+
+  ImplicitParamDecl *self
+    = ImplicitParamDecl::Create(Context, this, SourceLocation(),
+                                &Context.Idents.get("self"), selfTy);
+  setSelfDecl(self);
+
+  if (selfIsConsumed)
+    self->addAttr(new (Context) NSConsumedAttr(SourceLocation(), Context));
+
+  if (selfIsPseudoStrong)
+    self->setARCPseudoStrong(true);
 
   setCmdDecl(ImplicitParamDecl::Create(Context, this, SourceLocation(),
                                        &Context.Idents.get("_cmd"),
@@ -614,7 +729,8 @@ bool ObjCInterfaceDecl::ClassImplementsProtocol(ObjCProtocolDecl *lProto,
 //===----------------------------------------------------------------------===//
 
 ObjCIvarDecl *ObjCIvarDecl::Create(ASTContext &C, ObjCContainerDecl *DC,
-                                   SourceLocation L, IdentifierInfo *Id,
+                                   SourceLocation StartLoc,
+                                   SourceLocation IdLoc, IdentifierInfo *Id,
                                    QualType T, TypeSourceInfo *TInfo,
                                    AccessControl ac, Expr *BW,
                                    bool synthesized) {
@@ -651,7 +767,8 @@ ObjCIvarDecl *ObjCIvarDecl::Create(ASTContext &C, ObjCContainerDecl *DC,
     ID->setIvarList(0);
   }
 
-  return new (C) ObjCIvarDecl(DC, L, Id, T, TInfo, ac, BW, synthesized);
+  return new (C) ObjCIvarDecl(DC, StartLoc, IdLoc, Id, T, TInfo,
+                              ac, BW, synthesized);
 }
 
 const ObjCInterfaceDecl *ObjCIvarDecl::getContainingInterface() const {
@@ -684,9 +801,10 @@ const ObjCInterfaceDecl *ObjCIvarDecl::getContainingInterface() const {
 //===----------------------------------------------------------------------===//
 
 ObjCAtDefsFieldDecl
-*ObjCAtDefsFieldDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
+*ObjCAtDefsFieldDecl::Create(ASTContext &C, DeclContext *DC,
+                             SourceLocation StartLoc,  SourceLocation IdLoc,
                              IdentifierInfo *Id, QualType T, Expr *BW) {
-  return new (C) ObjCAtDefsFieldDecl(DC, L, Id, T, BW);
+  return new (C) ObjCAtDefsFieldDecl(DC, StartLoc, IdLoc, Id, T, BW);
 }
 
 //===----------------------------------------------------------------------===//

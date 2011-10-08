@@ -1269,6 +1269,8 @@ static int hptiop_probe(device_t dev)
 	id = pci_get_device(dev);
 
 	switch (id) {
+		case 0x4322:
+		case 0x4321:
 		case 0x4320:
 			sas = 1;
 		case 0x3220:

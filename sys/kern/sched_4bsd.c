@@ -155,6 +155,8 @@ static struct runq runq;
  */
 static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
+
+static cpuset_t idle_cpus_mask;
 #endif
 
 struct pcpuidlestat {
@@ -232,16 +234,6 @@ static int forward_wakeup_use_loop = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
 	   &forward_wakeup_use_loop, 0,
 	   "Use a loop to find idle cpus");
-
-static int forward_wakeup_use_single = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, onecpu, CTLFLAG_RW,
-	   &forward_wakeup_use_single, 0,
-	   "Only signal one idle cpu");
-
-static int forward_wakeup_use_htt = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
-	   &forward_wakeup_use_htt, 0,
-	   "account for htt");
 
 #endif
 #if 0
@@ -463,6 +455,10 @@ schedcpu(void)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		FOREACH_THREAD_IN_PROC(p, td) {
 			awake = 0;
 			thread_lock(td);
@@ -724,7 +720,7 @@ sched_exit(struct proc *p, struct thread *td)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "proc exit",
-	    "prio:td", td->td_priority);
+	    "prio:%d", td->td_priority);
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
@@ -735,7 +731,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
-	    "prio:td", child->td_priority);
+	    "prio:%d", child->td_priority);
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);
@@ -940,13 +936,9 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd) {
-		MPASS(newtd->td_lock == &sched_lock);
-		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
-	}
-
 	td->td_lastcpu = td->td_oncpu;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 
@@ -959,7 +951,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td->td_flags & TDF_IDLETD) {
 		TD_SET_CAN_RUN(td);
 #ifdef SMP
-		idle_cpus_mask &= ~PCPU_GET(cpumask);
+		CPU_CLR(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	} else {
 		if (TD_IS_RUNNING(td)) {
@@ -1033,7 +1025,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)
-		idle_cpus_mask |= PCPU_GET(cpumask);
+		CPU_SET(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
@@ -1062,7 +1054,9 @@ static int
 forward_wakeup(int cpunum)
 {
 	struct pcpu *pc;
-	cpumask_t dontuse, id, map, map2, map3, me;
+	cpuset_t dontuse, map, map2;
+	u_int id, me;
+	int iscpuset;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -1080,68 +1074,61 @@ forward_wakeup(int cpunum)
 	 * Check the idle mask we received against what we calculated
 	 * before in the old version.
 	 */
-	me = PCPU_GET(cpumask);
+	me = PCPU_GET(cpuid);
 
 	/* Don't bother if we should be doing it ourself. */
-	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == (1 << cpunum)))
+	if (CPU_ISSET(me, &idle_cpus_mask) &&
+	    (cpunum == NOCPU || me == cpunum))
 		return (0);
 
-	dontuse = me | stopped_cpus | hlt_cpus_mask;
-	map3 = 0;
+	CPU_SETOF(me, &dontuse);
+	CPU_OR(&dontuse, &stopped_cpus);
+	CPU_OR(&dontuse, &hlt_cpus_mask);
+	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if ((id & dontuse) == 0 &&
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &dontuse) &&
 			    pc->pc_curthread == pc->pc_idlethread) {
-				map3 |= id;
+				CPU_SET(id, &map2);
 			}
 		}
 	}
 
 	if (forward_wakeup_use_mask) {
-		map = 0;
-		map = idle_cpus_mask & ~dontuse;
+		map = idle_cpus_mask;
+		CPU_NAND(&map, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
-			if (map != map3) {
-				printf("map (%02X) != map3 (%02X)\n", map,
-				    map3);
-				map = map3;
+			if (CPU_CMP(&map, &map2)) {
+				printf("map != map2, loop method preferred\n");
+				map = map2;
 			}
 		}
 	} else {
-		map = map3;
+		map = map2;
 	}
 
 	/* If we only allow a specific CPU, then mask off all the others. */
 	if (cpunum != NOCPU) {
 		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
-		map &= (1 << cpunum);
-	} else {
-		/* Try choose an idle die. */
-		if (forward_wakeup_use_htt) {
-			map2 =  (map & (map >> 1)) & 0x5555;
-			if (map2) {
-				map = map2;
-			}
-		}
-
-		/* Set only one bit. */
-		if (forward_wakeup_use_single) {
-			map = map & ((~map) + 1);
-		}
+		iscpuset = CPU_ISSET(cpunum, &map);
+		if (iscpuset == 0)
+			CPU_ZERO(&map);
+		else
+			CPU_SETOF(cpunum, &map);
 	}
-	if (map) {
+	if (!CPU_EMPTY(&map)) {
 		forward_wakeups_delivered++;
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if ((map & id) == 0)
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &map))
 				continue;
 			if (cpu_idle_wakeup(pc->pc_cpuid))
-				map &= ~id;
+				CPU_CLR(id, &map);
 		}
-		if (map)
+		if (!CPU_EMPTY(&map))
 			ipi_selected(map, IPI_AST);
 		return (1);
 	}
@@ -1157,7 +1144,7 @@ kick_other_cpu(int pri, int cpuid)
 	int cpri;
 
 	pcpu = pcpu_find(cpuid);
-	if (idle_cpus_mask & pcpu->pc_cpumask) {
+	if (CPU_ISSET(cpuid, &idle_cpus_mask)) {
 		forward_wakeups_delivered++;
 		if (!cpu_idle_wakeup(cpuid))
 			ipi_cpu(cpuid, IPI_AST);
@@ -1215,9 +1202,10 @@ void
 sched_add(struct thread *td, int flags)
 #ifdef SMP
 {
+	cpuset_t tidlemsk;
 	struct td_sched *ts;
+	u_int cpu, cpuid;
 	int forwarded = 0;
-	int cpu;
 	int single_cpu = 0;
 
 	ts = td->td_sched;
@@ -1246,25 +1234,27 @@ sched_add(struct thread *td, int flags)
 	}
 	TD_SET_RUNQ(td);
 
-	if (td->td_pinned != 0) {
-		cpu = td->td_lastcpu;
-		ts->ts_runq = &runq_pcpu[cpu];
-		single_cpu = 1;
-		CTR3(KTR_RUNQ,
-		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
-		    cpu);
-	} else if (td->td_flags & TDF_BOUND) {
-		/* Find CPU from bound runq. */
-		KASSERT(SKE_RUNQ_PCPU(ts),
-		    ("sched_add: bound td_sched not on cpu runq"));
-		cpu = ts->ts_runq - &runq_pcpu[0];
-		single_cpu = 1;
-		CTR3(KTR_RUNQ,
-		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
-		    cpu);
-	} else if (ts->ts_flags & TSF_AFFINITY) {
-		/* Find a valid CPU for our cpuset */
-		cpu = sched_pickcpu(td);
+	/*
+	 * If SMP is started and the thread is pinned or otherwise limited to
+	 * a specific set of CPUs, queue the thread to a per-CPU run queue.
+	 * Otherwise, queue the thread to the global run queue.
+	 *
+	 * If SMP has not yet been started we must use the global run queue
+	 * as per-CPU state may not be initialized yet and we may crash if we
+	 * try to access the per-CPU run queues.
+	 */
+	if (smp_started && (td->td_pinned != 0 || td->td_flags & TDF_BOUND ||
+	    ts->ts_flags & TSF_AFFINITY)) {
+		if (td->td_pinned != 0)
+			cpu = td->td_lastcpu;
+		else if (td->td_flags & TDF_BOUND) {
+			/* Find CPU from bound runq. */
+			KASSERT(SKE_RUNQ_PCPU(ts),
+			    ("sched_add: bound td_sched not on cpu runq"));
+			cpu = ts->ts_runq - &runq_pcpu[0];
+		} else
+			/* Find a valid CPU for our cpuset */
+			cpu = sched_pickcpu(td);
 		ts->ts_runq = &runq_pcpu[cpu];
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
@@ -1278,15 +1268,18 @@ sched_add(struct thread *td, int flags)
 		ts->ts_runq = &runq;
 	}
 
-	if (single_cpu && (cpu != PCPU_GET(cpuid))) {
+	cpuid = PCPU_GET(cpuid);
+	if (single_cpu && cpu != cpuid) {
 	        kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
-			cpumask_t me = PCPU_GET(cpumask);
-			cpumask_t idle = idle_cpus_mask & me;
+			tidlemsk = idle_cpus_mask;
+			CPU_NAND(&tidlemsk, &hlt_cpus_mask);
+			CPU_CLR(cpuid, &tidlemsk);
 
-			if (!idle && ((flags & SRQ_INTR) == 0) &&
-			    (idle_cpus_mask & ~(hlt_cpus_mask | me)))
+			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
+			    ((flags & SRQ_INTR) == 0) &&
+			    !CPU_EMPTY(&tidlemsk))
 				forwarded = forward_wakeup(cpu);
 		}
 

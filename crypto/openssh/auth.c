@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.89 2010/08/04 05:42:47 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.94 2011/05/23 03:33:38 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -332,7 +332,7 @@ auth_root_allowed(char *method)
  *
  * This returns a buffer allocated by xmalloc.
  */
-static char *
+char *
 expand_authorized_keys(const char *filename, struct passwd *pw)
 {
 	char *file, ret[MAXPATHLEN];
@@ -356,18 +356,6 @@ expand_authorized_keys(const char *filename, struct passwd *pw)
 }
 
 char *
-authorized_keys_file(struct passwd *pw)
-{
-	return expand_authorized_keys(options.authorized_keys_file, pw);
-}
-
-char *
-authorized_keys_file2(struct passwd *pw)
-{
-	return expand_authorized_keys(options.authorized_keys_file2, pw);
-}
-
-char *
 authorized_principals_file(struct passwd *pw)
 {
 	if (options.authorized_principals_file == NULL)
@@ -380,16 +368,15 @@ HostStatus
 check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
     const char *sysfile, const char *userfile)
 {
-	Key *found;
 	char *user_hostfile;
 	struct stat st;
 	HostStatus host_status;
+	struct hostkeys *hostkeys;
+	const struct hostkey_entry *found;
 
-	/* Check if we know the host and its host key. */
-	found = key_new(key_is_cert(key) ? KEY_UNSPEC : key->type);
-	host_status = check_host_in_hostfile(sysfile, host, key, found, NULL);
-
-	if (host_status != HOST_OK && userfile != NULL) {
+	hostkeys = init_hostkeys();
+	load_hostkeys(hostkeys, host, sysfile);
+	if (userfile != NULL) {
 		user_hostfile = tilde_expand_filename(userfile, pw->pw_uid);
 		if (options.strict_modes &&
 		    (stat(user_hostfile, &st) == 0) &&
@@ -402,16 +389,23 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 			    user_hostfile);
 		} else {
 			temporarily_use_uid(pw);
-			host_status = check_host_in_hostfile(user_hostfile,
-			    host, key, found, NULL);
+			load_hostkeys(hostkeys, host, user_hostfile);
 			restore_uid();
 		}
 		xfree(user_hostfile);
 	}
-	key_free(found);
+	host_status = check_key_in_hostkeys(hostkeys, key, &found);
+	if (host_status == HOST_REVOKED)
+		error("WARNING: revoked key for %s attempted authentication",
+		    found->host);
+	else if (host_status == HOST_OK)
+		debug("%s: key for %s found at %s:%ld", __func__,
+		    found->host, found->file, found->line);
+	else
+		debug("%s: key for host %s not found", __func__, host);
 
-	debug2("check_key_in_hostfiles: key %s for %s", host_status == HOST_OK ?
-	    "ok" : "not found", host);
+	free_hostkeys(hostkeys);
+
 	return host_status;
 }
 
@@ -463,7 +457,6 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 		strlcpy(buf, cp, sizeof(buf));
 
-		debug3("secure_filename: checking '%s'", buf);
 		if (stat(buf, &st) < 0 ||
 		    (st.st_uid != 0 && st.st_uid != uid) ||
 		    (st.st_mode & 022) != 0) {
@@ -473,11 +466,9 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 
 		/* If are past the homedir then we can stop */
-		if (comparehome && strcmp(homedir, buf) == 0) {
-			debug3("secure_filename: terminating check at '%s'",
-			    buf);
+		if (comparehome && strcmp(homedir, buf) == 0)
 			break;
-		}
+
 		/*
 		 * dirname should always complete with a "/" path,
 		 * but we can be paranoid and check for "." too
@@ -519,7 +510,7 @@ auth_openfile(const char *file, struct passwd *pw, int strict_modes,
 		close(fd);
 		return NULL;
 	}
-	if (options.strict_modes &&
+	if (strict_modes &&
 	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
 		fclose(f);
 		logit("Authentication refused: %s", line);

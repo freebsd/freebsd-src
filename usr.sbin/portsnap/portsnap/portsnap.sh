@@ -536,9 +536,9 @@ fetch_metadata() {
 	rm -f ${SNAPSHOTHASH} tINDEX.new
 
 	echo ${NDEBUG} "Fetching snapshot metadata... "
-	fetch ${QUIETFLAG} http://${SERVERNAME}/t/${SNAPSHOTHASH}
+	fetch ${QUIETFLAG} http://${SERVERNAME}/t/${SNAPSHOTHASH} \
 	    2>${QUIETREDIR} || return
-	if [ `${SHA256} -q ${SNAPSHOTHASH}` != ${SNAPSHOTHASH} ]; then
+	if [ "`${SHA256} -q ${SNAPSHOTHASH}`" != ${SNAPSHOTHASH} ]; then
 		echo "snapshot metadata corrupt."
 		return 1
 	fi
@@ -606,7 +606,7 @@ fetch_index_sanity() {
 # Verify a list of files
 fetch_snapshot_verify() {
 	while read F; do
-		if [ `gunzip -c snap/${F} | ${SHA256} -q` != ${F} ]; then
+		if [ "`gunzip -c snap/${F} | ${SHA256} -q`" != ${F} ]; then
 			echo "snapshot corrupt."
 			return 1
 		fi

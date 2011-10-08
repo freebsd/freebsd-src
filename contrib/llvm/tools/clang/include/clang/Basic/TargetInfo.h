@@ -14,18 +14,20 @@
 #ifndef LLVM_CLANG_BASIC_TARGETINFO_H
 #define LLVM_CLANG_BASIC_TARGETINFO_H
 
-// FIXME: Daniel isn't smart enough to use a prototype for this.
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/VersionTuple.h"
 #include <cassert>
 #include <vector>
 #include <string>
 
 namespace llvm {
 struct fltSemantics;
-class StringRef;
 }
 
 namespace clang {
@@ -56,7 +58,7 @@ enum TargetCXXABI {
 
 /// TargetInfo - This class exposes information about the current target.
 ///
-class TargetInfo {
+class TargetInfo : public llvm::RefCountedBase<TargetInfo> {
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -78,6 +80,10 @@ protected:
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI CXXABI;
+  const LangAS::Map *AddrSpaceMap;
+
+  mutable llvm::StringRef PlatformName;
+  mutable VersionTuple PlatformMinVersion;
 
   unsigned HasAlignMac68kSupport : 1;
   unsigned RealTypeUsesObjCFPRet : 3;
@@ -234,6 +240,14 @@ public:
     return getTypeWidth(IntMaxType);
   }
 
+  /// getRegisterWidth - Return the "preferred" register width on this target.
+  uint64_t getRegisterWidth() const {
+    // Currently we assume the register width on the target matches the pointer
+    // width, we can introduce a new variable for this if/when some target wants
+    // it.
+    return LongWidth; 
+  }
+
   /// getUserLabelPrefix - This returns the default value of the
   /// __USER_LABEL_PREFIX__ macro, which is the prefix given to user symbols by
   /// default.  On most platforms this is "_", but it is "" on some, and "." on
@@ -288,6 +302,11 @@ public:
   /// getVAListDeclaration - Return the declaration to use for
   /// __builtin_va_list, which is target-specific.
   virtual const char *getVAListDeclaration() const = 0;
+
+  /// isValidClobber - Returns whether the passed in string is
+  /// a valid clobber in an inline asm statement. This is used by
+  /// Sema.
+  bool isValidClobber(llvm::StringRef Name) const;
 
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
@@ -362,11 +381,14 @@ public:
                            ConstraintInfo *OutputConstraints,
                            unsigned NumOutputs, unsigned &Index) const;
 
-  virtual std::string convertConstraint(const char Constraint) const {
+  // Constraint parm will be left pointing at the last character of
+  // the constraint.  In practice, it won't be changed unless the
+  // constraint is longer than one character.
+  virtual std::string convertConstraint(const char *&Constraint) const {
     // 'p' defaults to 'r', but can be overridden by targets.
-    if (Constraint == 'p')
+    if (*Constraint == 'p')
       return std::string("r");
-    return std::string(1, Constraint);
+    return std::string(1, *Constraint);
   }
 
   // Returns a string of target-specific clobbers, in LLVM format.
@@ -385,6 +407,11 @@ public:
   struct GCCRegAlias {
     const char * const Aliases[5];
     const char * const Register;
+  };
+
+  struct AddlRegName {
+    const char * const Names[5];
+    const unsigned RegNum;
   };
 
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
@@ -502,6 +529,7 @@ public:
 
   // getRegParmMax - Returns maximal number of args passed in registers.
   unsigned getRegParmMax() const {
+    assert(RegParmMax < 7 && "RegParmMax value is larger than AST can handle");
     return RegParmMax;
   }
 
@@ -530,6 +558,19 @@ public:
   virtual const char *getStaticInitSectionSpecifier() const {
     return 0;
   }
+
+  const LangAS::Map &getAddressSpaceMap() const {
+    return *AddrSpaceMap;
+  }
+
+  /// \brief Retrieve the name of the platform as it is used in the
+  /// availability attribute.
+  llvm::StringRef getPlatformName() const { return PlatformName; }
+
+  /// \brief Retrieve the minimum desired version of the platform, to
+  /// which the program should be compiled.
+  VersionTuple getPlatformMinVersion() const { return PlatformMinVersion; }
+
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;
@@ -544,6 +585,11 @@ protected:
                               unsigned &NumNames) const = 0;
   virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
                                 unsigned &NumAliases) const = 0;
+  virtual void getGCCAddlRegNames(const AddlRegName *&Addl,
+				  unsigned &NumAddl) const {
+    Addl = 0;
+    NumAddl = 0;
+  }
   virtual bool validateAsmConstraint(const char *&Name,
                                      TargetInfo::ConstraintInfo &info) const= 0;
 };

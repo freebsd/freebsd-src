@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.MAKE.MODE=	normal
+
 # Test for broken LHS expansion.
 # This *must* cause make(1) to detect a recursive variable, and fail as such.
 .if make(lhs_expn)
@@ -152,23 +154,18 @@ pass_cmd_vars:
 	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_4
 .endif
 
-.if make(pass_cmd_vars_1)
+#
 # Check that the variable definition arrived from the calling make
+#
+.if make(pass_cmd_vars_1)
+# These values should get overridden by the commandline
+CMD1=oops1
+CMD2=oops2
 pass_cmd_vars_1:
 	@:
 
 .if ${CMD1} != cmd1 || ${CMD2} != cmd2
 .error variables not passed through MAKEFLAGS
-.endif
-
-# Check that the variable definition is in MAKEFLAGS
-.if ${.MAKEFLAGS:MCMD1=*} != "CMD1=cmd1" || ${.MAKEFLAGS:MCMD2=*} != "CMD2=cmd2"
-.error variable assignment not found in $${MAKEFLAGS}
-.endif
-
-# Check that the variable definition is not in MFLAGS
-.if ${MFLAGS:MCMD1=*} != "" || ${MFLAGS:MCMD2=*} != ""
-.error variable assignment found in $${MFLAGS}
 .endif
 .endif
 
@@ -228,7 +225,7 @@ pass_cmd_vars_4_1:
 #
 .if make(plus_flag)
 OUT != ${SMAKE} -n plus_flag_1
-.if ${OUT} != "/tmp"
+.if ${OUT:M/tmp} != "/tmp"
 .error make doesn't handle + flag
 .endif
 plus_flag:

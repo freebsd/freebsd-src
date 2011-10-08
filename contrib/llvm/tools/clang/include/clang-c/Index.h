@@ -222,6 +222,14 @@ CINDEX_LINKAGE CXString clang_getFileName(CXFile SFile);
 CINDEX_LINKAGE time_t clang_getFileTime(CXFile SFile);
 
 /**
+ * \brief Determine whether the given header is guarded against
+ * multiple inclusions, either with the conventional
+ * #ifndef/#define/#endif macro guards or with #pragma once.
+ */
+CINDEX_LINKAGE unsigned 
+clang_isFileMultipleIncludeGuarded(CXTranslationUnit tu, CXFile file);
+
+/**
  * \brief Retrieve a file handle within the given translation unit.
  *
  * \param tu the translation unit
@@ -821,7 +829,28 @@ enum CXTranslationUnit_Flags {
    * Note: this is a *temporary* option that is available only while
    * we are testing C++ precompiled preamble support.
    */
-  CXTranslationUnit_CXXChainedPCH = 0x20
+  CXTranslationUnit_CXXChainedPCH = 0x20,
+  
+  /**
+   * \brief Used to indicate that the "detailed" preprocessing record,
+   * if requested, should also contain nested macro expansions.
+   *
+   * Nested macro expansions (i.e., macro expansions that occur
+   * inside another macro expansion) can, in some code bases, require
+   * a large amount of storage to due preprocessor metaprogramming. Moreover,
+   * its fairly rare that this information is useful for libclang clients.
+   */
+  CXTranslationUnit_NestedMacroExpansions = 0x40,
+
+  /**
+   * \brief Legacy name to indicate that the "detailed" preprocessing record,
+   * if requested, should contain nested macro expansions.
+   *
+   * \see CXTranslationUnit_NestedMacroExpansions for the current name for this
+   * value, and its semantics. This is just an alias.
+   */
+  CXTranslationUnit_NestedMacroInstantiations =
+    CXTranslationUnit_NestedMacroExpansions
 };
 
 /**
@@ -914,6 +943,41 @@ enum CXSaveTranslationUnit_Flags {
 CINDEX_LINKAGE unsigned clang_defaultSaveOptions(CXTranslationUnit TU);
 
 /**
+ * \brief Describes the kind of error that occurred (if any) in a call to
+ * \c clang_saveTranslationUnit().
+ */
+enum CXSaveError {
+  /**
+   * \brief Indicates that no error occurred while saving a translation unit.
+   */
+  CXSaveError_None = 0,
+  
+  /**
+   * \brief Indicates that an unknown error occurred while attempting to save
+   * the file.
+   *
+   * This error typically indicates that file I/O failed when attempting to 
+   * write the file.
+   */
+  CXSaveError_Unknown = 1,
+  
+  /**
+   * \brief Indicates that errors during translation prevented this attempt
+   * to save the translation unit.
+   * 
+   * Errors that prevent the translation unit from being saved can be
+   * extracted using \c clang_getNumDiagnostics() and \c clang_getDiagnostic().
+   */
+  CXSaveError_TranslationErrors = 2,
+  
+  /**
+   * \brief Indicates that the translation unit to be saved was somehow
+   * invalid (e.g., NULL).
+   */
+  CXSaveError_InvalidTU = 3
+};
+  
+/**
  * \brief Saves a translation unit into a serialized representation of
  * that translation unit on disk.
  *
@@ -932,8 +996,9 @@ CINDEX_LINKAGE unsigned clang_defaultSaveOptions(CXTranslationUnit TU);
  * is saved. This should be a bitwise OR of the
  * CXSaveTranslationUnit_XXX flags.
  *
- * \returns Zero if the translation unit was saved successfully, a
- * non-zero value otherwise.
+ * \returns A value that will match one of the enumerators of the CXSaveError
+ * enumeration. Zero (CXSaveError_None) indicates that the translation unit was 
+ * saved successfully, while a non-zero value indicates that a problem occurred.
  */
 CINDEX_LINKAGE int clang_saveTranslationUnit(CXTranslationUnit TU,
                                              const char *FileName,
@@ -1012,7 +1077,70 @@ CINDEX_LINKAGE int clang_reparseTranslationUnit(CXTranslationUnit TU,
                                                 unsigned num_unsaved_files,
                                           struct CXUnsavedFile *unsaved_files,
                                                 unsigned options);
-  
+
+/**
+  * \brief Categorizes how memory is being used by a translation unit.
+  */
+enum CXTUResourceUsageKind {
+  CXTUResourceUsage_AST = 1,
+  CXTUResourceUsage_Identifiers = 2,
+  CXTUResourceUsage_Selectors = 3,
+  CXTUResourceUsage_GlobalCompletionResults = 4,
+  CXTUResourceUsage_SourceManagerContentCache = 5,
+  CXTUResourceUsage_AST_SideTables = 6,
+  CXTUResourceUsage_SourceManager_Membuffer_Malloc = 7,
+  CXTUResourceUsage_SourceManager_Membuffer_MMap = 8,
+  CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc = 9, 
+  CXTUResourceUsage_ExternalASTSource_Membuffer_MMap = 10, 
+  CXTUResourceUsage_Preprocessor = 11,
+  CXTUResourceUsage_PreprocessingRecord = 12,
+  CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN = CXTUResourceUsage_AST,
+  CXTUResourceUsage_MEMORY_IN_BYTES_END =
+    CXTUResourceUsage_PreprocessingRecord,
+
+  CXTUResourceUsage_First = CXTUResourceUsage_AST,
+  CXTUResourceUsage_Last = CXTUResourceUsage_PreprocessingRecord
+};
+
+/**
+  * \brief Returns the human-readable null-terminated C string that represents
+  *  the name of the memory category.  This string should never be freed.
+  */
+CINDEX_LINKAGE
+const char *clang_getTUResourceUsageName(enum CXTUResourceUsageKind kind);
+
+typedef struct CXTUResourceUsageEntry {
+  /* \brief The memory usage category. */
+  enum CXTUResourceUsageKind kind;  
+  /* \brief Amount of resources used. 
+      The units will depend on the resource kind. */
+  unsigned long amount;
+} CXTUResourceUsageEntry;
+
+/**
+  * \brief The memory usage of a CXTranslationUnit, broken into categories.
+  */
+typedef struct CXTUResourceUsage {
+  /* \brief Private data member, used for queries. */
+  void *data;
+
+  /* \brief The number of entries in the 'entries' array. */
+  unsigned numEntries;
+
+  /* \brief An array of key-value pairs, representing the breakdown of memory
+            usage. */
+  CXTUResourceUsageEntry *entries;
+
+} CXTUResourceUsage;
+
+/**
+  * \brief Return the memory usage of a translation unit.  This object
+  *  should be released with clang_disposeCXTUResourceUsage().
+  */
+CINDEX_LINKAGE CXTUResourceUsage clang_getCXTUResourceUsage(CXTranslationUnit TU);
+
+CINDEX_LINKAGE void clang_disposeCXTUResourceUsage(CXTUResourceUsage usage);
+
 /**
  * @}
  */
@@ -1101,10 +1229,16 @@ enum CXCursorKind {
   CXCursor_NamespaceAlias                = 33,
   /** \brief A C++ using directive. */
   CXCursor_UsingDirective                = 34,
-  /** \brief A using declaration. */
+  /** \brief A C++ using declaration. */
   CXCursor_UsingDeclaration              = 35,
+  /** \brief A C++ alias declaration */
+  CXCursor_TypeAliasDecl                 = 36,
+  /** \brief An Objective-C @synthesize definition. */
+  CXCursor_ObjCSynthesizeDecl            = 37,
+  /** \brief An Objective-C @dynamic definition. */
+  CXCursor_ObjCDynamicDecl               = 38,
   CXCursor_FirstDecl                     = CXCursor_UnexposedDecl,
-  CXCursor_LastDecl                      = CXCursor_UsingDeclaration,
+  CXCursor_LastDecl                      = CXCursor_ObjCDynamicDecl,
 
   /* References */
   CXCursor_FirstRef                      = 40, /* Decl references */
@@ -1297,7 +1431,8 @@ enum CXCursorKind {
   /* Preprocessing */
   CXCursor_PreprocessingDirective        = 500,
   CXCursor_MacroDefinition               = 501,
-  CXCursor_MacroInstantiation            = 502,
+  CXCursor_MacroExpansion                = 502,
+  CXCursor_MacroInstantiation            = CXCursor_MacroExpansion,
   CXCursor_InclusionDirective            = 503,
   CXCursor_FirstPreprocessing            = CXCursor_PreprocessingDirective,
   CXCursor_LastPreprocessing             = CXCursor_InclusionDirective
@@ -1384,6 +1519,11 @@ CINDEX_LINKAGE unsigned clang_isExpression(enum CXCursorKind);
  * \brief Determine whether the given cursor kind represents a statement.
  */
 CINDEX_LINKAGE unsigned clang_isStatement(enum CXCursorKind);
+
+/**
+ * \brief Determine whether the given cursor kind represents an attribute.
+ */
+CINDEX_LINKAGE unsigned clang_isAttribute(enum CXCursorKind);
 
 /**
  * \brief Determine whether the given cursor kind represents an invalid
@@ -2183,6 +2323,13 @@ CINDEX_LINKAGE CXCursor clang_getCanonicalCursor(CXCursor);
 CINDEX_LINKAGE unsigned clang_CXXMethod_isStatic(CXCursor C);
 
 /**
+ * \brief Determine if a C++ member function or member function template is
+ * explicitly declared 'virtual' or if it overrides a virtual method from
+ * one of the base classes.
+ */
+CINDEX_LINKAGE unsigned clang_CXXMethod_isVirtual(CXCursor C);
+
+/**
  * \brief Given a cursor that represents a template, determine
  * the cursor kind of the specializations would be generated by instantiating
  * the template.
@@ -2735,6 +2882,137 @@ enum CXCodeComplete_Flags {
 };
 
 /**
+ * \brief Bits that represent the context under which completion is occurring.
+ *
+ * The enumerators in this enumeration may be bitwise-OR'd together if multiple
+ * contexts are occurring simultaneously.
+ */
+enum CXCompletionContext {
+  /**
+   * \brief The context for completions is unexposed, as only Clang results
+   * should be included. (This is equivalent to having no context bits set.)
+   */
+  CXCompletionContext_Unexposed = 0,
+  
+  /**
+   * \brief Completions for any possible type should be included in the results.
+   */
+  CXCompletionContext_AnyType = 1 << 0,
+  
+  /**
+   * \brief Completions for any possible value (variables, function calls, etc.)
+   * should be included in the results.
+   */
+  CXCompletionContext_AnyValue = 1 << 1,
+  /**
+   * \brief Completions for values that resolve to an Objective-C object should
+   * be included in the results.
+   */
+  CXCompletionContext_ObjCObjectValue = 1 << 2,
+  /**
+   * \brief Completions for values that resolve to an Objective-C selector
+   * should be included in the results.
+   */
+  CXCompletionContext_ObjCSelectorValue = 1 << 3,
+  /**
+   * \brief Completions for values that resolve to a C++ class type should be
+   * included in the results.
+   */
+  CXCompletionContext_CXXClassTypeValue = 1 << 4,
+  
+  /**
+   * \brief Completions for fields of the member being accessed using the dot
+   * operator should be included in the results.
+   */
+  CXCompletionContext_DotMemberAccess = 1 << 5,
+  /**
+   * \brief Completions for fields of the member being accessed using the arrow
+   * operator should be included in the results.
+   */
+  CXCompletionContext_ArrowMemberAccess = 1 << 6,
+  /**
+   * \brief Completions for properties of the Objective-C object being accessed
+   * using the dot operator should be included in the results.
+   */
+  CXCompletionContext_ObjCPropertyAccess = 1 << 7,
+  
+  /**
+   * \brief Completions for enum tags should be included in the results.
+   */
+  CXCompletionContext_EnumTag = 1 << 8,
+  /**
+   * \brief Completions for union tags should be included in the results.
+   */
+  CXCompletionContext_UnionTag = 1 << 9,
+  /**
+   * \brief Completions for struct tags should be included in the results.
+   */
+  CXCompletionContext_StructTag = 1 << 10,
+  
+  /**
+   * \brief Completions for C++ class names should be included in the results.
+   */
+  CXCompletionContext_ClassTag = 1 << 11,
+  /**
+   * \brief Completions for C++ namespaces and namespace aliases should be
+   * included in the results.
+   */
+  CXCompletionContext_Namespace = 1 << 12,
+  /**
+   * \brief Completions for C++ nested name specifiers should be included in
+   * the results.
+   */
+  CXCompletionContext_NestedNameSpecifier = 1 << 13,
+  
+  /**
+   * \brief Completions for Objective-C interfaces (classes) should be included
+   * in the results.
+   */
+  CXCompletionContext_ObjCInterface = 1 << 14,
+  /**
+   * \brief Completions for Objective-C protocols should be included in
+   * the results.
+   */
+  CXCompletionContext_ObjCProtocol = 1 << 15,
+  /**
+   * \brief Completions for Objective-C categories should be included in
+   * the results.
+   */
+  CXCompletionContext_ObjCCategory = 1 << 16,
+  /**
+   * \brief Completions for Objective-C instance messages should be included
+   * in the results.
+   */
+  CXCompletionContext_ObjCInstanceMessage = 1 << 17,
+  /**
+   * \brief Completions for Objective-C class messages should be included in
+   * the results.
+   */
+  CXCompletionContext_ObjCClassMessage = 1 << 18,
+  /**
+   * \brief Completions for Objective-C selector names should be included in
+   * the results.
+   */
+  CXCompletionContext_ObjCSelectorName = 1 << 19,
+  
+  /**
+   * \brief Completions for preprocessor macro names should be included in
+   * the results.
+   */
+  CXCompletionContext_MacroName = 1 << 20,
+  
+  /**
+   * \brief Natural language completions should be included in the results.
+   */
+  CXCompletionContext_NaturalLanguage = 1 << 21,
+  
+  /**
+   * \brief The current context is unknown, so set all contexts.
+   */
+  CXCompletionContext_Unknown = ((1 << 22) - 1)
+};
+  
+/**
  * \brief Returns a default set of code-completion options that can be
  * passed to\c clang_codeCompleteAt(). 
  */
@@ -2855,6 +3133,19 @@ CXDiagnostic clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *Results,
                                              unsigned Index);
 
 /**
+ * \brief Determines what compeltions are appropriate for the context
+ * the given code completion.
+ * 
+ * \param Results the code completion results to query
+ *
+ * \returns the kinds of completions that are appropriate for use
+ * along with the given code completion results.
+ */
+CINDEX_LINKAGE
+unsigned long long clang_codeCompleteGetContexts(
+                                                CXCodeCompleteResults *Results);
+  
+/**
  * @}
  */
 
@@ -2871,6 +3162,15 @@ CXDiagnostic clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *Results,
  */
 CINDEX_LINKAGE CXString clang_getClangVersion();
 
+  
+/**
+ * \brief Enable/disable crash recovery.
+ *
+ * \param Flag to indicate if crash recovery is enabled.  A non-zero value
+ *        enables crash recovery, while 0 disables it.
+ */
+CINDEX_LINKAGE void clang_toggleCrashRecovery(unsigned isEnabled);
+  
  /**
   * \brief Visitor invoked for each file in a translation unit
   *        (used with clang_getInclusions()).
@@ -2896,6 +3196,51 @@ typedef void (*CXInclusionVisitor)(CXFile included_file,
 CINDEX_LINKAGE void clang_getInclusions(CXTranslationUnit tu,
                                         CXInclusionVisitor visitor,
                                         CXClientData client_data);
+
+/**
+ * @}
+ */
+
+/** \defgroup CINDEX_REMAPPING Remapping functions
+ *
+ * @{
+ */
+
+/**
+ * \brief A remapping of original source files and their translated files.
+ */
+typedef void *CXRemapping;
+
+/**
+ * \brief Retrieve a remapping.
+ *
+ * \param path the path that contains metadata about remappings.
+ *
+ * \returns the requested remapping. This remapping must be freed
+ * via a call to \c clang_remap_dispose(). Can return NULL if an error occurred.
+ */
+CINDEX_LINKAGE CXRemapping clang_getRemappings(const char *path);
+
+/**
+ * \brief Determine the number of remappings.
+ */
+CINDEX_LINKAGE unsigned clang_remap_getNumFiles(CXRemapping);
+
+/**
+ * \brief Get the original and the associated filename from the remapping.
+ * 
+ * \param original If non-NULL, will be set to the original filename.
+ *
+ * \param transformed If non-NULL, will be set to the filename that the original
+ * is associated with.
+ */
+CINDEX_LINKAGE void clang_remap_getFilenames(CXRemapping, unsigned index,
+                                     CXString *original, CXString *transformed);
+
+/**
+ * \brief Dispose the remapping.
+ */
+CINDEX_LINKAGE void clang_remap_dispose(CXRemapping);
 
 /**
  * @}

@@ -43,6 +43,12 @@ ar9280olcInit(struct ath_hal *ah)
 {
 	uint32_t i;
 
+	/* Only do OLC if it's enabled for this chipset */
+	if (! ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+		return;
+
+	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: Setting up TX gain tables.\n", __func__);
+
 	for (i = 0; i < AR9280_TX_GAIN_TABLE_SIZE; i++)
 		AH9280(ah)->originalGain[i] = MS(OS_REG_READ(ah,
 		    AR_PHY_TX_GAIN_TBL1 + i * 4), AR_PHY_TX_GAIN);
@@ -125,6 +131,9 @@ ar9280olcTemperatureCompensation(struct ath_hal *ah)
 	uint32_t rddata, i;
 	int delta, currPDADC, regval;
 	uint8_t hpwr_5g = 0;
+
+	if (! ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+		return;
 
 	rddata = OS_REG_READ(ah, AR_PHY_TX_PWRCTRL4);
 	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
@@ -368,7 +377,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 			    gainBoundaries, numXpdGain, pdGainOverlap_t2,
 			    pwr_table_offset, &diff);
 
-			if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
+			if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
 				/* Set gain boundaries for either open- or closed-loop TPC */
 				if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
 				    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))

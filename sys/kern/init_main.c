@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
@@ -526,6 +527,9 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = pageablemem;
 	p->p_cpulimit = RLIM_INFINITY;
 
+	/* Initialize resource accounting structures. */
+	racct_create(&p->p_racct);
+
 	p->p_stats = pstats_alloc();
 
 	/* Allocate a prototype map so we have something to fork. */
@@ -553,6 +557,9 @@ proc0_init(void *dummy __unused)
 	 * Charge root for one process.
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, 1, 0);
+	PROC_LOCK(p);
+	racct_add_force(p, RACCT_NPROC, 1);
+	PROC_UNLOCK(p);
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
@@ -758,7 +765,7 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = execve(td, &args)) == 0) {
+		if ((error = sys_execve(td, &args)) == 0) {
 			mtx_unlock(&Giant);
 			return;
 		}
@@ -783,7 +790,8 @@ create_init(const void *udata __unused)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc);
+	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
+	    NULL, 0);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));

@@ -135,6 +135,7 @@ struct ata_params {
 #define ATA_SUPPORT_AUTOACTIVATE        0x0004
 #define ATA_SUPPORT_IFPWRMNGT           0x0008
 #define ATA_SUPPORT_INORDERDATA         0x0010
+#define ATA_SUPPORT_ASYNCNOTIF          0x0020
 #define ATA_SUPPORT_SOFTSETPRESERVE     0x0040
 /*79*/  u_int16_t       sataenabled;
 #define ATA_ENABLED_DAPST               0x0080

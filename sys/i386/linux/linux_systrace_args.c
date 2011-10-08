@@ -1327,12 +1327,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_capget */
 	case 184: {
-		*n_args = 0;
+		struct linux_capget_args *p = params;
+		uarg[0] = (intptr_t) p->hdrp; /* struct l_user_cap_header * */
+		uarg[1] = (intptr_t) p->datap; /* struct l_user_cap_data * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_capset */
 	case 185: {
-		*n_args = 0;
+		struct linux_capset_args *p = params;
+		uarg[0] = (intptr_t) p->hdrp; /* struct l_user_cap_header * */
+		uarg[1] = (intptr_t) p->datap; /* struct l_user_cap_data * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_sigaltstack */
@@ -4203,9 +4209,29 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_capget */
 	case 184:
+		switch(ndx) {
+		case 0:
+			p = "struct l_user_cap_header *";
+			break;
+		case 1:
+			p = "struct l_user_cap_data *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_capset */
 	case 185:
+		switch(ndx) {
+		case 0:
+			p = "struct l_user_cap_header *";
+			break;
+		case 1:
+			p = "struct l_user_cap_data *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_sigaltstack */
 	case 186:

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 #include <sys/user.h>
 
 #include <err.h>
+#include <libprocstat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -38,7 +39,7 @@
 #include "procstat.h"
 
 void
-procstat_cred(pid_t pid, struct kinfo_proc *kipp)
+procstat_cred(struct kinfo_proc *kipp)
 {
 	int i;
 	int mib[4];
@@ -47,11 +48,11 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 	gid_t *groups = NULL;
 
 	if (!hflag)
-		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %-20s\n", "PID",
+		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %5s %-15s\n", "PID",
 		    "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID", "SVGID",
-		    "GROUPS");
+		    "FLAGS", "GROUPS");
 
-	printf("%5d ", pid);
+	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
 	printf("%5d ", kipp->ki_uid);
 	printf("%5d ", kipp->ki_ruid);
@@ -59,6 +60,8 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 	printf("%5d ", kipp->ki_groups[0]);
 	printf("%5d ", kipp->ki_rgid);
 	printf("%5d ", kipp->ki_svgid);
+	printf("%s", kipp->ki_cr_flags & CRED_FLAG_CAPMODE ? "C" : "-");
+	printf("     ");
 
 	/*
 	 * We may have too many groups to fit in kinfo_proc's statically
@@ -69,7 +72,7 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_PROC;
 		mib[2] = KERN_PROC_GROUPS;
-		mib[3] = pid;
+		mib[3] = kipp->ki_pid;
 
 		ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
 		len = ngroups * sizeof(gid_t);
@@ -78,7 +81,7 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 
 		if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
 			warn("sysctl: kern.proc.groups: %d "
-			    "group list truncated", pid);
+			    "group list truncated", kipp->ki_pid);
 			free(groups);
 			groups = NULL;
 		}

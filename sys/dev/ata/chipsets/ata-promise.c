@@ -280,7 +280,7 @@ ata_promise_chipinit(device_t dev)
 
 	    /* setup host packet controls */
 	    hpkt = malloc(sizeof(struct ata_promise_sx4),
-			  M_TEMP, M_NOWAIT | M_ZERO);
+			  M_ATAPCI, M_NOWAIT | M_ZERO);
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;

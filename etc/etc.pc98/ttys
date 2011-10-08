@@ -16,9 +16,8 @@
 # type The initial terminal type for this port.  For hardwired
 #      terminal lines, this will contain the type of terminal used.
 #      For virtual consoles, the correct type is typically cons25w.
-#      Other common values include network for network connections on
-#      pseudo-terminals, dialup for incoming modem ports, and unknown
-#      when the terminal type cannot be predetermined.
+#      Other common values include dialup for incoming modem ports, and
+#      unknown when the terminal type cannot be predetermined.
 #
 # status Must be on or off.  If on, init will run the getty program on
 #        the specified port.  If the word "secure" appears, this tty

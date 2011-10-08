@@ -56,7 +56,7 @@ char BreakCriticalEdges::ID = 0;
 INITIALIZE_PASS(BreakCriticalEdges, "break-crit-edges",
                 "Break critical edges in CFG", false, false)
 
-// Publically exposed interface to pass...
+// Publicly exposed interface to pass...
 char &llvm::BreakCriticalEdgesID = BreakCriticalEdges::ID;
 FunctionPass *llvm::createBreakCriticalEdgesPass() {
   return new BreakCriticalEdges();
@@ -140,7 +140,7 @@ static void CreatePHIsForSplitLoopExit(SmallVectorImpl<BasicBlock *> &Preds,
       if (VP->getParent() == SplitBB)
         continue;
     // Otherwise a new PHI is needed. Create one and populate it.
-    PHINode *NewPN = PHINode::Create(PN->getType(), "split",
+    PHINode *NewPN = PHINode::Create(PN->getType(), Preds.size(), "split",
                                      SplitBB->getTerminator());
     for (unsigned i = 0, e = Preds.size(); i != e; ++i)
       NewPN->addIncoming(V, Preds[i]);
@@ -180,7 +180,8 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   BasicBlock *NewBB = BasicBlock::Create(TI->getContext(),
                       TIBB->getName() + "." + DestBB->getName() + "_crit_edge");
   // Create our unconditional branch.
-  BranchInst::Create(DestBB, NewBB);
+  BranchInst *NewBI = BranchInst::Create(DestBB, NewBB);
+  NewBI->setDebugLoc(TI->getDebugLoc());
 
   // Branch to the new block, breaking the edge.
   TI->setSuccessor(SuccNum, NewBB);
@@ -192,44 +193,22 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   
   // If there are any PHI nodes in DestBB, we need to update them so that they
   // merge incoming values from NewBB instead of from TIBB.
-  if (PHINode *APHI = dyn_cast<PHINode>(DestBB->begin())) {
-    // This conceptually does:
-    //  foreach (PHINode *PN in DestBB)
-    //    PN->setIncomingBlock(PN->getIncomingBlock(TIBB), NewBB);
-    // but is optimized for two cases.
-    
-    if (APHI->getNumIncomingValues() <= 8) {  // Small # preds case.
-      unsigned BBIdx = 0;
-      for (BasicBlock::iterator I = DestBB->begin(); isa<PHINode>(I); ++I) {
-        // We no longer enter through TIBB, now we come in through NewBB.
-        // Revector exactly one entry in the PHI node that used to come from
-        // TIBB to come from NewBB.
-        PHINode *PN = cast<PHINode>(I);
-        
-        // Reuse the previous value of BBIdx if it lines up.  In cases where we
-        // have multiple phi nodes with *lots* of predecessors, this is a speed
-        // win because we don't have to scan the PHI looking for TIBB.  This
-        // happens because the BB list of PHI nodes are usually in the same
-        // order.
-        if (PN->getIncomingBlock(BBIdx) != TIBB)
-          BBIdx = PN->getBasicBlockIndex(TIBB);
-        PN->setIncomingBlock(BBIdx, NewBB);
-      }
-    } else {
-      // However, the foreach loop is slow for blocks with lots of predecessors
-      // because PHINode::getIncomingBlock is O(n) in # preds.  Instead, walk
-      // the user list of TIBB to find the PHI nodes.
-      SmallPtrSet<PHINode*, 16> UpdatedPHIs;
-    
-      for (Value::use_iterator UI = TIBB->use_begin(), E = TIBB->use_end();
-           UI != E; ) {
-        Value::use_iterator Use = UI++;
-        if (PHINode *PN = dyn_cast<PHINode>(*Use)) {
-          // Remove one entry from each PHI.
-          if (PN->getParent() == DestBB && UpdatedPHIs.insert(PN))
-            PN->setOperand(Use.getOperandNo(), NewBB);
-        }
-      }
+  {
+    unsigned BBIdx = 0;
+    for (BasicBlock::iterator I = DestBB->begin(); isa<PHINode>(I); ++I) {
+      // We no longer enter through TIBB, now we come in through NewBB.
+      // Revector exactly one entry in the PHI node that used to come from
+      // TIBB to come from NewBB.
+      PHINode *PN = cast<PHINode>(I);
+
+      // Reuse the previous value of BBIdx if it lines up.  In cases where we
+      // have multiple phi nodes with *lots* of predecessors, this is a speed
+      // win because we don't have to scan the PHI looking for TIBB.  This
+      // happens because the BB list of PHI nodes are usually in the same
+      // order.
+      if (PN->getIncomingBlock(BBIdx) != TIBB)
+	BBIdx = PN->getBasicBlockIndex(TIBB);
+      PN->setIncomingBlock(BBIdx, NewBB);
     }
   }
    

@@ -72,6 +72,8 @@ char *
 ata_op_string(struct ata_cmd *cmd)
 {
 
+	if (cmd->control & 0x04)
+		return ("SOFT_RESET");
 	switch (cmd->command) {
 	case 0x00: return ("NOP");
 	case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
@@ -149,6 +151,8 @@ ata_op_string(struct ata_cmd *cmd)
 	        case 0x06: return ("SETFEATURES ENABLE PUIS");
 	        case 0x86: return ("SETFEATURES DISABLE PUIS");
 	        case 0x07: return ("SETFEATURES SPIN-UP");
+	        case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
+	        case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
 	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
 	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
 	        }
@@ -266,6 +270,7 @@ ata_print_ident(struct ata_params *ident_data)
 		   sizeof(revision));
 	printf("<%s %s> %s-%d",
 	    product, revision,
+	    (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
 	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
 	    ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {

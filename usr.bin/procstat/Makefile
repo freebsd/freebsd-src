@@ -13,7 +13,7 @@ SRCS=	procstat.c		\
 	procstat_threads.c	\
 	procstat_vm.c
 
-LDADD+=	-lutil
+LDADD+=	-lutil -lprocstat -lkvm
 DPADD+=	${LIBUTIL}
 
 .include <bsd.prog.mk>

@@ -106,10 +106,24 @@ namespace clang {
       return Address;
     }
 
-    virtual const llvm::Type* adjustInlineAsmType(CodeGen::CodeGenFunction &CGF,
-                                                  llvm::StringRef Constraint, 
-                                                  const llvm::Type* Ty) const {
+    virtual llvm::Type* adjustInlineAsmType(CodeGen::CodeGenFunction &CGF,
+                                            llvm::StringRef Constraint, 
+                                            llvm::Type* Ty) const {
       return Ty;
+    }
+
+    /// Retrieve the address of a function to call immediately before
+    /// calling objc_retainAutoreleasedReturnValue.  The
+    /// implementation of objc_autoreleaseReturnValue sniffs the
+    /// instruction stream following its return address to decide
+    /// whether it's a call to objc_retainAutoreleasedReturnValue.
+    /// This can be prohibitively expensive, depending on the
+    /// relocation model, and so on some targets it instead sniffs for
+    /// a particular instruction sequence.  This functions returns
+    /// that instruction sequence in inline assembly, which will be
+    /// empty if none is required.
+    virtual llvm::StringRef getARCRetainAutoreleasedReturnValueMarker() const {
+      return "";
     }
   };
 }

@@ -7,8 +7,8 @@ INCDIR=	lib/Target/PowerPC
 SRCS=	PPCInstPrinter.cpp
 
 TGHDRS=	PPCGenAsmWriter \
-	PPCGenInstrNames \
-	PPCGenRegisterInfo.h \
-	PPCGenRegisterNames
+	PPCGenInstrInfo \
+	PPCGenRegisterInfo \
+	PPCGenSubtargetInfo
 
 .include "../clang.lib.mk"

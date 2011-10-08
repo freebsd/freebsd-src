@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 extern void *ap_pcpu;
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t kernload;		/* Kernel physical load address */
+extern uint32_t kernload_ap;		/* Kernel physical load address */
 #endif
 
 extern uint32_t *bootinfo;
@@ -104,10 +104,22 @@ bare_probe(platform_t plat)
 	int i, law_max, tgt;
 
 	ver = SVR_VER(mfspr(SPR_SVR));
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+	switch (ver & ~0x0008) {	/* Mask Security Enabled bit */
+	case SVR_P4080:
+		maxcpu = 8;
+		break;
+	case SVR_P4040:
+		maxcpu = 4;
+		break;
+	case SVR_MPC8572:
+	case SVR_P1020:
+	case SVR_P2020:
 		maxcpu = 2;
-	else
+		break;
+	default:
 		maxcpu = 1;
+		break;
+	}
 
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
@@ -166,8 +178,16 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	phandle_t cpus, child;
 	pcell_t freq;
 
-	/* Backward compatibility. See 8-STABLE. */
-	ticks = bootinfo[3] >> 3;
+	if (bootinfo != NULL) {
+		if (bootinfo[0] == 1) {
+			/* Backward compatibility. See 8-STABLE. */
+			ticks = bootinfo[3] >> 3;
+		} else {
+			/* Compatibility with Juniper's loader. */
+			ticks = bootinfo[5] >> 3;
+		}
+	} else
+		ticks = 0;
 
 	if ((cpus = OF_finddevice("/cpus")) == 0)
 		goto out;
@@ -241,7 +261,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	int timeout;
 
 	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
-	if ((eebpcr & (pc->pc_cpumask << 24)) != 0) {
+	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
 		printf("%s: CPU=%d already out of hold-off state!\n",
 		    __func__, pc->pc_cpuid);
 		return (ENXIO);
@@ -253,13 +273,13 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload;
+	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload_ap;
 	ccsr_write4(OCP85XX_BPTR, (bptr >> 12) | 0x80000000);
 
 	/*
 	 * Release AP from hold-off state
 	 */
-	eebpcr |= (pc->pc_cpumask << 24);
+	eebpcr |= (1 << (pc->pc_cpuid + 24));
 	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
 	__asm __volatile("isync; msync");
 
@@ -277,24 +297,23 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 static void
 e500_reset(platform_t plat)
 {
-	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
 
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
-	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
-		/* Systems with dedicated reset register */
-		ccsr_write4(OCP85XX_RSTCR, 2);
-	else {
-		/* Clear DBCR0, disables debug interrupts and events. */
-		mtspr(SPR_DBCR0, 0);
-		__asm __volatile("isync");
+	/*
+	 * Try the dedicated reset register first.
+	 * If the SoC doesn't have one, we'll fall
+	 * back to using the debug control register.
+	 */
+	ccsr_write4(OCP85XX_RSTCR, 2);
 
-		/* Enable Debug Interrupts in MSR. */
-		mtmsr(mfmsr() | PSL_DE);
+	/* Clear DBCR0, disables debug interrupts and events. */
+	mtspr(SPR_DBCR0, 0);
+	__asm __volatile("isync");
 
-		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
-		    DBCR0_RST_SYSTEM);
-	}
+	/* Enable Debug Interrupts in MSR. */
+	mtmsr(mfmsr() | PSL_DE);
+
+	/* Enable debug interrupts and issue reset. */
+	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
 
 	printf("Reset failed...\n");
 	while (1);

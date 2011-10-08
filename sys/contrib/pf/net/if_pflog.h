@@ -1,5 +1,4 @@
-/* $FreeBSD$ */
-/* $OpenBSD: if_pflog.h,v 1.14 2006/10/25 11:27:01 henning Exp $ */
+/* $OpenBSD: if_pflog.h,v 1.13 2006/10/23 12:46:09 henning Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -26,11 +25,10 @@
  */
 
 #ifndef _NET_IF_PFLOG_H_
-#define _NET_IF_PFLOG_H_
+#define	_NET_IF_PFLOG_H_
 
 #define	PFLOGIFS_MAX	16
 
-#ifdef _KERNEL
 struct pflog_softc {
 #ifdef __FreeBSD__
 	struct ifnet		*sc_ifp;	/* the interface pointer */
@@ -40,9 +38,8 @@ struct pflog_softc {
 	int			sc_unit;
 	LIST_ENTRY(pflog_softc)	sc_list;
 };
-#endif /* _KERNEL */
 
-#define PFLOG_RULESET_NAME_SIZE	16
+#define	PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
 	u_int8_t	length;
@@ -61,9 +58,9 @@ struct pfloghdr {
 	u_int8_t	pad[3];
 };
 
-#define PFLOG_HDRLEN		sizeof(struct pfloghdr)
+#define	PFLOG_HDRLEN		sizeof(struct pfloghdr)
 /* minus pad, also used as a signature */
-#define PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
+#define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
 
 /* XXX remove later when old format logs are no longer needed */
 struct old_pfloghdr {
@@ -74,23 +71,24 @@ struct old_pfloghdr {
 	u_short action;
 	u_short dir;
 };
-#define OLD_PFLOG_HDRLEN	sizeof(struct old_pfloghdr)
+#define	OLD_PFLOG_HDRLEN	sizeof(struct old_pfloghdr)
 
 #ifdef _KERNEL
-
 #ifdef __FreeBSD__
 struct pf_rule;
 struct pf_ruleset;
 struct pfi_kif;
 struct pf_pdesc;
 
+#if 0
 typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
     struct pf_ruleset *, struct pf_pdesc *);
 extern pflog_packet_t *pflog_packet_ptr;
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) do {	\
-	if (pflog_packet_ptr != NULL)		\
-	pflog_packet_ptr(i,a,b,c,d,e,f,g,h);	\
+#endif
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) do {		\
+	if (pflog_packet_ptr != NULL)			\
+		pflog_packet_ptr(i,a,b,c,d,e,f,g,h);    \
 } while (0)
 #else /* ! __FreeBSD__ */
 #if NPFLOG > 0
@@ -98,6 +96,6 @@ extern pflog_packet_t *pflog_packet_ptr;
 #else
 #define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) ((void)0)
 #endif /* NPFLOG > 0 */
-#endif /* __FreeBSD__ */
+#endif
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

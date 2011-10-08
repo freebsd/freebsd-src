@@ -67,7 +67,7 @@ subseg_change (register segT seg, register int subseg)
     {
       seginfo = xcalloc (1, sizeof (*seginfo));
       seginfo->bfd_section = seg;
-      bfd_set_section_userdata (stdoutput, seg, seginfo);
+      (void) bfd_set_section_userdata (stdoutput, seg, seginfo);
     }
 }
 
@@ -169,7 +169,7 @@ subseg_get (const char *segname, int force_new)
       secptr->output_section = secptr;
       seginfo = xcalloc (1, sizeof (*seginfo));
       seginfo->bfd_section = secptr;
-      bfd_set_section_userdata (stdoutput, secptr, seginfo);
+      (void) bfd_set_section_userdata (stdoutput, secptr, seginfo);
     }
   return secptr;
 }

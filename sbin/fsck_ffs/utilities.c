@@ -86,7 +86,7 @@ retry:
 	case S_IFDIR:
 		if (retried)
 			break;
-		
+
 		len = strlen(origname) - 1;
 		if (len > 0 && origname[len] == '/')
 			/* remove trailing slash */

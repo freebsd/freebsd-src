@@ -377,6 +377,12 @@ build_stream(struct archive_read *a)
 
 		/* If no bidder, we're done. */
 		if (best_bidder == NULL) {
+			/* Verify the final pipelin by asking it for some data. */
+			__archive_read_filter_ahead(a->filter, 1, &avail);
+			if (avail < 0) {
+				cleanup_filters(a);
+				return (ARCHIVE_FATAL);
+			}
 			a->archive.compression_name = a->filter->name;
 			a->archive.compression_code = a->filter->code;
 			return (ARCHIVE_OK);
@@ -389,17 +395,11 @@ build_stream(struct archive_read *a)
 		filter->bidder = best_bidder;
 		filter->archive = a;
 		filter->upstream = a->filter;
-		r = (best_bidder->init)(filter);
-		if (r != ARCHIVE_OK) {
-			free(filter);
-			return (r);
-		}
 		a->filter = filter;
-		/* Verify the filter by asking it for some data. */
-		__archive_read_filter_ahead(filter, 1, &avail);
-		if (avail < 0) {
+		r = (best_bidder->init)(a->filter);
+		if (r != ARCHIVE_OK) {
 			cleanup_filters(a);
-			return (ARCHIVE_FATAL);
+			return (r);
 		}
 	}
 }

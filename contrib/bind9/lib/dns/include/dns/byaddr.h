@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.h,v 1.22 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: byaddr.h,v 1.22 2007-06-19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_BYADDR_H
 #define DNS_BYADDR_H 1

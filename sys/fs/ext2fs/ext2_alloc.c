@@ -181,7 +181,7 @@ return ENOSPC;
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
-	int32_t start_lbn, end_lbn, soff, newblk, blkno =0;
+	int32_t start_lbn, end_lbn, soff, newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	vp = ap->a_vp;
@@ -231,7 +231,7 @@ return ENOSPC;
 	 * Find the preferred location for the cluster.
 	 */
 	EXT2_LOCK(ump);
-	pref = ext2_blkpref(ip, start_lbn, soff, sbap, blkno);
+	pref = ext2_blkpref(ip, start_lbn, soff, sbap, 0);
 	/*
 	 * If the block range spans two block maps, get the second map.
 	 */

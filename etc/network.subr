@@ -32,7 +32,7 @@
 
 # ifn_start ifn
 #	Bring up and configure an interface.  If some configuration is
-#	applied print the interface configuration.
+#	applied, print the interface configuration.
 #
 ifn_start()
 {
@@ -44,16 +44,16 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	ipv4_up ${ifn} && cfg=0
-	ipv6_up ${ifn} && cfg=0
-	ipx_up ${ifn} && cfg=0
+	afexists inet && ipv4_up ${ifn} && cfg=0
+	afexists inet6 && ipv6_up ${ifn} && cfg=0
+	afexists ipx && ipx_up ${ifn} && cfg=0
 	childif_create ${ifn} && cfg=0
 
 	return $cfg
 }
 
 # ifn_stop ifn
-#	Shutdown and de-configure an interface.  If action is taken
+#	Shutdown and de-configure an interface.  If action is taken,
 #	print the interface name.
 #
 ifn_stop()
@@ -64,9 +64,9 @@ ifn_stop()
 
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
-	ipx_down ${ifn} && cfg=0
-	ipv6_down ${ifn} && cfg=0
-	ipv4_down ${ifn} && cfg=0
+	afexists ipx && ipx_down ${ifn} && cfg=0
+	afexists inet6 && ipv6_down ${ifn} && cfg=0
+	afexists inet && ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn} && cfg=0
@@ -86,33 +86,38 @@ ifconfig_up()
 	local _cfg _ipv6_opts ifconfig_args
 	_cfg=1
 
+	# Make sure lo0 always comes up.
+	if [ "$1" = "lo0" ]; then
+		_cfg=0
+	fi
+
 	# ifconfig_IF
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
-		ifconfig $1 ${ifconfig_args}
+		eval ifconfig $1 ${ifconfig_args}
 		_cfg=0
 	fi
 
 	# inet6 specific
 	if afexists inet6; then
-		if ipv6if $1; then
-			if checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="-accept_rtadv"
-			fi
-		else
-			if checkyesno ipv6_activate_all_interfaces; then
-				_ipv6_opts="-ifdisabled"
-			else
-				_ipv6_opts="ifdisabled"
-			fi
-
-			# backward compatibility: $ipv6_enable
-			case $ipv6_enable in
-			[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-				_ipv6_opts="${_ipv6_opts} accept_rtadv"
-				;;
-			esac
+		if checkyesno ipv6_activate_all_interfaces; then
+			_ipv6_opts="-ifdisabled"
+		elif [ "$1" != "lo0" ]; then
+			_ipv6_opts="ifdisabled"
 		fi
+
+		# backward compatibility: $ipv6_enable
+		case $ipv6_enable in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+			_ipv6_opts="${_ipv6_opts} accept_rtadv"
+			;;
+		esac
+
+		case $ipv6_cpe_wanif in
+		$1)
+			_ipv6_opts="${_ipv6_opts} -no_radr accept_rtadv"
+		;;
+		esac
 
 		if [ -n "${_ipv6_opts}" ]; then
 			ifconfig $1 inet6 ${_ipv6_opts}
@@ -121,8 +126,16 @@ ifconfig_up()
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
+			# backward compatibility: inet6 keyword
+			case "${ifconfig_args}" in
+			:*|[0-9a-fA-F]*:*)
+				warn "\$ifconfig_$1_ipv6 needs " \
+				    "\"inet6\" keyword for an IPv6 address."
+				ifconfig_args="inet6 ${ifconfig_args}"
+			;;
+			esac
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 ${ifconfig_args}
+			eval ifconfig $1 ${ifconfig_args}
 			_cfg=0
 		fi
 
@@ -132,7 +145,7 @@ ifconfig_up()
 			warn "\$ipv6_ifconfig_$1 is obsolete." \
 			    "  Use ifconfig_$1_ipv6 instead."
 			ifconfig $1 inet6 -ifdisabled
-			ifconfig $1 inet6 ${ifconfig_args}
+			eval ifconfig $1 inet6 ${ifconfig_args}
 			_cfg=0
 		fi
 	fi
@@ -214,8 +227,8 @@ get_if_var()
 }
 
 # _ifconfig_getargs if [af]
-#	Echos the arguments for the supplied interface to stdout.
-#	returns 1 if empty.  In general, ifconfig_getargs should be used
+#	Prints the arguments for the supplied interface to stdout.
+#	Returns 1 if empty.  In general, ifconfig_getargs should be used
 #	outside this file.
 _ifconfig_getargs()
 {
@@ -259,7 +272,7 @@ ifconfig_getargs()
 }
 
 # autoif
-#	Returns 0 if the interface should be automaticly configured at
+#	Returns 0 if the interface should be automatically configured at
 #	boot time and 1 otherwise.
 autoif()
 {
@@ -283,6 +296,10 @@ dhcpif()
 {
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
+
+	if noafif $1; then
+		return 1
+	fi
 
 	for _arg in $_tmpargs; do
 		case $_arg in
@@ -308,6 +325,10 @@ syncdhcpif()
 {
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
+
+	if noafif $1; then
+		return 1
+	fi
 
 	for _arg in $_tmpargs; do
 		case $_arg in
@@ -350,11 +371,8 @@ afexists()
 	_af=$1
 
 	case ${_af} in
-	inet)
-		${SYSCTL_N} net.inet > /dev/null 2>&1
-		;;
-	inet6)
-		${SYSCTL_N} net.inet6 > /dev/null 2>&1
+	inet|inet6)
+		check_kern_features ${_af}
 		;;
 	ipx)
 		${SYSCTL_N} net.ipx > /dev/null 2>&1
@@ -439,7 +457,7 @@ ipv6if()
 
 # ipv6_autoconfif if
 #	Returns 0 if the interface should be configured for IPv6 with
-#	Stateless Address Configuration, 1 otherwise.
+#	Stateless Address Configuration; 1 otherwise.
 ipv6_autoconfif()
 {
 	local _if _tmpargs _arg
@@ -512,6 +530,13 @@ ipv4_up()
 	_if=$1
 	_ret=1
 
+	# Add 127.0.0.1/8 to lo0 unless otherwise specified.
+	if [ "${_if}" = "lo0" ]; then
+		ifconfig_args=`ifconfig_getargs ${_if}`
+		if [ -z "${ifconfig_args}" ]; then
+			ifconfig ${_if} inet 127.0.0.1/8 alias
+		fi
+	fi
 	ifalias_up ${_if} inet && _ret=0
 	ipv4_addrs_common ${_if} alias && _ret=0
 
@@ -1333,38 +1358,14 @@ get_default_if()
 #	Echo decimal number $arg (single digit) in hexadecimal format.
 hexdigit()
 {
-	if [ $1 -lt 10 ]; then
-		echo $1
-	else
-		case $1 in
-		10)	echo a ;;
-		11)	echo b ;;
-		12)	echo c ;;
-		13)	echo d ;;
-		14)	echo e ;;
-		15)	echo f ;;
-		esac
-	fi
+	printf '%x\n' "$1"
 }
 
 # hexprint arg
 #	Echo decimal number $arg (multiple digits) in hexadecimal format.
 hexprint()
 {
-	local val str dig
-	val=$1
-	str=''
-	dig=`hexdigit $((${val} & 15))`
-	str=${dig}${str}
-	val=$((${val} >> 4))
-
-	while [ ${val} -gt 0 ]; do
-		dig=`hexdigit $((${val} & 15))`
-		str=${dig}${str}
-		val=$((${val} >> 4))
-	done
-
-	echo ${str}
+	printf '%x\n' "$1"
 }
 
 is_wired_interface()

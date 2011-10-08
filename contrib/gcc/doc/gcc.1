@@ -219,22 +219,6 @@ in the following sections.
 \&\-Wno\-non\-template\-friend  \-Wold\-style\-cast 
 \&\-Woverloaded\-virtual  \-Wno\-pmf\-conversions 
 \&\-Wsign\-promo\fR
-.IP "\fIObjective-C and Objective\-\*(C+ Language Options\fR" 4
-.IX Item "Objective-C and Objective- Language Options"
-\&\fB\-fconstant\-string\-class=\fR\fIclass-name\fR 
-\&\fB\-fgnu\-runtime  \-fnext\-runtime 
-\&\-fno\-nil\-receivers 
-\&\-fobjc\-call\-cxx\-cdtors 
-\&\-fobjc\-direct\-dispatch 
-\&\-fobjc\-exceptions 
-\&\-fobjc\-gc 
-\&\-freplace\-objc\-classes 
-\&\-fzero\-link 
-\&\-gen\-decls 
-\&\-Wassign\-intercept 
-\&\-Wno\-protocol  \-Wselector 
-\&\-Wstrict\-selector\-match 
-\&\-Wundeclared\-selector\fR
 .IP "\fILanguage Independent Options\fR" 4
 .IX Item "Language Independent Options"
 \&\fB\-fmessage\-length=\fR\fIn\fR  
@@ -815,29 +799,9 @@ C source code which should not be preprocessed.
 .IP "\fIfile\fR\fB.ii\fR" 4
 .IX Item "file.ii"
 \&\*(C+ source code which should not be preprocessed.
-.IP "\fIfile\fR\fB.m\fR" 4
-.IX Item "file.m"
-Objective-C source code.  Note that you must link with the \fIlibobjc\fR
-library to make an Objective-C program work.
-.IP "\fIfile\fR\fB.mi\fR" 4
-.IX Item "file.mi"
-Objective-C source code which should not be preprocessed.
-.IP "\fIfile\fR\fB.mm\fR" 4
-.IX Item "file.mm"
-.PD 0
-.IP "\fIfile\fR\fB.M\fR" 4
-.IX Item "file.M"
-.PD
-Objective\-\*(C+ source code.  Note that you must link with the \fIlibobjc\fR
-library to make an Objective\-\*(C+ program work.  Note that \fB.M\fR refers
-to a literal capital M.
-.IP "\fIfile\fR\fB.mii\fR" 4
-.IX Item "file.mii"
-Objective\-\*(C+ source code which should not be preprocessed.
 .IP "\fIfile\fR\fB.h\fR" 4
 .IX Item "file.h"
-C, \*(C+, Objective-C or Objective\-\*(C+ header file to be turned into a
-precompiled header.
+C, or \*(C+ header file to be turned into a precompiled header.
 .IP "\fIfile\fR\fB.cc\fR" 4
 .IX Item "file.cc"
 .PD 0
@@ -857,16 +821,6 @@ precompiled header.
 \&\*(C+ source code which must be preprocessed.  Note that in \fB.cxx\fR,
 the last two letters must both be literally \fBx\fR.  Likewise,
 \&\fB.C\fR refers to a literal capital C.
-.IP "\fIfile\fR\fB.mm\fR" 4
-.IX Item "file.mm"
-.PD 0
-.IP "\fIfile\fR\fB.M\fR" 4
-.IX Item "file.M"
-.PD
-Objective\-\*(C+ source code which must be preprocessed.
-.IP "\fIfile\fR\fB.mii\fR" 4
-.IX Item "file.mii"
-Objective\-\*(C+ source code which should not be preprocessed.
 .IP "\fIfile\fR\fB.hh\fR" 4
 .IX Item "file.hh"
 .PD 0
@@ -941,8 +895,6 @@ the next \fB\-x\fR option.  Possible values for \fIlanguage\fR are:
 .Vb 9
 \&        c  c-header  c-cpp-output
 \&        c++  c++-header  c++-cpp-output
-\&        objective-c  objective-c-header  objective-c-cpp-output
-\&        objective-c++ objective-c++-header objective-c++-cpp-output
 \&        assembler  assembler-with-cpp
 \&        ada
 \&        f95  f95-cpp-input
@@ -1095,8 +1047,7 @@ languages; or options that are meaningful only for \*(C+ programs.
 .Sh "Options Controlling C Dialect"
 .IX Subsection "Options Controlling C Dialect"
 The following options control the dialect of C (or languages derived
-from C, such as \*(C+, Objective-C and Objective\-\*(C+) that the compiler
-accepts:
+from C, such as \*(C+) that the compiler accepts:
 .IP "\fB\-ansi\fR" 4
 .IX Item "-ansi"
 In C mode, support all \s-1ISO\s0 C90 programs.  In \*(C+ mode,
@@ -1840,251 +1791,6 @@ unsignedness, but the standard mandates the current behavior.
 .Sp
 In this example, G++ will synthesize a default \fBA& operator =
 (const A&);\fR, while cfront will use the user-defined \fBoperator =\fR.
-.Sh "Options Controlling Objective-C and Objective\-\*(C+ Dialects"
-.IX Subsection "Options Controlling Objective-C and Objective- Dialects"
-(\s-1NOTE:\s0 This manual does not describe the Objective-C and Objective\-\*(C+
-languages themselves.  See 
-.PP
-This section describes the command-line options that are only meaningful
-for Objective-C and Objective\-\*(C+ programs, but you can also use most of
-the language-independent \s-1GNU\s0 compiler options.
-For example, you might compile a file \f(CW\*(C`some_class.m\*(C'\fR like this:
-.PP
-.Vb 1
-\&        gcc -g -fgnu-runtime -O -c some_class.m
-.Ve
-.PP
-In this example, \fB\-fgnu\-runtime\fR is an option meant only for
-Objective-C and Objective\-\*(C+ programs; you can use the other options with
-any language supported by \s-1GCC\s0.
-.PP
-Note that since Objective-C is an extension of the C language, Objective-C
-compilations may also use options specific to the C front-end (e.g.,
-\&\fB\-Wtraditional\fR).  Similarly, Objective\-\*(C+ compilations may use
-\&\*(C+\-specific options (e.g., \fB\-Wabi\fR).
-.PP
-Here is a list of options that are \fIonly\fR for compiling Objective-C
-and Objective\-\*(C+ programs:
-.IP "\fB\-fconstant\-string\-class=\fR\fIclass-name\fR" 4
-.IX Item "-fconstant-string-class=class-name"
-Use \fIclass-name\fR as the name of the class to instantiate for each
-literal string specified with the syntax \f(CW\*(C`@"..."\*(C'\fR.  The default
-class name is \f(CW\*(C`NXConstantString\*(C'\fR if the \s-1GNU\s0 runtime is being used, and
-\&\f(CW\*(C`NSConstantString\*(C'\fR if the NeXT runtime is being used (see below).  The
-\&\fB\-fconstant\-cfstrings\fR option, if also present, will override the
-\&\fB\-fconstant\-string\-class\fR setting and cause \f(CW\*(C`@"..."\*(C'\fR literals
-to be laid out as constant CoreFoundation strings.
-.IP "\fB\-fgnu\-runtime\fR" 4
-.IX Item "-fgnu-runtime"
-Generate object code compatible with the standard \s-1GNU\s0 Objective-C
-runtime.  This is the default for most types of systems.
-.IP "\fB\-fnext\-runtime\fR" 4
-.IX Item "-fnext-runtime"
-Generate output compatible with the NeXT runtime.  This is the default
-for NeXT-based systems, including Darwin and Mac \s-1OS\s0 X.  The macro
-\&\f(CW\*(C`_\|_NEXT_RUNTIME_\|_\*(C'\fR is predefined if (and only if) this option is
-used.
-.IP "\fB\-fno\-nil\-receivers\fR" 4
-.IX Item "-fno-nil-receivers"
-Assume that all Objective-C message dispatches (e.g.,
-\&\f(CW\*(C`[receiver message:arg]\*(C'\fR) in this translation unit ensure that the receiver
-is not \f(CW\*(C`nil\*(C'\fR.  This allows for more efficient entry points in the runtime
-to be used.  Currently, this option is only available in conjunction with
-the NeXT runtime on Mac \s-1OS\s0 X 10.3 and later.
-.IP "\fB\-fobjc\-call\-cxx\-cdtors\fR" 4
-.IX Item "-fobjc-call-cxx-cdtors"
-For each Objective-C class, check if any of its instance variables is a
-\&\*(C+ object with a non-trivial default constructor.  If so, synthesize a
-special \f(CW\*(C`\- (id) .cxx_construct\*(C'\fR instance method that will run
-non-trivial default constructors on any such instance variables, in order,
-and then return \f(CW\*(C`self\*(C'\fR.  Similarly, check if any instance variable
-is a \*(C+ object with a non-trivial destructor, and if so, synthesize a
-special \f(CW\*(C`\- (void) .cxx_destruct\*(C'\fR method that will run
-all such default destructors, in reverse order.
-.Sp
-The \f(CW\*(C`\- (id) .cxx_construct\*(C'\fR and/or \f(CW\*(C`\- (void) .cxx_destruct\*(C'\fR methods
-thusly generated will only operate on instance variables declared in the
-current Objective-C class, and not those inherited from superclasses.  It
-is the responsibility of the Objective-C runtime to invoke all such methods
-in an object's inheritance hierarchy.  The \f(CW\*(C`\- (id) .cxx_construct\*(C'\fR methods
-will be invoked by the runtime immediately after a new object
-instance is allocated; the \f(CW\*(C`\- (void) .cxx_destruct\*(C'\fR methods will
-be invoked immediately before the runtime deallocates an object instance.
-.Sp
-As of this writing, only the NeXT runtime on Mac \s-1OS\s0 X 10.4 and later has
-support for invoking the \f(CW\*(C`\- (id) .cxx_construct\*(C'\fR and
-\&\f(CW\*(C`\- (void) .cxx_destruct\*(C'\fR methods.
-.IP "\fB\-fobjc\-direct\-dispatch\fR" 4
-.IX Item "-fobjc-direct-dispatch"
-Allow fast jumps to the message dispatcher.  On Darwin this is
-accomplished via the comm page.
-.IP "\fB\-fobjc\-exceptions\fR" 4
-.IX Item "-fobjc-exceptions"
-Enable syntactic support for structured exception handling in Objective\-C,
-similar to what is offered by \*(C+ and Java.  This option is
-unavailable in conjunction with the NeXT runtime on Mac \s-1OS\s0 X 10.2 and
-earlier.
-.Sp
-.Vb 23
-\&          @try {
-\&            ...
-\&               @throw expr;
-\&            ...
-\&          }
-\&          @catch (AnObjCClass *exc) {
-\&            ...
-\&              @throw expr;
-\&            ...
-\&              @throw;
-\&            ...
-\&          }
-\&          @catch (AnotherClass *exc) {
-\&            ...
-\&          }
-\&          @catch (id allOthers) {
-\&            ...
-\&          }
-\&          @finally {
-\&            ...
-\&              @throw expr;
-\&            ...
-\&          }
-.Ve
-.Sp
-The \f(CW@throw\fR statement may appear anywhere in an Objective-C or
-Objective\-\*(C+ program; when used inside of a \f(CW@catch\fR block, the
-\&\f(CW@throw\fR may appear without an argument (as shown above), in which case
-the object caught by the \f(CW@catch\fR will be rethrown.
-.Sp
-Note that only (pointers to) Objective-C objects may be thrown and
-caught using this scheme.  When an object is thrown, it will be caught
-by the nearest \f(CW@catch\fR clause capable of handling objects of that type,
-analogously to how \f(CW\*(C`catch\*(C'\fR blocks work in \*(C+ and Java.  A
-\&\f(CW\*(C`@catch(id ...)\*(C'\fR clause (as shown above) may also be provided to catch
-any and all Objective-C exceptions not caught by previous \f(CW@catch\fR
-clauses (if any).
-.Sp
-The \f(CW@finally\fR clause, if present, will be executed upon exit from the
-immediately preceding \f(CW\*(C`@try ... @catch\*(C'\fR section.  This will happen
-regardless of whether any exceptions are thrown, caught or rethrown
-inside the \f(CW\*(C`@try ... @catch\*(C'\fR section, analogously to the behavior
-of the \f(CW\*(C`finally\*(C'\fR clause in Java.
-.Sp
-There are several caveats to using the new exception mechanism:
-.RS 4
-.IP "*" 4
-Although currently designed to be binary compatible with \f(CW\*(C`NS_HANDLER\*(C'\fR\-style
-idioms provided by the \f(CW\*(C`NSException\*(C'\fR class, the new
-exceptions can only be used on Mac \s-1OS\s0 X 10.3 (Panther) and later
-systems, due to additional functionality needed in the (NeXT) Objective-C
-runtime.
-.IP "*" 4
-As mentioned above, the new exceptions do not support handling
-types other than Objective-C objects.   Furthermore, when used from
-Objective\-\*(C+, the Objective-C exception model does not interoperate with \*(C+
-exceptions at this time.  This means you cannot \f(CW@throw\fR an exception
-from Objective-C and \f(CW\*(C`catch\*(C'\fR it in \*(C+, or vice versa
-(i.e., \f(CW\*(C`throw ... @catch\*(C'\fR).
-.RE
-.RS 4
-.Sp
-The \fB\-fobjc\-exceptions\fR switch also enables the use of synchronization
-blocks for thread-safe execution:
-.Sp
-.Vb 3
-\&          @synchronized (ObjCClass *guard) {
-\&            ...
-\&          }
-.Ve
-.Sp
-Upon entering the \f(CW@synchronized\fR block, a thread of execution shall
-first check whether a lock has been placed on the corresponding \f(CW\*(C`guard\*(C'\fR
-object by another thread.  If it has, the current thread shall wait until
-the other thread relinquishes its lock.  Once \f(CW\*(C`guard\*(C'\fR becomes available,
-the current thread will place its own lock on it, execute the code contained in
-the \f(CW@synchronized\fR block, and finally relinquish the lock (thereby
-making \f(CW\*(C`guard\*(C'\fR available to other threads).
-.Sp
-Unlike Java, Objective-C does not allow for entire methods to be marked
-\&\f(CW@synchronized\fR.  Note that throwing exceptions out of
-\&\f(CW@synchronized\fR blocks is allowed, and will cause the guarding object
-to be unlocked properly.
-.RE
-.IP "\fB\-fobjc\-gc\fR" 4
-.IX Item "-fobjc-gc"
-Enable garbage collection (\s-1GC\s0) in Objective-C and Objective\-\*(C+ programs.
-.IP "\fB\-freplace\-objc\-classes\fR" 4
-.IX Item "-freplace-objc-classes"
-Emit a special marker instructing \fB\f(BIld\fB\|(1)\fR not to statically link in
-the resulting object file, and allow \fB\f(BIdyld\fB\|(1)\fR to load it in at
-run time instead.  This is used in conjunction with the Fix-and-Continue
-debugging mode, where the object file in question may be recompiled and
-dynamically reloaded in the course of program execution, without the need
-to restart the program itself.  Currently, Fix-and-Continue functionality
-is only available in conjunction with the NeXT runtime on Mac \s-1OS\s0 X 10.3
-and later.
-.IP "\fB\-fzero\-link\fR" 4
-.IX Item "-fzero-link"
-When compiling for the NeXT runtime, the compiler ordinarily replaces calls
-to \f(CW\*(C`objc_getClass("...")\*(C'\fR (when the name of the class is known at
-compile time) with static class references that get initialized at load time,
-which improves run-time performance.  Specifying the \fB\-fzero\-link\fR flag
-suppresses this behavior and causes calls to \f(CW\*(C`objc_getClass("...")\*(C'\fR
-to be retained.  This is useful in Zero-Link debugging mode, since it allows
-for individual class implementations to be modified during program execution.
-.IP "\fB\-gen\-decls\fR" 4
-.IX Item "-gen-decls"
-Dump interface declarations for all classes seen in the source file to a
-file named \fI\fIsourcename\fI.decl\fR.
-.IP "\fB\-Wassign\-intercept\fR" 4
-.IX Item "-Wassign-intercept"
-Warn whenever an Objective-C assignment is being intercepted by the
-garbage collector.
-.IP "\fB\-Wno\-protocol\fR" 4
-.IX Item "-Wno-protocol"
-If a class is declared to implement a protocol, a warning is issued for
-every method in the protocol that is not implemented by the class.  The
-default behavior is to issue a warning for every method not explicitly
-implemented in the class, even if a method implementation is inherited
-from the superclass.  If you use the \fB\-Wno\-protocol\fR option, then
-methods inherited from the superclass are considered to be implemented,
-and no warning is issued for them.
-.IP "\fB\-Wselector\fR" 4
-.IX Item "-Wselector"
-Warn if multiple methods of different types for the same selector are
-found during compilation.  The check is performed on the list of methods
-in the final stage of compilation.  Additionally, a check is performed
-for each selector appearing in a \f(CW\*(C`@selector(...)\*(C'\fR
-expression, and a corresponding method for that selector has been found
-during compilation.  Because these checks scan the method table only at
-the end of compilation, these warnings are not produced if the final
-stage of compilation is not reached, for example because an error is
-found during compilation, or because the \fB\-fsyntax\-only\fR option is
-being used.
-.IP "\fB\-Wstrict\-selector\-match\fR" 4
-.IX Item "-Wstrict-selector-match"
-Warn if multiple methods with differing argument and/or return types are
-found for a given selector when attempting to send a message using this
-selector to a receiver of type \f(CW\*(C`id\*(C'\fR or \f(CW\*(C`Class\*(C'\fR.  When this flag
-is off (which is the default behavior), the compiler will omit such warnings
-if any differences found are confined to types which share the same size
-and alignment.
-.IP "\fB\-Wundeclared\-selector\fR" 4
-.IX Item "-Wundeclared-selector"
-Warn if a \f(CW\*(C`@selector(...)\*(C'\fR expression referring to an
-undeclared selector is found.  A selector is considered undeclared if no
-method with that name has been declared before the
-\&\f(CW\*(C`@selector(...)\*(C'\fR expression, either explicitly in an
-\&\f(CW@interface\fR or \f(CW@protocol\fR declaration, or implicitly in
-an \f(CW@implementation\fR section.  This option always performs its
-checks as soon as a \f(CW\*(C`@selector(...)\*(C'\fR expression is found,
-while \fB\-Wselector\fR only performs its checks in the final stage of
-compilation.  This also enforces the coding style convention
-that methods and selectors must be declared before being used.
-.IP "\fB\-print\-objc\-runtime\-info\fR" 4
-.IX Item "-print-objc-runtime-info"
-Generate C header describing the largest structure that is passed by
-value, if any.
 .Sh "Options to Control Diagnostic Messages Formatting"
 .IX Subsection "Options to Control Diagnostic Messages Formatting"
 Traditionally, diagnostic messages have been formatted irrespective of
@@ -2136,8 +1842,7 @@ two forms, whichever is not the default.
 .PP
 The following options control the amount and kinds of warnings produced
 by \s-1GCC\s0; for further, language-specific options also refer to
-\&\fB\*(C+ Dialect Options\fR and \fBObjective-C and Objective\-\*(C+ Dialect
-Options\fR.
+\&\fB\*(C+ Dialect Options\fR.
 .IP "\fB\-fsyntax\-only\fR" 4
 .IX Item "-fsyntax-only"
 Check the code for syntax errors, but don't do anything beyond that.
@@ -2287,8 +1992,8 @@ requiring a non-null value by the \f(CW\*(C`nonnull\*(C'\fR function attribute.
 .Sp
 \&\fB\-Wnonnull\fR is included in \fB\-Wall\fR and \fB\-Wformat\fR.  It
 can be disabled with the \fB\-Wno\-nonnull\fR option.
-.IP "\fB\-Winit\-self\fR (C, \*(C+, Objective-C and Objective\-\*(C+ only)" 4
-.IX Item "-Winit-self (C, , Objective-C and Objective- only)"
+.IP "\fB\-Winit\-self\fR (C, \*(C+ only)" 4
+.IX Item "-Winit-self (C, only)"
 Warn about uninitialized variables which are initialized with themselves.
 Note this option can only be used with the \fB\-Wuninitialized\fR option,
 which in turn only works with \fB\-O1\fR and above.
@@ -2339,8 +2044,8 @@ bracketed, but that for \fBb\fR is fully bracketed.
 .Ve
 .Sp
 This warning is enabled by \fB\-Wall\fR.
-.IP "\fB\-Wmissing\-include\-dirs\fR (C, \*(C+, Objective-C and Objective\-\*(C+ only)" 4
-.IX Item "-Wmissing-include-dirs (C, , Objective-C and Objective- only)"
+.IP "\fB\-Wmissing\-include\-dirs\fR (C and \*(C+ only)" 4
+.IX Item "-Wmissing-include-dirs (C, only)"
 Warn if a user-supplied include directory does not exist.
 .IP "\fB\-Wparentheses\fR" 4
 .IX Item "-Wparentheses"
@@ -2675,8 +2380,7 @@ All of the above \fB\-W\fR options combined.  This enables all the
 warnings about constructions that some users consider questionable, and
 that are easy to avoid (or modify to prevent the warning), even in
 conjunction with macros.  This also enables some language-specific
-warnings described in \fB\*(C+ Dialect Options\fR and
-\&\fBObjective-C and Objective\-\*(C+ Dialect Options\fR.
+warnings described in \fB\*(C+ Dialect Options\fR.
 .PP
 The following \fB\-W...\fR options are not implied by \fB\-Wall\fR.
 Some of them warn about constructions that users generally do not
@@ -3224,8 +2928,8 @@ itself is likely to take inordinate amounts of time.
 .IP "\fB\-Wpointer\-sign\fR" 4
 .IX Item "-Wpointer-sign"
 Warn for pointer argument passing or assignment with different signedness.
-This option is only supported for C and Objective\-C.  It is implied by
-\&\fB\-Wall\fR and by \fB\-pedantic\fR, which can be disabled with
+This option is only supported for C.  It is implied by \&\fB\-Wall\fR
+and by \fB\-pedantic\fR, which can be disabled with
 \&\fB\-Wno\-pointer\-sign\fR.
 .IP "\fB\-Werror\fR" 4
 .IX Item "-Werror"
@@ -6294,12 +5998,10 @@ current directory.
 .PD 0
 .IP "\fB\-x c++\fR" 4
 .IX Item "-x c++"
-.IP "\fB\-x objective-c\fR" 4
-.IX Item "-x objective-c"
 .IP "\fB\-x assembler-with-cpp\fR" 4
 .IX Item "-x assembler-with-cpp"
 .PD
-Specify the source language: C, \*(C+, Objective\-C, or assembly.  This has
+Specify the source language: C, \*(C+, or assembly.  This has
 nothing to do with standards conformance or extensions; it merely
 selects which base syntax to expect.  If you give none of these options,
 cpp will deduce the language from the extension of the source file:
@@ -6728,10 +6430,6 @@ ordinary object file, it is linked in the usual fashion.  The only
 difference between using an \fB\-l\fR option and specifying a file name
 is that \fB\-l\fR surrounds \fIlibrary\fR with \fBlib\fR and \fB.a\fR
 and searches several directories.
-.IP "\fB\-lobjc\fR" 4
-.IX Item "-lobjc"
-You need this special case of the \fB\-l\fR option in order to
-link an Objective-C or Objective\-\*(C+ program.
 .IP "\fB\-nostartfiles\fR" 4
 .IX Item "-nostartfiles"
 Do not use the standard system startup files when linking.
@@ -13035,8 +12733,6 @@ preprocessor.
 .IX Item "C_INCLUDE_PATH"
 .IP "\fB\s-1CPLUS_INCLUDE_PATH\s0\fR" 4
 .IX Item "CPLUS_INCLUDE_PATH"
-.IP "\fB\s-1OBJC_INCLUDE_PATH\s0\fR" 4
-.IX Item "OBJC_INCLUDE_PATH"
 .PD
 Each variable's value is a list of directories separated by a special
 character, much like \fB\s-1PATH\s0\fR, in which to look for header files.

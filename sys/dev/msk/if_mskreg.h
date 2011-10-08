@@ -144,6 +144,8 @@
 #define DEVICEID_MRVL_436A	0x436A
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
+#define DEVICEID_MRVL_436D	0x436D
+#define DEVICEID_MRVL_4370	0x4370
 #define DEVICEID_MRVL_4380	0x4380
 #define DEVICEID_MRVL_4381	0x4381
 
@@ -320,6 +322,9 @@
 #define PCI_OS_SPD_X66		1	/* PCI-X 66MHz Bus */
 #define PCI_OS_SPD_X100		2	/* PCI-X 100MHz Bus */
 #define PCI_OS_SPD_X133		3	/* PCI-X 133MHz Bus */
+
+/* PCI_OUR_REG_3	32 bit	Our Register 3 (Yukon-ECU only) */
+#define	PCI_CLK_MACSEC_DIS	BIT_17	/* Disable Clock MACSec. */
 
 /* PCI_OUR_REG_4	32 bit	Our Register 4 (Yukon-ECU only) */
 #define	PCI_TIMER_VALUE_MSK	(0xff<<16)	/* Bit 23..16:	Timer Value Mask */
@@ -677,6 +682,7 @@
 /* ASF Subsystem Registers (Yukon-2 only) */
 #define B28_Y2_SMB_CONFIG	0x0e40	/* 32 bit ASF SMBus Config Register */
 #define B28_Y2_SMB_CSD_REG	0x0e44	/* 32 bit ASF SMB Control/Status/Data */
+#define B28_Y2_CPU_WDOG		0x0e48	/* 32 bit Watchdog Register */
 #define B28_Y2_ASF_IRQ_V_BASE	0x0e60	/* 32 bit ASF IRQ Vector Base */
 #define B28_Y2_ASF_STAT_CMD	0x0e68	/* 32 bit ASF Status and Command Reg */
 #define B28_Y2_ASF_HCU_CCSR	0x0e68	/* 32 bit ASF HCU CCSR (Yukon EX) */
@@ -917,6 +923,10 @@
 
 #define	CHIP_REV_YU_EX_A0	1 /* Chip Rev. for Yukon-2 EX A0 */
 #define	CHIP_REV_YU_EX_B0	2 /* Chip Rev. for Yukon-2 EX B0 */
+
+#define	CHIP_REV_YU_SU_A0	0 /* Chip Rev. for Yukon-2 SUPR A0 */
+#define	CHIP_REV_YU_SU_B0	1 /* Chip Rev. for Yukon-2 SUPR B0 */
+#define	CHIP_REV_YU_SU_B1	3 /* Chip Rev. for Yukon-2 SUPR B1 */
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */

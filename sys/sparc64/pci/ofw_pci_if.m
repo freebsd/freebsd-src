@@ -1,5 +1,6 @@
 #-
 # Copyright (c) 2001, 2003 by Thomas Moestl <tmm@FreeBSD.org>
+# Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,28 +27,22 @@
 
 #include <sys/bus.h>
 
-#include <dev/ofw/openfirm.h>
-
-#include <sparc64/pci/ofw_pci.h>
-
 INTERFACE ofw_pci;
 
 CODE {
-	static ofw_pci_intr_pending_t ofw_pci_default_intr_pending;
+	static ofw_pci_setup_device_t ofw_pci_default_setup_device;
 
-	static int
-	ofw_pci_default_intr_pending(device_t dev, ofw_pci_intr_t intr)
+	static void
+	ofw_pci_default_setup_device(device_t dev, device_t child)
 	{
 
 		if (device_get_parent(dev) != NULL)
-			return (OFW_PCI_INTR_PENDING(device_get_parent(dev),
-			    intr));
-		return (0);
+			OFW_PCI_SETUP_DEVICE(device_get_parent(dev), child);
 	}
 };
 
-# Return whether an interrupt request is pending for the INO intr.
-METHOD int intr_pending {
+# Setup a device further upward in the tree.
+METHOD void setup_device {
 	device_t dev;
-	ofw_pci_intr_t intr;
-} DEFAULT ofw_pci_default_intr_pending;
+	device_t child;
+} DEFAULT ofw_pci_default_setup_device;

@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -90,7 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
+/* Features supported by all backends.  TSO and LRO can be negotiated */
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
@@ -157,6 +160,8 @@ static int  xn_ioctl(struct ifnet *, u_long, caddr_t);
 static void xn_ifinit_locked(struct netfront_info *);
 static void xn_ifinit(void *);
 static void xn_stop(struct netfront_info *);
+static void xn_query_features(struct netfront_info *np);
+static int  xn_configure_features(struct netfront_info *np);
 #ifdef notyet
 static void xn_watchdog(struct ifnet *);
 #endif
@@ -172,7 +177,7 @@ static int talk_to_backend(device_t dev, struct netfront_info *info);
 static int create_netdev(device_t dev);
 static void netif_disconnect_backend(struct netfront_info *info);
 static int setup_device(device_t dev, struct netfront_info *info);
-static void end_access(int ref, void *page);
+static void free_ring(int *ref, void *ring_ptr_ref);
 
 static int  xn_ifmedia_upd(struct ifnet *ifp);
 static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
@@ -259,6 +264,7 @@ struct netfront_info {
 	u_int irq;
 	u_int copying_receiver;
 	u_int carrier;
+	u_int maxfrags;
 		
 	/* Receive-ring batched refills. */
 #define RX_MIN_TARGET 32
@@ -403,11 +409,33 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 {
 	int error, i;
 	char *s, *e, *macstr;
+	const char *path;
 
-	error = xs_read(XST_NIL, xenbus_get_node(dev), "mac", NULL,
-	    (void **) &macstr);
-	if (error)
+	path = xenbus_get_node(dev);
+	error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
+	if (error == ENOENT) {
+		/*
+		 * Deal with missing mac XenStore nodes on devices with
+		 * HVM emulation (the 'ioemu' configuration attribute)
+		 * enabled.
+		 *
+		 * The HVM emulator may execute in a stub device model
+		 * domain which lacks the permission, only given to Dom0,
+		 * to update the guest's XenStore tree.  For this reason,
+		 * the HVM emulator doesn't even attempt to write the
+		 * front-side mac node, even when operating in Dom0.
+		 * However, there should always be a mac listed in the
+		 * backend tree.  Fallback to this version if our query
+		 * of the front side XenStore location doesn't find
+		 * anything.
+		 */
+		path = xenbus_get_otherend_path(dev);
+		error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
+	}
+	if (error != 0) {
+		xenbus_dev_fatal(dev, error, "parsing %s/mac", path);
 		return (error);
+	}
 
 	s = macstr;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -448,7 +476,7 @@ netfront_attach(device_t dev)
 	err = create_netdev(dev);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "creating netdev");
-		return err;
+		return (err);
 	}
 
 #if __FreeBSD_version >= 700000
@@ -458,9 +486,21 @@ netfront_attach(device_t dev)
 	    &xn_enable_lro, 0, "Large Receive Offload");
 #endif
 
-	return 0;
+	return (0);
 }
 
+static int
+netfront_suspend(device_t dev)
+{
+	struct netfront_info *info = device_get_softc(dev);
+
+	XN_RX_LOCK(info);
+	XN_TX_LOCK(info);
+	netfront_carrier_off(info);
+	XN_TX_UNLOCK(info);
+	XN_RX_UNLOCK(info);
+	return (0);
+}
 
 /**
  * We are reconnecting to the backend, due to a suspend/resume, or a backend
@@ -625,6 +665,7 @@ setup_device(device_t dev, struct netfront_info *info)
 	return (error);
 }
 
+#ifdef INET
 /**
  * If this interface has an ipv4 address, send an arp for it. This
  * helps to get the network going again after migrating hosts.
@@ -642,11 +683,12 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 		}
 	}
 }
+#endif
 
 /**
  * Callback received when the backend's state changes.
  */
-static int
+static void
 netfront_backend_changed(device_t dev, XenbusState newstate)
 {
 	struct netfront_info *sc = device_get_softc(dev);
@@ -668,13 +710,14 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
+#ifdef INET
 		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
 		break;
 	}
-	return (0);
 }
 
 static void
@@ -744,10 +787,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		 */
 		if (((uintptr_t)m) <= NET_TX_RING_SIZE)
 			continue;
-		gnttab_grant_foreign_access_ref(np->grant_tx_ref[i],
-		    xenbus_get_otherend_id(np->xbdev),
-		    virt_to_mfn(mtod(m, vm_offset_t)),
-		    GNTMAP_readonly);
+		gnttab_end_foreign_access_ref(np->grant_tx_ref[i]);
 		gnttab_release_grant_reference(&np->gref_tx_head,
 		    np->grant_tx_ref[i]);
 		np->grant_tx_ref[i] = GRANT_REF_INVALID;
@@ -756,7 +796,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
 			panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
 		}
-		m_freem(m);
+		m_free(m);
 	}
 }
 
@@ -1489,7 +1529,7 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * deal with nfrags > MAX_TX_REQ_FRAGS, which is a quirk of
 	 * the Linux network stack.
 	 */
-	if (nfrags > MAX_TX_REQ_FRAGS) {
+	if (nfrags > sc->maxfrags) {
 		m = m_defrag(m_head, M_DONTWAIT);
 		if (!m) {
 			/*
@@ -1725,12 +1765,15 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct netfront_info *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
+#ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
@@ -1740,8 +1783,11 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			XN_UNLOCK(sc);	
 		} else {
 			XN_UNLOCK(sc);	
+#endif
 			error = ether_ioctl(ifp, cmd, data);
+#ifdef INET
 		}
+#endif
 		break;
 	case SIOCSIFMTU:
 		/* XXX can we alter the MTU on a VN ?*/
@@ -1900,6 +1946,8 @@ network_connect(struct netfront_info *np)
 		return (error);
 	
 	/* Step 1: Reinitialise variables. */
+	xn_query_features(np);
+	xn_configure_features(np);
 	netif_release_tx_bufs(np);
 
 	/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
@@ -1967,6 +2015,67 @@ show_device(struct netfront_info *sc)
 #endif
 }
 
+static void
+xn_query_features(struct netfront_info *np)
+{
+	int val;
+
+	device_printf(np->xbdev, "backend features:");
+
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-sg", NULL, "%d", &val) < 0)
+		val = 0;
+
+	np->maxfrags = 1;
+	if (val) {
+		np->maxfrags = MAX_TX_REQ_FRAGS;
+		printf(" feature-sg");
+	}
+
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-gso-tcpv4", NULL, "%d", &val) < 0)
+		val = 0;
+
+	np->xn_ifp->if_capabilities &= ~(IFCAP_TSO4|IFCAP_LRO);
+	if (val) {
+		np->xn_ifp->if_capabilities |= IFCAP_TSO4|IFCAP_LRO;
+		printf(" feature-gso-tcp4");
+	}
+
+	printf("\n");
+}
+
+static int
+xn_configure_features(struct netfront_info *np)
+{
+	int err;
+
+	err = 0;
+#if __FreeBSD_version >= 700000
+	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
+		tcp_lro_free(&np->xn_lro);
+#endif
+    	np->xn_ifp->if_capenable =
+	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4);
+	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
+#if __FreeBSD_version >= 700000
+	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) != 0) {
+		err = tcp_lro_init(&np->xn_lro);
+		if (err) {
+			device_printf(np->xbdev, "LRO initialization failed\n");
+		} else {
+			np->xn_lro.ifp = np->xn_ifp;
+			np->xn_ifp->if_capenable |= IFCAP_LRO;
+		}
+	}
+	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) != 0) {
+		np->xn_ifp->if_capenable |= IFCAP_TSO4;
+		np->xn_ifp->if_hwassist |= CSUM_TSO;
+	}
+#endif
+	return (err);
+}
+
 /** Create a network device.
  * @param handle device handle
  */
@@ -1991,7 +2100,7 @@ create_netdev(device_t dev)
 	np->rx_target     = RX_MIN_TARGET;
 	np->rx_min_target = RX_MIN_TARGET;
 	np->rx_max_target = RX_MAX_TARGET;
-	
+
 	/* Initialise {tx,rx}_skbs to be a free chain containing every entry. */
 	for (i = 0; i <= NET_TX_RING_SIZE; i++) {
 		np->tx_mbufs[i] = (void *) ((u_long) i+1);
@@ -2021,11 +2130,8 @@ create_netdev(device_t dev)
 	}
 	
 	err = xen_net_read_mac(dev, np->mac);
-	if (err) {
-		xenbus_dev_fatal(dev, err, "parsing %s/mac",
-		    xenbus_get_node(dev));
+	if (err)
 		goto out;
-	}
 	
 	/* Set up ifnet structure */
 	ifp = np->xn_ifp = if_alloc(IFT_ETHER);
@@ -2044,19 +2150,6 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
-#if __FreeBSD_version >= 700000
-	ifp->if_capabilities |= IFCAP_TSO4;
-	if (xn_enable_lro) {
-		int err = tcp_lro_init(&np->xn_lro);
-		if (err) {
-			device_printf(dev, "LRO initialization failed\n");
-			goto exit;
-		}
-		np->xn_lro.ifp = ifp;
-		ifp->if_capabilities |= IFCAP_LRO;
-	}
-#endif
-    	ifp->if_capenable = ifp->if_capabilities;
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
@@ -2067,8 +2160,7 @@ create_netdev(device_t dev)
 exit:
 	gnttab_free_grant_references(np->gref_tx_head);
 out:
-	panic("do something smart");
-
+	return (err);
 }
 
 /**
@@ -2122,12 +2214,8 @@ netif_disconnect_backend(struct netfront_info *info)
 	XN_TX_UNLOCK(info);
 	XN_RX_UNLOCK(info);
 
-	end_access(info->tx_ring_ref, info->tx.sring);
-	end_access(info->rx_ring_ref, info->rx.sring);
-	info->tx_ring_ref = GRANT_REF_INVALID;
-	info->rx_ring_ref = GRANT_REF_INVALID;
-	info->tx.sring = NULL;
-	info->rx.sring = NULL;
+	free_ring(&info->tx_ring_ref, &info->tx.sring);
+	free_ring(&info->rx_ring_ref, &info->rx.sring);
 
 	if (info->irq)
 		unbind_from_irqhandler(info->irq);
@@ -2135,12 +2223,17 @@ netif_disconnect_backend(struct netfront_info *info)
 	info->irq = 0;
 }
 
-
 static void
-end_access(int ref, void *page)
+free_ring(int *ref, void *ring_ptr_ref)
 {
-	if (ref != GRANT_REF_INVALID)
-		gnttab_end_foreign_access(ref, page);
+	void **ring_ptr_ptr = ring_ptr_ref;
+
+	if (*ref != GRANT_REF_INVALID) {
+		/* This API frees the associated storage. */
+		gnttab_end_foreign_access(*ref, *ring_ptr_ptr);
+		*ref = GRANT_REF_INVALID;
+	}
+	*ring_ptr_ptr = NULL;
 }
 
 static int
@@ -2163,7 +2256,7 @@ static device_method_t netfront_methods[] = {
 	DEVMETHOD(device_attach,        netfront_attach), 
 	DEVMETHOD(device_detach,        netfront_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
+	DEVMETHOD(device_suspend,       netfront_suspend), 
 	DEVMETHOD(device_resume,        netfront_resume), 
  
 	/* Xenbus interface */

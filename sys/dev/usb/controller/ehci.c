@@ -259,6 +259,8 @@ ehci_init(ehci_softc_t *sc)
 	usb_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
 	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
 #ifdef USB_DEBUG
 	if (ehciiaadbug)
 		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
@@ -268,8 +270,6 @@ ehci_init(ehci_softc_t *sc)
 		ehci_dump_regs(sc);
 	}
 #endif
-
-	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 
 	version = EHCI_HCIVERSION(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 	device_printf(sc->sc_bus.bdev, "EHCI version %x.%x\n",
@@ -1183,19 +1183,21 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 static void
 ehci_data_toggle_update(struct usb_xfer *xfer, uint16_t actlen, uint16_t xlen)
 {
-	uint8_t full = (actlen == xlen);
+	uint16_t rem;
 	uint8_t dt;
 
 	/* count number of full packets */
 	dt = (actlen / xfer->max_packet_size) & 1;
 
-	/* cumpute remainder */
-	actlen = actlen % xfer->max_packet_size;
+	/* compute remainder */
+	rem = actlen % xfer->max_packet_size;
 
-	if (actlen > 0)
+	if (rem > 0)
 		dt ^= 1;	/* short packet at the end */
-	else if (!full)
+	else if (actlen != xlen)
 		dt ^= 1;	/* zero length packet at the end */
+	else if (xlen == 0)
+		dt ^= 1;	/* zero length transfer */
 
 	xfer->endpoint->toggle_next ^= dt;
 }

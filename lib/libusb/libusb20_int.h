@@ -226,6 +226,8 @@ struct libusb20_device {
 	uint8_t	usb_mode;
 	uint8_t	usb_speed;
 	uint8_t	is_opened;
+	uint8_t parent_address;
+	uint8_t parent_port;
 
 	char	usb_desc[96];
 };

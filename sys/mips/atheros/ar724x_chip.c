@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -50,6 +45,7 @@ __FBSDID("$FreeBSD$");
  
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
@@ -59,7 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar724xreg.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar724x_chip.h>
+
+#include <mips/sentry5/s5reg.h>
 
 static void
 ar724x_chip_detect_mem_size(void)
@@ -145,10 +144,61 @@ ar724x_chip_ddr_flush_ge1(void)
 	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
 }
 
+static void
+ar724x_chip_ddr_flush_ip2(void)
+{
+	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_PCIE);
+}
+
+
 static uint32_t
 ar724x_chip_get_eth_pll(unsigned int mac, int speed)
 {
         return 0;
+}
+
+static void
+ar724x_chip_init_usb_peripheral(void)
+{
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7240:
+
+			ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
+			    AR724X_RESET_USB_HOST);
+			DELAY(1000);
+
+			ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
+			    AR724X_RESET_USB_HOST);
+			DELAY(1000);
+
+			/*
+			 * WAR for HW bug. Here it adjusts the duration
+			 * between two SOFS.
+			 */
+			ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
+			    (3 << USB_CTRL_FLADJ_A0_SHIFT));
+
+			break;
+
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+
+			ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL);
+			DELAY(100);
+
+			ar71xx_device_start(AR724X_RESET_USB_HOST);
+			DELAY(100);
+
+			ar71xx_device_start(AR724X_RESET_USB_PHY);
+			DELAY(100);
+
+			break;
+
+		default:
+			/* fallthrough */
+			break;
+	}
 }
 
 struct ar71xx_cpu_def ar724x_chip_def = {
@@ -162,6 +212,6 @@ struct ar71xx_cpu_def ar724x_chip_def = {
         &ar724x_chip_ddr_flush_ge0,
         &ar724x_chip_ddr_flush_ge1,
         &ar724x_chip_get_eth_pll,
-	NULL,		/* ar71xx_chip_irq_flush_ip2 */
-	NULL		/* ar71xx_chip_init_usb_peripheral */
+        &ar724x_chip_ddr_flush_ip2,
+	&ar724x_chip_init_usb_peripheral
 };

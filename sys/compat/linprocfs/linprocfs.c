@@ -221,6 +221,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
 	int hw_model[2];
 	char model[128];
+	uint64_t freq;
 	size_t size;
 	int class, fqmhz, fqkhz;
 	int i;
@@ -303,9 +304,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		if (cpu_feature & (1 << i))
 			sbuf_printf(sb, " %s", flags[i]);
 	sbuf_cat(sb, "\n");
-	if (class >= 5) {
-		fqmhz = (tsc_freq + 4999) / 1000000;
-		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq != 0) {
+		fqmhz = (freq + 4999) / 1000000;
+		fqkhz = ((freq + 4999) / 10000) % 100;
 		sbuf_printf(sb,
 		    "cpu MHz\t\t: %d.%02d\n"
 		    "bogomips\t: %d.%02d\n",
@@ -497,6 +499,33 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    cnt.v_intr,
 	    cnt.v_swtch,
 	    (long long)boottime.tv_sec);
+	return (0);
+}
+
+static int
+linprocfs_doswaps(PFS_FILL_ARGS)
+{
+	struct xswdev xsw;
+	uintmax_t total, used;
+	int n;
+	char devname[SPECNAMELEN + 1];
+
+	sbuf_printf(sb, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+	mtx_lock(&Giant);
+	for (n = 0; ; n++) {
+		if (swap_dev_info(n, &xsw, devname, sizeof(devname)) != 0)
+			break;
+		total = (uintmax_t)xsw.xsw_nblks * PAGE_SIZE / 1024;
+		used  = (uintmax_t)xsw.xsw_used * PAGE_SIZE / 1024;
+
+		/*
+		 * The space and not tab after the device name is on
+		 * purpose.  Linux does so.
+		 */
+		sbuf_printf(sb, "/dev/%-34s unknown\t\t%jd\t%jd\t-1\n",
+		    devname, total, used);
+	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -740,7 +769,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
 	} else {
-		PROC_SLOCK(p);
 		switch(p->p_state) {
 		case PRS_NEW:
 			state = "I (idle)";
@@ -770,7 +798,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 			state = "? (unknown)";
 			break;
 		}
-		PROC_SUNLOCK(p);
 	}
 
 	fill_kinfo_proc(p, &kp);
@@ -1049,6 +1076,15 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 		PROC_UNLOCK(p);
 		return (ret);
 	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
 	if (p->p_args != NULL) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 		PROC_UNLOCK(p);
@@ -1072,6 +1108,15 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 	if ((ret = p_cansee(td, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (ret);
+	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
 	}
 	PROC_UNLOCK(p);
 
@@ -1471,6 +1516,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(root, "stat", &linprocfs_dostat,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "swaps", &linprocfs_doswaps,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "uptime", &linprocfs_douptime,
 	    NULL, NULL, NULL, PFS_RD);

@@ -96,6 +96,8 @@
 #define	AXE_CMD_READ_VLAN_CTRL			0x4027
 #define	AXE_CMD_WRITE_VLAN_CTRL			0x4028
 
+#define	AXE_772B_CMD_RXCTL_WRITE_CFG		0x012A
+
 #define	AXE_SW_RESET_CLEAR			0x00
 #define	AXE_SW_RESET_RR				0x01
 #define	AXE_SW_RESET_RT				0x02
@@ -132,12 +134,18 @@
 #define	AXE_178_RXCMD_KEEP_INVALID_CRC		0x0004
 #define	AXE_RXCMD_BROADCAST			0x0008
 #define	AXE_RXCMD_MULTICAST			0x0010
+#define	AXE_RXCMD_ACCEPT_RUNT			0x0040	/* AX88772B */
 #define	AXE_RXCMD_ENABLE			0x0080
 #define	AXE_178_RXCMD_MFB_MASK			0x0300
 #define	AXE_178_RXCMD_MFB_2048			0x0000
 #define	AXE_178_RXCMD_MFB_4096			0x0100
 #define	AXE_178_RXCMD_MFB_8192			0x0200
 #define	AXE_178_RXCMD_MFB_16384			0x0300
+#define	AXE_772B_RXCMD_HDR_TYPE_0		0x0000
+#define	AXE_772B_RXCMD_HDR_TYPE_1		0x0100
+#define	AXE_772B_RXCMD_IPHDR_ALIGN		0x0200
+#define	AXE_772B_RXCMD_ADD_CHKSUM		0x0400
+#define	AXE_RXCMD_LOOPBACK			0x1000	/* AX88772A/AX88772B */
 
 #define	AXE_PHY_SEL_PRI		1
 #define	AXE_PHY_SEL_SEC		0
@@ -176,7 +184,7 @@
 #define	AXE_PHY_MODE_REALTEK_8251CL	0x0E
 #define	AXE_PHY_MODE_ATTANSIC		0x40
 
-/* AX88772A only. */
+/* AX88772A/AX88772B only. */
 #define	AXE_SW_PHY_SELECT_EXT		0x0000
 #define	AXE_SW_PHY_SELECT_EMBEDDED	0x0001
 #define	AXE_SW_PHY_SELECT_AUTO		0x0002
@@ -198,6 +206,24 @@
 
 #define	AXE_CONFIG_IDX		0	/* config number 1 */
 #define	AXE_IFACE_IDX		0
+
+/* EEPROM Map. */
+#define	AXE_EEPROM_772B_NODE_ID		0x04
+#define	AXE_EEPROM_772B_PHY_PWRCFG	0x18
+
+struct ax88772b_mfb {
+	int	byte_cnt;
+	int	threshold;
+	int	size;
+};
+#define	AX88772B_MFB_2K		0
+#define	AX88772B_MFB_4K		1
+#define	AX88772B_MFB_6K		2
+#define	AX88772B_MFB_8K		3
+#define	AX88772B_MFB_16K	4
+#define	AX88772B_MFB_20K	5
+#define	AX88772B_MFB_24K	6
+#define	AX88772B_MFB_32K	7
 
 struct axe_sframe_hdr {
 	uint16_t len;
@@ -228,6 +254,7 @@ struct axe_softc {
 
 	uint8_t			sc_ipgs[3];
 	uint8_t			sc_phyaddrs[2];
+	uint16_t		sc_pwrcfg;
 	int			sc_tx_bufsz;
 };
 

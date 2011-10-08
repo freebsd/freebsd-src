@@ -12,7 +12,9 @@ are individually implemented as extensions described below.
 The protocol used by OpenSSH's ssh-agent is described in the file
 PROTOCOL.agent
 
-1. transport: Protocol 2 MAC algorithm "umac-64@openssh.com"
+1. Transport protocol changes
+
+1.1. transport: Protocol 2 MAC algorithm "umac-64@openssh.com"
 
 This is a new transport-layer MAC method using the UMAC algorithm
 (rfc4418). This method is identical to the "umac-64" method documented
@@ -20,7 +22,7 @@ in:
 
 http://www.openssh.com/txt/draft-miller-secsh-umac-01.txt
 
-2. transport: Protocol 2 compression algorithm "zlib@openssh.com"
+1.2. transport: Protocol 2 compression algorithm "zlib@openssh.com"
 
 This transport-layer compression method uses the zlib compression
 algorithm (identical to the "zlib" method in rfc4253), but delays the
@@ -31,14 +33,27 @@ The method is documented in:
 
 http://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
 
-3. transport: New public key algorithms "ssh-rsa-cert-v00@openssh.com" and
-   "ssh-dsa-cert-v00@openssh.com"
+1.3. transport: New public key algorithms "ssh-rsa-cert-v00@openssh.com",
+     "ssh-dsa-cert-v00@openssh.com",
+     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+     "ecdsa-sha2-nistp384-cert-v01@openssh.com" and
+     "ecdsa-sha2-nistp521-cert-v01@openssh.com"
 
-OpenSSH introduces two new public key algorithms to support certificate
+OpenSSH introduces new public key algorithms to support certificate
 authentication for users and hostkeys. These methods are documented in
 the file PROTOCOL.certkeys
 
-4. connection: Channel write close extension "eow@openssh.com"
+1.4. transport: Elliptic Curve cryptography
+
+OpenSSH supports ECC key exchange and public key authentication as
+specified in RFC5656. Only the ecdsa-sha2-nistp256, ecdsa-sha2-nistp384
+and ecdsa-sha2-nistp521 curves over GF(p) are supported. Elliptic
+curve points encoded using point compression are NOT accepted or
+generated.
+
+2. Connection protocol changes
+
+2.1. connection: Channel write close extension "eow@openssh.com"
 
 The SSH connection protocol (rfc4254) provides the SSH_MSG_CHANNEL_EOF
 message to allow an endpoint to signal its peer that it will send no
@@ -77,8 +92,8 @@ message is only sent to OpenSSH peers (identified by banner).
 Other SSH implementations may be whitelisted to receive this message
 upon request.
 
-5. connection: disallow additional sessions extension
-   "no-more-sessions@openssh.com"
+2.2. connection: disallow additional sessions extension
+     "no-more-sessions@openssh.com"
 
 Most SSH connections will only ever request a single session, but a
 attacker may abuse a running ssh client to surreptitiously open
@@ -105,7 +120,7 @@ of this message, the no-more-sessions request is only sent to OpenSSH
 servers (identified by banner). Other SSH implementations may be
 whitelisted to receive this message upon request.
 
-6. connection: Tunnel forward extension "tun@openssh.com"
+2.3. connection: Tunnel forward extension "tun@openssh.com"
 
 OpenSSH supports layer 2 and layer 3 tunnelling via the "tun@openssh.com"
 channel type. This channel type supports forwarding of network packets
@@ -166,7 +181,9 @@ The contents of the "data" field for layer 2 packets is:
 The "frame" field contains an IEEE 802.3 Ethernet frame, including
 header.
 
-7. sftp: Reversal of arguments to SSH_FXP_SYMLINK
+3. SFTP protocol changes
+
+3.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
 
 When OpenSSH's sftp-server was implemented, the order of the arguments
 to the SSH_FXP_SYMLINK method was inadvertently reversed. Unfortunately,
@@ -179,7 +196,7 @@ SSH_FXP_SYMLINK as follows:
 	string		targetpath
 	string		linkpath
 
-8. sftp: Server extension announcement in SSH_FXP_VERSION
+3.2. sftp: Server extension announcement in SSH_FXP_VERSION
 
 OpenSSH's sftp-server lists the extensions it supports using the
 standard extension announcement mechanism in the SSH_FXP_VERSION server
@@ -200,7 +217,7 @@ ever changed in an incompatible way. The server MAY advertise the same
 extension with multiple versions (though this is unlikely). Clients MUST
 check the version number before attempting to use the extension.
 
-9. sftp: Extension request "posix-rename@openssh.com"
+3.3. sftp: Extension request "posix-rename@openssh.com"
 
 This operation provides a rename operation with POSIX semantics, which
 are different to those provided by the standard SSH_FXP_RENAME in
@@ -217,7 +234,7 @@ rename(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-10. sftp: Extension requests "statvfs@openssh.com" and
+3.4. sftp: Extension requests "statvfs@openssh.com" and
          "fstatvfs@openssh.com"
 
 These requests correspond to the statvfs and fstatvfs POSIX system
@@ -258,4 +275,20 @@ The values of the f_flag bitmask are as follows:
 Both the "statvfs@openssh.com" and "fstatvfs@openssh.com" extensions are
 advertised in the SSH_FXP_VERSION hello with version "2".
 
-$OpenBSD: PROTOCOL,v 1.15 2010/02/26 20:29:54 djm Exp $
+10. sftp: Extension request "hardlink@openssh.com"
+
+This request is for creating a hard link to a regular file. This
+request is implemented as a SSH_FXP_EXTENDED request with the
+following format:
+
+	uint32		id
+	string		"hardlink@openssh.com"
+	string		oldpath
+	string		newpath
+
+On receiving this request the server will perform the operation
+link(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+$OpenBSD: PROTOCOL,v 1.17 2010/12/04 00:18:01 djm Exp $

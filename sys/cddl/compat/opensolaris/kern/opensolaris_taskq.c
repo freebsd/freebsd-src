@@ -147,9 +147,7 @@ taskq_run_safe(void *arg, int pending __unused)
 {
 	struct ostask *task = arg;
 
-	ASSERT(task->ost_magic == TASKQ_MAGIC);
 	task->ost_func(task->ost_arg);
-	task->ost_magic = 0;
 }
 
 taskqid_t
@@ -158,15 +156,12 @@ taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
 {
 	int prio;
 
-	ASSERT(task->ost_magic != TASKQ_MAGIC);
-
 	/* 
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
 	 * can go at the front of the queue.
 	 */
 	prio = !!(flags & TQ_FRONT);
 
-	task->ost_magic = TASKQ_MAGIC;
 	task->ost_func = func;
 	task->ost_arg = arg;
 

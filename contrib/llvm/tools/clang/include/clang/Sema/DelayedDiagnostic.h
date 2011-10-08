@@ -112,32 +112,18 @@ private:
 /// the complete parsing of the current declaration.
 class DelayedDiagnostic {
 public:
-  enum DDKind { Deprecation, Access };
+  enum DDKind { Deprecation, Access, ForbiddenType };
 
   unsigned char Kind; // actually a DDKind
   bool Triggered;
 
   SourceLocation Loc;
 
-  void destroy() {
-    switch (Kind) {
-    case Access: getAccessData().~AccessedEntity(); break;
-    case Deprecation: break;
-    }
-  }
+  void Destroy();
 
   static DelayedDiagnostic makeDeprecation(SourceLocation Loc,
                                            const NamedDecl *D,
-                                           llvm::StringRef Msg) {
-    DelayedDiagnostic DD;
-    DD.Kind = Deprecation;
-    DD.Triggered = false;
-    DD.Loc = Loc;
-    DD.DeprecationData.Decl = D;
-    DD.DeprecationData.Message = Msg.data();
-    DD.DeprecationData.MessageLen = Msg.size();
-    return DD;
-  }
+                                           llvm::StringRef Msg);
 
   static DelayedDiagnostic makeAccess(SourceLocation Loc,
                                       const AccessedEntity &Entity) {
@@ -146,6 +132,20 @@ public:
     DD.Triggered = false;
     DD.Loc = Loc;
     new (&DD.getAccessData()) AccessedEntity(Entity);
+    return DD;
+  }
+
+  static DelayedDiagnostic makeForbiddenType(SourceLocation loc,
+                                             unsigned diagnostic,
+                                             QualType type,
+                                             unsigned argument) {
+    DelayedDiagnostic DD;
+    DD.Kind = ForbiddenType;
+    DD.Triggered = false;
+    DD.Loc = loc;
+    DD.ForbiddenTypeData.Diagnostic = diagnostic;
+    DD.ForbiddenTypeData.OperandType = type.getAsOpaquePtr();
+    DD.ForbiddenTypeData.Argument = argument;
     return DD;
   }
 
@@ -169,6 +169,25 @@ public:
                            DeprecationData.MessageLen);
   }
 
+  /// The diagnostic ID to emit.  Used like so:
+  ///   Diag(diag.Loc, diag.getForbiddenTypeDiagnostic())
+  ///     << diag.getForbiddenTypeOperand()
+  ///     << diag.getForbiddenTypeArgument();
+  unsigned getForbiddenTypeDiagnostic() const {
+    assert(Kind == ForbiddenType && "not a forbidden-type diagnostic");
+    return ForbiddenTypeData.Diagnostic;
+  }
+
+  unsigned getForbiddenTypeArgument() const {
+    assert(Kind == ForbiddenType && "not a forbidden-type diagnostic");
+    return ForbiddenTypeData.Argument;
+  }
+
+  QualType getForbiddenTypeOperand() const {
+    assert(Kind == ForbiddenType && "not a forbidden-type diagnostic");
+    return QualType::getFromOpaquePtr(ForbiddenTypeData.OperandType);
+  }
+
 private:
   union {
     /// Deprecation.
@@ -177,6 +196,12 @@ private:
       const char *Message;
       size_t MessageLen;
     } DeprecationData;
+
+    struct {
+      unsigned Diagnostic;
+      unsigned Argument;
+      void *OperandType;
+    } ForbiddenTypeData;
 
     /// Access control.
     char AccessData[sizeof(AccessedEntity)];

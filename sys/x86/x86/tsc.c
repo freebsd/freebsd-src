@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -49,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_invariant;
+int		tsc_perf_stat;
+
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
@@ -67,11 +70,17 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 TUNABLE_INT("machdep.disable_tsc", &tsc_disabled);
 
+static int	tsc_skip_calibration;
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
+    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
+TUNABLE_INT("machdep.disable_tsc_calibration", &tsc_skip_calibration);
+
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
     int *status);
-static	unsigned tsc_get_timecount(struct timecounter *tc);
+static unsigned tsc_get_timecount(struct timecounter *tc);
+static unsigned tsc_get_timecount_low(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 
 static struct timecounter tsc_timecounter = {
@@ -83,24 +92,167 @@ static struct timecounter tsc_timecounter = {
 	800,			/* quality (adjusted in code) */
 };
 
-void
-init_TSC(void)
+#define	VMW_HVMAGIC		0x564d5868
+#define	VMW_HVPORT		0x5658
+#define	VMW_HVCMD_GETVERSION	10
+#define	VMW_HVCMD_GETHZ		45
+
+static __inline void
+vmware_hvcall(u_int cmd, u_int *p)
 {
-	u_int64_t tscval[2];
 
-	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
+	__asm __volatile("inl %w3, %0"
+	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
+	: "0" (VMW_HVMAGIC), "1" (UINT_MAX), "2" (cmd), "3" (VMW_HVPORT)
+	: "memory");
+}
+
+static int
+tsc_freq_vmware(void)
+{
+	char hv_sig[13];
+	u_int regs[4];
+	char *p;
+	u_int hv_high;
+	int i;
+
+	/*
+	 * [RFC] CPUID usage for interaction between Hypervisors and Linux.
+	 * http://lkml.org/lkml/2008/10/1/246
+	 *
+	 * KB1009458: Mechanisms to determine if software is running in
+	 * a VMware virtual machine
+	 * http://kb.vmware.com/kb/1009458
+	 */
+	hv_high = 0;
+	if ((cpu_feature2 & CPUID2_HV) != 0) {
+		do_cpuid(0x40000000, regs);
+		hv_high = regs[0];
+		for (i = 1, p = hv_sig; i < 4; i++, p += sizeof(regs) / 4)
+			memcpy(p, &regs[i], sizeof(regs[i]));
+		*p = '\0';
+		if (bootverbose) {
+			/*
+			 * HV vendor	ID string
+			 * ------------+--------------
+			 * KVM		"KVMKVMKVM"
+			 * Microsoft	"Microsoft Hv"
+			 * VMware	"VMwareVMware"
+			 * Xen		"XenVMMXenVMM"
+			 */
+			printf("Hypervisor: Origin = \"%s\"\n", hv_sig);
+		}
+		if (strncmp(hv_sig, "VMwareVMware", 12) != 0)
+			return (0);
+	} else {
+		p = getenv("smbios.system.serial");
+		if (p == NULL)
+			return (0);
+		if (strncmp(p, "VMware-", 7) != 0 &&
+		    strncmp(p, "VMW", 3) != 0) {
+			freeenv(p);
+			return (0);
+		}
+		freeenv(p);
+		vmware_hvcall(VMW_HVCMD_GETVERSION, regs);
+		if (regs[1] != VMW_HVMAGIC)
+			return (0);
+	}
+	if (hv_high >= 0x40000010) {
+		do_cpuid(0x40000010, regs);
+		tsc_freq = regs[0] * 1000;
+	} else {
+		vmware_hvcall(VMW_HVCMD_GETHZ, regs);
+		if (regs[1] != UINT_MAX)
+			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
+	}
+	tsc_is_invariant = 1;
+	return (1);
+}
+
+static void
+tsc_freq_intel(void)
+{
+	char brand[48];
+	u_int regs[4];
+	uint64_t freq;
+	char *p;
+	u_int i;
+
+	/*
+	 * Intel Processor Identification and the CPUID Instruction
+	 * Application Note 485.
+	 * http://www.intel.com/assets/pdf/appnote/241618.pdf
+	 */
+	if (cpu_exthigh >= 0x80000004) {
+		p = brand;
+		for (i = 0x80000002; i < 0x80000005; i++) {
+			do_cpuid(i, regs);
+			memcpy(p, regs, sizeof(regs));
+			p += sizeof(regs);
+		}
+		p = NULL;
+		for (i = 0; i < sizeof(brand) - 1; i++)
+			if (brand[i] == 'H' && brand[i + 1] == 'z')
+				p = brand + i;
+		if (p != NULL) {
+			p -= 5;
+			switch (p[4]) {
+			case 'M':
+				i = 1;
+				break;
+			case 'G':
+				i = 1000;
+				break;
+			case 'T':
+				i = 1000000;
+				break;
+			default:
+				return;
+			}
+#define	C2D(c)	((c) - '0')
+			if (p[1] == '.') {
+				freq = C2D(p[0]) * 1000;
+				freq += C2D(p[2]) * 100;
+				freq += C2D(p[3]) * 10;
+				freq *= i * 1000;
+			} else {
+				freq = C2D(p[0]) * 1000;
+				freq += C2D(p[1]) * 100;
+				freq += C2D(p[2]) * 10;
+				freq += C2D(p[3]);
+				freq *= i * 1000000;
+			}
+#undef C2D
+			tsc_freq = freq;
+		}
+	}
+}
+
+static void
+probe_tsc_freq(void)
+{
+	u_int regs[4];
+	uint64_t tsc1, tsc2;
+
+	if (cpu_high >= 6) {
+		do_cpuid(6, regs);
+		if ((regs[2] & CPUID_PERF_STAT) != 0) {
+			/*
+			 * XXX Some emulators expose host CPUID without actual
+			 * support for these MSRs.  We must test whether they
+			 * really work.
+			 */
+			wrmsr(MSR_MPERF, 0);
+			wrmsr(MSR_APERF, 0);
+			DELAY(10);
+			if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
+				tsc_perf_stat = 1;
+		}
+	}
+
+	if (tsc_freq_vmware())
 		return;
-
-	if (bootverbose)
-	        printf("Calibrating TSC clock ... ");
-
-	tscval[0] = rdtsc();
-	DELAY(1000000);
-	tscval[1] = rdtsc();
-
-	tsc_freq = tscval[1] - tscval[0];
-	if (bootverbose)
-		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
@@ -127,12 +279,38 @@ init_TSC(void)
 		break;
 	}
 
+	if (tsc_skip_calibration) {
+		if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			tsc_freq_intel();
+		return;
+	}
+
+	if (bootverbose)
+	        printf("Calibrating TSC clock ... ");
+	tsc1 = rdtsc();
+	DELAY(1000000);
+	tsc2 = rdtsc();
+	tsc_freq = tsc2 - tsc1;
+	if (bootverbose)
+		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+}
+
+void
+init_TSC(void)
+{
+
+	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
+		return;
+
+	probe_tsc_freq();
+
 	/*
 	 * Inform CPU accounting about our boot-time clock rate.  This will
 	 * be updated if someone loads a cpufreq driver after boot that
 	 * discovers a new max frequency.
 	 */
-	set_cputicker(rdtsc, tsc_freq, 1);
+	if (tsc_freq != 0)
+		set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
 
 	if (tsc_is_invariant)
 		return;
@@ -146,12 +324,108 @@ init_TSC(void)
 	    tsc_levels_changed, NULL, EVENTHANDLER_PRI_ANY);
 }
 
-void
+#ifdef SMP
+
+#define	TSC_READ(x)			\
+static void				\
+tsc_read_##x(void *arg)			\
+{					\
+	uint32_t *tsc = arg;		\
+	u_int cpu = PCPU_GET(cpuid);	\
+					\
+	tsc[cpu * 3 + x] = rdtsc32();	\
+}
+TSC_READ(0)
+TSC_READ(1)
+TSC_READ(2)
+#undef TSC_READ
+
+#define	N	1000
+
+static void
+comp_smp_tsc(void *arg)
+{
+	uint32_t *tsc;
+	int32_t d1, d2;
+	u_int cpu = PCPU_GET(cpuid);
+	u_int i, j, size;
+
+	size = (mp_maxid + 1) * 3;
+	for (i = 0, tsc = arg; i < N; i++, tsc += size)
+		CPU_FOREACH(j) {
+			if (j == cpu)
+				continue;
+			d1 = tsc[cpu * 3 + 1] - tsc[j * 3];
+			d2 = tsc[cpu * 3 + 2] - tsc[j * 3 + 1];
+			if (d1 <= 0 || d2 <= 0) {
+				smp_tsc = 0;
+				return;
+			}
+		}
+}
+
+static int
+test_smp_tsc(void)
+{
+	uint32_t *data, *tsc;
+	u_int i, size;
+
+	if (!smp_tsc && !tsc_is_invariant)
+		return (-100);
+	size = (mp_maxid + 1) * 3;
+	data = malloc(sizeof(*data) * size * N, M_TEMP, M_WAITOK);
+	for (i = 0, tsc = data; i < N; i++, tsc += size)
+		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
+	smp_tsc = 1;	/* XXX */
+	smp_rendezvous(smp_no_rendevous_barrier, comp_smp_tsc,
+	    smp_no_rendevous_barrier, data);
+	free(data, M_TEMP);
+	if (bootverbose)
+		printf("SMP: %sed TSC synchronization test\n",
+		    smp_tsc ? "pass" : "fail");
+	if (smp_tsc && tsc_is_invariant) {
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_AMD:
+			/*
+			 * Starting with Family 15h processors, TSC clock
+			 * source is in the north bridge.  Check whether
+			 * we have a single-socket/multi-core platform.
+			 * XXX Need more work for complex cases.
+			 */
+			if (CPUID_TO_FAMILY(cpu_id) < 0x15 ||
+			    (amd_feature2 & AMDID2_CMP) == 0 ||
+			    smp_cpus > (cpu_procinfo2 & AMDID_CMP_CORES) + 1)
+				break;
+			return (1000);
+		case CPU_VENDOR_INTEL:
+			/*
+			 * XXX Assume Intel platforms have synchronized TSCs.
+			 */
+			return (1000);
+		}
+		return (800);
+	}
+	return (-100);
+}
+
+#undef N
+
+#endif /* SMP */
+
+static void
 init_TSC_tc(void)
 {
+	uint64_t max_freq;
+	int shift;
 
 	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
+
+	/*
+	 * Limit timecounter frequency to fit in an int and prevent it from
+	 * overflowing too fast.
+	 */
+	max_freq = UINT_MAX;
 
 	/*
 	 * We can not use the TSC if we support APM.  Precise timekeeping
@@ -167,26 +441,61 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = -1000;
 		if (bootverbose)
 			printf("TSC timecounter disabled: APM enabled.\n");
+		goto init;
+	}
+
+	/*
+	 * We cannot use the TSC if it stops incrementing in deep sleep.
+	 * Currently only Intel CPUs are known for this problem unless
+	 * the invariant TSC bit is set.
+	 */
+	if (cpu_can_deep_sleep && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
+		tsc_timecounter.tc_quality = -1000;
+		tsc_timecounter.tc_flags |= TC_FLAGS_C3STOP;
+		if (bootverbose)
+			printf("TSC timecounter disabled: C3 enabled.\n");
+		goto init;
 	}
 
 #ifdef SMP
 	/*
-	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
-	 * are somehow synchronized.  Some hardware configurations do
-	 * this, but we have no way of determining whether this is the
-	 * case, so we do not use the TSC in multi-processor systems
-	 * unless the user indicated (by setting kern.timecounter.smp_tsc
-	 * to 1) that he believes that his TSCs are synchronized.
+	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
+	 * synchronized.  If the user is sure that the system has synchronized
+	 * TSCs, set kern.timecounter.smp_tsc tunable to a non-zero value.
+	 * We also limit the frequency even lower to avoid "temporal anomalies"
+	 * as much as possible.  The TSC seems unreliable in virtualized SMP
+	 * environments, so it is set to a negative quality in those cases.
 	 */
-	if (mp_ncpus > 1 && !smp_tsc)
-		tsc_timecounter.tc_quality = -100;
+	if (smp_cpus > 1) {
+		if (vm_guest != 0) {
+			tsc_timecounter.tc_quality = -100;
+		} else {
+			tsc_timecounter.tc_quality = test_smp_tsc();
+			max_freq >>= 8;
+		}
+	} else
 #endif
+	if (tsc_is_invariant)
+		tsc_timecounter.tc_quality = 1000;
 
+init:
+	for (shift = 0; shift < 31 && (tsc_freq >> shift) > max_freq; shift++)
+		;
+	if (shift > 0) {
+		tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
+		tsc_timecounter.tc_name = "TSC-low";
+		if (bootverbose)
+			printf("TSC timecounter discards lower %d bit(s)\n",
+			    shift);
+	}
 	if (tsc_freq != 0) {
-		tsc_timecounter.tc_frequency = tsc_freq;
+		tsc_timecounter.tc_frequency = tsc_freq >> shift;
+		tsc_timecounter.tc_priv = (void *)(intptr_t)shift;
 		tc_init(&tsc_timecounter);
 	}
 }
+SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
 
 /*
  * When cpufreq levels change, find out about the (new) max frequency.  We
@@ -245,14 +554,17 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
+	uint64_t freq;
 
 	/* If there was an error during the transition, don't do anything. */
 	if (tsc_disabled || status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
-	tsc_freq = (uint64_t)level->total_set.freq * 1000000;
-	tsc_timecounter.tc_frequency = tsc_freq;
+	freq = (uint64_t)level->total_set.freq * 1000000;
+	atomic_store_rel_64(&tsc_freq, freq);
+	tsc_timecounter.tc_frequency =
+	    freq >> (int)(intptr_t)tsc_timecounter.tc_priv;
 }
 
 static int
@@ -261,22 +573,34 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint64_t freq;
 
-	if (tsc_timecounter.tc_frequency == 0)
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq == 0)
 		return (EOPNOTSUPP);
-	freq = tsc_freq;
 	error = sysctl_handle_64(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		tsc_freq = freq;
-		tsc_timecounter.tc_frequency = tsc_freq;
+		atomic_store_rel_64(&tsc_freq, freq);
+		atomic_store_rel_64(&tsc_timecounter.tc_frequency,
+		    freq >> (int)(intptr_t)tsc_timecounter.tc_priv);
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_U64 | CTLFLAG_RW,
-    0, 0, sysctl_machdep_tsc_freq, "QU", "");
+    0, 0, sysctl_machdep_tsc_freq, "QU", "Time Stamp Counter frequency");
 
-static unsigned
-tsc_get_timecount(struct timecounter *tc)
+static u_int
+tsc_get_timecount(struct timecounter *tc __unused)
 {
-	return (rdtsc());
+
+	return (rdtsc32());
+}
+
+static u_int
+tsc_get_timecount_low(struct timecounter *tc)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
+	: "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+	return (rv);
 }

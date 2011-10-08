@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libprocstat.h>
 
 #include "procstat.h"
 
@@ -63,10 +64,12 @@ procstat_print_sig(const sigset_t *set, int sig, char flag)
 }
 
 void
-procstat_sigs(pid_t pid, struct kinfo_proc *kipp)
+procstat_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
 {
 	int j;
+	pid_t pid;
 
+	pid = kipp->ki_pid;
 	if (!hflag)
 		printf("%5s %-16s %-7s %4s\n", "PID", "COMM", "SIG", "FLAGS");
 
@@ -83,13 +86,15 @@ procstat_sigs(pid_t pid, struct kinfo_proc *kipp)
 }
 
 void
-procstat_threads_sigs(pid_t pid, struct kinfo_proc *kipp)
+procstat_threads_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
 {
 	struct kinfo_proc *kip;
+	pid_t pid;
 	int error, name[4], j;
 	unsigned int i;
 	size_t len;
 
+	pid = kipp->ki_pid;
 	if (!hflag)
 		printf("%5s %6s %-16s %-7s %4s\n", "PID", "TID", "COMM",
 		     "SIG", "FLAGS");

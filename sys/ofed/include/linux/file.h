@@ -92,7 +92,7 @@ get_unused_fd(void)
 	int error;
 	int fd;
 
-	error = falloc(curthread, &file, &fd);
+	error = falloc(curthread, &file, &fd, 0);
 	if (error)
 		return -error;
 	return fd;

@@ -56,13 +56,6 @@ static void	jmphy_reset(struct mii_softc *);
 static uint16_t	jmphy_anar(struct ifmedia_entry *);
 static int	jmphy_setmedia(struct mii_softc *, struct ifmedia_entry *);
 
-struct jmphy_softc {
-	struct mii_softc mii_sc;
-	int mii_oui;
-	int mii_model;
-	int mii_rev;
-};
-
 static device_method_t jmphy_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		jmphy_probe),
@@ -76,7 +69,7 @@ static devclass_t jmphy_devclass;
 static driver_t jmphy_driver = {
 	"jmphy",
 	jmphy_methods,
-	sizeof(struct jmphy_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(jmphy, miibus, jmphy_driver, jmphy_devclass, 0, 0);
@@ -90,6 +83,12 @@ static const struct mii_phydesc jmphys[] = {
 	MII_PHY_END
 };
 
+static const struct mii_phy_funcs jmphy_funcs = {
+	jmphy_service,
+	jmphy_status,
+	jmphy_reset
+};
+
 static int
 jmphy_probe(device_t dev)
 {
@@ -100,46 +99,15 @@ jmphy_probe(device_t dev)
 static int
 jmphy_attach(device_t dev)
 {
-	struct jmphy_softc *jsc;
-	struct mii_softc *sc;
 	struct mii_attach_args *ma;
-	struct mii_data *mii;
-	struct ifnet *ifp;
+	u_int flags;
 
-	jsc = device_get_softc(dev);
-	sc = &jsc->mii_sc;
 	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = jmphy_service;
-	sc->mii_pdata = mii;
-
-	ifp = sc->mii_pdata->mii_ifp;
-	if (strcmp(ifp->if_dname, "jme") == 0 &&
-	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
-		sc->mii_flags |= MIIF_PHYPRIV0;
-	jsc->mii_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
-	jsc->mii_model = MII_MODEL(ma->mii_id2);
-	jsc->mii_rev = MII_REV(ma->mii_id2);
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    jsc->mii_oui, jsc->mii_model, jsc->mii_rev);
-
-	jmphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	flags = 0;
+	if (strcmp(ma->mii_data->mii_ifp->if_dname, "jme") == 0 &&
+	    (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
+		flags |= MIIF_PHYPRIV0;
+	mii_phy_dev_attach(dev, flags, &jmphy_funcs, 1);
 	return (0);
 }
 
@@ -196,7 +164,7 @@ jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	jmphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -269,11 +237,8 @@ jmphy_status(struct mii_softc *sc)
 static void
 jmphy_reset(struct mii_softc *sc)
 {
-	struct jmphy_softc *jsc;
 	uint16_t t2cr, val;
 	int i;
-
-	jsc = (struct jmphy_softc *)sc;
 
 	/* Disable sleep mode. */
 	PHY_WRITE(sc, JMPHY_TMCTL,
@@ -368,9 +333,6 @@ jmphy_setmedia(struct mii_softc *sc, struct ifmedia_entry *ife)
 	default:
 		return (EINVAL);
 	}
-
-	if ((ife->ifm_media & IFM_LOOP) != 0)
-		bmcr |= BMCR_LOOP;
 
 	anar = jmphy_anar(ife);
 	if ((IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||

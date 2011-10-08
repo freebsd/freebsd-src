@@ -247,6 +247,7 @@ STAILQ_HEAD(resource_list, resource_list_entry);
 
 #define	RLE_RESERVED		0x0001	/* Reserved by the parent bus. */
 #define	RLE_ALLOCATED		0x0002	/* Reserved resource is allocated. */
+#define	RLE_PREFETCH		0x0004	/* Resource is a prefetch range. */
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
@@ -304,6 +305,9 @@ int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 device_t
 	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
+int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
+				    struct resource *r, u_long start,
+				    u_long end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
 				   int *rid, u_long start, u_long end,
@@ -374,6 +378,8 @@ int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
 void	bus_release_resources(device_t dev, const struct resource_spec *rs,
 			      struct resource **res);
 
+int	bus_adjust_resource(device_t child, int type, struct resource *r,
+			    u_long start, u_long end);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
 				     u_int flags);
@@ -590,7 +596,8 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+    evh, arg, order, pass)						\
 									\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
@@ -606,7 +613,16 @@ static moduledata_t name##_##busname##_mod = {				\
 	&name##_##busname##_driver_mod					\
 };									\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+	       SI_SUB_DRIVERS, order)
+
+#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, SI_ORDER_MIDDLE, pass)
+
+#define	DRIVER_MODULE_ORDERED(name, busname, driver, devclass, evh, arg,\
+    order)								\
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, order, BUS_PASS_DEFAULT)
 
 #define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg,	\

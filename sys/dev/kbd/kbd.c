@@ -837,13 +837,12 @@ static int fkey_change_ok(fkeytab_t *, fkeyarg_t *, struct thread *);
 int
 genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
-#ifndef KBD_DISABLE_KEYMAP_LOAD
 	keymap_t *mapp;
-#endif
+	okeymap_t *omapp;
 	keyarg_t *keyp;
 	fkeyarg_t *fkeyp;
 	int s;
-	int i;
+	int i, j;
 	int error;
 
 	s = spltty();
@@ -874,14 +873,39 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		    sizeof(keymap_t));
 		splx(s);
 		return (error);
+	case OGIO_KEYMAP:	/* get keyboard translation table (compat) */
+		mapp = kbd->kb_keymap;
+		omapp = (okeymap_t *)arg;
+		omapp->n_keys = mapp->n_keys;
+		for (i = 0; i < NUM_KEYS; i++) {
+			for (j = 0; j < NUM_STATES; j++)
+				omapp->key[i].map[j] =
+				    mapp->key[i].map[j];
+			omapp->key[i].spcl = mapp->key[i].spcl;
+			omapp->key[i].flgs = mapp->key[i].flgs;
+		}
+		return (0);
 	case PIO_KEYMAP:	/* set keyboard translation table */
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
 		mapp = malloc(sizeof *mapp, M_TEMP, M_NOWAIT);
-		error = copyin(*(void **)arg, mapp, sizeof *mapp);
-		if (error != 0) {
-			splx(s);
-			free(mapp, M_TEMP);
-			return (error);
+		if (cmd == OPIO_KEYMAP) {
+			omapp = (okeymap_t *)arg;
+			mapp->n_keys = omapp->n_keys;
+			for (i = 0; i < NUM_KEYS; i++) {
+				for (j = 0; j < NUM_STATES; j++)
+					mapp->key[i].map[j] =
+					    omapp->key[i].map[j];
+				mapp->key[i].spcl = omapp->key[i].spcl;
+				mapp->key[i].flgs = omapp->key[i].flgs;
+			}
+		} else {
+			error = copyin(*(void **)arg, mapp, sizeof *mapp);
+			if (error != 0) {
+				splx(s);
+				free(mapp, M_TEMP);
+				return (error);
+			}
 		}
 
 		error = keymap_change_ok(kbd->kb_keymap, mapp, curthread);

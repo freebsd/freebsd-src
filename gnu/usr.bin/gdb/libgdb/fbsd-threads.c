@@ -1393,9 +1393,10 @@ fbsd_thread_signal_cmd (char *exp, int from_tty)
 	code = "UNKNOWN";
 	break;
     }
-    printf_filtered("si_code %s si_pid %d si_uid %d si_status %x si_addr %p\n",
-      code, ti.ti_siginfo.si_pid, ti.ti_siginfo.si_uid, ti.ti_siginfo.si_status,
-      ti.ti_siginfo.si_addr);
+    printf_filtered("si_code %s (%d) si_pid %d si_uid %d si_status %x "
+      "si_addr %p\n",
+      code, ti.ti_siginfo.si_code, ti.ti_siginfo.si_pid, ti.ti_siginfo.si_uid,
+      ti.ti_siginfo.si_status, ti.ti_siginfo.si_addr);
   }
 }
 

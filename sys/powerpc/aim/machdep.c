@@ -132,6 +132,7 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 #ifdef __powerpc64__
+extern int n_slbs;
 int cacheline_size = 128;
 #else
 int cacheline_size = 32;
@@ -202,7 +203,7 @@ cpu_startup(void *dummy)
 			    phys_avail[indx + 1] - phys_avail[indx];
 
 			#ifdef __powerpc64__
-			printf("0x%16lx - 0x%16lx, %ld bytes (%ld pages)\n",
+			printf("0x%016lx - 0x%016lx, %ld bytes (%ld pages)\n",
 			#else
 			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
 			#endif
@@ -251,7 +252,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
     vm_offset_t basekernel, void *mdp)
 {
 	struct		pcpu *pc;
-	vm_offset_t	end;
 	void		*generictrap;
 	size_t		trap_offset;
 	void		*kmdp;
@@ -263,7 +263,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	int		ppc64;
 	#endif
 
-	end = 0;
 	kmdp = NULL;
 	trap_offset = 0;
 	cacheline_warn = 0;
@@ -279,7 +278,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+			endkernel = ulmax(endkernel, MD_FETCH(kmdp,
+			    MODINFOMD_KERNEND, vm_offset_t));
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
@@ -303,7 +303,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 */
 	pc = __pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
+	curthread_reg = pc->pc_curthread = &thread0;
 	pc->pc_cpuid = 0;
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
@@ -338,13 +338,13 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	kdb_init();
 
-	/*
-	 * PowerPC 970 CPUs have a misfeature requested by Apple that makes
-	 * them pretend they have a 32-byte cacheline. Turn this off
-	 * before we measure the cacheline size.
-	 */
-
+	/* Various very early CPU fix ups */
 	switch (mfpvr() >> 16) {
+		/*
+		 * PowerPC 970 CPUs have a misfeature requested by Apple that
+		 * makes them pretend they have a 32-byte cacheline. Turn this
+		 * off before we measure the cacheline size.
+		 */
 		case IBM970:
 		case IBM970FX:
 		case IBM970MP:
@@ -353,6 +353,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 			scratch &= ~HID5_970_DCBZ_SIZE_HI;
 			mtspr(SPR_HID5, scratch);
 			break;
+	#ifdef __powerpc64__
+		case IBMPOWER7:
+			/* XXX: get from ibm,slb-size in device tree */
+			n_slbs = 32;
+			break;
+	#endif
 	}
 
 	/*
@@ -368,7 +374,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	msr = mfmsr();
 	mtmsr((msr & ~(PSL_IR | PSL_DR)) | PSL_RI);
-	isync();
 
 	/*
 	 * Measure the cacheline size using dcbz
@@ -503,7 +508,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 * Restore MSR
 	 */
 	mtmsr(msr);
-	isync();
 	
 	/* Warn if cachline size was not determined */
 	if (cacheline_warn == 1) {
@@ -527,8 +531,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
 
 	pmap_bootstrap(startkernel, endkernel);
-	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
-	isync();
+	mtmsr(PSL_KERNSET & ~PSL_EE);
 
 	/*
 	 * Initialize params/tunables that are derived from memsize
@@ -742,7 +745,7 @@ kcopy(const void *src, void *dst, size_t len)
 	faultbuf	env, *oldfault;
 	int		rv;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	oldfault = td->td_pcb->pcb_onfault;
 	if ((rv = setfault(env)) != 0) {
 		td->td_pcb->pcb_onfault = oldfault;

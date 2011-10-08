@@ -1538,7 +1538,10 @@ bool ARMConstantIslands::UndoLRSpillRestore() {
     if (MI->getOpcode() == ARM::tPOP_RET &&
         MI->getOperand(2).getReg() == ARM::PC &&
         MI->getNumExplicitOperands() == 3) {
-      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET));
+      // Create the new insn and copy the predicate from the old.
+      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET))
+        .addOperand(MI->getOperand(0))
+        .addOperand(MI->getOperand(1));
       MI->eraseFromParent();
       MadeChange = true;
     }
@@ -1650,24 +1653,27 @@ bool ARMConstantIslands::OptimizeThumb2Branches(MachineFunction &MF) {
     unsigned BrOffset = GetOffsetOf(Br.MI) + 4 - 2;
     unsigned DestOffset = BBOffsets[DestBB->getNumber()];
     if (BrOffset < DestOffset && (DestOffset - BrOffset) <= 126) {
-      MachineBasicBlock::iterator CmpMI = Br.MI; --CmpMI;
-      if (CmpMI->getOpcode() == ARM::tCMPi8) {
-        unsigned Reg = CmpMI->getOperand(0).getReg();
-        Pred = llvm::getInstrPredicate(CmpMI, PredReg);
-        if (Pred == ARMCC::AL &&
-            CmpMI->getOperand(1).getImm() == 0 &&
-            isARMLowRegister(Reg)) {
-          MachineBasicBlock *MBB = Br.MI->getParent();
-          MachineInstr *NewBR =
-            BuildMI(*MBB, CmpMI, Br.MI->getDebugLoc(), TII->get(NewOpc))
-            .addReg(Reg).addMBB(DestBB, Br.MI->getOperand(0).getTargetFlags());
-          CmpMI->eraseFromParent();
-          Br.MI->eraseFromParent();
-          Br.MI = NewBR;
-          BBSizes[MBB->getNumber()] -= 2;
-          AdjustBBOffsetsAfter(MBB, -2);
-          ++NumCBZ;
-          MadeChange = true;
+      MachineBasicBlock::iterator CmpMI = Br.MI;
+      if (CmpMI != Br.MI->getParent()->begin()) {
+        --CmpMI;
+        if (CmpMI->getOpcode() == ARM::tCMPi8) {
+          unsigned Reg = CmpMI->getOperand(0).getReg();
+          Pred = llvm::getInstrPredicate(CmpMI, PredReg);
+          if (Pred == ARMCC::AL &&
+              CmpMI->getOperand(1).getImm() == 0 &&
+              isARMLowRegister(Reg)) {
+            MachineBasicBlock *MBB = Br.MI->getParent();
+            MachineInstr *NewBR =
+              BuildMI(*MBB, CmpMI, Br.MI->getDebugLoc(), TII->get(NewOpc))
+              .addReg(Reg).addMBB(DestBB,Br.MI->getOperand(0).getTargetFlags());
+            CmpMI->eraseFromParent();
+            Br.MI->eraseFromParent();
+            Br.MI = NewBR;
+            BBSizes[MBB->getNumber()] -= 2;
+            AdjustBBOffsetsAfter(MBB, -2);
+            ++NumCBZ;
+            MadeChange = true;
+          }
         }
       }
     }
@@ -1689,9 +1695,9 @@ bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());
@@ -1812,9 +1818,9 @@ bool ARMConstantIslands::ReorderThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());

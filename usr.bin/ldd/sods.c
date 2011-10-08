@@ -142,6 +142,24 @@ main(int argc, char *argv[])
 }
 #endif
 
+static inline const void *align_struct(const void *expr)
+{
+  assert(!(((int)expr) & 3));
+  return expr;
+}
+
+static inline const void *align_long(const void *expr)
+{
+  assert(!(((int)expr) & 3));
+  return expr;
+}
+
+static inline const void *align_short(const void *expr)
+{
+  assert(!(((int)expr) & 1));
+  return expr;
+}
+
 #ifdef STANDALONE
 static
 #endif
@@ -182,7 +200,7 @@ dump_file(const char *fname)
 
     file_base = (const char *) objbase;	/* Makes address arithmetic easier */
 
-    if (IS_ELF(*(const Elf32_Ehdr*) file_base)) {
+    if (IS_ELF(*(const Elf32_Ehdr*) align_struct(file_base))) {
 	warnx("%s: this is an ELF program; use objdump to examine", fname);
 	++error_count;
 	munmap(objbase, sb.st_size);
@@ -190,7 +208,7 @@ dump_file(const char *fname)
 	return;
     }
 
-    ex = (const struct exec *) file_base;
+    ex = (const struct exec *) align_struct(file_base);
 
     printf("%s: a_midmag = 0x%lx\n", fname, (long)ex->a_midmag);
     printf("  magic = 0x%lx = 0%lo, netmagic = 0x%lx = 0%lo\n",
@@ -214,8 +232,9 @@ dump_file(const char *fname)
 
     text_base = file_base + N_TXTOFF(*ex);
     data_base = file_base + N_DATOFF(*ex);
-    rel_base = (const struct relocation_info *) (file_base + N_RELOFF(*ex));
-    sym_base = (const struct nlist *) (file_base + N_SYMOFF(*ex));
+    rel_base = (const struct relocation_info *)
+	align_struct(file_base + N_RELOFF(*ex));
+    sym_base = (const struct nlist *) align_struct(file_base + N_SYMOFF(*ex));
     str_base = file_base + N_STROFF(*ex);
 
     rel_count = (ex->a_trsize + ex->a_drsize) / sizeof rel_base[0];
@@ -276,19 +295,20 @@ dump_file(const char *fname)
 	printf("  Object file, origin = %lx\n", origin);
 
     if (N_GETFLAG(*ex) & EX_DYNAMIC) {
-	dyn = (const struct _dynamic *) data_base;
+	dyn = (const struct _dynamic *) align_struct(data_base);
 	printf("  Dynamic version = %d\n", dyn->d_version);
 
 	sdt = (const struct section_dispatch_table *)
-	    (text_addr + (unsigned long) dyn->d_un.d_sdt);
+	    align_struct(text_addr + (unsigned long) dyn->d_un.d_sdt);
 
-	rtrel_base =
-	    (const struct relocation_info *) (text_addr + sdt->sdt_rel);
+	rtrel_base = (const struct relocation_info *)
+	    align_struct(text_addr + sdt->sdt_rel);
 	rtrel_count = (sdt->sdt_hash - sdt->sdt_rel) / sizeof rtrel_base[0];
 	assert(rtrel_count * sizeof rtrel_base[0] ==
 	    (size_t)(sdt->sdt_hash - sdt->sdt_rel));
 
-	rtsym_base = (const struct nzlist *) (text_addr + sdt->sdt_nzlist);
+	rtsym_base = (const struct nzlist *)
+	    align_struct(text_addr + sdt->sdt_nzlist);
 	rtsym_count = (sdt->sdt_strings - sdt->sdt_nzlist) /
 	    sizeof rtsym_base[0];
 	assert(rtsym_count * sizeof rtsym_base[0] ==
@@ -352,11 +372,13 @@ dump_rels(const char *label, const struct relocation_info *base,
 		break;
 	    case 2:
 		snprintf(contents, sizeof contents, "    [%04x]",
-		  *(unsigned const short *)(text_addr + r->r_address));
+			 *(unsigned const short *)
+			 align_short(text_addr + r->r_address));
 		break;
 	    case 4:
 		snprintf(contents, sizeof contents, "[%08lx]",
-		  *(unsigned const long *)(text_addr + r->r_address));
+			 *(unsigned const long *)
+			 align_long(text_addr + r->r_address));
 		break;
 	    }
 	} else
@@ -429,7 +451,7 @@ dump_sods(void)
     sod_offset = sdt->sdt_sods;
     printf("  Shared object dependencies:\n");
     while (sod_offset != 0) {
-	const struct sod *sodp = (const struct sod *) (text_addr + sod_offset);
+      const struct sod *sodp = (const struct sod *) align_struct((text_addr + sod_offset));
 	const char *name = (const char *) (text_addr + sodp->sod_name);
 
 	if (sodp->sod_library)

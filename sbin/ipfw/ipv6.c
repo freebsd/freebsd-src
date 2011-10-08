@@ -76,7 +76,7 @@ print_unreach6_code(uint16_t code)
 		printf("unreach6 %u", code);
 }
 
-/* 
+/*
  * Print the ip address contained in a command.
  */
 void
@@ -90,43 +90,43 @@ print_ip6(ipfw_insn_ip6 *cmd, char const *s)
        printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
        if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
-               printf("me6");
-               return;
+	       printf("me6");
+	       return;
        }
        if (cmd->o.opcode == O_IP6) {
-               printf(" ip6");
-               return;
+	       printf(" ip6");
+	       return;
        }
 
        /*
-        * len == 4 indicates a single IP, whereas lists of 1 or more
-        * addr/mask pairs have len = (2n+1). We convert len to n so we
-        * use that to count the number of entries.
-        */
+	* len == 4 indicates a single IP, whereas lists of 1 or more
+	* addr/mask pairs have len = (2n+1). We convert len to n so we
+	* use that to count the number of entries.
+	*/
 
        for (len = len / 4; len > 0; len -= 2, a += 2) {
-           int mb =        /* mask length */
-               (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
-               128 : contigmask((uint8_t *)&(a[1]), 128);
+	   int mb =	/* mask length */
+	       (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
+	       128 : contigmask((uint8_t *)&(a[1]), 128);
 
-           if (mb == 128 && co.do_resolv)
-               he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
-           if (he != NULL)             /* resolved to name */
-               printf("%s", he->h_name);
-           else if (mb == 0)           /* any */
-               printf("any");
-           else {          /* numeric IP followed by some kind of mask */
-               if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
-                   printf("Error ntop in print_ip6\n");
-               printf("%s",  trad );
-               if (mb < 0)     /* XXX not really legal... */
-                   printf(":%s",
-                       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
-               else if (mb < 128)
-                   printf("/%d", mb);
-           }
-           if (len > 2)
-               printf(",");
+	   if (mb == 128 && co.do_resolv)
+	       he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
+	   if (he != NULL)	     /* resolved to name */
+	       printf("%s", he->h_name);
+	   else if (mb == 0)	   /* any */
+	       printf("any");
+	   else {	  /* numeric IP followed by some kind of mask */
+	       if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
+		   printf("Error ntop in print_ip6\n");
+	       printf("%s",  trad );
+	       if (mb < 0)     /* XXX not really legal... */
+		   printf(":%s",
+		       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
+	       else if (mb < 128)
+		   printf("/%d", mb);
+	   }
+	   if (len > 2)
+	       printf(",");
        }
 }
 
@@ -137,20 +137,20 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av)
 
        bzero(cmd, sizeof(*cmd));
        while (*av) {
-           if (*av == ',')
-               av++;
-           type = strtoul(av, &av, 0);
-           if (*av != ',' && *av != '\0')
-               errx(EX_DATAERR, "invalid ICMP6 type");
+	   if (*av == ',')
+	       av++;
+	   type = strtoul(av, &av, 0);
+	   if (*av != ',' && *av != '\0')
+	       errx(EX_DATAERR, "invalid ICMP6 type");
 	   /*
 	    * XXX: shouldn't this be 0xFF?  I can't see any reason why
 	    * we shouldn't be able to filter all possiable values
 	    * regardless of the ability of the rest of the kernel to do
 	    * anything useful with them.
 	    */
-           if (type > ICMP6_MAXTYPE)
-               errx(EX_DATAERR, "ICMP6 type out of range");
-           cmd->d[type / 32] |= ( 1 << (type % 32));
+	   if (type > ICMP6_MAXTYPE)
+	       errx(EX_DATAERR, "ICMP6 type out of range");
+	   cmd->d[type / 32] |= ( 1 << (type % 32));
        }
        cmd->o.opcode = O_ICMP6TYPE;
        cmd->o.len |= F_INSN_SIZE(ipfw_insn_icmp6);
@@ -165,12 +165,12 @@ print_icmp6types(ipfw_insn_u32 *cmd)
 
        printf(" ip6 icmp6types");
        for (i = 0; i < 7; i++)
-               for (j=0; j < 32; ++j) {
-                       if ( (cmd->d[i] & (1 << (j))) == 0)
-                               continue;
-                       printf("%c%d", sep, (i*32 + j));
-                       sep = ',';
-               }
+	       for (j=0; j < 32; ++j) {
+		       if ( (cmd->d[i] & (1 << (j))) == 0)
+			       continue;
+		       printf("%c%d", sep, (i*32 + j));
+		       sep = ',';
+	       }
 }
 
 void
@@ -181,9 +181,9 @@ print_flow6id( ipfw_insn_u32 *cmd)
 
        printf(" flow-id ");
        for( i=0; i < limit; ++i) {
-               if (i == limit - 1)
-                       sep = ' ';
-               printf("%d%c", cmd->d[i], sep);
+	       if (i == limit - 1)
+		       sep = ' ';
+	       printf("%d%c", cmd->d[i], sep);
        }
 }
 
@@ -193,11 +193,11 @@ static struct _s_x ext6hdrcodes[] = {
        { "hopopt",     EXT_HOPOPTS },
        { "route",      EXT_ROUTING },
        { "dstopt",     EXT_DSTOPTS },
-       { "ah",         EXT_AH },
-       { "esp",        EXT_ESP },
+       { "ah",	 EXT_AH },
+       { "esp",	EXT_ESP },
        { "rthdr0",     EXT_RTHDR0 },
        { "rthdr2",     EXT_RTHDR2 },
-       { NULL,         0 }
+       { NULL,	 0 }
 };
 
 /* fills command for the extension header filtering */
@@ -210,48 +210,48 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
        cmd->arg1 = 0;
 
        while(s) {
-           av = strsep( &s, ",") ;
-           tok = match_token(ext6hdrcodes, av);
-           switch (tok) {
-           case EXT_FRAGMENT:
-               cmd->arg1 |= EXT_FRAGMENT;
-               break;
+	   av = strsep( &s, ",") ;
+	   tok = match_token(ext6hdrcodes, av);
+	   switch (tok) {
+	   case EXT_FRAGMENT:
+	       cmd->arg1 |= EXT_FRAGMENT;
+	       break;
 
-           case EXT_HOPOPTS:
-               cmd->arg1 |= EXT_HOPOPTS;
-               break;
+	   case EXT_HOPOPTS:
+	       cmd->arg1 |= EXT_HOPOPTS;
+	       break;
 
-           case EXT_ROUTING:
-               cmd->arg1 |= EXT_ROUTING;
-               break;
+	   case EXT_ROUTING:
+	       cmd->arg1 |= EXT_ROUTING;
+	       break;
 
-           case EXT_DSTOPTS:
-               cmd->arg1 |= EXT_DSTOPTS;
-               break;
+	   case EXT_DSTOPTS:
+	       cmd->arg1 |= EXT_DSTOPTS;
+	       break;
 
-           case EXT_AH:
-               cmd->arg1 |= EXT_AH;
-               break;
+	   case EXT_AH:
+	       cmd->arg1 |= EXT_AH;
+	       break;
 
-           case EXT_ESP:
-               cmd->arg1 |= EXT_ESP;
-               break;
+	   case EXT_ESP:
+	       cmd->arg1 |= EXT_ESP;
+	       break;
 
-           case EXT_RTHDR0:
-               cmd->arg1 |= EXT_RTHDR0;
-               break;
+	   case EXT_RTHDR0:
+	       cmd->arg1 |= EXT_RTHDR0;
+	       break;
 
-           case EXT_RTHDR2:
-               cmd->arg1 |= EXT_RTHDR2;
-               break;
+	   case EXT_RTHDR2:
+	       cmd->arg1 |= EXT_RTHDR2;
+	       break;
 
-           default:
-               errx( EX_DATAERR, "invalid option for ipv6 exten header" );
-               break;
-           }
+	   default:
+	       errx( EX_DATAERR, "invalid option for ipv6 exten header" );
+	       break;
+	   }
        }
        if (cmd->arg1 == 0 )
-           return 0;
+	   return 0;
        cmd->opcode = O_EXT_HDR;
        cmd->len |= F_INSN_SIZE( ipfw_insn );
        return 1;
@@ -264,35 +264,35 @@ print_ext6hdr( ipfw_insn *cmd )
 
        printf(" extension header:");
        if (cmd->arg1 & EXT_FRAGMENT ) {
-           printf("%cfragmentation", sep);
-           sep = ',';
+	   printf("%cfragmentation", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_HOPOPTS ) {
-           printf("%chop options", sep);
-           sep = ',';
+	   printf("%chop options", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_ROUTING ) {
-           printf("%crouting options", sep);
-           sep = ',';
+	   printf("%crouting options", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_RTHDR0 ) {
-           printf("%crthdr0", sep);
-           sep = ',';
+	   printf("%crthdr0", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_RTHDR2 ) {
-           printf("%crthdr2", sep);
-           sep = ',';
+	   printf("%crthdr2", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_DSTOPTS ) {
-           printf("%cdestination options", sep);
-           sep = ',';
+	   printf("%cdestination options", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_AH ) {
-           printf("%cauthentication header", sep);
-           sep = ',';
+	   printf("%cauthentication header", sep);
+	   sep = ',';
        }
        if (cmd->arg1 & EXT_ESP ) {
-           printf("%cencapsulated security payload", sep);
+	   printf("%cencapsulated security payload", sep);
        }
 }
 
@@ -318,9 +318,9 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  *     any     matches any IP6. Actually returns an empty instruction.
  *     me      returns O_IP6_*_ME
  *
- *     03f1::234:123:0342                single IP6 addres
- *     03f1::234:123:0342/24            address/mask
- *     03f1::234:123:0342/24,03f1::234:123:0343/               List of address
+ *     03f1::234:123:0342		single IP6 addres
+ *     03f1::234:123:0342/24	    address/mask
+ *     03f1::234:123:0342/24,03f1::234:123:0343/	       List of address
  *
  * Set of address (as in ipv6) not supported because ipv6 address
  * are typically random past the initial prefix.

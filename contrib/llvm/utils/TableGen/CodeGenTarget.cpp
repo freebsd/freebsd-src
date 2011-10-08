@@ -90,6 +90,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::Metadata: return "MVT::Metadata";
   case MVT::iPTR:     return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
+  case MVT::untyped:  return "MVT::untyped";
   default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
   }
 }
@@ -98,17 +99,18 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
 /// namespace qualifier if the record contains one.
 ///
 std::string llvm::getQualifiedName(const Record *R) {
-  std::string Namespace = R->getValueAsString("Namespace");
+  std::string Namespace;
+  if (R->getValue("Namespace"))
+     Namespace = R->getValueAsString("Namespace");
   if (Namespace.empty()) return R->getName();
   return Namespace + "::" + R->getName();
 }
 
 
-
-
 /// getTarget - Return the current instance of the Target class.
 ///
-CodeGenTarget::CodeGenTarget(RecordKeeper &records) : Records(records) {
+CodeGenTarget::CodeGenTarget(RecordKeeper &records)
+  : Records(records), RegBank(0) {
   std::vector<Record*> Targets = Records.getAllDerivedDefinitions("Target");
   if (Targets.size() == 0)
     throw std::string("ERROR: No 'Target' subclasses defined!");
@@ -156,67 +158,41 @@ Record *CodeGenTarget::getAsmWriter() const {
   return LI[AsmWriterNum];
 }
 
-void CodeGenTarget::ReadRegisters() const {
-  std::vector<Record*> Regs = Records.getAllDerivedDefinitions("Register");
-  if (Regs.empty())
-    throw std::string("No 'Register' subclasses defined!");
-  std::sort(Regs.begin(), Regs.end(), LessRecord());
-
-  Registers.reserve(Regs.size());
-  Registers.assign(Regs.begin(), Regs.end());
+CodeGenRegBank &CodeGenTarget::getRegBank() const {
+  if (!RegBank)
+    RegBank = new CodeGenRegBank(Records);
+  return *RegBank;
 }
 
-CodeGenRegister::CodeGenRegister(Record *R) : TheDef(R) {
-  DeclaredSpillSize = R->getValueAsInt("SpillSize");
-  DeclaredSpillAlignment = R->getValueAsInt("SpillAlignment");
-}
-
-const std::string &CodeGenRegister::getName() const {
-  return TheDef->getName();
-}
-
-void CodeGenTarget::ReadSubRegIndices() const {
-  SubRegIndices = Records.getAllDerivedDefinitions("SubRegIndex");
-  std::sort(SubRegIndices.begin(), SubRegIndices.end(), LessRecord());
-}
-
-void CodeGenTarget::ReadRegisterClasses() const {
-  std::vector<Record*> RegClasses =
-    Records.getAllDerivedDefinitions("RegisterClass");
-  if (RegClasses.empty())
-    throw std::string("No 'RegisterClass' subclasses defined!");
-
-  RegisterClasses.reserve(RegClasses.size());
-  RegisterClasses.assign(RegClasses.begin(), RegClasses.end());
+void CodeGenTarget::ReadRegAltNameIndices() const {
+  RegAltNameIndices = Records.getAllDerivedDefinitions("RegAltNameIndex");
+  std::sort(RegAltNameIndices.begin(), RegAltNameIndices.end(), LessRecord());
 }
 
 /// getRegisterByName - If there is a register with the specific AsmName,
 /// return it.
 const CodeGenRegister *CodeGenTarget::getRegisterByName(StringRef Name) const {
-  const std::vector<CodeGenRegister> &Regs = getRegisters();
-  for (unsigned i = 0, e = Regs.size(); i != e; ++i) {
-    const CodeGenRegister &Reg = Regs[i];
-    if (Reg.TheDef->getValueAsString("AsmName") == Name)
-      return &Reg;
-  }
-  
+  const std::vector<CodeGenRegister*> &Regs = getRegBank().getRegisters();
+  for (unsigned i = 0, e = Regs.size(); i != e; ++i)
+    if (Regs[i]->TheDef->getValueAsString("AsmName") == Name)
+      return Regs[i];
+
   return 0;
 }
 
 std::vector<MVT::SimpleValueType> CodeGenTarget::
 getRegisterVTs(Record *R) const {
+  const CodeGenRegister *Reg = getRegBank().getReg(R);
   std::vector<MVT::SimpleValueType> Result;
   const std::vector<CodeGenRegisterClass> &RCs = getRegisterClasses();
   for (unsigned i = 0, e = RCs.size(); i != e; ++i) {
-    const CodeGenRegisterClass &RC = RegisterClasses[i];
-    for (unsigned ei = 0, ee = RC.Elements.size(); ei != ee; ++ei) {
-      if (R == RC.Elements[ei]) {
-        const std::vector<MVT::SimpleValueType> &InVTs = RC.getValueTypes();
-        Result.insert(Result.end(), InVTs.begin(), InVTs.end());
-      }
+    const CodeGenRegisterClass &RC = RCs[i];
+    if (RC.contains(Reg)) {
+      const std::vector<MVT::SimpleValueType> &InVTs = RC.getValueTypes();
+      Result.insert(Result.end(), InVTs.begin(), InVTs.end());
     }
   }
-  
+
   // Remove duplicates.
   array_pod_sort(Result.begin(), Result.end());
   Result.erase(std::unique(Result.begin(), Result.end()), Result.end());
@@ -224,76 +200,12 @@ getRegisterVTs(Record *R) const {
 }
 
 
-CodeGenRegisterClass::CodeGenRegisterClass(Record *R) : TheDef(R) {
-  // Rename anonymous register classes.
-  if (R->getName().size() > 9 && R->getName()[9] == '.') {
-    static unsigned AnonCounter = 0;
-    R->setName("AnonRegClass_"+utostr(AnonCounter++));
-  } 
-  
-  std::vector<Record*> TypeList = R->getValueAsListOfDefs("RegTypes");
-  for (unsigned i = 0, e = TypeList.size(); i != e; ++i) {
-    Record *Type = TypeList[i];
-    if (!Type->isSubClassOf("ValueType"))
-      throw "RegTypes list member '" + Type->getName() +
-        "' does not derive from the ValueType class!";
-    VTs.push_back(getValueType(Type));
-  }
-  assert(!VTs.empty() && "RegisterClass must contain at least one ValueType!");
-  
-  std::vector<Record*> RegList = R->getValueAsListOfDefs("MemberList");
-  for (unsigned i = 0, e = RegList.size(); i != e; ++i) {
-    Record *Reg = RegList[i];
-    if (!Reg->isSubClassOf("Register"))
-      throw "Register Class member '" + Reg->getName() +
-            "' does not derive from the Register class!";
-    Elements.push_back(Reg);
-  }
-
-  // SubRegClasses is a list<dag> containing (RC, subregindex, ...) dags.
-  ListInit *SRC = R->getValueAsListInit("SubRegClasses");
-  for (ListInit::const_iterator i = SRC->begin(), e = SRC->end(); i != e; ++i) {
-    DagInit *DAG = dynamic_cast<DagInit*>(*i);
-    if (!DAG) throw "SubRegClasses must contain DAGs";
-    DefInit *DAGOp = dynamic_cast<DefInit*>(DAG->getOperator());
-    Record *RCRec;
-    if (!DAGOp || !(RCRec = DAGOp->getDef())->isSubClassOf("RegisterClass"))
-      throw "Operator '" + DAG->getOperator()->getAsString() +
-        "' in SubRegClasses is not a RegisterClass";
-    // Iterate over args, all SubRegIndex instances.
-    for (DagInit::const_arg_iterator ai = DAG->arg_begin(), ae = DAG->arg_end();
-         ai != ae; ++ai) {
-      DefInit *Idx = dynamic_cast<DefInit*>(*ai);
-      Record *IdxRec;
-      if (!Idx || !(IdxRec = Idx->getDef())->isSubClassOf("SubRegIndex"))
-        throw "Argument '" + (*ai)->getAsString() +
-          "' in SubRegClasses is not a SubRegIndex";
-      if (!SubRegClasses.insert(std::make_pair(IdxRec, RCRec)).second)
-        throw "SubRegIndex '" + IdxRec->getName() + "' mentioned twice";
-    }
-  }
-
-  // Allow targets to override the size in bits of the RegisterClass.
-  unsigned Size = R->getValueAsInt("Size");
-
-  Namespace = R->getValueAsString("Namespace");
-  SpillSize = Size ? Size : EVT(VTs[0]).getSizeInBits();
-  SpillAlignment = R->getValueAsInt("Alignment");
-  CopyCost = R->getValueAsInt("CopyCost");
-  MethodBodies = R->getValueAsCode("MethodBodies");
-  MethodProtos = R->getValueAsCode("MethodProtos");
-}
-
-const std::string &CodeGenRegisterClass::getName() const {
-  return TheDef->getName();
-}
-
 void CodeGenTarget::ReadLegalValueTypes() const {
   const std::vector<CodeGenRegisterClass> &RCs = getRegisterClasses();
   for (unsigned i = 0, e = RCs.size(); i != e; ++i)
     for (unsigned ri = 0, re = RCs[i].VTs.size(); ri != re; ++ri)
       LegalValueTypes.push_back(RCs[i].VTs[ri]);
-  
+
   // Remove duplicates.
   std::sort(LegalValueTypes.begin(), LegalValueTypes.end());
   LegalValueTypes.erase(std::unique(LegalValueTypes.begin(),
@@ -314,10 +226,10 @@ void CodeGenTarget::ReadInstructions() const {
 
 static const CodeGenInstruction *
 GetInstByName(const char *Name,
-              const DenseMap<const Record*, CodeGenInstruction*> &Insts, 
+              const DenseMap<const Record*, CodeGenInstruction*> &Insts,
               RecordKeeper &Records) {
   const Record *Rec = Records.getDef(Name);
-  
+
   DenseMap<const Record*, CodeGenInstruction*>::const_iterator
     I = Insts.find(Rec);
   if (Rec == 0 || I == Insts.end())
@@ -434,7 +346,7 @@ ComplexPattern::ComplexPattern(Record *R) {
 std::vector<CodeGenIntrinsic> llvm::LoadIntrinsics(const RecordKeeper &RC,
                                                    bool TargetOnly) {
   std::vector<Record*> I = RC.getAllDerivedDefinitions("Intrinsic");
-  
+
   std::vector<CodeGenIntrinsic> Result;
 
   for (unsigned i = 0, e = I.size(); i != e; ++i) {
@@ -451,8 +363,9 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
   ModRef = ReadWriteMem;
   isOverloaded = false;
   isCommutative = false;
-  
-  if (DefName.size() <= 4 || 
+  canThrow = false;
+
+  if (DefName.size() <= 4 ||
       std::string(DefName.begin(), DefName.begin() + 4) != "int_")
     throw "Intrinsic '" + DefName + "' does not start with 'int_'!";
 
@@ -472,11 +385,11 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       Name += (EnumName[i] == '_') ? '.' : EnumName[i];
   } else {
     // Verify it starts with "llvm.".
-    if (Name.size() <= 5 || 
+    if (Name.size() <= 5 ||
         std::string(Name.begin(), Name.begin() + 5) != "llvm.")
       throw "Intrinsic '" + DefName + "'s name does not start with 'llvm.'!";
   }
-  
+
   // If TargetPrefix is specified, make sure that Name starts with
   // "llvm.<targetprefix>.".
   if (!TargetPrefix.empty()) {
@@ -486,7 +399,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       throw "Intrinsic '" + DefName + "' does not start with 'llvm." +
         TargetPrefix + ".'!";
   }
-  
+
   // Parse the list of return types.
   std::vector<MVT::SimpleValueType> OverloadedVTs;
   ListInit *TypeList = R->getValueAsListInit("RetTypes");
@@ -517,11 +430,11 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     // Reject invalid types.
     if (VT == MVT::isVoid)
       throw "Intrinsic '" + DefName + " has void in result type list!";
-    
+
     IS.RetVTs.push_back(VT);
     IS.RetTypeDefs.push_back(TyEl);
   }
-  
+
   // Parse the list of parameter types.
   TypeList = R->getValueAsListInit("ParamTypes");
   for (unsigned i = 0, e = TypeList->getSize(); i != e; ++i) {
@@ -542,16 +455,16 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
              "Expected iAny or vAny type");
     } else
       VT = getValueType(TyEl->getValueAsDef("VT"));
-    
+
     if (EVT(VT).isOverloaded()) {
       OverloadedVTs.push_back(VT);
       isOverloaded = true;
     }
-    
+
     // Reject invalid types.
     if (VT == MVT::isVoid && i != e-1 /*void at end means varargs*/)
       throw "Intrinsic '" + DefName + " has void in result type list!";
-    
+
     IS.ParamVTs.push_back(VT);
     IS.ParamTypeDefs.push_back(TyEl);
   }
@@ -562,7 +475,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     Record *Property = PropList->getElementAsRecord(i);
     assert(Property->isSubClassOf("IntrinsicProperty") &&
            "Expected a property!");
-    
+
     if (Property->getName() == "IntrNoMem")
       ModRef = NoMem;
     else if (Property->getName() == "IntrReadArgMem")
@@ -573,10 +486,15 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       ModRef = ReadWriteArgMem;
     else if (Property->getName() == "Commutative")
       isCommutative = true;
+    else if (Property->getName() == "Throws")
+      canThrow = true;
     else if (Property->isSubClassOf("NoCapture")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));
     } else
       assert(0 && "Unknown property!");
   }
+
+  // Sort the argument attributes for later benefit.
+  std::sort(ArgumentAttributes.begin(), ArgumentAttributes.end());
 }

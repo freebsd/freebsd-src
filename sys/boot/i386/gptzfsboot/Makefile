@@ -17,12 +17,7 @@ ORG1=	0x7c00
 ORG2=	0x0
 
 CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
-	-Os \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
-	-mrtd \
+	-O1 \
 	-DGPT -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
@@ -63,7 +58,8 @@ gptldr.bin: gptldr.out
 gptldr.out: gptldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
-CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o
+CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o cons.o \
+		drv.o gpt.o util.o
 
 gptzfsboot.bin: gptzfsboot.out
 	objcopy -S -O binary gptzfsboot.out ${.TARGET}

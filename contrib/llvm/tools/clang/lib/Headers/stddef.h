@@ -26,7 +26,10 @@
 #ifndef __STDDEF_H
 #define __STDDEF_H
 
+#ifndef _PTRDIFF_T
+#define _PTRDIFF_T
 typedef __typeof__(((int*)0)-((int*)0)) ptrdiff_t;
+#endif
 #ifndef _SIZE_T
 #define _SIZE_T
 typedef __typeof__(sizeof(int)) size_t;
@@ -51,7 +54,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 #endif /* __STDDEF_H */
 
 /* Some C libraries expect to see a wint_t here. Others (notably MinGW) will use
-__WINT_TYPE__ directly; accomodate both by requiring __need_wint_t */
+__WINT_TYPE__ directly; accommodate both by requiring __need_wint_t */
 #if defined(__need_wint_t)
 #if !defined(_WINT_T)
 #define _WINT_T

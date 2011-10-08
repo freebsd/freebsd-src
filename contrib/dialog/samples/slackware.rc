@@ -1,4 +1,5 @@
-# $Id: slackware.rc,v 1.6 2005/12/01 01:20:16 tom Exp $
+# $Id: slackware.rc,v 1.7 2011/01/17 00:14:41 tom Exp $
+# vile:confmode
 # Run-time configuration file for dialog, matches Slackware color scheme.
 #
 # Types of values:
@@ -122,3 +123,9 @@ form_active_text_color = (BLUE,WHITE,OFF)
 
 # Form text color
 form_text_color = (CYAN,BLUE,ON)
+
+# Readonly form item color
+form_item_readonly_color = (CYAN,WHITE,ON)
+
+# Dialog box gauge color
+gauge_color = (BLUE,WHITE,ON)

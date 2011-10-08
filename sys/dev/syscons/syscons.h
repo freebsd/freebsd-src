@@ -230,7 +230,6 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
-	char		suspend_in_progress;
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
@@ -267,6 +266,9 @@ typedef struct sc_softc {
 	u_char		cursor_char;
 	u_char		mouse_char;
 
+#ifdef KDB
+	int		sc_altbrk;
+#endif
 } sc_softc_t;
 
 /* virtual screen */

@@ -142,6 +142,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define INTEL_VENDORID		0x8086
 #define HDA_INTEL_CPT		HDA_MODEL_CONSTRUCT(INTEL, 0x1c20)
 #define HDA_INTEL_PATSBURG	HDA_MODEL_CONSTRUCT(INTEL, 0x1d20)
+#define HDA_INTEL_PPT1		HDA_MODEL_CONSTRUCT(INTEL, 0x1e20)
 #define HDA_INTEL_82801F	HDA_MODEL_CONSTRUCT(INTEL, 0x2668)
 #define HDA_INTEL_63XXESB	HDA_MODEL_CONSTRUCT(INTEL, 0x269a)
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
@@ -294,6 +295,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define LENOVO_VENDORID		0x17aa
 #define LENOVO_3KN100_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x2066)
 #define LENOVO_3KN200_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x384e)
+#define LENOVO_B450_SUBVENDOR HDA_MODEL_CONSTRUCT(LENOVO, 0x3a0d)
 #define LENOVO_TCA55_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x1015)
 #define LENOVO_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0xffff)
 
@@ -495,6 +497,7 @@ static const struct {
 } hdac_devices[] = {
 	{ HDA_INTEL_CPT,     "Intel Cougar Point",	0 },
 	{ HDA_INTEL_PATSBURG,"Intel Patsburg",  0 },
+	{ HDA_INTEL_PPT1,    "Intel Panther Point",	0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0 },
@@ -752,7 +755,17 @@ static const struct {
 #define HDA_CODEC_CX20561	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5051)
 #define HDA_CODEC_CX20582	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5066)
 #define HDA_CODEC_CX20583	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5067)
+#define HDA_CODEC_CX20584	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5068)
 #define HDA_CODEC_CX20585	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5069)
+#define HDA_CODEC_CX20590	HDA_CODEC_CONSTRUCT(CONEXANT, 0x506e)
+#define HDA_CODEC_CX20631	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5097)
+#define HDA_CODEC_CX20632	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5098)
+#define HDA_CODEC_CX20641	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50a1)
+#define HDA_CODEC_CX20642	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50a2)
+#define HDA_CODEC_CX20651	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50ab)
+#define HDA_CODEC_CX20652	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50ac)
+#define HDA_CODEC_CX20664	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50b8)
+#define HDA_CODEC_CX20665	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50b9)
 #define HDA_CODEC_CXXXXX	HDA_CODEC_CONSTRUCT(CONEXANT, 0xffff)
 
 /* VIA */
@@ -824,12 +837,13 @@ static const struct {
 #define HDA_CODEC_NVIDIAXXXX	HDA_CODEC_CONSTRUCT(NVIDIA, 0xffff)
 
 /* INTEL */
-#define HDA_CODEC_INTELG45_1	HDA_CODEC_CONSTRUCT(INTEL, 0x2801)
-#define HDA_CODEC_INTELG45_2	HDA_CODEC_CONSTRUCT(INTEL, 0x2802)
-#define HDA_CODEC_INTELG45_3	HDA_CODEC_CONSTRUCT(INTEL, 0x2803)
-#define HDA_CODEC_INTELG45_4	HDA_CODEC_CONSTRUCT(INTEL, 0x2804)
-#define HDA_CODEC_INTELG45_5	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
-#define HDA_CODEC_INTELQ57	HDA_CODEC_CONSTRUCT(INTEL, 0x0054)
+#define HDA_CODEC_INTELIP	HDA_CODEC_CONSTRUCT(INTEL, 0x0054)
+#define HDA_CODEC_INTELBL	HDA_CODEC_CONSTRUCT(INTEL, 0x2801)
+#define HDA_CODEC_INTELCA	HDA_CODEC_CONSTRUCT(INTEL, 0x2802)
+#define HDA_CODEC_INTELEL	HDA_CODEC_CONSTRUCT(INTEL, 0x2803)
+#define HDA_CODEC_INTELIP2	HDA_CODEC_CONSTRUCT(INTEL, 0x2804)
+#define HDA_CODEC_INTELCPT	HDA_CODEC_CONSTRUCT(INTEL, 0x2805)
+#define HDA_CODEC_INTELCL	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
 #define HDA_CODEC_INTELXXXX	HDA_CODEC_CONSTRUCT(INTEL, 0xffff)
 
 /* Codecs */
@@ -936,7 +950,17 @@ static const struct {
 	{ HDA_CODEC_CX20561,   "Conexant CX20561 (Hermosa)" },
 	{ HDA_CODEC_CX20582,   "Conexant CX20582 (Pebble)" },
 	{ HDA_CODEC_CX20583,   "Conexant CX20583 (Pebble HSF)" },
+	{ HDA_CODEC_CX20584,   "Conexant CX20584" },
 	{ HDA_CODEC_CX20585,   "Conexant CX20585" },
+	{ HDA_CODEC_CX20590,   "Conexant CX20590" },
+	{ HDA_CODEC_CX20631,   "Conexant CX20631" },
+	{ HDA_CODEC_CX20632,   "Conexant CX20632" },
+	{ HDA_CODEC_CX20641,   "Conexant CX20641" },
+	{ HDA_CODEC_CX20642,   "Conexant CX20642" },
+	{ HDA_CODEC_CX20651,   "Conexant CX20651" },
+	{ HDA_CODEC_CX20652,   "Conexant CX20652" },
+	{ HDA_CODEC_CX20664,   "Conexant CX20664" },
+	{ HDA_CODEC_CX20665,   "Conexant CX20665" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
 	{ HDA_CODEC_VT1708_9,  "VIA VT1708_9" },
 	{ HDA_CODEC_VT1708_A,  "VIA VT1708_A" },
@@ -996,12 +1020,13 @@ static const struct {
 	{ HDA_CODEC_NVIDIAGT21X, "NVidia GT21x HDMI" },
 	{ HDA_CODEC_NVIDIAMCP89, "NVidia MCP89 HDMI" },
 	{ HDA_CODEC_NVIDIAGT240, "NVidia GT240 HDMI" },
-	{ HDA_CODEC_INTELG45_1, "Intel G45 HDMI" },
-	{ HDA_CODEC_INTELG45_2, "Intel G45 HDMI" },
-	{ HDA_CODEC_INTELG45_3, "Intel G45 HDMI" },
-	{ HDA_CODEC_INTELG45_4, "Intel G45 HDMI" },
-	{ HDA_CODEC_INTELG45_5, "Intel G45 HDMI" },
-	{ HDA_CODEC_INTELQ57, "Intel Q57 HDMI" },
+	{ HDA_CODEC_INTELIP,   "Intel Ibex Peak HDMI" },
+	{ HDA_CODEC_INTELBL,   "Intel Bearlake HDMI" },
+	{ HDA_CODEC_INTELCA,   "Intel Cantiga HDMI" },
+	{ HDA_CODEC_INTELEL,   "Intel Eaglelake HDMI" },
+	{ HDA_CODEC_INTELIP2,  "Intel Ibex Peak HDMI" },
+	{ HDA_CODEC_INTELCPT,  "Intel Cougar Point HDMI" },
+	{ HDA_CODEC_INTELCL,   "Intel Crestline HDMI" },
 	{ HDA_CODEC_SII1390,   "Silicon Image SiI1390 HDMI" },
 	{ HDA_CODEC_SII1392,   "Silicon Image SiI1392 HDMI" },
 	/* Unknown codec */
@@ -2558,6 +2583,13 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			break;
 		}
 	    }
+	} else if (id == HDA_CODEC_CX20561 &&
+	    sc->pci_subvendor == LENOVO_B450_SUBVENDOR) {
+		switch (nid) {
+		case 22:
+			patch = "as=1 seq=15";
+			break;
+		}
 	}
 
 	if (patch != NULL)
@@ -4122,7 +4154,10 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
+	HDA_BOOTVERBOSE(
+		device_printf(dev, "HDA Driver Revision: %s\n",
+		    HDA_DRV_TEST_REV);
+	);
 
 	model = (uint32_t)pci_get_device(dev) << 16;
 	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
@@ -4914,6 +4949,25 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		w = hdac_widget_get(devinfo, 24);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		break;
+	case HDA_CODEC_CX20582:
+	case HDA_CODEC_CX20583:
+	case HDA_CODEC_CX20584:
+	case HDA_CODEC_CX20585:
+	case HDA_CODEC_CX20590:
+		/*
+		 * These codecs have extra connectivity on record side
+		 * too reach for the present parser.
+		 */
+		w = hdac_widget_get(devinfo, 20);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdac_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdac_widget_get(devinfo, 22);
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;

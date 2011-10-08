@@ -746,7 +746,6 @@ intr_handler_source(void *cookie)
 void
 _intr_drain(int irq)
 {
-	struct mtx *mtx;
 	struct intr_event *ie;
 	struct intr_thread *ithd;
 	struct thread *td;
@@ -758,13 +757,21 @@ _intr_drain(int irq)
 		return;
 	ithd = ie->ie_thread;
 	td = ithd->it_thread;
+	/*
+	 * We set the flag and wait for it to be cleared to avoid
+	 * long delays with potentially busy interrupt handlers
+	 * were we to only sample TD_AWAITING_INTR() every tick.
+	 */
 	thread_lock(td);
-	mtx = td->td_lock;
 	if (!TD_AWAITING_INTR(td)) {
 		ithd->it_flags |= IT_WAIT;
-		msleep_spin(ithd, mtx, "isync", 0);
+		while (ithd->it_flags & IT_WAIT) {
+			thread_unlock(td);
+			pause("idrain", 1);
+			thread_lock(td);
+		}
 	}
-	mtx_unlock_spin(mtx);
+	thread_unlock(td);
 	return;
 }
 
@@ -1862,8 +1869,7 @@ SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
 static int
 sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames, eintrnames - intrnames,
-	   req));
+	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
@@ -1872,8 +1878,7 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
 static int
 sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrcnt,
-	    (char *)eintrcnt - (char *)intrcnt, req));
+	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt, CTLTYPE_OPAQUE | CTLFLAG_RD,
@@ -1887,9 +1892,12 @@ DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
 {
 	u_long *i;
 	char *cp;
+	u_int j;
 
 	cp = intrnames;
-	for (i = intrcnt; i != eintrcnt && !db_pager_quit; i++) {
+	j = 0;
+	for (i = intrcnt; j < (sintrcnt / sizeof(u_long)) && !db_pager_quit;
+	    i++, j++) {
 		if (*cp == '\0')
 			break;
 		if (*i != 0)

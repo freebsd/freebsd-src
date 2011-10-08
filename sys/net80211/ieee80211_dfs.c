@@ -320,6 +320,8 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 			 * on the NOL to expire.
 			 */
 			/*XXX*/
+			if_printf(ic->ic_ifp, "%s: No free channels; waiting for entry "
+			    "on NOL to expire\n", __func__);
 		}
 	} else {
 		/*

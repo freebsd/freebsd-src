@@ -21,9 +21,7 @@
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
-#ifdef AH_DEBUG
 #include "ah_desc.h"			/* NB: for HAL_PHYERR* */
-#endif
 
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
@@ -634,6 +632,20 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 	}
 }
 
+HAL_STATUS
+ar5212SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
+    uint32_t nextStart, HAL_QUIET_FLAG flag)
+{
+	OS_REG_WRITE(ah, AR_QUIET2, period | (duration << AR_QUIET2_QUIET_DUR_S));
+	if (flag & HAL_QUIET_ENABLE) {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart | (1 << 16));
+	}
+	else {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart);
+	}
+	return HAL_OK;
+}
+
 void
 ar5212SetPCUConfig(struct ath_hal *ah)
 {
@@ -857,7 +869,7 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MCAST_KEYSRCH:	/* multicast frame keycache search */
 		switch (capability) {
 		case 0:			/* hardware capability */
-			return HAL_OK;
+			return pCap->halMcastKeySrchSupport ? HAL_OK : HAL_ENXIO;
 		case 1:
 			return (ahp->ah_staId1Defaults &
 			    AR_STA_ID1_MCAST_KSRCH) ? HAL_OK : HAL_ENXIO;
@@ -880,16 +892,16 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_INTMIT:		/* interference mitigation */
 		switch (capability) {
-		case 0:			/* hardware capability */
+		case HAL_CAP_INTMIT_PRESENT:		/* hardware capability */
 			return HAL_OK;
-		case 1:
+		case HAL_CAP_INTMIT_ENABLE:
 			return (ahp->ah_procPhyErr & HAL_ANI_ENA) ?
 				HAL_OK : HAL_ENXIO;
-		case 2:			/* HAL_ANI_NOISE_IMMUNITY_LEVEL */
-		case 3:			/* HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION */
-		case 4:			/* HAL_ANI_CCK_WEAK_SIGNAL_THR */
-		case 5:			/* HAL_ANI_FIRSTEP_LEVEL */
-		case 6:			/* HAL_ANI_SPUR_IMMUNITY_LEVEL */
+		case HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL:
+		case HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL:
+		case HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR:
+		case HAL_CAP_INTMIT_FIRSTEP_LEVEL:
+		case HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL:
 			ani = ar5212AniGetCurrentState(ah);
 			if (ani == AH_NULL)
 				return HAL_ENXIO;
@@ -980,6 +992,8 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		OS_REG_WRITE(ah, AR_TPC, ahp->ah_macTPC);
 		return AH_TRUE;
 	case HAL_CAP_INTMIT: {		/* interference mitigation */
+		/* This maps the public ANI commands to the internal ANI commands */
+		/* Private: HAL_ANI_CMD; Public: HAL_CAP_INTMIT_CMD */
 		static const HAL_ANI_CMD cmds[] = {
 			HAL_ANI_PRESENT,
 			HAL_ANI_MODE,
@@ -990,7 +1004,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_ANI_SPUR_IMMUNITY_LEVEL,
 		};
 		return capability < N(cmds) ?
-			ar5212AniControl(ah, cmds[capability], setting) :
+			AH5212(ah)->ah_aniControl(ah, cmds[capability], setting) :
 			AH_FALSE;
 	}
 	case HAL_CAP_TSF_ADJUST:	/* hardware has beacon tsf adjust */
@@ -1053,7 +1067,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	case HAL_DIAG_ANI_CMD:
 		if (argsize != 2*sizeof(uint32_t))
 			return AH_FALSE;
-		ar5212AniControl(ah, ((const uint32_t *)args)[0],
+		AH5212(ah)->ah_aniControl(ah, ((const uint32_t *)args)[0],
 			((const uint32_t *)args)[1]);
 		return AH_TRUE;
 	case HAL_DIAG_ANI_PARAMS:
@@ -1111,5 +1125,110 @@ ar5212WaitNFCalComplete(struct ath_hal *ah, int i)
 			return AH_TRUE;
 		OS_DELAY(10);
 	}
+	return AH_FALSE;
+}
+
+void
+ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val;
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	if (pe->pe_firpwr != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_FIRPWR;
+		val |= SM(pe->pe_firpwr, AR_PHY_RADAR_0_FIRPWR);
+	}
+	if (pe->pe_rrssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_RRSSI;
+		val |= SM(pe->pe_rrssi, AR_PHY_RADAR_0_RRSSI);
+	}
+	if (pe->pe_height != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_HEIGHT;
+		val |= SM(pe->pe_height, AR_PHY_RADAR_0_HEIGHT);
+	}
+	if (pe->pe_prssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_PRSSI;
+		val |= SM(pe->pe_prssi, AR_PHY_RADAR_0_PRSSI);
+	}
+	if (pe->pe_inband != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_INBAND;
+		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
+	}
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+}
+
+void
+ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val,temp;
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	temp = MS(val,AR_PHY_RADAR_0_FIRPWR);
+	temp |= 0xFFFFFF80;
+	pe->pe_firpwr = temp;
+	pe->pe_rrssi = MS(val, AR_PHY_RADAR_0_RRSSI);
+	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
+	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
+	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+
+	pe->pe_relpwr = 0;
+	pe->pe_relstep = 0;
+	pe->pe_maxlen = 0;
+	pe->pe_extchannel = AH_FALSE;
+}
+
+/*
+ * Process the radar phy error and extract the pulse duration.
+ */
+HAL_BOOL
+ar5212ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
+    uint64_t fulltsf, const char *buf, HAL_DFS_EVENT *event)
+{
+	uint8_t dur;
+	uint8_t rssi;
+
+	/* Check whether the given phy error is a radar event */
+	if ((rxs->rs_phyerr != HAL_PHYERR_RADAR) &&
+	    (rxs->rs_phyerr != HAL_PHYERR_FALSE_RADAR_EXT))
+		return AH_FALSE;
+
+	/*
+	 * The first byte is the pulse width - if there's
+	 * no data, simply set the duration to 0
+	 */
+	if (rxs->rs_datalen >= 1)
+		/* The pulse width is byte 0 of the data */
+		dur = ((uint8_t) buf[0]) & 0xff;
+	else
+		dur = 0;
+
+	/* Pulse RSSI is the normal reported RSSI */
+	rssi = (uint8_t) rxs->rs_rssi;
+
+	/* 0 duration/rssi is not a valid radar event */
+	if (dur == 0 && rssi == 0)
+		return AH_FALSE;
+
+	HALDEBUG(ah, HAL_DEBUG_DFS, "%s: rssi=%d, dur=%d\n",
+	    __func__, rssi, dur);
+
+	/* Record the event */
+	event->re_full_ts = fulltsf;
+	event->re_ts = rxs->rs_tstamp;
+	event->re_rssi = rssi;
+	event->re_dur = dur;
+	event->re_flags = HAL_DFS_EVENT_PRICH;
+
+	return AH_TRUE;
+}
+
+/*
+ * Return whether 5GHz fast-clock (44MHz) is enabled.
+ * It's always disabled for AR5212 series NICs.
+ */
+HAL_BOOL
+ar5212IsFastClockEnabled(struct ath_hal *ah)
+{
 	return AH_FALSE;
 }

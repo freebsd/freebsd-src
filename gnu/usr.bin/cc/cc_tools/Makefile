@@ -130,10 +130,6 @@ GTFILES_LANG_DIR_NAMES=
 GTFILES_LANG_DIR_NAMES+=	cp
 .endif
 
-.if ${MK_OBJC} != "no"
-GTFILES_LANG_DIR_NAMES+=	objc
-.endif
-
 # The list of language specific files for gengtype
 .for L in ${GTFILES_LANG_DIR_NAMES} c
 .if exists(${GCCDIR}/$L-config-lang.in)
@@ -156,10 +152,6 @@ TREE_DEF_FILES=
 
 .if ${MK_CXX} != "no"
 TREE_DEF_FILES+=	cp/cp-tree.def
-.endif
-
-.if ${MK_OBJC} != "no"
-TREE_DEF_FILES+=	objc/objc-tree.def
 .endif
 
 #
@@ -342,7 +334,6 @@ GENSRCS+=	configargs.h
 # Language spec files
 specs.h:
 	echo '#include "cp/lang-specs.h"'			> ${.TARGET}
-	echo '#include "objc/lang-specs.h"'			>> ${.TARGET}
 
 GENSRCS+=	specs.h
 

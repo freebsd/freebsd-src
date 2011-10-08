@@ -84,16 +84,16 @@ __start:
  *	r1	: stack pointer
  *	r2	: trace pointer (AP only, for early diagnostics)
  *	r3-r27	: scratch registers
- *	r28	: kernload
- *	r29	: temp TLB1 entry
- *	r30	: initial TLB1 entry we started in
- *	r31	: metadata pointer
+ *	r28	: temp TLB1 entry
+ *	r29	: initial TLB1 entry we started in
+ *	r30-r31	: arguments (metadata pointer)
  */
 
 /*
- * Keep metadata ptr in r31 for later use.
+ * Keep arguments in r30 & r31 for later use.
  */
-	mr	%r31, %r3
+	mr	%r30, %r3
+	mr	%r31, %r4
 
 /*
  * Initial cleanup
@@ -115,12 +115,15 @@ __start:
 	li	%r3, 0
 	bl	tlb_inval_all
 
+	cmpwi	%r30, 0
+	beq	done_mapping
+
 /*
  * Locate the TLB1 entry that maps this code
  */
 	bl	1f
 1:	mflr	%r3
-	bl	tlb1_find_current	/* the entry number found is returned in r30 */
+	bl	tlb1_find_current	/* the entry found is returned in r29 */
 
 	bl	tlb1_inval_all_but_current
 /*
@@ -140,7 +143,7 @@ __start:
 /*
  * Invalidate initial entry
  */
-	mr	%r3, %r30
+	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
 /*
@@ -148,7 +151,7 @@ __start:
  */
 	/* Final kernel mapping, map in 16 MB of RAM */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r4, 1			/* Entry 1 */
+	li	%r4, 0			/* Entry 0 */
 	rlwimi	%r3, %r4, 16, 12, 15
 	mtspr	SPR_MAS0, %r3
 	isync
@@ -170,7 +173,6 @@ __start:
 	bl	3f
 3:	mflr	%r4			/* Use current address */
 	rlwinm	%r4, %r4, 0, 0, 7	/* 16MB alignment mask */
-	mr	%r28, %r4		/* Keep kernel load address */
 	ori	%r4, %r4, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r4		/* Set RPN and protection */
 	isync
@@ -193,26 +195,10 @@ __start:
 /*
  * Invalidate temp mapping
  */
-	mr	%r3, %r29
+	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
-/*
- * Save kernel load address for later use.
- */
-	lis	%r3, kernload@ha
-	addi	%r3, %r3, kernload@l
-	stw	%r28, 0(%r3)
-#ifdef SMP
-	/*
-	 * APs need a separate copy of kernload info within the __boot_page
-	 * area so they can access this value very early, before their TLBs
-	 * are fully set up and the kernload global location is available.
-	 */
-	lis	%r3, kernload_ap@ha
-	addi	%r3, %r3, kernload_ap@l
-	stw	%r28, 0(%r3)
-	msync
-#endif
+done_mapping:
 
 /*
  * Setup a temporary stack
@@ -229,14 +215,11 @@ __start:
 /*
  * Set up arguments and jump to system initialization code
  */
-	lis	%r3, kernel_text@ha
-	addi	%r3, %r3, kernel_text@l
-	lis	%r4, _end@ha
-	addi	%r4, %r4, _end@l
-	mr	%r5, %r31		/* metadata ptr */
+	mr	%r3, %r30
+	mr	%r4, %r31
 
 	/* Prepare e500 core */
-	bl	e500_init
+	bl	booke_init
 
 	/* Switch to thread0.td_kstack now */
 	mr	%r1, %r3
@@ -259,6 +242,7 @@ __start:
 __boot_page:
 	bl	1f
 
+	.globl	kernload_ap
 kernload_ap:
 	.long	0
 
@@ -290,7 +274,7 @@ kernload_ap:
  */
 	bl	2f
 2:	mflr	%r3
-	bl	tlb1_find_current	/* the entry number found is in r30 */
+	bl	tlb1_find_current	/* the entry number found is in r29 */
 
 	bl	tlb1_inval_all_but_current
 /*
@@ -310,7 +294,7 @@ kernload_ap:
 /*
  * Invalidate initial entry
  */
-	mr	%r3, %r30
+	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
 /*
@@ -318,7 +302,7 @@ kernload_ap:
  */
 	/* Final kernel mapping, map in 16 MB of RAM */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r4, 1			/* Entry 1 */
+	li	%r4, 0			/* Entry 0 */
 	rlwimi	%r3, %r4, 16, 4, 15
 	mtspr	SPR_MAS0, %r3
 	isync
@@ -373,7 +357,7 @@ kernload_ap:
 /*
  * Invalidate temp mapping
  */
-	mr	%r3, %r29
+	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
 /*
@@ -425,7 +409,7 @@ tlb_inval_all:
 	blr
 
 /*
- * expects address to look up in r3, returns entry number in r30
+ * expects address to look up in r3, returns entry number in r29
  *
  * FIXME: the hidden assumption is we are now running in AS=0, but we should
  * retrieve actual AS from MSR[IS|DS] and put it in MAS6[SAS]
@@ -437,7 +421,7 @@ tlb1_find_current:
 	isync
 	tlbsx	0, %r3
 	mfspr	%r17, SPR_MAS0
-	rlwinm	%r30, %r17, 16, 20, 31		/* MAS0[ESEL] -> r30 */
+	rlwinm	%r29, %r17, 16, 20, 31		/* MAS0[ESEL] -> r29 */
 
 	/* Make sure we have IPROT set on the entry */
 	mfspr	%r17, SPR_MAS1
@@ -470,14 +454,14 @@ tlb1_inval_entry:
 	blr
 
 /*
- * r30		current entry number
- * r29		returned temp entry
+ * r29		current entry number
+ * r28		returned temp entry
  * r3-r5	scratched
  */
 tlb1_temp_mapping_as1:
 	/* Read our current translation */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r3, %r30, 16, 12, 15	/* Select our current entry */
+	rlwimi	%r3, %r29, 16, 12, 15	/* Select our current entry */
 	mtspr	SPR_MAS0, %r3
 	isync
 	tlbre
@@ -489,12 +473,8 @@ tlb1_temp_mapping_as1:
 	 * entry is the last in TLB1
 	 */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	addi	%r29, %r30, 1		/* Use next entry. */
-	li	%r4, 1
-	cmpw	%r4, %r29
-	bne	1f
-	addi	%r29, %r29, 1
-1:	rlwimi	%r3, %r29, 16, 12, 15	/* Select temp entry */
+	addi	%r28, %r29, 1		/* Use next entry. */
+	rlwimi	%r3, %r28, 16, 12, 15	/* Select temp entry */
 	mtspr	SPR_MAS0, %r3
 	isync
 	mfspr	%r5, SPR_MAS1
@@ -514,7 +494,7 @@ tlb1_temp_mapping_as1:
  * Loops over TLB1, invalidates all entries skipping the one which currently
  * maps this code.
  *
- * r30		current entry
+ * r29		current entry
  * r3-r5	scratched
  */
 tlb1_inval_all_but_current:
@@ -528,7 +508,7 @@ tlb1_inval_all_but_current:
 	isync
 	tlbre
 	mfspr	%r5, SPR_MAS1
-	cmpw	%r4, %r30		/* our current entry? */
+	cmpw	%r4, %r29		/* our current entry? */
 	beq	2f
 	rlwinm	%r5, %r5, 0, 2, 31	/* clear VALID and IPROT bits */
 	mtspr	SPR_MAS1, %r5
@@ -791,14 +771,15 @@ tmpstack:
  */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 
-GLOBAL(kernload)
-	.long	0
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(eintrnames)
+GLOBAL(sintrnames)
+	.long	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+
 	.align 4
 GLOBAL(intrcnt)
 	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(eintrcnt)
+GLOBAL(sintrcnt)
+	.long	INTRCNT_COUNT * 4 * 2
 
 #include <powerpc/booke/trap_subr.S>

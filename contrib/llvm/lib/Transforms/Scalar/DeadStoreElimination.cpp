@@ -340,24 +340,35 @@ static bool isCompleteOverwrite(const AliasAnalysis::Location &Later,
   // Okay, we have stores to two completely different pointers.  Try to
   // decompose the pointer into a "base + constant_offset" form.  If the base
   // pointers are equal, then we can reason about the two stores.
-  int64_t Off1 = 0, Off2 = 0;
-  const Value *BP1 = GetPointerBaseWithConstantOffset(P1, Off1, TD);
-  const Value *BP2 = GetPointerBaseWithConstantOffset(P2, Off2, TD);
+  int64_t EarlierOff = 0, LaterOff = 0;
+  const Value *BP1 = GetPointerBaseWithConstantOffset(P1, EarlierOff, TD);
+  const Value *BP2 = GetPointerBaseWithConstantOffset(P2, LaterOff, TD);
   
   // If the base pointers still differ, we have two completely different stores.
   if (BP1 != BP2)
     return false;
-  
-  // Otherwise, we might have a situation like:
-  //  store i16 -> P + 1 Byte
-  //  store i32 -> P
-  // In this case, we see if the later store completely overlaps all bytes
-  // stored by the previous store.
-  if (Off1 < Off2 ||                       // Earlier starts before Later.
-      Off1+Earlier.Size > Off2+Later.Size) // Earlier goes beyond Later.
-    return false;
-  // Otherwise, we have complete overlap.
-  return true;
+
+  // The later store completely overlaps the earlier store if:
+  // 
+  // 1. Both start at the same offset and the later one's size is greater than
+  //    or equal to the earlier one's, or
+  //
+  //      |--earlier--|
+  //      |--   later   --|
+  //      
+  // 2. The earlier store has an offset greater than the later offset, but which
+  //    still lies completely within the later store.
+  //
+  //        |--earlier--|
+  //    |-----  later  ------|
+  //
+  // We have to be careful here as *Off is signed while *.Size is unsigned.
+  if (EarlierOff >= LaterOff &&
+      uint64_t(EarlierOff - LaterOff) + Earlier.Size <= Later.Size)
+    return true;
+
+  // Otherwise, they don't completely overlap.
+  return false;
 }
 
 /// isPossibleSelfRead - If 'Inst' might be a self read (i.e. a noop copy of a
@@ -426,12 +437,9 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
 
     MemDepResult InstDep = MD->getDependency(Inst);
     
-    // Ignore non-local store liveness.
+    // Ignore any store where we can't find a local dependence.
     // FIXME: cross-block DSE would be fun. :)
-    if (InstDep.isNonLocal() || 
-        // Ignore self dependence, which happens in the entry block of the
-        // function.
-        InstDep.getInst() == Inst)
+    if (InstDep.isNonLocal() || InstDep.isUnknown())
       continue;
      
     // If we're storing the same value back to a pointer that we just
@@ -467,14 +475,14 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
     if (Loc.Ptr == 0)
       continue;
     
-    while (!InstDep.isNonLocal()) {
+    while (!InstDep.isNonLocal() && !InstDep.isUnknown()) {
       // Get the memory clobbered by the instruction we depend on.  MemDep will
       // skip any instructions that 'Loc' clearly doesn't interact with.  If we
       // end up depending on a may- or must-aliased load, then we can't optimize
       // away the store and we bail out.  However, if we depend on on something
       // that overwrites the memory location we *can* potentially optimize it.
       //
-      // Find out what memory location the dependant instruction stores.
+      // Find out what memory location the dependent instruction stores.
       Instruction *DepWrite = InstDep.getInst();
       AliasAnalysis::Location DepLoc = getLocForWrite(DepWrite, *AA);
       // If we didn't get a useful location, or if it isn't a size, bail out.
@@ -531,24 +539,26 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
 /// HandleFree - Handle frees of entire structures whose dependency is a store
 /// to a field of that structure.
 bool DSE::HandleFree(CallInst *F) {
+  bool MadeChange = false;
+
   MemDepResult Dep = MD->getDependency(F);
-  do {
-    if (Dep.isNonLocal()) return false;
-    
+
+  while (!Dep.isNonLocal() && !Dep.isUnknown()) {
     Instruction *Dependency = Dep.getInst();
     if (!hasMemoryWrite(Dependency) || !isRemovable(Dependency))
-      return false;
+      return MadeChange;
   
     Value *DepPointer =
       GetUnderlyingObject(getStoredPointerOperand(Dependency));
 
     // Check for aliasing.
     if (!AA->isMustAlias(F->getArgOperand(0), DepPointer))
-      return false;
+      return MadeChange;
   
     // DCE instructions only used to calculate that store
     DeleteDeadInstruction(Dependency, *MD);
     ++NumFastStores;
+    MadeChange = true;
 
     // Inst's old Dependency is now deleted. Compute the next dependency,
     // which may also be dead, as in
@@ -556,9 +566,9 @@ bool DSE::HandleFree(CallInst *F) {
     //    s[1] = 0; // This has just been deleted.
     //    free(s);
     Dep = MD->getDependency(F);
-  } while (!Dep.isNonLocal());
+  };
   
-  return true;
+  return MadeChange;
 }
 
 /// handleEndBlock - Remove dead stores to stack-allocated locations in the
@@ -631,27 +641,14 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
       if (AA->doesNotAccessMemory(CS))
         continue;
       
-      unsigned NumModRef = 0, NumOther = 0;
-      
       // If the call might load from any of our allocas, then any store above
       // the call is live.
       SmallVector<Value*, 8> LiveAllocas;
       for (SmallPtrSet<Value*, 16>::iterator I = DeadStackObjects.begin(),
            E = DeadStackObjects.end(); I != E; ++I) {
-        // If we detect that our AA is imprecise, it's not worth it to scan the
-        // rest of the DeadPointers set.  Just assume that the AA will return
-        // ModRef for everything, and go ahead and bail out.
-        if (NumModRef >= 16 && NumOther == 0)
-          return MadeChange;
-
         // See if the call site touches it.
         AliasAnalysis::ModRefResult A = 
           AA->getModRefInfo(CS, *I, getPointerSize(*I, *AA));
-        
-        if (A == AliasAnalysis::ModRef)
-          ++NumModRef;
-        else
-          ++NumOther;
         
         if (A == AliasAnalysis::ModRef || A == AliasAnalysis::Ref)
           LiveAllocas.push_back(*I);

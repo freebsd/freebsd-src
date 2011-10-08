@@ -153,12 +153,12 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, Pass *P) {
   // Delete the unconditional branch from the predecessor...
   PredBB->getInstList().pop_back();
   
-  // Move all definitions in the successor to the predecessor...
-  PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
-  
   // Make all PHI nodes that referred to BB now refer to Pred as their
   // source...
   BB->replaceAllUsesWith(PredBB);
+  
+  // Move all definitions in the successor to the predecessor...
+  PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
   
   // Inherit predecessors name if it exists.
   if (!PredBB->hasName())
@@ -447,7 +447,7 @@ BasicBlock *llvm::SplitBlockPredecessors(BasicBlock *BB,
       // If the values coming into the block are not the same, we need a PHI.
       // Create the new PHI node, insert it into NewBB at the end of the block
       PHINode *NewPHI =
-        PHINode::Create(PN->getType(), PN->getName()+".ph", BI);
+        PHINode::Create(PN->getType(), NumPreds, PN->getName()+".ph", BI);
       if (AA) AA->copyValue(PN, NewPHI);
       
       // Move all of the PHI values for 'Preds' to the new PHI.
@@ -537,4 +537,14 @@ ReturnInst *llvm::FoldReturnIntoUncondBranch(ReturnInst *RI, BasicBlock *BB,
   BB->removePredecessor(Pred);
   UncondBranch->eraseFromParent();
   return cast<ReturnInst>(NewRet);
+}
+
+/// GetFirstDebugLocInBasicBlock - Return first valid DebugLoc entry in a 
+/// given basic block.
+DebugLoc llvm::GetFirstDebugLocInBasicBlock(const BasicBlock *BB) {
+  if (const Instruction *I = BB->getFirstNonPHI())
+    return I->getDebugLoc();
+  // Scanning entire block may be too expensive, if the first instruction
+  // does not have valid location info.
+  return DebugLoc();
 }

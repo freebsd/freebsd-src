@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 
 #include <vm/vm.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
@@ -74,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
-#include <nfsclient/nfs_kdtrace.h>
+#include <nfs/nfs_kdtrace.h>
 #include <nfs/nfs_lock.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
@@ -217,27 +216,27 @@ struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
-SYSCTL_DECL(_vfs_nfs);
+SYSCTL_DECL(_vfs_oldnfs);
 
 static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
 static int	nfs_prime_access_cache = 0;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
 	   &nfs_prime_access_cache, 0,
 	   "Prime NFS ACCESS cache when fetching attributes");
 
 static int	nfsv3_commit_on_close = 0;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
 
 static int	nfs_clean_pages_on_close = 1;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
 
 int nfs_directio_enable = 0;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &nfs_directio_enable, 0, "Enable NFS directio");
 
 /*
@@ -252,14 +251,14 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
  * meaningful.
  */
 int nfs_directio_allow_mmap = 1;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
 	   &nfs_directio_allow_mmap, 0, "Enable mmaped IO on file with O_DIRECT opens");
 
 #if 0
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 	   &nfsstats.accesscache_misses, 0, "NFS ACCESS cache miss count");
 #endif
 
@@ -960,7 +959,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 */
 		newvp = *vpp;
 		newnp = VTONFS(newvp);
-		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		if (!(nmp->nm_flag & NFSMNT_NOCTO) &&
+		    (flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
 		    !(newnp->n_flag & NMODIFIED)) {
 			mtx_lock(&newnp->n_mtx);
 			newnp->n_attrstamp = 0;
@@ -1276,6 +1276,7 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	caddr_t bpos, dpos;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	struct nfsmount *nmp;
+	off_t end;
 	int error = 0, len, retlen, tsiz, eof, attrflag;
 	int v3 = NFS_ISV3(vp);
 	int rsize;
@@ -1286,7 +1287,8 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	nmp = VFSTONFS(vp->v_mount);
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+	end = uiop->uio_offset + tsiz;
+	if (end > nmp->nm_maxfilesize || end < uiop->uio_offset) {
 		mtx_unlock(&nmp->nm_mtx);
 		return (EFBIG);
 	}
@@ -1348,6 +1350,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	caddr_t bpos, dpos;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	off_t end;
 	int error = 0, len, tsiz, wccflag = NFSV3_WCCRATTR, rlen, commit;
 	int v3 = NFS_ISV3(vp), committed = NFSV3WRITE_FILESYNC;
 	int wsize;
@@ -1356,7 +1359,8 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	*must_commit = 0;
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+	end = uiop->uio_offset + tsiz;
+	if (end > nmp->nm_maxfilesize || end < uiop->uio_offset) {
 		mtx_unlock(&nmp->nm_mtx);		
 		return (EFBIG);
 	}

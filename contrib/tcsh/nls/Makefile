@@ -1,6 +1,6 @@
 # $tcsh: Makefile,v 1.14 2006/03/02 18:46:45 christos Exp $
 
-SUBDIRS=	C et finnish french german greek italian ja pl russian \
+SUBDIRS=	C et finnish french german greek italian ja russian \
 		spanish ukrainian
 #GENCAT=	gencat --new
 CHARSET=	charset

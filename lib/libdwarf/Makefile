@@ -14,6 +14,7 @@ SRCS=	\
 	dwarf_errno.c		\
 	dwarf_finish.c		\
 	dwarf_form.c		\
+	dwarf_func.c		\
 	dwarf_init.c		\
 	dwarf_loc.c
 
@@ -21,7 +22,7 @@ INCS=	dwarf.h libdwarf.h
 
 CFLAGS+=	-I${.CURDIR}
 
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 WITHOUT_MAN=
 

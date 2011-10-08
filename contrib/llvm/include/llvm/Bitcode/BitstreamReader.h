@@ -194,6 +194,7 @@ public:
       CurAbbrevs[i]->addRef();
     
     // Copy block scope and bump ref counts.
+    BlockScope = RHS.BlockScope;
     for (unsigned S = 0, e = static_cast<unsigned>(BlockScope.size());
          S != e; ++S) {
       std::vector<BitCodeAbbrev*> &Abbrevs = BlockScope[S].PrevAbbrevs;
@@ -375,10 +376,12 @@ public:
 
     // Check that the block wasn't partially defined, and that the offset isn't
     // bogus.
-    if (AtEndOfStream() || NextChar+NumWords*4 > BitStream->getLastChar())
+    const unsigned char *const SkipTo = NextChar + NumWords*4;
+    if (AtEndOfStream() || SkipTo > BitStream->getLastChar() ||
+                           SkipTo < BitStream->getFirstChar())
       return true;
 
-    NextChar += NumWords*4;
+    NextChar = SkipTo;
     return false;
   }
 

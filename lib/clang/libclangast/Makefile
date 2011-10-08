@@ -24,6 +24,7 @@ SRCS=	APValue.cpp \
 	ExprCXX.cpp \
 	ExprClassification.cpp \
 	ExprConstant.cpp \
+	ExternalASTSource.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \

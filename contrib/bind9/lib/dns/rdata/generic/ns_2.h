@@ -19,7 +19,7 @@
 #ifndef GENERIC_NS_2_H
 #define GENERIC_NS_2_H 1
 
-/* $Id: ns_2.h,v 1.27 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: ns_2.h,v 1.27 2007-06-19 23:47:17 tbox Exp $ */
 
 typedef struct dns_rdata_ns {
 	dns_rdatacommon_t	common;

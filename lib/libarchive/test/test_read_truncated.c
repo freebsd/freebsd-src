@@ -52,7 +52,7 @@ DEFINE_TEST(test_read_truncated)
 	archive_entry_set_size(ae, sizeof(buff2));
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA(sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
+	assertA((int)sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
@@ -81,7 +81,7 @@ DEFINE_TEST(test_read_truncated)
 			assertA(ARCHIVE_FATAL == archive_read_data(a, buff2, sizeof(buff2)));
 			goto wrap_up;
 		} else {
-			assertA(sizeof(buff2) == archive_read_data(a, buff2, sizeof(buff2)));
+			assertA((int)sizeof(buff2) == archive_read_data(a, buff2, sizeof(buff2)));
 		}
 
 		/* Verify the end of the archive. */

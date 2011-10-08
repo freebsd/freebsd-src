@@ -354,7 +354,21 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &intmit, 0, req);
 	if (error || !req->newptr)
 		return error;
-	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
+
+	/* reusing error; 1 here means "good"; 0 means "fail" */
+	error = ath_hal_setintmit(sc->sc_ah, intmit);
+	if (! error)
+		return EINVAL;
+
+	/*
+	 * Reset the hardware here - disabling ANI in the HAL
+	 * doesn't reset ANI related registers, so it'll leave
+	 * things in an inconsistent state.
+	 */
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ath_reset(sc->sc_ifp);
+
+	return 0;
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -703,7 +717,59 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_htprotect", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_htprotect, 0, "HT tx frames with protection");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hitqueueend", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_hitqueueend, 0, "RX hit queue end");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_timeout", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_timeout, 0, "TX Global Timeout");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_cst", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_cst, 0, "TX Carrier Sense Timeout");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_xtxop", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_xtxop, 0, "TX exceeded TXOP");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_timerexpired", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_timerexpired, 0, "TX exceeded TX_TIMER register");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_desccfgerr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_desccfgerr, 0, "TX Descriptor Cfg Error");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
+}
+
+/*
+ * This doesn't necessarily belong here (because it's HAL related, not
+ * driver related).
+ */
+void
+ath_sysctl_hal_attach(struct ath_softc *sc)
+{
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hal", CTLFLAG_RD,
+	    NULL, "Atheros HAL parameters");
+	child = SYSCTL_CHILDREN(tree);
+
+	sc->sc_ah->ah_config.ah_debug = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_debug, 0, "Atheros HAL debugging printfs");
+
+	sc->sc_ah->ah_config.ah_ar5416_biasadj = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ar5416_biasadj", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_ar5416_biasadj, 0,
+	    "Enable 2ghz AR5416 direction sensitivity bias adjust");
+
+	sc->sc_ah->ah_config.ah_dma_beacon_response_time = 2;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "dma_brt", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_dma_beacon_response_time, 0,
+	    "Atheros HAL DMA beacon response time");
+
+	sc->sc_ah->ah_config.ah_sw_beacon_response_time = 10;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "sw_brt", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_sw_beacon_response_time, 0,
+	    "Atheros HAL software beacon response time");
+
+	sc->sc_ah->ah_config.ah_additional_swba_backoff = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "swba_backoff", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_additional_swba_backoff, 0,
+	    "Atheros HAL additional SWBA backoff time");
 }

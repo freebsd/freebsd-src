@@ -85,11 +85,6 @@ __FBSDID("$FreeBSD$");
 static int	bmtphy_probe(device_t);
 static int	bmtphy_attach(device_t);
 
-struct bmtphy_softc {
-	struct mii_softc mii_sc;
-	int mii_model;
-};
-
 static device_method_t bmtphy_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bmtphy_probe),
@@ -105,7 +100,7 @@ static devclass_t	bmtphy_devclass;
 static driver_t	bmtphy_driver = {
 	"bmtphy",
 	bmtphy_methods,
-	sizeof(struct bmtphy_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(bmtphy, miibus, bmtphy_driver, bmtphy_devclass, 0, 0);
@@ -115,18 +110,24 @@ static void	bmtphy_status(struct mii_softc *);
 static void	bmtphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc bmtphys_dp[] = {
-	MII_PHY_DESC(BROADCOM, BCM4401),
-	MII_PHY_DESC(BROADCOM, BCM5201),
-	MII_PHY_DESC(BROADCOM, BCM5214),
-	MII_PHY_DESC(BROADCOM, BCM5221),
-	MII_PHY_DESC(BROADCOM, BCM5222),
+	MII_PHY_DESC(xxBROADCOM, BCM4401),
+	MII_PHY_DESC(xxBROADCOM, BCM5201),
+	MII_PHY_DESC(xxBROADCOM, BCM5214),
+	MII_PHY_DESC(xxBROADCOM, BCM5221),
+	MII_PHY_DESC(xxBROADCOM, BCM5222),
 	MII_PHY_END
 };
 
 static const struct mii_phydesc bmtphys_lp[] = {
-	MII_PHY_DESC(BROADCOM, 3C905B),
-	MII_PHY_DESC(BROADCOM, 3C905C),
+	MII_PHY_DESC(xxBROADCOM, 3C905B),
+	MII_PHY_DESC(xxBROADCOM, 3C905C),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs bmtphy_funcs = {
+	bmtphy_service,
+	bmtphy_status,
+	bmtphy_reset 
 };
 
 static int
@@ -145,37 +146,8 @@ bmtphy_probe(device_t dev)
 static int
 bmtphy_attach(device_t dev)
 {
-	struct bmtphy_softc *bsc;
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	bsc = device_get_softc(dev);
-	sc = &bsc->mii_sc;
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = bmtphy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOMANPAUSE;
-
-	bsc->mii_model = MII_MODEL(ma->mii_id2);
-
-	bmtphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
-
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &bmtphy_funcs, 1);
 	return (0);
 }
 
@@ -204,7 +176,7 @@ bmtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	bmtphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -267,14 +239,11 @@ bmtphy_status(struct mii_softc *sc)
 static void
 bmtphy_reset(struct mii_softc *sc)
 {
-	struct bmtphy_softc *bsc;
 	u_int16_t data;
-
-	bsc = (struct bmtphy_softc *)sc;
 
 	mii_phy_reset(sc);
 
-	if (bsc->mii_model == MII_MODEL_BROADCOM_BCM5221) {
+	if (sc->mii_mpd_model == MII_MODEL_xxBROADCOM_BCM5221) {
 		/* Enable shadow register mode. */
 		data = PHY_READ(sc, 0x1f);
 		PHY_WRITE(sc, 0x1f, data | 0x0080);

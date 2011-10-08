@@ -83,4 +83,3 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 	return (STOP);
 #endif
 }
-
