@@ -186,6 +186,7 @@ cat <<_EOF_
 #include <sys/shm.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
+#include <sys/capability.h>
 
 #include "kdump_subr.h"
 
@@ -337,6 +338,7 @@ _EOF_
 
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
 auto_switch_type "acltypename"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
+auto_or_type     "capname"             "CAP_[A-Z]+[[:space:]]+0x[01248]{16}ULL"       "sys/capability.h"
 auto_switch_type "extattrctlname"      "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_or_type     "flagsname"           "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"           "sys/fcntl.h"
 auto_or_type     "flockname"           "LOCK_[A-Z]+[[:space:]]+0x[0-9]+"              "sys/fcntl.h"
