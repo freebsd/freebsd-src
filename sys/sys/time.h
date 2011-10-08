@@ -227,6 +227,8 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	} while (0)
 #endif
 
+#define	tvtoms(tvp)		((tvp)->tv_sec * 1000 + (tvp)->tv_usec / 1000)
+
 /*
  * Names of the interval timers, and structure
  * defining a timer setting.
