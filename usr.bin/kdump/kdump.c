@@ -100,7 +100,7 @@ void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void usage(void);
-const char *ioctlname(u_long);
+void ioctlname(unsigned long, int);
 
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
     resolv = 0, abiflag = 0;
@@ -504,14 +504,8 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_ioctl: {
 				const char *cp;
 				print_number(ip, narg, c);
-				if ((cp = ioctlname(*ip)) != NULL)
-					printf(",%s", cp);
-				else {
-					if (decimal)
-						printf(",%jd", (intmax_t)*ip);
-					else
-						printf(",%#jx ", (intmax_t)*ip);
-				}
+				putchar(c);
+				ioctlname(*ip, decimal);
 				c = ',';
 				ip++;
 				narg--;
