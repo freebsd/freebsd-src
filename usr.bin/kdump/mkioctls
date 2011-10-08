@@ -4,15 +4,8 @@
 
 set -e
 
-if [ "x$1" = "x-s" ]; then
-	use_switch=1
-	shift
-else
-	use_switch=0
-fi
-
 if [ -z "$1" ]; then
-	echo "usage: sh $0 [-s] include-dir"
+	echo "usage: sh $0 include-dir"
 	exit 1
 fi
 
@@ -30,7 +23,7 @@ ioctl_includes=`
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	gcc -E -I$1 -dM -DCOMPAT_43TTY - |
-	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
+	awk -v ioctl_includes="$ioctl_includes" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
@@ -55,16 +48,15 @@ BEGIN {
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
 	print ""
-	print "const char *ioctlname(u_long val);"
+	print "void ioctlname(unsigned long val, int decimal);"
 	print ""
 	print ioctl_includes
 	print ""
-	print "const char *"
-	print "ioctlname(u_long val)"
+	print "void"
+	print "ioctlname(unsigned long val, int decimal)"
 	print "{"
+	print "\tconst char *str = NULL;"
 	print ""
-	if (use_switch)
-		print "\tswitch(val) {"
 }
 
 /^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO/ {
@@ -75,16 +67,20 @@ BEGIN {
 			break;
 	++i;
 	#
-	if (use_switch)
-		printf("\tcase %s:\n\t\treturn(\"%s\");\n", $i, $i);
-	else
-		printf("\tif (val ==  %s)\n\t\treturn(\"%s\");\n", $i, $i);
-
+	print("\t");
+	if (n++ > 0)
+		print("else ");
+	printf("if (val == %s)\n", $i);
+	printf("\t\tstr = \"%s\";\n", $i);
 }
 END {
-	if (use_switch)
-		print "\t}"
-	print "\n\treturn(NULL);"
+	print "\n"
+	print "\tif (str != NULL)\n"
+	print "\t\tprintf(\"%s\", str);\n"
+	print "\telse if (decimal)\n"
+	print "\t\tprintf(\"%lu\", val);\n"
+	print "\telse\n"
+	print "\t\tprintf(\"%#lx\", val);\n"
 	print "}"
 }
 '
