@@ -8,7 +8,8 @@ SFX=		32
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump.c ioctl.c kdump_subr.c subr.c
+SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
+DPSRCS=		kdump_subr.h 
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
@@ -28,11 +29,6 @@ kdump_subr.h: mksubr
 
 kdump_subr.c: mksubr kdump_subr.h
 	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include >${.TARGET}
-
-# kdump.c includes kdump_subr.h, which is auto-generated.  Add a
-# manual dependency to make sure kdump_subr.h is generated before we
-# try to either compile or preprocess kdump.c.
-${.CURDIR}/kdump.c: kdump_subr.h
 
 linux_syscalls.c:
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
