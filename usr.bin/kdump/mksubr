@@ -69,10 +69,10 @@ auto_or_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
-	int	or = 0;
-	printf("%#x<", arg);
+	int or = 0;
+	printf("%#jx<", (uintmax_t)arg);
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
 		$include_dir/$file | \
@@ -80,11 +80,11 @@ _EOF_
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tif(!((arg>0)^((%s)>0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
+		printf "\tif (!((arg > 0) ^ ((%s) > 0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
 cat <<_EOF_
 	printf(">");
 	if (or == 0)
-		(void)printf("<invalid>%ld", (long)arg);
+		(void)printf("<invalid>%jd", arg);
 }
 
 _EOF_
@@ -103,7 +103,7 @@ auto_switch_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
 	switch (arg) {
 _EOF_
@@ -116,7 +116,7 @@ _EOF_
 		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)arg);
+		(void)printf("<invalid=%jd>", arg);
 	}
 }
 
@@ -136,7 +136,7 @@ auto_if_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
@@ -147,7 +147,7 @@ _EOF_
 		printf "if (arg == %s) \n\t\tprintf(\"%s\");\n", $2, $2 }'
 cat <<_EOF_
 	else /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)arg);
+		(void)printf("<invalid=%jd>", arg);
 }
 
 _EOF_
@@ -156,6 +156,7 @@ _EOF_
 # C start
 
 cat <<_EOF_
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -207,7 +208,7 @@ cat <<_EOF_
 /* MANUAL */
 extern char *signames[]; /* from kdump.c */
 void
-signame (int sig)
+signame(int sig)
 {
 	if (sig > 0 && sig < NSIG)
 		(void)printf("SIG%s",signames[sig]);
@@ -217,7 +218,7 @@ signame (int sig)
 
 /* MANUAL */
 void
-semctlname (int cmd)
+semctlname(int cmd)
 {
 	switch (cmd) {
 	case GETNCNT:
@@ -257,7 +258,8 @@ semctlname (int cmd)
 
 /* MANUAL */
 void
-shmctlname (int cmd) {
+shmctlname(int cmd)
+{
 	switch (cmd) {
 	case IPC_RMID:
 		(void)printf("IPC_RMID");
@@ -275,8 +277,9 @@ shmctlname (int cmd) {
 
 /* MANUAL */
 void
-semgetname (int flag) {
-	int	or = 0;
+semgetname(int flag)
+{
+	int or = 0;
 	if_print_or(flag, IPC_CREAT, or);
 	if_print_or(flag, IPC_EXCL, or);
 	if_print_or(flag, SEM_R, or);
@@ -294,8 +297,9 @@ semgetname (int flag) {
  * mode argument is unused (and often bogus and misleading).
  */
 void
-flagsandmodename (int flags, int mode, int decimal) {
-	flagsname (flags);
+flagsandmodename(int flags, int mode, int decimal)
+{
+	flagsname(flags);
 	(void)putchar(',');
 	if ((flags & O_CREAT) == O_CREAT) {
 		modename (mode);
@@ -316,7 +320,7 @@ flagsandmodename (int flags, int mode, int decimal) {
  * to use getprotoent(3) here.
  */
 void
-sockoptlevelname (int level, int decimal)
+sockoptlevelname(int level, int decimal)
 {
 	if (level == SOL_SOCKET) {
 		(void)printf("SOL_SOCKET");
@@ -377,7 +381,7 @@ cat <<_EOF_
  * grouped in fcntl.h, and this awk script grabs the first group.
  */
 void
-fcntlcmdname (int cmd, int arg, int decimal)
+fcntlcmdname(int cmd, int arg, int decimal)
 {
 	switch (cmd) {
 _EOF_
@@ -426,7 +430,7 @@ cat <<_EOF_
  * make this capable of being a auto_switch_type() function.
  */
 void
-rtprioname (int func)
+rtprioname(int func)
 {
 	switch (func) {
 _EOF_
@@ -451,9 +455,9 @@ cat <<_EOF_
  * detect this as "invalid", which is incorrect here.
  */
 void
-sendrecvflagsname (int flags)
+sendrecvflagsname(int flags)
 {
-	int	or = 0;
+	int or = 0;
 
 	if (flags == 0) {
 		(void)printf("0");
