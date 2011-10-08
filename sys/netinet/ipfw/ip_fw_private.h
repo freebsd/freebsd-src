@@ -299,5 +299,50 @@ extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
+/*
+ * IPFW DIFFUSE extension.
+ */
+
+/* In diffuse_private.h */
+struct di_chk_pkt_args;
+struct di_chk_rule_cmd_args;
+
+/*
+ * Rule checking prior to adding.
+ * params: instruction/command, have_action
+ */
+typedef int (*chk_rule_cmd_t)(struct di_chk_rule_cmd_args *, ipfw_insn *,
+    int *);
+
+/*
+ * Packet checking.
+ * params: args, rule, opcode, instruction, args, ulproto, pktlen, direction,
+ *         match, l, done, retval
+ */
+typedef int (*chk_pkt_cmd_t)(struct di_chk_pkt_args *, struct ip_fw *, int,
+    ipfw_insn **, int *, struct ip_fw_args *, void *, int, int *, int *, int *,
+    int *, int *);
+
+/*
+ * Remove rule.
+ * params: rule
+ */
+typedef void (*remove_rule_t)(struct ip_fw*);
+
+/*
+ * Add rule.
+ * params: rule
+ */
+typedef int (*add_rule_t)(struct ip_fw*);
+
+typedef struct ipfw_ext {
+	chk_rule_cmd_t	chk_rule_cmd;
+	chk_pkt_cmd_t	chk_pkt_cmd;
+	remove_rule_t	remove_rule;
+	add_rule_t	add_rule;
+} ipfw_ext_t;
+
+extern ipfw_ext_t *ipfw_diffuse_ext;
+
 #endif /* _KERNEL */
 #endif /* _IPFW2_PRIVATE_H */

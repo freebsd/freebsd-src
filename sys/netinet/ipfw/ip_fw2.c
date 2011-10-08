@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
+#include <netinet/ip_diffuse.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
 #include <netinet/tcp_var.h>
@@ -89,11 +89,17 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 
+#include <netinet/ipfw/diffuse_common.h>
+#include <netinet/ipfw/ip_fw_private.h>
+
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
+
+/* DIFFUSE */
+ipfw_ext_t *ipfw_diffuse_ext = NULL;
 
 /*
  * static variables followed by global ones.
@@ -914,6 +920,8 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
 	int dyn_dir = MATCH_UNKNOWN;
+	/* For DIFFUSE features. */
+	int flow_dir = MATCH_UNKNOWN;
 	ipfw_dyn_rule *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 
@@ -934,6 +942,12 @@ ipfw_chk(struct ip_fw_args *args)
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
+
+	/*
+	 * DIFFUSE data container required for persistent storage between
+	 * separate threads and calls to diffuse_chk_pkt().
+	 */
+	struct di_chk_pkt_args di_args;
 
 	if (m->m_flags & M_SKIP_FIREWALL || (! V_ipfw_vnet_ready))
 		return (IP_FW_PASS);	/* accept */
@@ -1204,6 +1218,17 @@ do {								\
 		IPFW_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
+
+	/* Call DIFFUSE before we start matching. */
+	if (ipfw_diffuse_ext != NULL && ipfw_diffuse_ext->chk_pkt_cmd != NULL) {
+		ipfw_diffuse_ext->chk_pkt_cmd(&di_args, NULL,
+		    O_DI_BEFORE_ALL_RULES, NULL, NULL, args, ulp, pktlen,
+		    &flow_dir, NULL, NULL, &done, &retval);
+
+		if (done)
+			return (retval);
+        }
+
 	if (args->rule.slot) {
 		/*
 		 * Packet has already been tagged as a result of a previous
@@ -1243,6 +1268,7 @@ do {								\
 		uint32_t tablearg = 0;
 		int l, cmdlen, skip_or; /* skip rest of OR block */
 		struct ip_fw *f;
+		int match;
 
 		f = chain->map[f_pos];
 		if (V_set_disable & (1 << f->set) )
@@ -1251,7 +1277,6 @@ do {								\
 		skip_or = 0;
 		for (l = f->cmd_len, cmd = f->cmd ; l > 0 ;
 		    l -= cmdlen, cmd += cmdlen) {
-			int match;
 
 			/*
 			 * check_body is a jump target used when we find a
@@ -2407,7 +2432,22 @@ do {								\
 			}
 
 			default:
+			{
+				int ret;
+
+				if (ipfw_diffuse_ext != NULL &&
+				    ipfw_diffuse_ext->chk_pkt_cmd != NULL) {
+					ret = ipfw_diffuse_ext->chk_pkt_cmd(
+					    &di_args, f, cmd->opcode, &cmd,
+					    &cmdlen, args, ulp, pktlen,
+					    &flow_dir, &match, &l, &done,
+					    &retval);
+					if (ret == 0)
+						break;
+				}
+
 				panic("-- unknown opcode %d\n", cmd->opcode);
+			}
 			} /* end of switch() on opcodes */
 			/*
 			 * if we get here with l=0, then match is irrelevant.
@@ -2427,6 +2467,14 @@ do {								\
 		}	/* end of inner loop, scan opcodes */
 #undef PULLUP_LEN
 
+		/* Call DIFFUSE after we have a match for current rule. */
+		if (ipfw_diffuse_ext != NULL &&
+		    ipfw_diffuse_ext->chk_pkt_cmd != NULL) {
+			ipfw_diffuse_ext->chk_pkt_cmd(&di_args, f,
+			    O_DI_AFTER_EACH_RULE, NULL, NULL, args, ulp, pktlen,
+			    &flow_dir, &match, NULL, &done, &retval);
+		}
+
 		if (done)
 			break;
 
@@ -2445,6 +2493,14 @@ do {								\
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	}
 	IPFW_RUNLOCK(chain);
+
+	/* Call DIFFUSE after packet processing. */
+	if (ipfw_diffuse_ext != NULL && ipfw_diffuse_ext->chk_pkt_cmd != NULL) {
+		ipfw_diffuse_ext->chk_pkt_cmd(&di_args, NULL,
+		    O_DI_AFTER_ALL_RULES, NULL, NULL, args, ulp, pktlen,
+		    &flow_dir, NULL, NULL, &done, &retval);
+	}
+
 #ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);

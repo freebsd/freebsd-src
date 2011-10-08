@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip_var.h> /* hooks */
 #include <netinet/ip_fw.h>
+#include <netinet/ip_diffuse.h>
+
+#include <netinet/ipfw/diffuse_common.h>
 #include <netinet/ipfw/ip_fw_private.h>
 
 #ifdef MAC
@@ -160,7 +163,7 @@ int
 ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 {
 	struct ip_fw *rule;
-	int i, l, insert_before;
+	int i, l, insert_before, ret;
 	struct ip_fw **map;	/* the new array of pointers */
 
 	if (chain->rules == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE-1)
@@ -175,6 +178,16 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	if (map == NULL) {
 		free(rule, M_IPFW);
 		return ENOSPC;
+	}
+
+	if (ipfw_diffuse_ext != NULL && ipfw_diffuse_ext->add_rule != NULL) {
+		ret = ipfw_diffuse_ext->add_rule(input_rule);
+		if (ret) {
+			free(rule, M_IPFW);
+			free(map, M_IPFW);
+			IPFW_UH_WUNLOCK(chain);
+			return (ret);
+		}
 	}
 
 	bcopy(input_rule, rule, l);
@@ -389,6 +402,9 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 			l = RULESIZE(rule);
 			chain->static_len -= l;
 			ipfw_remove_dyn_children(rule);
+			if (ipfw_diffuse_ext != NULL &&
+			    ipfw_diffuse_ext->remove_rule != NULL)
+				ipfw_diffuse_ext->remove_rule(rule);
 			rule->x_next = chain->reap;
 			chain->reap = rule;
 		}
@@ -528,9 +544,10 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 static int
 check_ipfw_struct(struct ip_fw *rule, int size)
 {
-	int l, cmdlen = 0;
+	struct di_chk_rule_cmd_args di_args;
+	ipfw_insn *cmd, pseudo;
+	int l, ret, cmdlen = 0;
 	int have_action=0;
-	ipfw_insn *cmd;
 
 	if (size < sizeof(*rule)) {
 		printf("ipfw: rule too short\n");
@@ -547,6 +564,14 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		    rule->act_ofs, rule->cmd_len - 1);
 		return (EINVAL);
 	}
+
+	if (ipfw_diffuse_ext != NULL &&
+	    ipfw_diffuse_ext->chk_rule_cmd != NULL) {
+		pseudo.opcode = O_DI_BEFORE_RULE_CHK;
+		pseudo.len = F_INSN_SIZE(ipfw_insn);
+		ipfw_diffuse_ext->chk_rule_cmd(&di_args, &pseudo, &have_action);
+	}
+
 	/*
 	 * Now go for the individual checks. Very simple ones, basically only
 	 * instruction sizes.
@@ -825,12 +850,30 @@ check_action:
 				return EPROTONOSUPPORT;
 #endif
 			default:
+				if (ipfw_diffuse_ext != NULL &&
+				    ipfw_diffuse_ext->chk_rule_cmd != NULL) {
+					ret = ipfw_diffuse_ext->chk_rule_cmd(
+					    &di_args, cmd, &have_action);
+					if (ret > 0)
+						return (ret);
+					else if (ret == 0)
+						break;
+				}
+
 				printf("ipfw: opcode %d, unknown opcode\n",
 					cmd->opcode);
 				return EINVAL;
 			}
 		}
 	}
+
+	if (ipfw_diffuse_ext != NULL &&
+	    ipfw_diffuse_ext->chk_rule_cmd != NULL) {
+		pseudo.opcode = O_DI_AFTER_RULE_CHK;
+		pseudo.len = F_INSN_SIZE(ipfw_insn);
+		ipfw_diffuse_ext->chk_rule_cmd(&di_args, &pseudo, &have_action);
+	}
+
 	if (have_action == 0) {
 		printf("ipfw: missing action\n");
 		return EINVAL;

@@ -205,6 +205,28 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_FORWARD_IP6,		/* fwd sockaddr_in6             */
 
+	/*
+	 * Actions for DIFFUSE.
+	 */
+	O_DI_FEATURES,		/* feature list */
+	O_DI_FEATURES_IMPLICIT,	/* feature list (implicitely configured) */
+	O_DI_FLOW_TABLE,	/* check flow table and update features */
+	O_DI_FEATURE_MATCH,	/* feature match */
+	O_DI_AFTER_EACH_RULE,	/* pseudo opcode, used after match for rule was
+				   decided */
+	O_DI_CLASS_TAGS,	/* tags used for classified packets */
+	O_DI_ML_CLASSIFY,	/* classify sub flow (action) */
+	O_DI_ML_CLASSIFY_IMPLICIT, /* classify sub flow
+				     (implicit -> non-action) */
+	O_DI_MATCH_IF_CLASS,	/* match if classified as class x */
+	O_DI_EXPORT,		/* export rules */
+	O_DI_BEFORE_ALL_RULES,	/* pseudo opcode, before matching rules,
+				   _inside_ lock */
+	O_DI_AFTER_ALL_RULES,	/* pseudo opcode, after all rules, _outside_
+				   lock */
+	O_DI_BEFORE_RULE_CHK,	/* pseudo opcode, called before rule checks */
+	O_DI_AFTER_RULE_CHK,	/* pseudo opcode, called after rule checks */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
