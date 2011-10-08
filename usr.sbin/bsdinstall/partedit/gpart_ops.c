@@ -892,6 +892,19 @@ addpartform:
 			goto addpartform;
 	}
 
+	/*
+	 * Error if this scheme needs nested partitions, this is one, and
+	 * a mountpoint was set.
+	 */
+	if (strcmp(items[0].text, "freebsd") == 0 &&
+	    strlen(items[2].text) > 0) {
+		dialog_msgbox("Error", "Partitions of type \"freebsd\" are "
+		    "nested BSD-type partition schemes and cannot have "
+		    "mountpoints. After creating one, select it and press "
+		    "Create again to add the actual file systems.", 0, 0, TRUE);
+		goto addpartform;
+	}
+
 	/* If this is the root partition, check that this scheme is bootable */
 	if (strcmp(items[2].text, "/") == 0 && !is_scheme_bootable(scheme)) {
 		char message[512];
@@ -909,7 +922,23 @@ addpartform:
 	 * If this is the root partition, and we need a boot partition, ask
 	 * the user to add one.
 	 */
-	if (strcmp(items[2].text, "/") == 0 && bootpart_size(scheme) > 0) {
+
+	/* Check for existing freebsd-boot partition */
+	LIST_FOREACH(pp, &geom->lg_provider, lg_provider) {
+		struct partition_metadata *md;
+		md = get_part_metadata(pp->lg_name, 0);
+		if (md == NULL || !md->bootcode)
+			continue;
+		LIST_FOREACH(gc, &pp->lg_config, lg_config)
+			if (strcmp(gc->lg_name, "type") == 0)
+				break;
+		if (gc != NULL && strcmp(gc->lg_val, "freebsd-boot") == 0)
+			break;
+	}
+
+	/* If there isn't one, and we need one, ask */
+	if (strcmp(items[2].text, "/") == 0 && bootpart_size(scheme) > 0 &&
+	    pp == NULL) {
 		if (interactive)
 			choice = dialog_yesno("Boot Partition",
 			    "This partition scheme requires a boot partition "
