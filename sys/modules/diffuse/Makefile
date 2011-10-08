@@ -2,6 +2,7 @@
 
 SUBDIR=	diffuse \
 	diffuse_classifier_c45 \
+	diffuse_classifier_nbayes \
 	diffuse_feature_iat \
 	diffuse_feature_iatbd \
 	diffuse_feature_pcnt \
