@@ -100,7 +100,6 @@ void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void usage(void);
-void sockfamilyname(int);
 const char *ioctlname(u_long);
 
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
