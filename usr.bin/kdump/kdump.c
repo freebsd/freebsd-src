@@ -979,6 +979,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
+                        case SYS_cap_new:
+                                print_number(ip, narg, c);
+                                putchar(',');
+                                capname((intmax_t)*ip);
+                                ip++;
+                                narg--;
+				break;
 			}
 		}
 		while (narg > 0) {
