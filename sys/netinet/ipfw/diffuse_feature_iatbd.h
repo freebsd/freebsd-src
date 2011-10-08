@@ -60,6 +60,6 @@
 	"bstdev"							\
 };
 
-struct di_feature_module *iatbd_module(void);
+struct di_feature_module * iatbd_module(void);
 
 #endif /* _NETINET_IPFW_DIFFUSE_FEATURE_IATBD_H_ */
