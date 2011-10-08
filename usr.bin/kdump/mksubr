@@ -252,7 +252,7 @@ semctlname(int cmd)
 		(void)printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		(void)printf("<invalid=%d>", cmd);
 	}
 }
 
@@ -271,7 +271,7 @@ shmctlname(int cmd)
 		(void)printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		(void)printf("<invalid=%d>", cmd);
 	}
 }
 
@@ -305,9 +305,9 @@ flagsandmodename(int flags, int mode, int decimal)
 		modename (mode);
 	} else {
 		if (decimal) {
-			(void)printf("<unused>%ld", (long)mode);
+			(void)printf("<unused>%d", mode);
 		} else {
-			(void)printf("<unused>%#lx", (long)mode);
+			(void)printf("<unused>%#x", (unsigned int)mode);
 		}
 	}
 }
@@ -326,9 +326,9 @@ sockoptlevelname(int level, int decimal)
 		(void)printf("SOL_SOCKET");
 	} else {
 		if (decimal) {
-			(void)printf("%ld", (long)level);
+			(void)printf("%d", level);
 		} else {
-			(void)printf("%#lx", (long)level);
+			(void)printf("%#x", (unsigned int)level);
 		}
 	}
 }
@@ -397,7 +397,7 @@ egrep "^#[[:space:]]*define[[:space:]]+F_[A-Z]+[[:space:]]+[0-9]+[[:space:]]*" \
 		o = $(i+1) }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		(void)printf("<invalid=%d>", cmd);
 	}
 	(void)putchar(',');
 	if (cmd == F_GETFD || cmd == F_SETFD) {
@@ -407,17 +407,17 @@ cat <<_EOF_
 			(void)printf("0");
 		else {
 			if (decimal)
-				(void)printf("<invalid>%ld", (long)arg);
+				(void)printf("<invalid>%d", arg);
 			else
-				(void)printf("<invalid>%#lx", (long)arg);
+				(void)printf("<invalid>%#x", (unsigned int)arg);
 		}
 	} else if (cmd == F_SETFL) {
 		flagsname(arg);
 	} else {
 		if (decimal)
-			(void)printf("%ld", (long)arg);
+			(void)printf("%d", arg);
 		else
-			(void)printf("%#lx", (long)arg);
+			(void)printf("%#x", (unsigned int)arg);
 	}
 }
 
@@ -442,7 +442,7 @@ egrep "^#[[:space:]]*define[[:space:]]+RTP_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]
 		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)func);
+		(void)printf("<invalid=%d>", func);
 	}
 }
 
