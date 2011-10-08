@@ -54,6 +54,6 @@
 	"stdev"							\
 };
 
-struct di_feature_module *iat_module(void);
+struct di_feature_module * iat_module(void);
 
 #endif /* _NETINET_IPFW_DIFFUSE_FEATURE_IAT_H_ */
