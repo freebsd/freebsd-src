@@ -56,6 +56,7 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @item Daniel Kouril
 @item David Love
 @item David Markey
+@item David R Boldt
 @item Derrick J Brashear
 @item Donald Norwood
 @item Douglas E Engert
@@ -103,6 +104,7 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @item Petr Holub
 @item Phil Fisher
 @item Rafal Malinowski
+@item Ragnar Sundblad
 @item Rainer Toebbicke
 @item Richard Nyberg
 @item Roland C. Dowdeswell

@@ -241,29 +241,53 @@ krb5_have_error_string(krb5_context context)
 KRB5_LIB_FUNCTION const char * KRB5_LIB_CALL
 krb5_get_error_message(krb5_context context, krb5_error_code code)
 {
-    char *str;
-
-    HEIMDAL_MUTEX_lock(context->mutex);
-    if (context->error_string &&
-	(code == context->error_code || context->error_code == 0))
-    {
-	str = strdup(context->error_string);
-	if (str) {
-	    HEIMDAL_MUTEX_unlock(context->mutex);
-	    return str;
-	}
-    }
-    HEIMDAL_MUTEX_unlock(context->mutex);
+    char *str = NULL;
+    const char *cstr = NULL;
+    char buf[128];
+    int free_context = 0;
 
     if (code == 0)
 	return strdup("Success");
+
+    /*
+     * The MIT version of this function ignores the krb5_context
+     * and several widely deployed applications call krb5_get_error_message()
+     * with a NULL context in order to translate an error code as a
+     * replacement for error_message().  Another reason a NULL context
+     * might be provided is if the krb5_init_context() call itself
+     * failed.
+     */
+    if (context)
     {
-	const char *msg;
-	char buf[128];
-	msg = com_right_r(context->et_list, code, buf, sizeof(buf));
-	if (msg)
-	    return strdup(msg);
+        HEIMDAL_MUTEX_lock(context->mutex);
+        if (context->error_string &&
+            (code == context->error_code || context->error_code == 0))
+        {
+            str = strdup(context->error_string);
+        }
+        HEIMDAL_MUTEX_unlock(context->mutex);
+
+        if (str)
+            return str;
     }
+    else
+    {
+        if (krb5_init_context(&context) == 0)
+            free_context = 1;
+    }
+
+    if (context)
+        cstr = com_right_r(context->et_list, code, buf, sizeof(buf));
+
+    if (free_context)
+        krb5_free_context(context);
+
+    if (cstr)
+        return strdup(cstr);
+
+    cstr = error_message(code);
+    if (cstr)
+        return strdup(cstr);
 
     if (asprintf(&str, "<unknown error: %d>", (int)code) == -1 || str == NULL)
 	return NULL;

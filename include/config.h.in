@@ -502,9 +502,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have the function `initgroups'. */
 #undef HAVE_INITGROUPS
 
-/* Define to 1 if you have the `initstate' function. */
-#undef HAVE_INITSTATE
-
 /* Define if you have the function `innetgr'. */
 #undef HAVE_INNETGR
 
@@ -775,9 +772,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the `setsockopt' function. */
 #undef HAVE_SETSOCKOPT
-
-/* Define to 1 if you have the `setstate' function. */
-#undef HAVE_SETSTATE
 
 /* Define to 1 if you have the `setutent' function. */
 #undef HAVE_SETUTENT
@@ -1541,6 +1535,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define for large files, on AIX-style hosts. */
 #undef _LARGE_FILES
+
+/* Define to get POSIX getpwnam_r in some systems. */
+#undef _POSIX_PTHREAD_SEMANTICS
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

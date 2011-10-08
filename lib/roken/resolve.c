@@ -589,6 +589,9 @@ dns_lookup_int(const char *domain, int rr_class, int rr_type)
     len = min(len, size);
     r = parse_reply(reply, len);
     free(reply);
+
+    resolve_free_handle(handle);
+
     return r;
 }
 
@@ -627,11 +630,6 @@ rk_dns_srv_order(struct rk_dns_reply *r)
     struct rk_resource_record *rr;
     int num_srv = 0;
 
-#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
-    int state[256 / sizeof(int)];
-    char *oldstate;
-#endif
-
     rk_random_init();
 
     for(rr = r->head; rr; rr = rr->next)
@@ -658,10 +656,6 @@ rk_dns_srv_order(struct rk_dns_reply *r)
 
     /* sort them by priority and weight */
     qsort(srvs, num_srv, sizeof(*srvs), compare_srv);
-
-#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
-    oldstate = initstate(time(NULL), (char*)state, sizeof(state));
-#endif
 
     headp = &r->head;
 
@@ -703,9 +697,6 @@ rk_dns_srv_order(struct rk_dns_reply *r)
 	}
     }
 
-#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
-    setstate(oldstate);
-#endif
     free(srvs);
     return;
 }

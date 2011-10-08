@@ -265,7 +265,7 @@ _krb5_get_cred_kdc_any (
 	krb5_creds ***/*ret_tgts*/);
 
 char *
-_krb5_get_default_cc_name_from_registry (void);
+_krb5_get_default_cc_name_from_registry (krb5_context /*context*/);
 
 char *
 _krb5_get_default_config_config_files_from_registry (void);
@@ -554,6 +554,11 @@ _krb5_send_and_recv_tcp (
 	time_t /*tmout*/,
 	const krb5_data */*req*/,
 	krb5_data */*rep*/);
+
+int
+_krb5_set_default_cc_name_to_registry (
+	krb5_context /*context*/,
+	krb5_ccache /*id*/);
 
 void
 _krb5_unload_plugins (

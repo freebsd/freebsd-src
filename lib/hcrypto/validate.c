@@ -56,7 +56,7 @@ struct tests {
     void *outiv;
 };
 
-struct tests tests[] = {
+static struct tests hc_tests[] = {
     {
 	EVP_aes_256_cbc,
 	"aes-256",
@@ -300,8 +300,8 @@ hcrypto_validate(void)
 	return;
     validated++;
 
-    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++)
-	test_cipher(&tests[i]);
+    for (i = 0; i < sizeof(hc_tests) / sizeof(hc_tests[0]); i++)
+	test_cipher(&hc_tests[i]);
 
     check_hmac();
 }

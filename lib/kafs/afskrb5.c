@@ -171,6 +171,10 @@ get_cred(struct kafs_data *data, const char *name, const char *inst,
 	krb5_enctype_enable(d->context, in_creds.session.keytype);
 
     ret = krb5_get_credentials(d->context, 0, d->id, &in_creds, &out_creds);
+    if (ret) {
+	in_creds.session.keytype = ETYPE_DES_CBC_MD5;
+	ret = krb5_get_credentials(d->context, 0, d->id, &in_creds, &out_creds);
+    }
 
     if (invalid)
 	krb5_enctype_disable(d->context, in_creds.session.keytype);

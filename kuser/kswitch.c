@@ -75,9 +75,11 @@ kswitch(struct kswitch_options *opt, int argc, char **argv)
 
 	ct = rtbl_create();
 
-	rtbl_add_column(ct, "", 0);
-	rtbl_add_column(ct, "Principal", 0);
-	rtbl_set_column_prefix(ct, "Principal", "    ");
+	rtbl_add_column_by_id(ct, 0, "#", 0);
+	rtbl_add_column_by_id(ct, 1, "Principal", 0);
+	rtbl_set_column_affix_by_id(ct, 1, "    ", "");
+        rtbl_add_column_by_id(ct, 2, "Type", 0);
+        rtbl_set_column_affix_by_id(ct, 2, "  ", "");
 
 	ret = krb5_cc_cache_get_first(kcc_context, NULL, &cursor);
 	if (ret)
@@ -95,8 +97,9 @@ kswitch(struct kswitch_options *opt, int argc, char **argv)
 	    krb5_free_principal(kcc_context, p);
 
 	    snprintf(num, sizeof(num), "%d", (int)(len + 1));
-	    rtbl_add_column_entry(ct, "", num);
-	    rtbl_add_column_entry(ct, "Principal", name);
+	    rtbl_add_column_entry_by_id(ct, 0, num);
+	    rtbl_add_column_entry_by_id(ct, 1, name);
+            rtbl_add_column_entry_by_id(ct, 2, krb5_cc_get_type(kcc_context, id));
 	    free(name);
 
 	    ids = erealloc(ids, (len + 1) * sizeof(ids[0]));

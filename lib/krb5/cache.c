@@ -464,6 +464,9 @@ environment_changed(krb5_context context)
 KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 krb5_cc_switch(krb5_context context, krb5_ccache id)
 {
+#ifdef _WIN32
+    _krb5_set_default_cc_name_to_registry(context, id);
+#endif
 
     if (id->ops->set_default == NULL)
 	return 0;
@@ -515,7 +518,7 @@ krb5_cc_set_default_name(krb5_context context, const char *name)
 
 #ifdef _WIN32
         if (e == NULL) {
-            e = p = _krb5_get_default_cc_name_from_registry();
+            e = p = _krb5_get_default_cc_name_from_registry(context);
         }
 #endif
 	if (e == NULL) {
@@ -1702,26 +1705,59 @@ krb5_cc_get_kdc_offset(krb5_context context, krb5_ccache id, krb5_deltat *offset
 
 #ifdef _WIN32
 
+#define REGPATH_MIT_KRB5 "SOFTWARE\\MIT\\Kerberos5"
 char *
-_krb5_get_default_cc_name_from_registry()
+_krb5_get_default_cc_name_from_registry(krb5_context context)
 {
     HKEY hk_k5 = 0;
     LONG code;
     char * ccname = NULL;
 
     code = RegOpenKeyEx(HKEY_CURRENT_USER,
-                        "Software\\MIT\\Kerberos5",
+                        REGPATH_MIT_KRB5,
                         0, KEY_READ, &hk_k5);
 
     if (code != ERROR_SUCCESS)
         return NULL;
 
-    ccname = _krb5_parse_reg_value_as_string(NULL, hk_k5, "ccname",
+    ccname = _krb5_parse_reg_value_as_string(context, hk_k5, "ccname",
                                              REG_NONE, 0);
 
     RegCloseKey(hk_k5);
 
     return ccname;
+}
+
+int
+_krb5_set_default_cc_name_to_registry(krb5_context context, krb5_ccache id)
+{
+    HKEY hk_k5 = 0;
+    LONG code;
+    int ret = -1;
+    char * ccname = NULL;
+
+    code = RegOpenKeyEx(HKEY_CURRENT_USER,
+                        REGPATH_MIT_KRB5,
+                        0, KEY_READ|KEY_WRITE, &hk_k5);
+
+    if (code != ERROR_SUCCESS)
+        return -1;
+
+    ret = asprintf(&ccname, "%s:%s", krb5_cc_get_type(context, id), krb5_cc_get_name(context, id));
+    if (ret < 0)
+        goto cleanup;
+
+    ret = _krb5_store_string_to_reg_value(context, hk_k5, "ccname",
+                                          REG_SZ, ccname, -1, 0);
+
+  cleanup:
+
+    if (ccname)
+        free(ccname);
+
+    RegCloseKey(hk_k5);
+
+    return ret;
 }
 
 #endif

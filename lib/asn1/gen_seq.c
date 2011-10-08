@@ -108,7 +108,7 @@ generate_type_seq (const Symbol *s)
 	     /* don't move if its the last element */
 	     "if (element < data->len)\n"
 	     "\tmemmove(&data->val[element], &data->val[element + 1], \n"
-	     "\t\tsizeof(data->val[0]) * data->len);\n"
+	     "\t\tsizeof(data->val[0]) * (data->len - element));\n"
 	     /* resize but don't care about failures since it doesn't matter */
 	     "ptr = realloc(data->val, data->len * sizeof(data->val[0]));\n"
 	     "if (ptr != NULL || data->len == 0) data->val = ptr;\n"

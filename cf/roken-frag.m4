@@ -184,13 +184,11 @@ AC_CHECK_FUNCS([				\
 	getprogname				\
 	getrlimit				\
 	getspnam				\
-	initstate				\
 	issetugid				\
 	on_exit					\
 	poll					\
 	random					\
 	setprogname				\
-	setstate				\
 	strsvis					\
 	strsvisx				\
 	strunvis				\
