@@ -33,7 +33,7 @@
 
 name=${1:-KDC}
 log=${2:-messages.log}
-waitfor=${3:-${name} started}
+waitfor="${3:-${name} started}"
 
 t=0
 waitsec=35

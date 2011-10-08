@@ -218,7 +218,7 @@ heim_array_delete_value(heim_array_t array, size_t idx)
  */
 
 void
-heim_array_filter(heim_array_t array, bool (^block)(heim_object_t))
+heim_array_filter(heim_array_t array, int (^block)(heim_object_t))
 {
     size_t n = 0;
 

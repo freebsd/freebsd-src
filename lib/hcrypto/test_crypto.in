@@ -78,7 +78,8 @@ for a in unix fortuna egd w32crypto ;do
 	    echo "random metod $a out for dinner"
 	    continue
 	fi
-	cmp crypto-test crypto-test2 && { echo "rand output same!" ; exit 1; }
+	cmp crypto-test crypto-test2 >/dev/null 2>/dev/null && \
+	    { echo "rand output same!" ; exit 1; }
 done
 
 ./example_evp_cipher 1 ${srcdir}/test_crypto.in test-out-1 || \
@@ -94,7 +95,7 @@ done
 # RAND_file_name() when the enviroment is lacking those.
 #
 
-if [ -e /dev/random -o -e /dev/urandom -o -e /dev/srandom -o -e /dev/arandom ] ; then
+if [ -r /dev/random -o -r /dev/urandom -o -r /dev/srandom -o -r /dev/arandom ] ; then
 
     # try hard to unset HOME and RANDFILE
     HOME=

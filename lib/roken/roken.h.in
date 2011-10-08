@@ -79,9 +79,22 @@ typedef SOCKET rk_socket_t;
 
 ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL rk_SOCK_IOCTL(SOCKET s, long cmd, int * argp);
 
-#define ETIMEDOUT               WSAETIMEDOUT
-#define EWOULDBLOCK             WSAEWOULDBLOCK
-#define ENOTSOCK		WSAENOTSOCK
+/* Microsoft VC 2010 POSIX definitions */
+#ifndef ENOTSOCK
+#define ENOTSOCK		128
+#endif
+#ifndef ENOTSUP
+#define ENOTSUP                 129
+#endif
+#ifndef EOVERFLOW
+#define EOVERFLOW               132
+#endif
+#ifndef ETIMEDOUT
+#define ETIMEDOUT               138
+#endif
+#ifndef EWOULDBLOCK
+#define EWOULDBLOCK             140
+#endif
 
 #define rk_SOCK_INIT() rk_WSAStartup()
 #define rk_SOCK_EXIT() rk_WSACleanup()

@@ -558,7 +558,7 @@ MAKEFLAGS=
 
 # Identity of this package.
 PACKAGE_NAME='libedit'
-PACKAGE_TARNAME='libedit-20110730'
+PACKAGE_TARNAME='libedit-20110930'
 PACKAGE_VERSION='3.0'
 PACKAGE_STRING='libedit 3.0'
 PACKAGE_BUGREPORT=''
@@ -1333,7 +1333,7 @@ Fine tuning of the installation directories:
   --localedir=DIR         locale-dependent data [DATAROOTDIR/locale]
   --mandir=DIR            man documentation [DATAROOTDIR/man]
   --docdir=DIR            documentation root
-                          [DATAROOTDIR/doc/libedit-20110730]
+                          [DATAROOTDIR/doc/libedit-20110930]
   --htmldir=DIR           html documentation [DOCDIR]
   --dvidir=DIR            dvi documentation [DOCDIR]
   --pdfdir=DIR            pdf documentation [DOCDIR]
@@ -4004,7 +4004,7 @@ fi
 
 
 # Define the identity of the package.
- PACKAGE='libedit-20110730'
+ PACKAGE='libedit-20110930'
  VERSION='3.0'
 
 

@@ -131,7 +131,7 @@ heim_object_t
 	heim_array_copy_value(heim_array_t, size_t);
 void	heim_array_delete_value(heim_array_t, size_t);
 #ifdef __BLOCKS__
-void	heim_array_filter(heim_array_t, bool (^)(heim_object_t));
+void	heim_array_filter(heim_array_t, int (^)(heim_object_t));
 #endif
 
 /*

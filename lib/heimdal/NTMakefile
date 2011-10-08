@@ -51,7 +51,8 @@ DLLSDKDEPS= \
 	$(PTHREAD_LIB)	\
 	secur32.lib	\
 	shell32.lib	\
-	dnsapi.lib
+	dnsapi.lib      \
+        shlwapi.lib
 
 DEF=$(OBJ)\heimdal.def
 

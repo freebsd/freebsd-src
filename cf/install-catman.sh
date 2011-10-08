@@ -14,8 +14,8 @@ catinstall="${INSTALL_CATPAGES-yes}"
 
 for f in "$@"; do
         echo $f
-	base=`echo "$f" | sed 's/\([^/]*\/\)*\(.*\)\.\([^.]*\)$/\2/'`
-	section=`echo "$f" | sed 's/\([^/]*\/\)*\(.*\)\.\([^.]*\)$/\3/'`
+	base=`echo "$f" | sed 's/\.[^.]*$//'`
+	section=`echo "$f" | sed 's/^[^.]*\.//'`
 	mandir="$manbase/man$section"
 	catdir="$manbase/cat$section"
 	c="$base.cat$section"
@@ -48,10 +48,11 @@ for f in "$@"; do
 				fi
 			done
 			if test "$catinstall" = yes -a -f "$srcdir/$c"; then
-				target="$catdir/$link.$suffix"
-				for lncmd in "ln -f $catdir/$base.$suffix $target" \
-					   "ln -fs $base.$suffix $target" \
-					   "cp -f $catdir/$base.$suffix $target"
+				eval target="$catdir/$link.$suffix"
+				eval source="$catdir/$base.$suffix"
+				for lncmd in "ln -f $source $target" \
+					   "ln -fs $source $target" \
+					   "cp -f $catdir/$source $target"
 				do
 					if eval "$lncmd"; then
 						eval echo "$lncmd"

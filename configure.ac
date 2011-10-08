@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_REVISION($Revision$)
 AC_PREREQ(2.62)
 test -z "$CFLAGS" && CFLAGS="-g"
-AC_INIT([Heimdal],[1.5],[heimdal-bugs@h5l.org])
+AC_INIT([Heimdal],[1.5.1],[heimdal-bugs@h5l.org])
 AC_CONFIG_SRCDIR([kuser/kinit.c])
 AC_CONFIG_HEADERS(include/config.h)
 AC_CONFIG_MACRO_DIR([cf])
@@ -88,6 +88,9 @@ else
 
    ASN1_COMPILE_DEP=
    SLC_DEP=
+
+   ac_cv_prog_COMPILE_ET=${with_cross_tools}compile_et
+
 fi
 
 AC_SUBST([ASN1_COMPILE])

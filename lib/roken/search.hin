@@ -32,7 +32,7 @@ typedef	enum {
 
 ROKEN_CPP_START
 
-ROKEN_LIB_FUNCTION void	* ROKEN_LIB_CALL rk_tdelete(const void * __restrict, void ** __restrict,
+ROKEN_LIB_FUNCTION void	* ROKEN_LIB_CALL rk_tdelete(const void *, void **,
 		 int (*)(const void *, const void *));
 ROKEN_LIB_FUNCTION void	* ROKEN_LIB_CALL rk_tfind(const void *, void * const *,
 	       int (*)(const void *, const void *));

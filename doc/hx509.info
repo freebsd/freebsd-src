@@ -11,7 +11,7 @@ File: hx509.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Heimdal
 *******
 
-This manual is for version 1.5 of hx509.
+This manual is for version 1.5.1 of hx509.
 
 * Menu:
 
@@ -600,18 +600,18 @@ File: hx509.info,  Node: How to use the PKCS11 module,  Prev: Software PKCS 11 m
 
 Tag Table:
 Node: Top203
-Node: Introduction797
-Node: What is X.509 ?2246
-Node: Setting up a CA6204
-Node: Creating a CA certificate7474
-Node: Issuing certificates9915
-Node: Issuing CRLs12458
-Node: Application requirements13085
-Node: CMS signing and encryption18446
-Node: CMS background18797
-Node: Certificate matching18953
-Node: Matching syntax19207
-Node: Software PKCS 11 module19764
-Node: How to use the PKCS11 module20283
+Node: Introduction799
+Node: What is X.509 ?2248
+Node: Setting up a CA6206
+Node: Creating a CA certificate7476
+Node: Issuing certificates9917
+Node: Issuing CRLs12460
+Node: Application requirements13087
+Node: CMS signing and encryption18448
+Node: CMS background18799
+Node: Certificate matching18955
+Node: Matching syntax19209
+Node: Software PKCS 11 module19766
+Node: How to use the PKCS11 module20285
 
 End Tag Table

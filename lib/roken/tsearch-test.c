@@ -19,7 +19,7 @@ struct node {
     int order;
 };
 
-extern void *rk_tdelete(const void * __restrict, void ** __restrict,
+extern void *rk_tdelete(const void *, void **,
 		 int (*)(const void *, const void *));
 extern void *rk_tfind(const void *, void * const *,
 	       int (*)(const void *, const void *));

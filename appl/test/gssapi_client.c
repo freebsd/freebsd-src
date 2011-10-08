@@ -99,7 +99,7 @@ extern char *password;
 static int
 proto (int sock, const char *hostname, const char *service)
 {
-    struct sockaddr_in remote, local;
+    struct sockaddr_storage remote, local;
     socklen_t addrlen;
 
     int context_established = 0;
@@ -111,7 +111,6 @@ proto (int sock, const char *hostname, const char *service)
     OM_uint32 maj_stat, min_stat;
     gss_name_t server;
     gss_buffer_desc name_token;
-    struct gss_channel_bindings_struct input_chan_bindings;
     u_char init_buf[4];
     u_char acct_buf[4];
     gss_OID mech_oid;
@@ -155,16 +154,19 @@ proto (int sock, const char *hostname, const char *service)
 
     addrlen = sizeof(local);
     if (getsockname (sock, (struct sockaddr *)&local, &addrlen) < 0
-	|| addrlen != sizeof(local))
+	|| addrlen > sizeof(local))
 	err (1, "getsockname(%s)", hostname);
 
     addrlen = sizeof(remote);
     if (getpeername (sock, (struct sockaddr *)&remote, &addrlen) < 0
-	|| addrlen != sizeof(remote))
+	|| addrlen > sizeof(remote))
 	err (1, "getpeername(%s)", hostname);
 
     input_token->length = 0;
     output_token->length = 0;
+
+#if 0
+    struct gss_channel_bindings_struct input_chan_bindings;
 
     input_chan_bindings.initiator_addrtype = GSS_C_AF_INET;
     input_chan_bindings.initiator_address.length = 4;
@@ -182,12 +184,11 @@ proto (int sock, const char *hostname, const char *service)
     acct_buf[3] = (remote.sin_addr.s_addr >>  0) & 0xFF;
     input_chan_bindings.acceptor_address.value = acct_buf;
 
-#if 0
     input_chan_bindings.application_data.value = emalloc(4);
     * (unsigned short*)input_chan_bindings.application_data.value = local.sin_port;
     * ((unsigned short *)input_chan_bindings.application_data.value + 1) = remote.sin_port;
     input_chan_bindings.application_data.length = 4;
-#else
+
     input_chan_bindings.application_data.length = 0;
     input_chan_bindings.application_data.value = NULL;
 #endif
@@ -199,10 +200,9 @@ proto (int sock, const char *hostname, const char *service)
 				 &context_hdl,
 				 server,
 				 mech_oid,
-				 GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG
-				 | GSS_C_DELEG_FLAG,
+				 GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG,
 				 0,
-				 &input_chan_bindings,
+				 NULL,
 				 input_token,
 				 NULL,
 				 output_token,

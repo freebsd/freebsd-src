@@ -12,7 +12,7 @@
                         name="@krbname@"
                         language="*"
                         processorArchitecture="@cpu@"/>
-      <bindingRedirect oldVersion="@krbverfrom@.0.0-@krbversion@"
+      <bindingRedirect oldVersion="@krbverfrom_begin@-@krbverfrom_end@"
                        newVersion="@krbversion@"/>
     </dependentAssembly>
   </dependency>

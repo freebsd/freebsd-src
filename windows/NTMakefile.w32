@@ -1,6 +1,6 @@
 ########################################################################
 #
-# Copyright (c) 2009, Secure Endpoints Inc.
+# Copyright (c) 2009-2011, Secure Endpoints Inc.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -164,13 +164,6 @@ cincdirs=$(cincdirs) -I$(INCDIR) -I$(INCDIR)\krb5 $(pthreadinc)
 cdefines=$(cdefines) -DHAVE_CONFIG_H
 cdebug=$(cdebug) /Zi
 ldebug=$(ldebug) /DEBUG
-
-# ---------------------------------------------------------------
-# time_t issues
-
-!if "$(MCPU)"=="x86"
-cdefines=$(cdefines) -D_USE_32BIT_TIME_T
-!endif
 
 # Disable warnings:
 #

@@ -107,6 +107,14 @@ If you use a realm name equal to your domain name, you can omit the
 SRV-record for your realm, or your Kerberos server has DNS CNAME
 @samp{kerberos.my.realm}, you can omit the @samp{realms} section too.
 
+@cindex KRB5_CONFIG
+If you want to use a different configuration file then the default you
+can point a file with the enviroment variable @samp{KRB5_CONFIG}.
+
+@example
+env KRB5_CONFIG=$HOME/etc/krb5.conf kinit user@@REALM
+@end example
+
 @node Creating the database, Modifying the database, Configuration file, Setting up a realm
 @section Creating the database
 
