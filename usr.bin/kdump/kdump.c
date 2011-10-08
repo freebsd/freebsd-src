@@ -110,15 +110,16 @@ struct ktr_header ktr_header;
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
 
-#define print_number(i,n,c) do {		\
-	if (decimal)				\
-		printf("%c%ld", c, (long)*i);	\
-	else					\
-		printf("%c%#lx", c, (long)*i);	\
-	i++;					\
-	n--;					\
-	c = ',';				\
-	} while (0);
+#define print_number(i,n,c)					\
+	do {							\
+		if (decimal)					\
+			printf("%c%jd", c, (intmax_t)*i);	\
+		else						\
+			printf("%c%#jx", c, (intmax_t)*i);	\
+		i++;						\
+		n--;						\
+		c = ',';					\
+	} while (0)
 
 #if defined(__amd64__) || defined(__i386__)
 
@@ -507,9 +508,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 					(void)printf(",%s", cp);
 				else {
 					if (decimal)
-						(void)printf(",%ld", (long)*ip);
+						(void)printf(",%jd", (intmax_t)*ip);
 					else
-						(void)printf(",%#lx ", (long)*ip);
+						(void)printf(",%#jx ", (intmax_t)*ip);
 				}
 				c = ',';
 				ip++;
@@ -518,7 +519,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			}
 			case SYS_ptrace:
 				(void)putchar('(');
-				ptraceopname((int)*ip);
+				ptraceopname((intmax_t)*ip);
 				c = ',';
 				ip++;
 				narg--;
@@ -527,14 +528,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_eaccess:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				accessmodename((int)*ip);
+				accessmodename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_open:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				flagsandmodename(ip[0], ip[1], decimal);
+				flagsandmodename((int)ip[0], (int)ip[1], decimal);
 				ip += 2;
 				narg -= 2;
 				break;
@@ -542,7 +543,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				wait4optname((int)*ip);
+				wait4optname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -551,14 +552,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_lchmod:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				modename((int)*ip);
+				modename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_mknod:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				modename((int)*ip);
+				modename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -566,7 +567,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				getfsstatflagsname((int)*ip);
+				getfsstatflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -574,14 +575,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mountflagsname((int)*ip);
+				mountflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_unmount:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mountflagsname((int)*ip);
+				mountflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -609,7 +610,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_lchflags:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				modename((int)*ip);
+				modename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -622,13 +623,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				break;
 			case SYS_reboot:
 				(void)putchar('(');
-				rebootoptname((int)*ip);
+				rebootoptname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_umask:
 				(void)putchar('(');
-				modename((int)*ip);
+				modename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -636,7 +637,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				msyncflagsname((int)*ip);
+				msyncflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -645,11 +646,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mmapprotname((int)*ip);
+				mmapprotname((intmax_t)*ip);
 				(void)putchar(',');
 				ip++;
 				narg--;
-				mmapflagsname((int)*ip);
+				mmapflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -658,11 +659,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mmapprotname((int)*ip);
+				mmapprotname((intmax_t)*ip);
 				(void)putchar(',');
 				ip++;
 				narg--;
-				mmapflagsname((int)*ip);
+				mmapflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -670,7 +671,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mmapprotname((int)*ip);
+				mmapprotname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -678,7 +679,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				madvisebehavname((int)*ip);
+				madvisebehavname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -686,32 +687,32 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				prioname((int)*ip);
+				prioname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_fcntl:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				fcntlcmdname(ip[0], ip[1], decimal);
+				fcntlcmdname((int)ip[0], (int)ip[1], decimal);
 				ip += 2;
 				narg -= 2;
 				break;
 			case SYS_socket: {
 				int sockdomain;
 				(void)putchar('(');
-				sockdomain=(int)*ip;
+				sockdomain=(intmax_t)*ip;
 				sockdomainname(sockdomain);
 				ip++;
 				narg--;
 				(void)putchar(',');
-				socktypename((int)*ip);
+				socktypename((intmax_t)*ip);
 				ip++;
 				narg--;
 				if (sockdomain == PF_INET ||
 				    sockdomain == PF_INET6) {
 					(void)putchar(',');
-					sockipprotoname((int)*ip);
+					sockipprotoname((intmax_t)*ip);
 					ip++;
 					narg--;
 				}
@@ -723,11 +724,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				(void)putchar(',');
 				sockoptlevelname((int)*ip, decimal);
-				if ((int)*ip == SOL_SOCKET) {
+				if (*ip == SOL_SOCKET) {
 					ip++;
 					narg--;
 					(void)putchar(',');
-					sockoptname((int)*ip);
+					sockoptname((intmax_t)*ip);
 				}
 				ip++;
 				narg--;
@@ -739,7 +740,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				whencename((int)*ip);
+				whencename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -749,14 +750,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				/* Hidden 'pad' argument, not in lseek(2) */
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				whencename((int)*ip);
+				whencename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_flock:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				flockname((int)*ip);
+				flockname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -764,24 +765,24 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_mkdir:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				modename((int)*ip);
+				modename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_shutdown:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				shutdownhowname((int)*ip);
+				shutdownhowname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_socketpair:
 				(void)putchar('(');
-				sockdomainname((int)*ip);
+				sockdomainname((intmax_t)*ip);
 				ip++;
 				narg--;
 				(void)putchar(',');
-				socktypename((int)*ip);
+				socktypename((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
@@ -789,7 +790,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_getrlimit:
 			case SYS_setrlimit:
 				(void)putchar('(');
-				rlimitname((int)*ip);
+				rlimitname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
@@ -797,14 +798,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_quotactl:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				quotactlname((int)*ip);
+				quotactlname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
 				break;
 			case SYS_nfssvc:
 				(void)putchar('(');
-				nfssvcname((int)*ip);
+				nfssvcname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
@@ -843,7 +844,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				shmatname((int)*ip);
+				shmatname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -858,41 +859,41 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				minheritname((int)*ip);
+				minheritname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_rfork:
 				(void)putchar('(');
-				rforkname((int)*ip);
+				rforkname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
 				break;
 			case SYS_lio_listio:
 				(void)putchar('(');
-				lio_listioname((int)*ip);
+				lio_listioname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
 				break;
 			case SYS_mlockall:
 				(void)putchar('(');
-				mlockallname((int)*ip);
+				mlockallname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_sched_setscheduler:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				schedpolicyname((int)*ip);
+				schedpolicyname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_sched_get_priority_max:
 			case SYS_sched_get_priority_min:
 				(void)putchar('(');
-				schedpolicyname((int)*ip);
+				schedpolicyname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -904,20 +905,20 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				sendfileflagsname((int)*ip);
+				sendfileflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_kldsym:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				kldsymcmdname((int)*ip);
+				kldsymcmdname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_sigprocmask:
 				(void)putchar('(');
-				sigprocmaskhowname((int)*ip);
+				sigprocmaskhowname((intmax_t)*ip);
 				ip++;
 				narg--;
 				c = ',';
@@ -936,7 +937,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS___acl_aclcheck_link:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				acltypename((int)*ip);
+				acltypename((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -950,7 +951,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_extattrctl:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				extattrctlname((int)*ip);
+				extattrctlname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -958,7 +959,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				mountflagsname((int)*ip);
+				mountflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -966,7 +967,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				thrcreateflagsname((int)*ip);
+				thrcreateflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
@@ -980,7 +981,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_kldunloadf:
 				print_number(ip, narg, c);
 				(void)putchar(',');
-				kldunloadfflagsname((int)*ip);
+				kldunloadfflagsname((intmax_t)*ip);
 				ip++;
 				narg--;
 				break;
