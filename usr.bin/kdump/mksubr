@@ -84,7 +84,7 @@ _EOF_
 cat <<_EOF_
 	printf(">");
 	if (or == 0)
-		(void)printf("<invalid>%jd", arg);
+		printf("<invalid>%jd", arg);
 }
 
 _EOF_
@@ -113,10 +113,10 @@ _EOF_
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
+		printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%jd>", arg);
+		printf("<invalid=%jd>", arg);
 	}
 }
 
@@ -147,7 +147,7 @@ _EOF_
 		printf "if (arg == %s) \n\t\tprintf(\"%s\");\n", $2, $2 }'
 cat <<_EOF_
 	else /* Should not reach */
-		(void)printf("<invalid=%jd>", arg);
+		printf("<invalid=%jd>", arg);
 }
 
 _EOF_
@@ -211,9 +211,9 @@ void
 signame(int sig)
 {
 	if (sig > 0 && sig < NSIG)
-		(void)printf("SIG%s",signames[sig]);
+		printf("SIG%s",signames[sig]);
 	else
-		(void)printf("SIG %d", sig);
+		printf("SIG %d", sig);
 }
 
 /* MANUAL */
@@ -222,37 +222,37 @@ semctlname(int cmd)
 {
 	switch (cmd) {
 	case GETNCNT:
-		(void)printf("GETNCNT");
+		printf("GETNCNT");
 		break;
 	case GETPID:
-		(void)printf("GETPID");
+		printf("GETPID");
 		break;
 	case GETVAL:
-		(void)printf("GETVAL");
+		printf("GETVAL");
 		break;
 	case GETALL:
-		(void)printf("GETALL");
+		printf("GETALL");
 		break;
 	case GETZCNT:
-		(void)printf("GETZCNT");
+		printf("GETZCNT");
 		break;
 	case SETVAL:
-		(void)printf("SETVAL");
+		printf("SETVAL");
 		break;
 	case SETALL:
-		(void)printf("SETALL");
+		printf("SETALL");
 		break;
 	case IPC_RMID:
-		(void)printf("IPC_RMID");
+		printf("IPC_RMID");
 		break;
 	case IPC_SET:
-		(void)printf("IPC_SET");
+		printf("IPC_SET");
 		break;
 	case IPC_STAT:
-		(void)printf("IPC_STAT");
+		printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%d>", cmd);
+		printf("<invalid=%d>", cmd);
 	}
 }
 
@@ -262,16 +262,16 @@ shmctlname(int cmd)
 {
 	switch (cmd) {
 	case IPC_RMID:
-		(void)printf("IPC_RMID");
+		printf("IPC_RMID");
 		break;
 	case IPC_SET:
-		(void)printf("IPC_SET");
+		printf("IPC_SET");
 		break;
 	case IPC_STAT:
-		(void)printf("IPC_STAT");
+		printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%d>", cmd);
+		printf("<invalid=%d>", cmd);
 	}
 }
 
@@ -300,14 +300,14 @@ void
 flagsandmodename(int flags, int mode, int decimal)
 {
 	flagsname(flags);
-	(void)putchar(',');
+	putchar(',');
 	if ((flags & O_CREAT) == O_CREAT) {
 		modename (mode);
 	} else {
 		if (decimal) {
-			(void)printf("<unused>%d", mode);
+			printf("<unused>%d", mode);
 		} else {
-			(void)printf("<unused>%#x", (unsigned int)mode);
+			printf("<unused>%#x", (unsigned int)mode);
 		}
 	}
 }
@@ -323,12 +323,12 @@ void
 sockoptlevelname(int level, int decimal)
 {
 	if (level == SOL_SOCKET) {
-		(void)printf("SOL_SOCKET");
+		printf("SOL_SOCKET");
 	} else {
 		if (decimal) {
-			(void)printf("%d", level);
+			printf("%d", level);
 		} else {
-			(void)printf("%#x", (unsigned int)level);
+			printf("%#x", (unsigned int)level);
 		}
 	}
 }
@@ -391,33 +391,33 @@ egrep "^#[[:space:]]*define[[:space:]]+F_[A-Z]+[[:space:]]+[0-9]+[[:space:]]*" \
 			break; \
 		++i; \
 		if (o <= $(i+1)) \
-			printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i; \
+			printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i; \
 		else \
 			exit; \
 		o = $(i+1) }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%d>", cmd);
+		printf("<invalid=%d>", cmd);
 	}
-	(void)putchar(',');
+	putchar(',');
 	if (cmd == F_GETFD || cmd == F_SETFD) {
 		if (arg == FD_CLOEXEC)
-			(void)printf("FD_CLOEXEC");
+			printf("FD_CLOEXEC");
 		else if (arg == 0)
-			(void)printf("0");
+			printf("0");
 		else {
 			if (decimal)
-				(void)printf("<invalid>%d", arg);
+				printf("<invalid>%d", arg);
 			else
-				(void)printf("<invalid>%#x", (unsigned int)arg);
+				printf("<invalid>%#x", (unsigned int)arg);
 		}
 	} else if (cmd == F_SETFL) {
 		flagsname(arg);
 	} else {
 		if (decimal)
-			(void)printf("%d", arg);
+			printf("%d", arg);
 		else
-			(void)printf("%#x", (unsigned int)arg);
+			printf("%#x", (unsigned int)arg);
 	}
 }
 
@@ -439,10 +439,10 @@ egrep "^#[[:space:]]*define[[:space:]]+RTP_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
+		printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%d>", func);
+		printf("<invalid=%d>", func);
 	}
 }
 
@@ -459,7 +459,7 @@ sendrecvflagsname(int flags)
 	int or = 0;
 
 	if (flags == 0) {
-		(void)printf("0");
+		printf("0");
 		return;
 	}
 
