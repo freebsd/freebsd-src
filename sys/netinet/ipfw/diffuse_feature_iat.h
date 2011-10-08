@@ -46,12 +46,12 @@
 #define	DI_IAT_TYPE DI_FEATURE_ALG_UNIDIRECTIONAL
 #define	DI_IAT_NO_STATS 4
 #define	DI_IAT_STAT_NAMES_DECL char *di_iat_stat_names[DI_IAT_NO_STATS]
-#define	DI_IAT_STAT_NAMES DI_IAT_STAT_NAMES_DECL =		\
-{								\
-	"min",							\
-	"mean",							\
-	"max",							\
-	"stdev"							\
+#define	DI_IAT_STAT_NAMES DI_IAT_STAT_NAMES_DECL =			\
+{									\
+	"min",								\
+	"mean",								\
+	"max",								\
+	"stdev"								\
 };
 
 struct di_feature_module * iat_module(void);
