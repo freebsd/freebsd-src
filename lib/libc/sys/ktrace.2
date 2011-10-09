@@ -28,7 +28,7 @@
 .\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2008
+.Dd October 9, 2011
 .Dt KTRACE 2
 .Os
 .Sh NAME
@@ -80,7 +80,7 @@ The
 .Fa trpoints
 argument specifies the trace points of interest.
 The defined trace points are:
-.Bl -column KTRFAC_SYSCALLXXX -offset indent
+.Bl -column KTRFAC_PROCCTORXXX -offset indent
 .It "KTRFAC_SYSCALL	Trace system calls."
 .It "KTRFAC_SYSRET	Trace return values from system calls."
 .It "KTRFAC_NAMEI	Trace name lookup operations."
@@ -88,6 +88,11 @@ The defined trace points are:
 generate much output).
 .It "KTRFAC_PSIG	Trace posted signals."
 .It "KTRFAC_CSW	Trace context switch points."
+.It "KTRFAC_USER	Trace application-specific events."
+.It "KTRFAC_STRUCT	Trace certain data structures."
+.It "KTRFAC_SYSCTL	Trace sysctls."
+.It "KTRFAC_PROCCTOR	Trace process construction."
+.It "KTRFAC_PROCDTOR	Trace process destruction."
 .It "KTRFAC_INHERIT	Inherit tracing to future children."
 .El
 .Pp
