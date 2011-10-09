@@ -1661,7 +1661,7 @@ sctp_timeout_handler(void *t)
 		sctp_auditing(4, inp, stcb, net);
 #endif
 		if (!(net->dest_state & SCTP_ADDR_NOHB)) {
-			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_HB_TMR, SCTP_SO_NOT_LOCKED);
 		}
 		break;
