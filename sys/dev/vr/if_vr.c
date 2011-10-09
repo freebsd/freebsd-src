@@ -114,12 +114,12 @@ MODULE_DEPEND(vr, miibus, 1, 1, 1);
 #define VR_Q_CSUM		(1<<1)
 #define VR_Q_CAM		(1<<2)
 
-static struct vr_type {
+static const struct vr_type {
 	u_int16_t		vr_vid;
 	u_int16_t		vr_did;
 	int			vr_quirks;
-	char			*vr_name;
-} vr_devs[] = {
+	const char		*vr_name;
+} const vr_devs[] = {
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
 	    VR_Q_NEEDALIGN,
 	    "VIA VT3043 Rhine I 10/100BaseTX" },
@@ -195,11 +195,11 @@ static void vr_setwol(struct vr_softc *);
 static void vr_clrwol(struct vr_softc *);
 static int vr_sysctl_stats(SYSCTL_HANDLER_ARGS);
 
-static struct vr_tx_threshold_table {
+static const struct vr_tx_threshold_table {
 	int tx_cfg;
 	int bcr_cfg;
 	int value;
-} vr_tx_threshold_tables[] = {
+} const vr_tx_threshold_tables[] = {
 	{ VR_TXTHRESH_64BYTES, VR_BCR1_TXTHRESH64BYTES,	64 },
 	{ VR_TXTHRESH_128BYTES, VR_BCR1_TXTHRESH128BYTES, 128 },
 	{ VR_TXTHRESH_256BYTES, VR_BCR1_TXTHRESH256BYTES, 256 },
@@ -557,10 +557,10 @@ vr_reset(const struct vr_softc *sc)
  * Probe for a VIA Rhine chip. Check the PCI vendor and device
  * IDs against our list and return a match or NULL
  */
-static struct vr_type *
+static const struct vr_type *
 vr_match(device_t dev)
 {
-	struct vr_type	*t = vr_devs;
+	const struct vr_type	*t = vr_devs;
 
 	for (t = vr_devs; t->vr_name != NULL; t++)
 		if ((pci_get_vendor(dev) == t->vr_vid) &&
@@ -576,7 +576,7 @@ vr_match(device_t dev)
 static int
 vr_probe(device_t dev)
 {
-	struct vr_type	*t;
+	const struct vr_type	*t;
 
 	t = vr_match(dev);
 	if (t != NULL) {
@@ -595,7 +595,7 @@ vr_attach(device_t dev)
 {
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
-	struct vr_type		*t;
+	const struct vr_type	*t;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	int			error, rid;
 	int			i, phy, pmc;
