@@ -1102,6 +1102,8 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 
 	error = kern_sigtimedwait(td, set, &ksi, NULL);
 	if (error) {
+		if (error == EINTR && td->td_proc->p_osrel < P_OSREL_SIGWAIT)
+			error = ERESTART;
 		if (error == ERESTART)
 			return (error);
 		td->td_retval[0] = error;
