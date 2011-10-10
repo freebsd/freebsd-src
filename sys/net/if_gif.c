@@ -488,7 +488,7 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int isr, n;
-	struct gif_softc *sc = ifp->if_softc;
+	struct gif_softc *sc;
 	struct etherip_header *eip;
 	struct ether_header *eh;
 	struct ifnet *oldifp;
@@ -498,7 +498,7 @@ gif_input(m, af, ifp)
 		m_freem(m);
 		return;
 	}
-
+	sc = ifp->if_softc;
 	m->m_pkthdr.rcvif = ifp;
 
 #ifdef MAC
