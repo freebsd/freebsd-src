@@ -228,3 +228,13 @@ FBSD_1.2 {
 	log2;
 	log2f;
 };
+
+/* First added in 10.0-CURRENT */
+FBSD_1.3 {
+	feclearexcept;
+	fegetexceptflag;
+	fetestexcept;
+	fegetround;
+	fesetround;
+	fesetenv;
+};
