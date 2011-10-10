@@ -748,7 +748,7 @@ unionfs_access(struct vop_access_args *ap)
 						return (error);
 				}
 			}
-			accmode &= ~VWRITE;
+			accmode &= ~(VWRITE | VAPPEND);
 			accmode |= VREAD; /* will copy to upper */
 		}
 		error = VOP_ACCESS(lvp, accmode, ap->a_cred, td);
