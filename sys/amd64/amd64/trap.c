@@ -674,6 +674,19 @@ trap_pfault(frame, usermode)
 			goto nogo;
 
 		map = &vm->vm_map;
+
+		/*
+		 * When accessing a usermode address, kernel must be
+		 * ready to accept the page fault, and provide a
+		 * handling routine.  Since accessing the address
+		 * without the handler is a bug, do not try to handle
+		 * it normally, and panic immediately.
+		 */
+		if (!usermode && (td->td_intr_nesting_level != 0 ||
+		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
 	}
 
 	/*
