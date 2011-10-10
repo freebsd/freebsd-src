@@ -72,44 +72,29 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
-static int do_sa_get(struct sockaddr **, const struct osockaddr *, int *,
-    struct malloc_type *);
 static int linux_to_bsd_domain(int);
 
 /*
  * Reads a linux sockaddr and does any necessary translation.
  * Linux sockaddrs don't have a length field, only a family.
- */
-static int
-linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int len)
-{
-	int osalen = len;
-
-	return (do_sa_get(sap, osa, &osalen, M_SONAME));
-}
-
-/*
  * Copy the osockaddr structure pointed to by osa to kernel, adjust
  * family and convert to sockaddr.
  */
 static int
-do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
-    struct malloc_type *mtype)
+linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int salen)
 {
-	int error=0, bdom;
 	struct sockaddr *sa;
 	struct osockaddr *kosa;
-	int alloclen;
 #ifdef INET6
-	int oldv6size;
 	struct sockaddr_in6 *sin6;
+	int oldv6size;
 #endif
-	int namelen;
+	char *name;
+	int bdom, error, hdrlen, namelen;
 
-	if (*osalen < 2 || *osalen > UCHAR_MAX || !osa)
+	if (salen < 2 || salen > UCHAR_MAX || !osa)
 		return (EINVAL);
 
-	alloclen = *osalen;
 #ifdef INET6
 	oldv6size = 0;
 	/*
@@ -117,15 +102,15 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	 * if it's a v4-mapped address, so reserve the proper space
 	 * for it.
 	 */
-	if (alloclen == sizeof (struct sockaddr_in6) - sizeof (u_int32_t)) {
-		alloclen = sizeof (struct sockaddr_in6);
+	if (salen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
+		salen += sizeof(uint32_t);
 		oldv6size = 1;
 	}
 #endif
 
-	kosa = malloc(alloclen, mtype, M_WAITOK);
+	kosa = malloc(salen, M_SONAME, M_WAITOK);
 
-	if ((error = copyin(osa, kosa, *osalen)))
+	if ((error = copyin(osa, kosa, salen)))
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
@@ -142,55 +127,61 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	 *
 	 * Still accept addresses for which the scope id is not used.
 	 */
-	if (oldv6size && bdom == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *)kosa;
-		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
-		    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
-			sin6->sin6_scope_id = 0;
-		} else {
-			log(LOG_DEBUG,
-			    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
-			error = EINVAL;
-			goto out;
-		}
-	} else
+	if (oldv6size) {
+		if (bdom == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)kosa;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
+			    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
+				sin6->sin6_scope_id = 0;
+			} else {
+				log(LOG_DEBUG,
+				    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+				error = EINVAL;
+				goto out;
+			}
+		} else
+			salen -= sizeof(uint32_t);
+	}
 #endif
 	if (bdom == AF_INET) {
-		alloclen = sizeof(struct sockaddr_in);
-		if (*osalen < alloclen) {
+		if (salen < sizeof(struct sockaddr_in)) {
 			error = EINVAL;
+			goto out;
+		}
+		salen = sizeof(struct sockaddr_in);
+	}
+
+	if (bdom == AF_LOCAL && salen > sizeof(struct sockaddr_un)) {
+		hdrlen = offsetof(struct sockaddr_un, sun_path);
+		name = ((struct sockaddr_un *)kosa)->sun_path;
+		if (*name == '\0') {
+			/*
+		 	 * Linux abstract namespace starts with a NULL byte.
+			 * XXX We do not support abstract namespace yet.
+			 */
+			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
+		} else
+			namelen = strnlen(name, salen - hdrlen);
+		salen = hdrlen + namelen;
+		if (salen > sizeof(struct sockaddr_un)) {
+			error = ENAMETOOLONG;
 			goto out;
 		}
 	}
 
-	if ((bdom == AF_LOCAL) && (*osalen > sizeof(struct sockaddr_un))) {
-		for (namelen = 0;
-		    namelen < *osalen - offsetof(struct sockaddr_un, sun_path);
-		    namelen++)
-			if (!((struct sockaddr_un *)kosa)->sun_path[namelen])
-				break;
-		if (namelen + offsetof(struct sockaddr_un, sun_path) >
-		    sizeof(struct sockaddr_un)) {
-			error = EINVAL;
-			goto out;
-		}
-		alloclen = sizeof(struct sockaddr_un);
-	}
-
-	sa = (struct sockaddr *) kosa;
+	sa = (struct sockaddr *)kosa;
 	sa->sa_family = bdom;
-	sa->sa_len = alloclen;
+	sa->sa_len = salen;
 
 	*sap = sa;
-	*osalen = alloclen;
 	return (0);
 
 out:
-	free(kosa, mtype);
+	free(kosa, M_SONAME);
 	return (error);
 }
 
@@ -1239,9 +1230,9 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 			cmsg->cmsg_len = CMSG_LEN(datalen);
 
 			error = ENOBUFS;
-			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t) cmsg))
+			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t)cmsg))
 				goto bad;
-			if (!m_append(control, datalen, (c_caddr_t) data))
+			if (!m_append(control, datalen, (c_caddr_t)data))
 				goto bad;
 		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
 
@@ -1380,7 +1371,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 				 * effect for Linux so no need to worry
 				 * about sockcred
 				 */
-				if (datalen != sizeof (*cmcred)) {
+				if (datalen != sizeof(*cmcred)) {
 					error = EMSGSIZE;
 					goto bad;
 				}
