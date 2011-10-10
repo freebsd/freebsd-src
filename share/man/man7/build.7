@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2010
+.Dd September 29, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -352,6 +352,16 @@ variables:
 .It Va LOCAL_DIRS
 If set, this variable supplies a list of additional directories to
 build, relative to the root of the source tree.
+.It Va PORTS_MODULES
+A list of ports with kernel modules that should be built and installed
+as part of the
+.Cm buildkernel
+and
+.Cm installkernel
+process.
+.Bd -literal -offset indent
+make PORTS_MODULES=emulators/kqemu-kmod kernel
+.Ed
 .It Va SUBDIR_OVERRIDE
 Override the default list of sub-directories and only build the
 sub-directory named in this variable.
