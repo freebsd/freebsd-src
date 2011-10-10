@@ -161,8 +161,8 @@ get_if_var()
 }
 
 # _ifconfig_getargs if
-#	Echos the arguments for the supplied interface to stdout.
-#	returns 1 if empty.  In general, ifconfig_getargs should be used
+#	Prints the arguments for the supplied interface to stdout.
+#	Returns 1 if empty.  In general, ifconfig_getargs should be used
 #	outside this file.
 _ifconfig_getargs()
 {
