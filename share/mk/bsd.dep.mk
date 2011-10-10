@@ -125,8 +125,8 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
-MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*}
-MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*}
+MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*}
+MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*}
 
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
