@@ -1421,14 +1421,43 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 		if (memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
 		    sizeof(in_addr_t)) != 0)
 			error = EINVAL;
-	} else if (!(flags & LLE_PUB) && ((rt->rt_flags & RTF_GATEWAY) ||
-	    (rt->rt_ifp != ifp))) {
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
-		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
-#endif
-		error = EINVAL;
 	}
+
+	if (rt->rt_flags & RTF_GATEWAY) {
+		RTFREE_LOCKED(rt);
+		return (EINVAL);
+	}
+
+	/*
+	 * Make sure that at least the destination address is covered 
+	 * by the route. This is for handling the case where 2 or more 
+	 * interfaces have the same prefix. An incoming packet arrives
+	 * on one interface and the corresponding outgoing packet leaves
+	 * another interface.
+	 * 
+	 */
+	if (rt->rt_ifp != ifp) {
+		char *sa, *mask, *addr, *lim;
+		int len;
+
+		sa = (char *)rt_key(rt);
+		mask = (char *)rt_mask(rt);
+		addr = (char *)__DECONST(struct sockaddr *, l3addr);
+		len = ((struct sockaddr_in *)__DECONST(struct sockaddr *, l3addr))->sin_len;
+		lim = addr + len;
+
+		for ( ; addr < lim; sa++, mask++, addr++) {
+			if ((*sa ^ *addr) & *mask) {
+				error = EINVAL;
+#ifdef DIAGNOSTIC
+				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
+				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+#endif
+				break;
+			}
+		}
+	}
+
 	RTFREE_LOCKED(rt);
 	return (error);
 }
