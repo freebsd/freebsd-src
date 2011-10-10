@@ -486,11 +486,14 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int trys, err;
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->sc_dev;
-	device_t ppbus = device_get_parent(lptdev);
+	device_t lptdev;
+	device_t ppbus;
 
 	if (!sc)
 		return (ENXIO);
+
+	lptdev = sc->sc_dev;
+	ppbus = device_get_parent(lptdev);
 
 	ppb_lock(ppbus);
 	if (sc->sc_state) {
