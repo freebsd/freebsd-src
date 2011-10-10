@@ -1166,7 +1166,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			p.s_addr &= ia->ia_sockmask.sin_addr.s_addr;
 		}
 
-		if (prefix.s_addr != p.s_addr)
+		if ((prefix.s_addr != p.s_addr) ||
+		    !(ia->ia_ifp->if_flags & IFF_UP))
 			continue;
 
 		/*
