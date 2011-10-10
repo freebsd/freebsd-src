@@ -796,7 +796,7 @@ bwi_phy_config_11g(struct bwi_mac *mac)
 			bwi_tbl_write_2(mac, BWI_PHYTBL_RSSI + i, i);
 
 		/* Fill noise table */
-		for (i = 0; i < sizeof(bwi_phy_noise_11g); ++i) {
+		for (i = 0; i < N(bwi_phy_noise_11g); ++i) {
 			bwi_tbl_write_2(mac, BWI_PHYTBL_NOISE + i,
 					bwi_phy_noise_11g[i]);
 		}
