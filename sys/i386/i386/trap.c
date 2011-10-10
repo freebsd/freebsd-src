@@ -835,6 +835,11 @@ trap_pfault(frame, usermode, eva)
 			goto nogo;
 
 		map = &vm->vm_map;
+		if (!usermode && (td->td_intr_nesting_level != 0 ||
+		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
 	}
 
 	/*
