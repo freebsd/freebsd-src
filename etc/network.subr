@@ -31,7 +31,7 @@
 #
 
 # ifn_start ifn
-# Bring up and configure an interface.  If some configuration is applied
+# Bring up and configure an interface.  If some configuration is applied,
 # print the interface configuration.
 #
 ifn_start()
@@ -52,7 +52,7 @@ ifn_start()
 }
 
 # ifn_start ifn
-# Shutdown and de-configure an interface.  If action is taken print the
+# Shutdown and de-configure an interface.  If action is taken, print the
 # interface name.
 #
 ifn_stop()
@@ -202,7 +202,7 @@ ifconfig_getargs()
 }
 
 # autoif
-#	Returns 0 if the interface should be automaticly configured at
+#	Returns 0 if the interface should be automatically configured at
 #	boot time and 1 otherwise.
 autoif()
 {
