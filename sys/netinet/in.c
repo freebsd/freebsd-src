@@ -1138,7 +1138,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			if (error == 0)
 				target->ia_flags &= ~IFA_RTSELF;
 		}
-		if (flags & LLE_STATIC)
+		if ((flags & LLE_STATIC) &&
+			!(target->ia_ifp->if_flags & IFF_NOARP))
 			/* remove arp cache */
 			arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
