@@ -254,7 +254,7 @@ query:
 		if (subchoice != 0)
 			goto query;
 
-		gpart_destroy(gpart, 1);
+		gpart_destroy(gpart);
 		gpart_partition(disk, default_scheme());
 		scheme = default_scheme();
 	}
@@ -267,7 +267,7 @@ query:
 			if (choice != 0)
 				goto query;
 
-			gpart_destroy(gpart, 1);
+			gpart_destroy(gpart);
 		}
 
 		gpart_partition(disk, default_scheme());
