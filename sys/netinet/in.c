@@ -1126,8 +1126,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			RT_LOCK(ia_ro.ro_rt);
 			if (ia_ro.ro_rt->rt_refcnt <= 1)
 				freeit = 1;
-			else
+			else if (flags & LLE_STATIC) {
 				RT_REMREF(ia_ro.ro_rt);
+				target->ia_flags &= ~IFA_RTSELF;
+			}
 			RTFREE_LOCKED(ia_ro.ro_rt);
 		}
 		if (freeit && (flags & LLE_STATIC)) {
