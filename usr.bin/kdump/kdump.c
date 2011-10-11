@@ -114,7 +114,7 @@ struct ktr_header ktr_header;
 	if (decimal)						\
 		printf("%c%jd", c, (intmax_t)*i);		\
 	else							\
-		printf("%c%#jx", c, (intmax_t)*i);		\
+		printf("%c%#jx", c, (uintmax_t)*i);		\
 	i++;							\
 	n--;							\
 	c = ',';						\
