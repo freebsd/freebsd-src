@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2010
+.Dd October 11, 2010
 .Dt EM 4
 .Os
 .Sh NAME
@@ -199,12 +199,14 @@ prompt before booting the kernel or stored in
 .Bl -tag -width indent
 .It Va hw.em.rxd
 Number of receive descriptors allocated by the driver.
-The default value is 256.
+The default value is 1024 for adapters newer than 82547,
+and 256 for older ones.
 The 82542 and 82543-based adapters can handle up to 256 descriptors,
 while others can have up to 4096.
 .It Va hw.em.txd
 Number of transmit descriptors allocated by the driver.
-The default value is 256.
+The default value is 1024 for adapters newer than 82547,
+and 256 for older ones.
 The 82542 and 82543-based adapters can handle up to 256 descriptors,
 while others can have up to 4096.
 .It Va hw.em.rx_int_delay
