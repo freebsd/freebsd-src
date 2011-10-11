@@ -71,6 +71,11 @@ CTASSERT((SX_NOADAPTIVE & LO_CLASSFLAGS) == SX_NOADAPTIVE);
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
 
+#ifdef ADAPTIVE_SX
+#define	ASX_RETRIES		10
+#define	ASX_LOOPS		10000
+#endif
+
 /*
  * Variations on DROP_GIANT()/PICKUP_GIANT() for use in this file.  We
  * drop Giant anytime we have to sleep or if we adaptively spin.
@@ -131,14 +136,6 @@ struct lock_class lock_class_sx = {
 
 #ifndef INVARIANTS
 #define	_sx_assert(sx, what, file, line)
-#endif
-
-#ifdef ADAPTIVE_SX
-static u_int asx_retries = 10;
-static u_int asx_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
-SYSCTL_UINT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
-SYSCTL_UINT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 #endif
 
 void
@@ -529,10 +526,10 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					}
 					continue;
 				}
-			} else if (SX_SHARERS(x) && spintries < asx_retries) {
+			} else if (SX_SHARERS(x) && spintries < ASX_RETRIES) {
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < asx_loops; i++) {
+				for (i = 0; i < ASX_LOOPS; i++) {
 					if (LOCK_LOG_TEST(&sx->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
@@ -546,7 +543,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					spin_cnt++;
 #endif
 				}
-				if (i != asx_loops)
+				if (i != ASX_LOOPS)
 					continue;
 			}
 		}

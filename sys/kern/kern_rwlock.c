@@ -56,11 +56,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef ADAPTIVE_RWLOCKS
-static int rowner_retries = 10;
-static int rowner_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL, "rwlock debugging");
-SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
-SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
+#define	ROWNER_RETRIES	10
+#define	ROWNER_LOOPS	10000
 #endif
 
 #ifdef DDB
@@ -380,15 +377,15 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 				}
 				continue;
 			}
-		} else if (spintries < rowner_retries) {
+		} else if (spintries < ROWNER_RETRIES) {
 			spintries++;
-			for (i = 0; i < rowner_loops; i++) {
+			for (i = 0; i < ROWNER_LOOPS; i++) {
 				v = rw->rw_lock;
 				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(v))
 					break;
 				cpu_spinwait();
 			}
-			if (i != rowner_loops)
+			if (i != ROWNER_LOOPS)
 				continue;
 		}
 #endif
@@ -691,7 +688,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			continue;
 		}
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
-		    spintries < rowner_retries) {
+		    spintries < ROWNER_RETRIES) {
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
 				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
@@ -699,15 +696,15 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				}
 			}
 			spintries++;
-			for (i = 0; i < rowner_loops; i++) {
+			for (i = 0; i < ROWNER_LOOPS; i++) {
 				if ((rw->rw_lock & RW_LOCK_WRITE_SPINNER) == 0)
 					break;
 				cpu_spinwait();
 			}
 #ifdef KDTRACE_HOOKS
-			spin_cnt += rowner_loops - i;
+			spin_cnt += ROWNER_LOOPS - i;
 #endif
-			if (i != rowner_loops)
+			if (i != ROWNER_LOOPS)
 				continue;
 		}
 #endif
