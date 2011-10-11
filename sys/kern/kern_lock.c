@@ -61,6 +61,11 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
 
+#ifdef ADAPTIVE_LOCKMGRS
+#define	ALK_RETRIES		10
+#define	ALK_LOOPS		10000
+#endif
+
 #ifndef INVARIANTS
 #define	_lockmgr_assert(lk, what, file, line)
 #define	TD_LOCKS_INC(td)
@@ -154,14 +159,6 @@ struct lock_class lock_class_lockmgr = {
 	.lc_owner = owner_lockmgr,
 #endif
 };
-
-#ifdef ADAPTIVE_LOCKMGRS
-static u_int alk_retries = 10;
-static u_int alk_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
-SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
-SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
-#endif
 
 static __inline struct thread *
 lockmgr_xholder(struct lock *lk)
@@ -573,14 +570,14 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < alk_retries) {
+			    spintries < ALK_RETRIES) {
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
 					flags &= ~LK_INTERLOCK;
 				}
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < alk_loops; i++) {
+				for (i = 0; i < ALK_LOOPS; i++) {
 					if (LOCK_LOG_TEST(&lk->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
@@ -592,7 +589,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					cpu_spinwait();
 				}
 				GIANT_RESTORE();
-				if (i != alk_loops)
+				if (i != ALK_LOOPS)
 					continue;
 			}
 #endif
@@ -789,7 +786,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < alk_retries) {
+			    spintries < ALK_RETRIES) {
 				if ((x & LK_EXCLUSIVE_SPINNERS) == 0 &&
 				    !atomic_cmpset_ptr(&lk->lk_lock, x,
 				    x | LK_EXCLUSIVE_SPINNERS))
@@ -800,7 +797,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				}
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < alk_loops; i++) {
+				for (i = 0; i < ALK_LOOPS; i++) {
 					if (LOCK_LOG_TEST(&lk->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
@@ -811,7 +808,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					cpu_spinwait();
 				}
 				GIANT_RESTORE();
-				if (i != alk_loops)
+				if (i != ALK_LOOPS)
 					continue;
 			}
 #endif
