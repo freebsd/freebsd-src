@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2005-2011 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,63 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 
 /*
+ * A struct dd represents a floating-point number with twice the precision
+ * of a double.  We maintain the invariant that "hi" stores the 53 high-order
+ * bits of the result.
+ */
+struct dd {
+	double hi;
+	double lo;
+};
+
+/*
+ * Compute a+b exactly, returning the exact result in a struct dd.  We assume
+ * that both a and b are finite, but make no assumptions about their relative
+ * magnitudes.
+ */
+static inline struct dd
+dd_add(double a, double b)
+{
+	struct dd ret;
+	double s;
+
+	ret.hi = a + b;
+	s = ret.hi - a;
+	ret.lo = (a - (ret.hi - s)) + (b - s);
+	return (ret);
+}
+
+/*
+ * Compute a*b exactly, returning the exact result in a struct dd.  We assume
+ * that both a and b are normalized, so no underflow or overflow will occur.
+ * The current rounding mode must be round-to-nearest.
+ */
+static inline struct dd
+dd_mul(double a, double b)
+{
+	static const double split = 0x1p27 + 1.0;
+	struct dd ret;
+	double ha, hb, la, lb, p, q;
+
+	p = a * split;
+	ha = a - p;
+	ha += p;
+	la = a - ha;
+
+	p = b * split;
+	hb = b - p;
+	hb += p;
+	lb = b - hb;
+
+	p = ha * hb;
+	q = ha * lb + la * hb;
+
+	ret.hi = p + q;
+	ret.lo = p - ret.hi + q + la * lb;
+	return (ret);
+}
+
+/*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
  * We use scaling to avoid overflow/underflow, along with the
@@ -52,10 +109,10 @@ __FBSDID("$FreeBSD$");
 double
 fma(double x, double y, double z)
 {
-	static const double split = 0x1p27 + 1.0;
 	double xs, ys, zs;
-	double c, cc, hx, hy, p, q, tx, ty;
-	double r, rr, s;
+	struct dd xy, r, r2;
+	double p;
+	double s;
 	int oround;
 	int ex, ey, ez;
 	int spread;
@@ -95,29 +152,29 @@ fma(double x, double y, double z)
 			if (x > 0.0 ^ y < 0.0 ^ z < 0.0)
 				return (x * y);
 			feholdexcept(&env);
-			r = x * y;
+			s = x * y;
 			if (!fetestexcept(FE_INEXACT))
-				r = nextafter(r, 0);
+				s = nextafter(s, 0);
 			feupdateenv(&env);
-			return (r);
+			return (s);
 		case FE_DOWNWARD:
 			if (z > 0.0)
 				return (x * y);
 			feholdexcept(&env);
-			r = x * y;
+			s = x * y;
 			if (!fetestexcept(FE_INEXACT))
-				r = nextafter(r, -INFINITY);
+				s = nextafter(s, -INFINITY);
 			feupdateenv(&env);
-			return (r);
+			return (s);
 		default:	/* FE_UPWARD */
 			if (z < 0.0)
 				return (x * y);
 			feholdexcept(&env);
-			r = x * y;
+			s = x * y;
 			if (!fetestexcept(FE_INEXACT))
-				r = nextafter(r, INFINITY);
+				s = nextafter(s, INFINITY);
 			feupdateenv(&env);
-			return (r);
+			return (s);
 		}
 	}
 	if (spread < -DBL_MANT_DIG) {
@@ -145,50 +202,29 @@ fma(double x, double y, double z)
 		}
 	}
 
-	/*
-	 * Use Dekker's algorithm to perform the multiplication and
-	 * subsequent addition in twice the machine precision.
-	 * Arrange so that x * y = c + cc, and x * y + z = r + rr.
-	 */
 	fesetround(FE_TONEAREST);
 
-	p = xs * split;
-	hx = xs - p;
-	hx += p;
-	tx = xs - hx;
-
-	p = ys * split;
-	hy = ys - p;
-	hy += p;
-	ty = ys - hy;
-
-	p = hx * hy;
-	q = hx * ty + tx * hy;
-	c = p + q;
-	cc = p - c + q + tx * ty;
-
+	xy = dd_mul(xs, ys);
 	zs = ldexp(zs, -spread);
-	r = c + zs;
-	s = r - c;
-	rr = (c - (r - s)) + (zs - s) + cc;
+	r = dd_add(xy.hi, zs);
+	r.lo += xy.lo;
 
 	spread = ex + ey;
-	if (spread + ilogb(r) > -1023) {
+	if (spread + ilogb(r.hi) > -1023) {
 		fesetround(oround);
-		r = r + rr;
+		r.hi = r.hi + r.lo;
 	} else {
 		/*
 		 * The result is subnormal, so we round before scaling to
 		 * avoid double rounding.
 		 */
-		p = ldexp(copysign(0x1p-1022, r), -spread);
-		c = r + p;
-		s = c - r;
-		cc = (r - (c - s)) + (p - s) + rr;
+		p = ldexp(copysign(0x1p-1022, r.hi), -spread);
+		r2 = dd_add(r.hi, p);
+		r2.lo += r.lo;
 		fesetround(oround);
-		r = (c + cc) - p;
+		r.hi = (r2.hi + r2.lo) - p;
 	}
-	return (ldexp(r, spread));
+	return (ldexp(r.hi, spread));
 }
 #else	/* LDBL_MANT_DIG == 113 */
 /*
