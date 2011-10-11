@@ -114,6 +114,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
 	error = copyin(args->gidset, linux_gidset, ngrp * sizeof(l_gid16_t));
 	if (error)
+		free(linux_gidset, M_TEMP);
 		return (error);
 	newcred = crget();
 	p = td->td_proc;
