@@ -743,17 +743,6 @@ interpret:
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
 	p->p_flag &= ~P_INEXEC;
 
-	/*
-	 * If tracing the process, trap to debugger so breakpoints
-	 * can be set before the program executes.
-	 * Use tdsignal to deliver signal to current thread, use
-	 * psignal may cause the signal to be delivered to wrong thread
-	 * because that thread will exit, remember we are going to enter
-	 * single thread mode.
-	 */
-	if (p->p_flag & P_TRACED)
-		tdsignal(p, td, SIGTRAP, NULL);
-
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
 
