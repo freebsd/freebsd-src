@@ -730,7 +730,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	struct gconsumer *cp;
 	struct ggeom *geom;
 	const char *errstr, *scheme;
-	char sizestr[32], startstr[32], output[64];
+	char sizestr[32], startstr[32], output[64], *newpartname;
 	char newfs[64], options_fstype[64];
 	intmax_t maxsize, size, sector, firstfree, stripe;
 	uint64_t bytes;
@@ -990,29 +990,43 @@ addpartform:
 	if (items[3].text[0] != '\0')
 		gctl_ro_param(r, "label", -1, items[3].text);
 	gctl_rw_param(r, "output", sizeof(output), output);
-
 	errstr = gctl_issue(r);
 	if (errstr != NULL && errstr[0] != '\0') {
 		gpart_show_error("Error", NULL, errstr);
 		gctl_free(r);
 		goto addpartform;
 	}
+	newpartname = strtok(output, " ");
+	gctl_free(r);
+
+	/*
+	 * Try to destroy any geom that gpart picked up already here from
+	 * dirty blocks.
+	 */
+	r = gctl_get_handle();
+	gctl_ro_param(r, "class", -1, "PART");
+	gctl_ro_param(r, "arg0", -1, newpartname);
+	gctl_ro_param(r, "flags", -1, GPART_FLAGS);
+	junk = 1;
+	gctl_ro_param(r, "force", sizeof(junk), &junk);
+	gctl_ro_param(r, "verb", -1, "destroy");
+	gctl_issue(r); /* Error usually expected and non-fatal */
+	gctl_free(r);
 
 	if (strcmp(items[0].text, "freebsd-boot") == 0)
-		get_part_metadata(strtok(output, " "), 1)->bootcode = 1;
+		get_part_metadata(newpartname, 1)->bootcode = 1;
 	else if (strcmp(items[0].text, "freebsd") == 0)
-		gpart_partition(strtok(output, " "), "BSD");
+		gpart_partition(newpartname, "BSD");
 	else
-		set_default_part_metadata(strtok(output, " "), scheme,
+		set_default_part_metadata(newpartname, scheme,
 		    items[0].text, items[2].text, newfs);
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)
 			free(items[i].text);
-	gctl_free(r);
 
 	if (partname != NULL)
-		*partname = strdup(strtok(output, " "));
+		*partname = strdup(newpartname);
 }
 	
 void
@@ -1097,7 +1111,6 @@ gpart_revert_all(struct gmesh *mesh)
 	struct gconfig *gc;
 	struct ggeom *gp;
 	struct gctl_req *r;
-	const char *errstr;
 	const char *modified;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
@@ -1128,9 +1141,7 @@ gpart_revert_all(struct gmesh *mesh)
 		gctl_ro_param(r, "arg0", -1, gp->lg_name);
 		gctl_ro_param(r, "verb", -1, "undo");
 
-		errstr = gctl_issue(r);
-		if (errstr != NULL && errstr[0] != '\0') 
-			gpart_show_error("Error", NULL, errstr);
+		gctl_issue(r);
 		gctl_free(r);
 	}
 }
