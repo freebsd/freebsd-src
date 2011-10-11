@@ -110,14 +110,14 @@ struct ktr_header ktr_header;
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
 
-#define print_number(i,n,c) do {				\
-	if (decimal)						\
-		printf("%c%jd", c, (intmax_t)*i);		\
-	else							\
-		printf("%c%#jx", c, (uintmax_t)*i);		\
-	i++;							\
-	n--;							\
-	c = ',';						\
+#define print_number(i,n,c) do {					\
+	if (decimal)							\
+		printf("%c%jd", c, (intmax_t)*i);			\
+	else								\
+		printf("%c%#jx", c, (uintmax_t)(u_register_t)*i);	\
+	i++;								\
+	n--;								\
+	c = ',';							\
 } while (0)
 
 #if defined(__amd64__) || defined(__i386__)
