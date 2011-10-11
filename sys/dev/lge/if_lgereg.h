@@ -475,25 +475,8 @@ struct lge_list_data {
 struct lge_type {
 	u_int16_t		lge_vid;
 	u_int16_t		lge_did;
-	char			*lge_name;
+	const char		*lge_name;
 };
-
-struct lge_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define LGE_MII_STARTDELIM	0x01
-#define LGE_MII_READOP		0x02
-#define LGE_MII_WRITEOP		0x01
-#define LGE_MII_TURNAROUND	0x02
 
 #define LGE_JUMBO_FRAMELEN	9018
 #define LGE_JUMBO_MTU		(LGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
