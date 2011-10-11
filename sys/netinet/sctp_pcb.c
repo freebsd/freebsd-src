@@ -2786,6 +2786,9 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			LIST_INSERT_HEAD(&new_inp->sctp_addr_list, laddr,
 			    sctp_nxt_addr);
 			new_inp->laddr_count++;
+			if (oladdr == stcb->asoc.last_used_address) {
+				stcb->asoc.last_used_address = laddr;
+			}
 		}
 	}
 	/*
