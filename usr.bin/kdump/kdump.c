@@ -99,6 +99,7 @@ void ktruser(int, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
+void ktrcapfail(struct ktr_cap_fail *);
 void usage(void);
 void ioctlname(unsigned long, int);
 
@@ -301,6 +302,8 @@ main(int argc, char *argv[])
 		case KTR_STRUCT:
 			ktrstruct(m, ktrlen);
 			break;
+		case KTR_CAPFAIL:
+			ktrcapfail((struct ktr_cap_fail *)m);
 		default:
 			printf("\n");
 			break;
@@ -440,6 +443,9 @@ dumpheader(struct ktr_header *kth)
 		/* FALLTHROUGH */
 	case KTR_PROCDTOR:
 		return;
+	case KTR_CAPFAIL:
+		type = "CAP ";
+		break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
 		type = unknown;
@@ -488,6 +494,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 {
 	int narg = ktr->ktr_narg;
 	register_t *ip;
+	intmax_t arg;
 
 	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
 	    (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0))
@@ -978,12 +985,33 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
-                        case SYS_cap_new:
-                                print_number(ip, narg, c);
-                                putchar(',');
-                                capname(*ip);
-                                ip++;
-                                narg--;
+			case SYS_cap_new:
+				print_number(ip, narg, c);
+				putchar(',');
+				arg = *ip;
+				ip++;
+				narg--;
+				/*
+				 * Hack: the second argument is a
+				 * cap_rights_t, which 64 bits wide, so on
+				 * 32-bit systems, it is split between two
+				 * registers.
+				 *
+				 * Since sizeof() is not evaluated by the
+				 * preprocessor, we can't use an #ifdef,
+				 * but the compiler will probably optimize
+				 * the code out anyway.
+				 */
+				if (sizeof(cap_rights_t) > sizeof(register_t)) {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+					arg = ((intmax_t)*ip << 32) + arg;
+#else
+					arg = (arg << 32) + *ip;
+#endif
+					ip++;
+					narg--;
+				}
+				capname(arg);
 				break;
 			}
 		}
@@ -1552,6 +1580,15 @@ ktrstruct(char *buf, size_t buflen)
 	return;
 invalid:
 	printf("invalid record\n");
+}
+
+void
+ktrcapfail(struct ktr_cap_fail *ktr)
+{
+	printf("needed ");
+	capname((intmax_t)ktr->cap_needed);
+	printf(" held ");
+	capname((intmax_t)ktr->cap_held);
 }
 
 #if defined(__amd64__) || defined(__i386__)

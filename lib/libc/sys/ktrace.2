@@ -28,7 +28,7 @@
 .\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2011
+.Dd October 10, 2011
 .Dt KTRACE 2
 .Os
 .Sh NAME
@@ -67,9 +67,9 @@ The
 argument specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
-.It "KTROP_SET	Enable trace points specified in"
+.It "KTROP_SET		Enable trace points specified in"
 .Fa trpoints .
-.It "KTROP_CLEAR	Disable trace points specified in
+.It "KTROP_CLEAR	Disable trace points specified in"
 .Fa trpoints .
 .It "KTROP_CLEARFILE	Stop all tracing."
 .It "KTRFLAG_DESCEND	The tracing change should apply to the"
@@ -93,6 +93,7 @@ generate much output).
 .It "KTRFAC_SYSCTL	Trace sysctls."
 .It "KTRFAC_PROCCTOR	Trace process construction."
 .It "KTRFAC_PROCDTOR	Trace process destruction."
+.It "KTRFAC_CAPFAIL	Trace capability failures."
 .It "KTRFAC_INHERIT	Inherit tracing to future children."
 .El
 .Pp
