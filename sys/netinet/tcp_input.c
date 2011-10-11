@@ -902,24 +902,8 @@ relocked:
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
-#ifdef TCP_SIGNATURE
-		tcp_dooptions(&to, optp, optlen,
-		    (thflags & TH_SYN) ? TO_SYN : 0);
-		if (sig_checked == 0) {
-			tp = intotcpcb(inp);
-			if (tp == NULL || tp->t_state == TCPS_CLOSED) {
-				rstreason = BANDLIM_RST_CLOSEDPORT;
-				goto dropwithreset;
-			}
-			if (!tcp_signature_verify_input(m, off0, tlen, optlen,
-			    &to, th, tp->t_flags))
-				goto dropunlock;
-			sig_checked = 1;
-		}
-#else
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
-#endif
 		/*
 		 * NB: tcp_twcheck unlocks the INP and frees the mbuf.
 		 */
