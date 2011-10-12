@@ -458,7 +458,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		   ("malloc(M_WAITOK) in interrupt context"));
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp(mtp, size)) {
+	if (memguard_cmp_mtp(mtp, size)) {
 		va = memguard_alloc(size, flags);
 		if (va != NULL)
 			return (va);
