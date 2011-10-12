@@ -84,6 +84,7 @@ struct cambria_gpio_softc {
         struct mtx		sc_mtx;
 	struct gpio_pin		sc_pins[GPIO_PINS];
 	uint8_t			sc_latch;
+	uint8_t			sc_val;
 };
 
 struct cambria_gpio_pin {
@@ -309,6 +310,9 @@ cambria_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct cambria_gpio_softc *sc = device_get_softc(dev);
 	int error;
+	uint8_t mask;
+
+	mask = 1 << pin;
 
 	if (pin >= GPIO_PINS)
 		return (EINVAL);
@@ -325,7 +329,16 @@ cambria_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	GPIO_LOCK(sc);
 	sc->sc_pins[pin].gp_flags = flags;
 
-	sc->sc_latch |= (1 << pin);
+	/*
+	 * Writing a logical one sets the signal high and writing a logical
+	 * zero sets the signal low. To configure a digital I/O signal as an
+	 * input, a logical one must first be written to the data bit to
+	 * three-state the associated output.
+	 */
+	if (flags & GPIO_PIN_INPUT || sc->sc_val & mask)
+		sc->sc_latch |= mask; /* input or output & high */
+	else
+		sc->sc_latch &= ~mask;
 	error = cambria_gpio_write(sc);
 	GPIO_UNLOCK(sc);
 
@@ -337,15 +350,28 @@ cambria_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct cambria_gpio_softc *sc = device_get_softc(dev);
 	int error;
+	uint8_t mask;
 
-	if (pin >= GPIO_PINS || sc->sc_pins[pin].gp_flags != GPIO_PIN_OUTPUT)
+	mask = 1 << pin;
+
+	if (pin >= GPIO_PINS)
 		return (EINVAL);
-
 	GPIO_LOCK(sc);
 	if (value)
-		sc->sc_latch |= (1 << pin);
+		sc->sc_val |= mask;
 	else
-		sc->sc_latch &= ~(1 << pin);
+		sc->sc_val &= ~mask;
+
+	if (sc->sc_pins[pin].gp_flags != GPIO_PIN_OUTPUT) {
+		/* just save, altering the latch will disable input */
+		GPIO_UNLOCK(sc);
+		return (0);
+	}
+
+	if (value)
+		sc->sc_latch |= mask;
+	else
+		sc->sc_latch &= ~mask;
 	error = cambria_gpio_write(sc);
 	GPIO_UNLOCK(sc);
 
@@ -375,14 +401,17 @@ static int
 cambria_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
 	struct cambria_gpio_softc *sc = device_get_softc(dev);
-	int error;
+	int error = 0;
 
-	if (pin >= GPIO_PINS || sc->sc_pins[pin].gp_flags != GPIO_PIN_OUTPUT)
+	if (pin >= GPIO_PINS)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	sc->sc_latch ^= (1 << pin);
-	error = cambria_gpio_write(sc);
+	sc->sc_val ^= (1 << pin);
+	if (sc->sc_pins[pin].gp_flags == GPIO_PIN_OUTPUT) {
+		sc->sc_latch ^= (1 << pin);
+		error = cambria_gpio_write(sc);
+	}
 	GPIO_UNLOCK(sc);
 
 	return (error);
