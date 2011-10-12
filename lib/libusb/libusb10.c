@@ -216,7 +216,6 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
 		}
-
 		/* get device into libUSB v1.0 list */
 		libusb20_be_dequeue_device(usb_backend, pdev);
 
@@ -718,8 +717,10 @@ libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	return (libusb20_dev_kernel_driver_active(
-	    pdev, interface));
+	if (libusb20_dev_kernel_driver_active(pdev, interface))
+		return (0);		/* no kernel driver is active */
+	else
+		return (1);		/* kernel driver is active */
 }
 
 int

@@ -223,8 +223,8 @@ code on failure.
 .Ft int
 .Fn libusb_kernel_driver_active "libusb_device_handle *devh" "int interface"
 Determine if a driver is active on a interface.
-Returns 0 if no kernel driver
-is active, 1 if a kernel driver is active, LIBUSB_ERROR_NO_DEVICE
+Returns 0 if no kernel driver is active
+and 1 if a kernel driver is active, LIBUSB_ERROR_NO_DEVICE
 if the device has been disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
