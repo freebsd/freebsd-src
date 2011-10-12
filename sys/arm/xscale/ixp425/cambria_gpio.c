@@ -96,11 +96,11 @@ struct cambria_gpio_pin {
 extern struct ixp425_softc *ixp425_softc;
 
 static struct cambria_gpio_pin cambria_gpio_pins[GPIO_PINS] = {
-	{ "GPIO0", 0, GPIO_PIN_OUTPUT },
-	{ "GPIO1", 1, GPIO_PIN_OUTPUT },
-	{ "GPIO2", 2, GPIO_PIN_OUTPUT },
-	{ "GPIO3", 3, GPIO_PIN_OUTPUT },
-	{ "GPIO4", 4, GPIO_PIN_OUTPUT },
+	{ "PLD0", 0, GPIO_PIN_OUTPUT },
+	{ "PLD1", 1, GPIO_PIN_OUTPUT },
+	{ "PLD2", 2, GPIO_PIN_OUTPUT },
+	{ "PLD3", 3, GPIO_PIN_OUTPUT },
+	{ "PLD4", 4, GPIO_PIN_OUTPUT },
 };
 
 /*
