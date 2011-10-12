@@ -233,7 +233,7 @@ procfile(const char *fn)
 			linesqueued++;
 		}
 		c += t;
-		if (mflag && mcount < 0)
+		if (mflag && mcount <= 0)
 			break;
 	}
 	if (Bflag > 0)
