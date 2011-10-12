@@ -15,11 +15,20 @@ LC_ALL=C; export LC_ALL
 # XXX should we use an ANSI cpp?
 ioctl_includes=`
 	cd $1
-	find -H -s * -name '*.h' |
+	find -H -s * -name '*.h' | grep -v '.*disk.*\.h' | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\\\n", $1)}'
 `
+
+case "`uname -m`" in
+*pc98*)
+	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
+	;;
+*)
+	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
+	;;
+esac
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	gcc -E -I$1 -dM -DCOMPAT_43TTY - |
