@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2010
+.Dd June 6, 2011
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -348,7 +348,6 @@ option) may be passed as a comma separated list; these options are
 distinguished by a leading
 .Dq \&-
 (dash).
-Options that take a value are specified using the syntax -option=value.
 For example, the
 .Nm
 command:
@@ -361,6 +360,16 @@ causes
 to execute the equivalent of:
 .Bd -literal -offset indent
 /sbin/mount_cd9660 -e /dev/cd0 /cdrom
+.Ed
+.Pp
+Options that take a value are specified using the -option=value syntax:
+.Bd -literal -offset indent
+mount -t msdosfs -o -u=fred,-g=wheel /dev/da0s1 /mnt
+.Ed
+.Pp
+is equivalent to
+.Bd -literal -offset indent
+/sbin/mount_msdosfs -u fred -g wheel /dev/da0s1 /mnt
 .Ed
 .Pp
 Additional options specific to file system types
