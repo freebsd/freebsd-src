@@ -1,5 +1,5 @@
 # <pre>
-# @(#)iso3166.tab	8.9
+# @(#)iso3166.tab	8.11
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 # ISO 3166 alpha-2 country codes
@@ -21,9 +21,8 @@
 #
 # Lines beginning with `#' are comments.
 #
-# From Arthur David Olson (2011-06-15):
-# Resynchronized today with the ISO3116 site
-# (deleting AN and adding BQ, CW, and SX).
+# From Arthur David Olson (2011-08-17):
+# Resynchronized today with the ISO 3166 site (adding SS for South Sudan).
 #
 #country-
 #code	country name
@@ -234,6 +233,7 @@ SM	San Marino
 SN	Senegal
 SO	Somalia
 SR	Suriname
+SS	South Sudan
 ST	Sao Tome & Principe
 SV	El Salvador
 SX	Sint Maarten
