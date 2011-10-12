@@ -95,6 +95,8 @@ void visdump(char *, int, int);
 void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
+void ktruser_malloc(unsigned char *);
+void ktruser_rtld(int, unsigned char *);
 void ktruser(int, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
@@ -508,7 +510,6 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
 			switch (ktr->ktr_code) {
 			case SYS_ioctl: {
-				const char *cp;
 				print_number(ip, narg, c);
 				putchar(c);
 				ioctlname(*ip, decimal);
@@ -1334,7 +1335,7 @@ struct utrace_malloc {
 };
 
 void
-ktruser_malloc(int len, unsigned char *p)
+ktruser_malloc(unsigned char *p)
 {
 	struct utrace_malloc *ut = (struct utrace_malloc *)p;
 
@@ -1358,7 +1359,7 @@ ktruser(int len, unsigned char *p)
 	}
 
 	if (len == sizeof(struct utrace_malloc)) {
-		ktruser_malloc(len, p);
+		ktruser_malloc(p);
 		return;
 	}
 
@@ -1393,61 +1394,67 @@ ktrsockaddr(struct sockaddr *sa)
 	printf(", ");
 
 #define check_sockaddr_len(n)					\
-	if (sa_##n->s##n##_len < sizeof(struct sockaddr_##n)) {	\
+	if (sa_##n.s##n##_len < sizeof(struct sockaddr_##n)) {	\
 		printf("invalid");				\
 		break;						\
 	}
 
 	switch(sa->sa_family) {
 	case AF_INET: {
-		struct sockaddr_in	*sa_in;
+		struct sockaddr_in sa_in;
 
-		sa_in = (struct sockaddr_in *)sa;
+		memset(&sa_in, 0, sizeof(sa_in));
+		memcpy(&sa_in, sa, sizeof(sa));
 		check_sockaddr_len(in);
-		inet_ntop(AF_INET, &sa_in->sin_addr, addr, sizeof addr);
-		printf("%s:%u", addr, ntohs(sa_in->sin_port));
+		inet_ntop(AF_INET, &sa_in.sin_addr, addr, sizeof addr);
+		printf("%s:%u", addr, ntohs(sa_in.sin_port));
 		break;
 	}
 #ifdef NETATALK
 	case AF_APPLETALK: {
-		struct sockaddr_at	*sa_at;
+		struct sockaddr_at	sa_at;
 		struct netrange		*nr;
 
-		sa_at = (struct sockaddr_at *)sa;
+		memset(&sa_at, 0, sizeof(sa_at));
+		memcpy(&sa_at, sa, sizeof(sa));
 		check_sockaddr_len(at);
-		nr = &sa_at->sat_range.r_netrange;
-		printf("%d.%d, %d-%d, %d", ntohs(sa_at->sat_addr.s_net),
-			sa_at->sat_addr.s_node, ntohs(nr->nr_firstnet),
+		nr = &sa_at.sat_range.r_netrange;
+		printf("%d.%d, %d-%d, %d", ntohs(sa_at.sat_addr.s_net),
+			sa_at.sat_addr.s_node, ntohs(nr->nr_firstnet),
 			ntohs(nr->nr_lastnet), nr->nr_phase);
 		break;
 	}
 #endif
 	case AF_INET6: {
-		struct sockaddr_in6	*sa_in6;
+		struct sockaddr_in6 sa_in6;
 
-		sa_in6 = (struct sockaddr_in6 *)sa;
+		memset(&sa_in6, 0, sizeof(sa_in6));
+		memcpy(&sa_in6, sa, sizeof(sa));
 		check_sockaddr_len(in6);
-		inet_ntop(AF_INET6, &sa_in6->sin6_addr, addr, sizeof addr);
-		printf("[%s]:%u", addr, htons(sa_in6->sin6_port));
+		inet_ntop(AF_INET6, &sa_in6.sin6_addr, addr, sizeof addr);
+		printf("[%s]:%u", addr, htons(sa_in6.sin6_port));
 		break;
 	}
 #ifdef IPX
 	case AF_IPX: {
-		struct sockaddr_ipx	*sa_ipx;
+		struct sockaddr_ipx sa_ipx;
 
-		sa_ipx = (struct sockaddr_ipx *)sa;
+		memset(&sa_ipx, 0, sizeof(sa_ipx));
+		memcpy(&sa_ipx, sa, sizeof(sa));
 		check_sockaddr_len(ipx);
 		/* XXX wish we had ipx_ntop */
-		printf("%s", ipx_ntoa(sa_ipx->sipx_addr));
+		printf("%s", ipx_ntoa(sa_ipx.sipx_addr));
+		free(sa_ipx);
 		break;
 	}
 #endif
 	case AF_UNIX: {
-		struct sockaddr_un *sa_un;
+		struct sockaddr_un sa_un;
 
-		sa_un = (struct sockaddr_un *)sa;
+		memset(&sa_un, 0, sizeof(sa_un));
+		memcpy(&sa_un, sa, sizeof(sa));
 		check_sockaddr_len(un);
-		printf("%.*s", (int)sizeof(sa_un->sun_path), sa_un->sun_path);
+		printf("%.*s", (int)sizeof(sa_un.sun_path), sa_un.sun_path);
 		break;
 	}
 	default:
@@ -1558,8 +1565,8 @@ ktrstruct(char *buf, size_t buflen)
 	if (datalen == 0)
 		goto invalid;
 	/* sanity check */
-	for (i = 0; i < namelen; ++i)
-		if (!isalpha((unsigned char)name[i]))
+	for (i = 0; i < (int)namelen; ++i)
+		if (!isalpha(name[i]))
 			goto invalid;
 	if (strcmp(name, "stat") == 0) {
 		if (datalen != sizeof(struct stat))
