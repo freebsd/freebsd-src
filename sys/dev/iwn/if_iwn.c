@@ -6656,12 +6656,24 @@ iwn_set_channel(struct ieee80211com *ic)
 	const struct ieee80211_channel *c = ic->ic_curchan;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwn_softc *sc = ifp->if_softc;
+	int error;
 
 	IWN_LOCK(sc);
 	sc->sc_rxtap.wr_chan_freq = htole16(c->ic_freq);
 	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
 	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
 	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
+
+	/*
+	 * Only need to set the channel in Monitor mode. AP scanning and auth
+	 * are already taken care of by their respective firmware commands.
+	 */
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		error = iwn_config(sc);
+		if (error != 0)
+		device_printf(sc->sc_dev,
+		    "%s: error %d settting channel\n", __func__, error);
+	}
 	IWN_UNLOCK(sc);
 }
 
