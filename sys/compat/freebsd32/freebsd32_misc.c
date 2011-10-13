@@ -437,6 +437,21 @@ freebsd32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 #endif
 
 int
+freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
+{
+	struct mprotect_args ap;
+
+	ap.addr = (void *)(uintptr_t)uap->addr;
+	ap.len = uap->len;
+	ap.prot = uap->prot;
+#if defined(__amd64__) || defined(__ia64__)
+	if (ap.prot & PROT_READ)
+		ap.prot |= PROT_EXEC;
+#endif
+	return (sys_mprotect(td, &ap));
+}
+
+int
 freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 {
 	struct mmap_args ap;
