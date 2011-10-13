@@ -1664,6 +1664,12 @@ __elfN(trans_prot)(Elf_Word flags)
 		prot |= VM_PROT_WRITE;
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
+#if __ELF_WORD_SIZE == 32
+#if defined(__amd64__) || defined(__ia64__)
+	if (flags & PF_R)
+		prot |= VM_PROT_EXECUTE;
+#endif
+#endif
 	return (prot);
 }
 
