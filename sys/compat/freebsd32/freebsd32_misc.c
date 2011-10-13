@@ -441,7 +441,7 @@ freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 {
 	struct mprotect_args ap;
 
-	ap.addr = (void *)(uintptr_t)uap->addr;
+	ap.addr = PTRIN(uap->addr);
 	ap.len = uap->len;
 	ap.prot = uap->prot;
 #if defined(__amd64__) || defined(__ia64__)
