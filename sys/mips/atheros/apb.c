@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
+#include <sys/pmckern.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -141,6 +143,10 @@ apb_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
+
+	/* Enable performance interrupts for testing */
+	ATH_WRITE_REG(AR71XX_MISC_INTR_MASK,
+	    ATH_READ_REG(AR71XX_MISC_INTR_MASK) | (1 << 5));
 
 	return (0);
 }
@@ -354,6 +360,34 @@ apb_intr(void *arg)
 
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+				/* IRQ 5: perf counter */
+				if (irq == 5) {
+					register_t s;
+					struct trapframe *tf =
+					    PCPU_GET(curthread)->td_intr_frame;
+					s = intr_disable();
+					if (pmc_intr &&
+					    (*pmc_intr)(PCPU_GET(cpuid), tf)) {
+						continue;
+						mips_intrcnt_inc(sc->sc_intr_counter[irq]);
+					}
+					/* Call pmc_hook with the current trapframe */
+					/* XXX this should use the kernel SP? */
+#if 0
+					if (pmc_hook) {
+						pmc_hook(PCPU_GET(curthread),
+						    PMC_FN_USER_CALLCHAIN,
+						tf);
+					}
+#endif
+					/*
+					 * Sometimes I see PC ints occur which
+					 * aren't caused by an overflow.
+					 * Investigate this at a later date.
+					 */
+					intr_restore(s);
+					continue;
+				}
 				/* Ignore timer interrupts */
 				if (irq != 0)
 					printf("Stray APB IRQ %d\n", irq);
