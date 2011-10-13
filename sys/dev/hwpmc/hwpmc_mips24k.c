@@ -254,6 +254,8 @@ mips24k_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		config |= MIPS24K_PMC_USER_ENABLE;
 	if ((caps & (PMC_CAP_USER | PMC_CAP_SYSTEM)) == 0)
 		config |= MIPS24K_PMC_ENABLE;
+	if (caps & PMC_CAP_INTERRUPT)
+		config |= MIPS24K_PMC_INTERRUPT_ENABLE;
 
 	pm->pm_md.pm_mips24k.pm_mips24k_evsel = config;
 
@@ -384,6 +386,7 @@ mips24k_stop_pmc(int cpu, int ri)
 	return 0;
 }
 
+
 static int
 mips24k_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
@@ -404,7 +407,71 @@ mips24k_release_pmc(int cpu, int ri, struct pmc *pmc)
 static int
 mips24k_intr(int cpu, struct trapframe *tf)
 {
-	return 0;
+	int error;
+	int retval, ri;
+	struct pmc *pm;
+	struct mips24k_cpu *pc;
+	uint32_t r, r0, r2;
+
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[mips24k,%d] CPU %d out of range", __LINE__, cpu));
+
+	retval = 0;
+	pc = mips24k_pcpu[cpu];
+
+	/* Stop PMCs without clearing the counter */
+	r0 = mips_rd_perfcnt0();
+	mips_wr_perfcnt0(r0 & ~(0x1f));
+	r2 = mips_rd_perfcnt2();
+	mips_wr_perfcnt2(r2 & ~(0x1f));
+
+	//printf("%s: called, cpu=%d, tf=%p\n", __func__, cpu, tf);
+
+	for (ri = 0; ri < mips24k_npmcs; ri++) {
+		pm = mips24k_pcpu[cpu]->pc_mipspmcs[ri].phw_pmc;
+		if (pm == NULL)
+			continue;
+		if (! PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			continue;
+
+		r = mips24k_pmcn_read(ri);
+		//printf("%s: ri=%d; r=%x\n", __func__, ri, r);
+
+		/* If bit 31 is set, the counter has overflowed */
+		if ((r & 0x80000000) == 0)
+			continue;
+
+		retval = 1;
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			continue;
+		error = pmc_process_interrupt(cpu, pm, tf,
+		    TRAPF_USERMODE(tf));
+		if (error) {
+			/* XXX this is hacky! Fix before merging to -HEAD! */
+			if (ri == 0)
+				r0 = 0;
+			else
+				r2 = 0;
+			mips24k_stop_pmc(cpu, ri);
+		}
+
+		/* Reload sampling count */
+		mips24k_write_pmc(cpu, ri, pm->pm_sc.pm_reloadcount);
+	}
+
+	/*
+	 * Re-enable the PMC counters.
+	 * XXX does this reset the event counter values?
+	 */
+#if 1
+	mips_wr_perfcnt0(r0);
+	mips_wr_perfcnt2(r2);
+#else
+	mips_wr_perfcnt0(0);
+	mips_wr_perfcnt2(0);
+#endif
+
+	return retval;
 }
 
 static int

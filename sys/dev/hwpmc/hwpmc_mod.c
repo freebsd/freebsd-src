@@ -169,7 +169,7 @@ static struct pmc_classdep **pmc_rowindex_to_classdep;
  * Prototypes
  */
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 static int	pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS);
 static int	pmc_debugflags_parse(char *newstr, char *fence);
 #endif
@@ -230,7 +230,7 @@ TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "callchaindepth", &pmc_callchaindepth);
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, callchaindepth, CTLFLAG_TUN|CTLFLAG_RD,
     &pmc_callchaindepth, 0, "depth of call chain records");
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 struct pmc_debugflags pmc_debugflags = PMC_DEBUG_DEFAULT_FLAGS;
 char	pmc_debugstr[PMC_DEBUG_STRSIZE];
 TUNABLE_STR(PMC_SYSCTL_NAME_PREFIX "debugflags", pmc_debugstr,
@@ -328,7 +328,7 @@ static moduledata_t pmc_mod = {
 DECLARE_MODULE(pmc, pmc_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_VERSION(pmc, PMC_VERSION);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 enum pmc_dbgparse_state {
 	PMCDS_WS,		/* in whitespace */
 	PMCDS_MAJOR,		/* seen a major keyword */
@@ -806,7 +806,7 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 	PMCDBG(PRC,TLK,1, "link-target pmc=%p ri=%d pmc-process=%p",
 	    pm, ri, pp);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	LIST_FOREACH(pt, &pm->pm_targets, pt_next)
 	    if (pt->pt_process == pp)
 		    KASSERT(0, ("[pmc,%d] pp %p already in pmc %p targets",
@@ -1821,7 +1821,7 @@ pmc_log_all_process_mappings(struct pmc_owner *po)
  */
 
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 const char *pmc_hooknames[] = {
 	/* these strings correspond to PMC_FN_* in <sys/pmckern.h> */
 	"",
@@ -1979,7 +1979,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 	 * are being processed.
 	 */
 	case PMC_FN_DO_SAMPLES:
-
 		/*
 		 * Clear the cpu specific bit in the CPU mask before
 		 * do the rest of the processing.  If the NMI handler
@@ -2028,7 +2027,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		break;
 
 	default:
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 		KASSERT(0, ("[pmc,%d] unknown hook %d\n", __LINE__, function));
 #endif
 		break;
@@ -2204,7 +2203,7 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 {
 	(void) pm;
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	KASSERT(pm->pm_state == PMC_STATE_DELETED ||
 	    pm->pm_state == PMC_STATE_FREE,
 	    ("[pmc,%d] destroying non-deleted PMC", __LINE__));
@@ -2221,7 +2220,7 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 static void
 pmc_wait_for_pmc_idle(struct pmc *pm)
 {
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	volatile int maxloop;
 
 	maxloop = 100 * pmc_cpu_max();
@@ -2232,7 +2231,7 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
 	 * comes down to zero.
 	 */
 	while (atomic_load_acq_32(&pm->pm_runcount) > 0) {
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 		maxloop--;
 		KASSERT(maxloop > 0,
 		    ("[pmc,%d] (ri%d, rc%d) waiting too long for "
@@ -2798,7 +2797,7 @@ pmc_stop(struct pmc *pm)
 }
 
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 static const char *pmc_op_to_name[] = {
 #undef	__PMC_OP
 #define	__PMC_OP(N, D)	#N ,
@@ -3775,7 +3774,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		pprw = (struct pmc_op_pmcrw *) arg;
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 		if (prw.pm_flags & PMC_F_NEWVALUE)
 			PMCDBG(PMC,OPS,2, "rw id=%d new %jx -> old %jx",
 			    ri, prw.pm_value, oldvalue);
@@ -4579,7 +4578,7 @@ pmc_initialize(void)
 	md = NULL;
 	error = 0;
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	/* parse debug flags first */
 	if (TUNABLE_STR_FETCH(PMC_SYSCTL_NAME_PREFIX "debugflags",
 		pmc_debugstr, sizeof(pmc_debugstr)))
@@ -4775,7 +4774,7 @@ pmc_cleanup(void)
 	struct pmc_ownerhash *ph;
 	struct pmc_owner *po, *tmp;
 	struct pmc_binding pb;
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	struct pmc_processhash *prh;
 #endif
 
@@ -4825,7 +4824,7 @@ pmc_cleanup(void)
 
 	mtx_destroy(&pmc_processhash_mtx);
 	if (pmc_processhash) {
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 		struct pmc_process *pp;
 
 		PMCDBG(MOD,INI,3, "%s", "destroy process hash");

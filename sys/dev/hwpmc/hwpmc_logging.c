@@ -210,7 +210,7 @@ pmclog_get_buffer(struct pmc_owner *po)
 
 	PMCDBG(LOG,GTB,1, "po=%p plb=%p", po, plb);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	if (plb)
 		KASSERT(plb->plb_ptr == plb->plb_base &&
 		    plb->plb_base < plb->plb_fence,

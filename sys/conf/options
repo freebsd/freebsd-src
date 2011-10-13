@@ -822,6 +822,7 @@ DCONS_FORCE_GDB		opt_dcons.h
 
 # HWPMC options
 HWPMC_HOOKS
+HWPMC_DEBUG		opt_global.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
