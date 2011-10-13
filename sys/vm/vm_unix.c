@@ -36,6 +36,8 @@
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
  */
 
+#include "opt_compat.h"
+
 /*
  * Traditional sbrk/grow interface to VM
  */
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 
@@ -75,7 +78,7 @@ sys_obreak(td, uap)
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_offset_t new, old, base;
 	rlim_t datalim, vmemlim;
-	int rv;
+	int prot, rv;
 	int error = 0;
 	boolean_t do_map_wirefuture;
 
@@ -135,8 +138,15 @@ sys_obreak(td, uap)
 		}
 		PROC_UNLOCK(td->td_proc);
 #endif
+		prot = VM_PROT_RW;
+#ifdef COMPAT_FREEBSD32
+#if defined(__amd64__) || defined(__ia64__)
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+			prot |= VM_PROT_EXECUTE;
+#endif
+#endif
 		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
-		    VM_PROT_RW, VM_PROT_ALL, 0);
+		    prot, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
 			PROC_LOCK(td->td_proc);
