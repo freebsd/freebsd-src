@@ -13,15 +13,16 @@ LC_ALL=C; export LC_ALL
 
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
-ioctl_includes=`
+ioctl_includes=$(
 	cd $1
 	find -H -s * -name '*.h' | grep -v '.*disk.*\.h' | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
-		awk '{printf("#include <%s>\\\\n", $1)}'
-`
+		awk '{printf("#include <%s>\\n", $1)}'
+)
 
-case "`uname -m`" in
+: ${MACHINE=$(uname -m)}
+case "${MACHINE}" in
 *pc98*)
 	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
 	;;
