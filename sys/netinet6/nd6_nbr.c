@@ -1167,11 +1167,11 @@ nd6_dad_find(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
-	for (dp = V_dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
+	TAILQ_FOREACH(dp, &V_dadq, dad_list)
 		if (dp->dad_ifa == ifa)
-			return dp;
-	}
-	return NULL;
+			return (dp);
+
+	return (NULL);
 }
 
 static void
