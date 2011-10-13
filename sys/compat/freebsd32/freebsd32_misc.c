@@ -520,6 +520,11 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	}
 #endif
 
+#if defined(__amd64__) || defined(__ia64__)
+	if (prot & PROT_READ)
+		prot |= PROT_EXEC;
+#endif
+
 	ap.addr = (void *) addr;
 	ap.len = len;
 	ap.prot = prot;
