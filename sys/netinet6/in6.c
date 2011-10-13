@@ -136,7 +136,89 @@ static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 int	(*faithprefix_p)(struct in6_addr *);
 
+#define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
+#define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
+void
+in6_ifaddloop(struct ifaddr *ifa)
+{
+	struct sockaddr_dl gateway;
+	struct sockaddr_in6 mask, addr;
+	struct rtentry rt;
+	struct in6_ifaddr *ia;
+	struct ifnet *ifp;
+	struct llentry *ln;
+
+	ia = ifa2ia6(ifa);
+	ifp = ifa->ifa_ifp;
+	IF_AFDATA_LOCK(ifp);
+	ifa->ifa_rtrequest = NULL;
+
+	/* XXX QL
+	 * we need to report rt_newaddrmsg
+	 */
+	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
+	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
+	IF_AFDATA_UNLOCK(ifp);
+	if (ln != NULL) {
+		ln->la_expire = 0;  /* for IPv6 this means permanent */
+		ln->ln_state = ND6_LLINFO_REACHABLE;
+		/*
+		 * initialize for rtmsg generation
+		 */
+		bzero(&gateway, sizeof(gateway));
+		gateway.sdl_len = sizeof(gateway);
+		gateway.sdl_family = AF_LINK;
+		gateway.sdl_nlen = 0;
+		gateway.sdl_alen = 6;
+		memcpy(gateway.sdl_data, &ln->ll_addr.mac_aligned,
+		    sizeof(ln->ll_addr));
+		LLE_WUNLOCK(ln);
+	}
+
+	bzero(&rt, sizeof(rt));
+	rt.rt_gateway = (struct sockaddr *)&gateway;
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	rt_mask(&rt) = (struct sockaddr *)&mask;
+	rt_key(&rt) = (struct sockaddr *)&addr;
+	rt.rt_flags = RTF_UP | RTF_HOST | RTF_STATIC;
+	rt_newaddrmsg(RTM_ADD, ifa, 0, &rt);
+}
+
+void
+in6_ifremloop(struct ifaddr *ifa)
+{
+	struct sockaddr_dl gateway;
+	struct sockaddr_in6 mask, addr;
+	struct rtentry rt0;
+	struct in6_ifaddr *ia;
+	struct ifnet *ifp;
+
+	ia = ifa2ia6(ifa);
+	ifp = ifa->ifa_ifp;
+	IF_AFDATA_LOCK(ifp);
+	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
+	    (struct sockaddr *)&ia->ia_addr);
+	IF_AFDATA_UNLOCK(ifp);
+
+	/*
+	 * initialize for rtmsg generation
+	 */
+	bzero(&gateway, sizeof(gateway));
+	gateway.sdl_len = sizeof(gateway);
+	gateway.sdl_family = AF_LINK;
+	gateway.sdl_nlen = 0;
+	gateway.sdl_alen = ifp->if_addrlen;
+	bzero(&rt0, sizeof(rt0));
+	rt0.rt_gateway = (struct sockaddr *)&gateway;
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	rt_mask(&rt0) = (struct sockaddr *)&mask;
+	rt_key(&rt0) = (struct sockaddr *)&addr;
+	rt0.rt_flags = RTF_HOST | RTF_STATIC;
+	rt_newaddrmsg(RTM_DELETE, ifa, 0, &rt0);
+}
 
 int
 in6_mask2len(struct in6_addr *mask, u_char *lim0)
@@ -173,9 +255,6 @@ in6_mask2len(struct in6_addr *mask, u_char *lim0)
 
 	return x * 8 + y;
 }
-
-#define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
-#define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
 #ifdef COMPAT_FREEBSD32
 struct in6_ndifreq32 {
@@ -1218,9 +1297,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
 	struct in6_multi_mship *imm;
 	struct sockaddr_in6 mltaddr, mltmask;
-	struct rtentry rt0;
-	struct sockaddr_dl gateway;
-	struct sockaddr_in6 mask, addr;
 	int plen, error;
 	struct rtentry *rt;
 	struct ifaddr *ifa0, *nifa;
@@ -1259,28 +1335,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
-	IF_AFDATA_LOCK(ifp);
-	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
-
-	/*
-	 * initialize for rtmsg generation
-	 */
-	bzero(&gateway, sizeof(gateway));
-	gateway.sdl_len = sizeof(gateway);
-	gateway.sdl_family = AF_LINK;
-	gateway.sdl_nlen = 0;
-	gateway.sdl_alen = ifp->if_addrlen;
-	/* */
-	bzero(&rt0, sizeof(rt0));
-	rt0.rt_gateway = (struct sockaddr *)&gateway;
-	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
-	rt_mask(&rt0) = (struct sockaddr *)&mask;
-	rt_key(&rt0) = (struct sockaddr *)&addr;
-	rt0.rt_flags = RTF_HOST | RTF_STATIC;
-	rt_newaddrmsg(RTM_DELETE, ifa, 0, &rt0);
+	in6_ifremloop(ifa);
 
 	/*
 	 * leave from multicast groups we have joined for the interface
@@ -1820,46 +1875,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
-	if (newhost) {
-		struct llentry *ln;
-		struct rtentry rt;
-		struct sockaddr_dl gateway;
-		struct sockaddr_in6 mask, addr;
-
-		IF_AFDATA_LOCK(ifp);
-		ia->ia_ifa.ifa_rtrequest = NULL;
-
-		/* XXX QL
-		 * we need to report rt_newaddrmsg
-		 */
-		ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR | LLE_EXCLUSIVE),
-		    (struct sockaddr *)&ia->ia_addr);
-		IF_AFDATA_UNLOCK(ifp);
-		if (ln != NULL) {
-			ln->la_expire = 0;  /* for IPv6 this means permanent */
-			ln->ln_state = ND6_LLINFO_REACHABLE;
-			/*
-			 * initialize for rtmsg generation
-			 */
-			bzero(&gateway, sizeof(gateway));
-			gateway.sdl_len = sizeof(gateway);
-			gateway.sdl_family = AF_LINK;
-			gateway.sdl_nlen = 0;
-			gateway.sdl_alen = 6;
-			memcpy(gateway.sdl_data, &ln->ll_addr.mac_aligned, sizeof(ln->ll_addr));
-			/* */
-			LLE_WUNLOCK(ln);
-		}
-
-		bzero(&rt, sizeof(rt));
-		rt.rt_gateway = (struct sockaddr *)&gateway;
-		memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-		memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
-		rt_mask(&rt) = (struct sockaddr *)&mask;
-		rt_key(&rt) = (struct sockaddr *)&addr;
-		rt.rt_flags = RTF_UP | RTF_HOST | RTF_STATIC;
-		rt_newaddrmsg(RTM_ADD, &ia->ia_ifa, 0, &rt);
-	}
+	if (newhost)
+		in6_ifaddloop(&(ia->ia_ifa));
 
 	return (error);
 }
