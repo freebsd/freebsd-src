@@ -989,6 +989,6 @@
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
-				     uint32_t offsetlo, uint32_t offsethi,\
-				     uint32_t lenlo, uint32_t lenhi); }
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2); }
 531	AUE_NULL	UNIMPL	posix_fadvise
