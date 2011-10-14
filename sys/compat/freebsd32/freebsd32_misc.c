@@ -2831,7 +2831,7 @@ freebsd32_posix_fallocate(struct thread *td,
 	struct posix_fallocate_args ap;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
-	ap.len = (uap->lenlo | ((off_t)uap->lenhi << 32));
+	ap.offset = PAIR32TO64(off_t, uap->offset);
+	ap.len = PAIR32TO64(off_t, uap->len);
 	return (sys_posix_fallocate(td, &ap));
 }
