@@ -4630,30 +4630,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	return nacked;
 }
 
-/*
- * This is inefficient - it's going to be a lot better
- * if the ath_tx_proc* functions took a private snapshot
- * of sc_txq_active once, inside the lock, rather than
- * calling it multiple times.
- *
- * So before this makes it into -HEAD, that should be
- * implemented.
- */
-static __inline int
-txqactive(struct ath_softc *sc, int qnum)
-{
-	u_int32_t txqs = 1<<qnum;
-	int r;
-	ATH_LOCK(sc);
-	/*
-	 * This needs to check whether the bit is set, and clear it
-	 * if it is. This is what the HAL functionality did.
-	 */
-	r = sc->sc_txq_active & txqs;
-	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
-	return (!! r);
-}
+#define	TXQACTIVE(t, q)		( (t) & (1 << (q)))
 
 /*
  * Deferred processing of transmit interrupt; special-cased
@@ -4664,11 +4641,17 @@ ath_tx_proc_q0(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t txqs;
 
-	if (txqactive(sc, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
+	ATH_LOCK(sc);
+	txqs = sc->sc_txq_active;
+	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
+
+	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
 		/* XXX why is lastrx updated in tx code? */
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
-	if (txqactive(sc, sc->sc_cabq->axq_qnum))
+	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
@@ -4689,20 +4672,26 @@ ath_tx_proc_q0123(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	int nacked;
+	uint32_t txqs;
+
+	ATH_LOCK(sc);
+	txqs = sc->sc_txq_active;
+	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
 	 */
 	nacked = 0;
-	if (txqactive(sc, 0))
+	if (TXQACTIVE(txqs, 0))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[0]);
-	if (txqactive(sc, 1))
+	if (TXQACTIVE(txqs, 1))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[1]);
-	if (txqactive(sc, 2))
+	if (TXQACTIVE(txqs, 2))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[2]);
-	if (txqactive(sc, 3))
+	if (TXQACTIVE(txqs, 3))
 		nacked += ath_tx_processq(sc, &sc->sc_txq[3]);
-	if (txqactive(sc, sc->sc_cabq->axq_qnum))
+	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
@@ -4725,13 +4714,19 @@ ath_tx_proc(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	int i, nacked;
+	uint32_t txqs;
+
+	ATH_LOCK(sc);
+	txqs = sc->sc_txq_active;
+	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
 	 */
 	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i) && txqactive(sc, i))
+		if (ATH_TXQ_SETUP(sc, i) && TXQACTIVE(txqs, i))
 			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
@@ -4744,6 +4739,7 @@ ath_tx_proc(void *arg, int npending)
 
 	ath_start(ifp);
 }
+#undef	TXQACTIVE
 
 /*
  * Return a buffer to the pool.
