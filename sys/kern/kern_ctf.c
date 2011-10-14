@@ -164,8 +164,13 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * section names aren't present, then we can't locate the
 	 * .SUNW_ctf section containing the CTF data.
 	 */
-	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB)
+	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB) {
+		printf("%s(%d): module %s e_shstrndx is %d, sh_type is %d\n",
+		    __func__, __LINE__, lf->pathname, hdr->e_shstrndx,
+		    shdr[hdr->e_shstrndx].sh_type);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Allocate memory to buffer the section header strings. */
 	if ((shstrtab = malloc(shdr[hdr->e_shstrndx].sh_size, M_LINKER,
@@ -187,8 +192,12 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 			break;
 
 	/* Check if the CTF section wasn't found. */
-	if (i >= hdr->e_shnum)
+	if (i >= hdr->e_shnum) {
+		printf("%s(%d): module %s has no .SUNW_ctf section\n",
+		    __func__, __LINE__, lf->pathname);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Read the CTF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, ctf_hdr, sizeof(ctf_hdr),
@@ -197,12 +206,21 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		goto out;
 
 	/* Check the CTF magic number. (XXX check for big endian!) */
-	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf)
+	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf) {
+		printf("%s(%d): module %s has invalid format\n",
+		    __func__, __LINE__, lf->pathname);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Check if version 2. */
-	if (ctf_hdr[2] != 2)
+	if (ctf_hdr[2] != 2) {
+		printf("%s(%d): module %s CTF format version is %d "
+		    "(2 expected)\n",
+		    __func__, __LINE__, lf->pathname, ctf_hdr[2]);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Check if the data is compressed. */
 	if ((ctf_hdr[3] & 0x1) != 0) {
