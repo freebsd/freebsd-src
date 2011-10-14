@@ -279,6 +279,32 @@ fork_exit+a8 (?,?,?,?) ra 80386aa0 sp c766fe58 sz 40
 fork_trampoline+10 (?,?,?,?) ra 0 sp c766fe80 sz 0
 pid 0
 
+lock order reversal:
+ 1st 0xc0831784 ath0_scan_lock (ath0_scan_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:2158
+ 2nd 0xc0830014 ath0_com_lock (ath0_com_lock) @ /data/freebsd/mips/if_ath_tx/src/sys/net80211/ieee80211_node.c:2510
+KDB: stack backtrace:
+ db_trace_thread+30 (?,?,?,?) ra 8035f3ec sp c7beb810 sz 24
+ db_trace_self+1c (?,?,?,?) ra 80074ddc sp c7beb828 sz 24
+ 80074da8+34 (?,?,?,?) ra 801de92c sp c7beb840 sz 416
+ kdb_backtrace+44 (?,?,?,?) ra 801f66a8 sp c7beb9e0 sz 24
+ 801f6674+34 (?,?,?,?) ra 801f7364 sp c7beb9f8 sz 32
+ witness_checkorder+9cc (?,?,803e8c9c,9ce) ra 80197340 sp c7beba18 sz 80
+ _mtx_lock_flags+c4 (?,?,?,?) ra 802aaea8 sp c7beba68 sz 48
+ ieee80211_node_leave+b8 (?,?,?,?) ra 802a0248 sp c7beba98 sz 48
+ 802a01bc+8c (?,?,?,?) ra 802aa15c sp c7bebac8 sz 32
+ ieee80211_iterate_nodes+dc (?,?,?,?) ra 802a10b0 sp c7bebae8 sz 48
+ 802a0f60+150 (?,?,?,?) ra 802a17fc sp c7bebb18 sz 64
+ 802a1764+98 (?,?,?,?) ra 802a1fc8 sp c7bebb58 sz 72
+ 802a1a74+554 (?,?,?,?) ra 802a3c84 sp c7bebba0 sz 128
+ ieee80211_ioctl+2c8 (?,?,?,?) ra 802c9f7c sp c7bebc20 sz 48
+ in_control+1c8 (?,?,?,?) ra 80262bf8 sp c7bebc50 sz 88
+ ifioctl+13cc (?,?,80a937e0,8072e300) ra 801ff200 sp c7bebca8 sz 144
+ soo_ioctl+3b0 (?,?,?,?) ra 801f9ac4 sp c7bebd38 sz 40
+ kern_ioctl+248 (?,?,?,?) ra 801f9c6c sp c7bebd60 sz 64
+ ioctl+130 (?,?,?,?) ra 803533ec sp c7bebda0 sz 56
+ trap+8a4 (?,?,?,?) ra 8034b87c sp c7bebdd8 sz 168
+ MipsUserGenException+10c (?,?,?,40658290) ra 0 sp c7bebe80 sz 0
+pid 171
 
 Fixed issues:
 -------------
