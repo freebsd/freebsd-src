@@ -1150,7 +1150,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	VM_OBJECT_UNLOCK(object);
 
 	/*
-	 * pageouts are already clustered, use IO_ASYNC t o force a bawrite()
+	 * pageouts are already clustered, use IO_ASYNC to force a bawrite()
 	 * rather then a bdwrite() to prevent paging I/O from saturating 
 	 * the buffer cache.  Dummy-up the sequential heuristic to cause
 	 * large ranges to cluster.  If neither IO_SYNC or IO_ASYNC is set,
