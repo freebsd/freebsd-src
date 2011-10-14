@@ -74,6 +74,16 @@ struct ath_pci_softc {
 #define	BS_BAR	0x10
 #define	PCIR_RETRY_TIMEOUT	0x41
 
+static void
+ath_pci_setup(device_t dev)
+{
+	/*
+	 * Disable retry timeout to keep PCI Tx retries from
+	 * interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+}
+
 static int
 ath_pci_probe(device_t dev)
 {
@@ -103,10 +113,9 @@ ath_pci_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	/*
-	 * Disable retry timeout to keep PCI Tx retries from
-	 * interfering with C3 CPU state.
+	 * Setup other PCI bus configuration parameters.
 	 */
-	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+	ath_pci_setup(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -227,6 +236,11 @@ static int
 ath_pci_resume(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
+
+	/*
+	 * Suspend/resume resets the PCI configuration space.
+	 */
+	ath_pci_setup(dev);
 
 	ath_resume(&psc->sc_sc);
 
