@@ -897,8 +897,11 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	 */
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	if (ifp->if_flags & IFF_BROADCAST) {
-		ia->ia_broadaddr.sin_addr.s_addr =
-			htonl(ia->ia_subnet | ~ia->ia_subnetmask);
+		if (ia->ia_subnetmask == IN_RFC3021_MASK)
+			ia->ia_broadaddr.sin_addr.s_addr = INADDR_BROADCAST;
+		else
+			ia->ia_broadaddr.sin_addr.s_addr =
+			    htonl(ia->ia_subnet | ~ia->ia_subnetmask);
 	} else if (ifp->if_flags & IFF_LOOPBACK) {
 		ia->ia_dstaddr = ia->ia_addr;
 		flags |= RTF_HOST;
@@ -1230,9 +1233,11 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
 		     /*
-		      * Check for old-style (host 0) broadcast.
+		      * Check for old-style (host 0) broadcast, but
+		      * taking into account that RFC 3021 obsoletes it.
 		      */
-		     t == ia->ia_subnet) &&
+		     (ia->ia_subnetmask != IN_RFC3021_MASK &&
+		     t == ia->ia_subnet)) &&
 		     /*
 		      * Check for an all one subnetmask. These
 		      * only exist when an interface gets a secondary
