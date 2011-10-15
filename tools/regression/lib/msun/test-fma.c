@@ -364,13 +364,63 @@ test_accuracy(void)
 #endif
 }
 
+static void
+test_double_rounding(void)
+{
+
+	/*
+	 *     a =  0x1.8000000000001p0
+	 *     b =  0x1.8000000000001p0
+	 *     c = -0x0.0000000000000000000000000080...1p+1
+	 * a * b =  0x1.2000000000001800000000000080p+1
+	 *
+	 * The correct behavior is to round DOWN to 0x1.2000000000001p+1 in
+	 * round-to-nearest mode.  An implementation that computes a*b+c in
+	 * double+double precision, however, will get 0x1.20000000000018p+1,
+	 * and then round UP.
+	 */
+	fesetround(FE_TONEAREST);
+	test(fma, 0x1.8000000000001p0, 0x1.8000000000001p0,
+	     -0x1.0000000000001p-104, 0x1.2000000000001p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+	fesetround(FE_DOWNWARD);
+	test(fma, 0x1.8000000000001p0, 0x1.8000000000001p0,
+	     -0x1.0000000000001p-104, 0x1.2000000000001p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+	fesetround(FE_UPWARD);
+	test(fma, 0x1.8000000000001p0, 0x1.8000000000001p0,
+	     -0x1.0000000000001p-104, 0x1.2000000000002p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+
+	fesetround(FE_TONEAREST);
+	test(fmaf, 0x1.800002p+0, 0x1.800002p+0, -0x1.000002p-46, 0x1.200002p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+	fesetround(FE_DOWNWARD);
+	test(fmaf, 0x1.800002p+0, 0x1.800002p+0, -0x1.000002p-46, 0x1.200002p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+	fesetround(FE_UPWARD);
+	test(fmaf, 0x1.800002p+0, 0x1.800002p+0, -0x1.000002p-46, 0x1.200004p+1,
+	     ALL_STD_EXCEPT, FE_INEXACT);
+
+	fesetround(FE_TONEAREST);
+#if LDBL_MANT_DIG == 64
+	test(fmal, 0x1.4p+0L, 0x1.0000000000000004p+0L, 0x1p-128L,
+	     0x1.4000000000000006p+0L, ALL_STD_EXCEPT, FE_INEXACT);
+#elif LDBL_MANT_DIG == 113
+	/* XXX untested test */
+	test(fmal, 0x1.4p+0L, 0x1.0000000000000000000000000002p+0L, 0x1p-224L,
+	     0x1.4000000000000000000000000003p+0L, ALL_STD_EXCEPT, FE_INEXACT);
+#endif
+
+}
+
 int
 main(int argc, char *argv[])
 {
 	int rmodes[] = { FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO };
 	int i;
 
-	printf("1..18\n");
+	printf("1..19\n");
 
 	for (i = 0; i < 4; i++) {
 		fesetround(rmodes[i]);
@@ -403,6 +453,9 @@ main(int argc, char *argv[])
 	fesetround(FE_TONEAREST);
 	test_accuracy();
 	printf("ok 18 - fma accuracy\n");
+
+	test_double_rounding();
+	printf("ok 19 - fma double rounding\n");
 
 	/*
 	 * TODO:
