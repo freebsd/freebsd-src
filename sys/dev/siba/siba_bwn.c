@@ -208,6 +208,7 @@ siba_bwn_suspend(device_t dev)
 		if (error) {
 			for (j = 0; j < i; j++)
 				DEVICE_RESUME(devlistp[j]);
+			free(devlistp, M_TEMP);
 			return (error);
 		}
 	}
