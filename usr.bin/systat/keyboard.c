@@ -47,76 +47,76 @@ static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";
 int
 keyboard(void)
 {
-        char ch, line[80];
+	char ch, line[80];
 	int oldmask;
 
-        for (;;) {
-                col = 0;
-                move(CMDLINE, 0);
-                do {
-                        refresh();
-                        ch = getch();
-                        if (ch == ERR) {
-                                if (errno == EINTR)
-                                        continue;
-                                exit(1);
-                        }
-                        if (ch >= 'A' && ch <= 'Z')
-                                ch += 'a' - 'A';
-                        if (col == 0) {
+	for (;;) {
+		col = 0;
+		move(CMDLINE, 0);
+		do {
+			refresh();
+			ch = getch();
+			if (ch == ERR) {
+				if (errno == EINTR)
+					continue;
+				exit(1);
+			}
+			if (ch >= 'A' && ch <= 'Z')
+				ch += 'a' - 'A';
+			if (col == 0) {
 #define	mask(s)	(1 << ((s) - 1))
-                                if (ch == CTRL('l')) {
+				if (ch == CTRL('l')) {
 					oldmask = sigblock(mask(SIGALRM));
 					wrefresh(curscr);
 					sigsetmask(oldmask);
-                                        continue;
-                                }
+					continue;
+				}
 				if (ch == CTRL('g')) {
 					oldmask = sigblock(mask(SIGALRM));
 					status();
 					sigsetmask(oldmask);
 					continue;
 				}
-                                if (ch != ':')
-                                        continue;
-                                move(CMDLINE, 0);
-                                clrtoeol();
-                        }
-                        if (ch == erasechar() && col > 0) {
-                                if (col == 1 && line[0] == ':')
-                                        continue;
-                                col--;
-                                goto doerase;
-                        }
-                        if (ch == CTRL('w') && col > 0) {
-                                while (--col >= 0 && isspace(line[col]))
-                                        ;
-                                col++;
-                                while (--col >= 0 && !isspace(line[col]))
-                                        if (col == 0 && line[0] == ':')
-                                                break;
-                                col++;
-                                goto doerase;
-                        }
-                        if (ch == killchar() && col > 0) {
-                                col = 0;
-                                if (line[0] == ':')
-                                        col++;
-                doerase:
-                                move(CMDLINE, col);
-                                clrtoeol();
-                                continue;
-                        }
-                        if (isprint(ch) || ch == ' ') {
-                                line[col] = ch;
-                                mvaddch(CMDLINE, col, ch);
-                                col++;
-                        }
-                } while (col == 0 || (ch != '\r' && ch != '\n'));
-                line[col] = '\0';
+				if (ch != ':')
+					continue;
+				move(CMDLINE, 0);
+				clrtoeol();
+			}
+			if (ch == erasechar() && col > 0) {
+				if (col == 1 && line[0] == ':')
+					continue;
+				col--;
+				goto doerase;
+			}
+			if (ch == CTRL('w') && col > 0) {
+				while (--col >= 0 && isspace(line[col]))
+					;
+				col++;
+				while (--col >= 0 && !isspace(line[col]))
+					if (col == 0 && line[0] == ':')
+						break;
+				col++;
+				goto doerase;
+			}
+			if (ch == killchar() && col > 0) {
+				col = 0;
+				if (line[0] == ':')
+					col++;
+		doerase:
+				move(CMDLINE, col);
+				clrtoeol();
+				continue;
+			}
+			if (isprint(ch) || ch == ' ') {
+				line[col] = ch;
+				mvaddch(CMDLINE, col, ch);
+				col++;
+			}
+		} while (col == 0 || (ch != '\r' && ch != '\n'));
+		line[col] = '\0';
 		oldmask = sigblock(mask(SIGALRM));
-                command(line + 1);
+		command(line + 1);
 		sigsetmask(oldmask);
-        }
+	}
 	/*NOTREACHED*/
 }
