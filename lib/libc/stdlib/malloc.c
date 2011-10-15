@@ -123,7 +123,7 @@
  * defaults the A and J runtime options to off.  These settings are appropriate
  * for production systems.
  */
-/* #define	MALLOC_PRODUCTION */
+#define	MALLOC_PRODUCTION
 
 #ifndef MALLOC_PRODUCTION
    /*
