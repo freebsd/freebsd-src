@@ -68,14 +68,11 @@ extern const union __nan_un {
 #define	MATH_ERREXCEPT	2
 #define	math_errhandling	MATH_ERREXCEPT
 
-/* XXX We need a <machine/math.h>. */
-#if defined(__ia64__) || defined(__sparc64__)
-#define	FP_FAST_FMA	1
-#endif
+#define	FP_FAST_FMAF	1
 #ifdef __ia64__
+#define	FP_FAST_FMA	1
 #define	FP_FAST_FMAL	1
 #endif
-#define	FP_FAST_FMAF	1
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
