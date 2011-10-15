@@ -76,11 +76,6 @@ static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
 static void	in_purgemaddrs(struct ifnet *);
 
-static VNET_DEFINE(int, subnetsarelocal);
-#define	V_subnetsarelocal		VNET(subnetsarelocal)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
-	&VNET_NAME(subnetsarelocal), 0,
-	"Treat all subnets as directly connected");
 static VNET_DEFINE(int, sameprefixcarponly);
 #define	V_sameprefixcarponly		VNET(sameprefixcarponly)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
@@ -95,9 +90,7 @@ VNET_DECLARE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
 /*
  * Return 1 if an internet address is for a ``local'' host
- * (one to which we have a connection).  If subnetsarelocal
- * is true, this includes other subnets of the local net.
- * Otherwise, it includes only the directly-connected (sub)nets.
+ * (one to which we have a connection).
  */
 int
 in_localaddr(struct in_addr in)
@@ -106,19 +99,10 @@ in_localaddr(struct in_addr in)
 	register struct in_ifaddr *ia;
 
 	IN_IFADDR_RLOCK();
-	if (V_subnetsarelocal) {
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-			if ((i & ia->ia_netmask) == ia->ia_net) {
-				IN_IFADDR_RUNLOCK();
-				return (1);
-			}
-		}
-	} else {
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-			if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
-				IN_IFADDR_RUNLOCK();
-				return (1);
-			}
+	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
+			IN_IFADDR_RUNLOCK();
+			return (1);
 		}
 	}
 	IN_IFADDR_RUNLOCK();
@@ -888,23 +872,19 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 		in_ifscrub(ifp, ia, LLE_STATIC);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 	}
-	if (IN_CLASSA(i))
-		ia->ia_netmask = IN_CLASSA_NET;
-	else if (IN_CLASSB(i))
-		ia->ia_netmask = IN_CLASSB_NET;
-	else
-		ia->ia_netmask = IN_CLASSC_NET;
 	/*
-	 * The subnet mask usually includes at least the standard network part,
-	 * but may may be smaller in the case of supernetting.
-	 * If it is set, we believe it.
+	 * Be compatible with network classes, if netmask isn't supplied,
+	 * guess it based on classes.
 	 */
 	if (ia->ia_subnetmask == 0) {
-		ia->ia_subnetmask = ia->ia_netmask;
+		if (IN_CLASSA(i))
+			ia->ia_subnetmask = IN_CLASSA_NET;
+		else if (IN_CLASSB(i))
+			ia->ia_subnetmask = IN_CLASSB_NET;
+		else
+			ia->ia_subnetmask = IN_CLASSC_NET;
 		ia->ia_sockmask.sin_addr.s_addr = htonl(ia->ia_subnetmask);
-	} else
-		ia->ia_netmask &= ia->ia_subnetmask;
-	ia->ia_net = i & ia->ia_netmask;
+	}
 	ia->ia_subnet = i & ia->ia_subnetmask;
 	in_socktrim(&ia->ia_sockmask);
 	/*
@@ -919,8 +899,6 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	if (ifp->if_flags & IFF_BROADCAST) {
 		ia->ia_broadaddr.sin_addr.s_addr =
 			htonl(ia->ia_subnet | ~ia->ia_subnetmask);
-		ia->ia_netbroadcast.s_addr =
-			htonl(ia->ia_net | ~ ia->ia_netmask);
 	} else if (ifp->if_flags & IFF_LOOPBACK) {
 		ia->ia_dstaddr = ia->ia_addr;
 		flags |= RTF_HOST;
@@ -1251,11 +1229,10 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
-		     in.s_addr == ia->ia_netbroadcast.s_addr ||
 		     /*
 		      * Check for old-style (host 0) broadcast.
 		      */
-		     t == ia->ia_subnet || t == ia->ia_net) &&
+		     t == ia->ia_subnet) &&
 		     /*
 		      * Check for an all one subnetmask. These
 		      * only exist when an interface gets a secondary
