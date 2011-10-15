@@ -58,6 +58,10 @@ typedef union
     u_int32_t msw;
     u_int32_t lsw;
   } parts;
+  struct
+  {
+    u_int64_t w;
+  } xparts;
 } ieee_double_shape_type;
 
 #endif
@@ -72,6 +76,10 @@ typedef union
     u_int32_t lsw;
     u_int32_t msw;
   } parts;
+  struct
+  {
+    u_int64_t w;
+  } xparts;
 } ieee_double_shape_type;
 
 #endif
@@ -84,6 +92,14 @@ do {								\
   ew_u.value = (d);						\
   (ix0) = ew_u.parts.msw;					\
   (ix1) = ew_u.parts.lsw;					\
+} while (0)
+
+/* Get a 64-bit int from a double. */
+#define EXTRACT_WORD64(ix,d)					\
+do {								\
+  ieee_double_shape_type ew_u;					\
+  ew_u.value = (d);						\
+  (ix) = ew_u.xparts.w;						\
 } while (0)
 
 /* Get the more significant 32 bit int from a double.  */
@@ -111,6 +127,14 @@ do {								\
   ieee_double_shape_type iw_u;					\
   iw_u.parts.msw = (ix0);					\
   iw_u.parts.lsw = (ix1);					\
+  (d) = iw_u.value;						\
+} while (0)
+
+/* Set a double from a 64-bit int. */
+#define INSERT_WORD64(d,ix)					\
+do {								\
+  ieee_double_shape_type iw_u;					\
+  iw_u.xparts.w = (ix);						\
   (d) = iw_u.value;						\
 } while (0)
 
