@@ -1131,6 +1131,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ATH_LOCK(sc);
 		/*
 		 * Quiesce the hardware while we remove the vap.  In
 		 * particular we need to reclaim all references to
@@ -1140,6 +1141,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc);		/* stop recv side */
+		ath_rx_proc(sc, 0);
+		ATH_UNLOCK(sc);
 	}
 
 	ieee80211_vap_detach(vap);
@@ -1795,6 +1798,7 @@ ath_stop_locked(struct ifnet *ifp)
 		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
+			ath_rx_proc(sc, 0);
 			ath_hal_phydisable(ah);
 		} else
 			sc->sc_rxlink = NULL;
@@ -1851,6 +1855,7 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * XXX taskqueue call.
 	 */
 	ath_stoprecv(sc);		/* stop recv side */
+	ath_rx_proc(sc, 0);		/* process RX'ed frames in the queue */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
@@ -3721,9 +3726,11 @@ ath_rx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 
+	ATH_LOCK(sc);
 	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ath_rx_proc(sc, 1);
+	ATH_UNLOCK(sc);
 }
 
 static void
@@ -3745,6 +3752,8 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+
+	ATH_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
 	ngood = 0;
@@ -5061,6 +5070,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
+		ath_rx_proc(sc, 0);		/* handle RX'ed frames */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
