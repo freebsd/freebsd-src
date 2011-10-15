@@ -10,6 +10,7 @@ SRCS=	cc1_main.cpp \
 	driver.cpp
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
+MLINKS=	clang.1 clang++.1
 
 TGHDRS=	CC1AsOptions \
 	CC1Options \
