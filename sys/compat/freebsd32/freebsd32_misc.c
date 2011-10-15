@@ -445,7 +445,7 @@ freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 	ap.len = uap->len;
 	ap.prot = uap->prot;
 #if defined(__amd64__) || defined(__ia64__)
-	if (ap.prot & PROT_READ)
+	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
 		ap.prot |= PROT_EXEC;
 #endif
 	return (sys_mprotect(td, &ap));
@@ -536,7 +536,7 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 #endif
 
 #if defined(__amd64__) || defined(__ia64__)
-	if (prot & PROT_READ)
+	if (i386_read_exec && (prot & PROT_READ))
 		prot |= PROT_EXEC;
 #endif
 
