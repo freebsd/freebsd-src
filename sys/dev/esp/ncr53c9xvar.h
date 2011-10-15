@@ -1,4 +1,4 @@
-/*	$NetBSD: ncr53c9xvar.h,v 1.46 2005/02/04 02:10:36 perry Exp $	*/
+/*	$NetBSD: ncr53c9xvar.h,v 1.55 2011/07/31 18:39:00 jakllsch Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -133,27 +133,27 @@ struct ncr53c9x_ecb {
 	struct callout ch;
 
 	struct {
-		u_char	msg[3];			/* Selection Id msg and tags */
+		uint8_t	msg[3];			/* Selection Id msg and tags */
 		struct scsi_generic cmd;	/* SCSI command block */
 	} cmd;
-	char	*daddr;		/* Saved data pointer */
+	uint8_t	*daddr;		/* Saved data pointer */
 	int	 clen;		/* Size of command in cmd.cmd */
 	int	 dleft;		/* Residue */
-	u_char	 stat;		/* SCSI status byte */
-	u_char	 tag[2];	/* TAG bytes */
-	u_char	 pad[1];
+	uint8_t	 stat;		/* SCSI status byte */
+	uint8_t	 tag[2];	/* TAG bytes */
+	uint8_t	 pad[1];
 
 #if defined(NCR53C9X_DEBUG) && NCR53C9X_DEBUG > 1
 	char trace[1000];
 #endif
 };
 #if defined(NCR53C9X_DEBUG) && NCR53C9X_DEBUG > 1
-#define	ECB_TRACE(ecb, msg, a, b) do { \
-	const char *f = "[" msg "]"; \
-	int n = strlen((ecb)->trace); \
-	if (n < (sizeof((ecb)->trace)-100)) \
-		sprintf((ecb)->trace + n, f, a, b); \
-} while(0)
+#define	ECB_TRACE(ecb, msg, a, b) do {					\
+	const char *f = "[" msg "]";					\
+	int n = strlen((ecb)->trace);					\
+	if (n < (sizeof((ecb)->trace)-100))				\
+		sprintf((ecb)->trace + n, f, a, b);			\
+} while (/* CONSTCOND */0)
 #else
 #define	ECB_TRACE(ecb, msg, a, b)
 #endif
@@ -174,17 +174,17 @@ struct ncr53c9x_linfo {
 	int64_t			lun;
 	LIST_ENTRY(ncr53c9x_linfo) link;
 	time_t			last_used;
-	u_char			used;	/* # slots in use */
-	u_char			avail;	/* where to start scanning */
-	u_char			busy;
+	uint8_t			used;	/* # slots in use */
+	uint8_t			avail;	/* where to start scanning */
+	uint8_t			busy;
 	struct ncr53c9x_ecb	*untagged;
 	struct ncr53c9x_ecb	*queued[NCR_TAG_DEPTH];
 };
 
 struct ncr53c9x_xinfo {
-	u_char	period;
-	u_char	offset;
-	u_char	width;
+	uint8_t	period;
+	uint8_t	offset;
+	uint8_t	width;
 };
 
 struct ncr53c9x_tinfo {
@@ -193,7 +193,7 @@ struct ncr53c9x_tinfo {
 	int	touts;		/* # of timeouts */
 	int	perrs;		/* # of parity errors */
 	int	senses;		/* # of request sense commands sent */
-	u_char	flags;
+	uint8_t	flags;
 #define	T_SYNCHOFF	0x01	/* SYNC mode is permanently off */
 #define	T_RSELECTOFF	0x02	/* RE-SELECT mode is off */
 #define	T_TAG		0x04	/* Turn on TAG QUEUEs */
@@ -206,13 +206,13 @@ struct ncr53c9x_tinfo {
 };
 
 /* Look up a lun in a tinfo */
-#define	TINFO_LUN(t, l) (					\
-	(((l) < NCR_NLUN) && (((t)->lun[(l)]) != NULL))		\
-		? ((t)->lun[(l)])				\
-		: ncr53c9x_lunsearch((t), (int64_t)(l))		\
+#define	TINFO_LUN(t, l) (						\
+	(((l) < NCR_NLUN) && (((t)->lun[(l)]) != NULL))			\
+		? ((t)->lun[(l)])					\
+		: ncr53c9x_lunsearch((t), (int64_t)(l))			\
 )
 
-/* Register a linenumber (for debugging) */
+/* Register a linenumber (for debugging). */
 #define	LOGLINE(p)
 
 #define	NCR_SHOWECBS	0x01
@@ -228,24 +228,51 @@ struct ncr53c9x_tinfo {
 
 #ifdef NCR53C9X_DEBUG
 extern int ncr53c9x_debug;
-#define	NCR_ECBS(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWECBS) printf str;} while (0)
-#define	NCR_MISC(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWMISC) printf str;} while (0)
-#define	NCR_INTS(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWINTS) printf str;} while (0)
-#define	NCR_TRACE(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWTRAC) printf str;} while (0)
-#define	NCR_CMDS(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWCMDS) printf str;} while (0)
-#define	NCR_START(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWSTART) printf str;}while (0)
-#define	NCR_PHASE(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWPHASE) printf str;}while (0)
-#define	NCR_DMA(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWDMA) printf str;}while (0)
-#define	NCR_MSGS(str)	\
-	do {if (ncr53c9x_debug & NCR_SHOWMSGS) printf str;}while (0)
+#define	NCR_ECBS(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWECBS) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_MISC(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWMISC) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_INTS(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWINTS) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_TRACE(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWTRAC) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_CMDS(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWCMDS) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_START(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWSTART) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_PHASE(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWPHASE) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_DMA(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWDMA) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
+#define	NCR_MSGS(str)							\
+	do {								\
+		if ((ncr53c9x_debug & NCR_SHOWMSGS) != 0)		\
+			printf str;					\
+	} while (/* CONSTCOND */0)
 #else
 #define	NCR_ECBS(str)
 #define	NCR_MISC(str)
@@ -267,13 +294,13 @@ struct ncr53c9x_softc;
  */
 struct ncr53c9x_glue {
 	/* Mandatory entry points. */
-	u_char	(*gl_read_reg)(struct ncr53c9x_softc *, int);
-	void	(*gl_write_reg)(struct ncr53c9x_softc *, int, u_char);
+	uint8_t	(*gl_read_reg)(struct ncr53c9x_softc *, int);
+	void	(*gl_write_reg)(struct ncr53c9x_softc *, int, uint8_t);
 	int	(*gl_dma_isintr)(struct ncr53c9x_softc *);
 	void	(*gl_dma_reset)(struct ncr53c9x_softc *);
 	int	(*gl_dma_intr)(struct ncr53c9x_softc *);
-	int	(*gl_dma_setup)(struct ncr53c9x_softc *,
-		    caddr_t *, size_t *, int, size_t *);
+	int	(*gl_dma_setup)(struct ncr53c9x_softc *, void **, size_t *,
+		    int, size_t *);
 	void	(*gl_dma_go)(struct ncr53c9x_softc *);
 	void	(*gl_dma_stop)(struct ncr53c9x_softc *);
 	int	(*gl_dma_isactive)(struct ncr53c9x_softc *);
@@ -294,21 +321,21 @@ struct ncr53c9x_softc {
 	int	sc_cfflags;			/* Copy of config flags */
 
 	/* register defaults */
-	u_char	sc_cfg1;			/* Config 1 */
-	u_char	sc_cfg2;			/* Config 2, not ESP100 */
-	u_char	sc_cfg3;			/* Config 3, ESP200,FAS */
-	u_char	sc_cfg3_fscsi;			/* Chip-specific FSCSI bit */
-	u_char	sc_cfg4;			/* Config 4, only ESP200 */
-	u_char	sc_cfg5;			/* Config 5, only ESP200 */
-	u_char	sc_ccf;				/* Clock Conversion */
-	u_char	sc_timeout;
+	uint8_t	sc_cfg1;			/* Config 1 */
+	uint8_t	sc_cfg2;			/* Config 2, not ESP100 */
+	uint8_t	sc_cfg3;			/* Config 3, ESP200,FAS */
+	uint8_t	sc_cfg3_fscsi;			/* Chip-specific FSCSI bit */
+	uint8_t	sc_cfg4;			/* Config 4, only ESP200 */
+	uint8_t	sc_cfg5;			/* Config 5, only ESP200 */
+	uint8_t	sc_ccf;				/* Clock Conversion */
+	uint8_t	sc_timeout;
 
 	/* register copies, see espreadregs() */
-	u_char	sc_espintr;
-	u_char	sc_espstat;
-	u_char	sc_espstep;
-	u_char	sc_espstat2;
-	u_char	sc_espfflags;
+	uint8_t	sc_espintr;
+	uint8_t	sc_espstat;
+	uint8_t	sc_espstep;
+	uint8_t	sc_espstat2;
+	uint8_t	sc_espfflags;
 
 	/* Lists of command blocks */
 	TAILQ_HEAD(ecb_list, ncr53c9x_ecb) ready_list;
@@ -318,33 +345,33 @@ struct ncr53c9x_softc {
 	struct ncr53c9x_tinfo *sc_tinfo;
 
 	/* Data about the current nexus (updated for every cmd switch) */
-	caddr_t	sc_dp;		/* Current data pointer */
+	void	*sc_dp;		/* Current data pointer */
 	ssize_t	sc_dleft;	/* Data left to transfer */
 
 	/* Adapter state */
 	int	sc_phase;	/* Copy of what bus phase we are in */
 	int	sc_prevphase;	/* Copy of what bus phase we were in */
-	u_char	sc_state;	/* State applicable to the adapter */
-	u_char	sc_flags;	/* See below */
-	u_char	sc_selid;
-	u_char	sc_lastcmd;
+	uint8_t	sc_state;	/* State applicable to the adapter */
+	uint8_t	sc_flags;	/* See below */
+	uint8_t	sc_selid;
+	uint8_t	sc_lastcmd;
 
 	/* Message stuff */
-	u_short sc_msgify;	/* IDENTIFY message associated with nexus */
-	u_short	sc_msgout;	/* What message is on its way out? */
-	u_short	sc_msgpriq;	/* One or more messages to send (encoded) */
-	u_short	sc_msgoutq;	/* What messages have been sent so far? */
+	uint16_t sc_msgify;	/* IDENTIFY message associated with nexus */
+	uint16_t sc_msgout;	/* What message is on its way out? */
+	uint16_t sc_msgpriq;	/* One or more messages to send (encoded) */
+	uint16_t sc_msgoutq;	/* What messages have been sent so far? */
 
-	u_char	*sc_omess;	/* MSGOUT buffer */
+	uint8_t	*sc_omess;	/* MSGOUT buffer */
 	int	sc_omess_self;	/* MSGOUT buffer is self-allocated */
-	caddr_t	sc_omp;		/* Message pointer (for multibyte messages) */
+	void	*sc_omp;	/* Message pointer (for multibyte messages) */
 	size_t	sc_omlen;
-	u_char	*sc_imess;	/* MSGIN buffer */
+	uint8_t	*sc_imess;	/* MSGIN buffer */
 	int	sc_imess_self;	/* MSGIN buffer is self-allocated */
-	caddr_t	sc_imp;		/* Message pointer (for multibyte messages) */
+	void	*sc_imp;	/* Message pointer (for multibyte messages) */
 	size_t	sc_imlen;
 
-	caddr_t	sc_cmdp;	/* Command pointer (for DMAed commands) */
+	void	*sc_cmdp;	/* Command pointer (for DMAed commands) */
 	size_t	sc_cmdlen;	/* Size of command in transit */
 
 	/* Hardware attributes */
@@ -434,10 +461,10 @@ struct ncr53c9x_softc {
 #ifdef NCR53C9X_DEBUG
 #define	NCRCMD(sc, cmd) do {						\
 	if ((ncr53c9x_debug & NCR_SHOWCCMDS) != 0)			\
-		printf("<CMD:0x%x %d>", (unsigned)cmd, __LINE__);	\
+		printf("<CMD:0x%x %d>", (unsigned int)cmd, __LINE__);	\
 	sc->sc_lastcmd = cmd;						\
 	NCR_WRITE_REG(sc, NCR_CMD, cmd);				\
-} while (0)
+} while (/* CONSTCOND */ 0)
 #else
 #define	NCRCMD(sc, cmd)		NCR_WRITE_REG(sc, NCR_CMD, cmd)
 #endif
