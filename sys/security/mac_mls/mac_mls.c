@@ -1636,9 +1636,6 @@ mls_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(shmlabel);
 
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(shmlabel);
-
 	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
 		if (!mls_dominate_effective(subj, obj))
 			return (EACCES);
