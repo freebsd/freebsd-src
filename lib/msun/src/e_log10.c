@@ -17,6 +17,9 @@ __FBSDID("$FreeBSD$");
 /*
  * Return the base 10 logarithm of x.  See e_log.c and k_log.h for most
  * comments.
+ *
+ *    log10(x) = (f - 0.5*f*f + k_log1p(f)) / ln10 + k * log10(2)
+ * in not-quite-routine extra precision.
  */
 
 #include "math.h"
@@ -35,7 +38,7 @@ static const double zero   =  0.0;
 double
 __ieee754_log10(double x)
 {
-	double f,hi,lo,y,z;
+	double f,hfsq,hi,lo,r,val_hi,val_lo,w,y,y2;
 	int32_t i,k,hx;
 	u_int32_t lx;
 
@@ -50,16 +53,35 @@ __ieee754_log10(double x)
 	    GET_HIGH_WORD(hx,x);
 	}
 	if (hx >= 0x7ff00000) return x+x;
+	if (hx == 0x3ff00000 && lx == 0)
+	    return zero;			/* log(1) = +0 */
 	k += (hx>>20)-1023;
 	hx &= 0x000fffff;
 	i = (hx+0x95f64)&0x100000;
 	SET_HIGH_WORD(x,hx|(i^0x3ff00000));	/* normalize x or x/2 */
 	k += (i>>20);
 	y = (double)k;
-	f = __kernel_log(x);
-	hi = x = x - 1;
+	f = x - 1.0;
+	hfsq = 0.5*f*f;
+	r = k_log1p(f);
+
+	/* See e_log2.c for most details. */
+	hi = f - hfsq;
 	SET_LOW_WORD(hi,0);
-	lo = x - hi;
-	z = y*log10_2lo + (x+f)*ivln10lo + (lo+f)*ivln10hi + hi*ivln10hi;
-	return  z+y*log10_2hi;
+	lo = (f - hi) - hfsq + r;
+	val_hi = hi*ivln10hi;
+	y2 = y*log10_2hi;
+	val_lo = y*log10_2lo + (lo+hi)*ivln10lo + lo*ivln10hi;
+
+	/*
+	 * Extra precision in for adding y*log10_2hi is not strictly needed
+	 * since there is no very large cancellation near x = sqrt(2) or
+	 * x = 1/sqrt(2), but we do it anyway since it costs little on CPUs
+	 * with some parallelism and it reduces the error for many args.
+	 */
+	w = y2 + val_hi;
+	val_lo += (y2 - w) + val_hi;
+	val_hi = w;
+
+	return val_lo + val_hi;
 }
