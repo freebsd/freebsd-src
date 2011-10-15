@@ -135,7 +135,6 @@ expm1(double x)
 
 	GET_HIGH_WORD(hx,x);
 	xsb = hx&0x80000000;		/* sign bit of x */
-	if(xsb==0) y=x; else y= -x;	/* y = |x| */
 	hx &= 0x7fffffff;		/* high word of |x| */
 
     /* filter out huge and non-finite argument */
