@@ -32,7 +32,7 @@ static const float zero   =  0.0;
 float
 __ieee754_log10f(float x)
 {
-	float f,hi,lo,y,z;
+	float f,hfsq,hi,lo,r,y,y2;
 	int32_t i,k,hx;
 
 	GET_FLOAT_WORD(hx,x);
@@ -46,17 +46,26 @@ __ieee754_log10f(float x)
 	    GET_FLOAT_WORD(hx,x);
 	}
 	if (hx >= 0x7f800000) return x+x;
+	if (hx == 0x3f800000)
+	    return zero;			/* log(1) = +0 */
 	k += (hx>>23)-127;
 	hx &= 0x007fffff;
 	i = (hx+(0x4afb0d))&0x800000;
 	SET_FLOAT_WORD(x,hx|(i^0x3f800000));	/* normalize x or x/2 */
 	k += (i>>23);
 	y = (float)k;
-	f = __kernel_logf(x);
-	x = x - (float)1.0;
-	GET_FLOAT_WORD(hx,x);
+	f = x - (float)1.0;
+	hfsq = (float)0.5*f*f;
+	r = k_log1pf(f);
+
+	/* See e_log2f.c and e_log2.c for details. */
+	if (sizeof(float_t) > sizeof(float))
+		return (r - hfsq + f) * ((float_t)ivln10lo + ivln10hi) +
+		    y * ((float_t)log10_2lo + log10_2hi);
+	hi = f - hfsq;
+	GET_FLOAT_WORD(hx,hi);
 	SET_FLOAT_WORD(hi,hx&0xfffff000);
-	lo = x - hi;
-	z = y*log10_2lo + (x+f)*ivln10lo + (lo+f)*ivln10hi + hi*ivln10hi;
-	return  z+y*log10_2hi;
+	lo = (f - hi) - hfsq + r;
+	return y*log10_2lo + (lo+hi)*ivln10lo + lo*ivln10hi + hi*ivln10hi +
+	    y*log10_2hi;
 }
