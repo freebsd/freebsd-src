@@ -1210,7 +1210,6 @@ ath_vap_delete(struct ieee80211vap *vap)
 		sc->sc_swbmiss = 0;
 	}
 #endif
-	ATH_UNLOCK(sc);
 	free(avp, M_80211_VAP);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1231,6 +1230,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		}
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
+	ATH_UNLOCK(sc);
 }
 
 void
@@ -1812,6 +1812,18 @@ ath_stop(struct ifnet *ifp)
 	ATH_UNLOCK(sc);
 }
 
+int
+ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
+{
+	int r;
+
+	struct ath_softc *sc = ifp->if_softc;
+
+	ATH_LOCK(sc);
+	r = ath_reset_locked(ifp, reset_type);
+	ATH_UNLOCK(sc);
+	return r;
+}
 /*
  * Reset the hardware w/o losing operational state.  This is
  * basically a more efficient way of doing ath_stop, ath_init,
@@ -1820,12 +1832,14 @@ ath_stop(struct ifnet *ifp)
  * to reset or reload hardware state.
  */
 int
-ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
+ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 {
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
+
+	ATH_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
@@ -4978,6 +4992,8 @@ ath_startrecv(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
+	ATH_LOCK_ASSERT(sc);
+
 	sc->sc_rxlink = NULL;
 	sc->sc_rxpending = NULL;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -5028,6 +5044,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
+
+	ATH_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz, flags 0x%x)\n",
 	    __func__, ieee80211_chan2ieee(ic, chan),
@@ -5131,7 +5149,7 @@ ath_calibrate(void *arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 				"%s: rfgain change\n", __func__);
 			sc->sc_stats.ast_per_rfgain++;
-			ath_reset(ifp, ATH_RESET_NOLOSS);
+			ath_reset_locked(ifp, ATH_RESET_NOLOSS);
 		}
 		/*
 		 * If this long cal is after an idle period, then
@@ -5249,6 +5267,8 @@ ath_set_channel(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 
+	ATH_LOCK(sc);
+
 	(void) ath_chan_set(sc, ic->ic_curchan);
 	/*
 	 * If we are returning to our bss channel then mark state
@@ -5258,6 +5278,8 @@ ath_set_channel(struct ieee80211com *ic)
 	 */
 	if (!sc->sc_scanning && ic->ic_curchan == ic->ic_bsschan)
 		sc->sc_syncbeacon = 1;
+
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -5797,7 +5819,7 @@ ath_watchdog(void *arg)
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
 			if_printf(ifp, "device timeout\n");
-		ath_reset(ifp, ATH_RESET_NOLOSS);
+		ath_reset_locked(ifp, ATH_RESET_NOLOSS);
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
 	}
