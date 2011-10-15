@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <float.h>
 #include <math.h>
 
+#include "math_private.h"
+
 /*
  * A struct dd represents a floating-point number with twice the precision
  * of a double.  We maintain the invariant that "hi" stores the 53 high-order
@@ -56,6 +58,73 @@ dd_add(double a, double b)
 	s = ret.hi - a;
 	ret.lo = (a - (ret.hi - s)) + (b - s);
 	return (ret);
+}
+
+/*
+ * Compute a+b, with a small tweak:  The least significant bit of the
+ * result is adjusted into a sticky bit summarizing all the bits that
+ * were lost to rounding.  This adjustment negates the effects of double
+ * rounding when the result is added to another number with a higher
+ * exponent.  For an explanation of round and sticky bits, see any reference
+ * on FPU design, e.g.,
+ *
+ *     J. Coonen.  An Implementation Guide to a Proposed Standard for
+ *     Floating-Point Arithmetic.  Computer, vol. 13, no. 1, Jan 1980.
+ */
+static inline double
+add_adjusted(double a, double b)
+{
+	struct dd sum;
+	uint64_t hibits, lobits;
+
+	sum = dd_add(a, b);
+	if (sum.lo != 0) {
+		EXTRACT_WORD64(hibits, sum.hi);
+		if ((hibits & 1) == 0) {
+			/* hibits += (int)copysign(1.0, sum.hi * sum.lo) */
+			EXTRACT_WORD64(lobits, sum.lo);
+			hibits += 1 - ((hibits ^ lobits) >> 62);
+			INSERT_WORD64(sum.hi, hibits);
+		}
+	}
+	return (sum.hi);
+}
+
+/*
+ * Compute ldexp(a+b, scale) with a single rounding error. It is assumed
+ * that the result will be subnormal, and care is taken to ensure that
+ * double rounding does not occur.
+ */
+static inline double
+add_and_denormalize(double a, double b, int scale)
+{
+	struct dd sum;
+	uint64_t hibits, lobits;
+	int bits_lost;
+
+	sum = dd_add(a, b);
+
+	/*
+	 * If we are losing at least two bits of accuracy to denormalization,
+	 * then the first lost bit becomes a round bit, and we adjust the
+	 * lowest bit of sum.hi to make it a sticky bit summarizing all the
+	 * bits in sum.lo. With the sticky bit adjusted, the hardware will
+	 * break any ties in the correct direction.
+	 *
+	 * If we are losing only one bit to denormalization, however, we must
+	 * break the ties manually.
+	 */
+	if (sum.lo != 0) {
+		EXTRACT_WORD64(hibits, sum.hi);
+		bits_lost = -((int)(hibits >> 52) & 0x7ff) - scale + 1;
+		if (bits_lost != 1 ^ (int)(hibits & 1)) {
+			/* hibits += (int)copysign(1.0, sum.hi * sum.lo) */
+			EXTRACT_WORD64(lobits, sum.lo);
+			hibits += 1 - (((hibits ^ lobits) >> 62) & 2);
+			INSERT_WORD64(sum.hi, hibits);
+		}
+	}
+	return (ldexp(sum.hi, scale));
 }
 
 /*
@@ -105,14 +174,11 @@ dd_mul(double a, double b)
  * Hardware instructions should be used on architectures that support it,
  * since this implementation will likely be several times slower.
  */
-#if LDBL_MANT_DIG != 113
 double
 fma(double x, double y, double z)
 {
-	double xs, ys, zs;
-	struct dd xy, r, r2;
-	double p;
-	double s;
+	double xs, ys, zs, adj;
+	struct dd xy, r;
 	int oround;
 	int ex, ey, ez;
 	int spread;
@@ -142,41 +208,6 @@ fma(double x, double y, double z)
 	 * will overflow, so we handle these cases specially.  Rounding
 	 * modes other than FE_TONEAREST are painful.
 	 */
-	if (spread > DBL_MANT_DIG * 2) {
-		fenv_t env;
-		feraiseexcept(FE_INEXACT);
-		switch(oround) {
-		case FE_TONEAREST:
-			return (x * y);
-		case FE_TOWARDZERO:
-			if (x > 0.0 ^ y < 0.0 ^ z < 0.0)
-				return (x * y);
-			feholdexcept(&env);
-			s = x * y;
-			if (!fetestexcept(FE_INEXACT))
-				s = nextafter(s, 0);
-			feupdateenv(&env);
-			return (s);
-		case FE_DOWNWARD:
-			if (z > 0.0)
-				return (x * y);
-			feholdexcept(&env);
-			s = x * y;
-			if (!fetestexcept(FE_INEXACT))
-				s = nextafter(s, -INFINITY);
-			feupdateenv(&env);
-			return (s);
-		default:	/* FE_UPWARD */
-			if (z < 0.0)
-				return (x * y);
-			feholdexcept(&env);
-			s = x * y;
-			if (!fetestexcept(FE_INEXACT))
-				s = nextafter(s, INFINITY);
-			feupdateenv(&env);
-			return (s);
-		}
-	}
 	if (spread < -DBL_MANT_DIG) {
 		feraiseexcept(FE_INEXACT);
 		if (!isnormal(z))
@@ -201,42 +232,52 @@ fma(double x, double y, double z)
 				return (z);
 		}
 	}
+	if (spread <= DBL_MANT_DIG * 2)
+		zs = ldexp(zs, -spread);
+	else
+		zs = copysign(DBL_MIN, zs);
 
 	fesetround(FE_TONEAREST);
 
+	/*
+	 * Basic approach for round-to-nearest:
+	 *
+	 *     (xy.hi, xy.lo) = x * y		(exact)
+	 *     (r.hi, r.lo)   = xy.hi + z	(exact)
+	 *     adj = xy.lo + r.lo		(inexact; low bit is sticky)
+	 *     result = r.hi + adj		(correctly rounded)
+	 */
 	xy = dd_mul(xs, ys);
-	zs = ldexp(zs, -spread);
 	r = dd_add(xy.hi, zs);
-	r.lo += xy.lo;
+
+	if (r.hi == 0.0) {
+		/*
+		 * When the addends cancel to 0, ensure that the result has
+		 * the correct sign.
+		 */
+		fesetround(oround);
+		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
+		return (xy.hi + vzs);
+	}
 
 	spread = ex + ey;
-	if (spread + ilogb(r.hi) > -1023) {
-		fesetround(oround);
-		r.hi = r.hi + r.lo;
-	} else {
+
+	if (oround != FE_TONEAREST) {
 		/*
-		 * The result is subnormal, so we round before scaling to
-		 * avoid double rounding.
+		 * There is no need to worry about double rounding in directed
+		 * rounding modes.
 		 */
-		p = ldexp(copysign(0x1p-1022, r.hi), -spread);
-		r2 = dd_add(r.hi, p);
-		r2.lo += r.lo;
 		fesetround(oround);
-		r.hi = (r2.hi + r2.lo) - p;
+		adj = r.lo + xy.lo;
+		return (ldexp(r.hi + adj, spread));
 	}
-	return (ldexp(r.hi, spread));
+
+	adj = add_adjusted(r.lo, xy.lo);
+	if (spread + ilogb(r.hi) > -1023)
+		return (ldexp(r.hi + adj, spread));
+	else
+		return (add_and_denormalize(r.hi, adj, spread));
 }
-#else	/* LDBL_MANT_DIG == 113 */
-/*
- * 113 bits of precision is more than twice the precision of a double,
- * so it is enough to represent the intermediate product exactly.
- */
-double
-fma(double x, double y, double z)
-{
-	return ((long double)x * y + z);
-}
-#endif	/* LDBL_MANT_DIG != 113 */
 
 #if (LDBL_MANT_DIG == 53)
 __weak_reference(fma, fmal);
