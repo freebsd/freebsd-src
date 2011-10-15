@@ -13,7 +13,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Return the base 10 logarithm of x. See k_log.c for details on the algorithm.
+ * Float version of e_log10.c.  See the latter for most comments.
  */
 
 #include "math.h"
@@ -37,14 +37,14 @@ __ieee754_log10f(float x)
 
 	GET_FLOAT_WORD(hx,x);
 
-        k=0;
-        if (hx < 0x00800000) {                  /* x < 2**-126  */
-            if ((hx&0x7fffffff)==0)
-                return -two25/zero;             /* log(+-0)=-inf */
-            if (hx<0) return (x-x)/zero;        /* log(-#) = NaN */
-            k -= 25; x *= two25; /* subnormal number, scale up x */
+	k=0;
+	if (hx < 0x00800000) {			/* x < 2**-126  */
+	    if ((hx&0x7fffffff)==0)
+		return -two25/zero;		/* log(+-0)=-inf */
+	    if (hx<0) return (x-x)/zero;	/* log(-#) = NaN */
+	    k -= 25; x *= two25; /* subnormal number, scale up x */
 	    GET_FLOAT_WORD(hx,x);
-        }
+	}
 	if (hx >= 0x7f800000) return x+x;
 	k += (hx>>23)-127;
 	hx &= 0x007fffff;
