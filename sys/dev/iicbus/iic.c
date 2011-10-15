@@ -348,8 +348,10 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_TEMP, M_WAITOK);
 		usrbufs = malloc(sizeof(void *) * d->nmsgs, M_TEMP, M_ZERO | M_WAITOK);
 		error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
-		if (error)
+		if (error) {
+			free(usrbufs, M_TEMP);
 			break;
+		}
 		/* Alloc kernel buffers for userland data, copyin write data */
 		for (i = 0; i < d->nmsgs; i++) {
 			m = &((struct iic_msg *)buf)[i];
