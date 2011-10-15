@@ -244,6 +244,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 		}
 	}
 
+	va_end(p_list);
 	return (0);
 }
 
