@@ -170,7 +170,8 @@ static int	ath_rxbuf_init(struct ath_softc *, struct ath_buf *);
 static void	ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			int subtype, int rssi, int nf);
 static void	ath_setdefantenna(struct ath_softc *, u_int);
-static void	ath_rx_proc(void *, int);
+static void	ath_rx_proc(struct ath_softc *sc, int);
+static void	ath_rx_tasklet(void *, int);
 static void	ath_txq_init(struct ath_softc *sc, struct ath_txq *, int);
 static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
@@ -381,7 +382,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
-	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
+	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_bproctask, 0, ath_beacon_proc, sc);
@@ -3696,13 +3697,27 @@ ath_rx_dump_wtf(struct ath_softc *sc, struct ath_rx_status *rs,
 #endif
 }
 
+/*
+ * Only run the RX proc if it's not already running.
+ * Since this may get run as part of the reset/flush path,
+ * the task can't clash with an existing, running tasklet.
+ */
 static void
-ath_rx_proc(void *arg, int npending)
+ath_rx_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+
+	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	ath_rx_proc(sc, 1);
+}
+
+static void
+ath_rx_proc(struct ath_softc *sc, int resched)
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
-	struct ath_softc *sc = arg;
 	struct ath_buf *bf;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -3717,8 +3732,7 @@ ath_rx_proc(void *arg, int npending)
 	u_int64_t tsf;
 	int npkts = 0;
 
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
-	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
 	ngood = 0;
 	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
 	sc->sc_stats.ast_rx_noise = nf;
@@ -4094,7 +4108,7 @@ rx_next:
 	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
 
 	/* Queue DFS tasklet if needed */
-	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
+	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_dfstask);
 
 	/*
@@ -4111,7 +4125,7 @@ rx_next:
 	 * reference), or introduce some other way to cope
 	 * with this.
 	 */
-	if (sc->sc_kickpcu) {
+	if (resched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
@@ -4147,7 +4161,7 @@ rx_next:
 		ATH_UNLOCK(sc);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
 #endif
