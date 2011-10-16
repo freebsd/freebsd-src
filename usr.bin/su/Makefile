@@ -5,8 +5,6 @@
 
 PROG=	su
 
-WARNS?=	5
-
 DPADD=	${LIBUTIL} ${LIBPAM}
 LDADD=	-lutil ${MINUSLPAM}
 
