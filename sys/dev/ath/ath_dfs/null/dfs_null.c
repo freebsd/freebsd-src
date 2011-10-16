@@ -128,7 +128,7 @@ ath_dfs_process_radar_event(struct ath_softc *sc,
 }
 
 /*
- * Determine whether the the DFS check task needs to be queued.
+ * Determine whether the DFS check task needs to be queued.
  *
  * This is called in the RX task when the current batch of packets
  * have been received. It will return whether there are any radar
