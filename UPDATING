@@ -462,7 +462,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	There's one kernel module for each firmware. Adding "device iwnfw"
 	to the kernel configuration file means including all three firmware
 	images inside the kernel. If you want to include just the one for
-	your wireless card, use the the devices iwn4965fw, iwn5000fw or
+	your wireless card, use the devices iwn4965fw, iwn5000fw or
 	iwn5150fw.
 
 20090926:
