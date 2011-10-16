@@ -32,7 +32,7 @@ static const float zero   =  0.0;
 float
 __ieee754_log10f(float x)
 {
-	float f,hfsq,hi,lo,r,y,y2;
+	float f,hfsq,hi,lo,r,y;
 	int32_t i,k,hx;
 
 	GET_FLOAT_WORD(hx,x);
