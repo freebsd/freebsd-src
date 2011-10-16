@@ -301,9 +301,6 @@ cc_conn_init(struct tcpcb *tp)
 	struct hc_metrics_lite metrics;
 	struct inpcb *inp = tp->t_inpcb;
 	int rtt;
-#ifdef INET6
-	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
-#endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -337,49 +334,16 @@ cc_conn_init(struct tcpcb *tp)
 	}
 
 	/*
-	 * Set the slow-start flight size depending on whether this
-	 * is a local network or not.
-	 *
-	 * Extend this so we cache the cwnd too and retrieve it here.
-	 * Make cwnd even bigger than RFC3390 suggests but only if we
-	 * have previous experience with the remote host. Be careful
-	 * not make cwnd bigger than remote receive window or our own
-	 * send socket buffer. Maybe put some additional upper bound
-	 * on the retrieved cwnd. Should do incremental updates to
-	 * hostcache when cwnd collapses so next connection doesn't
-	 * overloads the path again.
-	 *
-	 * XXXAO: Initializing the CWND from the hostcache is broken
-	 * and in its current form not RFC conformant.  It is disabled
-	 * until fixed or removed entirely.
+	 * Set the initial slow-start flight size.
 	 *
 	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
-	 * We currently check only in syncache_socket for that.
+	 * XXX: We currently check only in syncache_socket for that.
 	 */
-/* #define TCP_METRICS_CWND */
-#ifdef TCP_METRICS_CWND
-	if (metrics.rmx_cwnd)
-		tp->snd_cwnd = max(tp->t_maxseg, min(metrics.rmx_cwnd / 2,
-		    min(tp->snd_wnd, so->so_snd.sb_hiwat)));
-	else
-#endif
 	if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
-#ifdef INET6
-	else if (isipv6 && in6_localaddr(&inp->in6p_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
-#if defined(INET) && defined(INET6)
-	else if (!isipv6 && in_localaddr(inp->inp_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
-#ifdef INET
-	else if (in_localaddr(inp->inp_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
 	else
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz;
+		tp->snd_cwnd = tp->t_maxseg;
 
 	if (CC_ALGO(tp)->conn_init != NULL)
 		CC_ALGO(tp)->conn_init(tp->ccv);
