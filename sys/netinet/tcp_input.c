@@ -183,6 +183,11 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
+VNET_DEFINE(int, tcp_recvspace) = 1024*64
+#define	V_tcp_recvspace	VNET(tcp_recvspace)
+SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_RECVSPACE, tcp_recvspace, CTLFLAG_RW,
+    &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
+
 VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
 #define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
