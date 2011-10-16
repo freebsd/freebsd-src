@@ -56,8 +56,12 @@ cexp(double complex z)
 	/* cexp(x + I 0) = exp(x) + I 0 */
 	if ((hy | ly) == 0)
 		return (cpack(exp(x), y));
+	EXTRACT_WORDS(hx, lx, x);
+	/* cexp(0 + I y) = cos(y) + I sin(y) */
+	if (((hx & 0x7fffffff) | lx) == 0)
+		return (cpack(cos(y), sin(y)));
+
 	if (hy >= 0x7ff00000) {
-		EXTRACT_WORDS(hx, lx, x);
 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
 			return (cpack(y - y, y - y));
@@ -70,7 +74,6 @@ cexp(double complex z)
 		}
 	}
 
-	GET_HIGH_WORD(hx, x);
 	if (hx >= exp_ovfl && hx <= cexp_ovfl) {
 		/*
 		 * x is between 709.7 and 1454.3, so we must scale to avoid

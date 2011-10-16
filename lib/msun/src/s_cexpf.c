@@ -57,6 +57,10 @@ cexpf(float complex z)
 	if (hy == 0)
 		return (cpackf(expf(x), y));
 	GET_FLOAT_WORD(hx, x);
+	/* cexp(0 + I y) = cos(y) + I sin(y) */
+	if ((hx & 0x7fffffff) == 0)
+		return (cpackf(cosf(y), sinf(y)));
+
 	if (hy >= 0x7f800000) {
 		if ((hx & 0x7fffffff) != 0x7f800000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
