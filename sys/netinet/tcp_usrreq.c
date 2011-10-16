@@ -1498,20 +1498,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #undef INP_WLOCK_RECHECK
 
 /*
- * Set the initial send and receive socket buffer sizes for
- * newly created TCP sockets.
- */
-VNET_DEFINE(int, tcp_sendspace) = 1024*32;
-#define	V_tcp_sendspace	VNET(tcp_sendspace)
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_SENDSPACE, tcp_sendspace, CTLFLAG_RW,
-    &VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
-
-VNET_DEFINE(int, tcp_recvspace) = 1024*64
-#define	V_tcp_recvspace	VNET(tcp_recvspace)
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_RECVSPACE, tcp_recvspace, CTLFLAG_RW,
-    &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
-
-/*
  * Attach TCP protocol to socket, allocating
  * internet protocol control block, tcp control block,
  * bufer space, and entering LISTEN state if to accept connections.
