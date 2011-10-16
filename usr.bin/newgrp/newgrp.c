@@ -220,7 +220,7 @@ addgroup(const char *grpname)
 
 	/* Add old effective gid to supp. list if it does not exist. */
 	if (egid != grp->gr_gid && !inarray(egid, grps, ngrps)) {
-		if (ngrps + 1 >= ngrps_max)
+		if (ngrps == ngrps_max)
 			warnx("too many groups");
 		else {
 			grps[ngrps++] = egid;
