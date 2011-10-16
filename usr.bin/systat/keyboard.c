@@ -47,8 +47,8 @@ static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";
 int
 keyboard(void)
 {
-	char ch, line[80];
-	int oldmask;
+	char line[80];
+	int ch, oldmask;
 
 	for (;;) {
 		col = 0;
