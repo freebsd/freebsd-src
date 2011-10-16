@@ -9,6 +9,4 @@ CFLAGS+=-DEXTENDED
 
 SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c
 
-WARNS?=	0
-
 .include <bsd.prog.mk>
