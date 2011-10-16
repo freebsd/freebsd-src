@@ -3517,7 +3517,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	 */
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
-	if ((so->so_snd.sb_hiwat == tcp_sendspace) && metrics.rmx_sendpipe)
+	if ((so->so_snd.sb_hiwat == V_tcp_sendspace) && metrics.rmx_sendpipe)
 		bufsize = metrics.rmx_sendpipe;
 	else
 		bufsize = so->so_snd.sb_hiwat;
@@ -3534,7 +3534,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	tp->t_maxseg = mss;
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	if ((so->so_rcv.sb_hiwat == tcp_recvspace) && metrics.rmx_recvpipe)
+	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.rmx_recvpipe)
 		bufsize = metrics.rmx_recvpipe;
 	else
 		bufsize = so->so_rcv.sb_hiwat;
