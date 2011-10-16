@@ -1498,16 +1498,15 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #undef INP_WLOCK_RECHECK
 
 /*
- * tcp_sendspace and tcp_recvspace are the default send and receive window
- * sizes, respectively.  These are obsolescent (this information should
- * be set by the route).
+ * Set the initial send and receive socket buffer sizes for
+ * newly created TCP sockets.
  */
 u_long	tcp_sendspace = 1024*32;
 SYSCTL_ULONG(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
-    &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
+    &tcp_sendspace , 0, "Initial send socket buffer size");
 u_long	tcp_recvspace = 1024*64;
 SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
-    &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
+    &tcp_recvspace , 0, "Initial receive socket buffer size");
 
 /*
  * Attach TCP protocol to socket, allocating
