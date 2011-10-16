@@ -1501,12 +1501,15 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
  * Set the initial send and receive socket buffer sizes for
  * newly created TCP sockets.
  */
-u_long	tcp_sendspace = 1024*32;
-SYSCTL_ULONG(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
-    &tcp_sendspace , 0, "Initial send socket buffer size");
-u_long	tcp_recvspace = 1024*64;
-SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
-    &tcp_recvspace , 0, "Initial receive socket buffer size");
+VNET_DEFINE(int, tcp_sendspace) = 1024*32;
+#define	V_tcp_sendspace	VNET(tcp_sendspace)
+SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_SENDSPACE, tcp_sendspace, CTLFLAG_RW,
+    &VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
+
+VNET_DEFINE(int, tcp_recvspace) = 1024*64
+#define	V_tcp_recvspace	VNET(tcp_recvspace)
+SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_RECVSPACE, tcp_recvspace, CTLFLAG_RW,
+    &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
 
 /*
  * Attach TCP protocol to socket, allocating
@@ -1521,7 +1524,7 @@ tcp_attach(struct socket *so)
 	int error;
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, tcp_sendspace, tcp_recvspace);
+		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
 		if (error)
 			return (error);
 	}

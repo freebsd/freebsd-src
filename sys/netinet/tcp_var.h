@@ -606,6 +606,8 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
 VNET_DECLARE(int, ss_fltsz);
 VNET_DECLARE(int, ss_fltsz_local);
@@ -618,6 +620,8 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_sendspace		VNET(tcp_sendspace)
+#define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
 #define	V_ss_fltsz		VNET(ss_fltsz)
 #define	V_ss_fltsz_local	VNET(ss_fltsz_local)
@@ -716,8 +720,6 @@ void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
-extern	u_long tcp_sendspace;
-extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
 void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
