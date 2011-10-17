@@ -28,7 +28,7 @@
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2005
+.Dd January 17, 2008
 .Dt EXP 3
 .Os
 .Sh NAME
@@ -39,15 +39,9 @@
 .Nm exp2f ,
 .Nm expm1 ,
 .Nm expm1f ,
-.Nm log ,
-.Nm logf ,
-.Nm log10 ,
-.Nm log10f ,
-.Nm log1p ,
-.Nm log1pf ,
 .Nm pow ,
 .Nm powf
-.Nd exponential, logarithm, power functions
+.Nd exponential and power functions
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -65,18 +59,6 @@
 .Ft float
 .Fn expm1f "float x"
 .Ft double
-.Fn log "double x"
-.Ft float
-.Fn logf "float x"
-.Ft double
-.Fn log10 "double x"
-.Ft float
-.Fn log10f "float x"
-.Ft double
-.Fn log1p "double x"
-.Ft float
-.Fn log1pf "float x"
-.Ft double
 .Fn pow "double x" "double y"
 .Ft float
 .Fn powf "float x" "float y"
@@ -92,7 +74,7 @@ exponential value of the given argument
 .Pp
 The
 .Fn exp2
-and the
+and
 .Fn exp2f
 functions compute the base 2 exponential of the given argument
 .Fa x .
@@ -102,29 +84,6 @@ The
 and the
 .Fn expm1f
 functions compute the value exp(x)\-1 accurately even for tiny argument
-.Fa x .
-.Pp
-The
-.Fn log
-and the
-.Fn logf
-functions compute the value of the natural logarithm of argument
-.Fa x .
-.Pp
-The
-.Fn log10
-and the
-.Fn log10f
-functions compute the value of the logarithm of argument
-.Fa x
-to base 10.
-.Pp
-The
-.Fn log1p
-and the
-.Fn log1pf
-functions compute
-the value of log(1+x) accurately even for tiny argument
 .Fa x .
 .Pp
 The
@@ -159,30 +118,7 @@ raise an invalid exception and return an \*(Na if
 < 0 and
 .Fa y
 is not an integer.
-An attempt to take the logarithm of \*(Pm0 will result in
-a divide-by-zero exception, and an infinity will be returned.
-An attempt to take the logarithm of a negative number will
-result in an invalid exception, and an \*(Na will be generated.
 .Sh NOTES
-The functions exp(x)\-1 and log(1+x) are called
-expm1 and logp1 in
-.Tn BASIC
-on the Hewlett\-Packard
-.Tn HP Ns \-71B
-and
-.Tn APPLE
-Macintosh,
-.Tn EXP1
-and
-.Tn LN1
-in Pascal, exp1 and log1 in C
-on
-.Tn APPLE
-Macintoshes, where they have been provided to make
-sure financial calculations of ((1+x)**n\-1)/x, namely
-expm1(n\(**log1p(x))/x, will be accurate when x is tiny.
-They also provide accurate inverse hyperbolic functions.
-.Pp
 The function
 .Fn pow x 0
 returns x**0 = 1 for all x including x = 0, \*(If, and \*(Na .
@@ -229,4 +165,9 @@ and infinite x, i.e., independently of x.
 .El
 .Sh SEE ALSO
 .Xr fenv 3 ,
+.Xr ldexp 3 ,
+.Xr log 3 ,
 .Xr math 3
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 .

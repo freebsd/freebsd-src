@@ -235,6 +235,7 @@ double	lgamma(double);
 long long llrint(double);
 long long llround(double);
 double	log1p(double);
+double	log2(double);
 double	logb(double);
 long	lrint(double);
 long	lround(double);
@@ -314,6 +315,7 @@ int	ilogbf(float) __pure2;
 float	ldexpf(float, int);
 float	log10f(float);
 float	log1pf(float);
+float	log2f(float);
 float	logf(float);
 float	modff(float, float *);	/* fundamentally !__pure2 */
 

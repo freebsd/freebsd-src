@@ -181,3 +181,9 @@ FBSD_1.0 {
 	drem;
 	dremf;
 };
+
+/* First added in 9.0-CURRENT */
+FBSD_1.2 {
+	log2;
+	log2f;
+};

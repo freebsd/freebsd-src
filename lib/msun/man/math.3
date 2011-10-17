@@ -28,7 +28,7 @@
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2005
+.Dd December 5, 2010
 .Dt MATH 3
 .Os
 .if n \{\
@@ -180,7 +180,7 @@ lgamma	log gamma function
 log	natural logarithm
 log10	logarithm to base 10
 log1p	log(1+x)
-.\" log2	base 2 logarithm
+log2	base 2 logarithm
 pow	exponential x**y
 sin	trigonometric function
 sinh	hyperbolic function
@@ -192,8 +192,8 @@ y1	Bessel function of the second kind of the order 1
 yn	Bessel function of the second kind of the order n
 .El
 .Pp
-Unlike the algebraic functions listed earlier, the routines
-in this section may not produce a result that is correctly rounded,
+The routines
+in this section might not produce a result that is correctly rounded,
 so reproducible results cannot be guaranteed across platforms.
 For most of these functions, however, incorrect rounding occurs
 rarely, and then only in very-close-to-halfway cases.
@@ -218,20 +218,18 @@ and
 values, were written for or imported into subsequent versions of FreeBSD.
 .Sh BUGS
 The
-.Fn log2
-and
 .Fn nan
-functions are missing, and many functions are not available in their
+function is missing, and many functions are not available in their
 .Vt "long double"
 variants.
 .Pp
 Many of the routines to compute transcendental functions produce
 inaccurate results in other than the default rounding mode.
 .Pp
-On some architectures, trigonometric argument reduction is not
-performed accurately, resulting in errors greater than 1
-.Em ulp
-for large arguments to
+On the i386 platform, trigonometric argument reduction is not
+performed accurately for huge arguments, resulting in
+large errors
+for such arguments to
 .Fn cos ,
 .Fn sin ,
 and
