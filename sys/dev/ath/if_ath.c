@@ -2031,10 +2031,6 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
 
-	if (sc->sc_dodfs) {
-		rfilt |= HAL_RX_FILTER_PHYRADAR;
-	}
-
 	/*
 	 * Enable RX of compressed BAR frames only when doing
 	 * 802.11n. Required for A-MPDU.
