@@ -41,7 +41,7 @@ if [ -z $ifn ] ; then
 		echo 1>&2 "$0: no interface specified"
 		return 1
 	fi
-elif [ -n "${rc_force}" ] && ! dhcpif $ifn; then
+elif [ -z "${rc_force}" ] && ! dhcpif $ifn; then
 	return 1
 fi
 
