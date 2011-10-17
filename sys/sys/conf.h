@@ -55,15 +55,15 @@ struct cdev {
 	void		*__si_reserved;
 	u_int		si_flags;
 #define	SI_ETERNAL	0x0001	/* never destroyed */
-#define SI_ALIAS	0x0002	/* carrier of alias name */
-#define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
-#define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
-#define SI_CHILD	0x0010	/* child of another struct cdev **/
-#define SI_DEVOPEN	0x0020	/* opened by device */
-#define SI_CONSOPEN	0x0040	/* opened by console */
-#define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
-#define SI_CANDELETE	0x0100	/* can do BIO_DELETE */
-#define SI_CLONELIST	0x0200	/* on a clone list */
+#define	SI_ALIAS	0x0002	/* carrier of alias name */
+#define	SI_NAMED	0x0004	/* make_dev{_alias} has been called */
+#define	SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
+#define	SI_CHILD	0x0010	/* child of another struct cdev **/
+#define	SI_DEVOPEN	0x0020	/* opened by device */
+#define	SI_CONSOPEN	0x0040	/* opened by console */
+#define	SI_DUMPDEV	0x0080	/* is kernel dumpdev */
+#define	SI_CANDELETE	0x0100	/* can do BIO_DELETE */
+#define	SI_CLONELIST	0x0200	/* on a clone list */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
@@ -90,7 +90,7 @@ struct cdev {
 	char		__si_namebuf[SPECNAMELEN + 1];
 };
 
-#define si_snapdata	__si_u.__sid_snapdata
+#define	si_snapdata	__si_u.__sid_snapdata
 
 #ifdef _KERNEL
 
@@ -159,7 +159,7 @@ typedef int dumper_t(
 #define	D_TTY	0x0004
 #define	D_MEM	0x0008
 
-#ifdef _KERNEL 
+#ifdef _KERNEL
 
 #define	D_TYPEMASK	0xffff
 
@@ -167,24 +167,24 @@ typedef int dumper_t(
  * Flags for d_flags which the drivers can set.
  */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
-#define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
-#define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
-#define D_NEEDGIANT	0x00400000	/* driver want Giant */
+#define	D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
+#define	D_PSEUDO	0x00200000	/* make_dev() can return NULL */
+#define	D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
 
 /*
  * Version numbers.
  */
-#define D_VERSION_00	0x20011966
-#define D_VERSION_01	0x17032005	/* Add d_uid,gid,mode & kind */
-#define D_VERSION_02	0x28042009	/* Add d_mmap_single */
-#define D_VERSION_03	0x17122009	/* d_mmap takes memattr,vm_ooffset_t */
-#define D_VERSION	D_VERSION_03
+#define	D_VERSION_00	0x20011966
+#define	D_VERSION_01	0x17032005	/* Add d_uid,gid,mode & kind */
+#define	D_VERSION_02	0x28042009	/* Add d_mmap_single */
+#define	D_VERSION_03	0x17122009	/* d_mmap takes memattr,vm_ooffset_t */
+#define	D_VERSION	D_VERSION_03
 
 /*
  * Flags used for internal housekeeping
  */
-#define D_INIT		0x80000000	/* cdevsw initialized */
+#define	D_INIT		0x80000000	/* cdevsw initialized */
 
 /*
  * Character device switch table
@@ -229,7 +229,7 @@ struct devsw_module_data {
 	/* Do not initialize fields hereafter */
 };
 
-#define DEV_MODULE(name, evh, arg)					\
+#define	DEV_MODULE(name, evh, arg)					\
 static moduledata_t name##_mod = {					\
     #name,								\
     evh,								\
@@ -240,8 +240,8 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
-#define CLONE_UNITMASK 0xfffff
-#define CLONE_FLAG0 (CLONE_UNITMASK + 1)
+#define	CLONE_UNITMASK	0xfffff
+#define	CLONE_FLAG0	(CLONE_UNITMASK + 1)
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
@@ -281,8 +281,8 @@ struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
 int	make_dev_alias_p(int _flags, struct cdev **_cdev, struct cdev *_pdev,
 		const char *_fmt, ...) __printflike(4, 5);
 int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
-	        struct cdev *_pdev, struct cdev *_old_alias,
-                const char *_physpath);
+		struct cdev *_pdev, struct cdev *_old_alias,
+		const char *_physpath);
 void	dev_lock(void);
 void	dev_unlock(void);
 void	setconf(void);
