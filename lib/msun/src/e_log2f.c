@@ -9,12 +9,11 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
- * Float version of e_log10.c.  See the latter for most comments.
+ * Float version of e_log2.c.  See the latter for most comments.
  */
 
 #include "math.h"
@@ -23,17 +22,15 @@ static char rcsid[] = "$FreeBSD$";
 
 static const float
 two25      =  3.3554432000e+07, /* 0x4c000000 */
-ivln10hi   =  4.3432617188e-01, /* 0x3ede6000 */
-ivln10lo   = -3.1689971365e-05, /* 0xb804ead9 */
-log10_2hi  =  3.0102920532e-01, /* 0x3e9a2080 */
-log10_2lo  =  7.9034151668e-07; /* 0x355427db */
+ivln2hi    =  1.4428710938e+00, /* 0x3fb8b000 */
+ivln2lo    = -1.7605285393e-04; /* 0xb9389ad4 */
 
 static const float zero   =  0.0;
 
 float
-__ieee754_log10f(float x)
+__ieee754_log2f(float x)
 {
-	float f,hfsq,hi,lo,r,y,y2;
+	float f,hfsq,hi,lo,r,y;
 	int32_t i,k,hx;
 
 	GET_FLOAT_WORD(hx,x);
@@ -59,14 +56,26 @@ __ieee754_log10f(float x)
 	hfsq = (float)0.5*f*f;
 	r = k_log1pf(f);
 
-	/* See e_log2f.c and e_log2.c for details. */
+	/*
+	 * We no longer need to avoid falling into the multi-precision
+	 * calculations due to compiler bugs breaking Dekker's theorem.
+	 * Keep avoiding this as an optimization.  See e_log2.c for more
+	 * details (some details are here only because the optimization
+	 * is not yet available in double precision).
+	 *
+	 * Another compiler bug turned up.  With gcc on i386,
+	 * (ivln2lo + ivln2hi) would be evaluated in float precision
+	 * despite runtime evaluations using double precision.  So we
+	 * must cast one of its terms to float_t.  This makes the whole
+	 * expression have type float_t, so return is forced to waste
+	 * time clobbering its extra precision.
+	 */
 	if (sizeof(float_t) > sizeof(float))
-		return (r - hfsq + f) * ((float_t)ivln10lo + ivln10hi) +
-		    y * ((float_t)log10_2lo + log10_2hi);
+		return (r - hfsq + f) * ((float_t)ivln2lo + ivln2hi) + y;
+
 	hi = f - hfsq;
 	GET_FLOAT_WORD(hx,hi);
 	SET_FLOAT_WORD(hi,hx&0xfffff000);
 	lo = (f - hi) - hfsq + r;
-	return y*log10_2lo + (lo+hi)*ivln10lo + lo*ivln10hi + hi*ivln10hi +
-	    y*log10_2hi;
+	return (lo+hi)*ivln2lo + lo*ivln2hi + hi*ivln2hi + y;
 }
