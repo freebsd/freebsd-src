@@ -12,14 +12,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * Return the base 2 logarithm of x. See k_log.c for details on the algorithm.
+ */
+
 #include "math.h"
 #include "math_private.h"
 #include "k_logf.h"
 
 static const float
 two25      =  3.3554432000e+07, /* 0x4c000000 */
-ivln2hi    =  0x1.716p+0f,
-ivln2lo    = -0x1.7135a8fa03d11p-13;
+ivln2hi    =  1.4428710938e+00, /* 0x3fb8b000 */
+ivln2lo    = -1.7605285393e-04; /* 0xb9389ad4 */
 
 static const float zero   =  0.0;
 
@@ -46,7 +50,7 @@ __ieee754_log2f(float x)
 	SET_FLOAT_WORD(x,hx|(i^0x3f800000));	/* normalize x or x/2 */
 	k += (i>>23);
 	f = __kernel_logf(x);
-	x = x - 1;
+	x = x - (float)1.0;
 	GET_FLOAT_WORD(hx,x);
 	SET_FLOAT_WORD(hi,hx&0xfffff000);
 	lo = x - hi;
