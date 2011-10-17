@@ -1199,9 +1199,9 @@ arge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->arge_miibus);
 	ARGE_LOCK(sc);
 	mii_pollstat(mii);
-	ARGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	ARGE_UNLOCK(sc);
 }
 
 struct arge_dmamap_arg {
