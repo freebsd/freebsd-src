@@ -109,22 +109,48 @@ ofw_fdt_init(ofw_t ofw, void *data)
 }
 
 /*
- * Device tree functions
+ * Device tree functions.
+ *
+ * We use the offset from fdtp to the node as the 'phandle' in OF interface.
+ *
+ * phandle is a u32 value, therefore we cannot use the pointer to node as
+ * phandle in 64 bit. We also do not use the usual fdt offset as phandle,
+ * as it can be 0, and the OF interface has special meaning for phandle 0.
  */
+
+static phandle_t
+fdt_offset_phandle(int offset)
+{
+	if (offset < 0)
+		return (0);
+	return ((phandle_t)offset + fdt_off_dt_struct(fdtp));
+}
 
 static int
 fdt_phandle_offset(phandle_t p)
 {
-	const char *dt_struct;
+	int pint = (int)p;
+	int dtoff = fdt_off_dt_struct(fdtp);
+
+	if (pint < dtoff)
+		return (-1);
+	return (pint - dtoff);
+}
+
+static int
+fdt_pointer_offset(const void *ptr)
+{
+	uintptr_t dt_struct, p;
 	int offset;
 
-	dt_struct = (const char *)fdtp + fdt_off_dt_struct(fdtp);
+	p = (uintptr_t)ptr;
+	dt_struct = (uintptr_t)fdtp + fdt_off_dt_struct(fdtp);
 
-	if (((const char *)p < dt_struct) ||
-	    (const char *)p > (dt_struct + fdt_size_dt_struct(fdtp)))
+	if ((p < dt_struct) ||
+	    p > (dt_struct + fdt_size_dt_struct(fdtp)))
 		return (-1);
 
-	offset = (const char *)p - dt_struct;
+	offset = p - dt_struct;
 	if (offset < 0)
 		return (-1);
 
@@ -135,15 +161,13 @@ fdt_phandle_offset(phandle_t p)
 static phandle_t
 ofw_fdt_peer(ofw_t ofw, phandle_t node)
 {
-	phandle_t p;
 	int depth, offset;
 
 	if (node == 0) {
 		/* Find root node */
 		offset = fdt_path_offset(fdtp, "/");
-		p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(p));
 
-		return (p);
+		return (fdt_offset_phandle(offset));
 	}
 
 	offset = fdt_phandle_offset(node);
@@ -155,10 +179,8 @@ ofw_fdt_peer(ofw_t ofw, phandle_t node)
 	    offset = fdt_next_node(fdtp, offset, &depth)) {
 		if (depth < 0)
 			return (0);
-		if (depth == 1) {
-			p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(p));
-			return (p);
-		}
+		if (depth == 1)
+			return (fdt_offset_phandle(offset));
 	}
 
 	return (0);
@@ -168,7 +190,6 @@ ofw_fdt_peer(ofw_t ofw, phandle_t node)
 static phandle_t
 ofw_fdt_child(ofw_t ofw, phandle_t node)
 {
-	phandle_t p;
 	int depth, offset;
 
 	offset = fdt_phandle_offset(node);
@@ -180,10 +201,8 @@ ofw_fdt_child(ofw_t ofw, phandle_t node)
 	    offset = fdt_next_node(fdtp, offset, &depth)) {
 		if (depth < 0)
 			return (0);
-		if (depth == 1) {
-			p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(p));
-			return (p);
-		}
+		if (depth == 1)
+			return (fdt_offset_phandle(offset));
 	}
 
 	return (0);
@@ -193,7 +212,6 @@ ofw_fdt_child(ofw_t ofw, phandle_t node)
 static phandle_t
 ofw_fdt_parent(ofw_t ofw, phandle_t node)
 {
-	phandle_t p;
 	int offset, paroffset;
 
 	offset = fdt_phandle_offset(node);
@@ -201,15 +219,13 @@ ofw_fdt_parent(ofw_t ofw, phandle_t node)
 		return (0);
 
 	paroffset = fdt_parent_offset(fdtp, offset);
-	p = (phandle_t)fdt_offset_ptr(fdtp, paroffset, sizeof(phandle_t));
-	return (p);
+	return (fdt_offset_phandle(paroffset));
 }
 
 /* Return the package handle that corresponds to an instance handle. */
 static phandle_t
 ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
-	phandle_t p;
 	int offset;
 
 	/*
@@ -223,8 +239,7 @@ ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 	if (offset < 0)
 		return (-1);
 
-	p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(phandle_t));
-	return (p);
+	return (fdt_offset_phandle(offset));
 }
 
 /* Get the length of a property of a package. */
@@ -343,7 +358,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 	if (prop == NULL)
 		return (-1);
 
-	offset = fdt_phandle_offset((phandle_t)prop);
+	offset = fdt_pointer_offset(prop);
 	rv = fdt_nextprop(offset, buf, size);
 	return (rv);
 }
@@ -374,14 +389,10 @@ ofw_fdt_canon(ofw_t ofw, const char *device, char *buf, size_t len)
 static phandle_t
 ofw_fdt_finddevice(ofw_t ofw, const char *device)
 {
-	phandle_t p;
 	int offset;
 
 	offset = fdt_path_offset(fdtp, device);
-
-	p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(p));
-
-	return (p);
+	return (fdt_offset_phandle(offset));
 }
 
 /* Return the fully qualified pathname corresponding to an instance. */
