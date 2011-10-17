@@ -4961,6 +4961,8 @@ ath_stoprecv(struct ath_softc *sc)
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_hal *ah = sc->sc_ah;
 
+	ATH_LOCK_ASSERT(sc);
+
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
