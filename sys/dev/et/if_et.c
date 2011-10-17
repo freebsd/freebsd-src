@@ -518,9 +518,7 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	mii_mediachg(mii);
-
-	return (0);
+	return (mii_mediachg(mii));
 }
 
 static int
