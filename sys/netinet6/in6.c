@@ -1805,14 +1805,17 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error != 0)
 			return (error);
 		ia->ia_flags |= IFA_ROUTE;
+		/*
+		 * Handle the case for ::1 .
+		 */
+		if (ifp->if_flags & IFF_LOOPBACK)
+			ia->ia_flags |= IFA_RTSELF;
 	}
 
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ia->ia_flags & IFA_RTSELF)
-	    && (V_nd6_useloopback
-		&& !(ifp->if_flags & IFF_LOOPBACK))) {
+	if (!(ia->ia_flags & IFA_RTSELF) && V_nd6_useloopback) {
 		error = ifa_add_loopback_route((struct ifaddr *)ia,
 				       (struct sockaddr *)&ia->ia_addr);
 		if (error == 0)
