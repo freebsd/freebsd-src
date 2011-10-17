@@ -4139,37 +4139,10 @@ rx_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
-	/*
-	 * XXX TODO!
-	 * It is very likely that we're unfortunately
-	 * racing with other places where ath_hal_intrset()
-	 * may be called. It may be that we do need to
-	 * add some more locking (eg the pcu lock from ath9k/
-	 * reference), or introduce some other way to cope
-	 * with this.
-	 */
 	if (resched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
-
-#if 0
-		/*
-		 * This re-links all of the descriptors together.
-		 * (Is it possible that somehow, some state/issue
-		 * is leaving us with badly linked descriptors?)
-		 * Is it possible that we're receiving another RXEOL
-		 * _during_ this function?
-		 */
-		if (ath_startrecv(sc) != 0) {
-			if_printf(ifp,
-			    "%s: couldn't restart RX after RXEOL; resetting\n",
-			    __func__);
-			ath_reset(ifp);
-			sc->sc_kickpcu = 0;
-			return;
-		}
-#endif
 
 		/* XXX rxslink? */
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -4178,10 +4151,9 @@ rx_next:
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 
-		ATH_LOCK(sc);
+		ATH_LOCK_ASSERT(sc);
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
-		ATH_UNLOCK(sc);
 	}
 
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
