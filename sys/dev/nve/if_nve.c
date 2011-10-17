@@ -1202,10 +1202,10 @@ nve_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NVE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
-	NVE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NVE_UNLOCK(sc);
 
 	return;
 }
