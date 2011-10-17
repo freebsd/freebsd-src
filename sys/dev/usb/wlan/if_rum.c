@@ -1418,7 +1418,7 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 		USETW(req.wIndex, reg + offset);
 		USETW(req.wLength, MIN(len - offset, 64));
 
-		error = rum_do_request(sc, &req, buf + offset);
+		error = rum_do_request(sc, &req, (char *)buf + offset);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "could not multi write MAC register: %s\n",
@@ -1426,6 +1426,8 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 			return (error);
 		}
 	}
+
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
