@@ -1168,6 +1168,22 @@ main(int argc, char *argv[])
 		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile");
 	}
 
+	/*
+	 * When path to the configuration file is relative, obtain full path,
+	 * so we can always find the file, even after daemonizing and changing
+	 * working directory to /.
+	 */
+	if (cfgpath[0] != '/') {
+		const char *newcfgpath;
+
+		newcfgpath = realpath(cfgpath, NULL);
+		if (newcfgpath == NULL) {
+			pjdlog_exit(EX_CONFIG,
+			    "Unable to obtain full path of %s", cfgpath);
+		}
+		cfgpath = newcfgpath;
+	}
+
 	cfg = yy_config_parse(cfgpath, true);
 	PJDLOG_ASSERT(cfg != NULL);
 
