@@ -476,10 +476,14 @@ hastd_reload(void)
 	struct hastd_config *newcfg;
 	struct hast_resource *nres, *cres, *tres;
 	struct hastd_listen *nlst, *clst;
+	struct pidfh *newpfh;
 	unsigned int nlisten;
 	uint8_t role;
+	pid_t otherpid;
 
 	pjdlog_info("Reloading configuration...");
+
+	newpfh = NULL;
 
 	newcfg = yy_config_parse(cfgpath, false);
 	if (newcfg == NULL)
@@ -524,6 +528,31 @@ hastd_reload(void)
 		pjdlog_error("No addresses to listen on.");
 		goto failed;
 	}
+	/*
+	 * Check if pidfile's path has changed.
+	 */
+	if (strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
+		newpfh = pidfile_open(newcfg->hc_pidfile, 0600, &otherpid);
+		if (newpfh == NULL) {
+			if (errno == EEXIST) {
+				pjdlog_errno(LOG_WARNING,
+				    "Another hastd is already running, pidfile: %s, pid: %jd.",
+				    newcfg->hc_pidfile, (intmax_t)otherpid);
+			} else {
+				pjdlog_errno(LOG_WARNING,
+				    "Unable to open or create pidfile %s",
+				    newcfg->hc_pidfile);
+			}
+		} else if (pidfile_write(newpfh) < 0) {
+			/* Write PID to a file. */
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to write PID to file %s",
+			    newcfg->hc_pidfile);
+		} else {
+			pjdlog_debug(1, "PID stored in %s.",
+			    newcfg->hc_pidfile);
+		}
+	}
 
 	/* No failures from now on. */
 
@@ -539,6 +568,13 @@ hastd_reload(void)
 		strlcpy(cfg->hc_controladdr, newcfg->hc_controladdr,
 		    sizeof(cfg->hc_controladdr));
 	}
+	/*
+	 * Switch to new pidfile.
+	 */
+	(void)pidfile_remove(pfh);
+	pfh = newpfh;
+	(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
+	    sizeof(cfg->hc_pidfile));
 	/*
 	 * Switch to new listen addresses. Close all that were removed.
 	 */
@@ -666,6 +702,8 @@ failed:
 		}
 		yy_config_free(newcfg);
 	}
+	if (newpfh != NULL)
+		(void)pidfile_remove(newpfh);
 	pjdlog_warning("Configuration not reloaded.");
 }
 
@@ -1123,7 +1161,7 @@ main(int argc, char *argv[])
 
 	foreground = false;
 	debuglevel = 0;
-	pidfile = HASTD_PIDFILE;
+	pidfile = NULL;
 
 	for (;;) {
 		int ch;
@@ -1157,17 +1195,6 @@ main(int argc, char *argv[])
 
 	g_gate_load();
 
-	pfh = pidfile_open(pidfile, 0600, &otherpid);
-	if (pfh == NULL) {
-		if (errno == EEXIST) {
-			pjdlog_exitx(EX_TEMPFAIL,
-			    "Another hastd is already running, pid: %jd.",
-			    (intmax_t)otherpid);
-		}
-		/* If we cannot create pidfile from other reasons, only warn. */
-		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile");
-	}
-
 	/*
 	 * When path to the configuration file is relative, obtain full path,
 	 * so we can always find the file, even after daemonizing and changing
@@ -1186,6 +1213,24 @@ main(int argc, char *argv[])
 
 	cfg = yy_config_parse(cfgpath, true);
 	PJDLOG_ASSERT(cfg != NULL);
+
+	if (pidfile != NULL) {
+		if (strlcpy(cfg->hc_pidfile, pidfile,
+		    sizeof(cfg->hc_pidfile)) >= sizeof(cfg->hc_pidfile)) {
+			pjdlog_exitx(EX_CONFIG, "Pidfile path is too long.");
+		}
+	}
+	pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST) {
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Another hastd is already running, pidfile: %s, pid: %jd.",
+			    cfg->hc_pidfile, (intmax_t)otherpid);
+		}
+		/* If we cannot create pidfile for other reasons, only warn. */
+		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile %s",
+		    cfg->hc_pidfile);
+	}
 
 	/*
 	 * Restore default actions for interesting signals in case parent
@@ -1234,7 +1279,10 @@ main(int argc, char *argv[])
 		/* Write PID to a file. */
 		if (pidfile_write(pfh) < 0) {
 			pjdlog_errno(LOG_WARNING,
-			    "Unable to write PID to a file");
+			    "Unable to write PID to a file %s",
+			    cfg->hc_pidfile);
+		} else {
+			pjdlog_debug(1, "PID stored in %s.", cfg->hc_pidfile);
 		}
 	}
 
