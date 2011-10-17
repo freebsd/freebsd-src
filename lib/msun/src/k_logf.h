@@ -12,8 +12,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __kernel_logf(x)
- * Return log(x) - (x-1) for x in ~[sqrt(2)/2, sqrt(2)].
+/*
+ * float version of __kernel_log(x). See k_log.c for details.
  */
 
 static const float
@@ -33,7 +33,7 @@ __kernel_logf(float x)
 
 	f = x-(float)1.0;
 	if((0x007fffff&(0x8000+ix))<0xc000) {	/* -2**-9 <= f < 2**-9 */
-	    if(f==0.0) return 0.0;
+	    if(f==0.0f) return 0.0f;
 	    return f*f*((float)0.33333333333333333*f-(float)0.5);
 	}
  	s = f/((float)2.0+f);

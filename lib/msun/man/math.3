@@ -198,7 +198,7 @@ yn	Bessel function of the second kind of the order n
 .El
 .Pp
 The routines
-in this section may not produce a result that is correctly rounded,
+in this section might not produce a result that is correctly rounded,
 so reproducible results cannot be guaranteed across platforms.
 For most of these functions, however, incorrect rounding occurs
 rarely, and then only in very-close-to-halfway cases.
@@ -234,9 +234,8 @@ Many of the routines to compute transcendental functions produce
 inaccurate results in other than the default rounding mode.
 .Pp
 On the i386 platform, trigonometric argument reduction is not
-performed accurately for very large arguments, resulting in errors
-greater than 1
-.Em ulp
+performed accurately for huge arguments, resulting in
+large errors
 for such arguments to
 .Fn cos ,
 .Fn sin ,

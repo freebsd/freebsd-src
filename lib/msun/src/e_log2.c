@@ -14,8 +14,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* log2(x)
- * Return the base 2 logarithm of x.
+/*
+ * Return the base 2 logarithm of x. See k_log.c for details on the algorithm.
  */
 
 #include "math.h"
@@ -24,8 +24,8 @@ __FBSDID("$FreeBSD$");
 
 static const double
 two54      =  1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
-ivln2hi    =  0x1.71547652000p+0,
-ivln2lo    =  0x1.705fc2eefa2p-33;
+ivln2hi    =  1.44269504072144627571e+00, /* 0x3ff71547, 0x65200000 */
+ivln2lo    =  1.67517131648865118353e-10; /* 0x3de705fc, 0x2eefa200 */
 
 static const double zero   =  0.0;
 
