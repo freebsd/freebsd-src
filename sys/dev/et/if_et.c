@@ -542,9 +542,11 @@ et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
 
+	ET_LOCK(sc);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	ET_UNLOCK(sc);
 }
 
 static void
