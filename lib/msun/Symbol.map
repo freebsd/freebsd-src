@@ -237,4 +237,16 @@ FBSD_1.3 {
 	fegetround;
 	fesetround;
 	fesetenv;
+	csin;
+	csinf;
+	csinh;
+	csinhf;
+	ccos;
+	ccosf;
+	ccosh;
+	ccoshf;
+	ctan;
+	ctanf;
+	ctanh;
+	ctanhf;
 };
