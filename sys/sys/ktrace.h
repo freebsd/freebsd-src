@@ -178,6 +178,15 @@ struct ktr_proc_ctor {
 #define KTR_PROCDTOR	11
 
 /*
+ * KTR_CAPFAIL - trace capability check failures
+ */
+#define KTR_CAPFAIL	12
+struct ktr_cap_fail {
+	cap_rights_t	cap_needed;
+	cap_rights_t	cap_held;
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -198,6 +207,7 @@ struct ktr_proc_ctor {
 #define KTRFAC_SYSCTL	(1<<KTR_SYSCTL)
 #define KTRFAC_PROCCTOR	(1<<KTR_PROCCTOR)
 #define KTRFAC_PROCDTOR	(1<<KTR_PROCDTOR)
+#define KTRFAC_CAPFAIL	(1<<KTR_CAPFAIL)
 
 /*
  * trace flags (also in p_traceflags)
@@ -220,6 +230,7 @@ void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
 void	ktrstruct(const char *, void *, size_t);
+void	ktrcapfail(cap_rights_t, cap_rights_t);
 #define ktrsockaddr(s) \
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \

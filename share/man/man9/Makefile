@@ -972,7 +972,8 @@ MLINKS+=printf.9 log.9 \
 MLINKS+=priv.9 priv_check.9 \
 	priv.9 priv_check_cred.9
 MLINKS+=psignal.9 gsignal.9 \
-	psignal.9 pgsignal.9
+	psignal.9 pgsignal.9 \
+	psignal.9 tdsignal.9
 MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \

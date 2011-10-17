@@ -154,6 +154,7 @@ pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
+rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
@@ -209,6 +210,8 @@ arved -> markus
 arved -> stefan
 
 asami -> obrien
+
+avilla -> rakuco
 
 bapt -> eadler
 bapt -> jlaffaye
@@ -327,6 +330,7 @@ marcus -> eik
 marcus -> jmallett
 
 makc -> bf
+makc -> rakuco
 
 mat -> thierry
 

@@ -4,15 +4,8 @@
 
 set -e
 
-if [ "x$1" = "x-s" ]; then
-	use_switch=1
-	shift
-else
-	use_switch=0
-fi
-
 if [ -z "$1" ]; then
-	echo "usage: sh $0 [-s] include-dir"
+	echo "usage: sh $0 include-dir"
 	exit 1
 fi
 
@@ -20,17 +13,27 @@ LC_ALL=C; export LC_ALL
 
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
-ioctl_includes=`
+ioctl_includes=$(
 	cd $1
-	find -H -s * -name '*.h' |
+	find -H -s * -name '*.h' | grep -v '.*disk.*\.h' | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
-		awk '{printf("#include <%s>\\\\n", $1)}'
-`
+		awk '{printf("#include <%s>\\n", $1)}'
+)
+
+: ${MACHINE=$(uname -m)}
+case "${MACHINE}" in
+*pc98*)
+	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
+	;;
+*)
+	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
+	;;
+esac
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	gcc -E -I$1 -dM -DCOMPAT_43TTY - |
-	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
+	awk -v ioctl_includes="$ioctl_includes" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
@@ -55,16 +58,15 @@ BEGIN {
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
 	print ""
-	print "const char *ioctlname(u_long val);"
+	print "void ioctlname(unsigned long val, int decimal);"
 	print ""
 	print ioctl_includes
 	print ""
-	print "const char *"
-	print "ioctlname(u_long val)"
+	print "void"
+	print "ioctlname(unsigned long val, int decimal)"
 	print "{"
+	print "\tconst char *str = NULL;"
 	print ""
-	if (use_switch)
-		print "\tswitch(val) {"
 }
 
 /^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO/ {
@@ -75,16 +77,20 @@ BEGIN {
 			break;
 	++i;
 	#
-	if (use_switch)
-		printf("\tcase %s:\n\t\treturn(\"%s\");\n", $i, $i);
-	else
-		printf("\tif (val ==  %s)\n\t\treturn(\"%s\");\n", $i, $i);
-
+	print("\t");
+	if (n++ > 0)
+		print("else ");
+	printf("if (val == %s)\n", $i);
+	printf("\t\tstr = \"%s\";\n", $i);
 }
 END {
-	if (use_switch)
-		print "\t}"
-	print "\n\treturn(NULL);"
+	print "\n"
+	print "\tif (str != NULL)\n"
+	print "\t\tprintf(\"%s\", str);\n"
+	print "\telse if (decimal)\n"
+	print "\t\tprintf(\"%lu\", val);\n"
+	print "\telse\n"
+	print "\t\tprintf(\"%#lx\", val);\n"
 	print "}"
 }
 '

@@ -606,6 +606,7 @@ vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
 vendor AZUREWAVE	0x13d3	AsureWave
+vendor INITIO		0x13fd	Initio Corporation
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
@@ -1886,6 +1887,10 @@ product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
 
 /* Imagination Technologies products */
 product IMAGINATION DBX1	0x2107	DBX1 DSP core
+
+/* Initio Corporation products */
+product INITIO DUMMY		0x0000	Dummy product
+product INITIO INIC_1610P	0x1e40	USB to SATA Bridge
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports

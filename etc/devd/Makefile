@@ -1,6 +1,14 @@
 # $FreeBSD$
 
-FILES=	asus.conf geom.conf uath.conf usb.conf
+FILES=	geom.conf uath.conf usb.conf
+
+.if ${MACHINE} == "powerpc"
+FILES+=	apple.conf
+.endif
+
+.if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
+FILES+=	asus.conf
+.endif
 
 NO_OBJ=
 FILESDIR=	/etc/devd

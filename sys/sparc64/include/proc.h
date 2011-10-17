@@ -61,7 +61,6 @@ struct syscall_args {
 	register_t args[8];
 	int narg;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
 
 #endif
 
