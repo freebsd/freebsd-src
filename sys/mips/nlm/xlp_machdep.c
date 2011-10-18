@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -85,11 +86,14 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/board.h>
 #include <mips/nlm/xlp.h>
 
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#endif
+
 /* 4KB static data aread to keep a copy of the bootload env until
    the dynamic kenv is setup */
 char boot1_env[4096];
-int xlp_argc;
-char **xlp_argv, **xlp_envp;
 
 uint64_t xlp_cpu_frequency;
 uint64_t xlp_io_base = MIPS_PHYS_TO_KSEG1(XLP_DEFAULT_IO_BASE);
@@ -147,8 +151,13 @@ xlp_parse_mmu_options(void)
 	uint32_t cpu_map = xlp_hw_thread_mask;
 	uint32_t core0_thr_mask, core_thr_mask;
 
-#ifndef SMP /* Uniprocessor! */
-	if (cpu_map != 0x1) {
+#ifdef SMP
+	if (cpu_map == 0)
+		cpu_map = 0xffffffff;
+#else /* Uniprocessor! */
+	if (cpu_map == 0)
+		cpu_map = 0x1;
+	else if (cpu_map != 0x1) {
 		printf("WARNING: Starting uniprocessor kernel on cpumask [0x%lx]!\n"
 		    "WARNING: Other CPUs will be unused.\n", (u_long)cpu_map);
 		cpu_map = 0x1;
@@ -219,44 +228,106 @@ unsupp:
 	return;
 }
 
-static void 
-xlp_set_boot_flags(void)
+/* Parse cmd line args as env - copied from ar71xx */
+static void
+xlp_parse_bootargs(char *cmdline)
 {
-	char *p;
+	char *n, *v;
 
-	p = getenv("bootflags");
-	if (p == NULL)
-		return;
-
-	for (; p && *p != '\0'; p++) {
-		switch (*p) {
-		case 'd':
-		case 'D':
-			boothowto |= RB_KDB;
-			break;
-		case 'g':
-		case 'G':
-			boothowto |= RB_GDB;
-			break;
-		case 'v':
-		case 'V':
-			boothowto |= RB_VERBOSE;
-			break;
-
-		case 's':	/* single-user (default, supported for sanity) */
-		case 'S':
-			boothowto |= RB_SINGLE;
-			break;
-
-		default:
-			printf("Unrecognized boot flag '%c'.\n", *p);
-			break;
+	while ((v = strsep(&cmdline, " \n")) != NULL) {
+		if (*v == '\0')
+			continue;
+		if (*v == '-') {
+			while (*v != '\0') {
+				v++;
+				switch (*v) {
+				case 'a': boothowto |= RB_ASKNAME; break;
+				case 'd': boothowto |= RB_KDB; break;
+				case 'g': boothowto |= RB_GDB; break;
+				case 's': boothowto |= RB_SINGLE; break;
+				case 'v': boothowto |= RB_VERBOSE; break;
+				}
+			}
+		} else {
+			n = strsep(&v, "=");
+			if (v == NULL)
+				setenv(n, "1");
+			else
+				setenv(n, v);
 		}
 	}
-
-	freeenv(p);
-	return;
 }
+
+#ifdef FDT
+static void
+xlp_bootargs_init(__register_t arg)
+{
+	char	buf[2048]; /* early stack is big enough */
+	void	*dtbp;
+	phandle_t chosen;
+	ihandle_t mask;
+
+	dtbp = (void *)arg;
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not passed as argument try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == NULL)
+		dtbp = &fdt_static_dtb;
+#endif
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+	if (OF_init((void *)dtbp) != 0)
+		while (1);
+	if (fdt_immr_addr(xlp_io_base) != 0)
+		while (1);
+	OF_interpret("perform-fixup", 0);
+
+	chosen = OF_finddevice("/chosen");
+	if (OF_getprop(chosen, "cpumask", &mask, sizeof(mask)) == 0)
+		xlp_hw_thread_mask = mask;
+
+	if (OF_getprop(chosen, "bootargs", buf, sizeof(buf)) == 0)
+		xlp_parse_bootargs(buf);
+}
+#else
+/*
+ * arg is a pointer to the environment block, the format of the block is
+ * a=xyz\0b=pqr\0\0
+ */
+static void
+xlp_bootargs_init(__register_t arg)
+{
+	char	buf[2048]; /* early stack is big enough */
+	char	*p, *v, *n;
+	uint32_t mask;
+
+	p = (void *)arg;
+	while (*p != '\0') {
+		strlcpy(buf, p, sizeof(buf));
+		v = buf;
+		n = strsep(&v, "=");
+		if (v == NULL)
+			setenv(n, "1");
+		else
+			setenv(n, v);
+		p += strlen(p) + 1;
+	}
+
+	/* CPU mask can be passed thru env */
+	if (getenv_uint("cpumask", &mask) != 0)
+		xlp_hw_thread_mask = mask;
+
+	/* command line argument */
+	v = getenv("bootargs");
+	if (v != NULL) {
+		strlcpy(buf, v, sizeof(buf));
+		xlp_parse_bootargs(buf);
+		freeenv(v);
+	}
+}
+#endif
 
 static void
 mips_init(void)
@@ -428,14 +499,6 @@ platform_start(__register_t a0 __unused,
     __register_t a2 __unused,
     __register_t a3 __unused)
 {
-	int i;
-
-	xlp_argc = 1;
-	/*
-	 * argv and envp are passed in array of 32bit pointers
-	 */
-	xlp_argv = NULL;
-	xlp_envp = NULL;
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -443,10 +506,8 @@ platform_start(__register_t a0 __unused,
 	/* initialize console so that we have printf */
 	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
 
-	/* For now */
-	boothowto |= RB_VERBOSE;
-	boothowto |= RB_SINGLE;
-	bootverbose++;
+	init_static_kenv(boot1_env, sizeof(boot1_env));
+	xlp_bootargs_init(a0);
 
 	/* clockrate used by delay, so initialize it here */
 	xlp_cpu_frequency = xlp_get_cpu_frequency();
@@ -456,32 +517,10 @@ platform_start(__register_t a0 __unused,
 	/* Init console please */
 	cninit();
 
-	/* Environment */
-	printf("Args %#jx %#jx %#jx %#jx:\n", (intmax_t)a0,
-	    (intmax_t)a1, (intmax_t)a2, (intmax_t)a3);
-	xlp_hw_thread_mask = a0;
-	init_static_kenv(boot1_env, sizeof(boot1_env));
-	printf("Environment (from %d args):\n", xlp_argc - 1);
-	if (xlp_argc == 1)
-		printf("\tNone\n");
-	for (i = 1; i < xlp_argc; i++) {
-		char *n, *arg;
-
-		arg = (char *)(intptr_t)xlp_argv[i];
-		printf("\t%s\n", arg);
-		n = strsep(&arg, "=");
-		if (arg == NULL)
-			setenv(n, "1");
-		else
-			setenv(n, arg);
-	}
-
 	/* Early core init and fixes for errata */
 	xlp_setup_core();
 
-	xlp_set_boot_flags();
 	xlp_parse_mmu_options();
-	
 	xlp_mem_init();
 
 	bcopy(XLPResetEntry, (void *)MIPS_RESET_EXC_VEC,
@@ -491,6 +530,7 @@ platform_start(__register_t a0 __unused,
 	 * MIPS generic init 
 	 */
 	mips_init();
+
 	/*
 	 * XLP specific post initialization
  	 * initialize other on chip stuff

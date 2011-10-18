@@ -1,9 +1,6 @@
-/*-
+/*
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
- *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,32 +23,45 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Netlogic Microsystems XLP8xx Device Tree Source.
+ *
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_FDT_H_
-#define _MACHINE_FDT_H_
+/dts-v1/;
 
-#include <machine/bus.h>
-#include <machine/intr_machdep.h>
+/ {
+	model = "netl,XLP8XX";
+	compatible = "XLP8XX";
+	#address-cells = <1>;
+	#size-cells = <1>;
 
-/* Max interrupt number */
-#if defined(CPU_RMI) || defined(CPU_NLM)
-#define FDT_INTR_MAX	XLR_MAX_INTR
-#else
-#define FDT_INTR_MAX	(NHARD_IRQS + NSOFT_IRQS)
-#endif
+	aliases {
+		serial0 = &serial0;
+	};
 
-/* Map phandle/intpin pair to global IRQ number */ 
-#define	FDT_MAP_IRQ(node, pin)	(pin)
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0>;
+		bus-frequency = <0>;
 
-/*
- * Bus space tag. XXX endianess info needs to be derived from the blob.
- */
-#if defined(CPU_RMI) || defined(CPU_NLM)
-#define fdtbus_bs_tag	rmi_uart_bus_space
-#else
-#define fdtbus_bs_tag	NULL
-#endif
+		serial0: serial@30100 {
+			compatible = "ns16550";
+			reg = <0x30100 0x200>;
+			reg-shift = <2>;
+			current-speed = <115200>;
+			clock-frequency = <133000000>;
+			interrupts = <9>;
+		};
 
-#endif /* _MACHINE_FDT_H_ */
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+		cpumask = <0xffffffff>;
+		bootargs = "-v"; 
+	};
+};

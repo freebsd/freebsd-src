@@ -93,3 +93,8 @@ device		pci
 
 # Network
 device		ether
+#
+# FDT support 
+options         FDT
+options         FDT_DTB_STATIC
+makeoptions     FDT_DTS_FILE=xlp-basic.dts
