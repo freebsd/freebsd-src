@@ -686,3 +686,87 @@ rmi_bus_space_barrier(void *tag __unused, bus_space_handle_t bsh __unused,
     bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
 }
+
+/*
+ * need a special bus space for this, because the Netlogic SoC
+ * UART allows only 32 bit access to its registers
+ */
+
+static u_int8_t
+rmi_uart_bus_space_read_1(void *tag, bus_space_handle_t handle,
+    bus_size_t offset)
+{
+	return (u_int8_t)(*(volatile u_int32_t *)(handle + offset));
+}
+
+static void
+rmi_uart_bus_space_write_1(void *tag, bus_space_handle_t handle,
+    bus_size_t offset, u_int8_t value)
+{
+	*(volatile u_int32_t *)(handle + offset) =  value;
+}
+
+static struct bus_space local_rmi_uart_bus_space = {
+	/* cookie */
+	(void *)0,
+
+	/* mapping/unmapping */
+	rmi_bus_space_map,
+	rmi_bus_space_unmap,
+	rmi_bus_space_subregion,
+
+	/* allocation/deallocation */
+	NULL,
+	NULL,
+
+	/* barrier */
+	rmi_bus_space_barrier,
+
+	/* read (single) */
+	rmi_uart_bus_space_read_1, NULL, NULL, NULL,
+
+	/* read multiple */
+	NULL, NULL, NULL, NULL,
+
+	/* read region */
+	NULL, NULL, NULL, NULL,
+
+	/* write (single) */
+	rmi_uart_bus_space_write_1, NULL, NULL, NULL,
+
+	/* write multiple */
+	NULL, NULL, NULL, NULL,
+
+	/* write region */
+	NULL, NULL, NULL, NULL,
+
+	/* set multiple */
+	NULL, NULL, NULL, NULL,
+
+	/* set region */
+	NULL, NULL, NULL, NULL,
+
+	/* copy */
+	NULL, NULL, NULL, NULL,
+
+	/* read (single) stream */
+	NULL, NULL, NULL, NULL,
+
+	/* read multiple stream */
+	NULL, NULL, NULL, NULL,
+
+	/* read region stream */
+	NULL, NULL, NULL, NULL,
+
+	/* write (single) stream */
+	NULL, NULL, NULL, NULL,
+
+	/* write multiple stream */
+	NULL, NULL, NULL, NULL,
+
+	/* write region stream */
+	NULL, NULL, NULL, NULL,
+};
+
+/* generic bus_space tag */
+bus_space_tag_t rmi_uart_bus_space = &local_rmi_uart_bus_space;
