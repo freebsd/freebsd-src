@@ -181,7 +181,14 @@ struct ktr_proc_ctor {
  * KTR_CAPFAIL - trace capability check failures
  */
 #define KTR_CAPFAIL	12
+enum ktr_cap_fail_type {
+	CAPFAIL_NOTCAPABLE,	/* insufficient capabilities in cap_check() */
+	CAPFAIL_INCREASE,	/* attempt to increase capabilities */
+	CAPFAIL_SYSCALL,	/* disallowed system call */
+	CAPFAIL_LOOKUP,		/* disallowed VFS lookup */
+};
 struct ktr_cap_fail {
+	enum ktr_cap_fail_type cap_type;
 	cap_rights_t	cap_needed;
 	cap_rights_t	cap_held;
 };
@@ -230,7 +237,7 @@ void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
 void	ktrstruct(const char *, void *, size_t);
-void	ktrcapfail(cap_rights_t, cap_rights_t);
+void	ktrcapfail(enum ktr_cap_fail_type, cap_rights_t, cap_rights_t);
 #define ktrsockaddr(s) \
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \

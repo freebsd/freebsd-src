@@ -1592,10 +1592,36 @@ invalid:
 void
 ktrcapfail(struct ktr_cap_fail *ktr)
 {
-	printf("needed ");
-	capname((intmax_t)ktr->cap_needed);
-	printf(" held ");
-	capname((intmax_t)ktr->cap_held);
+	switch (ktr->cap_type) {
+	case CAPFAIL_NOTCAPABLE:
+		/* operation on fd with insufficient capabilities */
+		printf("operation requires ");
+		capname((intmax_t)ktr->cap_needed);
+		printf(", process holds ");
+		capname((intmax_t)ktr->cap_held);
+		break;
+	case CAPFAIL_INCREASE:
+		/* requested more capabilities than fd already has */
+		printf("attempt to increase capabilities from ");
+		capname((intmax_t)ktr->cap_needed);
+		printf(" to ");
+		capname((intmax_t)ktr->cap_held);
+		break;
+	case CAPFAIL_SYSCALL:
+		/* called restricted syscall */
+		printf("disallowed system call");
+		break;
+	case CAPFAIL_LOOKUP:
+		/* used ".." in strict-relative mode */
+		printf("restricted VFS lookup");
+		break;
+	default:
+		printf("unknown capability failure: ");
+		capname((intmax_t)ktr->cap_needed);
+		printf(" ");
+		capname((intmax_t)ktr->cap_held);
+		break;
+	}
 }
 
 #if defined(__amd64__) || defined(__i386__)

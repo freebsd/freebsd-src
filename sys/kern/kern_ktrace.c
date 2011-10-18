@@ -772,7 +772,8 @@ ktrstruct(name, data, datalen)
 }
 
 void
-ktrcapfail(needed, held)
+ktrcapfail(type, needed, held)
+	enum ktr_cap_fail_type type;
 	cap_rights_t needed;
 	cap_rights_t held;
 {
@@ -784,6 +785,7 @@ ktrcapfail(needed, held)
 	if (req == NULL)
 		return;
 	kcf = &req->ktr_data.ktr_cap_fail;
+	kcf->cap_type = type;
 	kcf->cap_needed = needed;
 	kcf->cap_held = held;
 	ktr_enqueuerequest(td, req);
