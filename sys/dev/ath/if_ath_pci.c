@@ -73,10 +73,27 @@ struct ath_pci_softc {
 
 #define	BS_BAR	0x10
 #define	PCIR_RETRY_TIMEOUT	0x41
+#define	PCIR_CFG_PMCSR		0x48
 
 static void
 ath_pci_setup(device_t dev)
 {
+	/* Override the system latency timer */
+	pci_write_config(dev, PCIR_LATTIMER, 0x80, 1);
+
+	/* If a PCI NIC, force wakeup */
+#ifdef	ATH_PCI_WAKEUP_WAR
+	/* XXX TODO: don't do this for non-PCI (ie, PCIe, Cardbus!) */
+	if (1) {
+		uint16_t pmcsr;
+		pmcsr = pci_read_config(dev, PCIR_CFG_PMCSR, 2);
+		pmcsr |= 3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+		pmcsr &= ~3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+	}
+#endif
+
 	/*
 	 * Disable retry timeout to keep PCI Tx retries from
 	 * interfering with C3 CPU state.
