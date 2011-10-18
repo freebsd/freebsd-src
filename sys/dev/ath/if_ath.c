@@ -131,6 +131,7 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static void	ath_start(struct ifnet *);
+static void	ath_start_locked(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -1887,7 +1888,7 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
-	ath_start(ifp);			/* restart xmit */
+	ath_start_locked(ifp);			/* restart xmit */
 	return 0;
 }
 
@@ -2027,11 +2028,24 @@ static void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
+
+	/* TODO: Ensure this isn't locked first! */
+	ATH_LOCK(sc);
+	ath_start_locked(ifp);
+	ATH_UNLOCK(sc);
+}
+
+static void
+ath_start_locked(struct ifnet *ifp)
+{
+	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
 	ath_bufhead frags;
 	int tx = 0;
+
+	ATH_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
@@ -4164,7 +4178,7 @@ rx_next:
 		ieee80211_ff_age_all(ic, 100);
 #endif
 		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_start(ifp);
+			ath_start_locked(ifp);
 	}
 #undef PA2DESC
 }
@@ -4660,7 +4674,6 @@ ath_tx_proc_q0(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
 
 	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0], 1))
 		/* XXX why is lastrx updated in tx code? */
@@ -4673,7 +4686,8 @@ ath_tx_proc_q0(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start(ifp);
+	ath_start_locked(ifp);
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -4691,7 +4705,6 @@ ath_tx_proc_q0123(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
@@ -4716,7 +4729,8 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start(ifp);
+	ath_start_locked(ifp);
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -4733,7 +4747,6 @@ ath_tx_proc(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
@@ -4751,7 +4764,8 @@ ath_tx_proc(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start(ifp);
+	ath_start_locked(ifp);
+	ATH_UNLOCK(sc);
 }
 #undef	TXQACTIVE
 
