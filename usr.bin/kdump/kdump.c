@@ -1603,9 +1603,9 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 	case CAPFAIL_INCREASE:
 		/* requested more capabilities than fd already has */
 		printf("attempt to increase capabilities from ");
-		capname((intmax_t)ktr->cap_needed);
-		printf(" to ");
 		capname((intmax_t)ktr->cap_held);
+		printf(" to ");
+		capname((intmax_t)ktr->cap_needed);
 		break;
 	case CAPFAIL_SYSCALL:
 		/* called restricted syscall */
