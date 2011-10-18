@@ -240,8 +240,13 @@ portal_open(ap)
 	 * This may require access to a global namespace (e.g. an IP address);
 	 * disallow it entirely, as we do open(2).
 	 */
-	if (IN_CAPABILITY_MODE(td))
+	if (IN_CAPABILITY_MODE(td)) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_CAPFAIL))
+			ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+#endif
 		return (ECAPMODE);
+	}
 #endif
 
 	/*
