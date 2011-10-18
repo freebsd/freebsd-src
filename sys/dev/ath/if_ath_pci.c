@@ -199,6 +199,11 @@ ath_pci_detach(device_t dev)
 	/* check if device was removed */
 	sc->sc_invalid = !bus_child_present(dev);
 
+	/*
+	 * Do a config read to clear pre-existing pci error status.
+	 */
+	(void) pci_read_config(dev, PCIR_COMMAND, 4);
+
 	ath_detach(sc);
 
 	bus_generic_detach(dev);
