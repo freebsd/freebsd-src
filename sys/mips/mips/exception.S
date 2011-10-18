@@ -557,6 +557,33 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set	at
 END(MipsUserGenException)
 
+	.set	push
+	.set	noat
+NON_LEAF(mips_wait, CALLFRAME_SIZ, ra)
+	PTR_SUBU        sp, sp, CALLFRAME_SIZ
+	.mask   0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S   ra, CALLFRAME_RA(sp)		# save RA
+	mfc0	t0, MIPS_COP_0_STATUS
+	xori	t1, t0, MIPS_SR_INT_IE
+	mtc0	t1, MIPS_COP_0_STATUS
+	COP0_SYNC
+	jal	sched_runnable
+	nop
+	REG_L   ra, CALLFRAME_RA(sp)
+	mfc0	t0, MIPS_COP_0_STATUS
+	ori	t1, t0, MIPS_SR_INT_IE
+	.align 4
+GLOBAL(MipsWaitStart)			# this is 16 byte aligned
+	mtc0	t1, MIPS_COP_0_STATUS
+	bnez	v0, MipsWaitEnd
+	nop
+	wait
+GLOBAL(MipsWaitEnd)			# MipsWaitStart + 16
+	jr	ra
+	PTR_ADDU        sp, sp, CALLFRAME_SIZ
+END(mips_wait)
+	.set	pop
+
 /*----------------------------------------------------------------------------
  *
  * MipsKernIntr --
@@ -578,6 +605,19 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
+
+/*
+ * Check for getting interrupts just before wait
+ */
+	MFC0	k0, MIPS_COP_0_EXC_PC
+	ori	k0, 0xf
+	xori	k0, 0xf			# 16 byte align
+	PTR_LA	k1, MipsWaitStart
+	bne	k0, k1, 1f
+	nop
+	PTR_ADDU k1, 16			# skip over wait
+	MTC0	k1, MIPS_COP_0_EXC_PC
+1:
 /*
  *  Save CPU state, building 'frame'.
  */
