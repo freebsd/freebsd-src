@@ -1850,8 +1850,10 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
+	int i;
 
 	ATH_LOCK_ASSERT(sc);
+	sc->sc_in_reset++;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
@@ -1888,7 +1890,17 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
-	ath_start_locked(ifp);			/* restart xmit */
+	/* Restart TX if needed */
+	if (reset_type == ATH_RESET_NOLOSS)
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				ath_tx_restart_hw(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+
+	sc->sc_in_reset--;
+	ath_start_locked(ifp);			/* restart netif xmit */
 	return 0;
 }
 
@@ -4939,9 +4951,21 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	ATH_LOCK_ASSERT(sc);
+
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		/*
+		 * If the reset type is ATH_RESET_NOLOSS, don't
+		 * reschedule any further TXQ activity.
+		 *
+		 * XXX TODO: suspend TX operations during reset.
+		 */
+		if (ATH_TXQ_SETUP(sc, i)) {
+			if (reset_type == ATH_RESET_NOLOSS)
+				ath_tx_processq(sc, &sc->sc_txq[i], 0);
+			else
+				ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		}
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
@@ -4955,8 +4979,10 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		}
 	}
 #endif /* ATH_DEBUG */
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sc->sc_wd_timer = 0;
+	if (reset_type != ATH_RESET_NOLOSS) {
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		sc->sc_wd_timer = 0;
+	}
 }
 
 /*

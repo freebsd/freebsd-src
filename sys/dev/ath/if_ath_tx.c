@@ -477,10 +477,35 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	txq->axq_link = &bf->bf_lastds->ds_link;
 }
 
+/*
+ * Restart TX DMA for the given TXQ.
+ *
+ * This must be called whether the queue is empty or not.
+ */
+void
+ath_tx_restart_hw(struct ath_softc *sc, struct ath_txq *txq)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_buf *bf;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/* This is always going to be cleared, empty or not */
+	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
+
+	bf = TAILQ_FIRST(&txq->axq_q);
+	if (bf == NULL)
+		return;
+
+	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+	txq->axq_link = &bf->bf_lastds->ds_link;
+	ath_hal_txstart(ah, txq->axq_qnum);
+}
 
 /*
  * Hand-off packet to a hardware queue.
+ *
+ * Just queue the frame if the hardware is in a reset state.
  */
 static void
 ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
@@ -500,6 +525,28 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 	KASSERT(txq->axq_qnum != ATH_TXQ_SWQ,
 	     ("ath_tx_handoff_hw called for mcast queue"));
+
+	ATH_LOCK_ASSERT(sc);
+
+	if (sc->sc_in_reset) {
+		DPRINTF(sc, ATH_DEBUG_RESET,
+		    "%s: called with sc_in_reset != 0\n",
+		    __func__);
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+		    "%s: queued: TXDP[%u] = %p (%p) depth %d\n",
+		    __func__, txq->axq_qnum,
+		    (caddr_t)bf->bf_daddr, bf->bf_desc,
+		    txq->axq_depth);
+		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth++;
+		/*
+		 * There's no need to update axq_link; the hardware
+		 * is in reset and once the reset is complete, any
+		 * non-empty queues will simply have DMA restarted.
+		 */
+		return;
+	}
 
 	/* For now, so not to generate whitespace diffs */
 	if (1) {
