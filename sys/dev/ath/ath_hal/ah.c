@@ -659,6 +659,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_LONG_RXDESC_TSF:		/* 32 bit TSF in RX descriptor? */
 		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
+		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}

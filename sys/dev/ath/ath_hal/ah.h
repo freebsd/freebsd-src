@@ -149,6 +149,7 @@ typedef enum {
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
 	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
+	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 } HAL_CAPABILITY_TYPE;
 
 /* 
