@@ -1857,11 +1857,6 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_stoptxdma(sc);		/* stop TX side */
 	ath_draintxq(sc, reset_type);	/* drain TXQs if needed */
-	/*
-	 * XXX Don't flush if ATH_RESET_NOLOSS;but we have to first
-	 * XXX need to ensure this doesn't race with an outstanding
-	 * XXX taskqueue call.
-	 */
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_rx_proc(sc, 0);		/* process RX'ed frames in the queue */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
