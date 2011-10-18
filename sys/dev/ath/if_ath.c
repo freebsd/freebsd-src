@@ -39,6 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_ath.h"
+/*
+ * This is needed for register operations which are performed
+ * by the driver - eg, calls to ath_hal_gettsf32().
+ */
+#include "opt_ah.h"
 #include "opt_wlan.h"
 
 #include <sys/param.h>
