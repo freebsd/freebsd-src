@@ -218,7 +218,7 @@ cap_check(struct capability *c, cap_rights_t rights)
 	if ((c->cap_rights | rights) != c->cap_rights) {
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_CAPFAIL))
-			ktrcapfail(rights, c->cap_rights);
+			ktrcapfail(CAPFAIL_NOTCAPABLE, rights, c->cap_rights);
 #endif
 		return (ENOTCAPABLE);
 	}
@@ -314,8 +314,14 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	 */
 	if (fp->f_type == DTYPE_CAPABILITY) {
 		cp_old = fp->f_data;
-		if ((cp_old->cap_rights | rights) != cp_old->cap_rights)
+		if ((cp_old->cap_rights | rights) != cp_old->cap_rights) {
+#ifdef KTRACE
+			if (KTRPOINT(curthread, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_INCREASE,
+				    rights, cp_old->cap_rights);
+#endif
 			return (ENOTCAPABLE);
+		}
 	}
 
 	/*
