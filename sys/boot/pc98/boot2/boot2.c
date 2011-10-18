@@ -77,7 +77,8 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
 			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG	"/boot.config"
+#define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
@@ -379,7 +380,8 @@ main(void)
 
     autoboot = 1;
 
-    if ((ino = lookup(PATH_CONFIG)))
+    if ((ino = lookup(PATH_CONFIG)) ||
+        (ino = lookup(PATH_DOTCONFIG)))
 	fsread(ino, cmd, sizeof(cmd));
 
     if (*cmd) {
