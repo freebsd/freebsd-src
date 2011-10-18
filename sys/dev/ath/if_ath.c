@@ -182,6 +182,7 @@ static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
+static int	ath_stoptxdma(struct ath_softc *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *);
 static int	ath_startrecv(struct ath_softc *);
@@ -1138,7 +1139,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * the vap state by any frames pending on the tx queues.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
+		ath_stoptxdma(sc);		/* stop TX DMA */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);	/* Drain TX queues */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc);		/* stop recv side */
 		ath_rx_proc(sc, 0);
@@ -1164,7 +1166,11 @@ ath_vap_delete(struct ieee80211vap *vap)
 	 * call!)
 	 */
 
-	ath_draintxq(sc, ATH_RESET_DEFAULT);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ATH_LOCK(sc);
+		ath_draintxq(sc, ATH_RESET_DEFAULT);
+		ATH_UNLOCK(sc);
+	}
 
 	ATH_LOCK(sc);
 	/*
@@ -1795,7 +1801,8 @@ ath_stop_locked(struct ifnet *ifp)
 			}
 			ath_hal_intrset(ah, 0);
 		}
-		ath_draintxq(sc, ATH_RESET_DEFAULT);
+		ath_stoptxdma(sc);			/* stop TX dma */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);	/* drain TX queues */
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
 			ath_rx_proc(sc, 0);
@@ -1848,7 +1855,8 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
-	ath_draintxq(sc, reset_type);	/* stop xmit side */
+	ath_stoptxdma(sc);		/* stop TX side */
+	ath_draintxq(sc, reset_type);	/* drain TXQs if needed */
 	/*
 	 * XXX Don't flush if ATH_RESET_NOLOSS;but we have to first
 	 * XXX need to ensure this doesn't race with an outstanding
@@ -4883,6 +4891,36 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 }
 
 /*
+ * Stop TX DMA.
+ *
+ * The sc lock must be held.
+ */
+static int
+ath_stoptxdma(struct ath_softc *sc)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	int i;
+
+	ATH_LOCK_ASSERT(sc);
+
+	/* XXX return value */
+	if (!sc->sc_invalid)
+		return 0;
+
+	/* don't touch the hardware if marked invalid */
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
+	    __func__, sc->sc_bhalq,
+	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
+	    NULL);
+	(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_tx_stopdma(sc, &sc->sc_txq[i]);
+
+	return 1;
+}
+
+/*
  * Drain the transmit queues and reclaim resources.
  */
 static void
@@ -4892,18 +4930,6 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	/* XXX return value */
-	if (!sc->sc_invalid) {
-		/* don't touch the hardware if marked invalid */
-		DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
-		    __func__, sc->sc_bhalq,
-		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
-		    NULL);
-		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-			if (ATH_TXQ_SETUP(sc, i))
-				ath_tx_stopdma(sc, &sc->sc_txq[i]);
-	}
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
@@ -5044,6 +5070,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * the relevant bits of the h/w.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
+		ath_stoptxdma(sc);		/* stop TX side */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		ath_rx_proc(sc, 0);		/* handle RX'ed frames */
