@@ -1896,6 +1896,7 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 			if (ATH_TXQ_SETUP(sc, i)) {
 				ATH_TXQ_LOCK(&sc->sc_txq[i]);
 				ath_tx_restart_hw(sc, &sc->sc_txq[i]);
+				ath_txq_sched(sc, &sc->sc_txq[i]);
 				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
 			}
 
