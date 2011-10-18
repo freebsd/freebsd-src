@@ -303,7 +303,7 @@ xlp_bootargs_init(__register_t arg)
 	char	*p, *v, *n;
 	uint32_t mask;
 
-	p = (void *)arg;
+	p = (void *)(intptr_t)arg;
 	while (*p != '\0') {
 		strlcpy(buf, p, sizeof(buf));
 		v = buf;
