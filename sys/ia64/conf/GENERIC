@@ -175,7 +175,7 @@ device		uvscom		# USB serial support for DDI pocket's PHS
 
 # FireWire support
 device		fwip		# IP over FireWire (RFC 2734,3146)
-device		sbp		# SCSI over FireWire (need scbus & da)
+#device		sbp		# SCSI over FireWire (need scbus & da)
 
 # Various (pseudo) devices
 device		ether		# Ethernet support
