@@ -110,15 +110,15 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
 
 	switch (mode) {
 	case APIC_DELMODE_INIT:		
-		assert(dest != 0);
-		assert(dest < guest_ncpus);
-
 		/*
 		 * Ignore legacy de-assert INITs in x2apic mode
 		 */
 		if ((val & APIC_LEVEL_MASK) == APIC_LEVEL_DEASSERT) {
 			break;
 		}
+
+		assert(dest != 0);
+		assert(dest < guest_ncpus);
 		assert(cpu_b[dest] == CPU_S_INIT);
 
 		/*
