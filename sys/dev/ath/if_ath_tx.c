@@ -1663,6 +1663,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ath_buf *bf;
 	int error;
 
+	ATH_LOCK(sc);
+
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
@@ -1705,6 +1707,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	ifp->if_opackets++;
 	sc->sc_stats.ast_tx_raw++;
 
+	ATH_UNLOCK(sc);
+
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
@@ -1713,6 +1717,7 @@ bad2:
 bad:
 	ifp->if_oerrors++;
 	sc->sc_stats.ast_tx_raw_fail++;
+	ATH_UNLOCK(sc);
 	ieee80211_free_node(ni);
 	return error;
 }
