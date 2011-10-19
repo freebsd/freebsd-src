@@ -714,6 +714,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	int pool_flags;
 	int error;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
 #else
@@ -1469,7 +1471,9 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			if (ISSET(st->state_flags, PFSTATE_NOSYNC))
 				continue;
 
+			PF_LOCK();
 			pfsync_update_state_req(st);
+			PF_UNLOCK();
 		}
 	}
 
@@ -2625,6 +2629,8 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	size_t nlen = sizeof(struct pfsync_upd_req);
 	int s;
 
+	PF_LOCK_ASSERT();
+
 	/*
 	 * this code does nothing to prevent multiple update requests for the
 	 * same state being generated.
@@ -2669,6 +2675,8 @@ pfsync_update_state_req(struct pf_state *st)
 #else
 	struct pfsync_softc *sc = pfsyncif;
 #endif
+
+	PF_LOCK_ASSERT();
 
 	if (sc == NULL)
 		panic("pfsync_update_state_req: nonexistant instance");
@@ -2801,6 +2809,8 @@ pfsync_q_ins(struct pf_state *st, int q)
 	size_t nlen = pfsync_qs[q].len;
 	int s;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
 		("%s: st->sync_state == PFSYNC_S_NONE", __FUNCTION__));
@@ -2825,13 +2835,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 	if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 #endif
 		s = splnet();
-#ifdef __FreeBSD__
-		PF_LOCK();
-#endif
 		pfsync_sendout();
-#ifdef __FreeBSD__
-		PF_UNLOCK();
-#endif
 		splx(s);
 
 		nlen = sizeof(struct pfsync_subheader) + pfsync_qs[q].len;
@@ -2888,7 +2892,9 @@ pfsync_update_tdb(struct tdb *t, int output)
 
 		if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 			s = splnet();
+			PF_LOCK();
 			pfsync_sendout();
+			PF_UNLOCK();
 			splx(s);
 
 			nlen = sizeof(struct pfsync_subheader) +
@@ -2991,8 +2997,10 @@ pfsync_bulk_start(void)
 #endif
 		printf("pfsync: received bulk update request\n");
 
+	PF_LOCK();
 	pfsync_bulk_status(PFSYNC_BUS_START);
 	pfsync_bulk_update(sc);
+	PF_UNLOCK();
 }
 
 void
@@ -3003,10 +3011,11 @@ pfsync_bulk_update(void *arg)
 	int i = 0;
 	int s;
 
+	PF_LOCK_ASSERT();
+
 	s = splsoftnet();
 #ifdef __FreeBSD__
 	CURVNET_SET(sc->sc_ifp->if_vnet);
-	PF_LOCK();
 #endif
 	do {
 		if (st->sync_state == PFSYNC_S_NONE &&
@@ -3043,7 +3052,6 @@ pfsync_bulk_update(void *arg)
 
 out:
 #ifdef __FreeBSD__
-	PF_UNLOCK();
 	CURVNET_RESTORE();
 #endif
 	splx(s);
@@ -3062,6 +3070,8 @@ pfsync_bulk_status(u_int8_t status)
 #else
 	struct pfsync_softc *sc = pfsyncif;
 #endif
+
+	PF_LOCK_ASSERT();
 
 	bzero(&r, sizeof(r));
 
@@ -3096,7 +3106,9 @@ pfsync_bulk_fail(void *arg)
 #else
 		timeout_add_sec(&sc->sc_bulkfail_tmo, 5);
 #endif
+		PF_LOCK();
 		pfsync_request_update(0, 0);
+		PF_UNLOCK();
 	} else {
 		/* Pretend like the transfer was ok */
 		sc->sc_ureq_sent = 0;
@@ -3139,19 +3151,15 @@ pfsync_send_plus(void *plus, size_t pluslen)
 #endif
 	int s;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	if (sc->sc_len + pluslen > sc->sc_ifp->if_mtu) {
 #else
 	if (sc->sc_len + pluslen > sc->sc_if.if_mtu) {
 #endif
 		s = splnet();
-#ifdef __FreeBSD__
-		PF_LOCK();
-#endif
 		pfsync_sendout();
-#ifdef __FreeBSD__
-		PF_UNLOCK();
-#endif
 		splx(s);
 	}
 
@@ -3159,13 +3167,7 @@ pfsync_send_plus(void *plus, size_t pluslen)
 	sc->sc_len += (sc->sc_pluslen = pluslen);
 
 	s = splnet();
-#ifdef __FreeBSD__
-	PF_LOCK();
-#endif
 	pfsync_sendout();
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
 	splx(s);
 }
 
