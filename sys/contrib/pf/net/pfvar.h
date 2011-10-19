@@ -251,19 +251,10 @@ VNET_DECLARE(struct mtx,	 pf_task_mtx);
 	mtx_unlock(&V_pf_task_mtx);			\
 } while(0)
 #else
-extern struct mtx pf_task_mtx;
-
-#define	PF_ASSERT(h)	mtx_assert(&pf_task_mtx, (h))
-
-#define	PF_LOCK()	do {				\
-	PF_ASSERT(MA_NOTOWNED);				\
-	mtx_lock(&pf_task_mtx);				\
-} while(0)
-#define	PF_UNLOCK()	do {				\
-	PF_ASSERT(MA_OWNED);				\
-	mtx_unlock(&pf_task_mtx);			\
-} while(0)
-#endif
+#define	PF_ASSERT(h)
+#define	PF_LOCK()
+#define	PF_UNLOCK()
+#endif /* __FreeBSD__ */
 
 #define	PF_COPYIN(uaddr, kaddr, len, r)		do {	\
 	PF_UNLOCK();					\
