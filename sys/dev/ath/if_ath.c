@@ -131,7 +131,6 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static void	ath_start(struct ifnet *);
-static void	ath_start_locked(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -183,7 +182,6 @@ static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
-static int	ath_stoptxdma(struct ath_softc *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *);
 static int	ath_startrecv(struct ath_softc *);
@@ -1133,19 +1131,15 @@ ath_vap_delete(struct ieee80211vap *vap)
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ATH_LOCK(sc);
 		/*
 		 * Quiesce the hardware while we remove the vap.  In
 		 * particular we need to reclaim all references to
 		 * the vap state by any frames pending on the tx queues.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_stoptxdma(sc);		/* stop TX DMA */
-		ath_draintxq(sc, ATH_RESET_DEFAULT);	/* Drain TX queues */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc);		/* stop recv side */
-		ath_rx_proc(sc, 0);
-		ATH_UNLOCK(sc);
 	}
 
 	ieee80211_vap_detach(vap);
@@ -1167,11 +1161,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	 * call!)
 	 */
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ATH_LOCK(sc);
-		ath_draintxq(sc, ATH_RESET_DEFAULT);
-		ATH_UNLOCK(sc);
-	}
+	ath_draintxq(sc, ATH_RESET_DEFAULT);
 
 	ATH_LOCK(sc);
 	/*
@@ -1488,6 +1478,7 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
 
 			/*
 			 * Grab all the currently set bits in the HAL txq bitmap
@@ -1499,7 +1490,6 @@ ath_intr(void *arg)
 			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
 			sc->sc_txq_active |= txqs;
 			ATH_UNLOCK(sc);
-			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
@@ -1802,11 +1792,9 @@ ath_stop_locked(struct ifnet *ifp)
 			}
 			ath_hal_intrset(ah, 0);
 		}
-		ath_stoptxdma(sc);			/* stop TX dma */
-		ath_draintxq(sc, ATH_RESET_DEFAULT);	/* drain TX queues */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
-			ath_rx_proc(sc, 0);
 			ath_hal_phydisable(ah);
 		} else
 			sc->sc_rxlink = NULL;
@@ -1850,18 +1838,19 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
-	int i;
 
 	ATH_LOCK_ASSERT(sc);
-	sc->sc_in_reset++;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
-	ath_stoptxdma(sc);		/* stop TX side */
-	ath_draintxq(sc, reset_type);	/* drain TXQs if needed */
+	ath_draintxq(sc, reset_type);	/* stop xmit side */
+	/*
+	 * XXX Don't flush if ATH_RESET_NOLOSS;but we have to first
+	 * XXX need to ensure this doesn't race with an outstanding
+	 * XXX taskqueue call.
+	 */
 	ath_stoprecv(sc);		/* stop recv side */
-	ath_rx_proc(sc, 0);		/* process RX'ed frames in the queue */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
@@ -1890,18 +1879,7 @@ ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
-	/* Restart TX if needed */
-	if (reset_type == ATH_RESET_NOLOSS)
-		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-			if (ATH_TXQ_SETUP(sc, i)) {
-				ATH_TXQ_LOCK(&sc->sc_txq[i]);
-				ath_tx_restart_hw(sc, &sc->sc_txq[i]);
-				ath_txq_sched(sc, &sc->sc_txq[i]);
-				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
-			}
-
-	sc->sc_in_reset--;
-	ath_start_locked(ifp);			/* restart netif xmit */
+	ath_start(ifp);			/* restart xmit */
 	return 0;
 }
 
@@ -2041,24 +2019,11 @@ static void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
-
-	/* TODO: Ensure this isn't locked first! */
-	ATH_LOCK(sc);
-	ath_start_locked(ifp);
-	ATH_UNLOCK(sc);
-}
-
-static void
-ath_start_locked(struct ifnet *ifp)
-{
-	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
 	ath_bufhead frags;
 	int tx = 0;
-
-	ATH_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
@@ -3756,11 +3721,9 @@ ath_rx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 
-	ATH_LOCK(sc);
 	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ath_rx_proc(sc, 1);
-	ATH_UNLOCK(sc);
 }
 
 static void
@@ -3782,8 +3745,6 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
-
-	ATH_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
 	ngood = 0;
@@ -4169,10 +4130,37 @@ rx_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
+	/*
+	 * XXX TODO!
+	 * It is very likely that we're unfortunately
+	 * racing with other places where ath_hal_intrset()
+	 * may be called. It may be that we do need to
+	 * add some more locking (eg the pcu lock from ath9k/
+	 * reference), or introduce some other way to cope
+	 * with this.
+	 */
 	if (resched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
+
+#if 0
+		/*
+		 * This re-links all of the descriptors together.
+		 * (Is it possible that somehow, some state/issue
+		 * is leaving us with badly linked descriptors?)
+		 * Is it possible that we're receiving another RXEOL
+		 * _during_ this function?
+		 */
+		if (ath_startrecv(sc) != 0) {
+			if_printf(ifp,
+			    "%s: couldn't restart RX after RXEOL; resetting\n",
+			    __func__);
+			ath_reset(ifp);
+			sc->sc_kickpcu = 0;
+			return;
+		}
+#endif
 
 		/* XXX rxslink? */
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -4181,9 +4169,10 @@ rx_next:
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 
-		ATH_LOCK_ASSERT(sc);
+		ATH_LOCK(sc);
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
+		ATH_UNLOCK(sc);
 	}
 
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
@@ -4191,7 +4180,7 @@ rx_next:
 		ieee80211_ff_age_all(ic, 100);
 #endif
 		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_start_locked(ifp);
+			ath_start(ifp);
 	}
 #undef PA2DESC
 }
@@ -4535,7 +4524,7 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
  * particular task.
  */
 static int
-ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *last;
@@ -4662,11 +4651,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 #endif
 
 	/* Kick the TXQ scheduler */
-	if (dosched) {
-		ATH_TXQ_LOCK(txq);
-		ath_txq_sched(sc, txq);
-		ATH_TXQ_UNLOCK(txq);
-	}
+	ATH_TXQ_LOCK(txq);
+	ath_txq_sched(sc, txq);
+	ATH_TXQ_UNLOCK(txq);
 
 	return nacked;
 }
@@ -4687,20 +4674,20 @@ ath_tx_proc_q0(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
 
-	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0], 1))
+	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
 		/* XXX why is lastrx updated in tx code? */
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
-		ath_tx_processq(sc, sc->sc_cabq, 1);
+		ath_tx_processq(sc, sc->sc_cabq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start_locked(ifp);
-	ATH_UNLOCK(sc);
+	ath_start(ifp);
 }
 
 /*
@@ -4718,21 +4705,22 @@ ath_tx_proc_q0123(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
 	 */
 	nacked = 0;
 	if (TXQACTIVE(txqs, 0))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[0], 1);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[0]);
 	if (TXQACTIVE(txqs, 1))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[1], 1);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[1]);
 	if (TXQACTIVE(txqs, 2))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[2], 1);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[2]);
 	if (TXQACTIVE(txqs, 3))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[3], 1);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[3]);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
-		ath_tx_processq(sc, sc->sc_cabq, 1);
+		ath_tx_processq(sc, sc->sc_cabq);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
@@ -4742,8 +4730,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start_locked(ifp);
-	ATH_UNLOCK(sc);
+	ath_start(ifp);
 }
 
 /*
@@ -4760,6 +4747,7 @@ ath_tx_proc(void *arg, int npending)
 	ATH_LOCK(sc);
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
+	ATH_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
@@ -4767,7 +4755,7 @@ ath_tx_proc(void *arg, int npending)
 	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i) && TXQACTIVE(txqs, i))
-			nacked += ath_tx_processq(sc, &sc->sc_txq[i], 1);
+			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
@@ -4777,8 +4765,7 @@ ath_tx_proc(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
-	ath_start_locked(ifp);
-	ATH_UNLOCK(sc);
+	ath_start(ifp);
 }
 #undef	TXQACTIVE
 
@@ -4913,36 +4900,6 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 }
 
 /*
- * Stop TX DMA.
- *
- * The sc lock must be held.
- */
-static int
-ath_stoptxdma(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	int i;
-
-	ATH_LOCK_ASSERT(sc);
-
-	/* XXX return value */
-	if (!sc->sc_invalid)
-		return 0;
-
-	/* don't touch the hardware if marked invalid */
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
-	    __func__, sc->sc_bhalq,
-	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
-	    NULL);
-	(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_stopdma(sc, &sc->sc_txq[i]);
-
-	return 1;
-}
-
-/*
  * Drain the transmit queues and reclaim resources.
  */
 static void
@@ -4952,21 +4909,21 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	ATH_LOCK_ASSERT(sc);
-
+	/* XXX return value */
+	if (!sc->sc_invalid) {
+		/* don't touch the hardware if marked invalid */
+		DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
+		    __func__, sc->sc_bhalq,
+		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
+		    NULL);
+		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
+			if (ATH_TXQ_SETUP(sc, i))
+				ath_tx_stopdma(sc, &sc->sc_txq[i]);
+	}
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		/*
-		 * If the reset type is ATH_RESET_NOLOSS, don't
-		 * reschedule any further TXQ activity.
-		 *
-		 * XXX TODO: suspend TX operations during reset.
-		 */
-		if (ATH_TXQ_SETUP(sc, i)) {
-			if (reset_type == ATH_RESET_NOLOSS)
-				ath_tx_processq(sc, &sc->sc_txq[i], 0);
-			else
-				ath_tx_draintxq(sc, &sc->sc_txq[i]);
-		}
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_tx_draintxq(sc, &sc->sc_txq[i]);
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
@@ -4980,10 +4937,8 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		}
 	}
 #endif /* ATH_DEBUG */
-	if (reset_type != ATH_RESET_NOLOSS) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		sc->sc_wd_timer = 0;
-	}
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	sc->sc_wd_timer = 0;
 }
 
 /*
@@ -4996,8 +4951,6 @@ ath_stoprecv(struct ath_softc *sc)
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_hal *ah = sc->sc_ah;
-
-	ATH_LOCK_ASSERT(sc);
 
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
@@ -5106,10 +5059,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * the relevant bits of the h/w.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_stoptxdma(sc);		/* stop TX side */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
-		ath_rx_proc(sc, 0);		/* handle RX'ed frames */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",

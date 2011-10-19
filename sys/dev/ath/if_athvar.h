@@ -435,22 +435,6 @@ struct ath_softc {
 	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
 	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
 
-	/*
-	 * These are also currently protected by the ATH_LOCK and
-	 * aren't atomics.
-	 *
-	 * These indicate whether any of the below tasks are currently
-	 * running. If, for example, we are in the middle of a reset
-	 * call then TX/RX must be suspended until it completes.
-	 */
-	uint32_t		sc_in_reset;	/* whether in a reset */
-#ifdef	notyet
-	uint32_t		sc_in_intr;	/* whether in ath_intr */
-	uint32_t		sc_in_rxtask;	/* whether in rxtask */
-	uint32_t		sc_in_xmit;	/* whether in ath_start / ath_raw_xmit */
-	uint32_t		sc_in_txtask;	/* whether in ath_tx_proc* */
-#endif
-
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
