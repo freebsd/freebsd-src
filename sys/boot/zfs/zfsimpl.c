@@ -988,7 +988,8 @@ zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
 			break;
 	if (!vdev || !vdev->v_read)
 		return (EIO);
-	if (vdev->v_read(vdev, NULL, &zio_gb, offset, SPA_GANGBLOCKSIZE))
+
+	if (vdev->v_read(vdev, bp, &zio_gb, offset, SPA_GANGBLOCKSIZE))
 		return (EIO);
 
 	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
