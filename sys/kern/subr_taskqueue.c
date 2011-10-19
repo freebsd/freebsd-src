@@ -397,6 +397,22 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 	TQ_UNLOCK(queue);
 }
 
+/*
+ * XXX this is currently completely and utterly undocumented.
+ */
+void
+taskqueue_drain_all(struct taskqueue *queue)
+{
+
+	if (!queue->tq_spin)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+
+	TQ_LOCK(queue);
+	while (! STAILQ_EMPTY(&queue->tq_queue))
+		TQ_SLEEP(queue, queue, &queue->tq_mutex, PWAIT, "-", 0);
+	TQ_UNLOCK(queue);
+}
+
 void
 taskqueue_drain_timeout(struct taskqueue *queue,
     struct timeout_task *timeout_task)
