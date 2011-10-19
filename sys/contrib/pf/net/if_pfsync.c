@@ -3380,7 +3380,7 @@ vnet_pfsync_uninit(const void *unused)
 }
 
 /* Define startup order. */
-#define	PFSYNC_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
+#define	PFSYNC_SYSINIT_ORDER	SI_SUB_PROTO_IF
 #define	PFSYNC_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
 #define	PFSYNC_VNET_ORDER	(PFSYNC_MODEVENT_ORDER + 2) /* Later still. */
 
@@ -3430,7 +3430,7 @@ static moduledata_t pfsync_mod = {
 
 #define PFSYNC_MODVER 1
 
-DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(pfsync, PFSYNC_MODVER);
 MODULE_DEPEND(pfsync, pf, PF_MODVER, PF_MODVER, PF_MODVER);
 #endif /* __FreeBSD__ */
