@@ -543,8 +543,6 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 			vdev->v_state = VDEV_STATE_DEGRADED;
 		else if (isnt_present)
 			vdev->v_state = VDEV_STATE_CANT_OPEN;
-		else
-			vdev->v_state = VDEV_STATE_HEALTHY;
 	}
 
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
@@ -912,6 +910,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	if (vdev) {
 		vdev->v_phys_read = read;
 		vdev->v_read_priv = read_priv;
+		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
