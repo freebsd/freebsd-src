@@ -414,8 +414,8 @@ main(int argc, char *argv[])
 		fts_options |= FTS_WHITEOUT;
 #endif
 
-	/* If -l or -s, figure out block size. */
-	if (f_longform || f_size) {
+	/* If -i, -l or -s, figure out block size. */
+	if (f_inode || f_longform || f_size) {
 		if (f_kblocks)
 			blocksize = 2;
 		else {
