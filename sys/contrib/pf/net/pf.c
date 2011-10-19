@@ -1626,8 +1626,8 @@ pf_free_state(struct pf_state *cur)
 
 #if NPFSYNC > 0
 #ifdef __FreeBSD__
-	if (pfsync_state_in_use_ptr != NULL)
-		pfsync_state_in_use_ptr(cur);
+	if (pfsync_state_in_use_ptr != NULL &&
+		pfsync_state_in_use_ptr(cur))
 #else
 	if (pfsync_state_in_use(cur))
 #endif
