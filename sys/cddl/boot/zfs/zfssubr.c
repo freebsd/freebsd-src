@@ -1628,7 +1628,9 @@ reconstruct:
 
 	n = 0;
 	for (c = 0; c < rm->rm_cols; c++) {
-		if (rm->rm_col[c].rc_tried)
+		rc = &rm->rm_col[c];
+
+		if (rc->rc_tried)
 			continue;
 
 		cvd = vdev_child(vd, rc->rc_devidx);
