@@ -347,7 +347,7 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
-	if (bp && zio_checksum_error(bp, buf, offset))
+	if (bp && zio_checksum_verify(bp, buf, offset, psize))
 		return (EIO);
 
 	return (0);
