@@ -1215,14 +1215,9 @@ static void
 vdev_raidz_map_free(raidz_map_t *rm)
 {
 	int c;
-	size_t size;
 
 	for (c = rm->rm_firstdatacol - 1; c >= 0; c--)
 		zfs_free(rm->rm_col[c].rc_data, rm->rm_col[c].rc_size);
-
-	size = 0;
-	for (c = rm->rm_firstdatacol; c < rm->rm_cols; c++)
-		size += rm->rm_col[c].rc_size;
 
 	zfs_free(rm, offsetof(raidz_map_t, rm_col[rm->rm_scols]));
 }
