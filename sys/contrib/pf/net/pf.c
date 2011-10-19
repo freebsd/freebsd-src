@@ -1342,42 +1342,42 @@ pf_purge_thread(void *v)
 		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
 
 #ifdef __FreeBSD__
-	sx_slock(&V_pf_consistency_lock);
-	PF_LOCK();
-	locked = 0;
-
-	if (V_pf_end_threads) {
-		PF_UNLOCK();
-		sx_sunlock(&V_pf_consistency_lock);
-		sx_xlock(&V_pf_consistency_lock);
+		sx_slock(&V_pf_consistency_lock);
 		PF_LOCK();
+		locked = 0;
 
-		pf_purge_expired_states(V_pf_status.states, 1);
-		pf_purge_expired_fragments();
-		pf_purge_expired_src_nodes(1);
-		V_pf_end_threads++;
+		if (V_pf_end_threads) {
+			PF_UNLOCK();
+			sx_sunlock(&V_pf_consistency_lock);
+			sx_xlock(&V_pf_consistency_lock);
+			PF_LOCK();
 
-		sx_xunlock(&V_pf_consistency_lock);
-		PF_UNLOCK();
-		wakeup(pf_purge_thread);
-		kproc_exit(0);
-	}
+			pf_purge_expired_states(V_pf_status.states, 1);
+			pf_purge_expired_fragments();
+			pf_purge_expired_src_nodes(1);
+			V_pf_end_threads++;
+
+			sx_xunlock(&V_pf_consistency_lock);
+			PF_UNLOCK();
+			wakeup(pf_purge_thread);
+			kproc_exit(0);
+		}
 #endif
 		s = splsoftnet();
 
 		/* process a fraction of the state table every second */
 #ifdef __FreeBSD__
-	if (!pf_purge_expired_states(1 + (V_pf_status.states /
-	    V_pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
-		PF_UNLOCK();
-		sx_sunlock(&V_pf_consistency_lock);
-		sx_xlock(&V_pf_consistency_lock);
-		PF_LOCK();
-		locked = 1;
+		if (!pf_purge_expired_states(1 + (V_pf_status.states /
+		    V_pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
+			PF_UNLOCK();
+			sx_sunlock(&V_pf_consistency_lock);
+			sx_xlock(&V_pf_consistency_lock);
+			PF_LOCK();
+			locked = 1;
 
-		pf_purge_expired_states(1 + (V_pf_status.states /
-		    V_pf_default_rule.timeout[PFTM_INTERVAL]), 1);
-	}
+			pf_purge_expired_states(1 + (V_pf_status.states /
+			    V_pf_default_rule.timeout[PFTM_INTERVAL]), 1);
+		}
 #else
 		pf_purge_expired_states(1 + (pf_status.states
 		    / pf_default_rule.timeout[PFTM_INTERVAL]));
