@@ -2143,7 +2143,7 @@ pfsync_sendout(void)
 	int q, count = 0;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_NET);
 #endif
@@ -2378,7 +2378,7 @@ pfsync_insert_state(struct pf_state *st)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2430,7 +2430,7 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	struct pfsync_deferral *pd;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2477,7 +2477,7 @@ pfsync_undefer(struct pfsync_deferral *pd, int drop)
 	int s;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2560,7 +2560,7 @@ pfsync_update_state(struct pf_state *st)
 	int sync = 0;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2710,7 +2710,7 @@ pfsync_delete_state(struct pf_state *st)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2771,7 +2771,7 @@ pfsync_clear_states(u_int32_t creatorid, const char *ifname)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
