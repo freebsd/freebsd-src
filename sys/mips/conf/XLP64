@@ -97,6 +97,6 @@ device		pci
 device		ether
 
 # FDT support 
-options         FDT
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=xlp-basic.dts
+#options         FDT
+#options         FDT_DTB_STATIC
+#makeoptions     FDT_DTS_FILE=xlp-basic.dts
