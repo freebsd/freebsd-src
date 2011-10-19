@@ -522,6 +522,12 @@ fetch(char *URL, const char *path)
 				    "does not match remote", path);
 				goto failure_keep;
 			}
+		} else if (url->offset > sb.st_size) {
+			/* gap between what we asked for and what we got */
+			warnx("%s: gap in resume mode", URL);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		} else if (us.size != -1) {
 			if (us.size == sb.st_size)
 				/* nothing to do */
@@ -534,7 +540,7 @@ fetch(char *URL, const char *path)
 				goto failure;
 			}
 			/* we got it, open local file */
-			if ((of = fopen(path, "a")) == NULL) {
+			if ((of = fopen(path, "r+")) == NULL) {
 				warn("%s: fopen()", path);
 				goto failure;
 			}
@@ -551,7 +557,15 @@ fetch(char *URL, const char *path)
 				fclose(of);
 				of = NULL;
 				sb = nsb;
+				/* picked up again later */
 			}
+		}
+		/* seek to where we left off */
+		if (of != NULL && fseeko(of, url->offset, SEEK_SET) != 0) {
+			warn("%s: fseeko()", path);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		}
 	} else if (m_flag && sb.st_size != -1) {
 		/* mirror mode, local file exists */
