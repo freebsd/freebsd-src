@@ -4259,7 +4259,7 @@ hook_pf(void)
 	struct pfil_head *pfh_inet6;
 #endif
 
-	PF_ASSERT(MA_NOTOWNED);
+	PF_UNLOCK_ASSERT();
 
 	if (V_pf_pfil_hooked)
 		return (0); 
@@ -4300,7 +4300,7 @@ dehook_pf(void)
 	struct pfil_head *pfh_inet6;
 #endif
 
-	PF_ASSERT(MA_NOTOWNED);
+	PF_UNLOCK_ASSERT();
 
 	if (V_pf_pfil_hooked == 0)
 		return (0);

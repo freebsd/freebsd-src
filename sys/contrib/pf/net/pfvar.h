@@ -240,18 +240,20 @@ struct pfi_dynaddr {
 VNET_DECLARE(struct mtx,	 pf_task_mtx);
 #define	V_pf_task_mtx		 VNET(pf_task_mtx)
 
-#define	PF_ASSERT(h)	mtx_assert(&V_pf_task_mtx, (h))
+#define	PF_LOCK_ASSERT()	mtx_assert(&V_pf_task_mtx, MA_OWNED)
+#define	PF_UNLOCK_ASSERT()	mtx_assert(&V_pf_task_mtx, MA_NOTOWNED)
 
 #define	PF_LOCK()	do {				\
-	PF_ASSERT(MA_NOTOWNED);				\
+	PF_UNLOCK_ASSERT();				\
 	mtx_lock(&V_pf_task_mtx);			\
 } while(0)
 #define	PF_UNLOCK()	do {				\
-	PF_ASSERT(MA_OWNED);				\
+	PF_LOCK_ASSERT();				\
 	mtx_unlock(&V_pf_task_mtx);			\
 } while(0)
 #else
-#define	PF_ASSERT(h)
+#define	PF_LOCK_ASSERT()
+#define	PF_UNLOCK_ASSERT()
 #define	PF_LOCK()
 #define	PF_UNLOCK()
 #endif /* __FreeBSD__ */
