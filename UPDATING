@@ -9,11 +9,6 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW ON IA64:
-	For ia64 the INVARIANTS and INVARIANT_SUPPORT kernel options
-	were left in the GENERIC kernel because the kernel does not
-	work properly without them.
-
 20110913:
 	This commit modifies vfs_register() so that it uses a hash
 	calculation to set vfc_typenum, which is enabled by default.
