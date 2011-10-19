@@ -242,8 +242,9 @@ protected:
     if (Release == 0U)
       Release = 8U;
 
-    Builder.defineMacro("__FreeBSD__", Twine(Release));
-    Builder.defineMacro("__FreeBSD_cc_version", Twine(Release * 100000U + 1U));
+    Builder.defineMacro("__FreeBSD__", llvm::Twine(Release));
+    Builder.defineMacro("__FreeBSD_cc_version",
+                        llvm::Twine(Release * 100000U + 1U));
     Builder.defineMacro("__KPRINTF_ATTRIBUTE__");
     DefineStd(Builder, "unix", Opts);
     Builder.defineMacro("__ELF__");
