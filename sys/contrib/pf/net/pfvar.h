@@ -237,19 +237,18 @@ struct pfi_dynaddr {
 		uma_zdestroy(var)
 
 #ifdef __FreeBSD__
-VNET_DECLARE(struct mtx,	 pf_task_mtx);
-#define	V_pf_task_mtx		 VNET(pf_task_mtx)
+extern struct mtx pf_task_mtx;
 
-#define	PF_LOCK_ASSERT()	mtx_assert(&V_pf_task_mtx, MA_OWNED)
-#define	PF_UNLOCK_ASSERT()	mtx_assert(&V_pf_task_mtx, MA_NOTOWNED)
+#define	PF_LOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_OWNED)
+#define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_NOTOWNED)
 
 #define	PF_LOCK()	do {				\
 	PF_UNLOCK_ASSERT();				\
-	mtx_lock(&V_pf_task_mtx);			\
+	mtx_lock(&pf_task_mtx);				\
 } while(0)
 #define	PF_UNLOCK()	do {				\
 	PF_LOCK_ASSERT();				\
-	mtx_unlock(&V_pf_task_mtx);			\
+	mtx_unlock(&pf_task_mtx);			\
 } while(0)
 #else
 #define	PF_LOCK_ASSERT()
@@ -269,9 +268,6 @@ VNET_DECLARE(struct mtx,	 pf_task_mtx);
 	r = copyout((kaddr), (uaddr), (len));		\
 	PF_LOCK();					\
 } while(0)
-
-extern void init_pf_mutex(void);
-extern void destroy_pf_mutex(void);
 
 #define	PF_MODVER	1
 #define	PFLOG_MODVER	1
