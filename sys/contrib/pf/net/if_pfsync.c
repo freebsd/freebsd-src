@@ -1558,7 +1558,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_unlink_state(st);
 	}
 #ifdef __FreeBSD__
-	PF_LOCK();
+	PF_UNLOCK();
 #endif
 	splx(s);
 
