@@ -776,10 +776,11 @@ disk_open(struct disk_devdesc *dev)
 
 #ifdef LOADER_GPT_SUPPORT
 	rc = disk_opengpt(dev);
+	if (rc == 0)
+		return (0);
 #endif
 #ifdef LOADER_MBR_SUPPORT
-	if (rc)
-		rc = disk_openmbr(dev);
+	rc = disk_openmbr(dev);
 #endif
 
 	return (rc);
