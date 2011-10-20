@@ -4497,7 +4497,7 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
  * particular task.
  */
 static int
-ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
+ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *last;
@@ -4624,9 +4624,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 #endif
 
 	/* Kick the TXQ scheduler */
-	ATH_TXQ_LOCK(txq);
-	ath_txq_sched(sc, txq);
-	ATH_TXQ_UNLOCK(txq);
+	if (dosched) {
+		ATH_TXQ_LOCK(txq);
+		ath_txq_sched(sc, txq);
+		ATH_TXQ_UNLOCK(txq);
+	}
 
 	return nacked;
 }
@@ -4649,11 +4651,11 @@ ath_tx_proc_q0(void *arg, int npending)
 	sc->sc_txq_active &= ~txqs;
 	ATH_UNLOCK(sc);
 
-	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
+	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0], 1))
 		/* XXX why is lastrx updated in tx code? */
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
-		ath_tx_processq(sc, sc->sc_cabq);
+		ath_tx_processq(sc, sc->sc_cabq, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 
@@ -4685,15 +4687,15 @@ ath_tx_proc_q0123(void *arg, int npending)
 	 */
 	nacked = 0;
 	if (TXQACTIVE(txqs, 0))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[0]);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[0], 1);
 	if (TXQACTIVE(txqs, 1))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[1]);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[1], 1);
 	if (TXQACTIVE(txqs, 2))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[2]);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[2], 1);
 	if (TXQACTIVE(txqs, 3))
-		nacked += ath_tx_processq(sc, &sc->sc_txq[3]);
+		nacked += ath_tx_processq(sc, &sc->sc_txq[3], 1);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
-		ath_tx_processq(sc, sc->sc_cabq);
+		ath_tx_processq(sc, sc->sc_cabq, 1);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
@@ -4728,7 +4730,7 @@ ath_tx_proc(void *arg, int npending)
 	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i) && TXQACTIVE(txqs, i))
-			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
+			nacked += ath_tx_processq(sc, &sc->sc_txq[i], 1);
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
