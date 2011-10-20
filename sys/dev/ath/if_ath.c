@@ -5011,6 +5011,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
 	enum ieee80211_phymode mode;
 
+	ATH_LOCK(sc);
 	/*
 	 * Change channels and update the h/w rate map
 	 * if we're switching; e.g. 11a to 11b/g.
@@ -5019,6 +5020,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	sc->sc_curchan = chan;
+	ATH_UNLOCK(sc);
 }
 
 /*
