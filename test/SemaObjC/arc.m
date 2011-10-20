@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-nonfragile-abi -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -fblocks -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -fblocks -verify %s
 
 typedef unsigned long NSUInteger;
 
@@ -41,10 +41,10 @@ __weak __strong id x; // expected-error {{the type '__strong id' already has ret
 // rdar://8843638
 
 @interface I
-- (id)retain;
-- (id)autorelease;
-- (oneway void)release;
-- (NSUInteger)retainCount;
+- (id)retain; // expected-note {{method declared here}}
+- (id)autorelease; // expected-note {{method declared here}}
+- (oneway void)release; // expected-note {{method declared here}}
+- (NSUInteger)retainCount; // expected-note {{method declared here}}
 @end
 
 @implementation I
@@ -55,10 +55,14 @@ __weak __strong id x; // expected-error {{the type '__strong id' already has ret
 @end
 
 @implementation I(CAT)
-- (id)retain{return 0;} // expected-error {{ARC forbids implementation of 'retain'}}
-- (id)autorelease{return 0;} // expected-error {{ARC forbids implementation of 'autorelease'}}
-- (oneway void)release{} // expected-error {{ARC forbids implementation of 'release'}}
-- (NSUInteger)retainCount{ return 0; } // expected-error {{ARC forbids implementation of 'retainCount'}}
+- (id)retain{return 0;} // expected-error {{ARC forbids implementation of 'retain'}} \
+                        // expected-warning {{category is implementing a method which will also be implemented by its primary class}}
+- (id)autorelease{return 0;} // expected-error {{ARC forbids implementation of 'autorelease'}} \
+                         // expected-warning {{category is implementing a method which will also be implemented by its primary class}}
+- (oneway void)release{} // expected-error {{ARC forbids implementation of 'release'}} \
+                          // expected-warning {{category is implementing a method which will also be implemented by its primary class}}
+- (NSUInteger)retainCount{ return 0; } // expected-error {{ARC forbids implementation of 'retainCount'}} \
+                          // expected-warning {{category is implementing a method which will also be implemented by its primary class}}
 @end
 
 // rdar://8861761
@@ -483,19 +487,29 @@ void test26(id y) {
 @end
 
 // rdar://9525555
-@interface  Test27
-@property id x; // expected-warning {{no 'assign', 'retain', or 'copy' attribute is specified - 'assign' is assumed}} \
-                // expected-warning {{default property attribute 'assign' not appropriate for non-gc object}} \
-                // expected-note {{declared here}}
+@interface  Test27 {
+  __weak id _myProp1;
+  id myProp2;
+}
+@property id x;
 @property (readonly) id ro; // expected-note {{declared here}}
 @property (readonly) id custom_ro;
 @property int y;
+
+@property (readonly) id myProp1;
+@property (readonly) id myProp2;
+@property (readonly) __strong id myProp3;
 @end
 
 @implementation Test27
-@synthesize x; // expected-error {{ARC forbids synthesizing a property of an Objective-C object with unspecified storage attribute}}
-@synthesize ro; // expected-error {{ARC forbids synthesizing a property of an Objective-C object with unspecified storage attribute}}
+@synthesize x;
+@synthesize ro; // expected-error {{ARC forbids synthesizing a property of an Objective-C object with unspecified ownership or storage attribute}}
 @synthesize y;
+
+@synthesize myProp1 = _myProp1;
+@synthesize myProp2;
+@synthesize myProp3;
+
 -(id)custom_ro { return 0; }
 @end
 
@@ -626,3 +640,48 @@ void test36(int first, ...) {
   id obj = __builtin_va_arg(arglist, id);
   __builtin_va_end(arglist);
 }
+
+@class Test37;
+void test37(Test37 *c) {
+  for (id y in c) { // expected-error {{collection expression type 'Test37' is a forward declaration}}
+    (void) y;
+  }
+
+  (void)sizeof(id*); // no error.
+}
+
+// rdar://problem/9887979
+@interface Test38
+@property int value;
+@end
+void test38() {
+  extern Test38 *test38_helper(void);
+  switch (test38_helper().value) {
+  case 0:
+  case 1:
+    ;
+  }
+}
+
+// rdar://10186536
+@class NSColor;
+void _NSCalc(NSColor* color, NSColor* bezelColors[]) __attribute__((unavailable("not available in automatic reference counting mode")));
+
+void _NSCalcBeze(NSColor* color, NSColor* bezelColors[]); // expected-error {{must explicitly describe intended ownership of an object array parameter}}
+
+// rdar://9970739
+@interface RestaurantTableViewCell
+- (void) restaurantLocation;
+@end
+
+@interface Radar9970739
+- (void) Meth;
+@end
+
+@implementation Radar9970739
+- (void) Meth { 
+  RestaurantTableViewCell *cell;
+  [cell restaurantLocatoin]; // expected-error {{no visible @interface for 'RestaurantTableViewCell' declares the selector 'restaurantLocatoin'}}
+}
+@end
+

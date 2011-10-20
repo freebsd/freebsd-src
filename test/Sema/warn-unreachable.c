@@ -80,8 +80,8 @@ void test2() {
     -           // expected-warning {{will never be executed}}
       halt();
   case 8:
-    i
-      +=        // expected-warning {{will never be executed}}
+    i           // expected-warning {{will never be executed}}
+      +=
       halt();
   case 9:
     halt()
@@ -93,8 +93,8 @@ void test2() {
   case 11: {
     int a[5];
     live(),
-      a[halt()
-        ];      // expected-warning {{will never be executed}}
+      a[halt()  // expected-warning {{will never be executed}}
+        ];
   }
   }
 }
@@ -113,4 +113,16 @@ int test_enum_cases(enum Cases C) {
     }
   }  
 }
+
+// Handle unreachable code triggered by macro expansions.
+void __myassert_rtn(const char *, const char *, int, const char *) __attribute__((__noreturn__));
+
+#define myassert(e) \
+    (__builtin_expect(!(e), 0) ? __myassert_rtn(__func__, __FILE__, __LINE__, #e) : (void)0)
+
+void test_assert() {
+  myassert(0 && "unreachable");
+  return; // no-warning
+}
+
 

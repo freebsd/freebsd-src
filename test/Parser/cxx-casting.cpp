@@ -67,3 +67,26 @@ void test2(char x, struct B * b) {
   test1::A LCC B> e; // expected-error{{found '<::' after a template name which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
   (void)static_cast LCC c>(&x); // expected-error{{found '<::' after a static_cast which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
 }
+
+                               // This note comes from "::D[:F> A5;"
+template <class T> class D {}; // expected-note{{template is declared here}}
+template <class T> void E() {};
+class F {};
+
+void test3() {
+  ::D<::F> A1; // expected-error{{found '<::' after a template name which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
+  D<::F> A2; // expected-error{{found '<::' after a template name which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
+  ::E<::F>(); // expected-error{{found '<::' after a template name which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
+  E<::F>(); // expected-error{{found '<::' after a template name which forms the digraph '<:' (aka '[') and a ':', did you mean '< ::'?}}
+
+  ::D< ::F> A3;
+  D< ::F> A4;
+  ::E< ::F>();
+  E< ::F>();
+
+  // Make sure that parser doesn't expand '[:' to '< ::'
+  ::D[:F> A5; // expected-error {{cannot refer to class template 'D' without a template argument list}} \
+              // expected-error {{expected expression}} \
+              // expected-error {{expected ']'}} \
+              // expected-note {{to match this '['}}
+}

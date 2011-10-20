@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-fragile-abi -emit-llvm -o - %s | FileCheck %s
 
 // rdar://problem/9158302
 // This should not use a memmove_collectable in non-GC mode.
@@ -24,3 +24,18 @@ namespace test0 {
   }
 }
 
+
+// rdar://9780211
+@protocol bork
+@end
+
+namespace test1 {
+template<typename T> struct RetainPtr {
+  RetainPtr() {}
+};
+
+
+RetainPtr<id<bork> > x;
+RetainPtr<id> y;
+
+}

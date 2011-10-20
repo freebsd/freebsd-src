@@ -158,9 +158,25 @@ int parse_remapped_files(int argc, const char **argv, int start_arg,
 /* Pretty-printing.                                                           */
 /******************************************************************************/
 
+static void PrintRange(CXSourceRange R, const char *str) {
+  CXFile begin_file, end_file;
+  unsigned begin_line, begin_column, end_line, end_column;
+
+  clang_getSpellingLocation(clang_getRangeStart(R),
+                            &begin_file, &begin_line, &begin_column, 0);
+  clang_getSpellingLocation(clang_getRangeEnd(R),
+                            &end_file, &end_line, &end_column, 0);
+  if (!begin_file || !end_file)
+    return;
+
+  printf(" %s=", str);
+  PrintExtent(stdout, begin_line, begin_column, end_line, end_column);
+}
+
 int want_display_name = 0;
 
-static void PrintCursor(CXTranslationUnit TU, CXCursor Cursor) {
+static void PrintCursor(CXCursor Cursor) {
+  CXTranslationUnit TU = clang_Cursor_getTranslationUnit(Cursor);
   if (clang_isInvalid(Cursor.kind)) {
     CXString ks = clang_getCursorKindSpelling(Cursor.kind);
     printf("Invalid Cursor => %s", clang_getCString(ks));
@@ -173,6 +189,9 @@ static void PrintCursor(CXTranslationUnit TU, CXCursor Cursor) {
     CXCursor SpecializationOf;
     CXCursor *overridden;
     unsigned num_overridden;
+    unsigned RefNameRangeNr;
+    CXSourceRange CursorExtent;
+    CXSourceRange RefNameRange;
 
     ks = clang_getCursorKindSpelling(Cursor.kind);
     string = want_display_name? clang_getCursorDisplayName(Cursor) 
@@ -218,6 +237,10 @@ static void PrintCursor(CXTranslationUnit TU, CXCursor Cursor) {
         
       case CXAvailability_NotAvailable:
         printf(" (unavailable)");
+        break;
+
+      case CXAvailability_NotAccessible:
+        printf(" (inaccessible)");
         break;
     }
     
@@ -287,6 +310,26 @@ static void PrintCursor(CXTranslationUnit TU, CXCursor Cursor) {
       
       if (clang_isFileMultipleIncludeGuarded(TU, File))
         printf("  [multi-include guarded]");
+    }
+    
+    CursorExtent = clang_getCursorExtent(Cursor);
+    RefNameRange = clang_getCursorReferenceNameRange(Cursor, 
+                                                   CXNameRange_WantQualifier
+                                                 | CXNameRange_WantSinglePiece
+                                                 | CXNameRange_WantTemplateArgs,
+                                                     0);
+    if (!clang_equalRanges(CursorExtent, RefNameRange))
+      PrintRange(RefNameRange, "SingleRefName");
+    
+    for (RefNameRangeNr = 0; 1; RefNameRangeNr++) {
+      RefNameRange = clang_getCursorReferenceNameRange(Cursor, 
+                                                   CXNameRange_WantQualifier
+                                                 | CXNameRange_WantTemplateArgs,
+                                                       RefNameRangeNr);
+      if (clang_equalRanges(clang_getNullRange(), RefNameRange))
+        break;
+      if (!clang_equalRanges(CursorExtent, RefNameRange))
+        PrintRange(RefNameRange, "RefName");
     }
   }
 }
@@ -381,7 +424,7 @@ void PrintDiagnostics(CXTranslationUnit TU) {
 }
 
 void PrintMemoryUsage(CXTranslationUnit TU) {
-  unsigned long total = 0.0;
+  unsigned long total = 0;
   unsigned i = 0;
   CXTUResourceUsage usage = clang_getCXTUResourceUsage(TU);
   fprintf(stderr, "Memory usage:\n");
@@ -405,18 +448,7 @@ static const char *FileCheckPrefix = "CHECK";
 
 static void PrintCursorExtent(CXCursor C) {
   CXSourceRange extent = clang_getCursorExtent(C);
-  CXFile begin_file, end_file;
-  unsigned begin_line, begin_column, end_line, end_column;
-
-  clang_getSpellingLocation(clang_getRangeStart(extent),
-                            &begin_file, &begin_line, &begin_column, 0);
-  clang_getSpellingLocation(clang_getRangeEnd(extent),
-                            &end_file, &end_line, &end_column, 0);
-  if (!begin_file || !end_file)
-    return;
-
-  printf(" Extent=");
-  PrintExtent(stdout, begin_line, begin_column, end_line, end_column);
+  PrintRange(extent, "Extent");
 }
 
 /* Data used by all of the visitors. */
@@ -436,7 +468,7 @@ enum CXChildVisitResult FilteredPrintingVisitor(CXCursor Cursor,
     clang_getSpellingLocation(Loc, 0, &line, &column, 0);
     printf("// %s: %s:%d:%d: ", FileCheckPrefix,
            GetCursorSource(Cursor), line, column);
-    PrintCursor(Data->TU, Cursor);
+    PrintCursor(Cursor);
     PrintCursorExtent(Cursor);
     printf("\n");
     return CXChildVisit_Recurse;
@@ -489,7 +521,7 @@ static enum CXChildVisitResult FunctionScanVisitor(CXCursor Cursor,
       } else if (Ref.kind != CXCursor_FunctionDecl) {
         printf("// %s: %s:%d:%d: ", FileCheckPrefix, GetCursorSource(Ref),
                curLine, curColumn);
-        PrintCursor(Data->TU, Ref);
+        PrintCursor(Ref);
         printf("\n");
       }
     }
@@ -564,8 +596,6 @@ static enum CXChildVisitResult PrintLinkage(CXCursor cursor, CXCursor p,
                                             CXClientData d) {
   const char *linkage = 0;
 
-  VisitorData *Data = (VisitorData *)d;
-
   if (clang_isInvalid(clang_getCursorKind(cursor)))
     return CXChildVisit_Recurse;
 
@@ -578,7 +608,7 @@ static enum CXChildVisitResult PrintLinkage(CXCursor cursor, CXCursor p,
   }
 
   if (linkage) {
-    PrintCursor(Data->TU, cursor);
+    PrintCursor(cursor);
     printf("linkage=%s\n", linkage);
   }
 
@@ -591,12 +621,10 @@ static enum CXChildVisitResult PrintLinkage(CXCursor cursor, CXCursor p,
 
 static enum CXChildVisitResult PrintTypeKind(CXCursor cursor, CXCursor p,
                                              CXClientData d) {
-  VisitorData *Data = (VisitorData *)d;
-
   if (!clang_isInvalid(clang_getCursorKind(cursor))) {
     CXType T = clang_getCursorType(cursor);
     CXString S = clang_getTypeKindSpelling(T.kind);
-    PrintCursor(Data->TU, cursor);
+    PrintCursor(cursor);
     printf(" typekind=%s", clang_getCString(S));
     if (clang_isConstQualifiedType(T))
       printf(" const");
@@ -747,6 +775,8 @@ int perform_test_reparse_source(int argc, const char **argv, int trials,
   int num_unsaved_files = 0;
   int result;
   int trial;
+  int remap_after_trial = 0;
+  char *endptr = 0;
   
   Idx = clang_createIndex(/* excludeDeclsFromPCH */
                           !strcmp(filter, "local") ? 1 : 0,
@@ -770,8 +800,15 @@ int perform_test_reparse_source(int argc, const char **argv, int trials,
     return 1;
   }
   
+  if (getenv("CINDEXTEST_REMAP_AFTER_TRIAL")) {
+    remap_after_trial =
+        strtol(getenv("CINDEXTEST_REMAP_AFTER_TRIAL"), &endptr, 10);
+  }
+
   for (trial = 0; trial < trials; ++trial) {
-    if (clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files,
+    if (clang_reparseTranslationUnit(TU,
+                             trial >= remap_after_trial ? num_unsaved_files : 0,
+                             trial >= remap_after_trial ? unsaved_files : 0,
                                      clang_defaultReparseOptions(TU))) {
       fprintf(stderr, "Unable to reparse translation unit!\n");
       clang_disposeTranslationUnit(TU);
@@ -800,7 +837,7 @@ static void print_cursor_file_scan(CXTranslationUnit TU, CXCursor cursor,
     printf("-%s", prefix);
   PrintExtent(stdout, start_line, start_col, end_line, end_col);
   printf(" ");
-  PrintCursor(TU, cursor);
+  PrintCursor(cursor);
   printf("\n");
 }
 
@@ -996,6 +1033,7 @@ void print_completion_result(CXCompletionResult *completion_result,
                              CXClientData client_data) {
   FILE *file = (FILE *)client_data;
   CXString ks = clang_getCursorKindSpelling(completion_result->CursorKind);
+  unsigned annotationCount;
 
   fprintf(file, "%s:", clang_getCString(ks));
   clang_disposeString(ks);
@@ -1014,7 +1052,27 @@ void print_completion_result(CXCompletionResult *completion_result,
   case CXAvailability_NotAvailable:
     fprintf(file, " (unavailable)");
     break;
+
+  case CXAvailability_NotAccessible:
+    fprintf(file, " (inaccessible)");
+    break;
   }
+
+  annotationCount = clang_getCompletionNumAnnotations(
+        completion_result->CompletionString);
+  if (annotationCount) {
+    unsigned i;
+    fprintf(file, " (");
+    for (i = 0; i < annotationCount; ++i) {
+      if (i != 0)
+        fprintf(file, ", ");
+      fprintf(file, "\"%s\"",
+              clang_getCString(clang_getCompletionAnnotation(
+                                 completion_result->CompletionString, i)));
+    }
+    fprintf(file, ")");
+  }
+
   fprintf(file, "\n");
 }
 
@@ -1171,8 +1229,11 @@ int perform_code_completion(int argc, const char **argv, int timing_only) {
   }
 
   if (results) {
-    unsigned i, n = results->NumResults;
+    unsigned i, n = results->NumResults, containerIsIncomplete = 0;
     unsigned long long contexts;
+    enum CXCursorKind containerKind;
+    CXString objCSelector;
+    const char *selectorString;
     if (!timing_only) {      
       /* Sort the code-completion results based on the typed text. */
       clang_sortCodeCompletionResults(results->Results, results->NumResults);
@@ -1189,6 +1250,35 @@ int perform_code_completion(int argc, const char **argv, int timing_only) {
     
     contexts = clang_codeCompleteGetContexts(results);
     print_completion_contexts(contexts, stdout);
+    
+    containerKind = clang_codeCompleteGetContainerKind(results,
+                                                       &containerIsIncomplete);
+    
+    if (containerKind != CXCursor_InvalidCode) {
+      /* We have found a container */
+      CXString containerUSR, containerKindSpelling;
+      containerKindSpelling = clang_getCursorKindSpelling(containerKind);
+      printf("Container Kind: %s\n", clang_getCString(containerKindSpelling));
+      clang_disposeString(containerKindSpelling);
+      
+      if (containerIsIncomplete) {
+        printf("Container is incomplete\n");
+      }
+      else {
+        printf("Container is complete\n");
+      }
+      
+      containerUSR = clang_codeCompleteGetContainerUSR(results);
+      printf("Container USR: %s\n", clang_getCString(containerUSR));
+      clang_disposeString(containerUSR);
+    }
+    
+    objCSelector = clang_codeCompleteGetObjCSelector(results);
+    selectorString = clang_getCString(objCSelector);
+    if (selectorString && strlen(selectorString) > 0) {
+      printf("Objective-C selector: %s\n", selectorString);
+    }
+    clang_disposeString(objCSelector);
     
     clang_disposeCodeCompleteResults(results);
   }
@@ -1207,7 +1297,7 @@ typedef struct {
   unsigned column;
 } CursorSourceLocation;
 
-int inspect_cursor_at(int argc, const char **argv) {
+static int inspect_cursor_at(int argc, const char **argv) {
   CXIndex CIdx;
   int errorCode;
   struct CXUnsavedFile *unsaved_files = 0;
@@ -1274,8 +1364,109 @@ int inspect_cursor_at(int argc, const char **argv) {
                                clang_getLocation(TU, file, Locations[Loc].line,
                                                  Locations[Loc].column));
       if (I + 1 == Repeats) {
-        PrintCursor(TU, Cursor);
+        CXCompletionString completionString = clang_getCursorCompletionString(
+                                                                        Cursor);
+        PrintCursor(Cursor);
+        if (completionString != NULL) {
+          printf("\nCompletion string: ");
+          print_completion_string(completionString, stdout);
+        }
         printf("\n");
+        free(Locations[Loc].filename);
+      }
+    }
+  }
+  
+  PrintDiagnostics(TU);
+  clang_disposeTranslationUnit(TU);
+  clang_disposeIndex(CIdx);
+  free(Locations);
+  free_remapped_files(unsaved_files, num_unsaved_files);
+  return 0;
+}
+
+static enum CXVisitorResult findFileRefsVisit(void *context,
+                                         CXCursor cursor, CXSourceRange range) {
+  if (clang_Range_isNull(range))
+    return CXVisit_Continue;
+
+  PrintCursor(cursor);
+  PrintRange(range, "");
+  printf("\n");
+  return CXVisit_Continue;
+}
+
+static int find_file_refs_at(int argc, const char **argv) {
+  CXIndex CIdx;
+  int errorCode;
+  struct CXUnsavedFile *unsaved_files = 0;
+  int num_unsaved_files = 0;
+  CXTranslationUnit TU;
+  CXCursor Cursor;
+  CursorSourceLocation *Locations = 0;
+  unsigned NumLocations = 0, Loc;
+  unsigned Repeats = 1;
+  unsigned I;
+  
+  /* Count the number of locations. */
+  while (strstr(argv[NumLocations+1], "-file-refs-at=") == argv[NumLocations+1])
+    ++NumLocations;
+
+  /* Parse the locations. */
+  assert(NumLocations > 0 && "Unable to count locations?");
+  Locations = (CursorSourceLocation *)malloc(
+                                  NumLocations * sizeof(CursorSourceLocation));
+  for (Loc = 0; Loc < NumLocations; ++Loc) {
+    const char *input = argv[Loc + 1] + strlen("-file-refs-at=");
+    if ((errorCode = parse_file_line_column(input, &Locations[Loc].filename,
+                                            &Locations[Loc].line,
+                                            &Locations[Loc].column, 0, 0)))
+      return errorCode;
+  }
+
+  if (parse_remapped_files(argc, argv, NumLocations + 1, &unsaved_files,
+                           &num_unsaved_files))
+    return -1;
+
+  if (getenv("CINDEXTEST_EDITING"))
+    Repeats = 5;
+
+  /* Parse the translation unit. When we're testing clang_getCursor() after
+     reparsing, don't remap unsaved files until the second parse. */
+  CIdx = clang_createIndex(1, 1);
+  TU = clang_parseTranslationUnit(CIdx, argv[argc - 1],
+                                  argv + num_unsaved_files + 1 + NumLocations,
+                                  argc - num_unsaved_files - 2 - NumLocations,
+                                  unsaved_files,
+                                  Repeats > 1? 0 : num_unsaved_files,
+                                  getDefaultParsingOptions());
+                                                 
+  if (!TU) {
+    fprintf(stderr, "unable to parse input\n");
+    return -1;
+  }
+
+  for (I = 0; I != Repeats; ++I) {
+    if (Repeats > 1 &&
+        clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files, 
+                                     clang_defaultReparseOptions(TU))) {
+      clang_disposeTranslationUnit(TU);
+      return 1;
+    }
+    
+    for (Loc = 0; Loc < NumLocations; ++Loc) {
+      CXFile file = clang_getFile(TU, Locations[Loc].filename);
+      if (!file)
+        continue;
+
+      Cursor = clang_getCursor(TU,
+                               clang_getLocation(TU, file, Locations[Loc].line,
+                                                 Locations[Loc].column));
+      if (I + 1 == Repeats) {
+        CXCursorAndRangeVisitor visitor = { 0, findFileRefsVisit };
+        PrintCursor(Cursor);
+        printf("\n");
+        clang_findReferencesInFile(Cursor, file, visitor);
         free(Locations[Loc].filename);
       }
     }
@@ -1331,6 +1522,17 @@ int perform_token_annotation(int argc, const char **argv) {
   }
   errorCode = 0;
 
+  if (getenv("CINDEXTEST_EDITING")) {
+    for (i = 0; i < 5; ++i) {
+      if (clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files,
+                                       clang_defaultReparseOptions(TU))) {
+        fprintf(stderr, "Unable to reparse translation unit!\n");
+        errorCode = -1;
+        goto teardown;
+      }
+    }
+  }
+
   file = clang_getFile(TU, filename);
   if (!file) {
     fprintf(stderr, "file %s is not in this translation unit\n", filename);
@@ -1379,7 +1581,7 @@ int perform_token_annotation(int argc, const char **argv) {
     PrintExtent(stdout, start_line, start_column, end_line, end_column);
     if (!clang_isInvalid(cursors[i].kind)) {
       printf(" ");
-      PrintCursor(TU, cursors[i]);
+      PrintCursor(cursors[i]);
     }
     printf("\n");
   }
@@ -1645,8 +1847,10 @@ static void print_usage(void) {
     "usage: c-index-test -code-completion-at=<site> <compiler arguments>\n"
     "       c-index-test -code-completion-timing=<site> <compiler arguments>\n"
     "       c-index-test -cursor-at=<site> <compiler arguments>\n"
+    "       c-index-test -file-refs-at=<site> <compiler arguments>\n"
     "       c-index-test -test-file-scan <AST file> <source file> "
-          "[FileCheck prefix]\n"
+          "[FileCheck prefix]\n");
+  fprintf(stderr,
     "       c-index-test -test-load-tu <AST file> <symbol filter> "
           "[FileCheck prefix]\n"
     "       c-index-test -test-load-tu-usrs <AST file> <symbol filter> "
@@ -1691,6 +1895,8 @@ int cindextest_main(int argc, const char **argv) {
     return perform_code_completion(argc, argv, 1);
   if (argc > 2 && strstr(argv[1], "-cursor-at=") == argv[1])
     return inspect_cursor_at(argc, argv);
+  if (argc > 2 && strstr(argv[1], "-file-refs-at=") == argv[1])
+    return find_file_refs_at(argc, argv);
   else if (argc >= 4 && strncmp(argv[1], "-test-load-tu", 13) == 0) {
     CXCursorVisitor I = GetVisitor(argv[1] + 13);
     if (I)

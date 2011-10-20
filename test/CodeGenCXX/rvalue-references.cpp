@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -triple x86_64-apple-darwin10 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -triple x86_64-apple-darwin10 -emit-llvm -o - %s | FileCheck %s
 
 
 struct Spacer { int x; };
@@ -82,4 +82,30 @@ C test_move_return() {
   // CHECK: call void @_ZN1CD1Ev
   // CHECK: call void @_ZN1CD1Ev
   //CHECK:  ret void
+}
+
+// PR10800: don't crash
+namespace test1 {
+  int &&move(int&);
+
+  struct A { A(int); };
+  struct B {
+    A a;
+    B(int i);
+  };
+
+  // CHECK:    define void @_ZN5test11BC2Ei(
+  // CHECK:      [[T0:%.*]] = call i32* @_ZN5test14moveERi(
+  // CHECK-NEXT: [[T1:%.*]] = load i32* [[T0]]
+  // CHECK-NEXT: call void @_ZN5test11AC1Ei({{.*}}, i32 [[T1]])
+  // CHECK-NEXT: ret void
+  B::B(int i) : a(move(i)) {}
+}
+
+// PR11009
+struct MoveConvertible {
+  operator int&& () const;
+};
+void moveConstruct() {
+  (void)(int)MoveConvertible();
 }

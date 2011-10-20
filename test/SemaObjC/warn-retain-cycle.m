@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -fobjc-nonfragile-abi -fobjc-runtime-has-weak -fobjc-arc -fblocks -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fobjc-runtime-has-weak -fobjc-arc -fblocks -verify %s
 
 @interface Test0
 - (void) setBlock: (void(^)(void)) block;
@@ -27,7 +27,7 @@ void test0(Test0 *x) {
 }
 
 @interface BlockOwner
-@property (retain) void (^strong)(void);
+@property (retain) void (^strong)(void); // expected-warning {{retain'ed block property does not copy the block - use copy attribute instead}}
 @end
 
 @interface Test1 {

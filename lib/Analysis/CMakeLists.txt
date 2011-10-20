@@ -9,9 +9,11 @@ add_clang_library(clangAnalysis
   FormatString.cpp
   LiveVariables.cpp
   PrintfFormatString.cpp
+  ProgramPoint.cpp
   PseudoConstantAnalysis.cpp
   ReachableCode.cpp
   ScanfFormatString.cpp
+  ThreadSafety.cpp
   UninitializedValues.cpp
   )
 

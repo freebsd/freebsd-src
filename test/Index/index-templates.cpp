@@ -100,7 +100,7 @@ template class Pair<int, int>;
 template<typename T, typename U>
 struct SuperPair : Pair<int, int>, Pair<T, U> { };
 
-// RUN: c-index-test -test-load-source all %s | FileCheck -check-prefix=CHECK-LOAD %s
+// RUN: c-index-test -test-load-source all -fno-delayed-template-parsing %s | FileCheck -check-prefix=CHECK-LOAD %s
 // CHECK-LOAD: index-templates.cpp:4:6: FunctionTemplate=f:4:6 Extent=[3:1 - 4:22]
 // CHECK-LOAD: index-templates.cpp:3:19: TemplateTypeParameter=T:3:19 (Definition) Extent=[3:10 - 3:20]
 // CHECK-LOAD: index-templates.cpp:3:24: NonTypeTemplateParameter=Value:3:24 (Definition) Extent=[3:22 - 3:29]
@@ -135,7 +135,7 @@ struct SuperPair : Pair<int, int>, Pair<T, U> { };
 // CHECK-LOAD: index-templates.cpp:30:21: TypeRef=struct Z2:20:8 Extent=[30:21 - 30:23]
 // CHECK-LOAD: index-templates.cpp:35:16: VarDecl=OneDimension:35:16 (Definition) Extent=[35:1 - 35:32]
 // CHECK-LOAD: index-templates.cpp:35:31: UnexposedExpr= Extent=[35:31 - 35:32]
-// CHECK-LOAD: index-templates.cpp:35:31: UnexposedExpr= Extent=[35:31 - 35:32]
+// CHECK-LOAD: index-templates.cpp:35:31: IntegerLiteral= Extent=[35:31 - 35:32]
 // CHECK-LOAD: index-templates.cpp:37:8: ClassTemplate=array:37:8 (Definition) Extent=[36:1 - 37:17]
 // CHECK-LOAD: index-templates.cpp:36:19: TemplateTypeParameter=T:36:19 (Definition) Extent=[36:10 - 36:20]
 // CHECK-LOAD: index-templates.cpp:36:31: NonTypeTemplateParameter=Dimensions:36:31 (Definition) Extent=[36:22 - 36:56]
@@ -157,11 +157,11 @@ struct SuperPair : Pair<int, int>, Pair<T, U> { };
 // CHECK-LOAD: index-templates.cpp:53:6: FunctionDecl=template_exprs:53:6 (Definition)
 // CHECK-LOAD: index-templates.cpp:54:3: CallExpr=f:4:6 Extent=[54:3 - 54:68]
 // CHECK-LOAD: index-templates.cpp:54:3: UnexposedExpr=f:4:6 Extent=[54:3 - 54:35]
-// CHECK-LOAD: index-templates.cpp:54:3: DeclRefExpr=f:4:6 Extent=[54:3 - 54:35]
+// CHECK-LOAD: index-templates.cpp:54:3: DeclRefExpr=f:4:6 RefName=[54:3 - 54:4] RefName=[54:4 - 54:35] Extent=[54:3 - 54:35]
 // CHECK-LOAD: index-templates.cpp:54:5: TypeRef=Unsigned:42:18 Extent=[54:5 - 54:13]
 // CHECK-LOAD: index-templates.cpp:54:15: DeclRefExpr=OneDimension:35:16 Extent=[54:15 - 54:27]
 // CHECK-LOAD: index-templates.cpp:54:29: TemplateRef=array:37:8 Extent=[54:29 - 54:34]
-// CHECK-LOAD: index-templates.cpp:55:8: MemberRefExpr=getAs:50:26 Extent=[55:3 - 55:23]
+// CHECK-LOAD: index-templates.cpp:55:8: MemberRefExpr=getAs:50:26 SingleRefName=[55:8 - 55:13] RefName=[55:8 - 55:13] Extent=[55:3 - 55:23]
 // CHECK-LOAD: index-templates.cpp:55:3: CallExpr=Z4:49:8 Extent=[55:3 - 55:7]
 // CHECK-LOAD: index-templates.cpp:55:14: TypeRef=Unsigned:42:18 Extent=[55:14 - 55:22]
 // CHECK-LOAD: index-templates.cpp:68:6: FunctionTemplate=unresolved_exprs:68:6 (Definition)
@@ -180,7 +180,7 @@ struct SuperPair : Pair<int, int>, Pair<T, U> { };
 // CHECK-LOAD: index-templates.cpp:101:36: C++ base class specifier=Pair<T, U>:76:8 [access=public isVirtual=false] Extent=[101:36 - 101:46]
 
 
-// RUN: c-index-test -test-load-source-usrs all %s | FileCheck -check-prefix=CHECK-USRS %s
+// RUN: c-index-test -test-load-source-usrs all -fno-delayed-template-parsing %s | FileCheck -check-prefix=CHECK-USRS %s
 // CHECK-USRS: index-templates.cpp c:@FT@>3#T#Nt0.0#t>2#T#Nt1.0f#>t0.22S0_# Extent=[3:1 - 4:22]
 // CHECK-USRS: index-templates.cpp c:index-templates.cpp@70 Extent=[3:10 - 3:20]
 // CHECK-USRS: index-templates.cpp c:index-templates.cpp@82 Extent=[3:22 - 3:29]

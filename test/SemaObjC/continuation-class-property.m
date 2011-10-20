@@ -22,3 +22,22 @@
 @property (readwrite, copy) id foos;
 @end
 
+
+// rdar://10142679
+@class NSString;
+
+typedef struct {
+  float width;
+  float length;
+} NSRect;
+
+@interface MyClass  {
+}
+@property (readonly) NSRect foo; // expected-note {{property declared here}}
+@property (readonly, strong) NSString *bar; // expected-note {{property declared here}}
+@end
+
+@interface MyClass ()
+@property (readwrite) NSString *foo; // expected-warning {{type of property 'NSString *' in continuation class does not match property type in primary class}}
+@property (readwrite, strong) NSRect bar; // expected-warning {{type of property 'NSRect' in continuation class does not match property type in primary class}}
+@end

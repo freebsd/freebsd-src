@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -fcxx-exceptions -verify -std=c++0x -Wall %s
+// RUN: %clang_cc1 -fsyntax-only -fcxx-exceptions -verify -std=c++11 -Wall %s
 
 struct Bitfield {
   int n : 3 = 7; // expected-error {{bitfield member cannot have an in-class initializer}}
@@ -52,3 +52,21 @@ struct CheckExcSpecFail {
 struct TypedefInit {
   typedef int A = 0; // expected-error {{illegal initializer}}
 };
+
+// PR10578 / <rdar://problem/9877267>
+namespace PR10578 {
+  template<typename T>
+  struct X { 
+    X() {
+      T* x = 1; // expected-error{{cannot initialize a variable of type 'int *' with an rvalue of type 'int'}}
+    }
+  };
+
+  struct Y : X<int> {
+    Y();
+  };
+
+  Y::Y() try { // expected-note{{in instantiation of member function 'PR10578::X<int>::X' requested here}}
+  } catch(...) {
+  }
+}

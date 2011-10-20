@@ -1,6 +1,6 @@
 set(LLVM_LINK_COMPONENTS support)
 
-set(LLVM_USED_LIBS clangBasic)
+set(LLVM_USED_LIBS clangBasic clangLex)
 
 add_clang_library(clangAST
   APValue.cpp
@@ -35,6 +35,7 @@ add_clang_library(clangAST
   ParentMap.cpp
   RecordLayout.cpp
   RecordLayoutBuilder.cpp
+  SelectorLocationsKind.cpp
   Stmt.cpp
   StmtDumper.cpp
   StmtIterator.cpp
@@ -46,6 +47,8 @@ add_clang_library(clangAST
   Type.cpp
   TypeLoc.cpp
   TypePrinter.cpp
+  VTableBuilder.cpp
+  VTTBuilder.cpp
   )
 
 add_dependencies(clangAST ClangARMNeon ClangAttrClasses ClangAttrList 

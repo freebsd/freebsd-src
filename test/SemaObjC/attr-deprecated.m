@@ -85,12 +85,21 @@ int t5() {
 __attribute ((deprecated))  
 @interface DEPRECATED {
   @public int ivar; 
+  DEPRECATED *ivar2; // no warning.
 } 
 - (int) instancemethod;
+- (DEPRECATED *) meth; // no warning.
 @property  int prop; 
 @end
 
-@interface DEPRECATED (Category) // expected-warning {{warning: 'DEPRECATED' is deprecated}}
+@interface DEPRECATED (Category) // no warning.
+- (DEPRECATED *) meth2; // no warning.
+@end
+
+@interface DEPRECATED (Category2) // no warning.
+@end
+
+@implementation DEPRECATED (Category2) // expected-warning {{warning: 'DEPRECATED' is deprecated}}
 @end
 
 @interface NS : DEPRECATED  // expected-warning {{warning: 'DEPRECATED' is deprecated}}
@@ -108,3 +117,7 @@ void test(Test2 *foo) {
   foo.test2 = x; // expected-warning {{'test2' is deprecated}}
   [foo setTest2: x]; // expected-warning {{'setTest2:' is deprecated}}
 }
+
+__attribute__((deprecated))
+@interface A(Blah) // expected-error{{attributes may not be specified on a category}}
+@end

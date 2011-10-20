@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.experimental,core.uninitialized -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.unix,core.uninitialized -analyzer-store=region -verify %s
 typedef __typeof(sizeof(int)) size_t;
 void *malloc(size_t);
 void free(void *);
@@ -13,6 +13,17 @@ char stackBased2 () {
   char buf[2];
   buf[1] = 'a';
   return buf[0]; // expected-warning{{Undefined}}
+}
+
+// Exercise the conditional visitor. Radar://10105448
+char stackBased3 (int *x) {
+  char buf[2];
+  int *y;
+  buf[0] = 'a';
+  if (!(y = x)) {
+    return buf[1]; // expected-warning{{Undefined}}
+  }
+  return buf[0];
 }
 
 char heapBased1 () {

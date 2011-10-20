@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin10 -fsyntax-only -verify -fobjc-nonfragile-abi %s
+// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin10 -fsyntax-only -verify %s
 // rdar://9070460
 
 class TCPPObject
@@ -29,7 +29,7 @@ typedef const TCPPObject& CREF_TCPPObject;
 @implementation TNSObject
 
 @synthesize cppObjectNonAtomic;
-@synthesize cppObjectAtomic;
+@synthesize cppObjectAtomic; // expected-warning{{atomic property of type 'CREF_TCPPObject' (aka 'const TCPPObject &') synthesizing setter using non-trivial assignment operator}}
 @dynamic cppObjectDynamic;
 
 - (const TCPPObject&) cppObjectNonAtomic

@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++0x %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
 
 struct NoDefault {
   NoDefault() = delete; // expected-note {{here}}
   NoDefault(int);
 };
-struct Explicit { // expected-note {{candidate}} expected-note {{here}}
+struct Explicit { // expected-note 2 {{candidate}} expected-note {{here}}
   explicit Explicit(int);
 };
 struct NoCopy {

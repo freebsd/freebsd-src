@@ -13,7 +13,10 @@
 
 #include "clang/AST/APValue.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/Basic/Diagnostic.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
 namespace {
@@ -89,9 +92,9 @@ static double GetApproxValue(const llvm::APFloat &F) {
   return V.convertToDouble();
 }
 
-void APValue::print(llvm::raw_ostream &OS) const {
+void APValue::print(raw_ostream &OS) const {
   switch (getKind()) {
-  default: assert(0 && "Unknown APValue kind!");
+  default: llvm_unreachable("Unknown APValue kind!");
   case Uninitialized:
     OS << "Uninitialized";
     return;
@@ -116,6 +119,49 @@ void APValue::print(llvm::raw_ostream &OS) const {
     OS << "LValue: <todo>";
     return;
   }
+}
+
+static void WriteShortAPValueToStream(raw_ostream& Out,
+                                      const APValue& V) {
+  switch (V.getKind()) {
+  default: llvm_unreachable("Unknown APValue kind!");
+  case APValue::Uninitialized:
+    Out << "Uninitialized";
+    break;
+  case APValue::Int:
+    Out << V.getInt();
+    break;
+  case APValue::Float:
+    Out << GetApproxValue(V.getFloat());
+    break;
+  case APValue::Vector:
+    Out << '[';
+    WriteShortAPValueToStream(Out, V.getVectorElt(0));
+    for (unsigned i = 1; i != V.getVectorLength(); ++i) {
+      Out << ", ";
+      WriteShortAPValueToStream(Out, V.getVectorElt(i));
+    }
+    Out << ']';
+    break;
+  case APValue::ComplexInt:
+    Out << V.getComplexIntReal() << "+" << V.getComplexIntImag() << "i";
+    break;
+  case APValue::ComplexFloat:
+    Out << GetApproxValue(V.getComplexFloatReal()) << "+"
+        << GetApproxValue(V.getComplexFloatImag()) << "i";
+    break;
+  case APValue::LValue:
+    Out << "LValue: <todo>";
+    break;
+  }
+}
+
+const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
+                                           const APValue &V) {
+  llvm::SmallString<64> Buffer;
+  llvm::raw_svector_ostream Out(Buffer);
+  WriteShortAPValueToStream(Out, V);
+  return DB << Out.str();
 }
 
 const Expr* APValue::getLValueBase() const {

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,deadcode.experimental.UnreachableCode,core.experimental.CastSize,unix.experimental.Malloc -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.deadcode.UnreachableCode,experimental.core.CastSize,experimental.unix.Malloc -analyzer-store=region -verify %s
 typedef __typeof(sizeof(int)) size_t;
 void *malloc(size_t);
 void free(void *);
@@ -41,7 +41,7 @@ void f2_realloc_0() {
 
 void f2_realloc_1() {
   int *p = malloc(12);
-  int *q = realloc(p,0); // expected-warning{{Assigned value is garbage or undefined}}
+  int *q = realloc(p,0); // no-warning
 }
 
 // ownership attributes tests

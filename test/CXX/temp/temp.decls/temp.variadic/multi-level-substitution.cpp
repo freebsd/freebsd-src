@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
 
 template<typename T, T ...Values> struct value_tuple {};
 template<typename...> struct tuple { };
@@ -232,5 +232,20 @@ namespace ExpandingFunctionParameters {
   void test() {
     X1<float> x1;
     x1.f(17, 3.14159);
+  }
+}
+
+namespace PR10230 {
+  template<typename>
+  struct s
+  {
+    template<typename... Args>
+    auto f() -> int(&)[sizeof...(Args)];
+  };
+
+  void main()
+  {
+    int (&ir1)[1] = s<int>().f<int>();
+    int (&ir3)[3] = s<int>().f<int, float, double>();
   }
 }

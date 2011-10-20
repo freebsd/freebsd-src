@@ -321,6 +321,12 @@ _mm_comigt_sd(__m128d a, __m128d b)
 }
 
 static __inline__ int __attribute__((__always_inline__, __nodebug__))
+_mm_comige_sd(__m128d a, __m128d b)
+{
+  return __builtin_ia32_comisdge(a, b);
+}
+
+static __inline__ int __attribute__((__always_inline__, __nodebug__))
 _mm_comineq_sd(__m128d a, __m128d b)
 {
   return __builtin_ia32_comisdneq(a, b);
@@ -348,6 +354,12 @@ static __inline__ int __attribute__((__always_inline__, __nodebug__))
 _mm_ucomigt_sd(__m128d a, __m128d b)
 {
   return __builtin_ia32_ucomisdgt(a, b);
+}
+
+static __inline__ int __attribute__((__always_inline__, __nodebug__))
+_mm_ucomige_sd(__m128d a, __m128d b)
+{
+  return __builtin_ia32_ucomisdge(a, b);
 }
 
 static __inline__ int __attribute__((__always_inline__, __nodebug__))
@@ -452,7 +464,11 @@ _mm_load_pd(double const *dp)
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_load1_pd(double const *dp)
 {
-  return (__m128d){ dp[0], dp[0] };
+  struct __mm_load1_pd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  double u = ((struct __mm_load1_pd_struct*)dp)->u;
+  return (__m128d){ u, u };
 }
 
 #define        _mm_load_pd1(dp)        _mm_load1_pd(dp)
@@ -460,7 +476,8 @@ _mm_load1_pd(double const *dp)
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadr_pd(double const *dp)
 {
-  return (__m128d){ dp[1], dp[0] };
+  __m128d u = *(__m128d*)dp;
+  return __builtin_shufflevector(u, u, 1, 0);
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
@@ -475,19 +492,31 @@ _mm_loadu_pd(double const *dp)
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_load_sd(double const *dp)
 {
-  return (__m128d){ *dp, 0.0 };
+  struct __mm_load_sd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  double u = ((struct __mm_load_sd_struct*)dp)->u;
+  return (__m128d){ u, 0 };
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadh_pd(__m128d a, double const *dp)
 {
-  return (__m128d){ a[0], *dp };
+  struct __mm_loadh_pd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  double u = ((struct __mm_loadh_pd_struct*)dp)->u;
+  return (__m128d){ a[0], u };
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
 _mm_loadl_pd(__m128d a, double const *dp)
 {
-  return (__m128d){ *dp, a[1] };
+  struct __mm_loadl_pd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  double u = ((struct __mm_loadl_pd_struct*)dp)->u;
+  return (__m128d){ u, a[1] }; 
 }
 
 static __inline__ __m128d __attribute__((__always_inline__, __nodebug__))
@@ -529,14 +558,20 @@ _mm_move_sd(__m128d a, __m128d b)
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_store_sd(double *dp, __m128d a)
 {
-  dp[0] = a[0];
+  struct __mm_store_sd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  ((struct __mm_store_sd_struct*)dp)->u = a[0];
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_store1_pd(double *dp, __m128d a)
 {
-  dp[0] = a[0];
-  dp[1] = a[0];
+  struct __mm_store1_pd_struct {
+    double u[2];
+  } __attribute__((__packed__, __may_alias__));
+  ((struct __mm_store1_pd_struct*)dp)->u[0] = a[0];
+  ((struct __mm_store1_pd_struct*)dp)->u[1] = a[0];
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
@@ -554,20 +589,26 @@ _mm_storeu_pd(double *dp, __m128d a)
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_storer_pd(double *dp, __m128d a)
 {
-  dp[0] = a[1];
-  dp[1] = a[0];
+  a = __builtin_shufflevector(a, a, 1, 0);
+  *(__m128d *)dp = a;
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_storeh_pd(double *dp, __m128d a)
 {
-  dp[0] = a[1];
+  struct __mm_storeh_pd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  ((struct __mm_storeh_pd_struct*)dp)->u = a[1];
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_storel_pd(double *dp, __m128d a)
 {
-  dp[0] = a[0];
+  struct __mm_storeh_pd_struct {
+    double u;
+  } __attribute__((__packed__, __may_alias__));
+  ((struct __mm_storeh_pd_struct*)dp)->u = a[0];
 }
 
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))
@@ -1023,7 +1064,10 @@ _mm_loadu_si128(__m128i const *p)
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))
 _mm_loadl_epi64(__m128i const *p)
 {
-  return (__m128i) { *(long long*)p, 0};
+  struct __mm_loadl_epi64_struct {
+    long long u;
+  } __attribute__((__packed__, __may_alias__));
+  return (__m128i) { ((struct __mm_loadl_epi64_struct*)p)->u, 0};
 }
 
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))

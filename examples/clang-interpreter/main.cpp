@@ -22,12 +22,13 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/config.h"
+#include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Target/TargetSelect.h"
+#include "llvm/Support/TargetSelect.h"
 using namespace clang;
 using namespace clang::driver;
 
@@ -74,10 +75,9 @@ int main(int argc, const char **argv, char * const *envp) {
     new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
 
   llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  Diagnostic Diags(DiagID, DiagClient);
+  DiagnosticsEngine Diags(DiagID, DiagClient);
   Driver TheDriver(Path.str(), llvm::sys::getHostTriple(),
-                   "a.out", /*IsProduction=*/false, /*CXXIsProduction=*/false,
-                   Diags);
+                   "a.out", /*IsProduction=*/false, Diags);
   TheDriver.setTitle("clang interpreter");
 
   // FIXME: This is a hack to try to force the driver to do something we can

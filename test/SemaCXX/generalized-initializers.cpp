@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
 // XFAIL: *
 
 template <typename T, typename U>
@@ -40,25 +40,9 @@ namespace std {
 
 namespace integral {
 
-  void initialization() {
-    { const int a{}; static_assert(a == 0, ""); }
-    { const int a = {}; static_assert(a == 0, ""); }
-    { const int a{1}; static_assert(a == 1, ""); }
-    { const int a = {1}; static_assert(a == 1, ""); }
-    { const int a{1, 2}; } // expected-error {{excess elements}}
-    { const int a = {1, 2}; } // expected-error {{excess elements}}
-    { const short a{100000}; } // expected-error {{narrowing conversion}}
-    { const short a = {100000}; } // expected-error {{narrowing conversion}}
-  }
-
   int function_call() {
     void takes_int(int);
     takes_int({1});
-
-    int ar[10];
-    (void) ar[{1}]; // expected-error {{initializer list is illegal with the built-in index operator}}
-
-    return {1};
   }
 
   void inline_init() {
@@ -75,11 +59,6 @@ namespace integral {
 
     for (int i : {1, 2, 3, 4}) {}
   }
-
-  struct A {
-    int i;
-    A() : i{1} {}
-  };
 
 }
 

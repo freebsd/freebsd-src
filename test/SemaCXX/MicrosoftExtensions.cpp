@@ -81,6 +81,10 @@ struct M {
     float __stdcall subtractP(); 
 };
 
+// __unaligned handling
+typedef char __unaligned *aligned_type;
+
+
 template<typename T> void h1(T (__stdcall M::* const )()) { }
 
 void m1() {
@@ -148,40 +152,6 @@ template <class T>
 void BB<T>::f(int g = 0) { } // expected-warning {{redefinition of default argument}}
 
 
-namespace MissingTypename {
-
-template<class T> class A {
-public:
-	 typedef int TYPE;
-};
-
-template<class T> class B {
-public:
-	 typedef int TYPE;
-};
-
-
-template<class T, class U>
-class C : private A<T>, public B<U> {
-public:
-   typedef A<T> Base1;
-   typedef B<U> Base2;
-   typedef A<U> Base3;
-
-   A<T>::TYPE a1; // expected-warning {{missing 'typename' prior to dependent type name}}
-   Base1::TYPE a2; // expected-warning {{missing 'typename' prior to dependent type name}}
-
-   B<U>::TYPE a3; // expected-warning {{missing 'typename' prior to dependent type name}}
-   Base2::TYPE a4; // expected-warning {{missing 'typename' prior to dependent type name}}
-
-   A<U>::TYPE a5; // expected-error {{missing 'typename' prior to dependent type name}}
-   Base3::TYPE a6; // expected-error {{missing 'typename' prior to dependent type name}}
- };
-
-}
-
-
-
 
 extern void static_func();
 void static_func(); // expected-note {{previous declaration is here}}
@@ -209,26 +179,6 @@ void pointer_to_integral_type_conv(char* ptr) {
    sh = (short)ptr;
 } 
 
-namespace ms_using_declaration_bug {
-
-class A {
-public: 
-  int f(); 
-};
-
-class B : public A {
-private:   
-  using A::f;
-};
-
-class C : public B { 
-private:   
-  using B::f; // expected-warning {{using declaration refers to inaccessible member 'ms_using_declaration_bug::B::f', which refers to accessible member 'ms_using_declaration_bug::A::f', accepted for Microsoft compatibility}}
-};
-
-}
-
-
 
 namespace friend_as_a_forward_decl {
 
@@ -251,4 +201,5 @@ void f()
   Z* b;
 }
 
- }
+}
+

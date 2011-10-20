@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core -analyzer-checker=deadcode -analyzer-store=region -verify -fblocks  -analyzer-opt-analyze-nested-blocks -fobjc-nonfragile-abi -fobjc-arc %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.RetainCount,deadcode -analyzer-store=region -verify -fblocks  -analyzer-opt-analyze-nested-blocks -fobjc-arc %s
 
 typedef signed char BOOL;
 typedef struct _NSZone NSZone;
@@ -145,5 +145,11 @@ void test_objc_unretainedObject() {
   CFDateRef date = CFDateCreate(0, t);  // expected-warning {{Potential leak}}
   id x = objc_unretainedObject(date);
   (void) x;
+}
+
+// Previously this resulted in a "return of stack address" warning.
+id test_return() {
+  id x = (__bridge_transfer id) CFCreateString();
+  return x; // no-warning
 }
 

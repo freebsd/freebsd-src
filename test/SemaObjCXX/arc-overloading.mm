@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fobjc-nonfragile-abi -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -fblocks %s
+// RUN: %clang_cc1 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -fblocks %s
 
 // Simple ownership conversions + diagnostics.
 int &f0(id __strong const *); // expected-note{{candidate function not viable: 1st argument ('__weak id *') has __weak ownership, but parameter has __strong ownership}}
@@ -173,3 +173,30 @@ void test_f9() {
   const __autoreleasing id& ar3 = unsafe_unretained_a;
   const __autoreleasing id& ar4 = weak_a;
 }
+
+// rdar://9790531
+void f9790531(void *inClientData); // expected-note {{candidate function not viable: cannot implicitly convert argument of type 'MixerEQGraphTestDelegate *const __strong' to 'void *' for 1st argument under ARC}}
+void f9790531_1(struct S*inClientData); // expected-note {{candidate function not viable}}
+void f9790531_2(char * inClientData); // expected-note {{candidate function not viable}}
+
+@class UIApplication;
+
+@interface MixerEQGraphTestDelegate
+- (void)applicationDidFinishLaunching;
+@end
+
+@implementation MixerEQGraphTestDelegate
+- (void)applicationDidFinishLaunching {
+    f9790531(self); // expected-error {{no matching function for call to 'f9790531'}}
+    f9790531_1(self); // expected-error {{no matching function for call to 'f9790531_1'}}
+    f9790531_2(self); // expected-error {{no matching function for call to 'f9790531_2'}}
+}
+@end
+
+class rdar10142572 {
+  id f() __attribute__((ns_returns_retained));
+  id g(); // expected-note{{previous declaration}}
+};
+
+id rdar10142572::f() { return 0; } // okay: merged down
+id __attribute__((ns_returns_retained)) rdar10142572::g() { return 0; } // expected-error{{function declared with the ns_returns_retained attribute was previously declared without the ns_returns_retained attribute}}

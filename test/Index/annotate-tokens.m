@@ -137,6 +137,11 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 @property (readonly, atomic) Foo *abah;
 @end
 
+@interface rdar9535717 {
+  __weak Foo *foo;
+}
+@end
+
 // RUN: c-index-test -test-annotate-tokens=%s:1:1:118:1 %s -DIBOutlet='__attribute__((iboutlet))' -DIBAction='void)__attribute__((ibaction)' | FileCheck %s
 // CHECK: Punctuation: "@" [1:1 - 1:2] ObjCInterfaceDecl=Foo:1:12
 // CHECK: Keyword: "interface" [1:2 - 1:11] ObjCInterfaceDecl=Foo:1:12
@@ -155,9 +160,9 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: ";" [2:27 - 2:28] ObjCInstanceMethodDecl=compare::2:1
 // CHECK: Punctuation: "@" [3:1 - 3:2] ObjCInterfaceDecl=Foo:1:12
 // CHECK: Keyword: "end" [3:2 - 3:5] ObjCInterfaceDecl=Foo:1:12
-// CHECK: Punctuation: "@" [5:1 - 5:2] ObjCImplementationDecl=Foo:5:1 (Definition)
-// CHECK: Keyword: "implementation" [5:2 - 5:16] ObjCImplementationDecl=Foo:5:1 (Definition)
-// CHECK: Identifier: "Foo" [5:17 - 5:20] ObjCImplementationDecl=Foo:5:1 (Definition)
+// CHECK: Punctuation: "@" [5:1 - 5:2] ObjCImplementationDecl=Foo:5:17 (Definition)
+// CHECK: Keyword: "implementation" [5:2 - 5:16] ObjCImplementationDecl=Foo:5:17 (Definition)
+// CHECK: Identifier: "Foo" [5:17 - 5:20] ObjCImplementationDecl=Foo:5:17 (Definition)
 // CHECK: Punctuation: "-" [6:1 - 6:2] ObjCInstanceMethodDecl=compare::6:1 (Definition)
 // CHECK: Punctuation: "(" [6:3 - 6:4] ObjCInstanceMethodDecl=compare::6:1 (Definition)
 // CHECK: Keyword: "int" [6:4 - 6:7] ObjCInstanceMethodDecl=compare::6:1 (Definition)
@@ -169,21 +174,21 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: "*" [6:20 - 6:21] ParmDecl=other:6:22 (Definition)
 // CHECK: Punctuation: ")" [6:21 - 6:22] ParmDecl=other:6:22 (Definition)
 // CHECK: Identifier: "other" [6:22 - 6:27] ParmDecl=other:6:22 (Definition)
-// CHECK: Punctuation: "{" [6:28 - 6:29] UnexposedStmt=
-// CHECK: Keyword: "return" [7:3 - 7:9] UnexposedStmt=
-// CHECK: Literal: "0" [7:10 - 7:11] UnexposedExpr=
-// CHECK: Punctuation: ";" [7:11 - 7:12] UnexposedStmt=
-// CHECK: Punctuation: "(" [8:3 - 8:4] UnexposedExpr=
-// CHECK: Keyword: "void" [8:4 - 8:8] UnexposedExpr=
-// CHECK: Punctuation: ")" [8:8 - 8:9] UnexposedExpr=
-// CHECK: Punctuation: "@" [8:9 - 8:10] UnexposedExpr=
-// CHECK: Keyword: "encode" [8:10 - 8:16] UnexposedExpr=
-// CHECK: Punctuation: "(" [8:16 - 8:17] UnexposedExpr=
+// CHECK: Punctuation: "{" [6:28 - 6:29] CompoundStmt=
+// CHECK: Keyword: "return" [7:3 - 7:9] ReturnStmt=
+// CHECK: Literal: "0" [7:10 - 7:11] IntegerLiteral=
+// CHECK: Punctuation: ";" [7:11 - 7:12] CompoundStmt=
+// CHECK: Punctuation: "(" [8:3 - 8:4] CStyleCastExpr=
+// CHECK: Keyword: "void" [8:4 - 8:8] CStyleCastExpr=
+// CHECK: Punctuation: ")" [8:8 - 8:9] CStyleCastExpr=
+// CHECK: Punctuation: "@" [8:9 - 8:10] ObjCEncodeExpr=
+// CHECK: Keyword: "encode" [8:10 - 8:16] ObjCEncodeExpr=
+// CHECK: Punctuation: "(" [8:16 - 8:17] ObjCEncodeExpr=
 // CHECK: Identifier: "Foo" [8:17 - 8:20] ObjCClassRef=Foo:1:12
-// CHECK: Punctuation: ")" [8:20 - 8:21] UnexposedExpr=
-// CHECK: Punctuation: ";" [8:21 - 8:22] UnexposedStmt=
-// CHECK: Punctuation: "}" [9:1 - 9:2] UnexposedStmt=
-// CHECK: Punctuation: "@" [10:1 - 10:2] ObjCImplementationDecl=Foo:5:1 (Definition)
+// CHECK: Punctuation: ")" [8:20 - 8:21] ObjCEncodeExpr=
+// CHECK: Punctuation: ";" [8:21 - 8:22] CompoundStmt=
+// CHECK: Punctuation: "}" [9:1 - 9:2] CompoundStmt=
+// CHECK: Punctuation: "@" [10:1 - 10:2] ObjCImplementationDecl=Foo:5:17 (Definition)
 // CHECK: Keyword: "end" [10:2 - 10:5]
 // CHECK: Keyword: "typedef" [14:1 - 14:8]
 // CHECK: Keyword: "int" [14:9 - 14:12]
@@ -205,22 +210,22 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: "}" [19:1 - 19:2] ObjCInterfaceDecl=Bar:15:12
 // CHECK: Punctuation: "@" [20:1 - 20:2] ObjCInterfaceDecl=Bar:15:12
 // CHECK: Keyword: "end" [20:2 - 20:5] ObjCInterfaceDecl=Bar:15:12
-// CHECK: Punctuation: "@" [21:1 - 21:2] ObjCImplementationDecl=Bar:21:1 (Definition)
-// CHECK: Keyword: "implementation" [21:2 - 21:16] ObjCImplementationDecl=Bar:21:1 (Definition)
-// CHECK: Identifier: "Bar" [21:17 - 21:20] ObjCImplementationDecl=Bar:21:1 (Definition)
+// CHECK: Punctuation: "@" [21:1 - 21:2] ObjCImplementationDecl=Bar:21:17 (Definition)
+// CHECK: Keyword: "implementation" [21:2 - 21:16] ObjCImplementationDecl=Bar:21:17 (Definition)
+// CHECK: Identifier: "Bar" [21:17 - 21:20] ObjCImplementationDecl=Bar:21:17 (Definition)
 // CHECK: Punctuation: "-" [22:1 - 22:2] ObjCInstanceMethodDecl=method:22:1 (Definition)
 // CHECK: Punctuation: "(" [22:3 - 22:4] ObjCInstanceMethodDecl=method:22:1 (Definition)
 // CHECK: Keyword: "void" [22:4 - 22:8] ObjCInstanceMethodDecl=method:22:1 (Definition)
 // CHECK: Punctuation: ")" [22:8 - 22:9] ObjCInstanceMethodDecl=method:22:1 (Definition)
 // CHECK: Identifier: "method" [22:10 - 22:16] ObjCInstanceMethodDecl=method:22:1 (Definition)
-// CHECK: Punctuation: "{" [23:1 - 23:2] UnexposedStmt=
+// CHECK: Punctuation: "{" [23:1 - 23:2] CompoundStmt=
 // CHECK: Identifier: "barType" [24:5 - 24:12] TypeRef=barType:14:15
 // CHECK: Identifier: "local" [24:13 - 24:18] VarDecl=local:24:13 (Definition)
 // CHECK: Punctuation: "=" [24:19 - 24:20] VarDecl=local:24:13 (Definition)
 // CHECK: Identifier: "iVar" [24:21 - 24:25] MemberRefExpr=iVar:17:13
-// CHECK: Punctuation: ";" [24:25 - 24:26] UnexposedStmt=
-// CHECK: Punctuation: "}" [25:1 - 25:2] UnexposedStmt=
-// CHECK: Punctuation: "@" [26:1 - 26:2] ObjCImplementationDecl=Bar:21:1 (Definition)
+// CHECK: Punctuation: ";" [24:25 - 24:26] DeclStmt=
+// CHECK: Punctuation: "}" [25:1 - 25:2] CompoundStmt=
+// CHECK: Punctuation: "@" [26:1 - 26:2] ObjCImplementationDecl=Bar:21:17 (Definition)
 // CHECK: Keyword: "end" [26:2 - 26:5]
 // CHECK: Punctuation: "@" [32:1 - 32:2] ObjCInterfaceDecl=IBActionTests:32:12
 // CHECK: Keyword: "interface" [32:2 - 32:11] ObjCInterfaceDecl=IBActionTests:32:12
@@ -257,9 +262,9 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Keyword: "void" [36:26 - 36:30] FunctionDecl=ibaction_test:36:12
 // CHECK: Punctuation: ")" [36:30 - 36:31] FunctionDecl=ibaction_test:36:12
 // CHECK: Punctuation: ";" [36:31 - 36:32]
-// CHECK: Punctuation: "@" [37:1 - 37:2] ObjCImplementationDecl=IBActionTests:37:1 (Definition)
-// CHECK: Keyword: "implementation" [37:2 - 37:16] ObjCImplementationDecl=IBActionTests:37:1 (Definition)
-// CHECK: Identifier: "IBActionTests" [37:17 - 37:30] ObjCImplementationDecl=IBActionTests:37:1 (Definition)
+// CHECK: Punctuation: "@" [37:1 - 37:2] ObjCImplementationDecl=IBActionTests:37:17 (Definition)
+// CHECK: Keyword: "implementation" [37:2 - 37:16] ObjCImplementationDecl=IBActionTests:37:17 (Definition)
+// CHECK: Identifier: "IBActionTests" [37:17 - 37:30] ObjCImplementationDecl=IBActionTests:37:17 (Definition)
 // CHECK: Punctuation: "-" [38:1 - 38:2] ObjCInstanceMethodDecl=actionMethod::38:1 (Definition)
 // CHECK: Punctuation: "(" [38:3 - 38:4] ObjCInstanceMethodDecl=actionMethod::38:1 (Definition)
 // CHECK: Identifier: "IBAction" [38:4 - 38:12] macro expansion=IBAction
@@ -270,19 +275,19 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Identifier: "id" [38:31 - 38:33] TypeRef=id:0:0
 // CHECK: Punctuation: ")" [38:33 - 38:34] ParmDecl=arg:38:34 (Definition)
 // CHECK: Identifier: "arg" [38:34 - 38:37] ParmDecl=arg:38:34 (Definition)
-// CHECK: Punctuation: "{" [39:1 - 39:2] UnexposedStmt=
+// CHECK: Punctuation: "{" [39:1 - 39:2] CompoundStmt=
 // CHECK: Identifier: "ibaction_test" [40:5 - 40:18] DeclRefExpr=ibaction_test:36:12
 // CHECK: Punctuation: "(" [40:18 - 40:19] CallExpr=ibaction_test:36:12
 // CHECK: Punctuation: ")" [40:19 - 40:20] CallExpr=ibaction_test:36:12
-// CHECK: Punctuation: ";" [40:20 - 40:21] UnexposedStmt=
+// CHECK: Punctuation: ";" [40:20 - 40:21] CompoundStmt=
 // CHECK: Punctuation: "[" [41:5 - 41:6] ObjCMessageExpr=foo::34:1
 // CHECK: Identifier: "self" [41:6 - 41:10] DeclRefExpr=self:0:0
 // CHECK: Identifier: "foo" [41:11 - 41:14] ObjCMessageExpr=foo::34:1
 // CHECK: Punctuation: ":" [41:14 - 41:15] ObjCMessageExpr=foo::34:1
-// CHECK: Literal: "0" [41:15 - 41:16] UnexposedExpr=
+// CHECK: Literal: "0" [41:15 - 41:16] IntegerLiteral=
 // CHECK: Punctuation: "]" [41:16 - 41:17] ObjCMessageExpr=foo::34:1
-// CHECK: Punctuation: ";" [41:17 - 41:18] UnexposedStmt=
-// CHECK: Punctuation: "}" [42:1 - 42:2] UnexposedStmt=
+// CHECK: Punctuation: ";" [41:17 - 41:18] CompoundStmt=
+// CHECK: Punctuation: "}" [42:1 - 42:2] CompoundStmt=
 // CHECK: Punctuation: "-" [43:1 - 43:2] ObjCInstanceMethodDecl=foo::43:1 (Definition)
 // CHECK: Punctuation: "(" [43:3 - 43:4] ObjCInstanceMethodDecl=foo::43:1 (Definition)
 // CHECK: Keyword: "void" [43:4 - 43:8] ObjCInstanceMethodDecl=foo::43:1 (Definition)
@@ -293,14 +298,14 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Keyword: "int" [43:15 - 43:18] ParmDecl=x:43:19 (Definition)
 // CHECK: Punctuation: ")" [43:18 - 43:19] ParmDecl=x:43:19 (Definition)
 // CHECK: Identifier: "x" [43:19 - 43:20] ParmDecl=x:43:19 (Definition)
-// CHECK: Punctuation: "{" [44:1 - 44:2] UnexposedStmt=
-// CHECK: Punctuation: "(" [45:3 - 45:4] UnexposedExpr=x:43:19
-// CHECK: Keyword: "void" [45:4 - 45:8] UnexposedExpr=x:43:19
-// CHECK: Punctuation: ")" [45:8 - 45:9] UnexposedExpr=x:43:19
+// CHECK: Punctuation: "{" [44:1 - 44:2] CompoundStmt=
+// CHECK: Punctuation: "(" [45:3 - 45:4] CStyleCastExpr=
+// CHECK: Keyword: "void" [45:4 - 45:8] CStyleCastExpr=
+// CHECK: Punctuation: ")" [45:8 - 45:9] CStyleCastExpr=
 // CHECK: Identifier: "x" [45:10 - 45:11] DeclRefExpr=x:43:19
-// CHECK: Punctuation: ";" [45:11 - 45:12] UnexposedStmt=
-// CHECK: Punctuation: "}" [46:1 - 46:2] UnexposedStmt=
-// CHECK: Punctuation: "@" [47:1 - 47:2] ObjCImplementationDecl=IBActionTests:37:1 (Definition)
+// CHECK: Punctuation: ";" [45:11 - 45:12] CompoundStmt=
+// CHECK: Punctuation: "}" [46:1 - 46:2] CompoundStmt=
+// CHECK: Punctuation: "@" [47:1 - 47:2] ObjCImplementationDecl=IBActionTests:37:17 (Definition)
 // CHECK: Keyword: "end" [47:2 - 47:5]
 // CHECK: Punctuation: "@" [51:1 - 51:2] ObjCInterfaceDecl=IBOutletTests:51:12
 // CHECK: Keyword: "interface" [51:2 - 51:11] ObjCInterfaceDecl=IBOutletTests:51:12
@@ -358,9 +363,9 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: ";" [67:15 - 67:16] ObjCInstanceMethodDecl=method:67:1
 // CHECK: Punctuation: "@" [68:1 - 68:2] ObjCInterfaceDecl=R7974151:65:12
 // CHECK: Keyword: "end" [68:2 - 68:5] ObjCInterfaceDecl=R7974151:65:12
-// CHECK: Punctuation: "@" [70:1 - 70:2] ObjCImplementationDecl=R7974151:70:1 (Definition)
-// CHECK: Keyword: "implementation" [70:2 - 70:16] ObjCImplementationDecl=R7974151:70:1 (Definition)
-// CHECK: Identifier: "R7974151" [70:17 - 70:25] ObjCImplementationDecl=R7974151:70:1 (Definition)
+// CHECK: Punctuation: "@" [70:1 - 70:2] ObjCImplementationDecl=R7974151:70:17 (Definition)
+// CHECK: Keyword: "implementation" [70:2 - 70:16] ObjCImplementationDecl=R7974151:70:17 (Definition)
+// CHECK: Identifier: "R7974151" [70:17 - 70:25] ObjCImplementationDecl=R7974151:70:17 (Definition)
 // CHECK: Punctuation: "-" [71:1 - 71:2] ObjCInstanceMethodDecl=foo::71:1 (Definition)
 // CHECK: Punctuation: "(" [71:3 - 71:4] ObjCInstanceMethodDecl=foo::71:1 (Definition)
 // CHECK: Keyword: "int" [71:4 - 71:7] ObjCInstanceMethodDecl=foo::71:1 (Definition)
@@ -371,17 +376,17 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Keyword: "int" [71:14 - 71:17] ParmDecl=arg:71:18 (Definition)
 // CHECK: Punctuation: ")" [71:17 - 71:18] ParmDecl=arg:71:18 (Definition)
 // CHECK: Identifier: "arg" [71:18 - 71:21] ParmDecl=arg:71:18 (Definition)
-// CHECK: Punctuation: "{" [71:22 - 71:23] UnexposedStmt=
-// CHECK: Keyword: "return" [72:3 - 72:9] UnexposedStmt=
+// CHECK: Punctuation: "{" [71:22 - 71:23] CompoundStmt=
+// CHECK: Keyword: "return" [72:3 - 72:9] ReturnStmt=
 // CHECK: Identifier: "arg" [72:10 - 72:13] DeclRefExpr=arg:71:18
-// CHECK: Punctuation: ";" [72:13 - 72:14] UnexposedStmt=
-// CHECK: Punctuation: "}" [73:1 - 73:2] UnexposedStmt=
+// CHECK: Punctuation: ";" [72:13 - 72:14] CompoundStmt=
+// CHECK: Punctuation: "}" [73:1 - 73:2] CompoundStmt=
 // CHECK: Punctuation: "-" [74:1 - 74:2] ObjCInstanceMethodDecl=method:74:1 (Definition)
 // CHECK: Punctuation: "(" [74:3 - 74:4] ObjCInstanceMethodDecl=method:74:1 (Definition)
 // CHECK: Keyword: "int" [74:4 - 74:7] ObjCInstanceMethodDecl=method:74:1 (Definition)
 // CHECK: Punctuation: ")" [74:7 - 74:8] ObjCInstanceMethodDecl=method:74:1 (Definition)
 // CHECK: Identifier: "method" [74:9 - 74:15] ObjCInstanceMethodDecl=method:74:1 (Definition)
-// CHECK: Punctuation: "{" [75:1 - 75:2] UnexposedStmt=
+// CHECK: Punctuation: "{" [75:1 - 75:2] CompoundStmt=
 // CHECK: Keyword: "int" [76:5 - 76:8] VarDecl=local:76:9 (Definition)
 // CHECK: Identifier: "local" [76:9 - 76:14] VarDecl=local:76:9 (Definition)
 // CHECK: Punctuation: "=" [76:15 - 76:16] VarDecl=local:76:9 (Definition)
@@ -391,7 +396,7 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: ":" [76:26 - 76:27] ObjCMessageExpr=foo::66:1
 // CHECK: Identifier: "VAL" [76:27 - 76:30] macro expansion=VAL:63:9
 // CHECK: Punctuation: "]" [76:30 - 76:31] ObjCMessageExpr=foo::66:1
-// CHECK: Punctuation: ";" [76:31 - 76:32] UnexposedStmt=
+// CHECK: Punctuation: ";" [76:31 - 76:32] DeclStmt=
 // CHECK: Keyword: "int" [77:5 - 77:8] VarDecl=second:77:9 (Definition)
 // CHECK: Identifier: "second" [77:9 - 77:15] VarDecl=second:77:9 (Definition)
 // CHECK: Punctuation: "=" [77:16 - 77:17] VarDecl=second:77:9 (Definition)
@@ -399,13 +404,13 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Identifier: "self" [77:19 - 77:23] DeclRefExpr=self:0:0
 // CHECK: Identifier: "foo" [77:24 - 77:27] ObjCMessageExpr=foo::66:1
 // CHECK: Punctuation: ":" [77:27 - 77:28] ObjCMessageExpr=foo::66:1
-// CHECK: Literal: "0" [77:28 - 77:29] UnexposedExpr=
+// CHECK: Literal: "0" [77:28 - 77:29] IntegerLiteral=
 // CHECK: Punctuation: "]" [77:29 - 77:30] ObjCMessageExpr=foo::66:1
-// CHECK: Punctuation: ";" [77:30 - 77:31] UnexposedStmt=
-// CHECK: Keyword: "return" [78:5 - 78:11] UnexposedStmt=
+// CHECK: Punctuation: ";" [77:30 - 77:31] DeclStmt=
+// CHECK: Keyword: "return" [78:5 - 78:11] ReturnStmt=
 // CHECK: Identifier: "local" [78:12 - 78:17] DeclRefExpr=local:76:9
-// CHECK: Punctuation: ";" [78:17 - 78:18] UnexposedStmt=
-// CHECK: Punctuation: "}" [79:1 - 79:2] UnexposedStmt=
+// CHECK: Punctuation: ";" [78:17 - 78:18] CompoundStmt=
+// CHECK: Punctuation: "}" [79:1 - 79:2] CompoundStmt=
 // CHECK: Punctuation: "-" [80:1 - 80:2] ObjCInstanceMethodDecl=othermethod::80:1 (Definition)
 // CHECK: Punctuation: "(" [80:3 - 80:4] ObjCInstanceMethodDecl=othermethod::80:1 (Definition)
 // CHECK: Keyword: "int" [80:4 - 80:7] ObjCInstanceMethodDecl=othermethod::80:1 (Definition)
@@ -417,36 +422,36 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Punctuation: "*" [80:35 - 80:36] ParmDecl=ibt:80:37 (Definition)
 // CHECK: Punctuation: ")" [80:36 - 80:37] ParmDecl=ibt:80:37 (Definition)
 // CHECK: Identifier: "ibt" [80:37 - 80:40] ParmDecl=ibt:80:37 (Definition)
-// CHECK: Punctuation: "{" [80:41 - 80:42] UnexposedStmt=
-// CHECK: Keyword: "return" [81:3 - 81:9] UnexposedStmt=
-// CHECK: Punctuation: "*" [81:10 - 81:11] UnexposedExpr=
+// CHECK: Punctuation: "{" [80:41 - 80:42] CompoundStmt=
+// CHECK: Keyword: "return" [81:3 - 81:9] ReturnStmt=
+// CHECK: Punctuation: "*" [81:10 - 81:11] UnaryOperator=
 // CHECK: Identifier: "ibt" [81:11 - 81:14] DeclRefExpr=ibt:80:37
 // CHECK: Punctuation: "." [81:14 - 81:15] MemberRefExpr=aPropOutlet:56:26
 // CHECK: Identifier: "aPropOutlet" [81:15 - 81:26] MemberRefExpr=aPropOutlet:56:26
-// CHECK: Punctuation: ";" [81:26 - 81:27] UnexposedStmt=
-// CHECK: Punctuation: "}" [82:1 - 82:2] UnexposedStmt=
-// CHECK: Punctuation: "@" [83:1 - 83:2] ObjCImplementationDecl=R7974151:70:1 (Definition)
+// CHECK: Punctuation: ";" [81:26 - 81:27] CompoundStmt=
+// CHECK: Punctuation: "}" [82:1 - 82:2] CompoundStmt=
+// CHECK: Punctuation: "@" [83:1 - 83:2] ObjCImplementationDecl=R7974151:70:17 (Definition)
 // CHECK: Keyword: "end" [83:2 - 83:5]
-// CHECK: Punctuation: "@" [85:1 - 85:2] ObjCProtocolDecl=Proto:85:1 (Definition)
-// CHECK: Keyword: "protocol" [85:2 - 85:10] ObjCProtocolDecl=Proto:85:1 (Definition)
-// CHECK: Identifier: "Proto" [85:11 - 85:16] ObjCProtocolDecl=Proto:85:1 (Definition)
-// CHECK: Punctuation: "@" [85:17 - 85:18] ObjCProtocolDecl=Proto:85:1 (Definition)
-// CHECK: Keyword: "end" [85:18 - 85:21] ObjCProtocolDecl=Proto:85:1 (Definition)
+// CHECK: Punctuation: "@" [85:1 - 85:2] ObjCProtocolDecl=Proto:85:11 (Definition)
+// CHECK: Keyword: "protocol" [85:2 - 85:10] ObjCProtocolDecl=Proto:85:11 (Definition)
+// CHECK: Identifier: "Proto" [85:11 - 85:16] ObjCProtocolDecl=Proto:85:11 (Definition)
+// CHECK: Punctuation: "@" [85:17 - 85:18] ObjCProtocolDecl=Proto:85:11 (Definition)
+// CHECK: Keyword: "end" [85:18 - 85:21] ObjCProtocolDecl=Proto:85:11 (Definition)
 // CHECK: Keyword: "void" [87:1 - 87:5] FunctionDecl=f:87:6 (Definition)
 // CHECK: Identifier: "f" [87:6 - 87:7] FunctionDecl=f:87:6 (Definition)
 // CHECK: Punctuation: "(" [87:7 - 87:8] FunctionDecl=f:87:6 (Definition)
 // CHECK: Punctuation: ")" [87:8 - 87:9] FunctionDecl=f:87:6 (Definition)
-// CHECK: Punctuation: "{" [87:10 - 87:11] UnexposedStmt=
-// CHECK: Punctuation: "(" [88:3 - 88:4] UnexposedExpr=Proto:85:1
-// CHECK: Keyword: "void" [88:4 - 88:8] UnexposedExpr=Proto:85:1
-// CHECK: Punctuation: ")" [88:8 - 88:9] UnexposedExpr=Proto:85:1
-// CHECK: Punctuation: "@" [88:9 - 88:10] UnexposedExpr=Proto:85:1
-// CHECK: Keyword: "protocol" [88:10 - 88:18] UnexposedExpr=Proto:85:1
-// CHECK: Punctuation: "(" [88:18 - 88:19] UnexposedExpr=Proto:85:1
-// CHECK: Identifier: "Proto" [88:19 - 88:24] UnexposedExpr=Proto:85:1
-// CHECK: Punctuation: ")" [88:24 - 88:25] UnexposedExpr=Proto:85:1
-// CHECK: Punctuation: ";" [88:25 - 88:26] UnexposedStmt=
-// CHECK: Punctuation: "}" [89:1 - 89:2] UnexposedStmt=
+// CHECK: Punctuation: "{" [87:10 - 87:11] CompoundStmt=
+// CHECK: Punctuation: "(" [88:3 - 88:4] CStyleCastExpr=
+// CHECK: Keyword: "void" [88:4 - 88:8] CStyleCastExpr=
+// CHECK: Punctuation: ")" [88:8 - 88:9] CStyleCastExpr=
+// CHECK: Punctuation: "@" [88:9 - 88:10] ObjCProtocolExpr=Proto:85:1
+// CHECK: Keyword: "protocol" [88:10 - 88:18] ObjCProtocolExpr=Proto:85:1
+// CHECK: Punctuation: "(" [88:18 - 88:19] ObjCProtocolExpr=Proto:85:1
+// CHECK: Identifier: "Proto" [88:19 - 88:24] ObjCProtocolExpr=Proto:85:1
+// CHECK: Punctuation: ")" [88:24 - 88:25] ObjCProtocolExpr=Proto:85:1
+// CHECK: Punctuation: ";" [88:25 - 88:26] CompoundStmt=
+// CHECK: Punctuation: "}" [89:1 - 89:2] CompoundStmt=
 // CHECK: Punctuation: "@" [93:1 - 93:2] UnexposedDecl=[93:8]
 // CHECK: Keyword: "class" [93:2 - 93:7] UnexposedDecl=[93:8]
 // CHECK: Identifier: "Rdar8595462_A" [93:8 - 93:21] ObjCClassRef=Rdar8595462_A:93:8
@@ -456,31 +461,31 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Identifier: "Rdar8595462_B" [94:12 - 94:25] ObjCInterfaceDecl=Rdar8595462_B:94:12
 // CHECK: Punctuation: "@" [95:1 - 95:2] ObjCInterfaceDecl=Rdar8595462_B:94:12
 // CHECK: Keyword: "end" [95:2 - 95:5] ObjCInterfaceDecl=Rdar8595462_B:94:12
-// CHECK: Punctuation: "@" [97:1 - 97:2] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
-// CHECK: Keyword: "implementation" [97:2 - 97:16] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
-// CHECK: Identifier: "Rdar8595462_B" [97:17 - 97:30] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
+// CHECK: Punctuation: "@" [97:1 - 97:2] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
+// CHECK: Keyword: "implementation" [97:2 - 97:16] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
+// CHECK: Identifier: "Rdar8595462_B" [97:17 - 97:30] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
 // CHECK: Identifier: "Rdar8595462_A" [98:1 - 98:14] ObjCClassRef=Rdar8595462_A:93:8
 // CHECK: Punctuation: "*" [98:15 - 98:16] FunctionDecl=Rdar8595462_aFunction:98:17 (Definition)
 // CHECK: Identifier: "Rdar8595462_aFunction" [98:17 - 98:38] FunctionDecl=Rdar8595462_aFunction:98:17 (Definition)
 // CHECK: Punctuation: "(" [98:38 - 98:39] FunctionDecl=Rdar8595462_aFunction:98:17 (Definition)
 // CHECK: Punctuation: ")" [98:39 - 98:40] FunctionDecl=Rdar8595462_aFunction:98:17 (Definition)
-// CHECK: Punctuation: "{" [98:41 - 98:42] UnexposedStmt=
+// CHECK: Punctuation: "{" [98:41 - 98:42] CompoundStmt=
 // CHECK: Identifier: "Rdar8595462_A" [99:3 - 99:16] ObjCClassRef=Rdar8595462_A:93:8
 // CHECK: Punctuation: "*" [99:17 - 99:18] VarDecl=localVar:99:19 (Definition)
 // CHECK: Identifier: "localVar" [99:19 - 99:27] VarDecl=localVar:99:19 (Definition)
 // CHECK: Punctuation: "=" [99:28 - 99:29] VarDecl=localVar:99:19 (Definition)
-// CHECK: Literal: "0" [99:30 - 99:31] UnexposedExpr=
-// CHECK: Punctuation: ";" [99:31 - 99:32] UnexposedStmt=
-// CHECK: Keyword: "return" [100:3 - 100:9] UnexposedStmt=
+// CHECK: Literal: "0" [99:30 - 99:31] IntegerLiteral=
+// CHECK: Punctuation: ";" [99:31 - 99:32] DeclStmt=
+// CHECK: Keyword: "return" [100:3 - 100:9] ReturnStmt=
 // CHECK: Identifier: "localVar" [100:10 - 100:18] DeclRefExpr=localVar:99:19
-// CHECK: Punctuation: ";" [100:18 - 100:19] UnexposedStmt=
-// CHECK: Punctuation: "}" [101:1 - 101:2] UnexposedStmt=
-// CHECK: Keyword: "static" [102:1 - 102:7] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
+// CHECK: Punctuation: ";" [100:18 - 100:19] CompoundStmt=
+// CHECK: Punctuation: "}" [101:1 - 101:2] CompoundStmt=
+// CHECK: Keyword: "static" [102:1 - 102:7] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
 // CHECK: Identifier: "Rdar8595462_A" [102:8 - 102:21] ObjCClassRef=Rdar8595462_A:93:8
 // CHECK: Punctuation: "*" [102:22 - 102:23] VarDecl=Rdar8595462_staticVar:102:24
 // CHECK: Identifier: "Rdar8595462_staticVar" [102:24 - 102:45] VarDecl=Rdar8595462_staticVar:102:24
-// CHECK: Punctuation: ";" [102:45 - 102:46] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
-// CHECK: Punctuation: "@" [103:1 - 103:2] ObjCImplementationDecl=Rdar8595462_B:97:1 (Definition)
+// CHECK: Punctuation: ";" [102:45 - 102:46] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
+// CHECK: Punctuation: "@" [103:1 - 103:2] ObjCImplementationDecl=Rdar8595462_B:97:17 (Definition)
 // CHECK: Keyword: "end" [103:2 - 103:5]
 
 // CHECK: Punctuation: "@" [110:1 - 110:2] ObjCPropertyDecl=foo:110:33
@@ -506,7 +511,7 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK: Identifier: "foo" [115:13 - 115:16] ObjCSynthesizeDecl=foo:110:33 (Definition)
 // CHECK: Punctuation: "=" [115:17 - 115:18] ObjCSynthesizeDecl=foo:110:33 (Definition)
 // CHECK: Identifier: "_foo" [115:19 - 115:23] MemberRef=_foo:107:8
-// CHECK: Punctuation: ";" [115:23 - 115:24] ObjCImplementationDecl=Rdar8595386:114:1 (Definition)
+// CHECK: Punctuation: ";" [115:23 - 115:24] ObjCImplementationDecl=Rdar8595386:114:17 (Definition)
 
 // RUN: c-index-test -test-annotate-tokens=%s:127:1:130:1 %s -DIBOutlet='__attribute__((iboutlet))' -DIBAction='void)__attribute__((ibaction)' | FileCheck -check-prefix=CHECK-INSIDE_BLOCK %s
 // CHECK-INSIDE_BLOCK: Keyword: "int" [127:5 - 127:8] VarDecl=result:127:9 (Definition)
@@ -516,11 +521,11 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK-INSIDE_BLOCK: Identifier: "self" [127:19 - 127:23] DeclRefExpr=self:0:0
 // CHECK-INSIDE_BLOCK: Identifier: "blah" [127:24 - 127:28] ObjCMessageExpr=blah::124:1
 // CHECK-INSIDE_BLOCK: Punctuation: ":" [127:28 - 127:29] ObjCMessageExpr=blah::124:1
-// CHECK-INSIDE_BLOCK: Literal: "5" [127:29 - 127:30] UnexposedExpr=
+// CHECK-INSIDE_BLOCK: Literal: "5" [127:29 - 127:30] IntegerLiteral=
 // CHECK-INSIDE_BLOCK: Punctuation: "," [127:30 - 127:31] ObjCMessageExpr=blah::124:1
 // CHECK-INSIDE_BLOCK: Identifier: "x" [127:32 - 127:33] DeclRefExpr=x:125:19
 // CHECK-INSIDE_BLOCK: Punctuation: "]" [127:33 - 127:34] ObjCMessageExpr=blah::124:1
-// CHECK-INSIDE_BLOCK: Punctuation: ";" [127:34 - 127:35] UnexposedStmt=
+// CHECK-INSIDE_BLOCK: Punctuation: ";" [127:34 - 127:35] DeclStmt=
 // CHECK-INSIDE_BLOCK: Identifier: "Rdar8778404" [128:5 - 128:16] ObjCClassRef=Rdar8778404:120:12
 // CHECK-INSIDE_BLOCK: Punctuation: "*" [128:17 - 128:18] VarDecl=a:128:18 (Definition)
 // CHECK-INSIDE_BLOCK: Identifier: "a" [128:18 - 128:19] VarDecl=a:128:18 (Definition)
@@ -561,3 +566,11 @@ static Rdar8595462_A * Rdar8595462_staticVar;
 // CHECK-PROP-AFTER-METHOD: Identifier: "abah" [137:35 - 137:39] ObjCPropertyDecl=abah:137:35
 // CHECK-PROP-AFTER-METHOD: Punctuation: ";" [137:39 - 137:40] ObjCInterfaceDecl=Rdar8062781:134:12
 // CHECK-PROP-AFTER-METHOD: Punctuation: "@" [138:1 - 138:2] ObjCInterfaceDecl=Rdar8062781:134:12
+
+// RUN: c-index-test -test-annotate-tokens=%s:141:1:142:1 %s -DIBOutlet='__attribute__((iboutlet))' -DIBAction='void)__attribute__((ibaction)' -ccc-host-triple x86_64-apple-macosx10.7.0 | FileCheck -check-prefix=CHECK-WITH-WEAK %s
+// CHECK-WITH-WEAK: Identifier: "__weak" [141:3 - 141:9] macro expansion
+// CHECK-WITH-WEAK: Identifier: "Foo" [141:10 - 141:13] ObjCClassRef=Foo:1:12
+// CHECK-WITH-WEAK: Punctuation: "*" [141:14 - 141:15] ObjCIvarDecl=foo:141:15 (Definition)
+// CHECK-WITH-WEAK: Identifier: "foo" [141:15 - 141:18] ObjCIvarDecl=foo:141:15 (Definition)
+// CHECK-WITH-WEAK: Punctuation: ";" [141:18 - 141:19] ObjCInterfaceDecl=rdar9535717:140:12
+// CHECK-WITH-WEAK: Punctuation: "}" [142:1 - 142:2] ObjCInterfaceDecl=rdar9535717:140:12

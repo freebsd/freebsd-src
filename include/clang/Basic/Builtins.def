@@ -35,6 +35,7 @@
 //  A -> "reference" to __builtin_va_list
 //  V -> Vector, following num elements and a base type.
 //  X -> _Complex, followed by the base type.
+//  Y -> ptrdiff_t
 //  P -> FILE
 //  J -> jmp_buf
 //  SJ -> sigjmp_buf
@@ -76,6 +77,7 @@
 //          in that it accepts its arguments as a va_list rather than
 //          through an ellipsis
 //  e -> const, but only when -fmath-errno=0
+//  j -> returns_twice (like setjmp)
 //  FIXME: gcc has nonnull
 
 #if defined(BUILTIN) && !defined(LIBBUILTIN)
@@ -96,9 +98,9 @@ BUILTIN(__builtin_fabsl, "LdLd", "ncF")
 BUILTIN(__builtin_fmod , "ddd"  , "Fnc")
 BUILTIN(__builtin_fmodf, "fff"  , "Fnc")
 BUILTIN(__builtin_fmodl, "LdLdLd", "Fnc")
-BUILTIN(__builtin_frexp , "ddi*"  , "Fnc")
-BUILTIN(__builtin_frexpf, "ffi*"  , "Fnc")
-BUILTIN(__builtin_frexpl, "LdLdi*", "Fnc")
+BUILTIN(__builtin_frexp , "ddi*"  , "Fn")
+BUILTIN(__builtin_frexpf, "ffi*"  , "Fn")
+BUILTIN(__builtin_frexpl, "LdLdi*", "Fn")
 BUILTIN(__builtin_huge_val, "d", "nc")
 BUILTIN(__builtin_huge_valf, "f", "nc")
 BUILTIN(__builtin_huge_vall, "Ld", "nc")
@@ -108,9 +110,9 @@ BUILTIN(__builtin_infl , "Ld"  , "nc")
 BUILTIN(__builtin_ldexp , "ddi"  , "Fnc")
 BUILTIN(__builtin_ldexpf, "ffi"  , "Fnc")
 BUILTIN(__builtin_ldexpl, "LdLdi", "Fnc")
-BUILTIN(__builtin_modf , "ddd*"  , "Fnc")
-BUILTIN(__builtin_modff, "fff*"  , "Fnc")
-BUILTIN(__builtin_modfl, "LdLdLd*", "Fnc")
+BUILTIN(__builtin_modf , "ddd*"  , "Fn")
+BUILTIN(__builtin_modff, "fff*"  , "Fn")
+BUILTIN(__builtin_modfl, "LdLdLd*", "Fn")
 BUILTIN(__builtin_nan,  "dcC*" , "ncF")
 BUILTIN(__builtin_nanf, "fcC*" , "ncF")
 BUILTIN(__builtin_nanl, "LdcC*", "ncF")
@@ -233,9 +235,9 @@ BUILTIN(__builtin_nexttowardl, "LdLdLd", "Fnc")
 BUILTIN(__builtin_remainder , "ddd", "Fnc")
 BUILTIN(__builtin_remainderf, "fff", "Fnc")
 BUILTIN(__builtin_remainderl, "LdLdLd", "Fnc")
-BUILTIN(__builtin_remquo , "dddi*", "Fnc")
-BUILTIN(__builtin_remquof, "fffi*", "Fnc")
-BUILTIN(__builtin_remquol, "LdLdLdi*", "Fnc")
+BUILTIN(__builtin_remquo , "dddi*", "Fn")
+BUILTIN(__builtin_remquof, "fffi*", "Fn")
+BUILTIN(__builtin_remquol, "LdLdLdi*", "Fn")
 BUILTIN(__builtin_rint , "dd", "Fnc")
 BUILTIN(__builtin_rintf, "ff", "Fnc")
 BUILTIN(__builtin_rintl, "LdLd", "Fnc")
@@ -388,7 +390,7 @@ BUILTIN(__builtin_constant_p, "i.", "nct")
 BUILTIN(__builtin_classify_type, "i.", "nct")
 BUILTIN(__builtin___CFStringMakeConstantString, "FC*cC*", "nc")
 BUILTIN(__builtin___NSStringMakeConstantString, "FC*cC*", "nc")
-BUILTIN(__builtin_va_start, "vA.", "n")
+BUILTIN(__builtin_va_start, "vA.", "nt")
 BUILTIN(__builtin_va_end, "vA", "n")
 BUILTIN(__builtin_va_copy, "vAA", "n")
 BUILTIN(__builtin_stdarg_start, "vA.", "n")
@@ -426,7 +428,7 @@ BUILTIN(__builtin_return_address, "v*IUi", "n")
 BUILTIN(__builtin_extract_return_addr, "v*v*", "n")
 BUILTIN(__builtin_frame_address, "v*IUi", "n")
 BUILTIN(__builtin_flt_rounds, "i", "nc")
-BUILTIN(__builtin_setjmp, "iv**", "")
+BUILTIN(__builtin_setjmp, "iv**", "j")
 BUILTIN(__builtin_longjmp, "vv**i", "r")
 BUILTIN(__builtin_unwind_init, "v", "")
 BUILTIN(__builtin_eh_return_data_regno, "iIi", "nc")
@@ -584,12 +586,21 @@ BUILTIN(__sync_swap_4, "iiD*i.", "n")
 BUILTIN(__sync_swap_8, "LLiLLiD*LLi.", "n")
 BUILTIN(__sync_swap_16, "LLLiLLLiD*LLLi.", "n")
 
-
+BUILTIN(__atomic_load, "v.", "t")
+BUILTIN(__atomic_store, "v.", "t")
+BUILTIN(__atomic_exchange, "v.", "t")
+BUILTIN(__atomic_compare_exchange_strong, "v.", "t")
+BUILTIN(__atomic_compare_exchange_weak, "v.", "t")
+BUILTIN(__atomic_fetch_add, "v.", "t")
+BUILTIN(__atomic_fetch_sub, "v.", "t")
+BUILTIN(__atomic_fetch_and, "v.", "t")
+BUILTIN(__atomic_fetch_or, "v.", "t")
+BUILTIN(__atomic_fetch_xor, "v.", "t")
+BUILTIN(__atomic_thread_fence, "vi", "n")
+BUILTIN(__atomic_signal_fence, "vi", "n")
 
 // Non-overloaded atomic builtins.
 BUILTIN(__sync_synchronize, "v.", "n")
-// LLVM instruction builtin [Clang extension].
-BUILTIN(__builtin_llvm_memory_barrier,"vbbbbb", "n")
 // GCC does not support these, they are a Clang extension.
 BUILTIN(__sync_fetch_and_min, "iiD*i", "n")
 BUILTIN(__sync_fetch_and_max, "iiD*i", "n")
@@ -661,9 +672,26 @@ LIBBUILTIN(rindex, "c*cC*i",      "f",     "strings.h", ALL_LANGUAGES)
 LIBBUILTIN(bzero, "vv*z",         "f",     "strings.h", ALL_LANGUAGES)
 // POSIX unistd.h
 LIBBUILTIN(_exit, "vi",           "fr",    "unistd.h", ALL_LANGUAGES)
+LIBBUILTIN(vfork, "iJ",           "fj",    "unistd.h", ALL_LANGUAGES)
 // POSIX setjmp.h
+
+// In some systems setjmp is a macro that expands to _setjmp. We undefine
+// it here to avoid having two identical LIBBUILTIN entries.
+#undef setjmp
+LIBBUILTIN(_setjmp, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(__sigsetjmp, "iJ",     "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(setjmp, "iJ",          "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(sigsetjmp, "iJ",       "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(setjmp_syscall, "iJ",  "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(savectx, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(qsetjmp, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(getcontext, "iJ",      "fj",   "setjmp.h", ALL_LANGUAGES)
+
 LIBBUILTIN(_longjmp, "vJi",       "fr",    "setjmp.h", ALL_LANGUAGES)
 LIBBUILTIN(siglongjmp, "vSJi",    "fr",    "setjmp.h", ALL_LANGUAGES)
+// non-standard but very common
+LIBBUILTIN(strlcpy, "zc*cC*z",    "f",     "string.h", ALL_LANGUAGES)
+LIBBUILTIN(strlcat, "zc*cC*z",    "f",     "string.h", ALL_LANGUAGES)
 //   id objc_msgSend(id, SEL, ...)
 LIBBUILTIN(objc_msgSend, "GGH.",   "f",     "objc/message.h", OBJC_LANG)
 
@@ -687,8 +715,7 @@ LIBBUILTIN(objc_read_weak, "GG*", "f", "/objc/objc-auto.h", OBJC_LANG)
 // id objc_assign_weak(id value, id *location)
 LIBBUILTIN(objc_assign_weak, "GGG*", "f", "/objc/objc-auto.h", OBJC_LANG)
 // id objc_assign_ivar(id value, id dest, ptrdiff_t offset)
-// FIXME. Darwin has ptrdiff_t typedef'ed to int.
-LIBBUILTIN(objc_assign_ivar, "GGGi", "f", "/objc/objc-auto.h", OBJC_LANG)
+LIBBUILTIN(objc_assign_ivar, "GGGY", "f", "/objc/objc-auto.h", OBJC_LANG)
 // id objc_assign_global(id val, id *dest)
 LIBBUILTIN(objc_assign_global, "GGG*", "f", "/objc/objc-auto.h", OBJC_LANG)
 // id objc_assign_strongCast(id val, id *dest
@@ -737,6 +764,9 @@ LIBBUILTIN(fmaf, "ffff", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(_Block_object_assign, "vv*vC*iC", "f", "Blocks.h", ALL_LANGUAGES)
 LIBBUILTIN(_Block_object_dispose, "vvC*iC", "f", "Blocks.h", ALL_LANGUAGES)
 // FIXME: Also declare NSConcreteGlobalBlock and NSConcreteStackBlock.
+
+// Annotation function
+BUILTIN(__builtin_annotation, "UiUicC*", "nc")
 
 #undef BUILTIN
 #undef LIBBUILTIN

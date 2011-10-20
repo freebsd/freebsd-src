@@ -9,7 +9,7 @@
 // BLOCKS:#define __block __attribute__((__blocks__(byref)))
 //
 // 
-// RUN: %clang_cc1 -x c++ -std=c++0x -E -dM < /dev/null | FileCheck -check-prefix CXX0X %s
+// RUN: %clang_cc1 -x c++ -std=c++11 -E -dM < /dev/null | FileCheck -check-prefix CXX0X %s
 //
 // CXX0X:#define __GNUG__
 // CXX0X:#define __GXX_EXPERIMENTAL_CXX0X__ 1
@@ -76,7 +76,7 @@
 // C94:#define __STDC_VERSION__ 199409L
 //
 // 
-// RUN: %clang_cc1 -fms-extensions -triple i686-pc-win32 -E -dM < /dev/null | FileCheck -check-prefix MSEXT %s
+// RUN: %clang_cc1 -fms-extensions -triple i686-pc-win32 -fobjc-fragile-abi -E -dM < /dev/null | FileCheck -check-prefix MSEXT %s
 //
 // MSEXT-NOT:#define __STDC__
 // MSEXT:#define _INTEGRAL_MAX_BITS 64
@@ -94,7 +94,7 @@
 // OBJCGC:#define __OBJC_GC__ 1
 //
 // 
-// RUN: %clang_cc1 -x objective-c -fobjc-nonfragile-abi -E -dM < /dev/null | FileCheck -check-prefix NONFRAGILE %s
+// RUN: %clang_cc1 -x objective-c -fobjc-exceptions -E -dM < /dev/null | FileCheck -check-prefix NONFRAGILE %s
 //
 // NONFRAGILE:#define OBJC_ZEROCOST_EXCEPTIONS 1
 // NONFRAGILE:#define __OBJC2__ 1
@@ -410,9 +410,6 @@
 // I386:#define __WINT_WIDTH__ 32
 // I386:#define __i386 1
 // I386:#define __i386__ 1
-// I386:#define __nocona 1
-// I386:#define __nocona__ 1
-// I386:#define __tune_nocona__ 1
 // I386:#define i386 1
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=i386-pc-linux-gnu < /dev/null | FileCheck -check-prefix I386-LINUX %s
@@ -508,9 +505,6 @@
 // I386-LINUX:#define __WINT_WIDTH__ 32
 // I386-LINUX:#define __i386 1
 // I386-LINUX:#define __i386__ 1
-// I386-LINUX:#define __nocona 1
-// I386-LINUX:#define __nocona__ 1
-// I386-LINUX:#define __tune_nocona__ 1
 // I386-LINUX:#define i386 1
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=msp430-none-none < /dev/null | FileCheck -check-prefix MSP430 %s
@@ -1183,9 +1177,6 @@
 // X86_64:#define __WINT_WIDTH__ 32
 // X86_64:#define __amd64 1
 // X86_64:#define __amd64__ 1
-// X86_64:#define __nocona 1
-// X86_64:#define __nocona__ 1
-// X86_64:#define __tune_nocona__ 1
 // X86_64:#define __x86_64 1
 // X86_64:#define __x86_64__ 1
 //
@@ -1289,13 +1280,10 @@
 // X86_64-LINUX:#define __WINT_WIDTH__ 32
 // X86_64-LINUX:#define __amd64 1
 // X86_64-LINUX:#define __amd64__ 1
-// X86_64-LINUX:#define __nocona 1
-// X86_64-LINUX:#define __nocona__ 1
-// X86_64-LINUX:#define __tune_nocona__ 1
 // X86_64-LINUX:#define __x86_64 1
 // X86_64-LINUX:#define __x86_64__ 1
 //
-// RUN: %clang_cc1 -x c++ -triple i686-pc-linux-gnu -E -dM < /dev/null | FileCheck -check-prefix GNUSOURCE %s
+// RUN: %clang_cc1 -x c++ -triple i686-pc-linux-gnu -fobjc-fragile-abi -E -dM < /dev/null | FileCheck -check-prefix GNUSOURCE %s
 // GNUSOURCE:#define _GNU_SOURCE 1
 // 
 // RUN: %clang_cc1 -x c++ -std=c++98 -fno-rtti -E -dM < /dev/null | FileCheck -check-prefix NORTTI %s
