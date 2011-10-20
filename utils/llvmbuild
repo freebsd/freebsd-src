@@ -189,6 +189,10 @@ def add_options(parser):
                       help=("Extra flags to pass to gcc configure [default: %default]"))
     parser.add_option("--force-configure", default=False, action="store_true",
                       help=("Force reconfigure of all components"))
+    parser.add_option("--no-gcc", default=False, action="store_true",
+                      help=("Do not build dragonegg and gcc"))
+    parser.add_option("--no-install", default=False, action="store_true",
+                      help=("Do not do installs"))
     return
 
 def check_options(parser, options, valid_builds):
@@ -622,6 +626,12 @@ class Builder(threading.Thread):
 
         for component in components:
             comp = component[:]
+            
+            if (self.options.no_gcc):
+                if (comp == 'gcc' or comp == 'dragonegg' or comp == 'llvm2'):
+                    self.logger.info("Skipping " + component + " in "
+                                     + builddir)
+                    continue
 
             srcdir = source + "/" + comp.rstrip("2")
             builddir = self.build_prefix + "/" + comp + "/" + build_suffix
@@ -643,16 +653,20 @@ class Builder(threading.Thread):
                            configure_env[comp_key][build])
 
             self.logger.info("Building " + component + " in " + builddir)
+            self.logger.info("Build: make " + str(make_flags[comp_key][build]))
             self.make(component, srcdir, builddir,
                       make_flags[comp_key][build],
                       make_env[comp_key][build])
 
-            self.logger.info("Installing " + component + " in " + installdir)
-            self.make(component, srcdir, builddir,
-                      make_install_flags[comp_key][build],
-                      make_install_env[comp_key][build])
+            if (not self.options.no_install):
+                self.logger.info("Installing " + component + " in " + installdir)
+                self.make(component, srcdir, builddir,
+                          make_install_flags[comp_key][build],
+                          make_install_env[comp_key][build])
 
             self.logger.info("Testing " + component + " in " + builddir)
+            self.logger.info("Test: make "
+                             + str(make_check_flags[comp_key][build]))
             self.make(component, srcdir, builddir,
                       make_check_flags[comp_key][build],
                       make_check_env[comp_key][build])
@@ -741,9 +755,10 @@ if jobs == 0:
     jobs = 1
 
 numthreads = options.threads
-if jobs < numthreads:
-    numthreads = jobs
-    jobs = 1
+
+logging.getLogger().info("Building with " + str(options.jobs) + " jobs and "
+                         + str(numthreads) + " threads using " + str(jobs)
+                         + " make jobs")
 
 for t in range(numthreads):
     builder = Builder(work_queue, jobs,

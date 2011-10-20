@@ -29,10 +29,10 @@ MipsMCInstLower::MipsMCInstLower(Mangler *mang, const MachineFunction &mf,
   : Ctx(mf.getContext()), Mang(mang), AsmPrinter(asmprinter) {}
 
 MCOperand MipsMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
-                                              MachineOperandType MOTy) const {
+                                              MachineOperandType MOTy,
+                                              unsigned Offset) const {
   MipsMCSymbolRefExpr::VariantKind Kind;
   const MCSymbol *Symbol;
-  int Offset = 0;
 
   switch(MO.getTargetFlags()) {
   default:                  assert(0 && "Invalid target flag!");
@@ -46,6 +46,11 @@ MCOperand MipsMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   case MipsII::MO_GOTTPREL: Kind = MipsMCSymbolRefExpr::VK_Mips_GOTTPREL; break;
   case MipsII::MO_TPREL_HI: Kind = MipsMCSymbolRefExpr::VK_Mips_TPREL_HI; break;
   case MipsII::MO_TPREL_LO: Kind = MipsMCSymbolRefExpr::VK_Mips_TPREL_LO; break;
+  case MipsII::MO_GPOFF_HI: Kind = MipsMCSymbolRefExpr::VK_Mips_GPOFF_HI; break;
+  case MipsII::MO_GPOFF_LO: Kind = MipsMCSymbolRefExpr::VK_Mips_GPOFF_LO; break;
+  case MipsII::MO_GOT_DISP: Kind = MipsMCSymbolRefExpr::VK_Mips_GOT_DISP; break;
+  case MipsII::MO_GOT_PAGE: Kind = MipsMCSymbolRefExpr::VK_Mips_GOT_PAGE; break;
+  case MipsII::MO_GOT_OFST: Kind = MipsMCSymbolRefExpr::VK_Mips_GOT_OFST; break;
   }
 
   switch (MOTy) {
@@ -72,7 +77,7 @@ MCOperand MipsMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
     case MachineOperand::MO_ConstantPoolIndex:
       Symbol = AsmPrinter.GetCPISymbol(MO.getIndex());
       if (MO.getOffset())
-        Offset = MO.getOffset();  
+        Offset += MO.getOffset();  
       break;
 
     default:
@@ -83,36 +88,39 @@ MCOperand MipsMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
                                                            Ctx));
 }
 
+MCOperand MipsMCInstLower::LowerOperand(const MachineOperand& MO) const {
+  MachineOperandType MOTy = MO.getType();
+  
+  switch (MOTy) {
+  default:
+    assert(0 && "unknown operand type");
+    break;
+  case MachineOperand::MO_Register:
+    // Ignore all implicit register operands.
+    if (MO.isImplicit()) break;
+    return MCOperand::CreateReg(MO.getReg());
+  case MachineOperand::MO_Immediate:
+    return MCOperand::CreateImm(MO.getImm());
+  case MachineOperand::MO_MachineBasicBlock:
+  case MachineOperand::MO_GlobalAddress:
+  case MachineOperand::MO_ExternalSymbol:
+  case MachineOperand::MO_JumpTableIndex:
+  case MachineOperand::MO_ConstantPoolIndex:
+  case MachineOperand::MO_BlockAddress:
+    return LowerSymbolOperand(MO, MOTy, 0);
+ }
+
+  return MCOperand();
+}
+
 void MipsMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
   
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
-    MCOperand MCOp;
-    MachineOperandType MOTy = MO.getType();
+    MCOperand MCOp = LowerOperand(MO);
 
-    switch (MOTy) {
-    default:
-      MI->dump();
-      llvm_unreachable("unknown operand type");
-    case MachineOperand::MO_Register:
-      // Ignore all implicit register operands.
-      if (MO.isImplicit()) continue;
-      MCOp = MCOperand::CreateReg(MO.getReg());
-      break;
-    case MachineOperand::MO_Immediate:
-      MCOp = MCOperand::CreateImm(MO.getImm());
-      break;
-    case MachineOperand::MO_MachineBasicBlock:
-    case MachineOperand::MO_GlobalAddress:
-    case MachineOperand::MO_ExternalSymbol:
-    case MachineOperand::MO_JumpTableIndex:
-    case MachineOperand::MO_ConstantPoolIndex:
-    case MachineOperand::MO_BlockAddress:
-      MCOp = LowerSymbolOperand(MO, MOTy);
-      break;
-    }
-    
-    OutMI.addOperand(MCOp);
+    if (MCOp.isValid())
+      OutMI.addOperand(MCOp);
   }
 }

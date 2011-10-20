@@ -27,7 +27,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TypeBuilder.h"
-#include "llvm/Target/TargetSelect.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Type.h"
 
 #include <vector>
@@ -38,13 +38,13 @@ namespace {
 
 Function *makeReturnGlobal(std::string Name, GlobalVariable *G, Module *M) {
   std::vector<Type*> params;
-  const FunctionType *FTy = FunctionType::get(G->getType()->getElementType(),
+  FunctionType *FTy = FunctionType::get(G->getType()->getElementType(),
                                               params, false);
   Function *F = Function::Create(FTy, GlobalValue::ExternalLinkage, Name, M);
   BasicBlock *Entry = BasicBlock::Create(M->getContext(), "entry", F);
   IRBuilder<> builder(Entry);
   Value *Load = builder.CreateLoad(G);
-  const Type *GTy = G->getType()->getElementType();
+  Type *GTy = G->getType()->getElementType();
   Value *Add = builder.CreateAdd(Load, ConstantInt::get(GTy, 1LL));
   builder.CreateStore(Add, G);
   builder.CreateRet(Add);
@@ -236,7 +236,7 @@ TEST(JIT, GlobalInFunction) {
   ASSERT_EQ(Error, "");
 
   // Create a global variable.
-  const Type *GTy = Type::getInt32Ty(context);
+  Type *GTy = Type::getInt32Ty(context);
   GlobalVariable *G = new GlobalVariable(
       *M,
       GTy,
@@ -284,6 +284,8 @@ int PlusOne(int arg) {
   return arg + 1;
 }
 
+// ARM tests disabled pending fix for PR10783.
+#if !defined(__arm__)
 TEST_F(JITTest, FarCallToKnownFunction) {
   // x86-64 can only make direct calls to functions within 32 bits of
   // the current PC.  To call anything farther away, we have to load
@@ -320,11 +322,11 @@ TEST_F(JITTest, FarCallToKnownFunction) {
 TEST_F(JITTest, NonLazyCompilationStillNeedsStubs) {
   TheJIT->DisableLazyCompilation(true);
 
-  const FunctionType *Func1Ty =
+  FunctionType *Func1Ty =
       cast<FunctionType>(TypeBuilder<void(void), false>::get(Context));
   std::vector<Type*> arg_types;
   arg_types.push_back(Type::getInt1Ty(Context));
-  const FunctionType *FuncTy = FunctionType::get(
+  FunctionType *FuncTy = FunctionType::get(
       Type::getVoidTy(Context), arg_types, false);
   Function *Func1 = Function::Create(Func1Ty, Function::ExternalLinkage,
                                      "func1", M);
@@ -377,7 +379,7 @@ TEST_F(JITTest, NonLazyLeaksNoStubs) {
   TheJIT->DisableLazyCompilation(true);
 
   // Create two functions with a single basic block each.
-  const FunctionType *FuncTy =
+  FunctionType *FuncTy =
       cast<FunctionType>(TypeBuilder<int(), false>::get(Context));
   Function *Func1 = Function::Create(FuncTy, Function::ExternalLinkage,
                                      "func1", M);
@@ -461,6 +463,7 @@ TEST_F(JITTest, ModuleDeletion) {
   EXPECT_EQ(RJMM->startExceptionTableCalls.size(),
             NumTablesDeallocated);
 }
+#endif // !defined(__arm__)
 
 // ARM and PPC still emit stubs for calls since the target may be too far away
 // to call directly.  This #if can probably be removed when
@@ -608,6 +611,8 @@ extern "C" int32_t JITTest_AvailableExternallyFunction() {
 }
 namespace {
 
+// ARM tests disabled pending fix for PR10783.
+#if !defined(__arm__)
 TEST_F(JITTest, AvailableExternallyFunctionIsntCompiled) {
   TheJIT->DisableLazyCompilation(true);
   LoadAssembly("define available_externally i32 "
@@ -763,6 +768,7 @@ TEST(LazyLoadedJITTest, EagerCompiledRecursionThroughGhost) {
     (intptr_t)TheJIT->getPointerToFunction(recur1IR));
   EXPECT_EQ(3, recur1(4));
 }
+#endif // !defined(__arm__)
 
 // This code is copied from JITEventListenerTest, but it only runs once for all
 // the tests in this directory.  Everything seems fine, but that's strange

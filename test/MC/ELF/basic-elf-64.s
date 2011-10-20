@@ -30,9 +30,9 @@ main:                                   # @main
 
 	.section	.note.GNU-stack,"",@progbits
 
-// CHECK: ('e_indent[EI_CLASS]', 0x00000002)
-// CHECK: ('e_indent[EI_DATA]', 0x00000001)
-// CHECK: ('e_indent[EI_VERSION]', 0x00000001)
+// CHECK: ('e_indent[EI_CLASS]', 0x02)
+// CHECK: ('e_indent[EI_DATA]', 0x01)
+// CHECK: ('e_indent[EI_VERSION]', 0x01)
 // CHECK: ('_sections', [
 // CHECK:   # Section 0
 // CHECK:   (('sh_name', 0x00000000) # ''
@@ -42,41 +42,41 @@ main:                                   # @main
 // CHECK:   # '.rela.text'
 
 // CHECK:   ('_relocations', [
-// CHECK:     # Relocation 0x00000000
-// CHECK:     (('r_offset', 0x00000005)
+// CHECK:     # Relocation 0
+// CHECK:     (('r_offset', 0x0000000000000005)
 // CHECK:      ('r_type', 0x0000000a)
-// CHECK:      ('r_addend', 0x00000000)
+// CHECK:      ('r_addend', 0x0000000000000000)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000001
-// CHECK:     (('r_offset', 0x0000000a)
+// CHECK:     # Relocation 1
+// CHECK:     (('r_offset', 0x000000000000000a)
 // CHECK:      ('r_type', 0x00000002)
-// CHECK:      ('r_addend', 0xfffffffc)
+// CHECK:      ('r_addend', 0xfffffffffffffffc)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000002
-// CHECK:     (('r_offset', 0x0000000f)
+// CHECK:     # Relocation 2
+// CHECK:     (('r_offset', 0x000000000000000f)
 // CHECK:      ('r_type', 0x0000000a)
-// CHECK:      ('r_addend', 0x00000006)
+// CHECK:      ('r_addend', 0x0000000000000006)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000003
-// CHECK:     (('r_offset', 0x00000014)
+// CHECK:     # Relocation 3
+// CHECK:     (('r_offset', 0x0000000000000014)
 // CHECK:      ('r_type', 0x00000002)
-// CHECK:      ('r_addend', 0xfffffffc)
+// CHECK:      ('r_addend', 0xfffffffffffffffc)
 // CHECK:     ),
 // CHECK:   ])
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
 // CHECK:   # 'main'
-// CHECK-NEXT: ('st_bind', 0x00000001)
-// CHECK-NEXT: ('st_type', 0x00000002)
+// CHECK-NEXT: ('st_bind', 0x1)
+// CHECK-NEXT: ('st_type', 0x2)
 
 // CHECK:   # 'puts'
-// CHECK-NEXT: ('st_bind', 0x00000001)
-// CHECK-NEXT: ('st_type', 0x00000000)
+// CHECK-NEXT: ('st_bind', 0x1)
+// CHECK-NEXT: ('st_type', 0x0)

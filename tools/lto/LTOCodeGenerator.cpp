@@ -23,6 +23,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -31,19 +32,21 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetSelect.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PassManagerBuilder.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/system_error.h"
 #include "llvm/Config/config.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include <cstdlib>
 #include <unistd.h>
 #include <fcntl.h>
@@ -73,8 +76,7 @@ LTOCodeGenerator::LTOCodeGenerator()
       _nativeObjectFile(NULL)
 {
     InitializeAllTargets();
-    InitializeAllMCAsmInfos();
-    InitializeAllMCSubtargetInfos();
+    InitializeAllTargetMCs();
     InitializeAllAsmPrinters();
 }
 
@@ -191,7 +193,7 @@ bool LTOCodeGenerator::compile_to_file(const char** name, std::string& errMsg)
   bool genResult = false;
   tool_output_file objFile(uniqueObjPath.c_str(), errMsg);
   if (!errMsg.empty())
-    return NULL;
+    return true;
   genResult = this->generateObjectFile(objFile.os(), errMsg);
   objFile.os().close();
   if (objFile.os().has_error()) {
@@ -250,23 +252,25 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
 
         // The relocation model is actually a static member of TargetMachine
         // and needs to be set before the TargetMachine is instantiated.
+        Reloc::Model RelocModel = Reloc::Default;
         switch( _codeModel ) {
         case LTO_CODEGEN_PIC_MODEL_STATIC:
-            TargetMachine::setRelocationModel(Reloc::Static);
+            RelocModel = Reloc::Static;
             break;
         case LTO_CODEGEN_PIC_MODEL_DYNAMIC:
-            TargetMachine::setRelocationModel(Reloc::PIC_);
+            RelocModel = Reloc::PIC_;
             break;
         case LTO_CODEGEN_PIC_MODEL_DYNAMIC_NO_PIC:
-            TargetMachine::setRelocationModel(Reloc::DynamicNoPIC);
+            RelocModel = Reloc::DynamicNoPIC;
             break;
         }
 
-        // construct LTModule, hand over ownership of module and target
+        // construct LTOModule, hand over ownership of module and target
         SubtargetFeatures Features;
         Features.getDefaultSubtargetFeatures(llvm::Triple(Triple));
         std::string FeatureStr = Features.getString();
-        _target = march->createTargetMachine(Triple, _mCpu, FeatureStr);
+        _target = march->createTargetMachine(Triple, _mCpu, FeatureStr,
+                                             RelocModel);
     }
     return false;
 }
@@ -308,7 +312,7 @@ void LTOCodeGenerator::applyScopeRestrictions() {
   passes.add(createVerifierPass());
 
   // mark which symbols can not be internalized 
-  MCContext Context(*_target->getMCAsmInfo(), NULL);
+  MCContext Context(*_target->getMCAsmInfo(), *_target->getRegisterInfo(), NULL);
   Mangler mangler(Context, *_target->getTargetData());
   std::vector<const char*> mustPreserveList;
   SmallPtrSet<GlobalValue*, 8> asmUsed;
@@ -329,7 +333,7 @@ void LTOCodeGenerator::applyScopeRestrictions() {
   if (LLVMCompilerUsed)
     LLVMCompilerUsed->eraseFromParent();
 
-  const llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(_context);
+  llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(_context);
   std::vector<Constant*> asmUsed2;
   for (SmallPtrSet<GlobalValue*, 16>::const_iterator i = asmUsed.begin(),
          e = asmUsed.end(); i !=e; ++i) {

@@ -34,11 +34,13 @@ static std::string convertToString(double d, unsigned Prec, unsigned Pad) {
 namespace {
 
 TEST(APFloatTest, Zero) {
-  EXPECT_EQ(0.0f,  APFloat(APFloat::IEEEsingle,  0.0f).convertToFloat());
-  EXPECT_EQ(-0.0f, APFloat(APFloat::IEEEsingle, -0.0f).convertToFloat());
+  EXPECT_EQ(0.0f,  APFloat(0.0f).convertToFloat());
+  EXPECT_EQ(-0.0f, APFloat(-0.0f).convertToFloat());
+  EXPECT_TRUE(APFloat(-0.0f).isNegative());
 
-  EXPECT_EQ(0.0,  APFloat(APFloat::IEEEdouble,  0.0).convertToDouble());
-  EXPECT_EQ(-0.0, APFloat(APFloat::IEEEdouble, -0.0).convertToDouble());
+  EXPECT_EQ(0.0,  APFloat(0.0).convertToDouble());
+  EXPECT_EQ(-0.0, APFloat(-0.0).convertToDouble());
+  EXPECT_TRUE(APFloat(-0.0).isNegative());
 }
 
 TEST(APFloatTest, fromZeroDecimalString) {
@@ -644,6 +646,11 @@ TEST(APFloatTest, exactInverse) {
   EXPECT_FALSE(APFloat(0.0).getExactInverse(0));
   // Denormalized float
   EXPECT_FALSE(APFloat(1.40129846e-45f).getExactInverse(0));
+}
+
+TEST(APFloatTest, getLargest) {
+  EXPECT_EQ(3.402823466e+38f, APFloat::getLargest(APFloat::IEEEsingle).convertToFloat());
+  EXPECT_EQ(1.7976931348623158e+308, APFloat::getLargest(APFloat::IEEEdouble).convertToDouble());
 }
 
 }

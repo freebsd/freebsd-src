@@ -13,10 +13,20 @@ add_llvm_library(LLVMipo
   Inliner.cpp
   Internalize.cpp
   LoopExtractor.cpp
-  LowerSetJmp.cpp
   MergeFunctions.cpp
   PartialInlining.cpp
+  PassManagerBuilder.cpp
   PruneEH.cpp
   StripDeadPrototypes.cpp
   StripSymbols.cpp
+  )
+
+add_llvm_library_dependencies(LLVMipo
+  LLVMAnalysis
+  LLVMCore
+  LLVMScalarOpts
+  LLVMSupport
+  LLVMTarget
+  LLVMTransformUtils
+  LLVMipa
   )

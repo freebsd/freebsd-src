@@ -222,7 +222,7 @@ static Module *TestMergedProgram(const BugDriver &BD, Module *M1, Module *M2,
     M1 = CloneModule(M1);
     M2 = CloneModule(M2);
   }
-  if (Linker::LinkModules(M1, M2, &ErrorMsg)) {
+  if (Linker::LinkModules(M1, M2, Linker::DestroySource, &ErrorMsg)) {
     errs() << BD.getToolName() << ": Error linking modules together:"
            << ErrorMsg << '\n';
     exit(1);
@@ -384,7 +384,7 @@ static bool ExtractLoops(BugDriver &BD,
 
     outs() << "*** Loop extraction successful!\n";
 
-    std::vector<std::pair<std::string, const FunctionType*> > MisCompFunctions;
+    std::vector<std::pair<std::string, FunctionType*> > MisCompFunctions;
     for (Module::iterator I = ToOptimizeLoopExtracted->begin(),
            E = ToOptimizeLoopExtracted->end(); I != E; ++I)
       if (!I->isDeclaration())
@@ -396,7 +396,8 @@ static bool ExtractLoops(BugDriver &BD,
     // Replace the current program with the loop extracted version, and try to
     // extract another loop.
     std::string ErrorMsg;
-    if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted, &ErrorMsg)){
+    if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted, 
+                            Linker::DestroySource, &ErrorMsg)){
       errs() << BD.getToolName() << ": Error linking modules together:"
              << ErrorMsg << '\n';
       exit(1);
@@ -411,8 +412,6 @@ static bool ExtractLoops(BugDriver &BD,
       Function *NewF = ToNotOptimize->getFunction(MisCompFunctions[i].first);
 
       assert(NewF && "Function not found??");
-      assert(NewF->getFunctionType() == MisCompFunctions[i].second &&
-             "found wrong function type?");
       MiscompiledFunctions.push_back(NewF);
     }
 
@@ -569,7 +568,7 @@ static bool ExtractBlocks(BugDriver &BD,
   // together.
   delete ToExtract;
 
-  std::vector<std::pair<std::string, const FunctionType*> > MisCompFunctions;
+  std::vector<std::pair<std::string, FunctionType*> > MisCompFunctions;
   for (Module::iterator I = Extracted->begin(), E = Extracted->end();
        I != E; ++I)
     if (!I->isDeclaration())
@@ -577,7 +576,8 @@ static bool ExtractBlocks(BugDriver &BD,
                                                 I->getFunctionType()));
 
   std::string ErrorMsg;
-  if (Linker::LinkModules(ProgClone, Extracted, &ErrorMsg)) {
+  if (Linker::LinkModules(ProgClone, Extracted, Linker::DestroySource, 
+                          &ErrorMsg)) {
     errs() << BD.getToolName() << ": Error linking modules together:"
            << ErrorMsg << '\n';
     exit(1);
@@ -593,8 +593,6 @@ static bool ExtractBlocks(BugDriver &BD,
   for (unsigned i = 0, e = MisCompFunctions.size(); i != e; ++i) {
     Function *NewF = ProgClone->getFunction(MisCompFunctions[i].first);
     assert(NewF && "Function not found??");
-    assert(NewF->getFunctionType() == MisCompFunctions[i].second &&
-           "Function has wrong type??");
     MiscompiledFunctions.push_back(NewF);
   }
 
@@ -834,8 +832,7 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
         // GetElementPtr *funcName, ulong 0, ulong 0
         std::vector<Constant*> GEPargs(2,
                      Constant::getNullValue(Type::getInt32Ty(F->getContext())));
-        Value *GEP =
-                ConstantExpr::getGetElementPtr(funcName, &GEPargs[0], 2);
+        Value *GEP = ConstantExpr::getGetElementPtr(funcName, GEPargs);
         std::vector<Value*> ResolverArgs;
         ResolverArgs.push_back(GEP);
 
@@ -850,7 +847,7 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
                                NullPtr,F->getName()+".fpcache");
 
           // Construct a new stub function that will re-route calls to F
-          const FunctionType *FuncTy = F->getFunctionType();
+          FunctionType *FuncTy = F->getFunctionType();
           Function *FuncWrapper = Function::Create(FuncTy,
                                                    GlobalValue::InternalLinkage,
                                                    F->getName() + "_wrapper",

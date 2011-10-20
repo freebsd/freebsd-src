@@ -181,18 +181,6 @@ void SPUFrameLowering::emitPrologue(MachineFunction &MF) const {
       MachineLocation FPSrc(MachineLocation::VirtualFP);
       Moves.push_back(MachineMove(ReadyLabel, FPDst, FPSrc));
     }
-  } else {
-    // This is a leaf function -- insert a branch hint iff there are
-    // sufficient number instructions in the basic block. Note that
-    // this is just a best guess based on the basic block's size.
-    if (MBB.size() >= (unsigned) SPUFrameLowering::branchHintPenalty()) {
-      MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-      dl = MBBI->getDebugLoc();
-
-      // Insert terminator label
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::PROLOG_LABEL))
-        .addSym(MMI.getContext().CreateTempSymbol());
-    }
   }
 }
 
@@ -247,14 +235,6 @@ void SPUFrameLowering::emitEpilogue(MachineFunction &MF,
       report_fatal_error("Unhandled frame size: " + Twine(FrameSize));
     }
   }
-}
-
-void SPUFrameLowering::getInitialFrameState(std::vector<MachineMove> &Moves)
-                                                                         const {
-  // Initial state of the frame pointer is R1.
-  MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(SPU::R1, 0);
-  Moves.push_back(MachineMove(0, Dst, Src));
 }
 
 void SPUFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,

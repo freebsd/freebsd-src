@@ -198,11 +198,6 @@ if( LLVM_USING_GLIBC )
   add_llvm_definitions( -D_GNU_SOURCE )
 endif()
 
-# Type checks
-check_type_exists(std::bidirectional_iterator<int,int> "iterator;iostream" HAVE_BI_ITERATOR)
-check_type_exists(std::iterator<int,int,int> iterator HAVE_STD_ITERATOR)
-check_type_exists(std::forward_iterator<int,int> iterator HAVE_FWD_ITERATOR)
-
 set(headers "")
 if (HAVE_SYS_TYPES_H)
   set(headers ${headers} "sys/types.h")
@@ -277,7 +272,7 @@ else()
   unset(HAVE_FFI_CALL CACHE)
 endif( LLVM_ENABLE_FFI )
 
-# Define LLVM_MULTITHREADED if gcc atomic builtins exists.
+# Define LLVM_HAS_ATOMICS if gcc or MSVC atomic builtins are supported.
 include(CheckAtomic)
 
 if( LLVM_ENABLE_PIC )
@@ -336,7 +331,7 @@ else ()
   message(STATUS "Native target architecture is ${LLVM_NATIVE_ARCH}")
   set(LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target)
   set(LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo)
-  set(LLVM_NATIVE_MCASMINFO LLVMInitialize${LLVM_NATIVE_ARCH}MCAsmInfo)
+  set(LLVM_NATIVE_TARGETMC LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC)
   set(LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter)
 endif ()
 

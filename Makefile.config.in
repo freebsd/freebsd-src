@@ -188,30 +188,6 @@ LIBS       := @LIBS@
 # Targets that we should build
 TARGETS_TO_BUILD=@TARGETS_TO_BUILD@
 
-# Path to location for LLVM C/C++ front-end. You can modify this if you
-# want to override the value set by configure.
-LLVMGCCDIR := @LLVMGCCDIR@
-
-# Full pathnames of LLVM C/C++ front-end 'cc1' and 'cc1plus' binaries:
-LLVMGCC  := @LLVMGCC@
-LLVMGXX  := @LLVMGXX@
-LLVMCC1  := @LLVMCC1@
-LLVMCC1PLUS := @LLVMCC1PLUS@
-LLVMGCC_LANGS := @LLVMGCC_LANGS@
-LLVMGCC_DRAGONEGG := @LLVMGCC_DRAGONEGG@
-
-# Information on Clang, if configured.
-CLANGPATH := @CLANGPATH@
-CLANGXXPATH := @CLANGXXPATH@
-ENABLE_BUILT_CLANG := @ENABLE_BUILT_CLANG@
-
-# The LLVM capable compiler to use.
-LLVMCC_OPTION := @LLVMCC_OPTION@
-
-# The flag used to emit LLVM IR.
-LLVMCC_EMITIR_FLAG = @LLVMCC_EMITIR_FLAG@
-LLVMCC_DISABLEOPT_FLAGS := @LLVMCC_DISABLEOPT_FLAGS@
-
 # Path to directory where object files should be stored during a build.
 # Set OBJ_ROOT to "." if you do not want to use a separate place for
 # object files.
@@ -337,17 +313,6 @@ endif
 
 # Location of the plugin header file for gold.
 BINUTILS_INCDIR := @BINUTILS_INCDIR@
-
-# When ENABLE_LLVMC_DYNAMIC is enabled, LLVMC will link libCompilerDriver
-# dynamically. This is needed to make dynamic plugins work on some targets
-# (Windows).
-ENABLE_LLVMC_DYNAMIC = 0
-#@ENABLE_LLVMC_DYNAMIC@
-
-# When ENABLE_LLVMC_DYNAMIC_PLUGINS is enabled, LLVMC will have dynamic plugin
-# support (via the -load option).
-ENABLE_LLVMC_DYNAMIC_PLUGINS = 1
-#@ENABLE_LLVMC_DYNAMIC_PLUGINS@
 
 # Optional flags supported by the compiler
 # -Wno-missing-field-initializers

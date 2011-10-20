@@ -1448,6 +1448,10 @@ vdivpd  -4(%rcx,%rbx,8), %xmm10, %xmm11
 // CHECK: encoding: [0xc4,0x61,0xf9,0x6e,0xf0]
           vmovd  %rax, %xmm14
 
+// CHECK: vmovd %xmm0, %rax
+// CHECK: encoding: [0xc4,0xe1,0xf9,0x7e,0xc0]
+          vmovd %xmm0, %rax
+
 // CHECK: vmovq  %xmm14, (%rax)
 // CHECK: encoding: [0xc5,0x79,0xd6,0x30]
           vmovq  %xmm14, (%rax)
@@ -3316,3 +3320,29 @@ vdivpd  -4(%rcx,%rbx,8), %xmm10, %xmm11
 // CHECK: encoding: [0xc4,0x63,0x1d,0x4b,0xac,0x20,0xad,0xde,0x00,0x00,0xb0]
           vblendvpd  %ymm11, 0xdead(%rax,%riz), %ymm12, %ymm13
 
+// CHECK: vmovaps	%xmm3, (%r14,%r11)
+// CHECK: encoding: [0xc4,0x81,0x78,0x29,0x1c,0x1e]
+          vmovaps	%xmm3, (%r14,%r11)
+
+// CHECK: vmovaps	(%r14,%r11), %xmm3
+// CHECK: encoding: [0xc4,0x81,0x78,0x28,0x1c,0x1e]
+          vmovaps	(%r14,%r11), %xmm3
+
+// CHECK: vmovaps	%xmm3, (%r14,%rbx)
+// CHECK: encoding: [0xc4,0xc1,0x78,0x29,0x1c,0x1e]
+          vmovaps	%xmm3, (%r14,%rbx)
+
+// CHECK: vmovaps	(%r14,%rbx), %xmm3
+// CHECK: encoding: [0xc4,0xc1,0x78,0x28,0x1c,0x1e]
+          vmovaps	(%r14,%rbx), %xmm3
+
+// CHECK: vmovaps %xmm3, (%rax,%r11)
+// CHECK: encoding: [0xc4,0xa1,0x78,0x29,0x1c,0x18]
+          vmovaps %xmm3, (%rax,%r11)
+
+// CHECK: vpshufb _foo(%rip), %xmm0, %xmm0
+// CHECK: encoding: [0xc4,0xe2,0x79,0x00,0x05,A,A,A,A]
+// CHECK: kind: reloc_riprel_4byte
+_foo:
+  nop
+  vpshufb _foo(%rip), %xmm0, %xmm0

@@ -1,6 +1,7 @@
 // Test that multiline, nested, comments work correctly.
 //
-// RUN: tblgen < %s
+// RUN: llvm-tblgen < %s
+// XFAIL: vg_leak
 
 /* Foo
   bar

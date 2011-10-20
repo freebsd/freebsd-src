@@ -82,7 +82,7 @@ set(LLVM_ALL_TARGETS
   )
 
 # List of targets with JIT support:
-set(LLVM_TARGETS_WITH_JIT X86 PowerPC ARM)
+set(LLVM_TARGETS_WITH_JIT X86 PowerPC ARM Mips)
 
 if( MSVC )
   set(LLVM_TARGETS_TO_BUILD X86
@@ -181,11 +181,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
-   SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-include llvm/Support/Solaris.h")
+   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include llvm/Support/Solaris.h")
 endif( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
 
 include(AddLLVM)
 include(TableGen)
+
+macro(llvm_tablegen)
+  tablegen(LLVM ${ARGN})
+endmacro()
 
 if( MINGW )
   # People report that -O3 is unreliable on MinGW. The traditional
@@ -195,18 +199,9 @@ endif()
 
 # Put this before tblgen. Else we have a circular dependence.
 add_subdirectory(lib/Support)
-
-set(LLVM_TABLEGEN "tblgen" CACHE
-  STRING "Native TableGen executable. Saves building one when cross-compiling.")
-# Effective tblgen executable to be used:
-set(LLVM_TABLEGEN_EXE ${LLVM_TABLEGEN})
+add_subdirectory(lib/TableGen)
 
 add_subdirectory(utils/TableGen)
-
-if( CMAKE_CROSSCOMPILING )
-  # This adds a dependency on target `tblgen', so must go after utils/TableGen
-  include( CrossCompileLLVM )
-endif( CMAKE_CROSSCOMPILING )
 
 add_subdirectory(include/llvm)
 

@@ -21,20 +21,20 @@ entry:
 ; OBJ-NEXT:    'sh_entsize'
 ; OBJ-NEXT:    '_section_data', '00482de9 000000e3 000040e3 feffffeb 0088bde8'
 
-; OBJ:            Relocation 0x00000000
+; OBJ:            Relocation 0
 ; OBJ-NEXT:       'r_offset', 0x00000004
-; OBJ-NEXT:       'r_sym', 0x00000007
-; OBJ-NEXT:        'r_type', 0x0000002b
+; OBJ-NEXT:       'r_sym', 0x000007
+; OBJ-NEXT:        'r_type', 0x2b
 
-; OBJ:          Relocation 0x00000001
+; OBJ:          Relocation 1
 ; OBJ-NEXT:       'r_offset', 0x00000008
 ; OBJ-NEXT:       'r_sym'
-; OBJ-NEXT:        'r_type', 0x0000002c
+; OBJ-NEXT:        'r_type', 0x2c
 
-; OBJ:          # Relocation 0x00000002
+; OBJ:          # Relocation 2
 ; OBJ-NEXT:       'r_offset', 0x0000000c
-; OBJ-NEXT:       'r_sym', 0x00000008
-; OBJ-NEXT:       'r_type', 0x0000001c
+; OBJ-NEXT:       'r_sym', 0x000008
+; OBJ-NEXT:       'r_type', 0x1c
 
 }
 

@@ -3,6 +3,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Bug report URL. */
+#undef BUG_REPORT_URL
+
 /* Relative directory for resource files */
 #undef CLANG_RESOURCE_DIR
 
@@ -546,6 +549,9 @@
 /* Installation directory for config files */
 #undef LLVM_ETCDIR
 
+/* Has gcc/MSVC atomic intrinsics */
+#undef LLVM_HAS_ATOMICS
+
 /* Host triple we were built on */
 #undef LLVM_HOSTTRIPLE
 
@@ -561,9 +567,6 @@
 /* Installation directory for man pages */
 #undef LLVM_MANDIR
 
-/* Build multithreading support into LLVM */
-#undef LLVM_MULTITHREADED
-
 /* LLVM architecture name for the native architecture, if available */
 #undef LLVM_NATIVE_ARCH
 
@@ -573,14 +576,14 @@
 /* LLVM name for the native AsmPrinter init function, if available */
 #undef LLVM_NATIVE_ASMPRINTER
 
-/* LLVM name for the native MCAsmInfo init function, if available */
-#undef LLVM_NATIVE_MCASMINFO
-
 /* LLVM name for the native Target init function, if available */
 #undef LLVM_NATIVE_TARGET
 
 /* LLVM name for the native TargetInfo init function, if available */
 #undef LLVM_NATIVE_TARGETINFO
+
+/* LLVM name for the native target MC init function, if available */
+#undef LLVM_NATIVE_TARGETMC
 
 /* Define if this is Unixish platform */
 #undef LLVM_ON_UNIX

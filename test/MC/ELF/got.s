@@ -7,13 +7,13 @@
         movl	foo@GOTPCREL(%rip), %eax
 
 // CHECK:      ('_relocations', [
-// CHECK-NEXT:   # Relocation 0x00000000
+// CHECK-NEXT:   # Relocation 0
 // CHECK-NEXT:    (('r_offset',
 // CHECK-NEXT:     ('r_sym',
 // CHECK-NEXT:     ('r_type', 0x00000003)
 // CHECK-NEXT:     ('r_addend',
 // CHECK-NEXT:    ),
-// CHECK-NEXT:   # Relocation 0x00000001
+// CHECK-NEXT:   # Relocation 1
 // CHECK-NEXT:    (('r_offset',
 // CHECK-NEXT:     ('r_sym',
 // CHECK-NEXT:     ('r_type', 0x00000009)
@@ -22,4 +22,4 @@
 // CHECK-NEXT:   ])
 
 // CHECK:     (('st_name', 0x00000005) # '_GLOBAL_OFFSET_TABLE_'
-// CHECK-NEXT: ('st_bind', 0x00000001)
+// CHECK-NEXT: ('st_bind', 0x1)

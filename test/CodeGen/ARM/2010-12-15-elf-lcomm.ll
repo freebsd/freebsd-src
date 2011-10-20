@@ -5,7 +5,7 @@
 
 
 @dummy = internal global i32 666
-@array00 = internal global [20 x i32] zeroinitializer
+@array00 = internal global [80 x i8] zeroinitializer, align 1
 @sum = internal global i32 55
 @STRIDE = internal global i32 8
 
@@ -15,21 +15,22 @@
 
 
 
-; OBJ:          Section 0x00000004
+; OBJ:          Section 4
 ; OBJ-NEXT:     '.bss'
 
 ; OBJ:          'array00'
 ; OBJ-NEXT:     'st_value', 0x00000000
 ; OBJ-NEXT:     'st_size', 0x00000050
-; OBJ-NEXT:     'st_bind', 0x00000000
-; OBJ-NEXT:     'st_type', 0x00000001
-; OBJ-NEXT:     'st_other', 0x00000000
-; OBJ-NEXT:     'st_shndx', 0x00000004
+; OBJ-NEXT:     'st_bind', 0x0
+; OBJ-NEXT:     'st_type', 0x1
+; OBJ-NEXT:     'st_other', 0x00
+; OBJ-NEXT:     'st_shndx', 0x0004
 
 define i32 @main(i32 %argc) nounwind {
   %1 = load i32* @sum, align 4
-  %2 = getelementptr  [20 x i32]* @array00, i32 0, i32 %argc
-  %3 = load i32* %2, align 4
-  %4 = add i32 %1, %3
-  ret i32 %4;
+  %2 = getelementptr [80 x i8]* @array00, i32 0, i32 %argc
+  %3 = load i8* %2
+  %4 = zext i8 %3 to i32
+  %5 = add i32 %1, %4
+  ret i32 %5
 }

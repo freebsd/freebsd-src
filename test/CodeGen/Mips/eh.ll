@@ -1,5 +1,5 @@
-; RUN: llc  < %s -march=mipsel -mcpu=4ke | FileCheck %s -check-prefix=CHECK-EL
-; RUN: llc  < %s -march=mips   -mcpu=4ke | FileCheck %s -check-prefix=CHECK-EB
+; RUN: llc  < %s -march=mipsel | FileCheck %s -check-prefix=CHECK-EL
+; RUN: llc  < %s -march=mips   | FileCheck %s -check-prefix=CHECK-EB
 
 @g1 = global double 0.000000e+00, align 8
 @_ZTId = external constant i8*
@@ -32,10 +32,12 @@ lpad:                                             ; preds = %entry
 ; CHECK-EL:  lw  $gp
 ; CHECK-EL:  beq $5
 
-  %exn = tail call i8* @llvm.eh.exception() nounwind
-  %eh.selector = tail call i32 (i8*, i8*, ...)* @llvm.eh.selector(i8* %exn, i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*), i8* bitcast (i8** @_ZTId to i8*)) nounwind
+  %exn.val = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+           catch i8* bitcast (i8** @_ZTId to i8*)
+  %exn = extractvalue { i8*, i32 } %exn.val, 0
+  %sel = extractvalue { i8*, i32 } %exn.val, 1
   %1 = tail call i32 @llvm.eh.typeid.for(i8* bitcast (i8** @_ZTId to i8*)) nounwind
-  %2 = icmp eq i32 %eh.selector, %1
+  %2 = icmp eq i32 %sel, %1
   br i1 %2, label %catch, label %eh.resume
 
 catch:                                            ; preds = %lpad
@@ -48,8 +50,7 @@ catch:                                            ; preds = %lpad
   ret void
 
 eh.resume:                                        ; preds = %lpad
-  tail call void @llvm.eh.resume(i8* %exn, i32 %eh.selector) noreturn
-  unreachable
+  resume { i8*, i32 } %exn.val
 
 unreachable:                                      ; preds = %entry
   unreachable

@@ -2,8 +2,8 @@
 
 @a = external global i32		; <i32*> [#uses=7]
 
-; CHECK: @foo
-define i32 @foo() nounwind {
+; CHECK: @test1
+define i32 @test1() nounwind {
 entry:
 	%0 = load i32* @a, align 4
 	%1 = icmp eq i32 %0, 4
@@ -52,4 +52,81 @@ bb8:		; preds = %bb7, %bb6, %bb4, %bb2, %bb
 
 return:		; preds = %bb8
 	ret i32 %.0
+}
+
+declare void @foo(i1)
+
+; CHECK: @test2
+define void @test2(i1 %x, i1 %y) {
+  %z = or i1 %x, %y
+  br i1 %z, label %true, label %false
+true:
+; CHECK: true:
+  %z2 = or i1 %x, %y
+  call void @foo(i1 %z2)
+; CHECK: call void @foo(i1 true)
+  br label %true
+false:
+; CHECK: false:
+  %z3 = or i1 %x, %y
+  call void @foo(i1 %z3)
+; CHECK: call void @foo(i1 false)
+  br label %false
+}
+
+declare void @bar(i32)
+
+; CHECK: @test3
+define void @test3(i32 %x, i32 %y) {
+  %xz = icmp eq i32 %x, 0
+  %yz = icmp eq i32 %y, 0
+  %z = and i1 %xz, %yz
+  br i1 %z, label %both_zero, label %nope
+both_zero:
+  call void @foo(i1 %xz)
+; CHECK: call void @foo(i1 true)
+  call void @foo(i1 %yz)
+; CHECK: call void @foo(i1 true)
+  call void @bar(i32 %x)
+; CHECK: call void @bar(i32 0)
+  call void @bar(i32 %y)
+; CHECK: call void @bar(i32 0)
+  ret void
+nope:
+  call void @foo(i1 %z)
+; CHECK: call void @foo(i1 false)
+  ret void
+}
+
+; CHECK: @test4
+define void @test4(i1 %b, i32 %x) {
+  br i1 %b, label %sw, label %case3
+sw:
+  switch i32 %x, label %default [
+    i32 0, label %case0
+    i32 1, label %case1
+    i32 2, label %case0
+    i32 3, label %case3
+    i32 4, label %default
+  ]
+default:
+; CHECK: default:
+  call void @bar(i32 %x)
+; CHECK: call void @bar(i32 %x)
+  ret void
+case0:
+; CHECK: case0:
+  call void @bar(i32 %x)
+; CHECK: call void @bar(i32 %x)
+  ret void
+case1:
+; CHECK: case1:
+  call void @bar(i32 %x)
+; CHECK: call void @bar(i32 1)
+  ret void
+case3:
+; CHECK: case3:
+  call void @bar(i32 %x)
+; CHECK: call void @bar(i32 %x)
+  ret void
 }

@@ -31,16 +31,15 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl email address for reporting bugs.
-AC_INIT([[llvm]],[[3.0svn]],[llvmbugs@cs.uiuc.edu])
+AC_INIT([[llvm]],[[3.0]],[llvmbugs@cs.uiuc.edu])
 
 dnl Provide a copyright substitution and ensure the copyright notice is included
 dnl in the output of --version option of the generated configure script.
 AC_SUBST(LLVM_COPYRIGHT,["Copyright (c) 2003-2011 University of Illinois at Urbana-Champaign."])
 AC_COPYRIGHT([Copyright (c) 2003-2011 University of Illinois at Urbana-Champaign.])
 
-dnl Indicate that we require autoconf 2.59 or later. Ths is needed because we
-dnl use some autoconf macros only available in 2.59.
-AC_PREREQ(2.59)
+dnl Indicate that we require autoconf 2.60 or later.
+AC_PREREQ(2.60)
 
 dnl Verify that the source directory is valid. This makes sure that we are
 dnl configuring LLVM and not some other package (it validates --srcdir argument)
@@ -57,6 +56,12 @@ if test ${srcdir} != "." ; then
     AC_MSG_ERROR([Already configured in ${srcdir}])
   fi
 fi
+
+dnl We need to check for the compiler up here to avoid anything else
+dnl starting with a different one.
+AC_PROG_CC(clang llvm-gcc gcc)
+AC_PROG_CXX(clang++ llvm-g++ g++)
+AC_PROG_CPP
 
 dnl Configure all of the projects present in our source tree. While we could
 dnl just AC_CONFIG_SUBDIRS on the set of directories in projects that have a
@@ -299,6 +304,8 @@ AC_CACHE_CHECK([type of operating system we're going to target],
     llvm_cv_target_os_type="Haiku" ;;
   *-*-rtems*)
     llvm_cv_target_os_type="RTEMS" ;;
+  *-*-nacl*)
+    llvm_cv_target_os_type="NativeClient" ;;
   *-unknown-eabi*)
     llvm_cv_target_os_type="Freestanding" ;;
   *)
@@ -413,7 +420,7 @@ dnl===-----------------------------------------------------------------------===
 
 dnl --enable-optimized : check whether they want to do an optimized build:
 AC_ARG_ENABLE(optimized, AS_HELP_STRING(
- --enable-optimized,[Compile with optimizations enabled (default is NO)]),,enableval=$optimize)
+ --enable-optimized,[Compile with optimizations enabled (default is YES)]),,enableval=$optimize)
 if test ${enableval} = "no" ; then
   AC_SUBST(ENABLE_OPTIMIZED,[[]])
 else
@@ -431,7 +438,7 @@ fi
 
 dnl --enable-assertions : check whether they want to turn on assertions or not:
 AC_ARG_ENABLE(assertions,AS_HELP_STRING(
-  --enable-assertions,[Compile with assertion checks enabled (default is YES)]),, enableval="yes")
+  --enable-assertions,[Compile with assertion checks enabled (default is NO)]),, enableval="no")
 if test ${enableval} = "yes" ; then
   AC_SUBST(DISABLE_ASSERTIONS,[[]])
 else
@@ -484,7 +491,7 @@ else
     x86_64)      AC_SUBST(TARGET_HAS_JIT,1) ;;
     Alpha)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     ARM)         AC_SUBST(TARGET_HAS_JIT,1) ;;
-    Mips)        AC_SUBST(TARGET_HAS_JIT,0) ;;
+    Mips)        AC_SUBST(TARGET_HAS_JIT,1) ;;
     XCore)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     MSP430)      AC_SUBST(TARGET_HAS_JIT,0) ;;
     SystemZ)     AC_SUBST(TARGET_HAS_JIT,0) ;;
@@ -573,12 +580,12 @@ esac
 dnl Allow libstdc++ is embedded in LLVM.dll.
 AC_ARG_ENABLE(embed-stdcxx,
   AS_HELP_STRING([--enable-embed-stdcxx],
-                 [Build a shared library with embedded libstdc++ for Win32 DLL (default is YES)]),,
+                 [Build a shared library with embedded libstdc++ for Win32 DLL (default is NO)]),,
                  enableval=default)
 case "$enableval" in
   yes) AC_SUBST(ENABLE_EMBED_STDCXX,[1]) ;;
   no)  AC_SUBST(ENABLE_EMBED_STDCXX,[0]) ;;
-  default) AC_SUBST(ENABLE_EMBED_STDCXX,[1]) ;;
+  default) AC_SUBST(ENABLE_EMBED_STDCXX,[0]) ;;
   *) AC_MSG_ERROR([Invalid setting for --enable-embed-stdcxx. Use "yes" or "no"]) ;;
 esac
 
@@ -658,7 +665,7 @@ for a_target in $TARGETS_TO_BUILD; do
       [LLVM architecture name for the native architecture, if available])
     LLVM_NATIVE_TARGET="LLVMInitialize${LLVM_NATIVE_ARCH}Target"
     LLVM_NATIVE_TARGETINFO="LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo"
-    LLVM_NATIVE_MCASMINFO="LLVMInitialize${LLVM_NATIVE_ARCH}MCAsmInfo"
+    LLVM_NATIVE_TARGETMC="LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC"
     LLVM_NATIVE_ASMPRINTER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter"
     if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
       LLVM_NATIVE_ASMPARSER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser"
@@ -667,8 +674,8 @@ for a_target in $TARGETS_TO_BUILD; do
       [LLVM name for the native Target init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_TARGETINFO, $LLVM_NATIVE_TARGETINFO,
       [LLVM name for the native TargetInfo init function, if available])
-    AC_DEFINE_UNQUOTED(LLVM_NATIVE_MCASMINFO, $LLVM_NATIVE_MCASMINFO,
-      [LLVM name for the native MCAsmInfo init function, if available])
+    AC_DEFINE_UNQUOTED(LLVM_NATIVE_TARGETMC, $LLVM_NATIVE_TARGETMC,
+      [LLVM name for the native target MC init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_ASMPRINTER, $LLVM_NATIVE_ASMPRINTER,
       [LLVM name for the native AsmPrinter init function, if available])
     if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
@@ -715,97 +722,6 @@ case "$enableval" in
 esac
 AC_DEFINE_UNQUOTED([ENABLE_CBE_PRINTF_A],$ENABLE_CBE_PRINTF_A,
                    [Define if CBE is enabled for printf %a output])
-
-dnl Allow a specific llvm-gcc/llvm-g++ pair to be used with this LLVM config.
-AC_ARG_WITH(llvmgccdir,
-  AS_HELP_STRING([--with-llvmgccdir],
-    [Specify location of llvm-gcc install dir (default searches PATH)]),,
-    withval=default)
-case "$withval" in
-  default) WITH_LLVMGCCDIR=default ;;
-  /* | [[A-Za-z]]:[[\\/]]*)      WITH_LLVMGCCDIR=$withval ;;
-  *) AC_MSG_ERROR([Invalid path for --with-llvmgccdir. Provide full path]) ;;
-esac
-
-dnl Allow a specific llvm-gcc compiler to be used with this LLVM config.
-AC_ARG_WITH(llvmgcc,
-  AS_HELP_STRING([--with-llvmgcc],
-    [Specify location of llvm-gcc driver (default searches PATH)]),
-    LLVMGCC=$with_llvmgcc
-      WITH_LLVMGCCDIR="",)
-
-dnl Allow a specific llvm-g++ compiler to be used with this LLVM config.
-AC_ARG_WITH(llvmgxx,
-  AS_HELP_STRING([--with-llvmgxx],
-    [Specify location of llvm-g++ driver (default searches PATH)]),
-    LLVMGXX=$with_llvmgxx
-    WITH_LLVMGCCDIR="",)
-
-if test -n "$LLVMGCC"; then
-   LLVMGCCCOMMAND="$LLVMGCC"
-fi
-
-if test -n "$LLVMGXX"; then
-   LLVMGXXCOMMAND="$LLVMGXX"
-fi
-
-if test -n "$LLVMGCC" && test -z "$LLVMGXX"; then
-   AC_MSG_ERROR([Invalid llvm-g++. Use --with-llvmgxx when --with-llvmgcc is used]);
-fi
-
-if test -n "$LLVMGXX" && test -z "$LLVMGCC"; then
-   AC_MSG_ERROR([Invalid llvm-gcc. Use --with-llvmgcc when --with-llvmgxx is used]);
-fi
-
-dnl Allow a specific Clang compiler to be used with this LLVM config.
-AC_ARG_WITH(clang,
-  AS_HELP_STRING([--with-clang],
-    [Specify location of clang compiler (default is --with-built-clang)]),
-    [],[with_clang=default])
-
-dnl Enable use of the built Clang.
-AC_ARG_WITH(built-clang,
-  AS_HELP_STRING([--with-built-clang],
-    [Use the compiled Clang as the LLVM compiler (default=check)]),
-    [],[with_built_clang=check])
-
-dnl Select the Clang compiler option.
-dnl
-dnl If --with-clang is given, always honor that; otherwise honor
-dnl --with-built-clang, or check if we have the clang sources.
-AC_MSG_CHECKING([clang compiler])
-WITH_CLANGPATH=""
-WITH_BUILT_CLANG=0
-if test "$with_clang" != "default"; then
-   WITH_CLANGPATH="$with_clang"
-   if ! test -x "$WITH_CLANGPATH"; then
-     AC_MSG_ERROR([invalid --with-clang, path does not specify an executable])
-   fi
-elif test "$with_built_clang" = "yes"; then
-   WITH_BUILT_CLANG=1
-elif test "$with_built_clang" = "no"; then
-   WITH_BUILT_CLANG=0
-else
-   if test "$with_built_clang" != "check"; then
-      AC_MSG_ERROR([invalid value for --with-built-clang.])
-   fi
-
-   if test -f ${srcdir}/tools/clang/README.txt; then
-     WITH_BUILT_CLANG=1
-   fi
-fi
-
-if ! test -z "$WITH_CLANGPATH"; then
-   AC_MSG_RESULT([$WITH_CLANGPATH])
-   WITH_CLANGXXPATH=`"$WITH_CLANGPATH" --print-prog-name=clang++`
-elif test "$WITH_BUILT_CLANG" = "1"; then
-   AC_MSG_RESULT([built])
-else
-   AC_MSG_RESULT([none])
-fi
-AC_SUBST(CLANGPATH,$WITH_CLANGPATH)
-AC_SUBST(CLANGXXPATH,$WITH_CLANGXXPATH)
-AC_SUBST(ENABLE_BUILT_CLANG,$WITH_BUILT_CLANG)
 
 dnl Override the option to use for optimized builds.
 AC_ARG_WITH(optimize-option,
@@ -942,8 +858,8 @@ fi
 dnl Specify the URL where bug reports should be submitted.
 AC_ARG_WITH(bug-report-url,
   AS_HELP_STRING([--with-bug-report-url],
-    [Specify the URL where bug reports should be submitted (default=http://llvm.org)]),,
-    withval="http://llvm.org")
+    [Specify the URL where bug reports should be submitted (default=http://llvm.org/bugs/)]),,
+    withval="http://llvm.org/bugs/")
 AC_DEFINE_UNQUOTED(BUG_REPORT_URL,"$withval",
                    [Bug report URL.])
 
@@ -962,11 +878,6 @@ dnl===
 dnl=== SECTION 4: Check for programs we need and that they are the right version
 dnl===
 dnl===-----------------------------------------------------------------------===
-
-dnl Check for compilation tools
-AC_PROG_CPP
-AC_PROG_CC(gcc)
-AC_PROG_CXX(g++)
 
 AC_PROG_NM
 AC_SUBST(NM)
@@ -1139,55 +1050,6 @@ dnl libtool).
 AC_LIBTOOL_DLOPEN
 AC_LIB_LTDL
 
-if test "$WITH_LLVMGCCDIR" = "default" ; then
-  LLVMGCC="llvm-gcc${EXEEXT}"
-  LLVMGXX="llvm-g++${EXEEXT}"
-  LLVMGCCCOMMAND="$LLVMGCC"
-  LLVMGXXCOMMAND="$LLVMGXX"
-  AC_SUBST(LLVMGCCCOMMAND,$LLVMGCCCOMMAND)
-  AC_SUBST(LLVMGXXCOMMAND,$LLVMGXXCOMMAND)
-  AC_PATH_PROG(LLVMGCC, $LLVMGCC, [])
-  AC_PATH_PROG(LLVMGXX, $LLVMGXX, [])
-else
-  if test -z "$LLVMGCC"; then
-    LLVMGCC="$WITH_LLVMGCCDIR/bin/llvm-gcc${EXEEXT}"
-    LLVMGCCCOMMAND="$LLVMGCC"
-  fi
-  if test -z "$LLVMGXX"; then
-    LLVMGXX="$WITH_LLVMGCCDIR/bin/llvm-g++${EXEEXT}"
-    LLVMGXXCOMMAND="$LLVMGXX"
-  fi
-
-  AC_SUBST(LLVMGCC,$LLVMGCC)
-  AC_SUBST(LLVMGXX,$LLVMGXX)
-  AC_SUBST(LLVMGCCCOMMAND,$LLVMGCCCOMMAND)
-  AC_SUBST(LLVMGXXCOMMAND,$LLVMGXXCOMMAND)
-fi
-
-dnl Select the LLVM capable compiler to use, we default to using llvm-gcc if
-dnl found, otherwise clang if available.
-AC_ARG_WITH(llvmcc,
-  AS_HELP_STRING([--with-llvmcc=<name>],
-    [Choose the LLVM capable compiler to use (llvm-gcc, clang, or none; default=check)]),
-    [],[with_llvmcc=check])
-AC_MSG_CHECKING([LLVM capable compiler])
-if test "$with_llvmcc" != "check"; then
-   if (test "$with_llvmcc" != "llvm-gcc" &&
-       test "$with_llvmcc" != "clang" &&
-       test "$with_llvmcc" != "none"); then
-      AC_MSG_ERROR([invalid value for --with-llvmcc, expected 'llvm-gcc', 'clang', or 'none'.])
-   fi
-   WITH_LLVMCC="$with_llvmcc"
-elif test -n "$LLVMGCC"; then
-   WITH_LLVMCC=llvm-gcc
-elif test -n "$WITH_CLANGPATH" || test "$WITH_BUILT_CLANG" -ne "0"; then
-   WITH_LLVMCC=clang
-else
-   WITH_LLVMCC=none
-fi
-AC_MSG_RESULT([$WITH_LLVMCC])
-AC_SUBST(LLVMCC_OPTION,$WITH_LLVMCC)
-
 AC_MSG_CHECKING([tool compatibility])
 
 dnl Ensure that compilation tools are GCC or a GNU compatible compiler such as
@@ -1352,7 +1214,6 @@ dnl Generally we're looking for POSIX headers.
 AC_HEADER_DIRENT
 AC_HEADER_MMAP_ANONYMOUS
 AC_HEADER_STAT
-AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
@@ -1512,9 +1373,9 @@ AC_LINK_IFELSE(
     ]]),
   AC_LANG_POP([C++])
   AC_MSG_RESULT(yes)
-  AC_DEFINE(LLVM_MULTITHREADED, 1, Build multithreading support into LLVM),
+  AC_DEFINE(LLVM_HAS_ATOMICS, 1, Has gcc/MSVC atomic intrinsics),
   AC_MSG_RESULT(no)
-  AC_DEFINE(LLVM_MULTITHREADED, 0, Build multithreading support into LLVM)
+  AC_DEFINE(LLVM_HAS_ATOMICS, 0, Has gcc/MSVC atomic intrinsics)
   AC_MSG_WARN([LLVM will be built thread-unsafe because atomic builtins are missing]))
 
 dnl===-----------------------------------------------------------------------===
@@ -1533,62 +1394,8 @@ if test "$llvm_cv_os_type" = "Linux" -a "$llvm_cv_target_arch" = "x86_64" ; then
   fi
 fi
 
-dnl Check, whether __dso_handle is present
+dnl Check whether __dso_handle is present
 AC_CHECK_FUNCS([__dso_handle])
-
-dnl Check wether llvm-gcc is based on dragonegg
-AC_CACHE_CHECK([whether llvm-gcc is dragonegg],[llvm_cv_llvmgcc_dragonegg],
-[llvm_cv_llvmgcc_dragonegg="no"
-if test -n "$LLVMGCC" ; then
-  cp /dev/null conftest.c
-  $LLVMGCC -fplugin-arg-dragonegg-emit-ir -S -o - conftest.c > /dev/null 2>&1
-  if test $? -eq 0 ; then
-    llvm_cv_llvmgcc_dragonegg="yes"
-  fi
-  rm conftest.c
-fi])
-
-dnl Set the flags needed to emit LLVM IR and to disable optimizations
-dnl in llvmgcc
-if test "$llvm_cv_llvmgcc_dragonegg" = "yes" ; then
-  LLVMCC_EMITIR_FLAG="-fplugin-arg-dragonegg-emit-ir"
-  LLVMCC_DISABLEOPT_FLAGS="-fplugin-arg-dragonegg-llvm-ir-optimize=0"
-else
-  LLVMCC_EMITIR_FLAG="-emit-llvm"
-  LLVMCC_DISABLEOPT_FLAGS="-mllvm -disable-llvm-optzns"
-fi
-
-AC_SUBST(LLVMCC_EMITIR_FLAG)
-
-dnl See if the llvm-gcc executable can compile to LLVM assembly
-AC_CACHE_CHECK([whether llvm-gcc is sane],[llvm_cv_llvmgcc_sanity],
-[llvm_cv_llvmgcc_sanity="no"
-if test -n "$LLVMGCC" ; then
-  cp /dev/null conftest.c
-  $LLVMGCC "$LLVMCC_EMITIR_FLAG" -S -o - conftest.c | \
-      grep 'target datalayout =' > /dev/null 2>&1
-  if test $? -eq 0 ; then
-    llvm_cv_llvmgcc_sanity="yes"
-  fi
-  rm conftest.c
-fi])
-
-dnl Since we have a sane llvm-gcc, identify it and its sub-tools
-dnl Furthermore, add some information about the tools
-if test "$llvm_cv_llvmgcc_sanity" = "yes" ; then
-  AC_MSG_CHECKING([llvm-gcc component support])
-  llvmcc1path=`$LLVMGCC --print-prog-name=cc1`
-  AC_SUBST(LLVMCC1,$llvmcc1path)
-  llvmcc1pluspath=`$LLVMGCC --print-prog-name=cc1plus`
-  AC_SUBST(LLVMCC1PLUS,$llvmcc1pluspath)
-  llvmgccdir=`echo "$llvmcc1path" | sed 's,/libexec/.*,,'`
-  AC_SUBST(LLVMGCCDIR,$llvmgccdir)
-  llvmgcclangs=[`$LLVMGCC -v --help 2>&1 | grep '^Configured with:' | sed 's/^.*--enable-languages=\([^ ]*\).*/\1/'`]
-  AC_SUBST(LLVMGCC_LANGS,$llvmgcclangs)
-  AC_SUBST(LLVMGCC_DRAGONEGG,$llvm_cv_llvmgcc_dragonegg)
-  AC_SUBST(LLVMCC_DISABLEOPT_FLAGS)
-  AC_MSG_RESULT([ok])
-fi
 
 dnl Propagate the shared library extension that the libltdl checks did to
 dnl the Makefiles so we can use it there too
@@ -1753,11 +1560,11 @@ if test -f ${srcdir}/tools/clang/README.txt; then
   AC_CONFIG_FILES([tools/clang/docs/doxygen.cfg])
 fi
 
-dnl Configure llvmc's Base plugin
-AC_CONFIG_FILES([tools/llvmc/src/Base.td])
-
 dnl Do the first stage of configuration for llvm-config.in.
 AC_CONFIG_FILES([tools/llvm-config/llvm-config.in])
+
+dnl OCaml findlib META file
+AC_CONFIG_FILES([bindings/ocaml/llvm/META.llvm])
 
 dnl Do special configuration of Makefiles
 AC_CONFIG_COMMANDS([setup],,[llvm_src="${srcdir}"])

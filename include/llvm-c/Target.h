@@ -29,6 +29,7 @@ extern "C" {
 enum LLVMByteOrdering { LLVMBigEndian, LLVMLittleEndian };
 
 typedef struct LLVMOpaqueTargetData *LLVMTargetDataRef;
+typedef struct LLVMOpaqueTargetLibraryInfotData *LLVMTargetLibraryInfoRef;
 typedef struct LLVMStructLayout *LLVMStructLayoutRef;
 
 /* Declare all of the target-initialization functions that are available. */
@@ -42,7 +43,7 @@ typedef struct LLVMStructLayout *LLVMStructLayoutRef;
 #undef LLVM_TARGET  /* Explicit undef to make SWIG happier */
 
 #define LLVM_TARGET(TargetName) \
-  void LLVMInitialize##TargetName##MCAsmInfo(void);
+  void LLVMInitialize##TargetName##TargetMC(void);
 #include "llvm/Config/Targets.def"
 #undef LLVM_TARGET  /* Explicit undef to make SWIG happier */
   
@@ -72,7 +73,7 @@ static inline LLVMBool LLVMInitializeNativeTarget(void) {
 #ifdef LLVM_NATIVE_TARGET
   LLVM_NATIVE_TARGETINFO();
   LLVM_NATIVE_TARGET();
-  LLVM_NATIVE_MCASMINFO();
+  LLVM_NATIVE_TARGETMC();
   return 0;
 #else
   return 1;
@@ -89,6 +90,11 @@ LLVMTargetDataRef LLVMCreateTargetData(const char *StringRep);
     of the target data.
     See the method llvm::PassManagerBase::add. */
 void LLVMAddTargetData(LLVMTargetDataRef, LLVMPassManagerRef);
+
+/** Adds target library information to a pass manager. This does not take
+    ownership of the target library info.
+    See the method llvm::PassManagerBase::add. */
+void LLVMAddTargetLibraryInfo(LLVMTargetLibraryInfoRef, LLVMPassManagerRef);
 
 /** Converts target data to a target layout string. The string must be disposed
     with LLVMDisposeMessage.
@@ -157,6 +163,7 @@ void LLVMDisposeTargetData(LLVMTargetDataRef);
 
 namespace llvm {
   class TargetData;
+  class TargetLibraryInfo;
 
   inline TargetData *unwrap(LLVMTargetDataRef P) {
     return reinterpret_cast<TargetData*>(P);
@@ -164,6 +171,15 @@ namespace llvm {
   
   inline LLVMTargetDataRef wrap(const TargetData *P) {
     return reinterpret_cast<LLVMTargetDataRef>(const_cast<TargetData*>(P));
+  }
+
+  inline TargetLibraryInfo *unwrap(LLVMTargetLibraryInfoRef P) {
+    return reinterpret_cast<TargetLibraryInfo*>(P);
+  }
+
+  inline LLVMTargetLibraryInfoRef wrap(const TargetLibraryInfo *P) {
+    TargetLibraryInfo *X = const_cast<TargetLibraryInfo*>(P);
+    return reinterpret_cast<LLVMTargetLibraryInfoRef>(X);
   }
 }
 

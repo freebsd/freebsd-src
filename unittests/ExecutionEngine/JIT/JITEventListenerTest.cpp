@@ -16,7 +16,7 @@
 #include "llvm/CodeGen/MachineCodeInfo.h"
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/Support/TypeBuilder.h"
-#include "llvm/Target/TargetSelect.h"
+#include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
 #include <vector>
 
@@ -45,7 +45,7 @@ struct RecordingJITEventListener : public JITEventListener {
   std::vector<FunctionEmittedEvent> EmittedEvents;
   std::vector<FunctionFreedEvent> FreedEvents;
 
-  int NextIndex;
+  unsigned NextIndex;
 
   RecordingJITEventListener() : NextIndex(0) {}
 

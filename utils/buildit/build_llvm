@@ -97,31 +97,16 @@ if [ "$ARM_HOSTED_BUILD" = yes ]; then
     echo 'exec '$T' "$@"' >> $P || exit 1
     chmod a+x $P || exit 1
   done
-  # Try to use the platform llvm-gcc. Fall back to gcc if it's not available.
-  for prog in gcc g++ ; do
+  # Set up the links for clang.
+  for prog in clang clang++ ; do
     P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
-    T=`xcrun -sdk $SDKROOT -find llvm-${prog}`
-    if [ "x$T" = "x" ] ; then
-      T=`xcrun -sdk $SDKROOT -find ${prog}`
-    fi
+    T=`xcrun -sdk $SDKROOT -find ${prog}`
     echo '#!/bin/sh' > $P || exit 1
     echo 'exec '$T' -arch armv7 -isysroot '${SDKROOT}' "$@"' >> $P || exit 1
     chmod a+x $P || exit 1
   done
 
   PATH=$DIR/bin:$PATH
-# otherwise, try to use llvm-gcc if it's available
-elif [ $DARWIN_VERS -gt 9 ]; then
-  # If the user has set CC or CXX, respect their wishes.  If not,
-  # compile with LLVM-GCC/LLVM-G++ if available; if LLVM is not
-  # available, fall back to usual GCC/G++ default.
-  savedPATH=$PATH ; PATH="/Developer/usr/bin:$PATH"
-  XTMPCC=$(which llvm-gcc)
-  if [ x$CC  = x -a x$XTMPCC != x ] ; then export CC=$XTMPCC  ; fi
-  XTMPCC=$(which llvm-g++)
-  if [ x$CXX = x -a x$XTMPCC != x ] ; then export CXX=$XTMPCC ; fi
-  PATH=$savedPATH
-  unset XTMPCC savedPATH
 fi
 
 if [ "$ARM_HOSTED_BUILD" = yes ]; then
@@ -157,32 +142,15 @@ else
     LLVM_VERSION="$LLVM_SUBMIT_VERSION-$LLVM_SUBMIT_SUBVERSION"
 fi
 
-GCC_VER=`cc --version 2>/dev/null | sed 1q`
-
-if echo "$GCC_VER" | grep GCC > /dev/null; then
-    GCC_VER=`echo $GCC_VER | sed -e 's/.*(GCC) \([0-9.][0-9.]*\).*/\1/'`
-    MAJ_VER=`echo $GCC_VER | sed 's/\..*//'`
-    MIN_VER=`echo $GCC_VER | sed 's/[^.]*\.\([0-9]*\).*/\1/'`
+# Figure out how many make processes to run.
+SYSCTL=`sysctl -n hw.activecpu`
+# sysctl -n hw.* does not work when invoked via B&I chroot /BuildRoot.
+# Builders can default to 2, since even if they are single processor,
+# nothing else is running on the machine.
+if [ -z "$SYSCTL" ]; then
+    SYSCTL=2
 fi
-
-JOBS_FLAG=""
-
-# Note: If compiling with GCC 4.0, don't pass the -jN flag. Building universal
-# already has parallelism and we don't want to make the builders hit swap by
-# firing off too many gccs at the same time.
-if [ "x$MAJ_VER" != "x4" -o "x$MIN_VER" != "x0" ]; then
-    # Figure out how many make processes to run.
-    SYSCTL=`sysctl -n hw.activecpu`
-
-    # sysctl -n hw.* does not work when invoked via B&I chroot /BuildRoot.
-    # Builders can default to 2, since even if they are single processor,
-    # nothing else is running on the machine.
-    if [ -z "$SYSCTL" ]; then
-        SYSCTL=2
-    fi
-
-    JOBS_FLAG="-j $SYSCTL"
-fi
+JOBS_FLAG="-j $SYSCTL"
 
 make $JOBS_FLAG $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$HOSTS" \
     UNIVERSAL_SDK_PATH=$SDKROOT \
@@ -233,14 +201,20 @@ RC_ProjectSourceSubversion=`printf "%d" $LLVM_MINOR_VERSION`
 echo "#define LLVM_VERSION ${RC_ProjectSourceVersion}" > $DEST_DIR$DEST_ROOT/include/llvm/Version.h
 echo "#define LLVM_MINOR_VERSION ${RC_ProjectSourceSubversion}" >> $DEST_DIR$DEST_ROOT/include/llvm/Version.h
 
+# Find the right version of strip to use.
+STRIP=strip
+if [ -n "$SDKROOT" ]; then
+  STRIP=`xcrun -sdk $SDKROOT -find strip`
+fi
+
 if [ "x$LLVM_DEBUG" != "x1" ]; then
     # Strip local symbols from llvm libraries.
     #
     # Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
     # PPC objects!
-    strip -Sl $DEST_DIR$DEST_ROOT/lib/*.[oa]
+    $STRIP -Sl $DEST_DIR$DEST_ROOT/lib/*.[oa]
     for f in `ls $DEST_DIR$DEST_ROOT/lib/*.so`; do
-        strip -Sxl $f
+        $STRIP -Sxl $f
     done
 fi
 
@@ -329,7 +303,7 @@ if [ "$INSTALL_LIBLTO" = "yes" ]; then
 
   # Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
   # PPC objects!
-  strip -arch all -Sl $DT_HOME/lib/libLTO.dylib
+  $STRIP -arch all -Sl $DT_HOME/lib/libLTO.dylib
 
   if [ "x$DISABLE_USR_LINKS" == "x" ]; then
     # Add a symlink in /usr/lib for B&I.
@@ -359,7 +333,7 @@ find $DEST_DIR -name \*.dSYM -print | xargs rm -r || exit 1
 # PPC objects!
 find $DEST_DIR -perm -0111 -type f \
     ! \( -name '*.la' -o -name gccas -o -name gccld -o -name llvm-config \) \
-    -print | xargs -n 1 -P ${SYSCTL} strip -arch all -Sl
+    -print | xargs -n 1 -P ${SYSCTL} $STRIP -arch all -Sl
 
 chgrp -h -R wheel $DEST_DIR
 chgrp -R wheel $DEST_DIR

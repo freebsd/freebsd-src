@@ -353,13 +353,14 @@ entry:
 
 ; CHECK: define void @test10(
 ; CHECK: @objc_retain(i8* %x)
+; CHECK: @callee
 ; CHECK: @use_pointer
 ; CHECK: @objc_release
 ; CHECK: }
 define void @test10(i8* %x) nounwind {
 entry:
   %0 = call i8* @objc_retain(i8* %x) nounwind
-  call void @use_pointer(i8* %x)
+  call void @callee()
   call void @use_pointer(i8* %x)
   call void @objc_release(i8* %0) nounwind
   ret void
@@ -697,6 +698,8 @@ invoke.cont23:                                    ; preds = %if.then12
 
 lpad20:                                           ; preds = %invoke.cont23, %if.then12
   %tmp502 = phi double* [ undef, %invoke.cont23 ], [ %self, %if.then12 ]
+  %exn = landingpad {i8*, i32} personality i32 (...)* @__gxx_personality_v0
+           cleanup
   unreachable
 
 if.end:                                           ; preds = %invoke.cont23
@@ -768,7 +771,7 @@ entry:
 define void @test23b(i8* %p) {
 entry:
   %0 = call i8* @objc_retainBlock(i8* %p) nounwind
-  call void @use_pointer(i8* %p)
+  call void @callee()
   call void @use_pointer(i8* %p)
   call void @objc_release(i8* %p) nounwind
   ret void
@@ -1569,6 +1572,107 @@ if.end:                                           ; preds = %entry, %if.then
   ret void
 }
 
+; When there are adjacent retain+release pairs, the first one is
+; known unnecessary because the presence of the second one means that
+; the first one won't be deleting the object.
+
+; CHECK:      define void @test57(
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   %0 = tail call i8* @objc_retain(i8* %x) nounwind
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @objc_release(i8* %x) nounwind
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+define void @test57(i8* %x) nounwind {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  call void @objc_release(i8* %x) nounwind
+  call i8* @objc_retain(i8* %x) nounwind
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  call void @objc_release(i8* %x) nounwind
+  ret void
+}
+
+; An adjacent retain+release pair is sufficient even if it will be
+; removed itself.
+
+; CHECK:      define void @test58(
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+define void @test58(i8* %x) nounwind {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  call void @objc_release(i8* %x) nounwind
+  call i8* @objc_retain(i8* %x) nounwind
+  call void @objc_release(i8* %x) nounwind
+  ret void
+}
+
+; Don't delete the second retain+release pair in an adjacent set.
+
+; CHECK:      define void @test59(
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   %0 = tail call i8* @objc_retain(i8* %x) nounwind
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @use_pointer(i8* %x)
+; CHECK-NEXT:   call void @objc_release(i8* %x) nounwind
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+define void @test59(i8* %x) nounwind {
+entry:
+  %a = call i8* @objc_retain(i8* %x) nounwind
+  call void @objc_release(i8* %x) nounwind
+  %b = call i8* @objc_retain(i8* %x) nounwind
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  call void @objc_release(i8* %x) nounwind
+  ret void
+}
+
+; Constant pointers to objects don't need reference counting.
+
+@constptr = external constant i8*
+@something = external global i8*
+
+; CHECK: define void @test60(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test60() {
+  %t = load i8** @constptr
+  %s = load i8** @something
+  call i8* @objc_retain(i8* %s)
+  call void @callee()
+  call void @use_pointer(i8* %t)
+  call void @objc_release(i8* %s)
+  ret void
+}
+
+; Constant pointers to objects don't need to be considered related to other
+; pointers.
+
+; CHECK: define void @test61(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test61() {
+  %t = load i8** @constptr
+  call i8* @objc_retain(i8* %t)
+  call void @callee()
+  call void @use_pointer(i8* %t)
+  call void @objc_release(i8* %t)
+  ret void
+}
+
 declare void @bar(i32 ()*)
 
 ; A few real-world testcases.
@@ -1896,3 +2000,5 @@ end:                                              ; preds = %if.end125, %if.end1
 }
 
 !0 = metadata !{}
+
+declare i32 @__gxx_personality_v0(...)
