@@ -70,12 +70,6 @@ struct usbcap_filehdr {
 	uint8_t		reserved[26];
 } __packed;
 
-#if __FreeBSD_version < 900000
-#define	bpf_xhdr bpf_hdr
-#define	bt_sec tv_sec
-#define	bt_frac tv_usec
-#endif
-
 static int doexit = 0;
 static int pkt_captured = 0;
 static int verbose = 0;
@@ -289,7 +283,7 @@ hexdump(const uint8_t *region, uint32_t len)
 }
 
 static void
-print_apacket(const struct bpf_xhdr *hdr, const uint8_t *ptr, int ptr_len)
+print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
 {
 	struct tm *tm;
 	struct usbpf_pkthdr up_temp;
@@ -324,8 +318,8 @@ print_apacket(const struct bpf_xhdr *hdr, const uint8_t *ptr, int ptr_len)
 	up->up_packet_count = le32toh(up->up_packet_count);
 	up->up_endpoint = le32toh(up->up_endpoint);
 
-	tv.tv_sec = hdr->bh_tstamp.bt_sec;
-	tv.tv_usec = hdr->bh_tstamp.bt_frac;
+	tv.tv_sec = hdr->bh_tstamp.tv_sec;
+	tv.tv_usec = hdr->bh_tstamp.tv_usec;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
@@ -392,12 +386,12 @@ print_apacket(const struct bpf_xhdr *hdr, const uint8_t *ptr, int ptr_len)
 static void
 print_packets(uint8_t *data, const int datalen)
 {
-	const struct bpf_xhdr *hdr;
+	const struct bpf_hdr *hdr;
 	uint8_t *ptr;
 	uint8_t *next;
 
 	for (ptr = data; ptr < (data + datalen); ptr = next) {
-		hdr = (const struct bpf_xhdr *)ptr;
+		hdr = (const struct bpf_hdr *)ptr;
 		next = ptr + BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
 
 		if (w_arg == NULL) {
