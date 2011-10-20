@@ -172,7 +172,7 @@ tws_probe(device_t dev)
             first_ctlr = 0;
         }
 
-        return(0);
+        return(BUS_PROBE_DEFAULT);
     }
     return (ENXIO);
 }
