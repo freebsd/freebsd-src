@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -ast-print %s
+// RUN: %clang_cc1 -x c++ -ast-print %s
+// RUN: %clang_cc1 -x c++ -std=c++11 -ast-print %s
 
 #include <stddef.h>
 
@@ -29,3 +31,37 @@ char    test23(void) { return '\x3'; }
 wchar_t test24(void) { return L'\x3'; }
 
 wchar_t test25(void) { return L'\x333'; }
+
+#if __cplusplus >= 201103L
+char16_t test26(void) { return u'\\'; }
+char16_t test27(void) { return u'\''; }
+char16_t test28(void) { return u'\a'; }
+char16_t test29(void) { return u'\b'; }
+char16_t test30(void) { return u'\e'; }
+char16_t test31(void) { return u'\f'; }
+char16_t test32(void) { return u'\n'; }
+char16_t test33(void) { return u'\r'; }
+char16_t test34(void) { return u'\t'; }
+char16_t test35(void) { return u'\v'; }
+
+char16_t test36(void) { return u'c'; }
+char16_t test37(void) { return u'\x3'; }
+
+char16_t test38(void) { return u'\x333'; }
+
+char32_t test39(void) { return U'\\'; }
+char32_t test40(void) { return U'\''; }
+char32_t test41(void) { return U'\a'; }
+char32_t test42(void) { return U'\b'; }
+char32_t test43(void) { return U'\e'; }
+char32_t test44(void) { return U'\f'; }
+char32_t test45(void) { return U'\n'; }
+char32_t test46(void) { return U'\r'; }
+char32_t test47(void) { return U'\t'; }
+char32_t test48(void) { return U'\v'; }
+
+char32_t test49(void) { return U'c'; }
+char32_t test50(void) { return U'\x3'; }
+
+char32_t test51(void) { return U'\x333'; }
+#endif

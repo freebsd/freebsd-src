@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fblocks -emit-pch -x objective-c %s -o %t.ast
 // RUN: c-index-test -test-load-tu %t.ast all | FileCheck %s
 
 @interface Foo 
@@ -60,7 +60,7 @@ int main (int argc, const char * argv[]) {
 #define IBAction void)__attribute__((ibaction)
 
 @interface TestAttributes {
-  IBOutlet char * anOutlet;
+  IBOutlet id anOutlet;
   IBOutletCollection(id) id anOutletCollection;
 }
 - (IBAction) actionMethod:(id)arg;
@@ -92,14 +92,14 @@ struct X0  {};
 // CHECK: c-index-api-loadTU-test.m:21:1: ObjCInstanceMethodDecl=catMethodWithFloat::21:1 Extent=[21:1 - 21:41]
 // CHECK: c-index-api-loadTU-test.m:21:36: ParmDecl=fArg:21:36 (Definition) Extent=[21:29 - 21:40]
 // CHECK: c-index-api-loadTU-test.m:22:1: ObjCInstanceMethodDecl=floatMethod:22:1 Extent=[22:1 - 22:23]
-// CHECK: c-index-api-loadTU-test.m:25:1: ObjCProtocolDecl=Proto:25:1 (Definition) Extent=[25:1 - 27:5]
+// CHECK: c-index-api-loadTU-test.m:25:11: ObjCProtocolDecl=Proto:25:11 (Definition) Extent=[25:1 - 27:5]
 // CHECK: c-index-api-loadTU-test.m:26:1: ObjCInstanceMethodDecl=pMethod:26:1 Extent=[26:1 - 26:11]
-// CHECK: c-index-api-loadTU-test.m:29:1: ObjCProtocolDecl=SubP:29:1 (Definition) Extent=[29:1 - 31:5]
-// CHECK: c-index-api-loadTU-test.m:29:17: ObjCProtocolRef=Proto:25:1 Extent=[29:17 - 29:22]
+// CHECK: c-index-api-loadTU-test.m:29:11: ObjCProtocolDecl=SubP:29:11 (Definition) Extent=[29:1 - 31:5]
+// CHECK: c-index-api-loadTU-test.m:29:17: ObjCProtocolRef=Proto:25:11 Extent=[29:17 - 29:22]
 // CHECK: c-index-api-loadTU-test.m:30:1: ObjCInstanceMethodDecl=spMethod:30:1 Extent=[30:1 - 30:12]
 // CHECK: c-index-api-loadTU-test.m:33:12: ObjCInterfaceDecl=Baz:33:12 Extent=[33:1 - 40:5]
 // CHECK: c-index-api-loadTU-test.m:33:18: ObjCSuperClassRef=Bar:14:12 Extent=[33:18 - 33:21]
-// CHECK: c-index-api-loadTU-test.m:33:23: ObjCProtocolRef=SubP:29:1 Extent=[33:23 - 33:27]
+// CHECK: c-index-api-loadTU-test.m:33:23: ObjCProtocolRef=SubP:29:11 Extent=[33:23 - 33:27]
 // CHECK: c-index-api-loadTU-test.m:35:9: ObjCIvarDecl=_anIVar:35:9 (Definition) Extent=[35:5 - 35:16]
 // CHECK: c-index-api-loadTU-test.m:38:1: ObjCInstanceMethodDecl=bazMethod:38:1 Extent=[38:1 - 38:21]
 // CHECK: c-index-api-loadTU-test.m:38:4: ObjCClassRef=Foo:4:12 Extent=[38:4 - 38:7]
@@ -116,14 +116,14 @@ struct X0  {};
 // CHECK: c-index-api-loadTU-test.m:48:10: DeclRefExpr=bee:47:8 Extent=[48:10 - 48:13]
 // CHECK: c-index-api-loadTU-test.m:49:12: VarDecl=c:49:12 (Definition) Extent=[49:2 - 49:26]
 // CHECK: c-index-api-loadTU-test.m:49:2: TypeRef=id:0:0 Extent=[49:2 - 49:4]
-// CHECK: c-index-api-loadTU-test.m:49:6: ObjCProtocolRef=SubP:29:1 Extent=[49:6 - 49:10]
+// CHECK: c-index-api-loadTU-test.m:49:6: ObjCProtocolRef=SubP:29:11 Extent=[49:6 - 49:10]
 // CHECK: c-index-api-loadTU-test.m:49:16: UnexposedExpr=fooC:10:1 Extent=[49:16 - 49:26]
 // CHECK: c-index-api-loadTU-test.m:49:16: ObjCMessageExpr=fooC:10:1 Extent=[49:16 - 49:26]
 // CHECK: c-index-api-loadTU-test.m:49:17: ObjCClassRef=Foo:4:12 Extent=[49:17 - 49:20]
 // CHECK: c-index-api-loadTU-test.m:50:13: VarDecl=d:50:13 (Definition) Extent=[50:2 - 50:14]
 // CHECK: c-index-api-loadTU-test.m:50:2: TypeRef=id:0:0 Extent=[50:2 - 50:4]
-// CHECK: c-index-api-loadTU-test.m:50:6: ObjCProtocolRef=Proto:25:1 Extent=[50:6 - 50:11]
-// CHECK: c-index-api-loadTU-test.m:51:2: UnexposedExpr= Extent=[51:2 - 51:7]
+// CHECK: c-index-api-loadTU-test.m:50:6: ObjCProtocolRef=Proto:25:11 Extent=[50:6 - 50:11]
+// CHECK: c-index-api-loadTU-test.m:51:2: BinaryOperator= Extent=[51:2 - 51:7]
 // CHECK: c-index-api-loadTU-test.m:51:2: DeclRefExpr=d:50:13 Extent=[51:2 - 51:3]
 // CHECK: c-index-api-loadTU-test.m:51:6: UnexposedExpr=c:49:12 Extent=[51:6 - 51:7]
 // CHECK: c-index-api-loadTU-test.m:51:6: DeclRefExpr=c:49:12 Extent=[51:6 - 51:7]
@@ -137,10 +137,10 @@ struct X0  {};
 // CHECK: c-index-api-loadTU-test.m:54:3: UnexposedExpr=main:46:5 Extent=[54:3 - 54:7]
 // CHECK: c-index-api-loadTU-test.m:54:3: DeclRefExpr=main:46:5 Extent=[54:3 - 54:7]
 // CHECK: c-index-api-loadTU-test.m:54:8: DeclRefExpr=someEnum:43:3 Extent=[54:8 - 54:16]
-// CHECK: c-index-api-loadTU-test.m:54:18: UnexposedExpr=bee:47:8 Extent=[54:18 - 54:36]
+// CHECK: c-index-api-loadTU-test.m:54:18: CStyleCastExpr= Extent=[54:18 - 54:36]
 // CHECK: c-index-api-loadTU-test.m:54:33: DeclRefExpr=bee:47:8 Extent=[54:33 - 54:36]
 // CHECK: c-index-api-loadTU-test.m:62:12: ObjCInterfaceDecl=TestAttributes:62:12 Extent=[62:1 - 67:5]
-// CHECK: c-index-api-loadTU-test.m:63:19: ObjCIvarDecl=anOutlet:63:19 (Definition) Extent=[58:18 - 63:27]
+// CHECK: c-index-api-loadTU-test.m:63:15: ObjCIvarDecl=anOutlet:63:15 (Definition) Extent=[58:18 - 63:23]
 // CHECK: <invalid loc>:0:0: attribute(iboutlet)=
 // CHECK: c-index-api-loadTU-test.m:64:29: ObjCIvarDecl=anOutletCollection:64:29 (Definition) Extent=[59:39 - 64:47]
 // CHECK: <invalid loc>:0:0: attribute(iboutletcollection)= [IBOutletCollection=ObjCObjectPointer]

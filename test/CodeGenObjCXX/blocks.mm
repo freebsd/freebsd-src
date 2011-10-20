@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -x objective-c++ -fblocks -triple x86_64-apple-darwin %s -verify -emit-llvm -o %t
+// RUN: %clang_cc1 -x objective-c++ -fblocks -triple x86_64-apple-darwin -fobjc-fragile-abi %s -verify -emit-llvm -o %t
 // rdar://8979379
 
 @interface A
@@ -30,7 +30,7 @@ void foo(id <NSObject>(^objectCreationBlock)(void)) {
 
 // Test4
 struct S {
-  S *(^a)() = ^{ // expected-warning {{C++0x}}
+  S *(^a)() = ^{ // expected-warning {{C++11}}
     return this;
   };
 };
@@ -40,7 +40,7 @@ S s;
 struct X {
   void f() {
     ^ {
-      struct Nested { Nested *ptr = this; }; // expected-warning {{C++0x}}
+      struct Nested { Nested *ptr = this; }; // expected-warning {{C++11}}
     } ();
   };
 };

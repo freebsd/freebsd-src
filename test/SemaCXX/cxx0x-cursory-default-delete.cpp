@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
 
 struct non_copiable {
   non_copiable(const non_copiable&) = delete; // expected-note {{marked deleted here}}
@@ -35,7 +35,7 @@ struct bad_decls {
   bad_decls(volatile bad_decls&) = default; // expected-error {{may not be volatile}}
   bad_decls&& operator = (bad_decls) = default; // expected-error 2{{lvalue reference}}
   bad_decls& operator = (volatile bad_decls&) = default; // expected-error {{may not be volatile}}
-  bad_decls& operator = (const bad_decls&) const = default; // expected-error {{may not have 'const' or 'volatile' qualifiers}}
+  bad_decls& operator = (const bad_decls&) const = default; // expected-error {{may not have 'const', 'constexpr' or 'volatile' qualifiers}}
 };
 
 struct A {}; struct B {};

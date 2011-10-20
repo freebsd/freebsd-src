@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -fobjc-nonfragile-abi -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak -verify -fblocks -triple x86_64-apple-darwin10.0.0 %s
-// RUN: %clang_cc1 -x objective-c++ -fobjc-nonfragile-abi -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak -verify -fblocks -triple x86_64-apple-darwin10.0.0 %s
+// RUN: %clang_cc1 -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak -verify -fblocks -triple x86_64-apple-darwin10.0.0 %s
+// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak -verify -fblocks -triple x86_64-apple-darwin10.0.0 %s
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,4 +52,12 @@ void test(id __strong *sip, id __weak *wip, id __autoreleasing *aip,
   memmove(ptr, aip, 17); // expected-warning{{source of this 'memmove' call is a pointer to ownership-qualified type}} \
                       // expected-note{{explicitly cast the pointer to silence this warning}}
   memmove(ptr, uip, 17);
+}
+
+void rdar9772982(int i, ...) {
+    __builtin_va_list ap;
+    
+    __builtin_va_start(ap, i);
+    __builtin_va_arg(ap, __strong id); // expected-error{{second argument to 'va_arg' is of ARC ownership-qualified type '__strong id'}}
+    __builtin_va_end(ap);
 }

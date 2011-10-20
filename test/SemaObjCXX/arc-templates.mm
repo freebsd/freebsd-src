@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fobjc-nonfragile-abi -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -fblocks %s
+// RUN: %clang_cc1 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -fblocks %s
 
 @interface A
 @end
@@ -251,4 +251,18 @@ void test_qual_vs_unqual_a() {
   double &dr2 = qual_vs_unqual_ref(*wap);
   float &fr3 = qual_vs_unqual_ref(*aap);
   float &fr4 = qual_vs_unqual_ref(*uap);
+}
+
+namespace rdar9828157 {
+  // Template argument deduction involving lifetime qualifiers and
+  // non-lifetime types.
+  class A { };
+
+  template<typename T> float& f(T&);
+  template<typename T> int& f(__strong T&);
+  template<typename T> double& f(__weak T&);
+
+  void test_f(A* ap) {
+    float &fr = (f)(ap);  
+  }
 }

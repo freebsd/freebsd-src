@@ -14,7 +14,7 @@ ifndef CLANG_LEVEL
 
 IS_TOP_LEVEL := 1
 CLANG_LEVEL := .
-DIRS := include lib tools runtime docs unittests
+DIRS := utils/TableGen include lib tools runtime docs unittests
 
 PARALLEL_DIRS :=
 
@@ -60,6 +60,16 @@ endif
 # We can revisit this when LLVM/Clang support it.
 CXX.Flags += -fno-strict-aliasing
 
+# Set up Clang's tblgen.
+ifndef CLANG_TBLGEN
+  ifeq ($(LLVM_CROSS_COMPILING),1)
+    CLANG_TBLGEN := $(BuildLLVMToolDir)/clang-tblgen$(BUILD_EXEEXT)
+  else
+    CLANG_TBLGEN := $(LLVMToolDir)/clang-tblgen$(EXEEXT)
+  endif
+endif
+ClangTableGen = $(CLANG_TBLGEN) $(TableGen.Flags)
+
 ###
 # Clang Top Level specific stuff.
 
@@ -68,7 +78,7 @@ ifeq ($(IS_TOP_LEVEL),1)
 ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 $(RecursiveTargets)::
 	$(Verb) for dir in test unittests; do \
-	  if [ ! -f $${dir}/Makefile ]; then \
+	  if [ -f $(PROJ_SRC_DIR)/$${dir}/Makefile ] && [ ! -f $${dir}/Makefile ]; then \
 	    $(MKDIR) $${dir}; \
 	    $(CP) $(PROJ_SRC_DIR)/$${dir}/Makefile $${dir}/Makefile; \
 	  fi \

@@ -1,5 +1,5 @@
 // RUN: cp %s %t
-// RUN: %clang_cc1 -pedantic -Wall -fixit -x c++ %t || true
+// RUN: not %clang_cc1 -pedantic -Wall -fixit -x c++ %t
 // RUN: %clang_cc1 -fsyntax-only -pedantic -Wall -Werror -x c++ %t
 
 /* This is a test of the various code modification hints that are
@@ -94,6 +94,17 @@ class F2  {
 template <class T>
 void f(){
   typename F1<T>:: /*template*/ Iterator<0> Mypos; // expected-error {{use 'template' keyword to treat 'Iterator' as a dependent template name}}
+}
+
+// Tests for &/* fixits radar 7113438.
+class AD {};
+class BD: public AD {};
+
+void test (BD &br) {
+  AD* aPtr;
+  BD b;
+  aPtr = b; // expected-error {{assigning to 'AD *' from incompatible type 'BD'; take the address with &}}
+  aPtr = br; // expected-error {{assigning to 'A *' from incompatible type 'B'; take the address with &}}
 }
 
 

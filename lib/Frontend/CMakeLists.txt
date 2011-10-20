@@ -29,7 +29,7 @@ add_clang_library(clangFrontend
   PrintPreprocessedOutput.cpp
   TextDiagnosticBuffer.cpp
   TextDiagnosticPrinter.cpp
-  VerifyDiagnosticsClient.cpp
+  VerifyDiagnosticConsumer.cpp
   Warnings.cpp
   )
 
@@ -48,5 +48,6 @@ add_dependencies(clangFrontend
   ClangDiagnosticFrontend 
   ClangDiagnosticLex
   ClangDiagnosticSema
+  ClangDriverOptions
   ClangDeclNodes
   ClangStmtNodes)

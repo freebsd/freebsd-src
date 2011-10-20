@@ -27,10 +27,10 @@ int A::C::cx = 17;
 static int A::C::cx2 = 17; // expected-error{{'static' can}}
 
 class C2 {
-  void m(); // expected-note{{member declaration nearly matches}}
+  void m(); // expected-note{{member declaration does not match because it is not const qualified}}
 
-  void f(const int& parm); // expected-note{{member declaration nearly matches}}
-  void f(int) const; // expected-note{{member declaration nearly matches}}
+  void f(const int& parm); // expected-note{{type of 1st parameter of member declaration does not match definition ('const int &' vs 'int')}}
+  void f(int) const; // expected-note{{member declaration does not match because it is const qualified}}
   void f(float);
 
   int x;
@@ -121,7 +121,7 @@ namespace E {
 
 
 class Operators {
-  Operators operator+(const Operators&) const; // expected-note{{member declaration nearly matches}}
+  Operators operator+(const Operators&) const; // expected-note{{member declaration does not match because it is const qualified}}
   operator bool();
 };
 
@@ -140,7 +140,7 @@ Operators::operator bool() {
 }
 
 namespace A {
-  void g(int&); // expected-note{{member declaration nearly matches}}
+  void g(int&); // expected-note{{type of 1st parameter of member declaration does not match definition ('int &' vs 'const int &')}}
 } 
 
 void A::f() {} // expected-error{{out-of-line definition of 'f' does not match any declaration in namespace 'A'}}

@@ -1,10 +1,12 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fsyntax-only -fobjc-arc -x objective-c %s.result
-// RUN: arcmt-test --args -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fsyntax-only -x objective-c %s > %t
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -fobjc-arc -x objective-c %s.result
+// RUN: arcmt-test --args -triple x86_64-apple-darwin10 -fsyntax-only -x objective-c %s > %t
 // RUN: diff %t %s.result
 
 #include "Common.h"
 
 @interface NSString : NSObject
+-(id)string;
+-(id)newString;
 @end
 
 typedef const struct __CFString * CFStringRef;
@@ -27,6 +29,7 @@ void f(BOOL b, id p) {
   CFUUIDRef   _uuid;
   NSString *_uuidString = (NSString *)CFUUIDCreateString(kCFAllocatorDefault, _uuid);
   _uuidString = [(NSString *)CFUUIDCreateString(kCFAllocatorDefault, _uuid) autorelease];
+  _uuidString = CFRetain(_uuid);
 }
 
 @implementation NSString (StrExt)
@@ -36,3 +39,23 @@ void f(BOOL b, id p) {
   return self;
 }
 @end
+
+extern void consumeParam(CFStringRef CF_CONSUMED p);
+
+void f2(NSString *s) {
+  CFStringRef ref = [s string];
+  ref = (CFStringRef)[s string];
+  ref = s.string;
+  ref = [NSString new];
+  ref = [s newString];
+  ref = (CFStringRef)[NSString new];
+  ref = [[NSString alloc] init];
+  ref = [[s string] retain];
+  ref = CFRetain((CFStringRef)[s string]);
+  ref = CFRetain([s string]);
+  ref = CFRetain(s);
+  ref = [s retain];
+
+  consumeParam((CFStringRef)s);
+  consumeParam(s);
+}

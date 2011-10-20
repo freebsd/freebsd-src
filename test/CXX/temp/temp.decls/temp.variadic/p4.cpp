@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -fexceptions -fcxx-exceptions -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -fexceptions -fcxx-exceptions -verify %s
 
 template<typename... Types> struct tuple;
 template<int I> struct int_c;
@@ -52,6 +52,7 @@ struct HasMixins : public Mixins... {
 };
 
 struct A { }; // expected-note{{candidate constructor (the implicit copy constructor) not viable: no known conversion from 'int' to 'const A' for 1st argument}} \
+// expected-note{{candidate constructor (the implicit move constructor) not viable: no known conversion from 'int' to 'A' for 1st argument}} \
 // expected-note{{candidate constructor (the implicit default constructor) not viable: requires 0 arguments, but 1 was provided}}
 struct B { };
 struct C { };

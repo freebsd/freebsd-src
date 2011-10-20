@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++11
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++98 -Wno-c++0x-extensions
 
 template<typename T>
 struct only {
@@ -81,5 +82,22 @@ struct S {
     only<int (S::*)> test8 = p8;
   }
 };
+
+namespace PR10939 {
+  struct X {
+    int method(int);
+    int method(float); 
+  };
+
+  template<typename T> T g(T);
+
+  void f(X *x) {
+    auto value = x->method; // expected-error{{variable 'value' with type 'auto' has incompatible initializer of type '<bound member function type>'}}
+    if (value) { }
+
+    auto funcptr = &g<int>;
+    int (*funcptr2)(int) = funcptr;
+  }
+}
 
 // TODO: if the initializer is a braced-init-list, deduce auto as std::initializer_list<T>.

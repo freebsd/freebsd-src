@@ -21,11 +21,6 @@
 #include "clang-c/Index.h"
 #include <string>
 
-namespace llvm {
-  class raw_ostream;
-  class Twine;
-}
-
 namespace clang {
 
 class Decl;
@@ -136,7 +131,7 @@ QualType getDeclUsageType(ASTContext &C, NamedDecl *ND);
 ///
 /// \param PreferredTypeIsPointer Whether the preferred type for the context
 /// of this macro is a pointer type.
-unsigned getMacroUsagePriority(llvm::StringRef MacroName, 
+unsigned getMacroUsagePriority(StringRef MacroName, 
                                const LangOptions &LangOpts,
                                bool PreferredTypeIsPointer = false);
 
@@ -253,9 +248,9 @@ public:
     CCC_ObjCInstanceMessage,
     /// \brief Code completion where an Objective-C class message is expected. 
     CCC_ObjCClassMessage,
-    /// \brief Code completion where a superclass of an Objective-C class is
+    /// \brief Code completion where the name of an Objective-C class is
     /// expected.
-    CCC_ObjCSuperclass,
+    CCC_ObjCInterfaceName,
     /// \brief Code completion where an Objective-C category name is expected.
     CCC_ObjCCategoryName,
     /// \brief An unknown context, in which we are recovering from a parsing 
@@ -273,14 +268,26 @@ private:
   /// \brief The type of the base object in a member access expression.
   QualType BaseType;
   
+  /// \brief The identifiers for Objective-C selector parts.
+  IdentifierInfo **SelIdents;
+  
+  /// \brief The number of Objective-C selector parts.
+  unsigned NumSelIdents;
+  
 public:
   /// \brief Construct a new code-completion context of the given kind.
-  CodeCompletionContext(enum Kind Kind) : Kind(Kind) { }
+  CodeCompletionContext(enum Kind Kind) : Kind(Kind), SelIdents(NULL), 
+                                          NumSelIdents(0) { }
   
   /// \brief Construct a new code-completion context of the given kind.
-  CodeCompletionContext(enum Kind Kind, QualType T) : Kind(Kind) { 
+  CodeCompletionContext(enum Kind Kind, QualType T,
+                        IdentifierInfo **SelIdents = NULL,
+                        unsigned NumSelIdents = 0) : Kind(Kind),
+                                                     SelIdents(SelIdents),
+                                                    NumSelIdents(NumSelIdents) { 
     if (Kind == CCC_DotMemberAccess || Kind == CCC_ArrowMemberAccess ||
-        Kind == CCC_ObjCPropertyAccess)
+        Kind == CCC_ObjCPropertyAccess || Kind == CCC_ObjCClassMessage ||
+        Kind == CCC_ObjCInstanceMessage)
       BaseType = T;
     else
       PreferredType = T;
@@ -297,6 +304,12 @@ public:
   /// \brief Retrieve the type of the base object in a member-access 
   /// expression.
   QualType getBaseType() const { return BaseType; }
+  
+  /// \brief Retrieve the Objective-C selector identifiers.
+  IdentifierInfo **getSelIdents() const { return SelIdents; }
+  
+  /// \brief Retrieve the number of Objective-C selector identifiers.
+  unsigned getNumSelIdents() const { return NumSelIdents; }
 
   /// \brief Determines whether we want C++ constructors as results within this
   /// context.
@@ -415,19 +428,23 @@ public:
   
 private:
   /// \brief The number of chunks stored in this string.
-  unsigned NumChunks;
+  unsigned NumChunks : 16;
   
+  /// \brief The number of annotations for this code-completion result.
+  unsigned NumAnnotations : 16;
+
   /// \brief The priority of this code-completion string.
   unsigned Priority : 30;
   
   /// \brief The availability of this code-completion result.
   unsigned Availability : 2;
-  
+
   CodeCompletionString(const CodeCompletionString &); // DO NOT IMPLEMENT
   CodeCompletionString &operator=(const CodeCompletionString &); // DITTO
   
   CodeCompletionString(const Chunk *Chunks, unsigned NumChunks,
-                       unsigned Priority, CXAvailabilityKind Availability);
+                       unsigned Priority, CXAvailabilityKind Availability,
+                       const char **Annotations, unsigned NumAnnotations);
   ~CodeCompletionString() { }
   
   friend class CodeCompletionBuilder;
@@ -451,8 +468,14 @@ public:
   /// \brief Retrieve the priority of this code completion result.
   unsigned getPriority() const { return Priority; }
   
-  /// \brief Reteirve the availability of this code completion result.
+  /// \brief Retrieve the availability of this code completion result.
   unsigned getAvailability() const { return Availability; }
+
+  /// \brief Retrieve the number of annotations for this code completion result.
+  unsigned getAnnotationCount() const;
+
+  /// \brief Retrieve the annotation string specified by \c AnnotationNr.
+  const char *getAnnotation(unsigned AnnotationNr) const;
   
   /// \brief Retrieve a string representation of the code completion string,
   /// which is mainly useful for debugging.
@@ -463,19 +486,19 @@ public:
 class CodeCompletionAllocator : public llvm::BumpPtrAllocator { 
 public:
   /// \brief Copy the given string into this allocator.
-  const char *CopyString(llvm::StringRef String);
+  const char *CopyString(StringRef String);
 
   /// \brief Copy the given string into this allocator.
-  const char *CopyString(llvm::Twine String);
+  const char *CopyString(Twine String);
   
   // \brief Copy the given string into this allocator.
   const char *CopyString(const char *String) {
-    return CopyString(llvm::StringRef(String));
+    return CopyString(StringRef(String));
   }
   
   /// \brief Copy the given string into this allocator.
   const char *CopyString(const std::string &String) {
-    return CopyString(llvm::StringRef(String));
+    return CopyString(StringRef(String));
   }
 };
   
@@ -490,7 +513,9 @@ private:
   CXAvailabilityKind Availability;
   
   /// \brief The chunks stored in this string.
-  llvm::SmallVector<Chunk, 4> Chunks;
+  SmallVector<Chunk, 4> Chunks;
+
+  SmallVector<const char *, 2> Annotations;
   
 public:
   CodeCompletionBuilder(CodeCompletionAllocator &Allocator) 
@@ -547,6 +572,8 @@ public:
   
   /// \brief Add a new chunk.
   void AddChunk(Chunk C) { Chunks.push_back(C); }
+
+  void AddAnnotation(const char *A) { Annotations.push_back(A); }
 };
   
 /// \brief Captures a result of code completion.
@@ -619,14 +646,15 @@ public:
   /// \brief Build a result that refers to a declaration.
   CodeCompletionResult(NamedDecl *Declaration, 
                        NestedNameSpecifier *Qualifier = 0,
-                       bool QualifierIsInformative = false)
+                       bool QualifierIsInformative = false,
+                       bool Accessible = true)
     : Kind(RK_Declaration), Declaration(Declaration), 
       Priority(getPriorityFromDecl(Declaration)), 
       Availability(CXAvailability_Available), StartParameter(0), 
       Hidden(false), QualifierIsInformative(QualifierIsInformative),
       StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
       DeclaringEntity(false), Qualifier(Qualifier) { 
-    computeCursorKindAndAvailability();
+    computeCursorKindAndAvailability(Accessible);
   }
     
   /// \brief Build a result that refers to a keyword or symbol.
@@ -688,7 +716,7 @@ public:
   static unsigned getPriorityFromDecl(NamedDecl *ND);
     
 private:
-  void computeCursorKindAndAvailability();
+  void computeCursorKindAndAvailability(bool Accessible = true);
 };
   
 bool operator<(const CodeCompletionResult &X, const CodeCompletionResult &Y);
@@ -709,7 +737,7 @@ inline bool operator>=(const CodeCompletionResult &X,
 }
 
   
-llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, 
+raw_ostream &operator<<(raw_ostream &OS, 
                               const CodeCompletionString &CCS);
 
 /// \brief Abstract interface for a consumer of code-completion 
@@ -850,7 +878,7 @@ public:
 /// receives in a simple format.
 class PrintingCodeCompleteConsumer : public CodeCompleteConsumer {
   /// \brief The raw output stream.
-  llvm::raw_ostream &OS;
+  raw_ostream &OS;
     
   CodeCompletionAllocator Allocator;
   
@@ -859,7 +887,7 @@ public:
   /// results to the given raw output stream.
   PrintingCodeCompleteConsumer(bool IncludeMacros, bool IncludeCodePatterns,
                                bool IncludeGlobals,
-                               llvm::raw_ostream &OS)
+                               raw_ostream &OS)
     : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, IncludeGlobals,
                            false), OS(OS) {}
   

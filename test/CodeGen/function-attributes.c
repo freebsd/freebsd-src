@@ -89,3 +89,25 @@ void f15(void) {
 void __attribute__((force_align_arg_pointer)) f16(void) {
 }
 
+// PR11038
+// CHECK: define void @f18()
+// CHECK: returns_twice
+// CHECK: {
+// CHECK: call void @f17()
+// CHECK: returns_twice
+// CHECK: ret void
+__attribute__ ((returns_twice)) void f17(void);
+__attribute__ ((returns_twice)) void f18(void) {
+        f17();
+}
+
+// CHECK: define void @f19()
+// CHECK: {
+// CHECK: call i32 @setjmp(i32* null)
+// CHECK: returns_twice
+// CHECK: ret void
+typedef int jmp_buf[((9 * 2) + 3 + 16)];
+int setjmp(jmp_buf);
+void f19(void) {
+  setjmp(0);
+}

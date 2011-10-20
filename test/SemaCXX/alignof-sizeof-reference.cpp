@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
 
 struct s0; // expected-note {{forward declaration}}
 char ar[sizeof(s0&)]; // expected-error {{invalid application of 'sizeof' to an incomplete type}}
@@ -8,14 +8,15 @@ void test() {
   static_assert(sizeof(r) == 1, "bad size");
 }
 
-void f();  // expected-note{{candidate function}}
-void f(int);  // expected-note{{candidate function}}
+void f();  // expected-note{{possible target for call}}
+void f(int);  // expected-note{{possible target for call}}
 void g() { 
-  sizeof(&f); // expected-error{{cannot resolve overloaded function 'f' from context}}
+  sizeof(&f); // expected-error{{reference to overloaded function could not be resolved; did you mean to call it with no arguments?}} \
+  // expected-warning{{expression result unused}}
 }
 
-template<typename T> void f_template(); // expected-note{{candidate function}}
-template<typename T> void f_template(T*); // expected-note{{candidate function}}
+template<typename T> void f_template(); // expected-note{{possible target for call}}
+template<typename T> void f_template(T*); // expected-note{{possible target for call}}
 void rdar9659191() {
-  (void)alignof(f_template<int>); // expected-error{{cannot resolve overloaded function 'f_template' from context}}
+  (void)alignof(f_template<int>); // expected-error{{reference to overloaded function could not be resolved; did you mean to call it?}}
 }

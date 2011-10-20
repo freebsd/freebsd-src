@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,core.experimental -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,core.experimental -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,experimental.core -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,experimental.core -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 // Test basic handling of references.
 char &test1_aux();
@@ -413,4 +413,57 @@ void TestAssignIntoSymbolicOffset::test(int x, int y) {
     stuff[x][y] = 0; // no-warning
   }
 }
+
+// Test loads from static fields.  This previously triggered an uninitialized
+// value warning.
+class ClassWithStatic {
+public:
+    static const unsigned value = 1;
+};
+
+int rdar9948787_negative() {
+    ClassWithStatic classWithStatic;
+    unsigned value = classWithStatic.value;
+    if (value == 1)
+      return 1;
+    int *p = 0;
+    *p = 0xDEADBEEF; // no-warning
+    return 0;
+}
+
+int rdar9948787_positive() {
+    ClassWithStatic classWithStatic;
+    unsigned value = classWithStatic.value;
+    if (value == 0)
+      return 1;
+    int *p = 0;
+    *p = 0xDEADBEEF; // expected-warning {{null}}
+    return 0;
+}
+
+// Regression test against global constants and switches.
+enum rdar10202899_ValT { rdar10202899_ValTA, rdar10202899_ValTB, rdar10202899_ValTC };
+const rdar10202899_ValT val = rdar10202899_ValTA;
+void rdar10202899_test1() {
+  switch (val) {
+    case rdar10202899_ValTA: {}
+  };
+}
+
+void rdar10202899_test2() {
+  if (val == rdar10202899_ValTA)
+   return;
+  int *p = 0;
+  *p = 0xDEADBEEF;
+}
+
+void rdar10202899_test3() {
+  switch (val) {
+    case rdar10202899_ValTA: return;
+    default: ;
+  };
+  int *p = 0;
+  *p = 0xDEADBEEF;
+}
+
 

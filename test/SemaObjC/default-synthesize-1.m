@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -fobjc-nonfragile-abi -fobjc-default-synthesize-properties -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fobjc-default-synthesize-properties -verify %s
 
 @interface NSObject 
 - (void) release;
@@ -25,12 +25,12 @@
 //@synthesize howMany, what;
 
 - (int) howMany {
-    return howMany;
+    return _howMany;
 }
 // - (void) setHowMany: (int) value
 
 - (NSString*) what {
-    return what;
+    return _what;
 }
 // - (void) setWhat: (NSString*) value    
 @end
@@ -46,14 +46,14 @@
 
 // - (int) howMany
 - (void) setHowMany: (int) value {
-    howMany = value;
+    _howMany = value;
 }
 
 // - (NSString*) what
 - (void) setWhat: (NSString*) value {
-    if (what != value) {
-        [what release];
-        what = [value retain];
+    if (_what != value) {
+        [_what release];
+        _what = [value retain];
     }
 }
 @end
@@ -68,19 +68,19 @@
 //@synthesize howMany, what;  // REM: Redundant anyway
 
 - (int) howMany {
-    return howMany;
+    return howMany; // expected-error {{use of undeclared identifier 'howMany'}}
 }
 - (void) setHowMany: (int) value {
-    howMany = value;
+    howMany = value; // expected-error {{use of undeclared identifier 'howMany'}}
 }
 
 - (NSString*) what {
-    return what;
+    return what; // expected-error {{use of undeclared identifier 'what'}}
 }
 - (void) setWhat: (NSString*) value {
-    if (what != value) {
-        [what release];
-        what = [value retain];
+    if (what != value) { // expected-error {{use of undeclared identifier 'what'}}
+        [what release]; // expected-error {{use of undeclared identifier 'what'}}
+        what = [value retain]; // expected-error {{use of undeclared identifier 'what'}}
     }
 }
 @end

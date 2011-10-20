@@ -276,7 +276,6 @@ namespace test5 {
   // CHECK-NEXT: [[SELECTORSLOT:%.*]] = alloca i32
   // CHECK-NEXT: [[A:%.*]] = alloca [[A_T:%.*]], align 1
   // CHECK-NEXT: [[T:%.*]] = alloca [[T_T:%.*]], align 1
-  // CHECK-NEXT: alloca i32
   // CHECK-NEXT: invoke void @_ZN5test53fooEv()
   // CHECK:      [[EXN:%.*]] = load i8** [[EXNSLOT]]
   // CHECK-NEXT: [[ADJ:%.*]] = call i8* @__cxa_get_exception_ptr(i8* [[EXN]])
@@ -324,7 +323,6 @@ namespace test7 {
     // CHECK:      [[OUTER_NEW:%.*]] = alloca i1
     // CHECK-NEXT: alloca [[A:%.*]],
     // CHECK-NEXT: alloca i8*
-    // CHECK-NEXT: alloca i32
     // CHECK-NEXT: alloca i32
     // CHECK-NEXT: [[OUTER_A:%.*]] = alloca i1
     // CHECK-NEXT: alloca i8*
@@ -391,4 +389,39 @@ namespace test7 {
 
     return new B(A(), new B(A(), 0));
   }
+}
+
+// Just don't crash.
+namespace test8 {
+  struct A {
+    // Having both of these is required to trigger the assert we're
+    // trying to avoid.
+    A(const A&);
+    A&operator=(const A&);
+
+    ~A();
+  };
+
+  A makeA();
+  void test() {
+    throw makeA();
+  }
+  // CHECK: define void @_ZN5test84testEv
+}
+
+// Make sure we generate the correct code for the delete[] call which
+// happens if A::A() throws.  (We were previously calling delete[] on
+// a pointer to the first array element, not the pointer returned by new[].)
+// PR10870
+namespace test9 {
+  struct A {
+    A();
+    ~A();
+  };
+  A* test() {
+    return new A[10];
+  }
+  // CHECK: define {{%.*}}* @_ZN5test94testEv
+  // CHECK: [[TEST9_NEW:%.*]] = call noalias i8* @_Znam
+  // CHECK: call void @_ZdaPv(i8* [[TEST9_NEW]])
 }

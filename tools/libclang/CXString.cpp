@@ -41,7 +41,7 @@ CXString cxstring::createCXString(const char *String, bool DupString){
   return Str;
 }
 
-CXString cxstring::createCXString(llvm::StringRef String, bool DupString) {
+CXString cxstring::createCXString(StringRef String, bool DupString) {
   CXString Result;
   if (DupString || (!String.empty() && String.data()[String.size()] != 0)) {
     char *Spelling = (char *)malloc(String.size() + 1);
@@ -99,6 +99,10 @@ CXStringBuf *cxstring::getCXStringBuf(CXTranslationUnit TU) {
 void cxstring::disposeCXStringBuf(CXStringBuf *buf) {
   if (buf)
     static_cast<CXStringPool*>(buf->TU->StringPool)->push_back(buf);
+}
+
+bool cxstring::isManagedByPool(CXString str) {
+  return ((CXStringFlag) str.private_flags) == CXS_StringBuf;
 }
 
 //===----------------------------------------------------------------------===//

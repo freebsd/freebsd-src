@@ -1,4 +1,13 @@
 // RUN: %clang_cc1 -triple i386-unknown-unknown -emit-llvm %s -o - | FileCheck %s
+
+// PR10415
+__asm__ ("foo1");
+__asm__ ("foo2");
+__asm__ ("foo3");
+// CHECK: module asm "foo1"
+// CHECK-NEXT: module asm "foo2"
+// CHECK-NEXT: module asm "foo3"
+
 void t1(int len) {
   __asm__ volatile("" : "=&r"(len), "+&r"(len));
 }
@@ -189,6 +198,15 @@ unsigned char t23(unsigned char a, unsigned char b) {
   __asm__ ("0:\n1:\n" : [res] "=la"(res) : [la] "0"(la), [lb] "c"(lb) :
                         "edx", "cc");
   return res;
+}
+
+void *t24(char c) {
+  void *addr;
+  // CHECK: @t24
+  // CHECK: zext i8 {{.*}} to i32
+  // CHECK-NEXT: call i8* asm "foobar"
+  __asm__ ("foobar" : "=a" (addr) : "0" (c));
+  return addr;
 }
 
 

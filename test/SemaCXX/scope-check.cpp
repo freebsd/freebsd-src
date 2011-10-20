@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -fblocks %s -Wno-unreachable-code
-// RUN: %clang_cc1 -fsyntax-only -verify -fblocks -std=gnu++0x %s -Wno-unreachable-code
+// RUN: %clang_cc1 -fsyntax-only -verify -fblocks -std=gnu++11 %s -Wno-unreachable-code
 
 namespace test0 {
   struct D { ~D(); };
@@ -171,3 +171,39 @@ namespace test9 {
     }
   }
 }
+
+// http://llvm.org/PR10462
+namespace PR10462 {
+enum MyEnum {
+  something_valid,
+  something_invalid
+};
+
+bool recurse() {
+  MyEnum K;
+  switch (K) { // expected-warning {{enumeration value 'something_invalid' not handled in switch}}
+    case something_valid:
+    case what_am_i_thinking: // expected-error {{use of undeclared identifier}}
+      int *X = 0;
+      if (recurse()) {
+      }
+
+      break;
+  }
+}
+
+
+namespace test10 {
+
+int test() {
+  static void *ps[] = { &&a0 };
+  goto *&&a0; // expected-error {{goto into protected scope}}
+  int a = 3; // expected-note {{jump bypasses variable initialization}}
+ a0:
+  return 0;
+}
+
+}
+
+}
+

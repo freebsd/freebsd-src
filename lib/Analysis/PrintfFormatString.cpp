@@ -38,8 +38,7 @@ static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS,
                            unsigned *argIndex) {
   if (argIndex) {
     FS.setPrecision(ParseNonPositionAmount(Beg, E, *argIndex));
-  }
-  else {
+  } else {
     const OptionalAmount Amt = ParsePositionAmount(H, Start, Beg, E,
                                            analyze_format_string::PrecisionPos);
     if (Amt.isInvalid())
@@ -388,6 +387,7 @@ bool PrintfSpecifier::fixType(QualType QT) {
   case BuiltinType::Char32:
   case BuiltinType::UInt128:
   case BuiltinType::Int128:
+  case BuiltinType::Half:
     // Integral types which are non-trivial to correct.
     return false;
 
@@ -461,15 +461,14 @@ bool PrintfSpecifier::fixType(QualType QT) {
       CS.setKind(ConversionSpecifier::uArg);
     HasAlternativeForm = 0;
     HasPlusPrefix = 0;
-  }
-  else {
-    assert(0 && "Unexpected type");
+  } else {
+    llvm_unreachable("Unexpected type");
   }
 
   return true;
 }
 
-void PrintfSpecifier::toString(llvm::raw_ostream &os) const {
+void PrintfSpecifier::toString(raw_ostream &os) const {
   // Whilst some features have no defined order, we are using the order
   // appearing in the C99 standard (ISO/IEC 9899:1999 (E) 7.19.6.1)
   os << "%";

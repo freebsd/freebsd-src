@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++11
 
 struct DefaultedDefCtor1 {};
 struct DefaultedDefCtor2 { DefaultedDefCtor2() = default; };
@@ -23,10 +23,6 @@ int n;
 // default constructor,
 union Deleted1a { UserProvidedDefCtor u; }; // expected-note {{deleted here}}
 Deleted1a d1a; // expected-error {{deleted constructor}}
-// FIXME: treating this as having a deleted default constructor is probably a
-// bug in the standard.
-union Deleted1b { UserProvidedDefCtor u = UserProvidedDefCtor(); }; // expected-note {{deleted here}}
-Deleted1b d1b; // expected-error {{deleted constructor}}
 union NotDeleted1a { DefaultedDefCtor1 nu; };
 NotDeleted1a nd1a;
 // FIXME: clang implements the pre-FDIS rule, under which DefaultedDefCtor2's

@@ -30,7 +30,7 @@ void t4(T *t) {
 // PR5102
 template <typename T>
 class A {
-  operator T *() const;
+  public: operator T *() const;
 };
 
 void f() {
@@ -120,5 +120,16 @@ namespace test4 {
     // CHECK-NEXT: [[OBJVOID:%.*]] = bitcast [[X]] [[OBJ]] to i8*
     // CHECK-NEXT: call void @_ZdlPv(i8* [[OBJVOID]]) nounwind
     ::delete xp;
+  }
+}
+
+namespace test5 {
+  struct Incomplete;
+  // CHECK: define void @_ZN5test523array_delete_incompleteEPNS_10IncompleteES1_
+  void array_delete_incomplete(Incomplete *p1, Incomplete *p2) {
+    // CHECK: call void @_ZdlPv
+    delete p1;
+    // CHECK: call void @_ZdaPv
+    delete [] p2;
   }
 }

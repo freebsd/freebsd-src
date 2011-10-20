@@ -7,7 +7,7 @@ A<int()> *a1; // expected-error{{template argument for non-type template paramet
 
 A<int> *a2; // expected-error{{template argument for non-type template parameter must be an expression}}
 
-A<1 >> 2> *a3; // expected-warning{{use of right-shift operator ('>>') in template argument will require parentheses in C++0x}}
+A<1 >> 2> *a3; // expected-warning{{use of right-shift operator ('>>') in template argument will require parentheses in C++11}}
 
 // C++ [temp.arg.nontype]p5:
 A<A> *a4; // expected-error{{must be an expression}}
@@ -170,7 +170,7 @@ namespace pr6249 {
 
 namespace PR6723 {
   template<unsigned char C> void f(int (&a)[C]); // expected-note {{candidate template ignored}} \
-  // expected-note{{candidate function [with C = '\x00'] not viable: no known conversion from 'int [512]' to 'int (&)[0]' for 1st argument}}
+  // expected-note{{substitution failure [with C = '\x00']}}
   void g() {
     int arr512[512];
     f(arr512); // expected-error{{no matching function for call}}
@@ -263,3 +263,63 @@ namespace PR9227 {
   void test_char_single_quote() { enable_if_char<'\''>::type i; } // expected-error{{enable_if_char<'\''>}}
   void test_char_backslash() { enable_if_char<'\\'>::type i; } // expected-error{{enable_if_char<'\\'>}}
 }
+
+namespace PR10579 {
+  namespace fcppt
+  {
+    namespace container
+    {
+      namespace bitfield
+      {
+
+        template<
+          typename Enum,
+          Enum Size
+          >
+        class basic;
+
+        template<
+          typename Enum,
+          Enum Size
+          >
+        class basic
+        {
+        public:
+          basic()
+          {
+          }
+        };
+
+      }
+    }
+  }
+
+  namespace
+  {
+
+    namespace testenum
+    {
+      enum type
+        {
+          foo,
+          bar,
+          size
+        };
+    }
+
+  }
+
+  int main()
+  {
+    typedef fcppt::container::bitfield::basic<
+    testenum::type,
+      testenum::size
+      > bitfield_foo;
+
+    bitfield_foo obj;
+  }
+
+}
+
+template <int& I> struct PR10766 { static int *ip; };
+template <int& I> int* PR10766<I>::ip = &I;

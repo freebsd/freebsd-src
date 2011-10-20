@@ -1,6 +1,6 @@
 // We run this twice, once as Objective-C and once as Objective-C++.
-// RUN: %clang_cc1 %s -emit-llvm -o - -fobjc-gc -fblocks -fexceptions -triple i386-apple-darwin10 | FileCheck %s
-// RUN: %clang_cc1 %s -emit-llvm -o - -fobjc-gc -fblocks -fexceptions -triple i386-apple-darwin10 -x objective-c++ | FileCheck %s
+// RUN: %clang_cc1 %s -emit-llvm -o - -fobjc-gc -fblocks -fexceptions -triple i386-apple-darwin10 -fobjc-fragile-abi | FileCheck %s
+// RUN: %clang_cc1 %s -emit-llvm -o - -fobjc-gc -fblocks -fexceptions -triple i386-apple-darwin10 -fobjc-fragile-abi -x objective-c++ | FileCheck %s
 
 
 // CHECK: define i8* @{{.*}}test0
@@ -30,8 +30,9 @@ void test1() {
   // CHECK-NEXT: call void @_Block_object_dispose(i8* [[T1]], i32 8)
   // CHECK-NEXT: ret void
 
-  // CHECK:      call i8* @llvm.eh.exception()
+  // CHECK:      landingpad { i8*, i32 } personality
+  // CHECK-NEXT:   cleanup
   // CHECK:      [[T1:%.*]] = bitcast [[N_T]]* [[N]] to i8*
   // CHECK-NEXT: call void @_Block_object_dispose(i8* [[T1]], i32 8)
-  // CHECK:      call void @llvm.eh.resume(
+  // CHECK:      resume { i8*, i32 }
 }

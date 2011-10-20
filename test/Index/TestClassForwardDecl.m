@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fblocks -emit-pch -x objective-c %s -o %t.ast
 // RUN: c-index-test -test-file-scan %t.ast %s | FileCheck -check-prefix=scan %s
 // RUN: c-index-test -test-load-tu %t.ast local | FileCheck -check-prefix=load %s
 
@@ -20,7 +20,7 @@ void function(Foo * arg)
 // CHECK-scan: [10:15 - 10:18] ObjCClassRef=Foo:8:8
 // CHECK-scan: [10:18 - 10:24] ParmDecl=arg:10:21 (Definition)
 // CHECK-scan: [10:24 - 11:1] FunctionDecl=function:10:6 (Definition)
-// CHECK-scan: [11:1 - 13:2] UnexposedStmt=
+// CHECK: [11:1 - 13:2] CompundStmt=
 
 
 

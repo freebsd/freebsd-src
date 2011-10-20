@@ -10,7 +10,7 @@
   NSMutableArray * _array;
 }
 
-@property (readonly) NSArray * array;
+@property (readonly) NSMutableArray * array;
 
 @end
 
@@ -30,3 +30,45 @@ int main(void)
 {
   return 0;
 }
+
+// rdar://6137845
+class TCPPObject
+{
+public:
+ TCPPObject(const TCPPObject& inObj);
+ TCPPObject();
+ ~TCPPObject();
+ TCPPObject& operator=(const TCPPObject& inObj);
+private:
+ void* fData;
+};
+
+class Trivial
+{
+public:
+ Trivial(const Trivial& inObj);
+ Trivial();
+ ~Trivial();
+private:
+ void* fData;
+};
+
+@interface MyDocument
+{
+@private
+ TCPPObject _cppObject;
+ TCPPObject _ncppObject;
+ Trivial _tcppObject;
+}
+@property (assign, readwrite) const TCPPObject& cppObject;
+@property (assign, readwrite, nonatomic) const TCPPObject& ncppObject;
+@property (assign, readwrite) const Trivial& tcppObject;
+@end
+
+@implementation MyDocument
+
+@synthesize cppObject = _cppObject; // expected-warning {{atomic property of type 'const TCPPObject &' synthesizing setter using non-trivial assignment operator}}
+@synthesize ncppObject = _ncppObject;
+
+@synthesize tcppObject = _tcppObject;
+@end

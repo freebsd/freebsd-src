@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify -pedantic %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify -pedantic %s
 
 // Test the C++0x-specific reference initialization rules, e.g., the
 // rules for rvalue references.
@@ -17,7 +17,7 @@ int f(int);
 
 template<typename T>
 struct ConvertsTo {
-  operator T(); // expected-note 4{{candidate function}}
+  operator T(); // expected-note 2{{candidate function}}
 };
 
 void test_rvalue_refs() {
@@ -132,7 +132,9 @@ namespace std_example_2 {
 
 namespace argument_passing {
   void base_rvalue_ref(Base&&);
-  void int_rvalue_ref(int&&); // expected-note 2{{passing argument to parameter here}}
+  void int_rvalue_ref(int&&); // expected-note{{candidate function not viable: no known conversion from 'ConvertsTo<int &>' to 'int &&' for 1st argument}} \
+  // expected-note{{candidate function not viable: no known conversion from 'ConvertsTo<float &>' to 'int &&' for 1st argument}}
+
   void array_rvalue_ref(int (&&)[5]);
   void function_rvalue_ref(int (&&)(int));
 
@@ -157,8 +159,36 @@ namespace argument_passing {
 
     function_rvalue_ref(ConvertsTo<int(&)(int)>());
     
-    int_rvalue_ref(ConvertsTo<int&>()); // expected-error{{no viable conversion from 'ConvertsTo<int &>' to 'int'}}
-    int_rvalue_ref(ConvertsTo<float&>()); // expected-error{{no viable conversion from 'ConvertsTo<float &>' to 'int'}}
+    int_rvalue_ref(ConvertsTo<int&>()); // expected-error{{no matching function for call to 'int_rvalue_ref'}}
+    int_rvalue_ref(ConvertsTo<float&>()); // expected-error{{no matching function for call to 'int_rvalue_ref'}}
   }
 
+}
+
+namespace pr10644 {
+  struct string {
+    string(const char* __s);
+  };
+  class map {
+    int& operator[](const string& __k);
+  public:
+    int& operator[](const string&& __k);
+  };
+  void foo() {
+    static map key_map;
+    key_map["line"];
+  }
+}
+
+namespace PR11003 {
+  class Value {
+  };
+  struct MoveRef {
+    operator Value &() const ;
+  };
+  MoveRef Move(int);
+  void growTo() {
+    Value x = Move(0);
+    Value y(Move(0));
+  }
 }
