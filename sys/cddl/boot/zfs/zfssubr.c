@@ -181,13 +181,16 @@ zio_checksum_label_verifier(zio_cksum_t *zcp, uint64_t offset)
 }
 
 static int
-zio_checksum_verify(const blkptr_t *bp, void *data, uint64_t offset,
-    uint64_t size)
+zio_checksum_verify(const blkptr_t *bp, void *data)
 {
-	unsigned int checksum = BP_IS_GANG(bp) ? ZIO_CHECKSUM_GANG_HEADER : BP_GET_CHECKSUM(bp);
+	uint64_t size;
+	unsigned int checksum;
 	zio_checksum_info_t *ci;
 	zio_cksum_t actual_cksum, expected_cksum, verifier;
 	int byteswap;
+
+	checksum = BP_GET_CHECKSUM(bp);
+	size = BP_GET_PSIZE(bp);
 
 	if (checksum >= ZIO_CHECKSUM_FUNCTIONS)
 		return (EINVAL);
@@ -206,7 +209,8 @@ zio_checksum_verify(const blkptr_t *bp, void *data, uint64_t offset,
 		if (checksum == ZIO_CHECKSUM_GANG_HEADER)
 			zio_checksum_gang_verifier(&verifier, bp);
 		else if (checksum == ZIO_CHECKSUM_LABEL)
-			zio_checksum_label_verifier(&verifier, offset);
+			zio_checksum_label_verifier(&verifier,
+			    DVA_GET_OFFSET(BP_IDENTITY(bp)));
 		else
 			verifier = bp->blk_cksum;
 
@@ -224,7 +228,6 @@ zio_checksum_verify(const blkptr_t *bp, void *data, uint64_t offset,
 			byteswap_uint64_array(&expected_cksum,
 			    sizeof (zio_cksum_t));
 	} else {
-		ASSERT(!BP_IS_GANG(bp));
 		expected_cksum = bp->blk_cksum;
 		ci->ci_func[0](data, size, &actual_cksum);
 	}
@@ -1243,7 +1246,7 @@ static int
 raidz_checksum_verify(const blkptr_t *bp, void *data, uint64_t size)
 {
 
-	return (zio_checksum_verify(bp, data, 0, size));
+	return (zio_checksum_verify(bp, data));
 }
 
 /*
