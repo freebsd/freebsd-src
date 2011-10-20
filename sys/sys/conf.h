@@ -301,6 +301,9 @@ int	devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t dtr);
 void	devfs_clear_cdevpriv(void);
 void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
 
+ino_t	devfs_alloc_cdp_inode(void);
+void	devfs_free_cdp_inode(ino_t ino);
+
 #define		UID_ROOT	0
 #define		UID_BIN		3
 #define		UID_UUCP	66
