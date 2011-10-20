@@ -1811,18 +1811,6 @@ ath_stop(struct ifnet *ifp)
 	ATH_UNLOCK(sc);
 }
 
-int
-ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
-{
-	int r;
-
-	struct ath_softc *sc = ifp->if_softc;
-
-	ATH_LOCK(sc);
-	r = ath_reset_locked(ifp, reset_type);
-	ATH_UNLOCK(sc);
-	return r;
-}
 /*
  * Reset the hardware w/o losing operational state.  This is
  * basically a more efficient way of doing ath_stop, ath_init,
@@ -1831,14 +1819,12 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
  * to reset or reload hardware state.
  */
 int
-ath_reset_locked(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
+ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 {
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
-
-	ATH_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
@@ -4981,8 +4967,6 @@ ath_startrecv(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
-	ATH_LOCK_ASSERT(sc);
-
 	sc->sc_rxlink = NULL;
 	sc->sc_rxpending = NULL;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -5011,7 +4995,6 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
 	enum ieee80211_phymode mode;
 
-	ATH_LOCK(sc);
 	/*
 	 * Change channels and update the h/w rate map
 	 * if we're switching; e.g. 11a to 11b/g.
@@ -5020,7 +5003,6 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	sc->sc_curchan = chan;
-	ATH_UNLOCK(sc);
 }
 
 /*
@@ -5138,7 +5120,7 @@ ath_calibrate(void *arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 				"%s: rfgain change\n", __func__);
 			sc->sc_stats.ast_per_rfgain++;
-			ath_reset_locked(ifp, ATH_RESET_NOLOSS);
+			ath_reset(ifp, ATH_RESET_NOLOSS);
 		}
 		/*
 		 * If this long cal is after an idle period, then
@@ -5804,7 +5786,7 @@ ath_watchdog(void *arg)
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
 			if_printf(ifp, "device timeout\n");
-		ath_reset_locked(ifp, ATH_RESET_NOLOSS);
+		ath_reset(ifp, ATH_RESET_NOLOSS);
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
 	}
