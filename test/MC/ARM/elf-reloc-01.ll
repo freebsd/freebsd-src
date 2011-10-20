@@ -60,11 +60,11 @@ bb3:                                              ; preds = %bb, %entry
 
 declare void @exit(i32) noreturn nounwind
 
-;; OBJ:          Relocation 0x00000001
+;; OBJ:          Relocation 1
 ;; OBJ-NEXT:     'r_offset', 
-;; OBJ-NEXT:     'r_sym', 0x00000002
-;; OBJ-NEXT:     'r_type', 0x0000002b
+;; OBJ-NEXT:     'r_sym', 0x000002
+;; OBJ-NEXT:     'r_type', 0x2b
 
-;; OBJ:         Symbol 0x00000002
+;; OBJ:         Symbol 2
 ;; OBJ-NEXT:    '_MergedGlobals'
 ;; OBJ-NEXT:    'st_value', 0x00000010

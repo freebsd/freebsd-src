@@ -9,6 +9,8 @@ declare void @llvm.xcore.out.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.outt.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.outct.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.chkct.p1i8(i8 addrspace(1)* %r, i32 %value)
+declare i32 @llvm.xcore.testct.p1i8(i8 addrspace(1)* %r)
+declare i32 @llvm.xcore.testwct.p1i8(i8 addrspace(1)* %r)
 declare void @llvm.xcore.setd.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.setc.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare i32 @llvm.xcore.inshr.p1i8(i8 addrspace(1)* %r, i32 %value)
@@ -18,10 +20,13 @@ declare i32 @llvm.xcore.getts.p1i8(i8 addrspace(1)* %r)
 declare void @llvm.xcore.syncr.p1i8(i8 addrspace(1)* %r)
 declare void @llvm.xcore.settw.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.setv.p1i8(i8 addrspace(1)* %r, i8* %p)
+declare void @llvm.xcore.setev.p1i8(i8 addrspace(1)* %r, i8* %p)
 declare void @llvm.xcore.eeu.p1i8(i8 addrspace(1)* %r)
 declare void @llvm.xcore.setclk.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
 declare void @llvm.xcore.setrdy.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
 declare void @llvm.xcore.setpsc.p1i8(i8 addrspace(1)* %r, i32 %value)
+declare i32 @llvm.xcore.peek.p1i8(i8 addrspace(1)* %r)
+declare i32 @llvm.xcore.endin.p1i8(i8 addrspace(1)* %r)
 
 define i8 addrspace(1)* @getr() {
 ; CHECK: getr:
@@ -171,6 +176,14 @@ define void @setv(i8 addrspace(1)* %r, i8* %p) {
 	ret void
 }
 
+define void @setev(i8 addrspace(1)* %r, i8* %p) {
+; CHECK: setev:
+; CHECK: mov r11, r1
+; CHECK-NEXT: setev res[r0], r11
+	call void @llvm.xcore.setev.p1i8(i8 addrspace(1)* %r, i8* %p)
+	ret void
+}
+
 define void @eeu(i8 addrspace(1)* %r) {
 ; CHECK: eeu:
 ; CHECK: eeu res[r0]
@@ -197,4 +210,32 @@ define void @setpsc(i8 addrspace(1)* %r, i32 %value) {
 ; CHECK: setpsc res[r0], r1
 	call void @llvm.xcore.setpsc.p1i8(i8 addrspace(1)* %r, i32 %value)
 	ret void
+}
+
+define i32 @peek(i8 addrspace(1)* %r) {
+; CHECK: peek:
+; CHECK: peek r0, res[r0]
+	%result = call i32 @llvm.xcore.peek.p1i8(i8 addrspace(1)* %r)
+	ret i32 %result
+}
+
+define i32 @endin(i8 addrspace(1)* %r) {
+; CHECK: endin:
+; CHECK: endin r0, res[r0]
+	%result = call i32 @llvm.xcore.endin.p1i8(i8 addrspace(1)* %r)
+	ret i32 %result
+}
+
+define i32 @testct(i8 addrspace(1)* %r) {
+; CHECK: testct:
+; CHECK: testct r0, res[r0]
+	%result = call i32 @llvm.xcore.testct.p1i8(i8 addrspace(1)* %r)
+	ret i32 %result
+}
+
+define i32 @testwct(i8 addrspace(1)* %r) {
+; CHECK: testwct:
+; CHECK: testwct r0, res[r0]
+	%result = call i32 @llvm.xcore.testwct.p1i8(i8 addrspace(1)* %r)
+	ret i32 %result
 }

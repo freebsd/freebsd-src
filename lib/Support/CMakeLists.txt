@@ -9,11 +9,13 @@ add_llvm_library(LLVMSupport
   APInt.cpp
   APSInt.cpp
   Allocator.cpp
+  BlockFrequency.cpp
   BranchProbability.cpp
   circular_raw_ostream.cpp
   CommandLine.cpp
   ConstantRange.cpp
   CrashRecoveryContext.cpp
+  DataExtractor.cpp
   Debug.cpp
   DeltaAlgorithm.cpp
   DAGDeltaAlgorithm.cpp
@@ -42,7 +44,6 @@ add_llvm_library(LLVMSupport
   StringPool.cpp
   StringRef.cpp
   SystemUtils.cpp
-  TargetRegistry.cpp
   Timer.cpp
   ToolOutputFile.cpp
   Triple.cpp
@@ -72,6 +73,7 @@ add_llvm_library(LLVMSupport
   SearchForAddressOfSpecialSymbol.cpp
   Signals.cpp
   system_error.cpp
+  TargetRegistry.cpp
   ThreadLocal.cpp
   Threading.cpp
   TimeValue.cpp

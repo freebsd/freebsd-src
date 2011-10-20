@@ -31,6 +31,9 @@
 /* Installation directory for config files */
 #cmakedefine LLVM_ETCDIR "${LLVM_ETCDIR}"
 
+/* Has gcc/MSVC atomic intrinsics */
+#cmakedefine01 LLVM_HAS_ATOMICS
+
 /* Host triple we were built on */
 #cmakedefine LLVM_HOSTTRIPLE "${LLVM_HOSTTRIPLE}"
 
@@ -46,11 +49,14 @@
 /* Installation directory for man pages */
 #cmakedefine LLVM_MANDIR "${LLVM_MANDIR}"
 
-/* Build multithreading support into LLVM */
-#cmakedefine LLVM_MULTITHREADED ${LLVM_MULTITHREADED}
-
 /* LLVM architecture name for the native architecture, if available */
 #cmakedefine LLVM_NATIVE_ARCH ${LLVM_NATIVE_ARCH}
+
+/* LLVM name for the native AsmParser init function, if available */
+#cmakedefine LLVM_NATIVE_ASMPARSER LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#cmakedefine LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter
 
 /* LLVM name for the native Target init function, if available */
 #cmakedefine LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target
@@ -58,14 +64,8 @@
 /* LLVM name for the native TargetInfo init function, if available */
 #cmakedefine LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo
 
-/* LLVM name for the native MCAsmInfo init function, if available */
-#cmakedefine LLVM_NATIVE_MCASMINFO LLVMInitialize${LLVM_NATIVE_ARCH}MCAsmInfo
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#cmakedefine LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#cmakedefine LLVM_NATIVE_ASMPARSER LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser
+/* LLVM name for the native target MC init function, if available */
+#cmakedefine LLVM_NATIVE_TARGETMC LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC
 
 /* Define if this is Unixish platform */
 #cmakedefine LLVM_ON_UNIX ${LLVM_ON_UNIX}

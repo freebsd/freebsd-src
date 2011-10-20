@@ -35,7 +35,7 @@
           <li><a href="#linkage_externweak">'<tt>extern_weak</tt>' Linkage</a></li>
           <li><a href="#linkage_linkonce_odr">'<tt>linkonce_odr</tt>' Linkage</a></li>
           <li><a href="#linkage_weak">'<tt>weak_odr</tt>' Linkage</a></li>
-          <li><a href="#linkage_external">'<tt>externally visible</tt>' Linkage</a></li>
+          <li><a href="#linkage_external">'<tt>external</tt>' Linkage</a></li>
           <li><a href="#linkage_dllimport">'<tt>dllimport</tt>' Linkage</a></li>
           <li><a href="#linkage_dllexport">'<tt>dllexport</tt>' Linkage</a></li>
         </ol>
@@ -53,6 +53,8 @@
       <li><a href="#datalayout">Data Layout</a></li>
       <li><a href="#pointeraliasing">Pointer Aliasing Rules</a></li>
       <li><a href="#volatile">Volatile Memory Accesses</a></li>
+      <li><a href="#memmodel">Memory Model for Concurrent Operations</a></li>
+      <li><a href="#ordering">Atomic Memory Ordering Constraints</a></li>
     </ol>
   </li>
   <li><a href="#typesystem">Type System</a>
@@ -74,7 +76,7 @@
             <ol>
               <li><a href="#t_array">Array Type</a></li>
               <li><a href="#t_struct">Structure Type</a></li>
-              <li><a href="#t_opaque">Opaque Type</a></li>
+              <li><a href="#t_opaque">Opaque Structure Types</a></li>
               <li><a href="#t_vector">Vector Type</a></li>
             </ol>
           </li>
@@ -122,6 +124,7 @@
           <li><a href="#i_indirectbr">'<tt>indirectbr</tt>' Instruction</a></li>
           <li><a href="#i_invoke">'<tt>invoke</tt>' Instruction</a></li>
           <li><a href="#i_unwind">'<tt>unwind</tt>'  Instruction</a></li>
+          <li><a href="#i_resume">'<tt>resume</tt>'  Instruction</a></li>
           <li><a href="#i_unreachable">'<tt>unreachable</tt>' Instruction</a></li>
         </ol>
       </li>
@@ -166,9 +169,12 @@
       </li>
       <li><a href="#memoryops">Memory Access and Addressing Operations</a>
         <ol>
-          <li><a href="#i_alloca">'<tt>alloca</tt>'   Instruction</a></li>
-         <li><a href="#i_load">'<tt>load</tt>'     Instruction</a></li>
-         <li><a href="#i_store">'<tt>store</tt>'    Instruction</a></li>
+          <li><a href="#i_alloca">'<tt>alloca</tt>' Instruction</a></li>
+         <li><a href="#i_load">'<tt>load</tt>' Instruction</a></li>
+         <li><a href="#i_store">'<tt>store</tt>' Instruction</a></li>
+         <li><a href="#i_fence">'<tt>fence</tt>' Instruction</a></li>
+         <li><a href="#i_cmpxchg">'<tt>cmpxchg</tt>' Instruction</a></li>
+         <li><a href="#i_atomicrmw">'<tt>atomicrmw</tt>' Instruction</a></li>
          <li><a href="#i_getelementptr">'<tt>getelementptr</tt>' Instruction</a></li>
         </ol>
       </li>
@@ -196,6 +202,7 @@
           <li><a href="#i_select">'<tt>select</tt>' Instruction</a></li>
           <li><a href="#i_call">'<tt>call</tt>'  Instruction</a></li>
           <li><a href="#i_va_arg">'<tt>va_arg</tt>'  Instruction</a></li>
+          <li><a href="#i_landingpad">'<tt>landingpad</tt>' Instruction</a></li>
         </ol>
       </li>
     </ol>
@@ -268,9 +275,10 @@
       </li>
       <li><a href="#int_debugger">Debugger intrinsics</a></li>
       <li><a href="#int_eh">Exception Handling intrinsics</a></li>
-      <li><a href="#int_trampoline">Trampoline Intrinsic</a>
+      <li><a href="#int_trampoline">Trampoline Intrinsics</a>
         <ol>
           <li><a href="#int_it">'<tt>llvm.init.trampoline</tt>' Intrinsic</a></li>
+          <li><a href="#int_at">'<tt>llvm.adjust.trampoline</tt>' Intrinsic</a></li>
         </ol>
       </li>
       <li><a href="#int_atomics">Atomic intrinsics</a>
@@ -639,7 +647,7 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
       be merged with equivalent globals.  These linkage types are otherwise the
       same as their non-<tt>odr</tt> versions.</dd>
 
-  <dt><tt><b><a name="linkage_external">externally visible</a></b></tt>:</dt>
+  <dt><tt><b><a name="linkage_external">external</a></b></tt>:</dt>
   <dd>If none of the above identifiers are used, the global is externally
       visible, meaning that it participates in linkage and can be used to
       resolve external symbol references.</dd>
@@ -672,8 +680,8 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
    declarations), they are accessible outside of the current module.</p>
 
 <p>It is illegal for a function <i>declaration</i> to have any linkage type
-   other than "externally visible", <tt>dllimport</tt>
-   or <tt>extern_weak</tt>.</p>
+   other than <tt>external</tt>, <tt>dllimport</tt>
+  or <tt>extern_weak</tt>.</p>
 
 <p>Aliases can have only <tt>external</tt>, <tt>internal</tt>, <tt>weak</tt>
    or <tt>weak_odr</tt> linkages.</p>
@@ -1155,14 +1163,6 @@ define void @f() optsize { ... }
       function into callers whenever possible, ignoring any active inlining size
       threshold for this caller.</dd>
 
-  <dt><tt><b>hotpatch</b></tt></dt>
-  <dd>This attribute indicates that the function should be 'hotpatchable',
-      meaning the function can be patched and/or hooked even while it is
-      loaded into memory. On x86, the function prologue will be preceded
-      by six bytes of padding and will begin with a two-byte instruction.
-      Most of the functions in the Windows system DLLs in Windows XP SP2 or
-      higher were compiled in this fashion.</dd>
-
   <dt><tt><b>nonlazybind</b></tt></dt>
   <dd>This attribute suppresses lazy symbol binding for the function. This
       may make calls to the function faster, at the cost of extra program
@@ -1246,6 +1246,19 @@ define void @f() optsize { ... }
       function that doesn't have an <tt>sspreq</tt> attribute or which has
       an <tt>ssp</tt> attribute, then the resulting function will have
       an <tt>sspreq</tt> attribute.</dd>
+
+  <dt><tt><b><a name="uwtable">uwtable</a></b></tt></dt>
+  <dd>This attribute indicates that the ABI being targeted requires that
+      an unwind table entry be produce for this function even if we can
+      show that no exceptions passes by it. This is normally the case for
+      the ELF x86-64 abi, but it can be disabled for some compilation
+      units.</dd>
+
+  <dt><tt><b><a name="returns_twice">returns_twice</a></b></tt></dt>
+  <dd>This attribute indicates that this function can return
+  twice. The C <code>setjmp</code> is an example of such a function.
+  The compiler disables some optimizations (like tail calls) in the caller of
+  these functions.</dd>
 </dl>
 
 </div>
@@ -1305,6 +1318,13 @@ target datalayout = "<i>layout specification</i>"
   <dd>Specifies that the target lays out data in little-endian form. That is,
       the bits with the least significance have the lowest address
       location.</dd>
+
+  <dt><tt>S<i>size</i></tt></dt>
+  <dd>Specifies the natural alignment of the stack in bits. Alignment promotion
+      of stack variables is limited to the natural stack alignment to avoid
+      dynamic stack realignment. The stack alignment must be a multiple of
+      8-bits. If omitted, the natural stack alignment defaults to "unspecified",
+      which does not prevent any alignment promotions.</dd>
 
   <dt><tt>p:<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
   <dd>This specifies the <i>size</i> of a pointer and its <i>abi</i> and
@@ -1385,6 +1405,22 @@ target datalayout = "<i>layout specification</i>"
       used as a fall back.  This happens because &lt;128 x double&gt; can be
       implemented in terms of 64 &lt;2 x double&gt;, for example.</li>
 </ol>
+
+<p>The function of the data layout string may not be what you expect.  Notably,
+   this is not a specification from the frontend of what alignment the code
+   generator should use.</p>
+
+<p>Instead, if specified, the target data layout is required to match what the 
+   ultimate <em>code generator</em> expects.  This string is used by the 
+   mid-level optimizers to
+   improve code, and this only works if it matches what the ultimate code 
+   generator uses.  If you would like to generate IR that does not embed this
+   target-specific detail into the IR, then you don't have to specify the 
+   string.  This will disable some optimizations that require precise layout
+   information, but this also prevents those optimizations from introducing
+   target specificity into the IR.</p>
+
+
 
 </div>
 
@@ -1467,6 +1503,185 @@ order of execution relative to other volatile operations.  The optimizers
 <i>may</i> change the order of volatile operations relative to non-volatile
 operations.  This is not Java's "volatile" and has no cross-thread
 synchronization behavior.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<h3>
+  <a name="memmodel">Memory Model for Concurrent Operations</a>
+</h3>
+
+<div>
+
+<p>The LLVM IR does not define any way to start parallel threads of execution
+or to register signal handlers. Nonetheless, there are platform-specific
+ways to create them, and we define LLVM IR's behavior in their presence. This
+model is inspired by the C++0x memory model.</p>
+
+<p>For a more informal introduction to this model, see the
+<a href="Atomics.html">LLVM Atomic Instructions and Concurrency Guide</a>.
+
+<p>We define a <i>happens-before</i> partial order as the least partial order
+that</p>
+<ul>
+  <li>Is a superset of single-thread program order, and</li>
+  <li>When a <i>synchronizes-with</i> <tt>b</tt>, includes an edge from
+      <tt>a</tt> to <tt>b</tt>. <i>Synchronizes-with</i> pairs are introduced
+      by platform-specific techniques, like pthread locks, thread
+      creation, thread joining, etc., and by atomic instructions.
+      (See also <a href="#ordering">Atomic Memory Ordering Constraints</a>).
+      </li>
+</ul>
+
+<p>Note that program order does not introduce <i>happens-before</i> edges
+between a thread and signals executing inside that thread.</p>
+
+<p>Every (defined) read operation (load instructions, memcpy, atomic
+loads/read-modify-writes, etc.) <var>R</var> reads a series of bytes written by
+(defined) write operations (store instructions, atomic
+stores/read-modify-writes, memcpy, etc.). For the purposes of this section,
+initialized globals are considered to have a write of the initializer which is
+atomic and happens before any other read or write of the memory in question.
+For each byte of a read <var>R</var>, <var>R<sub>byte</sub></var> may see
+any write to the same byte, except:</p>
+
+<ul>
+  <li>If <var>write<sub>1</sub></var> happens before
+      <var>write<sub>2</sub></var>, and <var>write<sub>2</sub></var> happens
+      before <var>R<sub>byte</sub></var>, then <var>R<sub>byte</sub></var>
+      does not see <var>write<sub>1</sub></var>.
+  <li>If <var>R<sub>byte</sub></var> happens before
+      <var>write<sub>3</sub></var>, then <var>R<sub>byte</sub></var> does not
+      see <var>write<sub>3</sub></var>.
+</ul>
+
+<p>Given that definition, <var>R<sub>byte</sub></var> is defined as follows:
+<ul>
+  <li>If <var>R</var> is volatile, the result is target-dependent. (Volatile
+      is supposed to give guarantees which can support
+      <code>sig_atomic_t</code> in C/C++, and may be used for accesses to
+      addresses which do not behave like normal memory.  It does not generally
+      provide cross-thread synchronization.)
+  <li>Otherwise, if there is no write to the same byte that happens before
+    <var>R<sub>byte</sub></var>, <var>R<sub>byte</sub></var> returns 
+    <tt>undef</tt> for that byte.
+  <li>Otherwise, if <var>R<sub>byte</sub></var> may see exactly one write,
+      <var>R<sub>byte</sub></var> returns the value written by that
+      write.</li>
+  <li>Otherwise, if <var>R</var> is atomic, and all the writes
+      <var>R<sub>byte</sub></var> may see are atomic, it chooses one of the
+      values written.  See the <a href="#ordering">Atomic Memory Ordering
+      Constraints</a> section for additional constraints on how the choice
+      is made.
+  <li>Otherwise <var>R<sub>byte</sub></var> returns <tt>undef</tt>.</li>
+</ul>
+
+<p><var>R</var> returns the value composed of the series of bytes it read.
+This implies that some bytes within the value may be <tt>undef</tt>
+<b>without</b> the entire value being <tt>undef</tt>. Note that this only
+defines the semantics of the operation; it doesn't mean that targets will
+emit more than one instruction to read the series of bytes.</p>
+
+<p>Note that in cases where none of the atomic intrinsics are used, this model
+places only one restriction on IR transformations on top of what is required
+for single-threaded execution: introducing a store to a byte which might not
+otherwise be stored is not allowed in general.  (Specifically, in the case
+where another thread might write to and read from an address, introducing a
+store can change a load that may see exactly one write into a load that may
+see multiple writes.)</p>
+
+<!-- FIXME: This model assumes all targets where concurrency is relevant have
+a byte-size store which doesn't affect adjacent bytes.  As far as I can tell,
+none of the backends currently in the tree fall into this category; however,
+there might be targets which care.  If there are, we want a paragraph
+like the following:
+
+Targets may specify that stores narrower than a certain width are not
+available; on such a target, for the purposes of this model, treat any
+non-atomic write with an alignment or width less than the minimum width
+as if it writes to the relevant surrounding bytes.
+-->
+
+</div>
+
+<!-- ======================================================================= -->
+<h3>
+      <a name="ordering">Atomic Memory Ordering Constraints</a>
+</h3>
+
+<div>
+
+<p>Atomic instructions (<a href="#i_cmpxchg"><code>cmpxchg</code></a>,
+<a href="#i_atomicrmw"><code>atomicrmw</code></a>,
+<a href="#i_fence"><code>fence</code></a>,
+<a href="#i_load"><code>atomic load</code></a>, and
+<a href="#i_store"><code>atomic store</code></a>) take an ordering parameter
+that determines which other atomic instructions on the same address they
+<i>synchronize with</i>.  These semantics are borrowed from Java and C++0x,
+but are somewhat more colloquial. If these descriptions aren't precise enough,
+check those specs (see spec references in the
+<a href="Atomic.html#introduction">atomics guide</a>).
+<a href="#i_fence"><code>fence</code></a> instructions
+treat these orderings somewhat differently since they don't take an address.
+See that instruction's documentation for details.</p>
+
+<p>For a simpler introduction to the ordering constraints, see the
+<a href="Atomics.html">LLVM Atomic Instructions and Concurrency Guide</a>.</p>
+
+<dl>
+<dt><code>unordered</code></dt>
+<dd>The set of values that can be read is governed by the happens-before
+partial order. A value cannot be read unless some operation wrote it.
+This is intended to provide a guarantee strong enough to model Java's
+non-volatile shared variables.  This ordering cannot be specified for
+read-modify-write operations; it is not strong enough to make them atomic
+in any interesting way.</dd>
+<dt><code>monotonic</code></dt>
+<dd>In addition to the guarantees of <code>unordered</code>, there is a single
+total order for modifications by <code>monotonic</code> operations on each
+address. All modification orders must be compatible with the happens-before
+order. There is no guarantee that the modification orders can be combined to
+a global total order for the whole program (and this often will not be
+possible). The read in an atomic read-modify-write operation
+(<a href="#i_cmpxchg"><code>cmpxchg</code></a> and
+<a href="#i_atomicrmw"><code>atomicrmw</code></a>)
+reads the value in the modification order immediately before the value it
+writes. If one atomic read happens before another atomic read of the same
+address, the later read must see the same value or a later value in the
+address's modification order. This disallows reordering of
+<code>monotonic</code> (or stronger) operations on the same address. If an
+address is written <code>monotonic</code>ally by one thread, and other threads
+<code>monotonic</code>ally read that address repeatedly, the other threads must
+eventually see the write. This corresponds to the C++0x/C1x
+<code>memory_order_relaxed</code>.</dd>
+<dt><code>acquire</code></dt>
+<dd>In addition to the guarantees of <code>monotonic</code>,
+a <i>synchronizes-with</i> edge may be formed with a <code>release</code>
+operation. This is intended to model C++'s <code>memory_order_acquire</code>.</dd>
+<dt><code>release</code></dt>
+<dd>In addition to the guarantees of <code>monotonic</code>, if this operation
+writes a value which is subsequently read by an <code>acquire</code> operation,
+it <i>synchronizes-with</i> that operation.  (This isn't a complete
+description; see the C++0x definition of a release sequence.) This corresponds
+to the C++0x/C1x <code>memory_order_release</code>.</dd>
+<dt><code>acq_rel</code> (acquire+release)</dt><dd>Acts as both an
+<code>acquire</code> and <code>release</code> operation on its address.
+This corresponds to the C++0x/C1x <code>memory_order_acq_rel</code>.</dd>
+<dt><code>seq_cst</code> (sequentially consistent)</dt><dd>
+<dd>In addition to the guarantees of <code>acq_rel</code>
+(<code>acquire</code> for an operation which only reads, <code>release</code>
+for an operation which only writes), there is a global total order on all
+sequentially-consistent operations on all addresses, which is consistent with
+the <i>happens-before</i> partial order and with the modification orders of
+all the affected addresses. Each sequentially-consistent read sees the last
+preceding write to the same address in this global order. This corresponds
+to the C++0x/C1x <code>memory_order_seq_cst</code> and Java volatile.</dd>
+</dl>
+
+<p id="singlethread">If an atomic operation is marked <code>singlethread</code>,
+it only <i>synchronizes with</i> or participates in modification and seq_cst
+total orderings with other operations running in the same thread (for example,
+in signal handlers).</p>
 
 </div>
 
@@ -1852,20 +2067,22 @@ synchronization behavior.</p>
   
 <p>Structures may optionally be "packed" structures, which indicate that the 
   alignment of the struct is one byte, and that there is no padding between
-  the elements.  In non-packed structs, padding between field types is defined
-  by the target data string to match the underlying processor.</p>
+  the elements.  In non-packed structs, padding between field types is inserted
+  as defined by the TargetData string in the module, which is required to match
+  what the underlying code generator expects.</p>
 
-<p>Structures can either be "anonymous" or "named".  An anonymous structure is
-  defined inline with other types (e.g. <tt>{i32, i32}*</tt>) and a named types
-  are always defined at the top level with a name.  Anonmyous types are uniqued
-  by their contents and can never be recursive since there is no way to write
-  one.  Named types can be recursive.
+<p>Structures can either be "literal" or "identified".  A literal structure is
+  defined inline with other types (e.g. <tt>{i32, i32}*</tt>) whereas identified
+  types are always defined at the top level with a name.  Literal types are
+  uniqued by their contents and can never be recursive or opaque since there is
+  no way to write one.  Identified types can be recursive, can be opaqued, and are
+  never uniqued.
 </p>
   
 <h5>Syntax:</h5>
 <pre>
-  %T1 = type { &lt;type list&gt; }     <i>; Named normal struct type</i>
-  %T2 = type &lt;{ &lt;type list&gt; }&gt;   <i>; Named packed struct type</i>
+  %T1 = type { &lt;type list&gt; }     <i>; Identified normal struct type</i>
+  %T2 = type &lt;{ &lt;type list&gt; }&gt;   <i>; Identified packed struct type</i>
 </pre>
   
 <h5>Examples:</h5>
@@ -1891,15 +2108,15 @@ synchronization behavior.</p>
   
 <!-- _______________________________________________________________________ -->
 <h4>
-  <a name="t_opaque">Opaque Type</a>
+  <a name="t_opaque">Opaque Structure Types</a>
 </h4>
 
 <div>
 
 <h5>Overview:</h5>
-<p>Opaque types are used to represent named structure types that do not have a
-   body specified.  This corresponds (for example) to the C notion of a forward 
-   declared structure.</p>
+<p>Opaque structure types are used to represent named structure types that do
+   not have a body specified.  This corresponds (for example) to the C notion of
+   a forward declared structure.</p>
 
 <h5>Syntax:</h5>
 <pre>
@@ -2003,6 +2220,8 @@ synchronization behavior.</p>
     <td class="left">Vector of 2 64-bit integer values.</td>
   </tr>
 </table>
+
+</div>
 
 </div>
 
@@ -2361,7 +2580,7 @@ b: unreachable
 </ul>
 
 <p>Whenever a trap value is generated, all values which depend on it evaluate
-   to trap. If they have side effects, the evoke their side effects as if each
+   to trap. If they have side effects, they evoke their side effects as if each
    operand with a trap value were undef. If they have externally-visible side
    effects, the behavior is undefined.</p>
 
@@ -2844,14 +3063,15 @@ should not be exposed to source languages.</p>
    control flow, not values (the one exception being the
    '<a href="#i_invoke"><tt>invoke</tt></a>' instruction).</p>
 
-<p>There are seven different terminator instructions: the
-   '<a href="#i_ret"><tt>ret</tt></a>' instruction, the
-   '<a href="#i_br"><tt>br</tt></a>' instruction, the
-   '<a href="#i_switch"><tt>switch</tt></a>' instruction, the
-   '<a href="#i_indirectbr">'<tt>indirectbr</tt></a>' Instruction, the
-   '<a href="#i_invoke"><tt>invoke</tt></a>' instruction, the
-   '<a href="#i_unwind"><tt>unwind</tt></a>' instruction, and the
-   '<a href="#i_unreachable"><tt>unreachable</tt></a>' instruction.</p>
+<p>The terminator instructions are: 
+   '<a href="#i_ret"><tt>ret</tt></a>', 
+   '<a href="#i_br"><tt>br</tt></a>',
+   '<a href="#i_switch"><tt>switch</tt></a>', 
+   '<a href="#i_indirectbr"><tt>indirectbr</tt></a>',
+   '<a href="#i_invoke"><tt>invoke</tt></a>', 
+   '<a href="#i_unwind"><tt>unwind</tt></a>',
+   '<a href="#i_resume"><tt>resume</tt></a>', and 
+   '<a href="#i_unreachable"><tt>unreachable</tt></a>'.</p>
 
 <!-- _______________________________________________________________________ -->
 <h4>
@@ -2912,7 +3132,8 @@ should not be exposed to source languages.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  br i1 &lt;cond&gt;, label &lt;iftrue&gt;, label &lt;iffalse&gt;<br>  br label &lt;dest&gt;          <i>; Unconditional branch</i>
+  br i1 &lt;cond&gt;, label &lt;iftrue&gt;, label &lt;iffalse&gt;
+  br label &lt;dest&gt;          <i>; Unconditional branch</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3072,6 +3293,17 @@ IfUnequal:
    instruction, control is interrupted and continued at the dynamically nearest
    "exception" label.</p>
 
+<p>The '<tt>exception</tt>' label is a
+   <i><a href="ExceptionHandling.html#overview">landing pad</a></i> for the
+   exception. As such, '<tt>exception</tt>' label is required to have the
+   "<a href="#i_landingpad"><tt>landingpad</tt></a>" instruction, which contains
+   the information about about the behavior of the program after unwinding
+   happens, as its first non-PHI instruction. The restrictions on the
+   "<tt>landingpad</tt>" instruction's tightly couples it to the
+   "<tt>invoke</tt>" instruction, so that the important information contained
+   within the "<tt>landingpad</tt>" instruction can't be lost through normal
+   code motion.</p>
+
 <h5>Arguments:</h5>
 <p>This instruction requires several arguments:</p>
 
@@ -3167,6 +3399,40 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <p>Note that the code generator does not yet completely support unwind, and
 that the invoke/unwind semantics are likely to change in future versions.</p>
+
+</div>
+
+ <!-- _______________________________________________________________________ -->
+ 
+<h4>
+  <a name="i_resume">'<tt>resume</tt>' Instruction</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  resume &lt;type&gt; &lt;value&gt;
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>resume</tt>' instruction is a terminator instruction that has no
+   successors.</p>
+
+<h5>Arguments:</h5>
+<p>The '<tt>resume</tt>' instruction requires one argument, which must have the
+   same type as the result of any '<tt>landingpad</tt>' instruction in the same
+   function.</p>
+
+<h5>Semantics:</h5>
+<p>The '<tt>resume</tt>' instruction resumes propagation of an existing
+   (in-flight) exception whose unwinding was interrupted with
+   a <a href="#i_landingpad"><tt>landingpad</tt></a> instruction.</p>
+
+<h5>Example:</h5>
+<pre>
+  resume { i8*, i32 } %exn
+</pre>
 
 </div>
 
@@ -4237,7 +4503,7 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;elt&gt;, &lt;idx&gt;{, <idx>}*    <i>; yields &lt;aggregate type&gt;</i>
+  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;elt&gt;, &lt;idx&gt;{, &lt;idx&gt;}*    <i>; yields &lt;aggregate type&gt;</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4342,8 +4608,8 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]
-  &lt;result&gt; = volatile load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]
+  &lt;result&gt; = load [volatile] &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]
+  &lt;result&gt; = load atomic [volatile] &lt;ty&gt;* &lt;pointer&gt; [singlethread] &lt;ordering&gt;, align &lt;alignment&gt;
   !&lt;index&gt; = !{ i32 1 }
 </pre>
 
@@ -4357,6 +4623,19 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
    marked as <tt>volatile</tt>, then the optimizer is not allowed to modify the
    number or order of execution of this <tt>load</tt> with other <a
    href="#volatile">volatile operations</a>.</p>
+
+<p>If the <code>load</code> is marked as <code>atomic</code>, it takes an extra
+   <a href="#ordering">ordering</a> and optional <code>singlethread</code>
+   argument.  The <code>release</code> and <code>acq_rel</code> orderings are
+   not valid on <code>load</code> instructions.  Atomic loads produce <a
+   href="#memorymodel">defined</a> results when they may see multiple atomic
+   stores.  The type of the pointee must be an integer type whose bit width
+   is a power of two greater than or equal to eight and less than or equal
+   to a target-specific size limit. <code>align</code> must be explicitly 
+   specified on atomic loads, and the load has undefined behavior if the
+   alignment is not set to a value which is at least the size in bytes of
+   the pointee. <code>!nontemporal</code> does not have any defined semantics
+   for atomic loads.</p>
 
 <p>The optional constant <tt>align</tt> argument specifies the alignment of the
    operation (that is, the alignment of the memory address). A value of 0 or an
@@ -4401,8 +4680,8 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]                   <i>; yields {void}</i>
-  volatile store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]          <i>; yields {void}</i>
+  store [volatile] &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]                   <i>; yields {void}</i>
+  store atomic [volatile] &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt; [singlethread] &lt;ordering&gt;, align &lt;alignment&gt;             <i>; yields {void}</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4417,6 +4696,19 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
    <tt>volatile</tt>, then the optimizer is not allowed to modify the number or
    order of execution of this <tt>store</tt> with other <a
    href="#volatile">volatile operations</a>.</p>
+
+<p>If the <code>store</code> is marked as <code>atomic</code>, it takes an extra
+   <a href="#ordering">ordering</a> and optional <code>singlethread</code>
+   argument.  The <code>acquire</code> and <code>acq_rel</code> orderings aren't
+   valid on <code>store</code> instructions.  Atomic loads produce <a
+   href="#memorymodel">defined</a> results when they may see multiple atomic
+   stores. The type of the pointee must be an integer type whose bit width
+   is a power of two greater than or equal to eight and less than or equal
+   to a target-specific size limit. <code>align</code> must be explicitly 
+   specified on atomic stores, and the store has undefined behavior if the
+   alignment is not set to a value which is at least the size in bytes of
+   the pointee. <code>!nontemporal</code> does not have any defined semantics
+   for atomic stores.</p>
 
 <p>The optional constant "align" argument specifies the alignment of the
    operation (that is, the alignment of the memory address). A value of 0 or an
@@ -4456,6 +4748,215 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <!-- _______________________________________________________________________ -->
 <h4>
+<a name="i_fence">'<tt>fence</tt>' Instruction</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  fence [singlethread] &lt;ordering&gt;                   <i>; yields {void}</i>
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>fence</tt>' instruction is used to introduce happens-before edges
+between operations.</p>
+
+<h5>Arguments:</h5> <p>'<code>fence</code>' instructions take an <a
+href="#ordering">ordering</a> argument which defines what
+<i>synchronizes-with</i> edges they add.  They can only be given
+<code>acquire</code>, <code>release</code>, <code>acq_rel</code>, and
+<code>seq_cst</code> orderings.</p>
+
+<h5>Semantics:</h5>
+<p>A fence <var>A</var> which has (at least) <code>release</code> ordering
+semantics <i>synchronizes with</i> a fence <var>B</var> with (at least)
+<code>acquire</code> ordering semantics if and only if there exist atomic
+operations <var>X</var> and <var>Y</var>, both operating on some atomic object
+<var>M</var>, such that <var>A</var> is sequenced before <var>X</var>,
+<var>X</var> modifies <var>M</var> (either directly or through some side effect
+of a sequence headed by <var>X</var>), <var>Y</var> is sequenced before
+<var>B</var>, and <var>Y</var> observes <var>M</var>. This provides a
+<i>happens-before</i> dependency between <var>A</var> and <var>B</var>. Rather
+than an explicit <code>fence</code>, one (but not both) of the atomic operations
+<var>X</var> or <var>Y</var> might provide a <code>release</code> or
+<code>acquire</code> (resp.) ordering constraint and still
+<i>synchronize-with</i> the explicit <code>fence</code> and establish the
+<i>happens-before</i> edge.</p>
+
+<p>A <code>fence</code> which has <code>seq_cst</code> ordering, in addition to
+having both <code>acquire</code> and <code>release</code> semantics specified
+above, participates in the global program order of other <code>seq_cst</code>
+operations and/or fences.</p>
+
+<p>The optional "<a href="#singlethread"><code>singlethread</code></a>" argument
+specifies that the fence only synchronizes with other fences in the same
+thread.  (This is useful for interacting with signal handlers.)</p>
+
+<h5>Example:</h5>
+<pre>
+  fence acquire                          <i>; yields {void}</i>
+  fence singlethread seq_cst             <i>; yields {void}</i>
+</pre>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+<a name="i_cmpxchg">'<tt>cmpxchg</tt>' Instruction</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  cmpxchg [volatile] &lt;ty&gt;* &lt;pointer&gt;, &lt;ty&gt; &lt;cmp&gt;, &lt;ty&gt; &lt;new&gt; [singlethread] &lt;ordering&gt;                   <i>; yields {ty}</i>
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>cmpxchg</tt>' instruction is used to atomically modify memory.
+It loads a value in memory and compares it to a given value. If they are
+equal, it stores a new value into the memory.</p>
+
+<h5>Arguments:</h5>
+<p>There are three arguments to the '<code>cmpxchg</code>' instruction: an
+address to operate on, a value to compare to the value currently be at that
+address, and a new value to place at that address if the compared values are
+equal.  The type of '<var>&lt;cmp&gt;</var>' must be an integer type whose
+bit width is a power of two greater than or equal to eight and less than
+or equal to a target-specific size limit. '<var>&lt;cmp&gt;</var>' and
+'<var>&lt;new&gt;</var>' must have the same type, and the type of
+'<var>&lt;pointer&gt;</var>' must be a pointer to that type. If the
+<code>cmpxchg</code> is marked as <code>volatile</code>, then the
+optimizer is not allowed to modify the number or order of execution
+of this <code>cmpxchg</code> with other <a href="#volatile">volatile
+operations</a>.</p>
+
+<!-- FIXME: Extend allowed types. -->
+
+<p>The <a href="#ordering"><var>ordering</var></a> argument specifies how this
+<code>cmpxchg</code> synchronizes with other atomic operations.</p>
+
+<p>The optional "<code>singlethread</code>" argument declares that the
+<code>cmpxchg</code> is only atomic with respect to code (usually signal
+handlers) running in the same thread as the <code>cmpxchg</code>.  Otherwise the
+cmpxchg is atomic with respect to all other code in the system.</p>
+
+<p>The pointer passed into cmpxchg must have alignment greater than or equal to
+the size in memory of the operand.
+
+<h5>Semantics:</h5>
+<p>The contents of memory at the location specified by the
+'<tt>&lt;pointer&gt;</tt>' operand is read and compared to
+'<tt>&lt;cmp&gt;</tt>'; if the read value is the equal,
+'<tt>&lt;new&gt;</tt>' is written.  The original value at the location
+is returned.
+
+<p>A successful <code>cmpxchg</code> is a read-modify-write instruction for the
+purpose of identifying <a href="#release_sequence">release sequences</a>.  A
+failed <code>cmpxchg</code> is equivalent to an atomic load with an ordering
+parameter determined by dropping any <code>release</code> part of the
+<code>cmpxchg</code>'s ordering.</p>
+
+<!--
+FIXME: Is compare_exchange_weak() necessary?  (Consider after we've done
+optimization work on ARM.)
+
+FIXME: Is a weaker ordering constraint on failure helpful in practice?
+-->
+
+<h5>Example:</h5>
+<pre>
+entry:
+  %orig = atomic <a href="#i_load">load</a> i32* %ptr unordered                       <i>; yields {i32}</i>
+  <a href="#i_br">br</a> label %loop
+
+loop:
+  %cmp = <a href="#i_phi">phi</a> i32 [ %orig, %entry ], [%old, %loop]
+  %squared = <a href="#i_mul">mul</a> i32 %cmp, %cmp
+  %old = cmpxchg i32* %ptr, i32 %cmp, i32 %squared                       <i>; yields {i32}</i>
+  %success = <a href="#i_icmp">icmp</a> eq i32 %cmp, %old
+  <a href="#i_br">br</a> i1 %success, label %done, label %loop
+
+done:
+  ...
+</pre>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+<a name="i_atomicrmw">'<tt>atomicrmw</tt>' Instruction</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  atomicrmw [volatile] &lt;operation&gt; &lt;ty&gt;* &lt;pointer&gt;, &lt;ty&gt; &lt;value&gt; [singlethread] &lt;ordering&gt;                   <i>; yields {ty}</i>
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>atomicrmw</tt>' instruction is used to atomically modify memory.</p>
+
+<h5>Arguments:</h5>
+<p>There are three arguments to the '<code>atomicrmw</code>' instruction: an
+operation to apply, an address whose value to modify, an argument to the
+operation.  The operation must be one of the following keywords:</p>
+<ul>
+  <li>xchg</li>
+  <li>add</li>
+  <li>sub</li>
+  <li>and</li>
+  <li>nand</li>
+  <li>or</li>
+  <li>xor</li>
+  <li>max</li>
+  <li>min</li>
+  <li>umax</li>
+  <li>umin</li>
+</ul>
+
+<p>The type of '<var>&lt;value&gt;</var>' must be an integer type whose
+bit width is a power of two greater than or equal to eight and less than
+or equal to a target-specific size limit.  The type of the
+'<code>&lt;pointer&gt;</code>' operand must be a pointer to that type.
+If the <code>atomicrmw</code> is marked as <code>volatile</code>, then the
+optimizer is not allowed to modify the number or order of execution of this
+<code>atomicrmw</code> with other <a href="#volatile">volatile
+  operations</a>.</p>
+
+<!-- FIXME: Extend allowed types. -->
+
+<h5>Semantics:</h5>
+<p>The contents of memory at the location specified by the
+'<tt>&lt;pointer&gt;</tt>' operand are atomically read, modified, and written
+back.  The original value at the location is returned.  The modification is
+specified by the <var>operation</var> argument:</p>
+
+<ul>
+  <li>xchg: <code>*ptr = val</code></li>
+  <li>add: <code>*ptr = *ptr + val</code></li>
+  <li>sub: <code>*ptr = *ptr - val</code></li>
+  <li>and: <code>*ptr = *ptr &amp; val</code></li>
+  <li>nand: <code>*ptr = ~(*ptr &amp; val)</code></li>
+  <li>or: <code>*ptr = *ptr | val</code></li>
+  <li>xor: <code>*ptr = *ptr ^ val</code></li>
+  <li>max: <code>*ptr = *ptr &gt; val ? *ptr : val</code> (using a signed comparison)</li>
+  <li>min: <code>*ptr = *ptr &lt; val ? *ptr : val</code> (using a signed comparison)</li>
+  <li>umax: <code>*ptr = *ptr &gt; val ? *ptr : val</code> (using an unsigned comparison)</li>
+  <li>umin: <code>*ptr = *ptr &lt; val ? *ptr : val</code> (using an unsigned comparison)</li>
+</ul>
+
+<h5>Example:</h5>
+<pre>
+  %old = atomicrmw add i32* %ptr, i32 1 acquire                        <i>; yields {i32}</i>
+</pre>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
    <a name="i_getelementptr">'<tt>getelementptr</tt>' Instruction</a>
 </h4>
 
@@ -4489,7 +4990,7 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
    When indexing into a (optionally packed) structure, only <tt>i32</tt>
    integer <b>constants</b> are allowed.  When indexing into an array, pointer
    or vector, integers of any width are allowed, and they are not required to be
-   constant.</p>
+   constant.  These integers are treated as signed values where relevant.</p>
 
 <p>For example, let's consider a C code fragment and how it gets compiled to
    LLVM:</p>
@@ -4555,18 +5056,20 @@ entry:
    base pointer is not an <i>in bounds</i> address of an allocated object,
    or if any of the addresses that would be formed by successive addition of
    the offsets implied by the indices to the base address with infinitely
-   precise arithmetic are not an <i>in bounds</i> address of that allocated
-   object. The <i>in bounds</i> addresses for an allocated object are all
-   the addresses that point into the object, plus the address one byte past
-   the end.</p>
+   precise signed arithmetic are not an <i>in bounds</i> address of that
+   allocated object. The <i>in bounds</i> addresses for an allocated object
+   are all the addresses that point into the object, plus the address one
+   byte past the end.</p>
 
 <p>If the <tt>inbounds</tt> keyword is not present, the offsets are added to
-   the base address with silently-wrapping two's complement arithmetic, and
-   the result value of the <tt>getelementptr</tt> may be outside the object
-   pointed to by the base pointer. The result value may not necessarily be
-   used to access memory though, even if it happens to point into allocated
-   storage. See the <a href="#pointeraliasing">Pointer Aliasing Rules</a>
-   section for more information.</p>
+   the base address with silently-wrapping two's complement arithmetic. If the
+   offsets have a different width from the pointer, they are sign-extended or
+   truncated to the width of the pointer. The result value of the
+   <tt>getelementptr</tt> may be outside the object pointed to by the base
+   pointer. The result value may not necessarily be used to access memory
+   though, even if it happens to point into allocated storage. See the
+   <a href="#pointeraliasing">Pointer Aliasing Rules</a> section for more
+   information.</p>
 
 <p>The getelementptr instruction is often confusing.  For some more insight into
    how it works, see <a href="GetElementPtr.html">the getelementptr FAQ</a>.</p>
@@ -5544,6 +6047,87 @@ freestanding environments and non-C-based languages.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="i_landingpad">'<tt>landingpad</tt>' Instruction</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  &lt;resultval&gt; = landingpad &lt;somety&gt; personality &lt;type&gt; &lt;pers_fn&gt; &lt;clause&gt;+
+  &lt;resultval&gt; = landingpad &lt;somety&gt; personality &lt;type&gt; &lt;pers_fn&gt; cleanup &lt;clause&gt;*
+
+  &lt;clause&gt; := catch &lt;type&gt; &lt;value&gt;
+  &lt;clause&gt; := filter &lt;array constant type&gt; &lt;array constant&gt;
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>landingpad</tt>' instruction is used by
+   <a href="ExceptionHandling.html#overview">LLVM's exception handling
+   system</a> to specify that a basic block is a landing pad &mdash; one where
+   the exception lands, and corresponds to the code found in the
+   <i><tt>catch</tt></i> portion of a <i><tt>try/catch</tt></i> sequence. It
+   defines values supplied by the personality function (<tt>pers_fn</tt>) upon
+   re-entry to the function. The <tt>resultval</tt> has the
+   type <tt>somety</tt>.</p>
+
+<h5>Arguments:</h5>
+<p>This instruction takes a <tt>pers_fn</tt> value. This is the personality
+   function associated with the unwinding mechanism. The optional
+   <tt>cleanup</tt> flag indicates that the landing pad block is a cleanup.</p>
+
+<p>A <tt>clause</tt> begins with the clause type &mdash; <tt>catch</tt>
+   or <tt>filter</tt> &mdash; and contains the global variable representing the
+   "type" that may be caught or filtered respectively. Unlike the
+   <tt>catch</tt> clause, the <tt>filter</tt> clause takes an array constant as
+   its argument. Use "<tt>[0 x i8**] undef</tt>" for a filter which cannot
+   throw. The '<tt>landingpad</tt>' instruction must contain <em>at least</em>
+   one <tt>clause</tt> or the <tt>cleanup</tt> flag.</p>
+
+<h5>Semantics:</h5>
+<p>The '<tt>landingpad</tt>' instruction defines the values which are set by the
+   personality function (<tt>pers_fn</tt>) upon re-entry to the function, and
+   therefore the "result type" of the <tt>landingpad</tt> instruction. As with
+   calling conventions, how the personality function results are represented in
+   LLVM IR is target specific.</p>
+
+<p>The clauses are applied in order from top to bottom. If two
+   <tt>landingpad</tt> instructions are merged together through inlining, the
+   clauses from the calling function are appended to the list of clauses.</p>
+
+<p>The <tt>landingpad</tt> instruction has several restrictions:</p>
+
+<ul>
+  <li>A landing pad block is a basic block which is the unwind destination of an
+      '<tt>invoke</tt>' instruction.</li>
+  <li>A landing pad block must have a '<tt>landingpad</tt>' instruction as its
+      first non-PHI instruction.</li>
+  <li>There can be only one '<tt>landingpad</tt>' instruction within the landing
+      pad block.</li>
+  <li>A basic block that is not a landing pad block may not include a
+      '<tt>landingpad</tt>' instruction.</li>
+  <li>All '<tt>landingpad</tt>' instructions in a function must have the same
+      personality function.</li>
+</ul>
+
+<h5>Example:</h5>
+<pre>
+  ;; A landing pad which can catch an integer.
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+           catch i8** @_ZTIi
+  ;; A landing pad that is a cleanup.
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+           cleanup
+  ;; A landing pad which can catch an integer and can only throw a double.
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+           catch i8** @_ZTIi
+           filter [1 x i8**] [@_ZTId]
+</pre>
+
+</div>
+
 </div>
 
 </div>
@@ -5732,6 +6316,8 @@ declare void @llvm.va_end(i8*)
    element.  This intrinsic is necessary because
    the <tt><a href="#int_va_start"> llvm.va_start</a></tt> intrinsic may be
    arbitrarily complex and require, for example, memory allocation.</p>
+
+</div>
 
 </div>
 
@@ -7115,12 +7701,12 @@ LLVM</a>.</p>
 
 <!-- ======================================================================= -->
 <h3>
-  <a name="int_trampoline">Trampoline Intrinsic</a>
+  <a name="int_trampoline">Trampoline Intrinsics</a>
 </h3>
 
 <div>
 
-<p>This intrinsic makes it possible to excise one parameter, marked with
+<p>These intrinsics make it possible to excise one parameter, marked with
    the <a href="#nest"><tt>nest</tt></a> attribute, from a function.
    The result is a callable
    function pointer lacking the nest parameter - the caller does not need to
@@ -7137,7 +7723,8 @@ LLVM</a>.</p>
 <pre class="doc_code">
   %tramp = alloca [10 x i8], align 4 ; size and alignment only correct for X86
   %tramp1 = getelementptr [10 x i8]* %tramp, i32 0, i32 0
-  %p = call i8* @llvm.init.trampoline(i8* %tramp1, i8* bitcast (i32 (i8* nest , i32, i32)* @f to i8*), i8* %nval)
+  call i8* @llvm.init.trampoline(i8* %tramp1, i8* bitcast (i32 (i8*, i32, i32)* @f to i8*), i8* %nval)
+  %p = call i8* @llvm.adjust.trampoline(i8* %tramp1)
   %fp = bitcast i8* %p to i32 (i32, i32)*
 </pre>
 
@@ -7155,12 +7742,12 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i8* @llvm.init.trampoline(i8* &lt;tramp&gt;, i8* &lt;func&gt;, i8* &lt;nval&gt;)
+  declare void @llvm.init.trampoline(i8* &lt;tramp&gt;, i8* &lt;func&gt;, i8* &lt;nval&gt;)
 </pre>
 
 <h5>Overview:</h5>
-<p>This fills the memory pointed to by <tt>tramp</tt> with code and returns a
-   function pointer suitable for executing it.</p>
+<p>This fills the memory pointed to by <tt>tramp</tt> with executable code,
+   turning it into a trampoline.</p>
 
 <h5>Arguments:</h5>
 <p>The <tt>llvm.init.trampoline</tt> intrinsic takes three arguments, all
@@ -7174,17 +7761,50 @@ LLVM</a>.</p>
 
 <h5>Semantics:</h5>
 <p>The block of memory pointed to by <tt>tramp</tt> is filled with target
-   dependent code, turning it into a function.  A pointer to this function is
-   returned, but needs to be bitcast to an <a href="#int_trampoline">appropriate
-   function pointer type</a> before being called.  The new function's signature
-   is the same as that of <tt>func</tt> with any arguments marked with
-   the <tt>nest</tt> attribute removed.  At most one such <tt>nest</tt> argument
-   is allowed, and it must be of pointer type.  Calling the new function is
-   equivalent to calling <tt>func</tt> with the same argument list, but
-   with <tt>nval</tt> used for the missing <tt>nest</tt> argument.  If, after
-   calling <tt>llvm.init.trampoline</tt>, the memory pointed to
-   by <tt>tramp</tt> is modified, then the effect of any later call to the
-   returned function pointer is undefined.</p>
+   dependent code, turning it into a function.  Then <tt>tramp</tt> needs to be
+   passed to <a href="#int_at">llvm.adjust.trampoline</a> to get a pointer
+   which can be <a href="#int_trampoline">bitcast (to a new function) and
+   called</a>.  The new function's signature is the same as that of
+   <tt>func</tt> with any arguments marked with the <tt>nest</tt> attribute
+   removed.  At most one such <tt>nest</tt> argument is allowed, and it must be of
+   pointer type.  Calling the new function is equivalent to calling <tt>func</tt>
+   with the same argument list, but with <tt>nval</tt> used for the missing
+   <tt>nest</tt> argument.  If, after calling <tt>llvm.init.trampoline</tt>, the
+   memory pointed to by <tt>tramp</tt> is modified, then the effect of any later call
+   to the returned function pointer is undefined.</p>
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_at">
+    '<tt>llvm.adjust.trampoline</tt>' Intrinsic
+  </a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  declare i8* @llvm.adjust.trampoline(i8* &lt;tramp&gt;)
+</pre>
+
+<h5>Overview:</h5>
+<p>This performs any required machine-specific adjustment to the address of a
+   trampoline (passed as <tt>tramp</tt>).</p>
+
+<h5>Arguments:</h5>
+<p><tt>tramp</tt> must point to a block of memory which already has trampoline code
+   filled in by a previous call to <a href="#int_it"><tt>llvm.init.trampoline</tt>
+   </a>.</p>
+
+<h5>Semantics:</h5>
+<p>On some architectures the address of the code to be executed needs to be
+   different to the address where the trampoline is actually stored.  This
+   intrinsic returns the executable address corresponding to <tt>tramp</tt>
+   after performing the required machine specific adjustments.
+   The pointer returned can then be <a href="#int_trampoline"> bitcast and
+   executed</a>.
+</p>
 
 </div>
 
@@ -7846,7 +8466,7 @@ LLVM</a>.</p>
 <h5>Semantics:</h5>
 <p>This intrinsic allows annotation of local variables with arbitrary strings.
    This can be useful for special purpose optimizations that want to look for
-   these annotations.  These have no other defined use, they are ignored by code
+   these annotations.  These have no other defined use; they are ignored by code
    generation and optimization.</p>
 
 </div>
@@ -7882,7 +8502,7 @@ LLVM</a>.</p>
 <h5>Semantics:</h5>
 <p>This intrinsic allows annotations to be put on arbitrary expressions with
    arbitrary strings.  This can be useful for special purpose optimizations that
-   want to look for these annotations.  These have no other defined use, they
+   want to look for these annotations.  These have no other defined use; they
    are ignored by code generation and optimization.</p>
 
 </div>
@@ -7995,7 +8615,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-07-09 19:41:24 +0200 (Sat, 09 Jul 2011) $
+  Last modified: $Date: 2011-10-14 01:04:49 +0200 (Fri, 14 Oct 2011) $
 </address>
 
 </body>

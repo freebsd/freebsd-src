@@ -6,7 +6,7 @@ add_llvm_library(LLVMAnalysis
   AliasSetTracker.cpp
   Analysis.cpp
   BasicAliasAnalysis.cpp
-  BlockFrequency.cpp
+  BlockFrequencyInfo.cpp
   BranchProbabilityInfo.cpp
   CFGPrinter.cpp
   CaptureTracking.cpp
@@ -56,6 +56,12 @@ add_llvm_library(LLVMAnalysis
   Trace.cpp
   TypeBasedAliasAnalysis.cpp
   ValueTracking.cpp
+  )
+
+add_llvm_library_dependencies(LLVMAnalysis
+  LLVMCore
+  LLVMSupport
+  LLVMTarget
   )
 
 add_subdirectory(IPA)

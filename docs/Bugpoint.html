@@ -216,18 +216,6 @@ non-obvious ways.  Here are some hints and tips:<p>
     the list of specified optimizations to be randomized and applied to the 
     program. This process will repeat until a bug is found or the user
     kills <tt>bugpoint</tt>.
-
-<li><p><tt>bugpoint</tt> does not understand the <tt>-O</tt> option
-    that is used to specify optimization level to <tt>opt</tt>. You
-    can use e.g.</p>
-
-<div class="doc_code">
-<p><tt>opt -O2 -debug-pass=Arguments foo.bc -disable-output</tt></p>
-</div>
-
-    <p>to get a list of passes that are used with <tt>-O2</tt> and
-    then pass this list to <tt>bugpoint</tt>.</p>
-    
 </ol>
 
 </div>
@@ -243,7 +231,7 @@ non-obvious ways.  Here are some hints and tips:<p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
+  Last modified: $Date: 2011-08-30 20:26:11 +0200 (Tue, 30 Aug 2011) $
 </address>
 
 </body>

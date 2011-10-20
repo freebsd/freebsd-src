@@ -30,9 +30,9 @@ main:                                   # @main
 
 	.section	.note.GNU-stack,"",@progbits
 
-// CHECK: ('e_indent[EI_CLASS]', 0x00000001)
-// CHECK: ('e_indent[EI_DATA]', 0x00000001)
-// CHECK: ('e_indent[EI_VERSION]', 0x00000001)
+// CHECK: ('e_indent[EI_CLASS]', 0x01)
+// CHECK: ('e_indent[EI_DATA]', 0x01)
+// CHECK: ('e_indent[EI_VERSION]', 0x01)
 // CHECK: ('_sections', [
 // CHECK:   # Section 0
 // CHECK:   (('sh_name', 0x00000000) # ''
@@ -42,37 +42,37 @@ main:                                   # @main
 // CHECK:   # '.rel.text'
 
 // CHECK:   ('_relocations', [
-// CHECK:     # Relocation 0x00000000
+// CHECK:     # Relocation 0
 // CHECK:     (('r_offset', 0x00000006)
-// CHECK:      ('r_type', 0x00000001)
+// CHECK:      ('r_type', 0x01)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000001
+// CHECK:     # Relocation 1
 // CHECK:     (('r_offset', 0x0000000b)
-// CHECK:      ('r_type', 0x00000002)
+// CHECK:      ('r_type', 0x02)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000002
+// CHECK:     # Relocation 2
 // CHECK:     (('r_offset', 0x00000012)
-// CHECK:      ('r_type', 0x00000001)
+// CHECK:      ('r_type', 0x01)
 // CHECK:     ),
-// CHECK:     # Relocation 0x00000003
+// CHECK:     # Relocation 3
 // CHECK:     (('r_offset', 0x00000017)
-// CHECK:      ('r_type', 0x00000002)
+// CHECK:      ('r_type', 0x02)
 // CHECK:     ),
 // CHECK:   ])
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
-// CHECK: ('st_bind', 0x00000000)
-// CHECK: ('st_type', 0x00000003)
+// CHECK: ('st_bind', 0x0)
+// CHECK: ('st_type', 0x3)
 
 // CHECK:   # 'main'
-// CHECK:   ('st_bind', 0x00000001)
-// CHECK-NEXT: ('st_type', 0x00000002)
+// CHECK:   ('st_bind', 0x1)
+// CHECK-NEXT: ('st_type', 0x2)
 
 // CHECK:   # 'puts'
-// CHECK:   ('st_bind', 0x00000001)
-// CHECK-NEXT: ('st_type', 0x00000000)
+// CHECK:   ('st_bind', 0x1)
+// CHECK-NEXT: ('st_type', 0x0)

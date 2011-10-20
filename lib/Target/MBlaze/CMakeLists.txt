@@ -1,15 +1,16 @@
 set(LLVM_TARGET_DEFINITIONS MBlaze.td)
 
-tablegen(MBlazeGenRegisterInfo.inc -gen-register-info)
-tablegen(MBlazeGenInstrInfo.inc -gen-instr-info)
-tablegen(MBlazeGenCodeEmitter.inc -gen-emitter)
-tablegen(MBlazeGenAsmWriter.inc -gen-asm-writer)
-tablegen(MBlazeGenAsmMatcher.inc -gen-asm-matcher)
-tablegen(MBlazeGenDAGISel.inc -gen-dag-isel)
-tablegen(MBlazeGenCallingConv.inc -gen-callingconv)
-tablegen(MBlazeGenSubtargetInfo.inc -gen-subtarget)
-tablegen(MBlazeGenIntrinsics.inc -gen-tgt-intrinsic)
-tablegen(MBlazeGenEDInfo.inc -gen-enhanced-disassembly-info)
+llvm_tablegen(MBlazeGenRegisterInfo.inc -gen-register-info)
+llvm_tablegen(MBlazeGenInstrInfo.inc -gen-instr-info)
+llvm_tablegen(MBlazeGenCodeEmitter.inc -gen-emitter)
+llvm_tablegen(MBlazeGenAsmWriter.inc -gen-asm-writer)
+llvm_tablegen(MBlazeGenAsmMatcher.inc -gen-asm-matcher)
+llvm_tablegen(MBlazeGenDAGISel.inc -gen-dag-isel)
+llvm_tablegen(MBlazeGenCallingConv.inc -gen-callingconv)
+llvm_tablegen(MBlazeGenSubtargetInfo.inc -gen-subtarget)
+llvm_tablegen(MBlazeGenIntrinsics.inc -gen-tgt-intrinsic)
+llvm_tablegen(MBlazeGenEDInfo.inc -gen-enhanced-disassembly-info)
+add_public_tablegen_target(MBlazeCommonTableGen)
 
 add_llvm_target(MBlazeCodeGen
   MBlazeDelaySlotFiller.cpp
@@ -24,10 +25,21 @@ add_llvm_target(MBlazeCodeGen
   MBlazeIntrinsicInfo.cpp
   MBlazeSelectionDAGInfo.cpp
   MBlazeAsmPrinter.cpp
-  MBlazeAsmBackend.cpp
   MBlazeMCInstLower.cpp
   MBlazeELFWriterInfo.cpp
-  MBlazeMCCodeEmitter.cpp
+  )
+
+add_llvm_library_dependencies(LLVMMBlazeCodeGen
+  LLVMAsmPrinter
+  LLVMCodeGen
+  LLVMCore
+  LLVMMBlazeAsmPrinter
+  LLVMMBlazeDesc
+  LLVMMBlazeInfo
+  LLVMMC
+  LLVMSelectionDAG
+  LLVMSupport
+  LLVMTarget
   )
 
 add_subdirectory(AsmParser)

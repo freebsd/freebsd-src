@@ -21,14 +21,15 @@
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MemoryObject.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 typedef std::vector<std::pair<unsigned char, const char*> > ByteArrayTy;
@@ -65,15 +66,26 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
   for (Index = 0; Index < Bytes.size(); Index += Size) {
     MCInst Inst;
 
-    if (DisAsm.getInstruction(Inst, Size, memoryObject, Index,
-                               /*REMOVE*/ nulls())) {
-      Printer.printInst(&Inst, Out);
-      Out << "\n";
-    } else {
+    MCDisassembler::DecodeStatus S;
+    S = DisAsm.getInstruction(Inst, Size, memoryObject, Index,
+                              /*REMOVE*/ nulls(), nulls());
+    switch (S) {
+    case MCDisassembler::Fail:
       SM.PrintMessage(SMLoc::getFromPointer(Bytes[Index].second),
                       "invalid instruction encoding", "warning");
       if (Size == 0)
         Size = 1; // skip illegible bytes
+      break;
+
+    case MCDisassembler::SoftFail:
+      SM.PrintMessage(SMLoc::getFromPointer(Bytes[Index].second),
+                      "potentially undefined instruction encoding", "warning");
+      // Fall through
+
+    case MCDisassembler::Success:
+      Printer.printInst(&Inst, Out, "");
+      Out << "\n";
+      break;
     }
   }
 
@@ -129,6 +141,8 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
 
 int Disassembler::disassemble(const Target &T,
                               const std::string &Triple,
+                              const std::string &Cpu,
+                              const std::string &FeaturesStr,
                               MemoryBuffer &Buffer,
                               raw_ostream &Out) {
   // Set up disassembler.
@@ -139,7 +153,13 @@ int Disassembler::disassemble(const Target &T,
     return -1;
   }
 
-  OwningPtr<const MCDisassembler> DisAsm(T.createMCDisassembler());
+  OwningPtr<const MCSubtargetInfo> STI(T.createMCSubtargetInfo(Triple, Cpu, FeaturesStr));
+  if (!STI) {
+    errs() << "error: no subtarget info for target " << Triple << "\n";
+    return -1;
+  }
+  
+  OwningPtr<const MCDisassembler> DisAsm(T.createMCDisassembler(*STI));
   if (!DisAsm) {
     errs() << "error: no disassembler for target " << Triple << "\n";
     return -1;
@@ -147,7 +167,7 @@ int Disassembler::disassemble(const Target &T,
 
   int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
   OwningPtr<MCInstPrinter> IP(T.createMCInstPrinter(AsmPrinterVariant,
-                                                    *AsmInfo));
+                                                    *AsmInfo, *STI));
   if (!IP) {
     errs() << "error: no instruction printer for target " << Triple << '\n';
     return -1;

@@ -6,3 +6,11 @@ add_llvm_library(LLVMMBlazeAsmParser
   MBlazeAsmParser.cpp
   )
 
+add_llvm_library_dependencies(LLVMMBlazeAsmParser
+  LLVMMBlazeInfo
+  LLVMMC
+  LLVMMCParser
+  LLVMSupport
+  )
+
+add_dependencies(LLVMMBlazeAsmParser MBlazeCommonTableGen)

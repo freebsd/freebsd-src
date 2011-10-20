@@ -298,8 +298,8 @@ height="369">
    of tags are loosely bound to the tag values of DWARF information entries.
    However, that does not restrict the use of the information supplied to DWARF
    targets.  To facilitate versioning of debug information, the tag is augmented
-   with the current debug version (LLVMDebugVersion = 8 &lt;&lt; 16 or 0x80000 or
-   524288.)</a></p>
+   with the current debug version (LLVMDebugVersion = 8 &lt;&lt; 16 or
+   0x80000 or 524288.)</a></p>
 
 <p>The details of the various descriptors follow.</p>  
 
@@ -324,6 +324,10 @@ height="369">
   i1,        ;; True if this is optimized.
   metadata,  ;; Flags
   i32        ;; Runtime version
+  metadata   ;; List of enums types
+  metadata   ;; List of retained types
+  metadata   ;; List of subprograms
+  metadata   ;; List of global variables
 }
 </pre>
 </div>
@@ -337,7 +341,8 @@ height="369">
 <p>Compile unit descriptors provide the root context for objects declared in a
    specific compilation unit. File descriptors are defined using this context.
    These descriptors are collected by a named metadata 
-   <tt>!llvm.dbg.cu</tt>.
+   <tt>!llvm.dbg.cu</tt>. Compile unit descriptor keeps track of subprograms,
+   global variables and type information.
 
 </div>
 
@@ -355,7 +360,7 @@ height="369">
              ;; (DW_TAG_file_type)
   metadata,  ;; Source file name
   metadata,  ;; Source file directory (includes trailing slash)
-  metadata   ;; Reference to compile unit where defined
+  metadata   ;; Unused
 }
 </pre>
 </div>
@@ -365,8 +370,7 @@ height="369">
    provide context for source line correspondence. </p>
 
 <p>Each input file is encoded as a separate file descriptor in LLVM debugging
-   information output. Each file descriptor would be defined using a 
-   compile unit. </p>
+   information output. </p>
 
 </div>
 
@@ -434,6 +438,7 @@ global variables are collected by named metadata <tt>!llvm.dbg.gv</tt>.</p>
   Function *,;; Pointer to LLVM function
   metadata, ;; Lists function template parameters
   metadata  ;; Function declaration descriptor
+  metadata  ;; List of function variables
 }
 </pre>
 </div>
@@ -467,9 +472,22 @@ global variables are collected by named metadata <tt>!llvm.dbg.gv</tt>.</p>
 </pre>
 </div>
 
-<p>These descriptors provide debug information about nested blocks within a
+<p>This descriptor provides debug information about nested blocks within a
    subprogram. The line number and column numbers are used to dinstinguish
    two lexical blocks at same depth. </p>
+
+<div class="doc_code">
+<pre>
+!3 = metadata !{
+  i32,     ;; Tag = 11 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_lexical_block)
+  metadata ;; Reference to the scope we're annotating with a file change
+  metadata,;; Reference to the file the scope is enclosed in.
+}
+</pre>
+</div>
+
+<p>This descriptor provides a wrapper around a lexical scope to handle file
+   changes in the middle of a lexical block.</p>
 
 </div>
 
@@ -485,7 +503,7 @@ global variables are collected by named metadata <tt>!llvm.dbg.gv</tt>.</p>
 !4 = metadata !{
   i32,      ;; Tag = 36 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
             ;; (DW_TAG_base_type)
-  metadata, ;; Reference to context (typically a compile unit)
+  metadata, ;; Reference to context 
   metadata, ;; Name (may be "" for anonymous types)
   metadata, ;; Reference to file where defined (may be NULL)
   i32,      ;; Line number where defined (may be 0)
@@ -500,7 +518,7 @@ global variables are collected by named metadata <tt>!llvm.dbg.gv</tt>.</p>
 
 <p>These descriptors define primitive types used in the code. Example int, bool
    and float.  The context provides the scope of the type, which is usually the
-   top level.  Since basic types are not usually user defined the compile unit
+   top level.  Since basic types are not usually user defined the context
    and line number can be left as NULL and 0.  The size, alignment and offset
    are expressed in bits and can be 64 bit values.  The alignment is used to
    round the offset when embedded in a
@@ -585,7 +603,7 @@ DW_TAG_restrict_type    = 55
    the <a href="#format_derived_type">derived type</a>. </p>
 
 <p><a href="#format_derived_type">Derived type</a> location can be determined
-   from the compile unit and line number.  The size, alignment and offset are
+   from the context and line number.  The size, alignment and offset are
    expressed in bits and can be 64 bit values.  The alignment is used to round
    the offset when embedded in a <a href="#format_composite_type">composite
    type</a> (example to keep float doubles on 64 bit boundaries.) The offset is
@@ -675,7 +693,7 @@ DW_TAG_inheritance      = 28
    the formal arguments to the subroutine.</p>
 
 <p><a href="#format_composite_type">Composite type</a> location can be
-   determined from the compile unit and line number.  The size, alignment and
+   determined from the context and line number.  The size, alignment and
    offset are expressed in bits and can be 64 bit values.  The alignment is used
    to round the offset when embedded in
    a <a href="#format_composite_type">composite type</a> (as an example, to keep
@@ -750,7 +768,9 @@ DW_TAG_inheritance      = 28
   metadata, ;; Reference to file where defined
   i32,      ;; 24 bit - Line number where defined
             ;; 8 bit - Argument number. 1 indicates 1st argument.
-  metadata  ;; Type descriptor
+  metadata, ;; Type descriptor
+  i32,      ;; flags
+  metadata  ;; (optional) Reference to inline location
 }
 </pre>
 </div>
@@ -772,7 +792,7 @@ DW_TAG_return_variable = 258
    has no source correspondent.</p>
 
 <p>The context is either the subprogram or block where the variable is defined.
-   Name the source variable name.  Compile unit and line indicate where the
+   Name the source variable name.  Context and line indicate where the
    variable was defined. Type descriptor defines the declared type of the
    variable.</p>
 
@@ -1794,7 +1814,7 @@ enum Trees {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-05-31 20:06:14 +0200 (Tue, 31 May 2011) $
+  Last modified: $Date: 2011-10-12 00:59:11 +0200 (Wed, 12 Oct 2011) $
 </address>
 
 </body>

@@ -22,143 +22,143 @@ defined3:
 global1:
 
 
-// CHECK:      # Relocation 0x00000000
-// CHECK-NEXT: (('r_offset', 0x00000000)
+// CHECK:      # Relocation 0
+// CHECK-NEXT: (('r_offset', 0x0000000000000000)
 // CHECK-NEXT:  ('r_sym', 0x00000006)
 // CHECK-NEXT:  ('r_type', 0x0000000a)
-// CHECK-NEXT:  ('r_addend', 0x00000000)
+// CHECK-NEXT:  ('r_addend', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Relocation 0x00000001
-// CHECK-NEXT: (('r_offset', 0x00000004)
+// CHECK-NEXT: # Relocation 1
+// CHECK-NEXT: (('r_offset', 0x0000000000000004)
 // CHECK-NEXT:  ('r_sym', 0x0000000b)
 // CHECK-NEXT:  ('r_type', 0x0000000a)
-// CHECK-NEXT:  ('r_addend', 0x00000000)
+// CHECK-NEXT:  ('r_addend', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Relocation 0x00000002
-// CHECK-NEXT: (('r_offset', 0x00000008)
+// CHECK-NEXT: # Relocation 2
+// CHECK-NEXT: (('r_offset', 0x0000000000000008)
 // CHECK-NEXT:  ('r_sym', 0x00000006)
 // CHECK-NEXT:  ('r_type', 0x0000000a)
-// CHECK-NEXT:  ('r_addend', 0x00000000)
+// CHECK-NEXT:  ('r_addend', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Relocation 0x00000003
-// CHECK-NEXT: (('r_offset', 0x0000000c)
+// CHECK-NEXT: # Relocation 3
+// CHECK-NEXT: (('r_offset', 0x000000000000000c)
 // CHECK-NEXT:  ('r_sym', 0x00000006)
 // CHECK-NEXT:  ('r_type', 0x0000000a)
-// CHECK-NEXT:  ('r_addend', 0x00000000)
+// CHECK-NEXT:  ('r_addend', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Relocation 0x00000004
-// CHECK-NEXT: (('r_offset', 0x00000010)
+// CHECK-NEXT: # Relocation 4
+// CHECK-NEXT: (('r_offset', 0x0000000000000010)
 // CHECK-NEXT:  ('r_sym', 0x0000000c)
 // CHECK-NEXT:  ('r_type', 0x0000000a)
-// CHECK-NEXT:  ('r_addend', 0x00000000)
+// CHECK-NEXT:  ('r_addend', 0x0000000000000000)
 // CHECK-NEXT: ),
 // CHECK-NEXT:])
 
-// CHECK:      # Symbol 0x00000001
+// CHECK:      # Symbol 1
 // CHECK-NEXT: (('st_name', 0x00000013) # 'bar1@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000002
+// CHECK-NEXT: # Symbol 2
 // CHECK-NEXT: (('st_name', 0x00000025) # 'bar3@@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000003
+// CHECK-NEXT: # Symbol 3
 // CHECK-NEXT: (('st_name', 0x0000002f) # 'bar5@@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000004
+// CHECK-NEXT: # Symbol 4
 // CHECK-NEXT: (('st_name', 0x00000001) # 'defined1'
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000005
+// CHECK-NEXT: # Symbol 5
 // CHECK-NEXT: (('st_name', 0x0000000a) # 'defined2'
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000006
+// CHECK-NEXT: # Symbol 6
 // CHECK-NEXT: (('st_name', 0x00000000) # ''
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000003)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x3)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000007
+// CHECK-NEXT: # Symbol 7
 // CHECK-NEXT: (('st_name', 0x00000000) # ''
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000003)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000003)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x3)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0003)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000008
+// CHECK-NEXT: # Symbol 8
 // CHECK-NEXT: (('st_name', 0x00000000) # ''
-// CHECK-NEXT:  ('st_bind', 0x00000000)
-// CHECK-NEXT:  ('st_type', 0x00000003)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000004)
+// CHECK-NEXT:  ('st_bind', 0x0)
+// CHECK-NEXT:  ('st_type', 0x3)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0004)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x00000009
+// CHECK-NEXT: # Symbol 9
 // CHECK-NEXT: (('st_name', 0x0000004a) # 'g1@@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000001)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x1)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000014)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x0000000a
+// CHECK-NEXT: # Symbol 10
 // CHECK-NEXT: (('st_name', 0x00000042) # 'global1'
-// CHECK-NEXT:  ('st_bind', 0x00000001)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000001)
+// CHECK-NEXT:  ('st_bind', 0x1)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0001)
 // CHECK-NEXT:  ('st_value', 0x0000000000000014)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x0000000b
+// CHECK-NEXT: # Symbol 11
 // CHECK-NEXT: (('st_name', 0x0000001c) # 'bar2@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000001)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000000)
+// CHECK-NEXT:  ('st_bind', 0x1)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0000)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),
-// CHECK-NEXT: # Symbol 0x0000000c
+// CHECK-NEXT: # Symbol 12
 // CHECK-NEXT: (('st_name', 0x00000039) # 'bar6@zed'
-// CHECK-NEXT:  ('st_bind', 0x00000001)
-// CHECK-NEXT:  ('st_type', 0x00000000)
-// CHECK-NEXT:  ('st_other', 0x00000000)
-// CHECK-NEXT:  ('st_shndx', 0x00000000)
+// CHECK-NEXT:  ('st_bind', 0x1)
+// CHECK-NEXT:  ('st_type', 0x0)
+// CHECK-NEXT:  ('st_other', 0x00)
+// CHECK-NEXT:  ('st_shndx', 0x0000)
 // CHECK-NEXT:  ('st_value', 0x0000000000000000)
 // CHECK-NEXT:  ('st_size', 0x0000000000000000)
 // CHECK-NEXT: ),

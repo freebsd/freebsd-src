@@ -1,5 +1,5 @@
 ; RUN: opt < %s -indvars -S | FileCheck %s
-; RUN: opt < %s -indvars -disable-iv-rewrite -S | FileCheck %s
+; RUN: opt < %s -indvars -enable-iv-rewrite=false -S | FileCheck %s
 ;
 ; PR1301
 
@@ -9,13 +9,12 @@
 ; Note that all four functions should actually be converted to
 ; memset. However, this test case validates indvars behavior.  We
 ; don't check that phis are "folded together" because that is a job
-; for loop strength reduction. But indvars must remove sext, zext,
-; trunc, and add i8.
+; for loop strength reduction. But indvars must remove sext, zext, and add i8.
 ;
-; CHECK-NOT: {{sext|zext|trunc|add i8}}
+; CHECK-NOT: {{sext|zext|add i8}}
 
 ; ModuleID = 'ada.bc'
-target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-n:8:16:32"
+target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-n8:16:32"
 target triple = "i686-pc-linux-gnu"
 
 define void @kinds__sbytezero([256 x i32]* nocapture %a) nounwind {

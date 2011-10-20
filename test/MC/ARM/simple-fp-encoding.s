@@ -2,7 +2,7 @@
 
 @ CHECK: vadd.f64 d16, d17, d16      @ encoding: [0xa0,0x0b,0x71,0xee]
         vadd.f64        d16, d17, d16
-        
+
 @ CHECK: vadd.f32 s0, s1, s0         @ encoding: [0x80,0x0a,0x30,0xee]
         vadd.f32        s0, s1, s0
 
@@ -36,18 +36,18 @@
 @ CHECK: vcmpe.f32 s1, s0            @ encoding: [0xc0,0x0a,0xf4,0xee]
         vcmpe.f32       s1, s0
 
-@ FIXME: vcmpe.f64 d16, #0           @ encoding: [0xc0,0x0b,0xf5,0xee]
-@        vcmpe.f64       d16, #0
+@ CHECK: vcmpe.f64 d16, #0           @ encoding: [0xc0,0x0b,0xf5,0xee]
+        vcmpe.f64       d16, #0
 
-@ FIXME: vcmpe.f32 s0, #0            @ encoding: [0xc0,0x0a,0xb5,0xee]
-@        vcmpe.f32       s0, #0
+@ CHECK: vcmpe.f32 s0, #0            @ encoding: [0xc0,0x0a,0xb5,0xee]
+        vcmpe.f32       s0, #0
 
 @ CHECK: vabs.f64 d16, d16           @ encoding: [0xe0,0x0b,0xf0,0xee]
         vabs.f64        d16, d16
 
 @ CHECK: vabs.f32 s0, s0             @ encoding: [0xc0,0x0a,0xb0,0xee]
         vabs.f32        s0, s0
-        
+
 @ CHECK: vcvt.f32.f64 s0, d16        @ encoding: [0xe0,0x0b,0xb7,0xee]
         vcvt.f32.f64    s0, d16
 
@@ -114,9 +114,11 @@
 @ CHECK: vnmls.f32 s1, s2, s0        @ encoding: [0x00,0x0a,0x51,0xee]
         vnmls.f32       s1, s2, s0
 
-@ FIXME: vmrs apsr_nzcv, fpscr       @ encoding: [0x10,0xfa,0xf1,0xee]
-@        vmrs    apsr_nzcv, fpscr
-        
+@ CHECK: vmrs apsr_nzcv, fpscr       @ encoding: [0x10,0xfa,0xf1,0xee]
+@ CHECK: vmrs apsr_nzcv, fpscr       @ encoding: [0x10,0xfa,0xf1,0xee]
+        vmrs    apsr_nzcv, fpscr
+        fmstat
+
 @ CHECK: vnegne.f64 d16, d16         @ encoding: [0x60,0x0b,0xf1,0x1e]
         vnegne.f64      d16, d16
 
@@ -139,11 +141,15 @@
 @ CHECK: vmsr  fpsid, r0             @ encoding: [0x10,0x0a,0xe0,0xee]
         vmsr  fpsid, r0
 
-@ FIXME: vmov.f64 d16, #3.000000e+00 @ encoding: [0x08,0x0b,0xf0,0xee]
-@        vmov.f64        d16, #3.000000e+00
+        vmov.f64        d16, #3.000000e+00
+        vmov.f32        s0, #3.000000e+00
+        vmov.f64        d16, #-3.000000e+00
+        vmov.f32        s0, #-3.000000e+00
 
-@ FIXME: vmov.f32 s0, #3.000000e+00  @ encoding: [0x08,0x0a,0xb0,0xee]
-@        vmov.f32        s0, #3.000000e+00
+@ CHECK: vmov.f64 d16, #3.000000e+00 @ encoding: [0x08,0x0b,0xf0,0xee]
+@ CHECK: vmov.f32 s0, #3.000000e+00  @ encoding: [0x08,0x0a,0xb0,0xee]
+@ CHECK: vmov.f64 d16, #-3.000000e+00 @ encoding: [0x08,0x0b,0xf8,0xee]
+@ CHECK: vmov.f32 s0, #-3.000000e+00  @ encoding: [0x08,0x0a,0xb8,0xee]
 
 @ CHECK: vmov s0, r0                 @ encoding: [0x10,0x0a,0x00,0xee]
 @ CHECK: vmov s1, r1                 @ encoding: [0x90,0x1a,0x00,0xee]
@@ -173,13 +179,13 @@
 @ CHECK: vldr.64 d1, [r2, #-32]      @ encoding: [0x08,0x1b,0x12,0xed]
         vldr.64	d1, [r2, #32]
         vldr.64	d1, [r2, #-32]
-        
+
 @ CHECK: vldr.64 d2, [r3]            @ encoding: [0x00,0x2b,0x93,0xed]
         vldr.64 d2, [r3]
 
 @ CHECK: vldr.64 d3, [pc]            @ encoding: [0x00,0x3b,0x9f,0xed]
 @ CHECK: vldr.64 d3, [pc]            @ encoding: [0x00,0x3b,0x9f,0xed]
-@ CHECK: vldr.64 d3, [pc]            @ encoding: [0x00,0x3b,0x9f,0xed]
+@ CHECK: vldr.64 d3, [pc, #-0]            @ encoding: [0x00,0x3b,0x1f,0xed]
         vldr.64 d3, [pc]
         vldr.64 d3, [pc,#0]
         vldr.64 d3, [pc,#-0]
@@ -191,13 +197,13 @@
 @ CHECK: vldr.32 s1, [r2, #-32]      @ encoding: [0x08,0x0a,0x52,0xed]
         vldr.32	s1, [r2, #32]
         vldr.32	s1, [r2, #-32]
-        
+
 @ CHECK: vldr.32 s2, [r3]            @ encoding: [0x00,0x1a,0x93,0xed]
         vldr.32 s2, [r3]
 
 @ CHECK: vldr.32 s5, [pc]            @ encoding: [0x00,0x2a,0xdf,0xed]
 @ CHECK: vldr.32 s5, [pc]            @ encoding: [0x00,0x2a,0xdf,0xed]
-@ CHECK: vldr.32 s5, [pc]            @ encoding: [0x00,0x2a,0xdf,0xed]
+@ CHECK: vldr.32 s5, [pc, #-0]            @ encoding: [0x00,0x2a,0x5f,0xed]
         vldr.32 s5, [pc]
         vldr.32 s5, [pc,#0]
         vldr.32 s5, [pc,#-0]
@@ -234,3 +240,6 @@
         vcvtr.s32.f32  s0, s1
         vcvtr.u32.f64  s0, d0
         vcvtr.u32.f32  s0, s1
+
+@ CHECK: vmovne	s25, s26, r2, r5
+        vmovne	s25, s26, r2, r5        @ encoding: [0x39,0x2a,0x45,0x1c]

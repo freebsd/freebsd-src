@@ -22,16 +22,16 @@ entry:
 
 
 ; make sure that bl 0 <foo> (fff7feff) is correctly encoded
-; CHECK: '_section_data', '70470000 2de90048 fff7feff bde80088'
+; CHECK: '_section_data', '704700bf 2de90048 fff7feff bde80008'
 
 ;  Offset     Info    Type            Sym.Value  Sym. Name
 ; 00000008  0000070a R_ARM_THM_CALL    00000001   foo
-; CHECK:           Relocation 0x00000000 
+; CHECK:           Relocation 0
 ; CHECK-NEXT:      'r_offset', 0x00000008
-; CHECK-NEXT:      'r_sym', 0x00000007
-; CHECK-NEXT:      'r_type', 0x0000000a
+; CHECK-NEXT:      'r_sym', 0x000007
+; CHECK-NEXT:      'r_type', 0x0a
 
 ; make sure foo is thumb function: bit 0 = 1
-; CHECK:           Symbol 0x00000007
+; CHECK:           Symbol 7
 ; CHECK-NEXT:      'foo'
 ; CHECK-NEXT:      'st_value', 0x00000001

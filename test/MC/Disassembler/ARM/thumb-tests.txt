@@ -1,4 +1,4 @@
-# RUN: llvm-mc --disassemble %s -triple=thumb-apple-darwin9 | FileCheck %s
+# RUN: llvm-mc --disassemble %s -triple=thumbv7-apple-darwin9 -mattr +t2xtpk,+mp | FileCheck %s
 
 # CHECK:	add	r5, sp, #68
 0x11 0xad
@@ -27,7 +27,7 @@
 # CHECK:	cmn.w	r0, #31
 0x10 0xf1 0x1f 0x0f
 
-# CHECK:	ldmia	r0!, {r1}
+# CHECK:	ldm	r0!, {r1}
 0x02 0xc8
 
 # CHECK:	ldr	r5, #432
@@ -42,7 +42,7 @@
 # CHECK:	str	r2, [r5, r3]
 0xea 0x50
 
-# CHECK:	ldrb.w	r8, #-24
+# CHECK:	ldrb.w	r8, [pc, #-24]
 0x1f 0xf8 0x18 0x80
 
 # CHECK:	ldrd	r0, r1, [r7, #64]!
@@ -112,7 +112,7 @@
 # CHECK:	lsleq	r1, r0, #28
 0x01 0x07
 
-# CHECK:	stmiane	r0!, {r1, r2, r3}
+# CHECK:	stmne	r0!, {r1, r2, r3}
 0x0e 0xc0
 
 # IT block end
@@ -131,7 +131,7 @@
 # CHECK: cpsie aif
 0x67 0xb6
 
-# CHECK: msr cpsr_fc, r0
+# CHECK: msr CPSR_fc, r0
 0x80 0xf3 0x00 0x89
 
 # CHECK: blx	#-4
@@ -143,16 +143,16 @@
 # CHECK:	vcmpe.f64	d8, #0
 0xb5 0xee 0xc0 0x8b
 
-# CHECK:	stmdb.w	sp, {r0, r2, r3, r8, r11, lr}
+# CHECK:	stmdb	sp, {r0, r2, r3, r8, r11, lr}
 0x0d 0xe9 0x0d 0x49
 
-# CHECK:	stmia	r5!, {r0, r1, r2, r3, r4}
+# CHECK:	stm	r5!, {r0, r1, r2, r3, r4}
 0x1f 0xc5
 
-# CHECK:	ldmia	r5, {r0, r1, r2, r3, r4, r5}
+# CHECK:	ldm	r5, {r0, r1, r2, r3, r4, r5}
 0x3f 0xcd
 
-# CHECK:	ldmia	r5!, {r0, r1, r2, r3, r4}
+# CHECK:	ldm	r5!, {r0, r1, r2, r3, r4}
 0x1f 0xcd
 
 # CHECK:	addw	r0, pc, #1050
@@ -218,7 +218,7 @@
 # CHECK:	pld	[r5, #30]
 0x95 0xf8 0x1e 0xf0
 
-# CHECK:	stc2	p12, cr15, [r9], {137}
+# CHECK:	stc2	p12, c15, [r9], {137}
 0x89 0xfc 0x89 0xfc
 
 # CHECK:	vmov	r1, r0, d11
@@ -265,3 +265,39 @@
 
 # CHECK:	bne	#24
 0x0c 0xd1
+
+# CHECK:	vadd.f32	q0, q1, q2
+0x02 0xef 0x44 0x0d
+
+# CHECK:        ldrsb   r1, [r0, r0]
+0x01 0x56
+
+# CHECK:        ldrsh   r1, [r0, r0]
+0x01 0x5E
+
+# CHECK: and.w	r5, r1, r10, ror #7
+0x1 0xea 0xfa 0x95
+
+# CHECK: ldrsh	r6, [sp], #81
+0x3d 0xf9 0x51 0x6b
+
+# CHECK: usat16	r4, #10, r1
+0xa1 0xf3 0x0a 0x04
+
+# CHECK: smlad	r5, r12, r8, r11
+0x2c 0xfb 0x8 0xb5
+
+# CHECK: teq.w	r0, r11
+0x90 0xea 0xb 0x8f
+
+# CHECK: uxtb16	r9, r12, ror #16
+0x3f 0xfa 0xec 0xf9
+
+# CHECK: pldw	[r11, r12, lsl #2]
+0x3b 0xf8 0x2c 0xf0
+
+# CHECK: msr    CPSR_fc, r0
+0x80 0xf3 0x00 0x89
+
+# CHECK: mrs    r0, apsr
+0xef 0xf3 0x00 0x80

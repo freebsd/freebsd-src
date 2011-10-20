@@ -139,6 +139,9 @@ module Attribute : sig
   | Naked
   | Inlinehint
   | Stackalignment of int
+  | ReturnsTwice
+  | UWTable
+  | NonLazyBind
 end
 
 (** The predicate for an integer comparison ([icmp]) instruction.
@@ -179,6 +182,103 @@ module Fcmp : sig
   | True
 end
 
+(** The opcodes for LLVM instructions and constant expressions. *)
+module Opcode : sig
+  type t =
+  | Invalid (* not an instruction *)
+  (* Terminator Instructions *)
+  | Ret
+  | Br
+  | Switch
+  | IndirectBr
+  | Invoke
+  | Invalid2
+  | Unreachable
+  (* Standard Binary Operators *)
+  | Add
+  | FAdd
+  | Sub
+  | FSub
+  | Mul
+  | FMul
+  | UDiv
+  | SDiv
+  | FDiv
+  | URem
+  | SRem
+  | FRem
+  (* Logical Operators *)
+  | Shl
+  | LShr
+  | AShr
+  | And
+  | Or
+  | Xor
+  (* Memory Operators *)
+  | Alloca
+  | Load
+  | Store
+  | GetElementPtr
+  (* Cast Operators *)
+  | Trunc
+  | ZExt
+  | SExt
+  | FPToUI
+  | FPToSI
+  | UIToFP
+  | SIToFP
+  | FPTrunc
+  | FPExt
+  | PtrToInt
+  | IntToPtr
+  | BitCast
+  (* Other Operators *)
+  | ICmp
+  | FCmp
+  | PHI
+  | Call
+  | Select
+  | UserOp1
+  | UserOp2
+  | VAArg
+  | ExtractElement
+  | InsertElement
+  | ShuffleVector
+  | ExtractValue
+  | InsertValue
+  | Fence
+  | AtomicCmpXchg
+  | AtomicRMW
+  | Resume
+  | LandingPad
+  | Unwind
+end
+
+(** The kind of an [llvalue], the result of [classify_value v].
+ * See the various [LLVMIsA*] functions. *)
+module ValueKind : sig
+  type t =
+  | NullValue
+  | Argument
+  | BasicBlock
+  | InlineAsm
+  | MDNode
+  | MDString
+  | BlockAddress
+  | ConstantAggregateZero
+  | ConstantArray
+  | ConstantExpr
+  | ConstantFP
+  | ConstantInt
+  | ConstantPointerNull
+  | ConstantStruct
+  | ConstantVector
+  | Function
+  | GlobalAlias
+  | GlobalVariable
+  | UndefValue
+  | Instruction of Opcode.t
+end
 
 (** {6 Iteration} *)
 
@@ -263,13 +363,20 @@ val dump_module : llmodule -> unit
     the method [llvm::Module::setModuleInlineAsm]. *)
 val set_module_inline_asm : llmodule -> string -> unit
 
-
+(** [module_context m] returns the context of the specified module.
+ * See the method [llvm::Module::getContext] *)
+val module_context : llmodule -> llcontext
 
 (** {6 Types} *)
 
 (** [classify_type ty] returns the {!TypeKind.t} corresponding to the type [ty].
     See the method [llvm::Type::getTypeID]. *)
 val classify_type : lltype -> TypeKind.t
+
+(** [type_is_sized ty] returns whether the type has a size or not.
+ * If it doesn't then it is not safe to call the [TargetData::] methods on it.
+ * *)
+val type_is_sized : lltype -> bool
 
 (** [type_context ty] returns the {!llcontext} corresponding to the type [ty].
     See the method [llvm::Type::getContext]. *)
@@ -339,7 +446,7 @@ val ppc_fp128_type : llcontext -> lltype
     See the method [llvm::FunctionType::get]. *)
 val function_type : lltype -> lltype array -> lltype
 
-(** [va_arg_function_type ret_ty param_tys] is just like
+(** [var_arg_function_type ret_ty param_tys] is just like
     [function_type ret_ty param_tys] except that it returns the function type
     which also takes a variable number of arguments.
     See the method [llvm::FunctionType::get]. *)
@@ -372,6 +479,19 @@ val struct_type : llcontext -> lltype array -> lltype
     [llvm::StructType::get]. *)
 val packed_struct_type : llcontext -> lltype array -> lltype
 
+(** [struct_name ty] returns the name of the named structure type [ty],
+ * or None if the structure type is not named *)
+val struct_name : lltype -> string option
+
+(** [named_struct_type context name] returns the named structure type [name]
+ * in the context [context].
+ * See the method [llvm::StructType::get]. *)
+val named_struct_type : llcontext -> string -> lltype
+
+(** [struct_set_body ty elts ispacked] sets the body of the named struct [ty]
+ * to the [elts] elements.
+ * See the moethd [llvm::StructType::setBody]. *)
+val struct_set_body : lltype -> lltype array -> bool -> unit
 
 (** [struct_element_types sty] returns the constituent types of the struct type
     [sty]. See the method [llvm::StructType::getElementType]. *)
@@ -382,6 +502,9 @@ val struct_element_types : lltype -> lltype array
     [false] otherwise. See the method [llvm::StructType::isPacked]. *)
 val is_packed : lltype -> bool
 
+(** [is_opaque sty] returns [true] if the structure type [sty] is opaque.
+    [false] otherwise. See the method [llvm::StructType::isOpaque]. *)
+val is_opaque : lltype -> bool
 
 (** {7 Operations on pointer, vector, and array types} *)
 
@@ -431,11 +554,18 @@ val void_type : llcontext -> lltype
     [llvm::Type::LabelTy]. *)
 val label_type : llcontext -> lltype
 
+(** [type_by_name m name] returns the specified type from the current module
+ * if it exists.
+ * See the method [llvm::Module::getTypeByName] *)
+val type_by_name : llmodule -> string -> lltype option
+
 (* {6 Values} *)
 
 (** [type_of v] returns the type of the value [v].
     See the method [llvm::Value::getType]. *)
 val type_of : llvalue -> lltype
+
+val classify_value : llvalue -> ValueKind.t
 
 (** [value_name v] returns the name of the value [v]. For global values, this is
     the symbol name. For instructions and basic blocks, it is the SSA register
@@ -534,7 +664,7 @@ val is_null : llvalue -> bool
     otherwise. Similar to [llvm::isa<UndefValue>]. *)
 val is_undef : llvalue -> bool
 
-
+val constexpr_opcode : llvalue -> Opcode.t
 (** {7 Operations on instructions} *)
 
 (** [has_metadata i] returns whether or not the instruction [i] has any
@@ -567,6 +697,14 @@ val mdstring : llcontext -> string -> llvalue
     See the method [llvm::MDNode::get]. *)
 val mdnode : llcontext -> llvalue array -> llvalue
 
+(** [get_mdstring v] returns the MDString.
+ * See the method [llvm::MDString::getString] *)
+val get_mdstring : llvalue -> string option
+
+(** [get_named_metadata m name] return all the MDNodes belonging to the named
+ * metadata (if any).
+ * See the method [llvm::NamedMDNode::getOperand]. *)
+val get_named_metadata : llmodule -> string -> llvalue array
 
 (** {7 Operations on scalar constants} *)
 
@@ -578,6 +716,10 @@ val const_int : lltype -> int -> llvalue
     [i]. See the method [llvm::ConstantInt::get]. *)
 val const_of_int64 : lltype -> Int64.t -> bool -> llvalue
 
+(** [int64_of_const c] returns the int64 value of the [c] constant integer.
+ * None is returned if this is not an integer constant, or bitwidth exceeds 64.
+ * See the method [llvm::ConstantInt::getSExtValue].*)
+val int64_of_const : llvalue -> Int64.t option
 
 (** [const_int_of_string ty s r] returns the integer constant of type [ty] and
  * value [s], with the radix [r]. See the method [llvm::ConstantInt::get]. *)
@@ -618,9 +760,14 @@ val const_array : lltype -> llvalue array -> llvalue
 (** [const_struct context elts] returns the structured constant of type
     [struct_type (Array.map type_of elts)] and containing the values [elts]
     in the context [context]. This value can in turn be used as the initializer
-    for a global variable. See the method [llvm::ConstantStruct::get]. *)
+    for a global variable. See the method [llvm::ConstantStruct::getAnon]. *)
 val const_struct : llcontext -> llvalue array -> llvalue
 
+(** [const_named_struct namedty elts] returns the structured constant of type
+    [namedty] (which must be a named structure type) and containing the values [elts].
+    This value can in turn be used as the initializer
+    for a global variable. See the method [llvm::ConstantStruct::get]. *)
+val const_named_struct : lltype -> llvalue array -> llvalue
 
 (** [const_packed_struct context elts] returns the structured constant of
     type {!packed_struct_type} [(Array.map type_of elts)] and containing the
@@ -1231,6 +1378,10 @@ val set_gc : string option -> llvalue -> unit
     [f]. *)
 val add_function_attr : llvalue -> Attribute.t -> unit
 
+(** [function_attr f] returns the function attribute for the function [f].
+ * See the method [llvm::Function::getAttributes] *)
+val function_attr : llvalue -> Attribute.t list
+
 (** [remove_function_attr f a] removes attribute [a] from the return type of
     function [f]. *)
 val remove_function_attr : llvalue -> Attribute.t -> unit
@@ -1244,6 +1395,11 @@ val params : llvalue -> llvalue array
 (** [param f n] returns the [n]th parameter of function [f].
     See the method [llvm::Function::getArgumentList]. *)
 val param : llvalue -> int -> llvalue
+
+(** [param_attr p] returns the attributes of parameter [p].
+ * See the methods [llvm::Function::getAttributes] and
+ * [llvm::Attributes::getParamAttributes] *)
+val param_attr : llvalue -> Attribute.t list
 
 (** [param_parent p] returns the parent function that owns the parameter.
     See the method [llvm::Argument::getParent]. *)
@@ -1359,6 +1515,7 @@ val block_end : llvalue -> (llvalue, llbasicblock) llrev_pos
     See the method [llvm::Function::iterator::operator--]. *)
 val block_pred : llbasicblock -> (llvalue, llbasicblock) llrev_pos
 
+val block_terminator : llbasicblock -> llvalue option
 
 (** [rev_iter_blocks f fn] applies function [f] to each of the basic blocks
     of function [fn] in reverse order. Tail recursive. *)
@@ -1422,6 +1579,9 @@ val instr_pred : llvalue -> (llbasicblock, llvalue) llrev_pos
     [f1,...,fN] are the instructions of basic block [bb]. Tail recursive. *)
 val fold_right_instrs: (llvalue -> 'a -> 'a) -> llbasicblock -> 'a -> 'a
 
+val instr_opcode : llvalue -> Opcode.t
+
+val icmp_predicate : llvalue -> Icmp.t option
 
 (** {7 Operations on call sites} *)
 
@@ -1473,7 +1633,9 @@ val add_incoming : (llvalue * llbasicblock) -> llvalue -> unit
     See the method [llvm::PHINode::getIncomingValue]. *)
 val incoming : llvalue -> (llvalue * llbasicblock) list
 
-
+(** [delete_instruction i] deletes the instruction [i].
+ * See the method [llvm::Instruction::eraseFromParent]. *)
+val delete_instruction : llvalue -> unit
 
 (** {6 Instruction builders} *)
 
@@ -1587,12 +1749,30 @@ val build_cond_br : llvalue -> llbasicblock -> llbasicblock -> llbuilder ->
     See the method [llvm::LLVMBuilder::CreateSwitch]. *)
 val build_switch : llvalue -> llbasicblock -> int -> llbuilder -> llvalue
 
+(** [build_malloc ty name b] creates an [malloc]
+    instruction at the position specified by the instruction builder [b].
+    See the method [llvm::CallInst::CreateMalloc]. *)
+val build_malloc : lltype -> string -> llbuilder -> llvalue
+
+(** [build_array_malloc ty val name b] creates an [array malloc]
+    instruction at the position specified by the instruction builder [b].
+    See the method [llvm::CallInst::CreateArrayMalloc]. *)
+val build_array_malloc : lltype -> llvalue -> string -> llbuilder -> llvalue
+
+(** [build_free p b] creates a [free]
+    instruction at the position specified by the instruction builder [b].
+    See the method [llvm::LLVMBuilder::CreateFree]. *)
+val build_free : llvalue -> llbuilder -> llvalue
 
 (** [add_case sw onval bb] causes switch instruction [sw] to branch to [bb]
     when its input matches the constant [onval].
     See the method [llvm::SwitchInst::addCase]. **)
 val add_case : llvalue -> llvalue -> llbasicblock -> unit
 
+(** [switch_default_dest sw] returns the default destination of the [switch]
+ * instruction.
+ * See the method [llvm:;SwitchInst::getDefaultDest]. **)
+val switch_default_dest : llvalue -> llbasicblock
 
 (** [build_indirect_br addr count b] creates a
     [indirectbr %addr]
@@ -1615,12 +1795,25 @@ val add_destination : llvalue -> llbasicblock -> unit
 val build_invoke : llvalue -> llvalue array -> llbasicblock ->
                         llbasicblock -> string -> llbuilder -> llvalue
 
-
-(** [build_unwind b] creates an
-    [unwind]
+(** [build_landingpad ty persfn numclauses name b] creates an
+    [landingpad]
     instruction at the position specified by the instruction builder [b].
-    See the method [llvm::LLVMBuilder::CreateUnwind]. *)
-val build_unwind : llbuilder -> llvalue
+    See the method [llvm::LLVMBuilder::CreateLandingPad]. *)
+val build_landingpad : lltype -> llvalue -> int -> string -> llbuilder ->
+                         llvalue
+
+(** [set_cleanup lp] sets the cleanup flag in the [landingpad]instruction.
+    See the method [llvm::LandingPadInst::setCleanup]. *)
+val set_cleanup : llvalue -> bool -> unit
+
+(** [add_clause lp clause] adds the clause to the [landingpad]instruction.
+    See the method [llvm::LandingPadInst::addClause]. *)
+val add_clause : llvalue -> llvalue -> unit
+
+(* [build_resume exn b] builds a [resume exn] instruction
+ * at the position specified by the instruction builder [b].
+ * See the method [llvm::LLVMBuilder::CreateResume] *)
+val build_resume : llvalue -> llbuilder -> llvalue
 
 (** [build_unreachable b] creates an
     [unreachable]

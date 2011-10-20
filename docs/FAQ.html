@@ -72,9 +72,6 @@
     <li>After Subversion update, rebuilding gives the error "No rule to make
         target".</li>
 
-    <li><a href="#llvmc">The <tt>llvmc</tt> program gives me errors/doesn't
-        work.</a></li>
-
     <li><a href="#srcdir-objdir">When I compile LLVM-GCC with srcdir == objdir,
         it fails. Why?</a></li>
   </ol></li>
@@ -420,16 +417,6 @@ Stop.
 </div>
 
 <div class="question">
-<p><a name="llvmc">The <tt>llvmc</tt> program gives me errors/doesn't
-   work.</a></p>
-</div>
-
-<div class="answer">
-<p><tt>llvmc</tt> is experimental and isn't really supported. We suggest
-   using <tt>llvm-gcc</tt> instead.</p>
-</div>
-
-<div class="question">
 <p><a name="srcdir-objdir">When I compile LLVM-GCC with srcdir == objdir, it
    fails. Why?</a></p>
 </div>
@@ -540,10 +527,7 @@ Stop.
 <p>Currently, there isn't much. LLVM supports an intermediate representation
    which is useful for code representation but will not support the high level
    (abstract syntax tree) representation needed by most compilers. There are no
-   facilities for lexical nor semantic analysis. There is, however, a <i>mostly
-   implemented</i> configuration-driven
-   <a href="CompilerDriver.html">compiler driver</a> which simplifies the task
-   of running optimizations, linking, and executable generation.</p>
+   facilities for lexical nor semantic analysis.</p>
 </div>
 
 <div class="question">
@@ -933,7 +917,7 @@ F.i:
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-04-19 01:59:50 +0200 (Tue, 19 Apr 2011) $
+  Last modified: $Date: 2011-09-20 02:42:28 +0200 (Tue, 20 Sep 2011) $
 </address>
 
 </body>

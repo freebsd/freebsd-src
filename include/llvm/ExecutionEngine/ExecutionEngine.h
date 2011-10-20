@@ -18,6 +18,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ValueMap.h"
@@ -119,9 +120,7 @@ protected:
   /// optimize for the case where there is only one module.
   SmallVector<Module*, 1> Modules;
 
-  void setTargetData(const TargetData *td) {
-    TD = td;
-  }
+  void setTargetData(const TargetData *td) { TD = td; }
 
   /// getMemoryforGV - Allocate memory for a global variable.
   virtual char *getMemoryForGV(const GlobalVariable *GV);
@@ -143,8 +142,7 @@ protected:
     CodeGenOpt::Level OptLevel,
     bool GVsWithCode,
     TargetMachine *TM);
-  static ExecutionEngine *(*InterpCtor)(Module *M,
-                                        std::string *ErrorStr);
+  static ExecutionEngine *(*InterpCtor)(Module *M, std::string *ErrorStr);
 
   /// LazyFunctionCreator - If an unknown function is needed, this function
   /// pointer is invoked to create it.  If this returns null, the JIT will
@@ -186,7 +184,7 @@ public:
                                  bool ForceInterpreter = false,
                                  std::string *ErrorStr = 0,
                                  CodeGenOpt::Level OptLevel =
-                                   CodeGenOpt::Default,
+                                 CodeGenOpt::Default,
                                  bool GVsWithCode = true);
 
   /// createJIT - This is the factory method for creating a JIT for the current
@@ -199,10 +197,11 @@ public:
                                     std::string *ErrorStr = 0,
                                     JITMemoryManager *JMM = 0,
                                     CodeGenOpt::Level OptLevel =
-                                      CodeGenOpt::Default,
+                                    CodeGenOpt::Default,
                                     bool GVsWithCode = true,
+                                    Reloc::Model RM = Reloc::Default,
                                     CodeModel::Model CMM =
-                                      CodeModel::Default);
+                                    CodeModel::JITDefault);
 
   /// addModule - Add a Module to the list of modules that we can JIT from.
   /// Note that this takes ownership of the Module: when the ExecutionEngine is
@@ -314,7 +313,7 @@ public:
   /// GenericValue *.  It is not a pointer to a GenericValue containing the
   /// address at which to store Val.
   void StoreValueToMemory(const GenericValue &Val, GenericValue *Ptr,
-                          const Type *Ty);
+                          Type *Ty);
 
   void InitializeMemory(const Constant *Init, void *Addr);
 
@@ -440,7 +439,7 @@ protected:
 
   GenericValue getConstantValue(const Constant *C);
   void LoadValueFromMemory(GenericValue &Result, GenericValue *Ptr,
-                           const Type *Ty);
+                           Type *Ty);
 };
 
 namespace EngineKind {
@@ -463,6 +462,7 @@ private:
   CodeGenOpt::Level OptLevel;
   JITMemoryManager *JMM;
   bool AllocateGVsWithCode;
+  Reloc::Model RelocModel;
   CodeModel::Model CMModel;
   std::string MArch;
   std::string MCPU;
@@ -476,7 +476,8 @@ private:
     OptLevel = CodeGenOpt::Default;
     JMM = NULL;
     AllocateGVsWithCode = false;
-    CMModel = CodeModel::Default;
+    RelocModel = Reloc::Default;
+    CMModel = CodeModel::JITDefault;
     UseMCJIT = false;
   }
 
@@ -517,8 +518,16 @@ public:
     return *this;
   }
 
+  /// setRelocationModel - Set the relocation model that the ExecutionEngine
+  /// target is using. Defaults to target specific default "Reloc::Default".
+  EngineBuilder &setRelocationModel(Reloc::Model RM) {
+    RelocModel = RM;
+    return *this;
+  }
+
   /// setCodeModel - Set the CodeModel that the ExecutionEngine target
-  /// data is using. Defaults to target specific default "CodeModel::Default".
+  /// data is using. Defaults to target specific default
+  /// "CodeModel::JITDefault".
   EngineBuilder &setCodeModel(CodeModel::Model M) {
     CMModel = M;
     return *this;
@@ -569,6 +578,8 @@ public:
                                      StringRef MArch,
                                      StringRef MCPU,
                                      const SmallVectorImpl<std::string>& MAttrs,
+                                     Reloc::Model RM,
+                                     CodeModel::Model CM,
                                      std::string *Err);
 
   ExecutionEngine *create();

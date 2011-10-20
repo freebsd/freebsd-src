@@ -114,6 +114,7 @@
       <li><a href="#ppc_prolog">Prolog/Epilog</a></li>
       <li><a href="#ppc_dynamic">Dynamic Allocation</a></li>
       </ul></li>
+    <li><a href="#ptx">The PTX backend</a></li>
     </ul></li>
 
 </ol>
@@ -1768,22 +1769,28 @@ bool RegMapping_Fer::compatible_class(MachineFunction &amp;mf,
    different register allocators:</p>
 
 <ul>
-  <li><i>Linear Scan</i> &mdash; <i>The default allocator</i>. This is the
-      well-know linear scan register allocator. Whereas the
-      <i>Simple</i> and <i>Local</i> algorithms use a direct mapping
-      implementation technique, the <i>Linear Scan</i> implementation
-      uses a spiller in order to place load and stores.</li>
-
   <li><i>Fast</i> &mdash; This register allocator is the default for debug
       builds. It allocates registers on a basic block level, attempting to keep
       values in registers and reusing registers as appropriate.</li>
+
+  <li><i>Basic</i> &mdash; This is an incremental approach to register
+  allocation. Live ranges are assigned to registers one at a time in
+  an order that is driven by heuristics. Since code can be rewritten
+  on-the-fly during allocation, this framework allows interesting
+  allocators to be developed as extensions. It is not itself a
+  production register allocator but is a potentially useful
+  stand-alone mode for triaging bugs and as a performance baseline.
+
+  <li><i>Greedy</i> &mdash; <i>The default allocator</i>. This is a
+  highly tuned implementation of the <i>Basic</i> allocator that
+  incorporates global live range splitting. This allocator works hard
+  to minimize the cost of spill code.
 
   <li><i>PBQP</i> &mdash; A Partitioned Boolean Quadratic Programming (PBQP)
       based register allocator. This allocator works by constructing a PBQP
       problem representing the register allocation problem under consideration,
       solving this using a PBQP solver, and mapping the solution back to a
       register assignment.</li>
-
 </ul>
 
 <p>The type of register allocator used in <tt>llc</tt> can be chosen with the
@@ -1805,7 +1812,121 @@ $ llc -regalloc=pbqp file.bc -o pbqp.s;
 <h3>
   <a name="proepicode">Prolog/Epilog Code Insertion</a>
 </h3>
-<div><p>To Be Written</p></div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="compact_unwind">Compact Unwind</a>
+</h4>
+
+<div>
+
+<p>Throwing an exception requires <em>unwinding</em> out of a function. The
+   information on how to unwind a given function is traditionally expressed in
+   DWARF unwind (a.k.a. frame) info. But that format was originally developed
+   for debuggers to backtrace, and each Frame Description Entry (FDE) requires
+   ~20-30 bytes per function. There is also the cost of mapping from an address
+   in a function to the corresponding FDE at runtime. An alternative unwind
+   encoding is called <em>compact unwind</em> and requires just 4-bytes per
+   function.</p>
+
+<p>The compact unwind encoding is a 32-bit value, which is encoded in an
+   architecture-specific way. It specifies which registers to restore and from
+   where, and how to unwind out of the function. When the linker creates a final
+   linked image, it will create a <code>__TEXT,__unwind_info</code>
+   section. This section is a small and fast way for the runtime to access
+   unwind info for any given function. If we emit compact unwind info for the
+   function, that compact unwind info will be encoded in
+   the <code>__TEXT,__unwind_info</code> section. If we emit DWARF unwind info,
+   the <code>__TEXT,__unwind_info</code> section will contain the offset of the
+   FDE in the <code>__TEXT,__eh_frame</code> section in the final linked
+   image.</p>
+
+<p>For X86, there are three modes for the compact unwind encoding:</p>
+
+<dl>
+  <dt><i>Function with a Frame Pointer (<code>EBP</code> or <code>RBP</code>)</i></dt>
+  <dd><p><code>EBP/RBP</code>-based frame, where <code>EBP/RBP</code> is pushed
+      onto the stack immediately after the return address,
+      then <code>ESP/RSP</code> is moved to <code>EBP/RBP</code>. Thus to
+      unwind, <code>ESP/RSP</code> is restored with the
+      current <code>EBP/RBP</code> value, then <code>EBP/RBP</code> is restored
+      by popping the stack, and the return is done by popping the stack once
+      more into the PC. All non-volatile registers that need to be restored must
+      have been saved in a small range on the stack that
+      starts <code>EBP-4</code> to <code>EBP-1020</code> (<code>RBP-8</code>
+      to <code>RBP-1020</code>). The offset (divided by 4 in 32-bit mode and 8
+      in 64-bit mode) is encoded in bits 16-23 (mask: <code>0x00FF0000</code>).
+      The registers saved are encoded in bits 0-14
+      (mask: <code>0x00007FFF</code>) as five 3-bit entries from the following
+      table:</p>
+<table border="1" cellspacing="0">
+  <tr>
+    <th>Compact Number</th>
+    <th>i386 Register</th>
+    <th>x86-64 Regiser</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td><code>EBX</code></td>
+    <td><code>RBX</code></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><code>ECX</code></td>
+    <td><code>R12</code></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><code>EDX</code></td>
+    <td><code>R13</code></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><code>EDI</code></td>
+    <td><code>R14</code></td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><code>ESI</code></td>
+    <td><code>R15</code></td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><code>EBP</code></td>
+    <td><code>RBP</code></td>
+  </tr>
+</table>
+
+</dd>
+
+  <dt><i>Frameless with a Small Constant Stack Size (<code>EBP</code>
+         or <code>RBP</code> is not used as a frame pointer)</i></dt>
+  <dd><p>To return, a constant (encoded in the compact unwind encoding) is added
+      to the <code>ESP/RSP</code>.  Then the return is done by popping the stack
+      into the PC. All non-volatile registers that need to be restored must have
+      been saved on the stack immediately after the return address. The stack
+      size (divided by 4 in 32-bit mode and 8 in 64-bit mode) is encoded in bits
+      16-23 (mask: <code>0x00FF0000</code>). There is a maximum stack size of
+      1024 bytes in 32-bit mode and 2048 in 64-bit mode. The number of registers
+      saved is encoded in bits 9-12 (mask: <code>0x00001C00</code>). Bits 0-9
+      (mask: <code>0x000003FF</code>) contain which registers were saved and
+      their order. (See
+      the <code>encodeCompactUnwindRegistersWithoutFrame()</code> function
+      in <code>lib/Target/X86FrameLowering.cpp</code> for the encoding
+      algorithm.)</p></dd>
+
+  <dt><i>Frameless with a Large Constant Stack Size (<code>EBP</code>
+         or <code>RBP</code> is not used as a frame pointer)</i></dt>
+  <dd><p>This case is like the "Frameless with a Small Constant Stack Size"
+      case, but the stack size is too large to encode in the compact unwind
+      encoding. Instead it requires that the function contains "<code>subl
+      $nnnnnn, %esp</code>" in its prolog. The compact encoding contains the
+      offset to the <code>$nnnnnn</code> value in the function in bits 9-12
+      (mask: <code>0x00001C00</code>).</p></dd>
+</dl>
+
+</div>
+
 <!-- ======================================================================= -->
 <h3>
   <a name="latemco">Late Machine Code Optimizations</a>
@@ -2165,7 +2286,7 @@ is the key:</p>
   <td class="yes"></td> <!-- PowerPC -->
   <td class="unknown"></td> <!-- Sparc -->
   <td class="unknown"></td> <!-- SystemZ -->
-  <td class="yes"><a href="#feat_inlineasm_x86">*</a></td> <!-- X86 -->
+  <td class="yes"></td> <!-- X86 -->
   <td class="unknown"></td> <!-- XCore -->
 </tr>
 
@@ -2260,9 +2381,6 @@ disassembling machine opcode bytes into MCInst's.</p>
 <div>
 <p>This box indicates whether the target supports most popular inline assembly
 constraints and modifiers.</p>
-
-<p id="feat_inlineasm_x86">X86 lacks reliable support for inline assembly
-constraints relating to the X86 floating point stack.</p>
 
 </div>
 
@@ -2794,6 +2912,70 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
 </div>
 
+<!-- ======================================================================= -->
+<h3>
+  <a name="ptx">The PTX backend</a>
+</h3>
+
+<div>
+
+<p>The PTX code generator lives in the lib/Target/PTX directory. It is
+  currently a work-in-progress, but already supports most of the code
+  generation functionality needed to generate correct PTX kernels for
+  CUDA devices.</p>
+
+<p>The code generator can target PTX 2.0+, and shader model 1.0+.  The
+  PTX ISA Reference Manual is used as the primary source of ISA
+  information, though an effort is made to make the output of the code
+  generator match the output of the NVidia nvcc compiler, whenever
+  possible.</p>
+
+<p>Code Generator Options:</p>
+<table border="1" cellspacing="0">
+  <tr>
+    <th>Option</th>
+    <th>Description</th>
+ </tr>
+   <tr>
+     <td><code>double</code></td>
+     <td align="left">If enabled, the map_f64_to_f32 directive is
+       disabled in the PTX output, allowing native double-precision
+       arithmetic</td>
+  </tr>
+  <tr>
+    <td><code>no-fma</code></td>
+    <td align="left">Disable generation of Fused-Multiply Add
+      instructions, which may be beneficial for some devices</td>
+  </tr>
+  <tr>
+    <td><code>smxy / computexy</code></td>
+    <td align="left">Set shader model/compute capability to x.y,
+    e.g. sm20 or compute13</td>
+  </tr>
+</table>
+
+<p>Working:</p>
+<ul>
+  <li>Arithmetic instruction selection (including combo FMA)</li>
+  <li>Bitwise instruction selection</li>
+  <li>Control-flow instruction selection</li>
+  <li>Function calls (only on SM 2.0+ and no return arguments)</li>
+  <li>Addresses spaces (0 = global, 1 = constant, 2 = local, 4 =
+  shared)</li>
+  <li>Thread synchronization (bar.sync)</li>
+  <li>Special register reads ([N]TID, [N]CTAID, PMx, CLOCK, etc.)</li>
+</ul>
+
+<p>In Progress:</p>
+<ul>
+  <li>Robust call instruction selection</li>
+  <li>Stack frame allocation</li>
+  <li>Device-specific instruction scheduling optimizations</li>
+</ul>
+
+
+</div>
+
 </div>
 
 <!-- *********************************************************************** -->
@@ -2806,7 +2988,7 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-05-23 00:28:47 +0200 (Mon, 23 May 2011) $
+  Last modified: $Date: 2011-09-19 20:15:46 +0200 (Mon, 19 Sep 2011) $
 </address>
 
 </body>

@@ -31,6 +31,9 @@
 /* Installation directory for config files */
 #undef LLVM_ETCDIR
 
+/* Has gcc/MSVC atomic intrinsics */
+#undef LLVM_HAS_ATOMICS
+
 /* Host triple we were built on */
 #undef LLVM_HOSTTRIPLE
 
@@ -46,11 +49,14 @@
 /* Installation directory for man pages */
 #undef LLVM_MANDIR
 
-/* Build multithreading support into LLVM */
-#undef LLVM_MULTITHREADED
-
 /* LLVM architecture name for the native architecture, if available */
 #undef LLVM_NATIVE_ARCH
+
+/* LLVM name for the native AsmParser init function, if available */
+#undef LLVM_NATIVE_ASMPARSER
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#undef LLVM_NATIVE_ASMPRINTER
 
 /* LLVM name for the native Target init function, if available */
 #undef LLVM_NATIVE_TARGET
@@ -58,14 +64,8 @@
 /* LLVM name for the native TargetInfo init function, if available */
 #undef LLVM_NATIVE_TARGETINFO
 
-/* LLVM name for the native MCAsmInfo init function, if available */
-#undef LLVM_NATIVE_MCASMINFO
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#undef LLVM_NATIVE_ASMPRINTER
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#undef LLVM_NATIVE_ASMPARSER
+/* LLVM name for the native target MC init function, if available */
+#undef LLVM_NATIVE_TARGETMC
 
 /* Define if this is Unixish platform */
 #undef LLVM_ON_UNIX
@@ -96,6 +96,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 #undef LLVM_PATH_TWOPI
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+#undef LLVM_PATH_XDOT_PY
 
 /* Installation prefix directory */
 #undef LLVM_PREFIX

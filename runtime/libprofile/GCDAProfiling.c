@@ -26,7 +26,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <direct.h>
 #endif
 
@@ -114,7 +114,11 @@ void llvm_gcda_start_file(const char *orig_filename) {
   output_file = fopen(filename, "wb");
 
   /* gcda file, version 404*, stamp LLVM. */
+#ifdef __APPLE__
+  fwrite("adcg*204MVLL", 12, 1, output_file);
+#else
   fwrite("adcg*404MVLL", 12, 1, output_file);
+#endif
 
 #ifdef DEBUG_GCDAPROFILING
   printf("llvmgcda: [%s]\n", orig_filename);

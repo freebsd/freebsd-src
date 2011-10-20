@@ -316,3 +316,78 @@ declare void @_ZNSt6vectorIN4llvm11MachineMoveESaIS1_EE13_M_insert_auxEN9__gnu_c
 declare void @llvm.lifetime.start(i64, i8* nocapture) nounwind
 
 declare void @llvm.lifetime.end(i64, i8* nocapture) nounwind
+
+; PR10463
+; Spilling a virtual register with <undef> uses.
+define void @autogen_239_1000() {
+BB:
+    %Shuff = shufflevector <8 x double> undef, <8 x double> undef, <8 x i32> <i32 0, i32 2, i32 4, i32 6, i32 8, i32 10, i32 undef, i32 undef>
+    br label %CF
+
+CF:
+    %B16 = frem <8 x double> zeroinitializer, %Shuff
+    %E19 = extractelement <8 x double> %Shuff, i32 5
+    br i1 undef, label %CF, label %CF75
+
+CF75:
+    br i1 undef, label %CF75, label %CF76
+
+CF76:
+    store double %E19, double* undef
+    br i1 undef, label %CF76, label %CF77
+
+CF77:
+    %B55 = fmul <8 x double> %B16, undef
+    br label %CF77
+}
+
+; PR10527
+define void @pr10527() nounwind uwtable {
+entry:
+  br label %"4"
+
+"3":
+  %0 = load <2 x i32>* null, align 8
+  %1 = xor <2 x i32> zeroinitializer, %0
+  %2 = and <2 x i32> %1, %6
+  %3 = or <2 x i32> undef, %2
+  %4 = and <2 x i32> %3, undef
+  store <2 x i32> %4, <2 x i32>* undef
+  %5 = load <2 x i32>* undef, align 1
+  br label %"4"
+
+"4":
+  %6 = phi <2 x i32> [ %5, %"3" ], [ zeroinitializer, %entry ]
+  %7 = icmp ult i32 undef, undef
+  br i1 %7, label %"3", label %"5"
+
+"5":
+  ret void
+}
+
+; PR11078
+;
+; A virtual register used by the "foo" inline asm memory operand gets
+; constrained to GR32_ABCD during coalescing.  This makes the inline asm
+; impossible to allocate without splitting the live range and reinflating the
+; register class around the inline asm.
+;
+; The constraint originally comes from the TEST8ri optimization of (icmp (and %t0, 1), 0).
+
+@__force_order = external hidden global i32, align 4
+define void @pr11078(i32* %pgd) nounwind {
+entry:
+  %t0 = load i32* %pgd, align 4
+  %and2 = and i32 %t0, 1
+  %tobool = icmp eq i32 %and2, 0
+  br i1 %tobool, label %if.then, label %if.end
+
+if.then:
+  %t1 = tail call i32 asm sideeffect "bar", "=r,=*m,~{dirflag},~{fpsr},~{flags}"(i32* @__force_order) nounwind
+  br label %if.end
+
+if.end:
+  %t6 = inttoptr i32 %t0 to i64*
+  %t11 = tail call i64 asm sideeffect "foo", "=*m,=A,{bx},{cx},1,~{memory},~{dirflag},~{fpsr},~{flags}"(i64* %t6, i32 0, i32 0, i64 0) nounwind
+  ret void
+}

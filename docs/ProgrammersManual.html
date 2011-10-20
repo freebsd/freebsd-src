@@ -59,6 +59,7 @@ option</a></li>
       <li><a href="#dss_arrayref">llvm/ADT/ArrayRef.h</a></li>
       <li><a href="#dss_fixedarrays">Fixed Size Arrays</a></li>
       <li><a href="#dss_heaparrays">Heap Allocated Arrays</a></li>
+      <li><a href="#dss_tinyptrvector">"llvm/ADT/TinyPtrVector.h"</a></li>
       <li><a href="#dss_smallvector">"llvm/ADT/SmallVector.h"</a></li>
       <li><a href="#dss_vector">&lt;vector&gt;</a></li>
       <li><a href="#dss_deque">&lt;deque&gt;</a></li>
@@ -66,6 +67,13 @@ option</a></li>
       <li><a href="#dss_ilist">llvm/ADT/ilist.h</a></li>
       <li><a href="#dss_packedvector">llvm/ADT/PackedVector.h</a></li>
       <li><a href="#dss_other">Other Sequential Container Options</a></li>
+    </ul></li>
+    <li><a href="#ds_string">String-like containers</a>
+    <ul>
+      <li><a href="#dss_stringref">llvm/ADT/StringRef.h</a></li>
+      <li><a href="#dss_twine">llvm/ADT/Twine.h</a></li>
+      <li><a href="#dss_smallstring">llvm/ADT/SmallString.h</a></li>
+      <li><a href="#dss_stdstring">std::string</a></li>
     </ul></li>
     <li><a href="#ds_set">Set-Like Containers (std::set, SmallSet, SetVector, etc)</a>
     <ul>
@@ -91,10 +99,6 @@ option</a></li>
       <li><a href="#dss_inteqclasses">"llvm/ADT/IntEqClasses.h"</a></li>
       <li><a href="#dss_othermap">Other Map-Like Container Options</a></li>
     </ul></li>
-    <li><a href="#ds_string">String-like containers</a>
-    <!--<ul>
-       todo
-    </ul>--></li>
     <li><a href="#ds_bit">BitVector-like containers</a>
     <ul>
       <li><a href="#dss_bitvector">A dense bitvector</a></li>
@@ -875,6 +879,9 @@ elements (but could contain many), for example, it's much better to use
 .  Doing so avoids (relatively) expensive malloc/free calls, which dwarf the
 cost of adding the elements to the container. </p>
 
+</div>
+  
+  
 <!-- ======================================================================= -->
 <h3>
   <a name="ds_sequential">Sequential Containers (std::vector, std::list, etc)</a>
@@ -883,7 +890,7 @@ cost of adding the elements to the container. </p>
 <div>
 There are a variety of sequential containers available for you, based on your
 needs.  Pick the first in this section that will do what you want.
-
+  
 <!-- _______________________________________________________________________ -->
 <h4>
   <a name="dss_arrayref">llvm/ADT/ArrayRef.h</a>
@@ -926,6 +933,22 @@ destructors will be run for every element in the array (re-sizable vectors only
 construct those elements actually used).</p>
 </div>
 
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_tinyptrvector">"llvm/ADT/TinyPtrVector.h"</a>
+</h4>
+
+
+<div>
+<p><tt>TinyPtrVector&lt;Type&gt;</tt> is a highly specialized collection class
+that is optimized to avoid allocation in the case when a vector has zero or one
+elements.  It has two major restrictions: 1) it can only hold values of pointer
+type, and 2) it cannot hold a null pointer.</p>
+  
+<p>Since this container is highly specialized, it is rarely used.</p>
+  
+</div>
+    
 <!-- _______________________________________________________________________ -->
 <h4>
   <a name="dss_smallvector">"llvm/ADT/SmallVector.h"</a>
@@ -1190,9 +1213,187 @@ std::priority_queue, std::stack, etc.  These provide simplified access to an
 underlying container but don't affect the cost of the container itself.</p>
 
 </div>
-
 </div>
 
+<!-- ======================================================================= -->
+<h3>
+  <a name="ds_string">String-like containers</a>
+</h3>
+
+<div>
+
+<p>
+There are a variety of ways to pass around and use strings in C and C++, and
+LLVM adds a few new options to choose from.  Pick the first option on this list
+that will do what you need, they are ordered according to their relative cost.
+</p>
+<p>
+Note that is is generally preferred to <em>not</em> pass strings around as 
+"<tt>const char*</tt>"'s.  These have a number of problems, including the fact
+that they cannot represent embedded nul ("\0") characters, and do not have a
+length available efficiently.  The general replacement for '<tt>const 
+char*</tt>' is StringRef.
+</p>
+  
+<p>For more information on choosing string containers for APIs, please see
+<a href="#string_apis">Passing strings</a>.</p>
+  
+  
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_stringref">llvm/ADT/StringRef.h</a>
+</h4>
+
+<div>
+<p>
+The StringRef class is a simple value class that contains a pointer to a
+character and a length, and is quite related to the <a 
+href="#dss_arrayref">ArrayRef</a> class (but specialized for arrays of
+characters).  Because StringRef carries a length with it, it safely handles
+strings with embedded nul characters in it, getting the length does not require
+a strlen call, and it even has very convenient APIs for slicing and dicing the
+character range that it represents.
+</p>
+  
+<p>
+StringRef is ideal for passing simple strings around that are known to be live,
+either because they are C string literals, std::string, a C array, or a
+SmallVector.  Each of these cases has an efficient implicit conversion to
+StringRef, which doesn't result in a dynamic strlen being executed.
+</p>
+  
+<p>StringRef has a few major limitations which make more powerful string
+containers useful:</p>
+  
+<ol>
+<li>You cannot directly convert a StringRef to a 'const char*' because there is
+no way to add a trailing nul (unlike the .c_str() method on various stronger
+classes).</li>
+
+  
+<li>StringRef doesn't own or keep alive the underlying string bytes.
+As such it can easily lead to dangling pointers, and is not suitable for
+embedding in datastructures in most cases (instead, use an std::string or
+something like that).</li>
+  
+<li>For the same reason, StringRef cannot be used as the return value of a
+method if the method "computes" the result string.  Instead, use
+std::string.</li>
+    
+<li>StringRef's do not allow you to mutate the pointed-to string bytes and it
+doesn't allow you to insert or remove bytes from the range.  For editing 
+operations like this, it interoperates with the <a 
+href="#dss_twine">Twine</a> class.</li>
+</ol>
+  
+<p>Because of its strengths and limitations, it is very common for a function to
+take a StringRef and for a method on an object to return a StringRef that
+points into some string that it owns.</p>
+  
+</div>
+  
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_twine">llvm/ADT/Twine.h</a>
+</h4>
+
+<div>
+  <p>
+  The Twine class is used as an intermediary datatype for APIs that want to take
+  a string that can be constructed inline with a series of concatenations.
+  Twine works by forming recursive instances of the Twine datatype (a simple
+  value object) on the stack as temporary objects, linking them together into a
+  tree which is then linearized when the Twine is consumed.  Twine is only safe
+  to use as the argument to a function, and should always be a const reference,
+  e.g.:
+  </p>
+  
+  <pre>
+    void foo(const Twine &amp;T);
+    ...
+    StringRef X = ...
+    unsigned i = ...
+    foo(X + "." + Twine(i));
+  </pre>
+  
+  <p>This example forms a string like "blarg.42" by concatenating the values
+  together, and does not form intermediate strings containing "blarg" or
+  "blarg.".
+  </p>
+  
+  <p>Because Twine is constructed with temporary objects on the stack, and
+  because these instances are destroyed at the end of the current statement,
+  it is an inherently dangerous API.  For example, this simple variant contains
+  undefined behavior and will probably crash:</p>
+  
+  <pre>
+    void foo(const Twine &amp;T);
+    ...
+    StringRef X = ...
+    unsigned i = ...
+    const Twine &amp;Tmp = X + "." + Twine(i);
+    foo(Tmp);
+  </pre>
+
+  <p>... because the temporaries are destroyed before the call.  That said,
+  Twine's are much more efficient than intermediate std::string temporaries, and
+  they work really well with StringRef.  Just be aware of their limitations.</p>
+  
+</div>
+
+  
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_smallstring">llvm/ADT/SmallString.h</a>
+</h4>
+
+<div>
+  
+<p>SmallString is a subclass of <a href="#dss_smallvector">SmallVector</a> that
+adds some convenience APIs like += that takes StringRef's.  SmallString avoids
+allocating memory in the case when the preallocated space is enough to hold its
+data, and it calls back to general heap allocation when required.  Since it owns
+its data, it is very safe to use and supports full mutation of the string.</p>
+  
+<p>Like SmallVector's, the big downside to SmallString is their sizeof.  While
+they are optimized for small strings, they themselves are not particularly
+small.  This means that they work great for temporary scratch buffers on the
+stack, but should not generally be put into the heap: it is very rare to 
+see a SmallString as the member of a frequently-allocated heap data structure
+or returned by-value.
+</p>
+
+</div>
+  
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_stdstring">std::string</a>
+</h4>
+
+<div>
+  
+  <p>The standard C++ std::string class is a very general class that (like
+  SmallString) owns its underlying data.  sizeof(std::string) is very reasonable
+  so it can be embedded into heap data structures and returned by-value.
+  On the other hand, std::string is highly inefficient for inline editing (e.g.
+  concatenating a bunch of stuff together) and because it is provided by the
+  standard library, its performance characteristics depend a lot of the host
+  standard library (e.g. libc++ and MSVC provide a highly optimized string
+  class, GCC contains a really slow implementation).
+  </p>
+
+  <p>The major disadvantage of std::string is that almost every operation that
+  makes them larger can allocate memory, which is slow.  As such, it is better
+  to use SmallVector or Twine as a scratch buffer, but then use std::string to
+  persist the result.</p>
+
+  
+</div>
+  
+<!-- end of strings -->
+</div>
+
+  
 <!-- ======================================================================= -->
 <h3>
   <a name="ds_set">Set-Like Containers (std::set, SmallSet, SetVector, etc)</a>
@@ -1381,12 +1582,13 @@ elements out of (linear time), unless you use it's "pop_back" method, which is
 faster.
 </p>
 
-<p>SetVector is an adapter class that defaults to using std::vector and std::set
-for the underlying containers, so it is quite expensive.  However,
-<tt>"llvm/ADT/SetVector.h"</tt> also provides a SmallSetVector class, which
-defaults to using a SmallVector and SmallSet of a specified size.  If you use
-this, and if your sets are dynamically smaller than N, you will save a lot of 
-heap traffic.</p>
+<p><tt>SetVector</tt> is an adapter class that defaults to
+   using <tt>std::vector</tt> and a size 16 <tt>SmallSet</tt> for the underlying
+   containers, so it is quite expensive. However,
+   <tt>"llvm/ADT/SetVector.h"</tt> also provides a <tt>SmallSetVector</tt>
+   class, which defaults to using a <tt>SmallVector</tt> and <tt>SmallSet</tt>
+   of a specified size. If you use this, and if your sets are dynamically
+   smaller than <tt>N</tt>, you will save a lot of heap traffic.</p>
 
 </div>
 
@@ -1631,20 +1833,6 @@ all the drawbacks of std::map.  A sorted vector or some other approach is almost
 always better.</p>
 
 </div>
-
-</div>
-
-<!-- ======================================================================= -->
-<h3>
-  <a name="ds_string">String-like containers</a>
-</h3>
-
-<div>
-
-<p>
-TODO: const char* vs stringref vs smallstring vs std::string.  Describe twine,
-xref to #string_apis.
-</p>
 
 </div>
 
@@ -3867,7 +4055,7 @@ arguments. An argument has a pointer to the parent Function.</p>
   <a href="mailto:dhurjati@cs.uiuc.edu">Dinakar Dhurjati</a> and
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-07-12 13:37:02 +0200 (Tue, 12 Jul 2011) $
+  Last modified: $Date: 2011-10-11 08:33:56 +0200 (Tue, 11 Oct 2011) $
 </address>
 
 </body>

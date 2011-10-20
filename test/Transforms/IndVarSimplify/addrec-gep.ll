@@ -1,15 +1,15 @@
-; RUN: opt < %s -indvars -S > %t
-; RUN: grep getelementptr %t | count 1
-; RUN: grep {mul .*, 37}  %t | count 1
-; RUN: grep {add .*, 5203}  %t | count 1
-; RUN: not grep cast %t
+; RUN: opt < %s -indvars -S -enable-iv-rewrite | FileCheck %s
+; CHECK: getelementptr
+; CHECK: mul {{.*}}, 37
+; CHECK: add {{.*}}, 5203
+; CHECK-NOT: cast
 
 ; This test tests several things. The load and store should use the
 ; same address instead of having it computed twice, and SCEVExpander should
 ; be able to reconstruct the full getelementptr, despite it having a few
 ; obstacles set in its way.
 
-target datalayout = "e-p:64:64:64-n:32:64"
+target datalayout = "e-p:64:64:64-n32:64"
 
 define void @foo(i64 %n, i64 %m, i64 %o, i64 %q, double* nocapture %p) nounwind {
 entry:

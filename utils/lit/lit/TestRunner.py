@@ -397,7 +397,8 @@ def parseIntegratedTestScript(test, normalize_slashes=False):
     sourcedir = os.path.dirname(sourcepath)
     execpath = test.getExecPath()
     execdir,execbase = os.path.split(execpath)
-    tmpBase = os.path.join(execdir, 'Output', execbase)
+    tmpDir = os.path.join(execdir, 'Output')
+    tmpBase = os.path.join(tmpDir, execbase)
     if test.index is not None:
         tmpBase += '_%d' % test.index
 
@@ -405,6 +406,7 @@ def parseIntegratedTestScript(test, normalize_slashes=False):
     if normalize_slashes:
         sourcepath = sourcepath.replace('\\', '/')
         sourcedir = sourcedir.replace('\\', '/')
+        tmpDir = tmpDir.replace('\\', '/')
         tmpBase = tmpBase.replace('\\', '/')
 
     # We use #_MARKER_# to hide %% while we do the other substitutions.
@@ -414,6 +416,7 @@ def parseIntegratedTestScript(test, normalize_slashes=False):
                           ('%S', sourcedir),
                           ('%p', sourcedir),
                           ('%t', tmpBase + '.tmp'),
+                          ('%T', tmpDir),
                           # FIXME: Remove this once we kill DejaGNU.
                           ('%abs_tmp', tmpBase + '.tmp'),
                           ('#_MARKER_#', '%')])
@@ -533,13 +536,13 @@ def executeTclTest(test, litConfig):
     # considered to fail if there is any standard error output.
     out,err,exitCode = res
     if isXFail:
-        ok = exitCode != 0 or err
+        ok = exitCode != 0 or err and not litConfig.ignoreStdErr
         if ok:
             status = Test.XFAIL
         else:
             status = Test.XPASS
     else:
-        ok = exitCode == 0 and not err
+        ok = exitCode == 0 and (not err or litConfig.ignoreStdErr)
         if ok:
             status = Test.PASS
         else:
@@ -550,7 +553,7 @@ def executeTclTest(test, litConfig):
 
     # Set a flag for formatTestOutput so it can explain why the test was
     # considered to have failed, despite having an exit code of 0.
-    failDueToStderr = exitCode == 0 and err
+    failDueToStderr = exitCode == 0 and err and not litConfig.ignoreStdErr
 
     return formatTestOutput(status, out, err, exitCode, failDueToStderr, script)
 

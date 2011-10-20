@@ -13,12 +13,11 @@ TARGET = PTX
 
 # Make sure that tblgen is run, first thing.
 BUILT_SOURCES = PTXGenAsmWriter.inc \
-		PTXGenCallingConv.inc \
 		PTXGenDAGISel.inc \
 		PTXGenInstrInfo.inc \
 		PTXGenRegisterInfo.inc \
 		PTXGenSubtargetInfo.inc
 
-DIRS = TargetInfo MCTargetDesc
+DIRS = InstPrinter TargetInfo MCTargetDesc
 
 include $(LEVEL)/Makefile.common
