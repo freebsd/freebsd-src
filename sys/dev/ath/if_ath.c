@@ -1478,8 +1478,6 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;
-			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
-
 			/*
 			 * Grab all the currently set bits in the HAL txq bitmap
 			 * and blank them. This is the only place we should be
@@ -1490,6 +1488,7 @@ ath_intr(void *arg)
 			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
 			sc->sc_txq_active |= txqs;
 			ATH_UNLOCK(sc);
+			taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_txtask);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
