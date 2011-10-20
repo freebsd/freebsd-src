@@ -1828,6 +1828,10 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
+	ATH_LOCK(sc);
+	sc->sc_in_reset++;
+	ATH_UNLOCK(sc);
+
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
 	/*
@@ -1863,6 +1867,10 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 			ath_beacon_config(sc, NULL);
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
+
+	ATH_LOCK(sc);
+	sc->sc_in_reset--;
+	ATH_UNLOCK(sc);
 
 	ath_start(ifp);			/* restart xmit */
 	return 0;
@@ -5238,6 +5246,11 @@ ath_set_channel(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 
+	/* This isn't strictly a reset, but we still have to drain */
+	ATH_LOCK(sc);
+	sc->sc_in_reset++;
+	ATH_UNLOCK(sc);
+
 	(void) ath_chan_set(sc, ic->ic_curchan);
 	/*
 	 * If we are returning to our bss channel then mark state
@@ -5247,6 +5260,10 @@ ath_set_channel(struct ieee80211com *ic)
 	 */
 	if (!sc->sc_scanning && ic->ic_curchan == ic->ic_bsschan)
 		sc->sc_syncbeacon = 1;
+
+	ATH_LOCK(sc);
+	sc->sc_in_reset--;
+	ATH_UNLOCK(sc);
 }
 
 /*

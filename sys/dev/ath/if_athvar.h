@@ -434,6 +434,7 @@ struct ath_softc {
 	 */
 	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
 	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+	uint32_t		sc_in_reset;	/* currently reset/chan change */
 
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
