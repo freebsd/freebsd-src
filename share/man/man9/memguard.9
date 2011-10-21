@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2011
+.Dd October 21, 2011
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -204,3 +204,17 @@ Additions have been made by
 and
 .An Gleb Smirnoff Aq glebius@FreeBSD.org
 to both the implementation and the documentation.
+.Sh BUGS
+It is not possible to guard allocations that really expect theirselves to be
+allocated from
+.Xr uma 9 ,
+utilizing additional interfaces apart from
+.Fn uma_zalloc
+and
+.Fn uma_free ,
+for example
+.Fn uma_find_refcnt .
+For the moment of writing only
+.Xr mbuf 9
+cluster zones belong to that kind of allocations.
+Attempt to guard them would lead to kernel panic.
