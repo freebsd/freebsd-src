@@ -1959,7 +1959,11 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ip->ip_hl = sizeof(sc->sc_template) >> 2;
 		ip->ip_tos = IPTOS_LOWDELAY;
 		/* len and id are set later */
+#ifdef __FreeBSD__
+		ip->ip_off = IP_DF;
+#else
 		ip->ip_off = htons(IP_DF);
+#endif
 		ip->ip_ttl = PFSYNC_DFLTTL;
 		ip->ip_p = IPPROTO_PFSYNC;
 		ip->ip_src.s_addr = INADDR_ANY;
@@ -2211,7 +2215,11 @@ pfsync_sendout(void)
 	bcopy(&sc->sc_template, ip, sizeof(*ip));
 	offset = sizeof(*ip);
 
+#ifdef __FreeBSD__
+	ip->ip_len = m->m_pkthdr.len;
+#else
 	ip->ip_len = htons(m->m_pkthdr.len);
+#endif
 	ip->ip_id = htons(ip_randomid());
 
 	/* build the pfsync header */
