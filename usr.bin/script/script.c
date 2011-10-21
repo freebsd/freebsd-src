@@ -168,12 +168,15 @@ main(int argc, char *argv[])
 		FD_SET(master, &rfd);
 		if (readstdin)
 			FD_SET(STDIN_FILENO, &rfd);
-		if ((!readstdin && ttyflg) || flushtime > 0) {
-			tv.tv_sec = !readstdin && ttyflg ? 1 :
-			    flushtime - (tvec - start);
+		if (!readstdin && ttyflg) {
+			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 			tvp = &tv;
 			readstdin = 1;
+		} else if (flushtime > 0) {
+			tv.tv_sec = flushtime - (tvec - start);
+			tv.tv_usec = 0;
+			tvp = &tv;
 		} else {
 			tvp = NULL;
 		}
