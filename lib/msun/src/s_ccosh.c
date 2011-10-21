@@ -42,10 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include "math_private.h"
 
+static const double huge = 0x1p1023;
+
 double complex
 ccosh(double complex z)
 {
-	double x, y;
+	double x, y, h;
 	int32_t hx, hy, ix, iy, lx, ly;
 
 	x = creal(z);
@@ -61,8 +63,23 @@ ccosh(double complex z)
 	if (ix < 0x7ff00000 && iy < 0x7ff00000) {
 		if ((iy | ly) == 0)
 			return (cpack(cosh(x), x * y));
-		/* XXX We don't handle |x| > DBL_MAX ln(2) yet. */
-		return (cpack(cosh(x) * cos(y), sinh(x) * sin(y)));
+		if (ix < 0x40360000)	/* small x: normal case */
+			return (cpack(cosh(x) * cos(y), sinh(x) * sin(y)));
+
+		/* |x| >= 22, so cosh(x) ~= exp(|x|) */
+		if (ix < 0x40862e42) {
+			/* x < 710: exp(|x|) won't overflow */
+			h = exp(fabs(x)) * 0.5;
+			return (cpack(h * cos(y), copysign(h, x) * sin(y)));
+		} else if (ix < 0x4096bbaa) {
+			/* x < 1455: scale to avoid overflow */
+			z = __ldexp_cexp(cpack(fabs(x), y), -1);
+			return (cpack(creal(z), cimag(z) * copysign(1, x)));
+		} else {
+			/* x >= 1455: the result always overflows */
+			h = huge * x;
+			return (cpack(h * h * cos(y), h * sin(y)));
+		}
 	}
 
 	/*
