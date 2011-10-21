@@ -57,6 +57,9 @@ ctanhf(float complex z)
 		    copysignf(0, isinf(y) ? y : sinf(y) * cosf(y))));
 	}
 
+	if (!isfinite(y))
+		return (cpackf(y - y, y - y));
+
 	if (ix >= 0x41300000) {	/* x >= 11 */
 		float exp_mx = expf(-fabsf(x));
 		return (cpackf(copysignf(1, x),
