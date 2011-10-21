@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 
 #include "math_private.h"
 
+static const float huge = 0x1p127;
+
 float complex
 ccoshf(float complex z)
 {
-	float x, y;
+	float x, y, h;
 	int32_t hx, hy, ix, iy;
 
 	x = crealf(z);
@@ -54,8 +56,23 @@ ccoshf(float complex z)
 	if (ix < 0x7f800000 && iy < 0x7f800000) {
 		if (iy == 0)
 			return (cpackf(coshf(x), x * y));
-		/* XXX We don't handle |x| > FLT_MAX ln(2) yet. */
-		return (cpackf(coshf(x) * cosf(y), sinhf(x) * sinf(y)));
+		if (ix < 0x41100000)	/* small x: normal case */
+			return (cpackf(coshf(x) * cosf(y), sinhf(x) * sinf(y)));
+
+		/* |x| >= 9, so cosh(x) ~= exp(|x|) */
+		if (ix < 0x42b17218) {
+			/* x < 88.7: expf(|x|) won't overflow */
+			h = expf(fabsf(x)) * 0.5f;
+			return (cpackf(h * cosf(y), copysignf(h, x) * sinf(y)));
+		} else if (ix < 0x4340b1e7) {
+			/* x < 192.7: scale to avoid overflow */
+			z = __ldexp_cexpf(cpackf(fabsf(x), y), -1);
+			return (cpackf(crealf(z), cimagf(z) * copysignf(1, x)));
+		} else {
+			/* x >= 192.7: the result always overflows */
+			h = huge * x;
+			return (cpackf(h * h * cosf(y), h * sinf(y)));
+		}
 	}
 
 	if (ix == 0 && iy >= 0x7f800000)
