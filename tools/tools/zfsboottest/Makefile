@@ -2,7 +2,12 @@
 
 .PATH:		${.CURDIR}/../../../sys/boot/zfs ${.CURDIR}/../../../sys/cddl/boot/zfs
 
+BINDIR?=	/usr/bin
+SCRIPTSDIR?=	/usr/bin
+
 PROG=		zfsboottest
+SCRIPTS=	zfsboottest.sh
+SCRIPTSNAME=	zfsboottest.sh
 NO_MAN=
 
 CFLAGS=	-O1 \
