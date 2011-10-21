@@ -397,6 +397,10 @@ int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
+double	__ldexp_exp(double,int);
+#ifdef _COMPLEX_H
+double complex __ldexp_cexp(double complex,int);
+#endif
 
 /* float precision kernel functions */
 #ifdef INLINE_REM_PIO2F
@@ -415,6 +419,10 @@ float	__kernel_cosdf(double);
 __inline
 #endif
 float	__kernel_tandf(double,int);
+float	__ldexp_expf(float,int);
+#ifdef _COMPLEX_H
+float complex __ldexp_cexpf(float complex,int);
+#endif
 
 /* long double precision kernel functions */
 long double __kernel_sinl(long double, long double, int);
