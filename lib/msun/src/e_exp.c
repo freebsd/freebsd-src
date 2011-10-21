@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
  * to produce the hexadecimal values shown.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -133,7 +135,7 @@ __ieee754_exp(double x)	/* default IEEE double exp */
 		hi = x - t*ln2HI[0];	/* t*ln2HI is exact here */
 		lo = t*ln2LO[0];
 	    }
-	    x  = hi - lo;
+	    STRICT_ASSIGN(double, x, hi - lo);
 	} 
 	else if(hx < 0x3e300000)  {	/* when |x|<2**-28 */
 	    if(huge+x>one) return one+x;/* trigger inexact */
