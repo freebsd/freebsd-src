@@ -250,6 +250,8 @@ fma(double x, double y, double z)
 	xy = dd_mul(xs, ys);
 	r = dd_add(xy.hi, zs);
 
+	spread = ex + ey;
+
 	if (r.hi == 0.0) {
 		/*
 		 * When the addends cancel to 0, ensure that the result has
@@ -257,10 +259,8 @@ fma(double x, double y, double z)
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		return (xy.hi + vzs);
+		return (xy.hi + vzs + ldexp(xy.lo, spread));
 	}
-
-	spread = ex + ey;
 
 	if (oround != FE_TONEAREST) {
 		/*
