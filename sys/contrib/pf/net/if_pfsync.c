@@ -2354,6 +2354,7 @@ pfsync_sendout(void)
 	sc->sc_if.if_obytes += m->m_pkthdr.len;
 #endif
 
+	sc->sc_len = PFSYNC_MINPKT;
 #ifdef __FreeBSD__
 	PF_UNLOCK();
 #endif
@@ -2375,9 +2376,6 @@ pfsync_sendout(void)
 #ifdef __FreeBSD__
 	}
 #endif
-
-	/* start again */
-	sc->sc_len = PFSYNC_MINPKT;
 }
 
 void
