@@ -362,6 +362,65 @@ test_accuracy(void)
 		0x1.d87da3aafda40p70L, 0x1.d87da3aafda3fp70L,
 		0x1.d87da3aafda3fp70L, ALL_STD_EXCEPT, FE_INEXACT);
 #endif
+
+	/* ilogb(x*y) - ilogb(z) = 0 */
+	testrnd(fmaf, 0x1.31ad02p+100, 0x1.2fbf7ap-42, -0x1.c3e106p+58,
+		-0x1.64c27cp+56, -0x1.64c27ap+56, -0x1.64c27cp+56,
+		-0x1.64c27ap+56, ALL_STD_EXCEPT, FE_INEXACT);
+	testrnd(fma, 0x1.31ad012ede8aap+100, 0x1.2fbf79c839067p-42,
+		-0x1.c3e106929056ep+58, -0x1.64c282b970a5fp+56,
+		-0x1.64c282b970a5ep+56, -0x1.64c282b970a5fp+56,
+		-0x1.64c282b970a5ep+56, ALL_STD_EXCEPT, FE_INEXACT);
+#if LDBL_MANT_DIG == 113
+	testrnd(fmal, 0x1.31ad012ede8aa282fa1c19376d16p+100L,
+		 0x1.2fbf79c839066f0f5c68f6d2e814p-42L,
+		-0x1.c3e106929056ec19de72bfe64215p+58L,
+		-0x1.64c282b970a612598fc025ca8cddp+56L,
+		-0x1.64c282b970a612598fc025ca8cddp+56L,
+		-0x1.64c282b970a612598fc025ca8cdep+56L,
+		-0x1.64c282b970a612598fc025ca8cddp+56L,
+		ALL_STD_EXCEPT, FE_INEXACT);
+#elif LDBL_MANT_DIG == 64
+	testrnd(fmal, 0x1.31ad012ede8aa4eap+100L, 0x1.2fbf79c839066aeap-42L,
+		-0x1.c3e106929056e61p+58L, -0x1.64c282b970a60298p+56L,
+		-0x1.64c282b970a60298p+56L, -0x1.64c282b970a6029ap+56L,
+		-0x1.64c282b970a60298p+56L, ALL_STD_EXCEPT, FE_INEXACT);
+#elif LDBL_MANT_DIG == 53
+	testrnd(fmal, 0x1.31ad012ede8aap+100L, 0x1.2fbf79c839067p-42L,
+		-0x1.c3e106929056ep+58L, -0x1.64c282b970a5fp+56L,
+		-0x1.64c282b970a5ep+56L, -0x1.64c282b970a5fp+56L,
+		-0x1.64c282b970a5ep+56L, ALL_STD_EXCEPT, FE_INEXACT);
+#endif
+
+	/* x*y (rounded) ~= -z */
+	/* XXX spurious inexact exceptions */
+	testrnd(fmaf, 0x1.bbffeep-30, -0x1.1d164cp-74, 0x1.ee7296p-104,
+		-0x1.c46ea8p-128, -0x1.c46ea8p-128, -0x1.c46ea8p-128,
+		-0x1.c46ea8p-128, ALL_STD_EXCEPT & ~FE_INEXACT, 0);
+	testrnd(fma, 0x1.bbffeea6fc7d6p-30, 0x1.1d164c6cbf078p-74,
+		-0x1.ee72993aff948p-104, -0x1.71f72ac7d9d8p-159,
+		-0x1.71f72ac7d9d8p-159, -0x1.71f72ac7d9d8p-159,
+		-0x1.71f72ac7d9d8p-159, ALL_STD_EXCEPT & ~FE_INEXACT, 0);
+#if LDBL_MANT_DIG == 113
+	testrnd(fmal, 0x1.bbffeea6fc7d65927d147f437675p-30L,
+		0x1.1d164c6cbf078b7a22607d1cd6a2p-74L,
+		-0x1.ee72993aff94973876031bec0944p-104L,
+		0x1.64e086175b3a2adc36e607058814p-217L,
+		0x1.64e086175b3a2adc36e607058814p-217L,
+		0x1.64e086175b3a2adc36e607058814p-217L,
+		0x1.64e086175b3a2adc36e607058814p-217L,
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0);
+#elif LDBL_MANT_DIG == 64
+	testrnd(fmal, 0x1.bbffeea6fc7d6592p-30L, 0x1.1d164c6cbf078b7ap-74L,
+		-0x1.ee72993aff949736p-104L, 0x1.af190e7a1ee6ad94p-168L,
+		0x1.af190e7a1ee6ad94p-168L, 0x1.af190e7a1ee6ad94p-168L,
+		0x1.af190e7a1ee6ad94p-168L, ALL_STD_EXCEPT & ~FE_INEXACT, 0);
+#elif LDBL_MANT_DIG == 53
+	testrnd(fmal, 0x1.bbffeea6fc7d6p-30L, 0x1.1d164c6cbf078p-74L,
+		-0x1.ee72993aff948p-104L, -0x1.71f72ac7d9d8p-159L,
+		-0x1.71f72ac7d9d8p-159L, -0x1.71f72ac7d9d8p-159L,
+		-0x1.71f72ac7d9d8p-159L, ALL_STD_EXCEPT & ~FE_INEXACT, 0);
+#endif
 }
 
 static void
@@ -407,9 +466,10 @@ test_double_rounding(void)
 	test(fmal, 0x1.4p+0L, 0x1.0000000000000004p+0L, 0x1p-128L,
 	     0x1.4000000000000006p+0L, ALL_STD_EXCEPT, FE_INEXACT);
 #elif LDBL_MANT_DIG == 113
-	/* XXX untested test */
-	test(fmal, 0x1.4p+0L, 0x1.0000000000000000000000000002p+0L, 0x1p-224L,
-	     0x1.4000000000000000000000000003p+0L, ALL_STD_EXCEPT, FE_INEXACT);
+	test(fmal, 0x1.8000000000000000000000000001p+0L,
+	     0x1.8000000000000000000000000001p+0L,
+	     -0x1.0000000000000000000000000001p-224L,
+	     0x1.2000000000000000000000000001p+1L, ALL_STD_EXCEPT, FE_INEXACT);
 #endif
 
 }
