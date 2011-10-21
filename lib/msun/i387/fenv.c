@@ -192,14 +192,14 @@ __feenableexcept(int mask)
 		__stmxcsr(&mxcsr);
 	else
 		mxcsr = 0;
-	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control &= ~mask;
 	__fldcw(control);
 	if (__HAS_SSE()) {
 		mxcsr &= ~(mask << _SSE_EMASK_SHIFT);
 		__ldmxcsr(mxcsr);
 	}
-	return (~omask);
+	return (omask);
 }
 
 int
@@ -214,14 +214,14 @@ __fedisableexcept(int mask)
 		__stmxcsr(&mxcsr);
 	else
 		mxcsr = 0;
-	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control |= mask;
 	__fldcw(control);
 	if (__HAS_SSE()) {
 		mxcsr |= mask << _SSE_EMASK_SHIFT;
 		__ldmxcsr(mxcsr);
 	}
-	return (~omask);
+	return (omask);
 }
 
 __weak_reference(__feenableexcept, feenableexcept);
