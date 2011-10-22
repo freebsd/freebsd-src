@@ -79,6 +79,13 @@ typedef MD5_CTX archive_md5_ctx;
 #  define archive_md5_init(ctx)			MD5Init(ctx)
 #  define archive_md5_final(ctx, buf)		MD5Final(buf, ctx)
 #  define archive_md5_update(ctx, buf, n)	MD5Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_MD5_LIBMD)
+#  include <md5.h>
+#  define ARCHIVE_HAS_MD5
+typedef MD5_CTX archive_md5_ctx;
+#  define archive_md5_init(ctx)			MD5Init(ctx)
+#  define archive_md5_final(ctx, buf)		MD5Final(buf, ctx)
+#  define archive_md5_update(ctx, buf, n)	MD5Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_MD5_LIBSYSTEM)
 #  include <CommonCrypto/CommonDigest.h>
 #  define ARCHIVE_HAS_MD5
@@ -125,6 +132,13 @@ typedef SHA1_CTX archive_sha1_ctx;
 #  define archive_sha1_init(ctx)		SHA1Init(ctx)
 #  define archive_sha1_final(ctx, buf)		SHA1Final(buf, ctx)
 #  define archive_sha1_update(ctx, buf, n)	SHA1Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA1_LIBMD)
+#  include <sha.h>
+#  define ARCHIVE_HAS_SHA1
+typedef SHA1_CTX archive_sha1_ctx;
+#  define archive_sha1_init(ctx)		SHA1_Init(ctx)
+#  define archive_sha1_final(ctx, buf)		SHA1_Final(buf, ctx)
+#  define archive_sha1_update(ctx, buf, n)	SHA1_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA1_LIBSYSTEM)
 #  include <CommonCrypto/CommonDigest.h>
 #  define ARCHIVE_HAS_SHA1
@@ -169,6 +183,13 @@ typedef SHA2_CTX archive_sha256_ctx;
 #  define archive_sha256_init(ctx)		SHA256Init(ctx)
 #  define archive_sha256_final(ctx, buf)	SHA256Final(buf, ctx)
 #  define archive_sha256_update(ctx, buf, n)	SHA256Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA256_LIBMD)
+#  include <sha256.h>
+#  define ARCHIVE_HAS_SHA256
+typedef SHA256_CTX archive_sha256_ctx;
+#  define archive_sha256_init(ctx)		SHA256_Init(ctx)
+#  define archive_sha256_final(ctx, buf)	SHA256_Final(buf, ctx)
+#  define archive_sha256_update(ctx, buf, n)	SHA256_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA256_LIBSYSTEM)
 #  include <CommonCrypto/CommonDigest.h>
 #  define ARCHIVE_HAS_SHA256
@@ -257,6 +278,13 @@ typedef SHA2_CTX archive_sha512_ctx;
 #  define archive_sha512_init(ctx)		SHA512Init(ctx)
 #  define archive_sha512_final(ctx, buf)	SHA512Final(buf, ctx)
 #  define archive_sha512_update(ctx, buf, n)	SHA512Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA512_LIBMD)
+#  include <sha512.h>
+#  define ARCHIVE_HAS_SHA512
+typedef SHA512_CTX archive_sha512_ctx;
+#  define archive_sha512_init(ctx)		SHA512_Init(ctx)
+#  define archive_sha512_final(ctx, buf)	SHA512_Final(buf, ctx)
+#  define archive_sha512_update(ctx, buf, n)	SHA512_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA512_LIBSYSTEM)
 #  include <CommonCrypto/CommonDigest.h>
 #  define ARCHIVE_HAS_SHA512
