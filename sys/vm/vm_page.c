@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -120,6 +121,13 @@ struct vpglocks vm_page_queue_lock;
 struct vpglocks vm_page_queue_free_lock;
 
 struct vpglocks	pa_lock[PA_LOCK_COUNT];
+
+#ifdef VM_RADIX
+extern SLIST_HEAD(, vm_radix_node) res_rnodes_head;
+extern struct mtx rnode_lock;
+extern vm_offset_t rnode_start;
+extern vm_offset_t rnode_end;
+#endif
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
@@ -252,6 +260,10 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
 	char *list;
+#ifdef VM_RADIX
+	unsigned int rtree_res_count;
+	vm_pindex_t size;
+#endif
 
 	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
@@ -311,7 +323,34 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
 	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
-
+#ifdef VM_RADIX
+	mtx_init(&rnode_lock, "radix node", NULL, MTX_SPIN);
+	/*
+	 * Reserve memory for radix nodes.  Allocate enough nodes so that
+	 * insert on kernel_object will not result in recurrsion.
+	 */
+	size = OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) * 2;
+	rtree_res_count = 0;
+	while (size != 0) {
+		rtree_res_count += size / VM_RADIX_COUNT;
+		size /= VM_RADIX_COUNT;
+	}
+	printf("Allocated %d tree pages for %lu bytes of memory.\n",
+	    rtree_res_count, VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
+	new_end = end - (rtree_res_count * sizeof(struct vm_radix_node));
+	new_end = trunc_page(new_end);
+	mapped = pmap_map(&vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	bzero((void *)mapped, end - new_end);
+	end = new_end;
+	rnode_start = mapped;
+	for (i = 0; i < rtree_res_count; i++) {
+		SLIST_INSERT_HEAD(&res_rnodes_head,
+		    (struct vm_radix_node *)mapped, next);
+		mapped += sizeof(struct vm_radix_node);
+	}
+	rnode_end = mapped;
+#endif
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
@@ -836,8 +875,11 @@ vm_page_splay(vm_pindex_t pindex, vm_page_t root)
 void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
+#ifdef VM_RADIX
+	vm_page_t neighbor;
+#else
 	vm_page_t root;
-
+#endif
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (m->object != NULL)
 		panic("vm_page_insert: page already inserted");
@@ -848,6 +890,20 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	m->object = object;
 	m->pindex = pindex;
 
+#ifdef VM_RADIX
+	if (object->resident_page_count == 0) {
+		TAILQ_INSERT_TAIL(&object->memq, m, listq);
+	} else { 
+		neighbor = vm_radix_lookup_ge(&object->rtree, pindex);
+		if (neighbor != NULL) {
+		    	KASSERT(pindex != neighbor->pindex,
+			    ("vm_page_insert: offset already allocated"));
+			TAILQ_INSERT_BEFORE(neighbor, m, listq);
+		} else 
+			TAILQ_INSERT_TAIL(&object->memq, m, listq);
+	}
+	vm_radix_insert(&object->rtree, pindex, m);
+#else
 	/*
 	 * Now link into the object's ordered list of backed pages.
 	 */
@@ -873,6 +929,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 		}
 	}
 	object->root = m;
+#endif
 
 	/*
 	 * show that the object has one more resident page.
@@ -908,7 +965,9 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
+#ifndef VM_RADIX
 	vm_page_t root;
+#endif
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
@@ -920,6 +979,9 @@ vm_page_remove(vm_page_t m)
 		vm_page_flash(m);
 	}
 
+#ifdef VM_RADIX
+	vm_radix_remove(&object->rtree, m->pindex);
+#else
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
@@ -932,6 +994,8 @@ vm_page_remove(vm_page_t m)
 		root->right = m->right;
 	}
 	object->root = root;
+#endif
+
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -963,11 +1027,16 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+
+#ifdef VM_RADIX
+	m = vm_radix_lookup(&object->rtree, pindex);
+#else
 	if ((m = object->root) != NULL && m->pindex != pindex) {
 		m = vm_page_splay(pindex, m);
 		if ((object->root = m)->pindex != pindex)
 			m = NULL;
 	}
+#endif
 	return (m);
 }
 
@@ -986,6 +1055,10 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+#ifdef VM_RADIX
+	if ((m = TAILQ_FIRST(&object->memq)) != NULL)
+		m = vm_radix_lookup_ge(&object->rtree, pindex);
+#else
 	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (m->pindex < pindex) {
 			m = vm_page_splay(pindex, object->root);
@@ -993,6 +1066,7 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 				m = TAILQ_NEXT(m, listq);
 		}
 	}
+#endif
 	return (m);
 }
 
@@ -2052,6 +2126,9 @@ vm_page_cache(vm_page_t m)
 	 */
 	vm_pageq_remove(m);
 
+#ifdef VM_RADIX
+	vm_radix_remove(&object->rtree, m->pindex);
+#else
 	/*
 	 * Remove the page from the object's collection of resident
 	 * pages. 
@@ -2065,6 +2142,7 @@ vm_page_cache(vm_page_t m)
 		root->right = m->right;
 	}
 	object->root = root;
+#endif
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 

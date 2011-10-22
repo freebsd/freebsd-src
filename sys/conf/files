@@ -3330,6 +3330,7 @@ vm/vm_page.c			standard
 vm/vm_pageout.c			standard
 vm/vm_pager.c			standard
 vm/vm_phys.c			standard
+vm/vm_radix.c		standard
 vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard

@@ -208,7 +208,12 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	TAILQ_INIT(&object->memq);
 	LIST_INIT(&object->shadow_head);
 
+#ifdef VM_RADIX
+	object->rtree.rt_height = 0;
+	object->rtree.rt_root = NULL;
+#else
 	object->root = NULL;
+#endif
 	object->type = type;
 	object->size = size;
 	object->generation = 1;

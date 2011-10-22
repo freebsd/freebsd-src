@@ -71,6 +71,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/vm_radix.h>
+
 /*
  *	Types defined:
  *
@@ -87,6 +89,7 @@ struct vm_object {
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
+	struct vm_radix rtree;	/* root of the resident page radix index tree */
 	vm_page_t root;			/* root of the resident page splay tree */
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */

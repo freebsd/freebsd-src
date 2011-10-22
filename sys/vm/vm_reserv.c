@@ -309,6 +309,35 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Look for an existing reservation.
 	 */
+#ifdef VM_RADIX
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	if (mpred != NULL) {
+		KASSERT(mpred->pindex != pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(mpred);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex)) {
+			m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
+			if ((m->flags & (PG_CACHED | PG_FREE)) == 0)
+				return (NULL);
+			vm_reserv_populate(rv);
+			return (m);
+		}
+	}
+	msucc = vm_radix_lookup_ge(&object->rtree, pindex);
+	if (msucc != NULL) {
+		KASSERT(msucc->pindex != pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(msucc);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex)) {
+			m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
+			if ((m->flags & (PG_CACHED | PG_FREE)) == 0)
+				return (NULL);
+			vm_reserv_populate(rv);
+			return (m);
+		}
+	}
+
+#else
 	msucc = NULL;
 	mpred = object->root;
 	while (mpred != NULL) {
@@ -347,6 +376,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 		msucc = NULL;
 		mpred = object->root = vm_page_splay(pindex, object->root);
 	}
+#endif
 
 	/*
 	 * Determine the first index to the left that can be used.
