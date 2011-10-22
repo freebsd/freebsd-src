@@ -219,7 +219,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 		if (bsdtar->uname)
 			archive_entry_set_uname(entry, bsdtar->uname);
-		if (bsdtar->gname >= 0)
+		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
 
 		/*
