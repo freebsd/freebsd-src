@@ -28,13 +28,9 @@
 #include <string>
 #include <vector>
 
-namespace llvm {
-  template<typename T> class SmallVectorImpl;
-}
-
 namespace clang {
 
-class Diagnostic;
+class DiagnosticsEngine;
 
 /// CompilerInvocation - Helper class for holding the data necessary to invoke
 /// the compiler.
@@ -92,7 +88,7 @@ public:
   static void CreateFromArgs(CompilerInvocation &Res,
                              const char* const *ArgBegin,
                              const char* const *ArgEnd,
-                             Diagnostic &Diags);
+                             DiagnosticsEngine &Diags);
 
   /// GetBuiltinIncludePath - Get the directory where the compiler headers
   /// reside, relative to the compiler binary (found by the passed in
@@ -126,6 +122,10 @@ public:
   /// \param LangStd - The input language standard.
   static void setLangDefaults(LangOptions &Opts, InputKind IK,
                    LangStandard::Kind LangStd = LangStandard::lang_unspecified);
+  
+  /// \brief Retrieve a module hash string that is suitable for uniquely 
+  /// identifying the conditions under which the module was built.
+  std::string getModuleHash() const;
   
   /// @}
   /// @name Option Subgroups

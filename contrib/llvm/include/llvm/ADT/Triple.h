@@ -10,8 +10,7 @@
 #ifndef LLVM_ADT_TRIPLE_H
 #define LLVM_ADT_TRIPLE_H
 
-#include "llvm/ADT/StringRef.h"
-#include <string>
+#include "llvm/ADT/Twine.h"
 
 // Some system headers or GCC predefined macros conflict with identifiers in
 // this file.  Undefine them here.
@@ -19,8 +18,6 @@
 #undef sparc
 
 namespace llvm {
-class StringRef;
-class Twine;
 
 /// Triple - Helper class for working with target triples.
 ///
@@ -52,6 +49,8 @@ public:
     cellspu, // CellSPU: spu, cellspu
     mips,    // MIPS: mips, mipsallegrex
     mipsel,  // MIPSEL: mipsel, mipsallegrexel, psp
+    mips64,  // MIPS64: mips64
+    mips64el,// MIPS64EL: mips64el
     msp430,  // MSP430: msp430
     ppc,     // PPC: powerpc
     ppc64,   // PPC64: powerpc64, ppu
@@ -66,6 +65,8 @@ public:
     mblaze,  // MBlaze: mblaze
     ptx32,   // PTX: ptx (32-bit)
     ptx64,   // PTX: ptx (64-bit)
+    le32,    // le32: generic little-endian 32-bit CPU (PNaCl / Emscripten)
+    amdil,   // amdil: amd IL
 
     InvalidArch
   };
@@ -85,6 +86,7 @@ public:
     DragonFly,
     FreeBSD,
     IOS,
+    KFreeBSD,
     Linux,
     Lv2,        // PS3
     MacOSX,
@@ -96,7 +98,8 @@ public:
     Win32,
     Haiku,
     Minix,
-    RTEMS
+    RTEMS,
+    NativeClient
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -134,24 +137,16 @@ public:
   /// @{
 
   Triple() : Data(), Arch(InvalidArch) {}
-  explicit Triple(StringRef Str) : Data(Str), Arch(InvalidArch) {}
-  explicit Triple(StringRef ArchStr, StringRef VendorStr, StringRef OSStr)
-    : Data(ArchStr), Arch(InvalidArch) {
-    Data += '-';
-    Data += VendorStr;
-    Data += '-';
-    Data += OSStr;
+  explicit Triple(const Twine &Str) : Data(Str.str()), Arch(InvalidArch) {}
+  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr)
+    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr).str()),
+      Arch(InvalidArch) {
   }
 
-  explicit Triple(StringRef ArchStr, StringRef VendorStr, StringRef OSStr,
-    StringRef EnvironmentStr)
-    : Data(ArchStr), Arch(InvalidArch) {
-    Data += '-';
-    Data += VendorStr;
-    Data += '-';
-    Data += OSStr;
-    Data += '-';
-    Data += EnvironmentStr;
+  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr,
+         const Twine &EnvironmentStr)
+    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr + Twine('-') +
+            EnvironmentStr).str()), Arch(InvalidArch) {
   }
 
   /// @}

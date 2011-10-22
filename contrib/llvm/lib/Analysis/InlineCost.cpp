@@ -15,6 +15,7 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/CallingConv.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 using namespace llvm;
@@ -24,13 +25,13 @@ using namespace llvm;
 /// TODO: Perhaps calls like memcpy, strcpy, etc?
 bool llvm::callIsSmall(const Function *F) {
   if (!F) return false;
-  
+
   if (F->hasLocalLinkage()) return false;
-  
+
   if (!F->hasName()) return false;
-  
+
   StringRef Name = F->getName();
-  
+
   // These will all likely lower to a single selection DAG node.
   if (Name == "copysign" || Name == "copysignf" || Name == "copysignl" ||
       Name == "fabs" || Name == "fabsf" || Name == "fabsl" ||
@@ -38,7 +39,7 @@ bool llvm::callIsSmall(const Function *F) {
       Name == "cos" || Name == "cosf" || Name == "cosl" ||
       Name == "sqrt" || Name == "sqrtf" || Name == "sqrtl" )
     return true;
-  
+
   // These are all likely to be optimized into something smaller.
   if (Name == "pow" || Name == "powf" || Name == "powl" ||
       Name == "exp2" || Name == "exp2l" || Name == "exp2f" ||
@@ -46,13 +47,14 @@ bool llvm::callIsSmall(const Function *F) {
       Name == "round" || Name == "ffs" || Name == "ffsl" ||
       Name == "abs" || Name == "labs" || Name == "llabs")
     return true;
-  
+
   return false;
 }
 
 /// analyzeBasicBlock - Fill in the current structure with information gleaned
 /// from the specified block.
-void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
+void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB,
+                                    const TargetData *TD) {
   ++NumBlocks;
   unsigned NumInstsBeforeThisBB = NumInsts;
   for (BasicBlock::const_iterator II = BB->begin(), E = BB->end();
@@ -67,8 +69,8 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
       ImmutableCallSite CS(cast<Instruction>(II));
 
       if (const Function *F = CS.getCalledFunction()) {
-        // If a function is both internal and has a single use, then it is 
-        // extremely likely to get inlined in the future (it was probably 
+        // If a function is both internal and has a single use, then it is
+        // extremely likely to get inlined in the future (it was probably
         // exposed by an interleaved devirtualization pass).
         if (F->hasInternalLinkage() && F->hasOneUse())
           ++NumInlineCandidates;
@@ -91,19 +93,24 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
           ++NumCalls;
       }
     }
-    
+
     if (const AllocaInst *AI = dyn_cast<AllocaInst>(II)) {
       if (!AI->isStaticAlloca())
         this->usesDynamicAlloca = true;
     }
 
     if (isa<ExtractElementInst>(II) || II->getType()->isVectorTy())
-      ++NumVectorInsts; 
-    
+      ++NumVectorInsts;
+
     if (const CastInst *CI = dyn_cast<CastInst>(II)) {
       // Noop casts, including ptr <-> int,  don't count.
-      if (CI->isLosslessCast() || isa<IntToPtrInst>(CI) || 
+      if (CI->isLosslessCast() || isa<IntToPtrInst>(CI) ||
           isa<PtrToIntInst>(CI))
+        continue;
+      // trunc to a native type is free (assuming the target has compare and
+      // shift-right of the same width).
+      if (isa<TruncInst>(CI) && TD &&
+          TD->isLegalInteger(TD->getTypeSizeInBits(CI->getType())))
         continue;
       // Result of a cmp instruction is often extended (to be used by other
       // cmp instructions, logical or return instructions). These are usually
@@ -119,10 +126,10 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
 
     ++NumInsts;
   }
-  
+
   if (isa<ReturnInst>(BB->getTerminator()))
     ++NumRets;
-  
+
   // We never want to inline functions that contain an indirectbr.  This is
   // incorrect because all the blockaddress's (in static global initializers
   // for example) would be referring to the original function, and this indirect
@@ -217,7 +224,7 @@ unsigned CodeMetrics::CountCodeReductionForAlloca(Value *V) {
 
 /// analyzeFunction - Fill in the current structure with information gleaned
 /// from the specified function.
-void CodeMetrics::analyzeFunction(Function *F) {
+void CodeMetrics::analyzeFunction(Function *F, const TargetData *TD) {
   // If this function contains a call to setjmp or _setjmp, never inline
   // it.  This is a hack because we depend on the user marking their local
   // variables as volatile if they are live across a setjmp call, and they
@@ -227,13 +234,14 @@ void CodeMetrics::analyzeFunction(Function *F) {
 
   // Look at the size of the callee.
   for (Function::const_iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
-    analyzeBasicBlock(&*BB);
+    analyzeBasicBlock(&*BB, TD);
 }
 
 /// analyzeFunction - Fill in the current structure with information gleaned
 /// from the specified function.
-void InlineCostAnalyzer::FunctionInfo::analyzeFunction(Function *F) {
-  Metrics.analyzeFunction(F);
+void InlineCostAnalyzer::FunctionInfo::analyzeFunction(Function *F,
+                                                       const TargetData *TD) {
+  Metrics.analyzeFunction(F, TD);
 
   // A function with exactly one return has it removed during the inlining
   // process (see InlineFunction), so don't count it.
@@ -252,7 +260,7 @@ void InlineCostAnalyzer::FunctionInfo::analyzeFunction(Function *F) {
 /// NeverInline - returns true if the function should never be inlined into
 /// any caller
 bool InlineCostAnalyzer::FunctionInfo::NeverInline() {
-  return (Metrics.callsSetJmp || Metrics.isRecursive || 
+  return (Metrics.callsSetJmp || Metrics.isRecursive ||
           Metrics.containsIndirectBr);
 }
 // getSpecializationBonus - The heuristic used to determine the per-call
@@ -263,19 +271,19 @@ int InlineCostAnalyzer::getSpecializationBonus(Function *Callee,
 {
   if (Callee->mayBeOverridden())
     return 0;
-  
+
   int Bonus = 0;
   // If this function uses the coldcc calling convention, prefer not to
   // specialize it.
   if (Callee->getCallingConv() == CallingConv::Cold)
     Bonus -= InlineConstants::ColdccPenalty;
-  
+
   // Get information about the callee.
   FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI->Metrics.NumBlocks == 0)
-    CalleeFI->analyzeFunction(Callee);
+    CalleeFI->analyzeFunction(Callee, TD);
 
   unsigned ArgNo = 0;
   unsigned i = 0;
@@ -286,7 +294,7 @@ int InlineCostAnalyzer::getSpecializationBonus(Function *Callee,
       Bonus += CountBonusForConstant(I);
     }
 
-  // Calls usually take a long time, so they make the specialization gain 
+  // Calls usually take a long time, so they make the specialization gain
   // smaller.
   Bonus -= CalleeFI->Metrics.NumCalls * InlineConstants::CallPenalty;
 
@@ -300,13 +308,13 @@ int InlineCostAnalyzer::getSpecializationBonus(Function *Callee,
 // inlining because we decide we don't want to give a bonus for
 // devirtualizing.
 int InlineCostAnalyzer::ConstantFunctionBonus(CallSite CS, Constant *C) {
-  
+
   // This could just be NULL.
   if (!C) return 0;
-  
+
   Function *F = dyn_cast<Function>(C);
   if (!F) return 0;
-  
+
   int Bonus = InlineConstants::IndirectCallBonus + getInlineSize(CS, F);
   return (Bonus > 0) ? 0 : Bonus;
 }
@@ -355,18 +363,18 @@ int InlineCostAnalyzer::CountBonusForConstant(Value *V, Constant *C) {
         Bonus += CountBonusForConstant(&Inst);
     }
   }
-  
+
   return Bonus;
 }
 
 int InlineCostAnalyzer::getInlineSize(CallSite CS, Function *Callee) {
   // Get information about the callee.
   FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI->Metrics.NumBlocks == 0)
-    CalleeFI->analyzeFunction(Callee);
-  
+    CalleeFI->analyzeFunction(Callee, TD);
+
   // InlineCost - This value measures how good of an inline candidate this call
   // site is to inline.  A lower inline cost make is more likely for the call to
   // be inlined.  This value may go negative.
@@ -392,9 +400,9 @@ int InlineCostAnalyzer::getInlineSize(CallSite CS, Function *Callee) {
     // weights calculated for the callee to determine how much will be folded
     // away with this information.
     else if (isa<Constant>(I))
-      InlineCost -= CalleeFI->ArgumentWeights[ArgNo].ConstantWeight;       
+      InlineCost -= CalleeFI->ArgumentWeights[ArgNo].ConstantWeight;
   }
-  
+
   // Each argument passed in has a cost at both the caller and the callee
   // sides.  Measurements show that each argument costs about the same as an
   // instruction.
@@ -408,28 +416,28 @@ int InlineCostAnalyzer::getInlineSize(CallSite CS, Function *Callee) {
 
   // Look at the size of the callee. Each instruction counts as 5.
   InlineCost += CalleeFI->Metrics.NumInsts*InlineConstants::InstrCost;
-  
+
   return InlineCost;
 }
 
 int InlineCostAnalyzer::getInlineBonuses(CallSite CS, Function *Callee) {
   // Get information about the callee.
   FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI->Metrics.NumBlocks == 0)
-    CalleeFI->analyzeFunction(Callee);
-    
+    CalleeFI->analyzeFunction(Callee, TD);
+
   bool isDirectCall = CS.getCalledFunction() == Callee;
   Instruction *TheCall = CS.getInstruction();
   int Bonus = 0;
-  
+
   // If there is only one call of the function, and it has internal linkage,
   // make it almost guaranteed to be inlined.
   //
   if (Callee->hasLocalLinkage() && Callee->hasOneUse() && isDirectCall)
     Bonus += InlineConstants::LastCallToStaticBonus;
-  
+
   // If the instruction after the call, or if the normal destination of the
   // invoke is an unreachable instruction, the function is noreturn.  As such,
   // there is little point in inlining this.
@@ -438,12 +446,12 @@ int InlineCostAnalyzer::getInlineBonuses(CallSite CS, Function *Callee) {
       Bonus += InlineConstants::NoreturnPenalty;
   } else if (isa<UnreachableInst>(++BasicBlock::iterator(TheCall)))
     Bonus += InlineConstants::NoreturnPenalty;
-  
+
   // If this function uses the coldcc calling convention, prefer not to inline
   // it.
   if (Callee->getCallingConv() == CallingConv::Cold)
     Bonus += InlineConstants::ColdccPenalty;
-  
+
   // Add to the inline quality for properties that make the call valuable to
   // inline.  This includes factors that indicate that the result of inlining
   // the function will be optimizable.  Currently this just looks at arguments
@@ -455,7 +463,7 @@ int InlineCostAnalyzer::getInlineBonuses(CallSite CS, Function *Callee) {
     // Compute any constant bonus due to inlining we want to give here.
     if (isa<Constant>(I))
       Bonus += CountBonusForConstant(FI, cast<Constant>(I));
-      
+
   return Bonus;
 }
 
@@ -483,10 +491,10 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
 
   // Get information about the callee.
   FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI->Metrics.NumBlocks == 0)
-    CalleeFI->analyzeFunction(Callee);
+    CalleeFI->analyzeFunction(Callee, TD);
 
   // If we should never inline this, return a huge cost.
   if (CalleeFI->NeverInline())
@@ -498,15 +506,15 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
   // requires handling setjmp somewhere else, however.
   if (!Callee->isDeclaration() && Callee->hasFnAttr(Attribute::AlwaysInline))
     return InlineCost::getAlways();
-    
+
   if (CalleeFI->Metrics.usesDynamicAlloca) {
     // Get information about the caller.
     FunctionInfo &CallerFI = CachedFunctionInfo[Caller];
 
     // If we haven't calculated this information yet, do so now.
     if (CallerFI.Metrics.NumBlocks == 0) {
-      CallerFI.analyzeFunction(Caller);
-     
+      CallerFI.analyzeFunction(Caller, TD);
+
       // Recompute the CalleeFI pointer, getting Caller could have invalidated
       // it.
       CalleeFI = &CachedFunctionInfo[Callee];
@@ -538,16 +546,16 @@ InlineCost InlineCostAnalyzer::getSpecializationCost(Function *Callee,
   // something else.
   if (Callee->mayBeOverridden())
     return llvm::InlineCost::getNever();
-  
+
   // Get information about the callee.
   FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI->Metrics.NumBlocks == 0)
-    CalleeFI->analyzeFunction(Callee);
+    CalleeFI->analyzeFunction(Callee, TD);
 
   int Cost = 0;
-  
+
   // Look at the original size of the callee.  Each instruction counts as 5.
   Cost += CalleeFI->Metrics.NumInsts * InlineConstants::InstrCost;
 
@@ -564,13 +572,13 @@ InlineCost InlineCostAnalyzer::getSpecializationCost(Function *Callee,
 // higher threshold to determine if the function call should be inlined.
 float InlineCostAnalyzer::getInlineFudgeFactor(CallSite CS) {
   Function *Callee = CS.getCalledFunction();
-  
+
   // Get information about the callee.
   FunctionInfo &CalleeFI = CachedFunctionInfo[Callee];
-  
+
   // If we haven't calculated this information yet, do so now.
   if (CalleeFI.Metrics.NumBlocks == 0)
-    CalleeFI.analyzeFunction(Callee);
+    CalleeFI.analyzeFunction(Callee, TD);
 
   float Factor = 1.0f;
   // Single BB functions are often written to be inlined.
@@ -604,7 +612,7 @@ InlineCostAnalyzer::growCachedCostInfo(Function *Caller, Function *Callee) {
     --CallerMetrics.NumCalls;
 
   if (Callee == 0) return;
-  
+
   CodeMetrics &CalleeMetrics = CachedFunctionInfo[Callee].Metrics;
 
   // If we don't have metrics for the callee, don't recalculate them just to
@@ -614,7 +622,7 @@ InlineCostAnalyzer::growCachedCostInfo(Function *Caller, Function *Callee) {
     resetCachedCostInfo(Caller);
     return;
   }
-  
+
   // Since CalleeMetrics were already calculated, we know that the CallerMetrics
   // reference isn't invalidated: both were in the DenseMap.
   CallerMetrics.usesDynamicAlloca |= CalleeMetrics.usesDynamicAlloca;
@@ -636,7 +644,7 @@ InlineCostAnalyzer::growCachedCostInfo(Function *Caller, Function *Callee) {
     CallerMetrics.NumInsts -= Callee->arg_size();
   else
     CallerMetrics.NumInsts = 0;
-  
+
   // We are not updating the argument weights. We have already determined that
   // Caller is a fairly large function, so we accept the loss of precision.
 }

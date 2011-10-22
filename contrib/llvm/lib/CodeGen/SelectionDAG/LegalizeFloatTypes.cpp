@@ -55,6 +55,7 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
 #endif
     llvm_unreachable("Do not know how to soften the result of this operator!");
 
+    case ISD::MERGE_VALUES:R = SoftenFloatRes_MERGE_VALUES(N, ResNo); break;
     case ISD::BITCAST:     R = SoftenFloatRes_BITCAST(N); break;
     case ISD::BUILD_PAIR:  R = SoftenFloatRes_BUILD_PAIR(N); break;
     case ISD::ConstantFP:
@@ -105,6 +106,12 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
 
 SDValue DAGTypeLegalizer::SoftenFloatRes_BITCAST(SDNode *N) {
   return BitConvertToInteger(N->getOperand(0));
+}
+
+SDValue DAGTypeLegalizer::SoftenFloatRes_MERGE_VALUES(SDNode *N,
+                                                      unsigned ResNo) {
+  SDValue Op = DisintegrateMERGE_VALUES(N, ResNo);
+  return BitConvertToInteger(Op);
 }
 
 SDValue DAGTypeLegalizer::SoftenFloatRes_BUILD_PAIR(SDNode *N) {
@@ -827,11 +834,11 @@ void DAGTypeLegalizer::ExpandFloatResult(SDNode *N, unsigned ResNo) {
 #endif
     llvm_unreachable("Do not know how to expand the result of this operator!");
 
-  case ISD::MERGE_VALUES: SplitRes_MERGE_VALUES(N, Lo, Hi); break;
   case ISD::UNDEF:        SplitRes_UNDEF(N, Lo, Hi); break;
   case ISD::SELECT:       SplitRes_SELECT(N, Lo, Hi); break;
   case ISD::SELECT_CC:    SplitRes_SELECT_CC(N, Lo, Hi); break;
 
+  case ISD::MERGE_VALUES:       ExpandRes_MERGE_VALUES(N, ResNo, Lo, Hi); break;
   case ISD::BITCAST:            ExpandRes_BITCAST(N, Lo, Hi); break;
   case ISD::BUILD_PAIR:         ExpandRes_BUILD_PAIR(N, Lo, Hi); break;
   case ISD::EXTRACT_ELEMENT:    ExpandRes_EXTRACT_ELEMENT(N, Lo, Hi); break;
@@ -879,10 +886,10 @@ void DAGTypeLegalizer::ExpandFloatRes_ConstantFP(SDNode *N, SDValue &Lo,
   assert(NVT.getSizeInBits() == integerPartWidth &&
          "Do not know how to expand this float constant!");
   APInt C = cast<ConstantFPSDNode>(N)->getValueAPF().bitcastToAPInt();
-  Lo = DAG.getConstantFP(APFloat(APInt(integerPartWidth, 1,
-                                       &C.getRawData()[1])), NVT);
-  Hi = DAG.getConstantFP(APFloat(APInt(integerPartWidth, 1,
-                                       &C.getRawData()[0])), NVT);
+  Lo = DAG.getConstantFP(APFloat(APInt(integerPartWidth, C.getRawData()[1])),
+                         NVT);
+  Hi = DAG.getConstantFP(APFloat(APInt(integerPartWidth, C.getRawData()[0])),
+                         NVT);
 }
 
 void DAGTypeLegalizer::ExpandFloatRes_FABS(SDNode *N, SDValue &Lo,
@@ -1201,7 +1208,7 @@ void DAGTypeLegalizer::ExpandFloatRes_XINT_TO_FP(SDNode *N, SDValue &Lo,
   static const uint64_t TwoE32[]  = { 0x41f0000000000000LL, 0 };
   static const uint64_t TwoE64[]  = { 0x43f0000000000000LL, 0 };
   static const uint64_t TwoE128[] = { 0x47f0000000000000LL, 0 };
-  const uint64_t *Parts = 0;
+  ArrayRef<uint64_t> Parts;
 
   switch (SrcVT.getSimpleVT().SimpleTy) {
   default:
@@ -1218,7 +1225,7 @@ void DAGTypeLegalizer::ExpandFloatRes_XINT_TO_FP(SDNode *N, SDValue &Lo,
   }
 
   Lo = DAG.getNode(ISD::FADD, dl, VT, Hi,
-                   DAG.getConstantFP(APFloat(APInt(128, 2, Parts)),
+                   DAG.getConstantFP(APFloat(APInt(128, Parts)),
                                      MVT::ppcf128));
   Lo = DAG.getNode(ISD::SELECT_CC, dl, VT, Src, DAG.getConstant(0, SrcVT),
                    Lo, Hi, DAG.getCondCode(ISD::SETLT));
@@ -1291,8 +1298,7 @@ void DAGTypeLegalizer::FloatExpandSetCCOperands(SDValue &NewLHS,
   GetExpandedFloat(NewLHS, LHSLo, LHSHi);
   GetExpandedFloat(NewRHS, RHSLo, RHSHi);
 
-  EVT VT = NewLHS.getValueType();
-  assert(VT == MVT::ppcf128 && "Unsupported setcc type!");
+  assert(NewLHS.getValueType() == MVT::ppcf128 && "Unsupported setcc type!");
 
   // FIXME:  This generated code sucks.  We want to generate
   //         FCMPU crN, hi1, hi2
@@ -1373,7 +1379,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_FP_TO_UINT(SDNode *N) {
     assert(N->getOperand(0).getValueType() == MVT::ppcf128 &&
            "Logic only correct for ppcf128!");
     const uint64_t TwoE31[] = {0x41e0000000000000LL, 0};
-    APFloat APF = APFloat(APInt(128, 2, TwoE31));
+    APFloat APF = APFloat(APInt(128, TwoE31));
     SDValue Tmp = DAG.getConstantFP(APF, MVT::ppcf128);
     //  X>=2^31 ? (int)(X-2^31)+0x80000000 : (int)X
     // FIXME: generated code sucks.
@@ -1445,6 +1451,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_STORE(SDNode *N, unsigned OpNo) {
                                      ST->getValue().getValueType());
   assert(NVT.isByteSized() && "Expanded type not byte sized!");
   assert(ST->getMemoryVT().bitsLE(NVT) && "Float type not round?");
+  (void)NVT;
 
   SDValue Lo, Hi;
   GetExpandedOp(ST->getValue(), Lo, Hi);

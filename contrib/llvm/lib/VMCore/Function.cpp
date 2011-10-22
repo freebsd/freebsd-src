@@ -17,6 +17,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/CallSite.h"
+#include "llvm/Support/InstIterator.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/StringPool.h"
@@ -38,7 +39,7 @@ template class llvm::SymbolTableListTraits<BasicBlock, Function>;
 // Argument Implementation
 //===----------------------------------------------------------------------===//
 
-Argument::Argument(const Type *Ty, const Twine &Name, Function *Par)
+Argument::Argument(Type *Ty, const Twine &Name, Function *Par)
   : Value(Ty, Value::ArgumentVal) {
   Parent = 0;
 
@@ -158,7 +159,7 @@ void Function::eraseFromParent() {
 // Function Implementation
 //===----------------------------------------------------------------------===//
 
-Function::Function(const FunctionType *Ty, LinkageTypes Linkage,
+Function::Function(FunctionType *Ty, LinkageTypes Linkage,
                    const Twine &name, Module *ParentModule)
   : GlobalValue(PointerType::getUnqual(Ty), 
                 Value::FunctionVal, 0, 0, Linkage, name) {
@@ -195,7 +196,7 @@ Function::~Function() {
 
 void Function::BuildLazyArguments() const {
   // Create the arguments vector, all arguments start out unnamed.
-  const FunctionType *FT = getFunctionType();
+  FunctionType *FT = getFunctionType();
   for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
     assert(!FT->getParamType(i)->isVoidTy() &&
            "Cannot have void typed arguments!");
@@ -345,7 +346,7 @@ std::string Intrinsic::getName(ID id, ArrayRef<Type*> Tys) {
     return Table[id];
   std::string Result(Table[id]);
   for (unsigned i = 0; i < Tys.size(); ++i) {
-    if (const PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
+    if (PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
       Result += ".p" + llvm::utostr(PTyp->getAddressSpace()) + 
                 EVT::getEVT(PTyp->getElementType()).getEVTString();
     }
@@ -355,9 +356,9 @@ std::string Intrinsic::getName(ID id, ArrayRef<Type*> Tys) {
   return Result;
 }
 
-const FunctionType *Intrinsic::getType(LLVMContext &Context,
+FunctionType *Intrinsic::getType(LLVMContext &Context,
                                        ID id, ArrayRef<Type*> Tys) {
-  const Type *ResultTy = NULL;
+  Type *ResultTy = NULL;
   std::vector<Type*> ArgTys;
   bool IsVarArg = false;
   
@@ -416,8 +417,7 @@ bool Function::hasAddressTaken(const User* *PutOffender) const {
 /// FIXME: Remove after <rdar://problem/8031714> is fixed.
 /// FIXME: Is the above FIXME valid?
 bool Function::callsFunctionThatReturnsTwice() const {
-  const Module *M = this->getParent();
-  static const char *ReturnsTwiceFns[] = {
+  static const char *const ReturnsTwiceFns[] = {
     "_setjmp",
     "setjmp",
     "sigsetjmp",
@@ -428,16 +428,25 @@ bool Function::callsFunctionThatReturnsTwice() const {
     "getcontext"
   };
 
-  for (unsigned I = 0; I < array_lengthof(ReturnsTwiceFns); ++I)
-    if (const Function *Callee = M->getFunction(ReturnsTwiceFns[I])) {
-      if (!Callee->use_empty())
-        for (Value::const_use_iterator
-               I = Callee->use_begin(), E = Callee->use_end();
-             I != E; ++I)
-          if (const CallInst *CI = dyn_cast<CallInst>(*I))
-            if (CI->getParent()->getParent() == this)
-              return true;
+  for (const_inst_iterator I = inst_begin(this), E = inst_end(this); I != E;
+       ++I) {
+    const CallInst* callInst = dyn_cast<CallInst>(&*I);
+    if (!callInst)
+      continue;
+    if (callInst->canReturnTwice())
+      return true;
+
+    // check for known function names.
+    // FIXME: move this to clang.
+    Function *F = callInst->getCalledFunction();
+    if (!F)
+      continue;
+    StringRef Name = F->getName();
+    for (unsigned J = 0, e = array_lengthof(ReturnsTwiceFns); J != e; ++J) {
+      if (Name == ReturnsTwiceFns[J])
+        return true;
     }
+  }
 
   return false;
 }

@@ -37,6 +37,7 @@ void removeZeroOutPropsInDealloc(MigrationPass &pass);
 void rewriteProperties(MigrationPass &pass);
 void rewriteBlockObjCVariable(MigrationPass &pass);
 void rewriteUnusedInitDelegate(MigrationPass &pass);
+void checkAPIUses(MigrationPass &pass);
 
 void removeEmptyStatementsAndDealloc(MigrationPass &pass);
 
@@ -53,9 +54,16 @@ bool canApplyWeak(ASTContext &Ctx, QualType type);
 /// source location will be invalid.
 SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx);
 
+/// \brief \arg Loc is the end of a statement range. This returns the location
+/// of the semicolon following the statement.
+/// If no semicolon is found or the location is inside a macro, the returned
+/// source location will be invalid.
+SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx);
+
 bool hasSideEffects(Expr *E, ASTContext &Ctx);
 bool isGlobalVar(Expr *E);
-
+/// \brief Returns "nil" or "0" if 'nil' macro is not actually defined.
+StringRef getNilString(ASTContext &Ctx);
 
 template <typename BODY_TRANS>
 class BodyTransform : public RecursiveASTVisitor<BodyTransform<BODY_TRANS> > {
@@ -65,7 +73,8 @@ public:
   BodyTransform(MigrationPass &pass) : Pass(pass) { }
 
   bool TraverseStmt(Stmt *rootS) {
-    BODY_TRANS(Pass).transformBody(rootS);
+    if (rootS)
+      BODY_TRANS(Pass).transformBody(rootS);
     return true;
   }
 };

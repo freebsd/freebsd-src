@@ -66,17 +66,22 @@ using namespace llvm;
 void FastISel::startNewBlock() {
   LocalValueMap.clear();
 
-  // Start out as null, meaining no local-value instructions have
-  // been emitted.
-  LastLocalValue = 0;
+  EmitStartPt = 0;
 
-  // Advance the last local value past any EH_LABEL instructions.
+  // Advance the emit start point past any EH_LABEL instructions.
   MachineBasicBlock::iterator
     I = FuncInfo.MBB->begin(), E = FuncInfo.MBB->end();
   while (I != E && I->getOpcode() == TargetOpcode::EH_LABEL) {
-    LastLocalValue = I;
+    EmitStartPt = I;
     ++I;
   }
+  LastLocalValue = EmitStartPt;
+}
+
+void FastISel::flushLocalValueMap() {
+  LocalValueMap.clear();
+  LastLocalValue = EmitStartPt;
+  recomputeInsertPt();
 }
 
 bool FastISel::hasTrivialKill(const Value *V) const {
@@ -183,7 +188,7 @@ unsigned FastISel::materializeRegForValue(const Value *V, MVT VT) {
       (void) Flt.convertToInteger(x, IntBitWidth, /*isSigned=*/true,
                                 APFloat::rmTowardZero, &isExact);
       if (isExact) {
-        APInt IntVal(IntBitWidth, 2, x);
+        APInt IntVal(IntBitWidth, x);
 
         unsigned IntegerReg =
           getRegForValue(ConstantInt::get(V->getContext(), IntVal));
@@ -422,12 +427,12 @@ bool FastISel::SelectGetElementPtr(const User *I) {
 
   bool NIsKill = hasTrivialKill(I->getOperand(0));
 
-  const Type *Ty = I->getOperand(0)->getType();
+  Type *Ty = I->getOperand(0)->getType();
   MVT VT = TLI.getPointerTy();
   for (GetElementPtrInst::const_op_iterator OI = I->op_begin()+1,
        E = I->op_end(); OI != E; ++OI) {
     const Value *Idx = *OI;
-    if (const StructType *StTy = dyn_cast<StructType>(Ty)) {
+    if (StructType *StTy = dyn_cast<StructType>(Ty)) {
       unsigned Field = cast<ConstantInt>(Idx)->getZExtValue();
       if (Field) {
         // N = N + Offset
@@ -489,7 +494,7 @@ bool FastISel::SelectCall(const User *I) {
   const CallInst *Call = cast<CallInst>(I);
 
   // Handle simple inline asms.
-  if (const InlineAsm *IA = dyn_cast<InlineAsm>(Call->getArgOperand(0))) {
+  if (const InlineAsm *IA = dyn_cast<InlineAsm>(Call->getCalledValue())) {
     // Don't attempt to handle constraints.
     if (!IA->getConstraintString().empty())
       return false;
@@ -526,13 +531,10 @@ bool FastISel::SelectCall(const User *I) {
     unsigned Reg = 0;
     unsigned Offset = 0;
     if (const Argument *Arg = dyn_cast<Argument>(Address)) {
-      if (Arg->hasByValAttr()) {
-        // Byval arguments' frame index is recorded during argument lowering.
-        // Use this info directly.
-        Offset = FuncInfo.getByValArgumentFrameIndex(Arg);
-        if (Offset)
-          Reg = TRI.getFrameRegister(*FuncInfo.MF);
-      }
+      // Some arguments' frame index is recorded during argument lowering.
+      Offset = FuncInfo.getArgumentFrameIndex(Arg);
+      if (Offset)
+	Reg = TRI.getFrameRegister(*FuncInfo.MF);
     }
     if (!Reg)
       Reg = getRegForValue(Address);
@@ -644,6 +646,16 @@ bool FastISel::SelectCall(const User *I) {
     return true;
   }
   }
+
+  // Usually, it does not make sense to initialize a value,
+  // make an unrelated function call and use the value, because
+  // it tends to be spilled on the stack. So, we move the pointer
+  // to the last local value to the beginning of the block, so that
+  // all the values which have already been materialized,
+  // appear after the call. It also makes sense to skip intrinsics
+  // since they tend to be inlined.
+  if (!isa<IntrinsicInst>(F))
+    flushLocalValueMap();
 
   // An arbitrary call. Bail.
   return false;
@@ -839,7 +851,7 @@ FastISel::SelectExtractValue(const User *U) {
     return false;
 
   const Value *Op0 = EVI->getOperand(0);
-  const Type *AggTy = Op0->getType();
+  Type *AggTy = Op0->getType();
 
   // Get the base result register.
   unsigned ResultReg;
@@ -1074,7 +1086,7 @@ unsigned FastISel::FastEmit_ri_(MVT VT, unsigned Opcode,
   if (MaterialReg == 0) {
     // This is a bit ugly/slow, but failing here means falling out of
     // fast-isel, which would be very slow.
-    const IntegerType *ITy = IntegerType::get(FuncInfo.Fn->getContext(),
+    IntegerType *ITy = IntegerType::get(FuncInfo.Fn->getContext(),
                                               VT.getSizeInBits());
     MaterialReg = getRegForValue(ConstantInt::get(ITy, Imm));
   }

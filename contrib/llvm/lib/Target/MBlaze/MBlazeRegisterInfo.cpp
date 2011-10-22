@@ -25,7 +25,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
@@ -44,164 +43,7 @@ using namespace llvm;
 
 MBlazeRegisterInfo::
 MBlazeRegisterInfo(const MBlazeSubtarget &ST, const TargetInstrInfo &tii)
-  : MBlazeGenRegisterInfo(), Subtarget(ST), TII(tii) {}
-
-/// getRegisterNumbering - Given the enum value for some register, e.g.
-/// MBlaze::R0, return the number that it corresponds to (e.g. 0).
-unsigned MBlazeRegisterInfo::getRegisterNumbering(unsigned RegEnum) {
-  switch (RegEnum) {
-    case MBlaze::R0     : return 0;
-    case MBlaze::R1     : return 1;
-    case MBlaze::R2     : return 2;
-    case MBlaze::R3     : return 3;
-    case MBlaze::R4     : return 4;
-    case MBlaze::R5     : return 5;
-    case MBlaze::R6     : return 6;
-    case MBlaze::R7     : return 7;
-    case MBlaze::R8     : return 8;
-    case MBlaze::R9     : return 9;
-    case MBlaze::R10    : return 10;
-    case MBlaze::R11    : return 11;
-    case MBlaze::R12    : return 12;
-    case MBlaze::R13    : return 13;
-    case MBlaze::R14    : return 14;
-    case MBlaze::R15    : return 15;
-    case MBlaze::R16    : return 16;
-    case MBlaze::R17    : return 17;
-    case MBlaze::R18    : return 18;
-    case MBlaze::R19    : return 19;
-    case MBlaze::R20    : return 20;
-    case MBlaze::R21    : return 21;
-    case MBlaze::R22    : return 22;
-    case MBlaze::R23    : return 23;
-    case MBlaze::R24    : return 24;
-    case MBlaze::R25    : return 25;
-    case MBlaze::R26    : return 26;
-    case MBlaze::R27    : return 27;
-    case MBlaze::R28    : return 28;
-    case MBlaze::R29    : return 29;
-    case MBlaze::R30    : return 30;
-    case MBlaze::R31    : return 31;
-    case MBlaze::RPC    : return 0x0000;
-    case MBlaze::RMSR   : return 0x0001;
-    case MBlaze::REAR   : return 0x0003;
-    case MBlaze::RESR   : return 0x0005;
-    case MBlaze::RFSR   : return 0x0007;
-    case MBlaze::RBTR   : return 0x000B;
-    case MBlaze::REDR   : return 0x000D;
-    case MBlaze::RPID   : return 0x1000;
-    case MBlaze::RZPR   : return 0x1001;
-    case MBlaze::RTLBX  : return 0x1002;
-    case MBlaze::RTLBLO : return 0x1003;
-    case MBlaze::RTLBHI : return 0x1004;
-    case MBlaze::RPVR0  : return 0x2000;
-    case MBlaze::RPVR1  : return 0x2001;
-    case MBlaze::RPVR2  : return 0x2002;
-    case MBlaze::RPVR3  : return 0x2003;
-    case MBlaze::RPVR4  : return 0x2004;
-    case MBlaze::RPVR5  : return 0x2005;
-    case MBlaze::RPVR6  : return 0x2006;
-    case MBlaze::RPVR7  : return 0x2007;
-    case MBlaze::RPVR8  : return 0x2008;
-    case MBlaze::RPVR9  : return 0x2009;
-    case MBlaze::RPVR10 : return 0x200A;
-    case MBlaze::RPVR11 : return 0x200B;
-    default: llvm_unreachable("Unknown register number!");
-  }
-  return 0; // Not reached
-}
-
-/// getRegisterFromNumbering - Given the enum value for some register, e.g.
-/// MBlaze::R0, return the number that it corresponds to (e.g. 0).
-unsigned MBlazeRegisterInfo::getRegisterFromNumbering(unsigned Reg) {
-  switch (Reg) {
-    case 0  : return MBlaze::R0;
-    case 1  : return MBlaze::R1;
-    case 2  : return MBlaze::R2;
-    case 3  : return MBlaze::R3;
-    case 4  : return MBlaze::R4;
-    case 5  : return MBlaze::R5;
-    case 6  : return MBlaze::R6;
-    case 7  : return MBlaze::R7;
-    case 8  : return MBlaze::R8;
-    case 9  : return MBlaze::R9;
-    case 10 : return MBlaze::R10;
-    case 11 : return MBlaze::R11;
-    case 12 : return MBlaze::R12;
-    case 13 : return MBlaze::R13;
-    case 14 : return MBlaze::R14;
-    case 15 : return MBlaze::R15;
-    case 16 : return MBlaze::R16;
-    case 17 : return MBlaze::R17;
-    case 18 : return MBlaze::R18;
-    case 19 : return MBlaze::R19;
-    case 20 : return MBlaze::R20;
-    case 21 : return MBlaze::R21;
-    case 22 : return MBlaze::R22;
-    case 23 : return MBlaze::R23;
-    case 24 : return MBlaze::R24;
-    case 25 : return MBlaze::R25;
-    case 26 : return MBlaze::R26;
-    case 27 : return MBlaze::R27;
-    case 28 : return MBlaze::R28;
-    case 29 : return MBlaze::R29;
-    case 30 : return MBlaze::R30;
-    case 31 : return MBlaze::R31;
-    default: llvm_unreachable("Unknown register number!");
-  }
-  return 0; // Not reached
-}
-
-unsigned MBlazeRegisterInfo::getSpecialRegisterFromNumbering(unsigned Reg) {
-  switch (Reg) {
-    case 0x0000 : return MBlaze::RPC;
-    case 0x0001 : return MBlaze::RMSR;
-    case 0x0003 : return MBlaze::REAR;
-    case 0x0005 : return MBlaze::RESR;
-    case 0x0007 : return MBlaze::RFSR;
-    case 0x000B : return MBlaze::RBTR;
-    case 0x000D : return MBlaze::REDR;
-    case 0x1000 : return MBlaze::RPID;
-    case 0x1001 : return MBlaze::RZPR;
-    case 0x1002 : return MBlaze::RTLBX;
-    case 0x1003 : return MBlaze::RTLBLO;
-    case 0x1004 : return MBlaze::RTLBHI;
-    case 0x2000 : return MBlaze::RPVR0;
-    case 0x2001 : return MBlaze::RPVR1;
-    case 0x2002 : return MBlaze::RPVR2;
-    case 0x2003 : return MBlaze::RPVR3;
-    case 0x2004 : return MBlaze::RPVR4;
-    case 0x2005 : return MBlaze::RPVR5;
-    case 0x2006 : return MBlaze::RPVR6;
-    case 0x2007 : return MBlaze::RPVR7;
-    case 0x2008 : return MBlaze::RPVR8;
-    case 0x2009 : return MBlaze::RPVR9;
-    case 0x200A : return MBlaze::RPVR10;
-    case 0x200B : return MBlaze::RPVR11;
-    default: llvm_unreachable("Unknown register number!");
-  }
-  return 0; // Not reached
-}
-
-bool MBlazeRegisterInfo::isRegister(unsigned Reg) {
-  return Reg <= 31;
-}
-
-bool MBlazeRegisterInfo::isSpecialRegister(unsigned Reg) {
-  switch (Reg) {
-    case 0x0000 : case 0x0001 : case 0x0003 : case 0x0005 : 
-    case 0x0007 : case 0x000B : case 0x000D : case 0x1000 : 
-    case 0x1001 : case 0x1002 : case 0x1003 : case 0x1004 : 
-    case 0x2000 : case 0x2001 : case 0x2002 : case 0x2003 : 
-    case 0x2004 : case 0x2005 : case 0x2006 : case 0x2007 : 
-    case 0x2008 : case 0x2009 : case 0x200A : case 0x200B : 
-      return true;
-
-    default:
-      return false;
-  }
-  return false; // Not reached
-}
+  : MBlazeGenRegisterInfo(MBlaze::R15), Subtarget(ST), TII(tii) {}
 
 unsigned MBlazeRegisterInfo::getPICCallReg() {
   return MBlaze::R20;
@@ -334,10 +176,6 @@ processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
     MFI->setObjectOffset(MBlazeFI->getGPFI(), MBlazeFI->getGPStackOffset());
 }
 
-unsigned MBlazeRegisterInfo::getRARegister() const {
-  return MBlaze::R15;
-}
-
 unsigned MBlazeRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
@@ -352,12 +190,4 @@ unsigned MBlazeRegisterInfo::getEHExceptionRegister() const {
 unsigned MBlazeRegisterInfo::getEHHandlerRegister() const {
   llvm_unreachable("What is the exception handler register");
   return 0;
-}
-
-int MBlazeRegisterInfo::getDwarfRegNum(unsigned RegNo, bool isEH) const {
-  return MBlazeGenRegisterInfo::getDwarfRegNumFull(RegNo,0);
-}
-
-int MBlazeRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
-  return MBlazeGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }

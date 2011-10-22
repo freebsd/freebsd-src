@@ -162,6 +162,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::SubstNonTypeTemplateParmPackExprClass:
   case Expr::AsTypeExprClass:
   case Expr::ObjCIndirectCopyRestoreExprClass:
+  case Expr::AtomicExprClass:
     return Cl::CL_PRValue;
 
     // Next come the complicated cases.
@@ -393,7 +394,7 @@ static Cl::Kinds ClassifyUnnamed(ASTContext &Ctx, QualType T) {
 
   // C++ [expr.call]p10: A function call is an lvalue if the result type is an
   //   lvalue reference type or an rvalue reference to function type, an xvalue
-  //   if the result type is an rvalue refernence to object type, and a prvalue
+  //   if the result type is an rvalue reference to object type, and a prvalue
   //   otherwise.
   if (T->isLValueReferenceType())
     return Cl::CL_LValue;
