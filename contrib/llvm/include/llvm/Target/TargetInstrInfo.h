@@ -49,7 +49,7 @@ public:
     : CallFrameSetupOpcode(CFSetupOpcode),
       CallFrameDestroyOpcode(CFDestroyOpcode) {
   }
-    
+
   virtual ~TargetInstrInfo();
 
   /// getRegClass - Givem a machine instruction descriptor, returns the register
@@ -386,6 +386,16 @@ public:
   assert(0 && "Target didn't implement TargetInstrInfo::loadRegFromStackSlot!");
   }
 
+  /// expandPostRAPseudo - This function is called for all pseudo instructions
+  /// that remain after register allocation. Many pseudo instructions are
+  /// created to help register allocation. This is the place to convert them
+  /// into real instructions. The target can edit MI in place, or it can insert
+  /// new instructions and erase MI. The function should return true if
+  /// anything was changed.
+  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
+    return false;
+  }
+
   /// emitFrameIndexDebugValue - Emit a target-dependent form of
   /// DBG_VALUE encoding the address of a frame index.  Addresses would
   /// normally be lowered the same way as other addresses on the target,
@@ -671,6 +681,43 @@ public:
   bool hasLowDefLatency(const InstrItineraryData *ItinData,
                         const MachineInstr *DefMI, unsigned DefIdx) const;
 
+  /// verifyInstruction - Perform target specific instruction verification.
+  virtual
+  bool verifyInstruction(const MachineInstr *MI, StringRef &ErrInfo) const {
+    return true;
+  }
+
+  /// getExecutionDomain - Return the current execution domain and bit mask of
+  /// possible domains for instruction.
+  ///
+  /// Some micro-architectures have multiple execution domains, and multiple
+  /// opcodes that perform the same operation in different domains.  For
+  /// example, the x86 architecture provides the por, orps, and orpd
+  /// instructions that all do the same thing.  There is a latency penalty if a
+  /// register is written in one domain and read in another.
+  ///
+  /// This function returns a pair (domain, mask) containing the execution
+  /// domain of MI, and a bit mask of possible domains.  The setExecutionDomain
+  /// function can be used to change the opcode to one of the domains in the
+  /// bit mask.  Instructions whose execution domain can't be changed should
+  /// return a 0 mask.
+  ///
+  /// The execution domain numbers don't have any special meaning except domain
+  /// 0 is used for instructions that are not associated with any interesting
+  /// execution domain.
+  ///
+  virtual std::pair<uint16_t, uint16_t>
+  getExecutionDomain(const MachineInstr *MI) const {
+    return std::make_pair(0, 0);
+  }
+
+  /// setExecutionDomain - Change the opcode of MI to execute in Domain.
+  ///
+  /// The bit (1 << Domain) must be set in the mask returned from
+  /// getExecutionDomain(MI).
+  ///
+  virtual void setExecutionDomain(MachineInstr *MI, unsigned Domain) const {}
+
 private:
   int CallFrameSetupOpcode, CallFrameDestroyOpcode;
 };
@@ -693,6 +740,12 @@ public:
                                      unsigned &SrcOpIdx2) const;
   virtual bool canFoldMemoryOperand(const MachineInstr *MI,
                                     const SmallVectorImpl<unsigned> &Ops) const;
+  virtual bool hasLoadFromStackSlot(const MachineInstr *MI,
+                                    const MachineMemOperand *&MMO,
+                                    int &FrameIndex) const;
+  virtual bool hasStoreToStackSlot(const MachineInstr *MI,
+                                   const MachineMemOperand *&MMO,
+                                   int &FrameIndex) const;
   virtual bool PredicateInstruction(MachineInstr *MI,
                             const SmallVectorImpl<MachineOperand> &Pred) const;
   virtual void reMaterialize(MachineBasicBlock &MBB,

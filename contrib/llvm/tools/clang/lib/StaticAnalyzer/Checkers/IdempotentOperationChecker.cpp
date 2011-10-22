@@ -96,10 +96,9 @@ private:
 
   // Hash table and related data structures
   struct BinaryOperatorData {
-    BinaryOperatorData() : assumption(Possible), analysisContext(0) {}
+    BinaryOperatorData() : assumption(Possible) {}
 
     Assumption assumption;
-    AnalysisContext *analysisContext;
     ExplodedNodeSet explodedNodes; // Set of ExplodedNodes that refer to a
                                    // BinaryOperator
   };
@@ -118,7 +117,6 @@ void IdempotentOperationChecker::checkPreStmt(const BinaryOperator *B,
   BinaryOperatorData &Data = hash[B];
   Assumption &A = Data.assumption;
   AnalysisContext *AC = C.getCurrentAnalysisContext();
-  Data.analysisContext = AC;
 
   // If we already have visited this node on a path that does not contain an
   // idempotent operation, return immediately.
@@ -143,7 +141,7 @@ void IdempotentOperationChecker::checkPreStmt(const BinaryOperator *B,
         || containsNonLocalVarDecl(RHS);
   }
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   SVal LHSVal = state->getSVal(LHS);
   SVal RHSVal = state->getSVal(RHS);
@@ -351,8 +349,13 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
     // Unpack the hash contents
     const BinaryOperatorData &Data = i->second;
     const Assumption &A = Data.assumption;
-    AnalysisContext *AC = Data.analysisContext;
     const ExplodedNodeSet &ES = Data.explodedNodes;
+
+    // If there are no nodes accosted with the expression, nothing to report.
+    // FIXME: This is possible because the checker does part of processing in
+    // checkPreStmt and part in checkPostStmt.
+    if (ES.begin() == ES.end())
+      continue;
 
     const BinaryOperator *B = i->first;
 
@@ -363,6 +366,8 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
     // warning
     if (Eng.hasWorkRemaining()) {
       // If we can trace back
+      AnalysisContext *AC = (*ES.begin())->getLocationContext()
+                                         ->getAnalysisContext();
       if (!pathWasCompletelyAnalyzed(AC,
                                      AC->getCFGStmtMap()->getBlock(B),
                                      Eng.getCoreEngine()))
@@ -407,18 +412,18 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
 
     // Add a report for each ExplodedNode
     for (ExplodedNodeSet::iterator I = ES.begin(), E = ES.end(); I != E; ++I) {
-      EnhancedBugReport *report = new EnhancedBugReport(*BT, os.str(), *I);
+      BugReport *report = new BugReport(*BT, os.str(), *I);
 
       // Add source ranges and visitor hooks
       if (LHSRelevant) {
         const Expr *LHS = i->first->getLHS();
         report->addRange(LHS->getSourceRange());
-        report->addVisitorCreator(bugreporter::registerVarDeclsLastStore, LHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, LHS);
       }
       if (RHSRelevant) {
         const Expr *RHS = i->first->getRHS();
         report->addRange(i->first->getRHS()->getSourceRange());
-        report->addVisitorCreator(bugreporter::registerVarDeclsLastStore, RHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, RHS);
       }
 
       BR.EmitReport(report);

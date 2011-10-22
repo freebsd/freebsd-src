@@ -13,10 +13,12 @@
 
 #include "SPUMCTargetDesc.h"
 #include "SPUMCAsmInfo.h"
+#include "llvm/MC/MachineLocation.h"
+#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
 #include "SPUGenInstrInfo.inc"
@@ -35,8 +37,10 @@ static MCInstrInfo *createSPUMCInstrInfo() {
   return X;
 }
 
-extern "C" void LLVMInitializeCellSPUMCInstrInfo() {
-  TargetRegistry::RegisterMCInstrInfo(TheCellSPUTarget, createSPUMCInstrInfo);
+static MCRegisterInfo *createCellSPUMCRegisterInfo(StringRef TT) {
+  MCRegisterInfo *X = new MCRegisterInfo();
+  InitSPUMCRegisterInfo(X, SPU::R0);
+  return X;
 }
 
 static MCSubtargetInfo *createSPUMCSubtargetInfo(StringRef TT, StringRef CPU,
@@ -46,11 +50,43 @@ static MCSubtargetInfo *createSPUMCSubtargetInfo(StringRef TT, StringRef CPU,
   return X;
 }
 
-extern "C" void LLVMInitializeCellSPUMCSubtargetInfo() {
-  TargetRegistry::RegisterMCSubtargetInfo(TheCellSPUTarget,
-                                          createSPUMCSubtargetInfo);
+static MCAsmInfo *createSPUMCAsmInfo(const Target &T, StringRef TT) {
+  MCAsmInfo *MAI = new SPULinuxMCAsmInfo(T, TT);
+
+  // Initial state of the frame pointer is R1.
+  MachineLocation Dst(MachineLocation::VirtualFP);
+  MachineLocation Src(SPU::R1, 0);
+  MAI->addInitialFrameState(0, Dst, Src);
+
+  return MAI;
 }
 
-extern "C" void LLVMInitializeCellSPUMCAsmInfo() {
-  RegisterMCAsmInfo<SPULinuxMCAsmInfo> X(TheCellSPUTarget);
+static MCCodeGenInfo *createSPUMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+                                      CodeModel::Model CM) {
+  MCCodeGenInfo *X = new MCCodeGenInfo();
+  // For the time being, use static relocations, since there's really no
+  // support for PIC yet.
+  X->InitMCCodeGenInfo(Reloc::Static, CM);
+  return X;
+}
+
+// Force static initialization.
+extern "C" void LLVMInitializeCellSPUTargetMC() {
+  // Register the MC asm info.
+  RegisterMCAsmInfoFn X(TheCellSPUTarget, createSPUMCAsmInfo);
+
+  // Register the MC codegen info.
+  TargetRegistry::RegisterMCCodeGenInfo(TheCellSPUTarget,
+                                        createSPUMCCodeGenInfo);
+
+  // Register the MC instruction info.
+  TargetRegistry::RegisterMCInstrInfo(TheCellSPUTarget, createSPUMCInstrInfo);
+
+  // Register the MC register info.
+  TargetRegistry::RegisterMCRegInfo(TheCellSPUTarget,
+                                    createCellSPUMCRegisterInfo);
+
+  // Register the MC subtarget info.
+  TargetRegistry::RegisterMCSubtargetInfo(TheCellSPUTarget,
+                                          createSPUMCSubtargetInfo);
 }

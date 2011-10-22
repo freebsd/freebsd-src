@@ -52,18 +52,31 @@ def err_invalid_storage_class_in_func_decl : Error<
   "invalid storage class specifier in function declarator">;
 def err_expected_namespace_name : Error<"expected namespace name">;
 def ext_variadic_templates : ExtWarn<
-  "variadic templates are a C++0x extension">, InGroup<CXX0x>;
+  "variadic templates are a C++11 extension">, InGroup<CXX11>;
+def warn_cxx98_compat_variadic_templates :
+  Warning<"variadic templates are incompatible with C++98">,
+  InGroup<CXX98Compat>, DefaultIgnore;
 def err_default_special_members : Error<
   "only special member functions may be defaulted">;
 def err_friends_define_only_namespace_scope : Error<
   "cannot define a function with non-namespace scope in a friend declaration">;
 def err_deleted_non_function : Error<
   "only functions can have deleted definitions">;
+def err_module_not_found : Error<"module '%0' not found">, DefaultFatal;
+def err_module_not_built : Error<"could not build module '%0'">, DefaultFatal;
+def err_module_cycle : Error<"cyclic dependency in module '%0': %1">, 
+  DefaultFatal;
+def warn_module_build : Warning<"building module '%0' from source">, 
+  InGroup<ModuleBuild>, DefaultIgnore;
+def note_pragma_entered_here : Note<"#pragma entered here">;  
 
 // Sema && Lex
 def ext_longlong : Extension<
   "'long long' is an extension when C99 mode is not enabled">,
   InGroup<LongLong>;
+def warn_cxx98_compat_longlong : Warning<
+  "'long long' is incompatible with C++98">,
+  InGroup<CXX98CompatPedantic>, DefaultIgnore;
 def warn_integer_too_large : Warning<
   "integer constant is too large for its type">;
 def warn_integer_too_large_for_signed : Warning<

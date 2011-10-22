@@ -32,7 +32,6 @@
 using namespace clang;
 using namespace arcmt;
 using namespace trans;
-using llvm::StringRef;
 
 namespace {
 
@@ -75,7 +74,7 @@ public:
   RootBlockObjCVarRewriter(MigrationPass &pass) : Pass(pass) { }
 
   bool VisitBlockDecl(BlockDecl *block) {
-    llvm::SmallVector<VarDecl *, 4> BlockVars;
+    SmallVector<VarDecl *, 4> BlockVars;
     
     for (BlockDecl::capture_iterator
            I = block->capture_begin(), E = block->capture_end(); I != E; ++I) {
@@ -101,7 +100,7 @@ public:
         bool useWeak = canApplyWeak(Pass.Ctx, var->getType());
         SourceManager &SM = Pass.Ctx.getSourceManager();
         Transaction Trans(Pass.TA);
-        Pass.TA.replaceText(SM.getInstantiationLoc(attr->getLocation()),
+        Pass.TA.replaceText(SM.getExpansionLoc(attr->getLocation()),
                             "__block",
                             useWeak ? "__weak" : "__unsafe_unretained");
       }
