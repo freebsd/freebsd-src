@@ -22,7 +22,7 @@ template <typename ImplClass>
 class CFGRecStmtVisitor : public CFGStmtVisitor<ImplClass,void> {
 public:
 
-  void VisitStmt(Stmt* S) {
+  void VisitStmt(Stmt *S) {
     static_cast< ImplClass* >(this)->VisitChildren(S);
   }
   
@@ -45,13 +45,13 @@ break;
         CONDVAR_CASE(WhileStmt)
 #undef CONDVAR_CASE
       default:
-        assert(false && "Infeasible");
+        llvm_unreachable("Infeasible");
     }    
     static_cast<ImplClass*>(this)->Visit(CondVar->getInit());
   }
 
   // Defining operator() allows the visitor to be used as a C++ style functor.
-  void operator()(Stmt* S) { static_cast<ImplClass*>(this)->BlockStmt_Visit(S);}
+  void operator()(Stmt *S) { static_cast<ImplClass*>(this)->BlockStmt_Visit(S);}
 };
 
 } // end namespace clang

@@ -167,24 +167,77 @@ void DecodeUNPCKLPMask(EVT VT,
                        SmallVectorImpl<unsigned> &ShuffleMask) {
   unsigned NumElts = VT.getVectorNumElements();
 
-  // Handle vector lengths > 128 bits.  Define a "section" as a set of
-  // 128 bits.  AVX defines UNPCK* to operate independently on 128-bit
-  // sections.
-  unsigned NumSections = VT.getSizeInBits() / 128;
-  if (NumSections == 0 ) NumSections = 1;  // Handle MMX
-  unsigned NumSectionElts = NumElts / NumSections;
+  // Handle 128 and 256-bit vector lengths. AVX defines UNPCK* to operate
+  // independently on 128-bit lanes.
+  unsigned NumLanes = VT.getSizeInBits() / 128;
+  if (NumLanes == 0 ) NumLanes = 1;  // Handle MMX
+  unsigned NumLaneElts = NumElts / NumLanes;
 
   unsigned Start = 0;
-  unsigned End = NumSectionElts / 2;
-  for (unsigned s = 0; s < NumSections; ++s) {
+  unsigned End = NumLaneElts / 2;
+  for (unsigned s = 0; s < NumLanes; ++s) {
     for (unsigned i = Start; i != End; ++i) {
       ShuffleMask.push_back(i);                 // Reads from dest/src1
-      ShuffleMask.push_back(i+NumSectionElts);  // Reads from src/src2
+      ShuffleMask.push_back(i+NumLaneElts);  // Reads from src/src2
     }
     // Process the next 128 bits.
-    Start += NumSectionElts;
-    End += NumSectionElts;
+    Start += NumLaneElts;
+    End += NumLaneElts;
   }
+}
+
+// DecodeVPERMILPSMask - Decodes VPERMILPS permutes for any 128-bit 32-bit
+// elements. For 256-bit vectors, it's considered as two 128 lanes, the
+// referenced elements can't cross lanes and the mask of the first lane must
+// be the same of the second.
+void DecodeVPERMILPSMask(unsigned NumElts, unsigned Imm,
+                         SmallVectorImpl<unsigned> &ShuffleMask) {
+  unsigned NumLanes = (NumElts*32)/128;
+  unsigned LaneSize = NumElts/NumLanes;
+
+  for (unsigned l = 0; l != NumLanes; ++l) {
+    for (unsigned i = 0; i != LaneSize; ++i) {
+      unsigned Idx = (Imm >> (i*2)) & 0x3 ;
+      ShuffleMask.push_back(Idx+(l*LaneSize));
+    }
+  }
+}
+
+// DecodeVPERMILPDMask - Decodes VPERMILPD permutes for any 128-bit 64-bit
+// elements. For 256-bit vectors, it's considered as two 128 lanes, the
+// referenced elements can't cross lanes but the mask of the first lane can
+// be the different of the second (not like VPERMILPS).
+void DecodeVPERMILPDMask(unsigned NumElts, unsigned Imm,
+                         SmallVectorImpl<unsigned> &ShuffleMask) {
+  unsigned NumLanes = (NumElts*64)/128;
+  unsigned LaneSize = NumElts/NumLanes;
+
+  for (unsigned l = 0; l < NumLanes; ++l) {
+    for (unsigned i = l*LaneSize; i < LaneSize*(l+1); ++i) {
+      unsigned Idx = (Imm >> i) & 0x1;
+      ShuffleMask.push_back(Idx+(l*LaneSize));
+    }
+  }
+}
+
+void DecodeVPERM2F128Mask(EVT VT, unsigned Imm,
+                          SmallVectorImpl<unsigned> &ShuffleMask) {
+  unsigned HalfSize = VT.getVectorNumElements()/2;
+  unsigned FstHalfBegin = (Imm & 0x3) * HalfSize;
+  unsigned SndHalfBegin = ((Imm >> 4) & 0x3) * HalfSize;
+
+  for (int i = FstHalfBegin, e = FstHalfBegin+HalfSize; i != e; ++i)
+    ShuffleMask.push_back(i);
+  for (int i = SndHalfBegin, e = SndHalfBegin+HalfSize; i != e; ++i)
+    ShuffleMask.push_back(i);
+}
+
+void DecodeVPERM2F128Mask(unsigned Imm,
+                          SmallVectorImpl<unsigned> &ShuffleMask) {
+  // VPERM2F128 is used by any 256-bit EVT, but X86InstComments only
+  // has information about the instruction and not the types. So for
+  // instruction comments purpose, assume the 256-bit vector is v4i64.
+  return DecodeVPERM2F128Mask(MVT::v4i64, Imm, ShuffleMask);
 }
 
 } // llvm namespace

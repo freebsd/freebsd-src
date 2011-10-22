@@ -25,6 +25,12 @@ namespace llvm {
 /// registers, including vreg register classes, use/def chains for registers,
 /// etc.
 class MachineRegisterInfo {
+  const TargetRegisterInfo *const TRI;
+
+  /// IsSSA - True when the machine function is in SSA form and virtual
+  /// registers have a single def.
+  bool IsSSA;
+
   /// VRegInfo - Information we keep for each virtual register.
   ///
   /// Each element in this list contains the register class of the vreg and the
@@ -65,7 +71,23 @@ class MachineRegisterInfo {
 public:
   explicit MachineRegisterInfo(const TargetRegisterInfo &TRI);
   ~MachineRegisterInfo();
-  
+
+  //===--------------------------------------------------------------------===//
+  // Function State
+  //===--------------------------------------------------------------------===//
+
+  // isSSA - Returns true when the machine function is in SSA form. Early
+  // passes require the machine function to be in SSA form where every virtual
+  // register has a single defining instruction.
+  //
+  // The TwoAddressInstructionPass and PHIElimination passes take the machine
+  // function out of SSA form when they introduce multiple defs per virtual
+  // register.
+  bool isSSA() const { return IsSSA; }
+
+  // leaveSSA - Indicates that the machine function is no longer in SSA form.
+  void leaveSSA() { IsSSA = false; }
+
   //===--------------------------------------------------------------------===//
   // Register Info
   //===--------------------------------------------------------------------===//
@@ -195,12 +217,25 @@ public:
   void setRegClass(unsigned Reg, const TargetRegisterClass *RC);
 
   /// constrainRegClass - Constrain the register class of the specified virtual
-  /// register to be a common subclass of RC and the current register class.
-  /// Return the new register class, or NULL if no such class exists.
+  /// register to be a common subclass of RC and the current register class,
+  /// but only if the new class has at least MinNumRegs registers.  Return the
+  /// new register class, or NULL if no such class exists.
   /// This should only be used when the constraint is known to be trivial, like
   /// GR32 -> GR32_NOSP. Beware of increasing register pressure.
+  ///
   const TargetRegisterClass *constrainRegClass(unsigned Reg,
-                                               const TargetRegisterClass *RC);
+                                               const TargetRegisterClass *RC,
+                                               unsigned MinNumRegs = 0);
+
+  /// recomputeRegClass - Try to find a legal super-class of Reg's register
+  /// class that still satisfies the constraints from the instructions using
+  /// Reg.  Returns true if Reg was upgraded.
+  ///
+  /// This method can be used after constraints have been removed from a
+  /// virtual register, for example after removing instructions or splitting
+  /// the live range.
+  ///
+  bool recomputeRegClass(unsigned Reg, const TargetMachine&);
 
   /// createVirtualRegister - Create and return a new virtual register in the
   /// function with the specified register class.

@@ -50,17 +50,35 @@ template<> struct ilist_traits<Function>
 private:
   mutable ilist_node<Function> Sentinel;
 };
+
 template<> struct ilist_traits<GlobalVariable>
   : public SymbolTableListTraits<GlobalVariable, Module> {
   // createSentinel is used to create a node that marks the end of the list.
-  static GlobalVariable *createSentinel();
-  static void destroySentinel(GlobalVariable *GV) { delete GV; }
+  GlobalVariable *createSentinel() const {
+    return static_cast<GlobalVariable*>(&Sentinel);
+  }
+  static void destroySentinel(GlobalVariable*) {}
+
+  GlobalVariable *provideInitialHead() const { return createSentinel(); }
+  GlobalVariable *ensureHead(GlobalVariable*) const { return createSentinel(); }
+  static void noteHead(GlobalVariable*, GlobalVariable*) {}
+private:
+  mutable ilist_node<GlobalVariable> Sentinel;
 };
+
 template<> struct ilist_traits<GlobalAlias>
   : public SymbolTableListTraits<GlobalAlias, Module> {
   // createSentinel is used to create a node that marks the end of the list.
-  static GlobalAlias *createSentinel();
-  static void destroySentinel(GlobalAlias *GA) { delete GA; }
+  GlobalAlias *createSentinel() const {
+    return static_cast<GlobalAlias*>(&Sentinel);
+  }
+  static void destroySentinel(GlobalAlias*) {}
+
+  GlobalAlias *provideInitialHead() const { return createSentinel(); }
+  GlobalAlias *ensureHead(GlobalAlias*) const { return createSentinel(); }
+  static void noteHead(GlobalAlias*, GlobalAlias*) {}
+private:
+  mutable ilist_node<GlobalAlias> Sentinel;
 };
 
 template<> struct ilist_traits<NamedMDNode>
@@ -272,10 +290,10 @@ public:
   ///      the existing function.
   ///   4. Finally, the function exists but has the wrong prototype: return the
   ///      function with a constantexpr cast to the right prototype.
-  Constant *getOrInsertFunction(StringRef Name, const FunctionType *T,
+  Constant *getOrInsertFunction(StringRef Name, FunctionType *T,
                                 AttrListPtr AttributeList);
 
-  Constant *getOrInsertFunction(StringRef Name, const FunctionType *T);
+  Constant *getOrInsertFunction(StringRef Name, FunctionType *T);
 
   /// getOrInsertFunction - Look up the specified function in the module symbol
   /// table.  If it does not exist, add a prototype for the function and return
@@ -286,14 +304,14 @@ public:
   /// clients to use.
   Constant *getOrInsertFunction(StringRef Name,
                                 AttrListPtr AttributeList,
-                                const Type *RetTy, ...)  END_WITH_NULL;
+                                Type *RetTy, ...)  END_WITH_NULL;
 
   /// getOrInsertFunction - Same as above, but without the attributes.
-  Constant *getOrInsertFunction(StringRef Name, const Type *RetTy, ...)
+  Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ...)
     END_WITH_NULL;
 
   Constant *getOrInsertTargetIntrinsic(StringRef Name,
-                                       const FunctionType *Ty,
+                                       FunctionType *Ty,
                                        AttrListPtr AttributeList);
 
   /// getFunction - Look up the specified function in the module symbol table.
@@ -325,7 +343,7 @@ public:
   ///      with a constantexpr cast to the right type.
   ///   3. Finally, if the existing global is the correct declaration, return
   ///      the existing global.
-  Constant *getOrInsertGlobal(StringRef Name, const Type *Ty);
+  Constant *getOrInsertGlobal(StringRef Name, Type *Ty);
 
 /// @}
 /// @name Global Alias Accessors

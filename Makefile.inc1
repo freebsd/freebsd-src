@@ -1030,7 +1030,9 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 .if ${MK_CLANG} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
-	usr.bin/clang/tblgen
+	lib/clang/libllvmtablegen \
+	usr.bin/clang/tblgen \
+	usr.bin/clang/clang-tblgen
 .endif
 
 .if ${MK_CDDL} != "no" && \

@@ -32,8 +32,9 @@ class XCoreTargetMachine : public LLVMTargetMachine {
   XCoreTargetLowering TLInfo;
   XCoreSelectionDAGInfo TSInfo;
 public:
-  XCoreTargetMachine(const Target &T, const std::string &TT,
-                     const std::string &CPU, const std::string &FS);
+  XCoreTargetMachine(const Target &T, StringRef TT,
+                     StringRef CPU, StringRef FS,
+                     Reloc::Model RM, CodeModel::Model CM);
 
   virtual const XCoreInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const XCoreFrameLowering *getFrameLowering() const {
