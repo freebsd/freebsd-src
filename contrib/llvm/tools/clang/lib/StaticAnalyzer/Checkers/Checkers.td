@@ -10,41 +10,32 @@
 include "clang/StaticAnalyzer/Checkers/CheckerBase.td"
 
 //===----------------------------------------------------------------------===//
-// Groups.
-//===----------------------------------------------------------------------===//
-
-def AllExperimental : CheckerGroup<"all-experimental">;
-
-//===----------------------------------------------------------------------===//
 // Packages.
 //===----------------------------------------------------------------------===//
+
+def Experimental : Package<"experimental">;
 
 def Core : Package<"core">;
 def CoreBuiltin : Package<"builtin">, InPackage<Core>;
 def CoreUninitialized  : Package<"uninitialized">, InPackage<Core>;
-def CoreExperimental : Package<"experimental">, InPackage<Core>,
-  InGroup<AllExperimental>, Hidden;
+def CoreExperimental : Package<"core">, InPackage<Experimental>, Hidden;
 
 def Cplusplus : Package<"cplusplus">;
-def CplusplusExperimental : Package<"experimental">, InPackage<Cplusplus>,
-  InGroup<AllExperimental>, Hidden;
+def CplusplusExperimental : Package<"cplusplus">, InPackage<Experimental>, Hidden;
 
 def DeadCode : Package<"deadcode">;
-def DeadCodeExperimental : Package<"experimental">, InPackage<DeadCode>,
-  InGroup<AllExperimental>, Hidden;
+def DeadCodeExperimental : Package<"deadcode">, InPackage<Experimental>, Hidden;
 
 def Security : Package <"security">;
-def SecurityExperimental : Package<"experimental">, InPackage<Security>,
-  InGroup<AllExperimental>, Hidden;
+def SecurityExperimental : Package<"security">, InPackage<Experimental>, Hidden;
 
 def Unix : Package<"unix">;
-def UnixExperimental : Package<"experimental">, InPackage<Unix>,
-  InGroup<AllExperimental>, Hidden;
+def UnixExperimental : Package<"unix">, InPackage<Experimental>, Hidden;
 
 def OSX : Package<"osx">;
+def OSXExperimental : Package<"osx">, InPackage<Experimental>, Hidden;
 def Cocoa : Package<"cocoa">, InPackage<OSX>;
-def CocoaExperimental : Package<"experimental">, InPackage<Cocoa>,
-  InGroup<AllExperimental>, Hidden;
+def CocoaExperimental : Package<"cocoa">, InPackage<OSXExperimental>, Hidden;
 def CoreFoundation : Package<"coreFoundation">, InPackage<OSX>;
 
 def LLVM : Package<"llvm">;
@@ -220,6 +211,10 @@ def ReturnPointerRangeChecker : Checker<"ReturnPtrRange">,
   HelpText<"Check for an out-of-bound pointer being returned to callers">,
   DescFile<"ReturnPointerRangeChecker.cpp">;
 
+def MallocOverflowSecurityChecker : Checker<"MallocOverflow">,
+  HelpText<"Check for overflows in the arguments to malloc()">,
+  DescFile<"MallocOverflowSecurityChecker.cpp">;
+
 } // end "security.experimental"
 
 //===----------------------------------------------------------------------===//
@@ -274,6 +269,11 @@ def OSAtomicChecker : Checker<"AtomicCAS">,
   HelpText<"Evaluate calls to OSAtomic functions">,
   DescFile<"OSAtomicChecker.cpp">;
 
+def MacOSKeychainAPIChecker : Checker<"SecKeychainAPI">,
+  InPackage<OSX>,
+  HelpText<"Check for proper uses of Secure Keychain APIs">,
+  DescFile<"MacOSKeychainAPIChecker.cpp">;
+
 } // end "macosx"
 
 let ParentPackage = Cocoa in {
@@ -310,6 +310,10 @@ def ObjCUnusedIvarsChecker : Checker<"UnusedIvars">,
 def NSErrorChecker : Checker<"NSError">,
   HelpText<"Check usage of NSError** parameters">,
   DescFile<"NSErrorChecker.cpp">;
+
+def RetainCountChecker : Checker<"RetainCount">,
+  HelpText<"Check for leaks and improper reference count management">,
+  DescFile<"RetainCountChecker.cpp">;
 
 } // end "cocoa"
 

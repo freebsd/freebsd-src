@@ -892,6 +892,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halEnhancedDfsSupport = AH_FALSE;
 	/* Hardware supports 32 bit TSF values in the RX descriptor */
 	pCap->halHasLongRxDescTsf = AH_TRUE;
+	/*
+	 * BB Read WAR: this is only for AR5008/AR9001 NICs
+	 * It is also set individually in the AR91xx attach functions.
+	 */
+	if (AR_SREV_OWL(ah))
+		pCap->halHasBBReadWar = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

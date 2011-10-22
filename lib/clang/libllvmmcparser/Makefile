@@ -11,6 +11,6 @@ SRCS=	AsmLexer.cpp \
 	MCAsmLexer.cpp \
 	MCAsmParser.cpp \
 	MCAsmParserExtension.cpp \
-	TargetAsmParser.cpp
+	MCTargetAsmParser.cpp
 
 .include "../clang.lib.mk"

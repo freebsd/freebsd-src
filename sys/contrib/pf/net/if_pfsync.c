@@ -714,6 +714,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	int pool_flags;
 	int error;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
 #else
@@ -1469,7 +1471,9 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			if (ISSET(st->state_flags, PFSTATE_NOSYNC))
 				continue;
 
+			PF_LOCK();
 			pfsync_update_state_req(st);
+			PF_UNLOCK();
 		}
 	}
 
@@ -1558,7 +1562,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_unlink_state(st);
 	}
 #ifdef __FreeBSD__
-	PF_LOCK();
+	PF_UNLOCK();
 #endif
 	splx(s);
 
@@ -1955,7 +1959,11 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ip->ip_hl = sizeof(sc->sc_template) >> 2;
 		ip->ip_tos = IPTOS_LOWDELAY;
 		/* len and id are set later */
+#ifdef __FreeBSD__
+		ip->ip_off = IP_DF;
+#else
 		ip->ip_off = htons(IP_DF);
+#endif
 		ip->ip_ttl = PFSYNC_DFLTTL;
 		ip->ip_p = IPPROTO_PFSYNC;
 		ip->ip_src.s_addr = INADDR_ANY;
@@ -2143,7 +2151,7 @@ pfsync_sendout(void)
 	int q, count = 0;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_NET);
 #endif
@@ -2207,7 +2215,11 @@ pfsync_sendout(void)
 	bcopy(&sc->sc_template, ip, sizeof(*ip));
 	offset = sizeof(*ip);
 
+#ifdef __FreeBSD__
+	ip->ip_len = m->m_pkthdr.len;
+#else
 	ip->ip_len = htons(m->m_pkthdr.len);
+#endif
 	ip->ip_id = htons(ip_randomid());
 
 	/* build the pfsync header */
@@ -2342,6 +2354,7 @@ pfsync_sendout(void)
 	sc->sc_if.if_obytes += m->m_pkthdr.len;
 #endif
 
+	sc->sc_len = PFSYNC_MINPKT;
 #ifdef __FreeBSD__
 	PF_UNLOCK();
 #endif
@@ -2363,9 +2376,6 @@ pfsync_sendout(void)
 #ifdef __FreeBSD__
 	}
 #endif
-
-	/* start again */
-	sc->sc_len = PFSYNC_MINPKT;
 }
 
 void
@@ -2378,7 +2388,7 @@ pfsync_insert_state(struct pf_state *st)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2430,7 +2440,7 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	struct pfsync_deferral *pd;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2477,7 +2487,7 @@ pfsync_undefer(struct pfsync_deferral *pd, int drop)
 	int s;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2560,7 +2570,7 @@ pfsync_update_state(struct pf_state *st)
 	int sync = 0;
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2625,6 +2635,8 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	size_t nlen = sizeof(struct pfsync_upd_req);
 	int s;
 
+	PF_LOCK_ASSERT();
+
 	/*
 	 * this code does nothing to prevent multiple update requests for the
 	 * same state being generated.
@@ -2670,6 +2682,8 @@ pfsync_update_state_req(struct pf_state *st)
 	struct pfsync_softc *sc = pfsyncif;
 #endif
 
+	PF_LOCK_ASSERT();
+
 	if (sc == NULL)
 		panic("pfsync_update_state_req: nonexistant instance");
 
@@ -2710,7 +2724,7 @@ pfsync_delete_state(struct pf_state *st)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2771,7 +2785,7 @@ pfsync_clear_states(u_int32_t creatorid, const char *ifname)
 #endif
 
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #else
 	splassert(IPL_SOFTNET);
 #endif
@@ -2801,6 +2815,8 @@ pfsync_q_ins(struct pf_state *st, int q)
 	size_t nlen = pfsync_qs[q].len;
 	int s;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
 		("%s: st->sync_state == PFSYNC_S_NONE", __FUNCTION__));
@@ -2825,13 +2841,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 	if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 #endif
 		s = splnet();
-#ifdef __FreeBSD__
-		PF_LOCK();
-#endif
 		pfsync_sendout();
-#ifdef __FreeBSD__
-		PF_UNLOCK();
-#endif
 		splx(s);
 
 		nlen = sizeof(struct pfsync_subheader) + pfsync_qs[q].len;
@@ -2888,7 +2898,9 @@ pfsync_update_tdb(struct tdb *t, int output)
 
 		if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 			s = splnet();
+			PF_LOCK();
 			pfsync_sendout();
+			PF_UNLOCK();
 			splx(s);
 
 			nlen = sizeof(struct pfsync_subheader) +
@@ -2991,8 +3003,10 @@ pfsync_bulk_start(void)
 #endif
 		printf("pfsync: received bulk update request\n");
 
+	PF_LOCK();
 	pfsync_bulk_status(PFSYNC_BUS_START);
 	pfsync_bulk_update(sc);
+	PF_UNLOCK();
 }
 
 void
@@ -3003,10 +3017,11 @@ pfsync_bulk_update(void *arg)
 	int i = 0;
 	int s;
 
+	PF_LOCK_ASSERT();
+
 	s = splsoftnet();
 #ifdef __FreeBSD__
 	CURVNET_SET(sc->sc_ifp->if_vnet);
-	PF_LOCK();
 #endif
 	do {
 		if (st->sync_state == PFSYNC_S_NONE &&
@@ -3043,7 +3058,6 @@ pfsync_bulk_update(void *arg)
 
 out:
 #ifdef __FreeBSD__
-	PF_UNLOCK();
 	CURVNET_RESTORE();
 #endif
 	splx(s);
@@ -3062,6 +3076,8 @@ pfsync_bulk_status(u_int8_t status)
 #else
 	struct pfsync_softc *sc = pfsyncif;
 #endif
+
+	PF_LOCK_ASSERT();
 
 	bzero(&r, sizeof(r));
 
@@ -3096,7 +3112,9 @@ pfsync_bulk_fail(void *arg)
 #else
 		timeout_add_sec(&sc->sc_bulkfail_tmo, 5);
 #endif
+		PF_LOCK();
 		pfsync_request_update(0, 0);
+		PF_UNLOCK();
 	} else {
 		/* Pretend like the transfer was ok */
 		sc->sc_ureq_sent = 0;
@@ -3139,19 +3157,15 @@ pfsync_send_plus(void *plus, size_t pluslen)
 #endif
 	int s;
 
+	PF_LOCK_ASSERT();
+
 #ifdef __FreeBSD__
 	if (sc->sc_len + pluslen > sc->sc_ifp->if_mtu) {
 #else
 	if (sc->sc_len + pluslen > sc->sc_if.if_mtu) {
 #endif
 		s = splnet();
-#ifdef __FreeBSD__
-		PF_LOCK();
-#endif
 		pfsync_sendout();
-#ifdef __FreeBSD__
-		PF_UNLOCK();
-#endif
 		splx(s);
 	}
 
@@ -3159,13 +3173,7 @@ pfsync_send_plus(void *plus, size_t pluslen)
 	sc->sc_len += (sc->sc_pluslen = pluslen);
 
 	s = splnet();
-#ifdef __FreeBSD__
-	PF_LOCK();
-#endif
 	pfsync_sendout();
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
 	splx(s);
 }
 
@@ -3380,7 +3388,7 @@ vnet_pfsync_uninit(const void *unused)
 }
 
 /* Define startup order. */
-#define	PFSYNC_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
+#define	PFSYNC_SYSINIT_ORDER	SI_SUB_PROTO_IF
 #define	PFSYNC_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
 #define	PFSYNC_VNET_ORDER	(PFSYNC_MODEVENT_ORDER + 2) /* Later still. */
 
@@ -3430,7 +3438,7 @@ static moduledata_t pfsync_mod = {
 
 #define PFSYNC_MODVER 1
 
-DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(pfsync, PFSYNC_MODVER);
 MODULE_DEPEND(pfsync, pf, PF_MODVER, PF_MODVER, PF_MODVER);
 #endif /* __FreeBSD__ */

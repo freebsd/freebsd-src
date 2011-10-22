@@ -27,6 +27,8 @@ namespace llvm {
   class TargetData;
   class Function;
   class Type;
+  template<typename T>
+  class ArrayRef;
 
 /// ConstantFoldInstruction - Try to constant fold the specified instruction.
 /// If successful, the constant result is returned, if not, null is returned.
@@ -47,8 +49,8 @@ Constant *ConstantFoldConstantExpression(const ConstantExpr *CE,
 /// fold instructions like loads and stores, which have no constant expression 
 /// form.
 ///
-Constant *ConstantFoldInstOperands(unsigned Opcode, const Type *DestTy,
-                                   Constant *const *Ops, unsigned NumOps,
+Constant *ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
+                                   ArrayRef<Constant *> Ops,
                                    const TargetData *TD = 0);
 
 /// ConstantFoldCompareInstOperands - Attempt to constant fold a compare
@@ -58,6 +60,12 @@ Constant *ConstantFoldInstOperands(unsigned Opcode, const Type *DestTy,
 Constant *ConstantFoldCompareInstOperands(unsigned Predicate,
                                           Constant *LHS, Constant *RHS,
                                           const TargetData *TD = 0);
+
+/// ConstantFoldInsertValueInstruction - Attempt to constant fold an insertvalue
+/// instruction with the specified operands and indices.  The constant result is
+/// returned if successful; if not, null is returned.
+Constant *ConstantFoldInsertValueInstruction(Constant *Agg, Constant *Val,
+                                             ArrayRef<unsigned> Idxs);
 
 /// ConstantFoldLoadFromConstPtr - Return the value that a load from C would
 /// produce if it is constant and determinable.  If this is not determinable,
@@ -76,7 +84,7 @@ bool canConstantFoldCallTo(const Function *F);
 /// ConstantFoldCall - Attempt to constant fold a call to the specified function
 /// with the specified arguments, returning null if unsuccessful.
 Constant *
-ConstantFoldCall(Function *F, Constant *const *Operands, unsigned NumOperands);
+ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands);
 }
 
 #endif

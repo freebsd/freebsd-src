@@ -26,7 +26,7 @@
  *
  */
 
-/*	$NetBSD: esp_sbus.c,v 1.31 2005/02/27 00:27:48 perry Exp $	*/
+/*	$NetBSD: esp_sbus.c,v 1.51 2009/09/17 16:28:12 tsutsui Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
@@ -44,13 +44,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -158,12 +151,12 @@ MODULE_DEPEND(esp, sbus, 1, 1, 1);
 /*
  * Functions and the switch for the MI code
  */
-static u_char	esp_read_reg(struct ncr53c9x_softc *sc, int reg);
-static void	esp_write_reg(struct ncr53c9x_softc *sc, int reg, u_char v);
+static uint8_t	esp_read_reg(struct ncr53c9x_softc *sc, int reg);
+static void	esp_write_reg(struct ncr53c9x_softc *sc, int reg, uint8_t v);
 static int	esp_dma_isintr(struct ncr53c9x_softc *sc);
 static void	esp_dma_reset(struct ncr53c9x_softc *sc);
 static int	esp_dma_intr(struct ncr53c9x_softc *sc);
-static int	esp_dma_setup(struct ncr53c9x_softc *sc, caddr_t *addr,
+static int	esp_dma_setup(struct ncr53c9x_softc *sc, void **addr,
 		    size_t *len, int datain, size_t *dmasize);
 static void	esp_dma_go(struct ncr53c9x_softc *sc);
 static void	esp_dma_stop(struct ncr53c9x_softc *sc);
@@ -172,7 +165,7 @@ static int	espattach(struct esp_softc *esc,
 		    const struct ncr53c9x_glue *gluep);
 static int	espdetach(struct esp_softc *esc);
 
-static const struct ncr53c9x_glue esp_sbus_glue = {
+static const struct ncr53c9x_glue const esp_sbus_glue = {
 	esp_read_reg,
 	esp_write_reg,
 	esp_dma_isintr,
@@ -718,9 +711,9 @@ espdetach(struct esp_softc *esc)
 static int esp_sbus_debug = 0;
 
 static const struct {
-	char *r_name;
-	int   r_flag;
-} esp__read_regnames [] = {
+	const char *r_name;
+	int r_flag;
+} const esp__read_regnames [] = {
 	{ "TCL", 0},			/* 0/00 */
 	{ "TCM", 0},			/* 1/04 */
 	{ "FIFO", 0},			/* 2/08 */
@@ -739,10 +732,10 @@ static const struct {
 	{ "TCX", 1},			/* f/3c */
 };
 
-static const struct {
-	char *r_name;
-	int   r_flag;
-} esp__write_regnames[] = {
+static const const struct {
+	const char *r_name;
+	int r_flag;
+} const esp__write_regnames[] = {
 	{ "TCL", 1},			/* 0/00 */
 	{ "TCM", 1},			/* 1/04 */
 	{ "FIFO", 0},			/* 2/08 */
@@ -762,11 +755,11 @@ static const struct {
 };
 #endif
 
-static u_char
+static uint8_t
 esp_read_reg(struct ncr53c9x_softc *sc, int reg)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
-	u_char v;
+	uint8_t v;
 
 	v = bus_read_1(esc->sc_res, reg * 4);
 
@@ -780,7 +773,7 @@ esp_read_reg(struct ncr53c9x_softc *sc, int reg)
 }
 
 static void
-esp_write_reg(struct ncr53c9x_softc *sc, int reg, u_char v)
+esp_write_reg(struct ncr53c9x_softc *sc, int reg, uint8_t v)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
 
@@ -818,8 +811,8 @@ esp_dma_intr(struct ncr53c9x_softc *sc)
 }
 
 static int
-esp_dma_setup(struct ncr53c9x_softc *sc, caddr_t *addr, size_t *len,
-	      int datain, size_t *dmasize)
+esp_dma_setup(struct ncr53c9x_softc *sc, void **addr, size_t *len,
+    int datain, size_t *dmasize)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
 

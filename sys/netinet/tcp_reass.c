@@ -177,7 +177,9 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	struct tseg_qent *nq;
 	struct tseg_qent *te = NULL;
 	struct socket *so = tp->t_inpcb->inp_socket;
+	char *s = NULL;
 	int flags;
+	struct tseg_qent tqs;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -215,19 +217,40 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: queue limit reached, "
+			    "segment dropped\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 		return (0);
 	}
 
 	/*
 	 * Allocate a new queue entry. If we can't, or hit the zone limit
 	 * just drop the pkt.
+	 *
+	 * Use a temporary structure on the stack for the missing segment
+	 * when the zone is exhausted. Otherwise we may get stuck.
 	 */
 	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
-	if (te == NULL) {
+	if (te == NULL && th->th_seq != tp->rcv_nxt) {
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
+			    "segment dropped\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 		return (0);
+	} else if (th->th_seq == tp->rcv_nxt) {
+		bzero(&tqs, sizeof(struct tseg_qent));
+		te = &tqs;
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
+			    "using stack for missing segment\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 	}
 	tp->t_segqlen++;
 
@@ -304,6 +327,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	if (p == NULL) {
 		LIST_INSERT_HEAD(&tp->t_segq, te, tqe_q);
 	} else {
+		KASSERT(te != &tqs, ("%s: temporary stack based entry not "
+		    "first element in queue", __func__));
 		LIST_INSERT_AFTER(p, te, tqe_q);
 	}
 
@@ -327,7 +352,8 @@ present:
 			m_freem(q->tqe_m);
 		else
 			sbappendstream_locked(&so->so_rcv, q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
+		if (q != &tqs)
+			uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);

@@ -96,6 +96,16 @@ write_common(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 #define IS_DISABLE_FAST_ADC_CHAN(x) (((x) == 2462) || ((x) == 2467))
 
 /*
+ * XXX NDIS 5.x code had MAX_RESET_WAIT set to 2000 for AP code
+ * and 10 for Client code
+ */
+#define	MAX_RESET_WAIT			10
+
+#define	TX_QUEUEPEND_CHECK		1
+#define	TX_ENABLE_CHECK			2
+#define	RX_ENABLE_CHECK			4
+
+/*
  * Places the device in and out of reset and then places sane
  * values in the registers based on EEPROM config, initialization
  * vectors (as determined by the mode), and station configuration
@@ -1104,6 +1114,76 @@ ar5212ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	return AH_TRUE;
 }
 
+/**************************************************************
+ * ar5212MacStop
+ *
+ * Disables all active QCUs and ensure that the mac is in a
+ * quiessence state.
+ */
+static HAL_BOOL
+ar5212MacStop(struct ath_hal *ah)
+{
+	HAL_BOOL     status;
+	uint32_t    count;
+	uint32_t    pendFrameCount;
+	uint32_t    macStateFlag;
+	uint32_t    queue;
+
+	status = AH_FALSE;
+
+	/* Disable Rx Operation ***********************************/
+	OS_REG_SET_BIT(ah, AR_CR, AR_CR_RXD);
+
+	/* Disable TX Operation ***********************************/
+#ifdef NOT_YET
+	ar5212SetTxdpInvalid(ah);
+#endif
+	OS_REG_SET_BIT(ah, AR_Q_TXD, AR_Q_TXD_M);
+
+	/* Polling operation for completion of disable ************/
+	macStateFlag = TX_ENABLE_CHECK | RX_ENABLE_CHECK;
+
+	for (count = 0; count < MAX_RESET_WAIT; count++) {
+		if (macStateFlag & RX_ENABLE_CHECK) {
+			if (!OS_REG_IS_BIT_SET(ah, AR_CR, AR_CR_RXE)) {
+				macStateFlag &= ~RX_ENABLE_CHECK;
+			}
+		}
+
+		if (macStateFlag & TX_ENABLE_CHECK) {
+			if (!OS_REG_IS_BIT_SET(ah, AR_Q_TXE, AR_Q_TXE_M)) {
+				macStateFlag &= ~TX_ENABLE_CHECK;
+				macStateFlag |= TX_QUEUEPEND_CHECK;
+			}
+		}
+		if (macStateFlag & TX_QUEUEPEND_CHECK) {
+			pendFrameCount = 0;
+			for (queue = 0; queue < AR_NUM_DCU; queue++) {
+				pendFrameCount += OS_REG_READ(ah,
+				    AR_Q0_STS + (queue * 4)) &
+				    AR_Q_STS_PEND_FR_CNT;
+			}
+			if (pendFrameCount == 0) {
+				macStateFlag &= ~TX_QUEUEPEND_CHECK;
+			}
+		}
+		if (macStateFlag == 0) {
+			status = AH_TRUE;
+			break;
+		}
+		OS_DELAY(50);
+	}
+
+	if (status != AH_TRUE) {
+		HALDEBUG(ah, HAL_DEBUG_RESET,
+		    "%s:Failed to stop the MAC state 0x%x\n",
+		    __func__, macStateFlag);
+	}
+
+	return status;
+}
+
+
 /*
  * Write the given reset bit mask into the reset register
  */
@@ -1113,10 +1193,73 @@ ar5212SetResetReg(struct ath_hal *ah, uint32_t resetMask)
 	uint32_t mask = resetMask ? resetMask : ~0;
 	HAL_BOOL rt;
 
-	/* XXX ar5212MacStop & co. */
-
+	/* Never reset the PCIE core */
 	if (AH_PRIVATE(ah)->ah_ispcie) {
 		resetMask &= ~AR_RC_PCI;
+	}
+
+	if (resetMask & (AR_RC_MAC | AR_RC_PCI)) {
+		/*
+		 * To ensure that the driver can reset the
+		 * MAC, wake up the chip
+		 */
+		rt = ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE);
+
+		if (rt != AH_TRUE) {
+			return rt;
+		}
+
+		/*
+		 * Disable interrupts
+		 */
+		OS_REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
+		OS_REG_READ(ah, AR_IER);
+
+		if (ar5212MacStop(ah) != AH_TRUE) {
+			/*
+			 * Failed to stop the MAC gracefully; let's be more forceful then
+			 */
+
+			/* need some delay before flush any pending MMR writes */
+			OS_DELAY(15);
+			OS_REG_READ(ah, AR_RXDP);
+
+			resetMask |= AR_RC_MAC | AR_RC_BB;
+			/* _Never_ reset PCI Express core */
+			if (! AH_PRIVATE(ah)->ah_ispcie) {
+				resetMask |= AR_RC_PCI;
+			}
+#if 0
+			/*
+			 * Flush the park address of the PCI controller
+			*/
+			/* Read PCI slot information less than Hainan revision */
+			if (AH_PRIVATE(ah)->ah_bustype == HAL_BUS_TYPE_PCI) {
+				if (!IS_5112_REV5_UP(ah)) {
+#define PCI_COMMON_CONFIG_STATUS    0x06
+					u_int32_t    i;
+					u_int16_t    reg16;
+
+					for (i = 0; i < 32; i++) {
+						ath_hal_read_pci_config_space(ah,
+						    PCI_COMMON_CONFIG_STATUS,
+						    &reg16, sizeof(reg16));
+					}
+				}
+#undef PCI_COMMON_CONFIG_STATUS
+			}
+#endif
+		} else {
+			/*
+			 * MAC stopped gracefully; no need to warm-reset the PCI bus
+			 */
+
+			resetMask &= ~AR_RC_PCI;
+
+			/* need some delay before flush any pending MMR writes */
+			OS_DELAY(15);
+			OS_REG_READ(ah, AR_RXDP);
+		}
 	}
 
 	(void) OS_REG_READ(ah, AR_RXDP);/* flush any pending MMR writes */
