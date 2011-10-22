@@ -50,13 +50,6 @@ ModulePass *createStripDebugDeclarePass();
 ModulePass *createStripDeadDebugInfoPass();
 
 //===----------------------------------------------------------------------===//
-/// createLowerSetJmpPass - This function lowers the setjmp/longjmp intrinsics
-/// to invoke/unwind instructions.  This should really be part of the C/C++
-/// front-end, but it's so much easier to write transformations in LLVM proper.
-///
-ModulePass *createLowerSetJmpPass();
-
-//===----------------------------------------------------------------------===//
 /// createConstantMergePass - This function returns a new pass that merges
 /// duplicate global constants together into a single constant that is shared.
 /// This is useful because some passes (ie TraceValues) insert a lot of string
@@ -81,7 +74,7 @@ ModulePass *createGlobalDCEPass();
 
 
 //===----------------------------------------------------------------------===//
-/// createGVExtractionPass - If deleteFn is true, this pass deletes as
+/// createGVExtractionPass - If deleteFn is true, this pass deletes
 /// the specified global values. Otherwise, it deletes as much of the module as
 /// possible, except for the global values specified.
 ///
