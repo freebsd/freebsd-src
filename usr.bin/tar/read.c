@@ -209,10 +209,18 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_FATAL)
 			break;
 
-		if (bsdtar->option_numeric_owner) {
+		if (bsdtar->uid >= 0) {
+			archive_entry_set_uid(entry, bsdtar->uid);
 			archive_entry_set_uname(entry, NULL);
+		}
+		if (bsdtar->gid >= 0) {
+			archive_entry_set_gid(entry, bsdtar->gid);
 			archive_entry_set_gname(entry, NULL);
 		}
+		if (bsdtar->uname)
+			archive_entry_set_uname(entry, bsdtar->uname);
+		if (bsdtar->gname >= 0)
+			archive_entry_set_gname(entry, bsdtar->gname);
 
 		/*
 		 * Exclude entries that are too old.
