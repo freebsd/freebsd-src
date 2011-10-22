@@ -2709,7 +2709,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			 * reinitialize the sensitivity state machine.
 			 */
 			if (vap->iv_state == IEEE80211_S_RUN &&
-			    (ic->ic_flags & IEEE80211_F_SCAN) != 0) {
+			    (ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 				if (misses > 5)
 					(void)iwn_init_sensitivity(sc);
 				if (misses >= vap->iv_bmissthreshold) {
