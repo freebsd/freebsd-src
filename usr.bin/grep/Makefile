@@ -53,12 +53,14 @@ DPADD=	${LIBZ} ${LIBLZMA}
 LDADD+=	-lbz2
 DPADD+=	${LIBBZ2}
 
+.if ${MK_BSD_GREP} == "yes"
 LINKS+= ${BINDIR}/grep ${BINDIR}/bzgrep \
 	${BINDIR}/grep ${BINDIR}/bzegrep \
 	${BINDIR}/grep ${BINDIR}/bzfgrep
 MLINKS+= grep.1 bzgrep.1 \
 	 grep.1 bzegrep.1 \
 	 grep.1 bzfgrep.1
+.endif
 .else
 CFLAGS+= -DWITHOUT_BZIP2
 .endif
