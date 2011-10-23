@@ -2006,8 +2006,8 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 				printf("pfsync: requesting bulk update\n");
 #ifdef __FreeBSD__
-				callout_reset(&sc->sc_bulkfail_tmo, 5 * hz,
-				    pfsync_bulk_fail, V_pfsyncif);
+			callout_reset(&sc->sc_bulkfail_tmo, 5 * hz,
+			    pfsync_bulk_fail, V_pfsyncif);
 #else
 			timeout_add_sec(&sc->sc_bulkfail_tmo, 5);
 #endif
