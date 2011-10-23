@@ -762,7 +762,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if (flags & PFSYNC_SI_IOCTL)
 		pool_flags = PR_WAITOK | PR_ZERO;
 	else
-		pool_flags = PR_ZERO;
+		pool_flags = PR_NOWAIT | PR_ZERO;
 
 	if ((st = pool_get(&V_pf_state_pl, pool_flags)) == NULL)
 		goto cleanup;
