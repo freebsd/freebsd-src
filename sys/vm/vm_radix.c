@@ -218,8 +218,8 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 }
 
 /*
- * Looks up as many as cnt values between start and end and stores them
- * in the caller allocated array out.  The next index can be used to
+ * Looks up as many as cnt values between start and end inclusive, and stores
+ * them in the caller allocated array out.  The next index can be used to
  * restart the scan.  This optimizes forward scans in the tree.
  */
 int
@@ -242,10 +242,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 	max = VM_RADIX_MAX(rtree->rt_height);
 	if (start > max)
 		return 0;
-	if (end > max + 1)
-		end = max + 1;
-	if (end == 0)
-		end = -1;
+	if (end > max || end == 0)
+		end = max;
 restart:
 	loops++;
 	if (loops > 1000)
@@ -281,7 +279,7 @@ restart:
 			CTR5(KTR_VM,
 			    "lookupn: start %p end %p inc %d mask 0x%lX slot %d",
 			    (void *)start, (void *)end, inc, ~VM_RADIX_MAX(level), slot);
-			for (; slot < VM_RADIX_COUNT && start < end;
+			for (; slot < VM_RADIX_COUNT && start <= end;
 			    slot++, start += inc) {
 				child = rnode->rn_child[slot];
 				if (child)
@@ -300,11 +298,11 @@ restart:
 		 *
 		 * Detect start wrapping back to 0 and return in this case.
 		 */
-		if (start < end && start != 0)
+		if (start <= end && start != 0)
 			goto restart;
 		goto out;
 	}
-	for (; outidx < cnt && slot < VM_RADIX_COUNT && start < end;
+	for (; outidx < cnt && slot < VM_RADIX_COUNT && start <= end;
 	    slot++, start++) {
 		val = rnode->rn_child[slot];
 		if (val == NULL)
@@ -316,7 +314,7 @@ restart:
 	 * otherwise the caller will simply call us again to fulfill the
 	 * same request after the structures are pushed out of cache.
 	 */
-	if (outidx < cnt && start < end)
+	if (outidx < cnt && start <= end)
 		goto restart;
 
 out:
@@ -326,29 +324,79 @@ out:
 }
 
 /*
- * Look up any entry at a position greater or equal to index.
- */
-void *
-vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
-{
-	vm_pindex_t max;
-	void *val;
-	int n;
-
-	max = VM_RADIX_MAX(rtree->rt_height);
-	n = vm_radix_lookupn(rtree, index, max + 1, &val, 1, &max);
-	if (n)
-		return (val);
-	return (NULL);
-}
-
-/*
  * Look up any entry at a position less than or equal to index.
  */
 void *
 vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
-	return NULL;
+	struct vm_radix_node *rnode;
+	struct vm_radix_node *child;
+	vm_pindex_t max;
+	vm_pindex_t inc;
+	int slot;
+	int level;
+	int loops = 0;
+
+	CTR2(KTR_VM,
+	    "lookup_le: tree %p, index %p", rtree, (void *)index);
+	if (rtree->rt_root == NULL)
+		return (NULL);
+	max = VM_RADIX_MAX(rtree->rt_height);
+	if (index > max || index == 0)
+		index = max;
+restart:
+	loops++;
+	if (loops > 1000)
+		panic("vm_radix_looku_le: looping %d\n", loops);
+	/*
+	 * Search the tree from the top for any leaf node holding an index
+	 * lower than 'index'.
+	 */
+	level = rtree->rt_height - 1;
+	rnode = rtree->rt_root;
+	while (rnode) {
+		slot = vm_radix_slot(index, level);
+		CTR5(KTR_VM,
+		    "lookup_le: tree %p, index %p, level %d, slot %d, child %p",
+		    rtree, (void *)index, level, slot, rnode->rn_child[slot]);
+		if (level == 0)
+			break;
+		/*
+		 * If we don't have an exact match we must start our search
+		 * from the next leaf and adjust our index appropriately.
+		 */
+		if ((child = rnode->rn_child[slot]) == NULL) {
+			/*
+			 * Calculate how much to decrement our index by
+			 * based on the tree level.  We must set the
+			 * lower bits to start from the end of the next
+			 * leaf.
+		 	 */
+			inc = 1LL << (level * VM_RADIX_WIDTH);
+			index |= VM_RADIX_MAX(level);
+			index -= inc;
+			slot--;
+			CTR4(KTR_VM,
+			    "lookup_le: start %p inc %ld mask 0x%lX slot %d",
+			    (void *)index, inc, VM_RADIX_MAX(level), slot);
+			for (; slot >= 0; slot--, index -= inc) {
+				child = rnode->rn_child[slot];
+				if (child)
+					break;
+			}
+		}
+		rnode = child;
+		level--;
+	}
+	if (rnode) {
+		for (; slot >= 0; slot--, index--) {
+			if (rnode->rn_child[slot])
+				return (rnode->rn_child[slot]);
+		}
+	}
+	if (index != -1)
+		goto restart;
+	return (NULL);
 }
 
 /*
