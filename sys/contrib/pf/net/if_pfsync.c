@@ -856,7 +856,11 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 		CLR(st->state_flags, PFSTATE_NOSYNC);
 		if (ISSET(st->state_flags, PFSTATE_ACK)) {
 			pfsync_q_ins(st, PFSYNC_S_IACK);
+#ifdef __FreeBSD__
+			pfsync_sendout();
+#else
 			schednetisr(NETISR_PFSYNC);
+#endif
 		}
 	}
 	CLR(st->state_flags, PFSTATE_ACK);
@@ -1312,7 +1316,11 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
+#ifdef __FreeBSD__
+			pfsync_sendout();
+#else
 			schednetisr(NETISR_PFSYNC);
+#endif
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
@@ -1418,7 +1426,11 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
+#ifdef __FreeBSD__
+			pfsync_sendout();
+#else
 			schednetisr(NETISR_PFSYNC);
+#endif
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
@@ -2146,6 +2158,7 @@ pfsync_sendout(void)
 #endif
 #ifdef __FreeBSD__
 	size_t pktlen;
+	int dummy_error;
 #endif
 	int offset;
 	int q, count = 0;
@@ -2349,32 +2362,21 @@ pfsync_sendout(void)
 #ifdef __FreeBSD__
 	sc->sc_ifp->if_opackets++;
 	sc->sc_ifp->if_obytes += m->m_pkthdr.len;
+	sc->sc_len = PFSYNC_MINPKT;
+
+	IFQ_ENQUEUE(&sc->sc_ifp->if_snd, m, dummy_error);
+	schednetisr(NETISR_PFSYNC);
 #else
 	sc->sc_if.if_opackets++;
 	sc->sc_if.if_obytes += m->m_pkthdr.len;
-#endif
 
-	sc->sc_len = PFSYNC_MINPKT;
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
 	if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL) == 0)
-#ifdef __FreeBSD__
-	{
-		PF_LOCK();
-#endif
-		V_pfsyncstats.pfsyncs_opackets++;
-#ifdef __FreeBSD__
-	}
-#endif
+		pfsyncstats.pfsyncs_opackets++;
 	else
-#ifdef __FreeBSD__
-	{
-		PF_LOCK();
-#endif
-		V_pfsyncstats.pfsyncs_oerrors++;
-#ifdef __FreeBSD__
-	}
+		pfsyncstats.pfsyncs_oerrors++;
+
+	/* start again */
+	sc->sc_len = PFSYNC_MINPKT;
 #endif
 }
 
@@ -2422,7 +2424,11 @@ pfsync_insert_state(struct pf_state *st)
 	pfsync_q_ins(st, PFSYNC_S_INS);
 
 	if (ISSET(st->state_flags, PFSTATE_ACK))
+#ifdef __FreeBSD__
+		pfsync_sendout();
+#else
 		schednetisr(NETISR_PFSYNC);
+#endif
 	else
 		st->sync_updates = 0;
 }
@@ -2619,7 +2625,11 @@ pfsync_update_state(struct pf_state *st)
 
 	if (sync || (time_second - st->pfsync_time) < 2) {
 		pfsync_upds++;
+#ifdef __FreeBSD__
+		pfsync_sendout();
+#else
 		schednetisr(NETISR_PFSYNC);
+#endif
 	}
 }
 
@@ -2670,7 +2680,11 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	TAILQ_INSERT_TAIL(&sc->sc_upd_req_list, item, ur_entry);
 	sc->sc_len += nlen;
 
+#ifdef __FreeBSD__
+	pfsync_sendout();
+#else
 	schednetisr(NETISR_PFSYNC);
+#endif
 }
 
 void
@@ -2699,7 +2713,11 @@ pfsync_update_state_req(struct pf_state *st)
 		pfsync_q_del(st);
 	case PFSYNC_S_NONE:
 		pfsync_q_ins(st, PFSYNC_S_UPD);
+#ifdef __FreeBSD__
+		pfsync_sendout();
+#else
 		schednetisr(NETISR_PFSYNC);
+#endif
 		return;
 
 	case PFSYNC_S_INS:
@@ -3253,37 +3271,38 @@ pfsync_timeout(void *arg)
 void
 #ifdef __FreeBSD__
 pfsyncintr(void *arg)
-#else
-pfsyncintr(void)
-#endif
 {
-#ifdef __FreeBSD__
 	struct pfsync_softc *sc = arg;
-#endif
-	int s;
-
-#ifdef __FreeBSD__
-	if (sc == NULL)
-		return;
+	struct mbuf *m;
 
 	CURVNET_SET(sc->sc_ifp->if_vnet);
-#endif
+	pfsync_ints++;
+
+	for (;;) {
+		IF_DEQUEUE(&sc->sc_ifp->if_snd, m);
+		if (m == 0)
+			break;
+
+		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL)
+		    == 0)
+			V_pfsyncstats.pfsyncs_opackets++;
+		else
+			V_pfsyncstats.pfsyncs_oerrors++;
+	}
+	CURVNET_RESTORE();
+}
+#else
+pfsyncintr(void)
+{
+	int s;
+
 	pfsync_ints++;
 
 	s = splnet();
-#ifdef __FreeBSD__
-	PF_LOCK();
-#endif
 	pfsync_sendout();
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
 	splx(s);
-
-#ifdef __FreeBSD__
-	CURVNET_RESTORE();
-#endif
 }
+#endif
 
 int
 pfsync_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
