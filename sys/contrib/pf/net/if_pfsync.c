@@ -493,7 +493,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_mtu = 1500; /* XXX */
 #ifdef __FreeBSD__
 	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
-	callout_init(&sc->sc_bulk_tmo, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->sc_bulk_tmo, &pf_task_mtx, 0);
 	callout_init(&sc->sc_bulkfail_tmo, CALLOUT_MPSAFE);
 #else
 	ifp->if_hardmtu = MCLBYTES; /* XXX */
@@ -540,7 +540,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 #ifdef __FreeBSD__
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, sc->sc_detachtag);
 #endif
-	timeout_del(&sc->sc_bulk_tmo);
+	timeout_del(&sc->sc_bulk_tmo);	/* XXX: need PF_LOCK() before */
 	timeout_del(&sc->sc_tmo);
 #if NCARP > 0
 #ifdef notyet
@@ -3061,7 +3061,7 @@ pfsync_bulk_update(void *arg)
 			sc->sc_bulk_next = st;
 #ifdef __FreeBSD__
 			callout_reset(&sc->sc_bulk_tmo, 1,
-			    pfsync_bulk_fail, sc);
+			    pfsync_bulk_update, sc);
 #else
 			timeout_add(&sc->sc_bulk_tmo, 1);
 #endif
