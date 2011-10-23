@@ -556,7 +556,7 @@ ipv6_up()
 	fi
 
 	ifalias_up ${_if} inet6 && _ret=0
-	ipv6_prefix_hostid_addr_up ${_if} && _ret=0
+	ipv6_prefix_hostid_addr_common ${_if} alias && _ret=0
 	ipv6_accept_rtadv_up ${_if} && _ret=0
 
 	# wait for DAD
@@ -612,6 +612,7 @@ ipv6_down()
 	fi
 
 	ipv6_accept_rtadv_down ${_if} && _ret=0
+	ipv6_prefix_hostid_addr_common ${_if} -alias && _ret=0
 	ifalias_down ${_if} inet6 && _ret=0
 
 	inetList="`ifconfig ${_if} | grep 'inet6 ' | tr "\n" "$_ifs"`"
@@ -859,12 +860,14 @@ ifalias_ipv6_down()
 	return $_ret
 }
 
-# ipv6_prefix_hostid_addr_up if
-#	add IPv6 prefix + hostid addr to the interface $if
-ipv6_prefix_hostid_addr_up()
+# ipv6_prefix_hostid_addr_common if action
+#	Add or remove IPv6 prefix + hostid addr on the interface $if
+#
+ipv6_prefix_hostid_addr_common()
 {
-	local _if prefix laddr hostid j address
+	local _if _action prefix laddr hostid j address
 	_if=$1
+	_action=$2
 	prefix=`get_if_var ${_if} ipv6_prefix_IF`
 
 	if [ -n "${prefix}" ]; then
@@ -874,13 +877,13 @@ ipv6_prefix_hostid_addr_up()
 
 		for j in ${prefix}; do
 			address=$j\:${hostid}
-			ifconfig ${_if} inet6 ${address} prefixlen 64 alias
+			ifconfig ${_if} inet6 ${address} prefixlen 64 ${_action}
 
 			# if I am a router, add subnet router
 			# anycast address (RFC 2373).
 			if checkyesno ipv6_gateway_enable; then
 				ifconfig ${_if} inet6 $j:: prefixlen 64 \
-					alias anycast
+					${_action} anycast
 			fi
 		done
 	fi
