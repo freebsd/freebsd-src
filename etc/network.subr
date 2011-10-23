@@ -532,7 +532,7 @@ ipv4_up()
 
 	# Add 127.0.0.1/8 to lo0 unless otherwise specified.
 	if [ "${_if}" = "lo0" ]; then
-		ifconfig_args=`ifconfig_getargs ${_if}`
+		ifconfig_args=`get_if_var ${_if} ifconfig_IF`
 		if [ -z "${ifconfig_args}" ]; then
 			ifconfig ${_if} inet 127.0.0.1/8 alias
 		fi
