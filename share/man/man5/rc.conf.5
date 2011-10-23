@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2011
+.Dd October 23, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1423,6 +1423,11 @@ IPv6 functionality on an interface should be configured by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
 instead of setting ifconfig parameters in
 .Va ifconfig_ Ns Aq Ar interface .
+If this variable is empty, all of IPv6 configurations on the
+specified interface by other variables such as
+.Va ipv6_prefix_ Ns Ao Ar interface Ac
+will be ignored.
+.Pp
 Aliases should be set by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 with
@@ -1432,6 +1437,17 @@ keyword.  For example:
 ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
 ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
 .Ed
+.Pp
+Interfaces that have an
+.Dq Li inet6 accept_rtadv
+keyword in
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+setting will be automatically configured by SLAAC
+.Pq StateLess Address AutoConfiguration
+described in
+.Rs
+.%T "RFC 4862"
+.Re
 .Pp
 Note that a link-local address will be automatically configured in
 addition to the configured global-scope addresses because the IPv6
@@ -1457,19 +1473,32 @@ For example:
 .Bd -literal
 ifconfig_ed0_ipv6="inet6 fe80::1 prefixlen 64"
 .Ed
-.Pp
-Interfaces that have an
-.Dq Li inet6 accept_rtadv
-keyword in
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-setting will be automatically configured by
-.Xr rtsol 8 .
 .It Va ipv6_prefix_ Ns Aq Ar interface
 .Pq Vt str
 If one or more prefixes are defined in
 .Va ipv6_prefix_ Ns Aq Ar interface
 addresses based on each prefix and the EUI-64 interface index will be
 configured on that interface.
+Note that this variable will be ignored when
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+is empty.
+.Pp
+For example, the following configuration
+.Bd -literal
+ipv6_prefix_ed0="2001:db8:1:: 2001:db8:2::"
+.Ed
+.Pp
+is equivalent to the following:
+.Bd -literal
+ifconfig_ed0_alias0="inet6 2001:db8:1:: eui64 prefixlen 64"
+ifconfig_ed0_alias1="inet6 2001:db8:1:: prefixlen 64 anycast"
+ifconfig_ed0_alias2="inet6 2001:db8:2:: eui64 prefixlen 64"
+ifconfig_ed0_alias3="inet6 2001:db8:2:: prefixlen 64 anycast"
+.Ed
+.Pp
+These Subnet-Router anycast addresses will be added only when
+.Va ipv6_gateway_enable
+is YES.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
