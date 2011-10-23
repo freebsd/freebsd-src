@@ -222,7 +222,7 @@ struct pfi_dynaddr {
 #define	PF_NAME		"pf"
 
 #define	PR_NOWAIT	M_NOWAIT
-#define	PR_WAITOK	M_WAIT
+#define	PR_WAITOK	M_WAITOK
 #define	PR_ZERO		M_ZERO
 #define	pool_get(p, f)	uma_zalloc(*(p), (f))
 #define	pool_put(p, o)	uma_zfree(*(p), (o))
