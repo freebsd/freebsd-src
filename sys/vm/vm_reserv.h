@@ -57,9 +57,6 @@ void		vm_reserv_rename(vm_page_t m, vm_object_t new_object,
 vm_paddr_t	vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end,
 		    vm_paddr_t high_water);
 
-#else
-#define		vm_reserv_level_iffullpop(m)	-1
-
 #endif	/* VM_NRESERVLEVEL > 0 */
 #endif	/* _KERNEL */
 #endif	/* !_VM_RESERV_H_ */
