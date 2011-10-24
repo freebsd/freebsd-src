@@ -5641,6 +5641,7 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	sc->qid2tap[qid] = NULL;
 	free(tap->txa_private, M_DEVBUF);
 	tap->txa_private = NULL;
+	sc->sc_addba_stop(ni, tap);
 }
 
 static void
