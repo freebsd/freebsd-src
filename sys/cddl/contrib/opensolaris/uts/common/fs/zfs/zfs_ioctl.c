@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #include <sys/types.h>
@@ -3266,7 +3268,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	if (zc->zc_cookie & 1)
 		flags |= ZFS_RENAME_RECURSIVE;
 	if (zc->zc_cookie & 2)
-		flags |= ZFS_RENAME_IS_LEGACY;
+		flags |= ZFS_RENAME_ALLOW_MOUNTED;
 
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
