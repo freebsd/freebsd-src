@@ -2057,6 +2057,7 @@ boolean_t
 pmap_is_modified(vm_page_t m)
 {
 	struct tte *tp;
+	pmap_t pmap;
 	boolean_t rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2076,10 +2077,13 @@ pmap_is_modified(vm_page_t m)
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if ((tp->tte_data & TD_W) != 0) {
+		pmap = TTE_GET_PMAP(tp);
+		PMAP_LOCK(pmap);
+		if ((tp->tte_data & TD_W) != 0)
 			rv = TRUE;
+		PMAP_UNLOCK(pmap);
+		if (rv)
 			break;
-		}
 	}
 	MDPAGE_RUNLOCK();
 	return (rv);
@@ -2181,6 +2185,7 @@ void
 pmap_remove_write(vm_page_t m)
 {
 	struct tte *tp;
+	pmap_t pmap;
 	u_long data;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2199,11 +2204,14 @@ pmap_remove_write(vm_page_t m)
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
+		pmap = TTE_GET_PMAP(tp);
+		PMAP_LOCK(pmap);
 		data = atomic_clear_long(&tp->tte_data, TD_SW | TD_W);
 		if ((data & TD_W) != 0) {
 			vm_page_dirty(m);
-			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
+			tlb_page_demap(pmap, TTE_GET_VA(tp));
 		}
+		PMAP_UNLOCK(pmap);
 	}
 	MDPAGE_RUNLOCK();
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
