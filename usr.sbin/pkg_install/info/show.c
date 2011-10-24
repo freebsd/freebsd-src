@@ -207,7 +207,7 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
     }
 }
 
-const char *
+static const char *
 elide_root(const char *dir)
 {
     if (strcmp(dir, "/") == 0)
