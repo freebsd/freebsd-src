@@ -37,7 +37,9 @@
 #include <sys/arc.h>
 #include <sys/sunddi.h>
 #include <sys/zvol.h>
+#ifdef _KERNEL
 #include <sys/zfs_vfsops.h>
+#endif
 #include "zfs_namecheck.h"
 
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
