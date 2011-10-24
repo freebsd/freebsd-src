@@ -68,16 +68,6 @@ wlan0: [00:1b:b1:58:f6:f0] discard duplicate frame, seqno <0,0> fragno <0,0> tid
 Things that need doing!
 -----------------------
 
-* The txactive bits are set in the interrupt handler context, and cleared
-  in the TX completion process context. Since TX interrupts may occur
-  during a TX completion process, it's unfortunately likely that this
-  will be very racey and end up missing perfectly valid TX events.
-  This should be resolved before things are merged into -HEAD.
-
-  Maybe store the txqactive mask away in ath_softc and put the update
-  of said ath_softc version behind an atomic operation or lock. That way
-  the HAL doesn't have to change (for now).
-
 * When off-channel, aggregate traffic should stay queued, but raw
   frames (eg probes) should be sent?
 
@@ -466,4 +456,17 @@ pid 1510
   (carrier code uses the whole aggregate, what about newma/fusion/ath9k?)
   newma does this too (check ath_pkt_duration())
   - done - it uses the whole aggregate length, incl. delimiters.
+
+* The txactive bits are set in the interrupt handler context, and cleared
+  in the TX completion process context. Since TX interrupts may occur
+  during a TX completion process, it's unfortunately likely that this
+  will be very racey and end up missing perfectly valid TX events.
+  This should be resolved before things are merged into -HEAD.
+
+  Maybe store the txqactive mask away in ath_softc and put the update
+  of said ath_softc version behind an atomic operation or lock. That way
+  the HAL doesn't have to change (for now).
+
+  - done - this is currently protected by ATH_LOCK and shadowed in the
+    ath_softc.
 
