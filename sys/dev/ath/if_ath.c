@@ -1425,7 +1425,7 @@ ath_intr(void *arg)
 			}
 		}
 		if (status & HAL_INT_RXEOL) {
-			int imask = sc->sc_imask;
+			int imask;
 			CTR0(ATH_KTR_ERR, "ath_intr: RXEOL");
 			/*
 			 * NB: the hardware should re-read the link when
@@ -1443,6 +1443,7 @@ ath_intr(void *arg)
 			 * interrupt mask will be correctly reprogrammed.
 			 */
 			ATH_LOCK(sc);
+			imask = sc->sc_imask;
 			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
 			ath_hal_intrset(ah, imask);
 			/*
