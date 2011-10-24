@@ -1136,6 +1136,8 @@ dc_setfilt_21143(struct dc_softc *sc)
 	sp[41] = DC_SP_MAC(eaddr[2]);
 
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
+	bus_dmamap_sync(sc->dc_tx_ltag, sc->dc_tx_lmap, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_stag, sc->dc_smap, BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
@@ -1342,6 +1344,8 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
+	bus_dmamap_sync(sc->dc_tx_ltag, sc->dc_tx_lmap, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_stag, sc->dc_smap, BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
