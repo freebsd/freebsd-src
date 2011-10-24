@@ -442,7 +442,7 @@ disk_OS_get_disks(void)
 			/*
 			 * not found there - insert it as immutable
 			 */
-			syslog(LOG_WARNING, "%s: device '%s' not in "
+			syslog(LOG_WARNING, "%s: adding device '%s' to "
 			    "device list", __func__, disk);
 
 			if ((entry = device_entry_create(disk, "", "")) == NULL)
