@@ -24,6 +24,9 @@
  * Use is subject to license terms.
  *
  * Portions Copyright 2007 Ramprakash Jelari
+ *
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #include <libintl.h>
