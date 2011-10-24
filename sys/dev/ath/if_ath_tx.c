@@ -582,6 +582,31 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 }
 
 /*
+ * Restart TX DMA for the given TXQ.
+ *
+ * This must be called whether the queue is empty or not.
+ */
+void
+ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_buf *bf;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/* This is always going to be cleared, empty or not */
+	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
+
+	bf = TAILQ_FIRST(&txq->axq_q);
+	if (bf == NULL)
+		return;
+
+	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+	txq->axq_link = &bf->bf_lastds->ds_link;
+	ath_hal_txstart(ah, txq->axq_qnum);
+}
+
+/*
  * Hand off a packet to the hardware (or mcast queue.)
  *
  * The relevant hardware txq should be locked.
