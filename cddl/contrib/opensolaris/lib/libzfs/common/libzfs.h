@@ -22,6 +22,8 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #ifndef	_LIBZFS_H
