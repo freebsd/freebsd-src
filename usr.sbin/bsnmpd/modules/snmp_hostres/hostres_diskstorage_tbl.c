@@ -634,7 +634,7 @@ op_hrDiskStorageTable(struct snmp_context *ctx __unused,
 	  	value->v.integer = entry->media;
 	  	return (SNMP_ERR_NOERROR);
 
-	case LEAF_hrDiskStorageRemoveble:
+	case LEAF_hrDiskStorageRemovable:
 	  	value->v.integer = entry->removable;
 	  	return (SNMP_ERR_NOERROR);
 
