@@ -545,6 +545,19 @@ ata_pci_dmafini(device_t dev)
 }
 
 int
+ata_pci_print_child(device_t dev, device_t child)
+{
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	retval += printf(" at channel %d",
+	    (int)(intptr_t)device_get_ivars(child));
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+int
 ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
@@ -574,6 +587,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
+    DEVMETHOD(bus_print_child,		ata_pci_print_child),
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
     { 0, 0 }
@@ -594,12 +608,10 @@ MODULE_DEPEND(atapci, ata, 1, 1, 1);
 static int
 ata_pcichannel_probe(device_t dev)
 {
-    char buffer[32];
 
     if ((intptr_t)device_get_ivars(dev) < 0)
 	    return (ENXIO);
-    sprintf(buffer, "ATA channel %d", (int)(intptr_t)device_get_ivars(dev));
-    device_set_desc_copy(dev, buffer);
+    device_set_desc(dev, "ATA channel");
 
     return ata_probe(dev);
 }
