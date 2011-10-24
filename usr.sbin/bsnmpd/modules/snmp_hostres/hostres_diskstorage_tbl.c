@@ -476,7 +476,8 @@ disk_OS_get_disks(void)
 		disk_entry->media = DSM_UNKNOWN;
 		disk_entry->removable = SNMP_FALSE;
 
-		if (strncmp(disk_entry->dev_name, "da", 2) == 0) {
+		if (strncmp(disk_entry->dev_name, "da", 2) == 0 ||
+		    strncmp(disk_entry->dev_name, "ada", 3) == 0) {
 			disk_entry->media = DSM_HARDDISK;
 			disk_entry->removable = SNMP_FALSE;
 		} else if (strncmp(disk_entry->dev_name, "cd", 2) == 0) {
