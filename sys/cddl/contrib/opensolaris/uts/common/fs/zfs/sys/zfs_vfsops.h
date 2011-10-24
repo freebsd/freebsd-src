@@ -153,6 +153,10 @@ extern void zfsvfs_free(zfsvfs_t *zfsvfs);
 extern int zfs_check_global_label(const char *dsname, const char *hexsl);
 extern int zfs_vnode_lock(vnode_t *vp, int flags);
 
+#ifdef _KERNEL
+extern void zfsvfs_update_fromname(const char *oldname, const char *newname);
+#endif
+
 #ifdef	__cplusplus
 }
 #endif

@@ -3261,7 +3261,12 @@ out:
 static int
 zfs_ioc_rename(zfs_cmd_t *zc)
 {
-	boolean_t recursive = zc->zc_cookie & 1;
+	int flags = 0;
+
+	if (zc->zc_cookie & 1)
+		flags |= ZFS_RENAME_RECURSIVE;
+	if (zc->zc_cookie & 2)
+		flags |= ZFS_RENAME_IS_LEGACY;
 
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -3273,13 +3278,14 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	 * in which case the dataset code figures out which snapshots
 	 * to unmount.
 	 */
-	if (!recursive && strchr(zc->zc_name, '@') != NULL &&
+	if (!(flags & ZFS_RENAME_RECURSIVE) &&
+	    strchr(zc->zc_name, '@') != NULL &&
 	    zc->zc_objset_type == DMU_OST_ZFS) {
 		int err = zfs_unmount_snap(zc->zc_name, NULL);
 		if (err)
 			return (err);
 	}
-	return (dmu_objset_rename(zc->zc_name, zc->zc_value, recursive));
+	return (dmu_objset_rename(zc->zc_name, zc->zc_value, flags));
 }
 
 static int

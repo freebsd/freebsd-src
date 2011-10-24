@@ -122,6 +122,10 @@ changelist_prefix(prop_changelist_t *clp)
 			 */
 			switch (clp->cl_prop) {
 			case ZFS_PROP_MOUNTPOINT:
+				if (clp->cl_waslegacy &&
+				    (clp->cl_gflags & CL_GATHER_KEEP_LEGACY)) {
+					break;
+				}
 				if (zfs_unmount(cn->cn_handle, NULL,
 				    clp->cl_mflags) != 0) {
 					ret = -1;
