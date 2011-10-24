@@ -253,7 +253,8 @@ get_usage(zfs_help_t idx)
 		return (gettext("\trename <filesystem|volume|snapshot> "
 		    "<filesystem|volume|snapshot>\n"
 		    "\trename -p <filesystem|volume> <filesystem|volume>\n"
-		    "\trename -r <snapshot> <snapshot>"));
+		    "\trename -r <snapshot> <snapshot>\n"
+		    "\trename -u [-p] <filesystem> <filesystem>"));
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
@@ -2851,6 +2852,7 @@ zfs_do_list(int argc, char **argv)
  * zfs rename <fs | snap | vol> <fs | snap | vol>
  * zfs rename -p <fs | vol> <fs | vol>
  * zfs rename -r <snap> <snap>
+ * zfs rename -u [-p] <fs> <fs>
  *
  * Renames the given dataset to another of the same type.
  *
@@ -2861,19 +2863,21 @@ static int
 zfs_do_rename(int argc, char **argv)
 {
 	zfs_handle_t *zhp;
-	int c;
-	int ret;
-	boolean_t recurse = B_FALSE;
+	renameflags_t flags = { 0 };
+	int c, ret, types;
 	boolean_t parents = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "pr")) != -1) {
+	while ((c = getopt(argc, argv, "pru")) != -1) {
 		switch (c) {
 		case 'p':
 			parents = B_TRUE;
 			break;
 		case 'r':
-			recurse = B_TRUE;
+			flags.recurse = B_TRUE;
+			break;
+		case 'u':
+			flags.nounmount = B_TRUE;
 			break;
 		case '?':
 		default:
@@ -2902,20 +2906,32 @@ zfs_do_rename(int argc, char **argv)
 		usage(B_FALSE);
 	}
 
-	if (recurse && parents) {
+	if (flags.recurse && parents) {
 		(void) fprintf(stderr, gettext("-p and -r options are mutually "
 		    "exclusive\n"));
 		usage(B_FALSE);
 	}
 
-	if (recurse && strchr(argv[0], '@') == 0) {
+	if (flags.recurse && strchr(argv[0], '@') == 0) {
 		(void) fprintf(stderr, gettext("source dataset for recursive "
 		    "rename must be a snapshot\n"));
 		usage(B_FALSE);
 	}
 
-	if ((zhp = zfs_open(g_zfs, argv[0], parents ? ZFS_TYPE_FILESYSTEM |
-	    ZFS_TYPE_VOLUME : ZFS_TYPE_DATASET)) == NULL)
+	if (flags.nounmount && parents) {
+		(void) fprintf(stderr, gettext("-u and -r options are mutually "
+		    "exclusive\n"));
+		usage(B_FALSE);
+	}
+
+	if (flags.nounmount)
+		types = ZFS_TYPE_FILESYSTEM;
+	else if (parents)
+		types = ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME;
+	else
+		types = ZFS_TYPE_DATASET;
+
+	if ((zhp = zfs_open(g_zfs, argv[0], types)) == NULL)
 		return (1);
 
 	/* If we were asked and the name looks good, try to create ancestors. */
@@ -2925,7 +2941,7 @@ zfs_do_rename(int argc, char **argv)
 		return (1);
 	}
 
-	ret = (zfs_rename(zhp, argv[1], recurse) != 0);
+	ret = (zfs_rename(zhp, argv[1], flags) != 0);
 
 	zfs_close(zhp);
 	return (ret);

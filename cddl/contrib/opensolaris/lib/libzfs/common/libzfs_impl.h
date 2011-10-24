@@ -160,11 +160,9 @@ int zprop_expand_list(libzfs_handle_t *hdl, zprop_list_t **plp,
  */
 #define	CL_GATHER_MOUNT_ALWAYS	0x01
 /*
- * Use this changelist_gather() flag to prevent unmounting of legacy
- * file systems. Useful when renaming legacy file systems, where there is
- * no need to unmount them.
+ * Use this changelist_gather() flag to prevent unmounting of file systems.
  */
-#define	CL_GATHER_KEEP_LEGACY	0x02
+#define	CL_GATHER_DONT_UNMOUNT	0x02
 
 typedef struct prop_changelist prop_changelist_t;
 
