@@ -3489,6 +3489,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, boolean_t recursive)
 	zfs_handle_t *zhrp = NULL;
 	char *parentname = NULL;
 	char parent[ZFS_MAXNAMELEN];
+	char property[ZFS_MAXPROPLEN];
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char errbuf[1024];
 
@@ -3592,8 +3593,10 @@ zfs_rename(zfs_handle_t *zhp, const char *target, boolean_t recursive)
 		}
 
 	} else {
-		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME, 0, 0)) == NULL)
+		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME,
+		    CL_GATHER_KEEP_LEGACY, 0)) == NULL) {
 			return (-1);
+		}
 
 		if (changelist_haszonedchild(cl)) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -3615,7 +3618,13 @@ zfs_rename(zfs_handle_t *zhp, const char *target, boolean_t recursive)
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
 	(void) strlcpy(zc.zc_value, target, sizeof (zc.zc_value));
 
-	zc.zc_cookie = recursive;
+	zc.zc_cookie = recursive ? 1 : 0;
+	if (zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, property, sizeof (property),
+	    NULL, NULL, 0, B_FALSE) == 0 &&
+	    (strcmp(property, "legacy") == 0 ||
+	     strcmp(property, "none") == 0)) {
+		zc.zc_cookie |= 2;
+	}
 
 	if ((ret = zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_RENAME, &zc)) != 0) {
 		/*
