@@ -2970,7 +2970,7 @@ dc_txeof(struct dc_softc *sc)
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
-	bus_dmamap_sync(sc->dc_rx_ltag, sc->dc_tx_lmap, BUS_DMASYNC_POSTREAD |
+	bus_dmamap_sync(sc->dc_tx_ltag, sc->dc_tx_lmap, BUS_DMASYNC_POSTREAD |
 	    BUS_DMASYNC_POSTWRITE);
 	setup = 0;
 	for (idx = sc->dc_cdata.dc_tx_cons; idx != sc->dc_cdata.dc_tx_prod;
