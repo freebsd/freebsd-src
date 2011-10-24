@@ -2437,7 +2437,7 @@ zfsvfs_update_fromname(const char *oldname, const char *newname)
 			continue;
 		}
 		if (strncmp(fromname, oldname, oldlen) == 0 &&
-		    fromname[oldlen] == '/') {
+		    (fromname[oldlen] == '/' || fromname[oldlen] == '@')) {
 			(void)snprintf(tmpbuf, sizeof(tmpbuf), "%s%s",
 			    newname, fromname + oldlen);
 			(void)strlcpy(fromname, tmpbuf,
