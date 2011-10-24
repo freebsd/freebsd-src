@@ -252,6 +252,7 @@ static void dc_stop(struct dc_softc *);
 static void dc_watchdog(void *);
 static int dc_shutdown(device_t);
 static int dc_ifmedia_upd(struct ifnet *);
+static int dc_ifmedia_upd_locked(struct dc_softc *);
 static void dc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int dc_dma_alloc(struct dc_softc *);
@@ -3740,8 +3741,7 @@ dc_init_locked(struct dc_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	mii_mediachg(mii);
-	dc_setcfg(sc, sc->dc_if_media);
+	dc_ifmedia_upd_locked(sc);
 
 	/* Clear missed frames and overflow counter. */
 	CSR_READ_4(sc, DC_FRAMESDISCARDED);
@@ -3767,25 +3767,37 @@ static int
 dc_ifmedia_upd(struct ifnet *ifp)
 {
 	struct dc_softc *sc;
-	struct mii_data *mii;
-	struct ifmedia *ifm;
+	int error;
 
 	sc = ifp->if_softc;
-	mii = device_get_softc(sc->dc_miibus);
 	DC_LOCK(sc);
-	mii_mediachg(mii);
-	ifm = &mii->mii_media;
-
-	if (DC_IS_INTEL(sc))
-		dc_setcfg(sc, ifm->ifm_media);
-	else if (DC_IS_DAVICOM(sc) &&
-	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1)
-		dc_setcfg(sc, ifm->ifm_media);
-	else
-		sc->dc_link = 0;
+	error = dc_ifmedia_upd_locked(sc);
 	DC_UNLOCK(sc);
+	return (error);
+}
 
-	return (0);
+static int
+dc_ifmedia_upd_locked(struct dc_softc *sc)
+{
+	struct mii_data *mii;
+	struct ifmedia *ifm;
+	int error;
+
+	DC_LOCK_ASSERT(sc);
+
+	sc->dc_link = 0;
+	mii = device_get_softc(sc->dc_miibus);
+	error = mii_mediachg(mii);
+	if (error == 0) {
+		ifm = &mii->mii_media;
+		if (DC_IS_INTEL(sc))
+			dc_setcfg(sc, ifm->ifm_media);
+		else if (DC_IS_DAVICOM(sc) &&
+		    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1)
+			dc_setcfg(sc, ifm->ifm_media);
+	}
+
+	return (error);
 }
 
 /*
