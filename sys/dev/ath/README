@@ -79,8 +79,6 @@ Things that need doing!
     queue which can't be supported by the new operating mode.
   + How to fix? :-)
 
-* Perhaps delay the rate lookup until the packet is being hardware queued,
-  rather than doing the rate decision at ath_tx_raw_xmit() / ath_tx_start();
 * .. and since raw queued frames may have invalid rate information, enforce
   valid rate/flags when the packet is being hardware queued.
 * .. this also will allow for rate lookups to be done on retried frames,
@@ -157,33 +155,36 @@ Things that need doing!
   before it received the next retransmit (and thus the AMPDU RX queue
   would get flushed.)
 
-Things that need investigating!
-
-There's a crash which occurs when a wlan interface is destroyed and
-re-created.
-
-<an up STA interface that's done some traffic and was in addba mode>
-ifconfig wlan0 destroy
-<stuff goes away>
-adrian-home-mips# /root/wifi-client ath0 CACHEBOY_11N_1
-ifconfig: interface wlan0 does not exist
-wlan0: Ethernet address: 00:15:6d:84:05:52
-kern.msgbuf_clear: 0 -> 0
-net.wlan.0.debug: 0x0 => 0x80000000<11n>
-net.wlan.0.debug: 0x80000000 => 0x80800000<11n,assoc>
-Trap cause = 4 (address error (load or I-fetch) - kernel mode)
-[ thread pid 0 tid 100025 ]
-Stopped at      ieee80211_node_attach+0x3f4:    lw      v0,24(v0)
-db> reset
-
-Maybe do a bit of kernel version bisecting to see when this was first broken?
-Hopefully it's something easy
-
 * How should channel scanning be handled? Right now it's causing both a HW TXQ
   and SW TXQ / node flush; this means the BAW will need to be slid along. Eek.
 
 * When a node is flushed (but not being deleted) should the BAW also be updated?
   I don't think it is right now and this could be incorrect.
+
+* Send BAR when needed
+  + after TX failure
+  + when else? When shutting down an aggregation session and flushing packets?
+  + ieee80211_send_bar() will only work if IEEE80211_AGGR_RUNNING is set;
+    what's that mean for trying to send BAR frames during session teardown?
+  + it'll call raw_xmit to send the BAR, so the various bits of TX code
+    are going to have to be recursive. How's that going to work out for us?
+    (think: with all the TXQ node locks being held..)
+  + ic->ic_bar_response(ni, tap, status) is called on BAR response, and
+    ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT) is called on
+    repeated failure to ACK the BAR.
+
+  - I've implemented this; the recursion into the TX path was fixed by
+    causing all TX scheduling and completion to run in the ath task,
+    ath_tx_start() / ath_tx_raw_xmit() just queues packets to the hardware
+    or software queue. It doesn't run scheduling as well. This eliminated
+    most of the locking issues and the recursion.
+
+  - There's a dirty workaround to unpause the queue if BAR TX is definitely
+    failing. This needs to be addressed before this work is merged back into
+    -HEAD.
+
+
+
 
 
 Stuff to do to the rate control code
@@ -351,29 +352,6 @@ pid 0
   - I had messed up the blockack window tracking a bit, and there were some
     races in marking the queue scheduled/unscheduled. I've since fixed these.
 
-* Send BAR when needed
-  + after TX failure
-  + when else? When shutting down an aggregation session and flushing packets?
-  + ieee80211_send_bar() will only work if IEEE80211_AGGR_RUNNING is set;
-    what's that mean for trying to send BAR frames during session teardown?
-  + it'll call raw_xmit to send the BAR, so the various bits of TX code
-    are going to have to be recursive. How's that going to work out for us?
-    (think: with all the TXQ node locks being held..)
-  + ic->ic_bar_response(ni, tap, status) is called on BAR response, and
-    ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT) is called on
-    repeated failure to ACK the BAR.
-
-  - I've implemented this; the recursion into the TX path was fixed by
-    causing all TX scheduling and completion to run in the ath task,
-    ath_tx_start() / ath_tx_raw_xmit() just queues packets to the hardware
-    or software queue. It doesn't run scheduling as well. This eliminated
-    most of the locking issues and the recursion.
-
-  - There's a dirty workaround to unpause the queue if BAR TX is definitely
-    failing. This needs to be addressed before this work is merged back into
-    -HEAD.
-
-
 * LOR between the net80211 node lock and the txqs
   - These have disappeared now that the locking has been reworked.
 
@@ -470,3 +448,7 @@ pid 1510
   - done - this is currently protected by ATH_LOCK and shadowed in the
     ath_softc.
 
+* Perhaps delay the rate lookup until the packet is being hardware queued,
+  rather than doing the rate decision at ath_tx_raw_xmit() / ath_tx_start();
+  - This is done - rate control lookup is done just before it's hardware
+    queued.
