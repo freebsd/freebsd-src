@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #ifndef	_SYS_DSL_DATASET_H
@@ -181,8 +183,8 @@ struct dsl_ds_holdarg {
 /*
  * Flags for dsl_dataset_rename().
  */
-#define	ZFS_RENAME_RECURSIVE	0x01
-#define	ZFS_RENAME_IS_LEGACY	0x02
+#define	ZFS_RENAME_RECURSIVE		0x01
+#define	ZFS_RENAME_ALLOW_MOUNTED	0x02
 
 #define	dsl_dataset_is_snapshot(ds) \
 	((ds)->ds_phys->ds_num_children != 0)

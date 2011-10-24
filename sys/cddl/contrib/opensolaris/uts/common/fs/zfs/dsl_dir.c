@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -1248,7 +1250,7 @@ would_change(dsl_dir_t *dd, int64_t delta, dsl_dir_t *ancestor)
 struct renamearg {
 	dsl_dir_t *newparent;
 	const char *mynewname;
-	boolean_t islegacy;
+	boolean_t allowmounted;
 };
 
 static int
@@ -1267,10 +1269,9 @@ dsl_dir_rename_check(void *arg1, void *arg2, dmu_tx_t *tx)
 	 * stats), but any that are present in open context will likely
 	 * be gone by syncing context, so only fail from syncing
 	 * context.
-	 * Don't check if we are renaming dataset with mountpoint set to
-	 * "legacy" or "none".
+	 * Don't check if we allow renaming of busy (mounted) dataset.
 	 */
-	if (!ra->islegacy && dmu_tx_is_syncing(tx) &&
+	if (!ra->allowmounted && dmu_tx_is_syncing(tx) &&
 	    dmu_buf_refcount(dd->dd_dbuf) > 1) {
 		return (EBUSY);
 	}
@@ -1310,7 +1311,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	objset_t *mos = dp->dp_meta_objset;
 	int err;
 
-	ASSERT(ra->islegacy || dmu_buf_refcount(dd->dd_dbuf) <= 2);
+	ASSERT(ra->allowmounted || dmu_buf_refcount(dd->dd_dbuf) <= 2);
 
 	if (ra->newparent != dd->dd_parent) {
 		dsl_dir_diduse_space(dd->dd_parent, DD_USED_CHILD,
@@ -1384,7 +1385,7 @@ dsl_dir_rename(dsl_dir_t *dd, const char *newname, int flags)
 		goto out;
 	}
 
-	ra.islegacy = !!(flags & ZFS_RENAME_IS_LEGACY);
+	ra.allowmounted = !!(flags & ZFS_RENAME_ALLOW_MOUNTED);
 
 	err = dsl_sync_task_do(dd->dd_pool,
 	    dsl_dir_rename_check, dsl_dir_rename_sync, dd, &ra, 3);
