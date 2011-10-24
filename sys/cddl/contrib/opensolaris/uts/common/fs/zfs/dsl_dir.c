@@ -37,6 +37,7 @@
 #include <sys/arc.h>
 #include <sys/sunddi.h>
 #include <sys/zvol.h>
+#include <sys/zfs_vfsops.h>
 #include "zfs_namecheck.h"
 
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
@@ -1245,6 +1246,7 @@ would_change(dsl_dir_t *dd, int64_t delta, dsl_dir_t *ancestor)
 struct renamearg {
 	dsl_dir_t *newparent;
 	const char *mynewname;
+	boolean_t islegacy;
 };
 
 static int
@@ -1263,9 +1265,13 @@ dsl_dir_rename_check(void *arg1, void *arg2, dmu_tx_t *tx)
 	 * stats), but any that are present in open context will likely
 	 * be gone by syncing context, so only fail from syncing
 	 * context.
+	 * Don't check if we are renaming dataset with mountpoint set to
+	 * "legacy" or "none".
 	 */
-	if (dmu_tx_is_syncing(tx) && dmu_buf_refcount(dd->dd_dbuf) > 1)
+	if (!ra->islegacy && dmu_tx_is_syncing(tx) &&
+	    dmu_buf_refcount(dd->dd_dbuf) > 1) {
 		return (EBUSY);
+	}
 
 	/* check for existing name */
 	err = zap_lookup(mos, ra->newparent->dd_phys->dd_child_dir_zapobj,
@@ -1302,7 +1308,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	objset_t *mos = dp->dp_meta_objset;
 	int err;
 
-	ASSERT(dmu_buf_refcount(dd->dd_dbuf) <= 2);
+	ASSERT(ra->islegacy || dmu_buf_refcount(dd->dd_dbuf) <= 2);
 
 	if (ra->newparent != dd->dd_parent) {
 		dsl_dir_diduse_space(dd->dd_parent, DD_USED_CHILD,
@@ -1345,6 +1351,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	ASSERT3U(err, ==, 0);
 	dsl_dir_name(dd, newname);
 #ifdef _KERNEL
+	zfsvfs_update_fromname(oldname, newname);
 	zvol_rename_minors(oldname, newname);
 #endif
 
@@ -1353,7 +1360,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 }
 
 int
-dsl_dir_rename(dsl_dir_t *dd, const char *newname)
+dsl_dir_rename(dsl_dir_t *dd, const char *newname, int flags)
 {
 	struct renamearg ra;
 	int err;
@@ -1374,6 +1381,8 @@ dsl_dir_rename(dsl_dir_t *dd, const char *newname)
 		err = EEXIST;
 		goto out;
 	}
+
+	ra.islegacy = !!(flags & ZFS_RENAME_IS_LEGACY);
 
 	err = dsl_sync_task_do(dd->dd_pool,
 	    dsl_dir_rename_check, dsl_dir_rename_sync, dd, &ra, 3);

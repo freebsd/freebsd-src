@@ -2416,3 +2416,35 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 	}
 	return (error);
 }
+
+#ifdef _KERNEL
+void
+zfsvfs_update_fromname(const char *oldname, const char *newname)
+{
+	char tmpbuf[MAXPATHLEN];
+	struct mount *mp;
+	char *fromname;
+	size_t oldlen;
+
+	oldlen = strlen(oldname);
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		fromname = mp->mnt_stat.f_mntfromname;
+		if (strcmp(fromname, oldname) == 0) {
+			(void)strlcpy(fromname, newname,
+			    sizeof(mp->mnt_stat.f_mntfromname));
+			continue;
+		}
+		if (strncmp(fromname, oldname, oldlen) == 0 &&
+		    fromname[oldlen] == '/') {
+			(void)snprintf(tmpbuf, sizeof(tmpbuf), "%s%s",
+			    newname, fromname + oldlen);
+			(void)strlcpy(fromname, tmpbuf,
+			    sizeof(mp->mnt_stat.f_mntfromname));
+			continue;
+		}
+	}
+	mtx_unlock(&mountlist_mtx);
+}
+#endif
