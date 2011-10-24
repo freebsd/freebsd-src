@@ -7,7 +7,7 @@ FREEBSD_GCC!=	${CC} --version | grep FreeBSD || true
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
-.if ${FREEBSD_GCC}
+.if defined(FREEBSD_GCC) && ${FREEBSD_GCC}
 # FreeBSD extensions, not available in upstream GCC
 format_extensions=	-fformat-extensions
 no_align_long_strings=	-mno-align-long-strings
