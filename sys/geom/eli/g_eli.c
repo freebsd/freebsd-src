@@ -475,7 +475,8 @@ again:
 			}
 			while (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
 				if (sc->sc_inflight > 0) {
-					G_ELI_DEBUG(0, "inflight=%d", sc->sc_inflight);
+					G_ELI_DEBUG(0, "inflight=%d",
+					    sc->sc_inflight);
 					/*
 					 * We still have inflight BIOs, so
 					 * sleep and retry.
@@ -1132,7 +1133,8 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			/* Try again. */
 			continue;
 		} else if (error > 0) {
-			G_ELI_DEBUG(0, "Cannot decrypt Master Key for %s (error=%d).",
+			G_ELI_DEBUG(0,
+			    "Cannot decrypt Master Key for %s (error=%d).",
 			    pp->name, error);
 			g_eli_keyfiles_clear(pp->name);
 			return (NULL);
@@ -1226,8 +1228,8 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}
 	sbuf_printf(sb, "%s<KeyLength>%u</KeyLength>\n", indent,
 	    sc->sc_ekeylen);
-	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
-	    g_eli_algo2str(sc->sc_ealgo));
+	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n",
+	    indent, g_eli_algo2str(sc->sc_ealgo));
 	sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 	    (sc->sc_flags & G_ELI_FLAG_SUSPEND) ? "SUSPENDED" : "ACTIVE");
 }
