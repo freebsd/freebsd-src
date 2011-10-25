@@ -1480,18 +1480,12 @@ eli_resize(struct gctl_req *req)
 	 * it back to the correct place on the provider.
 	 */
 	md.md_provsize = mediasize;
-	eli_metadata_encode(&md, sector);
-	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
-		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
-		goto out;
-	}
-	(void)g_flush(provfd);
-
+	/* Write metadata to the provider. */
+	(void)eli_metadata_store(req, prov, &md);
 	/* Now trash the old metadata. */
-	if (eli_trash_metadata(req, prov, provfd, oldsize - secsize) == -1)
-		goto out;
+	(void)eli_trash_metadata(req, prov, provfd, oldsize - secsize);
 out:
-	if (provfd >= 0)
+	if (provfd != -1)
 		(void)g_close(provfd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
