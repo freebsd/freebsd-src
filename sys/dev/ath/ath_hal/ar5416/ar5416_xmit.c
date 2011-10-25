@@ -295,12 +295,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * copy the multi-rate transmit parameters from
 		 * the first frame for processing on completion. 
 		 */
-		ads->ds_ctl0 = 0;
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
 #else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
 #endif
@@ -308,7 +310,12 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Intermediate descriptor in a multi-descriptor frame.
 		 */
-		ads->ds_ctl0 = 0;
+#ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
+#else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+#endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;
 		ads->ds_ctl3 = 0;
@@ -318,6 +325,9 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
+/*
+ * NB: cipher is no longer used, it's calculated.
+ */
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -347,10 +357,20 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		isaggr = 1;
 	}
 
-	if (!firstSeg) {
-		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
-	}
+	/*
+	 * Since this function is called before any of the other
+	 * descriptor setup functions (at least in this particular
+	 * 802.11n aggregation implementation), always bzero() the
+	 * descriptor. Previously this would be done for all but
+	 * the first segment.
+	 * XXX TODO: figure out why; perhaps I'm using this slightly
+	 * XXX incorrectly.
+	 */
+	OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 
+	/*
+	 * Note: VEOL should only be for the last descriptor in the chain.
+	 */
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
 	ads->ds_ctl1 = (type << AR_FrameType_S)
 			| (isaggr ? (AR_IsAggr | AR_MoreAggr) : 0);
@@ -362,7 +382,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= AR_DestIdxValid;
 	}
 
-	ads->ds_ctl6 = SM(ahp->ah_keytype[cipher], AR_EncrType);
+	ads->ds_ctl6 |= SM(ahp->ah_keytype[keyIx], AR_EncrType);
 	if (isaggr) {
 		ads->ds_ctl6 |= SM(delims, AR_PadDelim);
 	}
