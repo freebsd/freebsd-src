@@ -537,12 +537,10 @@ g_disk_ident_adjust(char *ident, size_t size)
 }
 
 struct disk *
-disk_alloc()
+disk_alloc(void)
 {
-	struct disk *dp;
 
-	dp = g_malloc(sizeof *dp, M_WAITOK | M_ZERO);
-	return (dp);
+	return (g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO));
 }
 
 void
