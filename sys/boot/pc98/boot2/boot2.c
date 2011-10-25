@@ -26,7 +26,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
-#include <machine/psl.h>
 
 #include <stdarg.h>
 
@@ -85,8 +84,6 @@ __FBSDID("$FreeBSD$");
 #define ARGS		0x900
 #define NOPT		14
 #define NDEV		3
-#define V86_CY(x)	((x) & PSL_C)
-#define V86_ZR(x)	((x) & PSL_Z)
 
 #define DRV_DISK	0xf0
 #define DRV_UNIT	0x0f
