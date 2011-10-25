@@ -504,6 +504,7 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	/* Update software copies of the HW status */
 	ts->ts_seqnum = MS(ds_txstatus[9], AR_SeqNum);
 	ts->ts_tstamp = AR_SendTimestamp(ds_txstatus);
+	ts->ts_tid = MS(ds_txstatus[9], AR_TxTid);
 
 	ts->ts_status = 0;
 	if (ds_txstatus[1] & AR_ExcessiveRetries)
@@ -692,6 +693,19 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 }
 
 void
+ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
+    u_int aggrLen, u_int numDelims)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
+
+	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
+	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen) |
+	    SM(numDelims, AR_PadDelim);
+}
+
+void
 ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
@@ -708,6 +722,16 @@ ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims)
 	 * func name to reflect this
 	 */
 	ds_txstatus[9] &= ~AR_TxDone;
+}
+
+void
+ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= AR_IsAggr;
+	ads->ds_ctl1 &= ~AR_MoreAggr;
+	ads->ds_ctl6 &= ~AR_PadDelim;
 }
 
 void
