@@ -358,12 +358,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 */
 	OS_REG_WRITE(ah, AR_OBS, 8);
 
-#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * Disable the "general" TX/RX mitigation timers.
 	 */
 	OS_REG_WRITE(ah, AR_MIRT, 0);
 
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * This initialises the RX interrupt mitigation timers.
 	 *
@@ -631,11 +631,11 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
                         | AR_IMR_BCNMISC;
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
-	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
-			|  AR_IMR_TXMINTR | AR_IMR_RXMINTR;
+	ahp->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 #else
-	ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
+	ahp->ah_maskReg |= AR_IMR_RXOK;
 #endif	
+	ahp->ah_maskReg |= AR_IMR_TXOK;
 
 	if (opmode == HAL_M_HOSTAP)
 		ahp->ah_maskReg |= AR_IMR_MIB;
