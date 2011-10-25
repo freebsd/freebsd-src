@@ -72,6 +72,7 @@ static void eli_kill(struct gctl_req *req);
 static void eli_backup(struct gctl_req *req);
 static void eli_restore(struct gctl_req *req);
 static void eli_resize(struct gctl_req *req);
+static void eli_version(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
 
@@ -96,6 +97,7 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
  * backup [-v] prov file
  * restore [-fv] file prov
  * resize [-v] -s oldsize prov
+ * version [prov ...]
  * clear [-v] prov ...
  * dump [-v] prov ...
  */
@@ -241,6 +243,9 @@ struct g_command class_commands[] = {
 	    },
 	    "[-v] -s oldsize prov"
 	},
+	{ "version", G_FLAG_LOADKLD, eli_main, G_NULL_OPTS,
+	    "[prov ...]"
+	},
 	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
@@ -309,6 +314,8 @@ eli_main(struct gctl_req *req, unsigned int flags)
 		eli_restore(req);
 	else if (strcmp(name, "resize") == 0)
 		eli_resize(req);
+	else if (strcmp(name, "version") == 0)
+		eli_version(req);
 	else if (strcmp(name, "dump") == 0)
 		eli_dump(req);
 	else if (strcmp(name, "clear") == 0)
@@ -1520,6 +1527,46 @@ out:
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
+	}
+}
+
+static void
+eli_version(struct gctl_req *req)
+{
+	struct g_eli_metadata md;
+	const char *name;
+	unsigned int version;
+	int error, i, nargs;
+
+	nargs = gctl_get_int(req, "nargs");
+
+	if (nargs == 0) {
+		unsigned int kernver;
+		ssize_t size;
+
+		size = sizeof(kernver);
+		if (sysctlbyname("kern.geom.eli.version", &kernver, &size,
+		    NULL, 0) == -1) {
+			warn("Unable to obtain GELI kernel version");
+		} else {
+			printf("kernel: %u\n", kernver);
+		}
+		printf("userland: %u\n", G_ELI_VERSION);
+		return;
+	}
+
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
+		error = g_metadata_read(name, (unsigned char *)&md,
+		    sizeof(md), G_ELI_MAGIC);
+		if (error != 0) {
+			warn("%s: Unable to read metadata: %s.", name,
+			    strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
+		version = le32dec(&md.md_version);
+		printf("%s: %u\n", name, version);
 	}
 }
 
