@@ -97,6 +97,10 @@
 #define	AXE_CMD_WRITE_VLAN_CTRL			0x4028
 
 #define	AXE_772B_CMD_RXCTL_WRITE_CFG		0x012A
+#define	AXE_772B_CMD_READ_RXCSUM		0x002B
+#define	AXE_772B_CMD_WRITE_RXCSUM		0x012C
+#define	AXE_772B_CMD_READ_TXCSUM		0x002D
+#define	AXE_772B_CMD_WRITE_TXCSUM		0x012E
 
 #define	AXE_SW_RESET_CLEAR			0x00
 #define	AXE_SW_RESET_RR				0x01
@@ -199,6 +203,40 @@
 #define	AXE_VLAN_CTRL_VID1_MASK		0x00000FFF
 #define	AXE_VLAN_CTRL_VID2_MASK		0x0FFF0000
 
+#define	AXE_RXCSUM_IP			0x0001
+#define	AXE_RXCSUM_IPVE			0x0002
+#define	AXE_RXCSUM_IPV6E		0x0004
+#define	AXE_RXCSUM_TCP			0x0008
+#define	AXE_RXCSUM_UDP			0x0010
+#define	AXE_RXCSUM_ICMP			0x0020
+#define	AXE_RXCSUM_IGMP			0x0040
+#define	AXE_RXCSUM_ICMP6		0x0080
+#define	AXE_RXCSUM_TCPV6		0x0100
+#define	AXE_RXCSUM_UDPV6		0x0200
+#define	AXE_RXCSUM_ICMPV6		0x0400
+#define	AXE_RXCSUM_IGMPV6		0x0800
+#define	AXE_RXCSUM_ICMP6V6		0x1000
+#define	AXE_RXCSUM_FOPC			0x8000
+
+#define	AXE_RXCSUM_64TE			0x0100
+#define	AXE_RXCSUM_PPPOE		0x0200
+#define	AXE_RXCSUM_RPCE			0x8000
+
+#define	AXE_TXCSUM_IP			0x0001
+#define	AXE_TXCSUM_TCP			0x0002
+#define	AXE_TXCSUM_UDP			0x0004
+#define	AXE_TXCSUM_ICMP			0x0008
+#define	AXE_TXCSUM_IGMP			0x0010
+#define	AXE_TXCSUM_ICMP6		0x0020
+#define	AXE_TXCSUM_TCPV6		0x0100
+#define	AXE_TXCSUM_UDPV6		0x0200
+#define	AXE_TXCSUM_ICMPV6		0x0400
+#define	AXE_TXCSUM_IGMPV6		0x0800
+#define	AXE_TXCSUM_ICMP6V6		0x1000
+
+#define	AXE_TXCSUM_64TE			0x0001
+#define	AXE_TXCSUM_PPPOE		0x0002
+
 #define	AXE_BULK_BUF_SIZE	16384	/* bytes */
 
 #define	AXE_CTL_READ		0x01
@@ -227,8 +265,61 @@ struct ax88772b_mfb {
 
 struct axe_sframe_hdr {
 	uint16_t len;
+#define	AXE_HDR_LEN_MASK	0xFFFF
 	uint16_t ilen;
 } __packed;
+
+#define	AXE_TX_CSUM_PSEUDO_HDR	0x4000
+#define	AXE_TX_CSUM_DIS		0x8000
+
+/*
+ * When RX checksum offloading is enabled, AX88772B uses new RX header
+ * format and it's not compatible with previous RX header format.  In
+ * addition, IP header align option should be enabled to get correct
+ * frame size including RX header.  Total transferred size including
+ * the RX header is multiple of 4 and controller will pad necessary
+ * bytes if the length is not multiple of 4.
+ * This driver does not enable partial checksum feature which will
+ * compute 16bit checksum from 14th byte to the end of the frame.  If
+ * this feature is enabled, computed checksum value is embedded into
+ * RX header which in turn means it uses different RX header format.
+ */
+struct axe_csum_hdr {
+	uint16_t len;
+#define	AXE_CSUM_HDR_LEN_MASK		0x07FF
+#define	AXE_CSUM_HDR_CRC_ERR		0x1000
+#define	AXE_CSUM_HDR_MII_ERR		0x2000
+#define	AXE_CSUM_HDR_RUNT		0x4000
+#define	AXE_CSUM_HDR_BMCAST		0x8000
+	uint16_t ilen;
+	uint16_t cstatus;
+#define	AXE_CSUM_HDR_VLAN_MASK		0x0007
+#define	AXE_CSUM_HDR_VLAN_STRIP		0x0008
+#define	AXE_CSUM_HDR_VLAN_PRI_MASK	0x0070
+#define	AXE_CSUM_HDR_L4_CSUM_ERR	0x0100
+#define	AXE_CSUM_HDR_L3_CSUM_ERR	0x0200
+#define	AXE_CSUM_HDR_L4_TYPE_UDP	0x0400
+#define	AXE_CSUM_HDR_L4_TYPE_ICMP	0x0800
+#define	AXE_CSUM_HDR_L4_TYPE_IGMP	0x0C00
+#define	AXE_CSUM_HDR_L4_TYPE_TCP	0x1000
+#define	AXE_CSUM_HDR_L4_TYPE_TCPV6	0x1400
+#define	AXE_CSUM_HDR_L4_TYPE_MASK	0x1C00
+#define	AXE_CSUM_HDR_L3_TYPE_IPV4	0x2000
+#define	AXE_CSUM_HDR_L3_TYPE_IPV6	0x4000
+
+#ifdef AXE_APPEND_PARTIAL_CSUM
+	/*
+	 * These members present only when partial checksum
+	 * offloading is enabled.  The checksum value is simple
+	 * 16bit sum of received frame starting at offset 14 of
+	 * the frame to the end of the frame excluding FCS bytes.
+	 */
+	uint16_t csum_value;
+	uint16_t dummy;
+#endif
+} __packed;
+
+#define	AXE_CSUM_RXBYTES(x)	((x) & AXE_CSUM_HDR_LEN_MASK)
 
 #define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
@@ -247,6 +338,8 @@ struct axe_softc {
 
 	int			sc_flags;
 #define	AXE_FLAG_LINK		0x0001
+#define	AXE_FLAG_STD_FRAME	0x0010
+#define	AXE_FLAG_CSUM_FRAME	0x0020
 #define	AXE_FLAG_772		0x1000	/* AX88772 */
 #define	AXE_FLAG_772A		0x2000	/* AX88772A */
 #define	AXE_FLAG_772B		0x4000	/* AX88772B */
@@ -255,6 +348,7 @@ struct axe_softc {
 	uint8_t			sc_ipgs[3];
 	uint8_t			sc_phyaddrs[2];
 	uint16_t		sc_pwrcfg;
+	uint16_t		sc_lenmask;
 	int			sc_tx_bufsz;
 };
 
