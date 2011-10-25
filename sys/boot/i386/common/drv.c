@@ -24,43 +24,36 @@ __FBSDID("$FreeBSD$");
 #include "rbx.h"
 #include "util.h"
 #include "drv.h"
+#include "edd.h"
 #ifdef USE_XREAD
 #include "xreadorg.h"
 #endif
 
 #ifdef GPT
+static struct edd_params params;
+
 uint64_t
 drvsize(struct dsk *dskp)
 {
-	unsigned char params[0x42];
-	uint64_t sectors;
 
-	*(uint32_t *)params = sizeof(params);
-
+	params.len = sizeof(struct edd_params);
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
 	v86.eax = 0x4800;
 	v86.edx = dskp->drive;
-	v86.ds = VTOPSEG(params);
-	v86.esi = VTOPOFF(params);
+	v86.ds = VTOPSEG(&params);
+	v86.esi = VTOPOFF(&params);
 	v86int();
 	if (V86_CY(v86.efl)) {
 		printf("error %u\n", v86.eax >> 8 & 0xff);
 		return (0);
 	}
-	memcpy(&sectors, params + 0x10, sizeof(sectors));
-	return (sectors);
+	return (params.sectors);
 }
 #endif	/* GPT */
 
 #ifndef USE_XREAD
-static struct {
-	uint16_t	len;
-	uint16_t	count;
-	uint16_t	off;
-	uint16_t	seg;
-	uint64_t	lba;
-} packet;
+static struct edd_packet packet;
 #endif
 
 int
@@ -71,7 +64,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	if (!OPT_CHECK(RBX_QUIET))
 		printf("%c\b", c = c << 8 | c >> 24);
 #ifndef USE_XREAD
-	packet.len = 0x10;
+	packet.len = sizeof(struct edd_packet);
 	packet.count = nblk;
 	packet.off = VTOPOFF(buf);
 	packet.seg = VTOPSEG(buf);
@@ -105,7 +98,7 @@ int
 drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 {
 
-	packet.len = 0x10;
+	packet.len = sizeof(struct edd_packet);
 	packet.count = nblk;
 	packet.off = VTOPOFF(buf);
 	packet.seg = VTOPSEG(buf);

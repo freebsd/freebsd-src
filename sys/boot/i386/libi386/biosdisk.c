@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <bootstrap.h>
 #include <btxv86.h>
+#include <edd.h>
 #include "libi386.h"
 
 #define BIOS_NUMDRIVES		0x475
@@ -266,7 +267,7 @@ bd_int13probe(struct bdinfo *bd)
 	v86int();
 	if (!(V86_CY(v86.efl)) &&			/* carry clear */
 	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
-	    (v86.ecx & 0x1)) {				/* packets mode ok */
+	    (v86.ecx & EDD_INTERFACE_FIXED_DISK)) {	/* packets mode ok */
 	    bd->bd_flags |= BD_MODEEDD1;
 	    if ((v86.eax & 0xff00) >= 0x3000)
 	        bd->bd_flags |= BD_MODEEDD3;
@@ -1134,9 +1135,9 @@ bd_edd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 {
     static struct edd_packet packet;
 
-    packet.len = 0x10;
+    packet.len = sizeof(struct edd_packet);
     packet.count = blks;
-    packet.offset = VTOPOFF(dest);
+    packet.off = VTOPOFF(dest);
     packet.seg = VTOPSEG(dest);
     packet.lba = dblk;
     v86.ctl = V86_FLAGS;
