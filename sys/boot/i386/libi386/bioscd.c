@@ -42,12 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <machine/bootinfo.h>
-#include <machine/psl.h>
 
 #include <stdarg.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
+#include <edd.h>
 #include "libi386.h"
 
 #define BIOSCD_SECSIZE		2048
@@ -337,7 +337,7 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			v86.ds = VTOPSEG(&packet);
 			v86.esi = VTOPOFF(&packet);
 			v86int();
-			result = (v86.efl & PSL_C);
+			result = V86_CY(v86.efl);
 			if (result == 0)
 				break;
 		}
