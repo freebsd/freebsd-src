@@ -305,7 +305,7 @@ g_disk_start(struct bio *bp)
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
 		if (!(dp->d_flags & DISKFLAG_CANDELETE)) {
-			error = 0;
+			error = EOPNOTSUPP;
 			break;
 		}
 		/* fall-through */
@@ -394,8 +394,8 @@ g_disk_start(struct bio *bp)
 		g_trace(G_T_TOPOLOGY, "g_disk_flushcache(%s)",
 		    bp->bio_to->name);
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
-			g_io_deliver(bp, ENODEV);
-			return;
+			error = EOPNOTSUPP;
+			break;
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
