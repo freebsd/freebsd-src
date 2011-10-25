@@ -594,8 +594,23 @@ eli_metadata_read(struct gctl_req *req, const char *prov,
 			return (-1);
 		}
 	}
-	if (eli_metadata_decode(sector, md) != 0) {
-		gctl_error(req, "MD5 hash mismatch for %s.", prov);
+	error = eli_metadata_decode(sector, md);
+	switch (error) {
+	case 0:
+		break;
+	case EOPNOTSUPP:
+		gctl_error(req,
+		    "Provider's %s metadata version %u is too new.\n"
+		    "geli: The highest supported version is %u.",
+		    prov, (unsigned int)md->md_version, G_ELI_VERSION);
+		return (-1);
+	case EINVAL:
+		gctl_error(req, "Inconsistent provider's %s metadata.", prov);
+		return (-1);
+	default:
+		gctl_error(req,
+		    "Unexpected error while decoding provider's %s metadata: %s.",
+		    prov, strerror(error));
 		return (-1);
 	}
 	return (0);
@@ -1410,7 +1425,7 @@ eli_resize(struct gctl_req *req)
 	unsigned char *sector;
 	ssize_t secsize;
 	off_t mediasize, oldsize;
-	int nargs, provfd;
+	int error, nargs, provfd;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
@@ -1461,8 +1476,23 @@ eli_resize(struct gctl_req *req)
 	}
 
 	/* Check if this sector contains geli metadata. */
-	if (eli_metadata_decode(sector, &md) != 0) {
-		gctl_error(req, "MD5 hash mismatch: no metadata for oldsize.");
+	error = eli_metadata_decode(sector, &md);
+	switch (error) {
+	case 0:
+		break;
+	case EOPNOTSUPP:
+		gctl_error(req,
+		    "Provider's %s metadata version %u is too new.\n"
+		    "geli: The highest supported version is %u.",
+		    prov, (unsigned int)md.md_version, G_ELI_VERSION);
+		goto out;
+	case EINVAL:
+		gctl_error(req, "Inconsistent provider's %s metadata.", prov);
+		goto out;
+	default:
+		gctl_error(req,
+		    "Unexpected error while decoding provider's %s metadata: %s.",
+		    prov, strerror(error));
 		goto out;
 	}
 
