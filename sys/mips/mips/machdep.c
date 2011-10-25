@@ -498,14 +498,11 @@ void
 cpu_idle(int busy)
 {
 #if 0
-	register_t m;
-
 	KASSERT((mips_rd_status() & MIPS_SR_INT_IE) != 0,
 		("interrupts disabled in idle process."));
 	KASSERT((mips_rd_status() & MIPS_INT_MASK) != 0,
 		("all interrupts masked in idle process."));
 
-	m = intr_disable();
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
