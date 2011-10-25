@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2011
+.Dd October 25, 2011
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -60,6 +60,7 @@ utility:
 .Op Fl K Ar newkeyfile
 .Op Fl l Ar keylen
 .Op Fl s Ar sectorsize
+.Op Fl V Ar version
 .Ar prov
 .Nm
 .Cm label - an alias for
@@ -322,6 +323,15 @@ Change decrypted provider's sector size.
 Increasing sector size allows to increase performance, because we need to
 generate an IV and do encrypt/decrypt for every single sector - less number
 of sectors means less work to do.
+.It Fl V Ar version
+Metadata version to use.
+This option is helpful when creating provider that may be used by older
+.Nm FreeBSD/GELI
+versions.
+Consult the
+.Sx HISTORY
+section to find which metadata version is supported by which FreeBSD version.
+Note that using older metadata version may limit numer of features available.
 .El
 .It Cm attach
 Attach the given provider.
@@ -931,5 +941,33 @@ Support for
 .Nm Camellia
 block cipher is implemented by Yoshisato Yanagisawa in
 .Fx 7.0 .
+.Pp
+Highest
+.Nm GELI
+metadata version supported by the given FreeBSD version:
+.Pp
+.Bl -column -offset indent ".Sy FreeBSD" ".Sy version"
+.It Sy FreeBSD Ta Sy GELI
+.It Sy version Ta Sy version
+.Pp
+.It Li 6.0 Ta 0
+.It Li 6.1 Ta 0
+.It Li 6.2 Ta 3
+.It Li 6.3 Ta 3
+.It Li 6.4 Ta 3
+.Pp
+.It Li 7.0 Ta 3
+.It Li 7.1 Ta 3
+.It Li 7.2 Ta 3
+.It Li 7.3 Ta 3
+.It Li 7.4 Ta 3
+.Pp
+.It Li 8.0 Ta 3
+.It Li 8.1 Ta 3
+.It Li 8.2 Ta 5
+.Pp
+.It Li 9.0 Ta 6
+.El
+.Pp
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org

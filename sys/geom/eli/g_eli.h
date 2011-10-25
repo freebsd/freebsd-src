@@ -43,6 +43,7 @@
 #include <sys/tree.h>
 #include <geom/geom.h>
 #else
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -166,6 +167,7 @@ struct g_eli_worker {
 
 struct g_eli_softc {
 	struct g_geom	*sc_geom;
+	u_int		 sc_version;
 	u_int		 sc_crypto;
 	uint8_t		 sc_mkey[G_ELI_DATAIVKEYLEN];
 	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
@@ -217,14 +219,28 @@ struct g_eli_metadata {
 } __packed;
 #ifndef _OpenSSL_
 static __inline void
-eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
+eli_metadata_encode_v0(struct g_eli_metadata *md, u_char **datap)
 {
-	MD5_CTX ctx;
 	u_char *p;
 
-	p = data;
-	bcopy(md->md_magic, p, sizeof(md->md_magic)); p += sizeof(md->md_magic);
-	le32enc(p, md->md_version);	p += sizeof(md->md_version);
+	p = *datap;
+	le32enc(p, md->md_flags);	p += sizeof(md->md_flags);
+	le16enc(p, md->md_ealgo);	p += sizeof(md->md_ealgo);
+	le16enc(p, md->md_keylen);	p += sizeof(md->md_keylen);
+	le64enc(p, md->md_provsize);	p += sizeof(md->md_provsize);
+	le32enc(p, md->md_sectorsize);	p += sizeof(md->md_sectorsize);
+	*p = md->md_keys;		p += sizeof(md->md_keys);
+	le32enc(p, md->md_iterations);	p += sizeof(md->md_iterations);
+	bcopy(md->md_salt, p, sizeof(md->md_salt)); p += sizeof(md->md_salt);
+	bcopy(md->md_mkeys, p, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
+	*datap = p;
+}
+static __inline void
+eli_metadata_encode_v1v2v3v4v5v6(struct g_eli_metadata *md, u_char **datap)
+{
+	u_char *p;
+
+	p = *datap;
 	le32enc(p, md->md_flags);	p += sizeof(md->md_flags);
 	le16enc(p, md->md_ealgo);	p += sizeof(md->md_ealgo);
 	le16enc(p, md->md_keylen);	p += sizeof(md->md_keylen);
@@ -235,6 +251,39 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	le32enc(p, md->md_iterations);	p += sizeof(md->md_iterations);
 	bcopy(md->md_salt, p, sizeof(md->md_salt)); p += sizeof(md->md_salt);
 	bcopy(md->md_mkeys, p, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
+	*datap = p;
+}
+static __inline void
+eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
+{
+	MD5_CTX ctx;
+	u_char *p;
+
+	p = data;
+	bcopy(md->md_magic, p, sizeof(md->md_magic));
+	p += sizeof(md->md_magic);
+	le32enc(p, md->md_version);
+	p += sizeof(md->md_version);
+	switch (md->md_version) {
+	case G_ELI_VERSION_00:
+		eli_metadata_encode_v0(md, &p);
+		break;
+	case G_ELI_VERSION_01:
+	case G_ELI_VERSION_02:
+	case G_ELI_VERSION_03:
+	case G_ELI_VERSION_04:
+	case G_ELI_VERSION_05:
+	case G_ELI_VERSION_06:
+		eli_metadata_encode_v1v2v3v4v5v6(md, &p);
+		break;
+	default:
+#ifdef _KERNEL
+		panic("%s: Unsupported version %u.", __func__,
+		    (u_int)md->md_version);
+#else
+		assert(!"Unsupported metadata version.");
+#endif
+	}
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
 	MD5Final(md->md_hash, &ctx);
