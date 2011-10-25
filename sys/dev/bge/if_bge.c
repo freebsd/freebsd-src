@@ -2985,9 +2985,9 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
-  	/*
+	/*
 	 * Check if this is a PCI-X or PCI Express device.
-  	 */
+	 */
 	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
@@ -3995,7 +3995,7 @@ bge_intr_task(void *arg, int pending)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
-	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bge_start_locked(ifp);
 	}
 	BGE_UNLOCK(sc);
@@ -4112,7 +4112,7 @@ bge_tick(void *xsc)
 	/* Synchronize with possible callout reset/stop. */
 	if (callout_pending(&sc->bge_stat_ch) ||
 	    !callout_active(&sc->bge_stat_ch))
-	    	return;
+		return;
 
 	if (BGE_IS_5705_PLUS(sc))
 		bge_stats_update_regs(sc);
@@ -5036,7 +5036,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				break;
 			}
 		} else if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL; 
+			error = EINVAL;
 			break;
 		}
 		BGE_LOCK(sc);
