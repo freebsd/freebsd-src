@@ -333,11 +333,10 @@ arc4rand(unsigned char *buf, size_t size)
 		buf[i] = arc4random() % 0xff;
 }
 
-static int
+static bool
 eli_is_attached(const char *prov)
 {
 	char name[MAXPATHLEN];
-	unsigned secsize;
 
 	/*
 	 * Not the best way to do it, but the easiest.
@@ -345,10 +344,7 @@ eli_is_attached(const char *prov)
 	 * by asking about its sectorsize.
 	 */
 	snprintf(name, sizeof(name), "%s%s", prov, G_ELI_SUFFIX);
-	secsize = g_get_sectorsize(name);
-	if (secsize > 0)
-		return (1);
-	return (0);
+	return (g_get_sectorsize(name) > 0);
 }
 
 static int
