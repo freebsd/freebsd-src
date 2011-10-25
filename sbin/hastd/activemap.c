@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>	/* powerof2() */
 #include <sys/queue.h>
 
-#include <assert.h>
 #include <bitstring.h>
 #include <errno.h>
 #include <stdint.h>
@@ -41,7 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#include <activemap.h>
+#include <pjdlog.h>
+
+#include "activemap.h"
+
+#ifndef	PJDLOG_ASSERT
+#include <assert.h>
+#define	PJDLOG_ASSERT(...)	assert(__VA_ARGS__)
+#endif
 
 #define	ACTIVEMAP_MAGIC	0xac71e4
 struct activemap {
@@ -93,9 +99,9 @@ off2ext(const struct activemap *amp, off_t offset)
 {
 	int extent;
 
-	assert(offset >= 0 && offset < amp->am_mediasize);
+	PJDLOG_ASSERT(offset >= 0 && offset < amp->am_mediasize);
 	extent = (offset >> amp->am_extentshift);
-	assert(extent >= 0 && extent < amp->am_nextents);
+	PJDLOG_ASSERT(extent >= 0 && extent < amp->am_nextents);
 	return (extent);
 }
 
@@ -104,9 +110,9 @@ ext2off(const struct activemap *amp, int extent)
 {
 	off_t offset;
 
-	assert(extent >= 0 && extent < amp->am_nextents);
+	PJDLOG_ASSERT(extent >= 0 && extent < amp->am_nextents);
 	offset = ((off_t)extent << amp->am_extentshift);
-	assert(offset >= 0 && offset < amp->am_mediasize);
+	PJDLOG_ASSERT(offset >= 0 && offset < amp->am_mediasize);
 	return (offset);
 }
 
@@ -122,7 +128,7 @@ ext2reqs(const struct activemap *amp, int ext)
 	if (ext < amp->am_nextents - 1)
 		return (((amp->am_extentsize - 1) / MAXPHYS) + 1);
 
-	assert(ext == amp->am_nextents - 1);
+	PJDLOG_ASSERT(ext == amp->am_nextents - 1);
 	left = amp->am_mediasize % amp->am_extentsize;
 	if (left == 0)
 		left = amp->am_extentsize;
@@ -139,13 +145,13 @@ activemap_init(struct activemap **ampp, uint64_t mediasize, uint32_t extentsize,
 {
 	struct activemap *amp;
 
-	assert(ampp != NULL);
-	assert(mediasize > 0);
-	assert(extentsize > 0);
-	assert(powerof2(extentsize));
-	assert(sectorsize > 0);
-	assert(powerof2(sectorsize));
-	assert(keepdirty > 0);
+	PJDLOG_ASSERT(ampp != NULL);
+	PJDLOG_ASSERT(mediasize > 0);
+	PJDLOG_ASSERT(extentsize > 0);
+	PJDLOG_ASSERT(powerof2(extentsize));
+	PJDLOG_ASSERT(sectorsize > 0);
+	PJDLOG_ASSERT(powerof2(sectorsize));
+	PJDLOG_ASSERT(keepdirty > 0);
 
 	amp = malloc(sizeof(*amp));
 	if (amp == NULL)
@@ -225,10 +231,10 @@ keepdirty_add(struct activemap *amp, int extent)
 	 */
 	if (amp->am_nkeepdirty >= amp->am_nkeepdirty_limit) {
 		kd = TAILQ_LAST(&amp->am_keepdirty, skeepdirty);
-		assert(kd != NULL);
+		PJDLOG_ASSERT(kd != NULL);
 		TAILQ_REMOVE(&amp->am_keepdirty, kd, kd_next);
 		amp->am_nkeepdirty--;
-		assert(amp->am_nkeepdirty > 0);
+		PJDLOG_ASSERT(amp->am_nkeepdirty > 0);
 	}
 	if (kd == NULL)
 		kd = malloc(sizeof(*kd));
@@ -261,7 +267,7 @@ keepdirty_free(struct activemap *amp)
 		amp->am_nkeepdirty--;
 		free(kd);
 	}
-	assert(amp->am_nkeepdirty == 0);
+	PJDLOG_ASSERT(amp->am_nkeepdirty == 0);
 }
 
 /*
@@ -271,7 +277,7 @@ void
 activemap_free(struct activemap *amp)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	amp->am_magic = 0;
 
@@ -293,8 +299,8 @@ activemap_write_start(struct activemap *amp, off_t offset, off_t length)
 	off_t end;
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(length > 0);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(length > 0);
 
 	modified = false;
 	end = offset + length - 1;
@@ -307,7 +313,7 @@ activemap_write_start(struct activemap *amp, off_t offset, off_t length)
 		 * was modified and has to be flushed to disk.
 		 */
 		if (amp->am_memtab[ext]++ == 0) {
-			assert(!bit_test(amp->am_memmap, ext));
+			PJDLOG_ASSERT(!bit_test(amp->am_memmap, ext));
 			bit_set(amp->am_memmap, ext);
 			amp->am_ndirty++;
 		}
@@ -329,8 +335,8 @@ activemap_write_complete(struct activemap *amp, off_t offset, off_t length)
 	off_t end;
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(length > 0);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(length > 0);
 
 	modified = false;
 	end = offset + length - 1;
@@ -342,8 +348,8 @@ activemap_write_complete(struct activemap *amp, off_t offset, off_t length)
 		 * By returning true we inform the caller that on-disk bitmap
 		 * was modified and has to be flushed to disk.
 		 */
-		assert(amp->am_memtab[ext] > 0);
-		assert(bit_test(amp->am_memmap, ext));
+		PJDLOG_ASSERT(amp->am_memtab[ext] > 0);
+		PJDLOG_ASSERT(bit_test(amp->am_memmap, ext));
 		if (--amp->am_memtab[ext] == 0) {
 			bit_clear(amp->am_memmap, ext);
 			amp->am_ndirty--;
@@ -365,15 +371,15 @@ activemap_extent_complete(struct activemap *amp, int extent)
 	bool modified;
 	int reqs;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(extent >= 0 && extent < amp->am_nextents);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(extent >= 0 && extent < amp->am_nextents);
 
 	modified = false;
 
 	reqs = ext2reqs(amp, extent);
-	assert(amp->am_memtab[extent] >= reqs);
+	PJDLOG_ASSERT(amp->am_memtab[extent] >= reqs);
 	amp->am_memtab[extent] -= reqs;
-	assert(bit_test(amp->am_memmap, extent));
+	PJDLOG_ASSERT(bit_test(amp->am_memmap, extent));
 	if (amp->am_memtab[extent] == 0) {
 		bit_clear(amp->am_memmap, extent);
 		amp->am_ndirty--;
@@ -390,7 +396,7 @@ uint64_t
 activemap_ndirty(const struct activemap *amp)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	return (amp->am_ndirty);
 }
@@ -403,7 +409,7 @@ bool
 activemap_differ(const struct activemap *amp)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	return (memcmp(amp->am_diskmap, amp->am_memmap,
 	    amp->am_mapsize) != 0);
@@ -416,7 +422,7 @@ size_t
 activemap_size(const struct activemap *amp)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	return (amp->am_mapsize);
 }
@@ -429,7 +435,7 @@ size_t
 activemap_ondisk_size(const struct activemap *amp)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	return (amp->am_diskmapsize);
 }
@@ -442,8 +448,8 @@ activemap_copyin(struct activemap *amp, const unsigned char *buf, size_t size)
 {
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(size >= amp->am_mapsize);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(size >= amp->am_mapsize);
 
 	memcpy(amp->am_diskmap, buf, amp->am_mapsize);
 	memcpy(amp->am_memmap, buf, amp->am_mapsize);
@@ -481,8 +487,8 @@ activemap_merge(struct activemap *amp, const unsigned char *buf, size_t size)
 	bitstr_t *remmap = __DECONST(bitstr_t *, buf);
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(size >= amp->am_mapsize);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(size >= amp->am_mapsize);
 
 	bit_ffs(remmap, amp->am_nextents, &ext);
 	if (ext == -1) {
@@ -521,7 +527,7 @@ const unsigned char *
 activemap_bitmap(struct activemap *amp, size_t *sizep)
 {
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	if (sizep != NULL)
 		*sizep = amp->am_diskmapsize;
@@ -539,11 +545,11 @@ activemap_calc_ondisk_size(uint64_t mediasize, uint32_t extentsize,
 {
 	uint64_t nextents, mapsize;
 
-	assert(mediasize > 0);
-	assert(extentsize > 0);
-	assert(powerof2(extentsize));
-	assert(sectorsize > 0);
-	assert(powerof2(sectorsize));
+	PJDLOG_ASSERT(mediasize > 0);
+	PJDLOG_ASSERT(extentsize > 0);
+	PJDLOG_ASSERT(powerof2(extentsize));
+	PJDLOG_ASSERT(sectorsize > 0);
+	PJDLOG_ASSERT(powerof2(sectorsize));
 
 	nextents = ((mediasize - 1) / extentsize) + 1;
 	mapsize = sizeof(bitstr_t) * bitstr_size(nextents);
@@ -558,7 +564,7 @@ activemap_sync_rewind(struct activemap *amp)
 {
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	bit_ffs(amp->am_syncmap, amp->am_nextents, &ext);
 	if (ext == -1) {
@@ -581,9 +587,9 @@ activemap_sync_offset(struct activemap *amp, off_t *lengthp, int *syncextp)
 	off_t syncoff, left;
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
-	assert(lengthp != NULL);
-	assert(syncextp != NULL);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(lengthp != NULL);
+	PJDLOG_ASSERT(syncextp != NULL);
 
 	*syncextp = -1;
 
@@ -632,9 +638,10 @@ activemap_sync_offset(struct activemap *amp, off_t *lengthp, int *syncextp)
 	if (left > MAXPHYS)
 		left = MAXPHYS;
 
-	assert(left >= 0 && left <= MAXPHYS);
-	assert(syncoff >= 0 && syncoff < amp->am_mediasize);
-	assert(syncoff + left >= 0 && syncoff + left <= amp->am_mediasize);
+	PJDLOG_ASSERT(left >= 0 && left <= MAXPHYS);
+	PJDLOG_ASSERT(syncoff >= 0 && syncoff < amp->am_mediasize);
+	PJDLOG_ASSERT(syncoff + left >= 0 &&
+	    syncoff + left <= amp->am_mediasize);
 
 	*lengthp = left;
 	return (syncoff);
@@ -651,7 +658,7 @@ activemap_need_sync(struct activemap *amp, off_t offset, off_t length)
 	off_t end;
 	int ext;
 
-	assert(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
 
 	modified = false;
 	end = offset + length - 1;
@@ -659,7 +666,7 @@ activemap_need_sync(struct activemap *amp, off_t offset, off_t length)
 	for (ext = off2ext(amp, offset); ext <= off2ext(amp, end); ext++) {
 		if (bit_test(amp->am_syncmap, ext)) {
 			/* Already marked for synchronization. */
-			assert(bit_test(amp->am_memmap, ext));
+			PJDLOG_ASSERT(bit_test(amp->am_memmap, ext));
 			continue;
 		}
 		bit_set(amp->am_syncmap, ext);

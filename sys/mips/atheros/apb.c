@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/pmckern.h>
+#include <sys/kdb.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -365,12 +366,20 @@ apb_intr(void *arg)
 					register_t s;
 					struct trapframe *tf =
 					    PCPU_GET(curthread)->td_intr_frame;
+					kdb_break();
 					s = intr_disable();
+					/*
+					 * XXX shouldn't just "continue" here?
+					 *
+					 * XXX should ensure it was actually a
+					 * PMC exception
+					 */
 					if (pmc_intr &&
 					    (*pmc_intr)(PCPU_GET(cpuid), tf)) {
 						continue;
-						mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 					}
+					mips_intrcnt_inc(sc->sc_intr_counter[irq]);
+
 					/* Call pmc_hook with the current trapframe */
 					/* XXX this should use the kernel SP? */
 #if 0

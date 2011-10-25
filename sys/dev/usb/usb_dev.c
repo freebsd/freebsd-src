@@ -768,7 +768,7 @@ usb_fifo_close(struct usb_fifo *f, int fflags)
 	/* check if a thread wants SIGIO */
 	if (f->async_p != NULL) {
 		PROC_LOCK(f->async_p);
-		psignal(f->async_p, SIGIO);
+		kern_psignal(f->async_p, SIGIO);
 		PROC_UNLOCK(f->async_p);
 		f->async_p = NULL;
 	}
@@ -1582,7 +1582,7 @@ usb_fifo_wakeup(struct usb_fifo *f)
 	}
 	if (f->async_p != NULL) {
 		PROC_LOCK(f->async_p);
-		psignal(f->async_p, SIGIO);
+		kern_psignal(f->async_p, SIGIO);
 		PROC_UNLOCK(f->async_p);
 	}
 }

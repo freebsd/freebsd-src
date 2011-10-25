@@ -302,7 +302,8 @@ enum pmc_event {
 	__PMC_OP(PMCSETCOUNT, "Set initial count/sampling rate")	\
 	__PMC_OP(PMCSTART, "Start a PMC")				\
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
-	__PMC_OP(WRITELOG, "Write a cookie to the log file")
+	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
+	__PMC_OP(CLOSELOG, "Close log file")
 
 
 enum pmc_ops {
@@ -952,7 +953,7 @@ extern struct pmc_cpu **pmc_pcpu;
 /* driver statistics */
 extern struct pmc_op_getdriverstats pmc_stats;
 
-#if	defined(DEBUG) && DEBUG
+#ifdef	HWPMC_DEBUG
 
 /* debug flags, major flag groups */
 struct pmc_debugflags {
@@ -1039,6 +1040,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_SIO		9 /* schedule i/o */
 #define	PMC_DEBUG_MIN_FLS	       10 /* flush */
 #define	PMC_DEBUG_MIN_SAM	       11 /* sample */
+#define	PMC_DEBUG_MIN_CLO	       12 /* close */
 
 #else
 #define	PMCDBG(M,N,L,F,...)		/* nothing */

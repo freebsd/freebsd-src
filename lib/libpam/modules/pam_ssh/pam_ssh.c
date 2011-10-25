@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -78,6 +79,7 @@ static const char *pam_ssh_keyfiles[] = {
 	".ssh/identity",	/* SSH1 RSA key */
 	".ssh/id_rsa",		/* SSH2 RSA key */
 	".ssh/id_dsa",		/* SSH2 DSA key */
+	".ssh/id_ecdsa",	/* SSH2 ECDSA key */
 	NULL
 };
 
@@ -324,6 +326,7 @@ pam_ssh_add_keys_to_agent(pam_handle_t *pamh)
 
 	/* get a connection to the agent */
 	if ((ac = ssh_get_authentication_connection()) == NULL) {
+		openpam_log(PAM_LOG_DEBUG, "failed to connect to the agent");
 		pam_err = PAM_SYSTEM_ERR;
 		goto end;
 	}

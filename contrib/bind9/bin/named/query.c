@@ -33,6 +33,7 @@
 #include <dns/db.h>
 #include <dns/dlz.h>
 #include <dns/dns64.h>
+#include <dns/dns64.h>
 #include <dns/dnssec.h>
 #include <dns/events.h>
 #include <dns/message.h>

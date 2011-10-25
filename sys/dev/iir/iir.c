@@ -1839,13 +1839,20 @@ gdt_sync_event(struct gdt_softc *gdt, int service,
         } else {
             /* error */
             if (gccb->gc_service == GDT_CACHESERVICE) {
+                struct scsi_sense_data *sense;
+
                 ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
                 ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
                 ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
                 bzero(&ccb->csio.sense_data, ccb->csio.sense_len);
-                ccb->csio.sense_data.error_code =
-                    SSD_CURRENT_ERROR | SSD_ERRCODE_VALID;
-                ccb->csio.sense_data.flags = SSD_KEY_NOT_READY;
+                sense = &ccb->csio.sense_data;
+                scsi_set_sense_data(sense,
+                                    /*sense_format*/ SSD_TYPE_NONE,
+                                    /*current_error*/ 1,
+                                    /*sense_key*/ SSD_KEY_NOT_READY,
+                                    /*asc*/ 0x4,
+                                    /*ascq*/ 0x01,
+                                    SSD_ELEM_NONE);
 
                 gdt->sc_dvr.size = sizeof(gdt->sc_dvr.eu.sync);
                 gdt->sc_dvr.eu.sync.ionode  = gdt->sc_hanum;

@@ -209,10 +209,8 @@ SYSINIT(wlan_ht, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_ht_init, NULL);
 
 static int ieee80211_ampdu_enable(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
-
 static void null_addba_response_timeout(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
-
 static void ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status);
 static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);

@@ -1238,7 +1238,6 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct resource *res;
-    struct rman *rm;
     int isdefault = (start == 0UL && end == ~0UL);
 
     /*
@@ -1291,15 +1290,29 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     } else
 	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
 	    start, end, count, flags);
-    if (res != NULL || start + count - 1 != end)
-	return (res);
 
     /*
      * If the first attempt failed and this is an allocation of a
      * specific range, try to satisfy the request via a suballocation
-     * from our system resource regions.  Note that we only handle
-     * memory and I/O port system resources.
+     * from our system resource regions.
      */
+    if (res == NULL && start + count - 1 == end)
+	res = acpi_alloc_sysres(child, type, rid, start, end, count, flags);
+    return (res);
+}
+
+/*
+ * Attempt to allocate a specific resource range from the system
+ * resource ranges.  Note that we only handle memory and I/O port
+ * system resources.
+ */
+struct resource *
+acpi_alloc_sysres(device_t child, int type, int *rid, u_long start, u_long end,
+    u_long count, u_int flags)
+{
+    struct rman *rm;
+    struct resource *res;
+
     switch (type) {
     case SYS_RES_IOPORT:
 	rm = &acpi_rman_io;
@@ -1311,6 +1324,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (NULL);
     }
 
+    KASSERT(start + count - 1 == end, ("wildcard resource range"));
     res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
 	child);
     if (res == NULL)

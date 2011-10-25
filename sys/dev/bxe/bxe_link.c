@@ -2586,7 +2586,7 @@ bxe_8726_read_sfp_module_eeprom(struct link_params *params, uint16_t addr,
 
 	if (byte_cnt > 16) {
 		DBPRINT(sc, BXE_VERBOSE_PHY,
-		    "Reading from eeprom is is limited to 0xf\n");
+		    "Reading from eeprom is limited to 0xf\n");
 		return (-EINVAL);
 	}
 	/* Set the read command byte count. */
@@ -2655,7 +2655,7 @@ bxe_8727_read_sfp_module_eeprom(struct link_params *params, uint16_t addr,
 
 	if (byte_cnt > 16) {
 		DBPRINT(sc, BXE_VERBOSE_PHY,
-		    "Reading from eeprom is is limited to 0xf\n");
+		    "Reading from eeprom is limited to 0xf\n");
 		return (-EINVAL);
 	}
 

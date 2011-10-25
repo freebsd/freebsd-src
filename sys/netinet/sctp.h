@@ -496,6 +496,7 @@ struct sctp_error_unrecognized_chunk {
 /*
  * PCB Features (in sctp_features bitmask)
  */
+#define SCTP_PCB_FLAGS_DO_NOT_PMTUD     0x00000001
 #define SCTP_PCB_FLAGS_EXT_RCVINFO      0x00000002	/* deprecated */
 #define SCTP_PCB_FLAGS_DONOT_HEARTBEAT  0x00000004
 #define SCTP_PCB_FLAGS_FRAG_INTERLEAVE  0x00000008

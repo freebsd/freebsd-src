@@ -2786,6 +2786,9 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			LIST_INSERT_HEAD(&new_inp->sctp_addr_list, laddr,
 			    sctp_nxt_addr);
 			new_inp->laddr_count++;
+			if (oladdr == stcb->asoc.last_used_address) {
+				stcb->asoc.last_used_address = laddr;
+			}
 		}
 	}
 	/*
@@ -2804,6 +2807,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	/* now what about the nets? */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		net->pmtu_timer.ep = (void *)new_inp;
+		net->hb_timer.ep = (void *)new_inp;
 		net->rxt_timer.ep = (void *)new_inp;
 	}
 	SCTP_INP_WUNLOCK(new_inp);
@@ -4030,10 +4034,15 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 #ifdef INET6
 	net->flowlabel = stcb->asoc.default_flowlabel;
 #endif
-	if (sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_DONOT_HEARTBEAT)) {
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_DONOT_HEARTBEAT)) {
 		net->dest_state |= SCTP_ADDR_NOHB;
 	} else {
 		net->dest_state &= ~SCTP_ADDR_NOHB;
+	}
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_DO_NOT_PMTUD)) {
+		net->dest_state |= SCTP_ADDR_NO_PMTUD;
+	} else {
+		net->dest_state &= ~SCTP_ADDR_NO_PMTUD;
 	}
 	net->heart_beat_delay = stcb->asoc.heart_beat_delay;
 	/* Init the timer structure */

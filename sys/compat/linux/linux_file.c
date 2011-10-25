@@ -232,7 +232,7 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     tmp_args.fd = args->fdes;
     tmp_args.offset = (off_t)args->off;
     tmp_args.whence = args->whence;
-    error = lseek(td, &tmp_args);
+    error = sys_lseek(td, &tmp_args);
     return error;
 }
 
@@ -254,7 +254,7 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	bsd_args.offset = off;
 	bsd_args.whence = args->whence;
 
-	if ((error = lseek(td, &bsd_args)))
+	if ((error = sys_lseek(td, &bsd_args)))
 		return error;
 
 	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
@@ -951,7 +951,7 @@ linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 	   
 	nuap.fd = args->fd;
 	nuap.length = args->length;
-	return (ftruncate(td, &nuap));
+	return (sys_ftruncate(td, &nuap));
 }
 
 int
@@ -1021,7 +1021,7 @@ linux_fdatasync(td, uap)
 	struct fsync_args bsd;
 
 	bsd.fd = uap->fd;
-	return fsync(td, &bsd);
+	return sys_fsync(td, &bsd);
 }
 
 int
@@ -1038,7 +1038,7 @@ linux_pread(td, uap)
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
 
-	error = pread(td, &bsd);
+	error = sys_pread(td, &bsd);
 
 	if (error == 0) {
    	   	/* This seems to violate POSIX but linux does it */
@@ -1065,7 +1065,7 @@ linux_pwrite(td, uap)
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-	return pwrite(td, &bsd);
+	return sys_pwrite(td, &bsd);
 }
 
 int
@@ -1163,7 +1163,7 @@ linux_umount(struct thread *td, struct linux_umount_args *args)
 
 	bsd.path = args->path;
 	bsd.flags = args->flags;	/* XXX correct? */
-	return (unmount(td, &bsd));
+	return (sys_unmount(td, &bsd));
 }
 
 /*

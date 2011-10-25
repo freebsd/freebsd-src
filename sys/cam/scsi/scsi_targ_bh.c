@@ -112,20 +112,20 @@ static struct scsi_inquiry_data no_lun_inq_data =
 	/* version */2, /* format version */2
 };
 
-static struct scsi_sense_data no_lun_sense_data =
+static struct scsi_sense_data_fixed no_lun_sense_data =
 {
 	SSD_CURRENT_ERROR|SSD_ERRCODE_VALID,
 	0,
 	SSD_KEY_NOT_READY, 
 	{ 0, 0, 0, 0 },
-	/*extra_len*/offsetof(struct scsi_sense_data, fru)
-                   - offsetof(struct scsi_sense_data, extra_len),
+	/*extra_len*/offsetof(struct scsi_sense_data_fixed, fru)
+                   - offsetof(struct scsi_sense_data_fixed, extra_len),
 	{ 0, 0, 0, 0 },
 	/* Logical Unit Not Supported */
 	/*ASC*/0x25, /*ASCQ*/0
 };
 
-static const int request_sense_size = offsetof(struct scsi_sense_data, fru);
+static const int request_sense_size = offsetof(struct scsi_sense_data_fixed, fru);
 
 static periph_init_t	targbhinit;
 static void		targbhasync(void *callback_arg, u_int32_t code,
@@ -587,7 +587,9 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * This needs to have other than a
 				 * no_lun_sense_data response.
 				 */
-				atio->sense_data = no_lun_sense_data;
+				bcopy(&no_lun_sense_data, &atio->sense_data,
+				      min(sizeof(no_lun_sense_data),
+					  sizeof(atio->sense_data)));
 				atio->sense_len = sizeof(no_lun_sense_data);
 				descr->data_resid = 0;
 				descr->data_increment = 0;
@@ -630,7 +632,9 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			/* Direction is always relative to the initator */
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
-			atio->sense_data = no_lun_sense_data;
+			bcopy(&no_lun_sense_data, &atio->sense_data,
+			      min(sizeof(no_lun_sense_data),
+				  sizeof(atio->sense_data)));
 			atio->sense_len = sizeof (no_lun_sense_data);
 			descr->data_resid = 0;
 			descr->data_increment = 0;

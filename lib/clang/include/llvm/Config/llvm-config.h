@@ -33,6 +33,9 @@
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
+/* Has gcc/MSVC atomic intrinsics */
+#define LLVM_HAS_ATOMICS 1
+
 /* Host triple we were built on */
 /* #undef LLVM_HOSTTRIPLE */
 
@@ -48,11 +51,14 @@
 /* Installation directory for man pages */
 /* #undef LLVM_MANDIR */
 
-/* Build multithreading support into LLVM */
-/* #undef LLVM_MULTITHREADED */
-
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
+
+/* LLVM name for the native AsmParser init function, if available */
+#define LLVM_NATIVE_ASMPARSER LLVMInitializeX86AsmParser
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
 
 /* LLVM name for the native Target init function, if available */
 #define LLVM_NATIVE_TARGET LLVMInitializeX86Target
@@ -60,14 +66,8 @@
 /* LLVM name for the native TargetInfo init function, if available */
 #define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
 
-/* LLVM name for the native MCAsmInfo init function, if available */
-#define LLVM_NATIVE_MCASMINFO LLVMInitializeX86MCAsmInfo
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#define LLVM_NATIVE_ASMPARSER LLVMInitializeX86AsmParser
+/* LLVM name for the native target MC init function, if available */
+#define LLVM_NATIVE_TARGETMC LLVMInitializeX86TargetMC
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -98,6 +98,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 /* #undef LLVM_PATH_TWOPI */
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+/* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
 /* #undef LLVM_PREFIX */

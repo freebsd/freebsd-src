@@ -1,6 +1,9 @@
 # $FreeBSD$
 
 LIB=	kadm5clnt
+LDFLAGS=	-Wl,--no-undefined
+LDADD=	-lcom_err -lkrb5 -lroken
+DPADD=	${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN}
 
 INCS=	admin.h \
 	kadm5-private.h \

@@ -238,5 +238,5 @@ svr4_sys_socket(td, uap)
 	default:
 		return EINVAL;
 	}
-	return socket(td, (struct socket_args *)uap);
+	return sys_socket(td, (struct socket_args *)uap);
 }

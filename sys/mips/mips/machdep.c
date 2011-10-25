@@ -163,6 +163,9 @@ extern char MipsTLBMiss[], MipsTLBMissEnd[];
 /* Cache error handler */
 extern char MipsCache[], MipsCacheEnd[];
 
+/* MIPS wait skip region */
+extern char MipsWaitStart[], MipsWaitEnd[];
+
 extern char edata[], end[];
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
@@ -326,6 +329,12 @@ struct msgbuf *msgbufp=0;
 void
 mips_vector_init(void)
 {
+	/*
+	 * Make sure that the Wait region logic is not been 
+	 * changed
+	 */
+	if (MipsWaitEnd - MipsWaitStart != 16)
+		panic("startup: MIPS wait region not correct");
 	/*
 	 * Copy down exception vector code.
 	 */
@@ -501,15 +510,7 @@ cpu_idle(int busy)
 		critical_enter();
 		cpu_idleclock();
 	}
-
-	if (sched_runnable())
-		intr_restore(m);
-	else {
-		/* XXX not atomic! */
-		intr_restore(m);
-		__asm __volatile ("wait\n");
-	}
-
+	mips_wait();
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();

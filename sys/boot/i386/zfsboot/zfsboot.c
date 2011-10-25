@@ -45,7 +45,8 @@ __FBSDID("$FreeBSD$");
 /* Hint to loader that we came from ZFS */
 #define	KARGS_FLAGS_ZFS		0x4
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG	"/boot.config"
+#define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/zfsloader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
@@ -533,7 +534,8 @@ main(void)
 
     zfs_mount_pool(spa);
 
-    if (zfs_lookup(spa, PATH_CONFIG, &dn) == 0) {
+    if (zfs_lookup(spa, PATH_CONFIG, &dn) == 0 ||
+        zfs_lookup(spa, PATH_DOTCONFIG, &dn) == 0) {
 	off = 0;
 	zfs_read(spa, &dn, &off, cmd, sizeof(cmd));
     }

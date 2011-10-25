@@ -28,7 +28,7 @@
 .\"     @(#)ctermid.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 1, 2011
 .Dt CTERMID 3
 .Os
 .Sh NAME
@@ -77,7 +77,8 @@ pointer,
 .Dv NULL
 is returned.
 .Pp
-The current implementation simply returns
+If no suitable lookup of the controlling terminal name can be performed,
+this implementation returns
 .Ql /dev/tty .
 .Sh RETURN VALUES
 Upon successful completion, a

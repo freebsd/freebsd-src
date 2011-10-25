@@ -1,6 +1,9 @@
 # $FreeBSD$
 
 LIB=	hdb
+LDFLAGS=	-Wl,--no-undefined
+LDADD=	-lasn1 -lcom_err -lkrb5 -lroken
+DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN}
 
 INCS=	hdb-private.h \
 	hdb-protos.h \

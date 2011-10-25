@@ -222,7 +222,7 @@ struct pfi_dynaddr {
 #define	PF_NAME		"pf"
 
 #define	PR_NOWAIT	M_NOWAIT
-#define	PR_WAITOK	M_WAIT
+#define	PR_WAITOK	M_WAITOK
 #define	PR_ZERO		M_ZERO
 #define	pool_get(p, f)	uma_zalloc(*(p), (f))
 #define	pool_put(p, o)	uma_zfree(*(p), (o))
@@ -237,33 +237,25 @@ struct pfi_dynaddr {
 		uma_zdestroy(var)
 
 #ifdef __FreeBSD__
-VNET_DECLARE(struct mtx,	 pf_task_mtx);
-#define	V_pf_task_mtx		 VNET(pf_task_mtx)
-
-#define	PF_ASSERT(h)	mtx_assert(&V_pf_task_mtx, (h))
-
-#define	PF_LOCK()	do {				\
-	PF_ASSERT(MA_NOTOWNED);				\
-	mtx_lock(&V_pf_task_mtx);			\
-} while(0)
-#define	PF_UNLOCK()	do {				\
-	PF_ASSERT(MA_OWNED);				\
-	mtx_unlock(&V_pf_task_mtx);			\
-} while(0)
-#else
 extern struct mtx pf_task_mtx;
 
-#define	PF_ASSERT(h)	mtx_assert(&pf_task_mtx, (h))
+#define	PF_LOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_OWNED)
+#define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_NOTOWNED)
 
 #define	PF_LOCK()	do {				\
-	PF_ASSERT(MA_NOTOWNED);				\
+	PF_UNLOCK_ASSERT();				\
 	mtx_lock(&pf_task_mtx);				\
 } while(0)
 #define	PF_UNLOCK()	do {				\
-	PF_ASSERT(MA_OWNED);				\
+	PF_LOCK_ASSERT();				\
 	mtx_unlock(&pf_task_mtx);			\
 } while(0)
-#endif
+#else
+#define	PF_LOCK_ASSERT()
+#define	PF_UNLOCK_ASSERT()
+#define	PF_LOCK()
+#define	PF_UNLOCK()
+#endif /* __FreeBSD__ */
 
 #define	PF_COPYIN(uaddr, kaddr, len, r)		do {	\
 	PF_UNLOCK();					\
@@ -276,9 +268,6 @@ extern struct mtx pf_task_mtx;
 	r = copyout((kaddr), (uaddr), (len));		\
 	PF_LOCK();					\
 } while(0)
-
-extern void init_pf_mutex(void);
-extern void destroy_pf_mutex(void);
 
 #define	PF_MODVER	1
 #define	PFLOG_MODVER	1

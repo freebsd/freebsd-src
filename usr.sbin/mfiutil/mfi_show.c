@@ -141,7 +141,7 @@ show_battery(int ac, char **av)
 	struct mfi_bbu_design_info design;
 	struct mfi_bbu_status stat;
 	uint8_t status;
-	int comma, error, fd;
+	int comma, error, fd, show_capacity;
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
@@ -157,16 +157,17 @@ show_battery(int ac, char **av)
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_CAPACITY_INFO, &cap,
 	    sizeof(cap), NULL, 0, &status) < 0) {
-		if (status == MFI_STAT_NO_HW_PRESENT) {
-			printf("mfi%d: No battery present\n", mfi_unit);
-			close(fd);
-			return (0);
-		}
 		error = errno;
 		warn("Failed to get capacity info");
 		close(fd);
 		return (error);
 	}
+	if (status == MFI_STAT_NO_HW_PRESENT) {
+		printf("mfi%d: No battery present\n", mfi_unit);
+		close(fd);
+		return (0);
+	}
+	show_capacity = (status == MFI_STAT_OK);
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_DESIGN_INFO, &design,
 	    sizeof(design), NULL, 0, NULL) < 0) {
@@ -192,10 +193,14 @@ show_battery(int ac, char **av)
 	printf("                Model: %s\n", design.device_name);
 	printf("            Chemistry: %s\n", design.device_chemistry);
 	printf("      Design Capacity: %d mAh\n", design.design_capacity);
-	printf(" Full Charge Capacity: %d mAh\n", cap.full_charge_capacity);
-	printf("     Current Capacity: %d mAh\n", cap.remaining_capacity);
-	printf("        Charge Cycles: %d\n", cap.cycle_count);
-	printf("       Current Charge: %d%%\n", cap.relative_charge);
+	if (show_capacity) {
+		printf(" Full Charge Capacity: %d mAh\n",
+		    cap.full_charge_capacity);
+		printf("     Current Capacity: %d mAh\n",
+		    cap.remaining_capacity);
+		printf("        Charge Cycles: %d\n", cap.cycle_count);
+		printf("       Current Charge: %d%%\n", cap.relative_charge);
+	}
 	printf("       Design Voltage: %d mV\n", design.design_voltage);
 	printf("      Current Voltage: %d mV\n", stat.voltage);
 	printf("          Temperature: %d C\n", stat.temperature);

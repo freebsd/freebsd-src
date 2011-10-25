@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 /*
@@ -785,7 +787,7 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 		return (ENOENT);
 	}
 
-	err = dmu_objset_rename(from, to, B_FALSE);
+	err = dmu_objset_rename(from, to, 0);
 	if (err == 0)
 		zfsctl_rename_snap(sdp, sep, tnm);
 

@@ -139,7 +139,7 @@ at91_twi_attach(device_t dev)
 		device_printf(dev, "could not allocate iicbus instance\n");
 	/* probe and attach the iicbus */
 	bus_generic_attach(dev);
-out:;
+out:
 	if (err)
 		at91_twi_deactivate(dev);
 	return (err);
@@ -365,7 +365,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
 			break;
 	}
-out:;
+out:
 	if (err) {
 		WR4(sc, TWI_CR, TWI_CR_SWRST);
 		WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.101 2010/10/28 18:33:28 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.106 2011/04/13 04:09:37 djm Exp $
 .\"	$FreeBSD$
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -36,7 +36,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 28, 2010
+.Dd April 13, 2011
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -118,6 +118,8 @@
 .Nm ssh-keygen
 .Fl L
 .Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl A
 .Ek
 .Sh DESCRIPTION
 .Nm
@@ -174,9 +176,8 @@ The passphrase can be changed later by using the
 option.
 .Pp
 There is no way to recover a lost passphrase.
-If the passphrase is
-lost or forgotten, a new key must be generated and copied to the
-corresponding public key to other machines.
+If the passphrase is lost or forgotten, a new key must be generated
+and the corresponding public key copied to other machines.
 .Pp
 For RSA1 keys,
 there is also a comment field in the key file that is only for
@@ -193,6 +194,13 @@ should be placed to be activated.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl A
+For each of the key types (rsa1, rsa, dsa and ecdsa) for which host keys
+do not exist, generate the host keys with the default key file path,
+an empty passphrase, default bits for the key type, and default comment.
+This is used by
+.Pa /etc/rc
+to generate new host keys.
 .It Fl a Ar trials
 Specifies the number of primality tests to perform when screening DH-GEX
 candidates using the
@@ -205,6 +213,12 @@ Specifies the number of bits in the key to create.
 For RSA keys, the minimum size is 768 bits and the default is 2048 bits.
 Generally, 2048 bits is considered sufficient.
 DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
+For ECDSA keys, the
+.Fl b
+flag determines they key length by selecting from one of three elliptic
+curve sizes: 256, 384 or 521 bits.
+Attempting to use bit lengths other than these three values for ECDSA keys
+will fail.
 .It Fl C Ar comment
 Provides a new comment.
 .It Fl c
@@ -394,9 +408,6 @@ new passphrase.
 .It Fl q
 Silence
 .Nm ssh-keygen .
-Used by
-.Pa /etc/rc
-when creating a new key.
 .It Fl R Ar hostname
 Removes all keys belonging to
 .Ar hostname

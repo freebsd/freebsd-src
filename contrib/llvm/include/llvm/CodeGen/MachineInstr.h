@@ -32,6 +32,7 @@ namespace llvm {
 template <typename T> class SmallVectorImpl;
 class AliasAnalysis;
 class TargetInstrInfo;
+class TargetRegisterClass;
 class TargetRegisterInfo;
 class MachineFunction;
 class MachineMemOperand;
@@ -58,8 +59,6 @@ public:
   };
 private:
   const MCInstrDesc *MCID;              // Instruction descriptor.
-  uint16_t NumImplicitOps;              // Number of implicit operands (which
-                                        // are determined at construction time).
 
   uint8_t Flags;                        // Various bits of additional
                                         // information about machine
@@ -77,9 +76,6 @@ private:
   mmo_iterator MemRefsEnd;
   MachineBasicBlock *Parent;            // Pointer to the owning basic block.
   DebugLoc debugLoc;                    // Source line information.
-
-  // OperandComplete - Return true if it's illegal to add a new operand
-  bool OperandsComplete() const;
 
   MachineInstr(const MachineInstr&);   // DO NOT IMPLEMENT
   void operator=(const MachineInstr&); // DO NOT IMPLEMENT
@@ -392,6 +388,30 @@ public:
   /// operand list that is used to represent the predicate. It returns -1 if
   /// none is found.
   int findFirstPredOperandIdx() const;
+
+  /// findInlineAsmFlagIdx() - Find the index of the flag word operand that
+  /// corresponds to operand OpIdx on an inline asm instruction.  Returns -1 if
+  /// getOperand(OpIdx) does not belong to an inline asm operand group.
+  ///
+  /// If GroupNo is not NULL, it will receive the number of the operand group
+  /// containing OpIdx.
+  ///
+  /// The flag operand is an immediate that can be decoded with methods like
+  /// InlineAsm::hasRegClassConstraint().
+  ///
+  int findInlineAsmFlagIdx(unsigned OpIdx, unsigned *GroupNo = 0) const;
+
+  /// getRegClassConstraint - Compute the static register class constraint for
+  /// operand OpIdx.  For normal instructions, this is derived from the
+  /// MCInstrDesc.  For inline assembly it is derived from the flag words.
+  ///
+  /// Returns NULL if the static register classs constraint cannot be
+  /// determined.
+  ///
+  const TargetRegisterClass*
+  getRegClassConstraint(unsigned OpIdx,
+                        const TargetInstrInfo *TII,
+                        const TargetRegisterInfo *TRI) const;
 
   /// isRegTiedToUseOperand - Given the index of a register def operand,
   /// check if the register def is tied to a source operand, due to either
