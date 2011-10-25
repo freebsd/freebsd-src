@@ -26,6 +26,7 @@
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
+/* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
 
 /*
  * ZFS volume emulation driver.
