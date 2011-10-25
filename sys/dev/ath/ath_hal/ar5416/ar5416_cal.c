@@ -642,7 +642,15 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
 	/* Wait for load to complete, should be fast, a few 10s of us. */
-	if (! ar5212WaitNFCalComplete(ah, 1000)) {
+	/*
+	 * XXX For now, don't be so aggressive in waiting for the NF
+	 * XXX load to complete. A very busy 11n RX load will cause this
+	 * XXX to always fail; so just leave it.
+	 * XXX Later on we may wish to split longcal into two parts - one to do
+	 * XXX the initial longcal, and one to load in an updated NF value
+	 * XXX once it's finished - say, by checking it every 500ms.
+	 */
+	if (! ar5212WaitNFCalComplete(ah, 5)) {
 		/*
 		 * We timed out waiting for the noisefloor to load, probably due to an
 		 * in-progress rx. Simply return here and allow the load plenty of time
