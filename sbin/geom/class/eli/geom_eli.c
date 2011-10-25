@@ -1528,9 +1528,9 @@ eli_clear(struct gctl_req *req)
 static void
 eli_dump(struct gctl_req *req)
 {
-	struct g_eli_metadata md, tmpmd;
+	struct g_eli_metadata md;
 	const char *name;
-	int error, i, nargs;
+	int i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 1) {
@@ -1540,17 +1540,7 @@ eli_dump(struct gctl_req *req)
 
 	for (i = 0; i < nargs; i++) {
 		name = gctl_get_ascii(req, "arg%d", i);
-		error = g_metadata_read(name, (unsigned char *)&tmpmd,
-		    sizeof(tmpmd), G_ELI_MAGIC);
-		if (error != 0) {
-			fprintf(stderr, "Cannot read metadata from %s: %s.\n",
-			    name, strerror(error));
-			gctl_error(req, "Not fully done.");
-			continue;
-		}
-		if (eli_metadata_decode((unsigned char *)&tmpmd, &md) != 0) {
-			fprintf(stderr, "MD5 hash mismatch for %s, skipping.\n",
-			    name);
+		if (eli_metadata_read(NULL, name, &md) == -1) {
 			gctl_error(req, "Not fully done.");
 			continue;
 		}
