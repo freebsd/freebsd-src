@@ -87,6 +87,7 @@
  * Extended flags
  */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
+#define	MAP_PREFAULT_READ 0x00040000 /* prefault mapping for reading */
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 199309

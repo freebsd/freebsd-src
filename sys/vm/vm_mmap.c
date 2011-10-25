@@ -1388,9 +1388,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 */
 		if (handle == 0)
 			foff = 0;
-	} else {
+	} else if (flags & MAP_PREFAULT_READ)
+		docow = MAP_PREFAULT;
+	else
 		docow = MAP_PREFAULT_PARTIAL;
-	}
 
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0)
 		docow |= MAP_COPY_ON_WRITE;
