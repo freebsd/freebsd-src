@@ -308,7 +308,7 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 		error = eli_metadata_decode_v1v2v3v4v5v6(data, md);
 		break;
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
