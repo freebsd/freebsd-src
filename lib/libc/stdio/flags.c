@@ -80,11 +80,30 @@ __sflags(mode, optr)
 		return (0);
 	}
 
-	/* [rwa]\+ or [rwa]b\+ means read and write */
-	if (*mode == '+' || (*mode == 'b' && mode[1] == '+')) {
+	/* 'b' (binary) is ignored */
+	if (*mode == 'b')
+		mode++;
+
+	/* [rwa][b]\+ means read and write */
+	if (*mode == '+') {
+		mode++;
 		ret = __SRW;
 		m = O_RDWR;
 	}
+
+	/* 'b' (binary) can appear here, too -- and is ignored again */
+	if (*mode == 'b')
+		mode++;
+
+	/* 'x' means exclusive (fail if the file exists) */
+	if (*mode == 'x') {
+		if (m == O_RDONLY) {
+			errno = EINVAL;
+			return (0);
+		}
+		o |= O_EXCL;
+	}
+
 	*optr = m | o;
 	return (ret);
 }

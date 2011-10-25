@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.316 2010/11/18 15:01:00 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.320 2011/08/02 01:22:11 djm Exp $
 .\" $FreeBSD$
-.Dd November 18, 2010
+.Dd August 2, 2011
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -393,9 +393,11 @@ Valid commands are:
 .Dq check
 (check that the master process is running),
 .Dq forward
-(request forwardings without command execution) and
+(request forwardings without command execution),
 .Dq exit
-(request the master to exit).
+(request the master to exit), and
+.Dq stop
+(request the master to stop accepting further multiplexing requests).
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
@@ -455,6 +457,7 @@ For full details of the options listed below, and their possible values, see
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RemoteForward
+.It RequestTTY
 .It RhostsRSAAuthentication
 .It RSAAuthentication
 .It SendEnv
@@ -666,7 +669,9 @@ Both protocols support similar authentication methods,
 but protocol 2 is the default since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
+and integrity (hmac-md5, hmac-sha1,
+hmac-sha2-256, hmac-sha2-512,
+umac-64, hmac-ripemd160).
 Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp

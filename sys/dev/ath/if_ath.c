@@ -39,6 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_ath.h"
+/*
+ * This is needed for register operations which are performed
+ * by the driver - eg, calls to ath_hal_gettsf32().
+ */
+#include "opt_ah.h"
 #include "opt_wlan.h"
 
 #include <sys/param.h>
@@ -2031,10 +2036,6 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
 
-	if (sc->sc_dodfs) {
-		rfilt |= HAL_RX_FILTER_PHYRADAR;
-	}
-
 	/*
 	 * Enable RX of compressed BAR frames only when doing
 	 * 802.11n. Required for A-MPDU.
@@ -2619,9 +2620,10 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			sc->sc_stats.ast_cabq_xmit += nmcastq;
 		}
 		/* NB: gated by beacon so safe to start here */
-		ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(cabq);
+		if (! STAILQ_EMPTY(&(cabq->axq_q)))
+			ath_hal_txstart(ah, cabq->axq_qnum);
 		ATH_TXQ_UNLOCK(&avp->av_mcastq);
+		ATH_TXQ_UNLOCK(cabq);
 	}
 	return bf;
 }

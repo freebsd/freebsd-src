@@ -128,7 +128,7 @@ void
 DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
 	if ((mask == HAL_DEBUG_UNMASKABLE) ||
-	    (ah->ah_config.ah_debug & mask) ||
+	    (ah != NULL && ah->ah_config.ah_debug & mask) ||
 	    (ath_hal_debug & mask)) {
 		__va_list ap;
 		va_start(ap, fmt);

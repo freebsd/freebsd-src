@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.96 2011/02/04 00:44:21 djm Exp $ */
+/* $OpenBSD: key.c,v 1.97 2011/05/17 07:13:31 djm Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1817,6 +1817,9 @@ key_to_certified(Key *k, int legacy)
 		k->type = legacy ? KEY_DSA_CERT_V00 : KEY_DSA_CERT;
 		return 0;
 	case KEY_ECDSA:
+		if (legacy)
+			fatal("%s: legacy ECDSA certificates are not supported",
+			    __func__);
 		k->cert = cert_new();
 		k->type = KEY_ECDSA_CERT;
 		return 0;

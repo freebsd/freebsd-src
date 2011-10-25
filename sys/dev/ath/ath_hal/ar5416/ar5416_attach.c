@@ -246,7 +246,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_STATUS ecode;
 	HAL_BOOL rfStatus;
 
-	HALDEBUG_G(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
+	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
 
 	/* NB: memory is returned zero'd */
@@ -255,7 +255,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		sizeof(ar5416Addac)
 	);
 	if (ahp5416 == AH_NULL) {
-		HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
+		HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
 		    "%s: cannot allocate memory for state block\n", __func__);
 		*status = HAL_ENOMEM;
 		return AH_NULL;
@@ -892,6 +892,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halEnhancedDfsSupport = AH_FALSE;
 	/* Hardware supports 32 bit TSF values in the RX descriptor */
 	pCap->halHasLongRxDescTsf = AH_TRUE;
+	/*
+	 * BB Read WAR: this is only for AR5008/AR9001 NICs
+	 * It is also set individually in the AR91xx attach functions.
+	 */
+	if (AR_SREV_OWL(ah))
+		pCap->halHasBBReadWar = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

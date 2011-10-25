@@ -193,7 +193,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
-	callout_init(&vap->iv_swbmiss, CALLOUT_MPSAFE);
+	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
@@ -1403,7 +1403,7 @@ beacon_miss(void *arg, int npending)
 	struct ieee80211com *ic = arg;
 	struct ieee80211vap *vap;
 
-	/* XXX locking */
+	IEEE80211_LOCK(ic);
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		/*
 		 * We only pass events through for sta vap's in RUN state;
@@ -1415,18 +1415,21 @@ beacon_miss(void *arg, int npending)
 		    vap->iv_bmiss != NULL)
 			vap->iv_bmiss(vap);
 	}
+	IEEE80211_UNLOCK(ic);
 }
 
 static void
 beacon_swmiss(void *arg, int npending)
 {
 	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
 
-	if (vap->iv_state != IEEE80211_S_RUN)
-		return;
-
-	/* XXX Call multiple times if npending > zero? */
-	vap->iv_bmiss(vap);
+	IEEE80211_LOCK(ic);
+	if (vap->iv_state == IEEE80211_S_RUN) {
+		/* XXX Call multiple times if npending > zero? */
+		vap->iv_bmiss(vap);
+	}
+	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -1439,6 +1442,8 @@ ieee80211_swbmiss(void *arg)
 {
 	struct ieee80211vap *vap = arg;
 	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	/* XXX sleep state? */
 	KASSERT(vap->iv_state == IEEE80211_S_RUN,

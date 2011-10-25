@@ -250,6 +250,7 @@
 /* Interrupts */
 #define	AR_ISR_TXMINTR		0x00080000	/* Maximum interrupt tx rate */
 #define	AR_ISR_RXMINTR		0x01000000	/* Maximum interrupt rx rate */
+#define	AR_ISR_GENTMR		0x10000000	/* OR of generic timer bits in S5 */
 #define	AR_ISR_TXINTM		0x40000000	/* Tx int after mitigation */
 #define	AR_ISR_RXINTM		0x80000000	/* Rx int after mitigation */
 

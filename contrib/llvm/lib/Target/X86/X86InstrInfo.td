@@ -65,7 +65,7 @@ def SDTX86SetCC_C : SDTypeProfile<1, 2,
 
 def SDTX86cas : SDTypeProfile<0, 3, [SDTCisPtrTy<0>, SDTCisInt<1>,
                                      SDTCisVT<2, i8>]>;
-def SDTX86cas8 : SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>;
+def SDTX86caspair : SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>;
 
 def SDTX86atomicBinary : SDTypeProfile<2, 3, [SDTCisInt<0>, SDTCisInt<1>,
                                 SDTCisPtrTy<2>, SDTCisInt<3>,SDTCisInt<4>]>;
@@ -96,6 +96,8 @@ def SDTX86Wrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>, SDTCisPtrTy<0>]>;
 def SDT_X86TLSADDR : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 
 def SDT_X86TLSCALL : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
+
+def SDT_X86SEG_ALLOCA : SDTypeProfile<1, 1, [SDTCisVT<0, iPTR>, SDTCisVT<1, iPTR>]>;
 
 def SDT_X86EHRET : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 
@@ -133,9 +135,13 @@ def X86setcc_c : SDNode<"X86ISD::SETCC_CARRY", SDTX86SetCC_C>;
 def X86cas : SDNode<"X86ISD::LCMPXCHG_DAG", SDTX86cas,
                         [SDNPHasChain, SDNPInGlue, SDNPOutGlue, SDNPMayStore,
                          SDNPMayLoad, SDNPMemOperand]>;
-def X86cas8 : SDNode<"X86ISD::LCMPXCHG8_DAG", SDTX86cas8,
+def X86cas8 : SDNode<"X86ISD::LCMPXCHG8_DAG", SDTX86caspair,
                         [SDNPHasChain, SDNPInGlue, SDNPOutGlue, SDNPMayStore,
                          SDNPMayLoad, SDNPMemOperand]>;
+def X86cas16 : SDNode<"X86ISD::LCMPXCHG16_DAG", SDTX86caspair,
+                        [SDNPHasChain, SDNPInGlue, SDNPOutGlue, SDNPMayStore,
+                         SDNPMayLoad, SDNPMemOperand]>;
+
 def X86AtomAdd64 : SDNode<"X86ISD::ATOMADD64_DAG", SDTX86atomicBinary,
                         [SDNPHasChain, SDNPMayStore,
                          SDNPMayLoad, SDNPMemOperand]>;
@@ -218,11 +224,15 @@ def X86xor_flag  : SDNode<"X86ISD::XOR",  SDTBinaryArithWithFlags,
                           [SDNPCommutative]>;
 def X86and_flag  : SDNode<"X86ISD::AND",  SDTBinaryArithWithFlags,
                           [SDNPCommutative]>;
+def X86andn_flag : SDNode<"X86ISD::ANDN", SDTBinaryArithWithFlags>;
 
 def X86mul_imm : SDNode<"X86ISD::MUL_IMM", SDTIntBinOp>;
 
 def X86WinAlloca : SDNode<"X86ISD::WIN_ALLOCA", SDTX86Void,
                           [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
+
+def X86SegAlloca : SDNode<"X86ISD::SEG_ALLOCA", SDT_X86SEG_ALLOCA,
+                          [SDNPHasChain]>;
 
 def X86TLSCall : SDNode<"X86ISD::TLSCALL", SDT_X86TLSCALL,
                         [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
@@ -331,6 +341,11 @@ class ImmSExtAsmOperandClass : AsmOperandClass {
   let RenderMethod = "addImmOperands";
 }
 
+class ImmZExtAsmOperandClass : AsmOperandClass {
+  let SuperClasses = [ImmAsmOperand];
+  let RenderMethod = "addImmOperands";
+}
+
 // Sign-extended immediate classes. We don't need to define the full lattice
 // here because there is no instruction with an ambiguity between ImmSExti64i32
 // and ImmSExti32i8.
@@ -358,6 +373,12 @@ def ImmSExti32i8AsmOperand : ImmSExtAsmOperandClass {
   let Name = "ImmSExti32i8";
 }
 
+// [0, 0x000000FF]
+def ImmZExtu32u8AsmOperand : ImmZExtAsmOperandClass {
+  let Name = "ImmZExtu32u8";
+}
+
+
 // [0, 0x0000007F]                                            |
 //   [0xFFFFFFFFFFFFFF80, 0xFFFFFFFFFFFFFFFF]
 def ImmSExti64i8AsmOperand : ImmSExtAsmOperandClass {
@@ -377,6 +398,11 @@ def i32i8imm  : Operand<i32> {
   let ParserMatchClass = ImmSExti32i8AsmOperand;
   let OperandType = "OPERAND_IMMEDIATE";
 }
+// 32-bits but only 8 bits are significant, and those 8 bits are unsigned.
+def u32u8imm  : Operand<i32> {
+  let ParserMatchClass = ImmZExtu32u8AsmOperand;
+  let OperandType = "OPERAND_IMMEDIATE";
+}
 
 // 64-bits but only 32 bits are significant.
 def i64i32imm  : Operand<i64> {
@@ -389,11 +415,13 @@ def i64i32imm  : Operand<i64> {
 def i64i32imm_pcrel : Operand<i64> {
   let PrintMethod = "print_pcrel_imm";
   let ParserMatchClass = X86AbsMemAsmOperand;
+  let OperandType = "OPERAND_PCREL";
 }
 
 // 64-bits but only 8 bits are significant.
 def i64i8imm   : Operand<i64> {
   let ParserMatchClass = ImmSExti64i8AsmOperand;
+  let OperandType = "OPERAND_IMMEDIATE";
 }
 
 def lea64_32mem : Operand<i32> {
@@ -442,18 +470,33 @@ def HasSSE4A     : Predicate<"Subtarget->hasSSE4A()">;
 def HasAVX       : Predicate<"Subtarget->hasAVX()">;
 def HasXMMInt    : Predicate<"Subtarget->hasXMMInt()">;
 
+def HasPOPCNT    : Predicate<"Subtarget->hasPOPCNT()">;
 def HasAES       : Predicate<"Subtarget->hasAES()">;
 def HasCLMUL     : Predicate<"Subtarget->hasCLMUL()">;
 def HasFMA3      : Predicate<"Subtarget->hasFMA3()">;
 def HasFMA4      : Predicate<"Subtarget->hasFMA4()">;
+def HasMOVBE     : Predicate<"Subtarget->hasMOVBE()">;
+def HasRDRAND    : Predicate<"Subtarget->hasRDRAND()">;
+def HasF16C      : Predicate<"Subtarget->hasF16C()">;
+def HasLZCNT     : Predicate<"Subtarget->hasLZCNT()">;
+def HasBMI       : Predicate<"Subtarget->hasBMI()">;
 def FPStackf32   : Predicate<"!Subtarget->hasXMM()">;
 def FPStackf64   : Predicate<"!Subtarget->hasXMMInt()">;
+def HasCmpxchg16b: Predicate<"Subtarget->hasCmpxchg16b()">;
 def In32BitMode  : Predicate<"!Subtarget->is64Bit()">,
                              AssemblerPredicate<"!Mode64Bit">;
 def In64BitMode  : Predicate<"Subtarget->is64Bit()">,
                              AssemblerPredicate<"Mode64Bit">;
 def IsWin64      : Predicate<"Subtarget->isTargetWin64()">;
 def NotWin64     : Predicate<"!Subtarget->isTargetWin64()">;
+def IsNaCl       : Predicate<"Subtarget->isTargetNaCl()">,
+                             AssemblerPredicate<"ModeNaCl">;
+def IsNaCl32     : Predicate<"Subtarget->isTargetNaCl32()">,
+                             AssemblerPredicate<"ModeNaCl,!Mode64Bit">;
+def IsNaCl64     : Predicate<"Subtarget->isTargetNaCl64()">,
+                             AssemblerPredicate<"ModeNaCl,Mode64Bit">;
+def NotNaCl      : Predicate<"!Subtarget->isTargetNaCl()">,
+                             AssemblerPredicate<"!ModeNaCl">;
 def SmallCode    : Predicate<"TM.getCodeModel() == CodeModel::Small">;
 def KernelCode   : Predicate<"TM.getCodeModel() == CodeModel::Kernel">;
 def FarData      : Predicate<"TM.getCodeModel() != CodeModel::Small &&"
@@ -766,30 +809,30 @@ def BSR64rm  : RI<0xBD, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
 
 // These uses the DF flag in the EFLAGS register to inc or dec EDI and ESI
 let Defs = [EDI,ESI], Uses = [EDI,ESI,EFLAGS] in {
-def MOVSB : I<0xA4, RawFrm, (outs), (ins), "{movsb}", []>;
-def MOVSW : I<0xA5, RawFrm, (outs), (ins), "{movsw}", []>, OpSize;
-def MOVSD : I<0xA5, RawFrm, (outs), (ins), "{movsl|movsd}", []>;
+def MOVSB : I<0xA4, RawFrm, (outs), (ins), "movsb", []>;
+def MOVSW : I<0xA5, RawFrm, (outs), (ins), "movsw", []>, OpSize;
+def MOVSD : I<0xA5, RawFrm, (outs), (ins), "movs{l|d}", []>;
 def MOVSQ : RI<0xA5, RawFrm, (outs), (ins), "movsq", []>;
 }
 
 // These uses the DF flag in the EFLAGS register to inc or dec EDI and ESI
 let Defs = [EDI], Uses = [AL,EDI,EFLAGS] in
-def STOSB : I<0xAA, RawFrm, (outs), (ins), "{stosb}", []>;
+def STOSB : I<0xAA, RawFrm, (outs), (ins), "stosb", []>;
 let Defs = [EDI], Uses = [AX,EDI,EFLAGS] in
-def STOSW : I<0xAB, RawFrm, (outs), (ins), "{stosw}", []>, OpSize;
+def STOSW : I<0xAB, RawFrm, (outs), (ins), "stosw", []>, OpSize;
 let Defs = [EDI], Uses = [EAX,EDI,EFLAGS] in
-def STOSD : I<0xAB, RawFrm, (outs), (ins), "{stosl|stosd}", []>;
+def STOSD : I<0xAB, RawFrm, (outs), (ins), "stos{l|d}", []>;
 let Defs = [RCX,RDI], Uses = [RAX,RCX,RDI,EFLAGS] in
 def STOSQ : RI<0xAB, RawFrm, (outs), (ins), "stosq", []>;
 
-def SCAS8 : I<0xAE, RawFrm, (outs), (ins), "scas{b}", []>;
-def SCAS16 : I<0xAF, RawFrm, (outs), (ins), "scas{w}", []>, OpSize;
-def SCAS32 : I<0xAF, RawFrm, (outs), (ins), "scas{l}", []>;
+def SCAS8 : I<0xAE, RawFrm, (outs), (ins), "scasb", []>;
+def SCAS16 : I<0xAF, RawFrm, (outs), (ins), "scasw", []>, OpSize;
+def SCAS32 : I<0xAF, RawFrm, (outs), (ins), "scas{l|d}", []>;
 def SCAS64 : RI<0xAF, RawFrm, (outs), (ins), "scasq", []>;
 
-def CMPS8 : I<0xA6, RawFrm, (outs), (ins), "cmps{b}", []>;
-def CMPS16 : I<0xA7, RawFrm, (outs), (ins), "cmps{w}", []>, OpSize;
-def CMPS32 : I<0xA7, RawFrm, (outs), (ins), "cmps{l}", []>;
+def CMPS8 : I<0xA6, RawFrm, (outs), (ins), "cmpsb", []>;
+def CMPS16 : I<0xA7, RawFrm, (outs), (ins), "cmpsw", []>, OpSize;
+def CMPS32 : I<0xA7, RawFrm, (outs), (ins), "cmps{l|d}", []>;
 def CMPS64 : RI<0xA7, RawFrm, (outs), (ins), "cmpsq", []>;
 
 
@@ -841,22 +884,22 @@ def MOV64mi32 : RIi32<0xC7, MRM0m, (outs), (ins i64mem:$dst, i64i32imm:$src),
 /// moffs8, moffs16 and moffs32 versions of moves.  The immediate is a
 /// 32-bit offset from the PC.  These are only valid in x86-32 mode.
 def MOV8o8a : Ii32 <0xA0, RawFrm, (outs), (ins offset8:$src),
-                   "mov{b}\t{$src, %al|%al, $src}", []>,
+                   "mov{b}\t{$src, %al|AL, $src}", []>,
                    Requires<[In32BitMode]>;
 def MOV16o16a : Ii32 <0xA1, RawFrm, (outs), (ins offset16:$src),
-                      "mov{w}\t{$src, %ax|%ax, $src}", []>, OpSize,
+                      "mov{w}\t{$src, %ax|AL, $src}", []>, OpSize,
                      Requires<[In32BitMode]>;
 def MOV32o32a : Ii32 <0xA1, RawFrm, (outs), (ins offset32:$src),
-                      "mov{l}\t{$src, %eax|%eax, $src}", []>,
+                      "mov{l}\t{$src, %eax|EAX, $src}", []>,
                      Requires<[In32BitMode]>;
 def MOV8ao8 : Ii32 <0xA2, RawFrm, (outs offset8:$dst), (ins),
-                   "mov{b}\t{%al, $dst|$dst, %al}", []>,
+                   "mov{b}\t{%al, $dst|$dst, AL}", []>,
                   Requires<[In32BitMode]>;
 def MOV16ao16 : Ii32 <0xA3, RawFrm, (outs offset16:$dst), (ins),
-                      "mov{w}\t{%ax, $dst|$dst, %ax}", []>, OpSize,
+                      "mov{w}\t{%ax, $dst|$dst, AL}", []>, OpSize,
                      Requires<[In32BitMode]>;
 def MOV32ao32 : Ii32 <0xA3, RawFrm, (outs offset32:$dst), (ins),
-                      "mov{l}\t{%eax, $dst|$dst, %eax}", []>,
+                      "mov{l}\t{%eax, $dst|$dst, EAX}", []>,
                      Requires<[In32BitMode]>;
 
 // FIXME: These definitions are utterly broken
@@ -865,13 +908,13 @@ def MOV32ao32 : Ii32 <0xA3, RawFrm, (outs offset32:$dst), (ins),
 // in question.
 /*
 def MOV64o8a : RIi8<0xA0, RawFrm, (outs), (ins offset8:$src),
-                      "mov{q}\t{$src, %rax|%rax, $src}", []>;
+                      "mov{q}\t{$src, %rax|RAX, $src}", []>;
 def MOV64o64a : RIi32<0xA1, RawFrm, (outs), (ins offset64:$src),
-                       "mov{q}\t{$src, %rax|%rax, $src}", []>;
+                       "mov{q}\t{$src, %rax|RAX, $src}", []>;
 def MOV64ao8 : RIi8<0xA2, RawFrm, (outs offset8:$dst), (ins),
-                       "mov{q}\t{%rax, $dst|$dst, %rax}", []>;
+                       "mov{q}\t{%rax, $dst|$dst, RAX}", []>;
 def MOV64ao64 : RIi32<0xA3, RawFrm, (outs offset64:$dst), (ins),
-                       "mov{q}\t{%rax, $dst|$dst, %rax}", []>;
+                       "mov{q}\t{%rax, $dst|$dst, RAX}", []>;
 */
 
 
@@ -926,7 +969,7 @@ let mayStore = 1 in
 def MOV8mr_NOREX : I<0x88, MRMDestMem,
                      (outs), (ins i8mem_NOREX:$dst, GR8_NOREX:$src),
                      "mov{b}\t{$src, $dst|$dst, $src}  # NOREX", []>;
-let mayLoad = 1,
+let mayLoad = 1, neverHasSideEffects = 1,
     canFoldAsLoad = 1, isReMaterializable = 1 in
 def MOV8rm_NOREX : I<0x8A, MRMSrcMem,
                      (outs GR8_NOREX:$dst), (ins i8mem_NOREX:$src),
@@ -1117,11 +1160,15 @@ def XCHG64rr : RI<0x87, MRMSrcReg, (outs GR64:$dst), (ins GR64:$val,GR64:$src),
 }
 
 def XCHG16ar : I<0x90, AddRegFrm, (outs), (ins GR16:$src),
-                  "xchg{w}\t{$src, %ax|%ax, $src}", []>, OpSize;
+                  "xchg{w}\t{$src, %ax|AX, $src}", []>, OpSize;
 def XCHG32ar : I<0x90, AddRegFrm, (outs), (ins GR32:$src),
-                  "xchg{l}\t{$src, %eax|%eax, $src}", []>;
+                  "xchg{l}\t{$src, %eax|EAX, $src}", []>, Requires<[In32BitMode]>;
+// Uses GR32_NOAX in 64-bit mode to prevent encoding using the 0x90 NOP encoding.
+// xchg %eax, %eax needs to clear upper 32-bits of RAX so is not a NOP.
+def XCHG32ar64 : I<0x90, AddRegFrm, (outs), (ins GR32_NOAX:$src),
+                   "xchg{l}\t{$src, %eax|EAX, $src}", []>, Requires<[In64BitMode]>;
 def XCHG64ar : RI<0x90, AddRegFrm, (outs), (ins GR64:$src),
-                  "xchg{q}\t{$src, %rax|%rax, $src}", []>;
+                  "xchg{q}\t{$src, %rax|RAX, $src}", []>;
 
 
 
@@ -1172,7 +1219,7 @@ def CMPXCHG8B : I<0xC7, MRM1m, (outs), (ins i64mem:$dst),
 
 let Defs = [RAX, RDX, EFLAGS], Uses = [RAX, RBX, RCX, RDX] in
 def CMPXCHG16B : RI<0xC7, MRM1m, (outs), (ins i128mem:$dst),
-                    "cmpxchg16b\t$dst", []>, TB;
+                    "cmpxchg16b\t$dst", []>, TB, Requires<[HasCmpxchg16b]>;
 
 
 
@@ -1259,6 +1306,104 @@ def ARPL16rr : I<0x63, MRMDestReg, (outs GR16:$src), (ins GR16:$dst),
                  "arpl\t{$src, $dst|$dst, $src}", []>, Requires<[In32BitMode]>;
 def ARPL16mr : I<0x63, MRMSrcMem, (outs GR16:$src), (ins i16mem:$dst),
                  "arpl\t{$src, $dst|$dst, $src}", []>, Requires<[In32BitMode]>;
+
+//===----------------------------------------------------------------------===//
+// MOVBE Instructions
+//
+let Predicates = [HasMOVBE] in {
+  def MOVBE16rm : I<0xF0, MRMSrcMem, (outs GR16:$dst), (ins i16mem:$src),
+                    "movbe{w}\t{$src, $dst|$dst, $src}",
+                    [(set GR16:$dst, (bswap (loadi16 addr:$src)))]>, OpSize, T8;
+  def MOVBE32rm : I<0xF0, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
+                    "movbe{l}\t{$src, $dst|$dst, $src}",
+                    [(set GR32:$dst, (bswap (loadi32 addr:$src)))]>, T8;
+  def MOVBE64rm : RI<0xF0, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
+                     "movbe{q}\t{$src, $dst|$dst, $src}",
+                     [(set GR64:$dst, (bswap (loadi64 addr:$src)))]>, T8;
+  def MOVBE16mr : I<0xF1, MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src),
+                    "movbe{w}\t{$src, $dst|$dst, $src}",
+                    [(store (bswap GR16:$src), addr:$dst)]>, OpSize, T8;
+  def MOVBE32mr : I<0xF1, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
+                    "movbe{l}\t{$src, $dst|$dst, $src}",
+                    [(store (bswap GR32:$src), addr:$dst)]>, T8;
+  def MOVBE64mr : RI<0xF1, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src),
+                     "movbe{q}\t{$src, $dst|$dst, $src}",
+                     [(store (bswap GR64:$src), addr:$dst)]>, T8;
+}
+
+//===----------------------------------------------------------------------===//
+// RDRAND Instruction
+//
+let Predicates = [HasRDRAND], Defs = [EFLAGS] in {
+  def RDRAND16r : I<0xC7, MRM6r, (outs GR16:$dst), (ins),
+                    "rdrand{w}\t$dst", []>, OpSize, TB;
+  def RDRAND32r : I<0xC7, MRM6r, (outs GR32:$dst), (ins),
+                    "rdrand{l}\t$dst", []>, TB;
+  def RDRAND64r : RI<0xC7, MRM6r, (outs GR64:$dst), (ins),
+                     "rdrand{q}\t$dst", []>, TB;
+}
+
+//===----------------------------------------------------------------------===//
+// LZCNT Instruction
+//
+let Predicates = [HasLZCNT], Defs = [EFLAGS] in {
+  def LZCNT16rr : I<0xBD, MRMSrcReg, (outs GR16:$dst), (ins GR16:$src),
+                    "lzcnt{w}\t{$src, $dst|$dst, $src}",
+                    [(set GR16:$dst, (ctlz GR16:$src)), (implicit EFLAGS)]>, XS,
+                    OpSize;
+  def LZCNT16rm : I<0xBD, MRMSrcMem, (outs GR16:$dst), (ins i16mem:$src),
+                    "lzcnt{w}\t{$src, $dst|$dst, $src}",
+                    [(set GR16:$dst, (ctlz (loadi16 addr:$src))),
+                     (implicit EFLAGS)]>, XS, OpSize;
+
+  def LZCNT32rr : I<0xBD, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
+                    "lzcnt{l}\t{$src, $dst|$dst, $src}",
+                    [(set GR32:$dst, (ctlz GR32:$src)), (implicit EFLAGS)]>, XS;
+  def LZCNT32rm : I<0xBD, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
+                    "lzcnt{l}\t{$src, $dst|$dst, $src}",
+                    [(set GR32:$dst, (ctlz (loadi32 addr:$src))),
+                     (implicit EFLAGS)]>, XS;
+
+  def LZCNT64rr : RI<0xBD, MRMSrcReg, (outs GR64:$dst), (ins GR64:$src),
+                     "lzcnt{q}\t{$src, $dst|$dst, $src}",
+                     [(set GR64:$dst, (ctlz GR64:$src)), (implicit EFLAGS)]>,
+                     XS;
+  def LZCNT64rm : RI<0xBD, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
+                     "lzcnt{q}\t{$src, $dst|$dst, $src}",
+                     [(set GR64:$dst, (ctlz (loadi64 addr:$src))),
+                      (implicit EFLAGS)]>, XS;
+}
+
+//===----------------------------------------------------------------------===//
+// TZCNT Instruction
+//
+let Predicates = [HasBMI], Defs = [EFLAGS] in {
+  def TZCNT16rr : I<0xBC, MRMSrcReg, (outs GR16:$dst), (ins GR16:$src),
+                    "tzcnt{w}\t{$src, $dst|$dst, $src}",
+                    [(set GR16:$dst, (cttz GR16:$src)), (implicit EFLAGS)]>, XS,
+                    OpSize;
+  def TZCNT16rm : I<0xBC, MRMSrcMem, (outs GR16:$dst), (ins i16mem:$src),
+                    "tzcnt{w}\t{$src, $dst|$dst, $src}",
+                    [(set GR16:$dst, (cttz (loadi16 addr:$src))),
+                     (implicit EFLAGS)]>, XS, OpSize;
+
+  def TZCNT32rr : I<0xBC, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
+                    "tzcnt{l}\t{$src, $dst|$dst, $src}",
+                    [(set GR32:$dst, (cttz GR32:$src)), (implicit EFLAGS)]>, XS;
+  def TZCNT32rm : I<0xBC, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
+                    "tzcnt{l}\t{$src, $dst|$dst, $src}",
+                    [(set GR32:$dst, (cttz (loadi32 addr:$src))),
+                     (implicit EFLAGS)]>, XS;
+
+  def TZCNT64rr : RI<0xBC, MRMSrcReg, (outs GR64:$dst), (ins GR64:$src),
+                     "tzcnt{q}\t{$src, $dst|$dst, $src}",
+                     [(set GR64:$dst, (cttz GR64:$src)), (implicit EFLAGS)]>,
+                     XS;
+  def TZCNT64rm : RI<0xBC, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
+                     "tzcnt{q}\t{$src, $dst|$dst, $src}",
+                     [(set GR64:$dst, (cttz (loadi64 addr:$src))),
+                      (implicit EFLAGS)]>, XS;
+}
 
 //===----------------------------------------------------------------------===//
 // Subsystems.
@@ -1646,3 +1791,9 @@ def : InstAlias<"xchgb $mem, $val", (XCHG8rm  GR8 :$val, i8mem :$mem)>;
 def : InstAlias<"xchgw $mem, $val", (XCHG16rm GR16:$val, i16mem:$mem)>;
 def : InstAlias<"xchgl $mem, $val", (XCHG32rm GR32:$val, i32mem:$mem)>;
 def : InstAlias<"xchgq $mem, $val", (XCHG64rm GR64:$val, i64mem:$mem)>;
+
+// xchg: We accept "xchgX <reg>, %eax" and "xchgX %eax, <reg>" as synonyms.
+def : InstAlias<"xchgw %ax, $src", (XCHG16ar GR16:$src)>;
+def : InstAlias<"xchgl %eax, $src", (XCHG32ar GR32:$src)>, Requires<[In32BitMode]>;
+def : InstAlias<"xchgl %eax, $src", (XCHG32ar64 GR32_NOAX:$src)>, Requires<[In64BitMode]>;
+def : InstAlias<"xchgq %rax, $src", (XCHG64ar GR64:$src)>;

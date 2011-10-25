@@ -1015,6 +1015,10 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
 	tf->tf_tnpc = imgp->entry_addr + 4;
 	tf->tf_tpc = imgp->entry_addr;
+	/*
+	 * While we could adhere to the memory model indicated in the ELF
+	 * header, it turns out that just always using TSO performs best.
+	 */
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
 
 	td->td_retval[0] = tf->tf_out[0];

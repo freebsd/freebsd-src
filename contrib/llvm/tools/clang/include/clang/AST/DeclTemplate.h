@@ -264,7 +264,7 @@ class FunctionTemplateSpecializationInfo : public llvm::FoldingSetNode {
                                      FunctionTemplateDecl *Template,
                                      TemplateSpecializationKind TSK,
                                      const TemplateArgumentList *TemplateArgs,
-                          const TemplateArgumentListInfo *TemplateArgsAsWritten,
+                       const ASTTemplateArgumentListInfo *TemplateArgsAsWritten,
                                      SourceLocation POI)
   : Function(FD),
     Template(Template, TSK - 1),
@@ -278,12 +278,7 @@ public:
          TemplateSpecializationKind TSK,
          const TemplateArgumentList *TemplateArgs,
          const TemplateArgumentListInfo *TemplateArgsAsWritten,
-         SourceLocation POI) {
-    return new (C) FunctionTemplateSpecializationInfo(FD, Template, TSK,
-                                                      TemplateArgs,
-                                                      TemplateArgsAsWritten,
-                                                      POI);
-  }
+         SourceLocation POI);
 
   /// \brief The function template specialization that this structure
   /// describes.
@@ -300,7 +295,7 @@ public:
   const TemplateArgumentList *TemplateArguments;
 
   /// \brief The template arguments as written in the sources, if provided.
-  const TemplateArgumentListInfo *TemplateArgumentsAsWritten;
+  const ASTTemplateArgumentListInfo *TemplateArgumentsAsWritten;
 
   /// \brief The point at which this function template specialization was
   /// first instantiated. 
@@ -913,7 +908,7 @@ protected:
   // FIXME: This should probably never be called, but it's here as
   TemplateParmPosition()
     : Depth(0), Position(0)
-  { /* assert(0 && "Cannot create positionless template parameter"); */ }
+  { /* llvm_unreachable("Cannot create positionless template parameter"); */ }
 
   TemplateParmPosition(unsigned D, unsigned P)
     : Depth(D), Position(P)
@@ -1864,7 +1859,7 @@ public:
 
   /// \brief Retrieve the partial specializations as an ordered list.
   void getPartialSpecializations(
-          llvm::SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS);
+          SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS);
   
   /// \brief Find a class template partial specialization with the given
   /// type T.
@@ -2092,6 +2087,58 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TypeAliasTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == TypeAliasTemplate; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
+};
+
+/// Declaration of a function specialization at template class scope.
+/// This is a non standard extension needed to support MSVC.
+/// For example:
+/// template <class T>
+/// class A {
+///    template <class U> void foo(U a) { }
+///    template<> void foo(int a) { }
+/// }
+///
+/// "template<> foo(int a)" will be saved in Specialization as a normal
+/// CXXMethodDecl. Then during an instantiation of class A, it will be
+/// transformed into an actual function specialization.
+class ClassScopeFunctionSpecializationDecl : public Decl {
+private:
+  ClassScopeFunctionSpecializationDecl(DeclContext *DC, SourceLocation Loc,
+                                       CXXMethodDecl *FD)
+    : Decl(Decl::ClassScopeFunctionSpecialization, DC, Loc),
+      Specialization(FD) {}
+
+  ClassScopeFunctionSpecializationDecl(EmptyShell Empty)
+    : Decl(Decl::ClassScopeFunctionSpecialization, Empty) {}
+
+  CXXMethodDecl *Specialization;
+
+public:
+  CXXMethodDecl *getSpecialization() const { return Specialization; }
+
+  static ClassScopeFunctionSpecializationDecl *Create(ASTContext &C,
+                                                      DeclContext *DC,
+                                                      SourceLocation Loc,
+                                                      CXXMethodDecl *FD) {
+    return new (C) ClassScopeFunctionSpecializationDecl(DC , Loc, FD);
+  }
+
+  static ClassScopeFunctionSpecializationDecl *Create(ASTContext &Context,
+                                                      EmptyShell Empty) {
+    return new (Context)ClassScopeFunctionSpecializationDecl(0,
+                                                         SourceLocation(), 0);
+  }
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) {
+    return K == Decl::ClassScopeFunctionSpecialization;
+  }
+  static bool classof(const ClassScopeFunctionSpecializationDecl *D) {
+    return true;
+  }
 
   friend class ASTDeclReader;
   friend class ASTDeclWriter;

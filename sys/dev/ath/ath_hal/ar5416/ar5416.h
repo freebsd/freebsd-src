@@ -190,6 +190,7 @@ extern	void ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state);
 extern	uint64_t ar5416GetTsf64(struct ath_hal *ah);
 extern	void ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64);
 extern	void ar5416ResetTsf(struct ath_hal *ah);
+extern	uint32_t ar5416GetCurRssi(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);

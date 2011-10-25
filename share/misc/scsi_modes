@@ -50,19 +50,32 @@
 # ALL DEVICE TYPES
 
 0x0a "Control Mode Page" {
-	{Reserved} *t7
+	{TST} t3
+	{TMF_ONLY} t1
+	{DPICZ} t1
+	{D_SENSE} t1
+	{GLTSD} t1
 	{RLEC} t1
 	{Queue Algorithm Modifier} t4
-	{Reserved} *t2
-	{QErr} t1
+	{NUAR} t1
+	{QErr} t2
 	{DQue} t1
 	{EECA} t1
-	{Reserved} *t4
+	{RAC} t1
+	{UA_INTLCK_CTRL} t2
+	{SWP} t1
 	{RAENP} t1
 	{UAAENP} t1
 	{EAENP} t1
-	{Reserved} *i1
+	{ATO} t1
+	{TAS} t1
+	{ATMPE} t1
+	{RWWP} t1
+	{Reserved} *t1
+	{Autoload Mode} t3
 	{Ready AEN Holdoff Period} i2
+	{Busy Timeout Period} i2
+	{Extended Self-Test Completion Time} i2
 }
 
 0x02 "Disconnect-Reconnect Page" {

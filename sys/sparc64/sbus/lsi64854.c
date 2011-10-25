@@ -85,7 +85,11 @@ __FBSDID("$FreeBSD$");
 #define LDB_PP		4
 #define LDB_ANY		0xff
 int lsi64854debug = 0;
-#define DPRINTF(a,x) do { if (lsi64854debug & (a)) printf x ; } while (0)
+#define DPRINTF(a,x)							\
+	do {								\
+		if ((lsi64854debug & (a)) != 0)				\
+			printf x;					\
+	} while (/* CONSTCOND */0)
 #else
 #define DPRINTF(a,x)
 #endif
@@ -94,12 +98,12 @@ int lsi64854debug = 0;
 
 static void	lsi64854_reset(struct lsi64854_softc *);
 static void	lsi64854_map_scsi(void *, bus_dma_segment_t *, int, int);
-static int	lsi64854_setup(struct lsi64854_softc *, caddr_t *, size_t *,
+static int	lsi64854_setup(struct lsi64854_softc *, void **, size_t *,
 		    int, size_t *);
 static int	lsi64854_scsi_intr(void *);
 static int	lsi64854_enet_intr(void *);
-static int	lsi64854_setup_pp(struct lsi64854_softc *, caddr_t *, size_t *,
-		    int, size_t *);
+static int	lsi64854_setup_pp(struct lsi64854_softc *, void **,
+		    size_t *, int, size_t *);
 static int	lsi64854_pp_intr(void *);
 
 /*
@@ -235,7 +239,7 @@ lsi64854_detach(struct lsi64854_softc *sc)
 		else							\
 			panic(MSG);					\
 	}								\
-} while (0)
+} while (/* CONSTCOND */0)
 
 #define DMA_DRAIN(sc, dontpanic) do {					\
 	uint32_t csr;							\
@@ -264,7 +268,7 @@ lsi64854_detach(struct lsi64854_softc *sc)
 	 * rev0 & rev1 call this PACKCNT				\
 	 */								\
 	DMAWAIT(sc, L64854_GCSR(sc) & L64854_DRAINING, "DRAINING", dontpanic);\
-} while(0)
+} while (/* CONSTCOND */0)
 
 #define DMA_FLUSH(sc, dontpanic) do {					\
 	uint32_t csr;							\
@@ -279,7 +283,7 @@ lsi64854_detach(struct lsi64854_softc *sc)
 	csr &= ~(L64854_WRITE|L64854_EN_DMA); /* no-ops on ENET */	\
 	csr |= L64854_INVALIDATE;	 	/* XXX FAS ? */		\
 	L64854_SCSR(sc,csr);						\
-} while(0)
+} while (/* CONSTCOND */0)
 
 static void
 lsi64854_reset(struct lsi64854_softc *sc)
@@ -373,7 +377,7 @@ lsi64854_map_scsi(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * setup a DMA transfer
  */
 static int
-lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
+lsi64854_setup(struct lsi64854_softc *sc, void **addr, size_t *len,
     int datain, size_t *dmasize)
 {
 	long bcnt;
@@ -547,7 +551,7 @@ lsi64854_scsi_intr(void *arg)
 	}
 
 	*sc->sc_dmalen -= trans;
-	*sc->sc_dmaaddr += trans;
+	*sc->sc_dmaaddr = (char *)*sc->sc_dmaaddr + trans;
 
 #if 0	/* this is not normal operation just yet */
 	if (*sc->sc_dmalen == 0 || nsc->sc_phase != nsc->sc_prevphase)
@@ -620,7 +624,7 @@ lsi64854_map_pp(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  * setup a DMA transfer
  */
 static int
-lsi64854_setup_pp(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
+lsi64854_setup_pp(struct lsi64854_softc *sc, void **addr, size_t *len,
     int datain, size_t *dmasize)
 {
 	uint32_t csr;
@@ -714,7 +718,7 @@ lsi64854_pp_intr(void *arg)
 	if (trans < 0)				/* transferred < 0? */
 		trans = sc->sc_dmasize;
 	*sc->sc_dmalen -= trans;
-	*sc->sc_dmaaddr += trans;
+	*sc->sc_dmaaddr = (char *)*sc->sc_dmaaddr + trans;
 
 	if (sc->sc_dmasize != 0) {
 		bus_dmamap_sync(sc->sc_buffer_dmat, sc->sc_dmamap,

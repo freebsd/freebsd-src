@@ -43,9 +43,11 @@
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
  * helps userland compatibility.  (struct timeval ifi_lastchange)
+ * The same holds for <sys/socket.h>.  (struct sockaddr ifru_addr)
  */
 #ifndef _KERNEL
 #include <sys/time.h>
+#include <sys/socket.h>
 #endif
 
 struct ifnet;

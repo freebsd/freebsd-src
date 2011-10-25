@@ -89,6 +89,7 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, 0x008b, "Intel(R) Centrino(R) Wireless-N 1030"	 },
 	{ 0x8086, 0x0090, "Intel(R) Centrino(R) Advanced-N 6230"	 },
 	{ 0x8086, 0x0091, "Intel(R) Centrino(R) Advanced-N 6230"	 },
+	{ 0x8086, 0x0896, "Intel(R) Centrino(R) Wireless-N 130"		 },
 	{ 0x8086, 0x4229, "Intel(R) Wireless WiFi Link 4965"		 },
 	{ 0x8086, 0x422b, "Intel(R) Centrino(R) Ultimate-N 6300"	 },
 	{ 0x8086, 0x422c, "Intel(R) Centrino(R) Advanced-N 6200"	 },
@@ -2928,7 +2929,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			 * reinitialize the sensitivity state machine.
 			 */
 			if (vap->iv_state == IEEE80211_S_RUN &&
-			    (ic->ic_flags & IEEE80211_F_SCAN) != 0) {
+			    (ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 				if (misses > 5)
 					(void)iwn_init_sensitivity(sc);
 				if (misses >= vap->iv_bmissthreshold) {
@@ -5640,6 +5641,7 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	sc->qid2tap[qid] = NULL;
 	free(tap->txa_private, M_DEVBUF);
 	tap->txa_private = NULL;
+	sc->sc_addba_stop(ni, tap);
 }
 
 static void

@@ -243,7 +243,7 @@ at91_mci_attach(device_t dev)
 	child = device_add_child(dev, "mmc", 0);
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
-out:;
+out:
 	if (err)
 		at91_mci_deactivate(dev);
 	return (err);

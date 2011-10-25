@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2008
+.Dd October 18, 2011
 .Dt DF 1
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@ The following options are available:
 Show all mount points, including those that were mounted with the
 .Dv MNT_IGNORE
 flag.
+This is implied for file systems specified on the command line.
 .It Fl b
 Use 512-byte blocks rather than the default.
 Note that

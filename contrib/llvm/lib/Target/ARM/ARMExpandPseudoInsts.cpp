@@ -16,18 +16,23 @@
 
 #define DEBUG_TYPE "arm-pseudo"
 #include "ARM.h"
-#include "ARMAddressingModes.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMBaseRegisterInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMRegisterInfo.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h" // FIXME: for debug only. remove!
 using namespace llvm;
+
+static cl::opt<bool>
+VerifyARMPseudo("verify-arm-pseudo-expand", cl::Hidden,
+                cl::desc("Verify machine code after expanding ARM pseudos"));
 
 namespace {
   class ARMExpandPseudo : public MachineFunctionPass {
@@ -741,8 +746,22 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       MI.eraseFromParent();
       return true;
     }
-    case ARM::MOVCCs: {
-      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVs),
+    case ARM::MOVCCsi: {
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsi),
+              (MI.getOperand(1).getReg()))
+        .addReg(MI.getOperand(2).getReg(),
+                getKillRegState(MI.getOperand(2).isKill()))
+        .addImm(MI.getOperand(3).getImm())
+        .addImm(MI.getOperand(4).getImm()) // 'pred'
+        .addReg(MI.getOperand(5).getReg())
+        .addReg(0); // 's' bit
+
+      MI.eraseFromParent();
+      return true;
+    }
+
+    case ARM::MOVCCsr: {
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsr),
               (MI.getOperand(1).getReg()))
         .addReg(MI.getOperand(2).getReg(),
                 getKillRegState(MI.getOperand(2).isKill()))
@@ -837,10 +856,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::MOVsrl_flag:
     case ARM::MOVsra_flag: {
       // These are just fancy MOVs insructions.
-      AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVs),
+      AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsi),
                              MI.getOperand(0).getReg())
                      .addOperand(MI.getOperand(1))
-                     .addReg(0)
                      .addImm(ARM_AM::getSORegOpc((Opcode == ARM::MOVsrl_flag ?
                                                   ARM_AM::lsr : ARM_AM::asr),
                                                  1)))
@@ -851,9 +869,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::RRX: {
       // This encodes as "MOVs Rd, Rm, rrx
       MachineInstrBuilder MIB =
-        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVs),
+        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),TII->get(ARM::MOVsi),
                                MI.getOperand(0).getReg())
-                       .addOperand(MI.getOperand(1))
                        .addOperand(MI.getOperand(1))
                        .addImm(ARM_AM::getSORegOpc(ARM_AM::rrx, 0)))
         .addReg(0);
@@ -952,34 +969,6 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::t2MOVCCi32imm:
       ExpandMOV32BitImm(MBB, MBBI);
       return true;
-
-    case ARM::VMOVQQ: {
-      unsigned DstReg = MI.getOperand(0).getReg();
-      bool DstIsDead = MI.getOperand(0).isDead();
-      unsigned EvenDst = TRI->getSubReg(DstReg, ARM::qsub_0);
-      unsigned OddDst  = TRI->getSubReg(DstReg, ARM::qsub_1);
-      unsigned SrcReg = MI.getOperand(1).getReg();
-      bool SrcIsKill = MI.getOperand(1).isKill();
-      unsigned EvenSrc = TRI->getSubReg(SrcReg, ARM::qsub_0);
-      unsigned OddSrc  = TRI->getSubReg(SrcReg, ARM::qsub_1);
-      MachineInstrBuilder Even =
-        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
-                               TII->get(ARM::VORRq))
-                       .addReg(EvenDst,
-                               RegState::Define | getDeadRegState(DstIsDead))
-                       .addReg(EvenSrc, getKillRegState(SrcIsKill))
-                       .addReg(EvenSrc, getKillRegState(SrcIsKill)));
-      MachineInstrBuilder Odd =
-        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
-                               TII->get(ARM::VORRq))
-                       .addReg(OddDst,
-                               RegState::Define | getDeadRegState(DstIsDead))
-                       .addReg(OddSrc, getKillRegState(SrcIsKill))
-                       .addReg(OddSrc, getKillRegState(SrcIsKill)));
-      TransferImpOps(MI, Even, Odd);
-      MI.eraseFromParent();
-      return true;
-    }
 
     case ARM::VLDMQIA: {
       unsigned NewOpc = ARM::VLDMDIA;
@@ -1316,6 +1305,8 @@ bool ARMExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
   for (MachineFunction::iterator MFI = MF.begin(), E = MF.end(); MFI != E;
        ++MFI)
     Modified |= ExpandMBB(*MFI);
+  if (VerifyARMPseudo)
+    MF.verify(this, "After expanding ARM pseudo instructions.");
   return Modified;
 }
 
