@@ -294,6 +294,8 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	int error;
 
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
+	if (strcmp(md->md_magic, G_ELI_MAGIC) != 0)
+		return (EINVAL);
 	md->md_version = le32dec(data + sizeof(md->md_magic));
 	switch (md->md_version) {
 	case G_ELI_VERSION_00:
