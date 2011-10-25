@@ -325,9 +325,9 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 				v86int();
 			}
 
-			packet.len = 0x10;
+			packet.len = sizeof(struct edd_packet);
 			packet.count = x;
-			packet.offset = VTOPOFF(xp);
+			packet.off = VTOPOFF(xp);
 			packet.seg = VTOPSEG(xp);
 			packet.lba = dblk;
 			v86.ctl = V86_FLAGS;
