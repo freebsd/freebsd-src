@@ -70,6 +70,7 @@ main(int argc, char **argv)
 	int stat;
 	int ch, doall;
 	int sflag = 0, lflag = 0, hflag = 0, qflag = 0;
+	const char *etc_fstab;
 
 	if ((ptr = strrchr(argv[0], '/')) == NULL)
 		ptr = argv[0];
@@ -80,7 +81,8 @@ main(int argc, char **argv)
 	orig_prog = which_prog;
 	
 	doall = 0;
-	while ((ch = getopt(argc, argv, "AadghklmqsU")) != -1) {
+	etc_fstab = NULL;
+	while ((ch = getopt(argc, argv, "AadghklmqsUF:")) != -1) {
 		switch(ch) {
 		case 'A':
 			if (which_prog == SWAPCTL) {
@@ -132,6 +134,9 @@ main(int argc, char **argv)
 				usage();
 			}
 			break;
+		case 'F':
+			etc_fstab = optarg;
+			break;
 		case '?':
 		default:
 			usage();
@@ -140,6 +145,8 @@ main(int argc, char **argv)
 	argv += optind;
 
 	stat = 0;
+	if (etc_fstab != NULL)
+		setfstab(etc_fstab);
 	if (which_prog == SWAPON || which_prog == SWAPOFF) {
 		if (doall) {
 			while ((fsp = getfsent()) != NULL) {
@@ -210,7 +217,7 @@ usage(void)
 	switch(orig_prog) {
 	case SWAPON:
 	case SWAPOFF:
-	    fprintf(stderr, "-aq | file ...\n");
+	    fprintf(stderr, "[-F fstab] -aq | file ...\n");
 	    break;
 	case SWAPCTL:
 	    fprintf(stderr, "[-AghklmsU] [-a file ... | -d file ...]\n");
