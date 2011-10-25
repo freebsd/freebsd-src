@@ -713,6 +713,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	else
 		gp->access = g_std_access;
 
+	sc->sc_version = md->md_version;
 	sc->sc_inflight = 0;
 	sc->sc_crypto = G_ELI_CRYPTO_UNKNOWN;
 	sc->sc_flags = md->md_flags;
@@ -1210,6 +1211,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<UsedKey>%u</UsedKey>\n", indent,
 		    sc->sc_nkey);
 	}
+	sbuf_printf(sb, "%s<Version>%u</Version>\n", indent, sc->sc_version);
 	sbuf_printf(sb, "%s<Crypto>", indent);
 	switch (sc->sc_crypto) {
 	case G_ELI_CRYPTO_HW:

@@ -82,7 +82,7 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] prov
+ * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-V version] prov
  * label - alias for 'init'
  * attach [-dprv] [-j passfile] [-k keyfile] prov
  * detach [-fl] prov ...
@@ -107,29 +107,31 @@ struct g_command class_commands[] = {
 		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
-		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'e', "ealgo", "", G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
+		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] prov"
+	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
-		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'e', "ealgo", "", G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
+		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    "- an alias for 'init'"
@@ -672,7 +674,7 @@ eli_init(struct gctl_req *req)
 	unsigned char key[G_ELI_USERKEYLEN];
 	char backfile[MAXPATHLEN];
 	const char *str, *prov;
-	unsigned secsize;
+	unsigned int secsize, version;
 	off_t mediasize;
 	intmax_t val;
 	int error, nargs;
@@ -693,13 +695,30 @@ eli_init(struct gctl_req *req)
 
 	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
-	md.md_version = G_ELI_VERSION;
+	val = gctl_get_intmax(req, "mdversion");
+	if (val == -1) {
+		version = G_ELI_VERSION;
+	} else if (val < 0 || val > G_ELI_VERSION) {
+		gctl_error(req,
+		    "Invalid version specified should be between %u and %u.",
+		    G_ELI_VERSION_00, G_ELI_VERSION);
+		return;
+	} else {
+		version = val;
+	}
+	md.md_version = version;
 	md.md_flags = 0;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
 	if (*str != '\0') {
+		if (version < G_ELI_VERSION_01) {
+			gctl_error(req,
+			    "Data authentication is supported starting from version %u.",
+			    G_ELI_VERSION_01);
+			return;
+		}
 		md.md_aalgo = g_eli_str2aalgo(str);
 		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
 		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
@@ -725,10 +744,30 @@ eli_init(struct gctl_req *req)
 	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
 		str = gctl_get_ascii(req, "ealgo");
+		if (*str == '\0') {
+			if (version < G_ELI_VERSION_05)
+				str = "aes-cbc";
+			else
+				str = GELI_ENC_ALGO;
+		}
 		md.md_ealgo = g_eli_str2ealgo(str);
 		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
 			gctl_error(req, "Invalid encryption algorithm.");
+			return;
+		}
+		if (md.md_ealgo == CRYPTO_CAMELLIA_CBC &&
+		    version < G_ELI_VERSION_04) {
+			gctl_error(req,
+			    "Camellia-CBC algorithm is supported starting from version %u.",
+			    G_ELI_VERSION_04);
+			return;
+		}
+		if (md.md_ealgo == CRYPTO_AES_XTS &&
+		    version < G_ELI_VERSION_05) {
+			gctl_error(req,
+			    "AES-XTS algorithm is supported starting from version %u.",
+			    G_ELI_VERSION_05);
 			return;
 		}
 	}
