@@ -1295,66 +1295,53 @@ eli_kill(struct gctl_req *req)
 static int
 eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 {
-	struct g_eli_metadata md;
 	unsigned char *sector;
 	ssize_t secsize;
-	off_t mediasize;
-	int filefd, provfd, ret;
+	int error, filefd, ret;
 
 	ret = -1;
-	provfd = filefd = -1;
+	filefd = -1;
 	sector = NULL;
 	secsize = 0;
 
-	provfd = g_open(prov, 0);
-	if (provfd == -1) {
-		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
-		goto out;
-	}
-	filefd = open(file, O_WRONLY | O_TRUNC | O_CREAT, 0600);
-	if (filefd == -1) {
-		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
-		goto out;
-	}
-
-	mediasize = g_mediasize(provfd);
-	secsize = g_sectorsize(provfd);
-	if (mediasize == -1 || secsize == -1) {
+	secsize = g_get_sectorsize(prov);
+	if (secsize == 0) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
 	}
-
 	sector = malloc(secsize);
 	if (sector == NULL) {
 		gctl_error(req, "Cannot allocate memory.");
 		goto out;
 	}
-
 	/* Read metadata from the provider. */
-	if (pread(provfd, sector, secsize, mediasize - secsize) != secsize) {
-		gctl_error(req, "Cannot read metadata: %s.", strerror(errno));
+	error = g_metadata_read(prov, sector, secsize, G_ELI_MAGIC);
+	if (error != 0) {
+		gctl_error(req, "Unable to read metadata from %s: %s.", prov,
+		    strerror(error));
 		goto out;
 	}
-	/* Check if this is geli provider. */
-	if (eli_metadata_decode(sector, &md) != 0) {
-		gctl_error(req, "MD5 hash mismatch: not a geli provider?");
+
+	filefd = open(file, O_WRONLY | O_TRUNC | O_CREAT, 0600);
+	if (filefd == -1) {
+		gctl_error(req, "Unable to open %s: %s.", file,
+		    strerror(errno));
 		goto out;
 	}
 	/* Write metadata to the destination file. */
 	if (write(filefd, sector, secsize) != secsize) {
-		gctl_error(req, "Cannot write to %s: %s.", file,
+		gctl_error(req, "Unable to write to %s: %s.", file,
 		    strerror(errno));
+		(void)close(filefd);
+		(void)unlink(file);
 		goto out;
 	}
 	(void)fsync(filefd);
+	(void)close(filefd);
 	/* Success. */
 	ret = 0;
 out:
-	if (provfd >= 0)
-		(void)g_close(provfd);
-	if (filefd >= 0)
-		(void)close(filefd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
@@ -1384,10 +1371,8 @@ eli_restore(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
 	const char *file, *prov;
-	unsigned char *sector;
-	ssize_t secsize;
 	off_t mediasize;
-	int nargs, filefd, provfd;
+	int nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 2) {
@@ -1397,72 +1382,28 @@ eli_restore(struct gctl_req *req)
 	file = gctl_get_ascii(req, "arg0");
 	prov = gctl_get_ascii(req, "arg1");
 
-	provfd = filefd = -1;
-	sector = NULL;
-	secsize = 0;
-
-	filefd = open(file, O_RDONLY);
-	if (filefd == -1) {
-		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
-		goto out;
-	}
-	provfd = g_open(prov, 1);
-	if (provfd == -1) {
-		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
-		goto out;
-	}
-
-	mediasize = g_mediasize(provfd);
-	secsize = g_sectorsize(provfd);
-	if (mediasize == -1 || secsize == -1) {
+	/* Read metadata from the backup file. */
+	if (eli_metadata_read(req, file, &md) == -1)
+		return;
+	/* Obtain provider's mediasize. */
+	mediasize = g_get_mediasize(prov);
+	if (mediasize == 0) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
-		goto out;
-	}
-
-	sector = malloc(secsize);
-	if (sector == NULL) {
-		gctl_error(req, "Cannot allocate memory.");
-		goto out;
-	}
-
-	/* Read metadata from the backup file. */
-	if (read(filefd, sector, secsize) != secsize) {
-		gctl_error(req, "Cannot read from %s: %s.", file,
-		    strerror(errno));
-		goto out;
-	}
-	/* Check if this file contains geli metadata. */
-	if (eli_metadata_decode(sector, &md) != 0) {
-		gctl_error(req, "MD5 hash mismatch: not a geli backup file?");
-		goto out;
+		return;
 	}
 	/* Check if the provider size has changed since we did the backup. */
 	if (md.md_provsize != (uint64_t)mediasize) {
 		if (gctl_get_int(req, "force")) {
 			md.md_provsize = mediasize;
-			eli_metadata_encode(&md, sector);
 		} else {
 			gctl_error(req, "Provider size mismatch: "
 			    "wrong backup file?");
-			goto out;
+			return;
 		}
 	}
-	/* Write metadata from the provider. */
-	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
-		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
-		goto out;
-	}
-	(void)g_flush(provfd);
-out:
-	if (provfd >= 0)
-		(void)g_close(provfd);
-	if (filefd >= 0)
-		(void)close(filefd);
-	if (sector != NULL) {
-		bzero(sector, secsize);
-		free(sector);
-	}
+	/* Write metadata to the provider. */
+	(void)eli_metadata_store(req, prov, &md);
 }
 
 static void
