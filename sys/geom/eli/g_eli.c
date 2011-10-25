@@ -717,12 +717,14 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	sc->sc_crypto = G_ELI_CRYPTO_UNKNOWN;
 	sc->sc_flags = md->md_flags;
 	/* Backward compatibility. */
-	if (md->md_version < 4)
+	if (md->md_version < G_ELI_VERSION_04)
 		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
-	if (md->md_version < 5)
+	if (md->md_version < G_ELI_VERSION_05)
 		sc->sc_flags |= G_ELI_FLAG_SINGLE_KEY;
-	if (md->md_version < 6 && (sc->sc_flags & G_ELI_FLAG_AUTH) != 0)
+	if (md->md_version < G_ELI_VERSION_06 &&
+	    (sc->sc_flags & G_ELI_FLAG_AUTH) != 0) {
 		sc->sc_flags |= G_ELI_FLAG_FIRST_KEY;
+	}
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
 
