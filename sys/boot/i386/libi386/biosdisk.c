@@ -250,7 +250,7 @@ bd_int13probe(struct bdinfo *bd)
     v86.edx = bd->bd_unit;
     v86int();
     
-    if (!(v86.efl & 0x1) &&				/* carry clear */
+    if (!(V86_CY(v86.efl)) &&				/* carry clear */
 	((v86.edx & 0xff) > ((unsigned)bd->bd_unit & 0x7f))) {	/* unit # OK */
 	if ((v86.ecx & 0x3f) == 0) {			/* absurd sector size */
 		DEBUG("Invalid geometry for unit %d", bd->bd_unit);
@@ -264,11 +264,11 @@ bd_int13probe(struct bdinfo *bd)
 	v86.edx = bd->bd_unit;
 	v86.ebx = 0x55aa;
 	v86int();
-	if (!(v86.efl & 0x1) &&				/* carry clear */
+	if (!(V86_CY(v86.efl)) &&			/* carry clear */
 	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
 	    (v86.ecx & 0x1)) {				/* packets mode ok */
 	    bd->bd_flags |= BD_MODEEDD1;
-	    if((v86.eax & 0xff00) >= 0x3000)
+	    if ((v86.eax & 0xff00) >= 0x3000)
 	        bd->bd_flags |= BD_MODEEDD3;
 	}
 	return(1);
@@ -562,7 +562,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	return (ENOMEM);
     }
 
-    /* Look up BIOS unit number, intialise open_disk structure */
+    /* Look up BIOS unit number, initalise open_disk structure */
     od->od_dkunit = dev->d_unit;
     od->od_unit = bdinfo[od->od_dkunit].bd_unit;
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
@@ -1150,7 +1150,7 @@ bd_edd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
     v86.ds = VTOPSEG(&packet);
     v86.esi = VTOPOFF(&packet);
     v86int();
-    return (v86.efl & 0x1);
+    return (V86_CY(v86.efl));
 }
 
 static int
@@ -1183,7 +1183,7 @@ bd_chs_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
     v86.es = VTOPSEG(dest);
     v86.ebx = VTOPOFF(dest);
     v86int();
-    return (v86.efl & 0x1);
+    return (V86_CY(v86.efl));
 }
 
 static int
@@ -1311,7 +1311,7 @@ bd_getgeom(struct open_disk *od)
     v86.edx = od->od_unit;
     v86int();
 
-    if ((v86.efl & 0x1) ||				/* carry set */
+    if ((V86_CY(v86.efl)) ||				/* carry set */
 	((v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f)))	/* unit # bad */
 	return(1);
     
@@ -1348,7 +1348,7 @@ bd_getbigeom(int bunit)
     v86.eax = 0x800;
     v86.edx = 0x80 + bunit;
     v86int();
-    if (v86.efl & 0x1)
+    if (V86_CY(v86.efl))
 	return 0x4f010f;
     return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
 	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
