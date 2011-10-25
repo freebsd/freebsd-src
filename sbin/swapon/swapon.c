@@ -67,7 +67,7 @@ main(int argc, char **argv)
 {
 	struct fstab *fsp;
 	char *ptr;
-	int stat;
+	int ret;
 	int ch, doall;
 	int sflag = 0, lflag = 0, hflag = 0, qflag = 0;
 	const char *etc_fstab;
@@ -144,7 +144,7 @@ main(int argc, char **argv)
 	}
 	argv += optind;
 
-	stat = 0;
+	ret = 0;
 	if (etc_fstab != NULL)
 		setfstab(etc_fstab);
 	if (which_prog == SWAPON || which_prog == SWAPOFF) {
@@ -155,7 +155,7 @@ main(int argc, char **argv)
 				if (strstr(fsp->fs_mntops, "noauto"))
 					continue;
 				if (swap_on_off(fsp->fs_spec, 1)) {
-					stat = 1;
+					ret = 1;
 				} else {
 					if (!qflag) {
 						printf("%s: %sing %s as swap device\n",
@@ -170,7 +170,7 @@ main(int argc, char **argv)
 			usage();
 		for (; *argv; ++argv) {
 			if (swap_on_off(*argv, 0)) {
-				stat = 1;
+				ret = 1;
 			} else if (orig_prog == SWAPCTL) {
 				printf("%s: %sing %s as swap device\n",
 				    getprogname(), which_prog == SWAPOFF ? "remov" : "add",
@@ -183,7 +183,7 @@ main(int argc, char **argv)
 		else 
 			usage();
 	}
-	exit(stat);
+	exit(ret);
 }
 
 static int

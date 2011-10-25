@@ -634,7 +634,7 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
 	ahp->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 #else
 	ahp->ah_maskReg |= AR_IMR_RXOK;
-#endif
+#endif	
 	ahp->ah_maskReg |= AR_IMR_TXOK;
 
 	if (opmode == HAL_M_HOSTAP)
