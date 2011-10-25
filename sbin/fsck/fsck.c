@@ -96,6 +96,7 @@ main(int argc, char *argv[])
 	int i, rval = 0;
 	const char *vfstype = NULL;
 	char globopt[3];
+	const char *etc_fstab;
 
 	globopt[0] = '-';
 	globopt[2] = '\0';
@@ -103,7 +104,8 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&selhead);
 	TAILQ_INIT(&opthead);
 
-	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:")) != -1)
+	etc_fstab = NULL;
+	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:c:")) != -1)
 		switch (i) {
 		case 'B':
 			if (flags & CHECK_BACKGRD)
@@ -160,6 +162,10 @@ main(int argc, char *argv[])
 			vfstype = optarg;
 			break;
 
+		case 'c':
+			etc_fstab = optarg;
+			break;
+
 		case '?':
 		default:
 			usage();
@@ -168,6 +174,9 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+
+	if (etc_fstab != NULL)
+		setfstab(etc_fstab);
 
 	if (argc == 0)
 		return checkfstab(flags, isok, checkfs);
@@ -571,7 +580,7 @@ static void
 usage(void)
 {
 	static const char common[] =
-	    "[-Cdfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype]";
+	    "[-Cdfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype] [-c fstab]";
 
 	(void)fprintf(stderr, "usage: %s %s [special | node] ...\n",
 	    getprogname(), common);
