@@ -27,27 +27,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/sysctl.h>
-
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <readpassphrase.h>
-#include <string.h>
-#include <strings.h>
-#include <libgeom.h>
-#include <paths.h>
-#include <errno.h>
-#include <assert.h>
-
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <opencrypto/cryptodev.h>
+
+#include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <libgeom.h>
+#include <paths.h>
+#include <readpassphrase.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
