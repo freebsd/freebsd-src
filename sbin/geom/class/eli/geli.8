@@ -134,6 +134,9 @@ utility:
 .Fl s Ar oldsize
 .Ar prov
 .Nm
+.Cm version
+.Op Ar prov ...
+.Nm
 .Cm clear
 .Op Fl v
 .Ar prov ...
@@ -597,6 +600,18 @@ Additional options include:
 .It Fl s Ar oldsize
 The size of the provider before it was resized.
 .El
+.It Cm version
+If no arguments are given, the
+.Cm version
+subcommand will print the version of
+.Nm
+userland utility as well as the version of the
+.Nm ELI
+GEOM class.
+.Pp
+If GEOM providers are specified, the
+.Cm version
+subcommand will print metadata version used by each of them.
 .It Cm clear
 Clear metadata from the given providers.
 .It Cm dump
