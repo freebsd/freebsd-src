@@ -686,6 +686,7 @@ struct usb_port_status {
 #define	UPS_PORT_LS_HOT_RST	0x09
 #define	UPS_PORT_LS_COMP_MODE	0x0A
 #define	UPS_PORT_LS_LOOPBACK	0x0B
+#define	UPS_PORT_LS_RESUME	0x0F
 #define	UPS_PORT_POWER			0x0100
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
