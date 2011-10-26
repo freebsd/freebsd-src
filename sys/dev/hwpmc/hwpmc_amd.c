@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 enum pmc_class	amd_pmc_class;
 #endif
 
@@ -284,7 +284,7 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	PMCDBG(MDP,REA,1,"amd-read id=%d class=%d", ri, pd->pm_descr.pd_class);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -329,7 +329,7 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	mode = PMC_TO_MODE(pm);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -515,7 +515,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 static int
 amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	const struct amd_descr *pd;
 #endif
 	struct pmc_hw *phw;
@@ -532,7 +532,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[amd,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	pd = &amd_pmcdesc[ri];
 	if (pd->pm_descr.pd_class == amd_pmc_class)
 		KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
@@ -834,7 +834,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 
 	amd_pcpu[cpu] = NULL;
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	for (i = 0; i < AMD_NPMCS; i++) {
 		KASSERT(pac->pc_amdpmcs[i].phw_pmc == NULL,
 		    ("[amd,%d] CPU%d/PMC%d in use", __LINE__, cpu, i));
@@ -913,7 +913,7 @@ pmc_amd_initialize(void)
 		return NULL;
 	}
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	amd_pmc_class = class;
 #endif
 
