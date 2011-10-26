@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd March 8, 2009
+.Dd October 25, 2011
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -121,6 +121,10 @@ Creates a regular expression and assigns it to the variable
 .Ar regexp-name .
 The variable is available throughout the rest of
 the configuration file.
+If the string begins with
+.Ql \&! ,
+it matches if the regular expression formed by the rest of the string
+does not match.
 All regular expressions have an implicit
 .Ql ^$
 around them.
