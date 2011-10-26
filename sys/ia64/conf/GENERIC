@@ -59,8 +59,8 @@ options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
-options		KDB		# Kernel debugger related code
-options		KDB_TRACE	# Print a stack trace for a panic
+options 	KDB		# Kernel debugger related code
+options 	KDB_TRACE	# Print a stack trace for a panic
 
 # Various "busses"
 device		firewire	# FireWire bus code
