@@ -49,18 +49,10 @@
 #include <unistd.h>
 #include <err.h>
 
-/* Use the system net80211 headers, rather than the kernel tree */
-/*
- * XXX this means that if you build a separate net80211 stack
- * XXX with your kernel and don't install the new/changed headers,
- * XXX this tool may break.
- * XXX -adrian
- */
-#include <net80211/ieee80211_ioctl.h>
-#include <net80211/ieee80211_radiotap.h>
-
 #include "ah.h"
 #include "ah_desc.h"
+#include "net80211/ieee80211_ioctl.h"
+#include "net80211/ieee80211_radiotap.h"
 #include "if_athioctl.h"
 
 #include "athstats.h"
@@ -256,8 +248,46 @@ static const struct fmt athstats[] = {
 	{ 5,	"txrawfail",	"txrawfail",	"raw tx failed 'cuz interface/hw down" },
 #define	S_RX_TOOBIG	AFTER(S_TX_RAW_FAIL)
 	{ 5,	"rx2big",	"rx2big",	"rx failed 'cuz frame too large"  },
+#define	S_RX_AGG	AFTER(S_RX_TOOBIG)
+	{ 5,	"rxagg",	"rxagg",	"A-MPDU sub-frames received" },
+#define	S_RX_HALFGI	AFTER(S_RX_AGG)
+	{ 5,	"rxhalfgi",	"rxhgi",	"Half-GI frames received" },
+#define	S_RX_2040	AFTER(S_RX_HALFGI)
+	{ 6,	"rx2040",	"rx2040",	"40MHz frames received" },
+#define	S_RX_PRE_CRC_ERR	AFTER(S_RX_2040)
+	{ 11,	"rxprecrcerr",	"rxprecrcerr",	"CRC errors for non-last A-MPDU subframes" },
+#define	S_RX_POST_CRC_ERR	AFTER(S_RX_PRE_CRC_ERR)
+	{ 12,	"rxpostcrcerr",	"rxpostcrcerr",	"CRC errors for last subframe in an A-MPDU" },
+#define	S_RX_DECRYPT_BUSY_ERR	AFTER(S_RX_POST_CRC_ERR)
+	{ 10,	"rxdescbusy",	"rxdescbusy",	"Decryption engine busy" },
+#define	S_RX_HI_CHAIN	AFTER(S_RX_DECRYPT_BUSY_ERR)
+	{ 4,	"rxhi",	"rxhi",	"Frames received with RX chain in high power mode" },
+#define	S_TX_HTPROTECT	AFTER(S_RX_HI_CHAIN)
+	{ 7,	"txhtprot",	"txhtprot",	"Frames transmitted with HT Protection" },
+#define	S_RX_QEND	AFTER(S_TX_HTPROTECT)
+	{ 7,	"rxquend",	"rxquend",	"Hit end of RX descriptor queue" },
+#define	S_TX_TIMEOUT	AFTER(S_RX_QEND)
+	{ 4,	"txtimeout",	"TXTX",	"TX Timeout" },
+#define	S_TX_CSTIMEOUT	AFTER(S_TX_TIMEOUT)
+	{ 4,	"csttimeout",	"CSTX",	"Carrier Sense Timeout" },
+#define	S_TX_XTXOP_ERR	AFTER(S_TX_CSTIMEOUT)
+	{ 5,	"xtxoperr",	"TXOPX",	"TXOP exceed" },
+#define	S_TX_TIMEREXPIRED_ERR	AFTER(S_TX_XTXOP_ERR)
+	{ 7,	"texperr",	"texperr",	"TX Timer expired" },
+#define	S_TX_DESCCFG_ERR	AFTER(S_TX_TIMEREXPIRED_ERR)
+	{ 10,	"desccfgerr",	"desccfgerr",	"TX descriptor error" },
+#define	S_TX_SWRETRIES	AFTER(S_TX_DESCCFG_ERR)
+	{ 9,	"txswretry",	"txswretry",	"Number of frames retransmitted in software" },
+#define	S_TX_SWRETRIES_MAX	AFTER(S_TX_SWRETRIES)
+	{ 7,	"txswmax",	"txswmax",	"Number of frames exceeding software retry" },
+#define	S_TX_DATA_UNDERRUN	AFTER(S_TX_SWRETRIES_MAX)
+	{ 5,	"txdataunderrun",	"TXDAU",	"A-MPDU TX FIFO data underrun" },
+#define	S_TX_DELIM_UNDERRUN	AFTER(S_TX_DATA_UNDERRUN)
+	{ 5,	"txdelimunderrun",	"TXDEU",	"A-MPDU TX Delimiter underrun" },
+#define	S_TX_AGGR_FAIL		AFTER(S_TX_DELIM_UNDERRUN)
+	{ 10,	"txaggrfail",	"txaggrfail",	"A-MPDU TX attempt failed" },
 #ifndef __linux__
-#define	S_CABQ_XMIT	AFTER(S_RX_TOOBIG)
+#define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAIL)
 	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
 #define	S_CABQ_BUSY	AFTER(S_CABQ_XMIT)
 	{ 5,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
@@ -269,7 +299,7 @@ static const struct fmt athstats[] = {
 	{ 5,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
 #define	S_FF_TXOK	AFTER(S_RX_BUSDMA)
 #else
-#define	S_FF_TXOK	AFTER(S_RX_PHY_UNDERRUN)
+#define	S_FF_TXOK	AFTER(S_TX_AGGR_FAIL)
 #endif
 	{ 5,	"fftxok",	"fftxok",	"fast frames xmit successfully" },
 #define	S_FF_TXERR	AFTER(S_FF_TXOK)
@@ -384,12 +414,16 @@ static const struct fmt athstats[] = {
 	{ 4,	"asignal",	"asig",	"signal of last ack (dBm)" },
 #define	S_RX_SIGNAL	AFTER(S_TX_SIGNAL)
 	{ 4,	"signal",	"sig",	"avg recv signal (dBm)" },
+
 };
 #define	S_PHY_MIN	S_RX_PHY_UNDERRUN
 #define	S_PHY_MAX	S_RX_PHY_CCK_RESTART
 #define	S_LAST		S_ANT_TX0
 #define	S_MAX	S_ANT_RX7+1
 
+/*
+ * XXX fold this into the external HAL definitions! -adrian
+ */
 struct _athstats {
 	struct ath_stats ath;
 #ifdef ATH_SUPPORT_ANI
@@ -723,6 +757,25 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 		snprintf(b, bs, "%d",
 			wf->cur.ath.ast_rx_rssi + wf->cur.ath.ast_rx_noise);
 		return 1;
+	case S_RX_AGG:		STAT(rx_agg);
+	case S_RX_HALFGI:	STAT(rx_halfgi);
+	case S_RX_2040:		STAT(rx_2040);
+	case S_RX_PRE_CRC_ERR:	STAT(rx_pre_crc_err);
+	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
+	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
+	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_TX_HTPROTECT:	STAT(tx_htprotect);
+	case S_RX_QEND:		STAT(rx_hitqueueend);
+	case S_TX_TIMEOUT:	STAT(tx_timeout);
+	case S_TX_CSTIMEOUT:	STAT(tx_cst);
+	case S_TX_XTXOP_ERR:	STAT(tx_xtxop);
+	case S_TX_TIMEREXPIRED_ERR:	STAT(tx_timerexpired);
+	case S_TX_DESCCFG_ERR:	STAT(tx_desccfgerr);
+	case S_TX_SWRETRIES:	STAT(tx_swretries);
+	case S_TX_SWRETRIES_MAX:	STAT(tx_swretrymax);
+	case S_TX_DATA_UNDERRUN:	STAT(tx_data_underrun);
+	case S_TX_DELIM_UNDERRUN:	STAT(tx_delim_underrun);
+	case S_TX_AGGR_FAIL:		STAT(tx_aggrfail);
 	}
 	b[0] = '\0';
 	return 0;
@@ -943,7 +996,27 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 		snprintf(b, bs, "%d",
 			wf->total.ath.ast_rx_rssi + wf->total.ath.ast_rx_noise);
 		return 1;
+	case S_RX_AGG:		STAT(rx_agg);
+	case S_RX_HALFGI:	STAT(rx_halfgi);
+	case S_RX_2040:		STAT(rx_2040);
+	case S_RX_PRE_CRC_ERR:	STAT(rx_pre_crc_err);
+	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
+	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
+	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_TX_HTPROTECT:	STAT(tx_htprotect);
+	case S_RX_QEND:		STAT(rx_hitqueueend);
+	case S_TX_TIMEOUT:	STAT(tx_timeout);
+	case S_TX_CSTIMEOUT:	STAT(tx_cst);
+	case S_TX_XTXOP_ERR:	STAT(tx_xtxop);
+	case S_TX_TIMEREXPIRED_ERR:	STAT(tx_timerexpired);
+	case S_TX_DESCCFG_ERR:	STAT(tx_desccfgerr);
+	case S_TX_SWRETRIES:	STAT(tx_swretries);
+	case S_TX_SWRETRIES_MAX:	STAT(tx_swretrymax);
+	case S_TX_DATA_UNDERRUN:	STAT(tx_data_underrun);
+	case S_TX_DELIM_UNDERRUN:	STAT(tx_delim_underrun);
+	case S_TX_AGGR_FAIL:		STAT(tx_aggrfail);
 	}
+
 	b[0] = '\0';
 	return 0;
 #undef RXANT
