@@ -1878,7 +1878,8 @@
 #define	BGE_MODE_CTL			0x6800
 #define	BGE_MISC_CFG			0x6804
 #define	BGE_MISC_LOCAL_CTL		0x6808
-#define	BGE_CPU_EVENT			0x6810
+#define	BGE_RX_CPU_EVENT		0x6810
+#define	BGE_TX_CPU_EVENT		0x6820
 #define	BGE_EE_ADDR			0x6838
 #define	BGE_EE_DATA			0x683C
 #define	BGE_EE_CTL			0x6840
