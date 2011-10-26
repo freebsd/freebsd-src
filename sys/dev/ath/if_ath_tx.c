@@ -2645,8 +2645,15 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_buf *bf)
 		device_printf(sc->sc_dev,
 		    "%s: failed to setup dma for clone\n",
 		    __func__);
-		/* XXX this frees the dmasetup that failed above? */
-		ath_freebuf(sc, nbf);
+		/*
+		 * Put this at the head of the list, not tail;
+		 * that way it doesn't interfere with the
+		 * busy buffer logic (which uses the tail of
+		 * the list.)
+		 */
+		ATH_TXBUF_LOCK(sc);
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, nbf, bf_list);
+		ATH_TXBUF_UNLOCK(sc);
 		return NULL;
 	}
 
