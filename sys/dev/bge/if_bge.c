@@ -5938,11 +5938,11 @@ bge_get_eaddr_mem(struct bge_softc *sc, uint8_t ether_addr[])
 {
 	uint32_t mac_addr;
 
-	mac_addr = bge_readmem_ind(sc, 0x0c14);
+	mac_addr = bge_readmem_ind(sc, BGE_SRAM_MAC_ADDR_HIGH_MB);
 	if ((mac_addr >> 16) == 0x484b) {
 		ether_addr[0] = (uint8_t)(mac_addr >> 8);
 		ether_addr[1] = (uint8_t)mac_addr;
-		mac_addr = bge_readmem_ind(sc, 0x0c18);
+		mac_addr = bge_readmem_ind(sc, BGE_SRAM_MAC_ADDR_LOW_MB);
 		ether_addr[2] = (uint8_t)(mac_addr >> 24);
 		ether_addr[3] = (uint8_t)(mac_addr >> 16);
 		ether_addr[4] = (uint8_t)(mac_addr >> 8);
