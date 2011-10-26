@@ -729,6 +729,23 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_timerexpired, 0, "TX exceeded TX_TIMER register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_desccfgerr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_desccfgerr, 0, "TX Descriptor Cfg Error");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretries", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretries, 0, "TX software retry count");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretrymax", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretrymax, 0, "TX software retry max reached");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_data_underrun", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_data_underrun, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_delim_underrun", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_delim_underrun, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggrfail", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggrfail, 0,
+	    "Number of aggregate TX failures (whole frame)");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
