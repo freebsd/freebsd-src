@@ -6,6 +6,7 @@
 # PROVIDE: NETWORKING NETWORK
 # REQUIRE: netif netoptions routing network_ipv6 ppp ipfw
 # REQUIRE: defaultroute routed mrouted route6d mroute6d resolv
+# REQUIRE: static_arp static_ndp
 
 #	This is a dummy dependency, for services which require networking
 #	to be operational before starting.
