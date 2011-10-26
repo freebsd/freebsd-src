@@ -5797,8 +5797,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 {
 	struct bge_softc *sc;
 	uint16_t *sbdata;
-	int error;
-	int result;
+	int error, result, sbsz;
 	int i, j;
 
 	result = -1;
@@ -5809,14 +5808,21 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct bge_softc *)arg1;
 
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+		    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+			sbsz = BGE_STATUS_BLK_SZ;
+		else
+			sbsz = 32;
 		sbdata = (uint16_t *)sc->bge_ldata.bge_status_block;
 		printf("Status Block:\n");
-		for (i = 0x0; i < (BGE_STATUS_BLK_SZ / 4); ) {
+		BGE_LOCK(sc);
+		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+		    sc->bge_cdata.bge_status_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		for (i = 0x0; i < sbsz / sizeof(uint16_t); ) {
 			printf("%06x:", i);
-			for (j = 0; j < 8; j++) {
-				printf(" %04x", sbdata[i]);
-				i += 4;
-			}
+			for (j = 0; j < 8; j++)
+				printf(" %04x", sbdata[i++]);
 			printf("\n");
 		}
 
@@ -5829,8 +5835,11 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			}
 			printf("\n");
 		}
+		BGE_UNLOCK(sc);
 
 		printf("Hardware Flags:\n");
+		if (BGE_IS_5717_PLUS(sc))
+			printf(" - 5717 Plus\n");
 		if (BGE_IS_5755_PLUS(sc))
 			printf(" - 5755 Plus\n");
 		if (BGE_IS_575X_PLUS(sc))
