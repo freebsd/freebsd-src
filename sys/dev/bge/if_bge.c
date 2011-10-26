@@ -2828,7 +2828,6 @@ bge_attach(device_t dev)
 	switch (sc->bge_asicrev) {
 	case BGE_ASICREV_BCM5717:
 	case BGE_ASICREV_BCM5719:
-		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 	case BGE_ASICREV_BCM57765:
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
@@ -2863,8 +2862,6 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
-			sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
@@ -2925,6 +2922,10 @@ bge_attach(device_t dev)
 	 * state machine will lockup and cause the device to hang.
 	 */
 	sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
+
+	/* BCM5755 or higher and BCM5906 have short DMA bug. */
+	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 
 	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
