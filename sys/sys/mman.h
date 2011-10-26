@@ -82,6 +82,9 @@
  */
 #define	MAP_FILE	 0x0000	/* map from file (default) */
 #define	MAP_ANON	 0x1000	/* allocated from memory, swap space */
+#ifndef _KERNEL
+#define	MAP_ANONYMOUS	 MAP_ANON /* For compatibility. */
+#endif /* !_KERNEL */
 
 /*
  * Extended flags
