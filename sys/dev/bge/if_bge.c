@@ -2918,15 +2918,13 @@ bge_attach(device_t dev)
 		sc->bge_mi_mode |= BGE_MIMODE_AUTOPOLL;
 
 	/*
-	 * All controllers that are not 5755 or higher have 4GB
-	 * boundary DMA bug.
+	 * All Broadcom controllers have 4GB boundary DMA bug.
 	 * Whenever an address crosses a multiple of the 4GB boundary
 	 * (including 4GB, 8Gb, 12Gb, etc.) and makes the transition
 	 * from 0xX_FFFF_FFFF to 0x(X+1)_0000_0000 an internal DMA
 	 * state machine will lockup and cause the device to hang.
 	 */
-	if (BGE_IS_5755_PLUS(sc) == 0)
-		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
+	sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
 	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
