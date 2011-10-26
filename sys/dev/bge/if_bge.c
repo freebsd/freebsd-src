@@ -1309,7 +1309,7 @@ bge_sig_pre_reset(struct bge_softc *sc, int type)
 	 * Some chips don't like this so only do this if ASF is enabled
 	 */
 	if (sc->bge_asf_mode)
-		bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
+		bge_writemem_ind(sc, BGE_SRAM_FW_MB, BGE_SRAM_FW_MB_MAGIC);
 
 	if (sc->bge_asf_mode & ASF_NEW_HANDSHAKE) {
 		switch (type) {
@@ -1362,7 +1362,7 @@ bge_stop_fw(struct bge_softc *sc)
 	int i;
 
 	if (sc->bge_asf_mode) {
-		bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM_FW, BGE_FW_PAUSE);
+		bge_writemem_ind(sc, BGE_SRAM_FW_CMD_MB, BGE_FW_PAUSE);
 		CSR_WRITE_4(sc, BGE_CPU_EVENT,
 		    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
 
@@ -3081,9 +3081,9 @@ bge_attach(device_t dev)
 	}
 
 	sc->bge_asf_mode = 0;
-	if (bge_allow_asf && (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG)
-	    == BGE_MAGIC_NUMBER)) {
-		if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG)
+	if (bge_allow_asf && (bge_readmem_ind(sc, BGE_SRAM_DATA_SIG) ==
+	    BGE_SRAM_DATA_SIG_MAGIC)) {
+		if (bge_readmem_ind(sc, BGE_SRAM_DATA_CFG)
 		    & BGE_HWCFG_ASF) {
 			sc->bge_asf_mode |= ASF_ENABLE;
 			sc->bge_asf_mode |= ASF_STACKUP;
@@ -3197,8 +3197,8 @@ bge_attach(device_t dev)
 	 * by its PCI subsystem ID, as we do below for the SysKonnect
 	 * SK-9D41.
 	 */
-	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG) == BGE_MAGIC_NUMBER)
-		hwcfg = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG);
+	if (bge_readmem_ind(sc, BGE_SRAM_DATA_SIG) == BGE_SRAM_DATA_SIG_MAGIC)
+		hwcfg = bge_readmem_ind(sc, BGE_SRAM_DATA_CFG);
 	else if ((sc->bge_flags & BGE_FLAG_EADDR) &&
 	    (sc->bge_asicrev != BGE_ASICREV_BCM5906)) {
 		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
@@ -3433,9 +3433,9 @@ bge_reset(struct bge_softc *sc)
 	/*
 	 * Write the magic number to SRAM at offset 0xB50.
 	 * When firmware finishes its initialization it will
-	 * write ~BGE_MAGIC_NUMBER to the same location.
+	 * write ~BGE_SRAM_FW_MB_MAGIC to the same location.
 	 */
-	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
+	bge_writemem_ind(sc, BGE_SRAM_FW_MB, BGE_SRAM_FW_MB_MAGIC);
 
 	reset = BGE_MISCCFG_RESET_CORE_CLOCKS | BGE_32BITTIME_66MHZ;
 
@@ -3560,8 +3560,8 @@ bge_reset(struct bge_softc *sc)
 		 */
 		for (i = 0; i < BGE_TIMEOUT; i++) {
 			DELAY(10);
-			val = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM);
-			if (val == ~BGE_MAGIC_NUMBER)
+			val = bge_readmem_ind(sc, BGE_SRAM_FW_MB);
+			if (val == ~BGE_SRAM_FW_MB_MAGIC)
 				break;
 		}
 
@@ -4100,10 +4100,10 @@ bge_asf_driver_up(struct bge_softc *sc)
 			sc->bge_asf_count --;
 		else {
 			sc->bge_asf_count = 2;
-			bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM_FW,
+			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_MB,
 			    BGE_FW_DRV_ALIVE);
-			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_LEN, 4);
-			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_DATA, 3);
+			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_LEN_MB, 4);
+			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_DATA_MB, 3);
 			CSR_WRITE_4(sc, BGE_CPU_EVENT,
 			    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
 		}

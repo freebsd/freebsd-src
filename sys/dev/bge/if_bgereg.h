@@ -71,12 +71,12 @@
 #define	BGE_STATS_BLOCK_END		0x00000AFF
 #define	BGE_STATUS_BLOCK		0x00000B00
 #define	BGE_STATUS_BLOCK_END		0x00000B4F
-#define	BGE_SOFTWARE_GENCOMM		0x00000B50
-#define	BGE_SOFTWARE_GENCOMM_SIG	0x00000B54
-#define	BGE_SOFTWARE_GENCOMM_NICCFG	0x00000B58
-#define	BGE_SOFTWARE_GENCOMM_FW		0x00000B78
-#define	BGE_SOFTWARE_GENNCOMM_FW_LEN	0x00000B7C
-#define	BGE_SOFTWARE_GENNCOMM_FW_DATA	0x00000B80
+#define	BGE_SRAM_FW_MB			0x00000B50
+#define	BGE_SRAM_DATA_SIG		0x00000B54
+#define	BGE_SRAM_DATA_CFG		0x00000B58
+#define	BGE_SRAM_FW_CMD_MB		0x00000B78
+#define	BGE_SRAM_FW_CMD_LEN_MB		0x00000B7C
+#define	BGE_SRAM_FW_CMD_DATA_MB		0x00000B80
 #define	BGE_SOFTWARE_GENCOMM_END	0x00000FFF
 #define	BGE_UNMAPPED			0x00001000
 #define	BGE_UNMAPPED_END		0x00001FFF
@@ -87,6 +87,7 @@
 #define	BGE_SEND_RING_1_TO_4_END	0x00005FFF
 
 /* Firmware interface */
+#define	BGE_SRAM_DATA_SIG_MAGIC		0x4B657654	/* 'KevT' */
 #define	BGE_FW_DRV_ALIVE		0x00000001
 #define	BGE_FW_PAUSE			0x00000002
 
@@ -2052,10 +2053,10 @@
  * This magic number is written to the firmware mailbox at 0xb50
  * before a software reset is issued.  After the internal firmware
  * has completed its initialization it will write the opposite of
- * this value, ~BGE_MAGIC_NUMBER, to the same location, allowing the
- * driver to synchronize with the firmware.
+ * this value, ~BGE_SRAM_FW_MB_MAGIC, to the same location,
+ * allowing the driver to synchronize with the firmware.
  */
-#define	BGE_MAGIC_NUMBER                0x4B657654
+#define	BGE_SRAM_FW_MB_MAGIC	0x4B657654
 
 typedef struct {
 	uint32_t		bge_addr_hi;
