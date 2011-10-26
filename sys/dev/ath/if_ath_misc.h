@@ -63,7 +63,6 @@ extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 	    struct ieee80211_node *ni, struct ath_rc_series *rc,
 	    struct ath_tx_status *ts, int frmlen, int nframes, int nbad);
-extern void ath_tx_update_busy(struct ath_softc *sc, struct ath_txq *txq);
 
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);

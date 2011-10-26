@@ -4488,7 +4488,7 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
  * of the buffers has been used.
  */
 void
-ath_tx_update_busy(struct ath_softc *sc, struct ath_txq *txq)
+ath_tx_update_busy(struct ath_softc *sc)
 {
 	struct ath_buf *last;
 
@@ -4598,7 +4598,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 * not busy, as the hardware has now moved past
 		 * that "free" entry and onto the next one.
 		 */
-		ath_tx_update_busy(sc, txq);
+		ath_tx_update_busy(sc);
 
 		/*
 		 * Call the completion handler.
