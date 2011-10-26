@@ -3446,7 +3446,8 @@ bge_reset(struct bge_softc *sc)
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
 	 */
-	if (BGE_IS_5705_PLUS(sc))
+	if (BGE_IS_5705_PLUS(sc) &&
+	    (sc->bge_flags & BGE_FLAG_CPMU_PRESENT) == 0)
 		reset |= BGE_MISCCFG_GPHY_PD_OVERRIDE;
 
 	/* Issue global reset */
