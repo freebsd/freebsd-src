@@ -1018,7 +1018,8 @@ _yacc=		usr.bin/yacc
 _awk=		usr.bin/awk
 .endif
 
-.if ${BOOTSTRAPPING} < 700018
+.if ${MK_BSNMP} != "no" && \
+    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
