@@ -1,21 +1,11 @@
 # $FreeBSD$
 
-.if ${CC:T:Mclang} != "clang"
-FREEBSD_GCC!=	${CC} --version | grep FreeBSD || true
-.endif
-
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
-.if defined(FREEBSD_GCC) && ${FREEBSD_GCC}
-# FreeBSD extensions, not available in upstream GCC
-format_extensions=	-fformat-extensions
-no_align_long_strings=	-mno-align-long-strings
-.endif
-
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wundef -Wno-pointer-sign ${format_extensions} \
+		-Wundef -Wno-pointer-sign -fformat-extensions \
 		-Wmissing-include-dirs -fdiagnostics-show-option
 #
 # The following flags are next up for working on:
@@ -42,7 +32,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 #
 .if ${MACHINE_CPUARCH} == "i386"
 .if ${CC:T:Mclang} != "clang"
-CFLAGS+=	${no_align_long_strings} -mpreferred-stack-boundary=2 -mno-sse
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 -mno-sse
 .else
 CFLAGS+=	-mno-aes -mno-avx
 .endif
