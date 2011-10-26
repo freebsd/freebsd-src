@@ -2927,6 +2927,15 @@ bge_attach(device_t dev)
 	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
 		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 
+	/*
+	 * BCM5719 cannot handle DMA requests for DMA segments that
+	 * have larger than 4KB in size.  However the maximum DMA
+	 * segment size created in DMA tag is 4KB for TSO, so we
+	 * wouldn't encounter the issue here.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
+		sc->bge_flags |= BGE_FLAG_4K_RDMA_BUG;
+
 	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
 		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
