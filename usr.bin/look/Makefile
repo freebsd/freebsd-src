@@ -3,6 +3,4 @@
 
 PROG=	look
 
-WARNS?=	2
-
 .include <bsd.prog.mk>

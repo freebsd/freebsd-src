@@ -889,7 +889,7 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 	if (LIST_EMPTY(&pm->pm_targets)) {
 		p = pm->pm_owner->po_owner;
 		PROC_LOCK(p);
-		psignal(p, SIGIO);
+		kern_psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 
 		PMCDBG(PRC,SIG,2, "signalling proc=%p signal=%d", p,
@@ -2890,7 +2890,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			error = pmclog_configure_log(md, po, cl.pm_logfd);
 		} else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
-			error = pmclog_flush(po);
+			error = pmclog_close(po);
 			if (error == 0) {
 				LIST_FOREACH(pm, &po->po_pmcs, pm_next)
 				    if (pm->pm_flags & PMC_F_NEEDS_LOGFILE &&
@@ -2905,7 +2905,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 	}
 	break;
-
 
 	/*
 	 * Flush a log file.
@@ -2923,6 +2922,25 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		}
 
 		error = pmclog_flush(po);
+	}
+	break;
+
+	/*
+	 * Close a log file.
+	 */
+
+	case PMC_OP_CLOSELOG:
+	{
+		struct pmc_owner *po;
+
+		sx_assert(&pmc_sx, SX_XLOCKED);
+
+		if ((po = pmc_find_owner_descriptor(td->td_proc)) == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		error = pmclog_close(po);
 	}
 	break;
 
@@ -4811,7 +4829,7 @@ pmc_cleanup(void)
 				    po->po_owner->p_comm);
 
 				PROC_LOCK(po->po_owner);
-				psignal(po->po_owner, SIGBUS);
+				kern_psignal(po->po_owner, SIGBUS);
 				PROC_UNLOCK(po->po_owner);
 
 				pmc_destroy_owner_descriptor(po);

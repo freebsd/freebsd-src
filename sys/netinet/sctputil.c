@@ -1293,10 +1293,6 @@ select_a_new_ep:
 				SCTP_INP_DECR_REF(it->inp);
 				atomic_add_int(&it->stcb->asoc.refcnt, -1);
 				if (sctp_it_ctl.iterator_flags &
-				    SCTP_ITERATOR_MUST_EXIT) {
-					goto done_with_iterator;
-				}
-				if (sctp_it_ctl.iterator_flags &
 				    SCTP_ITERATOR_STOP_CUR_IT) {
 					sctp_it_ctl.iterator_flags &= ~SCTP_ITERATOR_STOP_CUR_IT;
 					goto done_with_iterator;
@@ -1372,9 +1368,6 @@ sctp_iterator_worker(void)
 		sctp_it_ctl.cur_it = NULL;
 		CURVNET_RESTORE();
 		SCTP_IPI_ITERATOR_WQ_LOCK();
-		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
-			break;
-		}
 		/* sa_ignore FREED_MEMORY */
 	}
 	sctp_it_ctl.iterator_running = 0;
@@ -1668,7 +1661,7 @@ sctp_timeout_handler(void *t)
 		sctp_auditing(4, inp, stcb, net);
 #endif
 		if (!(net->dest_state & SCTP_ADDR_NOHB)) {
-			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_HB_TMR, SCTP_SO_NOT_LOCKED);
 		}
 		break;
@@ -2050,6 +2043,9 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			return;
 		}
 		if (net == NULL) {
+			return;
+		}
+		if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
 			return;
 		}
 		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_PMTU];

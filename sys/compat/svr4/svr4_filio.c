@@ -75,7 +75,7 @@ svr4_sys_poll(td, uap)
      siz = uap->nfds * sizeof(struct pollfd);
      pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
-     error = poll(td, (struct poll_args *)uap);
+     error = sys_poll(td, (struct poll_args *)uap);
 
      if ((cerr = copyin(uap->fds, pfd, siz)) != 0) {
        error = cerr;

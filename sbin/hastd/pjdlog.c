@@ -148,10 +148,13 @@ pjdlog_printf_render_sockaddr(struct __printf_io *io,
 void
 pjdlog_init(int mode)
 {
+	int saved_errno;
 
 	assert(pjdlog_initialized == PJDLOG_NEVER_INITIALIZED ||
 	    pjdlog_initialized == PJDLOG_NOT_INITIALIZED);
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
+
+	saved_errno = errno;
 
 	if (pjdlog_initialized == PJDLOG_NEVER_INITIALIZED) {
 		__use_xprintf = 1;
@@ -171,18 +174,25 @@ pjdlog_init(int mode)
 	bzero(pjdlog_prefix, sizeof(pjdlog_prefix));
 
 	pjdlog_initialized = PJDLOG_INITIALIZED;
+
+	errno = saved_errno;
 }
 
 void
 pjdlog_fini(void)
 {
+	int saved_errno;
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
+	saved_errno = errno;
 
 	if (pjdlog_mode == PJDLOG_MODE_SYSLOG)
 		closelog();
 
 	pjdlog_initialized = PJDLOG_NOT_INITIALIZED;
+
+	errno = saved_errno;
 }
 
 /*
@@ -194,6 +204,7 @@ pjdlog_fini(void)
 void
 pjdlog_mode_set(int mode)
 {
+	int saved_errno;
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
@@ -201,12 +212,16 @@ pjdlog_mode_set(int mode)
 	if (pjdlog_mode == mode)
 		return;
 
+	saved_errno = errno;
+
 	if (mode == PJDLOG_MODE_SYSLOG)
 		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 	else /* if (mode == PJDLOG_MODE_STD) */
 		closelog();
 
 	pjdlog_mode = mode;
+
+	errno = saved_errno;
 }
 
 /*
@@ -270,11 +285,16 @@ pjdlog_prefix_set(const char *fmt, ...)
 void
 pjdlogv_prefix_set(const char *fmt, va_list ap)
 {
+	int saved_errno;
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(fmt != NULL);
 
+	saved_errno = errno;
+
 	vsnprintf(pjdlog_prefix, sizeof(pjdlog_prefix), fmt, ap);
+
+	errno = saved_errno;
 }
 
 /*
@@ -329,6 +349,7 @@ void
 pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
     va_list ap)
 {
+	int saved_errno;
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(loglevel == LOG_EMERG || loglevel == LOG_ALERT ||
@@ -341,6 +362,8 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 	/* Ignore debug above configured level. */
 	if (loglevel == LOG_DEBUG && debuglevel > pjdlog_debug_level)
 		return;
+
+	saved_errno = errno;
 
 	switch (pjdlog_mode) {
 	case PJDLOG_MODE_STD:
@@ -398,6 +421,8 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 	default:
 		assert(!"Invalid mode.");
 	}
+
+	errno = saved_errno;
 }
 
 /*

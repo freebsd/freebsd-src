@@ -2885,14 +2885,14 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 }
 
 int
-_umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
+sys__umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
 {
 	return _do_lock_umtx(td, uap->umtx, td->td_tid, 0);
 }
 
 int
-_umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
+sys__umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
     /* struct umtx *umtx */
 {
 	return do_unlock_umtx(td, uap->umtx, td->td_tid);
@@ -3239,7 +3239,7 @@ static _umtx_op_func op_table[] = {
 };
 
 int
-_umtx_op(struct thread *td, struct _umtx_op_args *uap)
+sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 {
 	if ((unsigned)uap->op < UMTX_OP_MAX)
 		return (*op_table[uap->op])(td, uap);

@@ -1424,24 +1424,10 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 
 	switch (sc->sc_state) {
 	case INIT:
-		if (carp_opts[CARPCTL_PREEMPT] && !carp_suppress_preempt) {
-			carp_send_ad_locked(sc);
-#ifdef INET
-			carp_send_arp(sc);
-#endif
-#ifdef INET6
-			carp_send_na(sc);
-#endif /* INET6 */
-			CARP_LOG("%s: INIT -> MASTER (preempting)\n",
-			    SC2IFP(sc)->if_xname);
-			carp_set_state(sc, MASTER);
-			carp_setroute(sc, RTM_ADD);
-		} else {
-			CARP_LOG("%s: INIT -> BACKUP\n", SC2IFP(sc)->if_xname);
-			carp_set_state(sc, BACKUP);
-			carp_setroute(sc, RTM_DELETE);
-			carp_setrun(sc, 0);
-		}
+		CARP_LOG("%s: INIT -> BACKUP\n", SC2IFP(sc)->if_xname);
+		carp_set_state(sc, BACKUP);
+		carp_setroute(sc, RTM_DELETE);
+		carp_setrun(sc, 0);
 		break;
 	case BACKUP:
 		callout_stop(&sc->sc_ad_tmo);

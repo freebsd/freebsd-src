@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.131 2010/12/08 04:02:47 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.135 2011/08/02 01:22:11 djm Exp $
 .\" $FreeBSD$
-.Dd December 8, 2010
+.Dd August 2, 2011
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -169,8 +169,9 @@ After expansion,
 .Cm AuthorizedKeysFile
 is taken to be an absolute path or one relative to the user's home
 directory.
+Multiple files may be listed, separated by whitespace.
 The default is
-.Dq .ssh/authorized_keys .
+.Dq .ssh/authorized_keys .ssh/authorized_keys2 .
 .It Cm AuthorizedPrincipalsFile
 Specifies a file that lists principal names that are accepted for
 certificate authentication.
@@ -655,7 +656,9 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
+hmac-sha2-256,hmac-sha256-96,hmac-sha2-512,
+hmac-sha2-512-96
 .Ed
 .It Cm Match
 Introduces a conditional block.
@@ -1082,11 +1085,17 @@ The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
 The default is
 .Dq yes .
+If
+.Cm UsePrivilegeSeparation
+is set to
+.Dq sandbox
+then the pre-authentication unprivileged process is subject to additional
+restrictions.
 .It Cm VersionAddendum
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20110503 .
+.Dq FreeBSD-20111001 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

@@ -390,6 +390,13 @@ def GR64_NOREX : RegisterClass<"X86", [i64], 64,
                        (GR32_NOREX sub_32bit)];
 }
 
+// GR32_NOAX - GR32 registers except EAX. Used by AddRegFrm of XCHG32 in 64-bit
+// mode to prevent encoding using the 0x90 NOP encoding. xchg %eax, %eax needs
+// to clear upper 32-bits of RAX so is not a NOP.
+def GR32_NOAX : RegisterClass<"X86", [i32], 32, (sub GR32, EAX)> {
+  let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
+}
+
 // GR32_NOSP - GR32 registers except ESP.
 def GR32_NOSP : RegisterClass<"X86", [i32], 32, (sub GR32, ESP)> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
@@ -455,8 +462,8 @@ def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd)];
 }
 
-def VR256 : RegisterClass<"X86", [v32i8, v8i32, v4i64, v8f32, v4f64], 256,
-                          (sequence "YMM%u", 0, 15)> {
+def VR256 : RegisterClass<"X86", [v32i8, v16i16, v8i32, v4i64, v8f32, v4f64],
+                          256, (sequence "YMM%u", 0, 15)> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd), (VR128 sub_xmm)];
 }
 

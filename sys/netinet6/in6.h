@@ -376,6 +376,8 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
 struct route_in6 {
 	struct	rtentry *ro_rt;
 	struct	llentry *ro_lle;
+	struct	in6_addr *ro_ia6;
+	int		ro_flags;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif

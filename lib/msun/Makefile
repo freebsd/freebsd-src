@@ -49,7 +49,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_pow.c e_powf.c e_rem_pio2.c \
 	e_rem_pio2f.c e_remainder.c e_remainderf.c e_scalb.c e_scalbf.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
-	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
+	k_cos.c k_cosf.c k_exp.c k_expf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
 	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \
@@ -101,9 +101,11 @@ COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 .endif
 
 # C99 complex functions
-COMMON_SRCS+=	s_cexp.c s_cexpf.c s_cimag.c s_cimagf.c s_cimagl.c \
+COMMON_SRCS+=	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
+	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
-	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c
+	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c \
+	s_csinh.c s_csinhf.c s_ctanh.c s_ctanhf.c
 
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
@@ -125,7 +127,8 @@ SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS=	fenv.h math.h
 
-MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 cexp.3 \
+MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
+	ceil.3 ccos.3 ccosh.3 cexp.3 \
 	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
@@ -143,6 +146,9 @@ MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
+MLINKS+=ccos.3 ccosf.3 ccos.3 csin.3 ccos.3 csinf.3 ccos.3 ctan.3 ccos.3 ctanf.3
+MLINKS+=ccosh.3 ccoshf.3 ccosh.3 csinh.3 ccosh.3 csinhf.3 \
+	ccosh.3 ctanh.3 ccosh.3 ctanhf.3
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
 MLINKS+=cexp.3 cexpf.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \

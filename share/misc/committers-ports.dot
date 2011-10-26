@@ -68,6 +68,7 @@ clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 clsung [label="Cheng-Lung Sung\nclsung@FreeBSD.org\n2004/8/18"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2011/06/11"]
+cs [label="Carlo Strub\ncs@FreeBSD.org\n2011/09/13"]
 culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
@@ -77,6 +78,7 @@ delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2011/08/17"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
@@ -152,6 +154,7 @@ pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
+rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
@@ -208,6 +211,9 @@ arved -> stefan
 
 asami -> obrien
 
+avilla -> rakuco
+
+bapt -> eadler
 bapt -> jlaffaye
 
 beat -> decke
@@ -273,6 +279,7 @@ garga -> wxs
 garga -> xride
 
 glarkin -> avl
+glarkin -> cs
 
 glewis -> hq
 glewis -> jkim
@@ -323,6 +330,7 @@ marcus -> eik
 marcus -> jmallett
 
 makc -> bf
+makc -> rakuco
 
 mat -> thierry
 
@@ -383,6 +391,7 @@ rafan -> chinsan
 rene -> crees
 
 sahil -> culot
+sahil -> eadler
 
 sat -> beech
 
@@ -421,6 +430,7 @@ thierry -> jadawin
 tmclaugh -> itetcu
 tmclaugh -> xride
 
+wen -> cs
 wen -> culot
 wen -> pawel
 

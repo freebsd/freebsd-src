@@ -152,7 +152,7 @@ struct getloginclass_args {
 #endif
 /* ARGSUSED */
 int
-getloginclass(struct thread *td, struct getloginclass_args *uap)
+sys_getloginclass(struct thread *td, struct getloginclass_args *uap)
 {
 	int error = 0;
 	size_t lcnamelen;
@@ -184,7 +184,7 @@ struct setloginclass_args {
 #endif
 /* ARGSUSED */
 int
-setloginclass(struct thread *td, struct setloginclass_args *uap)
+sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 {
 	struct proc *p = td->td_proc;
 	int error;

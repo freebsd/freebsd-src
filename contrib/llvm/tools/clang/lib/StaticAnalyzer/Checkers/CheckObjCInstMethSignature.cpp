@@ -28,7 +28,7 @@ using namespace clang;
 using namespace ento;
 
 static bool AreTypesCompatible(QualType Derived, QualType Ancestor,
-                               ASTContext& C) {
+                               ASTContext &C) {
 
   // Right now don't compare the compatibility of pointers.  That involves
   // looking at subtyping relationships.  FIXME: Future patch.
@@ -51,36 +51,40 @@ static void CompareReturnTypes(const ObjCMethodDecl *MethDerived,
     llvm::raw_string_ostream os(sbuf);
 
     os << "The Objective-C class '"
-       << MethDerived->getClassInterface()
+       << *MethDerived->getClassInterface()
        << "', which is derived from class '"
-       << MethAncestor->getClassInterface()
+       << *MethAncestor->getClassInterface()
        << "', defines the instance method '"
        << MethDerived->getSelector().getAsString()
        << "' whose return type is '"
        << ResDerived.getAsString()
        << "'.  A method with the same name (same selector) is also defined in "
           "class '"
-       << MethAncestor->getClassInterface()
+       << *MethAncestor->getClassInterface()
        << "' and has a return type of '"
        << ResAncestor.getAsString()
        << "'.  These two types are incompatible, and may result in undefined "
           "behavior for clients of these classes.";
 
+    PathDiagnosticLocation MethDLoc =
+      PathDiagnosticLocation::createBegin(MethDerived,
+                                          BR.getSourceManager());
+
     BR.EmitBasicReport("Incompatible instance method return type",
-                       os.str(), MethDerived->getLocStart());
+                       os.str(), MethDLoc);
   }
 }
 
-static void CheckObjCInstMethSignature(const ObjCImplementationDecl* ID,
+static void CheckObjCInstMethSignature(const ObjCImplementationDecl *ID,
                                        BugReporter& BR) {
 
-  const ObjCInterfaceDecl* D = ID->getClassInterface();
-  const ObjCInterfaceDecl* C = D->getSuperClass();
+  const ObjCInterfaceDecl *D = ID->getClassInterface();
+  const ObjCInterfaceDecl *C = D->getSuperClass();
 
   if (!C)
     return;
 
-  ASTContext& Ctx = BR.getContext();
+  ASTContext &Ctx = BR.getContext();
 
   // Build a DenseMap of the methods for quick querying.
   typedef llvm::DenseMap<Selector,ObjCMethodDecl*> MapTy;
@@ -90,7 +94,7 @@ static void CheckObjCInstMethSignature(const ObjCImplementationDecl* ID,
   for (ObjCImplementationDecl::instmeth_iterator I=ID->instmeth_begin(),
        E=ID->instmeth_end(); I!=E; ++I) {
 
-    ObjCMethodDecl* M = *I;
+    ObjCMethodDecl *M = *I;
     IMeths[M->getSelector()] = M;
     ++NumMethods;
   }
@@ -101,7 +105,7 @@ static void CheckObjCInstMethSignature(const ObjCImplementationDecl* ID,
     for (ObjCInterfaceDecl::instmeth_iterator I=C->instmeth_begin(),
          E=C->instmeth_end(); I!=E; ++I) {
 
-      ObjCMethodDecl* M = *I;
+      ObjCMethodDecl *M = *I;
       Selector S = M->getSelector();
 
       MapTy::iterator MI = IMeths.find(S);
@@ -110,7 +114,7 @@ static void CheckObjCInstMethSignature(const ObjCImplementationDecl* ID,
         continue;
 
       --NumMethods;
-      ObjCMethodDecl* MethDerived = MI->second;
+      ObjCMethodDecl *MethDerived = MI->second;
       MI->second = 0;
 
       CompareReturnTypes(MethDerived, M, BR, Ctx, ID);

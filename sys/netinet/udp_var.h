@@ -51,6 +51,9 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+struct inpcb;
+struct mbuf;
+
 typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
 
 /*

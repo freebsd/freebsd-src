@@ -574,7 +574,7 @@ devctl_queue_data_f(char *data, int flags)
 	p = devsoftc.async_proc;
 	if (p != NULL) {
 		PROC_LOCK(p);
-		psignal(p, SIGIO);
+		kern_psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 	}
 	return;
@@ -2139,6 +2139,11 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
 	count = 0;
 	TAILQ_FOREACH(child, &dev->children, link) {
 		count++;
+	}
+	if (count == 0) {
+		*devlistp = NULL;
+		*devcountp = 0;
+		return (0);
 	}
 
 	list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);

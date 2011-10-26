@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2005, 2006, 2007 Marcel Moolenaar
+ * Copyright (c) 2002, 2005-2007, 2011 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,6 +79,7 @@ struct g_part_gpt_table {
 	struct gpt_hdr		*hdr;
 	quad_t			lba[GPT_ELT_COUNT];
 	enum gpt_state		state[GPT_ELT_COUNT];
+	int			bootcamp;
 };
 
 struct g_part_gpt_entry {
@@ -178,40 +179,164 @@ static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static struct g_part_uuid_alias {
 	struct uuid *uuid;
 	int alias;
+	int mbrtype;
 } gpt_uuid_alias_match[] = {
-	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT },
-	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS },
-	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL },
-	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID },
-	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE },
-	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY },
-	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS },
-	{ &gpt_uuid_bios_boot,		G_PART_ALIAS_BIOS_BOOT },
-	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI },
-	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD },
-	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT },
-	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP },
-	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS },
-	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM },
-	{ &gpt_uuid_freebsd_zfs,	G_PART_ALIAS_FREEBSD_ZFS },
-	{ &gpt_uuid_linux_data,		G_PART_ALIAS_LINUX_DATA },
-	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM },
-	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID },
-	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP },
-	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR },
-	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA },
-	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA },
-	{ &gpt_uuid_ms_ldm_metadata,	G_PART_ALIAS_MS_LDM_METADATA },
-	{ &gpt_uuid_ms_reserved,	G_PART_ALIAS_MS_RESERVED },
-	{ &gpt_uuid_netbsd_ccd,		G_PART_ALIAS_NETBSD_CCD },
-	{ &gpt_uuid_netbsd_cgd,		G_PART_ALIAS_NETBSD_CGD },
-	{ &gpt_uuid_netbsd_ffs,		G_PART_ALIAS_NETBSD_FFS },
-	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS },
-	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID },
-	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP },
-
-	{ NULL, 0 }
+	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT,	 0xab },
+	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS,		 0xaf },
+	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL,	 0 },
+	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID,	 0 },
+	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE, 0 },
+	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY,	 0 },
+	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS,		 0 },
+	{ &gpt_uuid_bios_boot,		G_PART_ALIAS_BIOS_BOOT,		 0 },
+	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI,		 0xee },
+	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD,		 0xa5 },
+	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT,	 0 },
+	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP,	 0 },
+	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS,	 0 },
+	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM,	 0 },
+	{ &gpt_uuid_freebsd_zfs,	G_PART_ALIAS_FREEBSD_ZFS,	 0 },
+	{ &gpt_uuid_linux_data,		G_PART_ALIAS_LINUX_DATA,	 0x0b },
+	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM,		 0 },
+	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID,	 0 },
+	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP,	 0 },
+	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
+	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
+	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
+	{ &gpt_uuid_ms_ldm_metadata,	G_PART_ALIAS_MS_LDM_METADATA,	 0 },
+	{ &gpt_uuid_ms_reserved,	G_PART_ALIAS_MS_RESERVED,	 0 },
+	{ &gpt_uuid_netbsd_ccd,		G_PART_ALIAS_NETBSD_CCD,	 0 },
+	{ &gpt_uuid_netbsd_cgd,		G_PART_ALIAS_NETBSD_CGD,	 0 },
+	{ &gpt_uuid_netbsd_ffs,		G_PART_ALIAS_NETBSD_FFS,	 0 },
+	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS,	 0 },
+	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID,	 0 },
+	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP,	 0 },
+	{ NULL, 0, 0 }
 };
+
+static int
+gpt_write_mbr_entry(u_char *mbr, int idx, int typ, quad_t start,
+    quad_t end)
+{
+
+	if (typ == 0 || start > UINT32_MAX || end > UINT32_MAX)
+		return (EINVAL);
+
+	mbr += DOSPARTOFF + idx * DOSPARTSIZE;
+	mbr[0] = 0;
+	if (start == 1) {
+		/*
+		 * Treat the PMBR partition specially to maximize
+		 * interoperability with BIOSes.
+		 */
+		mbr[1] = mbr[3] = 0;
+		mbr[2] = 2;
+	} else
+		mbr[1] = mbr[2] = mbr[3] = 0xff;
+	mbr[4] = typ;
+	mbr[5] = mbr[6] = mbr[7] = 0xff;
+	le32enc(mbr + 8, (uint32_t)start);
+	le32enc(mbr + 12, (uint32_t)(end - start + 1));
+	return (0);
+}
+
+static int
+gpt_map_type(struct uuid *t)
+{
+	struct g_part_uuid_alias *uap;
+
+	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++) {
+		if (EQUUID(t, uap->uuid))
+			return (uap->mbrtype);
+	}
+	return (0);
+}
+
+/*
+ * Under Boot Camp the PMBR partition (type 0xEE) doesn't cover the
+ * whole disk anymore. Rather, it covers the GPT table and the EFI
+ * system partition only. This way the HFS+ partition and any FAT
+ * partitions can be added to the MBR without creating an overlap.
+ */
+static int
+gpt_is_bootcamp(struct g_part_gpt_table *table, const char *provname)
+{
+	uint8_t *p;
+
+	p = table->mbr + DOSPARTOFF;
+	if (p[4] != 0xee || le32dec(p + 8) != 1)
+		return (0);
+
+	p += DOSPARTSIZE;
+	if (p[4] != 0xaf)
+		return (0);
+
+	printf("GEOM: %s: enabling Boot Camp\n", provname);
+	return (1);
+}
+
+static void
+gpt_update_bootcamp(struct g_part_table *basetable)
+{
+	struct g_part_entry *baseentry;
+	struct g_part_gpt_entry *entry;
+	struct g_part_gpt_table *table;
+	int bootable, error, index, slices, typ;
+
+	table = (struct g_part_gpt_table *)basetable;
+
+	bootable = -1;
+	for (index = 0; index < NDOSPART; index++) {
+		if (table->mbr[DOSPARTOFF + DOSPARTSIZE * index])
+			bootable = index;
+	}
+
+	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+	slices = 0;
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_deleted)
+			continue;
+		index = baseentry->gpe_index - 1;
+		if (index >= NDOSPART)
+			continue;
+
+		entry = (struct g_part_gpt_entry *)baseentry;
+
+		switch (index) {
+		case 0:	/* This must be the EFI system partition. */
+			if (!EQUUID(&entry->ent.ent_type, &gpt_uuid_efi))
+				goto disable;
+			error = gpt_write_mbr_entry(table->mbr, index, 0xee,
+			    1ull, entry->ent.ent_lba_end);
+			break;
+		case 1:	/* This must be the HFS+ partition. */
+			if (!EQUUID(&entry->ent.ent_type, &gpt_uuid_apple_hfs))
+				goto disable;
+			error = gpt_write_mbr_entry(table->mbr, index, 0xaf,
+			    entry->ent.ent_lba_start, entry->ent.ent_lba_end);
+			break;
+		default:
+			typ = gpt_map_type(&entry->ent.ent_type);
+			error = gpt_write_mbr_entry(table->mbr, index, typ,
+			    entry->ent.ent_lba_start, entry->ent.ent_lba_end);
+			break;
+		}
+		if (error)
+			continue;
+
+		if (index == bootable)
+			table->mbr[DOSPARTOFF + DOSPARTSIZE * index] = 0x80;
+		slices |= 1 << index;
+	}
+	if ((slices & 3) == 3)
+		return;
+
+ disable:
+	table->bootcamp = 0;
+	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1ull,
+	    MIN(table->lba[GPT_ELT_SECHDR], UINT32_MAX));
+}
 
 static struct gpt_hdr *
 gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
@@ -457,8 +582,9 @@ g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (codesz > 0)
 		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
 
-	/* Mark the PMBR active since some BIOS require it */
-	table->mbr[DOSPARTOFF] = 0x80;		/* status */
+	/* Mark the PMBR active since some BIOS require it. */
+	if (!table->bootcamp)
+		table->mbr[DOSPARTOFF] = 0x80;		/* status */
 	return (0);
 }
 
@@ -486,15 +612,7 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	last = (pp->mediasize / pp->sectorsize) - 1;
 
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	table->mbr[DOSPARTOFF + 1] = 0x01;		/* shd */
-	table->mbr[DOSPARTOFF + 2] = 0x01;		/* ssect */
-	table->mbr[DOSPARTOFF + 3] = 0x00;		/* scyl */
-	table->mbr[DOSPARTOFF + 4] = 0xee;		/* typ */
-	table->mbr[DOSPARTOFF + 5] = 0xff;		/* ehd */
-	table->mbr[DOSPARTOFF + 6] = 0xff;		/* esect */
-	table->mbr[DOSPARTOFF + 7] = 0xff;		/* ecyl */
-	le32enc(table->mbr + DOSPARTOFF + 8, 1);	/* start */
-	le32enc(table->mbr + DOSPARTOFF + 12, MIN(last, UINT32_MAX));
+	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1, MIN(last, UINT32_MAX));
 
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
@@ -802,6 +920,21 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	}
 
 	g_free(tbl);
+
+	/*
+	 * Under Mac OS X, the MBR mirrors the first 4 GPT partitions
+	 * if (and only if) any FAT32 or FAT16 partitions have been
+	 * created. This happens irrespective of whether Boot Camp is
+	 * used/enabled, though it's generally understood to be done
+	 * to support legacy Windows under Boot Camp. We refer to this
+	 * mirroring simply as Boot Camp. We try to detect Boot Camp
+	 * so that we can update the MBR if and when GPT changes have
+	 * been made. Note that we do not enable Boot Camp if not
+	 * previously enabled because we can't assume that we're on a
+	 * Mac alongside Mac OS X.
+	 */
+	table->bootcamp = gpt_is_bootcamp(table, pp->name);
+
 	return (0);
 }
 
@@ -816,73 +949,52 @@ g_part_gpt_recover(struct g_part_table *basetable)
 }
 
 static int
-g_part_gpt_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
-    const char *attrib, unsigned int set)
+g_part_gpt_setunset(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, const char *attrib, unsigned int set)
 {
-	struct g_part_entry *iter;
 	struct g_part_gpt_entry *entry;
-	int changed, bootme, bootonce, bootfailed;
+	struct g_part_gpt_table *table;
+	uint64_t attr;
+	int i;
 
-	bootme = bootonce = bootfailed = 0;
+	table = (struct g_part_gpt_table *)basetable;
+	entry = (struct g_part_gpt_entry *)baseentry;
+
+	if (strcasecmp(attrib, "active") == 0) {
+		if (!table->bootcamp || baseentry->gpe_index > NDOSPART)
+			return (EINVAL);
+		for (i = 0; i < NDOSPART; i++) {
+			table->mbr[DOSPARTOFF + i * DOSPARTSIZE] =
+			    (i == baseentry->gpe_index - 1) ? 0x80 : 0;
+		}
+		return (0);
+	}
+
+	attr = 0;
 	if (strcasecmp(attrib, "bootme") == 0) {
-		bootme = 1;
+		attr |= GPT_ENT_ATTR_BOOTME;
 	} else if (strcasecmp(attrib, "bootonce") == 0) {
-		/* BOOTME is set automatically with BOOTONCE, but not unset. */
-		bootonce = 1;
+		attr |= GPT_ENT_ATTR_BOOTONCE;
 		if (set)
-			bootme = 1;
+			attr |= GPT_ENT_ATTR_BOOTME;
 	} else if (strcasecmp(attrib, "bootfailed") == 0) {
 		/*
 		 * It should only be possible to unset BOOTFAILED, but it might
 		 * be useful for test purposes to also be able to set it.
 		 */
-		bootfailed = 1;
+		attr |= GPT_ENT_ATTR_BOOTFAILED;
 	}
-	if (!bootme && !bootonce && !bootfailed)
+	if (attr == 0)
 		return (EINVAL);
 
-	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
-		if (iter->gpe_deleted)
-			continue;
-		if (iter != baseentry)
-			continue;
-		changed = 0;
-		entry = (struct g_part_gpt_entry *)iter;
-		if (set) {
-			if (bootme &&
-			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)) {
-				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTME;
-				changed = 1;
-			}
-			if (bootonce &&
-			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE)) {
-				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTONCE;
-				changed = 1;
-			}
-			if (bootfailed &&
-			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTFAILED)) {
-				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTFAILED;
-				changed = 1;
-			}
-		} else {
-			if (bootme &&
-			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)) {
-				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTME;
-				changed = 1;
-			}
-			if (bootonce &&
-			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE)) {
-				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTONCE;
-				changed = 1;
-			}
-			if (bootfailed &&
-			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTFAILED)) {
-				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTFAILED;
-				changed = 1;
-			}
-		}
-		if (changed && !iter->gpe_created)
-			iter->gpe_modified = 1;
+	if (set)
+		attr = entry->ent.ent_attr | attr;
+	else
+		attr = entry->ent.ent_attr & ~attr;
+	if (attr != entry->ent.ent_attr) {
+		entry->ent.ent_attr = attr;
+		if (!baseentry->gpe_created)
+			baseentry->gpe_modified = 1;
 	}
 	return (0);
 }
@@ -922,6 +1034,10 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	table = (struct g_part_gpt_table *)basetable;
 	tblsz = (table->hdr->hdr_entries * table->hdr->hdr_entsz +
 	    pp->sectorsize - 1) / pp->sectorsize;
+
+	/* Reconstruct the MBR from the GPT if under Boot Camp. */
+	if (table->bootcamp)
+		gpt_update_bootcamp(basetable);
 
 	/* Write the PMBR */
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);

@@ -31,11 +31,11 @@ __FBSDID("$FreeBSD$");
 #if !defined(KLD_MODULE)
 #include "opt_ipdn.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
 #endif /* KLD_MODULE */
-#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -154,7 +154,7 @@ again:
 		/* next_hop may be set by ipfw_chk */
 		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
-#ifndef IPFIREWALL_FORWARD
+#if !defined(IPFIREWALL_FORWARD) || (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
@@ -205,7 +205,7 @@ again:
 #endif
 		m_tag_prepend(*m0, fwd_tag);
 	    }
-#endif
+#endif /* IPFIREWALL_FORWARD */
 		break;
 
 	case IP_FW_DENY:

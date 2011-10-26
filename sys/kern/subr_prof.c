@@ -223,8 +223,8 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-		MCOUNT_OVERHEAD(profil);
-	mcount_overhead = KCOUNT(p, PC_TO_I(p, profil));
+		MCOUNT_OVERHEAD(sys_profil);
+	mcount_overhead = KCOUNT(p, PC_TO_I(p, sys_profil));
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
@@ -404,7 +404,7 @@ struct profil_args {
 #endif
 /* ARGSUSED */
 int
-profil(struct thread *td, struct profil_args *uap)
+sys_profil(struct thread *td, struct profil_args *uap)
 {
 	struct uprof *upp;
 	struct proc *p;

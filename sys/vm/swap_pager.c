@@ -2057,7 +2057,7 @@ struct swapon_args {
  */
 /* ARGSUSED */
 int
-swapon(struct thread *td, struct swapon_args *uap)
+sys_swapon(struct thread *td, struct swapon_args *uap)
 {
 	struct vattr attr;
 	struct vnode *vp;
@@ -2199,7 +2199,7 @@ struct swapoff_args {
  */
 /* ARGSUSED */
 int
-swapoff(struct thread *td, struct swapoff_args *uap)
+sys_swapoff(struct thread *td, struct swapoff_args *uap)
 {
 	struct vnode *vp;
 	struct nameidata nd;

@@ -35,15 +35,16 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
     Abstract(false), IsStandardLayout(true), HasNoNonEmptyBases(true),
     HasPrivateFields(false), HasProtectedFields(false), HasPublicFields(false),
     HasMutableFields(false), HasTrivialDefaultConstructor(true),
-    HasConstExprNonCopyMoveConstructor(false), HasTrivialCopyConstructor(true),
+    HasConstexprNonCopyMoveConstructor(false), HasTrivialCopyConstructor(true),
     HasTrivialMoveConstructor(true), HasTrivialCopyAssignment(true),
     HasTrivialMoveAssignment(true), HasTrivialDestructor(true),
     HasNonLiteralTypeFieldsOrBases(false), ComputedVisibleConversions(false),
     UserProvidedDefaultConstructor(false), DeclaredDefaultConstructor(false),
     DeclaredCopyConstructor(false), DeclaredMoveConstructor(false),
     DeclaredCopyAssignment(false), DeclaredMoveAssignment(false),
-    DeclaredDestructor(false), NumBases(0), NumVBases(0), Bases(), VBases(),
-    Definition(D), FirstFriend(0) {
+    DeclaredDestructor(false), FailedImplicitMoveConstructor(false),
+    FailedImplicitMoveAssignment(false), NumBases(0), NumVBases(0), Bases(),
+    VBases(), Definition(D), FirstFriend(0) {
 }
 
 CXXRecordDecl::CXXRecordDecl(Kind K, TagKind TK, DeclContext *DC,
@@ -89,7 +90,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
   llvm::SmallPtrSet<CanQualType, 8> SeenVBaseTypes;
   
   // The virtual bases of this class.
-  llvm::SmallVector<const CXXBaseSpecifier *, 8> VBases;
+  SmallVector<const CXXBaseSpecifier *, 8> VBases;
 
   data().Bases = new(C) CXXBaseSpecifier [NumBases];
   data().NumBases = NumBases;
@@ -287,7 +288,7 @@ bool CXXRecordDecl::isTriviallyCopyable() const {
 /// (if there is one).
 static CXXMethodDecl *
 GetBestOverloadCandidateSimple(
-  const llvm::SmallVectorImpl<std::pair<CXXMethodDecl *, Qualifiers> > &Cands) {
+  const SmallVectorImpl<std::pair<CXXMethodDecl *, Qualifiers> > &Cands) {
   if (Cands.empty())
     return 0;
   if (Cands.size() == 1)
@@ -313,7 +314,7 @@ CXXConstructorDecl *CXXRecordDecl::getCopyConstructor(unsigned TypeQuals) const{
     = Context.DeclarationNames.getCXXConstructorName(
                                           Context.getCanonicalType(ClassType));
   unsigned FoundTQs;
-  llvm::SmallVector<std::pair<CXXMethodDecl *, Qualifiers>, 4> Found;
+  SmallVector<std::pair<CXXMethodDecl *, Qualifiers>, 4> Found;
   DeclContext::lookup_const_iterator Con, ConEnd;
   for (llvm::tie(Con, ConEnd) = this->lookup(ConstructorName);
        Con != ConEnd; ++Con) {
@@ -349,7 +350,7 @@ CXXMethodDecl *CXXRecordDecl::getCopyAssignmentOperator(bool ArgIsConst) const {
   QualType Class = Context.getTypeDeclType(const_cast<CXXRecordDecl *>(this));
   DeclarationName Name = Context.DeclarationNames.getCXXOperatorName(OO_Equal);
   
-  llvm::SmallVector<std::pair<CXXMethodDecl *, Qualifiers>, 4> Found;
+  SmallVector<std::pair<CXXMethodDecl *, Qualifiers>, 4> Found;
   DeclContext::lookup_const_iterator Op, OpEnd;
   for (llvm::tie(Op, OpEnd) = this->lookup(Name); Op != OpEnd; ++Op) {
     // C++ [class.copy]p9:
@@ -502,18 +503,18 @@ NotASpecialMember:;
     // Note that we have a user-declared constructor.
     data().UserDeclaredConstructor = true;
 
-    // FIXME: Under C++0x, /only/ special member functions may be user-provided.
-    //        This is probably a defect.
-    bool UserProvided = false;
+    // Technically, "user-provided" is only defined for special member
+    // functions, but the intent of the standard is clearly that it should apply
+    // to all functions.
+    bool UserProvided = Constructor->isUserProvided();
 
     // C++0x [class.ctor]p5:
     //   A default constructor is trivial if it is not user-provided [...]
     if (Constructor->isDefaultConstructor()) {
       data().DeclaredDefaultConstructor = true;
-      if (Constructor->isUserProvided()) {
+      if (UserProvided) {
         data().HasTrivialDefaultConstructor = false;
         data().UserProvidedDefaultConstructor = true;
-        UserProvided = true;
       }
     }
 
@@ -527,10 +528,8 @@ NotASpecialMember:;
         // C++0x [class.copy]p13:
         //   A copy/move constructor for class X is trivial if it is not
         //   user-provided [...]
-        if (Constructor->isUserProvided()) {
+        if (UserProvided)
           data().HasTrivialCopyConstructor = false;
-          UserProvided = true;
-        }
       } else if (Constructor->isMoveConstructor()) {
         data().UserDeclaredMoveConstructor = true;
         data().DeclaredMoveConstructor = true;
@@ -538,17 +537,14 @@ NotASpecialMember:;
         // C++0x [class.copy]p13:
         //   A copy/move constructor for class X is trivial if it is not
         //   user-provided [...]
-        if (Constructor->isUserProvided()) {
+        if (UserProvided)
           data().HasTrivialMoveConstructor = false;
-          UserProvided = true;
-        }
       }
     }
-    if (Constructor->isConstExpr() &&
-        !Constructor->isCopyOrMoveConstructor()) {
-      // Record if we see any constexpr constructors which are niether copy
+    if (Constructor->isConstexpr() && !Constructor->isCopyOrMoveConstructor()) {
+      // Record if we see any constexpr constructors which are neither copy
       // nor move constructors.
-      data().HasConstExprNonCopyMoveConstructor = true;
+      data().HasConstexprNonCopyMoveConstructor = true;
     }
 
     // C++ [dcl.init.aggr]p1:
@@ -657,6 +653,13 @@ NotASpecialMember:;
   
   // Handle non-static data members.
   if (FieldDecl *Field = dyn_cast<FieldDecl>(D)) {
+    // C++ [class.bit]p2:
+    //   A declaration for a bit-field that omits the identifier declares an 
+    //   unnamed bit-field. Unnamed bit-fields are not members and cannot be 
+    //   initialized.
+    if (Field->isUnnamedBitfield())
+      return;
+    
     // C++ [dcl.init.aggr]p1:
     //   An aggregate is an array or a class (clause 9) with [...] no
     //   private or protected non-static data members (clause 11).
@@ -675,7 +678,7 @@ NotASpecialMember:;
     case AS_private:    data().HasPrivateFields = true;   break;
     case AS_protected:  data().HasProtectedFields = true; break;
     case AS_public:     data().HasPublicFields = true;    break;
-    case AS_none:       assert(0 && "Invalid access specifier");
+    case AS_none:       llvm_unreachable("Invalid access specifier");
     };
     if ((data().HasPrivateFields + data().HasProtectedFields +
          data().HasPublicFields) > 1)
@@ -716,7 +719,11 @@ NotASpecialMember:;
     }
 
     // Record if this field is the first non-literal field or base.
-    if (!hasNonLiteralTypeFieldsOrBases() && !T->isLiteralType())
+    // As a slight variation on the standard, we regard mutable members as being
+    // non-literal, since mutating a constexpr variable would break C++11
+    // constant expression semantics.
+    if ((!hasNonLiteralTypeFieldsOrBases() && !T->isLiteralType()) ||
+        Field->isMutable())
       data().HasNonLiteralTypeFieldsOrBases = true;
 
     if (Field->hasInClassInitializer()) {
@@ -827,15 +834,11 @@ NotASpecialMember:;
 
     // If this is not a zero-length bit-field, then the class is not empty.
     if (data().Empty) {
-      if (!Field->getBitWidth())
+      if (!Field->isBitField() ||
+          (!Field->getBitWidth()->isTypeDependent() &&
+           !Field->getBitWidth()->isValueDependent() &&
+           Field->getBitWidthValue(Context) != 0))
         data().Empty = false;
-      else if (!Field->getBitWidth()->isTypeDependent() &&
-               !Field->getBitWidth()->isValueDependent()) {
-        llvm::APSInt Bits;
-        if (Field->getBitWidth()->isIntegerConstantExpr(Bits, Context))
-          if (!!Bits)
-            data().Empty = false;
-      } 
     }
   }
   
@@ -1057,7 +1060,7 @@ CXXRecordDecl::setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
     return;
   }
   
-  assert(false && "Not a class template or member class specialization");
+  llvm_unreachable("Not a class template or member class specialization");
 }
 
 CXXDestructorDecl *CXXRecordDecl::getDestructor() const {
@@ -1160,9 +1163,10 @@ CXXMethodDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                       const DeclarationNameInfo &NameInfo,
                       QualType T, TypeSourceInfo *TInfo,
                       bool isStatic, StorageClass SCAsWritten, bool isInline,
-                      SourceLocation EndLocation) {
+                      bool isConstexpr, SourceLocation EndLocation) {
   return new (C) CXXMethodDecl(CXXMethod, RD, StartLoc, NameInfo, T, TInfo,
-                               isStatic, SCAsWritten, isInline, EndLocation);
+                               isStatic, SCAsWritten, isInline, isConstexpr,
+                               EndLocation);
 }
 
 bool CXXMethodDecl::isUsualDeallocationFunction() const {
@@ -1402,7 +1406,7 @@ SourceRange CXXCtorInitializer::getSourceRange() const {
 CXXConstructorDecl *
 CXXConstructorDecl::Create(ASTContext &C, EmptyShell Empty) {
   return new (C) CXXConstructorDecl(0, SourceLocation(), DeclarationNameInfo(),
-                                    QualType(), 0, false, false, false);
+                                    QualType(), 0, false, false, false, false);
 }
 
 CXXConstructorDecl *
@@ -1410,14 +1414,14 @@ CXXConstructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                            SourceLocation StartLoc,
                            const DeclarationNameInfo &NameInfo,
                            QualType T, TypeSourceInfo *TInfo,
-                           bool isExplicit,
-                           bool isInline,
-                           bool isImplicitlyDeclared) {
+                           bool isExplicit, bool isInline,
+                           bool isImplicitlyDeclared, bool isConstexpr) {
   assert(NameInfo.getName().getNameKind()
          == DeclarationName::CXXConstructorName &&
          "Name must refer to a constructor");
   return new (C) CXXConstructorDecl(RD, StartLoc, NameInfo, T, TInfo,
-                                    isExplicit, isInline, isImplicitlyDeclared);
+                                    isExplicit, isInline, isImplicitlyDeclared,
+                                    isConstexpr);
 }
 
 bool CXXConstructorDecl::isDefaultConstructor() const {
@@ -1545,8 +1549,7 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           SourceLocation StartLoc,
                           const DeclarationNameInfo &NameInfo,
                           QualType T, TypeSourceInfo *TInfo,
-                          bool isInline,
-                          bool isImplicitlyDeclared) {
+                          bool isInline, bool isImplicitlyDeclared) {
   assert(NameInfo.getName().getNameKind()
          == DeclarationName::CXXDestructorName &&
          "Name must refer to a destructor");
@@ -1557,7 +1560,7 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
 CXXConversionDecl *
 CXXConversionDecl::Create(ASTContext &C, EmptyShell Empty) {
   return new (C) CXXConversionDecl(0, SourceLocation(), DeclarationNameInfo(),
-                                   QualType(), 0, false, false,
+                                   QualType(), 0, false, false, false,
                                    SourceLocation());
 }
 
@@ -1567,12 +1570,13 @@ CXXConversionDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           const DeclarationNameInfo &NameInfo,
                           QualType T, TypeSourceInfo *TInfo,
                           bool isInline, bool isExplicit,
-                          SourceLocation EndLocation) {
+                          bool isConstexpr, SourceLocation EndLocation) {
   assert(NameInfo.getName().getNameKind()
          == DeclarationName::CXXConversionFunctionName &&
          "Name must refer to a conversion function");
   return new (C) CXXConversionDecl(RD, StartLoc, NameInfo, T, TInfo,
-                                   isInline, isExplicit, EndLocation);
+                                   isInline, isExplicit, isConstexpr,
+                                   EndLocation);
 }
 
 LinkageSpecDecl *LinkageSpecDecl::Create(ASTContext &C,
@@ -1696,8 +1700,7 @@ static const char *getAccessName(AccessSpecifier AS) {
   switch (AS) {
     default:
     case AS_none:
-      assert("Invalid access specifier!");
-      return 0;
+      llvm_unreachable("Invalid access specifier!");
     case AS_public:
       return "public";
     case AS_private:

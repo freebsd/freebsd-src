@@ -424,8 +424,16 @@ s/\$//g
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
 		if (!flag("NOPROTO") && !flag("NODEF")) {
-			printf("%s\t%s(struct thread *, struct %s *)",
-			    rettype, funcname, argalias) > sysdcl
+			if (funcname == "nosys" || funcname == "lkmnosys" ||
+			    funcname == "sysarch" || funcname ~ /^freebsd/ || 
+			    funcname ~ /^linux/ || funcname ~ /^svr4/ || 
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {				
+				printf("%s\t%s(struct thread *, struct %s *)",
+				    rettype, funcname, argalias) > sysdcl
+			} else {
+				printf("%s\tsys_%s(struct thread *, struct %s *)",
+				    rettype, funcname, argalias) > sysdcl
+			} 
 			printf(";\n") > sysdcl
 			printf("#define\t%sAUE_%s\t%s\n", syscallprefix,
 			    funcalias, auditev) > sysaue
@@ -436,8 +444,16 @@ s/\$//g
 			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT") > sysent
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
-			printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
-			column = column + length(funcname) + length(auditev) + length(flags) + 3
+			if (funcname == "nosys" || funcname == "sysarch" || 
+			    funcname == "lkmnosys" || funcname ~ /^freebsd/ ||
+			    funcname ~ /^linux/ || funcname ~ /^svr4/ ||
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {
+				printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
+				column = column + length(funcname) + length(auditev) + length(flags) + 3 
+			} else {
+				printf("sys_%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
+				column = column + length(funcname) + length(auditev) + length(flags) + 3 + 4
+			} 
 		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent

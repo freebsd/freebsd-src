@@ -150,7 +150,7 @@ at91_ssc_attach(device_t dev)
 	WR4(sc, SSC_TFMR,
 	    0x1f | SSC_TFMR_DATDEF | SSC_TFMR_MSFBF | SSC_TFMR_FSOS_NEG_PULSE);
 
-out:;
+out:
 	if (err)
 		at91_ssc_deactivate(dev);
 	return (err);

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	gssapi_krb5
-LDFLAGS= -Wl,-Bsymbolic
+LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LDADD=	-lgssapi -lkrb5 -lhx509 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
 DPADD=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBCRYPT}

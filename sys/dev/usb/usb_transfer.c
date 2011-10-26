@@ -2417,8 +2417,9 @@ usbd_transfer_start_cb(void *arg)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
-	/* start the transfer */
-	(ep->methods->start) (xfer);
+	/* start USB transfer, if no error */
+	if (xfer->error == 0)
+		(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -2597,8 +2598,9 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
-	/* start USB transfer */
-	(ep->methods->start) (xfer);
+	/* start USB transfer, if no error */
+	if (xfer->error == 0)
+		(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 

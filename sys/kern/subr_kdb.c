@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdb.h"
 #include "opt_stack.h"
-#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -42,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
-#ifdef SW_WATCHDOG
-#include <sys/watchdog.h>
-#endif
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>
@@ -94,25 +90,30 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, NULL,
     0, kdb_sysctl_current, "A", "currently selected KDB backend");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, enter,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_panic, "I", "set to panic the kernel");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap, "I", "set to cause a page fault via data access");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger, CTLTYPE_INT | CTLFLAG_RW |
-    CTLFLAG_TUN, &kdb_break_to_debugger, 0, "Enable break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_break_to_debugger, 0, "Enable break to debugger");
 TUNABLE_INT("debug.kdb.break_to_debugger", &kdb_break_to_debugger);
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger, CTLTYPE_INT |
-    CTLFLAG_RW | CTLFLAG_TUN, &kdb_alt_break_to_debugger, 0,
-    "Enable alternative break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_alt_break_to_debugger, 0, "Enable alternative break to debugger");
 TUNABLE_INT("debug.kdb.alt_break_to_debugger", &kdb_alt_break_to_debugger);
 
 /*
@@ -591,9 +592,6 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	cpuset_t other_cpus;
 #endif
 	struct kdb_dbbe *be;
-#ifdef SW_WATCHDOG
-	u_int wdoglvt;
-#endif
 	register_t intr;
 	int handled;
 
@@ -607,10 +605,6 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	intr = intr_disable();
 
-#ifdef SW_WATCHDOG
-	wdoglvt = wdog_kern_last_timeout();
-	wdog_kern_pat(WD_TO_NEVER);
-#endif
 #ifdef SMP
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
@@ -641,9 +635,6 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 #ifdef SMP
 	restart_cpus(stopped_cpus);
-#endif
-#ifdef SW_WATCHDOG
-	wdog_kern_pat(wdoglvt);
 #endif
 
 	intr_restore(intr);

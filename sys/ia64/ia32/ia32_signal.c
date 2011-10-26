@@ -117,14 +117,14 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 freebsd4_freebsd32_sigreturn(struct thread *td, struct freebsd4_freebsd32_sigreturn_args *uap)
 {
-	return (sigreturn(td, (struct sigreturn_args *)uap));
+	return (sys_sigreturn(td, (struct sigreturn_args *)uap));
 }
 #endif
 
 int
 freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 {
-	return (sigreturn(td, (struct sigreturn_args *)uap));
+	return (sys_sigreturn(td, (struct sigreturn_args *)uap));
 }
 
 

@@ -172,7 +172,7 @@ SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
  */
 /* ARGSUSED */
 int
-reboot(struct thread *td, struct reboot_args *uap)
+sys_reboot(struct thread *td, struct reboot_args *uap)
 {
 	int error;
 
@@ -204,7 +204,7 @@ shutdown_nice(int howto)
 	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
 		PROC_LOCK(initproc);
-		psignal(initproc, SIGINT);
+		kern_psignal(initproc, SIGINT);
 		PROC_UNLOCK(initproc);
 	} else {
 		/* No init(8) running, so simply reboot */
@@ -327,7 +327,7 @@ kern_reboot(int howto)
 #ifdef SW_WATCHDOG
 		wdog_kern_pat(WD_LASTVAL);
 #endif
-		sync(curthread, NULL);
+		sys_sync(curthread, NULL);
 
 		/*
 		 * With soft updates, some buffers that are
@@ -355,7 +355,7 @@ kern_reboot(int howto)
 #ifdef SW_WATCHDOG
 			wdog_kern_pat(WD_LASTVAL);
 #endif
-			sync(curthread, NULL);
+			sys_sync(curthread, NULL);
 
 #ifdef PREEMPTION
 			/*

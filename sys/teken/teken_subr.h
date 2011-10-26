@@ -325,7 +325,7 @@ teken_subr_cursor_position(teken_t *t, unsigned int row, unsigned int col)
 {
 
 	t->t_cursor.tp_row = t->t_originreg.ts_begin + row - 1;
-	if (row >= t->t_originreg.ts_end)
+	if (t->t_cursor.tp_row >= t->t_originreg.ts_end)
 		t->t_cursor.tp_row = t->t_originreg.ts_end - 1;
 
 	t->t_cursor.tp_col = col - 1;
@@ -595,20 +595,7 @@ static void
 teken_subr_horizontal_tab(teken_t *t)
 {
 
-	if (t->t_stateflags & TS_CONS25) {
-		teken_subr_cursor_forward_tabulation(t, 1);
-	} else {
-		teken_rect_t tr;
-
-		tr.tr_begin = t->t_cursor;
-		teken_subr_cursor_forward_tabulation(t, 1);
-		tr.tr_end.tp_row = tr.tr_begin.tp_row + 1;
-		tr.tr_end.tp_col = t->t_cursor.tp_col;
-
-		/* Blank region that we skipped. */
-		if (tr.tr_end.tp_col > tr.tr_begin.tp_col)
-			teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
-	}
+	teken_subr_cursor_forward_tabulation(t, 1);
 }
 
 static void
