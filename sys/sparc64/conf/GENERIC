@@ -62,8 +62,8 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
-options		KDB			# Kernel debugger related code
-options		KDB_TRACE		# Print a stack trace for a panic
+options 	KDB			# Kernel debugger related code
+options 	KDB_TRACE		# Print a stack trace for a panic
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
