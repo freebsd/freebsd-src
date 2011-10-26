@@ -68,6 +68,18 @@ wlan0: [00:1b:b1:58:f6:f0] discard duplicate frame, seqno <0,0> fragno <0,0> tid
 Things that need doing!
 -----------------------
 
+* TDMA: need to fix this:
+
+  ath0: ath_tx_update_baw: comp bf=0xc0856768, seq=3744; slot bf=0xc08571cc, seqno=3744
+
+  This is because a buffer is cloned when its currently marked busy and thus
+  the ath_buf pointer won't match what's already in the BAW tracking window.
+  It's harmless at the moment, but if it pops up whilst users are actively
+  doing traffic, we know why.
+
+  The solution is to also update the BAW pointer when a retry'ed buffer
+  is cloned.
+
 * When off-channel, aggregate traffic should stay queued, but raw
   frames (eg probes) should be sent?
 
