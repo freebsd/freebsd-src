@@ -434,11 +434,13 @@ struct ath_softc {
 	 */
 	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
 	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+#if 0
 	uint32_t		sc_in_reset;	/* currently reset/chan change */
 	uint32_t		sc_in_rxtasklet;	/* currently in rx tasklet */
 	uint32_t		sc_in_rxproc;	/* currently in ath_rx_proc */
 	uint32_t		sc_in_txsend;	/* currently in ath_start / ath_raw_xmit */
 	uint32_t		sc_in_txproc;	/* currently in ath_tx_proc */
+#endif
 
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
