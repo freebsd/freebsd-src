@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2011
+.Dd October 23, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2567,6 +2567,22 @@ For example
 .Bd -literal
 static_arp_pairs="gw"
 static_arp_gw="192.168.1.1 00:01:02:03:04:05"
+.Ed
+.It Va static_ndp_pairs
+.Pq Vt str
+Set to the list of static NDP pairs that are to be added at system
+boot time.
+For each whitespace separated
+.Ar element
+in the value, a
+.Va static_ndp_ Ns Aq Ar element
+variable is assumed to exist whose contents will later be passed to a
+.Dq Nm ndp Cm -s
+operation.
+For example
+.Bd -literal
+static_ndp_pairs="gw"
+static_ndp_gw="2001:db8:3::1 00:01:02:03:04:05"
 .Ed
 .It Va static_routes
 .Pq Vt str
