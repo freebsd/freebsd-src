@@ -1363,11 +1363,11 @@ bge_stop_fw(struct bge_softc *sc)
 
 	if (sc->bge_asf_mode) {
 		bge_writemem_ind(sc, BGE_SRAM_FW_CMD_MB, BGE_FW_PAUSE);
-		CSR_WRITE_4(sc, BGE_CPU_EVENT,
-		    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
+		CSR_WRITE_4(sc, BGE_RX_CPU_EVENT,
+		    CSR_READ_4(sc, BGE_RX_CPU_EVENT) | (1 << 14));
 
 		for (i = 0; i < 100; i++ ) {
-			if (!(CSR_READ_4(sc, BGE_CPU_EVENT) & (1 << 14)))
+			if (!(CSR_READ_4(sc, BGE_RX_CPU_EVENT) & (1 << 14)))
 				break;
 			DELAY(10);
 		}
@@ -4104,8 +4104,8 @@ bge_asf_driver_up(struct bge_softc *sc)
 			    BGE_FW_DRV_ALIVE);
 			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_LEN_MB, 4);
 			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_DATA_MB, 3);
-			CSR_WRITE_4(sc, BGE_CPU_EVENT,
-			    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
+			CSR_WRITE_4(sc, BGE_RX_CPU_EVENT,
+			    CSR_READ_4(sc, BGE_RX_CPU_EVENT) | (1 << 14));
 		}
 	}
 }
