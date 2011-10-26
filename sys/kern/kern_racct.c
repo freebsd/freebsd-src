@@ -567,6 +567,12 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 	PROC_LOCK(child);
 	mtx_lock(&racct_lock);
 
+#ifdef RCTL
+	error = rctl_proc_fork(parent, child);
+	if (error != 0)
+		goto out;
+#endif
+
 	/*
 	 * Inherit resource usage.
 	 */
@@ -580,12 +586,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 		if (error != 0)
 			goto out;
 	}
-
-#ifdef RCTL
-	error = rctl_proc_fork(parent, child);
-	if (error != 0)
-		goto out;
-#endif
 
 	error = racct_add_locked(child, RACCT_NPROC, 1);
 	error += racct_add_locked(child, RACCT_NTHR, 1);

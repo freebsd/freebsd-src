@@ -209,7 +209,8 @@ typedef struct {
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
 			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
-			halHasLongRxDescTsf		: 1;
+			halHasLongRxDescTsf		: 1,
+			halHasBBReadWar			: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -472,6 +473,8 @@ isBigEndian(void)
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) | (_f))
 #define	OS_REG_CLR_BIT(_a, _r, _f) \
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) &~ (_f))
+#define OS_REG_IS_BIT_SET(_a, _r, _f) \
+	    ((OS_REG_READ(_a, _r) & (_f)) != 0)
 
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \

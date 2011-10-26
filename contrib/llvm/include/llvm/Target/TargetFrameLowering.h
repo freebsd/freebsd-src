@@ -114,6 +114,10 @@ public:
   virtual void emitEpilogue(MachineFunction &MF,
                             MachineBasicBlock &MBB) const = 0;
 
+  /// Adjust the prologue to have the function use segmented stacks. This works
+  /// by adding a check even before the "normal" function prologue.
+  virtual void adjustForSegmentedStacks(MachineFunction &MF) const { }
+
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
   /// saved registers and returns true if it isn't possible / profitable to do
   /// so by issuing a series of store instructions via
@@ -161,11 +165,6 @@ public:
     return hasReservedCallFrame(MF) || hasFP(MF);
   }
 
-  /// getInitialFrameState - Returns a list of machine moves that are assumed
-  /// on entry to all functions.  Note that LabelID is ignored (assumed to be
-  /// the beginning of the function.)
-  virtual void getInitialFrameState(std::vector<MachineMove> &Moves) const;
-
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.
   virtual int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
@@ -190,14 +189,6 @@ public:
   /// replaced with direct constants.  This method is optional.
   ///
   virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
-  }
-
-  /// getCompactUnwindEncoding - Get the compact unwind encoding for the
-  /// function. Return 0 if the compact unwind isn't available.
-  virtual uint32_t getCompactUnwindEncoding(ArrayRef<MCCFIInstruction> Instrs,
-                                            int DataAlignmentFactor,
-                                            bool IsEH) const {
-    return 0;
   }
 };
 

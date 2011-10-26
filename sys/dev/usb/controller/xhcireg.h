@@ -133,7 +133,7 @@
 #define	XHCI_PS_WOE		0x08000000	/* RW - wake on over-current enable */
 #define	XHCI_PS_DR		0x40000000	/* RO - device removable */
 #define	XHCI_PS_WPR		0x80000000U	/* RW - warm port reset */
-#define	XHCI_PS_CLEAR		0x80FF00F7U	/* command bits */
+#define	XHCI_PS_CLEAR		0x80FF01FFU	/* command bits */
 
 #define	XHCI_PORTPMSC(n)	(0x3F4 + (0x10 * (n)))	/* XHCI status and control */
 #define	XHCI_PM3_U1TO_GET(x)	(((x) >> 0) & 0xFF)	/* RW - U1 timeout */

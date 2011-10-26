@@ -236,6 +236,9 @@ ffs_parse_opts(const char *option, fsinfo_t *fsopts)
 			goto leave_ffs_parse_opts;
 		}
 		rv = 1;
+	} else if (strcmp(var, "label") == 0) {
+		strlcpy(ffs_opts->label, val, sizeof(ffs_opts->label));
+		rv = 1;
 	} else
 		rv = set_option(ffs_options, var, val);
 

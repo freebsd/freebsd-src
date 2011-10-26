@@ -14,7 +14,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
-LogDiagnosticPrinter::LogDiagnosticPrinter(llvm::raw_ostream &os,
+LogDiagnosticPrinter::LogDiagnosticPrinter(raw_ostream &os,
                                            const DiagnosticOptions &diags,
                                            bool _OwnsOutputStream)
   : OS(os), LangOpts(0), DiagOpts(&diags),
@@ -26,15 +26,30 @@ LogDiagnosticPrinter::~LogDiagnosticPrinter() {
     delete &OS;
 }
 
-static llvm::StringRef getLevelName(Diagnostic::Level Level) {
+static StringRef getLevelName(DiagnosticsEngine::Level Level) {
   switch (Level) {
   default:
     return "<unknown>";
-  case Diagnostic::Ignored: return "ignored";
-  case Diagnostic::Note:    return "note";
-  case Diagnostic::Warning: return "warning";
-  case Diagnostic::Error:   return "error";
-  case Diagnostic::Fatal:   return "fatal error";
+  case DiagnosticsEngine::Ignored: return "ignored";
+  case DiagnosticsEngine::Note:    return "note";
+  case DiagnosticsEngine::Warning: return "warning";
+  case DiagnosticsEngine::Error:   return "error";
+  case DiagnosticsEngine::Fatal:   return "fatal error";
+  }
+}
+
+// Escape XML characters inside the raw string.
+static void emitString(llvm::raw_svector_ostream &OS, const StringRef Raw) {
+  for (StringRef::iterator I = Raw.begin(), E = Raw.end(); I != E; ++I) {
+    char c = *I;
+    switch (c) {
+    default:   OS << c; break;
+    case '&':  OS << "&amp;"; break;
+    case '<':  OS << "&lt;"; break;
+    case '>':  OS << "&gt;"; break;
+    case '\'': OS << "&apos;"; break;
+    case '\"': OS << "&quot;"; break;
+    }
   }
 }
 
@@ -42,9 +57,9 @@ void LogDiagnosticPrinter::EndSourceFile() {
   // We emit all the diagnostics in EndSourceFile. However, we don't emit any
   // entry if no diagnostics were present.
   //
-  // Note that DiagnosticClient has no "end-of-compilation" callback, so we will
-  // miss any diagnostics which are emitted after and outside the translation
-  // unit processing.
+  // Note that DiagnosticConsumer has no "end-of-compilation" callback, so we
+  // will miss any diagnostics which are emitted after and outside the
+  // translation unit processing.
   if (Entries.empty())
     return;
 
@@ -55,11 +70,15 @@ void LogDiagnosticPrinter::EndSourceFile() {
   OS << "<dict>\n";
   if (!MainFilename.empty()) {
     OS << "  <key>main-file</key>\n"
-       << "  <string>" << MainFilename << "</string>\n";
+       << "  <string>";
+    emitString(OS, MainFilename);
+    OS << "</string>\n";
   }
   if (!DwarfDebugFlags.empty()) {
     OS << "  <key>dwarf-debug-flags</key>\n"
-       << "  <string>" << DwarfDebugFlags << "</string>\n";
+       << "  <string>";
+    emitString(OS, DwarfDebugFlags);
+    OS << "</string>\n";
   }
   OS << "  <key>diagnostics</key>\n";
   OS << "  <array>\n";
@@ -68,10 +87,14 @@ void LogDiagnosticPrinter::EndSourceFile() {
 
     OS << "    <dict>\n";
     OS << "      <key>level</key>\n"
-       << "      <string>" << getLevelName(DE.DiagnosticLevel) << "</string>\n";
+       << "      <string>";
+    emitString(OS, getLevelName(DE.DiagnosticLevel));
+    OS << "</string>\n";
     if (!DE.Filename.empty()) {
       OS << "      <key>filename</key>\n"
-         << "      <string>" << DE.Filename << "</string>\n";
+         << "      <string>";
+      emitString(OS, DE.Filename);
+      OS << "</string>\n";
     }
     if (DE.Line != 0) {
       OS << "      <key>line</key>\n"
@@ -83,7 +106,9 @@ void LogDiagnosticPrinter::EndSourceFile() {
     }
     if (!DE.Message.empty()) {
       OS << "      <key>message</key>\n"
-         << "      <string>" << DE.Message << "</string>\n";
+         << "      <string>";
+      emitString(OS, DE.Message);
+      OS << "</string>\n";
     }
     OS << "    </dict>\n";
   }
@@ -93,10 +118,10 @@ void LogDiagnosticPrinter::EndSourceFile() {
   this->OS << OS.str();
 }
 
-void LogDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
-                                            const DiagnosticInfo &Info) {
+void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
+                                            const Diagnostic &Info) {
   // Default implementation (Warnings/errors count).
-  DiagnosticClient::HandleDiagnostic(Level, Info);
+  DiagnosticConsumer::HandleDiagnostic(Level, Info);
 
   // Initialize the main file name, if we haven't already fetched it.
   if (MainFilename.empty() && Info.hasSourceManager()) {
@@ -144,3 +169,9 @@ void LogDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   // Record the diagnostic entry.
   Entries.push_back(DE);
 }
+
+DiagnosticConsumer *
+LogDiagnosticPrinter::clone(DiagnosticsEngine &Diags) const {
+  return new LogDiagnosticPrinter(OS, *DiagOpts, /*OwnsOutputStream=*/false);
+}
+

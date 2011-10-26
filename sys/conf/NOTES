@@ -1862,10 +1862,8 @@ device  	bmtphy		# Broadcom BCM5201/BCM5202 and 3Com 3c905C
 device  	brgphy		# Broadcom BCM54xx/57xx 1000baseTX
 device  	ciphy		# Cicada/Vitesse CS/VSC8xxx
 device  	e1000phy	# Marvell 88E1000 1000/100/10-BT
-device  	exphy		# 3Com internal PHY
 device  	gentbi		# Generic 10-bit 1000BASE-{LX,SX} fiber ifaces
 device  	icsphy		# ICS ICS1889-1893
-device  	inphy		# Intel 82553/82555
 device  	ip1000phy	# IC Plus IP1000A/IP1001
 device  	jmphy		# JMicron JMP211/JMP202
 device  	lxtphy		# Level One LXT-970
@@ -1879,7 +1877,6 @@ device  	rdcphy		# RDC Semiconductor R6040
 device  	rgephy		# RealTek 8169S/8110S/8211B/8211C
 device  	rlphy		# RealTek 8139
 device  	rlswitch	# RealTek 8305
-device  	ruephy		# RealTek RTL8150
 device  	smcphy		# SMSC LAN91C111
 device  	tdkphy		# TDK 89Q2120
 device  	tlphy		# Texas Instruments ThunderLAN

@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mac.h>
@@ -414,8 +414,8 @@ main(int argc, char *argv[])
 		fts_options |= FTS_WHITEOUT;
 #endif
 
-	/* If -l or -s, figure out block size. */
-	if (f_longform || f_size) {
+	/* If -i, -l or -s, figure out block size. */
+	if (f_inode || f_longform || f_size) {
 		if (f_kblocks)
 			blocksize = 2;
 		else {
@@ -835,7 +835,7 @@ label_out:
 	d.maxlen = maxlen;
 	if (needstats) {
 		d.btotal = btotal;
-		d.s_block = snprintf(NULL, 0, "%lu", maxblock);
+		d.s_block = snprintf(NULL, 0, "%lu", howmany(maxblock, blocksize));
 		d.s_flags = maxflags;
 		d.s_label = maxlabelstr;
 		d.s_group = maxgroup;

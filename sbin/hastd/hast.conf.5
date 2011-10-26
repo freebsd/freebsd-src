@@ -64,17 +64,20 @@ compression <algorithm>
 timeout <seconds>
 exec <path>
 metaflush "on" | "off"
+pidfile <path>
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 resource <name> {
@@ -146,6 +149,14 @@ unix:///var/run/hastctl
 .Pp
 The default value is
 .Pa uds:///var/run/hastctl .
+.It Ic pidfile Aq path
+.Pp
+File in which to store the process ID of the main
+.Xr hastd 8
+process.
+.Pp
+The default value is
+.Pa /var/run/hastd.pid .
 .It Ic listen Aq addr
 .Pp
 Address to listen on in form of:

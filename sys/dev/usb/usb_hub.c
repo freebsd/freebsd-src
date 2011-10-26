@@ -611,6 +611,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
 		case UPS_PORT_LS_U0:
 		case UPS_PORT_LS_U1:
+		case UPS_PORT_LS_RESUME:
 			is_suspend = 0;
 			break;
 		default:

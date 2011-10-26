@@ -298,6 +298,8 @@ ar9130FillCapabilityInfo(struct ath_hal *ah)
 	 */
 	pCap->halMbssidAggrSupport = AH_FALSE;
 	pCap->hal4AddrAggrSupport = AH_TRUE;
+	/* BB Read WAR */
+	pCap->halHasBBReadWar = AH_TRUE;
 
 	return AH_TRUE;
 }

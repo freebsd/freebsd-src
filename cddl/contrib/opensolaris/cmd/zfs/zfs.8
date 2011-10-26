@@ -76,6 +76,11 @@ zfs \- configures ZFS file systems
 
 .LP
 .nf
+\fBzfs\fR \fBrename\fR \fB-u\fR [\fB-p\fR] \fIfilesystem\fR \fIfilesystem\fR
+.fi
+
+.LP
+.nf
 \fBzfs\fR \fBlist\fR [\fB-r\fR|\fB-d\fR \fIdepth\fR][\fB-H\fR][\fB-o\fR \fIproperty\fR[,...]] [\fB-t\fR \fItype\fR[,...]]
      [\fB-s\fR \fIproperty\fR] ... [\fB-S\fR \fIproperty\fR] ... [\fIfilesystem\fR|\fIvolume\fR|\fIsnapshot\fR] ...
 .fi
@@ -1479,6 +1484,10 @@ The snapshot that was cloned, and any snapshots previous to this snapshot, are n
 .na
 \fB\fBzfs rename\fR [\fB-p\fR] \fIfilesystem\fR|\fIvolume\fR \fIfilesystem\fR|\fIvolume\fR\fR
 .ad
+.br
+.na
+\fB\fBzfs rename\fR \fB-u\fR [\fB-p\fR] \fIfilesystem\fR \fIfilesystem\fR\fR
+.ad
 .sp .6
 .RS 4n
 Renames the given dataset. The new target can be located anywhere in the \fBZFS\fR hierarchy, with the exception of snapshots. Snapshots can only be renamed within the parent file system or volume. When renaming a snapshot, the parent file system of the snapshot does not need to be specified as part of the second argument. Renamed file systems can inherit new mount points, in which case they are unmounted and remounted at the new mount point.
@@ -1491,6 +1500,17 @@ Renames the given dataset. The new target can be located anywhere in the \fBZFS\
 .sp .6
 .RS 4n
 Creates all the nonexistent parent datasets. Datasets created in this manner are automatically mounted according to the \fBmountpoint\fR property inherited from their parent.
+.RE
+
+.sp
+.ne 2
+.mk
+.na
+\fB\fB-u\fR\fR
+.ad
+.sp .6
+.RS 4n
+Do not remount file systems during rename. If a file system's \fBmountpoint\fR property is set to \fBlegacy\fR or \fBnone\fR, file system is not unmounted even if this option is not given.
 .RE
 
 .RE

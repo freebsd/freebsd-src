@@ -2828,7 +2828,6 @@ bge_attach(device_t dev)
 	switch (sc->bge_asicrev) {
 	case BGE_ASICREV_BCM5717:
 	case BGE_ASICREV_BCM5719:
-		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 	case BGE_ASICREV_BCM57765:
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
@@ -2863,8 +2862,6 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
-			sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
@@ -2918,15 +2915,26 @@ bge_attach(device_t dev)
 		sc->bge_mi_mode |= BGE_MIMODE_AUTOPOLL;
 
 	/*
-	 * All controllers that are not 5755 or higher have 4GB
-	 * boundary DMA bug.
+	 * All Broadcom controllers have 4GB boundary DMA bug.
 	 * Whenever an address crosses a multiple of the 4GB boundary
 	 * (including 4GB, 8Gb, 12Gb, etc.) and makes the transition
 	 * from 0xX_FFFF_FFFF to 0x(X+1)_0000_0000 an internal DMA
 	 * state machine will lockup and cause the device to hang.
 	 */
-	if (BGE_IS_5755_PLUS(sc) == 0)
-		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
+	sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
+
+	/* BCM5755 or higher and BCM5906 have short DMA bug. */
+	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
+
+	/*
+	 * BCM5719 cannot handle DMA requests for DMA segments that
+	 * have larger than 4KB in size.  However the maximum DMA
+	 * segment size created in DMA tag is 4KB for TSO, so we
+	 * wouldn't encounter the issue here.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
+		sc->bge_flags |= BGE_FLAG_4K_RDMA_BUG;
 
 	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
@@ -2985,9 +2993,9 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
-  	/*
+	/*
 	 * Check if this is a PCI-X or PCI Express device.
-  	 */
+	 */
 	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
@@ -3446,7 +3454,8 @@ bge_reset(struct bge_softc *sc)
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
 	 */
-	if (BGE_IS_5705_PLUS(sc))
+	if (BGE_IS_5705_PLUS(sc) &&
+	    (sc->bge_flags & BGE_FLAG_CPMU_PRESENT) == 0)
 		reset |= BGE_MISCCFG_GPHY_PD_OVERRIDE;
 
 	/* Issue global reset */
@@ -3995,7 +4004,7 @@ bge_intr_task(void *arg, int pending)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
-	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bge_start_locked(ifp);
 	}
 	BGE_UNLOCK(sc);
@@ -4112,7 +4121,7 @@ bge_tick(void *xsc)
 	/* Synchronize with possible callout reset/stop. */
 	if (callout_pending(&sc->bge_stat_ch) ||
 	    !callout_active(&sc->bge_stat_ch))
-	    	return;
+		return;
 
 	if (BGE_IS_5705_PLUS(sc))
 		bge_stats_update_regs(sc);
@@ -5036,7 +5045,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				break;
 			}
 		} else if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL; 
+			error = EINVAL;
 			break;
 		}
 		BGE_LOCK(sc);
@@ -5797,8 +5806,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 {
 	struct bge_softc *sc;
 	uint16_t *sbdata;
-	int error;
-	int result;
+	int error, result, sbsz;
 	int i, j;
 
 	result = -1;
@@ -5809,14 +5817,21 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct bge_softc *)arg1;
 
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+		    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+			sbsz = BGE_STATUS_BLK_SZ;
+		else
+			sbsz = 32;
 		sbdata = (uint16_t *)sc->bge_ldata.bge_status_block;
 		printf("Status Block:\n");
-		for (i = 0x0; i < (BGE_STATUS_BLK_SZ / 4); ) {
+		BGE_LOCK(sc);
+		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+		    sc->bge_cdata.bge_status_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		for (i = 0x0; i < sbsz / sizeof(uint16_t); ) {
 			printf("%06x:", i);
-			for (j = 0; j < 8; j++) {
-				printf(" %04x", sbdata[i]);
-				i += 4;
-			}
+			for (j = 0; j < 8; j++)
+				printf(" %04x", sbdata[i++]);
 			printf("\n");
 		}
 
@@ -5829,8 +5844,11 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			}
 			printf("\n");
 		}
+		BGE_UNLOCK(sc);
 
 		printf("Hardware Flags:\n");
+		if (BGE_IS_5717_PLUS(sc))
+			printf(" - 5717 Plus\n");
 		if (BGE_IS_5755_PLUS(sc))
 			printf(" - 5755 Plus\n");
 		if (BGE_IS_575X_PLUS(sc))

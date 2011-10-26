@@ -284,7 +284,7 @@ ar5416Get11nRxClear(struct ath_hal *ah)
         rxclear |= HAL_RX_CLEAR_CTL_LOW;
     }
     /* extension channel */
-    if (val & AR_DIAG_RXCLEAR_CTL_LOW) {
+    if (val & AR_DIAG_RXCLEAR_EXT_LOW) {
         rxclear |= HAL_RX_CLEAR_EXT_LOW;
     }
     return rxclear;

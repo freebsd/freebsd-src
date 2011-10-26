@@ -55,13 +55,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 struct hs {
-	struct	whod *hs_wd;
+	struct	whod hs_wd;
 	int	hs_nusers;
 } *hs;
-struct	whod awhod;
-#define LEFTEARTH(h)		(now - (h) > 4*24*60*60)
-#define	ISDOWN(h)		(now - (h)->hs_wd->wd_recvtime > 11 * 60)
-#define	WHDRSIZE	(sizeof (awhod) - sizeof (awhod.wd_we))
+#define	LEFTEARTH(h)	(now - (h) > 4*24*60*60)
+#define	ISDOWN(h)	(now - (h)->hs_wd.wd_recvtime > 11 * 60)
+#define	WHDRSIZE	__offsetof(struct whod, wd_we)
 
 size_t nhosts;
 time_t now;
@@ -127,10 +126,10 @@ interval(time_t tval, const char *updown)
 	int days, hours, minutes;
 
 	if (tval < 0) {
-		(void)snprintf(resbuf, sizeof(resbuf), "   %s ??:??", updown);
+		(void)snprintf(resbuf, sizeof(resbuf), "%s      ??:??", updown);
 		return (resbuf);
 	}
-						/* round to minutes. */
+	/* Round to minutes. */
 	minutes = (tval + (60 - 1)) / 60;
 	hours = minutes / 60;
 	minutes %= 60;
@@ -138,10 +137,10 @@ interval(time_t tval, const char *updown)
 	hours %= 24;
 	if (days)
 		(void)snprintf(resbuf, sizeof(resbuf),
-		    "%s %3d+%02d:%02d", updown, days, hours, minutes);
+		    "%s %4d+%02d:%02d", updown, days, hours, minutes);
 	else
 		(void)snprintf(resbuf, sizeof(resbuf),
-		    "%s     %2d:%02d", updown, hours, minutes);
+		    "%s      %2d:%02d", updown, hours, minutes);
 	return (resbuf);
 }
 
@@ -152,7 +151,7 @@ int
 hscmp(const void *a1, const void *a2)
 {
 	return (rflg *
-	    strcmp(HS(a1)->hs_wd->wd_hostname, HS(a2)->hs_wd->wd_hostname));
+	    strcmp(HS(a1)->hs_wd.wd_hostname, HS(a2)->hs_wd.wd_hostname));
 }
 
 /* Load average comparison. */
@@ -168,7 +167,7 @@ lcmp(const void *a1, const void *a2)
 		return (-rflg);
 	else
 		return (rflg *
-		   (HS(a2)->hs_wd->wd_loadav[0] - HS(a1)->hs_wd->wd_loadav[0]));
+		   (HS(a2)->hs_wd.wd_loadav[0] - HS(a1)->hs_wd.wd_loadav[0]));
 }
 
 void
@@ -179,10 +178,9 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	struct whoent *we;
 	struct dirent *dp;
 	const char *hostname;
-	char buf[sizeof(struct whod)];
 	int fd, i, maxloadav;
 	size_t hspace;
-	u_int cc;
+	ssize_t cc;
 
 	rewinddir(dirp);
 	hsp = NULL;
@@ -195,18 +193,7 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 			warn("%s", dp->d_name);
 			continue;
 		}
-		cc = read(fd, buf, sizeof(struct whod));
-		(void)close(fd);
-		if (host != NULL) {
-			hostname = ((struct whod *)buf)->wd_hostname;
-			if (strcasecmp(hostname, host) != 0)
-				continue;
-		}
 
-		if (cc < WHDRSIZE)
-			continue;
-		if (LEFTEARTH(((struct whod *)buf)->wd_recvtime))
-			continue;
 		if (nhosts == hspace) {
 			if ((hs =
 			    realloc(hs, (hspace += 40) * sizeof(*hs))) == NULL)
@@ -214,16 +201,26 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 			hsp = hs + nhosts;
 		}
 
-		if ((hsp->hs_wd = malloc((size_t)WHDRSIZE)) == NULL)
-			err(1, NULL);
-		memmove(hsp->hs_wd, buf, (size_t)WHDRSIZE);
+		wd = &hsp->hs_wd;
+		cc = read(fd, wd, sizeof(*wd));
+		(void)close(fd);
+		if (cc < (ssize_t)WHDRSIZE)
+			continue;
 
-		for (wd = (struct whod *)buf, i = 0; i < 2; ++i)
+		if (host != NULL) {
+			hostname = wd->wd_hostname;
+			if (strcasecmp(hostname, host) != 0)
+				continue;
+		}
+		if (LEFTEARTH(wd->wd_recvtime))
+			continue;
+
+		for (i = 0; i < 2; i++)
 			if (wd->wd_loadav[i] > maxloadav)
 				maxloadav = wd->wd_loadav[i];
 
-		for (hsp->hs_nusers = 0,
-		    we = (struct whoent *)(buf + cc); --we >= wd->wd_we;)
+		for (hsp->hs_nusers = 0, we = &wd->wd_we[0];
+		    (char *)(we + 1) <= (char *)wd + cc; we++)
 			if (aflg || we->we_idle < 3600)
 				++hsp->hs_nusers;
 		++hsp;
@@ -239,25 +236,25 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
 	for (i = 0; i < (int)nhosts; i++) {
 		hsp = &hs[i];
+		wd = &hsp->hs_wd;
 		if (ISDOWN(hsp)) {
-			(void)printf("%-25.25s%s\n", hsp->hs_wd->wd_hostname,
-			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
+			(void)printf("%-25.25s%s\n", wd->wd_hostname,
+			    interval(now - hsp->hs_wd.wd_recvtime, "down"));
 			continue;
 		}
 		(void)printf(
 		    "%-25.25s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
-		    hsp->hs_wd->wd_hostname,
-		    interval((time_t)hsp->hs_wd->wd_sendtime -
-			(time_t)hsp->hs_wd->wd_boottime, "  up"),
+		    wd->wd_hostname,
+		    interval((time_t)wd->wd_sendtime -
+		        (time_t)wd->wd_boottime, "  up"),
 		    hsp->hs_nusers,
 		    hsp->hs_nusers == 1 ? ", " : "s,",
 		    maxloadav >= 1000 ? 5 : 4,
-			hsp->hs_wd->wd_loadav[0] / 100.0,
+		        wd->wd_loadav[0] / 100.0,
 		    maxloadav >= 1000 ? 5 : 4,
-		        hsp->hs_wd->wd_loadav[1] / 100.0,
+		        wd->wd_loadav[1] / 100.0,
 		    maxloadav >= 1000 ? 5 : 4,
-		        hsp->hs_wd->wd_loadav[2] / 100.0);
-		free(hsp->hs_wd);
+		        wd->wd_loadav[2] / 100.0);
 	}
 	free(hs);
 	hs = NULL;
@@ -283,11 +280,11 @@ int
 tcmp(const void *a1, const void *a2)
 {
 	return (rflg * (
-		(ISDOWN(HS(a2)) ? HS(a2)->hs_wd->wd_recvtime - now
-		    : HS(a2)->hs_wd->wd_sendtime - HS(a2)->hs_wd->wd_boottime)
+		(ISDOWN(HS(a2)) ? HS(a2)->hs_wd.wd_recvtime - now
+		    : HS(a2)->hs_wd.wd_sendtime - HS(a2)->hs_wd.wd_boottime)
 		-
-		(ISDOWN(HS(a1)) ? HS(a1)->hs_wd->wd_recvtime - now
-		    : HS(a1)->hs_wd->wd_sendtime - HS(a1)->hs_wd->wd_boottime)
+		(ISDOWN(HS(a1)) ? HS(a1)->hs_wd.wd_recvtime - now
+		    : HS(a1)->hs_wd.wd_sendtime - HS(a1)->hs_wd.wd_boottime)
 	));
 }
 

@@ -86,11 +86,8 @@ in_show_in_ifaddr(struct in_ifaddr *ia)
 #define	IA_DB_RPINTF_DPTR(f, e)	db_printf("\t  *%s = " f "\n", #e, *ia->e);
 	db_printf("\tin_ifaddr = %p\n", ia);
 	IA_DB_RPINTF_PTR("%p", ia_ifa);
-	IA_DB_RPINTF("0x%08lx", ia_net);
-	IA_DB_RPINTF("0x%08lx", ia_netmask);
 	IA_DB_RPINTF("0x%08lx", ia_subnet);
 	IA_DB_RPINTF("0x%08lx", ia_subnetmask);
-	IA_DB_RPINTF("0x%08x", ia_netbroadcast.s_addr);
 	IA_DB_RPINTF("%p", ia_hash.le_next);
 	IA_DB_RPINTF("%p", ia_hash.le_prev);
 	IA_DB_RPINTF_DPTR("%p", ia_hash.le_prev);

@@ -147,6 +147,8 @@ main(int argc, char **argv)
 	_bsdtar = bsdtar = &bsdtar_storage;
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
+	bsdtar->gid = -1;
+	bsdtar->uid = -1;
 	option_o = 0;
 
 #if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
@@ -262,13 +264,20 @@ main(int argc, char **argv)
 		case OPTION_FORMAT: /* GNU tar, others */
 			bsdtar->create_format = bsdtar->optarg;
 			break;
-		case OPTION_OPTIONS:
-			bsdtar->option_options = bsdtar->optarg;
-			break;
 		case 'f': /* SUSv2 */
 			bsdtar->filename = bsdtar->optarg;
 			if (strcmp(bsdtar->filename, "-") == 0)
 				bsdtar->filename = NULL;
+			break;
+		case OPTION_GID: /* cpio */
+			t = atoi(bsdtar->optarg);
+			if (t < 0)
+				lafe_errc(1, 0,
+				    "Argument to --gid must be positive");
+			bsdtar->gid = t;
+			break;
+		case OPTION_GNAME: /* cpio */
+			bsdtar->gname = bsdtar->optarg;
 			break;
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
@@ -397,7 +406,8 @@ main(int argc, char **argv)
 			bsdtar->option_null++;
 			break;
 		case OPTION_NUMERIC_OWNER: /* GNU tar */
-			bsdtar->option_numeric_owner++;
+			bsdtar->uname = "";
+			bsdtar->gname = "";
 			break;
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
@@ -407,6 +417,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* GNU tar */
 			bsdtar->option_dont_traverse_mounts = 1;
+			break;
+		case OPTION_OPTIONS:
+			bsdtar->option_options = bsdtar->optarg;
 			break;
 #if 0
 		/*
@@ -472,6 +485,16 @@ main(int argc, char **argv)
 			break;
 		case 'u': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case OPTION_UID: /* cpio */
+			t = atoi(bsdtar->optarg);
+			if (t < 0)
+				lafe_errc(1, 0,
+				    "Argument to --uid must be positive");
+			bsdtar->uid = t;
+			break;
+		case OPTION_UNAME: /* cpio */
+			bsdtar->uname = bsdtar->optarg;
 			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;

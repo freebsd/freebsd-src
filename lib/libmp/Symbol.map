@@ -1,6 +1,6 @@
 /*
  * $FreeBSD$
- */	
+ */
 
 FBSD_1.1 {
 	mp_gcd;
