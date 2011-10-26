@@ -819,25 +819,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	}
 #endif
 
-#ifdef PROCDESC
-	/*
-	 * If required, create a process descriptor in the parent first; we
-	 * will abandon it if something goes wrong. We don't finit() until
-	 * later.
-	 */
-	if (flags & RFPROCDESC) {
-		error = falloc(td, &fp_procdesc, procdescp, 0);
-		if (error != 0) {
-#ifdef RACCT
-			PROC_LOCK(p1);
-			racct_sub(p1, RACCT_NPROC, 1);
-			PROC_UNLOCK(p1);
-#endif
-			return (error);
-		}
-	}
-#endif
-
 	mem_charged = 0;
 	vm2 = NULL;
 	if (pages == 0)

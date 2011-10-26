@@ -204,9 +204,17 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, sa->code);
-	PTRACESTOP_SC(p, td, S_PT_SCX);
 	if (traced || (td->td_dbgflags & (TDB_EXEC | TDB_FORK)) != 0) {
 		PROC_LOCK(p);
+		/*
+		 * If tracing the execed process, trap to the debugger
+		 * so that breakpoints can be set before the program
+		 * executes.  If debugger requested tracing of syscall
+		 * returns, do it now too.
+		 */
+		if (traced && ((td->td_dbgflags & TDB_EXEC) != 0 ||
+		    (p->p_stops & S_PT_SCX) != 0))
+			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
 	}
