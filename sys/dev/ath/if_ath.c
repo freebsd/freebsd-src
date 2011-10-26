@@ -4487,7 +4487,7 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
  * This should be called in the completion function once one
  * of the buffers has been used.
  */
-void
+static void
 ath_tx_update_busy(struct ath_softc *sc)
 {
 	struct ath_buf *last;
@@ -4501,11 +4501,10 @@ ath_tx_update_busy(struct ath_softc *sc)
 	 * and is no longer referencing the previous
 	 * descriptor.
 	 */
-	ATH_TXBUF_LOCK(sc);
+	ATH_TXBUF_LOCK_ASSERT(sc);
 	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
 	if (last != NULL)
 		last->bf_flags &= ~ATH_BUF_BUSY;
-	ATH_TXBUF_UNLOCK(sc);
 }
 
 /*
@@ -4592,13 +4591,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			/* update statistics */
 			ath_tx_update_stats(sc, ts, bf);
 		}
-
-		/*
-		 * Mark the last frame on the buffer list as
-		 * not busy, as the hardware has now moved past
-		 * that "free" entry and onto the next one.
-		 */
-		ath_tx_update_busy(sc);
 
 		/*
 		 * Call the completion handler.
@@ -4754,7 +4746,14 @@ ath_tx_proc(void *arg, int npending)
 #undef	TXQACTIVE
 
 /*
- * Return a buffer to the pool.
+ * Return a buffer to the pool and update the 'busy' flag on the
+ * previous 'tail' entry.
+ *
+ * This _must_ only be called when the buffer is involved in a completed
+ * TX. The logic is that if it was part of an active TX, the previous
+ * buffer on the list is now not involved in a halted TX DMA queue, waiting
+ * for restart (eg for TDMA.)
+ *
  * The caller must free the mbuf and recycle the node reference.
  */
 void
@@ -4765,7 +4764,9 @@ ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
 	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
+
 	ATH_TXBUF_LOCK(sc);
+	ath_tx_update_busy(sc);
 	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
 }
