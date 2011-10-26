@@ -918,7 +918,7 @@ common_bktr_intr( void *arg )
 
 		if (bktr->proc != NULL) {
 			PROC_LOCK(bktr->proc);
-			kern_psignal( bktr->proc, bktr->signal);
+			psignal( bktr->proc, bktr->signal);
 			PROC_UNLOCK(bktr->proc);
 		}
 

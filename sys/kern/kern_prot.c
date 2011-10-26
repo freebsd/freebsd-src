@@ -99,7 +99,7 @@ struct getpid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getpid(struct thread *td, struct getpid_args *uap)
+getpid(struct thread *td, struct getpid_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -119,7 +119,7 @@ struct getppid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getppid(struct thread *td, struct getppid_args *uap)
+getppid(struct thread *td, struct getppid_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -138,7 +138,7 @@ struct getpgrp_args {
 };
 #endif
 int
-sys_getpgrp(struct thread *td, struct getpgrp_args *uap)
+getpgrp(struct thread *td, struct getpgrp_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -155,7 +155,7 @@ struct getpgid_args {
 };
 #endif
 int
-sys_getpgid(struct thread *td, struct getpgid_args *uap)
+getpgid(struct thread *td, struct getpgid_args *uap)
 {
 	struct proc *p;
 	int error;
@@ -187,7 +187,7 @@ struct getsid_args {
 };
 #endif
 int
-sys_getsid(struct thread *td, struct getsid_args *uap)
+getsid(struct thread *td, struct getsid_args *uap)
 {
 	struct proc *p;
 	int error;
@@ -217,7 +217,7 @@ struct getuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getuid(struct thread *td, struct getuid_args *uap)
+getuid(struct thread *td, struct getuid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_ruid;
@@ -234,7 +234,7 @@ struct geteuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_geteuid(struct thread *td, struct geteuid_args *uap)
+geteuid(struct thread *td, struct geteuid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_uid;
@@ -248,7 +248,7 @@ struct getgid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getgid(struct thread *td, struct getgid_args *uap)
+getgid(struct thread *td, struct getgid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_rgid;
@@ -270,7 +270,7 @@ struct getegid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getegid(struct thread *td, struct getegid_args *uap)
+getegid(struct thread *td, struct getegid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_groups[0];
@@ -284,7 +284,7 @@ struct getgroups_args {
 };
 #endif
 int
-sys_getgroups(struct thread *td, register struct getgroups_args *uap)
+getgroups(struct thread *td, register struct getgroups_args *uap)
 {
 	gid_t *groups;
 	u_int ngrp;
@@ -334,7 +334,7 @@ struct setsid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setsid(register struct thread *td, struct setsid_args *uap)
+setsid(register struct thread *td, struct setsid_args *uap)
 {
 	struct pgrp *pgrp;
 	int error;
@@ -392,7 +392,7 @@ struct setpgid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setpgid(struct thread *td, register struct setpgid_args *uap)
+setpgid(struct thread *td, register struct setpgid_args *uap)
 {
 	struct proc *curp = td->td_proc;
 	register struct proc *targp;	/* target process */
@@ -492,7 +492,7 @@ struct setuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setuid(struct thread *td, struct setuid_args *uap)
+setuid(struct thread *td, struct setuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -606,7 +606,7 @@ struct seteuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_seteuid(struct thread *td, struct seteuid_args *uap)
+seteuid(struct thread *td, struct seteuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -662,7 +662,7 @@ struct setgid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setgid(struct thread *td, struct setgid_args *uap)
+setgid(struct thread *td, struct setgid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -760,7 +760,7 @@ struct setegid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setegid(struct thread *td, struct setegid_args *uap)
+setegid(struct thread *td, struct setegid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -807,7 +807,7 @@ struct setgroups_args {
 #endif
 /* ARGSUSED */
 int
-sys_setgroups(struct thread *td, struct setgroups_args *uap)
+setgroups(struct thread *td, struct setgroups_args *uap)
 {
 	gid_t *groups = NULL;
 	int error;
@@ -880,7 +880,7 @@ struct setreuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setreuid(register struct thread *td, struct setreuid_args *uap)
+setreuid(register struct thread *td, struct setreuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -950,7 +950,7 @@ struct setregid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setregid(register struct thread *td, struct setregid_args *uap)
+setregid(register struct thread *td, struct setregid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -1015,7 +1015,7 @@ struct setresuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setresuid(register struct thread *td, struct setresuid_args *uap)
+setresuid(register struct thread *td, struct setresuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -1097,7 +1097,7 @@ struct setresgid_args {
 #endif
 /* ARGSUSED */
 int
-sys_setresgid(register struct thread *td, struct setresgid_args *uap)
+setresgid(register struct thread *td, struct setresgid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -1164,7 +1164,7 @@ struct getresuid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getresuid(register struct thread *td, struct getresuid_args *uap)
+getresuid(register struct thread *td, struct getresuid_args *uap)
 {
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
@@ -1191,7 +1191,7 @@ struct getresgid_args {
 #endif
 /* ARGSUSED */
 int
-sys_getresgid(register struct thread *td, struct getresgid_args *uap)
+getresgid(register struct thread *td, struct getresgid_args *uap)
 {
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
@@ -1216,7 +1216,7 @@ struct issetugid_args {
 #endif
 /* ARGSUSED */
 int
-sys_issetugid(register struct thread *td, struct issetugid_args *uap)
+issetugid(register struct thread *td, struct issetugid_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -1235,7 +1235,7 @@ sys_issetugid(register struct thread *td, struct issetugid_args *uap)
 }
 
 int
-sys___setugid(struct thread *td, struct __setugid_args *uap)
+__setugid(struct thread *td, struct __setugid_args *uap)
 {
 #ifdef REGRESSION
 	struct proc *p;
@@ -2071,7 +2071,7 @@ struct getlogin_args {
 #endif
 /* ARGSUSED */
 int
-sys_getlogin(struct thread *td, struct getlogin_args *uap)
+getlogin(struct thread *td, struct getlogin_args *uap)
 {
 	int error;
 	char login[MAXLOGNAME];
@@ -2098,7 +2098,7 @@ struct setlogin_args {
 #endif
 /* ARGSUSED */
 int
-sys_setlogin(struct thread *td, struct setlogin_args *uap)
+setlogin(struct thread *td, struct setlogin_args *uap)
 {
 	struct proc *p = td->td_proc;
 	int error;

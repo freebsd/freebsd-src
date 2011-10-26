@@ -31,10 +31,6 @@
 
 #include <sys/_types.h>
 
-#ifndef	__fenv_static
-#define	__fenv_static	static
-#endif
-
 typedef	__uint64_t	fenv_t;
 typedef	__uint64_t	fexcept_t;
 
@@ -74,7 +70,7 @@ extern const fenv_t	__fe_dfl_env;
 #define	__ldxfsr(__r)	__asm __volatile("ldx %0, %%fsr" : : "m" (__r))
 #define	__stxfsr(__r)	__asm __volatile("stx %%fsr, %0" : "=m" (*(__r)))
 
-__fenv_static __inline int
+static __inline int
 feclearexcept(int __excepts)
 {
 	fexcept_t __r;
@@ -85,7 +81,7 @@ feclearexcept(int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __r;
@@ -95,7 +91,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __r;
@@ -112,7 +108,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
  * inline this function on sparc64 even when the arguments are not
  * compile-time constants.  Perhaps this depends on the register window.
  */
-__fenv_static inline int
+static __inline int
 feraiseexcept(int __excepts)
 {
 	volatile double d;
@@ -147,7 +143,7 @@ feraiseexcept(int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fetestexcept(int __excepts)
 {
 	fexcept_t __r;
@@ -156,7 +152,7 @@ fetestexcept(int __excepts)
 	return (__r & __excepts);
 }
 
-__fenv_static inline int
+static __inline int
 fegetround(void)
 {
 	fenv_t __r;
@@ -165,7 +161,7 @@ fegetround(void)
 	return ((__r >> _ROUND_SHIFT) & _ROUND_MASK);
 }
 
-__fenv_static inline int
+static __inline int
 fesetround(int __round)
 {
 	fenv_t __r;
@@ -179,7 +175,7 @@ fesetround(int __round)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fegetenv(fenv_t *__envp)
 {
 
@@ -187,7 +183,7 @@ fegetenv(fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 feholdexcept(fenv_t *__envp)
 {
 	fenv_t __r;
@@ -199,7 +195,7 @@ feholdexcept(fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fesetenv(const fenv_t *__envp)
 {
 
@@ -207,7 +203,7 @@ fesetenv(const fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 feupdateenv(const fenv_t *__envp)
 {
 	fexcept_t __r;
@@ -220,9 +216,7 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
-static inline int
+static __inline int
 feenableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
@@ -233,7 +227,7 @@ feenableexcept(int __mask)
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+static __inline int
 fedisableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
@@ -244,7 +238,7 @@ fedisableexcept(int __mask)
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+static __inline int
 fegetexcept(void)
 {
 	fenv_t __r;

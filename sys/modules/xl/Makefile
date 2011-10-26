@@ -3,6 +3,7 @@
 .PATH: ${.CURDIR}/../../dev/xl
 
 KMOD=	if_xl
-SRCS=	bus_if.h device_if.h if_xl.c miibus_if.h miidevs.h pci_if.h xlphy.c
+SRCS=	if_xl.c device_if.h bus_if.h pci_if.h
+SRCS+=	miibus_if.h
 
 .include <bsd.kmod.mk>

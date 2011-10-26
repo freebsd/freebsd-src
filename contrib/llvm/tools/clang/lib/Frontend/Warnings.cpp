@@ -31,12 +31,12 @@
 #include <algorithm>
 using namespace clang;
 
-void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
+void clang::ProcessWarningOptions(Diagnostic &Diags,
                                   const DiagnosticOptions &Opts) {
   Diags.setSuppressSystemWarnings(true);  // Default to -Wno-system-headers
   Diags.setIgnoreAllWarnings(Opts.IgnoreWarnings);
   Diags.setShowOverloads(
-    static_cast<DiagnosticsEngine::OverloadsShown>(Opts.ShowOverloads));
+    static_cast<Diagnostic::OverloadsShown>(Opts.ShowOverloads));
   
   // Handle -ferror-limit
   if (Opts.ErrorLimit)
@@ -48,14 +48,14 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
   // extension diagnostics onto WARNING or ERROR unless the user has futz'd
   // around with them explicitly.
   if (Opts.PedanticErrors)
-    Diags.setExtensionHandlingBehavior(DiagnosticsEngine::Ext_Error);
+    Diags.setExtensionHandlingBehavior(Diagnostic::Ext_Error);
   else if (Opts.Pedantic)
-    Diags.setExtensionHandlingBehavior(DiagnosticsEngine::Ext_Warn);
+    Diags.setExtensionHandlingBehavior(Diagnostic::Ext_Warn);
   else
-    Diags.setExtensionHandlingBehavior(DiagnosticsEngine::Ext_Ignore);
+    Diags.setExtensionHandlingBehavior(Diagnostic::Ext_Ignore);
 
   for (unsigned i = 0, e = Opts.Warnings.size(); i != e; ++i) {
-    StringRef Opt = Opts.Warnings[i];
+    llvm::StringRef Opt = Opts.Warnings[i];
 
     // Check to see if this warning starts with "no-", if so, this is a negative
     // form of the option.
@@ -75,18 +75,11 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
       Diags.setSuppressSystemWarnings(!isPositive);
       continue;
     }
-    
-    // -Weverything is a special case as well.  It implicitly enables all
-    // warnings, including ones not explicitly in a warning group.
-    if (Opt == "everything") {
-      Diags.setEnableAllWarnings(true);
-      continue;
-    }
 
     // -Werror/-Wno-error is a special case, not controlled by the option table.
     // It also has the "specifier" form of -Werror=foo and -Werror-foo.
     if (Opt.startswith("error")) {
-      StringRef Specifier;
+      llvm::StringRef Specifier;
       if (Opt.size() > 5) {  // Specifier must be present.
         if ((Opt[5] != '=' && Opt[5] != '-') || Opt.size() == 6) {
           Diags.Report(diag::warn_unknown_warning_specifier)
@@ -101,18 +94,14 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
         continue;
       }
 
-      // Set the warning as error flag for this specifier.
-      if (Diags.setDiagnosticGroupWarningAsError(Specifier, isPositive)) {
-        Diags.Report(isPositive ? diag::warn_unknown_warning_option :
-                     diag::warn_unknown_negative_warning_option)
-          << ("-W" + Opt.str());
-      }
-      continue;
+      // -Werror=foo maps foo to Error, -Wno-error=foo maps it to Warning.
+      Mapping = isPositive ? diag::MAP_ERROR : diag::MAP_WARNING_NO_WERROR;
+      Opt = Specifier;
     }
 
     // -Wfatal-errors is yet another special case.
     if (Opt.startswith("fatal-errors")) {
-      StringRef Specifier;
+      llvm::StringRef Specifier;
       if (Opt.size() != 12) {
         if ((Opt[12] != '=' && Opt[12] != '-') || Opt.size() == 13) {
           Diags.Report(diag::warn_unknown_warning_specifier)
@@ -127,19 +116,15 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
         continue;
       }
 
-      // Set the error as fatal flag for this specifier.
-      if (Diags.setDiagnosticGroupErrorAsFatal(Specifier, isPositive)) {
-        Diags.Report(isPositive ? diag::warn_unknown_warning_option :
-                     diag::warn_unknown_negative_warning_option)
-          << ("-W" + Opt.str());
-      }
-      continue;
+      // -Wfatal-errors=foo maps foo to Fatal, -Wno-fatal-errors=foo
+      // maps it to Error.
+      Mapping = isPositive ? diag::MAP_FATAL : diag::MAP_ERROR_NO_WFATAL;
+      Opt = Specifier;
     }
 
-    if (Diags.setDiagnosticGroupMapping(Opt, Mapping)) {
+    if (Diags.setDiagnosticGroupMapping(Opt, Mapping))
       Diags.Report(isPositive ? diag::warn_unknown_warning_option :
                    diag::warn_unknown_negative_warning_option)
           << ("-W" + Opt.str());
-    }
   }
 }

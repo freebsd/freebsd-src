@@ -573,7 +573,7 @@ kern_yield(int prio)
  * General purpose yield system call.
  */
 int
-sys_yield(struct thread *td, struct yield_args *uap)
+yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);

@@ -668,7 +668,6 @@ void *JITResolver::JITCompilerFn(void *Stub) {
     DEBUG(dbgs() << "JIT: Lazily resolving function '" << F->getName()
           << "' In stub ptr = " << Stub << " actual ptr = "
           << ActualPtr << "\n");
-    (void)ActualPtr;
 
     Result = JR->TheJIT->getPointerToFunction(F);
   }
@@ -771,7 +770,7 @@ static unsigned GetConstantPoolSizeInBytes(MachineConstantPool *MCP,
     MachineConstantPoolEntry CPE = Constants[i];
     unsigned AlignMask = CPE.getAlignment() - 1;
     Size = (Size + AlignMask) & ~AlignMask;
-    Type *Ty = CPE.getType();
+    const Type *Ty = CPE.getType();
     Size += TD->getTypeAllocSize(Ty);
   }
   return Size;
@@ -1099,7 +1098,7 @@ void JITEmitter::emitConstantPool(MachineConstantPool *MCP) {
     DEBUG(dbgs() << "JIT:   CP" << i << " at [0x";
           dbgs().write_hex(CAddr) << "]\n");
 
-    Type *Ty = CPE.Val.ConstVal->getType();
+    const Type *Ty = CPE.Val.ConstVal->getType();
     Offset += TheJIT->getTargetData()->getTypeAllocSize(Ty);
   }
 }

@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticClients.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Support/raw_ostream.h"
@@ -23,19 +23,19 @@ namespace {
 
 /// \brief Simple path diagnostic client used for outputting as diagnostic notes
 /// the sequence of events.
-class TextPathDiagnostics : public PathDiagnosticConsumer {
+class TextPathDiagnostics : public PathDiagnosticClient {
   const std::string OutputFile;
-  DiagnosticsEngine &Diag;
+  Diagnostic &Diag;
 
 public:
-  TextPathDiagnostics(const std::string& output, DiagnosticsEngine &diag)
+  TextPathDiagnostics(const std::string& output, Diagnostic &diag)
     : OutputFile(output), Diag(diag) {}
 
-  void HandlePathDiagnosticImpl(const PathDiagnostic* D);
+  void HandlePathDiagnostic(const PathDiagnostic* D);
 
-  void FlushDiagnostics(SmallVectorImpl<std::string> *FilesMade) { }
+  void FlushDiagnostics(llvm::SmallVectorImpl<std::string> *FilesMade) { }
   
-  virtual StringRef getName() const {
+  virtual llvm::StringRef getName() const {
     return "TextPathDiagnostics";
   }
 
@@ -47,13 +47,13 @@ public:
 
 } // end anonymous namespace
 
-PathDiagnosticConsumer*
-ento::createTextPathDiagnosticConsumer(const std::string& out,
+PathDiagnosticClient*
+ento::createTextPathDiagnosticClient(const std::string& out,
                                      const Preprocessor &PP) {
   return new TextPathDiagnostics(out, PP.getDiagnostics());
 }
 
-void TextPathDiagnostics::HandlePathDiagnosticImpl(const PathDiagnostic* D) {
+void TextPathDiagnostics::HandlePathDiagnostic(const PathDiagnostic* D) {
   if (!D)
     return;
 

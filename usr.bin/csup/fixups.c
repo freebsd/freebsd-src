@@ -141,7 +141,7 @@ fixups_get(struct fixups *f)
 	fixups_lock(f);
 	while (f->size == 0 && !f->closed)
 		pthread_cond_wait(&f->cond, &f->lock);
-	if (f->closed && f->size == 0) {
+	if (f->closed) {
 		fixups_unlock(f);
 		return (NULL);
 	}

@@ -103,7 +103,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
   assert(V != 0 && "Null pointer of Value???");
   assert(Depth <= 6 && "Limit Search Depth");
   uint32_t BitWidth = DemandedMask.getBitWidth();
-  Type *VTy = V->getType();
+  const Type *VTy = V->getType();
   assert((TD || !VTy->isPointerTy()) &&
          "SimplifyDemandedBits needs to know bit widths!");
   assert((!TD || TD->getTypeSizeInBits(VTy->getScalarType()) == BitWidth) &&
@@ -325,7 +325,8 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       if ((RHSKnownOne & LHSKnownOne) == RHSKnownOne) {
         Constant *AndC = Constant::getIntegerValue(VTy,
                                                    ~RHSKnownOne & DemandedMask);
-        Instruction *And = BinaryOperator::CreateAnd(I->getOperand(0), AndC);
+        Instruction *And = 
+          BinaryOperator::CreateAnd(I->getOperand(0), AndC, "tmp");
         return InsertNewInstWith(And, *I);
       }
     }
@@ -350,12 +351,14 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
         
         Constant *AndC =
           ConstantInt::get(I->getType(), NewMask & AndRHS->getValue());
-        Instruction *NewAnd = BinaryOperator::CreateAnd(I->getOperand(0), AndC);
+        Instruction *NewAnd = 
+          BinaryOperator::CreateAnd(I->getOperand(0), AndC, "tmp");
         InsertNewInstWith(NewAnd, *I);
         
         Constant *XorC =
           ConstantInt::get(I->getType(), NewMask & XorRHS->getValue());
-        Instruction *NewXor = BinaryOperator::CreateXor(NewAnd, XorC);
+        Instruction *NewXor =
+          BinaryOperator::CreateXor(NewAnd, XorC, "tmp");
         return InsertNewInstWith(NewXor, *I);
       }
 
@@ -401,8 +404,8 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     if (!I->getOperand(0)->getType()->isIntOrIntVectorTy())
       return 0;  // vector->int or fp->int?
 
-    if (VectorType *DstVTy = dyn_cast<VectorType>(I->getType())) {
-      if (VectorType *SrcVTy =
+    if (const VectorType *DstVTy = dyn_cast<VectorType>(I->getType())) {
+      if (const VectorType *SrcVTy =
             dyn_cast<VectorType>(I->getOperand(0)->getType())) {
         if (DstVTy->getNumElements() != SrcVTy->getNumElements())
           // Don't touch a bitcast between vectors of different element counts.
@@ -823,7 +826,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
 
   UndefElts = 0;
   if (ConstantVector *CV = dyn_cast<ConstantVector>(V)) {
-    Type *EltTy = cast<VectorType>(V->getType())->getElementType();
+    const Type *EltTy = cast<VectorType>(V->getType())->getElementType();
     Constant *Undef = UndefValue::get(EltTy);
 
     std::vector<Constant*> Elts;
@@ -852,7 +855,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
     if (DemandedElts.isAllOnesValue())
       return 0;
     
-    Type *EltTy = cast<VectorType>(V->getType())->getElementType();
+    const Type *EltTy = cast<VectorType>(V->getType())->getElementType();
     Constant *Zero = Constant::getNullValue(EltTy);
     Constant *Undef = UndefValue::get(EltTy);
     std::vector<Constant*> Elts;
@@ -959,9 +962,6 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       unsigned MaskVal = Shuffle->getMaskValue(i);
       if (MaskVal == -1u) {
         UndefElts.setBit(i);
-      } else if (!DemandedElts[i]) {
-        NewUndefElts = true;
-        UndefElts.setBit(i);
       } else if (MaskVal < LHSVWidth) {
         if (UndefElts4[MaskVal]) {
           NewUndefElts = true;
@@ -992,7 +992,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
   }
   case Instruction::BitCast: {
     // Vector->vector casts only.
-    VectorType *VTy = dyn_cast<VectorType>(I->getOperand(0)->getType());
+    const VectorType *VTy = dyn_cast<VectorType>(I->getOperand(0)->getType());
     if (!VTy) break;
     unsigned InVWidth = VTy->getNumElements();
     APInt InputDemandedElts(InVWidth, 0);

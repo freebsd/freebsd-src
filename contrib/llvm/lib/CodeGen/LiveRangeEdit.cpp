@@ -319,12 +319,9 @@ void LiveRangeEdit::calculateRegClassAndHint(MachineFunction &MF,
                                              LiveIntervals &LIS,
                                              const MachineLoopInfo &Loops) {
   VirtRegAuxInfo VRAI(MF, LIS, Loops);
-  MachineRegisterInfo &MRI = MF.getRegInfo();
   for (iterator I = begin(), E = end(); I != E; ++I) {
     LiveInterval &LI = **I;
-    if (MRI.recomputeRegClass(LI.reg, MF.getTarget()))
-      DEBUG(dbgs() << "Inflated " << PrintReg(LI.reg) << " to "
-                   << MRI.getRegClass(LI.reg)->getName() << '\n');
+    VRAI.CalculateRegClass(LI.reg);
     VRAI.CalculateWeightAndHint(LI);
   }
 }

@@ -60,7 +60,7 @@ struct swapcontext_args {
 #endif
 
 int
-sys_getcontext(struct thread *td, struct getcontext_args *uap)
+getcontext(struct thread *td, struct getcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;
@@ -79,7 +79,7 @@ sys_getcontext(struct thread *td, struct getcontext_args *uap)
 }
 
 int
-sys_setcontext(struct thread *td, struct setcontext_args *uap)
+setcontext(struct thread *td, struct setcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;	
@@ -100,7 +100,7 @@ sys_setcontext(struct thread *td, struct setcontext_args *uap)
 }
 
 int
-sys_swapcontext(struct thread *td, struct swapcontext_args *uap)
+swapcontext(struct thread *td, struct swapcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;	

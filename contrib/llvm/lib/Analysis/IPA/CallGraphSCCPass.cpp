@@ -44,8 +44,8 @@ namespace {
 class CGPassManager : public ModulePass, public PMDataManager {
 public:
   static char ID;
-  explicit CGPassManager() 
-    : ModulePass(ID), PMDataManager() { }
+  explicit CGPassManager(int Depth) 
+    : ModulePass(ID), PMDataManager(Depth) { }
 
   /// run - Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the module, and if so, return true.
@@ -350,7 +350,6 @@ bool CGPassManager::RefreshCallGraph(CallGraphSCC &CurSCC,
            dbgs() << "CGSCCPASSMGR: SCC Refresh didn't change call graph.\n";
          }
         );
-  (void)MadeChange;
 
   return DevirtualizedCall;
 }
@@ -543,7 +542,7 @@ void CallGraphSCCPass::assignPassManager(PMStack &PMS,
     PMDataManager *PMD = PMS.top();
 
     // [1] Create new Call Graph Pass Manager
-    CGP = new CGPassManager();
+    CGP = new CGPassManager(PMD->getDepth() + 1);
 
     // [2] Set up new manager's top level manager
     PMTopLevelManager *TPM = PMD->getTopLevelManager();

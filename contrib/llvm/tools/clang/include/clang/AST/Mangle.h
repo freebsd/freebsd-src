@@ -39,25 +39,25 @@ namespace clang {
 /// external memory ownership.
 class MangleBuffer {
 public:
-  void setString(StringRef Ref) {
+  void setString(llvm::StringRef Ref) {
     String = Ref;
   }
 
-  SmallVectorImpl<char> &getBuffer() {
+  llvm::SmallVectorImpl<char> &getBuffer() {
     return Buffer;
   }
 
-  StringRef getString() const {
+  llvm::StringRef getString() const {
     if (!String.empty()) return String;
     return Buffer.str();
   }
 
-  operator StringRef() const {
+  operator llvm::StringRef() const {
     return getString();
   }
 
 private:
-  StringRef String;
+  llvm::StringRef String;
   llvm::SmallString<256> Buffer;
 };
 
@@ -65,21 +65,21 @@ private:
 /// calls to the C++ name mangler.
 class MangleContext {
   ASTContext &Context;
-  DiagnosticsEngine &Diags;
+  Diagnostic &Diags;
 
   llvm::DenseMap<const BlockDecl*, unsigned> GlobalBlockIds;
   llvm::DenseMap<const BlockDecl*, unsigned> LocalBlockIds;
   
 public:
   explicit MangleContext(ASTContext &Context,
-                         DiagnosticsEngine &Diags)
+                         Diagnostic &Diags)
     : Context(Context), Diags(Diags) { }
 
   virtual ~MangleContext() { }
 
   ASTContext &getASTContext() const { return Context; }
 
-  DiagnosticsEngine &getDiags() const { return Diags; }
+  Diagnostic &getDiags() const { return Diags; }
 
   virtual void startNewFunction() { LocalBlockIds.clear(); }
   
@@ -95,55 +95,55 @@ public:
   /// @{
 
   virtual bool shouldMangleDeclName(const NamedDecl *D) = 0;
-  virtual void mangleName(const NamedDecl *D, raw_ostream &)=0;
+  virtual void mangleName(const NamedDecl *D, llvm::raw_ostream &)=0;
   virtual void mangleThunk(const CXXMethodDecl *MD,
                           const ThunkInfo &Thunk,
-                          raw_ostream &) = 0;
+                          llvm::raw_ostream &) = 0;
   virtual void mangleCXXDtorThunk(const CXXDestructorDecl *DD, CXXDtorType Type,
                                   const ThisAdjustment &ThisAdjustment,
-                                  raw_ostream &) = 0;
+                                  llvm::raw_ostream &) = 0;
   virtual void mangleReferenceTemporary(const VarDecl *D,
-                                        raw_ostream &) = 0;
+                                        llvm::raw_ostream &) = 0;
   virtual void mangleCXXVTable(const CXXRecordDecl *RD,
-                               raw_ostream &) = 0;
+                               llvm::raw_ostream &) = 0;
   virtual void mangleCXXVTT(const CXXRecordDecl *RD,
-                            raw_ostream &) = 0;
+                            llvm::raw_ostream &) = 0;
   virtual void mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
                                    const CXXRecordDecl *Type,
-                                   raw_ostream &) = 0;
-  virtual void mangleCXXRTTI(QualType T, raw_ostream &) = 0;
-  virtual void mangleCXXRTTIName(QualType T, raw_ostream &) = 0;
+                                   llvm::raw_ostream &) = 0;
+  virtual void mangleCXXRTTI(QualType T, llvm::raw_ostream &) = 0;
+  virtual void mangleCXXRTTIName(QualType T, llvm::raw_ostream &) = 0;
   virtual void mangleCXXCtor(const CXXConstructorDecl *D, CXXCtorType Type,
-                             raw_ostream &) = 0;
+                             llvm::raw_ostream &) = 0;
   virtual void mangleCXXDtor(const CXXDestructorDecl *D, CXXDtorType Type,
-                             raw_ostream &) = 0;
+                             llvm::raw_ostream &) = 0;
 
   void mangleGlobalBlock(const BlockDecl *BD,
-                         raw_ostream &Out);
+                         llvm::raw_ostream &Out);
   void mangleCtorBlock(const CXXConstructorDecl *CD, CXXCtorType CT,
-                       const BlockDecl *BD, raw_ostream &Out);
+                       const BlockDecl *BD, llvm::raw_ostream &Out);
   void mangleDtorBlock(const CXXDestructorDecl *CD, CXXDtorType DT,
-                       const BlockDecl *BD, raw_ostream &Out);
+                       const BlockDecl *BD, llvm::raw_ostream &Out);
   void mangleBlock(const DeclContext *DC, const BlockDecl *BD,
-                   raw_ostream &Out);
+                   llvm::raw_ostream &Out);
   // Do the right thing.
-  void mangleBlock(const BlockDecl *BD, raw_ostream &Out);
+  void mangleBlock(const BlockDecl *BD, llvm::raw_ostream &Out);
 
   void mangleObjCMethodName(const ObjCMethodDecl *MD,
-                            raw_ostream &);
+                            llvm::raw_ostream &);
 
   // This is pretty lame.
   virtual void mangleItaniumGuardVariable(const VarDecl *D,
-                                          raw_ostream &) {
-    llvm_unreachable("Target does not support mangling guard variables");
+                                          llvm::raw_ostream &) {
+    assert(0 && "Target does not support mangling guard variables");
   }
   /// @}
 };
 
 MangleContext *createItaniumMangleContext(ASTContext &Context,
-                                          DiagnosticsEngine &Diags);
+                                          Diagnostic &Diags);
 MangleContext *createMicrosoftMangleContext(ASTContext &Context,
-                                            DiagnosticsEngine &Diags);
+                                            Diagnostic &Diags);
 
 }
 

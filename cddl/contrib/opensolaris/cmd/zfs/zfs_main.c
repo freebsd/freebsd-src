@@ -22,8 +22,6 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
  */
 
 #include <assert.h>
@@ -255,8 +253,7 @@ get_usage(zfs_help_t idx)
 		return (gettext("\trename <filesystem|volume|snapshot> "
 		    "<filesystem|volume|snapshot>\n"
 		    "\trename -p <filesystem|volume> <filesystem|volume>\n"
-		    "\trename -r <snapshot> <snapshot>\n"
-		    "\trename -u [-p] <filesystem> <filesystem>"));
+		    "\trename -r <snapshot> <snapshot>"));
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
@@ -2854,7 +2851,6 @@ zfs_do_list(int argc, char **argv)
  * zfs rename <fs | snap | vol> <fs | snap | vol>
  * zfs rename -p <fs | vol> <fs | vol>
  * zfs rename -r <snap> <snap>
- * zfs rename -u [-p] <fs> <fs>
  *
  * Renames the given dataset to another of the same type.
  *
@@ -2865,21 +2861,19 @@ static int
 zfs_do_rename(int argc, char **argv)
 {
 	zfs_handle_t *zhp;
-	renameflags_t flags = { 0 };
-	int c, ret, types;
+	int c;
+	int ret;
+	boolean_t recurse = B_FALSE;
 	boolean_t parents = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "pru")) != -1) {
+	while ((c = getopt(argc, argv, "pr")) != -1) {
 		switch (c) {
 		case 'p':
 			parents = B_TRUE;
 			break;
 		case 'r':
-			flags.recurse = B_TRUE;
-			break;
-		case 'u':
-			flags.nounmount = B_TRUE;
+			recurse = B_TRUE;
 			break;
 		case '?':
 		default:
@@ -2908,32 +2902,20 @@ zfs_do_rename(int argc, char **argv)
 		usage(B_FALSE);
 	}
 
-	if (flags.recurse && parents) {
+	if (recurse && parents) {
 		(void) fprintf(stderr, gettext("-p and -r options are mutually "
 		    "exclusive\n"));
 		usage(B_FALSE);
 	}
 
-	if (flags.recurse && strchr(argv[0], '@') == 0) {
+	if (recurse && strchr(argv[0], '@') == 0) {
 		(void) fprintf(stderr, gettext("source dataset for recursive "
 		    "rename must be a snapshot\n"));
 		usage(B_FALSE);
 	}
 
-	if (flags.nounmount && parents) {
-		(void) fprintf(stderr, gettext("-u and -r options are mutually "
-		    "exclusive\n"));
-		usage(B_FALSE);
-	}
-
-	if (flags.nounmount)
-		types = ZFS_TYPE_FILESYSTEM;
-	else if (parents)
-		types = ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME;
-	else
-		types = ZFS_TYPE_DATASET;
-
-	if ((zhp = zfs_open(g_zfs, argv[0], types)) == NULL)
+	if ((zhp = zfs_open(g_zfs, argv[0], parents ? ZFS_TYPE_FILESYSTEM |
+	    ZFS_TYPE_VOLUME : ZFS_TYPE_DATASET)) == NULL)
 		return (1);
 
 	/* If we were asked and the name looks good, try to create ancestors. */
@@ -2943,7 +2925,7 @@ zfs_do_rename(int argc, char **argv)
 		return (1);
 	}
 
-	ret = (zfs_rename(zhp, argv[1], flags) != 0);
+	ret = (zfs_rename(zhp, argv[1], recurse) != 0);
 
 	zfs_close(zhp);
 	return (ret);

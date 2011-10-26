@@ -43,7 +43,7 @@ public:
   
   unsigned ShowColors : 1;       /// Show diagnostics with ANSI color sequences.
   unsigned ShowOverloads : 1;    /// Overload candidates to show.  Values from
-                                 /// DiagnosticsEngine::OverloadsShown
+                                 /// Diagnostic::OverloadsShown
   unsigned VerifyDiagnostics: 1; /// Check that diagnostics match the expected
                                  /// diagnostics, indicated by markers in the
                                  /// input source file.
@@ -82,7 +82,7 @@ public:
     PedanticErrors = 0;
     ShowCarets = 1;
     ShowColors = 0;
-    ShowOverloads = DiagnosticsEngine::Ovl_All;
+    ShowOverloads = Diagnostic::Ovl_All;
     ShowColumn = 1;
     ShowFixits = 1;
     ShowLocation = 1;

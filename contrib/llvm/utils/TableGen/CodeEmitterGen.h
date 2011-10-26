@@ -14,7 +14,7 @@
 #ifndef CODEMITTERGEN_H
 #define CODEMITTERGEN_H
 
-#include "llvm/TableGen/TableGenBackend.h"
+#include "TableGenBackend.h"
 #include <vector>
 #include <string>
 

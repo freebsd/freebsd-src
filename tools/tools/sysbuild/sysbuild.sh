@@ -113,17 +113,6 @@ final_chroot() (
 )
 
 #######################################################################
-# -P is a pretty neat way to clean junk out from your ports dist-files:
-#
-#	mkdir /freebsd/ports/distfiles.old
-#	mv /freebsd/ports/distfiles/* /freebsd/ports/distfiles.old
-#	sh sysbuild.sh -c $yourconfig -P /freebsd/ports/distfiles.old
-#	rm -rf /freebsd/ports/distfiles.old
-#
-# Unfortunately bsd.ports.mk does not attempt to use a hard-link so
-# while this runs you need diskspace for both your old and your "new"
-# distfiles.
-#
 #######################################################################
 
 usage () {
@@ -133,7 +122,6 @@ usage () {
         echo "  -k      suppress buildkernel"
         echo "  -w      suppress buildworld"
         echo "  -p      used cached packages"
-        echo "  -P <dir> prefetch ports"
         echo "  -c      specify config file"
         ) 1>&2
         exit 2
@@ -261,13 +249,12 @@ ports_build() (
 ports_prefetch() (
 	(
 	set +x
-	ldir=$1
-	true > /${ldir}/_.prefetch
-	echo "Building /tmp/_.plist" >> /${ldir}/_.prefetch
+	true > /mnt/_.prefetch
+	echo "Building /tmp/_.plist" >> /mnt/_.prefetch
 
 	ports_recurse . $PORTS_WE_WANT
 
-	echo "Completed /tmp/_.plist" >> /${ldir}/_.prefetch
+	echo "Completed /tmp/_.plist" >> /mnt/_.prefetch
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
@@ -275,22 +262,21 @@ ports_prefetch() (
 		(
 			cd $p
 			if make checksum $PORTS_OPTS ; then
-				rm -f /${ldir}/_.prefetch.$b
-				echo "OK $p" >> /${ldir}/_.prefetch
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
 				exit 0
 			fi
 			make distclean
 			make checksum $PORTS_OPTS || true
 
 			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
-				rm -f /${ldir}/_.prefetch.$b
-				echo "OK $p" >> /${ldir}/_.prefetch
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
 			else
-				echo "BAD $p" >> /${ldir}/_.prefetch
+				echo "BAD $p" >> /mnt/_.prefetch
 			fi
-		) > /${ldir}/_.prefetch.$b 2>&1
+		) > /mnt/_.prefetch.$b 2>&1
 	done
-	echo "Done" >> /${ldir}/_.prefetch
 	) 
 )
 
@@ -298,12 +284,11 @@ ports_prefetch() (
 
 do_world=true
 do_kernel=true
-do_prefetch=false
 use_pkg=""
 c_arg=""
 
 set +e
-args=`getopt bc:hkpP:w $*`
+args=`getopt bc:hkpw $*`
 if [ $? -ne 0 ] ; then
 	usage
 fi
@@ -339,12 +324,6 @@ do
 	-p)
 		shift;
 		use_pkg="-p"
-		;;
-	-P)
-		shift;
-		do_prefetch=true
-		distfile_cache=$1
-		shift;
 		;;
 	-w)
 		shift;
@@ -386,15 +365,6 @@ fi
 
 T0=`date +%s`
 echo $T0 $T0 > /tmp/_sb_log
-
-if $do_prefetch ; then
-	rm -rf /tmp/sysbuild/ports
-	mkdir -p /tmp/sysbuild/ports
-	ln -s ${distfile_cache} /tmp/sysbuild/ports/distfiles
-	export PORTS_OPTS=CD_MOUNTPTS=/tmp/sysbuild
-	ports_prefetch /tmp 
-	exit 0
-fi
 
 log_it Unmount everything
 (
@@ -476,7 +446,7 @@ log_it copy ports config files
 (cd / ; find var/db/ports -print | cpio -dumpv /mnt > /dev/null 2>&1)
 
 log_it "Start prefetch of ports distfiles"
-ports_prefetch /mnt &
+ports_prefetch &
 
 if $do_world ; then
 	(
@@ -588,14 +558,13 @@ if [ "x$SERCONS" != "xfalse" ] ; then
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' /mnt/etc/ttys
 fi
 
-log_it move dist config files "(expect warnings)"
+log_it move config files
 (
 	cd /mnt
 	mkdir root/configfiles_dist
 	find ${CONFIGFILES} -print | cpio -dumpv root/configfiles_dist
 )
 
-log_it copy live config files
 (cd / && find ${CONFIGFILES} -print | cpio -dumpv /mnt)
 
 log_it final_root

@@ -149,6 +149,7 @@
 
 #define	MAXPAGESIZES		1		/* max supported pagesizes */
 
+#define	BLKDEV_IOSIZE		2048		/* xxx: Why is this 1/2 page? */
 #define	MAXDUMPPGS		1		/* xxx: why is this only one? */
 
 /*

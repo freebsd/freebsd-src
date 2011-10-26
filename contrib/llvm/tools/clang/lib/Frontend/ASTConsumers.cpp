@@ -31,23 +31,22 @@ using namespace clang;
 
 namespace {
   class ASTPrinter : public ASTConsumer {
-    raw_ostream &Out;
+    llvm::raw_ostream &Out;
     bool Dump;
 
   public:
-    ASTPrinter(raw_ostream* o = NULL, bool Dump = false)
+    ASTPrinter(llvm::raw_ostream* o = NULL, bool Dump = false)
       : Out(o? *o : llvm::outs()), Dump(Dump) { }
 
     virtual void HandleTranslationUnit(ASTContext &Context) {
-      PrintingPolicy Policy = Context.getPrintingPolicy();
+      PrintingPolicy Policy = Context.PrintingPolicy;
       Policy.Dump = Dump;
-      Context.getTranslationUnitDecl()->print(Out, Policy, /*Indentation=*/0,
-                                              /*PrintInstantiation=*/true);
+      Context.getTranslationUnitDecl()->print(Out, Policy);
     }
   };
 } // end anonymous namespace
 
-ASTConsumer *clang::CreateASTPrinter(raw_ostream* out) {
+ASTConsumer *clang::CreateASTPrinter(llvm::raw_ostream* out) {
   return new ASTPrinter(out);
 }
 
@@ -96,7 +95,7 @@ ASTConsumer *clang::CreateASTViewer() { return new ASTViewer(); }
 namespace {
 
 class DeclContextPrinter : public ASTConsumer {
-  raw_ostream& Out;
+  llvm::raw_ostream& Out;
 public:
   DeclContextPrinter() : Out(llvm::errs()) {}
 
@@ -118,34 +117,34 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
   case Decl::Namespace: {
     Out << "[namespace] ";
     const NamespaceDecl* ND = cast<NamespaceDecl>(DC);
-    Out << *ND;
+    Out << ND;
     break;
   }
   case Decl::Enum: {
     const EnumDecl* ED = cast<EnumDecl>(DC);
-    if (ED->isCompleteDefinition())
+    if (ED->isDefinition())
       Out << "[enum] ";
     else
       Out << "<enum> ";
-    Out << *ED;
+    Out << ED;
     break;
   }
   case Decl::Record: {
     const RecordDecl* RD = cast<RecordDecl>(DC);
-    if (RD->isCompleteDefinition())
+    if (RD->isDefinition())
       Out << "[struct] ";
     else
       Out << "<struct> ";
-    Out << *RD;
+    Out << RD;
     break;
   }
   case Decl::CXXRecord: {
     const CXXRecordDecl* RD = cast<CXXRecordDecl>(DC);
-    if (RD->isCompleteDefinition())
+    if (RD->isDefinition())
       Out << "[class] ";
     else
       Out << "<class> ";
-    Out << *RD << ' ' << DC;
+    Out << RD << ' ' << DC;
     break;
   }
   case Decl::ObjCMethod:
@@ -178,7 +177,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "[function] ";
     else
       Out << "<function> ";
-    Out << *FD;
+    Out << FD;
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
@@ -188,7 +187,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
         Out << ", ";
       else
         PrintComma = true;
-      Out << **I;
+      Out << *I;
     }
     Out << ")";
     break;
@@ -201,7 +200,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "(c++ method) ";
     else
       Out << "<c++ method> ";
-    Out << *D;
+    Out << D;
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
@@ -211,7 +210,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
         Out << ", ";
       else
         PrintComma = true;
-      Out << **I;
+      Out << *I;
     }
     Out << ")";
 
@@ -231,7 +230,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "(c++ ctor) ";
     else
       Out << "<c++ ctor> ";
-    Out << *D;
+    Out << D;
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
@@ -241,7 +240,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
         Out << ", ";
       else
         PrintComma = true;
-      Out << **I;
+      Out << *I;
     }
     Out << ")";
 
@@ -260,7 +259,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "(c++ dtor) ";
     else
       Out << "<c++ dtor> ";
-    Out << *D;
+    Out << D;
     // Check the semantic DC.
     const DeclContext* SemaDC = D->getDeclContext();
     const DeclContext* LexicalDC = D->getLexicalDeclContext();
@@ -276,7 +275,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "(c++ conversion) ";
     else
       Out << "<c++ conversion> ";
-    Out << *D;
+    Out << D;
     // Check the semantic DC.
     const DeclContext* SemaDC = D->getDeclContext();
     const DeclContext* LexicalDC = D->getLexicalDeclContext();
@@ -286,7 +285,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
   }
 
   default:
-    llvm_unreachable("a decl that inherits DeclContext isn't handled");
+    assert(0 && "a decl that inherits DeclContext isn't handled");
   }
 
   Out << "\n";
@@ -323,53 +322,53 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     }
     case Decl::IndirectField: {
       IndirectFieldDecl* IFD = cast<IndirectFieldDecl>(*I);
-      Out << "<IndirectField> " << *IFD << '\n';
+      Out << "<IndirectField> " << IFD << '\n';
       break;
     }
     case Decl::Label: {
       LabelDecl *LD = cast<LabelDecl>(*I);
-      Out << "<Label> " << *LD << '\n';
+      Out << "<Label> " << LD << '\n';
       break;
     }
     case Decl::Field: {
       FieldDecl *FD = cast<FieldDecl>(*I);
-      Out << "<field> " << *FD << '\n';
+      Out << "<field> " << FD << '\n';
       break;
     }
     case Decl::Typedef:
     case Decl::TypeAlias: {
       TypedefNameDecl* TD = cast<TypedefNameDecl>(*I);
-      Out << "<typedef> " << *TD << '\n';
+      Out << "<typedef> " << TD << '\n';
       break;
     }
     case Decl::EnumConstant: {
       EnumConstantDecl* ECD = cast<EnumConstantDecl>(*I);
-      Out << "<enum constant> " << *ECD << '\n';
+      Out << "<enum constant> " << ECD << '\n';
       break;
     }
     case Decl::Var: {
       VarDecl* VD = cast<VarDecl>(*I);
-      Out << "<var> " << *VD << '\n';
+      Out << "<var> " << VD << '\n';
       break;
     }
     case Decl::ImplicitParam: {
       ImplicitParamDecl* IPD = cast<ImplicitParamDecl>(*I);
-      Out << "<implicit parameter> " << *IPD << '\n';
+      Out << "<implicit parameter> " << IPD << '\n';
       break;
     }
     case Decl::ParmVar: {
       ParmVarDecl* PVD = cast<ParmVarDecl>(*I);
-      Out << "<parameter> " << *PVD << '\n';
+      Out << "<parameter> " << PVD << '\n';
       break;
     }
     case Decl::ObjCProperty: {
       ObjCPropertyDecl* OPD = cast<ObjCPropertyDecl>(*I);
-      Out << "<objc property> " << *OPD << '\n';
+      Out << "<objc property> " << OPD << '\n';
       break;
     }
     case Decl::FunctionTemplate: {
       FunctionTemplateDecl* FTD = cast<FunctionTemplateDecl>(*I);
-      Out << "<function template> " << *FTD << '\n';
+      Out << "<function template> " << FTD << '\n';
       break;
     }
     case Decl::FileScopeAsm: {
@@ -382,17 +381,17 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     }
     case Decl::NamespaceAlias: {
       NamespaceAliasDecl* NAD = cast<NamespaceAliasDecl>(*I);
-      Out << "<namespace alias> " << *NAD << '\n';
+      Out << "<namespace alias> " << NAD << '\n';
       break;
     }
     case Decl::ClassTemplate: {
       ClassTemplateDecl *CTD = cast<ClassTemplateDecl>(*I);
-      Out << "<class template> " << *CTD << '\n';
+      Out << "<class template> " << CTD << '\n';
       break;
     }
     default:
       Out << "DeclKind: " << DK << '"' << *I << "\"\n";
-      llvm_unreachable("decl unhandled");
+      assert(0 && "decl unhandled");
     }
   }
 }
@@ -405,10 +404,10 @@ ASTConsumer *clang::CreateDeclContextPrinter() {
 
 namespace {
 class ASTDumpXML : public ASTConsumer {
-  raw_ostream &OS;
+  llvm::raw_ostream &OS;
 
 public:
-  ASTDumpXML(raw_ostream &OS) : OS(OS) {}
+  ASTDumpXML(llvm::raw_ostream &OS) : OS(OS) {}
 
   void HandleTranslationUnit(ASTContext &C) {
     C.getTranslationUnitDecl()->dumpXML(OS);
@@ -416,6 +415,6 @@ public:
 };
 }
 
-ASTConsumer *clang::CreateASTDumperXML(raw_ostream &OS) {
+ASTConsumer *clang::CreateASTDumperXML(llvm::raw_ostream &OS) {
   return new ASTDumpXML(OS);
 }

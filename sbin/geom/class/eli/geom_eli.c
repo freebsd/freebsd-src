@@ -27,27 +27,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/mman.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
-#include <sys/resource.h>
-#include <opencrypto/cryptodev.h>
 
-#include <assert.h>
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <libgeom.h>
-#include <paths.h>
-#include <readpassphrase.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <readpassphrase.h>
 #include <string.h>
 #include <strings.h>
-#include <unistd.h>
+#include <libgeom.h>
+#include <paths.h>
+#include <errno.h>
+#include <assert.h>
 
+#include <sys/param.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <opencrypto/cryptodev.h>
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
@@ -72,7 +72,6 @@ static void eli_kill(struct gctl_req *req);
 static void eli_backup(struct gctl_req *req);
 static void eli_restore(struct gctl_req *req);
 static void eli_resize(struct gctl_req *req);
-static void eli_version(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
 
@@ -82,7 +81,7 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-V version] prov
+ * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] prov
  * label - alias for 'init'
  * attach [-dprv] [-j passfile] [-k keyfile] prov
  * detach [-fl] prov ...
@@ -97,7 +96,6 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
  * backup [-v] prov file
  * restore [-fv] file prov
  * resize [-v] -s oldsize prov
- * version [prov ...]
  * clear [-v] prov ...
  * dump [-v] prov ...
  */
@@ -107,31 +105,29 @@ struct g_command class_commands[] = {
 		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
-		{ 'e', "ealgo", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
-		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov"
+	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
-		{ 'e', "ealgo", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
-		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    "- an alias for 'init'"
@@ -245,9 +241,6 @@ struct g_command class_commands[] = {
 	    },
 	    "[-v] -s oldsize prov"
 	},
-	{ "version", G_FLAG_LOADKLD, eli_main, G_NULL_OPTS,
-	    "[prov ...]"
-	},
 	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
@@ -316,8 +309,6 @@ eli_main(struct gctl_req *req, unsigned int flags)
 		eli_restore(req);
 	else if (strcmp(name, "resize") == 0)
 		eli_resize(req);
-	else if (strcmp(name, "version") == 0)
-		eli_version(req);
 	else if (strcmp(name, "dump") == 0)
 		eli_dump(req);
 	else if (strcmp(name, "clear") == 0)
@@ -342,10 +333,11 @@ arc4rand(unsigned char *buf, size_t size)
 		buf[i] = arc4random() % 0xff;
 }
 
-static bool
+static int
 eli_is_attached(const char *prov)
 {
 	char name[MAXPATHLEN];
+	unsigned secsize;
 
 	/*
 	 * Not the best way to do it, but the easiest.
@@ -353,7 +345,10 @@ eli_is_attached(const char *prov)
 	 * by asking about its sectorsize.
 	 */
 	snprintf(name, sizeof(name), "%s%s", prov, G_ELI_SUFFIX);
-	return (g_get_sectorsize(name) > 0);
+	secsize = g_get_sectorsize(name);
+	if (secsize > 0)
+		return (1);
+	return (0);
 }
 
 static int
@@ -603,23 +598,8 @@ eli_metadata_read(struct gctl_req *req, const char *prov,
 			return (-1);
 		}
 	}
-	error = eli_metadata_decode(sector, md);
-	switch (error) {
-	case 0:
-		break;
-	case EOPNOTSUPP:
-		gctl_error(req,
-		    "Provider's %s metadata version %u is too new.\n"
-		    "geli: The highest supported version is %u.",
-		    prov, (unsigned int)md->md_version, G_ELI_VERSION);
-		return (-1);
-	case EINVAL:
-		gctl_error(req, "Inconsistent provider's %s metadata.", prov);
-		return (-1);
-	default:
-		gctl_error(req,
-		    "Unexpected error while decoding provider's %s metadata: %s.",
-		    prov, strerror(error));
+	if (eli_metadata_decode(sector, md) != 0) {
+		gctl_error(req, "MD5 hash mismatch for %s.", prov);
 		return (-1);
 	}
 	return (0);
@@ -674,7 +654,7 @@ eli_init(struct gctl_req *req)
 	unsigned char key[G_ELI_USERKEYLEN];
 	char backfile[MAXPATHLEN];
 	const char *str, *prov;
-	unsigned int secsize, version;
+	unsigned secsize;
 	off_t mediasize;
 	intmax_t val;
 	int error, nargs;
@@ -695,30 +675,13 @@ eli_init(struct gctl_req *req)
 
 	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
-	val = gctl_get_intmax(req, "mdversion");
-	if (val == -1) {
-		version = G_ELI_VERSION;
-	} else if (val < 0 || val > G_ELI_VERSION) {
-		gctl_error(req,
-		    "Invalid version specified should be between %u and %u.",
-		    G_ELI_VERSION_00, G_ELI_VERSION);
-		return;
-	} else {
-		version = val;
-	}
-	md.md_version = version;
+	md.md_version = G_ELI_VERSION;
 	md.md_flags = 0;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
 	if (*str != '\0') {
-		if (version < G_ELI_VERSION_01) {
-			gctl_error(req,
-			    "Data authentication is supported starting from version %u.",
-			    G_ELI_VERSION_01);
-			return;
-		}
 		md.md_aalgo = g_eli_str2aalgo(str);
 		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
 		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
@@ -744,30 +707,10 @@ eli_init(struct gctl_req *req)
 	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
 		str = gctl_get_ascii(req, "ealgo");
-		if (*str == '\0') {
-			if (version < G_ELI_VERSION_05)
-				str = "aes-cbc";
-			else
-				str = GELI_ENC_ALGO;
-		}
 		md.md_ealgo = g_eli_str2ealgo(str);
 		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
 			gctl_error(req, "Invalid encryption algorithm.");
-			return;
-		}
-		if (md.md_ealgo == CRYPTO_CAMELLIA_CBC &&
-		    version < G_ELI_VERSION_04) {
-			gctl_error(req,
-			    "Camellia-CBC algorithm is supported starting from version %u.",
-			    G_ELI_VERSION_04);
-			return;
-		}
-		if (md.md_ealgo == CRYPTO_AES_XTS &&
-		    version < G_ELI_VERSION_05) {
-			gctl_error(req,
-			    "AES-XTS algorithm is supported starting from version %u.",
-			    G_ELI_VERSION_05);
 			return;
 		}
 	}
@@ -1352,53 +1295,66 @@ eli_kill(struct gctl_req *req)
 static int
 eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 {
+	struct g_eli_metadata md;
 	unsigned char *sector;
 	ssize_t secsize;
-	int error, filefd, ret;
+	off_t mediasize;
+	int filefd, provfd, ret;
 
 	ret = -1;
-	filefd = -1;
+	provfd = filefd = -1;
 	sector = NULL;
 	secsize = 0;
 
-	secsize = g_get_sectorsize(prov);
-	if (secsize == 0) {
+	provfd = g_open(prov, 0);
+	if (provfd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
+		goto out;
+	}
+	filefd = open(file, O_WRONLY | O_TRUNC | O_CREAT, 0600);
+	if (filefd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
+		goto out;
+	}
+
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
 	}
+
 	sector = malloc(secsize);
 	if (sector == NULL) {
 		gctl_error(req, "Cannot allocate memory.");
 		goto out;
 	}
+
 	/* Read metadata from the provider. */
-	error = g_metadata_read(prov, sector, secsize, G_ELI_MAGIC);
-	if (error != 0) {
-		gctl_error(req, "Unable to read metadata from %s: %s.", prov,
-		    strerror(error));
+	if (pread(provfd, sector, secsize, mediasize - secsize) != secsize) {
+		gctl_error(req, "Cannot read metadata: %s.", strerror(errno));
 		goto out;
 	}
-
-	filefd = open(file, O_WRONLY | O_TRUNC | O_CREAT, 0600);
-	if (filefd == -1) {
-		gctl_error(req, "Unable to open %s: %s.", file,
-		    strerror(errno));
+	/* Check if this is geli provider. */
+	if (eli_metadata_decode(sector, &md) != 0) {
+		gctl_error(req, "MD5 hash mismatch: not a geli provider?");
 		goto out;
 	}
 	/* Write metadata to the destination file. */
 	if (write(filefd, sector, secsize) != secsize) {
-		gctl_error(req, "Unable to write to %s: %s.", file,
+		gctl_error(req, "Cannot write to %s: %s.", file,
 		    strerror(errno));
-		(void)close(filefd);
-		(void)unlink(file);
 		goto out;
 	}
 	(void)fsync(filefd);
-	(void)close(filefd);
 	/* Success. */
 	ret = 0;
 out:
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
@@ -1428,8 +1384,10 @@ eli_restore(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
 	const char *file, *prov;
+	unsigned char *sector;
+	ssize_t secsize;
 	off_t mediasize;
-	int nargs;
+	int nargs, filefd, provfd;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 2) {
@@ -1439,28 +1397,72 @@ eli_restore(struct gctl_req *req)
 	file = gctl_get_ascii(req, "arg0");
 	prov = gctl_get_ascii(req, "arg1");
 
-	/* Read metadata from the backup file. */
-	if (eli_metadata_read(req, file, &md) == -1)
-		return;
-	/* Obtain provider's mediasize. */
-	mediasize = g_get_mediasize(prov);
-	if (mediasize == 0) {
+	provfd = filefd = -1;
+	sector = NULL;
+	secsize = 0;
+
+	filefd = open(file, O_RDONLY);
+	if (filefd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
+		goto out;
+	}
+	provfd = g_open(prov, 1);
+	if (provfd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
+		goto out;
+	}
+
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
-		return;
+		goto out;
+	}
+
+	sector = malloc(secsize);
+	if (sector == NULL) {
+		gctl_error(req, "Cannot allocate memory.");
+		goto out;
+	}
+
+	/* Read metadata from the backup file. */
+	if (read(filefd, sector, secsize) != secsize) {
+		gctl_error(req, "Cannot read from %s: %s.", file,
+		    strerror(errno));
+		goto out;
+	}
+	/* Check if this file contains geli metadata. */
+	if (eli_metadata_decode(sector, &md) != 0) {
+		gctl_error(req, "MD5 hash mismatch: not a geli backup file?");
+		goto out;
 	}
 	/* Check if the provider size has changed since we did the backup. */
 	if (md.md_provsize != (uint64_t)mediasize) {
 		if (gctl_get_int(req, "force")) {
 			md.md_provsize = mediasize;
+			eli_metadata_encode(&md, sector);
 		} else {
 			gctl_error(req, "Provider size mismatch: "
 			    "wrong backup file?");
-			return;
+			goto out;
 		}
 	}
-	/* Write metadata to the provider. */
-	(void)eli_metadata_store(req, prov, &md);
+	/* Write metadata from the provider. */
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
+		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
+		goto out;
+	}
+	(void)g_flush(provfd);
+out:
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
+	if (sector != NULL) {
+		bzero(sector, secsize);
+		free(sector);
+	}
 }
 
 static void
@@ -1471,7 +1473,7 @@ eli_resize(struct gctl_req *req)
 	unsigned char *sector;
 	ssize_t secsize;
 	off_t mediasize, oldsize;
-	int error, nargs, provfd;
+	int nargs, provfd;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
@@ -1522,23 +1524,8 @@ eli_resize(struct gctl_req *req)
 	}
 
 	/* Check if this sector contains geli metadata. */
-	error = eli_metadata_decode(sector, &md);
-	switch (error) {
-	case 0:
-		break;
-	case EOPNOTSUPP:
-		gctl_error(req,
-		    "Provider's %s metadata version %u is too new.\n"
-		    "geli: The highest supported version is %u.",
-		    prov, (unsigned int)md.md_version, G_ELI_VERSION);
-		goto out;
-	case EINVAL:
-		gctl_error(req, "Inconsistent provider's %s metadata.", prov);
-		goto out;
-	default:
-		gctl_error(req,
-		    "Unexpected error while decoding provider's %s metadata: %s.",
-		    prov, strerror(error));
+	if (eli_metadata_decode(sector, &md) != 0) {
+		gctl_error(req, "MD5 hash mismatch: no metadata for oldsize.");
 		goto out;
 	}
 
@@ -1556,56 +1543,22 @@ eli_resize(struct gctl_req *req)
 	 * it back to the correct place on the provider.
 	 */
 	md.md_provsize = mediasize;
-	/* Write metadata to the provider. */
-	(void)eli_metadata_store(req, prov, &md);
+	eli_metadata_encode(&md, sector);
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
+		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
+		goto out;
+	}
+	(void)g_flush(provfd);
+
 	/* Now trash the old metadata. */
-	(void)eli_trash_metadata(req, prov, provfd, oldsize - secsize);
+	if (eli_trash_metadata(req, prov, provfd, oldsize - secsize) == -1)
+		goto out;
 out:
-	if (provfd != -1)
+	if (provfd >= 0)
 		(void)g_close(provfd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
-	}
-}
-
-static void
-eli_version(struct gctl_req *req)
-{
-	struct g_eli_metadata md;
-	const char *name;
-	unsigned int version;
-	int error, i, nargs;
-
-	nargs = gctl_get_int(req, "nargs");
-
-	if (nargs == 0) {
-		unsigned int kernver;
-		ssize_t size;
-
-		size = sizeof(kernver);
-		if (sysctlbyname("kern.geom.eli.version", &kernver, &size,
-		    NULL, 0) == -1) {
-			warn("Unable to obtain GELI kernel version");
-		} else {
-			printf("kernel: %u\n", kernver);
-		}
-		printf("userland: %u\n", G_ELI_VERSION);
-		return;
-	}
-
-	for (i = 0; i < nargs; i++) {
-		name = gctl_get_ascii(req, "arg%d", i);
-		error = g_metadata_read(name, (unsigned char *)&md,
-		    sizeof(md), G_ELI_MAGIC);
-		if (error != 0) {
-			warn("%s: Unable to read metadata: %s.", name,
-			    strerror(error));
-			gctl_error(req, "Not fully done.");
-			continue;
-		}
-		version = le32dec(&md.md_version);
-		printf("%s: %u\n", name, version);
 	}
 }
 
@@ -1638,9 +1591,9 @@ eli_clear(struct gctl_req *req)
 static void
 eli_dump(struct gctl_req *req)
 {
-	struct g_eli_metadata md;
+	struct g_eli_metadata md, tmpmd;
 	const char *name;
-	int i, nargs;
+	int error, i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 1) {
@@ -1650,7 +1603,17 @@ eli_dump(struct gctl_req *req)
 
 	for (i = 0; i < nargs; i++) {
 		name = gctl_get_ascii(req, "arg%d", i);
-		if (eli_metadata_read(NULL, name, &md) == -1) {
+		error = g_metadata_read(name, (unsigned char *)&tmpmd,
+		    sizeof(tmpmd), G_ELI_MAGIC);
+		if (error != 0) {
+			fprintf(stderr, "Cannot read metadata from %s: %s.\n",
+			    name, strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
+		if (eli_metadata_decode((unsigned char *)&tmpmd, &md) != 0) {
+			fprintf(stderr, "MD5 hash mismatch for %s, skipping.\n",
+			    name);
 			gctl_error(req, "Not fully done.");
 			continue;
 		}

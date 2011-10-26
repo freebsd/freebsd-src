@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -225,8 +224,6 @@ static int	pipe_zone_init(void *mem, int size, int flags);
 static void	pipe_zone_fini(void *mem, int size);
 
 static uma_zone_t pipe_zone;
-static struct unrhdr *pipeino_unr;
-static dev_t pipedev_ino;
 
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
 
@@ -238,10 +235,6 @@ pipeinit(void *dummy __unused)
 	    pipe_zone_ctor, NULL, pipe_zone_init, pipe_zone_fini,
 	    UMA_ALIGN_PTR, 0);
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
-	pipeino_unr = new_unrhdr(1, INT32_MAX, NULL);
-	KASSERT(pipeino_unr != NULL, ("pipe fake inodes not initialized"));
-	pipedev_ino = devfs_alloc_cdp_inode();
-	KASSERT(pipedev_ino > 0, ("pipe dev inode not initialized"));
 }
 
 static int
@@ -392,7 +385,7 @@ kern_pipe(struct thread *td, int fildes[2])
 
 /* ARGSUSED */
 int
-sys_pipe(struct thread *td, struct pipe_args *uap)
+pipe(struct thread *td, struct pipe_args *uap)
 {
 	int error;
 	int fildes[2];
@@ -568,12 +561,6 @@ pipe_create(pipe, backing)
 	} else {
 		/* If we're not backing this pipe, no need to do anything. */
 		error = 0;
-	}
-	if (error == 0) {
-		pipe->pipe_ino = alloc_unr(pipeino_unr);
-		if (pipe->pipe_ino == -1)
-			/* pipeclose will clear allocated kva */
-			error = ENOMEM;
 	}
 	return (error);
 }
@@ -1421,10 +1408,9 @@ pipe_stat(fp, ub, active_cred, td)
 	ub->st_ctim = pipe->pipe_ctime;
 	ub->st_uid = fp->f_cred->cr_uid;
 	ub->st_gid = fp->f_cred->cr_gid;
-	ub->st_dev = pipedev_ino;
-	ub->st_ino = pipe->pipe_ino;
 	/*
-	 * Left as 0: st_nlink, st_rdev, st_flags, st_gen.
+	 * Left as 0: st_dev, st_ino, st_nlink, st_rdev, st_flags, st_gen.
+	 * XXX (st_dev, st_ino) should be unique.
 	 */
 	return (0);
 }
@@ -1477,7 +1463,6 @@ pipeclose(cpipe)
 {
 	struct pipepair *pp;
 	struct pipe *ppipe;
-	ino_t ino;
 
 	KASSERT(cpipe != NULL, ("pipeclose: cpipe == NULL"));
 
@@ -1536,12 +1521,6 @@ pipeclose(cpipe)
 	knlist_destroy(&cpipe->pipe_sel.si_note);
 
 	/*
-	 * Postpone the destroy of the fake inode number allocated for
-	 * our end, until pipe mtx is unlocked.
-	 */
-	ino = cpipe->pipe_ino;
-
-	/*
 	 * If both endpoints are now closed, release the memory for the
 	 * pipe pair.  If not, unlock.
 	 */
@@ -1553,9 +1532,6 @@ pipeclose(cpipe)
 		uma_zfree(pipe_zone, cpipe->pipe_pair);
 	} else
 		PIPE_UNLOCK(cpipe);
-
-	if (ino > 0)
-		free_unr(pipeino_unr, cpipe->pipe_ino);
 }
 
 /*ARGSUSED*/

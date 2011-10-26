@@ -209,7 +209,8 @@ clang::analyze_format_string::ParseLengthModifier(FormatSpecifier &FS,
 bool ArgTypeResult::matchesType(ASTContext &C, QualType argTy) const {
   switch (K) {
     case InvalidTy:
-      llvm_unreachable("ArgTypeResult must be valid");
+      assert(false && "ArgTypeResult must be valid");
+      return true;
 
     case UnknownTy:
       return true;
@@ -311,7 +312,8 @@ bool ArgTypeResult::matchesType(ASTContext &C, QualType argTy) const {
 QualType ArgTypeResult::getRepresentativeType(ASTContext &C) const {
   switch (K) {
     case InvalidTy:
-      llvm_unreachable("No representative type for Invalid ArgTypeResult");
+      assert(false && "No representative type for Invalid ArgTypeResult");
+      // Fall-through.
     case UnknownTy:
       return QualType();
     case SpecificTy:
@@ -377,7 +379,7 @@ analyze_format_string::LengthModifier::toString() const {
 // Methods on OptionalAmount.
 //===----------------------------------------------------------------------===//
 
-void OptionalAmount::toString(raw_ostream &os) const {
+void OptionalAmount::toString(llvm::raw_ostream &os) const {
   switch (hs) {
   case Invalid:
   case NotSpecified:

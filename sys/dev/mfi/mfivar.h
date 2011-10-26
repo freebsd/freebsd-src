@@ -87,7 +87,6 @@ struct mfi_command {
 	union mfi_sgl		*cm_sg;
 	void			*cm_data;
 	int			cm_len;
-	int			cm_stp_len;
 	int			cm_total_frame_size;
 	int			cm_extra_frames;
 	int			cm_flags;

@@ -29,16 +29,16 @@ options		KDB
 options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
 options		INET6			#InterNETworking
-options		NFSCL			#Network Filesystem Client
+options		NFSCLIENT		#Network Filesystem Client
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # options		NFS_LEGACYRPC
 # Debugging for use in -current
-options		INVARIANTS
-options		INVARIANT_SUPPORT
-options		WITNESS
-options		WITNESS_SKIPSPIN
+# options		INVARIANTS
+# options		INVARIANT_SUPPORT
+# options		WITNESS
+# options		WITNESS_SKIPSPIN
 options         FFS                     #Berkeley Fast Filesystem
 options         SOFTUPDATES             #Enable FFS soft updates support
 options         UFS_ACL                 #Support for access control lists

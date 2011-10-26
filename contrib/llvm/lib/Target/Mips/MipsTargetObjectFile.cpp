@@ -79,7 +79,7 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
   if (Kind.isMergeable1ByteCString())
     return false;
 
-  Type *Ty = GV->getType()->getElementType();
+  const Type *Ty = GV->getType()->getElementType();
   return IsInSmallSection(TM.getTargetData()->getTypeAllocSize(Ty));
 }
 

@@ -379,15 +379,10 @@ gctl_error(struct gctl_req *req, const char *error, ...)
 {
 	va_list ap;
 
-	if (req != NULL && req->error != NULL)
+	if (req->error != NULL)
 		return;
 	va_start(ap, error);
-	if (req != NULL) {
-		vasprintf(&req->error, error, ap);
-	} else {
-		vfprintf(stderr, error, ap);
-		fprintf(stderr, "\n");
-	}
+	vasprintf(&req->error, error, ap);
 	va_end(ap);
 }
 

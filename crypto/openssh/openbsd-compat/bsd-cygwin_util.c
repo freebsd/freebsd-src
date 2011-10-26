@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
+ * Copyright (c) 2000, 2001, Corinna Vinschen <vinschen@cygnus.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,9 @@
 #if defined(open) && open == binary_open
 # undef open
 #endif
+#if defined(pipe) && open == binary_pipe
+# undef pipe
+#endif
 
 #include <sys/types.h>
 
@@ -54,6 +57,18 @@ binary_open(const char *filename, int flags, ...)
 	mode = va_arg(ap, mode_t);
 	va_end(ap);
 	return (open(filename, flags | O_BINARY, mode));
+}
+
+int 
+binary_pipe(int fd[2])
+{
+	int ret = pipe(fd);
+
+	if (!ret) {
+		setmode(fd[0], O_BINARY);
+		setmode(fd[1], O_BINARY);
+	}
+	return (ret);
 }
 
 int

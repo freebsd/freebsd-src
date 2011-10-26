@@ -14,10 +14,9 @@ using namespace clang;
 using namespace ento;
 
 ASTConsumer *AnalysisAction::CreateASTConsumer(CompilerInstance &CI,
-                                               StringRef InFile) {
+                                               llvm::StringRef InFile) {
   return CreateAnalysisConsumer(CI.getPreprocessor(),
                                 CI.getFrontendOpts().OutputFile,
-                                CI.getAnalyzerOpts(),
-                                CI.getFrontendOpts().Plugins);
+                                CI.getAnalyzerOpts());
 }
 

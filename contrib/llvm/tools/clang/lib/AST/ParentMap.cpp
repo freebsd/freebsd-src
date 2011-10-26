@@ -66,14 +66,6 @@ Stmt *ParentMap::getParentIgnoreParenCasts(Stmt *S) const {
   return S;  
 }
 
-Stmt *ParentMap::getParentIgnoreParenImpCasts(Stmt *S) const {
-  do {
-    S = getParent(S);
-  } while (S && isa<Expr>(S) && cast<Expr>(S)->IgnoreParenImpCasts() != S);
-
-  return S;
-}
-
 Stmt *ParentMap::getOuterParenParent(Stmt *S) const {
   Stmt *Paren = 0;
   while (isa<ParenExpr>(S)) {

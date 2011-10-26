@@ -34,7 +34,7 @@
 #ifndef __cplusplus
 extern int posix_memalign (void **, size_t, size_t);
 #else
-extern "C" int posix_memalign (void **, size_t, size_t);
+extern "C" int posix_memalign (void **, size_t, size_t) throw ();
 #endif
 
 static __inline void *

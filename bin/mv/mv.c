@@ -260,34 +260,40 @@ static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
 	struct timeval tval[2];
-	static u_int blen = MAXPHYS;
-	static char *bp = NULL;
+	static u_int blen;
+	static char *bp;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
-		warn("fastcopy: open() failed (from): %s", from);
+		warn("%s", from);
 		return (1);
 	}
-	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
-		warnx("malloc(%u) failed", blen);
-		return (1);
+	if (blen < sbp->st_blksize) {
+		if (bp != NULL)
+			free(bp);
+		if ((bp = malloc((size_t)sbp->st_blksize)) == NULL) {
+			blen = 0;
+			warnx("malloc failed");
+			return (1);
+		}
+		blen = sbp->st_blksize;
 	}
 	while ((to_fd =
 	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
 		if (errno == EEXIST && unlink(to) == 0)
 			continue;
-		warn("fastcopy: open() failed (to): %s", to);
+		warn("%s", to);
 		(void)close(from_fd);
 		return (1);
 	}
 	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
 		if (write(to_fd, bp, (size_t)nread) != nread) {
-			warn("fastcopy: write() failed: %s", to);
+			warn("%s", to);
 			goto err;
 		}
 	if (nread < 0) {
-		warn("fastcopy: read() failed: %s", from);
+		warn("%s", from);
 err:		if (unlink(to))
 			warn("%s: remove", to);
 		(void)close(from_fd);

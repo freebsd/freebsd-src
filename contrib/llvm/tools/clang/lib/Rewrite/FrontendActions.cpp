@@ -28,8 +28,8 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 ASTConsumer *HTMLPrintAction::CreateASTConsumer(CompilerInstance &CI,
-                                                StringRef InFile) {
-  if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile))
+                                                llvm::StringRef InFile) {
+  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, InFile))
     return CreateHTMLPrinter(OS, CI.getPreprocessor());
   return 0;
 }
@@ -38,7 +38,7 @@ FixItAction::FixItAction() {}
 FixItAction::~FixItAction() {}
 
 ASTConsumer *FixItAction::CreateASTConsumer(CompilerInstance &CI,
-                                            StringRef InFile) {
+                                            llvm::StringRef InFile) {
   return new ASTConsumer();
 }
 
@@ -67,7 +67,7 @@ public:
 } // end anonymous namespace
 
 bool FixItAction::BeginSourceFileAction(CompilerInstance &CI,
-                                        StringRef Filename) {
+                                        llvm::StringRef Filename) {
   const FrontendOptions &FEOpts = getCompilerInstance().getFrontendOpts();
   if (!FEOpts.FixItSuffix.empty()) {
     FixItOpts.reset(new FixItActionSuffixInserter(FEOpts.FixItSuffix,
@@ -91,8 +91,8 @@ void FixItAction::EndSourceFileAction() {
 //===----------------------------------------------------------------------===//
 
 ASTConsumer *RewriteObjCAction::CreateASTConsumer(CompilerInstance &CI,
-                                                  StringRef InFile) {
-  if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp"))
+                                                  llvm::StringRef InFile) {
+  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp"))
     return CreateObjCRewriter(InFile, OS,
                               CI.getDiagnostics(), CI.getLangOpts(),
                               CI.getDiagnosticOpts().NoRewriteMacros);
@@ -101,7 +101,7 @@ ASTConsumer *RewriteObjCAction::CreateASTConsumer(CompilerInstance &CI,
 
 void RewriteMacrosAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
-  raw_ostream *OS = CI.createDefaultOutputFile(true, getCurrentFile());
+  llvm::raw_ostream *OS = CI.createDefaultOutputFile(true, getCurrentFile());
   if (!OS) return;
 
   RewriteMacrosInInput(CI.getPreprocessor(), OS);
@@ -109,7 +109,7 @@ void RewriteMacrosAction::ExecuteAction() {
 
 void RewriteTestAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
-  raw_ostream *OS = CI.createDefaultOutputFile(false, getCurrentFile());
+  llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, getCurrentFile());
   if (!OS) return;
 
   DoRewriteTest(CI.getPreprocessor(), OS);

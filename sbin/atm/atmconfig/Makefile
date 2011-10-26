@@ -5,8 +5,6 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 PROG=	atmconfig
 .ifndef RESCUE
 SRCS=	${.OBJDIR}/oid.h
@@ -23,9 +21,6 @@ CFLAGS+= -I${.OBJDIR}
 .ifndef RESCUE
 DPADD=	${LIBBSNMP}
 LDADD=	-lbsnmp
-. if ${MK_DYNAMICROOT} == "no" && ${MK_OPENSSL} != "no"
-LDADD+= -lcrypto
-. endif
 .endif
 
 .ifndef RESCUE

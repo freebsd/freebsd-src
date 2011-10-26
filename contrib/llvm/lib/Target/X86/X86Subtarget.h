@@ -90,21 +90,6 @@ protected:
   /// HasFMA4 - Target has 4-operand fused multiply-add
   bool HasFMA4;
 
-  /// HasMOVBE - True if the processor has the MOVBE instruction.
-  bool HasMOVBE;
-
-  /// HasRDRAND - True if the processor has the RDRAND instruction.
-  bool HasRDRAND;
-
-  /// HasF16C - Processor has 16-bit floating point conversion instructions.
-  bool HasF16C;
-
-  /// HasLZCNT - Processor has LZCNT instruction.
-  bool HasLZCNT;
-
-  /// HasBMI - Processor has BMI1 instructions.
-  bool HasBMI;
-
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
 
@@ -114,10 +99,6 @@ protected:
   /// HasVectorUAMem - True if SIMD operations can have unaligned memory
   /// operands. This may require setting a feature bit in the processor.
   bool HasVectorUAMem;
-
-  /// HasCmpxchg16b - True if this processor has the CMPXCHG16B instruction;
-  /// this is true for most x86-64 chips, but not the first AMD chips.
-  bool HasCmpxchg16b;
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -133,9 +114,6 @@ protected:
 private:
   /// In64BitMode - True if compiling for 64-bit, false for 32-bit.
   bool In64BitMode;
-
-  /// InNaClMode - True if compiling for Native Client target.
-  bool InNaClMode;
 
 public:
 
@@ -187,15 +165,9 @@ public:
   bool hasCLMUL() const { return HasCLMUL; }
   bool hasFMA3() const { return HasFMA3; }
   bool hasFMA4() const { return HasFMA4; }
-  bool hasMOVBE() const { return HasMOVBE; }
-  bool hasRDRAND() const { return HasRDRAND; }
-  bool hasF16C() const { return HasF16C; }
-  bool hasLZCNT() const { return HasLZCNT; }
-  bool hasBMI() const { return HasBMI; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
   bool hasVectorUAMem() const { return HasVectorUAMem; }
-  bool hasCmpxchg16b() const { return HasCmpxchg16b; }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -213,11 +185,6 @@ public:
     return !isTargetDarwin() && !isTargetWindows() && !isTargetCygMing();
   }
   bool isTargetLinux() const { return TargetTriple.getOS() == Triple::Linux; }
-  bool isTargetNaCl() const {
-    return TargetTriple.getOS() == Triple::NativeClient;
-  }
-  bool isTargetNaCl32() const { return isTargetNaCl() && !is64Bit(); }
-  bool isTargetNaCl64() const { return isTargetNaCl() && is64Bit(); }
 
   bool isTargetWindows() const { return TargetTriple.getOS() == Triple::Win32; }
   bool isTargetMingw() const { return TargetTriple.getOS() == Triple::MinGW32; }
@@ -232,8 +199,7 @@ public:
   }
 
   bool isTargetWin64() const {
-    // FIXME: x86_64-cygwin has not been released yet.
-    return In64BitMode && (isTargetCygMing() || isTargetWindows());
+    return In64BitMode && (isTargetMingw() || isTargetWindows());
   }
 
   bool isTargetEnvMacho() const {

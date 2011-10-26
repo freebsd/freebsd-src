@@ -10,7 +10,6 @@
 #ifndef CLANG_DRIVER_ARGLIST_H_
 #define CLANG_DRIVER_ARGLIST_H_
 
-#include "clang/Basic/LLVM.h"
 #include "clang/Driver/OptSpecifier.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/SmallVector.h"
@@ -20,8 +19,12 @@
 #include <string>
 #include <vector>
 
+namespace llvm {
+  class Twine;
+}
+
 namespace clang {
-  class DiagnosticsEngine;
+  class Diagnostic;
 
 namespace driver {
   class Arg;
@@ -31,7 +34,7 @@ namespace driver {
   /// arg_iterator - Iterates through arguments stored inside an ArgList.
   class arg_iterator {
     /// The current argument.
-    SmallVectorImpl<Arg*>::const_iterator Current;
+    llvm::SmallVectorImpl<Arg*>::const_iterator Current;
 
     /// The argument list we are iterating over.
     const ArgList &Args;
@@ -55,7 +58,7 @@ namespace driver {
     typedef std::forward_iterator_tag   iterator_category;
     typedef std::ptrdiff_t              difference_type;
 
-    arg_iterator(SmallVectorImpl<Arg*>::const_iterator it,
+    arg_iterator(llvm::SmallVectorImpl<Arg*>::const_iterator it,
                  const ArgList &_Args, OptSpecifier _Id0 = 0U,
                  OptSpecifier _Id1 = 0U, OptSpecifier _Id2 = 0U)
       : Current(it), Args(_Args), Id0(_Id0), Id1(_Id1), Id2(_Id2) {
@@ -98,7 +101,7 @@ namespace driver {
     void operator=(const ArgList &); // DO NOT IMPLEMENT
 
   public:
-    typedef SmallVector<Arg*, 16> arglist_type;
+    typedef llvm::SmallVector<Arg*, 16> arglist_type;
     typedef arglist_type::iterator iterator;
     typedef arglist_type::const_iterator const_iterator;
     typedef arglist_type::reverse_iterator reverse_iterator;
@@ -150,13 +153,6 @@ namespace driver {
     }
 
     /// @}
-    /// @name Arg Removal
-    /// @{
-
-    /// eraseArg - Remove any option matching \arg Id.
-    void eraseArg(OptSpecifier Id);
-
-    /// @}
     /// @name Arg Access
     /// @{
 
@@ -199,13 +195,13 @@ namespace driver {
     /// @{
 
     /// getLastArgValue - Return the value of the last argument, or a default.
-    StringRef getLastArgValue(OptSpecifier Id,
-                                    StringRef Default = "") const;
+    llvm::StringRef getLastArgValue(OptSpecifier Id,
+                                    llvm::StringRef Default = "") const;
 
     /// getLastArgValue - Return the value of the last argument as an integer,
     /// or a default. Emits an error if the argument is given, but non-integral.
     int getLastArgIntValue(OptSpecifier Id, int Default,
-                           DiagnosticsEngine &Diags) const;
+                           Diagnostic &Diags) const;
 
     /// getAllArgValues - Get the values of all instances of the given argument
     /// as strings.
@@ -249,29 +245,25 @@ namespace driver {
     /// option id.
     void ClaimAllArgs(OptSpecifier Id0) const;
 
-    /// ClaimAllArgs - Claim all arguments.
-    ///
-    void ClaimAllArgs() const;
-
     /// @}
     /// @name Arg Synthesis
     /// @{
 
     /// MakeArgString - Construct a constant string pointer whose
     /// lifetime will match that of the ArgList.
-    virtual const char *MakeArgString(StringRef Str) const = 0;
+    virtual const char *MakeArgString(llvm::StringRef Str) const = 0;
     const char *MakeArgString(const char *Str) const {
-      return MakeArgString(StringRef(Str));
+      return MakeArgString(llvm::StringRef(Str));
     }
     const char *MakeArgString(std::string Str) const {
-      return MakeArgString(StringRef(Str));
+      return MakeArgString(llvm::StringRef(Str));
     }
-    const char *MakeArgString(const Twine &Str) const;
+    const char *MakeArgString(const llvm::Twine &Str) const;
 
     /// \brief Create an arg string for (\arg LHS + \arg RHS), reusing the
     /// string at \arg Index if possible.
-    const char *GetOrMakeJoinedArgString(unsigned Index, StringRef LHS,
-                                         StringRef RHS) const;
+    const char *GetOrMakeJoinedArgString(unsigned Index, llvm::StringRef LHS,
+                                         llvm::StringRef RHS) const;
 
     /// @}
   };
@@ -312,10 +304,10 @@ namespace driver {
 
   public:
     /// MakeIndex - Get an index for the given string(s).
-    unsigned MakeIndex(StringRef String0) const;
-    unsigned MakeIndex(StringRef String0, StringRef String1) const;
+    unsigned MakeIndex(llvm::StringRef String0) const;
+    unsigned MakeIndex(llvm::StringRef String0, llvm::StringRef String1) const;
 
-    virtual const char *MakeArgString(StringRef Str) const;
+    virtual const char *MakeArgString(llvm::StringRef Str) const;
 
     /// @}
   };
@@ -354,7 +346,7 @@ namespace driver {
       SynthesizedArgs.push_back(A);
     }
 
-    virtual const char *MakeArgString(StringRef Str) const;
+    virtual const char *MakeArgString(llvm::StringRef Str) const;
 
     /// AddFlagArg - Construct a new FlagArg for the given option \arg Id and
     /// append it to the argument list.
@@ -366,7 +358,7 @@ namespace driver {
     /// \arg Id, with the provided \arg Value and append it to the argument
     /// list.
     void AddPositionalArg(const Arg *BaseArg, const Option *Opt,
-                          StringRef Value) {
+                          llvm::StringRef Value) {
       append(MakePositionalArg(BaseArg, Opt, Value));
     }
 
@@ -375,7 +367,7 @@ namespace driver {
     /// \arg Id, with the provided \arg Value and append it to the argument
     /// list.
     void AddSeparateArg(const Arg *BaseArg, const Option *Opt,
-                        StringRef Value) {
+                        llvm::StringRef Value) {
       append(MakeSeparateArg(BaseArg, Opt, Value));
     }
 
@@ -383,7 +375,7 @@ namespace driver {
     /// AddJoinedArg - Construct a new Positional arg for the given option \arg
     /// Id, with the provided \arg Value and append it to the argument list.
     void AddJoinedArg(const Arg *BaseArg, const Option *Opt,
-                      StringRef Value) {
+                      llvm::StringRef Value) {
       append(MakeJoinedArg(BaseArg, Opt, Value));
     }
 
@@ -395,17 +387,17 @@ namespace driver {
     /// MakePositionalArg - Construct a new Positional arg for the
     /// given option \arg Id, with the provided \arg Value.
     Arg *MakePositionalArg(const Arg *BaseArg, const Option *Opt,
-                           StringRef Value) const;
+                           llvm::StringRef Value) const;
 
     /// MakeSeparateArg - Construct a new Positional arg for the
     /// given option \arg Id, with the provided \arg Value.
     Arg *MakeSeparateArg(const Arg *BaseArg, const Option *Opt,
-                         StringRef Value) const;
+                         llvm::StringRef Value) const;
 
     /// MakeJoinedArg - Construct a new Positional arg for the
     /// given option \arg Id, with the provided \arg Value.
     Arg *MakeJoinedArg(const Arg *BaseArg, const Option *Opt,
-                       StringRef Value) const;
+                       llvm::StringRef Value) const;
 
     /// @}
   };

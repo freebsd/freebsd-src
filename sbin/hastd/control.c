@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -81,8 +82,8 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
-		PJDLOG_ASSERT(cfg != NULL);
-		PJDLOG_ASSERT(name != NULL);
+		assert(cfg != NULL);
+		assert(name != NULL);
 
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
@@ -93,7 +94,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	PJDLOG_ASSERT(res != NULL);
+	assert(res != NULL);
 
 	/* Send previous role back. */
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
@@ -221,9 +222,9 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
     struct hast_resource *res, const char *name, unsigned int no)
 {
 
-	PJDLOG_ASSERT(cfg != NULL);
-	PJDLOG_ASSERT(nvout != NULL);
-	PJDLOG_ASSERT(name != NULL);
+	assert(cfg != NULL);
+	assert(nvout != NULL);
+	assert(name != NULL);
 
 	/* Name is always needed. */
 	nv_add_string(nvout, name, "resource%u", no);
@@ -238,7 +239,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	PJDLOG_ASSERT(res != NULL);
+	assert(res != NULL);
 	nv_add_string(nvout, res->hr_provname, "provname%u", no);
 	nv_add_string(nvout, res->hr_localpath, "localpath%u", no);
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr%u", no);
@@ -266,7 +267,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 
 	switch (res->hr_role) {
 	case HAST_ROLE_PRIMARY:
-		PJDLOG_ASSERT(res->hr_workerpid != 0);
+		assert(res->hr_workerpid != 0);
 		/* FALLTHROUGH */
 	case HAST_ROLE_SECONDARY:
 		if (res->hr_workerpid != 0)
@@ -469,7 +470,7 @@ ctrl_thread(void *arg)
 			 * something related to us has changes, it sends reload
 			 * message to us.
 			 */
-			PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
+			assert(res->hr_role == HAST_ROLE_PRIMARY);
 			primary_config_reload(res, nvin);
 			nv_add_int16(nvout, 0, "error");
 			break;

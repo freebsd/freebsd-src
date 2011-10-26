@@ -590,18 +590,4 @@ fail:
 	return (-1);
 }
 
-#else
-
-int
-pkcs11_init(int interactive)
-{
-	return (0);
-}
-
-void
-pkcs11_terminate(void)
-{
-	return;
-}
-
 #endif /* ENABLE_PKCS11 */

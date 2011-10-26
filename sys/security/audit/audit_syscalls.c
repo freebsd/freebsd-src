@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
  */
 /* ARGSUSED */
 int
-sys_audit(struct thread *td, struct audit_args *uap)
+audit(struct thread *td, struct audit_args *uap)
 {
 	int error;
 	void * rec;
@@ -154,7 +154,7 @@ free_out:
  */
 /* ARGSUSED */
 int
-sys_auditon(struct thread *td, struct auditon_args *uap)
+auditon(struct thread *td, struct auditon_args *uap)
 {
 	struct ucred *cred, *newcred, *oldcred;
 	int error;
@@ -560,7 +560,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
  */
 /* ARGSUSED */
 int
-sys_getauid(struct thread *td, struct getauid_args *uap)
+getauid(struct thread *td, struct getauid_args *uap)
 {
 	int error;
 
@@ -575,7 +575,7 @@ sys_getauid(struct thread *td, struct getauid_args *uap)
 
 /* ARGSUSED */
 int
-sys_setauid(struct thread *td, struct setauid_args *uap)
+setauid(struct thread *td, struct setauid_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	au_id_t id;
@@ -615,7 +615,7 @@ fail:
  */
 /* ARGSUSED */
 int
-sys_getaudit(struct thread *td, struct getaudit_args *uap)
+getaudit(struct thread *td, struct getaudit_args *uap)
 {
 	struct auditinfo ai;
 	struct ucred *cred;
@@ -640,7 +640,7 @@ sys_getaudit(struct thread *td, struct getaudit_args *uap)
 
 /* ARGSUSED */
 int
-sys_setaudit(struct thread *td, struct setaudit_args *uap)
+setaudit(struct thread *td, struct setaudit_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct auditinfo ai;
@@ -683,7 +683,7 @@ fail:
 
 /* ARGSUSED */
 int
-sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
+getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 	int error;
 
@@ -700,7 +700,7 @@ sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 
 /* ARGSUSED */
 int
-sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
+setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct auditinfo_addr aia;
@@ -743,7 +743,7 @@ fail:
  */
 /* ARGSUSED */
 int
-sys_auditctl(struct thread *td, struct auditctl_args *uap)
+auditctl(struct thread *td, struct auditctl_args *uap)
 {
 	struct nameidata nd;
 	struct ucred *cred;
@@ -813,63 +813,63 @@ sys_auditctl(struct thread *td, struct auditctl_args *uap)
 #else /* !AUDIT */
 
 int
-sys_audit(struct thread *td, struct audit_args *uap)
+audit(struct thread *td, struct audit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_auditon(struct thread *td, struct auditon_args *uap)
+auditon(struct thread *td, struct auditon_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_getauid(struct thread *td, struct getauid_args *uap)
+getauid(struct thread *td, struct getauid_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_setauid(struct thread *td, struct setauid_args *uap)
+setauid(struct thread *td, struct setauid_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_getaudit(struct thread *td, struct getaudit_args *uap)
+getaudit(struct thread *td, struct getaudit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_setaudit(struct thread *td, struct setaudit_args *uap)
+setaudit(struct thread *td, struct setaudit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
+getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
+setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-sys_auditctl(struct thread *td, struct auditctl_args *uap)
+auditctl(struct thread *td, struct auditctl_args *uap)
 {
 
 	return (ENOSYS);

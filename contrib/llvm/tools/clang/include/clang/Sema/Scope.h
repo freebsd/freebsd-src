@@ -149,14 +149,14 @@ private:
   /// maintained by the Action implementation.
   void *Entity;
 
-  typedef SmallVector<UsingDirectiveDecl *, 2> UsingDirectivesTy;
+  typedef llvm::SmallVector<UsingDirectiveDecl *, 2> UsingDirectivesTy;
   UsingDirectivesTy UsingDirectives;
 
   /// \brief Used to determine if errors occurred in this scope.
   DiagnosticErrorTrap ErrorTrap;
   
 public:
-  Scope(Scope *Parent, unsigned ScopeFlags, DiagnosticsEngine &Diag)
+  Scope(Scope *Parent, unsigned ScopeFlags, Diagnostic &Diag)
     : ErrorTrap(Diag) {
     Init(Parent, ScopeFlags);
   }

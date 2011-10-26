@@ -18,6 +18,10 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerIntPair.h"
 
+namespace llvm {
+  class raw_ostream;
+}
+
 namespace clang {
 
 class ASTContext;
@@ -192,7 +196,7 @@ public:
 
   /// \brief Print this nested name specifier to the given output
   /// stream.
-  void print(raw_ostream &OS, const PrintingPolicy &Policy) const;
+  void print(llvm::raw_ostream &OS, const PrintingPolicy &Policy) const;
 
   void Profile(llvm::FoldingSetNodeID &ID) const {
     ID.AddPointer(Prefix.getOpaqueValue());
@@ -465,7 +469,7 @@ public:
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            NestedNameSpecifier *NNS) {
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(NNS),
-                  DiagnosticsEngine::ak_nestednamespec);
+                  Diagnostic::ak_nestednamespec);
   return DB;
 }
 

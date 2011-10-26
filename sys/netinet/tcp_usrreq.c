@@ -1498,6 +1498,18 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #undef INP_WLOCK_RECHECK
 
 /*
+ * tcp_sendspace and tcp_recvspace are the default send and receive window
+ * sizes, respectively.  These are obsolescent (this information should
+ * be set by the route).
+ */
+u_long	tcp_sendspace = 1024*32;
+SYSCTL_ULONG(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
+    &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
+u_long	tcp_recvspace = 1024*64;
+SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+    &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
+
+/*
  * Attach TCP protocol to socket, allocating
  * internet protocol control block, tcp control block,
  * bufer space, and entering LISTEN state if to accept connections.
@@ -1510,7 +1522,7 @@ tcp_attach(struct socket *so)
 	int error;
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
+		error = soreserve(so, tcp_sendspace, tcp_recvspace);
 		if (error)
 			return (error);
 	}

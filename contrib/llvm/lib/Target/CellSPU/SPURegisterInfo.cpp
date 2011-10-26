@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -186,7 +187,7 @@ unsigned SPURegisterInfo::getRegisterNumbering(unsigned RegEnum) {
 
 SPURegisterInfo::SPURegisterInfo(const SPUSubtarget &subtarget,
                                  const TargetInstrInfo &tii) :
-  SPUGenRegisterInfo(SPU::R0), Subtarget(subtarget), TII(tii)
+  SPUGenRegisterInfo(), Subtarget(subtarget), TII(tii)
 {
 }
 
@@ -310,9 +311,25 @@ SPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 }
 
 unsigned
+SPURegisterInfo::getRARegister() const
+{
+  return SPU::R0;
+}
+
+unsigned
 SPURegisterInfo::getFrameRegister(const MachineFunction &MF) const
 {
   return SPU::R1;
+}
+
+int
+SPURegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
+  // FIXME: Most probably dwarf numbers differs for Linux and Darwin
+  return SPUGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
+}
+
+int SPURegisterInfo::getLLVMRegNum(unsigned RegNum, bool isEH) const {
+  return SPUGenRegisterInfo::getLLVMRegNumFull(RegNum, 0);
 }
 
 int

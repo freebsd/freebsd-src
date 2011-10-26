@@ -74,8 +74,6 @@ void Preprocessor::EnterCachingLexMode() {
     return;
 
   PushIncludeMacroStack();
-  if (CurLexerKind != CLK_LexAfterModuleImport)
-    CurLexerKind = CLK_CachingLexer;
 }
 
 

@@ -35,7 +35,7 @@ public:
 
 void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
                                        CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   if (state->getSVal(B).isUndef()) {
     // Generate an error node.
     ExplodedNode *N = C.generateSink();
@@ -71,13 +71,13 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
          << BinaryOperator::getOpcodeStr(B->getOpcode())
          << "' expression is undefined";
     }
-    BugReport *report = new BugReport(*BT, OS.str(), N);
+    EnhancedBugReport *report = new EnhancedBugReport(*BT, OS.str(), N);
     if (Ex) {
       report->addRange(Ex->getSourceRange());
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
+      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, Ex);
     }
     else
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, B));
+      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, B);
     C.EmitReport(report);
   }
 }

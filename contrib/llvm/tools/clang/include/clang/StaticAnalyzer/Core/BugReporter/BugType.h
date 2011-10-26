@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_ANALYSIS_BUGTYPE
 #define LLVM_CLANG_ANALYSIS_BUGTYPE
 
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "llvm/ADT/FoldingSet.h"
 #include <string>
 
@@ -21,7 +22,6 @@ namespace clang {
 
 namespace ento {
 
-class BugReporter;
 class ExplodedNode;
 class ExprEngine;
 
@@ -31,13 +31,13 @@ private:
   const std::string Category;
   bool SuppressonSink;
 public:
-  BugType(StringRef name, StringRef cat)
+  BugType(llvm::StringRef name, llvm::StringRef cat)
     : Name(name), Category(cat), SuppressonSink(false) {}
   virtual ~BugType();
 
   // FIXME: Should these be made strings as well?
-  StringRef getName() const { return Name; }
-  StringRef getCategory() const { return Category; }
+  llvm::StringRef getName() const { return Name; }
+  llvm::StringRef getCategory() const { return Category; }
   
   /// isSuppressOnSink - Returns true if bug reports associated with this bug
   ///  type should be suppressed if the end node of the report is post-dominated
@@ -57,7 +57,7 @@ public:
   BuiltinBug(const char *name)
     : BugType(name, "Logic error"), desc(name) {}
   
-  StringRef getDescription() const { return desc; }
+  llvm::StringRef getDescription() const { return desc; }
 };
 
 } // end GR namespace

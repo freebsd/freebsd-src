@@ -26,20 +26,17 @@
 using namespace clang;
 
 static ASTReader *createASTReader(CompilerInstance &CI,
-                                  StringRef pchFile,  
-                                  SmallVector<llvm::MemoryBuffer *, 4> &memBufs,
-                                  SmallVector<std::string, 4> &bufNames,
+                                  llvm::StringRef pchFile,
+                                  llvm::MemoryBuffer **memBufs,
+                                  unsigned numBufs,
                              ASTDeserializationListener *deserialListener = 0) {
   Preprocessor &PP = CI.getPreprocessor();
   llvm::OwningPtr<ASTReader> Reader;
-  Reader.reset(new ASTReader(PP, CI.getASTContext(), /*isysroot=*/"",
+  Reader.reset(new ASTReader(PP, &CI.getASTContext(), /*isysroot=*/0,
                              /*DisableValidation=*/true));
-  for (unsigned ti = 0; ti < bufNames.size(); ++ti) {
-    StringRef sr(bufNames[ti]);
-    Reader->addInMemoryBuffer(sr, memBufs[ti]);
-  }
+  Reader->setASTMemoryBuffers(memBufs, numBufs);
   Reader->setDeserializationListener(deserialListener);
-  switch (Reader->ReadAST(pchFile, serialization::MK_PCH)) {
+  switch (Reader->ReadAST(pchFile, ASTReader::PCH)) {
   case ASTReader::Success:
     // Set the predefines buffer as suggested by the PCH reader.
     PP.setPredefines(Reader->getSuggestedPredefines());
@@ -65,8 +62,7 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
   llvm::OwningPtr<ChainedIncludesSource> source(new ChainedIncludesSource());
   InputKind IK = CI.getFrontendOpts().Inputs[0].first;
 
-  SmallVector<llvm::MemoryBuffer *, 4> serialBufs;
-  SmallVector<std::string, 4> serialBufNames;
+  llvm::SmallVector<llvm::MemoryBuffer *, 4> serialBufs;
 
   for (unsigned i = 0, e = includes.size(); i != e; ++i) {
     bool firstInclude = (i == 0);
@@ -87,8 +83,8 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     TextDiagnosticPrinter *DiagClient =
       new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
     llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-    llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
-        new DiagnosticsEngine(DiagID, DiagClient));
+    llvm::IntrusiveRefCntPtr<Diagnostic> Diags(new Diagnostic(DiagID,
+                                                              DiagClient));
 
     llvm::OwningPtr<CompilerInstance> Clang(new CompilerInstance());
     Clang->setInvocation(CInvok.take());
@@ -102,15 +98,16 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
                                                  &Clang->getPreprocessor());
     Clang->createASTContext();
 
-    SmallVector<char, 256> serialAST;
+    llvm::SmallVector<char, 256> serialAST;
     llvm::raw_svector_ostream OS(serialAST);
     llvm::OwningPtr<ASTConsumer> consumer;
     consumer.reset(new PCHGenerator(Clang->getPreprocessor(), "-",
-                                    /*IsModule=*/false, /*isysroot=*/"", &OS));
+                                    /*Chaining=*/!firstInclude,
+                                    /*isysroot=*/0, &OS));
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());
     Clang->setASTConsumer(consumer.take());
-    Clang->createSema(TU_Prefix, 0);
+    Clang->createSema(/*CompleteTranslationUnit=*/false, 0);
 
     if (firstInclude) {
       Preprocessor &PP = Clang->getPreprocessor();
@@ -118,23 +115,19 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
                                              PP.getLangOptions());
     } else {
       assert(!serialBufs.empty());
-      SmallVector<llvm::MemoryBuffer *, 4> bufs;
+      llvm::SmallVector<llvm::MemoryBuffer *, 4> bufs;
       for (unsigned si = 0, se = serialBufs.size(); si != se; ++si) {
         bufs.push_back(llvm::MemoryBuffer::getMemBufferCopy(
-                             StringRef(serialBufs[si]->getBufferStart(),
+                             llvm::StringRef(serialBufs[si]->getBufferStart(),
                                              serialBufs[si]->getBufferSize())));
       }
       std::string pchName = includes[i-1];
       llvm::raw_string_ostream os(pchName);
       os << ".pch" << i-1;
       os.flush();
-      
-      serialBufNames.push_back(pchName);
-
       llvm::OwningPtr<ExternalASTSource> Reader;
-
-      Reader.reset(createASTReader(*Clang, pchName, bufs, serialBufNames, 
-        Clang->getASTConsumer().GetASTDeserializationListener()));
+      Reader.reset(createASTReader(*Clang, pchName, bufs.data(), bufs.size(),
+                      Clang->getASTConsumer().GetASTDeserializationListener()));
       if (!Reader)
         return 0;
       Clang->getASTContext().setExternalSource(Reader);
@@ -147,16 +140,16 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     OS.flush();
     Clang->getDiagnosticClient().EndSourceFile();
     serialBufs.push_back(
-      llvm::MemoryBuffer::getMemBufferCopy(StringRef(serialAST.data(),
+      llvm::MemoryBuffer::getMemBufferCopy(llvm::StringRef(serialAST.data(),
                                                            serialAST.size())));
     source->CIs.push_back(Clang.take());
   }
 
   assert(!serialBufs.empty());
   std::string pchName = includes.back() + ".pch-final";
-  serialBufNames.push_back(pchName);
   llvm::OwningPtr<ASTReader> Reader;
-  Reader.reset(createASTReader(CI, pchName, serialBufs, serialBufNames));
+  Reader.reset(createASTReader(CI, pchName,
+                               serialBufs.data(), serialBufs.size()));
   if (!Reader)
     return 0;
 
@@ -189,10 +182,13 @@ ChainedIncludesSource::FindExternalVisibleDeclsByName(const DeclContext *DC,
                                                       DeclarationName Name) {
   return getFinalReader().FindExternalVisibleDeclsByName(DC, Name);
 }
+void ChainedIncludesSource::MaterializeVisibleDecls(const DeclContext *DC) {
+  return getFinalReader().MaterializeVisibleDecls(DC);
+}
 ExternalLoadResult 
 ChainedIncludesSource::FindExternalLexicalDecls(const DeclContext *DC,
                                       bool (*isKindWeWant)(Decl::Kind),
-                                      SmallVectorImpl<Decl*> &Result) {
+                                      llvm::SmallVectorImpl<Decl*> &Result) {
   return getFinalReader().FindExternalLexicalDecls(DC, isKindWeWant, Result);
 }
 void ChainedIncludesSource::CompleteType(TagDecl *Tag) {

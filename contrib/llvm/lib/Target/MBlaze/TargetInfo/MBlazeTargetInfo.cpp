@@ -9,7 +9,7 @@
 
 #include "MBlaze.h"
 #include "llvm/Module.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
 Target llvm::TheMBlazeTarget;

@@ -90,7 +90,7 @@ if [ $? -eq 0 -a "${SLICENUM}" = "1" ] ; then
 fi
 
 # If we have a starting block, use it
-if [ -n "$STARTBLOCK" ] ; then
+if [ -z "$STARTBLOCK" ] ; then
   sBLOCK="-b $STARTBLOCK"
 fi
 

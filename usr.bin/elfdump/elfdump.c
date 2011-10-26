@@ -282,12 +282,11 @@ const char *ei_data[] = {
 	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
 };
 
-const char *ei_abis[256] = {
+const char *ei_abis[] = {
 	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
-	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
-	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
-	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
-	[255] = "ELFOSABI_STANDALONE"
+	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS",
+	"ELFOSABI_MONTEREY", "ELFOSABI_IRIX", "ELFOSABI_FREEBSD",
+	"ELFOSABI_TRU64", "ELFOSABI_MODESTO", "ELFOSABI_OPENBSD"
 };
 
 const char *p_types[] = {
@@ -932,10 +931,10 @@ elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		val = ((uint8_t *)base)[elf32_offsets[member]];
+		val = ((char *)base)[elf32_offsets[member]];
 		break;
 	case ELFCLASS64:
-		val = ((uint8_t *)base)[elf64_offsets[member]];
+		val = ((char *)base)[elf64_offsets[member]];
 		break;
 	case ELFCLASSNONE:
 		errx(1, "invalid class");

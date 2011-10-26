@@ -23,7 +23,7 @@ class FixItOptions;
 class HTMLPrintAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+                                         llvm::StringRef InFile);
 };
 
 class FixItAction : public ASTFrontendAction {
@@ -32,10 +32,10 @@ protected:
   llvm::OwningPtr<FixItOptions> FixItOpts;
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+                                         llvm::StringRef InFile);
 
   virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     StringRef Filename);
+                                     llvm::StringRef Filename);
 
   virtual void EndSourceFileAction();
 
@@ -49,7 +49,7 @@ public:
 class RewriteObjCAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+                                         llvm::StringRef InFile);
 };
 
 class RewriteMacrosAction : public PreprocessorFrontendAction {

@@ -65,13 +65,9 @@ void
 cfg_aclconfctx_attach(cfg_aclconfctx_t *src, cfg_aclconfctx_t **dest) {
 	REQUIRE(src != NULL);
 	REQUIRE(dest != NULL && *dest == NULL);
-	isc_mem_t *mctx;
-	unsigned int refs;
 
 	isc_refcount_increment(&src->references, NULL);
 	*dest = src;
-
-	*actxp = NULL;
 }
 
 void

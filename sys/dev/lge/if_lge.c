@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct lge_type const lge_devs[] = {
+static struct lge_type lge_devs[] = {
 	{ LGE_VENDORID, LGE_DEVICEID, "Level 1 Gigabit Ethernet" },
 	{ 0, 0, NULL }
 };
@@ -442,7 +442,7 @@ static int
 lge_probe(dev)
 	device_t		dev;
 {
-	const struct lge_type	*t;
+	struct lge_type		*t;
 
 	t = lge_devs;
 
@@ -1430,9 +1430,9 @@ lge_ifmedia_sts(ifp, ifmr)
 	LGE_LOCK(sc);
 	mii = device_get_softc(sc->lge_miibus);
 	mii_pollstat(mii);
+	LGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-	LGE_UNLOCK(sc);
 
 	return;
 }

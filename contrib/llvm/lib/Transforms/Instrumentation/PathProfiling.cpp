@@ -374,7 +374,7 @@ namespace llvm {
   template<bool xcompile> class TypeBuilder<PathProfilingFunctionTable,
                                             xcompile> {
   public:
-    static StructType *get(LLVMContext& C) {
+    static const StructType *get(LLVMContext& C) {
       return( StructType::get(
                 TypeBuilder<types::i<32>, xcompile>::get(C), // type
                 TypeBuilder<types::i<32>, xcompile>::get(C), // array size
@@ -909,7 +909,7 @@ BasicBlock::iterator PathProfiler::getInsertionPoint(BasicBlock* block, Value*
                                                      pathNumber) {
   if(pathNumber == NULL || isa<ConstantInt>(pathNumber)
      || (((Instruction*)(pathNumber))->getParent()) != block) {
-    return(block->getFirstInsertionPt());
+    return(block->getFirstNonPHI());
   } else {
     Instruction* pathNumberInst = (Instruction*) (pathNumber);
     BasicBlock::iterator insertPoint;
@@ -930,7 +930,7 @@ BasicBlock::iterator PathProfiler::getInsertionPoint(BasicBlock* block, Value*
 // A PHINode is created in the node, and its values initialized to -1U.
 void PathProfiler::preparePHI(BLInstrumentationNode* node) {
   BasicBlock* block = node->getBlock();
-  BasicBlock::iterator insertPoint = block->getFirstInsertionPt();
+  BasicBlock::iterator insertPoint = block->getFirstNonPHI();
   pred_iterator PB = pred_begin(node->getBlock()),
           PE = pred_end(node->getBlock());
   PHINode* phi = PHINode::Create(Type::getInt32Ty(*Context),
@@ -999,7 +999,7 @@ void PathProfiler::insertNumberIncrement(BLInstrumentationNode* node,
   BasicBlock::iterator insertPoint;
 
   if( atBeginning )
-    insertPoint = block->getFirstInsertionPt();
+    insertPoint = block->getFirstNonPHI();
   else
     insertPoint = block->getTerminator();
 
@@ -1029,7 +1029,8 @@ void PathProfiler::insertCounterIncrement(Value* incValue,
     gepIndices[1] = incValue;
 
     GetElementPtrInst* pcPointer =
-      GetElementPtrInst::Create(dag->getCounterArray(), gepIndices,
+      GetElementPtrInst::Create(dag->getCounterArray(),
+                                gepIndices.begin(), gepIndices.end(),
                                 "counterInc", insertPoint);
 
     // Load from the array - call it oldPC
@@ -1139,7 +1140,7 @@ void PathProfiler::insertInstrumentationStartingAt(BLInstrumentationEdge* edge,
     }
 
     BasicBlock::iterator insertPoint = atBeginning ?
-      instrumentNode->getBlock()->getFirstInsertionPt() :
+      instrumentNode->getBlock()->getFirstNonPHI() :
       instrumentNode->getBlock()->getTerminator();
 
     // add information from the bottom edge, if it exists
@@ -1171,7 +1172,7 @@ void PathProfiler::insertInstrumentationStartingAt(BLInstrumentationEdge* edge,
   // Insert instrumentation if this is a normal edge
   else {
     BasicBlock::iterator insertPoint = atBeginning ?
-      instrumentNode->getBlock()->getFirstInsertionPt() :
+      instrumentNode->getBlock()->getFirstNonPHI() :
       instrumentNode->getBlock()->getTerminator();
 
     if( edge->isInitialization() ) { // initialize path number
@@ -1232,7 +1233,7 @@ void PathProfiler::insertInstrumentation(
          end = callEdges.end(); edge != end; edge++ ) {
     BLInstrumentationNode* node =
       (BLInstrumentationNode*)(*edge)->getSource();
-    BasicBlock::iterator insertPoint = node->getBlock()->getFirstInsertionPt();
+    BasicBlock::iterator insertPoint = node->getBlock()->getFirstNonPHI();
 
     // Find the first function call
     while( ((Instruction&)(*insertPoint)).getOpcode() != Instruction::Call )
@@ -1288,7 +1289,7 @@ void PathProfiler::runOnFunction(std::vector<Constant*> &ftInit,
 
   // Should we store the information in an array or hash
   if( dag.getNumberOfPaths() <= HASH_THRESHHOLD ) {
-    Type* t = ArrayType::get(Type::getInt32Ty(*Context),
+    const Type* t = ArrayType::get(Type::getInt32Ty(*Context),
                                    dag.getNumberOfPaths());
 
     dag.setCounterArray(new GlobalVariable(M, t, false,
@@ -1300,7 +1301,7 @@ void PathProfiler::runOnFunction(std::vector<Constant*> &ftInit,
 
   // Add to global function reference table
   unsigned type;
-  Type* voidPtr = TypeBuilder<types::i<8>*, true>::get(*Context);
+  const Type* voidPtr = TypeBuilder<types::i<8>*, true>::get(*Context);
 
   if( dag.getNumberOfPaths() <= HASH_THRESHHOLD )
     type = ProfilingArray;
@@ -1314,7 +1315,7 @@ void PathProfiler::runOnFunction(std::vector<Constant*> &ftInit,
     ConstantExpr::getBitCast(dag.getCounterArray(), voidPtr) :
     Constant::getNullValue(voidPtr);
 
-  StructType* at = ftEntryTypeBuilder::get(*Context);
+  const StructType* at = ftEntryTypeBuilder::get(*Context);
   ConstantStruct* functionEntry =
     (ConstantStruct*)ConstantStruct::get(at, entryArray);
   ftInit.push_back(functionEntry);
@@ -1378,8 +1379,8 @@ bool PathProfiler::runOnModule(Module &M) {
     runOnFunction(ftInit, *F, M);
   }
 
-  Type *t = ftEntryTypeBuilder::get(*Context);
-  ArrayType* ftArrayType = ArrayType::get(t, ftInit.size());
+  const Type *t = ftEntryTypeBuilder::get(*Context);
+  const ArrayType* ftArrayType = ArrayType::get(t, ftInit.size());
   Constant* ftInitConstant = ConstantArray::get(ftArrayType, ftInit);
 
   DEBUG(dbgs() << " ftArrayType:" << *ftArrayType << "\n");
@@ -1387,7 +1388,7 @@ bool PathProfiler::runOnModule(Module &M) {
   GlobalVariable* functionTable =
     new GlobalVariable(M, ftArrayType, false, GlobalValue::InternalLinkage,
                        ftInitConstant, "functionPathTable");
-  Type *eltType = ftArrayType->getTypeAtIndex((unsigned)0);
+  const Type *eltType = ftArrayType->getTypeAtIndex((unsigned)0);
   InsertProfilingInitCall(Main, "llvm_start_path_profiling", functionTable,
                           PointerType::getUnqual(eltType));
 

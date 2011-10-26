@@ -1045,7 +1045,7 @@ done:
 }
 
 int
-sys_kldload(struct thread *td, struct kldload_args *uap)
+kldload(struct thread *td, struct kldload_args *uap)
 {
 	char *pathname = NULL;
 	int error, fileid;
@@ -1125,14 +1125,14 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 }
 
 int
-sys_kldunload(struct thread *td, struct kldunload_args *uap)
+kldunload(struct thread *td, struct kldunload_args *uap)
 {
 
 	return (kern_kldunload(td, uap->fileid, LINKER_UNLOAD_NORMAL));
 }
 
 int
-sys_kldunloadf(struct thread *td, struct kldunloadf_args *uap)
+kldunloadf(struct thread *td, struct kldunloadf_args *uap)
 {
 
 	if (uap->flags != LINKER_UNLOAD_NORMAL &&
@@ -1142,7 +1142,7 @@ sys_kldunloadf(struct thread *td, struct kldunloadf_args *uap)
 }
 
 int
-sys_kldfind(struct thread *td, struct kldfind_args *uap)
+kldfind(struct thread *td, struct kldfind_args *uap)
 {
 	char *pathname;
 	const char *filename;
@@ -1175,7 +1175,7 @@ out:
 }
 
 int
-sys_kldnext(struct thread *td, struct kldnext_args *uap)
+kldnext(struct thread *td, struct kldnext_args *uap)
 {
 	linker_file_t lf;
 	int error = 0;
@@ -1212,7 +1212,7 @@ out:
 }
 
 int
-sys_kldstat(struct thread *td, struct kldstat_args *uap)
+kldstat(struct thread *td, struct kldstat_args *uap)
 {
 	struct kld_file_stat stat;
 	int error, version;
@@ -1274,7 +1274,7 @@ kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat)
 }
 
 int
-sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
+kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 {
 	linker_file_t lf;
 	module_t mp;
@@ -1303,7 +1303,7 @@ sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 }
 
 int
-sys_kldsym(struct thread *td, struct kldsym_args *uap)
+kldsym(struct thread *td, struct kldsym_args *uap)
 {
 	char *symstr = NULL;
 	c_linker_sym_t sym;

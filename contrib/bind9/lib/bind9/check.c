@@ -2054,17 +2054,6 @@ check_trusted_key(const cfg_obj_t *key, isc_boolean_t managed,
 
 	isc_buffer_init(&b, keydata, sizeof(keydata));
 
-		if (strcasecmp(initmethod, "initial-key") != 0) {
-			cfg_obj_log(key, logctx, ISC_LOG_ERROR,
-				    "managed key '%s': "
-				    "invalid initialization method '%s'",
-				    keynamestr, initmethod);
-			result = ISC_R_FAILURE;
-		}
-	}
-
-	isc_buffer_init(&b, keydata, sizeof(keydata));
-
 	keystr = cfg_obj_asstring(cfg_tuple_get(key, "key"));
 	tresult = isc_base64_decodestring(keystr, &b);
 

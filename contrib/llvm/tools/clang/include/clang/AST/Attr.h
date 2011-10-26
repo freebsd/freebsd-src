@@ -14,18 +14,18 @@
 #ifndef LLVM_CLANG_AST_ATTR_H
 #define LLVM_CLANG_AST_ATTR_H
 
-#include "clang/Basic/LLVM.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "clang/Basic/AttrKinds.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/VersionTuple.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <cstring>
 #include <algorithm>
+using llvm::dyn_cast;
 
 namespace clang {
   class ASTContext;
@@ -58,7 +58,7 @@ namespace clang {
 /// Attr - This represents one attribute.
 class Attr {
 private:
-  SourceRange Range;
+  SourceLocation Loc;
   unsigned AttrKind : 16;
 
 protected:
@@ -67,10 +67,11 @@ protected:
   virtual ~Attr();
   
   void* operator new(size_t bytes) throw() {
-    llvm_unreachable("Attrs cannot be allocated with regular 'new'.");
+    assert(0 && "Attrs cannot be allocated with regular 'new'.");
+    return 0;
   }
   void operator delete(void* data) throw() {
-    llvm_unreachable("Attrs cannot be released with regular 'delete'.");
+    assert(0 && "Attrs cannot be released with regular 'delete'.");
   }
 
 public:
@@ -85,8 +86,8 @@ public:
   }
 
 protected:
-  Attr(attr::Kind AK, SourceRange R)
-    : Range(R), AttrKind(AK), Inherited(false) {}
+  Attr(attr::Kind AK, SourceLocation L)
+    : Loc(L), AttrKind(AK), Inherited(false) {}
 
 public:
 
@@ -94,9 +95,8 @@ public:
     return static_cast<attr::Kind>(AttrKind);
   }
 
-  SourceLocation getLocation() const { return Range.getBegin(); }
-  SourceRange getRange() const { return Range; }
-  void setRange(SourceRange R) { Range = R; }
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation L) { Loc = L; }
 
   bool isInherited() const { return Inherited; }
 
@@ -109,8 +109,8 @@ public:
 
 class InheritableAttr : public Attr {
 protected:
-  InheritableAttr(attr::Kind AK, SourceRange R)
-    : Attr(AK, R) {}
+  InheritableAttr(attr::Kind AK, SourceLocation L)
+    : Attr(AK, L) {}
 
 public:
   void setInherited(bool I) { Inherited = I; }
@@ -124,8 +124,8 @@ public:
 
 class InheritableParamAttr : public InheritableAttr {
 protected:
-  InheritableParamAttr(attr::Kind AK, SourceRange R)
-    : InheritableAttr(AK, R) {}
+  InheritableParamAttr(attr::Kind AK, SourceLocation L)
+    : InheritableAttr(AK, L) {}
 
 public:
   // Implement isa/cast/dyncast/etc.
@@ -138,8 +138,8 @@ public:
 #include "clang/AST/Attrs.inc"
 
 /// AttrVec - A vector of Attr, which is how they are stored on the AST.
-typedef SmallVector<Attr*, 2> AttrVec;
-typedef SmallVector<const Attr*, 2> ConstAttrVec;
+typedef llvm::SmallVector<Attr*, 2> AttrVec;
+typedef llvm::SmallVector<const Attr*, 2> ConstAttrVec;
 
 /// DestroyAttrs - Destroy the contents of an AttrVec.
 inline void DestroyAttrs (AttrVec& V, ASTContext &C) {
@@ -159,12 +159,12 @@ class specific_attr_iterator {
   mutable AttrVec::const_iterator Current;
 
   void AdvanceToNext() const {
-    while (!isa<SpecificAttr>(*Current))
+    while (!llvm::isa<SpecificAttr>(*Current))
       ++Current;
   }
 
   void AdvanceToNext(AttrVec::const_iterator I) const {
-    while (Current != I && !isa<SpecificAttr>(*Current))
+    while (Current != I && !llvm::isa<SpecificAttr>(*Current))
       ++Current;
   }
 
@@ -180,11 +180,11 @@ public:
 
   reference operator*() const {
     AdvanceToNext();
-    return cast<SpecificAttr>(*Current);
+    return llvm::cast<SpecificAttr>(*Current);
   }
   pointer operator->() const {
     AdvanceToNext();
-    return cast<SpecificAttr>(*Current);
+    return llvm::cast<SpecificAttr>(*Current);
   }
 
   specific_attr_iterator& operator++() {

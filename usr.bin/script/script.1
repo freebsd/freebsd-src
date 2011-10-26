@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2011
+.Dd January 22, 2004
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -73,16 +73,15 @@ or
 .Pa typescript ,
 retaining the prior contents.
 .It Fl k
-Log keys sent to the program as well as output.
+Log keys sent to program as well as output.
 .It Fl q
 Run in quiet mode, omit the start and stop status messages.
 .It Fl t Ar time
-Specify the interval at which the script output file will be flushed
-to disk, in seconds.
+Specify time interval between flushing script output file.
 A value of 0
 causes
 .Nm
-to flush after every character I/O event.
+to flush for every character I/O event.
 The default interval is
 30 seconds.
 .El
@@ -137,15 +136,13 @@ If
 .Ev SHELL
 is not set, the Bourne shell
 is assumed.
-.Pq Most shells set this variable automatically .
+(Most shells set this variable automatically).
 .El
 .Sh SEE ALSO
 .Xr csh 1
-.Po
-for the
+(for the
 .Em history
-mechanism
-.Pc .
+mechanism).
 .Sh HISTORY
 The
 .Nm
@@ -168,15 +165,4 @@ mode, echo cancelling is far from ideal.
 The slave terminal mode is checked
 for ECHO mode to check when to avoid manual echo logging.
 This does not
-work when the terminal is in a raw mode where
-the program being run is doing manual echo.
-.Pp
-If
-.Nm
-reads zero bytes from the terminal, it switches to a mode when it
-only attempts to read
-once a second until there is data to read.
-This prevents
-.Nm
-from spinning on zero-byte reads, but might cause a 1-second delay in
-processing of user input.
+work when in a raw mode where the program being run is doing manual echo.

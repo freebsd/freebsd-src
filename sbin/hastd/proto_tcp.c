@@ -298,7 +298,8 @@ tcp_connect(void *ctx, int timeout)
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
 	if (flags == -1) {
-		pjdlog_common(LOG_DEBUG, 1, errno, "fcntl(F_GETFL) failed");
+		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_GETFL) failed"));
 		return (errno);
 	}
 	/*
@@ -307,8 +308,8 @@ tcp_connect(void *ctx, int timeout)
 	 */
 	flags |= O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
-		pjdlog_common(LOG_DEBUG, 1, errno,
-		    "fcntl(F_SETFL, O_NONBLOCK) failed");
+		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, O_NONBLOCK) failed"));
 		return (errno);
 	}
 

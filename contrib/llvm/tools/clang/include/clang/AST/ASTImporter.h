@@ -25,7 +25,7 @@ namespace clang {
   class ASTContext;
   class Decl;
   class DeclContext;
-  class DiagnosticsEngine;
+  class Diagnostic;
   class Expr;
   class FileManager;
   class IdentifierInfo;
@@ -67,7 +67,7 @@ namespace clang {
     
     /// \brief Imported, anonymous tag declarations that are missing their 
     /// corresponding typedefs.
-    SmallVector<TagDecl *, 4> AnonTagsWithPendingTypedefs;
+    llvm::SmallVector<TagDecl *, 4> AnonTagsWithPendingTypedefs;
     
     /// \brief Declaration (from, to) pairs that are known not to be equivalent
     /// (which we have already complained about).

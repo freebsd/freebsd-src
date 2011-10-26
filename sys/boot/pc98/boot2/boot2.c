@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
+#include <machine/psl.h>
 
 #include <stdarg.h>
 
@@ -76,14 +77,15 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
 			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
+#define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
 #define NDEV		3
+#define V86_CY(x)	((x) & PSL_C)
+#define V86_ZR(x)	((x) & PSL_Z)
 
 #define DRV_DISK	0xf0
 #define DRV_UNIT	0x0f
@@ -377,8 +379,7 @@ main(void)
 
     autoboot = 1;
 
-    if ((ino = lookup(PATH_CONFIG)) ||
-        (ino = lookup(PATH_DOTCONFIG)))
+    if ((ino = lookup(PATH_CONFIG)))
 	fsread(ino, cmd, sizeof(cmd));
 
     if (*cmd) {

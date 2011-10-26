@@ -8,16 +8,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCTargetAsmParser.h"
+#include "llvm/Target/TargetAsmInfo.h"
+#include "llvm/Target/TargetAsmParser.h"
 #include "llvm/Support/COFF.h"
 using namespace llvm;
 
@@ -73,7 +72,6 @@ class COFFAsmParser : public MCAsmParserExtension {
                                                               ".seh_pushframe");
     AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndProlog>(
                                                             ".seh_endprologue");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveSymbolAttribute>(".weak");
   }
 
   bool ParseSectionDirectiveText(StringRef, SMLoc) {
@@ -120,43 +118,11 @@ class COFFAsmParser : public MCAsmParserExtension {
 
   bool ParseAtUnwindOrAtExcept(bool &unwind, bool &except);
   bool ParseSEHRegisterNumber(unsigned &RegNo);
-  bool ParseDirectiveSymbolAttribute(StringRef Directive, SMLoc);
 public:
   COFFAsmParser() {}
 };
 
 } // end annonomous namespace.
-
-/// ParseDirectiveSymbolAttribute
-///  ::= { ".weak", ... } [ identifier ( , identifier )* ]
-bool COFFAsmParser::ParseDirectiveSymbolAttribute(StringRef Directive, SMLoc) {
-  MCSymbolAttr Attr = StringSwitch<MCSymbolAttr>(Directive)
-    .Case(".weak", MCSA_Weak)
-    .Default(MCSA_Invalid);
-  assert(Attr != MCSA_Invalid && "unexpected symbol attribute directive!");
-  if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    for (;;) {
-      StringRef Name;
-
-      if (getParser().ParseIdentifier(Name))
-        return TokError("expected identifier in directive");
-
-      MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
-
-      getStreamer().EmitSymbolAttribute(Sym, Attr);
-
-      if (getLexer().is(AsmToken::EndOfStatement))
-        break;
-
-      if (getLexer().isNot(AsmToken::Comma))
-        return TokError("unexpected token in directive");
-      Lex();
-    }
-  }
-
-  Lex();
-  return false;
-}
 
 bool COFFAsmParser::ParseSectionSwitch(StringRef Section,
                                        unsigned Characteristics,
@@ -435,15 +401,11 @@ bool COFFAsmParser::ParseAtUnwindOrAtExcept(bool &unwind, bool &except) {
 bool COFFAsmParser::ParseSEHRegisterNumber(unsigned &RegNo) {
   SMLoc startLoc = getLexer().getLoc();
   if (getLexer().is(AsmToken::Percent)) {
-    const MCRegisterInfo &MRI = getContext().getRegisterInfo();
+    const TargetAsmInfo &TAI = getContext().getTargetAsmInfo();
     SMLoc endLoc;
     unsigned LLVMRegNo;
     if (getParser().getTargetParser().ParseRegister(LLVMRegNo,startLoc,endLoc))
       return true;
-
-#if 0
-    // FIXME: TargetAsmInfo::getCalleeSavedRegs() commits a serious layering
-    // violation so this validation code is disabled.
 
     // Check that this is a non-volatile register.
     const unsigned *NVRegs = TAI.getCalleeSavedRegs();
@@ -453,9 +415,8 @@ bool COFFAsmParser::ParseSEHRegisterNumber(unsigned &RegNo) {
         break;
     if (NVRegs[i] == 0)
       return Error(startLoc, "expected non-volatile register");
-#endif
 
-    int SEHRegNo = MRI.getSEHRegNum(LLVMRegNo);
+    int SEHRegNo = TAI.getSEHRegNum(LLVMRegNo);
     if (SEHRegNo < 0)
       return Error(startLoc,"register can't be represented in SEH unwind info");
     RegNo = SEHRegNo;

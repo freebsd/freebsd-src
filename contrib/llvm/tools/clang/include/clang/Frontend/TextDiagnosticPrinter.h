@@ -22,8 +22,8 @@ namespace clang {
 class DiagnosticOptions;
 class LangOptions;
 
-class TextDiagnosticPrinter : public DiagnosticConsumer {
-  raw_ostream &OS;
+class TextDiagnosticPrinter : public DiagnosticClient {
+  llvm::raw_ostream &OS;
   const LangOptions *LangOpts;
   const DiagnosticOptions *DiagOpts;
 
@@ -36,7 +36,7 @@ class TextDiagnosticPrinter : public DiagnosticConsumer {
   std::string Prefix;
 
 public:
-  TextDiagnosticPrinter(raw_ostream &os, const DiagnosticOptions &diags,
+  TextDiagnosticPrinter(llvm::raw_ostream &os, const DiagnosticOptions &diags,
                         bool OwnsOutputStream = false);
   virtual ~TextDiagnosticPrinter();
 
@@ -53,19 +53,26 @@ public:
     LangOpts = 0;
   }
 
-  void PrintIncludeStack(DiagnosticsEngine::Level Level, SourceLocation Loc,
+  void PrintIncludeStack(Diagnostic::Level Level, SourceLocation Loc,
                          const SourceManager &SM);
 
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level Level,
-                                const Diagnostic &Info);
+  void HighlightRange(const CharSourceRange &R,
+                      const SourceManager &SrcMgr,
+                      unsigned LineNo, FileID FID,
+                      std::string &CaretLine,
+                      const std::string &SourceLine);
 
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const;
+  virtual void HandleDiagnostic(Diagnostic::Level Level,
+                                const DiagnosticInfo &Info);
 
 private:
-  void EmitDiagnosticLoc(DiagnosticsEngine::Level Level,
-                         const Diagnostic &Info,
-                         const SourceManager &SM,
-                         PresumedLoc PLoc);
+  void EmitCaretDiagnostic(SourceLocation Loc, CharSourceRange *Ranges,
+                           unsigned NumRanges, const SourceManager &SM,
+                           const FixItHint *Hints,
+                           unsigned NumHints, unsigned Columns,  
+                           unsigned OnMacroInst, unsigned MacroSkipStart,
+                           unsigned MacroSkipEnd);
+  
 };
 
 } // end namespace clang

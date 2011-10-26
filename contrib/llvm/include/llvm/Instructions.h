@@ -22,7 +22,6 @@
 #include "llvm/CallingConv.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <iterator>
 
 namespace llvm {
@@ -31,22 +30,6 @@ class ConstantInt;
 class ConstantRange;
 class APInt;
 class LLVMContext;
-
-enum AtomicOrdering {
-  NotAtomic = 0,
-  Unordered = 1,
-  Monotonic = 2,
-  // Consume = 3,  // Not specified yet.
-  Acquire = 4,
-  Release = 5,
-  AcquireRelease = 6,
-  SequentiallyConsistent = 7
-};
-
-enum SynchronizationScope {
-  SingleThread = 0,
-  CrossThread = 1
-};
 
 //===----------------------------------------------------------------------===//
 //                                AllocaInst Class
@@ -58,17 +41,17 @@ class AllocaInst : public UnaryInstruction {
 protected:
   virtual AllocaInst *clone_impl() const;
 public:
-  explicit AllocaInst(Type *Ty, Value *ArraySize = 0,
+  explicit AllocaInst(const Type *Ty, Value *ArraySize = 0,
                       const Twine &Name = "", Instruction *InsertBefore = 0);
-  AllocaInst(Type *Ty, Value *ArraySize,
+  AllocaInst(const Type *Ty, Value *ArraySize,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
-  AllocaInst(Type *Ty, const Twine &Name, Instruction *InsertBefore = 0);
-  AllocaInst(Type *Ty, const Twine &Name, BasicBlock *InsertAtEnd);
+  AllocaInst(const Type *Ty, const Twine &Name, Instruction *InsertBefore = 0);
+  AllocaInst(const Type *Ty, const Twine &Name, BasicBlock *InsertAtEnd);
 
-  AllocaInst(Type *Ty, Value *ArraySize, unsigned Align,
+  AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
              const Twine &Name = "", Instruction *InsertBefore = 0);
-  AllocaInst(Type *Ty, Value *ArraySize, unsigned Align,
+  AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
   // Out of line virtual method, so the vtable, etc. has a home.
@@ -87,8 +70,8 @@ public:
 
   /// getType - Overload to return most specific pointer type
   ///
-  PointerType *getType() const {
-    return reinterpret_cast<PointerType*>(Instruction::getType());
+  const PointerType *getType() const {
+    return reinterpret_cast<const PointerType*>(Instruction::getType());
   }
 
   /// getAllocatedType - Return the type that is being allocated by the
@@ -143,19 +126,11 @@ public:
   LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile = false,
            Instruction *InsertBefore = 0);
   LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
            unsigned Align, Instruction *InsertBefore = 0);
   LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order,
-           SynchronizationScope SynchScope = CrossThread,
-           Instruction *InsertBefore = 0);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order,
-           SynchronizationScope SynchScope,
            BasicBlock *InsertAtEnd);
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
+           unsigned Align, BasicBlock *InsertAtEnd);
 
   LoadInst(Value *Ptr, const char *NameStr, Instruction *InsertBefore);
   LoadInst(Value *Ptr, const char *NameStr, BasicBlock *InsertAtEnd);
@@ -179,46 +154,10 @@ public:
   /// getAlignment - Return the alignment of the access that is being performed
   ///
   unsigned getAlignment() const {
-    return (1 << ((getSubclassDataFromInstruction() >> 1) & 31)) >> 1;
+    return (1 << (getSubclassDataFromInstruction() >> 1)) >> 1;
   }
 
   void setAlignment(unsigned Align);
-
-  /// Returns the ordering effect of this fence.
-  AtomicOrdering getOrdering() const {
-    return AtomicOrdering((getSubclassDataFromInstruction() >> 7) & 7);
-  }
-
-  /// Set the ordering constraint on this load. May not be Release or
-  /// AcquireRelease.
-  void setOrdering(AtomicOrdering Ordering) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 7)) |
-                               (Ordering << 7));
-  }
-
-  SynchronizationScope getSynchScope() const {
-    return SynchronizationScope((getSubclassDataFromInstruction() >> 6) & 1);
-  }
-
-  /// Specify whether this load is ordered with respect to all
-  /// concurrently executing threads, or only with respect to signal handlers
-  /// executing in the same thread.
-  void setSynchScope(SynchronizationScope xthread) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~(1 << 6)) |
-                               (xthread << 6));
-  }
-
-  bool isAtomic() const { return getOrdering() != NotAtomic; }
-  void setAtomic(AtomicOrdering Ordering,
-                 SynchronizationScope SynchScope = CrossThread) {
-    setOrdering(Ordering);
-    setSynchScope(SynchScope);
-  }
-
-  bool isSimple() const { return !isAtomic() && !isVolatile(); }
-  bool isUnordered() const {
-    return getOrdering() <= Unordered && !isVolatile();
-  }
 
   Value *getPointerOperand() { return getOperand(0); }
   const Value *getPointerOperand() const { return getOperand(0); }
@@ -266,27 +205,19 @@ public:
   StoreInst(Value *Val, Value *Ptr, BasicBlock *InsertAtEnd);
   StoreInst(Value *Val, Value *Ptr, bool isVolatile = false,
             Instruction *InsertBefore = 0);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile, BasicBlock *InsertAtEnd);
   StoreInst(Value *Val, Value *Ptr, bool isVolatile,
             unsigned Align, Instruction *InsertBefore = 0);
+  StoreInst(Value *Val, Value *Ptr, bool isVolatile, BasicBlock *InsertAtEnd);
   StoreInst(Value *Val, Value *Ptr, bool isVolatile,
             unsigned Align, BasicBlock *InsertAtEnd);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, AtomicOrdering Order,
-            SynchronizationScope SynchScope = CrossThread,
-            Instruction *InsertBefore = 0);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, AtomicOrdering Order,
-            SynchronizationScope SynchScope,
-            BasicBlock *InsertAtEnd);
-          
 
-  /// isVolatile - Return true if this is a store to a volatile memory
+
+  /// isVolatile - Return true if this is a load from a volatile memory
   /// location.
   ///
   bool isVolatile() const { return getSubclassDataFromInstruction() & 1; }
 
-  /// setVolatile - Specify whether this is a volatile store or not.
+  /// setVolatile - Specify whether this is a volatile load or not.
   ///
   void setVolatile(bool V) {
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~1) |
@@ -299,46 +230,10 @@ public:
   /// getAlignment - Return the alignment of the access that is being performed
   ///
   unsigned getAlignment() const {
-    return (1 << ((getSubclassDataFromInstruction() >> 1) & 31)) >> 1;
+    return (1 << (getSubclassDataFromInstruction() >> 1)) >> 1;
   }
 
   void setAlignment(unsigned Align);
-
-  /// Returns the ordering effect of this store.
-  AtomicOrdering getOrdering() const {
-    return AtomicOrdering((getSubclassDataFromInstruction() >> 7) & 7);
-  }
-
-  /// Set the ordering constraint on this store.  May not be Acquire or
-  /// AcquireRelease.
-  void setOrdering(AtomicOrdering Ordering) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 7)) |
-                               (Ordering << 7));
-  }
-
-  SynchronizationScope getSynchScope() const {
-    return SynchronizationScope((getSubclassDataFromInstruction() >> 6) & 1);
-  }
-
-  /// Specify whether this store instruction is ordered with respect to all
-  /// concurrently executing threads, or only with respect to signal handlers
-  /// executing in the same thread.
-  void setSynchScope(SynchronizationScope xthread) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~(1 << 6)) |
-                               (xthread << 6));
-  }
-
-  bool isAtomic() const { return getOrdering() != NotAtomic; }
-  void setAtomic(AtomicOrdering Ordering,
-                 SynchronizationScope SynchScope = CrossThread) {
-    setOrdering(Ordering);
-    setSynchScope(SynchScope);
-  }
-
-  bool isSimple() const { return !isAtomic() && !isVolatile(); }
-  bool isUnordered() const {
-    return getOrdering() <= Unordered && !isVolatile();
-  }
 
   Value *getValueOperand() { return getOperand(0); }
   const Value *getValueOperand() const { return getOperand(0); }
@@ -374,332 +269,13 @@ struct OperandTraits<StoreInst> : public FixedNumOperandTraits<StoreInst, 2> {
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(StoreInst, Value)
 
 //===----------------------------------------------------------------------===//
-//                                FenceInst Class
-//===----------------------------------------------------------------------===//
-
-/// FenceInst - an instruction for ordering other memory operations
-///
-class FenceInst : public Instruction {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  void Init(AtomicOrdering Ordering, SynchronizationScope SynchScope);
-protected:
-  virtual FenceInst *clone_impl() const;
-public:
-  // allocate space for exactly zero operands
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
-
-  // Ordering may only be Acquire, Release, AcquireRelease, or
-  // SequentiallyConsistent.
-  FenceInst(LLVMContext &C, AtomicOrdering Ordering,
-            SynchronizationScope SynchScope = CrossThread,
-            Instruction *InsertBefore = 0);
-  FenceInst(LLVMContext &C, AtomicOrdering Ordering,
-            SynchronizationScope SynchScope,
-            BasicBlock *InsertAtEnd);
-
-  /// Returns the ordering effect of this fence.
-  AtomicOrdering getOrdering() const {
-    return AtomicOrdering(getSubclassDataFromInstruction() >> 1);
-  }
-
-  /// Set the ordering constraint on this fence.  May only be Acquire, Release,
-  /// AcquireRelease, or SequentiallyConsistent.
-  void setOrdering(AtomicOrdering Ordering) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & 1) |
-                               (Ordering << 1));
-  }
-
-  SynchronizationScope getSynchScope() const {
-    return SynchronizationScope(getSubclassDataFromInstruction() & 1);
-  }
-
-  /// Specify whether this fence orders other operations with respect to all
-  /// concurrently executing threads, or only with respect to signal handlers
-  /// executing in the same thread.
-  void setSynchScope(SynchronizationScope xthread) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~1) |
-                               xthread);
-  }
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const FenceInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::Fence;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-private:
-  // Shadow Instruction::setInstructionSubclassData with a private forwarding
-  // method so that subclasses cannot accidentally use it.
-  void setInstructionSubclassData(unsigned short D) {
-    Instruction::setInstructionSubclassData(D);
-  }
-};
-
-//===----------------------------------------------------------------------===//
-//                                AtomicCmpXchgInst Class
-//===----------------------------------------------------------------------===//
-
-/// AtomicCmpXchgInst - an instruction that atomically checks whether a
-/// specified value is in a memory location, and, if it is, stores a new value
-/// there.  Returns the value that was loaded.
-///
-class AtomicCmpXchgInst : public Instruction {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  void Init(Value *Ptr, Value *Cmp, Value *NewVal,
-            AtomicOrdering Ordering, SynchronizationScope SynchScope);
-protected:
-  virtual AtomicCmpXchgInst *clone_impl() const;
-public:
-  // allocate space for exactly three operands
-  void *operator new(size_t s) {
-    return User::operator new(s, 3);
-  }
-  AtomicCmpXchgInst(Value *Ptr, Value *Cmp, Value *NewVal,
-                    AtomicOrdering Ordering, SynchronizationScope SynchScope,
-                    Instruction *InsertBefore = 0);
-  AtomicCmpXchgInst(Value *Ptr, Value *Cmp, Value *NewVal,
-                    AtomicOrdering Ordering, SynchronizationScope SynchScope,
-                    BasicBlock *InsertAtEnd);
-
-  /// isVolatile - Return true if this is a cmpxchg from a volatile memory
-  /// location.
-  ///
-  bool isVolatile() const {
-    return getSubclassDataFromInstruction() & 1;
-  }
-
-  /// setVolatile - Specify whether this is a volatile cmpxchg.
-  ///
-  void setVolatile(bool V) {
-     setInstructionSubclassData((getSubclassDataFromInstruction() & ~1) |
-                                (unsigned)V);
-  }
-
-  /// Transparently provide more efficient getOperand methods.
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// Set the ordering constraint on this cmpxchg.
-  void setOrdering(AtomicOrdering Ordering) {
-    assert(Ordering != NotAtomic &&
-           "CmpXchg instructions can only be atomic.");
-    setInstructionSubclassData((getSubclassDataFromInstruction() & 3) |
-                               (Ordering << 2));
-  }
-
-  /// Specify whether this cmpxchg is atomic and orders other operations with
-  /// respect to all concurrently executing threads, or only with respect to
-  /// signal handlers executing in the same thread.
-  void setSynchScope(SynchronizationScope SynchScope) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~2) |
-                               (SynchScope << 1));
-  }
-
-  /// Returns the ordering constraint on this cmpxchg.
-  AtomicOrdering getOrdering() const {
-    return AtomicOrdering(getSubclassDataFromInstruction() >> 2);
-  }
-
-  /// Returns whether this cmpxchg is atomic between threads or only within a
-  /// single thread.
-  SynchronizationScope getSynchScope() const {
-    return SynchronizationScope((getSubclassDataFromInstruction() & 2) >> 1);
-  }
-
-  Value *getPointerOperand() { return getOperand(0); }
-  const Value *getPointerOperand() const { return getOperand(0); }
-  static unsigned getPointerOperandIndex() { return 0U; }
-
-  Value *getCompareOperand() { return getOperand(1); }
-  const Value *getCompareOperand() const { return getOperand(1); }
-  
-  Value *getNewValOperand() { return getOperand(2); }
-  const Value *getNewValOperand() const { return getOperand(2); }
-  
-  unsigned getPointerAddressSpace() const {
-    return cast<PointerType>(getPointerOperand()->getType())->getAddressSpace();
-  }
-  
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const AtomicCmpXchgInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::AtomicCmpXchg;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-private:
-  // Shadow Instruction::setInstructionSubclassData with a private forwarding
-  // method so that subclasses cannot accidentally use it.
-  void setInstructionSubclassData(unsigned short D) {
-    Instruction::setInstructionSubclassData(D);
-  }
-};
-
-template <>
-struct OperandTraits<AtomicCmpXchgInst> :
-    public FixedNumOperandTraits<AtomicCmpXchgInst, 3> {
-};
-
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(AtomicCmpXchgInst, Value)
-
-//===----------------------------------------------------------------------===//
-//                                AtomicRMWInst Class
-//===----------------------------------------------------------------------===//
-
-/// AtomicRMWInst - an instruction that atomically reads a memory location,
-/// combines it with another value, and then stores the result back.  Returns
-/// the old value.
-///
-class AtomicRMWInst : public Instruction {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-protected:
-  virtual AtomicRMWInst *clone_impl() const;
-public:
-  /// This enumeration lists the possible modifications atomicrmw can make.  In
-  /// the descriptions, 'p' is the pointer to the instruction's memory location,
-  /// 'old' is the initial value of *p, and 'v' is the other value passed to the
-  /// instruction.  These instructions always return 'old'.
-  enum BinOp {
-    /// *p = v
-    Xchg,
-    /// *p = old + v
-    Add,
-    /// *p = old - v
-    Sub,
-    /// *p = old & v
-    And,
-    /// *p = ~old & v
-    Nand,
-    /// *p = old | v
-    Or,
-    /// *p = old ^ v
-    Xor,
-    /// *p = old >signed v ? old : v
-    Max,
-    /// *p = old <signed v ? old : v
-    Min,
-    /// *p = old >unsigned v ? old : v
-    UMax,
-    /// *p = old <unsigned v ? old : v
-    UMin,
-
-    FIRST_BINOP = Xchg,
-    LAST_BINOP = UMin,
-    BAD_BINOP
-  };
-
-  // allocate space for exactly two operands
-  void *operator new(size_t s) {
-    return User::operator new(s, 2);
-  }
-  AtomicRMWInst(BinOp Operation, Value *Ptr, Value *Val,
-                AtomicOrdering Ordering, SynchronizationScope SynchScope,
-                Instruction *InsertBefore = 0);
-  AtomicRMWInst(BinOp Operation, Value *Ptr, Value *Val,
-                AtomicOrdering Ordering, SynchronizationScope SynchScope,
-                BasicBlock *InsertAtEnd);
-
-  BinOp getOperation() const {
-    return static_cast<BinOp>(getSubclassDataFromInstruction() >> 5);
-  }
-
-  void setOperation(BinOp Operation) {
-    unsigned short SubclassData = getSubclassDataFromInstruction();
-    setInstructionSubclassData((SubclassData & 31) |
-                               (Operation << 5));
-  }
-
-  /// isVolatile - Return true if this is a RMW on a volatile memory location.
-  ///
-  bool isVolatile() const {
-    return getSubclassDataFromInstruction() & 1;
-  }
-
-  /// setVolatile - Specify whether this is a volatile RMW or not.
-  ///
-  void setVolatile(bool V) {
-     setInstructionSubclassData((getSubclassDataFromInstruction() & ~1) |
-                                (unsigned)V);
-  }
-
-  /// Transparently provide more efficient getOperand methods.
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// Set the ordering constraint on this RMW.
-  void setOrdering(AtomicOrdering Ordering) {
-    assert(Ordering != NotAtomic &&
-           "atomicrmw instructions can only be atomic.");
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 2)) |
-                               (Ordering << 2));
-  }
-
-  /// Specify whether this RMW orders other operations with respect to all
-  /// concurrently executing threads, or only with respect to signal handlers
-  /// executing in the same thread.
-  void setSynchScope(SynchronizationScope SynchScope) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~2) |
-                               (SynchScope << 1));
-  }
-
-  /// Returns the ordering constraint on this RMW.
-  AtomicOrdering getOrdering() const {
-    return AtomicOrdering((getSubclassDataFromInstruction() >> 2) & 7);
-  }
-
-  /// Returns whether this RMW is atomic between threads or only within a
-  /// single thread.
-  SynchronizationScope getSynchScope() const {
-    return SynchronizationScope((getSubclassDataFromInstruction() & 2) >> 1);
-  }
-
-  Value *getPointerOperand() { return getOperand(0); }
-  const Value *getPointerOperand() const { return getOperand(0); }
-  static unsigned getPointerOperandIndex() { return 0U; }
-
-  Value *getValOperand() { return getOperand(1); }
-  const Value *getValOperand() const { return getOperand(1); }
-
-  unsigned getPointerAddressSpace() const {
-    return cast<PointerType>(getPointerOperand()->getType())->getAddressSpace();
-  }
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const AtomicRMWInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::AtomicRMW;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-private:
-  void Init(BinOp Operation, Value *Ptr, Value *Val,
-            AtomicOrdering Ordering, SynchronizationScope SynchScope);
-  // Shadow Instruction::setInstructionSubclassData with a private forwarding
-  // method so that subclasses cannot accidentally use it.
-  void setInstructionSubclassData(unsigned short D) {
-    Instruction::setInstructionSubclassData(D);
-  }
-};
-
-template <>
-struct OperandTraits<AtomicRMWInst>
-    : public FixedNumOperandTraits<AtomicRMWInst,2> {
-};
-
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(AtomicRMWInst, Value)
-
-//===----------------------------------------------------------------------===//
 //                             GetElementPtrInst Class
 //===----------------------------------------------------------------------===//
 
 // checkGEPType - Simple wrapper function to give a better assertion failure
 // message on bad indexes for a gep instruction.
 //
-static inline Type *checkGEPType(Type *Ty) {
+static inline const Type *checkGEPType(const Type *Ty) {
   assert(Ty && "Invalid GetElementPtrInst indices for type!");
   return Ty;
 }
@@ -709,61 +285,28 @@ static inline Type *checkGEPType(Type *Ty) {
 ///
 class GetElementPtrInst : public Instruction {
   GetElementPtrInst(const GetElementPtrInst &GEPI);
-  void init(Value *Ptr, ArrayRef<Value *> IdxList, const Twine &NameStr);
+  void init(Value *Ptr, Value* const *Idx, unsigned NumIdx,
+            const Twine &NameStr);
+  void init(Value *Ptr, Value *Idx, const Twine &NameStr);
 
-  /// Constructors - Create a getelementptr instruction with a base pointer an
-  /// list of indices. The first ctor can optionally insert before an existing
-  /// instruction, the second appends the new instruction to the specified
-  /// BasicBlock.
-  inline GetElementPtrInst(Value *Ptr, ArrayRef<Value *> IdxList,
-                           unsigned Values, const Twine &NameStr,
-                           Instruction *InsertBefore);
-  inline GetElementPtrInst(Value *Ptr, ArrayRef<Value *> IdxList,
-                           unsigned Values, const Twine &NameStr,
-                           BasicBlock *InsertAtEnd);
-protected:
-  virtual GetElementPtrInst *clone_impl() const;
-public:
-  static GetElementPtrInst *Create(Value *Ptr, ArrayRef<Value *> IdxList,
-                                   const Twine &NameStr = "",
-                                   Instruction *InsertBefore = 0) {
-    unsigned Values = 1 + unsigned(IdxList.size());
-    return new(Values)
-      GetElementPtrInst(Ptr, IdxList, Values, NameStr, InsertBefore);
-  }
-  static GetElementPtrInst *Create(Value *Ptr, ArrayRef<Value *> IdxList,
-                                   const Twine &NameStr,
-                                   BasicBlock *InsertAtEnd) {
-    unsigned Values = 1 + unsigned(IdxList.size());
-    return new(Values)
-      GetElementPtrInst(Ptr, IdxList, Values, NameStr, InsertAtEnd);
-  }
+  template<typename RandomAccessIterator>
+  void init(Value *Ptr,
+            RandomAccessIterator IdxBegin,
+            RandomAccessIterator IdxEnd,
+            const Twine &NameStr,
+            // This argument ensures that we have an iterator we can
+            // do arithmetic on in constant time
+            std::random_access_iterator_tag) {
+    unsigned NumIdx = static_cast<unsigned>(std::distance(IdxBegin, IdxEnd));
 
-  /// Create an "inbounds" getelementptr. See the documentation for the
-  /// "inbounds" flag in LangRef.html for details.
-  static GetElementPtrInst *CreateInBounds(Value *Ptr,
-                                           ArrayRef<Value *> IdxList,
-                                           const Twine &NameStr = "",
-                                           Instruction *InsertBefore = 0) {
-    GetElementPtrInst *GEP = Create(Ptr, IdxList, NameStr, InsertBefore);
-    GEP->setIsInBounds(true);
-    return GEP;
-  }
-  static GetElementPtrInst *CreateInBounds(Value *Ptr,
-                                           ArrayRef<Value *> IdxList,
-                                           const Twine &NameStr,
-                                           BasicBlock *InsertAtEnd) {
-    GetElementPtrInst *GEP = Create(Ptr, IdxList, NameStr, InsertAtEnd);
-    GEP->setIsInBounds(true);
-    return GEP;
-  }
-
-  /// Transparently provide more efficient getOperand methods.
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  // getType - Overload to return most specific pointer type...
-  PointerType *getType() const {
-    return reinterpret_cast<PointerType*>(Instruction::getType());
+    if (NumIdx > 0) {
+      // This requires that the iterator points to contiguous memory.
+      init(Ptr, &*IdxBegin, NumIdx, NameStr); // FIXME: for the general case
+                                     // we have to build an array here
+    }
+    else {
+      init(Ptr, 0, NumIdx, NameStr);
+    }
   }
 
   /// getIndexedType - Returns the type of the element that would be loaded with
@@ -772,9 +315,154 @@ public:
   /// Null is returned if the indices are invalid for the specified
   /// pointer type.
   ///
-  static Type *getIndexedType(Type *Ptr, ArrayRef<Value *> IdxList);
-  static Type *getIndexedType(Type *Ptr, ArrayRef<Constant *> IdxList);
-  static Type *getIndexedType(Type *Ptr, ArrayRef<uint64_t> IdxList);
+  template<typename RandomAccessIterator>
+  static Type *getIndexedType(const Type *Ptr,
+                              RandomAccessIterator IdxBegin,
+                              RandomAccessIterator IdxEnd,
+                              // This argument ensures that we
+                              // have an iterator we can do
+                              // arithmetic on in constant time
+                              std::random_access_iterator_tag) {
+    unsigned NumIdx = static_cast<unsigned>(std::distance(IdxBegin, IdxEnd));
+
+    if (NumIdx > 0)
+      // This requires that the iterator points to contiguous memory.
+      return getIndexedType(Ptr, &*IdxBegin, NumIdx);
+    else
+      return getIndexedType(Ptr, (Value *const*)0, NumIdx);
+  }
+
+  /// Constructors - Create a getelementptr instruction with a base pointer an
+  /// list of indices. The first ctor can optionally insert before an existing
+  /// instruction, the second appends the new instruction to the specified
+  /// BasicBlock.
+  template<typename RandomAccessIterator>
+  inline GetElementPtrInst(Value *Ptr, RandomAccessIterator IdxBegin,
+                           RandomAccessIterator IdxEnd,
+                           unsigned Values,
+                           const Twine &NameStr,
+                           Instruction *InsertBefore);
+  template<typename RandomAccessIterator>
+  inline GetElementPtrInst(Value *Ptr,
+                           RandomAccessIterator IdxBegin,
+                           RandomAccessIterator IdxEnd,
+                           unsigned Values,
+                           const Twine &NameStr, BasicBlock *InsertAtEnd);
+
+  /// Constructors - These two constructors are convenience methods because one
+  /// and two index getelementptr instructions are so common.
+  GetElementPtrInst(Value *Ptr, Value *Idx, const Twine &NameStr = "",
+                    Instruction *InsertBefore = 0);
+  GetElementPtrInst(Value *Ptr, Value *Idx,
+                    const Twine &NameStr, BasicBlock *InsertAtEnd);
+protected:
+  virtual GetElementPtrInst *clone_impl() const;
+public:
+  template<typename RandomAccessIterator>
+  static GetElementPtrInst *Create(Value *Ptr, RandomAccessIterator IdxBegin,
+                                   RandomAccessIterator IdxEnd,
+                                   const Twine &NameStr = "",
+                                   Instruction *InsertBefore = 0) {
+    typename std::iterator_traits<RandomAccessIterator>::difference_type
+      Values = 1 + std::distance(IdxBegin, IdxEnd);
+    return new(Values)
+      GetElementPtrInst(Ptr, IdxBegin, IdxEnd, Values, NameStr, InsertBefore);
+  }
+  template<typename RandomAccessIterator>
+  static GetElementPtrInst *Create(Value *Ptr,
+                                   RandomAccessIterator IdxBegin,
+                                   RandomAccessIterator IdxEnd,
+                                   const Twine &NameStr,
+                                   BasicBlock *InsertAtEnd) {
+    typename std::iterator_traits<RandomAccessIterator>::difference_type
+      Values = 1 + std::distance(IdxBegin, IdxEnd);
+    return new(Values)
+      GetElementPtrInst(Ptr, IdxBegin, IdxEnd, Values, NameStr, InsertAtEnd);
+  }
+
+  /// Constructors - These two creators are convenience methods because one
+  /// index getelementptr instructions are so common.
+  static GetElementPtrInst *Create(Value *Ptr, Value *Idx,
+                                   const Twine &NameStr = "",
+                                   Instruction *InsertBefore = 0) {
+    return new(2) GetElementPtrInst(Ptr, Idx, NameStr, InsertBefore);
+  }
+  static GetElementPtrInst *Create(Value *Ptr, Value *Idx,
+                                   const Twine &NameStr,
+                                   BasicBlock *InsertAtEnd) {
+    return new(2) GetElementPtrInst(Ptr, Idx, NameStr, InsertAtEnd);
+  }
+
+  /// Create an "inbounds" getelementptr. See the documentation for the
+  /// "inbounds" flag in LangRef.html for details.
+  template<typename RandomAccessIterator>
+  static GetElementPtrInst *CreateInBounds(Value *Ptr,
+                                           RandomAccessIterator IdxBegin,
+                                           RandomAccessIterator IdxEnd,
+                                           const Twine &NameStr = "",
+                                           Instruction *InsertBefore = 0) {
+    GetElementPtrInst *GEP = Create(Ptr, IdxBegin, IdxEnd,
+                                    NameStr, InsertBefore);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  template<typename RandomAccessIterator>
+  static GetElementPtrInst *CreateInBounds(Value *Ptr,
+                                           RandomAccessIterator IdxBegin,
+                                           RandomAccessIterator IdxEnd,
+                                           const Twine &NameStr,
+                                           BasicBlock *InsertAtEnd) {
+    GetElementPtrInst *GEP = Create(Ptr, IdxBegin, IdxEnd,
+                                    NameStr, InsertAtEnd);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  static GetElementPtrInst *CreateInBounds(Value *Ptr, Value *Idx,
+                                           const Twine &NameStr = "",
+                                           Instruction *InsertBefore = 0) {
+    GetElementPtrInst *GEP = Create(Ptr, Idx, NameStr, InsertBefore);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  static GetElementPtrInst *CreateInBounds(Value *Ptr, Value *Idx,
+                                           const Twine &NameStr,
+                                           BasicBlock *InsertAtEnd) {
+    GetElementPtrInst *GEP = Create(Ptr, Idx, NameStr, InsertAtEnd);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+
+  /// Transparently provide more efficient getOperand methods.
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  // getType - Overload to return most specific pointer type...
+  const PointerType *getType() const {
+    return reinterpret_cast<const PointerType*>(Instruction::getType());
+  }
+
+  /// getIndexedType - Returns the type of the element that would be loaded with
+  /// a load instruction with the specified parameters.
+  ///
+  /// Null is returned if the indices are invalid for the specified
+  /// pointer type.
+  ///
+  template<typename RandomAccessIterator>
+  static Type *getIndexedType(const Type *Ptr, RandomAccessIterator IdxBegin,
+                              RandomAccessIterator IdxEnd) {
+    return getIndexedType(Ptr, IdxBegin, IdxEnd,
+                          typename std::iterator_traits<RandomAccessIterator>::
+                          iterator_category());
+  }
+
+  // FIXME: Use ArrayRef
+  static Type *getIndexedType(const Type *Ptr,
+                              Value* const *Idx, unsigned NumIdx);
+  static Type *getIndexedType(const Type *Ptr,
+                              Constant* const *Idx, unsigned NumIdx);
+
+  static Type *getIndexedType(const Type *Ptr,
+                              uint64_t const *Idx, unsigned NumIdx);
+  static Type *getIndexedType(const Type *Ptr, Value *Idx);
 
   inline op_iterator       idx_begin()       { return op_begin()+1; }
   inline const_op_iterator idx_begin() const { return op_begin()+1; }
@@ -797,8 +485,8 @@ public:
 
   /// getPointerOperandType - Method to return the pointer operand as a
   /// PointerType.
-  PointerType *getPointerOperandType() const {
-    return reinterpret_cast<PointerType*>(getPointerOperand()->getType());
+  const PointerType *getPointerOperandType() const {
+    return reinterpret_cast<const PointerType*>(getPointerOperand()->getType());
   }
 
 
@@ -842,33 +530,43 @@ struct OperandTraits<GetElementPtrInst> :
   public VariadicOperandTraits<GetElementPtrInst, 1> {
 };
 
+template<typename RandomAccessIterator>
 GetElementPtrInst::GetElementPtrInst(Value *Ptr,
-                                     ArrayRef<Value *> IdxList,
+                                     RandomAccessIterator IdxBegin,
+                                     RandomAccessIterator IdxEnd,
                                      unsigned Values,
                                      const Twine &NameStr,
                                      Instruction *InsertBefore)
   : Instruction(PointerType::get(checkGEPType(
-                                   getIndexedType(Ptr->getType(), IdxList)),
+                                   getIndexedType(Ptr->getType(),
+                                                  IdxBegin, IdxEnd)),
                                  cast<PointerType>(Ptr->getType())
                                    ->getAddressSpace()),
                 GetElementPtr,
                 OperandTraits<GetElementPtrInst>::op_end(this) - Values,
                 Values, InsertBefore) {
-  init(Ptr, IdxList, NameStr);
+  init(Ptr, IdxBegin, IdxEnd, NameStr,
+       typename std::iterator_traits<RandomAccessIterator>
+       ::iterator_category());
 }
+template<typename RandomAccessIterator>
 GetElementPtrInst::GetElementPtrInst(Value *Ptr,
-                                     ArrayRef<Value *> IdxList,
+                                     RandomAccessIterator IdxBegin,
+                                     RandomAccessIterator IdxEnd,
                                      unsigned Values,
                                      const Twine &NameStr,
                                      BasicBlock *InsertAtEnd)
   : Instruction(PointerType::get(checkGEPType(
-                                   getIndexedType(Ptr->getType(), IdxList)),
+                                   getIndexedType(Ptr->getType(),
+                                                  IdxBegin, IdxEnd)),
                                  cast<PointerType>(Ptr->getType())
                                    ->getAddressSpace()),
                 GetElementPtr,
                 OperandTraits<GetElementPtrInst>::op_end(this) - Values,
                 Values, InsertAtEnd) {
-  init(Ptr, IdxList, NameStr);
+  init(Ptr, IdxBegin, IdxEnd, NameStr,
+       typename std::iterator_traits<RandomAccessIterator>
+       ::iterator_category());
 }
 
 
@@ -1195,12 +893,12 @@ public:
   /// 2. Call malloc with that argument.
   /// 3. Bitcast the result of the malloc call to the specified type.
   static Instruction *CreateMalloc(Instruction *InsertBefore,
-                                   Type *IntPtrTy, Type *AllocTy,
+                                   const Type *IntPtrTy, const Type *AllocTy,
                                    Value *AllocSize, Value *ArraySize = 0,
                                    Function* MallocF = 0,
                                    const Twine &Name = "");
   static Instruction *CreateMalloc(BasicBlock *InsertAtEnd,
-                                   Type *IntPtrTy, Type *AllocTy,
+                                   const Type *IntPtrTy, const Type *AllocTy,
                                    Value *AllocSize, Value *ArraySize = 0,
                                    Function* MallocF = 0,
                                    const Twine &Name = "");
@@ -1265,15 +963,6 @@ public:
   void setIsNoInline(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::NoInline);
     else removeAttribute(~0, Attribute::NoInline);
-  }
-
-  /// @brief Return true if the call can return twice
-  bool canReturnTwice() const {
-    return paramHasAttr(~0, Attribute::ReturnsTwice);
-  }
-  void setCanReturnTwice(bool Value = true) {
-    if (Value) addAttribute(~0, Attribute::ReturnsTwice);
-    else removeAttribute(~0, Attribute::ReturnsTwice);
   }
 
   /// @brief Determine if the call does not access memory.
@@ -1476,12 +1165,12 @@ protected:
   virtual VAArgInst *clone_impl() const;
 
 public:
-  VAArgInst(Value *List, Type *Ty, const Twine &NameStr = "",
+  VAArgInst(Value *List, const Type *Ty, const Twine &NameStr = "",
              Instruction *InsertBefore = 0)
     : UnaryInstruction(Ty, VAArg, List, InsertBefore) {
     setName(NameStr);
   }
-  VAArgInst(Value *List, Type *Ty, const Twine &NameStr,
+  VAArgInst(Value *List, const Type *Ty, const Twine &NameStr,
             BasicBlock *InsertAtEnd)
     : UnaryInstruction(Ty, VAArg, List, InsertAtEnd) {
     setName(NameStr);
@@ -1537,8 +1226,8 @@ public:
   const Value *getVectorOperand() const { return Op<0>(); }
   const Value *getIndexOperand() const { return Op<1>(); }
 
-  VectorType *getVectorOperandType() const {
-    return reinterpret_cast<VectorType*>(getVectorOperand()->getType());
+  const VectorType *getVectorOperandType() const {
+    return reinterpret_cast<const VectorType*>(getVectorOperand()->getType());
   }
 
 
@@ -1597,8 +1286,8 @@ public:
 
   /// getType - Overload to return most specific vector type.
   ///
-  VectorType *getType() const {
-    return reinterpret_cast<VectorType*>(Instruction::getType());
+  const VectorType *getType() const {
+    return reinterpret_cast<const VectorType*>(Instruction::getType());
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -1650,8 +1339,8 @@ public:
 
   /// getType - Overload to return most specific vector type.
   ///
-  VectorType *getType() const {
-    return reinterpret_cast<VectorType*>(Instruction::getType());
+  const VectorType *getType() const {
+    return reinterpret_cast<const VectorType*>(Instruction::getType());
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -1730,7 +1419,7 @@ public:
   /// with an extractvalue instruction with the specified parameters.
   ///
   /// Null is returned if the indices are invalid for the specified type.
-  static Type *getIndexedType(Type *Agg, ArrayRef<unsigned> Idxs);
+  static Type *getIndexedType(const Type *Agg, ArrayRef<unsigned> Idxs);
 
   typedef const unsigned* idx_iterator;
   inline idx_iterator idx_begin() const { return Indices.begin(); }
@@ -1936,7 +1625,7 @@ class PHINode : public Instruction {
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-  explicit PHINode(Type *Ty, unsigned NumReservedValues,
+  explicit PHINode(const Type *Ty, unsigned NumReservedValues,
                    const Twine &NameStr = "", Instruction *InsertBefore = 0)
     : Instruction(Ty, Instruction::PHI, 0, 0, InsertBefore),
       ReservedSpace(NumReservedValues) {
@@ -1944,7 +1633,7 @@ class PHINode : public Instruction {
     OperandList = allocHungoffUses(ReservedSpace);
   }
 
-  PHINode(Type *Ty, unsigned NumReservedValues, const Twine &NameStr,
+  PHINode(const Type *Ty, unsigned NumReservedValues, const Twine &NameStr,
           BasicBlock *InsertAtEnd)
     : Instruction(Ty, Instruction::PHI, 0, 0, InsertAtEnd),
       ReservedSpace(NumReservedValues) {
@@ -1961,12 +1650,12 @@ protected:
 public:
   /// Constructors - NumReservedValues is a hint for the number of incoming
   /// edges that this phi node will have (use 0 if you really have no idea).
-  static PHINode *Create(Type *Ty, unsigned NumReservedValues,
+  static PHINode *Create(const Type *Ty, unsigned NumReservedValues,
                          const Twine &NameStr = "",
                          Instruction *InsertBefore = 0) {
     return new PHINode(Ty, NumReservedValues, NameStr, InsertBefore);
   }
-  static PHINode *Create(Type *Ty, unsigned NumReservedValues, 
+  static PHINode *Create(const Type *Ty, unsigned NumReservedValues, 
                          const Twine &NameStr, BasicBlock *InsertAtEnd) {
     return new PHINode(Ty, NumReservedValues, NameStr, InsertAtEnd);
   }
@@ -2115,111 +1804,6 @@ struct OperandTraits<PHINode> : public HungoffOperandTraits<2> {
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(PHINode, Value)
 
-//===----------------------------------------------------------------------===//
-//                           LandingPadInst Class
-//===----------------------------------------------------------------------===//
-
-//===---------------------------------------------------------------------------
-/// LandingPadInst - The landingpad instruction holds all of the information
-/// necessary to generate correct exception handling. The landingpad instruction
-/// cannot be moved from the top of a landing pad block, which itself is
-/// accessible only from the 'unwind' edge of an invoke. This uses the
-/// SubclassData field in Value to store whether or not the landingpad is a
-/// cleanup.
-///
-class LandingPadInst : public Instruction {
-  /// ReservedSpace - The number of operands actually allocated.  NumOperands is
-  /// the number actually in use.
-  unsigned ReservedSpace;
-  LandingPadInst(const LandingPadInst &LP);
-public:
-  enum ClauseType { Catch, Filter };
-private:
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  // Allocate space for exactly zero operands.
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
-  void growOperands(unsigned Size);
-  void init(Value *PersFn, unsigned NumReservedValues, const Twine &NameStr);
-
-  explicit LandingPadInst(Type *RetTy, Value *PersonalityFn,
-                          unsigned NumReservedValues, const Twine &NameStr,
-                          Instruction *InsertBefore);
-  explicit LandingPadInst(Type *RetTy, Value *PersonalityFn,
-                          unsigned NumReservedValues, const Twine &NameStr,
-                          BasicBlock *InsertAtEnd);
-protected:
-  virtual LandingPadInst *clone_impl() const;
-public:
-  /// Constructors - NumReservedClauses is a hint for the number of incoming
-  /// clauses that this landingpad will have (use 0 if you really have no idea).
-  static LandingPadInst *Create(Type *RetTy, Value *PersonalityFn,
-                                unsigned NumReservedClauses,
-                                const Twine &NameStr = "",
-                                Instruction *InsertBefore = 0);
-  static LandingPadInst *Create(Type *RetTy, Value *PersonalityFn,
-                                unsigned NumReservedClauses,
-                                const Twine &NameStr, BasicBlock *InsertAtEnd);
-  ~LandingPadInst();
-
-  /// Provide fast operand accessors
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// getPersonalityFn - Get the personality function associated with this
-  /// landing pad.
-  Value *getPersonalityFn() const { return getOperand(0); }
-
-  /// isCleanup - Return 'true' if this landingpad instruction is a
-  /// cleanup. I.e., it should be run when unwinding even if its landing pad
-  /// doesn't catch the exception.
-  bool isCleanup() const { return getSubclassDataFromInstruction() & 1; }
-
-  /// setCleanup - Indicate that this landingpad instruction is a cleanup.
-  void setCleanup(bool V) {
-    setInstructionSubclassData((getSubclassDataFromInstruction() & ~1) |
-                               (V ? 1 : 0));
-  }
-
-  /// addClause - Add a catch or filter clause to the landing pad.
-  void addClause(Value *ClauseVal);
-
-  /// getClause - Get the value of the clause at index Idx. Use isCatch/isFilter
-  /// to determine what type of clause this is.
-  Value *getClause(unsigned Idx) const { return OperandList[Idx + 1]; }
-
-  /// isCatch - Return 'true' if the clause and index Idx is a catch clause.
-  bool isCatch(unsigned Idx) const {
-    return !isa<ArrayType>(OperandList[Idx + 1]->getType());
-  }
-
-  /// isFilter - Return 'true' if the clause and index Idx is a filter clause.
-  bool isFilter(unsigned Idx) const {
-    return isa<ArrayType>(OperandList[Idx + 1]->getType());
-  }
-
-  /// getNumClauses - Get the number of clauses for this landing pad.
-  unsigned getNumClauses() const { return getNumOperands() - 1; }
-
-  /// reserveClauses - Grow the size of the operand list to accomodate the new
-  /// number of clauses.
-  void reserveClauses(unsigned Size) { growOperands(Size); }
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const LandingPadInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::LandingPad;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-};
-
-template <>
-struct OperandTraits<LandingPadInst> : public HungoffOperandTraits<2> {
-};
-
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(LandingPadInst, Value)
 
 //===----------------------------------------------------------------------===//
 //                               ReturnInst Class
@@ -2366,13 +1950,6 @@ public:
     assert(idx < getNumSuccessors() && "Successor # out of range for Branch!");
     *(&Op<-1>() - idx) = (Value*)NewSucc;
   }
-
-  /// \brief Swap the successors of this branch instruction.
-  ///
-  /// Swaps the successors of the branch instruction. This also swaps any
-  /// branch weight metadata associated with the instruction so that it
-  /// continues to map correctly to each operand.
-  void swapSuccessors();
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const BranchInst *) { return true; }
@@ -2523,13 +2100,6 @@ public:
   ConstantInt *getSuccessorValue(unsigned idx) const {
     assert(idx < getNumSuccessors() && "Successor # out of range!");
     return reinterpret_cast<ConstantInt*>(getOperand(idx*2));
-  }
-
-  // setSuccessorValue - Updates the value associated with the specified
-  // successor.
-  void setSuccessorValue(unsigned idx, ConstantInt* SuccessorValue) {
-    assert(idx < getNumSuccessors() && "Successor # out of range!");
-    setOperand(idx*2, reinterpret_cast<Value*>(SuccessorValue));
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -2823,10 +2393,6 @@ public:
     Op<-1>() = reinterpret_cast<Value*>(B);
   }
 
-  /// getLandingPadInst - Get the landingpad instruction from the landing pad
-  /// block (the unwind destination).
-  LandingPadInst *getLandingPadInst() const;
-
   BasicBlock *getSuccessor(unsigned i) const {
     assert(i < 2 && "Successor # out of range for invoke!");
     return i == 0 ? getNormalDest() : getUnwindDest();
@@ -2926,57 +2492,6 @@ private:
 };
 
 //===----------------------------------------------------------------------===//
-//                              ResumeInst Class
-//===----------------------------------------------------------------------===//
-
-//===---------------------------------------------------------------------------
-/// ResumeInst - Resume the propagation of an exception.
-///
-class ResumeInst : public TerminatorInst {
-  ResumeInst(const ResumeInst &RI);
-
-  explicit ResumeInst(Value *Exn, Instruction *InsertBefore=0);
-  ResumeInst(Value *Exn, BasicBlock *InsertAtEnd);
-protected:
-  virtual ResumeInst *clone_impl() const;
-public:
-  static ResumeInst *Create(Value *Exn, Instruction *InsertBefore = 0) {
-    return new(1) ResumeInst(Exn, InsertBefore);
-  }
-  static ResumeInst *Create(Value *Exn, BasicBlock *InsertAtEnd) {
-    return new(1) ResumeInst(Exn, InsertAtEnd);
-  }
-
-  /// Provide fast operand accessors
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// Convenience accessor.
-  Value *getValue() const { return Op<0>(); }
-
-  unsigned getNumSuccessors() const { return 0; }
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const ResumeInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::Resume;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-private:
-  virtual BasicBlock *getSuccessorV(unsigned idx) const;
-  virtual unsigned getNumSuccessorsV() const;
-  virtual void setSuccessorV(unsigned idx, BasicBlock *B);
-};
-
-template <>
-struct OperandTraits<ResumeInst> :
-    public FixedNumOperandTraits<ResumeInst, 1> {
-};
-
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ResumeInst, Value)
-
-//===----------------------------------------------------------------------===//
 //                           UnreachableInst Class
 //===----------------------------------------------------------------------===//
 
@@ -3028,7 +2543,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   TruncInst(
     Value *S,                     ///< The value to be truncated
-    Type *Ty,               ///< The (smaller) type to truncate to
+    const Type *Ty,               ///< The (smaller) type to truncate to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3036,7 +2551,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   TruncInst(
     Value *S,                     ///< The value to be truncated
-    Type *Ty,               ///< The (smaller) type to truncate to
+    const Type *Ty,               ///< The (smaller) type to truncate to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3065,7 +2580,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   ZExtInst(
     Value *S,                     ///< The value to be zero extended
-    Type *Ty,               ///< The type to zero extend to
+    const Type *Ty,               ///< The type to zero extend to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3073,7 +2588,7 @@ public:
   /// @brief Constructor with insert-at-end semantics.
   ZExtInst(
     Value *S,                     ///< The value to be zero extended
-    Type *Ty,               ///< The type to zero extend to
+    const Type *Ty,               ///< The type to zero extend to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3102,7 +2617,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   SExtInst(
     Value *S,                     ///< The value to be sign extended
-    Type *Ty,               ///< The type to sign extend to
+    const Type *Ty,               ///< The type to sign extend to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3110,7 +2625,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   SExtInst(
     Value *S,                     ///< The value to be sign extended
-    Type *Ty,               ///< The type to sign extend to
+    const Type *Ty,               ///< The type to sign extend to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3139,7 +2654,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   FPTruncInst(
     Value *S,                     ///< The value to be truncated
-    Type *Ty,               ///< The type to truncate to
+    const Type *Ty,               ///< The type to truncate to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3147,7 +2662,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   FPTruncInst(
     Value *S,                     ///< The value to be truncated
-    Type *Ty,               ///< The type to truncate to
+    const Type *Ty,               ///< The type to truncate to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3176,7 +2691,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   FPExtInst(
     Value *S,                     ///< The value to be extended
-    Type *Ty,               ///< The type to extend to
+    const Type *Ty,               ///< The type to extend to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3184,7 +2699,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   FPExtInst(
     Value *S,                     ///< The value to be extended
-    Type *Ty,               ///< The type to extend to
+    const Type *Ty,               ///< The type to extend to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3213,7 +2728,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   UIToFPInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3221,7 +2736,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   UIToFPInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3250,7 +2765,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   SIToFPInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3258,7 +2773,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   SIToFPInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3287,7 +2802,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   FPToUIInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3295,7 +2810,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   FPToUIInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< Where to insert the new instruction
   );
@@ -3324,7 +2839,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   FPToSIInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3332,7 +2847,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   FPToSIInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3357,7 +2872,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   IntToPtrInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3365,7 +2880,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   IntToPtrInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3397,7 +2912,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   PtrToIntInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3405,7 +2920,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   PtrToIntInst(
     Value *S,                     ///< The value to be converted
-    Type *Ty,               ///< The type to convert to
+    const Type *Ty,               ///< The type to convert to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
@@ -3434,7 +2949,7 @@ public:
   /// @brief Constructor with insert-before-instruction semantics
   BitCastInst(
     Value *S,                     ///< The value to be casted
-    Type *Ty,               ///< The type to casted to
+    const Type *Ty,               ///< The type to casted to
     const Twine &NameStr = "",    ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
@@ -3442,7 +2957,7 @@ public:
   /// @brief Constructor with insert-at-end-of-block semantics
   BitCastInst(
     Value *S,                     ///< The value to be casted
-    Type *Ty,               ///< The type to casted to
+    const Type *Ty,               ///< The type to casted to
     const Twine &NameStr,         ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );

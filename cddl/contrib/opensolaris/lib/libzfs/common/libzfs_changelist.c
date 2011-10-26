@@ -24,9 +24,6 @@
  * Use is subject to license terms.
  *
  * Portions Copyright 2007 Ramprakash Jelari
- *
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
  */
 
 #include <libintl.h>
@@ -125,8 +122,6 @@ changelist_prefix(prop_changelist_t *clp)
 			 */
 			switch (clp->cl_prop) {
 			case ZFS_PROP_MOUNTPOINT:
-				if (clp->cl_gflags & CL_GATHER_DONT_UNMOUNT)
-					break;
 				if (zfs_unmount(cn->cn_handle, NULL,
 				    clp->cl_mflags) != 0) {
 					ret = -1;
@@ -173,10 +168,8 @@ changelist_postfix(prop_changelist_t *clp)
 	if ((cn = uu_list_last(clp->cl_list)) == NULL)
 		return (0);
 
-	if (clp->cl_prop == ZFS_PROP_MOUNTPOINT &&
-	    !(clp->cl_gflags & CL_GATHER_DONT_UNMOUNT)) {
+	if (clp->cl_prop == ZFS_PROP_MOUNTPOINT)
 		remove_mountpoint(cn->cn_handle);
-	}
 
 	/*
 	 * It is possible that the changelist_prefix() used libshare
@@ -231,8 +224,7 @@ changelist_postfix(prop_changelist_t *clp)
 		    shareopts, sizeof (shareopts), NULL, NULL, 0,
 		    B_FALSE) == 0) && (strcmp(shareopts, "off") != 0));
 
-		mounted = (clp->cl_gflags & CL_GATHER_DONT_UNMOUNT) ||
-		    zfs_is_mounted(cn->cn_handle, NULL);
+		mounted = zfs_is_mounted(cn->cn_handle, NULL);
 
 		if (!mounted && (cn->cn_mounted ||
 		    ((sharenfs || sharesmb || clp->cl_waslegacy) &&
@@ -475,6 +467,7 @@ change_one(zfs_handle_t *zhp, void *data)
 			 * This is necessary when the original mountpoint
 			 * is legacy or none.
 			 */
+			ASSERT(!clp->cl_alldependents);
 			verify(uu_list_insert_before(clp->cl_list,
 			    uu_list_first(clp->cl_list), cn) == 0);
 		}

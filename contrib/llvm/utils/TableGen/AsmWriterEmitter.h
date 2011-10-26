@@ -15,7 +15,7 @@
 #ifndef ASMWRITER_EMITTER_H
 #define ASMWRITER_EMITTER_H
 
-#include "llvm/TableGen/TableGenBackend.h"
+#include "TableGenBackend.h"
 #include <map>
 #include <vector>
 #include <cassert>

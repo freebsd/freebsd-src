@@ -13,12 +13,10 @@
 
 #include "PTXMCTargetDesc.h"
 #include "PTXMCAsmInfo.h"
-#include "InstPrinter/PTXInstPrinter.h"
-#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
 #include "PTXGenInstrInfo.inc"
@@ -37,11 +35,9 @@ static MCInstrInfo *createPTXMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createPTXMCRegisterInfo(StringRef TT) {
-  MCRegisterInfo *X = new MCRegisterInfo();
-  // PTX does not have a return address register.
-  InitPTXMCRegisterInfo(X, 0);
-  return X;
+extern "C" void LLVMInitializePTXMCInstrInfo() {
+  TargetRegistry::RegisterMCInstrInfo(ThePTX32Target, createPTXMCInstrInfo);
+  TargetRegistry::RegisterMCInstrInfo(ThePTX64Target, createPTXMCInstrInfo);
 }
 
 static MCSubtargetInfo *createPTXMCSubtargetInfo(StringRef TT, StringRef CPU,
@@ -51,45 +47,14 @@ static MCSubtargetInfo *createPTXMCSubtargetInfo(StringRef TT, StringRef CPU,
   return X;
 }
 
-static MCCodeGenInfo *createPTXMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                             CodeModel::Model CM) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-  X->InitMCCodeGenInfo(RM, CM);
-  return X;
-}
-
-static MCInstPrinter *createPTXMCInstPrinter(const Target &T,
-                                             unsigned SyntaxVariant,
-                                             const MCAsmInfo &MAI,
-                                             const MCSubtargetInfo &STI) {
-  assert(SyntaxVariant == 0 && "We only have one syntax variant");
-  return new PTXInstPrinter(MAI, STI);
-}
-
-extern "C" void LLVMInitializePTXTargetMC() {
-  // Register the MC asm info.
-  RegisterMCAsmInfo<PTXMCAsmInfo> X(ThePTX32Target);
-  RegisterMCAsmInfo<PTXMCAsmInfo> Y(ThePTX64Target);
-
-  // Register the MC codegen info.
-  TargetRegistry::RegisterMCCodeGenInfo(ThePTX32Target, createPTXMCCodeGenInfo);
-  TargetRegistry::RegisterMCCodeGenInfo(ThePTX64Target, createPTXMCCodeGenInfo);
-
-  // Register the MC instruction info.
-  TargetRegistry::RegisterMCInstrInfo(ThePTX32Target, createPTXMCInstrInfo);
-  TargetRegistry::RegisterMCInstrInfo(ThePTX64Target, createPTXMCInstrInfo);
-
-  // Register the MC register info.
-  TargetRegistry::RegisterMCRegInfo(ThePTX32Target, createPTXMCRegisterInfo);
-  TargetRegistry::RegisterMCRegInfo(ThePTX64Target, createPTXMCRegisterInfo);
-
-  // Register the MC subtarget info.
+extern "C" void LLVMInitializePTXMCSubtargetInfo() {
   TargetRegistry::RegisterMCSubtargetInfo(ThePTX32Target,
                                           createPTXMCSubtargetInfo);
   TargetRegistry::RegisterMCSubtargetInfo(ThePTX64Target,
                                           createPTXMCSubtargetInfo);
+}
 
-  // Register the MCInstPrinter.
-  TargetRegistry::RegisterMCInstPrinter(ThePTX32Target, createPTXMCInstPrinter);
-  TargetRegistry::RegisterMCInstPrinter(ThePTX64Target, createPTXMCInstPrinter);
+extern "C" void LLVMInitializePTXMCAsmInfo() {
+  RegisterMCAsmInfo<PTXMCAsmInfo> X(ThePTX32Target);
+  RegisterMCAsmInfo<PTXMCAsmInfo> Y(ThePTX64Target);
 }

@@ -61,6 +61,9 @@ static struct cdevsw gpioc_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_ioctl	= gpioc_ioctl,
 	.d_name		= "gpioc",
+#if __FreeBSD_version >= 800039
+	.d_flags	= D_PSEUDO | D_NEEDMINOR
+#endif
 };
 
 struct gpioc_softc {

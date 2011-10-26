@@ -19,11 +19,8 @@ int MemoryObject::readBytes(uint64_t address,
                             uint64_t* copied) const {
   uint64_t current = address;
   uint64_t limit = getBase() + getExtent();
-
-  if (current + size > limit)
-    return -1;
-
-  while (current - address < size) {
+  
+  while (current - address < size && current < limit) {
     if (readByte(current, &buf[(current - address)]))
       return -1;
     

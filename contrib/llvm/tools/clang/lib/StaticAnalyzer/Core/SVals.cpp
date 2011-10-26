@@ -12,11 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/IdentifierTable.h"
+
 using namespace clang;
 using namespace ento;
+using llvm::dyn_cast;
+using llvm::cast;
 using llvm::APSInt;
 
 //===----------------------------------------------------------------------===//
@@ -143,7 +146,7 @@ SVal::symbol_iterator::symbol_iterator(const SymExpr *SE) {
   while (!isa<SymbolData>(itr.back())) expand();
 }
 
-SVal::symbol_iterator &SVal::symbol_iterator::operator++() {
+SVal::symbol_iterator& SVal::symbol_iterator::operator++() {
   assert(!itr.empty() && "attempting to iterate on an 'end' iterator");
   assert(isa<SymbolData>(itr.back()));
   itr.pop_back();
@@ -171,7 +174,7 @@ void SVal::symbol_iterator::expand() {
     return;
   }
 
-  llvm_unreachable("unhandled expansion case");
+  assert(false && "unhandled expansion case");
 }
 
 const void *nonloc::LazyCompoundVal::getStore() const {
@@ -267,7 +270,7 @@ SVal loc::ConcreteInt::evalBinOp(BasicValueFactory& BasicVals,
 
 void SVal::dump() const { dumpToStream(llvm::errs()); }
 
-void SVal::dumpToStream(raw_ostream &os) const {
+void SVal::dumpToStream(llvm::raw_ostream& os) const {
   switch (getBaseKind()) {
     case UnknownKind:
       os << "Unknown";
@@ -286,7 +289,7 @@ void SVal::dumpToStream(raw_ostream &os) const {
   }
 }
 
-void NonLoc::dumpToStream(raw_ostream &os) const {
+void NonLoc::dumpToStream(llvm::raw_ostream& os) const {
   switch (getSubKind()) {
     case nonloc::ConcreteIntKind: {
       const nonloc::ConcreteInt& C = *cast<nonloc::ConcreteInt>(this);
@@ -341,7 +344,7 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
   }
 }
 
-void Loc::dumpToStream(raw_ostream &os) const {
+void Loc::dumpToStream(llvm::raw_ostream& os) const {
   switch (getSubKind()) {
     case loc::ConcreteIntKind:
       os << cast<loc::ConcreteInt>(this)->getValue().getZExtValue() << " (Loc)";
@@ -369,6 +372,7 @@ void Loc::dumpToStream(raw_ostream &os) const {
       break;
     }
     default:
-      llvm_unreachable("Pretty-printing not implemented for this Loc.");
+      assert(false && "Pretty-printing not implemented for this Loc.");
+      break;
   }
 }

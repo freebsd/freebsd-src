@@ -7,7 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { print "#define " $3 "\t\tssh_" $3 }'
+ * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { print "#define" $3 "\t\tssh_" $3 }'
  *
  * $FreeBSD$
  */
@@ -58,7 +58,6 @@
 #define buffer_get_int64			ssh_buffer_get_int64
 #define buffer_get_int64_ret			ssh_buffer_get_int64_ret
 #define buffer_get_int_ret			ssh_buffer_get_int_ret
-#define buffer_get_max_len			ssh_buffer_get_max_len
 #define buffer_get_ret				ssh_buffer_get_ret
 #define buffer_get_short			ssh_buffer_get_short
 #define buffer_get_short_ret			ssh_buffer_get_short_ret
@@ -140,7 +139,6 @@
 #define channel_send_window_changes		ssh_channel_send_window_changes
 #define channel_set_af				ssh_channel_set_af
 #define channel_set_fds				ssh_channel_set_fds
-#define channel_set_hpn				ssh_channel_set_hpn
 #define channel_setup_local_fwd_listener	ssh_channel_setup_local_fwd_listener
 #define channel_setup_remote_fwd_listener	ssh_channel_setup_remote_fwd_listener
 #define channel_still_open			ssh_channel_still_open
@@ -201,7 +199,6 @@
 #define dispatch_run				ssh_dispatch_run
 #define dispatch_set				ssh_dispatch_set
 #define do_log					ssh_do_log
-#define do_log2					ssh_do_log2
 #define dump_base64				ssh_dump_base64
 #define enable_compat13				ssh_enable_compat13
 #define enable_compat20				ssh_enable_compat20
@@ -239,7 +236,6 @@
 #define incoming_stream				ssh_incoming_stream
 #define init_hostkeys				ssh_init_hostkeys
 #define init_rng				ssh_init_rng
-#define iptos2str				ssh_iptos2str
 #define ipv64_normalise_mapped			ssh_ipv64_normalise_mapped
 #define kex_derive_keys				ssh_kex_derive_keys
 #define kex_dh_hash				ssh_kex_dh_hash
@@ -284,7 +280,6 @@
 #define key_in_file				ssh_key_in_file
 #define key_is_cert				ssh_key_is_cert
 #define key_load_cert				ssh_key_load_cert
-#define key_load_file				ssh_key_load_file
 #define key_load_private			ssh_key_load_private
 #define key_load_private_cert			ssh_key_load_private_cert
 #define key_load_private_pem			ssh_key_load_private_pem
@@ -294,7 +289,6 @@
 #define key_names_valid2			ssh_key_names_valid2
 #define key_new					ssh_key_new
 #define key_new_private				ssh_key_new_private
-#define key_parse_private			ssh_key_parse_private
 #define key_perm_ok				ssh_key_perm_ok
 #define key_read				ssh_key_read
 #define key_save_private			ssh_key_save_private
@@ -439,13 +433,11 @@
 #define sanitise_stdfd				ssh_sanitise_stdfd
 #define scan_scaled				ssh_scan_scaled
 #define seed_rng				ssh_seed_rng
-#define set_log_handler				ssh_set_log_handler
 #define set_newkeys				ssh_set_newkeys
 #define set_nodelay				ssh_set_nodelay
 #define set_nonblock				ssh_set_nonblock
 #define shadow_pw				ssh_shadow_pw
 #define sigdie					ssh_sigdie
-#define sock_get_rcvbuf				ssh_sock_get_rcvbuf
 #define sock_set_v6only				ssh_sock_set_v6only
 #define ssh1_3des_iv				ssh_ssh1_3des_iv
 #define start_progress_meter			ssh_start_progress_meter

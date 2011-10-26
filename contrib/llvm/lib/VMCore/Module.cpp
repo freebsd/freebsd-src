@@ -32,10 +32,25 @@ using namespace llvm;
 // Methods to implement the globals and functions lists.
 //
 
+GlobalVariable *ilist_traits<GlobalVariable>::createSentinel() {
+  GlobalVariable *Ret = new GlobalVariable(Type::getInt32Ty(getGlobalContext()),
+                                           false, GlobalValue::ExternalLinkage);
+  // This should not be garbage monitored.
+  LeakDetector::removeGarbageObject(Ret);
+  return Ret;
+}
+GlobalAlias *ilist_traits<GlobalAlias>::createSentinel() {
+  GlobalAlias *Ret = new GlobalAlias(Type::getInt32Ty(getGlobalContext()),
+                                     GlobalValue::ExternalLinkage);
+  // This should not be garbage monitored.
+  LeakDetector::removeGarbageObject(Ret);
+  return Ret;
+}
+
 // Explicit instantiations of SymbolTableListTraits since some of the methods
 // are not in the public header file.
-template class llvm::SymbolTableListTraits<Function, Module>;
 template class llvm::SymbolTableListTraits<GlobalVariable, Module>;
+template class llvm::SymbolTableListTraits<Function, Module>;
 template class llvm::SymbolTableListTraits<GlobalAlias, Module>;
 
 //===----------------------------------------------------------------------===//
@@ -67,10 +82,8 @@ Module::Endianness Module::getEndianness() const {
   Module::Endianness ret = AnyEndianness;
   
   while (!temp.empty()) {
-    std::pair<StringRef, StringRef> P = getToken(temp, "-");
-    
-    StringRef token = P.first;
-    temp = P.second;
+    StringRef token = DataLayout;
+    tie(token, temp) = getToken(temp, "-");
     
     if (token[0] == 'e') {
       ret = LittleEndian;
@@ -82,16 +95,15 @@ Module::Endianness Module::getEndianness() const {
   return ret;
 }
 
-/// Target Pointer Size information.
+/// Target Pointer Size information...
 Module::PointerSize Module::getPointerSize() const {
   StringRef temp = DataLayout;
   Module::PointerSize ret = AnyPointerSize;
   
   while (!temp.empty()) {
-    std::pair<StringRef, StringRef> TmpP = getToken(temp, "-");
-    temp = TmpP.second;
-    TmpP = getToken(TmpP.first, ":");
-    StringRef token = TmpP.second, signalToken = TmpP.first;
+    StringRef token, signalToken;
+    tie(token, temp) = getToken(temp, "-");
+    tie(signalToken, token) = getToken(token, ":");
     
     if (signalToken[0] == 'p') {
       int size = 0;
@@ -137,7 +149,7 @@ void Module::getMDKindNames(SmallVectorImpl<StringRef> &Result) const {
 // the symbol table directly for this common task.
 //
 Constant *Module::getOrInsertFunction(StringRef Name,
-                                      FunctionType *Ty,
+                                      const FunctionType *Ty,
                                       AttrListPtr AttributeList) {
   // See if we have a definition for the specified function already.
   GlobalValue *F = getNamedValue(Name);
@@ -170,7 +182,7 @@ Constant *Module::getOrInsertFunction(StringRef Name,
 }
 
 Constant *Module::getOrInsertTargetIntrinsic(StringRef Name,
-                                             FunctionType *Ty,
+                                             const FunctionType *Ty,
                                              AttrListPtr AttributeList) {
   // See if we have a definition for the specified function already.
   GlobalValue *F = getNamedValue(Name);
@@ -187,7 +199,7 @@ Constant *Module::getOrInsertTargetIntrinsic(StringRef Name,
 }
 
 Constant *Module::getOrInsertFunction(StringRef Name,
-                                      FunctionType *Ty) {
+                                      const FunctionType *Ty) {
   AttrListPtr AttributeList = AttrListPtr::get((AttributeWithIndex *)0, 0);
   return getOrInsertFunction(Name, Ty, AttributeList);
 }
@@ -199,7 +211,7 @@ Constant *Module::getOrInsertFunction(StringRef Name,
 //
 Constant *Module::getOrInsertFunction(StringRef Name,
                                       AttrListPtr AttributeList,
-                                      Type *RetTy, ...) {
+                                      const Type *RetTy, ...) {
   va_list Args;
   va_start(Args, RetTy);
 
@@ -217,7 +229,7 @@ Constant *Module::getOrInsertFunction(StringRef Name,
 }
 
 Constant *Module::getOrInsertFunction(StringRef Name,
-                                      Type *RetTy, ...) {
+                                      const Type *RetTy, ...) {
   va_list Args;
   va_start(Args, RetTy);
 
@@ -267,7 +279,7 @@ GlobalVariable *Module::getGlobalVariable(StringRef Name,
 ///      with a constantexpr cast to the right type.
 ///   3. Finally, if the existing global is the correct delclaration, return the
 ///      existing global.
-Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
+Constant *Module::getOrInsertGlobal(StringRef Name, const Type *Ty) {
   // See if we have a definition for the specified global already.
   GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(getNamedValue(Name));
   if (GV == 0) {
@@ -424,7 +436,7 @@ namespace {
     // To avoid walking constant expressions multiple times and other IR
     // objects, we keep several helper maps.
     DenseSet<const Value*> VisitedConstants;
-    DenseSet<Type*> VisitedTypes;
+    DenseSet<const Type*> VisitedTypes;
     
     std::vector<StructType*> &StructTypes;
   public:
@@ -537,3 +549,5 @@ namespace {
 void Module::findUsedStructTypes(std::vector<StructType*> &StructTypes) const {
   TypeFinder(StructTypes).run(*this);
 }
+
+

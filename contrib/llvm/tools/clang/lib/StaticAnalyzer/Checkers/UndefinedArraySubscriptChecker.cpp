@@ -40,10 +40,10 @@ UndefinedArraySubscriptChecker::checkPreStmt(const ArraySubscriptExpr *A,
         BT.reset(new BuiltinBug("Array subscript is undefined"));
 
       // Generate a report for this bug.
-      BugReport *R = new BugReport(*BT, BT->getName(), N);
+      EnhancedBugReport *R = new EnhancedBugReport(*BT, BT->getName(), N);
       R->addRange(A->getIdx()->getSourceRange());
-      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
-                                                                 A->getIdx()));
+      R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, 
+                           A->getIdx());
       C.EmitReport(R);
     }
   }

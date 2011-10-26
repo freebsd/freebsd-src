@@ -213,11 +213,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 		break;
 
 	    case R_386_TLS_TPOFF:
-	    case R_386_TLS_TPOFF32:
 		{
 		    const Elf_Sym *def;
 		    const Obj_Entry *defobj;
-		    Elf_Addr add;
 
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
 		      false, cache, lockstate);
@@ -239,11 +237,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			    goto done;
 			}
 		    }
-		    add = (Elf_Addr) (def->st_value - defobj->tlsoffset);
-		    if (ELF_R_TYPE(rel->r_info) == R_386_TLS_TPOFF)
-			*where += add;
-		    else
-			*where -= add;
+
+		    *where += (Elf_Addr) (def->st_value - defobj->tlsoffset);
 		}
 		break;
 

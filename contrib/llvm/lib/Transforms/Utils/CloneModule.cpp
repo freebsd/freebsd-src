@@ -50,12 +50,10 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
        I != E; ++I) {
     GlobalVariable *GV = new GlobalVariable(*New, 
                                             I->getType()->getElementType(),
-                                            I->isConstant(), I->getLinkage(),
-                                            (Constant*) 0, I->getName(),
-                                            (GlobalVariable*) 0,
-                                            I->isThreadLocal(),
-                                            I->getType()->getAddressSpace());
-    GV->copyAttributesFrom(I);
+                                            false,
+                                            GlobalValue::ExternalLinkage, 0,
+                                            I->getName());
+    GV->setAlignment(I->getAlignment());
     VMap[I] = GV;
   }
 
@@ -63,19 +61,16 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
   for (Module::const_iterator I = M->begin(), E = M->end(); I != E; ++I) {
     Function *NF =
       Function::Create(cast<FunctionType>(I->getType()->getElementType()),
-                       I->getLinkage(), I->getName(), New);
+                       GlobalValue::ExternalLinkage, I->getName(), New);
     NF->copyAttributesFrom(I);
     VMap[I] = NF;
   }
 
   // Loop over the aliases in the module
   for (Module::const_alias_iterator I = M->alias_begin(), E = M->alias_end();
-       I != E; ++I) {
-    GlobalAlias *GA = new GlobalAlias(I->getType(), I->getLinkage(),
-                                      I->getName(), NULL, New);
-    GA->copyAttributesFrom(I);
-    VMap[I] = GA;
-  }
+       I != E; ++I)
+    VMap[I] = new GlobalAlias(I->getType(), GlobalAlias::ExternalLinkage,
+                                  I->getName(), NULL, New);
   
   // Now that all of the things that global variable initializer can refer to
   // have been created, loop through and copy the global variable referrers
@@ -86,6 +81,9 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
     GlobalVariable *GV = cast<GlobalVariable>(VMap[I]);
     if (I->hasInitializer())
       GV->setInitializer(MapValue(I->getInitializer(), VMap));
+    GV->setLinkage(I->getLinkage());
+    GV->setThreadLocal(I->isThreadLocal());
+    GV->setConstant(I->isConstant());
   }
 
   // Similarly, copy over function bodies now...
@@ -103,12 +101,15 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
       SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
       CloneFunctionInto(F, I, VMap, /*ModuleLevelChanges=*/true, Returns);
     }
+
+    F->setLinkage(I->getLinkage());
   }
 
   // And aliases
   for (Module::const_alias_iterator I = M->alias_begin(), E = M->alias_end();
        I != E; ++I) {
     GlobalAlias *GA = cast<GlobalAlias>(VMap[I]);
+    GA->setLinkage(I->getLinkage());
     if (const Constant *C = I->getAliasee())
       GA->setAliasee(MapValue(C, VMap));
   }

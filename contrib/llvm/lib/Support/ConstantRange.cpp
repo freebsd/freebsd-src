@@ -21,10 +21,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/InstrTypes.h"
+#include "llvm/Constants.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Instructions.h"
 using namespace llvm;
 
 /// Initialize a full (the default) or empty set for the specified type.
@@ -55,56 +56,56 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
 
   uint32_t W = CR.getBitWidth();
   switch (Pred) {
-    default: assert(0 && "Invalid ICmp predicate to makeICmpRegion()");
-    case CmpInst::ICMP_EQ:
+    default: assert(!"Invalid ICmp predicate to makeICmpRegion()");
+    case ICmpInst::ICMP_EQ:
       return CR;
-    case CmpInst::ICMP_NE:
+    case ICmpInst::ICMP_NE:
       if (CR.isSingleElement())
         return ConstantRange(CR.getUpper(), CR.getLower());
       return ConstantRange(W);
-    case CmpInst::ICMP_ULT: {
+    case ICmpInst::ICMP_ULT: {
       APInt UMax(CR.getUnsignedMax());
       if (UMax.isMinValue())
         return ConstantRange(W, /* empty */ false);
       return ConstantRange(APInt::getMinValue(W), UMax);
     }
-    case CmpInst::ICMP_SLT: {
+    case ICmpInst::ICMP_SLT: {
       APInt SMax(CR.getSignedMax());
       if (SMax.isMinSignedValue())
         return ConstantRange(W, /* empty */ false);
       return ConstantRange(APInt::getSignedMinValue(W), SMax);
     }
-    case CmpInst::ICMP_ULE: {
+    case ICmpInst::ICMP_ULE: {
       APInt UMax(CR.getUnsignedMax());
       if (UMax.isMaxValue())
         return ConstantRange(W);
       return ConstantRange(APInt::getMinValue(W), UMax + 1);
     }
-    case CmpInst::ICMP_SLE: {
+    case ICmpInst::ICMP_SLE: {
       APInt SMax(CR.getSignedMax());
       if (SMax.isMaxSignedValue())
         return ConstantRange(W);
       return ConstantRange(APInt::getSignedMinValue(W), SMax + 1);
     }
-    case CmpInst::ICMP_UGT: {
+    case ICmpInst::ICMP_UGT: {
       APInt UMin(CR.getUnsignedMin());
       if (UMin.isMaxValue())
         return ConstantRange(W, /* empty */ false);
       return ConstantRange(UMin + 1, APInt::getNullValue(W));
     }
-    case CmpInst::ICMP_SGT: {
+    case ICmpInst::ICMP_SGT: {
       APInt SMin(CR.getSignedMin());
       if (SMin.isMaxSignedValue())
         return ConstantRange(W, /* empty */ false);
       return ConstantRange(SMin + 1, APInt::getSignedMinValue(W));
     }
-    case CmpInst::ICMP_UGE: {
+    case ICmpInst::ICMP_UGE: {
       APInt UMin(CR.getUnsignedMin());
       if (UMin.isMinValue())
         return ConstantRange(W);
       return ConstantRange(UMin, APInt::getNullValue(W));
     }
-    case CmpInst::ICMP_SGE: {
+    case ICmpInst::ICMP_SGE: {
       APInt SMin(CR.getSignedMin());
       if (SMin.isMinSignedValue())
         return ConstantRange(W);

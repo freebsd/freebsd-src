@@ -645,12 +645,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * As sold by Kouwell <URL:http://www.kouwell.com/>.
 	 * I/O Flex PCI I/O Card Model-223 with 4 serial and 1 parallel ports.
 	 */
-	{
-		0x1415, 0x9501, 0x10fc ,0xc070,
-		"I-O DATA RSA-PCI2/R",
-		DEFAULT_RCLK * 8,
-		PUC_PORT_2S, 0x10, 0, 8,
-	},
 
 	{   0x1415, 0x9501, 0x131f, 0x2050,
 	    "SIIG Cyber 4 PCI 16550",
@@ -738,13 +732,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * StarTech.com PEX4S952 (4 port) and PEX8S952 (8 port)
 	 * <URL:http://www.startech.com>
 	 */
-
-	{   0x1415, 0xc138, 0xffff, 0,
-	    "Oxford Semiconductor OXPCIe952 UARTs",
-	    DEFAULT_RCLK * 0x22,
-	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
-	    .config_function = puc_config_oxford_pcie
-	},
 
 	{   0x1415, 0xc158, 0xffff, 0,
 	    "Oxford Semiconductor OXPCIe952 UARTs",

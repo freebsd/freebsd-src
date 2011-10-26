@@ -14,7 +14,7 @@
 
 #include "InstrEnumEmitter.h"
 #include "CodeGenTarget.h"
-#include "llvm/TableGen/Record.h"
+#include "Record.h"
 #include <cstdio>
 using namespace llvm;
 

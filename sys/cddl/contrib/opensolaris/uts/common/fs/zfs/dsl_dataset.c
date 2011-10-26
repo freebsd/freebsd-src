@@ -21,8 +21,6 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
  */
 
 #include <sys/dmu_objset.h>
@@ -2463,7 +2461,7 @@ dsl_valid_rename(const char *oldname, void *arg)
 
 #pragma weak dmu_objset_rename = dsl_dataset_rename
 int
-dsl_dataset_rename(char *oldname, const char *newname, int flags)
+dsl_dataset_rename(char *oldname, const char *newname, boolean_t recursive)
 {
 	dsl_dir_t *dd;
 	dsl_dataset_t *ds;
@@ -2483,7 +2481,7 @@ dsl_dataset_rename(char *oldname, const char *newname, int flags)
 			    &delta, DS_FIND_CHILDREN | DS_FIND_SNAPSHOTS);
 
 		if (err == 0)
-			err = dsl_dir_rename(dd, newname, flags);
+			err = dsl_dir_rename(dd, newname);
 		dsl_dir_close(dd, FTAG);
 		return (err);
 	}
@@ -2504,7 +2502,7 @@ dsl_dataset_rename(char *oldname, const char *newname, int flags)
 	if (strncmp(oldname, newname, tail - newname) != 0)
 		return (EXDEV);
 
-	if (flags & ZFS_RENAME_RECURSIVE) {
+	if (recursive) {
 		err = dsl_recursive_rename(oldname, newname);
 	} else {
 		err = dsl_dataset_hold(oldname, FTAG, &ds);

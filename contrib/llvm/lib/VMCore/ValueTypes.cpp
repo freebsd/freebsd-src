@@ -19,12 +19,6 @@
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
-EVT EVT::changeExtendedVectorElementTypeToInteger() const {
-  LLVMContext &Context = LLVMTy->getContext();
-  EVT IntTy = getIntegerVT(Context, getVectorElementType().getSizeInBits());
-  return getVectorVT(Context, IntTy, getVectorNumElements());
-}
-
 EVT EVT::getExtendedIntegerVT(LLVMContext &Context, unsigned BitWidth) {
   EVT VT;
   VT.LLVMTy = IntegerType::get(Context, BitWidth);
@@ -83,9 +77,9 @@ unsigned EVT::getExtendedVectorNumElements() const {
 
 unsigned EVT::getExtendedSizeInBits() const {
   assert(isExtended() && "Type is not extended!");
-  if (IntegerType *ITy = dyn_cast<IntegerType>(LLVMTy))
+  if (const IntegerType *ITy = dyn_cast<IntegerType>(LLVMTy))
     return ITy->getBitWidth();
-  if (VectorType *VTy = dyn_cast<VectorType>(LLVMTy))
+  if (const VectorType *VTy = dyn_cast<VectorType>(LLVMTy))
     return VTy->getBitWidth();
   assert(false && "Unrecognized extended type!");
   return 0; // Suppress warnings.
@@ -146,7 +140,7 @@ std::string EVT::getEVTString() const {
 /// getTypeForEVT - This method returns an LLVM type corresponding to the
 /// specified EVT.  For integer types, this returns an unsigned type.  Note
 /// that this will abort for types that cannot be represented.
-Type *EVT::getTypeForEVT(LLVMContext &Context) const {
+const Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   switch (V.SimpleTy) {
   default:
     assert(isExtended() && "Type is not extended!");
@@ -192,7 +186,7 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
 /// getEVT - Return the value type corresponding to the specified type.  This
 /// returns all pointers as MVT::iPTR.  If HandleUnknown is true, unknown types
 /// are returned as Other, otherwise they are invalid.
-EVT EVT::getEVT(Type *Ty, bool HandleUnknown){
+EVT EVT::getEVT(const Type *Ty, bool HandleUnknown){
   switch (Ty->getTypeID()) {
   default:
     if (HandleUnknown) return MVT(MVT::Other);
@@ -210,7 +204,7 @@ EVT EVT::getEVT(Type *Ty, bool HandleUnknown){
   case Type::PPC_FP128TyID: return MVT(MVT::ppcf128);
   case Type::PointerTyID:   return MVT(MVT::iPTR);
   case Type::VectorTyID: {
-    VectorType *VTy = cast<VectorType>(Ty);
+    const VectorType *VTy = cast<VectorType>(Ty);
     return getVectorVT(Ty->getContext(), getEVT(VTy->getElementType(), false),
                        VTy->getNumElements());
   }

@@ -76,6 +76,11 @@ static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
 static void	in_purgemaddrs(struct ifnet *);
 
+static VNET_DEFINE(int, subnetsarelocal);
+#define	V_subnetsarelocal		VNET(subnetsarelocal)
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
+	&VNET_NAME(subnetsarelocal), 0,
+	"Treat all subnets as directly connected");
 static VNET_DEFINE(int, sameprefixcarponly);
 #define	V_sameprefixcarponly		VNET(sameprefixcarponly)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
@@ -90,7 +95,9 @@ VNET_DECLARE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
 /*
  * Return 1 if an internet address is for a ``local'' host
- * (one to which we have a connection).
+ * (one to which we have a connection).  If subnetsarelocal
+ * is true, this includes other subnets of the local net.
+ * Otherwise, it includes only the directly-connected (sub)nets.
  */
 int
 in_localaddr(struct in_addr in)
@@ -99,10 +106,19 @@ in_localaddr(struct in_addr in)
 	register struct in_ifaddr *ia;
 
 	IN_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-		if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
-			IN_IFADDR_RUNLOCK();
-			return (1);
+	if (V_subnetsarelocal) {
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+			if ((i & ia->ia_netmask) == ia->ia_net) {
+				IN_IFADDR_RUNLOCK();
+				return (1);
+			}
+		}
+	} else {
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+			if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
+				IN_IFADDR_RUNLOCK();
+				return (1);
+			}
 		}
 	}
 	IN_IFADDR_RUNLOCK();
@@ -829,7 +845,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
-	int flags = RTF_UP, error = 0;
+	int s = splimp(), flags = RTF_UP, error = 0;
 
 	oldaddr = ia->ia_addr;
 	if (oldaddr.sin_family == AF_INET)
@@ -849,6 +865,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	if (ifp->if_ioctl != NULL) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error) {
+			splx(s);
 			/* LIST_REMOVE(ia, ia_hash) is done in in_control */
 			ia->ia_addr = oldaddr;
 			IN_IFADDR_WLOCK();
@@ -867,24 +884,29 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 			return (error);
 		}
 	}
+	splx(s);
 	if (scrub) {
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&oldaddr;
 		in_ifscrub(ifp, ia, LLE_STATIC);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 	}
+	if (IN_CLASSA(i))
+		ia->ia_netmask = IN_CLASSA_NET;
+	else if (IN_CLASSB(i))
+		ia->ia_netmask = IN_CLASSB_NET;
+	else
+		ia->ia_netmask = IN_CLASSC_NET;
 	/*
-	 * Be compatible with network classes, if netmask isn't supplied,
-	 * guess it based on classes.
+	 * The subnet mask usually includes at least the standard network part,
+	 * but may may be smaller in the case of supernetting.
+	 * If it is set, we believe it.
 	 */
 	if (ia->ia_subnetmask == 0) {
-		if (IN_CLASSA(i))
-			ia->ia_subnetmask = IN_CLASSA_NET;
-		else if (IN_CLASSB(i))
-			ia->ia_subnetmask = IN_CLASSB_NET;
-		else
-			ia->ia_subnetmask = IN_CLASSC_NET;
+		ia->ia_subnetmask = ia->ia_netmask;
 		ia->ia_sockmask.sin_addr.s_addr = htonl(ia->ia_subnetmask);
-	}
+	} else
+		ia->ia_netmask &= ia->ia_subnetmask;
+	ia->ia_net = i & ia->ia_netmask;
 	ia->ia_subnet = i & ia->ia_subnetmask;
 	in_socktrim(&ia->ia_sockmask);
 	/*
@@ -897,11 +919,10 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	 */
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	if (ifp->if_flags & IFF_BROADCAST) {
-		if (ia->ia_subnetmask == IN_RFC3021_MASK)
-			ia->ia_broadaddr.sin_addr.s_addr = INADDR_BROADCAST;
-		else
-			ia->ia_broadaddr.sin_addr.s_addr =
-			    htonl(ia->ia_subnet | ~ia->ia_subnetmask);
+		ia->ia_broadaddr.sin_addr.s_addr =
+			htonl(ia->ia_subnet | ~ia->ia_subnetmask);
+		ia->ia_netbroadcast.s_addr =
+			htonl(ia->ia_net | ~ ia->ia_netmask);
 	} else if (ifp->if_flags & IFF_LOOPBACK) {
 		ia->ia_dstaddr = ia->ia_addr;
 		flags |= RTF_HOST;
@@ -1105,10 +1126,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			RT_LOCK(ia_ro.ro_rt);
 			if (ia_ro.ro_rt->rt_refcnt <= 1)
 				freeit = 1;
-			else if (flags & LLE_STATIC) {
+			else
 				RT_REMREF(ia_ro.ro_rt);
-				target->ia_flags &= ~IFA_RTSELF;
-			}
 			RTFREE_LOCKED(ia_ro.ro_rt);
 		}
 		if (freeit && (flags & LLE_STATIC)) {
@@ -1117,8 +1136,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			if (error == 0)
 				target->ia_flags &= ~IFA_RTSELF;
 		}
-		if ((flags & LLE_STATIC) &&
-			!(target->ia_ifp->if_flags & IFF_NOARP))
+		if (flags & LLE_STATIC)
 			/* remove arp cache */
 			arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
@@ -1232,12 +1250,11 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
+		     in.s_addr == ia->ia_netbroadcast.s_addr ||
 		     /*
-		      * Check for old-style (host 0) broadcast, but
-		      * taking into account that RFC 3021 obsoletes it.
+		      * Check for old-style (host 0) broadcast.
 		      */
-		     (ia->ia_subnetmask != IN_RFC3021_MASK &&
-		     t == ia->ia_subnet)) &&
+		     t == ia->ia_subnet || t == ia->ia_net) &&
 		     /*
 		      * Check for an all one subnetmask. These
 		      * only exist when an interface gets a secondary
@@ -1401,67 +1418,30 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 
-	if (rt == NULL)
-		return (EINVAL);
-
 	/*
 	 * If the gateway for an existing host route matches the target L3
-	 * address, which is a special route inserted by some implementation
-	 * such as MANET, and the interface is of the correct type, then
-	 * allow for ARP to proceed.
+	 * address, allow for ARP to proceed.
 	 */
-	if (rt->rt_flags & RTF_GATEWAY) {
-		if (!(rt->rt_flags & RTF_HOST) || !rt->rt_ifp ||
-			rt->rt_ifp->if_type != IFT_ETHER ||
-			  (rt->rt_ifp->if_flags & 
-			   (IFF_NOARP | IFF_STATICARP)) != 0 ||
-			  memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
-				 sizeof(in_addr_t)) != 0) {
-			RTFREE_LOCKED(rt);
-			return (EINVAL);
-		}
+	if (rt != NULL && (rt->rt_flags & (RTF_HOST|RTF_GATEWAY)) &&
+	    rt->rt_gateway->sa_family == AF_INET &&
+	    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data, 4) == 0) {
+		RTFREE_LOCKED(rt);
+		return (0);
 	}
 
-	/*
-	 * Make sure that at least the destination address is covered 
-	 * by the route. This is for handling the case where 2 or more 
-	 * interfaces have the same prefix. An incoming packet arrives
-	 * on one interface and the corresponding outgoing packet leaves
-	 * another interface.
-	 */
-	if (!(rt->rt_flags & RTF_HOST) && rt->rt_ifp != ifp) {
-		const char *sa, *mask, *addr, *lim;
-		int len;
-
-		mask = (const char *)rt_mask(rt);
-		/*
-		 * Just being extra cautious to avoid some custom
-		 * code getting into trouble.
-		 */
-		if (mask == NULL) {
-			RTFREE_LOCKED(rt);
-			return (EINVAL);
-		}
-
-		sa = (const char *)rt_key(rt);
-		addr = (const char *)l3addr;
-		len = ((const struct sockaddr_in *)l3addr)->sin_len;
-		lim = addr + len;
-
-		for ( ; addr < lim; sa++, mask++, addr++) {
-			if ((*sa ^ *addr) & *mask) {
+	if (rt == NULL || (!(flags & LLE_PUB) &&
+			   ((rt->rt_flags & RTF_GATEWAY) || 
+			    (rt->rt_ifp != ifp)))) {
 #ifdef DIAGNOSTIC
-				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
-				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
+		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 #endif
-				RTFREE_LOCKED(rt);
-				return (EINVAL);
-			}
-		}
+		if (rt != NULL)
+			RTFREE_LOCKED(rt);
+		return (EINVAL);
 	}
-
 	RTFREE_LOCKED(rt);
-	return (0);
+	return 0;
 }
 
 /*

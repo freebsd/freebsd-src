@@ -566,10 +566,8 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
-		if (id != 0)
-			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_get_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
+		    NULL, ugd->ugd_data, size);
 		break;
 
 	case USB_SET_REPORT:
@@ -594,10 +592,8 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
-		if (id != 0)
-			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_set_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
+		    NULL, ugd->ugd_data, size);
 		break;
 
 	case USB_GET_REPORT_ID:

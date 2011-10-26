@@ -3,7 +3,9 @@
 LIB=	llvmx86codegen
 
 SRCDIR=	lib/Target/X86
-SRCS=	X86AsmPrinter.cpp \
+SRCS=	SSEDomainFix.cpp \
+	X86AsmBackend.cpp \
+	X86AsmPrinter.cpp \
 	X86COFFMachineModuleInfo.cpp \
 	X86CodeEmitter.cpp \
 	X86ELFWriterInfo.cpp \
@@ -14,13 +16,14 @@ SRCS=	X86AsmPrinter.cpp \
 	X86ISelLowering.cpp \
 	X86InstrInfo.cpp \
 	X86JITInfo.cpp \
+	X86MCCodeEmitter.cpp \
 	X86MCInstLower.cpp \
+	X86MachObjectWriter.cpp \
 	X86RegisterInfo.cpp \
 	X86SelectionDAGInfo.cpp \
 	X86Subtarget.cpp \
 	X86TargetMachine.cpp \
-	X86TargetObjectFile.cpp \
-	X86VZeroUpper.cpp \
+	X86TargetObjectFile.cpp
 
 TGHDRS=	Intrinsics \
 	X86GenCallingConv \

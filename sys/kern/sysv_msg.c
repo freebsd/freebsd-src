@@ -81,7 +81,6 @@ static int msginit(void);
 static int msgunload(void);
 static int sysvmsg_modload(struct module *, int, void *);
 
-
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	printf a
 #else
@@ -164,7 +163,7 @@ static struct syscall_helper_data msg_syscalls[] = {
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 	SYSCALL_INIT_HELPER(msgsys),
-	SYSCALL_INIT_HELPER_COMPAT(freebsd7_msgctl),
+	SYSCALL_INIT_HELPER(freebsd7_msgctl),
 #endif
 	SYSCALL_INIT_LAST
 };
@@ -181,7 +180,7 @@ static struct syscall_helper_data msg32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_msgctl),
 	SYSCALL32_INIT_HELPER(freebsd32_msgsnd),
 	SYSCALL32_INIT_HELPER(freebsd32_msgrcv),
-	SYSCALL32_INIT_HELPER_COMPAT(msgget),
+	SYSCALL32_INIT_HELPER(msgget),
 	SYSCALL32_INIT_HELPER(freebsd32_msgsys),
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -380,7 +379,7 @@ struct msgctl_args {
 };
 #endif
 int
-sys_msgctl(td, uap)
+msgctl(td, uap)
 	struct thread *td;
 	register struct msgctl_args *uap;
 {
@@ -556,9 +555,8 @@ struct msgget_args {
 	int	msgflg;
 };
 #endif
-
 int
-sys_msgget(td, uap)
+msgget(td, uap)
 	struct thread *td;
 	register struct msgget_args *uap;
 {
@@ -1013,7 +1011,7 @@ done2:
 }
 
 int
-sys_msgsnd(td, uap)
+msgsnd(td, uap)
 	struct thread *td;
 	register struct msgsnd_args *uap;
 {
@@ -1298,7 +1296,7 @@ done2:
 }
 
 int
-sys_msgrcv(td, uap)
+msgrcv(td, uap)
 	struct thread *td;
 	register struct msgrcv_args *uap;
 {
@@ -1358,7 +1356,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 		return (freebsd32_msgrcv(td,
 		    (struct freebsd32_msgrcv_args *)&uap->a2));
 	default:
-		return (sys_msgsys(td, (struct msgsys_args *)uap));
+		return (msgsys(td, (struct msgsys_args *)uap));
 	}
 #else
 	return (nosys(td, NULL));
@@ -1496,15 +1494,15 @@ freebsd32_msgrcv(struct thread *td, struct freebsd32_msgrcv_args *uap)
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *msgcalls[] = {
-	(sy_call_t *)freebsd7_msgctl, (sy_call_t *)sys_msgget,
-	(sy_call_t *)sys_msgsnd, (sy_call_t *)sys_msgrcv
+	(sy_call_t *)freebsd7_msgctl, (sy_call_t *)msgget,
+	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
 
 /*
  * Entry point for all MSG calls.
  */
 int
-sys_msgsys(td, uap)
+msgsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct msgsys_args /* {

@@ -9,12 +9,12 @@
 
 #include "DisassemblerEmitter.h"
 #include "CodeGenTarget.h"
+#include "Error.h"
+#include "Record.h"
 #include "X86DisassemblerTables.h"
 #include "X86RecognizableInstr.h"
 #include "ARMDecoderEmitter.h"
 #include "FixedLenDecoderEmitter.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
 
 using namespace llvm;
 using namespace llvm::X86Disassembler;
@@ -128,16 +128,12 @@ void DisassemblerEmitter::run(raw_ostream &OS) {
     return;
   }
 
-  // ARM and Thumb have a CHECK() macro to deal with DecodeStatuses.
-  if (Target.getName() == "ARM" ||
-      Target.getName() == "Thumb") {
-    FixedLenDecoderEmitter(Records,
-                           "ARM",
-                           "if (!Check(S, ", ")) return MCDisassembler::Fail;",
-                           "S", "MCDisassembler::Fail",
-                           "  MCDisassembler::DecodeStatus S = MCDisassembler::Success;\n(void)S;").run(OS);
+  // Fixed-instruction-length targets use a common disassembler.
+  // ARM use its own implementation for now.
+  if (Target.getName() == "ARM") {
+    ARMDecoderEmitter(Records).run(OS);
     return;
-  }
+  }  
 
-  FixedLenDecoderEmitter(Records, Target.getName()).run(OS);
+  FixedLenDecoderEmitter(Records).run(OS);
 }

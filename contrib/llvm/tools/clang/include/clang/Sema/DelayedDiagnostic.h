@@ -123,7 +123,7 @@ public:
 
   static DelayedDiagnostic makeDeprecation(SourceLocation Loc,
                                            const NamedDecl *D,
-                                           StringRef Msg);
+                                           llvm::StringRef Msg);
 
   static DelayedDiagnostic makeAccess(SourceLocation Loc,
                                       const AccessedEntity &Entity) {
@@ -163,9 +163,9 @@ public:
     return DeprecationData.Decl;
   }
 
-  StringRef getDeprecationMessage() const {
+  llvm::StringRef getDeprecationMessage() const {
     assert(Kind == Deprecation && "Not a deprecation diagnostic.");
-    return StringRef(DeprecationData.Message,
+    return llvm::StringRef(DeprecationData.Message,
                            DeprecationData.MessageLen);
   }
 

@@ -78,9 +78,6 @@ public:
     DiagContext = Ctx;
   }
 
-  DiagHandlerTy getDiagHandler() const { return DiagHandler; }
-  void *getDiagContext() const { return DiagContext; }
-
   const SrcBuffer &getBufferInfo(unsigned i) const {
     assert(i < Buffers.size() && "Invalid Buffer ID!");
     return Buffers[i];
@@ -141,12 +138,8 @@ public:
                           const Twine &Msg, const char *Type,
                           bool ShowLine = true) const;
 
-  /// PrintIncludeStack - Prints the names of included files and the line of the
-  /// file they were included from.  A diagnostic handler can use this before
-  /// printing its custom formatted message.
-  ///
-  /// @param IncludeLoc - The line of the include.
-  /// @param OS the raw_ostream to print on.
+
+private:
   void PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const;
 };
 

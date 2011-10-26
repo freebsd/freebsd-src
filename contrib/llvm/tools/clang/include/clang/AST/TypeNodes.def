@@ -102,10 +102,9 @@ DEPENDENT_TYPE(PackExpansion, Type)
 TYPE(ObjCObject, Type)
 TYPE(ObjCInterface, ObjCObjectType)
 TYPE(ObjCObjectPointer, Type)
-TYPE(Atomic, Type)
 
 #ifdef LAST_TYPE
-LAST_TYPE(Atomic)
+LAST_TYPE(ObjCObjectPointer)
 #undef LAST_TYPE
 #endif
 

@@ -115,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/rman.h>
-#include <sys/sched.h>
 #include <sys/taskqueue.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
@@ -202,8 +201,6 @@ xctrl_suspend()
 	int i, j, k, fpp;
 	unsigned long max_pfn, start_info_mfn;
 
-	EVENTHANDLER_INVOKE(power_suspend);
-
 #ifdef SMP
 	struct thread *td;
 	cpuset_t map;
@@ -224,13 +221,7 @@ xctrl_suspend()
 		stop_cpus(map);
 #endif
 
-	/*
-	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
-	 * drivers need this.
-	 */
-	mtx_lock(&Giant);
 	if (DEVICE_SUSPEND(root_bus) != 0) {
-		mtx_unlock(&Giant);
 		printf("xen_suspend: device_suspend failed\n");
 #ifdef SMP
 		if (!CPU_EMPTY(&map))
@@ -238,7 +229,6 @@ xctrl_suspend()
 #endif
 		return;
 	}
-	mtx_unlock(&Giant);
 
 	local_irq_disable();
 
@@ -293,14 +283,11 @@ xctrl_suspend()
 		vcpu_prepare(i);
 
 #endif
-
 	/* 
 	 * Only resume xenbus /after/ we've prepared our VCPUs; otherwise
 	 * the VCPU hotplug callback can race with our vcpu_prepare
 	 */
-	mtx_lock(&Giant);
 	DEVICE_RESUME(root_bus);
-	mtx_unlock(&Giant);
 
 #ifdef SMP
 	thread_lock(curthread);
@@ -309,7 +296,6 @@ xctrl_suspend()
 	if (!CPU_EMPTY(&map))
 		restart_cpus(map);
 #endif
-	EVENTHANDLER_INVOKE(power_resume);
 }
 
 static void
@@ -336,47 +322,39 @@ xctrl_suspend()
 {
 	int suspend_cancelled;
 
-	EVENTHANDLER_INVOKE(power_suspend);
-
-	/*
-	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
-	 * drivers need this.
-	 */
-	mtx_lock(&Giant);
 	if (DEVICE_SUSPEND(root_bus)) {
-		mtx_unlock(&Giant);
 		printf("xen_suspend: device_suspend failed\n");
 		return;
 	}
-	mtx_unlock(&Giant);
+
+	/*
+	 * Make sure we don't change cpus or switch to some other
+	 * thread. for the duration.
+	 */
+	critical_enter();
 
 	/*
 	 * Prevent any races with evtchn_interrupt() handler.
 	 */
-	disable_intr();
 	irq_suspend();
+	disable_intr();
 
 	suspend_cancelled = HYPERVISOR_suspend(0);
-	if (suspend_cancelled)
-		irq_resume();
-	else
+	if (!suspend_cancelled)
 		xenpci_resume();
 
 	/*
 	 * Re-enable interrupts and put the scheduler back to normal.
 	 */
 	enable_intr();
+	critical_exit();
 
 	/*
 	 * FreeBSD really needs to add DEVICE_SUSPEND_CANCEL or
 	 * similar.
 	 */
-	mtx_lock(&Giant);
 	if (!suspend_cancelled)
 		DEVICE_RESUME(root_bus);
-	mtx_unlock(&Giant);
-
-	EVENTHANDLER_INVOKE(power_resume);
 }
 #endif
 

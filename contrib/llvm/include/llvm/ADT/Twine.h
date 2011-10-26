@@ -99,9 +99,6 @@ namespace llvm {
       /// A pointer to a StringRef instance.
       StringRefKind,
 
-      /// A char value reinterpreted as a pointer, to render as a character.
-      CharKind,
-
       /// An unsigned int value reinterpreted as a pointer, to render as an
       /// unsigned decimal integer.
       DecUIKind,
@@ -129,31 +126,13 @@ namespace llvm {
       UHexKind
     };
 
-    union Child
-    {
-      const Twine *twine;
-      const char *cString;
-      const std::string *stdString;
-      const StringRef *stringRef;
-      char character;
-      unsigned int decUI;
-      int decI;
-      const unsigned long *decUL;
-      const long *decL;
-      const unsigned long long *decULL;
-      const long long *decLL;
-      const uint64_t *uHex;
-    };
-
   private:
     /// LHS - The prefix in the concatenation, which may be uninitialized for
     /// Null or Empty kinds.
-    Child LHS;
+    const void *LHS;
     /// RHS - The suffix in the concatenation, which may be uninitialized for
     /// Null or Empty kinds.
-    Child RHS;
-    // enums stored as unsigned chars to save on space while some compilers
-    // don't support specifying the backing type for an enum
+    const void *RHS;
     /// LHSKind - The NodeKind of the left hand side, \see getLHSKind().
     unsigned char LHSKind;
     /// RHSKind - The NodeKind of the left hand side, \see getLHSKind().
@@ -168,15 +147,13 @@ namespace llvm {
 
     /// Construct a binary twine.
     explicit Twine(const Twine &_LHS, const Twine &_RHS)
-      : LHSKind(TwineKind), RHSKind(TwineKind) {
-      LHS.twine = &_LHS;
-      RHS.twine = &_RHS;
+      : LHS(&_LHS), RHS(&_RHS), LHSKind(TwineKind), RHSKind(TwineKind) {
       assert(isValid() && "Invalid twine!");
     }
 
     /// Construct a twine from explicit values.
-    explicit Twine(Child _LHS, NodeKind _LHSKind,
-                   Child _RHS, NodeKind _RHSKind)
+    explicit Twine(const void *_LHS, NodeKind _LHSKind,
+                   const void *_RHS, NodeKind _RHSKind)
       : LHS(_LHS), RHS(_RHS), LHSKind(_LHSKind), RHSKind(_RHSKind) {
       assert(isValid() && "Invalid twine!");
     }
@@ -223,10 +200,10 @@ namespace llvm {
 
       // A twine child should always be binary.
       if (getLHSKind() == TwineKind &&
-          !LHS.twine->isBinary())
+          !static_cast<const Twine*>(LHS)->isBinary())
         return false;
       if (getRHSKind() == TwineKind &&
-          !RHS.twine->isBinary())
+          !static_cast<const Twine*>(RHS)->isBinary())
         return false;
 
       return true;
@@ -239,10 +216,10 @@ namespace llvm {
     NodeKind getRHSKind() const { return (NodeKind) RHSKind; }
 
     /// printOneChild - Print one child from a twine.
-    void printOneChild(raw_ostream &OS, Child Ptr, NodeKind Kind) const;
+    void printOneChild(raw_ostream &OS, const void *Ptr, NodeKind Kind) const;
 
     /// printOneChildRepr - Print the representation of one child from a twine.
-    void printOneChildRepr(raw_ostream &OS, Child Ptr,
+    void printOneChildRepr(raw_ostream &OS, const void *Ptr,
                            NodeKind Kind) const;
 
   public:
@@ -262,7 +239,7 @@ namespace llvm {
     /*implicit*/ Twine(const char *Str)
       : RHSKind(EmptyKind) {
       if (Str[0] != '\0') {
-        LHS.cString = Str;
+        LHS = Str;
         LHSKind = CStringKind;
       } else
         LHSKind = EmptyKind;
@@ -272,70 +249,44 @@ namespace llvm {
 
     /// Construct from an std::string.
     /*implicit*/ Twine(const std::string &Str)
-      : LHSKind(StdStringKind), RHSKind(EmptyKind) {
-      LHS.stdString = &Str;
+      : LHS(&Str), LHSKind(StdStringKind), RHSKind(EmptyKind) {
       assert(isValid() && "Invalid twine!");
     }
 
     /// Construct from a StringRef.
     /*implicit*/ Twine(const StringRef &Str)
-      : LHSKind(StringRefKind), RHSKind(EmptyKind) {
-      LHS.stringRef = &Str;
+      : LHS(&Str), LHSKind(StringRefKind), RHSKind(EmptyKind) {
       assert(isValid() && "Invalid twine!");
-    }
-
-    /// Construct from a char.
-    explicit Twine(char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
-      LHS.character = Val;
-    }
-
-    /// Construct from a signed char.
-    explicit Twine(signed char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
-      LHS.character = static_cast<char>(Val);
-    }
-
-    /// Construct from an unsigned char.
-    explicit Twine(unsigned char Val)
-      : LHSKind(CharKind), RHSKind(EmptyKind) {
-      LHS.character = static_cast<char>(Val);
     }
 
     /// Construct a twine to print \arg Val as an unsigned decimal integer.
     explicit Twine(unsigned Val)
-      : LHSKind(DecUIKind), RHSKind(EmptyKind) {
-      LHS.decUI = Val;
+      : LHS((void*)(intptr_t)Val), LHSKind(DecUIKind), RHSKind(EmptyKind) {
     }
 
     /// Construct a twine to print \arg Val as a signed decimal integer.
     explicit Twine(int Val)
-      : LHSKind(DecIKind), RHSKind(EmptyKind) {
-      LHS.decI = Val;
+      : LHS((void*)(intptr_t)Val), LHSKind(DecIKind), RHSKind(EmptyKind) {
     }
 
     /// Construct a twine to print \arg Val as an unsigned decimal integer.
     explicit Twine(const unsigned long &Val)
-      : LHSKind(DecULKind), RHSKind(EmptyKind) {
-      LHS.decUL = &Val;
+      : LHS(&Val), LHSKind(DecULKind), RHSKind(EmptyKind) {
     }
 
     /// Construct a twine to print \arg Val as a signed decimal integer.
     explicit Twine(const long &Val)
-      : LHSKind(DecLKind), RHSKind(EmptyKind) {
-      LHS.decL = &Val;
+      : LHS(&Val), LHSKind(DecLKind), RHSKind(EmptyKind) {
     }
 
     /// Construct a twine to print \arg Val as an unsigned decimal integer.
     explicit Twine(const unsigned long long &Val)
-      : LHSKind(DecULLKind), RHSKind(EmptyKind) {
-      LHS.decULL = &Val;
+      : LHS(&Val), LHSKind(DecULLKind), RHSKind(EmptyKind) {
     }
 
     /// Construct a twine to print \arg Val as a signed decimal integer.
     explicit Twine(const long long &Val)
-      : LHSKind(DecLLKind), RHSKind(EmptyKind) {
-      LHS.decLL = &Val;
+      : LHS(&Val), LHSKind(DecLLKind), RHSKind(EmptyKind) {
     }
 
     // FIXME: Unfortunately, to make sure this is as efficient as possible we
@@ -345,17 +296,13 @@ namespace llvm {
 
     /// Construct as the concatenation of a C string and a StringRef.
     /*implicit*/ Twine(const char *_LHS, const StringRef &_RHS)
-      : LHSKind(CStringKind), RHSKind(StringRefKind) {
-      LHS.cString = _LHS;
-      RHS.stringRef = &_RHS;
+      : LHS(_LHS), RHS(&_RHS), LHSKind(CStringKind), RHSKind(StringRefKind) {
       assert(isValid() && "Invalid twine!");
     }
 
     /// Construct as the concatenation of a StringRef and a C string.
     /*implicit*/ Twine(const StringRef &_LHS, const char *_RHS)
-      : LHSKind(StringRefKind), RHSKind(CStringKind) {
-      LHS.stringRef = &_LHS;
-      RHS.cString = _RHS;
+      : LHS(&_LHS), RHS(_RHS), LHSKind(StringRefKind), RHSKind(CStringKind) {
       assert(isValid() && "Invalid twine!");
     }
 
@@ -371,10 +318,7 @@ namespace llvm {
 
     // Construct a twine to print \arg Val as an unsigned hexadecimal integer.
     static Twine utohexstr(const uint64_t &Val) {
-      Child LHS, RHS;
-      LHS.uHex = &Val;
-      RHS.twine = 0;
-      return Twine(LHS, UHexKind, RHS, EmptyKind);
+      return Twine(&Val, UHexKind, 0, EmptyKind);
     }
 
     /// @}
@@ -427,9 +371,9 @@ namespace llvm {
       switch (getLHSKind()) {
       default: assert(0 && "Out of sync with isSingleStringRef");
       case EmptyKind:      return StringRef();
-      case CStringKind:    return StringRef(LHS.cString);
-      case StdStringKind:  return StringRef(*LHS.stdString);
-      case StringRefKind:  return *LHS.stringRef;
+      case CStringKind:    return StringRef((const char*)LHS);
+      case StdStringKind:  return StringRef(*(const std::string*)LHS);
+      case StringRefKind:  return *(const StringRef*)LHS;
       }
     }
 
@@ -478,9 +422,7 @@ namespace llvm {
 
     // Otherwise we need to create a new node, taking care to fold in unary
     // twines.
-    Child NewLHS, NewRHS;
-    NewLHS.twine = this;
-    NewRHS.twine = &Suffix;
+    const void *NewLHS = this, *NewRHS = &Suffix;
     NodeKind NewLHSKind = TwineKind, NewRHSKind = TwineKind;
     if (isUnary()) {
       NewLHS = LHS;

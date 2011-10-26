@@ -35,7 +35,6 @@
 
 INTERFACE=$1
 IFCONFIG_PREFIX="$2"
-test -z "$IFCONFIG_PREFIX" || IFCONFIG_PREFIX="$2 "
 case "${INTERFACE}" in
 "")	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
 	    --msgbox 'No interface specified for IPv4 configuration.' 0 0

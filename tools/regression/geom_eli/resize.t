@@ -118,7 +118,6 @@ echo ok $i - "fsck says ${md}a.eli is clean," $(echo $(echo "$out" | wc -l)) \
 i=$((i + 1))
 
 geli detach ${md}a.eli
-gpart destroy -F $md >/dev/null
 
 
 # Verify that the man page example works, changing ada0 to $md,

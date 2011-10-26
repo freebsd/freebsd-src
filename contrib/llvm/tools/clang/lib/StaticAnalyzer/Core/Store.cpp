@@ -12,17 +12,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 #include "clang/AST/CharUnits.h"
 
 using namespace clang;
 using namespace ento;
 
-StoreManager::StoreManager(ProgramStateManager &stateMgr)
+StoreManager::StoreManager(GRStateManager &stateMgr)
   : svalBuilder(stateMgr.getSValBuilder()), StateMgr(stateMgr),
     MRMgr(svalBuilder.getRegionManager()), Ctx(stateMgr.getContext()) {}
 
-StoreRef StoreManager::enterStackFrame(const ProgramState *state,
+StoreRef StoreManager::enterStackFrame(const GRState *state,
                                        const StackFrameContext *frame) {
   return StoreRef(state->getStore(), *this);
 }
@@ -57,7 +57,7 @@ const ElementRegion *StoreManager::GetElementZeroRegion(const MemRegion *R,
 
 const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy) {
 
-  ASTContext &Ctx = StateMgr.getContext();
+  ASTContext& Ctx = StateMgr.getContext();
 
   // Handle casts to Objective-C objects.
   if (CastToTy->isObjCObjectPointerType())
@@ -87,7 +87,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
 
   // Handle casts from compatible types.
   if (R->isBoundable())
-    if (const TypedValueRegion *TR = dyn_cast<TypedValueRegion>(R)) {
+    if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
       QualType ObjTy = Ctx.getCanonicalType(TR->getValueType());
       if (CanonPointeeTy == ObjTy)
         return R;
@@ -103,7 +103,8 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::UnknownSpaceRegionKind:
     case MemRegion::NonStaticGlobalSpaceRegionKind:
     case MemRegion::StaticGlobalSpaceRegionKind: {
-      llvm_unreachable("Invalid region cast");
+      assert(0 && "Invalid region cast");
+      break;
     }
 
     case MemRegion::FunctionTextRegionKind:
@@ -156,7 +157,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
         // Edge case: we are at 0 bytes off the beginning of baseR.  We
         // check to see if type we are casting to is the same as the base
         // region.  If so, just return the base region.
-        if (const TypedValueRegion *TR = dyn_cast<TypedValueRegion>(baseR)) {
+        if (const TypedRegion *TR = dyn_cast<TypedRegion>(baseR)) {
           QualType ObjTy = Ctx.getCanonicalType(TR->getValueType());
           QualType CanonPointeeTy = Ctx.getCanonicalType(PointeeTy);
           if (CanonPointeeTy == ObjTy)
@@ -202,14 +203,15 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     }
   }
 
-  llvm_unreachable("unreachable");
+  assert(0 && "unreachable");
+  return 0;
 }
 
 
 /// CastRetrievedVal - Used by subclasses of StoreManager to implement
 ///  implicit casts that arise from loads from regions that are reinterpreted
 ///  as another region.
-SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
+SVal StoreManager::CastRetrievedVal(SVal V, const TypedRegion *R,
                                     QualType castTy, bool performTestOnly) {
   
   if (castTy.isNull())
@@ -235,7 +237,7 @@ SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
   return V;
 }
 
-SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
+SVal StoreManager::getLValueFieldOrIvar(const Decl* D, SVal Base) {
   if (Base.isUnknownOrUndef())
     return Base;
 
@@ -259,7 +261,8 @@ SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
     return Base;
 
   default:
-    llvm_unreachable("Unhandled Base.");
+    assert(0 && "Unhandled Base.");
+    return Base;
   }
 
   // NOTE: We must have this check first because ObjCIvarDecl is a subclass
@@ -333,6 +336,3 @@ SVal StoreManager::getLValueElement(QualType elementType, NonLoc Offset,
   return loc::MemRegionVal(MRMgr.getElementRegion(elementType, NewIdx, ArrayR,
                                                   Ctx));
 }
-
-StoreManager::BindingsHandler::~BindingsHandler() {}
-

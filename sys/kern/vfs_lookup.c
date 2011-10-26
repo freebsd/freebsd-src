@@ -188,13 +188,8 @@ namei(struct nameidata *ndp)
 	 */
 	if (IN_CAPABILITY_MODE(td)) {
 		ndp->ni_strictrelative = 1;
-		if (ndp->ni_dirfd == AT_FDCWD) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
-#endif
+		if (ndp->ni_dirfd == AT_FDCWD)
 			error = ECAPMODE;
-		}
 	}
 #endif
 	if (error) {
@@ -286,13 +281,8 @@ namei(struct nameidata *ndp)
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
 			VFS_UNLOCK_GIANT(vfslocked);
-			if (ndp->ni_strictrelative != 0) {
-#ifdef KTRACE
-				if (KTRPOINT(curthread, KTR_CAPFAIL))
-					ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
-#endif
+			if (ndp->ni_strictrelative != 0)
 				return (ENOTCAPABLE);
-			}
 			while (*(cnp->cn_nameptr) == '/') {
 				cnp->cn_nameptr++;
 				ndp->ni_pathlen--;
@@ -654,10 +644,6 @@ dirloop:
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (ndp->ni_strictrelative != 0) {
-#ifdef KTRACE
-			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
-#endif
 			error = ENOTCAPABLE;
 			goto bad;
 		}

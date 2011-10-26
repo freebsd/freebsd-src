@@ -15,7 +15,6 @@
 #ifndef LLVM_CLANG_FRONTEND_COMMANDLINESOURCELOC_H
 #define LLVM_CLANG_FRONTEND_COMMANDLINESOURCELOC_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -30,10 +29,10 @@ struct ParsedSourceLocation {
 public:
   /// Construct a parsed source location from a string; the Filename is empty on
   /// error.
-  static ParsedSourceLocation FromString(StringRef Str) {
+  static ParsedSourceLocation FromString(llvm::StringRef Str) {
     ParsedSourceLocation PSL;
-    std::pair<StringRef, StringRef> ColSplit = Str.rsplit(':');
-    std::pair<StringRef, StringRef> LineSplit =
+    std::pair<llvm::StringRef, llvm::StringRef> ColSplit = Str.rsplit(':');
+    std::pair<llvm::StringRef, llvm::StringRef> LineSplit =
       ColSplit.first.rsplit(':');
 
     // If both tail splits were valid integers, return success.

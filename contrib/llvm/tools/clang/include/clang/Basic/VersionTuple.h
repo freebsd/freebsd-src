@@ -14,9 +14,12 @@
 #ifndef LLVM_CLANG_BASIC_VERSIONTUPLE_H
 #define LLVM_CLANG_BASIC_VERSIONTUPLE_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/Optional.h"
 #include <string>
+
+namespace llvm {
+  class raw_ostream;
+}
 
 namespace clang {
 
@@ -117,7 +120,7 @@ public:
 };
 
 /// \brief Print a version number.
-raw_ostream& operator<<(raw_ostream &Out, const VersionTuple &V);
+llvm::raw_ostream& operator<<(llvm::raw_ostream &Out, const VersionTuple &V);
 
 } // end namespace clang
 #endif // LLVM_CLANG_BASIC_VERSIONTUPLE_H

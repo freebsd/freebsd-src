@@ -14,15 +14,16 @@
 #ifndef LLVM_CLANG_AST_STMT_H
 #define LLVM_CLANG_AST_STMT_H
 
-#include "clang/Basic/LLVM.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtIterator.h"
 #include "clang/AST/DeclGroup.h"
-#include "clang/AST/ASTContext.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"
+#include "clang/AST/ASTContext.h"
 #include <string>
+using llvm::dyn_cast_or_null;
 
 namespace llvm {
   class FoldingSetNodeID;
@@ -107,10 +108,11 @@ public:
   // Make vanilla 'new' and 'delete' illegal for Stmts.
 protected:
   void* operator new(size_t bytes) throw() {
-    llvm_unreachable("Stmts cannot be allocated with regular 'new'.");
+    assert(0 && "Stmts cannot be allocated with regular 'new'.");
+    return 0;
   }
   void operator delete(void* data) throw() {
-    llvm_unreachable("Stmts cannot be released with regular 'delete'.");
+    assert(0 && "Stmts cannot be released with regular 'delete'.");
   }
 
   class StmtBitfields {
@@ -146,7 +148,6 @@ protected:
     friend class CXXUnresolvedConstructExpr; // ctor
     friend class CXXDependentScopeMemberExpr; // ctor
     friend class OverloadExpr; // ctor
-    friend class AtomicExpr; // ctor
     unsigned : NumStmtBits;
 
     unsigned ValueKind : 2;
@@ -166,7 +167,6 @@ protected:
     unsigned HasQualifier : 1;
     unsigned HasExplicitTemplateArgs : 1;
     unsigned HasFoundDecl : 1;
-    unsigned HadMultipleCandidates : 1;
   };
 
   class CastExprBitfields {
@@ -270,7 +270,7 @@ public:
   /// This is useful in a debugger.
   void dump() const;
   void dump(SourceManager &SM) const;
-  void dump(raw_ostream &OS, SourceManager &SM) const;
+  void dump(llvm::raw_ostream &OS, SourceManager &SM) const;
 
   /// dumpAll - This does a dump of the specified AST fragment and all subtrees.
   void dumpAll() const;
@@ -279,12 +279,12 @@ public:
   /// dumpPretty/printPretty - These two methods do a "pretty print" of the AST
   /// back to its original source language syntax.
   void dumpPretty(ASTContext& Context) const;
-  void printPretty(raw_ostream &OS, PrinterHelper *Helper,
+  void printPretty(llvm::raw_ostream &OS, PrinterHelper *Helper,
                    const PrintingPolicy &Policy,
                    unsigned Indentation = 0) const {
     printPretty(OS, *(ASTContext*)0, Helper, Policy, Indentation);
   }
-  void printPretty(raw_ostream &OS, ASTContext &Context,
+  void printPretty(llvm::raw_ostream &OS, ASTContext &Context,
                    PrinterHelper *Helper,
                    const PrintingPolicy &Policy,
                    unsigned Indentation = 0) const;
@@ -296,12 +296,6 @@ public:
   /// Skip past any implicit AST nodes which might surround this
   /// statement, such as ExprWithCleanups or ImplicitCastExpr nodes.
   Stmt *IgnoreImplicit();
-
-  const Stmt *stripLabelLikeStatements() const;
-  Stmt *stripLabelLikeStatements() {
-    return const_cast<Stmt*>(
-      const_cast<const Stmt*>(this)->stripLabelLikeStatements());
-  }
 
   // Implement isa<T> support.
   static bool classof(const Stmt *) { return true; }
@@ -413,25 +407,25 @@ public:
 class NullStmt : public Stmt {
   SourceLocation SemiLoc;
 
-  /// \brief True if the null statement was preceded by an empty macro, e.g:
+  /// \brief If the null statement was preceded by an empty macro this is
+  /// its instantiation source location, e.g:
   /// @code
   ///   #define CALL(x)
   ///   CALL(0);
   /// @endcode
-  bool HasLeadingEmptyMacro;
+  SourceLocation LeadingEmptyMacro;
 public:
-  NullStmt(SourceLocation L, bool hasLeadingEmptyMacro = false)
-    : Stmt(NullStmtClass), SemiLoc(L),
-      HasLeadingEmptyMacro(hasLeadingEmptyMacro) {}
+  NullStmt(SourceLocation L, SourceLocation LeadingEmptyMacro =SourceLocation())
+    : Stmt(NullStmtClass), SemiLoc(L), LeadingEmptyMacro(LeadingEmptyMacro) {}
 
   /// \brief Build an empty null statement.
-  explicit NullStmt(EmptyShell Empty) : Stmt(NullStmtClass, Empty),
-      HasLeadingEmptyMacro(false) { }
+  explicit NullStmt(EmptyShell Empty) : Stmt(NullStmtClass, Empty) { }
 
   SourceLocation getSemiLoc() const { return SemiLoc; }
   void setSemiLoc(SourceLocation L) { SemiLoc = L; }
 
-  bool hasLeadingEmptyMacro() const { return HasLeadingEmptyMacro; }
+  bool hasLeadingEmptyMacro() const { return LeadingEmptyMacro.isValid(); }
+  SourceLocation getLeadingEmptyMacroLoc() const { return LeadingEmptyMacro; }
 
   SourceRange getSourceRange() const { return SourceRange(SemiLoc); }
 
@@ -529,10 +523,6 @@ public:
 
   // Iterators
   child_range children() {
-    return child_range(&Body[0], &Body[0]+CompoundStmtBits.NumStmts);
-  }
-  
-  const_child_range children() const {
     return child_range(&Body[0], &Body[0]+CompoundStmtBits.NumStmts);
   }
 };
@@ -1318,7 +1308,7 @@ public:
   /// true, otherwise return false.  This handles canonicalization and
   /// translation of strings from GCC syntax to LLVM IR syntax, and handles
   //// flattening of named references like %[foo] to Operand AsmStringPiece's.
-  unsigned AnalyzeAsmString(SmallVectorImpl<AsmStringPiece> &Pieces,
+  unsigned AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece> &Pieces,
                             ASTContext &C, unsigned &DiagOffs) const;
 
 
@@ -1330,17 +1320,17 @@ public:
     return Names[i];
   }
 
-  StringRef getOutputName(unsigned i) const {
+  llvm::StringRef getOutputName(unsigned i) const {
     if (IdentifierInfo *II = getOutputIdentifier(i))
       return II->getName();
     
-    return StringRef();
+    return llvm::StringRef();
   }
 
   /// getOutputConstraint - Return the constraint string for the specified
   /// output operand.  All output constraints are known to be non-empty (either
   /// '=' or '+').
-  StringRef getOutputConstraint(unsigned i) const;
+  llvm::StringRef getOutputConstraint(unsigned i) const;
 
   const StringLiteral *getOutputConstraintLiteral(unsigned i) const {
     return Constraints[i];
@@ -1374,16 +1364,16 @@ public:
     return Names[i + NumOutputs];
   }
 
-  StringRef getInputName(unsigned i) const {
+  llvm::StringRef getInputName(unsigned i) const {
     if (IdentifierInfo *II = getInputIdentifier(i))
       return II->getName();
 
-    return StringRef();
+    return llvm::StringRef();
   }
 
   /// getInputConstraint - Return the specified input constraint.  Unlike output
   /// constraints, these can be empty.
-  StringRef getInputConstraint(unsigned i) const;
+  llvm::StringRef getInputConstraint(unsigned i) const;
 
   const StringLiteral *getInputConstraintLiteral(unsigned i) const {
     return Constraints[i + NumOutputs];
@@ -1413,7 +1403,7 @@ public:
   /// getNamedOperand - Given a symbolic operand reference like %[foo],
   /// translate this into a numeric value needed to reference the same operand.
   /// This returns -1 if the operand name is invalid.
-  int getNamedOperand(StringRef SymbolicName) const;
+  int getNamedOperand(llvm::StringRef SymbolicName) const;
 
   unsigned getNumClobbers() const { return NumClobbers; }
   StringLiteral *getClobber(unsigned i) { return Clobbers[i]; }

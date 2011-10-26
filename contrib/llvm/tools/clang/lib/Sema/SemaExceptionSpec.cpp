@@ -101,7 +101,7 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
   bool MissingExceptionSpecification = false;
   bool MissingEmptyExceptionSpecification = false;
   unsigned DiagID = diag::err_mismatched_exception_spec;
-  if (getLangOptions().MicrosoftExt)
+  if (getLangOptions().Microsoft)
     DiagID = diag::warn_mismatched_exception_spec; 
   
   if (!CheckEquivalentExceptionSpec(PDiag(DiagID),
@@ -205,7 +205,7 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
         else
           OS << ", ";
         
-        OS << E->getAsString(getPrintingPolicy());
+        OS << E->getAsString(Context.PrintingPolicy);
       }
       OS << ")";
       break;
@@ -217,13 +217,13 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
 
     case EST_ComputedNoexcept:
       OS << "noexcept(";
-      OldProto->getNoexceptExpr()->printPretty(OS, Context, 0, 
-                                               getPrintingPolicy());
+      OldProto->getNoexceptExpr()->printPretty(OS, Context, 0,
+                                               Context.PrintingPolicy);
       OS << ")";
       break;
 
     default:
-      llvm_unreachable("This spec type is compatible with none.");
+      assert(false && "This spec type is compatible with none.");
     }
     OS.flush();
 
@@ -264,7 +264,7 @@ bool Sema::CheckEquivalentExceptionSpec(
     const FunctionProtoType *Old, SourceLocation OldLoc,
     const FunctionProtoType *New, SourceLocation NewLoc) {
   unsigned DiagID = diag::err_mismatched_exception_spec;
-  if (getLangOptions().MicrosoftExt)
+  if (getLangOptions().Microsoft)
     DiagID = diag::warn_mismatched_exception_spec; 
   return CheckEquivalentExceptionSpec(
                                       PDiag(DiagID),
@@ -717,7 +717,7 @@ bool Sema::CheckOverridingFunctionExceptionSpec(const CXXMethodDecl *New,
     }
   }
   unsigned DiagID = diag::err_override_exception_spec;
-  if (getLangOptions().MicrosoftExt)
+  if (getLangOptions().Microsoft)
     DiagID = diag::warn_override_exception_spec;
   return CheckExceptionSpecSubset(PDiag(DiagID),
                                   PDiag(diag::note_overridden_virtual_function),

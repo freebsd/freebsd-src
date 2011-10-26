@@ -15,7 +15,6 @@
 #include <psapi.h>
 #include <malloc.h>
 #include <io.h>
-#include <direct.h>
 
 #ifdef __MINGW32__
  #if (HAVE_LIBPSAPI != 1)
@@ -218,10 +217,6 @@ const char *Process::OutputColor(char code, bool bold, bool bg) {
 const char *Process::ResetColor() {
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), defaultColors());
   return 0;
-}
-
-void Process::SetWorkingDirectory(std::string Path) {
-  ::_chdir(Path.c_str());
 }
 
 }

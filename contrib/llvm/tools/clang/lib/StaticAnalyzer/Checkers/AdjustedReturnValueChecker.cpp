@@ -37,7 +37,7 @@ void AdjustedReturnValueChecker::checkPostStmt(const CallExpr *CE,
   QualType expectedResultTy = CE->getType();
 
   // Fetch the signature of the called function.
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
 
   SVal V = state->getSVal(CE);
   

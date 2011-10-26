@@ -25,10 +25,8 @@ using namespace llvm;
 // Include the auto-generated portion of the assembly writer.
 #include "MSP430GenAsmWriter.inc"
 
-void MSP430InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                  StringRef Annot) {
+void MSP430InstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   printInstruction(MI, O);
-  printAnnotation(O, Annot);
 }
 
 void MSP430InstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,

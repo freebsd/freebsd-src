@@ -51,7 +51,7 @@ namespace driver {
     mutable unsigned OwnsValues : 1;
 
     /// The argument values, as C strings.
-    SmallVector<const char *, 2> Values;
+    llvm::SmallVector<const char *, 2> Values;
 
   public:
     Arg(const Option *Opt, unsigned Index, const Arg *BaseArg = 0);
@@ -87,11 +87,11 @@ namespace driver {
       return Values[N];
     }
 
-    SmallVectorImpl<const char*> &getValues() {
+    llvm::SmallVectorImpl<const char*> &getValues() {
       return Values;
     }
 
-    bool containsValue(StringRef Value) const {
+    bool containsValue(llvm::StringRef Value) const {
       for (unsigned i = 0, e = getNumValues(); i != e; ++i)
         if (Values[i] == Value)
           return true;

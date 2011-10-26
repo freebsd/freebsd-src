@@ -37,7 +37,6 @@ public:
     // The warnings to run.
     unsigned enableCheckFallThrough : 1;
     unsigned enableCheckUnreachable : 1;
-    unsigned enableThreadSafetyAnalysis : 1;
   public:
     Policy();
     void disableCheckFallThrough() { enableCheckFallThrough = 0; }

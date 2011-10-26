@@ -365,42 +365,38 @@ gpart_partcode(struct gprovider *pp)
 }
 
 void
-gpart_destroy(struct ggeom *lg_geom)
+gpart_destroy(struct ggeom *lg_geom, int force)
 {
-	struct gctl_req *r;
 	struct gprovider *pp;
+	struct gctl_req *r;
 	const char *errstr;
-	int force = 1;
 
-	/* Delete all child metadata */
+	/* Begin with the hosing: delete all partitions */
 	LIST_FOREACH(pp, &lg_geom->lg_provider, lg_provider)
 		gpart_delete(pp);
-
-	/* Revert any local changes to get this geom into a pristine state */
-	r = gctl_get_handle();
-	gctl_ro_param(r, "class", -1, "PART");
-	gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
-	gctl_ro_param(r, "verb", -1, "undo");
-	gctl_issue(r); /* Ignore errors -- these are non-fatal */
-	gctl_free(r);
 
 	/* Now destroy the geom itself */
 	r = gctl_get_handle();
 	gctl_ro_param(r, "class", -1, "PART");
 	gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
 	gctl_ro_param(r, "flags", -1, GPART_FLAGS);
-	gctl_ro_param(r, "force", sizeof(force), &force);
 	gctl_ro_param(r, "verb", -1, "destroy");
 	errstr = gctl_issue(r);
-	if (errstr != NULL && errstr[0] != '\0') {
-		/*
-		 * Check if we reverted away the existence of the geom
-		 * altogether. Show all other errors to the user.
-		 */
-		if (strtol(errstr, NULL, 0) != EINVAL)
-			gpart_show_error("Error", NULL, errstr);
-	}
+	if (errstr != NULL && errstr[0] != '\0') 
+		gpart_show_error("Error", NULL, errstr);
 	gctl_free(r);
+
+	/* If asked, commit the change */
+	if (force) {
+		r = gctl_get_handle();
+		gctl_ro_param(r, "class", -1, "PART");
+		gctl_ro_param(r, "arg0", -1, lg_geom->lg_name);
+		gctl_ro_param(r, "verb", -1, "commit");
+		errstr = gctl_issue(r);
+		if (errstr != NULL && errstr[0] != '\0') 
+			gpart_show_error("Error", NULL, errstr);
+		gctl_free(r);
+	}
 
 	/* And any metadata associated with the partition scheme itself */
 	delete_part_metadata(lg_geom->lg_name);
@@ -443,25 +439,28 @@ gpart_edit(struct gprovider *pp)
 	geom = NULL;
 	LIST_FOREACH(cp, &pp->lg_consumers, lg_consumers)
 		if (strcmp(cp->lg_geom->lg_class->lg_name, "PART") == 0) {
-			/* Check for zombie geoms, treating them as blank */
-			scheme = NULL;
-			LIST_FOREACH(gc, &cp->lg_geom->lg_config, lg_config) {
-				if (strcmp(gc->lg_name, "scheme") == 0) {
-					scheme = gc->lg_val;
-					break;
-				}
-			}
-			if (scheme == NULL || strcmp(scheme, "(none)") == 0) {
-				gpart_partition(cp->lg_geom->lg_name, NULL);
-				return;
-			}
+			char message[512];
+			/*
+			 * The PART object is a consumer, so the user wants to
+			 * edit the partition table. gpart doesn't really
+			 * support this, so we have to hose the whole table
+			 * first.
+			 */
 
-			/* If this is a nested partition, edit as usual */
-			if (strcmp(pp->lg_geom->lg_class->lg_name, "PART") == 0)
-				break;
+			sprintf(message, "Changing the partition scheme on "
+			    "this disk (%s) requires deleting all existing "
+			    "partitions on this drive. This will PERMANENTLY "
+			    "ERASE any data stored here. Are you sure you want "
+			    "to proceed?", cp->lg_geom->lg_name);
+			dialog_vars.defaultno = TRUE;
+			choice = dialog_yesno("Warning", message, 0, 0);
+			dialog_vars.defaultno = FALSE;
+
+			if (choice == 1) /* cancel */
+				return;
 
 			/* Destroy the geom and all sub-partitions */
-			gpart_destroy(cp->lg_geom);
+			gpart_destroy(cp->lg_geom, 0);
 
 			/* Now re-partition and return */
 			gpart_partition(cp->lg_geom->lg_name, NULL);
@@ -517,7 +516,7 @@ editpart:
 	choice = dlg_form("Edit Partition", "", 0, 0, 0, nitems, items, &junk);
 
 	if (choice) /* Cancel pressed */
-		goto endedit;
+		return;
 
 	/* Check if the label has a / in it */
 	if (strchr(items[3].text, '/') != NULL) {
@@ -547,13 +546,6 @@ editpart:
 	set_default_part_metadata(pp->lg_name, scheme, items[0].text,
 	    items[2].text, (strcmp(oldtype, items[0].text) != 0) ?
 	    newfs : NULL);
-
-endedit:
-	if (strcmp(oldtype, items[0].text) != 0 && cp != NULL)
-		gpart_destroy(cp->lg_geom);
-	if (strcmp(oldtype, items[0].text) != 0 && strcmp(items[0].text,
-	    "freebsd") == 0)
-		gpart_partition(pp->lg_name, "BSD");
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)
@@ -747,7 +739,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	struct gconsumer *cp;
 	struct ggeom *geom;
 	const char *errstr, *scheme;
-	char sizestr[32], startstr[32], output[64], *newpartname;
+	char sizestr[32], startstr[32], output[64];
 	char newfs[64], options_fstype[64];
 	intmax_t maxsize, size, sector, firstfree, stripe;
 	uint64_t bytes;
@@ -870,7 +862,7 @@ addpartform:
 	 * If the user changed the fs type after specifying options, undo
 	 * their choices in favor of the new filesystem's defaults.
 	 */
-	if (strcmp(options_fstype, items[0].text) != 0) {
+	if (strcmp(options_fstype, items[0].name) != 0) {
 		strncpy(options_fstype, items[0].text, sizeof(options_fstype));
 		newfs_command(options_fstype, newfs, 1);
 	}
@@ -909,19 +901,6 @@ addpartform:
 			goto addpartform;
 	}
 
-	/*
-	 * Error if this scheme needs nested partitions, this is one, and
-	 * a mountpoint was set.
-	 */
-	if (strcmp(items[0].text, "freebsd") == 0 &&
-	    strlen(items[2].text) > 0) {
-		dialog_msgbox("Error", "Partitions of type \"freebsd\" are "
-		    "nested BSD-type partition schemes and cannot have "
-		    "mountpoints. After creating one, select it and press "
-		    "Create again to add the actual file systems.", 0, 0, TRUE);
-		goto addpartform;
-	}
-
 	/* If this is the root partition, check that this scheme is bootable */
 	if (strcmp(items[2].text, "/") == 0 && !is_scheme_bootable(scheme)) {
 		char message[512];
@@ -939,23 +918,7 @@ addpartform:
 	 * If this is the root partition, and we need a boot partition, ask
 	 * the user to add one.
 	 */
-
-	/* Check for existing freebsd-boot partition */
-	LIST_FOREACH(pp, &geom->lg_provider, lg_provider) {
-		struct partition_metadata *md;
-		md = get_part_metadata(pp->lg_name, 0);
-		if (md == NULL || !md->bootcode)
-			continue;
-		LIST_FOREACH(gc, &pp->lg_config, lg_config)
-			if (strcmp(gc->lg_name, "type") == 0)
-				break;
-		if (gc != NULL && strcmp(gc->lg_val, "freebsd-boot") == 0)
-			break;
-	}
-
-	/* If there isn't one, and we need one, ask */
-	if (strcmp(items[2].text, "/") == 0 && bootpart_size(scheme) > 0 &&
-	    pp == NULL) {
+	if (strcmp(items[2].text, "/") == 0 && bootpart_size(scheme) > 0) {
 		if (interactive)
 			choice = dialog_yesno("Boot Partition",
 			    "This partition scheme requires a boot partition "
@@ -1007,43 +970,29 @@ addpartform:
 	if (items[3].text[0] != '\0')
 		gctl_ro_param(r, "label", -1, items[3].text);
 	gctl_rw_param(r, "output", sizeof(output), output);
+
 	errstr = gctl_issue(r);
 	if (errstr != NULL && errstr[0] != '\0') {
 		gpart_show_error("Error", NULL, errstr);
 		gctl_free(r);
 		goto addpartform;
 	}
-	newpartname = strtok(output, " ");
-	gctl_free(r);
-
-	/*
-	 * Try to destroy any geom that gpart picked up already here from
-	 * dirty blocks.
-	 */
-	r = gctl_get_handle();
-	gctl_ro_param(r, "class", -1, "PART");
-	gctl_ro_param(r, "arg0", -1, newpartname);
-	gctl_ro_param(r, "flags", -1, GPART_FLAGS);
-	junk = 1;
-	gctl_ro_param(r, "force", sizeof(junk), &junk);
-	gctl_ro_param(r, "verb", -1, "destroy");
-	gctl_issue(r); /* Error usually expected and non-fatal */
-	gctl_free(r);
 
 	if (strcmp(items[0].text, "freebsd-boot") == 0)
-		get_part_metadata(newpartname, 1)->bootcode = 1;
+		get_part_metadata(strtok(output, " "), 1)->bootcode = 1;
 	else if (strcmp(items[0].text, "freebsd") == 0)
-		gpart_partition(newpartname, "BSD");
+		gpart_partition(strtok(output, " "), "BSD");
 	else
-		set_default_part_metadata(newpartname, scheme,
+		set_default_part_metadata(strtok(output, " "), scheme,
 		    items[0].text, items[2].text, newfs);
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)
 			free(items[i].text);
+	gctl_free(r);
 
 	if (partname != NULL)
-		*partname = strdup(newpartname);
+		*partname = strdup(strtok(output, " "));
 }
 	
 void
@@ -1055,7 +1004,7 @@ gpart_delete(struct gprovider *pp)
 	struct gctl_req *r;
 	const char *errstr;
 	intmax_t idx;
-	int is_partition;
+	int choice, is_partition;
 
 	/* Is it a partition? */
 	is_partition = (strcmp(pp->lg_geom->lg_class->lg_name, "PART") == 0);
@@ -1068,21 +1017,32 @@ gpart_delete(struct gprovider *pp)
 			break;
 		}
 
-	/* If so, destroy all children */
+	/* Destroy all consumers */
 	if (geom != NULL) {
-		gpart_destroy(geom);
-
-		/* If this is a partition, revert it, so it can be deleted */
 		if (is_partition) {
-			r = gctl_get_handle();
-			gctl_ro_param(r, "class", -1, "PART");
-			gctl_ro_param(r, "arg0", -1, geom->lg_name);
-			gctl_ro_param(r, "verb", -1, "undo");
-			gctl_issue(r); /* Ignore non-fatal errors */
-			gctl_free(r);
-		}
-	}
+			char message[512];
+			/*
+			 * We have to actually really delete the sub-partition
+			 * tree so that the consumers will go away and the
+			 * partition can be deleted. Warn the user.
+			 */
 
+			sprintf(message, "Deleting this partition (%s) "
+			    "requires deleting all existing sub-partitions. "
+			    "This will PERMANENTLY ERASE any data stored here "
+			    "and CANNOT BE REVERTED. Are you sure you want to "
+			    "proceed?", cp->lg_geom->lg_name);
+			dialog_vars.defaultno = TRUE;
+			choice = dialog_yesno("Warning", message, 0, 0);
+			dialog_vars.defaultno = FALSE;
+
+			if (choice == 1) /* cancel */
+				return;
+		}
+
+		gpart_destroy(geom, is_partition);
+	}
+ 
 	/*
 	 * If this is not a partition, see if that is a problem, complain if
 	 * necessary, and return always, since we need not do anything further,
@@ -1128,6 +1088,7 @@ gpart_revert_all(struct gmesh *mesh)
 	struct gconfig *gc;
 	struct ggeom *gp;
 	struct gctl_req *r;
+	const char *errstr;
 	const char *modified;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
@@ -1158,7 +1119,9 @@ gpart_revert_all(struct gmesh *mesh)
 		gctl_ro_param(r, "arg0", -1, gp->lg_name);
 		gctl_ro_param(r, "verb", -1, "undo");
 
-		gctl_issue(r);
+		errstr = gctl_issue(r);
+		if (errstr != NULL && errstr[0] != '\0') 
+			gpart_show_error("Error", NULL, errstr);
 		gctl_free(r);
 	}
 }

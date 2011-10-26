@@ -212,10 +212,6 @@ USB access library (libusb -lusb)
 .Fn libusb20_me_decode "const void *pdata" "uint16_t len" "void *pdecoded"
 .Ft "const uint8_t *"
 .Fn libusb20_desc_foreach "const struct libusb20_me_struct *me" "const uint8_t *pdesc"
-.Ft "const char *"
-.Fn libusb20_strerror "int code"
-.Ft "const char *"
-.Fn libusb20_error_name "int code"
 .
 .
 .Sh DESCRIPTION
@@ -614,9 +610,10 @@ The file descriptor can be used for polling purposes.
 .Pp
 .
 .Fn libusb20_dev_kernel_driver_active
-returns zero if a kernel driver is active on the given USB interface.
+returns a non-zero value if a kernel driver is active on
+the given USB interface.
 .
-Else a LIBUSB20_ERROR value is returned.
+Else zero is returned.
 .
 .Pp
 .
@@ -999,22 +996,6 @@ The total decoded length is returned.
 The buffer pointer cannot be NULL.
 .
 .
-.Sh USB DEBUGGING
-.Pp
-.Ft const char *
-.Fn libusb20_strerror "int code"
-Get the ASCII representation of the error given by the
-.Fa code
-argument.
-This function does not return NULL.
-.Pp
-.Ft const char *
-.Fn libusb20_error_name "int code"
-Get the ASCII representation of the error enum given by the
-.Fa code
-argument.
-This function does not return NULL.
-.
 .Sh FILES
 .
 .
@@ -1022,8 +1003,7 @@ This function does not return NULL.
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr libusb 3 ,
-.Xr usbconfig 8 ,
-.Xr usbdump 8
+.Xr usbconfig 8
 .
 .
 .Sh HISTORY

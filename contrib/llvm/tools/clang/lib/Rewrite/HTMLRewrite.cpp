@@ -33,8 +33,8 @@ using namespace clang;
 void html::HighlightRange(Rewriter &R, SourceLocation B, SourceLocation E,
                           const char *StartTag, const char *EndTag) {
   SourceManager &SM = R.getSourceMgr();
-  B = SM.getExpansionLoc(B);
-  E = SM.getExpansionLoc(E);
+  B = SM.getInstantiationLoc(B);
+  E = SM.getInstantiationLoc(E);
   FileID FID = SM.getFileID(B);
   assert(SM.getFileID(E) == FID && "B/E not in the same file!");
 
@@ -140,10 +140,10 @@ void html::EscapeText(Rewriter &R, FileID FID,
       unsigned NumSpaces = 8-(ColNo&7);
       if (EscapeSpaces)
         RB.ReplaceText(FilePos, 1,
-                       StringRef("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                       llvm::StringRef("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
                                        "&nbsp;&nbsp;&nbsp;", 6*NumSpaces));
       else
-        RB.ReplaceText(FilePos, 1, StringRef("        ", NumSpaces));
+        RB.ReplaceText(FilePos, 1, llvm::StringRef("        ", NumSpaces));
       ColNo += NumSpaces;
       break;
     }
@@ -277,7 +277,7 @@ void html::AddHeaderFooterInternalBuiltinCSS(Rewriter& R, FileID FID,
   const char* FileEnd = Buf->getBufferEnd();
 
   SourceLocation StartLoc = R.getSourceMgr().getLocForStartOfFile(FID);
-  SourceLocation EndLoc = StartLoc.getLocWithOffset(FileEnd-FileStart);
+  SourceLocation EndLoc = StartLoc.getFileLocWithOffset(FileEnd-FileStart);
 
   std::string s;
   llvm::raw_string_ostream os(s);
@@ -397,15 +397,8 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
       HighlightRange(RB, TokOffs, TokOffs+TokLen, BufferStart,
                      "<span class='comment'>", "</span>");
       break;
-    case tok::utf8_string_literal:
-      // Chop off the u part of u8 prefix
-      ++TokOffs;
-      --TokLen;
-      // FALL THROUGH to chop the 8
     case tok::wide_string_literal:
-    case tok::utf16_string_literal:
-    case tok::utf32_string_literal:
-      // Chop off the L, u, U or 8 prefix
+      // Chop off the L prefix
       ++TokOffs;
       --TokLen;
       // FALL THROUGH.
@@ -438,6 +431,17 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
 
     L.LexFromRawLexer(Tok);
   }
+}
+
+namespace {
+/// IgnoringDiagClient - This is a diagnostic client that just ignores all
+/// diags.
+class IgnoringDiagClient : public DiagnosticClient {
+  void HandleDiagnostic(Diagnostic::Level DiagLevel,
+                        const DiagnosticInfo &Info) {
+    // Just ignore it.
+  }
+};
 }
 
 /// HighlightMacros - This uses the macro table state from the end of the
@@ -482,14 +486,14 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
 
   // Temporarily change the diagnostics object so that we ignore any generated
   // diagnostics from this pass.
-  DiagnosticsEngine TmpDiags(PP.getDiagnostics().getDiagnosticIDs(),
-                      new IgnoringDiagConsumer);
+  Diagnostic TmpDiags(PP.getDiagnostics().getDiagnosticIDs(),
+                      new IgnoringDiagClient);
 
   // FIXME: This is a huge hack; we reuse the input preprocessor because we want
   // its state, but we aren't actually changing it (we hope). This should really
   // construct a copy of the preprocessor.
   Preprocessor &TmpPP = const_cast<Preprocessor&>(PP);
-  DiagnosticsEngine *OldDiags = &TmpPP.getDiagnostics();
+  Diagnostic *OldDiags = &TmpPP.getDiagnostics();
   TmpPP.setDiagnostics(TmpDiags);
 
   // Inform the preprocessor that we don't want comments.
@@ -515,7 +519,7 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
     // expansion by inserting a start tag before the macro expansion and
     // end tag after it.
     std::pair<SourceLocation, SourceLocation> LLoc =
-      SM.getExpansionRange(Tok.getLocation());
+      SM.getInstantiationRange(Tok.getLocation());
 
     // Ignore tokens whose instantiation location was not the main file.
     if (SM.getFileID(LLoc.first) != FID) {
@@ -538,7 +542,7 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
     // instantiation.  It would be really nice to pop up a window with all the
     // spelling of the tokens or something.
     while (!Tok.is(tok::eof) &&
-           SM.getExpansionLoc(Tok.getLocation()) == LLoc.first) {
+           SM.getInstantiationLoc(Tok.getLocation()) == LLoc.first) {
       // Insert a newline if the macro expansion is getting large.
       if (LineLen > 60) {
         Expansion += "<br>";

@@ -59,7 +59,6 @@ MCJIT::MCJIT(Module *m, TargetMachine *tm, TargetJITInfo &tji,
              bool AllocateGVsWithCode)
   : ExecutionEngine(m), TM(tm), MemMgr(MM), M(m), OS(Buffer), Dyld(MM) {
 
-  setTargetData(TM->getTargetData());
   PM.add(new TargetData(*TM->getTargetData()));
 
   // Turn the machine code intermediate representation into bytes in memory
@@ -125,8 +124,8 @@ GenericValue MCJIT::runFunction(Function *F,
 
   void *FPtr = getPointerToFunction(F);
   assert(FPtr && "Pointer to fn's code was null after getPointerToFunction");
-  FunctionType *FTy = F->getFunctionType();
-  Type *RetTy = FTy->getReturnType();
+  const FunctionType *FTy = F->getFunctionType();
+  const Type *RetTy = FTy->getReturnType();
 
   assert((FTy->getNumParams() == ArgValues.size() ||
           (FTy->isVarArg() && FTy->getNumParams() <= ArgValues.size())) &&
@@ -217,6 +216,6 @@ GenericValue MCJIT::runFunction(Function *F,
     }
   }
 
-  assert(0 && "Full-featured argument passing not supported yet!");
+  assert("Full-featured argument passing not supported yet!");
   return GenericValue();
 }

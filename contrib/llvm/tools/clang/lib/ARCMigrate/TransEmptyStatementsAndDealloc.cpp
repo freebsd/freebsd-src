@@ -22,53 +22,11 @@
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/AST/StmtVisitor.h"
-#include "clang/Basic/SourceManager.h"
 
 using namespace clang;
 using namespace arcmt;
 using namespace trans;
-
-static bool isEmptyARCMTMacroStatement(NullStmt *S,
-                                       std::vector<SourceLocation> &MacroLocs,
-                                       ASTContext &Ctx) {
-  if (!S->hasLeadingEmptyMacro())
-    return false;
-
-  SourceLocation SemiLoc = S->getSemiLoc();
-  if (SemiLoc.isInvalid() || SemiLoc.isMacroID())
-    return false;
-
-  if (MacroLocs.empty())
-    return false;
-
-  SourceManager &SM = Ctx.getSourceManager();
-  std::vector<SourceLocation>::iterator
-    I = std::upper_bound(MacroLocs.begin(), MacroLocs.end(), SemiLoc,
-                         SourceManager::LocBeforeThanCompare(SM));
-  --I;
-  SourceLocation
-      AfterMacroLoc = I->getLocWithOffset(getARCMTMacroName().size());
-  assert(AfterMacroLoc.isFileID());
-
-  if (AfterMacroLoc == SemiLoc)
-    return true;
-
-  int RelOffs = 0;
-  if (!SM.isInSameSLocAddrSpace(AfterMacroLoc, SemiLoc, &RelOffs))
-    return false;
-  if (RelOffs < 0)
-    return false;
-
-  // We make the reasonable assumption that a semicolon after 100 characters
-  // means that it is not the next token after our macro. If this assumption
-  // fails it is not critical, we will just fail to clear out, e.g., an empty
-  // 'if'.
-  if (RelOffs - getARCMTMacroName().size() > 100)
-    return false;
-
-  SourceLocation AfterMacroSemiLoc = findSemiAfterLocation(AfterMacroLoc, Ctx);
-  return AfterMacroSemiLoc == SemiLoc;
-}
+using llvm::StringRef;
 
 namespace {
 
@@ -76,14 +34,14 @@ namespace {
 /// transformations.
 class EmptyChecker : public StmtVisitor<EmptyChecker, bool> {
   ASTContext &Ctx;
-  std::vector<SourceLocation> &MacroLocs;
+  llvm::DenseSet<unsigned> &MacroLocs;
 
 public:
-  EmptyChecker(ASTContext &ctx, std::vector<SourceLocation> &macroLocs)
+  EmptyChecker(ASTContext &ctx, llvm::DenseSet<unsigned> &macroLocs)
     : Ctx(ctx), MacroLocs(macroLocs) { }
 
   bool VisitNullStmt(NullStmt *S) {
-    return isEmptyARCMTMacroStatement(S, MacroLocs, Ctx);
+    return isMacroLoc(S->getLeadingEmptyMacroLoc());
   }
   bool VisitCompoundStmt(CompoundStmt *S) {
     if (S->body_empty())
@@ -145,14 +103,23 @@ public:
       return false;
     return Visit(S->getSubStmt());
   }
+
+private:
+  bool isMacroLoc(SourceLocation loc) {
+    if (loc.isInvalid()) return false;
+    return MacroLocs.count(loc.getRawEncoding());
+  }
 };
 
 class EmptyStatementsRemover :
                             public RecursiveASTVisitor<EmptyStatementsRemover> {
   MigrationPass &Pass;
+  llvm::DenseSet<unsigned> &MacroLocs;
 
 public:
-  EmptyStatementsRemover(MigrationPass &pass) : Pass(pass) { }
+  EmptyStatementsRemover(MigrationPass &pass,
+                         llvm::DenseSet<unsigned> &macroLocs)
+    : Pass(pass), MacroLocs(macroLocs) { }
 
   bool TraverseStmtExpr(StmtExpr *E) {
     CompoundStmt *S = E->getSubStmt();
@@ -172,12 +139,17 @@ public:
     return true;
   }
 
+  bool isMacroLoc(SourceLocation loc) {
+    if (loc.isInvalid()) return false;
+    return MacroLocs.count(loc.getRawEncoding());
+  }
+
   ASTContext &getContext() { return Pass.Ctx; }
 
 private:
   void check(Stmt *S) {
     if (!S) return;
-    if (EmptyChecker(Pass.Ctx, Pass.ARCMTMacroLocs).Visit(S)) {
+    if (EmptyChecker(Pass.Ctx, MacroLocs).Visit(S)) {
       Transaction Trans(Pass.TA);
       Pass.TA.removeStmt(S);
     }
@@ -186,8 +158,8 @@ private:
 
 } // anonymous namespace
 
-static bool isBodyEmpty(CompoundStmt *body, ASTContext &Ctx,
-                        std::vector<SourceLocation> &MacroLocs) {
+static bool isBodyEmpty(CompoundStmt *body,
+                        ASTContext &Ctx, llvm::DenseSet<unsigned> &MacroLocs) {
   for (CompoundStmt::body_iterator
          I = body->body_begin(), E = body->body_end(); I != E; ++I)
     if (!EmptyChecker(Ctx, MacroLocs).Visit(*I))
@@ -196,7 +168,8 @@ static bool isBodyEmpty(CompoundStmt *body, ASTContext &Ctx,
   return true;
 }
 
-static void removeDeallocMethod(MigrationPass &pass) {
+static void removeDeallocMethod(MigrationPass &pass,
+                                llvm::DenseSet<unsigned> &MacroLocs) {
   ASTContext &Ctx = pass.Ctx;
   TransformActions &TA = pass.TA;
   DeclContext *DC = Ctx.getTranslationUnitDecl();
@@ -211,7 +184,7 @@ static void removeDeallocMethod(MigrationPass &pass) {
       ObjCMethodDecl *MD = *MI;
       if (MD->getMethodFamily() == OMF_dealloc) {
         if (MD->hasBody() &&
-            isBodyEmpty(MD->getCompoundBody(), Ctx, pass.ARCMTMacroLocs)) {
+            isBodyEmpty(MD->getCompoundBody(), Ctx, MacroLocs)) {
           Transaction Trans(TA);
           TA.remove(MD->getSourceRange());
         }
@@ -222,9 +195,14 @@ static void removeDeallocMethod(MigrationPass &pass) {
 }
 
 void trans::removeEmptyStatementsAndDealloc(MigrationPass &pass) {
-  EmptyStatementsRemover(pass).TraverseDecl(pass.Ctx.getTranslationUnitDecl());
+  llvm::DenseSet<unsigned> MacroLocs;
+  for (unsigned i = 0, e = pass.ARCMTMacroLocs.size(); i != e; ++i)
+    MacroLocs.insert(pass.ARCMTMacroLocs[i].getRawEncoding());
 
-  removeDeallocMethod(pass);
+  EmptyStatementsRemover(pass, MacroLocs)
+    .TraverseDecl(pass.Ctx.getTranslationUnitDecl());
+
+  removeDeallocMethod(pass, MacroLocs);
 
   for (unsigned i = 0, e = pass.ARCMTMacroLocs.size(); i != e; ++i) {
     Transaction Trans(pass.TA);

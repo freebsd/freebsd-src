@@ -32,7 +32,7 @@ namespace driver {
 /// ToolChain - Access to tools for a single platform.
 class ToolChain {
 public:
-  typedef SmallVector<std::string, 4> path_list;
+  typedef llvm::SmallVector<std::string, 4> path_list;
 
   enum CXXStdlibType {
     CST_Libcxx,
@@ -63,9 +63,9 @@ public:
   const llvm::Triple &getTriple() const { return Triple; }
 
   llvm::Triple::ArchType getArch() const { return Triple.getArch(); }
-  StringRef getArchName() const { return Triple.getArchName(); }
-  StringRef getPlatform() const { return Triple.getVendorName(); }
-  StringRef getOS() const { return Triple.getOSName(); }
+  llvm::StringRef getArchName() const { return Triple.getArchName(); }
+  llvm::StringRef getPlatform() const { return Triple.getVendorName(); }
+  llvm::StringRef getOS() const { return Triple.getOSName(); }
 
   std::string getTripleString() const {
     return Triple.getTriple();
@@ -139,9 +139,7 @@ public:
 
   /// GetDefaultStackProtectorLevel - Get the default stack protector level for
   /// this tool chain (0=off, 1=on, 2=all).
-  virtual unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const {
-    return 0;
-  }
+  virtual unsigned GetDefaultStackProtectorLevel() const { return 0; }
 
   /// IsUnwindTablesDefault - Does this tool chain use -funwind-tables
   /// by default.
@@ -171,29 +169,20 @@ public:
 
   /// ComputeLLVMTriple - Return the LLVM target triple to use, after taking
   /// command line arguments into account.
-  virtual std::string ComputeLLVMTriple(const ArgList &Args,
-                                 types::ID InputType = types::TY_INVALID) const;
+  virtual std::string ComputeLLVMTriple(const ArgList &Args) const;
 
   /// ComputeEffectiveClangTriple - Return the Clang triple to use for this
   /// target, which may take into account the command line arguments. For
   /// example, on Darwin the -mmacosx-version-min= command line argument (which
   /// sets the deployment target) determines the version in the triple passed to
   /// Clang.
-  virtual std::string ComputeEffectiveClangTriple(const ArgList &Args,
-                                 types::ID InputType = types::TY_INVALID) const;
+  virtual std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
 
   /// configureObjCRuntime - Configure the known properties of the
   /// Objective-C runtime for this platform.
   ///
-  /// FIXME: this really belongs on some sort of DeploymentTarget abstraction
+  /// FIXME: this doesn't really belong here.
   virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
-
-  /// hasBlocksRuntime - Given that the user is compiling with
-  /// -fblocks, does this tool chain guarantee the existence of a
-  /// blocks runtime?
-  ///
-  /// FIXME: this really belongs on some sort of DeploymentTarget abstraction
-  virtual bool hasBlocksRuntime() const { return true; }
 
   // GetCXXStdlibType - Determine the C++ standard library type to use with the
   // given compilation arguments.

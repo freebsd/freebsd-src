@@ -32,15 +32,12 @@ void X86IntelInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << getRegisterName(RegNo);
 }
 
-void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                    StringRef Annot) {
+void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS) {
   printInstruction(MI, OS);
   
   // If verbose assembly is enabled, we can print some informative comments.
-  if (CommentStream) {
-    printAnnotation(OS, Annot);
+  if (CommentStream)
     EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
-  }
 }
 StringRef X86IntelInstPrinter::getOpcodeName(unsigned Opcode) const {
   return getInstructionName(Opcode);

@@ -442,7 +442,7 @@ disk_OS_get_disks(void)
 			/*
 			 * not found there - insert it as immutable
 			 */
-			syslog(LOG_WARNING, "%s: adding device '%s' to "
+			syslog(LOG_WARNING, "%s: device '%s' not in "
 			    "device list", __func__, disk);
 
 			if ((entry = device_entry_create(disk, "", "")) == NULL)
@@ -476,8 +476,7 @@ disk_OS_get_disks(void)
 		disk_entry->media = DSM_UNKNOWN;
 		disk_entry->removable = SNMP_FALSE;
 
-		if (strncmp(disk_entry->dev_name, "da", 2) == 0 ||
-		    strncmp(disk_entry->dev_name, "ada", 3) == 0) {
+		if (strncmp(disk_entry->dev_name, "da", 2) == 0) {
 			disk_entry->media = DSM_HARDDISK;
 			disk_entry->removable = SNMP_FALSE;
 		} else if (strncmp(disk_entry->dev_name, "cd", 2) == 0) {
@@ -635,7 +634,7 @@ op_hrDiskStorageTable(struct snmp_context *ctx __unused,
 	  	value->v.integer = entry->media;
 	  	return (SNMP_ERR_NOERROR);
 
-	case LEAF_hrDiskStorageRemovable:
+	case LEAF_hrDiskStorageRemoveble:
 	  	value->v.integer = entry->removable;
 	  	return (SNMP_ERR_NOERROR);
 

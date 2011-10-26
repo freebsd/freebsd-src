@@ -49,10 +49,12 @@ ExternalASTSource::FindExternalVisibleDeclsByName(const DeclContext *DC,
   return DeclContext::lookup_result();
 }
 
+void ExternalASTSource::MaterializeVisibleDecls(const DeclContext *DC) { }
+
 ExternalLoadResult 
 ExternalASTSource::FindExternalLexicalDecls(const DeclContext *DC,
                                             bool (*isKindWeWant)(Decl::Kind),
-                                         SmallVectorImpl<Decl*> &Result) {
+                                         llvm::SmallVectorImpl<Decl*> &Result) {
   return ELR_AlreadyLoaded;
 }
 

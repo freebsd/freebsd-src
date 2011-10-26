@@ -32,7 +32,6 @@ IdentifierInfo::IdentifierInfo() {
   ObjCOrBuiltinID = 0;
   HasMacro = false;
   IsExtension = false;
-  IsCXX11CompatKeyword = false;
   IsPoisoned = false;
   IsCPPOperatorKeyword = false;
   NeedsHandleIdentifier = false;
@@ -56,7 +55,7 @@ namespace {
   class EmptyLookupIterator : public IdentifierIterator
   {
   public:
-    virtual StringRef Next() { return StringRef(); }
+    virtual llvm::StringRef Next() { return llvm::StringRef(); }
   };
 }
 
@@ -103,11 +102,11 @@ namespace {
 /// identifiers because they are language keywords.  This causes the lexer to
 /// automatically map matching identifiers to specialized token codes.
 ///
-/// The C90/C99/CPP/CPP0x flags are set to 3 if the token is a keyword in a
-/// future language standard, set to 2 if the token should be enabled in the
-/// specified langauge, set to 1 if it is an extension in the specified
-/// language, and set to 0 if disabled in the specified language.
-static void AddKeyword(StringRef Keyword,
+/// The C90/C99/CPP/CPP0x flags are set to 2 if the token should be
+/// enabled in the specified langauge, set to 1 if it is an extension
+/// in the specified language, and set to 0 if disabled in the
+/// specified language.
+static void AddKeyword(llvm::StringRef Keyword,
                        tok::TokenKind TokenCode, unsigned Flags,
                        const LangOptions &LangOpts, IdentifierTable &Table) {
   unsigned AddResult = 0;
@@ -116,7 +115,7 @@ static void AddKeyword(StringRef Keyword,
   else if (LangOpts.CPlusPlus0x && (Flags & KEYCXX0X)) AddResult = 2;
   else if (LangOpts.C99 && (Flags & KEYC99)) AddResult = 2;
   else if (LangOpts.GNUKeywords && (Flags & KEYGNU)) AddResult = 1;
-  else if (LangOpts.MicrosoftExt && (Flags & KEYMS)) AddResult = 1;
+  else if (LangOpts.Microsoft && (Flags & KEYMS)) AddResult = 1;
   else if (LangOpts.Borland && (Flags & KEYBORLAND)) AddResult = 1;
   else if (LangOpts.Bool && (Flags & BOOLSUPPORT)) AddResult = 2;
   else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
@@ -124,20 +123,17 @@ static void AddKeyword(StringRef Keyword,
   else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;
   else if (LangOpts.C1X && (Flags & KEYC1X)) AddResult = 2;
   else if (LangOpts.ObjCAutoRefCount && (Flags & KEYARC)) AddResult = 2;
-  else if (LangOpts.CPlusPlus && (Flags & KEYCXX0X)) AddResult = 3;
-
+           
   // Don't add this keyword if disabled in this language.
   if (AddResult == 0) return;
 
-  IdentifierInfo &Info =
-      Table.get(Keyword, AddResult == 3 ? tok::identifier : TokenCode);
+  IdentifierInfo &Info = Table.get(Keyword, TokenCode);
   Info.setIsExtensionToken(AddResult == 1);
-  Info.setIsCXX11CompatKeyword(AddResult == 3);
 }
 
 /// AddCXXOperatorKeyword - Register a C++ operator keyword alternative
 /// representations.
-static void AddCXXOperatorKeyword(StringRef Keyword,
+static void AddCXXOperatorKeyword(llvm::StringRef Keyword,
                                   tok::TokenKind TokenCode,
                                   IdentifierTable &Table) {
   IdentifierInfo &Info = Table.get(Keyword, TokenCode);
@@ -146,7 +142,7 @@ static void AddCXXOperatorKeyword(StringRef Keyword,
 
 /// AddObjCKeyword - Register an Objective-C @keyword like "class" "selector" or
 /// "property".
-static void AddObjCKeyword(StringRef Name,
+static void AddObjCKeyword(llvm::StringRef Name,
                            tok::ObjCKeywordKind ObjCID,
                            IdentifierTable &Table) {
   Table.get(Name).setObjCKeywordID(ObjCID);
@@ -157,20 +153,20 @@ static void AddObjCKeyword(StringRef Name,
 void IdentifierTable::AddKeywords(const LangOptions &LangOpts) {
   // Add keywords and tokens for the current language.
 #define KEYWORD(NAME, FLAGS) \
-  AddKeyword(StringRef(#NAME), tok::kw_ ## NAME,  \
+  AddKeyword(llvm::StringRef(#NAME), tok::kw_ ## NAME,  \
              FLAGS, LangOpts, *this);
 #define ALIAS(NAME, TOK, FLAGS) \
-  AddKeyword(StringRef(NAME), tok::kw_ ## TOK,  \
+  AddKeyword(llvm::StringRef(NAME), tok::kw_ ## TOK,  \
              FLAGS, LangOpts, *this);
 #define CXX_KEYWORD_OPERATOR(NAME, ALIAS) \
   if (LangOpts.CXXOperatorNames)          \
-    AddCXXOperatorKeyword(StringRef(#NAME), tok::ALIAS, *this);
+    AddCXXOperatorKeyword(llvm::StringRef(#NAME), tok::ALIAS, *this);
 #define OBJC1_AT_KEYWORD(NAME) \
   if (LangOpts.ObjC1)          \
-    AddObjCKeyword(StringRef(#NAME), tok::objc_##NAME, *this);
+    AddObjCKeyword(llvm::StringRef(#NAME), tok::objc_##NAME, *this);
 #define OBJC2_AT_KEYWORD(NAME) \
   if (LangOpts.ObjC2)          \
-    AddObjCKeyword(StringRef(#NAME), tok::objc_##NAME, *this);
+    AddObjCKeyword(llvm::StringRef(#NAME), tok::objc_##NAME, *this);
 #define TESTING_KEYWORD(NAME, FLAGS)
 #include "clang/Basic/TokenKinds.def"
 
@@ -221,7 +217,6 @@ tok::PPKeywordKind IdentifierInfo::getPPKeywordID() const {
   CASE(12, 'i', 'c', include_next);
 
   CASE(16, '_', 'i', __include_macros);
-  CASE(16, '_', 'e', __export_macro__);
 #undef CASE
 #undef HASH
   }
@@ -341,9 +336,9 @@ IdentifierInfo *Selector::getIdentifierInfoForSlot(unsigned argIndex) const {
   return SI->getIdentifierInfoForSlot(argIndex);
 }
 
-StringRef Selector::getNameForSlot(unsigned int argIndex) const {
+llvm::StringRef Selector::getNameForSlot(unsigned int argIndex) const {
   IdentifierInfo *II = getIdentifierInfoForSlot(argIndex);
-  return II? II->getName() : StringRef();
+  return II? II->getName() : llvm::StringRef();
 }
 
 std::string MultiKeywordSelector::getName() const {
@@ -382,7 +377,7 @@ std::string Selector::getAsString() const {
 /// Interpreting the given string using the normal CamelCase
 /// conventions, determine whether the given string starts with the
 /// given "word", which is assumed to end in a lowercase letter.
-static bool startsWithWord(StringRef name, StringRef word) {
+static bool startsWithWord(llvm::StringRef name, llvm::StringRef word) {
   if (name.size() < word.size()) return false;
   return ((name.size() == word.size() ||
            !islower(name[word.size()]))
@@ -393,11 +388,10 @@ ObjCMethodFamily Selector::getMethodFamilyImpl(Selector sel) {
   IdentifierInfo *first = sel.getIdentifierInfoForSlot(0);
   if (!first) return OMF_None;
 
-  StringRef name = first->getName();
+  llvm::StringRef name = first->getName();
   if (sel.isUnarySelector()) {
     if (name == "autorelease") return OMF_autorelease;
     if (name == "dealloc") return OMF_dealloc;
-    if (name == "finalize") return OMF_finalize;
     if (name == "release") return OMF_release;
     if (name == "retain") return OMF_retain;
     if (name == "retainCount") return OMF_retainCount;
@@ -497,3 +491,4 @@ const char *clang::getOperatorSpelling(OverloadedOperatorKind Operator) {
 
   return 0;
 }
+

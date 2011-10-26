@@ -46,7 +46,6 @@ int lineno;
 
 %%
 control			{ DP; return CONTROL; }
-pidfile			{ DP; return PIDFILE; }
 listen			{ DP; return LISTEN; }
 port			{ DP; return PORT; }
 replication		{ DP; return REPLICATION; }
@@ -54,14 +53,12 @@ checksum		{ DP; return CHECKSUM; }
 compression		{ DP; return COMPRESSION; }
 timeout			{ DP; return TIMEOUT; }
 exec			{ DP; return EXEC; }
-metaflush		{ DP; return METAFLUSH; }
 resource		{ DP; return RESOURCE; }
 name			{ DP; return NAME; }
 local			{ DP; return LOCAL; }
 remote			{ DP; return REMOTE; }
 source			{ DP; return SOURCE; }
 on			{ DP; return ON; }
-off			{ DP; return OFF; }
 fullsync		{ DP; return FULLSYNC; }
 memsync			{ DP; return MEMSYNC; }
 async			{ DP; return ASYNC; }

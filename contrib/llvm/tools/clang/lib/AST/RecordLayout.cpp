@@ -13,7 +13,6 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
-#include "clang/Basic/TargetInfo.h"
 
 using namespace clang;
 
@@ -43,7 +42,7 @@ ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx, CharUnits size,
 // Constructor for C++ records.
 ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx,
                                  CharUnits size, CharUnits alignment,
-                                 CharUnits vbptroffset, CharUnits datasize,
+                                 CharUnits datasize,
                                  const uint64_t *fieldoffsets,
                                  unsigned fieldcount,
                                  CharUnits nonvirtualsize,
@@ -68,20 +67,15 @@ ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx,
   CXXInfo->SizeOfLargestEmptySubobject = SizeOfLargestEmptySubobject;
   CXXInfo->BaseOffsets = BaseOffsets;
   CXXInfo->VBaseOffsets = VBaseOffsets;
-  CXXInfo->VBPtrOffset = vbptroffset;
 
 #ifndef NDEBUG
     if (const CXXRecordDecl *PrimaryBase = getPrimaryBase()) {
-      if (isPrimaryBaseVirtual()) {
-        // Microsoft ABI doesn't have primary virtual base
-        if (Ctx.getTargetInfo().getCXXABI() != CXXABI_Microsoft) {
+      if (isPrimaryBaseVirtual())
         assert(getVBaseClassOffset(PrimaryBase).isZero() &&
                "Primary virtual base must be at offset 0!");
-        }
-      } else {
+      else
         assert(getBaseClassOffsetInBits(PrimaryBase) == 0 &&
                "Primary base must be at offset 0!");
-      }
     }
 #endif        
 }

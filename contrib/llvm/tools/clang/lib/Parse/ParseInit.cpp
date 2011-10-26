@@ -90,7 +90,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     assert(Tok.is(tok::colon) && "MayBeDesignationStart not working properly!");
     SourceLocation ColonLoc = ConsumeToken();
 
-    Diag(NameLoc, diag::ext_gnu_old_style_field_designator)
+    Diag(Tok, diag::ext_gnu_old_style_field_designator)
       << FixItHint::CreateReplacement(SourceRange(NameLoc, ColonLoc),
                                       NewSyntax.str());
 
@@ -139,10 +139,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     //
     InMessageExpressionRAIIObject InMessage(*this, true);
     
-    BalancedDelimiterTracker T(*this, tok::l_square);
-    T.consumeOpen();
-    SourceLocation StartLoc = T.getOpenLocation();
-
+    SourceLocation StartLoc = ConsumeBracket();
     ExprResult Idx;
 
     // If Objective-C is enabled and this is a typename (class message
@@ -269,9 +266,8 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
                                                     StartLoc, EllipsisLoc));
     }
 
-    T.consumeClose();
-    Desig.getDesignator(Desig.getNumDesignators() - 1).setRBracketLoc(
-                                                        T.getCloseLocation());
+    SourceLocation EndLoc = MatchRHSPunctuation(tok::r_square, StartLoc);
+    Desig.getDesignator(Desig.getNumDesignators() - 1).setRBracketLoc(EndLoc);
   }
 
   // Okay, we're done with the designator sequence.  We know that there must be
@@ -320,9 +316,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
 ExprResult Parser::ParseBraceInitializer() {
   InMessageExpressionRAIIObject InMessage(*this, false);
   
-  BalancedDelimiterTracker T(*this, tok::l_brace);
-  T.consumeOpen();
-  SourceLocation LBraceLoc = T.getOpenLocation();
+  SourceLocation LBraceLoc = ConsumeBrace();
 
   /// InitExprs - This is the actual list of expressions contained in the
   /// initializer.
@@ -382,13 +376,12 @@ ExprResult Parser::ParseBraceInitializer() {
     // Handle trailing comma.
     if (Tok.is(tok::r_brace)) break;
   }
-
-  bool closed = !T.consumeClose();
-
-  if (InitExprsOk && closed)
+  if (InitExprsOk && Tok.is(tok::r_brace))
     return Actions.ActOnInitList(LBraceLoc, move_arg(InitExprs),
-                                 T.getCloseLocation());
+                                 ConsumeBrace());
 
+  // Match the '}'.
+  MatchRHSPunctuation(tok::r_brace, LBraceLoc);
   return ExprError(); // an error occurred.
 }
 

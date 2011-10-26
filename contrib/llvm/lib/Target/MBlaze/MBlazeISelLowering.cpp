@@ -59,7 +59,6 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   // MBlaze does not have i1 type, so use i32 for
   // setcc operations results (slt, sgt, ...).
   setBooleanContents(ZeroOrOneBooleanContent);
-  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
 
   // Set up the register classes
   addRegisterClass(MVT::i32, MBlaze::GPRRegisterClass);
@@ -188,7 +187,7 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   computeRegisterProperties();
 }
 
-EVT MBlazeTargetLowering::getSetCCResultType(EVT VT) const {
+MVT::SimpleValueType MBlazeTargetLowering::getSetCCResultType(EVT VT) const {
   return MVT::i32;
 }
 
@@ -965,13 +964,13 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     // The last register argument that must be saved is MBlaze::R10
     TargetRegisterClass *RC = MBlaze::GPRRegisterClass;
 
-    unsigned Begin = getMBlazeRegisterNumbering(MBlaze::R5);
-    unsigned Start = getMBlazeRegisterNumbering(ArgRegEnd+1);
-    unsigned End   = getMBlazeRegisterNumbering(MBlaze::R10);
+    unsigned Begin = MBlazeRegisterInfo::getRegisterNumbering(MBlaze::R5);
+    unsigned Start = MBlazeRegisterInfo::getRegisterNumbering(ArgRegEnd+1);
+    unsigned End   = MBlazeRegisterInfo::getRegisterNumbering(MBlaze::R10);
     unsigned StackLoc = Start - Begin + 1;
 
     for (; Start <= End; ++Start, ++StackLoc) {
-      unsigned Reg = getMBlazeRegisterFromNumbering(Start);
+      unsigned Reg = MBlazeRegisterInfo::getRegisterFromNumbering(Start);
       unsigned LiveReg = MF.addLiveIn(Reg, RC);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, LiveReg, MVT::i32);
 
@@ -1097,7 +1096,7 @@ MBlazeTargetLowering::getSingleConstraintMatchWeight(
     // but allow it at the lowest weight.
   if (CallOperandVal == NULL)
     return CW_Default;
-  Type *type = CallOperandVal->getType();
+  const Type *type = CallOperandVal->getType();
   // Look at the constraint type.
   switch (*constraint) {
   default:

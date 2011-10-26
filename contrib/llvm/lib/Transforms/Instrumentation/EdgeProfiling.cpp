@@ -74,7 +74,7 @@ bool EdgeProfiler::runOnModule(Module &M) {
     }
   }
 
-  Type *ATy = ArrayType::get(Type::getInt32Ty(M.getContext()), NumEdges);
+  const Type *ATy = ArrayType::get(Type::getInt32Ty(M.getContext()), NumEdges);
   GlobalVariable *Counters =
     new GlobalVariable(M, ATy, false, GlobalValue::InternalLinkage,
                        Constant::getNullValue(ATy), "EdgeProfCounters");

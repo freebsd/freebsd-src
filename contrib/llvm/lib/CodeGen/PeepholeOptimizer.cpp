@@ -295,6 +295,7 @@ bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
   if (!DefMI || !DefMI->getDesc().isBitcast())
     return false;
 
+  unsigned SrcDef = 0;
   unsigned SrcSrc = 0;
   NumDefs = DefMI->getDesc().getNumDefs();
   NumSrcs = DefMI->getDesc().getNumOperands() - NumDefs;
@@ -307,13 +308,13 @@ bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
     unsigned Reg = MO.getReg();
     if (!Reg)
       continue;
-    if (!MO.isDef()) {
-      if (SrcSrc)
-        // Multiple sources?
-        return false;
-      else
-        SrcSrc = Reg;
-    }
+    if (MO.isDef())
+      SrcDef = Reg;
+    else if (SrcSrc)
+      // Multiple sources?
+      return false;
+    else
+      SrcSrc = Reg;
   }
 
   if (MRI->getRegClass(SrcSrc) != MRI->getRegClass(Def))
@@ -433,7 +434,6 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
       if (MCID.isBitcast()) {
         if (OptimizeBitcastInstr(MI, MBB)) {
           // MI is deleted.
-          LocalMIs.erase(MI);
           Changed = true;
           MII = First ? I->begin() : llvm::next(PMII);
           continue;
@@ -441,7 +441,6 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
       } else if (MCID.isCompare()) {
         if (OptimizeCmpInstr(MI, MBB)) {
           // MI is deleted.
-          LocalMIs.erase(MI);
           Changed = true;
           MII = First ? I->begin() : llvm::next(PMII);
           continue;

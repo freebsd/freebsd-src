@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <langinfo.h>
 #include <libutil.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -352,8 +351,16 @@ printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 static void
 printdev(size_t width, dev_t dev)
 {
+	char buf[DEVSTR_HEX_LEN + 1];
 
-	(void)printf("%#*jx ", (u_int)width, (uintmax_t)dev);
+	if (minor(dev) > 255 || minor(dev) < 0)
+		(void)snprintf(buf, sizeof(buf), "%3d, 0x%08x",
+		    major(dev), (u_int)minor(dev));
+	else
+		(void)snprintf(buf, sizeof(buf), "%3d, %3d",
+		    major(dev), minor(dev));
+
+	(void)printf("%*s ", (u_int)width, buf);
 }
 
 static void

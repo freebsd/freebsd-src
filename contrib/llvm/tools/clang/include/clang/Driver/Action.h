@@ -10,9 +10,17 @@
 #ifndef CLANG_DRIVER_ACTION_H_
 #define CLANG_DRIVER_ACTION_H_
 
+#include "llvm/ADT/SmallVector.h"
+
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
-#include "llvm/ADT/SmallVector.h"
+
+#include "llvm/Support/Casting.h"
+using llvm::isa;
+using llvm::cast;
+using llvm::cast_or_null;
+using llvm::dyn_cast;
+using llvm::dyn_cast_or_null;
 
 namespace clang {
 namespace driver {
@@ -44,10 +52,9 @@ public:
     LinkJobClass,
     LipoJobClass,
     DsymutilJobClass,
-    VerifyJobClass,
 
     JobClassFirst=PreprocessJobClass,
-    JobClassLast=VerifyJobClass
+    JobClassLast=DsymutilJobClass
   };
 
   static const char *getClassName(ActionClass AC);
@@ -213,15 +220,6 @@ public:
     return A->getKind() == DsymutilJobClass;
   }
   static bool classof(const DsymutilJobAction *) { return true; }
-};
-
-class VerifyJobAction : public JobAction {
-public:
-  VerifyJobAction(ActionList &Inputs, types::ID Type);
-  static bool classof(const Action *A) {
-    return A->getKind() == VerifyJobClass;
-  }
-  static bool classof(const VerifyJobAction *) { return true; }
 };
 
 } // end namespace driver

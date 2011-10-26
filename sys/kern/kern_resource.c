@@ -89,7 +89,7 @@ struct getpriority_args {
 };
 #endif
 int
-sys_getpriority(td, uap)
+getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
@@ -174,7 +174,7 @@ struct setpriority_args {
 };
 #endif
 int
-sys_setpriority(td, uap)
+setpriority(td, uap)
 	struct thread *td;
 	struct setpriority_args *uap;
 {
@@ -284,7 +284,7 @@ struct rtprio_thread_args {
 };
 #endif
 int
-sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
+rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 {
 	struct proc *p;
 	struct rtprio rtp;
@@ -358,7 +358,7 @@ struct rtprio_args {
 };
 #endif
 int
-sys_rtprio(td, uap)
+rtprio(td, uap)
 	struct thread *td;		/* curthread */
 	register struct rtprio_args *uap;
 {
@@ -592,7 +592,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-sys_setrlimit(td, uap)
+setrlimit(td, uap)
 	struct thread *td;
 	register struct __setrlimit_args *uap;
 {
@@ -632,7 +632,7 @@ lim_cb(void *arg)
 		} else {
 			if (p->p_cpulimit < rlim.rlim_max)
 				p->p_cpulimit += 5;
-			kern_psignal(p, SIGXCPU);
+			psignal(p, SIGXCPU);
 		}
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
@@ -771,7 +771,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-sys_getrlimit(td, uap)
+getrlimit(td, uap)
 	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
@@ -950,7 +950,7 @@ struct getrusage_args {
 };
 #endif
 int
-sys_getrusage(td, uap)
+getrusage(td, uap)
 	register struct thread *td;
 	register struct getrusage_args *uap;
 {

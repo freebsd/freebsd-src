@@ -14,10 +14,10 @@
 
 #define DEBUG_TYPE "arm-ldst-opt"
 #include "ARM.h"
+#include "ARMAddressingModes.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMRegisterInfo.h"
-#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -26,7 +26,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -764,9 +763,9 @@ static unsigned getPreIndexedLoadStoreOpcode(unsigned Opc,
                                              ARM_AM::AddrOpc Mode) {
   switch (Opc) {
   case ARM::LDRi12:
-    return ARM::LDR_PRE_IMM;
+    return ARM::LDR_PRE;
   case ARM::STRi12:
-    return ARM::STR_PRE_IMM;
+    return ARM::STR_PRE;
   case ARM::VLDRS:
     return Mode == ARM_AM::add ? ARM::VLDMSIA_UPD : ARM::VLDMSDB_UPD;
   case ARM::VLDRD:
@@ -790,9 +789,9 @@ static unsigned getPostIndexedLoadStoreOpcode(unsigned Opc,
                                               ARM_AM::AddrOpc Mode) {
   switch (Opc) {
   case ARM::LDRi12:
-    return ARM::LDR_POST_IMM;
+    return ARM::LDR_POST;
   case ARM::STRi12:
-    return ARM::STR_POST_IMM;
+    return ARM::STR_POST;
   case ARM::VLDRS:
     return Mode == ARM_AM::add ? ARM::VLDMSIA_UPD : ARM::VLDMSDB_UPD;
   case ARM::VLDRD:
@@ -893,6 +892,12 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineBasicBlock &MBB,
   if (!DoMerge)
     return false;
 
+  unsigned Offset = 0;
+  if (isAM2)
+    Offset = ARM_AM::getAM2Opc(AddSub, Bytes, ARM_AM::no_shift);
+  else if (!isAM5)
+    Offset = AddSub == ARM_AM::sub ? -Bytes : Bytes;
+
   if (isAM5) {
     // VLDM[SD}_UPD, VSTM[SD]_UPD
     // (There are no base-updating versions of VLDR/VSTR instructions, but the
@@ -906,44 +911,28 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineBasicBlock &MBB,
       .addReg(MO.getReg(), (isLd ? getDefRegState(true) :
                             getKillRegState(MO.isKill())));
   } else if (isLd) {
-    if (isAM2) {
-      // LDR_PRE, LDR_POST
-      if (NewOpc == ARM::LDR_PRE_IMM || NewOpc == ARM::LDRB_PRE_IMM) {
-        int Offset = AddSub == ARM_AM::sub ? -Bytes : Bytes;
-        BuildMI(MBB, MBBI, dl, TII->get(NewOpc), MI->getOperand(0).getReg())
-          .addReg(Base, RegState::Define)
-          .addReg(Base).addImm(Offset).addImm(Pred).addReg(PredReg);
-      } else {
-        int Offset = ARM_AM::getAM2Opc(AddSub, Bytes, ARM_AM::no_shift);
-        BuildMI(MBB, MBBI, dl, TII->get(NewOpc), MI->getOperand(0).getReg())
-          .addReg(Base, RegState::Define)
-          .addReg(Base).addReg(0).addImm(Offset).addImm(Pred).addReg(PredReg);
-      }
-    } else {
-      int Offset = AddSub == ARM_AM::sub ? -Bytes : Bytes;
+    if (isAM2)
+      // LDR_PRE, LDR_POST,
+      BuildMI(MBB, MBBI, dl, TII->get(NewOpc), MI->getOperand(0).getReg())
+        .addReg(Base, RegState::Define)
+        .addReg(Base).addReg(0).addImm(Offset).addImm(Pred).addReg(PredReg);
+    else
       // t2LDR_PRE, t2LDR_POST
       BuildMI(MBB, MBBI, dl, TII->get(NewOpc), MI->getOperand(0).getReg())
         .addReg(Base, RegState::Define)
         .addReg(Base).addImm(Offset).addImm(Pred).addReg(PredReg);
-    }
   } else {
     MachineOperand &MO = MI->getOperand(0);
-    // FIXME: post-indexed stores use am2offset_imm, which still encodes
-    // the vestigal zero-reg offset register. When that's fixed, this clause
-    // can be removed entirely.
-    if (isAM2 && NewOpc == ARM::STR_POST_IMM) {
-      int Offset = ARM_AM::getAM2Opc(AddSub, Bytes, ARM_AM::no_shift);
+    if (isAM2)
       // STR_PRE, STR_POST
       BuildMI(MBB, MBBI, dl, TII->get(NewOpc), Base)
         .addReg(MO.getReg(), getKillRegState(MO.isKill()))
         .addReg(Base).addReg(0).addImm(Offset).addImm(Pred).addReg(PredReg);
-    } else {
-      int Offset = AddSub == ARM_AM::sub ? -Bytes : Bytes;
+    else
       // t2STR_PRE, t2STR_POST
       BuildMI(MBB, MBBI, dl, TII->get(NewOpc), Base)
         .addReg(MO.getReg(), getKillRegState(MO.isKill()))
         .addReg(Base).addImm(Offset).addImm(Pred).addReg(PredReg);
-    }
   }
   MBB.erase(MBBI);
 

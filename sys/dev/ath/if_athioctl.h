@@ -153,7 +153,7 @@ struct ath_stats {
 	u_int32_t	ast_tx_getbusybuf;
 	u_int32_t	ast_tx_intr;
 	u_int32_t	ast_rx_intr;
-	u_int32_t	ast_pad[4];
+	u_int32_t	ast_pad[7];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

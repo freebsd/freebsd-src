@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2011 Dag-Erling SmÃ¸rgrav
+ * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
  *
  * Major Changelog:
  *
- * Dag-Erling SmÃ¸rgrav
+ * Dag-Erling Coïdan Smørgrav
  * 9 Jun 1998
  *
  * Incorporated into libfetch
@@ -633,12 +633,13 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 	/* check flags */
 	low = CHECK_FLAG('l');
-	pasv = CHECK_FLAG('p') || !CHECK_FLAG('P');
+	pasv = CHECK_FLAG('p');
 	verbose = CHECK_FLAG('v');
 
 	/* passive mode */
-	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL)
-		pasv = (strncasecmp(s, "no", 2) != 0);
+	if (!pasv)
+		pasv = ((s = getenv("FTP_PASSIVE_MODE")) != NULL &&
+		    strncasecmp(s, "no", 2) != 0);
 
 	/* isolate filename */
 	filename = ftp_filename(file, &filenamelen, &type);

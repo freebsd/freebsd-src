@@ -10,7 +10,6 @@
 #ifndef LLVM_CLANG_ARCMIGRATE_FILEREMAPPER_H
 #define LLVM_CLANG_ARCMIGRATE_FILEREMAPPER_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/DenseMap.h"
@@ -23,7 +22,7 @@ namespace llvm {
 namespace clang {
   class FileManager;
   class FileEntry;
-  class DiagnosticsEngine;
+  class Diagnostic;
   class CompilerInvocation;
 
 namespace arcmt {
@@ -42,32 +41,32 @@ public:
   FileRemapper();
   ~FileRemapper();
   
-  bool initFromDisk(StringRef outputDir, DiagnosticsEngine &Diag,
+  bool initFromDisk(llvm::StringRef outputDir, Diagnostic &Diag,
                     bool ignoreIfFilesChanged);
-  bool flushToDisk(StringRef outputDir, DiagnosticsEngine &Diag);
+  bool flushToDisk(llvm::StringRef outputDir, Diagnostic &Diag);
 
-  bool overwriteOriginal(DiagnosticsEngine &Diag,
-                         StringRef outputDir = StringRef());
+  bool overwriteOriginal(Diagnostic &Diag,
+                         llvm::StringRef outputDir = llvm::StringRef());
 
-  void remap(StringRef filePath, llvm::MemoryBuffer *memBuf);
-  void remap(StringRef filePath, StringRef newPath);
+  void remap(llvm::StringRef filePath, llvm::MemoryBuffer *memBuf);
+  void remap(llvm::StringRef filePath, llvm::StringRef newPath);
 
   void applyMappings(CompilerInvocation &CI) const;
 
   void transferMappingsAndClear(CompilerInvocation &CI);
 
-  void clear(StringRef outputDir = StringRef());
+  void clear(llvm::StringRef outputDir = llvm::StringRef());
 
 private:
   void remap(const FileEntry *file, llvm::MemoryBuffer *memBuf);
   void remap(const FileEntry *file, const FileEntry *newfile);
 
-  const FileEntry *getOriginalFile(StringRef filePath);
+  const FileEntry *getOriginalFile(llvm::StringRef filePath);
   void resetTarget(Target &targ);
 
-  bool report(const Twine &err, DiagnosticsEngine &Diag);
+  bool report(const std::string &err, Diagnostic &Diag);
 
-  std::string getRemapInfoFile(StringRef outputDir);
+  std::string getRemapInfoFile(llvm::StringRef outputDir);
 };
 
 } // end namespace arcmt

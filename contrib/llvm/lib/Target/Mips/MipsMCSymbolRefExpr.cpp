@@ -33,11 +33,6 @@ void MipsMCSymbolRefExpr::PrintImpl(raw_ostream &OS) const {
   case VK_Mips_GOTTPREL: OS << "%gottprel("; break;
   case VK_Mips_TPREL_HI: OS << "%tprel_hi("; break;
   case VK_Mips_TPREL_LO: OS << "%tprel_lo("; break;
-  case VK_Mips_GPOFF_HI: OS << "%hi(%neg(%gp_rel("; break;
-  case VK_Mips_GPOFF_LO: OS << "%lo(%neg(%gp_rel("; break;
-  case VK_Mips_GOT_DISP: OS << "%got_disp("; break;
-  case VK_Mips_GOT_PAGE: OS << "%got_page("; break;
-  case VK_Mips_GOT_OFST: OS << "%got_ofst("; break;
   }
 
   OS << *Symbol;
@@ -48,9 +43,7 @@ void MipsMCSymbolRefExpr::PrintImpl(raw_ostream &OS) const {
     OS << Offset;
   }
 
-  if (Kind == VK_Mips_GPOFF_HI || Kind == VK_Mips_GPOFF_LO)
-    OS << ")))";
-  else if (Kind != VK_Mips_None)
+  if (Kind != VK_Mips_None)
     OS << ')';
 }
 

@@ -86,7 +86,6 @@ main(int argc, char *argv[])
 	char ibuf[BUFSIZ];
 	fd_set rfd;
 	int flushtime = 30;
-	int readstdin;
 
 	aflg = kflg = 0;
 	while ((ch = getopt(argc, argv, "aqkt:")) != -1)
@@ -156,24 +155,19 @@ main(int argc, char *argv[])
 		doshell(argv);
 	close(slave);
 
-	start = tvec = time(0);
-	readstdin = 1;
+	if (flushtime > 0)
+		tvp = &tv;
+	else
+		tvp = NULL;
+
+	start = time(0);
+	FD_ZERO(&rfd);
 	for (;;) {
-		FD_ZERO(&rfd);
 		FD_SET(master, &rfd);
-		if (readstdin)
-			FD_SET(STDIN_FILENO, &rfd);
-		if (!readstdin && ttyflg) {
-			tv.tv_sec = 1;
+		FD_SET(STDIN_FILENO, &rfd);
+		if (flushtime > 0) {
+			tv.tv_sec = flushtime;
 			tv.tv_usec = 0;
-			tvp = &tv;
-			readstdin = 1;
-		} else if (flushtime > 0) {
-			tv.tv_sec = flushtime - (tvec - start);
-			tv.tv_usec = 0;
-			tvp = &tv;
-		} else {
-			tvp = NULL;
 		}
 		n = select(master + 1, &rfd, 0, 0, tvp);
 		if (n < 0 && errno != EINTR)
@@ -182,13 +176,8 @@ main(int argc, char *argv[])
 			cc = read(STDIN_FILENO, ibuf, BUFSIZ);
 			if (cc < 0)
 				break;
-			if (cc == 0) {
-				if (tcgetattr(master, &stt) == 0 &&
-				    (stt.c_lflag & ICANON) != 0) {
-					(void)write(master, &stt.c_cc[VEOF], 1);
-				}
-				readstdin = 0;
-			}
+			if (cc == 0)
+				(void)write(master, ibuf, 0);
 			if (cc > 0) {
 				(void)write(master, ibuf, cc);
 				if (kflg && tcgetattr(master, &stt) >= 0 &&

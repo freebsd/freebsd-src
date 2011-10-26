@@ -15,7 +15,6 @@
 #define LLVM_CLANG_FILEMANAGER_H
 
 #include "clang/Basic/FileSystemOptions.h"
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -124,9 +123,9 @@ class FileManager : public llvm::RefCountedBase<FileManager> {
   /// \brief The virtual directories that we have allocated.  For each
   /// virtual file (e.g. foo/bar/baz.cpp), we add all of its parent
   /// directories (foo/ and foo/bar/) here.
-  SmallVector<DirectoryEntry*, 4> VirtualDirectoryEntries;
+  llvm::SmallVector<DirectoryEntry*, 4> VirtualDirectoryEntries;
   /// \brief The virtual files that we have allocated.
-  SmallVector<FileEntry*, 4> VirtualFileEntries;
+  llvm::SmallVector<FileEntry*, 4> VirtualFileEntries;
 
   /// SeenDirEntries/SeenFileEntries - This is a cache that maps paths
   /// to directory/file entries (either real or virtual) we have
@@ -154,7 +153,7 @@ class FileManager : public llvm::RefCountedBase<FileManager> {
 
   /// Add all ancestors of the given path (pointing to either a file
   /// or a directory) as virtual directories.
-  void addAncestorsAsVirtualDirs(StringRef Path);
+  void addAncestorsAsVirtualDirs(llvm::StringRef Path);
 
 public:
   FileManager(const FileSystemOptions &FileSystemOpts);
@@ -179,51 +178,41 @@ public:
   /// getDirectory - Lookup, cache, and verify the specified directory
   /// (real or virtual).  This returns NULL if the directory doesn't exist.
   ///
-  /// \param CacheFailure If true and the file does not exist, we'll cache
-  /// the failure to find this file.
-  const DirectoryEntry *getDirectory(StringRef DirName,
-                                     bool CacheFailure = true);
+  const DirectoryEntry *getDirectory(llvm::StringRef DirName);
 
   /// \brief Lookup, cache, and verify the specified file (real or
   /// virtual).  This returns NULL if the file doesn't exist.
   ///
-  /// \param OpenFile if true and the file exists, it will be opened.
-  ///
-  /// \param CacheFailure If true and the file does not exist, we'll cache
-  /// the failure to find this file.
-  const FileEntry *getFile(StringRef Filename, bool OpenFile = false,
-                           bool CacheFailure = true);
-
-  /// \brief Returns the current file system options
-  const FileSystemOptions &getFileSystemOptions() { return FileSystemOpts; }
+  /// \param openFile if true and the file exists, it will be opened.
+  const FileEntry *getFile(llvm::StringRef Filename, bool openFile = false);
 
   /// \brief Retrieve a file entry for a "virtual" file that acts as
   /// if there were a file with the given name on disk. The file
   /// itself is not accessed.
-  const FileEntry *getVirtualFile(StringRef Filename, off_t Size,
+  const FileEntry *getVirtualFile(llvm::StringRef Filename, off_t Size,
                                   time_t ModificationTime);
 
   /// \brief Open the specified file as a MemoryBuffer, returning a new
   /// MemoryBuffer if successful, otherwise returning null.
   llvm::MemoryBuffer *getBufferForFile(const FileEntry *Entry,
                                        std::string *ErrorStr = 0);
-  llvm::MemoryBuffer *getBufferForFile(StringRef Filename,
+  llvm::MemoryBuffer *getBufferForFile(llvm::StringRef Filename,
                                        std::string *ErrorStr = 0);
 
   // getNoncachedStatValue - Will get the 'stat' information for the given path.
   // If the path is relative, it will be resolved against the WorkingDir of the
   // FileManager's FileSystemOptions.
-  bool getNoncachedStatValue(StringRef Path, struct stat &StatBuf);
+  bool getNoncachedStatValue(llvm::StringRef Path, struct stat &StatBuf);
 
   /// \brief If path is not absolute and FileSystemOptions set the working
   /// directory, the path is modified to be relative to the given
   /// working directory.
-  void FixupRelativePath(SmallVectorImpl<char> &path) const;
+  void FixupRelativePath(llvm::SmallVectorImpl<char> &path) const;
 
   /// \brief Produce an array mapping from the unique IDs assigned to each
   /// file to the corresponding FileEntry pointer.
   void GetUniqueIDMapping(
-                    SmallVectorImpl<const FileEntry *> &UIDToFiles) const;
+                    llvm::SmallVectorImpl<const FileEntry *> &UIDToFiles) const;
   
   void PrintStats() const;
 };

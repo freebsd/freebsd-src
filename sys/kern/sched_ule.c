@@ -76,7 +76,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__powerpc__) && defined(E500)
+#if defined(__sparc64__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -839,7 +839,6 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 	int low_load;
 	int moved;
 	int move;
-	int cpu;
 	int diff;
 	int i;
 
@@ -861,14 +860,10 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		for (i = 0; i < move; i++)
 			moved += tdq_move(high, low);
 		/*
-		 * In case the target isn't the current cpu IPI it to force a
-		 * reschedule with the new workload.
+		 * IPI the target cpu to force it to reschedule with the new
+		 * workload.
 		 */
-		cpu = TDQ_ID(low);
-		sched_pin();
-		if (cpu != PCPU_GET(cpuid))
-			ipi_cpu(cpu, IPI_PREEMPT);
-		sched_unpin();
+		ipi_cpu(TDQ_ID(low), IPI_PREEMPT);
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);

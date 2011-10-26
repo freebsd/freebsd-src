@@ -9,7 +9,7 @@
 
 #include "CPPTargetMachine.h"
 #include "llvm/Module.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
 Target llvm::TheCppBackendTarget;
@@ -24,5 +24,3 @@ extern "C" void LLVMInitializeCppBackendTargetInfo() {
                                   "C++ backend",
                                   &CppBackend_TripleMatchQuality);
 }
-
-extern "C" void LLVMInitializeCppBackendTargetMC() {}

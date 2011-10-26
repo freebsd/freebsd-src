@@ -486,7 +486,7 @@ zread(void *cookie, char *rbp, int num)
 	block_compress = maxbits & BLOCK_MASK;
 	maxbits &= BIT_MASK;
 	maxmaxcode = 1L << maxbits;
-	if (maxbits > BITS || maxbits < 12) {
+	if (maxbits > BITS) {
 		errno = EFTYPE;
 		return (-1);
 	}
@@ -513,28 +513,17 @@ zread(void *cookie, char *rbp, int num)
 			for (code = 255; code >= 0; code--)
 				tab_prefixof(code) = 0;
 			clear_flg = 1;
-			free_ent = FIRST;
-			oldcode = -1;
-			continue;
+			free_ent = FIRST - 1;
+			if ((code = getcode(zs)) == -1)	/* O, untimely death! */
+				break;
 		}
 		incode = code;
 
-		/* Special case for kWkWk string. */
+		/* Special case for KwKwK string. */
 		if (code >= free_ent) {
-			if (code > free_ent || oldcode == -1) {
-				/* Bad stream. */
-				errno = EINVAL;
-				return (-1);
-			}
 			*stackp++ = finchar;
 			code = oldcode;
 		}
-		/*
-		 * The above condition ensures that code < free_ent.
-		 * The construction of tab_prefixof in turn guarantees that
-		 * each iteration decreases code and therefore stack usage is
-		 * bound by 1 << BITS - 256.
-		 */
 
 		/* Generate output characters in reverse order. */
 		while (code >= 256) {
@@ -551,7 +540,7 @@ middle:		do {
 		} while (stackp > de_stack);
 
 		/* Generate the new entry. */
-		if ((code = free_ent) < maxmaxcode && oldcode != -1) {
+		if ((code = free_ent) < maxmaxcode) {
 			tab_prefixof(code) = (u_short) oldcode;
 			tab_suffixof(code) = finchar;
 			free_ent = code + 1;

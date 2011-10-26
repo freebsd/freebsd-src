@@ -31,9 +31,49 @@
 
 #ifdef DEBUG
 
-#include <machine/atomic.h>
+#if defined(__amd64__)
+static __inline int
+dtrace_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+	u_char res;
 
-#define	dtrace_cmpset_long	atomic_cmpset_long
+	__asm __volatile(
+	"	 lock ; 		"
+	"	cmpxchgq %2,%1 ;	"
+	"       sete	%0 ;		"
+	"1:				"
+	"# dtrace_cmpset_long"
+	: "=a" (res),			/* 0 */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "a" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
+	: "memory");
+
+	return (res);
+}
+#elif defined(__i386__)
+static __inline int
+dtrace_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"        lock ;            	"
+	"       cmpxchgl %2,%1 ;        "
+	"       sete    %0 ;            "
+	"1:                             "
+	"# dtrace_cmpset_long"
+	: "=a" (res),                   /* 0 */
+	  "=m" (*dst)                   /* 1 */
+	: "r" (src),                    /* 2 */
+	  "a" (exp),                    /* 3 */
+	  "m" (*dst)                    /* 4 */
+	: "memory");
+
+	return (res);
+}
+#endif
 
 #define DTRACE_DEBUG_BUFR_SIZE	(32 * 1024)
 

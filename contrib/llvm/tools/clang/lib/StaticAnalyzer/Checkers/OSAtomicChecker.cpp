@@ -22,32 +22,22 @@ using namespace ento;
 
 namespace {
 
-class OSAtomicChecker : public Checker<eval::InlineCall> {
+class OSAtomicChecker : public Checker<eval::Call> {
 public:
-  bool inlineCall(const CallExpr *CE, ExprEngine &Eng,
-                  ExplodedNode *Pred, ExplodedNodeSet &Dst) const;
+  bool evalCall(const CallExpr *CE, CheckerContext &C) const;
 
 private:
-  bool evalOSAtomicCompareAndSwap(const CallExpr *CE,
-                                  ExprEngine &Eng,
-                                  ExplodedNode *Pred,
-                                  ExplodedNodeSet &Dst) const;
-
-  ExplodedNode *generateNode(const ProgramState *State,
-                             ExplodedNode *Pred, const CallExpr *Statement,
-                             StmtNodeBuilder &B, ExplodedNodeSet &Dst) const;
+  static bool evalOSAtomicCompareAndSwap(CheckerContext &C, const CallExpr *CE);
 };
+
 }
 
-bool OSAtomicChecker::inlineCall(const CallExpr *CE,
-                                 ExprEngine &Eng,
-                                 ExplodedNode *Pred,
-                                 ExplodedNodeSet &Dst) const {
-  const ProgramState *state = Pred->getState();
+bool OSAtomicChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
+  const GRState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
 
-  const FunctionDecl *FD = L.getAsFunctionDecl();
+  const FunctionDecl* FD = L.getAsFunctionDecl();
   if (!FD)
     return false;
 
@@ -55,38 +45,24 @@ bool OSAtomicChecker::inlineCall(const CallExpr *CE,
   if (!II)
     return false;
   
-  StringRef FName(II->getName());
+  llvm::StringRef FName(II->getName());
 
   // Check for compare and swap.
   if (FName.startswith("OSAtomicCompareAndSwap") ||
       FName.startswith("objc_atomicCompareAndSwap"))
-    return evalOSAtomicCompareAndSwap(CE, Eng, Pred, Dst);
+    return evalOSAtomicCompareAndSwap(C, CE);
 
   // FIXME: Other atomics.
   return false;
 }
 
-ExplodedNode *OSAtomicChecker::generateNode(const ProgramState *State,
-                                            ExplodedNode *Pred,
-                                            const CallExpr *Statement,
-                                            StmtNodeBuilder &B,
-                                            ExplodedNodeSet &Dst) const {
-  ExplodedNode *N = B.generateNode(Statement, State, Pred, this);
-  if (N)
-    Dst.Add(N);
-  return N;
-}
-
-bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
-                                                 ExprEngine &Eng,
-                                                 ExplodedNode *Pred,
-                                                 ExplodedNodeSet &Dst) const {
+bool OSAtomicChecker::evalOSAtomicCompareAndSwap(CheckerContext &C, 
+                                                 const CallExpr *CE) {
   // Not enough arguments to match OSAtomicCompareAndSwap?
   if (CE->getNumArgs() != 3)
     return false;
 
-  StmtNodeBuilder &Builder = Eng.getBuilder();
-  ASTContext &Ctx = Eng.getContext();
+  ASTContext &Ctx = C.getASTContext();
   const Expr *oldValueExpr = CE->getArg(0);
   QualType oldValueType = Ctx.getCanonicalType(oldValueExpr->getType());
 
@@ -111,11 +87,15 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
   if (theValueTypePointee != newValueType)
     return false;
 
-  static SimpleProgramPointTag OSAtomicLoadTag("OSAtomicChecker : Load");
-  static SimpleProgramPointTag OSAtomicStoreTag("OSAtomicChecker : Store");
-  
+  static unsigned magic_load = 0;
+  static unsigned magic_store = 0;
+
+  const void *OSAtomicLoadTag = &magic_load;
+  const void *OSAtomicStoreTag = &magic_store;
+
   // Load 'theValue'.
-  const ProgramState *state = Pred->getState();
+  ExprEngine &Engine = C.getEngine();
+  const GRState *state = C.getState();
   ExplodedNodeSet Tmp;
   SVal location = state->getSVal(theValueExpr);
   // Here we should use the value type of the region as the load type, because
@@ -126,19 +106,19 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
   // LoadTy specifying can be omitted. But we put it here to emphasize the 
   // semantics.
   QualType LoadTy;
-  if (const TypedValueRegion *TR =
-      dyn_cast_or_null<TypedValueRegion>(location.getAsRegion())) {
+  if (const TypedRegion *TR =
+      dyn_cast_or_null<TypedRegion>(location.getAsRegion())) {
     LoadTy = TR->getValueType();
   }
-  Eng.evalLoad(Tmp, theValueExpr, Pred,
-                  state, location, &OSAtomicLoadTag, LoadTy);
+  Engine.evalLoad(Tmp, theValueExpr, C.getPredecessor(), 
+                  state, location, OSAtomicLoadTag, LoadTy);
 
   if (Tmp.empty()) {
     // If no nodes were generated, other checkers must generated sinks. But 
     // since the builder state was restored, we set it manually to prevent 
     // auto transition.
     // FIXME: there should be a better approach.
-    Builder.BuildSinks = true;
+    C.getNodeBuilder().BuildSinks = true;
     return true;
   }
  
@@ -146,7 +126,7 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
        I != E; ++I) {
 
     ExplodedNode *N = *I;
-    const ProgramState *stateLoad = N->getState();
+    const GRState *stateLoad = N->getState();
 
     // Use direct bindings from the environment since we are forcing a load
     // from a location that the Environment would typically not be used
@@ -165,13 +145,12 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
     DefinedOrUnknownSVal oldValueVal =
       cast<DefinedOrUnknownSVal>(oldValueVal_untested);
 
-    SValBuilder &svalBuilder = Eng.getSValBuilder();
+    SValBuilder &svalBuilder = Engine.getSValBuilder();
 
     // Perform the comparison.
-    DefinedOrUnknownSVal Cmp =
-      svalBuilder.evalEQ(stateLoad,theValueVal,oldValueVal);
+    DefinedOrUnknownSVal Cmp = svalBuilder.evalEQ(stateLoad,theValueVal,oldValueVal);
 
-    const ProgramState *stateEqual = stateLoad->assume(Cmp, true);
+    const GRState *stateEqual = stateLoad->assume(Cmp, true);
 
     // Were they equal?
     if (stateEqual) {
@@ -180,20 +159,20 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
       SVal val = stateEqual->getSVal(newValueExpr);
 
       // Handle implicit value casts.
-      if (const TypedValueRegion *R =
-          dyn_cast_or_null<TypedValueRegion>(location.getAsRegion())) {
+      if (const TypedRegion *R =
+          dyn_cast_or_null<TypedRegion>(location.getAsRegion())) {
         val = svalBuilder.evalCast(val,R->getValueType(), newValueExpr->getType());
       }
 
-      Eng.evalStore(TmpStore, NULL, theValueExpr, N,
-                       stateEqual, location, val, &OSAtomicStoreTag);
+      Engine.evalStore(TmpStore, NULL, theValueExpr, N, 
+                       stateEqual, location, val, OSAtomicStoreTag);
 
       if (TmpStore.empty()) {
         // If no nodes were generated, other checkers must generated sinks. But 
         // since the builder state was restored, we set it manually to prevent 
         // auto transition.
         // FIXME: there should be a better approach.
-        Builder.BuildSinks = true;
+        C.getNodeBuilder().BuildSinks = true;
         return true;
       }
 
@@ -201,24 +180,24 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
       for (ExplodedNodeSet::iterator I2 = TmpStore.begin(),
            E2 = TmpStore.end(); I2 != E2; ++I2) {
         ExplodedNode *predNew = *I2;
-        const ProgramState *stateNew = predNew->getState();
+        const GRState *stateNew = predNew->getState();
         // Check for 'void' return type if we have a bogus function prototype.
         SVal Res = UnknownVal();
         QualType T = CE->getType();
         if (!T->isVoidType())
-          Res = Eng.getSValBuilder().makeTruthVal(true, T);
-        generateNode(stateNew->BindExpr(CE, Res), predNew, CE, Builder, Dst);
+          Res = Engine.getSValBuilder().makeTruthVal(true, T);
+        C.generateNode(stateNew->BindExpr(CE, Res), predNew);
       }
     }
 
     // Were they not equal?
-    if (const ProgramState *stateNotEqual = stateLoad->assume(Cmp, false)) {
+    if (const GRState *stateNotEqual = stateLoad->assume(Cmp, false)) {
       // Check for 'void' return type if we have a bogus function prototype.
       SVal Res = UnknownVal();
       QualType T = CE->getType();
       if (!T->isVoidType())
-        Res = Eng.getSValBuilder().makeTruthVal(false, CE->getType());
-      generateNode(stateNotEqual->BindExpr(CE, Res), N, CE, Builder, Dst);
+        Res = Engine.getSValBuilder().makeTruthVal(false, CE->getType());
+      C.generateNode(stateNotEqual->BindExpr(CE, Res), N);
     }
   }
 

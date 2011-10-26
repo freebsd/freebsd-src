@@ -32,15 +32,11 @@ const Builtin::Info &Builtin::Context::GetRecord(unsigned ID) const {
   return TSRecords[ID - Builtin::FirstTSBuiltin];
 }
 
-Builtin::Context::Context() {
+Builtin::Context::Context(const TargetInfo &Target) {
   // Get the target specific builtins from the target.
   TSRecords = 0;
   NumTSRecords = 0;
-}
-
-void Builtin::Context::InitializeTarget(const TargetInfo &Target) {
-  assert(NumTSRecords == 0 && "Already initialized target?");
-  Target.getTargetBuiltins(TSRecords, NumTSRecords);  
+  Target.getTargetBuiltins(TSRecords, NumTSRecords);
 }
 
 /// InitializeBuiltins - Mark the identifiers for all the builtins with their
@@ -63,7 +59,7 @@ void Builtin::Context::InitializeBuiltins(IdentifierTable &Table,
 }
 
 void
-Builtin::Context::GetBuiltinNames(SmallVectorImpl<const char *> &Names,
+Builtin::Context::GetBuiltinNames(llvm::SmallVectorImpl<const char *> &Names,
                                   bool NoBuiltins) {
   // Final all target-independent names
   for (unsigned i = Builtin::NotBuiltin+1; i != Builtin::FirstTSBuiltin; ++i)

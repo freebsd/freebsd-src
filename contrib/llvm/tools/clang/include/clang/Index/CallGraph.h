@@ -94,7 +94,7 @@ public:
 
   Decl *getDecl(CallGraphNode *Node);
 
-  void print(raw_ostream &os);
+  void print(llvm::raw_ostream &os);
   void dump();
 
   void ViewCallGraph() const;

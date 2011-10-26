@@ -118,7 +118,8 @@ static void	bwi_calibrate(void *);
 
 static int	bwi_calc_rssi(struct bwi_softc *, const struct bwi_rxbuf_hdr *);
 static int	bwi_calc_noise(struct bwi_softc *);
-static __inline uint8_t bwi_plcp2rate(uint32_t, enum ieee80211_phymode);
+static __inline uint8_t bwi_ofdm_plcp2rate(const uint32_t *);
+static __inline uint8_t bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *);
 static void	bwi_rx_radiotap(struct bwi_softc *, struct mbuf *,
 			struct bwi_rxbuf_hdr *, const void *, int, int, int);
 
@@ -220,7 +221,7 @@ static const struct {
 } bwi_bbpid_map[] = {
 	{ 0x4301, 0x4301, 0x4301 },
 	{ 0x4305, 0x4307, 0x4307 },
-	{ 0x4402, 0x4403, 0x4402 },
+	{ 0x4403, 0x4403, 0x4402 },
 	{ 0x4610, 0x4615, 0x4610 },
 	{ 0x4710, 0x4715, 0x4710 },
 	{ 0x4720, 0x4725, 0x4309 }
@@ -2628,7 +2629,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		struct ieee80211_frame_min *wh;
 		struct ieee80211_node *ni;
 		struct mbuf *m;
-		uint32_t plcp;
+		const void *plcp;
 		uint16_t flags2;
 		int buflen, wh_ofs, hdr_extra, rssi, noise, type, rate;
 
@@ -2658,7 +2659,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 			goto next;
 		}
 
-	        bcopy((uint8_t *)(hdr + 1) + hdr_extra, &plcp, sizeof(plcp));	
+		plcp = ((const uint8_t *)(hdr + 1) + hdr_extra);
 		rssi = bwi_calc_rssi(sc, hdr);
 		noise = bwi_calc_noise(sc);
 
@@ -2667,13 +2668,13 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		m_adj(m, sizeof(*hdr) + wh_ofs);
 
 		if (htole16(hdr->rxh_flags1) & BWI_RXH_F1_OFDM)
-			rate = bwi_plcp2rate(plcp, IEEE80211_MODE_11G);
+			rate = bwi_ofdm_plcp2rate(plcp);
 		else
-			rate = bwi_plcp2rate(plcp, IEEE80211_MODE_11B);
+			rate = bwi_ds_plcp2rate(plcp);
 
 		/* RX radio tap */
 		if (ieee80211_radiotap_active(ic))
-			bwi_rx_radiotap(sc, m, hdr, &plcp, rate, rssi, noise);
+			bwi_rx_radiotap(sc, m, hdr, plcp, rate, rssi, noise);
 
 		m_adj(m, -IEEE80211_CRC_LEN);
 
@@ -3801,10 +3802,20 @@ bwi_calc_noise(struct bwi_softc *sc)
 }
 
 static __inline uint8_t
-bwi_plcp2rate(const uint32_t plcp0, enum ieee80211_phymode phymode)
+bwi_ofdm_plcp2rate(const uint32_t *plcp0)
 {
-       uint32_t plcp = le32toh(plcp0) & IEEE80211_OFDM_PLCP_RATE_MASK;
-	return (ieee80211_plcp2rate(plcp, phymode));
+	uint32_t plcp;
+	uint8_t plcp_rate;
+
+	plcp = le32toh(*plcp0);
+	plcp_rate = __SHIFTOUT(plcp, IEEE80211_OFDM_PLCP_RATE_MASK);
+	return ieee80211_plcp2rate(plcp_rate, IEEE80211_T_OFDM);
+}
+
+static __inline uint8_t
+bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *hdr)
+{
+	return ieee80211_plcp2rate(hdr->i_signal, IEEE80211_T_DS);
 }
 
 static void

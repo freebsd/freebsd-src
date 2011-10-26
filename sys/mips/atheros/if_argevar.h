@@ -31,8 +31,8 @@
 #define __IF_ARGEVAR_H__
 
 #define	ARGE_NPHY		32
-#define	ARGE_TX_RING_COUNT	1024
-#define	ARGE_RX_RING_COUNT	1024
+#define	ARGE_TX_RING_COUNT	128
+#define	ARGE_RX_RING_COUNT	128
 #define	ARGE_RX_DMA_SIZE	ARGE_RX_RING_COUNT * sizeof(struct arge_desc)
 #define	ARGE_TX_DMA_SIZE	ARGE_TX_RING_COUNT * sizeof(struct arge_desc)
 #define	ARGE_MAXFRAGS		8

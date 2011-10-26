@@ -76,13 +76,7 @@ static void GetMemRefInstrs(const Loop *L,
 }
 
 static bool IsLoadOrStoreInst(Value *I) {
-  // Returns true if the load or store can be analyzed. Atomic and volatile
-  // operations have properties which this analysis does not understand.
-  if (LoadInst *LI = dyn_cast<LoadInst>(I))
-    return LI->isUnordered();
-  else if (StoreInst *SI = dyn_cast<StoreInst>(I))
-    return SI->isUnordered();
-  return false;
+  return isa<LoadInst>(I) || isa<StoreInst>(I);
 }
 
 static Value *GetPointerOperand(Value *I) {

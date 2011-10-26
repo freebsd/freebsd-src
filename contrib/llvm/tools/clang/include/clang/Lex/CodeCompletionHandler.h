@@ -52,10 +52,6 @@ public:
   
   /// \brief Callback invoked when performing code completion inside a 
   /// function-like macro argument.
-  ///
-  /// There will be another callback invocation after the macro arguments are
-  /// parsed, so this callback should generally be used to note that the next
-  /// callback is invoked inside a macro argument.
   virtual void CodeCompleteMacroArgument(IdentifierInfo *Macro,
                                          MacroInfo *MacroInfo,
                                          unsigned ArgumentIndex) { }

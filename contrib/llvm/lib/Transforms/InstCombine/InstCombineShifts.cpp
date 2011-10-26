@@ -13,7 +13,6 @@
 
 #include "InstCombine.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/PatternMatch.h"
 using namespace llvm;
@@ -208,12 +207,11 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
     return I;
     
   case Instruction::Shl: {
-    BinaryOperator *BO = cast<BinaryOperator>(I);
-    unsigned TypeWidth = BO->getType()->getScalarSizeInBits();
+    unsigned TypeWidth = I->getType()->getScalarSizeInBits();
 
     // We only accept shifts-by-a-constant in CanEvaluateShifted.
-    ConstantInt *CI = cast<ConstantInt>(BO->getOperand(1));
-
+    ConstantInt *CI = cast<ConstantInt>(I->getOperand(1));
+    
     // We can always fold shl(c1)+shl(c2) -> shl(c1+c2).
     if (isLeftShift) {
       // If this is oversized composite shift, then unsigned shifts get 0.
@@ -221,9 +219,7 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
       if (NewShAmt >= TypeWidth)
         return Constant::getNullValue(I->getType());
 
-      BO->setOperand(1, ConstantInt::get(BO->getType(), NewShAmt));
-      BO->setHasNoUnsignedWrap(false);
-      BO->setHasNoSignedWrap(false);
+      I->setOperand(1, ConstantInt::get(I->getType(), NewShAmt));
       return I;
     }
     
@@ -231,11 +227,11 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
     // zeros.
     if (CI->getValue() == NumBits) {
       APInt Mask(APInt::getLowBitsSet(TypeWidth, TypeWidth - NumBits));
-      V = IC.Builder->CreateAnd(BO->getOperand(0),
-                                ConstantInt::get(BO->getContext(), Mask));
+      V = IC.Builder->CreateAnd(I->getOperand(0),
+                                ConstantInt::get(I->getContext(), Mask));
       if (Instruction *VI = dyn_cast<Instruction>(V)) {
-        VI->moveBefore(BO);
-        VI->takeName(BO);
+        VI->moveBefore(I);
+        VI->takeName(I);
       }
       return V;
     }
@@ -243,27 +239,23 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
     // We turn shl(c1)+shr(c2) -> shl(c3)+and(c4), but only when we know that
     // the and won't be needed.
     assert(CI->getZExtValue() > NumBits);
-    BO->setOperand(1, ConstantInt::get(BO->getType(),
-                                       CI->getZExtValue() - NumBits));
-    BO->setHasNoUnsignedWrap(false);
-    BO->setHasNoSignedWrap(false);
-    return BO;
+    I->setOperand(1, ConstantInt::get(I->getType(),
+                                      CI->getZExtValue() - NumBits));
+    return I;
   }
   case Instruction::LShr: {
-    BinaryOperator *BO = cast<BinaryOperator>(I);
-    unsigned TypeWidth = BO->getType()->getScalarSizeInBits();
+    unsigned TypeWidth = I->getType()->getScalarSizeInBits();
     // We only accept shifts-by-a-constant in CanEvaluateShifted.
-    ConstantInt *CI = cast<ConstantInt>(BO->getOperand(1));
+    ConstantInt *CI = cast<ConstantInt>(I->getOperand(1));
     
     // We can always fold lshr(c1)+lshr(c2) -> lshr(c1+c2).
     if (!isLeftShift) {
       // If this is oversized composite shift, then unsigned shifts get 0.
       unsigned NewShAmt = NumBits+CI->getZExtValue();
       if (NewShAmt >= TypeWidth)
-        return Constant::getNullValue(BO->getType());
+        return Constant::getNullValue(I->getType());
       
-      BO->setOperand(1, ConstantInt::get(BO->getType(), NewShAmt));
-      BO->setIsExact(false);
+      I->setOperand(1, ConstantInt::get(I->getType(), NewShAmt));
       return I;
     }
     
@@ -272,7 +264,7 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
     if (CI->getValue() == NumBits) {
       APInt Mask(APInt::getHighBitsSet(TypeWidth, TypeWidth - NumBits));
       V = IC.Builder->CreateAnd(I->getOperand(0),
-                                ConstantInt::get(BO->getContext(), Mask));
+                                ConstantInt::get(I->getContext(), Mask));
       if (Instruction *VI = dyn_cast<Instruction>(V)) {
         VI->moveBefore(I);
         VI->takeName(I);
@@ -283,10 +275,9 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
     // We turn lshr(c1)+shl(c2) -> lshr(c3)+and(c4), but only when we know that
     // the and won't be needed.
     assert(CI->getZExtValue() > NumBits);
-    BO->setOperand(1, ConstantInt::get(BO->getType(),
-                                       CI->getZExtValue() - NumBits));
-    BO->setIsExact(false);
-    return BO;
+    I->setOperand(1, ConstantInt::get(I->getType(),
+                                      CI->getZExtValue() - NumBits));
+    return I;
   }
     
   case Instruction::Select:
@@ -537,7 +528,7 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
     
     uint32_t AmtSum = ShiftAmt1+ShiftAmt2;   // Fold into one big shift.
     
-    IntegerType *Ty = cast<IntegerType>(I.getType());
+    const IntegerType *Ty = cast<IntegerType>(I.getType());
     
     // Check for (X << c1) << c2  and  (X >> c1) >> c2
     if (I.getOpcode() == ShiftOp->getOpcode()) {

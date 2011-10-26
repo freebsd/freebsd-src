@@ -1,7 +1,7 @@
 #!/usr/bin/sed -E -n -f
 # $FreeBSD$
 
-/^(machine|files|ident|(no)?device|(no)?makeoption(s)?|(no)?option(s)?|profile|cpu|maxusers)[[:space:]]/ {
+/^(machine|ident|device|nodevice|makeoptions|nomakeoption|options|option|nooption|profile|cpu|maxusers)[[:space:]]/ {
     s/[[:space:]]*#.*$//
     p
 }

@@ -22,7 +22,6 @@
 
 namespace llvm {
 
-class LandingPadInst;
 class TerminatorInst;
 class LLVMContext;
 class BlockAddress;
@@ -145,14 +144,6 @@ public:
     return const_cast<BasicBlock*>(this)->getFirstNonPHIOrDbgOrLifetime();
   }
 
-  /// getFirstInsertionPt - Returns an iterator to the first instruction in this
-  /// block that is suitable for inserting a non-PHI instruction. In particular,
-  /// it skips all PHIs and LandingPad instructions.
-  iterator getFirstInsertionPt();
-  const_iterator getFirstInsertionPt() const {
-    return const_cast<BasicBlock*>(this)->getFirstInsertionPt();
-  }
-
   /// removeFromParent - This method unlinks 'this' from the containing
   /// function, but does not delete it.
   ///
@@ -266,14 +257,6 @@ public:
   /// replaceSuccessorsPhiUsesWith - Update all phi nodes in all our successors
   /// to refer to basic block New instead of to us.
   void replaceSuccessorsPhiUsesWith(BasicBlock *New);
-
-  /// isLandingPad - Return true if this basic block is a landing pad. I.e.,
-  /// it's the destination of the 'unwind' edge of an invoke instruction.
-  bool isLandingPad() const;
-
-  /// getLandingPadInst() - Return the landingpad instruction associated with
-  /// the landing pad.
-  LandingPadInst *getLandingPadInst();
 
 private:
   /// AdjustBlockAddressRefCount - BasicBlock stores the number of BlockAddress

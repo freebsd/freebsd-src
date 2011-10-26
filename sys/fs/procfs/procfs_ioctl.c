@@ -188,10 +188,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
 		} else if (sig)
-			kern_psignal(p, sig);
+			psignal(p, sig);
 #else
 		if (sig)
-			kern_psignal(p, sig);
+			psignal(p, sig);
 		p->p_step = 0;
 		wakeup(&p->p_step);
 #endif

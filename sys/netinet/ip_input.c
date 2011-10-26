@@ -622,6 +622,11 @@ passin:
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
+			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr) {
+				ifa_ref(ifa);
+				IF_ADDR_UNLOCK(ifp);
+				goto ours;
+			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
 				ifa_ref(ifa);

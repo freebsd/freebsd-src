@@ -3,7 +3,8 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMAsmPrinter.cpp \
+SRCS=	ARMAsmBackend.cpp \
+	ARMAsmPrinter.cpp \
 	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp \
@@ -20,13 +21,17 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMInstrInfo.cpp \
 	ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp \
+	ARMMCCodeEmitter.cpp \
+	ARMMCExpr.cpp \
 	ARMMCInstLower.cpp \
+	ARMMachObjectWriter.cpp \
 	ARMRegisterInfo.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \
 	ARMTargetMachine.cpp \
 	ARMTargetObjectFile.cpp \
 	MLxExpansionPass.cpp \
+	NEONMoveFix.cpp \
 	Thumb1FrameLowering.cpp \
 	Thumb1InstrInfo.cpp \
 	Thumb1RegisterInfo.cpp \

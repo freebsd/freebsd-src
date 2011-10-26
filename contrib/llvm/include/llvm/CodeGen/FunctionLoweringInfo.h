@@ -19,7 +19,6 @@
 #include "llvm/Instructions.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallVector.h"
 #ifndef NDEBUG
@@ -140,7 +139,7 @@ public:
 
   unsigned CreateReg(EVT VT);
   
-  unsigned CreateRegs(Type *Ty);
+  unsigned CreateRegs(const Type *Ty);
   
   unsigned InitializeRegForValue(const Value *V) {
     unsigned &R = ValueMap[V];
@@ -199,12 +198,12 @@ public:
     LiveOutRegInfo[Reg].IsValid = false;
   }
 
-  /// setArgumentFrameIndex - Record frame index for the byval
+  /// setByValArgumentFrameIndex - Record frame index for the byval
   /// argument.
-  void setArgumentFrameIndex(const Argument *A, int FI);
+  void setByValArgumentFrameIndex(const Argument *A, int FI);
   
-  /// getArgumentFrameIndex - Get frame index for the byval argument.
-  int getArgumentFrameIndex(const Argument *A);
+  /// getByValArgumentFrameIndex - Get frame index for the byval argument.
+  int getByValArgumentFrameIndex(const Argument *A);
 
 private:
   /// LiveOutRegInfo - Information about live out vregs.
@@ -220,11 +219,6 @@ void AddCatchInfo(const CallInst &I,
 /// successors) to LPad.
 void CopyCatchInfo(const BasicBlock *SuccBB, const BasicBlock *LPad,
                    MachineModuleInfo *MMI, FunctionLoweringInfo &FLI);
-
-/// AddLandingPadInfo - Extract the exception handling information from the
-/// landingpad instruction and add them to the specified machine module info.
-void AddLandingPadInfo(const LandingPadInst &I, MachineModuleInfo &MMI,
-                       MachineBasicBlock *MBB);
 
 } // end namespace llvm
 

@@ -114,16 +114,7 @@ class StringRef;
                (PTXTarget >= PTX_COMPUTE_2_0 && PTXTarget < PTX_LAST_COMPUTE);
       }
 
-      bool callsAreHandled() const {
-        return (PTXTarget >= PTX_SM_2_0 && PTXTarget < PTX_LAST_SM) ||
-               (PTXTarget >= PTX_COMPUTE_2_0 && PTXTarget < PTX_LAST_COMPUTE);
-      }
-
-      bool emitPtrAttribute() const {
-        return PTXVersion >= PTX_VERSION_2_2;
-      }
-
-      void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
+    void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
   }; // class PTXSubtarget
 } // namespace llvm
 

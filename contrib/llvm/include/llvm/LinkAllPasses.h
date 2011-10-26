@@ -93,6 +93,7 @@ namespace {
       (void) llvm::createLoopRotatePass();
       (void) llvm::createLowerExpectIntrinsicPass();
       (void) llvm::createLowerInvokePass();
+      (void) llvm::createLowerSetJmpPass();
       (void) llvm::createLowerSwitchPass();
       (void) llvm::createNoAAPass();
       (void) llvm::createNoProfileInfoPass();
@@ -127,6 +128,7 @@ namespace {
       (void) llvm::createStripDeadDebugInfoPass();
       (void) llvm::createStripDeadPrototypesPass();
       (void) llvm::createTailCallEliminationPass();
+      (void) llvm::createTailDuplicationPass();
       (void) llvm::createJumpThreadingPass();
       (void) llvm::createUnifyFunctionExitNodesPass();
       (void) llvm::createInstCountPass();
@@ -155,7 +157,7 @@ namespace {
       (void)new llvm::FindUsedTypes();
       (void)new llvm::ScalarEvolution();
       ((llvm::Function*)0)->viewCFGOnly();
-      llvm::RGPassManager RGM;
+      llvm::RGPassManager RGM(0);
       ((llvm::RegionPass*)0)->runOnRegion((llvm::Region*)0, RGM);
       llvm::AliasSetTracker X(*(llvm::AliasAnalysis*)0);
       X.add((llvm::Value*)0, 0, 0);  // for -print-alias-sets

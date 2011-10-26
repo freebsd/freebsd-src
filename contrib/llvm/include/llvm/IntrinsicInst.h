@@ -170,7 +170,7 @@ namespace llvm {
       setArgOperand(4, V);
     }
 
-    Type *getAlignmentType() const {
+    const Type *getAlignmentType() const {
       return getArgOperand(3)->getType();
     }
 

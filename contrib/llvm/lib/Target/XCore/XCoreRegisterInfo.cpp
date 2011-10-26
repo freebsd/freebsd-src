@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
@@ -38,7 +39,7 @@
 using namespace llvm;
 
 XCoreRegisterInfo::XCoreRegisterInfo(const TargetInstrInfo &tii)
-  : XCoreGenRegisterInfo(XCore::LR), TII(tii) {
+  : XCoreGenRegisterInfo(), TII(tii) {
 }
 
 // helper functions
@@ -320,8 +321,20 @@ loadConstant(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   BuildMI(MBB, I, dl, TII.get(Opcode), DstReg).addImm(Value);
 }
 
+int XCoreRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
+  return XCoreGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
+}
+
+int XCoreRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  return XCoreGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
+}
+
 unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;
+}
+
+unsigned XCoreRegisterInfo::getRARegister() const {
+  return XCore::LR;
 }

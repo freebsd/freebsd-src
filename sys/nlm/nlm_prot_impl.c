@@ -1718,7 +1718,7 @@ out:
 }
 
 int
-sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
+nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 {
 	int error;
 

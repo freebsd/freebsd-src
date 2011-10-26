@@ -73,9 +73,9 @@ struct numbering_property {
 #define NP_LAST		HEADER
 
 static struct numbering_property numbering_properties[NP_LAST + 1] = {
-	{ .name = "footer", .type = number_none },
-	{ .name = "body", .type = number_nonempty },
-	{ .name = "header", .type = number_none }
+	{ "footer",	number_none	},
+	{ "body",	number_nonempty	},
+	{ "header",	number_none	}
 };
 
 #define max(a, b)	((a) > (b) ? (a) : (b))
@@ -128,7 +128,9 @@ static int width = 6;
 
 
 int
-main(int argc, char *argv[])
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
 	int c;
 	long val;
@@ -256,7 +258,7 @@ main(int argc, char *argv[])
 	delimlen = delim1len + delim2len;
 
 	/* Allocate a buffer suitable for preformatting line number. */
-	intbuffersize = max((int)INT_STRLEN_MAXIMUM, width) + 1; /* NUL */
+	intbuffersize = max(INT_STRLEN_MAXIMUM, width) + 1;	/* NUL */
 	if ((intbuffer = malloc(intbuffersize)) == NULL)
 		err(EXIT_FAILURE, "cannot allocate preformatting buffer");
 
@@ -268,7 +270,7 @@ main(int argc, char *argv[])
 }
 
 static void
-filter(void)
+filter()
 {
 	char *buffer;
 	size_t buffersize;
@@ -357,7 +359,9 @@ nextline:
  */
 
 static void
-parse_numbering(const char *argstr, int section)
+parse_numbering(argstr, section)
+	const char *argstr;
+	int section;
 {
 	int error;
 	char errorbuf[NL_TEXTMAX];
@@ -399,7 +403,7 @@ parse_numbering(const char *argstr, int section)
 }
 
 static void
-usage(void)
+usage()
 {
 
 	(void)fprintf(stderr,

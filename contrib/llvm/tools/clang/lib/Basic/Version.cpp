@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/Version.h"
-#include "clang/Basic/LLVM.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Config/config.h"
 #include <cstring>
@@ -25,14 +24,14 @@ std::string getClangRepositoryPath() {
   return CLANG_REPOSITORY_STRING;
 #else
 #ifdef SVN_REPOSITORY
-  StringRef URL(SVN_REPOSITORY);
+  llvm::StringRef URL(SVN_REPOSITORY);
 #else
-  StringRef URL("");
+  llvm::StringRef URL("");
 #endif
 
   // If the SVN_REPOSITORY is empty, try to use the SVN keyword. This helps us
   // pick up a tag in an SVN export, for example.
-  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/branches/release_30/lib/Basic/Version.cpp $");
+  static llvm::StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $");
   if (URL.empty()) {
     URL = SVNRepository.slice(SVNRepository.find(':'),
                               SVNRepository.find("/lib/Basic"));
@@ -43,7 +42,7 @@ std::string getClangRepositoryPath() {
 
   // Trim path prefix off, assuming path came from standard cfe path.
   size_t Start = URL.find("cfe/");
-  if (Start != StringRef::npos)
+  if (Start != llvm::StringRef::npos)
     URL = URL.substr(Start + 4);
 
   return URL;

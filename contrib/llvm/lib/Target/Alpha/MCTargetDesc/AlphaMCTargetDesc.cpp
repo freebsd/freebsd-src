@@ -13,11 +13,10 @@
 
 #include "AlphaMCTargetDesc.h"
 #include "AlphaMCAsmInfo.h"
-#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
 #include "AlphaGenInstrInfo.inc"
@@ -37,10 +36,8 @@ static MCInstrInfo *createAlphaMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createAlphaMCRegisterInfo(StringRef TT) {
-  MCRegisterInfo *X = new MCRegisterInfo();
-  InitAlphaMCRegisterInfo(X, Alpha::R26);
-  return X;
+extern "C" void LLVMInitializeAlphaMCInstrInfo() {
+  TargetRegistry::RegisterMCInstrInfo(TheAlphaTarget, createAlphaMCInstrInfo);
 }
 
 static MCSubtargetInfo *createAlphaMCSubtargetInfo(StringRef TT, StringRef CPU,
@@ -50,29 +47,11 @@ static MCSubtargetInfo *createAlphaMCSubtargetInfo(StringRef TT, StringRef CPU,
   return X;
 }
 
-static MCCodeGenInfo *createAlphaMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                               CodeModel::Model CM) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-  X->InitMCCodeGenInfo(Reloc::PIC_, CM);
-  return X;
-}
-
-// Force static initialization.
-extern "C" void LLVMInitializeAlphaTargetMC() {
-  // Register the MC asm info.
-  RegisterMCAsmInfo<AlphaMCAsmInfo> X(TheAlphaTarget);
-
-  // Register the MC codegen info.
-  TargetRegistry::RegisterMCCodeGenInfo(TheAlphaTarget,
-                                        createAlphaMCCodeGenInfo);
-
-  // Register the MC instruction info.
-  TargetRegistry::RegisterMCInstrInfo(TheAlphaTarget, createAlphaMCInstrInfo);
-
-  // Register the MC register info.
-  TargetRegistry::RegisterMCRegInfo(TheAlphaTarget, createAlphaMCRegisterInfo);
-
-  // Register the MC subtarget info.
+extern "C" void LLVMInitializeAlphaMCSubtargetInfo() {
   TargetRegistry::RegisterMCSubtargetInfo(TheAlphaTarget,
                                           createAlphaMCSubtargetInfo);
+}
+
+extern "C" void LLVMInitializeAlphaMCAsmInfo() {
+  RegisterMCAsmInfo<AlphaMCAsmInfo> X(TheAlphaTarget);
 }

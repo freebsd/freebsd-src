@@ -40,7 +40,7 @@ bool CFGReverseBlockReachabilityAnalysis::isReachable(const CFGBlock *Src,
 // Maps reachability to a common node by walking the predecessors of the
 // destination node.
 void CFGReverseBlockReachabilityAnalysis::mapReachability(const CFGBlock *Dst) {
-  SmallVector<const CFGBlock *, 11> worklist;
+  llvm::SmallVector<const CFGBlock *, 11> worklist;
   llvm::BitVector visited(analyzed.size());
   
   ReachableSet &DstReachability = reachable[Dst->getBlockID()];

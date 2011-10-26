@@ -13,10 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/AST/StmtVisitor.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/AST/StmtVisitor.h"
 
 using namespace clang;
 using namespace ento;
@@ -24,10 +23,9 @@ using namespace ento;
 namespace {
 class WalkAST : public StmtVisitor<WalkAST> {
   BugReporter &BR;
-  AnalysisContext* AC;
 
 public:
-  WalkAST(BugReporter &br, AnalysisContext* ac) : BR(br), AC(ac) {}
+  WalkAST(BugReporter &br) : BR(br) {}
   void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
   void VisitStmt(Stmt *S) { VisitChildren(S); }
   void VisitChildren(Stmt *S);
@@ -61,13 +59,11 @@ void WalkAST::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
       return;
 
     SourceRange R = ArgEx->getSourceRange();
-    PathDiagnosticLocation ELoc =
-      PathDiagnosticLocation::createBegin(E, BR.getSourceManager(), AC);
     BR.EmitBasicReport("Potential unintended use of sizeof() on pointer type",
                        "Logic",
                        "The code calls sizeof() on a pointer type. "
                        "This can produce an unexpected result.",
-                       ELoc, &R, 1);
+                       E->getLocStart(), &R, 1);
   }
 }
 
@@ -80,7 +76,7 @@ class SizeofPointerChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
-    WalkAST walker(BR, mgr.getAnalysisContext(D));
+    WalkAST walker(BR);
     walker.Visit(D->getBody());
   }
 };

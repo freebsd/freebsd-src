@@ -42,7 +42,6 @@ using namespace llvm;
 BlackfinTargetLowering::BlackfinTargetLowering(TargetMachine &TM)
   : TargetLowering(TM, new TargetLoweringObjectFileELF()) {
   setBooleanContents(ZeroOrOneBooleanContent);
-  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
   setStackPointerRegisterToSaveRestore(BF::SP);
   setIntDivIsCheap(false);
 
@@ -100,7 +99,6 @@ BlackfinTargetLowering::BlackfinTargetLowering(TargetMachine &TM)
 
   // Blackfin has no intrinsics for these particular operations.
   setOperationAction(ISD::MEMBARRIER, MVT::Other, Expand);
-  setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Expand);
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
 
   setOperationAction(ISD::SHL_PARTS, MVT::i32, Expand);
@@ -136,7 +134,7 @@ const char *BlackfinTargetLowering::getTargetNodeName(unsigned Opcode) const {
   }
 }
 
-EVT BlackfinTargetLowering::getSetCCResultType(EVT VT) const {
+MVT::SimpleValueType BlackfinTargetLowering::getSetCCResultType(EVT VT) const {
   // SETCC always sets the CC register. Technically that is an i1 register, but
   // that type is not legal, so we treat it as an i32 register.
   return MVT::i32;

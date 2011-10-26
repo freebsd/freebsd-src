@@ -17,7 +17,7 @@ using namespace clang;
 namespace {
 class HeaderIncludesCallback : public PPCallbacks {
   SourceManager &SM;
-  raw_ostream *OutputFile;
+  llvm::raw_ostream *OutputFile;
   unsigned CurrentIncludeDepth;
   bool HasProcessedPredefines;
   bool OwnsOutputFile;
@@ -26,7 +26,7 @@ class HeaderIncludesCallback : public PPCallbacks {
 
 public:
   HeaderIncludesCallback(const Preprocessor *PP, bool ShowAllHeaders_,
-                         raw_ostream *OutputFile_, bool OwnsOutputFile_,
+                         llvm::raw_ostream *OutputFile_, bool OwnsOutputFile_,
                          bool ShowDepth_)
     : SM(PP->getSourceManager()), OutputFile(OutputFile_),
       CurrentIncludeDepth(0), HasProcessedPredefines(false),
@@ -39,14 +39,13 @@ public:
   }
 
   virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                           SrcMgr::CharacteristicKind FileType,
-                           FileID PrevFID);
+                           SrcMgr::CharacteristicKind FileType);
 };
 }
 
 void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
-                                   StringRef OutputPath, bool ShowDepth) {
-  raw_ostream *OutputFile = &llvm::errs();
+                                   llvm::StringRef OutputPath, bool ShowDepth) {
+  llvm::raw_ostream *OutputFile = &llvm::errs();
   bool OwnsOutputFile = false;
 
   // Open the output file, if used.
@@ -73,8 +72,7 @@ void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
 
 void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
                                          FileChangeReason Reason,
-                                       SrcMgr::CharacteristicKind NewFileType,
-                                       FileID PrevFID) {
+                                       SrcMgr::CharacteristicKind NewFileType) {
   // Unless we are exiting a #include, make sure to skip ahead to the line the
   // #include directive was at.
   PresumedLoc UserLoc = SM.getPresumedLoc(Loc);

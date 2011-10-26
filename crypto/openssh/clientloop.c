@@ -1,5 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.236 2011/06/22 22:08:42 djm Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: clientloop.c,v 1.231 2011/01/16 12:05:59 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -132,6 +131,9 @@ extern int muxserver_sock; /* XXX use mux_client_cleanup() instead */
  */
 extern char *host;
 
+/* Force TTY allocation */
+extern int force_tty_flag;
+
 /*
  * Flag to indicate that we have received a window change signal which has
  * not yet been processed.  This will cause a message indicating the new
@@ -178,8 +180,7 @@ struct escape_filter_ctx {
 /* Context for channel confirmation replies */
 struct channel_reply_ctx {
 	const char *request_type;
-	int id;
-	enum confirm_action action;
+	int id, do_close;
 };
 
 /* Global request success/failure callbacks */
@@ -265,10 +266,10 @@ static void
 set_control_persist_exit_time(void)
 {
 	if (muxserver_sock == -1 || !options.control_persist
-	    || options.control_persist_timeout == 0) {
+	    || options.control_persist_timeout == 0)
 		/* not using a ControlPersist timeout */
 		control_persist_exit_time = 0;
-	} else if (channel_still_open()) {
+	else if (channel_still_open()) {
 		/* some client connections are still open */
 		if (control_persist_exit_time > 0)
 			debug2("%s: cancel scheduled exit", __func__);
@@ -662,7 +663,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 		atomicio(vwrite, fileno(stderr), buffer_ptr(berr),
 		    buffer_len(berr));
 
-	leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	leave_raw_mode(force_tty_flag);
 
 	/*
 	 * Free (and clear) the buffer to reduce the amount of data that gets
@@ -683,7 +684,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 	buffer_init(bout);
 	buffer_init(berr);
 
-	enter_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	enter_raw_mode(force_tty_flag);
 }
 
 static void
@@ -742,15 +743,6 @@ client_status_confirm(int type, Channel *c, void *ctx)
 	char errmsg[256];
 	int tochan;
 
-	/*
-	 * If a TTY was explicitly requested, then a failure to allocate
-	 * one is fatal.
-	 */
-	if (cr->action == CONFIRM_TTY &&
-	    (options.request_tty == REQUEST_TTY_FORCE ||
-	    options.request_tty == REQUEST_TTY_YES))
-		cr->action = CONFIRM_CLOSE;
-
 	/* XXX supress on mux _client_ quietmode */
 	tochan = options.log_level >= SYSLOG_LEVEL_ERROR &&
 	    c->ctl_chan != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
@@ -768,27 +760,14 @@ client_status_confirm(int type, Channel *c, void *ctx)
 			    cr->request_type, c->self);
 		}
 		/* If error occurred on primary session channel, then exit */
-		if (cr->action == CONFIRM_CLOSE && c->self == session_ident)
+		if (cr->do_close && c->self == session_ident)
 			fatal("%s", errmsg);
-		/*
-		 * If error occurred on mux client, append to
-		 * their stderr.
-		 */
-		if (tochan) {
-			buffer_append(&c->extended, errmsg,
-			    strlen(errmsg));
-		} else
+		/* If error occurred on mux client, append to their stderr */
+		if (tochan)
+			buffer_append(&c->extended, errmsg, strlen(errmsg));
+		else
 			error("%s", errmsg);
-		if (cr->action == CONFIRM_TTY) {
-			/*
-			 * If a TTY allocation error occurred, then arrange
-			 * for the correct TTY to leave raw mode.
-			 */
-			if (c->self == session_ident)
-				leave_raw_mode(0);
-			else
-				mux_tty_alloc_failed(c);
-		} else if (cr->action == CONFIRM_CLOSE) {
+		if (cr->do_close) {
 			chan_read_failed(c);
 			chan_write_failed(c);
 		}
@@ -802,14 +781,13 @@ client_abandon_status_confirm(Channel *c, void *ctx)
 	xfree(ctx);
 }
 
-void
-client_expect_confirm(int id, const char *request,
-    enum confirm_action action)
+static void
+client_expect_confirm(int id, const char *request, int do_close)
 {
 	struct channel_reply_ctx *cr = xmalloc(sizeof(*cr));
 
 	cr->request_type = request;
-	cr->action = action;
+	cr->do_close = do_close;
 
 	channel_register_status_confirm(id, client_status_confirm,
 	    client_abandon_status_confirm, cr);
@@ -849,7 +827,7 @@ process_cmdline(void)
 	bzero(&fwd, sizeof(fwd));
 	fwd.listen_host = fwd.connect_host = NULL;
 
-	leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	leave_raw_mode(force_tty_flag);
 	handler = signal(SIGINT, SIG_IGN);
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
@@ -953,7 +931,7 @@ process_cmdline(void)
 
 out:
 	signal(SIGINT, handler);
-	enter_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	enter_raw_mode(force_tty_flag);
 	if (cmd)
 		xfree(cmd);
 	if (fwd.listen_host != NULL)
@@ -1072,8 +1050,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				 * more new connections).
 				 */
 				/* Restore tty modes. */
-				leave_raw_mode(
-				    options.request_tty == REQUEST_TTY_FORCE);
+				leave_raw_mode(force_tty_flag);
 
 				/* Stop listening for new connections. */
 				channel_stop_listening();
@@ -1368,7 +1345,7 @@ client_channel_closed(int id, void *arg)
 {
 	channel_cancel_cleanup(id);
 	session_closed = 1;
-	leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	leave_raw_mode(force_tty_flag);
 }
 
 /*
@@ -1439,21 +1416,18 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	signal(SIGWINCH, window_change_handler);
 
 	if (have_pty)
-		enter_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+		enter_raw_mode(force_tty_flag);
 
 	if (compat20) {
 		session_ident = ssh2_chan_id;
-		if (session_ident != -1) {
-			if (escape_char_arg != SSH_ESCAPECHAR_NONE) {
-				channel_register_filter(session_ident,
-				    client_simple_escape_filter, NULL,
-				    client_filter_cleanup,
-				    client_new_escape_filter_ctx(
-				    escape_char_arg));
-			}
+		if (escape_char_arg != SSH_ESCAPECHAR_NONE)
+			channel_register_filter(session_ident,
+			    client_simple_escape_filter, NULL,
+			    client_filter_cleanup,
+			    client_new_escape_filter_ctx(escape_char_arg));
+		if (session_ident != -1)
 			channel_register_cleanup(session_ident,
 			    client_channel_closed, 0);
-		}
 	} else {
 		/* Check if we should immediately send eof on stdin. */
 		client_check_initial_eof_on_stdin();
@@ -1583,7 +1557,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	channel_free_all();
 
 	if (have_pty)
-		leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+		leave_raw_mode(force_tty_flag);
 
 	/* restore blocking io */
 	if (!isatty(fileno(stdin)))
@@ -2026,7 +2000,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			memset(&ws, 0, sizeof(ws));
 
 		channel_request_start(id, "pty-req", 1);
-		client_expect_confirm(id, "PTY allocation", CONFIRM_TTY);
+		client_expect_confirm(id, "PTY allocation", 1);
 		packet_put_cstring(term != NULL ? term : "");
 		packet_put_int((u_int)ws.ws_col);
 		packet_put_int((u_int)ws.ws_row);
@@ -2085,18 +2059,18 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			debug("Sending subsystem: %.*s",
 			    len, (u_char*)buffer_ptr(cmd));
 			channel_request_start(id, "subsystem", 1);
-			client_expect_confirm(id, "subsystem", CONFIRM_CLOSE);
+			client_expect_confirm(id, "subsystem", 1);
 		} else {
 			debug("Sending command: %.*s",
 			    len, (u_char*)buffer_ptr(cmd));
 			channel_request_start(id, "exec", 1);
-			client_expect_confirm(id, "exec", CONFIRM_CLOSE);
+			client_expect_confirm(id, "exec", 1);
 		}
 		packet_put_string(buffer_ptr(cmd), buffer_len(cmd));
 		packet_send();
 	} else {
 		channel_request_start(id, "shell", 1);
-		client_expect_confirm(id, "shell", CONFIRM_CLOSE);
+		client_expect_confirm(id, "shell", 1);
 		packet_send();
 	}
 }
@@ -2166,26 +2140,11 @@ client_init_dispatch(void)
 		client_init_dispatch_15();
 }
 
-void
-client_stop_mux(void)
-{
-	if (options.control_path != NULL && muxserver_sock != -1)
-		unlink(options.control_path);
-	/*
-	 * If we are in persist mode, signal that we should close when all
-	 * active channels are closed.
-	 */
-	if (options.control_persist) {
-		session_closed = 1;
-		setproctitle("[stopped mux]");
-	}
-}
-
 /* client specific fatal cleanup */
 void
 cleanup_exit(int i)
 {
-	leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
+	leave_raw_mode(force_tty_flag);
 	leave_non_blocking();
 	if (options.control_path != NULL && muxserver_sock != -1)
 		unlink(options.control_path);

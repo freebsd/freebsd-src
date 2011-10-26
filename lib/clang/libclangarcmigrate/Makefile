@@ -6,8 +6,6 @@ SRCDIR=	tools/clang/lib/ARCMigrate
 SRCS=	ARCMT.cpp \
 	ARCMTActions.cpp \
 	FileRemapper.cpp \
-	PlistReporter.cpp \
-	TransAPIUses.cpp \
 	TransARCAssign.cpp \
 	TransAutoreleasePool.cpp \
 	TransBlockObjCVariable.cpp \

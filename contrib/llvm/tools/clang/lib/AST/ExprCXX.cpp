@@ -49,7 +49,6 @@ CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
                        SourceRange TypeIdParens, Expr *arraySize,
                        CXXConstructorDecl *constructor, bool initializer,
                        Expr **constructorArgs, unsigned numConsArgs,
-                       bool HadMultipleCandidates,
                        FunctionDecl *operatorDelete,
                        bool usualArrayDeleteWantsSize, QualType ty,
                        TypeSourceInfo *AllocatedTypeInfo,
@@ -62,7 +61,6 @@ CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
          ty->containsUnexpandedParameterPack()),
     GlobalNew(globalNew), Initializer(initializer),
     UsualArrayDeleteWantsSize(usualArrayDeleteWantsSize),
-    HadMultipleCandidates(HadMultipleCandidates),
     SubExprs(0), OperatorNew(operatorNew),
     OperatorDelete(operatorDelete), Constructor(constructor),
     AllocatedTypeInfo(AllocatedTypeInfo), TypeIdParens(TypeIdParens),
@@ -204,7 +202,7 @@ UnresolvedLookupExpr::Create(ASTContext &C,
                              UnresolvedSetIterator End) 
 {
   void *Mem = C.Allocate(sizeof(UnresolvedLookupExpr) + 
-                         ASTTemplateArgumentListInfo::sizeFor(Args));
+                         ExplicitTemplateArgumentList::sizeFor(Args));
   return new (Mem) UnresolvedLookupExpr(C, NamingClass, QualifierLoc, NameInfo,
                                         ADL, /*Overload*/ true, &Args,
                                         Begin, End, /*StdIsAssociated=*/false);
@@ -215,7 +213,7 @@ UnresolvedLookupExpr::CreateEmpty(ASTContext &C, bool HasExplicitTemplateArgs,
                                   unsigned NumTemplateArgs) {
   std::size_t size = sizeof(UnresolvedLookupExpr);
   if (HasExplicitTemplateArgs)
-    size += ASTTemplateArgumentListInfo::sizeFor(NumTemplateArgs);
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
 
   void *Mem = C.Allocate(size, llvm::alignOf<UnresolvedLookupExpr>());
   UnresolvedLookupExpr *E = new (Mem) UnresolvedLookupExpr(EmptyShell());
@@ -334,7 +332,7 @@ DependentScopeDeclRefExpr::DependentScopeDeclRefExpr(QualType T,
     bool ContainsUnexpandedParameterPack
       = ExprBits.ContainsUnexpandedParameterPack;
 
-    reinterpret_cast<ASTTemplateArgumentListInfo*>(this+1)
+    reinterpret_cast<ExplicitTemplateArgumentList*>(this+1)
       ->initializeFrom(*Args, Dependent, InstantiationDependent,
                        ContainsUnexpandedParameterPack);
     
@@ -349,7 +347,7 @@ DependentScopeDeclRefExpr::Create(ASTContext &C,
                                   const TemplateArgumentListInfo *Args) {
   std::size_t size = sizeof(DependentScopeDeclRefExpr);
   if (Args)
-    size += ASTTemplateArgumentListInfo::sizeFor(*Args);
+    size += ExplicitTemplateArgumentList::sizeFor(*Args);
   void *Mem = C.Allocate(size);
   return new (Mem) DependentScopeDeclRefExpr(C.DependentTy, QualifierLoc, 
                                              NameInfo, Args);
@@ -361,7 +359,7 @@ DependentScopeDeclRefExpr::CreateEmpty(ASTContext &C,
                                        unsigned NumTemplateArgs) {
   std::size_t size = sizeof(DependentScopeDeclRefExpr);
   if (HasExplicitTemplateArgs)
-    size += ASTTemplateArgumentListInfo::sizeFor(NumTemplateArgs);
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
   void *Mem = C.Allocate(size);
   DependentScopeDeclRefExpr *E 
     = new (Mem) DependentScopeDeclRefExpr(QualType(), NestedNameSpecifierLoc(),
@@ -630,13 +628,11 @@ CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(ASTContext &C,
                                                Expr **Args,
                                                unsigned NumArgs,
                                                SourceRange parenRange,
-                                               bool HadMultipleCandidates,
                                                bool ZeroInitialization)
   : CXXConstructExpr(C, CXXTemporaryObjectExprClass, 
                      Type->getType().getNonReferenceType(), 
                      Type->getTypeLoc().getBeginLoc(),
-                     Cons, false, Args, NumArgs,
-                     HadMultipleCandidates, ZeroInitialization,
+                     Cons, false, Args, NumArgs, ZeroInitialization,
                      CXXConstructExpr::CK_Complete, parenRange),
     Type(Type) {
 }
@@ -650,13 +646,11 @@ CXXConstructExpr *CXXConstructExpr::Create(ASTContext &C, QualType T,
                                            SourceLocation Loc,
                                            CXXConstructorDecl *D, bool Elidable,
                                            Expr **Args, unsigned NumArgs,
-                                           bool HadMultipleCandidates,
                                            bool ZeroInitialization,
                                            ConstructionKind ConstructKind,
                                            SourceRange ParenRange) {
   return new (C) CXXConstructExpr(C, CXXConstructExprClass, T, Loc, D, 
-                                  Elidable, Args, NumArgs,
-                                  HadMultipleCandidates, ZeroInitialization,
+                                  Elidable, Args, NumArgs, ZeroInitialization,
                                   ConstructKind, ParenRange);
 }
 
@@ -664,18 +658,16 @@ CXXConstructExpr::CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
                                    SourceLocation Loc,
                                    CXXConstructorDecl *D, bool elidable,
                                    Expr **args, unsigned numargs,
-                                   bool HadMultipleCandidates,
-                                   bool ZeroInitialization,
+                                   bool ZeroInitialization, 
                                    ConstructionKind ConstructKind,
                                    SourceRange ParenRange)
   : Expr(SC, T, VK_RValue, OK_Ordinary,
          T->isDependentType(), T->isDependentType(),
          T->isInstantiationDependentType(),
          T->containsUnexpandedParameterPack()),
-    Constructor(D), Loc(Loc), ParenRange(ParenRange),  NumArgs(numargs),
-    Elidable(elidable), HadMultipleCandidates(HadMultipleCandidates),
-    ZeroInitialization(ZeroInitialization),
-    ConstructKind(ConstructKind), Args(0)
+    Constructor(D), Loc(Loc), ParenRange(ParenRange), Elidable(elidable),
+    ZeroInitialization(ZeroInitialization), ConstructKind(ConstructKind),
+    Args(0), NumArgs(numargs) 
 {
   if (NumArgs) {
     Args = new (C) Stmt*[NumArgs];
@@ -846,7 +838,7 @@ CXXDependentScopeMemberExpr::Create(ASTContext &C,
 
   std::size_t size = sizeof(CXXDependentScopeMemberExpr);
   if (TemplateArgs)
-    size += ASTTemplateArgumentListInfo::sizeFor(*TemplateArgs);
+    size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
 
   void *Mem = C.Allocate(size, llvm::alignOf<CXXDependentScopeMemberExpr>());
   return new (Mem) CXXDependentScopeMemberExpr(C, Base, BaseType,
@@ -867,7 +859,7 @@ CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
                                                DeclarationNameInfo());
 
   std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
-                     ASTTemplateArgumentListInfo::sizeFor(NumTemplateArgs);
+                     ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
   void *Mem = C.Allocate(size, llvm::alignOf<CXXDependentScopeMemberExpr>());
   CXXDependentScopeMemberExpr *E
     =  new (Mem) CXXDependentScopeMemberExpr(C, 0, QualType(),
@@ -955,7 +947,7 @@ UnresolvedMemberExpr::Create(ASTContext &C,
                              UnresolvedSetIterator End) {
   std::size_t size = sizeof(UnresolvedMemberExpr);
   if (TemplateArgs)
-    size += ASTTemplateArgumentListInfo::sizeFor(*TemplateArgs);
+    size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
 
   void *Mem = C.Allocate(size, llvm::alignOf<UnresolvedMemberExpr>());
   return new (Mem) UnresolvedMemberExpr(C, 
@@ -969,7 +961,7 @@ UnresolvedMemberExpr::CreateEmpty(ASTContext &C, bool HasExplicitTemplateArgs,
                                   unsigned NumTemplateArgs) {
   std::size_t size = sizeof(UnresolvedMemberExpr);
   if (HasExplicitTemplateArgs)
-    size += ASTTemplateArgumentListInfo::sizeFor(NumTemplateArgs);
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
 
   void *Mem = C.Allocate(size, llvm::alignOf<UnresolvedMemberExpr>());
   UnresolvedMemberExpr *E = new (Mem) UnresolvedMemberExpr(EmptyShell());

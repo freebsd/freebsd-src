@@ -20,10 +20,11 @@ class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
 class MCStreamer;
-class MCTargetAsmParser;
 class SMLoc;
 class SourceMgr;
 class StringRef;
+class Target;
+class TargetAsmParser;
 class Twine;
 
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
@@ -36,7 +37,7 @@ private:
   MCAsmParser(const MCAsmParser &);   // DO NOT IMPLEMENT
   void operator=(const MCAsmParser &);  // DO NOT IMPLEMENT
 
-  MCTargetAsmParser *TargetParser;
+  TargetAsmParser *TargetParser;
 
   unsigned ShowParsedOperands : 1;
 
@@ -59,8 +60,8 @@ public:
   /// getStreamer - Return the output streamer for the assembler.
   virtual MCStreamer &getStreamer() = 0;
 
-  MCTargetAsmParser &getTargetParser() const { return *TargetParser; }
-  void setTargetParser(MCTargetAsmParser &P);
+  TargetAsmParser &getTargetParser() const { return *TargetParser; }
+  void setTargetParser(TargetAsmParser &P);
 
   bool getShowParsedOperands() const { return ShowParsedOperands; }
   void setShowParsedOperands(bool Value) { ShowParsedOperands = Value; }
@@ -130,7 +131,7 @@ public:
 };
 
 /// \brief Create an MCAsmParser instance.
-MCAsmParser *createMCAsmParser(SourceMgr &, MCContext &,
+MCAsmParser *createMCAsmParser(const Target &, SourceMgr &, MCContext &,
                                MCStreamer &, const MCAsmInfo &);
 
 } // End llvm namespace

@@ -29,6 +29,7 @@ SRCS=	ADCE.cpp \
 	SimplifyCFGPass.cpp \
 	SimplifyLibCalls.cpp \
 	Sink.cpp \
+	TailDuplication.cpp \
 	TailRecursionElimination.cpp
 
 TGHDRS=	Intrinsics

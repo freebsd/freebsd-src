@@ -25,7 +25,7 @@
 
 using namespace clang;
 
-FixItRewriter::FixItRewriter(DiagnosticsEngine &Diags, SourceManager &SourceMgr,
+FixItRewriter::FixItRewriter(Diagnostic &Diags, SourceManager &SourceMgr,
                              const LangOptions &LangOpts,
                              FixItOptions *FixItOpts)
   : Diags(Diags),
@@ -41,7 +41,7 @@ FixItRewriter::~FixItRewriter() {
   Diags.setClient(Client);
 }
 
-bool FixItRewriter::WriteFixedFile(FileID ID, raw_ostream &OS) {
+bool FixItRewriter::WriteFixedFile(FileID ID, llvm::raw_ostream &OS) {
   const RewriteBuffer *RewriteBuf = Rewrite.getRewriteBufferFor(ID);
   if (!RewriteBuf) return true;
   RewriteBuf->write(OS);
@@ -78,15 +78,15 @@ bool FixItRewriter::IncludeInDiagnosticCounts() const {
   return Client ? Client->IncludeInDiagnosticCounts() : true;
 }
 
-void FixItRewriter::HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                     const Diagnostic &Info) {
+void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
+                                     const DiagnosticInfo &Info) {
   // Default implementation (Warnings/errors count).
-  DiagnosticConsumer::HandleDiagnostic(DiagLevel, Info);
+  DiagnosticClient::HandleDiagnostic(DiagLevel, Info);
 
   Client->HandleDiagnostic(DiagLevel, Info);
 
   // Skip over any diagnostics that are ignored or notes.
-  if (DiagLevel <= DiagnosticsEngine::Note)
+  if (DiagLevel <= Diagnostic::Note)
     return;
 
   // Make sure that we can perform all of the modifications we
@@ -107,8 +107,7 @@ void FixItRewriter::HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
       Diag(Info.getLocation(), diag::note_fixit_in_macro);
 
     // If this was an error, refuse to perform any rewriting.
-    if (DiagLevel == DiagnosticsEngine::Error ||
-          DiagLevel == DiagnosticsEngine::Fatal) {
+    if (DiagLevel == Diagnostic::Error || DiagLevel == Diagnostic::Fatal) {
       if (++NumFailures == 1)
         Diag(Info.getLocation(), diag::note_fixit_unfixed_error);
     }
@@ -154,11 +153,6 @@ void FixItRewriter::Diag(SourceLocation Loc, unsigned DiagID) {
   Diags.Report(Loc, DiagID);
   Diags.takeClient();
   Diags.setClient(this);
-}
-
-DiagnosticConsumer *FixItRewriter::clone(DiagnosticsEngine &Diags) const {
-  return new FixItRewriter(Diags, Diags.getSourceManager(), 
-                           Rewrite.getLangOpts(), FixItOpts);
 }
 
 FixItOptions::~FixItOptions() {}

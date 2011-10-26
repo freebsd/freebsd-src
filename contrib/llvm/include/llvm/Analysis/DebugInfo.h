@@ -40,7 +40,6 @@ namespace llvm {
   class DIFile;
   class DISubprogram;
   class DILexicalBlock;
-  class DILexicalBlockFile;
   class DIVariable;
   class DIType;
 
@@ -85,7 +84,6 @@ namespace llvm {
     explicit DIDescriptor(const MDNode *N) : DbgNode(N) {}
     explicit DIDescriptor(const DIFile F);
     explicit DIDescriptor(const DISubprogram F);
-    explicit DIDescriptor(const DILexicalBlockFile F);
     explicit DIDescriptor(const DILexicalBlock F);
     explicit DIDescriptor(const DIVariable F);
     explicit DIDescriptor(const DIType F);
@@ -119,7 +117,6 @@ namespace llvm {
     bool isFile() const;
     bool isCompileUnit() const;
     bool isNameSpace() const;
-    bool isLexicalBlockFile() const;
     bool isLexicalBlock() const;
     bool isSubrange() const;
     bool isEnumerator() const;
@@ -185,11 +182,6 @@ namespace llvm {
     StringRef getFlags() const       { return getStringField(8);   }
     unsigned getRunTimeVersion() const { return getUnsignedField(9); }
 
-    DIArray getEnumTypes() const;
-    DIArray getRetainedTypes() const;
-    DIArray getSubprograms() const;
-    DIArray getGlobalVariables() const;
-
     /// Verify - Verify that a compile unit is well formed.
     bool Verify() const;
 
@@ -209,10 +201,7 @@ namespace llvm {
     }
     StringRef getFilename() const  { return getStringField(1);   }
     StringRef getDirectory() const { return getStringField(2);   }
-    DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10  && "Invalid CompileUnit!");
-      return getFieldAs<DICompileUnit>(3); 
-    }
+    DICompileUnit getCompileUnit() const{ return getFieldAs<DICompileUnit>(3); }
   };
 
   /// DIEnumerator - A wrapper for an enumerator (e.g. X and Y in 'enum {X,Y}').
@@ -248,7 +237,6 @@ namespace llvm {
     DIScope getContext() const          { return getFieldAs<DIScope>(1); }
     StringRef getName() const           { return getStringField(2);     }
     DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
      if (getVersion() == llvm::LLVMDebugVersion7)
        return getFieldAs<DICompileUnit>(3);
      
@@ -302,9 +290,6 @@ namespace llvm {
 
       return getFieldAs<DIFile>(3).getFilename();
     }
-
-    /// isUnsignedDIType - Return true if type encoding is unsigned.
-    bool isUnsignedDIType();
 
     /// replaceAllUsesWith - Replace all uses of debug info referenced by
     /// this descriptor.
@@ -462,7 +447,6 @@ namespace llvm {
     StringRef getDisplayName() const  { return getStringField(4); }
     StringRef getLinkageName() const  { return getStringField(5); }
     DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
       if (getVersion() == llvm::LLVMDebugVersion7)
         return getFieldAs<DICompileUnit>(6);
 
@@ -561,8 +545,6 @@ namespace llvm {
     DISubprogram getFunctionDeclaration() const {
       return getFieldAs<DISubprogram>(18);
     }
-    MDNode *getVariablesNodes() const;
-    DIArray getVariables() const;
   };
 
   /// DIGlobalVariable - This is a wrapper for a global variable.
@@ -575,24 +557,12 @@ namespace llvm {
     StringRef getDisplayName() const  { return getStringField(4); }
     StringRef getLinkageName() const  { return getStringField(5); }
     DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
       if (getVersion() == llvm::LLVMDebugVersion7)
         return getFieldAs<DICompileUnit>(6);
 
       DIFile F = getFieldAs<DIFile>(6); 
       return F.getCompileUnit();
     }
-    StringRef getFilename() const {
-      if (getVersion() <= llvm::LLVMDebugVersion10)
-        return getContext().getFilename();
-      return getFieldAs<DIFile>(6).getFilename();
-    } 
-    StringRef getDirectory() const {
-      if (getVersion() <= llvm::LLVMDebugVersion10)
-        return getContext().getDirectory();
-      return getFieldAs<DIFile>(6).getDirectory();
-
-    } 
 
     unsigned getLineNumber() const      { return getUnsignedField(7); }
     DIType getType() const              { return getFieldAs<DIType>(8); }
@@ -622,7 +592,6 @@ namespace llvm {
     DIScope getContext() const          { return getFieldAs<DIScope>(1); }
     StringRef getName() const           { return getStringField(2);     }
     DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
       if (getVersion() == llvm::LLVMDebugVersion7)
         return getFieldAs<DICompileUnit>(3);
 
@@ -645,8 +614,6 @@ namespace llvm {
       return (getUnsignedField(6) & FlagArtificial) != 0;
     }
 
-    /// getInlinedAt - If this variable is inlined then return inline location.
-    MDNode *getInlinedAt() const;
 
     /// Verify - Verify that a variable descriptor is well formed.
     bool Verify() const;
@@ -661,9 +628,7 @@ namespace llvm {
     uint64_t getAddrElement(unsigned Idx) const {
       if (getVersion() <= llvm::LLVMDebugVersion8)
         return getUInt64Field(Idx+6);
-      if (getVersion() == llvm::LLVMDebugVersion9)
-        return getUInt64Field(Idx+7);
-      return getUInt64Field(Idx+8);
+      return getUInt64Field(Idx+7);
     }
 
     /// isBlockByrefVariable - Return true if the variable was declared as
@@ -678,8 +643,6 @@ namespace llvm {
 
     /// print - print variable.
     void print(raw_ostream &OS) const;
-
-    void printExtendedName(raw_ostream &OS) const;
 
     /// dump - print variable to dbgs() with a newline.
     void dump() const;
@@ -702,26 +665,6 @@ namespace llvm {
     }
   };
 
-  /// DILexicalBlockFile - This is a wrapper for a lexical block with
-  /// a filename change.
-  class DILexicalBlockFile : public DIScope {
-  public:
-    explicit DILexicalBlockFile(const MDNode *N = 0) : DIScope(N) {}
-    DIScope getContext() const { return getScope().getContext(); }
-    unsigned getLineNumber() const { return getScope().getLineNumber(); }
-    unsigned getColumnNumber() const { return getScope().getColumnNumber(); }
-    StringRef getDirectory() const {
-      StringRef dir = getFieldAs<DIFile>(2).getDirectory();
-      return !dir.empty() ? dir : getContext().getDirectory();
-    }
-    StringRef getFilename() const {
-      StringRef filename = getFieldAs<DIFile>(2).getFilename();
-      assert(!filename.empty() && "Why'd you create this then?");
-      return filename;
-    }
-    DILexicalBlock getScope() const { return getFieldAs<DILexicalBlock>(1); }
-  };
-
   /// DINameSpace - A wrapper for a C++ style name space.
   class DINameSpace : public DIScope { 
   public:
@@ -735,7 +678,6 @@ namespace llvm {
       return getFieldAs<DIFile>(3).getFilename();
     }
     DICompileUnit getCompileUnit() const{ 
-      assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
       if (getVersion() == llvm::LLVMDebugVersion7)
         return getFieldAs<DICompileUnit>(3);
 
@@ -766,27 +708,13 @@ namespace llvm {
   /// getDICompositeType - Find underlying composite type.
   DICompositeType getDICompositeType(DIType T);
 
-  /// isSubprogramContext - Return true if Context is either a subprogram
-  /// or another context nested inside a subprogram.
-  bool isSubprogramContext(const MDNode *Context);
-
   /// getOrInsertFnSpecificMDNode - Return a NameMDNode that is suitable
   /// to hold function specific information.
-  NamedMDNode *getOrInsertFnSpecificMDNode(Module &M, DISubprogram SP);
+  NamedMDNode *getOrInsertFnSpecificMDNode(Module &M, StringRef Name);
 
   /// getFnSpecificMDNode - Return a NameMDNode, if available, that is 
   /// suitable to hold function specific information.
-  NamedMDNode *getFnSpecificMDNode(const Module &M, DISubprogram SP);
-
-  /// createInlinedVariable - Create a new inlined variable based on current
-  /// variable.
-  /// @param DV            Current Variable.
-  /// @param InlinedScope  Location at current variable is inlined.
-  DIVariable createInlinedVariable(MDNode *DV, MDNode *InlinedScope,
-                                   LLVMContext &VMContext);
-
-  /// cleanseInlinedVariable - Remove inlined scope from the variable.
-  DIVariable cleanseInlinedVariable(MDNode *DV, LLVMContext &VMContext);
+  NamedMDNode *getFnSpecificMDNode(const Module &M, StringRef Name);
 
   class DebugInfoFinder {
   public:

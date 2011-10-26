@@ -21,7 +21,6 @@
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
-#include "clang/Sema/SemaFixItUtils.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -244,12 +243,7 @@ namespace clang {
     // a gcc code gen. bug which causes a crash in a test. Putting it here seems
     // to work around the crash.
     bool EllipsisConversion : 1;
-
-    /// HadMultipleCandidates - When this is true, it means that the
-    /// conversion function was resolved from an overloaded set having
-    /// size greater than 1.
-    bool HadMultipleCandidates : 1;
-
+    
     /// After - Represents the standard conversion that occurs after
     /// the actual user-defined conversion.
     StandardConversionSequence After;
@@ -261,14 +255,14 @@ namespace clang {
     /// \brief The declaration that we found via name lookup, which might be
     /// the same as \c ConversionFunction or it might be a using declaration
     /// that refers to \c ConversionFunction.
-    DeclAccessPair FoundConversionFunction;
+    NamedDecl *FoundConversionFunction;
     
     void DebugPrint() const;
   };
 
   /// Represents an ambiguous user-defined conversion sequence.
   struct AmbiguousConversionSequence {
-    typedef SmallVector<FunctionDecl*, 4> ConversionSet;
+    typedef llvm::SmallVector<FunctionDecl*, 4> ConversionSet;
 
     void *FromTypePtr;
     void *ToTypePtr;
@@ -469,7 +463,6 @@ namespace clang {
     bool isEllipsis() const { return getKind() == EllipsisConversion; }
     bool isAmbiguous() const { return getKind() == AmbiguousConversion; }
     bool isUserDefined() const { return getKind() == UserDefinedConversion; }
-    bool isFailure() const { return isBad() || isAmbiguous(); }
 
     /// Determines whether this conversion sequence has been
     /// initialized.  Most operations should never need to query
@@ -532,12 +525,7 @@ namespace clang {
     
     /// This conversion function template specialization candidate is not 
     /// viable because the final conversion was not an exact match.
-    ovl_fail_final_conversion_not_exact,
-
-    /// (CUDA) This candidate was not viable because the callee
-    /// was not accessible from the caller's target (i.e. host->device,
-    /// global->host, device->host).
-    ovl_fail_bad_target
+    ovl_fail_final_conversion_not_exact
   };
 
   /// OverloadCandidate - A single candidate in an overload set (C++ 13.3).
@@ -566,10 +554,7 @@ namespace clang {
 
     /// Conversions - The conversion sequences used to convert the
     /// function arguments to the function parameters.
-    SmallVector<ImplicitConversionSequence, 4> Conversions;
-
-    /// The FixIt hints which can be used to fix the Bad candidate.
-    ConversionFixItGenerator Fix;
+    llvm::SmallVector<ImplicitConversionSequence, 4> Conversions;
 
     /// Viable - True to indicate that this overload candidate is viable.
     bool Viable;
@@ -639,32 +624,19 @@ namespace clang {
     /// hasAmbiguousConversion - Returns whether this overload
     /// candidate requires an ambiguous conversion or not.
     bool hasAmbiguousConversion() const {
-      for (SmallVectorImpl<ImplicitConversionSequence>::const_iterator
+      for (llvm::SmallVectorImpl<ImplicitConversionSequence>::const_iterator
              I = Conversions.begin(), E = Conversions.end(); I != E; ++I) {
         if (!I->isInitialized()) return false;
         if (I->isAmbiguous()) return true;
       }
       return false;
     }
-
-    bool TryToFixBadConversion(unsigned Idx, Sema &S) {
-      bool CanFix = Fix.tryToFixConversion(
-                      Conversions[Idx].Bad.FromExpr,
-                      Conversions[Idx].Bad.getFromType(),
-                      Conversions[Idx].Bad.getToType(), S);
-
-      // If at least one conversion fails, the candidate cannot be fixed.
-      if (!CanFix)
-        Fix.clear();
-
-      return CanFix;
-    }
   };
 
   /// OverloadCandidateSet - A set of overload candidates, used in C++
   /// overload resolution (C++ 13.3).
-  class OverloadCandidateSet : public SmallVector<OverloadCandidate, 16> {
-    typedef SmallVector<OverloadCandidate, 16> inherited;
+  class OverloadCandidateSet : public llvm::SmallVector<OverloadCandidate, 16> {
+    typedef llvm::SmallVector<OverloadCandidate, 16> inherited;
     llvm::SmallPtrSet<Decl *, 16> Functions;
 
     SourceLocation Loc;    

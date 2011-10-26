@@ -1264,7 +1264,7 @@ tty_signal_sessleader(struct tty *tp, int sig)
 	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
 		p = tp->t_session->s_leader;
 		PROC_LOCK(p);
-		kern_psignal(p, sig);
+		psignal(p, sig);
 		PROC_UNLOCK(p);
 	}
 }

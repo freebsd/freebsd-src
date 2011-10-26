@@ -56,12 +56,12 @@ void AliasSet::mergeSetIn(AliasSet &AS, AliasSetTracker &AST) {
       AliasTy = MayAlias;
   }
 
-  if (UnknownInsts.empty()) {            // Merge call sites...
-    if (!AS.UnknownInsts.empty())
-      std::swap(UnknownInsts, AS.UnknownInsts);
-  } else if (!AS.UnknownInsts.empty()) {
-    UnknownInsts.insert(UnknownInsts.end(), AS.UnknownInsts.begin(), AS.UnknownInsts.end());
-    AS.UnknownInsts.clear();
+  if (CallSites.empty()) {            // Merge call sites...
+    if (!AS.CallSites.empty())
+      std::swap(CallSites, AS.CallSites);
+  } else if (!AS.CallSites.empty()) {
+    CallSites.insert(CallSites.end(), AS.CallSites.begin(), AS.CallSites.end());
+    AS.CallSites.clear();
   }
 
   AS.Forward = this;  // Forward across AS now...
@@ -123,10 +123,13 @@ void AliasSet::addPointer(AliasSetTracker &AST, PointerRec &Entry,
   addRef();               // Entry points to alias set.
 }
 
-void AliasSet::addUnknownInst(Instruction *I, AliasAnalysis &AA) {
-  UnknownInsts.push_back(I);
+void AliasSet::addCallSite(CallSite CS, AliasAnalysis &AA) {
+  CallSites.push_back(CS.getInstruction());
 
-  if (!I->mayWriteToMemory()) {
+  AliasAnalysis::ModRefBehavior Behavior = AA.getModRefBehavior(CS);
+  if (Behavior == AliasAnalysis::DoesNotAccessMemory)
+    return;
+  if (AliasAnalysis::onlyReadsMemory(Behavior)) {
     AliasTy = MayAlias;
     AccessTy |= Refs;
     return;
@@ -144,7 +147,7 @@ bool AliasSet::aliasesPointer(const Value *Ptr, uint64_t Size,
                               const MDNode *TBAAInfo,
                               AliasAnalysis &AA) const {
   if (AliasTy == MustAlias) {
-    assert(UnknownInsts.empty() && "Illegal must alias set!");
+    assert(CallSites.empty() && "Illegal must alias set!");
 
     // If this is a set of MustAliases, only check to see if the pointer aliases
     // SOME value in the set.
@@ -164,10 +167,10 @@ bool AliasSet::aliasesPointer(const Value *Ptr, uint64_t Size,
                                          I.getTBAAInfo())))
       return true;
 
-  // Check the unknown instructions...
-  if (!UnknownInsts.empty()) {
-    for (unsigned i = 0, e = UnknownInsts.size(); i != e; ++i)
-      if (AA.getModRefInfo(UnknownInsts[i],
+  // Check the call sites list and invoke list...
+  if (!CallSites.empty()) {
+    for (unsigned i = 0, e = CallSites.size(); i != e; ++i)
+      if (AA.getModRefInfo(CallSites[i],
                            AliasAnalysis::Location(Ptr, Size, TBAAInfo)) !=
             AliasAnalysis::NoModRef)
         return true;
@@ -176,20 +179,18 @@ bool AliasSet::aliasesPointer(const Value *Ptr, uint64_t Size,
   return false;
 }
 
-bool AliasSet::aliasesUnknownInst(Instruction *Inst, AliasAnalysis &AA) const {
-  if (!Inst->mayReadOrWriteMemory())
+bool AliasSet::aliasesCallSite(CallSite CS, AliasAnalysis &AA) const {
+  if (AA.doesNotAccessMemory(CS))
     return false;
 
-  for (unsigned i = 0, e = UnknownInsts.size(); i != e; ++i) {
-    CallSite C1 = getUnknownInst(i), C2 = Inst;
-    if (!C1 || !C2 ||
-        AA.getModRefInfo(C1, C2) != AliasAnalysis::NoModRef ||
-        AA.getModRefInfo(C2, C1) != AliasAnalysis::NoModRef)
+  for (unsigned i = 0, e = CallSites.size(); i != e; ++i) {
+    if (AA.getModRefInfo(getCallSite(i), CS) != AliasAnalysis::NoModRef ||
+        AA.getModRefInfo(CS, getCallSite(i)) != AliasAnalysis::NoModRef)
       return true;
   }
 
   for (iterator I = begin(), E = end(); I != E; ++I)
-    if (AA.getModRefInfo(Inst, I.getPointer(), I.getSize()) !=
+    if (AA.getModRefInfo(CS, I.getPointer(), I.getSize()) !=
            AliasAnalysis::NoModRef)
       return true;
 
@@ -243,10 +244,10 @@ bool AliasSetTracker::containsPointer(Value *Ptr, uint64_t Size,
 
 
 
-AliasSet *AliasSetTracker::findAliasSetForUnknownInst(Instruction *Inst) {
+AliasSet *AliasSetTracker::findAliasSetForCallSite(CallSite CS) {
   AliasSet *FoundSet = 0;
   for (iterator I = begin(), E = end(); I != E; ++I) {
-    if (I->Forward || !I->aliasesUnknownInst(Inst, AA))
+    if (I->Forward || !I->aliasesCallSite(CS, AA))
       continue;
     
     if (FoundSet == 0)        // If this is the first alias set ptr can go into.
@@ -295,28 +296,22 @@ bool AliasSetTracker::add(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo) {
 
 
 bool AliasSetTracker::add(LoadInst *LI) {
-  if (LI->getOrdering() > Monotonic) return addUnknown(LI);
-  AliasSet::AccessType ATy = AliasSet::Refs;
-  if (!LI->isUnordered()) ATy = AliasSet::ModRef;
   bool NewPtr;
   AliasSet &AS = addPointer(LI->getOperand(0),
                             AA.getTypeStoreSize(LI->getType()),
                             LI->getMetadata(LLVMContext::MD_tbaa),
-                            ATy, NewPtr);
+                            AliasSet::Refs, NewPtr);
   if (LI->isVolatile()) AS.setVolatile();
   return NewPtr;
 }
 
 bool AliasSetTracker::add(StoreInst *SI) {
-  if (SI->getOrdering() > Monotonic) return addUnknown(SI);
-  AliasSet::AccessType ATy = AliasSet::Mods;
-  if (!SI->isUnordered()) ATy = AliasSet::ModRef;
   bool NewPtr;
   Value *Val = SI->getOperand(0);
   AliasSet &AS = addPointer(SI->getOperand(1),
                             AA.getTypeStoreSize(Val->getType()),
                             SI->getMetadata(LLVMContext::MD_tbaa),
-                            ATy, NewPtr);
+                            AliasSet::Mods, NewPtr);
   if (SI->isVolatile()) AS.setVolatile();
   return NewPtr;
 }
@@ -330,20 +325,20 @@ bool AliasSetTracker::add(VAArgInst *VAAI) {
 }
 
 
-bool AliasSetTracker::addUnknown(Instruction *Inst) {
-  if (isa<DbgInfoIntrinsic>(Inst)) 
+bool AliasSetTracker::add(CallSite CS) {
+  if (isa<DbgInfoIntrinsic>(CS.getInstruction())) 
     return true; // Ignore DbgInfo Intrinsics.
-  if (!Inst->mayReadOrWriteMemory())
+  if (AA.doesNotAccessMemory(CS))
     return true; // doesn't alias anything
 
-  AliasSet *AS = findAliasSetForUnknownInst(Inst);
+  AliasSet *AS = findAliasSetForCallSite(CS);
   if (AS) {
-    AS->addUnknownInst(Inst, AA);
+    AS->addCallSite(CS, AA);
     return false;
   }
   AliasSets.push_back(new AliasSet());
   AS = &AliasSets.back();
-  AS->addUnknownInst(Inst, AA);
+  AS->addCallSite(CS, AA);
   return true;
 }
 
@@ -353,9 +348,13 @@ bool AliasSetTracker::add(Instruction *I) {
     return add(LI);
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
     return add(SI);
+  if (CallInst *CI = dyn_cast<CallInst>(I))
+    return add(CI);
+  if (InvokeInst *II = dyn_cast<InvokeInst>(I))
+    return add(II);
   if (VAArgInst *VAAI = dyn_cast<VAArgInst>(I))
     return add(VAAI);
-  return addUnknown(I);
+  return true;
 }
 
 void AliasSetTracker::add(BasicBlock &BB) {
@@ -376,8 +375,8 @@ void AliasSetTracker::add(const AliasSetTracker &AST) {
     AliasSet &AS = const_cast<AliasSet&>(*I);
 
     // If there are any call sites in the alias set, add them to this AST.
-    for (unsigned i = 0, e = AS.UnknownInsts.size(); i != e; ++i)
-      add(AS.UnknownInsts[i]);
+    for (unsigned i = 0, e = AS.CallSites.size(); i != e; ++i)
+      add(AS.CallSites[i]);
 
     // Loop over all of the pointers in this alias set.
     bool X;
@@ -394,7 +393,7 @@ void AliasSetTracker::add(const AliasSetTracker &AST) {
 /// tracker.
 void AliasSetTracker::remove(AliasSet &AS) {
   // Drop all call sites.
-  AS.UnknownInsts.clear();
+  AS.CallSites.clear();
   
   // Clear the alias set.
   unsigned NumRefs = 0;
@@ -454,11 +453,11 @@ bool AliasSetTracker::remove(VAArgInst *VAAI) {
   return true;
 }
 
-bool AliasSetTracker::removeUnknown(Instruction *I) {
-  if (!I->mayReadOrWriteMemory())
+bool AliasSetTracker::remove(CallSite CS) {
+  if (AA.doesNotAccessMemory(CS))
     return false; // doesn't alias anything
 
-  AliasSet *AS = findAliasSetForUnknownInst(I);
+  AliasSet *AS = findAliasSetForCallSite(CS);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -470,9 +469,11 @@ bool AliasSetTracker::remove(Instruction *I) {
     return remove(LI);
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
     return remove(SI);
+  if (CallInst *CI = dyn_cast<CallInst>(I))
+    return remove(CI);
   if (VAArgInst *VAAI = dyn_cast<VAArgInst>(I))
     return remove(VAAI);
-  return removeUnknown(I);
+  return true;
 }
 
 
@@ -487,13 +488,13 @@ void AliasSetTracker::deleteValue(Value *PtrVal) {
 
   // If this is a call instruction, remove the callsite from the appropriate
   // AliasSet (if present).
-  if (Instruction *Inst = dyn_cast<Instruction>(PtrVal)) {
-    if (Inst->mayReadOrWriteMemory()) {
+  if (CallSite CS = PtrVal) {
+    if (!AA.doesNotAccessMemory(CS)) {
       // Scan all the alias sets to see if this call site is contained.
       for (iterator I = begin(), E = end(); I != E; ++I) {
         if (I->Forward) continue;
         
-        I->removeUnknownInst(Inst);
+        I->removeCallSite(CS);
       }
     }
   }
@@ -570,11 +571,11 @@ void AliasSet::print(raw_ostream &OS) const {
       OS << ", " << I.getSize() << ")";
     }
   }
-  if (!UnknownInsts.empty()) {
-    OS << "\n    " << UnknownInsts.size() << " Unknown instructions: ";
-    for (unsigned i = 0, e = UnknownInsts.size(); i != e; ++i) {
+  if (!CallSites.empty()) {
+    OS << "\n    " << CallSites.size() << " Call Sites: ";
+    for (unsigned i = 0, e = CallSites.size(); i != e; ++i) {
       if (i) OS << ", ";
-      WriteAsOperand(OS, UnknownInsts[i]);
+      WriteAsOperand(OS, CallSites[i]);
     }
   }
   OS << "\n";

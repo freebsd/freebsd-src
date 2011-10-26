@@ -39,17 +39,14 @@ void X86ATTInstPrinter::printRegName(raw_ostream &OS,
   OS << '%' << getRegisterName(RegNo);
 }
 
-void X86ATTInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                  StringRef Annot) {
+void X86ATTInstPrinter::printInst(const MCInst *MI, raw_ostream &OS) {
   // Try to print any aliases first.
   if (!printAliasInstr(MI, OS))
     printInstruction(MI, OS);
   
   // If verbose assembly is enabled, we can print some informative comments.
-  if (CommentStream) {
-    printAnnotation(OS, Annot);
+  if (CommentStream)
     EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
-  }
 }
 
 StringRef X86ATTInstPrinter::getOpcodeName(unsigned Opcode) const {
@@ -93,8 +90,7 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   if (Op.isReg()) {
     O << '%' << getRegisterName(Op.getReg());
   } else if (Op.isImm()) {
-    // Print X86 immediates as signed values.
-    O << '$' << (int64_t)Op.getImm();
+    O << '$' << Op.getImm();
     
     if (CommentStream && (Op.getImm() > 255 || Op.getImm() < -256))
       *CommentStream << format("imm = 0x%llX\n", (long long)Op.getImm());

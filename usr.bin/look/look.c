@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <locale.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,7 +134,7 @@ main(int argc, char *argv[])
 	do {
 		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
 			err(2, "%s", file);
-		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
+		if (sb.st_size > SIZE_T_MAX)
 			errx(2, "%s: %s", file, strerror(EFBIG));
 		if (sb.st_size == 0) {
 			close(fd);

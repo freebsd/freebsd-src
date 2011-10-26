@@ -24,32 +24,24 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#include <sys/stdint.h>
+#include <sys/stddef.h>
 #include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/condvar.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
+#include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
+#include <sys/condvar.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
-
-#include <net/if.h>
-#include <net/ethernet.h>
-#include <net/if_types.h>
-#include <net/if_media.h>
-#include <net/if_vlan_var.h>
-
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -205,53 +197,42 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	usb_callout_init_mtx(&ue->ue_watchdog, ue->ue_mtx, 0);
 	sysctl_ctx_init(&ue->ue_sysctl_ctx);
 
-	error = 0;
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(ue->ue_dev, "could not allocate ifnet\n");
-		goto fail;
+		goto error;
 	}
 
 	ifp->if_softc = ue;
 	if_initname(ifp, "ue", ue->ue_unit);
-	if (ue->ue_methods->ue_attach_post_sub != NULL) {
-		ue->ue_ifp = ifp;
-		error = ue->ue_methods->ue_attach_post_sub(ue);
-	} else {
-		ifp->if_mtu = ETHERMTU;
-		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-		if (ue->ue_methods->ue_ioctl != NULL)
-			ifp->if_ioctl = ue->ue_methods->ue_ioctl;
-		else
-			ifp->if_ioctl = uether_ioctl;
-		ifp->if_start = ue_start;
-		ifp->if_init = ue_init;
-		IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-		ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-		IFQ_SET_READY(&ifp->if_snd);
-		ue->ue_ifp = ifp;
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if (ue->ue_methods->ue_ioctl != NULL)
+		ifp->if_ioctl = ue->ue_methods->ue_ioctl;
+	else
+		ifp->if_ioctl = uether_ioctl;
+	ifp->if_start = ue_start;
+	ifp->if_init = ue_init;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
+	IFQ_SET_READY(&ifp->if_snd);
+	ue->ue_ifp = ifp;
 
-		if (ue->ue_methods->ue_mii_upd != NULL &&
-		    ue->ue_methods->ue_mii_sts != NULL) {
-			/* device_xxx() depends on this */
-			mtx_lock(&Giant);
-			error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
-			    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts,
-			    BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
-			mtx_unlock(&Giant);
+	if (ue->ue_methods->ue_mii_upd != NULL && 
+	    ue->ue_methods->ue_mii_sts != NULL) {
+		mtx_lock(&Giant);	/* device_xxx() depends on this */
+		error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
+		    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts,
+		    BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+		mtx_unlock(&Giant);
+		if (error) {
+			device_printf(ue->ue_dev, "attaching PHYs failed\n");
+			goto error;
 		}
-	}
-
-	if (error) {
-		device_printf(ue->ue_dev, "attaching PHYs failed\n");
-		goto fail;
 	}
 
 	if_printf(ifp, "<USB Ethernet> on %s\n", device_get_nameunit(ue->ue_dev));
 	ether_ifattach(ifp, ue->ue_eaddr);
-	/* Tell upper layer we support VLAN oversized frames. */
-	if (ifp->if_capabilities & IFCAP_VLAN_MTU)
-		ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	snprintf(num, sizeof(num), "%u", ue->ue_unit);
 	ue->ue_sysctl_oid = SYSCTL_ADD_NODE(&ue->ue_sysctl_ctx,
@@ -265,7 +246,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	UE_LOCK(ue);
 	return;
 
-fail:
+error:
 	free_unr(ueunit, ue->ue_unit);
 	if (ue->ue_ifp != NULL) {
 		if_free(ue->ue_ifp);
@@ -326,13 +307,6 @@ uether_is_gone(struct usb_ether *ue)
 	return (usb_proc_is_gone(&ue->ue_tq));
 }
 
-void
-uether_init(void *arg)
-{
-
-	ue_init(arg);
-}
-
 static void
 ue_init(void *arg)
 {
@@ -378,13 +352,6 @@ ue_stop_task(struct usb_proc_msg *_task)
 	ue->ue_methods->ue_stop(ue);
 }
 
-void
-uether_start(struct ifnet *ifp)
-{
-
-	ue_start(ifp);
-}
-
 static void
 ue_start(struct ifnet *ifp)
 {
@@ -416,13 +383,6 @@ ue_setmulti_task(struct usb_proc_msg *_task)
 	struct usb_ether *ue = task->ue;
 
 	ue->ue_methods->ue_setmulti(ue);
-}
-
-int
-uether_ifmedia_upd(struct ifnet *ifp)
-{
-
-	return (ue_ifmedia_upd(ifp));
 }
 
 static int

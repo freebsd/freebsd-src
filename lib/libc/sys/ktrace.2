@@ -28,7 +28,7 @@
 .\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2011
+.Dd July 13, 2008
 .Dt KTRACE 2
 .Os
 .Sh NAME
@@ -67,9 +67,9 @@ The
 argument specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
-.It "KTROP_SET		Enable trace points specified in"
+.It "KTROP_SET	Enable trace points specified in"
 .Fa trpoints .
-.It "KTROP_CLEAR	Disable trace points specified in"
+.It "KTROP_CLEAR	Disable trace points specified in
 .Fa trpoints .
 .It "KTROP_CLEARFILE	Stop all tracing."
 .It "KTRFLAG_DESCEND	The tracing change should apply to the"
@@ -80,7 +80,7 @@ The
 .Fa trpoints
 argument specifies the trace points of interest.
 The defined trace points are:
-.Bl -column KTRFAC_PROCCTORXXX -offset indent
+.Bl -column KTRFAC_SYSCALLXXX -offset indent
 .It "KTRFAC_SYSCALL	Trace system calls."
 .It "KTRFAC_SYSRET	Trace return values from system calls."
 .It "KTRFAC_NAMEI	Trace name lookup operations."
@@ -88,12 +88,6 @@ The defined trace points are:
 generate much output).
 .It "KTRFAC_PSIG	Trace posted signals."
 .It "KTRFAC_CSW	Trace context switch points."
-.It "KTRFAC_USER	Trace application-specific events."
-.It "KTRFAC_STRUCT	Trace certain data structures."
-.It "KTRFAC_SYSCTL	Trace sysctls."
-.It "KTRFAC_PROCCTOR	Trace process construction."
-.It "KTRFAC_PROCDTOR	Trace process destruction."
-.It "KTRFAC_CAPFAIL	Trace capability failures."
 .It "KTRFAC_INHERIT	Inherit tracing to future children."
 .El
 .Pp
@@ -102,12 +96,12 @@ followed by a trace point specific structure.
 The generic header is:
 .Bd -literal
 struct ktr_header {
-	int		ktr_len;		/* length of buf */
-	short		ktr_type;		/* trace record type */
-	pid_t		ktr_pid;		/* process id */
-	char		ktr_comm[MAXCOMLEN+1];	/* command name */
-	struct timeval	ktr_time;		/* timestamp */
-	intptr_t	ktr_tid;		/* was ktr_buffer */
+	int	ktr_len;		/* length of buf */
+	short	ktr_type;		/* trace record type */
+	pid_t	ktr_pid;		/* process id */
+	char	ktr_comm[MAXCOMLEN+1];	/* command name */
+	struct	timeval ktr_time;	/* timestamp */
+	intptr_t	ktr_tid;	/* was ktr_buffer */
 };
 .Ed
 .Pp

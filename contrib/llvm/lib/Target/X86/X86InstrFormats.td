@@ -113,7 +113,6 @@ class VEX_W  { bit hasVEX_WPrefix = 1; }
 class VEX_4V : VEX { bit hasVEX_4VPrefix = 1; }
 class VEX_I8IMM { bit hasVEX_i8ImmReg = 1; }
 class VEX_L  { bit hasVEX_L = 1; }
-class VEX_LIG { bit ignoresVEX_L = 1; }
 class Has3DNow0F0FOpcode  { bit has3DNow0F0FOpcode = 1; }
 
 class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
@@ -151,7 +150,6 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   bit hasVEX_i8ImmReg = 0;  // Does this inst require the last source register
                             // to be encoded in a immediate field?
   bit hasVEX_L = 0;         // Does this inst use large (256-bit) registers?
-  bit ignoresVEX_L = 0;     // Does this instruction ignore the L-bit
   bit has3DNow0F0FOpcode =0;// Wacky 3dNow! encoding?
 
   // TSFlags layout should be kept in sync with X86InstrInfo.h.
@@ -171,8 +169,7 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   let TSFlags{35}    = hasVEX_4VPrefix;
   let TSFlags{36}    = hasVEX_i8ImmReg;
   let TSFlags{37}    = hasVEX_L;
-  let TSFlags{38}    = ignoresVEX_L;
-  let TSFlags{39}    = has3DNow0F0FOpcode;
+  let TSFlags{38}    = has3DNow0F0FOpcode;
 }
 
 class PseudoI<dag oops, dag iops, list<dag> pattern>
@@ -504,9 +501,6 @@ class RSDI<bits<8> o, Format F, dag outs, dag ins, string asm,
 class RPDI<bits<8> o, Format F, dag outs, dag ins, string asm,
            list<dag> pattern>
       : PDI<o, F, outs, ins, asm, pattern>, REX_W;
-class VRPDI<bits<8> o, Format F, dag outs, dag ins, string asm,
-           list<dag> pattern>
-      : VPDI<o, F, outs, ins, asm, pattern>, VEX_W;
 
 // MMX Instruction templates
 //

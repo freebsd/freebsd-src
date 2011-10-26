@@ -217,26 +217,25 @@ void FileManager::removeStatCache(FileSystemStatCache *statCache) {
 /// \brief Retrieve the directory that the given file name resides in.
 /// Filename can point to either a real file or a virtual file.
 static const DirectoryEntry *getDirectoryFromFile(FileManager &FileMgr,
-                                                  StringRef Filename,
-                                                  bool CacheFailure) {
+                                                  llvm::StringRef Filename) {
   if (Filename.empty())
     return NULL;
 
   if (llvm::sys::path::is_separator(Filename[Filename.size() - 1]))
     return NULL;  // If Filename is a directory.
 
-  StringRef DirName = llvm::sys::path::parent_path(Filename);
+  llvm::StringRef DirName = llvm::sys::path::parent_path(Filename);
   // Use the current directory if file has no path component.
   if (DirName.empty())
     DirName = ".";
 
-  return FileMgr.getDirectory(DirName, CacheFailure);
+  return FileMgr.getDirectory(DirName);
 }
 
 /// Add all ancestors of the given path (pointing to either a file or
 /// a directory) as virtual directories.
-void FileManager::addAncestorsAsVirtualDirs(StringRef Path) {
-  StringRef DirName = llvm::sys::path::parent_path(Path);
+void FileManager::addAncestorsAsVirtualDirs(llvm::StringRef Path) {
+  llvm::StringRef DirName = llvm::sys::path::parent_path(Path);
   if (DirName.empty())
     return;
 
@@ -264,8 +263,7 @@ void FileManager::addAncestorsAsVirtualDirs(StringRef Path) {
 /// (real or virtual).  This returns NULL if the directory doesn't
 /// exist.
 ///
-const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
-                                                bool CacheFailure) {
+const DirectoryEntry *FileManager::getDirectory(llvm::StringRef DirName) {
   ++NumDirLookups;
   llvm::StringMapEntry<DirectoryEntry *> &NamedDirEnt =
     SeenDirEntries.GetOrCreateValue(DirName);
@@ -289,8 +287,6 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
   struct stat StatBuf;
   if (getStatValue(InterndDirName, StatBuf, 0/*directory lookup*/)) {
     // There's no real directory at the given path.
-    if (!CacheFailure)
-      SeenDirEntries.erase(DirName);
     return 0;
   }
 
@@ -313,8 +309,7 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
 /// getFile - Lookup, cache, and verify the specified file (real or
 /// virtual).  This returns NULL if the file doesn't exist.
 ///
-const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
-                                      bool CacheFailure) {
+const FileEntry *FileManager::getFile(llvm::StringRef Filename, bool openFile) {
   ++NumFileLookups;
 
   // See if there is already an entry in the map.
@@ -340,15 +335,10 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
   // subdirectory.  This will let us avoid having to waste time on known-to-fail
   // searches when we go to find sys/bar.h, because all the search directories
   // without a 'sys' subdir will get a cached failure result.
-  const DirectoryEntry *DirInfo = getDirectoryFromFile(*this, Filename,
-                                                       CacheFailure);
-  if (DirInfo == 0) {  // Directory doesn't exist, file can't exist.
-    if (!CacheFailure)
-      SeenFileEntries.erase(Filename);
-    
+  const DirectoryEntry *DirInfo = getDirectoryFromFile(*this, Filename);
+  if (DirInfo == 0)  // Directory doesn't exist, file can't exist.
     return 0;
-  }
-  
+
   // FIXME: Use the directory info to prune this, before doing the stat syscall.
   // FIXME: This will reduce the # syscalls.
 
@@ -357,9 +347,6 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
   struct stat StatBuf;
   if (getStatValue(InterndFileName, StatBuf, &FileDescriptor)) {
     // There's no real file at the given path.
-    if (!CacheFailure)
-      SeenFileEntries.erase(Filename);
-    
     return 0;
   }
 
@@ -394,7 +381,7 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
 }
 
 const FileEntry *
-FileManager::getVirtualFile(StringRef Filename, off_t Size,
+FileManager::getVirtualFile(llvm::StringRef Filename, off_t Size,
                             time_t ModificationTime) {
   ++NumFileLookups;
 
@@ -417,8 +404,7 @@ FileManager::getVirtualFile(StringRef Filename, off_t Size,
   // Now that all ancestors of Filename are in the cache, the
   // following call is guaranteed to find the DirectoryEntry from the
   // cache.
-  const DirectoryEntry *DirInfo = getDirectoryFromFile(*this, Filename,
-                                                       /*CacheFailure=*/true);
+  const DirectoryEntry *DirInfo = getDirectoryFromFile(*this, Filename);
   assert(DirInfo &&
          "The directory of a virtual file should already be in the cache.");
 
@@ -465,8 +451,8 @@ FileManager::getVirtualFile(StringRef Filename, off_t Size,
   return UFE;
 }
 
-void FileManager::FixupRelativePath(SmallVectorImpl<char> &path) const {
-  StringRef pathRef(path.data(), path.size());
+void FileManager::FixupRelativePath(llvm::SmallVectorImpl<char> &path) const {
+  llvm::StringRef pathRef(path.data(), path.size());
 
   if (FileSystemOpts.WorkingDir.empty() 
       || llvm::sys::path::is_absolute(pathRef))
@@ -513,7 +499,7 @@ getBufferForFile(const FileEntry *Entry, std::string *ErrorStr) {
 }
 
 llvm::MemoryBuffer *FileManager::
-getBufferForFile(StringRef Filename, std::string *ErrorStr) {
+getBufferForFile(llvm::StringRef Filename, std::string *ErrorStr) {
   llvm::OwningPtr<llvm::MemoryBuffer> Result;
   llvm::error_code ec;
   if (FileSystemOpts.WorkingDir.empty()) {
@@ -551,7 +537,7 @@ bool FileManager::getStatValue(const char *Path, struct stat &StatBuf,
                                   StatCache.get());
 }
 
-bool FileManager::getNoncachedStatValue(StringRef Path, 
+bool FileManager::getNoncachedStatValue(llvm::StringRef Path, 
                                         struct stat &StatBuf) {
   llvm::SmallString<128> FilePath(Path);
   FixupRelativePath(FilePath);
@@ -560,7 +546,7 @@ bool FileManager::getNoncachedStatValue(StringRef Path,
 }
 
 void FileManager::GetUniqueIDMapping(
-                   SmallVectorImpl<const FileEntry *> &UIDToFiles) const {
+                   llvm::SmallVectorImpl<const FileEntry *> &UIDToFiles) const {
   UIDToFiles.clear();
   UIDToFiles.resize(NextFileUID);
   
@@ -572,7 +558,7 @@ void FileManager::GetUniqueIDMapping(
       UIDToFiles[FE->getValue()->getUID()] = FE->getValue();
   
   // Map virtual file entries
-  for (SmallVector<FileEntry*, 4>::const_iterator 
+  for (llvm::SmallVector<FileEntry*, 4>::const_iterator 
          VFE = VirtualFileEntries.begin(), VFEEnd = VirtualFileEntries.end();
        VFE != VFEEnd; ++VFE)
     if (*VFE && *VFE != NON_EXISTENT_FILE)

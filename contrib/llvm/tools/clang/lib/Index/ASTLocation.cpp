@@ -41,7 +41,7 @@ Decl *ASTLocation::getReferencedDecl() {
     return 0;
 
   switch (getKind()) {
-  default: llvm_unreachable("Invalid Kind");
+  default: assert(0 && "Invalid Kind");
   case N_Type:
     return 0;
   case N_Decl:
@@ -60,7 +60,8 @@ SourceRange ASTLocation::getSourceRange() const {
     return SourceRange();
 
   switch (getKind()) {
-  default: llvm_unreachable("Invalid Kind");
+  default: assert(0 && "Invalid Kind");
+    return SourceRange();
   case N_Decl:
     return D->getSourceRange();
   case N_Stmt:
@@ -74,7 +75,7 @@ SourceRange ASTLocation::getSourceRange() const {
   return SourceRange();
 }
 
-void ASTLocation::print(raw_ostream &OS) const {
+void ASTLocation::print(llvm::raw_ostream &OS) const {
   if (isInvalid()) {
     OS << "<< Invalid ASTLocation >>\n";
     return;
@@ -86,7 +87,7 @@ void ASTLocation::print(raw_ostream &OS) const {
   case N_Decl:
     OS << "[Decl: " << AsDecl()->getDeclKindName() << " ";
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(AsDecl()))
-      OS << *ND;
+      OS << ND;
     break;
 
   case N_Stmt:
@@ -96,7 +97,7 @@ void ASTLocation::print(raw_ostream &OS) const {
     
   case N_NamedRef:
     OS << "[NamedRef: " << AsNamedRef().ND->getDeclKindName() << " ";
-    OS << *AsNamedRef().ND;
+    OS << AsNamedRef().ND;
     break;
     
   case N_Type: {

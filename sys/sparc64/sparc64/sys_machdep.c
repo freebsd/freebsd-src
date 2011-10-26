@@ -69,10 +69,6 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 			break;
 
 		default:
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
-#endif
 			return (ECAPMODE);
 		}
 	}

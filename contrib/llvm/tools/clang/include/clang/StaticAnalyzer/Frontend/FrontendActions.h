@@ -23,10 +23,10 @@ namespace ento {
 class AnalysisAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+                                         llvm::StringRef InFile);
 };
 
-void printCheckerHelp(raw_ostream &OS, ArrayRef<std::string> plugins);
+void printCheckerHelp(llvm::raw_ostream &OS);
 
 } // end GR namespace
 

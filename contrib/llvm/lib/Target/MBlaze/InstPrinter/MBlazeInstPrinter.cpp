@@ -25,10 +25,8 @@ using namespace llvm;
 // Include the auto-generated portion of the assembly writer.
 #include "MBlazeGenAsmWriter.inc"
 
-void MBlazeInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                  StringRef Annot) {
+void MBlazeInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   printInstruction(MI, O);
-  printAnnotation(O, Annot);
 }
 
 void MBlazeInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,

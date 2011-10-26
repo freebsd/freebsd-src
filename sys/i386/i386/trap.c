@@ -612,7 +612,7 @@ trap(struct trapframe *frame)
 				PCPU_GET(curpcb)->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
-				kern_psignal(p, SIGBUS);
+				psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
 #endif				
 				goto out;
@@ -831,11 +831,6 @@ trap_pfault(frame, usermode, eva)
 			goto nogo;
 
 		map = &vm->vm_map;
-		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
-			trap_fatal(frame, eva);
-			return (-1);
-		}
 	}
 
 	/*

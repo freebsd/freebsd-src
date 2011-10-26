@@ -87,18 +87,14 @@ int EDToken::registerID(unsigned &registerID) const {
 
 int EDToken::tokenize(std::vector<EDToken*> &tokens,
                       std::string &str,
-                      const signed char *operandOrder,
+                      const char *operandOrder,
                       EDDisassembler &disassembler) {
   SmallVector<MCParsedAsmOperand*, 5> parsedOperands;
   SmallVector<AsmToken, 10> asmTokens;
   
   if (disassembler.parseInst(parsedOperands, asmTokens, str))
-  {
-    for (unsigned i = 0, e = parsedOperands.size(); i != e; ++i)
-      delete parsedOperands[i];
     return -1;
-  }
-      
+  
   SmallVectorImpl<MCParsedAsmOperand*>::iterator operandIterator;
   unsigned int operandIndex;
   SmallVectorImpl<AsmToken>::iterator tokenIterator;

@@ -29,7 +29,7 @@ using namespace CodeGen;
 CodeGenTypes::CodeGenTypes(ASTContext &Ctx, llvm::Module& M,
                            const llvm::TargetData &TD, const ABIInfo &Info,
                            CGCXXABI &CXXABI, const CodeGenOptions &CGO)
-  : Context(Ctx), Target(Ctx.getTargetInfo()), TheModule(M), TheTargetData(TD),
+  : Context(Ctx), Target(Ctx.Target), TheModule(M), TheTargetData(TD),
     TheABIInfo(Info), TheCXXABI(CXXABI), CodeGenOpts(CGO) {
   SkippedLayout = false;
 }
@@ -47,7 +47,7 @@ CodeGenTypes::~CodeGenTypes() {
 
 void CodeGenTypes::addRecordTypeName(const RecordDecl *RD,
                                      llvm::StructType *Ty,
-                                     StringRef suffix) {
+                                     llvm::StringRef suffix) {
   llvm::SmallString<256> TypeName;
   llvm::raw_svector_ostream OS(TypeName);
   OS << RD->getKindName() << '.';
@@ -263,8 +263,6 @@ void CodeGenTypes::UpdateCompletedType(const TagDecl *TD) {
 
 static llvm::Type *getTypeForFormat(llvm::LLVMContext &VMContext,
                                     const llvm::fltSemantics &format) {
-  if (&format == &llvm::APFloat::IEEEhalf)
-    return llvm::Type::getInt16Ty(VMContext);
   if (&format == &llvm::APFloat::IEEEsingle)
     return llvm::Type::getFloatTy(VMContext);
   if (&format == &llvm::APFloat::IEEEdouble)
@@ -275,7 +273,8 @@ static llvm::Type *getTypeForFormat(llvm::LLVMContext &VMContext,
     return llvm::Type::getPPC_FP128Ty(VMContext);
   if (&format == &llvm::APFloat::x87DoubleExtended)
     return llvm::Type::getX86_FP80Ty(VMContext);
-  llvm_unreachable("Unknown float format!");
+  assert(0 && "Unknown float format!");
+  return 0;
 }
 
 /// ConvertType - Convert the specified type to its LLVM form.
@@ -343,14 +342,6 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                  static_cast<unsigned>(Context.getTypeSize(T)));
       break;
 
-    case BuiltinType::Half:
-      // Half is special: it might be lowered to i16 (and will be storage-only
-      // type),. or can be represented as a set of native operations.
-
-      // FIXME: Ask target which kind of half FP it prefers (storage only vs
-      // native).
-      ResultType = llvm::Type::getInt16Ty(getLLVMContext());
-      break;
     case BuiltinType::Float:
     case BuiltinType::Double:
     case BuiltinType::LongDouble:
@@ -427,15 +418,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
   case Type::ConstantArray: {
     const ConstantArrayType *A = cast<ConstantArrayType>(Ty);
-    llvm::Type *EltTy = ConvertTypeForMem(A->getElementType());
-    
-    // Lower arrays of undefined struct type to arrays of i8 just to have a 
-    // concrete type.
-    if (!EltTy->isSized()) {
-      SkippedLayout = true;
-      EltTy = llvm::Type::getInt8Ty(getLLVMContext());
-    }
-
+    const llvm::Type *EltTy = ConvertTypeForMem(A->getElementType());
     ResultType = llvm::ArrayType::get(EltTy, A->getSize().getZExtValue());
     break;
   }
@@ -519,7 +502,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     // these.
     llvm::Type *&T = InterfaceTypes[cast<ObjCInterfaceType>(Ty)];
     if (!T)
-      T = llvm::StructType::create(getLLVMContext());
+      T = llvm::StructType::createNamed(getLLVMContext(), "");
     ResultType = T;
     break;
   }
@@ -528,15 +511,15 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     // Protocol qualifications do not influence the LLVM type, we just return a
     // pointer to the underlying interface type. We don't need to worry about
     // recursive conversion.
-    llvm::Type *T =
-      ConvertTypeForMem(cast<ObjCObjectPointerType>(Ty)->getPointeeType());
+    const llvm::Type *T =
+      ConvertType(cast<ObjCObjectPointerType>(Ty)->getPointeeType());
     ResultType = T->getPointerTo();
     break;
   }
 
   case Type::Enum: {
     const EnumDecl *ED = cast<EnumType>(Ty)->getDecl();
-    if (ED->isCompleteDefinition() || ED->isFixed())
+    if (ED->isDefinition() || ED->isFixed())
       return ConvertType(ED->getIntegerType());
     // Return a placeholder 'i32' type.  This can be changed later when the
     // type is defined (see UpdateCompletedType), but is likely to be the
@@ -558,11 +541,6 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       getCXXABI().ConvertMemberPointerType(cast<MemberPointerType>(Ty));
     break;
   }
-
-  case Type::Atomic: {
-    ResultType = ConvertTypeForMem(cast<AtomicType>(Ty)->getValueType());
-    break;
-  }
   }
   
   assert(ResultType && "Didn't convert a type?");
@@ -581,7 +559,7 @@ llvm::StructType *CodeGenTypes::ConvertRecordDeclType(const RecordDecl *RD) {
 
   // If we don't have a StructType at all yet, create the forward declaration.
   if (Entry == 0) {
-    Entry = llvm::StructType::create(getLLVMContext());
+    Entry = llvm::StructType::createNamed(getLLVMContext(), "");
     addRecordTypeName(RD, Entry, "");
   }
   llvm::StructType *Ty = Entry;
@@ -589,7 +567,7 @@ llvm::StructType *CodeGenTypes::ConvertRecordDeclType(const RecordDecl *RD) {
   // If this is still a forward declaration, or the LLVM type is already
   // complete, there's nothing more to do.
   RD = RD->getDefinition();
-  if (RD == 0 || !RD->isCompleteDefinition() || !Ty->isOpaque())
+  if (RD == 0 || !Ty->isOpaque())
     return Ty;
   
   // If converting this type would cause us to infinitely loop, don't do it!

@@ -165,10 +165,9 @@ main(int argc, char *argv[])
 			 d_first ? "%e %b %R" : "%b %e %R",
 			 localtime(&t));
 		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
-		   (int)sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
+		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
 		printf("%-*.*s %-*s %s",
-		   (int)sizeof(mp->myutmp.out_name),
-		   (int)sizeof(mp->myutmp.out_name),
+		   sizeof(mp->myutmp.out_name), sizeof(mp->myutmp.out_name),
 		   mp->myutmp.out_name,
 		   width,
 		   buf,

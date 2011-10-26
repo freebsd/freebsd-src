@@ -192,7 +192,7 @@ struct execve_args {
 #endif
 
 int
-sys_execve(td, uap)
+execve(td, uap)
 	struct thread *td;
 	struct execve_args /* {
 		char *fname;
@@ -218,7 +218,7 @@ struct fexecve_args {
 }
 #endif
 int
-sys_fexecve(struct thread *td, struct fexecve_args *uap)
+fexecve(struct thread *td, struct fexecve_args *uap)
 {
 	int error;
 	struct image_args args;
@@ -242,7 +242,7 @@ struct __mac_execve_args {
 #endif
 
 int
-sys___mac_execve(td, uap)
+__mac_execve(td, uap)
 	struct thread *td;
 	struct __mac_execve_args /* {
 		char *fname;
@@ -776,6 +776,16 @@ interpret:
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXEC);
 	p->p_flag &= ~P_INEXEC;
+
+	/*
+	 * If tracing the process, trap to the debugger so that
+	 * breakpoints can be set before the program executes.  We
+	 * have to use tdsignal() to deliver the signal to the current
+	 * thread since any other threads in this process will exit if
+	 * execve() succeeds.
+	 */
+	if (p->p_flag & P_TRACED)
+		tdsignal(td, SIGTRAP);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;

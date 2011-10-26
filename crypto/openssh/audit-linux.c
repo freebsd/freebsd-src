@@ -1,4 +1,4 @@
-/* $Id: audit-linux.c,v 1.1 2011/01/17 10:15:30 dtucker Exp $ */
+/* $Id$ */
 
 /*
  * Copyright 2010 Red Hat, Inc.  All rights reserved.

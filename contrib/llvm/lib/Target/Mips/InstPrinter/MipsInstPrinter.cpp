@@ -1,4 +1,4 @@
-//===-- MipsInstPrinter.cpp - Convert Mips MCInst to assembly syntax ------===//
+//===-- MipsInstPrinter.cpp - Convert Mips MCInst to assembly syntax --------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -69,10 +69,8 @@ void MipsInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << '$' << LowercaseString(getRegisterName(RegNo));
 }
 
-void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                StringRef Annot) {
+void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   printInstruction(MI, O);
-  printAnnotation(O, Annot);
 }
 
 void MipsInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,

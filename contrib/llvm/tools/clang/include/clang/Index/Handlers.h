@@ -14,7 +14,6 @@
 #ifndef LLVM_CLANG_INDEX_HANDLERS_H
 #define LLVM_CLANG_INDEX_HANDLERS_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -62,7 +61,7 @@ public:
 template <typename handler_type>
 class Storing : public handler_type {
   typedef typename handler_type::receiving_type receiving_type;
-  typedef SmallVector<receiving_type, 8> StoreTy;
+  typedef llvm::SmallVector<receiving_type, 8> StoreTy;
   StoreTy Store;
 
 public:

@@ -1,4 +1,4 @@
-//===-- SPUMCTargetDesc.h - CellSPU Target Descriptions ---------*- C++ -*-===//
+//===-- SPUMCTargetDesc.h - Alpha Target Descriptions ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides CellSPU specific target descriptions.
+// This file provides Alpha specific target descriptions.
 //
 //===----------------------------------------------------------------------===//
 

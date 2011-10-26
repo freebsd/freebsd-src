@@ -87,13 +87,14 @@ provinfo(struct hast_resource *res, bool dowrite)
 		res->hr_localfd = open(res->hr_localpath,
 		    dowrite ? O_RDWR : O_RDONLY);
 		if (res->hr_localfd < 0) {
-			pjdlog_errno(LOG_ERR, "Unable to open %s",
-			    res->hr_localpath);
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to open %s",
+			    res->hr_localpath));
 			return (-1);
 		}
 	}
 	if (fstat(res->hr_localfd, &sb) < 0) {
-		pjdlog_errno(LOG_ERR, "Unable to stat %s", res->hr_localpath);
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to stat %s",
+		    res->hr_localpath));
 		return (-1);
 	}
 	if (S_ISCHR(sb.st_mode)) {
@@ -102,16 +103,16 @@ provinfo(struct hast_resource *res, bool dowrite)
 		 */
 		if (ioctl(res->hr_localfd, DIOCGMEDIASIZE,
 		    &res->hr_local_mediasize) < 0) {
-			pjdlog_errno(LOG_ERR,
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s mediasize",
-			    res->hr_localpath);
+			    res->hr_localpath));
 			return (-1);
 		}
 		if (ioctl(res->hr_localfd, DIOCGSECTORSIZE,
 		    &res->hr_local_sectorsize) < 0) {
-			pjdlog_errno(LOG_ERR,
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s sectorsize",
-			    res->hr_localpath);
+			    res->hr_localpath));
 			return (-1);
 		}
 	} else if (S_ISREG(sb.st_mode)) {
@@ -168,8 +169,8 @@ drop_privs(struct hast_resource *res)
 	pw = getpwnam(HAST_USER);
 	if (pw == NULL) {
 		if (errno != 0) {
-			pjdlog_errno(LOG_ERR,
-			    "Unable to find info about '%s' user", HAST_USER);
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			    "Unable to find info about '%s' user", HAST_USER));
 			return (-1);
 		} else {
 			pjdlog_error("'%s' user doesn't exist.", HAST_USER);
@@ -200,27 +201,28 @@ drop_privs(struct hast_resource *res)
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to jail to directory to %s", pw->pw_dir);
 		if (chroot(pw->pw_dir) == -1) {
-			pjdlog_errno(LOG_ERR,
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
 			    "Unable to change root directory to %s",
-			    pw->pw_dir);
+			    pw->pw_dir));
 			return (-1);
 		}
 	}
 	PJDLOG_VERIFY(chdir("/") == 0);
 	gidset[0] = pw->pw_gid;
 	if (setgroups(1, gidset) == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to set groups to gid %u",
-		    (unsigned int)pw->pw_gid);
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+		    "Unable to set groups to gid %u",
+		    (unsigned int)pw->pw_gid));
 		return (-1);
 	}
 	if (setgid(pw->pw_gid) == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to set gid to %u",
-		    (unsigned int)pw->pw_gid);
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set gid to %u",
+		    (unsigned int)pw->pw_gid));
 		return (-1);
 	}
 	if (setuid(pw->pw_uid) == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to set uid to %u",
-		    (unsigned int)pw->pw_uid);
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set uid to %u",
+		    (unsigned int)pw->pw_uid));
 		return (-1);
 	}
 

@@ -83,8 +83,6 @@ error(char *fmt, ...)
 		fprintf(stderr, "exiting.\n");
 		fflush(stderr);
 	}
-	if (pidfile != NULL)
-		pidfile_remove(pidfile);
 	exit(1);
 }
 

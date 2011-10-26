@@ -47,7 +47,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
@@ -674,7 +673,7 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
     if (PHIColor && SrcColor == PHIColor) {
       LiveInterval &SrcInterval = LI->getInterval(SrcReg);
       SlotIndex PredIndex = LI->getMBBEndIdx(PredBB);
-      VNInfo *SrcVNI = SrcInterval.getVNInfoBefore(PredIndex);
+      VNInfo *SrcVNI = SrcInterval.getVNInfoAt(PredIndex.getPrevIndex());
       assert(SrcVNI);
       SrcVNI->setHasPHIKill(true);
       continue;

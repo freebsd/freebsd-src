@@ -22,8 +22,6 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
-
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -31,7 +29,7 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 ASTConsumer *InitOnlyAction::CreateASTConsumer(CompilerInstance &CI,
-                                               StringRef InFile) {
+                                               llvm::StringRef InFile) {
   return new ASTConsumer();
 }
 
@@ -43,20 +41,20 @@ void InitOnlyAction::ExecuteAction() {
 //===----------------------------------------------------------------------===//
 
 ASTConsumer *ASTPrintAction::CreateASTConsumer(CompilerInstance &CI,
-                                               StringRef InFile) {
-  if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile))
+                                               llvm::StringRef InFile) {
+  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, InFile))
     return CreateASTPrinter(OS);
   return 0;
 }
 
 ASTConsumer *ASTDumpAction::CreateASTConsumer(CompilerInstance &CI,
-                                              StringRef InFile) {
+                                              llvm::StringRef InFile) {
   return CreateASTDumper();
 }
 
 ASTConsumer *ASTDumpXMLAction::CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) {
-  raw_ostream *OS;
+                                                 llvm::StringRef InFile) {
+  llvm::raw_ostream *OS;
   if (CI.getFrontendOpts().OutputFile.empty())
     OS = &llvm::outs();
   else
@@ -66,34 +64,35 @@ ASTConsumer *ASTDumpXMLAction::CreateASTConsumer(CompilerInstance &CI,
 }
 
 ASTConsumer *ASTViewAction::CreateASTConsumer(CompilerInstance &CI,
-                                              StringRef InFile) {
+                                              llvm::StringRef InFile) {
   return CreateASTViewer();
 }
 
 ASTConsumer *DeclContextPrintAction::CreateASTConsumer(CompilerInstance &CI,
-                                                       StringRef InFile) {
+                                                       llvm::StringRef InFile) {
   return CreateDeclContextPrinter();
 }
 
 ASTConsumer *GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI,
-                                                  StringRef InFile) {
+                                                  llvm::StringRef InFile) {
   std::string Sysroot;
   std::string OutputFile;
-  raw_ostream *OS = 0;
-  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OutputFile, OS))
+  llvm::raw_ostream *OS = 0;
+  bool Chaining;
+  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OutputFile, OS, Chaining))
     return 0;
 
-  if (!CI.getFrontendOpts().RelocatablePCH)
-    Sysroot.clear();
-  return new PCHGenerator(CI.getPreprocessor(), OutputFile, MakeModule, 
-                          Sysroot, OS);
+  const char *isysroot = CI.getFrontendOpts().RelocatablePCH ?
+                             Sysroot.c_str() : 0;  
+  return new PCHGenerator(CI.getPreprocessor(), OutputFile, Chaining, isysroot, OS);
 }
 
 bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
-                                                    StringRef InFile,
+                                                    llvm::StringRef InFile,
                                                     std::string &Sysroot,
                                                     std::string &OutputFile,
-                                                    raw_ostream *&OS) {
+                                                    llvm::raw_ostream *&OS,
+                                                    bool &Chaining) {
   Sysroot = CI.getHeaderSearchOpts().Sysroot;
   if (CI.getFrontendOpts().RelocatablePCH && Sysroot.empty()) {
     CI.getDiagnostics().Report(diag::err_relocatable_without_isysroot);
@@ -102,19 +101,19 @@ bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
 
   // We use createOutputFile here because this is exposed via libclang, and we
   // must disable the RemoveFileOnSignal behavior.
-  // We use a temporary to avoid race conditions.
   OS = CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
-                           /*RemoveFileOnSignal=*/false, InFile,
-                           /*Extension=*/"", /*useTemporary=*/true);
+                           /*RemoveFileOnSignal=*/false, InFile);
   if (!OS)
     return true;
 
   OutputFile = CI.getFrontendOpts().OutputFile;
+  Chaining = CI.getInvocation().getFrontendOpts().ChainedPCH &&
+             !CI.getPreprocessorOpts().ImplicitPCHInclude.empty();
   return false;
 }
 
 ASTConsumer *SyntaxOnlyAction::CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) {
+                                                 llvm::StringRef InFile) {
   return new ASTConsumer();
 }
 
@@ -183,48 +182,9 @@ void PreprocessOnlyAction::ExecuteAction() {
 
 void PrintPreprocessedAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
-  // Output file may need to be set to 'Binary', to avoid converting Unix style
+  // Output file needs to be set to 'Binary', to avoid converting Unix style
   // line feeds (<LF>) to Microsoft style line feeds (<CR><LF>).
-  //
-  // Look to see what type of line endings the file uses. If there's a
-  // CRLF, then we won't open the file up in binary mode. If there is
-  // just an LF or CR, then we will open the file up in binary mode.
-  // In this fashion, the output format should match the input format, unless
-  // the input format has inconsistent line endings.
-  //
-  // This should be a relatively fast operation since most files won't have
-  // all of their source code on a single line. However, that is still a 
-  // concern, so if we scan for too long, we'll just assume the file should
-  // be opened in binary mode.
-  bool BinaryMode = true;
-  bool InvalidFile = false;
-  const SourceManager& SM = CI.getSourceManager();
-  const llvm::MemoryBuffer *Buffer = SM.getBuffer(SM.getMainFileID(), 
-                                                     &InvalidFile);
-  if (!InvalidFile) {
-    const char *cur = Buffer->getBufferStart();
-    const char *end = Buffer->getBufferEnd();
-    const char *next = (cur != end) ? cur + 1 : end;
-
-    // Limit ourselves to only scanning 256 characters into the source
-    // file.  This is mostly a sanity check in case the file has no 
-    // newlines whatsoever.
-    if (end - cur > 256) end = cur + 256;
-	  
-    while (next < end) {
-      if (*cur == 0x0D) {  // CR
-        if (*next == 0x0A)  // CRLF
-          BinaryMode = false;
-
-        break;
-      } else if (*cur == 0x0A)  // LF
-        break;
-
-      ++cur, ++next;
-    }
-  }
-
-  raw_ostream *OS = CI.createDefaultOutputFile(BinaryMode, getCurrentFile());
+  llvm::raw_ostream *OS = CI.createDefaultOutputFile(true, getCurrentFile());
   if (!OS) return;
 
   DoPrintPreprocessedInput(CI.getPreprocessor(), OS,
@@ -257,7 +217,7 @@ void PrintPreambleAction::ExecuteAction() {
   llvm::MemoryBuffer *Buffer
       = CI.getFileManager().getBufferForFile(getCurrentFile());
   if (Buffer) {
-    unsigned Preamble = Lexer::ComputePreamble(Buffer, CI.getLangOpts()).first;
+    unsigned Preamble = Lexer::ComputePreamble(Buffer).first;
     llvm::outs().write(Buffer->getBufferStart(), Preamble);
     delete Buffer;
   }

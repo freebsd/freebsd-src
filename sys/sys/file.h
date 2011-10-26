@@ -191,7 +191,6 @@ int fget_read(struct thread *td, int fd, cap_rights_t rights,
 int fget_write(struct thread *td, int fd, cap_rights_t rights,
     struct file **fpp);
 int fgetcap(struct thread *td, int fd, struct file **fpp);
-int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 /*

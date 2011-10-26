@@ -66,17 +66,17 @@ public:
 
   /// SwitchStack - This is the current set of active switch statements in the
   /// block.
-  SmallVector<SwitchStmt*, 8> SwitchStack;
+  llvm::SmallVector<SwitchStmt*, 8> SwitchStack;
 
   /// \brief The list of return statements that occur within the function or
   /// block, if there is any chance of applying the named return value
   /// optimization.
-  SmallVector<ReturnStmt*, 4> Returns;
+  llvm::SmallVector<ReturnStmt*, 4> Returns;
   
   /// \brief A list of PartialDiagnostics created but delayed within the
   /// current function scope.  These diagnostics are vetted for reachability
   /// prior to being emitted.
-  SmallVector<PossiblyUnreachableDiag, 4> PossiblyUnreachableDiags;
+  llvm::SmallVector<PossiblyUnreachableDiag, 4> PossiblyUnreachableDiags;
 
   void setHasBranchIntoScope() {
     HasBranchIntoScope = true;
@@ -95,7 +95,7 @@ public:
           (HasBranchProtectedScope && HasBranchIntoScope);
   }
   
-  FunctionScopeInfo(DiagnosticsEngine &Diag)
+  FunctionScopeInfo(Diagnostic &Diag)
     : IsBlockInfo(false),
       HasBranchProtectedScope(false),
       HasBranchIntoScope(false),
@@ -132,12 +132,12 @@ public:
   llvm::DenseMap<VarDecl*, unsigned> CaptureMap;
 
   /// Captures - The captured variables.
-  SmallVector<BlockDecl::Capture, 4> Captures;
+  llvm::SmallVector<BlockDecl::Capture, 4> Captures;
 
   /// CapturesCXXThis - Whether this block captures 'this'.
   bool CapturesCXXThis;
 
-  BlockScopeInfo(DiagnosticsEngine &Diag, Scope *BlockScope, BlockDecl *Block)
+  BlockScopeInfo(Diagnostic &Diag, Scope *BlockScope, BlockDecl *Block)
     : FunctionScopeInfo(Diag), TheDecl(Block), TheScope(BlockScope),
       CapturesCXXThis(false)
   {

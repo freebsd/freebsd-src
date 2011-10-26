@@ -518,7 +518,9 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	return (mii_mediachg(mii));
+	mii_mediachg(mii);
+
+	return (0);
 }
 
 static int
@@ -540,11 +542,9 @@ et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
 
-	ET_LOCK(sc);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-	ET_UNLOCK(sc);
 }
 
 static void

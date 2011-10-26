@@ -293,19 +293,9 @@ hast_activemap_flush(struct hast_resource *res)
 	PJDLOG_ASSERT((size % res->hr_local_sectorsize) == 0);
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
-		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+		    "Unable to flush activemap to disk"));
 		return (-1);
-	}
-	if (res->hr_metaflush == 1 && g_flush(res->hr_localfd) == -1) {
-		if (errno == EOPNOTSUPP) {
-			pjdlog_warning("The %s provider doesn't support flushing write cache. Disabling it.",
-			    res->hr_localpath);
-			res->hr_metaflush = 0;
-		} else {
-			pjdlog_errno(LOG_ERR,
-			    "Unable to flush disk cache on activemap update");
-			return (-1);
-		}
 	}
 	return (0);
 }
@@ -1213,7 +1203,7 @@ ggate_recv_thread(void *arg)
 				break;
 			}
 			pjdlog_debug(2,
-			    "ggate_recv: (%p) Moving request to the send queue.",
+			    "ggate_recv: (%p) Moving request to the send queues.",
 			    hio);
 			refcount_init(&hio->hio_countdown, ncomps);
 			for (ii = 0; ii < ncomps; ii++)
@@ -1304,15 +1294,8 @@ local_send_thread(void *arg)
 			}
 			break;
 		case BIO_FLUSH:
-			if (!res->hr_localflush) {
-				ret = -1;
-				errno = EOPNOTSUPP;
-				break;
-			}
 			ret = g_flush(res->hr_localfd);
 			if (ret < 0) {
-				if (errno == EOPNOTSUPP)
-					res->hr_localflush = false;
 				hio->hio_errors[ncomp] = errno;
 				reqlog(LOG_WARNING, 0, ggio,
 				    "Local request failed (%s): ",
@@ -1438,7 +1421,8 @@ remote_send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			PJDLOG_ABORT("invalid condition");
+			PJDLOG_ASSERT(!"invalid condition");
+			abort();
 		}
 		nv = nv_alloc();
 		nv_add_uint8(nv, cmd, "cmd");
@@ -1637,7 +1621,8 @@ remote_recv_thread(void *arg)
 		case BIO_FLUSH:
 			break;
 		default:
-			PJDLOG_ABORT("invalid condition");
+			PJDLOG_ASSERT(!"invalid condition");
+			abort();
 		}
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);
@@ -2017,7 +2002,6 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	nv_assert(nv, "compression");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
-	nv_assert(nv, "metaflush");
 
 	ncomps = HAST_NCOMPONENTS;
 
@@ -2028,7 +2012,6 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #define MODIFIED_COMPRESSION	0x10
 #define MODIFIED_TIMEOUT	0x20
 #define MODIFIED_EXEC		0x40
-#define MODIFIED_METAFLUSH	0x80
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -2069,11 +2052,6 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	if (strcmp(gres->hr_exec, vstr) != 0) {
 		strlcpy(gres->hr_exec, vstr, sizeof(gres->hr_exec));
 		modified |= MODIFIED_EXEC;
-	}
-	vint = nv_get_int32(nv, "metaflush");
-	if (gres->hr_metaflush != vint) {
-		gres->hr_metaflush = vint;
-		modified |= MODIFIED_METAFLUSH;
 	}
 
 	/*
@@ -2124,7 +2102,6 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #undef	MODIFIED_COMPRESSION
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
-#undef	MODIFIED_METAFLUSH
 
 	pjdlog_info("Configuration reloaded successfully.");
 }

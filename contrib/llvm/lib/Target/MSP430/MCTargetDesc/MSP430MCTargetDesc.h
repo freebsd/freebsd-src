@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MSP430MCTARGETDESC_H
-#define MSP430MCTARGETDESC_H
+#ifndef ALPHAMCTARGETDESC_H
+#define ALPHAMCTARGETDESC_H
 
 namespace llvm {
 class MCSubtargetInfo;

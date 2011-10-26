@@ -721,8 +721,8 @@ xs_reply_filter(uint32_t request_msg_type,
 	/*
 	 * The count of transactions drops if we attempted
 	 * to end a transaction (even if that attempt fails
-	 * in error), we receive a transaction end acknowledgement,
-	 * or if our attempt to begin a transaction fails.
+	 * in error), we receive a transaction end acknowledgement
+	 * or if our attempt to begin a transactionfails.
 	 */
 	if (request_msg_type == XS_TRANSACTION_END
 	 || (request_reply_error == 0 && reply_msg_type == XS_TRANSACTION_END)
@@ -1194,14 +1194,8 @@ xs_attach(device_t dev)
  * all transactions and individual requests have completed.
  */
 static int
-xs_suspend(device_t dev)
+xs_suspend(device_t dev __unused)
 {
-	int error;
-
-	/* Suspend child Xen devices. */
-	error = bus_generic_suspend(dev);
-	if (error != 0)
-		return (error);
 
 	sx_xlock(&xs.suspend_mutex);
 	sx_xlock(&xs.request_mutex);
@@ -1232,9 +1226,6 @@ xs_resume(device_t dev __unused)
 	}
 
 	sx_xunlock(&xs.suspend_mutex);
-
-	/* Resume child Xen devices. */
-	bus_generic_resume(dev);
 
 	return (0);
 }

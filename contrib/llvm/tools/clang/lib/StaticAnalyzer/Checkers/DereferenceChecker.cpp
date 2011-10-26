@@ -29,17 +29,16 @@ class DereferenceChecker
   mutable llvm::OwningPtr<BuiltinBug> BT_undef;
 
 public:
-  void checkLocation(SVal location, bool isLoad, const Stmt* S,
-                     CheckerContext &C) const;
+  void checkLocation(SVal location, bool isLoad, CheckerContext &C) const;
 
-  static void AddDerefSource(raw_ostream &os,
-                             SmallVectorImpl<SourceRange> &Ranges,
+  static void AddDerefSource(llvm::raw_ostream &os,
+                             llvm::SmallVectorImpl<SourceRange> &Ranges,
                              const Expr *Ex, bool loadedFrom = false);
 };
 } // end anonymous namespace
 
-void DereferenceChecker::AddDerefSource(raw_ostream &os,
-                                        SmallVectorImpl<SourceRange> &Ranges,
+void DereferenceChecker::AddDerefSource(llvm::raw_ostream &os,
+                                     llvm::SmallVectorImpl<SourceRange> &Ranges,
                                         const Expr *Ex,
                                         bool loadedFrom) {
   Ex = Ex->IgnoreParenLValueCasts();
@@ -66,7 +65,7 @@ void DereferenceChecker::AddDerefSource(raw_ostream &os,
   }
 }
 
-void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
+void DereferenceChecker::checkLocation(SVal l, bool isLoad,
                                        CheckerContext &C) const {
   // Check for dereference of an undefined value.
   if (l.isUndef()) {
@@ -74,10 +73,10 @@ void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
       if (!BT_undef)
         BT_undef.reset(new BuiltinBug("Dereference of undefined pointer value"));
 
-      BugReport *report =
-        new BugReport(*BT_undef, BT_undef->getDescription(), N);
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
-                                        bugreporter::GetDerefExpr(N)));
+      EnhancedBugReport *report =
+        new EnhancedBugReport(*BT_undef, BT_undef->getDescription(), N);
+      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
+                                bugreporter::GetDerefExpr(N));
       C.EmitReport(report);
     }
     return;
@@ -89,8 +88,9 @@ void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
   if (!isa<Loc>(location))
     return;
 
-  const ProgramState *state = C.getState();
-  const ProgramState *notNullState, *nullState;
+  const Stmt *S = C.getStmt();
+  const GRState *state = C.getState();
+  const GRState *notNullState, *nullState;
   llvm::tie(notNullState, nullState) = state->assume(location);
 
   // The explicit NULL case.
@@ -107,7 +107,7 @@ void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
         BT_null.reset(new BuiltinBug("Dereference of null pointer"));
 
       llvm::SmallString<100> buf;
-      SmallVector<SourceRange, 2> Ranges;
+      llvm::SmallVector<SourceRange, 2> Ranges;
       
       // Walk through lvalue casts to get the original expression
       // that syntactically caused the load.
@@ -157,15 +157,15 @@ void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
           break;
       }
 
-      BugReport *report =
-        new BugReport(*BT_null,
+      EnhancedBugReport *report =
+        new EnhancedBugReport(*BT_null,
                               buf.empty() ? BT_null->getDescription():buf.str(),
                               N);
 
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
-                                        bugreporter::GetDerefExpr(N)));
+      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
+                                bugreporter::GetDerefExpr(N));
 
-      for (SmallVectorImpl<SourceRange>::iterator
+      for (llvm::SmallVectorImpl<SourceRange>::iterator
             I = Ranges.begin(), E = Ranges.end(); I!=E; ++I)
         report->addRange(*I);
 

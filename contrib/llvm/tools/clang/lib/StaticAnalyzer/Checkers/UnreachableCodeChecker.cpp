@@ -60,12 +60,11 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
 
   CFG *C = 0;
   ParentMap *PM = 0;
-  const LocationContext *LC = 0;
   // Iterate over ExplodedGraph
   for (ExplodedGraph::node_iterator I = G.nodes_begin(), E = G.nodes_end();
       I != E; ++I) {
     const ProgramPoint &P = I->getLocation();
-    LC = P.getLocationContext();
+    const LocationContext *LC = P.getLocationContext();
 
     // Save the CFG if we don't have it already
     if (!C)
@@ -112,30 +111,22 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     // FIXME: This should be extended to include other unreachable markers,
     // such as llvm_unreachable.
     if (!CB->empty()) {
-      bool foundUnreachable = false;
-      for (CFGBlock::const_iterator ci = CB->begin(), ce = CB->end();
-           ci != ce; ++ci) {
-        if (const CFGStmt *S = (*ci).getAs<CFGStmt>())
-          if (const CallExpr *CE = dyn_cast<CallExpr>(S->getStmt())) {
-            if (CE->isBuiltinCall(Ctx) == Builtin::BI__builtin_unreachable) {
-              foundUnreachable = true;
-              break;
-            }
-          }
+      CFGElement First = CB->front();
+      if (const CFGStmt *S = First.getAs<CFGStmt>()) {
+        if (const CallExpr *CE = dyn_cast<CallExpr>(S->getStmt())) {
+          if (CE->isBuiltinCall(Ctx) == Builtin::BI__builtin_unreachable)
+            continue;
+        }
       }
-      if (foundUnreachable)
-        continue;
     }
 
     // We found a block that wasn't covered - find the statement to report
     SourceRange SR;
-    PathDiagnosticLocation DL;
     SourceLocation SL;
     if (const Stmt *S = getUnreachableStmt(CB)) {
       SR = S->getSourceRange();
-      DL = PathDiagnosticLocation::createBegin(S, B.getSourceManager(), LC);
-      SL = DL.asLocation();
-      if (SR.isInvalid() || !SL.isValid())
+      SL = S->getLocStart();
+      if (SR.isInvalid() || SL.isInvalid())
         continue;
     }
     else
@@ -147,7 +138,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
       continue;
 
     B.EmitBasicReport("Unreachable code", "Dead code", "This statement is never"
-        " executed", DL, SR);
+        " executed", SL, SR);
   }
 }
 

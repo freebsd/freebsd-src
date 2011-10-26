@@ -58,10 +58,6 @@ typedef union
     u_int32_t msw;
     u_int32_t lsw;
   } parts;
-  struct
-  {
-    u_int64_t w;
-  } xparts;
 } ieee_double_shape_type;
 
 #endif
@@ -76,10 +72,6 @@ typedef union
     u_int32_t lsw;
     u_int32_t msw;
   } parts;
-  struct
-  {
-    u_int64_t w;
-  } xparts;
 } ieee_double_shape_type;
 
 #endif
@@ -92,14 +84,6 @@ do {								\
   ew_u.value = (d);						\
   (ix0) = ew_u.parts.msw;					\
   (ix1) = ew_u.parts.lsw;					\
-} while (0)
-
-/* Get a 64-bit int from a double. */
-#define EXTRACT_WORD64(ix,d)					\
-do {								\
-  ieee_double_shape_type ew_u;					\
-  ew_u.value = (d);						\
-  (ix) = ew_u.xparts.w;						\
 } while (0)
 
 /* Get the more significant 32 bit int from a double.  */
@@ -127,14 +111,6 @@ do {								\
   ieee_double_shape_type iw_u;					\
   iw_u.parts.msw = (ix0);					\
   iw_u.parts.lsw = (ix1);					\
-  (d) = iw_u.value;						\
-} while (0)
-
-/* Set a double from a 64-bit int. */
-#define INSERT_WORD64(d,ix)					\
-do {								\
-  ieee_double_shape_type iw_u;					\
-  iw_u.xparts.w = (ix);						\
   (d) = iw_u.value;						\
 } while (0)
 
@@ -186,25 +162,6 @@ do {								\
   ieee_float_shape_type sf_u;					\
   sf_u.word = (i);						\
   (d) = sf_u.value;						\
-} while (0)
-
-/* Get expsign as a 16 bit int from a long double.  */
-
-#define	GET_LDBL_EXPSIGN(i,d)					\
-do {								\
-  union IEEEl2bits ge_u;					\
-  ge_u.e = (d);							\
-  (i) = ge_u.xbits.expsign;					\
-} while (0)
-
-/* Set expsign of a long double from a 16 bit int.  */
-
-#define	SET_LDBL_EXPSIGN(d,v)					\
-do {								\
-  union IEEEl2bits se_u;					\
-  se_u.e = (d);							\
-  se_u.xbits.expsign = (v);					\
-  (d) = se_u.e;							\
 } while (0)
 
 #ifdef FLT_EVAL_METHOD
@@ -397,10 +354,6 @@ int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
-double	__ldexp_exp(double,int);
-#ifdef _COMPLEX_H
-double complex __ldexp_cexp(double complex,int);
-#endif
 
 /* float precision kernel functions */
 #ifdef INLINE_REM_PIO2F
@@ -419,10 +372,6 @@ float	__kernel_cosdf(double);
 __inline
 #endif
 float	__kernel_tandf(double,int);
-float	__ldexp_expf(float,int);
-#ifdef _COMPLEX_H
-float complex __ldexp_cexpf(float complex,int);
-#endif
 
 /* long double precision kernel functions */
 long double __kernel_sinl(long double, long double, int);

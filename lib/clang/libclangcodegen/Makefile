@@ -6,8 +6,6 @@ SRCDIR=	tools/clang/lib/CodeGen
 SRCS=	BackendUtil.cpp \
 	CGBlocks.cpp \
 	CGBuiltin.cpp \
-	CGCUDANV.cpp \
-	CGCUDARuntime.cpp \
 	CGCXX.cpp \
 	CGCXXABI.cpp \
 	CGCall.cpp \
@@ -27,7 +25,6 @@ SRCS=	BackendUtil.cpp \
 	CGObjCGNU.cpp \
 	CGObjCMac.cpp \
 	CGObjCRuntime.cpp \
-	CGOpenCLRuntime.cpp \
 	CGRTTI.cpp \
 	CGRecordLayoutBuilder.cpp \
 	CGStmt.cpp \

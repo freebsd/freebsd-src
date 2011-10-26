@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 
 using namespace clang;
 using namespace ento;
@@ -25,22 +25,22 @@ protected:
 
 public:
   SimpleSValBuilder(llvm::BumpPtrAllocator &alloc, ASTContext &context,
-                    ProgramStateManager &stateMgr)
+                    GRStateManager &stateMgr)
                     : SValBuilder(alloc, context, stateMgr) {}
   virtual ~SimpleSValBuilder() {}
 
   virtual SVal evalMinus(NonLoc val);
   virtual SVal evalComplement(NonLoc val);
-  virtual SVal evalBinOpNN(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpNN(const GRState *state, BinaryOperator::Opcode op,
                            NonLoc lhs, NonLoc rhs, QualType resultTy);
-  virtual SVal evalBinOpLL(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpLL(const GRState *state, BinaryOperator::Opcode op,
                            Loc lhs, Loc rhs, QualType resultTy);
-  virtual SVal evalBinOpLN(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpLN(const GRState *state, BinaryOperator::Opcode op,
                            Loc lhs, NonLoc rhs, QualType resultTy);
 
   /// getKnownValue - evaluates a given SVal. If the SVal has only one possible
   ///  (integer) value, that value is returned. Otherwise, returns NULL.
-  virtual const llvm::APSInt *getKnownValue(const ProgramState *state, SVal V);
+  virtual const llvm::APSInt *getKnownValue(const GRState *state, SVal V);
   
   SVal MakeSymIntVal(const SymExpr *LHS, BinaryOperator::Opcode op,
                      const llvm::APSInt &RHS, QualType resultTy);
@@ -49,7 +49,7 @@ public:
 
 SValBuilder *ento::createSimpleSValBuilder(llvm::BumpPtrAllocator &alloc,
                                            ASTContext &context,
-                                           ProgramStateManager &stateMgr) {
+                                           GRStateManager &stateMgr) {
   return new SimpleSValBuilder(alloc, context, stateMgr);
 }
 
@@ -171,7 +171,7 @@ SVal SimpleSValBuilder::evalComplement(NonLoc X) {
 static BinaryOperator::Opcode NegateComparison(BinaryOperator::Opcode op) {
   switch (op) {
   default:
-    llvm_unreachable("Invalid opcode.");
+    assert(false && "Invalid opcode.");
   case BO_LT: return BO_GE;
   case BO_GT: return BO_LE;
   case BO_LE: return BO_GT;
@@ -184,7 +184,7 @@ static BinaryOperator::Opcode NegateComparison(BinaryOperator::Opcode op) {
 static BinaryOperator::Opcode ReverseComparison(BinaryOperator::Opcode op) {
   switch (op) {
   default:
-    llvm_unreachable("Invalid opcode.");
+    assert(false && "Invalid opcode.");
   case BO_LT: return BO_GT;
   case BO_GT: return BO_LT;
   case BO_LE: return BO_GE;
@@ -270,7 +270,7 @@ SVal SimpleSValBuilder::MakeSymIntVal(const SymExpr *LHS,
   return makeNonLoc(LHS, op, RHS, resultTy);
 }
 
-SVal SimpleSValBuilder::evalBinOpNN(const ProgramState *state,
+SVal SimpleSValBuilder::evalBinOpNN(const GRState *state,
                                   BinaryOperator::Opcode op,
                                   NonLoc lhs, NonLoc rhs,
                                   QualType resultTy)  {
@@ -347,7 +347,8 @@ SVal SimpleSValBuilder::evalBinOpNN(const ProgramState *state,
           break;
         case BO_LAnd:
         case BO_LOr:
-          llvm_unreachable("Logical operators handled by branching logic.");
+          assert(false && "Logical operators handled by branching logic.");
+          return UnknownVal();
         case BO_Assign:
         case BO_MulAssign:
         case BO_DivAssign:
@@ -360,10 +361,12 @@ SVal SimpleSValBuilder::evalBinOpNN(const ProgramState *state,
         case BO_XorAssign:
         case BO_OrAssign:
         case BO_Comma:
-          llvm_unreachable("'=' and ',' operators handled by ExprEngine.");
+          assert(false && "'=' and ',' operators handled by ExprEngine.");
+          return UnknownVal();
         case BO_PtrMemD:
         case BO_PtrMemI:
-          llvm_unreachable("Pointer arithmetic not handled here.");
+          assert(false && "Pointer arithmetic not handled here.");
+          return UnknownVal();
         case BO_LT:
         case BO_GT:
         case BO_LE:
@@ -536,7 +539,7 @@ SVal SimpleSValBuilder::evalBinOpNN(const ProgramState *state,
 }
 
 // FIXME: all this logic will change if/when we have MemRegion::getLocation().
-SVal SimpleSValBuilder::evalBinOpLL(const ProgramState *state,
+SVal SimpleSValBuilder::evalBinOpLL(const GRState *state,
                                   BinaryOperator::Opcode op,
                                   Loc lhs, Loc rhs,
                                   QualType resultTy) {
@@ -553,7 +556,8 @@ SVal SimpleSValBuilder::evalBinOpLL(const ProgramState *state,
   if (lhs == rhs) {
     switch (op) {
     default:
-      llvm_unreachable("Unimplemented operation for two identical values");
+      assert(false && "Unimplemented operation for two identical values");
+      return UnknownVal();
     case BO_Sub:
       return makeZeroVal(resultTy);
     case BO_EQ:
@@ -569,7 +573,8 @@ SVal SimpleSValBuilder::evalBinOpLL(const ProgramState *state,
 
   switch (lhs.getSubKind()) {
   default:
-    llvm_unreachable("Ordering not implemented for this Loc.");
+    assert(false && "Ordering not implemented for this Loc.");
+    return UnknownVal();
 
   case loc::GotoLabelKind:
     // The only thing we know about labels is that they're non-null.
@@ -822,7 +827,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const ProgramState *state,
           return makeTruthVal(!leftFirst, resultTy);
       }
 
-      llvm_unreachable("Fields not found in parent record's definition");
+      assert(false && "Fields not found in parent record's definition");
     }
 
     // If we get here, we have no way of comparing the regions.
@@ -831,7 +836,7 @@ SVal SimpleSValBuilder::evalBinOpLL(const ProgramState *state,
   }
 }
 
-SVal SimpleSValBuilder::evalBinOpLN(const ProgramState *state,
+SVal SimpleSValBuilder::evalBinOpLN(const GRState *state,
                                   BinaryOperator::Opcode op,
                                   Loc lhs, NonLoc rhs, QualType resultTy) {
   
@@ -925,7 +930,7 @@ SVal SimpleSValBuilder::evalBinOpLN(const ProgramState *state,
   return UnknownVal();  
 }
 
-const llvm::APSInt *SimpleSValBuilder::getKnownValue(const ProgramState *state,
+const llvm::APSInt *SimpleSValBuilder::getKnownValue(const GRState *state,
                                                    SVal V) {
   if (V.isUnknownOrUndef())
     return NULL;

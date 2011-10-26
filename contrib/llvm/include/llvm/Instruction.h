@@ -223,13 +223,6 @@ public:
   ///
   bool mayReadFromMemory() const;
 
-  /// mayReadOrWriteMemory - Return true if this instruction may read or
-  /// write memory.
-  ///
-  bool mayReadOrWriteMemory() const {
-    return mayReadFromMemory() || mayWriteToMemory();
-  }
-
   /// mayThrow - Return true if this instruction may throw an exception.
   ///
   bool mayThrow() const;
@@ -372,9 +365,9 @@ protected:
     return getSubclassDataFromValue() & ~HasMetadataBit;
   }
   
-  Instruction(Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
+  Instruction(const Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
               Instruction *InsertBefore = 0);
-  Instruction(Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
+  Instruction(const Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
               BasicBlock *InsertAtEnd);
   virtual Instruction *clone_impl() const = 0;
   

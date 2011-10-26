@@ -7154,7 +7154,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 {
 	struct ccb_scsiio *csio;
 	u_int cam_status;
-	int i, sense_returned;
+	int i;
 
 	SYM_LOCK_ASSERT(MA_OWNED);
 
@@ -7214,15 +7214,11 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 			 *  Bounce back the sense data to user and
 			 *  fix the residual.
 			 */
-			bzero(&csio->sense_data, sizeof(csio->sense_data));
-			sense_returned = SYM_SNS_BBUF_LEN - csio->sense_resid;
-			if (sense_returned < csio->sense_len)
-				csio->sense_resid = csio->sense_len -
-				    sense_returned;
-			else
-				csio->sense_resid = 0;
+			bzero(&csio->sense_data, csio->sense_len);
 			bcopy(cp->sns_bbuf, &csio->sense_data,
-			    MIN(csio->sense_len, sense_returned));
+			      MIN(csio->sense_len, SYM_SNS_BBUF_LEN));
+			csio->sense_resid += csio->sense_len;
+			csio->sense_resid -= SYM_SNS_BBUF_LEN;
 #if 0
 			/*
 			 *  If the device reports a UNIT ATTENTION condition

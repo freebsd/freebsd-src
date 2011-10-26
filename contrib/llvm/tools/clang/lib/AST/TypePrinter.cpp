@@ -123,7 +123,6 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
     case Type::DependentTemplateSpecialization:
     case Type::ObjCObject:
     case Type::ObjCInterface:
-    case Type::Atomic:
       CanPrefixQualifiers = true;
       break;
       
@@ -206,11 +205,11 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
 
 void TypePrinter::printBuiltin(const BuiltinType *T, std::string &S) {
   if (S.empty()) {
-    S = T->getName(Policy);
+    S = T->getName(Policy.LangOpts);
   } else {
     // Prefix the basic type, e.g. 'int X'.
     S = ' ' + S;
-    S = T->getName(Policy) + S;
+    S = T->getName(Policy.LangOpts) + S;
   }
 }
 
@@ -580,16 +579,6 @@ void TypePrinter::printAuto(const AutoType *T, std::string &S) {
       S = ' ' + S;
     S = "auto" + S;
   }
-}
-
-void TypePrinter::printAtomic(const AtomicType *T, std::string &S) {
-  if (!S.empty())
-    S = ' ' + S;
-  std::string Str;
-  IncludeStrongLifetimeRAII Strong(Policy);
-  print(T->getValueType(), Str);
-
-  S = "_Atomic(" + Str + ")" + S;
 }
 
 /// Appends the given scope to the end of a string.

@@ -679,7 +679,7 @@ filt_usertouch(struct knote *kn, struct kevent *kev, u_long type)
 }
 
 int
-sys_kqueue(struct thread *td, struct kqueue_args *uap)
+kqueue(struct thread *td, struct kqueue_args *uap)
 {
 	struct filedesc *fdp;
 	struct kqueue *kq;
@@ -722,7 +722,7 @@ struct kevent_args {
 };
 #endif
 int
-sys_kevent(struct thread *td, struct kevent_args *uap)
+kevent(struct thread *td, struct kevent_args *uap)
 {
 	struct timespec ts, *tsp;
 	struct kevent_copyops k_ops = { uap,

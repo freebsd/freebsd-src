@@ -21,8 +21,6 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
  */
 
 #ifndef	_LIBFS_IMPL_H
@@ -160,11 +158,7 @@ int zprop_expand_list(libzfs_handle_t *hdl, zprop_list_t **plp,
  * on each change node regardless of whether or not it is currently
  * mounted.
  */
-#define	CL_GATHER_MOUNT_ALWAYS	0x01
-/*
- * Use this changelist_gather() flag to prevent unmounting of file systems.
- */
-#define	CL_GATHER_DONT_UNMOUNT	0x02
+#define	CL_GATHER_MOUNT_ALWAYS	1
 
 typedef struct prop_changelist prop_changelist_t;
 

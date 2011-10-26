@@ -16,7 +16,7 @@ namespace clang {
   namespace diag {
     enum {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
-             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,CATEGORY,BRIEF,FULL) ENUM,
+             SFINAE,ACCESS,CATEGORY,BRIEF,FULL) ENUM,
 #define ASTSTART
 #include "clang/Basic/DiagnosticASTKinds.inc"
 #undef DIAG
@@ -24,27 +24,27 @@ namespace clang {
     };
   }  // end namespace diag
   
-  /// \brief DiagnosticsEngine argument formatting function for diagnostics that
+  /// \brief Diagnostic argument formatting function for diagnostics that
   /// involve AST nodes.
   ///
   /// This function formats diagnostic arguments for various AST nodes, 
   /// including types, declaration names, nested name specifiers, and
   /// declaration contexts, into strings that can be printed as part of
   /// diagnostics. It is meant to be used as the argument to
-  /// \c DiagnosticsEngine::SetArgToStringFn(), where the cookie is an \c
-  /// ASTContext pointer.
+  /// \c Diagnostic::SetArgToStringFn(), where the cookie is an \c ASTContext
+  /// pointer.
   void FormatASTNodeDiagnosticArgument(
-      DiagnosticsEngine::ArgumentKind Kind,
+      Diagnostic::ArgumentKind Kind,
       intptr_t Val,
       const char *Modifier,
       unsigned ModLen,
       const char *Argument,
       unsigned ArgLen,
-      const DiagnosticsEngine::ArgumentValue *PrevArgs,
+      const Diagnostic::ArgumentValue *PrevArgs,
       unsigned NumPrevArgs,
-      SmallVectorImpl<char> &Output,
+      llvm::SmallVectorImpl<char> &Output,
       void *Cookie,
-      SmallVectorImpl<intptr_t> &QualTypeVals);
+      llvm::SmallVectorImpl<intptr_t> &QualTypeVals);
 }  // end namespace clang
 
 #endif

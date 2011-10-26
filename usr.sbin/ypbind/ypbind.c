@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/file.h>
@@ -465,9 +464,6 @@ main(int argc, char *argv[])
 	ppid = getpid(); /* Remember who we are. */
 
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
-
-	if (madvise(NULL, 0, MADV_PROTECT) != 0)
-		syslog(LOG_WARNING, "madvise(): %m");
 
 	/* Kick off the default domain */
 	broadcast(ypbindlist);

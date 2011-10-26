@@ -46,7 +46,7 @@ public:
 void AggExprVisitor::VisitCastExpr(CastExpr *E) {
   switch (E->getCastKind()) {
   default: 
-    llvm_unreachable("Unhandled cast kind");
+    assert(0 && "Unhandled cast kind");
   case CK_NoOp:
   case CK_ConstructorConversion:
   case CK_UserDefinedConversion:

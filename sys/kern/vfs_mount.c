@@ -365,7 +365,7 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *oldopts)
  * Mount a filesystem.
  */
 int
-sys_nmount(td, uap)
+nmount(td, uap)
 	struct thread *td;
 	struct nmount_args /* {
 		struct iovec *iovp;
@@ -682,7 +682,7 @@ struct mount_args {
 #endif
 /* ARGSUSED */
 int
-sys_mount(td, uap)
+mount(td, uap)
 	struct thread *td;
 	struct mount_args /* {
 		char *type;
@@ -1097,7 +1097,7 @@ struct unmount_args {
 #endif
 /* ARGSUSED */
 int
-sys_unmount(td, uap)
+unmount(td, uap)
 	struct thread *td;
 	register struct unmount_args /* {
 		char *path;
@@ -1227,6 +1227,18 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = 0;
 	if (mp->mnt_lockref) {
+		if ((flags & MNT_FORCE) == 0) {
+			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
+			    MNTK_UNMOUNTF);
+			if (mp->mnt_kern_flag & MNTK_MWAIT) {
+				mp->mnt_kern_flag &= ~MNTK_MWAIT;
+				wakeup(mp);
+			}
+			MNT_IUNLOCK(mp);
+			if (coveredvp)
+				VOP_UNLOCK(coveredvp, 0);
+			return (EBUSY);
+		}
 		mp->mnt_kern_flag |= MNTK_DRAINING;
 		error = msleep(&mp->mnt_lockref, MNT_MTX(mp), PVFS,
 		    "mount drain", 0);

@@ -398,12 +398,7 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 }
 
 /*
- * XXX this is currently completely and utterly undocumented / tested.
- *
- * For this to succeed:
- *
- * + All pending tasks have to complete;
- * + All running tasks have to complete.
+ * XXX this is currently completely and utterly undocumented.
  */
 void
 taskqueue_drain_all(struct taskqueue *queue)
@@ -414,8 +409,6 @@ taskqueue_drain_all(struct taskqueue *queue)
 
 	TQ_LOCK(queue);
 	while (! STAILQ_EMPTY(&queue->tq_queue))
-		TQ_SLEEP(queue, queue, &queue->tq_mutex, PWAIT, "-", 0);
-	while (! TAILQ_EMPTY(&queue->tq_active))
 		TQ_SLEEP(queue, queue, &queue->tq_mutex, PWAIT, "-", 0);
 	TQ_UNLOCK(queue);
 }

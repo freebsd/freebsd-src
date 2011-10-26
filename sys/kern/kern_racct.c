@@ -261,8 +261,12 @@ racct_alloc_resource(struct racct *racct, int resource,
 	}
 }
 
-static int
-racct_add_locked(struct proc *p, int resource, uint64_t amount)
+/*
+ * Increase allocation of 'resource' by 'amount' for process 'p'.
+ * Return 0 if it's below limits, or errno, if it's not.
+ */
+int
+racct_add(struct proc *p, int resource, uint64_t amount)
 {
 #ifdef RCTL
 	int error;
@@ -278,33 +282,21 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
+	mtx_lock(&racct_lock);
 #ifdef RCTL
 	error = rctl_enforce(p, resource, amount);
 	if (error && RACCT_IS_DENIABLE(resource)) {
 		SDT_PROBE(racct, kernel, rusage, add_failure, p, resource,
 		    amount, 0, 0);
+		mtx_unlock(&racct_lock);
 		return (error);
 	}
 #endif
 	racct_alloc_resource(p->p_racct, resource, amount);
 	racct_add_cred_locked(p->p_ucred, resource, amount);
+	mtx_unlock(&racct_lock);
 
 	return (0);
-}
-
-/*
- * Increase allocation of 'resource' by 'amount' for process 'p'.
- * Return 0 if it's below limits, or errno, if it's not.
- */
-int
-racct_add(struct proc *p, int resource, uint64_t amount)
-{
-	int error;
-
-	mtx_lock(&racct_lock);
-	error = racct_add_locked(p, resource, amount);
-	mtx_unlock(&racct_lock);
-	return (error);
 }
 
 static void
@@ -567,12 +559,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 	PROC_LOCK(child);
 	mtx_lock(&racct_lock);
 
-#ifdef RCTL
-	error = rctl_proc_fork(parent, child);
-	if (error != 0)
-		goto out;
-#endif
-
 	/*
 	 * Inherit resource usage.
 	 */
@@ -583,37 +569,37 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 
 		error = racct_set_locked(child, i,
 		    parent->p_racct->r_resources[i]);
-		if (error != 0)
+		if (error != 0) {
+			/*
+			 * XXX: The only purpose of these two lines is
+			 * to prevent from tripping checks in racct_destroy().
+			 */
+			for (i = 0; i <= RACCT_MAX; i++)
+				racct_set_locked(child, i, 0);
 			goto out;
+		}
 	}
 
-	error = racct_add_locked(child, RACCT_NPROC, 1);
-	error += racct_add_locked(child, RACCT_NTHR, 1);
+#ifdef RCTL
+	error = rctl_proc_fork(parent, child);
+	if (error != 0) {
+		/*
+		 * XXX: The only purpose of these two lines is to prevent from
+		 * tripping checks in racct_destroy().
+		 */
+		for (i = 0; i <= RACCT_MAX; i++)
+			racct_set_locked(child, i, 0);
+	}
+#endif
 
 out:
+	if (error != 0)
+		racct_destroy_locked(&child->p_racct);
 	mtx_unlock(&racct_lock);
 	PROC_UNLOCK(child);
 	PROC_UNLOCK(parent);
 
 	return (error);
-}
-
-/*
- * Called at the end of fork1(), to handle rules that require the process
- * to be fully initialized.
- */
-void
-racct_proc_fork_done(struct proc *child)
-{
-
-#ifdef RCTL
-	PROC_LOCK(child);
-	mtx_lock(&racct_lock);
-	rctl_enforce(child, RACCT_NPROC, 0);
-	rctl_enforce(child, RACCT_NTHR, 0);
-	mtx_unlock(&racct_lock);
-	PROC_UNLOCK(child);
-#endif
 }
 
 void
@@ -838,11 +824,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 {
 
 	return (0);
-}
-
-void
-racct_proc_fork_done(struct proc *child)
-{
 }
 
 void

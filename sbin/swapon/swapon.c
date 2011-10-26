@@ -67,10 +67,9 @@ main(int argc, char **argv)
 {
 	struct fstab *fsp;
 	char *ptr;
-	int ret;
+	int stat;
 	int ch, doall;
 	int sflag = 0, lflag = 0, hflag = 0, qflag = 0;
-	const char *etc_fstab;
 
 	if ((ptr = strrchr(argv[0], '/')) == NULL)
 		ptr = argv[0];
@@ -81,8 +80,7 @@ main(int argc, char **argv)
 	orig_prog = which_prog;
 	
 	doall = 0;
-	etc_fstab = NULL;
-	while ((ch = getopt(argc, argv, "AadghklmqsUF:")) != -1) {
+	while ((ch = getopt(argc, argv, "AadghklmqsU")) != -1) {
 		switch(ch) {
 		case 'A':
 			if (which_prog == SWAPCTL) {
@@ -134,9 +132,6 @@ main(int argc, char **argv)
 				usage();
 			}
 			break;
-		case 'F':
-			etc_fstab = optarg;
-			break;
 		case '?':
 		default:
 			usage();
@@ -144,9 +139,7 @@ main(int argc, char **argv)
 	}
 	argv += optind;
 
-	ret = 0;
-	if (etc_fstab != NULL)
-		setfstab(etc_fstab);
+	stat = 0;
 	if (which_prog == SWAPON || which_prog == SWAPOFF) {
 		if (doall) {
 			while ((fsp = getfsent()) != NULL) {
@@ -155,7 +148,7 @@ main(int argc, char **argv)
 				if (strstr(fsp->fs_mntops, "noauto"))
 					continue;
 				if (swap_on_off(fsp->fs_spec, 1)) {
-					ret = 1;
+					stat = 1;
 				} else {
 					if (!qflag) {
 						printf("%s: %sing %s as swap device\n",
@@ -170,7 +163,7 @@ main(int argc, char **argv)
 			usage();
 		for (; *argv; ++argv) {
 			if (swap_on_off(*argv, 0)) {
-				ret = 1;
+				stat = 1;
 			} else if (orig_prog == SWAPCTL) {
 				printf("%s: %sing %s as swap device\n",
 				    getprogname(), which_prog == SWAPOFF ? "remov" : "add",
@@ -183,7 +176,7 @@ main(int argc, char **argv)
 		else 
 			usage();
 	}
-	exit(ret);
+	exit(stat);
 }
 
 static int
@@ -217,7 +210,7 @@ usage(void)
 	switch(orig_prog) {
 	case SWAPON:
 	case SWAPOFF:
-	    fprintf(stderr, "[-F fstab] -aq | file ...\n");
+	    fprintf(stderr, "-aq | file ...\n");
 	    break;
 	case SWAPCTL:
 	    fprintf(stderr, "[-AghklmsU] [-a file ... | -d file ...]\n");

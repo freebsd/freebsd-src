@@ -28,29 +28,26 @@ class CheckerContext {
   ExprEngine &Eng;
   ExplodedNode *Pred;
   SaveAndRestore<bool> OldSink;
+  const void *checkerTag;
+  SaveAndRestore<ProgramPoint::Kind> OldPointKind;
   SaveOr OldHasGen;
-  const ProgramPoint Location;
-  const ProgramState *ST;
+  const GRState *ST;
+  const Stmt *statement;
   const unsigned size;
 public:
   bool *respondsToCallback;
 public:
-  CheckerContext(ExplodedNodeSet &dst,
-                 StmtNodeBuilder &builder,
-                 ExprEngine &eng,
-                 ExplodedNode *pred,
-                 const ProgramPoint &loc,
+  CheckerContext(ExplodedNodeSet &dst, StmtNodeBuilder &builder,
+                 ExprEngine &eng, ExplodedNode *pred,
+                 const void *tag, ProgramPoint::Kind K,
                  bool *respondsToCB = 0,
-                 const ProgramState *st = 0)
-    : Dst(dst),
-      B(builder),
-      Eng(eng),
-      Pred(pred),
+                 const Stmt *stmt = 0, const GRState *st = 0)
+    : Dst(dst), B(builder), Eng(eng), Pred(pred),
       OldSink(B.BuildSinks),
+      checkerTag(tag),
+      OldPointKind(B.PointKind, K),
       OldHasGen(B.hasGeneratedNode),
-      Location(loc),
-      ST(st),
-      size(Dst.size()),
+      ST(st), statement(stmt), size(Dst.size()),
       respondsToCallback(respondsToCB) {}
 
   ~CheckerContext();
@@ -72,12 +69,10 @@ public:
   }
 
   ExplodedNodeSet &getNodeSet() { return Dst; }
+  StmtNodeBuilder &getNodeBuilder() { return B; }
   ExplodedNode *&getPredecessor() { return Pred; }
-  const ProgramState *getState() { return ST ? ST : Pred->getState(); }
-
-  /// \brief Returns the number of times the current block has been visited
-  /// along the analyzed path.
-  unsigned getCurrentBlockCount() {return B.getCurrentBlockCount();}
+  const GRState *getState() { return ST ? ST : B.GetState(Pred); }
+  const Stmt *getStmt() const { return statement; }
 
   ASTContext &getASTContext() {
     return Eng.getContext();
@@ -95,58 +90,64 @@ public:
     return Eng.getSValBuilder();
   }
 
-  SymbolManager &getSymbolManager() {
-    return getSValBuilder().getSymbolManager();
-  }
-
-  bool isObjCGCEnabled() {
-    return Eng.isObjCGCEnabled();
-  }
-
-  /// \brief Generate a default checker node (containing checker tag but no
-  /// checker state changes).
   ExplodedNode *generateNode(bool autoTransition = true) {
-    return generateNode(getState(), autoTransition);
+    assert(statement && "Only transitions with statements currently supported");
+    ExplodedNode *N = generateNodeImpl(statement, getState(), false,
+                                       checkerTag);
+    if (N && autoTransition)
+      Dst.Add(N);
+    return N;
   }
   
-  /// \brief Generate a new checker node with the given predecessor.
-  /// Allows checkers to generate a chain of nodes.
-  ExplodedNode *generateNode(const ProgramState *state,
-                             ExplodedNode *pred,
-                             const ProgramPointTag *tag = 0,
+  ExplodedNode *generateNode(const Stmt *stmt, const GRState *state,
+                             bool autoTransition = true, const void *tag = 0) {
+    assert(state);
+    ExplodedNode *N = generateNodeImpl(stmt, state, false,
+                                       tag ? tag : checkerTag);
+    if (N && autoTransition)
+      addTransition(N);
+    return N;
+  }
+
+  ExplodedNode *generateNode(const GRState *state, ExplodedNode *pred,
                              bool autoTransition = true) {
-    ExplodedNode *N = generateNodeImpl(state, false, pred, tag);
+   assert(statement && "Only transitions with statements currently supported");
+    ExplodedNode *N = generateNodeImpl(statement, state, pred, false);
     if (N && autoTransition)
       addTransition(N);
     return N;
   }
 
-  /// \brief Generate a new checker node.
-  ExplodedNode *generateNode(const ProgramState *state,
-                             bool autoTransition = true,
-                             const ProgramPointTag *tag = 0) {
-    ExplodedNode *N = generateNodeImpl(state, false, 0, tag);
+  ExplodedNode *generateNode(const GRState *state, bool autoTransition = true,
+                             const void *tag = 0) {
+    assert(statement && "Only transitions with statements currently supported");
+    ExplodedNode *N = generateNodeImpl(statement, state, false,
+                                       tag ? tag : checkerTag);
     if (N && autoTransition)
       addTransition(N);
     return N;
   }
 
-  /// \brief Generate a sink node. Generating sink stops exploration of the
-  /// given path.
-  ExplodedNode *generateSink(const ProgramState *state = 0) {
-    return generateNodeImpl(state ? state : getState(), true);
+  ExplodedNode *generateSink(const Stmt *stmt, const GRState *state = 0) {
+    return generateNodeImpl(stmt, state ? state : getState(), true,
+                            checkerTag);
+  }
+  
+  ExplodedNode *generateSink(const GRState *state = 0) {
+    assert(statement && "Only transitions with statements currently supported");
+    return generateNodeImpl(statement, state ? state : getState(), true,
+                            checkerTag);
   }
 
   void addTransition(ExplodedNode *node) {
     Dst.Add(node);
   }
   
-  void addTransition(const ProgramState *state,
-                     const ProgramPointTag *tag = 0) {
+  void addTransition(const GRState *state, const void *tag = 0) {
     assert(state);
     // If the 'state' is not new, we need to check if the cached state 'ST'
     // is new.
-    if (state != getState() || (ST && ST != Pred->getState()))
+    if (state != getState() || (ST && ST != B.GetState(Pred)))
       // state is new or equals to ST.
       generateNode(state, true, tag);
     else
@@ -162,14 +163,17 @@ public:
   }
 
 private:
-  ExplodedNode *generateNodeImpl(const ProgramState *state,
-                                 bool markAsSink,
-                                 ExplodedNode *pred = 0,
-                                 const ProgramPointTag *tag = 0) {
+  ExplodedNode *generateNodeImpl(const Stmt* stmt, const GRState *state,
+                             bool markAsSink, const void *tag) {
+    ExplodedNode *node = B.generateNode(stmt, state, Pred, tag);
+    if (markAsSink && node)
+      node->markAsSink();
+    return node;
+  }
 
-    ExplodedNode *node = B.generateNode(tag ? Location.withTag(tag) : Location,
-                                        state,
-                                        pred ? pred : Pred);
+  ExplodedNode *generateNodeImpl(const Stmt* stmt, const GRState *state,
+                                 ExplodedNode *pred, bool markAsSink) {
+   ExplodedNode *node = B.generateNode(stmt, state, pred, checkerTag);
     if (markAsSink && node)
       node->markAsSink();
     return node;

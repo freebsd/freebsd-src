@@ -185,14 +185,13 @@ struct iterator_control {
 	uint32_t iterator_flags;
 };
 
-#define SCTP_ITERATOR_STOP_CUR_IT	0x00000004
-#define SCTP_ITERATOR_STOP_CUR_INP	0x00000008
+#define SCTP_ITERATOR_MUST_EXIT   	0x00000001
+#define SCTP_ITERATOR_STOP_CUR_IT  	0x00000002
+#define SCTP_ITERATOR_STOP_CUR_INP  	0x00000004
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
 	void *ro_lle;
-	void *ro_ia;
-	int ro_flags;
 	union sctp_sockstore _l_addr;	/* remote peer addr */
 	struct sctp_ifa *_s_addr;	/* our selected src addr */
 };

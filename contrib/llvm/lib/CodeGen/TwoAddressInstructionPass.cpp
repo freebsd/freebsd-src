@@ -177,10 +177,6 @@ char &llvm::TwoAddressInstructionPassID = TwoAddressInstructionPass::ID;
 bool TwoAddressInstructionPass::Sink3AddrInstruction(MachineBasicBlock *MBB,
                                            MachineInstr *MI, unsigned SavedReg,
                                            MachineBasicBlock::iterator OldPos) {
-  // FIXME: Shouldn't we be trying to do this before we three-addressify the
-  // instruction?  After this transformation is done, we no longer need
-  // the instruction to be in three-address form.
-
   // Check if it's safe to move this instruction.
   bool SeenStore = true; // Be conservative.
   if (!MI->isSafeToMove(TII, AA, SeenStore))
@@ -221,11 +217,7 @@ bool TwoAddressInstructionPass::Sink3AddrInstruction(MachineBasicBlock *MBB,
     break;
   }
 
-  // If we find the instruction that kills SavedReg, and it is in an
-  // appropriate location, we can try to sink the current instruction
-  // past it.
-  if (!KillMI || KillMI->getParent() != MBB || KillMI == MI ||
-      KillMI->getDesc().isTerminator())
+  if (!KillMI || KillMI->getParent() != MBB || KillMI == MI)
     return false;
 
   // If any of the definitions are used by another instruction between the
@@ -1048,9 +1040,6 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** REWRITING TWO-ADDR INSTRS **********\n");
   DEBUG(dbgs() << "********** Function: " 
         << MF.getFunction()->getName() << '\n');
-
-  // This pass takes the function out of SSA form.
-  MRI->leaveSSA();
 
   // ReMatRegs - Keep track of the registers whose def's are remat'ed.
   BitVector ReMatRegs(MRI->getNumVirtRegs());

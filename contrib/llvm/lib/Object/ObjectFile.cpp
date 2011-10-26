@@ -45,7 +45,6 @@ ObjectFile *ObjectFile::createObjectFile(MemoryBuffer *Object) {
     case sys::Mach_O_DynamicLinker_FileType:
     case sys::Mach_O_Bundle_FileType:
     case sys::Mach_O_DynamicallyLinkedSharedLibStub_FileType:
-    case sys::Mach_O_DSYMCompanion_FileType:
       return createMachOObjectFile(Object);
     case sys::COFF_FileType:
       return createCOFFObjectFile(Object);

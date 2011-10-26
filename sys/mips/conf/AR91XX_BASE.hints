@@ -32,7 +32,6 @@ hint.arge.1.maddr=0x1a000000
 hint.arge.1.msize=0x1000
 hint.arge.1.irq=3
 
-# XXX The ath device hangs off of the AHB, rather than the Nexus.
 hint.ath.0.at="nexus0"
 hint.ath.0.maddr=0x180c0000
 hint.ath.0.msize=0x30000

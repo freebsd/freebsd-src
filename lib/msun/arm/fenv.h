@@ -31,10 +31,6 @@
 
 #include <sys/_types.h>
 
-#ifndef	__fenv_static
-#define	__fenv_static	static
-#endif
-
 typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
@@ -72,7 +68,7 @@ extern const fenv_t	__fe_dfl_env;
 #define __wfs(__fpsr)
 #endif
 
-__fenv_static inline int
+static __inline int
 feclearexcept(int __excepts)
 {
 	fexcept_t __fpsr;
@@ -83,7 +79,7 @@ feclearexcept(int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __fpsr;
@@ -93,7 +89,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __fpsr;
@@ -105,7 +101,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 feraiseexcept(int __excepts)
 {
 	fexcept_t __ex = __excepts;
@@ -114,7 +110,7 @@ feraiseexcept(int __excepts)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fetestexcept(int __excepts)
 {
 	fexcept_t __fpsr;
@@ -123,7 +119,7 @@ fetestexcept(int __excepts)
 	return (__fpsr & __excepts);
 }
 
-__fenv_static inline int
+static __inline int
 fegetround(void)
 {
 
@@ -135,14 +131,14 @@ fegetround(void)
 	return (-1);
 }
 
-__fenv_static inline int
+static __inline int
 fesetround(int __round)
 {
 
 	return (-1);
 }
 
-__fenv_static inline int
+static __inline int
 fegetenv(fenv_t *__envp)
 {
 
@@ -150,7 +146,7 @@ fegetenv(fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 feholdexcept(fenv_t *__envp)
 {
 	fenv_t __env;
@@ -162,7 +158,7 @@ feholdexcept(fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 fesetenv(const fenv_t *__envp)
 {
 
@@ -170,7 +166,7 @@ fesetenv(const fenv_t *__envp)
 	return (0);
 }
 
-__fenv_static inline int
+static __inline int
 feupdateenv(const fenv_t *__envp)
 {
 	fexcept_t __fpsr;
@@ -183,9 +179,7 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
-static inline int
+static __inline int
 feenableexcept(int __mask)
 {
 	fenv_t __old_fpsr, __new_fpsr;
@@ -196,7 +190,7 @@ feenableexcept(int __mask)
 	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+static __inline int
 fedisableexcept(int __mask)
 {
 	fenv_t __old_fpsr, __new_fpsr;
@@ -207,7 +201,7 @@ fedisableexcept(int __mask)
 	return ((__old_fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+static __inline int
 fegetexcept(void)
 {
 	fenv_t __fpsr;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2011
+.Dd March 7, 2011
 .Dt COMPLEX 3
 .Os
 .Sh NAME
@@ -86,16 +86,6 @@ conj	compute the complex conjugate
 cproj	compute projection onto Riemann sphere
 creal	compute the real part
 .El
-.\" Section 7.3.5-6 of ISO C99 standard
-.Ss Trigonometric and Hyperbolic Functions
-.Cl
-ccos	cosine
-ccosh	hyperbolic cosine
-csin	sine
-csinh	hyperbolic sine
-ctan	tangent
-ctanh	hyperbolic tangent
-.El
 .Sh SEE ALSO
 .Xr math 3 ,
 .Xr fenv 3 ,
@@ -111,14 +101,20 @@ The
 functions described here conform to
 .St -isoC-99 .
 .Sh BUGS
-The inverse trigonmetric and hyperbolic functions
+The trigonmetric and hyperbolic functions
 .Fn cacos ,
 .Fn cacosh ,
 .Fn casin ,
 .Fn casinh ,
 .Fn catan ,
+.Fn catanh ,
+.Fn ccos ,
+.Fn ccosh ,
+.Fn csin ,
+.Fn csinh ,
+.Fn ctan ,
 and
-.Fn catanh
+.Fn ctanh
 are not implemented.
 .Pp
 The logarithmic functions

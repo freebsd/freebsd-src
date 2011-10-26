@@ -30,9 +30,9 @@ namespace clang {
   class ExtensionRAIIObject {
     void operator=(const ExtensionRAIIObject &);     // DO NOT IMPLEMENT
     ExtensionRAIIObject(const ExtensionRAIIObject&); // DO NOT IMPLEMENT
-    DiagnosticsEngine &Diags;
+    Diagnostic &Diags;
   public:
-    ExtensionRAIIObject(DiagnosticsEngine &diags) : Diags(diags) {
+    ExtensionRAIIObject(Diagnostic &diags) : Diags(diags) {
       Diags.IncrementAllExtensionsSilenced();
     }
 

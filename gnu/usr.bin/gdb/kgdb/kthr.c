@@ -122,45 +122,6 @@ kgdb_thr_init(void)
 	long cpusetsize;
 	struct kthr *kt;
 	CORE_ADDR addr;
-
-	addr = kgdb_lookup("allproc");
-	if (addr == 0)
-		return (NULL);
-	kvm_read(kvm, addr, &paddr, sizeof(paddr));
-
-	dumppcb = kgdb_lookup("dumppcb");
-	if (dumppcb == 0)
-		return (NULL);
-
-	addr = kgdb_lookup("dumptid");
-	if (addr != 0)
-		kvm_read(kvm, addr, &dumptid, sizeof(dumptid));
-	else
-		dumptid = -1;
-
-	addr = kgdb_lookup("stopped_cpus");
-	CPU_ZERO(&stopped_cpus);
-	cpusetsize = sysconf(_SC_CPUSET_SIZE);
-	if (cpusetsize != -1 && (u_long)cpusetsize <= sizeof(cpuset_t) &&
-	    addr != 0)
-		kvm_read(kvm, addr, &stopped_cpus, cpusetsize);
-
-	stoppcbs = kgdb_lookup("stoppcbs");
-
-	kgdb_thr_add_procs(paddr);
-	addr = kgdb_lookup("zombproc");
-	if (addr != 0) {
-		kvm_read(kvm, addr, &paddr, sizeof(paddr));
-		kgdb_thr_add_procs(paddr);
-	}
-}
-
-struct kthr *
-kgdb_thr_init(void)
-{
-	long cpusetsize;
-	struct kthr *kt;
-	CORE_ADDR addr;
 	uintptr_t paddr;
 	
 	while (first != NULL) {

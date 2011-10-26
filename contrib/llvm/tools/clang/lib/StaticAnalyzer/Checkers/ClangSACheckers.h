@@ -19,7 +19,6 @@ namespace clang {
 
 namespace ento {
 class CheckerManager;
-class CheckerRegistry;
 
 #define GET_CHECKERS
 #define CHECKER(FULLNAME,CLASS,CXXFILE,HELPTEXT,GROUPINDEX,HIDDEN)    \

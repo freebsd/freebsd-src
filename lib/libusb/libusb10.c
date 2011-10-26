@@ -216,6 +216,7 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
 		}
+
 		/* get device into libUSB v1.0 list */
 		libusb20_be_dequeue_device(usb_backend, pdev);
 
@@ -717,10 +718,8 @@ libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	if (libusb20_dev_kernel_driver_active(pdev, interface))
-		return (0);		/* no kernel driver is active */
-	else
-		return (1);		/* kernel driver is active */
+	return (libusb20_dev_kernel_driver_active(
+	    pdev, interface));
 }
 
 int
@@ -1450,73 +1449,6 @@ libusb_le16_to_cpu(uint16_t x)
 const char *
 libusb_strerror(int code)
 {
-	switch (code) {
-	case LIBUSB_SUCCESS:
-		return ("Success");
-	case LIBUSB_ERROR_IO:
-		return ("I/O error");
-	case LIBUSB_ERROR_INVALID_PARAM:
-		return ("Invalid parameter");
-	case LIBUSB_ERROR_ACCESS:
-		return ("Permissions error");
-	case LIBUSB_ERROR_NO_DEVICE:
-		return ("No device");
-	case LIBUSB_ERROR_NOT_FOUND:
-		return ("Not found");
-	case LIBUSB_ERROR_BUSY:
-		return ("Device busy");
-	case LIBUSB_ERROR_TIMEOUT:
-		return ("Timeout");
-	case LIBUSB_ERROR_OVERFLOW:
-		return ("Overflow");
-	case LIBUSB_ERROR_PIPE:
-		return ("Pipe error");
-	case LIBUSB_ERROR_INTERRUPTED:
-		return ("Interrupted");
-	case LIBUSB_ERROR_NO_MEM:
-		return ("Out of memory");
-	case LIBUSB_ERROR_NOT_SUPPORTED:
-		return ("Not supported");
-	case LIBUSB_ERROR_OTHER:
-		return ("Other error");
-	default:
-		return ("Unknown error");
-	}
-}
-
-const char *
-libusb_error_name(int code)
-{
-	switch (code) {
-	case LIBUSB_SUCCESS:
-		return ("LIBUSB_SUCCESS");
-	case LIBUSB_ERROR_IO:
-		return ("LIBUSB_ERROR_IO");
-	case LIBUSB_ERROR_INVALID_PARAM:
-		return ("LIBUSB_ERROR_INVALID_PARAM");
-	case LIBUSB_ERROR_ACCESS:
-		return ("LIBUSB_ERROR_ACCESS");
-	case LIBUSB_ERROR_NO_DEVICE:
-		return ("LIBUSB_ERROR_NO_DEVICE");
-	case LIBUSB_ERROR_NOT_FOUND:
-		return ("LIBUSB_ERROR_NOT_FOUND");
-	case LIBUSB_ERROR_BUSY:
-		return ("LIBUSB_ERROR_BUSY");
-	case LIBUSB_ERROR_TIMEOUT:
-		return ("LIBUSB_ERROR_TIMEOUT");
-	case LIBUSB_ERROR_OVERFLOW:
-		return ("LIBUSB_ERROR_OVERFLOW");
-	case LIBUSB_ERROR_PIPE:
-		return ("LIBUSB_ERROR_PIPE");
-	case LIBUSB_ERROR_INTERRUPTED:
-		return ("LIBUSB_ERROR_INTERRUPTED");
-	case LIBUSB_ERROR_NO_MEM:
-		return ("LIBUSB_ERROR_NO_MEM");
-	case LIBUSB_ERROR_NOT_SUPPORTED:
-		return ("LIBUSB_ERROR_NOT_SUPPORTED");
-	case LIBUSB_ERROR_OTHER:
-		return ("LIBUSB_ERROR_OTHER");
-	default:
-		return ("LIBUSB_ERROR_UNKNOWN");
-	}
+	/* TODO */
+	return ("Unknown error");
 }

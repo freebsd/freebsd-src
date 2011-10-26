@@ -19,7 +19,7 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	CheckSecuritySyntaxOnly.cpp \
 	CheckSizeofPointer.cpp \
 	ChrootChecker.cpp \
-	ClangCheckers.cpp \
+	ClangSACheckerProvider.cpp \
 	DeadStoresChecker.cpp \
 	DebugCheckers.cpp \
 	DereferenceChecker.cpp \
@@ -28,10 +28,8 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	IdempotentOperationChecker.cpp \
 	IteratorsChecker.cpp \
 	LLVMConventionsChecker.cpp \
-	MacOSKeychainAPIChecker.cpp \
 	MacOSXAPIChecker.cpp \
 	MallocChecker.cpp \
-	MallocOverflowSecurityChecker.cpp \
 	NSAutoreleasePoolChecker.cpp \
 	NSErrorChecker.cpp \
 	NoReturnFunctionChecker.cpp \
@@ -42,7 +40,6 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	PointerArithChecker.cpp \
 	PointerSubChecker.cpp \
 	PthreadLockChecker.cpp \
-	RetainCountChecker.cpp \
 	ReturnPointerRangeChecker.cpp \
 	ReturnUndefChecker.cpp \
 	StackAddrEscapeChecker.cpp \

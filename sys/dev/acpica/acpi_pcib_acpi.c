@@ -501,7 +501,6 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 #ifdef NEW_PCIB
     struct acpi_hpcib_softc *sc;
-    struct resource *res;
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
@@ -510,11 +509,8 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #ifdef NEW_PCIB
     sc = device_get_softc(dev);
-    res = pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
-	count, flags);
-    if (res == NULL && start + count - 1 == end)
-	res = acpi_alloc_sysres(child, type, rid, start, end, count, flags);
-    return (res);
+    return (pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
+	count, flags));
 #else
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));

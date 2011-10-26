@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SetTheory.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
+#include "Error.h"
+#include "Record.h"
 #include "llvm/Support/Format.h"
 
 using namespace llvm;

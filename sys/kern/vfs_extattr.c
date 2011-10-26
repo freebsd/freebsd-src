@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * Currently this is used only by UFS1 extended attributes.
  */
 int
-sys_extattrctl(td, uap)
+extattrctl(td, uap)
 	struct thread *td;
 	struct extattrctl_args /* {
 		const char *path;
@@ -210,7 +210,7 @@ done:
 }
 
 int
-sys_extattr_set_fd(td, uap)
+extattr_set_fd(td, uap)
 	struct thread *td;
 	struct extattr_set_fd_args /* {
 		int fd;
@@ -245,7 +245,7 @@ sys_extattr_set_fd(td, uap)
 }
 
 int
-sys_extattr_set_file(td, uap)
+extattr_set_file(td, uap)
 	struct thread *td;
 	struct extattr_set_file_args /* {
 		const char *path;
@@ -282,7 +282,7 @@ sys_extattr_set_file(td, uap)
 }
 
 int
-sys_extattr_set_link(td, uap)
+extattr_set_link(td, uap)
 	struct thread *td;
 	struct extattr_set_link_args /* {
 		const char *path;
@@ -390,7 +390,7 @@ done:
 }
 
 int
-sys_extattr_get_fd(td, uap)
+extattr_get_fd(td, uap)
 	struct thread *td;
 	struct extattr_get_fd_args /* {
 		int fd;
@@ -425,7 +425,7 @@ sys_extattr_get_fd(td, uap)
 }
 
 int
-sys_extattr_get_file(td, uap)
+extattr_get_file(td, uap)
 	struct thread *td;
 	struct extattr_get_file_args /* {
 		const char *path;
@@ -462,7 +462,7 @@ sys_extattr_get_file(td, uap)
 }
 
 int
-sys_extattr_get_link(td, uap)
+extattr_get_link(td, uap)
 	struct thread *td;
 	struct extattr_get_link_args /* {
 		const char *path;
@@ -542,7 +542,7 @@ done:
 }
 
 int
-sys_extattr_delete_fd(td, uap)
+extattr_delete_fd(td, uap)
 	struct thread *td;
 	struct extattr_delete_fd_args /* {
 		int fd;
@@ -575,7 +575,7 @@ sys_extattr_delete_fd(td, uap)
 }
 
 int
-sys_extattr_delete_file(td, uap)
+extattr_delete_file(td, uap)
 	struct thread *td;
 	struct extattr_delete_file_args /* {
 		const char *path;
@@ -608,7 +608,7 @@ sys_extattr_delete_file(td, uap)
 }
 
 int
-sys_extattr_delete_link(td, uap)
+extattr_delete_link(td, uap)
 	struct thread *td;
 	struct extattr_delete_link_args /* {
 		const char *path;
@@ -707,7 +707,7 @@ done:
 
 
 int
-sys_extattr_list_fd(td, uap)
+extattr_list_fd(td, uap)
 	struct thread *td;
 	struct extattr_list_fd_args /* {
 		int fd;
@@ -735,7 +735,7 @@ sys_extattr_list_fd(td, uap)
 }
 
 int
-sys_extattr_list_file(td, uap)
+extattr_list_file(td, uap)
 	struct thread*td;
 	struct extattr_list_file_args /* {
 		const char *path;
@@ -765,7 +765,7 @@ sys_extattr_list_file(td, uap)
 }
 
 int
-sys_extattr_list_link(td, uap)
+extattr_list_link(td, uap)
 	struct thread*td;
 	struct extattr_list_link_args /* {
 		const char *path;

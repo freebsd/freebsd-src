@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticClients.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
@@ -22,8 +22,13 @@
 #include "llvm/ADT/SmallVector.h"
 using namespace clang;
 using namespace ento;
+using llvm::cast;
 
 typedef llvm::DenseMap<FileID, unsigned> FIDMap;
+
+namespace clang {
+  class Preprocessor;
+}
 
 namespace {
 struct CompareDiagnostics {
@@ -38,16 +43,16 @@ struct CompareDiagnostics {
       return false;
     
     // Next, compare by bug type.
-    StringRef XBugType = X->getBugType();
-    StringRef YBugType = Y->getBugType();
+    llvm::StringRef XBugType = X->getBugType();
+    llvm::StringRef YBugType = Y->getBugType();
     if (XBugType < YBugType)
       return true;
     if (XBugType != YBugType)
       return false;
     
     // Next, compare by bug description.
-    StringRef XDesc = X->getDescription();
-    StringRef YDesc = Y->getDescription();
+    llvm::StringRef XDesc = X->getDescription();
+    llvm::StringRef YDesc = Y->getDescription();
     if (XDesc < YDesc)
       return true;
     if (XDesc != YDesc)
@@ -60,23 +65,23 @@ struct CompareDiagnostics {
 }
 
 namespace {
-  class PlistDiagnostics : public PathDiagnosticConsumer {
+  class PlistDiagnostics : public PathDiagnosticClient {
     std::vector<const PathDiagnostic*> BatchedDiags;
     const std::string OutputFile;
     const LangOptions &LangOpts;
-    llvm::OwningPtr<PathDiagnosticConsumer> SubPD;
+    llvm::OwningPtr<PathDiagnosticClient> SubPD;
     bool flushed;
   public:
     PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
-                     PathDiagnosticConsumer *subPD);
+                     PathDiagnosticClient *subPD);
 
     ~PlistDiagnostics() { FlushDiagnostics(NULL); }
 
-    void FlushDiagnostics(SmallVectorImpl<std::string> *FilesMade);
+    void FlushDiagnostics(llvm::SmallVectorImpl<std::string> *FilesMade);
     
-    void HandlePathDiagnosticImpl(const PathDiagnostic* D);
+    void HandlePathDiagnostic(const PathDiagnostic* D);
     
-    virtual StringRef getName() const {
+    virtual llvm::StringRef getName() const {
       return "PlistDiagnostics";
     }
 
@@ -89,27 +94,27 @@ namespace {
 
 PlistDiagnostics::PlistDiagnostics(const std::string& output,
                                    const LangOptions &LO,
-                                   PathDiagnosticConsumer *subPD)
+                                   PathDiagnosticClient *subPD)
   : OutputFile(output), LangOpts(LO), SubPD(subPD), flushed(false) {}
 
-PathDiagnosticConsumer*
-ento::createPlistDiagnosticConsumer(const std::string& s, const Preprocessor &PP,
-                                  PathDiagnosticConsumer *subPD) {
+PathDiagnosticClient*
+ento::createPlistDiagnosticClient(const std::string& s, const Preprocessor &PP,
+                                  PathDiagnosticClient *subPD) {
   return new PlistDiagnostics(s, PP.getLangOptions(), subPD);
 }
 
-PathDiagnosticConsumer::PathGenerationScheme
+PathDiagnosticClient::PathGenerationScheme
 PlistDiagnostics::getGenerationScheme() const {
-  if (const PathDiagnosticConsumer *PD = SubPD.get())
+  if (const PathDiagnosticClient *PD = SubPD.get())
     return PD->getGenerationScheme();
 
   return Extensive;
 }
 
-static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
+static void AddFID(FIDMap &FIDs, llvm::SmallVectorImpl<FileID> &V,
                    const SourceManager* SM, SourceLocation L) {
 
-  FileID FID = SM->getFileID(SM->getExpansionLoc(L));
+  FileID FID = SM->getFileID(SM->getInstantiationLoc(L));
   FIDMap::iterator I = FIDs.find(FID);
   if (I != FIDs.end()) return;
   FIDs[FID] = V.size();
@@ -118,23 +123,23 @@ static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
 
 static unsigned GetFID(const FIDMap& FIDs, const SourceManager &SM,
                        SourceLocation L) {
-  FileID FID = SM.getFileID(SM.getExpansionLoc(L));
+  FileID FID = SM.getFileID(SM.getInstantiationLoc(L));
   FIDMap::const_iterator I = FIDs.find(FID);
   assert(I != FIDs.end());
   return I->second;
 }
 
-static raw_ostream &Indent(raw_ostream &o, const unsigned indent) {
+static llvm::raw_ostream& Indent(llvm::raw_ostream& o, const unsigned indent) {
   for (unsigned i = 0; i < indent; ++i) o << ' ';
   return o;
 }
 
-static void EmitLocation(raw_ostream &o, const SourceManager &SM,
+static void EmitLocation(llvm::raw_ostream& o, const SourceManager &SM,
                          const LangOptions &LangOpts,
                          SourceLocation L, const FIDMap &FM,
                          unsigned indent, bool extend = false) {
 
-  FullSourceLoc Loc(SM.getExpansionLoc(L), const_cast<SourceManager&>(SM));
+  FullSourceLoc Loc(SM.getInstantiationLoc(L), const_cast<SourceManager&>(SM));
 
   // Add in the length of the token, so that we cover multi-char tokens.
   unsigned offset =
@@ -142,22 +147,22 @@ static void EmitLocation(raw_ostream &o, const SourceManager &SM,
 
   Indent(o, indent) << "<dict>\n";
   Indent(o, indent) << " <key>line</key><integer>"
-                    << Loc.getExpansionLineNumber() << "</integer>\n";
+                    << Loc.getInstantiationLineNumber() << "</integer>\n";
   Indent(o, indent) << " <key>col</key><integer>"
-                    << Loc.getExpansionColumnNumber() + offset << "</integer>\n";
+                    << Loc.getInstantiationColumnNumber() + offset << "</integer>\n";
   Indent(o, indent) << " <key>file</key><integer>"
                     << GetFID(FM, SM, Loc) << "</integer>\n";
   Indent(o, indent) << "</dict>\n";
 }
 
-static void EmitLocation(raw_ostream &o, const SourceManager &SM,
+static void EmitLocation(llvm::raw_ostream& o, const SourceManager &SM,
                          const LangOptions &LangOpts,
                          const PathDiagnosticLocation &L, const FIDMap& FM,
                          unsigned indent, bool extend = false) {
   EmitLocation(o, SM, LangOpts, L.asLocation(), FM, indent, extend);
 }
 
-static void EmitRange(raw_ostream &o, const SourceManager &SM,
+static void EmitRange(llvm::raw_ostream& o, const SourceManager &SM,
                       const LangOptions &LangOpts,
                       PathDiagnosticRange R, const FIDMap &FM,
                       unsigned indent) {
@@ -167,7 +172,7 @@ static void EmitRange(raw_ostream &o, const SourceManager &SM,
   Indent(o, indent) << "</array>\n";
 }
 
-static raw_ostream &EmitString(raw_ostream &o,
+static llvm::raw_ostream& EmitString(llvm::raw_ostream& o,
                                      const std::string& s) {
   o << "<string>";
   for (std::string::const_iterator I=s.begin(), E=s.end(); I!=E; ++I) {
@@ -185,7 +190,7 @@ static raw_ostream &EmitString(raw_ostream &o,
   return o;
 }
 
-static void ReportControlFlow(raw_ostream &o,
+static void ReportControlFlow(llvm::raw_ostream& o,
                               const PathDiagnosticControlFlowPiece& P,
                               const FIDMap& FM,
                               const SourceManager &SM,
@@ -228,7 +233,7 @@ static void ReportControlFlow(raw_ostream &o,
   Indent(o, indent) << "</dict>\n";
 }
 
-static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
+static void ReportEvent(llvm::raw_ostream& o, const PathDiagnosticPiece& P,
                         const FIDMap& FM,
                         const SourceManager &SM,
                         const LangOptions &LangOpts,
@@ -275,7 +280,7 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
   Indent(o, indent); o << "</dict>\n";
 }
 
-static void ReportMacro(raw_ostream &o,
+static void ReportMacro(llvm::raw_ostream& o,
                         const PathDiagnosticMacroPiece& P,
                         const FIDMap& FM, const SourceManager &SM,
                         const LangOptions &LangOpts,
@@ -299,7 +304,7 @@ static void ReportMacro(raw_ostream &o,
   }
 }
 
-static void ReportDiag(raw_ostream &o, const PathDiagnosticPiece& P,
+static void ReportDiag(llvm::raw_ostream& o, const PathDiagnosticPiece& P,
                        const FIDMap& FM, const SourceManager &SM,
                        const LangOptions &LangOpts) {
 
@@ -321,7 +326,7 @@ static void ReportDiag(raw_ostream &o, const PathDiagnosticPiece& P,
   }
 }
 
-void PlistDiagnostics::HandlePathDiagnosticImpl(const PathDiagnostic* D) {
+void PlistDiagnostics::HandlePathDiagnostic(const PathDiagnostic* D) {
   if (!D)
     return;
 
@@ -337,7 +342,7 @@ void PlistDiagnostics::HandlePathDiagnosticImpl(const PathDiagnostic* D) {
   BatchedDiags.push_back(D);
 }
 
-void PlistDiagnostics::FlushDiagnostics(SmallVectorImpl<std::string>
+void PlistDiagnostics::FlushDiagnostics(llvm::SmallVectorImpl<std::string>
                                         *FilesMade) {
   
   if (flushed)
@@ -353,7 +358,7 @@ void PlistDiagnostics::FlushDiagnostics(SmallVectorImpl<std::string>
   // Build up a set of FIDs that we use by scanning the locations and
   // ranges of the diagnostics.
   FIDMap FM;
-  SmallVector<FileID, 10> Fids;
+  llvm::SmallVector<FileID, 10> Fids;
   const SourceManager* SM = 0;
 
   if (!BatchedDiags.empty())
@@ -396,7 +401,7 @@ void PlistDiagnostics::FlushDiagnostics(SmallVectorImpl<std::string>
        " <key>files</key>\n"
        " <array>\n";
 
-  for (SmallVectorImpl<FileID>::iterator I=Fids.begin(), E=Fids.end();
+  for (llvm::SmallVectorImpl<FileID>::iterator I=Fids.begin(), E=Fids.end();
        I!=E; ++I) {
     o << "  ";
     EmitString(o, SM->getFileEntryForID(*I)->getName()) << '\n';
@@ -439,7 +444,7 @@ void PlistDiagnostics::FlushDiagnostics(SmallVectorImpl<std::string>
     // Output the diagnostic to the sub-diagnostic client, if any.
     if (SubPD) {
       SubPD->HandlePathDiagnostic(OwnedD.take());
-      SmallVector<std::string, 1> SubFilesMade;
+      llvm::SmallVector<std::string, 1> SubFilesMade;
       SubPD->FlushDiagnostics(SubFilesMade);
 
       if (!SubFilesMade.empty()) {

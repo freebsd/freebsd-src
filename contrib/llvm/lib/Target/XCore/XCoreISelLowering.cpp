@@ -81,7 +81,6 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
 
   // Use i32 for setcc operations results (slt, sgt, ...).
   setBooleanContents(ZeroOrOneBooleanContent);
-  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
 
   // XCore does not have the NodeTypes below.
   setOperationAction(ISD::BR_CC,     MVT::Other, Expand);
@@ -148,8 +147,7 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
 
   // TRAMPOLINE is custom lowered.
-  setOperationAction(ISD::INIT_TRAMPOLINE, MVT::Other, Custom);
-  setOperationAction(ISD::ADJUST_TRAMPOLINE, MVT::Other, Custom);
+  setOperationAction(ISD::TRAMPOLINE, MVT::Other, Custom);
 
   maxStoresPerMemset = maxStoresPerMemsetOptSize = 4;
   maxStoresPerMemmove = maxStoresPerMemmoveOptSize
@@ -182,8 +180,7 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::ADD:
   case ISD::SUB:              return ExpandADDSUB(Op.getNode(), DAG);
   case ISD::FRAMEADDR:        return LowerFRAMEADDR(Op, DAG);
-  case ISD::INIT_TRAMPOLINE:  return LowerINIT_TRAMPOLINE(Op, DAG);
-  case ISD::ADJUST_TRAMPOLINE: return LowerADJUST_TRAMPOLINE(Op, DAG);
+  case ISD::TRAMPOLINE:       return LowerTRAMPOLINE(Op, DAG);
   default:
     llvm_unreachable("unimplemented operand");
     return SDValue();
@@ -255,8 +252,8 @@ static inline SDValue BuildGetId(SelectionDAG &DAG, DebugLoc dl) {
                      DAG.getConstant(Intrinsic::xcore_getid, MVT::i32));
 }
 
-static inline bool isZeroLengthArray(Type *Ty) {
-  ArrayType *AT = dyn_cast_or_null<ArrayType>(Ty);
+static inline bool isZeroLengthArray(const Type *Ty) {
+  const ArrayType *AT = dyn_cast_or_null<ArrayType>(Ty);
   return AT && (AT->getNumElements() == 0);
 }
 
@@ -278,7 +275,7 @@ LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const
     llvm_unreachable("Thread local object not a GlobalVariable?");
     return SDValue();
   }
-  Type *Ty = cast<PointerType>(GV->getType())->getElementType();
+  const Type *Ty = cast<PointerType>(GV->getType())->getElementType();
   if (!Ty->isSized() || isZeroLengthArray(Ty)) {
 #ifndef NDEBUG
     errs() << "Size of thread local object " << GVar->getName()
@@ -468,7 +465,7 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   }
 
   // Lower to a call to __misaligned_load(BasePtr).
-  Type *IntPtrTy = getTargetData()->getIntPtrType(*DAG.getContext());
+  const Type *IntPtrTy = getTargetData()->getIntPtrType(*DAG.getContext());
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
 
@@ -527,7 +524,7 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG) const
   }
 
   // Lower to a call to __misaligned_store(BasePtr, Value).
-  Type *IntPtrTy = getTargetData()->getIntPtrType(*DAG.getContext());
+  const Type *IntPtrTy = getTargetData()->getIntPtrType(*DAG.getContext());
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
 
@@ -792,12 +789,7 @@ SDValue XCoreTargetLowering::LowerFRAMEADDR(SDValue Op,
 }
 
 SDValue XCoreTargetLowering::
-LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const {
-  return Op.getOperand(0);
-}
-
-SDValue XCoreTargetLowering::
-LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const {
+LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   SDValue Trmp = Op.getOperand(1); // trampoline
   SDValue FPtr = Op.getOperand(2); // nested function
@@ -849,7 +841,9 @@ LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const {
                               MachinePointerInfo(TrmpAddr, 16), false, false,
                               0);
 
-  return DAG.getNode(ISD::TokenFactor, dl, MVT::Other, OutChains, 5);
+  SDValue Ops[] =
+    { Trmp, DAG.getNode(ISD::TokenFactor, dl, MVT::Other, OutChains, 5) };
+  return DAG.getMergeValues(Ops, 2, dl);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1154,10 +1148,10 @@ XCoreTargetLowering::LowerCCCArguments(SDValue Chain,
       int offset = 0;
       // Save remaining registers, storing higher register numbers at a higher
       // address
-      for (int i = array_lengthof(ArgRegs) - 1; i >= (int)FirstVAReg; --i) {
+      for (unsigned i = array_lengthof(ArgRegs) - 1; i >= FirstVAReg; --i) {
         // Create a stack slot
         int FI = MFI->CreateFixedObject(4, offset, true);
-        if (i == (int)FirstVAReg) {
+        if (i == FirstVAReg) {
           XFI->setVarArgsFrameIndex(FI);
         }
         offset -= StackSlotSize;
@@ -1415,8 +1409,7 @@ SDValue XCoreTargetLowering::PerformDAGCombine(SDNode *N,
     // operands are constant canonicalize smallest to RHS.
     if ((N0C && !N1C) ||
         (N0C && N1C && N0C->getZExtValue() < N1C->getZExtValue()))
-      return DAG.getNode(XCoreISD::LMUL, dl, DAG.getVTList(VT, VT),
-                         N1, N0, N2, N3);
+      return DAG.getNode(XCoreISD::LMUL, dl, DAG.getVTList(VT, VT), N1, N0, N2, N3);
 
     // lmul(x, 0, a, b)
     if (N1C && N1C->isNullValue()) {
@@ -1555,7 +1548,7 @@ static inline bool isImmUs4(int64_t val)
 /// by AM is legal for this target, for a load/store of the specified type.
 bool
 XCoreTargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                              Type *Ty) const {
+                                              const Type *Ty) const {
   if (Ty->getTypeID() == Type::VoidTyID)
     return AM.Scale == 0 && isImmUs(AM.BaseOffs) && isImmUs4(AM.BaseOffs);
 

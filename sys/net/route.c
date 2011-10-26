@@ -260,7 +260,7 @@ struct setfib_args {
 };
 #endif
 int
-sys_setfib(struct thread *td, struct setfib_args *uap)
+setfib(struct thread *td, struct setfib_args *uap)
 {
 	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
 		return EINVAL;
@@ -384,7 +384,7 @@ miss:
 		 */
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_DST] = dst;
-		rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
+		rt_missmsg(msgtype, &info, 0, err);
 	}	
 done:
 	if (newrt)
@@ -609,7 +609,7 @@ out:
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_NETMASK] = netmask;
 	info.rti_info[RTAX_AUTHOR] = src;
-	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
+	rt_missmsg(RTM_REDIRECT, &info, flags, error);
 	if (ifa != NULL)
 		ifa_free(ifa);
 }
@@ -1025,7 +1025,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
-	struct sockaddr_storage mdst;
 #define senderr(x) { error = x ; goto bad; }
 
 	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
@@ -1052,10 +1051,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 
 	switch (req) {
 	case RTM_DELETE:
-		if (netmask) {
-			rt_maskedcopy(dst, (struct sockaddr *)&mdst, netmask);
-			dst = (struct sockaddr *)&mdst;
-		}
 #ifdef RADIX_MPATH
 		if (rn_mpath_capable(rnh)) {
 			error = rn_mpath_update(req, info, rnh, ret_nrt);
@@ -1527,7 +1522,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			}
 			RT_ADDREF(rt);
 			RT_UNLOCK(rt);
-			rt_newaddrmsg_fib(cmd, ifa, error, rt, fibnum);
+			rt_newaddrmsg(cmd, ifa, error, rt);
 			RT_LOCK(rt);
 			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {

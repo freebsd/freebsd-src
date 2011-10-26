@@ -24,8 +24,9 @@ BranchProbability::BranchProbability(uint32_t n, uint32_t d) {
   D = d;
 }
 
-void BranchProbability::print(raw_ostream &OS) const {
+raw_ostream &BranchProbability::print(raw_ostream &OS) const {
   OS << N << " / " << D << " = " << ((double)N / D);
+  return OS;
 }
 
 void BranchProbability::dump() const {

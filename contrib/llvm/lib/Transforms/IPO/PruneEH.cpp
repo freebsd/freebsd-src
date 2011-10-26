@@ -101,9 +101,8 @@ bool PruneEH::runOnSCC(CallGraphSCC &SCC) {
       // Check to see if this function performs an unwind or calls an
       // unwinding function.
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-        if (CheckUnwind && (isa<UnwindInst>(BB->getTerminator()) ||
-                            isa<ResumeInst>(BB->getTerminator()))) {
-          // Uses unwind / resume!
+        if (CheckUnwind && isa<UnwindInst>(BB->getTerminator())) {
+          // Uses unwind!
           SCCMightUnwind = true;
         } else if (CheckReturn && isa<ReturnInst>(BB->getTerminator())) {
           SCCMightReturn = true;

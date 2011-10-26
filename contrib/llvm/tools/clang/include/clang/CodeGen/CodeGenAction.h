@@ -37,7 +37,7 @@ protected:
   virtual bool hasIRSupport() const;
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+                                         llvm::StringRef InFile);
 
   virtual void ExecuteAction();
 

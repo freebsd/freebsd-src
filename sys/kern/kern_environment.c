@@ -77,7 +77,7 @@ int	dynamic_kenv = 0;
 			    panic("%s: called before SI_SUB_KMEM", __func__)
 
 int
-sys_kenv(td, uap)
+kenv(td, uap)
 	struct thread *td;
 	struct kenv_args /* {
 		int what;

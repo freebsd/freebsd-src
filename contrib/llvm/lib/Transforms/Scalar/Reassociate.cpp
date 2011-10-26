@@ -309,7 +309,7 @@ void Reassociate::LinearizeExprTree(BinaryOperator *I,
     std::swap(LHS, RHS);
     bool Success = !I->swapOperands();
     assert(Success && "swapOperands failed");
-    (void)Success;
+    Success = false;
     MadeChange = true;
   } else if (RHSBO) {
     // Turn (A+B)+(C+D) -> (((A+B)+C)+D).  This guarantees the RHS is not

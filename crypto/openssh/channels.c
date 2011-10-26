@@ -1,5 +1,4 @@
-/* $OpenBSD: channels.c,v 1.311 2011/06/22 22:08:42 djm Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: channels.c,v 1.310 2010/11/24 01:24:14 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -3639,7 +3638,7 @@ deny_input_open(int type, u_int32_t seq, void *ctxt)
  */
 void
 x11_request_forwarding_with_spoofing(int client_session_id, const char *disp,
-    const char *proto, const char *data, int want_reply)
+    const char *proto, const char *data)
 {
 	u_int data_len = (u_int) strlen(data) / 2;
 	u_int i, value;
@@ -3692,7 +3691,7 @@ x11_request_forwarding_with_spoofing(int client_session_id, const char *disp,
 
 	/* Send the request packet. */
 	if (compat20) {
-		channel_request_start(client_session_id, "x11-req", want_reply);
+		channel_request_start(client_session_id, "x11-req", 0);
 		packet_put_char(0);	/* XXX bool single connection */
 	} else {
 		packet_start(SSH_CMSG_X11_REQUEST_FORWARDING);

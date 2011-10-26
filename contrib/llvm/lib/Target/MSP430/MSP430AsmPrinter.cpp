@@ -32,7 +32,9 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -161,7 +163,17 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   OutStreamer.EmitInstruction(TmpInst);
 }
 
+static MCInstPrinter *createMSP430MCInstPrinter(const Target &T,
+                                                unsigned SyntaxVariant,
+                                                const MCAsmInfo &MAI) {
+  if (SyntaxVariant == 0)
+    return new MSP430InstPrinter(MAI);
+  return 0;
+}
+
 // Force static initialization.
 extern "C" void LLVMInitializeMSP430AsmPrinter() {
   RegisterAsmPrinter<MSP430AsmPrinter> X(TheMSP430Target);
+  TargetRegistry::RegisterMCInstPrinter(TheMSP430Target,
+                                        createMSP430MCInstPrinter);
 }

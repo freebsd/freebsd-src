@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <machine/bootinfo.h>
+#include <machine/psl.h>
 
 #include <stdarg.h>
 
@@ -324,7 +325,7 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			v86.ebp = VTOPOFF(xp);
 			v86.es = VTOPSEG(xp);
 			v86int();
-			result = V86_CY(v86.efl);
+			result = (v86.efl & PSL_C);
 			if (result == 0)
 				break;
 		}

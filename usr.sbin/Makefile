@@ -290,6 +290,8 @@ SUBDIR+=	praliases
 SUBDIR+=	sendmail
 .endif
 
+SUBDIR+=	sysinstall
+
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config
 SUBDIR+=	crunch

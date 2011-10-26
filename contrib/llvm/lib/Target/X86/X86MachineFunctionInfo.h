@@ -53,6 +53,10 @@ class X86MachineFunctionInfo : public MachineFunctionInfo {
   /// relocation models.
   unsigned GlobalBaseReg;
 
+  /// ReserveFP - whether the function should reserve the frame pointer
+  /// when allocating, even if there may not actually be a frame pointer used.
+  bool ReserveFP;
+
   /// VarArgsFrameIndex - FrameIndex for start of varargs area.
   int VarArgsFrameIndex;
   /// RegSaveFrameIndex - X86-64 vararg func register save area.
@@ -61,9 +65,6 @@ class X86MachineFunctionInfo : public MachineFunctionInfo {
   unsigned VarArgsGPOffset;
   /// VarArgsFPOffset - X86-64 vararg func fp reg offset.
   unsigned VarArgsFPOffset;
-  /// ArgumentStackSize - The number of bytes on stack consumed by the arguments
-  /// being passed on the stack.
-  unsigned ArgumentStackSize;
 
 public:
   X86MachineFunctionInfo() : ForceFramePointer(false),
@@ -76,8 +77,7 @@ public:
                              VarArgsFrameIndex(0),
                              RegSaveFrameIndex(0),
                              VarArgsGPOffset(0),
-                             VarArgsFPOffset(0),
-                             ArgumentStackSize(0) {}
+                             VarArgsFPOffset(0) {}
   
   explicit X86MachineFunctionInfo(MachineFunction &MF)
     : ForceFramePointer(false),
@@ -87,11 +87,11 @@ public:
       TailCallReturnAddrDelta(0),
       SRetReturnReg(0),
       GlobalBaseReg(0),
+      ReserveFP(false),
       VarArgsFrameIndex(0),
       RegSaveFrameIndex(0),
       VarArgsGPOffset(0),
-      VarArgsFPOffset(0),
-      ArgumentStackSize(0) {}
+      VarArgsFPOffset(0) {}
   
   bool getForceFramePointer() const { return ForceFramePointer;} 
   void setForceFramePointer(bool forceFP) { ForceFramePointer = forceFP; }
@@ -114,6 +114,9 @@ public:
   unsigned getGlobalBaseReg() const { return GlobalBaseReg; }
   void setGlobalBaseReg(unsigned Reg) { GlobalBaseReg = Reg; }
 
+  bool getReserveFP() const { return ReserveFP; }
+  void setReserveFP(bool reserveFP) { ReserveFP = reserveFP; }
+
   int getVarArgsFrameIndex() const { return VarArgsFrameIndex; }
   void setVarArgsFrameIndex(int Idx) { VarArgsFrameIndex = Idx; }
 
@@ -125,9 +128,6 @@ public:
 
   unsigned getVarArgsFPOffset() const { return VarArgsFPOffset; }
   void setVarArgsFPOffset(unsigned Offset) { VarArgsFPOffset = Offset; }
-
-  unsigned getArgumentStackSize() const { return ArgumentStackSize; }
-  void setArgumentStackSize(unsigned size) { ArgumentStackSize = size; }
 };
 
 } // End llvm namespace

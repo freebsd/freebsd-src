@@ -62,8 +62,7 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_VERBOSE) | \
 			OPT_SET(RBX_GDB))
 
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
+#define PATH_CONFIG	"/boot.config"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 extern uint32_t _end;
@@ -87,7 +86,7 @@ static unsigned dsk_start;
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
-static uint8_t dsk_meta;
+static int dsk_meta;
 static int bootslice;
 static int bootpart;
 static int disk_layout;
@@ -169,8 +168,7 @@ main(void)
 	autoboot = 1;
 
 	/* Process configuration file */
-	if ((ino = lookup(PATH_CONFIG)) ||
-	    (ino = lookup(PATH_DOTCONFIG)))
+	if ((ino = lookup(PATH_CONFIG)))
 		fsread(ino, cmd, sizeof(cmd));
 
 	if (*cmd) {

@@ -71,8 +71,8 @@ __FBSDID("$FreeBSD$");
  *      nerel   :       shift { ("<" | ">" | "<=" | ">=") shift }
  *      shift   :       primary { ("<<" | ">>") primary }
  *      primary :       term { ("+" | "-") term }
- *      term    :       exponent { ("*" | "/" | "%") exponent }
- *      exponent:       unary { "**" unary }
+ *      term    :       exp { ("*" | "/" | "%") exp }
+ *      exp     :       unary { "**" unary }
  *      unary   :       factor
  *              |       ("+" | "-" | "~" | "!") unary
  *      factor  :       constant
@@ -115,11 +115,12 @@ static int nerel(int mayeval);
 static int shift(int mayeval);
 static int primary(int mayeval);
 static int term(int mayeval);
-static int exponent(int mayeval);
+static int exp(int mayeval);
 static int unary(int mayeval);
 static int factor(int mayeval);
 static int constant(int mayeval);
 static int num(int mayeval);
+static int geteqrel(int mayeval);
 static int skipws(void);
 static void experr(const char *);
 
@@ -387,16 +388,16 @@ primary(int mayeval)
 }
 
 /*
- * term : exponent { ("*" | "/" | "%") exponent }
+ * term : exp { ("*" | "/" | "%") exp }
  */
 static int
 term(int mayeval)
 {
 	int c, vl, vr;
 
-	vl = exponent(mayeval);
+	vl = exp(mayeval);
 	while ((c = skipws()) == '*' || c == '/' || c == '%') {
-		vr = exponent(mayeval);
+		vr = exp(mayeval);
 
 		switch (c) {
 		case '*':
@@ -425,10 +426,10 @@ term(int mayeval)
 }
 
 /*
- * exponent : unary { "**" exponent }
+ * exp : unary { "**" exp }
  */
 static int
-exponent(int mayeval)
+exp(int mayeval)
 {
 	int c, vl, vr, n;
 
@@ -561,7 +562,7 @@ constant(int mayeval)
  * num : digit | num digit
  */
 static int
-num(int mayeval __unused)
+num(int mayeval)
 {
 	int rval, c, base;
 	int ndig;

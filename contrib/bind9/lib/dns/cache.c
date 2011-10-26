@@ -126,7 +126,6 @@ struct dns_cache {
 	isc_mem_t		*mctx;		/* Main cache memory */
 	isc_mem_t		*hmctx;		/* Heap memory */
 	char			*name;
-	char			*name;
 
 	/* Locked by 'lock'. */
 	int			references;
@@ -207,7 +206,6 @@ dns_cache_create3(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
 	REQUIRE(*cachep == NULL);
 	REQUIRE(cmctx != NULL);
 	REQUIRE(hmctx != NULL);
-	REQUIRE(cachename != NULL);
 	REQUIRE(cachename != NULL);
 
 	cache = isc_mem_get(cmctx, sizeof(*cache));

@@ -31,7 +31,7 @@ public:
 
 bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
                                       CheckerContext &C) const{
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
   const FunctionDecl *FD = L.getAsFunctionDecl();
@@ -57,7 +57,7 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // FIXME: Refactor into StoreManager itself?
     MemRegionManager& RM = C.getStoreManager().getRegionManager();
     const AllocaRegion* R =
-      RM.getAllocaRegion(CE, C.getCurrentBlockCount(),
+      RM.getAllocaRegion(CE, C.getNodeBuilder().getCurrentBlockCount(),
                          C.getPredecessor()->getLocationContext());
 
     // Set the extent of the region in bytes. This enables us to use the

@@ -52,13 +52,13 @@ def FeatureSM12 : SubtargetFeature<"sm12", "PTXTarget", "PTX_SM_1_2",
 def FeatureSM13 : SubtargetFeature<"sm13", "PTXTarget", "PTX_SM_1_3",
                                    "Use Shader Model 1.3">;
 def FeatureSM20 : SubtargetFeature<"sm20", "PTXTarget", "PTX_SM_2_0",
-                                   "Use Shader Model 2.0", [FeatureDouble]>;
+                                   "Use Shader Model 2.0">;
 def FeatureSM21 : SubtargetFeature<"sm21", "PTXTarget", "PTX_SM_2_1",
-                                   "Use Shader Model 2.1", [FeatureDouble]>;
+                                   "Use Shader Model 2.1">;
 def FeatureSM22 : SubtargetFeature<"sm22", "PTXTarget", "PTX_SM_2_2",
-                                   "Use Shader Model 2.2", [FeatureDouble]>;
+                                   "Use Shader Model 2.2">;
 def FeatureSM23 : SubtargetFeature<"sm23", "PTXTarget", "PTX_SM_2_3",
-                                   "Use Shader Model 2.3", [FeatureDouble]>;
+                                   "Use Shader Model 2.3">;
 
 def FeatureCOMPUTE10 : SubtargetFeature<"compute10", "PTXTarget",
                                         "PTX_COMPUTE_1_0",
@@ -74,8 +74,7 @@ def FeatureCOMPUTE13 : SubtargetFeature<"compute13", "PTXTarget",
                                         "Use Compute Compatibility 1.3">;
 def FeatureCOMPUTE20 : SubtargetFeature<"compute20", "PTXTarget",
                                         "PTX_COMPUTE_2_0",
-                                        "Use Compute Compatibility 2.0",
-                                        [FeatureDouble]>;
+                                        "Use Compute Compatibility 2.0">;
 
 //===----------------------------------------------------------------------===//
 // PTX supported processors
@@ -114,6 +113,12 @@ def : Proc<"fermi",      [FeatureSM20, FeatureDouble]>;
 include "PTXRegisterInfo.td"
 
 //===----------------------------------------------------------------------===//
+// Calling Conventions
+//===----------------------------------------------------------------------===//
+
+include "PTXCallingConv.td"
+
+//===----------------------------------------------------------------------===//
 // Instruction Descriptions
 //===----------------------------------------------------------------------===//
 
@@ -122,20 +127,9 @@ include "PTXInstrInfo.td"
 def PTXInstrInfo : InstrInfo;
 
 //===----------------------------------------------------------------------===//
-// Assembly printer
-//===----------------------------------------------------------------------===//
-// PTX uses the MC printer for asm output, so make sure the TableGen
-// AsmWriter bits get associated with the correct class.
-def PTXAsmWriter : AsmWriter {
-  string AsmWriterClassName  = "InstPrinter";
-  bit isMCAsmWriter = 1;
-}
-
-//===----------------------------------------------------------------------===//
 // Target Declaration
 //===----------------------------------------------------------------------===//
 
 def PTX : Target {
   let InstructionSet = PTXInstrInfo;
-  let AssemblyWriters = [PTXAsmWriter];
 }

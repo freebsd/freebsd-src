@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	teken_demo
-LDADD=	-lncursesw -lteken -lutil
+LDADD=	-lncurses -lteken -lutil
 MAN=
 
 WARNS?=	6

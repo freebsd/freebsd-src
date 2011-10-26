@@ -20,7 +20,6 @@
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
-#include "clang/Serialization/ASTReader.h"
 #include "clang/Serialization/ChainedIncludesSource.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Timer.h"
@@ -66,7 +65,7 @@ public:
       if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
         if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
           unsigned DiagID
-            = Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
+            = Ctx.getDiagnostics().getCustomDiagID(Diagnostic::Error,
                                                    "%0 was deserialized");
           Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
               << ND->getNameAsString();
@@ -83,7 +82,7 @@ FrontendAction::FrontendAction() : Instance(0) {}
 
 FrontendAction::~FrontendAction() {}
 
-void FrontendAction::setCurrentFile(StringRef Value, InputKind Kind,
+void FrontendAction::setCurrentFile(llvm::StringRef Value, InputKind Kind,
                                     ASTUnit *AST) {
   CurrentFile = Value;
   CurrentFileKind = Kind;
@@ -91,7 +90,7 @@ void FrontendAction::setCurrentFile(StringRef Value, InputKind Kind,
 }
 
 ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
-                                                      StringRef InFile) {
+                                                      llvm::StringRef InFile) {
   ASTConsumer* Consumer = CreateASTConsumer(CI, InFile);
   if (!Consumer)
     return 0;
@@ -124,7 +123,7 @@ ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
 }
 
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
-                                     StringRef Filename,
+                                     llvm::StringRef Filename,
                                      InputKind InputKind) {
   assert(!Instance && "Already processing a source file!");
   assert(!Filename.empty() && "Unexpected empty filename!");
@@ -142,7 +141,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     assert(hasASTFileSupport() &&
            "This action does not have AST file support!");
 
-    llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
+    llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
     std::string Error;
     ASTUnit *AST = ASTUnit::LoadFromASTFile(Filename, Diags,
                                             CI.getFileSystemOpts());
@@ -225,8 +224,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     } else if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
       // Use PCH.
       assert(hasPCHSupport() && "This action does not have PCH support!");
-      ASTDeserializationListener *DeserialListener =
-          Consumer->GetASTDeserializationListener();
+      ASTDeserializationListener *DeserialListener
+          = CI.getInvocation().getFrontendOpts().ChainedPCH ?
+                  Consumer->GetASTDeserializationListener() : 0;
       if (CI.getPreprocessorOpts().DumpDeserializedPCHDecls)
         DeserialListener = new DeserializedDeclsDumper(DeserialListener);
       if (!CI.getPreprocessorOpts().DeserializedPCHDeclsToErrorOn.empty())
@@ -247,7 +247,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       goto failure;
   }
 
-  // Initialize built-in info as long as we aren't using an external AST
+  // Initialize builtin info as long as we aren't using an external AST
   // source.
   if (!CI.hasASTContext() || !CI.getASTContext().getExternalSource()) {
     Preprocessor &PP = CI.getPreprocessor();
@@ -374,26 +374,26 @@ void ASTFrontendAction::ExecuteAction() {
     CompletionConsumer = &CI.getCodeCompletionConsumer();
 
   if (!CI.hasSema())
-    CI.createSema(getTranslationUnitKind(), CompletionConsumer);
+    CI.createSema(usesCompleteTranslationUnit(), CompletionConsumer);
 
   ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats);
 }
 
 ASTConsumer *
 PreprocessorFrontendAction::CreateASTConsumer(CompilerInstance &CI,
-                                              StringRef InFile) {
+                                              llvm::StringRef InFile) {
   llvm_unreachable("Invalid CreateASTConsumer on preprocessor action!");
 }
 
 ASTConsumer *WrapperFrontendAction::CreateASTConsumer(CompilerInstance &CI,
-                                                      StringRef InFile) {
+                                                      llvm::StringRef InFile) {
   return WrappedAction->CreateASTConsumer(CI, InFile);
 }
 bool WrapperFrontendAction::BeginInvocation(CompilerInstance &CI) {
   return WrappedAction->BeginInvocation(CI);
 }
 bool WrapperFrontendAction::BeginSourceFileAction(CompilerInstance &CI,
-                                                  StringRef Filename) {
+                                                  llvm::StringRef Filename) {
   WrappedAction->setCurrentFile(getCurrentFile(), getCurrentFileKind());
   WrappedAction->setCompilerInstance(&CI);
   return WrappedAction->BeginSourceFileAction(CI, Filename);
@@ -408,8 +408,8 @@ void WrapperFrontendAction::EndSourceFileAction() {
 bool WrapperFrontendAction::usesPreprocessorOnly() const {
   return WrappedAction->usesPreprocessorOnly();
 }
-TranslationUnitKind WrapperFrontendAction::getTranslationUnitKind() {
-  return WrappedAction->getTranslationUnitKind();
+bool WrapperFrontendAction::usesCompleteTranslationUnit() {
+  return WrappedAction->usesCompleteTranslationUnit();
 }
 bool WrapperFrontendAction::hasPCHSupport() const {
   return WrappedAction->hasPCHSupport();

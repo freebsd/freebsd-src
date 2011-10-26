@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 LIB=	roken
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
 INCS=	roken.h roken-common.h
 
 SRCS=	base64.c \

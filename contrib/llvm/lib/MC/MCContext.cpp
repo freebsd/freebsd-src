@@ -9,14 +9,13 @@
 
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/MC/MCObjectFileInfo.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCLabel.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ELF.h"
@@ -27,9 +26,8 @@ typedef StringMap<const MCSectionELF*> ELFUniqueMapTy;
 typedef StringMap<const MCSectionCOFF*> COFFUniqueMapTy;
 
 
-MCContext::MCContext(const MCAsmInfo &mai, const MCRegisterInfo &mri,
-                     const MCObjectFileInfo *mofi) :
-  MAI(mai), MRI(mri), MOFI(mofi),
+MCContext::MCContext(const MCAsmInfo &mai, const TargetAsmInfo *tai) :
+  MAI(mai), TAI(tai),
   Allocator(), Symbols(Allocator), UsedNames(Allocator),
   NextUniqueID(0),
   CurrentDwarfLoc(0,0,0,DWARF2_FLAG_IS_STMT,0,0),
@@ -56,6 +54,8 @@ MCContext::~MCContext() {
 
   // If the stream for the .secure_log_unique directive was created free it.
   delete (raw_ostream*)SecureLog;
+
+  delete TAI;
 }
 
 //===----------------------------------------------------------------------===//
@@ -279,8 +279,7 @@ unsigned MCContext::GetDwarfFile(StringRef FileName, unsigned FileNumber) {
   } else {
     StringRef Directory = Slash.first;
     Name = Slash.second;
-    DirIndex = 0;
-    for (unsigned End = MCDwarfDirs.size(); DirIndex < End; DirIndex++) {
+    for (DirIndex = 0; DirIndex < MCDwarfDirs.size(); DirIndex++) {
       if (Directory == MCDwarfDirs[DirIndex])
         break;
     }

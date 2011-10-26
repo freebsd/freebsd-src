@@ -134,7 +134,8 @@ and
 .Sy uname
 or
 .Sy uid ,
-and
+.Sy device
+(in the case of block or character devices), and
 .Sy link
 (in the case of symbolic links).
 If
@@ -241,8 +242,6 @@ Block size.
 Bytes per inode.
 .It Sy fsize
 Fragment size.
-.It Sy label
-Label name of the image.
 .It Sy maxbpg
 Maximum blocks per file in a cylinder group.
 .It Sy minfree

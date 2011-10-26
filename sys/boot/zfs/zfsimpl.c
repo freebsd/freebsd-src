@@ -347,7 +347,7 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
-	if (bp && zio_checksum_verify(bp, buf))
+	if (bp && zio_checksum_error(bp, buf, offset))
 		return (EIO);
 
 	return (0);
@@ -543,6 +543,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 			vdev->v_state = VDEV_STATE_DEGRADED;
 		else if (isnt_present)
 			vdev->v_state = VDEV_STATE_CANT_OPEN;
+		else
+			vdev->v_state = VDEV_STATE_HEALTHY;
 	}
 
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
@@ -798,7 +800,6 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	BP_SET_PSIZE(&bp, sizeof(vdev_phys_t));
 	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
 	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
-	DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
 	ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
 	if (vdev_read_phys(&vtmp, &bp, vdev_label, off, 0))
 		return (EIO);
@@ -911,7 +912,6 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	if (vdev) {
 		vdev->v_phys_read = read;
 		vdev->v_read_priv = read_priv;
-		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
@@ -941,7 +941,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
 		ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
 
-		if (vdev_read_phys(vdev, &bp, upbuf, off, 0))
+		if (vdev_read_phys(vdev, NULL, upbuf, off, VDEV_UBERBLOCK_SIZE(vdev)))
 			continue;
 
 		if (up->ub_magic != UBERBLOCK_MAGIC)
@@ -974,39 +974,34 @@ ilog2(int n)
 }
 
 static int
-zio_read_gang(spa_t *spa, const blkptr_t *bp, void *buf)
+zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
 {
-	blkptr_t gbh_bp;
 	zio_gbh_phys_t zio_gb;
-	char *pbuf;
+	vdev_t *vdev;
+	int vdevid;
+	off_t offset;
 	int i;
 
-	/* Artificial BP for gang block header. */
-	gbh_bp = *bp;
-	BP_SET_PSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
-	BP_SET_LSIZE(&gbh_bp, SPA_GANGBLOCKSIZE);
-	BP_SET_CHECKSUM(&gbh_bp, ZIO_CHECKSUM_GANG_HEADER);
-	BP_SET_COMPRESS(&gbh_bp, ZIO_COMPRESS_OFF);
-	for (i = 0; i < SPA_DVAS_PER_BP; i++)
-		DVA_SET_GANG(&gbh_bp.blk_dva[i], 0);
-
-	/* Read gang header block using the artificial BP. */
-	if (zio_read(spa, &gbh_bp, &zio_gb))
+	vdevid = DVA_GET_VDEV(dva);
+	offset = DVA_GET_OFFSET(dva);
+	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+		if (vdev->v_id == vdevid)
+			break;
+	if (!vdev || !vdev->v_read)
+		return (EIO);
+	if (vdev->v_read(vdev, NULL, &zio_gb, offset, SPA_GANGBLOCKSIZE))
 		return (EIO);
 
-	pbuf = buf;
 	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
 		blkptr_t *gbp = &zio_gb.zg_blkptr[i];
 
 		if (BP_IS_HOLE(gbp))
 			continue;
-		if (zio_read(spa, gbp, pbuf))
+		if (zio_read(spa, gbp, buf))
 			return (EIO);
-		pbuf += BP_GET_PSIZE(gbp);
+		buf = (char*)buf + BP_GET_PSIZE(gbp);
 	}
-
-	if (zio_checksum_verify(bp, buf))
-		return (EIO);
+ 
 	return (0);
 }
 
@@ -1029,41 +1024,46 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 		if (!dva->dva_word[0] && !dva->dva_word[1])
 			continue;
 
-		vdevid = DVA_GET_VDEV(dva);
-		offset = DVA_GET_OFFSET(dva);
-		STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
-			if (vdev->v_id == vdevid)
-				break;
-		}
-		if (!vdev || !vdev->v_read)
-			continue;
+		if (DVA_GET_GANG(dva)) {
+			error = zio_read_gang(spa, bp, dva, buf);
+			if (error != 0)
+				continue;
+		} else {
+			vdevid = DVA_GET_VDEV(dva);
+			offset = DVA_GET_OFFSET(dva);
+			STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
+				if (vdev->v_id == vdevid)
+					break;
+			}
+			if (!vdev || !vdev->v_read)
+				continue;
 
-		size = BP_GET_PSIZE(bp);
-		if (vdev->v_read == vdev_raidz_read) {
+			size = BP_GET_PSIZE(bp);
 			align = 1ULL << vdev->v_top->v_ashift;
 			if (P2PHASE(size, align) != 0)
 				size = P2ROUNDUP(size, align);
-		}
-		if (size != BP_GET_PSIZE(bp) || cpfunc != ZIO_COMPRESS_OFF)
-			pbuf = zfs_alloc(size);
-		else
-			pbuf = buf;
+			if (size != BP_GET_PSIZE(bp) || cpfunc != ZIO_COMPRESS_OFF)
+				pbuf = zfs_alloc(size);
+			else
+				pbuf = buf;
 
-		if (DVA_GET_GANG(dva))
-			error = zio_read_gang(spa, bp, pbuf);
-		else
 			error = vdev->v_read(vdev, bp, pbuf, offset, size);
-		if (error == 0) {
-			if (cpfunc != ZIO_COMPRESS_OFF)
-				error = zio_decompress_data(cpfunc, pbuf,
-				    BP_GET_PSIZE(bp), buf, BP_GET_LSIZE(bp));
-			else if (size != BP_GET_PSIZE(bp))
-				bcopy(pbuf, buf, BP_GET_PSIZE(bp));
+			if (error == 0) {
+				if (cpfunc != ZIO_COMPRESS_OFF) {
+					error = zio_decompress_data(cpfunc,
+					    pbuf, BP_GET_PSIZE(bp), buf,
+					    BP_GET_LSIZE(bp));
+				} else if (size != BP_GET_PSIZE(bp)) {
+					bcopy(pbuf, buf, BP_GET_PSIZE(bp));
+				}
+			}
+			if (buf != pbuf)
+				zfs_free(pbuf, size);
+			if (error != 0)
+				continue;
 		}
-		if (buf != pbuf)
-			zfs_free(pbuf, size);
-		if (error == 0)
-			break;
+		error = 0;
+		break;
 	}
 	if (error != 0)
 		printf("ZFS: i/o error - all block copies unavailable\n");

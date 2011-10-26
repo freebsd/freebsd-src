@@ -23,8 +23,6 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
  */
 
 #include <ctype.h>
@@ -3482,7 +3480,7 @@ zfs_iter_dependents(zfs_handle_t *zhp, boolean_t allowrecursion,
  * Renames the given dataset.
  */
 int
-zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
+zfs_rename(zfs_handle_t *zhp, const char *target, boolean_t recursive)
 {
 	int ret;
 	zfs_cmd_t zc = { 0 };
@@ -3491,7 +3489,6 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 	zfs_handle_t *zhrp = NULL;
 	char *parentname = NULL;
 	char parent[ZFS_MAXNAMELEN];
-	char property[ZFS_MAXPROPLEN];
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char errbuf[1024];
 
@@ -3538,7 +3535,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		if (!zfs_validate_name(hdl, target, zhp->zfs_type, B_TRUE))
 			return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 	} else {
-		if (flags.recurse) {
+		if (recursive) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "recursive rename must be a snapshot"));
 			return (zfs_error(hdl, EZFS_BADTYPE, errbuf));
@@ -3579,20 +3576,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		return (zfs_error(hdl, EZFS_ZONED, errbuf));
 	}
 
-	/*
-	 * Avoid unmounting file systems with mountpoint property set to
-	 * 'legacy' or 'none' even if -u option is not given.
-	 */
-	if (zhp->zfs_type == ZFS_TYPE_FILESYSTEM &&
-	    !flags.recurse && !flags.nounmount &&
-	    zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, property,
-	    sizeof (property), NULL, NULL, 0, B_FALSE) == 0 &&
-	    (strcmp(property, "legacy") == 0 ||
-	     strcmp(property, "none") == 0)) {
-		flags.nounmount = B_TRUE;
-	}
-
-	if (flags.recurse) {
+	if (recursive) {
 
 		parentname = zfs_strdup(zhp->zfs_hdl, zhp->zfs_name);
 		if (parentname == NULL) {
@@ -3608,10 +3592,8 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		}
 
 	} else {
-		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME,
-		    flags.nounmount ? CL_GATHER_DONT_UNMOUNT : 0, 0)) == NULL) {
+		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME, 0, 0)) == NULL)
 			return (-1);
-		}
 
 		if (changelist_haszonedchild(cl)) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -3633,9 +3615,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
 	(void) strlcpy(zc.zc_value, target, sizeof (zc.zc_value));
 
-	zc.zc_cookie = flags.recurse ? 1 : 0;
-	if (flags.nounmount)
-		zc.zc_cookie |= 2;
+	zc.zc_cookie = recursive;
 
 	if ((ret = zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_RENAME, &zc)) != 0) {
 		/*
@@ -3645,7 +3625,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 		    "cannot rename '%s'"), zc.zc_name);
 
-		if (flags.recurse && errno == EEXIST) {
+		if (recursive && errno == EEXIST) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "a child dataset already has a snapshot "
 			    "with the new name"));
@@ -3658,10 +3638,10 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		 * On failure, we still want to remount any filesystems that
 		 * were previously mounted, so we don't alter the system state.
 		 */
-		if (!flags.recurse)
+		if (!recursive)
 			(void) changelist_postfix(cl);
 	} else {
-		if (!flags.recurse) {
+		if (!recursive) {
 			changelist_rename(cl, zfs_get_name(zhp), target);
 			ret = changelist_postfix(cl);
 		}

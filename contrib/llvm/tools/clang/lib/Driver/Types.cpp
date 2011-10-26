@@ -79,11 +79,10 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_C: case TY_PP_C:
   case TY_CL:
   case TY_CUDA:
-  case TY_ObjC: case TY_PP_ObjC: case TY_PP_ObjC_Alias:
+  case TY_ObjC: case TY_PP_ObjC:
   case TY_CXX: case TY_PP_CXX:
-  case TY_ObjCXX: case TY_PP_ObjCXX: case TY_PP_ObjCXX_Alias:
+  case TY_ObjCXX: case TY_PP_ObjCXX:
   case TY_CHeader: case TY_PP_CHeader:
-  case TY_CLHeader:
   case TY_ObjCHeader: case TY_PP_ObjCHeader:
   case TY_CXXHeader: case TY_PP_CXXHeader:
   case TY_ObjCXXHeader: case TY_PP_ObjCXXHeader:
@@ -111,10 +110,10 @@ bool types::isObjC(ID Id) {
   default:
     return false;
 
-  case TY_ObjC: case TY_PP_ObjC: case TY_PP_ObjC_Alias:
+  case TY_ObjC: case TY_PP_ObjC:
   case TY_ObjCXX: case TY_PP_ObjCXX:
   case TY_ObjCHeader: case TY_PP_ObjCHeader:
-  case TY_ObjCXXHeader: case TY_PP_ObjCXXHeader: case TY_PP_ObjCXX_Alias:
+  case TY_ObjCXXHeader: case TY_PP_ObjCXXHeader:
     return true;
   }
 }
@@ -145,7 +144,6 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("F", TY_Fortran)
            .Case("s", TY_PP_Asm)
            .Case("S", TY_Asm)
-           .Case("o", TY_Object)
            .Case("ii", TY_PP_CXX)
            .Case("mi", TY_PP_ObjC)
            .Case("mm", TY_ObjCXX)

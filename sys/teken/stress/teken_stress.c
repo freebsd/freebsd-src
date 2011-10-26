@@ -99,14 +99,24 @@ int
 main(int argc __unused, char *argv[] __unused)
 {
 	teken_t t;
+	int rnd;
 	unsigned int i, iteration = 0;
 	unsigned char buf[2048];
 
+	rnd = open("/dev/urandom", O_RDONLY);
+	if (rnd < 0) {
+		perror("/dev/urandom");
+		exit(1);
+	}
 
 	teken_init(&t, &tf, NULL);
 
 	for (;;) {
-		arc4random_buf(buf, sizeof buf);
+		if (read(rnd, buf, sizeof buf) != sizeof buf) {
+			perror("read");
+			exit(1);
+		}
+
 		for (i = 0; i < sizeof buf; i++) {
 			if (buf[i] >= 0x80)
 				buf[i] =

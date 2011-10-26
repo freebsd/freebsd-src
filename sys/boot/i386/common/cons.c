@@ -27,6 +27,8 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 
+#define	V86_ZR(x)	((x) & PSL_Z)
+
 #define SECOND		18	/* Circa that many ticks in a second. */
 
 uint8_t ioctrl = IO_KEYBOARD;

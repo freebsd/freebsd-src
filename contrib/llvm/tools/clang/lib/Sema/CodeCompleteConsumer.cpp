@@ -26,6 +26,7 @@
 #include <functional>
 
 using namespace clang;
+using llvm::StringRef;
 
 //===----------------------------------------------------------------------===//
 // Code completion context implementation
@@ -67,7 +68,7 @@ bool CodeCompletionContext::wantConstructorResults() const {
   case CCC_OtherWithMacros:
   case CCC_ObjCInstanceMessage:
   case CCC_ObjCClassMessage:
-  case CCC_ObjCInterfaceName:
+  case CCC_ObjCSuperclass:
   case CCC_ObjCCategoryName:
     return false;
   }
@@ -190,35 +191,13 @@ CodeCompletionString::Chunk::CreateCurrentParameter(
 CodeCompletionString::CodeCompletionString(const Chunk *Chunks, 
                                            unsigned NumChunks,
                                            unsigned Priority, 
-                                           CXAvailabilityKind Availability,
-                                           const char **Annotations,
-                                           unsigned NumAnnotations)
-  : NumChunks(NumChunks), NumAnnotations(NumAnnotations)
-  , Priority(Priority), Availability(Availability)
+                                           CXAvailabilityKind Availability) 
+  : NumChunks(NumChunks), Priority(Priority), Availability(Availability) 
 { 
-  assert(NumChunks <= 0xffff);
-  assert(NumAnnotations <= 0xffff);
-
   Chunk *StoredChunks = reinterpret_cast<Chunk *>(this + 1);
   for (unsigned I = 0; I != NumChunks; ++I)
     StoredChunks[I] = Chunks[I];
-
-  const char **StoredAnnotations = reinterpret_cast<const char **>(StoredChunks + NumChunks);
-  for (unsigned I = 0; I != NumAnnotations; ++I)
-    StoredAnnotations[I] = Annotations[I];
 }
-
-unsigned CodeCompletionString::getAnnotationCount() const {
-  return NumAnnotations;
-}
-
-const char *CodeCompletionString::getAnnotation(unsigned AnnotationNr) const {
-  if (AnnotationNr < NumAnnotations)
-    return reinterpret_cast<const char * const*>(end())[AnnotationNr];
-  else
-    return 0;
-}
-
 
 std::string CodeCompletionString::getAsString() const {
   std::string Result;
@@ -249,14 +228,14 @@ const char *CodeCompletionString::getTypedText() const {
   return 0;
 }
 
-const char *CodeCompletionAllocator::CopyString(StringRef String) {
+const char *CodeCompletionAllocator::CopyString(llvm::StringRef String) {
   char *Mem = (char *)Allocate(String.size() + 1, 1);
   std::copy(String.begin(), String.end(), Mem);
   Mem[String.size()] = 0;
   return Mem;
 }
 
-const char *CodeCompletionAllocator::CopyString(Twine String) {
+const char *CodeCompletionAllocator::CopyString(llvm::Twine String) {
   // FIXME: It would be more efficient to teach Twine to tell us its size and
   // then add a routine there to fill in an allocated char* with the contents
   // of the string.
@@ -266,13 +245,11 @@ const char *CodeCompletionAllocator::CopyString(Twine String) {
 
 CodeCompletionString *CodeCompletionBuilder::TakeString() {
   void *Mem = Allocator.Allocate(
-                  sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size()
-                                    + sizeof(const char *) * Annotations.size(),
+                  sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size(), 
                                  llvm::alignOf<CodeCompletionString>());
   CodeCompletionString *Result 
     = new (Mem) CodeCompletionString(Chunks.data(), Chunks.size(),
-                                     Priority, Availability,
-                                     Annotations.data(), Annotations.size());
+                               Priority, Availability);
   Chunks.clear();
   return Result;
 }
@@ -352,7 +329,7 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     OS << "COMPLETION: ";
     switch (Results[I].Kind) {
     case CodeCompletionResult::RK_Declaration:
-      OS << *Results[I].Declaration;
+      OS << Results[I].Declaration;
       if (Results[I].Hidden)
         OS << " (Hidden)";
       if (CodeCompletionString *CCS 
@@ -400,7 +377,7 @@ PrintingCodeCompleteConsumer::ProcessOverloadCandidates(Sema &SemaRef,
   }
 }
 
-void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
+void CodeCompletionResult::computeCursorKindAndAvailability() {
   switch (Kind) {
   case RK_Declaration:
     // Set the availability based on attributes.
@@ -442,16 +419,13 @@ void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
     // Do nothing: Patterns can come with cursor kinds!
     break;
   }
-
-  if (!Accessible)
-    Availability = CXAvailability_NotAccessible;
 }
 
 /// \brief Retrieve the name that should be used to order a result.
 ///
 /// If the name needs to be constructed as a string, that string will be
 /// saved into Saved and the returned StringRef will refer to it.
-static StringRef getOrderedName(const CodeCompletionResult &R,
+static llvm::StringRef getOrderedName(const CodeCompletionResult &R,
                                     std::string &Saved) {
   switch (R.Kind) {
     case CodeCompletionResult::RK_Keyword:
@@ -486,8 +460,8 @@ static StringRef getOrderedName(const CodeCompletionResult &R,
 bool clang::operator<(const CodeCompletionResult &X, 
                       const CodeCompletionResult &Y) {
   std::string XSaved, YSaved;
-  StringRef XStr = getOrderedName(X, XSaved);
-  StringRef YStr = getOrderedName(Y, YSaved);
+  llvm::StringRef XStr = getOrderedName(X, XSaved);
+  llvm::StringRef YStr = getOrderedName(Y, YSaved);
   int cmp = XStr.compare_lower(YStr);
   if (cmp)
     return cmp < 0;

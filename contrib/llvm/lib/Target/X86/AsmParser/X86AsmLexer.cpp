@@ -7,20 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/X86BaseInfo.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Target/TargetAsmLexer.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
-#include "llvm/MC/MCTargetAsmLexer.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringExtras.h"
+#include "X86.h"
 
 using namespace llvm;
 
 namespace {
   
-class X86AsmLexer : public MCTargetAsmLexer {
+class X86AsmLexer : public TargetAsmLexer {
   const MCAsmInfo &AsmInfo;
   
   bool tentativeIsValid;
@@ -60,8 +60,8 @@ protected:
     }
   }
 public:
-  X86AsmLexer(const Target &T, const MCRegisterInfo &MRI, const MCAsmInfo &MAI)
-    : MCTargetAsmLexer(T), AsmInfo(MAI), tentativeIsValid(false) {
+  X86AsmLexer(const Target &T, const MCAsmInfo &MAI)
+    : TargetAsmLexer(T), AsmInfo(MAI), tentativeIsValid(false) {
   }
 };
 
@@ -160,6 +160,6 @@ AsmToken X86AsmLexer::LexTokenIntel() {
 }
 
 extern "C" void LLVMInitializeX86AsmLexer() {
-  RegisterMCAsmLexer<X86AsmLexer> X(TheX86_32Target);
-  RegisterMCAsmLexer<X86AsmLexer> Y(TheX86_64Target);
+  RegisterAsmLexer<X86AsmLexer> X(TheX86_32Target);
+  RegisterAsmLexer<X86AsmLexer> Y(TheX86_64Target);
 }

@@ -15,7 +15,6 @@
 #ifndef TARGET_MBLAZE_H
 #define TARGET_MBLAZE_H
 
-#include "MCTargetDesc/MBlazeBaseInfo.h"
 #include "MCTargetDesc/MBlazeMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -23,6 +22,17 @@ namespace llvm {
   class MBlazeTargetMachine;
   class FunctionPass;
   class MachineCodeEmitter;
+  class MCCodeEmitter;
+  class MCInstrInfo;
+  class MCSubtargetInfo;
+  class TargetAsmBackend;
+  class formatted_raw_ostream;
+
+  MCCodeEmitter *createMBlazeMCCodeEmitter(const MCInstrInfo &MCII,
+                                           const MCSubtargetInfo &STI,
+                                           MCContext &Ctx);
+  
+  TargetAsmBackend *createMBlazeAsmBackend(const Target &, const std::string &);
 
   FunctionPass *createMBlazeISelDag(MBlazeTargetMachine &TM);
   FunctionPass *createMBlazeDelaySlotFillerPass(MBlazeTargetMachine &TM);

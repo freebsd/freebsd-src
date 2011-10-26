@@ -16,13 +16,33 @@
 #define LLVM_CLANG_GR_LOCALCHECKERS_H
 
 namespace clang {
+
+class CFG;
+class Decl;
+class Diagnostic;
+class ASTContext;
+class LangOptions;
+class ParentMap;
+class LiveVariables;
+class ObjCImplementationDecl;
+class LangOptions;
+class TranslationUnitDecl;
+
 namespace ento {
 
+class PathDiagnosticClient;
+class TransferFuncs;
+class BugType;
+class BugReporter;
 class ExprEngine;
+
+TransferFuncs* MakeCFRefCountTF(ASTContext& Ctx, bool GCEnabled,
+                                  const LangOptions& lopts);
 
 void RegisterCallInliner(ExprEngine &Eng);
 
-} // end namespace ento
+} // end GR namespace
+
 } // end namespace clang
 
 #endif

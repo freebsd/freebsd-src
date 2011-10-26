@@ -25,6 +25,7 @@
 using namespace clang;
 using namespace arcmt;
 using namespace trans;
+using llvm::StringRef;
 
 namespace {
 
@@ -129,9 +130,10 @@ public:
       // Change the -release to "receiver = nil" in a finally to avoid a leak
       // when an exception is thrown.
       Pass.TA.replace(E->getSourceRange(), rec->getSourceRange());
-      std::string str = " = ";
-      str += getNilString(Pass.Ctx);
-      Pass.TA.insertAfterToken(rec->getLocEnd(), str);
+      if (Pass.Ctx.Idents.get("nil").hasMacroDefinition())
+        Pass.TA.insertAfterToken(rec->getLocEnd(), " = nil");
+      else
+        Pass.TA.insertAfterToken(rec->getLocEnd(), " = 0");
       return true;
     }
 

@@ -30,7 +30,7 @@ namespace clang {
 
 class FileEntry;
 class PTHLexer;
-class DiagnosticsEngine;
+class Diagnostic;
 class FileSystemStatCache;
 
 class PTHManager : public IdentifierInfoLookup {
@@ -115,11 +115,11 @@ public:
   ///  Unlike the version in IdentifierTable, this returns a pointer instead
   ///  of a reference.  If the pointer is NULL then the IdentifierInfo cannot
   ///  be found.
-  IdentifierInfo *get(StringRef Name);
+  IdentifierInfo *get(llvm::StringRef Name);
 
   /// Create - This method creates PTHManager objects.  The 'file' argument
   ///  is the name of the PTH file.  This method returns NULL upon failure.
-  static PTHManager *Create(const std::string& file, DiagnosticsEngine &Diags);
+  static PTHManager *Create(const std::string& file, Diagnostic &Diags);
 
   void setPreprocessor(Preprocessor *pp) { PP = pp; }
 

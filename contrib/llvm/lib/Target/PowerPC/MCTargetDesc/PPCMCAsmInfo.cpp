@@ -31,10 +31,6 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
 }
 
 PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
-  if (is64Bit)
-    PointerSize = 8;
-  IsLittleEndian = false;
-
   // ".comm align is in bytes but .align is pow-2."
   AlignmentIsInBytes = false;
 
@@ -60,7 +56,7 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
     
   ZeroDirective = "\t.space\t";
   Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
-  LCOMMDirectiveType = LCOMM::NoAlignment;
+  HasLCOMMDirective = true;
   AssemblerDialect = 0;           // Old-Style mnemonics.
 }
 

@@ -97,22 +97,6 @@ Stmt *Stmt::IgnoreImplicit() {
   return s;
 }
 
-/// \brief Strip off all label-like statements.
-///
-/// This will strip off label statements, case statements, and default
-/// statements recursively.
-const Stmt *Stmt::stripLabelLikeStatements() const {
-  const Stmt *S = this;
-  while (true) {
-    if (const LabelStmt *LS = dyn_cast<LabelStmt>(S))
-      S = LS->getSubStmt();
-    else if (const SwitchCase *SC = dyn_cast<SwitchCase>(S))
-      S = SC->getSubStmt();
-    else
-      return S;
-  }
-}
-
 namespace {
   struct good {};
   struct bad {};
@@ -230,7 +214,7 @@ Expr *AsmStmt::getOutputExpr(unsigned i) {
 /// getOutputConstraint - Return the constraint string for the specified
 /// output operand.  All output constraints are known to be non-empty (either
 /// '=' or '+').
-StringRef AsmStmt::getOutputConstraint(unsigned i) const {
+llvm::StringRef AsmStmt::getOutputConstraint(unsigned i) const {
   return getOutputConstraintLiteral(i)->getString();
 }
 
@@ -254,7 +238,7 @@ void AsmStmt::setInputExpr(unsigned i, Expr *E) {
 
 /// getInputConstraint - Return the specified input constraint.  Unlike output
 /// constraints, these can be empty.
-StringRef AsmStmt::getInputConstraint(unsigned i) const {
+llvm::StringRef AsmStmt::getInputConstraint(unsigned i) const {
   return getInputConstraintLiteral(i)->getString();
 }
 
@@ -293,7 +277,7 @@ void AsmStmt::setOutputsAndInputsAndClobbers(ASTContext &C,
 /// getNamedOperand - Given a symbolic operand reference like %[foo],
 /// translate this into a numeric value needed to reference the same operand.
 /// This returns -1 if the operand name is invalid.
-int AsmStmt::getNamedOperand(StringRef SymbolicName) const {
+int AsmStmt::getNamedOperand(llvm::StringRef SymbolicName) const {
   unsigned NumPlusOperands = 0;
 
   // Check if this is an output operand.
@@ -313,9 +297,9 @@ int AsmStmt::getNamedOperand(StringRef SymbolicName) const {
 /// AnalyzeAsmString - Analyze the asm string of the current asm, decomposing
 /// it into pieces.  If the asm string is erroneous, emit errors and return
 /// true, otherwise return false.
-unsigned AsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
+unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
                                    ASTContext &C, unsigned &DiagOffs) const {
-  StringRef Str = getAsmString()->getString();
+  llvm::StringRef Str = getAsmString()->getString();
   const char *StrStart = Str.begin();
   const char *StrEnd = Str.end();
   const char *CurPtr = StrStart;
@@ -342,7 +326,7 @@ unsigned AsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
   // asm string.
   std::string CurStringPiece;
 
-  bool HasVariants = !C.getTargetInfo().hasNoAsmVariants();
+  bool HasVariants = !C.Target.hasNoAsmVariants();
   
   while (1) {
     // Done with the string?
@@ -432,7 +416,7 @@ unsigned AsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
       if (NameEnd == CurPtr)
         return diag::err_asm_empty_symbolic_operand_name;
 
-      StringRef SymbolicName(CurPtr, NameEnd - CurPtr);
+      llvm::StringRef SymbolicName(CurPtr, NameEnd - CurPtr);
 
       int N = getNamedOperand(SymbolicName);
       if (N == -1) {

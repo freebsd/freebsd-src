@@ -112,22 +112,18 @@ QualType CallOrObjCMessage::getResultType(ASTContext &ctx) const {
   QualType resultTy;
   bool isLVal = false;
 
-  if (isObjCMessage()) {
-    isLVal = isa<ObjCMessageExpr>(Msg.getOriginExpr()) &&
-             Msg.getOriginExpr()->isLValue();
-    resultTy = Msg.getResultType(ctx);
-  } else if (const CXXConstructExpr *Ctor =
-              CallE.dyn_cast<const CXXConstructExpr *>()) {
-    resultTy = Ctor->getType();
-  } else {
-    const CallExpr *FunctionCall = CallE.get<const CallExpr *>();
-
-    isLVal = FunctionCall->isLValue();
-    const Expr *Callee = FunctionCall->getCallee();
+  if (CallE) {
+    isLVal = CallE->isLValue();
+    const Expr *Callee = CallE->getCallee();
     if (const FunctionDecl *FD = State->getSVal(Callee).getAsFunctionDecl())
       resultTy = FD->getResultType();
     else
-      resultTy = FunctionCall->getType();
+      resultTy = CallE->getType();
+  }
+  else {
+    isLVal = isa<ObjCMessageExpr>(Msg.getOriginExpr()) &&
+             Msg.getOriginExpr()->isLValue();
+    resultTy = Msg.getResultType(ctx);
   }
 
   if (isLVal)
@@ -136,29 +132,25 @@ QualType CallOrObjCMessage::getResultType(ASTContext &ctx) const {
   return resultTy;
 }
 
+SVal CallOrObjCMessage::getArgSValAsScalarOrLoc(unsigned i) const {
+  assert(i < getNumArgs());
+  if (CallE) return State->getSValAsScalarOrLoc(CallE->getArg(i));
+  QualType argT = Msg.getArgType(i);
+  if (Loc::isLocType(argT) || argT->isIntegerType())
+    return Msg.getArgSVal(i, State);
+  return UnknownVal();
+}
+
 SVal CallOrObjCMessage::getFunctionCallee() const {
   assert(isFunctionCall());
   assert(!isCXXCall());
-  const Expr *Fun = CallE.get<const CallExpr *>()->getCallee()->IgnoreParens();
-  return State->getSVal(Fun);
+  const Expr *callee = CallE->getCallee()->IgnoreParenCasts();
+  return State->getSVal(callee);
 }
 
 SVal CallOrObjCMessage::getCXXCallee() const {
   assert(isCXXCall());
-  const CallExpr *ActualCall = CallE.get<const CallExpr *>();
   const Expr *callee =
-    cast<CXXMemberCallExpr>(ActualCall)->getImplicitObjectArgument();
-  
-  // FIXME: Will eventually need to cope with member pointers.  This is
-  // a limitation in getImplicitObjectArgument().
-  if (!callee)
-    return UnknownVal();
-  
-  return State->getSVal(callee);
-}
-
-SVal
-CallOrObjCMessage::getInstanceMessageReceiver(const LocationContext *LC) const {
-  assert(isObjCMessage());
-  return Msg.getInstanceReceiverSVal(State, LC);
+    cast<CXXMemberCallExpr>(CallE)->getImplicitObjectArgument();
+  return State->getSVal(callee);  
 }

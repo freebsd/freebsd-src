@@ -54,10 +54,6 @@ struct bsdtar {
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
 	int		  strip_components; /* Remove this many leading dirs */
-	int		  gid;  /* --gid */
-	const char	 *gname; /* --gname */
-	int		  uid;  /* --uid */
-	const char	 *uname; /* --uname */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  create_compression; /* j, y, or z */
@@ -72,6 +68,7 @@ struct bsdtar {
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
 	char		  option_null; /* --null */
+	char		  option_numeric_owner; /* --numeric-owner */
 	char		  option_stdout; /* -O */
 	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
@@ -114,8 +111,7 @@ enum {
 	OPTION_CHROOT,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
-	OPTION_GID,
-	OPTION_GNAME,
+	OPTION_OPTIONS,
 	OPTION_HELP,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
@@ -130,13 +126,10 @@ enum {
 	OPTION_NULL,
 	OPTION_NUMERIC_OWNER,
 	OPTION_ONE_FILE_SYSTEM,
-	OPTION_OPTIONS,
 	OPTION_POSIX,
 	OPTION_SAME_OWNER,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
-	OPTION_UID,
-	OPTION_UNAME,
 	OPTION_USE_COMPRESS_PROGRAM,
 	OPTION_VERSION
 };

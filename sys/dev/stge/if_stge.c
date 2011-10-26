@@ -199,7 +199,8 @@ static device_method_t stge_methods[] = {
 	DEVMETHOD(miibus_writereg,	stge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	stge_miibus_statchg),
 
-	KOBJMETHOD_END
+	{ 0, 0 }
+
 };
 
 static driver_t stge_driver = {

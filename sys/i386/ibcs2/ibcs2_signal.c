@@ -437,5 +437,5 @@ ibcs2_kill(td, uap)
 		return (EINVAL);
 	ka.pid = uap->pid;
 	ka.signum = ibcs2_to_bsd_sig[_SIG_IDX(uap->signo)];
-	return sys_kill(td, &ka);
+	return kill(td, &ka);
 }

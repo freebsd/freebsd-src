@@ -113,22 +113,6 @@ public:
     ZeroOrNegativeOneBooleanContent // All bits equal to bit 0.
   };
 
-  static ISD::NodeType getExtendForContent(BooleanContent Content) {
-    switch (Content) {
-    default:
-      assert(false && "Unknown BooleanContent!");
-    case UndefinedBooleanContent:
-      // Extend by adding rubbish bits.
-      return ISD::ANY_EXTEND;
-    case ZeroOrOneBooleanContent:
-      // Extend by adding zero bits.
-      return ISD::ZERO_EXTEND;
-    case ZeroOrNegativeOneBooleanContent:
-      // Extend by copying the sign bit.
-      return ISD::SIGN_EXTEND;
-    }
-  }
-
   /// NOTE: The constructor takes ownership of TLOF.
   explicit TargetLowering(const TargetMachine &TM,
                           const TargetLoweringObjectFile *TLOF);
@@ -164,7 +148,8 @@ public:
   /// the condition operand of SELECT and BRCOND nodes.  In the case of
   /// BRCOND the argument passed is MVT::Other since there are no other
   /// operands to get a type hint from.
-  virtual EVT getSetCCResultType(EVT VT) const;
+  virtual
+  MVT::SimpleValueType getSetCCResultType(EVT VT) const;
 
   /// getCmpLibcallReturnType - Return the ValueType for comparison
   /// libcalls. Comparions libcalls include floating point comparion calls,
@@ -177,13 +162,7 @@ public:
   /// "Boolean values" are special true/false values produced by nodes like
   /// SETCC and consumed (as the condition) by nodes like SELECT and BRCOND.
   /// Not to be confused with general values promoted from i1.
-  /// Some cpus distinguish between vectors of boolean and scalars; the isVec
-  /// parameter selects between the two kinds.  For example on X86 a scalar
-  /// boolean should be zero extended from i1, while the elements of a vector
-  /// of booleans should be sign extended from i1.
-  BooleanContent getBooleanContents(bool isVec) const {
-    return isVec ? BooleanVectorContents : BooleanContents;
-  }
+  BooleanContent getBooleanContents() const { return BooleanContents;}
 
   /// getSchedulingPreference - Return target scheduling preference.
   Sched::Preference getSchedulingPreference() const {
@@ -193,7 +172,7 @@ public:
   /// getSchedulingPreference - Some scheduler, e.g. hybrid, can switch to
   /// different scheduling heuristics for different nodes. This function returns
   /// the preference (or none) for the given node.
-  virtual Sched::Preference getSchedulingPreference(SDNode *) const {
+  virtual Sched::Preference getSchedulingPreference(SDNode *N) const {
     return Sched::None;
   }
 
@@ -286,9 +265,9 @@ public:
     assert(!VT.isVector());
     while (true) {
       switch (getTypeAction(Context, VT)) {
-      case TypeLegal:
+      case Legal:
         return VT;
-      case TypeExpandInteger:
+      case Expand:
         VT = getTypeToTransformTo(Context, VT);
         break;
       default:
@@ -328,15 +307,15 @@ public:
     bool         writeMem;    // writes memory?
   };
 
-  virtual bool getTgtMemIntrinsic(IntrinsicInfo &, const CallInst &,
-                                  unsigned /*Intrinsic*/) const {
+  virtual bool getTgtMemIntrinsic(IntrinsicInfo &Info,
+                                  const CallInst &I, unsigned Intrinsic) const {
     return false;
   }
 
   /// isFPImmLegal - Returns true if the target can instruction select the
   /// specified FP immediate natively. If false, the legalizer will materialize
   /// the FP immediate as a load from a constant pool.
-  virtual bool isFPImmLegal(const APFloat &/*Imm*/, EVT /*VT*/) const {
+  virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const {
     return false;
   }
 
@@ -344,8 +323,8 @@ public:
   /// support *some* VECTOR_SHUFFLE operations, those with specific masks.
   /// By default, if a target supports the VECTOR_SHUFFLE node, all mask values
   /// are assumed to be legal.
-  virtual bool isShuffleMaskLegal(const SmallVectorImpl<int> &/*Mask*/,
-                                  EVT /*VT*/) const {
+  virtual bool isShuffleMaskLegal(const SmallVectorImpl<int> &Mask,
+                                  EVT VT) const {
     return true;
   }
 
@@ -358,8 +337,8 @@ public:
   /// used by Targets can use this to indicate if there is a suitable
   /// VECTOR_SHUFFLE that can be used to replace a VAND with a constant
   /// pool entry.
-  virtual bool isVectorClearMaskLegal(const SmallVectorImpl<int> &/*Mask*/,
-                                      EVT /*VT*/) const {
+  virtual bool isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
+                                      EVT VT) const {
     return false;
   }
 
@@ -404,7 +383,9 @@ public:
   /// isLoadExtLegal - Return true if the specified load with extension is legal
   /// on this target.
   bool isLoadExtLegal(unsigned ExtType, EVT VT) const {
-    return VT.isSimple() && getLoadExtAction(ExtType, VT) == Legal;
+    return VT.isSimple() &&
+      (getLoadExtAction(ExtType, VT) == Legal ||
+       getLoadExtAction(ExtType, VT) == Custom);
   }
 
   /// getTruncStoreAction - Return how this store with truncation should be
@@ -423,7 +404,8 @@ public:
   /// legal on this target.
   bool isTruncStoreLegal(EVT ValVT, EVT MemVT) const {
     return isTypeLegal(ValVT) && MemVT.isSimple() &&
-           getTruncStoreAction(ValVT, MemVT) == Legal;
+      (getTruncStoreAction(ValVT, MemVT) == Legal ||
+       getTruncStoreAction(ValVT, MemVT) == Custom);
   }
 
   /// getIndexedLoadAction - Return how the indexed load should be treated:
@@ -519,7 +501,7 @@ public:
   /// This is fixed by the LLVM operations except for the pointer size.  If
   /// AllowUnknown is true, this will return MVT::Other for types with no EVT
   /// counterpart (e.g. structs), otherwise it will assert.
-  EVT getValueType(Type *Ty, bool AllowUnknown = false) const {
+  EVT getValueType(const Type *Ty, bool AllowUnknown = false) const {
     EVT VT = EVT::getEVT(Ty, AllowUnknown);
     return VT == MVT::iPTR ? PointerTy : VT;
   }
@@ -527,7 +509,7 @@ public:
   /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
   /// function arguments in the caller parameter area.  This is the actual
   /// alignment, not its logarithm.
-  virtual unsigned getByValTypeAlignment(Type *Ty) const;
+  virtual unsigned getByValTypeAlignment(const Type *Ty) const;
 
   /// getRegisterType - Return the type of registers that this ValueType will
   /// eventually require.
@@ -587,7 +569,7 @@ public:
   /// ShouldShrinkFPConstant - If true, then instruction selection should
   /// seek to shrink the FP constant of the specified type to a smaller type
   /// in order to save space and / or reduce runtime.
-  virtual bool ShouldShrinkFPConstant(EVT) const { return true; }
+  virtual bool ShouldShrinkFPConstant(EVT VT) const { return true; }
 
   /// hasTargetDAGCombine - If true, the target has custom DAG combine
   /// transformations that it can perform for the specified node.
@@ -629,7 +611,7 @@ public:
   /// use helps to ensure that such replacements don't generate code that causes
   /// an alignment error  (trap) on the target machine.
   /// @brief Determine if the target supports unaligned memory accesses.
-  virtual bool allowsUnalignedMemoryAccesses(EVT) const {
+  virtual bool allowsUnalignedMemoryAccesses(EVT VT) const {
     return false;
   }
 
@@ -652,11 +634,10 @@ public:
   /// constant so it does not need to be loaded.
   /// It returns EVT::Other if the type should be determined using generic
   /// target-independent logic.
-  virtual EVT getOptimalMemOpType(uint64_t /*Size*/,
-                                  unsigned /*DstAlign*/, unsigned /*SrcAlign*/,
-                                  bool /*NonScalarIntSafe*/,
-                                  bool /*MemcpyStrSrc*/,
-                                  MachineFunction &/*MF*/) const {
+  virtual EVT getOptimalMemOpType(uint64_t Size,
+                                  unsigned DstAlign, unsigned SrcAlign,
+                                  bool NonScalarIntSafe, bool MemcpyStrSrc,
+                                  MachineFunction &MF) const {
     return MVT::Other;
   }
 
@@ -736,30 +717,23 @@ public:
     return ShouldFoldAtomicFences;
   }
 
-  /// getInsertFencesFor - return whether the DAG builder should automatically
-  /// insert fences and reduce ordering for atomics.
-  ///
-  bool getInsertFencesForAtomic() const {
-    return InsertFencesForAtomic;
-  }
-
   /// getPreIndexedAddressParts - returns true by value, base pointer and
   /// offset pointer and addressing mode by reference if the node's address
   /// can be legally represented as pre-indexed load / store address.
-  virtual bool getPreIndexedAddressParts(SDNode * /*N*/, SDValue &/*Base*/,
-                                         SDValue &/*Offset*/,
-                                         ISD::MemIndexedMode &/*AM*/,
-                                         SelectionDAG &/*DAG*/) const {
+  virtual bool getPreIndexedAddressParts(SDNode *N, SDValue &Base,
+                                         SDValue &Offset,
+                                         ISD::MemIndexedMode &AM,
+                                         SelectionDAG &DAG) const {
     return false;
   }
 
   /// getPostIndexedAddressParts - returns true by value, base pointer and
   /// offset pointer and addressing mode by reference if this node can be
   /// combined with a load / store to form a post-indexed load / store.
-  virtual bool getPostIndexedAddressParts(SDNode * /*N*/, SDNode * /*Op*/,
-                                          SDValue &/*Base*/, SDValue &/*Offset*/,
-                                          ISD::MemIndexedMode &/*AM*/,
-                                          SelectionDAG &/*DAG*/) const {
+  virtual bool getPostIndexedAddressParts(SDNode *N, SDNode *Op,
+                                          SDValue &Base, SDValue &Offset,
+                                          ISD::MemIndexedMode &AM,
+                                          SelectionDAG &DAG) const {
     return false;
   }
 
@@ -769,9 +743,9 @@ public:
   virtual unsigned getJumpTableEncoding() const;
 
   virtual const MCExpr *
-  LowerCustomJumpTableEntry(const MachineJumpTableInfo * /*MJTI*/,
-                            const MachineBasicBlock * /*MBB*/, unsigned /*uid*/,
-                            MCContext &/*Ctx*/) const {
+  LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
+                            const MachineBasicBlock *MBB, unsigned uid,
+                            MCContext &Ctx) const {
     assert(0 && "Need to implement this hook if target has custom JTIs");
     return 0;
   }
@@ -797,8 +771,7 @@ public:
   /// protector cookies at a fixed offset in some non-standard address
   /// space, and populates the address space and offset as
   /// appropriate.
-  virtual bool getStackCookieLocation(unsigned &/*AddressSpace*/,
-                                      unsigned &/*Offset*/) const {
+  virtual bool getStackCookieLocation(unsigned &AddressSpace, unsigned &Offset) const {
     return false;
   }
 
@@ -933,7 +906,7 @@ public:
   /// the specified value type and it is 'desirable' to use the type for the
   /// given node type. e.g. On x86 i16 is legal, but undesirable since i16
   /// instruction encodings are longer and some i16 instructions are slow.
-  virtual bool isTypeDesirableForOp(unsigned /*Opc*/, EVT VT) const {
+  virtual bool isTypeDesirableForOp(unsigned Opc, EVT VT) const {
     // By default, assume all legal types are desirable.
     return isTypeLegal(VT);
   }
@@ -941,15 +914,14 @@ public:
   /// isDesirableToPromoteOp - Return true if it is profitable for dag combiner
   /// to transform a floating point op of specified opcode to a equivalent op of
   /// an integer type. e.g. f32 load -> i32 load can be profitable on ARM.
-  virtual bool isDesirableToTransformToIntegerOp(unsigned /*Opc*/,
-                                                 EVT /*VT*/) const {
+  virtual bool isDesirableToTransformToIntegerOp(unsigned Opc, EVT VT) const {
     return false;
   }
 
   /// IsDesirableToPromoteOp - This method query the target whether it is
   /// beneficial for dag combiner to promote the specified node. If true, it
   /// should return the desired promotion type by reference.
-  virtual bool IsDesirableToPromoteOp(SDValue /*Op*/, EVT &/*PVT*/) const {
+  virtual bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const {
     return false;
   }
 
@@ -962,12 +934,6 @@ protected:
   /// setBooleanContents - Specify how the target extends the result of a
   /// boolean value from i1 to a wider type.  See getBooleanContents.
   void setBooleanContents(BooleanContent Ty) { BooleanContents = Ty; }
-  /// setBooleanVectorContents - Specify how the target extends the result
-  /// of a vector boolean value from a vector of i1 to a wider type.  See
-  /// getBooleanContents.
-  void setBooleanVectorContents(BooleanContent Ty) {
-    BooleanVectorContents = Ty;
-  }
 
   /// setSchedulingPreference - Specify the target scheduling preference.
   void setSchedulingPreference(Sched::Preference Pref) {
@@ -1171,13 +1137,6 @@ protected:
     ShouldFoldAtomicFences = fold;
   }
 
-  /// setInsertFencesForAtomic - Set if the the DAG builder should
-  /// automatically insert fences and reduce the order of atomic memory
-  /// operations to Monotonic.
-  void setInsertFencesForAtomic(bool fence) {
-    InsertFencesForAtomic = fence;
-  }
-
 public:
   //===--------------------------------------------------------------------===//
   // Lowering methods - These methods must be implemented by targets so that
@@ -1191,11 +1150,11 @@ public:
   /// chain value.
   ///
   virtual SDValue
-    LowerFormalArguments(SDValue /*Chain*/, CallingConv::ID /*CallConv*/,
-                         bool /*isVarArg*/,
-                         const SmallVectorImpl<ISD::InputArg> &/*Ins*/,
-                         DebugLoc /*dl*/, SelectionDAG &/*DAG*/,
-                         SmallVectorImpl<SDValue> &/*InVals*/) const {
+    LowerFormalArguments(SDValue Chain,
+                         CallingConv::ID CallConv, bool isVarArg,
+                         const SmallVectorImpl<ISD::InputArg> &Ins,
+                         DebugLoc dl, SelectionDAG &DAG,
+                         SmallVectorImpl<SDValue> &InVals) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1207,7 +1166,7 @@ public:
   /// lowering.
   struct ArgListEntry {
     SDValue Node;
-    Type* Ty;
+    const Type* Ty;
     bool isSExt  : 1;
     bool isZExt  : 1;
     bool isInReg : 1;
@@ -1221,7 +1180,7 @@ public:
   };
   typedef std::vector<ArgListEntry> ArgListTy;
   std::pair<SDValue, SDValue>
-  LowerCallTo(SDValue Chain, Type *RetTy, bool RetSExt, bool RetZExt,
+  LowerCallTo(SDValue Chain, const Type *RetTy, bool RetSExt, bool RetZExt,
               bool isVarArg, bool isInreg, unsigned NumFixedArgs,
               CallingConv::ID CallConv, bool isTailCall,
               bool isReturnValueUsed, SDValue Callee, ArgListTy &Args,
@@ -1234,14 +1193,13 @@ public:
   /// InVals array with legal-type return values from the call, and return
   /// the resulting token chain value.
   virtual SDValue
-    LowerCall(SDValue /*Chain*/, SDValue /*Callee*/,
-              CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
-              bool &/*isTailCall*/,
-              const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
-              const SmallVectorImpl<SDValue> &/*OutVals*/,
-              const SmallVectorImpl<ISD::InputArg> &/*Ins*/,
-              DebugLoc /*dl*/, SelectionDAG &/*DAG*/,
-              SmallVectorImpl<SDValue> &/*InVals*/) const {
+    LowerCall(SDValue Chain, SDValue Callee,
+              CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
+              const SmallVectorImpl<ISD::OutputArg> &Outs,
+              const SmallVectorImpl<SDValue> &OutVals,
+              const SmallVectorImpl<ISD::InputArg> &Ins,
+              DebugLoc dl, SelectionDAG &DAG,
+              SmallVectorImpl<SDValue> &InVals) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1253,10 +1211,10 @@ public:
   /// return values described by the Outs array can fit into the return
   /// registers.  If false is returned, an sret-demotion is performed.
   ///
-  virtual bool CanLowerReturn(CallingConv::ID /*CallConv*/,
-			      MachineFunction &/*MF*/, bool /*isVarArg*/,
-               const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
-               LLVMContext &/*Context*/) const
+  virtual bool CanLowerReturn(CallingConv::ID CallConv,
+			      MachineFunction &MF, bool isVarArg,
+               const SmallVectorImpl<ISD::OutputArg> &Outs,
+               LLVMContext &Context) const
   {
     // Return true by default to get preexisting behavior.
     return true;
@@ -1268,11 +1226,10 @@ public:
   /// value.
   ///
   virtual SDValue
-    LowerReturn(SDValue /*Chain*/, CallingConv::ID /*CallConv*/,
-                bool /*isVarArg*/,
-                const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
-                const SmallVectorImpl<SDValue> &/*OutVals*/,
-                DebugLoc /*dl*/, SelectionDAG &/*DAG*/) const {
+    LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<SDValue> &OutVals,
+                DebugLoc dl, SelectionDAG &DAG) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1280,7 +1237,7 @@ public:
   /// isUsedByReturnOnly - Return true if result of the specified node is used
   /// by a return node only. This is used to determine whether it is possible
   /// to codegen a libcall as tail call at legalization time.
-  virtual bool isUsedByReturnOnly(SDNode *) const {
+  virtual bool isUsedByReturnOnly(SDNode *N) const {
     return false;
   }
 
@@ -1288,7 +1245,7 @@ public:
   /// call instruction as a tail call. This is used by optimization passes to
   /// determine if it's profitable to duplicate return instructions to enable
   /// tailcall optimization.
-  virtual bool mayBeEmittedAsTailCall(CallInst *) const {
+  virtual bool mayBeEmittedAsTailCall(CallInst *CI) const {
     return false;
   }
 
@@ -1299,7 +1256,7 @@ public:
   /// necessary for non-C calling conventions. The frontend should handle this
   /// and include all of the necessary information.
   virtual EVT getTypeForExtArgOrReturn(LLVMContext &Context, EVT VT,
-                                       ISD::NodeType /*ExtendKind*/) const {
+                                       ISD::NodeType ExtendKind) const {
     EVT MinVT = getRegisterType(Context, MVT::i32);
     return VT.bitsLT(MinVT) ? MinVT : VT;
   }
@@ -1336,9 +1293,8 @@ public:
   ///
   /// If the target has no operations that require custom lowering, it need not
   /// implement this.  The default implementation aborts.
-  virtual void ReplaceNodeResults(SDNode * /*N*/,
-                                  SmallVectorImpl<SDValue> &/*Results*/,
-                                  SelectionDAG &/*DAG*/) const {
+  virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                                  SelectionDAG &DAG) const {
     assert(0 && "ReplaceNodeResults not implemented for this target!");
   }
 
@@ -1348,7 +1304,7 @@ public:
 
   /// createFastISel - This method returns a target specific FastISel object,
   /// or null if the target does not support "fast" ISel.
-  virtual FastISel *createFastISel(FunctionLoweringInfo &) const {
+  virtual FastISel *createFastISel(FunctionLoweringInfo &funcInfo) const {
     return 0;
   }
 
@@ -1360,7 +1316,7 @@ public:
   /// call to be explicit llvm code if it wants to.  This is useful for
   /// turning simple inline asms into LLVM intrinsics, which gives the
   /// compiler more information about the behavior of the code.
-  virtual bool ExpandInlineAsm(CallInst *) const {
+  virtual bool ExpandInlineAsm(CallInst *CI) const {
     return false;
   }
 
@@ -1504,13 +1460,6 @@ public:
   virtual MachineBasicBlock *
     EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *MBB) const;
 
-  /// AdjustInstrPostInstrSelection - This method should be implemented by
-  /// targets that mark instructions with the 'hasPostISelHook' flag. These
-  /// instructions must be adjusted after instruction selection by target hooks.
-  /// e.g. To fill in optional defs for ARM 's' setting instructions.
-  virtual void
-  AdjustInstrPostInstrSelection(MachineInstr *MI, SDNode *Node) const;
-
   //===--------------------------------------------------------------------===//
   // Addressing mode description hooks (used by LSR etc).
   //
@@ -1536,32 +1485,16 @@ public:
   /// The type may be VoidTy, in which case only return true if the addressing
   /// mode is legal for a load/store of any legal type.
   /// TODO: Handle pre/postinc as well.
-  virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const;
-
-  /// isLegalICmpImmediate - Return true if the specified immediate is legal
-  /// icmp immediate, that is the target has icmp instructions which can compare
-  /// a register against the immediate without having to materialize the
-  /// immediate into a register.
-  virtual bool isLegalICmpImmediate(int64_t) const {
-    return true;
-  }
-
-  /// isLegalAddImmediate - Return true if the specified immediate is legal
-  /// add immediate, that is the target has add instructions which can add
-  /// a register with the immediate without having to materialize the
-  /// immediate into a register.
-  virtual bool isLegalAddImmediate(int64_t) const {
-    return true;
-  }
+  virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty) const;
 
   /// isTruncateFree - Return true if it's free to truncate a value of
   /// type Ty1 to type Ty2. e.g. On x86 it's free to truncate a i32 value in
   /// register EAX to i16 by referencing its sub-register AX.
-  virtual bool isTruncateFree(Type * /*Ty1*/, Type * /*Ty2*/) const {
+  virtual bool isTruncateFree(const Type *Ty1, const Type *Ty2) const {
     return false;
   }
 
-  virtual bool isTruncateFree(EVT /*VT1*/, EVT /*VT2*/) const {
+  virtual bool isTruncateFree(EVT VT1, EVT VT2) const {
     return false;
   }
 
@@ -1573,19 +1506,35 @@ public:
   /// does not necessarily apply to truncate instructions. e.g. on x86-64,
   /// all instructions that define 32-bit values implicit zero-extend the
   /// result out to 64 bits.
-  virtual bool isZExtFree(Type * /*Ty1*/, Type * /*Ty2*/) const {
+  virtual bool isZExtFree(const Type *Ty1, const Type *Ty2) const {
     return false;
   }
 
-  virtual bool isZExtFree(EVT /*VT1*/, EVT /*VT2*/) const {
+  virtual bool isZExtFree(EVT VT1, EVT VT2) const {
     return false;
   }
 
   /// isNarrowingProfitable - Return true if it's profitable to narrow
   /// operations of type VT1 to VT2. e.g. on x86, it's profitable to narrow
   /// from i32 to i8 but not from i32 to i16.
-  virtual bool isNarrowingProfitable(EVT /*VT1*/, EVT /*VT2*/) const {
+  virtual bool isNarrowingProfitable(EVT VT1, EVT VT2) const {
     return false;
+  }
+
+  /// isLegalICmpImmediate - Return true if the specified immediate is legal
+  /// icmp immediate, that is the target has icmp instructions which can compare
+  /// a register against the immediate without having to materialize the
+  /// immediate into a register.
+  virtual bool isLegalICmpImmediate(int64_t Imm) const {
+    return true;
+  }
+
+  /// isLegalAddImmediate - Return true if the specified immediate is legal
+  /// add immediate, that is the target has add instructions which can add
+  /// a register with the immediate without having to materialize the
+  /// immediate into a register.
+  virtual bool isLegalAddImmediate(int64_t Imm) const {
+    return true;
   }
 
   //===--------------------------------------------------------------------===//
@@ -1690,10 +1639,6 @@ private:
   /// BooleanContents - Information about the contents of the high-bits in
   /// boolean values held in a type wider than i1.  See getBooleanContents.
   BooleanContent BooleanContents;
-  /// BooleanVectorContents - Information about the contents of the high-bits
-  /// in boolean vector values when the element type is wider than i1.  See
-  /// getBooleanContents.
-  BooleanContent BooleanVectorContents;
 
   /// SchedPreferenceInfo - The target scheduling preference: shortest possible
   /// total cycles or lowest register usage.
@@ -1730,11 +1675,6 @@ private:
   /// be folded into the enclosed atomic intrinsic instruction by the
   /// combiner.
   bool ShouldFoldAtomicFences;
-
-  /// InsertFencesForAtomic - Whether the DAG builder should automatically
-  /// insert fences and reduce ordering for atomics.  (This will be set for
-  /// for most architectures with weak memory ordering.)
-  bool InsertFencesForAtomic;
 
   /// StackPointerRegisterToSaveRestore - If set to a physical register, this
   /// specifies the register that llvm.savestack/llvm.restorestack should save
@@ -2023,7 +1963,7 @@ private:
 /// GetReturnInfo - Given an LLVM IR type and return type attributes,
 /// compute the return value EVTs and flags, and optionally also
 /// the offsets, if the return value is being lowered to memory.
-void GetReturnInfo(Type* ReturnType, Attributes attr,
+void GetReturnInfo(const Type* ReturnType, Attributes attr,
                    SmallVectorImpl<ISD::OutputArg> &Outs,
                    const TargetLowering &TLI,
                    SmallVectorImpl<uint64_t> *Offsets = 0);

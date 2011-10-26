@@ -208,7 +208,8 @@ public:
   
   
   virtual llvm::Value *EmitNSAutoreleasePoolClassRef(CGBuilderTy &Builder) {
-    llvm_unreachable("autoreleasepool unsupported in this ABI");
+    assert(false &&"autoreleasepool unsupported in this ABI");
+    return 0;
   }
   
   /// EnumerationMutationFunction - Return the function that's called by the

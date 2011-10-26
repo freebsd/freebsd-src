@@ -22,8 +22,6 @@ namespace clang {
   class ClassTemplateSpecializationDecl;
   class FunctionDecl;
   class FunctionTemplateDecl;
-  class ObjCCategoryDecl;
-  class ObjCInterfaceDecl;
 
 /// \brief An abstract interface that should be implemented by listeners
 /// that want to be notified when an AST entity gets modified after its
@@ -56,10 +54,6 @@ public:
 
   /// \brief A static data member was implicitly instantiated.
   virtual void StaticDataMemberInstantiated(const VarDecl *D) {}
-
-  /// \brief A new objc category class was added for an interface.
-  virtual void AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
-                                            const ObjCInterfaceDecl *IFD) {}
 };
 
 } // end namespace clang

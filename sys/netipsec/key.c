@@ -1764,7 +1764,6 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 
 fail:
 	m_freem(result);
-	va_end(ap);
 	return NULL;
 }
 

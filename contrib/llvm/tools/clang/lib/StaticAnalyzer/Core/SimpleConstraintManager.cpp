@@ -14,7 +14,7 @@
 
 #include "SimpleConstraintManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 
 namespace clang {
 
@@ -56,7 +56,7 @@ bool SimpleConstraintManager::canReasonAbout(SVal X) const {
   return true;
 }
 
-const ProgramState *SimpleConstraintManager::assume(const ProgramState *state,
+const GRState *SimpleConstraintManager::assume(const GRState *state,
                                                DefinedSVal Cond,
                                                bool Assumption) {
   if (isa<NonLoc>(Cond))
@@ -65,13 +65,13 @@ const ProgramState *SimpleConstraintManager::assume(const ProgramState *state,
     return assume(state, cast<Loc>(Cond), Assumption);
 }
 
-const ProgramState *SimpleConstraintManager::assume(const ProgramState *state, Loc cond,
+const GRState *SimpleConstraintManager::assume(const GRState *state, Loc cond,
                                                bool assumption) {
   state = assumeAux(state, cond, assumption);
   return SU.processAssume(state, cond, assumption);
 }
 
-const ProgramState *SimpleConstraintManager::assumeAux(const ProgramState *state,
+const GRState *SimpleConstraintManager::assumeAux(const GRState *state,
                                                   Loc Cond, bool Assumption) {
 
   BasicValueFactory &BasicVals = state->getBasicVals();
@@ -113,7 +113,7 @@ const ProgramState *SimpleConstraintManager::assumeAux(const ProgramState *state
   } // end switch
 }
 
-const ProgramState *SimpleConstraintManager::assume(const ProgramState *state,
+const GRState *SimpleConstraintManager::assume(const GRState *state,
                                                NonLoc cond,
                                                bool assumption) {
   state = assumeAux(state, cond, assumption);
@@ -125,7 +125,7 @@ static BinaryOperator::Opcode NegateComparison(BinaryOperator::Opcode op) {
   // the only place it's used. (This code was copied from SimpleSValBuilder.cpp.)
   switch (op) {
   default:
-    llvm_unreachable("Invalid opcode.");
+    assert(false && "Invalid opcode.");
   case BO_LT: return BO_GE;
   case BO_GT: return BO_LE;
   case BO_LE: return BO_GT;
@@ -135,7 +135,7 @@ static BinaryOperator::Opcode NegateComparison(BinaryOperator::Opcode op) {
   }
 }
 
-const ProgramState *SimpleConstraintManager::assumeAux(const ProgramState *state,
+const GRState *SimpleConstraintManager::assumeAux(const GRState *state,
                                                   NonLoc Cond,
                                                   bool Assumption) {
 
@@ -152,7 +152,7 @@ const ProgramState *SimpleConstraintManager::assumeAux(const ProgramState *state
 
   switch (Cond.getSubKind()) {
   default:
-    llvm_unreachable("'Assume' not implemented for this NonLoc");
+    assert(false && "'Assume' not implemented for this NonLoc");
 
   case nonloc::SymbolValKind: {
     nonloc::SymbolVal& SV = cast<nonloc::SymbolVal>(Cond);
@@ -202,7 +202,7 @@ const ProgramState *SimpleConstraintManager::assumeAux(const ProgramState *state
   } // end switch
 }
 
-const ProgramState *SimpleConstraintManager::assumeSymRel(const ProgramState *state,
+const GRState *SimpleConstraintManager::assumeSymRel(const GRState *state,
                                                      const SymExpr *LHS,
                                                      BinaryOperator::Opcode op,
                                                      const llvm::APSInt& Int) {
@@ -256,7 +256,7 @@ const ProgramState *SimpleConstraintManager::assumeSymRel(const ProgramState *st
   // be of the same type as the symbol, which is not always correct. Really the
   // comparisons should be performed using the Int's type, then mapped back to
   // the symbol's range of values.
-  ProgramStateManager &StateMgr = state->getStateManager();
+  GRStateManager &StateMgr = state->getStateManager();
   ASTContext &Ctx = StateMgr.getContext();
 
   QualType T = Sym->getType(Ctx);

@@ -109,9 +109,6 @@ __ieee754_pow(double x, double y)
     /* y==zero: x**0 = 1 */
 	if((iy|ly)==0) return one; 	
 
-    /* x==1: 1**y = 1, even if y is NaN */
-	if (hx==0x3ff00000 && lx == 0) return one;
-
     /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
 	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0))) 
@@ -141,7 +138,7 @@ __ieee754_pow(double x, double y)
 	if(ly==0) { 	
 	    if (iy==0x7ff00000) {	/* y is +-inf */
 	        if(((ix-0x3ff00000)|lx)==0)
-		    return  one;	/* (-1)**+-inf is NaN */
+		    return  y - y;	/* inf**+-1 is NaN */
 	        else if (ix >= 0x3ff00000)/* (|x|>1)**+-inf = inf,0 */
 		    return (hy>=0)? y: zero;
 	        else			/* (|x|<1)**-,+inf = inf,0 */

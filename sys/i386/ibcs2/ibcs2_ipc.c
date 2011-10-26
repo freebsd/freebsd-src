@@ -118,7 +118,7 @@ ibcs2_msgget(struct thread *td, void *v)
 
 	ap.key = uap->key;
 	ap.msgflg = uap->msgflg;
-	return sys_msgget(td, &ap);
+	return msgget(td, &ap);
 }
 
 struct ibcs2_msgctl_args {
@@ -176,7 +176,7 @@ ibcs2_msgrcv(struct thread *td, void *v)
 	ap.msgsz = uap->msgsz;
 	ap.msgtyp = uap->msgtyp;
 	ap.msgflg = uap->msgflg;
-	return (sys_msgrcv(td, &ap));
+	return (msgrcv(td, &ap));
 }
 
 struct ibcs2_msgsnd_args {
@@ -197,7 +197,7 @@ ibcs2_msgsnd(struct thread *td, void *v)
 	ap.msgp = uap->msgp;
 	ap.msgsz = uap->msgsz;
 	ap.msgflg = uap->msgflg;
-	return (sys_msgsnd(td, &ap));
+	return (msgsnd(td, &ap));
 }
 
 int
@@ -363,7 +363,7 @@ ibcs2_semget(struct thread *td, void *v)
 	ap.key = uap->key;
 	ap.nsems = uap->nsems;
 	ap.semflg = uap->semflg;
-	return (sys_semget(td, &ap));
+	return (semget(td, &ap));
 }
 
 struct ibcs2_semop_args {
@@ -382,7 +382,7 @@ ibcs2_semop(struct thread *td, void *v)
 	ap.semid = uap->semid;
 	ap.sops = uap->sops;
 	ap.nsops = uap->nsops;
-	return (sys_semop(td, &ap));
+	return (semop(td, &ap));
 }
 
 int
@@ -459,7 +459,7 @@ ibcs2_shmat(struct thread *td, void *v)
 	ap.shmid = uap->shmid;
 	ap.shmaddr = uap->shmaddr;
 	ap.shmflg = uap->shmflg;
-	return (sys_shmat(td, &ap));
+	return (shmat(td, &ap));
 }
 
 struct ibcs2_shmctl_args {
@@ -514,7 +514,7 @@ ibcs2_shmdt(struct thread *td, void *v)
 	struct shmdt_args ap;
 
 	ap.shmaddr = uap->shmaddr;
-	return (sys_shmdt(td, &ap));
+	return (shmdt(td, &ap));
 }
 
 struct ibcs2_shmget_args {
@@ -533,7 +533,7 @@ ibcs2_shmget(struct thread *td, void *v)
 	ap.key = uap->key;
 	ap.size = uap->size;
 	ap.shmflg = uap->shmflg;
-	return (sys_shmget(td, &ap));
+	return (shmget(td, &ap));
 }
 
 int

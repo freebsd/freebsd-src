@@ -25,8 +25,6 @@
 namespace llvm {
 
   class LiveStacks : public MachineFunctionPass {
-    const TargetRegisterInfo *TRI;
-
     /// Special pool allocator for VNInfo's (LiveInterval val#).
     ///
     VNInfo::Allocator VNInfoAllocator;

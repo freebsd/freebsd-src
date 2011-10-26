@@ -14,19 +14,12 @@
 #ifndef ARMMCTARGETDESC_H
 #define ARMMCTARGETDESC_H
 
-#include "llvm/Support/DataTypes.h"
 #include <string>
 
 namespace llvm {
-class MCAsmBackend;
-class MCCodeEmitter;
-class MCContext;
-class MCInstrInfo;
-class MCObjectWriter;
 class MCSubtargetInfo;
-class StringRef;
 class Target;
-class raw_ostream;
+class StringRef;
 
 extern Target TheARMTarget, TheThumbTarget;
 
@@ -39,18 +32,6 @@ namespace ARM_MC {
   MCSubtargetInfo *createARMMCSubtargetInfo(StringRef TT, StringRef CPU,
                                             StringRef FS);
 }
-
-MCCodeEmitter *createARMMCCodeEmitter(const MCInstrInfo &MCII,
-                                      const MCSubtargetInfo &STI,
-                                      MCContext &Ctx);
-
-MCAsmBackend *createARMAsmBackend(const Target &T, StringRef TT);
-
-/// createARMMachObjectWriter - Construct an ARM Mach-O object writer.
-MCObjectWriter *createARMMachObjectWriter(raw_ostream &OS,
-                                          bool Is64Bit,
-                                          uint32_t CPUType,
-                                          uint32_t CPUSubtype);
 
 } // End llvm namespace
 

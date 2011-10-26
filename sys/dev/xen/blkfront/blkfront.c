@@ -77,8 +77,11 @@ static int blkfront_detach(device_t);
 static int setup_blkring(struct xb_softc *);
 static void blkif_int(void *);
 static void blkfront_initialize(struct xb_softc *);
+#if 0
+static void blkif_recover(struct xb_softc *);
+#endif
 static int blkif_completion(struct xb_command *);
-static void blkif_free(struct xb_softc *);
+static void blkif_free(struct xb_softc *, int);
 static void blkif_queue_cb(void *, bus_dma_segment_t *, int, int);
 
 MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
@@ -449,6 +452,9 @@ blkfront_attach(device_t dev)
 	sc->vdevice = vdevice;
 	sc->connected = BLKIF_STATE_DISCONNECTED;
 
+	/* Front end dir is a number, which is used as the id. */
+	sc->handle = strtoul(strrchr(xenbus_get_node(dev),'/')+1, NULL, 0);
+
 	/* Wait for backend device to publish its protocol capabilities. */
 	xenbus_set_state(dev, XenbusStateInitialising);
 
@@ -459,40 +465,29 @@ static int
 blkfront_suspend(device_t dev)
 {
 	struct xb_softc *sc = device_get_softc(dev);
-	int retval;
-	int saved_state;
 
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xb_io_lock);
-	saved_state = sc->connected;
 	sc->connected = BLKIF_STATE_SUSPENDED;
-
-	/* Wait for outstanding I/O to drain. */
-	retval = 0;
-	while (TAILQ_EMPTY(&sc->cm_busy) == 0) {
-		if (msleep(&sc->cm_busy, &sc->xb_io_lock,
-			   PRIBIO, "blkf_susp", 30 * hz) == EWOULDBLOCK) {
-			retval = EBUSY;
-			break;
-		}
-	}
 	mtx_unlock(&sc->xb_io_lock);
 
-	if (retval != 0)
-		sc->connected = saved_state;
-
-	return (retval);
+	return (0);
 }
 
 static int
 blkfront_resume(device_t dev)
 {
+#if 0
 	struct xb_softc *sc = device_get_softc(dev);
 
 	DPRINTK("blkfront_resume: %s\n", xenbus_get_node(dev));
 
-	blkif_free(sc);
+/* XXX This can't work!!! */
+	blkif_free(sc, 1);
 	blkfront_initialize(sc);
+	if (sc->connected == BLKIF_STATE_SUSPENDED)
+		blkif_recover(sc);
+#endif
 	return (0);
 }
 
@@ -504,10 +499,8 @@ blkfront_initialize(struct xb_softc *sc)
 	int error;
 	int i;
 
-	if (xenbus_get_state(sc->xb_dev) != XenbusStateInitialising) {
-		/* Initialization has already been performed. */
-		return;
-	}
+	if (xenbus_get_state(sc->xb_dev) != XenbusStateInitialising)
+                return;
 
 	/*
 	 * Protocol defaults valid even if negotiation for a
@@ -600,10 +593,8 @@ blkfront_initialize(struct xb_softc *sc)
 	sc->shadow = malloc(sizeof(*sc->shadow) * sc->max_requests,
 			    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
 	if (sc->shadow == NULL) {
-		bus_dma_tag_destroy(sc->xb_io_dmat);
 		xenbus_dev_fatal(sc->xb_dev, error,
 				 "Cannot allocate request structures\n");
-		return;
 	}
 
 	for (i = 0; i < sc->max_requests; i++) {
@@ -764,10 +755,10 @@ blkfront_backend_changed(device_t dev, XenbusState backend_state)
 		break;
 
 	case XenbusStateInitWait:
-	case XenbusStateInitialised:
 		blkfront_initialize(sc);
 		break;
 
+	case XenbusStateInitialised:
 	case XenbusStateConnected:
 		blkfront_initialize(sc);
 		blkfront_connect(sc);
@@ -784,7 +775,7 @@ blkfront_backend_changed(device_t dev, XenbusState backend_state)
 }
 
 /* 
-** Invoked when the backend is finally 'ready' (and has published
+** Invoked when the backend is finally 'ready' (and has told produced 
 ** the details about the physical device - #sectors, size, etc). 
 */
 static void 
@@ -818,15 +809,13 @@ blkfront_connect(struct xb_softc *sc)
 	if (!err || feature_barrier)
 		sc->xb_flags |= XB_BARRIER;
 
-	if (sc->xb_disk == NULL) {
-		device_printf(dev, "%juMB <%s> at %s",
-		    (uintmax_t) sectors / (1048576 / sector_size),
-		    device_get_desc(dev),
-		    xenbus_get_node(dev));
-		bus_print_child_footer(device_get_parent(dev), dev);
+	device_printf(dev, "%juMB <%s> at %s",
+	    (uintmax_t) sectors / (1048576 / sector_size),
+	    device_get_desc(dev),
+	    xenbus_get_node(dev));
+	bus_print_child_footer(device_get_parent(dev), dev);
 
-		xlvbd_add(sc, sectors, sc->vdevice, binfo, sector_size);
-	}
+	xlvbd_add(sc, sectors, sc->vdevice, binfo, sector_size);
 
 	(void)xenbus_set_state(dev, XenbusStateConnected); 
 
@@ -836,6 +825,7 @@ blkfront_connect(struct xb_softc *sc)
 	xb_startio(sc);
 	sc->xb_flags |= XB_READY;
 	mtx_unlock(&sc->xb_io_lock);
+	
 }
 
 /**
@@ -869,7 +859,7 @@ blkfront_detach(device_t dev)
 
 	DPRINTK("blkfront_remove: %s removed\n", xenbus_get_node(dev));
 
-	blkif_free(sc);
+	blkif_free(sc, 0);
 	mtx_destroy(&sc->xb_io_lock);
 
 	return 0;
@@ -1150,9 +1140,6 @@ xb_startio(struct xb_softc *sc)
 
 	mtx_assert(&sc->xb_io_lock, MA_OWNED);
 
-	if (sc->connected != BLKIF_STATE_CONNECTED)
-		return;
-
 	while (RING_FREE_REQUESTS(&sc->ring) >= sc->max_request_blocks) {
 		if (sc->xb_flags & XB_FROZEN)
 			break;
@@ -1187,7 +1174,7 @@ blkif_int(void *xsc)
 
 	mtx_lock(&sc->xb_io_lock);
 
-	if (unlikely(sc->connected == BLKIF_STATE_DISCONNECTED)) {
+	if (unlikely(sc->connected != BLKIF_STATE_CONNECTED)) {
 		mtx_unlock(&sc->xb_io_lock);
 		return;
 	}
@@ -1245,21 +1232,19 @@ blkif_int(void *xsc)
 
 	xb_startio(sc);
 
-	if (unlikely(sc->connected == BLKIF_STATE_SUSPENDED))
-		wakeup(&sc->cm_busy);
-
 	mtx_unlock(&sc->xb_io_lock);
 }
 
 static void 
-blkif_free(struct xb_softc *sc)
+blkif_free(struct xb_softc *sc, int suspend)
 {
 	uint8_t *sring_page_ptr;
 	int i;
 	
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xb_io_lock);
-	sc->connected = BLKIF_STATE_DISCONNECTED; 
+	sc->connected = suspend ? 
+		BLKIF_STATE_SUSPENDED : BLKIF_STATE_DISCONNECTED; 
 	mtx_unlock(&sc->xb_io_lock);
 
 	/* Free resources associated with old device channel. */
@@ -1291,12 +1276,6 @@ blkif_free(struct xb_softc *sc)
 		}
 		free(sc->shadow, M_XENBLOCKFRONT);
 		sc->shadow = NULL;
-
-		bus_dma_tag_destroy(sc->xb_io_dmat);
-		
-		xb_initq_free(sc);
-		xb_initq_ready(sc);
-		xb_initq_complete(sc);
 	}
 		
 	if (sc->irq) {
@@ -1312,6 +1291,21 @@ blkif_completion(struct xb_command *s)
 	gnttab_end_foreign_access_references(s->nseg, s->sg_refs);
 	return (BLKIF_SEGS_TO_BLOCKS(s->nseg));
 }
+
+#if 0
+static void 
+blkif_recover(struct xb_softc *sc)
+{
+	/*
+	 * XXX The whole concept of not quiescing and completing all i/o
+	 * during suspend, and then hoping to recover and replay the
+	 * resulting abandoned I/O during resume, is laughable.  At best,
+	 * it invalidates the i/o ordering rules required by just about
+	 * every filesystem, and at worst it'll corrupt data.  The code
+	 * has been removed until further notice.
+	 */
+}
+#endif
 
 /* ** Driver registration ** */
 static device_method_t blkfront_methods[] = { 

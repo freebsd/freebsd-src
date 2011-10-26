@@ -1,9 +1,6 @@
 # $FreeBSD$
 
 LIB=	kafs5
-LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lasn1 -lkrb5 -lroken
-DPADD=	${LIBASN1} ${LIBKRB5} ${LIBROKEN}
 INCS=	kafs.h
 MAN=	kafs5.3
 

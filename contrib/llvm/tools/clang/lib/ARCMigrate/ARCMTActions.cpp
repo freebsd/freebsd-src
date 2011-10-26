@@ -38,26 +38,16 @@ ModifyAction::ModifyAction(FrontendAction *WrappedAction)
   : WrapperFrontendAction(WrappedAction) {}
 
 bool MigrateAction::BeginInvocation(CompilerInstance &CI) {
-  if (arcmt::migrateWithTemporaryFiles(CI.getInvocation(),
+  return !arcmt::migrateWithTemporaryFiles(CI.getInvocation(),
                                            getCurrentFile(),
                                            getCurrentFileKind(),
                                            CI.getDiagnostics().getClient(),
-                                           MigrateDir,
-                                           EmitPremigrationARCErros,
-                                           PlistOut))
-    return false; // errors, stop the action.
-
-  // We only want to see diagnostics emitted by migrateWithTemporaryFiles.
-  CI.getDiagnostics().setIgnoreAllWarnings(true);
-  return true;
+                                           MigrateDir);
 }
 
 MigrateAction::MigrateAction(FrontendAction *WrappedAction,
-                             StringRef migrateDir,
-                             StringRef plistOut,
-                             bool emitPremigrationARCErrors)
-  : WrapperFrontendAction(WrappedAction), MigrateDir(migrateDir),
-    PlistOut(plistOut), EmitPremigrationARCErros(emitPremigrationARCErrors) {
+                             llvm::StringRef migrateDir)
+  : WrapperFrontendAction(WrappedAction), MigrateDir(migrateDir) {
   if (MigrateDir.empty())
     MigrateDir = "."; // user current directory if none is given.
 }

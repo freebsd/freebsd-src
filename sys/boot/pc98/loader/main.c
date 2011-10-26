@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <machine/bootinfo.h>
+#include <machine/psl.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
 

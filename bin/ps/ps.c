@@ -99,12 +99,14 @@ time_t	 now;			/* Current time(3) value */
 int	 rawcpu;		/* -C */
 int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
+int	 totwidth;		/* Calculated-width of requested variables. */
 int	 showthreads;		/* will threads be shown? */
 
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
 static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
 static kvm_t	*kd;
+static KINFO	*kinfo;
 static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
@@ -137,7 +139,7 @@ static int	 addelem_tty(struct listinfo *, const char *);
 static int	 addelem_uid(struct listinfo *, const char *);
 static void	 add_list(struct listinfo *, const char *);
 static void	 descendant_sort(KINFO *, int);
-static void	 format_output(KINFO *);
+static void	 dynsizevars(KINFO *);
 static void	*expand_list(struct listinfo *);
 static const char *
 		 fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
@@ -170,13 +172,12 @@ main(int argc, char *argv[])
 	struct listinfo gidlist, pgrplist, pidlist;
 	struct listinfo ruidlist, sesslist, ttylist, uidlist;
 	struct kinfo_proc *kp;
-	KINFO *kinfo = NULL, *next_KINFO;
-	KINFO_STR *ks;
+	KINFO *next_KINFO;
 	struct varent *vent;
 	struct winsize ws;
-	const char *nlistf, *memf, *fmtstr, *str;
+	const char *nlistf, *memf;
 	char *cols;
-	int all, ch, elem, flag, _fmt, i, lineno, linelen, left;
+	int all, ch, elem, flag, _fmt, i, lineno;
 	int descendancy, nentries, nkept, nselectors;
 	int prtheader, wflag, what, xkeep, xkeep_implied;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -587,16 +588,19 @@ main(int argc, char *argv[])
 				    kp->ki_dsize + kp->ki_ssize;
 			if (needuser)
 				saveuser(next_KINFO);
+			dynsizevars(next_KINFO);
 			nkept++;
 		}
 	}
 
 	sizevars();
 
-	if (nkept == 0) {
-		printheader();
+	/*
+	 * print header
+	 */
+	printheader();
+	if (nkept == 0)
 		exit(1);
-	}
 
 	/*
 	 * sort proc list
@@ -609,59 +613,14 @@ main(int argc, char *argv[])
 	if (descendancy)
 		descendant_sort(kinfo, nkept);
 
-
 	/*
-	 * Prepare formatted output.
-	 */
-	for (i = 0; i < nkept; i++)
-		format_output(&kinfo[i]);
-
-	/*
-	 * Print header.
-	 */
-	printheader();
-
-	/*
-	 * Output formatted lines.
+	 * For each process, call each variable output function.
 	 */
 	for (i = lineno = 0; i < nkept; i++) {
-		linelen = 0;
 		STAILQ_FOREACH(vent, &varlist, next_ve) {
-	        	if (vent->var->flag & LJUST)
-				fmtstr = "%-*s";
-			else
-				fmtstr = "%*s";
-
-			ks = STAILQ_FIRST(&kinfo[i].ki_ks);
-			STAILQ_REMOVE_HEAD(&kinfo[i].ki_ks, ks_next);
-			/* Truncate rightmost column if neccessary.  */
-			if (STAILQ_NEXT(vent, next_ve) == NULL &&
-			   termwidth != UNLIMITED && ks->ks_str != NULL) {
-				left = termwidth - linelen;
-				if (left > 0 && left < (int)strlen(ks->ks_str))
-					ks->ks_str[left] = '\0';
-			}
-			str = ks->ks_str;
-			if (str == NULL)
-				str = "-";
-			/* No padding for the last column, if it's LJUST. */
-			if (STAILQ_NEXT(vent, next_ve) == NULL &&
-			    vent->var->flag & LJUST)
-				linelen += printf(fmtstr, 0, str);
-			else
-				linelen += printf(fmtstr, vent->var->width, str);
-
-			if (ks->ks_str != NULL) {
-				free(ks->ks_str);
-				ks->ks_str = NULL;
-			}
-			free(ks);
-			ks = NULL;
-
-			if (STAILQ_NEXT(vent, next_ve) != NULL) {
+			(vent->var->oproc)(&kinfo[i], vent);
+			if (STAILQ_NEXT(vent, next_ve) != NULL)
 				(void)putchar(' ');
-				linelen++;
-			}
 		}
 		(void)putchar('\n');
 		if (prtheader && lineno++ == prtheader - 4) {
@@ -1119,6 +1078,10 @@ scanvars(void)
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
+		if (v->sproc != NULL) {
+			v->dwidth = v->width;
+			v->width = 0;
+		}
 		if (v->flag & USER)
 			needuser = 1;
 		if (v->flag & COMM)
@@ -1127,29 +1090,21 @@ scanvars(void)
 }
 
 static void
-format_output(KINFO *ki)
+dynsizevars(KINFO *ki)
 {
 	struct varent *vent;
 	VAR *v;
-	KINFO_STR *ks;
-	char *str;
-	int len;
+	int i;
 
-	STAILQ_INIT(&ki->ki_ks);
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
-		str = (v->oproc)(ki, vent);
-		ks = malloc(sizeof(*ks));
-		if (ks == NULL)
-			errx(1, "malloc failed");
-		ks->ks_str = str;
-		STAILQ_INSERT_TAIL(&ki->ki_ks, ks, ks_next);
-		if (str != NULL) {
-			len = strlen(str);
-		} else
-			len = 1; /* "-" */
-		if (v->width < len)
-			v->width = len;
+		if (v->sproc == NULL)
+			continue;
+		i = (v->sproc)(ki);
+		if (v->width < i)
+			v->width = i;
+		if (v->width > v->dwidth)
+			v->width = v->dwidth;
 	}
 }
 
@@ -1165,7 +1120,9 @@ sizevars(void)
 		i = strlen(vent->header);
 		if (v->width < i)
 			v->width = i;
+		totwidth += v->width + 1;	/* +1 for space */
 	}
+	totwidth--;
 }
 
 static const char *

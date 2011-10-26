@@ -378,11 +378,6 @@ main(int argc, char **argv)
 {
 	int fd, mode, channel, array;
 
-	if (feature_present("ata_cam")) {
-		errx(1, "\nATA_CAM option is enabled in kernel.\n"
-		    "Please use camcontrol instead.");
-	}
-
 	if (argc < 2)
 		usage();
 

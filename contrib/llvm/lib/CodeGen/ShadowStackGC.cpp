@@ -61,7 +61,7 @@ namespace {
   private:
     bool IsNullValue(Value *V);
     Constant *GetFrameMap(Function &F);
-    Type* GetConcreteStackEntryType(Function &F);
+    const Type* GetConcreteStackEntryType(Function &F);
     void CollectRoots(Function &F);
     static GetElementPtrInst *CreateGEP(LLVMContext &Context, 
                                         IRBuilder<> &B, Value *BasePtr,
@@ -109,15 +109,13 @@ namespace {
         State = 1;
 
       case 1:
-        // Find all 'return', 'resume', and 'unwind' instructions.
+        // Find all 'return' and 'unwind' instructions.
         while (StateBB != StateE) {
           BasicBlock *CurBB = StateBB++;
 
-          // Branches and invokes do not escape, only unwind, resume, and return
-          // do.
+          // Branches and invokes do not escape, only unwind and return do.
           TerminatorInst *TI = CurBB->getTerminator();
-          if (!isa<UnwindInst>(TI) && !isa<ReturnInst>(TI) &&
-              !isa<ResumeInst>(TI))
+          if (!isa<UnwindInst>(TI) && !isa<ReturnInst>(TI))
             continue;
 
           Builder.SetInsertPoint(TI->getParent(), TI);
@@ -141,19 +139,9 @@ namespace {
           return 0;
 
         // Create a cleanup block.
-        LLVMContext &C = F.getContext();
-        BasicBlock *CleanupBB = BasicBlock::Create(C, CleanupBBName, &F);
-        Type *ExnTy = StructType::get(Type::getInt8PtrTy(C),
-                                      Type::getInt32Ty(C), NULL);
-        Constant *PersFn =
-          F.getParent()->
-          getOrInsertFunction("__gcc_personality_v0",
-                              FunctionType::get(Type::getInt32Ty(C), true));
-        LandingPadInst *LPad = LandingPadInst::Create(ExnTy, PersFn, 1,
-                                                      "cleanup.lpad",
-                                                      CleanupBB);
-        LPad->setCleanup(true);
-        ResumeInst *RI = ResumeInst::Create(LPad, CleanupBB);
+        BasicBlock *CleanupBB = BasicBlock::Create(F.getContext(),
+                                                   CleanupBBName, &F);
+        UnwindInst *UI = new UnwindInst(F.getContext(), CleanupBB);
 
         // Transform the 'call' instructions into 'invoke's branching to the
         // cleanup block. Go in reverse order to make prettier BB names.
@@ -184,7 +172,7 @@ namespace {
           delete CI;
         }
 
-        Builder.SetInsertPoint(RI->getParent(), RI);
+        Builder.SetInsertPoint(UI->getParent(), UI);
         return &Builder;
       }
     }
@@ -202,7 +190,7 @@ ShadowStackGC::ShadowStackGC() : Head(0), StackEntryTy(0) {
 
 Constant *ShadowStackGC::GetFrameMap(Function &F) {
   // doInitialization creates the abstract type of this value.
-  Type *VoidPtr = Type::getInt8PtrTy(F.getContext());
+  const Type *VoidPtr = Type::getInt8PtrTy(F.getContext());
 
   // Truncate the ShadowStackDescriptor if some metadata is null.
   unsigned NumMeta = 0;
@@ -215,7 +203,7 @@ Constant *ShadowStackGC::GetFrameMap(Function &F) {
   }
   Metadata.resize(NumMeta);
 
-  Type *Int32Ty = Type::getInt32Ty(F.getContext());
+  const Type *Int32Ty = Type::getInt32Ty(F.getContext());
   
   Constant *BaseElts[] = {
     ConstantInt::get(Int32Ty, Roots.size(), false),
@@ -228,7 +216,7 @@ Constant *ShadowStackGC::GetFrameMap(Function &F) {
   };
 
   Type *EltTys[] = { DescriptorElts[0]->getType(),DescriptorElts[1]->getType()};
-  StructType *STy = StructType::create(EltTys, "gc_map."+utostr(NumMeta));
+  StructType *STy = StructType::createNamed("gc_map."+utostr(NumMeta), EltTys);
   
   Constant *FrameMap = ConstantStruct::get(STy, DescriptorElts);
 
@@ -253,17 +241,17 @@ Constant *ShadowStackGC::GetFrameMap(Function &F) {
                           ConstantInt::get(Type::getInt32Ty(F.getContext()), 0),
                           ConstantInt::get(Type::getInt32Ty(F.getContext()), 0)
                           };
-  return ConstantExpr::getGetElementPtr(GV, GEPIndices);
+  return ConstantExpr::getGetElementPtr(GV, GEPIndices, 2);
 }
 
-Type* ShadowStackGC::GetConcreteStackEntryType(Function &F) {
+const Type* ShadowStackGC::GetConcreteStackEntryType(Function &F) {
   // doInitialization creates the generic version of this type.
   std::vector<Type*> EltTys;
   EltTys.push_back(StackEntryTy);
   for (size_t I = 0; I != Roots.size(); I++)
     EltTys.push_back(Roots[I].second->getAllocatedType());
   
-  return StructType::create(EltTys, "gc_stackentry."+F.getName().str());
+  return StructType::createNamed("gc_stackentry."+F.getName().str(), EltTys);
 }
 
 /// doInitialization - If this module uses the GC intrinsics, find them now. If
@@ -279,7 +267,7 @@ bool ShadowStackGC::initializeCustomLowering(Module &M) {
   EltTys.push_back(Type::getInt32Ty(M.getContext()));
   // Specifies length of variable length array. 
   EltTys.push_back(Type::getInt32Ty(M.getContext()));
-  FrameMapTy = StructType::create(EltTys, "gc_map");
+  FrameMapTy = StructType::createNamed("gc_map", EltTys);
   PointerType *FrameMapPtrTy = PointerType::getUnqual(FrameMapTy);
 
   // struct StackEntry {
@@ -288,13 +276,13 @@ bool ShadowStackGC::initializeCustomLowering(Module &M) {
   //   void *Roots[];          // Stack roots (in-place array, so we pretend).
   // };
   
-  StackEntryTy = StructType::create(M.getContext(), "gc_stackentry");
+  StackEntryTy = StructType::createNamed(M.getContext(), "gc_stackentry");
   
   EltTys.clear();
   EltTys.push_back(PointerType::getUnqual(StackEntryTy));
   EltTys.push_back(FrameMapPtrTy);
   StackEntryTy->setBody(EltTys);
-  PointerType *StackEntryPtrTy = PointerType::getUnqual(StackEntryTy);
+  const PointerType *StackEntryPtrTy = PointerType::getUnqual(StackEntryTy);
 
   // Get the root chain if it already exists.
   Head = M.getGlobalVariable("llvm_gc_root_chain");
@@ -352,7 +340,7 @@ ShadowStackGC::CreateGEP(LLVMContext &Context, IRBuilder<> &B, Value *BasePtr,
   Value *Indices[] = { ConstantInt::get(Type::getInt32Ty(Context), 0),
                        ConstantInt::get(Type::getInt32Ty(Context), Idx),
                        ConstantInt::get(Type::getInt32Ty(Context), Idx2) };
-  Value* Val = B.CreateGEP(BasePtr, Indices, Name);
+  Value* Val = B.CreateGEP(BasePtr, Indices, Indices + 3, Name);
 
   assert(isa<GetElementPtrInst>(Val) && "Unexpected folded constant");
 
@@ -364,7 +352,7 @@ ShadowStackGC::CreateGEP(LLVMContext &Context, IRBuilder<> &B, Value *BasePtr,
                          int Idx, const char *Name) {
   Value *Indices[] = { ConstantInt::get(Type::getInt32Ty(Context), 0),
                        ConstantInt::get(Type::getInt32Ty(Context), Idx) };
-  Value *Val = B.CreateGEP(BasePtr, Indices, Name);
+  Value *Val = B.CreateGEP(BasePtr, Indices, Indices + 2, Name);
 
   assert(isa<GetElementPtrInst>(Val) && "Unexpected folded constant");
 
@@ -385,7 +373,7 @@ bool ShadowStackGC::performCustomLowering(Function &F) {
 
   // Build the constant map and figure the type of the shadow stack entry.
   Value *FrameMap = GetFrameMap(F);
-  Type *ConcreteStackEntryTy = GetConcreteStackEntryType(F);
+  const Type *ConcreteStackEntryTy = GetConcreteStackEntryType(F);
 
   // Build the shadow stack entry at the very start of the function.
   BasicBlock::iterator IP = F.getEntryBlock().begin();

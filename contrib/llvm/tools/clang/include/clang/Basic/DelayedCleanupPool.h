@@ -15,7 +15,6 @@
 #ifndef LLVM_CLANG_BASIC_DELAYEDCLEANUPPOOL_H
 #define LLVM_CLANG_BASIC_DELAYEDCLEANUPPOOL_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -67,7 +66,7 @@ public:
   }
 
   void doCleanup() {
-    for (SmallVector<std::pair<void *, CleanupFn>, 8>::reverse_iterator
+    for (llvm::SmallVector<std::pair<void *, CleanupFn>, 8>::reverse_iterator
            I = Cleanups.rbegin(), E = Cleanups.rend(); I != E; ++I)
       I->second(I->first);
     Cleanups.clear();
@@ -80,7 +79,7 @@ public:
 
 private:
   llvm::DenseMap<void *, CleanupFn> Ptrs;
-  SmallVector<std::pair<void *, CleanupFn>, 8> Cleanups;
+  llvm::SmallVector<std::pair<void *, CleanupFn>, 8> Cleanups;
 
   template <typename T>
   static void cleanupWithDelete(void *ptr) {

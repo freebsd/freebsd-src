@@ -30,7 +30,7 @@ namespace llvm {
   Constant *ConstantFoldCastInstruction(
     unsigned opcode,     ///< The opcode of the cast
     Constant *V,         ///< The source constant
-    Type *DestTy   ///< The destination type
+    const Type *DestTy   ///< The destination type
   );
   Constant *ConstantFoldSelectInstruction(Constant *Cond,
                                           Constant *V1, Constant *V2);
@@ -48,9 +48,9 @@ namespace llvm {
   Constant *ConstantFoldCompareInstruction(unsigned short predicate, 
                                            Constant *C1, Constant *C2);
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
-                                      ArrayRef<Constant *> Idxs);
+                                      Constant* const *Idxs, unsigned NumIdx);
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
-                                      ArrayRef<Value *> Idxs);
+                                      Value* const *Idxs, unsigned NumIdx);
 } // End llvm namespace
 
 #endif

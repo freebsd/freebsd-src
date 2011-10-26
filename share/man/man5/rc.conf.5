@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2011
+.Dd June 19, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1282,13 +1282,6 @@ ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
 .It Va ipv6_enable
-This variable is deprecated.
-Use
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-and
-.Va ipv6_activate_all_interfaces
-if necessary.
-.Pp
 .Pq Vt bool
 If the variable is
 .Dq Li YES ,
@@ -1299,12 +1292,13 @@ and the
 .Va ipv6_activate_all_interfaces
 is defined as
 .Dq Li YES .
-.It Va ipv6_prefer
-This variable is deprecated.
-Use
-.Va ip6addrctl_policy
-instead.
 .Pp
+This variable is deprecated.  Use
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+and
+.Va ipv6_activate_all_interfaces
+if necessary.
+.It Va ipv6_prefer
 .Pq Vt bool
 If the variable is
 .Dq Li YES ,
@@ -1317,45 +1311,19 @@ If the variable is
 the default address selection policy table set by
 .Xr ip6addrctl 8
 will be IPv4-preferred.
-.It Va ipv6_activate_all_interfaces
-.Pq Vt bool
-This controls initial configuration on IPv6-capable
-interfaces with no corresponding
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-variable.
-Note that it is not always necessary to set this variable to
-.Dq YES
-to use IPv6 functionality on
-.Fx .
-In most cases, just configuring
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-variables works.
 .Pp
+This variable is deprecated.  Use
+.Va ip6addrctl_policy
+instead.
+.It Va ipv6_activate_all_interfaces
 If the variable is
 .Dq Li NO ,
-all interfaces which do not have a corresponding
+all of interfaces which do not have the corrsponding
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 variable will be marked as
 .Dq Li IFDISABLED
-at creation.
-This means that all of IPv6 functionality on that interface
-is completely disabled to enforce a security policy.
-If the variable is set to
-.Dq YES ,
-the flag will be cleared on all of the interfaces.
-.Pp
-In most cases, just defining an
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-for an IPv6-capable interface should be sufficient.
-However, if an interface is added dynamically
-.Pq by some tunneling protocols such as PPP, for example ,
-it is often difficult to define the variable in advance.
-In such a case, configuring the
-.Dq Li IFDISABLED
-flag can be disabled by setting this variable to
-.Dq YES .
-.Pp
-For more details of the
+for security reason.  This means only IPv6 functionality on that interface
+is completely disabled.  For more details of
 .Dq Li IFDISABLED
 flag and keywords
 .Dq Li inet6 ifdisabled ,
@@ -1376,58 +1344,12 @@ This is the IPv6 equivalent of
 .Va network_interfaces .
 Normally manual configuration of this variable is not needed.
 .Pp
-.It Va ipv6_cpe_wanif
-.Pq Vt str
-If the variable is set to an interface name,
-the
-.Xr ifconfig 8
-options
-.Dq inet6 -no_radr accept_rtadv
-will be added to the specified interface automatically before evaluating
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
-and two
-.Xr sysctl 8
-variables
-.Va net.inet6.ip6.rfc6204w3
-and
-.Va net.inet6.ip6.no_radr
-will be set to 1.
-.Pp
-This means the specified interface will accept ICMPv6 Router
-Advertisement messages on that link and add the discovered
-routers into the Default Router List.
-While the other interfaces can still accept RA messages if the
-.Dq inet6 accept_rtadv
-option is specified, adding
-routes into the Default Router List will be disabled by
-.Dq inet6 no_radr
-option by default.
-See
-.Xr ifconfig 8
-for more details.
-.Pp
-Note that ICMPv6 Router Advertisement messages will be
-accepted even when
-.Va net.inet6.ip6.forwarding
-is 1
-.Pq packet fowarding is enabled
-when
-.Va net.inet6.ip6.rfc6204w3
-is set to 1.
-.Pp
-Default is
-.Dq Li NO .
 .It Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 .Pq Vt str
 IPv6 functionality on an interface should be configured by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
 instead of setting ifconfig parameters in
 .Va ifconfig_ Ns Aq Ar interface .
-If this variable is empty, all of IPv6 configurations on the
-specified interface by other variables such as
-.Va ipv6_prefix_ Ns Ao Ar interface Ac
-will be ignored.
-.Pp
 Aliases should be set by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 with
@@ -1442,63 +1364,18 @@ Interfaces that have an
 .Dq Li inet6 accept_rtadv
 keyword in
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-setting will be automatically configured by SLAAC
-.Pq StateLess Address AutoConfiguration
-described in
-.Rs
-.%T "RFC 4862"
-.Re
-.Pp
-Note that a link-local address will be automatically configured in
-addition to the configured global-scope addresses because the IPv6
-specifications require it on each link.
-The address is calculated from the MAC address by using an algorithm
-defined in
-.Rs
-.%T "RFC 4862"
-.%O "Section 5.3"
-.Re
-.Pp
-If only a link-local address is needed on the interface,
-the following configuration can be used:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 auto_linklocal"
-.Ed
-.Pp
-A link-local address can also be configured manually.
-This is useful for the default router address of an IPv6 router
-so that it does not change when the network interface
-card is replaced.
-For example:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 fe80::1 prefixlen 64"
-.Ed
+setting will be automatically configured by
+.Xr rtsol 8 .
+Note that this automatic configuration is disabled if the
+.Va ipv6_gateway_enable
+is set to
+.Dq Li YES .
 .It Va ipv6_prefix_ Ns Aq Ar interface
 .Pq Vt str
 If one or more prefixes are defined in
 .Va ipv6_prefix_ Ns Aq Ar interface
 addresses based on each prefix and the EUI-64 interface index will be
 configured on that interface.
-Note that this variable will be ignored when
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
-is empty.
-.Pp
-For example, the following configuration
-.Bd -literal
-ipv6_prefix_ed0="2001:db8:1:0 2001:db8:2:0"
-.Ed
-.Pp
-is equivalent to the following:
-.Bd -literal
-ifconfig_ed0_alias0="inet6 2001:db8:1:: eui64 prefixlen 64"
-ifconfig_ed0_alias1="inet6 2001:db8:1:: prefixlen 64 anycast"
-ifconfig_ed0_alias2="inet6 2001:db8:2:: eui64 prefixlen 64"
-ifconfig_ed0_alias3="inet6 2001:db8:2:: prefixlen 64 anycast"
-.Ed
-.Pp
-These Subnet-Router anycast addresses will be added only when
-.Va ipv6_gateway_enable
-is YES.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
@@ -2597,22 +2474,6 @@ For example
 static_arp_pairs="gw"
 static_arp_gw="192.168.1.1 00:01:02:03:04:05"
 .Ed
-.It Va static_ndp_pairs
-.Pq Vt str
-Set to the list of static NDP pairs that are to be added at system
-boot time.
-For each whitespace separated
-.Ar element
-in the value, a
-.Va static_ndp_ Ns Aq Ar element
-variable is assumed to exist whose contents will later be passed to a
-.Dq Nm ndp Cm -s
-operation.
-For example
-.Bd -literal
-static_ndp_pairs="gw"
-static_ndp_gw="2001:db8:3::1 00:01:02:03:04:05"
-.Ed
 .It Va static_routes
 .Pq Vt str
 Set to the list of static routes that are to be added at system
@@ -2767,12 +2628,16 @@ If set to
 run the
 .Xr rtadvd 8
 daemon at boot time.
+.Xr rtadvd 8
+will only run if
+.Va ipv6_gateway_enable
+is also set to
+.Dq Li YES .
 The
 .Xr rtadvd 8
-utility sends ICMPv6 Router Advertisement messages to
-the interfaces specified in
-.Va rtadvd_interfaces .
-This should only be enabled with great care.
+utility sends router advertisement packets to the interfaces specified in
+.Va rtadvd_interfaces
+and should only be enabled with great care.
 You may want to fine-tune
 .Xr rtadvd.conf 5 .
 .It Va rtadvd_interfaces

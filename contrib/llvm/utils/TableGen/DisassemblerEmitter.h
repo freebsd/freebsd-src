@@ -10,7 +10,7 @@
 #ifndef DISASSEMBLEREMITTER_H
 #define DISASSEMBLEREMITTER_H
 
-#include "llvm/TableGen/TableGenBackend.h"
+#include "TableGenBackend.h"
 
 namespace llvm {
 

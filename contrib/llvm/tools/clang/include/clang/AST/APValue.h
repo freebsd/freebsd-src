@@ -14,13 +14,11 @@
 #ifndef LLVM_CLANG_AST_APVALUE_H
 #define LLVM_CLANG_AST_APVALUE_H
 
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/APFloat.h"
 
 namespace clang {
   class CharUnits;
-  class DiagnosticBuilder;
   class Expr;
 
 /// APValue - This class implements a discriminated union of [uninitialized]
@@ -105,7 +103,7 @@ public:
   bool isLValue() const { return Kind == LValue; }
   bool isVector() const { return Kind == Vector; }
 
-  void print(raw_ostream &OS) const;
+  void print(llvm::raw_ostream &OS) const;
   void dump() const;
 
   APSInt &getInt() {
@@ -235,14 +233,10 @@ private:
   void MakeLValue();
 };
 
-inline raw_ostream &operator<<(raw_ostream &OS, const APValue &V) {
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const APValue &V) {
   V.print(OS);
   return OS;
 }
-
-// Writes a concise representation of V to DB, in a single << operation.
-const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                    const APValue &V);
 
 } // end namespace clang.
 

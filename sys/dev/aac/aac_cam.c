@@ -532,7 +532,6 @@ aac_cam_complete(struct aac_command *cm)
 	union	ccb *ccb;
 	struct 	aac_srb_response *srbr;
 	struct	aac_softc *sc;
-	int	sense_returned;
 
 	sc = cm->cm_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -557,17 +556,16 @@ aac_cam_complete(struct aac_command *cm)
 
 			/* Take care of autosense */
 			if (srbr->sense_len) {
-				sense_returned = srbr->sense_len;
-				if (sense_returned < ccb->csio.sense_len)
-					ccb->csio.sense_resid =
-					   ccb->csio.sense_len -
-					   sense_returned;
-					else
-					    ccb->csio.sense_resid = 0;
-				bzero(&ccb->csio.sense_data,
-				    sizeof(struct scsi_sense_data));
+				int sense_len, scsi_sense_len;
+
+				scsi_sense_len = sizeof(struct scsi_sense_data);
+				bzero(&ccb->csio.sense_data, scsi_sense_len);
+				sense_len = (srbr->sense_len >
+				    scsi_sense_len) ? scsi_sense_len :
+				    srbr->sense_len;
 				bcopy(&srbr->sense[0], &ccb->csio.sense_data,
-				    min(ccb->csio.sense_len, sense_returned));
+				    srbr->sense_len);
+				ccb->csio.sense_len = sense_len;
 				ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 				// scsi_sense_print(&ccb->csio);
 			}

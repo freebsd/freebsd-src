@@ -3,6 +3,6 @@
 
 PROG=	leave
 
-NO_WFORMAT=
+WARNS?=	1
 
 .include <bsd.prog.mk>

@@ -1000,7 +1000,7 @@ freebsd4_sigreturn(td, uap)
  * MPSAFE
  */
 int
-sys_sigreturn(td, uap)
+sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
 		const struct __ucontext *sigcntxp;
@@ -1222,7 +1222,7 @@ void
 cpu_halt(void)
 {
 	for (;;)
-		halt();
+		__asm__ ("hlt");
 }
 
 #endif
@@ -1245,8 +1245,6 @@ cpu_idle_acpi(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
-
-	/* See comments in cpu_idle_hlt(). */
 	disable_intr();
 	if (sched_runnable())
 		enable_intr();
@@ -1265,22 +1263,9 @@ cpu_idle_hlt(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
-
 	/*
-	 * Since we may be in a critical section from cpu_idle(), if
-	 * an interrupt fires during that critical section we may have
-	 * a pending preemption.  If the CPU halts, then that thread
-	 * may not execute until a later interrupt awakens the CPU.
-	 * To handle this race, check for a runnable thread after
-	 * disabling interrupts and immediately return if one is
-	 * found.  Also, we must absolutely guarentee that hlt is
-	 * the next instruction after sti.  This ensures that any
-	 * interrupt that fires after the call to disable_intr() will
-	 * immediately awaken the CPU from hlt.  Finally, please note
-	 * that on x86 this works fine because of interrupts enabled only
-	 * after the instruction following sti takes place, while IF is set
-	 * to 1 immediately, allowing hlt instruction to acknowledge the
-	 * interrupt.
+	 * We must absolutely guarentee that hlt is the next instruction
+	 * after sti or we introduce a timing window.
 	 */
 	disable_intr();
 	if (sched_runnable())
@@ -1307,19 +1292,11 @@ cpu_idle_mwait(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_MWAIT;
-
-	/* See comments in cpu_idle_hlt(). */
-	disable_intr();
-	if (sched_runnable()) {
-		enable_intr();
-		*state = STATE_RUNNING;
-		return;
+	if (!sched_runnable()) {
+		cpu_monitor(state, 0, 0);
+		if (*state == STATE_MWAIT)
+			cpu_mwait(0, MWAIT_C1);
 	}
-	cpu_monitor(state, 0, 0);
-	if (*state == STATE_MWAIT)
-		__asm __volatile("sti; mwait" : : "a" (MWAIT_C1), "c" (0));
-	else
-		enable_intr();
 	*state = STATE_RUNNING;
 }
 
@@ -1331,12 +1308,6 @@ cpu_idle_spin(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_RUNNING;
-
-	/*
-	 * The sched_runnable() call is racy but as long as there is
-	 * a loop missing it one time will have just a little impact if any 
-	 * (and it is much better than missing the check at all).
-	 */
 	for (i = 0; i < 1000; i++) {
 		if (sched_runnable())
 			return;

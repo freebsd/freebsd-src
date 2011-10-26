@@ -21,23 +21,10 @@
 #include <cassert>
 
 namespace clang {
-class DiagnosticsEngine;
+class Diagnostic;
 class SourceManager;
 class Preprocessor;
 class DiagnosticBuilder;
-
-/// ConflictMarkerKind - Kinds of conflict marker which the lexer might be
-/// recovering from.
-enum ConflictMarkerKind {
-  /// Not within a conflict marker.
-  CMK_None,
-  /// A normal or diff3 conflict marker, initiated by at least 7 <s,
-  /// separated by at least 7 =s or |s, and terminated by at least 7 >s.
-  CMK_Normal,
-  /// A Perforce-style conflict marker, initiated by 4 >s, separated by 4 =s,
-  /// and terminated by 4 <s.
-  CMK_Perforce
-};
 
 /// Lexer - This provides a simple interface that turns a text buffer into a
 /// stream of tokens.  This provides no support for file reading or buffering,
@@ -50,7 +37,8 @@ class Lexer : public PreprocessorLexer {
   const char *BufferEnd;         // End of the buffer.
   SourceLocation FileLoc;        // Location for start of file.
   LangOptions Features;          // Features enabled by this language (cache).
-  bool Is_PragmaLexer;           // True if lexer for _Pragma handling.
+  bool Is_PragmaLexer : 1;       // True if lexer for _Pragma handling.
+  bool IsInConflictMarker : 1;   // True if in a VCS conflict marker '<<<<<<<'
   
   //===--------------------------------------------------------------------===//
   // Context-specific lexing flags set by the preprocessor.
@@ -77,9 +65,6 @@ class Lexer : public PreprocessorLexer {
   // IsAtStartOfLine - True if the next lexed token should get the "start of
   // line" flag set on it.
   bool IsAtStartOfLine;
-
-  // CurrentConflictMarkerState - The kind of conflict marker we are handling.
-  ConflictMarkerKind CurrentConflictMarkerState;
 
   Lexer(const Lexer&);          // DO NOT IMPLEMENT
   void operator=(const Lexer&); // DO NOT IMPLEMENT
@@ -223,7 +208,7 @@ public:
 
   /// Stringify - Convert the specified string into a C string by escaping '\'
   /// and " characters.  This does not add surrounding ""'s to the string.
-  static void Stringify(SmallVectorImpl<char> &Str);
+  static void Stringify(llvm::SmallVectorImpl<char> &Str);
 
   
   /// getSpelling - This method is used to get the spelling of a token into a
@@ -259,8 +244,8 @@ public:
   /// This method lexes at the expansion depth of the given
   /// location and does not jump to the expansion or spelling
   /// location.
-  static StringRef getSpelling(SourceLocation loc,
-                                     SmallVectorImpl<char> &buffer,
+  static llvm::StringRef getSpelling(SourceLocation loc,
+                                     llvm::SmallVectorImpl<char> &buffer,
                                      const SourceManager &SourceMgr,
                                      const LangOptions &Features,
                                      bool *invalid = 0);
@@ -337,8 +322,7 @@ public:
   /// of the file begins along with a boolean value indicating whether 
   /// the preamble ends at the beginning of a new line.
   static std::pair<unsigned, bool>
-  ComputePreamble(const llvm::MemoryBuffer *Buffer, const LangOptions &Features,
-                  unsigned MaxLines = 0);
+  ComputePreamble(const llvm::MemoryBuffer *Buffer, unsigned MaxLines = 0);
                                         
   //===--------------------------------------------------------------------===//
   // Internal implementation interfaces.
@@ -472,18 +456,6 @@ public:
   /// them), skip over them and return the first non-escaped-newline found,
   /// otherwise return P.
   static const char *SkipEscapedNewLines(const char *P);
-
-  /// \brief Checks that the given token is the first token that occurs after
-  /// the given location (this excludes comments and whitespace). Returns the
-  /// location immediately after the specified token. If the token is not found
-  /// or the location is inside a macro, the returned source location will be
-  /// invalid.
-  static SourceLocation findLocationAfterToken(SourceLocation loc,
-                                         tok::TokenKind TKind,
-                                         const SourceManager &SM,
-                                         const LangOptions &LangOpts,
-                                         bool SkipTrailingWhitespaceAndNewLine);
-
 private:
 
   /// getCharAndSizeSlowNoWarn - Same as getCharAndSizeSlow, but never emits a
@@ -499,13 +471,9 @@ private:
   // Helper functions to lex the remainder of a token of the specific type.
   void LexIdentifier         (Token &Result, const char *CurPtr);
   void LexNumericConstant    (Token &Result, const char *CurPtr);
-  void LexStringLiteral      (Token &Result, const char *CurPtr,
-                              tok::TokenKind Kind);
-  void LexRawStringLiteral   (Token &Result, const char *CurPtr,
-                              tok::TokenKind Kind);
+  void LexStringLiteral      (Token &Result, const char *CurPtr,bool Wide);
   void LexAngledStringLiteral(Token &Result, const char *CurPtr);
-  void LexCharConstant       (Token &Result, const char *CurPtr,
-                              tok::TokenKind Kind);
+  void LexCharConstant       (Token &Result, const char *CurPtr);
   bool LexEndOfFile          (Token &Result, const char *CurPtr);
 
   bool SkipWhitespace        (Token &Result, const char *CurPtr);
@@ -515,9 +483,6 @@ private:
   
   bool IsStartOfConflictMarker(const char *CurPtr);
   bool HandleEndOfConflictMarker(const char *CurPtr);
-
-  bool isCodeCompletionPoint(const char *CurPtr) const;
-  void cutOffLexing() { BufferPtr = BufferEnd; }
 };
 
 

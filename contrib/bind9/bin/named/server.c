@@ -62,7 +62,6 @@
 #include <dns/dispatch.h>
 #include <dns/dlz.h>
 #include <dns/dns64.h>
-#include <dns/dns64.h>
 #include <dns/forward.h>
 #include <dns/journal.h>
 #include <dns/keytable.h>
@@ -1720,32 +1719,6 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		const cfg_obj_t *zconfig = cfg_listelt_value(element);
 		CHECK(configure_zone(config, zconfig, vconfig, mctx, view,
 				     actx, ISC_FALSE));
-	}
-
-	/*
-	 * If we're allowing added zones, then load zone configuration
-	 * from the newzone file for zones that were added during previous
-	 * runs.
-	 */
-	nzctx = view->new_zone_config;
-	if (nzctx != NULL && nzctx->nzconfig != NULL) {
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
-			      "loading additional zones for view '%s'",
-			      view->name);
-
-		zonelist = NULL;
-		cfg_map_get(nzctx->nzconfig, "zone", &zonelist);
-
-		for (element = cfg_list_first(zonelist);
-		     element != NULL;
-		     element = cfg_list_next(element))
-		{
-			const cfg_obj_t *zconfig = cfg_listelt_value(element);
-			CHECK(configure_zone(config, zconfig, vconfig,
-					     mctx, view, actx,
-					     ISC_TRUE));
-		}
 	}
 
 	/*
@@ -4801,19 +4774,6 @@ load_configuration(const char *filename, ns_server_t *server,
 	 * Configure and freeze all explicit views.  Explicit
 	 * views that have zones were already created at parsing
 	 * time, but views with no zones must be created here.
-	 */
-
-	/*
-	 * Create the views and count all the configured zones in
-	 * order to correctly size the zone manager's task table.
-	 * (We only count zones for configured views; the built-in
-	 * "bind" view can be ignored as it only adds a negligible
-	 * number of zones.)
-	 *
-	 * If we're allowing new zones, we need to be able to find the
-	 * new zone file and count those as well.  So we setup the new
-	 * zone configuration context, but otherwise view configuration
-	 * waits until after the zone manager's task list has been sized.
 	 */
 	for (element = cfg_list_first(views);
 	     element != NULL;

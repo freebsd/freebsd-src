@@ -222,10 +222,7 @@ static void
 dumprecout(FILE *file, const struct dumpdates *what)
 {
 
-	if (strlen(what->dd_name) > DUMPFMTLEN)
-		quit("Name '%s' exceeds DUMPFMTLEN (%d) bytes\n",
-		    what->dd_name, DUMPFMTLEN);
-	if (fprintf(file, DUMPOUTFMT, DUMPFMTLEN, what->dd_name,
+	if (fprintf(file, DUMPOUTFMT, what->dd_name,
 	      what->dd_level, ctime(&what->dd_ddate)) < 0)
 		quit("%s: %s\n", dumpdates, strerror(errno));
 }

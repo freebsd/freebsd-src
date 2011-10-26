@@ -114,6 +114,7 @@ _acl_denies(const struct acl *aclp, int access_mask, struct ucred *cred,
 	if (denied_explicitly != NULL)
 		*denied_explicitly = 0;
 
+	KASSERT(aclp->acl_cnt > 0, ("aclp->acl_cnt > 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -722,6 +723,7 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 	mode_t old_mode = *_mode, mode = 0, seen = 0;
 	const struct acl_entry *entry;
 
+	KASSERT(aclp->acl_cnt > 0, ("aclp->acl_cnt > 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -852,6 +854,7 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 	struct acl_entry *entry, *copy;
 
 	KASSERT(child_aclp->acl_cnt == 0, ("child_aclp->acl_cnt == 0"));
+	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
 	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -1014,6 +1017,7 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 	const struct acl_entry *parent_entry;
 	struct acl_entry *entry;
 
+	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
 	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 

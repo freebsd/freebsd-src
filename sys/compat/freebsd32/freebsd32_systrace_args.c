@@ -464,9 +464,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* freebsd32_mprotect */
+	/* mprotect */
 	case 74: {
-		struct freebsd32_mprotect_args *p = params;
+		struct mprotect_args *p = params;
 		uarg[0] = (intptr_t) p->addr; /* const void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
@@ -3027,10 +3027,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 530: {
 		struct freebsd32_posix_fallocate_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->offset1; /* uint32_t */
-		uarg[2] = p->offset2; /* uint32_t */
-		uarg[3] = p->len1; /* uint32_t */
-		uarg[4] = p->len2; /* uint32_t */
+		uarg[1] = p->offsetlo; /* uint32_t */
+		uarg[2] = p->offsethi; /* uint32_t */
+		uarg[3] = p->lenlo; /* uint32_t */
+		uarg[4] = p->lenhi; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
@@ -3737,7 +3737,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_mprotect */
+	/* mprotect */
 	case 74:
 		switch(ndx) {
 		case 0:

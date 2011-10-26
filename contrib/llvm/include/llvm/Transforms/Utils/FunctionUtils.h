@@ -14,7 +14,6 @@
 #ifndef LLVM_TRANSFORMS_UTILS_FUNCTION_H
 #define LLVM_TRANSFORMS_UTILS_FUNCTION_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include <vector>
 
 namespace llvm {
@@ -23,23 +22,20 @@ namespace llvm {
   class Function;
   class Loop;
 
-  /// ExtractCodeRegion - Rip out a sequence of basic blocks into a new
-  /// function.
+  /// ExtractCodeRegion - rip out a sequence of basic blocks into a new function
   ///
   Function* ExtractCodeRegion(DominatorTree& DT,
-                              ArrayRef<BasicBlock*> code,
+                              const std::vector<BasicBlock*> &code,
                               bool AggregateArgs = false);
 
-  /// ExtractLoop - Rip out a natural loop into a new function.
+  /// ExtractLoop - rip out a natural loop into a new function
   ///
   Function* ExtractLoop(DominatorTree& DT, Loop *L,
                         bool AggregateArgs = false);
 
-  /// ExtractBasicBlock - Rip out a basic block (and the associated landing pad)
-  /// into a new function.
+  /// ExtractBasicBlock - rip out a basic block into a new function
   ///
-  Function* ExtractBasicBlock(ArrayRef<BasicBlock*> BBs,
-                              bool AggregateArgs = false);
+  Function* ExtractBasicBlock(BasicBlock *BB, bool AggregateArgs = false);
 }
 
 #endif

@@ -27,13 +27,11 @@ class UndefinedAssignmentChecker
   mutable llvm::OwningPtr<BugType> BT;
 
 public:
-  void checkBind(SVal location, SVal val, const Stmt *S,
-                 CheckerContext &C) const;
+  void checkBind(SVal location, SVal val, CheckerContext &C) const;
 };
 }
 
 void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
-                                           const Stmt *StoreE,
                                            CheckerContext &C) const {
   if (!val.isUndef())
     return;
@@ -51,10 +49,11 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   // Generate a report for this bug.
   const Expr *ex = 0;
 
+  const Stmt *StoreE = C.getStmt();
   while (StoreE) {
     if (const BinaryOperator *B = dyn_cast<BinaryOperator>(StoreE)) {
       if (B->isCompoundAssignmentOp()) {
-        const ProgramState *state = C.getState();
+        const GRState *state = C.getState();
         if (state->getSVal(B->getLHS()).isUndef()) {
           str = "The left expression of the compound assignment is an "
                 "uninitialized value. The computed value will also be garbage";
@@ -68,17 +67,17 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
     }
 
     if (const DeclStmt *DS = dyn_cast<DeclStmt>(StoreE)) {
-      const VarDecl *VD = dyn_cast<VarDecl>(DS->getSingleDecl());
+      const VarDecl* VD = dyn_cast<VarDecl>(DS->getSingleDecl());
       ex = VD->getInit();
     }
 
     break;
   }
 
-  BugReport *R = new BugReport(*BT, str, N);
+  EnhancedBugReport *R = new EnhancedBugReport(*BT, str, N);
   if (ex) {
     R->addRange(ex->getSourceRange());
-    R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, ex));
+    R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, ex);
   }
   C.EmitReport(R);
 }

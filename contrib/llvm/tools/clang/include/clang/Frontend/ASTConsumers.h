@@ -14,16 +14,15 @@
 #ifndef DRIVER_ASTCONSUMERS_H
 #define DRIVER_ASTCONSUMERS_H
 
-#include "clang/Basic/LLVM.h"
-
 namespace llvm {
+  class raw_ostream;
   namespace sys { class Path; }
 }
 namespace clang {
 
 class ASTConsumer;
 class CodeGenOptions;
-class DiagnosticsEngine;
+class Diagnostic;
 class FileManager;
 class LangOptions;
 class Preprocessor;
@@ -33,7 +32,7 @@ class TargetOptions;
 // original C code.  The output is intended to be in a format such that
 // clang could re-parse the output back into the same AST, but the
 // implementation is still incomplete.
-ASTConsumer *CreateASTPrinter(raw_ostream *OS);
+ASTConsumer *CreateASTPrinter(llvm::raw_ostream *OS);
 
 // AST dumper: dumps the raw AST in human-readable form to stderr; this is
 // intended for debugging.
@@ -41,7 +40,7 @@ ASTConsumer *CreateASTDumper();
 
 // AST XML-dumper: dumps out the AST to stderr in a very detailed XML
 // format; this is intended for particularly intense debugging.
-ASTConsumer *CreateASTDumperXML(raw_ostream &OS);
+ASTConsumer *CreateASTDumperXML(llvm::raw_ostream &OS);
 
 // Graphical AST viewer: for each function definition, creates a graph of
 // the AST and displays it with the graph viewer "dotty".  Also outputs

@@ -104,10 +104,11 @@ nullfs_mount(struct mount *mp)
 		return (EINVAL);
 
 	/*
-	 * Unlock lower node to avoid possible deadlock.
+	 * Unlock lower node to avoid deadlock.
+	 * (XXX) VOP_ISLOCKED is needed?
 	 */
 	if ((mp->mnt_vnodecovered->v_op == &null_vnodeops) &&
-	    VOP_ISLOCKED(mp->mnt_vnodecovered) == LK_EXCLUSIVE) {
+		VOP_ISLOCKED(mp->mnt_vnodecovered)) {
 		VOP_UNLOCK(mp->mnt_vnodecovered, 0);
 		isvnunlocked = 1;
 	}
@@ -119,7 +120,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Re-lock vnode.
 	 */
-	if (isvnunlocked)
+	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered))
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
 
 	if (error)
@@ -157,6 +158,7 @@ nullfs_mount(struct mount *mp)
 	 * Make sure the node alias worked
 	 */
 	if (error) {
+		VOP_UNLOCK(vp, 0);
 		vrele(lowerrootvp);
 		free(xmp, M_NULLFSMNT);	/* XXX */
 		return (error);
@@ -242,7 +244,10 @@ nullfs_root(mp, flags, vpp)
 	vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	VREF(vp);
 
-	ASSERT_VOP_UNLOCKED(vp, "root vnode is locked");
+#ifdef NULLFS_DEBUG
+	if (VOP_ISLOCKED(vp))
+		panic("root vnode is locked.\n");
+#endif
 	vn_lock(vp, flags | LK_RETRY);
 	*vpp = vp;
 	return 0;

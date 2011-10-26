@@ -22,6 +22,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 
+namespace llvm {
+  class raw_ostream;
+}
+
 namespace clang {
   
 class CXXBaseSpecifier;
@@ -67,10 +71,7 @@ public:
     EK_VectorElement,
     /// \brief The entity being initialized is a field of block descriptor for
     /// the copied-in c++ object.
-    EK_BlockElement,
-    /// \brief The entity being initialized is the real or imaginary part of a
-    /// complex number.
-    EK_ComplexElement
+    EK_BlockElement
   };
   
 private:
@@ -114,9 +115,8 @@ private:
     /// virtual base.
     uintptr_t Base;
 
-    /// \brief When Kind == EK_ArrayElement, EK_VectorElement, or
-    /// EK_ComplexElement, the index of the array or vector element being
-    /// initialized. 
+    /// \brief When Kind == EK_ArrayElement or EK_VectorElement, the
+    /// index of the array or vector element being initialized. 
     unsigned Index;
   };
 
@@ -313,8 +313,7 @@ public:
   /// \brief If this is already the initializer for an array or vector
   /// element, sets the element index.
   void setElementIndex(unsigned Index) {
-    assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement ||
-           EK_ComplexElement);
+    assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement);
     this->Index = Index;
   }
 };
@@ -526,10 +525,8 @@ public:
     SK_QualificationConversionLValue,
     /// \brief Perform an implicit conversion sequence.
     SK_ConversionSequence,
-    /// \brief Perform list-initialization without a constructor
+    /// \brief Perform list-initialization
     SK_ListInitialization,
-    /// \brief Perform list-initialization with a constructor.
-    SK_ListConstructorCall,
     /// \brief Perform initialization via a constructor.
     SK_ConstructorInitialization,
     /// \brief Zero-initialize the object
@@ -565,24 +562,20 @@ public:
       /// \brief When Kind == SK_ResolvedOverloadedFunction or Kind ==
       /// SK_UserConversion, the function that the expression should be 
       /// resolved to or the conversion function to call, respectively.
-      /// When Kind == SK_ConstructorInitialization or SK_ListConstruction,
-      /// the constructor to be called.
       ///
-      /// Always a FunctionDecl, plus a Boolean flag telling if it was
-      /// selected from an overloaded set having size greater than 1.
+      /// Always a FunctionDecl.
       /// For conversion decls, the naming class is the source type.
       /// For construct decls, the naming class is the target type.
       struct {
-        bool HadMultipleCandidates;
         FunctionDecl *Function;
         DeclAccessPair FoundDecl;
       } Function;
-
+      
       /// \brief When Kind = SK_ConversionSequence, the implicit conversion
       /// sequence 
       ImplicitConversionSequence *ICS;
     };
-
+    
     void Destroy();
   };
   
@@ -591,7 +584,7 @@ private:
   enum SequenceKind SequenceKind;
   
   /// \brief Steps taken by this initialization.
-  SmallVector<Step, 4> Steps;
+  llvm::SmallVector<Step, 4> Steps;
   
 public:
   /// \brief Describes why initialization failed.
@@ -640,13 +633,11 @@ public:
     /// \brief Default-initialization of a 'const' object.
     FK_DefaultInitOfConst,
     /// \brief Initialization of an incomplete type.
-    FK_Incomplete,
-    /// \brief List initialization failed at some point.
-    FK_ListInitializationFailed
+    FK_Incomplete
   };
   
 private:
-  /// \brief The reason why initialization failed.
+  /// \brief The reason why initialization failued.
   FailureKind Failure;
 
   /// \brief The failed result of overload resolution.
@@ -731,7 +722,7 @@ public:
   /// \brief Determine whether the initialization sequence is invalid.
   bool Failed() const { return SequenceKind == FailedSequence; }
   
-  typedef SmallVector<Step, 4>::const_iterator step_iterator;
+  typedef llvm::SmallVector<Step, 4>::const_iterator step_iterator;
   step_iterator step_begin() const { return Steps.begin(); }
   step_iterator step_end()   const { return Steps.end(); }
 
@@ -745,18 +736,7 @@ public:
   /// \brief Determine whether this initialization is direct call to a 
   /// constructor.
   bool isConstructorInitialization() const;
-
-  /// \brief Returns whether the last step in this initialization sequence is a
-  /// narrowing conversion, defined by C++0x [dcl.init.list]p7.
-  ///
-  /// If this function returns true, *isInitializerConstant will be set to
-  /// describe whether *Initializer was a constant expression.  If
-  /// *isInitializerConstant is set to true, *ConstantValue will be set to the
-  /// evaluated value of *Initializer.
-  bool endsWithNarrowing(ASTContext &Ctx, const Expr *Initializer,
-                         bool *isInitializerConstant,
-                         APValue *ConstantValue) const;
-
+  
   /// \brief Add a new step in the initialization that resolves the address
   /// of an overloaded function to a specific function declaration.
   ///
@@ -812,7 +792,7 @@ public:
   void AddConversionSequenceStep(const ImplicitConversionSequence &ICS,
                                  QualType T);
 
-  /// \brief Add a list-initialiation step.
+  /// \brief Add a list-initialiation step  
   void AddListInitializationStep(QualType T);
 
   /// \brief Add a constructor-initialization step.
@@ -877,7 +857,7 @@ public:
 
   /// \brief Dump a representation of this initialization sequence to 
   /// the given stream, for debugging purposes.
-  void dump(raw_ostream &OS) const;
+  void dump(llvm::raw_ostream &OS) const;
   
   /// \brief Dump a representation of this initialization sequence to 
   /// standard error, for debugging purposes.

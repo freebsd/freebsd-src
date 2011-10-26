@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.172 2011/06/03 01:37:40 dtucker Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.171 2010/11/21 01:01:13 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -138,34 +138,15 @@ extern char *__progname;
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
 
-/*
- * Client connection count; incremented in new_socket() and decremented in
- * close_socket().  When it reaches 0, ssh-agent will exit.  Since it is
- * normally initialized to 1, it will never reach 0.  However, if the -x
- * option is specified, it is initialized to 0 in main(); in that case,
- * ssh-agent will exit as soon as it has had at least one client but no
- * longer has any.
- */
-static int xcount = 1;
-
 static void
 close_socket(SocketEntry *e)
 {
-	int last = 0;
-
-	if (e->type == AUTH_CONNECTION) {
-		debug("xcount %d -> %d", xcount, xcount - 1);
-		if (--xcount == 0)
-			last = 1;
-	}
 	close(e->fd);
 	e->fd = -1;
 	e->type = AUTH_UNUSED;
 	buffer_free(&e->input);
 	buffer_free(&e->output);
 	buffer_free(&e->request);
-	if (last)
-		cleanup_exit(0);
 }
 
 static void
@@ -920,10 +901,6 @@ new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc, new_alloc;
 
-	if (type == AUTH_CONNECTION) {
-		debug("xcount %d -> %d", xcount, xcount + 1);
-		++xcount;
-	}
 	set_nonblock(fd);
 
 	if (fd > max_fd)
@@ -1121,11 +1098,7 @@ cleanup_handler(int sig)
 static void
 check_parent_exists(void)
 {
-	/*
-	 * If our parent has exited then getppid() will return (pid_t)1,
-	 * so testing for that should be safe.
-	 */
-	if (parent_pid != -1 && getppid() != parent_pid) {
+	if (parent_pid != -1 && kill(parent_pid, 0) < 0) {
 		/* printf("Parent has died - Authentication agent exiting.\n"); */
 		cleanup_socket();
 		_exit(2);
@@ -1144,7 +1117,6 @@ usage(void)
 	fprintf(stderr, "  -d          Debug mode.\n");
 	fprintf(stderr, "  -a socket   Bind agent socket to given name.\n");
 	fprintf(stderr, "  -t life     Default identity lifetime (seconds).\n");
-	fprintf(stderr, "  -x          Exit when the last client disconnects.\n");
 	exit(1);
 }
 
@@ -1184,9 +1156,10 @@ main(int ac, char **av)
 	OpenSSL_add_all_algorithms();
 
 	__progname = ssh_get_progname(av[0]);
+	init_rng();
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cdksa:t:x")) != -1) {
+	while ((ch = getopt(ac, av, "cdksa:t:")) != -1) {
 		switch (ch) {
 		case 'c':
 			if (s_flag)
@@ -1214,9 +1187,6 @@ main(int ac, char **av)
 				fprintf(stderr, "Invalid lifetime\n");
 				usage();
 			}
-			break;
-		case 'x':
-			xcount = 0;
 			break;
 		default:
 			usage();
@@ -1377,7 +1347,8 @@ skip:
 	if (ac > 0)
 		parent_alive_interval = 10;
 	idtab_init();
-	signal(SIGINT, d_flag ? cleanup_handler : SIG_IGN);
+	if (!d_flag)
+		signal(SIGINT, SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, cleanup_handler);
 	signal(SIGTERM, cleanup_handler);

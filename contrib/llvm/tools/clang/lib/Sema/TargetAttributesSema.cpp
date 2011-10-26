@@ -147,8 +147,7 @@ static void HandleX86ForceAlignArgPointerAttr(Decl *D,
     return;
   }
 
-  D->addAttr(::new (S.Context) X86ForceAlignArgPointerAttr(Attr.getRange(),
-                                                           S.Context));
+  D->addAttr(::new (S.Context) X86ForceAlignArgPointerAttr(Attr.getLoc(), S.Context));
 }
 
 static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
@@ -169,7 +168,7 @@ static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     // Apparently Visual C++ thinks it is okay to not emit a warning
     // in this case, so only emit a warning when -fms-extensions is not
     // specified.
-    if (!S.getLangOptions().MicrosoftExt)
+    if (!S.getLangOptions().Microsoft)
       S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
         << Attr.getName() << 2 /*variable and function*/;
     return;
@@ -237,7 +236,7 @@ namespace {
     X86AttributesSema() { }
     bool ProcessDeclAttribute(Scope *scope, Decl *D,
                               const AttributeList &Attr, Sema &S) const {
-      const llvm::Triple &Triple(S.Context.getTargetInfo().getTriple());
+      const llvm::Triple &Triple(S.Context.Target.getTriple());
       if (Triple.getOS() == llvm::Triple::Win32 ||
           Triple.getOS() == llvm::Triple::MinGW32) {
         switch (Attr.getKind()) {
@@ -248,9 +247,8 @@ namespace {
         default:                          break;
         }
       }
-      if (Triple.getArch() != llvm::Triple::x86_64 &&
-          (Attr.getName()->getName() == "force_align_arg_pointer" ||
-           Attr.getName()->getName() == "__force_align_arg_pointer__")) {
+      if (Attr.getName()->getName() == "force_align_arg_pointer" ||
+          Attr.getName()->getName() == "__force_align_arg_pointer__") {
         HandleX86ForceAlignArgPointerAttr(D, Attr, S);
         return true;
       }
@@ -263,16 +261,16 @@ const TargetAttributesSema &Sema::getTargetAttributesSema() const {
   if (TheTargetAttributesSema)
     return *TheTargetAttributesSema;
 
-  const llvm::Triple &Triple(Context.getTargetInfo().getTriple());
+  const llvm::Triple &Triple(Context.Target.getTriple());
   switch (Triple.getArch()) {
+  default:
+    return *(TheTargetAttributesSema = new TargetAttributesSema);
+
   case llvm::Triple::msp430:
     return *(TheTargetAttributesSema = new MSP430AttributesSema);
   case llvm::Triple::mblaze:
     return *(TheTargetAttributesSema = new MBlazeAttributesSema);
   case llvm::Triple::x86:
-  case llvm::Triple::x86_64:
     return *(TheTargetAttributesSema = new X86AttributesSema);
-  default:
-    return *(TheTargetAttributesSema = new TargetAttributesSema);
   }
 }

@@ -25,12 +25,7 @@ public:
     VK_Mips_TLSGD,
     VK_Mips_GOTTPREL,
     VK_Mips_TPREL_HI,
-    VK_Mips_TPREL_LO,
-    VK_Mips_GPOFF_HI,
-    VK_Mips_GPOFF_LO,
-    VK_Mips_GOT_DISP,
-    VK_Mips_GOT_PAGE,
-    VK_Mips_GOT_OFST
+    VK_Mips_TPREL_LO
   };
 
 private:

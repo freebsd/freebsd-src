@@ -22,8 +22,7 @@ class Loop;
 class LoopInfo;
 class LPPassManager;
 
-bool UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
-                unsigned TripMultiple, LoopInfo* LI, LPPassManager* LPM);
+bool UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM);
 
 }
 

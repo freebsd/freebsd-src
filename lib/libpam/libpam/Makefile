@@ -148,15 +148,7 @@ HEADERS=	security/openpam.h \
 
 ADD_HEADERS=	security/pam_mod_misc.h
 
-#
 # Static modules
-#
-# We build static versions of all modules and of openpam_static.o,
-# then link them all together into openpam_static_modules.o.  None of
-# the modules export any symbols, but they store structures with
-# pointers to their service functions in a linker set which the code
-# in openpam_static.c traverses to locate the individual modules.
-#
 MODULE_DIR=	../modules
 .include "${.CURDIR}/${MODULE_DIR}/modules.inc"
 STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
@@ -167,8 +159,7 @@ CLEANFILES+=	openpam_static.o \
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 
-# We can't put openpam_static.c in SRCS, but we still want to scan it
-# for dependencies.
+# Can't put openpam_static.c in SRCS but want .o in .depend.
 DPSRCS=		openpam_static.c
 
 # Headers

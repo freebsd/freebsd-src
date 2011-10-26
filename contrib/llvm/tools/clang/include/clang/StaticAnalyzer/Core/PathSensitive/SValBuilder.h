@@ -25,7 +25,7 @@ namespace clang {
 
 namespace ento {
 
-class ProgramState;
+class GRState;
 
 class SValBuilder {
 protected:
@@ -40,7 +40,7 @@ protected:
   /// Manages the creation of memory regions.
   MemRegionManager MemMgr;
 
-  ProgramStateManager &StateMgr;
+  GRStateManager &StateMgr;
 
   /// The scalar type to use for array indices.
   const QualType ArrayIndexTy;
@@ -56,7 +56,7 @@ public:
 
 public:
   SValBuilder(llvm::BumpPtrAllocator &alloc, ASTContext &context,
-              ProgramStateManager &stateMgr)
+              GRStateManager &stateMgr)
     : Context(context), BasicVals(context, alloc),
       SymMgr(context, BasicVals, alloc),
       MemMgr(context, alloc),
@@ -72,29 +72,29 @@ public:
 
   virtual SVal evalComplement(NonLoc val) = 0;
 
-  virtual SVal evalBinOpNN(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpNN(const GRState *state, BinaryOperator::Opcode op,
                            NonLoc lhs, NonLoc rhs, QualType resultTy) = 0;
 
-  virtual SVal evalBinOpLL(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpLL(const GRState *state, BinaryOperator::Opcode op,
                            Loc lhs, Loc rhs, QualType resultTy) = 0;
 
-  virtual SVal evalBinOpLN(const ProgramState *state, BinaryOperator::Opcode op,
+  virtual SVal evalBinOpLN(const GRState *state, BinaryOperator::Opcode op,
                            Loc lhs, NonLoc rhs, QualType resultTy) = 0;
 
   /// getKnownValue - evaluates a given SVal. If the SVal has only one possible
   ///  (integer) value, that value is returned. Otherwise, returns NULL.
-  virtual const llvm::APSInt *getKnownValue(const ProgramState *state, SVal val) = 0;
+  virtual const llvm::APSInt *getKnownValue(const GRState *state, SVal val) = 0;
   
-  SVal evalBinOp(const ProgramState *state, BinaryOperator::Opcode op,
+  SVal evalBinOp(const GRState *state, BinaryOperator::Opcode op,
                  SVal lhs, SVal rhs, QualType type);
   
-  DefinedOrUnknownSVal evalEQ(const ProgramState *state, DefinedOrUnknownSVal lhs,
+  DefinedOrUnknownSVal evalEQ(const GRState *state, DefinedOrUnknownSVal lhs,
                               DefinedOrUnknownSVal rhs);
 
   ASTContext &getContext() { return Context; }
   const ASTContext &getContext() const { return Context; }
 
-  ProgramStateManager &getStateManager() { return StateMgr; }
+  GRStateManager &getStateManager() { return StateMgr; }
   
   QualType getConditionType() const {
     return  getContext().IntTy;
@@ -115,14 +115,14 @@ public:
 
   // Forwarding methods to SymbolManager.
 
-  const SymbolConjured* getConjuredSymbol(const Stmt *stmt, QualType type,
+  const SymbolConjured* getConjuredSymbol(const Stmt* stmt, QualType type,
                                           unsigned visitCount,
-                                          const void *symbolTag = 0) {
+                                          const void* symbolTag = 0) {
     return SymMgr.getConjuredSymbol(stmt, type, visitCount, symbolTag);
   }
 
-  const SymbolConjured* getConjuredSymbol(const Expr *expr, unsigned visitCount,
-                                          const void *symbolTag = 0) {
+  const SymbolConjured* getConjuredSymbol(const Expr* expr, unsigned visitCount,
+                                          const void* symbolTag = 0) {
     return SymMgr.getConjuredSymbol(expr, visitCount, symbolTag);
   }
 
@@ -130,7 +130,7 @@ public:
   DefinedOrUnknownSVal makeZeroVal(QualType type);
 
   /// getRegionValueSymbolVal - make a unique symbol for value of region.
-  DefinedOrUnknownSVal getRegionValueSymbolVal(const TypedValueRegion *region);
+  DefinedOrUnknownSVal getRegionValueSymbolVal(const TypedRegion *region);
 
   DefinedOrUnknownSVal getConjuredSymbolVal(const void *symbolTag,
                                             const Expr *expr, unsigned count);
@@ -139,7 +139,7 @@ public:
                                             unsigned count);
 
   DefinedOrUnknownSVal getDerivedRegionValueSymbolVal(
-      SymbolRef parentSymbol, const TypedValueRegion *region);
+      SymbolRef parentSymbol, const TypedRegion *region);
 
   DefinedSVal getMetadataSymbolVal(
       const void *symbolTag, const MemRegion *region,
@@ -154,8 +154,7 @@ public:
     return nonloc::CompoundVal(BasicVals.getCompoundValData(type, vals));
   }
 
-  NonLoc makeLazyCompoundVal(const StoreRef &store, 
-                             const TypedValueRegion *region) {
+  NonLoc makeLazyCompoundVal(const StoreRef &store, const TypedRegion *region) {
     return nonloc::LazyCompoundVal(
         BasicVals.getLazyCompoundValData(store, region));
   }
@@ -255,7 +254,7 @@ public:
 
 SValBuilder* createSimpleSValBuilder(llvm::BumpPtrAllocator &alloc,
                                      ASTContext &context,
-                                     ProgramStateManager &stateMgr);
+                                     GRStateManager &stateMgr);
 
 } // end GR namespace
 

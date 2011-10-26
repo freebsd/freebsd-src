@@ -745,9 +745,9 @@ vm_page_sleep(vm_page_t m, const char *msg)
  *
  *	Set all bits in the page's dirty field.
  *
- *	The object containing the specified page must be locked if the
- *	call is made from the machine-independent layer.
- *
+ *	The object containing the specified page must be locked if the call is
+ *	made from the machine-independent layer.  If, however, the call is
+ *	made from the pmap layer, then the page queues lock may be required.
  *	See vm_page_clear_dirty_mask().
  */
 void
@@ -908,7 +908,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t next, prev, root;
+	vm_page_t root;
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
@@ -923,42 +923,15 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
-	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
-		/*
-		 * Since the page's successor in the list is also its parent
-		 * in the tree, its right subtree must be empty.
-		 */
-		next->left = m->left;
-		KASSERT(m->right == NULL,
-		    ("vm_page_remove: page %p has right child", m));
-	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
-	    prev->right == m) {
-		/*
-		 * Since the page's predecessor in the list is also its parent
-		 * in the tree, its left subtree must be empty.
-		 */
-		KASSERT(m->left == NULL,
-		    ("vm_page_remove: page %p has left child", m));
-		prev->right = m->right;
-	} else {
-		if (m != object->root)
-			vm_page_splay(m->pindex, object->root);
-		if (m->left == NULL)
-			root = m->right;
-		else if (m->right == NULL)
-			root = m->left;
-		else {
-			/*
-			 * Move the page's successor to the root, because
-			 * pages are usually removed in ascending order.
-			 */
-			if (m->right != next)
-				vm_page_splay(m->pindex, m->right);
-			next->left = m->left;
-			root = next;
-		}
-		object->root = root;
+	if (m != object->root)
+		vm_page_splay(m->pindex, object->root);
+	if (m->left == NULL)
+		root = m->right;
+	else {
+		root = vm_page_splay(m->pindex, m->left);
+		root->right = m->right;
 	}
+	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -2048,7 +2021,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t next, prev, root;
+	vm_page_t root;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2083,42 +2056,15 @@ vm_page_cache(vm_page_t m)
 	 * Remove the page from the object's collection of resident
 	 * pages. 
 	 */
-	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
-		/*
-		 * Since the page's successor in the list is also its parent
-		 * in the tree, its right subtree must be empty.
-		 */
-		next->left = m->left;
-		KASSERT(m->right == NULL,
-		    ("vm_page_cache: page %p has right child", m));
-	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
-	    prev->right == m) {
-		/*
-		 * Since the page's predecessor in the list is also its parent
-		 * in the tree, its left subtree must be empty.
-		 */
-		KASSERT(m->left == NULL,
-		    ("vm_page_cache: page %p has left child", m));
-		prev->right = m->right;
-	} else {
-		if (m != object->root)
-			vm_page_splay(m->pindex, object->root);
-		if (m->left == NULL)
-			root = m->right;
-		else if (m->right == NULL)
-			root = m->left;
-		else {
-			/*
-			 * Move the page's successor to the root, because
-			 * pages are usually removed in ascending order.
-			 */
-			if (m->right != next)
-				vm_page_splay(m->pindex, m->right);
-			next->left = m->left;
-			root = next;
-		}
-		object->root = root;
+	if (m != object->root)
+		vm_page_splay(m->pindex, object->root);
+	if (m->left == NULL)
+		root = m->right;
+	else {
+		root = vm_page_splay(m->pindex, m->left);
+		root->right = m->right;
 	}
+	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 
@@ -2393,52 +2339,44 @@ vm_page_set_valid(vm_page_t m, int base, int size)
 static __inline void
 vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 {
-	uintptr_t addr;
-#if PAGE_SIZE < 16384
-	int shift;
-#endif
 
 	/*
 	 * If the object is locked and the page is neither VPO_BUSY nor
 	 * PGA_WRITEABLE, then the page's dirty field cannot possibly be
-	 * set by a concurrent pmap operation.
+	 * set by a concurrent pmap operation. 
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 && (m->aflags & PGA_WRITEABLE) == 0)
 		m->dirty &= ~pagebits;
 	else {
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 		/*
-		 * The pmap layer can call vm_page_dirty() without
-		 * holding a distinguished lock.  The combination of
-		 * the object's lock and an atomic operation suffice
-		 * to guarantee consistency of the page dirty field.
-		 *
-		 * For PAGE_SIZE == 32768 case, compiler already
-		 * properly aligns the dirty field, so no forcible
-		 * alignment is needed. Only require existence of
-		 * atomic_clear_64 when page size is 32768.
+		 * On the aforementioned architectures, the page queues lock
+		 * is not required by the following read-modify-write
+		 * operation.  The combination of the object's lock and an
+		 * atomic operation suffice.  Moreover, the pmap layer on
+		 * these architectures can call vm_page_dirty() without
+		 * holding the page queues lock.
 		 */
-		addr = (uintptr_t)&m->dirty;
-#if PAGE_SIZE == 32768
-#error pagebits too short
-		atomic_clear_64((uint64_t *)addr, pagebits);
+#if PAGE_SIZE == 4096
+		atomic_clear_char(&m->dirty, pagebits);
+#elif PAGE_SIZE == 8192
+		atomic_clear_short(&m->dirty, pagebits);
 #elif PAGE_SIZE == 16384
-		atomic_clear_32((uint32_t *)addr, pagebits);
-#else		/* PAGE_SIZE <= 8192 */
-		/*
-		 * Use a trick to perform a 32-bit atomic on the
-		 * containing aligned word, to not depend on the existence
-		 * of atomic_clear_{8, 16}.
-		 */
-		shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-		shift = (sizeof(uint32_t) - sizeof(m->dirty) - shift) * NBBY;
+		atomic_clear_int(&m->dirty, pagebits);
 #else
-		shift *= NBBY;
+#error "PAGE_SIZE is not supported."
 #endif
-		addr &= ~(sizeof(uint32_t) - 1);
-		atomic_clear_32((uint32_t *)addr, pagebits << shift);
-#endif		/* PAGE_SIZE */
+#else
+		/*
+		 * Otherwise, the page queues lock is required to ensure that
+		 * a concurrent pmap operation does not set the page's dirty
+		 * field during the following read-modify-write operation.
+		 */
+		vm_page_lock_queues();
+		m->dirty &= ~pagebits;
+		vm_page_unlock_queues();
+#endif
 	}
 }
 

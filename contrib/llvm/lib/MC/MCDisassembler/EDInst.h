@@ -73,7 +73,7 @@ struct EDInst {
   std::string String;
   /// The order in which operands from the InstInfo's operand information appear
   /// in String
-  const signed char* OperandOrder;
+  const char* OperandOrder;
   
   /// The result of the parseOperands() function
   CachedResult ParseResult;

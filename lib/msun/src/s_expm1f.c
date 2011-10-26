@@ -16,8 +16,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <float.h>
-
 #include "math.h"
 #include "math_private.h"
 
@@ -46,6 +44,7 @@ expm1f(float x)
 
 	GET_FLOAT_WORD(hx,x);
 	xsb = hx&0x80000000;		/* sign bit of x */
+	if(xsb==0) y=x; else y= -x;	/* y = |x| */
 	hx &= 0x7fffffff;		/* high word of |x| */
 
     /* filter out huge and non-finite argument */
@@ -76,7 +75,7 @@ expm1f(float x)
 		hi = x - t*ln2_hi;	/* t*ln2_hi is exact here */
 		lo = t*ln2_lo;
 	    }
-	    STRICT_ASSIGN(float, x, hi - lo);
+	    x  = hi - lo;
 	    c  = (hi-x)-lo;
 	}
 	else if(hx < 0x33000000) {  	/* when |x|<2**-25, return x */

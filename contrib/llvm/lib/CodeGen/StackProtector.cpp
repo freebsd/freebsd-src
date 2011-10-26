@@ -123,7 +123,7 @@ bool StackProtector::RequiresStackProtector() const {
           // protectors.
           return true;
 
-        if (ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
+        if (const ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
           // We apparently only care about character arrays.
           if (!AT->getElementType()->isIntegerTy(8))
             continue;
@@ -165,7 +165,7 @@ bool StackProtector::InsertStackProtectors() {
       //     StackGuard = load __stack_chk_guard
       //     call void @llvm.stackprotect.create(StackGuard, StackGuardSlot)
       // 
-      PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
+      const PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
       unsigned AddressSpace, Offset;
       if (TLI->getStackCookieLocation(AddressSpace, Offset)) {
         Constant *OffsetVal =

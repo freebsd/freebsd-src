@@ -112,8 +112,8 @@ bool OptimalEdgeProfiler::runOnModule(Module &M) {
   // be calculated from other edge counters on reading the profile info back
   // in.
 
-  Type *Int32 = Type::getInt32Ty(M.getContext());
-  ArrayType *ATy = ArrayType::get(Int32, NumEdges);
+  const Type *Int32 = Type::getInt32Ty(M.getContext());
+  const ArrayType *ATy = ArrayType::get(Int32, NumEdges);
   GlobalVariable *Counters =
     new GlobalVariable(M, ATy, false, GlobalValue::InternalLinkage,
                        Constant::getNullValue(ATy), "OptEdgeProfCounters");

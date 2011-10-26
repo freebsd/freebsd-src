@@ -58,13 +58,13 @@ namespace llvm {
 
     /// emitLabel - Emits a label
     virtual void emitLabel(MCSymbol *Label) {
-      assert(0 && "emitLabel not implemented");
+      assert("emitLabel not implemented");
     }
 
     /// getLabelAddress - Return the address of the specified LabelID, 
     /// only usable after the LabelID has been emitted.
     virtual uintptr_t getLabelAddress(MCSymbol *Label) const {
-      assert(0 && "getLabelAddress not implemented");
+      assert("getLabelAddress not implemented");
       return 0;
     }
 

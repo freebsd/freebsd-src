@@ -11,8 +11,6 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define	_MACHINE_IEEEFP_H_
 
-/* Deprecated historical FPU control interface */
-
 typedef int fp_except;
 typedef int fp_except_t;
 

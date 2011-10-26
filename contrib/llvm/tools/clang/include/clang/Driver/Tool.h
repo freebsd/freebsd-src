@@ -10,7 +10,9 @@
 #ifndef CLANG_DRIVER_TOOL_H_
 #define CLANG_DRIVER_TOOL_H_
 
-#include "clang/Basic/LLVM.h"
+namespace llvm {
+  template<typename T, unsigned N> class SmallVector;
+}
 
 namespace clang {
 namespace driver {
@@ -21,7 +23,7 @@ namespace driver {
   class JobAction;
   class ToolChain;
 
-  typedef SmallVector<InputInfo, 4> InputInfoList;
+  typedef llvm::SmallVector<InputInfo, 4> InputInfoList;
 
 /// Tool - Information on a specific compilation tool.
 class Tool {

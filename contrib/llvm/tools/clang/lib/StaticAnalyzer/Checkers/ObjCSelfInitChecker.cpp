@@ -50,8 +50,7 @@
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRStateTrait.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/AST/ParentMap.h"
 
@@ -77,8 +76,7 @@ public:
   void checkPreStmt(const ReturnStmt *S, CheckerContext &C) const;
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
   void checkPostStmt(const CallExpr *CE, CheckerContext &C) const;
-  void checkLocation(SVal location, bool isLoad, const Stmt *S,
-                     CheckerContext &C) const;
+  void checkLocation(SVal location, bool isLoad, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
@@ -111,11 +109,11 @@ namespace { struct PreCallSelfFlags {}; }
 namespace clang {
 namespace ento {
   template<>
-  struct ProgramStateTrait<SelfFlag> : public ProgramStatePartialTrait<SelfFlag> {
-    static void *GDMIndex() { static int index = 0; return &index; }
+  struct GRStateTrait<SelfFlag> : public GRStatePartialTrait<SelfFlag> {
+    static void* GDMIndex() { static int index = 0; return &index; }
   };
   template <>
-  struct ProgramStateTrait<CalledInit> : public ProgramStatePartialTrait<bool> {
+  struct GRStateTrait<CalledInit> : public GRStatePartialTrait<bool> {
     static void *GDMIndex() { static int index = 0; return &index; }
   };
 
@@ -124,13 +122,13 @@ namespace ento {
   /// object before the call so we can assign them to the new object that 'self'
   /// points to after the call.
   template <>
-  struct ProgramStateTrait<PreCallSelfFlags> : public ProgramStatePartialTrait<unsigned> {
+  struct GRStateTrait<PreCallSelfFlags> : public GRStatePartialTrait<unsigned> {
     static void *GDMIndex() { static int index = 0; return &index; }
   };
 }
 }
 
-static SelfFlagEnum getSelfFlags(SVal val, const ProgramState *state) {
+static SelfFlagEnum getSelfFlags(SVal val, const GRState *state) {
   if (SymbolRef sym = val.getAsSymbol())
     if (const unsigned *attachedFlags = state->get<SelfFlag>(sym))
       return (SelfFlagEnum)*attachedFlags;
@@ -141,7 +139,7 @@ static SelfFlagEnum getSelfFlags(SVal val, CheckerContext &C) {
   return getSelfFlags(val, C.getState());
 }
 
-static void addSelfFlag(const ProgramState *state, SVal val,
+static void addSelfFlag(const GRState *state, SVal val,
                         SelfFlagEnum flag, CheckerContext &C) {
   // We tag the symbol that the SVal wraps.
   if (SymbolRef sym = val.getAsSymbol())
@@ -181,8 +179,8 @@ static void checkForInvalidSelf(const Expr *E, CheckerContext &C,
   if (!N)
     return;
 
-  BugReport *report =
-    new BugReport(*new InitSelfBug(), errorStr, N);
+  EnhancedBugReport *report =
+    new EnhancedBugReport(*new InitSelfBug(), errorStr, N);
   C.EmitReport(report);
 }
 
@@ -199,7 +197,7 @@ void ObjCSelfInitChecker::checkPostObjCMessage(ObjCMessage msg,
 
   if (isInitMessage(msg)) {
     // Tag the return value as the result of an initializer.
-    const ProgramState *state = C.getState();
+    const GRState *state = C.getState();
     
     // FIXME this really should be context sensitive, where we record
     // the current stack frame (for IPA).  Also, we need to clean this
@@ -259,7 +257,7 @@ void ObjCSelfInitChecker::checkPreStmt(const ReturnStmt *S,
 
 void ObjCSelfInitChecker::checkPreStmt(const CallExpr *CE,
                                        CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   for (CallExpr::const_arg_iterator
          I = CE->arg_begin(), E = CE->arg_end(); I != E; ++I) {
     SVal argV = state->getSVal(*I);
@@ -277,7 +275,7 @@ void ObjCSelfInitChecker::checkPreStmt(const CallExpr *CE,
 
 void ObjCSelfInitChecker::checkPostStmt(const CallExpr *CE,
                                         CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   for (CallExpr::const_arg_iterator
          I = CE->arg_begin(), E = CE->arg_end(); I != E; ++I) {
     SVal argV = state->getSVal(*I);
@@ -296,11 +294,10 @@ void ObjCSelfInitChecker::checkPostStmt(const CallExpr *CE,
 }
 
 void ObjCSelfInitChecker::checkLocation(SVal location, bool isLoad,
-                                        const Stmt *S,
                                         CheckerContext &C) const {
   // Tag the result of a load from 'self' so that we can easily know that the
   // value is the object that 'self' points to.
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   if (isSelfVar(location, C))
     addSelfFlag(state, state->getSVal(cast<Loc>(location)), SelfFlag_Self, C);
 }
@@ -318,9 +315,9 @@ static bool shouldRunOnFunctionOrMethod(const NamedDecl *ND) {
 
   // self = [super init] applies only to NSObject subclasses.
   // For instance, NSProxy doesn't implement -init.
-  ASTContext &Ctx = MD->getASTContext();
+  ASTContext& Ctx = MD->getASTContext();
   IdentifierInfo* NSObjectII = &Ctx.Idents.get("NSObject");
-  ObjCInterfaceDecl *ID = MD->getClassInterface()->getSuperClass();
+  ObjCInterfaceDecl* ID = MD->getClassInterface()->getSuperClass();
   for ( ; ID ; ID = ID->getSuperClass()) {
     IdentifierInfo *II = ID->getIdentifier();
 

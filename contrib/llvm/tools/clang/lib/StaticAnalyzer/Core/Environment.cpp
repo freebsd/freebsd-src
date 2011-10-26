@@ -11,15 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/ExprObjC.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 
 using namespace clang;
 using namespace ento;
 
-SVal Environment::lookupExpr(const Stmt *E) const {
+SVal Environment::lookupExpr(const Stmt* E) const {
   const SVal* X = ExprBindings.lookup(E);
   if (X) {
     SVal V = *X;
@@ -84,9 +83,9 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
       case Stmt::CXXBindTemporaryExprClass:
         E = cast<CXXBindTemporaryExpr>(E)->getSubExpr();
         continue;
-      case Stmt::ObjCPropertyRefExprClass:
-        return loc::ObjCPropRef(cast<ObjCPropertyRefExpr>(E));
-        
+      case Stmt::MaterializeTemporaryExprClass:
+        E = cast<MaterializeTemporaryExpr>(E)->GetTemporaryExpr();
+        continue;
       // Handle all other Stmt* using a lookup.
       default:
         break;
@@ -130,6 +129,18 @@ public:
 };
 } // end anonymous namespace
 
+static bool isBlockExprInCallers(const Stmt *E, const LocationContext *LC) {
+  const LocationContext *ParentLC = LC->getParent();
+  while (ParentLC) {
+    CFG &C = *ParentLC->getCFG();
+    if (C.isBlkExpr(E))
+      return true;
+    ParentLC = ParentLC->getParent();
+  }
+
+  return false;
+}
+
 // In addition to mapping from Stmt * - > SVals in the Environment, we also
 // maintain a mapping from Stmt * -> SVals (locations) that were used during
 // a load and store.
@@ -147,27 +158,24 @@ static inline bool IsLocation(const Stmt *S) {
 Environment
 EnvironmentManager::removeDeadBindings(Environment Env,
                                        SymbolReaper &SymReaper,
-                                       const ProgramState *ST) {
+                                       const GRState *ST,
+                              llvm::SmallVectorImpl<const MemRegion*> &DRoots) {
+
+  CFG &C = *SymReaper.getLocationContext()->getCFG();
 
   // We construct a new Environment object entirely, as this is cheaper than
   // individually removing all the subexpression bindings (which will greatly
   // outnumber block-level expression bindings).
   Environment NewEnv = getInitialEnvironment();
   
-  SmallVector<std::pair<const Stmt*, SVal>, 10> deferredLocations;
-
-  MarkLiveCallback CB(SymReaper);
-  ScanReachableSymbols RSScaner(ST, CB);
-
-  llvm::ImmutableMapRef<const Stmt*,SVal>
-    EBMapRef(NewEnv.ExprBindings.getRootWithoutRetain(),
-             F.getTreeFactory());
+  llvm::SmallVector<std::pair<const Stmt*, SVal>, 10> deferredLocations;
 
   // Iterate over the block-expr bindings.
   for (Environment::iterator I = Env.begin(), E = Env.end();
        I != E; ++I) {
 
     const Stmt *BlkExpr = I.getKey();
+    
     // For recorded locations (used when evaluating loads and stores), we
     // consider them live only when their associated normal expression is
     // also live.
@@ -177,20 +185,41 @@ EnvironmentManager::removeDeadBindings(Environment Env,
       deferredLocations.push_back(std::make_pair(BlkExpr, I.getData()));
       continue;
     }
+    
     const SVal &X = I.getData();
 
-    if (SymReaper.isLive(BlkExpr)) {
-      // Copy the binding to the new map.
-      EBMapRef = EBMapRef.add(BlkExpr, X);
+    // Block-level expressions in callers are assumed always live.
+    if (isBlockExprInCallers(BlkExpr, SymReaper.getLocationContext())) {
+      NewEnv.ExprBindings = F.add(NewEnv.ExprBindings, BlkExpr, X);
 
-      // If the block expr's value is a memory region, then mark that region.
       if (isa<loc::MemRegionVal>(X)) {
-        const MemRegion *R = cast<loc::MemRegionVal>(X).getRegion();
-        SymReaper.markLive(R);
+        const MemRegion* R = cast<loc::MemRegionVal>(X).getRegion();
+        DRoots.push_back(R);
       }
 
       // Mark all symbols in the block expr's value live.
-      RSScaner.scan(X);
+      MarkLiveCallback cb(SymReaper);
+      ST->scanReachableSymbols(X, cb);
+      continue;
+    }
+
+    // Not a block-level expression?
+    if (!C.isBlkExpr(BlkExpr))
+      continue;
+
+    if (SymReaper.isLive(BlkExpr)) {
+      // Copy the binding to the new map.
+      NewEnv.ExprBindings = F.add(NewEnv.ExprBindings, BlkExpr, X);
+
+      // If the block expr's value is a memory region, then mark that region.
+      if (isa<loc::MemRegionVal>(X)) {
+        const MemRegion* R = cast<loc::MemRegionVal>(X).getRegion();
+        DRoots.push_back(R);
+      }
+
+      // Mark all symbols in the block expr's value live.
+      MarkLiveCallback cb(SymReaper);
+      ST->scanReachableSymbols(X, cb);
       continue;
     }
 
@@ -199,18 +228,17 @@ EnvironmentManager::removeDeadBindings(Environment Env,
     // beginning of itself, but we need its UndefinedVal to determine its
     // SVal.
     if (X.isUndef() && cast<UndefinedVal>(X).getData())
-      EBMapRef = EBMapRef.add(BlkExpr, X);
+      NewEnv.ExprBindings = F.add(NewEnv.ExprBindings, BlkExpr, X);
   }
   
   // Go through he deferred locations and add them to the new environment if
   // the correspond Stmt* is in the map as well.
-  for (SmallVectorImpl<std::pair<const Stmt*, SVal> >::iterator
+  for (llvm::SmallVectorImpl<std::pair<const Stmt*, SVal> >::iterator
       I = deferredLocations.begin(), E = deferredLocations.end(); I != E; ++I) {
     const Stmt *S = (Stmt*) (((uintptr_t) I->first) & (uintptr_t) ~0x1);
-    if (EBMapRef.lookup(S))
-      EBMapRef = EBMapRef.add(I->first, I->second);
+    if (NewEnv.ExprBindings.lookup(S))
+      NewEnv.ExprBindings = F.add(NewEnv.ExprBindings, I->first, I->second);
   }
 
-  NewEnv.ExprBindings = EBMapRef.asImmutableMap();
   return NewEnv;
 }

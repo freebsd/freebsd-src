@@ -23,7 +23,7 @@ namespace llvm {
 }
 
 namespace clang {
-  class DiagnosticsEngine;
+  class Diagnostic;
   class LangOptions;
   class CodeGenOptions;
 
@@ -36,7 +36,7 @@ namespace clang {
   /// CreateLLVMCodeGen - Create a CodeGenerator instance.
   /// It is the responsibility of the caller to call delete on
   /// the allocated CodeGenerator instance.
-  CodeGenerator *CreateLLVMCodeGen(DiagnosticsEngine &Diags,
+  CodeGenerator *CreateLLVMCodeGen(Diagnostic &Diags,
                                    const std::string &ModuleName,
                                    const CodeGenOptions &CGO,
                                    llvm::LLVMContext& C);

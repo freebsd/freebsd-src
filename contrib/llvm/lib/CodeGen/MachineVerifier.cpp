@@ -72,8 +72,6 @@ namespace {
     typedef DenseSet<unsigned> RegSet;
     typedef DenseMap<unsigned, const MachineInstr*> RegMap;
 
-    const MachineInstr *FirstTerminator;
-
     BitVector regsReserved;
     RegSet regsLive;
     RegVector regsDefined, regsDead, regsKilled;
@@ -391,8 +389,6 @@ static bool matchPair(MachineBasicBlock::const_succ_iterator i,
 
 void
 MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
-  FirstTerminator = 0;
-
   // Count the number of landing pad successors.
   SmallPtrSet<MachineBasicBlock*, 4> LandingPadSuccs;
   for (MachineBasicBlock::const_succ_iterator I = MBB->succ_begin(),
@@ -574,18 +570,6 @@ void MachineVerifier::visitMachineInstrBefore(const MachineInstr *MI) {
     }
   }
 
-  // Ensure non-terminators don't follow terminators.
-  if (MCID.isTerminator()) {
-    if (!FirstTerminator)
-      FirstTerminator = MI;
-  } else if (FirstTerminator) {
-    report("Non-terminator instruction after the first terminator", MI);
-    *OS << "First terminator was:\t" << *FirstTerminator;
-  }
-
-  StringRef ErrorInfo;
-  if (!TII->verifyInstruction(MI, ErrorInfo))
-    report(ErrorInfo.data(), MI);
 }
 
 void
@@ -702,11 +686,6 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
       else
         addRegWithSubRegs(regsDefined, Reg);
 
-      // Verify SSA form.
-      if (MRI->isSSA() && TargetRegisterInfo::isVirtualRegister(Reg) &&
-          llvm::next(MRI->def_begin(Reg)) != MRI->def_end())
-        report("Multiple virtual register defs in SSA form", MO, MONum);
-
       // Check LiveInts for a live range, but only for virtual registers.
       if (LiveInts && TargetRegisterInfo::isVirtualRegister(Reg) &&
           !LiveInts->isNotInMIMap(MI)) {
@@ -735,14 +714,20 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
       unsigned SubIdx = MO->getSubReg();
 
       if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+        unsigned sr = Reg;
         if (SubIdx) {
-          report("Illegal subregister index for physical register", MO, MONum);
-          return;
+          unsigned s = TRI->getSubReg(Reg, SubIdx);
+          if (!s) {
+            report("Invalid subregister index for physical register",
+                   MO, MONum);
+            return;
+          }
+          sr = s;
         }
         if (const TargetRegisterClass *DRC = TII->getRegClass(MCID,MONum,TRI)) {
-          if (!DRC->contains(Reg)) {
+          if (!DRC->contains(sr)) {
             report("Illegal physical register for instruction", MO, MONum);
-            *OS << TRI->getName(Reg) << " is not a "
+            *OS << TRI->getName(sr) << " is not a "
                 << DRC->getName() << " register.\n";
           }
         }
@@ -750,35 +735,16 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
         // Virtual register.
         const TargetRegisterClass *RC = MRI->getRegClass(Reg);
         if (SubIdx) {
-          const TargetRegisterClass *SRC =
-            TRI->getSubClassWithSubReg(RC, SubIdx);
+          const TargetRegisterClass *SRC = RC->getSubRegisterRegClass(SubIdx);
           if (!SRC) {
             report("Invalid subregister index for virtual register", MO, MONum);
             *OS << "Register class " << RC->getName()
                 << " does not support subreg index " << SubIdx << "\n";
             return;
           }
-          if (RC != SRC) {
-            report("Invalid register class for subregister index", MO, MONum);
-            *OS << "Register class " << RC->getName()
-                << " does not fully support subreg index " << SubIdx << "\n";
-            return;
-          }
+          RC = SRC;
         }
         if (const TargetRegisterClass *DRC = TII->getRegClass(MCID,MONum,TRI)) {
-          if (SubIdx) {
-            const TargetRegisterClass *SuperRC =
-              TRI->getLargestLegalSuperClass(RC);
-            if (!SuperRC) {
-              report("No largest legal super class exists.", MO, MONum);
-              return;
-            }
-            DRC = TRI->getMatchingSuperRegClass(SuperRC, DRC, SubIdx);
-            if (!DRC) {
-              report("No matching super-reg register class.", MO, MONum);
-              return;
-            }
-          }
           if (!RC->hasSuperClassEq(DRC)) {
             report("Illegal virtual register for instruction", MO, MONum);
             *OS << "Expected a " << DRC->getName() << " register, but got a "
@@ -1195,8 +1161,18 @@ void MachineVerifier::verifyLiveIntervals() {
           SlotIndex PEnd = LiveInts->getMBBEndIdx(*PI).getPrevSlot();
           const VNInfo *PVNI = LI.getVNInfoAt(PEnd);
 
-          if (VNI->isPHIDef() && VNI->def == LiveInts->getMBBStartIdx(MFI))
+          if (VNI->isPHIDef() && VNI->def == LiveInts->getMBBStartIdx(MFI)) {
+            if (PVNI && !PVNI->hasPHIKill()) {
+              report("Value live out of predecessor doesn't have PHIKill", MF);
+              *OS << "Valno #" << PVNI->id << " live out of BB#"
+                  << (*PI)->getNumber() << '@' << PEnd
+                  << " doesn't have PHIKill, but Valno #" << VNI->id
+                  << " is PHIDef and defined at the beginning of BB#"
+                  << MFI->getNumber() << '@' << LiveInts->getMBBStartIdx(MFI)
+                  << " in " << LI << '\n';
+            }
             continue;
+          }
 
           if (!PVNI) {
             report("Register not marked live out of predecessor", *PI);

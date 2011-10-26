@@ -103,9 +103,8 @@ setup(void)
 {
 	int i, error;
 	struct stat sb;
-	size_t len;
 
-	tests = calloc(NUM_OF_TESTS + 1, sizeof(struct test));
+	tests = calloc(NUM_OF_TESTS, sizeof(struct test));
 	if (tests == NULL) {
 		perror("");
 		exit(0);		
@@ -117,16 +116,14 @@ setup(void)
 		exit(0);
 	}
 
-	len = strlen(absolute_path);
-	absolute_path = realloc(absolute_path,
-	    len + 1 + strlen(relative_path) + 1);
+	absolute_path = realloc(absolute_path, strlen(absolute_path) + 5);
 	if (absolute_path == NULL) {
 		perror("realloc");
 		exit(0);
 	}
 
-	absolute_path[len] = '/';
-	strcpy(absolute_path + len + 1, relative_path);
+	absolute_path[strlen(absolute_path)] = '/';
+	strcpy(absolute_path + strlen(absolute_path), relative_path);
 
 	absolute_file = malloc(strlen(absolute_path) + 1 + strlen(file));
 	bzero(absolute_file, strlen(absolute_path) + 1 + strlen(file));
@@ -148,7 +145,7 @@ setup(void)
 	relative_file[strlen(relative_file)] = '/';
 	strcpy(relative_file + strlen(relative_path), file);
 
-	error = mkdir(relative_path, 0700);
+	error = mkdir(relative_path, 666);
 	dir_exist = (errno == EEXIST);
 	if (error && errno != EEXIST) {
 		perror("tmp");
@@ -157,7 +154,7 @@ setup(void)
 
 	error = stat("tmp/foo", &sb);
 	file_exist = (errno != ENOENT);
-	i = open("tmp/foo", O_RDONLY | O_CREAT, 0666);
+	i = open("tmp/foo", O_RDONLY | O_CREAT);
 	if (i == -1) {
 		perror("foo");
 		exit(0);

@@ -140,8 +140,6 @@ public:
   static char ID; // Pass ID, replacement for typeid
   IVUsers();
 
-  Loop *getLoop() const { return L; }
-
   /// AddUsersIfInteresting - Inspect the specified Instruction.  If it is a
   /// reducible SCEV, recursively add its users to the IVUsesByStride set and
   /// return true.  Otherwise, return false.

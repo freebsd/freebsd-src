@@ -3167,20 +3167,12 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 
 	if ((sstate & MPI_SCSI_STATE_AUTOSENSE_VALID) != 0
 	 && (ccb->ccb_h.flags & (CAM_SENSE_PHYS | CAM_SENSE_PTR)) == 0) {
-		uint32_t sense_returned;
-
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
-		
-		sense_returned = le32toh(scsi_io_reply->SenseCount);
-		if (sense_returned < ccb->csio.sense_len)
-			ccb->csio.sense_resid = ccb->csio.sense_len -
-						sense_returned;
-		else
-			ccb->csio.sense_resid = 0;
-
-		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
+		ccb->csio.sense_resid =
+		    ccb->csio.sense_len - le32toh(scsi_io_reply->SenseCount);
 		bcopy(req->sense_vbuf, &ccb->csio.sense_data,
-		    min(ccb->csio.sense_len, sense_returned));
+		    min(ccb->csio.sense_len,
+		    le32toh(scsi_io_reply->SenseCount)));
 	}
 
 	if ((sstate & MPI_SCSI_STATE_QUEUE_TAG_REJECTED) != 0) {

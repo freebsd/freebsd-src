@@ -20,8 +20,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
 #include "clang/AST/DeclObjC.h"
@@ -50,7 +49,7 @@ static const char* GetReceiverNameType(const ObjCMessage &msg) {
 }
 
 static bool isReceiverClassOrSuperclass(const ObjCInterfaceDecl *ID,
-                                        StringRef ClassName) {
+                                        llvm::StringRef ClassName) {
   if (ID->getIdentifier()->getName() == ClassName)
     return true;
 
@@ -93,7 +92,7 @@ void NilArgChecker::WarnNilArg(CheckerContext &C,
     os << "Argument to '" << GetReceiverNameType(msg) << "' method '"
        << msg.getSelector().getAsString() << "' cannot be nil";
 
-    BugReport *R = new BugReport(*BT, os.str(), N);
+    RangedBugReport *R = new RangedBugReport(*BT, os.str(), N);
     R->addRange(msg.getArgSourceRange(Arg));
     C.EmitReport(R);
   }
@@ -115,7 +114,7 @@ void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
     //  lexical comparisons.
     
     std::string NameStr = S.getAsString();
-    StringRef Name(NameStr);
+    llvm::StringRef Name(NameStr);
     assert(!Name.empty());
     
     // FIXME: Checking for initWithFormat: will not work in most cases
@@ -149,7 +148,7 @@ public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
 
 private:
-  void EmitError(const TypedRegion* R, const Expr *Ex,
+  void EmitError(const TypedRegion* R, const Expr* Ex,
                 uint64_t SourceSize, uint64_t TargetSize, uint64_t NumberKind);
 };
 } // end anonymous namespace
@@ -195,7 +194,7 @@ namespace {
   };
 }
 
-static Optional<uint64_t> GetCFNumberSize(ASTContext &Ctx, uint64_t i) {
+static Optional<uint64_t> GetCFNumberSize(ASTContext& Ctx, uint64_t i) {
   static const unsigned char FixedSize[] = { 8, 16, 32, 64, 32, 64 };
 
   if (i < kCFNumberCharType)
@@ -249,10 +248,10 @@ static const char* GetCFNumberTypeStr(uint64_t i) {
 
 void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
                                          CheckerContext &C) const {
-  const Expr *Callee = CE->getCallee();
-  const ProgramState *state = C.getState();
+  const Expr* Callee = CE->getCallee();
+  const GRState *state = C.getState();
   SVal CallV = state->getSVal(Callee);
-  const FunctionDecl *FD = CallV.getAsFunctionDecl();
+  const FunctionDecl* FD = CallV.getAsFunctionDecl();
 
   if (!FD)
     return;
@@ -291,7 +290,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   if (!LV)
     return;
 
-  const TypedValueRegion* R = dyn_cast<TypedValueRegion>(LV->stripCasts());
+  const TypedRegion* R = dyn_cast<TypedRegion>(LV->stripCasts());
   if (!R)
     return;
 
@@ -336,7 +335,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
     if (!BT)
       BT.reset(new APIMisuse("Bad use of CFNumberCreate"));
     
-    BugReport *report = new BugReport(*BT, os.str(), N);
+    RangedBugReport *report = new RangedBugReport(*BT, os.str(), N);
     report->addRange(CE->getArg(2)->getSourceRange());
     C.EmitReport(report);
   }
@@ -352,21 +351,21 @@ class CFRetainReleaseChecker : public Checker< check::PreStmt<CallExpr> > {
   mutable IdentifierInfo *Retain, *Release;
 public:
   CFRetainReleaseChecker(): Retain(0), Release(0) {}
-  void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
+  void checkPreStmt(const CallExpr* CE, CheckerContext& C) const;
 };
 } // end anonymous namespace
 
 
-void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
-                                          CheckerContext &C) const {
+void CFRetainReleaseChecker::checkPreStmt(const CallExpr* CE,
+                                          CheckerContext& C) const {
   // If the CallExpr doesn't have exactly 1 argument just give up checking.
   if (CE->getNumArgs() != 1)
     return;
 
   // Get the function declaration of the callee.
-  const ProgramState *state = C.getState();
+  const GRState* state = C.getState();
   SVal X = state->getSVal(CE->getCallee());
-  const FunctionDecl *FD = X.getAsFunctionDecl();
+  const FunctionDecl* FD = X.getAsFunctionDecl();
 
   if (!FD)
     return;
@@ -401,7 +400,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
   DefinedOrUnknownSVal ArgIsNull = svalBuilder.evalEQ(state, zero, *DefArgVal);
 
   // Are they equal?
-  const ProgramState *stateTrue, *stateFalse;
+  const GRState *stateTrue, *stateFalse;
   llvm::tie(stateTrue, stateFalse) = state->assume(ArgIsNull);
 
   if (stateTrue && !stateFalse) {
@@ -413,9 +412,9 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
                             ? "Null pointer argument in call to CFRetain"
                             : "Null pointer argument in call to CFRelease";
 
-    BugReport *report = new BugReport(*BT, description, N);
+    EnhancedBugReport *report = new EnhancedBugReport(*BT, description, N);
     report->addRange(Arg->getSourceRange());
-    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Arg));
+    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, Arg);
     C.EmitReport(report);
     return;
   }
@@ -472,7 +471,7 @@ void ClassReleaseChecker::checkPreObjCMessage(ObjCMessage msg,
           "of class '" << Class->getName()
        << "' and not the class directly";
   
-    BugReport *report = new BugReport(*BT, os.str(), N);
+    RangedBugReport *report = new RangedBugReport(*BT, os.str(), N);
     report->addRange(msg.getSourceRange());
     C.EmitReport(report);
   }
@@ -587,7 +586,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
 
   // Verify that all arguments have Objective-C types.
   llvm::Optional<ExplodedNode*> errorNode;
-  const ProgramState *state = C.getState();
+  const GRState *state = C.getState();
   
   for (unsigned I = variadicArgsBegin; I != variadicArgsEnd; ++I) {
     QualType ArgTy = msg.getArgType(I);
@@ -630,7 +629,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
       << "' should be an Objective-C pointer type, not '" 
       << ArgTy.getAsString() << "'";
 
-    BugReport *R = new BugReport(*BT, os.str(),
+    RangedBugReport *R = new RangedBugReport(*BT, os.str(),
                                              errorNode.getValue());
     R->addRange(msg.getArgSourceRange(I));
     C.EmitReport(R);

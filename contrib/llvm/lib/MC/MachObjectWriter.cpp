@@ -12,7 +12,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
-#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
@@ -22,6 +21,7 @@
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/MachOFormat.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetAsmBackend.h"
 
 #include <vector>
 using namespace llvm;
@@ -291,7 +291,7 @@ void MachObjectWriter::WriteNlist(MachSymbolData &MSD,
   const MCSymbol &Symbol = Data.getSymbol();
   uint8_t Type = 0;
   uint16_t Flags = Data.getFlags();
-  uint64_t Address = 0;
+  uint32_t Address = 0;
 
   // Set the N_TYPE bits. See <mach-o/nlist.h>.
   //
@@ -590,28 +590,14 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
         return false;
       return true;
     }
-    // For Darwin x86_64, there is one special case when the reference IsPCRel.
-    // If the fragment with the reference does not have a base symbol but meets
-    // the simple way of dealing with this, in that it is a temporary symbol in
-    // the same atom then it is assumed to be fully resolved.  This is needed so
-    // a relocation entry is not created and so the static linker does not
-    // mess up the reference later.
-    else if(!FB.getAtom() &&
-            SA.isTemporary() && SA.isInSection() && &SecA == &SecB){
-      return true;
-    }
   } else {
     if (!TargetObjectWriter->useAggressiveSymbolFolding())
       return false;
   }
 
-  const MCFragment *FA = Asm.getSymbolData(SA).getFragment();
+  const MCFragment &FA = *Asm.getSymbolData(SA).getFragment();
 
-  // Bail if the symbol has no fragment.
-  if (!FA)
-    return false;
-
-  A_Base = FA->getAtom();
+  A_Base = FA.getAtom();
   if (!A_Base)
     return false;
 
@@ -627,8 +613,7 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
   return false;
 }
 
-void MachObjectWriter::WriteObject(MCAssembler &Asm,
-				   const MCAsmLayout &Layout) {
+void MachObjectWriter::WriteObject(MCAssembler &Asm, const MCAsmLayout &Layout) {
   unsigned NumSections = Asm.size();
 
   // The section data starts after the header, the segment load command (and

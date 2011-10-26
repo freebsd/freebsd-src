@@ -93,7 +93,7 @@ public:
   /// \brief Returns the address the GlobalVariable should be written into.  The
   /// GVMemoryBlock object prefixes that.
   static char *Create(const GlobalVariable *GV, const TargetData& TD) {
-    Type *ElTy = GV->getType()->getElementType();
+    const Type *ElTy = GV->getType()->getElementType();
     size_t GVSize = (size_t)TD.getTypeAllocSize(ElTy);
     void *RawMemory = ::operator new(
       TargetData::RoundUpAlignment(sizeof(GVMemoryBlock),
@@ -272,7 +272,7 @@ void *ArgvArray::reset(LLVMContext &C, ExecutionEngine *EE,
   Array = new char[(InputArgv.size()+1)*PtrSize];
 
   DEBUG(dbgs() << "JIT: ARGV = " << (void*)Array << "\n");
-  Type *SBytePtr = Type::getInt8PtrTy(C);
+  const Type *SBytePtr = Type::getInt8PtrTy(C);
 
   for (unsigned i = 0; i != InputArgv.size(); ++i) {
     unsigned Size = InputArgv[i].size()+1;
@@ -361,8 +361,8 @@ int ExecutionEngine::runFunctionAsMain(Function *Fn,
 
   // Check main() type
   unsigned NumArgs = Fn->getFunctionType()->getNumParams();
-  FunctionType *FTy = Fn->getFunctionType();
-  Type* PPInt8Ty = Type::getInt8PtrTy(Fn->getContext())->getPointerTo();
+  const FunctionType *FTy = Fn->getFunctionType();
+  const Type* PPInt8Ty = Type::getInt8PtrTy(Fn->getContext())->getPointerTo();
 
   // Check the argument types.
   if (NumArgs > 3)
@@ -422,7 +422,6 @@ ExecutionEngine *ExecutionEngine::createJIT(Module *M,
                                             JITMemoryManager *JMM,
                                             CodeGenOpt::Level OptLevel,
                                             bool GVsWithCode,
-                                            Reloc::Model RM,
                                             CodeModel::Model CMM) {
   if (ExecutionEngine::JITCtor == 0) {
     if (ErrorStr)
@@ -437,8 +436,9 @@ ExecutionEngine *ExecutionEngine::createJIT(Module *M,
   SmallVector<std::string, 1> MAttrs;
 
   TargetMachine *TM =
-    EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, RM, CMM, ErrorStr);
+          EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr);
   if (!TM || (ErrorStr && ErrorStr->length() > 0)) return 0;
+  TM->setCodeModel(CMM);
 
   return ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel, GVsWithCode, TM);
 }
@@ -465,9 +465,10 @@ ExecutionEngine *EngineBuilder::create() {
   // Unless the interpreter was explicitly selected or the JIT is not linked,
   // try making a JIT.
   if (WhichEngine & EngineKind::JIT) {
-    if (TargetMachine *TM = EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs,
-                                                        RelocModel, CMModel,
-                                                        ErrorStr)) {
+    if (TargetMachine *TM =
+        EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr)) {
+      TM->setCodeModel(CMModel);
+
       if (UseMCJIT && ExecutionEngine::MCJITCtor) {
         ExecutionEngine *EE =
           ExecutionEngine::MCJITCtor(M, ErrorStr, JMM, OptLevel,
@@ -547,7 +548,8 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       // Compute the index
       GenericValue Result = getConstantValue(Op0);
       SmallVector<Value*, 8> Indices(CE->op_begin()+1, CE->op_end());
-      uint64_t Offset = TD->getIndexedOffset(Op0->getType(), Indices);
+      uint64_t Offset =
+        TD->getIndexedOffset(Op0->getType(), &Indices[0], Indices.size());
 
       char* tmp = (char*) Result.PointerVal;
       Result = PTOGV(tmp + Offset);
@@ -649,7 +651,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
     }
     case Instruction::BitCast: {
       GenericValue GV = getConstantValue(Op0);
-      Type* DestTy = CE->getType();
+      const Type* DestTy = CE->getType();
       switch (Op0->getType()->getTypeID()) {
         default: llvm_unreachable("Invalid bitcast operand");
         case Type::IntegerTyID:
@@ -845,7 +847,7 @@ static void StoreIntToMemory(const APInt &IntVal, uint8_t *Dst,
 }
 
 void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
-                                         GenericValue *Ptr, Type *Ty) {
+                                         GenericValue *Ptr, const Type *Ty) {
   const unsigned StoreBytes = getTargetData()->getTypeStoreSize(Ty);
 
   switch (Ty->getTypeID()) {
@@ -907,7 +909,7 @@ static void LoadIntFromMemory(APInt &IntVal, uint8_t *Src, unsigned LoadBytes) {
 ///
 void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
                                           GenericValue *Ptr,
-                                          Type *Ty) {
+                                          const Type *Ty) {
   const unsigned LoadBytes = getTargetData()->getTypeStoreSize(Ty);
 
   switch (Ty->getTypeID()) {
@@ -930,7 +932,7 @@ void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
     // FIXME: Will not trap if loading a signaling NaN.
     uint64_t y[2];
     memcpy(y, Ptr, 10);
-    Result.IntVal = APInt(80, y);
+    Result.IntVal = APInt(80, 2, y);
     break;
   }
   default:
@@ -984,7 +986,7 @@ void ExecutionEngine::emitGlobals() {
   // Loop over all of the global variables in the program, allocating the memory
   // to hold them.  If there is more than one module, do a prepass over globals
   // to figure out how the different modules should link together.
-  std::map<std::pair<std::string, Type*>,
+  std::map<std::pair<std::string, const Type*>,
            const GlobalValue*> LinkedGlobalsMap;
 
   if (Modules.size() != 1) {
@@ -1099,7 +1101,7 @@ void ExecutionEngine::EmitGlobalVariable(const GlobalVariable *GV) {
   if (!GV->isThreadLocal())
     InitializeMemory(GV->getInitializer(), GA);
 
-  Type *ElTy = GV->getType()->getElementType();
+  const Type *ElTy = GV->getType()->getElementType();
   size_t GVSize = (size_t)getTargetData()->getTypeAllocSize(ElTy);
   NumInitBytes += (unsigned)GVSize;
   ++NumGlobals;

@@ -13,7 +13,7 @@
 #include "Sparc.h"
 #include "SparcTargetMachine.h"
 #include "llvm/PassManager.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
 extern "C" void LLVMInitializeSparcTarget() {
@@ -24,11 +24,10 @@ extern "C" void LLVMInitializeSparcTarget() {
 
 /// SparcTargetMachine ctor - Create an ILP32 architecture model
 ///
-SparcTargetMachine::SparcTargetMachine(const Target &T, StringRef TT, 
-                                       StringRef CPU, StringRef FS,
-                                       Reloc::Model RM, CodeModel::Model CM,
-                                       bool is64bit)
-  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
+SparcTargetMachine::SparcTargetMachine(const Target &T, const std::string &TT, 
+                                       const std::string &CPU,
+                                       const std::string &FS, bool is64bit)
+  : LLVMTargetMachine(T, TT, CPU, FS),
     Subtarget(TT, CPU, FS, is64bit),
     DataLayout(Subtarget.getDataLayout()),
     TLInfo(*this), TSInfo(*this), InstrInfo(Subtarget),
@@ -52,15 +51,15 @@ bool SparcTargetMachine::addPreEmitPass(PassManagerBase &PM,
 }
 
 SparcV8TargetMachine::SparcV8TargetMachine(const Target &T,
-                                           StringRef TT, StringRef CPU,
-                                           StringRef FS, Reloc::Model RM,
-                                           CodeModel::Model CM)
-  : SparcTargetMachine(T, TT, CPU, FS, RM, CM, false) {
+                                           const std::string &TT, 
+                                           const std::string &CPU,
+                                           const std::string &FS)
+  : SparcTargetMachine(T, TT, CPU, FS, false) {
 }
 
 SparcV9TargetMachine::SparcV9TargetMachine(const Target &T, 
-                                           StringRef TT,  StringRef CPU,
-                                           StringRef FS, Reloc::Model RM,
-                                           CodeModel::Model CM)
-  : SparcTargetMachine(T, TT, CPU, FS, RM, CM, true) {
+                                           const std::string &TT, 
+                                           const std::string &CPU,
+                                           const std::string &FS)
+  : SparcTargetMachine(T, TT, CPU, FS, true) {
 }

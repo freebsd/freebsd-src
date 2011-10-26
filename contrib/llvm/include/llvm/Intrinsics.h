@@ -49,7 +49,7 @@ namespace Intrinsic {
   
   /// Intrinsic::getType(ID) - Return the function type for an intrinsic.
   ///
-  FunctionType *getType(LLVMContext &Context, ID id,
+  const FunctionType *getType(LLVMContext &Context, ID id,
                               ArrayRef<Type*> Tys = ArrayRef<Type*>());
 
   /// Intrinsic::isOverloaded(ID) - Returns true if the intrinsic can be

@@ -35,12 +35,6 @@
 //  * It is illegal to have a ret instruction that returns a value that does not
 //    agree with the function return value type.
 //  * Function call argument types match the function prototype
-//  * A landing pad is defined by a landingpad instruction, and can be jumped to
-//    only by the unwind edge of an invoke instruction.
-//  * A landingpad instruction must be the first non-PHI instruction in the
-//    block.
-//  * All landingpad instructions must use the same personality function with
-//    the same function.
 //  * All other things that are tested by asserts spread about the code...
 //
 //===----------------------------------------------------------------------===//
@@ -137,22 +131,18 @@ namespace {
     /// already.
     SmallPtrSet<MDNode *, 32> MDNodes;
 
-    /// PersonalityFn - The personality function referenced by the
-    /// LandingPadInsts. All LandingPadInsts within the same function must use
-    /// the same personality function.
-    const Value *PersonalityFn;
-
     Verifier()
-      : FunctionPass(ID), Broken(false), RealPass(true),
-        action(AbortProcessAction), Mod(0), Context(0), DT(0),
-        MessagesStr(Messages), PersonalityFn(0) {
-      initializeVerifierPass(*PassRegistry::getPassRegistry());
-    }
+      : FunctionPass(ID), 
+      Broken(false), RealPass(true), action(AbortProcessAction),
+      Mod(0), Context(0), DT(0), MessagesStr(Messages) {
+        initializeVerifierPass(*PassRegistry::getPassRegistry());
+      }
     explicit Verifier(VerifierFailureAction ctn)
-      : FunctionPass(ID), Broken(false), RealPass(true), action(ctn), Mod(0),
-        Context(0), DT(0), MessagesStr(Messages), PersonalityFn(0) {
-      initializeVerifierPass(*PassRegistry::getPassRegistry());
-    }
+      : FunctionPass(ID), 
+      Broken(false), RealPass(true), action(ctn), Mod(0), Context(0), DT(0),
+      MessagesStr(Messages) {
+        initializeVerifierPass(*PassRegistry::getPassRegistry());
+      }
 
     bool doInitialization(Module &M) {
       Mod = &M;
@@ -175,7 +165,6 @@ namespace {
 
       visit(F);
       InstsInThisBlock.clear();
-      PersonalityFn = 0;
 
       // If this is a real pass, in a pass manager, we must abort before
       // returning back to the pass manager, or else the pass manager may try to
@@ -289,22 +278,18 @@ namespace {
     void visitUserOp1(Instruction &I);
     void visitUserOp2(Instruction &I) { visitUserOp1(I); }
     void visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI);
-    void visitAtomicCmpXchgInst(AtomicCmpXchgInst &CXI);
-    void visitAtomicRMWInst(AtomicRMWInst &RMWI);
-    void visitFenceInst(FenceInst &FI);
     void visitAllocaInst(AllocaInst &AI);
     void visitExtractValueInst(ExtractValueInst &EVI);
     void visitInsertValueInst(InsertValueInst &IVI);
-    void visitLandingPadInst(LandingPadInst &LPI);
 
     void VerifyCallSite(CallSite CS);
-    bool PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
+    bool PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
                           int VT, unsigned ArgNo, std::string &Suffix);
     void VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
                                   unsigned RetNum, unsigned ParamNum, ...);
-    void VerifyParameterAttrs(Attributes Attrs, Type *Ty,
+    void VerifyParameterAttrs(Attributes Attrs, const Type *Ty,
                               bool isReturnValue, const Value *V);
-    void VerifyFunctionAttrs(FunctionType *FT, const AttrListPtr &Attrs,
+    void VerifyFunctionAttrs(const FunctionType *FT, const AttrListPtr &Attrs,
                              const Value *V);
 
     void WriteValue(const Value *V) {
@@ -317,7 +302,7 @@ namespace {
       }
     }
 
-    void WriteType(Type *T) {
+    void WriteType(const Type *T) {
       if (!T) return;
       MessagesStr << ' ' << *T;
     }
@@ -338,7 +323,7 @@ namespace {
     }
 
     void CheckFailed(const Twine &Message, const Value *V1,
-                     Type *T2, const Value *V3 = 0) {
+                     const Type *T2, const Value *V3 = 0) {
       MessagesStr << Message.str() << "\n";
       WriteValue(V1);
       WriteType(T2);
@@ -346,8 +331,8 @@ namespace {
       Broken = true;
     }
 
-    void CheckFailed(const Twine &Message, Type *T1,
-                     Type *T2 = 0, Type *T3 = 0) {
+    void CheckFailed(const Twine &Message, const Type *T1,
+                     const Type *T2 = 0, const Type *T3 = 0) {
       MessagesStr << Message.str() << "\n";
       WriteType(T1);
       WriteType(T2);
@@ -436,9 +421,9 @@ void Verifier::visitGlobalVariable(GlobalVariable &GV) {
             "invalid linkage for intrinsic global variable", &GV);
     // Don't worry about emitting an error for it not being an array,
     // visitGlobalValue will complain on appending non-array.
-    if (ArrayType *ATy = dyn_cast<ArrayType>(GV.getType())) {
-      StructType *STy = dyn_cast<StructType>(ATy->getElementType());
-      PointerType *FuncPtrTy =
+    if (const ArrayType *ATy = dyn_cast<ArrayType>(GV.getType())) {
+      const StructType *STy = dyn_cast<StructType>(ATy->getElementType());
+      const PointerType *FuncPtrTy =
           FunctionType::get(Type::getVoidTy(*Context), false)->getPointerTo();
       Assert1(STy && STy->getNumElements() == 2 &&
               STy->getTypeAtIndex(0u)->isIntegerTy(32) &&
@@ -529,7 +514,7 @@ void Verifier::visitMDNode(MDNode &MD, Function *F) {
 
 // VerifyParameterAttrs - Check the given attributes for an argument or return
 // value of the specified type.  The value V is printed in error messages.
-void Verifier::VerifyParameterAttrs(Attributes Attrs, Type *Ty,
+void Verifier::VerifyParameterAttrs(Attributes Attrs, const Type *Ty,
                                     bool isReturnValue, const Value *V) {
   if (Attrs == Attribute::None)
     return;
@@ -556,7 +541,7 @@ void Verifier::VerifyParameterAttrs(Attributes Attrs, Type *Ty,
           Attribute::getAsString(TypeI), V);
 
   Attributes ByValI = Attrs & Attribute::ByVal;
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
+  if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
     Assert1(!ByValI || PTy->getElementType()->isSized(),
             "Attribute " + Attribute::getAsString(ByValI) +
             " does not support unsized types!", V);
@@ -569,7 +554,7 @@ void Verifier::VerifyParameterAttrs(Attributes Attrs, Type *Ty,
 
 // VerifyFunctionAttrs - Check parameter attributes against a function type.
 // The value V is printed in error messages.
-void Verifier::VerifyFunctionAttrs(FunctionType *FT,
+void Verifier::VerifyFunctionAttrs(const FunctionType *FT,
                                    const AttrListPtr &Attrs,
                                    const Value *V) {
   if (Attrs.isEmpty())
@@ -580,7 +565,7 @@ void Verifier::VerifyFunctionAttrs(FunctionType *FT,
   for (unsigned i = 0, e = Attrs.getNumSlots(); i != e; ++i) {
     const AttributeWithIndex &Attr = Attrs.getSlot(i);
 
-    Type *Ty;
+    const Type *Ty;
     if (Attr.Index == 0)
       Ty = FT->getReturnType();
     else if (Attr.Index-1 < FT->getNumParams())
@@ -630,7 +615,7 @@ static bool VerifyAttributeCount(const AttrListPtr &Attrs, unsigned Params) {
 //
 void Verifier::visitFunction(Function &F) {
   // Check function arguments.
-  FunctionType *FT = F.getFunctionType();
+  const FunctionType *FT = F.getFunctionType();
   unsigned NumArgs = F.arg_size();
 
   Assert1(Context == &F.getContext(),
@@ -810,7 +795,7 @@ void Verifier::visitReturnInst(ReturnInst &RI) {
 void Verifier::visitSwitchInst(SwitchInst &SI) {
   // Check to make sure that all of the constants in the switch instruction
   // have the same type as the switched-on value.
-  Type *SwitchTy = SI.getCondition()->getType();
+  const Type *SwitchTy = SI.getCondition()->getType();
   SmallPtrSet<ConstantInt*, 32> Constants;
   for (unsigned i = 1, e = SI.getNumCases(); i != e; ++i) {
     Assert1(SI.getCaseValue(i)->getType() == SwitchTy,
@@ -851,8 +836,8 @@ void Verifier::visitUserOp1(Instruction &I) {
 
 void Verifier::visitTruncInst(TruncInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   // Get the size of the types in bits, we'll need this later
   unsigned SrcBitSize = SrcTy->getScalarSizeInBits();
@@ -869,8 +854,8 @@ void Verifier::visitTruncInst(TruncInst &I) {
 
 void Verifier::visitZExtInst(ZExtInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   // Get the size of the types in bits, we'll need this later
   Assert1(SrcTy->isIntOrIntVectorTy(), "ZExt only operates on integer", &I);
@@ -887,8 +872,8 @@ void Verifier::visitZExtInst(ZExtInst &I) {
 
 void Verifier::visitSExtInst(SExtInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   // Get the size of the types in bits, we'll need this later
   unsigned SrcBitSize = SrcTy->getScalarSizeInBits();
@@ -905,8 +890,8 @@ void Verifier::visitSExtInst(SExtInst &I) {
 
 void Verifier::visitFPTruncInst(FPTruncInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
   // Get the size of the types in bits, we'll need this later
   unsigned SrcBitSize = SrcTy->getScalarSizeInBits();
   unsigned DestBitSize = DestTy->getScalarSizeInBits();
@@ -922,8 +907,8 @@ void Verifier::visitFPTruncInst(FPTruncInst &I) {
 
 void Verifier::visitFPExtInst(FPExtInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   // Get the size of the types in bits, we'll need this later
   unsigned SrcBitSize = SrcTy->getScalarSizeInBits();
@@ -940,8 +925,8 @@ void Verifier::visitFPExtInst(FPExtInst &I) {
 
 void Verifier::visitUIToFPInst(UIToFPInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   bool SrcVec = SrcTy->isVectorTy();
   bool DstVec = DestTy->isVectorTy();
@@ -963,8 +948,8 @@ void Verifier::visitUIToFPInst(UIToFPInst &I) {
 
 void Verifier::visitSIToFPInst(SIToFPInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   bool SrcVec = SrcTy->isVectorTy();
   bool DstVec = DestTy->isVectorTy();
@@ -986,8 +971,8 @@ void Verifier::visitSIToFPInst(SIToFPInst &I) {
 
 void Verifier::visitFPToUIInst(FPToUIInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   bool SrcVec = SrcTy->isVectorTy();
   bool DstVec = DestTy->isVectorTy();
@@ -1009,8 +994,8 @@ void Verifier::visitFPToUIInst(FPToUIInst &I) {
 
 void Verifier::visitFPToSIInst(FPToSIInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   bool SrcVec = SrcTy->isVectorTy();
   bool DstVec = DestTy->isVectorTy();
@@ -1032,8 +1017,8 @@ void Verifier::visitFPToSIInst(FPToSIInst &I) {
 
 void Verifier::visitPtrToIntInst(PtrToIntInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   Assert1(SrcTy->isPointerTy(), "PtrToInt source must be pointer", &I);
   Assert1(DestTy->isIntegerTy(), "PtrToInt result must be integral", &I);
@@ -1043,8 +1028,8 @@ void Verifier::visitPtrToIntInst(PtrToIntInst &I) {
 
 void Verifier::visitIntToPtrInst(IntToPtrInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   Assert1(SrcTy->isIntegerTy(), "IntToPtr source must be an integral", &I);
   Assert1(DestTy->isPointerTy(), "IntToPtr result must be a pointer",&I);
@@ -1054,8 +1039,8 @@ void Verifier::visitIntToPtrInst(IntToPtrInst &I) {
 
 void Verifier::visitBitCastInst(BitCastInst &I) {
   // Get the source and destination types
-  Type *SrcTy = I.getOperand(0)->getType();
-  Type *DestTy = I.getType();
+  const Type *SrcTy = I.getOperand(0)->getType();
+  const Type *DestTy = I.getType();
 
   // Get the size of the types in bits, we'll need this later
   unsigned SrcBitSize = SrcTy->getPrimitiveSizeInBits();
@@ -1105,11 +1090,11 @@ void Verifier::VerifyCallSite(CallSite CS) {
 
   Assert1(CS.getCalledValue()->getType()->isPointerTy(),
           "Called function must be a pointer!", I);
-  PointerType *FPTy = cast<PointerType>(CS.getCalledValue()->getType());
+  const PointerType *FPTy = cast<PointerType>(CS.getCalledValue()->getType());
 
   Assert1(FPTy->getElementType()->isFunctionTy(),
           "Called function is not pointer to function type!", I);
-  FunctionType *FTy = cast<FunctionType>(FPTy->getElementType());
+  const FunctionType *FTy = cast<FunctionType>(FPTy->getElementType());
 
   // Verify that the correct number of arguments are being passed
   if (FTy->isVarArg())
@@ -1167,12 +1152,6 @@ void Verifier::visitCallInst(CallInst &CI) {
 
 void Verifier::visitInvokeInst(InvokeInst &II) {
   VerifyCallSite(&II);
-
-  // Verify that there is a landingpad instruction as the first non-PHI
-  // instruction of the 'unwind' destination.
-  Assert1(II.getUnwindDest()->isLandingPad(),
-          "The unwind destination does not have a landingpad instruction!",&II);
-
   visitTerminatorInst(II);
 }
 
@@ -1240,8 +1219,8 @@ void Verifier::visitBinaryOperator(BinaryOperator &B) {
 
 void Verifier::visitICmpInst(ICmpInst &IC) {
   // Check that the operands are the same type
-  Type *Op0Ty = IC.getOperand(0)->getType();
-  Type *Op1Ty = IC.getOperand(1)->getType();
+  const Type *Op0Ty = IC.getOperand(0)->getType();
+  const Type *Op1Ty = IC.getOperand(1)->getType();
   Assert1(Op0Ty == Op1Ty,
           "Both operands to ICmp instruction are not of the same type!", &IC);
   // Check that the operands are the right type
@@ -1257,8 +1236,8 @@ void Verifier::visitICmpInst(ICmpInst &IC) {
 
 void Verifier::visitFCmpInst(FCmpInst &FC) {
   // Check that the operands are the same type
-  Type *Op0Ty = FC.getOperand(0)->getType();
-  Type *Op1Ty = FC.getOperand(1)->getType();
+  const Type *Op0Ty = FC.getOperand(0)->getType();
+  const Type *Op1Ty = FC.getOperand(1)->getType();
   Assert1(Op0Ty == Op1Ty,
           "Both operands to FCmp instruction are not of the same type!", &FC);
   // Check that the operands are the right type
@@ -1295,13 +1274,10 @@ void Verifier::visitShuffleVectorInst(ShuffleVectorInst &SV) {
 }
 
 void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
-  Assert1(cast<PointerType>(GEP.getOperand(0)->getType())
-            ->getElementType()->isSized(),
-          "GEP into unsized type!", &GEP);
-  
   SmallVector<Value*, 16> Idxs(GEP.idx_begin(), GEP.idx_end());
-  Type *ElTy =
-    GetElementPtrInst::getIndexedType(GEP.getOperand(0)->getType(), Idxs);
+  const Type *ElTy =
+    GetElementPtrInst::getIndexedType(GEP.getOperand(0)->getType(),
+                                      Idxs.begin(), Idxs.end());
   Assert1(ElTy, "Invalid indices for GEP pointer type!", &GEP);
   Assert2(GEP.getType()->isPointerTy() &&
           cast<PointerType>(GEP.getType())->getElementType() == ElTy,
@@ -1310,44 +1286,26 @@ void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
 }
 
 void Verifier::visitLoadInst(LoadInst &LI) {
-  PointerType *PTy = dyn_cast<PointerType>(LI.getOperand(0)->getType());
+  const PointerType *PTy = dyn_cast<PointerType>(LI.getOperand(0)->getType());
   Assert1(PTy, "Load operand must be a pointer.", &LI);
-  Type *ElTy = PTy->getElementType();
+  const Type *ElTy = PTy->getElementType();
   Assert2(ElTy == LI.getType(),
           "Load result type does not match pointer operand type!", &LI, ElTy);
-  if (LI.isAtomic()) {
-    Assert1(LI.getOrdering() != Release && LI.getOrdering() != AcquireRelease,
-            "Load cannot have Release ordering", &LI);
-    Assert1(LI.getAlignment() != 0,
-            "Atomic load must specify explicit alignment", &LI);
-  } else {
-    Assert1(LI.getSynchScope() == CrossThread,
-            "Non-atomic load cannot have SynchronizationScope specified", &LI);
-  }
   visitInstruction(LI);
 }
 
 void Verifier::visitStoreInst(StoreInst &SI) {
-  PointerType *PTy = dyn_cast<PointerType>(SI.getOperand(1)->getType());
+  const PointerType *PTy = dyn_cast<PointerType>(SI.getOperand(1)->getType());
   Assert1(PTy, "Store operand must be a pointer.", &SI);
-  Type *ElTy = PTy->getElementType();
+  const Type *ElTy = PTy->getElementType();
   Assert2(ElTy == SI.getOperand(0)->getType(),
           "Stored value type does not match pointer operand type!",
           &SI, ElTy);
-  if (SI.isAtomic()) {
-    Assert1(SI.getOrdering() != Acquire && SI.getOrdering() != AcquireRelease,
-            "Store cannot have Acquire ordering", &SI);
-    Assert1(SI.getAlignment() != 0,
-            "Atomic store must specify explicit alignment", &SI);
-  } else {
-    Assert1(SI.getSynchScope() == CrossThread,
-            "Non-atomic store cannot have SynchronizationScope specified", &SI);
-  }
   visitInstruction(SI);
 }
 
 void Verifier::visitAllocaInst(AllocaInst &AI) {
-  PointerType *PTy = AI.getType();
+  const PointerType *PTy = AI.getType();
   Assert1(PTy->getAddressSpace() == 0, 
           "Allocation instruction pointer not in the generic address space!",
           &AI);
@@ -1356,49 +1314,6 @@ void Verifier::visitAllocaInst(AllocaInst &AI) {
   Assert1(AI.getArraySize()->getType()->isIntegerTy(),
           "Alloca array size must have integer type", &AI);
   visitInstruction(AI);
-}
-
-void Verifier::visitAtomicCmpXchgInst(AtomicCmpXchgInst &CXI) {
-  Assert1(CXI.getOrdering() != NotAtomic,
-          "cmpxchg instructions must be atomic.", &CXI);
-  Assert1(CXI.getOrdering() != Unordered,
-          "cmpxchg instructions cannot be unordered.", &CXI);
-  PointerType *PTy = dyn_cast<PointerType>(CXI.getOperand(0)->getType());
-  Assert1(PTy, "First cmpxchg operand must be a pointer.", &CXI);
-  Type *ElTy = PTy->getElementType();
-  Assert2(ElTy == CXI.getOperand(1)->getType(),
-          "Expected value type does not match pointer operand type!",
-          &CXI, ElTy);
-  Assert2(ElTy == CXI.getOperand(2)->getType(),
-          "Stored value type does not match pointer operand type!",
-          &CXI, ElTy);
-  visitInstruction(CXI);
-}
-
-void Verifier::visitAtomicRMWInst(AtomicRMWInst &RMWI) {
-  Assert1(RMWI.getOrdering() != NotAtomic,
-          "atomicrmw instructions must be atomic.", &RMWI);
-  Assert1(RMWI.getOrdering() != Unordered,
-          "atomicrmw instructions cannot be unordered.", &RMWI);
-  PointerType *PTy = dyn_cast<PointerType>(RMWI.getOperand(0)->getType());
-  Assert1(PTy, "First atomicrmw operand must be a pointer.", &RMWI);
-  Type *ElTy = PTy->getElementType();
-  Assert2(ElTy == RMWI.getOperand(1)->getType(),
-          "Argument value type does not match pointer operand type!",
-          &RMWI, ElTy);
-  Assert1(AtomicRMWInst::FIRST_BINOP <= RMWI.getOperation() &&
-          RMWI.getOperation() <= AtomicRMWInst::LAST_BINOP,
-          "Invalid binary operation!", &RMWI);
-  visitInstruction(RMWI);
-}
-
-void Verifier::visitFenceInst(FenceInst &FI) {
-  const AtomicOrdering Ordering = FI.getOrdering();
-  Assert1(Ordering == Acquire || Ordering == Release ||
-          Ordering == AcquireRelease || Ordering == SequentiallyConsistent,
-          "fence instructions may only have "
-          "acquire, release, acq_rel, or seq_cst ordering.", &FI);
-  visitInstruction(FI);
 }
 
 void Verifier::visitExtractValueInst(ExtractValueInst &EVI) {
@@ -1417,55 +1332,6 @@ void Verifier::visitInsertValueInst(InsertValueInst &IVI) {
           "Invalid InsertValueInst operands!", &IVI);
   
   visitInstruction(IVI);
-}
-
-void Verifier::visitLandingPadInst(LandingPadInst &LPI) {
-  BasicBlock *BB = LPI.getParent();
-
-  // The landingpad instruction is ill-formed if it doesn't have any clauses and
-  // isn't a cleanup.
-  Assert1(LPI.getNumClauses() > 0 || LPI.isCleanup(),
-          "LandingPadInst needs at least one clause or to be a cleanup.", &LPI);
-
-  // The landingpad instruction defines its parent as a landing pad block. The
-  // landing pad block may be branched to only by the unwind edge of an invoke.
-  for (pred_iterator I = pred_begin(BB), E = pred_end(BB); I != E; ++I) {
-    const InvokeInst *II = dyn_cast<InvokeInst>((*I)->getTerminator());
-    Assert1(II && II->getUnwindDest() == BB,
-            "Block containing LandingPadInst must be jumped to "
-            "only by the unwind edge of an invoke.", &LPI);
-  }
-
-  // The landingpad instruction must be the first non-PHI instruction in the
-  // block.
-  Assert1(LPI.getParent()->getLandingPadInst() == &LPI,
-          "LandingPadInst not the first non-PHI instruction in the block.",
-          &LPI);
-
-  // The personality functions for all landingpad instructions within the same
-  // function should match.
-  if (PersonalityFn)
-    Assert1(LPI.getPersonalityFn() == PersonalityFn,
-            "Personality function doesn't match others in function", &LPI);
-  PersonalityFn = LPI.getPersonalityFn();
-
-  // All operands must be constants.
-  Assert1(isa<Constant>(PersonalityFn), "Personality function is not constant!",
-          &LPI);
-  for (unsigned i = 0, e = LPI.getNumClauses(); i < e; ++i) {
-    Value *Clause = LPI.getClause(i);
-    Assert1(isa<Constant>(Clause), "Clause is not constant!", &LPI);
-    if (LPI.isCatch(i)) {
-      Assert1(isa<PointerType>(Clause->getType()),
-              "Catch operand does not have pointer type!", &LPI);
-    } else {
-      Assert1(LPI.isFilter(i), "Clause is neither catch nor filter!", &LPI);
-      Assert1(isa<ConstantArray>(Clause) || isa<ConstantAggregateZero>(Clause),
-              "Filter operand is not an array of constants!", &LPI);
-    }
-  }
-
-  visitInstruction(LPI);
 }
 
 /// verifyInstruction - Verify that an instruction is well formed.
@@ -1722,20 +1588,20 @@ static std::string IntrinsicParam(unsigned ArgNo, unsigned NumRets) {
   return "Intrinsic result type #" + utostr(ArgNo);
 }
 
-bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
+bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
                                 int VT, unsigned ArgNo, std::string &Suffix) {
-  FunctionType *FTy = F->getFunctionType();
+  const FunctionType *FTy = F->getFunctionType();
 
   unsigned NumElts = 0;
-  Type *EltTy = Ty;
-  VectorType *VTy = dyn_cast<VectorType>(Ty);
+  const Type *EltTy = Ty;
+  const VectorType *VTy = dyn_cast<VectorType>(Ty);
   if (VTy) {
     EltTy = VTy->getElementType();
     NumElts = VTy->getNumElements();
   }
 
-  Type *RetTy = FTy->getReturnType();
-  StructType *ST = dyn_cast<StructType>(RetTy);
+  const Type *RetTy = FTy->getReturnType();
+  const StructType *ST = dyn_cast<StructType>(RetTy);
   unsigned NumRetVals;
   if (RetTy->isVoidTy())
     NumRetVals = 0;
@@ -1752,7 +1618,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
     // type.
     if ((Match & (ExtendedElementVectorType |
                   TruncatedElementVectorType)) != 0) {
-      IntegerType *IEltTy = dyn_cast<IntegerType>(EltTy);
+      const IntegerType *IEltTy = dyn_cast<IntegerType>(EltTy);
       if (!VTy || !IEltTy) {
         CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
                     "an integral vector type.", F);
@@ -1843,7 +1709,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
     // Outside of TableGen, we don't distinguish iPTRAny (to any address space)
     // and iPTR. In the verifier, we can not distinguish which case we have so
     // allow either case to be legal.
-    if (PointerType* PTyp = dyn_cast<PointerType>(Ty)) {
+    if (const PointerType* PTyp = dyn_cast<PointerType>(Ty)) {
       EVT PointeeVT = EVT::getEVT(PTyp->getElementType(), true);
       if (PointeeVT == MVT::Other) {
         CheckFailed("Intrinsic has pointer to complex type.");
@@ -1891,7 +1757,7 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
                                         unsigned NumParams, ...) {
   va_list VA;
   va_start(VA, NumParams);
-  FunctionType *FTy = F->getFunctionType();
+  const FunctionType *FTy = F->getFunctionType();
 
   // For overloaded intrinsics, the Suffix of the function name must match the
   // types of the arguments. This variable keeps track of the expected
@@ -1903,8 +1769,8 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
     return;
   }
 
-  Type *Ty = FTy->getReturnType();
-  StructType *ST = dyn_cast<StructType>(Ty);
+  const Type *Ty = FTy->getReturnType();
+  const StructType *ST = dyn_cast<StructType>(Ty);
 
   if (NumRetVals == 0 && !Ty->isVoidTy()) {
     CheckFailed("Intrinsic should return void", F);

@@ -14,13 +14,12 @@
 #ifndef LLVM_CLANG_ANALYSIS_DS_COCOA
 #define LLVM_CLANG_ANALYSIS_DS_COCOA
 
-#include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/StringRef.h"
+#include "clang/AST/Type.h"
 
 namespace clang {
-class FunctionDecl;
+  
 class ObjCMethodDecl;
-class QualType;
   
 namespace ento {
 namespace cocoa {
@@ -34,8 +33,8 @@ namespace cocoa {
     return deriveNamingConvention(S, MD) == CreateRule;
   }
   
-  bool isRefType(QualType RetTy, StringRef Prefix,
-                 StringRef Name = StringRef());
+  bool isRefType(QualType RetTy, llvm::StringRef Prefix,
+                 llvm::StringRef Name = llvm::StringRef());
     
   bool isCocoaObjectRef(QualType T);
 
@@ -44,7 +43,7 @@ namespace cocoa {
 namespace coreFoundation {
   bool isCFObjectRef(QualType T);
   
-  bool followsCreateRule(const FunctionDecl *FD);
+  bool followsCreateRule(llvm::StringRef functionName);
 }
 
 }} // end: "clang:ento"

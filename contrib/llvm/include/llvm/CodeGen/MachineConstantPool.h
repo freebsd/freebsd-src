@@ -34,15 +34,15 @@ class raw_ostream;
 /// Abstract base class for all machine specific constantpool value subclasses.
 ///
 class MachineConstantPoolValue {
-  Type *Ty;
+  const Type *Ty;
 
 public:
-  explicit MachineConstantPoolValue(Type *ty) : Ty(ty) {}
+  explicit MachineConstantPoolValue(const Type *ty) : Ty(ty) {}
   virtual ~MachineConstantPoolValue() {}
 
   /// getType - get type of this MachineConstantPoolValue.
   ///
-  Type *getType() const { return Ty; }
+  const Type *getType() const { return Ty; }
 
   
   /// getRelocationInfo - This method classifies the entry according to
@@ -54,7 +54,7 @@ public:
   virtual int getExistingMachineCPValue(MachineConstantPool *CP,
                                         unsigned Alignment) = 0;
 
-  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID) = 0;
+  virtual void AddSelectionDAGCSEId(FoldingSetNodeID &ID) = 0;
 
   /// print - Implement operator<<
   virtual void print(raw_ostream &O) const = 0;
@@ -104,7 +104,7 @@ public:
     return Alignment & ~(1 << (sizeof(unsigned)*CHAR_BIT-1));
   }
 
-  Type *getType() const;
+  const Type *getType() const;
   
   /// getRelocationInfo - This method classifies the entry according to
   /// whether or not it may generate a relocation entry.  This must be
