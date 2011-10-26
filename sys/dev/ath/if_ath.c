@@ -4478,6 +4478,37 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 }
 
 /*
+ * Update the busy status of the last frame on the free list.
+ * When doing TDMA, the busy flag tracks whether the hardware
+ * currently points to this buffer or not, and thus gated DMA
+ * may restart by re-reading the last descriptor in this
+ * buffer.
+ *
+ * This should be called in the completion function once one
+ * of the buffers has been used.
+ */
+void
+ath_tx_update_busy(struct ath_softc *sc, struct ath_txq *txq)
+{
+	struct ath_buf *last;
+
+	/*
+	 * Since the last frame may still be marked
+	 * as ATH_BUF_BUSY, unmark it here before
+	 * finishing the frame processing.
+	 * Since we've completed a frame (aggregate
+	 * or otherwise), the hardware has moved on
+	 * and is no longer referencing the previous
+	 * descriptor.
+	 */
+	ATH_TXBUF_LOCK(sc);
+	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
+	ATH_TXBUF_UNLOCK(sc);
+}
+
+/*
  * Process completed xmit descriptors from the specified queue.
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
@@ -4486,7 +4517,7 @@ static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf, *last;
+	struct ath_buf *bf;
 	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
@@ -4563,19 +4594,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		}
 
 		/*
-		 * Since the last frame may still be marked
-		 * as ATH_BUF_BUSY, unmark it here before
-		 * finishing the frame processing.
-		 * Since we've completed a frame (aggregate
-		 * or otherwise), the hardware has moved on
-		 * and is no longer referencing the previous
-		 * descriptor.
+		 * Mark the last frame on the buffer list as
+		 * not busy, as the hardware has now moved past
+		 * that "free" entry and onto the next one.
 		 */
-		ATH_TXBUF_LOCK(sc);
-		last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
-		if (last != NULL)
-			last->bf_flags &= ~ATH_BUF_BUSY;
-		ATH_TXBUF_UNLOCK(sc);
+		ath_tx_update_busy(sc, txq);
 
 		/*
 		 * Call the completion handler.
