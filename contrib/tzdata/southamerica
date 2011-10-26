@@ -1,5 +1,5 @@
 # <pre>
-# @(#)southamerica	8.50
+# @(#)southamerica	8.52
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -818,6 +818,19 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # oficial agency about time in Brazil, and she confirmed that the old rule is
 # still in force.
 
+# From Guilherme Bernardes Rodrigues (2011-10-14)
+# It's official, the President signed a decree that includes Bahia in summer
+# time.
+#	 [ and in a second message (same day): ]
+# I found the decree.
+#
+# DECRETO No- 7.584, DE 13 DE OUTUBRO DE 2011
+# Link :
+# <a href="http://www.in.gov.br/visualiza/index.jsp?data=13/10/2011&jornal=1000&pagina=6&totalArquivos=6">
+# http://www.in.gov.br/visualiza/index.jsp?data=13/10/2011&jornal=1000&pagina=6&totalArquivos=6
+# </a>
+
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Decree <a href="http://pcdsh01.on.br/HV20466.htm">20,466</a> (1931-10-01)
 # Decree <a href="http://pcdsh01.on.br/HV21896.htm">21,896</a> (1932-01-10)
@@ -1054,10 +1067,8 @@ Zone America/Maceio	-2:22:52 -	LMT	1914
 # of America/Salvador.
 Zone America/Bahia	-2:34:04 -	LMT	1914
 			-3:00	Brazil	BR%sT	2003 Sep 24
-			-3:00	-	BRT
-# as noted above, not yet in operation.
-#			-3:00	-	BRT	2011 Oct 16
-#			-3:00	Brazil	BR%sT
+			-3:00	-	BRT	2011 Oct 16
+			-3:00	Brazil	BR%sT
 #
 # Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
 # Espirito Santo (ES), Rio de Janeiro (RJ), Sao Paulo (SP), Parana (PR),
