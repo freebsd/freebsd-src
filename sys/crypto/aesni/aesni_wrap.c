@@ -87,33 +87,33 @@ aesni_decrypt_ecb(int rounds, const void *key_schedule, size_t len,
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
 
 static void
-aesni_crypt_xts_block(int rounds, const void *key_schedule, uint8_t *tweak,
-    const uint8_t *from, uint8_t *to, int do_encrypt)
+aesni_crypt_xts_block(int rounds, const void *key_schedule, uint64_t *tweak,
+    const uint64_t *from, uint64_t *to, uint64_t *block, int do_encrypt)
 {
-	uint8_t block[AES_XTS_BLOCKSIZE];
-	u_int i, carry_in, carry_out;
+	int carry;
 
-	for (i = 0; i < AES_XTS_BLOCKSIZE; i++)
-		block[i] = from[i] ^ tweak[i];
+	block[0] = from[0] ^ tweak[0];
+	block[1] = from[1] ^ tweak[1];
 
 	if (do_encrypt)
-		aesni_enc(rounds - 1, key_schedule, block, to, NULL);
+		aesni_enc(rounds - 1, key_schedule, (uint8_t *)block, (uint8_t *)to, NULL);
 	else
-		aesni_dec(rounds - 1, key_schedule, block, to, NULL);
+		aesni_dec(rounds - 1, key_schedule, (uint8_t *)block, (uint8_t *)to, NULL);
 
-	for (i = 0; i < AES_XTS_BLOCKSIZE; i++)
-		to[i] ^= tweak[i];
+	to[0] ^= tweak[0];
+	to[1] ^= tweak[1];
 
 	/* Exponentiate tweak. */
-	carry_in = 0;
-	for (i = 0; i < AES_XTS_BLOCKSIZE; i++) {
-		carry_out = tweak[i] & 0x80;
-		tweak[i] = (tweak[i] << 1) | (carry_in ? 1 : 0);
-		carry_in = carry_out;
+	carry = ((tweak[0] & 0x8000000000000000ULL) > 0);
+	tweak[0] <<= 1;
+	if (tweak[1] & 0x8000000000000000ULL) {
+		uint8_t *twk = (uint8_t *)tweak;
+
+		twk[0] ^= AES_XTS_ALPHA;
 	}
-	if (carry_in)
-		tweak[0] ^= AES_XTS_ALPHA;
-	bzero(block, sizeof(block));
+	tweak[1] <<= 1;
+	if (carry)
+		tweak[1] |= 1;
 }
 
 static void
@@ -121,32 +121,33 @@ aesni_crypt_xts(int rounds, const void *data_schedule,
     const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
     const uint8_t iv[AES_BLOCK_LEN], int do_encrypt)
 {
+	uint64_t block[AES_XTS_BLOCKSIZE / 8];
 	uint8_t tweak[AES_XTS_BLOCKSIZE];
-	uint64_t blocknum;
 	size_t i;
 
 	/*
 	 * Prepare tweak as E_k2(IV). IV is specified as LE representation
 	 * of a 64-bit block number which we allow to be passed in directly.
 	 */
-	bcopy(iv, &blocknum, AES_XTS_IVSIZE);
-	for (i = 0; i < AES_XTS_IVSIZE; i++) {
-		tweak[i] = blocknum & 0xff;
-		blocknum >>= 8;
-	}
+#if BYTE_ORDER == LITTLE_ENDIAN
+	bcopy(iv, tweak, AES_XTS_IVSIZE);
 	/* Last 64 bits of IV are always zero. */
 	bzero(tweak + AES_XTS_IVSIZE, AES_XTS_IVSIZE);
+#else
+#error Only LITTLE_ENDIAN architectures are supported.
+#endif
 	aesni_enc(rounds - 1, tweak_schedule, tweak, tweak, NULL);
 
 	len /= AES_XTS_BLOCKSIZE;
 	for (i = 0; i < len; i++) {
-		aesni_crypt_xts_block(rounds, data_schedule, tweak, from, to,
-		    do_encrypt);
+		aesni_crypt_xts_block(rounds, data_schedule, (uint64_t *)tweak,
+		    (const uint64_t *)from, (uint64_t *)to, block, do_encrypt);
 		from += AES_XTS_BLOCKSIZE;
 		to += AES_XTS_BLOCKSIZE;
 	}
 
 	bzero(tweak, sizeof(tweak));
+	bzero(block, sizeof(block));
 }
 
 static void
