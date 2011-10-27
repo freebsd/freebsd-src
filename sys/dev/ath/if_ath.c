@@ -4916,7 +4916,9 @@ ath_stoptxdma(struct ath_softc *sc)
 static void
 ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
+#if ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
+#endif
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
