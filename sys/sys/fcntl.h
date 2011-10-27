@@ -286,14 +286,14 @@ __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
+#if __BSD_VISIBLE
+int	flock(int, int);
+#endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);
 #endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112
 int	posix_fallocate(int, off_t, off_t);
-#endif
-#if __BSD_VISIBLE
-int	flock(int, int);
 #endif
 __END_DECLS
 #endif
