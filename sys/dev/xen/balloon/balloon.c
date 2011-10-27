@@ -298,8 +298,7 @@ decrease_reservation(unsigned long nr_pages)
 		nr_pages = ARRAY_SIZE(frame_list);
 
 	for (i = 0; i < nr_pages; i++) {
-		int color = 0;
-		if ((page = vm_page_alloc(NULL, color++, 
+		if ((page = vm_page_alloc(NULL, 0, 
 			    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | 
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
 			nr_pages = i;
