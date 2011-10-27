@@ -192,6 +192,7 @@ struct g_eli_softc {
 	size_t		 sc_sectorsize;
 	u_int		 sc_bytes_per_sector;
 	u_int		 sc_data_per_sector;
+	boolean_t	 sc_cpubind;
 
 	/* Only for software cryptography. */
 	struct bio_queue_head sc_queue;
