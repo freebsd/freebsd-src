@@ -4110,7 +4110,8 @@ bge_asf_driver_up(struct bge_softc *sc)
 			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_MB,
 			    BGE_FW_CMD_DRV_ALIVE);
 			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_LEN_MB, 4);
-			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_DATA_MB, 3);
+			bge_writemem_ind(sc, BGE_SRAM_FW_CMD_DATA_MB,
+			    BGE_FW_HB_TIMEOUT_SEC);
 			CSR_WRITE_4(sc, BGE_RX_CPU_EVENT,
 			    CSR_READ_4(sc, BGE_RX_CPU_EVENT) |
 			    BGE_RX_CPU_DRV_EVENT);
