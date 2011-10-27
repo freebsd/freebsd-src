@@ -408,6 +408,43 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 }
 
 /*
+ *	contigmalloc:
+ *
+ *	Allocate a block of physically contiguous memory.
+ *
+ *	If M_NOWAIT is set, this routine will not block and return NULL if
+ *	the allocation fails.
+ */
+void *
+contigmalloc(unsigned long size, struct malloc_type *type, int flags,
+    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
+    unsigned long boundary)
+{
+	void *ret;
+
+	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	    alignment, boundary, VM_MEMATTR_DEFAULT);
+	if (ret != NULL)
+		malloc_type_allocated(type, round_page(size));
+	return (ret);
+}
+
+/*
+ *	contigfree:
+ *
+ *	Free a block of memory allocated by contigmalloc.
+ *
+ *	This routine may not block.
+ */
+void
+contigfree(void *addr, unsigned long size, struct malloc_type *type)
+{
+
+	kmem_free(kernel_map, (vm_offset_t)addr, size);
+	malloc_type_freed(type, round_page(size));
+}
+
+/*
  *	malloc:
  *
  *	Allocate a block of memory.
