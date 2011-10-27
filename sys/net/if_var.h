@@ -321,6 +321,18 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 	IF_UNLOCK(ifq); 					\
 } while (0)
 
+#define	_IF_DEQUEUE_ALL(ifq, m) do {				\
+	(m) = (ifq)->ifq_head;					\
+	(ifq)->ifq_head = (ifq)->ifq_tail = NULL;		\
+	(ifq)->ifq_len = 0;					\
+} while (0)
+
+#define	IF_DEQUEUE_ALL(ifq, m) do {				\
+	IF_LOCK(ifq); 						\
+	_IF_DEQUEUE_ALL(ifq, m);				\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
 #define	_IF_POLL(ifq, m)	((m) = (ifq)->ifq_head)
 #define	IF_POLL(ifq, m)		_IF_POLL(ifq, m)
 
