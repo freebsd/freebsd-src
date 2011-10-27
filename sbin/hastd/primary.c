@@ -1319,18 +1319,18 @@ local_send_thread(void *arg)
 			}
 			break;
 		}
-		if (refcount_release(&hio->hio_countdown)) {
-			if (ISSYNCREQ(hio)) {
-				mtx_lock(&sync_lock);
-				SYNCREQDONE(hio);
-				mtx_unlock(&sync_lock);
-				cv_signal(&sync_cond);
-			} else {
-				pjdlog_debug(2,
-				    "local_send: (%p) Moving request to the done queue.",
-				    hio);
-				QUEUE_INSERT2(hio, done);
-			}
+		if (!refcount_release(&hio->hio_countdown))
+			continue;
+		if (ISSYNCREQ(hio)) {
+			mtx_lock(&sync_lock);
+			SYNCREQDONE(hio);
+			mtx_unlock(&sync_lock);
+			cv_signal(&sync_cond);
+		} else {
+			pjdlog_debug(2,
+			    "local_send: (%p) Moving request to the done queue.",
+			    hio);
+			QUEUE_INSERT2(hio, done);
 		}
 	}
 	/* NOTREACHED */
@@ -1640,18 +1640,18 @@ remote_recv_thread(void *arg)
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);
 done_queue:
-		if (refcount_release(&hio->hio_countdown)) {
-			if (ISSYNCREQ(hio)) {
-				mtx_lock(&sync_lock);
-				SYNCREQDONE(hio);
-				mtx_unlock(&sync_lock);
-				cv_signal(&sync_cond);
-			} else {
-				pjdlog_debug(2,
-				    "remote_recv: (%p) Moving request to the done queue.",
-				    hio);
-				QUEUE_INSERT2(hio, done);
-			}
+		if (!refcount_release(&hio->hio_countdown))
+			continue;
+		if (ISSYNCREQ(hio)) {
+			mtx_lock(&sync_lock);
+			SYNCREQDONE(hio);
+			mtx_unlock(&sync_lock);
+			cv_signal(&sync_cond);
+		} else {
+			pjdlog_debug(2,
+			    "remote_recv: (%p) Moving request to the done queue.",
+			    hio);
+			QUEUE_INSERT2(hio, done);
 		}
 	}
 	/* NOTREACHED */
