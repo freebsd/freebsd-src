@@ -88,7 +88,7 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
 for dir in /bin /usr/bin /usr/local/bin; do
-	if [ -d "${SYSDIR}/.svn" -a -x "${dir}/svnversion" ] ; then
+	if [ -x "${dir}/svnversion" ] ; then
 		svnversion=${dir}/svnversion
 		break
 	fi
@@ -99,8 +99,12 @@ for dir in /bin /usr/bin /usr/local/bin; do
 done
 
 if [ -n "$svnversion" ] ; then
-    echo "$svnversion"
-	svn=" r`cd ${SYSDIR} && $svnversion`"
+	echo "$svnversion"
+	svn=`cd ${SYSDIR} && $svnversion`
+	case "$svn" in
+	[0-9]*)	svn=" r${svn}" ;;
+	*)	unset svn ;;
+	esac
 fi
 
 if [ -n "$git_cmd" ] ; then
