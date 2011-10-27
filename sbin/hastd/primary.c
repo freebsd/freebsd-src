@@ -1159,13 +1159,10 @@ ggate_recv_thread(void *arg)
 			break;
 		case BIO_WRITE:
 			res->hr_stat_write++;
-			if (res->hr_resuid == 0) {
-				/*
-				 * This is first write, initialize localcnt and
-				 * resuid.
-				 */
+			if (res->hr_resuid == 0 &&
+			    res->hr_primary_localcnt == 0) {
+				/* This is first write. */
 				res->hr_primary_localcnt = 1;
-				(void)init_resuid(res);
 			}
 			for (;;) {
 				mtx_lock(&range_lock);
