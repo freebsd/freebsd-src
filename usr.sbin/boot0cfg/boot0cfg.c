@@ -378,7 +378,7 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
     }
     grq = gctl_get_handle();
     gctl_ro_param(grq, "class", -1, "PART");
-    gctl_ro_param(grq, "geom", -1, pname);
+    gctl_ro_param(grq, "arg0", -1, pname);
     gctl_ro_param(grq, "verb", -1, "bootcode");
     gctl_ro_param(grq, "bootcode", mbr_size, mbr);
     gctl_ro_param(grq, "flags", -1, "C");
