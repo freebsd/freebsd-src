@@ -125,7 +125,7 @@ static void *send_thread(void *arg);
 	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_next);		\
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
- 
+
 static void
 hio_clear(struct hio *hio)
 {
