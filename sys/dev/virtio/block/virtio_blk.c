@@ -124,6 +124,7 @@ static int	vtblk_maximum_segments(struct vtblk_softc *,
 static int	vtblk_alloc_virtqueue(struct vtblk_softc *);
 static void	vtblk_alloc_disk(struct vtblk_softc *,
 		    struct virtio_blk_config *);
+static void	vtblk_create_disk(struct vtblk_softc *);
 
 static int	vtblk_open(struct disk *);
 static int	vtblk_close(struct disk *);
@@ -365,8 +366,7 @@ vtblk_attach(device_t dev)
 		goto fail;
 	}
 
-	if (vtblk_no_ident == 0)
-		vtblk_get_ident(sc);
+	vtblk_create_disk(sc);
 
 	virtqueue_enable_intr(sc->vtblk_vq);
 
@@ -541,7 +541,8 @@ vtblk_strategy(struct bio *bp)
 
 	/*
 	 * Prevent read/write buffers spanning too many segments from
-	 * getting into the queue.
+	 * getting into the queue. This should only trip if d_maxsize
+	 * was incorrectly set.
 	 */
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		KASSERT(VTBLK_BIO_SEGMENTS(bp) <= sc->vtblk_max_nsegs -
@@ -642,7 +643,7 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	 * by physically contiguous pages. Therefore, we have to assume
 	 * no pages are contiguous. This may impose an artificially low
 	 * maximum I/O size. But in practice, since QEMU advertises 128
-	 * segments, this gives us a maxinum IO size of 125 * PAGE_SIZE,
+	 * segments, this gives us a maximum IO size of 125 * PAGE_SIZE,
 	 * which is typically greater than MAXPHYS. Eventually we should
 	 * just advertise MAXPHYS and split buffers that are too big.
 	 *
@@ -661,6 +662,25 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_FLUSH))
 		dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
+}
+
+static void
+vtblk_create_disk(struct vtblk_softc *sc)
+{
+	struct disk *dp;
+
+	dp = sc->vtblk_disk;
+
+	/*
+	 * Retrieving the identification string must be done after
+	 * the virtqueue interrupt is setup otherwise it will hang.
+	 */
+	vtblk_get_ident(sc);
+
+	device_printf(sc->vtblk_dev, "%juMB (%ju %u byte sectors)\n",
+	    (uintmax_t) dp->d_mediasize >> 20,
+	    (uintmax_t) dp->d_mediasize / dp->d_sectorsize,
+	    dp->d_sectorsize);
 
 	disk_create(dp, DISK_VERSION);
 }
@@ -863,6 +883,9 @@ vtblk_get_ident(struct vtblk_softc *sc)
 
 	dp = sc->vtblk_disk;
 	len = MIN(VIRTIO_BLK_ID_BYTES, DISK_IDENT_SIZE);
+
+	if (vtblk_no_ident != 0)
+		return;
 
 	req = vtblk_dequeue_request(sc);
 	if (req == NULL)

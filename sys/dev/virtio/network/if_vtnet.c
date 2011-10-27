@@ -94,6 +94,7 @@ static void	vtnet_negotiate_features(struct vtnet_softc *);
 static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
 static void	vtnet_get_hwaddr(struct vtnet_softc *);
 static void	vtnet_set_hwaddr(struct vtnet_softc *);
+static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
 static void	vtnet_watchdog(struct vtnet_softc *);
 static void	vtnet_config_change_task(void *, int);
@@ -611,29 +612,24 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) == 0 &&
 	    virtio_with_feature(dev, VTNET_LRO_FEATURES)) {
 		/*
-		 * LRO without mergeable buffers requires special handling.
-		 * Unfortunately, this configuration is less than ideal since
-		 * each receive buffer must be large enough to maximum TCP
-		 * packet along with the Ethernet header and vtnet_rx_header.
-		 * This requires 34 descriptors when using MCLBYTES clusters.
-		 *
-		 * The QEMU and vhost receive virtqueue are 256 descriptors
-		 * big. This means that unless indirect descriptors are
-		 * negotiated, the receive queue can only hold seven buffers.
-		 * Therefore LRO is disabled unless indirect descriptors are
-		 * available.
+		 * LRO without mergeable buffers requires special care. This
+		 * is not ideal because every receive buffer must be large
+		 * enough to hold the maximum TCP packet, the Ethernet header,
+		 * and the vtnet_rx_header. This requires up to 34 descriptors
+		 * when using MCLBYTES clusters. If we do not have indirect
+		 * descriptors, LRO is disabled since the virtqueue will not
+		 * be able to contain very many receive buffers.
 		 */
+		if (virtio_with_feature(dev,
+		    VIRTIO_RING_F_INDIRECT_DESC) == 0) {
+			device_printf(dev,
+			    "LRO disabled due to lack of both mergeable "
+			    "buffers and indirect descriptors\n");
 
-		if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
-			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
-		else {
 			sc->vtnet_features = virtio_negotiate_features(dev,
 			    features & ~VTNET_LRO_FEATURES);
-
-			device_printf(dev, "LRO disbled because mergeable "
-			    "buffers and indirect descriptors were not "
-			    "negotiated\n");
-		}
+		} else
+			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
 	}
 }
 
@@ -711,12 +707,11 @@ vtnet_set_hwaddr(struct vtnet_softc *sc)
 	    sc->vtnet_hwaddr, ETHER_ADDR_LEN);
 }
 
-static void
-vtnet_update_link_status(struct vtnet_softc *sc)
+static int
+vtnet_is_link_up(struct vtnet_softc *sc)
 {
 	device_t dev;
 	struct ifnet *ifp;
-	int link;
 	uint16_t status;
 
 	dev = sc->vtnet_dev;
@@ -724,15 +719,26 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 
 	VTNET_LOCK_ASSERT(sc);
 
-	if (ifp->if_capenable & IFCAP_LINKSTATE) {
-		status = virtio_read_dev_config_2(dev,
-		    offsetof(struct virtio_net_config, status));
-		if (status & VIRTIO_NET_S_LINK_UP)
-			link = 1;
-		else
-			link = 0;
-	} else
-		link = 1;
+	if ((ifp->if_capenable & IFCAP_LINKSTATE) == 0)
+		return (1);
+
+	status = virtio_read_dev_config_2(dev,
+	    offsetof(struct virtio_net_config, status));
+
+	return ((status & VIRTIO_NET_S_LINK_UP) != 0);
+}
+
+static void
+vtnet_update_link_status(struct vtnet_softc *sc)
+{
+	device_t dev;
+	struct ifnet *ifp;
+	int link;
+
+	dev = sc->vtnet_dev;
+	ifp = sc->vtnet_ifp;
+
+	link = vtnet_is_link_up(sc);
 
 	if (link && ((sc->vtnet_flags & VTNET_FLAG_LINK) == 0)) {
 		sc->vtnet_flags |= VTNET_FLAG_LINK;
@@ -2630,7 +2636,7 @@ vtnet_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active = IFM_ETHER;
 
 	VTNET_LOCK(sc);
-	if (sc->vtnet_flags & VTNET_FLAG_LINK) {
+	if (vtnet_is_link_up(sc) != 0) {
 		ifmr->ifm_status |= IFM_ACTIVE;
 		ifmr->ifm_active |= VTNET_MEDIATYPE;
 	} else
@@ -2692,6 +2698,9 @@ vtnet_add_statistics(struct vtnet_softc *sc)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_csum_offloaded",
 	    CTLFLAG_RD, &stats->tx_csum_offloaded,
 	    "Offloaded checksum of transmitted buffer");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_tso_offloaded",
+	    CTLFLAG_RD, &stats->tx_tso_offloaded,
+	    "Segmentation offload of transmitted buffer");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_csum_bad_ethtype",
 	    CTLFLAG_RD, &stats->tx_csum_bad_ethtype,
 	    "Aborted transmit of checksum offloaded buffer with unknown "

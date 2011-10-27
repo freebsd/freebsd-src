@@ -126,6 +126,8 @@ static void	vtpci_set_status(device_t, uint8_t);
 static void	vtpci_read_dev_config(device_t, bus_size_t, void *, int);
 static void	vtpci_write_dev_config(device_t, bus_size_t, void *, int);
 
+static void	vtpci_describe_features(struct vtpci_softc *, const char *,
+		    uint64_t);
 static void	vtpci_probe_and_attach_child(struct vtpci_softc *);
 
 static int	vtpci_alloc_interrupts(struct vtpci_softc *, int, int,
@@ -409,22 +411,18 @@ vtpci_negotiate_features(device_t dev, uint64_t child_features)
 	sc = device_get_softc(dev);
 
 	host_features = vtpci_read_config_4(sc, VIRTIO_PCI_HOST_FEATURES);
-	if (bootverbose)
-		virtio_describe(dev, "available", host_features,
-		    sc->vtpci_child_feat_desc);
+	vtpci_describe_features(sc, "host", host_features);
 
 	/*
-	 * Limit negotiated features to what the host, guest, and
-	 * virtqueue all support.
+	 * Limit negotiated features to what the driver, virtqueue, and
+	 * host all support.
 	 */
 	features = host_features & child_features;
 	features = virtqueue_filter_features(features);
 	sc->vtpci_features = features;
-	vtpci_write_config_4(sc, VIRTIO_PCI_GUEST_FEATURES, features);
 
-	if (bootverbose)
-		virtio_describe(dev, "negotiated", features,
-		    sc->vtpci_child_feat_desc);
+	vtpci_describe_features(sc, "negotiated", features);
+	vtpci_write_config_4(sc, VIRTIO_PCI_GUEST_FEATURES, features);
 
 	return (features);
 }
@@ -707,6 +705,21 @@ vtpci_write_dev_config(device_t dev, bus_size_t offset,
 			vtpci_write_config_1(sc, off, *s);
 		}
 	}
+}
+
+static void
+vtpci_describe_features(struct vtpci_softc *sc, const char *msg,
+    uint64_t features)
+{
+	device_t dev, child;
+
+	dev = sc->vtpci_dev;
+	child = sc->vtpci_child_dev;
+
+	if (device_is_attached(child) && bootverbose == 0)
+		return;
+
+	virtio_describe(dev, msg, features, sc->vtpci_child_feat_desc);
 }
 
 static void
