@@ -367,11 +367,15 @@ at91_setup_intr(device_t dev, device_t child,
     driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	struct at91_softc *sc = device_get_softc(dev);
+	int error;
 
 	if (rman_get_start(ires) == sc->sc_irq_system && filt == NULL)
 		panic("All system interrupt ISRs must be FILTER");
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, 
-	    intr, arg, cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    filt, intr, arg, cookiep);
+	if (error)
+		return (error);
+
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IECR,
 	    1 << rman_get_start(ires));
 	return (0);
