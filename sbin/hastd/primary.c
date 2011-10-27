@@ -1021,7 +1021,7 @@ remote_close(struct hast_resource *res, int ncomp)
 
 	rw_wlock(&hio_remote_lock[ncomp]);
 	/*
-	 * A race is possible between dropping rlock and acquiring wlock -
+	 * Check for a race between dropping rlock and acquiring wlock -
 	 * another thread can close connection in-between.
 	 */
 	if (!ISCONNECTED(res, ncomp)) {
