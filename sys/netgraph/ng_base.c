@@ -3167,6 +3167,9 @@ dumphook (hook_p hook, char *file, int line)
 		hook->lastfile, hook->lastline);
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
+#ifdef KDB
+		kdb_backtrace();
+#endif
 	}
 }
 
@@ -3181,6 +3184,9 @@ dumpnode(node_p node, char *file, int line)
 		node->lastfile, node->lastline);
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
+#ifdef KDB
+		kdb_backtrace();
+#endif
 	}
 }
 
