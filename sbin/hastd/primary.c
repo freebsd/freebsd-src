@@ -1556,6 +1556,7 @@ remote_recv_thread(void *arg)
 			    &hio_recv_list_lock[ncomp]);
 		}
 		mtx_unlock(&hio_recv_list_lock[ncomp]);
+
 		rw_rlock(&hio_remote_lock[ncomp]);
 		if (!ISCONNECTED(res, ncomp)) {
 			rw_unlock(&hio_remote_lock[ncomp]);
@@ -1963,7 +1964,7 @@ sync_thread(void *arg __unused)
 		}
 		mtx_unlock(&metadata_lock);
 
-		pjdlog_debug(2, "sync: (%p) Moving request to the send queues.",
+		pjdlog_debug(2, "sync: (%p) Moving request to the send queue.",
 		    hio);
 		refcount_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
