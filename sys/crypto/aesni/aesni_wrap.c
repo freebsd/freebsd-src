@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
