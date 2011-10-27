@@ -1475,7 +1475,6 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_page_t m, ptdpg[NPGPTD + 1];
 	int npgptd = NPGPTD + 1;
-	static int color;
 	int i;
 
 #ifdef HAMFISTED_LOCKING
@@ -1507,9 +1506,8 @@ pmap_pinit(pmap_t pmap)
 	 * allocate the page directory page(s)
 	 */
 	for (i = 0; i < npgptd;) {
-		m = vm_page_alloc(NULL, color++,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO);
+		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (m == NULL)
 			VM_WAIT;
 		else {
@@ -2103,7 +2101,6 @@ get_pv_entry(pmap_t pmap, int try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
-	static vm_pindex_t colour;
 	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
@@ -2149,7 +2146,7 @@ retry:
 	 * queues lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
-	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, colour, (pq ==
+	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, (pq ==
 	    &vm_page_queues[PQ_ACTIVE] ? VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
@@ -2175,7 +2172,6 @@ retry:
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
-	colour++;
 	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
 	pmap_qenter((vm_offset_t)pc, &m, 1);
 	if ((m->flags & PG_ZERO) == 0)
