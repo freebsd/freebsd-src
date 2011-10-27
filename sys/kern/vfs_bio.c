@@ -3760,10 +3760,9 @@ tryagain:
 		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
-		p = vm_page_alloc(NULL, pg >> PAGE_SHIFT, VM_ALLOC_NOOBJ |
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-		    VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
-		if (!p) {
+		p = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
+		if (p == NULL) {
 			VM_WAIT;
 			goto tryagain;
 		}
