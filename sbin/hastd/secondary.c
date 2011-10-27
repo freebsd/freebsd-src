@@ -280,13 +280,13 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		nv_free(nvout);
 		exit(EX_CONFIG);
 	} else if (
-	    /* Is primary is out-of-date? */
+	    /* Is primary out-of-date? */
 	    (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
-	    /* Nodes are more or less in sync? */
+	    /* Are the nodes more or less in sync? */
 	    (res->hr_secondary_localcnt == res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
-	    /* Is secondary is out-of-date? */
+	    /* Is secondary out-of-date? */
 	    (res->hr_secondary_localcnt == res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt < res->hr_primary_localcnt)) {
 		/*
