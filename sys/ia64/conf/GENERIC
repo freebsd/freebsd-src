@@ -60,8 +60,11 @@ options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 
-# Debugging for use in -current
-options 	KDB		# Enable kernel debugger support
+# Debugging support.  Always need this:
+options 	KDB		# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE	# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB		# Support DDB
 options 	GDB		# Support remote GDB
 options 	DEADLKRES	# Enable the deadlock resolver
