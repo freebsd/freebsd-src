@@ -1901,6 +1901,8 @@
 #define	BGE_EE_DELAY			0x6848
 #define	BGE_FASTBOOT_PC			0x6894
 
+#define	BGE_RX_CPU_DRV_EVENT		0x00004000
+
 /*
  * NVRAM Control registers
  */
