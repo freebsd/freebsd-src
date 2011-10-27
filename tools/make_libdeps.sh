@@ -52,7 +52,7 @@ sed -E
     -e's;-l(ncurses|termcap)!;lib/ncurses/ncurses;g'
     -e's;-l(gcc)!;gnu/lib/lib\1;g'
     -e's;-lssp_nonshared!;gnu/lib/libssp/libssp_nonshared;g'
-    -e's;-l(asn1|heimntlm|hx509|krb5|roken)!;kerberos5/lib/lib\1;g'
+    -e's;-l(asn1|hdb|heimntlm|hx509|krb5|roken)!;kerberos5/lib/lib\1;g'
     -e's;-l(crypto|ssh|ssl)!;secure/lib/lib\1;g'
     -e's;-l([^!]+)!;lib/lib\1;g'
 "

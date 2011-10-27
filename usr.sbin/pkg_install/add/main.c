@@ -87,6 +87,7 @@ struct {
 	{ 800000, 800499, "/packages-8.0-release" },
 	{ 801000, 801499, "/packages-8.1-release" },
 	{ 802000, 802499, "/packages-8.2-release" },
+	{ 900000, 900499, "/packages-9.0-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
 	{ 502100, 502128, "/packages-5-current" },
@@ -94,7 +95,8 @@ struct {
 	{ 600100, 699000, "/packages-6-stable" },
 	{ 700100, 799000, "/packages-7-stable" },
 	{ 800500, 899000, "/packages-8-stable" },
-	{ 900000, 999000, "/packages-9-current" },
+	{ 900500, 999000, "/packages-9-stable" },
+	{ 1000000, 1099000, "/packages-10-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
 };

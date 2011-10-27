@@ -17,9 +17,9 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/ADT/STLExtras.h"
 
 #define GET_INSTRINFO_CTOR
@@ -239,7 +239,8 @@ unsigned MBlazeInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   return 2;
 }
 
-bool MBlazeInstrInfo::ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
+bool MBlazeInstrInfo::ReverseBranchCondition(SmallVectorImpl<MachineOperand>
+                                               &Cond) const {
   assert(Cond.size() == 2 && "Invalid MBlaze branch opcode!");
   switch (Cond[0].getImm()) {
   default:            return true;

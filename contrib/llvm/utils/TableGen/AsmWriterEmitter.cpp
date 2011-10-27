@@ -14,13 +14,13 @@
 
 #include "AsmWriterEmitter.h"
 #include "AsmWriterInst.h"
-#include "Error.h"
 #include "CodeGenTarget.h"
-#include "Record.h"
 #include "StringToOffsetTable.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -703,8 +703,8 @@ void AsmWriterEmitter::EmitRegIsInRegClass(raw_ostream &O) {
   CodeGenTarget Target(Records);
 
   // Enumerate the register classes.
-  const std::vector<CodeGenRegisterClass> &RegisterClasses =
-    Target.getRegisterClasses();
+  ArrayRef<CodeGenRegisterClass*> RegisterClasses =
+    Target.getRegBank().getRegClasses();
 
   O << "namespace { // Register classes\n";
   O << "  enum RegClass {\n";
@@ -712,7 +712,7 @@ void AsmWriterEmitter::EmitRegIsInRegClass(raw_ostream &O) {
   // Emit the register enum value for each RegisterClass.
   for (unsigned I = 0, E = RegisterClasses.size(); I != E; ++I) {
     if (I != 0) O << ",\n";
-    O << "    RC_" << RegisterClasses[I].TheDef->getName();
+    O << "    RC_" << RegisterClasses[I]->getName();
   }
 
   O << "\n  };\n";
@@ -729,10 +729,10 @@ void AsmWriterEmitter::EmitRegIsInRegClass(raw_ostream &O) {
   O << "  default: break;\n";
 
   for (unsigned I = 0, E = RegisterClasses.size(); I != E; ++I) {
-    const CodeGenRegisterClass &RC = RegisterClasses[I];
+    const CodeGenRegisterClass &RC = *RegisterClasses[I];
 
     // Give the register class a legal C name if it's anonymous.
-    std::string Name = RC.TheDef->getName();
+    std::string Name = RC.getName();
     O << "  case RC_" << Name << ":\n";
   
     // Emit the register list now.

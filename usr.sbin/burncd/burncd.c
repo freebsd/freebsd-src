@@ -82,6 +82,13 @@ main(int argc, char **argv)
 	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
 	const char *dev, *env_speed;
 
+	if (feature_present("ata_cam")) {
+		errx(1, "\nATA_CAM option is enabled in kernel.\n"
+		    "Install the sysutils/cdrtools port and use cdrecord instead.\n\n"
+		    "Please refer to:\n"
+		    "http://www.freebsd.org/doc/handbook/creating-cds.html#CDRECORD");
+	}
+
 	if ((dev = getenv("CDROM")) == NULL)
 		dev = "/dev/acd0";
 

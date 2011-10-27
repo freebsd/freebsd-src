@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/uma_int.h>
 #include <vm/memguard.h>
 
 SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
@@ -125,15 +126,17 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_kva, CTLFLAG_RD,
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD,
     &memguard_fail_pgs, 0, "MemGuard failures due to lack of pages");
 
-#define MG_GUARD	0x001
-#define MG_ALLLARGE	0x002
-static int memguard_options = MG_GUARD;
+#define MG_GUARD_AROUND		0x001
+#define MG_GUARD_ALLLARGE	0x002
+#define MG_GUARD_NOFREE		0x004
+static int memguard_options = MG_GUARD_AROUND;
 TUNABLE_INT("vm.memguard.options", &memguard_options);
 SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RW,
     &memguard_options, 0,
     "MemGuard options:\n"
     "\t0x001 - add guard pages around each allocation\n"
-    "\t0x002 - always use MemGuard for allocations over a page");
+    "\t0x002 - always use MemGuard for allocations over a page\n"
+    "\t0x004 - guard uma(9) zones with UMA_ZONE_NOFREE flag");
 
 static u_int memguard_minsize;
 static u_long memguard_minsize_reject;
@@ -282,7 +285,7 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * value.
 	 */
 	size_v = size_p;
-	do_guard = (memguard_options & MG_GUARD) != 0;
+	do_guard = (memguard_options & MG_GUARD_AROUND) != 0;
 	if (do_guard)
 		size_v += 2 * PAGE_SIZE;
 
@@ -429,21 +432,32 @@ memguard_realloc(void *addr, unsigned long size, struct malloc_type *mtp,
 	return (newaddr);
 }
 
-int
-memguard_cmp(struct malloc_type *mtp, unsigned long size)
+static int
+memguard_cmp(unsigned long size)
 {
 
 	if (size < memguard_minsize) {
 		memguard_minsize_reject++;
 		return (0);
 	}
-	if ((memguard_options & MG_ALLLARGE) != 0 && size >= PAGE_SIZE)
+	if ((memguard_options & MG_GUARD_ALLLARGE) != 0 && size >= PAGE_SIZE)
 		return (1);
 	if (memguard_frequency > 0 &&
 	    (random() % 100000) < memguard_frequency) {
 		memguard_frequency_hits++;
 		return (1);
 	}
+
+	return (0);
+}
+
+int
+memguard_cmp_mtp(struct malloc_type *mtp, unsigned long size)
+{
+
+	if (memguard_cmp(size))
+		return(1);
+
 #if 1
 	/*
 	 * The safest way of comparsion is to always compare short description
@@ -466,4 +480,22 @@ memguard_cmp(struct malloc_type *mtp, unsigned long size)
 	}
 	return (0);
 #endif
+}
+
+int
+memguard_cmp_zone(uma_zone_t zone)
+{
+
+	 if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
+	    zone->uz_flags & UMA_ZONE_NOFREE)
+		return (0);
+
+	if (memguard_cmp(zone->uz_size))
+		return (1);
+
+	/*
+	 * The safest way of comparsion is to always compare zone name,
+	 * but it is also the slowest way.
+	 */
+	return (strcmp(zone->uz_name, vm_memguard_desc) == 0);
 }

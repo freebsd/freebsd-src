@@ -147,7 +147,7 @@ procfs_control(struct thread *td, struct proc *p, int op)
 			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, td->td_proc);
 		}
-		psignal(p, SIGSTOP);
+		kern_psignal(p, SIGSTOP);
 out:
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
@@ -348,7 +348,7 @@ procfs_doprocctl(PFS_FILL_ARGS)
 				thread_unsuspend(p);
 				PROC_SUNLOCK(p);
 			} else
-				psignal(p, nm->nm_val);
+				kern_psignal(p, nm->nm_val);
 			PROC_UNLOCK(p);
 			error = 0;
 		}

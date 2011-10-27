@@ -1244,3 +1244,77 @@ libusb20_be_dequeue_device(struct libusb20_backend *pbe,
 {
 	TAILQ_REMOVE(&(pbe->usb_devs), pdev, dev_entry);
 }
+
+const char *
+libusb20_strerror(int code)
+{
+	switch (code) {
+	case LIBUSB20_SUCCESS:
+		return ("Success");
+	case LIBUSB20_ERROR_IO:
+		return ("I/O error");
+	case LIBUSB20_ERROR_INVALID_PARAM:
+		return ("Invalid parameter");
+	case LIBUSB20_ERROR_ACCESS:
+		return ("Permissions error");
+	case LIBUSB20_ERROR_NO_DEVICE:
+		return ("No device");
+	case LIBUSB20_ERROR_NOT_FOUND:
+		return ("Not found");
+	case LIBUSB20_ERROR_BUSY:
+		return ("Device busy");
+	case LIBUSB20_ERROR_TIMEOUT:
+		return ("Timeout");
+	case LIBUSB20_ERROR_OVERFLOW:
+		return ("Overflow");
+	case LIBUSB20_ERROR_PIPE:
+		return ("Pipe error");
+	case LIBUSB20_ERROR_INTERRUPTED:
+		return ("Interrupted");
+	case LIBUSB20_ERROR_NO_MEM:
+		return ("Out of memory");
+	case LIBUSB20_ERROR_NOT_SUPPORTED:
+		return ("Not supported");
+	case LIBUSB20_ERROR_OTHER:
+		return ("Other error");
+	default:
+		return ("Unknown error");
+	}
+}
+
+const char *
+libusb20_error_name(int code)
+{
+	switch (code) {
+	case LIBUSB20_SUCCESS:
+		return ("LIBUSB20_SUCCESS");
+	case LIBUSB20_ERROR_IO:
+		return ("LIBUSB20_ERROR_IO");
+	case LIBUSB20_ERROR_INVALID_PARAM:
+		return ("LIBUSB20_ERROR_INVALID_PARAM");
+	case LIBUSB20_ERROR_ACCESS:
+		return ("LIBUSB20_ERROR_ACCESS");
+	case LIBUSB20_ERROR_NO_DEVICE:
+		return ("LIBUSB20_ERROR_NO_DEVICE");
+	case LIBUSB20_ERROR_NOT_FOUND:
+		return ("LIBUSB20_ERROR_NOT_FOUND");
+	case LIBUSB20_ERROR_BUSY:
+		return ("LIBUSB20_ERROR_BUSY");
+	case LIBUSB20_ERROR_TIMEOUT:
+		return ("LIBUSB20_ERROR_TIMEOUT");
+	case LIBUSB20_ERROR_OVERFLOW:
+		return ("LIBUSB20_ERROR_OVERFLOW");
+	case LIBUSB20_ERROR_PIPE:
+		return ("LIBUSB20_ERROR_PIPE");
+	case LIBUSB20_ERROR_INTERRUPTED:
+		return ("LIBUSB20_ERROR_INTERRUPTED");
+	case LIBUSB20_ERROR_NO_MEM:
+		return ("LIBUSB20_ERROR_NO_MEM");
+	case LIBUSB20_ERROR_NOT_SUPPORTED:
+		return ("LIBUSB20_ERROR_NOT_SUPPORTED");
+	case LIBUSB20_ERROR_OTHER:
+		return ("LIBUSB20_ERROR_OTHER");
+	default:
+		return ("LIBUSB20_ERROR_UNKNOWN");
+	}
+}

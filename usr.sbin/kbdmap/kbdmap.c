@@ -289,7 +289,7 @@ do_kbdcontrol(struct keymap *km)
 	if (!x11)
 		system(kbd_cmd);
 
-	fprintf(stderr, "keymap=%s\n", km->keym);
+	fprintf(stderr, "keymap=\"%s\"\n", km->keym);
 	free(kbd_cmd);
 }
 

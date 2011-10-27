@@ -406,7 +406,7 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
 	}
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK);
-errout:;
+errout:
 	// XXX bad
 	return (err);
 }

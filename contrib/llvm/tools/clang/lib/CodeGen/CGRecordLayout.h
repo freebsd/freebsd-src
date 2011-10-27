@@ -10,12 +10,13 @@
 #ifndef CLANG_CODEGEN_CGRECORDLAYOUT_H
 #define CLANG_CODEGEN_CGRECORDLAYOUT_H
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/DerivedTypes.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Decl.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/DerivedTypes.h"
+
 namespace llvm {
-  class raw_ostream;
   class StructType;
 }
 
@@ -144,7 +145,7 @@ public:
 
   /// @}
 
-  void print(llvm::raw_ostream &OS) const;
+  void print(raw_ostream &OS) const;
   void dump() const;
 
   /// \brief Given a bit-field decl, build an appropriate helper object for
@@ -270,7 +271,7 @@ public:
     return it->second;
   }
 
-  void print(llvm::raw_ostream &OS) const;
+  void print(raw_ostream &OS) const;
   void dump() const;
 };
 

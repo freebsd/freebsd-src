@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <zlib.h>
 
+#include "fastmatch.h"
+
 #ifdef WITHOUT_NLS
 #define getstr(n)	 errstr[n]
 #else
@@ -58,8 +60,11 @@ extern const char		*errstr[];
 #define BINFILE_TEXT	2
 
 #define FILE_STDIO	0
-#define FILE_GZIP	1
-#define FILE_BZIP	2
+#define FILE_MMAP	1
+#define FILE_GZIP	2
+#define FILE_BZIP	3
+#define FILE_XZ		4
+#define FILE_LZMA	5
 
 #define DIR_READ	0
 #define DIR_SKIP	1
@@ -90,21 +95,15 @@ struct str {
 	int		 line_no;
 };
 
+struct pat {
+	char		*pat;
+	int		 len;
+};
+
 struct epat {
 	char		*pat;
 	int		 mode;
 };
-
-typedef struct {
-	size_t		 len;
-	unsigned char	*pattern;
-	int		 qsBc[UCHAR_MAX + 1];
-	/* flags */
-	bool		 bol;
-	bool		 eol;
-	bool		 reversed;
-	bool		 word;
-} fastgrep_t;
 
 /* Flags passed to regcomp() and regexec() */
 extern int	 cflags, eflags;
@@ -114,7 +113,8 @@ extern bool	 Eflag, Fflag, Gflag, Hflag, Lflag,
 		 bflag, cflag, hflag, iflag, lflag, mflag, nflag, oflag,
 		 qflag, sflag, vflag, wflag, xflag;
 extern bool	 dexclude, dinclude, fexclude, finclude, lbflag, nullflag;
-extern unsigned long long Aflag, Bflag, mcount;
+extern unsigned long long Aflag, Bflag;
+extern long long mcount;
 extern char	*label;
 extern const char *color;
 extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
@@ -122,10 +122,10 @@ extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
 extern bool	 first, matchall, notfound, prev;
 extern int	 tail;
 extern unsigned int dpatterns, fpatterns, patterns;
-extern char    **pattern;
+extern struct pat *pattern;
 extern struct epat *dpattern, *fpattern;
 extern regex_t	*er_pattern, *r_pattern;
-extern fastgrep_t *fg_pattern;
+extern fastmatch_t *fg_pattern;
 
 /* For regex errors  */
 #define RE_ERROR_BUF	512
@@ -150,8 +150,3 @@ void	 clearqueue(void);
 void		 grep_close(struct file *f);
 struct file	*grep_open(const char *path);
 char		*grep_fgetln(struct file *f, size_t *len);
-
-/* fastgrep.c */
-int		 fastcomp(fastgrep_t *, const char *);
-void		 fgrepcomp(fastgrep_t *, const char *);
-int		 grep_search(fastgrep_t *, const unsigned char *, size_t, regmatch_t *);

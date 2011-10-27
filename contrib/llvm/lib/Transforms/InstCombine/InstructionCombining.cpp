@@ -46,8 +46,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/PatternMatch.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm-c/Initialization.h"
 #include <algorithm>
 #include <climits>
@@ -83,7 +85,7 @@ void InstCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
 /// ShouldChangeType - Return true if it is desirable to convert a computation
 /// from 'From' to 'To'.  We don't want to convert from a legal to an illegal
 /// type for example, or from a smaller to a larger illegal type.
-bool InstCombiner::ShouldChangeType(const Type *From, const Type *To) const {
+bool InstCombiner::ShouldChangeType(Type *From, Type *To) const {
   assert(From->isIntegerTy() && To->isIntegerTy());
   
   // If we don't have TD, we don't know if the source/dest are legal.
@@ -107,6 +109,43 @@ bool InstCombiner::ShouldChangeType(const Type *From, const Type *To) const {
   return true;
 }
 
+// Return true, if No Signed Wrap should be maintained for I.
+// The No Signed Wrap flag can be kept if the operation "B (I.getOpcode) C",
+// where both B and C should be ConstantInts, results in a constant that does
+// not overflow. This function only handles the Add and Sub opcodes. For
+// all other opcodes, the function conservatively returns false.
+static bool MaintainNoSignedWrap(BinaryOperator &I, Value *B, Value *C) {
+  OverflowingBinaryOperator *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
+  if (!OBO || !OBO->hasNoSignedWrap()) {
+    return false;
+  }
+
+  // We reason about Add and Sub Only.
+  Instruction::BinaryOps Opcode = I.getOpcode();
+  if (Opcode != Instruction::Add && 
+      Opcode != Instruction::Sub) {
+    return false;
+  }
+
+  ConstantInt *CB = dyn_cast<ConstantInt>(B);
+  ConstantInt *CC = dyn_cast<ConstantInt>(C);
+
+  if (!CB || !CC) {
+    return false;
+  }
+
+  const APInt &BVal = CB->getValue();
+  const APInt &CVal = CC->getValue();
+  bool Overflow = false;
+
+  if (Opcode == Instruction::Add) {
+    BVal.sadd_ov(CVal, Overflow);
+  } else {
+    BVal.ssub_ov(CVal, Overflow);
+  }
+
+  return !Overflow;
+}
 
 /// SimplifyAssociativeOrCommutative - This performs a few simplifications for
 /// operators which are associative or commutative:
@@ -158,7 +197,16 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
           I.setOperand(1, V);
           // Conservatively clear the optional flags, since they may not be
           // preserved by the reassociation.
-          I.clearSubclassOptionalData();
+          if (MaintainNoSignedWrap(I, B, C) &&
+	      (!Op0 || (isa<BinaryOperator>(Op0) && Op0->hasNoSignedWrap()))) {
+            // Note: this is only valid because SimplifyBinOp doesn't look at
+            // the operands to Op0.
+            I.clearSubclassOptionalData();
+            I.setHasNoSignedWrap(true);
+          } else {
+            I.clearSubclassOptionalData();
+          }
+            
           Changed = true;
           ++NumReassoc;
           continue;
@@ -240,7 +288,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
         Constant *C2 = cast<Constant>(Op1->getOperand(1));
 
         Constant *Folded = ConstantExpr::get(Opcode, C1, C2);
-        Instruction *New = BinaryOperator::Create(Opcode, A, B);
+        BinaryOperator *New = BinaryOperator::Create(Opcode, A, B);
         InsertNewInstWith(New, I);
         New->takeName(Op1);
         I.setOperand(0, New);
@@ -248,6 +296,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
         // Conservatively clear the optional flags, since they may not be
         // preserved by the reassociation.
         I.clearSubclassOptionalData();
+
         Changed = true;
         continue;
       }
@@ -516,8 +565,8 @@ Instruction *InstCombiner::FoldOpIntoSelect(Instruction &Op, SelectInst *SI) {
     // If it's a bitcast involving vectors, make sure it has the same number of
     // elements on both sides.
     if (BitCastInst *BC = dyn_cast<BitCastInst>(&Op)) {
-      const VectorType *DestTy = dyn_cast<VectorType>(BC->getDestTy());
-      const VectorType *SrcTy = dyn_cast<VectorType>(BC->getSrcTy());
+      VectorType *DestTy = dyn_cast<VectorType>(BC->getDestTy());
+      VectorType *SrcTy = dyn_cast<VectorType>(BC->getSrcTy());
 
       // Verify that either both or neither are vectors.
       if ((SrcTy == NULL) != (DestTy == NULL)) return 0;
@@ -654,7 +703,7 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
     }
   } else { 
     CastInst *CI = cast<CastInst>(&I);
-    const Type *RetTy = CI->getType();
+    Type *RetTy = CI->getType();
     for (unsigned i = 0; i != NumPHIValues; ++i) {
       Value *InV;
       if (Constant *InC = dyn_cast<Constant>(PN->getIncomingValue(i)))
@@ -680,7 +729,7 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
 /// or not there is a sequence of GEP indices into the type that will land us at
 /// the specified offset.  If so, fill them into NewIndices and return the
 /// resultant element type, otherwise return null.
-const Type *InstCombiner::FindElementAtOffset(const Type *Ty, int64_t Offset, 
+Type *InstCombiner::FindElementAtOffset(Type *Ty, int64_t Offset, 
                                           SmallVectorImpl<Value*> &NewIndices) {
   if (!TD) return 0;
   if (!Ty->isSized()) return 0;
@@ -688,7 +737,7 @@ const Type *InstCombiner::FindElementAtOffset(const Type *Ty, int64_t Offset,
   // Start with the index over the outer type.  Note that the type size
   // might be zero (even if the offset isn't zero) if the indexed type
   // is something like [0 x {int, int}]
-  const Type *IntPtrTy = TD->getIntPtrType(Ty->getContext());
+  Type *IntPtrTy = TD->getIntPtrType(Ty->getContext());
   int64_t FirstIdx = 0;
   if (int64_t TySize = TD->getTypeAllocSize(Ty)) {
     FirstIdx = Offset/TySize;
@@ -711,7 +760,7 @@ const Type *InstCombiner::FindElementAtOffset(const Type *Ty, int64_t Offset,
     if (uint64_t(Offset*8) >= TD->getTypeSizeInBits(Ty))
       return 0;
     
-    if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+    if (StructType *STy = dyn_cast<StructType>(Ty)) {
       const StructLayout *SL = TD->getStructLayout(STy);
       assert(Offset < (int64_t)SL->getSizeInBytes() &&
              "Offset must stay within the indexed type");
@@ -722,7 +771,7 @@ const Type *InstCombiner::FindElementAtOffset(const Type *Ty, int64_t Offset,
       
       Offset -= SL->getElementOffset(Elt);
       Ty = STy->getElementType(Elt);
-    } else if (const ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
+    } else if (ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
       uint64_t EltSize = TD->getTypeAllocSize(AT->getElementType());
       assert(EltSize && "Cannot index into a zero-sized array");
       NewIndices.push_back(ConstantInt::get(IntPtrTy,Offset/EltSize));
@@ -737,12 +786,20 @@ const Type *InstCombiner::FindElementAtOffset(const Type *Ty, int64_t Offset,
   return Ty;
 }
 
-
+static bool shouldMergeGEPs(GEPOperator &GEP, GEPOperator &Src) {
+  // If this GEP has only 0 indices, it is the same pointer as
+  // Src. If Src is not a trivial GEP too, don't combine
+  // the indices.
+  if (GEP.hasAllZeroIndices() && !Src.hasAllZeroIndices() &&
+      !Src.hasOneUse())
+    return false;
+  return true;
+}
 
 Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   SmallVector<Value*, 8> Ops(GEP.op_begin(), GEP.op_end());
 
-  if (Value *V = SimplifyGEPInst(&Ops[0], Ops.size(), TD))
+  if (Value *V = SimplifyGEPInst(Ops, TD))
     return ReplaceInstUsesWith(GEP, V);
 
   Value *PtrOp = GEP.getOperand(0);
@@ -751,13 +808,13 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   // by multiples of a zero size type with zero.
   if (TD) {
     bool MadeChange = false;
-    const Type *IntPtrTy = TD->getIntPtrType(GEP.getContext());
+    Type *IntPtrTy = TD->getIntPtrType(GEP.getContext());
 
     gep_type_iterator GTI = gep_type_begin(GEP);
     for (User::op_iterator I = GEP.op_begin() + 1, E = GEP.op_end();
          I != E; ++I, ++GTI) {
       // Skip indices into struct types.
-      const SequentialType *SeqTy = dyn_cast<SequentialType>(*GTI);
+      SequentialType *SeqTy = dyn_cast<SequentialType>(*GTI);
       if (!SeqTy) continue;
 
       // If the element type has zero size then any index over it is equivalent
@@ -785,21 +842,15 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   // getelementptr instructions into a single instruction.
   //
   if (GEPOperator *Src = dyn_cast<GEPOperator>(PtrOp)) {
-
-    // If this GEP has only 0 indices, it is the same pointer as
-    // Src. If Src is not a trivial GEP too, don't combine
-    // the indices.
-    if (GEP.hasAllZeroIndices() && !Src->hasAllZeroIndices() &&
-        !Src->hasOneUse())
+    if (!shouldMergeGEPs(*cast<GEPOperator>(&GEP), *Src))
       return 0;
 
     // Note that if our source is a gep chain itself that we wait for that
     // chain to be resolved before we perform this transformation.  This
     // avoids us creating a TON of code in some cases.
-    //
-    if (GetElementPtrInst *SrcGEP =
-          dyn_cast<GetElementPtrInst>(Src->getOperand(0)))
-      if (SrcGEP->getNumOperands() == 2)
+    if (GEPOperator *SrcGEP =
+          dyn_cast<GEPOperator>(Src->getOperand(0)))
+      if (SrcGEP->getNumOperands() == 2 && shouldMergeGEPs(*Src, *SrcGEP))
         return 0;   // Wait until our source is folded to completion.
 
     SmallVector<Value*, 8> Indices;
@@ -851,15 +902,14 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
 
     if (!Indices.empty())
       return (GEP.isInBounds() && Src->isInBounds()) ?
-        GetElementPtrInst::CreateInBounds(Src->getOperand(0), Indices.begin(),
-                                          Indices.end(), GEP.getName()) :
-        GetElementPtrInst::Create(Src->getOperand(0), Indices.begin(),
-                                  Indices.end(), GEP.getName());
+        GetElementPtrInst::CreateInBounds(Src->getOperand(0), Indices,
+                                          GEP.getName()) :
+        GetElementPtrInst::Create(Src->getOperand(0), Indices, GEP.getName());
   }
 
   // Handle gep(bitcast x) and gep(gep x, 0, 0, 0).
   Value *StrippedPtr = PtrOp->stripPointerCasts();
-  const PointerType *StrippedPtrTy =cast<PointerType>(StrippedPtr->getType());
+  PointerType *StrippedPtrTy =cast<PointerType>(StrippedPtr->getType());
   if (StrippedPtr != PtrOp &&
     StrippedPtrTy->getAddressSpace() == GEP.getPointerAddressSpace()) {
 
@@ -875,21 +925,20 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
     //
     // This occurs when the program declares an array extern like "int X[];"
     if (HasZeroPointerIndex) {
-      const PointerType *CPTy = cast<PointerType>(PtrOp->getType());
-      if (const ArrayType *CATy =
+      PointerType *CPTy = cast<PointerType>(PtrOp->getType());
+      if (ArrayType *CATy =
           dyn_cast<ArrayType>(CPTy->getElementType())) {
         // GEP (bitcast i8* X to [0 x i8]*), i32 0, ... ?
         if (CATy->getElementType() == StrippedPtrTy->getElementType()) {
           // -> GEP i8* X, ...
           SmallVector<Value*, 8> Idx(GEP.idx_begin()+1, GEP.idx_end());
           GetElementPtrInst *Res =
-            GetElementPtrInst::Create(StrippedPtr, Idx.begin(),
-                                      Idx.end(), GEP.getName());
+            GetElementPtrInst::Create(StrippedPtr, Idx, GEP.getName());
           Res->setIsInBounds(GEP.isInBounds());
           return Res;
         }
         
-        if (const ArrayType *XATy =
+        if (ArrayType *XATy =
               dyn_cast<ArrayType>(StrippedPtrTy->getElementType())){
           // GEP (bitcast [10 x i8]* X to [0 x i8]*), i32 0, ... ?
           if (CATy->getElementType() == XATy->getElementType()) {
@@ -907,8 +956,8 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       // Transform things like:
       // %t = getelementptr i32* bitcast ([2 x i32]* %str to i32*), i32 %V
       // into:  %t1 = getelementptr [2 x i32]* %str, i32 0, i32 %V; bitcast
-      const Type *SrcElTy = StrippedPtrTy->getElementType();
-      const Type *ResElTy=cast<PointerType>(PtrOp->getType())->getElementType();
+      Type *SrcElTy = StrippedPtrTy->getElementType();
+      Type *ResElTy=cast<PointerType>(PtrOp->getType())->getElementType();
       if (TD && SrcElTy->isArrayTy() &&
           TD->getTypeAllocSize(cast<ArrayType>(SrcElTy)->getElementType()) ==
           TD->getTypeAllocSize(ResElTy)) {
@@ -916,8 +965,8 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
         Idx[0] = Constant::getNullValue(Type::getInt32Ty(GEP.getContext()));
         Idx[1] = GEP.getOperand(1);
         Value *NewGEP = GEP.isInBounds() ?
-          Builder->CreateInBoundsGEP(StrippedPtr, Idx, Idx + 2, GEP.getName()) :
-          Builder->CreateGEP(StrippedPtr, Idx, Idx + 2, GEP.getName());
+          Builder->CreateInBoundsGEP(StrippedPtr, Idx, GEP.getName()) :
+          Builder->CreateGEP(StrippedPtr, Idx, GEP.getName());
         // V and GEP are both pointer types --> BitCast
         return new BitCastInst(NewGEP, GEP.getType());
       }
@@ -975,8 +1024,8 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
           Idx[0] = Constant::getNullValue(Type::getInt32Ty(GEP.getContext()));
           Idx[1] = NewIdx;
           Value *NewGEP = GEP.isInBounds() ?
-            Builder->CreateInBoundsGEP(StrippedPtr, Idx, Idx + 2,GEP.getName()):
-            Builder->CreateGEP(StrippedPtr, Idx, Idx + 2, GEP.getName());
+            Builder->CreateInBoundsGEP(StrippedPtr, Idx, GEP.getName()):
+            Builder->CreateGEP(StrippedPtr, Idx, GEP.getName());
           // The NewGEP must be pointer typed, so must the old one -> BitCast
           return new BitCastInst(NewGEP, GEP.getType());
         }
@@ -1023,14 +1072,12 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       // field at Offset in 'A's type.  If so, we can pull the cast through the
       // GEP.
       SmallVector<Value*, 8> NewIndices;
-      const Type *InTy =
+      Type *InTy =
         cast<PointerType>(BCI->getOperand(0)->getType())->getElementType();
       if (FindElementAtOffset(InTy, Offset, NewIndices)) {
         Value *NGEP = GEP.isInBounds() ?
-          Builder->CreateInBoundsGEP(BCI->getOperand(0), NewIndices.begin(),
-                                     NewIndices.end()) :
-          Builder->CreateGEP(BCI->getOperand(0), NewIndices.begin(),
-                             NewIndices.end());
+          Builder->CreateInBoundsGEP(BCI->getOperand(0), NewIndices) :
+          Builder->CreateGEP(BCI->getOperand(0), NewIndices);
         
         if (NGEP->getType() == GEP.getType())
           return ReplaceInstUsesWith(GEP, NGEP);
@@ -1045,15 +1092,43 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
 
 
 
-static bool IsOnlyNullComparedAndFreed(const Value &V) {
-  for (Value::const_use_iterator UI = V.use_begin(), UE = V.use_end();
+static bool IsOnlyNullComparedAndFreed(Value *V, SmallVectorImpl<WeakVH> &Users,
+                                       int Depth = 0) {
+  if (Depth == 8)
+    return false;
+
+  for (Value::use_iterator UI = V->use_begin(), UE = V->use_end();
        UI != UE; ++UI) {
-    const User *U = *UI;
-    if (isFreeCall(U))
+    User *U = *UI;
+    if (isFreeCall(U)) {
+      Users.push_back(U);
       continue;
-    if (const ICmpInst *ICI = dyn_cast<ICmpInst>(U))
-      if (ICI->isEquality() && isa<ConstantPointerNull>(ICI->getOperand(1)))
+    }
+    if (ICmpInst *ICI = dyn_cast<ICmpInst>(U)) {
+      if (ICI->isEquality() && isa<ConstantPointerNull>(ICI->getOperand(1))) {
+        Users.push_back(ICI);
         continue;
+      }
+    }
+    if (BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
+      if (IsOnlyNullComparedAndFreed(BCI, Users, Depth+1)) {
+        Users.push_back(BCI);
+        continue;
+      }
+    }
+    if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(U)) {
+      if (IsOnlyNullComparedAndFreed(GEPI, Users, Depth+1)) {
+        Users.push_back(GEPI);
+        continue;
+      }
+    }
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+      if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == Intrinsic::lifetime_end) {
+        Users.push_back(II);
+        continue;
+      }
+    }
     return false;
   }
   return true;
@@ -1063,25 +1138,20 @@ Instruction *InstCombiner::visitMalloc(Instruction &MI) {
   // If we have a malloc call which is only used in any amount of comparisons
   // to null and free calls, delete the calls and replace the comparisons with
   // true or false as appropriate.
-  if (IsOnlyNullComparedAndFreed(MI)) {
-    for (Value::use_iterator UI = MI.use_begin(), UE = MI.use_end();
-         UI != UE;) {
-      // We can assume that every remaining use is a free call or an icmp eq/ne
-      // to null, so the cast is safe.
-      Instruction *I = cast<Instruction>(*UI);
+  SmallVector<WeakVH, 64> Users;
+  if (IsOnlyNullComparedAndFreed(&MI, Users)) {
+    for (unsigned i = 0, e = Users.size(); i != e; ++i) {
+      Instruction *I = cast_or_null<Instruction>(&*Users[i]);
+      if (!I) continue;
 
-      // Early increment here, as we're about to get rid of the user.
-      ++UI;
-
-      if (isFreeCall(I)) {
-        EraseInstFromFunction(*cast<CallInst>(I));
-        continue;
+      if (ICmpInst *C = dyn_cast<ICmpInst>(I)) {
+        ReplaceInstUsesWith(*C,
+                            ConstantInt::get(Type::getInt1Ty(C->getContext()),
+                                             C->isFalseWhenEqual()));
+      } else if (isa<BitCastInst>(I) || isa<GetElementPtrInst>(I)) {
+        ReplaceInstUsesWith(*I, UndefValue::get(I->getType()));
       }
-      // Again, the cast is safe.
-      ICmpInst *C = cast<ICmpInst>(I);
-      ReplaceInstUsesWith(*C, ConstantInt::get(Type::getInt1Ty(C->getContext()),
-                                               C->isFalseWhenEqual()));
-      EraseInstFromFunction(*C);
+      EraseInstFromFunction(*I);
     }
     return EraseInstFromFunction(MI);
   }
@@ -1120,8 +1190,7 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
       !isa<Constant>(X)) {
     // Swap Destinations and condition...
     BI.setCondition(X);
-    BI.setSuccessor(0, FalseDest);
-    BI.setSuccessor(1, TrueDest);
+    BI.swapSuccessors();
     return &BI;
   }
 
@@ -1136,8 +1205,7 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
       Cond->setPredicate(FCmpInst::getInversePredicate(FPred));
       
       // Swap Destinations and condition.
-      BI.setSuccessor(0, FalseDest);
-      BI.setSuccessor(1, TrueDest);
+      BI.swapSuccessors();
       Worklist.Add(Cond);
       return &BI;
     }
@@ -1153,8 +1221,7 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
       ICmpInst *Cond = cast<ICmpInst>(BI.getCondition());
       Cond->setPredicate(ICmpInst::getInversePredicate(IPred));
       // Swap Destinations and condition.
-      BI.setSuccessor(0, FalseDest);
-      BI.setSuccessor(1, TrueDest);
+      BI.swapSuccessors();
       Worklist.Add(Cond);
       return &BI;
     }
@@ -1168,11 +1235,17 @@ Instruction *InstCombiner::visitSwitchInst(SwitchInst &SI) {
     if (I->getOpcode() == Instruction::Add)
       if (ConstantInt *AddRHS = dyn_cast<ConstantInt>(I->getOperand(1))) {
         // change 'switch (X+4) case 1:' into 'switch (X) case -3'
-        for (unsigned i = 2, e = SI.getNumOperands(); i != e; i += 2)
-          SI.setOperand(i,
-                   ConstantExpr::getSub(cast<Constant>(SI.getOperand(i)),
-                                                AddRHS));
-        SI.setOperand(0, I->getOperand(0));
+        unsigned NumCases = SI.getNumCases();
+        // Skip the first item since that's the default case.
+        for (unsigned i = 1; i < NumCases; ++i) {
+          ConstantInt* CaseVal = SI.getCaseValue(i);
+          Constant* NewCaseVal = ConstantExpr::getSub(cast<Constant>(CaseVal),
+                                                      AddRHS);
+          assert(isa<ConstantInt>(NewCaseVal) &&
+                 "Result of expression should be constant");
+          SI.setSuccessorValue(i, cast<ConstantInt>(NewCaseVal));
+        }
+        SI.setCondition(I->getOperand(0));
         Worklist.Add(I);
         return &SI;
       }
@@ -1242,7 +1315,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       Value *NewEV = Builder->CreateExtractValue(IV->getAggregateOperand(),
                                                  EV.getIndices());
       return InsertValueInst::Create(NewEV, IV->getInsertedValueOperand(),
-                                     ArrayRef<unsigned>(insi, inse));
+                                     makeArrayRef(insi, inse));
     }
     if (insi == inse)
       // The insert list is a prefix of the extract list
@@ -1254,7 +1327,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       // with
       // %E extractvalue { i32 } { i32 42 }, 0
       return ExtractValueInst::Create(IV->getInsertedValueOperand(), 
-                                      ArrayRef<unsigned>(exti, exte));
+                                      makeArrayRef(exti, exte));
   }
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Agg)) {
     // We're extracting from an intrinsic, see if we're the only user, which
@@ -1310,7 +1383,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
     // load from a GEP. This reduces the size of the load.
     // FIXME: If a load is used only by extractvalue instructions then this
     //        could be done regardless of having multiple uses.
-    if (!L->isVolatile() && L->hasOneUse()) {
+    if (L->isSimple() && L->hasOneUse()) {
       // extractvalue has integer indices, getelementptr has Value*s. Convert.
       SmallVector<Value*, 4> Indices;
       // Prefix an i32 0 since we need the first element.
@@ -1322,8 +1395,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       // We need to insert these at the location of the old load, not at that of
       // the extractvalue.
       Builder->SetInsertPoint(L->getParent(), L);
-      Value *GEP = Builder->CreateInBoundsGEP(L->getPointerOperand(),
-                                              Indices.begin(), Indices.end());
+      Value *GEP = Builder->CreateInBoundsGEP(L->getPointerOperand(), Indices);
       // Returning the load directly will cause the main loop to insert it in
       // the wrong spot, so use ReplaceInstUsesWith().
       return ReplaceInstUsesWith(EV, Builder->CreateLoad(GEP));
@@ -1339,6 +1411,342 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
   return 0;
 }
 
+enum Personality_Type {
+  Unknown_Personality,
+  GNU_Ada_Personality,
+  GNU_CXX_Personality
+};
+
+/// RecognizePersonality - See if the given exception handling personality
+/// function is one that we understand.  If so, return a description of it;
+/// otherwise return Unknown_Personality.
+static Personality_Type RecognizePersonality(Value *Pers) {
+  Function *F = dyn_cast<Function>(Pers->stripPointerCasts());
+  if (!F)
+    return Unknown_Personality;
+  return StringSwitch<Personality_Type>(F->getName())
+    .Case("__gnat_eh_personality", GNU_Ada_Personality)
+    .Case("__gxx_personality_v0", GNU_CXX_Personality)
+    .Default(Unknown_Personality);
+}
+
+/// isCatchAll - Return 'true' if the given typeinfo will match anything.
+static bool isCatchAll(Personality_Type Personality, Constant *TypeInfo) {
+  switch (Personality) {
+  case Unknown_Personality:
+    return false;
+  case GNU_Ada_Personality:
+    // While __gnat_all_others_value will match any Ada exception, it doesn't
+    // match foreign exceptions (or didn't, before gcc-4.7).
+    return false;
+  case GNU_CXX_Personality:
+    return TypeInfo->isNullValue();
+  }
+  llvm_unreachable("Unknown personality!");
+}
+
+static bool shorter_filter(const Value *LHS, const Value *RHS) {
+  return
+    cast<ArrayType>(LHS->getType())->getNumElements()
+  <
+    cast<ArrayType>(RHS->getType())->getNumElements();
+}
+
+Instruction *InstCombiner::visitLandingPadInst(LandingPadInst &LI) {
+  // The logic here should be correct for any real-world personality function.
+  // However if that turns out not to be true, the offending logic can always
+  // be conditioned on the personality function, like the catch-all logic is.
+  Personality_Type Personality = RecognizePersonality(LI.getPersonalityFn());
+
+  // Simplify the list of clauses, eg by removing repeated catch clauses
+  // (these are often created by inlining).
+  bool MakeNewInstruction = false; // If true, recreate using the following:
+  SmallVector<Value *, 16> NewClauses; // - Clauses for the new instruction;
+  bool CleanupFlag = LI.isCleanup();   // - The new instruction is a cleanup.
+
+  SmallPtrSet<Value *, 16> AlreadyCaught; // Typeinfos known caught already.
+  for (unsigned i = 0, e = LI.getNumClauses(); i != e; ++i) {
+    bool isLastClause = i + 1 == e;
+    if (LI.isCatch(i)) {
+      // A catch clause.
+      Value *CatchClause = LI.getClause(i);
+      Constant *TypeInfo = cast<Constant>(CatchClause->stripPointerCasts());
+
+      // If we already saw this clause, there is no point in having a second
+      // copy of it.
+      if (AlreadyCaught.insert(TypeInfo)) {
+        // This catch clause was not already seen.
+        NewClauses.push_back(CatchClause);
+      } else {
+        // Repeated catch clause - drop the redundant copy.
+        MakeNewInstruction = true;
+      }
+
+      // If this is a catch-all then there is no point in keeping any following
+      // clauses or marking the landingpad as having a cleanup.
+      if (isCatchAll(Personality, TypeInfo)) {
+        if (!isLastClause)
+          MakeNewInstruction = true;
+        CleanupFlag = false;
+        break;
+      }
+    } else {
+      // A filter clause.  If any of the filter elements were already caught
+      // then they can be dropped from the filter.  It is tempting to try to
+      // exploit the filter further by saying that any typeinfo that does not
+      // occur in the filter can't be caught later (and thus can be dropped).
+      // However this would be wrong, since typeinfos can match without being
+      // equal (for example if one represents a C++ class, and the other some
+      // class derived from it).
+      assert(LI.isFilter(i) && "Unsupported landingpad clause!");
+      Value *FilterClause = LI.getClause(i);
+      ArrayType *FilterType = cast<ArrayType>(FilterClause->getType());
+      unsigned NumTypeInfos = FilterType->getNumElements();
+
+      // An empty filter catches everything, so there is no point in keeping any
+      // following clauses or marking the landingpad as having a cleanup.  By
+      // dealing with this case here the following code is made a bit simpler.
+      if (!NumTypeInfos) {
+        NewClauses.push_back(FilterClause);
+        if (!isLastClause)
+          MakeNewInstruction = true;
+        CleanupFlag = false;
+        break;
+      }
+
+      bool MakeNewFilter = false; // If true, make a new filter.
+      SmallVector<Constant *, 16> NewFilterElts; // New elements.
+      if (isa<ConstantAggregateZero>(FilterClause)) {
+        // Not an empty filter - it contains at least one null typeinfo.
+        assert(NumTypeInfos > 0 && "Should have handled empty filter already!");
+        Constant *TypeInfo =
+          Constant::getNullValue(FilterType->getElementType());
+        // If this typeinfo is a catch-all then the filter can never match.
+        if (isCatchAll(Personality, TypeInfo)) {
+          // Throw the filter away.
+          MakeNewInstruction = true;
+          continue;
+        }
+
+        // There is no point in having multiple copies of this typeinfo, so
+        // discard all but the first copy if there is more than one.
+        NewFilterElts.push_back(TypeInfo);
+        if (NumTypeInfos > 1)
+          MakeNewFilter = true;
+      } else {
+        ConstantArray *Filter = cast<ConstantArray>(FilterClause);
+        SmallPtrSet<Value *, 16> SeenInFilter; // For uniquing the elements.
+        NewFilterElts.reserve(NumTypeInfos);
+
+        // Remove any filter elements that were already caught or that already
+        // occurred in the filter.  While there, see if any of the elements are
+        // catch-alls.  If so, the filter can be discarded.
+        bool SawCatchAll = false;
+        for (unsigned j = 0; j != NumTypeInfos; ++j) {
+          Value *Elt = Filter->getOperand(j);
+          Constant *TypeInfo = cast<Constant>(Elt->stripPointerCasts());
+          if (isCatchAll(Personality, TypeInfo)) {
+            // This element is a catch-all.  Bail out, noting this fact.
+            SawCatchAll = true;
+            break;
+          }
+          if (AlreadyCaught.count(TypeInfo))
+            // Already caught by an earlier clause, so having it in the filter
+            // is pointless.
+            continue;
+          // There is no point in having multiple copies of the same typeinfo in
+          // a filter, so only add it if we didn't already.
+          if (SeenInFilter.insert(TypeInfo))
+            NewFilterElts.push_back(cast<Constant>(Elt));
+        }
+        // A filter containing a catch-all cannot match anything by definition.
+        if (SawCatchAll) {
+          // Throw the filter away.
+          MakeNewInstruction = true;
+          continue;
+        }
+
+        // If we dropped something from the filter, make a new one.
+        if (NewFilterElts.size() < NumTypeInfos)
+          MakeNewFilter = true;
+      }
+      if (MakeNewFilter) {
+        FilterType = ArrayType::get(FilterType->getElementType(),
+                                    NewFilterElts.size());
+        FilterClause = ConstantArray::get(FilterType, NewFilterElts);
+        MakeNewInstruction = true;
+      }
+
+      NewClauses.push_back(FilterClause);
+
+      // If the new filter is empty then it will catch everything so there is
+      // no point in keeping any following clauses or marking the landingpad
+      // as having a cleanup.  The case of the original filter being empty was
+      // already handled above.
+      if (MakeNewFilter && !NewFilterElts.size()) {
+        assert(MakeNewInstruction && "New filter but not a new instruction!");
+        CleanupFlag = false;
+        break;
+      }
+    }
+  }
+
+  // If several filters occur in a row then reorder them so that the shortest
+  // filters come first (those with the smallest number of elements).  This is
+  // advantageous because shorter filters are more likely to match, speeding up
+  // unwinding, but mostly because it increases the effectiveness of the other
+  // filter optimizations below.
+  for (unsigned i = 0, e = NewClauses.size(); i + 1 < e; ) {
+    unsigned j;
+    // Find the maximal 'j' s.t. the range [i, j) consists entirely of filters.
+    for (j = i; j != e; ++j)
+      if (!isa<ArrayType>(NewClauses[j]->getType()))
+        break;
+
+    // Check whether the filters are already sorted by length.  We need to know
+    // if sorting them is actually going to do anything so that we only make a
+    // new landingpad instruction if it does.
+    for (unsigned k = i; k + 1 < j; ++k)
+      if (shorter_filter(NewClauses[k+1], NewClauses[k])) {
+        // Not sorted, so sort the filters now.  Doing an unstable sort would be
+        // correct too but reordering filters pointlessly might confuse users.
+        std::stable_sort(NewClauses.begin() + i, NewClauses.begin() + j,
+                         shorter_filter);
+        MakeNewInstruction = true;
+        break;
+      }
+
+    // Look for the next batch of filters.
+    i = j + 1;
+  }
+
+  // If typeinfos matched if and only if equal, then the elements of a filter L
+  // that occurs later than a filter F could be replaced by the intersection of
+  // the elements of F and L.  In reality two typeinfos can match without being
+  // equal (for example if one represents a C++ class, and the other some class
+  // derived from it) so it would be wrong to perform this transform in general.
+  // However the transform is correct and useful if F is a subset of L.  In that
+  // case L can be replaced by F, and thus removed altogether since repeating a
+  // filter is pointless.  So here we look at all pairs of filters F and L where
+  // L follows F in the list of clauses, and remove L if every element of F is
+  // an element of L.  This can occur when inlining C++ functions with exception
+  // specifications.
+  for (unsigned i = 0; i + 1 < NewClauses.size(); ++i) {
+    // Examine each filter in turn.
+    Value *Filter = NewClauses[i];
+    ArrayType *FTy = dyn_cast<ArrayType>(Filter->getType());
+    if (!FTy)
+      // Not a filter - skip it.
+      continue;
+    unsigned FElts = FTy->getNumElements();
+    // Examine each filter following this one.  Doing this backwards means that
+    // we don't have to worry about filters disappearing under us when removed.
+    for (unsigned j = NewClauses.size() - 1; j != i; --j) {
+      Value *LFilter = NewClauses[j];
+      ArrayType *LTy = dyn_cast<ArrayType>(LFilter->getType());
+      if (!LTy)
+        // Not a filter - skip it.
+        continue;
+      // If Filter is a subset of LFilter, i.e. every element of Filter is also
+      // an element of LFilter, then discard LFilter.
+      SmallVector<Value *, 16>::iterator J = NewClauses.begin() + j;
+      // If Filter is empty then it is a subset of LFilter.
+      if (!FElts) {
+        // Discard LFilter.
+        NewClauses.erase(J);
+        MakeNewInstruction = true;
+        // Move on to the next filter.
+        continue;
+      }
+      unsigned LElts = LTy->getNumElements();
+      // If Filter is longer than LFilter then it cannot be a subset of it.
+      if (FElts > LElts)
+        // Move on to the next filter.
+        continue;
+      // At this point we know that LFilter has at least one element.
+      if (isa<ConstantAggregateZero>(LFilter)) { // LFilter only contains zeros.
+        // Filter is a subset of LFilter iff Filter contains only zeros (as we
+        // already know that Filter is not longer than LFilter).
+        if (isa<ConstantAggregateZero>(Filter)) {
+          assert(FElts <= LElts && "Should have handled this case earlier!");
+          // Discard LFilter.
+          NewClauses.erase(J);
+          MakeNewInstruction = true;
+        }
+        // Move on to the next filter.
+        continue;
+      }
+      ConstantArray *LArray = cast<ConstantArray>(LFilter);
+      if (isa<ConstantAggregateZero>(Filter)) { // Filter only contains zeros.
+        // Since Filter is non-empty and contains only zeros, it is a subset of
+        // LFilter iff LFilter contains a zero.
+        assert(FElts > 0 && "Should have eliminated the empty filter earlier!");
+        for (unsigned l = 0; l != LElts; ++l)
+          if (LArray->getOperand(l)->isNullValue()) {
+            // LFilter contains a zero - discard it.
+            NewClauses.erase(J);
+            MakeNewInstruction = true;
+            break;
+          }
+        // Move on to the next filter.
+        continue;
+      }
+      // At this point we know that both filters are ConstantArrays.  Loop over
+      // operands to see whether every element of Filter is also an element of
+      // LFilter.  Since filters tend to be short this is probably faster than
+      // using a method that scales nicely.
+      ConstantArray *FArray = cast<ConstantArray>(Filter);
+      bool AllFound = true;
+      for (unsigned f = 0; f != FElts; ++f) {
+        Value *FTypeInfo = FArray->getOperand(f)->stripPointerCasts();
+        AllFound = false;
+        for (unsigned l = 0; l != LElts; ++l) {
+          Value *LTypeInfo = LArray->getOperand(l)->stripPointerCasts();
+          if (LTypeInfo == FTypeInfo) {
+            AllFound = true;
+            break;
+          }
+        }
+        if (!AllFound)
+          break;
+      }
+      if (AllFound) {
+        // Discard LFilter.
+        NewClauses.erase(J);
+        MakeNewInstruction = true;
+      }
+      // Move on to the next filter.
+    }
+  }
+
+  // If we changed any of the clauses, replace the old landingpad instruction
+  // with a new one.
+  if (MakeNewInstruction) {
+    LandingPadInst *NLI = LandingPadInst::Create(LI.getType(),
+                                                 LI.getPersonalityFn(),
+                                                 NewClauses.size());
+    for (unsigned i = 0, e = NewClauses.size(); i != e; ++i)
+      NLI->addClause(NewClauses[i]);
+    // A landing pad with no clauses must have the cleanup flag set.  It is
+    // theoretically possible, though highly unlikely, that we eliminated all
+    // clauses.  If so, force the cleanup flag to true.
+    if (NewClauses.empty())
+      CleanupFlag = true;
+    NLI->setCleanup(CleanupFlag);
+    return NLI;
+  }
+
+  // Even if none of the clauses changed, we may nonetheless have understood
+  // that the cleanup flag is pointless.  Clear it if so.
+  if (LI.isCleanup() != CleanupFlag) {
+    assert(!CleanupFlag && "Adding a cleanup, not removing one?!");
+    LI.setCleanup(CleanupFlag);
+    return &LI;
+  }
+
+  return 0;
+}
+
 
 
 
@@ -1350,7 +1758,8 @@ static bool TryToSinkInstruction(Instruction *I, BasicBlock *DestBlock) {
   assert(I->hasOneUse() && "Invariants didn't hold!");
 
   // Cannot move control-flow-involving, volatile loads, vaarg, etc.
-  if (isa<PHINode>(I) || I->mayHaveSideEffects() || isa<TerminatorInst>(I))
+  if (isa<PHINode>(I) || isa<LandingPadInst>(I) || I->mayHaveSideEffects() ||
+      isa<TerminatorInst>(I))
     return false;
 
   // Do not sink alloca instructions out of the entry block.
@@ -1367,8 +1776,7 @@ static bool TryToSinkInstruction(Instruction *I, BasicBlock *DestBlock) {
         return false;
   }
 
-  BasicBlock::iterator InsertPos = DestBlock->getFirstNonPHI();
-
+  BasicBlock::iterator InsertPos = DestBlock->getFirstInsertionPt();
   I->moveBefore(InsertPos);
   ++NumSunkInst;
   return true;
@@ -1503,27 +1911,29 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
     // Do a quick scan over the function.  If we find any blocks that are
     // unreachable, remove any instructions inside of them.  This prevents
     // the instcombine code from having to deal with some bad special cases.
-    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-      if (!Visited.count(BB)) {
-        Instruction *Term = BB->getTerminator();
-        while (Term != BB->begin()) {   // Remove instrs bottom-up
-          BasicBlock::iterator I = Term; --I;
+    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+      if (Visited.count(BB)) continue;
 
-          DEBUG(errs() << "IC: DCE: " << *I << '\n');
-          // A debug intrinsic shouldn't force another iteration if we weren't
-          // going to do one without it.
-          if (!isa<DbgInfoIntrinsic>(I)) {
-            ++NumDeadInst;
-            MadeIRChange = true;
-          }
-
-          // If I is not void type then replaceAllUsesWith undef.
-          // This allows ValueHandlers and custom metadata to adjust itself.
-          if (!I->getType()->isVoidTy())
-            I->replaceAllUsesWith(UndefValue::get(I->getType()));
-          I->eraseFromParent();
+      // Delete the instructions backwards, as it has a reduced likelihood of
+      // having to update as many def-use and use-def chains.
+      Instruction *EndInst = BB->getTerminator(); // Last not to be deleted.
+      while (EndInst != BB->begin()) {
+        // Delete the next to last instruction.
+        BasicBlock::iterator I = EndInst;
+        Instruction *Inst = --I;
+        if (!Inst->use_empty())
+          Inst->replaceAllUsesWith(UndefValue::get(Inst->getType()));
+        if (isa<LandingPadInst>(Inst)) {
+          EndInst = Inst;
+          continue;
         }
+        if (!isa<DbgInfoIntrinsic>(Inst)) {
+          ++NumDeadInst;
+          MadeIRChange = true;
+        }
+        Inst->eraseFromParent();
       }
+    }
   }
 
   while (!Worklist.isEmpty()) {
@@ -1604,12 +2014,12 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
         // Everything uses the new instruction now.
         I->replaceAllUsesWith(Result);
 
+        // Move the name to the new instruction first.
+        Result->takeName(I);
+
         // Push the new instruction and any users onto the worklist.
         Worklist.Add(Result);
         Worklist.AddUsersToWorkList(*Result);
-
-        // Move the name to the new instruction first.
-        Result->takeName(I);
 
         // Insert the new instruction into the basic block...
         BasicBlock *InstParent = I->getParent();

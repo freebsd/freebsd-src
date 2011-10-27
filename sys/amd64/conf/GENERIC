@@ -152,6 +152,7 @@ device		mlx		# Mylex DAC960 family
 #XXX pointer/int warnings
 #device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware ATA RAID
+device		tws		# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc		# AT keyboard controller
@@ -331,7 +332,8 @@ device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 
 # FireWire support
 device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
+# sbp(4) works for some systems but causes boot failure on others
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver

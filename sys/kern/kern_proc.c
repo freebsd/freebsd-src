@@ -608,8 +608,8 @@ orphanpg(pg)
 			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
-				psignal(p, SIGHUP);
-				psignal(p, SIGCONT);
+				kern_psignal(p, SIGHUP);
+				kern_psignal(p, SIGCONT);
 				PROC_UNLOCK(p);
 			}
 			return;

@@ -5669,7 +5669,7 @@ dtrace_action_raise(uint64_t sig)
 #else
 	struct proc *p = curproc;
 	PROC_LOCK(p);
-	psignal(p, sig);
+	kern_psignal(p, sig);
 	PROC_UNLOCK(p);
 #endif
 }
@@ -5689,7 +5689,7 @@ dtrace_action_stop(void)
 #else
 	struct proc *p = curproc;
 	PROC_LOCK(p);
-	psignal(p, SIGSTOP);
+	kern_psignal(p, SIGSTOP);
 	PROC_UNLOCK(p);
 #endif
 }

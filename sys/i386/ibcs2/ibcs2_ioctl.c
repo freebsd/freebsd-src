@@ -499,12 +499,12 @@ ibcs2_ioctl(td, uap)
 
 	case IBCS2_TIOCGWINSZ:
 		uap->cmd = TIOCGWINSZ;
-		error = ioctl(td, (struct ioctl_args *)uap);
+		error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_TIOCSWINSZ:
 		uap->cmd = TIOCSWINSZ;
-		error = ioctl(td, (struct ioctl_args *)uap);
+		error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_TIOCGPGRP:
@@ -525,7 +525,7 @@ ibcs2_ioctl(td, uap)
 
 		sa.pid = 0;
 		sa.pgid = (int)uap->data;
-		error = setpgid(td, &sa);
+		error = sys_setpgid(td, &sa);
 		break;
 	    }
 
@@ -565,103 +565,103 @@ ibcs2_ioctl(td, uap)
 	case IBCS2_KDGKBMODE:        /* get keyboard translation mode */
 	        uap->cmd = KDGKBMODE;
 /* printf("ioctl KDGKBMODE = %x\n", uap->cmd);*/
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDSKBMODE:        /* set keyboard translation mode */
 	        uap->cmd = KDSKBMODE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDMKTONE:        /* sound tone */
 	        uap->cmd = KDMKTONE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDGETMODE:        /* get text/graphics mode */  
 	        uap->cmd = KDGETMODE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDSETMODE:       /* set text/graphics mode */
 	        uap->cmd = KDSETMODE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDSBORDER:       /* set ega color border */
 	        uap->cmd = KDSBORDER;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDGKBSTATE:
 	        uap->cmd = KDGKBSTATE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDSETRAD:
 	        uap->cmd = KDSETRAD;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDENABIO:       /* enable direct I/O to ports */
 	        uap->cmd = KDENABIO;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDDISABIO:       /* disable direct I/O to ports */
 	        uap->cmd = KDDISABIO;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KIOCSOUND:       /* start sound generation */
 	        uap->cmd = KIOCSOUND;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDGKBTYPE:       /* get keyboard type */
 	        uap->cmd = KDGKBTYPE;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDGETLED:       /* get keyboard LED status */
 	        uap->cmd = KDGETLED;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_KDSETLED:       /* set keyboard LED status */
 	        uap->cmd = KDSETLED;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	    /* Xenix keyboard and display ioctl's from sys/kd.h -- type 'k' */
 	case IBCS2_GETFKEY:      /* Get function key */
 	        uap->cmd = GETFKEY;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_SETFKEY:      /* Set function key */
 	        uap->cmd = SETFKEY;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_GIO_SCRNMAP:      /* Get screen output map table */
 	        uap->cmd = GIO_SCRNMAP;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_PIO_SCRNMAP:      /* Set screen output map table */
 	        uap->cmd = PIO_SCRNMAP;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_GIO_KEYMAP:      /* Get keyboard map table */
 	        uap->cmd = OGIO_KEYMAP;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_PIO_KEYMAP:      /* Set keyboard map table */
 	        uap->cmd = OPIO_KEYMAP;
-	        error = ioctl(td, (struct ioctl_args *)uap);
+	        error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	    /* socksys */
@@ -672,7 +672,7 @@ ibcs2_ioctl(td, uap)
 	case IBCS2_FIONREAD:
 	case IBCS2_I_NREAD:     /* STREAMS */
 	        uap->cmd = FIONREAD;
-		error = ioctl(td, (struct ioctl_args *)uap);
+		error = sys_ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	default:

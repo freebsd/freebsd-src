@@ -269,7 +269,6 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	}
 	else if(ix<0x40200000) { 			/* x < 8.0 */
 	    i = (int)x;
-	    t = zero;
 	    y = x-(double)i;
 	    p = y*(s0+y*(s1+y*(s2+y*(s3+y*(s4+y*(s5+y*s6))))));
 	    q = one+y*(r1+y*(r2+y*(r3+y*(r4+y*(r5+y*r6)))));

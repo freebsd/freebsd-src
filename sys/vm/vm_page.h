@@ -94,21 +94,21 @@
  *	object that the page belongs to (O), the pool lock for the page (P),
  *	or the lock for either the free or paging queues (Q).  If a field is
  *	annotated below with two of these locks, then holding either lock is
- *	sufficient for read access, but both locks are required for write 
+ *	sufficient for read access, but both locks are required for write
  *	access.
  *
- *	In contrast, the synchronization of accesses to the page's dirty field
- *	is machine dependent (M).  In the machine-independent layer, the lock
- *	on the object that the page belongs to must be held in order to
- *	operate on the field.  However, the pmap layer is permitted to set
- *	all bits within the field without holding that lock.  Therefore, if
- *	the underlying architecture does not support atomic read-modify-write
- *	operations on the field's type, then the machine-independent layer
- *	must also hold the page queues lock when performing read-modify-write
- *	operations and the pmap layer must hold the page queues lock when
- *	setting the field.  In the machine-independent layer, the
- *	implementation of read-modify-write operations on the field is
- *	encapsulated in vm_page_clear_dirty_mask().
+ *	In contrast, the synchronization of accesses to the page's
+ *	dirty field is machine dependent (M).  In the
+ *	machine-independent layer, the lock on the object that the
+ *	page belongs to must be held in order to operate on the field.
+ *	However, the pmap layer is permitted to set all bits within
+ *	the field without holding that lock.  If the underlying
+ *	architecture does not support atomic read-modify-write
+ *	operations on the field's type, then the machine-independent
+ *	layer uses a 32-bit atomic on the aligned 32-bit word that
+ *	contains the dirty field.  In the machine-independent layer,
+ *	the implementation of read-modify-write operations on the
+ *	field is encapsulated in vm_page_clear_dirty_mask().
  */
 
 TAILQ_HEAD(pglist, vm_page);
@@ -139,17 +139,17 @@ struct vm_page {
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	/* In reality, support for 32KB pages is not fully implemented. */
 #if PAGE_SIZE == 4096
-	u_char	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_char	dirty;			/* map of dirty DEV_BSIZE chunks (M) */
+	uint8_t	valid;			/* map of valid DEV_BSIZE chunks (O) */
+	uint8_t	dirty;			/* map of dirty DEV_BSIZE chunks (M) */
 #elif PAGE_SIZE == 8192
-	u_short	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_short	dirty;			/* map of dirty DEV_BSIZE chunks (M) */
+	uint16_t valid;			/* map of valid DEV_BSIZE chunks (O) */
+	uint16_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
 #elif PAGE_SIZE == 16384
-	u_int valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_int dirty;			/* map of dirty DEV_BSIZE chunks (M) */
+	uint32_t valid;			/* map of valid DEV_BSIZE chunks (O) */
+	uint32_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
 #elif PAGE_SIZE == 32768
-	u_long valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_long dirty;			/* map of dirty DEV_BSIZE chunks (M) */
+	uint64_t valid;			/* map of valid DEV_BSIZE chunks (O) */
+	uint64_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
 #endif
 };
 

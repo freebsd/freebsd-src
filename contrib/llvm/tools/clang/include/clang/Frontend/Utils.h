@@ -31,7 +31,7 @@ class CompilerInstance;
 class CompilerInvocation;
 class Decl;
 class DependencyOutputOptions;
-class Diagnostic;
+class DiagnosticsEngine;
 class DiagnosticOptions;
 class FileManager;
 class HeaderSearch;
@@ -48,7 +48,7 @@ class FrontendOptions;
 
 /// Normalize \arg File for use in a user defined #include directive (in the
 /// predefines buffer).
-std::string NormalizeDashIncludePath(llvm::StringRef File,
+std::string NormalizeDashIncludePath(StringRef File,
                                      FileManager &FileMgr);
 
 /// Apply the header search options to get given HeaderSearch object.
@@ -66,10 +66,10 @@ void InitializePreprocessor(Preprocessor &PP,
 
 /// ProcessWarningOptions - Initialize the diagnostic client and process the
 /// warning options specified on the command line.
-void ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
+void ProcessWarningOptions(DiagnosticsEngine &Diags, const DiagnosticOptions &Opts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
-void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
+void DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream* OS,
                               const PreprocessorOutputOptions &Opts);
 
 /// AttachDependencyFileGen - Create a dependency file generator, and attach
@@ -87,7 +87,7 @@ void AttachDependencyFileGen(Preprocessor &PP,
 /// \param OutputPath - If non-empty, a path to write the header include
 /// information to, instead of writing to stderr.
 void AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders = false,
-                            llvm::StringRef OutputPath = "",
+                            StringRef OutputPath = "",
                             bool ShowDepth = true);
 
 /// CacheTokens - Cache tokens for use with PCH. Note that this requires
@@ -100,9 +100,9 @@ void CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS);
 /// \return A CompilerInvocation, or 0 if none was built for the given
 /// argument vector.
 CompilerInvocation *
-createInvocationFromCommandLine(llvm::ArrayRef<const char *> Args,
-                                llvm::IntrusiveRefCntPtr<Diagnostic> Diags =
-                                    llvm::IntrusiveRefCntPtr<Diagnostic>());
+createInvocationFromCommandLine(ArrayRef<const char *> Args,
+                            llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
+                                llvm::IntrusiveRefCntPtr<DiagnosticsEngine>());
 
 }  // end namespace clang
 

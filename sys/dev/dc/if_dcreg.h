@@ -78,6 +78,8 @@
 #define	DC_TYPE_PNIC		0xA	/* 82c168/82c169 PNIC I */
 #define	DC_TYPE_XIRCOM		0xB	/* Xircom X3201 */
 #define	DC_TYPE_CONEXANT	0xC	/* Conexant LANfinity RS7112 */
+#define	DC_TYPE_ULI_M5261	0xD	/* ALi/ULi M5261 */
+#define	DC_TYPE_ULI_M5263	0xE	/* ALi/ULi M5263 */
 
 #define	DC_IS_MACRONIX(x)			\
 	(x->dc_type == DC_TYPE_98713 ||		\
@@ -87,6 +89,10 @@
 #define	DC_IS_ADMTEK(x)				\
 	(x->dc_type == DC_TYPE_AL981 ||		\
 	 x->dc_type == DC_TYPE_AN983)
+
+#define	DC_IS_ULI(x)				\
+	(x->dc_type == DC_TYPE_ULI_M5261 ||	\
+	 x->dc_type == DC_TYPE_ULI_M5263)
 
 #define	DC_IS_INTEL(x)		(x->dc_type == DC_TYPE_21143)
 #define	DC_IS_ASIX(x)		(x->dc_type == DC_TYPE_ASIX)
@@ -725,6 +731,23 @@ struct dc_mii_frame {
 
 /* End of CONEXANT specific registers */
 
+/*
+ * ULi M5263 specific registers.
+ */
+#define	DC_ULI_FILTER_NPERF	14
+
+#define	DC_ULI_PHY_DATA_MASK	0x0000FFFF
+#define	DC_ULI_PHY_REG_MASK	0x001F0000
+#define	DC_ULI_PHY_ADDR_MASK	0x03E00000
+#define	DC_ULI_PHY_OP_WRITE	0x04000000
+#define	DC_ULI_PHY_OP_READ	0x08000000
+#define	DC_ULI_PHY_OP_DONE	0x10000000
+
+#define	DC_ULI_PHY_DATA_SHIFT	0
+#define	DC_ULI_PHY_REG_SHIFT	16
+#define	DC_ULI_PHY_ADDR_SHIFT	21
+
+/* End of ULi M5263 specific registers */
 
 struct dc_softc {
 	struct ifnet		*dc_ifp;	/* interface info */
@@ -1031,6 +1054,17 @@ struct dc_softc {
  */
 #define	DC_DEVICEID_PCMPC200_AB08	0xab08
 #define	DC_DEVICEID_PCMPC200_AB09	0xab09
+
+/*
+ * ULi vendor ID.
+ */
+#define	DC_VENDORID_ULI		0x10b9
+
+/*
+ * ULi device IDs.
+ */
+#define	DC_DEVICEID_M5261	0x5261
+#define	DC_DEVICEID_M5263	0x5263
 
 #define	DC_DEVID(vendor, device)	((device) << 16 | (vendor))
 

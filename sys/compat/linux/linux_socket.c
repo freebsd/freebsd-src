@@ -72,43 +72,29 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
-static int do_sa_get(struct sockaddr **, const struct osockaddr *, int *,
-    struct malloc_type *);
 static int linux_to_bsd_domain(int);
 
 /*
  * Reads a linux sockaddr and does any necessary translation.
  * Linux sockaddrs don't have a length field, only a family.
- */
-static int
-linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int len)
-{
-	int osalen = len;
-
-	return (do_sa_get(sap, osa, &osalen, M_SONAME));
-}
-
-/*
  * Copy the osockaddr structure pointed to by osa to kernel, adjust
  * family and convert to sockaddr.
  */
 static int
-do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
-    struct malloc_type *mtype)
+linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int salen)
 {
-	int error=0, bdom;
 	struct sockaddr *sa;
 	struct osockaddr *kosa;
-	int alloclen;
 #ifdef INET6
-	int oldv6size;
 	struct sockaddr_in6 *sin6;
+	int oldv6size;
 #endif
+	char *name;
+	int bdom, error, hdrlen, namelen;
 
-	if (*osalen < 2 || *osalen > UCHAR_MAX || !osa)
+	if (salen < 2 || salen > UCHAR_MAX || !osa)
 		return (EINVAL);
 
-	alloclen = *osalen;
 #ifdef INET6
 	oldv6size = 0;
 	/*
@@ -116,15 +102,15 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	 * if it's a v4-mapped address, so reserve the proper space
 	 * for it.
 	 */
-	if (alloclen == sizeof (struct sockaddr_in6) - sizeof (u_int32_t)) {
-		alloclen = sizeof (struct sockaddr_in6);
+	if (salen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
+		salen += sizeof(uint32_t);
 		oldv6size = 1;
 	}
 #endif
 
-	kosa = malloc(alloclen, mtype, M_WAITOK);
+	kosa = malloc(salen, M_SONAME, M_WAITOK);
 
-	if ((error = copyin(osa, kosa, *osalen)))
+	if ((error = copyin(osa, kosa, salen)))
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
@@ -141,41 +127,61 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	 *
 	 * Still accept addresses for which the scope id is not used.
 	 */
-	if (oldv6size && bdom == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *)kosa;
-		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
-		    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
-		     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
-			sin6->sin6_scope_id = 0;
-		} else {
-			log(LOG_DEBUG,
-			    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+	if (oldv6size) {
+		if (bdom == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)kosa;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
+			    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
+				sin6->sin6_scope_id = 0;
+			} else {
+				log(LOG_DEBUG,
+				    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+				error = EINVAL;
+				goto out;
+			}
+		} else
+			salen -= sizeof(uint32_t);
+	}
+#endif
+	if (bdom == AF_INET) {
+		if (salen < sizeof(struct sockaddr_in)) {
 			error = EINVAL;
 			goto out;
 		}
-	} else
-#endif
-	if (bdom == AF_INET) {
-		alloclen = sizeof(struct sockaddr_in);
-		if (*osalen < alloclen) {
-			error = EINVAL;
+		salen = sizeof(struct sockaddr_in);
+	}
+
+	if (bdom == AF_LOCAL && salen > sizeof(struct sockaddr_un)) {
+		hdrlen = offsetof(struct sockaddr_un, sun_path);
+		name = ((struct sockaddr_un *)kosa)->sun_path;
+		if (*name == '\0') {
+			/*
+		 	 * Linux abstract namespace starts with a NULL byte.
+			 * XXX We do not support abstract namespace yet.
+			 */
+			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
+		} else
+			namelen = strnlen(name, salen - hdrlen);
+		salen = hdrlen + namelen;
+		if (salen > sizeof(struct sockaddr_un)) {
+			error = ENAMETOOLONG;
 			goto out;
 		}
 	}
 
-	sa = (struct sockaddr *) kosa;
+	sa = (struct sockaddr *)kosa;
 	sa->sa_family = bdom;
-	sa->sa_len = alloclen;
+	sa->sa_len = salen;
 
 	*sap = sa;
-	*osalen = alloclen;
 	return (0);
 
 out:
-	free(kosa, mtype);
+	free(kosa, M_SONAME);
 	return (error);
 }
 
@@ -643,7 +649,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (bsd_args.domain == -1)
 		return (EAFNOSUPPORT);
 
-	retval_socket = socket(td, &bsd_args);
+	retval_socket = sys_socket(td, &bsd_args);
 	if (retval_socket)
 		return (retval_socket);
 
@@ -774,7 +780,7 @@ linux_listen(struct thread *td, struct linux_listen_args *args)
 
 	bsd_args.s = args->s;
 	bsd_args.backlog = args->backlog;
-	return (listen(td, &bsd_args));
+	return (sys_listen(td, &bsd_args));
 }
 
 static int
@@ -795,7 +801,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	/* XXX: */
 	bsd_args.name = (struct sockaddr * __restrict)PTRIN(addr);
 	bsd_args.anamelen = PTRIN(namelen);/* XXX */
-	error = accept(td, &bsd_args);
+	error = sys_accept(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.name);
 	if (error) {
 		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
@@ -874,7 +880,7 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 	/* XXX: */
 	bsd_args.asa = (struct sockaddr * __restrict)PTRIN(args->addr);
 	bsd_args.alen = PTRIN(args->namelen);	/* XXX */
-	error = getsockname(td, &bsd_args);
+	error = sys_getsockname(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)
 		return (error);
@@ -903,7 +909,7 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 	bsd_args.fdes = args->s;
 	bsd_args.asa = (struct sockaddr *)PTRIN(args->addr);
 	bsd_args.alen = (int *)PTRIN(args->namelen);
-	error = getpeername(td, &bsd_args);
+	error = sys_getpeername(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)
 		return (error);
@@ -1001,7 +1007,7 @@ linux_send(struct thread *td, struct linux_send_args *args)
 	bsd_args.flags = args->flags;
 	bsd_args.to = NULL;
 	bsd_args.tolen = 0;
-	return sendto(td, &bsd_args);
+	return sys_sendto(td, &bsd_args);
 }
 
 struct linux_recv_args {
@@ -1029,7 +1035,7 @@ linux_recv(struct thread *td, struct linux_recv_args *args)
 	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
 	bsd_args.from = NULL;
 	bsd_args.fromlenaddr = 0;
-	return (recvfrom(td, &bsd_args));
+	return (sys_recvfrom(td, &bsd_args));
 }
 
 static int
@@ -1091,7 +1097,7 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	bsd_args.fromlenaddr = PTRIN(args->fromlen);/* XXX */
 	
 	linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.from, len);
-	error = recvfrom(td, &bsd_args);
+	error = sys_recvfrom(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.from);
 	
 	if (error)
@@ -1224,9 +1230,9 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 			cmsg->cmsg_len = CMSG_LEN(datalen);
 
 			error = ENOBUFS;
-			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t) cmsg))
+			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t)cmsg))
 				goto bad;
-			if (!m_append(control, datalen, (c_caddr_t) data))
+			if (!m_append(control, datalen, (c_caddr_t)data))
 				goto bad;
 		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
 
@@ -1365,7 +1371,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 				 * effect for Linux so no need to worry
 				 * about sockcred
 				 */
-				if (datalen != sizeof (*cmcred)) {
+				if (datalen != sizeof(*cmcred)) {
 					error = EMSGSIZE;
 					goto bad;
 				}
@@ -1438,7 +1444,7 @@ linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 
 	bsd_args.s = args->s;
 	bsd_args.how = args->how;
-	return (shutdown(td, &bsd_args));
+	return (sys_shutdown(td, &bsd_args));
 }
 
 struct linux_setsockopt_args {
@@ -1507,10 +1513,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	if (name == IPV6_NEXTHOP) {
 		linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.val,
 			bsd_args.valsize);
-		error = setsockopt(td, &bsd_args);
+		error = sys_setsockopt(td, &bsd_args);
 		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
 	} else
-		error = setsockopt(td, &bsd_args);
+		error = sys_setsockopt(td, &bsd_args);
 
 	return (error);
 }
@@ -1600,10 +1606,10 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	bsd_args.avalsize = PTRIN(args->optlen);
 
 	if (name == IPV6_NEXTHOP) {
-		error = getsockopt(td, &bsd_args);
+		error = sys_getsockopt(td, &bsd_args);
 		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
 	} else
-		error = getsockopt(td, &bsd_args);
+		error = sys_getsockopt(td, &bsd_args);
 
 	return (error);
 }

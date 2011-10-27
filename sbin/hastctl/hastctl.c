@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -433,19 +432,19 @@ main(int argc, char *argv[])
 	pjdlog_debug_set(debug);
 
 	cfg = yy_config_parse(cfgpath, true);
-	assert(cfg != NULL);
+	PJDLOG_ASSERT(cfg != NULL);
 
 	switch (cmd) {
 	case CMD_CREATE:
 		control_create(argc, argv, mediasize, extentsize, keepdirty);
 		/* NOTREACHED */
-		assert(!"What are we doing here?!");
+		PJDLOG_ABORT("What are we doing here?!");
 		break;
 	case CMD_DUMP:
 		/* Dump metadata from local component of the given resource. */
 		control_dump(argc, argv);
 		/* NOTREACHED */
-		assert(!"What are we doing here?!");
+		PJDLOG_ABORT("What are we doing here?!");
 		break;
 	case CMD_ROLE:
 		/* Change role for the given resources. */
@@ -476,7 +475,7 @@ main(int argc, char *argv[])
 		}
 		break;
 	default:
-		assert(!"Impossible command!");
+		PJDLOG_ABORT("Impossible command!");
 	}
 
 	/* Setup control connection... */
@@ -523,7 +522,7 @@ main(int argc, char *argv[])
 		error = control_status(nv);
 		break;
 	default:
-		assert(!"Impossible command!");
+		PJDLOG_ABORT("Impossible command!");
 	}
 
 	exit(error);

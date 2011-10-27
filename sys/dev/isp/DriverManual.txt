@@ -165,7 +165,7 @@ and saves the QLogic HBA from having to write a response queue entry).
 
 The QLogic HBA is an interrupting card, and when servicing an interrupt
 you really only have to check for either a mailbox interrupt or an
-interrupt notification that the the response queue has an entry to
+interrupt notification that the response queue has an entry to
 be dequeued.
 
 4.3 Fibre Channel SCSI out of SCSI
@@ -327,7 +327,7 @@ here in clarifying some of this.
 
 A succesful execution of isp_init will lead to the driver 'registering'
 itself with this platform's SCSI subsystem. One assumed action for this
-is the registry of a function the the SCSI subsystem for this platform
+is the registry of a function the SCSI subsystem for this platform
 will call when it has a SCSI command to run.
 
 The platform specific module function that receives this will do whatever
