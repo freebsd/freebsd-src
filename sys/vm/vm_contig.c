@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -334,25 +333,6 @@ contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, vm_memattr_t memattr,
 	return (addr);
 }
 
-void *
-contigmalloc(
-	unsigned long size,	/* should be size_t here and for malloc() */
-	struct malloc_type *type,
-	int flags,
-	vm_paddr_t low,
-	vm_paddr_t high,
-	unsigned long alignment,
-	unsigned long boundary)
-{
-	void *ret;
-
-	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
-	    alignment, boundary, VM_MEMATTR_DEFAULT);
-	if (ret != NULL)
-		malloc_type_allocated(type, round_page(size));
-	return (ret);
-}
-
 vm_offset_t
 kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, unsigned long alignment, unsigned long boundary,
@@ -381,12 +361,4 @@ retry:
 			vm_page_release_contig(pages, npgs);
 	}
 	return (ret);
-}
-
-void
-contigfree(void *addr, unsigned long size, struct malloc_type *type)
-{
-
-	kmem_free(kernel_map, (vm_offset_t)addr, size);
-	malloc_type_freed(type, round_page(size));
 }
