@@ -57,6 +57,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_netgraph.h"
+#include "opt_kdb.h"
 #endif
 
 /* debugging options */
@@ -190,7 +191,7 @@ static __inline void
 _chkhook(hook_p hook, char *file, int line)
 {
 	if (hook->hk_magic != HK_MAGIC) {
-		printf("Accessing freed hook ");
+		printf("Accessing freed ");
 		dumphook(hook, file, line);
 	}
 	hook->lastline = line;
@@ -458,7 +459,7 @@ static __inline void
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
-		printf("Accessing freed node ");
+		printf("Accessing freed ");
 		dumpnode(node, file, line);
 	}
 	node->lastline = line;
