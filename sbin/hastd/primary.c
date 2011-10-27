@@ -1453,9 +1453,6 @@ remote_send_thread(void *arg)
 			/* Move failed request immediately to the done queue. */
 			goto done_queue;
 		}
-		pjdlog_debug(2,
-		    "remote_send: (%p) Moving request to the recv queue.",
-		    hio);
 		/*
 		 * Protect connection from disappearing.
 		 */
@@ -1470,6 +1467,9 @@ remote_send_thread(void *arg)
 		 * in different order we can get reply before we move request
 		 * to recv queue.
 		 */
+		pjdlog_debug(2,
+		    "remote_send: (%p) Moving request to the recv queue.",
+		    hio);
 		mtx_lock(&hio_recv_list_lock[ncomp]);
 		wakeup = TAILQ_EMPTY(&hio_recv_list[ncomp]);
 		TAILQ_INSERT_TAIL(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
@@ -1489,7 +1489,8 @@ remote_send_thread(void *arg)
 			 * it immediately to the done queue.
 			 */
 			mtx_lock(&hio_recv_list_lock[ncomp]);
-			TAILQ_REMOVE(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
+			TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
+			    hio_next[ncomp]);
 			mtx_unlock(&hio_recv_list_lock[ncomp]);
 			goto done_queue;
 		}
@@ -1599,16 +1600,16 @@ remote_recv_thread(void *arg)
 			nv_free(nv);
 			continue;
 		}
+		ggio = &hio->hio_ggio;
 		error = nv_get_int16(nv, "error");
 		if (error != 0) {
 			/* Request failed on remote side. */
 			hio->hio_errors[ncomp] = error;
-			reqlog(LOG_WARNING, 0, &hio->hio_ggio,
+			reqlog(LOG_WARNING, 0, ggio,
 			    "Remote request failed (%s): ", strerror(error));
 			nv_free(nv);
 			goto done_queue;
 		}
-		ggio = &hio->hio_ggio;
 		switch (ggio->gctl_cmd) {
 		case BIO_READ:
 			rw_rlock(&hio_remote_lock[ncomp]);
