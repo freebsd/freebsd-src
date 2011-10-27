@@ -65,8 +65,11 @@ options 	MAC			# TrustedBSD MAC Framework
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-# Debugging for use in -current
+# Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
