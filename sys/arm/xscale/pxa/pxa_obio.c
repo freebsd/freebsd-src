@@ -173,11 +173,14 @@ pxa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
     driver_filter_t *filter, driver_intr_t *ithread, void *arg, void **cookiep)
 {
 	struct	obio_softc *sc;
+	int error;
 
 	sc = (struct obio_softc *)device_get_softc(dev);
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags, filter,
-	    ithread, arg, cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
+	    filter, ithread, arg, cookiep);
+	if (error)
+		return (error);
 	arm_unmask_irq(rman_get_start(irq));
 	return (0);
 }
