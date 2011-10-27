@@ -474,10 +474,15 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
     if (N->getOpcode() != ISD::FP_ROUND && N->getOpcode() != ISD::FP_EXTEND)
       continue;
     
-    // If the source and destination are SSE registers, then this is a legal
-    // conversion that should not be lowered.
     EVT SrcVT = N->getOperand(0).getValueType();
     EVT DstVT = N->getValueType(0);
+
+    // If any of the sources are vectors, no fp stack involved.
+    if (SrcVT.isVector() || DstVT.isVector())
+      continue;
+
+    // If the source and destination are SSE registers, then this is a legal
+    // conversion that should not be lowered.
     bool SrcIsSSE = X86Lowering.isScalarFPTypeInSSEReg(SrcVT);
     bool DstIsSSE = X86Lowering.isScalarFPTypeInSSEReg(DstVT);
     if (SrcIsSSE && DstIsSSE)
@@ -2168,9 +2173,10 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
         SDValue Subreg = CurDAG->getTargetExtractSubreg(X86::sub_8bit_hi, dl,
                                                         MVT::i8, Reg);
 
-        // Emit a testb. No special NOREX tricks are needed since there's
-        // only one GPR operand!
-        return CurDAG->getMachineNode(X86::TEST8ri, dl, MVT::i32,
+        // Emit a testb.  The EXTRACT_SUBREG becomes a COPY that can only
+        // target GR8_NOREX registers, so make sure the register class is
+        // forced.
+        return CurDAG->getMachineNode(X86::TEST8ri_NOREX, dl, MVT::i32,
                                       Subreg, ShiftedImm);
       }
 

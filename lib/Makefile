@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libefi} \
 	libexpat \
 	libfetch \
-	libftpio \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -188,16 +187,13 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-_libvmmapi=	libvmmapi
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

@@ -73,6 +73,33 @@ struct ath_pci_softc {
 
 #define	BS_BAR	0x10
 #define	PCIR_RETRY_TIMEOUT	0x41
+#define	PCIR_CFG_PMCSR		0x48
+
+static void
+ath_pci_setup(device_t dev)
+{
+	/* Override the system latency timer */
+	pci_write_config(dev, PCIR_LATTIMER, 0x80, 1);
+
+	/* If a PCI NIC, force wakeup */
+#ifdef	ATH_PCI_WAKEUP_WAR
+	/* XXX TODO: don't do this for non-PCI (ie, PCIe, Cardbus!) */
+	if (1) {
+		uint16_t pmcsr;
+		pmcsr = pci_read_config(dev, PCIR_CFG_PMCSR, 2);
+		pmcsr |= 3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+		pmcsr &= ~3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+	}
+#endif
+
+	/*
+	 * Disable retry timeout to keep PCI Tx retries from
+	 * interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+}
 
 static int
 ath_pci_probe(device_t dev)
@@ -103,10 +130,9 @@ ath_pci_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	/*
-	 * Disable retry timeout to keep PCI Tx retries from
-	 * interfering with C3 CPU state.
+	 * Setup other PCI bus configuration parameters.
 	 */
-	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+	ath_pci_setup(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -190,6 +216,11 @@ ath_pci_detach(device_t dev)
 	/* check if device was removed */
 	sc->sc_invalid = !bus_child_present(dev);
 
+	/*
+	 * Do a config read to clear pre-existing pci error status.
+	 */
+	(void) pci_read_config(dev, PCIR_COMMAND, 4);
+
 	ath_detach(sc);
 
 	bus_generic_detach(dev);
@@ -227,6 +258,11 @@ static int
 ath_pci_resume(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
+
+	/*
+	 * Suspend/resume resets the PCI configuration space.
+	 */
+	ath_pci_setup(dev);
 
 	ath_resume(&psc->sc_sc);
 

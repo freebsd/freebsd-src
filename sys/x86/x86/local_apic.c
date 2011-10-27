@@ -195,10 +195,9 @@ static void	lapic_set_icr_timer(uint32_t value);
 uint32_t	lapic_irr(int num);
 uint32_t	lapic_tmr(int num);
 uint32_t	lapic_isr(int num);
-static uint32_t	lapic_icr_lo(void);
-static void	lapic_set_icr_lo(uint32_t value);
-static uint32_t	lapic_icr_hi(void);
-static void	lapic_set_icr_hi(uint32_t value);
+static uint32_t lapic_icr_lo(void);
+static uint32_t lapic_icr_hi(void);
+static void	lapic_set_icr(uint64_t value);
 static boolean_t lapic_missing(void);
 
 struct pic lapic_pic = { .pic_resume = lapic_resume };
@@ -904,8 +903,6 @@ lapic_isr(int num)
 	}
 }
 
-static uint32_t icr_hi_stashed[MAXCPU];
-
 static uint32_t
 lapic_icr_lo(void)
 {
@@ -914,17 +911,6 @@ lapic_icr_lo(void)
 		return (0);
 	else
 		return (lapic->icr_lo);
-}
-
-static void
-lapic_set_icr_lo(uint32_t value)
-{
-
-	if (x2apic) {
-		wrmsr(MSR_APIC_ICR,
-		      (uint64_t)icr_hi_stashed[curcpu] << 32 | value);
-	} else
-		lapic->icr_lo = value;
 }
 
 static uint32_t
@@ -938,12 +924,15 @@ lapic_icr_hi(void)
 }
 
 static void
-lapic_set_icr_hi(uint32_t value)
+lapic_set_icr(uint64_t value)
 {
+
 	if (x2apic)
-		icr_hi_stashed[curcpu] = value >> APIC_ID_SHIFT; /* XXX */
-	else
-		lapic->icr_hi = value;
+		wrmsr(MSR_APIC_ICR, value);
+	else {
+		lapic->icr_hi = value >> 32;
+		lapic->icr_lo = value;
+	}
 }
 
 static boolean_t
@@ -1790,7 +1779,8 @@ lapic_ipi_wait(int delay)
 void
 lapic_ipi_raw(register_t icrlo, u_int dest)
 {
-	register_t value, saveintr;
+	register_t saveintr;
+	uint32_t hi, lo;
 
 	/* XXX: Need more sanity checking of icrlo? */
 	KASSERT(!lapic_missing(), ("%s called too early", __func__));
@@ -1802,17 +1792,21 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	/* Set destination in ICR HI register if it is being used. */
 	saveintr = intr_disable();
 	if ((icrlo & APIC_DEST_MASK) == APIC_DEST_DESTFLD) {
-		value = lapic_icr_hi();
-		value &= ~APIC_ID_MASK;
-		value |= dest << APIC_ID_SHIFT;
-		lapic_set_icr_hi(value);
-	}
+		if (x2apic) {
+			hi = dest;
+		} else {
+			hi = lapic_icr_hi();
+			hi &= ~APIC_ID_MASK;
+			hi |= dest << APIC_ID_SHIFT;
+		}
+	} else
+		hi = 0;
 
 	/* Program the contents of the IPI and dispatch it. */
-	value = lapic_icr_lo();
-	value &= APIC_ICRLO_RESV_MASK;
-	value |= icrlo;
-	lapic_set_icr_lo(value);
+	lo = lapic_icr_lo();
+	lo &= APIC_ICRLO_RESV_MASK;
+	lo |= icrlo;
+	lapic_set_icr((uint64_t)hi << 32 | lo);
 	intr_restore(saveintr);
 }
 

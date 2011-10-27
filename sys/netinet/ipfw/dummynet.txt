@@ -325,7 +325,7 @@ we do the following:
 
 dummynet_task()
 ===============
-The dummynet_task() is the the main dummynet processing function and is
+The dummynet_task() is the main dummynet processing function and is
 called every tick. This function first calculate the new current time, then
 it checks if it is the time to wake up object from the system_heap comparing
 the current time and the key of the heap. Two types of object (really the

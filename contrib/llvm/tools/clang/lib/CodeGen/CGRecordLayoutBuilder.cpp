@@ -35,7 +35,7 @@ class CGRecordLayoutBuilder {
 public:
   /// FieldTypes - Holds the LLVM types that the struct is created from.
   /// 
-  llvm::SmallVector<llvm::Type *, 16> FieldTypes;
+  SmallVector<llvm::Type *, 16> FieldTypes;
 
   /// BaseSubobjectType - Holds the LLVM type for the non-virtual part
   /// of the struct. For example, consider:
@@ -174,7 +174,7 @@ private:
   /// the passed size.
   void AppendTailPadding(CharUnits RecordSize);
 
-  CharUnits getTypeAlignment(const llvm::Type *Ty) const;
+  CharUnits getTypeAlignment(llvm::Type *Ty) const;
 
   /// getAlignmentAsLLVMStruct - Returns the maximum alignment of all the
   /// LLVM element types.
@@ -230,7 +230,7 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
                                uint64_t FieldSize,
                                uint64_t ContainingTypeSizeInBits,
                                unsigned ContainingTypeAlign) {
-  const llvm::Type *Ty = Types.ConvertTypeForMem(FD->getType());
+  llvm::Type *Ty = Types.ConvertTypeForMem(FD->getType());
   CharUnits TypeSizeInBytes =
     CharUnits::fromQuantity(Types.getTargetData().getTypeAllocSize(Ty));
   uint64_t TypeSizeInBits = Types.getContext().toBits(TypeSizeInBytes);
@@ -363,15 +363,14 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
 
 void CGRecordLayoutBuilder::LayoutBitField(const FieldDecl *D,
                                            uint64_t fieldOffset) {
-  uint64_t fieldSize =
-    D->getBitWidth()->EvaluateAsInt(Types.getContext()).getZExtValue();
+  uint64_t fieldSize = D->getBitWidthValue(Types.getContext());
 
   if (fieldSize == 0)
     return;
 
   uint64_t nextFieldOffsetInBits = Types.getContext().toBits(NextFieldOffset);
   CharUnits numBytesToAppend;
-  unsigned charAlign = Types.getContext().Target.getCharAlign();
+  unsigned charAlign = Types.getContext().getTargetInfo().getCharAlign();
 
   if (fieldOffset < nextFieldOffsetInBits && !BitsAvailableInLastField) {
     assert(fieldOffset % charAlign == 0 && 
@@ -492,8 +491,7 @@ llvm::Type *
 CGRecordLayoutBuilder::LayoutUnionField(const FieldDecl *Field,
                                         const ASTRecordLayout &Layout) {
   if (Field->isBitField()) {
-    uint64_t FieldSize =
-      Field->getBitWidth()->EvaluateAsInt(Types.getContext()).getZExtValue();
+    uint64_t FieldSize = Field->getBitWidthValue(Types.getContext());
 
     // Ignore zero sized bit fields.
     if (FieldSize == 0)
@@ -502,7 +500,7 @@ CGRecordLayoutBuilder::LayoutUnionField(const FieldDecl *Field,
     llvm::Type *FieldTy = llvm::Type::getInt8Ty(Types.getLLVMContext());
     CharUnits NumBytesToAppend = Types.getContext().toCharUnitsFromBits(
       llvm::RoundUpToAlignment(FieldSize, 
-                               Types.getContext().Target.getCharAlign()));
+                               Types.getContext().getTargetInfo().getCharAlign()));
 
     if (NumBytesToAppend > CharUnits::One())
       FieldTy = llvm::ArrayType::get(FieldTy, NumBytesToAppend.getQuantity());
@@ -672,10 +670,10 @@ CGRecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD,
   // Check if we need to add a vtable pointer.
   if (RD->isDynamicClass()) {
     if (!PrimaryBase) {
-      const llvm::Type *FunctionType =
+      llvm::Type *FunctionType =
         llvm::FunctionType::get(llvm::Type::getInt32Ty(Types.getLLVMContext()),
                                 /*isVarArg=*/true);
-      const llvm::Type *VTableTy = FunctionType->getPointerTo();
+      llvm::Type *VTableTy = FunctionType->getPointerTo();
 
       assert(NextFieldOffset.isZero() &&
              "VTable pointer must come first!");
@@ -735,8 +733,8 @@ CGRecordLayoutBuilder::ComputeNonVirtualBaseType(const CXXRecordDecl *RD) {
   }
 
   
-  BaseSubobjectType = llvm::StructType::createNamed(Types.getLLVMContext(), "",
-                                                    FieldTypes, Packed);
+  BaseSubobjectType = llvm::StructType::create(Types.getLLVMContext(),
+                                               FieldTypes, "", Packed);
   Types.addRecordTypeName(RD, BaseSubobjectType, ".base");
 
   // Pull the padding back off.
@@ -882,7 +880,7 @@ void CGRecordLayoutBuilder::AppendBytes(CharUnits numBytes) {
   AppendField(NextFieldOffset, getByteArrayType(numBytes));
 }
 
-CharUnits CGRecordLayoutBuilder::getTypeAlignment(const llvm::Type *Ty) const {
+CharUnits CGRecordLayoutBuilder::getTypeAlignment(llvm::Type *Ty) const {
   if (Packed)
     return CharUnits::One();
 
@@ -983,7 +981,7 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
   }
                                      
   // Verify that the LLVM and AST field offsets agree.
-  const llvm::StructType *ST =
+  llvm::StructType *ST =
     dyn_cast<llvm::StructType>(RL->getLLVMType());
   const llvm::StructLayout *SL = getTargetData().getStructLayout(ST);
 
@@ -1037,7 +1035,7 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
   return RL;
 }
 
-void CGRecordLayout::print(llvm::raw_ostream &OS) const {
+void CGRecordLayout::print(raw_ostream &OS) const {
   OS << "<CGRecordLayout\n";
   OS << "  LLVMType:" << *CompleteObjectType << "\n";
   if (BaseSubobjectType)
@@ -1071,7 +1069,7 @@ void CGRecordLayout::dump() const {
   print(llvm::errs());
 }
 
-void CGBitFieldInfo::print(llvm::raw_ostream &OS) const {
+void CGBitFieldInfo::print(raw_ostream &OS) const {
   OS << "<CGBitFieldInfo";
   OS << " Size:" << Size;
   OS << " IsSigned:" << IsSigned << "\n";

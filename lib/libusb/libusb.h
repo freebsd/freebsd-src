@@ -303,6 +303,7 @@ typedef struct libusb_transfer {
 
 void	libusb_set_debug(libusb_context * ctx, int level);
 const char *libusb_strerror(int code);
+const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
 void	libusb_exit(struct libusb_context *ctx);
 

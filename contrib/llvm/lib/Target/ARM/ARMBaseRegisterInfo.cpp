@@ -12,13 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARM.h"
-#include "ARMAddressingModes.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMBaseRegisterInfo.h"
 #include "ARMFrameLowering.h"
 #include "ARMInstrInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -27,7 +27,6 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/Support/Debug.h"
@@ -57,7 +56,7 @@ EnableBasePointer("arm-use-base-pointer", cl::Hidden, cl::init(true),
 
 ARMBaseRegisterInfo::ARMBaseRegisterInfo(const ARMBaseInstrInfo &tii,
                                          const ARMSubtarget &sti)
-  : ARMGenRegisterInfo(), TII(tii), STI(sti),
+  : ARMGenRegisterInfo(ARM::LR), TII(tii), STI(sti),
     FramePtr((STI.isTargetDarwin() || STI.isThumb()) ? ARM::R7 : ARM::R11),
     BasePtr(ARM::R6) {
 }
@@ -354,7 +353,7 @@ const TargetRegisterClass*
 ARMBaseRegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC)
                                                                          const {
   const TargetRegisterClass *Super = RC;
-  TargetRegisterClass::sc_iterator I = RC->superclasses_begin();
+  TargetRegisterClass::sc_iterator I = RC->getSuperClasses();
   do {
     switch (Super->getID()) {
     case ARM::GPRRegClassID:
@@ -373,6 +372,13 @@ ARMBaseRegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC)
 const TargetRegisterClass *
 ARMBaseRegisterInfo::getPointerRegClass(unsigned Kind) const {
   return ARM::GPRRegisterClass;
+}
+
+const TargetRegisterClass *
+ARMBaseRegisterInfo::getCrossCopyRegClass(const TargetRegisterClass *RC) const {
+  if (RC == &ARM::CCRRegClass)
+    return 0;  // Can't copy CCR registers.
+  return RC;
 }
 
 unsigned
@@ -487,19 +493,19 @@ ARMBaseRegisterInfo::getRawAllocationOrder(const TargetRegisterClass *RC,
 
     if (!TFI->hasFP(MF)) {
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPREven1);
+        return makeArrayRef(GPREven1);
       else
-        return ArrayRef<unsigned>(GPREven4);
+        return makeArrayRef(GPREven4);
     } else if (FramePtr == ARM::R7) {
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPREven2);
+        return makeArrayRef(GPREven2);
       else
-        return ArrayRef<unsigned>(GPREven5);
+        return makeArrayRef(GPREven5);
     } else { // FramePtr == ARM::R11
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPREven3);
+        return makeArrayRef(GPREven3);
       else
-        return ArrayRef<unsigned>(GPREven6);
+        return makeArrayRef(GPREven6);
     }
   } else if (HintType == ARMRI::RegPairOdd) {
     if (isPhysicalRegister(HintReg) && getRegisterPairOdd(HintReg, MF) == 0)
@@ -509,19 +515,19 @@ ARMBaseRegisterInfo::getRawAllocationOrder(const TargetRegisterClass *RC,
 
     if (!TFI->hasFP(MF)) {
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPROdd1);
+        return makeArrayRef(GPROdd1);
       else
-        return ArrayRef<unsigned>(GPROdd4);
+        return makeArrayRef(GPROdd4);
     } else if (FramePtr == ARM::R7) {
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPROdd2);
+        return makeArrayRef(GPROdd2);
       else
-        return ArrayRef<unsigned>(GPROdd5);
+        return makeArrayRef(GPROdd5);
     } else { // FramePtr == ARM::R11
       if (!STI.isR9Reserved())
-        return ArrayRef<unsigned>(GPROdd3);
+        return makeArrayRef(GPROdd3);
       else
-        return ArrayRef<unsigned>(GPROdd6);
+        return makeArrayRef(GPROdd6);
     }
   }
   return RC->getRawAllocationOrder(MF);
@@ -649,10 +655,6 @@ cannotEliminateFrame(const MachineFunction &MF) const {
     || needsStackRealignment(MF);
 }
 
-unsigned ARMBaseRegisterInfo::getRARegister() const {
-  return ARM::LR;
-}
-
 unsigned
 ARMBaseRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
@@ -672,99 +674,54 @@ unsigned ARMBaseRegisterInfo::getEHHandlerRegister() const {
   return 0;
 }
 
-int ARMBaseRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  return ARMGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
-}
-
-int ARMBaseRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
-  return ARMGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
-}
-
 unsigned ARMBaseRegisterInfo::getRegisterPairEven(unsigned Reg,
                                               const MachineFunction &MF) const {
   switch (Reg) {
   default: break;
   // Return 0 if either register of the pair is a special register.
   // So no R12, etc.
-  case ARM::R1:
-    return ARM::R0;
-  case ARM::R3:
-    return ARM::R2;
-  case ARM::R5:
-    return ARM::R4;
+  case ARM::R1: return ARM::R0;
+  case ARM::R3: return ARM::R2;
+  case ARM::R5: return ARM::R4;
   case ARM::R7:
     return (isReservedReg(MF, ARM::R7) || isReservedReg(MF, ARM::R6))
       ? 0 : ARM::R6;
-  case ARM::R9:
-    return isReservedReg(MF, ARM::R9)  ? 0 :ARM::R8;
-  case ARM::R11:
-    return isReservedReg(MF, ARM::R11) ? 0 : ARM::R10;
+  case ARM::R9: return isReservedReg(MF, ARM::R9)  ? 0 :ARM::R8;
+  case ARM::R11: return isReservedReg(MF, ARM::R11) ? 0 : ARM::R10;
 
-  case ARM::S1:
-    return ARM::S0;
-  case ARM::S3:
-    return ARM::S2;
-  case ARM::S5:
-    return ARM::S4;
-  case ARM::S7:
-    return ARM::S6;
-  case ARM::S9:
-    return ARM::S8;
-  case ARM::S11:
-    return ARM::S10;
-  case ARM::S13:
-    return ARM::S12;
-  case ARM::S15:
-    return ARM::S14;
-  case ARM::S17:
-    return ARM::S16;
-  case ARM::S19:
-    return ARM::S18;
-  case ARM::S21:
-    return ARM::S20;
-  case ARM::S23:
-    return ARM::S22;
-  case ARM::S25:
-    return ARM::S24;
-  case ARM::S27:
-    return ARM::S26;
-  case ARM::S29:
-    return ARM::S28;
-  case ARM::S31:
-    return ARM::S30;
+  case ARM::S1: return ARM::S0;
+  case ARM::S3: return ARM::S2;
+  case ARM::S5: return ARM::S4;
+  case ARM::S7: return ARM::S6;
+  case ARM::S9: return ARM::S8;
+  case ARM::S11: return ARM::S10;
+  case ARM::S13: return ARM::S12;
+  case ARM::S15: return ARM::S14;
+  case ARM::S17: return ARM::S16;
+  case ARM::S19: return ARM::S18;
+  case ARM::S21: return ARM::S20;
+  case ARM::S23: return ARM::S22;
+  case ARM::S25: return ARM::S24;
+  case ARM::S27: return ARM::S26;
+  case ARM::S29: return ARM::S28;
+  case ARM::S31: return ARM::S30;
 
-  case ARM::D1:
-    return ARM::D0;
-  case ARM::D3:
-    return ARM::D2;
-  case ARM::D5:
-    return ARM::D4;
-  case ARM::D7:
-    return ARM::D6;
-  case ARM::D9:
-    return ARM::D8;
-  case ARM::D11:
-    return ARM::D10;
-  case ARM::D13:
-    return ARM::D12;
-  case ARM::D15:
-    return ARM::D14;
-  case ARM::D17:
-    return ARM::D16;
-  case ARM::D19:
-    return ARM::D18;
-  case ARM::D21:
-    return ARM::D20;
-  case ARM::D23:
-    return ARM::D22;
-  case ARM::D25:
-    return ARM::D24;
-  case ARM::D27:
-    return ARM::D26;
-  case ARM::D29:
-    return ARM::D28;
-  case ARM::D31:
-    return ARM::D30;
+  case ARM::D1: return ARM::D0;
+  case ARM::D3: return ARM::D2;
+  case ARM::D5: return ARM::D4;
+  case ARM::D7: return ARM::D6;
+  case ARM::D9: return ARM::D8;
+  case ARM::D11: return ARM::D10;
+  case ARM::D13: return ARM::D12;
+  case ARM::D15: return ARM::D14;
+  case ARM::D17: return ARM::D16;
+  case ARM::D19: return ARM::D18;
+  case ARM::D21: return ARM::D20;
+  case ARM::D23: return ARM::D22;
+  case ARM::D25: return ARM::D24;
+  case ARM::D27: return ARM::D26;
+  case ARM::D29: return ARM::D28;
+  case ARM::D31: return ARM::D30;
   }
 
   return 0;
@@ -776,85 +733,48 @@ unsigned ARMBaseRegisterInfo::getRegisterPairOdd(unsigned Reg,
   default: break;
   // Return 0 if either register of the pair is a special register.
   // So no R12, etc.
-  case ARM::R0:
-    return ARM::R1;
-  case ARM::R2:
-    return ARM::R3;
-  case ARM::R4:
-    return ARM::R5;
+  case ARM::R0: return ARM::R1;
+  case ARM::R2: return ARM::R3;
+  case ARM::R4: return ARM::R5;
   case ARM::R6:
     return (isReservedReg(MF, ARM::R7) || isReservedReg(MF, ARM::R6))
       ? 0 : ARM::R7;
-  case ARM::R8:
-    return isReservedReg(MF, ARM::R9)  ? 0 :ARM::R9;
-  case ARM::R10:
-    return isReservedReg(MF, ARM::R11) ? 0 : ARM::R11;
+  case ARM::R8: return isReservedReg(MF, ARM::R9)  ? 0 :ARM::R9;
+  case ARM::R10: return isReservedReg(MF, ARM::R11) ? 0 : ARM::R11;
 
-  case ARM::S0:
-    return ARM::S1;
-  case ARM::S2:
-    return ARM::S3;
-  case ARM::S4:
-    return ARM::S5;
-  case ARM::S6:
-    return ARM::S7;
-  case ARM::S8:
-    return ARM::S9;
-  case ARM::S10:
-    return ARM::S11;
-  case ARM::S12:
-    return ARM::S13;
-  case ARM::S14:
-    return ARM::S15;
-  case ARM::S16:
-    return ARM::S17;
-  case ARM::S18:
-    return ARM::S19;
-  case ARM::S20:
-    return ARM::S21;
-  case ARM::S22:
-    return ARM::S23;
-  case ARM::S24:
-    return ARM::S25;
-  case ARM::S26:
-    return ARM::S27;
-  case ARM::S28:
-    return ARM::S29;
-  case ARM::S30:
-    return ARM::S31;
+  case ARM::S0: return ARM::S1;
+  case ARM::S2: return ARM::S3;
+  case ARM::S4: return ARM::S5;
+  case ARM::S6: return ARM::S7;
+  case ARM::S8: return ARM::S9;
+  case ARM::S10: return ARM::S11;
+  case ARM::S12: return ARM::S13;
+  case ARM::S14: return ARM::S15;
+  case ARM::S16: return ARM::S17;
+  case ARM::S18: return ARM::S19;
+  case ARM::S20: return ARM::S21;
+  case ARM::S22: return ARM::S23;
+  case ARM::S24: return ARM::S25;
+  case ARM::S26: return ARM::S27;
+  case ARM::S28: return ARM::S29;
+  case ARM::S30: return ARM::S31;
 
-  case ARM::D0:
-    return ARM::D1;
-  case ARM::D2:
-    return ARM::D3;
-  case ARM::D4:
-    return ARM::D5;
-  case ARM::D6:
-    return ARM::D7;
-  case ARM::D8:
-    return ARM::D9;
-  case ARM::D10:
-    return ARM::D11;
-  case ARM::D12:
-    return ARM::D13;
-  case ARM::D14:
-    return ARM::D15;
-  case ARM::D16:
-    return ARM::D17;
-  case ARM::D18:
-    return ARM::D19;
-  case ARM::D20:
-    return ARM::D21;
-  case ARM::D22:
-    return ARM::D23;
-  case ARM::D24:
-    return ARM::D25;
-  case ARM::D26:
-    return ARM::D27;
-  case ARM::D28:
-    return ARM::D29;
-  case ARM::D30:
-    return ARM::D31;
+  case ARM::D0: return ARM::D1;
+  case ARM::D2: return ARM::D3;
+  case ARM::D4: return ARM::D5;
+  case ARM::D6: return ARM::D7;
+  case ARM::D8: return ARM::D9;
+  case ARM::D10: return ARM::D11;
+  case ARM::D12: return ARM::D13;
+  case ARM::D14: return ARM::D15;
+  case ARM::D16: return ARM::D17;
+  case ARM::D18: return ARM::D19;
+  case ARM::D20: return ARM::D21;
+  case ARM::D22: return ARM::D23;
+  case ARM::D24: return ARM::D25;
+  case ARM::D26: return ARM::D27;
+  case ARM::D28: return ARM::D29;
+  case ARM::D30: return ARM::D31;
   }
 
   return 0;
@@ -1111,11 +1031,11 @@ materializeFrameBaseRegister(MachineBasicBlock *MBB,
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
   MRI.constrainRegClass(BaseReg, TII.getRegClass(MCID, 0, this));
 
-  MachineInstrBuilder MIB = BuildMI(*MBB, Ins, DL, MCID, BaseReg)
-    .addFrameIndex(FrameIdx).addImm(Offset);
+  MachineInstrBuilder MIB = AddDefaultPred(BuildMI(*MBB, Ins, DL, MCID, BaseReg)
+    .addFrameIndex(FrameIdx).addImm(Offset));
 
   if (!AFI->isThumb1OnlyFunction())
-    AddDefaultCC(AddDefaultPred(MIB));
+    AddDefaultCC(MIB);
 }
 
 void
@@ -1143,6 +1063,7 @@ ARMBaseRegisterInfo::resolveFrameIndex(MachineBasicBlock::iterator I,
     Done = rewriteT2FrameIndex(MI, i, BaseReg, Off, TII);
   }
   assert (Done && "Unable to resolve frame index!");
+  (void)Done;
 }
 
 bool ARMBaseRegisterInfo::isFrameOffsetLegal(const MachineInstr *MI,

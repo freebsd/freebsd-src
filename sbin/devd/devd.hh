@@ -92,6 +92,7 @@ public:
 private:
 	std::string _var;
 	std::string _re;
+	bool _inv;
 	regex_t _regex;
 };
 

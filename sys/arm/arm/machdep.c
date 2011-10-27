@@ -312,6 +312,8 @@ cpu_startup(void *dummy)
 	m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
 	pmap_kenter_user(ARM_TP_ADDRESS, VM_PAGE_TO_PHYS(m));
 #endif
+	*(uint32_t *)ARM_RAS_START = 0;
+	*(uint32_t *)ARM_RAS_END = 0xffffffff;
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -605,7 +607,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
  * MPSAFE
  */
 int
-sigreturn(td, uap)
+sys_sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
 		const struct __ucontext *sigcntxp;

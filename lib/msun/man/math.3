@@ -39,7 +39,21 @@
 .Sh SYNOPSIS
 .In math.h
 .Sh DESCRIPTION
-These functions constitute the C math library.
+The math library includes the following components:
+.Bl -column "<complex.h>" "polymorphic (type-generic) versions of functions" -compact -offset indent
+.In math.h Ta basic routines and real-valued functions
+.In complex.h Ta complex number support
+.In tgmath.h Ta polymorphic (type-generic) versions of functions
+.In fenv.h Ta routines to control rounding and exceptions
+.El
+The rest of this manual page describes the functions provided by
+.In math.h .
+Please consult
+.Xr complex 3 ,
+.Xr tgmath 3 ,
+and
+.Xr fenv 3
+for information on the other components.
 .Sh "LIST OF FUNCTIONS"
 Each of the following
 .Vt double
@@ -200,6 +214,7 @@ so reproducible results cannot be guaranteed across platforms.
 For most of these functions, however, incorrect rounding occurs
 rarely, and then only in very-close-to-halfway cases.
 .Sh SEE ALSO
+.Xr complex 3 ,
 .Xr fenv 3 ,
 .Xr ieee 3 ,
 .Xr tgmath 3

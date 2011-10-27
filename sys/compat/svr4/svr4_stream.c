@@ -523,7 +523,7 @@ si_listen(fp, fd, ioc, td)
 	DPRINTF(("SI_LISTEN: fileno %d backlog = %d\n", fd, 5));
 	la.backlog = 5;
 
-	if ((error = listen(td, &la)) != 0) {
+	if ((error = sys_listen(td, &la)) != 0) {
 		DPRINTF(("SI_LISTEN: listen failed %d\n", error));
 		return error;
 	}
@@ -637,7 +637,7 @@ si_shutdown(fp, fd, ioc, td)
 
 	ap.s = fd;
 
-	return shutdown(td, &ap);
+	return sys_shutdown(td, &ap);
 }
 
 
@@ -1056,7 +1056,7 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 	d2p.from = st->s_afd;
 	d2p.to = fdi.fd;
 
-	if ((error = dup2(td, &d2p)) != 0) {
+	if ((error = sys_dup2(td, &d2p)) != 0) {
 		DPRINTF(("fdinsert: dup2(%d, %d) failed %d\n", 
 		    st->s_afd, fdi.fd, error));
 		mtx_unlock(&Giant);
@@ -1099,7 +1099,7 @@ _i_bind_rsvd(fp, td, retval, fd, cmd, dat)
 	ap.path = dat;
 	ap.mode = S_IFIFO;
 
-	return mkfifo(td, &ap);
+	return sys_mkfifo(td, &ap);
 }
 
 static int
@@ -1119,7 +1119,7 @@ _i_rele_rsvd(fp, td, retval, fd, cmd, dat)
 	 */
 	ap.path = dat;
 
-	return unlink(td, &ap);
+	return sys_unlink(td, &ap);
 }
 
 static int
@@ -1539,7 +1539,7 @@ svr4_do_putmsg(td, uap, fp)
 				wa.fd = uap->fd;
 				wa.buf = dat.buf;
 				wa.nbyte = dat.len;
-				return write(td, &wa);
+				return sys_write(td, &wa);
 			}
 	                DPRINTF(("putmsg: Invalid inet length %ld\n", sc.len));
 	                return EINVAL;
@@ -1926,7 +1926,7 @@ svr4_do_getmsg(td, uap, fp)
 			ra.fd = uap->fd;
 			ra.buf = dat.buf;
 			ra.nbyte = dat.maxlen;
-			if ((error = read(td, &ra)) != 0) {
+			if ((error = sys_read(td, &ra)) != 0) {
 				mtx_unlock(&Giant);
 			        return error;
 			}
@@ -1995,7 +1995,7 @@ int svr4_sys_send(td, uap)
 	sta.to = NULL;
 	sta.tolen = 0;
 
-	return (sendto(td, &sta));
+	return (sys_sendto(td, &sta));
 }
 
 int svr4_sys_recv(td, uap)
@@ -2011,7 +2011,7 @@ int svr4_sys_recv(td, uap)
 	rfa.from = NULL;
 	rfa.fromlenaddr = NULL;
 
-	return (recvfrom(td, &rfa));
+	return (sys_recvfrom(td, &rfa));
 }
 
 /* 
@@ -2033,6 +2033,6 @@ svr4_sys_sendto(td, uap)
 	sa.tolen = uap->tolen;
 
 	DPRINTF(("calling sendto()\n"));
-	return sendto(td, &sa);
+	return sys_sendto(td, &sa);
 }
 

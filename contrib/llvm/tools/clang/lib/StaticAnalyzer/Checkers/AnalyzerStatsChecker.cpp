@@ -80,7 +80,7 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
 
     if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
       const NamedDecl *ND = cast<NamedDecl>(D);
-      output << ND;
+      output << *ND;
     }
     else if (isa<BlockDecl>(D)) {
       output << "block(line:" << Loc.getLine() << ":col:" << Loc.getColumn();
@@ -94,7 +94,7 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
       << (Eng.hasEmptyWorkList() ? "yes" : "no");
 
   B.EmitBasicReport("Analyzer Statistics", "Internal Statistics", output.str(),
-      D->getLocation());
+      PathDiagnosticLocation(D, SM));
 
   // Emit warning for each block we bailed out on
   typedef CoreEngine::BlocksExhausted::const_iterator ExhaustedIterator;
@@ -106,7 +106,8 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
     const CFGElement &CE = Exit->front();
     if (const CFGStmt *CS = dyn_cast<CFGStmt>(&CE))
       B.EmitBasicReport("Bailout Point", "Internal Statistics", "The analyzer "
-          "stopped analyzing at this point", CS->getStmt()->getLocStart());
+          "stopped analyzing at this point",
+          PathDiagnosticLocation::createBegin(CS->getStmt(), SM, LC));
   }
 }
 

@@ -611,7 +611,7 @@ getFullPwrTable(uint16_t numPcdacs, uint16_t *pcdacs, int16_t *power, int16_t ma
 	uint16_t    idxR = 1;
 
 	if (numPcdacs < 2) {
-		HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
+		HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
 		     "%s: at least 2 pcdac values needed [%d]\n",
 		     __func__, numPcdacs);
 		return AH_FALSE;

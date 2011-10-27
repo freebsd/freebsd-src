@@ -816,7 +816,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 #endif /* PTS_EXTERNAL */
 
 int
-posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 {
 	int error, fd;
 	struct file *fp;

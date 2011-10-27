@@ -250,6 +250,7 @@
 /* Interrupts */
 #define	AR_ISR_TXMINTR		0x00080000	/* Maximum interrupt tx rate */
 #define	AR_ISR_RXMINTR		0x01000000	/* Maximum interrupt rx rate */
+#define	AR_ISR_GENTMR		0x10000000	/* OR of generic timer bits in S5 */
 #define	AR_ISR_TXINTM		0x40000000	/* Tx int after mitigation */
 #define	AR_ISR_RXINTM		0x80000000	/* Rx int after mitigation */
 
@@ -259,7 +260,13 @@
 
 #define	AR_ISR_S5		0x0098
 #define	AR_ISR_S5_S		0x00d8
-#define	AR_ISR_S5_TIM_TIMER	0x00000010
+#define	AR_ISR_S5_GENTIMER7	0x00000080 // Mask for timer 7 trigger
+#define	AR_ISR_S5_TIM_TIMER	0x00000010 // TIM Timer ISR
+#define	AR_ISR_S5_DTIM_TIMER	0x00000020 // DTIM Timer ISR
+#define	AR_ISR_S5_GENTIMER_TRIG	0x0000FF80 // ISR for generic timer trigger 7-15
+#define	AR_ISR_S5_GENTIMER_TRIG_S	0
+#define	AR_ISR_S5_GENTIMER_THRESH	0xFF800000 // ISR for generic timer threshold 7-15
+#define	AR_ISR_S5_GENTIMER_THRESH_S	16
 
 #define	AR_INTR_SPURIOUS	0xffffffff
 #define	AR_INTR_RTC_IRQ		0x00000001	/* rtc in shutdown state */

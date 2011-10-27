@@ -289,6 +289,9 @@ ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	uint32_t subunit;
 
+	if (ssc->sc_subunits == 0)
+		return;		/* not initialized */
+
 	usb_proc_drain(&ssc->sc_tq);
 
 	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {

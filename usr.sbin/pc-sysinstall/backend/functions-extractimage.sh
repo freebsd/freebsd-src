@@ -55,6 +55,10 @@ start_extract_uzip_tar()
 
   case ${PACKAGETYPE} in
     uzip)
+      if ! kldstat -v | grep -q "geom_uzip" ; then
+	exit_err "Kernel module geom_uzip not loaded"
+      fi
+
 	  # Start by mounting the uzip image
       MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
       mkdir -p ${FSMNT}.uzip
@@ -435,6 +439,16 @@ init_extraction()
 
     rsync) start_rsync_copy ;;
     image) start_image_install ;;
+    local)
+      get_value_from_cfg localPath
+      if [ -z "$VAL" ]
+      then
+        exit_err "Install medium was set to local, but no localPath was provided!"
+      fi
+      LOCALPATH=$VAL
+      INSFILE="${LOCALPATH}/${INSFILE}" ; export INSFILE
+      start_extract_uzip_tar
+      ;;
     *) exit_err "ERROR: Unknown install medium" ;;
   esac
 

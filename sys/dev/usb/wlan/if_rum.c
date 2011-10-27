@@ -1407,20 +1407,27 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
 	struct usb_device_request req;
 	usb_error_t error;
+	int offset;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RT2573_WRITE_MULTI_MAC;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, reg);
-	USETW(req.wLength, len);
 
-	error = rum_do_request(sc, &req, buf);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not multi write MAC register: %s\n",
-		    usbd_errstr(error));
+	/* write at most 64 bytes at a time */
+	for (offset = 0; offset < len; offset += 64) {
+		USETW(req.wIndex, reg + offset);
+		USETW(req.wLength, MIN(len - offset, 64));
+
+		error = rum_do_request(sc, &req, (char *)buf + offset);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not multi write MAC register: %s\n",
+			    usbd_errstr(error));
+			return (error);
+		}
 	}
-	return (error);
+
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void

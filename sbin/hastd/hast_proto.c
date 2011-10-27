@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <strings.h>
 
@@ -158,7 +157,7 @@ hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 	if (ebuf_add_tail(eb, NULL, hdr.size) < 0)
 		goto fail;
 	hptr = ebuf_data(eb, NULL);
-	assert(hptr != NULL);
+	PJDLOG_ASSERT(hptr != NULL);
 	if (proto_recv(conn, hptr, hdr.size) < 0)
 		goto fail;
 	nv = nv_ntoh(eb);
@@ -183,8 +182,8 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	void *dptr;
 	int ret;
 
-	assert(data != NULL);
-	assert(size > 0);
+	PJDLOG_ASSERT(data != NULL);
+	PJDLOG_ASSERT(size > 0);
 
 	ret = -1;
 	freedata = false;

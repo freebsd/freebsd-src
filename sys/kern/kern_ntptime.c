@@ -274,7 +274,7 @@ struct ntp_gettime_args {
 #endif
 /* ARGSUSED */
 int
-ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
+sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
 	struct ntptimeval ntv;
 
@@ -324,7 +324,7 @@ struct ntp_adjtime_args {
 #endif
 
 int
-ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
+sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;	/* temporary structure */
 	long freq;		/* frequency ns/s) */
@@ -932,7 +932,7 @@ struct adjtime_args {
 #endif
 /* ARGSUSED */
 int
-adjtime(struct thread *td, struct adjtime_args *uap)
+sys_adjtime(struct thread *td, struct adjtime_args *uap)
 {
 	struct timeval delta, olddelta, *deltap;
 	int error;

@@ -43,10 +43,11 @@ __FBSDID("$FreeBSD$");
 #define	MAXUSAGE 100
 #define	MAXPUSH 4
 #define	MAXID 64
+#define	ITEMTYPES 3
 
 struct hid_pos_data {
 	int32_t rid;
-	uint32_t pos;
+	uint32_t pos[ITEMTYPES];
 };
 
 struct hid_data {
@@ -55,6 +56,7 @@ struct hid_data {
 	const uint8_t *p;
 	struct hid_item cur[MAXPUSH];
 	struct hid_pos_data last_pos[MAXID];
+	uint32_t pos[ITEMTYPES];
 	int32_t usages_min[MAXUSAGE];
 	int32_t usages_max[MAXUSAGE];
 	int32_t usage_last;	/* last seen usage */
@@ -92,7 +94,7 @@ hid_clear_local(hid_item_t *c)
 static void
 hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
 {
-	uint8_t i;
+	uint8_t i, j;
 
 	/* check for same report ID - optimise */
 
@@ -113,7 +115,8 @@ hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
 	}
 	if (i != MAXID) {
 		s->last_pos[i].rid = c->report_ID;
-		s->last_pos[i].pos = c->pos;
+		for (j = 0; j < ITEMTYPES; j++)
+			s->last_pos[i].pos[j] = s->pos[j];
 	}
 
 	/* store next report ID */
@@ -134,9 +137,12 @@ hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
 	}
 	if (i != MAXID) {
 		s->last_pos[i].rid = next_rID;
-		c->pos = s->last_pos[i].pos;
-	} else
-		c->pos = 0;	/* Out of RID entries. */
+		for (j = 0; j < ITEMTYPES; j++)
+			s->pos[j] = s->last_pos[i].pos[j];
+	} else {
+		for (j = 0; j < ITEMTYPES; j++)
+			s->pos[j] = 0;	/* Out of RID entries. */
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -206,7 +212,6 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 {
 	hid_item_t *c;
 	unsigned int bTag, bType, bSize;
-	uint32_t oldpos;
 	int32_t mask;
 	int32_t dval;
 
@@ -240,7 +245,8 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 		 */
 		if (s->kindset & (1 << c->kind)) {
 			*h = *c;
-			c->pos += c->report_size * c->report_count;
+			h->pos = s->pos[c->kind];
+			s->pos[c->kind] += c->report_size * c->report_count;
 			return (1);
 		}
 	}
@@ -406,14 +412,10 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 			case 11:	/* Pop */
 				s->pushlevel --;
 				if (s->pushlevel < MAXPUSH) {
-					/* preserve position */
-					oldpos = c->pos;
 					c = &s->cur[s->pushlevel];
 					/* restore size and count */
 					s->loc_size = c->report_size;
 					s->loc_count = c->report_count;
-					/* set default item location */
-					c->pos = oldpos;
 					c->report_size = 0;
 					c->report_count = 0;
 				}

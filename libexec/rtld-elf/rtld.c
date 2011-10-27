@@ -495,8 +495,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
-    /* setup TLS for main thread */
-    dbg("initializing initial thread local storage");
+    /*
+     * Processing tls relocations requires having the tls offsets
+     * initialized.  Prepare offsets before starting initial
+     * relocation processing.
+     */
+    dbg("initializing initial thread local storage offsets");
     STAILQ_FOREACH(entry, &list_main, link) {
 	/*
 	 * Allocate all the initial objects out of the static TLS
@@ -504,7 +508,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	 */
 	allocate_tls_offset(entry->obj);
     }
-    allocate_initial_tls(obj_list);
 
     if (relocate_objects(obj_main,
       ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld, NULL) == -1)
@@ -518,6 +521,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        dump_relocations(obj_main);
        exit (0);
     }
+
+    /*
+     * Setup TLS for main thread.  This must be done after the
+     * relocations are processed, since tls initialization section
+     * might be the subject for relocations.
+     */
+    dbg("initializing initial thread local storage");
+    allocate_initial_tls(obj_list);
 
     dbg("initializing key program variables");
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");

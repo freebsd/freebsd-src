@@ -240,7 +240,7 @@ ibcs2_umount(td, uap)
 
 	um.path = uap->name;
 	um.flags = 0;
-	return unmount(td, &um);
+	return sys_unmount(td, &um);
 }
 
 int
@@ -497,7 +497,7 @@ ibcs2_read(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
 	    CAP_READ | CAP_SEEK, &fp)) != 0) {
 		if (error == EINVAL)
-			return read(td, (struct read_args *)uap);
+			return sys_read(td, (struct read_args *)uap);
 		else
 			return error;
 	}
@@ -510,7 +510,7 @@ ibcs2_read(td, uap)
 	if (vp->v_type != VDIR) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
-		return read(td, (struct read_args *)uap);
+		return sys_read(td, (struct read_args *)uap);
 	}
 
 	off = fp->f_offset;
@@ -731,7 +731,7 @@ ibcs2_setuid(td, uap)
 	struct setuid_args sa;
 
 	sa.uid = (uid_t)uap->uid;
-	return setuid(td, &sa);
+	return sys_setuid(td, &sa);
 }
 
 int
@@ -742,7 +742,7 @@ ibcs2_setgid(td, uap)
 	struct setgid_args sa;
 
 	sa.gid = (gid_t)uap->gid;
-	return setgid(td, &sa);
+	return sys_setgid(td, &sa);
 }
 
 int
@@ -782,7 +782,7 @@ ibcs2_fpathconf(td, uap)
 	struct ibcs2_fpathconf_args *uap;
 {
 	uap->name++;	/* iBCS2 _PC_* defines are offset by one */
-        return fpathconf(td, (struct fpathconf_args *)uap);
+        return sys_fpathconf(td, (struct fpathconf_args *)uap);
 }
 
 int
@@ -961,7 +961,7 @@ ibcs2_nice(td, uap)
 	sa.which = PRIO_PROCESS;
 	sa.who = 0;
 	sa.prio = td->td_proc->p_nice + uap->incr;
-	if ((error = setpriority(td, &sa)) != 0)
+	if ((error = sys_setpriority(td, &sa)) != 0)
 		return EPERM;
 	td->td_retval[0] = td->td_proc->p_nice;
 	return 0;
@@ -990,7 +990,7 @@ ibcs2_pgrpsys(td, uap)
 
 		sa.pid = 0;
 		sa.pgid = 0;
-		setpgid(td, &sa);
+		sys_setpgid(td, &sa);
 		PROC_LOCK(p);
 		td->td_retval[0] = p->p_pgrp->pg_id;
 		PROC_UNLOCK(p);
@@ -1003,11 +1003,11 @@ ibcs2_pgrpsys(td, uap)
 
 		sa.pid = uap->pid;
 		sa.pgid = uap->pgid;
-		return setpgid(td, &sa);
+		return sys_setpgid(td, &sa);
 	    }
 
 	case 3:			/* setsid */
-		return setsid(td, NULL);
+		return sys_setsid(td, NULL);
 
 	default:
 		return EINVAL;
@@ -1082,11 +1082,11 @@ ibcs2_uadmin(td, uap)
 		case SCO_AD_PWRDOWN:
 		case SCO_AD_PWRNAP:
 			r.opt = RB_HALT;
-			return (reboot(td, &r));
+			return (sys_reboot(td, &r));
 		case SCO_AD_BOOT:
 		case SCO_AD_IBOOT:
 			r.opt = RB_AUTOBOOT;
-			return (reboot(td, &r));
+			return (sys_reboot(td, &r));
 		}
 		return EINVAL;
 	case SCO_A_REMOUNT:

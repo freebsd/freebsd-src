@@ -38,7 +38,7 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
                                      CheckerContext &C) const {
 
   const Expr *Ex = S->getSynchExpr();
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   SVal V = state->getSVal(Ex);
 
   // Uninitialized value used for the mutex?
@@ -47,9 +47,9 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
       if (!BT_undef)
         BT_undef.reset(new BuiltinBug("Uninitialized value used as mutex "
                                   "for @synchronized"));
-      EnhancedBugReport *report =
-        new EnhancedBugReport(*BT_undef, BT_undef->getDescription(), N);
-      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, Ex);
+      BugReport *report =
+        new BugReport(*BT_undef, BT_undef->getDescription(), N);
+      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
       C.EmitReport(report);
     }
     return;
@@ -59,7 +59,7 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
     return;
 
   // Check for null mutexes.
-  const GRState *notNullState, *nullState;
+  const ProgramState *notNullState, *nullState;
   llvm::tie(notNullState, nullState) = state->assume(cast<DefinedSVal>(V));
 
   if (nullState) {
@@ -70,10 +70,9 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
         if (!BT_null)
           BT_null.reset(new BuiltinBug("Nil value used as mutex for @synchronized() "
                                    "(no synchronization will occur)"));
-        EnhancedBugReport *report =
-          new EnhancedBugReport(*BT_null, BT_null->getDescription(), N);
-        report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
-                                  Ex);
+        BugReport *report =
+          new BugReport(*BT_null, BT_null->getDescription(), N);
+        report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
 
         C.EmitReport(report);
         return;

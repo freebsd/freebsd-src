@@ -120,6 +120,9 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 TUNABLE_INT("hw.ata.setmax", &ata_setmax);
 SYSCTL_INT(_hw_ata, OID_AUTO, setmax, CTLFLAG_RDTUN, &ata_setmax, 0,
 	   "ATA disk set max native address");
+#ifdef ATA_CAM
+FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
+#endif
 
 /*
  * newbus device interface related functions
@@ -837,7 +840,7 @@ ata_boot_attach(void)
 
     mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 
-    /* kick of probe and attach on all channels */
+    /* kick off probe and attach on all channels */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
 	if ((ch = devclass_get_softc(ata_devclass, ctlr))) {
 	    ata_identify(ch->dev);

@@ -1691,9 +1691,10 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 				if (have_sense) {
 					sense = &csio->sense_data;
-					scsi_extract_sense(sense, &error_code,
-							   &sense_key, 
-							   &asc, &ascq);
+					scsi_extract_sense_len(sense,
+					    csio->sense_len - csio->sense_resid,
+					    &error_code, &sense_key, &asc,
+					    &ascq, /*show_errors*/ 1);
 				}
 				/*
 				 * Attach to anything that claims to be a
@@ -3126,8 +3127,9 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 && ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
 		int sense_key, error_code, asc, ascq;
 
- 		scsi_extract_sense(&ccb->csio.sense_data,
-				   &error_code, &sense_key, &asc, &ascq);
+ 		scsi_extract_sense_len(&ccb->csio.sense_data,
+		    ccb->csio.sense_len - ccb->csio.sense_resid, &error_code,
+		    &sense_key, &asc, &ascq, /*show_errors*/ 1);
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
  			error = cd6byteworkaround(ccb);
 	}

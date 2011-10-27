@@ -119,20 +119,20 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	fd = flopen(pfh->pf_path,
 	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
 	if (fd == -1) {
-		count = 0;
-		rqtp.tv_sec = 0;
-		rqtp.tv_nsec = 5000000;
 		if (errno == EWOULDBLOCK && pidptr != NULL) {
-		again:
-			errno = pidfile_read(pfh->pf_path, pidptr);
-			if (errno == 0)
-				errno = EEXIST;
-			else if (errno == EAGAIN) {
-				if (++count <= 3) {
-					nanosleep(&rqtp, 0);
-					goto again;
-				}
+			count = 20;
+			rqtp.tv_sec = 0;
+			rqtp.tv_nsec = 5000000;
+			for (;;) {
+				errno = pidfile_read(pfh->pf_path, pidptr);
+				if (errno != EAGAIN || --count == 0)
+					break;
+				nanosleep(&rqtp, 0);
 			}
+			if (errno == EAGAIN)
+				*pidptr = -1;
+			if (errno == 0 || errno == EAGAIN)
+				errno = EEXIST;
 		}
 		free(pfh);
 		return (NULL);

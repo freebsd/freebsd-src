@@ -184,7 +184,7 @@ the listing of any additional diskX= directives.
 The following settings specify the partitioning / mount points to setup
 on the target partition
 
-# disk0-part=UFS+S 500 / 
+# disk0-part=UFS+S 500 / (-n -o time)
 # disk0-part=SWAP 2000 none
 # disk0-part=UFS.eli 500 /usr
 # encpass=mypass
@@ -218,6 +218,12 @@ encpass=mypass
 All sizes are expressed in MegaBytes
 Specifying a size 0 instructs pc-sysinstall to use the rest of the 
 available slice size, and should only be used for the last partition / mount
+
+When using "UFS" and its various types, it is possible to specify custom options
+for newfs using (). For examplei:
+disk0-part=UFS+SUJ 1000 / (-o time)
+In this case "-o time" would be passed to newfs when creating the "/" filesystem.
+
 
 When using "ZFS" specifically, it is possible to specify additional disks / partitions
 to include in the zpool. By using the syntax: (mirror: ad1,ad2) or (raidz: ad1,ad2), it is possible

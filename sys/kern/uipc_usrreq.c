@@ -462,6 +462,8 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
 
+	if (soun->sun_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
 	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
 	if (namelen <= 0)
 		return (EINVAL);
@@ -1252,6 +1254,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
 
+	if (nam->sa_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
 		return (EINVAL);

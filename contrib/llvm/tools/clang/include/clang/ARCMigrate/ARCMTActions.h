@@ -34,11 +34,15 @@ public:
 
 class MigrateAction : public WrapperFrontendAction {
   std::string MigrateDir;
+  std::string PlistOut;
+  bool EmitPremigrationARCErros;
 protected:
   virtual bool BeginInvocation(CompilerInstance &CI);
 
 public:
-  MigrateAction(FrontendAction *WrappedAction, llvm::StringRef migrateDir);
+  MigrateAction(FrontendAction *WrappedAction, StringRef migrateDir,
+                StringRef plistOut,
+                bool emitPremigrationARCErrors);
 };
 
 }

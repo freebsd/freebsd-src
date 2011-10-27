@@ -56,6 +56,7 @@ void MipsSwitchFPState(struct thread *, struct trapframe *);
 u_long	kvtop(void *addr);
 int	is_cacheable_mem(vm_paddr_t addr);
 void	mips_generic_reset(void);
+void	mips_wait(void);
 
 #define	MIPS_DEBUG   0
 

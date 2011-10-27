@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2011
+.Dd September 13, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -626,12 +626,37 @@ is needed for them:
 .Bl -tag -width indent
 .It Cm accept_rtadv
 Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.accept_rtadv
+controls whether this flag is set by default or not.
 .It Cm -accept_rtadv
 Clear a flag
 .Cm accept_rtadv .
+.It Cm no_radr
+Set a flag to control whether routers from which the system accepts
+Router Advertisement messages will be added to the Default Router List
+or not.
+When the
+.Cm accept_rtadv
+flag is disabled, this flag has no effect.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.no_radr
+controls whether this flag is set by default or not.
+.It Cm -no_radr
+Clear a flag
+.Cm no_radr .
 .It Cm auto_linklocal
 Set a flag to perform automatic link-local address configuration when
 the interface becomes available.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.auto_linklocal
+controls whether this flag is set by default or not.
 .It Cm -auto_linklocal
 Clear a flag
 .Cm auto_linklocal .

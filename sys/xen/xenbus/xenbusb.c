@@ -773,7 +773,7 @@ xenbusb_resume(device_t dev)
 			ivars = device_get_ivars(kids[i]);
 
 			xs_unregister_watch(&ivars->xd_otherend_watch);
-			ivars->xd_state = XenbusStateInitialising;
+			xenbus_set_state(kids[i], XenbusStateInitialising);
 
 			/*
 			 * Find the new backend details and
@@ -783,16 +783,16 @@ xenbusb_resume(device_t dev)
 			if (error)
 				return (error);
 
-			DEVICE_RESUME(kids[i]);
-
 			statepath = malloc(ivars->xd_otherend_path_len
 			    + strlen("/state") + 1, M_XENBUS, M_WAITOK);
 			sprintf(statepath, "%s/state", ivars->xd_otherend_path);
 
 			free(ivars->xd_otherend_watch.node, M_XENBUS);
 			ivars->xd_otherend_watch.node = statepath;
-			xs_register_watch(&ivars->xd_otherend_watch);
 
+			DEVICE_RESUME(kids[i]);
+
+			xs_register_watch(&ivars->xd_otherend_watch);
 #if 0
 			/*
 			 * Can't do this yet since we are running in

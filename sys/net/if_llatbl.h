@@ -59,6 +59,7 @@ struct llentry {
 	struct rwlock		 lle_lock;
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
+	void			(*lle_free)(struct lltable *, struct llentry *);
 	struct mbuf		 *la_hold;
 	int     		 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;

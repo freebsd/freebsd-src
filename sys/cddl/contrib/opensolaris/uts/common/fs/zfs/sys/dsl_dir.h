@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 #ifndef	_SYS_DSL_DIR_H
@@ -131,7 +133,7 @@ int dsl_dir_set_quota(const char *ddname, zprop_source_t source,
     uint64_t quota);
 int dsl_dir_set_reservation(const char *ddname, zprop_source_t source,
     uint64_t reservation);
-int dsl_dir_rename(dsl_dir_t *dd, const char *newname);
+int dsl_dir_rename(dsl_dir_t *dd, const char *newname, int flags);
 int dsl_dir_transfer_possible(dsl_dir_t *sdd, dsl_dir_t *tdd, uint64_t space);
 int dsl_dir_set_reservation_check(void *arg1, void *arg2, dmu_tx_t *tx);
 boolean_t dsl_dir_is_clone(dsl_dir_t *dd);

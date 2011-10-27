@@ -554,7 +554,7 @@ init_gmirror()
     local _mDisk=$3
 
     # Create this mirror device
-    rc_halt "gmirror label -vb ${_mBal} gm${_mNum} /dev/${_mDisk}"
+    rc_halt "gmirror label -vb ${_mBal} gm${_mNum} ${_mDisk}"
 
     sleep 3
 

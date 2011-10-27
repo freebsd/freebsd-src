@@ -2237,9 +2237,9 @@ sis_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
 	mii_pollstat(mii);
-	SIS_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	SIS_UNLOCK(sc);
 }
 
 static int

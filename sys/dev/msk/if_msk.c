@@ -995,9 +995,9 @@ msk_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_pollstat(mii);
-	MSK_IF_UNLOCK(sc_if);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	MSK_IF_UNLOCK(sc_if);
 }
 
 static int

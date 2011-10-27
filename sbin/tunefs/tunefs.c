@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 /* the optimization warning string template */
@@ -923,6 +924,7 @@ journal_alloc(int64_t size)
 	ino_t ino;
 	int blks;
 	int mode;
+	time_t utime;
 	int i;
 
 	cgp = &disk.d_cg;
@@ -983,18 +985,26 @@ journal_alloc(int64_t size)
 		 */
 		dp2 = ip;
 		dp1 = ip;
+		time(&utime);
 		if (sblock.fs_magic == FS_UFS1_MAGIC) {
 			bzero(dp1, sizeof(*dp1));
 			dp1->di_size = size;
 			dp1->di_mode = IFREG | IREAD;
 			dp1->di_nlink = 1;
 			dp1->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
+			dp1->di_atime = utime;
+			dp1->di_mtime = utime;
+			dp1->di_ctime = utime;
 		} else {
 			bzero(dp2, sizeof(*dp2));
 			dp2->di_size = size;
 			dp2->di_mode = IFREG | IREAD;
 			dp2->di_nlink = 1;
 			dp2->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
+			dp2->di_atime = utime;
+			dp2->di_mtime = utime;
+			dp2->di_ctime = utime;
+			dp2->di_birthtime = utime;
 		}
 		for (i = 0; i < NDADDR && resid; i++, resid--) {
 			blk = journal_balloc();

@@ -215,8 +215,9 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    bss_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_memsz);
 	    bss_addr = mapbase +  (bss_vaddr - base_vaddr);
 	    if (bss_vlimit > bss_vaddr) {	/* There is something to do */
-		if (mprotect(bss_addr, bss_vlimit - bss_vaddr, data_prot) == -1) {
-		    _rtld_error("%s: mprotect of bss failed: %s", path,
+		if (mmap(bss_addr, bss_vlimit - bss_vaddr, data_prot,
+		    data_flags | MAP_ANON, -1, 0) == (caddr_t)-1) {
+		    _rtld_error("%s: mmap of bss failed: %s", path,
 			strerror(errno));
 		    return NULL;
 		}
