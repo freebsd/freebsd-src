@@ -1054,7 +1054,7 @@ alloc:
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_incr_usecount(vp);
-	vp->v_data = 0;
+	vp->v_data = NULL;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1255,7 +1255,7 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
  *
  */
 static int
-flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
     int slptimeo)
 {
 	struct buf *bp, *nbp;

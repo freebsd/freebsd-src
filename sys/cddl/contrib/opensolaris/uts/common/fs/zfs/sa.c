@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Portions Copyright 2011 iXsystems, Inc
  */
 
 #include <sys/zfs_context.h>

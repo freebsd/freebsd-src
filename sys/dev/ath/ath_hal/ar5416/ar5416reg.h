@@ -260,7 +260,13 @@
 
 #define	AR_ISR_S5		0x0098
 #define	AR_ISR_S5_S		0x00d8
-#define	AR_ISR_S5_TIM_TIMER	0x00000010
+#define	AR_ISR_S5_GENTIMER7	0x00000080 // Mask for timer 7 trigger
+#define	AR_ISR_S5_TIM_TIMER	0x00000010 // TIM Timer ISR
+#define	AR_ISR_S5_DTIM_TIMER	0x00000020 // DTIM Timer ISR
+#define	AR_ISR_S5_GENTIMER_TRIG	0x0000FF80 // ISR for generic timer trigger 7-15
+#define	AR_ISR_S5_GENTIMER_TRIG_S	0
+#define	AR_ISR_S5_GENTIMER_THRESH	0xFF800000 // ISR for generic timer threshold 7-15
+#define	AR_ISR_S5_GENTIMER_THRESH_S	16
 
 #define	AR_INTR_SPURIOUS	0xffffffff
 #define	AR_INTR_RTC_IRQ		0x00000001	/* rtc in shutdown state */
