@@ -3624,8 +3624,10 @@ rx_error:
 				/* NB: bpf needs the mbuf length setup */
 				len = rs->rs_datalen;
 				m->m_pkthdr.len = m->m_len = len;
+				bf->bf_m = NULL;
 				ath_rx_tap(ifp, m, rs, tsf, nf);
 				ieee80211_radiotap_rx_all(ic, m);
+				m_freem(m);
 			}
 			/* XXX pass MIC errors up for s/w reclaculation */
 			goto rx_next;
