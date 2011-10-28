@@ -3669,36 +3669,6 @@ ath_handle_micerror(struct ieee80211com *ic,
 }
 
 /*
- * It seems that occasionally we receive packets for a sta
- * that isn't us. This only occurs in aggregation mode.
- *
- * This is just a local hack I'm using to sniff an instance
- * of these out.
- */
-static void
-ath_rx_dump_wtf(struct ath_softc *sc, struct ath_rx_status *rs,
-    struct ath_buf *bf, struct mbuf *m, int status)
-{
-#if 0
-	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
-	const struct ieee80211_frame *wh;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-
-	wh = mtod(m, const struct ieee80211_frame *);
-	if (wh->i_addr1[0] == 0xd4) {
-		device_printf(sc->sc_dev,
-		    "%s: XXX shouldn't see this! keyidx=%d\n",
-		    __func__, rs->rs_keyix);
-		ieee80211_dump_pkt(ic, mtod(m, caddr_t), m->m_len,
-		    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
-		ath_printrxbuf(sc, bf, 0, status == HAL_OK);
-	}
-#endif
-}
-
-/*
  * Only run the RX proc if it's not already running.
  * Since this may get run as part of the reset/flush path,
  * the task can't clash with an existing, running tasklet.
@@ -3905,8 +3875,6 @@ rx_error:
 				m->m_pkthdr.len = m->m_len = len;
 				bf->bf_m = NULL;
 
-				ath_rx_dump_wtf(sc, rs, bf, m, status);
-
 				ath_rx_tap(ifp, m, rs, tsf, nf);
 				ieee80211_radiotap_rx_all(ic, m);
 				m_freem(m);
@@ -3929,8 +3897,6 @@ rx_accept:
 
 		len = rs->rs_datalen;
 		m->m_len = len;
-
-		ath_rx_dump_wtf(sc, rs, bf, m, status);
 
 		if (rs->rs_more) {
 #if 0
