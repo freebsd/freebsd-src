@@ -2086,7 +2086,10 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t next, prev, root;
+#ifndef VM_RADIX
+	vm_page_t next, prev;
+#endif
+	vm_page_t root;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
