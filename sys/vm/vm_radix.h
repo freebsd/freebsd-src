@@ -35,6 +35,9 @@
 #define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
 #define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
 #define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
+#define	VM_RADIX_HEIGHT	0xf		/* Bits of height in root */
+
+CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 
 /* Calculates maximum value for a tree of height h. */
 #define	VM_RADIX_MAX(h)							\
@@ -42,14 +45,16 @@
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
 struct vm_radix_node {
-	SLIST_ENTRY(vm_radix_node) next;
 	void 		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
     	uint16_t	rn_count;			/* Valid children. */
 };
 
+/*
+ * Radix tree root.  The height and pointer are set together to permit
+ * coherent lookups while the root is modified.
+ */
 struct vm_radix {
-	struct 	vm_radix_node *rt_root; 	/* Root node. */
-	int 	rt_height; 			/* Number of levels + 1. */
+	uintptr_t	rt_root;		/* root + height */
 };
 
 void	vm_radix_init(void);

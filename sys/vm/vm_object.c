@@ -209,8 +209,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	LIST_INIT(&object->shadow_head);
 
 #ifdef VM_RADIX
-	object->rtree.rt_height = 0;
-	object->rtree.rt_root = NULL;
+	object->rtree.rt_root = 0;
 #else
 	object->root = NULL;
 #endif
