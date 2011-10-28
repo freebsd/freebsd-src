@@ -43,19 +43,99 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/ktr.h>
+#include <vm/uma.h>
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_object.h>
 
 #include <sys/kdb.h>
 
+CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 
-SLIST_HEAD(, vm_radix_node) res_rnodes_head =
-    SLIST_HEAD_INITIALIZER(res_rnodes_head);
+static uma_zone_t vm_radix_node_zone;
 
-struct mtx rnode_lock;
-vm_offset_t rnode_start;
-vm_offset_t rnode_end;
+#if 0
+static void *
+vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
+{
+	vm_offset_t addr;
+	vm_page_t m;
+	int pflags;
+
+	/* Inform UMA that this allocator uses kernel_map. */
+	*flags = UMA_SLAB_KERNEL;
+
+	pflags = VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
+
+	/*
+	 * As kmem_alloc_nofault() can however fail, let just assume that
+	 * M_NOWAIT is on and act accordingly.
+	 */
+	pflags |= ((wait & M_USE_RESERVE) != 0) ? VM_ALLOC_INTERRUPT :
+	    VM_ALLOC_SYSTEM;
+	if ((wait & M_ZERO) != 0)
+		pflags |= VM_ALLOC_ZERO; 
+	addr = kmem_alloc_nofault(kernel_map, size);
+	if (addr == 0)
+		return (NULL);
+
+	/* Just one page allocation is assumed here. */
+	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
+	    pflags);
+	if (m == NULL) {
+		kmem_free(kernel_map, addr, size);
+		return (NULL);
+	}
+	if ((wait & M_ZERO) != 0 && (m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+	pmap_qenter(addr, &m, 1);
+	return ((void *)addr);
+}
+
+static void
+vm_radix_node_zone_freef(void *item, int size, uint8_t flags)
+{
+	vm_page_t m;
+	vm_offset_t voitem;
+
+	MPASS((flags & UMA_SLAB_KERNEL) != 0);
+
+	/* Just one page allocation is assumed here. */
+	voitem = (vm_offset_t)item;
+	m = PHYS_TO_VM_PAGE(pmap_kextract(voitem));
+	pmap_qremove(voitem, 1);
+	vm_page_free(m);
+	kmem_free(kernel_map, voitem, size);
+}
+
+static void
+init_vm_radix_alloc(void *dummy __unused)
+{
+
+	uma_zone_set_allocf(vm_radix_node_zone, vm_radix_node_zone_allocf);
+	uma_zone_set_freef(vm_radix_node_zone, vm_radix_node_zone_freef);
+}
+SYSINIT(vm_radix, SI_SUB_KMEM, SI_ORDER_SECOND, init_vm_radix_alloc, NULL);
+#endif
+
+/*
+ * Radix node zone destructor.
+ */
+#ifdef INVARIANTS
+static void
+vm_radix_node_zone_dtor(void *mem, int size, void *arg)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = mem;
+	KASSERT(rnode->rn_count == 0,
+	    ("vm_radix_node_put: Freeing a node with %d children\n",
+	    rnode->rn_count));
+}
+#endif
 
 /*
  * Allocate a radix node.  Initializes all elements to 0.
@@ -63,28 +143,8 @@ vm_offset_t rnode_end;
 static struct vm_radix_node *
 vm_radix_node_get(void)
 {
-	struct vm_radix_node *rnode;
 
-	if (VM_OBJECT_LOCKED(kernel_object) || VM_OBJECT_LOCKED(kmem_object)){
-		mtx_lock_spin(&rnode_lock);
-		if (!SLIST_EMPTY(&res_rnodes_head)) {
-			rnode = SLIST_FIRST(&res_rnodes_head);
-			SLIST_REMOVE_HEAD(&res_rnodes_head, next);
-			mtx_unlock_spin(&rnode_lock);
-			bzero((void *)rnode, sizeof(*rnode));
-			goto out;
-		} 
-		mtx_unlock_spin(&rnode_lock);
-		panic("No memory for kernel_object. . .");
-	}
-	rnode = malloc(sizeof(struct vm_radix_node), M_TEMP, M_NOWAIT | M_ZERO);
-	if (rnode == NULL) {
-		panic("vm_radix_node_get: Can not allocate memory\n");
-		return NULL;
-	}
-out:
-
-	return rnode;
+	return (uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO));
 }
 
 /*
@@ -94,16 +154,7 @@ static void
 vm_radix_node_put(struct vm_radix_node *rnode)
 {
 
-	KASSERT(rnode->rn_count == 0,
-	    ("vm_radix_node_put: Freeing a node with %d children\n",
-	    rnode->rn_count));
-	if ((vm_offset_t)rnode >= rnode_start &&
-	    (vm_offset_t)rnode < rnode_end) {
-		mtx_lock_spin(&rnode_lock);
-		SLIST_INSERT_HEAD(&res_rnodes_head, rnode, next);
-		mtx_unlock_spin(&rnode_lock);
-	} else
-		free(rnode,M_TEMP);
+	uma_zfree(vm_radix_node_zone, rnode);
 }
 
 /*
@@ -114,6 +165,20 @@ vm_radix_slot(vm_pindex_t index, int level)
 {
 
 	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
+}
+
+void
+vm_radix_init(void)
+{
+
+	vm_radix_node_zone = uma_zcreate("RADIX NODE",
+	    sizeof(struct vm_radix_node), NULL,
+#ifdef INVARIANTS
+	    vm_radix_node_zone_dtor,
+#else
+	    NULL,
+#endif
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 }
 
 /*

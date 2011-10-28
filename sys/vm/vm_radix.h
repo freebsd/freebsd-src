@@ -52,6 +52,7 @@ struct vm_radix {
 	int 	rt_height; 			/* Number of levels + 1. */
 };
 
+void	vm_radix_init(void);
 int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
 void	*vm_radix_remove(struct vm_radix *, vm_pindex_t);
 void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);

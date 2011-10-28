@@ -122,13 +122,6 @@ struct vpglocks vm_page_queue_free_lock;
 
 struct vpglocks	pa_lock[PA_LOCK_COUNT];
 
-#ifdef VM_RADIX
-extern SLIST_HEAD(, vm_radix_node) res_rnodes_head;
-extern struct mtx rnode_lock;
-extern vm_offset_t rnode_start;
-extern vm_offset_t rnode_end;
-#endif
-
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
 long first_page = 0;
@@ -260,10 +253,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
 	char *list;
-#ifdef VM_RADIX
-	unsigned int rtree_res_count;
-	vm_pindex_t size;
-#endif
 
 	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
@@ -323,34 +312,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
 	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
-#ifdef VM_RADIX
-	mtx_init(&rnode_lock, "radix node", NULL, MTX_SPIN);
-	/*
-	 * Reserve memory for radix nodes.  Allocate enough nodes so that
-	 * insert on kernel_object will not result in recurrsion.
-	 */
-	size = OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) * 2;
-	rtree_res_count = 0;
-	while (size != 0) {
-		rtree_res_count += size / VM_RADIX_COUNT;
-		size /= VM_RADIX_COUNT;
-	}
-	printf("Allocated %d tree pages for %lu bytes of memory.\n",
-	    rtree_res_count, VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
-	new_end = end - (rtree_res_count * sizeof(struct vm_radix_node));
-	new_end = trunc_page(new_end);
-	mapped = pmap_map(&vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((void *)mapped, end - new_end);
-	end = new_end;
-	rnode_start = mapped;
-	for (i = 0; i < rtree_res_count; i++) {
-		SLIST_INSERT_HEAD(&res_rnodes_head,
-		    (struct vm_radix_node *)mapped, next);
-		mapped += sizeof(struct vm_radix_node);
-	}
-	rnode_end = mapped;
-#endif
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
@@ -902,7 +863,8 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 		} else 
 			TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	}
-	vm_radix_insert(&object->rtree, pindex, m);
+	if (vm_radix_insert(&object->rtree, pindex, m) != 0)
+		panic("vm_page_insert: unable to insert the new page");
 #else
 	/*
 	 * Now link into the object's ordered list of backed pages.
