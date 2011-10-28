@@ -908,7 +908,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t root;
+	vm_page_t next, prev, root;
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
@@ -923,15 +923,42 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
-	if (m != object->root)
-		vm_page_splay(m->pindex, object->root);
-	if (m->left == NULL)
-		root = m->right;
-	else {
-		root = vm_page_splay(m->pindex, m->left);
-		root->right = m->right;
+	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
+		/*
+		 * Since the page's successor in the list is also its parent
+		 * in the tree, its right subtree must be empty.
+		 */
+		next->left = m->left;
+		KASSERT(m->right == NULL,
+		    ("vm_page_remove: page %p has right child", m));
+	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->right == m) {
+		/*
+		 * Since the page's predecessor in the list is also its parent
+		 * in the tree, its left subtree must be empty.
+		 */
+		KASSERT(m->left == NULL,
+		    ("vm_page_remove: page %p has left child", m));
+		prev->right = m->right;
+	} else {
+		if (m != object->root)
+			vm_page_splay(m->pindex, object->root);
+		if (m->left == NULL)
+			root = m->right;
+		else if (m->right == NULL)
+			root = m->left;
+		else {
+			/*
+			 * Move the page's successor to the root, because
+			 * pages are usually removed in ascending order.
+			 */
+			if (m->right != next)
+				vm_page_splay(m->pindex, m->right);
+			next->left = m->left;
+			root = next;
+		}
+		object->root = root;
 	}
-	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -1259,8 +1286,9 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 /*
  *	vm_page_alloc:
  *
- *	Allocate and return a memory cell associated
- *	with this VM object/offset pair.
+ *	Allocate and return a page that is associated with the specified
+ *	object and offset pair.  By default, this page has the flag VPO_BUSY
+ *	set.
  *
  *	The caller must always specify an allocation class.
  *
@@ -1270,13 +1298,14 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
- *	VM_ALLOC_ZERO		prefer a zeroed page
- *	VM_ALLOC_WIRED		wire the allocated page
- *	VM_ALLOC_NOOBJ		page is not associated with a vm object
- *	VM_ALLOC_NOBUSY		do not set the page busy
  *	VM_ALLOC_IFCACHED	return page only if it is cached
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
+ *	VM_ALLOC_NOBUSY		do not set the flag VPO_BUSY on the page
+ *	VM_ALLOC_NOOBJ		page is not associated with an object and
+ *				should not have the flag VPO_BUSY set
+ *	VM_ALLOC_WIRED		wire the allocated page
+ *	VM_ALLOC_ZERO		prefer a zeroed page
  *
  *	This routine may not sleep.
  */
@@ -2021,7 +2050,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t root;
+	vm_page_t next, prev, root;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2056,15 +2085,42 @@ vm_page_cache(vm_page_t m)
 	 * Remove the page from the object's collection of resident
 	 * pages. 
 	 */
-	if (m != object->root)
-		vm_page_splay(m->pindex, object->root);
-	if (m->left == NULL)
-		root = m->right;
-	else {
-		root = vm_page_splay(m->pindex, m->left);
-		root->right = m->right;
+	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
+		/*
+		 * Since the page's successor in the list is also its parent
+		 * in the tree, its right subtree must be empty.
+		 */
+		next->left = m->left;
+		KASSERT(m->right == NULL,
+		    ("vm_page_cache: page %p has right child", m));
+	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->right == m) {
+		/*
+		 * Since the page's predecessor in the list is also its parent
+		 * in the tree, its left subtree must be empty.
+		 */
+		KASSERT(m->left == NULL,
+		    ("vm_page_cache: page %p has left child", m));
+		prev->right = m->right;
+	} else {
+		if (m != object->root)
+			vm_page_splay(m->pindex, object->root);
+		if (m->left == NULL)
+			root = m->right;
+		else if (m->right == NULL)
+			root = m->left;
+		else {
+			/*
+			 * Move the page's successor to the root, because
+			 * pages are usually removed in ascending order.
+			 */
+			if (m->right != next)
+				vm_page_splay(m->pindex, m->right);
+			next->left = m->left;
+			root = next;
+		}
+		object->root = root;
 	}
-	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 

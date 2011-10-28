@@ -132,7 +132,7 @@ static struct filterops	tap_write_filterops = {
 
 static struct cdevsw	tap_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDMINOR,
+	.d_flags =	D_NEEDMINOR,
 	.d_open =	tapopen,
 	.d_close =	tapclose,
 	.d_read =	tapread,

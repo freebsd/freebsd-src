@@ -133,16 +133,16 @@ object is destroyed or when new lookup functions are registered.
 This convenience function installs a standard set of user
 and group name lookup functions.
 These functions use
-.Xr getpwid 3
+.Xr getpwuid 3
 and
-.Xr getgrid 3
+.Xr getgrgid 3
 to convert ids to names, defaulting to NULL if the names cannot
 be looked up.
 These functions also implement a simple memory cache to reduce
 the number of calls to
-.Xr getpwid 3
+.Xr getpwuid 3
 and
-.Xr getgrid 3 .
+.Xr getgrgid 3 .
 .It Fn archive_read_disk_entry_from_file
 Populates a
 .Tn struct archive_entry
@@ -281,9 +281,9 @@ library was written by
 The
 .Dq standard
 user name and group name lookup functions are not the defaults because
-.Xr getgrid 3
+.Xr getgrgid 3
 and
-.Xr getpwid 3
+.Xr getpwuid 3
 are sometimes too large for particular applications.
 The current design allows the application author to use a more
 compact implementation when appropriate.

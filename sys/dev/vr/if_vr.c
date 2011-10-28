@@ -2155,9 +2155,9 @@ vr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	}
 	mii_pollstat(mii);
-	VR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	VR_UNLOCK(sc);
 }
 
 static int

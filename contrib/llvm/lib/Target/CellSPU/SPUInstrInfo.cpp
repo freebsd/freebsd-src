@@ -17,9 +17,9 @@
 #include "SPUHazardRecognizers.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define GET_INSTRINFO_CTOR
@@ -290,6 +290,8 @@ static void removeHBR( MachineBasicBlock &MBB) {
     if (I->getOpcode() == SPU::HBRA ||
         I->getOpcode() == SPU::HBR_LABEL){
       I=MBB.erase(I);
+      if (I == MBB.end())
+        break;
     }
   }
 }

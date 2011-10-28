@@ -28,7 +28,7 @@
 .\"     @(#)who.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2002
+.Dd Oct 28, 2011
 .Dt WHO 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd display who is on the system
 .Sh SYNOPSIS
 .Nm
-.Op Fl HmqsTu
+.Op Fl bHmqsTu
 .Op Cm am I
 .Op Ar file
 .Sh DESCRIPTION
@@ -48,6 +48,8 @@ remote hostname if not local.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b
+Write the time and date of the last system reboot.
 .It Fl H
 Write column headings above the output.
 .It Fl m

@@ -165,7 +165,7 @@ static struct filterops tun_write_filterops = {
 
 static struct cdevsw tun_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDMINOR,
+	.d_flags =	D_NEEDMINOR,
 	.d_open =	tunopen,
 	.d_close =	tunclose,
 	.d_read =	tunread,

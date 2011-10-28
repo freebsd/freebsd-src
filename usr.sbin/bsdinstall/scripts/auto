@@ -158,7 +158,7 @@ finalconfig() {
 	REVISIT=$(dialog --backtitle "FreeBSD Installer" \
 	    --title "Final Configuration" --no-cancel --menu \
 	    "Setup of your FreeBSD system is nearly complete. You can now modify your configuration choices or apply more complex changes using a shell." 0 0 0 \
-		"Exit" "Apply configuration and exit installer"
+		"Exit" "Apply configuration and exit installer" \
 		"Add User" "Add a user to the system" \
 		"Root Password" "Change root password" \
 		"Hostname" "Set system hostname" \

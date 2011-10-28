@@ -35,7 +35,7 @@ extern int setup_and_wait(char **);
 extern int start_tracing(int);
 extern void restore_proc(int);
 extern void waitevent(struct trussinfo *);
-extern const char *ioctlname(register_t val);
+extern const char *ioctlname(unsigned long val);
 extern char *strsig(int sig);
 #ifdef __amd64__
 extern void amd64_syscall_entry(struct trussinfo *, int);

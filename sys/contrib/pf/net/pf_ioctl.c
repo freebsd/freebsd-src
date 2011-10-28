@@ -266,7 +266,7 @@ static struct cdevsw pf_cdevsw = {
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
 VNET_DEFINE(int,		pf_end_threads);
-VNET_DEFINE(struct mtx,		pf_task_mtx);
+struct mtx			pf_task_mtx;
 
 /* pfsync */
 pfsync_state_import_t 		*pfsync_state_import_ptr = NULL;
@@ -287,18 +287,18 @@ SYSCTL_VNET_INT(_debug, OID_AUTO, pfugidhack, CTLFLAG_RW,
 	&VNET_NAME(debug_pfugidhack), 0,
 	"Enable/disable pf user/group rules mpsafe hack");
 
-void
+static void
 init_pf_mutex(void)
 {
 
-	mtx_init(&V_pf_task_mtx, "pf task mtx", NULL, MTX_DEF);
+	mtx_init(&pf_task_mtx, "pf task mtx", NULL, MTX_DEF);
 }
 
-void
+static void
 destroy_pf_mutex(void)
 {
 
-	mtx_destroy(&V_pf_task_mtx);
+	mtx_destroy(&pf_task_mtx);
 }
 void
 init_zone_var(void)
@@ -4259,7 +4259,7 @@ hook_pf(void)
 	struct pfil_head *pfh_inet6;
 #endif
 
-	PF_ASSERT(MA_NOTOWNED);
+	PF_UNLOCK_ASSERT();
 
 	if (V_pf_pfil_hooked)
 		return (0); 
@@ -4300,7 +4300,7 @@ dehook_pf(void)
 	struct pfil_head *pfh_inet6;
 #endif
 
-	PF_ASSERT(MA_NOTOWNED);
+	PF_UNLOCK_ASSERT();
 
 	if (V_pf_pfil_hooked == 0)
 		return (0);
@@ -4381,11 +4381,8 @@ pf_load(void)
 
 	init_zone_var();
 	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
-	init_pf_mutex();
-	if (pfattach() < 0) {
-		destroy_pf_mutex();
+	if (pfattach() < 0)
 		return (ENOMEM);
-	}
 
 	return (0);
 }
@@ -4413,14 +4410,13 @@ pf_unload(void)
 	V_pf_end_threads = 1;
 	while (V_pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
-		msleep(pf_purge_thread, &V_pf_task_mtx, 0, "pftmo", hz);
+		msleep(pf_purge_thread, &pf_task_mtx, 0, "pftmo", hz);
 	}
 	pfi_cleanup();
 	pf_osfp_flush();
 	pf_osfp_cleanup();
 	cleanup_pf_zone();
 	PF_UNLOCK();
-	destroy_pf_mutex();
 	sx_destroy(&V_pf_consistency_lock);
 	return error;
 }
@@ -4432,10 +4428,12 @@ pf_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
+		init_pf_mutex();
 		pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
 		break;
 	case MOD_UNLOAD:
 		destroy_dev(pf_dev);
+		destroy_pf_mutex();
 		break;
 	default:
 		error = EINVAL;
@@ -4450,6 +4448,6 @@ static moduledata_t pf_mod = {
 	0
 };
 
-DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST);
+DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
 MODULE_VERSION(pf, PF_MODVER);
 #endif /* __FreeBSD__ */

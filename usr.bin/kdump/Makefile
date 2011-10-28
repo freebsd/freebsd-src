@@ -22,7 +22,7 @@ CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h linux_syscalls.c
 
 ioctl.c: mkioctls
 	env MACHINE=${MACHINE} \
-	    sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
+	    sh ${.CURDIR}/mkioctls print ${DESTDIR}/usr/include > ${.TARGET}
 
 kdump_subr.h: mksubr
 	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include | \

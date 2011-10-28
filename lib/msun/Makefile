@@ -49,7 +49,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_pow.c e_powf.c e_rem_pio2.c \
 	e_rem_pio2f.c e_remainder.c e_remainderf.c e_scalb.c e_scalbf.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
-	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
+	k_cos.c k_cosf.c k_exp.c k_expf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
 	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \

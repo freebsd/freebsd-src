@@ -392,8 +392,14 @@ gpart_destroy(struct ggeom *lg_geom)
 	gctl_ro_param(r, "force", sizeof(force), &force);
 	gctl_ro_param(r, "verb", -1, "destroy");
 	errstr = gctl_issue(r);
-	if (errstr != NULL && errstr[0] != '\0') 
-		gpart_show_error("Error", NULL, errstr);
+	if (errstr != NULL && errstr[0] != '\0') {
+		/*
+		 * Check if we reverted away the existence of the geom
+		 * altogether. Show all other errors to the user.
+		 */
+		if (strtol(errstr, NULL, 0) != EINVAL)
+			gpart_show_error("Error", NULL, errstr);
+	}
 	gctl_free(r);
 
 	/* And any metadata associated with the partition scheme itself */
@@ -449,6 +455,10 @@ gpart_edit(struct gprovider *pp)
 				gpart_partition(cp->lg_geom->lg_name, NULL);
 				return;
 			}
+
+			/* If this is a nested partition, edit as usual */
+			if (strcmp(pp->lg_geom->lg_class->lg_name, "PART") == 0)
+				break;
 
 			/* Destroy the geom and all sub-partitions */
 			gpart_destroy(cp->lg_geom);
@@ -507,7 +517,7 @@ editpart:
 	choice = dlg_form("Edit Partition", "", 0, 0, 0, nitems, items, &junk);
 
 	if (choice) /* Cancel pressed */
-		return;
+		goto endedit;
 
 	/* Check if the label has a / in it */
 	if (strchr(items[3].text, '/') != NULL) {
@@ -537,6 +547,13 @@ editpart:
 	set_default_part_metadata(pp->lg_name, scheme, items[0].text,
 	    items[2].text, (strcmp(oldtype, items[0].text) != 0) ?
 	    newfs : NULL);
+
+endedit:
+	if (strcmp(oldtype, items[0].text) != 0 && cp != NULL)
+		gpart_destroy(cp->lg_geom);
+	if (strcmp(oldtype, items[0].text) != 0 && strcmp(items[0].text,
+	    "freebsd") == 0)
+		gpart_partition(pp->lg_name, "BSD");
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)

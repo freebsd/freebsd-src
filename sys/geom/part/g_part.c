@@ -451,6 +451,10 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
 	}
+	if ((gp->flags & G_GEOM_WITHER) != 0) {
+		gctl_error(req, "%d %s", ENXIO, gname);
+		return (ENXIO);
+	}
 	*v = gp;
 	return (0);
 }

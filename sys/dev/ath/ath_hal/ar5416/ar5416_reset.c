@@ -278,9 +278,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
-	/* then our BSSID */
+	/* then our BSSID and associate id */
 	OS_REG_WRITE(ah, AR_BSS_ID0, LE_READ_4(ahp->ah_bssid));
-	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4));
+	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4) |
+	    (ahp->ah_assocId & 0x3fff) << AR_BSS_ID1_AID_S);
 
 	/* Restore bmiss rssi & count thresholds */
 	OS_REG_WRITE(ah, AR_RSSI_THR, ahp->ah_rssiThr);
@@ -357,12 +358,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 */
 	OS_REG_WRITE(ah, AR_OBS, 8);
 
-#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * Disable the "general" TX/RX mitigation timers.
 	 */
 	OS_REG_WRITE(ah, AR_MIRT, 0);
 
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * This initialises the RX interrupt mitigation timers.
 	 *
@@ -630,11 +631,11 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
                         | AR_IMR_BCNMISC;
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
-	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
-			|  AR_IMR_TXMINTR | AR_IMR_RXMINTR;
+	ahp->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 #else
-	ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
+	ahp->ah_maskReg |= AR_IMR_RXOK;
 #endif	
+	ahp->ah_maskReg |= AR_IMR_TXOK;
 
 	if (opmode == HAL_M_HOSTAP)
 		ahp->ah_maskReg |= AR_IMR_MIB;

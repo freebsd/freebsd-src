@@ -34,18 +34,13 @@ __FBSDID("$FreeBSD$");
 
 static const uint32_t
 exp_ovfl  = 0x42b17218,		/* MAX_EXP * ln2 ~= 88.722839355 */
-cexp_ovfl = 0x43400074,		/* (MAX_EXP - MIN_DENORM_EXP) * ln2 */
-k         = 235;		/* constant for reduction */
-
-static const float
-kln2      =  162.88958740f;	/* k * ln2 */
+cexp_ovfl = 0x43400074;		/* (MAX_EXP - MIN_DENORM_EXP) * ln2 */
 
 float complex
 cexpf(float complex z)
 {
 	float x, y, exp_x;
 	uint32_t hx, hy;
-	int scale;
 
 	x = crealf(z);
 	y = cimagf(z);
@@ -77,17 +72,9 @@ cexpf(float complex z)
 	if (hx >= exp_ovfl && hx <= cexp_ovfl) {
 		/*
 		 * x is between 88.7 and 192, so we must scale to avoid
-		 * overflow in expf(x).  We use exp(x) = exp(x - kln2) * 2**k,
-		 * carefully chosen to minimize |exp(kln2) - 2**k|.  We also
-		 * scale the exponent of exp(x) to MANT_DIG to avoid loss of
-		 * accuracy due to underflow if sin(y) is tiny.
+		 * overflow in expf(x).
 		 */
-		exp_x = expf(x - kln2);
-		GET_FLOAT_WORD(hx, exp_x);
-		SET_FLOAT_WORD(exp_x, (hx & 0x7fffff) | ((0x7f + 23) << 23));
-		scale = (hx >> 23) - (0x7f + 23) + k;
-		return (cpackf(scalbnf(cosf(y) * exp_x, scale),
-			scalbnf(sinf(y) * exp_x, scale)));
+		return (__ldexp_cexpf(z, 0));
 	} else {
 		/*
 		 * Cases covered here:

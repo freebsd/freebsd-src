@@ -434,8 +434,9 @@ __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
 .endif
-# FDT is needed only for arm and powerpc (and not powerpc64)
-.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc"
+# FDT is needed only for arm, mips and powerpc (and not powerpc64)
+.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc" || \
+    ${__T:Mmips*}
 __DEFAULT_YES_OPTIONS+=FDT
 .else
 __DEFAULT_NO_OPTIONS+=FDT

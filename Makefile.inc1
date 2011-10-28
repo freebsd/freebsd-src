@@ -1018,7 +1018,8 @@ _yacc=		usr.bin/yacc
 _awk=		usr.bin/awk
 .endif
 
-.if ${BOOTSTRAPPING} < 700018
+.if ${MK_BSNMP} != "no" && \
+    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
@@ -1030,7 +1031,9 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 .if ${MK_CLANG} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
-	usr.bin/clang/tblgen
+	lib/clang/libllvmtablegen \
+	usr.bin/clang/tblgen \
+	usr.bin/clang/clang-tblgen
 .endif
 
 .if ${MK_CDDL} != "no" && \
