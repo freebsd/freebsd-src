@@ -38,7 +38,7 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
   SourceLocation VisLoc = VisTok.getLocation();
 
   Token Tok;
-  PP.Lex(Tok);
+  PP.LexUnexpandedToken(Tok);
 
   const IdentifierInfo *PushPop = Tok.getIdentifierInfo();
 
@@ -49,20 +49,20 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
     VisType = 0;
   } else if (PushPop && PushPop->isStr("push")) {
     IsPush = true;
-    PP.Lex(Tok);
+    PP.LexUnexpandedToken(Tok);
     if (Tok.isNot(tok::l_paren)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_lparen)
         << "visibility";
       return;
     }
-    PP.Lex(Tok);
+    PP.LexUnexpandedToken(Tok);
     VisType = Tok.getIdentifierInfo();
     if (!VisType) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
         << "visibility";
       return;
     }
-    PP.Lex(Tok);
+    PP.LexUnexpandedToken(Tok);
     if (Tok.isNot(tok::r_paren)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_rparen)
         << "visibility";
@@ -73,7 +73,7 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
       << "visibility";
     return;
   }
-  PP.Lex(Tok);
+  PP.LexUnexpandedToken(Tok);
   if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
       << "visibility";
@@ -297,7 +297,7 @@ void PragmaUnusedHandler::HandlePragma(Preprocessor &PP,
   }
 
   // Lex the declaration reference(s).
-  llvm::SmallVector<Token, 5> Identifiers;
+  SmallVector<Token, 5> Identifiers;
   SourceLocation RParenLoc;
   bool LexID = true;
 
@@ -451,8 +451,11 @@ PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
   }
 
   OpenCLOptions &f = Actions.getOpenCLOptions();
-  if (ename->isStr("all")) {
-#define OPENCLEXT(nm)   f.nm = state;
+  // OpenCL 1.1 9.1: "The all variant sets the behavior for all extensions,
+  // overriding all previously issued extension directives, but only if the
+  // behavior is set to disable."
+  if (state == 0 && ename->isStr("all")) {
+#define OPENCLEXT(nm)   f.nm = 0;
 #include "clang/Basic/OpenCLExtensions.def"
   }
 #define OPENCLEXT(nm) else if (ename->isStr(#nm)) { f.nm = state; }

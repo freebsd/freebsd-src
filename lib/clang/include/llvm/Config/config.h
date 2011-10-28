@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Bug report URL. */
+#define BUG_REPORT_URL "http://llvm.org/bugs/"
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
@@ -301,16 +304,16 @@
 #define HAVE_PRINTF_A 1
 
 /* Have pthread_getspecific */
-#define HAVE_PTHREAD_GETSPECIFIC 1
+/* #undef HAVE_PTHREAD_GETSPECIFIC */
 
 /* Define to 1 if you have the <pthread.h> header file. */
-#define HAVE_PTHREAD_H 1
+/* #undef HAVE_PTHREAD_H */
 
 /* Have pthread_mutex_lock */
-#define HAVE_PTHREAD_MUTEX_LOCK 1
+/* #undef HAVE_PTHREAD_MUTEX_LOCK */
 
 /* Have pthread_rwlock_init */
-#define HAVE_PTHREAD_RWLOCK_INIT 1
+/* #undef HAVE_PTHREAD_RWLOCK_INIT */
 
 /* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
 #define HAVE_RAND48 1
@@ -548,6 +551,9 @@
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
+/* Has gcc/MSVC atomic intrinsics */
+#define LLVM_HAS_ATOMICS 1
+
 /* Host triple we were built on */
 /* #undef LLVM_HOSTTRIPLE */
 
@@ -563,9 +569,6 @@
 /* Installation directory for man pages */
 /* #undef LLVM_MANDIR */
 
-/* Build multithreading support into LLVM */
-/* #undef LLVM_MULTITHREADED */
-
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
 
@@ -575,14 +578,14 @@
 /* LLVM name for the native AsmPrinter init function, if available */
 #define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
 
-/* LLVM name for the native MCAsmInfo init function, if available */
-#define LLVM_NATIVE_MCASMINFO LLVMInitializeX86MCAsmInfo
-
 /* LLVM name for the native Target init function, if available */
 #define LLVM_NATIVE_TARGET LLVMInitializeX86Target
 
 /* LLVM name for the native TargetInfo init function, if available */
 #define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
+
+/* LLVM name for the native target MC init function, if available */
+#define LLVM_NATIVE_TARGETMC LLVMInitializeX86TargetMC
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -651,13 +654,13 @@
 #define PACKAGE_NAME "llvm"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "llvm 3.0svn"
+#define PACKAGE_STRING "llvm 3.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "-llvm-"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.0svn"
+#define PACKAGE_VERSION "3.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

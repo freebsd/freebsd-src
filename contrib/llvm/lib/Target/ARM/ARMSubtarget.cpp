@@ -53,11 +53,14 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   , HasVMLxForwarding(false)
   , SlowFPBrcc(false)
   , InThumbMode(false)
+  , InNaClMode(false)
   , HasThumb2(false)
+  , IsMClass(false)
   , NoARM(false)
   , PostRAScheduler(false)
   , IsR9Reserved(ReserveR9)
   , UseMovt(false)
+  , SupportsTailCall(false)
   , HasFP16(false)
   , HasD16(false)
   , HasHardwareDivide(false)
@@ -111,6 +114,8 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   else {
     IsR9Reserved = ReserveR9 | !HasV6Ops;
     UseMovt = DarwinUseMOVT && hasV6T2Ops();
+    const Triple &T = getTargetTriple();
+    SupportsTailCall = T.getOS() == Triple::IOS && !T.isOSVersionLT(5, 0);
   }
 
   if (!isThumb() || hasThumb2())

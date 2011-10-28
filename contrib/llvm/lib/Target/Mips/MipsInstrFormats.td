@@ -44,7 +44,9 @@ class MipsInst<dag outs, dag ins, string asmstr, list<dag> pattern,
 
 // Mips Pseudo Instructions Format
 class MipsPseudo<dag outs, dag ins, string asmstr, list<dag> pattern>:
-      MipsInst<outs, ins, asmstr, pattern, IIPseudo>;
+      MipsInst<outs, ins, asmstr, pattern, IIPseudo> {
+  let isPseudo = 1;
+}
 
 //===----------------------------------------------------------------------===//
 // Format R instruction class in Mips : <|opcode|rs|rt|rd|shamt|funct|>
@@ -79,6 +81,21 @@ class FI<bits<6> op, dag outs, dag ins, string asmstr, list<dag> pattern,
 {
   bits<5>  rt;
   bits<5>  rs;
+  bits<16> imm16;
+
+  let opcode = op;
+
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = imm16;
+}
+
+class CBranchBase<bits<6> op, dag outs, dag ins, string asmstr,
+                  list<dag> pattern, InstrItinClass itin>:
+  MipsInst<outs, ins, asmstr, pattern, itin>
+{
+  bits<5>  rs;
+  bits<5>  rt;
   bits<16> imm16;
 
   let opcode = op;
@@ -225,3 +242,26 @@ class FFCMOV<bits<5> _fmt, bits<1> _tf, dag outs, dag ins, string asmstr,
   let Inst{10-6}  = fd;
   let Inst{5-0}   = 17;
 }
+
+// FP unary instructions without patterns.
+class FFR1<bits<6> funct, bits<5> fmt, string opstr, string fmtstr,
+           RegisterClass DstRC, RegisterClass SrcRC> :
+  FFR<0x11, funct, fmt, (outs DstRC:$fd), (ins SrcRC:$fs),
+      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs"), []> {
+  let ft = 0;
+}
+
+// FP unary instructions with patterns.
+class FFR1P<bits<6> funct, bits<5> fmt, string opstr, string fmtstr,
+            RegisterClass DstRC, RegisterClass SrcRC, SDNode OpNode> :
+  FFR<0x11, funct, fmt, (outs DstRC:$fd), (ins SrcRC:$fs),
+      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs"),
+      [(set DstRC:$fd, (OpNode SrcRC:$fs))]> {
+  let ft = 0;
+}
+
+class FFR2P<bits<6> funct, bits<5> fmt, string opstr,
+            string fmtstr, RegisterClass RC, SDNode OpNode> :
+  FFR<0x11, funct, fmt, (outs RC:$fd), (ins RC:$fs, RC:$ft),
+      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs, $ft"),
+      [(set RC:$fd, (OpNode RC:$fs, RC:$ft))]>;

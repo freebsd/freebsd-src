@@ -17,6 +17,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/PassManager.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/LLVMContext.h"
 #include <cstring>
 
@@ -37,6 +38,11 @@ LLVMTargetDataRef LLVMCreateTargetData(const char *StringRep) {
 
 void LLVMAddTargetData(LLVMTargetDataRef TD, LLVMPassManagerRef PM) {
   unwrap(PM)->add(new TargetData(*unwrap(TD)));
+}
+
+void LLVMAddTargetLibraryInfo(LLVMTargetLibraryInfoRef TLI,
+                              LLVMPassManagerRef PM) {
+  unwrap(PM)->add(new TargetLibraryInfo(*unwrap(TLI)));
 }
 
 char *LLVMCopyStringRepOfTargetData(LLVMTargetDataRef TD) {
@@ -87,13 +93,13 @@ unsigned LLVMPreferredAlignmentOfGlobal(LLVMTargetDataRef TD,
 
 unsigned LLVMElementAtOffset(LLVMTargetDataRef TD, LLVMTypeRef StructTy,
                              unsigned long long Offset) {
-  const StructType *STy = unwrap<StructType>(StructTy);
+  StructType *STy = unwrap<StructType>(StructTy);
   return unwrap(TD)->getStructLayout(STy)->getElementContainingOffset(Offset);
 }
 
 unsigned long long LLVMOffsetOfElement(LLVMTargetDataRef TD, LLVMTypeRef StructTy,
                                        unsigned Element) {
-  const StructType *STy = unwrap<StructType>(StructTy);
+  StructType *STy = unwrap<StructType>(StructTy);
   return unwrap(TD)->getStructLayout(STy)->getElementOffset(Element);
 }
 

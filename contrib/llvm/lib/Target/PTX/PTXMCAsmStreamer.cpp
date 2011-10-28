@@ -100,7 +100,7 @@ public:
   /// @{
 
   virtual void ChangeSection(const MCSection *Section);
-  virtual void InitSections() {}
+  virtual void InitSections() { /* PTX does not use sections */ }
 
   virtual void EmitLabel(MCSymbol *Symbol);
 
@@ -132,7 +132,9 @@ public:
   ///
   /// @param Symbol - The common symbol to emit.
   /// @param Size - The size of the common symbol.
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size);
+  /// @param ByteAlignment - The alignment of the common symbol in bytes.
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment);
 
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
@@ -233,7 +235,7 @@ void PTXMCAsmStreamer::ChangeSection(const MCSection *Section) {
 void PTXMCAsmStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
   assert(!Symbol->isVariable() && "Cannot emit a variable symbol!");
-  //assert(getCurrentSection() && "Cannot emit before setting section!");
+  assert(getCurrentSection() && "Cannot emit before setting section!");
 
   OS << *Symbol << MAI.getLabelSuffix();
   EmitEOL();
@@ -283,7 +285,8 @@ void PTXMCAsmStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
 void PTXMCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                         unsigned ByteAlignment) {}
 
-void PTXMCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {}
+void PTXMCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                             unsigned ByteAlignment) {}
 
 void PTXMCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
                                     unsigned Size, unsigned ByteAlignment) {}
@@ -510,7 +513,7 @@ void PTXMCAsmStreamer::EmitInstruction(const MCInst &Inst) {
 
   // If we have an AsmPrinter, use that to print, otherwise print the MCInst.
   if (InstPrinter)
-    InstPrinter->printInst(&Inst, OS);
+    InstPrinter->printInst(&Inst, OS, "");
   else
     Inst.print(OS, &MAI);
   EmitEOL();
@@ -533,7 +536,7 @@ namespace llvm {
                                    formatted_raw_ostream &OS,
                                    bool isVerboseAsm, bool useLoc, bool useCFI,
                                    MCInstPrinter *IP,
-                                   MCCodeEmitter *CE, TargetAsmBackend *TAB,
+                                   MCCodeEmitter *CE, MCAsmBackend *MAB,
                                    bool ShowInst) {
     return new PTXMCAsmStreamer(Context, OS, isVerboseAsm, useLoc,
                                 IP, CE, ShowInst);

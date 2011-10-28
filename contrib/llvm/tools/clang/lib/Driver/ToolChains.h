@@ -66,6 +66,12 @@ private:
     ARCSimulator_NoARCRuntime
   } ARCRuntimeForSimulator;
 
+  mutable enum {
+    LibCXXSimulator_None,
+    LibCXXSimulator_NotAvailable,
+    LibCXXSimulator_Available
+  } LibCXXForSimulator;
+
 private:
   /// Whether we are targeting iPhoneOS target.
   mutable bool TargetIsIPhoneOS;
@@ -89,7 +95,8 @@ public:
   Darwin(const HostInfo &Host, const llvm::Triple& Triple);
   ~Darwin();
 
-  std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
+  std::string ComputeEffectiveClangTriple(const ArgList &Args,
+                                          types::ID InputType) const;
 
   /// @name Darwin Specific Toolchain API
   /// {
@@ -139,7 +146,7 @@ public:
   /// getDarwinArchName - Get the "Darwin" arch name for a particular compiler
   /// invocation. For example, Darwin treats different ARM variations as
   /// distinct architectures.
-  llvm::StringRef getDarwinArchName(const ArgList &Args) const;
+  StringRef getDarwinArchName(const ArgList &Args) const;
 
   static bool isVersionLT(unsigned (&A)[3], unsigned (&B)[3]) {
     for (unsigned i=0; i < 3; ++i) {
@@ -187,6 +194,7 @@ public:
   virtual bool HasNativeLLVMSupport() const;
 
   virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
+  virtual bool hasBlocksRuntime() const;
 
   virtual DerivedArgList *TranslateArgs(const DerivedArgList &Args,
                                         const char *BoundArch) const;
@@ -237,9 +245,12 @@ public:
     return !(!isTargetIPhoneOS() && isMacosxVersionLT(10, 6));
   }
   virtual bool IsUnwindTablesDefault() const;
-  virtual unsigned GetDefaultStackProtectorLevel() const {
-    // Stack protectors default to on for 10.6 and beyond.
-    return !isTargetIPhoneOS() && !isMacosxVersionLT(10, 6);
+  virtual unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const {
+    // Stack protectors default to on for user code on 10.5,
+    // and for everything in 10.6 and beyond
+    return !isTargetIPhoneOS() &&
+      (!isMacosxVersionLT(10, 6) ||
+         (!isMacosxVersionLT(10, 5) && !KernelOrKext));
   }
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
@@ -257,6 +268,9 @@ public:
 
 /// DarwinClang - The Darwin toolchain used by Clang.
 class LLVM_LIBRARY_VISIBILITY DarwinClang : public Darwin {
+private:
+  void AddGCCLibexecPath(unsigned darwinVersion);
+
 public:
   DarwinClang(const HostInfo &Host, const llvm::Triple& Triple);
 
@@ -288,7 +302,8 @@ public:
   Darwin_Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple)
     : Generic_GCC(Host, Triple) {}
 
-  std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
+  std::string ComputeEffectiveClangTriple(const ArgList &Args,
+                                          types::ID InputType) const;
 
   virtual const char *GetDefaultRelocationModel() const { return "pic"; }
 };
