@@ -48,8 +48,8 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
     return;
 
   // FIXME: Handle multi-dimensional VLAs.
-  const Expr* SE = VLA->getSizeExpr();
-  const GRState *state = C.getState();
+  const Expr *SE = VLA->getSizeExpr();
+  const ProgramState *state = C.getState();
   SVal sizeV = state->getSVal(SE);
 
   if (sizeV.isUndef()) {
@@ -62,10 +62,10 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
       BT_undef.reset(new BuiltinBug("Declared variable-length array (VLA) "
                                     "uses a garbage value as its size"));
 
-    EnhancedBugReport *report =
-      new EnhancedBugReport(*BT_undef, BT_undef->getName(), N);
+    BugReport *report =
+      new BugReport(*BT_undef, BT_undef->getName(), N);
     report->addRange(SE->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, SE);
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
     C.EmitReport(report);
     return;
   }
@@ -78,19 +78,19 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   // Check if the size is zero.
   DefinedSVal sizeD = cast<DefinedSVal>(sizeV);
 
-  const GRState *stateNotZero, *stateZero;
+  const ProgramState *stateNotZero, *stateZero;
   llvm::tie(stateNotZero, stateZero) = state->assume(sizeD);
 
   if (stateZero && !stateNotZero) {
-    ExplodedNode* N = C.generateSink(stateZero);
+    ExplodedNode *N = C.generateSink(stateZero);
     if (!BT_zero)
       BT_zero.reset(new BuiltinBug("Declared variable-length array (VLA) has "
                                    "zero size"));
 
-    EnhancedBugReport *report =
-      new EnhancedBugReport(*BT_zero, BT_zero->getName(), N);
+    BugReport *report =
+      new BugReport(*BT_zero, BT_zero->getName(), N);
     report->addRange(SE->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, SE);
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
     C.EmitReport(report);
     return;
   }

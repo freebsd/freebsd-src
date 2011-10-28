@@ -15,6 +15,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/LocInfoType.h"
 #include "clang/Sema/ParsedTemplate.h"
+#include "clang/Sema/Sema.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
@@ -27,7 +28,7 @@
 using namespace clang;
 
 
-static DiagnosticBuilder Diag(Diagnostic &D, SourceLocation Loc,
+static DiagnosticBuilder Diag(DiagnosticsEngine &D, SourceLocation Loc,
                               unsigned DiagID) {
   return D.Report(Loc, DiagID);
 }
@@ -242,6 +243,7 @@ bool Declarator::isDeclarationOfFunction() const {
   }
   
   switch (DS.getTypeSpecType()) {
+    case TST_atomic:
     case TST_auto:
     case TST_bool:
     case TST_char:
@@ -255,6 +257,7 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_enum:
     case TST_error:
     case TST_float:
+    case TST_half:
     case TST_int:
     case TST_struct:
     case TST_union:
@@ -371,6 +374,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T) {
   case DeclSpec::TST_char16:      return "char16_t";
   case DeclSpec::TST_char32:      return "char32_t";
   case DeclSpec::TST_int:         return "int";
+  case DeclSpec::TST_half:        return "half";
   case DeclSpec::TST_float:       return "float";
   case DeclSpec::TST_double:      return "double";
   case DeclSpec::TST_bool:        return "_Bool";
@@ -388,6 +392,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T) {
   case DeclSpec::TST_decltype:    return "(decltype)";
   case DeclSpec::TST_underlyingType: return "__underlying_type";
   case DeclSpec::TST_unknown_anytype: return "__unknown_anytype";
+  case DeclSpec::TST_atomic: return "_Atomic";
   case DeclSpec::TST_error:       return "(error)";
   }
   llvm_unreachable("Unknown typespec!");
@@ -403,21 +408,24 @@ const char *DeclSpec::getSpecifierName(TQ T) {
   llvm_unreachable("Unknown typespec!");
 }
 
-bool DeclSpec::SetStorageClassSpec(SCS S, SourceLocation Loc,
+bool DeclSpec::SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
                                    const char *&PrevSpec,
-                                   unsigned &DiagID,
-                                   const LangOptions &Lang) {
-  // OpenCL prohibits extern, auto, register, and static
+                                   unsigned &DiagID) {
+  // OpenCL 1.1 6.8g: "The extern, static, auto and register storage-class
+  // specifiers are not supported."
   // It seems sensible to prohibit private_extern too
-  if (Lang.OpenCL) {
-    switch (S) {
+  // The cl_clang_storage_class_specifiers extension enables support for
+  // these storage-class specifiers.
+  if (S.getLangOptions().OpenCL &&
+      !S.getOpenCLOptions().cl_clang_storage_class_specifiers) {
+    switch (SC) {
     case SCS_extern:
     case SCS_private_extern:
     case SCS_auto:
     case SCS_register:
     case SCS_static:
       DiagID   = diag::err_not_opencl_storage_class_specifier;
-      PrevSpec = getSpecifierName(S);
+      PrevSpec = getSpecifierName(SC);
       return true;
     default:
       break;
@@ -425,17 +433,30 @@ bool DeclSpec::SetStorageClassSpec(SCS S, SourceLocation Loc,
   }
 
   if (StorageClassSpec != SCS_unspecified) {
+    // Maybe this is an attempt to use C++0x 'auto' outside of C++0x mode.
+    bool isInvalid = true;
+    if (TypeSpecType == TST_unspecified && S.getLangOptions().CPlusPlus) {
+      if (SC == SCS_auto)
+        return SetTypeSpecType(TST_auto, Loc, PrevSpec, DiagID);
+      if (StorageClassSpec == SCS_auto) {
+        isInvalid = SetTypeSpecType(TST_auto, StorageClassSpecLoc,
+                                    PrevSpec, DiagID);
+        assert(!isInvalid && "auto SCS -> TST recovery failed");
+      }
+    }
+
     // Changing storage class is allowed only if the previous one
     // was the 'extern' that is part of a linkage specification and
     // the new storage class is 'typedef'.
-    if (!(SCS_extern_in_linkage_spec &&
+    if (isInvalid &&
+        !(SCS_extern_in_linkage_spec &&
           StorageClassSpec == SCS_extern &&
-          S == SCS_typedef))
-      return BadSpecifier(S, (SCS)StorageClassSpec, PrevSpec, DiagID);
+          SC == SCS_typedef))
+      return BadSpecifier(SC, (SCS)StorageClassSpec, PrevSpec, DiagID);
   }
-  StorageClassSpec = S;
+  StorageClassSpec = SC;
   StorageClassSpecLoc = Loc;
-  assert((unsigned)S == StorageClassSpec && "SCS constants overflow bitfield");
+  assert((unsigned)SC == StorageClassSpec && "SCS constants overflow bitfield");
   return false;
 }
 
@@ -637,7 +658,7 @@ bool DeclSpec::SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
   TypeQualifiers |= T;
 
   switch (T) {
-  default: assert(0 && "Unknown type qualifier!");
+  default: llvm_unreachable("Unknown type qualifier!");
   case TQ_const:    TQ_constLoc = Loc; break;
   case TQ_restrict: TQ_restrictLoc = Loc; break;
   case TQ_volatile: TQ_volatileLoc = Loc; break;
@@ -679,6 +700,18 @@ bool DeclSpec::SetFriendSpec(SourceLocation Loc, const char *&PrevSpec,
 
   Friend_specified = true;
   FriendLoc = Loc;
+  return false;
+}
+
+bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
+                                    unsigned &DiagID) {
+  if (isModulePrivateSpecified()) {
+    PrevSpec = "__module_private__";
+    DiagID = diag::ext_duplicate_declspec;
+    return true;
+  }
+  
+  ModulePrivateLoc = Loc;
   return false;
 }
 
@@ -732,7 +765,7 @@ void DeclSpec::SaveStorageSpecifierAsWritten() {
 /// "_Imaginary" (lacking an FP type).  This returns a diagnostic to issue or
 /// diag::NUM_DIAGNOSTICS if there is no error.  After calling this method,
 /// DeclSpec is guaranteed self-consistent, even if an error occurred.
-void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
+void DeclSpec::Finish(DiagnosticsEngine &D, Preprocessor &PP) {
   // Before possibly changing their values, save specs as written.
   SaveWrittenBuiltinSpecs();
   SaveStorageSpecifierAsWritten();
@@ -836,6 +869,27 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
     }
   }
 
+  // If no type specifier was provided and we're parsing a language where
+  // the type specifier is not optional, but we got 'auto' as a storage
+  // class specifier, then assume this is an attempt to use C++0x's 'auto'
+  // type specifier.
+  // FIXME: Does Microsoft really support implicit int in C++?
+  if (PP.getLangOptions().CPlusPlus && !PP.getLangOptions().MicrosoftExt &&
+      TypeSpecType == TST_unspecified && StorageClassSpec == SCS_auto) {
+    TypeSpecType = TST_auto;
+    StorageClassSpec = StorageClassSpecAsWritten = SCS_unspecified;
+    TSTLoc = TSTNameLoc = StorageClassSpecLoc;
+    StorageClassSpecLoc = SourceLocation();
+  }
+  // Diagnose if we've recovered from an ill-formed 'auto' storage class
+  // specifier in a pre-C++0x dialect of C++.
+  if (!PP.getLangOptions().CPlusPlus0x && TypeSpecType == TST_auto)
+    Diag(D, TSTLoc, diag::ext_auto_type_specifier);
+  if (PP.getLangOptions().CPlusPlus && !PP.getLangOptions().CPlusPlus0x &&
+      StorageClassSpec == SCS_auto)
+    Diag(D, StorageClassSpecLoc, diag::warn_auto_storage_class)
+      << FixItHint::CreateRemoval(StorageClassSpecLoc);
+
   // C++ [class.friend]p6:
   //   No storage-class-specifier shall appear in the decl-specifier-seq
   //   of a friend declaration.
@@ -844,7 +898,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
     const char *SpecName = getSpecifierName(SC);
 
     SourceLocation SCLoc = getStorageClassSpecLoc();
-    SourceLocation SCEndLoc = SCLoc.getFileLocWithOffset(strlen(SpecName));
+    SourceLocation SCEndLoc = SCLoc.getLocWithOffset(strlen(SpecName));
 
     Diag(D, SCLoc, diag::err_friend_storage_spec)
       << SpecName
@@ -854,7 +908,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
   }
 
   assert(!TypeSpecOwned || isDeclRep((TST) TypeSpecType));
-
+ 
   // Okay, now we can infer the real type.
 
   // TODO: return "auto function" and other bad things based on the real type.
@@ -902,7 +956,7 @@ bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
   Specifiers |= VS;
 
   switch (VS) {
-  default: assert(0 && "Unknown specifier!");
+  default: llvm_unreachable("Unknown specifier!");
   case VS_Override: VS_overrideLoc = Loc; break;
   case VS_Final:    VS_finalLoc = Loc; break;
   }
@@ -912,7 +966,7 @@ bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
 
 const char *VirtSpecifiers::getSpecifierName(Specifier VS) {
   switch (VS) {
-  default: assert(0 && "Unknown specifier");
+  default: llvm_unreachable("Unknown specifier");
   case VS_Override: return "override";
   case VS_Final: return "final";
   }

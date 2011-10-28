@@ -39,7 +39,15 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   ZeroDirective = "\t.space\t";  // ".space N" emits N zeros.
   HasMachoZeroFillDirective = true;  // Uses .zerofill
   HasMachoTBSSDirective = true; // Uses .tbss
+  StructorOutputOrder = Structors::PriorityOrder;
   HasStaticCtorDtorReferenceInStaticMode = true;
+
+  CodeBegin = "L$start$code$";
+  DataBegin = "L$start$data$";
+  JT8Begin  = "L$start$jt8$";
+  JT16Begin = "L$start$jt16$";
+  JT32Begin = "L$start$jt32$";
+  SupportsDataRegions = true;
 
   // FIXME: Darwin 10 and newer don't need this.
   LinkerRequiresNonEmptyDwarfLines = true;

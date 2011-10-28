@@ -24,6 +24,7 @@ using namespace llvm;
 AsmLexer::AsmLexer(const MCAsmInfo &_MAI) : MAI(_MAI)  {
   CurBuf = NULL;
   CurPtr = NULL;
+  isAtStartOfLine = true;
 }
 
 AsmLexer::~AsmLexer() {
@@ -146,7 +147,7 @@ AsmToken AsmLexer::LexLineComment() {
   // FIXME: This is broken if we happen to a comment at the end of a file, which
   // was .included, and which doesn't end with a newline.
   int CurChar = getNextChar();
-  while (CurChar != '\n' && CurChar != '\n' && CurChar != EOF)
+  while (CurChar != '\n' && CurChar != '\r' && CurChar != EOF)
     CurChar = getNextChar();
 
   if (CurChar == EOF)
@@ -334,6 +335,17 @@ StringRef AsmLexer::LexUntilEndOfStatement() {
   return StringRef(TokStart, CurPtr-TokStart);
 }
 
+StringRef AsmLexer::LexUntilEndOfLine() {
+  TokStart = CurPtr;
+
+  while (*CurPtr != '\n' &&
+         *CurPtr != '\r' &&
+         (*CurPtr != 0 || CurPtr != CurBuf->getBufferEnd())) {
+    ++CurPtr;
+  }
+  return StringRef(TokStart, CurPtr-TokStart);
+}
+
 bool AsmLexer::isAtStartOfComment(char Char) {
   // FIXME: This won't work for multi-character comment indicators like "//".
   return Char == *MAI.getCommentString();
@@ -349,14 +361,29 @@ AsmToken AsmLexer::LexToken() {
   // This always consumes at least one character.
   int CurChar = getNextChar();
 
-  if (isAtStartOfComment(CurChar))
+  if (isAtStartOfComment(CurChar)) {
+    // If this comment starts with a '#', then return the Hash token and let
+    // the assembler parser see if it can be parsed as a cpp line filename
+    // comment. We do this only if we are at the start of a line.
+    if (CurChar == '#' && isAtStartOfLine)
+      return AsmToken(AsmToken::Hash, StringRef(TokStart, 1));
+    isAtStartOfLine = true;
     return LexLineComment();
+  }
   if (isAtStatementSeparator(TokStart)) {
     CurPtr += strlen(MAI.getSeparatorString()) - 1;
     return AsmToken(AsmToken::EndOfStatement,
                     StringRef(TokStart, strlen(MAI.getSeparatorString())));
   }
 
+  // If we're missing a newline at EOF, make sure we still get an
+  // EndOfStatement token before the Eof token.
+  if (CurChar == EOF && !isAtStartOfLine) {
+    isAtStartOfLine = true;
+    return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
+  }
+
+  isAtStartOfLine = false;
   switch (CurChar) {
   default:
     // Handle identifier: [a-zA-Z_.][a-zA-Z0-9_$.@]*
@@ -373,6 +400,7 @@ AsmToken AsmLexer::LexToken() {
     return LexToken();
   case '\n': // FALL THROUGH.
   case '\r':
+    isAtStartOfLine = true;
     return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
   case ':': return AsmToken(AsmToken::Colon, StringRef(TokStart, 1));
   case '+': return AsmToken(AsmToken::Plus, StringRef(TokStart, 1));

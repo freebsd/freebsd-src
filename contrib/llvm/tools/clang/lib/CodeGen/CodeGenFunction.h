@@ -325,16 +325,8 @@ private:
   /// The innermost normal cleanup on the stack.
   stable_iterator InnermostNormalCleanup;
 
-  /// The innermost EH cleanup on the stack.
-  stable_iterator InnermostEHCleanup;
-
-  /// The number of catches on the stack.
-  unsigned CatchDepth;
-
-  /// The current EH destination index.  Reset to FirstCatchIndex
-  /// whenever the last EH cleanup is popped.
-  unsigned NextEHDestIndex;
-  enum { FirstEHDestIndex = 1 };
+  /// The innermost EH scope on the stack.
+  stable_iterator InnermostEHScope;
 
   /// The current set of branch fixups.  A branch fixup is a jump to
   /// an as-yet unemitted label, i.e. a label for which we don't yet
@@ -353,7 +345,7 @@ private:
   ///     A a;
   ///    foo:
   ///     bar();
-  llvm::SmallVector<BranchFixup, 8> BranchFixups;
+  SmallVector<BranchFixup, 8> BranchFixups;
 
   char *allocate(size_t Size);
 
@@ -362,8 +354,7 @@ private:
 public:
   EHScopeStack() : StartOfBuffer(0), EndOfBuffer(0), StartOfData(0),
                    InnermostNormalCleanup(stable_end()),
-                   InnermostEHCleanup(stable_end()),
-                   CatchDepth(0), NextEHDestIndex(FirstEHDestIndex) {}
+                   InnermostEHScope(stable_end()) {}
   ~EHScopeStack() { delete[] StartOfBuffer; }
 
   // Variadic templates would make this not terrible.
@@ -435,8 +426,7 @@ public:
     return new (Buffer) T(N, a0, a1, a2);
   }
 
-  /// Pops a cleanup scope off the stack.  This should only be called
-  /// by CodeGenFunction::PopCleanupBlock.
+  /// Pops a cleanup scope off the stack.  This is private to CGCleanup.cpp.
   void popCleanup();
 
   /// Push a set of catch handlers on the stack.  The catch is
@@ -444,7 +434,7 @@ public:
   /// set on it.
   class EHCatchScope *pushCatch(unsigned NumHandlers);
 
-  /// Pops a catch scope off the stack.
+  /// Pops a catch scope off the stack.  This is private to CGException.cpp.
   void popCatch();
 
   /// Push an exceptions filter on the stack.
@@ -463,7 +453,7 @@ public:
   bool empty() const { return StartOfData == EndOfBuffer; }
 
   bool requiresLandingPad() const {
-    return (CatchDepth || hasEHCleanups());
+    return InnermostEHScope != stable_end();
   }
 
   /// Determines whether there are any normal cleanups on the stack.
@@ -476,19 +466,13 @@ public:
   stable_iterator getInnermostNormalCleanup() const {
     return InnermostNormalCleanup;
   }
-  stable_iterator getInnermostActiveNormalCleanup() const; // CGException.h
+  stable_iterator getInnermostActiveNormalCleanup() const;
 
-  /// Determines whether there are any EH cleanups on the stack.
-  bool hasEHCleanups() const {
-    return InnermostEHCleanup != stable_end();
+  stable_iterator getInnermostEHScope() const {
+    return InnermostEHScope;
   }
 
-  /// Returns the innermost EH cleanup on the stack, or stable_end()
-  /// if there are no EH cleanups.
-  stable_iterator getInnermostEHCleanup() const {
-    return InnermostEHCleanup;
-  }
-  stable_iterator getInnermostActiveEHCleanup() const; // CGException.h
+  stable_iterator getInnermostActiveEHScope() const;
 
   /// An unstable reference to a scope-stack depth.  Invalidated by
   /// pushes but not pops.
@@ -514,10 +498,6 @@ public:
 
   /// Translates an iterator into a stable_iterator.
   stable_iterator stabilize(iterator it) const;
-
-  /// Finds the nearest cleanup enclosing the given iterator.
-  /// Returns stable_iterator::invalid() if there are no such cleanups.
-  stable_iterator getEnclosingEHCleanup(iterator it) const;
 
   /// Turn a stable reference to a scope depth into a unstable pointer
   /// to the EH stack.
@@ -547,9 +527,6 @@ public:
   /// Clears the branch-fixups list.  This should only be called by
   /// ResolveAllBranchFixups.
   void clearFixups() { BranchFixups.clear(); }
-
-  /// Gets the next EH destination index.
-  unsigned getNextEHDestIndex() { return NextEHDestIndex++; }
 };
 
 /// CodeGenFunction - This class organizes the per-function state that is used
@@ -567,26 +544,6 @@ public:
     JumpDest(llvm::BasicBlock *Block,
              EHScopeStack::stable_iterator Depth,
              unsigned Index)
-      : Block(Block), ScopeDepth(Depth), Index(Index) {}
-
-    bool isValid() const { return Block != 0; }
-    llvm::BasicBlock *getBlock() const { return Block; }
-    EHScopeStack::stable_iterator getScopeDepth() const { return ScopeDepth; }
-    unsigned getDestIndex() const { return Index; }
-
-  private:
-    llvm::BasicBlock *Block;
-    EHScopeStack::stable_iterator ScopeDepth;
-    unsigned Index;
-  };
-
-  /// An unwind destination is an abstract label, branching to which
-  /// may require a jump out through EH cleanups.
-  struct UnwindDest {
-    UnwindDest() : Block(0), ScopeDepth(), Index(0) {}
-    UnwindDest(llvm::BasicBlock *Block,
-               EHScopeStack::stable_iterator Depth,
-               unsigned Index)
       : Block(Block), ScopeDepth(Depth), Index(Index) {}
 
     bool isValid() const { return Block != 0; }
@@ -629,9 +586,6 @@ public:
   /// iff the function has no return value.
   llvm::Value *ReturnValue;
 
-  /// RethrowBlock - Unified rethrow block.
-  UnwindDest RethrowBlock;
-
   /// AllocaInsertPoint - This is an instruction in the entry block before which
   /// we prefer to insert allocas.
   llvm::AssertingVH<llvm::Instruction> AllocaInsertPt;
@@ -652,16 +606,18 @@ public:
 
   /// i32s containing the indexes of the cleanup destinations.
   llvm::AllocaInst *NormalCleanupDest;
-  llvm::AllocaInst *EHCleanupDest;
 
   unsigned NextCleanupDestIndex;
 
-  /// The exception slot.  All landing pads write the current
-  /// exception pointer into this alloca.
+  /// EHResumeBlock - Unified block containing a call to llvm.eh.resume.
+  llvm::BasicBlock *EHResumeBlock;
+
+  /// The exception slot.  All landing pads write the current exception pointer
+  /// into this alloca.
   llvm::Value *ExceptionSlot;
 
-  /// The selector slot.  Under the MandatoryCleanup model, all
-  /// landing pads write the current selector value into this alloca.
+  /// The selector slot.  Under the MandatoryCleanup model, all landing pads
+  /// write the current selector value into this alloca.
   llvm::AllocaInst *EHSelectorSlot;
 
   /// Emits a landing pad for the current EH stack.
@@ -681,7 +637,7 @@ public:
 public:
   /// ObjCEHValueStack - Stack of Objective-C exception values, used for
   /// rethrows.
-  llvm::SmallVector<llvm::Value*, 8> ObjCEHValueStack;
+  SmallVector<llvm::Value*, 8> ObjCEHValueStack;
 
   /// A class controlling the emission of a finally block.
   class FinallyInfo {
@@ -872,7 +828,7 @@ public:
   /// The given basic block lies in the current EH scope, but may be a
   /// target of a potentially scope-crossing jump; get a stable handle
   /// to which we can perform this jump later.
-  JumpDest getJumpDestInCurrentScope(llvm::StringRef Name = llvm::StringRef()) {
+  JumpDest getJumpDestInCurrentScope(StringRef Name = StringRef()) {
     return getJumpDestInCurrentScope(createBasicBlock(Name));
   }
 
@@ -886,14 +842,13 @@ public:
   /// a conservatively correct answer for this method.
   bool isObviouslyBranchWithoutCleanups(JumpDest Dest) const;
 
-  /// EmitBranchThroughEHCleanup - Emit a branch from the current
-  /// insert block through the EH cleanup handling code (if any) and
-  /// then on to \arg Dest.
-  void EmitBranchThroughEHCleanup(UnwindDest Dest);
+  /// popCatchScope - Pops the catch scope at the top of the EHScope
+  /// stack, emitting any required code (other than the catch handlers
+  /// themselves).
+  void popCatchScope();
 
-  /// getRethrowDest - Returns the unified outermost-scope rethrow
-  /// destination.
-  UnwindDest getRethrowDest();
+  llvm::BasicBlock *getEHResumeBlock();
+  llvm::BasicBlock *getEHDispatchBlock(EHScopeStack::stable_iterator scope);
 
   /// An object to manage conditionally-evaluated expressions.
   class ConditionalEvaluation {
@@ -1089,7 +1044,7 @@ private:
     JumpDest BreakBlock;
     JumpDest ContinueBlock;
   };
-  llvm::SmallVector<BreakContinue, 8> BreakContinueStack;
+  SmallVector<BreakContinue, 8> BreakContinueStack;
 
   /// SwitchInsn - This is nearest current switch instruction. It is null if if
   /// current context is not in a switch.
@@ -1135,7 +1090,7 @@ private:
 
   /// ByrefValueInfoMap - For each __block variable, contains a pair of the LLVM
   /// type as well as the field number that contains the actual data.
-  llvm::DenseMap<const ValueDecl *, std::pair<const llvm::Type *,
+  llvm::DenseMap<const ValueDecl *, std::pair<llvm::Type *,
                                               unsigned> > ByRefValueInfo;
 
   llvm::BasicBlock *TerminateLandingPad;
@@ -1161,13 +1116,17 @@ public:
 
   const LangOptions &getLangOptions() const { return CGM.getLangOptions(); }
 
-  /// Returns a pointer to the function's exception object slot, which
-  /// is assigned in every landing pad.
+  /// Returns a pointer to the function's exception object and selector slot,
+  /// which is assigned in every landing pad.
   llvm::Value *getExceptionSlot();
   llvm::Value *getEHSelectorSlot();
 
+  /// Returns the contents of the function's exception object and selector
+  /// slots.
+  llvm::Value *getExceptionFromSlot();
+  llvm::Value *getSelectorFromSlot();
+
   llvm::Value *getNormalCleanupDestSlot();
-  llvm::Value *getEHCleanupDestSlot();
 
   llvm::BasicBlock *getUnreachableBlock() {
     if (!UnreachableBlock) {
@@ -1248,9 +1207,8 @@ public:
   /// GenerateObjCGetter - Synthesize an Objective-C property getter function.
   void GenerateObjCGetter(ObjCImplementationDecl *IMP,
                           const ObjCPropertyImplDecl *PID);
-  void GenerateObjCGetterBody(ObjCIvarDecl *Ivar, bool IsAtomic, bool IsStrong);
-  void GenerateObjCAtomicSetterBody(ObjCMethodDecl *OMD,
-                                    ObjCIvarDecl *Ivar);
+  void generateObjCGetterBody(const ObjCImplementationDecl *classImpl,
+                              const ObjCPropertyImplDecl *propImpl);
 
   void GenerateObjCCtorDtorMethod(ObjCImplementationDecl *IMP,
                                   ObjCMethodDecl *MD, bool ctor);
@@ -1259,6 +1217,8 @@ public:
   /// for the given property.
   void GenerateObjCSetter(ObjCImplementationDecl *IMP,
                           const ObjCPropertyImplDecl *PID);
+  void generateObjCSetterBody(const ObjCImplementationDecl *classImpl,
+                              const ObjCPropertyImplDecl *propImpl);
   bool IndirectObjCSetterArg(const CGFunctionInfo &FI);
   bool IvarTypeWithAggrGCObjects(QualType Ty);
 
@@ -1269,7 +1229,7 @@ public:
   llvm::Value *EmitBlockLiteral(const BlockExpr *);
   llvm::Constant *BuildDescriptorBlockDecl(const BlockExpr *,
                                            const CGBlockInfo &Info,
-                                           const llvm::StructType *,
+                                           llvm::StructType *,
                                            llvm::Constant *BlockVarLayout);
 
   llvm::Function *GenerateBlockFunction(GlobalDecl GD,
@@ -1298,7 +1258,7 @@ public:
     return GetAddrOfBlockDecl(E->getDecl(), E->isByRef());
   }
   llvm::Value *GetAddrOfBlockDecl(const VarDecl *var, bool ByRef);
-  const llvm::Type *BuildByRefType(const VarDecl *var);
+  llvm::Type *BuildByRefType(const VarDecl *var);
 
   void GenerateCode(GlobalDecl GD, llvm::Function *Fn,
                     const CGFunctionInfo &FnInfo);
@@ -1352,7 +1312,7 @@ public:
 
   /// GetVTablePtr - Return the Value of the vtable pointer member pointed
   /// to by This.
-  llvm::Value *GetVTablePtr(llvm::Value *This, const llvm::Type *Ty);
+  llvm::Value *GetVTablePtr(llvm::Value *This, llvm::Type *Ty);
 
   /// EnterDtorCleanups - Enter the cleanups necessary to complete the
   /// given phase of destruction for a destructor.  The end result
@@ -1415,7 +1375,7 @@ public:
   static bool hasAggregateLLVMType(QualType T);
 
   /// createBasicBlock - Create an LLVM basic block.
-  llvm::BasicBlock *createBasicBlock(llvm::StringRef name = "",
+  llvm::BasicBlock *createBasicBlock(StringRef name = "",
                                      llvm::Function *parent = 0,
                                      llvm::BasicBlock *before = 0) {
 #ifdef NDEBUG
@@ -1443,6 +1403,10 @@ public:
   /// branches to the given block and does not expect to emit code into it. This
   /// means the block can be ignored if it is unreachable.
   void EmitBlock(llvm::BasicBlock *BB, bool IsFinished=false);
+
+  /// EmitBlockAfterUses - Emit the given block somewhere hopefully
+  /// near its uses, and leave the insertion point in it.
+  void EmitBlockAfterUses(llvm::BasicBlock *BB);
 
   /// EmitBranch - Emit a branch to the specified basic block from the current
   /// insert block, taking care to avoid creation of branches from dummy
@@ -1486,8 +1450,8 @@ public:
   /// CreateTempAlloca - This creates a alloca and inserts it into the entry
   /// block. The caller is responsible for setting an appropriate alignment on
   /// the alloca.
-  llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
-                                     const llvm::Twine &Name = "tmp");
+  llvm::AllocaInst *CreateTempAlloca(llvm::Type *Ty,
+                                     const Twine &Name = "tmp");
 
   /// InitTempAlloca - Provide an initial value for the given alloca.
   void InitTempAlloca(llvm::AllocaInst *Alloca, llvm::Value *Value);
@@ -1497,17 +1461,19 @@ public:
   /// value needs to be stored into an alloca (for example, to avoid explicit
   /// PHI construction), but the type is the IR type, not the type appropriate
   /// for storing in memory.
-  llvm::AllocaInst *CreateIRTemp(QualType T, const llvm::Twine &Name = "tmp");
+  llvm::AllocaInst *CreateIRTemp(QualType T, const Twine &Name = "tmp");
 
   /// CreateMemTemp - Create a temporary memory object of the given type, with
   /// appropriate alignment.
-  llvm::AllocaInst *CreateMemTemp(QualType T, const llvm::Twine &Name = "tmp");
+  llvm::AllocaInst *CreateMemTemp(QualType T, const Twine &Name = "tmp");
 
   /// CreateAggTemp - Create a temporary memory object for the given
   /// aggregate type.
-  AggValueSlot CreateAggTemp(QualType T, const llvm::Twine &Name = "tmp") {
+  AggValueSlot CreateAggTemp(QualType T, const Twine &Name = "tmp") {
     return AggValueSlot::forAddr(CreateMemTemp(T, Name), T.getQualifiers(),
-                                 false);
+                                 AggValueSlot::IsNotDestructed,
+                                 AggValueSlot::DoesNotNeedGCBarriers,
+                                 AggValueSlot::IsNotAliased);
   }
 
   /// Emit a cast to void* in the appropriate address space.
@@ -1708,8 +1674,8 @@ public:
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
                              bool ForVirtualBase, llvm::Value *This);
 
-  void EmitNewArrayInitializer(const CXXNewExpr *E, llvm::Value *NewPtr,
-                               llvm::Value *NumElements);
+  void EmitNewArrayInitializer(const CXXNewExpr *E, QualType elementType,
+                               llvm::Value *NewPtr, llvm::Value *NumElements);
 
   void EmitCXXTemporary(const CXXTemporary *Temporary, llvm::Value *Ptr);
 
@@ -2074,18 +2040,18 @@ public:
                       ReturnValueSlot ReturnValue = ReturnValueSlot());
 
   llvm::CallSite EmitCallOrInvoke(llvm::Value *Callee,
-                                  llvm::ArrayRef<llvm::Value *> Args,
-                                  const llvm::Twine &Name = "");
+                                  ArrayRef<llvm::Value *> Args,
+                                  const Twine &Name = "");
   llvm::CallSite EmitCallOrInvoke(llvm::Value *Callee,
-                                  const llvm::Twine &Name = "");
+                                  const Twine &Name = "");
 
   llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
-                                const llvm::Type *Ty);
+                                llvm::Type *Ty);
   llvm::Value *BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type,
-                                llvm::Value *This, const llvm::Type *Ty);
+                                llvm::Value *This, llvm::Type *Ty);
   llvm::Value *BuildAppleKextVirtualCall(const CXXMethodDecl *MD, 
                                          NestedNameSpecifier *Qual,
-                                         const llvm::Type *Ty);
+                                         llvm::Type *Ty);
   
   llvm::Value *BuildAppleKextVirtualDestructorCall(const CXXDestructorDecl *DD,
                                                    CXXDtorType Type, 
@@ -2110,6 +2076,9 @@ public:
                                        const CXXMethodDecl *MD,
                                        ReturnValueSlot ReturnValue);
 
+  RValue EmitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
+                                ReturnValueSlot ReturnValue);
+
 
   RValue EmitBuiltinExpr(const FunctionDecl *FD,
                          unsigned BuiltinID, const CallExpr *E);
@@ -2122,14 +2091,14 @@ public:
 
   llvm::Value *EmitARMBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitNeonCall(llvm::Function *F,
-                            llvm::SmallVectorImpl<llvm::Value*> &O,
+                            SmallVectorImpl<llvm::Value*> &O,
                             const char *name,
                             unsigned shift = 0, bool rightshift = false);
   llvm::Value *EmitNeonSplat(llvm::Value *V, llvm::Constant *Idx);
-  llvm::Value *EmitNeonShiftVector(llvm::Value *V, const llvm::Type *Ty,
+  llvm::Value *EmitNeonShiftVector(llvm::Value *V, llvm::Type *Ty,
                                    bool negateForRightShift);
 
-  llvm::Value *BuildVector(const llvm::SmallVectorImpl<llvm::Value*> &Ops);
+  llvm::Value *BuildVector(const SmallVectorImpl<llvm::Value*> &Ops);
   llvm::Value *EmitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitPPCBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
@@ -2163,7 +2132,7 @@ public:
                                       bool ignored);
   llvm::Value *EmitARCRetain(QualType type, llvm::Value *value);
   llvm::Value *EmitARCRetainNonBlock(llvm::Value *value);
-  llvm::Value *EmitARCRetainBlock(llvm::Value *value);
+  llvm::Value *EmitARCRetainBlock(llvm::Value *value, bool mandatory);
   void EmitARCRelease(llvm::Value *value, bool precise);
   llvm::Value *EmitARCAutorelease(llvm::Value *value);
   llvm::Value *EmitARCAutoreleaseReturnValue(llvm::Value *value);
@@ -2175,10 +2144,13 @@ public:
   std::pair<LValue,llvm::Value*>
   EmitARCStoreStrong(const BinaryOperator *e, bool ignored);
 
+  llvm::Value *EmitObjCThrowOperand(const Expr *expr);
+
   llvm::Value *EmitObjCProduceObject(QualType T, llvm::Value *Ptr);
   llvm::Value *EmitObjCConsumeObject(QualType T, llvm::Value *Ptr);
   llvm::Value *EmitObjCExtendObjectLifetime(QualType T, llvm::Value *Ptr);
 
+  llvm::Value *EmitARCExtendBlockObject(const Expr *expr);
   llvm::Value *EmitARCRetainScalarExpr(const Expr *expr);
   llvm::Value *EmitARCRetainAutoreleaseScalarExpr(const Expr *expr);
 
@@ -2311,6 +2283,25 @@ public:
 
   void EmitCXXThrowExpr(const CXXThrowExpr *E);
 
+  RValue EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest = 0);
+
+  //===--------------------------------------------------------------------===//
+  //                         Annotations Emission
+  //===--------------------------------------------------------------------===//
+
+  /// Emit an annotation call (intrinsic or builtin).
+  llvm::Value *EmitAnnotationCall(llvm::Value *AnnotationFn,
+                                  llvm::Value *AnnotatedVal,
+                                  llvm::StringRef AnnotationStr,
+                                  SourceLocation Location);
+
+  /// Emit local annotations for the local variable V, declared by D.
+  void EmitVarAnnotations(const VarDecl *D, llvm::Value *V);
+
+  /// Emit field annotations for the given field & value. Returns the
+  /// annotation result.
+  llvm::Value *EmitFieldAnnotations(const FieldDecl *D, llvm::Value *V);
+
   //===--------------------------------------------------------------------===//
   //                             Internal Helpers
   //===--------------------------------------------------------------------===//
@@ -2370,7 +2361,7 @@ private:
   /// Ty, into individual arguments on the provided vector \arg Args. See
   /// ABIArgInfo::Expand.
   void ExpandTypeToArgs(QualType Ty, RValue Src,
-                        llvm::SmallVector<llvm::Value*, 16> &Args,
+                        SmallVector<llvm::Value*, 16> &Args,
                         llvm::FunctionType *IRFuncTy);
 
   llvm::Value* EmitAsmInput(const AsmStmt &S,
@@ -2439,7 +2430,7 @@ private:
   void EmitDeclMetadata();
 
   CodeGenModule::ByrefHelpers *
-  buildByrefHelpers(const llvm::StructType &byrefType,
+  buildByrefHelpers(llvm::StructType &byrefType,
                     const AutoVarEmission &emission);
 };
 

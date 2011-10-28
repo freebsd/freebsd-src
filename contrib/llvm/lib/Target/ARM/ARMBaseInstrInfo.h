@@ -27,146 +27,6 @@ namespace llvm {
   class ARMSubtarget;
   class ARMBaseRegisterInfo;
 
-/// ARMII - This namespace holds all of the target specific flags that
-/// instruction info tracks.
-///
-namespace ARMII {
-  enum {
-    //===------------------------------------------------------------------===//
-    // Instruction Flags.
-
-    //===------------------------------------------------------------------===//
-    // This four-bit field describes the addressing mode used.
-    AddrModeMask  = 0x1f, // The AddrMode enums are declared in ARMBaseInfo.h
-
-    // IndexMode - Unindex, pre-indexed, or post-indexed are valid for load
-    // and store ops only.  Generic "updating" flag is used for ld/st multiple.
-    // The index mode enums are declared in ARMBaseInfo.h
-    IndexModeShift = 5,
-    IndexModeMask  = 3 << IndexModeShift,
-
-    //===------------------------------------------------------------------===//
-    // Instruction encoding formats.
-    //
-    FormShift     = 7,
-    FormMask      = 0x3f << FormShift,
-
-    // Pseudo instructions
-    Pseudo        = 0  << FormShift,
-
-    // Multiply instructions
-    MulFrm        = 1  << FormShift,
-
-    // Branch instructions
-    BrFrm         = 2  << FormShift,
-    BrMiscFrm     = 3  << FormShift,
-
-    // Data Processing instructions
-    DPFrm         = 4  << FormShift,
-    DPSoRegFrm    = 5  << FormShift,
-
-    // Load and Store
-    LdFrm         = 6  << FormShift,
-    StFrm         = 7  << FormShift,
-    LdMiscFrm     = 8  << FormShift,
-    StMiscFrm     = 9  << FormShift,
-    LdStMulFrm    = 10 << FormShift,
-
-    LdStExFrm     = 11 << FormShift,
-
-    // Miscellaneous arithmetic instructions
-    ArithMiscFrm  = 12 << FormShift,
-    SatFrm        = 13 << FormShift,
-
-    // Extend instructions
-    ExtFrm        = 14 << FormShift,
-
-    // VFP formats
-    VFPUnaryFrm   = 15 << FormShift,
-    VFPBinaryFrm  = 16 << FormShift,
-    VFPConv1Frm   = 17 << FormShift,
-    VFPConv2Frm   = 18 << FormShift,
-    VFPConv3Frm   = 19 << FormShift,
-    VFPConv4Frm   = 20 << FormShift,
-    VFPConv5Frm   = 21 << FormShift,
-    VFPLdStFrm    = 22 << FormShift,
-    VFPLdStMulFrm = 23 << FormShift,
-    VFPMiscFrm    = 24 << FormShift,
-
-    // Thumb format
-    ThumbFrm      = 25 << FormShift,
-
-    // Miscelleaneous format
-    MiscFrm       = 26 << FormShift,
-
-    // NEON formats
-    NGetLnFrm     = 27 << FormShift,
-    NSetLnFrm     = 28 << FormShift,
-    NDupFrm       = 29 << FormShift,
-    NLdStFrm      = 30 << FormShift,
-    N1RegModImmFrm= 31 << FormShift,
-    N2RegFrm      = 32 << FormShift,
-    NVCVTFrm      = 33 << FormShift,
-    NVDupLnFrm    = 34 << FormShift,
-    N2RegVShLFrm  = 35 << FormShift,
-    N2RegVShRFrm  = 36 << FormShift,
-    N3RegFrm      = 37 << FormShift,
-    N3RegVShFrm   = 38 << FormShift,
-    NVExtFrm      = 39 << FormShift,
-    NVMulSLFrm    = 40 << FormShift,
-    NVTBLFrm      = 41 << FormShift,
-
-    //===------------------------------------------------------------------===//
-    // Misc flags.
-
-    // UnaryDP - Indicates this is a unary data processing instruction, i.e.
-    // it doesn't have a Rn operand.
-    UnaryDP       = 1 << 13,
-
-    // Xform16Bit - Indicates this Thumb2 instruction may be transformed into
-    // a 16-bit Thumb instruction if certain conditions are met.
-    Xform16Bit    = 1 << 14,
-
-    //===------------------------------------------------------------------===//
-    // Code domain.
-    DomainShift   = 15,
-    DomainMask    = 7 << DomainShift,
-    DomainGeneral = 0 << DomainShift,
-    DomainVFP     = 1 << DomainShift,
-    DomainNEON    = 2 << DomainShift,
-    DomainNEONA8  = 4 << DomainShift,
-
-    //===------------------------------------------------------------------===//
-    // Field shifts - such shifts are used to set field while generating
-    // machine instructions.
-    //
-    // FIXME: This list will need adjusting/fixing as the MC code emitter
-    // takes shape and the ARMCodeEmitter.cpp bits go away.
-    ShiftTypeShift = 4,
-
-    M_BitShift     = 5,
-    ShiftImmShift  = 5,
-    ShiftShift     = 7,
-    N_BitShift     = 7,
-    ImmHiShift     = 8,
-    SoRotImmShift  = 8,
-    RegRsShift     = 8,
-    ExtRotImmShift = 10,
-    RegRdLoShift   = 12,
-    RegRdShift     = 12,
-    RegRdHiShift   = 16,
-    RegRnShift     = 16,
-    S_BitShift     = 20,
-    W_BitShift     = 21,
-    AM3_I_BitShift = 22,
-    D_BitShift     = 22,
-    U_BitShift     = 23,
-    P_BitShift     = 24,
-    I_BitShift     = 25,
-    CondShift      = 28
-  };
-}
-
 class ARMBaseInstrInfo : public ARMGenInstrInfo {
   const ARMSubtarget &Subtarget;
 
@@ -241,6 +101,10 @@ public:
                                        int &FrameIndex) const;
   virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
                                       int &FrameIndex) const;
+  virtual unsigned isLoadFromStackSlotPostFE(const MachineInstr *MI,
+                                             int &FrameIndex) const;
+  virtual unsigned isStoreToStackSlotPostFE(const MachineInstr *MI,
+                                            int &FrameIndex) const;
 
   virtual void copyPhysReg(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator I, DebugLoc DL,
@@ -258,6 +122,8 @@ public:
                                     unsigned DestReg, int FrameIndex,
                                     const TargetRegisterClass *RC,
                                     const TargetRegisterInfo *TRI) const;
+
+  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
   virtual MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
                                                  int FrameIx,
@@ -346,6 +212,12 @@ public:
   int getOperandLatency(const InstrItineraryData *ItinData,
                         SDNode *DefNode, unsigned DefIdx,
                         SDNode *UseNode, unsigned UseIdx) const;
+
+  /// VFP/NEON execution domains.
+  std::pair<uint16_t, uint16_t>
+  getExecutionDomain(const MachineInstr *MI) const;
+  void setExecutionDomain(MachineInstr *MI, unsigned Domain) const;
+
 private:
   int getVLDMDefCycle(const InstrItineraryData *ItinData,
                       const MCInstrDesc &DefMCID,
@@ -381,6 +253,9 @@ private:
                              const MachineInstr *UseMI, unsigned UseIdx) const;
   bool hasLowDefLatency(const InstrItineraryData *ItinData,
                         const MachineInstr *DefMI, unsigned DefIdx) const;
+
+  /// verifyInstruction - Perform target specific instruction verification.
+  bool verifyInstruction(const MachineInstr *MI, StringRef &ErrInfo) const;
 
 private:
   /// Modeling special VFP / NEON fp MLA / MLS hazards.
@@ -463,6 +338,12 @@ bool isIndirectBranchOpcode(int Opc) {
 ARMCC::CondCodes getInstrPredicate(const MachineInstr *MI, unsigned &PredReg);
 
 int getMatchingCondBranchOpcode(int Opc);
+
+
+/// Map pseudo instructions that imply an 'S' bit onto real opcodes. Whether
+/// the instruction is encoded with an 'S' bit is determined by the optional
+/// CPSR def operand.
+unsigned convertAddSubFlagsOpcode(unsigned OldOpc);
 
 /// emitARMRegPlusImmediate / emitT2RegPlusImmediate - Emits a series of
 /// instructions to materializea destreg = basereg + immediate in ARM / Thumb2

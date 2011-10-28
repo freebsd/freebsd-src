@@ -28,6 +28,9 @@ protected:
 
   /// The current set of available features.
   unsigned AvailableFeatures;
+
+  /// Utility function for printing annotations.
+  void printAnnotation(raw_ostream &OS, StringRef Annot);
 public:
   MCInstPrinter(const MCAsmInfo &mai)
     : CommentStream(0), MAI(mai), AvailableFeatures(0) {}
@@ -39,7 +42,8 @@ public:
 
   /// printInst - Print the specified MCInst to the specified raw_ostream.
   ///
-  virtual void printInst(const MCInst *MI, raw_ostream &OS) = 0;
+  virtual void printInst(const MCInst *MI, raw_ostream &OS,
+                         StringRef Annot) = 0;
 
   /// getOpcodeName - Return the name of the specified opcode enum (e.g.
   /// "MOV32ri") or empty if we can't resolve it.

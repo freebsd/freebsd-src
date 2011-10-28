@@ -28,7 +28,6 @@
 #include "llvm/Support/Mutex.h"
 #include "llvm/ADT/StringMap.h"
 #include <algorithm>
-#include <cstdio>
 #include <map>
 using namespace llvm;
 
@@ -167,8 +166,8 @@ class BBPassManager : public PMDataManager, public FunctionPass {
 
 public:
   static char ID;
-  explicit BBPassManager(int Depth)
-    : PMDataManager(Depth), FunctionPass(ID) {}
+  explicit BBPassManager()
+    : PMDataManager(), FunctionPass(ID) {}
 
   /// Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the function, and if so, return true.
@@ -193,7 +192,7 @@ public:
 
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
-    llvm::dbgs() << std::string(Offset*2, ' ') << "BasicBlockPass Manager\n";
+    llvm::dbgs().indent(Offset*2) << "BasicBlockPass Manager\n";
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       BasicBlockPass *BP = getContainedPass(Index);
       BP->dumpPassStructure(Offset + 1);
@@ -228,9 +227,9 @@ private:
   bool wasRun;
 public:
   static char ID;
-  explicit FunctionPassManagerImpl(int Depth) :
-    Pass(PT_PassManager, ID), PMDataManager(Depth),
-    PMTopLevelManager(new FPPassManager(1)), wasRun(false) {}
+  explicit FunctionPassManagerImpl() :
+    Pass(PT_PassManager, ID), PMDataManager(),
+    PMTopLevelManager(new FPPassManager()), wasRun(false) {}
 
   /// add - Add a pass to the queue of passes to run.  This passes ownership of
   /// the Pass to the PassManager.  When the PassManager is destroyed, the pass
@@ -303,8 +302,8 @@ char FunctionPassManagerImpl::ID = 0;
 class MPPassManager : public Pass, public PMDataManager {
 public:
   static char ID;
-  explicit MPPassManager(int Depth) :
-    Pass(PT_PassManager, ID), PMDataManager(Depth) { }
+  explicit MPPassManager() :
+    Pass(PT_PassManager, ID), PMDataManager() { }
 
   // Delete on the fly managers.
   virtual ~MPPassManager() {
@@ -349,7 +348,7 @@ public:
 
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
-    llvm::dbgs() << std::string(Offset*2, ' ') << "ModulePass Manager\n";
+    llvm::dbgs().indent(Offset*2) << "ModulePass Manager\n";
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       ModulePass *MP = getContainedPass(Index);
       MP->dumpPassStructure(Offset + 1);
@@ -388,9 +387,9 @@ class PassManagerImpl : public Pass,
 
 public:
   static char ID;
-  explicit PassManagerImpl(int Depth) :
-    Pass(PT_PassManager, ID), PMDataManager(Depth),
-                              PMTopLevelManager(new MPPassManager(1)) {}
+  explicit PassManagerImpl() :
+    Pass(PT_PassManager, ID), PMDataManager(),
+                              PMTopLevelManager(new MPPassManager()) {}
 
   /// add - Add a pass to the queue of passes to run.  This passes ownership of
   /// the Pass to the PassManager.  When the PassManager is destroyed, the pass
@@ -1340,7 +1339,7 @@ bool BBPassManager::doFinalization(Function &F) {
 
 /// Create new Function pass manager
 FunctionPassManager::FunctionPassManager(Module *m) : M(m) {
-  FPM = new FunctionPassManagerImpl(0);
+  FPM = new FunctionPassManagerImpl();
   // FPM is the top level manager.
   FPM->setTopLevelManager(FPM);
 
@@ -1532,7 +1531,7 @@ bool FPPassManager::runOnModule(Module &M) {
   bool Changed = doInitialization(M);
 
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-    runOnFunction(*I);
+    Changed |= runOnFunction(*I);
 
   return doFinalization(M) || Changed;
 }
@@ -1626,7 +1625,7 @@ void MPPassManager::addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass) {
 
   FunctionPassManagerImpl *FPP = OnTheFlyManagers[P];
   if (!FPP) {
-    FPP = new FunctionPassManagerImpl(0);
+    FPP = new FunctionPassManagerImpl();
     // FPP is the top level manager.
     FPP->setTopLevelManager(FPP);
 
@@ -1635,9 +1634,11 @@ void MPPassManager::addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass) {
   FPP->add(RequiredPass);
 
   // Register P as the last user of RequiredPass.
-  SmallVector<Pass *, 1> LU;
-  LU.push_back(RequiredPass);
-  FPP->setLastUser(LU,  P);
+  if (RequiredPass) {
+    SmallVector<Pass *, 1> LU;
+    LU.push_back(RequiredPass);
+    FPP->setLastUser(LU,  P);
+  }
 }
 
 /// Return function pass corresponding to PassInfo PI, that is
@@ -1677,7 +1678,7 @@ bool PassManagerImpl::run(Module &M) {
 
 /// Create new pass manager
 PassManager::PassManager() {
-  PM = new PassManagerImpl(0);
+  PM = new PassManagerImpl();
   // PM is the top level manager
   PM->setTopLevelManager(PM);
 }
@@ -1761,13 +1762,23 @@ void PMStack::pop() {
 // Push PM on the stack and set its top level manager.
 void PMStack::push(PMDataManager *PM) {
   assert(PM && "Unable to push. Pass Manager expected");
+  assert(PM->getDepth()==0 && "Pass Manager depth set too early");
 
   if (!this->empty()) {
+    assert(PM->getPassManagerType() > this->top()->getPassManagerType()
+           && "pushing bad pass manager to PMStack");
     PMTopLevelManager *TPM = this->top()->getTopLevelManager();
 
     assert(TPM && "Unable to find top level manager");
     TPM->addIndirectPassManager(PM);
     PM->setTopLevelManager(TPM);
+    PM->setDepth(this->top()->getDepth()+1);
+  }
+  else {
+    assert((PM->getPassManagerType() == PMT_ModulePassManager
+           || PM->getPassManagerType() == PMT_FunctionPassManager)
+           && "pushing bad pass manager to PMStack");
+    PM->setDepth(1);
   }
 
   S.push_back(PM);
@@ -1777,10 +1788,10 @@ void PMStack::push(PMDataManager *PM) {
 void PMStack::dump() const {
   for (std::vector<PMDataManager *>::const_iterator I = S.begin(),
          E = S.end(); I != E; ++I)
-    printf("%s ", (*I)->getAsPass()->getPassName());
+    dbgs() << (*I)->getAsPass()->getPassName() << ' ';
 
   if (!S.empty())
-    printf("\n");
+    dbgs() << '\n';
 }
 
 /// Find appropriate Module Pass Manager in the PM Stack and
@@ -1823,7 +1834,7 @@ void FunctionPass::assignPassManager(PMStack &PMS,
     PMDataManager *PMD = PMS.top();
 
     // [1] Create new Function Pass Manager
-    FPP = new FPPassManager(PMD->getDepth() + 1);
+    FPP = new FPPassManager();
     FPP->populateInheritedAnalysis(PMS);
 
     // [2] Set up new manager's top level manager
@@ -1860,7 +1871,7 @@ void BasicBlockPass::assignPassManager(PMStack &PMS,
     PMDataManager *PMD = PMS.top();
 
     // [1] Create new Basic Block Manager
-    BBP = new BBPassManager(PMD->getDepth() + 1);
+    BBP = new BBPassManager();
 
     // [2] Set up new manager's top level manager
     // Basic Block Pass Manager does not live by itself
