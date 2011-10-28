@@ -4291,8 +4291,30 @@ bge_stats_update_regs(struct bge_softc *sc)
 	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_HPWRQ_FULL);
 	stats->NoMoreRxBDs +=
 	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
-	stats->InputDiscards +=
-	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	/*
+	 * XXX
+	 * Unlike other controllers, BGE_RXLP_LOCSTAT_IFIN_DROPS
+	 * counter of BCM5717, BCM5718, BCM5719 A0 and BCM5720 A0
+	 * includes number of unwanted multicast frames.  This comes
+	 * from silicon bug and known workaround to get rough(not
+	 * exact) counter is to enable interrupt on MBUF low water
+	 * attention.  This can be accomplished by setting
+	 * BGE_HCCMODE_ATTN bit of BGE_HCC_MODE,
+	 * BGE_BMANMODE_LOMBUF_ATTN bit of BGE_BMAN_MODE and
+	 * BGE_MODECTL_FLOWCTL_ATTN_INTR bit of BGE_MODE_CTL.
+	 * However that change would generate more interrupts and
+	 * there are still possibilities of losing multiple frames
+	 * during BGE_MODECTL_FLOWCTL_ATTN_INTR interrupt handling.
+	 * Given that the workaround still would not get correct
+	 * counter I don't think it's worth to implement it.  So
+	 * ignore reading the counter on controllers that have the
+	 * silicon bug.
+	 */
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5719_A0 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5720_A0)
+		stats->InputDiscards +=
+		    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
 	stats->InputErrors +=
 	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
 	stats->RecvThresholdHit +=
