@@ -1449,12 +1449,21 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * on one interface and the corresponding outgoing packet leaves
 	 * another interface.
 	 */
-	if (rt->rt_ifp != ifp) {
+	if (!(rt->rt_flags & RTF_HOST) && rt->rt_ifp != ifp) {
 		const char *sa, *mask, *addr, *lim;
 		int len;
 
-		sa = (const char *)rt_key(rt);
 		mask = (const char *)rt_mask(rt);
+		/*
+		 * Just being extra cautious to avoid some custom
+		 * code getting into trouble.
+		 */
+		if (mask == NULL) {
+			RTFREE_LOCKED(rt);
+			return (EINVAL);
+		}
+
+		sa = (const char *)rt_key(rt);
 		addr = (const char *)l3addr;
 		len = ((const struct sockaddr_in *)l3addr)->sin_len;
 		lim = addr + len;
