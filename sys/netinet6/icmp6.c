@@ -2161,10 +2161,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		}
 	}
 
-	if ((srcp != NULL) && 
-	    (in6_addrscope(srcp) != in6_addrscope(&ip6->ip6_src)))
-		srcp = NULL;
-
 	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
