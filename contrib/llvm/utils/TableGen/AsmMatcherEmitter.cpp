@@ -98,8 +98,6 @@
 
 #include "AsmMatcherEmitter.h"
 #include "CodeGenTarget.h"
-#include "Error.h"
-#include "Record.h"
 #include "StringMatcher.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerUnion.h"
@@ -109,6 +107,8 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <map>
 #include <set>
 using namespace llvm;
@@ -914,17 +914,17 @@ void AsmMatcherInfo::
 BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
   const std::vector<CodeGenRegister*> &Registers =
     Target.getRegBank().getRegisters();
-  const std::vector<CodeGenRegisterClass> &RegClassList =
-    Target.getRegisterClasses();
+  ArrayRef<CodeGenRegisterClass*> RegClassList =
+    Target.getRegBank().getRegClasses();
 
   // The register sets used for matching.
   std::set< std::set<Record*> > RegisterSets;
 
   // Gather the defined sets.
-  for (std::vector<CodeGenRegisterClass>::const_iterator it =
+  for (ArrayRef<CodeGenRegisterClass*>::const_iterator it =
        RegClassList.begin(), ie = RegClassList.end(); it != ie; ++it)
-    RegisterSets.insert(std::set<Record*>(it->getOrder().begin(),
-                                          it->getOrder().end()));
+    RegisterSets.insert(std::set<Record*>(
+        (*it)->getOrder().begin(), (*it)->getOrder().end()));
 
   // Add any required singleton sets.
   for (SmallPtrSet<Record*, 16>::iterator it = SingletonRegisters.begin(),
@@ -996,18 +996,23 @@ BuildRegisterClasses(SmallPtrSet<Record*, 16> &SingletonRegisters) {
   }
 
   // Name the register classes which correspond to a user defined RegisterClass.
-  for (std::vector<CodeGenRegisterClass>::const_iterator
+  for (ArrayRef<CodeGenRegisterClass*>::const_iterator
        it = RegClassList.begin(), ie = RegClassList.end(); it != ie; ++it) {
-    ClassInfo *CI = RegisterSetClasses[std::set<Record*>(it->getOrder().begin(),
-                                                         it->getOrder().end())];
+    const CodeGenRegisterClass &RC = **it;
+    // Def will be NULL for non-user defined register classes.
+    Record *Def = RC.getDef();
+    if (!Def)
+      continue;
+    ClassInfo *CI = RegisterSetClasses[std::set<Record*>(RC.getOrder().begin(),
+                                                         RC.getOrder().end())];
     if (CI->ValueName.empty()) {
-      CI->ClassName = it->getName();
-      CI->Name = "MCK_" + it->getName();
-      CI->ValueName = it->getName();
+      CI->ClassName = RC.getName();
+      CI->Name = "MCK_" + RC.getName();
+      CI->ValueName = RC.getName();
     } else
-      CI->ValueName = CI->ValueName + "," + it->getName();
+      CI->ValueName = CI->ValueName + "," + RC.getName();
 
-    RegisterClassClasses.insert(std::make_pair(it->TheDef, CI));
+    RegisterClassClasses.insert(std::make_pair(Def, CI));
   }
 
   // Populate the map for individual registers.
@@ -2172,21 +2177,14 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "\n#ifdef GET_ASSEMBLER_HEADER\n";
   OS << "#undef GET_ASSEMBLER_HEADER\n";
   OS << "  // This should be included into the middle of the declaration of\n";
-  OS << "  // your subclasses implementation of TargetAsmParser.\n";
+  OS << "  // your subclasses implementation of MCTargetAsmParser.\n";
   OS << "  unsigned ComputeAvailableFeatures(uint64_t FeatureBits) const;\n";
-  OS << "  enum MatchResultTy {\n";
-  OS << "    Match_ConversionFail,\n";
-  OS << "    Match_InvalidOperand,\n";
-  OS << "    Match_MissingFeature,\n";
-  OS << "    Match_MnemonicFail,\n";
-  OS << "    Match_Success\n";
-  OS << "  };\n";
   OS << "  bool ConvertToMCInst(unsigned Kind, MCInst &Inst, "
      << "unsigned Opcode,\n"
      << "                       const SmallVectorImpl<MCParsedAsmOperand*> "
      << "&Operands);\n";
   OS << "  bool MnemonicIsValid(StringRef Mnemonic);\n";
-  OS << "  MatchResultTy MatchInstructionImpl(\n";
+  OS << "  unsigned MatchInstructionImpl(\n";
   OS << "    const SmallVectorImpl<MCParsedAsmOperand*> &Operands,\n";
   OS << "    MCInst &Inst, unsigned &ErrorInfo);\n";
 
@@ -2328,7 +2326,7 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "}\n\n";
 
   // Finally, build the match function.
-  OS << Target.getName() << ClassName << "::MatchResultTy "
+  OS << "unsigned "
      << Target.getName() << ClassName << "::\n"
      << "MatchInstructionImpl(const SmallVectorImpl<MCParsedAsmOperand*>"
      << " &Operands,\n";
@@ -2355,7 +2353,9 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "  }\n\n";
 
   OS << "  // Some state to try to produce better error messages.\n";
-  OS << "  bool HadMatchOtherThanFeatures = false;\n\n";
+  OS << "  bool HadMatchOtherThanFeatures = false;\n";
+  OS << "  bool HadMatchOtherThanPredicate = false;\n";
+  OS << "  unsigned RetCode = Match_InvalidOperand;\n";
   OS << "  // Set ErrorInfo to the operand that mismatches if it is\n";
   OS << "  // wrong for all instances of the instruction.\n";
   OS << "  ErrorInfo = ~0U;\n";
@@ -2411,6 +2411,18 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "      return Match_ConversionFail;\n";
   OS << "\n";
 
+  // Verify the instruction with the target-specific match predicate function.
+  OS << "    // We have a potential match. Check the target predicate to\n"
+     << "    // handle any context sensitive constraints.\n"
+     << "    unsigned MatchResult;\n"
+     << "    if ((MatchResult = checkTargetMatchPredicate(Inst)) !="
+     << " Match_Success) {\n"
+     << "      Inst.clear();\n"
+     << "      RetCode = MatchResult;\n"
+     << "      HadMatchOtherThanPredicate = true;\n"
+     << "      continue;\n"
+     << "    }\n\n";
+
   // Call the post-processing function, if used.
   std::string InsnCleanupFn =
     AsmParser->getValueAsString("AsmParserInstCleanup");
@@ -2421,8 +2433,9 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "  }\n\n";
 
   OS << "  // Okay, we had no match.  Try to return a useful error code.\n";
-  OS << "  if (HadMatchOtherThanFeatures) return Match_MissingFeature;\n";
-  OS << "  return Match_InvalidOperand;\n";
+  OS << "  if (HadMatchOtherThanPredicate || !HadMatchOtherThanFeatures)";
+  OS << " return RetCode;\n";
+  OS << "  return Match_MissingFeature;\n";
   OS << "}\n\n";
 
   if (Info.OperandMatchInfo.size())

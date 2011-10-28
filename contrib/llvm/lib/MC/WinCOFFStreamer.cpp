@@ -24,13 +24,13 @@
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCWin64EH.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetAsmBackend.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/ADT/StringMap.h"
 
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -40,7 +40,7 @@ public:
   MCSymbol const *CurSymbol;
 
   WinCOFFStreamer(MCContext &Context,
-                  TargetAsmBackend &TAB,
+                  MCAsmBackend &MAB,
                   MCCodeEmitter &CE,
                   raw_ostream &OS);
 
@@ -63,7 +63,8 @@ public:
   virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size);
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
                             unsigned Size,unsigned ByteAlignment);
   virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
@@ -123,10 +124,10 @@ private:
 } // end anonymous namespace.
 
 WinCOFFStreamer::WinCOFFStreamer(MCContext &Context,
-                                 TargetAsmBackend &TAB,
+                                 MCAsmBackend &MAB,
                                  MCCodeEmitter &CE,
                                  raw_ostream &OS)
-    : MCObjectStreamer(Context, TAB, OS, &CE)
+    : MCObjectStreamer(Context, MAB, OS, &CE)
     , CurSymbol(NULL) {
 }
 
@@ -304,11 +305,12 @@ void WinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   AddCommonSymbol(Symbol, Size, ByteAlignment, true);
 }
 
-void WinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
+void WinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                            unsigned ByteAlignment) {
   assert((Symbol->isInSection()
          ? Symbol->getSection().getVariant() == MCSection::SV_COFF
          : true) && "Got non COFF section in the COFF backend!");
-  AddCommonSymbol(Symbol, Size, 1, false);
+  AddCommonSymbol(Symbol, Size, ByteAlignment, false);
 }
 
 void WinCOFFStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
@@ -395,11 +397,11 @@ void WinCOFFStreamer::Finish() {
 namespace llvm
 {
   MCStreamer *createWinCOFFStreamer(MCContext &Context,
-                                    TargetAsmBackend &TAB,
+                                    MCAsmBackend &MAB,
                                     MCCodeEmitter &CE,
                                     raw_ostream &OS,
                                     bool RelaxAll) {
-    WinCOFFStreamer *S = new WinCOFFStreamer(Context, TAB, CE, OS);
+    WinCOFFStreamer *S = new WinCOFFStreamer(Context, MAB, CE, OS);
     S->getAssembler().setRelaxAll(RelaxAll);
     return S;
   }

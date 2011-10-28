@@ -3,10 +3,15 @@
 LIB=	llvmpowerpcdesc
 
 SRCDIR=	lib/Target/PowerPC/MCTargetDesc
-SRCS=	PPCMCAsmInfo.cpp \
-	PPCMCTargetDesc.cpp
+SRCS=	PPCAsmBackend.cpp \
+	PPCMCAsmInfo.cpp \
+	PPCMCCodeEmitter.cpp \
+	PPCMCTargetDesc.cpp \
+	PPCPredicates.cpp
+CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 
 TGHDRS=	PPCGenInstrInfo \
+	PPCGenMCCodeEmitter \
 	PPCGenRegisterInfo \
 	PPCGenSubtargetInfo
 

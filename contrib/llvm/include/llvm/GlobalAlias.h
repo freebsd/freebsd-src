@@ -23,7 +23,6 @@
 namespace llvm {
 
 class Module;
-class Constant;
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
@@ -41,11 +40,11 @@ public:
   }
   /// GlobalAlias ctor - If a parent module is specified, the alias is
   /// automatically inserted into the end of the specified module's alias list.
-  GlobalAlias(const Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
+  GlobalAlias(Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
               Constant* Aliasee = 0, Module *Parent = 0);
 
   /// Provide fast operand accessors
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.
@@ -60,10 +59,10 @@ public:
   /// set/getAliasee - These methods retrive and set alias target.
   void setAliasee(Constant *GV);
   const Constant *getAliasee() const {
-    return cast_or_null<Constant>(getOperand(0));
+    return getOperand(0);
   }
   Constant *getAliasee() {
-    return cast_or_null<Constant>(getOperand(0));
+    return getOperand(0);
   }
   /// getAliasedGlobal() - Aliasee can be either global or bitcast of
   /// global. This method retrives the global for both aliasee flavours.
@@ -88,7 +87,7 @@ struct OperandTraits<GlobalAlias> :
   public FixedNumOperandTraits<GlobalAlias, 1> {
 };
 
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(GlobalAlias, Value)
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(GlobalAlias, Constant)
 
 } // End llvm namespace
 

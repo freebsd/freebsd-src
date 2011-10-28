@@ -16,6 +16,7 @@
 
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -25,7 +26,7 @@
 #include <list>
 
 namespace clang {
-  class DiagnosticClient;
+  class DiagnosticConsumer;
   class DiagnosticBuilder;
   class IdentifierInfo;
   class DeclContext;
@@ -64,7 +65,7 @@ public:
   /// \brief Create a code modification hint that inserts the given
   /// code string at a specific location.
   static FixItHint CreateInsertion(SourceLocation InsertionLoc,
-                                   llvm::StringRef Code) {
+                                   StringRef Code) {
     FixItHint Hint;
     Hint.RemoveRange =
       CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
@@ -86,7 +87,7 @@ public:
   /// \brief Create a code modification hint that replaces the given
   /// source range with the given code string.
   static FixItHint CreateReplacement(CharSourceRange RemoveRange,
-                                     llvm::StringRef Code) {
+                                     StringRef Code) {
     FixItHint Hint;
     Hint.RemoveRange = RemoveRange;
     Hint.CodeToInsert = Code;
@@ -94,17 +95,17 @@ public:
   }
   
   static FixItHint CreateReplacement(SourceRange RemoveRange,
-                                     llvm::StringRef Code) {
+                                     StringRef Code) {
     return CreateReplacement(CharSourceRange::getTokenRange(RemoveRange), Code);
   }
 };
 
-/// Diagnostic - This concrete class is used by the front-end to report
+/// DiagnosticsEngine - This concrete class is used by the front-end to report
 /// problems and issues.  It massages the diagnostics (e.g. handling things like
-/// "report warnings as errors" and passes them off to the DiagnosticClient for
-/// reporting to the user. Diagnostic is tied to one translation unit and
-/// one SourceManager.
-class Diagnostic : public llvm::RefCountedBase<Diagnostic> {
+/// "report warnings as errors" and passes them off to the DiagnosticConsumer
+/// for reporting to the user. DiagnosticsEngine is tied to one translation unit
+/// and one SourceManager.
+class DiagnosticsEngine : public llvm::RefCountedBase<DiagnosticsEngine> {
 public:
   /// Level - The level of the diagnostic, after it has been through mapping.
   enum Level {
@@ -148,7 +149,8 @@ public:
 private:
   unsigned char AllExtensionsSilenced; // Used by __extension__
   bool IgnoreAllWarnings;        // Ignore all warnings: -w
-  bool WarningsAsErrors;         // Treat warnings like errors:
+  bool WarningsAsErrors;         // Treat warnings like errors.
+  bool EnableAllWarnings;        // Enable all warnings.
   bool ErrorsAsFatal;            // Treat errors like fatal errors.
   bool SuppressSystemWarnings;   // Suppress warnings in system headers.
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
@@ -158,7 +160,7 @@ private:
                                    // 0 -> no limit.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
   llvm::IntrusiveRefCntPtr<DiagnosticIDs> Diags;
-  DiagnosticClient *Client;
+  DiagnosticConsumer *Client;
   bool OwnsDiagClient;
   SourceManager *SourceMgr;
 
@@ -173,22 +175,22 @@ private:
   /// the state so that we know what is the diagnostic state at any given
   /// source location.
   class DiagState {
-    llvm::DenseMap<unsigned, unsigned> DiagMap;
+    llvm::DenseMap<unsigned, DiagnosticMappingInfo> DiagMap;
 
   public:
-    typedef llvm::DenseMap<unsigned, unsigned>::const_iterator iterator;
+    typedef llvm::DenseMap<unsigned, DiagnosticMappingInfo>::iterator
+      iterator;
+    typedef llvm::DenseMap<unsigned, DiagnosticMappingInfo>::const_iterator
+      const_iterator;
 
-    void setMapping(diag::kind Diag, unsigned Map) { DiagMap[Diag] = Map; }
-
-    diag::Mapping getMapping(diag::kind Diag) const {
-      iterator I = DiagMap.find(Diag);
-      if (I != DiagMap.end())
-        return (diag::Mapping)I->second;
-      return diag::Mapping();
+    void setMappingInfo(diag::kind Diag, DiagnosticMappingInfo Info) {
+      DiagMap[Diag] = Info;
     }
 
-    iterator begin() const { return DiagMap.begin(); }
-    iterator end() const { return DiagMap.end(); }
+    DiagnosticMappingInfo &getOrAddMappingInfo(diag::kind Diag);
+
+    const_iterator begin() const { return DiagMap.begin(); }
+    const_iterator end() const { return DiagMap.end(); }
   };
 
   /// \brief Keeps and automatically disposes all DiagStates that we create.
@@ -254,10 +256,10 @@ private:
   /// \brief Indicates that an unrecoverable error has occurred.
   bool UnrecoverableErrorOccurred;
   
-  /// \brief Toggles for DiagnosticErrorTrap to check whether an error occurred
+  /// \brief Counts for DiagnosticErrorTrap to check whether an error occurred
   /// during a parsing section, e.g. during parsing a function.
-  bool TrapErrorOccurred;
-  bool TrapUnrecoverableErrorOccurred;
+  unsigned TrapNumErrorsOccurred;
+  unsigned TrapNumUnrecoverableErrorsOccurred;
 
   /// LastDiagLevel - This is the level of the last diagnostic emitted.  This is
   /// used to emit continuation diagnostics with the same level as the
@@ -283,9 +285,9 @@ private:
       const char *Argument, unsigned ArgumentLen,
       const ArgumentValue *PrevArgs,
       unsigned NumPrevArgs,
-      llvm::SmallVectorImpl<char> &Output,
+      SmallVectorImpl<char> &Output,
       void *Cookie,
-      llvm::SmallVectorImpl<intptr_t> &QualTypeVals);
+      SmallVectorImpl<intptr_t> &QualTypeVals);
   void *ArgToStringCookie;
   ArgToStringFnTy ArgToStringFn;
 
@@ -301,21 +303,25 @@ private:
   std::string DelayedDiagArg2;
 
 public:
-  explicit Diagnostic(const llvm::IntrusiveRefCntPtr<DiagnosticIDs> &Diags,
-                      DiagnosticClient *client = 0,
+  explicit DiagnosticsEngine(
+                      const llvm::IntrusiveRefCntPtr<DiagnosticIDs> &Diags,
+                      DiagnosticConsumer *client = 0,
                       bool ShouldOwnClient = true);
-  ~Diagnostic();
+  ~DiagnosticsEngine();
 
   const llvm::IntrusiveRefCntPtr<DiagnosticIDs> &getDiagnosticIDs() const {
     return Diags;
   }
 
-  DiagnosticClient *getClient() { return Client; }
-  const DiagnosticClient *getClient() const { return Client; }
+  DiagnosticConsumer *getClient() { return Client; }
+  const DiagnosticConsumer *getClient() const { return Client; }
 
+  /// \brief Determine whether this \c DiagnosticsEngine object own its client.
+  bool ownsClient() const { return OwnsDiagClient; }
+  
   /// \brief Return the current diagnostic client along with ownership of that
   /// client.
-  DiagnosticClient *takeClient() {
+  DiagnosticConsumer *takeClient() {
     OwnsDiagClient = false;
     return Client;
   }
@@ -328,8 +334,8 @@ public:
   void setSourceManager(SourceManager *SrcMgr) { SourceMgr = SrcMgr; }
 
   //===--------------------------------------------------------------------===//
-  //  Diagnostic characterization methods, used by a client to customize how
-  //  diagnostics are emitted.
+  //  DiagnosticsEngine characterization methods, used by a client to customize
+  //  how diagnostics are emitted.
   //
 
   /// pushMappings - Copies the current DiagMappings and pushes the new copy
@@ -346,7 +352,7 @@ public:
   ///
   /// \param ShouldOwnClient true if the diagnostic object should take
   /// ownership of \c client.
-  void setClient(DiagnosticClient *client, bool ShouldOwnClient = true);
+  void setClient(DiagnosticConsumer *client, bool ShouldOwnClient = true);
 
   /// setErrorLimit - Specify a limit for the number of errors we should
   /// emit before giving up.  Zero disables the limit.
@@ -369,6 +375,12 @@ public:
   void setIgnoreAllWarnings(bool Val) { IgnoreAllWarnings = Val; }
   bool getIgnoreAllWarnings() const { return IgnoreAllWarnings; }
 
+  /// setEnableAllWarnings - When set to true, any unmapped ignored warnings
+  /// are no longer ignored.  If this and IgnoreAllWarnings are both set,
+  /// then that one wins.
+  void setEnableAllWarnings(bool Val) { EnableAllWarnings = Val; }
+  bool getEnableAllWarnngs() const { return EnableAllWarnings; }
+  
   /// setWarningsAsErrors - When set to true, any warnings reported are issued
   /// as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
@@ -435,10 +447,20 @@ public:
   ///
   /// 'Loc' is the source location that this change of diagnostic state should
   /// take affect. It can be null if we are setting the state from command-line.
-  bool setDiagnosticGroupMapping(llvm::StringRef Group, diag::Mapping Map,
-                                 SourceLocation Loc = SourceLocation()) {
-    return Diags->setDiagnosticGroupMapping(Group, Map, Loc, *this);
-  }
+  bool setDiagnosticGroupMapping(StringRef Group, diag::Mapping Map,
+                                 SourceLocation Loc = SourceLocation());
+
+  /// \brief Set the warning-as-error flag for the given diagnostic group. This
+  /// function always only operates on the current diagnostic state.
+  ///
+  /// \returns True if the given group is unknown, false otherwise.
+  bool setDiagnosticGroupWarningAsError(StringRef Group, bool Enabled);
+
+  /// \brief Set the error-as-fatal flag for the given diagnostic group. This
+  /// function always only operates on the current diagnostic state.
+  ///
+  /// \returns True if the given group is unknown, false otherwise.
+  bool setDiagnosticGroupErrorAsFatal(StringRef Group, bool Enabled);
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
@@ -457,7 +479,7 @@ public:
   /// getCustomDiagID - Return an ID for a diagnostic with the specified message
   /// and level.  If this is the first request for this diagnosic, it is
   /// registered and created, otherwise the existing ID is returned.
-  unsigned getCustomDiagID(Level L, llvm::StringRef Message) {
+  unsigned getCustomDiagID(Level L, StringRef Message) {
     return Diags->getCustomDiagID((DiagnosticIDs::Level)L, Message);
   }
 
@@ -467,8 +489,8 @@ public:
                           const char *Modifier, unsigned ModLen,
                           const char *Argument, unsigned ArgLen,
                           const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
-                          llvm::SmallVectorImpl<char> &Output,
-                          llvm::SmallVectorImpl<intptr_t> &QualTypeVals) const {
+                          SmallVectorImpl<char> &Output,
+                          SmallVectorImpl<intptr_t> &QualTypeVals) const {
     ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
                   PrevArgs, NumPrevArgs, Output, ArgToStringCookie,
                   QualTypeVals);
@@ -484,18 +506,17 @@ public:
   void Reset();
   
   //===--------------------------------------------------------------------===//
-  // Diagnostic classification and reporting interfaces.
+  // DiagnosticsEngine classification and reporting interfaces.
   //
 
-  /// \brief Based on the way the client configured the Diagnostic
+  /// \brief Based on the way the client configured the DiagnosticsEngine
   /// object, classify the specified diagnostic ID into a Level, consumable by
-  /// the DiagnosticClient.
+  /// the DiagnosticConsumer.
   ///
   /// \param Loc The source location we are interested in finding out the
   /// diagnostic state. Can be null in order to query the latest state.
-  Level getDiagnosticLevel(unsigned DiagID, SourceLocation Loc,
-                           diag::Mapping *mapping = 0) const {
-    return (Level)Diags->getDiagnosticLevel(DiagID, Loc, *this, mapping);
+  Level getDiagnosticLevel(unsigned DiagID, SourceLocation Loc) const {
+    return (Level)Diags->getDiagnosticLevel(DiagID, Loc, *this);
   }
 
   /// Report - Issue the message to the client.  @c DiagID is a member of the
@@ -527,13 +548,13 @@ public:
   ///
   /// \param Arg1 A string argument that will be provided to the
   /// diagnostic. A copy of this string will be stored in the
-  /// Diagnostic object itself.
+  /// DiagnosticsEngine object itself.
   ///
   /// \param Arg2 A string argument that will be provided to the
   /// diagnostic. A copy of this string will be stored in the
-  /// Diagnostic object itself.
-  void SetDelayedDiagnostic(unsigned DiagID, llvm::StringRef Arg1 = "",
-                            llvm::StringRef Arg2 = "");
+  /// DiagnosticsEngine object itself.
+  void SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1 = "",
+                            StringRef Arg2 = "");
   
   /// \brief Clear out the current diagnostic.
   void Clear() { CurDiagID = ~0U; }
@@ -541,23 +562,6 @@ public:
 private:
   /// \brief Report the delayed diagnostic.
   void ReportDelayed();
-
-
-  /// getDiagnosticMappingInfo - Return the mapping info currently set for the
-  /// specified builtin diagnostic.  This returns the high bit encoding, or zero
-  /// if the field is completely uninitialized.
-  diag::Mapping getDiagnosticMappingInfo(diag::kind Diag,
-                                         DiagState *State) const {
-    return State->getMapping(Diag);
-  }
-
-  void setDiagnosticMappingInternal(unsigned DiagId, unsigned Map,
-                                    DiagState *State,
-                                    bool isUser, bool isPragma) const {
-    if (isUser) Map |= 8;  // Set the high bit for user mappings.
-    if (isPragma) Map |= 0x10;  // Set the bit for diagnostic pragma mappings.
-    State->setMapping((diag::kind)DiagId, Map);
-  }
 
   // This is private state used by DiagnosticBuilder.  We put it here instead of
   // in DiagnosticBuilder in order to keep DiagnosticBuilder a small lightweight
@@ -567,7 +571,7 @@ private:
   // diagnostic is in flight at a time.
   friend class DiagnosticIDs;
   friend class DiagnosticBuilder;
-  friend class DiagnosticInfo;
+  friend class Diagnostic;
   friend class PartialDiagnostic;
   friend class DiagnosticErrorTrap;
   
@@ -614,7 +618,7 @@ private:
   /// only support 10 ranges, could easily be extended if needed.
   CharSourceRange DiagRanges[10];
 
-  enum { MaxFixItHints = 3 };
+  enum { MaxFixItHints = 6 };
 
   /// FixItHints - If valid, provides a hint with some code
   /// to insert, remove, or modify at a particular position.
@@ -637,28 +641,30 @@ private:
 /// between the time the instance was created and the time it was
 /// queried.
 class DiagnosticErrorTrap {
-  Diagnostic &Diag;
+  DiagnosticsEngine &Diag;
+  unsigned NumErrors;
+  unsigned NumUnrecoverableErrors;
 
 public:
-  explicit DiagnosticErrorTrap(Diagnostic &Diag)
+  explicit DiagnosticErrorTrap(DiagnosticsEngine &Diag)
     : Diag(Diag) { reset(); }
 
   /// \brief Determine whether any errors have occurred since this
   /// object instance was created.
   bool hasErrorOccurred() const {
-    return Diag.TrapErrorOccurred;
+    return Diag.TrapNumErrorsOccurred > NumErrors;
   }
 
   /// \brief Determine whether any unrecoverable errors have occurred since this
   /// object instance was created.
   bool hasUnrecoverableErrorOccurred() const {
-    return Diag.TrapUnrecoverableErrorOccurred;
+    return Diag.TrapNumUnrecoverableErrorsOccurred > NumUnrecoverableErrors;
   }
 
   // Set to initial state of "no errors occurred".
   void reset() {
-    Diag.TrapErrorOccurred = false;
-    Diag.TrapUnrecoverableErrorOccurred = false;
+    NumErrors = Diag.TrapNumErrorsOccurred;
+    NumUnrecoverableErrors = Diag.TrapNumUnrecoverableErrorsOccurred;
   }
 };
 
@@ -667,9 +673,9 @@ public:
 //===----------------------------------------------------------------------===//
 
 /// DiagnosticBuilder - This is a little helper class used to produce
-/// diagnostics.  This is constructed by the Diagnostic::Report method, and
-/// allows insertion of extra information (arguments and source ranges) into the
-/// currently "in flight" diagnostic.  When the temporary for the builder is
+/// diagnostics.  This is constructed by the DiagnosticsEngine::Report method,
+/// and allows insertion of extra information (arguments and source ranges) into
+/// the currently "in flight" diagnostic.  When the temporary for the builder is
 /// destroyed, the diagnostic is issued.
 ///
 /// Note that many of these will be created as temporary objects (many call
@@ -678,12 +684,12 @@ public:
 /// the common fields to registers, eliminating increments of the NumArgs field,
 /// for example.
 class DiagnosticBuilder {
-  mutable Diagnostic *DiagObj;
+  mutable DiagnosticsEngine *DiagObj;
   mutable unsigned NumArgs, NumRanges, NumFixItHints;
 
   void operator=(const DiagnosticBuilder&); // DO NOT IMPLEMENT
-  friend class Diagnostic;
-  explicit DiagnosticBuilder(Diagnostic *diagObj)
+  friend class DiagnosticsEngine;
+  explicit DiagnosticBuilder(DiagnosticsEngine *diagObj)
     : DiagObj(diagObj), NumArgs(0), NumRanges(0), NumFixItHints(0) {}
 
   friend class PartialDiagnostic;
@@ -731,7 +737,7 @@ public:
   ///
   /// \pre \c isActive()
   unsigned getDiagID() const {
-    assert(isActive() && "Diagnostic is inactive");
+    assert(isActive() && "DiagnosticsEngine is inactive");
     return DiagObj->CurDiagID;
   }
   
@@ -743,17 +749,17 @@ public:
   /// return Diag(...);
   operator bool() const { return true; }
 
-  void AddString(llvm::StringRef S) const {
-    assert(NumArgs < Diagnostic::MaxArguments &&
+  void AddString(StringRef S) const {
+    assert(NumArgs < DiagnosticsEngine::MaxArguments &&
            "Too many arguments to diagnostic!");
     if (DiagObj) {
-      DiagObj->DiagArgumentsKind[NumArgs] = Diagnostic::ak_std_string;
+      DiagObj->DiagArgumentsKind[NumArgs] = DiagnosticsEngine::ak_std_string;
       DiagObj->DiagArgumentsStr[NumArgs++] = S;
     }
   }
 
-  void AddTaggedVal(intptr_t V, Diagnostic::ArgumentKind Kind) const {
-    assert(NumArgs < Diagnostic::MaxArguments &&
+  void AddTaggedVal(intptr_t V, DiagnosticsEngine::ArgumentKind Kind) const {
+    assert(NumArgs < DiagnosticsEngine::MaxArguments &&
            "Too many arguments to diagnostic!");
     if (DiagObj) {
       DiagObj->DiagArgumentsKind[NumArgs] = Kind;
@@ -770,15 +776,17 @@ public:
   }
 
   void AddFixItHint(const FixItHint &Hint) const {
-    assert(NumFixItHints < Diagnostic::MaxFixItHints &&
+    assert(NumFixItHints < DiagnosticsEngine::MaxFixItHints &&
            "Too many fix-it hints!");
+    if (NumFixItHints >= DiagnosticsEngine::MaxFixItHints)
+      return;  // Don't crash in release builds
     if (DiagObj)
       DiagObj->FixItHints[NumFixItHints++] = Hint;
   }
 };
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                           llvm::StringRef S) {
+                                           StringRef S) {
   DB.AddString(S);
   return DB;
 }
@@ -786,30 +794,30 @@ inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const char *Str) {
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(Str),
-                  Diagnostic::ak_c_string);
+                  DiagnosticsEngine::ak_c_string);
   return DB;
 }
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB, int I) {
-  DB.AddTaggedVal(I, Diagnostic::ak_sint);
+  DB.AddTaggedVal(I, DiagnosticsEngine::ak_sint);
   return DB;
 }
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,bool I) {
-  DB.AddTaggedVal(I, Diagnostic::ak_sint);
+  DB.AddTaggedVal(I, DiagnosticsEngine::ak_sint);
   return DB;
 }
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            unsigned I) {
-  DB.AddTaggedVal(I, Diagnostic::ak_uint);
+  DB.AddTaggedVal(I, DiagnosticsEngine::ak_uint);
   return DB;
 }
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const IdentifierInfo *II) {
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(II),
-                  Diagnostic::ak_identifierinfo);
+                  DiagnosticsEngine::ak_identifierinfo);
   return DB;
 }
 
@@ -823,7 +831,7 @@ typename llvm::enable_if<llvm::is_same<T, DeclContext>,
                          const DiagnosticBuilder &>::type
 operator<<(const DiagnosticBuilder &DB, T *DC) {
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(DC),
-                  Diagnostic::ak_declcontext);
+                  DiagnosticsEngine::ak_declcontext);
   return DB;
 }
   
@@ -848,33 +856,33 @@ inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
 /// Report - Issue the message to the client.  DiagID is a member of the
 /// diag::kind enum.  This actually returns a new instance of DiagnosticBuilder
 /// which emits the diagnostics (through ProcessDiag) when it is destroyed.
-inline DiagnosticBuilder Diagnostic::Report(SourceLocation Loc,
+inline DiagnosticBuilder DiagnosticsEngine::Report(SourceLocation Loc,
                                             unsigned DiagID){
   assert(CurDiagID == ~0U && "Multiple diagnostics in flight at once!");
   CurDiagLoc = Loc;
   CurDiagID = DiagID;
   return DiagnosticBuilder(this);
 }
-inline DiagnosticBuilder Diagnostic::Report(unsigned DiagID) {
+inline DiagnosticBuilder DiagnosticsEngine::Report(unsigned DiagID) {
   return Report(SourceLocation(), DiagID);
 }
 
 //===----------------------------------------------------------------------===//
-// DiagnosticInfo
+// Diagnostic
 //===----------------------------------------------------------------------===//
 
-/// DiagnosticInfo - This is a little helper class (which is basically a smart
-/// pointer that forward info from Diagnostic) that allows clients to enquire
-/// about the currently in-flight diagnostic.
-class DiagnosticInfo {
-  const Diagnostic *DiagObj;
-  llvm::StringRef StoredDiagMessage;
+/// Diagnostic - This is a little helper class (which is basically a smart
+/// pointer that forward info from DiagnosticsEngine) that allows clients to
+/// enquire about the currently in-flight diagnostic.
+class Diagnostic {
+  const DiagnosticsEngine *DiagObj;
+  StringRef StoredDiagMessage;
 public:
-  explicit DiagnosticInfo(const Diagnostic *DO) : DiagObj(DO) {}
-  DiagnosticInfo(const Diagnostic *DO, llvm::StringRef storedDiagMessage)
+  explicit Diagnostic(const DiagnosticsEngine *DO) : DiagObj(DO) {}
+  Diagnostic(const DiagnosticsEngine *DO, StringRef storedDiagMessage)
     : DiagObj(DO), StoredDiagMessage(storedDiagMessage) {}
 
-  const Diagnostic *getDiags() const { return DiagObj; }
+  const DiagnosticsEngine *getDiags() const { return DiagObj; }
   unsigned getID() const { return DiagObj->CurDiagID; }
   const SourceLocation &getLocation() const { return DiagObj->CurDiagLoc; }
   bool hasSourceManager() const { return DiagObj->hasSourceManager(); }
@@ -884,49 +892,49 @@ public:
 
   /// getArgKind - Return the kind of the specified index.  Based on the kind
   /// of argument, the accessors below can be used to get the value.
-  Diagnostic::ArgumentKind getArgKind(unsigned Idx) const {
+  DiagnosticsEngine::ArgumentKind getArgKind(unsigned Idx) const {
     assert(Idx < getNumArgs() && "Argument index out of range!");
-    return (Diagnostic::ArgumentKind)DiagObj->DiagArgumentsKind[Idx];
+    return (DiagnosticsEngine::ArgumentKind)DiagObj->DiagArgumentsKind[Idx];
   }
 
   /// getArgStdStr - Return the provided argument string specified by Idx.
   const std::string &getArgStdStr(unsigned Idx) const {
-    assert(getArgKind(Idx) == Diagnostic::ak_std_string &&
+    assert(getArgKind(Idx) == DiagnosticsEngine::ak_std_string &&
            "invalid argument accessor!");
     return DiagObj->DiagArgumentsStr[Idx];
   }
 
   /// getArgCStr - Return the specified C string argument.
   const char *getArgCStr(unsigned Idx) const {
-    assert(getArgKind(Idx) == Diagnostic::ak_c_string &&
+    assert(getArgKind(Idx) == DiagnosticsEngine::ak_c_string &&
            "invalid argument accessor!");
     return reinterpret_cast<const char*>(DiagObj->DiagArgumentsVal[Idx]);
   }
 
   /// getArgSInt - Return the specified signed integer argument.
   int getArgSInt(unsigned Idx) const {
-    assert(getArgKind(Idx) == Diagnostic::ak_sint &&
+    assert(getArgKind(Idx) == DiagnosticsEngine::ak_sint &&
            "invalid argument accessor!");
     return (int)DiagObj->DiagArgumentsVal[Idx];
   }
 
   /// getArgUInt - Return the specified unsigned integer argument.
   unsigned getArgUInt(unsigned Idx) const {
-    assert(getArgKind(Idx) == Diagnostic::ak_uint &&
+    assert(getArgKind(Idx) == DiagnosticsEngine::ak_uint &&
            "invalid argument accessor!");
     return (unsigned)DiagObj->DiagArgumentsVal[Idx];
   }
 
   /// getArgIdentifier - Return the specified IdentifierInfo argument.
   const IdentifierInfo *getArgIdentifier(unsigned Idx) const {
-    assert(getArgKind(Idx) == Diagnostic::ak_identifierinfo &&
+    assert(getArgKind(Idx) == DiagnosticsEngine::ak_identifierinfo &&
            "invalid argument accessor!");
     return reinterpret_cast<IdentifierInfo*>(DiagObj->DiagArgumentsVal[Idx]);
   }
 
   /// getRawArg - Return the specified non-string argument in an opaque form.
   intptr_t getRawArg(unsigned Idx) const {
-    assert(getArgKind(Idx) != Diagnostic::ak_std_string &&
+    assert(getArgKind(Idx) != DiagnosticsEngine::ak_std_string &&
            "invalid argument accessor!");
     return DiagObj->DiagArgumentsVal[Idx];
   }
@@ -959,12 +967,12 @@ public:
   /// FormatDiagnostic - Format this diagnostic into a string, substituting the
   /// formal arguments into the %0 slots.  The result is appended onto the Str
   /// array.
-  void FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const;
+  void FormatDiagnostic(SmallVectorImpl<char> &OutStr) const;
 
   /// FormatDiagnostic - Format the given format-string into the
   /// output buffer using the arguments stored in this diagnostic.
   void FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
-                        llvm::SmallVectorImpl<char> &OutStr) const;
+                        SmallVectorImpl<char> &OutStr) const;
 };
 
 /**
@@ -973,7 +981,7 @@ public:
  */
 class StoredDiagnostic {
   unsigned ID;
-  Diagnostic::Level Level;
+  DiagnosticsEngine::Level Level;
   FullSourceLoc Loc;
   std::string Message;
   std::vector<CharSourceRange> Ranges;
@@ -981,18 +989,22 @@ class StoredDiagnostic {
 
 public:
   StoredDiagnostic();
-  StoredDiagnostic(Diagnostic::Level Level, const DiagnosticInfo &Info);
-  StoredDiagnostic(Diagnostic::Level Level, unsigned ID, 
-                   llvm::StringRef Message);
+  StoredDiagnostic(DiagnosticsEngine::Level Level, const Diagnostic &Info);
+  StoredDiagnostic(DiagnosticsEngine::Level Level, unsigned ID, 
+                   StringRef Message);
+  StoredDiagnostic(DiagnosticsEngine::Level Level, unsigned ID, 
+                   StringRef Message, FullSourceLoc Loc,
+                   ArrayRef<CharSourceRange> Ranges,
+                   ArrayRef<FixItHint> Fixits);
   ~StoredDiagnostic();
 
   /// \brief Evaluates true when this object stores a diagnostic.
   operator bool() const { return Message.size() > 0; }
 
   unsigned getID() const { return ID; }
-  Diagnostic::Level getLevel() const { return Level; }
+  DiagnosticsEngine::Level getLevel() const { return Level; }
   const FullSourceLoc &getLocation() const { return Loc; }
-  llvm::StringRef getMessage() const { return Message; }
+  StringRef getMessage() const { return Message; }
 
   void setLocation(FullSourceLoc Loc) { this->Loc = Loc; }
 
@@ -1007,20 +1019,20 @@ public:
   unsigned fixit_size() const { return FixIts.size(); }
 };
 
-/// DiagnosticClient - This is an abstract interface implemented by clients of
+/// DiagnosticConsumer - This is an abstract interface implemented by clients of
 /// the front-end, which formats and prints fully processed diagnostics.
-class DiagnosticClient {
+class DiagnosticConsumer {
 protected:
   unsigned NumWarnings;       // Number of warnings reported
   unsigned NumErrors;         // Number of errors reported
   
 public:
-  DiagnosticClient() : NumWarnings(0), NumErrors(0) { }
+  DiagnosticConsumer() : NumWarnings(0), NumErrors(0) { }
 
   unsigned getNumErrors() const { return NumErrors; }
   unsigned getNumWarnings() const { return NumWarnings; }
 
-  virtual ~DiagnosticClient();
+  virtual ~DiagnosticConsumer();
 
   /// BeginSourceFile - Callback to inform the diagnostic client that processing
   /// of a source file is beginning.
@@ -1043,8 +1055,8 @@ public:
 
   /// IncludeInDiagnosticCounts - This method (whose default implementation
   /// returns true) indicates whether the diagnostics handled by this
-  /// DiagnosticClient should be included in the number of diagnostics reported
-  /// by Diagnostic.
+  /// DiagnosticConsumer should be included in the number of diagnostics
+  /// reported by DiagnosticsEngine.
   virtual bool IncludeInDiagnosticCounts() const;
 
   /// HandleDiagnostic - Handle this diagnostic, reporting it to the user or
@@ -1052,8 +1064,24 @@ public:
   ///
   /// Default implementation just keeps track of the total number of warnings
   /// and errors.
-  virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
-                                const DiagnosticInfo &Info);
+  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                                const Diagnostic &Info);
+  
+  /// \brief Clone the diagnostic consumer, producing an equivalent consumer
+  /// that can be used in a different context.
+  virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const = 0;
+};
+
+/// IgnoringDiagConsumer - This is a diagnostic client that just ignores all
+/// diags.
+class IgnoringDiagConsumer : public DiagnosticConsumer {
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) {
+    // Just ignore it.
+  }
+  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
+    return new IgnoringDiagConsumer();
+  }
 };
 
 }  // end namespace clang

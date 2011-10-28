@@ -304,8 +304,19 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
 
     // Make sure the first definition is not a partial redefinition. Add an
     // <imp-def> of the full register.
-    if (MO.getSubReg())
+    // FIXME: LiveIntervals shouldn't modify the code like this.  Whoever
+    // created the machine instruction should annotate it with <undef> flags
+    // as needed.  Then we can simply assert here.  The REG_SEQUENCE lowering
+    // is the main suspect.
+    if (MO.getSubReg()) {
       mi->addRegisterDefined(interval.reg);
+      // Mark all defs of interval.reg on this instruction as reading <undef>.
+      for (unsigned i = MOIdx, e = mi->getNumOperands(); i != e; ++i) {
+        MachineOperand &MO2 = mi->getOperand(i);
+        if (MO2.isReg() && MO2.getReg() == interval.reg && MO2.getSubReg())
+          MO2.setIsUndef();
+      }
+    }
 
     MachineInstr *CopyMI = NULL;
     if (mi->isCopyLike()) {
@@ -747,6 +758,9 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
   // Find all the values used, including PHI kills.
   SmallVector<std::pair<SlotIndex, VNInfo*>, 16> WorkList;
 
+  // Blocks that have already been added to WorkList as live-out.
+  SmallPtrSet<MachineBasicBlock*, 16> LiveOut;
+
   // Visit all instructions reading li->reg.
   for (MachineRegisterInfo::reg_iterator I = mri_->reg_begin(li->reg);
        MachineInstr *UseMI = I.skipInstruction();) {
@@ -780,8 +794,6 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     VNInfo *VNI = *I;
     if (VNI->isUnused())
       continue;
-    // We may eliminate PHI values, so recompute PHIKill flags.
-    VNI->setHasPHIKill(false);
     NewLI.addRange(LiveRange(VNI->def, VNI->def.getNextSlot(), VNI));
 
     // A use tied to an early-clobber def ends at the load slot and isn't caught
@@ -804,7 +816,7 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     SlotIndex BlockStart = getMBBStartIdx(MBB);
 
     // Extend the live range for VNI to be live at Idx.
-    if (VNInfo *ExtVNI = NewLI.extendInBlock(BlockStart, Idx)) {
+    if (VNInfo *ExtVNI = NewLI.extendInBlock(BlockStart, Idx.getNextSlot())) {
       (void)ExtVNI;
       assert(ExtVNI == VNI && "Unexpected existing value number");
       // Is this a PHIDef we haven't seen before?
@@ -813,13 +825,12 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
       // The PHI is live, make sure the predecessors are live-out.
       for (MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(),
            PE = MBB->pred_end(); PI != PE; ++PI) {
+        if (!LiveOut.insert(*PI))
+          continue;
         SlotIndex Stop = getMBBEndIdx(*PI).getPrevSlot();
-        VNInfo *PVNI = li->getVNInfoAt(Stop);
         // A predecessor is not required to have a live-out value for a PHI.
-        if (PVNI) {
-          PVNI->setHasPHIKill(true);
+        if (VNInfo *PVNI = li->getVNInfoAt(Stop))
           WorkList.push_back(std::make_pair(Stop, PVNI));
-        }
       }
       continue;
     }
@@ -831,6 +842,8 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     // Make sure VNI is live-out from the predecessors.
     for (MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(),
          PE = MBB->pred_end(); PI != PE; ++PI) {
+      if (!LiveOut.insert(*PI))
+        continue;
       SlotIndex Stop = getMBBEndIdx(*PI).getPrevSlot();
       assert(li->getVNInfoAt(Stop) == VNI && "Wrong value out of predecessor");
       WorkList.push_back(std::make_pair(Stop, VNI));
