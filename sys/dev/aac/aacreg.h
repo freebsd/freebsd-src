@@ -220,20 +220,20 @@ typedef enum {
 	IsAdapterPaused =		704,
 	SendHostTime =			705,
 	RequestSupplementAdapterInfo =	706,	/* Supp. Info for set in UCC
-						 * use only if supported 
+						 * use only if supported
 						 * (RequestAdapterInfo first) */
 	LastMiscCommand =		707,
-  
-	OnLineDiagnostic =		800,      
-	FduAdapterTest =		801, 
+
+	OnLineDiagnostic =		800,
+	FduAdapterTest =		801,
 	RequestCompatibilityId =	802,
 	AdapterEnvironmentInfo =	803,	/* temp. sensors */
 	NvsramEventLog =		900,
 	ResetNvsramEventLogPointers =	901,
 	EnableEventLog =		902,
 	DisableEventLog =		903,
-	EncryptedKeyTransportFIB=	904,    
-	KeyableFeaturesFIB=		905     
+	EncryptedKeyTransportFIB=	904,
+	KeyableFeaturesFIB=		905
 } AAC_FibCommands;
 
 /*
@@ -283,7 +283,7 @@ typedef enum {
 #define AAC_ERROR_FIB_DEALLOCATION_FAILED	0x08
 
 /*
- * Adapter Init Structure: this is passed to the adapter with the 
+ * Adapter Init Structure: this is passed to the adapter with the
  * AAC_MONKER_INITSTRUCT command to point it at our control structures.
  */
 struct aac_adapter_init {
@@ -331,14 +331,14 @@ typedef enum {
 	CT_MORPH,
 	CT_PASSTHRU,
 	CT_RAID4,
-	CT_RAID10,                  /* stripe of mirror */
-	CT_RAID00,                  /* stripe of stripe */
-	CT_VOLUME_OF_MIRRORS,       /* volume of mirror */
-	CT_PSEUDO_RAID3,            /* really raid4 */
-	CT_RAID50,		    /* stripe of raid5 */
-	CT_RAID5D,		    /* raid5 distributed hot-sparing */
+	CT_RAID10,		/* stripe of mirror */
+	CT_RAID00,		/* stripe of stripe */
+	CT_VOLUME_OF_MIRRORS,	/* volume of mirror */
+	CT_PSEUDO_RAID3,	/* really raid4 */
+	CT_RAID50,		/* stripe of raid5 */
+	CT_RAID5D,		/* raid5 distributed hot-sparing */
 	CT_RAID5D0,
-	CT_RAID1E,		    /* extended raid1 mirroring */
+	CT_RAID1E,		/* extended raid1 mirroring */
 	CT_RAID6,
 	CT_RAID60,
 } AAC_FSAVolType;
@@ -347,23 +347,23 @@ typedef enum {
  * Host-addressable object types
  */
 typedef enum {
-	FT_REG = 1,     /* regular file */
-	FT_DIR,         /* directory */
-	FT_BLK,         /* "block" device - reserved */
-	FT_CHR,         /* "character special" device - reserved */
-	FT_LNK,         /* symbolic link */
-	FT_SOCK,        /* socket */
-	FT_FIFO,        /* fifo */
-	FT_FILESYS,     /* ADAPTEC's "FSA"(tm) filesystem */
-	FT_DRIVE,       /* physical disk - addressable in scsi by b/t/l */
-	FT_SLICE,       /* virtual disk - raw volume - slice */
-	FT_PARTITION,   /* FSA partition - carved out of a slice - building
+	FT_REG = 1,	/* regular file */
+	FT_DIR,		/* directory */
+	FT_BLK,		/* "block" device - reserved */
+	FT_CHR,		/* "character special" device - reserved */
+	FT_LNK,		/* symbolic link */
+	FT_SOCK,	/* socket */
+	FT_FIFO,	/* fifo */
+	FT_FILESYS,	/* ADAPTEC's "FSA"(tm) filesystem */
+	FT_DRIVE,	/* physical disk - addressable in scsi by b/t/l */
+	FT_SLICE,	/* virtual disk - raw volume - slice */
+	FT_PARTITION,	/* FSA partition - carved out of a slice - building
 			 * block for containers */
-	FT_VOLUME,      /* Container - Volume Set */
-	FT_STRIPE,      /* Container - Stripe Set */
-	FT_MIRROR,      /* Container - Mirror Set */
-	FT_RAID5,       /* Container - Raid 5 Set */
-	FT_DATABASE     /* Storage object with "foreign" content manager */
+	FT_VOLUME,	/* Container - Volume Set */
+	FT_STRIPE,	/* Container - Stripe Set */
+	FT_MIRROR,	/* Container - Mirror Set */
+	FT_RAID5,	/* Container - Raid 5 Set */
+	FT_DATABASE	/* Storage object with "foreign" content manager */
 } AAC_FType;
 
 /*
@@ -469,7 +469,7 @@ typedef enum {
 	CPU_MIPS,
 	CPU_XSCALE,
 	CPU__last
-} AAC_CpuType;  
+} AAC_CpuType;
 
 typedef enum {
 	CPUI960_JX = 1,
@@ -546,7 +546,7 @@ typedef enum {
  * XXX the aac-2622 with no battery present reports PLATFORM_BAT_OPT_PRESENT
  */
 typedef enum
-{ 
+{
 	PLATFORM_BAT_REQ_PRESENT = 1,	/* BATTERY REQUIRED AND PRESENT */
 	PLATFORM_BAT_REQ_NOTPRESENT,	/* BATTERY REQUIRED AND NOT PRESENT */
 	PLATFORM_BAT_OPT_PRESENT,	/* BATTERY OPTIONAL AND PRESENT */
@@ -554,9 +554,9 @@ typedef enum
 	PLATFORM_BAT_NOT_SUPPORTED	/* BATTERY NOT SUPPORTED */
 } AAC_BatteryPlatform;
 
-/* 
+/*
  * options supported by this board
- * there has to be a one to one mapping of these defines and the ones in 
+ * there has to be a one to one mapping of these defines and the ones in
  * fsaapi.h, search for FSA_SUPPORT_SNAPSHOT
  */
 #define AAC_SUPPORTED_SNAPSHOT		0x01
@@ -579,24 +579,24 @@ typedef enum
 #define AAC_SUPPORTED_64BIT_ARRAYSIZE	0x40000
 #define AAC_SUPPORTED_HEAT_SENSOR	0x80000
 
-/* 
+/*
  * Structure used to respond to a RequestAdapterInfo fib.
  */
 struct aac_adapter_info {
-	AAC_Platform		PlatformBase;    /* adapter type */
+	AAC_Platform		PlatformBase;	 /* adapter type */
 	AAC_CpuType		CpuArchitecture; /* adapter CPU type */
-	AAC_CpuSubType		CpuVariant;      /* adapter CPU subtype */
-	u_int32_t		ClockSpeed;      /* adapter CPU clockspeed */
-	u_int32_t		ExecutionMem;    /* adapter Execution Memory
+	AAC_CpuSubType		CpuVariant;	 /* adapter CPU subtype */
+	u_int32_t		ClockSpeed;	 /* adapter CPU clockspeed */
+	u_int32_t		ExecutionMem;	 /* adapter Execution Memory
 						  * size */
-	u_int32_t		BufferMem;       /* adapter Data Memory */
-	u_int32_t		TotalMem;        /* adapter Total Memory */
+	u_int32_t		BufferMem;	 /* adapter Data Memory */
+	u_int32_t		TotalMem;	 /* adapter Total Memory */
 	struct FsaRevision	KernelRevision;  /* adapter Kernel Software
 						  * Revision */
 	struct FsaRevision	MonitorRevision; /* adapter Monitor/Diagnostic
 						  * Software Revision */
 	struct FsaRevision	HardwareRevision;/* TBD */
-	struct FsaRevision	BIOSRevision;    /* adapter BIOS Revision */
+	struct FsaRevision	BIOSRevision;	 /* adapter BIOS Revision */
 	u_int32_t		ClusteringEnabled;
 	u_int32_t		ClusterChannelMask;
 	u_int64_t		SerialNumber;
@@ -606,7 +606,7 @@ struct aac_adapter_info {
 	AAC_OemFlavor	OemVariant;
 } __packed;
 
-/* 
+/*
  * Structure used to respond to a RequestSupplementAdapterInfo fib.
  */
 struct vpd_info {
@@ -694,7 +694,7 @@ struct aac_supplement_adapter_info {
 #define AAC_KERNEL_PANIC	0x00000100
 
 /*
- * Data types relating to control and monitoring of the NVRAM/WriteCache 
+ * Data types relating to control and monitoring of the NVRAM/WriteCache
  * subsystem.
  */
 
@@ -869,7 +869,7 @@ typedef enum {
 	AifEnGeneric = 1,		/* Generic notification */
 	AifEnTaskComplete,		/* Task has completed */
 	AifEnConfigChange,		/* Adapter config change occurred */
-	AifEnContainerChange,		/* Adapter specific container 
+	AifEnContainerChange,		/* Adapter specific container
 					 * configuration change */
 	AifEnDeviceFailure,		/* SCSI device failed */
 	AifEnMirrorFailover,		/* Mirror failover started */
@@ -883,7 +883,7 @@ typedef enum {
 	AifEnBatteryEvent,		/* Significant NV battery event */
 	AifEnAddContainer,		/* A new container was created. */
 	AifEnDeleteContainer,		/* A container was deleted. */
-	AifEnSMARTEvent, 	       	/* SMART Event */
+	AifEnSMARTEvent,		/* SMART Event */
 	AifEnBatteryNeedsRecond,	/* The battery needs reconditioning */
 	AifEnClusterEvent,		/* Some cluster event */
 	AifEnDiskSetEvent,		/* A disk set event occured. */
@@ -985,7 +985,7 @@ struct aac_AifEventNotify {
 /*
  * Adapter Initiated FIB command structures. Start with the adapter
  * initiated FIBs that really come from the adapter, and get responded
- * to by the host. 
+ * to by the host.
  */
 #define AAC_AIF_REPORT_MAX_SIZE 64
 
@@ -1140,7 +1140,7 @@ typedef enum _VM_COMMANDS {
 	VM_CtHostRead64,
 	VM_CtHostWrite64,
 	VM_DrvErrTblLog,	/* drive error table/log type of command */
-	VM_NameServe64		 
+	VM_NameServe64
 } AAC_VMCommand;
 
 /*
@@ -1546,7 +1546,7 @@ enum {
 /*
  * The adapter can request the host print a message by setting the
  * DB_PRINTF flag in DOORBELL0.  The driver responds by collecting the
- * message from the printf buffer, clearing the DB_PRINTF flag in 
+ * message from the printf buffer, clearing the DB_PRINTF flag in
  * DOORBELL0 and setting it in DOORBELL1.
  * (ODBR and IDBR respectively for the i960Rx adapters)
  */
