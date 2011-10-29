@@ -199,9 +199,9 @@ remove_rec(struct di_export_rec *r)
 
 	DI_ER_LOCK_ASSERT();
 
-	TAILQ_REMOVE(&di_conf.export_rec_list, r, next);
+	TAILQ_REMOVE(&di_config.export_rec_list, r, next);
 	uma_zfree(di_rec_zone, r);
-	di_conf.export_rec_count--;
+	di_config.export_rec_count--;
 }
 
 struct di_export_rec *
@@ -222,7 +222,7 @@ diffuse_export_add_rec(struct di_ft_entry *q, struct di_export *ex,
 	DI_ER_LOCK();
 
 	/* Update and export entry if we have one for this flow already. */
-	TAILQ_FOREACH(s, &di_conf.export_rec_list, next) {
+	TAILQ_FOREACH(s, &di_config.export_rec_list, next) {
 		/*
 		 * Only compare pointer for speed. If new flow with same 5-tuple
 		 * we may add another record for same 5-tuple
@@ -249,7 +249,7 @@ diffuse_export_add_rec(struct di_ft_entry *q, struct di_export *ex,
 	r->fcnt = q->fcnt;
 	r->ftype = q->ftype;
 	r->mtype = add_command ? DIP_MSG_ADD : DIP_MSG_REMOVE;
-	r->ttype = di_conf.an_rule_removal;
+	r->ttype = di_config.an_rule_removal;
 	r->pcnt = q->pcnt;
 	/*
 	 * The flow byte count we send across the wire is in KBytes
@@ -286,8 +286,8 @@ diffuse_export_add_rec(struct di_ft_entry *q, struct di_export *ex,
 
 		strcpy(r->action, ex->conf.action);
 		strcpy(r->act_params, ex->conf.action_param);
-		TAILQ_INSERT_TAIL(&di_conf.export_rec_list, r, next);
-		di_conf.export_rec_count++;
+		TAILQ_INSERT_TAIL(&di_config.export_rec_list, r, next);
+		di_config.export_rec_count++;
 		r->no_earlier.tv_sec = r->no_earlier.tv_usec = 0;
 	}
 
@@ -310,8 +310,8 @@ diffuse_export_prune_recs(void)
 	if (V_ex_max_qsize < 0)
 		V_ex_max_qsize = 0;
 
-	while (di_conf.export_rec_count > V_ex_max_qsize) {
-		r = TAILQ_FIRST(&di_conf.export_rec_list);
+	while (di_config.export_rec_count > V_ex_max_qsize) {
+		r = TAILQ_FIRST(&di_config.export_rec_list);
 		remove_rec(r);
 	}
 
@@ -325,7 +325,7 @@ diffuse_export_remove_recs(char *ename)
 
 	DI_ER_LOCK();
 
-	TAILQ_FOREACH_SAFE(r, &di_conf.export_rec_list, next, tmp) {
+	TAILQ_FOREACH_SAFE(r, &di_config.export_rec_list, next, tmp) {
 		if (ename == NULL || !strcmp(r->ename, ename))
 			remove_rec(r);
 	}
@@ -627,8 +627,8 @@ diffuse_export_send(struct di_export *ex)
 
 	DI_ER_LOCK();
 
-	if (di_conf.export_rec_count == 0 ||
-	    waiting + di_conf.export_rec_count < conf->min_batch) {
+	if (di_config.export_rec_count == 0 ||
+	    waiting + di_config.export_rec_count < conf->min_batch) {
 		DI_ER_UNLOCK();
 		return (0);
 	}
@@ -637,7 +637,7 @@ diffuse_export_send(struct di_export *ex)
 
 	/* Export the records that are over max delay, if max_delay set. */
 	if (conf->max_delay > 0) {
-		TAILQ_FOREACH_SAFE(r, &di_conf.export_rec_list, next, tmp) {
+		TAILQ_FOREACH_SAFE(r, &di_config.export_rec_list, next, tmp) {
 			if (tv_sub0_ms(&tv, &r->time) >= conf->max_delay &&
 			    tv_sub0_ms(&tv, &r->no_earlier) > 0) {
 				dyn_rsize = get_data_size(r);
@@ -656,8 +656,8 @@ diffuse_export_send(struct di_export *ex)
 
 	/* Export up to max_batch or if max_batch is not set export the rest. */
 	if ((conf->max_batch == 0 || cnt < conf->max_batch) &&
-	    di_conf.export_rec_count > 0) {
-		TAILQ_FOREACH_SAFE(r, &di_conf.export_rec_list, next, tmp) {
+	    di_config.export_rec_count > 0) {
+		TAILQ_FOREACH_SAFE(r, &di_config.export_rec_list, next, tmp) {
 			if (tv_sub0_ms(&tv, &r->no_earlier) > 0) {
 				dyn_rsize = get_data_size(r);
 				if (queue_tx_pkt_if(ex, dyn_rsize, &tv,
@@ -671,7 +671,7 @@ diffuse_export_send(struct di_export *ex)
 				cnt++;
 			}
 			if ((conf->max_batch > 0 && cnt >= conf->max_batch) ||
-			    di_conf.export_rec_count == 0)
+			    di_config.export_rec_count == 0)
 				break;
 		}
 	}

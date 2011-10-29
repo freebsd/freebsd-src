@@ -54,14 +54,14 @@
 
 MALLOC_DECLARE(M_DIFFUSE);
 
-#define	DI_LOCK_INIT()		rw_init(&di_conf.mtx, "diffuse main lock")
-#define	DI_LOCK_DESTROY()	rw_destroy(&di_conf.mtx)
-#define	DI_RLOCK()		rw_rlock(&di_conf.mtx)
-#define	DI_WLOCK()		rw_wlock(&di_conf.mtx)
-#define	DI_UNLOCK()		rw_unlock(&di_conf.mtx)
-#define	DI_RLOCK_ASSERT()	rw_assert(&di_conf.mtx, RA_RLOCKED)
-#define	DI_WLOCK_ASSERT()	rw_assert(&di_conf.mtx, RA_WLOCKED)
-#define	DI_LOCK_ASSERT()	rw_assert(&di_conf.mtx, RA_LOCKED)
+#define	DI_LOCK_INIT()		rw_init(&di_config.mtx, "diffuse main lock")
+#define	DI_LOCK_DESTROY()	rw_destroy(&di_config.mtx)
+#define	DI_RLOCK()		rw_rlock(&di_config.mtx)
+#define	DI_WLOCK()		rw_wlock(&di_config.mtx)
+#define	DI_UNLOCK()		rw_unlock(&di_config.mtx)
+#define	DI_RLOCK_ASSERT()	rw_assert(&di_config.mtx, RA_RLOCKED)
+#define	DI_WLOCK_ASSERT()	rw_assert(&di_config.mtx, RA_WLOCKED)
+#define	DI_LOCK_ASSERT()	rw_assert(&di_config.mtx, RA_LOCKED)
 
 SLIST_HEAD(di_feature_alg_head, di_feature_alg);
 LIST_HEAD(di_features_head, di_feature);
@@ -254,7 +254,7 @@ struct di_class_tag {
 };
 
 /* Global configuration. */
-extern struct di_parms di_conf;
+extern struct di_parms di_config;
 
 /* Function prototypes. */
 

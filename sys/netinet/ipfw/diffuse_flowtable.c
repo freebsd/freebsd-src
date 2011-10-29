@@ -525,7 +525,7 @@ update_lifetime(struct di_ft_entry *q, struct ipfw_flow_id *pkt, int dir)
 
 #ifdef _KERNEL
 	
-	if (di_conf.an_rule_removal == DIP_TIMEOUT_NONE &&
+	if (di_config.an_rule_removal == DIP_TIMEOUT_NONE &&
 	    (!q->to || q->expire != old_expire)) {
 		/*
 		 * Guard against too big timeout values.
@@ -1298,13 +1298,13 @@ diffuse_ft_do_export(struct di_ft_entry *q, uint16_t confirm)
 	struct di_flow_class *c;
 	struct timeval now;
 
-	if (di_conf.an_rule_removal == DIP_TIMEOUT_RULE)
+	if (di_config.an_rule_removal == DIP_TIMEOUT_RULE)
 		getmicrotime(&now);
 
 	DI_FT_RLOCK();
 
 	/* Export if rule timeout used and we are close to expiry. */
-	if (di_conf.an_rule_removal == DIP_TIMEOUT_RULE &&
+	if (di_config.an_rule_removal == DIP_TIMEOUT_RULE &&
 	    q->ex_time.tv_sec > 0 &&
 	    now.tv_sec > q->ex_time.tv_sec &&
 	    q->expire - time_uptime < TIME_BEFORE_EXPIRE) {
