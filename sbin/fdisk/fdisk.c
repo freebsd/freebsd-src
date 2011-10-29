@@ -513,6 +513,8 @@ init_boot(void)
 	if ((fdesc = open(fname, O_RDONLY)) == -1 ||
 	    fstat(fdesc, &sb) == -1)
 		err(1, "%s", fname);
+	if (sb.st_size == 0)
+		errx(1, "%s is empty, must not be.", fname);
 	if ((mboot.bootinst_size = sb.st_size) % secsize != 0)
 		errx(1, "%s: length must be a multiple of sector size", fname);
 	if (mboot.bootinst != NULL)
