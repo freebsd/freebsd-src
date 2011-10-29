@@ -52,6 +52,15 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <security/audit/audit.h>
 
+#ifdef KDTRACE_HOOKS
+/*
+ * This is a hook which is initialised by the systrace module
+ * when it is loaded. This keeps the DTrace syscall provider
+ * implementation opaque.
+ */
+systrace_probe_func_t systrace_probe_func;
+#endif
+
 static inline int
 syscallenter(struct thread *td, struct syscall_args *sa)
 {
