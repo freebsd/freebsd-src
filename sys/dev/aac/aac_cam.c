@@ -443,7 +443,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 			    srb->cdb_len);
 
 		/* Set command */
-		fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ? 
+		fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ?
 			ScsiPortCommandU64 : ScsiPortCommand;
 
 		/* Map the s/g list. XXX 32bit addresses only! */
@@ -560,7 +560,7 @@ aac_cam_complete(struct aac_command *cm)
 
 				scsi_sense_len = sizeof(struct scsi_sense_data);
 				bzero(&ccb->csio.sense_data, scsi_sense_len);
-				sense_len = (srbr->sense_len > 
+				sense_len = (srbr->sense_len >
 				    scsi_sense_len) ? scsi_sense_len :
 				    srbr->sense_len;
 				bcopy(&srbr->sense[0], &ccb->csio.sense_data,
