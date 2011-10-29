@@ -56,7 +56,7 @@
  */
 
 /*
- * The firmware interface allows for a 16-bit s/g list length.  We limit 
+ * The firmware interface allows for a 16-bit s/g list length.  We limit
  * ourselves to a reasonable maximum and ensure alignment.
  */
 #define AAC_MAXSGENTRIES	64	/* max S/G entries, limit 65535 */		
@@ -78,7 +78,7 @@
 #define AAC_PRINTF_BUFSIZE	256
 
 /*
- * We wait this many seconds for the adapter to come ready if it is still 
+ * We wait this many seconds for the adapter to come ready if it is still
  * booting
  */
 #define AAC_BOOT_TIMEOUT	(3 * 60)
@@ -126,7 +126,7 @@ struct aac_sim
 /*
  * Per-disk structure
  */
-struct aac_disk 
+struct aac_disk
 {
 	device_t			ad_dev;
 	struct aac_softc		*ad_controller;
@@ -216,7 +216,7 @@ struct aac_common {
 				AAC_QUEUE_ALIGN];
 
 	/* buffer for text messages from the controller */
-	char		       	ac_printf[AAC_PRINTF_BUFSIZE];
+	char			ac_printf[AAC_PRINTF_BUFSIZE];
 	
 	/* fib for synchronous commands */
 	struct aac_fib		ac_sync_fib;
@@ -225,7 +225,7 @@ struct aac_common {
 /*
  * Interface operations
  */
-struct aac_interface 
+struct aac_interface
 {
 	int	(*aif_get_fwstatus)(struct aac_softc *sc);
 	void	(*aif_qnotify)(struct aac_softc *sc, int qbit);
@@ -300,7 +300,7 @@ struct aac_fib_context {
 /*
  * Per-controller structure.
  */
-struct aac_softc 
+struct aac_softc
 {
 	/* bus connections */
 	device_t		aac_dev;
@@ -347,7 +347,7 @@ struct aac_softc
 	struct aac_command	*aac_commands;
 
 	/* command management */
-	TAILQ_HEAD(,aac_command) aac_free;	/* command structures 
+	TAILQ_HEAD(,aac_command) aac_free;	/* command structures
 						 * available for reuse */
 	TAILQ_HEAD(,aac_command) aac_ready;	/* commands on hold for
 						 * controller resources */
@@ -416,7 +416,7 @@ struct aac_softc
 
 	struct callout	aac_daemontime;		/* clock daemon callout */
 
-	u_int32_t	aac_max_fibs;           /* max. FIB count */
+	u_int32_t	aac_max_fibs;		/* max. FIB count */
 	u_int32_t	aac_max_fibs_alloc;		/* max. alloc. per alloc_commands() */
 	u_int32_t	aac_max_fib_size;		/* max. FIB size */
 	u_int32_t	aac_sg_tablesize;		/* max. sg count from host */
@@ -447,7 +447,7 @@ extern void		aac_free(struct aac_softc *sc);
 extern int		aac_attach(struct aac_softc *sc);
 extern int		aac_detach(device_t dev);
 extern int		aac_shutdown(device_t dev);
-extern int		aac_suspend(device_t dev); 
+extern int		aac_suspend(device_t dev);
 extern int		aac_resume(device_t dev);
 extern void		aac_new_intr(void *arg);
 extern int		aac_fast_intr(void *arg);
@@ -561,7 +561,7 @@ aac_dequeue_ ## name (struct aac_softc *sc)				\
 	if ((cm = TAILQ_FIRST(&sc->aac_ ## name)) != NULL) {		\
 		if ((cm->cm_flags & AAC_ON_ ## index) == 0) {		\
 			printf("command %p not in queue, flags = %#x, "	\
-		       	       "bit = %#x\n", cm, cm->cm_flags,		\
+			       "bit = %#x\n", cm, cm->cm_flags,		\
 			       AAC_ON_ ## index);			\
 			panic("command not in queue");			\
 		}							\

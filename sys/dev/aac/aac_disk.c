@@ -87,7 +87,7 @@ DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
 /*
  * Handle open from generic layer.
  *
- * This is called by the diskslice code on first open in order to get the 
+ * This is called by the diskslice code on first open in order to get the
  * basic device geometry paramters.
  */
 static int
