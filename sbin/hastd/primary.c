@@ -89,6 +89,15 @@ struct hio {
 	 * Structure used to communicate with GEOM Gate class.
 	 */
 	struct g_gate_ctl_io	 hio_ggio;
+	/*
+	 * Request was already confirmed to GEOM Gate.
+	 */
+	bool			 hio_done;
+	/*
+	 * Remember replication from the time the request was initiated,
+	 * so we won't get confused when replication changes on reload.
+	 */
+	int			 hio_replication;
 	TAILQ_ENTRY(hio)	*hio_next;
 };
 #define	hio_free_next	hio_next[0]
@@ -1021,7 +1030,7 @@ remote_close(struct hast_resource *res, int ncomp)
 
 	rw_wlock(&hio_remote_lock[ncomp]);
 	/*
-	 * A race is possible between dropping rlock and acquiring wlock -
+	 * Check for a race between dropping rlock and acquiring wlock -
 	 * another thread can close connection in-between.
 	 */
 	if (!ISCONNECTED(res, ncomp)) {
@@ -1056,6 +1065,42 @@ remote_close(struct hast_resource *res, int ncomp)
 }
 
 /*
+ * Acknowledge write completion to the kernel, but don't update activemap yet.
+ */
+static void
+write_complete(struct hast_resource *res, struct hio *hio)
+{
+	struct g_gate_ctl_io *ggio;
+	unsigned int ncomp;
+
+	PJDLOG_ASSERT(!hio->hio_done);
+
+	ggio = &hio->hio_ggio;
+	PJDLOG_ASSERT(ggio->gctl_cmd == BIO_WRITE);
+
+	/*
+	 * Bump local count if this is first write after
+	 * connection failure with remote node.
+	 */
+	ncomp = 1;
+	rw_rlock(&hio_remote_lock[ncomp]);
+	if (!ISCONNECTED(res, ncomp)) {
+		mtx_lock(&metadata_lock);
+		if (res->hr_primary_localcnt == res->hr_secondary_remotecnt) {
+			res->hr_primary_localcnt++;
+			pjdlog_debug(1, "Increasing localcnt to %ju.",
+			    (uintmax_t)res->hr_primary_localcnt);
+			(void)metadata_write(res);
+		}
+		mtx_unlock(&metadata_lock);
+	}
+	rw_unlock(&hio_remote_lock[ncomp]);
+	if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) < 0)
+		primary_exit(EX_OSERR, "G_GATE_CMD_DONE failed");
+	hio->hio_done = true;
+}
+
+/*
  * Thread receives ggate I/O requests from the kernel and passes them to
  * appropriate threads:
  * WRITE - always goes to both local_send and remote_send threads
@@ -1075,8 +1120,6 @@ ggate_recv_thread(void *arg)
 	unsigned int ii, ncomp, ncomps;
 	int error;
 
-	ncomps = HAST_NCOMPONENTS;
-
 	for (;;) {
 		pjdlog_debug(2, "ggate_recv: Taking free request.");
 		QUEUE_TAKE2(hio, free);
@@ -1085,6 +1128,8 @@ ggate_recv_thread(void *arg)
 		ggio->gctl_unit = res->hr_ggateunit;
 		ggio->gctl_length = MAXPHYS;
 		ggio->gctl_error = 0;
+		hio->hio_done = false;
+		hio->hio_replication = res->hr_replication;
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Waiting for request from the kernel.",
 		    hio);
@@ -1117,11 +1162,16 @@ ggate_recv_thread(void *arg)
 			primary_exitx(EX_OSERR, "G_GATE_CMD_START failed: %s.",
 			    strerror(error));
 		}
+
+		ncomp = 0;
+		ncomps = HAST_NCOMPONENTS;
+
 		for (ii = 0; ii < ncomps; ii++)
 			hio->hio_errors[ii] = EINVAL;
 		reqlog(LOG_DEBUG, 2, ggio,
 		    "ggate_recv: (%p) Request received from the kernel: ",
 		    hio);
+
 		/*
 		 * Inform all components about new write request.
 		 * For read request prefer local component unless the given
@@ -1130,10 +1180,7 @@ ggate_recv_thread(void *arg)
 		switch (ggio->gctl_cmd) {
 		case BIO_READ:
 			res->hr_stat_read++;
-			pjdlog_debug(2,
-			    "ggate_recv: (%p) Moving request to the send queue.",
-			    hio);
-			refcount_init(&hio->hio_countdown, 1);
+			ncomps = 1;
 			mtx_lock(&metadata_lock);
 			if (res->hr_syncsrc == HAST_SYNCSRC_UNDEF ||
 			    res->hr_syncsrc == HAST_SYNCSRC_PRIMARY) {
@@ -1155,17 +1202,13 @@ ggate_recv_thread(void *arg)
 				ncomp = 1;
 			}
 			mtx_unlock(&metadata_lock);
-			QUEUE_INSERT1(hio, send, ncomp);
 			break;
 		case BIO_WRITE:
 			res->hr_stat_write++;
-			if (res->hr_resuid == 0) {
-				/*
-				 * This is first write, initialize localcnt and
-				 * resuid.
-				 */
+			if (res->hr_resuid == 0 &&
+			    res->hr_primary_localcnt == 0) {
+				/* This is first write. */
 				res->hr_primary_localcnt = 1;
-				(void)init_resuid(res);
 			}
 			for (;;) {
 				mtx_lock(&range_lock);
@@ -1201,25 +1244,19 @@ ggate_recv_thread(void *arg)
 				(void)hast_activemap_flush(res);
 			}
 			mtx_unlock(&res->hr_amp_lock);
-			/* FALLTHROUGH */
+			break;
 		case BIO_DELETE:
+			res->hr_stat_delete++;
+			break;
 		case BIO_FLUSH:
-			switch (ggio->gctl_cmd) {
-			case BIO_DELETE:
-				res->hr_stat_delete++;
-				break;
-			case BIO_FLUSH:
-				res->hr_stat_flush++;
-				break;
-			}
-			pjdlog_debug(2,
-			    "ggate_recv: (%p) Moving request to the send queue.",
-			    hio);
-			refcount_init(&hio->hio_countdown, ncomps);
-			for (ii = 0; ii < ncomps; ii++)
-				QUEUE_INSERT1(hio, send, ii);
+			res->hr_stat_flush++;
 			break;
 		}
+		pjdlog_debug(2,
+		    "ggate_recv: (%p) Moving request to the send queues.", hio);
+		refcount_init(&hio->hio_countdown, ncomps);
+		for (ii = ncomp; ii < ncomps; ii++)
+			QUEUE_INSERT1(hio, send, ii);
 	}
 	/* NOTREACHED */
 	return (NULL);
@@ -1288,6 +1325,11 @@ local_send_thread(void *arg)
 				    ret, (intmax_t)ggio->gctl_length);
 			} else {
 				hio->hio_errors[ncomp] = 0;
+				if (hio->hio_replication ==
+				    HAST_REPLICATION_ASYNC) {
+					ggio->gctl_error = 0;
+					write_complete(res, hio);
+				}
 			}
 			break;
 		case BIO_DELETE:
@@ -1322,18 +1364,18 @@ local_send_thread(void *arg)
 			}
 			break;
 		}
-		if (refcount_release(&hio->hio_countdown)) {
-			if (ISSYNCREQ(hio)) {
-				mtx_lock(&sync_lock);
-				SYNCREQDONE(hio);
-				mtx_unlock(&sync_lock);
-				cv_signal(&sync_cond);
-			} else {
-				pjdlog_debug(2,
-				    "local_send: (%p) Moving request to the done queue.",
-				    hio);
-				QUEUE_INSERT2(hio, done);
-			}
+		if (!refcount_release(&hio->hio_countdown))
+			continue;
+		if (ISSYNCREQ(hio)) {
+			mtx_lock(&sync_lock);
+			SYNCREQDONE(hio);
+			mtx_unlock(&sync_lock);
+			cv_signal(&sync_cond);
+		} else {
+			pjdlog_debug(2,
+			    "local_send: (%p) Moving request to the done queue.",
+			    hio);
+			QUEUE_INSERT2(hio, done);
 		}
 	}
 	/* NOTREACHED */
@@ -1456,9 +1498,6 @@ remote_send_thread(void *arg)
 			/* Move failed request immediately to the done queue. */
 			goto done_queue;
 		}
-		pjdlog_debug(2,
-		    "remote_send: (%p) Moving request to the recv queue.",
-		    hio);
 		/*
 		 * Protect connection from disappearing.
 		 */
@@ -1473,6 +1512,9 @@ remote_send_thread(void *arg)
 		 * in different order we can get reply before we move request
 		 * to recv queue.
 		 */
+		pjdlog_debug(2,
+		    "remote_send: (%p) Moving request to the recv queue.",
+		    hio);
 		mtx_lock(&hio_recv_list_lock[ncomp]);
 		wakeup = TAILQ_EMPTY(&hio_recv_list[ncomp]);
 		TAILQ_INSERT_TAIL(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
@@ -1492,7 +1534,8 @@ remote_send_thread(void *arg)
 			 * it immediately to the done queue.
 			 */
 			mtx_lock(&hio_recv_list_lock[ncomp]);
-			TAILQ_REMOVE(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
+			TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
+			    hio_next[ncomp]);
 			mtx_unlock(&hio_recv_list_lock[ncomp]);
 			goto done_queue;
 		}
@@ -1558,6 +1601,7 @@ remote_recv_thread(void *arg)
 			    &hio_recv_list_lock[ncomp]);
 		}
 		mtx_unlock(&hio_recv_list_lock[ncomp]);
+
 		rw_rlock(&hio_remote_lock[ncomp]);
 		if (!ISCONNECTED(res, ncomp)) {
 			rw_unlock(&hio_remote_lock[ncomp]);
@@ -1602,16 +1646,16 @@ remote_recv_thread(void *arg)
 			nv_free(nv);
 			continue;
 		}
+		ggio = &hio->hio_ggio;
 		error = nv_get_int16(nv, "error");
 		if (error != 0) {
 			/* Request failed on remote side. */
 			hio->hio_errors[ncomp] = error;
-			reqlog(LOG_WARNING, 0, &hio->hio_ggio,
+			reqlog(LOG_WARNING, 0, ggio,
 			    "Remote request failed (%s): ", strerror(error));
 			nv_free(nv);
 			goto done_queue;
 		}
-		ggio = &hio->hio_ggio;
 		switch (ggio->gctl_cmd) {
 		case BIO_READ:
 			rw_rlock(&hio_remote_lock[ncomp]);
@@ -1642,18 +1686,18 @@ remote_recv_thread(void *arg)
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);
 done_queue:
-		if (refcount_release(&hio->hio_countdown)) {
-			if (ISSYNCREQ(hio)) {
-				mtx_lock(&sync_lock);
-				SYNCREQDONE(hio);
-				mtx_unlock(&sync_lock);
-				cv_signal(&sync_cond);
-			} else {
-				pjdlog_debug(2,
-				    "remote_recv: (%p) Moving request to the done queue.",
-				    hio);
-				QUEUE_INSERT2(hio, done);
-			}
+		if (!refcount_release(&hio->hio_countdown))
+			continue;
+		if (ISSYNCREQ(hio)) {
+			mtx_lock(&sync_lock);
+			SYNCREQDONE(hio);
+			mtx_unlock(&sync_lock);
+			cv_signal(&sync_cond);
+		} else {
+			pjdlog_debug(2,
+			    "remote_recv: (%p) Moving request to the done queue.",
+			    hio);
+			QUEUE_INSERT2(hio, done);
 		}
 	}
 	/* NOTREACHED */
@@ -1669,7 +1713,7 @@ ggate_send_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct g_gate_ctl_io *ggio;
 	struct hio *hio;
-	unsigned int ii, ncomp, ncomps;
+	unsigned int ii, ncomps;
 
 	ncomps = HAST_NCOMPONENTS;
 
@@ -1719,28 +1763,14 @@ ggate_send_thread(void *arg)
 			if (range_sync_wait)
 				cv_signal(&range_sync_cond);
 			mtx_unlock(&range_lock);
-			/*
-			 * Bump local count if this is first write after
-			 * connection failure with remote node.
-			 */
-			ncomp = 1;
-			rw_rlock(&hio_remote_lock[ncomp]);
-			if (!ISCONNECTED(res, ncomp)) {
-				mtx_lock(&metadata_lock);
-				if (res->hr_primary_localcnt ==
-				    res->hr_secondary_remotecnt) {
-					res->hr_primary_localcnt++;
-					pjdlog_debug(1,
-					    "Increasing localcnt to %ju.",
-					    (uintmax_t)res->hr_primary_localcnt);
-					(void)metadata_write(res);
-				}
-				mtx_unlock(&metadata_lock);
+			if (!hio->hio_done)
+				write_complete(res, hio);
+		} else {
+			if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) < 0) {
+				primary_exit(EX_OSERR,
+				    "G_GATE_CMD_DONE failed");
 			}
-			rw_unlock(&hio_remote_lock[ncomp]);
 		}
-		if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) < 0)
-			primary_exit(EX_OSERR, "G_GATE_CMD_DONE failed");
 		pjdlog_debug(2,
 		    "ggate_send: (%p) Moving request to the free queue.", hio);
 		QUEUE_INSERT2(hio, free);
@@ -1893,6 +1923,8 @@ sync_thread(void *arg __unused)
 		ggio->gctl_offset = offset;
 		ggio->gctl_length = length;
 		ggio->gctl_error = 0;
+		hio->hio_done = false;
+		hio->hio_replication = res->hr_replication;
 		for (ii = 0; ii < ncomps; ii++)
 			hio->hio_errors[ii] = EINVAL;
 		reqlog(LOG_DEBUG, 2, ggio, "sync: (%p) Sending sync request: ",
@@ -1965,7 +1997,7 @@ sync_thread(void *arg __unused)
 		}
 		mtx_unlock(&metadata_lock);
 
-		pjdlog_debug(2, "sync: (%p) Moving request to the send queues.",
+		pjdlog_debug(2, "sync: (%p) Moving request to the send queue.",
 		    hio);
 		refcount_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
@@ -2081,8 +2113,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	 * Don't bother if we need to reconnect.
 	 */
 	if ((modified & MODIFIED_TIMEOUT) != 0 &&
-	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
-	    MODIFIED_REPLICATION)) == 0) {
+	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR)) == 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -2104,8 +2135,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 			}
 		}
 	}
-	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
-	    MODIFIED_REPLICATION)) != 0) {
+	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;

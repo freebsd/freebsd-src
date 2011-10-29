@@ -352,12 +352,29 @@ mfi_dequeue_bio(struct mfi_softc *sc)
 	return (bp);
 }
 
+/*
+ * This is from the original scsi_extract_sense() in CAM.  It's copied
+ * here because CAM now uses a non-inline version that follows more complex
+ * additions to the SPC spec, and we don't want to force a dependency on
+ * the CAM module for such a trivial action.
+ */
+static __inline void
+mfi_extract_sense(struct scsi_sense_data_fixed *sense,
+    int *error_code, int *sense_key, int *asc, int *ascq)
+{
+
+	*error_code = sense->error_code & SSD_ERRCODE;
+	*sense_key = sense->flags & SSD_KEY;
+	*asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
+	*ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
+}
+
 static __inline void
 mfi_print_sense(struct mfi_softc *sc, void *sense)
 {
 	int error, key, asc, ascq;
 
-	scsi_extract_sense((struct scsi_sense_data *)sense,
+	mfi_extract_sense((struct scsi_sense_data_fixed *)sense,
 	    &error, &key, &asc, &ascq);
 	device_printf(sc->mfi_dev, "sense error %d, sense_key %d, "
 	    "asc %d, ascq %d\n", error, key, asc, ascq);

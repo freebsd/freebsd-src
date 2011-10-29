@@ -48,14 +48,16 @@ __FBSDID("$FreeBSD$");
 #include <utmpx.h>
 
 static void	heading(void);
+static void	boottime(void);
 static void	process_utmp(void);
 static void	quick(void);
-static void	row(struct utmpx *);
+static void	row(const struct utmpx *);
 static int	ttywidth(void);
 static void	usage(void);
 static void	whoami(void);
 
 static int	Hflag;			/* Write column headings */
+static int	bflag;			/* Show date of the last reboot */
 static int	mflag;			/* Show info about current terminal */
 static int	qflag;			/* "Quick" mode */
 static int	sflag;			/* Show name, line, time */
@@ -69,13 +71,16 @@ main(int argc, char *argv[])
 
 	setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "HTmqsu")) != -1) {
+	while ((ch = getopt(argc, argv, "HTbmqsu")) != -1) {
 		switch (ch) {
 		case 'H':		/* Write column headings */
 			Hflag = 1;
 			break;
 		case 'T':		/* Show terminal state */
 			Tflag = 1;
+			break;
+		case 'b':		/* Show date of the last reboot */
+			bflag = 1;
 			break;
 		case 'm':		/* Show info about current terminal */
 			mflag = 1;
@@ -121,6 +126,8 @@ main(int argc, char *argv[])
 			heading();
 		if (mflag)
 			whoami();
+		else if (bflag)
+			boottime();
 		else
 			process_utmp();
 	}
@@ -134,7 +141,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: who [-HmqsTu] [am I] [file]\n");
+	fprintf(stderr, "usage: who [-bHmqsTu] [am I] [file]\n");
 	exit(1);
 }
 
@@ -145,14 +152,14 @@ heading(void)
 	printf("%-16s ", "NAME");
 	if (Tflag)
 		printf("S ");
-	printf("%-8s %-12s ", "LINE", "TIME");
+	printf("%-12s %-12s ", "LINE", "TIME");
 	if (uflag)
 		printf("IDLE  ");
 	printf("%-16s\n", "FROM");
 }
 
 static void
-row(struct utmpx *ut)
+row(const struct utmpx *ut)
 {
 	char buf[80], tty[PATH_MAX];
 	struct stat sb;
@@ -178,7 +185,10 @@ row(struct utmpx *ut)
 	printf("%-16s ", ut->ut_user);
 	if (Tflag)
 		printf("%c ", state);
-	printf("%-8s ", ut->ut_line);
+	if (ut->ut_type == BOOT_TIME)
+		printf("%-12s ", "system boot");
+	else
+		printf("%-12s ", ut->ut_line);
 	t = ut->ut_tv.tv_sec;
 	tm = localtime(&t);
 	strftime(buf, sizeof(buf), d_first ? "%e %b %R" : "%b %e %R", tm);
@@ -222,6 +232,17 @@ process_utmp(void)
 			continue;
 		row(utx);
 	}
+}
+
+static void
+boottime(void)
+{
+	struct utmpx u1, *u2;
+
+	u1.ut_type = BOOT_TIME;
+	if ((u2 = getutxid(&u1)) == NULL)
+		return;
+	row(u2);
 }
 
 static void

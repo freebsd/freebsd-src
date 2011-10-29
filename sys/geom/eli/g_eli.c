@@ -443,16 +443,15 @@ g_eli_worker(void *arg)
 	sc = wr->w_softc;
 #ifdef SMP
 	/* Before sched_bind() to a CPU, wait for all CPUs to go on-line. */
-	if (mp_ncpus > 1 && sc->sc_crypto == G_ELI_CRYPTO_SW &&
-	    g_eli_threads == 0) {
+	if (sc->sc_cpubind) {
 		while (!smp_started)
 			tsleep(wr, 0, "geli:smp", hz / 4);
 	}
 #endif
 	thread_lock(curthread);
 	sched_prio(curthread, PUSER);
-	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0)
-		sched_bind(curthread, wr->w_number);
+	if (sc->sc_cpubind)
+		sched_bind(curthread, wr->w_number % mp_ncpus);
 	thread_unlock(curthread);
 
 	G_ELI_DEBUG(1, "Thread %s started.", curthread->td_proc->p_comm);
@@ -813,11 +812,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	threads = g_eli_threads;
 	if (threads == 0)
 		threads = mp_ncpus;
-	else if (threads > mp_ncpus) {
-		/* There is really no need for too many worker threads. */
-		threads = mp_ncpus;
-		G_ELI_DEBUG(0, "Reducing number of threads to %u.", threads);
-	}
+	sc->sc_cpubind = (mp_ncpus > 1 && threads == mp_ncpus);
 	for (i = 0; i < threads; i++) {
 		if (g_eli_cpu_is_disabled(i)) {
 			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
@@ -857,9 +852,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 			goto failed;
 		}
 		LIST_INSERT_HEAD(&sc->sc_workers, wr, w_next);
-		/* If we have hardware support, one thread is enough. */
-		if (sc->sc_crypto == G_ELI_CRYPTO_HW)
-			break;
 	}
 
 	/*
