@@ -1997,7 +1997,7 @@ aac_setup_intr(struct aac_softc *sc)
 	}
 	if (sc->flags & AAC_FLAGS_NEW_COMM) {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_TYPE_BIO, NULL, 
+				   INTR_MPSAFE|INTR_TYPE_BIO, NULL,
 				   aac_new_intr, sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev, "can't set up interrupt\n");
 			return (EINVAL);
