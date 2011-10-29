@@ -78,8 +78,10 @@ struct ath_pci_softc {
 static void
 ath_pci_setup(device_t dev)
 {
+#ifdef	ATH_PCI_LATENCY_WAR
 	/* Override the system latency timer */
 	pci_write_config(dev, PCIR_LATTIMER, 0x80, 1);
+#endif
 
 	/* If a PCI NIC, force wakeup */
 #ifdef	ATH_PCI_WAKEUP_WAR
