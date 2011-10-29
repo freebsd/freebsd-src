@@ -483,26 +483,27 @@ parse_dir_ask(char **conf)
 	printf("  .               Yield 1 second (for background tasks)\n");
 	printf("  <empty line>    Abort manual input\n");
 
- again:
-	printf("\nmountroot> ");
-	gets(name, sizeof(name), GETS_ECHO);
-	if (name[0] == '\0')
-		return (0);
-	if (name[0] == '?') {
-		printf("\nList of GEOM managed disk devices:\n  ");
-		g_dev_print();
-		goto again;
-	}
-	if (name[0] == '.') {
-		pause("rmask", hz);
-		goto again;
-	}
-	mnt = name;
-	error = parse_mount(&mnt);
-	if (error == -1) {
-		printf("Invalid specification.\n");
-		goto again;
-	}
+	do {
+		error = EINVAL;
+		printf("\nmountroot> ");
+		gets(name, sizeof(name), GETS_ECHO);
+		if (name[0] == '\0')
+			break;
+		if (name[0] == '?' && name[1] == '\0') {
+			printf("\nList of GEOM managed disk devices:\n  ");
+			g_dev_print();
+			continue;
+		}
+		if (name[0] == '.' && name[1] == '\0') {
+			pause("rmask", hz);
+			continue;
+		}
+		mnt = name;
+		error = parse_mount(&mnt);
+		if (error == -1)
+			printf("Invalid file system specification.\n");
+	} while (error != 0);
+
 	return (error);
 }
 
