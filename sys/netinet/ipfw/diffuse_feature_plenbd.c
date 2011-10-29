@@ -119,7 +119,7 @@ plenbd_init_instance(struct di_cdata *cdata, struct di_oid *params)
 
 	cdata->conf = malloc(sizeof(struct di_feature_plenbd_config), M_DIFFUSE,
 	    M_NOWAIT | M_ZERO);
-	if (cdata->conf)
+	if (cdata->conf == NULL)
 		return (ENOMEM);
 
 	conf = (struct di_feature_plenbd_config *)cdata->conf;
