@@ -3048,7 +3048,9 @@ xhci_roothub_exec(struct usb_device *udev,
 		}
 		port = XHCI_PORTSC(index);
 
-		v = XREAD4(sc, oper, port) & ~XHCI_PS_CLEAR;
+		v = XREAD4(sc, oper, port);
+		i = XHCI_PS_PLS_GET(v);
+		v &= ~XHCI_PS_CLEAR;
 
 		switch (value) {
 		case UHF_C_BH_PORT_RESET:
@@ -3082,6 +3084,17 @@ xhci_roothub_exec(struct usb_device *udev,
 			XWRITE4(sc, oper, port, v & ~XHCI_PS_PIC_SET(3));
 			break;
 		case UHF_PORT_SUSPEND:
+
+			/* U3 -> U15 */
+			if (i == 3) {
+				XWRITE4(sc, oper, port, v |
+				    XHCI_PS_PLS_SET(0xF) | XHCI_PS_LWS);
+			}
+
+			/* wait 20ms for resume sequence to complete */
+			usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
+
+			/* U0 */
 			XWRITE4(sc, oper, port, v |
 			    XHCI_PS_PLS_SET(0) | XHCI_PS_LWS);
 			break;
