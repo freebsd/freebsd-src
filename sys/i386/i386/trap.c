@@ -113,13 +113,6 @@ dtrace_trap_func_t	dtrace_trap_func;
 dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /*
- * This is a hook which is initialised by the systrace module
- * when it is loaded. This keeps the DTrace syscall provider
- * implementation opaque. 
- */
-systrace_probe_func_t	systrace_probe_func;
-
-/*
  * These hooks are necessary for the pid, usdt and fasttrap providers.
  */
 dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
