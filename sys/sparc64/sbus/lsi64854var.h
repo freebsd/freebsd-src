@@ -51,12 +51,12 @@ struct lsi64854_softc {
 	bus_dma_tag_t		sc_buffer_dmat;
 	int			sc_datain;
 	size_t			sc_dmasize;
-	caddr_t			*sc_dmaaddr;
+	void			**sc_dmaaddr;
 	size_t			*sc_dmalen;
 
 	void	(*reset)(struct lsi64854_softc *);/* reset routine */
-	int	(*setup)(struct lsi64854_softc *, caddr_t *, size_t *,
-			 int, size_t *);	/* DMA setup */
+	int	(*setup)(struct lsi64854_softc *, void **, size_t *,
+		    int, size_t *);		/* DMA setup */
 	int	(*intr)(void *);		/* interrupt handler */
 
 	u_int 			sc_dmactl;
@@ -78,7 +78,7 @@ struct lsi64854_softc {
 	uint32_t csr = L64854_GCSR(sc);		\
 	csr |= L64854_INT_EN;			\
 	L64854_SCSR(sc, csr);			\
-} while (0)
+} while (/* CONSTCOND */0)
 
 #define DMA_ISINTR(sc)	(L64854_GCSR(sc) & (D_INT_PEND|D_ERR_PEND))
 
@@ -87,7 +87,7 @@ struct lsi64854_softc {
 	csr |= D_EN_DMA;			\
 	L64854_SCSR(sc, csr);			\
 	sc->sc_active = 1;			\
-} while (0)
+} while (/* CONSTCOND */0)
 
 int	lsi64854_attach(struct lsi64854_softc *);
 int	lsi64854_detach(struct lsi64854_softc *);
