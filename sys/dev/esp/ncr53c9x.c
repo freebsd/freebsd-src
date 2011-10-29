@@ -1367,7 +1367,8 @@ ncr53c9x_sense(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	ss->byte2 = ccb->ccb_h.target_lun << SCSI_CMD_LUN_SHIFT;
 	ss->length = sizeof(struct scsi_sense_data);
 	ecb->clen = sizeof(*ss);
-	ecb->daddr = (char *)&ecb->ccb->csio.sense_data;
+	memset(&ccb->csio.sense_data, 0, sizeof(ccb->csio.sense_data));
+	ecb->daddr = (char *)&ccb->csio.sense_data;
 	ecb->dleft = sizeof(struct scsi_sense_data);
 	ecb->flags |= ECB_SENSE;
 	ecb->timeout = NCR_SENSE_TIMEOUT;
@@ -1397,7 +1398,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	union ccb *ccb = ecb->ccb;
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
-	int lun;
+	int lun, sense_returned;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1426,6 +1427,13 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 			    CAM_AUTOSNS_VALID;
+			sense_returned = sizeof(ccb->csio.sense_data) -
+			    ecb->dleft;
+			if (sense_returned < ccb->csio.sense_len)
+				ccb->csio.sense_resid = ccb->csio.sense_len -
+				    sense_returned;
+			else
+				ccb->csio.sense_resid = 0;
 		} else if (ecb->stat == SCSI_STATUS_CHECK_COND) {
 			if ((ecb->flags & ECB_SENSE) != 0)
 				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
