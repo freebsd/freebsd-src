@@ -3074,6 +3074,14 @@ asr_intr(Asr_softc_t *sc)
 				 && (size > ccb->csio.sense_len)) {
 					size = ccb->csio.sense_len;
 				}
+				if (size < ccb->csio.sense_len) {
+					ccb->csio.sense_resid =
+					    ccb->csio.sense_len - size;
+				} else {
+					ccb->csio.sense_resid = 0;
+				}
+				bzero(&(ccb->csio.sense_data),
+				    sizeof(ccb->csio.sense_data));
 				bcopy(Reply->SenseData,
 				      &(ccb->csio.sense_data), size);
 			}
@@ -3569,6 +3577,12 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 		if (size > sizeof(ccb->csio.sense_data)) {
 			size = sizeof(ccb->csio.sense_data);
 		}
+		if (size < ccb->csio.sense_len) {
+			ccb->csio.sense_resid = ccb->csio.sense_len - size;
+		} else {
+			ccb->csio.sense_resid = 0;
+		}
+		bzero(&(ccb->csio.sense_data), sizeof(ccb->csio.sense_data));
 		bcopy(&(ccb->csio.sense_data), Reply_Ptr->SenseData, size);
 		I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME_setAutoSenseTransferCount(
 		    Reply_Ptr, size);
