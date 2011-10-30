@@ -7176,11 +7176,15 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	}
 
 #ifdef __FreeBSD__
-	if (pd.pf_mtag->flags & PF_TAG_GENERATED)
+	if (pd.pf_mtag->flags & PF_TAG_GENERATED) {
+		PF_UNLOCK();
 #else
 	if (m->m_pkthdr.pf.flags & PF_TAG_GENERATED)
 #endif
 		return (PF_PASS);
+#ifdef __FreeBSD__
+	}
+#endif
 
 	/* We do IP header normalization and packet reassembly here */
 	if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
