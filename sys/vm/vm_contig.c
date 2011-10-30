@@ -335,12 +335,12 @@ contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, vm_memattr_t memattr,
 
 vm_offset_t
 kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, unsigned long alignment, unsigned long boundary,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
 {
 	vm_offset_t ret;
 	vm_page_t pages;
-	unsigned long npgs;
+	u_long npgs;
 	int tries;
 
 	size = round_page(size);

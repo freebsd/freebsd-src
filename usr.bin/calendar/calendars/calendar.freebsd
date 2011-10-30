@@ -109,6 +109,7 @@
 03/28	Sean C. Farley <scf@FreeBSD.org> born in Indianapolis, Indiana, United States, 1970
 03/29	Thierry Thomas <thierry@FreeBSD.org> born in Luxeuil les Bains, France, 1961
 03/30	Po-Chuan Hsieh <sunpoet@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1978
+03/31	First quarter status reports are due on 04/15
 04/01	Matthew Jacob <mjacob@FreeBSD.org> born in San Francisco, California, United States, 1958
 04/01	Bill Fenner <fenner@FreeBSD.org> born in Bellefonte, Pennsylvania, United States, 1971
 04/01	Peter Edwards <peadar@FreeBSD.org> born in Dublin, Ireland, 1973
@@ -199,6 +200,7 @@
 06/29	Daniel Harris <dannyboy@FreeBSD.org> born in Lubbock, Texas, United States, 1985
 06/29	Andrew Pantyukhin <sat@FreeBSD.org> born in Moscow, Russian Federation, 1985
 06/30	Guido van Rooij <guido@FreeBSD.org> born in Best, Noord-Brabant, the Netherlands, 1965
+06/30	Second quarter status reports are due on 07/15
 07/01	Matthew Dillon <dillon@apollo.backplane.net> born in San Francisco, California, United States, 1966
 07/02	Mark Christopher Ovens <marko@FreeBSD.org> born in Preston, Lancashire, United Kingdom, 1958
 07/02	Vasil Venelinov Dimov <vd@FreeBSD.org> born in Shumen, Bulgaria, 1982
@@ -282,6 +284,7 @@
 09/28	Alex Dupre <ale@FreeBSD.org> born in Milano, Italy, 1980
 09/29	Matthew Hunt <mph@FreeBSD.org> born in Johnstown, Pennsylvania, United States, 1976
 09/30	Hiten M. Pandya <hmp@FreeBSD.org> born in Dar-es-Salaam, Tanzania, East Africa, 1986
+09/30	Third quarter status reports are due on 10/15
 10/02	Beat Gaetzi <beat@FreeBSD.org> born in Zurich, Switzerland, 1980
 10/05	Hiroki Sato <hrs@FreeBSD.org> born in Yamagata, Japan, 1977
 10/05	Chris Costello <chris@FreeBSD.org> born in Houston, Texas, United States, 1985
@@ -341,5 +344,6 @@
 12/28	Ade Lovett <ade@FreeBSD.org> born in London, England, 1969
 12/28	Marius Strobl <marius@FreeBSD.org> born in Cham, Bavaria, Germany, 1978
 12/31	Edwin Groothuis <edwin@FreeBSD.org> born in Geldrop, the Netherlands, 1970
+12/31	Fourth quarter status reports are due on 01/15
 
 #endif /* !_calendar_freebsd_ */
