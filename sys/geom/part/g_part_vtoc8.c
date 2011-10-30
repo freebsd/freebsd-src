@@ -272,7 +272,8 @@ g_part_vtoc8_dumpto(struct g_part_table *basetable,
 	 */
 	table = (struct g_part_vtoc8_table *)basetable;
 	tag = be16dec(&table->vtoc.part[entry->gpe_index - 1].tag);
-	return ((tag == 0 || tag == VTOC_TAG_FREEBSD_SWAP) ? 1 : 0);
+	return ((tag == 0 || tag == VTOC_TAG_FREEBSD_SWAP ||
+	    tag == VTOC_TAG_SWAP) ? 1 : 0);
 }
 
 static int
