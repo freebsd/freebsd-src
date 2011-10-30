@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2011
+.Dd October 30, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -437,6 +437,10 @@ This is followed by a
 .Ql -
 if the process can no longer reach that
 controlling terminal (i.e., it has been revoked).
+A
+.Ql -
+without a preceding two letter abbreviation or pseudo-terminal device number
+indicates a process which never had a controlling terminal.
 The full pathname of the controlling terminal is available via the
 .Cm tty
 keyword.
