@@ -74,12 +74,14 @@ void 	vm_radix_shrink(struct vm_radix *);
 /*
  * Functions which work on specified colors. (object, vm_page_queue_free locks)
  */
-void	*vm_radix_color(struct vm_radix *, vm_pindex_t, int color);
-void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t, int color);
-int	vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-	    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next);
-void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t, int color);
-void	*vm_radix_remove(struct vm_radix *, vm_pindex_t, int color);
+void	*vm_radix_color(struct vm_radix *, vm_pindex_t, int);
+void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t, int);
+int	vm_radix_lookupn(struct vm_radix *, vm_pindex_t, vm_pindex_t, int,
+	    void **, int, vm_pindex_t *);
+void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t, int);
+void	*vm_radix_remove(struct vm_radix *, vm_pindex_t, int);
+void	vm_radix_foreach(struct vm_radix *, vm_pindex_t, vm_pindex_t, int,
+	    void (*)(void *));
 
 /*
  * Look up any entry at a position greater or equal to index.
