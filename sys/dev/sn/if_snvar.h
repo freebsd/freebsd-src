@@ -35,6 +35,8 @@ struct sn_softc {
 	bus_space_tag_t	bst;
 	bus_space_handle_t bsh;
 	struct mtx sc_mtx;
+	struct callout watchdog;
+	int		timer;
 	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
 	int             intr_mask;	/* Most recently set interrupt mask */
 	device_t	dev;

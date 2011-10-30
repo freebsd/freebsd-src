@@ -255,6 +255,8 @@ struct mwl_softc {
 	bus_space_tag_t		sc_io1t;
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct taskqueue	*sc_tq;		/* private task queue */
+	struct callout	sc_watchdog;
+	int			sc_tx_timer;
 	unsigned int		sc_invalid : 1,	/* disable hardware accesses */
 				sc_recvsetup:1,	/* recv setup */
 				sc_csapending:1,/* 11h channel switch pending */
