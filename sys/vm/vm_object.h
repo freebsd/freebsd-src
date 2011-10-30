@@ -90,7 +90,6 @@ struct vm_object {
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	struct vm_radix rtree;	/* root of the resident page radix index tree */
-	vm_page_t root;			/* root of the resident page splay tree */
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
@@ -101,11 +100,11 @@ struct vm_object {
 	u_short pg_color;		/* (c) color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
+	int cached_page_count;		/* number of cached pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
-	vm_page_t cache;		/* root of the cache page splay tree */
 	void *handle;
 	union {
 		/*

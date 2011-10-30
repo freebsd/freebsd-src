@@ -116,8 +116,6 @@ TAILQ_HEAD(pglist, vm_page);
 struct vm_page {
 	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (Q) */
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
-	struct vm_page *left;		/* splay tree link (O)		*/
-	struct vm_page *right;		/* splay tree link (O)		*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
@@ -371,9 +369,9 @@ vm_page_t vm_page_alloc_freelist(int, int);
 struct vnode *vm_page_alloc_init(vm_page_t);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache(vm_page_t);
-void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
+void vm_page_cache_free(vm_page_t);
 void vm_page_cache_remove(vm_page_t);
-void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
+void vm_page_cache_rename(vm_page_t, vm_object_t, vm_pindex_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed(vm_page_t);
@@ -392,7 +390,6 @@ void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);
 void vm_page_set_valid(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
-vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unwire (vm_page_t, int);

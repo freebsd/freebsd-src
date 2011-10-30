@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,6 +211,18 @@ vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode,
 	rtree->rt_root = root;
 }
 
+static inline void *
+vm_radix_match(void *child, int color)
+{
+	uintptr_t c;
+
+	c = (uintptr_t)child;
+
+	if ((c & color) == 0)
+		return (NULL);
+	return ((void *)(c & ~VM_RADIX_FLAGS));
+}
+
 /*
  * Inserts the key-value pair in to the radix tree.  Returns errno.
  * Panics if the key already exists.
@@ -277,14 +289,15 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 		rnode = rnode->rn_child[slot];
 	}
 
-	slot = vm_radix_slot(index, level);
+	slot = vm_radix_slot(index, 0);
 	CTR5(KTR_VM, "insert: tree %p, index %p, level %d, slot %d, child %p",
 	    rtree, (void *)index, level, slot, rnode->rn_child[slot]);
 	KASSERT(rnode->rn_child[slot] == NULL,
 	    ("vm_radix_insert: Duplicate value %p at index: %lu\n", 
 	    rnode->rn_child[slot], (u_long)index));
+	val = (void *)((uintptr_t)val | VM_RADIX_BLACK);
 	rnode->rn_child[slot] = val;
-	rnode->rn_count++;
+	atomic_add_int((volatile int *)&rnode->rn_count, 1);
 
 	return 0;
 }
@@ -294,7 +307,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
  * NULL is returned.
  */
 void *
-vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
+vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index, int color)
 {
 	struct vm_radix_node *rnode;
 	int slot;
@@ -310,7 +323,7 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 		    "lookup: tree %p, index %p, level %d, slot %d, child %p",
 		    rtree, (void *)index, level, slot, rnode->rn_child[slot]);
 		if (level == 0)
-			return rnode->rn_child[slot];
+			return vm_radix_match(rnode->rn_child[slot], color);
 		rnode = rnode->rn_child[slot];
 		level--;
 	}
@@ -319,106 +332,121 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 	return NULL;
 }
 
+void *
+vm_radix_color(struct vm_radix *rtree, vm_pindex_t index, int color)
+{
+	struct vm_radix_node *rnode;
+	uintptr_t child;
+	int slot;
+	int level;
+
+	level = vm_radix_height(rtree, &rnode);
+	if (index > VM_RADIX_MAX(level))
+		return NULL;
+	level--;
+	while (rnode) {
+		slot = vm_radix_slot(index, level);
+		CTR5(KTR_VM,
+		    "color: tree %p, index %p, level %d, slot %d, child %p",
+		    rtree, (void *)index, level, slot, rnode->rn_child[slot]);
+		if (level == 0)
+			break;
+		rnode = rnode->rn_child[slot];
+		level--;
+	}
+	if (rnode == NULL || rnode->rn_child[slot] == NULL)
+		return (NULL);
+	child = (uintptr_t)rnode->rn_child[slot];
+	child &= ~VM_RADIX_FLAGS;
+	rnode->rn_child[slot] = (void *)(child | color);
+
+	return (void *)child;
+}
+
 /*
- * Looks up as many as cnt values between start and end inclusive, and stores
- * them in the caller allocated array out.  The next index can be used to
- * restart the scan.  This optimizes forward scans in the tree.
+ * Looks up as many as cnt values between start and end, and stores
+ * them in the caller allocated array out.  The next index can be used
+ * to restart the scan.  This optimizes forward scans in the tree.
  */
 int
 vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-    vm_pindex_t end, void **out, int cnt, vm_pindex_t *next)
+    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next)
 {
 	struct vm_radix_node *rnode;
-	struct vm_radix_node *child;
-	vm_pindex_t max;
 	vm_pindex_t inc;
 	int slot;
 	int level;
 	void *val;
 	int outidx;
-	int loops = 0;
 
 	CTR3(KTR_VM, "lookupn: tree %p, start %p, end %p",
 	    rtree, (void *)start, (void *)end);
 	outidx = 0;
 restart:
 	level = vm_radix_height(rtree, &rnode);
-	max = VM_RADIX_MAX(level);
-	if (start > max)
+	if (rnode == NULL || start > VM_RADIX_MAX(level))
 		goto out;
-	if (end > max || end == 0)
-		end = max;
-	loops++;
-	if (loops > 1000)
-		panic("vm_radix_lookupn: looping %d\n", loops);
+	if (end && start >= end)
+		goto out;
 	/*
 	 * Search the tree from the top for any leaf node holding an index
 	 * between start and end.
 	 */
-	level--;
-	while (rnode) {
+	for (level--; level; level--) {
 		slot = vm_radix_slot(start, level);
 		CTR5(KTR_VM,
 		    "lookupn: tree %p, index %p, level %d, slot %d, child %p",
 		    rtree, (void *)start, level, slot, rnode->rn_child[slot]);
-		if (level == 0)
-			break;
+		if (rnode->rn_child[slot] != NULL) {
+			rnode = rnode->rn_child[slot];
+			continue;
+		}
 		/*
-		 * If we don't have an exact match we must start our search
-		 * from the next leaf and adjust our index appropriately.
-		 */
-		if ((child = rnode->rn_child[slot]) == NULL) {
-			/*
-			 * Calculate how much to increment our index by
-			 * based on the tree level.  We must truncate the
-			 * lower bits to start from the begnning of the next
-			 * leaf.
-		 	 */
-			inc = 1LL << (level * VM_RADIX_WIDTH);
-			start &= ~VM_RADIX_MAX(level);
-			start += inc;
-			slot++;
-			CTR5(KTR_VM,
-			    "lookupn: start %p end %p inc %d mask 0x%lX slot %d",
-			    (void *)start, (void *)end, inc, ~VM_RADIX_MAX(level), slot);
-			for (; slot < VM_RADIX_COUNT && start <= end;
-			    slot++, start += inc) {
-				child = rnode->rn_child[slot];
-				if (child)
-					break;
+		 * Calculate how much to increment our index by
+		 * based on the tree level.  We must truncate the
+		 * lower bits to start from the begnning of the
+		 * next leaf.
+	 	 */
+		inc = 1LL << (level * VM_RADIX_WIDTH);
+		start &= ~VM_RADIX_MAX(level);
+		start += inc;
+		slot++;
+		CTR5(KTR_VM,
+		    "lookupn: start %p end %p inc %d mask 0x%lX slot %d",
+		    (void *)start, (void *)end, inc,
+		    ~VM_RADIX_MAX(level), slot);
+		for (; slot < VM_RADIX_COUNT; slot++, start += inc) {
+			if (end != 0 && start >= end)
+				goto out;
+			if (rnode->rn_child[slot]) {
+				rnode = rnode->rn_child[slot];
+				break;
 			}
 		}
-		rnode = child;
-		level--;
-	}
-	if (rnode == NULL) {
-		/*
-		 * If we still have another range to search, start looking
-		 * from the next node.  Otherwise, return what we've already
-		 * found.  The loop above has already adjusted start to the
-		 * beginning of the next node.
-		 *
-		 * Detect start wrapping back to 0 and return in this case.
-		 */
-		if (start <= end && start != 0)
+		if (slot == VM_RADIX_COUNT)
 			goto restart;
-		goto out;
 	}
-	for (; outidx < cnt && slot < VM_RADIX_COUNT && start <= end;
-	    slot++, start++) {
-		val = rnode->rn_child[slot];
+	slot = vm_radix_slot(start, 0);
+	for (; slot < VM_RADIX_COUNT; slot++, start++) {
+		if (end != 0 && start >= end)
+			goto out;
+		val = vm_radix_match(rnode->rn_child[slot], color);
 		if (val == NULL)
 			continue;
+		CTR4(KTR_VM,
+		    "lookupn: tree %p index %p slot %d found child %p",
+		    rtree, (void *)start, slot, val);
 		out[outidx++] = val;
+		if (outidx == cnt)
+			goto out;
 	}
 	/*
 	 * Go fetch the next page to fill the requested number of pages
 	 * otherwise the caller will simply call us again to fulfill the
 	 * same request after the structures are pushed out of cache.
 	 */
-	if (outidx < cnt && start <= end)
+	if ((end == 0 || start < end))
 		goto restart;
-
 out:
 	*next = start;
 
@@ -429,15 +457,15 @@ out:
  * Look up any entry at a position less than or equal to index.
  */
 void *
-vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
+vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index, int color)
 {
 	struct vm_radix_node *rnode;
 	struct vm_radix_node *child;
 	vm_pindex_t max;
 	vm_pindex_t inc;
+	void *val;
 	int slot;
 	int level;
-	int loops = 0;
 
 	CTR2(KTR_VM,
 	    "lookup_le: tree %p, index %p", rtree, (void *)index);
@@ -448,9 +476,6 @@ restart:
 	max = VM_RADIX_MAX(level);
 	if (index > max || index == 0)
 		index = max;
-	loops++;
-	if (loops > 1000)
-		panic("vm_radix_looku_le: looping %d\n", loops);
 	/*
 	 * Search the tree from the top for any leaf node holding an index
 	 * lower than 'index'.
@@ -492,8 +517,9 @@ restart:
 	}
 	if (rnode) {
 		for (; slot >= 0; slot--, index--) {
-			if (rnode->rn_child[slot])
-				return (rnode->rn_child[slot]);
+			val = vm_radix_match(rnode->rn_child[slot], color);
+			if (val)
+				return (val);
 		}
 	}
 	if (index != -1)
@@ -507,7 +533,7 @@ restart:
  * panics if the key is not present.
  */
 void *
-vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
+vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 {
 	struct vm_radix_node *stack[VM_RADIX_LIMIT];
 	struct vm_radix_node *rnode, *root;
@@ -534,15 +560,27 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 		    rtree, (void *)index, level, slot, rnode->rn_child[slot]);
 		level--;
 	}
+	KASSERT(rnode != NULL,
+	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
 	slot = vm_radix_slot(index, 0);
-	KASSERT(rnode != NULL && rnode->rn_child[slot] != NULL,
+	val = vm_radix_match(rnode->rn_child[slot], color);
+	KASSERT(val != NULL,
 	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
 
-	val = rnode->rn_child[slot];
 	for (;;) {
 		rnode->rn_child[slot] = NULL;
-		rnode->rn_count--;
-		if (rnode->rn_count > 0)
+		/*
+		 * Use atomics for the last level since red and black
+		 * will both adjust it.
+		 */
+		if (level == 0)
+			atomic_add_int((volatile int *)&rnode->rn_count, -1);
+		else
+			rnode->rn_count--;
+		/*
+		 * Only allow black removes to prune the tree.
+		 */
+		if ((color & VM_RADIX_BLACK) == 0 || rnode->rn_count > 0)
 			break;
 		vm_radix_node_put(rnode);
 		if (rnode == root) {

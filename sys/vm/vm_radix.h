@@ -35,7 +35,13 @@
 #define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
 #define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
 #define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
-#define	VM_RADIX_HEIGHT	0xf		/* Bits of height in root */
+#define	VM_RADIX_FLAGS	0x3	/* Flag bits stored in node pointers. */
+#define	VM_RADIX_BLACK	0x1	/* Black node. (leaf only) */
+#define	VM_RADIX_RED	0x2	/* Red node. (leaf only) */
+#define	VM_RADIX_ANY	(VM_RADIX_RED | VM_RADIX_BLACK)
+#define	VM_RADIX_EMPTY	0x1	/* Empty hint. (internal only) */
+#define	VM_RADIX_HEIGHT	0xf	/* Bits of height in root */
+#define	VM_RADIX_STACK	8	/* Nodes to store on stack. */
 
 CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 
@@ -45,7 +51,7 @@ CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
 struct vm_radix_node {
-	void 		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
+	void		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
     	uint16_t	rn_count;			/* Valid children. */
 };
 
@@ -58,24 +64,32 @@ struct vm_radix {
 };
 
 void	vm_radix_init(void);
+
+/*
+ * Functions which only work with black nodes. (object lock)
+ */
 int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
-void	*vm_radix_remove(struct vm_radix *, vm_pindex_t);
-void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);
-int	vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-	    vm_pindex_t end, void **out, int cnt, vm_pindex_t *next);
-void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t);
 void 	vm_radix_shrink(struct vm_radix *);
+
+/*
+ * Functions which work on specified colors. (object, vm_page_queue_free locks)
+ */
+void	*vm_radix_color(struct vm_radix *, vm_pindex_t, int color);
+void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t, int color);
+int	vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
+	    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next);
+void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t, int color);
+void	*vm_radix_remove(struct vm_radix *, vm_pindex_t, int color);
 
 /*
  * Look up any entry at a position greater or equal to index.
  */
 static inline void *
-vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index, int color)
 {
-        vm_pindex_t unused;
         void *val;
 
-        if (vm_radix_lookupn(rtree, index, 0, &val, 1, &unused))
+        if (vm_radix_lookupn(rtree, index, 0, color, &val, 1, &index))
                 return (val);
         return (NULL);
 }

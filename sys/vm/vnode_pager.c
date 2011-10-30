@@ -366,6 +366,7 @@ vnode_pager_setsize(vp, nsize)
 	vm_ooffset_t nsize;
 {
 	vm_object_t object;
+	struct vnode *drop;
 	vm_page_t m;
 	vm_pindex_t nobjsize;
 
@@ -391,16 +392,41 @@ vnode_pager_setsize(vp, nsize)
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
-		 *
-		 * XXX for some reason (I don't know yet), if we take a
-		 * completely invalid page and mark it partially valid
-		 * it can screw up NFS reads, so we don't allow the case.
 		 */
 		if ((nsize & PAGE_MASK) &&
-		    (m = vm_page_lookup(object, OFF_TO_IDX(nsize))) != NULL &&
-		    m->valid != 0) {
-			int base = (int)nsize & PAGE_MASK;
-			int size = PAGE_SIZE - base;
+		    (m = vm_radix_lookup(&object->rtree, OFF_TO_IDX(nsize),
+		    VM_RADIX_ANY)) != NULL) {
+			int base;
+			int size;
+
+			/*
+			 * Eliminate any cached page as we would have to
+			 * do too much work to save it.
+			 */
+			if (m->flags & PG_CACHED) {
+				drop = NULL;
+				mtx_lock(&vm_page_queue_free_mtx);
+				if (m->object == object) {
+					vm_page_cache_remove(m);
+					if (object->cached_page_count == 0)
+						drop = vp;
+				}
+				mtx_unlock(&vm_page_queue_free_mtx);
+				if (drop)
+					vdrop(drop);
+				goto out;
+			}
+			/*
+			 * XXX for some reason (I don't know yet), if we take a
+			 * completely invalid page and mark it partially valid
+			 * it can screw up NFS reads, so we don't allow the
+			 * case.
+			 */
+			if (m->valid != 0 || m->object != object)
+				goto out;
+
+			base = (int)nsize & PAGE_MASK;
+			size = PAGE_SIZE - base;
 
 			/*
 			 * Clear out partial-page garbage in case
@@ -430,12 +456,9 @@ vnode_pager_setsize(vp, nsize)
 			 * replacement from working properly.
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		} else if ((nsize & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
-			vm_page_cache_free(object, OFF_TO_IDX(nsize),
-			    nobjsize);
 		}
 	}
+out:
 	object->un_pager.vnp.vnp_size = nsize;
 	object->size = nobjsize;
 	VM_OBJECT_UNLOCK(object);

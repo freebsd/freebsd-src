@@ -764,63 +764,6 @@ vm_page_dirty(vm_page_t m)
 }
 
 /*
- *	vm_page_splay:
- *
- *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
- *	the vm_page containing the given pindex.  If, however, that
- *	pindex is not found in the vm_object, returns a vm_page that is
- *	adjacent to the pindex, coming before or after it.
- */
-vm_page_t
-vm_page_splay(vm_pindex_t pindex, vm_page_t root)
-{
-	struct vm_page dummy;
-	vm_page_t lefttreemax, righttreemin, y;
-
-	if (root == NULL)
-		return (root);
-	lefttreemax = righttreemin = &dummy;
-	for (;; root = y) {
-		if (pindex < root->pindex) {
-			if ((y = root->left) == NULL)
-				break;
-			if (pindex < y->pindex) {
-				/* Rotate right. */
-				root->left = y->right;
-				y->right = root;
-				root = y;
-				if ((y = root->left) == NULL)
-					break;
-			}
-			/* Link into the new root's right tree. */
-			righttreemin->left = root;
-			righttreemin = root;
-		} else if (pindex > root->pindex) {
-			if ((y = root->right) == NULL)
-				break;
-			if (pindex > y->pindex) {
-				/* Rotate left. */
-				root->right = y->left;
-				y->left = root;
-				root = y;
-				if ((y = root->right) == NULL)
-					break;
-			}
-			/* Link into the new root's left tree. */
-			lefttreemax->right = root;
-			lefttreemax = root;
-		} else
-			break;
-	}
-	/* Assemble the new root. */
-	lefttreemax->right = root->left;
-	righttreemin->left = root->right;
-	root->left = dummy.right;
-	root->right = dummy.left;
-	return (root);
-}
-
-/*
  *	vm_page_insert:		[ internal use only ]
  *
  *	Inserts the given mem entry into the object and object list.
@@ -836,11 +779,7 @@ vm_page_splay(vm_pindex_t pindex, vm_page_t root)
 void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-#ifdef VM_RADIX
 	vm_page_t neighbor;
-#else
-	vm_page_t root;
-#endif
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (m->object != NULL)
 		panic("vm_page_insert: page already inserted");
@@ -851,11 +790,11 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	m->object = object;
 	m->pindex = pindex;
 
-#ifdef VM_RADIX
 	if (object->resident_page_count == 0) {
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	} else { 
-		neighbor = vm_radix_lookup_ge(&object->rtree, pindex);
+		neighbor = vm_radix_lookup_ge(&object->rtree, pindex,
+		    VM_RADIX_BLACK);
 		if (neighbor != NULL) {
 		    	KASSERT(pindex != neighbor->pindex,
 			    ("vm_page_insert: offset already allocated"));
@@ -865,33 +804,6 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	}
 	if (vm_radix_insert(&object->rtree, pindex, m) != 0)
 		panic("vm_page_insert: unable to insert the new page");
-#else
-	/*
-	 * Now link into the object's ordered list of backed pages.
-	 */
-	root = object->root;
-	if (root == NULL) {
-		m->left = NULL;
-		m->right = NULL;
-		TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	} else {
-		root = vm_page_splay(pindex, root);
-		if (pindex < root->pindex) {
-			m->left = root->left;
-			m->right = root;
-			root->left = NULL;
-			TAILQ_INSERT_BEFORE(root, m, listq);
-		} else if (pindex == root->pindex)
-			panic("vm_page_insert: offset already allocated");
-		else {
-			m->right = root->right;
-			m->left = root;
-			root->right = NULL;
-			TAILQ_INSERT_AFTER(&object->memq, root, m, listq);
-		}
-	}
-	object->root = m;
-#endif
 
 	/*
 	 * show that the object has one more resident page.
@@ -927,9 +839,6 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-#ifndef VM_RADIX
-	vm_page_t next, prev, root;
-#endif
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
@@ -941,50 +850,7 @@ vm_page_remove(vm_page_t m)
 		vm_page_flash(m);
 	}
 
-#ifdef VM_RADIX
-	vm_radix_remove(&object->rtree, m->pindex);
-#else
-	/*
-	 * Now remove from the object's list of backed pages.
-	 */
-	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
-		/*
-		 * Since the page's successor in the list is also its parent
-		 * in the tree, its right subtree must be empty.
-		 */
-		next->left = m->left;
-		KASSERT(m->right == NULL,
-		    ("vm_page_remove: page %p has right child", m));
-	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
-	    prev->right == m) {
-		/*
-		 * Since the page's predecessor in the list is also its parent
-		 * in the tree, its left subtree must be empty.
-		 */
-		KASSERT(m->left == NULL,
-		    ("vm_page_remove: page %p has left child", m));
-		prev->right = m->right;
-	} else {
-		if (m != object->root)
-			vm_page_splay(m->pindex, object->root);
-		if (m->left == NULL)
-			root = m->right;
-		else if (m->right == NULL)
-			root = m->left;
-		else {
-			/*
-			 * Move the page's successor to the root, because
-			 * pages are usually removed in ascending order.
-			 */
-			if (m->right != next)
-				vm_page_splay(m->pindex, m->right);
-			next->left = m->left;
-			root = next;
-		}
-		object->root = root;
-	}
-#endif
-
+	vm_radix_remove(&object->rtree, m->pindex, VM_RADIX_BLACK);
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -1013,20 +879,10 @@ vm_page_remove(vm_page_t m)
 vm_page_t
 vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t m;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
-#ifdef VM_RADIX
-	m = vm_radix_lookup(&object->rtree, pindex);
-#else
-	if ((m = object->root) != NULL && m->pindex != pindex) {
-		m = vm_page_splay(pindex, m);
-		if ((object->root = m)->pindex != pindex)
-			m = NULL;
-	}
-#endif
-	return (m);
+	return vm_radix_lookup(&object->rtree, pindex, VM_RADIX_BLACK);
 }
 
 /*
@@ -1041,22 +897,12 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 vm_page_t
 vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t m;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-#ifdef VM_RADIX
-	if ((m = TAILQ_FIRST(&object->memq)) != NULL)
-		m = vm_radix_lookup_ge(&object->rtree, pindex);
-#else
-	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (m->pindex < pindex) {
-			m = vm_page_splay(pindex, object->root);
-			if ((object->root = m)->pindex < pindex)
-				m = TAILQ_NEXT(m, listq);
-		}
-	}
-#endif
-	return (m);
+	if (object->resident_page_count)
+		return vm_radix_lookup_ge(&object->rtree, pindex,
+		    VM_RADIX_BLACK);
+	return (NULL);
 }
 
 /*
@@ -1126,71 +972,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 }
 
 /*
- *	Convert all of the given object's cached pages that have a
- *	pindex within the given range into free pages.  If the value
- *	zero is given for "end", then the range's upper bound is
- *	infinity.  If the given object is backed by a vnode and it
- *	transitions from having one or more cached pages to none, the
- *	vnode's hold count is reduced. 
- */
-void
-vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
-{
-	vm_page_t m, m_next;
-	boolean_t empty;
-
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (__predict_false(object->cache == NULL)) {
-		mtx_unlock(&vm_page_queue_free_mtx);
-		return;
-	}
-	m = object->cache = vm_page_splay(start, object->cache);
-	if (m->pindex < start) {
-		if (m->right == NULL)
-			m = NULL;
-		else {
-			m_next = vm_page_splay(start, m->right);
-			m_next->left = m;
-			m->right = NULL;
-			m = object->cache = m_next;
-		}
-	}
-
-	/*
-	 * At this point, "m" is either (1) a reference to the page
-	 * with the least pindex that is greater than or equal to
-	 * "start" or (2) NULL.
-	 */
-	for (; m != NULL && (m->pindex < end || end == 0); m = m_next) {
-		/*
-		 * Find "m"'s successor and remove "m" from the
-		 * object's cache.
-		 */
-		if (m->right == NULL) {
-			object->cache = m->left;
-			m_next = NULL;
-		} else {
-			m_next = vm_page_splay(start, m->right);
-			m_next->left = m->left;
-			object->cache = m_next;
-		}
-		/* Convert "m" to a free page. */
-		m->object = NULL;
-		m->valid = 0;
-		/* Clear PG_CACHED and set PG_FREE. */
-		m->flags ^= PG_CACHED | PG_FREE;
-		KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
-		    ("vm_page_cache_free: page %p has inconsistent flags", m));
-		cnt.v_cache_count--;
-		cnt.v_free_count++;
-	}
-	empty = object->cache == NULL;
-	mtx_unlock(&vm_page_queue_free_mtx);
-	if (object->type == OBJT_VNODE && empty)
-		vdrop(object->handle);
-}
-
-/*
  *	Returns the cached page that is associated with the given
  *	object and offset.  If, however, none exists, returns NULL.
  *
@@ -1199,15 +980,12 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 static inline vm_page_t
 vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t m;
 
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if ((m = object->cache) != NULL && m->pindex != pindex) {
-		m = vm_page_splay(pindex, m);
-		if ((object->cache = m)->pindex != pindex)
-			m = NULL;
-	}
-	return (m);
+	if (object->cached_page_count != 0)
+		return vm_radix_lookup(&object->rtree, pindex, VM_RADIX_RED);
+	return (NULL);
 }
 
 /*
@@ -1219,104 +997,77 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
 void
 vm_page_cache_remove(vm_page_t m)
 {
-	vm_object_t object;
-	vm_page_t root;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT((m->flags & PG_CACHED) != 0,
 	    ("vm_page_cache_remove: page %p is not cached", m));
-	object = m->object;
-	if (m != object->cache) {
-		root = vm_page_splay(m->pindex, object->cache);
-		KASSERT(root == m,
-		    ("vm_page_cache_remove: page %p is not cached in object %p",
-		    m, object));
-	}
-	if (m->left == NULL)
-		root = m->right;
-	else if (m->right == NULL)
-		root = m->left;
-	else {
-		root = vm_page_splay(m->pindex, m->left);
-		root->right = m->right;
-	}
-	object->cache = root;
+	vm_radix_remove(&m->object->rtree, m->pindex, VM_RADIX_RED);
+	m->object->cached_page_count--;
 	m->object = NULL;
 	cnt.v_cache_count--;
 }
 
 /*
- *	Transfer all of the cached pages with offset greater than or
- *	equal to 'offidxstart' from the original object's cache to the
- *	new object's cache.  However, any cached pages with offset
- *	greater than or equal to the new object's size are kept in the
- *	original object.  Initially, the new object's cache must be
- *	empty.  Offset 'offidxstart' in the original object must
- *	correspond to offset zero in the new object.
+ *	Move a given cached page from an object's cached pages to
+ *	the free list.
  *
- *	The new object must be locked.
+ *	The free page queue mtx and object lock must be locked.
  */
 void
-vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
-    vm_object_t new_object)
+vm_page_cache_free(vm_page_t m)
 {
-	vm_page_t m, m_next;
+	vm_object_t object;
+
+	object = m->object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	KASSERT((m->flags & PG_CACHED) != 0,
+	    ("vm_page_cache_free: page %p is not cached", m));
 
 	/*
-	 * Insertion into an object's collection of cached pages
-	 * requires the object to be locked.  In contrast, removal does
-	 * not.
+	 * Replicate vm_page_cache_remove with a version that can collapse
+	 * internal nodes since the object lock is held.
 	 */
+	vm_radix_remove(&object->rtree, m->pindex, VM_RADIX_ANY);
+	object->cached_page_count--;
+	m->object = NULL;
+	m->valid = 0;
+	/* Clear PG_CACHED and set PG_FREE. */
+	m->flags ^= PG_CACHED | PG_FREE;
+	cnt.v_cache_count--;
+	cnt.v_free_count++;
+}
+
+/*
+ *	Attempt to rename a cached page from one object to another.  If
+ *	it fails the cached page is freed.
+ */
+void
+vm_page_cache_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t idx)
+{
+	vm_object_t orig_object;
+
+	orig_object = m->object;
+	VM_OBJECT_LOCK_ASSERT(orig_object, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
-	KASSERT(new_object->cache == NULL,
-	    ("vm_page_cache_transfer: object %p has cached pages",
-	    new_object));
-	mtx_lock(&vm_page_queue_free_mtx);
-	if ((m = orig_object->cache) != NULL) {
-		/*
-		 * Transfer all of the pages with offset greater than or
-		 * equal to 'offidxstart' from the original object's
-		 * cache to the new object's cache.
-		 */
-		m = vm_page_splay(offidxstart, m);
-		if (m->pindex < offidxstart) {
-			orig_object->cache = m;
-			new_object->cache = m->right;
-			m->right = NULL;
-		} else {
-			orig_object->cache = m->left;
-			new_object->cache = m;
-			m->left = NULL;
-		}
-		while ((m = new_object->cache) != NULL) {
-			if ((m->pindex - offidxstart) >= new_object->size) {
-				/*
-				 * Return all of the cached pages with
-				 * offset greater than or equal to the
-				 * new object's size to the original
-				 * object's cache. 
-				 */
-				new_object->cache = m->left;
-				m->left = orig_object->cache;
-				orig_object->cache = m;
-				break;
-			}
-			m_next = vm_page_splay(m->pindex, m->right);
-			/* Update the page's object and offset. */
-			m->object = new_object;
-			m->pindex -= offidxstart;
-			if (m_next == NULL)
-				break;
-			m->right = NULL;
-			m_next->left = m;
-			new_object->cache = m_next;
-		}
-		KASSERT(new_object->cache == NULL ||
-		    new_object->type == OBJT_SWAP,
-		    ("vm_page_cache_transfer: object %p's type is incompatible"
-		    " with cached pages", new_object));
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	/*
+	 * If the insert fails we simply free the cached page.
+	 */
+	if (vm_radix_insert(&new_object->rtree, idx, m) != 0) {
+		vm_page_cache_free(m);
+		return;
 	}
-	mtx_unlock(&vm_page_queue_free_mtx);
+	vm_radix_color(&new_object->rtree, idx, VM_RADIX_RED);
+	/*
+	 * We use any color here though we know it's red so that tree
+	 * compaction will still work.
+	 */
+	vm_radix_remove(&orig_object->rtree, m->pindex, VM_RADIX_ANY);
+	m->object = new_object;
+	m->pindex = idx;
+	new_object->cached_page_count++;
+	orig_object->cached_page_count--;
 }
 
 /*
@@ -1447,7 +1198,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);
-		if (m_object->type == OBJT_VNODE && m_object->cache == NULL)
+		if (m_object->type == OBJT_VNODE &&
+		    m_object->cached_page_count == 0)
 			vp = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -1547,7 +1299,7 @@ vm_page_alloc_init(vm_page_t m)
 		m_object = m->object;
 		vm_page_cache_remove(m);
 		if (m_object->type == OBJT_VNODE &&
-		    m_object->cache == NULL)
+		    m_object->cached_page_count == 0)
 			drop = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -2086,10 +1838,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-#ifndef VM_RADIX
-	vm_page_t next, prev;
-#endif
-	vm_page_t root;
+	int old_cached;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2120,50 +1869,7 @@ vm_page_cache(vm_page_t m)
 	 */
 	vm_pageq_remove(m);
 
-#ifdef VM_RADIX
-	vm_radix_remove(&object->rtree, m->pindex);
-#else
-	/*
-	 * Remove the page from the object's collection of resident
-	 * pages. 
-	 */
-	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
-		/*
-		 * Since the page's successor in the list is also its parent
-		 * in the tree, its right subtree must be empty.
-		 */
-		next->left = m->left;
-		KASSERT(m->right == NULL,
-		    ("vm_page_cache: page %p has right child", m));
-	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
-	    prev->right == m) {
-		/*
-		 * Since the page's predecessor in the list is also its parent
-		 * in the tree, its left subtree must be empty.
-		 */
-		KASSERT(m->left == NULL,
-		    ("vm_page_cache: page %p has left child", m));
-		prev->right = m->right;
-	} else {
-		if (m != object->root)
-			vm_page_splay(m->pindex, object->root);
-		if (m->left == NULL)
-			root = m->right;
-		else if (m->right == NULL)
-			root = m->left;
-		else {
-			/*
-			 * Move the page's successor to the root, because
-			 * pages are usually removed in ascending order.
-			 */
-			if (m->right != next)
-				vm_page_splay(m->pindex, m->right);
-			next->left = m->left;
-			root = next;
-		}
-		object->root = root;
-	}
-#endif
+	vm_radix_color(&object->rtree, m->pindex, VM_RADIX_RED);
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 
@@ -2180,26 +1886,9 @@ vm_page_cache(vm_page_t m)
 	m->flags &= ~PG_ZERO;
 	mtx_lock(&vm_page_queue_free_mtx);
 	m->flags |= PG_CACHED;
+	old_cached = object->cached_page_count;
+	object->cached_page_count++;
 	cnt.v_cache_count++;
-	root = object->cache;
-	if (root == NULL) {
-		m->left = NULL;
-		m->right = NULL;
-	} else {
-		root = vm_page_splay(m->pindex, root);
-		if (m->pindex < root->pindex) {
-			m->left = root->left;
-			m->right = root;
-			root->left = NULL;
-		} else if (__predict_false(m->pindex == root->pindex))
-			panic("vm_page_cache: offset already cached");
-		else {
-			m->right = root->right;
-			m->left = root;
-			root->right = NULL;
-		}
-	}
-	object->cache = m;
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {
 #else
@@ -2217,9 +1906,9 @@ vm_page_cache(vm_page_t m)
 	 * the object's only resident page.
 	 */
 	if (object->type == OBJT_VNODE) {
-		if (root == NULL && object->resident_page_count != 0)
+		if (old_cached == 0 && object->resident_page_count != 0)
 			vhold(object->handle);
-		else if (root != NULL && object->resident_page_count == 0)
+		else if (old_cached != 0 && object->resident_page_count == 0)
 			vdrop(object->handle);
 	}
 }
