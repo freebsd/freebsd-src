@@ -391,16 +391,14 @@ fatm_check_heartbeat(struct fatm_softc *sc)
  * Ensure that the heart is still beating.
  */
 static void
-fatm_watchdog(struct ifnet *ifp)
+fatm_watchdog(void *arg)
 {
-	struct fatm_softc *sc = ifp->if_softc;
+	struct fatm_softc *sc;
 
-	FATM_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		fatm_check_heartbeat(sc);
-		ifp->if_timer = 5;
-	}
-	FATM_UNLOCK(sc);
+	sc = arg;
+	FATM_CHECKLOCK(sc);
+	fatm_check_heartbeat(sc);
+	callout_reset(&sc->watchdog_timer, hz * 5, fatm_watchdog, sc);
 }
 
 /*
@@ -474,7 +472,7 @@ fatm_stop(struct fatm_softc *sc)
 	(void)fatm_reset(sc);
 
 	/* stop watchdog */
-	sc->ifp->if_timer = 0;
+	callout_stop(&sc->watchdog_timer);
 
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -1341,7 +1339,7 @@ fatm_init_locked(struct fatm_softc *sc)
 	/*
 	 * Start the watchdog timer
 	 */
-	sc->ifp->if_timer = 5;
+	callout_reset(&sc->watchdog_timer, hz * 5, fatm_watchdog, sc);
 
 	/* start SUNI */
 	utopia_start(&sc->utopia);
@@ -2543,6 +2541,7 @@ fatm_detach(device_t dev)
 		FATM_UNLOCK(sc);
 		atm_ifdetach(sc->ifp);		/* XXX race */
 	}
+	callout_drain(&sc->watchdog_timer);
 
 	if (sc->ih != NULL)
 		bus_teardown_intr(dev, sc->irqres, sc->ih);
@@ -2784,6 +2783,7 @@ fatm_attach(device_t dev)
 	cv_init(&sc->cv_regs, "fatm_regs");
 
 	sysctl_ctx_init(&sc->sysctl_ctx);
+	callout_init_mtx(&sc->watchdog_timer, &sc->mtx, 0);
 
 	/*
 	 * Make the sysctl tree
@@ -2824,7 +2824,6 @@ fatm_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = fatm_ioctl;
 	ifp->if_start = fatm_start;
-	ifp->if_watchdog = fatm_watchdog;
 	ifp->if_init = fatm_init;
 	ifp->if_linkmib = &IFP2IFATM(sc->ifp)->mib;
 	ifp->if_linkmiblen = sizeof(IFP2IFATM(sc->ifp)->mib);

@@ -98,7 +98,7 @@ static void	mwl_start(struct ifnet *);
 static int	mwl_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			const struct ieee80211_bpf_params *);
 static int	mwl_media_change(struct ifnet *);
-static void	mwl_watchdog(struct ifnet *);
+static void	mwl_watchdog(void *);
 static int	mwl_ioctl(struct ifnet *, u_long, caddr_t);
 static void	mwl_radar_proc(void *, int);
 static void	mwl_chanswitch_proc(void *, int);
@@ -360,6 +360,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 		goto bad1;
 
 	callout_init(&sc->sc_timer, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_tq = taskqueue_create("mwl_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->sc_tq);
@@ -401,7 +402,6 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = mwl_start;
-	ifp->if_watchdog = mwl_watchdog;
 	ifp->if_ioctl = mwl_ioctl;
 	ifp->if_init = mwl_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
@@ -558,6 +558,7 @@ mwl_detach(struct mwl_softc *sc)
 	 * Other than that, it's straightforward...
 	 */
 	ieee80211_ifdetach(ic);
+	callout_drain(&sc->sc_watchdog);
 	mwl_dma_cleanup(sc);
 	mwl_tx_cleanup(sc);
 	mwl_hal_detach(sc->sc_mh);
@@ -1214,6 +1215,7 @@ mwl_init_locked(struct mwl_softc *sc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	mwl_hal_intrset(mh, sc->sc_imask);
+	callout_reset(&sc->sc_watchdog, hz, mwl_watchdog, sc);
 
 	return 0;
 }
@@ -1251,7 +1253,8 @@ mwl_stop_locked(struct ifnet *ifp, int disable)
 		 * Shutdown the hardware and driver.
 		 */
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		ifp->if_timer = 0;
+		callout_stop(&sc->sc_watchdog);
+		sc->sc_tx_timer = 0;
 		mwl_draintxq(sc);
 	}
 }
@@ -3405,7 +3408,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	MWL_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	ifp->if_opackets++;
-	ifp->if_timer = 5;
+	sc->sc_tx_timer = 5;
 	MWL_TXQ_UNLOCK(txq);
 
 	return 0;
@@ -3552,7 +3555,7 @@ mwl_tx_proc(void *arg, int npending)
 
 	if (nreaped != 0) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
+		sc->sc_tx_timer = 0;
 		if (!IFQ_IS_EMPTY(&ifp->if_snd)) {
 			/* NB: kick fw; the tx thread may have been preempted */
 			mwl_hal_txstart(sc->sc_mh, 0);
@@ -3618,7 +3621,7 @@ mwl_draintxq(struct mwl_softc *sc)
 	for (i = 0; i < MWL_NUM_TX_QUEUES; i++)
 		mwl_tx_draintxq(sc, &sc->sc_txq[i]);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;
+	sc->sc_tx_timer = 0;
 }
 
 #ifdef MWL_DIAGAPI
@@ -4764,10 +4767,17 @@ mwl_txq_dump(struct mwl_txq *txq)
 #endif
 
 static void
-mwl_watchdog(struct ifnet *ifp)
+mwl_watchdog(void *arg)
 {
-	struct mwl_softc *sc = ifp->if_softc;
+	struct mwl_softc *sc;
+	struct ifnet *ifp;
 
+	sc = arg;
+	callout_reset(&sc->sc_watchdog, hz, mwl_watchdog, sc);
+	if (sc->sc_tx_timer == 0 || --sc->sc_tx_timer > 0)
+		return;
+
+	ifp = sc->sc_ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && !sc->sc_invalid) {
 		if (mwl_hal_setkeepalive(sc->sc_mh))
 			if_printf(ifp, "transmit timeout (firmware hung?)\n");
