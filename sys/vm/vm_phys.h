@@ -50,12 +50,11 @@ struct mem_affinity {
 extern struct mem_affinity *mem_affinity;
 
 void vm_phys_add_page(vm_paddr_t pa);
-vm_page_t vm_phys_alloc_contig(unsigned long npages,
-    vm_paddr_t low, vm_paddr_t high,
-    unsigned long alignment, unsigned long boundary);
+vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary);
 vm_page_t vm_phys_alloc_freelist_pages(int flind, int pool, int order);
 vm_page_t vm_phys_alloc_pages(int pool, int order);
-vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
+void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
