@@ -126,6 +126,7 @@ struct tl_softc {
 	int			tl_if_flags;
 	struct callout		tl_stat_callout;
 	struct mtx		tl_mtx;
+	int			tl_timer;
 };
 
 #define	TL_LOCK(_sc)		mtx_lock(&(_sc)->tl_mtx)
