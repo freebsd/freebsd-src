@@ -161,7 +161,7 @@ lsi64854_attach(struct lsi64854_softc *sc)
 		error = bus_dma_tag_create(
 		    sc->sc_parent_dmat,		/* parent */
 		    1, BOUNDARY,		/* alignment, boundary */
-		    BUS_SPACE_MAXADDR,		/* lowaddr */
+		    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
 		    sc->sc_maxdmasize,		/* maxsize */
@@ -462,7 +462,7 @@ lsi64854_setup(struct lsi64854_softc *sc, void **addr, size_t *len,
 
 /*
  * Pseudo (chained) interrupt from the esp driver to kick the
- * current running DMA transfer. Called from ncr53c9x_intr()
+ * current running DMA transfer.  Called from ncr53c9x_intr()
  * for now.
  *
  * return 1 if it was a DMA continue.
