@@ -143,7 +143,7 @@ static int pcn_ioctl(struct ifnet *, u_long, caddr_t);
 static void pcn_init(void *);
 static void pcn_init_locked(struct pcn_softc *);
 static void pcn_stop(struct pcn_softc *);
-static void pcn_watchdog(struct ifnet *);
+static void pcn_watchdog(struct pcn_softc *);
 static void pcn_shutdown(device_t);
 static int pcn_ifmedia_upd(struct ifnet *);
 static void pcn_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -630,7 +630,6 @@ pcn_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = pcn_ioctl;
 	ifp->if_start = pcn_start;
-	ifp->if_watchdog = pcn_watchdog;
 	ifp->if_init = pcn_init;
 	ifp->if_snd.ifq_maxlen = PCN_TX_LIST_CNT - 1;
 
@@ -951,7 +950,7 @@ pcn_txeof(sc)
 		sc->pcn_cdata.pcn_tx_cons = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-	ifp->if_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
+	sc->pcn_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
@@ -983,6 +982,8 @@ pcn_tick(xsc)
 			pcn_start_locked(ifp);
 	}
 
+	if (sc->pcn_timer > 0 && --sc->pcn_timer == 0)
+		pcn_watchdog(sc);
 	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
 
 	return;
@@ -1150,7 +1151,7 @@ pcn_start_locked(ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->pcn_timer = 5;
 
 	return;
 }
@@ -1432,14 +1433,12 @@ pcn_ioctl(ifp, command, data)
 }
 
 static void
-pcn_watchdog(ifp)
-	struct ifnet		*ifp;
+pcn_watchdog(struct pcn_softc *sc)
 {
-	struct pcn_softc	*sc;
+	struct ifnet		*ifp;
 
-	sc = ifp->if_softc;
-
-	PCN_LOCK(sc);
+	PCN_LOCK_ASSERT(sc);
+	ifp = sc->pcn_ifp;
 
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
@@ -1450,10 +1449,6 @@ pcn_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		pcn_start_locked(ifp);
-
-	PCN_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -1469,7 +1464,7 @@ pcn_stop(sc)
 
 	PCN_LOCK_ASSERT(sc);
 	ifp = sc->pcn_ifp;
-	ifp->if_timer = 0;
+	sc->pcn_timer = 0;
 
 	callout_stop(&sc->pcn_stat_callout);
 
