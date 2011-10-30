@@ -240,9 +240,19 @@ struct	pv_entry;
 struct	pv_chunk;
 
 struct md_page {
-	TAILQ_HEAD(,pv_entry)	pv_list;
-	int			pat_mode;
+	union {
+		TAILQ_HEAD(,pv_entry)	pvi_list;
+		struct {
+			vm_page_t	pii_left;
+			vm_page_t	pii_right;
+		} pvi_siters;
+	} pv_structs;
+	int				pat_mode;
 };
+
+#define	pv_list		pv_structs.pvi_list
+#define	pv_left		pv_structs.pvi_siters.pii_left
+#define	pv_right	pv_structs.pvi_siters.pii_right
 
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
@@ -282,7 +292,7 @@ extern struct pmap	kernel_pmap_store;
  */
 typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_next;
 } *pv_entry_t;
 
 /*
