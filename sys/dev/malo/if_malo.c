@@ -128,7 +128,7 @@ static	int	malo_setup_hwdma(struct malo_softc *);
 static	void	malo_txq_init(struct malo_softc *, struct malo_txq *, int);
 static	void	malo_tx_cleanupq(struct malo_softc *, struct malo_txq *);
 static	void	malo_start(struct ifnet *);
-static	void	malo_watchdog(struct ifnet *);
+static	void	malo_watchdog(void *);
 static	int	malo_ioctl(struct ifnet *, u_long, caddr_t);
 static	void	malo_updateslot(struct ifnet *);
 static	int	malo_newstate(struct ieee80211com *, enum ieee80211_state, int);
@@ -191,6 +191,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	}
 
 	MALO_LOCK_INIT(sc);
+	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
 
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->malo_dev),
@@ -240,7 +241,6 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = malo_start;
-	ifp->if_watchdog = malo_watchdog;
 	ifp->if_ioctl = malo_ioctl;
 	ifp->if_init = malo_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
@@ -993,7 +993,7 @@ malo_tx_proc(void *arg, int npending)
 
 	if (nreaped != 0) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
+		sc->malo_timer = 0;
 		malo_start(ifp);
 	}
 }
@@ -1177,7 +1177,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	MALO_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	ifp->if_opackets++;
-	ifp->if_timer = 5;
+	sc->malo_timer = 5;
 	MALO_TXQ_UNLOCK(txq);
 	return 0;
 #undef IEEE80211_DIR_DSTODS
@@ -1364,10 +1364,17 @@ malo_start(struct ifnet *ifp)
 }
 
 static void
-malo_watchdog(struct ifnet *ifp)
+malo_watchdog(void *arg)
 {
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc;
+	struct ifnet *ifp;
 
+	sc = arg;
+	callout_reset(&sc->malo_watchdog_timer, hz, malo_watchdog, sc);
+	if (sc->malo_timer == 0 || --sc->malo_timer > 0)
+		return;
+
+	ifp = sc->malo_ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && !sc->malo_invalid) {
 		if_printf(ifp, "watchdog timeout\n");
 
@@ -1614,6 +1621,7 @@ malo_init(void *arg)
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 
 	malo_hal_intrset(mh, sc->malo_imask);
+	callout_reset(&sc->malo_watchdog_timer, hz, malo_watchdog, sc);
 
 	/*
 	 * The hardware should be ready to go now so it's safe to kick
@@ -1793,7 +1801,8 @@ malo_stop_locked(struct ifnet *ifp, int disable)
 	 */
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ifp->if_timer = 0;
+	callout_stop(&sc->malo_watchdog_timer);
+	sc->malo_timer = 0;
 	if (sc->malo_fw_loaded == 1) {
 		/* diable interrupt.  */
 		malo_hal_intrset(mh, 0);
@@ -2428,6 +2437,7 @@ malo_detach(struct malo_softc *sc)
 	 * Other than that, it's straightforward...
 	 */
 	ieee80211_ifdetach(&sc->malo_ic);
+	callout_drain(&sc->malo_watchdog_timer);
 	malo_dma_cleanup(sc);
 	malo_tx_cleanup(sc);
 	malo_hal_detach(sc->malo_mh);

@@ -545,6 +545,8 @@ struct malo_softc {
 
 	struct malo_txq		malo_txq[MALO_NUM_TX_QUEUES];
 	struct task		malo_txtask;	/* tx int processing */
+	struct callout	malo_watchdog_timer;
+	int			malo_timer;
 
 	int			(*malo_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
