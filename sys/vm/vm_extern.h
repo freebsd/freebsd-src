@@ -44,7 +44,7 @@ vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, u_long boundary,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_nofault_space(vm_map_t, vm_size_t, int);
