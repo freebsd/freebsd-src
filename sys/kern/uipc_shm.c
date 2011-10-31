@@ -289,10 +289,23 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		 * a page swapped out to disk?
 		 */
 		if ((length & PAGE_MASK) &&
-		    (m = vm_page_lookup(object, OFF_TO_IDX(length))) != NULL &&
-		    m->valid != 0) {
-			int base = (int)length & PAGE_MASK;
-			int size = PAGE_SIZE - base;
+		    (m = vm_radix_lookup(&object->rtree, OFF_TO_IDX(length),
+		    VM_RADIX_ANY)) != NULL) {
+			int base;
+			int size;
+                
+			if (m->flags & PG_CACHED) {
+				mtx_lock(&vm_page_queue_free_mtx);
+				if (m->object == object)
+					vm_page_cache_remove(m);
+				mtx_unlock(&vm_page_queue_free_mtx);
+				goto out;
+			}
+			if (m->valid != 0 || m->object != object)
+				goto out;
+
+			base = (int)length & PAGE_MASK;
+			size = PAGE_SIZE - base;
 
 			pmap_zero_page_area(m, base, size);
 
@@ -311,10 +324,6 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			base = roundup2(base, DEV_BSIZE);
 
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		} else if ((length & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
-			vm_page_cache_free(object, OFF_TO_IDX(length),
-			    nobjsize);
 		}
 	} else {
 
@@ -326,6 +335,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		}
 		object->charge += delta;
 	}
+out:
 	shmfd->shm_size = length;
 	mtx_lock(&shm_timestamp_lock);
 	vfs_timestamp(&shmfd->shm_ctime);
