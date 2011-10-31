@@ -1519,6 +1519,13 @@ relock:
 		cache_purge(fdvp);
 	}
 	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, 0);
+	/*
+	 * As the relookup of the fvp is done in two steps:
+	 * ufs_lookup_ino() and then VFS_VGET(), another thread might do a
+	 * normal lookup of the from name just before the VFS_VGET() call,
+	 * causing the cache entry to be re-instantiated.
+	 */
+	cache_purge(fvp);
 
 unlockout:
 	vput(fdvp);
