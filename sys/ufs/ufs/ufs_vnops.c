@@ -1520,6 +1520,8 @@ relock:
 	}
 	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, 0);
 	/*
+	 * The kern_renameat() looks up the fvp using the DELETE flag, which
+	 * causes the removal of the name cache entry for fvp.
 	 * As the relookup of the fvp is done in two steps:
 	 * ufs_lookup_ino() and then VFS_VGET(), another thread might do a
 	 * normal lookup of the from name just before the VFS_VGET() call,
