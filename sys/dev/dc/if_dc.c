@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -149,7 +150,7 @@ MODULE_DEPEND(dc, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct dc_type dc_devs[] = {
+static const struct dc_type const dc_devs[] = {
 	{ DC_DEVID(DC_VENDORID_DEC, DC_DEVICEID_21143), 0,
 		"Intel 21143 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009), 0,
@@ -272,12 +273,6 @@ static void dc_eeprom_getword_xircom(struct dc_softc *, int, uint16_t *);
 static void dc_eeprom_width(struct dc_softc *);
 static void dc_read_eeprom(struct dc_softc *, caddr_t, int, int, int);
 
-static void dc_mii_writebit(struct dc_softc *, int);
-static int dc_mii_readbit(struct dc_softc *);
-static void dc_mii_sync(struct dc_softc *);
-static void dc_mii_send(struct dc_softc *, uint32_t, int);
-static int dc_mii_readreg(struct dc_softc *, struct dc_mii_frame *);
-static int dc_mii_writereg(struct dc_softc *, struct dc_mii_frame *);
 static int dc_miibus_readreg(device_t, int, int);
 static int dc_miibus_writereg(device_t, int, int, int);
 static void dc_miibus_statchg(device_t);
@@ -306,6 +301,24 @@ static int dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
 static int dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
 static int dc_check_multiport(struct dc_softc *);
+
+/*
+ * MII bit-bang glue
+ */
+static uint32_t dc_mii_bitbang_read(device_t);
+static void dc_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops dc_mii_bitbang_ops = {
+	dc_mii_bitbang_read,
+	dc_mii_bitbang_write,
+	{
+		DC_SIO_MII_DATAOUT,	/* MII_BIT_MDO */
+		DC_SIO_MII_DATAIN,	/* MII_BIT_MDI */
+		DC_SIO_MII_CLK,		/* MII_BIT_MDC */
+		0,			/* MII_BIT_DIR_HOST_PHY */
+		DC_SIO_MII_DIR,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 #ifdef DC_USEIOSPACE
 #define	DC_RES			SYS_RES_IOPORT
@@ -611,185 +624,45 @@ dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int be)
 }
 
 /*
- * The following two routines are taken from the Macronix 98713
- * Application Notes pp.19-21.
- */
-/*
- * Write a bit to the MII bus.
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-dc_mii_writebit(struct dc_softc *sc, int bit)
+dc_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	uint32_t reg;
+	struct dc_softc *sc;
 
-	reg = DC_SIO_ROMCTL_WRITE | (bit != 0 ? DC_SIO_MII_DATAOUT : 0);
-	CSR_WRITE_4(sc, DC_SIO, reg);
-	CSR_BARRIER_4(sc, DC_SIO,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
+	sc = device_get_softc(dev);
 
-	CSR_WRITE_4(sc, DC_SIO, reg | DC_SIO_MII_CLK);
+	CSR_WRITE_4(sc, DC_SIO, val);
 	CSR_BARRIER_4(sc, DC_SIO,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
-	CSR_WRITE_4(sc, DC_SIO, reg);
-	CSR_BARRIER_4(sc, DC_SIO,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
 }
 
 /*
- * Read a bit from the MII bus.
+ * Read the MII serial port for the MII bit-bang module.
  */
-static int
-dc_mii_readbit(struct dc_softc *sc)
+static uint32_t
+dc_mii_bitbang_read(device_t dev)
 {
-	uint32_t reg;
+	struct dc_softc *sc;
+	uint32_t val;
 
-	reg = DC_SIO_ROMCTL_READ | DC_SIO_MII_DIR;
-	CSR_WRITE_4(sc, DC_SIO, reg);
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_4(sc, DC_SIO);
 	CSR_BARRIER_4(sc, DC_SIO,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
-	(void)CSR_READ_4(sc, DC_SIO);
-	CSR_WRITE_4(sc, DC_SIO, reg | DC_SIO_MII_CLK);
-	CSR_BARRIER_4(sc, DC_SIO,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
-	CSR_WRITE_4(sc, DC_SIO, reg);
-	CSR_BARRIER_4(sc, DC_SIO,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
-	if (CSR_READ_4(sc, DC_SIO) & DC_SIO_MII_DATAIN)
-		return (1);
 
-	return (0);
-}
-
-/*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
- */
-static void
-dc_mii_sync(struct dc_softc *sc)
-{
-	int i;
-
-	CSR_WRITE_4(sc, DC_SIO, DC_SIO_ROMCTL_WRITE);
-	CSR_BARRIER_4(sc, DC_SIO,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	DELAY(1);
-
-	for (i = 0; i < 32; i++)
-		dc_mii_writebit(sc, 1);
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-dc_mii_send(struct dc_softc *sc, uint32_t bits, int cnt)
-{
-	int i;
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1)
-		dc_mii_writebit(sc, bits & i);
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-dc_mii_readreg(struct dc_softc *sc, struct dc_mii_frame *frame)
-{
-	int i;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = DC_MII_STARTDELIM;
-	frame->mii_opcode = DC_MII_READOP;
-
-	/*
-	 * Sync the PHYs.
-	 */
-	dc_mii_sync(sc);
-
-	/*
-	 * Send command/address info.
-	 */
-	dc_mii_send(sc, frame->mii_stdelim, 2);
-	dc_mii_send(sc, frame->mii_opcode, 2);
-	dc_mii_send(sc, frame->mii_phyaddr, 5);
-	dc_mii_send(sc, frame->mii_regaddr, 5);
-
-	/*
-	 * Now try reading data bits.  If the turnaround failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	frame->mii_turnaround = dc_mii_readbit(sc);
-	if (frame->mii_turnaround != 0) {
-		for (i = 0; i < 16; i++)
-			dc_mii_readbit(sc);
-		goto fail;
-	}
-	for (i = 0x8000; i; i >>= 1) {
-		if (dc_mii_readbit(sc))
-			frame->mii_data |= i;
-	}
-
-fail:
-
-	/* Clock the idle bits. */
-	dc_mii_writebit(sc, 0);
-	dc_mii_writebit(sc, 0);
-
-	if (frame->mii_turnaround != 0)
-		return (1);
-	return (0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-dc_mii_writereg(struct dc_softc *sc, struct dc_mii_frame *frame)
-{
-
-	/*
-	 * Set up frame for TX.
-	 */
-	frame->mii_stdelim = DC_MII_STARTDELIM;
-	frame->mii_opcode = DC_MII_WRITEOP;
-	frame->mii_turnaround = DC_MII_TURNAROUND;
-
-	/*
-	 * Sync the PHYs.
-	 */
-	dc_mii_sync(sc);
-
-	dc_mii_send(sc, frame->mii_stdelim, 2);
-	dc_mii_send(sc, frame->mii_opcode, 2);
-	dc_mii_send(sc, frame->mii_phyaddr, 5);
-	dc_mii_send(sc, frame->mii_regaddr, 5);
-	dc_mii_send(sc, frame->mii_turnaround, 2);
-	dc_mii_send(sc, frame->mii_data, 16);
-
-	/* Clock the idle bits. */
-	dc_mii_writebit(sc, 0);
-	dc_mii_writebit(sc, 0);
-
-	return (0);
+	return (val);
 }
 
 static int
 dc_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct dc_mii_frame frame;
-	struct dc_softc	 *sc;
+	struct dc_softc *sc;
 	int i, rval, phy_reg = 0;
 
 	sc = device_get_softc(dev);
-	bzero(&frame, sizeof(frame));
 
 	if (sc->dc_pmode != DC_PMODE_MII) {
 		if (phy == (MII_NPHY - 1)) {
@@ -881,34 +754,29 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 		}
 
 		rval = CSR_READ_4(sc, phy_reg) & 0x0000FFFF;
-
 		if (rval == 0xFFFF)
 			return (0);
 		return (rval);
 	}
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
 	if (sc->dc_type == DC_TYPE_98713) {
 		phy_reg = CSR_READ_4(sc, DC_NETCFG);
 		CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
 	}
-	dc_mii_readreg(sc, &frame);
+	rval = mii_bitbang_readreg(dev, &dc_mii_bitbang_ops, phy, reg);
 	if (sc->dc_type == DC_TYPE_98713)
 		CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 
-	return (frame.mii_data);
+	return (rval);
 }
 
 static int
 dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct dc_softc *sc;
-	struct dc_mii_frame frame;
 	int i, phy_reg = 0;
 
 	sc = device_get_softc(dev);
-	bzero(&frame, sizeof(frame));
 
 	if (DC_IS_PNIC(sc)) {
 		CSR_WRITE_4(sc, DC_PN_MII, DC_PN_MIIOPCODE_WRITE |
@@ -964,15 +832,11 @@ dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 		return (0);
 	}
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-
 	if (sc->dc_type == DC_TYPE_98713) {
 		phy_reg = CSR_READ_4(sc, DC_NETCFG);
 		CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
 	}
-	dc_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &dc_mii_bitbang_ops, phy, reg, data);
 	if (sc->dc_type == DC_TYPE_98713)
 		CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 

@@ -1425,6 +1425,7 @@ dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mii.c			optional miibus | mii
+dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
