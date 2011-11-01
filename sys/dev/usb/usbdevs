@@ -606,6 +606,7 @@ vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
 vendor AZUREWAVE	0x13d3	AsureWave
+vendor INITIO		0x13fd	Initio Corporation
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
@@ -1144,6 +1145,7 @@ product BELKIN RT2870_1		0x8053	RT2870
 product BELKIN RT2870_2		0x805c	RT2870
 product BELKIN F5D8053V3	0x815c	F5D8053 v3
 product BELKIN F5D8055		0x825a	F5D8055
+product BELKIN F5D8055V2	0x825b	F5D8055 v2
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
 product BELKIN F6D4050V1	0x935a	F6D4050 v1
@@ -1227,8 +1229,9 @@ product CISCOLINKSYS HU200TS	0x001a	HU200TS Wireless Adapter
 product CISCOLINKSYS WUSB54GC	0x0020	WUSB54GC
 product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
-product	CISCOLINKSYS2 RT3070	0x4001	RT3070
-product	CISCOLINKSYS3 RT3070	0x0101	RT3070
+product CISCOLINKSYS AE1000	0x002f	AE1000
+product CISCOLINKSYS2 RT3070	0x4001	RT3070
+product CISCOLINKSYS3 RT3070	0x0101	RT3070
 
 /* Clipsal products */
 product CLIPSAL 5500PCU		0x0303	5500PCU C-Bus
@@ -1569,6 +1572,7 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
 
 /* FEIYA products */
+product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
@@ -1885,6 +1889,10 @@ product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
 
 /* Imagination Technologies products */
 product IMAGINATION DBX1	0x2107	DBX1 DSP core
+
+/* Initio Corporation products */
+product INITIO DUMMY		0x0000	Dummy product
+product INITIO INIC_1610P	0x1e40	USB to SATA Bridge
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
@@ -2780,6 +2788,7 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
+product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
@@ -2833,6 +2842,7 @@ product SAGEM XG760A		0x004a	XG-760A
 product SAGEM XG76NA		0x0062	XG-76NA
 
 /* Samsung products */
+product SAMSUNG WIS09ABGN	0x2018	WIS09ABGN Wireless LAN adapter
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG YP_U4		0x5092	YP-U4 MP3 Player
