@@ -119,7 +119,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Re-lock vnode.
 	 */
-	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered))
+	if (isvnunlocked)
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
 
 	if (error)
