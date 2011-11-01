@@ -556,25 +556,8 @@ struct xl_chain_data {
 struct xl_type {
 	u_int16_t		xl_vid;
 	u_int16_t		xl_did;
-	char			*xl_name;
+	const char		*xl_name;
 };
-
-struct xl_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define XL_MII_STARTDELIM	0x01
-#define XL_MII_READOP		0x02
-#define XL_MII_WRITEOP		0x01
-#define XL_MII_TURNAROUND	0x02
 
 /*
  * The 3C905B adapters implement a few features that we want to
@@ -680,8 +663,17 @@ struct xl_stats {
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->xl_btag, sc->xl_bhandle, reg)
 
-#define XL_SEL_WIN(x)	\
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_WINSEL | x)
+#define CSR_BARRIER(sc, reg, length, flags)				\
+	bus_space_barrier(sc->xl_btag, sc->xl_bhandle, reg, length, flags)
+
+#define XL_SEL_WIN(x) do {						\
+	CSR_BARRIER(sc, XL_COMMAND, 2,					\
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);		\
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_WINSEL | x);			\
+	CSR_BARRIER(sc, XL_COMMAND, 2,					\
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);		\
+} while (0)
+
 #define XL_TIMEOUT		1000
 
 /*
