@@ -1,5 +1,5 @@
 # <pre>
-# @(#)zone.tab	8.50
+# @(#)zone.tab	8.52
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 #
@@ -257,8 +257,7 @@ LV	+5657+02406	Europe/Riga
 LY	+3254+01311	Africa/Tripoli
 MA	+3339-00735	Africa/Casablanca
 MC	+4342+00723	Europe/Monaco
-MD	+4700+02850	Europe/Chisinau	most locations
-MD	+4651+02938	Europe/Tiraspol	Pridnestrovie
+MD	+4700+02850	Europe/Chisinau
 ME	+4226+01916	Europe/Podgorica
 MF	+1804-06305	America/Marigot
 MG	-1855+04731	Indian/Antananarivo
