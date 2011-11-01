@@ -756,6 +756,9 @@ vm_object_terminate(vm_object_t object)
 			 * assignment is that vm_page_free()'s call to
 			 * vm_page_remove() will return immediately without
 			 * modifying the page or the object.
+			 * Anyway, the radix tree cannot be accessed anymore
+			 * from within the object, thus all the nodes need
+			 * to be reclaimed later on.
 			 */ 
 			p->object = NULL;
 			if (p->wire_count == 0) {
@@ -767,6 +770,7 @@ vm_object_terminate(vm_object_t object)
 		if (n < VM_RADIX_STACK)
 			break;
 	}
+	vm_radix_reclaim_allnodes(&object->rtree);
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were

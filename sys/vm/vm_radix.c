@@ -223,6 +223,38 @@ vm_radix_match(void *child, int color)
 	return ((void *)(c & ~VM_RADIX_FLAGS));
 }
 
+static void
+vm_radix_reclaim_allnodes_internal(struct vm_radix_node *rnode, int level)
+{
+	int slot;
+
+	MPASS(rnode != NULL && level >= 0);
+
+	/*
+	 * Level 0 just contains pages as children, thus make it a special
+	 * case, free the node and return.
+	 */
+	if (level == 0) {
+		CTR2(KTR_VM, "reclaiming: node %p, level %d", rnode, level);
+		rnode->rn_count = 0;
+		vm_radix_node_put(rnode);
+		return;
+	}
+	for (slot = 0; slot < VM_RADIX_COUNT && rnode->rn_count != 0; slot++) {
+		if (rnode->rn_child[slot] == NULL)
+			continue;
+		CTR3(KTR_VM,
+		    "reclaiming: node %p, level %d recursing in slot %d",
+		    rnode, level, slot);
+		vm_radix_reclaim_allnodes_internal(rnode->rn_child[slot],
+		    level - 1);
+		rnode->rn_count--;
+	}
+	MPASS(rnode->rn_count == 0);
+	CTR2(KTR_VM, "reclaiming: node %p, level %d", rnode, level);
+	vm_radix_node_put(rnode);
+}
+
 /*
  * Inserts the key-value pair in to the radix tree.  Returns errno.
  * Panics if the key already exists.
@@ -637,6 +669,24 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 			
 	}
 	return (val);
+}
+
+/*
+ * Remove and free all the nodes from the radix tree.
+ * This function is recrusive but there is a tight control on it as the
+ * maximum depth of the tree is fixed.
+ */
+void
+vm_radix_reclaim_allnodes(struct vm_radix *rtree)
+{
+	struct vm_radix_node *root;
+	int level;
+
+	if (rtree->rt_root == 0)
+		return;
+	level = vm_radix_height(rtree, &root);
+	vm_radix_reclaim_allnodes_internal(root, level - 1);
+	rtree->rt_root = 0;
 }
 
 /*
