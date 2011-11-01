@@ -1138,6 +1138,7 @@ tmpfs_rename(struct vop_rename_args *v)
 		 * really reclaimed. */
 		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
 	}
+	cache_purge(fvp);
 
 	error = 0;
 
