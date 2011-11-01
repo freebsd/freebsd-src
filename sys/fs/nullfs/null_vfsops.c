@@ -242,10 +242,7 @@ nullfs_root(mp, flags, vpp)
 	vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	VREF(vp);
 
-#ifdef NULLFS_DEBUG
-	if (VOP_ISLOCKED(vp))
-		panic("root vnode is locked.\n");
-#endif
+	ASSERT_VOP_UNLOCKED(vp, "root vnode is locked");
 	vn_lock(vp, flags | LK_RETRY);
 	*vpp = vp;
 	return 0;
