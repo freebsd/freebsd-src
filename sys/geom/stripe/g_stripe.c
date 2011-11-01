@@ -160,28 +160,35 @@ static void
 g_stripe_remove_disk(struct g_consumer *cp)
 {
 	struct g_stripe_softc *sc;
-	u_int no;
 
+	g_topology_assert();
 	KASSERT(cp != NULL, ("Non-valid disk in %s.", __func__));
-	sc = (struct g_stripe_softc *)cp->private;
+	sc = (struct g_stripe_softc *)cp->geom->softc;
 	KASSERT(sc != NULL, ("NULL sc in %s.", __func__));
-	no = cp->index;
 
-	G_STRIPE_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_name);
+	if (cp->private == NULL) {
+		G_STRIPE_DEBUG(0, "Disk %s removed from %s.",
+		    cp->provider->name, sc->sc_name);
+		cp->private = (void *)(uintptr_t)-1;
+	}
 
-	sc->sc_disks[no] = NULL;
 	if (sc->sc_provider != NULL) {
 		sc->sc_provider->flags |= G_PF_WITHER;
+		G_STRIPE_DEBUG(0, "Device %s deactivated.",
+		    sc->sc_provider->name);
 		g_orphan_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
-		G_STRIPE_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+		return;
+	sc->sc_disks[cp->index] = NULL;
+	cp->index = 0;
 	g_detach(cp);
 	g_destroy_consumer(cp);
+	/* If there are no valid disks anymore, remove device. */
+	if (LIST_EMPTY(&sc->sc_geom->consumer))
+		g_stripe_destroy(sc, 1);
 }
 
 static void
@@ -197,36 +204,20 @@ g_stripe_orphan(struct g_consumer *cp)
 		return;
 
 	g_stripe_remove_disk(cp);
-	/* If there are no valid disks anymore, remove device. */
-	if (g_stripe_nvalid(sc) == 0)
-		g_stripe_destroy(sc, 1);
 }
 
 static int
 g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	struct g_consumer *cp1, *cp2;
+	struct g_consumer *cp1, *cp2, *tmp;
 	struct g_stripe_softc *sc;
 	struct g_geom *gp;
 	int error;
 
+	g_topology_assert();
 	gp = pp->geom;
 	sc = gp->softc;
-
-	if (sc == NULL) {
-		/*
-		 * It looks like geom is being withered.
-		 * In that case we allow only negative requests.
-		 */
-		KASSERT(dr <= 0 && dw <= 0 && de <= 0,
-		    ("Positive access request (device=%s).", pp->name));
-		if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 &&
-		    (pp->ace + de) == 0) {
-			G_STRIPE_DEBUG(0, "Device %s definitely destroyed.",
-			    gp->name);
-		}
-		return (0);
-	}
+	KASSERT(sc != NULL, ("NULL sc in %s.", __func__));
 
 	/* On first open, grab an extra "exclusive" bit */
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
@@ -235,22 +226,23 @@ g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 0)
 		de--;
 
-	error = ENXIO;
-	LIST_FOREACH(cp1, &gp->consumer, consumer) {
+	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
-		if (error == 0)
-			continue;
-		/*
-		 * If we fail here, backout all previous changes.
-		 */
-		LIST_FOREACH(cp2, &gp->consumer, consumer) {
-			if (cp1 == cp2)
-				return (error);
-			g_access(cp2, -dr, -dw, -de);
+		if (error != 0)
+			goto fail;
+		if (cp1->acr == 0 && cp1->acw == 0 && cp1->ace == 0 &&
+		    cp1->private != NULL) {
+			g_stripe_remove_disk(cp1); /* May destroy geom. */
 		}
-		/* NOTREACHED */
 	}
+	return (0);
 
+fail:
+	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+		if (cp1 == cp2)
+			break;
+		g_access(cp2, -dr, -dw, -de);
+	}
 	return (error);
 }
 
@@ -652,6 +644,7 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	off_t mediasize, ms;
 	u_int no, sectorsize = 0;
 
+	g_topology_assert();
 	if (g_stripe_nvalid(sc) != sc->sc_ndisks)
 		return;
 
@@ -681,7 +674,7 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	sc->sc_provider->stripeoffset = 0;
 	g_error_provider(sc->sc_provider, 0);
 
-	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_name);
+	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_provider->name);
 }
 
 static int
@@ -722,6 +715,7 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 	struct g_geom *gp;
 	int error;
 
+	g_topology_assert();
 	/* Metadata corrupted? */
 	if (no >= sc->sc_ndisks)
 		return (EINVAL);
@@ -734,6 +728,8 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 	fcp = LIST_FIRST(&gp->consumer);
 
 	cp = g_new_consumer(gp);
+	cp->private = NULL;
+	cp->index = no;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		g_destroy_consumer(cp);
@@ -764,12 +760,8 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 		}
 	}
 
-	cp->private = sc;
-	cp->index = no;
 	sc->sc_disks[no] = cp;
-
 	G_STRIPE_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
-
 	g_stripe_check_and_run(sc);
 
 	return (0);
@@ -789,6 +781,7 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	struct g_geom *gp;
 	u_int no;
 
+	g_topology_assert();
 	G_STRIPE_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
 
@@ -850,8 +843,8 @@ static int
 g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force)
 {
 	struct g_provider *pp;
+	struct g_consumer *cp, *cp1;
 	struct g_geom *gp;
-	u_int no;
 
 	g_topology_assert();
 
@@ -871,24 +864,22 @@ g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force)
 		}
 	}
 
-	for (no = 0; no < sc->sc_ndisks; no++) {
-		if (sc->sc_disks[no] != NULL)
-			g_stripe_remove_disk(sc->sc_disks[no]);
-	}
-
 	gp = sc->sc_geom;
+	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+		g_stripe_remove_disk(cp);
+		if (cp1 == NULL)
+			return (0);	/* Recursion happened. */
+	}
+	if (!LIST_EMPTY(&gp->consumer))
+		return (EINPROGRESS);
+
 	gp->softc = NULL;
 	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
 	    gp->name));
 	free(sc->sc_disks, M_STRIPE);
 	free(sc, M_STRIPE);
-
-	pp = LIST_FIRST(&gp->provider);
-	if (pp == NULL || (pp->acr == 0 && pp->acw == 0 && pp->ace == 0))
-		G_STRIPE_DEBUG(0, "Device %s destroyed.", gp->name);
-
+	G_STRIPE_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
-
 	return (0);
 }
 
