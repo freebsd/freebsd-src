@@ -153,10 +153,20 @@ ata_pci_detach(device_t dev)
     }
     if (ctlr->chipdeinit != NULL)
 	ctlr->chipdeinit(dev);
-    if (ctlr->r_res2)
+    if (ctlr->r_res2) {
+#ifdef __sparc64__
+	bus_space_unmap(rman_get_bustag(ctlr->r_res2),
+	    rman_get_bushandle(ctlr->r_res2), rman_get_size(ctlr->r_res2));
+#endif
 	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
-    if (ctlr->r_res1)
+    }
+    if (ctlr->r_res1) {
+#ifdef __sparc64__
+	bus_space_unmap(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1));
+#endif
 	bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1, ctlr->r_res1);
+    }
 
     return 0;
 }
@@ -775,7 +785,6 @@ driver_t ata_pcichannel_driver = {
 
 DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
 
-
 /*
  * misc support fucntions
  */
@@ -936,4 +945,3 @@ ata_mode2idx(int mode)
 	return (mode & ATA_MODE_MASK) + 5;
     return (mode & ATA_MODE_MASK) - ATA_PIO0;
 }
-
