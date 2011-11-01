@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * All rights reserved.
  *
@@ -97,6 +98,38 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index, int color)
         if (vm_radix_lookupn(rtree, index, 0, color, &val, 1, &index))
                 return (val);
         return (NULL);
+}
+
+static inline void *
+vm_radix_last(struct vm_radix *rtree, int color)
+{
+
+	return vm_radix_lookup_le(rtree, 0, color);
+}
+
+static inline void *
+vm_radix_first(struct vm_radix *rtree, int color)
+{
+
+	return vm_radix_lookup_ge(rtree, 0, color);
+}
+
+static inline void *
+vm_radix_next(struct vm_radix *rtree, vm_pindex_t index, int color)
+{
+
+	if (index == -1)
+		return (NULL);
+	return vm_radix_lookup_ge(rtree, index + 1, color);
+}
+
+static inline void *
+vm_radix_prev(struct vm_radix *rtree, vm_pindex_t index, int color)
+{
+
+	if (index == 0)
+		return (NULL);
+	return vm_radix_lookup_le(rtree, index - 1, color);
 }
 
 #endif /* _KERNEL */
