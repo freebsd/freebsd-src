@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static int	build(char *, mode_t);
 static void	usage(void);
 
-int vflag;
+static int	vflag;
 
 int
 main(int argc, char *argv[])

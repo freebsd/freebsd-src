@@ -118,7 +118,7 @@ enum token_types {
 	PAREN
 };
 
-struct t_op {
+static struct t_op {
 	const char *op_text;
 	short op_num, op_type;
 } const ops [] = {
@@ -165,10 +165,10 @@ struct t_op {
 	{0,	0,	0}
 };
 
-struct t_op const *t_wp_op;
-int nargc;
-char **t_wp;
-int parenlevel;
+static struct t_op const *t_wp_op;
+static int nargc;
+static char **t_wp;
+static int parenlevel;
 
 static int	aexpr(enum token);
 static int	binop(void);
