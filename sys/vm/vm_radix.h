@@ -50,6 +50,8 @@ CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 	    ((h) == VM_RADIX_LIMIT ? ((vm_pindex_t)-1) :		\
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
+#ifdef _KERNEL
+
 struct vm_radix_node {
 	void		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
     	uint16_t	rn_count;			/* Valid children. */
@@ -97,4 +99,5 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index, int color)
         return (NULL);
 }
 
+#endif /* _KERNEL */
 #endif /* !_VM_RADIX_H_ */
