@@ -506,6 +506,32 @@ g_dev_strategy(struct bio *bp)
  */
 
 static void
+g_dev_cleanup(void *arg)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+
+	mtx_unlock(&Giant);
+	cp = arg;
+	gp = cp->geom;
+	g_trace(G_T_TOPOLOGY, "g_dev_cleanup(%p(%s))", cp, cp->provider->name);
+
+	/* Wait for the cows to come home */
+	while (cp->nstart != cp->nend)
+		pause("gdevcleanup", hz / 10);
+
+	g_topology_lock();
+	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+
+	g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+	g_topology_unlock();
+	mtx_lock(&Giant);
+}
+
+static void
 g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
@@ -521,18 +547,7 @@ g_dev_orphan(struct g_consumer *cp)
 		set_dumper(NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
-	destroy_dev(dev);
-
-	/* Wait for the cows to come home */
-	while (cp->nstart != cp->nend)
-		pause("gdevorphan", hz / 10);
-
-	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-
-	g_detach(cp);
-	g_destroy_consumer(cp);
-	g_destroy_geom(gp);
+	destroy_dev_sched_cb(dev, g_dev_cleanup, cp);
 }
 
 DECLARE_GEOM_CLASS(g_dev_class, g_dev);
