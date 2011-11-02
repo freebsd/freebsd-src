@@ -54,6 +54,7 @@ ENTRY(setjmp)
 	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
 	leaq	72(%rcx),%rdx		/* 9,10; (sigset_t*)oset */
+	/* stack is 16-byte aligned */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rdi
 	movq	%rdi,%rcx
@@ -81,7 +82,9 @@ ENTRY(__longjmp)
 	movq	$3,%rdi			/* SIG_SETMASK     */
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
 	movq	$0,%rdx			/* (sigset_t*)oset */
+	subq	$0x8,%rsp		/* make the stack 16-byte aligned */
 	call	PIC_PLT(CNAME(_sigprocmask))
+	addq	$0x8,%rsp
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */
 	movq	%rdi,%rdx
