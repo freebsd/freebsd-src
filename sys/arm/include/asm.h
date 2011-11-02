@@ -134,7 +134,8 @@
 #define _ARM_ARCH_7
 #endif
 
-#if defined (__ARM_ARCH_6__) || defined (__ARM_ARCH_6J__)
+#if defined(_ARM_ARCH_7) || defined (__ARM_ARCH_6__) || \
+    defined (__ARM_ARCH_6J__)
 #define _ARM_ARCH_6
 #endif
 
