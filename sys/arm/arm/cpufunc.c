@@ -1094,6 +1094,9 @@ get_cachetype_cp15()
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
 				arm_cache_type[sel] = csize;
+				arm_dcache_align = 1 << 
+				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
+				arm_dcache_align_mask = arm_dcache_align - 1;
 			}
 			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
 				sel = (i << 1) | 1;
