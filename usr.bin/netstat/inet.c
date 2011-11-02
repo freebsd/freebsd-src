@@ -680,6 +680,9 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n");
 	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n");
 
+	p(tcps_hc_added, "\t%lu hostcache entrie%s added\n");
+	p1a(tcps_hc_bucketoverflow, "\t\t%lu bucket overflow\n");
+
 	p(tcps_sack_recovery_episode, "\t%lu SACK recovery episode%s\n");
 	p(tcps_sack_rexmits,
 	    "\t%lu segment rexmit%s in SACK recovery episodes\n");
