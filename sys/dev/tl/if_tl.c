@@ -920,11 +920,8 @@ static void
 tl_hardreset(dev)
 	device_t		dev;
 {
-	struct tl_softc		*sc;
 	int			i;
 	u_int16_t		flags;
-
-	sc = device_get_softc(dev);
 
 	mii_bitbang_sync(dev, &tl_mii_bitbang_ops);
 
