@@ -3,6 +3,7 @@ ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARMFPE			opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
+ARM_L2_PIPT		opt_global.h
 ARM_USE_SMALL_ALLOC	opt_global.h
 AT91C_MASTER_CLOCK	opt_global.h
 AT91C_MAIN_CLOCK	opt_at91.h

@@ -485,7 +485,11 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
 		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
 			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
+#ifdef ARM_L2_PIPT
+			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
+#else
 			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
+#endif
 			pmap_kenter_nocache(tomap, physaddr);
 			cpu_tlb_flushID_SE(vaddr);
 			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
