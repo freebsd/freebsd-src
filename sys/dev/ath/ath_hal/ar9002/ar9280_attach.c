@@ -309,43 +309,55 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		ath_hal_printf(ah, "[ath]: default pwr offset: %d dBm != EEPROM pwr offset: %d dBm; curves will be adjusted.\n",
 		    AR5416_PWR_TABLE_OFFSET_DB, (int) pwr_table_offset);
 
-	/* XXX check for >= minor ver 17 */
 	if (AR_SREV_MERLIN_20(ah)) {
-		/* setup rxgain table */
-		switch (ath_hal_eepromGet(ah, AR_EEP_RXGAIN_TYPE, AH_NULL)) {
-		case AR5416_EEP_RXGAIN_13dB_BACKOFF:
-			HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
-			    ar9280Modes_backoff_13db_rxgain_v2, 6);
-			break;
-		case AR5416_EEP_RXGAIN_23dB_BACKOFF:
-			HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
-			    ar9280Modes_backoff_23db_rxgain_v2, 6);
-			break;
-		case AR5416_EEP_RXGAIN_ORIG:
+		if (EEP_MINOR(ah) >= AR5416_EEP_MINOR_VER_17) {
+			/* setup rxgain table */
+			switch (ath_hal_eepromGet(ah, AR_EEP_RXGAIN_TYPE,
+			    AH_NULL)) {
+			case AR5416_EEP_RXGAIN_13dB_BACKOFF:
+				HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
+				    ar9280Modes_backoff_13db_rxgain_v2, 6);
+				break;
+			case AR5416_EEP_RXGAIN_23dB_BACKOFF:
+				HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
+				    ar9280Modes_backoff_23db_rxgain_v2, 6);
+				break;
+			case AR5416_EEP_RXGAIN_ORIG:
+				HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
+				    ar9280Modes_original_rxgain_v2, 6);
+				break;
+			default:
+				HALASSERT(AH_FALSE);
+				goto bad;
+			}
+		} else {
+			/* Default to original RX gain */
 			HAL_INI_INIT(&ahp9280->ah_ini_rxgain,
 			    ar9280Modes_original_rxgain_v2, 6);
-			break;
-		default:
-			HALASSERT(AH_FALSE);
-			goto bad;		/* XXX ? try to continue */
 		}
 	}
 
-	/* XXX check for >= minor ver 19 */
 	if (AR_SREV_MERLIN_20(ah)) {
-		/* setp txgain table */
-		switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
-		case AR5416_EEP_TXGAIN_HIGH_POWER:
-			HAL_INI_INIT(&ahp9280->ah_ini_txgain,
-			    ar9280Modes_high_power_tx_gain_v2, 6);
-			break;
-		case AR5416_EEP_TXGAIN_ORIG:
+		if (EEP_MINOR(ah) >= AR5416_EEP_MINOR_VER_19) {
+			/* setp txgain table */
+			switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE,
+			    AH_NULL)) {
+			case AR5416_EEP_TXGAIN_HIGH_POWER:
+				HAL_INI_INIT(&ahp9280->ah_ini_txgain,
+				    ar9280Modes_high_power_tx_gain_v2, 6);
+				break;
+			case AR5416_EEP_TXGAIN_ORIG:
+				HAL_INI_INIT(&ahp9280->ah_ini_txgain,
+				    ar9280Modes_original_tx_gain_v2, 6);
+				break;
+			default:
+				HALASSERT(AH_FALSE);
+				goto bad;
+			}
+		} else {
+			/* Default to original TX gain */
 			HAL_INI_INIT(&ahp9280->ah_ini_txgain,
 			    ar9280Modes_original_tx_gain_v2, 6);
-			break;
-		default:
-			HALASSERT(AH_FALSE);
-			goto bad;		/* XXX ? try to continue */
 		}
 	}
 
