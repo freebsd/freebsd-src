@@ -131,7 +131,7 @@ ar9280InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_DELAY(RTC_PLL_SETTLE_DELAY);
 	OS_REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_SLEEP_DERIVED_CLK);
 }
-
+	
 /* XXX shouldn't be here! */
 #define	EEP_MINOR(_ah) \
 	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
@@ -688,7 +688,9 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
     for (i = 0; i < 123; i++) {
         if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-            if ((abs(cur_vit_mask - bin)) < 75) {
+            /* XXX GCC 4.2.4 workaround? */
+            volatile int tmp_abs = abs(cur_vit_mask - bin);
+            if (tmp_abs < 75) {
                 mask_amt = 1;
             } else {
                 mask_amt = 0;
