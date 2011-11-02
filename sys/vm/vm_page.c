@@ -1482,6 +1482,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
  * Initialize a page that has been freshly dequeued from a freelist.
  * The caller has to drop the vnode returned, if it is not NULL.
  *
+ * This function may only be used to initialize unmanaged pages.
+ *
  * To be called with vm_page_queue_free_mtx held.
  */
 struct vnode *
@@ -1507,11 +1509,12 @@ vm_page_alloc_init(vm_page_t m)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	drop = NULL;
 	if ((m->flags & PG_CACHED) != 0) {
+		KASSERT((m->flags & PG_ZERO) == 0,
+		    ("vm_page_alloc_init: cached page %p is PG_ZERO", m));
 		m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);
-		if (m_object->type == OBJT_VNODE &&
-		    m_object->cache == NULL)
+		if (m_object->type == OBJT_VNODE && m_object->cache == NULL)
 			drop = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -1519,9 +1522,9 @@ vm_page_alloc_init(vm_page_t m)
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc_init: free page %p is valid", m));
 		cnt.v_free_count--;
+		if ((m->flags & PG_ZERO) != 0)
+			vm_page_zero_count--;
 	}
-	if (m->flags & PG_ZERO)
-		vm_page_zero_count--;
 	/* Don't clear the PG_ZERO flag; we'll need it later. */
 	m->flags &= PG_ZERO;
 	m->aflags = 0;
@@ -1532,16 +1535,28 @@ vm_page_alloc_init(vm_page_t m)
 
 /*
  * 	vm_page_alloc_freelist:
- * 
- *	Allocate a page from the specified freelist.
- *	Only the ALLOC_CLASS values in req are honored, other request flags
- *	are ignored.
+ *
+ *	Allocate a physical page from the specified free page list.
+ *
+ *	The caller must always specify an allocation class.
+ *
+ *	allocation classes:
+ *	VM_ALLOC_NORMAL		normal process request
+ *	VM_ALLOC_SYSTEM		system *really* needs a page
+ *	VM_ALLOC_INTERRUPT	interrupt time request
+ *
+ *	optional allocation flags:
+ *	VM_ALLOC_WIRED		wire the allocated page
+ *	VM_ALLOC_ZERO		prefer a zeroed page
+ *
+ *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_freelist(int flind, int req)
 {
 	struct vnode *drop;
 	vm_page_t m;
+	u_int flags;
 	int page_req;
 
 	m = NULL;
@@ -1563,8 +1578,26 @@ vm_page_alloc_freelist(int flind, int req)
 	}
 	drop = vm_page_alloc_init(m);
 	mtx_unlock(&vm_page_queue_free_mtx);
-	if (drop)
+
+	/*
+	 * Initialize the page.  Only the PG_ZERO flag is inherited.
+	 */
+	flags = 0;
+	if ((req & VM_ALLOC_ZERO) != 0)
+		flags = PG_ZERO;
+	m->flags &= flags;
+	if ((req & VM_ALLOC_WIRED) != 0) {
+		/*
+		 * The page lock is not required for wiring a page that does
+		 * not belong to an object.
+		 */
+		atomic_add_int(&cnt.v_wire_count, 1);
+		m->wire_count = 1;
+	}
+	if (drop != NULL)
 		vdrop(drop);
+	if (vm_paging_needed())
+		pagedaemon_wakeup();
 	return (m);
 }
 
