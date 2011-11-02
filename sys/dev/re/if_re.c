@@ -171,7 +171,7 @@ TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct rl_type re_devs[] = {
+static const struct rl_type const re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_528T, 0,
 	    "D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
@@ -194,8 +194,8 @@ static struct rl_type re_devs[] = {
 	    "US Robotics 997902 (RTL8169S) Gigabit Ethernet" }
 };
 
-static struct rl_hwrev re_hwrevs[] = {
-	{ RL_HWREV_8139, RL_8139,  "", RL_MTU },
+static const struct rl_hwrev const re_hwrevs[] = {
+	{ RL_HWREV_8139, RL_8139, "", RL_MTU },
 	{ RL_HWREV_8139A, RL_8139, "A", RL_MTU },
 	{ RL_HWREV_8139AG, RL_8139, "A-G", RL_MTU },
 	{ RL_HWREV_8139B, RL_8139, "B", RL_MTU },
@@ -868,7 +868,7 @@ re_diag(struct rl_softc *sc)
 		device_printf(sc->rl_dev, "expected TX data: %6D/%6D/0x%x\n",
 		    dst, ":", src, ":", ETHERTYPE_IP);
 		device_printf(sc->rl_dev, "received RX data: %6D/%6D/0x%x\n",
-		    eh->ether_dhost, ":",  eh->ether_shost, ":",
+		    eh->ether_dhost, ":", eh->ether_shost, ":",
 		    ntohs(eh->ether_type));
 		device_printf(sc->rl_dev, "You may have a defective 32-bit "
 		    "NIC plugged into a 64-bit PCI slot.\n");
@@ -903,7 +903,7 @@ done:
 static int
 re_probe(device_t dev)
 {
-	struct rl_type		*t;
+	const struct rl_type	*t;
 	uint16_t		devid, vendor;
 	uint16_t		revid, sdevid;
 	int			i;
@@ -1183,7 +1183,7 @@ re_attach(device_t dev)
 	u_int16_t		as[ETHER_ADDR_LEN / 2];
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
-	struct rl_hwrev		*hw_rev;
+	const struct rl_hwrev	*hw_rev;
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
 	int			error = 0, i, phy, rid;
