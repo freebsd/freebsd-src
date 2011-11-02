@@ -45,11 +45,13 @@
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
+#else
+#include <machine/cpuconf.h>
 #endif
 
-#define	mb()
-#define	wmb()
-#define	rmb()
+#define mb()
+#define wmb()
+#define rmb()
 
 #ifndef I32_bit
 #define I32_bit (1 << 7)        /* IRQ disable */
@@ -57,6 +59,118 @@
 #ifndef F32_bit
 #define F32_bit (1 << 6)        /* FIQ disable */
 #endif
+
+/* XXX: Rethink for userland later as those won't be defined */
+#if defined(ARM_ARCH_6) || defined(ARM_ARCH_7) 
+
+static __inline void
+atomic_set_32(volatile uint32_t *address, uint32_t setmask)
+{
+	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "orr %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			   : "=&r" (tmp), "+r" (tmp2)
+			   , "+r" (address), "+r" (setmask) : : "memory");
+			     
+}
+
+static __inline void
+atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
+{
+	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "bic %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			   : "=&r" (tmp), "+r" (tmp2)
+			   ,"+r" (address), "+r" (setmask) : : "memory");
+}
+
+static __inline u_int32_t
+atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
+{
+	uint32_t ret;
+	
+	__asm __volatile("1: ldrex %0, [%1]\n"
+	                 "cmp %0, %2\n"
+			 "movne %0, #0\n"
+			 "bne 2f\n"
+			 "strex %0, %3, [%1]\n"
+			 "cmp %0, #0\n"
+			 "bne	1b\n"
+			 "moveq %0, #1\n"
+			 "2:"
+			 : "=&r" (ret)
+			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
+	return (ret);
+}
+
+static __inline void
+atomic_add_32(volatile u_int32_t *p, u_int32_t val)
+{
+	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "add %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			    : "=&r" (tmp), "+r" (tmp2)
+			    ,"+r" (p), "+r" (val) : : "memory");
+}
+
+static __inline void
+atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
+{
+	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "sub %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			    : "=&r" (tmp), "+r" (tmp2)
+			    ,"+r" (p), "+r" (val) : : "memory");
+}
+
+static __inline uint32_t
+atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp = 0, tmp2 = 0, ret = 0;
+
+	__asm __volatile("1: ldrex %0, [%3]\n"
+	    		    "add %1, %0, %4\n"
+			    "strex %2, %1, [%3]\n"
+			    "cmp %2, #0\n"
+			    "bne	1b\n"
+			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
+			   ,"+r" (p), "+r" (val) : : "memory");
+	return (ret);
+}
+
+static __inline uint32_t
+atomic_readandclear_32(volatile u_int32_t *p)
+{
+	uint32_t ret, tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%3]\n"
+	    		 "mov %1, #0\n"
+			 "strex %2, %1, [%3]\n"
+			 "cmp %2, #0\n"
+			 "bne 1b\n"
+			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
+			 ,"+r" (p) : : "memory");
+	return (ret);
+}
+
+
+#else /* < armv6 */
 
 #define __with_interrupts_disabled(expr) \
 	do {						\
@@ -288,6 +402,20 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	    
 #endif /* _KERNEL */
 
+
+static __inline uint32_t
+atomic_readandclear_32(volatile u_int32_t *p)
+{
+
+	return (__swp(0, p));
+}
+
+#undef __with_interrupts_disabled
+
+#endif /* _LOCORE */
+
+#endif /* Arch >= v6 */
+
 static __inline int
 atomic_load_32(volatile uint32_t *v)
 {
@@ -300,17 +428,6 @@ atomic_store_32(volatile uint32_t *dst, uint32_t src)
 {
 	*dst = src;
 }
-
-static __inline uint32_t
-atomic_readandclear_32(volatile u_int32_t *p)
-{
-
-	return (__swp(0, p));
-}
-
-#undef __with_interrupts_disabled
-
-#endif /* _LOCORE */
 
 #define	atomic_add_long(p, v) \
 	atomic_add_32((volatile u_int *)(p), (u_int)(v))
@@ -384,5 +501,6 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_cmpset_rel_32		atomic_cmpset_32
 #define atomic_load_acq_32		atomic_load_32
 #define atomic_store_rel_32		atomic_store_32
+
 
 #endif /* _MACHINE_ATOMIC_H_ */
