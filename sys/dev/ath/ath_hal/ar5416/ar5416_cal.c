@@ -627,6 +627,10 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			else
 				nf_val = default_nf;
 
+			/* Override */
+			if (ah->ah_config.ah_cca != 0)
+				nf_val = ah->ah_config.ah_cca;
+
 			val = OS_REG_READ(ah, ar5416_cca_regs[i]);
 			val &= 0xFFFFFE00;
 			val |= (((uint32_t) nf_val << 1) & 0x1ff);

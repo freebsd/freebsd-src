@@ -780,6 +780,7 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
+	int ah_cca;
 } HAL_OPS_CONFIG;
 
 /*
