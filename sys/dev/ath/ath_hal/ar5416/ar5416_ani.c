@@ -726,6 +726,19 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 
 	aniState = ahp->ah_curani;
 	params = aniState->params;
+
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, lower Firstep level, down to min, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel > 0) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel - 1))
+				return;
+		}
+	}
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
@@ -740,41 +753,41 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 			 * detection or lower firstep level.
 			 */
 			if (aniState->ofdmWeakSigDetectOff) {
-				ar5416AniControl(ah,
+				if (ar5416AniControl(ah,
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				    AH_TRUE);
-				return;
+				    AH_TRUE))
+					return;
 			}
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		} else {
 			/*
 			 * Beacon rssi is low, reduce firstep level.
 			 */
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		}
 	}
 	/* then lower spur immunity level, down to zero */
 	if (aniState->spurImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel - 1))
+			return;
 	}
 	/* 
 	 * if all else fails, lower noise immunity level down to a min value
 	 * zero for now
 	 */
 	if (aniState->noiseImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
-				 aniState->noiseImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
+				 aniState->noiseImmunityLevel - 1))
+			return;
 	}
 }
 
