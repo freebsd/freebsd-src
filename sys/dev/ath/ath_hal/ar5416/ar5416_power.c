@@ -36,7 +36,7 @@
 static HAL_BOOL
 ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 {
-#define	POWER_UP_TIME	200000
+#define	POWER_UP_TIME	10000
 	uint32_t val;
 	int i = 0;
 
@@ -50,6 +50,7 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 			& AR_RTC_PM_STATUS_M) == AR_RTC_STATUS_SHUTDOWN) {
 			if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 				goto bad;			
+			ar5416InitPLL(ah, AH_NULL);
 		}
 
 		if (AR_SREV_HOWL(ah))
