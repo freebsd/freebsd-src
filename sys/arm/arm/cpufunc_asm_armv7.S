@@ -141,6 +141,10 @@ ENTRY(armv7_idcache_wbinv_all)
 
 ENTRY(armv7_dcache_wb_range)
 	ldr	ip, .Larmv7_line_size
+	sub	r3, ip, #1
+	and	r2, r0, r3
+	add	r1, r1, r2
+	bic	r0, r0, r3
 .Larmv7_wb_next:
 	mcr	p15, 0, r0, c7, c10, 1	/* Clean D cache SE with VA */
 	add	r0, r0, ip
@@ -151,6 +155,10 @@ ENTRY(armv7_dcache_wb_range)
 
 ENTRY(armv7_dcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
+	sub     r3, ip, #1
+	and     r2, r0, r3
+	add     r1, r1, r2
+	bic     r0, r0, r3
 .Larmv7_wbinv_next:
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
 	add	r0, r0, ip
@@ -165,6 +173,10 @@ ENTRY(armv7_dcache_wbinv_range)
  */
 ENTRY(armv7_dcache_inv_range)
 	ldr	ip, .Larmv7_line_size
+	sub     r3, ip, #1
+	and     r2, r0, r3
+	add     r1, r1, r2
+	bic     r0, r0, r3
 .Larmv7_inv_next:
 	mcr	p15, 0, r0, c7, c6, 1	/* Invalidate D cache SE with VA */
 	add	r0, r0, ip
@@ -175,6 +187,10 @@ ENTRY(armv7_dcache_inv_range)
 
 ENTRY(armv7_idcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
+	sub     r3, ip, #1
+	and     r2, r0, r3
+	add     r1, r1, r2
+	bic     r0, r0, r3
 .Larmv7_id_wbinv_next:
 	mcr	p15, 0, r0, c7, c5, 1	/* Invalidate I cache SE with VA */
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
