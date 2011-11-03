@@ -1209,6 +1209,13 @@ ar5416PhyDisable(struct ath_hal *ah)
 HAL_BOOL
 ar5416SetResetReg(struct ath_hal *ah, uint32_t type)
 {
+
+	/*
+	 * Set force wake
+	 */
+	OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE,
+	    AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
+
 	switch (type) {
 	case HAL_RESET_POWER_ON:
 		return ar5416SetResetPowerOn(ah);
@@ -1239,10 +1246,16 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
             AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);    
 
     /*
-     * RTC reset and clear
+     * PowerOn reset can be used in open loop power control or failure recovery.
+     * If we do RTC reset while DMA is still running, hardware may corrupt memory.
+     * Therefore, we need to reset AHB first to stop DMA.
      */
     if (! AR_SREV_HOWL(ah))
     	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+
+    /*
+     * RTC reset and clear
+     */
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
 
@@ -1293,6 +1306,11 @@ ar5416SetReset(struct ath_hal *ah, int type)
 #endif	/* AH_SUPPORT_AR9130 */
         /*
          * Reset AHB
+	 *
+	 * (In case the last interrupt source was a bus timeout.)
+	 * XXX TODO: this is not the way to do it! It should be recorded
+	 * XXX by the interrupt handler and passed _into_ the
+	 * XXX reset path routine so this occurs.
          */
         tmpReg = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
         if (tmpReg & (AR_INTR_SYNC_LOCAL_TIMEOUT|AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
