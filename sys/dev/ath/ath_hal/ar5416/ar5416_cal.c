@@ -217,7 +217,7 @@ ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* Poll for offset calibration complete */
 	if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
 		    "%s: offset calibration did not complete in 1ms; "
 		    "noisy environment?\n", __func__);
 		return AH_FALSE;
@@ -251,7 +251,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* Do initial chipset-specific calibration */
 	if (! AH5416(ah)->ah_cal_initcal(ah, chan)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
 		    "%s: initial chipset calibration did "
 		    "not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
@@ -656,7 +656,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		 * here, the baseband nf cal will just be capped by our present
 		 * noisefloor until the next calibration timer.
 		 */
-		HALDEBUG(ah, HAL_DEBUG_NFCAL, "Timeout while waiting for "
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "Timeout while waiting for "
 		    "nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
 		return;
