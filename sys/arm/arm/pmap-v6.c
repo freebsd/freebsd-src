@@ -2377,6 +2377,7 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 #else
 		cpu_l2cache_wbinv_range(tmpva, PAGE_SIZE);
 #endif
+		*ptep = pte;
 		cpu_tlb_flushID_SE(tmpva);
 
 		dprintf("%s: for va:%x ptep:%x pte:%x\n",
