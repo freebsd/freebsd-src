@@ -531,26 +531,8 @@ struct dc_mediainfo {
 struct dc_type {
 	uint32_t		dc_devid;
 	uint8_t			dc_minrev;
-	char			*dc_name;
+	const char		*dc_name;
 };
-
-struct dc_mii_frame {
-	uint8_t			mii_stdelim;
-	uint8_t			mii_opcode;
-	uint8_t			mii_phyaddr;
-	uint8_t			mii_regaddr;
-	uint8_t			mii_turnaround;
-	uint16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define	DC_MII_STARTDELIM	0x01
-#define	DC_MII_READOP		0x02
-#define	DC_MII_WRITEOP		0x01
-#define	DC_MII_TURNAROUND	0x02
-
 
 /*
  * Registers specific to clone devices.
@@ -827,7 +809,7 @@ struct dc_softc {
 #define	CSR_READ_4(sc, reg)		\
 	bus_space_read_4(sc->dc_btag, sc->dc_bhandle, reg)
 
-#define	CSR_BARRIER_4(sc, reg, flags)		\
+#define	CSR_BARRIER_4(sc, reg, flags)					\
 	bus_space_barrier(sc->dc_btag, sc->dc_bhandle, reg, 4, flags)
 
 #define	DC_TIMEOUT		1000
