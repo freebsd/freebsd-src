@@ -164,6 +164,8 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
+	AH5416(ah)->ah_initPLL(ah, AH_NULL);
+
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: couldn't wakeup chip\n",
 		    __func__);
