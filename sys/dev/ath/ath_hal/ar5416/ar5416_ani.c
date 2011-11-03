@@ -384,18 +384,29 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 	aniState = ahp->ah_curani;
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_NOISE_IMMUNITY_LEVEL)) &&
-	    (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
-				 aniState->noiseImmunityLevel + 1);
+	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
+				 aniState->noiseImmunityLevel + 1))
 		return;
 	}
 	/* then, raise spur immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_SPUR_IMMUNITY_LEVEL)) &&
-	    (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel + 1);
+	if (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel + 1))
 		return;
+	}
+
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, raise Firstep level, up to max, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel < params->maxFirstepLevel) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel + 1))
+				return;
+		}
 	}
 
 	if (ANI_ENA_RSSI(ah)) {
@@ -418,8 +429,8 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			 * raise firstep level 
 			 */
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel + 1);
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel + 1))
 				return;
 			}
 		} else if (rssi > params->rssiThrLow) {
@@ -432,9 +443,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-				     aniState->firstepLevel + 1);
-			return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+				     aniState->firstepLevel + 1))
+				return;
 		} else {
 			/* 
 			 * Beacon rssi is low, if in 11b/g mode, turn off ofdm
@@ -447,8 +458,8 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 					    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 					    AH_FALSE);
 				if (aniState->firstepLevel > 0)
-					ar5416AniControl(ah,
-					     HAL_ANI_FIRSTEP_LEVEL, 0);
+					(ar5416AniControl(ah,
+					     HAL_ANI_FIRSTEP_LEVEL, 0));
 				return;
 			}
 		}
