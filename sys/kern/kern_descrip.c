@@ -2575,12 +2575,6 @@ _fdrop(struct file *fp, struct thread *td)
 		panic("fdrop: count %d", fp->f_count);
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, td);
-	/*
-	 * The f_cdevpriv cannot be assigned non-NULL value while we
-	 * are destroying the file.
-	 */
-	if (fp->f_cdevpriv != NULL)
-		devfs_fpdrop(fp);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
 	uma_zfree(file_zone, fp);
