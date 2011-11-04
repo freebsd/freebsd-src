@@ -1863,6 +1863,60 @@ skipmemq:
 }
 
 /*
+ *	vm_object_page_cache:
+ *
+ *	For the given object, attempt to move the specified clean
+ *	pages to the cache queue.  If a page is wired for any reason,
+ *	then it will not be changed.  Pages are specified by the given
+ *	range ["start", "end").  As a special case, if "end" is zero,
+ *	then the range extends from "start" to the end of the object.
+ *	Any mappings to the specified pages are removed before the
+ *	pages are moved to the cache queue.
+ *
+ *	This operation should only be performed on objects that
+ *	contain managed pages.
+ *
+ *	The object must be locked.
+ */
+void
+vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+{
+	struct mtx *mtx, *new_mtx;
+	vm_page_t p, next;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_SG &&
+	    object->type != OBJT_PHYS),
+	    ("vm_object_page_cache: illegal object %p", object));
+	if (object->resident_page_count == 0)
+		return;
+	p = vm_page_find_least(object, start);
+
+	/*
+	 * Here, the variable "p" is either (1) the page with the least pindex
+	 * greater than or equal to the parameter "start" or (2) NULL. 
+	 */
+	mtx = NULL;
+	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
+		next = TAILQ_NEXT(p, listq);
+
+		/*
+		 * Avoid releasing and reacquiring the same page lock.
+		 */
+		new_mtx = vm_page_lockptr(p);
+		if (mtx != new_mtx) {
+			if (mtx != NULL)
+				mtx_unlock(mtx);
+			mtx = new_mtx;
+			mtx_lock(mtx);
+		}
+		vm_page_try_to_cache(p);
+	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+}
+
+/*
  *	Populate the specified range of the object with valid pages.  Returns
  *	TRUE if the range is successfully populated and FALSE otherwise.
  *
