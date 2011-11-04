@@ -232,7 +232,7 @@ mpt_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	switch ((pci_get_device(dev) & ~1)) {
+	switch (pci_get_device(dev)) {
 	case PCI_PRODUCT_LSI_FC909:
 		desc = "LSILogic FC909 FC Adapter";
 		break;
