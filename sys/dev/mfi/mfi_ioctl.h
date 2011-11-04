@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <dev/mfi/mfireg.h>
+#include <machine/bus.h>
 
 #if defined(__amd64__) /* Assume amd64 wants 32 bit Linux */
 struct iovec32 {
@@ -35,6 +36,12 @@ struct iovec32 {
 	int		iov_len;
 };
 #endif
+
+struct megasas_sge
+{
+	bus_addr_t phys_addr;
+	uint32_t length;
+};
 
 #define MFIQ_FREE	0
 #define MFIQ_BIO	1
