@@ -485,6 +485,8 @@ isBigEndian(void)
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
 	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
+#define	OS_A_REG_WRITE(_a, _r, _v) \
+	do { OS_REG_WRITE(_a, _r, _v) ; OS_DELAY(100); } while (0)
 
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
