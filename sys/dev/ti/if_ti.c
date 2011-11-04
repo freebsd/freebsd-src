@@ -140,7 +140,6 @@ typedef enum {
 	TI_SWAP_NTOH
 } ti_swap_type;
 
-
 /*
  * Various supported device vendors/types and their names.
  */
@@ -210,9 +209,10 @@ static void ti_setmulti(struct ti_softc *);
 static void ti_mem_read(struct ti_softc *, u_int32_t, u_int32_t, void *);
 static void ti_mem_write(struct ti_softc *, u_int32_t, u_int32_t, void *);
 static void ti_mem_zero(struct ti_softc *, u_int32_t, u_int32_t);
-static int ti_copy_mem(struct ti_softc *, u_int32_t, u_int32_t, caddr_t, int, int);
+static int ti_copy_mem(struct ti_softc *, u_int32_t, u_int32_t, caddr_t, int,
+    int);
 static int ti_copy_scratch(struct ti_softc *, u_int32_t, u_int32_t, caddr_t,
-		int, int, int);
+    int, int, int);
 static int ti_bcopy_swap(const void *, void *, size_t, ti_swap_type);
 static void ti_loadfw(struct ti_softc *);
 static void ti_cmd(struct ti_softc *, struct ti_cmd_desc *);
@@ -242,8 +242,8 @@ static int ti_chipinit(struct ti_softc *);
 static int ti_gibinit(struct ti_softc *);
 
 #ifdef TI_JUMBO_HDRSPLIT
-static __inline void ti_hdr_split	(struct mbuf *top, int hdr_len,
-					     int pkt_len, int idx);
+static __inline void ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len,
+    int idx);
 #endif /* TI_JUMBO_HDRSPLIT */
 
 static device_method_t ti_methods[] = {
@@ -270,9 +270,10 @@ MODULE_DEPEND(ti, ether, 1, 1, 1);
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
  */
-static u_int32_t ti_eeprom_putbyte(struct ti_softc *sc, int byte)
+static u_int32_t
+ti_eeprom_putbyte(struct ti_softc *sc, int byte)
 {
-	int			i, ack = 0;
+	int i, ack = 0;
 
 	/*
 	 * Make sure we're in TX mode.
@@ -314,10 +315,11 @@ static u_int32_t ti_eeprom_putbyte(struct ti_softc *sc, int byte)
  * We have to send two address bytes since the EEPROM can hold
  * more than 256 bytes of data.
  */
-static u_int8_t ti_eeprom_getbyte(struct ti_softc *sc, int addr, u_int8_t *dest)
+static u_int8_t
+ti_eeprom_getbyte(struct ti_softc *sc, int addr, u_int8_t *dest)
 {
-	int			i;
-	u_int8_t		byte = 0;
+	int i;
+	u_int8_t byte = 0;
 
 	EEPROM_START;
 
@@ -390,8 +392,8 @@ static u_int8_t ti_eeprom_getbyte(struct ti_softc *sc, int addr, u_int8_t *dest)
 static int
 ti_read_eeprom(struct ti_softc *sc, caddr_t dest, int off, int cnt)
 {
-	int			err = 0, i;
-	u_int8_t		byte = 0;
+	int err = 0, i;
+	u_int8_t byte = 0;
 
 	for (i = 0; i < cnt; i++) {
 		err = ti_eeprom_getbyte(sc, off + i, &byte);
@@ -410,8 +412,8 @@ ti_read_eeprom(struct ti_softc *sc, caddr_t dest, int off, int cnt)
 static void
 ti_mem_read(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 {
-	int			segptr, segsize, cnt;
-	char			*ptr;
+	int segptr, segsize, cnt;
+	char *ptr;
 
 	segptr = addr;
 	cnt = len;
@@ -440,8 +442,8 @@ ti_mem_read(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 static void
 ti_mem_write(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 {
-	int			segptr, segsize, cnt;
-	char			*ptr;
+	int segptr, segsize, cnt;
+	char *ptr;
 
 	segptr = addr;
 	cnt = len;
@@ -469,7 +471,7 @@ ti_mem_write(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 static void
 ti_mem_zero(struct ti_softc *sc, u_int32_t addr, u_int32_t len)
 {
-	int			segptr, segsize, cnt;
+	int segptr, segsize, cnt;
 
 	segptr = addr;
 	cnt = len;
@@ -491,12 +493,12 @@ static int
 ti_copy_mem(struct ti_softc *sc, u_int32_t tigon_addr, u_int32_t len,
     caddr_t buf, int useraddr, int readdata)
 {
-	int		segptr, segsize, cnt;
-	caddr_t		ptr;
-	u_int32_t	origwin;
-	u_int8_t	tmparray[TI_WINLEN], tmparray2[TI_WINLEN];
-	int		resid, segresid;
-	int		first_pass;
+	int segptr, segsize, cnt;
+	caddr_t ptr;
+	u_int32_t origwin;
+	u_int8_t tmparray[TI_WINLEN], tmparray2[TI_WINLEN];
+	int resid, segresid;
+	int first_pass;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -687,10 +689,10 @@ static int
 ti_copy_scratch(struct ti_softc *sc, u_int32_t tigon_addr, u_int32_t len,
     caddr_t buf, int useraddr, int readdata, int cpu)
 {
-	u_int32_t	segptr;
-	int		cnt;
-	u_int32_t	tmpval, tmpval2;
-	caddr_t		ptr;
+	u_int32_t segptr;
+	int cnt;
+	u_int32_t tmpval, tmpval2;
+	caddr_t ptr;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -875,7 +877,7 @@ ti_loadfw(struct ti_softc *sc)
 static void
 ti_cmd(struct ti_softc *sc, struct ti_cmd_desc *cmd)
 {
-	int			index;
+	int index;
 
 	index = sc->ti_cmd_saved_prodidx;
 	CSR_WRITE_4(sc, TI_GCR_CMDRING + (index * 4), *(u_int32_t *)(cmd));
@@ -891,8 +893,8 @@ ti_cmd(struct ti_softc *sc, struct ti_cmd_desc *cmd)
 static void
 ti_cmd_ext(struct ti_softc *sc, struct ti_cmd_desc *cmd, caddr_t arg, int len)
 {
-	int			index;
-	int			i;
+	int index;
+	int i;
 
 	index = sc->ti_cmd_saved_prodidx;
 	CSR_WRITE_4(sc, TI_GCR_CMDRING + (index * 4), *(u_int32_t *)(cmd));
@@ -912,7 +914,7 @@ ti_cmd_ext(struct ti_softc *sc, struct ti_cmd_desc *cmd, caddr_t arg, int len)
 static void
 ti_handle_events(struct ti_softc *sc)
 {
-	struct ti_event_desc	*e;
+	struct ti_event_desc *e;
 
 	if (sc->ti_rdata->ti_event_ring == NULL)
 		return;
@@ -1055,9 +1057,9 @@ ti_free_dmamaps(struct ti_softc *sc)
 static int
 ti_alloc_jumbo_mem(struct ti_softc *sc)
 {
-	caddr_t			ptr;
-	int			i;
-	struct ti_jpool_entry   *entry;
+	struct ti_jpool_entry *entry;
+	caddr_t ptr;
+	int i;
 
 	/*
 	 * Grab a big chunk o' storage.  Since we are chopping this pool up
@@ -1117,7 +1119,7 @@ ti_alloc_jumbo_mem(struct ti_softc *sc)
  */
 static void *ti_jalloc(struct ti_softc *sc)
 {
-	struct ti_jpool_entry	*entry;
+	struct ti_jpool_entry *entry;
 
 	entry = SLIST_FIRST(&sc->ti_jfree_listhead);
 
@@ -1137,9 +1139,9 @@ static void *ti_jalloc(struct ti_softc *sc)
 static void
 ti_jfree(void *buf, void *args)
 {
-	struct ti_softc		*sc;
-	int			i;
-	struct ti_jpool_entry	*entry;
+	struct ti_softc *sc;
+	int i;
+	struct ti_jpool_entry *entry;
 
 	/* Extract the softc struct pointer. */
 	sc = (struct ti_softc *)args;
@@ -1198,11 +1200,11 @@ ti_alloc_jumbo_mem(struct ti_softc *sc)
 static int
 ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
 {
-	bus_dmamap_t		map;
-	bus_dma_segment_t	segs;
-	struct mbuf		*m_new = NULL;
-	struct ti_rx_desc	*r;
-	int			nsegs;
+	bus_dmamap_t map;
+	bus_dma_segment_t segs;
+	struct mbuf *m_new = NULL;
+	struct ti_rx_desc *r;
+	int nsegs;
 
 	nsegs = 0;
 	if (m == NULL) {
@@ -1250,11 +1252,11 @@ ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
 static int
 ti_newbuf_mini(struct ti_softc *sc, int i, struct mbuf *m)
 {
-	bus_dma_segment_t	segs;
-	bus_dmamap_t		map;
-	struct mbuf		*m_new = NULL;
-	struct ti_rx_desc	*r;
-	int			nsegs;
+	bus_dma_segment_t segs;
+	bus_dmamap_t map;
+	struct mbuf *m_new = NULL;
+	struct ti_rx_desc *r;
+	int nsegs;
 
 	nsegs = 0;
 	if (m == NULL) {
@@ -1299,14 +1301,14 @@ ti_newbuf_mini(struct ti_softc *sc, int i, struct mbuf *m)
 static int
 ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
 {
-	bus_dmamap_t		map;
-	struct mbuf		*m_new = NULL;
-	struct ti_rx_desc	*r;
-	int			nsegs;
-	bus_dma_segment_t	segs;
+	bus_dmamap_t map;
+	struct mbuf *m_new = NULL;
+	struct ti_rx_desc *r;
+	int nsegs;
+	bus_dma_segment_t segs;
 
 	if (m == NULL) {
-		caddr_t			*buf = NULL;
+		caddr_t *buf = NULL;
 
 		/* Allocate the mbuf. */
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
@@ -1367,8 +1369,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
 #define TCP_HDR_LEN (52 + sizeof(struct ether_header))
 #define UDP_HDR_LEN (28 + sizeof(struct ether_header))
 #define NFS_HDR_LEN (UDP_HDR_LEN)
-static int HDR_LEN =  TCP_HDR_LEN;
-
+static int HDR_LEN = TCP_HDR_LEN;
 
 /*
  * Initialize a jumbo receive ring descriptor. This allocates
@@ -1377,17 +1378,17 @@ static int HDR_LEN =  TCP_HDR_LEN;
 static int
 ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 {
-	bus_dmamap_t		map;
-	struct mbuf		*cur, *m_new = NULL;
-	struct mbuf		*m[3] = {NULL, NULL, NULL};
-	struct ti_rx_desc_ext	*r;
-	vm_page_t		frame;
-	static int		color;
-				/* 1 extra buf to make nobufs easy*/
-	struct sf_buf		*sf[3] = {NULL, NULL, NULL};
-	int			i;
-	bus_dma_segment_t	segs[4];
-	int			nsegs;
+	bus_dmamap_t map;
+	struct mbuf *cur, *m_new = NULL;
+	struct mbuf *m[3] = {NULL, NULL, NULL};
+	struct ti_rx_desc_ext *r;
+	vm_page_t frame;
+	static int color;
+	/* 1 extra buf to make nobufs easy*/
+	struct sf_buf *sf[3] = {NULL, NULL, NULL};
+	int i;
+	bus_dma_segment_t segs[4];
+	int nsegs;
 
 	if (m_old != NULL) {
 		m_new = m_old;
@@ -1520,8 +1521,6 @@ nobufs:
 }
 #endif
 
-
-
 /*
  * The standard receive ring has 512 entries in it. At 2K per mbuf cluster,
  * that's 1MB or memory, which is a lot. For now, we fill only the first
@@ -1531,8 +1530,8 @@ nobufs:
 static int
 ti_init_rx_ring_std(struct ti_softc *sc)
 {
-	int			i;
-	struct ti_cmd_desc	cmd;
+	int i;
+	struct ti_cmd_desc cmd;
 
 	for (i = 0; i < TI_SSLOTS; i++) {
 		if (ti_newbuf_std(sc, i, NULL) == ENOBUFS)
@@ -1548,8 +1547,8 @@ ti_init_rx_ring_std(struct ti_softc *sc)
 static void
 ti_free_rx_ring_std(struct ti_softc *sc)
 {
-	bus_dmamap_t		map;
-	int			i;
+	bus_dmamap_t map;
+	int i;
 
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_std_chain[i] != NULL) {
@@ -1568,8 +1567,8 @@ ti_free_rx_ring_std(struct ti_softc *sc)
 static int
 ti_init_rx_ring_jumbo(struct ti_softc *sc)
 {
-	int			i;
-	struct ti_cmd_desc	cmd;
+	struct ti_cmd_desc cmd;
+	int i;
 
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (ti_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
@@ -1585,8 +1584,8 @@ ti_init_rx_ring_jumbo(struct ti_softc *sc)
 static void
 ti_free_rx_ring_jumbo(struct ti_softc *sc)
 {
-	bus_dmamap_t		map;
-	int			i;
+	bus_dmamap_t map;
+	int i;
 
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_jumbo_chain[i] != NULL) {
@@ -1605,7 +1604,7 @@ ti_free_rx_ring_jumbo(struct ti_softc *sc)
 static int
 ti_init_rx_ring_mini(struct ti_softc *sc)
 {
-	int			i;
+	int i;
 
 	for (i = 0; i < TI_MSLOTS; i++) {
 		if (ti_newbuf_mini(sc, i, NULL) == ENOBUFS)
@@ -1621,8 +1620,8 @@ ti_init_rx_ring_mini(struct ti_softc *sc)
 static void
 ti_free_rx_ring_mini(struct ti_softc *sc)
 {
-	bus_dmamap_t		map;
-	int			i;
+	bus_dmamap_t map;
+	int i;
 
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_mini_chain[i] != NULL) {
@@ -1641,8 +1640,8 @@ ti_free_rx_ring_mini(struct ti_softc *sc)
 static void
 ti_free_tx_ring(struct ti_softc *sc)
 {
-	struct ti_txdesc	*txd;
-	int			i;
+	struct ti_txdesc *txd;
+	int i;
 
 	if (sc->ti_rdata->ti_tx_ring == NULL)
 		return;
@@ -1664,8 +1663,8 @@ ti_free_tx_ring(struct ti_softc *sc)
 static int
 ti_init_tx_ring(struct ti_softc *sc)
 {
-	struct ti_txdesc	*txd;
-	int			i;
+	struct ti_txdesc *txd;
+	int i;
 
 	STAILQ_INIT(&sc->ti_cdata.ti_txfreeq);
 	STAILQ_INIT(&sc->ti_cdata.ti_txbusyq);
@@ -1688,9 +1687,9 @@ ti_init_tx_ring(struct ti_softc *sc)
 static void
 ti_add_mcast(struct ti_softc *sc, struct ether_addr *addr)
 {
-	struct ti_cmd_desc	cmd;
-	u_int16_t		*m;
-	u_int32_t		ext[2] = {0, 0};
+	struct ti_cmd_desc cmd;
+	u_int16_t *m;
+	u_int32_t ext[2] = {0, 0};
 
 	m = (u_int16_t *)&addr->octet[0];
 
@@ -1714,9 +1713,9 @@ ti_add_mcast(struct ti_softc *sc, struct ether_addr *addr)
 static void
 ti_del_mcast(struct ti_softc *sc, struct ether_addr *addr)
 {
-	struct ti_cmd_desc	cmd;
-	u_int16_t		*m;
-	u_int32_t		ext[2] = {0, 0};
+	struct ti_cmd_desc cmd;
+	u_int16_t *m;
+	u_int32_t ext[2] = {0, 0};
 
 	m = (u_int16_t *)&addr->octet[0];
 
@@ -1754,11 +1753,11 @@ ti_del_mcast(struct ti_softc *sc, struct ether_addr *addr)
 static void
 ti_setmulti(struct ti_softc *sc)
 {
-	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma;
-	struct ti_cmd_desc	cmd;
-	struct ti_mc_entry	*mc;
-	u_int32_t		intrs;
+	struct ifnet *ifp;
+	struct ifmultiaddr *ifma;
+	struct ti_cmd_desc cmd;
+	struct ti_mc_entry *mc;
+	u_int32_t intrs;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -1813,6 +1812,7 @@ ti_setmulti(struct ti_softc *sc)
  */
 static int ti_64bitslot_war(struct ti_softc *sc)
 {
+
 	if (!(CSR_READ_4(sc, TI_PCI_STATE) & TI_PCISTATE_32BIT_BUS)) {
 		CSR_WRITE_4(sc, 0x600, 0);
 		CSR_WRITE_4(sc, 0x604, 0);
@@ -1838,9 +1838,9 @@ static int ti_64bitslot_war(struct ti_softc *sc)
 static int
 ti_chipinit(struct ti_softc *sc)
 {
-	u_int32_t		cacheline;
-	u_int32_t		pci_writemax = 0;
-	u_int32_t		hdrsplit;
+	u_int32_t cacheline;
+	u_int32_t pci_writemax = 0;
+	u_int32_t hdrsplit;
 
 	/* Initialize link to down state. */
 	sc->ti_linkstat = TI_EV_CODE_LINK_DOWN;
@@ -1991,10 +1991,10 @@ ti_chipinit(struct ti_softc *sc)
 static int
 ti_gibinit(struct ti_softc *sc)
 {
-	struct ti_rcb		*rcb;
-	int			i;
-	struct ifnet		*ifp;
-	uint32_t		rdphys;
+	struct ifnet *ifp;
+	struct ti_rcb *rcb;
+	uint32_t rdphys;
+	int i;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -2175,7 +2175,7 @@ ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	sc->ti_rdata_phys = segs[0].ds_addr;
 	return;
 }
-	
+
 /*
  * Probe for a Tigon chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
@@ -2183,7 +2183,7 @@ ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 ti_probe(device_t dev)
 {
-	const struct ti_type	*t;
+	const struct ti_type *t;
 
 	t = ti_devs;
 
@@ -2202,10 +2202,10 @@ ti_probe(device_t dev)
 static int
 ti_attach(device_t dev)
 {
-	struct ifnet		*ifp;
-	struct ti_softc		*sc;
-	int			error = 0, rid;
-	u_char			eaddr[6];
+	struct ifnet *ifp;
+	struct ti_softc *sc;
+	int error = 0, rid;
+	u_char eaddr[6];
 
 	sc = device_get_softc(dev);
 	sc->ti_unit = device_get_unit(dev);
@@ -2490,8 +2490,8 @@ fail:
 static int
 ti_detach(device_t dev)
 {
-	struct ti_softc		*sc;
-	struct ifnet		*ifp;
+	struct ti_softc *sc;
+	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 	if (sc->dev)
@@ -2616,20 +2616,20 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
 static void
 ti_rxeof(struct ti_softc *sc)
 {
-	bus_dmamap_t		map;
-	struct ifnet		*ifp;
-	struct ti_cmd_desc	cmd;
+	struct ifnet *ifp;
+	bus_dmamap_t map;
+	struct ti_cmd_desc cmd;
 
 	TI_LOCK_ASSERT(sc);
 
 	ifp = sc->ti_ifp;
 
 	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
-		struct ti_rx_desc	*cur_rx;
-		u_int32_t		rxidx;
-		struct mbuf		*m = NULL;
-		u_int16_t		vlan_tag = 0;
-		int			have_tag = 0;
+		struct ti_rx_desc *cur_rx;
+		struct mbuf *m = NULL;
+		u_int32_t rxidx;
+		u_int16_t vlan_tag = 0;
+		int have_tag = 0;
 
 		cur_rx =
 		    &sc->ti_rdata->ti_rx_return_ring[sc->ti_rx_saved_considx];
@@ -2749,11 +2749,11 @@ ti_rxeof(struct ti_softc *sc)
 static void
 ti_txeof(struct ti_softc *sc)
 {
-	struct ti_txdesc	*txd;
-	struct ti_tx_desc	txdesc;
-	struct ti_tx_desc	*cur_tx = NULL;
-	struct ifnet		*ifp;
-	int			idx;
+	struct ti_txdesc *txd;
+	struct ti_tx_desc txdesc;
+	struct ti_tx_desc *cur_tx = NULL;
+	struct ifnet *ifp;
+	int idx;
 
 	ifp = sc->ti_ifp;
 
@@ -2795,8 +2795,8 @@ ti_txeof(struct ti_softc *sc)
 static void
 ti_intr(void *xsc)
 {
-	struct ti_softc		*sc;
-	struct ifnet		*ifp;
+	struct ti_softc *sc;
+	struct ifnet *ifp;
 
 	sc = xsc;
 	TI_LOCK(sc);
@@ -2837,7 +2837,7 @@ ti_intr(void *xsc)
 static void
 ti_stats_update(struct ti_softc *sc)
 {
-	struct ifnet		*ifp;
+	struct ifnet *ifp;
 
 	ifp = sc->ti_ifp;
 
@@ -2862,13 +2862,13 @@ ti_stats_update(struct ti_softc *sc)
 static int
 ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 {
-	struct ti_txdesc	*txd;
-	struct ti_tx_desc	*f;
-	struct ti_tx_desc	txdesc;
-	struct mbuf		*m;
-	bus_dma_segment_t	txsegs[TI_MAXTXSEGS];
-	u_int16_t		csum_flags;
-	int			error, frag, i, nseg;
+	struct ti_txdesc *txd;
+	struct ti_tx_desc *f;
+	struct ti_tx_desc txdesc;
+	struct mbuf *m;
+	bus_dma_segment_t txsegs[TI_MAXTXSEGS];
+	u_int16_t csum_flags;
+	int error, frag, i, nseg;
 
 	if ((txd = STAILQ_FIRST(&sc->ti_cdata.ti_txfreeq)) == NULL)
 		return (ENOBUFS);
@@ -2965,7 +2965,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 static void
 ti_start(struct ifnet *ifp)
 {
-	struct ti_softc		*sc;
+	struct ti_softc *sc;
 
 	sc = ifp->if_softc;
 	TI_LOCK(sc);
@@ -2980,9 +2980,9 @@ ti_start(struct ifnet *ifp)
 static void
 ti_start_locked(struct ifnet *ifp)
 {
-	struct ti_softc		*sc;
-	struct mbuf		*m_head = NULL;
-	int			enq = 0;
+	struct ti_softc *sc;
+	struct mbuf *m_head = NULL;
+	int enq = 0;
 
 	sc = ifp->if_softc;
 
@@ -3045,7 +3045,7 @@ ti_start_locked(struct ifnet *ifp)
 static void
 ti_init(void *xsc)
 {
-	struct ti_softc		*sc;
+	struct ti_softc *sc;
 
 	sc = xsc;
 	TI_LOCK(sc);
@@ -3056,7 +3056,7 @@ ti_init(void *xsc)
 static void
 ti_init_locked(void *xsc)
 {
-	struct ti_softc		*sc = xsc;
+	struct ti_softc *sc = xsc;
 
 	/* Cancel pending I/O and flush buffers. */
 	ti_stop(sc);
@@ -3070,11 +3070,11 @@ ti_init_locked(void *xsc)
 
 static void ti_init2(struct ti_softc *sc)
 {
-	struct ti_cmd_desc	cmd;
-	struct ifnet		*ifp;
-	u_int8_t		*ea;
-	struct ifmedia		*ifm;
-	int			tmp;
+	struct ti_cmd_desc cmd;
+	struct ifnet *ifp;
+	u_int8_t *ea;
+	struct ifmedia *ifm;
+	int tmp;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -3160,10 +3160,10 @@ static void ti_init2(struct ti_softc *sc)
 static int
 ti_ifmedia_upd(struct ifnet *ifp)
 {
-	struct ti_softc		*sc;
-	struct ifmedia		*ifm;
-	struct ti_cmd_desc	cmd;
-	u_int32_t		flowctl;
+	struct ti_softc *sc;
+	struct ifmedia *ifm;
+	struct ti_cmd_desc cmd;
+	u_int32_t flowctl;
 
 	sc = ifp->if_softc;
 	ifm = &sc->ifmedia;
@@ -3261,8 +3261,8 @@ ti_ifmedia_upd(struct ifnet *ifp)
 static void
 ti_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct ti_softc		*sc;
-	u_int32_t		media = 0;
+	struct ti_softc *sc;
+	u_int32_t media = 0;
 
 	sc = ifp->if_softc;
 
@@ -3307,10 +3307,10 @@ ti_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static int
 ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ti_softc		*sc = ifp->if_softc;
-	struct ifreq		*ifr = (struct ifreq *) data;
-	int			mask, error = 0;
-	struct ti_cmd_desc	cmd;
+	struct ti_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *) data;
+	struct ti_cmd_desc cmd;
+	int mask, error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -3425,8 +3425,8 @@ static int
 ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
-	int error;
 	struct ti_softc *sc;
+	int error;
 
 	sc = dev->si_drv1;
 	if (sc == NULL)
@@ -3449,7 +3449,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case TIIOCGETPARAMS:
 	{
-		struct ti_params	*params;
+		struct ti_params *params;
 
 		params = (struct ti_params *)addr;
 
@@ -3531,8 +3531,8 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case TIIOCGETTRACE: {
-		struct ti_trace_buf	*trace_buf;
-		u_int32_t		trace_start, cur_trace_ptr, trace_len;
+		struct ti_trace_buf *trace_buf;
+		u_int32_t trace_start, cur_trace_ptr, trace_len;
 
 		trace_buf = (struct ti_trace_buf *)addr;
 
@@ -3697,8 +3697,8 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 static void
 ti_watchdog(void *arg)
 {
-	struct ti_softc		*sc;
-	struct ifnet		*ifp;
+	struct ti_softc *sc;
+	struct ifnet *ifp;
 
 	sc = arg;
 	TI_LOCK_ASSERT(sc);
@@ -3729,8 +3729,8 @@ ti_watchdog(void *arg)
 static void
 ti_stop(struct ti_softc *sc)
 {
-	struct ifnet		*ifp;
-	struct ti_cmd_desc	cmd;
+	struct ifnet *ifp;
+	struct ti_cmd_desc cmd;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -3778,7 +3778,7 @@ ti_stop(struct ti_softc *sc)
 static int
 ti_shutdown(device_t dev)
 {
-	struct ti_softc		*sc;
+	struct ti_softc *sc;
 
 	sc = device_get_softc(dev);
 	TI_LOCK(sc);
