@@ -196,6 +196,7 @@ static void ti_stop(struct ti_softc *);
 static void ti_watchdog(void *);
 static int ti_shutdown(device_t);
 static int ti_ifmedia_upd(struct ifnet *);
+static int ti_ifmedia_upd_locked(struct ti_softc *);
 static void ti_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static uint32_t ti_eeprom_putbyte(struct ti_softc *, int);
@@ -3170,7 +3171,7 @@ static void ti_init2(struct ti_softc *sc)
 	ifm = &sc->ifmedia;
 	tmp = ifm->ifm_media;
 	ifm->ifm_media = ifm->ifm_cur->ifm_media;
-	ti_ifmedia_upd(ifp);
+	ti_ifmedia_upd_locked(sc);
 	ifm->ifm_media = tmp;
 }
 
@@ -3181,11 +3182,23 @@ static int
 ti_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ti_softc *sc;
+	int error;
+
+	sc = ifp->if_softc;
+	TI_LOCK(sc);
+	error = ti_ifmedia_upd(ifp);
+	TI_UNLOCK(sc);
+
+	return (error);
+}
+
+static int
+ti_ifmedia_upd_locked(struct ti_softc *sc)
+{
 	struct ifmedia *ifm;
 	struct ti_cmd_desc cmd;
 	uint32_t flowctl;
 
-	sc = ifp->if_softc;
 	ifm = &sc->ifmedia;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
@@ -3286,11 +3299,15 @@ ti_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
+	TI_LOCK(sc);
+
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (sc->ti_linkstat == TI_EV_CODE_LINK_DOWN)
+	if (sc->ti_linkstat == TI_EV_CODE_LINK_DOWN) {
+		TI_UNLOCK(sc);
 		return;
+	}
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
@@ -3322,6 +3339,7 @@ ti_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		if (media & TI_LNK_HALF_DUPLEX)
 			ifmr->ifm_active |= IFM_HDX;
 	}
+	TI_UNLOCK(sc);
 }
 
 static int
