@@ -2856,12 +2856,12 @@ ti_intr(void *xsc)
 
 	ti_handle_events(sc);
 
-	/* Re-enable interrupts. */
-	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 0);
-
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    ifp->if_snd.ifq_head != NULL)
+	    ifp->if_snd.ifq_head != NULL) {
+		/* Re-enable interrupts. */
+		CSR_WRITE_4(sc, TI_MB_HOSTINTR, 0);
 		ti_start_locked(ifp);
+	}
 
 	TI_UNLOCK(sc);
 }
