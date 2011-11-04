@@ -1138,6 +1138,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	OS_REG_WRITE(ah, AR_QMISC(q), qmisc);
 	OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
+#if 0
 	/* Setup compression scratchpad buffer */
 	/* 
 	 * XXX: calling this asynchronously to queue operation can
@@ -1153,6 +1154,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			     OS_REG_READ(ah, AR_Q0_MISC + 4*q)
 			     | AR_Q_MISC_QCU_COMP_EN);
 	}
+#endif
 	
 	/*
 	 * Always update the secondary interrupt mask registers - this
