@@ -57,7 +57,7 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_END
 };
