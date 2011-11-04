@@ -1328,7 +1328,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
 		/* Attach the buffer to the mbuf. */
 		m_new->m_data = (void *) buf;
 		m_new->m_len = m_new->m_pkthdr.len = TI_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree,
+		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree, buf,
 		    (struct ti_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
