@@ -2522,6 +2522,8 @@ ti_detach(device_t dev)
 		bus_dma_tag_destroy(sc->ti_mbuftx_dmat);
 	if (sc->ti_mbufrx_dmat)
 		bus_dma_tag_destroy(sc->ti_mbufrx_dmat);
+	if (sc->ti_rdata && sc->ti_rdata_dmamap)
+		bus_dmamap_unload(sc->ti_rdata_dmat, sc->ti_rdata_dmamap);
 	if (sc->ti_rdata)
 		bus_dmamem_free(sc->ti_rdata_dmat, sc->ti_rdata,
 				sc->ti_rdata_dmamap);
