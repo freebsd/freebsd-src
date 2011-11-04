@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int iotest;
+static int iotest;
 
 #define NO_DISK_SECTORS ((u_int32_t)-1)
 #define NO_TRACK_CYLINDERS 1023

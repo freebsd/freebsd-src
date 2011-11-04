@@ -73,9 +73,9 @@ int debug = 0;
 #define KEYWORDS_STR	"# KEYWORDS:"
 #define KEYWORDS_LEN	(sizeof(KEYWORDS_STR) - 1)
 
-int exit_code;
-int file_count;
-char **file_list;
+static int exit_code;
+static int file_count;
+static char **file_list;
 
 typedef int bool;
 #define TRUE 1

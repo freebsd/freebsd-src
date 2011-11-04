@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 /* the optimization warning string template */
 #define	OPTWARN	"should optimize for %s with minfree %s %d%%"
 
-struct uufsd disk;
+static struct uufsd disk;
 #define	sblock disk.d_fs
 
 void usage(void);
@@ -553,7 +553,7 @@ sbdirty(void)
 	disk.d_fs.fs_clean = 0;
 }
 
-int blocks;
+static int blocks;
 static char clrbuf[MAXBSIZE];
 
 static ufs2_daddr_t

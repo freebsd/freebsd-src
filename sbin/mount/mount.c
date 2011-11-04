@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #define MOUNT_META_OPTION_FSTAB		"fstab"
 #define MOUNT_META_OPTION_CURRENT	"current"
 
-int debug, fstab_style, verbose;
+static int debug, fstab_style, verbose;
 
 struct cpa {
 	char	**a;
