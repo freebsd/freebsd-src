@@ -270,9 +270,7 @@ MODULE_DEPEND(ti, ether, 1, 1, 1);
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
  */
-static u_int32_t ti_eeprom_putbyte(sc, byte)
-	struct ti_softc		*sc;
-	int			byte;
+static u_int32_t ti_eeprom_putbyte(struct ti_softc *sc, int byte)
 {
 	int			i, ack = 0;
 
@@ -316,10 +314,7 @@ static u_int32_t ti_eeprom_putbyte(sc, byte)
  * We have to send two address bytes since the EEPROM can hold
  * more than 256 bytes of data.
  */
-static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
-	struct ti_softc		*sc;
-	int			addr;
-	u_int8_t		*dest;
+static u_int8_t ti_eeprom_getbyte(struct ti_softc *sc, int addr, u_int8_t *dest)
 {
 	int			i;
 	u_int8_t		byte = 0;
@@ -393,11 +388,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
  * Read a sequence of bytes from the EEPROM.
  */
 static int
-ti_read_eeprom(sc, dest, off, cnt)
-	struct ti_softc		*sc;
-	caddr_t			dest;
-	int			off;
-	int			cnt;
+ti_read_eeprom(struct ti_softc *sc, caddr_t dest, int off, int cnt)
 {
 	int			err = 0, i;
 	u_int8_t		byte = 0;
@@ -417,10 +408,7 @@ ti_read_eeprom(sc, dest, off, cnt)
  * Can be used to copy data from NIC local memory.
  */
 static void
-ti_mem_read(sc, addr, len, buf)
-	struct ti_softc		*sc;
-	u_int32_t		addr, len;
-	void			*buf;
+ti_mem_read(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 {
 	int			segptr, segsize, cnt;
 	char			*ptr;
@@ -450,10 +438,7 @@ ti_mem_read(sc, addr, len, buf)
  * Can be used to copy data into NIC local memory.
  */
 static void
-ti_mem_write(sc, addr, len, buf)
-	struct ti_softc		*sc;
-	u_int32_t		addr, len;
-	void			*buf;
+ti_mem_write(struct ti_softc *sc, u_int32_t addr, u_int32_t len, void *buf)
 {
 	int			segptr, segsize, cnt;
 	char			*ptr;
@@ -482,9 +467,7 @@ ti_mem_write(sc, addr, len, buf)
  * Can be used to clear a section of NIC local memory.
  */
 static void
-ti_mem_zero(sc, addr, len)
-	struct ti_softc		*sc;
-	u_int32_t		addr, len;
+ti_mem_zero(struct ti_softc *sc, u_int32_t addr, u_int32_t len)
 {
 	int			segptr, segsize, cnt;
 
@@ -505,11 +488,8 @@ ti_mem_zero(sc, addr, len)
 }
 
 static int
-ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
-	struct ti_softc		*sc;
-	u_int32_t		tigon_addr, len;
-	caddr_t			buf;
-	int			useraddr, readdata;
+ti_copy_mem(struct ti_softc *sc, u_int32_t tigon_addr, u_int32_t len,
+    caddr_t buf, int useraddr, int readdata)
 {
 	int		segptr, segsize, cnt;
 	caddr_t		ptr;
@@ -704,12 +684,8 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 }
 
 static int
-ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
-	struct ti_softc		*sc;
-	u_int32_t		tigon_addr, len;
-	caddr_t			buf;
-	int			useraddr, readdata;
-	int			cpu;
+ti_copy_scratch(struct ti_softc *sc, u_int32_t tigon_addr, u_int32_t len,
+    caddr_t buf, int useraddr, int readdata, int cpu)
 {
 	u_int32_t	segptr;
 	int		cnt;
@@ -802,11 +778,7 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 }
 
 static int
-ti_bcopy_swap(src, dst, len, swap_type)
-	const void	*src;
-	void		*dst;
-	size_t		len;
-	ti_swap_type	swap_type;
+ti_bcopy_swap(const void *src, void *dst, size_t len, ti_swap_type swap_type)
 {
 	const u_int8_t *tmpsrc;
 	u_int8_t *tmpdst;
@@ -844,8 +816,7 @@ ti_bcopy_swap(src, dst, len, swap_type)
  * Tigon 2.
  */
 static void
-ti_loadfw(sc)
-	struct ti_softc		*sc;
+ti_loadfw(struct ti_softc *sc)
 {
 
 	TI_LOCK_ASSERT(sc);
@@ -902,9 +873,7 @@ ti_loadfw(sc)
  * Send the NIC a command via the command ring.
  */
 static void
-ti_cmd(sc, cmd)
-	struct ti_softc		*sc;
-	struct ti_cmd_desc	*cmd;
+ti_cmd(struct ti_softc *sc, struct ti_cmd_desc *cmd)
 {
 	int			index;
 
@@ -920,11 +889,7 @@ ti_cmd(sc, cmd)
  * number of command slots to include after the initial command.
  */
 static void
-ti_cmd_ext(sc, cmd, arg, len)
-	struct ti_softc		*sc;
-	struct ti_cmd_desc	*cmd;
-	caddr_t			arg;
-	int			len;
+ti_cmd_ext(struct ti_softc *sc, struct ti_cmd_desc *cmd, caddr_t arg, int len)
 {
 	int			index;
 	int			i;
@@ -945,8 +910,7 @@ ti_cmd_ext(sc, cmd, arg, len)
  * Handle events that have triggered interrupts.
  */
 static void
-ti_handle_events(sc)
-	struct ti_softc		*sc;
+ti_handle_events(struct ti_softc *sc)
 {
 	struct ti_event_desc	*e;
 
@@ -1089,8 +1053,7 @@ ti_free_dmamaps(struct ti_softc *sc)
  */
 
 static int
-ti_alloc_jumbo_mem(sc)
-	struct ti_softc		*sc;
+ti_alloc_jumbo_mem(struct ti_softc *sc)
 {
 	caddr_t			ptr;
 	int			i;
@@ -1152,8 +1115,7 @@ ti_alloc_jumbo_mem(sc)
 /*
  * Allocate a jumbo buffer.
  */
-static void *ti_jalloc(sc)
-	struct ti_softc		*sc;
+static void *ti_jalloc(struct ti_softc *sc)
 {
 	struct ti_jpool_entry	*entry;
 
@@ -1173,9 +1135,7 @@ static void *ti_jalloc(sc)
  * Release a jumbo buffer.
  */
 static void
-ti_jfree(buf, args)
-	void			*buf;
-	void			*args;
+ti_jfree(void *buf, void *args)
 {
 	struct ti_softc		*sc;
 	int			i;
@@ -1205,8 +1165,7 @@ ti_jfree(buf, args)
 #else
 
 static int
-ti_alloc_jumbo_mem(sc)
-	struct ti_softc		*sc;
+ti_alloc_jumbo_mem(struct ti_softc *sc)
 {
 
 	/*
@@ -1237,10 +1196,7 @@ ti_alloc_jumbo_mem(sc)
  * Intialize a standard receive ring descriptor.
  */
 static int
-ti_newbuf_std(sc, i, m)
-	struct ti_softc		*sc;
-	int			i;
-	struct mbuf		*m;
+ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
 {
 	bus_dmamap_t		map;
 	bus_dma_segment_t	segs;
@@ -1292,10 +1248,7 @@ ti_newbuf_std(sc, i, m)
  * the Tigon 2.
  */
 static int
-ti_newbuf_mini(sc, i, m)
-	struct ti_softc		*sc;
-	int			i;
-	struct mbuf		*m;
+ti_newbuf_mini(struct ti_softc *sc, int i, struct mbuf *m)
 {
 	bus_dma_segment_t	segs;
 	bus_dmamap_t		map;
@@ -1344,10 +1297,7 @@ ti_newbuf_mini(sc, i, m)
  * a jumbo buffer from the pool managed internally by the driver.
  */
 static int
-ti_newbuf_jumbo(sc, i, m)
-	struct ti_softc		*sc;
-	int			i;
-	struct mbuf		*m;
+ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
 {
 	bus_dmamap_t		map;
 	struct mbuf		*m_new = NULL;
@@ -1425,10 +1375,7 @@ static int HDR_LEN =  TCP_HDR_LEN;
  * a jumbo buffer from the pool managed internally by the driver.
  */
 static int
-ti_newbuf_jumbo(sc, idx, m_old)
-	struct ti_softc		*sc;
-	int			idx;
-	struct mbuf		*m_old;
+ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 {
 	bus_dmamap_t		map;
 	struct mbuf		*cur, *m_new = NULL;
@@ -1582,8 +1529,7 @@ nobufs:
  * the NIC.
  */
 static int
-ti_init_rx_ring_std(sc)
-	struct ti_softc		*sc;
+ti_init_rx_ring_std(struct ti_softc *sc)
 {
 	int			i;
 	struct ti_cmd_desc	cmd;
@@ -1600,8 +1546,7 @@ ti_init_rx_ring_std(sc)
 }
 
 static void
-ti_free_rx_ring_std(sc)
-	struct ti_softc		*sc;
+ti_free_rx_ring_std(struct ti_softc *sc)
 {
 	bus_dmamap_t		map;
 	int			i;
@@ -1621,8 +1566,7 @@ ti_free_rx_ring_std(sc)
 }
 
 static int
-ti_init_rx_ring_jumbo(sc)
-	struct ti_softc		*sc;
+ti_init_rx_ring_jumbo(struct ti_softc *sc)
 {
 	int			i;
 	struct ti_cmd_desc	cmd;
@@ -1639,8 +1583,7 @@ ti_init_rx_ring_jumbo(sc)
 }
 
 static void
-ti_free_rx_ring_jumbo(sc)
-	struct ti_softc		*sc;
+ti_free_rx_ring_jumbo(struct ti_softc *sc)
 {
 	bus_dmamap_t		map;
 	int			i;
@@ -1660,8 +1603,7 @@ ti_free_rx_ring_jumbo(sc)
 }
 
 static int
-ti_init_rx_ring_mini(sc)
-	struct ti_softc		*sc;
+ti_init_rx_ring_mini(struct ti_softc *sc)
 {
 	int			i;
 
@@ -1677,8 +1619,7 @@ ti_init_rx_ring_mini(sc)
 }
 
 static void
-ti_free_rx_ring_mini(sc)
-	struct ti_softc		*sc;
+ti_free_rx_ring_mini(struct ti_softc *sc)
 {
 	bus_dmamap_t		map;
 	int			i;
@@ -1698,8 +1639,7 @@ ti_free_rx_ring_mini(sc)
 }
 
 static void
-ti_free_tx_ring(sc)
-	struct ti_softc		*sc;
+ti_free_tx_ring(struct ti_softc *sc)
 {
 	struct ti_txdesc	*txd;
 	int			i;
@@ -1722,8 +1662,7 @@ ti_free_tx_ring(sc)
 }
 
 static int
-ti_init_tx_ring(sc)
-	struct ti_softc		*sc;
+ti_init_tx_ring(struct ti_softc *sc)
 {
 	struct ti_txdesc	*txd;
 	int			i;
@@ -1747,9 +1686,7 @@ ti_init_tx_ring(sc)
  * work.
  */
 static void
-ti_add_mcast(sc, addr)
-	struct ti_softc		*sc;
-	struct ether_addr	*addr;
+ti_add_mcast(struct ti_softc *sc, struct ether_addr *addr)
 {
 	struct ti_cmd_desc	cmd;
 	u_int16_t		*m;
@@ -1775,9 +1712,7 @@ ti_add_mcast(sc, addr)
 }
 
 static void
-ti_del_mcast(sc, addr)
-	struct ti_softc		*sc;
-	struct ether_addr	*addr;
+ti_del_mcast(struct ti_softc *sc, struct ether_addr *addr)
 {
 	struct ti_cmd_desc	cmd;
 	u_int16_t		*m;
@@ -1817,8 +1752,7 @@ ti_del_mcast(sc, addr)
  * any given time.
  */
 static void
-ti_setmulti(sc)
-	struct ti_softc		*sc;
+ti_setmulti(struct ti_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
@@ -1877,8 +1811,7 @@ ti_setmulti(sc)
  * around it on the Tigon 2 by setting a bit in the PCI state register,
  * but for the Tigon 1 we must give up and abort the interface attach.
  */
-static int ti_64bitslot_war(sc)
-	struct ti_softc		*sc;
+static int ti_64bitslot_war(struct ti_softc *sc)
 {
 	if (!(CSR_READ_4(sc, TI_PCI_STATE) & TI_PCISTATE_32BIT_BUS)) {
 		CSR_WRITE_4(sc, 0x600, 0);
@@ -1903,8 +1836,7 @@ static int ti_64bitslot_war(sc)
  * self-test results.
  */
 static int
-ti_chipinit(sc)
-	struct ti_softc		*sc;
+ti_chipinit(struct ti_softc *sc)
 {
 	u_int32_t		cacheline;
 	u_int32_t		pci_writemax = 0;
@@ -2057,8 +1989,7 @@ ti_chipinit(sc)
  * start the CPU(s) running.
  */
 static int
-ti_gibinit(sc)
-	struct ti_softc		*sc;
+ti_gibinit(struct ti_softc *sc)
 {
 	struct ti_rcb		*rcb;
 	int			i;
@@ -2250,8 +2181,7 @@ ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * against our list and return its name if we find a match.
  */
 static int
-ti_probe(dev)
-	device_t		dev;
+ti_probe(device_t dev)
 {
 	const struct ti_type	*t;
 
@@ -2270,8 +2200,7 @@ ti_probe(dev)
 }
 
 static int
-ti_attach(dev)
-	device_t		dev;
+ti_attach(device_t dev)
 {
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
@@ -2559,8 +2488,7 @@ fail:
  * allocated.
  */
 static int
-ti_detach(dev)
-	device_t		dev;
+ti_detach(device_t dev)
 {
 	struct ti_softc		*sc;
 	struct ifnet		*ifp;
@@ -2686,8 +2614,7 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
  */
 
 static void
-ti_rxeof(sc)
-	struct ti_softc		*sc;
+ti_rxeof(struct ti_softc *sc)
 {
 	bus_dmamap_t		map;
 	struct ifnet		*ifp;
@@ -2820,8 +2747,7 @@ ti_rxeof(sc)
 }
 
 static void
-ti_txeof(sc)
-	struct ti_softc		*sc;
+ti_txeof(struct ti_softc *sc)
 {
 	struct ti_txdesc	*txd;
 	struct ti_tx_desc	txdesc;
@@ -2867,8 +2793,7 @@ ti_txeof(sc)
 }
 
 static void
-ti_intr(xsc)
-	void			*xsc;
+ti_intr(void *xsc)
 {
 	struct ti_softc		*sc;
 	struct ifnet		*ifp;
@@ -2910,8 +2835,7 @@ ti_intr(xsc)
 }
 
 static void
-ti_stats_update(sc)
-	struct ti_softc		*sc;
+ti_stats_update(struct ti_softc *sc)
 {
 	struct ifnet		*ifp;
 
@@ -2936,9 +2860,7 @@ ti_stats_update(sc)
  * pointers to descriptors.
  */
 static int
-ti_encap(sc, m_head)
-	struct ti_softc		*sc;
-	struct mbuf		**m_head;
+ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 {
 	struct ti_txdesc	*txd;
 	struct ti_tx_desc	*f;
@@ -3041,8 +2963,7 @@ ti_encap(sc, m_head)
 }
 
 static void
-ti_start(ifp)
-	struct ifnet		*ifp;
+ti_start(struct ifnet *ifp)
 {
 	struct ti_softc		*sc;
 
@@ -3057,8 +2978,7 @@ ti_start(ifp)
  * to the mbuf data regions directly in the transmit descriptors.
  */
 static void
-ti_start_locked(ifp)
-	struct ifnet		*ifp;
+ti_start_locked(struct ifnet *ifp)
 {
 	struct ti_softc		*sc;
 	struct mbuf		*m_head = NULL;
@@ -3123,8 +3043,7 @@ ti_start_locked(ifp)
 }
 
 static void
-ti_init(xsc)
-	void			*xsc;
+ti_init(void *xsc)
 {
 	struct ti_softc		*sc;
 
@@ -3135,8 +3054,7 @@ ti_init(xsc)
 }
 
 static void
-ti_init_locked(xsc)
-	void			*xsc;
+ti_init_locked(void *xsc)
 {
 	struct ti_softc		*sc = xsc;
 
@@ -3150,8 +3068,7 @@ ti_init_locked(xsc)
 	}
 }
 
-static void ti_init2(sc)
-	struct ti_softc		*sc;
+static void ti_init2(struct ti_softc *sc)
 {
 	struct ti_cmd_desc	cmd;
 	struct ifnet		*ifp;
@@ -3241,8 +3158,7 @@ static void ti_init2(sc)
  * Set media options.
  */
 static int
-ti_ifmedia_upd(ifp)
-	struct ifnet		*ifp;
+ti_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ti_softc		*sc;
 	struct ifmedia		*ifm;
@@ -3343,9 +3259,7 @@ ti_ifmedia_upd(ifp)
  * Report current media status.
  */
 static void
-ti_ifmedia_sts(ifp, ifmr)
-	struct ifnet		*ifp;
-	struct ifmediareq	*ifmr;
+ti_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct ti_softc		*sc;
 	u_int32_t		media = 0;
@@ -3391,10 +3305,7 @@ ti_ifmedia_sts(ifp, ifmr)
 }
 
 static int
-ti_ioctl(ifp, command, data)
-	struct ifnet		*ifp;
-	u_long			command;
-	caddr_t			data;
+ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ti_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
@@ -3816,8 +3727,7 @@ ti_watchdog(void *arg)
  * RX and TX lists.
  */
 static void
-ti_stop(sc)
-	struct ti_softc		*sc;
+ti_stop(struct ti_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ti_cmd_desc	cmd;
@@ -3866,8 +3776,7 @@ ti_stop(sc)
  * get confused by errant DMAs when rebooting.
  */
 static int
-ti_shutdown(dev)
-	device_t		dev;
+ti_shutdown(device_t dev)
 {
 	struct ti_softc		*sc;
 
