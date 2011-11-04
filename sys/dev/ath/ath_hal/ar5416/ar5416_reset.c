@@ -388,8 +388,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #endif
 	ar5416InitBB(ah, chan);
 
+#if 0
 	/* Setup compression registers */
 	ar5212SetCompRegs(ah);		/* XXX not needed? */
+#endif
 
 	/*
 	 * 5416 baseband will check the per rate power table
