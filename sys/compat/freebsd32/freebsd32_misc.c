@@ -2835,3 +2835,16 @@ freebsd32_posix_fallocate(struct thread *td,
 	ap.len = PAIR32TO64(off_t, uap->len);
 	return (sys_posix_fallocate(td, &ap));
 }
+
+int
+freebsd32_posix_fadvise(struct thread *td,
+    struct freebsd32_posix_fadvise_args *uap)
+{
+	struct posix_fadvise_args ap;
+
+	ap.fd = uap->fd;
+	ap.offset = PAIR32TO64(off_t, uap->offset);
+	ap.len = PAIR32TO64(off_t, uap->len);
+	ap.advice = uap->advice;
+	return (sys_posix_fadvise(td, &ap));
+}
