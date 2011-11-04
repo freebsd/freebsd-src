@@ -2659,7 +2659,7 @@ ti_rxeof(struct ti_softc *sc)
 
 		if (cur_rx->ti_flags & TI_BDFLAG_VLAN_TAG) {
 			have_tag = 1;
-			vlan_tag = cur_rx->ti_vlan_tag & 0xfff;
+			vlan_tag = cur_rx->ti_vlan_tag;
 		}
 
 		if (cur_rx->ti_flags & TI_BDFLAG_JUMBO_RING) {
@@ -2954,7 +2954,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 		f->ti_flags = csum_flags;
 		if (m->m_flags & M_VLANTAG) {
 			f->ti_flags |= TI_BDFLAG_VLAN_TAG;
-			f->ti_vlan_tag = m->m_pkthdr.ether_vtag & 0xfff;
+			f->ti_vlan_tag = m->m_pkthdr.ether_vtag;
 		} else {
 			f->ti_vlan_tag = 0;
 		}
