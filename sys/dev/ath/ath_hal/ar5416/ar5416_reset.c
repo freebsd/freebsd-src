@@ -1180,7 +1180,7 @@ ar5416GetRfgain(struct ath_hal *ah)
 HAL_BOOL
 ar5416Disable(struct ath_hal *ah)
 {
-	if (!ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
 	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
 		return AH_FALSE;
