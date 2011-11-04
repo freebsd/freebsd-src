@@ -804,7 +804,7 @@ initcg(int cylno, time_t utime)
  */
 #define ROOTLINKCNT 3
 
-struct direct root_dir[] = {
+static struct direct root_dir[] = {
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 1, "." },
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
 	{ ROOTINO + 1, sizeof(struct direct), DT_DIR, 5, ".snap" },
@@ -812,7 +812,7 @@ struct direct root_dir[] = {
 
 #define SNAPLINKCNT 2
 
-struct direct snap_dir[] = {
+static struct direct snap_dir[] = {
 	{ ROOTINO + 1, sizeof(struct direct), DT_DIR, 1, "." },
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
 };
