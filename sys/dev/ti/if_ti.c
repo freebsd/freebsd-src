@@ -1252,7 +1252,7 @@ ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
 	r->ti_len = segs.ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = 0;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
@@ -1299,7 +1299,7 @@ ti_newbuf_mini(struct ti_softc *sc, int i, struct mbuf *m)
 	r->ti_len = segs.ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = TI_BDFLAG_MINI_RING;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
@@ -1365,7 +1365,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
 	r->ti_len = segs.ds_len;
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 	r->ti_flags = TI_BDFLAG_JUMBO_RING;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
@@ -1507,7 +1507,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 
 	r->ti_flags = TI_BDFLAG_JUMBO_RING|TI_RCB_FLAG_USE_EXT_RX_BD;
 
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
 
 	r->ti_idx = idx;
@@ -1860,11 +1860,6 @@ ti_chipinit(struct ti_softc *sc)
 	/* Initialize link to down state. */
 	sc->ti_linkstat = TI_EV_CODE_LINK_DOWN;
 
-	if (sc->ti_ifp->if_capenable & IFCAP_HWCSUM)
-		sc->ti_ifp->if_hwassist = TI_CSUM_FEATURES;
-	else
-		sc->ti_ifp->if_hwassist = 0;
-
 	/* Set endianness before we access any non-PCI registers. */
 #if 0 && BYTE_ORDER == BIG_ENDIAN
 	CSR_WRITE_4(sc, TI_MISC_HOST_CTL,
@@ -1983,7 +1978,7 @@ ti_chipinit(struct ti_softc *sc)
 	 * the firmware racks up lots of nicDmaReadRingFull
 	 * errors.  This is not compatible with hardware checksums.
 	 */
-	if (sc->ti_ifp->if_hwassist == 0)
+	if ((sc->ti_ifp->if_capenable & (IFCAP_TXCSUM | IFCAP_RXCSUM)) == 0)
 		TI_SETBIT(sc, TI_GCR_OPMODE, TI_OPMODE_1_DMA_ACTIVE);
 
 	/* Recommended settings from Tigon manual. */
@@ -2070,10 +2065,11 @@ ti_gibinit(struct ti_softc *sc)
 	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_std_ring);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
+	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/* Set up the jumbo receive ring. */
 	rcb = &sc->ti_rdata->ti_info.ti_jumbo_rx_rcb;
@@ -2086,10 +2082,11 @@ ti_gibinit(struct ti_softc *sc)
 	rcb->ti_max_len = PAGE_SIZE;
 	rcb->ti_flags = TI_RCB_FLAG_USE_EXT_RX_BD;
 #endif
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
+	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/*
 	 * Set up the mini ring. Only activated on the
@@ -2103,10 +2100,11 @@ ti_gibinit(struct ti_softc *sc)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
 	else
 		rcb->ti_flags = 0;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
+	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/*
 	 * Set up the receive return ring.
@@ -2135,8 +2133,9 @@ ti_gibinit(struct ti_softc *sc)
 		rcb->ti_flags = 0;
 	else
 		rcb->ti_flags = TI_RCB_FLAG_HOST_RING;
-	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
-	if (sc->ti_ifp->if_hwassist)
+	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
+	if (sc->ti_ifp->if_capenable & IFCAP_TXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_max_len = TI_TX_RING_CNT;
@@ -2236,8 +2235,8 @@ ti_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	sc->ti_ifp->if_capabilities = IFCAP_HWCSUM |
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	sc->ti_ifp->if_hwassist = TI_CSUM_FEATURES;
+	sc->ti_ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
 	sc->ti_ifp->if_capenable = sc->ti_ifp->if_capabilities;
 
 	/*
@@ -2478,6 +2477,13 @@ ti_attach(device_t dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
+
+	/* VLAN capability setup. */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTAGGING;
+	ifp->if_capenable = ifp->if_capabilities;
+	/* Tell the upper layer we support VLAN over-sized frames. */
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Driver supports link state tracking. */
 	ifp->if_capabilities |= IFCAP_LINKSTATE;
@@ -2736,12 +2742,17 @@ ti_rxeof(struct ti_softc *sc)
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 
-		if (ifp->if_hwassist) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED |
-			    CSUM_DATA_VALID;
-			if ((cur_rx->ti_ip_cksum ^ 0xffff) == 0)
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-			m->m_pkthdr.csum_data = cur_rx->ti_tcp_udp_cksum;
+		if (ifp->if_capenable & IFCAP_RXCSUM) {
+			if (cur_rx->ti_flags & TI_BDFLAG_IP_CKSUM) {
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				if ((cur_rx->ti_ip_cksum ^ 0xffff) == 0)
+					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			}
+			if (cur_rx->ti_flags & TI_BDFLAG_TCP_UDP_CKSUM) {
+				m->m_pkthdr.csum_data =
+				    cur_rx->ti_tcp_udp_cksum;
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+			}
 		}
 
 		/*
@@ -3406,15 +3417,32 @@ ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		TI_LOCK(sc);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= TI_CSUM_FEATURES;
+                        else
+				ifp->if_hwassist &= ~TI_CSUM_FEATURES;
+                }
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0)
+                        ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & (IFCAP_TXCSUM | IFCAP_RXCSUM |
+		    IFCAP_VLAN_HWTAGGING)) != 0) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ti_init_locked(sc);
+			}
 		}
 		TI_UNLOCK(sc);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
