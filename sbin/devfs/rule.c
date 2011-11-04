@@ -76,7 +76,7 @@ static struct intstr ist_type[] = {
 	{ NULL,			-1 }
 };
 
-devfs_rsnum in_rsnum;
+static devfs_rsnum in_rsnum;
 
 int
 rule_main(int ac, char **av)
