@@ -67,11 +67,13 @@ static int usb_pcount;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
 		    0, "usb", __VA_ARGS__)
+#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check()
 #define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
 #define	USB_THREAD_EXIT(err)	kthread_exit()
 #else
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
+#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check()
 #define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
 #define	USB_THREAD_EXIT(err)	kthread_exit(err)
 #endif
@@ -97,6 +99,9 @@ usb_process(void *arg)
 	struct usb_process *up = arg;
 	struct usb_proc_msg *pm;
 	struct thread *td;
+
+	/* in case of attach error, check for suspended */
+	USB_THREAD_SUSPEND_CHECK();
 
 	/* adjust priority */
 	td = curthread;
