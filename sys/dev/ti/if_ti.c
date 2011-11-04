@@ -924,12 +924,26 @@ ti_handle_events(struct ti_softc *sc)
 		switch (TI_EVENT_EVENT(e)) {
 		case TI_EV_LINKSTAT_CHANGED:
 			sc->ti_linkstat = TI_EVENT_CODE(e);
-			if (sc->ti_linkstat == TI_EV_CODE_LINK_UP)
-				device_printf(sc->ti_dev, "10/100 link up\n");
-			else if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP)
-				device_printf(sc->ti_dev, "gigabit link up\n");
-			else if (sc->ti_linkstat == TI_EV_CODE_LINK_DOWN)
-				device_printf(sc->ti_dev, "link down\n");
+			if (sc->ti_linkstat == TI_EV_CODE_LINK_UP) {
+				if_link_state_change(sc->ti_ifp, LINK_STATE_UP);
+				sc->ti_ifp->if_baudrate = IF_Mbps(100);
+				if (bootverbose)
+					device_printf(sc->ti_dev,
+					    "10/100 link up\n");
+			} else if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP) {
+				if_link_state_change(sc->ti_ifp, LINK_STATE_UP);
+				sc->ti_ifp->if_baudrate = IF_Gbps(1UL);
+				if (bootverbose)
+					device_printf(sc->ti_dev,
+					    "gigabit link up\n");
+			} else if (sc->ti_linkstat == TI_EV_CODE_LINK_DOWN) {
+				if_link_state_change(sc->ti_ifp,
+				    LINK_STATE_DOWN);
+				sc->ti_ifp->if_baudrate = 0;
+				if (bootverbose)
+					device_printf(sc->ti_dev,
+					    "link down\n");
+			}
 			break;
 		case TI_EV_ERROR:
 			if (TI_EVENT_CODE(e) == TI_EV_CODE_ERR_INVAL_CMD)
@@ -2417,7 +2431,7 @@ ti_attach(device_t dev)
 	ifp->if_ioctl = ti_ioctl;
 	ifp->if_start = ti_start;
 	ifp->if_init = ti_init;
-	ifp->if_baudrate = 1000000000;
+	ifp->if_baudrate = IF_Gbps(1UL);
 	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
 
 	/* Set up ifmedia support. */
@@ -2463,6 +2477,10 @@ ti_attach(device_t dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
+
+	/* Driver supports link state tracking. */
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET|INTR_MPSAFE,
