@@ -129,14 +129,16 @@ tftp_send(int peer, uint16_t *block, struct tftp_stats *ts)
 		(*block)++;
 		if (oldblock > *block) {
 			if (options[OPT_ROLLOVER].o_request == NULL) {
-				tftp_log(LOG_ERR,
-				    "Block rollover but not allowed.");
-				send_error(peer, EBADOP);
-				gettimeofday(&(ts->tstop), NULL);
-				return;
+				/*
+				 * "rollover" option not specified in
+				 * tftp client.  Default to rolling block
+				 * counter to 0.
+				 */
+				*block = 0;
+			} else {
+				*block = atoi(options[OPT_ROLLOVER].o_request);
 			}
 
-			*block = atoi(options[OPT_ROLLOVER].o_request);
 			ts->rollovers++;
 		}
 		gettimeofday(&(ts->tstop), NULL);
@@ -196,14 +198,16 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		(*block)++;
 		if (oldblock > *block) {
 			if (options[OPT_ROLLOVER].o_request == NULL) {
-				tftp_log(LOG_ERR,
-				    "Block rollover but not allowed.");
-				send_error(peer, EBADOP);
-				gettimeofday(&(ts->tstop), NULL);
-				return;
+				/*
+				 * "rollover" option not specified in
+				 * tftp client.  Default to rolling block
+				 * counter to 0.
+				 */
+				*block = 0;
+			} else {
+				*block = atoi(options[OPT_ROLLOVER].o_request);
 			}
 
-			*block = atoi(options[OPT_ROLLOVER].o_request);
 			ts->rollovers++;
 		}
 
