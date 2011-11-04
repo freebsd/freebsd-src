@@ -2432,7 +2432,9 @@ ti_attach(device_t dev)
 	ifp->if_start = ti_start;
 	ifp->if_init = ti_init;
 	ifp->if_baudrate = IF_Gbps(1UL);
-	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
+	ifp->if_snd.ifq_drv_maxlen = TI_TX_RING_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Set up ifmedia support. */
 	if (sc->ti_copper) {
@@ -2856,11 +2858,11 @@ ti_intr(void *xsc)
 
 	ti_handle_events(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    ifp->if_snd.ifq_head != NULL) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Re-enable interrupts. */
 		CSR_WRITE_4(sc, TI_MB_HOSTINTR, 0);
-		ti_start_locked(ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			ti_start_locked(ifp);
 	}
 
 	TI_UNLOCK(sc);
@@ -3018,9 +3020,9 @@ ti_start_locked(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	for (; ifp->if_snd.ifq_head != NULL &&
+	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
 	    sc->ti_txcnt < (TI_TX_RING_CNT - 16);) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
@@ -3036,7 +3038,7 @@ ti_start_locked(struct ifnet *ifp)
 		    m_head->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
 			if ((TI_TX_RING_CNT - sc->ti_txcnt) <
 			    m_head->m_pkthdr.csum_data + 16) {
-				IF_PREPEND(&ifp->if_snd, m_head);
+				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
@@ -3050,7 +3052,7 @@ ti_start_locked(struct ifnet *ifp)
 		if (ti_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
