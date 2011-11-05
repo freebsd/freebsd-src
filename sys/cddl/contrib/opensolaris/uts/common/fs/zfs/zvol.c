@@ -878,7 +878,7 @@ zvol_open(struct g_provider *pp, int flag, int count)
 	if (MUTEX_HELD(&spa_namespace_lock)) {
 		/*
 		 * If the spa_namespace_lock is being held, it means that ZFS
-		 * is trying to open ZVOL as its VDEV. This i not supported.
+		 * is trying to open ZVOL as its VDEV. This is not supported.
 		 */
 		return (EOPNOTSUPP);
 	}
