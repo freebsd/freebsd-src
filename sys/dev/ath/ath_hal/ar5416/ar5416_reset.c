@@ -146,7 +146,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
 	if (AR_SREV_HOWL(ah) ||
-	    (AR_SREV_MERLIN(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)))
+	    (AR_SREV_MERLIN(ah) &&
+	     ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) ||
+	    (ah->ah_config.ah_force_full_reset))
 		tsf = ar5416GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
@@ -735,10 +737,13 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 	/*
-	 * Warm reset is optimistic.
+	 * Warm reset is optimistic for open-loop TX power control.
 	 */
 	if (AR_SREV_MERLIN(ah) &&
 	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
+			return AH_FALSE;
+	} else if (ah->ah_config.ah_force_full_reset) {
 		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 			return AH_FALSE;
 	} else {

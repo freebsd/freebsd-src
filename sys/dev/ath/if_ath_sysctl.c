@@ -898,4 +898,9 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "cca", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_cca, 0, "CCA override");
 
+	sc->sc_ah->ah_config.ah_force_full_reset = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "force_full_reset", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_force_full_reset, 0,
+	    "Force full chip reset rather than a warm reset");
+
 }

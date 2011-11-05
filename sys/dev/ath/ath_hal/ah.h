@@ -780,7 +780,9 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
-	int ah_cca;
+	int ah_cca;			/* override minCCApwr; for debugging only! */
+	int ah_force_full_reset;	/* force full chip reset rather then warm reset */
+
 } HAL_OPS_CONFIG;
 
 /*
