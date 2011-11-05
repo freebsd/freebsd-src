@@ -1062,7 +1062,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 {
     	struct pcm_channel *chn, *rdch, *wrch;
 	struct snddev_info *d;
-	int *arg_i, ret, tmp, xcmd;
+	u_long xcmd;
+	int *arg_i, ret, tmp;
 
 	d = dsp_get_info(i_dev);
 	if (!DSP_REGISTERED(d, i_dev))
