@@ -656,7 +656,7 @@ fname(const char *name)
 	appcstrg(&args, name);
 
 	/* we reuse the same tmp file for cpp output, so rewind and truncate */
-	if (lseek(cppoutfd, SEEK_SET, (off_t)0) != 0) {
+	if (lseek(cppoutfd, (off_t)0, SEEK_SET) != 0) {
 		warn("lseek");
 		terminate(-1);
 	}
