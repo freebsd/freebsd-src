@@ -113,6 +113,20 @@
 
 TAILQ_HEAD(pglist, vm_page);
 
+#if PAGE_SIZE == 4096
+#define VM_PAGE_BITS_ALL 0xffu
+typedef uint8_t vm_page_bits_t;
+#elif PAGE_SIZE == 8192
+#define VM_PAGE_BITS_ALL 0xffffu
+typedef uint16_t vm_page_bits_t;
+#elif PAGE_SIZE == 16384
+#define VM_PAGE_BITS_ALL 0xffffffffu
+typedef uint32_t vm_page_bits_t;
+#elif PAGE_SIZE == 32768
+#define VM_PAGE_BITS_ALL 0xfffffffffffffffflu
+typedef uint64_t vm_page_bits_t;
+#endif
+
 struct vm_page {
 	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (Q) */
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
@@ -137,20 +151,8 @@ struct vm_page {
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
-	/* In reality, support for 32KB pages is not fully implemented. */
-#if PAGE_SIZE == 4096
-	uint8_t	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	uint8_t	dirty;			/* map of dirty DEV_BSIZE chunks (M) */
-#elif PAGE_SIZE == 8192
-	uint16_t valid;			/* map of valid DEV_BSIZE chunks (O) */
-	uint16_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
-#elif PAGE_SIZE == 16384
-	uint32_t valid;			/* map of valid DEV_BSIZE chunks (O) */
-	uint32_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
-#elif PAGE_SIZE == 32768
-	uint64_t valid;			/* map of valid DEV_BSIZE chunks (O) */
-	uint64_t dirty;			/* map of dirty DEV_BSIZE chunks (M) */
-#endif
+	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
+	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
 };
 
 /*
@@ -403,7 +405,7 @@ void vm_page_clear_dirty (vm_page_t, int, int);
 void vm_page_set_invalid (vm_page_t, int, int);
 int vm_page_is_valid (vm_page_t, int, int);
 void vm_page_test_dirty (vm_page_t);
-int vm_page_bits (int, int);
+vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 void vm_page_zero_idle_wakeup(void);
