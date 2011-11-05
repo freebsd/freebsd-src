@@ -280,7 +280,7 @@ setup_gpart_partitions()
       if [ "${_pType}" = "gpt" ] ; then
         get_fs_line_xvars "${_pDisk}p${CURPART}" "${STRING}"
       else
-        get_fs_line_xvars "${_wSlice}" "${STRING}"
+        get_fs_line_xvars "${_wSlice}${PARTLETTER}" "${STRING}"
       fi
       XTRAOPTS="${VAR}"
 
