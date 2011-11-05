@@ -137,7 +137,7 @@ SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
 
 static uma_zone_t fakepg_zone;
 
-static void vm_page_clear_dirty_mask(vm_page_t m, int pagebits);
+static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_queue_remove(int queue, vm_page_t m);
 static void vm_page_enqueue(int queue, vm_page_t m);
 static void vm_page_init_fakepg(void *dummy);
@@ -2350,7 +2350,7 @@ retrylookup:
  *
  * Inputs are required to range within a page.
  */
-int
+vm_page_bits_t
 vm_page_bits(int base, int size)
 {
 	int first_bit;
@@ -2367,7 +2367,8 @@ vm_page_bits(int base, int size)
 	first_bit = base >> DEV_BSHIFT;
 	last_bit = (base + size - 1) >> DEV_BSHIFT;
 
-	return ((2 << last_bit) - (1 << first_bit));
+	return (((vm_page_bits_t)2 << last_bit) -
+	    ((vm_page_bits_t)1 << first_bit));
 }
 
 /*
@@ -2426,7 +2427,7 @@ vm_page_set_valid(vm_page_t m, int base, int size)
  * Clear the given bits from the specified page's dirty field.
  */
 static __inline void
-vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
+vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits)
 {
 	uintptr_t addr;
 #if PAGE_SIZE < 16384
@@ -2455,7 +2456,6 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 		 */
 		addr = (uintptr_t)&m->dirty;
 #if PAGE_SIZE == 32768
-#error pagebits too short
 		atomic_clear_64((uint64_t *)addr, pagebits);
 #elif PAGE_SIZE == 16384
 		atomic_clear_32((uint32_t *)addr, pagebits);
@@ -2492,8 +2492,8 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 void
 vm_page_set_validclean(vm_page_t m, int base, int size)
 {
-	u_long oldvalid;
-	int endoff, frag, pagebits;
+	vm_page_bits_t oldvalid, pagebits;
+	int endoff, frag;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (size == 0)	/* handle degenerate case */
@@ -2505,7 +2505,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * first block.
 	 */
 	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
-	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0)
+	    (m->valid & ((vm_page_bits_t)1 << (base >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, frag, base - frag);
 
 	/*
@@ -2515,7 +2515,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 */
 	endoff = base + size;
 	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
-	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
+	    (m->valid & ((vm_page_bits_t)1 << (endoff >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, endoff,
 		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
 
@@ -2585,7 +2585,7 @@ vm_page_clear_dirty(vm_page_t m, int base, int size)
 void
 vm_page_set_invalid(vm_page_t m, int base, int size)
 {
-	int bits;
+	vm_page_bits_t bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -2625,8 +2625,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
 		if (i == (PAGE_SIZE / DEV_BSIZE) || 
-		    (m->valid & (1 << i))
-		) {
+		    (m->valid & ((vm_page_bits_t)1 << i))) {
 			if (i > b) {
 				pmap_zero_page_area(m, 
 				    b << DEV_BSHIFT, (i - b) << DEV_BSHIFT);
@@ -2656,9 +2655,10 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 int
 vm_page_is_valid(vm_page_t m, int base, int size)
 {
-	int bits = vm_page_bits(base, size);
+	vm_page_bits_t bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	bits = vm_page_bits(base, size);
 	if (m->valid && ((m->valid & bits) == bits))
 		return 1;
 	else
