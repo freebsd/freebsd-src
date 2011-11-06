@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -84,7 +85,7 @@ MODULE_DEPEND(ste, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct ste_type ste_devs[] = {
+static const struct ste_type const ste_devs[] = {
 	{ ST_VENDORID, ST_DEVICEID_ST201_1, "Sundance ST201 10/100BaseTX" },
 	{ ST_VENDORID, ST_DEVICEID_ST201_2, "Sundance ST201 10/100BaseTX" },
 	{ DL_VENDORID, DL_DEVICEID_DL10050, "D-Link DL10050 10/100BaseTX" },
@@ -112,10 +113,8 @@ static int	ste_init_rx_list(struct ste_softc *);
 static void	ste_init_tx_list(struct ste_softc *);
 static void	ste_intr(void *);
 static int	ste_ioctl(struct ifnet *, u_long, caddr_t);
-static int	ste_mii_readreg(struct ste_softc *, struct ste_mii_frame *);
-static void	ste_mii_send(struct ste_softc *, uint32_t, int);
-static void	ste_mii_sync(struct ste_softc *);
-static int	ste_mii_writereg(struct ste_softc *, struct ste_mii_frame *);
+static uint32_t ste_mii_bitbang_read(device_t);
+static void	ste_mii_bitbang_write(device_t, uint32_t);
 static int	ste_miibus_readreg(device_t, int, int);
 static void	ste_miibus_statchg(device_t);
 static int	ste_miibus_writereg(device_t, int, int, int);
@@ -137,6 +136,21 @@ static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
 static void	ste_wait(struct ste_softc *);
 static void	ste_watchdog(struct ste_softc *);
+
+/*
+ * MII bit-bang glue
+ */
+static const struct mii_bitbang_ops ste_mii_bitbang_ops = {
+	ste_mii_bitbang_read,
+	ste_mii_bitbang_write,
+	{
+		STE_PHYCTL_MDATA,	/* MII_BIT_MDO */
+		STE_PHYCTL_MDATA,	/* MII_BIT_MDI */
+		STE_PHYCTL_MCLK,	/* MII_BIT_MDC */
+		STE_PHYCTL_MDIR,	/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 static device_method_t ste_methods[] = {
 	/* Device interface */
@@ -188,210 +202,51 @@ DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 #define STE_CLRBIT1(sc, reg, x)				\
 	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) & ~(x))
 
+/*
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+ste_mii_bitbang_read(device_t dev)
+{
+	struct ste_softc *sc;
+	uint32_t val;
 
-#define MII_SET(x)		STE_SETBIT1(sc, STE_PHYCTL, x)
-#define MII_CLR(x)		STE_CLRBIT1(sc, STE_PHYCTL, x)
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_1(sc, STE_PHYCTL);
+	CSR_BARRIER(sc, STE_PHYCTL, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-ste_mii_sync(struct ste_softc *sc)
+ste_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int i;
+	struct ste_softc *sc;
 
-	MII_SET(STE_PHYCTL_MDIR|STE_PHYCTL_MDATA);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		MII_SET(STE_PHYCTL_MCLK);
-		DELAY(1);
-		MII_CLR(STE_PHYCTL_MCLK);
-		DELAY(1);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-ste_mii_send(struct ste_softc *sc, uint32_t bits, int cnt)
-{
-	int i;
-
-	MII_CLR(STE_PHYCTL_MCLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			MII_SET(STE_PHYCTL_MDATA);
-                } else {
-			MII_CLR(STE_PHYCTL_MDATA);
-                }
-		DELAY(1);
-		MII_CLR(STE_PHYCTL_MCLK);
-		DELAY(1);
-		MII_SET(STE_PHYCTL_MCLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-ste_mii_readreg(struct ste_softc *sc, struct ste_mii_frame *frame)
-{
-	int i, ack;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = STE_MII_STARTDELIM;
-	frame->mii_opcode = STE_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	CSR_WRITE_2(sc, STE_PHYCTL, 0);
-	/*
- 	 * Turn on data xmit.
-	 */
-	MII_SET(STE_PHYCTL_MDIR);
-
-	ste_mii_sync(sc);
-
-	/*
-	 * Send command/address info.
-	 */
-	ste_mii_send(sc, frame->mii_stdelim, 2);
-	ste_mii_send(sc, frame->mii_opcode, 2);
-	ste_mii_send(sc, frame->mii_phyaddr, 5);
-	ste_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Turn off xmit. */
-	MII_CLR(STE_PHYCTL_MDIR);
-
-	/* Idle bit */
-	MII_CLR((STE_PHYCTL_MCLK|STE_PHYCTL_MDATA));
-	DELAY(1);
-	MII_SET(STE_PHYCTL_MCLK);
-	DELAY(1);
-
-	/* Check for ack */
-	MII_CLR(STE_PHYCTL_MCLK);
-	DELAY(1);
-	ack = CSR_READ_2(sc, STE_PHYCTL) & STE_PHYCTL_MDATA;
-	MII_SET(STE_PHYCTL_MCLK);
-	DELAY(1);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for (i = 0; i < 16; i++) {
-			MII_CLR(STE_PHYCTL_MCLK);
-			DELAY(1);
-			MII_SET(STE_PHYCTL_MCLK);
-			DELAY(1);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		MII_CLR(STE_PHYCTL_MCLK);
-		DELAY(1);
-		if (!ack) {
-			if (CSR_READ_2(sc, STE_PHYCTL) & STE_PHYCTL_MDATA)
-				frame->mii_data |= i;
-			DELAY(1);
-		}
-		MII_SET(STE_PHYCTL_MCLK);
-		DELAY(1);
-	}
-
-fail:
-
-	MII_CLR(STE_PHYCTL_MCLK);
-	DELAY(1);
-	MII_SET(STE_PHYCTL_MCLK);
-	DELAY(1);
-
-	if (ack)
-		return (1);
-	return (0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-ste_mii_writereg(struct ste_softc *sc, struct ste_mii_frame *frame)
-{
-
-	/*
-	 * Set up frame for TX.
-	 */
-
-	frame->mii_stdelim = STE_MII_STARTDELIM;
-	frame->mii_opcode = STE_MII_WRITEOP;
-	frame->mii_turnaround = STE_MII_TURNAROUND;
-
-	/*
- 	 * Turn on data output.
-	 */
-	MII_SET(STE_PHYCTL_MDIR);
-
-	ste_mii_sync(sc);
-
-	ste_mii_send(sc, frame->mii_stdelim, 2);
-	ste_mii_send(sc, frame->mii_opcode, 2);
-	ste_mii_send(sc, frame->mii_phyaddr, 5);
-	ste_mii_send(sc, frame->mii_regaddr, 5);
-	ste_mii_send(sc, frame->mii_turnaround, 2);
-	ste_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	MII_SET(STE_PHYCTL_MCLK);
-	DELAY(1);
-	MII_CLR(STE_PHYCTL_MCLK);
-	DELAY(1);
-
-	/*
-	 * Turn off xmit.
-	 */
-	MII_CLR(STE_PHYCTL_MDIR);
-
-	return (0);
+	CSR_WRITE_1(sc, STE_PHYCTL, val);
+	CSR_BARRIER(sc, STE_PHYCTL, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 ste_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct ste_softc *sc;
-	struct ste_mii_frame frame;
 
-	sc = device_get_softc(dev);
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	ste_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &ste_mii_bitbang_ops, phy, reg));
 }
 
 static int
 ste_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct ste_softc *sc;
-	struct ste_mii_frame frame;
 
-	sc = device_get_softc(dev);
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-
-	ste_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &ste_mii_bitbang_ops, phy, reg, data);
 
 	return (0);
 }
@@ -1027,7 +882,7 @@ ste_stats_update(struct ste_softc *sc)
 static int
 ste_probe(device_t dev)
 {
-	struct ste_type *t;
+	const struct ste_type *t;
 
 	t = ste_devs;
 
