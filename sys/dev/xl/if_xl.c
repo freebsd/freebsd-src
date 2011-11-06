@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -160,7 +161,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct xl_type xl_devs[] = {
+static const struct xl_type const xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT,
 		"3Com 3c900-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT_COMBO,
@@ -258,10 +259,6 @@ static void xl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int xl_eeprom_wait(struct xl_softc *);
 static int xl_read_eeprom(struct xl_softc *, caddr_t, int, int, int);
-static void xl_mii_sync(struct xl_softc *);
-static void xl_mii_send(struct xl_softc *, u_int32_t, int);
-static int xl_mii_readreg(struct xl_softc *, struct xl_mii_frame *);
-static int xl_mii_writereg(struct xl_softc *, struct xl_mii_frame *);
 
 static void xl_rxfilter(struct xl_softc *);
 static void xl_rxfilter_90x(struct xl_softc *);
@@ -285,6 +282,24 @@ static int xl_miibus_readreg(device_t, int, int);
 static int xl_miibus_writereg(device_t, int, int, int);
 static void xl_miibus_statchg(device_t);
 static void xl_miibus_mediainit(device_t);
+
+/*
+ * MII bit-bang glue
+ */
+static uint32_t xl_mii_bitbang_read(device_t);
+static void xl_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops xl_mii_bitbang_ops = {
+	xl_mii_bitbang_read,
+	xl_mii_bitbang_write,
+	{
+		XL_MII_DATA,		/* MII_BIT_MDO */
+		XL_MII_DATA,		/* MII_BIT_MDI */
+		XL_MII_CLK,		/* MII_BIT_MDC */
+		XL_MII_DIR,		/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 static device_method_t xl_methods[] = {
 	/* Device interface */
@@ -359,194 +374,66 @@ xl_wait(struct xl_softc *sc)
  * some chips/CPUs/processor speeds/bus speeds/etc but not
  * with others.
  */
-#define MII_SET(x)					\
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) | (x))
-
-#define MII_CLR(x)					\
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) & ~(x))
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+xl_mii_bitbang_read(device_t dev)
+{
+	struct xl_softc		*sc;
+	uint32_t		val;
+
+	sc = device_get_softc(dev);
+
+	/* We're already in window 4. */
+	val = CSR_READ_2(sc, XL_W4_PHY_MGMT);
+	CSR_BARRIER(sc, XL_W4_PHY_MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-xl_mii_sync(struct xl_softc *sc)
+xl_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	register int		i;
+	struct xl_softc		*sc;
 
-	XL_SEL_WIN(4);
-	MII_SET(XL_MII_DIR|XL_MII_DATA);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		MII_SET(XL_MII_CLK);
-		MII_SET(XL_MII_DATA);
-		MII_SET(XL_MII_DATA);
-		MII_CLR(XL_MII_CLK);
-		MII_SET(XL_MII_DATA);
-		MII_SET(XL_MII_DATA);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-xl_mii_send(struct xl_softc *sc, u_int32_t bits, int cnt)
-{
-	int			i;
-
-	XL_SEL_WIN(4);
-	MII_CLR(XL_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			MII_SET(XL_MII_DATA);
-		} else {
-			MII_CLR(XL_MII_DATA);
-		}
-		MII_CLR(XL_MII_CLK);
-		MII_SET(XL_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-xl_mii_readreg(struct xl_softc *sc, struct xl_mii_frame *frame)
-{
-	int			i, ack;
-
-	/* Set up frame for RX. */
-	frame->mii_stdelim = XL_MII_STARTDELIM;
-	frame->mii_opcode = XL_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	/* Select register window 4. */
-	XL_SEL_WIN(4);
-
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT, 0);
-	/* Turn on data xmit. */
-	MII_SET(XL_MII_DIR);
-
-	xl_mii_sync(sc);
-
-	/* Send command/address info. */
-	xl_mii_send(sc, frame->mii_stdelim, 2);
-	xl_mii_send(sc, frame->mii_opcode, 2);
-	xl_mii_send(sc, frame->mii_phyaddr, 5);
-	xl_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	MII_CLR((XL_MII_CLK|XL_MII_DATA));
-	MII_SET(XL_MII_CLK);
-
-	/* Turn off xmit. */
-	MII_CLR(XL_MII_DIR);
-
-	/* Check for ack */
-	MII_CLR(XL_MII_CLK);
-	ack = CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA;
-	MII_SET(XL_MII_CLK);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for (i = 0; i < 16; i++) {
-			MII_CLR(XL_MII_CLK);
-			MII_SET(XL_MII_CLK);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		MII_CLR(XL_MII_CLK);
-		if (!ack) {
-			if (CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA)
-				frame->mii_data |= i;
-		}
-		MII_SET(XL_MII_CLK);
-	}
-
-fail:
-	MII_CLR(XL_MII_CLK);
-	MII_SET(XL_MII_CLK);
-
-	return (ack ? 1 : 0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-xl_mii_writereg(struct xl_softc *sc, struct xl_mii_frame *frame)
-{
-
-	/* Set up frame for TX. */
-	frame->mii_stdelim = XL_MII_STARTDELIM;
-	frame->mii_opcode = XL_MII_WRITEOP;
-	frame->mii_turnaround = XL_MII_TURNAROUND;
-
-	/* Select the window 4. */
-	XL_SEL_WIN(4);
-
-	/* Turn on data output. */
-	MII_SET(XL_MII_DIR);
-
-	xl_mii_sync(sc);
-
-	xl_mii_send(sc, frame->mii_stdelim, 2);
-	xl_mii_send(sc, frame->mii_opcode, 2);
-	xl_mii_send(sc, frame->mii_phyaddr, 5);
-	xl_mii_send(sc, frame->mii_regaddr, 5);
-	xl_mii_send(sc, frame->mii_turnaround, 2);
-	xl_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	MII_SET(XL_MII_CLK);
-	MII_CLR(XL_MII_CLK);
-
-	/* Turn off xmit. */
-	MII_CLR(XL_MII_DIR);
-
-	return (0);
+	/* We're already in window 4. */
+	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,	val);
+	CSR_BARRIER(sc, XL_W4_PHY_MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 xl_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct xl_softc		*sc;
-	struct xl_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
+	/* Select the window 4. */
+	XL_SEL_WIN(4);
 
-	xl_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &xl_mii_bitbang_ops, phy, reg));
 }
 
 static int
 xl_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct xl_softc		*sc;
-	struct xl_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
+	/* Select the window 4. */
+	XL_SEL_WIN(4);
 
-	xl_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &xl_mii_bitbang_ops, phy, reg, data);
 
 	return (0);
 }
