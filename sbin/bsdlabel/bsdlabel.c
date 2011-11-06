@@ -836,6 +836,11 @@ getasciilabel(FILE *f, struct disklabel *lp)
 				    "line %d: bad # of partitions\n", lineno);
 				lp->d_npartitions = MAXPARTITIONS;
 				errors++;
+			} else if (v < DEFPARTITIONS) {
+				fprintf(stderr,
+				    "line %d: bad # of partitions\n", lineno);
+				lp->d_npartitions = DEFPARTITIONS;
+				errors++;
 			} else
 				lp->d_npartitions = v;
 			continue;
@@ -1149,23 +1154,42 @@ checklabel(struct disklabel *lp)
 			errors++;
 		} else if (lp->d_bbsize % lp->d_secsize)
 			warnx("boot block size %% sector-size != 0");
-		if (lp->d_npartitions > MAXPARTITIONS)
+		if (lp->d_npartitions > MAXPARTITIONS) {
 			warnx("number of partitions (%lu) > MAXPARTITIONS (%d)",
 			    (u_long)lp->d_npartitions, MAXPARTITIONS);
+			errors++;
+		}
+		if (lp->d_npartitions < DEFPARTITIONS) {
+			warnx("number of partitions (%lu) < DEFPARTITIONS (%d)",
+			    (u_long)lp->d_npartitions, DEFPARTITIONS);
+			errors++;
+		}
 	} else {
 		struct disklabel *vl;
 
 		vl = getvirginlabel();
-		lp->d_secsize = vl->d_secsize;
-		lp->d_nsectors = vl->d_nsectors;
-		lp->d_ntracks = vl->d_ntracks;
-		lp->d_ncylinders = vl->d_ncylinders;
-		lp->d_rpm = vl->d_rpm;
-		lp->d_interleave = vl->d_interleave;
-		lp->d_secpercyl = vl->d_secpercyl;
-		lp->d_secperunit = vl->d_secperunit;
-		lp->d_bbsize = vl->d_bbsize;
-		lp->d_npartitions = vl->d_npartitions;
+		if (lp->d_secsize == 0)
+			lp->d_secsize = vl->d_secsize;
+		if (lp->d_nsectors == 0)
+			lp->d_nsectors = vl->d_nsectors;
+		if (lp->d_ntracks == 0)
+			lp->d_ntracks = vl->d_ntracks;
+		if (lp->d_ncylinders == 0)
+			lp->d_ncylinders = vl->d_ncylinders;
+		if (lp->d_rpm == 0)
+			lp->d_rpm = vl->d_rpm;
+		if (lp->d_interleave == 0)
+			lp->d_interleave = vl->d_interleave;
+		if (lp->d_secpercyl == 0)
+			lp->d_secpercyl = vl->d_secpercyl;
+		if (lp->d_secperunit == 0)
+			lp->d_secperunit = vl->d_secperunit;
+		if (lp->d_bbsize == 0)
+			lp->d_bbsize = vl->d_bbsize;
+		if (lp->d_npartitions == 0 ||
+		    lp->d_npartitions < DEFPARTITIONS ||
+		    lp->d_npartitions > MAXPARTITIONS)
+			lp->d_npartitions = vl->d_npartitions;
 	}
 
 
