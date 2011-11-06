@@ -254,6 +254,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxgb} \
 	ral \
 	ralfw \
 	${_random} \
@@ -620,6 +621,7 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_qlxgb=		qlxgb
 _rdma=		rdma	
 _s3=		s3
 _safe=		safe
