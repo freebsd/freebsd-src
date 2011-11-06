@@ -1298,6 +1298,8 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
+ *	VM_ALLOC_COUNT(number)	the number of additional pages that the caller
+ *				intends to allocate
  *	VM_ALLOC_IFCACHED	return page only if it is cached
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
@@ -1315,27 +1317,26 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	struct vnode *vp = NULL;
 	vm_object_t m_object;
 	vm_page_t m;
-	int flags, page_req;
+	int flags, req_class;
 
-	if ((req & VM_ALLOC_NOOBJ) == 0) {
-		KASSERT(object != NULL,
-		    ("vm_page_alloc: NULL object."));
+	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0),
+	    ("vm_page_alloc: inconsistent object/req"));
+	if (object != NULL)
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	}
 
-	page_req = req & VM_ALLOC_CLASS_MASK;
+	req_class = req & VM_ALLOC_CLASS_MASK;
 
 	/*
-	 * The pager is allowed to eat deeper into the free page list.
+	 * The page daemon is allowed to dig deeper into the free page list.
 	 */
-	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT))
-		page_req = VM_ALLOC_SYSTEM;
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (page_req == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM && 
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
-	    (page_req == VM_ALLOC_INTERRUPT &&
+	    (req_class == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0)) {
 		/*
 		 * Allocate from the free queue if the number of free pages
@@ -1383,7 +1384,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		 */
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit,
-		    MAX((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
+		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
 		pagedaemon_wakeup();
 		return (NULL);
 	}
@@ -1391,7 +1392,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	/*
 	 *  At this point we had better have found a good page.
 	 */
-
 	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
 	KASSERT(m->queue == PQ_NONE,
 	    ("vm_page_alloc: page %p has unexpected queue %d", m, m->queue));
@@ -1403,6 +1403,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    ("vm_page_alloc: page %p has unexpected memattr %d", m,
 	    pmap_page_get_memattr(m)));
 	if ((m->flags & PG_CACHED) != 0) {
+		KASSERT((m->flags & PG_ZERO) == 0,
+		    ("vm_page_alloc: cached page %p is PG_ZERO", m));
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
 		if (m->object == object && m->pindex == pindex)
@@ -1546,6 +1548,8 @@ vm_page_alloc_init(vm_page_t m)
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
+ *	VM_ALLOC_COUNT(number)	the number of additional pages that the caller
+ *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
  *
@@ -1557,20 +1561,32 @@ vm_page_alloc_freelist(int flind, int req)
 	struct vnode *drop;
 	vm_page_t m;
 	u_int flags;
-	int page_req;
+	int req_class;
 
-	m = NULL;
-	page_req = req & VM_ALLOC_CLASS_MASK;
-	mtx_lock(&vm_page_queue_free_mtx);
+	req_class = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
+
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (page_req == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM && 
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
-	    (page_req == VM_ALLOC_INTERRUPT &&
-	    cnt.v_free_count + cnt.v_cache_count > 0)) {
+	    (req_class == VM_ALLOC_INTERRUPT &&
+	    cnt.v_free_count + cnt.v_cache_count > 0))
 		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
+	else {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		atomic_add_int(&vm_pageout_deficit,
+		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
+		pagedaemon_wakeup();
+		return (NULL);
 	}
 	if (m == NULL) {
 		mtx_unlock(&vm_page_queue_free_mtx);
