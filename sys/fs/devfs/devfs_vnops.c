@@ -887,6 +887,10 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev);
 	if (dsw == NULL)
 		return (ENXIO);
+	if (fp == NULL && dsw->d_fdopen != NULL) {
+		dev_relthread(dev);
+		return (ENXIO);
+	}
 
 	/* XXX: Special casing of ttys for deadfs.  Probably redundant. */
 	if (dsw->d_flags & D_TTY)
