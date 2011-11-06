@@ -1846,13 +1846,15 @@ device		puc
 # MII bus support is required for many PCI Ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
 # transceiver control interfaces that operate like an MII.  Adding
-# "device miibus" to the kernel config pulls in support for
-# the generic miibus API and all of the PHY drivers, including a
-# generic one for PHYs that aren't specifically handled by an
-# individual driver.  Support for specific PHYs may be built by adding
-# "device mii" then adding the appropriate PHY driver.
-device  	miibus		# MII support including all PHYs
+# "device miibus" to the kernel config pulls in support for the generic
+# miibus API, the common support for for bit-bang'ing the MII and all
+# of the PHY drivers, including a generic one for PHYs that aren't
+# specifically handled by an individual driver.  Support for specific
+# PHYs may be built by adding "device mii", "device mii_bitbang" if
+# needed by the NIC driver and then adding the appropriate PHY driver.
 device  	mii		# Minimal MII support
+device  	mii_bitbang	# Common module for bit-bang'ing the MII
+device  	miibus		# MII support w/ bit-bang'ing and all PHYs
 
 device  	acphy		# Altima Communications AC101
 device  	amphy		# AMD AM79c873 / Davicom DM910{1,2}
