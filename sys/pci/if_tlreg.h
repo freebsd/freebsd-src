@@ -32,11 +32,10 @@
  * $FreeBSD$
  */
 
-
 struct tl_type {
 	u_int16_t		tl_vid;
 	u_int16_t		tl_did;
-	char			*tl_name;
+	const char		*tl_name;
 };
 
 /*
@@ -205,6 +204,7 @@ struct tl_softc {
 
 #define TL_INT_MASK		0x001C
 #define TL_VEC_MASK		0x1FE0
+
 /*
  * Host command register bits
  */
@@ -392,36 +392,6 @@ struct tl_softc {
 #define TL_MASK_MASK5		0x20
 #define TL_MASK_MASK4		0x10
 
-/*
- * MII frame format
- */
-#ifdef ANSI_DOESNT_ALLOW_BITFIELDS
-struct tl_mii_frame {
-	u_int16_t		mii_stdelim:2,
-				mii_opcode:2,
-				mii_phyaddr:5,
-				mii_regaddr:5,
-				mii_turnaround:2;
-	u_int16_t		mii_data;
-};
-#else
-struct tl_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
-};
-#endif
-/*
- * MII constants
- */
-#define TL_MII_STARTDELIM	0x01
-#define TL_MII_READOP		0x02
-#define TL_MII_WRITEOP		0x01
-#define TL_MII_TURNAROUND	0x02
-
 #define TL_LAST_FRAG		0x80000000
 #define TL_CSTAT_UNUSED		0x8000
 #define TL_CSTAT_FRAMECMP	0x4000
@@ -506,6 +476,9 @@ struct tl_stats {
 	bus_space_read_2(sc->tl_btag, sc->tl_bhandle, reg)
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->tl_btag, sc->tl_bhandle, reg)
+
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_barrier(sc->tl_res, reg, length, flags)
 
 #define CMD_PUT(sc, x) CSR_WRITE_4(sc, TL_HOSTCMD, x)
 #define CMD_SET(sc, x)	\
