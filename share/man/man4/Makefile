@@ -347,6 +347,7 @@ MAN=	aac.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	${_qlxgb.4} \
 	ral.4 \
 	random.4 \
 	rc.4 \
@@ -711,6 +712,10 @@ _wpi.4=		wpi.4
 _xen.4=		xen.4
 
 MLINKS+=lindev.4 full.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_qlxgb.4=	qlxgb.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
