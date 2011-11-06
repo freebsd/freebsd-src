@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #define LEGACY_VERSION(x)  _PW_VERSIONED(x, 3)
 #define CURRENT_VERSION(x) _PW_VERSIONED(x, 4)
 
-HASHINFO openinfo = {
+static HASHINFO openinfo = {
 	4096,		/* bsize */
 	32,		/* ffactor */
 	256,		/* nelem */
