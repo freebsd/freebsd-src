@@ -57,13 +57,13 @@ __FBSDID("$FreeBSD$");
 
 #include "functions.h"
 
-int 	fsflg,	/* show files on same filesystem as file(s) argument */
-	pflg,	/* show files open by a particular pid */
-	uflg;	/* show files open by a particular (effective) user */
-int 	checkfile; /* true if restricting to particular files or filesystems */
-int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
-int	mflg;	/* include memory-mapped files */
-int	vflg;	/* be verbose */
+static int 	fsflg,	/* show files on same filesystem as file(s) argument */
+		pflg,	/* show files open by a particular pid */
+		uflg;	/* show files open by a particular (effective) user */
+static int 	checkfile; /* restrict to particular files or filesystems */
+static int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
+static int	mflg;	/* include memory-mapped files */
+static int	vflg;	/* be verbose */
 
 typedef struct devs {
 	struct devs	*next;
@@ -72,8 +72,8 @@ typedef struct devs {
 	const char	*name;
 } DEVS;
 
-DEVS *devs;
-char *memf, *nlistf;
+static DEVS *devs;
+static char *memf, *nlistf;
 
 static int	getfname(const char *filename);
 static void	dofiles(struct procstat *procstat, struct kinfo_proc *p);
