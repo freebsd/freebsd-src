@@ -1092,6 +1092,7 @@ dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
 dev/flash/mx25l.c		optional mx25l
 dev/fxp/if_fxp.c		optional fxp
+dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/gem/if_gem_sbus.c		optional gem sbus
@@ -1418,12 +1419,8 @@ dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
 dev/mii/e1000phy.c		optional miibus | e1000phy
-# XXX only xl cards?
-dev/mii/exphy.c			optional miibus | exphy
 dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
-# XXX only fxp cards?
-dev/mii/inphy.c			optional miibus | inphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
@@ -1440,8 +1437,6 @@ dev/mii/rdcphy.c		optional miibus | rdcphy
 dev/mii/rgephy.c		optional miibus | rgephy
 dev/mii/rlphy.c			optional miibus | rlphy
 dev/mii/rlswitch.c		optional rlswitch
-# XXX rue only?
-dev/mii/ruephy.c		optional miibus | ruephy
 dev/mii/smcphy.c		optional miibus | smcphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
 dev/mii/tlphy.c			optional miibus | tlphy
@@ -1924,6 +1919,7 @@ dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
+dev/usb/net/ruephy.c		optional rue
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
 					 rue | udav
 dev/usb/net/uhso.c		optional uhso
@@ -2062,6 +2058,7 @@ wpi.fw			optional wpifw					\
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xl/if_xl.c			optional xl pci
+dev/xl/xlphy.c			optional xl pci
 fs/coda/coda_fbsd.c		optional vcoda
 fs/coda/coda_psdev.c		optional vcoda
 fs/coda/coda_subr.c		optional vcoda
