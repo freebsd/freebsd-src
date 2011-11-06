@@ -187,6 +187,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		}
 		if (lport) {
 			struct inpcb *t;
+			struct tcptw *tw;
 
 			/* GROSS */
 			if (ntohs(lport) <= V_ipport_reservedhigh &&
@@ -233,10 +234,21 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 			    lport, lookupflags, cred);
-			if (t && (reuseport & ((t->inp_flags & INP_TIMEWAIT) ?
-			    intotw(t)->tw_so_options :
-			    t->inp_socket->so_options)) == 0)
+			if (t && (t->inp_flags & INP_TIMEWAIT)) {
+				/*
+				 * XXXRW: If an incpb has had its timewait
+				 * state recycled, we treat the address as
+				 * being in use (for now).  This is better
+				 * than a panic, but not desirable.
+				 */
+				tw = intotw(t);
+				if (tw == NULL ||
+				    (reuseport & tw->tw_so_options) == 0)
+					return (EADDRINUSE);
+			} else if (t && (reuseport & t->inp_socket->so_options)
+			    == 0) {
 				return (EADDRINUSE);
+			}
 #ifdef INET
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
@@ -246,9 +258,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
 				    lport, lookupflags, cred);
 				if (t && t->inp_flags & INP_TIMEWAIT) {
-					if ((reuseport &
-					    intotw(t)->tw_so_options) == 0 &&
-					    (ntohl(t->inp_laddr.s_addr) !=
+					tw = intotw(t);
+					if (tw == NULL)
+						return (EADDRINUSE);
+					if ((reuseport & tw->tw_so_options) == 0
+					    && (ntohl(t->inp_laddr.s_addr) !=
 					     INADDR_ANY || ((inp->inp_vflag &
 					     INP_IPV6PROTO) ==
 					     (t->inp_vflag & INP_IPV6PROTO))))
