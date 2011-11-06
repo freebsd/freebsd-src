@@ -1330,11 +1330,10 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 			sc->sc_nexus = ecb;
 			ncr53c9x_select(sc, ecb);
 			break;
-		} else {
+		} else
 			NCR_TRACE(("[%s %d:%d busy] \n", __func__,
 			    ecb->ccb->ccb_h.target_id,
 			    ecb->ccb->ccb_h.target_lun));
-		}
 	}
 }
 
@@ -1413,10 +1412,10 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	 */
 	if (ccb->ccb_h.status == CAM_REQ_CMP) {
 		ccb->csio.scsi_status = ecb->stat;
-		if ((ecb->flags & ECB_ABORT) != 0) {
+		if ((ecb->flags & ECB_ABORT) != 0)
 			ccb->ccb_h.status = CAM_CMD_TIMEOUT;
-		} else if ((ecb->flags & ECB_SENSE) != 0 &&
-			   (ecb->stat != SCSI_STATUS_CHECK_COND)) {
+		else if ((ecb->flags & ECB_SENSE) != 0 &&
+		   (ecb->stat != SCSI_STATUS_CHECK_COND)) {
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 			    CAM_AUTOSNS_VALID;
@@ -1440,13 +1439,15 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 				}
 				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			}
-		} else {
+		} else
 			ccb->csio.resid = ecb->dleft;
-		}
 		if (ecb->stat == SCSI_STATUS_QUEUE_FULL)
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 		else if (ecb->stat == SCSI_STATUS_BUSY)
 			ccb->ccb_h.status = CAM_SCSI_BUSY;
+	} else if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
 	}
 
 #ifdef NCR53C9X_DEBUG
@@ -1474,7 +1475,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		}
 	}
 
-	if (ccb->ccb_h.status == CAM_SEL_TIMEOUT) {
+	if ((ccb->ccb_h.status & CAM_SEL_TIMEOUT) != 0) {
 		/* Selection timeout -- discard this LUN if empty. */
 		if (li->untagged == NULL && li->used == 0) {
 			if (lun < NCR_NLUN)
