@@ -60,7 +60,9 @@ __FBSDID("$FreeBSD$");
 static void	id_print(struct passwd *, int, int, int);
 static void	pline(struct passwd *);
 static void	pretty(struct passwd *);
+#ifdef USE_BSM_AUDIT
 static void	auditid(void);
+#endif
 static void	group(struct passwd *, int);
 static void	maclabel(void);
 static void	usage(void);
