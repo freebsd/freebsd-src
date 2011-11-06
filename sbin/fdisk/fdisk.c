@@ -922,11 +922,12 @@ ok(const char *str)
 static int
 decimal(const char *str, int *num, int deflt, uint32_t maxval)
 {
-	long long acc = 0;
+	long long acc;
 	int c;
 	char *cp;
 
 	while (1) {
+		acc = 0;
 		printf("Supply a decimal value for \"%s\" [%d] ", str, deflt);
 		fflush(stdout);
 		if (fgets(lbuf, LBUF, stdin) == NULL)
@@ -962,7 +963,6 @@ decimal(const char *str, int *num, int deflt, uint32_t maxval)
 			printf("%s is an invalid decimal number.  Try again.\n",
 				lbuf);
 	}
-
 }
 
 
