@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include "panic.h"
 #include "parsetime.h"
 #include "perm.h"
+
+#define MAIN
 #include "privs.h"
 
 /* Macros */
@@ -102,8 +104,6 @@ int fcreated;
 char atfile[] = ATJOB_DIR "12345678901234";
 char atverify = 0;		/* verify time instead of queuing job */
 char *namep;
-uid_t real_uid, effective_uid;
-gid_t real_gid, effective_gid;
 
 /* Function declarations */
 
