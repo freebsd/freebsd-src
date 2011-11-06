@@ -57,16 +57,16 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	id_print(struct passwd *, int, int, int);
-void	pline(struct passwd *);
-void	pretty(struct passwd *);
-void	auditid(void);
-void	group(struct passwd *, int);
-void	maclabel(void);
-void	usage(void);
-struct passwd *who(char *);
+static void	id_print(struct passwd *, int, int, int);
+static void	pline(struct passwd *);
+static void	pretty(struct passwd *);
+static void	auditid(void);
+static void	group(struct passwd *, int);
+static void	maclabel(void);
+static void	usage(void);
+static struct passwd *who(char *);
 
-int isgroups, iswhoami;
+static int isgroups, iswhoami;
 
 int
 main(int argc, char *argv[])
@@ -220,7 +220,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 pretty(struct passwd *pw)
 {
 	struct group *gr;
@@ -260,7 +260,7 @@ pretty(struct passwd *pw)
 	}
 }
 
-void
+static void
 id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 {
 	struct group *gr;
@@ -324,7 +324,7 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 }
 
 #ifdef USE_BSM_AUDIT
-void
+static void
 auditid(void)
 {
 	auditinfo_t auditinfo;
@@ -371,7 +371,7 @@ auditid(void)
 }
 #endif
 
-void
+static void
 group(struct passwd *pw, int nflag)
 {
 	struct group *gr;
@@ -411,7 +411,7 @@ group(struct passwd *pw, int nflag)
 	free(groups);
 }
 
-void
+static void
 maclabel(void)
 {
 	char *string;
@@ -435,7 +435,7 @@ maclabel(void)
 	free(string);
 }
 
-struct passwd *
+static struct passwd *
 who(char *u)
 {
 	struct passwd *pw;
@@ -455,7 +455,7 @@ who(char *u)
 	/* NOTREACHED */
 }
 
-void
+static void
 pline(struct passwd *pw)
 {
 
@@ -471,7 +471,7 @@ pline(struct passwd *pw)
 }
 
 
-void
+static void
 usage(void)
 {
 
