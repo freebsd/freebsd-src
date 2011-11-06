@@ -470,7 +470,8 @@ setup_disk_slice()
               # Default to round-robin if the user didn't specify
               if [ -z "$MIRRORBAL" ]; then MIRRORBAL="round-robin" ; fi
 
-              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$DISK
+	      _mFile=`echo $DISK | sed 's|/|%|g'`
+              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$_mFile
 	      init_gmirror "$gmnum" "$MIRRORBAL" "$DISK" "$MIRRORDISK"
 
 	      # Reset DISK to the gmirror device
