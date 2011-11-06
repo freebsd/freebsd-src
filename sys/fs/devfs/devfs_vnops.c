@@ -1050,6 +1050,10 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	if (fp == NULL && dsw->d_fdopen != NULL) {
+		dev_relthread(dev, ref);
+		return (ENXIO);
+	}
 
 	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
