@@ -185,10 +185,6 @@ struct xfile {
 
 #ifdef _KERNEL
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_FILE);
-#endif
-
 extern struct fileops vnops;
 extern struct fileops badfileops;
 extern struct fileops socketops;
