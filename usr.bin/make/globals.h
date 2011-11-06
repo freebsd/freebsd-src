@@ -75,6 +75,7 @@ extern Boolean	beSilent;	/* True if should print no commands */
 extern Boolean	beVerbose;	/* True if should print extra cruft */
 extern Boolean	beQuiet;	/* True if want quiet headers with -j */
 extern Boolean	noExecute;	/* True if should execute nothing */
+extern Boolean	printGraphOnly;	/* -p flag */
 extern Boolean	allPrecious;	/* True if every target is precious */
 extern Boolean	is_posix;	/* .POSIX target seen */
 extern Boolean	mfAutoDeps;	/* .MAKEFILEDEPS target seen */
