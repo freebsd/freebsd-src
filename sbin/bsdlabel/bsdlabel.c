@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 static void	makelabel(const char *, struct disklabel *);
-static int	geom_bsd_available(void);
+static int	geom_class_available(const char *);
 static int	writelabel(void);
 static int	readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
@@ -355,7 +355,7 @@ readboot(void)
 }
 
 static int
-geom_bsd_available(void)
+geom_class_available(const char *name)
 {
 	struct gclass *class;
 	struct gmesh mesh;
@@ -366,7 +366,7 @@ geom_bsd_available(void)
 		errc(1, error, "Cannot get GEOM tree");
 
 	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
-		if (strcmp(class->lg_name, "BSD") == 0) {
+		if (strcmp(class->lg_name, name) == 0) {
 			geom_deletetree(&mesh);
 			return (1);
 		}
@@ -411,8 +411,19 @@ writelabel(void)
 		} else
 			serrno = errno;
 
+		if (geom_class_available("PART") != 0) {
+			/* Since we weren't able open provider for
+			 * writing, then recommend user to use gpart(8).
+			 */
+			warnc(serrno,
+			    "cannot open provider %s for writing label",
+			    specname);
+			warnx("Try to use gpart(8).");
+			return (1);
+		}
+
 		/* Give up if GEOM_BSD is not available. */
-		if (geom_bsd_available() == 0) {
+		if (geom_class_available("BSD") == 0) {
 			warnc(serrno, "%s", specname);
 			return (1);
 		}
