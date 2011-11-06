@@ -67,13 +67,17 @@ static int usb_pcount;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
 		    0, "usb", __VA_ARGS__)
+#if (__FreeBSD_version >= 900000)
 #define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check()
+#else
+#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check(curthread)
+#endif
 #define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
 #define	USB_THREAD_EXIT(err)	kthread_exit()
 #else
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
-#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check()
+#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check(curproc)
 #define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
 #define	USB_THREAD_EXIT(err)	kthread_exit(err)
 #endif
