@@ -70,9 +70,9 @@ typedef struct arg {
 	int	type;				/* type of arg */
 	struct arg	*next;			/* linked list pointer */
 } ARG;
-ARG	*arglist;				/* head of linked list */
+static ARG	*arglist;			/* head of linked list */
 
-LIST_HEAD(idlisthead, idtab) idlist;
+static LIST_HEAD(idlisthead, idtab) idlist;
 
 struct idtab {
 	time_t	logout;				/* log out time */
@@ -94,17 +94,17 @@ static time_t	snaptime;			/* if != 0, we will only
 						 * at this snapshot time
 						 */
 
-void	 addarg(int, char *);
-time_t	 dateconv(char *);
-void	 doentry(struct utmpx *);
-void	 hostconv(char *);
-void	 printentry(struct utmpx *, struct idtab *);
-char	*ttyconv(char *);
-int	 want(struct utmpx *);
-void	 usage(void);
-void	 wtmp(void);
+static void	 addarg(int, char *);
+static time_t	 dateconv(char *);
+static void	 doentry(struct utmpx *);
+static void	 hostconv(char *);
+static void	 printentry(struct utmpx *, struct idtab *);
+static char	*ttyconv(char *);
+static int	 want(struct utmpx *);
+static void	 usage(void);
+static void	 wtmp(void);
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -196,7 +196,7 @@ main(int argc, char *argv[])
  * wtmp --
  *	read through the wtmp file
  */
-void
+static void
 wtmp(void)
 {
 	struct utmpx *buf = NULL;
@@ -237,7 +237,7 @@ wtmp(void)
  * doentry --
  *	process a single wtmp entry
  */
-void
+static void
 doentry(struct utmpx *bp)
 {
 	struct idtab	*tt, *ttx;		/* idlist entry */
@@ -313,7 +313,7 @@ doentry(struct utmpx *bp)
  * If `tt' is non-NULL, use it and `crmsg' to print the logout time or
  * logout type (crash/shutdown) as appropriate.
  */
-void
+static void
 printentry(struct utmpx *bp, struct idtab *tt)
 {
 	char ct[80];
@@ -378,7 +378,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
  * want --
  *	see if want this entry
  */
-int
+static int
 want(struct utmpx *bp)
 {
 	ARG *step;
@@ -411,7 +411,7 @@ want(struct utmpx *bp)
  * addarg --
  *	add an entry to a linked list of arguments
  */
-void
+static void
 addarg(int type, char *arg)
 {
 	ARG *cur;
@@ -430,7 +430,7 @@ addarg(int type, char *arg)
  *	has a domain attached that is the same as the current domain, rip
  *	off the domain suffix since that's what login(1) does.
  */
-void
+static void
 hostconv(char *arg)
 {
 	static int first = 1;
@@ -453,7 +453,7 @@ hostconv(char *arg)
  * ttyconv --
  *	convert tty to correct name.
  */
-char *
+static char *
 ttyconv(char *arg)
 {
 	char *mval;
@@ -485,7 +485,7 @@ ttyconv(char *arg)
  * 	[[CC]YY]MMDDhhmm[.SS]] to a time_t.
  * 	Derived from atime_arg1() in usr.bin/touch/touch.c
  */
-time_t
+static time_t
 dateconv(char *arg)
 {
         time_t timet;
