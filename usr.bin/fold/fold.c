@@ -61,8 +61,8 @@ void fold(int);
 static int newpos(int, wint_t);
 static void usage(void);
 
-int bflag;			/* Count bytes, not columns */
-int sflag;			/* Split on word boundaries */
+static int bflag;		/* Count bytes, not columns */
+static int sflag;		/* Split on word boundaries */
 
 int
 main(int argc, char **argv)
