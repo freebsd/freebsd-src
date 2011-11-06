@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
-#define MAXPARTITIONS	26
+#define MAXPARTITIONS	20
 #include <sys/disklabel.h>
 
 #include <unistd.h>
