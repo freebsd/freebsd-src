@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-SLIST_HEAD(ignhead, ignentry) ignores;
+static SLIST_HEAD(ignhead, ignentry) ignores;
 struct ignentry {
 	char			*mask;
 	SLIST_ENTRY(ignentry)	next;
