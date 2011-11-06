@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #define	SYSLOG_NAMES
 #include <syslog.h>
 
-int	decode(char *, CODE *);
-int	pencode(char *);
+static int	decode(char *, CODE *);
+static int	pencode(char *);
 static void	logmessage(int, const char *, const char *, const char *,
 			   const char *);
 static void	usage(void);
@@ -70,11 +70,11 @@ struct socks {
 };
 
 #ifdef INET6
-int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+static int family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
 #else
-int	family = PF_INET;	/* protocol family (IPv4 only) */
+static int family = PF_INET;	/* protocol family (IPv4 only) */
 #endif
-int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
+static int send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
 
 /*
  * logger -- read and log utility
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
 /*
  *  Send the message to syslog, either on the local host, or on a remote host
  */
-void
+static void
 logmessage(int pri, const char *tag, const char *host, const char *svcname,
 	   const char *buf)
 {
@@ -246,7 +246,7 @@ logmessage(int pri, const char *tag, const char *host, const char *svcname,
 /*
  *  Decode a symbolic name to a numeric value
  */
-int
+static int
 pencode(char *s)
 {
 	char *save;
@@ -270,7 +270,7 @@ pencode(char *s)
 	return ((lev & LOG_PRIMASK) | (fac & LOG_FACMASK));
 }
 
-int
+static int
 decode(char *name, CODE *codetab)
 {
 	CODE *c;
