@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-struct hs {
+static struct hs {
 	struct	whod hs_wd;
 	int	hs_nusers;
 } *hs;
@@ -62,19 +62,18 @@ struct hs {
 #define	ISDOWN(h)	(now - (h)->hs_wd.wd_recvtime > 11 * 60)
 #define	WHDRSIZE	__offsetof(struct whod, wd_we)
 
-size_t nhosts;
-time_t now;
-int rflg = 1;
-DIR *dirp;
+static size_t nhosts;
+static time_t now;
+static int rflg = 1;
+static DIR *dirp;
 
-int	 hscmp(const void *, const void *);
-char	*interval(time_t, const char *);
-int	 lcmp(const void *, const void *);
-void	 morehosts(void);
-void	 ruptime(const char *, int, int (*)(const void *, const void *));
-int	 tcmp(const void *, const void *);
-int	 ucmp(const void *, const void *);
-void	 usage(void);
+static int	 hscmp(const void *, const void *);
+static char	*interval(time_t, const char *);
+static int	 lcmp(const void *, const void *);
+static void	 ruptime(const char *, int, int (*)(const void *, const void *));
+static int	 tcmp(const void *, const void *);
+static int	 ucmp(const void *, const void *);
+static void	 usage(void);
 
 int
 main(int argc, char *argv[])
@@ -119,7 +118,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-char *
+static char *
 interval(time_t tval, const char *updown)
 {
 	static char resbuf[32];
@@ -147,7 +146,7 @@ interval(time_t tval, const char *updown)
 #define	HS(a)	((const struct hs *)(a))
 
 /* Alphabetical comparison. */
-int
+static int
 hscmp(const void *a1, const void *a2)
 {
 	return (rflg *
@@ -155,7 +154,7 @@ hscmp(const void *a1, const void *a2)
 }
 
 /* Load average comparison. */
-int
+static int
 lcmp(const void *a1, const void *a2)
 {
 	if (ISDOWN(HS(a1)))
@@ -170,7 +169,7 @@ lcmp(const void *a1, const void *a2)
 		   (HS(a2)->hs_wd.wd_loadav[0] - HS(a1)->hs_wd.wd_loadav[0]));
 }
 
-void
+static void
 ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 {
 	struct hs *hsp;
@@ -261,7 +260,7 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 }
 
 /* Number of users comparison. */
-int
+static int
 ucmp(const void *a1, const void *a2)
 {
 	if (ISDOWN(HS(a1)))
@@ -276,7 +275,7 @@ ucmp(const void *a1, const void *a2)
 }
 
 /* Uptime comparison. */
-int
+static int
 tcmp(const void *a1, const void *a2)
 {
 	return (rflg * (
@@ -288,7 +287,7 @@ tcmp(const void *a1, const void *a2)
 	));
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: ruptime [-alrtu] [host ...]\n");
