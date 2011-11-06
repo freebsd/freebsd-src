@@ -42,9 +42,9 @@ static const char rcsid[] =
 
 #define PRIMITIVECHAR '!'
 
-const char *powerstring = "^";
+static const char *powerstring = "^";
 
-struct {
+static struct {
 	char *uname;
 	char *uval;
 }      unittable[MAXUNITS];
@@ -57,13 +57,13 @@ struct unittype {
 	int quantity;
 };
 
-struct {
+static struct {
 	char *prefixname;
 	char *prefixval;
 }      prefixtable[MAXPREFIXES];
 
 
-char NULLUNIT[] = "";
+static char NULLUNIT[] = "";
 
 #ifdef MSDOS
 #define SEPARATOR      ";"
@@ -71,8 +71,8 @@ char NULLUNIT[] = "";
 #define SEPARATOR      ":"
 #endif
 
-int unitcount;
-int prefixcount;
+static int unitcount;
+static int prefixcount;
 
 char	*dupstr(const char *str);
 void	 readunits(const char *userfile);
