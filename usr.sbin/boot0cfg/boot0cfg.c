@@ -60,13 +60,13 @@ struct opt_offsets {
 	int ticks;
 };
 
-struct opt_offsets b0_ofs[] = {
+static struct opt_offsets b0_ofs[] = {
 	{ 0x0, 0x0, 0x0, 0x0 },		/* no boot block */
 	{ 0x1b9, 0x1ba, 0x1bb, 0x1bc },	/* original block */
 	{ 0x1b5, 0x1b6, 0x1b7, 0x1bc },	/* NT_SERIAL block */
 };
 
-int b0_ver;		/* boot block version set by boot0bs */
+static int b0_ver;	/* boot block version set by boot0bs */
 
 #define OFF_OPT		(b0_ofs[b0_ver].opt)	/* default boot option */
 #define OFF_DRIVE	(b0_ofs[b0_ver].drive)	/* setdrv drive */
@@ -106,9 +106,9 @@ static int argtoi(const char *, int, int, int);
 static int set_bell(u_int8_t *, int, int);
 static void usage(void);
 
-unsigned vol_id[5];	/* 4 plus 1 for flag */
+static unsigned vol_id[5];	/* 4 plus 1 for flag */
 
-int v_flag;
+static int v_flag;
 /*
  * Boot manager installation/configuration utility.
  */
