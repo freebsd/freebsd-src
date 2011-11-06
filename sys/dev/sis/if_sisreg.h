@@ -433,25 +433,8 @@ struct sis_desc {
 struct sis_type {
 	uint16_t		sis_vid;
 	uint16_t		sis_did;
-	char			*sis_name;
+	const char		*sis_name;
 };
-
-struct sis_mii_frame {
-	uint8_t			mii_stdelim;
-	uint8_t			mii_opcode;
-	uint8_t			mii_phyaddr;
-	uint8_t			mii_regaddr;
-	uint8_t			mii_turnaround;
-	uint16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define	SIS_MII_STARTDELIM	0x01
-#define	SIS_MII_READOP		0x02
-#define	SIS_MII_WRITEOP		0x01
-#define	SIS_MII_TURNAROUND	0x02
 
 #define SIS_TYPE_900	1
 #define SIS_TYPE_7016	2
