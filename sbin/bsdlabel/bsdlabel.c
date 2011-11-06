@@ -831,7 +831,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			continue;
 		}
 		if (sscanf(cp, "%lu partitions", &v) == 1) {
-			if (v == 0 || v > MAXPARTITIONS) {
+			if (v > MAXPARTITIONS) {
 				fprintf(stderr,
 				    "line %d: bad # of partitions\n", lineno);
 				lp->d_npartitions = MAXPARTITIONS;
@@ -1186,8 +1186,7 @@ checklabel(struct disklabel *lp)
 			lp->d_secperunit = vl->d_secperunit;
 		if (lp->d_bbsize == 0)
 			lp->d_bbsize = vl->d_bbsize;
-		if (lp->d_npartitions == 0 ||
-		    lp->d_npartitions < DEFPARTITIONS ||
+		if (lp->d_npartitions < DEFPARTITIONS ||
 		    lp->d_npartitions > MAXPARTITIONS)
 			lp->d_npartitions = vl->d_npartitions;
 	}
