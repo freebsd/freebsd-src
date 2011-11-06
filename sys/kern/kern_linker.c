@@ -632,7 +632,7 @@ linker_file_unload(linker_file_t file, int flags)
 		 */
 		if ((error = module_unload(mod)) != 0) {
 			KLD_DPF(FILE, ("linker_file_unload: module %s"
-			    " failed unload\n", mod));
+			    " failed unload\n", module_getname(mod)));
 			return (error);
 		}
 		MOD_XLOCK;
