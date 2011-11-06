@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 /*
  * expand - expand tabs to equivalent spaces
  */
-int	nstops;
-int	tabstops[100];
+static int	nstops;
+static int	tabstops[100];
 
 static void getstops(char *);
 static void usage(void);
