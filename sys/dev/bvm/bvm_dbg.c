@@ -62,7 +62,11 @@ bvm_dbg_probe(void)
 	if (resource_int_value("bvmdbg", 0, "port", &port) == 0)
 		bvm_dbg_port = port;
 
-	return (0);
+	/*
+	 * Return a higher priority than 0 to override other
+	 * gdb dbgport providers that may be present (e.g. uart)
+	 */
+	return (1);
 }
 
 static void
