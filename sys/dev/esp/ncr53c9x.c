@@ -1025,7 +1025,9 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
+#if 0
 		cpi->maxio = sc->sc_maxxfer;
+#endif
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
