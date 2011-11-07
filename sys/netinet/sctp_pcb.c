@@ -6181,54 +6181,65 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_port = stcb->rport;
 #endif
-	if (altsa == NULL) {
-		iph = mtod(m, struct ip *);
-		switch (iph->ip_v) {
+	iph = mtod(m, struct ip *);
+	switch (iph->ip_v) {
 #ifdef INET
-		case IPVERSION:
-			{
-				/* its IPv4 */
-				struct sockaddr_in *sin_2;
+	case IPVERSION:
+		{
+			/* its IPv4 */
+			struct sockaddr_in *sin_2;
 
-				sin_2 = (struct sockaddr_in *)(local_sa);
-				memset(sin_2, 0, sizeof(sin));
-				sin_2->sin_family = AF_INET;
-				sin_2->sin_len = sizeof(sin);
-				sin_2->sin_port = sh->dest_port;
-				sin_2->sin_addr.s_addr = iph->ip_dst.s_addr;
+			sin_2 = (struct sockaddr_in *)(local_sa);
+			memset(sin_2, 0, sizeof(sin));
+			sin_2->sin_family = AF_INET;
+			sin_2->sin_len = sizeof(sin);
+			sin_2->sin_port = sh->dest_port;
+			sin_2->sin_addr.s_addr = iph->ip_dst.s_addr;
+			if (altsa) {
+				/*
+				 * For cookies we use the src address NOT
+				 * from the packet but from the original
+				 * INIT.
+				 */
+				sa = altsa;
+			} else {
 				sin.sin_addr = iph->ip_src;
 				sa = (struct sockaddr *)&sin;
-				break;
 			}
-#endif
-#ifdef INET6
-		case IPV6_VERSION >> 4:
-			{
-				/* its IPv6 */
-				struct ip6_hdr *ip6;
-				struct sockaddr_in6 *sin6_2;
-
-				ip6 = mtod(m, struct ip6_hdr *);
-				sin6_2 = (struct sockaddr_in6 *)(local_sa);
-				memset(sin6_2, 0, sizeof(sin6));
-				sin6_2->sin6_family = AF_INET6;
-				sin6_2->sin6_len = sizeof(struct sockaddr_in6);
-				sin6_2->sin6_port = sh->dest_port;
-				sin6.sin6_addr = ip6->ip6_src;
-				sa = (struct sockaddr *)&sin6;
-				break;
-			}
-#endif
-		default:
-			return (-1);
 			break;
 		}
-	} else {
-		/*
-		 * For cookies we use the src address NOT from the packet
-		 * but from the original INIT
-		 */
-		sa = altsa;
+#endif
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			/* its IPv6 */
+			struct ip6_hdr *ip6;
+			struct sockaddr_in6 *sin6_2;
+
+			ip6 = mtod(m, struct ip6_hdr *);
+			sin6_2 = (struct sockaddr_in6 *)(local_sa);
+			memset(sin6_2, 0, sizeof(sin6));
+			sin6_2->sin6_family = AF_INET6;
+			sin6_2->sin6_len = sizeof(struct sockaddr_in6);
+			sin6_2->sin6_port = sh->dest_port;
+			sin6_2->sin6_addr = ip6->ip6_dst;
+			if (altsa) {
+				/*
+				 * For cookies we use the src address NOT
+				 * from the packet but from the original
+				 * INIT.
+				 */
+				sa = altsa;
+			} else {
+				sin6.sin6_addr = ip6->ip6_src;
+				sa = (struct sockaddr *)&sin6;
+			}
+			break;
+		}
+#endif
+	default:
+		return (-1);
+		break;
 	}
 	/* Turn off ECN until we get through all params */
 	ecn_allowed = 0;
