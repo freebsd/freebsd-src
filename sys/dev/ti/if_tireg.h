@@ -1000,7 +1000,6 @@ struct ti_softc {
 	struct resource		*ti_irq;
 	struct resource		*ti_res;
 	struct ifmedia		ifmedia;	/* media info */
-	uint8_t			ti_unit;	/* interface number */
 	uint8_t			ti_hwrev;	/* Tigon rev (1 or 2) */
 	uint8_t			ti_copper;	/* 1000baseTX card */
 	uint8_t			ti_linkstat;	/* Link state */
