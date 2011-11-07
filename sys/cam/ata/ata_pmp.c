@@ -147,7 +147,7 @@ static struct periph_driver pmpdriver =
 
 PERIPHDRIVER_DECLARE(pmp, pmpdriver);
 
-MALLOC_DEFINE(M_ATPMP, "ata_pmp", "ata_pmp buffers");
+static MALLOC_DEFINE(M_ATPMP, "ata_pmp", "ata_pmp buffers");
 
 static void
 pmpinit(void)

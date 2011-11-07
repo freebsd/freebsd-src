@@ -56,7 +56,7 @@ char uart_driver_name[] = "uart";
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs =
     SLIST_HEAD_INITIALIZER(uart_sysdevs);
 
-MALLOC_DEFINE(M_UART, "UART", "UART driver");
+static MALLOC_DEFINE(M_UART, "UART", "UART driver");
 
 void
 uart_add_sysdev(struct uart_devinfo *di)

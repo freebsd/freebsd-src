@@ -43,7 +43,7 @@
 #include <machine/sal.h>
 #include <machine/smp.h>
 
-MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
+static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
 struct mca_info {
 	STAILQ_ENTRY(mca_info) mi_link;

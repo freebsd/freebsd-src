@@ -63,7 +63,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_L2CAP, "netgraph_btsocks_l2cap",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_L2CAP, "netgraph_btsocks_l2cap",
 		"Netgraph Bluetooth L2CAP sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_L2CAP M_NETGRAPH

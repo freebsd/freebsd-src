@@ -80,7 +80,8 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RW,
     &ugidfw_enabled, 0, "Enforce extended BSD policy");
 TUNABLE_INT("security.mac.bsdextended.enabled", &ugidfw_enabled);
 
-MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended", "BSD Extended MAC rule");
+static MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended",
+    "BSD Extended MAC rule");
 
 #define	MAC_BSDEXTENDED_MAXRULES	250
 static struct mac_bsdextended_rule *rules[MAC_BSDEXTENDED_MAXRULES];
