@@ -63,7 +63,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
 		"Netgraph Bluetooth SCO sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_SCO M_NETGRAPH

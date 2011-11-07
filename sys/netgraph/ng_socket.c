@@ -76,8 +76,8 @@
 #include <netgraph/ng_socket.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info ");
-MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info ");
+static MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info");
+static MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info");
 #else
 #define M_NETGRAPH_PATH M_NETGRAPH
 #define M_NETGRAPH_SOCK M_NETGRAPH
