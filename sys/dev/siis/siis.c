@@ -91,7 +91,7 @@ static void siis_process_request_sense(device_t dev, union ccb *ccb);
 static void siisaction(struct cam_sim *sim, union ccb *ccb);
 static void siispoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
+static MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
 
 static struct {
 	uint32_t	id;

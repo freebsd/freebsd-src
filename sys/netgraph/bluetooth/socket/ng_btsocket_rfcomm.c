@@ -66,7 +66,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
 		"Netgraph Bluetooth RFCOMM sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_RFCOMM M_NETGRAPH

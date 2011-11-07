@@ -197,7 +197,7 @@ static driver_t smu_driver = {
 static devclass_t smu_devclass;
 
 DRIVER_MODULE(smu, nexus, smu_driver, smu_devclass, 0, 0);
-MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
+static MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 
 #define SMU_MAILBOX		0x8000860c
 #define SMU_FANMGT_INTERVAL	1000 /* ms */

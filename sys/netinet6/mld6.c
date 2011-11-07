@@ -193,7 +193,7 @@ static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
  *    to a vnet in ifp->if_vnet.
  */
 static struct mtx		 mld_mtx;
-MALLOC_DEFINE(M_MLD, "mld", "mld state");
+static MALLOC_DEFINE(M_MLD, "mld", "mld state");
 
 #define	MLD_EMBEDSCOPE(pin6, zoneid)					\
 	if (IN6_IS_SCOPE_LINKLOCAL(pin6) ||				\

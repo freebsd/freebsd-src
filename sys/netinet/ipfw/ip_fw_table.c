@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
-MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
+static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 
 struct table_entry {
 	struct radix_node	rn[2];

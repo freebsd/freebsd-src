@@ -61,8 +61,8 @@ DECLARE_MODULE(ngatmbase, ngatm_data, SI_SUB_EXEC, SI_ORDER_ANY);
 /*
  * UNI Stack message handling functions
  */
-MALLOC_DEFINE(M_UNIMSG, "unimsg", "uni message buffers");
-MALLOC_DEFINE(M_UNIMSGHDR, "unimsghdr", "uni message headers");
+static MALLOC_DEFINE(M_UNIMSG, "unimsg", "uni message buffers");
+static MALLOC_DEFINE(M_UNIMSGHDR, "unimsghdr", "uni message headers");
 
 #define EXTRA	128
 
