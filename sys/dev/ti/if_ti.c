@@ -2647,15 +2647,17 @@ ti_rxeof(struct ti_softc *sc)
 	struct ifnet *ifp;
 	bus_dmamap_t map;
 	struct ti_cmd_desc cmd;
+	int jumbocnt, minicnt, stdcnt;
 
 	TI_LOCK_ASSERT(sc);
 
 	ifp = sc->ti_ifp;
 
+	jumbocnt = minicnt = stdcnt = 0;
 	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc *cur_rx;
-		struct mbuf *m = NULL;
 		uint32_t rxidx;
+		struct mbuf *m = NULL;
 		uint16_t vlan_tag = 0;
 		int have_tag = 0;
 
@@ -2670,7 +2672,7 @@ ti_rxeof(struct ti_softc *sc)
 		}
 
 		if (cur_rx->ti_flags & TI_BDFLAG_JUMBO_RING) {
-
+			jumbocnt++;
 			TI_INC(sc->ti_jumbo, TI_JUMBO_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_jumbo_chain[rxidx];
 			sc->ti_cdata.ti_rx_jumbo_chain[rxidx] = NULL;
@@ -2700,6 +2702,7 @@ ti_rxeof(struct ti_softc *sc)
 			m_adj(m, cur_rx->ti_len - m->m_pkthdr.len);
 #endif /* TI_PRIVATE_JUMBOS */
 		} else if (cur_rx->ti_flags & TI_BDFLAG_MINI_RING) {
+			minicnt++;
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_mini_chain[rxidx];
 			sc->ti_cdata.ti_rx_mini_chain[rxidx] = NULL;
@@ -2719,6 +2722,7 @@ ti_rxeof(struct ti_softc *sc)
 			}
 			m->m_len = cur_rx->ti_len;
 		} else {
+			stdcnt++;
 			TI_INC(sc->ti_std, TI_STD_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_std_chain[rxidx];
 			sc->ti_cdata.ti_rx_std_chain[rxidx] = NULL;
@@ -2774,9 +2778,12 @@ ti_rxeof(struct ti_softc *sc)
 		CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX,
 		    sc->ti_rx_saved_considx);
 
-	TI_UPDATE_STDPROD(sc, sc->ti_std);
-	TI_UPDATE_MINIPROD(sc, sc->ti_mini);
-	TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
+	if (stdcnt > 0)
+		TI_UPDATE_STDPROD(sc, sc->ti_std);
+	if (minicnt > 0)
+		TI_UPDATE_MINIPROD(sc, sc->ti_mini);
+	if (jumbocnt > 0)
+		TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
 }
 
 static void
