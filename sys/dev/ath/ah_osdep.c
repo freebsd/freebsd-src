@@ -76,7 +76,8 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 
 /* NB: put this here instead of the driver to avoid circular references */
 SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
-SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
+static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0,
+    "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
 int ath_hal_debug = 0;

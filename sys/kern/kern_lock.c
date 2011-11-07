@@ -158,7 +158,8 @@ struct lock_class lock_class_lockmgr = {
 #ifdef ADAPTIVE_LOCKMGRS
 static u_int alk_retries = 10;
 static u_int alk_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL,
+    "lockmgr debugging");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
 #endif

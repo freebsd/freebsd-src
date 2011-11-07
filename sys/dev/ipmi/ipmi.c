@@ -63,7 +63,8 @@ static void ipmi_dtor(void *arg);
 int ipmi_attached = 0;
 
 static int on = 1;
-SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0, "IPMI driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
+    "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
 	&on, 0, "");
 

@@ -520,7 +520,7 @@ static int bge_allow_asf = 1;
 
 TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
 
-SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
 SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
 

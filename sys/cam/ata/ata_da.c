@@ -327,7 +327,7 @@ static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_read_ahead = ADA_DEFAULT_READ_AHEAD;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RW,
            &ada_legacy_aliases, 0, "Create legacy-like device aliases");

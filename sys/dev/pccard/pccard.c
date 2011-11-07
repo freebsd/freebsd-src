@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define PCCARDDEBUG
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, pccard, CTLFLAG_RD, 0, "PCCARD parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, pccard, CTLFLAG_RD, 0, "PCCARD parameters");
 
 int	pccard_debug = 0;
 TUNABLE_INT("hw.pccard.debug", &pccard_debug);

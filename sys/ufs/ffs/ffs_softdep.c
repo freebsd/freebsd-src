@@ -658,12 +658,13 @@ unsigned long dep_total[D_LAST + 1];
 unsigned long dep_write[D_LAST + 1];
 
 
-SYSCTL_NODE(_debug, OID_AUTO, softdep, CTLFLAG_RW, 0, "soft updates stats");
-SYSCTL_NODE(_debug_softdep, OID_AUTO, total, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, softdep, CTLFLAG_RW, 0,
+    "soft updates stats");
+static SYSCTL_NODE(_debug_softdep, OID_AUTO, total, CTLFLAG_RW, 0,
     "total dependencies allocated");
-SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
     "current dependencies allocated");
-SYSCTL_NODE(_debug_softdep, OID_AUTO, write, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_debug_softdep, OID_AUTO, write, CTLFLAG_RW, 0,
     "current dependencies written");
 
 #define	SOFTDEP_TYPE(type, str, long)					\

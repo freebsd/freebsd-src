@@ -72,7 +72,7 @@ static struct mtx ugidfw_mtx;
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
     "TrustedBSD extended BSD MAC policy controls");
 
 static int	ugidfw_enabled = 1;
@@ -203,7 +203,7 @@ out:
 	return (error);
 }
 
-SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
+static SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
     CTLFLAG_MPSAFE | CTLFLAG_RW, sysctl_rule, "BSD extended MAC rules");
 
 static void
