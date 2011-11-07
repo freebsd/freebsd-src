@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dbdmavar.h"
 
-MALLOC_DEFINE(M_DBDMA, "dbdma", "DBDMA Command List");
+static MALLOC_DEFINE(M_DBDMA, "dbdma", "DBDMA Command List");
 
 static uint32_t dbdma_read_reg(dbdma_channel_t *, u_int);
 static void dbdma_write_reg(dbdma_channel_t *, u_int, uint32_t);

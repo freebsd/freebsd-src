@@ -85,7 +85,7 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
-MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
+static MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
 
 void*
 ath_hal_malloc(size_t size)

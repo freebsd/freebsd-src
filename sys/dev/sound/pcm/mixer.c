@@ -37,7 +37,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
+static MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
 
 static int mixer_bypass = 1;
 TUNABLE_INT("hw.snd.vpc_mixer_bypass", &mixer_bypass);

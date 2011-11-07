@@ -145,7 +145,7 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_DISK_LFLAGS	0x0000ffff
 #define	SCSI_LOW_DISK_TFLAGS	0xffff0000
 
-MALLOC_DEFINE(M_SCSILOW, "SCSI low", "SCSI low buffers");
+static MALLOC_DEFINE(M_SCSILOW, "SCSI low", "SCSI low buffers");
 
 /**************************************************************
  * Declarations
