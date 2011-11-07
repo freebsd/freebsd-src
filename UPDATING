@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20111101:
+	The broken amd(4) driver has been replaced with esp(4) in the amd64,
+	i386 and pc98 GENERIC kernel configuration files.
+
 20110606:
 	A new version of ZFS (version 28) has been merged.
 	This version does not depend on a python library and the
