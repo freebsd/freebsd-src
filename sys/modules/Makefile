@@ -88,6 +88,7 @@ SUBDIR=	${_3dfx} \
 	en \
 	${_ep} \
 	${_epic} \
+	esp \
 	${_et} \
 	${_ex} \
 	${_exca} \
