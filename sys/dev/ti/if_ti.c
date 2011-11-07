@@ -998,6 +998,11 @@ ti_alloc_dmamaps(struct ti_softc *sc)
 				      &sc->ti_cdata.ti_rx_jumbo_maps[i]))
 			return (ENOBUFS);
 	}
+
+	/* Mini ring is not available on Tigon 1. */
+	if (sc->ti_hwrev == TI_HWREV_TIGON)
+		return (0);
+
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
 				      &sc->ti_cdata.ti_rx_mini_maps[i]))
