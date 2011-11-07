@@ -148,7 +148,7 @@ static const struct protosw in_mobile_protosw = {
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
     "Generic Routing Encapsulation");
 #ifndef MAX_GRE_NEST
 /*

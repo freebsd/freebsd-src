@@ -231,8 +231,9 @@ SYSCTL_VNET_PROC(_net_inet6_mld, OID_AUTO, gsrdelay,
 /*
  * Non-virtualized sysctls.
  */
-SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    sysctl_mld_ifinfo, "Per-interface MLDv2 state");
+static SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mld_ifinfo,
+    "Per-interface MLDv2 state");
 
 static int	mld_v1enable = 1;
 SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RW,

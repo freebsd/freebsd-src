@@ -129,7 +129,8 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4 Ethernet driver and services");
 /*
  * Tunables.
  */
-SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0,
+    "cxgbe driver parameters");
 
 static int force_firmware_install = 0;
 TUNABLE_INT("hw.cxgbe.force_firmware_install", &force_firmware_install);

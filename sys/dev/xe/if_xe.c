@@ -201,7 +201,7 @@ static void	xe_reg_dump(struct xe_softc *scp);
 #ifdef XE_DEBUG
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, xe, CTLFLAG_RD, 0, "if_xe parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, xe, CTLFLAG_RD, 0, "if_xe parameters");
 
 int xe_debug = 0;
 SYSCTL_INT(_hw_xe, OID_AUTO, debug, CTLFLAG_RW, &xe_debug, 0,

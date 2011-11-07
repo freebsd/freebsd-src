@@ -242,7 +242,8 @@ static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
  */
-SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL, "hash table stats");
+static SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL,
+    "hash table stats");
 
 static int
 sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
