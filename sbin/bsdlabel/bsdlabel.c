@@ -412,7 +412,8 @@ writelabel(void)
 			serrno = errno;
 
 		if (geom_class_available("PART") != 0) {
-			/* Since we weren't able open provider for
+			/*
+			 * Since we weren't able open provider for
 			 * writing, then recommend user to use gpart(8).
 			 */
 			warnc(serrno,
