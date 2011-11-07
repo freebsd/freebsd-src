@@ -3160,18 +3160,34 @@ static void ti_init2(struct ti_softc *sc)
 	}
 
 	/* Init RX ring. */
-	ti_init_rx_ring_std(sc);
+	if (ti_init_rx_ring_std(sc) != 0) {
+		/* XXX */
+		device_printf(sc->ti_dev, "no memory for std Rx buffers.\n");
+		return;
+	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
-		ti_init_rx_ring_jumbo(sc);
+	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN)) {
+		if (ti_init_rx_ring_jumbo(sc) != 0) {
+			/* XXX */
+			device_printf(sc->ti_dev,
+			    "no memory for jumbo Rx buffers.\n");
+			return;
+		}
+	}
 
 	/*
 	 * If this is a Tigon 2, we can also configure the
 	 * mini ring.
 	 */
-	if (sc->ti_hwrev == TI_HWREV_TIGON_II)
-		ti_init_rx_ring_mini(sc);
+	if (sc->ti_hwrev == TI_HWREV_TIGON_II) {
+		if (ti_init_rx_ring_mini(sc) != 0) {
+			/* XXX */
+			device_printf(sc->ti_dev,
+			    "no memory for mini Rx buffers.\n");
+			return;
+		}
+	}
 
 	CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX, 0);
 	sc->ti_rx_saved_considx = 0;
