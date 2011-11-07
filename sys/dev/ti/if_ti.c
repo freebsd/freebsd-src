@@ -3845,11 +3845,11 @@ ti_stop(struct ti_softc *sc)
 	TI_DO_CMD(TI_CMD_HOST_STATE, TI_CMD_CODE_STACK_DOWN, 0);
 
 	/* Halt and reinitialize. */
-	if (ti_chipinit(sc) != 0)
-		return;
-	ti_mem_zero(sc, 0x2000, 0x100000 - 0x2000);
-	if (ti_chipinit(sc) != 0)
-		return;
+	if (ti_chipinit(sc) == 0) {
+		ti_mem_zero(sc, 0x2000, 0x100000 - 0x2000);
+		/* XXX ignore init errors. */
+		ti_chipinit(sc);
+	}
 
 	/* Free the RX lists. */
 	ti_free_rx_ring_std(sc);
