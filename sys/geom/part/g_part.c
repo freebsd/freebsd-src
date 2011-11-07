@@ -106,7 +106,8 @@ struct g_part_alias_list {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0, "GEOM_PART stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
+    "GEOM_PART stuff");
 static u_int check_integrity = 1;
 TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,

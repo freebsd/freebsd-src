@@ -51,7 +51,8 @@ FEATURE(geom_mirror, "GEOM mirroring support");
 static MALLOC_DEFINE(M_MIRROR, "mirror_data", "GEOM_MIRROR Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0, "GEOM_MIRROR stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0,
+    "GEOM_MIRROR stuff");
 u_int g_mirror_debug = 0;
 TUNABLE_INT("kern.geom.mirror.debug", &g_mirror_debug);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,

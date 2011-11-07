@@ -66,7 +66,7 @@ static struct linux_prison lprison0 = {
 
 static unsigned linux_osd_jail_slot;
 
-SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
 	    "Linux mode");
 
 static int	linux_set_osname(struct thread *td, char *osname);

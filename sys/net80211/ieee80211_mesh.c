@@ -97,7 +97,7 @@ uint32_t	mesh_airtime_calc(struct ieee80211_node *);
 /*
  * Timeout values come from the specification and are in milliseconds.
  */
-SYSCTL_NODE(_net_wlan, OID_AUTO, mesh, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_net_wlan, OID_AUTO, mesh, CTLFLAG_RD, 0,
     "IEEE 802.11s parameters");
 static int ieee80211_mesh_retrytimeout = -1;
 SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, retrytimeout, CTLTYPE_INT | CTLFLAG_RW,

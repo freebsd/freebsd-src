@@ -83,7 +83,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, portacl, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, portacl, CTLFLAG_RW, 0,
     "TrustedBSD mac_portacl policy controls");
 
 static int	portacl_enabled = 1;

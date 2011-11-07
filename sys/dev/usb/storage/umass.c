@@ -173,7 +173,7 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
 static int umass_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
     &umass_debug, 0, "umass debug level");
 

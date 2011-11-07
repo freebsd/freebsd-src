@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 static int fwmem_speed=2, fwmem_debug=0;
 static struct fw_eui64 fwmem_eui64;
 SYSCTL_DECL(_hw_firewire);
-SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem, CTLFLAG_RD, 0,
 	"FireWire Memory Access");
 SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_hi, CTLFLAG_RW,
 	&fwmem_eui64.hi, 0, "Fwmem target EUI64 high");

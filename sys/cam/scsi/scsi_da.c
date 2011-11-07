@@ -606,7 +606,7 @@ static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
 static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_da, OID_AUTO, retry_count, CTLFLAG_RW,
            &da_retry_count, 0, "Normal I/O retry count");

@@ -84,8 +84,9 @@ MALLOC_DEFINE(M_NLM, "NLM", "Network Lock Manager");
 /*
  * Support for sysctl vfs.nlm.sysid
  */
-SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL, "Network Lock Manager");
-SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
+static SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL,
+    "Network Lock Manager");
+static SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
 
 /*
  * Syscall hooks

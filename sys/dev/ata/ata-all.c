@@ -103,7 +103,7 @@ static int ata_dma = 1;
 static int atapi_dma = 1;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
