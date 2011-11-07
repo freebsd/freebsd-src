@@ -1103,6 +1103,16 @@ pmap_modify_pv(struct vm_page *pg, pmap_t pm, vm_offset_t va,
 		else
 			--pm->pm_stats.wired_count;
 	}
+	if ((oflags & PVF_WRITE) && !(flags & PVF_WRITE)) {
+		TAILQ_FOREACH(npv, &pg->md.pv_list, pv_list) {
+			if (npv->pv_flags & PVF_WRITE)
+				break;
+		}
+		if (!npv) {
+			pg->md.pvh_attrs &= ~PVF_MOD;
+			vm_page_aflag_clear(pg, PGA_WRITEABLE);
+		}
+	}
 
 	return (oflags);
 }
