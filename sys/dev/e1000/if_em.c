@@ -330,7 +330,7 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define CSUM_TSO	0
 #endif
 
-SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
 
 static int em_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);

@@ -300,7 +300,7 @@ MODULE_DEPEND(igb, ether, 1, 1, 1);
  *  Tunable default values.
  *********************************************************************/
 
-SYSCTL_NODE(_hw, OID_AUTO, igb, CTLFLAG_RD, 0, "IGB driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, igb, CTLFLAG_RD, 0, "IGB driver parameters");
 
 /* Descriptor defaults */
 static int igb_rxd = IGB_DEFAULT_RXD;

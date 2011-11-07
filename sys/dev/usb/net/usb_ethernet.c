@@ -57,7 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/net/usb_ethernet.h>
 
-SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0, "USB Ethernet parameters");
+static SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0,
+    "USB Ethernet parameters");
 
 #define	UE_LOCK(_ue)		mtx_lock((_ue)->ue_mtx)
 #define	UE_UNLOCK(_ue)		mtx_unlock((_ue)->ue_mtx)

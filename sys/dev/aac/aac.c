@@ -222,7 +222,7 @@ static struct cdevsw aac_cdevsw = {
 static MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
 
 /* sysctl node */
-SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
 
 /*
  * Device Interface

@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 /*
  * Tunable & sysctl variables.

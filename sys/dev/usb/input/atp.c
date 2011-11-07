@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 
 
 /* Tunables */
-SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB atp");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB atp");
 
 #ifdef USB_DEBUG
 enum atp_log_level {

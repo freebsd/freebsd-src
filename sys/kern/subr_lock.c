@@ -645,8 +645,9 @@ out:
 	critical_exit();
 }
 
-SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
-SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL, "lock profiling");
+static SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
+static SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL,
+    "lock profiling");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipspin, CTLFLAG_RW,
     &lock_prof_skipspin, 0, "Skip profiling on spinlocks.");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipcount, CTLFLAG_RW,

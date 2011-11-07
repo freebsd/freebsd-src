@@ -306,8 +306,9 @@ static int cd_retry_count = CD_DEFAULT_RETRY;
 static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
 static int changer_max_busy_seconds = CHANGER_MAX_BUSY_SECONDS;
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, cd, CTLFLAG_RD, 0, "CAM CDROM driver");
-SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0, "CD Changer");
+static SYSCTL_NODE(_kern_cam, OID_AUTO, cd, CTLFLAG_RD, 0, "CAM CDROM driver");
+static SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0,
+    "CD Changer");
 SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RW,
            &cd_retry_count, 0, "Normal I/O retry count");
 TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);

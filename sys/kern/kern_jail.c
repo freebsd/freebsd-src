@@ -3944,7 +3944,7 @@ prison_path(struct prison *pr1, struct prison *pr2)
 /*
  * Jail-related sysctls.
  */
-SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jails");
 
 static int

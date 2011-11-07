@@ -81,7 +81,7 @@ static uether_fn_t ipheth_setpromisc;
 #ifdef USB_DEBUG
 static int ipheth_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
 SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RW, &ipheth_debug, 0, "Debug level");
 #endif
 
