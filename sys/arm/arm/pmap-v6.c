@@ -890,6 +890,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 		if (npte != opte) {
 			count++;
 			*ptep = npte;
+			PTE_SYNC(ptep);
 			/* Flush the TLB entry if a current pmap. */
 			if (PV_BEEN_EXECD(oflags))
 				cpu_tlb_flushID_SE(pv->pv_va);
@@ -1261,7 +1262,7 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 
 		/* Re-enable write permissions for the page */
 		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO;
-		pmap_set_prot(ptep, VM_PROT_WRITE, user);
+		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
 		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
 		PTE_SYNC(ptep);
 		rv = 1;
@@ -3391,7 +3392,7 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PGA_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 
 	if (m->md.pvh_attrs & PVF_MOD)
@@ -3431,7 +3432,7 @@ pmap_remove_write(vm_page_t m)
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) != 0 ||
-	    (m->flags & PGA_WRITEABLE) != 0)
+	    (m->aflags & PGA_WRITEABLE) != 0)
 		pmap_clearbit(m, PVF_WRITE);
 }
 
