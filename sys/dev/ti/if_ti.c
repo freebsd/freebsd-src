@@ -3396,7 +3396,7 @@ ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFMTU:
 		TI_LOCK(sc);
-		if (ifr->ifr_mtu > TI_JUMBO_MTU)
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > TI_JUMBO_MTU)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
