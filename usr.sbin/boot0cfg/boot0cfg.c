@@ -96,6 +96,7 @@ static const char fmt0[] = "#   flag     start chs   type"
 static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
     "   %4u:%3u:%2u   %10u   %10u\n";
 
+static int geom_class_available(const char *);
 static int read_mbr(const char *, u_int8_t **, int);
 static void write_mbr(const char *, int, u_int8_t *, int);
 static void display_mbr(u_int8_t *);
@@ -337,67 +338,95 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
     return sizeof(buf);
 }
 
+static int
+geom_class_available(const char *name)
+{
+	struct gclass *class;
+	struct gmesh mesh;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(1, error, "Cannot get GEOM tree");
+
+	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
+		if (strcmp(class->lg_name, name) == 0) {
+			geom_deletetree(&mesh);
+			return (1);
+		}
+	}
+
+	geom_deletetree(&mesh);
+	return (0);
+}
+
 /*
  * Write out the mbr to the specified file.
  */
 static void
 write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 {
-    int fd;
-    ssize_t n;
-    const char *errmsg;
-    char *pname;
-    struct gctl_req *grq;
-   
-    fd = open(fname, O_WRONLY | flags, 0666);
-    if (fd != -1) {
-	n = write(fd, mbr, mbr_size);
-	close(fd);
-	if (n != mbr_size)
-	   errx(1, "%s: short write", fname);
-	return;
-    }
+	struct gctl_req *grq;
+	const char *errmsg;
+	char *pname;
+	ssize_t n;
+	int fd;
 
-    /*
-     * If we're called to write to a backup file, don't try to
-     * write through GEOM. It only generates additional errors.
-     */
-    if (flags != 0)
-	return;
+	fd = open(fname, O_WRONLY | flags, 0666);
+	if (fd != -1) {
+		n = write(fd, mbr, mbr_size);
+		close(fd);
+		if (n != mbr_size)
+			errx(1, "%s: short write", fname);
+		return;
+	}
 
-    /* Try open it read only. */
-    fd = open(fname, O_RDONLY);
-    if (fd == -1) {
-	warn("error opening %s", fname);
-	return;
-    }
-    pname = g_providername(fd);
-    if (pname == NULL) {
-	warn("error getting providername for %s", fname);
-	return;
-    }
-    grq = gctl_get_handle();
-    gctl_ro_param(grq, "class", -1, "PART");
-    gctl_ro_param(grq, "arg0", -1, pname);
-    gctl_ro_param(grq, "verb", -1, "bootcode");
-    gctl_ro_param(grq, "bootcode", mbr_size, mbr);
-    gctl_ro_param(grq, "flags", -1, "C");
-    errmsg = gctl_issue(grq);
-    if (errmsg == NULL)
-	goto out;
+	/*
+	 * If we're called to write to a backup file, don't try to
+	 * write through GEOM.
+	 */
+	if (flags != 0)
+		err(1, "can't open file %s to write backup", fname);
 
-    grq = gctl_get_handle();
-    gctl_ro_param(grq, "verb", -1, "write MBR");
-    gctl_ro_param(grq, "class", -1, "MBR");
-    gctl_ro_param(grq, "geom", -1, pname);
-    gctl_ro_param(grq, "data", mbr_size, mbr);
-    errmsg = gctl_issue(grq);
-    if (errmsg != NULL)
-	err(1, "write_mbr: %s", fname);
+	/* Try open it read only. */
+	fd = open(fname, O_RDONLY);
+	if (fd == -1) {
+		warn("error opening %s", fname);
+		return;
+	}
 
-out:
-    free(pname);
-    gctl_free(grq);
+	pname = g_providername(fd);
+	if (pname == NULL) {
+		warn("error getting providername for %s", fname);
+		return;
+	}
+
+	/* First check that GEOM_PART is available */
+	if (geom_class_available("PART") != 0) {
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "class", -1, "PART");
+		gctl_ro_param(grq, "arg0", -1, pname);
+		gctl_ro_param(grq, "verb", -1, "bootcode");
+		gctl_ro_param(grq, "bootcode", mbr_size, mbr);
+		gctl_ro_param(grq, "flags", -1, "C");
+		errmsg = gctl_issue(grq);
+		if (errmsg != NULL && errmsg[0] != '\0')
+			errx(1, "GEOM_PART: write bootcode to %s failed: %s",
+			    fname, errmsg);
+		gctl_free(grq);
+	} else if (geom_class_available("MBR") != 0) {
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "verb", -1, "write MBR");
+		gctl_ro_param(grq, "class", -1, "MBR");
+		gctl_ro_param(grq, "geom", -1, pname);
+		gctl_ro_param(grq, "data", mbr_size, mbr);
+		errmsg = gctl_issue(grq);
+		if (errmsg != NULL)
+			err(1, "GEOM_MBR: write MBR to %s failed", fname);
+		gctl_free(grq);
+	} else
+		errx(1, "can't write MBR to %s", fname);
+	free(pname);
 }
 
 /*
