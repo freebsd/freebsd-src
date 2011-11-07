@@ -822,7 +822,8 @@ write_disk(off_t sector, void *buf)
 			warnx("GEOM_MBR: %s", errmsg);
 		gctl_free(grq);
 	} else {
-		/* Try to write MBR directly. This may help when disk
+		/*
+		 * Try to write MBR directly. This may help when disk
 		 * is not in use.
 		 * XXX: hardcoded sectorsize
 		 */
@@ -831,7 +832,8 @@ write_disk(off_t sector, void *buf)
 			return (0);
 	}
 
-	/* GEOM_MBR is not available or failed to write MBR.
+	/*
+	 * GEOM_MBR is not available or failed to write MBR.
 	 * Now check that we have GEOM_PART and recommend to use gpart (8).
 	 */
 	if (geom_class_available("PART") != 0)
