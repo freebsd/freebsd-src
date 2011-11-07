@@ -50,7 +50,7 @@ procstat_vm(struct kinfo_proc *kipp)
 
 	ptrwidth = 2*sizeof(void *) + 2;
 	if (!hflag)
-		printf("%5s %*s %*s %3s %4s %4s %3s %3s %2s %-2s %-s\n",
+		printf("%5s %*s %*s %3s %4s %4s %3s %3s %3s %-2s %-s\n",
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
 
@@ -70,8 +70,9 @@ procstat_vm(struct kinfo_proc *kipp)
 		printf("%3d ", kve->kve_ref_count);
 		printf("%3d ", kve->kve_shadow_count);
 		printf("%-1s", kve->kve_flags & KVME_FLAG_COW ? "C" : "-");
-		printf("%-1s ", kve->kve_flags & KVME_FLAG_NEEDS_COPY ? "N" :
+		printf("%-1s", kve->kve_flags & KVME_FLAG_NEEDS_COPY ? "N" :
 		    "-");
+		printf("%-1s ", kve->kve_flags & KVME_FLAG_SUPER ? "S" : "-");
 		switch (kve->kve_type) {
 		case KVME_TYPE_NONE:
 			str = "--";
