@@ -3091,6 +3091,9 @@ ti_init_locked(void *xsc)
 {
 	struct ti_softc *sc = xsc;
 
+	if (sc->ti_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
+
 	/* Cancel pending I/O and flush buffers. */
 	ti_stop(sc);
 
@@ -3369,7 +3372,10 @@ ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ti_init_locked(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				ti_init_locked(sc);
+			}
 		}
 		TI_UNLOCK(sc);
 		break;
@@ -3783,7 +3789,7 @@ ti_watchdog(void *arg)
 
 	ifp = sc->ti_ifp;
 	if_printf(ifp, "watchdog timeout -- resetting\n");
-	ti_stop(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ti_init_locked(sc);
 
 	ifp->if_oerrors++;
