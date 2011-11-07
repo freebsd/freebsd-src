@@ -2222,7 +2222,6 @@ ti_attach(device_t dev)
 	u_char eaddr[6];
 
 	sc = device_get_softc(dev);
-	sc->ti_unit = device_get_unit(dev);
 	sc->ti_dev = dev;
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -2244,7 +2243,7 @@ ti_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = TI_PCI_LOMEM;
+	rid = PCIR_BAR(0);
 	sc->ti_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
@@ -2471,8 +2470,8 @@ ti_attach(device_t dev)
 	 */
 
 	/* Register the device */
-	sc->dev = make_dev(&ti_cdevsw, sc->ti_unit, UID_ROOT, GID_OPERATOR,
-			   0600, "ti%d", sc->ti_unit);
+	sc->dev = make_dev(&ti_cdevsw, device_get_unit(dev), UID_ROOT,
+	    GID_OPERATOR, 0600, "ti%d", device_get_unit(dev));
 	sc->dev->si_drv1 = sc;
 
 	/*
@@ -2563,7 +2562,7 @@ ti_detach(device_t dev)
 	if (sc->ti_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
 	if (sc->ti_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM,
+		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0),
 		    sc->ti_res);
 	}
 	if (ifp)
@@ -3115,7 +3114,7 @@ static void ti_init2(struct ti_softc *sc)
 	ifp = sc->ti_ifp;
 
 	/* Specify MTU and interface index. */
-	CSR_WRITE_4(sc, TI_GCR_IFINDEX, sc->ti_unit);
+	CSR_WRITE_4(sc, TI_GCR_IFINDEX, device_get_unit(sc->ti_dev));
 	CSR_WRITE_4(sc, TI_GCR_IFMTU, ifp->if_mtu +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);
