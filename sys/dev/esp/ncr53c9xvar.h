@@ -68,8 +68,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef _DEV_IC_NCR53C9XVAR_H_
-#define	_DEV_IC_NCR53C9XVAR_H_
+#ifndef _NCR53C9XVAR_H_
+#define	_NCR53C9XVAR_H_
 
 #include <sys/lock.h>
 
@@ -115,7 +115,8 @@
  * scsi_status,sense_data}.
  */
 struct ncr53c9x_ecb {
-	/* These fields are preserved between alloc and free */
+	/* These fields are preserved between alloc and free. */
+	struct callout ch;
 	struct ncr53c9x_softc *sc;
 	int tag_id;
 	int flags;
@@ -130,7 +131,6 @@ struct ncr53c9x_ecb {
 #define	ECB_RESET		0x80
 #define	ECB_TENTATIVE_DONE	0x100
 	int timeout;
-	struct callout ch;
 
 	struct {
 		uint8_t	msg[3];			/* Selection Id msg and tags */
@@ -290,7 +290,7 @@ extern int ncr53c9x_debug;
 struct ncr53c9x_softc;
 
 /*
- * Function switch used as glue to MD code.
+ * Function switch used as glue to MD code
  */
 struct ncr53c9x_glue {
 	/* Mandatory entry points. */
@@ -304,9 +304,6 @@ struct ncr53c9x_glue {
 	void	(*gl_dma_go)(struct ncr53c9x_softc *);
 	void	(*gl_dma_stop)(struct ncr53c9x_softc *);
 	int	(*gl_dma_isactive)(struct ncr53c9x_softc *);
-
-	/* Optional entry points. */
-	void	(*gl_clear_latched_intr)(struct ncr53c9x_softc *);
 };
 
 struct ncr53c9x_softc {
@@ -330,7 +327,7 @@ struct ncr53c9x_softc {
 	uint8_t	sc_ccf;				/* Clock Conversion */
 	uint8_t	sc_timeout;
 
-	/* register copies, see espreadregs() */
+	/* register copies, see ncr53c9x_readregs() */
 	uint8_t	sc_espintr;
 	uint8_t	sc_espstat;
 	uint8_t	sc_espstep;
@@ -415,6 +412,7 @@ struct ncr53c9x_softc {
 #define	NCR_F_FASTSCSI	0x02	/* chip supports Fast mode */
 #define	NCR_F_DMASELECT 0x04	/* can do dmaselect */
 #define	NCR_F_SELATN3	0x08	/* chip supports SELATN3 command */
+#define	NCR_F_LARGEXFER	0x10	/* chip supports transfers > 64k */
 
 /* values for sc_msgout */
 #define	SEND_DEV_RESET		0x0001
@@ -499,8 +497,10 @@ struct ncr53c9x_softc {
 #define	ncr53c9x_cpb2stp(sc, cpb)					\
 	((250 * (cpb)) / (sc)->sc_freq)
 
+extern devclass_t esp_devclass;
+
 int	ncr53c9x_attach(struct ncr53c9x_softc *sc);
 int	ncr53c9x_detach(struct ncr53c9x_softc *sc);
 void	ncr53c9x_intr(void *arg);
 
-#endif /* _DEV_IC_NCR53C9XVAR_H_ */
+#endif /* _NCR53C9XVAR_H_ */
