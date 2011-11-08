@@ -307,7 +307,7 @@ function handle_method (static, doc)
 	    line_width, length(prototype)));
 
 	# Print out the method desc
-	printc("struct kobj_method " mname "_method_default = {");
+	printc("static const struct kobj_method " mname "_method_default = {");
 	printc("\t&" mname "_desc, (kobjop_t) " default_function);
 	printc("};\n");
 

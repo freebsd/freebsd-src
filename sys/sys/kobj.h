@@ -34,7 +34,7 @@
  */
 typedef struct kobj		*kobj_t;
 typedef struct kobj_class	*kobj_class_t;
-typedef struct kobj_method	kobj_method_t;
+typedef const struct kobj_method kobj_method_t;
 typedef int			(*kobjop_t)(void);
 typedef struct kobj_ops		*kobj_ops_t;
 typedef struct kobjop_desc	*kobjop_desc_t;
