@@ -526,7 +526,7 @@ NGATM_CCATM		opt_netgraph.h
 DRM_DEBUG		opt_drm.h
 
 ZERO_COPY_SOCKETS	opt_zero.h
-TI_PRIVATE_JUMBOS	opt_ti.h
+TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
 BCE_JUMBO_HDRSPLIT	opt_bce.h
 
