@@ -5165,7 +5165,7 @@ ath_setup_stationkey(struct ieee80211_node *ni)
 		ni->ni_ucastkey.wk_flags |= IEEE80211_KEY_DEVKEY;
 		IEEE80211_ADDR_COPY(ni->ni_ucastkey.wk_macaddr, ni->ni_macaddr);
 		/* NB: this will create a pass-thru key entry */
-		ath_keyset(sc, &ni->ni_ucastkey, vap->iv_bss);
+		ath_keyset(sc, vap, &ni->ni_ucastkey, vap->iv_bss);
 	}
 }
 
