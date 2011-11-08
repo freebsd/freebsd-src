@@ -31,6 +31,24 @@
 #ifndef	__IF_ATH_TX_H__
 #define	__IF_ATH_TX_H__
 
+/*
+ * How 'busy' to try and keep the hardware txq
+ */
+#define	ATH_AGGR_MIN_QDEPTH		2
+
+/*
+ * Watermark for scheduling TIDs in order to maximise aggregation.
+ *
+ * If hwq_depth is greater than this, don't schedule the TID
+ * for packet scheduling - the hardware is already busy servicing
+ * this TID.
+ *
+ * If hwq_depth is less than this, schedule the TID for packet
+ * scheduling in the completion handler.
+ */
+#define	ATH_AGGR_SCHED_HIGH		4
+#define	ATH_AGGR_SCHED_LOW		2
+
 extern void ath_freetx(struct mbuf *m);
 extern void ath_txfrag_cleanup(struct ath_softc *sc, ath_bufhead *frags,
     struct ieee80211_node *ni);
