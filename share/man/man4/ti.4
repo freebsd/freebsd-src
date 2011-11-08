@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd November 8, 2011
 .Dt TI 4
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ti"
-.Cd "options TI_PRIVATE_JUMBOS"
+.Cd "options TI_SF_BUF_JUMBO"
 .Cd "options TI_JUMBO_HDRSPLIT"
 .Ed
 .Pp
@@ -97,13 +97,14 @@ for more discussion on zero copy receive and header splitting.
 .Pp
 The
 .Nm
-driver normally uses jumbo receive buffers allocated by the
+driver uses UMA backed jumbo receive buffers, but can be configured
+to use
 .Xr sendfile 2
-buffer allocator, but can be configured to use its own private pool of
-jumbo buffers that are contiguous instead of buffers from the jumbo
-allocator, which are made up of multiple page sized chunks.
-To turn on private jumbos, use the
-.Dv TI_PRIVATE_JUMBOS
+buffer allocator.
+To turn on
+.Xr sendfile 2
+buffer allocator, use the
+.Dv TI_SF_BUF_JUMBO
 option.
 .Pp
 Support for vlans is also available using the
@@ -311,6 +312,7 @@ the network connection (cable).
 .El
 .Sh SEE ALSO
 .Xr sendfile 2 ,
+.Xr altq 4 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
