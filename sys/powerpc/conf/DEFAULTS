@@ -12,3 +12,6 @@ device		uart_z8530
 
 options 	GEOM_PART_APM
 options 	GEOM_PART_MBR
+
+# Allow mounting non-MPSAFE filesystems
+options		VFS_ALLOW_NONMPSAFE

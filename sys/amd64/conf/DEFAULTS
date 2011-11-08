@@ -22,3 +22,6 @@ options 	GEOM_PART_EBR_COMPAT
 options 	GEOM_PART_MBR
 
 options 	NEW_PCIB
+
+# Allow mounting non-MPSAFE filesystems
+options		VFS_ALLOW_NONMPSAFE
