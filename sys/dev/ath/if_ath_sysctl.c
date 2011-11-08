@@ -263,7 +263,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return error;
 	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	      ath_reset(ifp, ATH_RESET_NOLOSS) : 0;
 }
 
 static int
@@ -295,7 +296,8 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		return 0;
 	if (!ath_hal_setrfkill(ah, rfkill))
 		return EINVAL;
-	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	    ath_reset(ifp, ATH_RESET_FULL) : 0;
 }
 
 static int
@@ -428,7 +430,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * things in an inconsistent state.
 	 */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ath_reset(sc->sc_ifp);
+		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
 
 	return 0;
 }
