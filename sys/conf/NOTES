@@ -2147,7 +2147,7 @@ device		ral		# Ralink Technology RT2500 wireless NICs.
 # Turn on the header splitting option for the ti(4) driver firmware.  This
 # only works for Tigon II chips, and has no effect for Tigon I chips.
 # This option requires the TI_SF_BUF_JUMBO option above.
-options 	TI_JUMBO_HDRSPLIT
+#options 	TI_JUMBO_HDRSPLIT
 
 #
 # Use header splitting feature on bce(4) adapters.
