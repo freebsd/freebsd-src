@@ -242,6 +242,10 @@ struct ieee80211com {
 	int			(*ic_setregdomain)(struct ieee80211com *,
 				    struct ieee80211_regdomain *,
 				    int, struct ieee80211_channel []);
+
+	int			(*ic_set_quiet)(struct ieee80211_node *,
+				    u_int8_t *quiet_elm);
+
 	/* send/recv 802.11 management frame */
 	int			(*ic_send_mgmt)(struct ieee80211_node *,
 				     int, int);
@@ -403,6 +407,12 @@ struct ieee80211vap {
 	uint8_t			iv_dtim_period;	/* DTIM period */
 	uint8_t			iv_dtim_count;	/* DTIM count from last bcn */
 						/* set/unset aid pwrsav state */
+	uint8_t			iv_quiet;	/* Quiet Element */
+	uint8_t			iv_quiet_count;	/* constant count for Quiet Element */
+	uint8_t			iv_quiet_count_value;	/* variable count for Quiet Element */
+	uint8_t			iv_quiet_period;	/* period for Quiet Element */
+	uint16_t		iv_quiet_duration;	/* duration for Quiet Element */
+	uint16_t		iv_quiet_offset;	/* offset for Quiet Element */
 	int			iv_csa_count;	/* count for doing CSA */
 
 	struct ieee80211_node	*iv_bss;	/* information for this node */

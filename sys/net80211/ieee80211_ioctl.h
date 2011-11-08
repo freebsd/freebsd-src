@@ -715,6 +715,11 @@ struct ieee80211req {
 #define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
 #define	IEEE80211_IOC_TDMA_BINTERVAL	204	/* TDMA: beacon intvl (slots) */
 
+#define	IEEE80211_IOC_QUIET		205	/* Quiet Enable/Disable */
+#define	IEEE80211_IOC_QUIET_PERIOD	206	/* Quiet Period */
+#define	IEEE80211_IOC_QUIET_OFFSET	207	/* Quiet Offset */
+#define	IEEE80211_IOC_QUIET_DUR		208	/* Quiet Duration */
+#define	IEEE80211_IOC_QUIET_COUNT	209	/* Quiet Count */
 /*
  * Parameters for controlling a scan requested with
  * IEEE80211_IOC_SCAN_REQ.
