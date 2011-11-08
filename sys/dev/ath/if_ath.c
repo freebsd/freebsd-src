@@ -1890,16 +1890,87 @@ _ath_getbuf_locked(struct ath_softc *sc)
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
 	bf = TAILQ_FIRST(&sc->sc_txbuf);
+	if (bf == NULL) {
+		sc->sc_stats.ast_tx_getnobuf++;
+	} else {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			sc->sc_stats.ast_tx_getbusybuf++;
+			bf = NULL;
+		}
+	}
+
 	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
 		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
 	else
 		bf = NULL;
+
 	if (bf == NULL) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
+		return NULL;
 	}
+
+	/* Valid bf here; clear some basic fields */
+	bf->bf_next = NULL;	/* XXX just to be sure */
+	bf->bf_last = NULL;	/* XXX again, just to be sure */
+	bf->bf_comp = NULL;	/* XXX again, just to be sure */
+	bzero(&bf->bf_state, sizeof(bf->bf_state));
+
 	return bf;
+}
+
+/*
+ * When retrying a software frame, buffers marked ATH_BUF_BUSY
+ * can't be thrown back on the queue as they could still be
+ * in use by the hardware.
+ *
+ * This duplicates the buffer, or returns NULL.
+ *
+ * The descriptor is also copied but the link pointers and
+ * the DMA segments aren't copied; this frame should thus
+ * be again passed through the descriptor setup/chain routines
+ * so the link is correct.
+ *
+ * The caller must free the buffer using ath_freebuf().
+ *
+ * XXX TODO: this call shouldn't fail as it'll cause packet loss
+ * XXX in the TX pathway when retries are needed.
+ * XXX Figure out how to keep some buffers free, or factor the
+ * XXX number of busy buffers into the xmit path (ath_start())
+ * XXX so we don't over-commit.
+ */
+struct ath_buf *
+ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
+{
+	struct ath_buf *tbf;
+
+	tbf = ath_getbuf(sc);
+	if (tbf == NULL)
+		return NULL;	/* XXX failure? Why? */
+
+	/* Copy basics */
+	tbf->bf_next = NULL;
+	tbf->bf_nseg = bf->bf_nseg;
+	tbf->bf_txflags = bf->bf_txflags;
+	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
+	tbf->bf_status = bf->bf_status;
+	tbf->bf_m = bf->bf_m;
+	tbf->bf_node = bf->bf_node;
+	/* will be setup by the chain/setup function */
+	tbf->bf_lastds = NULL;
+	/* for now, last == self */
+	tbf->bf_last = tbf;
+	tbf->bf_comp = bf->bf_comp;
+
+	/* NOTE: DMA segments will be setup by the setup/chain functions */
+
+	/* The caller has to re-init the descriptor + links */
+
+	/* Copy state */
+	memcpy(&tbf->bf_state, &bf->bf_state, sizeof(bf->bf_state));
+
+	return tbf;
 }
 
 struct ath_buf *
