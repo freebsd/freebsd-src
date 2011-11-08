@@ -1347,6 +1347,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
 			}
+			if (scan.quiet)
+				ic->ic_set_quiet(ni, scan.quiet);
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
