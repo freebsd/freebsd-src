@@ -225,6 +225,9 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 	return 0;
 }
 
+/*
+ * Chain together segments+descriptors for a non-11n frame.
+ */
 static void
 ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
@@ -252,8 +255,8 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *
 			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
+		bf->bf_lastds = ds;
 	}
-
 }
 
 static void
@@ -347,7 +350,9 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
 		}
 #endif /* IEEE80211_SUPPORT_TDMA */
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth++;
+		txq->axq_link = &bf->bf_lastds->ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
 	} else {
 		if (txq->axq_link != NULL) {

@@ -2503,6 +2503,8 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* setup descriptors */
 	ds = bf->bf_desc;
+	bf->bf_last = bf;
+	bf->bf_lastds = ds;
 
 	flags = HAL_TXDESC_NOACK;
 	if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol) {
@@ -2582,7 +2584,9 @@ ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 	dst->axq_link = src->axq_link;
 	src->axq_link = NULL;
 	dst->axq_depth += src->axq_depth;
+	dst->axq_aggr_depth += src->axq_aggr_depth;
 	src->axq_depth = 0;
+	src->axq_aggr_depth = 0;
 }
 
 /*
@@ -3227,6 +3231,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
+		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
 	return 0;
@@ -4284,7 +4289,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_buf *bf, *last;
-	struct ath_desc *ds, *ds0;
+	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
@@ -4304,8 +4309,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-		ds0 = &bf->bf_desc[0];
-		ds = &bf->bf_desc[bf->bf_nseg - 1];
+		ds = bf->bf_lastds;	/* XXX must be setup correctly! */
 		ts = &bf->bf_status.ds_txstat;
 		status = ath_hal_txprocdesc(ah, ds, ts);
 #ifdef ATH_DEBUG
@@ -4324,13 +4328,19 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			 * More frames follow.  Mark the buffer busy
 			 * so it's not re-used while the hardware may
 			 * still re-read the link field in the descriptor.
+			 *
+			 * Use the last buffer in an aggregate as that
+			 * is where the hardware may be - intermediate
+			 * descriptors won't be "busy".
 			 */
-			bf->bf_flags |= ATH_BUF_BUSY;
+			bf->bf_last->bf_flags |= ATH_BUF_BUSY;
 		} else
 #else
 		if (txq->axq_depth == 0)
 #endif
 			txq->axq_link = NULL;
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth--;
 		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
@@ -4565,13 +4575,15 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth--;
 		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
-				ath_hal_txprocdesc(ah, bf->bf_desc,
+				ath_hal_txprocdesc(ah, bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
@@ -4657,7 +4669,7 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
 		if (bf != NULL && bf->bf_m != NULL) {
 			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
-				ath_hal_txprocdesc(ah, bf->bf_desc,
+				ath_hal_txprocdesc(ah, bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ifp->if_l2com,
 			    mtod(bf->bf_m, const uint8_t *), bf->bf_m->m_len,
