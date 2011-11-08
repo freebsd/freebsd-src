@@ -185,7 +185,6 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
-static void	ath_tx_draintxq(struct ath_softc *, struct ath_txq *);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *);
@@ -4279,6 +4278,121 @@ ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 	return (rix == 0xff ? 0 : rix);
 }
 
+static void
+ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
+    struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	int sr, lr, pri;
+
+	if (ts->ts_status == 0) {
+		u_int8_t txant = ts->ts_antenna;
+		sc->sc_stats.ast_ant_tx[txant]++;
+		sc->sc_ant_tx[txant]++;
+		if (ts->ts_finaltsi != 0)
+			sc->sc_stats.ast_tx_altrate++;
+		pri = M_WME_GETAC(bf->bf_m);
+		if (pri >= WME_AC_VO)
+			ic->ic_wme.wme_hipri_traffic++;
+		if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+			ni->ni_inact = ni->ni_inact_reload;
+	} else {
+		if (ts->ts_status & HAL_TXERR_XRETRY)
+			sc->sc_stats.ast_tx_xretries++;
+		if (ts->ts_status & HAL_TXERR_FIFO)
+			sc->sc_stats.ast_tx_fifoerr++;
+		if (ts->ts_status & HAL_TXERR_FILT)
+			sc->sc_stats.ast_tx_filtered++;
+		if (ts->ts_status & HAL_TXERR_XTXOP)
+			sc->sc_stats.ast_tx_xtxop++;
+		if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
+			sc->sc_stats.ast_tx_timerexpired++;
+
+		if (ts->ts_status & HAL_TX_DATA_UNDERRUN)
+			sc->sc_stats.ast_tx_data_underrun++;
+		if (ts->ts_status & HAL_TX_DELIM_UNDERRUN)
+			sc->sc_stats.ast_tx_delim_underrun++;
+
+		if (bf->bf_m->m_flags & M_FF)
+			sc->sc_stats.ast_ff_txerr++;
+	}
+	/* XXX when is this valid? */
+	if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
+		sc->sc_stats.ast_tx_desccfgerr++;
+
+	sr = ts->ts_shortretry;
+	lr = ts->ts_longretry;
+	sc->sc_stats.ast_tx_shortretry += sr;
+	sc->sc_stats.ast_tx_longretry += lr;
+
+}
+
+/*
+ * The default completion. If fail is 1, this means
+ * "please don't retry the frame, and just return -1 status
+ * to the net80211 stack.
+ */
+void
+ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
+{
+	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	int st;
+
+	if (fail == 1)
+		st = -1;
+	else
+		st = ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+		    ts->ts_status : HAL_TXERR_XRETRY;
+
+	if (bf->bf_state.bfs_dobaw)
+		device_printf(sc->sc_dev,
+		    "%s: dobaw should've been cleared!\n", __func__);
+	if (bf->bf_next != NULL)
+		device_printf(sc->sc_dev,
+		    "%s: bf_next not NULL!\n", __func__);
+
+	/*
+	 * Do any tx complete callback.  Note this must
+	 * be done before releasing the node reference.
+	 * This will free the mbuf, release the net80211
+	 * node and recycle the ath_buf.
+	 */
+	ath_tx_freebuf(sc, bf, st);
+}
+
+/*
+ * Update the busy status of the last frame on the free list.
+ * When doing TDMA, the busy flag tracks whether the hardware
+ * currently points to this buffer or not, and thus gated DMA
+ * may restart by re-reading the last descriptor in this
+ * buffer.
+ *
+ * This should be called in the completion function once one
+ * of the buffers has been used.
+ */
+static void
+ath_tx_update_busy(struct ath_softc *sc)
+{
+	struct ath_buf *last;
+
+	/*
+	 * Since the last frame may still be marked
+	 * as ATH_BUF_BUSY, unmark it here before
+	 * finishing the frame processing.
+	 * Since we've completed a frame (aggregate
+	 * or otherwise), the hardware has moved on
+	 * and is no longer referencing the previous
+	 * descriptor.
+	 */
+	ATH_TXBUF_LOCK_ASSERT(sc);
+	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
+}
+
+
 /*
  * Process completed xmit descriptors from the specified queue.
  */
@@ -4286,14 +4400,11 @@ static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ath_buf *bf, *last;
+	struct ath_buf *bf;
 	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
-	struct ath_node *an;
-	int sr, lr, pri, nacked;
+	int nacked;
 	HAL_STATUS status;
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
@@ -4341,90 +4452,48 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			txq->axq_link = NULL;
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
-		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
+		/*
+		 * If unicast frame was ack'd update RSSI,
+		 * including the last rx time used to
+		 * workaround phantom bmiss interrupts.
+		 */
+		if (ni != NULL && ts->ts_status == 0 &&
+		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)) {
+			nacked++;
+			sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
+			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
+				ts->ts_rssi);
+		}
+		ATH_TXQ_UNLOCK(txq);
+
+		/* If unicast frame, update general statistics */
 		if (ni != NULL) {
-			an = ATH_NODE(ni);
-			if (ts->ts_status == 0) {
-				u_int8_t txant = ts->ts_antenna;
-				sc->sc_stats.ast_ant_tx[txant]++;
-				sc->sc_ant_tx[txant]++;
-				if (ts->ts_finaltsi != 0)
-					sc->sc_stats.ast_tx_altrate++;
-				pri = M_WME_GETAC(bf->bf_m);
-				if (pri >= WME_AC_VO)
-					ic->ic_wme.wme_hipri_traffic++;
-				if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
-					ni->ni_inact = ni->ni_inact_reload;
-			} else {
-				if (ts->ts_status & HAL_TXERR_XRETRY)
-					sc->sc_stats.ast_tx_xretries++;
-				if (ts->ts_status & HAL_TXERR_FIFO)
-					sc->sc_stats.ast_tx_fifoerr++;
-				if (ts->ts_status & HAL_TXERR_FILT)
-					sc->sc_stats.ast_tx_filtered++;
-				if (ts->ts_status & HAL_TXERR_XTXOP)
-					sc->sc_stats.ast_tx_xtxop++;
-				if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
-					sc->sc_stats.ast_tx_timerexpired++;
+			/* update statistics */
+			ath_tx_update_stats(sc, ts, bf);
+		}
 
-				/* XXX HAL_TX_DATA_UNDERRUN */
-				/* XXX HAL_TX_DELIM_UNDERRUN */
-
-				if (bf->bf_m->m_flags & M_FF)
-					sc->sc_stats.ast_ff_txerr++;
-			}
-			/* XXX when is this valid? */
-			if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
-				sc->sc_stats.ast_tx_desccfgerr++;
-
-			sr = ts->ts_shortretry;
-			lr = ts->ts_longretry;
-			sc->sc_stats.ast_tx_shortretry += sr;
-			sc->sc_stats.ast_tx_longretry += lr;
-			/*
-			 * Hand the descriptor to the rate control algorithm.
-			 */
+		/*
+		 * Call the completion handler.
+		 * The completion handler is responsible for
+		 * calling the rate control code.
+		 *
+		 * Frames with no completion handler get the
+		 * rate control code called here.
+		 */
+		if (bf->bf_comp == NULL) {
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
 			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
 				/*
-				 * If frame was ack'd update statistics,
-				 * including the last rx time used to
-				 * workaround phantom bmiss interrupts.
+				 * XXX assume this isn't an aggregate
+				 * frame.
 				 */
-				if (ts->ts_status == 0) {
-					nacked++;
-					sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
-					ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
-						ts->ts_rssi);
-				}
-				ath_rate_tx_complete(sc, an, bf);
+				ath_rate_tx_complete(sc, ATH_NODE(ni), bf);
 			}
-			/*
-			 * Do any tx complete callback.  Note this must
-			 * be done before releasing the node reference.
-			 */
-			if (bf->bf_m->m_flags & M_TXCB)
-				ieee80211_process_callback(ni, bf->bf_m,
-				    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0 ?
-				        ts->ts_status : HAL_TXERR_XRETRY);
-			ieee80211_free_node(ni);
-		}
-		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-		bf->bf_node = NULL;
-
-		ATH_TXBUF_LOCK(sc);
-		last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
-		if (last != NULL)
-			last->bf_flags &= ~ATH_BUF_BUSY;
-		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
+			ath_tx_default_comp(sc, bf, 0);
+		} else
+			bf->bf_comp(sc, bf, 0);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -4547,13 +4616,73 @@ ath_tx_proc(void *arg, int npending)
 }
 #undef	TXQACTIVE
 
-static void
+/*
+ * Return a buffer to the pool and update the 'busy' flag on the
+ * previous 'tail' entry.
+ *
+ * This _must_ only be called when the buffer is involved in a completed
+ * TX. The logic is that if it was part of an active TX, the previous
+ * buffer on the list is now not involved in a halted TX DMA queue, waiting
+ * for restart (eg for TDMA.)
+ *
+ * The caller must free the mbuf and recycle the node reference.
+ */
+void
+ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
+{
+	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTWRITE);
+
+	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
+	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
+
+	ATH_TXBUF_LOCK(sc);
+	ath_tx_update_busy(sc);
+	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+}
+
+/*
+ * This is currently used by ath_tx_draintxq() and
+ * ath_tx_tid_free_pkts().
+ *
+ * It recycles a single ath_buf.
+ */
+void
+ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct mbuf *m0 = bf->bf_m;
+
+	bf->bf_node = NULL;
+	bf->bf_m = NULL;
+
+	/* Free the buffer, it's not needed any longer */
+	ath_freebuf(sc, bf);
+
+	if (ni != NULL) {
+		/*
+		 * Do any callback and reclaim the node reference.
+		 */
+		if (m0->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m0, status);
+		ieee80211_free_node(ni);
+	}
+	m_freem(m0);
+
+	/*
+	 * XXX the buffer used to be freed -after-, but the DMA map was
+	 * freed where ath_freebuf() now is. I've no idea what this
+	 * will do.
+	 */
+}
+
+void
 ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
 #endif
-	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	u_int ix;
 
@@ -4566,6 +4695,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
+
 	for (ix = 0;; ix++) {
 		ATH_TXQ_LOCK(txq);
 		bf = TAILQ_FIRST(&txq->axq_q);
@@ -4577,7 +4707,6 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
-		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
@@ -4589,25 +4718,23 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			    bf->bf_m->m_len, 0, -1);
 		}
 #endif /* ATH_DEBUG */
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		ni = bf->bf_node;
-		bf->bf_node = NULL;
-		if (ni != NULL) {
-			/*
-			 * Do any callback and reclaim the node reference.
-			 */
-			if (bf->bf_m->m_flags & M_TXCB)
-				ieee80211_process_callback(ni, bf->bf_m, -1);
-			ieee80211_free_node(ni);
-		}
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
+		/*
+		 * Since we're now doing magic in the completion
+		 * functions, we -must- call it for aggregation
+		 * destinations or BAW tracking will get upset.
+		 */
+		/*
+		 * Clear ATH_BUF_BUSY; the completion handler
+		 * will free the buffer.
+		 */
+		ATH_TXQ_UNLOCK(txq);
 		bf->bf_flags &= ~ATH_BUF_BUSY;
-
-		ATH_TXBUF_LOCK(sc);
-		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
+		if (bf->bf_comp)
+			bf->bf_comp(sc, bf, 1);
+		else
+			ath_tx_default_comp(sc, bf, 1);
 	}
+
 }
 
 static void
