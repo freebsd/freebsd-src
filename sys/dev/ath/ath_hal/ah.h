@@ -810,6 +810,8 @@ struct ath_hal {
 
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
+	uint32_t	ah_intrstate[8];	/* last int state */
+
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
