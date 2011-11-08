@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
  * Driver states
  */
 
-MALLOC_DEFINE(M_SCSISA, "SCSI sa", "SCSI sequential access buffers");
+static MALLOC_DEFINE(M_SCSISA, "SCSI sa", "SCSI sequential access buffers");
 
 typedef enum {
 	SA_STATE_NORMAL, SA_STATE_ABNORMAL

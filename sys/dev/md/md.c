@@ -1370,6 +1370,11 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    indent, (uintmax_t) mp->fwsectors);
 			sbuf_printf(sb, "%s<length>%ju</length>\n",
 			    indent, (uintmax_t) mp->mediasize);
+			sbuf_printf(sb, "%s<compression>%s</compression>\n", indent,
+			    (mp->flags & MD_COMPRESS) == 0 ? "off": "on");
+			sbuf_printf(sb, "%s<access>%s</access>\n", indent,
+			    (mp->flags & MD_READONLY) == 0 ? "read-write":
+			    "read-only");
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
 			if (mp->type == MD_VNODE && mp->vnode != NULL)

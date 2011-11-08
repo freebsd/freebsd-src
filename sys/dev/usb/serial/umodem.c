@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int umodem_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
 SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
@@ -127,7 +127,11 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
-	USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+		USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+	/* Huawei Modem class match */
+	{USB_IFACE_CLASS(UICLASS_CDC),
+		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
+		USB_IFACE_PROTOCOL(0xFF)},
 	/* Kyocera AH-K3001V */
 	{USB_VPI(USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V, 1)},
 	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, 1)},

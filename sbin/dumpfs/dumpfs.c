@@ -77,7 +77,7 @@ static const char rcsid[] =
 #define	afs	disk.d_fs
 #define	acg	disk.d_cg
 
-struct uufsd disk;
+static struct uufsd disk;
 
 int	dumpfs(const char *);
 int	dumpfsid(void);

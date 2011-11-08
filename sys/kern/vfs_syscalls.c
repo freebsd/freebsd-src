@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
+
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
@@ -4844,4 +4846,136 @@ sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
 
 	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
+}
+
+/*
+ * Unlike madvise(2), we do not make a best effort to remember every
+ * possible caching hint.  Instead, we remember the last setting with
+ * the exception that we will allow POSIX_FADV_NORMAL to adjust the
+ * region of any current setting.
+ */
+int
+sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
+{
+	struct fadvise_info *fa, *new;
+	struct file *fp;
+	struct vnode *vp;
+	off_t end;
+	int error;
+
+	if (uap->offset < 0 || uap->len < 0 ||
+	    uap->offset > OFF_MAX - uap->len)
+		return (EINVAL);
+	switch (uap->advice) {
+	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_RANDOM:
+	case POSIX_FADV_NOREUSE:
+		new = malloc(sizeof(*fa), M_FADVISE, M_WAITOK);
+		break;
+	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_WILLNEED:
+	case POSIX_FADV_DONTNEED:
+		new = NULL;
+		break;
+	default:
+		return (EINVAL);
+	}
+	/* XXX: CAP_POSIX_FADVISE? */
+	error = fget(td, uap->fd, 0, &fp);
+	if (error != 0)
+		goto out;
+	
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (uap->len == 0)
+		end = OFF_MAX;
+	else
+		end = uap->offset + uap->len - 1;
+	switch (uap->advice) {
+	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_RANDOM:
+	case POSIX_FADV_NOREUSE:
+		/*
+		 * Try to merge any existing non-standard region with
+		 * this new region if possible, otherwise create a new
+		 * non-standard region for this request.
+		 */
+		mtx_pool_lock(mtxpool_sleep, fp);
+		fa = fp->f_advice;
+		if (fa != NULL && fa->fa_advice == uap->advice &&
+		    ((fa->fa_start <= end && fa->fa_end >= uap->offset) ||
+		    (end != OFF_MAX && fa->fa_start == end + 1) ||
+		    (fa->fa_end != OFF_MAX && fa->fa_end + 1 == uap->offset))) {
+			if (uap->offset < fa->fa_start)
+				fa->fa_start = uap->offset;
+			if (end > fa->fa_end)
+				fa->fa_end = end;
+		} else {
+			new->fa_advice = uap->advice;
+			new->fa_start = uap->offset;
+			new->fa_end = end;
+			fp->f_advice = new;
+			new = fa;
+		}
+		mtx_pool_unlock(mtxpool_sleep, fp);
+		break;
+	case POSIX_FADV_NORMAL:
+		/*
+		 * If a the "normal" region overlaps with an existing
+		 * non-standard region, trim or remove the
+		 * non-standard region.
+		 */
+		mtx_pool_lock(mtxpool_sleep, fp);
+		fa = fp->f_advice;
+		if (fa != NULL) {
+			if (uap->offset <= fa->fa_start &&
+			    end >= fa->fa_end) {
+				new = fa;
+				fp->f_advice = NULL;
+			} else if (uap->offset <= fa->fa_start &&
+			    end >= fa->fa_start)
+				fa->fa_start = end + 1;
+			else if (uap->offset <= fa->fa_end &&
+			    end >= fa->fa_end)
+				fa->fa_end = uap->offset - 1;
+			else if (uap->offset >= fa->fa_start &&
+			    end <= fa->fa_end) {
+				/*
+				 * If the "normal" region is a middle
+				 * portion of the existing
+				 * non-standard region, just remove
+				 * the whole thing rather than picking
+				 * one side or the other to
+				 * preserve.
+				 */
+				new = fa;
+				fp->f_advice = NULL;
+			}
+		}
+		mtx_pool_unlock(mtxpool_sleep, fp);
+		break;
+	case POSIX_FADV_WILLNEED:
+	case POSIX_FADV_DONTNEED:
+		error = VOP_ADVISE(vp, uap->offset, end, uap->advice);
+		break;
+	}
+out:
+	if (fp != NULL)
+		fdrop(fp, td);
+	free(new, M_FADVISE);
+	return (error);
 }

@@ -258,8 +258,8 @@ kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 retry:
 		m = vm_phys_alloc_contig(1, low, high, PAGE_SIZE, 0);
 		if (m == NULL) {
+			VM_OBJECT_UNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				VM_OBJECT_UNLOCK(object);
 				vm_map_unlock(map);
 				vm_contig_grow_cache(tries, low, high);
 				vm_map_lock(map);
@@ -267,13 +267,12 @@ retry:
 				tries++;
 				goto retry;
 			}
-			while (i != 0) {
-				i -= PAGE_SIZE;
-				m = vm_page_lookup(object, OFF_TO_IDX(offset +
-				    i));
-				vm_page_free(m);
-			}
-			VM_OBJECT_UNLOCK(object);
+			/*
+			 * Since the pages that were allocated by any previous
+			 * iterations of this loop are not busy, they can be
+			 * freed by vm_object_page_remove(), which is called
+			 * by vm_map_delete().
+			 */
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
 			return (0);
@@ -335,7 +334,8 @@ contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, vm_memattr_t memattr,
 
 vm_offset_t
 kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, u_long alignment, u_long boundary, vm_memattr_t memattr)
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
 {
 	vm_offset_t ret;
 	vm_page_t pages;

@@ -60,7 +60,7 @@ int fsirand(char *);
  */
 static int sblock_try[] = SBLOCKSEARCH;
 
-int printonly = 0, force = 0, ignorelabel = 0;
+static int printonly = 0, force = 0, ignorelabel = 0;
 
 int
 main(int argc, char *argv[])

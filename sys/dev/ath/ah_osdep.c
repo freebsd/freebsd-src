@@ -76,7 +76,8 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 
 /* NB: put this here instead of the driver to avoid circular references */
 SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
-SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
+static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0,
+    "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
 int ath_hal_debug = 0;
@@ -85,7 +86,7 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
-MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
+static MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
 
 void*
 ath_hal_malloc(size_t size)

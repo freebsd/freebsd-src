@@ -41,7 +41,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-MALLOC_DEFINE(M_ENVY24, "envy24", "envy24 audio");
+static MALLOC_DEFINE(M_ENVY24, "envy24", "envy24 audio");
 
 /* -------------------------------------------------------------------- */
 

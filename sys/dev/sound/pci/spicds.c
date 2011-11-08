@@ -35,7 +35,7 @@
 
 #include <dev/sound/pci/spicds.h>
 
-MALLOC_DEFINE(M_SPICDS, "spicds", "SPI codec");
+static MALLOC_DEFINE(M_SPICDS, "spicds", "SPI codec");
 
 #define SPICDS_NAMELEN	16
 struct spicds_info {

@@ -122,6 +122,12 @@ struct fileops {
  * none	not locked
  */
 
+struct fadvise_info {
+	int		fa_advice;	/* (f) FADV_* type. */
+	off_t		fa_start;	/* (f) Region start. */
+	off_t		fa_end;		/* (f) Region end. */
+};
+
 struct file {
 	void		*f_data;	/* file descriptor specific data */
 	struct fileops	*f_ops;		/* File operations */
@@ -136,7 +142,11 @@ struct file {
 	 */
 	int		f_seqcount;	/* Count of sequential accesses. */
 	off_t		f_nextoff;	/* next expected read/write offset. */
-	struct cdev_privdata *f_cdevpriv; /* (d) Private data for the cdev. */
+	union {
+		struct cdev_privdata *fvn_cdevpriv;
+					/* (d) Private data for the cdev. */
+		struct fadvise_info *fvn_advice;
+	} f_vnun;
 	/*
 	 *  DFLAG_SEEKABLE specific fields
 	 */
@@ -146,6 +156,9 @@ struct file {
 	 */
 	void		*f_label;	/* Place-holder for MAC label. */
 };
+
+#define	f_cdevpriv	f_vnun.fvn_cdevpriv
+#define	f_advice	f_vnun.fvn_advice
 
 #define	FOFFSET_LOCKED       0x1
 #define	FOFFSET_LOCK_WAITING 0x2		 
@@ -171,10 +184,6 @@ struct xfile {
 };
 
 #ifdef _KERNEL
-
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_FILE);
-#endif
 
 extern struct fileops vnops;
 extern struct fileops badfileops;

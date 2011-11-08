@@ -604,6 +604,13 @@ devfs_close_f(struct file *fp, struct thread *td)
 	td->td_fpop = fp;
 	error = vnops.fo_close(fp, td);
 	td->td_fpop = fpop;
+
+	/*
+	 * The f_cdevpriv cannot be assigned non-NULL value while we
+	 * are destroying the file.
+	 */
+	if (fp->f_cdevpriv != NULL)
+		devfs_fpdrop(fp);
 	return (error);
 }
 
@@ -1050,6 +1057,10 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	if (fp == NULL && dsw->d_fdopen != NULL) {
+		dev_relthread(dev, ref);
+		return (ENXIO);
+	}
 
 	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);

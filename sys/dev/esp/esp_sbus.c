@@ -68,13 +68,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/bus.h>
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 struct esp_softc {
 	struct ncr53c9x_softc	sc_ncr53c9x;	/* glue to MI code */
-	struct device		*sc_dev;
+	device_t		sc_dev;
 
 	struct resource		*sc_res;
 
@@ -101,8 +101,6 @@ struct esp_softc {
 
 	struct lsi64854_softc	*sc_dma;	/* pointer to my DMA */
 };
-
-static devclass_t	esp_devclass;
 
 static int	esp_probe(device_t);
 static int	esp_dma_attach(device_t);
@@ -118,7 +116,8 @@ static device_method_t esp_dma_methods[] = {
 	DEVMETHOD(device_detach,	esp_dma_detach),
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
-	{0, 0}
+
+	KOBJMETHOD_END
 };
 
 static driver_t esp_dma_driver = {
@@ -136,7 +135,8 @@ static device_method_t esp_sbus_methods[] = {
 	DEVMETHOD(device_detach,	esp_sbus_detach),
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
-	{0, 0}
+
+	KOBJMETHOD_END	
 };
 
 static driver_t esp_sbus_driver = {
@@ -175,7 +175,6 @@ static const struct ncr53c9x_glue const esp_sbus_glue = {
 	esp_dma_go,
 	esp_dma_stop,
 	esp_dma_isactive,
-	NULL,			/* gl_clear_latched_intr */
 };
 
 static int
@@ -245,9 +244,9 @@ esp_sbus_attach(device_t dev)
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-		    0,				/* nsegments */
-		    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+		    BUS_SPACE_MAXSIZE,		/* maxsize */
+		    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+		    BUS_SPACE_MAXSIZE,		/* maxsegsize */
 		    0,				/* flags */
 		    NULL, NULL,			/* no locking */
 		    &lsc->sc_parent_dmat);
@@ -292,8 +291,10 @@ esp_sbus_attach(device_t dev)
 		}
 		for (i = 0; i < nchildren; i++) {
 			if (device_is_attached(children[i]) &&
-			    sbus_get_slot(children[i]) == sbus_get_slot(dev) &&
-			    strcmp(ofw_bus_get_name(children[i]), "dma") == 0) {
+			    sbus_get_slot(children[i]) ==
+			    sbus_get_slot(dev) &&
+			    strcmp(ofw_bus_get_name(children[i]),
+			    "dma") == 0) {
 				/* XXX hackery */
 				esc->sc_dma = (struct lsi64854_softc *)
 				    device_get_softc(children[i]);
@@ -453,13 +454,6 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 
 	NCR_LOCK_INIT(sc);
 
-	/* Attach the DMA engine. */
-	error = lsi64854_attach(esc->sc_dma);
-	if (error != 0) {
-		device_printf(esc->sc_dev, "lsi64854_attach failed\n");
-		goto fail_lock;
-	}
-
 	sc->sc_id = OF_getscsinitid(esc->sc_dev);
 
 #ifdef ESP_SBUS_DEBUG
@@ -516,9 +510,9 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 	NCR_WRITE_REG(sc, NCR_CFG2, sc->sc_cfg2);
 
 	if ((NCR_READ_REG(sc, NCR_CFG2) & ~NCRCFG2_RSVD) !=
-	    (NCRCFG2_SCSI2 | NCRCFG2_RPE)) {
+	    (NCRCFG2_SCSI2 | NCRCFG2_RPE))
 		sc->sc_rev = NCR_VARIANT_ESP100;
-	} else {
+	else {
 		sc->sc_cfg2 = NCRCFG2_SCSI2;
 		NCR_WRITE_REG(sc, NCR_CFG2, sc->sc_cfg2);
 		sc->sc_cfg3 = 0;
@@ -526,9 +520,9 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 		sc->sc_cfg3 = (NCRCFG3_CDB | NCRCFG3_FCLK);
 		NCR_WRITE_REG(sc, NCR_CFG3, sc->sc_cfg3);
 		if (NCR_READ_REG(sc, NCR_CFG3) !=
-		    (NCRCFG3_CDB | NCRCFG3_FCLK)) {
+		    (NCRCFG3_CDB | NCRCFG3_FCLK))
 			sc->sc_rev = NCR_VARIANT_ESP100A;
-		} else {
+		else {
 			/* NCRCFG2_FE enables > 64K transfers. */
 			sc->sc_cfg2 |= NCRCFG2_FE;
 			sc->sc_cfg3 = 0;
@@ -543,9 +537,11 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 
 				case 0x02:
 					if ((uid & 0x07) == 0x02)
-						sc->sc_rev = NCR_VARIANT_FAS216;
+						sc->sc_rev =
+						    NCR_VARIANT_FAS216;
 					else
-						sc->sc_rev = NCR_VARIANT_FAS236;
+						sc->sc_rev =
+						    NCR_VARIANT_FAS236;
 					break;
 
 				case 0x0a:
@@ -560,7 +556,8 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 					 */
 					device_printf(esc->sc_dev,
 					    "Unknown chip\n");
-					goto fail_lsi;
+					error = ENXIO;
+					goto fail_lock;
 				}
 			}
 		}
@@ -569,12 +566,6 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 #ifdef ESP_SBUS_DEBUG
 	printf("%s: revision %d, uid 0x%x\n", __func__, sc->sc_rev, uid);
 #endif
-
-	/*
-	 * XXX minsync and maxxfer _should_ be set up in MI code,
-	 * XXX but it appears to have some dependency on what sort
-	 * XXX of DMA we're hooked up to, etc.
-	 */
 
 	/*
 	 * This is the value used to start sync negotiations
@@ -587,31 +578,27 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 	 */
 	sc->sc_minsync = 1000 / sc->sc_freq;
 
+	/*
+	 * Except for some variants the maximum transfer size is 64k.
+	 */
+	sc->sc_maxxfer = 64 * 1024;
 	sc->sc_maxoffset = 15;
 	sc->sc_extended_geom = 1;
 
 	/*
 	 * Alas, we must now modify the value a bit, because it's
-	 * only valid when can switch on FASTCLK and FASTSCSI bits
-	 * in config register 3...
+	 * only valid when we can switch on FASTCLK and FASTSCSI bits
+	 * in the config register 3...
 	 */
 	switch (sc->sc_rev) {
 	case NCR_VARIANT_ESP100:
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 64 * 1024;
 		sc->sc_minsync = 0;	/* No synch on old chip? */
 		break;
 
 	case NCR_VARIANT_ESP100A:
-		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 64 * 1024;
-		/* Min clocks/byte is 5 */
-		sc->sc_minsync = ncr53c9x_cpb2stp(sc, 5);
-		break;
-
 	case NCR_VARIANT_ESP200:
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 16 * 1024 * 1024;
 		/* Min clocks/byte is 5 */
 		sc->sc_minsync = ncr53c9x_cpb2stp(sc, 5);
 		break;
@@ -640,6 +627,19 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_16_BIT;
 		sc->sc_maxxfer = 16 * 1024 * 1024;
 		break;
+	}
+
+	/*
+	 * Given that we allocate resources based on sc->sc_maxxfer it doesn't
+	 * make sense to supply a value higher than the maximum actually used.
+	 */
+	sc->sc_maxxfer = min(sc->sc_maxxfer, MAXPHYS);
+
+	/* Attach the DMA engine. */
+	error = lsi64854_attach(esc->sc_dma);
+	if (error != 0) {
+		device_printf(esc->sc_dev, "lsi64854_attach failed\n");
+		goto fail_lock;
 	}
 
 	/* Establish interrupt channel. */

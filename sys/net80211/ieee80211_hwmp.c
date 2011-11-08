@@ -161,7 +161,7 @@ struct ieee80211_hwmp_state {
 	uint8_t			hs_maxhops;	/* max hop count */
 };
 
-SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
     "IEEE 802.11s HWMP parameters");
 static int	ieee80211_hwmp_targetonly = 0;
 SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLTYPE_INT | CTLFLAG_RW,

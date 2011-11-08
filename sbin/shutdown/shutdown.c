@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #define	M		*60
 #define	S		*1
 #define	NOLOG_TIME	5*60
-struct interval {
+static struct interval {
 	int timeleft, timetowait;
 } tlist[] = {
 	{ 10 H,  5 H },

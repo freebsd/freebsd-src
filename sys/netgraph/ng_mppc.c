@@ -74,7 +74,7 @@
 #endif
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
+static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 #else
 #define M_NETGRAPH_MPPC M_NETGRAPH
 #endif

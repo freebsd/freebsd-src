@@ -70,7 +70,8 @@ int mp_maxcpus = MAXCPU;
 volatile int smp_started;
 u_int mp_maxid;
 
-SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD|CTLFLAG_CAPRD, NULL, "Kernel SMP");
+static SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD|CTLFLAG_CAPRD, NULL,
+    "Kernel SMP");
 
 SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxid, 0,
     "Max CPU ID.");
@@ -415,13 +416,16 @@ smp_rendezvous_cpus(cpuset_t map,
 {
 	int curcpumap, i, ncpus = 0;
 
+	/* Look comments in the !SMP case. */
 	if (!smp_started) {
+		spinlock_enter();
 		if (setup_func != NULL)
 			setup_func(arg);
 		if (action_func != NULL)
 			action_func(arg);
 		if (teardown_func != NULL)
 			teardown_func(arg);
+		spinlock_exit();
 		return;
 	}
 
@@ -666,12 +670,18 @@ smp_rendezvous_cpus(cpuset_t map,
 	void (*teardown_func)(void *),
 	void *arg)
 {
+	/*
+	 * In the !SMP case we just need to ensure the same initial conditions
+	 * as the SMP case.
+	 */
+	spinlock_enter();
 	if (setup_func != NULL)
 		setup_func(arg);
 	if (action_func != NULL)
 		action_func(arg);
 	if (teardown_func != NULL)
 		teardown_func(arg);
+	spinlock_exit();
 }
 
 void
@@ -681,12 +691,15 @@ smp_rendezvous(void (*setup_func)(void *),
 	       void *arg)
 {
 
+	/* Look comments in the smp_rendezvous_cpus() case. */
+	spinlock_enter();
 	if (setup_func != NULL)
 		setup_func(arg);
 	if (action_func != NULL)
 		action_func(arg);
 	if (teardown_func != NULL)
 		teardown_func(arg);
+	spinlock_exit();
 }
 
 /*

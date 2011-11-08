@@ -172,6 +172,7 @@ struct ath_node {
 struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
+	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */

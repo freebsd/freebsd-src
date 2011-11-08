@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #define xl(a)	((a) & 0xff)
 #define APMERR(a) xh(a)
 
-int cmos_wall = 0;	/* True when wall time is in cmos clock, else UTC */
+static int cmos_wall = 0; /* True when wall time is in cmos clock, else UTC */
 
 static void
 usage(void)

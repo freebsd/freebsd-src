@@ -119,7 +119,7 @@ struct mpssas_devprobe {
 #define MPSSAS_DISCOVERY_TIMEOUT	20
 #define MPSSAS_MAX_DISCOVERY_TIMEOUTS	10 /* 200 seconds */
 
-MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
+static MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
 static __inline int mpssas_set_lun(uint8_t *lun, u_int ccblun);
 static struct mpssas_target * mpssas_alloc_target(struct mpssas_softc *,

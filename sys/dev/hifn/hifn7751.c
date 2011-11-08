@@ -184,7 +184,8 @@ READ_REG_1(struct hifn_softc *sc, bus_size_t reg)
 }
 #define	WRITE_REG_1(sc, reg, val)	hifn_write_reg_1(sc, reg, val)
 
-SYSCTL_NODE(_hw, OID_AUTO, hifn, CTLFLAG_RD, 0, "Hifn driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, hifn, CTLFLAG_RD, 0,
+	    "Hifn driver parameters");
 
 #ifdef HIFN_DEBUG
 static	int hifn_debug = 0;

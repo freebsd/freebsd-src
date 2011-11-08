@@ -43,7 +43,7 @@ start_gmirror_sync()
 {
 
   cd ${MIRRORCFGDIR}
-  for DISK in `ls *`
+  for DISK in `ls ${MIRRORCFGDIR}`
   do
     MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
     MIRRORBAL="`cat ${DISK} | cut -d ':' -f 2`"
@@ -51,7 +51,7 @@ start_gmirror_sync()
    
     # Start the mirroring service
     rc_nohalt "gmirror forget ${MIRRORNAME}"
-    rc_halt "gmirror insert ${MIRRORNAME} /dev/${MIRRORDISK}"
+    rc_halt "gmirror insert ${MIRRORNAME} ${MIRRORDISK}"
 
   done
 

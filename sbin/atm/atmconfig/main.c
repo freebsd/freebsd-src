@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "private.h"
 
 /* verbosity level */
-int verbose;
+static int verbose;
 
 /* notitle option */
 static int notitle;
