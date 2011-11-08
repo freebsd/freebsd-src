@@ -361,3 +361,8 @@ device		snd_hda		# Intel High Definition Audio
 device		snd_ich		# Intel, NVidia and other ICH AC'97 Audio
 device		snd_uaudio	# USB Audio
 device		snd_via8233	# VIA VT8233x Audio
+
+# MMC/SD
+device		mmc		# MMC/SD bus
+device		mmcsd		# MMC/SD memory card
+device		sdhci		# Generic PCI SD Host Controller
