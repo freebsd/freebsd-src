@@ -1104,6 +1104,9 @@ options 	XFS
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
+# Enable mounting of non-MPSAFE filesystems.
+options 	VFS_ALLOW_NONMPSAFE
+
 # Cryptographically secure random number generator; /dev/random
 device		random
 
