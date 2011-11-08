@@ -1133,6 +1133,26 @@ ath_vap_delete(struct ieee80211vap *vap)
 	}
 
 	ieee80211_vap_detach(vap);
+
+	/*
+	 * XXX Danger Will Robinson! Danger!
+	 *
+	 * Because ieee80211_vap_detach() can queue a frame (the station
+	 * diassociate message?) after we've drained the TXQ and
+	 * flushed the software TXQ, we will end up with a frame queued
+	 * to a node whose vap is about to be freed.
+	 *
+	 * To work around this, flush the hardware/software again.
+	 * This may be racy - the ath task may be running and the packet
+	 * may be being scheduled between sw->hw txq. Tsk.
+	 *
+	 * TODO: figure out why a new node gets allocated somewhere around
+	 * here (after the ath_tx_swq() call; and after an ath_stop_locked()
+	 * call!)
+	 */
+
+	ath_draintxq(sc, ATH_RESET_DEFAULT);
+
 	ATH_LOCK(sc);
 	/*
 	 * Reclaim beacon state.  Note this must be done before
@@ -1180,7 +1200,6 @@ ath_vap_delete(struct ieee80211vap *vap)
 		sc->sc_swbmiss = 0;
 	}
 #endif
-	ATH_UNLOCK(sc);
 	free(avp, M_80211_VAP);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1201,6 +1220,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		}
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
+	ATH_UNLOCK(sc);
 }
 
 void
@@ -1798,6 +1818,7 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	HAL_STATUS status;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
+
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
 	/*
@@ -2748,10 +2769,18 @@ ath_bstuck_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t hangs = 0;
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0)
+		if_printf(ifp, "bb hang detected (0x%x)\n", hangs);
 
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
 	sc->sc_stats.ast_bstuck++;
+	/*
+	 * This assumes that there's no simultaneous channel mode change
+	 * occuring.
+	 */
 	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
 
@@ -3955,6 +3984,7 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_qnum = qnum;
 	txq->axq_ac = 0;
 	txq->axq_depth = 0;
+	txq->axq_aggr_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	txq->axq_softc = sc;
@@ -4085,6 +4115,10 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		qi.tqi_burstTime = qi.tqi_readyTime;
 	} else {
 #endif
+		/*
+		 * XXX shouldn't this just use the default flags
+		 * used in the previous queue setup?
+		 */
 		qi.tqi_qflags = HAL_TXQ_TXOKINT_ENABLE
 			      | HAL_TXQ_TXERRINT_ENABLE
 			      | HAL_TXQ_TXDESCINT_ENABLE
@@ -4430,6 +4464,7 @@ ath_tx_proc(void *arg, int npending)
 
 	ath_start(ifp);
 }
+#undef	TXQACTIVE
 
 static void
 ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
