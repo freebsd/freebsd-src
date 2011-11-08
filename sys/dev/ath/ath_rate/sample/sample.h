@@ -57,9 +57,9 @@ struct sample_softc {
 struct rate_stats {	
 	unsigned average_tx_time;
 	int successive_failures;
-	int tries;
-	int total_packets;
-	int packets_acked;
+	uint64_t tries;
+	uint64_t total_packets;	/* pkts total since assoc */
+	uint64_t packets_acked;	/* pkts acked since assoc */
 	unsigned perfect_tx_time; /* transmit time for 0 retries */
 	int last_tx;
 };
