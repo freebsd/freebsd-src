@@ -4539,17 +4539,16 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 }
 
-/*
- * Drain the transmit queues and reclaim resources.
- */
-static void
-ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
+static int
+ath_stoptxdma(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	/* XXX return value */
+	if (sc->sc_invalid)
+		return 0;
+
 	if (!sc->sc_invalid) {
 		/* don't touch the hardware if marked invalid */
 		DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
@@ -4561,6 +4560,24 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 			if (ATH_TXQ_SETUP(sc, i))
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
 	}
+
+	return 1;
+}
+
+/*
+ * Drain the transmit queues and reclaim resources.
+ */
+static void
+ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
+{
+#ifdef	ATH_DEBUG
+	struct ath_hal *ah = sc->sc_ah;
+#endif
+	struct ifnet *ifp = sc->sc_ifp;
+	int i;
+
+	(void) ath_stoptxdma(sc);
+
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
