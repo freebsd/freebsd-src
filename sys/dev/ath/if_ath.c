@@ -163,6 +163,7 @@ static int	ath_desc_alloc(struct ath_softc *);
 static void	ath_desc_free(struct ath_softc *);
 static struct ieee80211_node *ath_node_alloc(struct ieee80211vap *,
 			const uint8_t [IEEE80211_ADDR_LEN]);
+static void	ath_node_cleanup(struct ieee80211_node *);
 static void	ath_node_free(struct ieee80211_node *);
 static void	ath_node_getsignal(const struct ieee80211_node *,
 			int8_t *, int8_t *);
@@ -713,6 +714,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_node_alloc = ath_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
 	ic->ic_node_free = ath_node_free;
+	sc->sc_node_cleanup = ic->ic_node_cleanup;
+	ic->ic_node_cleanup = ath_node_cleanup;
 	ic->ic_node_getsignal = ath_node_getsignal;
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
@@ -3219,14 +3222,24 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 }
 
 static void
+ath_node_cleanup(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+
+	/* Cleanup ath_tid, free unused bufs, unlink bufs in TXQ */
+	ath_rate_node_cleanup(sc, ATH_NODE(ni));
+	sc->sc_node_cleanup(ni);
+}
+
+static void
 ath_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-        struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
 	mtx_destroy(&ATH_NODE(ni)->an_mtx);
-	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_free(ni);
 }
 
