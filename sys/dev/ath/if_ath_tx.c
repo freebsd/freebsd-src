@@ -116,10 +116,10 @@ ath_txfrag_cleanup(struct ath_softc *sc,
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	STAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
+	TAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
 		/* NB: bf assumed clean */
-		STAILQ_REMOVE_HEAD(frags, bf_list);
-		STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		TAILQ_REMOVE(frags, bf, bf_list);
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 		ieee80211_node_decref(ni);
 	}
 }
@@ -144,11 +144,11 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 			break;
 		}
 		ieee80211_node_incref(ni);
-		STAILQ_INSERT_TAIL(frags, bf, bf_list);
+		TAILQ_INSERT_TAIL(frags, bf, bf_list);
 	}
 	ATH_TXBUF_UNLOCK(sc);
 
-	return !STAILQ_EMPTY(frags);
+	return !TAILQ_EMPTY(frags);
 }
 
 /*
@@ -323,7 +323,7 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 				 * is/was empty.
 				 */
 				ath_hal_puttxbuf(ah, txq->axq_qnum,
-					STAILQ_FIRST(&txq->axq_q)->bf_daddr);
+					TAILQ_FIRST(&txq->axq_q)->bf_daddr);
 				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u restarted\n", __func__,
@@ -351,7 +351,7 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 		ath_hal_txstart(ah, txq->axq_qnum);
 	} else {
 		if (txq->axq_link != NULL) {
-			struct ath_buf *last = ATH_TXQ_LAST(txq);
+			struct ath_buf *last = ATH_TXQ_LAST(txq, axq_q_s);
 			struct ieee80211_frame *wh;
 
 			/* mark previous frame */
@@ -1114,7 +1114,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
-	STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
 bad:
 	ifp->if_oerrors++;
