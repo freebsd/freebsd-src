@@ -477,8 +477,8 @@
  */
 
 typedef struct {
-	u_int32_t	ti_addr_hi;
-	u_int32_t	ti_addr_lo;
+	uint32_t	ti_addr_hi;
+	uint32_t	ti_addr_lo;
 } ti_hostaddr;
 
 #define TI_HOSTADDR(x)		x.ti_addr_lo
@@ -516,13 +516,13 @@ ti_hostaddr64(ti_hostaddr *x, bus_addr_t addr)
 struct ti_rcb {
 	ti_hostaddr		ti_hostaddr;
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_max_len;
-	u_int16_t		ti_flags;
+	uint16_t		ti_max_len;
+	uint16_t		ti_flags;
 #else
-	u_int16_t		ti_flags;
-	u_int16_t		ti_max_len;
+	uint16_t		ti_flags;
+	uint16_t		ti_max_len;
 #endif
-	u_int32_t		ti_unused;
+	uint32_t		ti_unused;
 };
 
 #define TI_RCB_FLAG_TCP_UDP_CKSUM	0x00000001
@@ -536,8 +536,8 @@ struct ti_rcb {
 #define TI_RCB_FLAG_RING_DISABLED	0x00000200
 
 struct ti_producer {
-	u_int32_t		ti_idx;
-	u_int32_t		ti_unused;
+	uint32_t		ti_idx;
+	uint32_t		ti_unused;
 };
 
 /*
@@ -571,35 +571,35 @@ struct ti_gib {
 struct ti_rx_desc {
 	ti_hostaddr		ti_addr;
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_idx;
-	u_int16_t		ti_len;
+	uint16_t		ti_idx;
+	uint16_t		ti_len;
 #else
-	u_int16_t		ti_len;
-	u_int16_t		ti_idx;
+	uint16_t		ti_len;
+	uint16_t		ti_idx;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_type;
-	u_int16_t		ti_flags;
+	uint16_t		ti_type;
+	uint16_t		ti_flags;
 #else
-	u_int16_t		ti_flags;
-	u_int16_t		ti_type;
+	uint16_t		ti_flags;
+	uint16_t		ti_type;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_ip_cksum;
-	u_int16_t		ti_tcp_udp_cksum;
+	uint16_t		ti_ip_cksum;
+	uint16_t		ti_tcp_udp_cksum;
 #else
-	u_int16_t		ti_tcp_udp_cksum;
-	u_int16_t		ti_ip_cksum;
+	uint16_t		ti_tcp_udp_cksum;
+	uint16_t		ti_ip_cksum;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_error_flags;
-	u_int16_t		ti_vlan_tag;
+	uint16_t		ti_error_flags;
+	uint16_t		ti_vlan_tag;
 #else
-	u_int16_t		ti_vlan_tag;
-	u_int16_t		ti_error_flags;
+	uint16_t		ti_vlan_tag;
+	uint16_t		ti_error_flags;
 #endif
-	u_int32_t		ti_rsvd;
-	u_int32_t		ti_opaque;
+	uint32_t		ti_rsvd;
+	uint32_t		ti_opaque;
 };
 
 struct ti_rx_desc_ext {
@@ -607,50 +607,50 @@ struct ti_rx_desc_ext {
 	ti_hostaddr		ti_addr2;
 	ti_hostaddr		ti_addr3;
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_len1;
-	u_int16_t		ti_len2;
+	uint16_t		ti_len1;
+	uint16_t		ti_len2;
 #else
-	u_int16_t		ti_len2;
-	u_int16_t		ti_len1;
+	uint16_t		ti_len2;
+	uint16_t		ti_len1;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_len3;
-	u_int16_t		ti_rsvd0;
+	uint16_t		ti_len3;
+	uint16_t		ti_rsvd0;
 #else
-	u_int16_t		ti_rsvd0;
-	u_int16_t		ti_len3;
+	uint16_t		ti_rsvd0;
+	uint16_t		ti_len3;
 #endif
 	ti_hostaddr		ti_addr0;
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_idx;
-	u_int16_t		ti_len0;
+	uint16_t		ti_idx;
+	uint16_t		ti_len0;
 #else
-	u_int16_t		ti_len0;
-	u_int16_t		ti_idx;
+	uint16_t		ti_len0;
+	uint16_t		ti_idx;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_type;
-	u_int16_t		ti_flags;
+	uint16_t		ti_type;
+	uint16_t		ti_flags;
 #else
-	u_int16_t		ti_flags;
-	u_int16_t		ti_type;
+	uint16_t		ti_flags;
+	uint16_t		ti_type;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_ip_cksum;
-	u_int16_t		ti_tcp_udp_cksum;
+	uint16_t		ti_ip_cksum;
+	uint16_t		ti_tcp_udp_cksum;
 #else
-	u_int16_t		ti_tcp_udp_cksum;
-	u_int16_t		ti_ip_cksum;
+	uint16_t		ti_tcp_udp_cksum;
+	uint16_t		ti_ip_cksum;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_error_flags;
-	u_int16_t		ti_vlan_tag;
+	uint16_t		ti_error_flags;
+	uint16_t		ti_vlan_tag;
 #else
-	u_int16_t		ti_vlan_tag;
-	u_int16_t		ti_error_flags;
+	uint16_t		ti_vlan_tag;
+	uint16_t		ti_error_flags;
 #endif
-	u_int32_t		ti_rsvd1;
-	u_int32_t		ti_opaque;
+	uint32_t		ti_rsvd1;
+	uint32_t		ti_opaque;
 };
 
 /*
@@ -659,18 +659,18 @@ struct ti_rx_desc_ext {
 struct ti_tx_desc {
 	ti_hostaddr		ti_addr;
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_len;
-	u_int16_t		ti_flags;
+	uint16_t		ti_len;
+	uint16_t		ti_flags;
 #else
-	u_int16_t		ti_flags;
-	u_int16_t		ti_len;
+	uint16_t		ti_flags;
+	uint16_t		ti_len;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int16_t		ti_rsvd;
-	u_int16_t		ti_vlan_tag;
+	uint16_t		ti_rsvd;
+	uint16_t		ti_vlan_tag;
 #else
-	u_int16_t		ti_vlan_tag;
-	u_int16_t		ti_rsvd;
+	uint16_t		ti_vlan_tag;
+	uint16_t		ti_rsvd;
 #endif
 };
 
@@ -753,7 +753,7 @@ struct ti_tx_desc {
  * Tigon command structure.
  */
 struct ti_cmd_desc {
-	u_int32_t		ti_cmdx;
+	uint32_t		ti_cmdx;
 };
 
 #define TI_CMD_CMD(cmd)		(((((cmd)->ti_cmdx)) >> 24) & 0xff)
@@ -842,8 +842,8 @@ struct ti_cmd_desc {
  * Tigon event structure.
  */
 struct ti_event_desc {
-	u_int32_t		ti_eventx;
-	u_int32_t		ti_rsvd;
+	uint32_t		ti_eventx;
+	uint32_t		ti_rsvd;
 };
 
 #define TI_EVENT_EVENT(e)	(((((e)->ti_eventx)) >> 24) & 0xff)
@@ -898,8 +898,8 @@ struct ti_event_desc {
 #define TI_JSLOTS	256
 
 #define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define TI_JLEN (TI_JRAWLEN + (sizeof(u_int64_t) - \
-	(TI_JRAWLEN % sizeof(u_int64_t))))
+#define TI_JLEN (TI_JRAWLEN + (sizeof(uint64_t) - \
+	(TI_JRAWLEN % sizeof(uint64_t))))
 #define TI_JPAGESZ PAGE_SIZE
 #define TI_RESID (TI_JPAGESZ - (TI_JLEN * TI_JSLOTS) % TI_JPAGESZ)
 #define TI_JMEM ((TI_JLEN * TI_JSLOTS) + TI_RESID)
@@ -934,11 +934,11 @@ struct ti_ring_data {
 	 * line boundaries.
 	 */
 	struct ti_producer	ti_ev_prodidx_r;
-	u_int32_t		ti_pad0[6];
+	uint32_t		ti_pad0[6];
 	struct ti_producer	ti_return_prodidx_r;
-	u_int32_t		ti_pad1[6];
+	uint32_t		ti_pad1[6];
 	struct ti_producer	ti_tx_considx_r;
-	u_int32_t		ti_pad2[6];
+	uint32_t		ti_pad2[6];
 	struct ti_gib		ti_info;
 };
 
@@ -965,8 +965,8 @@ struct ti_chain_data {
 };
 
 struct ti_type {
-	u_int16_t		ti_vid;
-	u_int16_t		ti_did;
+	uint16_t		ti_vid;
+	uint16_t		ti_did;
 	const char		*ti_name;
 };
 
@@ -1000,10 +1000,9 @@ struct ti_softc {
 	struct resource		*ti_irq;
 	struct resource		*ti_res;
 	struct ifmedia		ifmedia;	/* media info */
-	u_int8_t		ti_unit;	/* interface number */
-	u_int8_t		ti_hwrev;	/* Tigon rev (1 or 2) */
-	u_int8_t		ti_copper;	/* 1000baseTX card */
-	u_int8_t		ti_linkstat;	/* Link state */
+	uint8_t			ti_hwrev;	/* Tigon rev (1 or 2) */
+	uint8_t			ti_copper;	/* 1000baseTX card */
+	uint8_t			ti_linkstat;	/* Link state */
 	int			ti_hdrsplit;	/* enable header splitting */
 	bus_dma_tag_t		ti_parent_dmat;
 	bus_dma_tag_t		ti_jumbo_dmat;
@@ -1029,12 +1028,12 @@ struct ti_softc {
 	SLIST_HEAD(__ti_mchead, ti_mc_entry)	ti_mc_listhead;
 	SLIST_HEAD(__ti_jfreehead, ti_jpool_entry)	ti_jfree_listhead;
 	SLIST_HEAD(__ti_jinusehead, ti_jpool_entry)	ti_jinuse_listhead;
-	u_int32_t		ti_stat_ticks;
-	u_int32_t		ti_rx_coal_ticks;
-	u_int32_t		ti_tx_coal_ticks;
-	u_int32_t		ti_rx_max_coal_bds;
-	u_int32_t		ti_tx_max_coal_bds;
-	u_int32_t		ti_tx_buf_ratio;
+	uint32_t		ti_stat_ticks;
+	uint32_t		ti_rx_coal_ticks;
+	uint32_t		ti_tx_coal_ticks;
+	uint32_t		ti_rx_max_coal_bds;
+	uint32_t		ti_tx_max_coal_bds;
+	uint32_t		ti_tx_buf_ratio;
 	int			ti_if_flags;
 	int			ti_txcnt;
 	struct mtx		ti_mtx;

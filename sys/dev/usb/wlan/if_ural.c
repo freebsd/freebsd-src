@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ural_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
 SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &ural_debug, 0,
     "Debug level");
 #endif

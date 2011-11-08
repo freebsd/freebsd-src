@@ -1118,6 +1118,10 @@ lim_hold(limp)
 void
 lim_fork(struct proc *p1, struct proc *p2)
 {
+
+	PROC_LOCK_ASSERT(p1, MA_OWNED);
+	PROC_LOCK_ASSERT(p2, MA_OWNED);
+
 	p2->p_limit = lim_hold(p1->p_limit);
 	callout_init_mtx(&p2->p_limco, &p2->p_mtx, 0);
 	if (p1->p_cpulimit != RLIM_INFINITY)

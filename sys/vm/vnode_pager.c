@@ -509,15 +509,16 @@ vnode_pager_input_smlfs(object, m)
 	vm_object_t object;
 	vm_page_t m;
 {
-	int bits, i;
 	struct vnode *vp;
 	struct bufobj *bo;
 	struct buf *bp;
 	struct sf_buf *sf;
 	daddr_t fileaddr;
 	vm_offset_t bsize;
-	int error = 0;
+	vm_page_bits_t bits;
+	int error, i;
 
+	error = 0;
 	vp = object->handle;
 	if (vp->v_iflag & VI_DOOMED)
 		return VM_PAGER_BAD;

@@ -143,7 +143,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -1737,7 +1737,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.

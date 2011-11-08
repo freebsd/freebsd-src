@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2009
+.Dd November 7, 2011
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -153,21 +153,6 @@ Set the timeout value to
 .It Fl v
 Verbose: display information about the slices defined, etc.
 .El
-.Sh NOTE
-Protection mechanisms in the
-.Xr geom 4
-subsystem might prevent
-.Nm
-from being able to update the MBR on a mounted disk.
-Instructions for temporarily disabling these protection mechanisms
-can be found in the
-.Xr geom 4
-manpage. Specifically, do a
-.Pp
-.Dl sysctl kern.geom.debugflags=0x10
-.Pp
-to allow writing to the MBR, and restore it to 0 afterwards.
-.Pp
 .Sh FILES
 .Bl -tag -width /boot/boot0sio -compact
 .It Pa /boot/boot0
@@ -197,7 +182,8 @@ to install the default MBR:
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr boot 8 ,
-.Xr fdisk 8
+.Xr fdisk 8 ,
+.Xr gpart 8
 .Sh AUTHORS
 .An Robert Nordier Aq rnordier@FreeBSD.org .
 .Sh BUGS

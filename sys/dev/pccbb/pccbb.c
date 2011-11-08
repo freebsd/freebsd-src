@@ -129,7 +129,7 @@ __FBSDID("$FreeBSD$");
 devclass_t cbb_devclass;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
 
 /* There's no way to say TUNEABLE_LONG to get the right types */
 u_long cbb_start_mem = CBB_START_MEM;

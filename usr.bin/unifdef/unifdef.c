@@ -56,7 +56,7 @@
 #include <string.h>
 #include <unistd.h>
 
-const char copyright[] =
+static const char copyright[] =
     "@(#) $Version: unifdef-2.5.6.21f1388 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"

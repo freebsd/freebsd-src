@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2011
+.Dd November 5, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1160,6 +1160,11 @@ of alphabetics, numerics, and underscores.
 The first letter of a variable name must not be numeric.
 A parameter can also be denoted by a number
 or a special character as explained below.
+.Pp
+Assignments are expanded differently from other words:
+tilde expansion is also performed after the equals sign and after any colon
+and usernames are also terminated by colons,
+and field splitting and pathname expansion are not performed.
 .Ss Positional Parameters
 A positional parameter is a parameter denoted by a number greater than zero.
 The shell sets these initially to the values of its command line
@@ -1273,11 +1278,15 @@ used in tilde expansion and as a default directory for the
 built-in.
 .It Va IFS
 Input Field Separators.
-This is normally set to
+The default value is
 .Aq space ,
 .Aq tab ,
 and
-.Aq newline .
+.Aq newline
+in that order.
+This default also applies if
+.Va IFS
+is unset, but not if it is set to the empty string.
 See the
 .Sx White Space Splitting
 section for more details.
@@ -1423,12 +1432,12 @@ part of the name.
 If a parameter expansion occurs inside double-quotes:
 .Bl -enum
 .It
-Pathname expansion is not performed on the results of the
-expansion.
-.It
 Field splitting is not performed on the results of the
 expansion, with the exception of the special parameter
 .Va @ .
+.It
+Pathname expansion is not performed on the results of the
+expansion.
 .El
 .Pp
 In addition, a parameter expansion can be modified by using one of the
@@ -1641,16 +1650,51 @@ and contain integer constants.
 .Pp
 The result of the expression is substituted in decimal.
 .Ss White Space Splitting (Field Splitting)
-After parameter expansion, command substitution, and
+In certain contexts,
+after parameter expansion, command substitution, and
 arithmetic expansion the shell scans the results of
 expansions and substitutions that did not occur in double-quotes for
 field splitting and multiple fields can result.
 .Pp
-The shell treats each character of the
+Characters in
 .Va IFS
-variable as a delimiter and uses
-the delimiters to split the results of parameter expansion and command
-substitution into fields.
+that are whitespace
+.Po
+.Aq space ,
+.Aq tab ,
+and
+.Aq newline
+.Pc
+are treated differently from other characters in
+.Va IFS .
+.Pp
+Whitespace in
+.Va IFS
+at the beginning or end of a word is discarded.
+.Pp
+Subsequently, a field is delimited by either
+.Bl -enum
+.It
+a non-whitespace character in
+.Va IFS
+with any whitespace in
+.Va IFS
+surrounding it, or
+.It
+one or more whitespace characters in
+.Va IFS .
+.El
+.Pp
+If a word ends with a non-whitespace character in
+.Va IFS ,
+there is no empty field after this character.
+.Pp
+If no field is delimited, the word is discarded.
+In particular, if a word consists solely of an unquoted substitution
+and the result of the substitution is null,
+it is removed by field splitting even if
+.Va IFS
+is null.
 .Ss Pathname Expansion (File Name Generation)
 Unless the
 .Fl f

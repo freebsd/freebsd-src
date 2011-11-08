@@ -99,7 +99,7 @@ char scommt[MAXCCHARS+1] = {SCOMMT};	/* start character for comment */
 char ecommt[MAXCCHARS+1] = {ECOMMT};	/* end character for comment   */
 int synccpp;			/* Line synchronisation for C preprocessor */
 
-struct keyblk keywrds[] = {	/* m4 keywords to be installed */
+static const struct keyblk keywrds[] = { /* m4 keywords to be installed */
 	{ "include",      INCLTYPE },
 	{ "sinclude",     SINCTYPE },
 	{ "define",       DEFITYPE },

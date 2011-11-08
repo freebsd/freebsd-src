@@ -138,7 +138,7 @@ SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
 
 static uma_zone_t fakepg_zone;
 
-static void vm_page_clear_dirty_mask(vm_page_t m, int pagebits);
+static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_queue_remove(int queue, vm_page_t m);
 static void vm_page_enqueue(int queue, vm_page_t m);
 static void vm_page_init_fakepg(void *dummy);
@@ -1085,6 +1085,8 @@ vm_page_cache_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t idx)
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
+ *	VM_ALLOC_COUNT(number)	the number of additional pages that the caller
+ *				intends to allocate
  *	VM_ALLOC_IFCACHED	return page only if it is cached
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
@@ -1102,27 +1104,26 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	struct vnode *vp = NULL;
 	vm_object_t m_object;
 	vm_page_t m;
-	int flags, page_req;
+	int flags, req_class;
 
-	if ((req & VM_ALLOC_NOOBJ) == 0) {
-		KASSERT(object != NULL,
-		    ("vm_page_alloc: NULL object."));
+	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0),
+	    ("vm_page_alloc: inconsistent object/req"));
+	if (object != NULL)
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	}
 
-	page_req = req & VM_ALLOC_CLASS_MASK;
+	req_class = req & VM_ALLOC_CLASS_MASK;
 
 	/*
-	 * The pager is allowed to eat deeper into the free page list.
+	 * The page daemon is allowed to dig deeper into the free page list.
 	 */
-	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT))
-		page_req = VM_ALLOC_SYSTEM;
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (page_req == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM && 
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
-	    (page_req == VM_ALLOC_INTERRUPT &&
+	    (req_class == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0)) {
 		/*
 		 * Allocate from the free queue if the number of free pages
@@ -1170,7 +1171,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		 */
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit,
-		    MAX((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
+		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
 		pagedaemon_wakeup();
 		return (NULL);
 	}
@@ -1178,7 +1179,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	/*
 	 *  At this point we had better have found a good page.
 	 */
-
 	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
 	KASSERT(m->queue == PQ_NONE,
 	    ("vm_page_alloc: page %p has unexpected queue %d", m, m->queue));
@@ -1190,6 +1190,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    ("vm_page_alloc: page %p has unexpected memattr %d", m,
 	    pmap_page_get_memattr(m)));
 	if ((m->flags & PG_CACHED) != 0) {
+		KASSERT((m->flags & PG_ZERO) == 0,
+		    ("vm_page_alloc: cached page %p is PG_ZERO", m));
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
 		if (m->object == object && m->pindex == pindex)
@@ -1335,6 +1337,8 @@ vm_page_alloc_init(vm_page_t m)
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
+ *	VM_ALLOC_COUNT(number)	the number of additional pages that the caller
+ *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
  *
@@ -1346,20 +1350,32 @@ vm_page_alloc_freelist(int flind, int req)
 	struct vnode *drop;
 	vm_page_t m;
 	u_int flags;
-	int page_req;
+	int req_class;
 
-	m = NULL;
-	page_req = req & VM_ALLOC_CLASS_MASK;
-	mtx_lock(&vm_page_queue_free_mtx);
+	req_class = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
+
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (page_req == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM && 
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
-	    (page_req == VM_ALLOC_INTERRUPT &&
-	    cnt.v_free_count + cnt.v_cache_count > 0)) {
+	    (req_class == VM_ALLOC_INTERRUPT &&
+	    cnt.v_free_count + cnt.v_cache_count > 0))
 		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
+	else {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		atomic_add_int(&vm_pageout_deficit,
+		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
+		pagedaemon_wakeup();
+		return (NULL);
 	}
 	if (m == NULL) {
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -2083,7 +2099,7 @@ retrylookup:
  *
  * Inputs are required to range within a page.
  */
-int
+vm_page_bits_t
 vm_page_bits(int base, int size)
 {
 	int first_bit;
@@ -2100,7 +2116,8 @@ vm_page_bits(int base, int size)
 	first_bit = base >> DEV_BSHIFT;
 	last_bit = (base + size - 1) >> DEV_BSHIFT;
 
-	return ((2 << last_bit) - (1 << first_bit));
+	return (((vm_page_bits_t)2 << last_bit) -
+	    ((vm_page_bits_t)1 << first_bit));
 }
 
 /*
@@ -2159,7 +2176,7 @@ vm_page_set_valid(vm_page_t m, int base, int size)
  * Clear the given bits from the specified page's dirty field.
  */
 static __inline void
-vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
+vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits)
 {
 	uintptr_t addr;
 #if PAGE_SIZE < 16384
@@ -2188,7 +2205,6 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 		 */
 		addr = (uintptr_t)&m->dirty;
 #if PAGE_SIZE == 32768
-#error pagebits too short
 		atomic_clear_64((uint64_t *)addr, pagebits);
 #elif PAGE_SIZE == 16384
 		atomic_clear_32((uint32_t *)addr, pagebits);
@@ -2225,8 +2241,8 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 void
 vm_page_set_validclean(vm_page_t m, int base, int size)
 {
-	u_long oldvalid;
-	int endoff, frag, pagebits;
+	vm_page_bits_t oldvalid, pagebits;
+	int endoff, frag;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (size == 0)	/* handle degenerate case */
@@ -2238,7 +2254,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * first block.
 	 */
 	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
-	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0)
+	    (m->valid & ((vm_page_bits_t)1 << (base >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, frag, base - frag);
 
 	/*
@@ -2248,7 +2264,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 */
 	endoff = base + size;
 	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
-	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
+	    (m->valid & ((vm_page_bits_t)1 << (endoff >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, endoff,
 		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
 
@@ -2318,7 +2334,7 @@ vm_page_clear_dirty(vm_page_t m, int base, int size)
 void
 vm_page_set_invalid(vm_page_t m, int base, int size)
 {
-	int bits;
+	vm_page_bits_t bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
@@ -2358,8 +2374,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
 		if (i == (PAGE_SIZE / DEV_BSIZE) || 
-		    (m->valid & (1 << i))
-		) {
+		    (m->valid & ((vm_page_bits_t)1 << i))) {
 			if (i > b) {
 				pmap_zero_page_area(m, 
 				    b << DEV_BSHIFT, (i - b) << DEV_BSHIFT);
@@ -2389,9 +2404,10 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 int
 vm_page_is_valid(vm_page_t m, int base, int size)
 {
-	int bits = vm_page_bits(base, size);
+	vm_page_bits_t bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	bits = vm_page_bits(base, size);
 	if (m->valid && ((m->valid & bits) == bits))
 		return 1;
 	else

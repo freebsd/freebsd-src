@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #ifdef ADAPTIVE_RWLOCKS
 static int rowner_retries = 10;
 static int rowner_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL, "rwlock debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
+    "rwlock debugging");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 #endif

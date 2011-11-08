@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include "acpi_wmi_if.h"
 
-MALLOC_DEFINE(M_ACPIWMI, "acpiwmi", "ACPI-WMI mapping");
+static MALLOC_DEFINE(M_ACPIWMI, "acpiwmi", "ACPI-WMI mapping");
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ACPI_WMI");

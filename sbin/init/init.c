@@ -126,14 +126,14 @@ static state_func_t death_single(void);
 
 static state_func_t run_script(const char *);
 
-enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
+static enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
 #define FALSE	0
 #define TRUE	1
 
-int Reboot = FALSE;
-int howto = RB_AUTOBOOT;
+static int Reboot = FALSE;
+static int howto = RB_AUTOBOOT;
 
-int devfs;
+static int devfs;
 
 static void transition(state_t);
 static state_t requested_transition;

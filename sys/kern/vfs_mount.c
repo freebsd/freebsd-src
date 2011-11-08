@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vfs_allow_nonmpsafe.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -79,7 +81,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -798,6 +800,14 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp);
+#ifndef VFS_ALLOW_NONMPSAFE
+	if (error == 0 && VFS_NEEDSGIANT(mp)) {
+		(void)VFS_UNMOUNT(mp, fsflags);
+		error = ENXIO;
+		printf("%s: Mounting non-MPSAFE fs (%s) is disabled\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+	}
+#endif
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -807,6 +817,11 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
+#ifdef VFS_ALLOW_NONMPSAFE
+	if (VFS_NEEDSGIANT(mp))
+		printf("%s: Mounting non-MPSAFE fs (%s) is deprecated\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+#endif
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);

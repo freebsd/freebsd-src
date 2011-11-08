@@ -93,7 +93,7 @@ static int uaudio_default_channels = 0;		/* use default */
 #ifdef USB_DEBUG
 static int uaudio_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
     &uaudio_debug, 0, "uaudio debug level");

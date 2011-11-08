@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <opt_ses.h>
 
-MALLOC_DEFINE(M_SCSISES, "SCSI SES", "SCSI SES buffers");
+static MALLOC_DEFINE(M_SCSISES, "SCSI SES", "SCSI SES buffers");
 
 /*
  * Platform Independent Driver Internal Definitions for SES devices.

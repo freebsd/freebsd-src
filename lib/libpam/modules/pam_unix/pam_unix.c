@@ -81,8 +81,6 @@ static char password_hash[] =		PASSWORD_HASH;
 #define PAM_OPT_LOCAL_PASS	"local_pass"
 #define PAM_OPT_NIS_PASS	"nis_pass"
 
-char *tempname = NULL;
-
 /*
  * authentication management
  */

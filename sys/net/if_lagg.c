@@ -165,7 +165,8 @@ static const struct {
 };
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0, "Link Aggregation");
+static SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
+    "Link Aggregation");
 
 static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
 SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,

@@ -50,25 +50,25 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 
-int	bflag;
-int	cflag;
-wchar_t	dchar;
-char	dcharmb[MB_LEN_MAX + 1];
-int	dflag;
-int	fflag;
-int	nflag;
-int	sflag;
+static int	bflag;
+static int	cflag;
+static wchar_t	dchar;
+static char	dcharmb[MB_LEN_MAX + 1];
+static int	dflag;
+static int	fflag;
+static int	nflag;
+static int	sflag;
 
-size_t	autostart, autostop, maxval;
-char *	positions;
+static size_t	autostart, autostop, maxval;
+static char *	positions;
 
-int	b_cut(FILE *, const char *);
-int	b_n_cut(FILE *, const char *);
-int	c_cut(FILE *, const char *);
-int	f_cut(FILE *, const char *);
-void	get_list(char *);
-void	needpos(size_t);
-static 	void usage(void);
+static int	b_cut(FILE *, const char *);
+static int	b_n_cut(FILE *, const char *);
+static int	c_cut(FILE *, const char *);
+static int	f_cut(FILE *, const char *);
+static void	get_list(char *);
+static void	needpos(size_t);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -153,7 +153,7 @@ main(int argc, char *argv[])
 	exit(rval);
 }
 
-void
+static void
 get_list(char *list)
 {
 	size_t setautostart, start, stop;
@@ -208,7 +208,7 @@ get_list(char *list)
 		memset(positions + 1, '1', autostart);
 }
 
-void
+static void
 needpos(size_t n)
 {
 	static size_t npos;
@@ -227,7 +227,7 @@ needpos(size_t n)
 	}
 }
 
-int
+static int
 b_cut(FILE *fp, const char *fname __unused)
 {
 	int ch, col;
@@ -261,7 +261,7 @@ b_cut(FILE *fp, const char *fname __unused)
  * Although this function also handles the case where -n is not specified,
  * b_cut() ought to be much faster.
  */
-int
+static int
 b_n_cut(FILE *fp, const char *fname)
 {
 	size_t col, i, lbuflen;
@@ -323,7 +323,7 @@ b_n_cut(FILE *fp, const char *fname)
 	return (warned);
 }
 
-int
+static int
 c_cut(FILE *fp, const char *fname)
 {
 	wint_t ch;
@@ -358,7 +358,7 @@ out:
 	return (0);
 }
 
-int
+static int
 f_cut(FILE *fp, const char *fname)
 {
 	wchar_t ch;
