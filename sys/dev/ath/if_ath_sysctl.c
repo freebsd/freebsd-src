@@ -346,7 +346,7 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	i = t = 0;
 	ATH_TXBUF_LOCK(sc);
-	STAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
+	TAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
 		if (bf->bf_flags & ATH_BUF_BUSY) {
 			printf("Busy: %d\n", t);
 			i++;
