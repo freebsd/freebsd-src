@@ -184,7 +184,7 @@ static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static void	ath_tx_draintxq(struct ath_softc *, struct ath_txq *);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
-static void	ath_draintxq(struct ath_softc *);
+static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *);
 static int	ath_startrecv(struct ath_softc *);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
@@ -1123,7 +1123,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * the vap state by any frames pending on the tx queues.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc);		/* stop xmit side */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
+		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc);		/* stop recv side */
 	}
 
@@ -1507,7 +1508,7 @@ ath_fatal_proc(void *arg, int pending)
 		    state[0], state[1] , state[2], state[3],
 		    state[4], state[5]);
 	}
-	ath_reset(ifp);
+	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
 
 static void
@@ -1567,7 +1568,7 @@ ath_bmiss_proc(void *arg, int pending)
 
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
 		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
-		ath_reset(ifp);
+		ath_reset(ifp, ATH_RESET_NOLOSS);
 	} else
 		ieee80211_beacon_miss(ifp->if_l2com);
 }
@@ -1747,7 +1748,7 @@ ath_stop_locked(struct ifnet *ifp)
 			}
 			ath_hal_intrset(ah, 0);
 		}
-		ath_draintxq(sc);
+		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
 			ath_hal_phydisable(ah);
@@ -1775,7 +1776,7 @@ ath_stop(struct ifnet *ifp)
  * to reset or reload hardware state.
  */
 int
-ath_reset(struct ifnet *ifp)
+ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 {
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -1783,7 +1784,7 @@ ath_reset(struct ifnet *ifp)
 	HAL_STATUS status;
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
-	ath_draintxq(sc);		/* stop xmit side */
+	ath_draintxq(sc, reset_type);	/* stop xmit side */
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -1836,7 +1837,8 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 			ath_hal_settxpowlimit(ah, ic->ic_txpowlimit);
 		return 0;
 	}
-	return ath_reset(ifp);
+	/* XXX? Full or NOLOSS? */
+	return ath_reset(ifp, ATH_RESET_FULL);
 }
 
 struct ath_buf *
@@ -2730,7 +2732,7 @@ ath_bstuck_proc(void *arg, int pending)
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
 	sc->sc_stats.ast_bstuck++;
-	ath_reset(ifp);
+	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
 
 /*
@@ -4484,7 +4486,7 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
  * Drain the transmit queues and reclaim resources.
  */
 static void
-ath_draintxq(struct ath_softc *sc)
+ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -4636,7 +4638,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * the relevant bits of the h/w.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc);		/* clear pending tx frames */
+		ath_draintxq(sc, ATH_RESET_FULL);		/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
@@ -4726,7 +4728,7 @@ ath_calibrate(void *arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 				"%s: rfgain change\n", __func__);
 			sc->sc_stats.ast_per_rfgain++;
-			ath_reset(ifp);
+			ath_reset(ifp, ATH_RESET_NOLOSS);
 		}
 		/*
 		 * If this long cal is after an idle period, then
@@ -5392,7 +5394,7 @@ ath_watchdog(void *arg)
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
 			if_printf(ifp, "device timeout\n");
-		ath_reset(ifp);
+		ath_reset(ifp, ATH_RESET_NOLOSS);
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
 	}
