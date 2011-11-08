@@ -178,7 +178,8 @@ ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
  * cache slots for TKIP with hardware MIC support.
  */
 int
-ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
+ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
+	const struct ieee80211_key *k,
 	struct ieee80211_node *bss)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
@@ -212,7 +213,23 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 	} else
 		hk.kv_type = HAL_CIPHER_CLR;
 
-	if ((k->wk_flags & IEEE80211_KEY_GROUP) && sc->sc_mcastkey) {
+	/*
+	 * XXX TODO: check this:
+	 * 
+	 * Group keys on hardware that supports multicast frame
+	 * key search should only be done in adhoc/hostap mode,
+	 * not STA mode.
+	 *
+	 * XXX TODO: what about mesh, tdma?
+	 */
+#if 0
+	if ((vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	     vap->iv_opmode == IEEE80211_M_IBSS) &&
+#else
+	if (
+#endif
+	    (k->wk_flags & IEEE80211_KEY_GROUP) &&
+	    sc->sc_mcastkey) {
 		/*
 		 * Group keys on hardware that supports multicast frame
 		 * key search use a MAC that is the sender's address with
@@ -493,5 +510,5 @@ ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 {
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 
-	return ath_keyset(sc, k, vap->iv_bss);
+	return ath_keyset(sc, vap, k, vap->iv_bss);
 }
