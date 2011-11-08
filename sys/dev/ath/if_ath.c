@@ -3162,6 +3162,11 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	}
 	ath_rate_node_init(sc, an);
 
+	/* Setup the mutex - there's no associd yet so set the name to NULL */
+	snprintf(an->an_name, sizeof(an->an_name), "%s: node %p",
+	    device_get_nameunit(sc->sc_dev), an);
+	mtx_init(&an->an_mtx, an->an_name, NULL, MTX_DEF);
+
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: an %p\n", __func__, an);
 	return &an->an_node;
 }
@@ -3173,7 +3178,7 @@ ath_node_free(struct ieee80211_node *ni)
         struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
-
+	mtx_destroy(&ATH_NODE(ni)->an_mtx);
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_free(ni);
 }
