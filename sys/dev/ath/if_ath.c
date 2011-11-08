@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
 #include <sys/module.h>
+#include <sys/ktr.h>
 
 #include <machine/bus.h>
 
@@ -106,6 +107,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -1116,6 +1119,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_vap *avp = ATH_VAP(vap);
 
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/*
 		 * Quiesce the hardware while we remove the vap.  In
@@ -1339,6 +1343,14 @@ ath_intr(void *arg)
 	 */
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
+	CTR1(ATH_KTR_INTR, "ath_intr: mask=0x%.8x", status);
+	CTR5(ATH_KTR_INTR,
+	    "ath_intr: ISR=0x%.8x, ISR_S0=0x%.8x, ISR_S1=0x%.8x, ISR_S2=0x%.8x, ISR_S5=0x%.8x",
+	    ah->ah_intrstate[0],
+	    ah->ah_intrstate[1],
+	    ah->ah_intrstate[2],
+	    ah->ah_intrstate[3],
+	    ah->ah_intrstate[6]);
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
@@ -1384,6 +1396,7 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_RXEOL) {
 			int imask;
+			CTR0(ATH_KTR_ERR, "ath_intr: RXEOL");
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
@@ -1481,6 +1494,7 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_RXORN) {
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
+			CTR0(ATH_KTR_ERR, "ath_intr: RXORN");
 			sc->sc_stats.ast_rxorn++;
 		}
 	}
@@ -1783,8 +1797,14 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
+	/*
+	 * XXX Don't flush if ATH_RESET_NOLOSS;but we have to first
+	 * XXX need to ensure this doesn't race with an outstanding
+	 * XXX taskqueue call.
+	 */
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -3891,6 +3911,7 @@ rx_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
+	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
 	/* Queue DFS tasklet if needed */
 	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
@@ -3901,6 +3922,7 @@ rx_next:
 	 * been an RXEOL condition.
 	 */
 	if (resched && sc->sc_kickpcu) {
+		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
@@ -4638,7 +4660,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * the relevant bits of the h/w.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc, ATH_RESET_FULL);		/* clear pending tx frames */
+		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
