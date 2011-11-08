@@ -190,11 +190,13 @@ ath_pci_attach(device_t dev)
 	}
 
 	ATH_LOCK_INIT(sc);
+	ATH_PCU_LOCK_INIT(sc);
 
 	error = ath_attach(pci_get_device(dev), sc);
 	if (error == 0)					/* success */
 		return 0;
 
+	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
 bad3:
@@ -230,6 +232,7 @@ ath_pci_detach(device_t dev)
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, psc->sc_sr);
 
+	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 
 	return (0);
