@@ -29,14 +29,19 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/poll.h>
 
 #include <netinet/in.h>
+#include <netdb.h>          /* getaddrinfo */
 
 #include <arpa/inet.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>         /* close */
+
+#define MAXSOCK 20
 
 static void
 usage(void)
@@ -49,23 +54,26 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct sockaddr_in sin;
+	struct addrinfo hints, *res, *res0;
 	char *dummy, *packet;
-	long port;
-	int s, v;
+	int port;
+	int error, v, i;
+	const char *cause = NULL;
+	int s[MAXSOCK];
+	struct pollfd fds[MAXSOCK];
+	int nsock;
 
 	if (argc != 2)
 		usage();
 
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE;
 
 	port = strtoul(argv[1], &dummy, 10);
 	if (port < 1 || port > 65535 || *dummy != '\0')
 		usage();
-	sin.sin_port = htons(port);
 
 	packet = malloc(65536);
 	if (packet == NULL) {
@@ -74,27 +82,60 @@ main(int argc, char *argv[])
 	}
 	bzero(packet, 65536);
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
-		perror("socket");
+	error = getaddrinfo(NULL, argv[1], &hints, &res0);
+	if (error) {
+		perror(gai_strerror(error));
 		return (-1);
+		/*NOTREACHED*/
 	}
 
-	v = 128 * 1024;
-	if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)) < 0) {
-		perror("SO_RCVBUF");
-		return (-1);
-	}
+	nsock = 0;
+	for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
+		s[nsock] = socket(res->ai_family, res->ai_socktype,
+		res->ai_protocol);
+		if (s[nsock] < 0) {
+			cause = "socket";
+			continue;
+		}
 
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("bind");
+		v = 128 * 1024;
+		if (setsockopt(s[nsock], SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)) < 0) {
+			cause = "SO_RCVBUF";
+			close(s[nsock]);
+			continue;
+		}
+		if (bind(s[nsock], res->ai_addr, res->ai_addrlen) < 0) {
+			cause = "bind";
+			close(s[nsock]);
+			continue;
+		}
+		(void) listen(s[nsock], 5);
+		fds[nsock].fd = s[nsock];
+		fds[nsock].events = POLLIN;
+
+		nsock++;
+	}
+	if (nsock == 0) {
+		perror(cause);
 		return (-1);
+		/*NOTREACHED*/
 	}
 
 	printf("netreceive listening on UDP port %d\n", (u_short)port);
 
 	while (1) {
-		if (recv(s, packet, 65536, 0) < 0)
-			perror("recv");
+		if (poll(fds, nsock, -1) < 0) 
+			perror("poll");
+		for (i = 0; i > nsock; i++) {
+			if (fds[i].revents & POLLIN) {
+				if (recv(s[i], packet, 65536, 0) < 0)
+					perror("recv");
+			}
+			if ((fds[i].revents &~ POLLIN) != 0)
+				perror("poll");
+		}
 	}
+	
+	/*NOTREACHED*/
+	freeaddrinfo(res0);
 }
