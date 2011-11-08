@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_inet.h"
 #include "opt_wlan.h"
+#include "opt_ah.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -146,6 +147,8 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 static int
 dot11rate(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return -1;
 	return rt->info[rix].phy == IEEE80211_T_HT ?
 	    rt->info[rix].dot11Rate : (rt->info[rix].dot11Rate & IEEE80211_RATE_VAL) / 2;
 }
@@ -153,6 +156,8 @@ dot11rate(const HAL_RATE_TABLE *rt, int rix)
 static const char *
 dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return "";
 	return rt->info[rix].phy == IEEE80211_T_HT ? "MCS" : "Mb ";
 }
 
@@ -903,13 +908,14 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u %s:%4u] %8d:%-8d (%3d%%) T %8d F %4d avg %5u last %u\n",
+			printf("[%2u %s:%4u] %8ju:%-8ju (%3d%%) T %8ju F %4d avg %5u last %u\n",
 			    dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    bin_to_size(y),
-			    sn->stats[y][rix].total_packets,
-			    sn->stats[y][rix].packets_acked,
-			    (100*sn->stats[y][rix].packets_acked)/sn->stats[y][rix].total_packets,
-			    sn->stats[y][rix].tries,
+			    (uintmax_t) sn->stats[y][rix].total_packets,
+			    (uintmax_t) sn->stats[y][rix].packets_acked,
+			    (int) ((sn->stats[y][rix].packets_acked * 100ULL) /
+			     sn->stats[y][rix].total_packets),
+			    (uintmax_t) sn->stats[y][rix].tries,
 			    sn->stats[y][rix].successive_failures,
 			    sn->stats[y][rix].average_tx_time,
 			    ticks - sn->stats[y][rix].last_tx);
