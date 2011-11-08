@@ -112,8 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-/* #define TI_PRIVATE_JUMBOS */
-#ifndef TI_PRIVATE_JUMBOS
+#ifdef TI_SF_BUF_JUMBO
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #endif
@@ -131,9 +130,9 @@ __FBSDID("$FreeBSD$");
  * We can only turn on header splitting if we're using extended receive
  * BDs.
  */
-#if defined(TI_JUMBO_HDRSPLIT) && defined(TI_PRIVATE_JUMBOS)
-#error "options TI_JUMBO_HDRSPLIT and TI_PRIVATE_JUMBOS are mutually exclusive"
-#endif /* TI_JUMBO_HDRSPLIT && TI_JUMBO_HDRSPLIT */
+#if defined(TI_JUMBO_HDRSPLIT) && !defined(TI_SF_BUF_JUMBO)
+#error "options TI_JUMBO_HDRSPLIT requires TI_SF_BUF_JUMBO"
+#endif /* TI_JUMBO_HDRSPLIT && !TI_SF_BUF_JUMBO */
 
 typedef enum {
 	TI_SWAP_HTON,
@@ -222,12 +221,8 @@ static void ti_handle_events(struct ti_softc *);
 static int ti_alloc_dmamaps(struct ti_softc *);
 static void ti_free_dmamaps(struct ti_softc *);
 static int ti_alloc_jumbo_mem(struct ti_softc *);
-#ifdef TI_PRIVATE_JUMBOS
-static void *ti_jalloc(struct ti_softc *);
-static void ti_jfree(void *, void *);
-#endif /* TI_PRIVATE_JUMBOS */
-static int ti_newbuf_std(struct ti_softc *, int, struct mbuf *);
-static int ti_newbuf_mini(struct ti_softc *, int, struct mbuf *);
+static int ti_newbuf_std(struct ti_softc *, int);
+static int ti_newbuf_mini(struct ti_softc *, int);
 static int ti_newbuf_jumbo(struct ti_softc *, int, struct mbuf *);
 static int ti_init_rx_ring_std(struct ti_softc *);
 static void ti_free_rx_ring_std(struct ti_softc *);
@@ -237,6 +232,11 @@ static int ti_init_rx_ring_mini(struct ti_softc *);
 static void ti_free_rx_ring_mini(struct ti_softc *);
 static void ti_free_tx_ring(struct ti_softc *);
 static int ti_init_tx_ring(struct ti_softc *);
+static void ti_discard_std(struct ti_softc *, int);
+#ifndef TI_SF_BUF_JUMBO
+static void ti_discard_jumbo(struct ti_softc *, int);
+#endif
+static void ti_discard_mini(struct ti_softc *, int);
 
 static int ti_64bitslot_war(struct ti_softc *);
 static int ti_chipinit(struct ti_softc *);
@@ -982,21 +982,42 @@ ti_alloc_dmamaps(struct ti_softc *sc)
 
 	for (i = 0; i < TI_TX_RING_CNT; i++) {
 		sc->ti_cdata.ti_txdesc[i].tx_m = NULL;
-		sc->ti_cdata.ti_txdesc[i].tx_dmamap = 0;
+		sc->ti_cdata.ti_txdesc[i].tx_dmamap = NULL;
 		if (bus_dmamap_create(sc->ti_mbuftx_dmat, 0,
-				      &sc->ti_cdata.ti_txdesc[i].tx_dmamap))
+		    &sc->ti_cdata.ti_txdesc[i].tx_dmamap)) {
+			device_printf(sc->ti_dev,
+			    "cannot create DMA map for TX\n");
 			return (ENOBUFS);
+		}
 	}
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
 		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-				      &sc->ti_cdata.ti_rx_std_maps[i]))
+		    &sc->ti_cdata.ti_rx_std_maps[i])) {
+			device_printf(sc->ti_dev,
+			    "cannot create DMA map for RX\n");
 			return (ENOBUFS);
+		}
+	}
+	if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
+	    &sc->ti_cdata.ti_rx_std_sparemap)) {
+		device_printf(sc->ti_dev,
+		    "cannot create spare DMA map for RX\n");
+		return (ENOBUFS);
 	}
 
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (bus_dmamap_create(sc->ti_jumbo_dmat, 0,
-				      &sc->ti_cdata.ti_rx_jumbo_maps[i]))
+		    &sc->ti_cdata.ti_rx_jumbo_maps[i])) {
+			device_printf(sc->ti_dev,
+			    "cannot create DMA map for jumbo RX\n");
 			return (ENOBUFS);
+		}
+	}
+	if (bus_dmamap_create(sc->ti_jumbo_dmat, 0,
+	    &sc->ti_cdata.ti_rx_jumbo_sparemap)) {
+		device_printf(sc->ti_dev,
+		    "cannot create spare DMA map for jumbo RX\n");
+		return (ENOBUFS);
 	}
 
 	/* Mini ring is not available on Tigon 1. */
@@ -1005,8 +1026,17 @@ ti_alloc_dmamaps(struct ti_softc *sc)
 
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-				      &sc->ti_cdata.ti_rx_mini_maps[i]))
+		    &sc->ti_cdata.ti_rx_mini_maps[i])) {
+			device_printf(sc->ti_dev,
+			    "cannot create DMA map for mini RX\n");
 			return (ENOBUFS);
+		}
+	}
+	if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
+	    &sc->ti_cdata.ti_rx_mini_sparemap)) {
+		device_printf(sc->ti_dev,
+		    "cannot create DMA map for mini RX\n");
+		return (ENOBUFS);
 	}
 
 	return (0);
@@ -1017,171 +1047,75 @@ ti_free_dmamaps(struct ti_softc *sc)
 {
 	int i;
 
-	if (sc->ti_mbuftx_dmat)
-		for (i = 0; i < TI_TX_RING_CNT; i++)
+	if (sc->ti_mbuftx_dmat) {
+		for (i = 0; i < TI_TX_RING_CNT; i++) {
 			if (sc->ti_cdata.ti_txdesc[i].tx_dmamap) {
 				bus_dmamap_destroy(sc->ti_mbuftx_dmat,
 				    sc->ti_cdata.ti_txdesc[i].tx_dmamap);
-				sc->ti_cdata.ti_txdesc[i].tx_dmamap = 0;
+				sc->ti_cdata.ti_txdesc[i].tx_dmamap = NULL;
 			}
+		}
+	}
 
-	if (sc->ti_mbufrx_dmat)
-		for (i = 0; i < TI_STD_RX_RING_CNT; i++)
+	if (sc->ti_mbufrx_dmat) {
+		for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
 			if (sc->ti_cdata.ti_rx_std_maps[i]) {
 				bus_dmamap_destroy(sc->ti_mbufrx_dmat,
 				    sc->ti_cdata.ti_rx_std_maps[i]);
-				sc->ti_cdata.ti_rx_std_maps[i] = 0;
+				sc->ti_cdata.ti_rx_std_maps[i] = NULL;
 			}
+		}
+		if (sc->ti_cdata.ti_rx_std_sparemap) {
+			bus_dmamap_destroy(sc->ti_mbufrx_dmat,
+			    sc->ti_cdata.ti_rx_std_sparemap);
+			sc->ti_cdata.ti_rx_std_sparemap = NULL;
+		}
+	}
 
-	if (sc->ti_jumbo_dmat)
-		for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++)
+	if (sc->ti_jumbo_dmat) {
+		for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 			if (sc->ti_cdata.ti_rx_jumbo_maps[i]) {
 				bus_dmamap_destroy(sc->ti_jumbo_dmat,
 				    sc->ti_cdata.ti_rx_jumbo_maps[i]);
-				sc->ti_cdata.ti_rx_jumbo_maps[i] = 0;
+				sc->ti_cdata.ti_rx_jumbo_maps[i] = NULL;
 			}
-	if (sc->ti_mbufrx_dmat)
-		for (i = 0; i < TI_MINI_RX_RING_CNT; i++)
+		}
+		if (sc->ti_cdata.ti_rx_jumbo_sparemap) {
+			bus_dmamap_destroy(sc->ti_jumbo_dmat,
+			    sc->ti_cdata.ti_rx_jumbo_sparemap);
+			sc->ti_cdata.ti_rx_jumbo_sparemap = NULL;
+		}
+	}
+
+	if (sc->ti_mbufrx_dmat) {
+		for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 			if (sc->ti_cdata.ti_rx_mini_maps[i]) {
 				bus_dmamap_destroy(sc->ti_mbufrx_dmat,
 				    sc->ti_cdata.ti_rx_mini_maps[i]);
-				sc->ti_cdata.ti_rx_mini_maps[i] = 0;
+				sc->ti_cdata.ti_rx_mini_maps[i] = NULL;
 			}
+		}
+		if (sc->ti_cdata.ti_rx_mini_sparemap) {
+			bus_dmamap_destroy(sc->ti_mbufrx_dmat,
+			    sc->ti_cdata.ti_rx_mini_sparemap);
+			sc->ti_cdata.ti_rx_mini_sparemap = NULL;
+		}
+	}
 }
 
-#ifdef TI_PRIVATE_JUMBOS
-
-/*
- * Memory management for the jumbo receive ring is a pain in the
- * butt. We need to allocate at least 9018 bytes of space per frame,
- * _and_ it has to be contiguous (unless you use the extended
- * jumbo descriptor format). Using malloc() all the time won't
- * work: malloc() allocates memory in powers of two, which means we
- * would end up wasting a considerable amount of space by allocating
- * 9K chunks. We don't have a jumbo mbuf cluster pool. Thus, we have
- * to do our own memory management.
- *
- * The driver needs to allocate a contiguous chunk of memory at boot
- * time. We then chop this up ourselves into 9K pieces and use them
- * as external mbuf storage.
- *
- * One issue here is how much memory to allocate. The jumbo ring has
- * 256 slots in it, but at 9K per slot than can consume over 2MB of
- * RAM. This is a bit much, especially considering we also need
- * RAM for the standard ring and mini ring (on the Tigon 2). To
- * save space, we only actually allocate enough memory for 64 slots
- * by default, which works out to between 500 and 600K. This can
- * be tuned by changing a #define in if_tireg.h.
- */
+#ifndef TI_SF_BUF_JUMBO
 
 static int
 ti_alloc_jumbo_mem(struct ti_softc *sc)
 {
-	struct ti_jpool_entry *entry;
-	caddr_t ptr;
-	int i;
 
-	/*
-	 * Grab a big chunk o' storage.  Since we are chopping this pool up
-	 * into ~9k chunks, there doesn't appear to be a need to use page
-	 * alignment.
-	 */
-	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				TI_JMEM,		/* maxsize */
-				1,			/* nsegments */
-				TI_JMEM,		/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_jumbo_dmat) != 0) {
+	if (bus_dma_tag_create(sc->ti_parent_dmat, 1, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, MJUM9BYTES, 1, MJUM9BYTES, 0, NULL,
+	    NULL, &sc->ti_jumbo_dmat) != 0) {
 		device_printf(sc->ti_dev, "Failed to allocate jumbo dmat\n");
-		return (ENOBUFS);
+                return (ENOBUFS);
 	}
-
-	if (bus_dmamem_alloc(sc->ti_jumbo_dmat,
-			     (void**)&sc->ti_cdata.ti_jumbo_buf,
-			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
-			     &sc->ti_jumbo_dmamap) != 0) {
-		device_printf(sc->ti_dev, "Failed to allocate jumbo memory\n");
-		return (ENOBUFS);
-	}
-
-	SLIST_INIT(&sc->ti_jfree_listhead);
-	SLIST_INIT(&sc->ti_jinuse_listhead);
-
-	/*
-	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
-	 */
-	ptr = sc->ti_cdata.ti_jumbo_buf;
-	for (i = 0; i < TI_JSLOTS; i++) {
-		sc->ti_cdata.ti_jslots[i] = ptr;
-		ptr += TI_JLEN;
-		entry = malloc(sizeof(struct ti_jpool_entry),
-			       M_DEVBUF, M_NOWAIT);
-		if (entry == NULL) {
-			device_printf(sc->ti_dev, "no memory for jumbo "
-			    "buffer queue!\n");
-			return (ENOBUFS);
-		}
-		entry->slot = i;
-		SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, entry, jpool_entries);
-	}
-
 	return (0);
-}
-
-/*
- * Allocate a jumbo buffer.
- */
-static void *ti_jalloc(struct ti_softc *sc)
-{
-	struct ti_jpool_entry *entry;
-
-	entry = SLIST_FIRST(&sc->ti_jfree_listhead);
-
-	if (entry == NULL) {
-		device_printf(sc->ti_dev, "no free jumbo buffers\n");
-		return (NULL);
-	}
-
-	SLIST_REMOVE_HEAD(&sc->ti_jfree_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->ti_jinuse_listhead, entry, jpool_entries);
-	return (sc->ti_cdata.ti_jslots[entry->slot]);
-}
-
-/*
- * Release a jumbo buffer.
- */
-static void
-ti_jfree(void *buf, void *args)
-{
-	struct ti_softc *sc;
-	int i;
-	struct ti_jpool_entry *entry;
-
-	/* Extract the softc struct pointer. */
-	sc = (struct ti_softc *)args;
-
-	if (sc == NULL)
-		panic("ti_jfree: didn't get softc pointer!");
-
-	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)buf
-	     - (vm_offset_t)sc->ti_cdata.ti_jumbo_buf) / TI_JLEN;
-
-	if ((i < 0) || (i >= TI_JSLOTS))
-		panic("ti_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->ti_jinuse_listhead);
-	if (entry == NULL)
-		panic("ti_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->ti_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, entry, jpool_entries);
 }
 
 #else
@@ -1212,56 +1146,59 @@ ti_alloc_jumbo_mem(struct ti_softc *sc)
 	return (0);
 }
 
-#endif /* TI_PRIVATE_JUMBOS */
+#endif /* TI_SF_BUF_JUMBO */
 
 /*
  * Intialize a standard receive ring descriptor.
  */
 static int
-ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
+ti_newbuf_std(struct ti_softc *sc, int i)
 {
 	bus_dmamap_t map;
-	bus_dma_segment_t segs;
-	struct mbuf *m_new = NULL;
+	bus_dma_segment_t segs[1];
+	struct mbuf *m;
 	struct ti_rx_desc *r;
-	int nsegs;
+	int error, nsegs;
 
-	nsegs = 0;
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL)
-			return (ENOBUFS);
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	m_adj(m, ETHER_ALIGN);
 
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
+	error = bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat,
+	    sc->ti_cdata.ti_rx_std_sparemap, m, segs, &nsegs, 0);
+	if (error != 0) {
+		m_freem(m);
+		return (error);
+        }
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	if (sc->ti_cdata.ti_rx_std_chain[i] != NULL) {
+		bus_dmamap_sync(sc->ti_mbufrx_dmat,
+		    sc->ti_cdata.ti_rx_std_maps[i], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->ti_mbufrx_dmat,
+		    sc->ti_cdata.ti_rx_std_maps[i]);
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
-	sc->ti_cdata.ti_rx_std_chain[i] = m_new;
-	r = &sc->ti_rdata->ti_rx_std_ring[i];
 	map = sc->ti_cdata.ti_rx_std_maps[i];
-	if (bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat, map, m_new, &segs,
-				    &nsegs, 0))
-		return (ENOBUFS);
-	if (nsegs != 1)
-		return (ENOBUFS);
-	ti_hostaddr64(&r->ti_addr, segs.ds_addr);
-	r->ti_len = segs.ds_len;
+	sc->ti_cdata.ti_rx_std_maps[i] = sc->ti_cdata.ti_rx_std_sparemap;
+	sc->ti_cdata.ti_rx_std_sparemap = map;
+	sc->ti_cdata.ti_rx_std_chain[i] = m;
+
+	r = &sc->ti_rdata->ti_rx_std_ring[i];
+	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
+	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = 0;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
 	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_mbufrx_dmat, map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_mbufrx_dmat, sc->ti_cdata.ti_rx_std_maps[i],
+	    BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -1270,111 +1207,112 @@ ti_newbuf_std(struct ti_softc *sc, int i, struct mbuf *m)
  * the Tigon 2.
  */
 static int
-ti_newbuf_mini(struct ti_softc *sc, int i, struct mbuf *m)
+ti_newbuf_mini(struct ti_softc *sc, int i)
 {
-	bus_dma_segment_t segs;
 	bus_dmamap_t map;
-	struct mbuf *m_new = NULL;
+	bus_dma_segment_t segs[1];
+	struct mbuf *m;
 	struct ti_rx_desc *r;
-	int nsegs;
+	int error, nsegs;
 
-	nsegs = 0;
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
-	} else {
-		m_new = m;
-		m_new->m_data = m_new->m_pktdat;
-		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MHLEN;
+	m_adj(m, ETHER_ALIGN);
+
+	error = bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat,
+	    sc->ti_cdata.ti_rx_mini_sparemap, m, segs, &nsegs, 0);
+	if (error != 0) {
+		m_freem(m);
+		return (error);
+        }
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	if (sc->ti_cdata.ti_rx_mini_chain[i] != NULL) {
+		bus_dmamap_sync(sc->ti_mbufrx_dmat,
+		    sc->ti_cdata.ti_rx_mini_maps[i], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->ti_mbufrx_dmat,
+		    sc->ti_cdata.ti_rx_mini_maps[i]);
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
-	r = &sc->ti_rdata->ti_rx_mini_ring[i];
-	sc->ti_cdata.ti_rx_mini_chain[i] = m_new;
 	map = sc->ti_cdata.ti_rx_mini_maps[i];
-	if (bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat, map, m_new, &segs,
-				    &nsegs, 0))
-		return (ENOBUFS);
-	if (nsegs != 1)
-		return (ENOBUFS);
-	ti_hostaddr64(&r->ti_addr, segs.ds_addr);
-	r->ti_len = segs.ds_len;
+	sc->ti_cdata.ti_rx_mini_maps[i] = sc->ti_cdata.ti_rx_mini_sparemap;
+	sc->ti_cdata.ti_rx_mini_sparemap = map;
+	sc->ti_cdata.ti_rx_mini_chain[i] = m;
+
+	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
+	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = TI_BDFLAG_MINI_RING;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
 	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_mbufrx_dmat, map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_mbufrx_dmat, sc->ti_cdata.ti_rx_mini_maps[i],
+	    BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
-#ifdef TI_PRIVATE_JUMBOS
+#ifndef TI_SF_BUF_JUMBO
 
 /*
  * Initialize a jumbo receive ring descriptor. This allocates
  * a jumbo buffer from the pool managed internally by the driver.
  */
 static int
-ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *m)
+ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 {
 	bus_dmamap_t map;
-	struct mbuf *m_new = NULL;
+	bus_dma_segment_t segs[1];
+	struct mbuf *m;
 	struct ti_rx_desc *r;
-	int nsegs;
-	bus_dma_segment_t segs;
+	int error, nsegs;
 
-	if (m == NULL) {
-		caddr_t *buf = NULL;
+	(void)dummy;
 
-		/* Allocate the mbuf. */
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			return (ENOBUFS);
-		}
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
+	m_adj(m, ETHER_ALIGN);
 
-		/* Allocate the jumbo buffer */
-		buf = ti_jalloc(sc);
-		if (buf == NULL) {
-			m_freem(m_new);
-			device_printf(sc->ti_dev, "jumbo allocation failed "
-			    "-- packet dropped!\n");
-			return (ENOBUFS);
-		}
+	error = bus_dmamap_load_mbuf_sg(sc->ti_jumbo_dmat,
+	    sc->ti_cdata.ti_rx_jumbo_sparemap, m, segs, &nsegs, 0);
+	if (error != 0) {
+		m_freem(m);
+		return (error);
+        }
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
-		/* Attach the buffer to the mbuf. */
-		m_new->m_data = (void *) buf;
-		m_new->m_len = m_new->m_pkthdr.len = TI_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree, buf,
-		    (struct ti_softc *)sc, 0, EXT_NET_DRV);
-	} else {
-		m_new = m;
-		m_new->m_data = m_new->m_ext.ext_buf;
-		m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN;
+	if (sc->ti_cdata.ti_rx_jumbo_chain[i] != NULL) {
+		bus_dmamap_sync(sc->ti_jumbo_dmat,
+		    sc->ti_cdata.ti_rx_jumbo_maps[i], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->ti_jumbo_dmat,
+		    sc->ti_cdata.ti_rx_jumbo_maps[i]);
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
-	/* Set up the descriptor. */
-	r = &sc->ti_rdata->ti_rx_jumbo_ring[i];
-	sc->ti_cdata.ti_rx_jumbo_chain[i] = m_new;
 	map = sc->ti_cdata.ti_rx_jumbo_maps[i];
-	if (bus_dmamap_load_mbuf_sg(sc->ti_jumbo_dmat, map, m_new, &segs,
-				    &nsegs, 0))
-		return (ENOBUFS);
-	if (nsegs != 1)
-		return (ENOBUFS);
-	ti_hostaddr64(&r->ti_addr, segs.ds_addr);
-	r->ti_len = segs.ds_len;
+	sc->ti_cdata.ti_rx_jumbo_maps[i] = sc->ti_cdata.ti_rx_jumbo_sparemap;
+	sc->ti_cdata.ti_rx_jumbo_sparemap = map;
+	sc->ti_cdata.ti_rx_jumbo_chain[i] = m;
+
+	r = &sc->ti_rdata->ti_rx_jumbo_ring[i];
+	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
+	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 	r->ti_flags = TI_BDFLAG_JUMBO_RING;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
 	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_jumbo_dmat, map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_jumbo_dmat, sc->ti_cdata.ti_rx_jumbo_maps[i],
+	    BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -1553,13 +1491,13 @@ ti_init_rx_ring_std(struct ti_softc *sc)
 	int i;
 	struct ti_cmd_desc cmd;
 
-	for (i = 0; i < TI_SSLOTS; i++) {
-		if (ti_newbuf_std(sc, i, NULL) == ENOBUFS)
+	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
+		if (ti_newbuf_std(sc, i) != 0)
 			return (ENOBUFS);
 	};
 
-	TI_UPDATE_STDPROD(sc, i - 1);
-	sc->ti_std = i - 1;
+	sc->ti_std = TI_STD_RX_RING_CNT - 1;
+	TI_UPDATE_STDPROD(sc, TI_STD_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -1591,12 +1529,12 @@ ti_init_rx_ring_jumbo(struct ti_softc *sc)
 	int i;
 
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
-		if (ti_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
+		if (ti_newbuf_jumbo(sc, i, NULL) != 0)
 			return (ENOBUFS);
 	};
 
-	TI_UPDATE_JUMBOPROD(sc, i - 1);
-	sc->ti_jumbo = i - 1;
+	sc->ti_jumbo = TI_JUMBO_RX_RING_CNT - 1;
+	TI_UPDATE_JUMBOPROD(sc, TI_JUMBO_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -1626,13 +1564,13 @@ ti_init_rx_ring_mini(struct ti_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < TI_MSLOTS; i++) {
-		if (ti_newbuf_mini(sc, i, NULL) == ENOBUFS)
+	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
+		if (ti_newbuf_mini(sc, i) != 0)
 			return (ENOBUFS);
 	};
 
-	TI_UPDATE_MINIPROD(sc, i - 1);
-	sc->ti_mini = i - 1;
+	sc->ti_mini = TI_MINI_RX_RING_CNT - 1;
+	TI_UPDATE_MINIPROD(sc, TI_MINI_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -2080,8 +2018,8 @@ ti_gibinit(struct ti_softc *sc)
 	rcb = &sc->ti_rdata->ti_info.ti_jumbo_rx_rcb;
 	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_jumbo_ring);
 
-#ifdef TI_PRIVATE_JUMBOS
-	rcb->ti_max_len = TI_JUMBO_FRAMELEN;
+#ifndef TI_SF_BUF_JUMBO
+	rcb->ti_max_len = MJUM9BYTES - ETHER_ALIGN;
 	rcb->ti_flags = 0;
 #else
 	rcb->ti_max_len = PAGE_SIZE;
@@ -2394,7 +2332,6 @@ ti_attach(device_t dev)
 	}
 
 	if (ti_alloc_dmamaps(sc)) {
-		device_printf(dev, "dma map creation failed\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2542,11 +2479,6 @@ ti_detach(device_t dev)
 	ti_free_dmamaps(sc);
 	ifmedia_removeall(&sc->ifmedia);
 
-#ifdef TI_PRIVATE_JUMBOS
-	if (sc->ti_cdata.ti_jumbo_buf)
-		bus_dmamem_free(sc->ti_jumbo_dmat, sc->ti_cdata.ti_jumbo_buf,
-		    sc->ti_jumbo_dmamap);
-#endif
 	if (sc->ti_jumbo_dmat)
 		bus_dma_tag_destroy(sc->ti_jumbo_dmat);
 	if (sc->ti_mbuftx_dmat)
@@ -2635,6 +2567,59 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
 }
 #endif /* TI_JUMBO_HDRSPLIT */
 
+static void
+ti_discard_std(struct ti_softc *sc, int i)
+{
+
+	struct ti_rx_desc *r;
+
+	r = &sc->ti_rdata->ti_rx_std_ring[i];
+	r->ti_len = MCLBYTES - ETHER_ALIGN;
+	r->ti_type = TI_BDTYPE_RECV_BD;
+	r->ti_flags = 0;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
+	r->ti_idx = i;
+}
+
+static void
+ti_discard_mini(struct ti_softc *sc, int i)
+{
+
+	struct ti_rx_desc *r;
+
+	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	r->ti_len = MHLEN - ETHER_ALIGN;
+	r->ti_type = TI_BDTYPE_RECV_BD;
+	r->ti_flags = TI_BDFLAG_MINI_RING;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
+	r->ti_idx = i;
+}
+
+#ifndef TI_SF_BUF_JUMBO
+static void
+ti_discard_jumbo(struct ti_softc *sc, int i)
+{
+
+	struct ti_rx_desc *r;
+
+	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	r->ti_len = MJUM9BYTES - ETHER_ALIGN;
+	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
+	r->ti_flags = TI_BDFLAG_JUMBO_RING;
+	r->ti_vlan_tag = 0;
+	r->ti_tcp_udp_cksum = 0;
+	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
+	r->ti_idx = i;
+}
+#endif
+
 /*
  * Frame reception handling. This is called if there's a frame
  * on the receive return list.
@@ -2650,9 +2635,11 @@ static void
 ti_rxeof(struct ti_softc *sc)
 {
 	struct ifnet *ifp;
+#ifdef TI_SF_BUF_JUMBO
 	bus_dmamap_t map;
+#endif
 	struct ti_cmd_desc cmd;
-	int jumbocnt, minicnt, stdcnt;
+	int jumbocnt, minicnt, stdcnt, ti_len;
 
 	TI_LOCK_ASSERT(sc);
 
@@ -2669,6 +2656,7 @@ ti_rxeof(struct ti_softc *sc)
 		cur_rx =
 		    &sc->ti_rdata->ti_rx_return_ring[sc->ti_rx_saved_considx];
 		rxidx = cur_rx->ti_idx;
+		ti_len = cur_rx->ti_len;
 		TI_INC(sc->ti_rx_saved_considx, TI_RETURN_RING_CNT);
 
 		if (cur_rx->ti_flags & TI_BDFLAG_VLAN_TAG) {
@@ -2680,6 +2668,19 @@ ti_rxeof(struct ti_softc *sc)
 			jumbocnt++;
 			TI_INC(sc->ti_jumbo, TI_JUMBO_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_jumbo_chain[rxidx];
+#ifndef TI_SF_BUF_JUMBO
+			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
+				ifp->if_ierrors++;
+				ti_discard_jumbo(sc, rxidx);
+				continue;
+			}
+			if (ti_newbuf_jumbo(sc, rxidx, NULL) != 0) {
+				ifp->if_iqdrops++;
+				ti_discard_jumbo(sc, rxidx);
+				continue;
+			}
+			m->m_len = ti_len;
+#else /* !TI_SF_BUF_JUMBO */
 			sc->ti_cdata.ti_rx_jumbo_chain[rxidx] = NULL;
 			map = sc->ti_cdata.ti_rx_jumbo_maps[rxidx];
 			bus_dmamap_sync(sc->ti_jumbo_dmat, map,
@@ -2691,64 +2692,51 @@ ti_rxeof(struct ti_softc *sc)
 				continue;
 			}
 			if (ti_newbuf_jumbo(sc, sc->ti_jumbo, NULL) == ENOBUFS) {
-				ifp->if_ierrors++;
+				ifp->if_iqdrops++;
 				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
 				continue;
 			}
-#ifdef TI_PRIVATE_JUMBOS
-			m->m_len = cur_rx->ti_len;
-#else /* TI_PRIVATE_JUMBOS */
 #ifdef TI_JUMBO_HDRSPLIT
 			if (sc->ti_hdrsplit)
 				ti_hdr_split(m, TI_HOSTADDR(cur_rx->ti_addr),
-					     cur_rx->ti_len, rxidx);
+					     ti_len, rxidx);
 			else
 #endif /* TI_JUMBO_HDRSPLIT */
-			m_adj(m, cur_rx->ti_len - m->m_pkthdr.len);
-#endif /* TI_PRIVATE_JUMBOS */
+			m_adj(m, ti_len - m->m_pkthdr.len);
+#endif /* TI_SF_BUF_JUMBO */
 		} else if (cur_rx->ti_flags & TI_BDFLAG_MINI_RING) {
 			minicnt++;
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_mini_chain[rxidx];
-			sc->ti_cdata.ti_rx_mini_chain[rxidx] = NULL;
-			map = sc->ti_cdata.ti_rx_mini_maps[rxidx];
-			bus_dmamap_sync(sc->ti_mbufrx_dmat, map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_mbufrx_dmat, map);
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
-				ti_newbuf_mini(sc, sc->ti_mini, m);
+				ti_discard_mini(sc, rxidx);
 				continue;
 			}
-			if (ti_newbuf_mini(sc, sc->ti_mini, NULL) == ENOBUFS) {
-				ifp->if_ierrors++;
-				ti_newbuf_mini(sc, sc->ti_mini, m);
+			if (ti_newbuf_mini(sc, rxidx) != 0) {
+				ifp->if_iqdrops++;
+				ti_discard_mini(sc, rxidx);
 				continue;
 			}
-			m->m_len = cur_rx->ti_len;
+			m->m_len = ti_len;
 		} else {
 			stdcnt++;
 			TI_INC(sc->ti_std, TI_STD_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_std_chain[rxidx];
-			sc->ti_cdata.ti_rx_std_chain[rxidx] = NULL;
-			map = sc->ti_cdata.ti_rx_std_maps[rxidx];
-			bus_dmamap_sync(sc->ti_mbufrx_dmat, map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_mbufrx_dmat, map);
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
-				ti_newbuf_std(sc, sc->ti_std, m);
+				ti_discard_std(sc, rxidx);
 				continue;
 			}
-			if (ti_newbuf_std(sc, sc->ti_std, NULL) == ENOBUFS) {
-				ifp->if_ierrors++;
-				ti_newbuf_std(sc, sc->ti_std, m);
+			if (ti_newbuf_std(sc, rxidx) != 0) {
+				ifp->if_iqdrops++;
+				ti_discard_std(sc, rxidx);
 				continue;
 			}
-			m->m_len = cur_rx->ti_len;
+			m->m_len = ti_len;
 		}
 
-		m->m_pkthdr.len = cur_rx->ti_len;
+		m->m_pkthdr.len = ti_len;
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 

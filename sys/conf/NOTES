@@ -2142,11 +2142,11 @@ device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
-# Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
-# This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
-#options 	TI_PRIVATE_JUMBOS
+# Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
+#options 	TI_SF_BUF_JUMBO
 # Turn on the header splitting option for the ti(4) driver firmware.  This
 # only works for Tigon II chips, and has no effect for Tigon I chips.
+# This option requires the TI_SF_BUF_JUMBO option above.
 options 	TI_JUMBO_HDRSPLIT
 
 #
