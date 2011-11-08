@@ -4198,6 +4198,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 			      | HAL_TXQ_TXERRINT_ENABLE
 			      | HAL_TXQ_TXDESCINT_ENABLE
 			      | HAL_TXQ_TXURNINT_ENABLE
+			      | HAL_TXQ_TXEOLINT_ENABLE
 			      ;
 		qi.tqi_aifs = wmep->wmep_aifsn;
 		qi.tqi_cwmin = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmin);
