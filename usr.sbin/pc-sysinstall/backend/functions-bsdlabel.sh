@@ -179,7 +179,9 @@ setup_gpart_partitions()
   else
     PARTLETTER="a"
     CURPART="1"
-    rc_halt "gpart create -s BSD ${_wSlice}"
+    if [ "${_pType}" = "mbr" ] ; then
+      rc_halt "gpart create -s BSD ${_wSlice}"
+    fi
   fi
 
   while read line
@@ -255,6 +257,9 @@ setup_gpart_partitions()
         if [ "${CURPART}" = "1" -a "$_pType" = "mbr" ] ; then
           export FOUNDROOT="0"
         fi
+        if [ "${CURPART}" = "1" -a "$_pType" = "gptslice" ] ; then
+          export FOUNDROOT="0"
+        fi
       fi
 
       check_for_mount "${MNT}" "/boot"
@@ -264,6 +269,9 @@ setup_gpart_partitions()
             exit_err "/boot partition must be first partition"
         fi
         if [ "${CURPART}" != "1" -a "${_pType}" = "mbr" ] ; then
+            exit_err "/boot partition must be first partition"
+        fi
+        if [ "${CURPART}" != "1" -a "${_pType}" = "gptslice" ] ; then
             exit_err "/boot partition must be first partition"
         fi
 
@@ -287,7 +295,7 @@ setup_gpart_partitions()
       # Check if using zfs mirror
       echo ${XTRAOPTS} | grep -q "mirror" 2>/dev/null
       if [ $? -eq 0 -a "$FS" = "ZFS" ] ; then
-        if [ "${_pType}" = "gpt" ] ; then
+        if [ "${_pType}" = "gpt" -o "${_pType}" = "gptslice" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
         else
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}")
@@ -305,11 +313,17 @@ setup_gpart_partitions()
       if [ "${_pType}" = "gpt" ] ; then
 	if [ "$CURPART" = "2" ] ; then
 	  # If this is GPT, make sure first partition is aligned to 4k
+          sleep 2
           rc_halt "gpart add -b 2016 ${SOUT} -t ${PARTYPE} ${_pDisk}"
 	else
+          sleep 2
           rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_pDisk}"
 	fi
+      elif [ "${_pType}" = "gptslice" ]; then
+        sleep 2
+        rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_wSlice}"
       else
+        sleep 2
         rc_halt "gpart add ${SOUT} -t ${PARTYPE} -i ${CURPART} ${_wSlice}"
       fi
 
@@ -338,7 +352,7 @@ setup_gpart_partitions()
           echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}p${CURPART}-encpass
         fi
       else
-	# MBR Partition
+	# MBR Partition or GPT slice
 	_dFile="`echo $_wSlice | sed 's|/|-|g'`"
         echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${_dFile}${PARTLETTER}
         # Clear out any headers
@@ -422,7 +436,7 @@ populate_disk_label()
   if [ "$type" = "mbr" ] ; then
     wrkslice="${diskid}s${slicenum}"
   fi
-  if [ "$type" = "gpt" ] ; then
+  if [ "$type" = "gpt" -o "$type" = "gptslice" ] ; then
     wrkslice="${diskid}p${slicenum}"
   fi
 
@@ -457,6 +471,9 @@ setup_disk_label()
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
     if [ "$type" = "gpt" -a ! -e "${disk}p${pnum}" ] ; then
+      exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
+    fi
+    if [ "$type" = "gptslice" -a ! -e "${disk}p${pnum}" ] ; then
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
   done
