@@ -123,33 +123,44 @@ ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
 }
 
 void
-ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *bf,
+ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 	u_int qnum, u_int ix, int done)
 {
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	const struct ath_tx_status *ts = &first_bf->bf_last->bf_status.ds_txstat;
+	const struct ath_buf *bf = first_bf;
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
 	int i;
 
 	printf("Q%u[%3u]", qnum, ix);
-	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
-		       "        %08x %08x %08x %08x %08x %08x\n",
-		    ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data, bf->bf_txflags,
-		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
-		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
-		if (ah->ah_magic == 0x20065416) {
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
-			    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
-			    ds->ds_hw[10],ds->ds_hw[11]);
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
-			    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
-			    ds->ds_hw[18], ds->ds_hw[19]);
+	while (bf != NULL) {
+		for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
+			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n"
+			       "        TXF: %04x Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n"
+			       "        %08x %08x %08x %08x %08x %08x\n",
+			    ds, (const struct ath_desc *)bf->bf_daddr + i,
+			    ds->ds_link, ds->ds_data, bf->bf_txflags,
+			    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
+			    bf->bf_state.bfs_flags,
+			    bf->bf_state.bfs_seqno,
+			    bf->bf_state.bfs_retries,
+			    bf->bf_state.bfs_addedbaw,
+			    bf->bf_state.bfs_dobaw,
+			    ds->ds_ctl0, ds->ds_ctl1,
+			    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
+			if (ah->ah_magic == 0x20065416) {
+				printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+				    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
+				    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
+				    ds->ds_hw[10],ds->ds_hw[11]);
+				printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+				    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
+				    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
+				    ds->ds_hw[18], ds->ds_hw[19]);
+			}
 		}
+		printf("  [end]\n");
+		bf = bf->bf_next;
 	}
 }
 
