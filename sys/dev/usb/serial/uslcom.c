@@ -100,18 +100,17 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	USLCOM_PARITY_ODD	0x10
 #define	USLCOM_PARITY_EVEN	0x20
 
-#define	USLCOM_PORT_NO		0xFFFF /* XXX think this should be 0 --hps */
+#define	USLCOM_PORT_NO		0x0000
 
 /* USLCOM_BREAK values */
 #define	USLCOM_BREAK_OFF	0x00
 #define	USLCOM_BREAK_ON		0x01
 
 /* USLCOM_SET_FLOWCTRL values - 1st word */
-#define	USLCOM_FLOW_DTR_ON      0x00000001
+#define	USLCOM_FLOW_DTR_ON      0x00000001 /* DTR static active */
 #define	USLCOM_FLOW_CTS_HS      0x00000008 /* CTS handshake */
-#define	USLCOM_FLOW_RESERVED    0xFFFFFF80
 /* USLCOM_SET_FLOWCTRL values - 2nd word */
-#define	USLCOM_FLOW_RTS_ON      0x00000040
+#define	USLCOM_FLOW_RTS_ON      0x00000040 /* RTS static active */
 #define	USLCOM_FLOW_RTS_HS      0x00000080 /* RTS handshake */
 
 enum {
@@ -540,14 +539,12 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	}
        
 	if (t->c_cflag & CRTSCTS) {
-		flowctrl[0] = htole32(USLCOM_FLOW_RESERVED |
-		    USLCOM_FLOW_DTR_ON | USLCOM_FLOW_CTS_HS);
+		flowctrl[0] = htole32(USLCOM_FLOW_DTR_ON | USLCOM_FLOW_CTS_HS);
 		flowctrl[1] = htole32(USLCOM_FLOW_RTS_HS);
 		flowctrl[2] = 0;
 		flowctrl[3] = 0;
 	} else {
-		flowctrl[0] = htole32(USLCOM_FLOW_RESERVED |
-		    USLCOM_FLOW_DTR_ON);
+		flowctrl[0] = htole32(USLCOM_FLOW_DTR_ON);
 		flowctrl[1] = htole32(USLCOM_FLOW_RTS_ON);
 		flowctrl[2] = 0;
 		flowctrl[3] = 0;
@@ -692,7 +689,7 @@ tr_setup:
 		req.bmRequestType = USLCOM_READ;
 		req.bRequest = USLCOM_RCTRL;
 		USETW(req.wValue, 0);
-		USETW(req.wIndex, 0);
+		USETW(req.wIndex, USLCOM_PORT_NO);
 		USETW(req.wLength, sizeof(buf));
                
 		usbd_xfer_set_frames(xfer, 2);
