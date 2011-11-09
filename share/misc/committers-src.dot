@@ -167,6 +167,7 @@ jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
+jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
@@ -443,6 +444,7 @@ kan -> kib
 
 kib -> ae
 kib -> dchagin
+kib -> jpaetzel
 kib -> lulf
 kib -> melifaro
 kib -> pho
