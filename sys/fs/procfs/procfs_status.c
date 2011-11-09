@@ -113,12 +113,14 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	tdfirst = FIRST_THREAD_IN_PROC(p);
+	thread_lock(tdfirst);
 	if (tdfirst->td_wchan != NULL) {
 		KASSERT(tdfirst->td_wmesg != NULL,
 		    ("wchan %p has no wmesg", tdfirst->td_wchan));
 		wmesg = tdfirst->td_wmesg;
 	} else
 		wmesg = "nochan";
+	thread_unlock(tdfirst);
 
 	if (p->p_flag & P_INMEM) {
 		struct timeval start, ut, st;
