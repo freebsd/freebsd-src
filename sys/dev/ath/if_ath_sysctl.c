@@ -893,4 +893,9 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "swba_backoff", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_additional_swba_backoff, 0,
 	    "Atheros HAL additional SWBA backoff time");
+
+	sc->sc_ah->ah_config.ah_force_full_reset = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "force_full_reset", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_force_full_reset, 0,
+	    "Force full chip reset rather than a warm reset");
 }
