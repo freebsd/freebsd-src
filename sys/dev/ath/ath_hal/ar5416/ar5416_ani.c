@@ -631,7 +631,7 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 0);
 		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL, 0);
 		ar5416AniControl(ah, HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-			AH_TRUE);
+			AH_FALSE);
 		ar5416AniControl(ah, HAL_ANI_CCK_WEAK_SIGNAL_THR, AH_FALSE);
 		ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL, 0);
 		ichan->privFlags |= CHANNEL_ANI_SETUP;
