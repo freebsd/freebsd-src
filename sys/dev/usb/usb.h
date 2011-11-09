@@ -323,7 +323,7 @@ struct usb_devcap_usb2ext_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
-	uByte	bmAttributes;
+	uDWord	bmAttributes;
 #define	USB_V2EXT_LPM 0x02
 } __packed;
 typedef struct usb_devcap_usb2ext_descriptor usb_devcap_usb2ext_descriptor_t;
