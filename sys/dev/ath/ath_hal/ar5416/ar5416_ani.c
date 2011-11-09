@@ -815,15 +815,15 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState;
-	uint32_t txFrameCount, rxFrameCount, cycleCount;
+	uint32_t rxc_pct, extc_pct, rxf_pct, txf_pct;
 	int32_t listenTime;
+	int good;
 
-	txFrameCount = OS_REG_READ(ah, AR_TFCNT);
-	rxFrameCount = OS_REG_READ(ah, AR_RFCNT);
-	cycleCount = OS_REG_READ(ah, AR_CCCNT);
+	good = ar5416GetMibCycleCountsPct(ah,
+	&rxc_pct, &extc_pct, &rxf_pct, &txf_pct);
 
 	aniState = ahp->ah_curani;
-	if (aniState->cycleCount == 0 || aniState->cycleCount > cycleCount) {
+	if (good == 0) {
 		/*
 		 * Cycle counter wrap (or initial call); it's not possible
 		 * to accurately calculate a value because the registers
@@ -832,14 +832,18 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 		listenTime = 0;
 		ahp->ah_stats.ast_ani_lzero++;
 	} else {
-		int32_t ccdelta = cycleCount - aniState->cycleCount;
-		int32_t rfdelta = rxFrameCount - aniState->rxFrameCount;
-		int32_t tfdelta = txFrameCount - aniState->txFrameCount;
+		int32_t ccdelta = AH5416(ah)->ah_cycleCount - aniState->cycleCount;
+		int32_t rfdelta = AH5416(ah)->ah_rxBusy - aniState->rxFrameCount;
+		int32_t tfdelta = AH5416(ah)->ah_txBusy - aniState->txFrameCount;
 		listenTime = (ccdelta - rfdelta - tfdelta) / CLOCK_RATE;
 	}
-	aniState->cycleCount = cycleCount;
-	aniState->txFrameCount = txFrameCount;
-	aniState->rxFrameCount = rxFrameCount;
+	aniState->cycleCount = AH5416(ah)->ah_cycleCount;
+	aniState->txFrameCount = AH5416(ah)->ah_rxBusy;
+	aniState->rxFrameCount = AH5416(ah)->ah_txBusy;
+
+	HALDEBUG(ah, HAL_DEBUG_ANI, "rxc=%d, extc=%d, rxf=%d, txf=%d\n",
+	    rxc_pct, extc_pct, rxf_pct, txf_pct);
+
 	return listenTime;
 }
 
@@ -906,10 +910,13 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* XXX can aniState be null? */
 	if (aniState == AH_NULL)
 		return;
+
+	/* Always update from the MIB, for statistics gathering */
+	listenTime = ar5416AniGetListenTime(ah);
+
 	if (!ANI_ENA(ah))
 		return;
 
-	listenTime = ar5416AniGetListenTime(ah);
 	if (listenTime < 0) {
 		ahp->ah_stats.ast_ani_lneg++;
 		/* restart ANI period if listenTime is invalid */
