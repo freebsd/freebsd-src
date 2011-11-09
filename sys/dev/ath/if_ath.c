@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/module.h>
 #include <sys/ktr.h>
+#include <sys/smp.h>	/* for mp_ncpus */
 
 #include <machine/bus.h>
 
@@ -673,6 +674,17 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
 #endif
+
+	/*
+	 * Check if the hardware requires PCI register serialisation.
+	 * Some of the Owl based MACs require this.
+	 */
+	if (mp_ncpus > 1 &&
+	    ath_hal_getcapability(ah, HAL_CAP_SERIALISE_WAR,
+	     0, NULL) == HAL_OK) {
+		sc->sc_ah->ah_config.ah_serialise_reg_war = 1;
+		device_printf(sc->sc_dev, "Enabling register serialisation\n");
+	}
 
 	/*
 	 * Indicate we need the 802.11 header padded to a
