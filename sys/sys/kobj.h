@@ -86,7 +86,7 @@ struct kobj_ops {
 
 struct kobjop_desc {
 	unsigned int	id;		/* unique ID */
-	kobj_method_t	*deflt;		/* default implementation */
+	kobj_method_t	deflt;		/* default implementation */
 };
 
 /*
