@@ -306,6 +306,7 @@ function handle_method (static, doc)
 	printh(format_line(prototype argument_list ");",
 	    line_width, length(prototype)));
 
+	# Print out the method desc
 	printc("struct kobjop_desc " mname "_desc = {");
 	printc("\t0, { &" mname "_desc, (kobjop_t)" default_function " }");
 	printc("};\n");
