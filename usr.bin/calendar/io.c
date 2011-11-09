@@ -176,7 +176,8 @@ cal(void)
 		*pp = p;
 		if (count < 0) {
 			/* Show error status based on return value */
-			fprintf(stderr, "Ignored: %s\n", buf);
+			if (debug)
+				fprintf(stderr, "Ignored: %s\n", buf);
 			if (count == -1)
 				continue;
 			count = -count + 1;
