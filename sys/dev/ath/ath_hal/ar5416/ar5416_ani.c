@@ -396,6 +396,18 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			return;
 	}
 
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, raise Firstep level, up to max, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel < params->maxFirstepLevel) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel + 1))
+				return;
+		}
+	}
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
@@ -713,6 +725,19 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 
 	aniState = ahp->ah_curani;
 	params = aniState->params;
+
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, lower Firstep level, down to min, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel > 0) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel - 1))
+				return;
+		}
+	}
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
