@@ -1900,6 +1900,56 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 }
 
 /*
+ * Flip the BAW buffer entry over from the existing one to the new one.
+ *
+ * When software retransmitting a (sub-)frame, it is entirely possible that
+ * the frame ath_buf is marked as BUSY and can't be immediately reused.
+ * In that instance the buffer is cloned and the new buffer is used for
+ * retransmit. We thus need to update the ath_buf slot in the BAW buf
+ * tracking array to maintain consistency.
+ */
+static void
+ath_tx_switch_baw_buf(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid, struct ath_buf *old_bf, struct ath_buf *new_bf)
+{
+	int index, cindex;
+	struct ieee80211_tx_ampdu *tap;
+	int seqno = SEQNO(old_bf->bf_state.bfs_seqno);
+
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+	index  = ATH_BA_INDEX(tap->txa_start, seqno);
+	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
+
+	/*
+	 * Just warn for now; if it happens then we should find out
+	 * about it. It's highly likely the aggregation session will
+	 * soon hang.
+	 */
+	if (old_bf->bf_state.bfs_seqno != new_bf->bf_state.bfs_seqno) {
+		device_printf(sc->sc_dev, "%s: retransmitted buffer"
+		    " has mismatching seqno's, BA session may hang.\n",
+		    __func__);
+		device_printf(sc->sc_dev, "%s: old seqno=%d, new_seqno=%d\n",
+		    __func__,
+		    old_bf->bf_state.bfs_seqno,
+		    new_bf->bf_state.bfs_seqno);
+	}
+
+	if (tid->tx_buf[cindex] != old_bf) {
+		device_printf(sc->sc_dev, "%s: ath_buf pointer incorrect; "
+		    " has m BA session may hang.\n",
+		    __func__);
+		device_printf(sc->sc_dev, "%s: old bf=%p, new bf=%p\n",
+		    __func__,
+		    old_bf, new_bf);
+	}
+
+	tid->tx_buf[cindex] = new_bf;
+}
+
+/*
  * seq_start - left edge of BAW
  * seq_next - current/next sequence number to allocate
  *
@@ -2619,7 +2669,8 @@ ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 static struct ath_buf *
-ath_tx_retry_clone(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid, struct ath_buf *bf)
 {
 	struct ath_buf *nbf;
 	int error;
@@ -2656,6 +2707,10 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_buf *bf)
 		ATH_TXBUF_UNLOCK(sc);
 		return NULL;
 	}
+
+	/* Update BAW if required, before we free the original buf */
+	if (bf->bf_state.bfs_dobaw)
+		ath_tx_switch_baw_buf(sc, an, tid, bf, nbf);
 
 	/* Free current buffer; return the older buffer */
 	bf->bf_m = NULL;
@@ -2699,7 +2754,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	if ((bf->bf_state.bfs_retries < SWMAX_RETRIES) &&
 	    (bf->bf_flags & ATH_BUF_BUSY)) {
 		struct ath_buf *nbf;
-		nbf = ath_tx_retry_clone(sc, bf);
+		nbf = ath_tx_retry_clone(sc, an, atid, bf);
 		if (nbf)
 			/* bf has been freed at this point */
 			bf = nbf;
@@ -2791,7 +2846,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 	if ((bf->bf_state.bfs_retries < SWMAX_RETRIES) &&
 	    (bf->bf_flags & ATH_BUF_BUSY)) {
 		struct ath_buf *nbf;
-		nbf = ath_tx_retry_clone(sc, bf);
+		nbf = ath_tx_retry_clone(sc, an, atid, bf);
 		if (nbf)
 			/* bf has been freed at this point */
 			bf = nbf;
