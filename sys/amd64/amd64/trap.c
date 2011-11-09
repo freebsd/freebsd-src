@@ -900,9 +900,9 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 /*
- *	syscall -	system call request C handler
- *
- *	A system call is essentially treated as a trap.
+ * System call handler for native binaries.  The trap frame is already
+ * set up by the assembler trampoline and a pointer to it is saved in
+ * td_frame.
  */
 void
 amd64_syscall(struct thread *td, int traced)
