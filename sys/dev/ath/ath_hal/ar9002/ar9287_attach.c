@@ -471,9 +471,12 @@ ar9287SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 static const char*
 ar9287Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR9287_DEVID_PCI || devid == AR9287_DEVID_PCIE))
-		return "Atheros 9287";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR9287_DEVID_PCI)
+			return "Atheros 9227";
+		if (devid == AR9287_DEVID_PCIE)
+			return "Atheros 9287";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR9287, ar9287Probe, ar9287Attach);
