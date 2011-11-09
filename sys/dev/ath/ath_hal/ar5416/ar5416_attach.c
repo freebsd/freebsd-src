@@ -916,9 +916,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 static const char*
 ar5416Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
-		return "Atheros 5416";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR5416_DEVID_PCI)
+			return "Atheros 5416";
+		if (devid == AR5416_DEVID_PCIE)
+			return "Atheros 5418";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR5416, ar5416Probe, ar5416Attach);
