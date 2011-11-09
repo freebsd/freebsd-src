@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2011
+.Dd November 9, 2011
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -315,6 +315,40 @@ Free a configuration descriptor.
 Retrieve a string descriptor in C style ASCII.
 Returns the positive number of bytes in the resulting ASCII string
 on success and a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_parse_ss_endpoint_comp "const void *buf" "int len" "libusb_ss_endpoint_companion_descriptor **ep_comp"
+This function parses the USB 3.0 endpoint companion descriptor in host endian format pointed to by
+.Fa buf
+and having a length of
+.Fa len.
+Typically these arguments are the extra and extra_length fields of the
+endpoint descriptor.
+On success the pointer to resulting descriptor is stored at the location given by
+.Fa ep_comp.
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed USB 3.0 endpoint companion descriptor must be
+freed using the libusb_free_ss_endpoint_comp function.
+.Pp
+.Ft void
+.Fn libusb_free_ss_endpoint_comp "libusb_ss_endpoint_companion_descriptor *ep_comp"
+This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor.
+.Pp
+.Ft int
+.Fn libusb_parse_bos_descriptor "const void *buf" "int len" "libusb_bos_descriptor **bos"
+This function parses a Binary Object Store, BOS, descriptor into host endian format pointed to by
+.Fa buf
+and having a length of
+.Fa len.
+On success the pointer to resulting descriptor is stored at the location given by
+.Fa bos.
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed BOS descriptor must be freed using the
+libusb_free_bos_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_bos_descriptor "libusb_bos_descriptor *bos"
+This function is NULL safe and frees a parsed BOS descriptor.
 .Pp
 .Sh USB ASYNCHRONOUS I/O
 .Pp
