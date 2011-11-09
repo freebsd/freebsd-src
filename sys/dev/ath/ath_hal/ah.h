@@ -1025,6 +1025,9 @@ struct ath_hal {
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
+				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
 				HAL_HT_MACMODE);
