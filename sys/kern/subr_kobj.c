@@ -251,7 +251,7 @@ kobj_lookup_method(kobj_class_t cls,
 
 	ce = kobj_lookup_method_mi(cls, desc);
 	if (!ce)
-		ce = desc->deflt;
+		ce = &desc->deflt;
 	*cep = ce;
 	return ce;
 }
