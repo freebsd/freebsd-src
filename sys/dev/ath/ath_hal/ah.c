@@ -665,6 +665,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
+		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}

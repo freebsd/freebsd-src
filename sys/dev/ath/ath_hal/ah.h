@@ -150,6 +150,7 @@ typedef enum {
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
 	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
+	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -781,6 +782,7 @@ typedef struct
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
 	int ah_force_full_reset;	/* force full chip reset rather then warm reset */
+	int ah_serialise_reg_war;	/* force serialisation of register IO */
 } HAL_OPS_CONFIG;
 
 /*

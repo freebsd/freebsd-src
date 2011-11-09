@@ -898,4 +898,11 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "force_full_reset", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_force_full_reset, 0,
 	    "Force full chip reset rather than a warm reset");
+
+	/*
+	 * This is initialised by the driver.
+	 */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "serialise_reg_war", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_serialise_reg_war, 0,
+	    "Force register access serialisation");
 }
