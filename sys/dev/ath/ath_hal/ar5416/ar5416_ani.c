@@ -384,18 +384,16 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 	aniState = ahp->ah_curani;
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_NOISE_IMMUNITY_LEVEL)) &&
-	    (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
-				 aniState->noiseImmunityLevel + 1);
-		return;
+	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
+				 aniState->noiseImmunityLevel + 1))
+			return;
 	}
 	/* then, raise spur immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_SPUR_IMMUNITY_LEVEL)) &&
-	    (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel + 1);
-		return;
+	if (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel + 1))
+			return;
 	}
 
 	if (ANI_ENA_RSSI(ah)) {
