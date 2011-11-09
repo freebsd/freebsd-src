@@ -336,7 +336,7 @@ struct usb_devcap_ss_descriptor {
 	uWord	wSpeedsSupported;
 	uByte	bFunctionalitySupport;
 	uByte	bU1DevExitLat;
-	uByte	bU2DevExitLat;
+	uWord	wU2DevExitLat;
 } __packed;
 typedef struct usb_devcap_ss_descriptor usb_devcap_ss_descriptor_t;
 

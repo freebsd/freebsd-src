@@ -2841,7 +2841,8 @@ struct xhci_bos_desc xhci_bosd = {
 		HSETW(.wSpeedsSupported, 0x000C),
 		.bFunctionalitySupport = 8,
 		.bU1DevExitLat = 255,	/* dummy - not used */
-		.bU2DevExitLat = 255,	/* dummy - not used */
+		.wU2DevExitLat[0] = 0x00,
+		.wU2DevExitLat[1] = 0x08,
 	},
 	.cidd = {
 		.bLength = sizeof(xhci_bosd.cidd),
