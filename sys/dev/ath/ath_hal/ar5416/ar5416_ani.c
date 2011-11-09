@@ -592,6 +592,16 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		goto finish;
 	}
 
+	/*
+	 * Use a restrictive set of ANI parameters for hostap mode.
+	 */
+	if (opmode == HAL_M_HOSTAP) {
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
+			AH5416(ah)->ah_ani_function =
+			    HAL_ANI_SPUR_IMMUNITY_LEVEL | HAL_ANI_FIRSTEP_LEVEL;
+		else
+			AH5416(ah)->ah_ani_function = 0;
+	}
 
 	/*
 	 * Automatic processing is done only in station mode right now.
