@@ -760,7 +760,9 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
+#ifdef IEEE80211_DEBUG
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
+#endif
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
