@@ -1029,14 +1029,6 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
-.if ${MK_CLANG} != "no"
-_clang_tblgen= \
-	lib/clang/libllvmsupport \
-	lib/clang/libllvmtablegen \
-	usr.bin/clang/tblgen \
-	usr.bin/clang/clang-tblgen
-.endif
-
 .if ${MK_CDDL} != "no" && \
     ${BOOTSTRAPPING} < 800038 && \
     !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)
@@ -1053,7 +1045,6 @@ _dtc= gnu/usr.bin/dtc
 #	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
-    ${_clang_tblgen} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1149,9 +1140,13 @@ _binutils=	gnu/usr.bin/binutils
 .endif
 
 .if ${MK_CLANG} != "no"
+_clang_tblgen=	lib/clang/libllvmsupport \
+		lib/clang/libllvmtablegen \
+		usr.bin/clang/tblgen \
+		usr.bin/clang/clang-tblgen
 .if ${CC:T:Mclang} == "clang"
-_clang=		usr.bin/clang
 _clang_libs=	lib/clang
+_clang=		usr.bin/clang
 .endif
 .endif
 
@@ -1161,6 +1156,7 @@ _cc=		gnu/usr.bin/cc
 
 cross-tools:
 .for _tool in \
+    ${_clang_tblgen} \
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
