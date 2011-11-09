@@ -227,7 +227,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_NOISE_IMMUNITY_LEVEL: set level = %d\n", __func__, level);
-		if (level >= params->maxNoiseImmunityLevel) {
+		if (level > params->maxNoiseImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxNoiseImmunityLevel);
@@ -314,7 +314,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_FIRSTEP_LEVEL: level = %d\n", __func__, level);
-		if (level >= params->maxFirstepLevel) {
+		if (level > params->maxFirstepLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: firstep level out of range (%u > %u)\n",
 			    __func__, level, params->maxFirstepLevel);
@@ -333,7 +333,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_SPUR_IMMUNITY_LEVEL: level = %d\n", __func__, level);
-		if (level >= params->maxSpurImmunityLevel) {
+		if (level > params->maxSpurImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: spur immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxSpurImmunityLevel);
@@ -418,9 +418,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			 * raise firstep level 
 			 */
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel + 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel + 1))
+					return;
 			}
 		} else if (rssi > params->rssiThrLow) {
 			/* 
@@ -432,9 +432,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-				     aniState->firstepLevel + 1);
-			return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+				     aniState->firstepLevel + 1))
+				return;
 		} else {
 			/* 
 			 * Beacon rssi is low, if in 11b/g mode, turn off ofdm
@@ -447,9 +447,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 					    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 					    AH_FALSE);
 				if (aniState->firstepLevel > 0)
-					ar5416AniControl(ah,
-					     HAL_ANI_FIRSTEP_LEVEL, 0);
-				return;
+					if (ar5416AniControl(ah,
+					     HAL_ANI_FIRSTEP_LEVEL, 0))
+						return;
 			}
 		}
 	}
@@ -729,41 +729,41 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 			 * detection or lower firstep level.
 			 */
 			if (aniState->ofdmWeakSigDetectOff) {
-				ar5416AniControl(ah,
+				if (ar5416AniControl(ah,
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				    AH_TRUE);
-				return;
+				    AH_TRUE))
+					return;
 			}
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		} else {
 			/*
 			 * Beacon rssi is low, reduce firstep level.
 			 */
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		}
 	}
 	/* then lower spur immunity level, down to zero */
 	if (aniState->spurImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel - 1))
+			return;
 	}
 	/* 
 	 * if all else fails, lower noise immunity level down to a min value
 	 * zero for now
 	 */
 	if (aniState->noiseImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
-				 aniState->noiseImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
+				 aniState->noiseImmunityLevel - 1))
+			return;
 	}
 }
 
