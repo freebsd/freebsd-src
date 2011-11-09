@@ -908,7 +908,23 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
+	/*
+	 * The MAC will mark frames as RXed if there's a descriptor
+	 * to write them to. So if it hits a self-linked final descriptor,
+	 * it'll keep ACKing frames even though they're being silently
+	 * dropped. Thus, this particular feature of the driver can't
+	 * be used for 802.11n devices.
+	 */
 	ahpriv->ah_rxornIsFatal = AH_FALSE;
+
+	/*
+	 * If it's a PCI NIC, ask the HAL OS layer to serialise
+	 * register access, or SMP machines may cause the hardware
+	 * to hang. This is applicable to AR5416 and AR9220; I'm not
+	 * sure about AR9160 or AR9227.
+	 */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		pCap->halSerialiseRegWar = 1;
 
 	return AH_TRUE;
 }
