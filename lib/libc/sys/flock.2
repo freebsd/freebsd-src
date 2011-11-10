@@ -28,7 +28,7 @@
 .\"     @(#)flock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2008
+.Dd November 9, 2011
 .Dt FLOCK 2
 .Os
 .Sh NAME
@@ -154,6 +154,8 @@ refers to an object other than a file.
 The argument
 .Fa fd
 refers to an object that does not support file locking.
+.It Bq Er ENOLCK
+A lock was requested, but no locks are available.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
