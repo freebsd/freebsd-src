@@ -762,16 +762,21 @@ do_rules(FILE *f)
 				break;
 			}
 			snprintf(cmd, sizeof(cmd),
-			    "${%s_%c%s}\n\t@${NORMAL_CTFCONVERT}", ftype,
+			    "${%s_%c%s}\n", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
 		}
 		*cp = och;
 		if (strlen(ftp->f_objprefix))
-			fprintf(f, "\t%s $S/%s\n\n", compilewith, np);
+			fprintf(f, "\t%s $S/%s\n", compilewith, np);
 		else
-			fprintf(f, "\t%s\n\n", compilewith);
+			fprintf(f, "\t%s\n", compilewith);
+
+		if (!(ftp->f_flags & NO_OBJ))
+			fprintf(f, "\t@${NORMAL_CTFCONVERT}\n\n");
+		else
+			fprintf(f, "\n");
 	}
 }
 
