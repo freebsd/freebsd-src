@@ -507,8 +507,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	 * At the moment, we don't handle non-aligned cases, we just bail.
 	 * If this proves to be a problem, it will be fixed.
 	 */
-	if ((readdata == 0)
-	 && (tigon_addr & 0x3)) {
+	if (readdata == 0 && (tigon_addr & 0x3) != 0) {
 		device_printf(sc->ti_dev, "%s: tigon address %#x isn't "
 		    "word-aligned\n", __func__, tigon_addr);
 		device_printf(sc->ti_dev, "%s: unaligned writes aren't "
@@ -557,11 +556,8 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 		ti_offset = TI_WINDOW + (segptr & (TI_WINLEN -1));
 
 		if (readdata) {
-
-			bus_space_read_region_4(sc->ti_btag,
-						sc->ti_bhandle, ti_offset,
-						(uint32_t *)tmparray,
-						segsize >> 2);
+			bus_space_read_region_4(sc->ti_btag, sc->ti_bhandle,
+			    ti_offset, (uint32_t *)tmparray, segsize >> 2);
 			if (useraddr) {
 				/*
 				 * Yeah, this is a little on the kludgy
@@ -569,29 +565,28 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 				 * used for debugging.
 				 */
 				ti_bcopy_swap(tmparray, tmparray2, segsize,
-					      TI_SWAP_NTOH);
+				    TI_SWAP_NTOH);
 
 				TI_UNLOCK(sc);
 				if (first_pass) {
 					copyout(&tmparray2[segresid], ptr,
-						segsize - segresid);
+					    segsize - segresid);
 					first_pass = 0;
 				} else
 					copyout(tmparray2, ptr, segsize);
 				TI_LOCK(sc);
 			} else {
 				if (first_pass) {
-
 					ti_bcopy_swap(tmparray, tmparray2,
-						      segsize, TI_SWAP_NTOH);
+					    segsize, TI_SWAP_NTOH);
 					TI_UNLOCK(sc);
 					bcopy(&tmparray2[segresid], ptr,
-					      segsize - segresid);
+					    segsize - segresid);
 					TI_LOCK(sc);
 					first_pass = 0;
 				} else
 					ti_bcopy_swap(tmparray, ptr, segsize,
-						      TI_SWAP_NTOH);
+					    TI_SWAP_NTOH);
 			}
 
 		} else {
@@ -600,15 +595,13 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 				copyin(ptr, tmparray2, segsize);
 				TI_LOCK(sc);
 				ti_bcopy_swap(tmparray2, tmparray, segsize,
-					      TI_SWAP_HTON);
+				    TI_SWAP_HTON);
 			} else
 				ti_bcopy_swap(ptr, tmparray, segsize,
-					      TI_SWAP_HTON);
+				    TI_SWAP_HTON);
 
-			bus_space_write_region_4(sc->ti_btag,
-						 sc->ti_bhandle, ti_offset,
-						 (uint32_t *)tmparray,
-						 segsize >> 2);
+			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
+			    ti_offset, (uint32_t *)tmparray, segsize >> 2);
 		}
 		segptr += segsize;
 		ptr += segsize;
@@ -619,8 +612,8 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	 * Handle leftover, non-word-aligned bytes.
 	 */
 	if (resid != 0) {
-		uint32_t	tmpval, tmpval2;
-		bus_size_t	ti_offset;
+		uint32_t tmpval, tmpval2;
+		bus_size_t ti_offset;
 
 		/*
 		 * Set the segment pointer.
@@ -635,7 +628,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 		 * writes, since we'll be doing read/modify/write.
 		 */
 		bus_space_read_region_4(sc->ti_btag, sc->ti_bhandle,
-					ti_offset, &tmpval, 1);
+		    ti_offset, &tmpval, 1);
 
 		/*
 		 * Next, translate this from little-endian to big-endian
@@ -677,7 +670,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 			tmpval = htonl(tmpval2);
 
 			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
-						 ti_offset, &tmpval, 1);
+			    ti_offset, &tmpval, 1);
 		}
 	}
 
@@ -788,8 +781,7 @@ ti_bcopy_swap(const void *src, void *dst, size_t len, ti_swap_type swap_type)
 	size_t tmplen;
 
 	if (len & 0x3) {
-		printf("ti_bcopy_swap: length %zd isn't 32-bit aligned\n",
-		       len);
+		printf("ti_bcopy_swap: length %zd isn't 32-bit aligned\n", len);
 		return (-1);
 	}
 
@@ -799,12 +791,9 @@ ti_bcopy_swap(const void *src, void *dst, size_t len, ti_swap_type swap_type)
 
 	while (tmplen) {
 		if (swap_type == TI_SWAP_NTOH)
-			*(uint32_t *)tmpdst =
-				ntohl(*(const uint32_t *)tmpsrc);
+			*(uint32_t *)tmpdst = ntohl(*(const uint32_t *)tmpsrc);
 		else
-			*(uint32_t *)tmpdst =
-				htonl(*(const uint32_t *)tmpsrc);
-
+			*(uint32_t *)tmpdst = htonl(*(const uint32_t *)tmpsrc);
 		tmpsrc += 4;
 		tmpdst += 4;
 		tmplen -= 4;
@@ -1768,7 +1757,8 @@ ti_setmulti(struct ti_softc *sc)
  * around it on the Tigon 2 by setting a bit in the PCI state register,
  * but for the Tigon 1 we must give up and abort the interface attach.
  */
-static int ti_64bitslot_war(struct ti_softc *sc)
+static int
+ti_64bitslot_war(struct ti_softc *sc)
 {
 
 	if (!(CSR_READ_4(sc, TI_PCI_STATE) & TI_PCISTATE_32BIT_BUS)) {
@@ -3532,7 +3522,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		TI_LOCK(sc);
 		bcopy(&sc->ti_rdata->ti_info.ti_stats, outstats,
-		      sizeof(struct ti_stats));
+		    sizeof(struct ti_stats));
 		TI_UNLOCK(sc);
 		break;
 	}
@@ -3604,7 +3594,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case TIIOCSETTRACE: {
-		ti_trace_type	trace_type;
+		ti_trace_type trace_type;
 
 		trace_type = *(ti_trace_type *)addr;
 
@@ -3629,7 +3619,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		trace_start = CSR_READ_4(sc, TI_GCR_NICTRACE_START);
 		cur_trace_ptr = CSR_READ_4(sc, TI_GCR_NICTRACE_PTR);
 		trace_len = CSR_READ_4(sc, TI_GCR_NICTRACE_LEN);
-
 #if 0
 		if_printf(sc->ti_ifp, "trace_start = %#x, cur_trace_ptr = %#x, "
 		       "trace_len = %d\n", trace_start,
@@ -3637,20 +3626,17 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		if_printf(sc->ti_ifp, "trace_buf->buf_len = %d\n",
 		       trace_buf->buf_len);
 #endif
-
 		error = ti_copy_mem(sc, trace_start, min(trace_len,
-				    trace_buf->buf_len),
-				    (caddr_t)trace_buf->buf, 1, 1);
-
+		    trace_buf->buf_len), (caddr_t)trace_buf->buf, 1, 1);
 		if (error == 0) {
 			trace_buf->fill_len = min(trace_len,
-						  trace_buf->buf_len);
+			    trace_buf->buf_len);
 			if (cur_trace_ptr < trace_start)
 				trace_buf->cur_trace_ptr =
-					trace_start - cur_trace_ptr;
+				    trace_start - cur_trace_ptr;
 			else
 				trace_buf->cur_trace_ptr =
-					cur_trace_ptr - trace_start;
+				    cur_trace_ptr - trace_start;
 		} else
 			trace_buf->fill_len = 0;
 		TI_UNLOCK(sc);
@@ -3699,25 +3685,22 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * nothing else.
 		 */
 		TI_LOCK(sc);
-		if ((mem_param->tgAddr >= TI_BEG_SRAM)
-		 && ((mem_param->tgAddr + mem_param->len) <= sram_end)) {
+		if (mem_param->tgAddr >= TI_BEG_SRAM &&
+		    mem_param->tgAddr + mem_param->len <= sram_end) {
 			/*
 			 * In this instance, we always copy to/from user
 			 * space, so the user space argument is set to 1.
 			 */
 			error = ti_copy_mem(sc, mem_param->tgAddr,
-					    mem_param->len,
-					    mem_param->userAddr, 1,
-					    (cmd == ALT_READ_TG_MEM) ? 1 : 0);
-		} else if ((mem_param->tgAddr >= TI_BEG_SCRATCH)
-			&& (mem_param->tgAddr <= scratch_end)) {
+			    mem_param->len, mem_param->userAddr, 1,
+			    cmd == ALT_READ_TG_MEM ? 1 : 0);
+		} else if (mem_param->tgAddr >= TI_BEG_SCRATCH &&
+		    mem_param->tgAddr <= scratch_end) {
 			error = ti_copy_scratch(sc, mem_param->tgAddr,
-						mem_param->len,
-						mem_param->userAddr, 1,
-						(cmd == ALT_READ_TG_MEM) ?
-						1 : 0, TI_PROCESSOR_A);
-		} else if ((mem_param->tgAddr >= TI_BEG_SCRATCH_B_DEBUG)
-			&& (mem_param->tgAddr <= TI_BEG_SCRATCH_B_DEBUG)) {
+			    mem_param->len, mem_param->userAddr, 1,
+			    cmd == ALT_READ_TG_MEM ?  1 : 0, TI_PROCESSOR_A);
+		} else if (mem_param->tgAddr >= TI_BEG_SCRATCH_B_DEBUG &&
+		    mem_param->tgAddr <= TI_BEG_SCRATCH_B_DEBUG) {
 			if (sc->ti_hwrev == TI_HWREV_TIGON) {
 				if_printf(sc->ti_ifp,
 				    "invalid memory range for Tigon I\n");
@@ -3725,11 +3708,9 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 			}
 			error = ti_copy_scratch(sc, mem_param->tgAddr -
-						TI_SCRATCH_DEBUG_OFF,
-						mem_param->len,
-						mem_param->userAddr, 1,
-						(cmd == ALT_READ_TG_MEM) ?
-						1 : 0, TI_PROCESSOR_B);
+			    TI_SCRATCH_DEBUG_OFF, mem_param->len,
+			    mem_param->userAddr, 1,
+			    cmd == ALT_READ_TG_MEM ? 1 : 0, TI_PROCESSOR_B);
 		} else {
 			if_printf(sc->ti_ifp, "memory address %#x len %d is "
 			        "out of supported range\n",
@@ -3743,8 +3724,8 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	case ALT_READ_TG_REG:
 	case ALT_WRITE_TG_REG:
 	{
-		struct tg_reg	*regs;
-		uint32_t	tmpval;
+		struct tg_reg *regs;
+		uint32_t tmpval;
 
 		regs = (struct tg_reg *)addr;
 
@@ -3758,7 +3739,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		TI_LOCK(sc);
 		if (cmd == ALT_READ_TG_REG) {
 			bus_space_read_region_4(sc->ti_btag, sc->ti_bhandle,
-						regs->addr, &tmpval, 1);
+			    regs->addr, &tmpval, 1);
 			regs->data = ntohl(tmpval);
 #if 0
 			if ((regs->addr == TI_CPU_STATE)
@@ -3770,7 +3751,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		} else {
 			tmpval = htonl(regs->data);
 			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
-						 regs->addr, &tmpval, 1);
+			    regs->addr, &tmpval, 1);
 		}
 		TI_UNLOCK(sc);
 
