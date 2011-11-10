@@ -908,7 +908,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t root;
+	vm_page_t next, prev, root;
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
@@ -923,15 +923,42 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
-	if (m != object->root)
-		vm_page_splay(m->pindex, object->root);
-	if (m->left == NULL)
-		root = m->right;
-	else {
-		root = vm_page_splay(m->pindex, m->left);
-		root->right = m->right;
+	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
+		/*
+		 * Since the page's successor in the list is also its parent
+		 * in the tree, its right subtree must be empty.
+		 */
+		next->left = m->left;
+		KASSERT(m->right == NULL,
+		    ("vm_page_remove: page %p has right child", m));
+	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->right == m) {
+		/*
+		 * Since the page's predecessor in the list is also its parent
+		 * in the tree, its left subtree must be empty.
+		 */
+		KASSERT(m->left == NULL,
+		    ("vm_page_remove: page %p has left child", m));
+		prev->right = m->right;
+	} else {
+		if (m != object->root)
+			vm_page_splay(m->pindex, object->root);
+		if (m->left == NULL)
+			root = m->right;
+		else if (m->right == NULL)
+			root = m->left;
+		else {
+			/*
+			 * Move the page's successor to the root, because
+			 * pages are usually removed in ascending order.
+			 */
+			if (m->right != next)
+				vm_page_splay(m->pindex, m->right);
+			next->left = m->left;
+			root = next;
+		}
+		object->root = root;
 	}
-	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -2021,7 +2048,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t root;
+	vm_page_t next, prev, root;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2056,15 +2083,42 @@ vm_page_cache(vm_page_t m)
 	 * Remove the page from the object's collection of resident
 	 * pages. 
 	 */
-	if (m != object->root)
-		vm_page_splay(m->pindex, object->root);
-	if (m->left == NULL)
-		root = m->right;
-	else {
-		root = vm_page_splay(m->pindex, m->left);
-		root->right = m->right;
+	if ((next = TAILQ_NEXT(m, listq)) != NULL && next->left == m) {
+		/*
+		 * Since the page's successor in the list is also its parent
+		 * in the tree, its right subtree must be empty.
+		 */
+		next->left = m->left;
+		KASSERT(m->right == NULL,
+		    ("vm_page_cache: page %p has right child", m));
+	} else if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->right == m) {
+		/*
+		 * Since the page's predecessor in the list is also its parent
+		 * in the tree, its left subtree must be empty.
+		 */
+		KASSERT(m->left == NULL,
+		    ("vm_page_cache: page %p has left child", m));
+		prev->right = m->right;
+	} else {
+		if (m != object->root)
+			vm_page_splay(m->pindex, object->root);
+		if (m->left == NULL)
+			root = m->right;
+		else if (m->right == NULL)
+			root = m->left;
+		else {
+			/*
+			 * Move the page's successor to the root, because
+			 * pages are usually removed in ascending order.
+			 */
+			if (m->right != next)
+				vm_page_splay(m->pindex, m->right);
+			next->left = m->left;
+			root = next;
+		}
+		object->root = root;
 	}
-	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 
