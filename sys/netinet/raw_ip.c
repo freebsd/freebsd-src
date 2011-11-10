@@ -289,13 +289,6 @@ rip_input(struct mbuf *m, int off)
 	last = NULL;
 
 	ifp = m->m_pkthdr.rcvif;
-	/*
-	 * Add back the IP header length which was
-	 * removed by ip_input().  Raw sockets do
-	 * not modify the packet except for some
-	 * byte order swaps.
-	 */
-	ip->ip_len += off;
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
