@@ -109,7 +109,7 @@ static sopno dupl(struct parse *p, sopno start, sopno finish);
 static void doemit(struct parse *p, sop op, size_t opnd);
 static void doinsert(struct parse *p, sop op, size_t opnd, sopno pos);
 static void dofwd(struct parse *p, sopno pos, sop value);
-static void enlarge(struct parse *p, sopno size);
+static int enlarge(struct parse *p, sopno size);
 static void stripsnug(struct parse *p, struct re_guts *g);
 static void findmust(struct parse *p, struct re_guts *g);
 static int altoffset(sop *scan, int offset);
@@ -285,11 +285,11 @@ regcomp(regex_t * __restrict preg,
 
 /*
  - p_ere - ERE parser top level, concatenation and alternation
- == static void p_ere(struct parse *p, int stop);
+ == static void p_ere(struct parse *p, wint_t stop);
  */
 static void
 p_ere(struct parse *p,
-	int stop)		/* character this ERE should end at */
+	wint_t stop)		/* character this ERE should end at */
 {
 	char c;
 	sopno prevback;
@@ -493,8 +493,8 @@ p_str(struct parse *p)
 
 /*
  - p_bre - BRE parser top level, anchoring and concatenation
- == static void p_bre(struct parse *p, int end1, \
- ==	int end2);
+ == static void p_bre(struct parse *p,  wint_t end1, \
+ ==	wint_t end2);
  * Giving end1 as OUT essentially eliminates the end1/end2 check.
  *
  * This implementation is a bit of a kludge, in that a trailing $ is first
@@ -503,8 +503,8 @@ p_str(struct parse *p)
  */
 static void
 p_bre(struct parse *p,
-	int end1,		/* first terminating character */
-	int end2)		/* second terminating character */
+	wint_t end1,		/* first terminating character */
+	wint_t end2)		/* second terminating character */
 {
 	sopno start = HERE();
 	int first = 1;			/* first subexpression? */
@@ -840,7 +840,7 @@ p_b_eclass(struct parse *p, cset *cs)
 
 /*
  - p_b_symbol - parse a character or [..]ed multicharacter collating symbol
- == static char p_b_symbol(struct parse *p);
+ == static wint_t p_b_symbol(struct parse *p);
  */
 static wint_t			/* value of symbol */
 p_b_symbol(struct parse *p)
@@ -859,7 +859,7 @@ p_b_symbol(struct parse *p)
 
 /*
  - p_b_coll_elem - parse a collating-element name and look it up
- == static char p_b_coll_elem(struct parse *p, int endc);
+ == static wint_t p_b_coll_elem(struct parse *p, wint_t endc);
  */
 static wint_t			/* value of collating element */
 p_b_coll_elem(struct parse *p,
@@ -894,7 +894,7 @@ p_b_coll_elem(struct parse *p,
 
 /*
  - othercase - return the case counterpart of an alphabetic
- == static char othercase(int ch);
+ == static wint_t othercase(wint_t ch);
  */
 static wint_t			/* if no counterpart, return ch */
 othercase(wint_t ch)
@@ -910,7 +910,7 @@ othercase(wint_t ch)
 
 /*
  - bothcases - emit a dualcase version of a two-case character
- == static void bothcases(struct parse *p, int ch);
+ == static void bothcases(struct parse *p, wint_t ch);
  *
  * Boy, is this implementation ever a kludge...
  */
@@ -939,7 +939,7 @@ bothcases(struct parse *p, wint_t ch)
 
 /*
  - ordinary - emit an ordinary character
- == static void ordinary(struct parse *p, int ch);
+ == static void ordinary(struct parse *p, wint_t ch);
  */
 static void
 ordinary(struct parse *p, wint_t ch)
@@ -1246,8 +1246,8 @@ dupl(struct parse *p,
 	assert(finish >= start);
 	if (len == 0)
 		return(ret);
-	enlarge(p, p->ssize + len);	/* this many unexpected additions */
-	assert(p->ssize >= p->slen + len);
+	if (!enlarge(p, p->ssize + len)) /* this many unexpected additions */
+		return(ret);
 	(void) memcpy((char *)(p->strip + p->slen),
 		(char *)(p->strip + start), (size_t)len*sizeof(sop));
 	p->slen += len;
@@ -1274,8 +1274,8 @@ doemit(struct parse *p, sop op, size_t opnd)
 
 	/* deal with undersized strip */
 	if (p->slen >= p->ssize)
-		enlarge(p, (p->ssize+1) / 2 * 3);	/* +50% */
-	assert(p->slen < p->ssize);
+		if (!enlarge(p, (p->ssize+1) / 2 * 3))	/* +50% */
+			return;
 
 	/* finally, it's all reduced to the easy case */
 	p->strip[p->slen++] = SOP(op, opnd);
@@ -1334,23 +1334,24 @@ dofwd(struct parse *p, sopno pos, sop value)
 
 /*
  - enlarge - enlarge the strip
- == static void enlarge(struct parse *p, sopno size);
+ == static int enlarge(struct parse *p, sopno size);
  */
-static void
+static int
 enlarge(struct parse *p, sopno size)
 {
 	sop *sp;
 
 	if (p->ssize >= size)
-		return;
+		return 1;
 
 	sp = (sop *)realloc(p->strip, size*sizeof(sop));
 	if (sp == NULL) {
 		SETERROR(REG_ESPACE);
-		return;
+		return 0;
 	}
 	p->strip = sp;
 	p->ssize = size;
+	return 1;
 }
 
 /*
