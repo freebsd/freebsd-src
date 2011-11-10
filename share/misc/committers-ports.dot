@@ -156,6 +156,7 @@ pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
+rm [label="Ruslan Mahmatkhanov\nrm@FreeBSD.org\n2010/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
@@ -366,6 +367,7 @@ nork -> ale
 
 novel -> alexbl
 novel -> ehaupt
+novel -> rm
 
 obrien -> mharo
 obrien -> gerald
