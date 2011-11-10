@@ -575,8 +575,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				     (t->inp_socket->so_options &
-					 SO_REUSEPORT) == 0) &&
+				     (t->inp_flags2 & INP_REUSEPORT) == 0) &&
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
@@ -590,19 +589,19 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				 * being in use (for now).  This is better
 				 * than a panic, but not desirable.
 				 */
-				tw = intotw(inp);
+				tw = intotw(t);
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t &&
-			    (reuseport & t->inp_socket->so_options) == 0) {
+			} else if (t && (reuseport == 0 ||
+			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||
 				    ntohl(t->inp_laddr.s_addr) !=
 				    INADDR_ANY ||
-				    INP_SOCKAF(so) ==
-				    INP_SOCKAF(t->inp_socket))
+				    (inp->inp_vflag & INP_IPV6PROTO) == 0 ||
+				    (t->inp_vflag & INP_IPV6PROTO) == 0)
 #endif
 				return (EADDRINUSE);
 			}
