@@ -2825,14 +2825,11 @@ ti_intr(void *xsc)
 	TI_LOCK(sc);
 	ifp = sc->ti_ifp;
 
-/*#ifdef notdef*/
-	/* Avoid this for now -- checking this register is expensive. */
 	/* Make sure this is really our interrupt. */
 	if (!(CSR_READ_4(sc, TI_MISC_HOST_CTL) & TI_MHC_INTSTATE)) {
 		TI_UNLOCK(sc);
 		return;
 	}
-/*#endif*/
 
 	/* Ack interrupt and stop others from occuring. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
