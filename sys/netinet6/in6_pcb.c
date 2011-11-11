@@ -270,7 +270,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				} else if (t && (reuseport == 0 ||
 				    (t->inp_flags2 & INP_REUSEPORT) == 0) &&
 				    (ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				    (t->inp_vflag & INP_IPV6PROTO) == 0))
+				    (t->inp_vflag & INP_IPV6PROTO) != 0))
 					return (EADDRINUSE);
 			}
 #endif
