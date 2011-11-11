@@ -81,10 +81,10 @@ extern "C" {
 #endif
 
 /* === regcomp.c === */
-static void p_ere(struct parse *p, wint_t stop);
+static void p_ere(struct parse *p, int stop);
 static void p_ere_exp(struct parse *p);
 static void p_str(struct parse *p);
-static void p_bre(struct parse *p, wint_t end1, wint_t end2);
+static void p_bre(struct parse *p, int end1, int end2);
 static int p_simp_re(struct parse *p, int starordinary);
 static int p_count(struct parse *p);
 static void p_bracket(struct parse *p);
@@ -285,11 +285,11 @@ regcomp(regex_t * __restrict preg,
 
 /*
  - p_ere - ERE parser top level, concatenation and alternation
- == static void p_ere(struct parse *p, wint_t stop);
+ == static void p_ere(struct parse *p, int_t stop);
  */
 static void
 p_ere(struct parse *p,
-	wint_t stop)		/* character this ERE should end at */
+	int stop)		/* character this ERE should end at */
 {
 	char c;
 	sopno prevback;
@@ -493,8 +493,8 @@ p_str(struct parse *p)
 
 /*
  - p_bre - BRE parser top level, anchoring and concatenation
- == static void p_bre(struct parse *p,  wint_t end1, \
- ==	wint_t end2);
+ == static void p_bre(struct parse *p,  int end1, \
+ ==	int end2);
  * Giving end1 as OUT essentially eliminates the end1/end2 check.
  *
  * This implementation is a bit of a kludge, in that a trailing $ is first
@@ -503,8 +503,8 @@ p_str(struct parse *p)
  */
 static void
 p_bre(struct parse *p,
-	wint_t end1,		/* first terminating character */
-	wint_t end2)		/* second terminating character */
+	int end1,		/* first terminating character */
+	int end2)		/* second terminating character */
 {
 	sopno start = HERE();
 	int first = 1;			/* first subexpression? */
