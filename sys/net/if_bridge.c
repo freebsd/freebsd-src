@@ -676,7 +676,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 
 	bstp_detach(&sc->sc_stp);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	/* Tear down the routing table. */
 	bridge_rtable_fini(sc);
