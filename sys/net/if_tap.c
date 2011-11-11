@@ -218,7 +218,7 @@ tap_destroy(struct tap_softc *tp)
 	knlist_destroy(&tp->tap_rsel.si_note);
 	destroy_dev(tp->tap_dev);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	mtx_destroy(&tp->tap_mtx);
 	free(tp, M_TAP);

@@ -967,7 +967,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			 */
 			ether_ifdetach(ifp);
 			vlan_unconfig(ifp);
-			if_free_type(ifp, IFT_ETHER);
+			if_free(ifp);
 			ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
@@ -989,7 +989,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 
