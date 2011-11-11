@@ -152,7 +152,7 @@ in6_ifaddloop(struct ifaddr *ifa)
 	ia = ifa2ia6(ifa);
 	ifp = ifa->ifa_ifp;
 	IF_AFDATA_LOCK(ifp);
-	ifa->ifa_rtrequest = NULL;
+	ifa->ifa_rtrequest = nd6_rtrequest;
 
 	/* XXX QL
 	 * we need to report rt_newaddrmsg
