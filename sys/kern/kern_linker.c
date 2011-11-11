@@ -68,6 +68,9 @@ int kld_debug = 0;
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
 #define	KLD_UNLOCK()		sx_xunlock(&kld_sx)
+#define	KLD_DOWNGRADE()		sx_downgrade(&kld_sx)
+#define	KLD_LOCK_READ()		sx_slock(&kld_sx)
+#define	KLD_UNLOCK_READ()	sx_sunlock(&kld_sx)
 #define	KLD_LOCKED()		sx_xlocked(&kld_sx)
 #define	KLD_LOCK_ASSERT() do {						\
 	if (!cold)							\
@@ -1014,18 +1017,24 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 
 	KLD_LOCK();
 	error = linker_load_module(kldname, modname, NULL, NULL, &lf);
-	if (error)
-		goto unlock;
-#ifdef HWPMC_HOOKS
-	pkm.pm_file = lf->filename;
-	pkm.pm_address = (uintptr_t) lf->address;
-	PMC_CALL_HOOK(td, PMC_FN_KLD_LOAD, (void *) &pkm);
-#endif
+	if (error) {
+		KLD_UNLOCK();
+		goto done;
+	}
 	lf->userrefs++;
 	if (fileid != NULL)
 		*fileid = lf->id;
-unlock:
+#ifdef HWPMC_HOOKS
+	KLD_DOWNGRADE();
+	pkm.pm_file = lf->filename;
+	pkm.pm_address = (uintptr_t) lf->address;
+	PMC_CALL_HOOK(td, PMC_FN_KLD_LOAD, (void *) &pkm);
+	KLD_UNLOCK_READ();
+#else
 	KLD_UNLOCK();
+#endif
+
+done:
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -1097,10 +1106,14 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 		error = ENOENT;
 
 #ifdef HWPMC_HOOKS
-	if (error == 0)
+	if (error == 0) {
+		KLD_DOWNGRADE();
 		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
+		KLD_UNLOCK_READ();
+	} else
+#else
+		KLD_UNLOCK();
 #endif
-	KLD_UNLOCK();
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -1919,7 +1932,7 @@ linker_hwpmc_list_objects(void)
 	int i, nmappings;
 
 	nmappings = 0;
-	KLD_LOCK();
+	KLD_LOCK_READ();
 	TAILQ_FOREACH(lf, &linker_files, link)
 		nmappings++;
 
@@ -1934,7 +1947,7 @@ linker_hwpmc_list_objects(void)
 		kobase[i].pm_address = (uintptr_t)lf->address;
 		i++;
 	}
-	KLD_UNLOCK();
+	KLD_UNLOCK_READ();
 
 	KASSERT(i > 0, ("linker_hpwmc_list_objects: no kernel objects?"));
 
