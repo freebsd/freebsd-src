@@ -1174,6 +1174,46 @@ done:
 }
 
 
+/*
+ * Rejuvenate this function for routing operations related
+ * processing.
+ */
+void
+nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
+{
+	struct sockaddr_in6 *gateway = (struct sockaddr_in6 *)rt->rt_gateway;
+	struct nd_defrouter *dr;
+	struct ifnet *ifp = rt->rt_ifp;
+
+	RT_LOCK_ASSERT(rt);
+
+	switch (req) {
+	case RTM_ADD:
+		break;
+
+	case RTM_DELETE:
+		if (!ifp)
+			return;
+		/*
+		 * Only indirect routes are interesting.
+		 */
+		if ((rt->rt_flags & RTF_GATEWAY) == 0)
+			return;
+		/*
+		 * check for default route
+		 */
+		if (IN6_ARE_ADDR_EQUAL(&in6addr_any, 
+				       &SIN6(rt_key(rt))->sin6_addr)) {
+
+			dr = defrouter_lookup(&gateway->sin6_addr, ifp);
+			if (dr != NULL)
+				dr->installed = 0;
+		}
+		break;
+	}
+}
+
+
 int
 nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 {
