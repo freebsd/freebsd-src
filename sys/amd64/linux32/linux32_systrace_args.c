@@ -2095,7 +2095,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	};
 }
 static void
-systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
+systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
@@ -5118,6 +5118,1171 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* linux_vmsplice */
 	case 316:
 		break;
+	default:
+		break;
+	};
+	if (p != NULL)
+		strlcpy(desc, p, descsz);
+}
+static void
+systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
+{
+	const char *p = NULL;
+	switch (sysnum) {
+#define	nosys	linux_nosys
+	/* sys_exit */
+	case 1:
+		if (ndx == 0 || ndx == 1)
+			p = "void";
+		break;
+	/* linux_fork */
+	case 2:
+	/* read */
+	case 3:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* write */
+	case 4:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_open */
+	case 5:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* close */
+	case 6:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_waitpid */
+	case 7:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_creat */
+	case 8:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_link */
+	case 9:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_unlink */
+	case 10:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_execve */
+	case 11:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_chdir */
+	case 12:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_time */
+	case 13:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mknod */
+	case 14:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_chmod */
+	case 15:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lchown16 */
+	case 16:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_stat */
+	case 18:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lseek */
+	case 19:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getpid */
+	case 20:
+	/* linux_mount */
+	case 21:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_oldumount */
+	case 22:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setuid16 */
+	case 23:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getuid16 */
+	case 24:
+	/* linux_stime */
+	case 25:
+	/* linux_ptrace */
+	case 26:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_alarm */
+	case 27:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pause */
+	case 29:
+	/* linux_utime */
+	case 30:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_access */
+	case 33:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_nice */
+	case 34:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sync */
+	case 36:
+	/* linux_kill */
+	case 37:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rename */
+	case 38:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mkdir */
+	case 39:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rmdir */
+	case 40:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dup */
+	case 41:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pipe */
+	case 42:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_times */
+	case 43:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_brk */
+	case 45:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setgid16 */
+	case 46:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getgid16 */
+	case 47:
+	/* linux_signal */
+	case 48:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_geteuid16 */
+	case 49:
+	/* linux_getegid16 */
+	case 50:
+	/* acct */
+	case 51:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_umount */
+	case 52:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_ioctl */
+	case 54:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fcntl */
+	case 55:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setpgid */
+	case 57:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_olduname */
+	case 59:
+	/* umask */
+	case 60:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chroot */
+	case 61:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_ustat */
+	case 62:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dup2 */
+	case 63:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getppid */
+	case 64:
+	/* getpgrp */
+	case 65:
+	/* setsid */
+	case 66:
+	/* linux_sigaction */
+	case 67:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sgetmask */
+	case 68:
+	/* linux_ssetmask */
+	case 69:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setreuid16 */
+	case 70:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setregid16 */
+	case 71:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sigsuspend */
+	case 72:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sigpending */
+	case 73:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sethostname */
+	case 74:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setrlimit */
+	case 75:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_old_getrlimit */
+	case 76:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getrusage */
+	case 77:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_gettimeofday */
+	case 78:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_settimeofday */
+	case 79:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getgroups16 */
+	case 80:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setgroups16 */
+	case 81:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_old_select */
+	case 82:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_symlink */
+	case 83:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lstat */
+	case 84:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_readlink */
+	case 85:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* swapon */
+	case 87:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_reboot */
+	case 88:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_readdir */
+	case 89:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mmap */
+	case 90:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munmap */
+	case 91:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_truncate */
+	case 92:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_ftruncate */
+	case 93:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchmod */
+	case 94:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchown */
+	case 95:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getpriority */
+	case 96:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setpriority */
+	case 97:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_statfs */
+	case 99:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fstatfs */
+	case 100:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_socketcall */
+	case 102:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_syslog */
+	case 103:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setitimer */
+	case 104:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getitimer */
+	case 105:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_newstat */
+	case 106:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_newlstat */
+	case 107:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_newfstat */
+	case 108:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_uname */
+	case 109:
+	/* linux_iopl */
+	case 110:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_vhangup */
+	case 111:
+	/* linux_wait4 */
+	case 114:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_swapoff */
+	case 115:
+	/* linux_sysinfo */
+	case 116:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_ipc */
+	case 117:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fsync */
+	case 118:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sigreturn */
+	case 119:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_clone */
+	case 120:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setdomainname */
+	case 121:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_newuname */
+	case 122:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_adjtimex */
+	case 124:
+	/* linux_mprotect */
+	case 125:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sigprocmask */
+	case 126:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_create_module */
+	case 127:
+	/* linux_init_module */
+	case 128:
+	/* linux_delete_module */
+	case 129:
+	/* linux_get_kernel_syms */
+	case 130:
+	/* linux_quotactl */
+	case 131:
+	/* getpgid */
+	case 132:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchdir */
+	case 133:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_bdflush */
+	case 134:
+	/* linux_sysfs */
+	case 135:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_personality */
+	case 136:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setfsuid16 */
+	case 138:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setfsgid16 */
+	case 139:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_llseek */
+	case 140:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getdents */
+	case 141:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_select */
+	case 142:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* flock */
+	case 143:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_msync */
+	case 144:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_readv */
+	case 145:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_writev */
+	case 146:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getsid */
+	case 147:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fdatasync */
+	case 148:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sysctl */
+	case 149:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mlock */
+	case 150:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munlock */
+	case 151:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mlockall */
+	case 152:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munlockall */
+	case 153:
+	/* sched_setparam */
+	case 154:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_getparam */
+	case 155:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_setscheduler */
+	case 156:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_getscheduler */
+	case 157:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_yield */
+	case 158:
+	/* linux_sched_get_priority_max */
+	case 159:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_get_priority_min */
+	case 160:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_rr_get_interval */
+	case 161:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_nanosleep */
+	case 162:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mremap */
+	case 163:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setresuid16 */
+	case 164:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getresuid16 */
+	case 165:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_query_module */
+	case 167:
+	/* poll */
+	case 168:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_nfsservctl */
+	case 169:
+	/* linux_setresgid16 */
+	case 170:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getresgid16 */
+	case 171:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_prctl */
+	case 172:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigreturn */
+	case 173:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigaction */
+	case 174:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigprocmask */
+	case 175:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigpending */
+	case 176:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigtimedwait */
+	case 177:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_sigqueueinfo */
+	case 178:
+	/* linux_rt_sigsuspend */
+	case 179:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pread */
+	case 180:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pwrite */
+	case 181:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_chown16 */
+	case 182:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getcwd */
+	case 183:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_capget */
+	case 184:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_capset */
+	case 185:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sigaltstack */
+	case 186:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sendfile */
+	case 187:
+	/* linux_vfork */
+	case 190:
+	/* linux_getrlimit */
+	case 191:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mmap2 */
+	case 192:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_truncate64 */
+	case 193:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_ftruncate64 */
+	case 194:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_stat64 */
+	case 195:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lstat64 */
+	case 196:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fstat64 */
+	case 197:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lchown */
+	case 198:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getuid */
+	case 199:
+	/* linux_getgid */
+	case 200:
+	/* geteuid */
+	case 201:
+	/* getegid */
+	case 202:
+	/* setreuid */
+	case 203:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setregid */
+	case 204:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getgroups */
+	case 205:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setgroups */
+	case 206:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchown */
+	case 207:
+	/* setresuid */
+	case 208:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getresuid */
+	case 209:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setresgid */
+	case 210:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getresgid */
+	case 211:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_chown */
+	case 212:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setuid */
+	case 213:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setgid */
+	case 214:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setfsuid */
+	case 215:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setfsgid */
+	case 216:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pivot_root */
+	case 217:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mincore */
+	case 218:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* madvise */
+	case 219:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getdents64 */
+	case 220:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fcntl64 */
+	case 221:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_gettid */
+	case 224:
+	/* linux_setxattr */
+	case 226:
+	/* linux_lsetxattr */
+	case 227:
+	/* linux_fsetxattr */
+	case 228:
+	/* linux_getxattr */
+	case 229:
+	/* linux_lgetxattr */
+	case 230:
+	/* linux_fgetxattr */
+	case 231:
+	/* linux_listxattr */
+	case 232:
+	/* linux_llistxattr */
+	case 233:
+	/* linux_flistxattr */
+	case 234:
+	/* linux_removexattr */
+	case 235:
+	/* linux_lremovexattr */
+	case 236:
+	/* linux_fremovexattr */
+	case 237:
+	/* linux_tkill */
+	case 238:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sys_futex */
+	case 240:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_setaffinity */
+	case 241:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_getaffinity */
+	case 242:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_set_thread_area */
+	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fadvise64 */
+	case 250:
+	/* linux_exit_group */
+	case 252:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_lookup_dcookie */
+	case 253:
+	/* linux_epoll_create */
+	case 254:
+	/* linux_epoll_ctl */
+	case 255:
+	/* linux_epoll_wait */
+	case 256:
+	/* linux_remap_file_pages */
+	case 257:
+	/* linux_set_tid_address */
+	case 258:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_timer_create */
+	case 259:
+	/* linux_timer_settime */
+	case 260:
+	/* linux_timer_gettime */
+	case 261:
+	/* linux_timer_getoverrun */
+	case 262:
+	/* linux_timer_delete */
+	case 263:
+	/* linux_clock_settime */
+	case 264:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_clock_gettime */
+	case 265:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_clock_getres */
+	case 266:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_clock_nanosleep */
+	case 267:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_statfs64 */
+	case 268:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fstatfs64 */
+	case 269:
+	/* linux_tgkill */
+	case 270:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_utimes */
+	case 271:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fadvise64_64 */
+	case 272:
+	/* linux_mbind */
+	case 274:
+	/* linux_get_mempolicy */
+	case 275:
+	/* linux_set_mempolicy */
+	case 276:
+	/* linux_mq_open */
+	case 277:
+	/* linux_mq_unlink */
+	case 278:
+	/* linux_mq_timedsend */
+	case 279:
+	/* linux_mq_timedreceive */
+	case 280:
+	/* linux_mq_notify */
+	case 281:
+	/* linux_mq_getsetattr */
+	case 282:
+	/* linux_kexec_load */
+	case 283:
+	/* linux_waitid */
+	case 284:
+	/* linux_add_key */
+	case 286:
+	/* linux_request_key */
+	case 287:
+	/* linux_keyctl */
+	case 288:
+	/* linux_ioprio_set */
+	case 289:
+	/* linux_ioprio_get */
+	case 290:
+	/* linux_inotify_init */
+	case 291:
+	/* linux_inotify_add_watch */
+	case 292:
+	/* linux_inotify_rm_watch */
+	case 293:
+	/* linux_migrate_pages */
+	case 294:
+	/* linux_openat */
+	case 295:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mkdirat */
+	case 296:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mknodat */
+	case 297:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fchownat */
+	case 298:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_futimesat */
+	case 299:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fstatat64 */
+	case 300:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_unlinkat */
+	case 301:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_renameat */
+	case 302:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_linkat */
+	case 303:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_symlinkat */
+	case 304:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_readlinkat */
+	case 305:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_fchmodat */
+	case 306:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_faccessat */
+	case 307:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pselect6 */
+	case 308:
+	/* linux_ppoll */
+	case 309:
+	/* linux_unshare */
+	case 310:
+	/* linux_set_robust_list */
+	case 311:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_get_robust_list */
+	case 312:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_splice */
+	case 313:
+	/* linux_sync_file_range */
+	case 314:
+	/* linux_tee */
+	case 315:
+	/* linux_vmsplice */
+	case 316:
 	default:
 		break;
 	};
