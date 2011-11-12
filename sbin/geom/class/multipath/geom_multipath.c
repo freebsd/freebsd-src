@@ -240,7 +240,7 @@ mp_label(struct gctl_req *req)
 			continue;
 		}
 		if (pread(fd, rsector, secsize, disksize - secsize) !=
-		    secsize) {
+		    (ssize_t)secsize) {
 			fprintf(stderr, "Unable to read metadata from %s: %s.\n",
 			    name2, strerror(errno));
 			g_close(fd);
