@@ -1745,7 +1745,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	if ((0 == xferlen % 64) || (0 == xferlen % 512))
 		xferlen += 1;
 
-	bzero(data->buf, URTW_TX_MAXSIZE);
+	memset(data->buf, 0, URTW_TX_MAXSIZE);
 	flags = m0->m_pkthdr.len & 0xfff;
 	flags |= URTW_TX_FLAG_NO_ENC;
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
