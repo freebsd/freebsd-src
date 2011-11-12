@@ -109,7 +109,8 @@ hardware command queues (up to 31 command per port),
 Native Command Queuing, SATA interface Power Management, device hot-plug
 and Message Signaled Interrupts.
 .Pp
-Same hardware is also supported by atamarvell and ataadaptec drivers from
+The same hardware is also supported by the atamarvell and ataadaptec
+drivers from the
 .Xr ata 4
 subsystem.
 If both drivers are loaded at the same time, this one will be
@@ -118,6 +119,7 @@ given precedence as the more functional of the two.
 The
 .Nm
 driver supports the following controllers:
+.Pp
 .Bl -tag -compact
 .It Gen-I (SATA 1.5Gbps):
 .Bl -bullet -compact
@@ -155,10 +157,10 @@ driver supports the following controllers:
 MV78100 SoC
 .El
 .El
-Note, that this hardware supports command queueing and FIS-based switching
-only for ATA DMA commands. ATAPI and non-DMA ATA commands executed one by one
-for each port.
 .Pp
+Note, that this hardware supports command queueing and FIS-based switching
+only for ATA DMA commands.
+ATAPI and non-DMA ATA commands executed one by one for each port.
 .Sh SEE ALSO
 .Xr ada 4 ,
 .Xr ata 4 ,
@@ -172,4 +174,4 @@ The
 driver first appeared in
 .Fx 8.1 .
 .Sh AUTHORS
-.An Alexander Motin Aq mav@FreeBSD.org .
+.An Alexander Motin Aq mav@FreeBSD.org
