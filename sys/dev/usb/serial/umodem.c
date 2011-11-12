@@ -540,7 +540,7 @@ umodem_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	DPRINTF("sc=%p\n", sc);
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 
