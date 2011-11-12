@@ -2123,7 +2123,7 @@ tr_handle_get_port_status:
 		if (sc->sc_flags.status_vbus &&
 		    sc->sc_flags.status_bus_reset) {
 			/* reset endpoint flags */
-			bzero(sc->sc_ep_flags, sizeof(sc->sc_ep_flags));
+			memset(sc->sc_ep_flags, 0, sizeof(sc->sc_ep_flags));
 		}
 	}
 	if (sc->sc_flags.change_suspend) {

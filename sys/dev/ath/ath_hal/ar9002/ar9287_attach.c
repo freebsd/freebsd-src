@@ -76,7 +76,7 @@ ar9287AniSetup(struct ath_hal *ah)
 	/*
 	 * These are the parameters from the AR5416 ANI code;
 	 * they likely need quite a bit of adjustment for the
-	 * AR9280.
+	 * AR9287.
 	 */
         static const struct ar5212AniParams aniparams = {
                 .maxNoiseImmunityLevel  = 4,    /* levels 0..4 */
@@ -402,13 +402,6 @@ ar9287WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_common, 1, regWrites);
 }
 
-#define	AR_BASE_FREQ_2GHZ	2300
-#define	AR_BASE_FREQ_5GHZ	4900
-#define	AR_SPUR_FEEQ_BOUND_HT40	19
-#define	AR_SPUR_FEEQ_BOUND_HT20	10
-
-
-
 /*
  * Fill all software cached or static hardware state information.
  * Return failure if capabilities are to come from EEPROM and
@@ -460,7 +453,7 @@ ar9287FillCapabilityInfo(struct ath_hal *ah)
  * This has been disabled - having the HAL flip chainmasks on/off
  * when attempting to implement 11n disrupts things. For now, just
  * leave this flipped off and worry about implementing TX diversity
- * for legacy and MCS0-7 when 11n is fully functioning.
+ * for legacy and MCS0-15 when 11n is fully functioning.
  */
 HAL_BOOL
 ar9287SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
@@ -471,9 +464,12 @@ ar9287SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 static const char*
 ar9287Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR9287_DEVID_PCI || devid == AR9287_DEVID_PCIE))
-		return "Atheros 9287";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR9287_DEVID_PCI)
+			return "Atheros 9227";
+		if (devid == AR9287_DEVID_PCIE)
+			return "Atheros 9287";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR9287, ar9287Probe, ar9287Attach);

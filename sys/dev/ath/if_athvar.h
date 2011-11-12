@@ -170,7 +170,7 @@ struct ath_node {
 #define	ATH_RSSI(x)		ATH_EP_RND(x, HAL_RSSI_EP_MULTIPLIER)
 
 struct ath_buf {
-	STAILQ_ENTRY(ath_buf)	bf_list;
+	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
@@ -239,7 +239,7 @@ struct ath_buf {
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
 	} bf_state;
 };
-typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
+typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 
@@ -277,9 +277,10 @@ struct ath_txq {
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
-	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
+	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
+
 	/* Per-TID traffic queue for software -> hardware TX */
 	TAILQ_HEAD(axq_t_s,ath_tid)	axq_tidq;
 };
@@ -299,18 +300,19 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
 #define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
-#define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
-	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
+#define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
 } while (0)
-#define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
-	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \
+#define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TXQ_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->axq_q, _elm, _field); \
 	(_tq)->axq_depth--; \
 } while (0)
-/* NB: this does not do the "head empty check" that STAILQ_LAST does */
-#define	ATH_TXQ_LAST(_tq) \
-	((struct ath_buf *)(void *) \
-	 ((char *)((_tq)->axq_q.stqh_last) - __offsetof(struct ath_buf, bf_list)))
+#define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
@@ -394,7 +396,6 @@ struct ath_softc {
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1,/* reset cal state next trip */
 				sc_rxslink  : 1,/* do self-linked final descriptor */
-				sc_kickpcu  : 1,/* kick PCU RX on next RX proc */
 				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
@@ -421,7 +422,19 @@ struct ath_softc {
 	u_int			sc_fftxqmin;	/* min frames before staging */
 	u_int			sc_fftxqmax;	/* max frames before drop */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
+
 	HAL_INT			sc_imask;	/* interrupt mask copy */
+	/*
+	 * These are modified in the interrupt handler as well as
+	 * the task queues and other contexts. Thus these must be
+	 * protected by a mutex, or they could clash.
+	 *
+	 * For now, access to these is behind the ATH_LOCK,
+	 * just to save time.
+	 */
+	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
+	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 

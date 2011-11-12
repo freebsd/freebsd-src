@@ -858,7 +858,7 @@ usbd_transfer_setup(struct usb_device *udev,
 	if (parm.err) {
 		goto done;
 	}
-	bzero(&parm, sizeof(parm));
+	memset(&parm, 0, sizeof(parm));
 
 	parm.udev = udev;
 	parm.speed = usbd_get_speed(udev);
@@ -982,7 +982,7 @@ usbd_transfer_setup(struct usb_device *udev,
 				 * memory:
 				 */
 				xfer = &dummy;
-				bzero(&dummy, sizeof(dummy));
+				memset(&dummy, 0, sizeof(dummy));
 				refcount++;
 			}
 

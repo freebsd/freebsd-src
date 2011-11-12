@@ -120,7 +120,7 @@ void	ath_rate_newassoc(struct ath_softc *, struct ath_node *,
  * Return the four TX rate index and try counts for the current data packet.
  */
 void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-		uint8_t rix0, uint8_t *rix, uint8_t *try);
+		uint8_t rix0, struct ath_rc_series *rc);
 
 /*
  * Return the transmit info for a data packet.  If multi-rate state
@@ -142,8 +142,12 @@ void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
  * supplied transmit descriptor.  The routine is invoked both
  * for packets that were successfully sent and for those that
  * failed (consult the descriptor for details).
+ *
+ * For A-MPDU frames, nframes and nbad indicate how many frames
+ * were in the aggregate, and how many failed.
  */
 struct ath_buf;
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
-		const struct ath_buf *);
+		const struct ath_rc_series *, const struct ath_tx_status *,
+		int pktlen, int nframes, int nbad);
 #endif /* _ATH_RATECTRL_H_ */

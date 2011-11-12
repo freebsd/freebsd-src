@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2006-2007 Matthew Jacob <mjacob@FreeBSD.org>
  * All rights reserved.
  *
@@ -53,6 +54,9 @@ static SYSCTL_NODE(_kern_geom, OID_AUTO, multipath, CTLFLAG_RW, 0,
 static u_int g_multipath_debug = 0;
 SYSCTL_UINT(_kern_geom_multipath, OID_AUTO, debug, CTLFLAG_RW,
     &g_multipath_debug, 0, "Debug level");
+static u_int g_multipath_exclusive = 1;
+SYSCTL_UINT(_kern_geom_multipath, OID_AUTO, exclusive, CTLFLAG_RW,
+    &g_multipath_exclusive, 0, "Exclusively open providers");
 
 static enum {
 	GKT_NIL,
@@ -79,6 +83,7 @@ static g_taste_t g_multipath_taste;
 static g_ctl_req_t g_multipath_config;
 static g_init_t g_multipath_init;
 static g_fini_t g_multipath_fini;
+static g_dumpconf_t g_multipath_dumpconf;
 
 struct g_class g_multipath_class = {
 	.name		= G_MULTIPATH_CLASS_NAME,
@@ -90,35 +95,144 @@ struct g_class g_multipath_class = {
 	.fini		= g_multipath_fini
 };
 
-#define	MP_BAD		0x1
-#define	MP_POSTED	0x2
+#define	MP_FAIL		0x00000001
+#define	MP_LOST		0x00000002
+#define	MP_NEW		0x00000004
+#define	MP_POSTED	0x00000008
+#define	MP_BAD		(MP_FAIL | MP_LOST | MP_NEW)
+#define MP_IDLE		0x00000010
+#define MP_IDLE_MASK	0xfffffff0
+
+static int
+g_multipath_good(struct g_geom *gp)
+{
+	struct g_consumer *cp;
+	int n = 0;
+
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if ((cp->index & MP_BAD) == 0)
+			n++;
+	}
+	return (n);
+}
+
+static void
+g_multipath_fault(struct g_consumer *cp, int cause)
+{
+	struct g_multipath_softc *sc;
+	struct g_consumer *lcp;
+	struct g_geom *gp;
+
+	gp = cp->geom;
+	sc = gp->softc;
+	cp->index |= cause;
+	if (g_multipath_good(gp) == 0 && sc->sc_ndisks > 0) {
+		LIST_FOREACH(lcp, &gp->consumer, consumer) {
+			if (lcp->provider == NULL ||
+			    (lcp->index & (MP_LOST | MP_NEW)))
+				continue;
+			if (sc->sc_ndisks > 1 && lcp == cp)
+				continue;
+			printf("GEOM_MULTIPATH: "
+			    "all paths in %s were marked FAIL, restore %s\n",
+			    sc->sc_name, lcp->provider->name);
+			lcp->index &= ~MP_FAIL;
+		}
+	}
+	if (cp != sc->sc_active)
+		return;
+	sc->sc_active = NULL;
+	LIST_FOREACH(lcp, &gp->consumer, consumer) {
+		if ((lcp->index & MP_BAD) == 0) {
+			sc->sc_active = lcp;
+			break;
+		}
+	}
+	if (sc->sc_active == NULL) {
+		printf("GEOM_MULTIPATH: out of providers for %s\n",
+		    sc->sc_name);
+	} else if (!sc->sc_active_active) {
+		printf("GEOM_MULTIPATH: %s is now active path in %s\n",
+		    sc->sc_active->provider->name, sc->sc_name);
+	}
+}
+
+static struct g_consumer *
+g_multipath_choose(struct g_geom *gp)
+{
+	struct g_multipath_softc *sc;
+	struct g_consumer *best, *cp;
+
+	sc = gp->softc;
+	if (!sc->sc_active_active)
+		return (sc->sc_active);
+	best = NULL;
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->index & MP_BAD)
+			continue;
+		cp->index += MP_IDLE;
+		if (best == NULL || cp->private < best->private ||
+		    (cp->private == best->private && cp->index > best->index))
+			best = cp;
+	}
+	if (best != NULL)
+		best->index &= ~MP_IDLE_MASK;
+	return (best);
+}
 
 static void
 g_mpd(void *arg, int flags __unused)
 {
+	struct g_geom *gp;
+	struct g_multipath_softc *sc;
 	struct g_consumer *cp;
+	int w;
 
 	g_topology_assert();
 	cp = arg;
-	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+	gp = cp->geom;
+	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0) {
+		w = cp->acw;
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+		if (w > 0 && cp->provider != NULL &&
+		    (cp->provider->geom->flags & G_GEOM_WITHER) == 0) {
+			g_post_event(g_mpd, cp, M_WAITOK, NULL);
+			return;
+		}
+	}
+	sc = gp->softc;
+	mtx_lock(&sc->sc_mtx);
 	if (cp->provider) {
 		printf("GEOM_MULTIPATH: %s removed from %s\n",
-		    cp->provider->name, cp->geom->name);
+		    cp->provider->name, gp->name);
 		g_detach(cp);
 	}
 	g_destroy_consumer(cp);
+	mtx_unlock(&sc->sc_mtx);
+	if (LIST_EMPTY(&gp->consumer))
+		g_multipath_destroy(gp);
 }
 
 static void
 g_multipath_orphan(struct g_consumer *cp)
 {
-	if ((cp->index & MP_POSTED) == 0) {
+	struct g_multipath_softc *sc;
+	uintptr_t *cnt;
+
+	g_topology_assert();
+	printf("GEOM_MULTIPATH: %s in %s was disconnected\n",
+	    cp->provider->name, cp->geom->name);
+	sc = cp->geom->softc;
+	cnt = (uintptr_t *)&cp->private;
+	mtx_lock(&sc->sc_mtx);
+	sc->sc_ndisks--;
+	g_multipath_fault(cp, MP_LOST);
+	if (*cnt == 0 && (cp->index & MP_POSTED) == 0) {
 		cp->index |= MP_POSTED;
-		printf("GEOM_MULTIPATH: %s orphaned in %s\n",
-		    cp->provider->name, cp->geom->name);
+		mtx_unlock(&sc->sc_mtx);
 		g_mpd(cp, 0);
-	}
+	} else
+		mtx_unlock(&sc->sc_mtx);
 }
 
 static void
@@ -128,20 +242,29 @@ g_multipath_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct bio *cbp;
+	uintptr_t *cnt;
 
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 	KASSERT(sc != NULL, ("NULL sc"));
-	cp = sc->cp_active;
-	if (cp == NULL) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
 	cbp = g_clone_bio(bp);
 	if (cbp == NULL) {
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
+	mtx_lock(&sc->sc_mtx);
+	cp = g_multipath_choose(gp);
+	if (cp == NULL) {
+		mtx_unlock(&sc->sc_mtx);
+		g_destroy_bio(cbp);
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
+	if ((uintptr_t)bp->bio_driver1 < sc->sc_ndisks)
+		bp->bio_driver1 = (void *)(uintptr_t)sc->sc_ndisks;
+	cnt = (uintptr_t *)&cp->private;
+	(*cnt)++;
+	mtx_unlock(&sc->sc_mtx);
 	cbp->bio_done = g_multipath_done;
 	g_io_request(cbp, cp);
 }
@@ -149,12 +272,27 @@ g_multipath_start(struct bio *bp)
 static void
 g_multipath_done(struct bio *bp)
 {
+	struct g_multipath_softc *sc;
+	struct g_consumer *cp;
+	uintptr_t *cnt;
+
 	if (bp->bio_error == ENXIO || bp->bio_error == EIO) {
 		mtx_lock(&gmtbq_mtx);
 		bioq_insert_tail(&gmtbq, bp);
-		wakeup(&g_multipath_kt_state);
 		mtx_unlock(&gmtbq_mtx);
+		wakeup(&g_multipath_kt_state);
 	} else {
+		cp = bp->bio_from;
+		sc = cp->geom->softc;
+		cnt = (uintptr_t *)&cp->private;
+		mtx_lock(&sc->sc_mtx);
+		(*cnt)--;
+		if (*cnt == 0 && (cp->index & MP_LOST)) {
+			cp->index |= MP_POSTED;
+			mtx_unlock(&sc->sc_mtx);
+			g_post_event(g_mpd, cp, M_WAITOK, NULL);
+		} else
+			mtx_unlock(&sc->sc_mtx);
 		g_std_done(bp);
 	}
 }
@@ -167,6 +305,7 @@ g_multipath_done_error(struct bio *bp)
 	struct g_multipath_softc *sc;
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	uintptr_t *cnt;
 
 	/*
 	 * If we had a failure, we have to check first to see
@@ -176,47 +315,31 @@ g_multipath_done_error(struct bio *bp)
 	 * to the next available consumer.
 	 */
 
-	g_topology_lock();
 	pbp = bp->bio_parent;
 	gp = pbp->bio_to->geom;
 	sc = gp->softc;
 	cp = bp->bio_from;
 	pp = cp->provider;
+	cnt = (uintptr_t *)&cp->private;
 
-	cp->index |= MP_BAD;
-	if (cp->nend == cp->nstart && pp->nend == pp->nstart) {
+	mtx_lock(&sc->sc_mtx);
+	printf("GEOM_MULTIPATH: Error %d, %s in %s marked FAIL\n",
+	    bp->bio_error, pp->name, sc->sc_name);
+	g_multipath_fault(cp, MP_FAIL);
+	(*cnt)--;
+	if (*cnt == 0 && (cp->index & (MP_LOST | MP_POSTED)) == MP_LOST) {
 		cp->index |= MP_POSTED;
-		g_post_event(g_mpd, cp, M_NOWAIT, NULL);
-	}
-	if (cp == sc->cp_active) {
-		struct g_consumer *lcp;
-		printf("GEOM_MULTIPATH: %s failed in %s\n",
-		    pp->name, sc->sc_name);
-		sc->cp_active = NULL;
-		LIST_FOREACH(lcp, &gp->consumer, consumer) {
-			if ((lcp->index & MP_BAD) == 0) {
-				sc->cp_active = lcp;
-				break;
-			}
-		}
-		if (sc->cp_active == NULL || sc->cp_active->provider == NULL) {
-			printf("GEOM_MULTIPATH: out of providers for %s\n",
-			    sc->sc_name);
-			g_topology_unlock();
-			return;
-		} else {
-			printf("GEOM_MULTIPATH: %s now active path in %s\n",
-			    sc->cp_active->provider->name, sc->sc_name);
-		}
-	}
-	g_topology_unlock();
+		mtx_unlock(&sc->sc_mtx);
+		g_post_event(g_mpd, cp, M_WAITOK, NULL);
+	} else
+		mtx_unlock(&sc->sc_mtx);
 
 	/*
 	 * If we can fruitfully restart the I/O, do so.
 	 */
-	if (sc->cp_active) {
+	if (pbp->bio_children < (uintptr_t)pbp->bio_driver1) {
+		pbp->bio_inbed++;
 		g_destroy_bio(bp);
-		pbp->bio_children--;
 		g_multipath_start(pbp);
 	} else {
 		g_std_done(bp);
@@ -254,6 +377,7 @@ g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp, *badcp = NULL;
+	struct g_multipath_softc *sc;
 	int error;
 
 	gp = pp->geom;
@@ -265,6 +389,10 @@ g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 			goto fail;
 		}
 	}
+	sc = gp->softc;
+	sc->sc_opened += dr + dw + de;
+	if (sc->sc_stopping && sc->sc_opened == 0)
+		g_multipath_destroy(gp);
 	return (0);
 
 fail:
@@ -286,6 +414,9 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	g_topology_assert();
 
 	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL || sc->sc_stopping)
+			continue;
 		if (strcmp(gp->name, md->md_name) == 0) {
 			printf("GEOM_MULTIPATH: name %s already exists\n",
 			    md->md_name);
@@ -295,19 +426,25 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 
 	gp = g_new_geomf(mp, md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
+	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
+	memcpy(sc->sc_uuid, md->md_uuid, sizeof (sc->sc_uuid));
+	memcpy(sc->sc_name, md->md_name, sizeof (sc->sc_name));
+	sc->sc_active_active = md->md_active_active;
 	gp->softc = sc;
 	gp->start = g_multipath_start;
 	gp->orphan = g_multipath_orphan;
 	gp->access = g_multipath_access;
-	memcpy(sc->sc_uuid, md->md_uuid, sizeof (sc->sc_uuid));
-	memcpy(sc->sc_name, md->md_name, sizeof (sc->sc_name));
+	gp->dumpconf = g_multipath_dumpconf;
 
 	pp = g_new_providerf(gp, "multipath/%s", md->md_name);
-	/* limit the provider to not have it stomp on metadata */
-	pp->mediasize = md->md_size - md->md_sectorsize;
-	pp->sectorsize = md->md_sectorsize;
-	sc->pp = pp;
+	if (md->md_size != 0) {
+		pp->mediasize = md->md_size -
+		    ((md->md_uuid[0] != 0) ? md->md_sectorsize : 0);
+		pp->sectorsize = md->md_sectorsize;
+	}
+	sc->sc_pp = pp;
 	g_error_provider(pp, 0);
+	printf("GEOM_MULTIPATH: %s created\n", gp->name);
 	return (gp);
 }
 
@@ -316,7 +453,7 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 {
 	struct g_multipath_softc *sc;
 	struct g_consumer *cp, *nxtcp;
-	int error;
+	int error, acr, acw, ace;
 
 	g_topology_assert();
 
@@ -337,6 +474,8 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 	}
 	nxtcp = LIST_FIRST(&gp->consumer);
 	cp = g_new_consumer(gp);
+	cp->private = NULL;
+	cp->index = MP_NEW;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		printf("GEOM_MULTIPATH: cannot attach %s to %s",
@@ -344,29 +483,51 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 		g_destroy_consumer(cp);
 		return (error);
 	}
-	cp->private = sc;
-	cp->index = 0;
 
 	/*
 	 * Set access permissions on new consumer to match other consumers
 	 */
-	if (nxtcp && (nxtcp->acr + nxtcp->acw +  nxtcp->ace)) {
-		error = g_access(cp, nxtcp->acr, nxtcp->acw, nxtcp->ace);
-		if (error) {
-			printf("GEOM_MULTIPATH: cannot set access in "
-			    "attaching %s to %s/%s (%d)\n",
-			    pp->name, sc->sc_name, sc->sc_uuid, error);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-			return (error);
-		}
+	if (sc->sc_pp) {
+		acr = sc->sc_pp->acr;
+		acw = sc->sc_pp->acw;
+		ace = sc->sc_pp->ace;
+	} else
+		acr = acw = ace = 0;
+	if (g_multipath_exclusive) {
+		acr++;
+		acw++;
+		ace++;
 	}
-	printf("GEOM_MULTIPATH: adding %s to %s/%s\n",
-	    pp->name, sc->sc_name, sc->sc_uuid);
-	if (sc->cp_active == NULL) {
-		sc->cp_active = cp;
-		printf("GEOM_MULTIPATH: %s now active path in %s\n",
-		    pp->name, sc->sc_name);
+	error = g_access(cp, acr, acw, ace);
+	if (error) {
+		printf("GEOM_MULTIPATH: cannot set access in "
+		    "attaching %s to %s (%d)\n",
+		    pp->name, sc->sc_name, error);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return (error);
+	}
+	if (sc->sc_pp != NULL && sc->sc_pp->mediasize == 0) {
+		sc->sc_pp->mediasize = pp->mediasize -
+		    ((sc->sc_uuid[0] != 0) ? pp->sectorsize : 0);
+		sc->sc_pp->sectorsize = pp->sectorsize;
+	}
+	if (sc->sc_pp != NULL &&
+	    sc->sc_pp->stripesize == 0 && sc->sc_pp->stripeoffset == 0) {
+		sc->sc_pp->stripesize = pp->stripesize;
+		sc->sc_pp->stripeoffset = pp->stripeoffset;
+	}
+	mtx_lock(&sc->sc_mtx);
+	cp->index = 0;
+	sc->sc_ndisks++;
+	mtx_unlock(&sc->sc_mtx);
+	printf("GEOM_MULTIPATH: %s added to %s\n",
+	    pp->name, sc->sc_name);
+	if (sc->sc_active == NULL) {
+		sc->sc_active = cp;
+		if (!sc->sc_active_active)
+			printf("GEOM_MULTIPATH: %s is now active path in %s\n",
+			    pp->name, sc->sc_name);
 	}
 	return (0);
 }
@@ -374,17 +535,41 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 static int
 g_multipath_destroy(struct g_geom *gp)
 {
-	struct g_provider *pp;
+	struct g_multipath_softc *sc;
+	struct g_consumer *cp, *cp1;
 
 	g_topology_assert();
 	if (gp->softc == NULL)
 		return (ENXIO);
-	pp = LIST_FIRST(&gp->provider);
-	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0))
-		return (EBUSY);
-	printf("GEOM_MULTIPATH: destroying %s\n", gp->name);
+	sc = gp->softc;
+	if (!sc->sc_stopping) {
+		printf("GEOM_MULTIPATH: destroying %s\n", gp->name);
+		sc->sc_stopping = 1;
+	}
+	if (sc->sc_opened != 0) {
+		if (sc->sc_pp != NULL) {
+			g_wither_provider(sc->sc_pp, ENXIO);
+			sc->sc_pp = NULL;
+		}
+		return (EINPROGRESS);
+	}
+	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+		mtx_lock(&sc->sc_mtx);
+		if ((cp->index & MP_POSTED) == 0) {
+			cp->index |= MP_POSTED;
+			mtx_unlock(&sc->sc_mtx);
+			g_mpd(cp, 0);
+			if (cp1 == NULL)
+				return(0);	/* Recursion happened. */
+		} else
+			mtx_unlock(&sc->sc_mtx);
+	}
+	if (!LIST_EMPTY(&gp->consumer))
+		return (EINPROGRESS);
+	mtx_destroy(&sc->sc_mtx);
 	g_free(gp->softc);
 	gp->softc = NULL;
+	printf("GEOM_MULTIPATH: %s destroyed\n", gp->name);
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }
@@ -408,15 +593,15 @@ g_multipath_rotate(struct g_geom *gp)
 		return (ENXIO);
 	LIST_FOREACH(lcp, &gp->consumer, consumer) {
 		if ((lcp->index & MP_BAD) == 0) {
-			if (sc->cp_active != lcp) {
+			if (sc->sc_active != lcp)
 				break;
-			}
 		}
 	}
 	if (lcp) {
-		sc->cp_active = lcp;
-		printf("GEOM_MULTIPATH: %s now active path in %s\n",
-		    lcp->provider->name, sc->sc_name);
+		sc->sc_active = lcp;
+		if (!sc->sc_active_active)
+			printf("GEOM_MULTIPATH: %s is now active path in %s\n",
+			    lcp->provider->name, sc->sc_name);
 	}
 	return (0);
 }
@@ -504,6 +689,10 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    G_MULTIPATH_VERSION);
 		return (NULL);
 	}
+	if (md.md_size != 0 && md.md_size != pp->mediasize)
+		return (NULL);
+	if (md.md_sectorsize != 0 && md.md_sectorsize != pp->sectorsize)
+		return (NULL);
 	if (g_multipath_debug)
 		printf("MULTIPATH: %s/%s\n", md.md_name, md.md_uuid);
 
@@ -521,7 +710,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
-		if (sc == NULL)
+		if (sc == NULL || sc->sc_stopping)
 			continue;
 		if (strncmp(md.md_uuid, sc->sc_uuid, sizeof(md.md_uuid)) == 0)
 			break;
@@ -531,7 +720,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (gp1 == gp)
 			continue;
 		sc = gp1->softc;
-		if (sc == NULL)
+		if (sc == NULL || sc->sc_stopping)
 			continue;
 		if (strncmp(md.md_name, sc->sc_name, sizeof(md.md_name)) == 0)
 			break;
@@ -591,12 +780,14 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 static void
-g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
+g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
+    const char *name)
 {
+	struct g_multipath_softc *sc;
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp, *pp0;
-	const char *name, *mpname;
+	struct g_provider *pp;
+	const char *mpname;
 	static const char devpf[6] = "/dev/";
 
 	g_topology_assert();
@@ -611,12 +802,8 @@ g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Device %s is invalid", mpname);
 		return;
 	}
+	sc = gp->softc;
 
-	name = gctl_get_asciiparam(req, "arg1");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg1' argument");
-		return;
-	}
 	if (strncmp(name, devpf, 5) == 0)
 		name += 5;
 	pp = g_provider_by_name(name);
@@ -626,32 +813,29 @@ g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 	}
 
 	/*
-	 * Check to make sure parameters match, if we already have one.
+	 * Check to make sure parameters match.
 	 */
-	cp = LIST_FIRST(&gp->consumer);
-	if (cp) {
-		pp0 = cp->provider;
-	} else {
-		pp0 = NULL;
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->provider == pp) {
+			gctl_error(req, "provider %s is already there",
+			    pp->name);
+			return;
+		}
 	}
-	if (pp0) {
-		if (pp0 == pp) {
-			gctl_error(req, "providers %s and %s are the same",
-			    pp0->name, pp->name);
-			return;
-		}
-		if (pp0->mediasize != pp->mediasize) {
-			gctl_error(req, "Provider %s is %jd; Provider %s is %jd",
-			    pp0->name, (intmax_t) pp0->mediasize,
-			    pp->name, (intmax_t) pp->mediasize);
-			return;
-		}
-		if (pp0->sectorsize != pp->sectorsize) {
-			gctl_error(req, "Provider %s has sectorsize %u; Provider %s "
-			    "has sectorsize %u", pp0->name, pp0->sectorsize,
-			    pp->name, pp->sectorsize);
-			return;
-		}
+	if (sc->sc_pp != NULL && sc->sc_pp->mediasize != 0 &&
+	    sc->sc_pp->mediasize + (sc->sc_uuid[0] != 0 ? pp->sectorsize : 0)
+	     != pp->mediasize) {
+		gctl_error(req, "Providers size mismatch %jd != %jd",
+		    (intmax_t) sc->sc_pp->mediasize +
+			(sc->sc_uuid[0] != 0 ? pp->sectorsize : 0),
+		    (intmax_t) pp->mediasize);
+		return;
+	}
+	if (sc->sc_pp != NULL && sc->sc_pp->sectorsize != 0 &&
+	    sc->sc_pp->sectorsize != pp->sectorsize) {
+		gctl_error(req, "Providers sectorsize mismatch %u != %u",
+		    sc->sc_pp->sectorsize, pp->sectorsize);
+		return;
 	}
 
 	/*
@@ -660,21 +844,213 @@ g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 	(void) g_multipath_add_disk(gp, pp);
 }
 
+static void
+g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_multipath_softc *sc;
+	struct g_geom *gp;
+	const char *mpname, *name;
+
+	mpname = gctl_get_asciiparam(req, "arg0");
+        if (mpname == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s not found", mpname);
+		return;
+	}
+	sc = gp->softc;
+
+	name = gctl_get_asciiparam(req, "arg1");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg1' argument");
+		return;
+	}
+	g_multipath_ctl_add_name(req, mp, name);
+}
+
+static void
+g_multipath_ctl_create(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_multipath_metadata md;
+	struct g_multipath_softc *sc;
+	struct g_geom *gp;
+	const char *mpname, *name;
+	char param[16];
+	int *nargs, i, *active_active;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (*nargs < 2) {
+		gctl_error(req, "wrong number of arguments.");
+		return;
+	}
+
+	mpname = gctl_get_asciiparam(req, "arg0");
+        if (mpname == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp != NULL) {
+		gctl_error(req, "Device %s already exist", mpname);
+		return;
+	}
+	sc = gp->softc;
+
+	memset(&md, 0, sizeof(md));
+	strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
+	md.md_version = G_MULTIPATH_VERSION;
+	strlcpy(md.md_name, mpname, sizeof(md.md_name));
+	md.md_size = 0;
+	md.md_sectorsize = 0;
+	md.md_uuid[0] = 0;
+	active_active = gctl_get_paraml(req, "active_active",
+	    sizeof(*active_active));
+	md.md_active_active =
+	    (active_active == NULL || *active_active == 0) ? 0 : 1;
+	gp = g_multipath_create(mp, &md);
+	if (gp == NULL) {
+		gctl_error(req, "GEOM_MULTIPATH: cannot create geom %s/%s\n",
+		    md.md_name, md.md_uuid);
+		return;
+	}
+	sc = gp->softc;
+
+	for (i = 1; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%d", i);
+		name = gctl_get_asciiparam(req, param);
+		g_multipath_ctl_add_name(req, mp, name);
+	}
+
+	if (sc->sc_ndisks != (*nargs - 1))
+		g_multipath_destroy(gp);
+}
+
+static void
+g_multipath_ctl_fail(struct gctl_req *req, struct g_class *mp, int fail)
+{
+	struct g_multipath_softc *sc;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	const char *mpname, *name;
+	int found;
+
+	mpname = gctl_get_asciiparam(req, "arg0");
+        if (mpname == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s not found", mpname);
+		return;
+	}
+	sc = gp->softc;
+
+	name = gctl_get_asciiparam(req, "arg1");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg1' argument");
+		return;
+	}
+
+	found = 0;
+	mtx_lock(&sc->sc_mtx);
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->provider != NULL &&
+		    strcmp(cp->provider->name, name) == 0 &&
+		    (cp->index & MP_LOST) == 0) {
+			found = 1;
+			printf("GEOM_MULTIPATH: %s in %s is marked %s.\n",
+				name, sc->sc_name, fail ? "FAIL" : "OK");
+			if (fail) {
+				g_multipath_fault(cp, MP_FAIL);
+			} else {
+				cp->index &= ~MP_FAIL;
+			}
+		}
+	}
+	mtx_unlock(&sc->sc_mtx);
+	if (found == 0)
+		gctl_error(req, "Provider %s not found", name);
+}
+
+static void
+g_multipath_ctl_remove(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_multipath_softc *sc;
+	struct g_geom *gp;
+	struct g_consumer *cp, *cp1;
+	const char *mpname, *name;
+	uintptr_t *cnt;
+	int found;
+
+	mpname = gctl_get_asciiparam(req, "arg0");
+        if (mpname == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s not found", mpname);
+		return;
+	}
+	sc = gp->softc;
+
+	name = gctl_get_asciiparam(req, "arg1");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg1' argument");
+		return;
+	}
+
+	found = 0;
+	mtx_lock(&sc->sc_mtx);
+	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+		if (cp->provider != NULL &&
+		    strcmp(cp->provider->name, name) == 0 &&
+		    (cp->index & MP_LOST) == 0) {
+			found = 1;
+			printf("GEOM_MULTIPATH: removing %s from %s\n",
+			    cp->provider->name, cp->geom->name);
+			sc->sc_ndisks--;
+			g_multipath_fault(cp, MP_LOST);
+			cnt = (uintptr_t *)&cp->private;
+			if (*cnt == 0 && (cp->index & MP_POSTED) == 0) {
+				cp->index |= MP_POSTED;
+				mtx_unlock(&sc->sc_mtx);
+				g_mpd(cp, 0);
+				if (cp1 == NULL)
+					return;	/* Recursion happened. */
+				mtx_lock(&sc->sc_mtx);
+			}
+		}
+	}
+	mtx_unlock(&sc->sc_mtx);
+	if (found == 0)
+		gctl_error(req, "Provider %s not found", name);
+}
+
 static struct g_geom *
 g_multipath_find_geom(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
+	struct g_multipath_softc *sc;
 
 	LIST_FOREACH(gp, &mp->geom, geom) {
-		if (strcmp(gp->name, name) == 0) {
+		sc = gp->softc;
+		if (sc == NULL || sc->sc_stopping)
+			continue;
+		if (strcmp(gp->name, name) == 0)
 			return (gp);
-		}
 	}
 	return (NULL);
 }
 
 static void
-g_multipath_ctl_destroy(struct gctl_req *req, struct g_class *mp)
+g_multipath_ctl_stop(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_geom *gp;
 	const char *name;
@@ -693,9 +1069,58 @@ g_multipath_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	error = g_multipath_destroy(gp);
-	if (error != 0) {
-		gctl_error(req, "failed to destroy %s (err=%d)", name, error);
+	if (error != 0 && error != EINPROGRESS)
+		gctl_error(req, "failed to stop %s (err=%d)", name, error);
+}
+
+static void
+g_multipath_ctl_destroy(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *gp;
+	struct g_multipath_softc *sc;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	const char *name;
+	uint8_t *buf;
+	int error;
+
+	g_topology_assert();
+
+	name = gctl_get_asciiparam(req, "arg0");
+        if (name == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, name);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", name);
+		return;
 	}
+	sc = gp->softc;
+
+	if (sc->sc_uuid[0] != 0 && sc->sc_active != NULL) {
+		cp = sc->sc_active;
+		pp = cp->provider;
+		error = g_access(cp, 1, 1, 1);
+		if (error != 0) {
+			gctl_error(req, "Can't open %s (%d)", pp->name, error);
+			goto destroy;
+		}
+		g_topology_unlock();
+		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		error = g_write_data(cp, pp->mediasize - pp->sectorsize,
+		    buf, pp->sectorsize);
+		g_topology_lock();
+		g_access(cp, -1, -1, -1);
+		if (error != 0)
+			gctl_error(req, "Can't erase metadata on %s (%d)",
+			    pp->name, error);
+	}
+
+destroy:
+	error = g_multipath_destroy(gp);
+	if (error != 0 && error != EINPROGRESS)
+		gctl_error(req, "failed to destroy %s (err=%d)", name, error);
 }
 
 static void
@@ -729,7 +1154,9 @@ g_multipath_ctl_getactive(struct gctl_req *req, struct g_class *mp)
 	struct sbuf *sb;
 	struct g_geom *gp;
 	struct g_multipath_softc *sc;
+	struct g_consumer *cp;
 	const char *name;
+	int empty;
 
 	sb = sbuf_new_auto();
 
@@ -745,8 +1172,21 @@ g_multipath_ctl_getactive(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	sc = gp->softc;
-	if (sc->cp_active && sc->cp_active->provider) {
-		sbuf_printf(sb, "%s\n", sc->cp_active->provider->name);
+	if (sc->sc_active_active) {
+		empty = 1;
+		LIST_FOREACH(cp, &gp->consumer, consumer) {
+			if (cp->index & MP_BAD)
+				continue;
+			if (!empty)
+				sbuf_cat(sb, " ");
+			sbuf_cat(sb, cp->provider->name);
+			empty = 0;
+		}
+		if (empty)
+			sbuf_cat(sb, "none");
+		sbuf_cat(sb, "\n");
+	} else if (sc->sc_active && sc->sc_active->provider) {
+		sbuf_printf(sb, "%s\n", sc->sc_active->provider->name);
 	} else {
 		sbuf_printf(sb, "none\n");
 	}
@@ -767,8 +1207,18 @@ g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "Userland and kernel parts are out of sync");
 	} else if (strcmp(verb, "add") == 0) {
 		g_multipath_ctl_add(req, mp);
+	} else if (strcmp(verb, "create") == 0) {
+		g_multipath_ctl_create(req, mp);
+	} else if (strcmp(verb, "stop") == 0) {
+		g_multipath_ctl_stop(req, mp);
 	} else if (strcmp(verb, "destroy") == 0) {
 		g_multipath_ctl_destroy(req, mp);
+	} else if (strcmp(verb, "fail") == 0) {
+		g_multipath_ctl_fail(req, mp, 1);
+	} else if (strcmp(verb, "restore") == 0) {
+		g_multipath_ctl_fail(req, mp, 0);
+	} else if (strcmp(verb, "remove") == 0) {
+		g_multipath_ctl_remove(req, mp);
 	} else if (strcmp(verb, "rotate") == 0) {
 		g_multipath_ctl_rotate(req, mp);
 	} else if (strcmp(verb, "getactive") == 0) {
@@ -777,4 +1227,40 @@ g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "Unknown verb %s", verb);
 	}
 }
+
+static void
+g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
+    struct g_consumer *cp, struct g_provider *pp)
+{
+	struct g_multipath_softc *sc;
+	int good;
+
+	g_topology_assert();
+
+	sc = gp->softc;
+	if (sc == NULL)
+		return;
+	if (cp != NULL) {
+		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		    (cp->index & MP_NEW) ? "NEW" :
+		    (cp->index & MP_LOST) ? "LOST" :
+		    (cp->index & MP_FAIL) ? "FAIL" :
+		    (sc->sc_active_active || sc->sc_active == cp) ?
+		     "ACTIVE" : "PASSIVE");
+	} else {
+		good = g_multipath_good(gp);
+		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		    good == 0 ? "BROKEN" :
+		    (good != sc->sc_ndisks || sc->sc_ndisks == 1) ?
+		    "DEGRADED" : "OPTIMAL");
+	}
+	if (cp == NULL && pp == NULL) {
+		sbuf_printf(sb, "%s<UUID>%s</UUID>", indent, sc->sc_uuid);
+		sbuf_printf(sb, "%s<Mode>Active/%s</Mode>", indent,
+		    sc->sc_active_active ? "Active" : "Passive");
+		sbuf_printf(sb, "%s<Type>%s</Type>", indent,
+		    sc->sc_uuid[0] == 0 ? "MANUAL" : "AUTOMATIC");
+	}
+}
+
 DECLARE_GEOM_CLASS(g_multipath_class, g_multipath);

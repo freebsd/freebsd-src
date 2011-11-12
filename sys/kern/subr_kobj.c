@@ -92,7 +92,7 @@ SYSINIT(kobj, SI_SUB_LOCK, SI_ORDER_ANY, kobj_init_mutex, NULL);
  * desc pointer is NULL, it is guaranteed never to match any read
  * descriptors.
  */
-static struct kobj_method null_method = {
+static const struct kobj_method null_method = {
 	0, 0,
 };
 
@@ -251,7 +251,7 @@ kobj_lookup_method(kobj_class_t cls,
 
 	ce = kobj_lookup_method_mi(cls, desc);
 	if (!ce)
-		ce = desc->deflt;
+		ce = &desc->deflt;
 	*cep = ce;
 	return ce;
 }

@@ -380,8 +380,9 @@ kue_setmulti(struct usb_ether *ue)
 		 */
 		if (i == KUE_MCFILTCNT(sc))
 			break;
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    KUE_MCFILT(sc, i), ETHER_ADDR_LEN);
+		memcpy(KUE_MCFILT(sc, i),
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		    ETHER_ADDR_LEN);
 		i++;
 	}
 	if_maddr_runlock(ifp);

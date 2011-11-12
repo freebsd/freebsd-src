@@ -3299,7 +3299,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 #ifdef DEV_NPX
 	npxgetregs(td);

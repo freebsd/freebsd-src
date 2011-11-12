@@ -227,7 +227,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_NOISE_IMMUNITY_LEVEL: set level = %d\n", __func__, level);
-		if (level >= params->maxNoiseImmunityLevel) {
+		if (level > params->maxNoiseImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxNoiseImmunityLevel);
@@ -314,7 +314,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_FIRSTEP_LEVEL: level = %d\n", __func__, level);
-		if (level >= params->maxFirstepLevel) {
+		if (level > params->maxFirstepLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: firstep level out of range (%u > %u)\n",
 			    __func__, level, params->maxFirstepLevel);
@@ -333,7 +333,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		u_int level = param;
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_SPUR_IMMUNITY_LEVEL: level = %d\n", __func__, level);
-		if (level >= params->maxSpurImmunityLevel) {
+		if (level > params->maxSpurImmunityLevel) {
 			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: spur immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxSpurImmunityLevel);
@@ -341,11 +341,6 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		}
 		OS_REG_RMW_FIELD(ah, AR_PHY_TIMING5,
 		    AR_PHY_TIMING5_CYCPWR_THR1, params->cycPwrThr1[level]);
-
-		/* Only set the ext channel cycpwr_thr1 field for ht/40 */
-		if (IEEE80211_IS_CHAN_HT40(AH_PRIVATE(ah)->ah_curchan))
-			OS_REG_RMW_FIELD(ah, AR_PHY_EXT_CCA,
-			    AR_PHY_EXT_TIMING5_CYCPWR_THR1, params->cycPwrThr1[level]);
 
 		if (level > aniState->spurImmunityLevel)
 			ahp->ah_stats.ast_ani_spurup++;
@@ -384,20 +379,30 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 	aniState = ahp->ah_curani;
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_NOISE_IMMUNITY_LEVEL)) &&
-	    (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
-				 aniState->noiseImmunityLevel + 1);
-		return;
+	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
+				 aniState->noiseImmunityLevel + 1))
+			return;
 	}
 	/* then, raise spur immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_SPUR_IMMUNITY_LEVEL)) &&
-	    (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel)) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel + 1);
-		return;
+	if (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel) {
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel + 1))
+			return;
 	}
 
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, raise Firstep level, up to max, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel < params->maxFirstepLevel) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel + 1))
+				return;
+		}
+	}
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
@@ -418,9 +423,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			 * raise firstep level 
 			 */
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel + 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel + 1))
+					return;
 			}
 		} else if (rssi > params->rssiThrLow) {
 			/* 
@@ -432,9 +437,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
 			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-				     aniState->firstepLevel + 1);
-			return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+				     aniState->firstepLevel + 1))
+				return;
 		} else {
 			/* 
 			 * Beacon rssi is low, if in 11b/g mode, turn off ofdm
@@ -447,9 +452,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 					    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 					    AH_FALSE);
 				if (aniState->firstepLevel > 0)
-					ar5416AniControl(ah,
-					     HAL_ANI_FIRSTEP_LEVEL, 0);
-				return;
+					if (ar5416AniControl(ah,
+					     HAL_ANI_FIRSTEP_LEVEL, 0))
+						return;
 			}
 		}
 	}
@@ -582,6 +587,16 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		goto finish;
 	}
 
+	/*
+	 * Use a restrictive set of ANI parameters for hostap mode.
+	 */
+	if (opmode == HAL_M_HOSTAP) {
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
+			AH5416(ah)->ah_ani_function =
+			    HAL_ANI_SPUR_IMMUNITY_LEVEL | HAL_ANI_FIRSTEP_LEVEL;
+		else
+			AH5416(ah)->ah_ani_function = 0;
+	}
 
 	/*
 	 * Automatic processing is done only in station mode right now.
@@ -611,7 +626,7 @@ ar5416AniReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 0);
 		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL, 0);
 		ar5416AniControl(ah, HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-			AH_TRUE);
+			AH_FALSE);
 		ar5416AniControl(ah, HAL_ANI_CCK_WEAK_SIGNAL_THR, AH_FALSE);
 		ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL, 0);
 		ichan->privFlags |= CHANNEL_ANI_SETUP;
@@ -715,6 +730,19 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 
 	aniState = ahp->ah_curani;
 	params = aniState->params;
+
+	/*
+	 * In the case of AP mode operation, we cannot bucketize beacons
+	 * according to RSSI.  Instead, lower Firstep level, down to min, and
+	 * simply return.
+	 */
+	if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
+		if (aniState->firstepLevel > 0) {
+			if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+			    aniState->firstepLevel - 1))
+				return;
+		}
+	}
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
@@ -729,41 +757,41 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 			 * detection or lower firstep level.
 			 */
 			if (aniState->ofdmWeakSigDetectOff) {
-				ar5416AniControl(ah,
+				if (ar5416AniControl(ah,
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				    AH_TRUE);
-				return;
+				    AH_TRUE))
+					return;
 			}
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		} else {
 			/*
 			 * Beacon rssi is low, reduce firstep level.
 			 */
 			if (aniState->firstepLevel > 0) {
-				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
-						 aniState->firstepLevel - 1);
-				return;
+				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
+						 aniState->firstepLevel - 1))
+					return;
 			}
 		}
 	}
 	/* then lower spur immunity level, down to zero */
 	if (aniState->spurImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
-				 aniState->spurImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
+				 aniState->spurImmunityLevel - 1))
+			return;
 	}
 	/* 
 	 * if all else fails, lower noise immunity level down to a min value
 	 * zero for now
 	 */
 	if (aniState->noiseImmunityLevel > 0) {
-		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
-				 aniState->noiseImmunityLevel - 1);
-		return;
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
+				 aniState->noiseImmunityLevel - 1))
+			return;
 	}
 }
 
@@ -782,15 +810,15 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState;
-	uint32_t txFrameCount, rxFrameCount, cycleCount;
+	uint32_t rxc_pct, extc_pct, rxf_pct, txf_pct;
 	int32_t listenTime;
+	int good;
 
-	txFrameCount = OS_REG_READ(ah, AR_TFCNT);
-	rxFrameCount = OS_REG_READ(ah, AR_RFCNT);
-	cycleCount = OS_REG_READ(ah, AR_CCCNT);
+	good = ar5416GetMibCycleCountsPct(ah,
+	&rxc_pct, &extc_pct, &rxf_pct, &txf_pct);
 
 	aniState = ahp->ah_curani;
-	if (aniState->cycleCount == 0 || aniState->cycleCount > cycleCount) {
+	if (good == 0) {
 		/*
 		 * Cycle counter wrap (or initial call); it's not possible
 		 * to accurately calculate a value because the registers
@@ -799,14 +827,18 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 		listenTime = 0;
 		ahp->ah_stats.ast_ani_lzero++;
 	} else {
-		int32_t ccdelta = cycleCount - aniState->cycleCount;
-		int32_t rfdelta = rxFrameCount - aniState->rxFrameCount;
-		int32_t tfdelta = txFrameCount - aniState->txFrameCount;
+		int32_t ccdelta = AH5416(ah)->ah_cycleCount - aniState->cycleCount;
+		int32_t rfdelta = AH5416(ah)->ah_rxBusy - aniState->rxFrameCount;
+		int32_t tfdelta = AH5416(ah)->ah_txBusy - aniState->txFrameCount;
 		listenTime = (ccdelta - rfdelta - tfdelta) / CLOCK_RATE;
 	}
-	aniState->cycleCount = cycleCount;
-	aniState->txFrameCount = txFrameCount;
-	aniState->rxFrameCount = rxFrameCount;
+	aniState->cycleCount = AH5416(ah)->ah_cycleCount;
+	aniState->txFrameCount = AH5416(ah)->ah_rxBusy;
+	aniState->rxFrameCount = AH5416(ah)->ah_txBusy;
+
+	HALDEBUG(ah, HAL_DEBUG_ANI, "rxc=%d, extc=%d, rxf=%d, txf=%d\n",
+	    rxc_pct, extc_pct, rxf_pct, txf_pct);
+
 	return listenTime;
 }
 
@@ -873,10 +905,13 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* XXX can aniState be null? */
 	if (aniState == AH_NULL)
 		return;
+
+	/* Always update from the MIB, for statistics gathering */
+	listenTime = ar5416AniGetListenTime(ah);
+
 	if (!ANI_ENA(ah))
 		return;
 
-	listenTime = ar5416AniGetListenTime(ah);
 	if (listenTime < 0) {
 		ahp->ah_stats.ast_ani_lneg++;
 		/* restart ANI period if listenTime is invalid */

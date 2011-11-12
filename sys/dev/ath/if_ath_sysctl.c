@@ -263,7 +263,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return error;
 	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	      ath_reset(ifp, ATH_RESET_NOLOSS) : 0;
 }
 
 static int
@@ -295,7 +296,8 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		return 0;
 	if (!ath_hal_setrfkill(ah, rfkill))
 		return EINVAL;
-	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	    ath_reset(ifp, ATH_RESET_FULL) : 0;
 }
 
 static int
@@ -346,7 +348,7 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	i = t = 0;
 	ATH_TXBUF_LOCK(sc);
-	STAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
+	TAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
 		if (bf->bf_flags & ATH_BUF_BUSY) {
 			printf("Busy: %d\n", t);
 			i++;
@@ -428,7 +430,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * things in an inconsistent state.
 	 */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ath_reset(sc->sc_ifp);
+		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
 
 	return 0;
 }
@@ -891,4 +893,16 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "swba_backoff", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_additional_swba_backoff, 0,
 	    "Atheros HAL additional SWBA backoff time");
+
+	sc->sc_ah->ah_config.ah_force_full_reset = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "force_full_reset", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_force_full_reset, 0,
+	    "Force full chip reset rather than a warm reset");
+
+	/*
+	 * This is initialised by the driver.
+	 */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "serialise_reg_war", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_serialise_reg_war, 0,
+	    "Force register access serialisation");
 }

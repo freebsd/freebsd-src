@@ -275,7 +275,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		if (lagg_protos[i].ti_proto == LAGG_PROTO_DEFAULT) {
 			sc->sc_proto = lagg_protos[i].ti_proto;
 			if ((error = lagg_protos[i].ti_attach(sc)) != 0) {
-				if_free_type(ifp, IFT_ETHER);
+				if_free(ifp);
 				free(sc, M_DEVBUF);
 				return (error);
 			}
@@ -293,7 +293,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 
 	if_initname(ifp, ifc->ifc_name, unit);
-	ifp->if_type = IFT_ETHER;
 	ifp->if_softc = sc;
 	ifp->if_start = lagg_start;
 	ifp->if_init = lagg_init;
@@ -305,7 +304,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
-	 * Attach as an ordinary ethernet device, childs will be attached
+	 * Attach as an ordinary ethernet device, children will be attached
 	 * as special device IFT_IEEE8023ADLAG.
 	 */
 	ether_ifattach(ifp, eaddr);
@@ -352,7 +351,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	mtx_lock(&lagg_list_mtx);
 	SLIST_REMOVE(&lagg_list, sc, lagg_softc, sc_entries);
