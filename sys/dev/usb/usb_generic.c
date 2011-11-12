@@ -240,7 +240,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;
@@ -308,7 +308,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;
