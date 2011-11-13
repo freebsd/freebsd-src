@@ -197,6 +197,7 @@ ENTRY(armv7_idcache_wbinv_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_id_wbinv_next
+	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
 
@@ -208,6 +209,7 @@ ENTRY_NP(armv7_icache_sync_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_sync_next
+	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
 
