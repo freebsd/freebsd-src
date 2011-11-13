@@ -1022,7 +1022,7 @@ main(int argc, char **argv)
 
 	/*
 	 * Check if "-k kerneldir" was specified, and if whether
-	 * 'kerneldir' actually refers to a a file.  If so, use
+	 * 'kerneldir' actually refers to a file.  If so, use
 	 * `dirname path` to determine the kernel directory.
 	 */
 	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
