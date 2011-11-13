@@ -935,7 +935,7 @@ extract_run() {
 	extract_indices
 }
 
-update_run_exract() {
+update_run_extract() {
 	local IFS='|'
 
 # Install new files
@@ -999,7 +999,7 @@ update_run() {
 	fi
 	echo "done."
 
-	update_run_exract || return 1
+	update_run_extract || return 1
 	extract_metadata
 	extract_indices
 }
