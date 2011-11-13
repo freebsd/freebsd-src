@@ -107,7 +107,7 @@ struct __sbuf {
  * inline functions.  To preserve ABI compat, these members must not
  * be disturbed.  These members are marked below with (*).
  */
-typedef	struct __sFILE {
+struct __sFILE {
 	unsigned char *_p;	/* (*) current position in (some) buffer */
 	int	_r;		/* (*) read space left for getc() */
 	int	_w;		/* (*) write space left for putc() */
@@ -144,8 +144,11 @@ typedef	struct __sFILE {
 	int	_fl_count;	/* recursive lock count */
 	int	_orientation;	/* orientation for fwide() */
 	__mbstate_t _mbstate;	/* multibyte conversion state */
-} FILE;
-
+};
+#ifndef _STDFILE_DECLARED
+#define _STDFILE_DECLARED
+typedef struct __sFILE FILE;
+#endif
 #ifndef _STDSTREAM_DECLARED
 __BEGIN_DECLS
 extern FILE *__stdinp;
@@ -467,6 +470,7 @@ static __inline int __sputc(int _c, FILE *_p) {
 			__swbuf((int)(c), p) : \
 		(*(p)->_p = (c), (int)*(p)->_p++))
 #endif
+#ifndef __cplusplus
 
 #define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
 #define	__sferror(p)	(((p)->_flags & __SERR) != 0)
@@ -506,6 +510,7 @@ extern int __isthreaded;
 #define	getchar_unlocked()	getc_unlocked(stdin)
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
 #endif
+#endif /* __cplusplus */
 
 __END_DECLS
 #endif /* !_STDIO_H_ */
