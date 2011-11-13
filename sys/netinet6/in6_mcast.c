@@ -1714,7 +1714,7 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		if (im6o == NULL)
 			optval = V_ip6_defmcasthlim;
 		else
-			optval = im6o->im6o_multicast_loop;
+			optval = im6o->im6o_multicast_hlim;
 		INP_WUNLOCK(inp);
 		error = sooptcopyout(sopt, &optval, sizeof(u_int));
 		break;
