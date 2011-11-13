@@ -570,14 +570,16 @@ fetch_metadata_sanity() {
 
 # Take a list of ${oldhash}|${newhash} and output a list of needed patches
 fetch_make_patchlist() {
-	grep -vE "^([0-9a-f]{64})\|\1$" | 
-		while read LINE; do
-			X=`echo ${LINE} | cut -f 1 -d '|'`
-			Y=`echo ${LINE} | cut -f 2 -d '|'`
-			if [ -f "files/${Y}.gz" ]; then continue; fi
-			if [ ! -f "files/${X}.gz" ]; then continue; fi
-			echo "${LINE}"
+	IFS='|'
+	echo "" 1>${QUIETREDIR}
+	grep -vE "^([0-9a-f]{64})\|\1$" |
+		while read X Y; do
+			printf "Processing: $X $Y ...\r" 1>${QUIETREDIR}
+			if [ -f "files/${Y}.gz" -o ! -f "files/${X}.gz" ]; then continue; fi
+			echo "${X}|${Y}"
 		done
+	echo "" 1>${QUIETREDIR}
+	IFS=
 }
 
 # Print user-friendly progress statistics
@@ -692,9 +694,8 @@ fetch_update() {
 
 # Attempt to apply metadata patches
 	echo -n "Applying metadata patches... "
-	while read LINE; do
-		X=`echo ${LINE} | cut -f 1 -d '|'`
-		Y=`echo ${LINE} | cut -f 2 -d '|'`
+	IFS='|'
+	while read X Y; do
 		if [ ! -f "${X}-${Y}.gz" ]; then continue; fi
 		gunzip -c < ${X}-${Y}.gz > diff
 		gunzip -c < files/${X}.gz > OLD
@@ -707,6 +708,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}.gz ptmp
 	done < patchlist 2>${QUIETREDIR}
+	IFS=
 	echo "done."
 
 # Update metadata without patches
@@ -724,16 +726,19 @@ fetch_update() {
 	    2>${QUIETREDIR}
 
 	while read Y; do
+		echo -n "Verifying ${Y}... " 1>${QUIETREDIR}
 		if [ `gunzip -c < ${Y}.gz | ${SHA256} -q` = ${Y} ]; then
 			mv ${Y}.gz files/${Y}.gz
 		else
 			echo "metadata is corrupt."
 			return 1
 		fi
+		echo "ok." 1>${QUIETREDIR}
 	done < filelist
 	echo "done."
 
 # Extract the index
+	echo -n "Extracting index... " 1>${QUIETREDIR}
 	gunzip -c files/`look INDEX tINDEX.new |
 	    cut -f 2 -d '|'`.gz > INDEX.new
 	fetch_index_sanity || return 1
@@ -754,8 +759,10 @@ fetch_update() {
 	fi
 
 # Generate a list of wanted ports patches
+	echo -n "Generating list of wanted patches..." 1>${QUIETREDIR}
 	join -t '|' -o 1.2,2.2 INDEX INDEX.new |
 	    fetch_make_patchlist > patchlist
+	echo " done." 1>${QUIETREDIR}
 
 # Attempt to fetch ports patches
 	echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
@@ -766,11 +773,18 @@ fetch_update() {
 	echo "done."
 
 # Attempt to apply ports patches
-	echo -n "Applying patches... "
-	while read LINE; do
-		X=`echo ${LINE} | cut -f 1 -d '|'`
-		Y=`echo ${LINE} | cut -f 2 -d '|'`
-		if [ ! -f "${X}-${Y}" ]; then continue; fi
+	PATCHCNT=`wc -l patchlist`
+	echo "Applying patches... "
+	IFS='|'
+	I=0
+	while read X Y; do
+		I=$(($I + 1))
+		F="${X}-${Y}"
+		if [ ! -f "${F}" ]; then
+			printf "  Skipping ${F} (${I} of ${PATCHCNT}).\r"
+			continue;
+		fi
+		echo "  Processing ${F}..." 1>${QUIETREDIR}
 		gunzip -c < files/${X}.gz > OLD
 		${BSPATCH} OLD NEW ${X}-${Y}
 		if [ `${SHA256} -q NEW` = ${Y} ]; then
@@ -779,6 +793,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}
 	done < patchlist 2>${QUIETREDIR}
+	IFS=
 	echo "done."
 
 # Update ports without patches
@@ -795,7 +810,10 @@ fetch_update() {
 	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 	    2>${QUIETREDIR}
 
+	I=0
 	while read Y; do
+		I=$(($I + 1))
+		printf "   Processing ${Y} (${I} of ${PATCHCNT}).\r" 1>${QUIETREDIR}
 		if [ `gunzip -c < ${Y}.gz | ${SHA256} -q` = ${Y} ]; then
 			mv ${Y}.gz files/${Y}.gz
 		else
@@ -877,6 +895,7 @@ extract_metadata() {
 
 # Do the actual work involved in "extract"
 extract_run() {
+	local IFS='|'
 	mkdir -p ${PORTSDIR} || return 1
 
 	if !
@@ -886,7 +905,7 @@ extract_run() {
 			grep -vE "${REFUSE}" ${WORKDIR}/INDEX
 		else
 			cat ${WORKDIR}/INDEX
-		fi | tr '|' ' ' | while read FILE HASH; do
+		fi | while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
 		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
@@ -914,6 +933,40 @@ extract_run() {
 
 	extract_metadata
 	extract_indices
+}
+
+update_run_exract() {
+	local IFS='|'
+
+# Install new files
+	echo "Extracting new files:"
+	if !
+		if ! [ -z "${REFUSE}" ]; then
+			grep -vE "${REFUSE}" ${WORKDIR}/INDEX | sort
+		else
+			sort ${WORKDIR}/INDEX
+		fi |
+	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
+	    while read FILE HASH; do
+		echo ${PORTSDIR}/${FILE}
+		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
+			echo "files/${HASH}.gz not found -- snapshot corrupt."
+			return 1
+		fi
+		case ${FILE} in
+		*/)
+			mkdir -p ${PORTSDIR}/${FILE}
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
+			    -C ${PORTSDIR}/${FILE}
+			;;
+		*)
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
+			    -C ${PORTSDIR} ${FILE}
+			;;
+		esac
+	done; then
+		return 1
+	fi
 }
 
 # Do the actual work involved in "update"
@@ -946,38 +999,7 @@ update_run() {
 	fi
 	echo "done."
 
-# Install new files
-	echo "Extracting new files:"
-	if !
-		if ! [ -z "${REFUSE}" ]; then
-			grep -vE "${REFUSE}" ${WORKDIR}/INDEX | sort
-		else
-			sort ${WORKDIR}/INDEX
-		fi |
-	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
-	    while read LINE; do
-		FILE=`echo ${LINE} | cut -f 1 -d '|'`
-		HASH=`echo ${LINE} | cut -f 2 -d '|'`
-		echo ${PORTSDIR}/${FILE}
-		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
-			echo "files/${HASH}.gz not found -- snapshot corrupt."
-			return 1
-		fi
-		case ${FILE} in
-		*/)
-			mkdir -p ${PORTSDIR}/${FILE}
-			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
-			    -C ${PORTSDIR}/${FILE}
-			;;
-		*)
-			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
-			    -C ${PORTSDIR} ${FILE}
-			;;
-		esac
-	done; then
-		return 1
-	fi
-
+	update_run_exract || return 1
 	extract_metadata
 	extract_indices
 }
