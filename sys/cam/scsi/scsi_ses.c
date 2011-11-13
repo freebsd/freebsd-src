@@ -714,7 +714,7 @@ ses_log(struct ses_softc *ssc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type 0x0D (13), it's
+ * It's a pretty simple ruleset- if it is device type 0x0D (13), it's
  * an SES device. If it happens to be an old UNISYS SEN device, we can
  * handle that too.
  */
