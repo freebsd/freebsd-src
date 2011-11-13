@@ -1212,7 +1212,16 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
 	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
+
+	/*
+	 * Since nfs_decode_args() might optionally set them, these need to
+	 * set to defaults before the call, so that the optional settings
+	 * aren't overwritten.
+	 */
 	nmp->nm_negnametimeo = negnametimeo;
+	nmp->nm_timeo = NFS_TIMEO;
+	nmp->nm_retry = NFS_RETRANS;
+	nmp->nm_readahead = NFS_DEFRAHEAD;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1231,8 +1240,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	else
 		nmp->nm_maxfilesize = OFF_MAX;
 
-	nmp->nm_timeo = NFS_TIMEO;
-	nmp->nm_retry = NFS_RETRANS;
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
 		nmp->nm_wsize = NFS_WSIZE;
 		nmp->nm_rsize = NFS_RSIZE;
@@ -1240,7 +1247,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_numgrps = NFS_MAXGRPS;
-	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
 		nmp->nm_tprintf_delay = 0;
