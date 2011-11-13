@@ -359,7 +359,7 @@ struct page_device_capabilities {
  * Some of these fields can be a little confusing, so an explanation
  * is in order.
  *
- * Each component within a a medium changer apparatus is called an
+ * Each component within a medium changer apparatus is called an
  * "element".
  *
  * The "medium transport element address" is the address of the first
