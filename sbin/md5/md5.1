@@ -8,18 +8,22 @@
 .Sh SYNOPSIS
 .Nm md5
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm sha1
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm sha256
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm rmd160
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Sh DESCRIPTION
@@ -73,6 +77,9 @@ precede any files named on the command line.
 The hexadecimal checksum of each file listed on the command line is printed
 after the options are processed.
 .Bl -tag -width indent
+.It Fl c Ar string
+Compare files to this md5 string. (Note that this option is not yet useful
+if multiple files are specified.)
 .It Fl s Ar string
 Print a checksum of the given
 .Ar string .
@@ -101,7 +108,8 @@ The
 and
 .Nm rmd160
 utilities exit 0 on success,
-and 1 if at least one of the input files could not be read.
+1 if at least one of the input files could not be read,
+and 2 if at least one file does not have the same hash as the -c option.
 .Sh SEE ALSO
 .Xr cksum 1 ,
 .Xr md5 3 ,
