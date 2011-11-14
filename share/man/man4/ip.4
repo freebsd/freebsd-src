@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2009
+.Dd November 14, 2011
 .Dt IP 4
 .Os
 .Sh NAME
@@ -847,3 +847,9 @@ The
 .Vt ip_mreqn
 structure appeared in
 .Tn Linux 2.4 .
+.Sh BUGS
+Before
+.Fx 10.0 packets received on raw IP sockets had the
+.Va ip_hl
+subtracted from the
+.Va ip_len field.
