@@ -125,6 +125,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ti/ti_fw.h>
 #include <dev/ti/ti_fw2.h>
 
+#include <sys/sysctl.h>
+
 #define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
 /*
  * We can only turn on header splitting if we're using extended receive
@@ -246,6 +248,8 @@ static int ti_gibinit(struct ti_softc *);
 static __inline void ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len,
     int idx);
 #endif /* TI_JUMBO_HDRSPLIT */
+
+static void ti_sysctl_node(struct ti_softc *);
 
 static device_method_t ti_methods[] = {
 	/* Device interface */
@@ -2083,7 +2087,7 @@ ti_gibinit(struct ti_softc *sc)
 	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
 	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
-	/* Set up tuneables */
+	/* Set up tunables */
 #if 0
 	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
 		CSR_WRITE_4(sc, TI_GCR_RX_COAL_TICKS,
@@ -2352,19 +2356,8 @@ ti_attach(device_t dev)
 	    pci_get_device(dev) == NG_DEVICEID_GA620T)
 		sc->ti_copper = 1;
 
-	/* Set default tuneable values. */
-	sc->ti_stat_ticks = 2 * TI_TICKS_PER_SEC;
-#if 0
-	sc->ti_rx_coal_ticks = TI_TICKS_PER_SEC / 5000;
-#endif
-	sc->ti_rx_coal_ticks = 170;
-	sc->ti_tx_coal_ticks = TI_TICKS_PER_SEC / 500;
-	sc->ti_rx_max_coal_bds = 64;
-#if 0
-	sc->ti_tx_max_coal_bds = 128;
-#endif
-	sc->ti_tx_max_coal_bds = 32;
-	sc->ti_tx_buf_ratio = 21;
+	/* Set default tunable values. */
+	ti_sysctl_node(sc);
 
 	/* Set up ifnet structure */
 	ifp->if_softc = sc;
@@ -3857,4 +3850,59 @@ ti_shutdown(device_t dev)
 	TI_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+ti_sysctl_node(struct ti_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child;
+
+	ctx = device_get_sysctl_ctx(sc->ti_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ti_dev));
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rx_coal_ticks", CTLFLAG_RW,
+	    &sc->ti_rx_coal_ticks, 0, "Receive coalcesced ticks");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rx_max_coal_bds", CTLFLAG_RW,
+	    &sc->ti_rx_max_coal_bds, 0, "Receive max coalcesced BDs");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tx_coal_ticks", CTLFLAG_RW,
+	    &sc->ti_tx_coal_ticks, 0, "Send coalcesced ticks");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tx_max_coal_bds", CTLFLAG_RW,
+	    &sc->ti_tx_max_coal_bds, 0, "Send max coalcesced BDs");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tx_buf_ratio", CTLFLAG_RW,
+	    &sc->ti_tx_buf_ratio, 0,
+	    "Ratio of NIC memory devoted to TX buffer");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "stat_ticks", CTLFLAG_RW,
+	    &sc->ti_stat_ticks, 0,
+	    "Number of clock ticks for statistics update interval");
+
+	/* Pull in device tunables. */
+	sc->ti_rx_coal_ticks = 170;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "rx_coal_ticks",
+	    &sc->ti_rx_coal_ticks);
+	sc->ti_rx_max_coal_bds = 64;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "rx_max_coal_bds",
+	    &sc->ti_rx_max_coal_bds);
+
+	sc->ti_tx_coal_ticks = TI_TICKS_PER_SEC / 500;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "tx_coal_ticks",
+	    &sc->ti_tx_coal_ticks);
+	sc->ti_tx_max_coal_bds = 32;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "tx_max_coal_bds",
+	    &sc->ti_tx_max_coal_bds);
+	sc->ti_tx_buf_ratio = 21;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "tx_buf_ratio",
+	    &sc->ti_tx_buf_ratio);
+
+	sc->ti_stat_ticks = 2 * TI_TICKS_PER_SEC;
+	resource_int_value(device_get_name(sc->ti_dev),
+	    device_get_unit(sc->ti_dev), "stat_ticks",
+	    &sc->ti_stat_ticks);
 }
