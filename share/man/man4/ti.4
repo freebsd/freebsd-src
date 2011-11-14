@@ -209,7 +209,7 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width "xxxxxx"
 .It Va hw.ti.%d.dac
-This tunable disables DAC (Dual Address Cycle).
+If this tunable is set to 0 it will disable DAC (Dual Address Cycle).
 The default value is 1 which means driver will use full 64bit
 DMA addressing.
 .El
