@@ -497,7 +497,6 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	int segptr, segsize, cnt;
 	caddr_t ptr;
 	uint32_t origwin;
-	uint8_t tmparray[TI_WINLEN], tmparray2[TI_WINLEN];
 	int resid, segresid;
 	int first_pass;
 
@@ -557,51 +556,53 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 
 		if (readdata) {
 			bus_space_read_region_4(sc->ti_btag, sc->ti_bhandle,
-			    ti_offset, (uint32_t *)tmparray, segsize >> 2);
+			    ti_offset, (uint32_t *)sc->ti_membuf, segsize >> 2);
 			if (useraddr) {
 				/*
 				 * Yeah, this is a little on the kludgy
 				 * side, but at least this code is only
 				 * used for debugging.
 				 */
-				ti_bcopy_swap(tmparray, tmparray2, segsize,
-				    TI_SWAP_NTOH);
+				ti_bcopy_swap(sc->ti_membuf, sc->ti_membuf2,
+				    segsize, TI_SWAP_NTOH);
 
 				TI_UNLOCK(sc);
 				if (first_pass) {
-					copyout(&tmparray2[segresid], ptr,
+					copyout(&sc->ti_membuf2[segresid], ptr,
 					    segsize - segresid);
 					first_pass = 0;
 				} else
-					copyout(tmparray2, ptr, segsize);
+					copyout(sc->ti_membuf2, ptr, segsize);
 				TI_LOCK(sc);
 			} else {
 				if (first_pass) {
-					ti_bcopy_swap(tmparray, tmparray2,
-					    segsize, TI_SWAP_NTOH);
+
+					ti_bcopy_swap(sc->ti_membuf,
+					    sc->ti_membuf2, segsize,
+					    TI_SWAP_NTOH);
 					TI_UNLOCK(sc);
-					bcopy(&tmparray2[segresid], ptr,
+					bcopy(&sc->ti_membuf2[segresid], ptr,
 					    segsize - segresid);
 					TI_LOCK(sc);
 					first_pass = 0;
 				} else
-					ti_bcopy_swap(tmparray, ptr, segsize,
-					    TI_SWAP_NTOH);
+					ti_bcopy_swap(sc->ti_membuf, ptr,
+					    segsize, TI_SWAP_NTOH);
 			}
 
 		} else {
 			if (useraddr) {
 				TI_UNLOCK(sc);
-				copyin(ptr, tmparray2, segsize);
+				copyin(ptr, sc->ti_membuf2, segsize);
 				TI_LOCK(sc);
-				ti_bcopy_swap(tmparray2, tmparray, segsize,
-				    TI_SWAP_HTON);
+				ti_bcopy_swap(sc->ti_membuf2, sc->ti_membuf,
+				    segsize, TI_SWAP_HTON);
 			} else
-				ti_bcopy_swap(ptr, tmparray, segsize,
+				ti_bcopy_swap(ptr, sc->ti_membuf, segsize,
 				    TI_SWAP_HTON);
 
 			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
-			    ti_offset, (uint32_t *)tmparray, segsize >> 2);
+			    ti_offset, (uint32_t *)sc->ti_membuf, segsize >> 2);
 		}
 		segptr += segsize;
 		ptr += segsize;
@@ -2231,6 +2232,16 @@ ti_attach(device_t dev)
 		goto fail;
 	}
 
+	/* Allocate working area for memory dump. */
+	sc->ti_membuf = malloc(sizeof(uint8_t) * TI_WINLEN, M_DEVBUF, M_NOWAIT);
+	sc->ti_membuf2 = malloc(sizeof(uint8_t) * TI_WINLEN, M_DEVBUF,
+	    M_NOWAIT);
+	if (sc->ti_membuf == NULL || sc->ti_membuf2 == NULL) {
+		device_printf(dev, "cannot allocate memory buffer\n");
+		error = ENOMEM;
+		goto fail;
+	}
+
 	/* Allocate the general information block and ring buffers. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* algnmnt, boundary */
@@ -2494,6 +2505,10 @@ ti_detach(device_t dev)
 	}
 	if (ifp)
 		if_free(ifp);
+	if (sc->ti_membuf)
+		free(sc->ti_membuf, M_DEVBUF);
+	if (sc->ti_membuf2)
+		free(sc->ti_membuf2, M_DEVBUF);
 
 	mtx_destroy(&sc->ti_mtx);
 
@@ -3538,9 +3553,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		params->ti_tx_buf_ratio = sc->ti_tx_buf_ratio;
 		params->param_mask = TI_PARAM_ALL;
 		TI_UNLOCK(sc);
-
-		error = 0;
-
 		break;
 	}
 	case TIIOCSETPARAMS:
@@ -3585,9 +3597,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				    sc->ti_tx_buf_ratio);
 		}
 		TI_UNLOCK(sc);
-
-		error = 0;
-
 		break;
 	}
 	case TIIOCSETTRACE: {
@@ -3600,10 +3609,9 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * this register to 0 should have the effect of disabling
 		 * tracing.
 		 */
+		TI_LOCK(sc);
 		CSR_WRITE_4(sc, TI_GCR_NIC_TRACING, trace_type);
-
-		error = 0;
-
+		TI_UNLOCK(sc);
 		break;
 	}
 	case TIIOCGETTRACE: {
@@ -3637,7 +3645,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		} else
 			trace_buf->fill_len = 0;
 		TI_UNLOCK(sc);
-
 		break;
 	}
 
@@ -3659,7 +3666,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * you're interested in every ioctl, you'll only be
 		 * able to debug one board at a time.
 		 */
-		error = 0;
 		break;
 	case ALT_READ_TG_MEM:
 	case ALT_WRITE_TG_MEM:
@@ -3715,7 +3721,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			error = EINVAL;
 		}
 		TI_UNLOCK(sc);
-
 		break;
 	}
 	case ALT_READ_TG_REG:
@@ -3751,7 +3756,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			    regs->addr, &tmpval, 1);
 		}
 		TI_UNLOCK(sc);
-
 		break;
 	}
 	default:
