@@ -220,9 +220,13 @@ static void ti_loadfw(struct ti_softc *);
 static void ti_cmd(struct ti_softc *, struct ti_cmd_desc *);
 static void ti_cmd_ext(struct ti_softc *, struct ti_cmd_desc *, caddr_t, int);
 static void ti_handle_events(struct ti_softc *);
-static int ti_alloc_dmamaps(struct ti_softc *);
-static void ti_free_dmamaps(struct ti_softc *);
-static int ti_alloc_jumbo_mem(struct ti_softc *);
+static void ti_dma_map_addr(void *, bus_dma_segment_t *, int, int);
+static int ti_dma_alloc(struct ti_softc *);
+static void ti_dma_free(struct ti_softc *);
+static int ti_dma_ring_alloc(struct ti_softc *, bus_size_t, bus_size_t,
+    bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
+static void ti_dma_ring_free(struct ti_softc *, bus_dma_tag_t *, uint8_t **,
+    bus_dmamap_t *);
 static int ti_newbuf_std(struct ti_softc *, int);
 static int ti_newbuf_mini(struct ti_softc *, int);
 static int ti_newbuf_jumbo(struct ti_softc *, int, struct mbuf *);
@@ -911,11 +915,13 @@ ti_handle_events(struct ti_softc *sc)
 {
 	struct ti_event_desc *e;
 
-	if (sc->ti_rdata->ti_event_ring == NULL)
+	if (sc->ti_rdata.ti_event_ring == NULL)
 		return;
 
+	bus_dmamap_sync(sc->ti_cdata.ti_event_ring_tag,
+	    sc->ti_cdata.ti_event_ring_map, BUS_DMASYNC_POSTREAD);
 	while (sc->ti_ev_saved_considx != sc->ti_ev_prodidx.ti_idx) {
-		e = &sc->ti_rdata->ti_event_ring[sc->ti_ev_saved_considx];
+		e = &sc->ti_rdata.ti_event_ring[sc->ti_ev_saved_considx];
 		switch (TI_EVENT_EVENT(e)) {
 		case TI_EV_LINKSTAT_CHANGED:
 			sc->ti_linkstat = TI_EVENT_CODE(e);
@@ -967,180 +973,401 @@ ti_handle_events(struct ti_softc *sc)
 		TI_INC(sc->ti_ev_saved_considx, TI_EVENT_RING_CNT);
 		CSR_WRITE_4(sc, TI_GCR_EVENTCONS_IDX, sc->ti_ev_saved_considx);
 	}
+	bus_dmamap_sync(sc->ti_cdata.ti_event_ring_tag,
+	    sc->ti_cdata.ti_event_ring_map, BUS_DMASYNC_PREREAD);
+}
+
+struct ti_dmamap_arg {
+	bus_addr_t	ti_busaddr;
+};
+
+static void
+ti_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct ti_dmamap_arg *ctx;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("%s: %d segments returned!", __func__, nseg));
+
+	ctx = arg;
+	ctx->ti_busaddr = segs->ds_addr;
 }
 
 static int
-ti_alloc_dmamaps(struct ti_softc *sc)
+ti_dma_ring_alloc(struct ti_softc *sc, bus_size_t alignment, bus_size_t maxsize,
+    bus_dma_tag_t *tag, uint8_t **ring, bus_dmamap_t *map, bus_addr_t *paddr,
+    const char *msg)
 {
-	int i;
+	struct ti_dmamap_arg ctx;
+	int error;
 
-	for (i = 0; i < TI_TX_RING_CNT; i++) {
-		sc->ti_cdata.ti_txdesc[i].tx_m = NULL;
-		sc->ti_cdata.ti_txdesc[i].tx_dmamap = NULL;
-		if (bus_dmamap_create(sc->ti_mbuftx_dmat, 0,
-		    &sc->ti_cdata.ti_txdesc[i].tx_dmamap)) {
-			device_printf(sc->ti_dev,
-			    "cannot create DMA map for TX\n");
-			return (ENOBUFS);
-		}
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag,
+	    alignment, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
+	    NULL, maxsize, 1, maxsize, 0, NULL, NULL, tag);
+	if (error != 0) {
+		device_printf(sc->ti_dev,
+		    "could not create %s dma tag\n", msg);
+		return (error);
 	}
+	/* Allocate DMA'able memory for ring. */
+	error = bus_dmamem_alloc(*tag, (void **)ring,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, map);
+	if (error != 0) {
+		device_printf(sc->ti_dev,
+		    "could not allocate DMA'able memory for %s\n", msg);
+		return (error);
+	}
+	/* Load the address of the ring. */
+	ctx.ti_busaddr = 0;
+	error = bus_dmamap_load(*tag, *map, *ring, maxsize, ti_dma_map_addr,
+	    &ctx, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		device_printf(sc->ti_dev,
+		    "could not load DMA'able memory for %s\n", msg);
+		return (error);
+	}
+	*paddr = ctx.ti_busaddr;
+	return (0);
+}
+
+static void
+ti_dma_ring_free(struct ti_softc *sc, bus_dma_tag_t *tag, uint8_t **ring,
+    bus_dmamap_t *map)
+{
+
+	if (*map != NULL)
+		bus_dmamap_unload(*tag, *map);
+	if (*map != NULL && *ring != NULL) {
+		bus_dmamem_free(*tag, *ring, *map);
+		*ring = NULL;
+		*map = NULL;
+	}
+	if (*tag) {
+		bus_dma_tag_destroy(*tag);
+		*tag = NULL;
+	}
+}
+
+static int
+ti_dma_alloc(struct ti_softc *sc)
+{
+	bus_addr_t lowaddr;
+	int i, error;
+
+	lowaddr = BUS_SPACE_MAXADDR;
+	if (sc->ti_dac == 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
+
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->ti_dev), 1, 0, lowaddr,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->ti_cdata.ti_parent_tag);
+	if (error != 0) {
+		device_printf(sc->ti_dev,
+		    "could not allocate parent dma tag\n");
+		return (ENOMEM);
+	}
+
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, sizeof(struct ti_gib),
+	    &sc->ti_cdata.ti_gib_tag, (uint8_t **)&sc->ti_rdata.ti_info,
+	    &sc->ti_cdata.ti_gib_map, &sc->ti_rdata.ti_info_paddr, "GIB");
+	if (error)
+		return (error);
+
+	/* Producer/consumer status */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, sizeof(struct ti_status),
+	    &sc->ti_cdata.ti_status_tag, (uint8_t **)&sc->ti_rdata.ti_status,
+	    &sc->ti_cdata.ti_status_map, &sc->ti_rdata.ti_status_paddr,
+	    "event ring");
+	if (error)
+		return (error);
+
+	/* Event ring */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, TI_EVENT_RING_SZ,
+	    &sc->ti_cdata.ti_event_ring_tag,
+	    (uint8_t **)&sc->ti_rdata.ti_event_ring,
+	    &sc->ti_cdata.ti_event_ring_map, &sc->ti_rdata.ti_event_ring_paddr,
+	    "event ring");
+	if (error)
+		return (error);
+
+	/* Command ring lives in shared memory so no need to create DMA area. */
+
+	/* Standard RX ring */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, TI_STD_RX_RING_SZ,
+	    &sc->ti_cdata.ti_rx_std_ring_tag,
+	    (uint8_t **)&sc->ti_rdata.ti_rx_std_ring,
+	    &sc->ti_cdata.ti_rx_std_ring_map,
+	    &sc->ti_rdata.ti_rx_std_ring_paddr, "RX ring");
+	if (error)
+		return (error);
+
+	/* Jumbo RX ring */
+	error = ti_dma_ring_alloc(sc, TI_JUMBO_RING_ALIGN, TI_JUMBO_RX_RING_SZ,
+	    &sc->ti_cdata.ti_rx_jumbo_ring_tag,
+	    (uint8_t **)&sc->ti_rdata.ti_rx_jumbo_ring,
+	    &sc->ti_cdata.ti_rx_jumbo_ring_map,
+	    &sc->ti_rdata.ti_rx_jumbo_ring_paddr, "jumbo RX ring");
+	if (error)
+		return (error);
+
+	/* RX return ring */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, TI_RX_RETURN_RING_SZ,
+	    &sc->ti_cdata.ti_rx_return_ring_tag,
+	    (uint8_t **)&sc->ti_rdata.ti_rx_return_ring,
+	    &sc->ti_cdata.ti_rx_return_ring_map,
+	    &sc->ti_rdata.ti_rx_return_ring_paddr, "RX return ring");
+	if (error)
+		return (error);
+
+	/* Create DMA tag for standard RX mbufs. */
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
+	    MCLBYTES, 0, NULL, NULL, &sc->ti_cdata.ti_rx_std_tag);
+	if (error) {
+		device_printf(sc->ti_dev, "could not allocate RX dma tag\n");
+		return (error);
+	}
+
+	/* Create DMA tag for jumbo RX mbufs. */
+#ifdef TI_SF_BUF_JUMBO
+	/*
+	 * The VM system will take care of providing aligned pages.  Alignment
+	 * is set to 1 here so that busdma resources won't be wasted.
+	 */
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, PAGE_SIZE * 4, 4,
+	    PAGE_SIZE, 0, NULL, NULL, &sc->ti_cdata.ti_rx_jumbo_tag);
+#else
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MJUM9BYTES, 1,
+	    MJUM9BYTES, 0, NULL, NULL, &sc->ti_cdata.ti_rx_jumbo_tag);
+#endif
+	if (error) {
+		device_printf(sc->ti_dev,
+		    "could not allocate jumbo RX dma tag\n");
+		return (error);
+	}
+
+	/* Create DMA tag for TX mbufs. */
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag, 1,
+	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * TI_MAXTXSEGS, TI_MAXTXSEGS, MCLBYTES, 0, NULL, NULL,
+	    &sc->ti_cdata.ti_tx_tag);
+	if (error) {
+		device_printf(sc->ti_dev, "could not allocate TX dma tag\n");
+		return (ENOMEM);
+	}
+
+	/* Create DMA maps for RX buffers. */
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
-		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-		    &sc->ti_cdata.ti_rx_std_maps[i])) {
+		error = bus_dmamap_create(sc->ti_cdata.ti_rx_std_tag, 0,
+		    &sc->ti_cdata.ti_rx_std_maps[i]);
+		if (error) {
 			device_printf(sc->ti_dev,
-			    "cannot create DMA map for RX\n");
-			return (ENOBUFS);
+			    "could not create DMA map for RX\n");
+			return (error);
 		}
 	}
-	if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-	    &sc->ti_cdata.ti_rx_std_sparemap)) {
+	error = bus_dmamap_create(sc->ti_cdata.ti_rx_std_tag, 0,
+	    &sc->ti_cdata.ti_rx_std_sparemap);
+	if (error) {
 		device_printf(sc->ti_dev,
-		    "cannot create spare DMA map for RX\n");
-		return (ENOBUFS);
+		    "could not create spare DMA map for RX\n");
+		return (error);
 	}
 
+	/* Create DMA maps for jumbo RX buffers. */
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
-		if (bus_dmamap_create(sc->ti_jumbo_dmat, 0,
-		    &sc->ti_cdata.ti_rx_jumbo_maps[i])) {
+		error = bus_dmamap_create(sc->ti_cdata.ti_rx_jumbo_tag, 0,
+		    &sc->ti_cdata.ti_rx_jumbo_maps[i]);
+		if (error) {
 			device_printf(sc->ti_dev,
-			    "cannot create DMA map for jumbo RX\n");
-			return (ENOBUFS);
+			    "could not create DMA map for jumbo RX\n");
+			return (error);
 		}
 	}
-	if (bus_dmamap_create(sc->ti_jumbo_dmat, 0,
-	    &sc->ti_cdata.ti_rx_jumbo_sparemap)) {
+	error = bus_dmamap_create(sc->ti_cdata.ti_rx_jumbo_tag, 0,
+	    &sc->ti_cdata.ti_rx_jumbo_sparemap);
+	if (error) {
 		device_printf(sc->ti_dev,
-		    "cannot create spare DMA map for jumbo RX\n");
-		return (ENOBUFS);
+		    "could not create spare DMA map for jumbo RX\n");
+		return (error);
 	}
 
-	/* Mini ring is not available on Tigon 1. */
+	/* Create DMA maps for TX buffers. */
+	for (i = 0; i < TI_TX_RING_CNT; i++) {
+		error = bus_dmamap_create(sc->ti_cdata.ti_tx_tag, 0,
+		    &sc->ti_cdata.ti_txdesc[i].tx_dmamap);
+		if (error) {
+			device_printf(sc->ti_dev,
+			    "could not create DMA map for TX\n");
+			return (ENOMEM);
+		}
+	}
+
+	/* Mini ring and TX ring is not available on Tigon 1. */
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		return (0);
 
+	/* TX ring */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, TI_TX_RING_SZ,
+	    &sc->ti_cdata.ti_tx_ring_tag, (uint8_t **)&sc->ti_rdata.ti_tx_ring,
+	    &sc->ti_cdata.ti_tx_ring_map, &sc->ti_rdata.ti_tx_ring_paddr,
+	    "TX ring");
+	if (error)
+		return (error);
+
+	/* Mini RX ring */
+	error = ti_dma_ring_alloc(sc, TI_RING_ALIGN, TI_MINI_RX_RING_SZ,
+	    &sc->ti_cdata.ti_rx_mini_ring_tag,
+	    (uint8_t **)&sc->ti_rdata.ti_rx_mini_ring,
+	    &sc->ti_cdata.ti_rx_mini_ring_map,
+	    &sc->ti_rdata.ti_rx_mini_ring_paddr, "mini RX ring");
+	if (error)
+		return (error);
+
+	/* Create DMA tag for mini RX mbufs. */
+	error = bus_dma_tag_create(sc->ti_cdata.ti_parent_tag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MHLEN, 1,
+	    MHLEN, 0, NULL, NULL, &sc->ti_cdata.ti_rx_mini_tag);
+	if (error) {
+		device_printf(sc->ti_dev,
+		    "could not allocate mini RX dma tag\n");
+		return (error);
+	}
+
+	/* Create DMA maps for mini RX buffers. */
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
-		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-		    &sc->ti_cdata.ti_rx_mini_maps[i])) {
+		error = bus_dmamap_create(sc->ti_cdata.ti_rx_mini_tag, 0,
+		    &sc->ti_cdata.ti_rx_mini_maps[i]);
+		if (error) {
 			device_printf(sc->ti_dev,
-			    "cannot create DMA map for mini RX\n");
-			return (ENOBUFS);
+			    "could not create DMA map for mini RX\n");
+			return (error);
 		}
 	}
-	if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
-	    &sc->ti_cdata.ti_rx_mini_sparemap)) {
+	error = bus_dmamap_create(sc->ti_cdata.ti_rx_mini_tag, 0,
+	    &sc->ti_cdata.ti_rx_mini_sparemap);
+	if (error) {
 		device_printf(sc->ti_dev,
-		    "cannot create DMA map for mini RX\n");
-		return (ENOBUFS);
+		    "could not create spare DMA map for mini RX\n");
+		return (error);
 	}
 
 	return (0);
 }
 
 static void
-ti_free_dmamaps(struct ti_softc *sc)
+ti_dma_free(struct ti_softc *sc)
 {
 	int i;
 
-	if (sc->ti_mbuftx_dmat) {
-		for (i = 0; i < TI_TX_RING_CNT; i++) {
-			if (sc->ti_cdata.ti_txdesc[i].tx_dmamap) {
-				bus_dmamap_destroy(sc->ti_mbuftx_dmat,
-				    sc->ti_cdata.ti_txdesc[i].tx_dmamap);
-				sc->ti_cdata.ti_txdesc[i].tx_dmamap = NULL;
-			}
+	/* Destroy DMA maps for RX buffers. */
+	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
+		if (sc->ti_cdata.ti_rx_std_maps[i]) {
+			bus_dmamap_destroy(sc->ti_cdata.ti_rx_std_tag,
+			    sc->ti_cdata.ti_rx_std_maps[i]);
+			sc->ti_cdata.ti_rx_std_maps[i] = NULL;
 		}
 	}
-
-	if (sc->ti_mbufrx_dmat) {
-		for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
-			if (sc->ti_cdata.ti_rx_std_maps[i]) {
-				bus_dmamap_destroy(sc->ti_mbufrx_dmat,
-				    sc->ti_cdata.ti_rx_std_maps[i]);
-				sc->ti_cdata.ti_rx_std_maps[i] = NULL;
-			}
-		}
-		if (sc->ti_cdata.ti_rx_std_sparemap) {
-			bus_dmamap_destroy(sc->ti_mbufrx_dmat,
-			    sc->ti_cdata.ti_rx_std_sparemap);
-			sc->ti_cdata.ti_rx_std_sparemap = NULL;
-		}
+	if (sc->ti_cdata.ti_rx_std_sparemap) {
+		bus_dmamap_destroy(sc->ti_cdata.ti_rx_std_tag,
+		    sc->ti_cdata.ti_rx_std_sparemap);
+		sc->ti_cdata.ti_rx_std_sparemap = NULL;
+	}
+	if (sc->ti_cdata.ti_rx_std_tag) {
+		bus_dma_tag_destroy(sc->ti_cdata.ti_rx_std_tag);
+		sc->ti_cdata.ti_rx_std_tag = NULL;
 	}
 
-	if (sc->ti_jumbo_dmat) {
-		for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
-			if (sc->ti_cdata.ti_rx_jumbo_maps[i]) {
-				bus_dmamap_destroy(sc->ti_jumbo_dmat,
-				    sc->ti_cdata.ti_rx_jumbo_maps[i]);
-				sc->ti_cdata.ti_rx_jumbo_maps[i] = NULL;
-			}
-		}
-		if (sc->ti_cdata.ti_rx_jumbo_sparemap) {
-			bus_dmamap_destroy(sc->ti_jumbo_dmat,
-			    sc->ti_cdata.ti_rx_jumbo_sparemap);
-			sc->ti_cdata.ti_rx_jumbo_sparemap = NULL;
+	/* Destroy DMA maps for jumbo RX buffers. */
+	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
+		if (sc->ti_cdata.ti_rx_jumbo_maps[i]) {
+			bus_dmamap_destroy(sc->ti_cdata.ti_rx_jumbo_tag,
+			    sc->ti_cdata.ti_rx_jumbo_maps[i]);
+			sc->ti_cdata.ti_rx_jumbo_maps[i] = NULL;
 		}
 	}
+	if (sc->ti_cdata.ti_rx_jumbo_sparemap) {
+		bus_dmamap_destroy(sc->ti_cdata.ti_rx_jumbo_tag,
+		    sc->ti_cdata.ti_rx_jumbo_sparemap);
+		sc->ti_cdata.ti_rx_jumbo_sparemap = NULL;
+	}
+	if (sc->ti_cdata.ti_rx_jumbo_tag) {
+		bus_dma_tag_destroy(sc->ti_cdata.ti_rx_jumbo_tag);
+		sc->ti_cdata.ti_rx_jumbo_tag = NULL;
+	}
 
-	if (sc->ti_mbufrx_dmat) {
-		for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
-			if (sc->ti_cdata.ti_rx_mini_maps[i]) {
-				bus_dmamap_destroy(sc->ti_mbufrx_dmat,
-				    sc->ti_cdata.ti_rx_mini_maps[i]);
-				sc->ti_cdata.ti_rx_mini_maps[i] = NULL;
-			}
+	/* Destroy DMA maps for mini RX buffers. */
+	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
+		if (sc->ti_cdata.ti_rx_mini_maps[i]) {
+			bus_dmamap_destroy(sc->ti_cdata.ti_rx_mini_tag,
+			    sc->ti_cdata.ti_rx_mini_maps[i]);
+			sc->ti_cdata.ti_rx_mini_maps[i] = NULL;
 		}
-		if (sc->ti_cdata.ti_rx_mini_sparemap) {
-			bus_dmamap_destroy(sc->ti_mbufrx_dmat,
-			    sc->ti_cdata.ti_rx_mini_sparemap);
-			sc->ti_cdata.ti_rx_mini_sparemap = NULL;
+	}
+	if (sc->ti_cdata.ti_rx_mini_sparemap) {
+		bus_dmamap_destroy(sc->ti_cdata.ti_rx_mini_tag,
+		    sc->ti_cdata.ti_rx_mini_sparemap);
+		sc->ti_cdata.ti_rx_mini_sparemap = NULL;
+	}
+	if (sc->ti_cdata.ti_rx_mini_tag) {
+		bus_dma_tag_destroy(sc->ti_cdata.ti_rx_mini_tag);
+		sc->ti_cdata.ti_rx_mini_tag = NULL;
+	}
+
+	/* Destroy DMA maps for TX buffers. */
+	for (i = 0; i < TI_TX_RING_CNT; i++) {
+		if (sc->ti_cdata.ti_txdesc[i].tx_dmamap) {
+			bus_dmamap_destroy(sc->ti_cdata.ti_tx_tag,
+			    sc->ti_cdata.ti_txdesc[i].tx_dmamap);
+			sc->ti_cdata.ti_txdesc[i].tx_dmamap = NULL;
 		}
+	}
+	if (sc->ti_cdata.ti_tx_tag) {
+		bus_dma_tag_destroy(sc->ti_cdata.ti_tx_tag);
+		sc->ti_cdata.ti_tx_tag = NULL;
+	}
+
+	/* Destroy standard RX ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_std_ring_tag,
+	    (void *)&sc->ti_rdata.ti_rx_std_ring,
+	    &sc->ti_cdata.ti_rx_std_ring_map);
+	/* Destroy jumbo RX ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_jumbo_ring_tag,
+	    (void *)&sc->ti_rdata.ti_rx_jumbo_ring,
+	    &sc->ti_cdata.ti_rx_jumbo_ring_map);
+	/* Destroy mini RX ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_mini_ring_tag,
+	    (void *)&sc->ti_rdata.ti_rx_mini_ring,
+	    &sc->ti_cdata.ti_rx_mini_ring_map);
+	/* Destroy RX return ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_return_ring_tag,
+	    (void *)&sc->ti_rdata.ti_rx_return_ring,
+	    &sc->ti_cdata.ti_rx_return_ring_map);
+	/* Destroy TX ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_tx_ring_tag,
+	    (void *)&sc->ti_rdata.ti_tx_ring, &sc->ti_cdata.ti_tx_ring_map);
+	/* Destroy status block. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_status_tag,
+	    (void *)&sc->ti_rdata.ti_status, &sc->ti_cdata.ti_status_map);
+	/* Destroy event ring. */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_event_ring_tag,
+	    (void *)&sc->ti_rdata.ti_event_ring,
+	    &sc->ti_cdata.ti_event_ring_map);
+	/* Destroy GIB */
+	ti_dma_ring_free(sc, &sc->ti_cdata.ti_gib_tag,
+	    (void *)&sc->ti_rdata.ti_info, &sc->ti_cdata.ti_gib_map);
+
+	/* Destroy the parent tag. */
+	if (sc->ti_cdata.ti_parent_tag) {
+		bus_dma_tag_destroy(sc->ti_cdata.ti_parent_tag);
+		sc->ti_cdata.ti_parent_tag = NULL;
 	}
 }
-
-#ifndef TI_SF_BUF_JUMBO
-
-static int
-ti_alloc_jumbo_mem(struct ti_softc *sc)
-{
-
-	if (bus_dma_tag_create(sc->ti_parent_dmat, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MJUM9BYTES, 1, MJUM9BYTES, 0, NULL,
-	    NULL, &sc->ti_jumbo_dmat) != 0) {
-		device_printf(sc->ti_dev, "Failed to allocate jumbo dmat\n");
-                return (ENOBUFS);
-	}
-	return (0);
-}
-
-#else
-
-static int
-ti_alloc_jumbo_mem(struct ti_softc *sc)
-{
-
-	/*
-	 * The VM system will take care of providing aligned pages.  Alignment
-	 * is set to 1 here so that busdma resources won't be wasted.
-	 */
-	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				PAGE_SIZE * 4 /*XXX*/,	/* maxsize */
-				4,			/* nsegments */
-				PAGE_SIZE,		/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_jumbo_dmat) != 0) {
-		device_printf(sc->ti_dev, "Failed to allocate jumbo dmat\n");
-		return (ENOBUFS);
-	}
-
-	return (0);
-}
-
-#endif /* TI_SF_BUF_JUMBO */
 
 /*
  * Intialize a standard receive ring descriptor.
@@ -1160,7 +1387,7 @@ ti_newbuf_std(struct ti_softc *sc, int i)
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 	m_adj(m, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat,
+	error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_rx_std_tag,
 	    sc->ti_cdata.ti_rx_std_sparemap, m, segs, &nsegs, 0);
 	if (error != 0) {
 		m_freem(m);
@@ -1169,9 +1396,9 @@ ti_newbuf_std(struct ti_softc *sc, int i)
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
 	if (sc->ti_cdata.ti_rx_std_chain[i] != NULL) {
-		bus_dmamap_sync(sc->ti_mbufrx_dmat,
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_std_tag,
 		    sc->ti_cdata.ti_rx_std_maps[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->ti_mbufrx_dmat,
+		bus_dmamap_unload(sc->ti_cdata.ti_rx_std_tag,
 		    sc->ti_cdata.ti_rx_std_maps[i]);
 	}
 
@@ -1180,7 +1407,7 @@ ti_newbuf_std(struct ti_softc *sc, int i)
 	sc->ti_cdata.ti_rx_std_sparemap = map;
 	sc->ti_cdata.ti_rx_std_chain[i] = m;
 
-	r = &sc->ti_rdata->ti_rx_std_ring[i];
+	r = &sc->ti_rdata.ti_rx_std_ring[i];
 	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
 	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
@@ -1191,8 +1418,8 @@ ti_newbuf_std(struct ti_softc *sc, int i)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_mbufrx_dmat, sc->ti_cdata.ti_rx_std_maps[i],
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_std_tag,
+	    sc->ti_cdata.ti_rx_std_maps[i], BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -1215,7 +1442,7 @@ ti_newbuf_mini(struct ti_softc *sc, int i)
 	m->m_len = m->m_pkthdr.len = MHLEN;
 	m_adj(m, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf_sg(sc->ti_mbufrx_dmat,
+	error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_rx_mini_tag,
 	    sc->ti_cdata.ti_rx_mini_sparemap, m, segs, &nsegs, 0);
 	if (error != 0) {
 		m_freem(m);
@@ -1224,9 +1451,9 @@ ti_newbuf_mini(struct ti_softc *sc, int i)
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
 	if (sc->ti_cdata.ti_rx_mini_chain[i] != NULL) {
-		bus_dmamap_sync(sc->ti_mbufrx_dmat,
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_tag,
 		    sc->ti_cdata.ti_rx_mini_maps[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->ti_mbufrx_dmat,
+		bus_dmamap_unload(sc->ti_cdata.ti_rx_mini_tag,
 		    sc->ti_cdata.ti_rx_mini_maps[i]);
 	}
 
@@ -1235,7 +1462,7 @@ ti_newbuf_mini(struct ti_softc *sc, int i)
 	sc->ti_cdata.ti_rx_mini_sparemap = map;
 	sc->ti_cdata.ti_rx_mini_chain[i] = m;
 
-	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	r = &sc->ti_rdata.ti_rx_mini_ring[i];
 	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
 	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_BD;
@@ -1246,8 +1473,8 @@ ti_newbuf_mini(struct ti_softc *sc, int i)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_mbufrx_dmat, sc->ti_cdata.ti_rx_mini_maps[i],
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_tag,
+	    sc->ti_cdata.ti_rx_mini_maps[i], BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -1274,7 +1501,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
 	m_adj(m, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf_sg(sc->ti_jumbo_dmat,
+	error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_rx_jumbo_tag,
 	    sc->ti_cdata.ti_rx_jumbo_sparemap, m, segs, &nsegs, 0);
 	if (error != 0) {
 		m_freem(m);
@@ -1283,9 +1510,9 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
 	if (sc->ti_cdata.ti_rx_jumbo_chain[i] != NULL) {
-		bus_dmamap_sync(sc->ti_jumbo_dmat,
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_tag,
 		    sc->ti_cdata.ti_rx_jumbo_maps[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->ti_jumbo_dmat,
+		bus_dmamap_unload(sc->ti_cdata.ti_rx_jumbo_tag,
 		    sc->ti_cdata.ti_rx_jumbo_maps[i]);
 	}
 
@@ -1294,7 +1521,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 	sc->ti_cdata.ti_rx_jumbo_sparemap = map;
 	sc->ti_cdata.ti_rx_jumbo_chain[i] = m;
 
-	r = &sc->ti_rdata->ti_rx_jumbo_ring[i];
+	r = &sc->ti_rdata.ti_rx_jumbo_ring[i];
 	ti_hostaddr64(&r->ti_addr, segs[0].ds_addr);
 	r->ti_len = segs[0].ds_len;
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
@@ -1305,8 +1532,8 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_idx = i;
 
-	bus_dmamap_sync(sc->ti_jumbo_dmat, sc->ti_cdata.ti_rx_jumbo_maps[i],
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_tag,
+	    sc->ti_cdata.ti_rx_jumbo_maps[i], BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -1417,11 +1644,11 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 	}
 
 	/* Set up the descriptor. */
-	r = &sc->ti_rdata->ti_rx_jumbo_ring[idx];
+	r = &sc->ti_rdata.ti_rx_jumbo_ring[idx];
 	sc->ti_cdata.ti_rx_jumbo_chain[idx] = m_new;
 	map = sc->ti_cdata.ti_rx_jumbo_maps[i];
-	if (bus_dmamap_load_mbuf_sg(sc->ti_jumbo_dmat, map, m_new, segs,
-				    &nsegs, 0))
+	if (bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_rx_jumbo_tag, map, m_new,
+	    segs, &nsegs, 0))
 		return (ENOBUFS);
 	if ((nsegs < 1) || (nsegs > 4))
 		return (ENOBUFS);
@@ -1449,7 +1676,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 
 	r->ti_idx = idx;
 
-	bus_dmamap_sync(sc->ti_jumbo_dmat, map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_tag, map, BUS_DMASYNC_PREREAD);
 	return (0);
 
 nobufs:
@@ -1505,15 +1732,16 @@ ti_free_rx_ring_std(struct ti_softc *sc)
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_std_chain[i] != NULL) {
 			map = sc->ti_cdata.ti_rx_std_maps[i];
-			bus_dmamap_sync(sc->ti_mbufrx_dmat, map,
+			bus_dmamap_sync(sc->ti_cdata.ti_rx_std_tag, map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_mbufrx_dmat, map);
+			bus_dmamap_unload(sc->ti_cdata.ti_rx_std_tag, map);
 			m_freem(sc->ti_cdata.ti_rx_std_chain[i]);
 			sc->ti_cdata.ti_rx_std_chain[i] = NULL;
 		}
-		bzero((char *)&sc->ti_rdata->ti_rx_std_ring[i],
-		    sizeof(struct ti_rx_desc));
 	}
+	bzero(sc->ti_rdata.ti_rx_std_ring, TI_STD_RX_RING_SZ);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_std_ring_tag,
+	    sc->ti_cdata.ti_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 }
 
 static int
@@ -1542,15 +1770,16 @@ ti_free_rx_ring_jumbo(struct ti_softc *sc)
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_jumbo_chain[i] != NULL) {
 			map = sc->ti_cdata.ti_rx_jumbo_maps[i];
-			bus_dmamap_sync(sc->ti_jumbo_dmat, map,
+			bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_tag, map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_jumbo_dmat, map);
+			bus_dmamap_unload(sc->ti_cdata.ti_rx_jumbo_tag, map);
 			m_freem(sc->ti_cdata.ti_rx_jumbo_chain[i]);
 			sc->ti_cdata.ti_rx_jumbo_chain[i] = NULL;
 		}
-		bzero((char *)&sc->ti_rdata->ti_rx_jumbo_ring[i],
-		    sizeof(struct ti_rx_desc));
 	}
+	bzero(sc->ti_rdata.ti_rx_jumbo_ring, TI_JUMBO_RX_RING_SZ);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_ring_tag,
+	    sc->ti_cdata.ti_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 }
 
 static int
@@ -1575,18 +1804,22 @@ ti_free_rx_ring_mini(struct ti_softc *sc)
 	bus_dmamap_t map;
 	int i;
 
+	if (sc->ti_rdata.ti_rx_mini_ring == NULL)
+		return;
+
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (sc->ti_cdata.ti_rx_mini_chain[i] != NULL) {
 			map = sc->ti_cdata.ti_rx_mini_maps[i];
-			bus_dmamap_sync(sc->ti_mbufrx_dmat, map,
+			bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_tag, map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_mbufrx_dmat, map);
+			bus_dmamap_unload(sc->ti_cdata.ti_rx_mini_tag, map);
 			m_freem(sc->ti_cdata.ti_rx_mini_chain[i]);
 			sc->ti_cdata.ti_rx_mini_chain[i] = NULL;
 		}
-		bzero((char *)&sc->ti_rdata->ti_rx_mini_ring[i],
-		    sizeof(struct ti_rx_desc));
 	}
+	bzero(sc->ti_rdata.ti_rx_mini_ring, TI_MINI_RX_RING_SZ);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_ring_tag,
+	    sc->ti_cdata.ti_rx_mini_ring_map, BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -1595,21 +1828,23 @@ ti_free_tx_ring(struct ti_softc *sc)
 	struct ti_txdesc *txd;
 	int i;
 
-	if (sc->ti_rdata->ti_tx_ring == NULL)
+	if (sc->ti_rdata.ti_tx_ring == NULL)
 		return;
 
 	for (i = 0; i < TI_TX_RING_CNT; i++) {
 		txd = &sc->ti_cdata.ti_txdesc[i];
 		if (txd->tx_m != NULL) {
-			bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+			bus_dmamap_sync(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+			bus_dmamap_unload(sc->ti_cdata.ti_tx_tag,
+			    txd->tx_dmamap);
 			m_freem(txd->tx_m);
 			txd->tx_m = NULL;
 		}
-		bzero((char *)&sc->ti_rdata->ti_tx_ring[i],
-		    sizeof(struct ti_tx_desc));
 	}
+	bzero(sc->ti_rdata.ti_tx_ring, TI_TX_RING_SZ);
+	bus_dmamap_sync(sc->ti_cdata.ti_tx_ring_tag,
+	    sc->ti_cdata.ti_tx_ring_map, BUS_DMASYNC_PREWRITE);
 }
 
 static int
@@ -1941,25 +2176,20 @@ ti_gibinit(struct ti_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ti_rcb *rcb;
-	uint32_t rdphys;
 	int i;
 
 	TI_LOCK_ASSERT(sc);
 
 	ifp = sc->ti_ifp;
-	rdphys = sc->ti_rdata_phys;
 
 	/* Disable interrupts for now. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
-	/*
-	 * Tell the chip where to find the general information block.
-	 * While this struct could go into >4GB memory, we allocate it in a
-	 * single slab with the other descriptors, and those don't seem to
-	 * support being located in a 64-bit region.
-	 */
-	CSR_WRITE_4(sc, TI_GCR_GENINFO_HI, 0);
-	CSR_WRITE_4(sc, TI_GCR_GENINFO_LO, rdphys + TI_RD_OFF(ti_info));
+	/* Tell the chip where to find the general information block. */
+	CSR_WRITE_4(sc, TI_GCR_GENINFO_HI,
+	    (uint64_t)sc->ti_rdata.ti_info_paddr >> 32);
+	CSR_WRITE_4(sc, TI_GCR_GENINFO_LO,
+	    sc->ti_rdata.ti_info_paddr & 0xFFFFFFFF);
 
 	/* Load the firmware into SRAM. */
 	ti_loadfw(sc);
@@ -1967,20 +2197,20 @@ ti_gibinit(struct ti_softc *sc)
 	/* Set up the contents of the general info and ring control blocks. */
 
 	/* Set up the event ring and producer pointer. */
-	rcb = &sc->ti_rdata->ti_info.ti_ev_rcb;
-
-	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_event_ring);
+	bzero(sc->ti_rdata.ti_event_ring, TI_EVENT_RING_SZ);
+	rcb = &sc->ti_rdata.ti_info->ti_ev_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_event_ring_paddr);
 	rcb->ti_flags = 0;
-	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_ev_prodidx_ptr) =
-	    rdphys + TI_RD_OFF(ti_ev_prodidx_r);
+	ti_hostaddr64(&sc->ti_rdata.ti_info->ti_ev_prodidx_ptr,
+	    sc->ti_rdata.ti_status_paddr +
+	    offsetof(struct ti_status, ti_ev_prodidx_r));
 	sc->ti_ev_prodidx.ti_idx = 0;
 	CSR_WRITE_4(sc, TI_GCR_EVENTCONS_IDX, 0);
 	sc->ti_ev_saved_considx = 0;
 
 	/* Set up the command ring and producer mailbox. */
-	rcb = &sc->ti_rdata->ti_info.ti_cmd_rcb;
-
-	TI_HOSTADDR(rcb->ti_hostaddr) = TI_GCR_NIC_ADDR(TI_GCR_CMDRING);
+	rcb = &sc->ti_rdata.ti_info->ti_cmd_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, TI_GCR_NIC_ADDR(TI_GCR_CMDRING));
 	rcb->ti_flags = 0;
 	rcb->ti_max_len = 0;
 	for (i = 0; i < TI_CMD_RING_CNT; i++) {
@@ -1995,12 +2225,13 @@ ti_gibinit(struct ti_softc *sc)
 	 * We re-use the current stats buffer for this to
 	 * conserve memory.
 	 */
-	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_refresh_stats_ptr) =
-	    rdphys + TI_RD_OFF(ti_info.ti_stats);
+	bzero(&sc->ti_rdata.ti_info->ti_stats, sizeof(struct ti_stats));
+	ti_hostaddr64(&sc->ti_rdata.ti_info->ti_refresh_stats_ptr,
+	    sc->ti_rdata.ti_info_paddr + offsetof(struct ti_gib, ti_stats));
 
 	/* Set up the standard receive ring. */
-	rcb = &sc->ti_rdata->ti_info.ti_std_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_std_ring);
+	rcb = &sc->ti_rdata.ti_info->ti_std_rx_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_rx_std_ring_paddr);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
 	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
@@ -2010,8 +2241,8 @@ ti_gibinit(struct ti_softc *sc)
 		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/* Set up the jumbo receive ring. */
-	rcb = &sc->ti_rdata->ti_info.ti_jumbo_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_jumbo_ring);
+	rcb = &sc->ti_rdata.ti_info->ti_jumbo_rx_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_rx_jumbo_ring_paddr);
 
 #ifndef TI_SF_BUF_JUMBO
 	rcb->ti_max_len = MJUM9BYTES - ETHER_ALIGN;
@@ -2031,8 +2262,8 @@ ti_gibinit(struct ti_softc *sc)
 	 * Tigon 2 but the slot in the config block is
 	 * still there on the Tigon 1.
 	 */
-	rcb = &sc->ti_rdata->ti_info.ti_mini_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_mini_ring);
+	rcb = &sc->ti_rdata.ti_info->ti_mini_rx_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_rx_mini_ring_paddr);
 	rcb->ti_max_len = MHLEN - ETHER_ALIGN;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
@@ -2047,12 +2278,13 @@ ti_gibinit(struct ti_softc *sc)
 	/*
 	 * Set up the receive return ring.
 	 */
-	rcb = &sc->ti_rdata->ti_info.ti_return_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_return_ring);
+	rcb = &sc->ti_rdata.ti_info->ti_return_rcb;
+	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_rx_return_ring_paddr);
 	rcb->ti_flags = 0;
 	rcb->ti_max_len = TI_RETURN_RING_CNT;
-	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_return_prodidx_ptr) =
-	    rdphys + TI_RD_OFF(ti_return_prodidx_r);
+	ti_hostaddr64(&sc->ti_rdata.ti_info->ti_return_prodidx_ptr,
+	    sc->ti_rdata.ti_status_paddr +
+	    offsetof(struct ti_status, ti_return_prodidx_r));
 
 	/*
 	 * Set up the tx ring. Note: for the Tigon 2, we have the option
@@ -2064,9 +2296,9 @@ ti_gibinit(struct ti_softc *sc)
 	 * a Tigon 1 chip.
 	 */
 	CSR_WRITE_4(sc, TI_WINBASE, TI_TX_RING_BASE);
-	bzero((char *)sc->ti_rdata->ti_tx_ring,
-	    TI_TX_RING_CNT * sizeof(struct ti_tx_desc));
-	rcb = &sc->ti_rdata->ti_info.ti_tx_rcb;
+	if (sc->ti_rdata.ti_tx_ring != NULL)
+		bzero(sc->ti_rdata.ti_tx_ring, TI_TX_RING_SZ);
+	rcb = &sc->ti_rdata.ti_info->ti_tx_rcb;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		rcb->ti_flags = 0;
 	else
@@ -2078,18 +2310,28 @@ ti_gibinit(struct ti_softc *sc)
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_max_len = TI_TX_RING_CNT;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
-		TI_HOSTADDR(rcb->ti_hostaddr) = TI_TX_RING_BASE;
+		ti_hostaddr64(&rcb->ti_hostaddr, TI_TX_RING_BASE);
 	else
-		TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_tx_ring);
-	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_tx_considx_ptr) =
-	    rdphys + TI_RD_OFF(ti_tx_considx_r);
+		ti_hostaddr64(&rcb->ti_hostaddr,
+		    sc->ti_rdata.ti_tx_ring_paddr);
+	ti_hostaddr64(&sc->ti_rdata.ti_info->ti_tx_considx_ptr,
+	    sc->ti_rdata.ti_status_paddr +
+	    offsetof(struct ti_status, ti_tx_considx_r));
 
-	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
-	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ti_cdata.ti_gib_tag, sc->ti_cdata.ti_gib_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ti_cdata.ti_status_tag, sc->ti_cdata.ti_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ti_cdata.ti_event_ring_tag,
+	    sc->ti_cdata.ti_event_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	if (sc->ti_rdata.ti_tx_ring != NULL)
+		bus_dmamap_sync(sc->ti_cdata.ti_tx_ring_tag,
+		    sc->ti_cdata.ti_tx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	/* Set up tunables */
 #if 0
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
+	if (ifp->if_mtu > ETHERMTU + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)
 		CSR_WRITE_4(sc, TI_GCR_RX_COAL_TICKS,
 		    (sc->ti_rx_coal_ticks / 10));
 	else
@@ -2109,23 +2351,6 @@ ti_gibinit(struct ti_softc *sc)
 	TI_CLRBIT(sc, TI_CPU_STATE, (TI_CPUSTATE_HALT|TI_CPUSTATE_STEP));
 
 	return (0);
-}
-
-static void
-ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct ti_softc *sc;
-
-	sc = arg;
-	if (error || nseg != 1)
-		return;
-
-	/*
-	 * All of the Tigon data structures need to live at <4GB.  This
-	 * cast is fine since busdma was told about this constraint.
-	 */
-	sc->ti_rdata_phys = segs[0].ds_addr;
-	return;
 }
 
 /*
@@ -2229,8 +2454,7 @@ ti_attach(device_t dev)
 	 * the NIC). This means the MAC address is actually preceded
 	 * by two zero bytes. We need to skip over those.
 	 */
-	if (ti_read_eeprom(sc, eaddr,
-				TI_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
+	if (ti_read_eeprom(sc, eaddr, TI_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
 		goto fail;
@@ -2245,101 +2469,8 @@ ti_attach(device_t dev)
 		error = ENOMEM;
 		goto fail;
 	}
-
-	/* Allocate the general information block and ring buffers. */
-	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
-				0,			/* nsegments */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_parent_dmat) != 0) {
-		device_printf(dev, "Failed to allocate parent dmat\n");
-		error = ENOMEM;
+	if ((error = ti_dma_alloc(sc)) != 0)
 		goto fail;
-	}
-
-	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
-				PAGE_SIZE, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				sizeof(struct ti_ring_data),	/* maxsize */
-				1,			/* nsegments */
-				sizeof(struct ti_ring_data),	/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_rdata_dmat) != 0) {
-		device_printf(dev, "Failed to allocate rdata dmat\n");
-		error = ENOMEM;
-		goto fail;
-	}
-
-	if (bus_dmamem_alloc(sc->ti_rdata_dmat, (void**)&sc->ti_rdata,
-			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
-			     &sc->ti_rdata_dmamap) != 0) {
-		device_printf(dev, "Failed to allocate rdata memory\n");
-		error = ENOMEM;
-		goto fail;
-	}
-
-	if (bus_dmamap_load(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
-			    sc->ti_rdata, sizeof(struct ti_ring_data),
-			    ti_rdata_cb, sc, BUS_DMA_NOWAIT) != 0) {
-		device_printf(dev, "Failed to load rdata segments\n");
-		error = ENOMEM;
-		goto fail;
-	}
-
-	bzero(sc->ti_rdata, sizeof(struct ti_ring_data));
-
-	/* Try to allocate memory for jumbo buffers. */
-	if (ti_alloc_jumbo_mem(sc)) {
-		device_printf(dev, "jumbo buffer allocation failed\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				MCLBYTES * TI_MAXTXSEGS,/* maxsize */
-				TI_MAXTXSEGS,		/* nsegments */
-				MCLBYTES,		/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_mbuftx_dmat) != 0) {
-		device_printf(dev, "Failed to allocate rdata dmat\n");
-		error = ENOMEM;
-		goto fail;
-	}
-
-	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				MCLBYTES,		/* maxsize */
-				1,			/* nsegments */
-				MCLBYTES,		/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->ti_mbufrx_dmat) != 0) {
-		device_printf(dev, "Failed to allocate rdata dmat\n");
-		error = ENOMEM;
-		goto fail;
-	}
-
-	if (ti_alloc_dmamaps(sc)) {
-		error = ENXIO;
-		goto fail;
-	}
 
 	/*
 	 * We really need a better way to tell a 1000baseTX card
@@ -2470,24 +2601,9 @@ ti_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	callout_drain(&sc->ti_watchdog);
 	bus_generic_detach(dev);
-	ti_free_dmamaps(sc);
+	ti_dma_free(sc);
 	ifmedia_removeall(&sc->ifmedia);
 
-	if (sc->ti_jumbo_dmat)
-		bus_dma_tag_destroy(sc->ti_jumbo_dmat);
-	if (sc->ti_mbuftx_dmat)
-		bus_dma_tag_destroy(sc->ti_mbuftx_dmat);
-	if (sc->ti_mbufrx_dmat)
-		bus_dma_tag_destroy(sc->ti_mbufrx_dmat);
-	if (sc->ti_rdata && sc->ti_rdata_dmamap)
-		bus_dmamap_unload(sc->ti_rdata_dmat, sc->ti_rdata_dmamap);
-	if (sc->ti_rdata)
-		bus_dmamem_free(sc->ti_rdata_dmat, sc->ti_rdata,
-				sc->ti_rdata_dmamap);
-	if (sc->ti_rdata_dmat)
-		bus_dma_tag_destroy(sc->ti_rdata_dmat);
-	if (sc->ti_parent_dmat)
-		bus_dma_tag_destroy(sc->ti_parent_dmat);
 	if (sc->ti_intrhand)
 		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
 	if (sc->ti_irq)
@@ -2571,7 +2687,7 @@ ti_discard_std(struct ti_softc *sc, int i)
 
 	struct ti_rx_desc *r;
 
-	r = &sc->ti_rdata->ti_rx_std_ring[i];
+	r = &sc->ti_rdata.ti_rx_std_ring[i];
 	r->ti_len = MCLBYTES - ETHER_ALIGN;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = 0;
@@ -2588,7 +2704,7 @@ ti_discard_mini(struct ti_softc *sc, int i)
 
 	struct ti_rx_desc *r;
 
-	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	r = &sc->ti_rdata.ti_rx_mini_ring[i];
 	r->ti_len = MHLEN - ETHER_ALIGN;
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = TI_BDFLAG_MINI_RING;
@@ -2606,7 +2722,7 @@ ti_discard_jumbo(struct ti_softc *sc, int i)
 
 	struct ti_rx_desc *r;
 
-	r = &sc->ti_rdata->ti_rx_mini_ring[i];
+	r = &sc->ti_rdata.ti_rx_jumbo_ring[i];
 	r->ti_len = MJUM9BYTES - ETHER_ALIGN;
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 	r->ti_flags = TI_BDFLAG_JUMBO_RING;
@@ -2643,6 +2759,17 @@ ti_rxeof(struct ti_softc *sc)
 
 	ifp = sc->ti_ifp;
 
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_std_ring_tag,
+	    sc->ti_cdata.ti_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
+	if (ifp->if_mtu > ETHERMTU + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_ring_tag,
+		    sc->ti_cdata.ti_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
+	if (sc->ti_rdata.ti_rx_mini_ring != NULL)
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_ring_tag,
+		    sc->ti_cdata.ti_rx_mini_ring_map, BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_return_ring_tag,
+	    sc->ti_cdata.ti_rx_return_ring_map, BUS_DMASYNC_POSTREAD);
+
 	jumbocnt = minicnt = stdcnt = 0;
 	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc *cur_rx;
@@ -2652,7 +2779,7 @@ ti_rxeof(struct ti_softc *sc)
 		int have_tag = 0;
 
 		cur_rx =
-		    &sc->ti_rdata->ti_rx_return_ring[sc->ti_rx_saved_considx];
+		    &sc->ti_rdata.ti_rx_return_ring[sc->ti_rx_saved_considx];
 		rxidx = cur_rx->ti_idx;
 		ti_len = cur_rx->ti_len;
 		TI_INC(sc->ti_rx_saved_considx, TI_RETURN_RING_CNT);
@@ -2681,9 +2808,9 @@ ti_rxeof(struct ti_softc *sc)
 #else /* !TI_SF_BUF_JUMBO */
 			sc->ti_cdata.ti_rx_jumbo_chain[rxidx] = NULL;
 			map = sc->ti_cdata.ti_rx_jumbo_maps[rxidx];
-			bus_dmamap_sync(sc->ti_jumbo_dmat, map,
+			bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_tag, map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->ti_jumbo_dmat, map);
+			bus_dmamap_unload(sc->ti_cdata.ti_rx_jumbo_tag, map);
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
 				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
@@ -2764,17 +2891,28 @@ ti_rxeof(struct ti_softc *sc)
 		TI_LOCK(sc);
 	}
 
+	bus_dmamap_sync(sc->ti_cdata.ti_rx_return_ring_tag,
+	    sc->ti_cdata.ti_rx_return_ring_map, BUS_DMASYNC_PREREAD);
 	/* Only necessary on the Tigon 1. */
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX,
 		    sc->ti_rx_saved_considx);
 
-	if (stdcnt > 0)
+	if (stdcnt > 0) {
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_std_ring_tag,
+		    sc->ti_cdata.ti_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 		TI_UPDATE_STDPROD(sc, sc->ti_std);
-	if (minicnt > 0)
+	}
+	if (minicnt > 0) {
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_mini_ring_tag,
+		    sc->ti_cdata.ti_rx_mini_ring_map, BUS_DMASYNC_PREWRITE);
 		TI_UPDATE_MINIPROD(sc, sc->ti_mini);
-	if (jumbocnt > 0)
+	}
+	if (jumbocnt > 0) {
+		bus_dmamap_sync(sc->ti_cdata.ti_rx_jumbo_ring_tag,
+		    sc->ti_cdata.ti_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 		TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
+	}
 }
 
 static void
@@ -2791,6 +2929,10 @@ ti_txeof(struct ti_softc *sc)
 	txd = STAILQ_FIRST(&sc->ti_cdata.ti_txbusyq);
 	if (txd == NULL)
 		return;
+
+	if (sc->ti_rdata.ti_tx_ring != NULL)
+		bus_dmamap_sync(sc->ti_cdata.ti_tx_ring_tag,
+		    sc->ti_cdata.ti_tx_ring_map, BUS_DMASYNC_POSTWRITE);
 	/*
 	 * Go through our tx ring and free mbufs for those
 	 * frames that have been sent.
@@ -2802,14 +2944,14 @@ ti_txeof(struct ti_softc *sc)
 			    sizeof(txdesc), &txdesc);
 			cur_tx = &txdesc;
 		} else
-			cur_tx = &sc->ti_rdata->ti_tx_ring[idx];
+			cur_tx = &sc->ti_rdata.ti_tx_ring[idx];
 		sc->ti_txcnt--;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if ((cur_tx->ti_flags & TI_BDFLAG_END) == 0)
 			continue;
-		bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+		bus_dmamap_sync(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+		bus_dmamap_unload(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap);
 
 		ifp->if_opackets++;
 		m_freem(txd->tx_m);
@@ -2819,8 +2961,8 @@ ti_txeof(struct ti_softc *sc)
 		txd = STAILQ_FIRST(&sc->ti_cdata.ti_txbusyq);
 	}
 	sc->ti_tx_saved_considx = idx;
-
-	sc->ti_timer = sc->ti_txcnt > 0 ? 5 : 0;
+	if (sc->ti_txcnt == 0)
+		sc->ti_timer = 0;
 }
 
 static void
@@ -2843,11 +2985,15 @@ ti_intr(void *xsc)
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		bus_dmamap_sync(sc->ti_cdata.ti_status_tag,
+		    sc->ti_cdata.ti_status_map, BUS_DMASYNC_POSTREAD);
 		/* Check RX return ring producer/consumer */
 		ti_rxeof(sc);
 
 		/* Check TX ring producer/consumer */
 		ti_txeof(sc);
+		bus_dmamap_sync(sc->ti_cdata.ti_status_tag,
+		    sc->ti_cdata.ti_status_map, BUS_DMASYNC_PREREAD);
 	}
 
 	ti_handle_events(sc);
@@ -2866,20 +3012,22 @@ static void
 ti_stats_update(struct ti_softc *sc)
 {
 	struct ifnet *ifp;
+	struct ti_stats *s;
 
 	ifp = sc->ti_ifp;
 
-	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
+	if (sc->ti_stat_ticks == 0)
+		return;
+	bus_dmamap_sync(sc->ti_cdata.ti_gib_tag, sc->ti_cdata.ti_gib_map,
 	    BUS_DMASYNC_POSTREAD);
 
-	ifp->if_collisions +=
-	   (sc->ti_rdata->ti_info.ti_stats.dot3StatsSingleCollisionFrames +
-	   sc->ti_rdata->ti_info.ti_stats.dot3StatsMultipleCollisionFrames +
-	   sc->ti_rdata->ti_info.ti_stats.dot3StatsExcessiveCollisions +
-	   sc->ti_rdata->ti_info.ti_stats.dot3StatsLateCollisions) -
-	   ifp->if_collisions;
+	s = &sc->ti_rdata.ti_info->ti_stats;
+	ifp->if_collisions += (s->dot3StatsSingleCollisionFrames +
+	   s->dot3StatsMultipleCollisionFrames +
+	   s->dot3StatsExcessiveCollisions + s->dot3StatsLateCollisions) -
+	    ifp->if_collisions;
 
-	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
+	bus_dmamap_sync(sc->ti_cdata.ti_gib_tag, sc->ti_cdata.ti_gib_map,
 	    BUS_DMASYNC_PREREAD);
 }
 
@@ -2901,7 +3049,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 	if ((txd = STAILQ_FIRST(&sc->ti_cdata.ti_txfreeq)) == NULL)
 		return (ENOBUFS);
 
-	error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+	error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap,
 	    *m_head, txsegs, &nseg, 0);
 	if (error == EFBIG) {
 		m = m_defrag(*m_head, M_DONTWAIT);
@@ -2911,7 +3059,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 			return (ENOMEM);
 		}
 		*m_head = m;
-		error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat,
+		error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_tx_tag,
 		    txd->tx_dmamap, *m_head, txsegs, &nseg, 0);
 		if (error) {
 			m_freem(*m_head);
@@ -2927,9 +3075,11 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 	}
 
 	if (sc->ti_txcnt + nseg >= TI_TX_RING_CNT) {
-		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+		bus_dmamap_unload(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap);
 		return (ENOBUFS);
 	}
+	bus_dmamap_sync(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	m = *m_head;
 	csum_flags = 0;
@@ -2944,18 +3094,13 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 			csum_flags |= TI_BDFLAG_IP_FRAG;
 	}
 
-	bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-
 	frag = sc->ti_tx_saved_prodidx;
 	for (i = 0; i < nseg; i++) {
 		if (sc->ti_hwrev == TI_HWREV_TIGON) {
 			bzero(&txdesc, sizeof(txdesc));
 			f = &txdesc;
 		} else
-			f = &sc->ti_rdata->ti_tx_ring[frag];
+			f = &sc->ti_rdata.ti_tx_ring[frag];
 		ti_hostaddr64(&f->ti_addr, txsegs[i].ds_addr);
 		f->ti_len = txsegs[i].ds_len;
 		f->ti_flags = csum_flags;
@@ -2980,7 +3125,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 		ti_mem_write(sc, TI_TX_RING_BASE + frag * sizeof(txdesc),
 		    sizeof(txdesc), &txdesc);
 	} else
-		sc->ti_rdata->ti_tx_ring[frag].ti_flags |= TI_BDFLAG_END;
+		sc->ti_rdata.ti_tx_ring[frag].ti_flags |= TI_BDFLAG_END;
 
 	STAILQ_REMOVE_HEAD(&sc->ti_cdata.ti_txfreeq, tx_q);
 	STAILQ_INSERT_TAIL(&sc->ti_cdata.ti_txbusyq, txd, tx_q);
@@ -3060,6 +3205,9 @@ ti_start_locked(struct ifnet *ifp)
 	}
 
 	if (enq > 0) {
+		if (sc->ti_rdata.ti_tx_ring != NULL)
+			bus_dmamap_sync(sc->ti_cdata.ti_tx_ring_tag,
+			    sc->ti_cdata.ti_tx_ring_map, BUS_DMASYNC_PREWRITE);
 		/* Transmit */
 		CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, sc->ti_tx_saved_prodidx);
 
@@ -3150,7 +3298,7 @@ static void ti_init2(struct ti_softc *sc)
 	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN)) {
+	if (ifp->if_mtu > ETHERMTU + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) {
 		if (ti_init_rx_ring_jumbo(sc) != 0) {
 			/* XXX */
 			device_printf(sc->ti_dev,
@@ -3526,7 +3674,9 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		outstats = (struct ti_stats *)addr;
 
 		TI_LOCK(sc);
-		bcopy(&sc->ti_rdata->ti_info.ti_stats, outstats,
+		bus_dmamap_sync(sc->ti_cdata.ti_gib_tag,
+		    sc->ti_cdata.ti_gib_map, BUS_DMASYNC_POSTREAD);
+		bcopy(&sc->ti_rdata.ti_info->ti_stats, outstats,
 		    sizeof(struct ti_stats));
 		TI_UNLOCK(sc);
 		break;
@@ -3857,9 +4007,16 @@ ti_sysctl_node(struct ti_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *child;
+	char tname[32];
 
 	ctx = device_get_sysctl_ctx(sc->ti_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ti_dev));
+
+	/* Use DAC */
+	sc->ti_dac = 1;
+	snprintf(tname, sizeof(tname), "dev.ti.%d.dac",
+	    device_get_unit(sc->ti_dev));
+	TUNABLE_INT_FETCH(tname, &sc->ti_dac);
 
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rx_coal_ticks", CTLFLAG_RW,
 	    &sc->ti_rx_coal_ticks, 0, "Receive coalcesced ticks");
