@@ -4753,7 +4753,7 @@ out:
 	return (error);
 }
 
-static int
+int
 kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 {
 	struct file *fp;
@@ -4855,7 +4855,8 @@ sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
  * region of any current setting.
  */
 int
-sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
+kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
+    int advice)
 {
 	struct fadvise_info *fa, *new;
 	struct file *fp;
@@ -4863,10 +4864,9 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 	off_t end;
 	int error;
 
-	if (uap->offset < 0 || uap->len < 0 ||
-	    uap->offset > OFF_MAX - uap->len)
+	if (offset < 0 || len < 0 || offset > OFF_MAX - len)
 		return (EINVAL);
-	switch (uap->advice) {
+	switch (advice) {
 	case POSIX_FADV_SEQUENTIAL:
 	case POSIX_FADV_RANDOM:
 	case POSIX_FADV_NOREUSE:
@@ -4881,7 +4881,7 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 		return (EINVAL);
 	}
 	/* XXX: CAP_POSIX_FADVISE? */
-	error = fget(td, uap->fd, 0, &fp);
+	error = fget(td, fd, 0, &fp);
 	if (error != 0)
 		goto out;
 	
@@ -4901,11 +4901,11 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 		error = ENODEV;
 		goto out;
 	}
-	if (uap->len == 0)
+	if (len == 0)
 		end = OFF_MAX;
 	else
-		end = uap->offset + uap->len - 1;
-	switch (uap->advice) {
+		end = offset + len - 1;
+	switch (advice) {
 	case POSIX_FADV_SEQUENTIAL:
 	case POSIX_FADV_RANDOM:
 	case POSIX_FADV_NOREUSE:
@@ -4916,17 +4916,17 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 		 */
 		mtx_pool_lock(mtxpool_sleep, fp);
 		fa = fp->f_advice;
-		if (fa != NULL && fa->fa_advice == uap->advice &&
-		    ((fa->fa_start <= end && fa->fa_end >= uap->offset) ||
+		if (fa != NULL && fa->fa_advice == advice &&
+		    ((fa->fa_start <= end && fa->fa_end >= offset) ||
 		    (end != OFF_MAX && fa->fa_start == end + 1) ||
-		    (fa->fa_end != OFF_MAX && fa->fa_end + 1 == uap->offset))) {
-			if (uap->offset < fa->fa_start)
-				fa->fa_start = uap->offset;
+		    (fa->fa_end != OFF_MAX && fa->fa_end + 1 == offset))) {
+			if (offset < fa->fa_start)
+				fa->fa_start = offset;
 			if (end > fa->fa_end)
 				fa->fa_end = end;
 		} else {
-			new->fa_advice = uap->advice;
-			new->fa_start = uap->offset;
+			new->fa_advice = advice;
+			new->fa_start = offset;
 			new->fa_end = end;
 			fp->f_advice = new;
 			new = fa;
@@ -4942,18 +4942,15 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 		mtx_pool_lock(mtxpool_sleep, fp);
 		fa = fp->f_advice;
 		if (fa != NULL) {
-			if (uap->offset <= fa->fa_start &&
-			    end >= fa->fa_end) {
+			if (offset <= fa->fa_start && end >= fa->fa_end) {
 				new = fa;
 				fp->f_advice = NULL;
-			} else if (uap->offset <= fa->fa_start &&
-			    end >= fa->fa_start)
+			} else if (offset <= fa->fa_start &&
+ 			    end >= fa->fa_start)
 				fa->fa_start = end + 1;
-			else if (uap->offset <= fa->fa_end &&
-			    end >= fa->fa_end)
-				fa->fa_end = uap->offset - 1;
-			else if (uap->offset >= fa->fa_start &&
-			    end <= fa->fa_end) {
+			else if (offset <= fa->fa_end && end >= fa->fa_end)
+				fa->fa_end = offset - 1;
+			else if (offset >= fa->fa_start && end <= fa->fa_end) {
 				/*
 				 * If the "normal" region is a middle
 				 * portion of the existing
@@ -4970,7 +4967,7 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 		break;
 	case POSIX_FADV_WILLNEED:
 	case POSIX_FADV_DONTNEED:
-		error = VOP_ADVISE(vp, uap->offset, end, uap->advice);
+		error = VOP_ADVISE(vp, offset, end, advice);
 		break;
 	}
 out:
@@ -4978,4 +4975,12 @@ out:
 		fdrop(fp, td);
 	free(new, M_FADVISE);
 	return (error);
+}
+
+int
+sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
+{
+
+	return (kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
+	    uap->advice));
 }
