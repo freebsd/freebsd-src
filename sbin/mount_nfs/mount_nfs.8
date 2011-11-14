@@ -318,6 +318,10 @@ tune the timeout
 interval.)
 .It Cm udp
 Use UDP transport.
+.It Cm wcommitsize Ns = Ns Aq Ar value
+Set the maximum pending write commit size to the specified value.
+This determines the maximum amount of pending write data that the NFS
+client is willing to cache for each file.
 .It Cm wsize Ns = Ns Aq Ar value
 Set the write data size to the specified value.
 Ditto the comments w.r.t.\& the
