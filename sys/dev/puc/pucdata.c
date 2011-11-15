@@ -864,6 +864,18 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_2S, 0x10, 4, 0,
 	},
 
+	{   0x14d2, 0xa007, 0xffff, 0,
+	    "Titan VScom PCIex-800H",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x14d2, 0xa008, 0xffff, 0,
+	    "Titan VScom PCIex-800H",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
 	{   0x14db, 0x2130, 0xffff, 0,
 	    "Avlab Technology, PCI IO 2S",
 	    DEFAULT_RCLK,
