@@ -1218,22 +1218,23 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 	hash = (uint32_t) pid & PMCSTAT_HASH_MASK;	/* simplicity wins */
 
 	LIST_FOREACH_SAFE(pp, &pmcstat_process_hash[hash], pp_next, pptmp)
-	    if (pp->pp_pid == pid) {
-		    /* Found a descriptor, check and process zombies */
-		    if (allocate && pp->pp_isactive == 0) {
-			    /* remove maps */
-			    TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next,
-				ppmtmp) {
-				    TAILQ_REMOVE(&pp->pp_map, ppm, ppm_next);
-				    free(ppm);
-			    }
-			    /* remove process entry */
-			    LIST_REMOVE(pp, pp_next);
-			    free(pp);
-			    break;
-		    }
-		    return (pp);
-	    }
+		if (pp->pp_pid == pid) {
+			/* Found a descriptor, check and process zombies */
+			if (allocate && pp->pp_isactive == 0) {
+				/* remove maps */
+				TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next,
+				    ppmtmp) {
+					TAILQ_REMOVE(&pp->pp_map, ppm,
+					    ppm_next);
+					free(ppm);
+				}
+				/* remove process entry */
+				LIST_REMOVE(pp, pp_next);
+				free(pp);
+				break;
+			}
+			return (pp);
+		}
 
 	if (!allocate)
 		return (NULL);
