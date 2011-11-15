@@ -14,6 +14,7 @@
 #  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
 #   svn://svn.freebsd.org/base)
 #  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
+#  RELSTRING:  optional base name for media images (e.g. FreeBSD-9.0-RC2-amd64)
 # 
 #  Note: Since this requires a chroot, release cross-builds will not work!
 #
@@ -64,4 +65,13 @@ fi
 chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
 chroot $2 make -C /usr/src/release release
 chroot $2 make -C /usr/src/release install DESTDIR=/R
+
+: ${RELSTRING=`chroot $2 uname -s`-`chroot $2 uname -r`-`chroot $2 uname -p`}
+
+cd $2/R
+for i in release.iso bootonly.iso memstick; do
+	mv $i $RELSTRING-$i
+done
+sha256 $RELSTRING-* > CHECKSUM.SHA256
+md5 $RELSTRING-* > CHECKSUM.MD5
 
