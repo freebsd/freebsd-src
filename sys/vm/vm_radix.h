@@ -44,19 +44,10 @@
 #define	VM_RADIX_HEIGHT	0xf	/* Bits of height in root */
 #define	VM_RADIX_STACK	8	/* Nodes to store on stack. */
 
-CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
-
 /* Calculates maximum value for a tree of height h. */
 #define	VM_RADIX_MAX(h)							\
 	    ((h) == VM_RADIX_LIMIT ? ((vm_pindex_t)-1) :		\
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
-
-#ifdef _KERNEL
-
-struct vm_radix_node {
-	void		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
-    	uint16_t	rn_count;			/* Valid children. */
-};
 
 /*
  * Radix tree root.  The height and pointer are set together to permit
@@ -64,6 +55,14 @@ struct vm_radix_node {
  */
 struct vm_radix {
 	uintptr_t	rt_root;		/* root + height */
+};
+
+#ifdef _KERNEL
+CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
+
+struct vm_radix_node {
+	void		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
+    	uint16_t	rn_count;			/* Valid children. */
 };
 
 void	vm_radix_init(void);
