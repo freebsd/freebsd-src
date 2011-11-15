@@ -559,9 +559,9 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		atomic_add_int(&vrf->refcount, 1);
 		sctp_ifnp->ifn_mtu = SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, addr->sa_family);
 		if (if_name != NULL) {
-			memcpy(sctp_ifnp->ifn_name, if_name, SCTP_IFNAMSIZ);
+			snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", if_name);
 		} else {
-			memcpy(sctp_ifnp->ifn_name, "unknown", min(7, SCTP_IFNAMSIZ));
+			snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", "unknown");
 		}
 		hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 		LIST_INIT(&sctp_ifnp->ifalist);
@@ -768,19 +768,9 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 			 * panda who might recycle indexes fast.
 			 */
 			if (if_name) {
-				int len1, len2;
-
-				len1 = min(SCTP_IFNAMSIZ, strlen(if_name));
-				len2 = min(SCTP_IFNAMSIZ, strlen(sctp_ifap->ifn_p->ifn_name));
-				if (len1 && len2 && (len1 == len2)) {
-					/* we can compare them */
-					if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) == 0) {
-						/*
-						 * They match its a correct
-						 * delete
-						 */
-						valid = 1;
-					}
+				if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) == 0) {
+					/* They match its a correct delete */
+					valid = 1;
 				}
 			}
 			if (!valid) {
@@ -4074,13 +4064,8 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		/* Now get the interface MTU */
 		if (net->ro._s_addr && net->ro._s_addr->ifn_p) {
 			net->mtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
-		} else {
-			net->mtu = 0;
 		}
-		if (net->mtu == 0) {
-			/* Huh ?? */
-			net->mtu = SCTP_DEFAULT_MTU;
-		} else {
+		if (net->mtu > 0) {
 			uint32_t rmtu;
 
 			rmtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, net->ro.ro_rt);
@@ -4100,11 +4085,31 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				net->mtu = rmtu;
 			}
 		}
-		if (from == SCTP_ALLOC_ASOC) {
-			stcb->asoc.smallest_mtu = net->mtu;
+	}
+	if (net->mtu == 0) {
+		switch (newaddr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			net->mtu = SCTP_DEFAULT_MTU;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			net->mtu = 1280;
+			break;
+#endif
+		default:
+			break;
 		}
-	} else {
-		net->mtu = stcb->asoc.smallest_mtu;
+	}
+	if (net->port) {
+		net->mtu -= (uint32_t) sizeof(struct udphdr);
+	}
+	if (from == SCTP_ALLOC_ASOC) {
+		stcb->asoc.smallest_mtu = net->mtu;
+	}
+	if (stcb->asoc.smallest_mtu > net->mtu) {
+		stcb->asoc.smallest_mtu = net->mtu;
 	}
 #ifdef INET6
 	if (newaddr->sa_family == AF_INET6) {
@@ -4114,12 +4119,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		(void)sa6_recoverscope(sin6);
 	}
 #endif
-	if (net->port) {
-		net->mtu -= sizeof(struct udphdr);
-	}
-	if (stcb->asoc.smallest_mtu > net->mtu) {
-		stcb->asoc.smallest_mtu = net->mtu;
-	}
+
 	/* JRS - Use the congestion control given in the CC module */
 	if (stcb->asoc.cc_functions.sctp_set_initial_cc_param != NULL)
 		(*stcb->asoc.cc_functions.sctp_set_initial_cc_param) (stcb, net);

@@ -292,7 +292,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_USBCMD, XHCI_CMD_HCRST);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBCMD) &
 		    (XHCI_CMD_HCRST | XHCI_STS_CNR);
 		if (!temp)
@@ -453,7 +453,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	    XHCI_CMD_INTE | XHCI_CMD_HSEE);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_HCH;
 		if (!temp)
 			break;
@@ -487,7 +487,7 @@ xhci_halt_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_USBCMD, 0);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_HCH;
 		if (temp)
 			break;

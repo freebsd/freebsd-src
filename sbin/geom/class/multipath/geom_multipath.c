@@ -133,7 +133,8 @@ mp_label(struct gctl_req *req)
 	uint8_t *sector, *rsector;
 	char *ptr;
 	uuid_t uuid;
-	uint32_t secsize = 0, ssize, status;
+	ssize_t secsize = 0, ssize;
+	uint32_t status;
 	const char *name, *name2, *mpname;
 	int error, i, nargs, fd;
 
@@ -161,8 +162,8 @@ mp_label(struct gctl_req *req)
 			disksize = msize;
 		} else {
 			if (secsize != ssize) {
-				gctl_error(req, "%s sector size %u different.",
-				    name, ssize);
+				gctl_error(req, "%s sector size %ju different.",
+				    name, (intmax_t)ssize);
 				return;
 			}
 			if (disksize != msize) {
@@ -240,7 +241,7 @@ mp_label(struct gctl_req *req)
 			continue;
 		}
 		if (pread(fd, rsector, secsize, disksize - secsize) !=
-		    secsize) {
+		    (ssize_t)secsize) {
 			fprintf(stderr, "Unable to read metadata from %s: %s.\n",
 			    name2, strerror(errno));
 			g_close(fd);
