@@ -149,6 +149,11 @@ when invoked by the script.
 .It Ev SVNROOT
 The location of the FreeBSD SVN source repository. Defaults to
 .Pa svn://svn.freebsd.org/base .
+.It Ev RELSTRING
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of 
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
