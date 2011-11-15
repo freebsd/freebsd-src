@@ -1,3 +1,5 @@
+/*	$OpenBSD: arc4random.c,v 1.22 2010/12/22 08:23:42 otto Exp $	*/
+
 /*
  * Copyright (c) 1996, David Mazieres <dm@uun.org>
  * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
@@ -24,11 +26,6 @@
  * which is a trade secret).  The same algorithm is used as a stream
  * cipher called "arcfour" in Tatu Ylonen's ssh package.
  *
- * Here the stream cipher has been modified always to include the time
- * when initializing the state.  That makes it impossible to
- * regenerate the same random sequence twice, so this can't be used
- * for encryption, but will generate good random numbers.
- *
  * RC4 is a registered trademark of RSA Laboratories.
  */
 
@@ -46,6 +43,12 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "un-namespace.h"
 
+#ifdef __GNUC__
+#define inline __inline
+#else				/* !__GNUC__ */
+#define inline
+#endif				/* !__GNUC__ */
+
 struct arc4_stream {
 	u_int8_t i;
 	u_int8_t j;
@@ -55,14 +58,14 @@ struct arc4_stream {
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 #define	RANDOMDEV	"/dev/random"
-#define KEYSIZE		128
-#define	THREAD_LOCK()						\
+#define	KEYSIZE		128
+#define	_ARC4_LOCK()						\
 	do {							\
 		if (__isthreaded)				\
 			_pthread_mutex_lock(&arc4random_mtx);	\
 	} while (0)
 
-#define	THREAD_UNLOCK()						\
+#define	_ARC4_UNLOCK()						\
 	do {							\
 		if (__isthreaded)				\
 			_pthread_mutex_unlock(&arc4random_mtx);	\
@@ -107,11 +110,11 @@ arc4_addrandom(u_char *dat, int datlen)
 static void
 arc4_stir(void)
 {
-	int done, fd, n;
+	int done, fd, i;
 	struct {
 		struct timeval	tv;
-		pid_t 		pid;
-		u_int8_t 	rnd[KEYSIZE];
+		pid_t		pid;
+		u_char	 	rnd[KEYSIZE];
 	} rdat;
 
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
@@ -120,7 +123,7 @@ arc4_stir(void)
 		if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
 			done = 1;
 		(void)_close(fd);
-	} 
+	}
 	if (!done) {
 		(void)gettimeofday(&rdat.tv, NULL);
 		rdat.pid = getpid();
@@ -130,14 +133,11 @@ arc4_stir(void)
 	arc4_addrandom((u_char *)&rdat, KEYSIZE);
 
 	/*
-	 * Throw away the first N bytes of output, as suggested in the
-	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
-	 * by Fluher, Mantin, and Shamir.  N=1024 is based on
-	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
-	 * by Ilya Mironov.
+	 * Discard early keystream, as per recommendations in:
+	 * "(Not So) Random Shuffles of RC4" by Ilya Mironov.
 	 */
-	for (n = 0; n < 1024; n++)
-		(void) arc4_getbyte();
+	for (i = 0; i < 1024; i++)
+		(void)arc4_getbyte();
 	arc4_count = 1600000;
 }
 
@@ -152,7 +152,6 @@ arc4_getbyte(void)
 	sj = rs.s[rs.j];
 	rs.s[rs.i] = sj;
 	rs.s[rs.j] = si;
-
 	return (rs.s[(si + sj) & 0xff]);
 }
 
@@ -160,13 +159,11 @@ static inline u_int32_t
 arc4_getword(void)
 {
 	u_int32_t val;
-
 	val = arc4_getbyte() << 24;
 	val |= arc4_getbyte() << 16;
 	val |= arc4_getbyte() << 8;
 	val |= arc4_getbyte();
-
-	return (val);
+	return val;
 }
 
 static void
@@ -190,51 +187,48 @@ arc4_check_stir(void)
 void
 arc4random_stir(void)
 {
-	THREAD_LOCK();
+	_ARC4_LOCK();
 	arc4_check_init();
 	arc4_stir();
 	rs_stired = 1;
-	THREAD_UNLOCK();
+	_ARC4_UNLOCK();
 }
 
 void
 arc4random_addrandom(u_char *dat, int datlen)
 {
-	THREAD_LOCK();
+	_ARC4_LOCK();
 	arc4_check_init();
 	arc4_check_stir();
 	arc4_addrandom(dat, datlen);
-	THREAD_UNLOCK();
+	_ARC4_UNLOCK();
 }
 
 u_int32_t
 arc4random(void)
 {
-	u_int32_t rnd;
-
-	THREAD_LOCK();
+	u_int32_t val;
+	_ARC4_LOCK();
 	arc4_check_init();
 	arc4_check_stir();
-	rnd = arc4_getword();
+	val = arc4_getword();
 	arc4_count -= 4;
-	THREAD_UNLOCK();
-
-	return (rnd);
+	_ARC4_UNLOCK();
+	return val;
 }
 
 void
 arc4random_buf(void *_buf, size_t n)
 {
 	u_char *buf = (u_char *)_buf;
-
-	THREAD_LOCK();
+	_ARC4_LOCK();
 	arc4_check_init();
 	while (n--) {
 		arc4_check_stir();
 		buf[n] = arc4_getbyte();
 		arc4_count--;
 	}
-	THREAD_UNLOCK();
+	_ARC4_UNLOCK();
 }
 
 /*
@@ -253,7 +247,7 @@ arc4random_uniform(u_int32_t upper_bound)
 	u_int32_t r, min;
 
 	if (upper_bound < 2)
-		return (0);
+		return 0;
 
 #if (ULONG_MAX > 0xffffffffUL)
 	min = 0x100000000UL % upper_bound;
@@ -279,7 +273,7 @@ arc4random_uniform(u_int32_t upper_bound)
 			break;
 	}
 
-	return (r % upper_bound);
+	return r % upper_bound;
 }
 
 #if 0
