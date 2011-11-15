@@ -33,11 +33,13 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
-#include <sys/time.h>
-#include <stdlib.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/time.h>
 #include <pthread.h>
 
 #include "libc_private.h"
@@ -71,9 +73,9 @@ static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 			_pthread_mutex_unlock(&arc4random_mtx);	\
 	} while (0)
 
-static struct arc4_stream rs;
 static int rs_initialized;
-static int rs_stired;
+static struct arc4_stream rs;
+static pid_t arc4_stir_pid;
 static int arc4_count;
 
 static inline u_int8_t arc4_getbyte(void);
@@ -117,6 +119,10 @@ arc4_stir(void)
 		u_char	 	rnd[KEYSIZE];
 	} rdat;
 
+	if (!rs_initialized) {
+		arc4_init();
+		rs_initialized = 1;
+	}
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
 	done = 0;
 	if (fd >= 0) {
@@ -139,6 +145,18 @@ arc4_stir(void)
 	for (i = 0; i < 1024; i++)
 		(void)arc4_getbyte();
 	arc4_count = 1600000;
+}
+
+static void
+arc4_stir_if_needed(void)
+{
+	pid_t pid = getpid();
+
+	if (arc4_count <= 0 || !rs_initialized || arc4_stir_pid != pid)
+	{
+		arc4_stir_pid = pid;
+		arc4_stir();
+	}
 }
 
 static inline u_int8_t
@@ -166,31 +184,11 @@ arc4_getword(void)
 	return val;
 }
 
-static void
-arc4_check_init(void)
-{
-	if (!rs_initialized) {
-		arc4_init();
-		rs_initialized = 1;
-	}
-}
-
-static inline void
-arc4_check_stir(void)
-{
-	if (!rs_stired || arc4_count <= 0) {
-		arc4_stir();
-		rs_stired = 1;
-	}
-}
-
 void
 arc4random_stir(void)
 {
 	_ARC4_LOCK();
-	arc4_check_init();
 	arc4_stir();
-	rs_stired = 1;
 	_ARC4_UNLOCK();
 }
 
@@ -198,8 +196,8 @@ void
 arc4random_addrandom(u_char *dat, int datlen)
 {
 	_ARC4_LOCK();
-	arc4_check_init();
-	arc4_check_stir();
+	if (!rs_initialized)
+		arc4_stir();
 	arc4_addrandom(dat, datlen);
 	_ARC4_UNLOCK();
 }
@@ -209,10 +207,9 @@ arc4random(void)
 {
 	u_int32_t val;
 	_ARC4_LOCK();
-	arc4_check_init();
-	arc4_check_stir();
-	val = arc4_getword();
 	arc4_count -= 4;
+	arc4_stir_if_needed();
+	val = arc4_getword();
 	_ARC4_UNLOCK();
 	return val;
 }
@@ -222,11 +219,11 @@ arc4random_buf(void *_buf, size_t n)
 {
 	u_char *buf = (u_char *)_buf;
 	_ARC4_LOCK();
-	arc4_check_init();
+	arc4_stir_if_needed();
 	while (n--) {
-		arc4_check_stir();
+		if (--arc4_count <= 0)
+			arc4_stir();
 		buf[n] = arc4_getbyte();
-		arc4_count--;
 	}
 	_ARC4_UNLOCK();
 }
