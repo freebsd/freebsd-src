@@ -54,6 +54,9 @@ struct pcpu_md {
 	uint64_t	clock;			/* Clock counter. */
 	uint64_t	clock_load;		/* Clock reload value. */
 	uint32_t	clock_mode;		/* Clock ET mode */
+	uint32_t	sgisn_nasid;
+	uint32_t	sgisn_subnode;
+	uint32_t	sgisn_slice;
 	uint32_t	awake:1;		/* CPU is awake? */
 	struct pcpu_stats stats;		/* Interrupt stats. */
 #ifdef _KERNEL

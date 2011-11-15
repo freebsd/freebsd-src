@@ -2259,7 +2259,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
 	if (md == NULL) {
 		printf("%s: [%#lx..%#lx] not covered by memory descriptor\n",
 		    __func__, pa, pa + sz - 1);
-		return (NULL);
+		return ((void *)IA64_PHYS_TO_RR6(pa));
 	}
 
 	if (md->md_type == EFI_MD_TYPE_FREE) {

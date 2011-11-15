@@ -31,4 +31,8 @@
 
 #include <sys/bus_dma.h>
 
+#define	BUSDMA_MAX_BPAGES	512
+
+#define	bus_dma_tag_parent(x)	x
+
 #endif /* _I386_BUS_DMA_H_ */

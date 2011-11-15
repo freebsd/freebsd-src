@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Scott Long
+ * Copyright (c) 2011 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,16 +22,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-/* $FreeBSD$ */
 
-#ifndef _IA64_BUS_DMA_H_
-#define _IA64_BUS_DMA_H_
+#ifndef _IA64_SGISN_SHUB_H_
+#define	_IA64_SGISN_SHUB_H_
 
-#include <sys/bus_dma.h>
+#define	SHUB_MMR_SIZE		(1 << 32)
 
-#define	BUSDMA_MAX_BPAGES	1024
+#define	SHUB_MMR_IPI		0x10000380
+#define	SHUB_MMR_RTC1_ICFG	0x10001480
+#define	SHUB_MMR_RTC1_IENA	0x10001500
+#define	SHUB_MMR_RTC2_ICFG	0x10001580
+#define	SHUB_MMR_RTC2_IENA	0x10001600
+#define	SHUB_MMR_RTC3_ICFG	0x10001680
+#define	SHUB_MMR_RTC3_IENA	0x10001700
+#define	SHUB_MMR_EVENT		0x10010000
+#define	SHUB_MMR_EVENT_WR	0x10010008
+#define	SHUB_MMR_IPI_ACC	0x10060480
+#define	SHUB_MMR_ID		0x10060580
+#define	SHUB_MMR_PTC_CFG0	0x101a0000
+#define	SHUB_MMR_PTC_CFG1	0x101a0080
+#define	SHUB_MMR_RTC		0x101c0000
+#define	SHUB_MMR_PIO_WSTAT0	0x20070200
+#define	SHUB_MMR_PIO_WSTAT1	0x20070280
+#define	SHUB_MMR_PTC		0x70000000
 
-#define	bus_dma_tag_parent(x)	x
-
-#endif /* _IA64_BUS_DMA_H_ */
+#endif /* _IA64_SGISN_SHUB_H_ */

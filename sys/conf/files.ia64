@@ -117,6 +117,9 @@ ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
 ia64/pci/pci_cfgreg.c		optional	pci
+ia64/sgisn/sgisn_console.c	standard
+ia64/sgisn/sgisn_pcib.c		standard
+ia64/sgisn/sgisn_shub.c		standard
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/imgact_elf32.c		optional	compat_freebsd32

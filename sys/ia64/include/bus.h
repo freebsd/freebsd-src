@@ -222,9 +222,8 @@ bus_space_read_8(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs)
 {
 	uint64_t val;
 
-	val = (__predict_false(bst == IA64_BUS_SPACE_IO))
-	    ? bus_space_read_io_8(bsh + ofs)
-	    : ia64_ld8((void *)(bsh + ofs));
+	val = (__predict_false(bst == IA64_BUS_SPACE_IO)) ? ~0 :
+	    ia64_ld8((void *)(bsh + ofs));
 	return (val);
 }
 
@@ -277,9 +276,7 @@ bus_space_write_8(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
     uint64_t val)
 {
 
-	if (__predict_false(bst == IA64_BUS_SPACE_IO))
-		bus_space_write_io_8(bsh + ofs, val);
-	else
+	if (__predict_true(bst != IA64_BUS_SPACE_IO))
 		ia64_st8((void *)(bsh + ofs), val);
 }
 

@@ -309,9 +309,8 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	} else
 		pc = pcpup;
 
-	pc->pc_acpi_id = acpi_id;
-	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
-
+	cpu_pcpu_setup(pc, acpi_id, sapic_id);
+ 
 	CPU_SET(pc->pc_cpuid, &all_cpus);
 }
 
@@ -511,14 +510,25 @@ ipi_all_but_self(int ipi)
 void
 ipi_send(struct pcpu *cpu, int xiv)
 {
+	uint64_t *ipip;
+	uint64_t ipi;
 	u_int sapic_id;
 
 	KASSERT(xiv != 0, ("ipi_send"));
 
 	sapic_id = IA64_LID_GET_SAPIC_ID(cpu->pc_md.lid);
 
+#if 0
+	ipip = &(ia64_pib->ib_ipi[sapic_id][0]);
+	ipi = xiv;
+#else
+	ipip = (void *)(IA64_PHYS_TO_RR6(0x800000000UL) |
+	    ((u_long)cpu->pc_md.sgisn_nasid << 38) | 0x110000380UL);
+	ipi = 0x80000001fdc00000UL | ((u_long)xiv << 52) | (sapic_id << 4);
+#endif
+
 	ia64_mf();
-	ia64_st8(&(ia64_pib->ib_ipi[sapic_id][0]), xiv);
+	ia64_st8(ipip, ipi);
 	ia64_mf_a();
 	CTR3(KTR_SMP, "ipi_send(%p, %d): cpuid=%d", cpu, xiv, PCPU_GET(cpuid));
 }

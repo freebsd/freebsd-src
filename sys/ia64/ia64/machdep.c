@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/sal.h>
+#include <machine/sgisn.h>
 #include <machine/sigframe.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -534,6 +535,22 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 }
 
 void
+cpu_pcpu_setup(struct pcpu *pc, u_int acpi_id, u_int sapic_id)
+{
+	struct ia64_sal_result r;
+
+	pc->pc_acpi_id = acpi_id;
+	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
+
+	r = ia64_sal_entry(SAL_SGISN_SAPIC_INFO, sapic_id, 0, 0, 0, 0, 0, 0);
+	if (r.sal_status == 0) {
+		pc->pc_md.sgisn_nasid = r.sal_result[0];
+		pc->pc_md.sgisn_subnode = r.sal_result[1];
+		pc->pc_md.sgisn_slice = r.sal_result[2];
+	}
+}
+ 
+void
 spinlock_enter(void)
 {
 	struct thread *td;
@@ -801,7 +818,7 @@ ia64_init(void)
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
 	dpcpu_init((void *)kernend, 0);
-	PCPU_SET(md.lid, ia64_get_lid());
+	cpu_pcpu_setup(pcpup, ~0U, ia64_get_lid());
 	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 

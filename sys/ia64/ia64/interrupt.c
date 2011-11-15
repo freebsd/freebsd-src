@@ -156,7 +156,8 @@ ia64_intr_eoi(void *arg)
 
 	i = ia64_intrs[xiv];
 	KASSERT(i != NULL, ("%s", __func__));
-	sapic_eoi(i->sapic, xiv);
+	if (i->sapic != NULL)
+		sapic_eoi(i->sapic, xiv);
 }
 
 static void
@@ -167,8 +168,10 @@ ia64_intr_mask(void *arg)
 
 	i = ia64_intrs[xiv];
 	KASSERT(i != NULL, ("%s", __func__));
-	sapic_mask(i->sapic, i->irq);
-	sapic_eoi(i->sapic, xiv);
+	if (i->sapic != NULL) {
+		sapic_mask(i->sapic, i->irq);
+		sapic_eoi(i->sapic, xiv);
+	}
 }
 
 static void
@@ -179,7 +182,31 @@ ia64_intr_unmask(void *arg)
 
 	i = ia64_intrs[xiv];
 	KASSERT(i != NULL, ("%s", __func__));
-	sapic_unmask(i->sapic, i->irq);
+	if (i->sapic != NULL)
+		sapic_unmask(i->sapic, i->irq);
+}
+
+static int
+ia64_create_event(struct ia64_intr *i, u_int xiv, const char *name)
+{
+	char *intrname;
+	int error;
+
+	error = intr_event_create(&i->event, (void *)(uintptr_t)xiv, 0,
+	    i->irq, ia64_intr_mask, ia64_intr_unmask, ia64_intr_eoi, NULL,
+	    "irq%u:", i->irq);
+	if (error)
+		return (error);
+
+	i->cntp = intrcnt + xiv;
+	if (name != NULL && *name != '\0') {
+		/* XXX needs abstraction. Too error prone. */
+		intrname = intrnames + xiv * INTRNAME_LEN;
+		memset(intrname, ' ', INTRNAME_LEN - 1);
+		bcopy(name, intrname, strlen(name));
+	}
+
+	return (0);
 }
 
 int
@@ -188,7 +215,6 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 {
 	struct ia64_intr *i;
 	struct sapic *sa;
-	char *intrname;
 	u_int prio, xiv;
 	int error;
 
@@ -201,62 +227,93 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 	/* Get the I/O SAPIC and XIV that corresponds to the IRQ. */
 	sa = sapic_lookup(irq, &xiv);
 	if (sa == NULL) {
-		/* XXX unlock */
-		return (EINVAL);
-	}
-
-	if (xiv == 0) {
-		/* XXX unlock */
-		i = malloc(sizeof(struct ia64_intr), M_DEVBUF,
-		    M_ZERO | M_WAITOK);
-		/* XXX lock */
-		sa = sapic_lookup(irq, &xiv);
-		KASSERT(sa != NULL, ("sapic_lookup"));
-		if (xiv != 0)
-			free(i, M_DEVBUF);
-	}
-
-	/*
-	 * If the IRQ has no XIV assigned to it yet, assign one based
-	 * on the priority.
-	 */
-	if (xiv == 0) {
-		xiv = ia64_xiv_alloc(prio, IA64_XIV_IRQ, ia64_ih_irq);
-		if (xiv == 0) {
+		/* XXX assume SGI Altix... */
+		xiv = irq;
+		i = ia64_intrs[xiv];
+		if (i == NULL) {
 			/* XXX unlock */
-			free(i, M_DEVBUF);
-			return (ENOSPC);
-		}
 
-		error = intr_event_create(&i->event, (void *)(uintptr_t)xiv,
-		    0, irq, ia64_intr_mask, ia64_intr_unmask, ia64_intr_eoi,
-		    NULL, "irq%u:", irq);
-		if (error) {
-			ia64_xiv_free(xiv, IA64_XIV_IRQ);
-			/* XXX unlock */
-			free(i, M_DEVBUF);
-			return (error);
-		}
+			i = malloc(sizeof(struct ia64_intr), M_DEVBUF,
+			    M_ZERO | M_WAITOK);
 
-		i->sapic = sa;
-		i->irq = irq;
-		i->cntp = intrcnt + xiv;
-		ia64_intrs[xiv] = i;
+			/* XXX lock */
 
-		/* XXX unlock */
+			if (ia64_intrs[xiv] == NULL) {
+				error = ia64_xiv_reserve(xiv, IA64_XIV_IRQ,
+				    ia64_ih_irq);
+				if (error) {
+					/* XXX unlock */
 
-		sapic_enable(sa, irq, xiv);
+					free(i, M_DEVBUF);
+					return (error);
+				}
 
-		if (name != NULL && *name != '\0') {
-			/* XXX needs abstraction. Too error prone. */
-			intrname = intrnames + xiv * INTRNAME_LEN;
-			memset(intrname, ' ', INTRNAME_LEN - 1);
-			bcopy(name, intrname, strlen(name));
+				i->irq = irq;
+				error = ia64_create_event(i, xiv, name);
+				if (error != 0) {
+					ia64_xiv_free(xiv, IA64_XIV_IRQ);
+
+					/* XXX unlock */
+
+					free(i, M_DEVBUF);
+					return (error);
+				}
+
+				// sgisn_register_intr();
+				ia64_intrs[xiv] = i;
+			} else {
+				free(i, M_DEVBUF);
+				i = ia64_intrs[xiv];
+			}
 		}
 	} else {
-		i = ia64_intrs[xiv];
-		/* XXX unlock */
+		if (xiv == 0) {
+			/* XXX unlock */
+
+			i = malloc(sizeof(struct ia64_intr), M_DEVBUF,
+			    M_ZERO | M_WAITOK);
+
+			/* XXX lock */
+
+			/*
+			 * Make sure some other thread hasn't registered an
+			 * event for the same IRQ while the window was open.
+			 */
+			sa = sapic_lookup(irq, &xiv);
+			KASSERT(sa != NULL, ("sapic_lookup"));
+			if (xiv != 0) {
+				free(i, M_DEVBUF);
+				i = ia64_intrs[xiv];
+			} else {
+				xiv = ia64_xiv_alloc(prio, IA64_XIV_IRQ,
+				    ia64_ih_irq);
+				if (xiv == 0) {
+					/* XXX unlock */
+
+					free(i, M_DEVBUF);
+					return (ENOSPC);
+				}
+
+				i->irq = irq;
+				error = ia64_create_event(i, xiv, name);
+				if (error != 0) {
+					ia64_xiv_free(xiv, IA64_XIV_IRQ);
+
+					/* XXX unlock */
+
+					free(i, M_DEVBUF);
+					return (error);
+				}
+
+				i->sapic = sa;
+				sapic_enable(sa, irq, xiv);
+				ia64_intrs[xiv] = i;
+			}
+		} else
+			i = ia64_intrs[xiv];
 	}
+
+	/* XXX unlock */
 
 	KASSERT(i != NULL, ("XIV mapping bug"));
 
@@ -289,7 +346,8 @@ ia64_bind_intr(void)
 			cpu = (cpu == 0) ? MAXCPU - 1 : cpu - 1;
 			pc = cpuid_to_pcpu[cpu];
 		} while (pc == NULL || !pc->pc_md.awake);
-		sapic_bind_intr(i->irq, pc);
+		if (i->sapic != NULL)
+			sapic_bind_intr(i->irq, pc);
 	}
 }
 
@@ -386,7 +444,10 @@ db_print_xiv(u_int xiv, int always)
 	i = ia64_intrs[xiv];
 	if (i != NULL) {
 		db_printf("XIV %u (%p): ", xiv, i);
-		sapic_print(i->sapic, i->irq);
+		if (i->sapic != NULL)
+			sapic_print(i->sapic, i->irq);
+		else
+			db_printf("\n");
 	} else if (always)
 		db_printf("XIV %u: unassigned\n", xiv);
 }
