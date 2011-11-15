@@ -838,12 +838,12 @@ do_dup(struct thread *td, int flags, int old, int new,
 	if (flags & DUP_FIXED) {
 		if (new >= fdp->fd_nfiles) {
 			/*
-			 * The resource limits are here instead of e.g. fdalloc(),
-			 * because the file descriptor table may be shared between
-			 * processes, so we can't really use racct_add()/racct_sub().
-			 * Instead of counting the number of actually allocated
-			 * descriptors, just put the limit on the size of the file
-			 * descriptor table.
+			 * The resource limits are here instead of e.g.
+			 * fdalloc(), because the file descriptor table may be
+			 * shared between processes, so we can't really use
+			 * racct_add()/racct_sub().  Instead of counting the
+			 * number of actually allocated descriptors, just put
+			 * the limit on the size of the file descriptor table.
 			 */
 #ifdef RACCT
 			PROC_LOCK(p);
@@ -1516,7 +1516,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	FILEDESC_XLOCK_ASSERT(fdp);
 
 	if (fdp->fd_freefile > minfd)
-		minfd = fdp->fd_freefile;	   
+		minfd = fdp->fd_freefile;
 
 	PROC_LOCK(p);
 	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
@@ -2248,7 +2248,7 @@ closef(struct file *fp, struct thread *td)
 
 /*
  * Initialize the file pointer with the specified properties.
- * 
+ *
  * The ops are set with release semantics to be certain that the flags, type,
  * and data are visible when ops is.  This is to prevent ops methods from being
  * called with bad data.
@@ -3758,28 +3758,32 @@ SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);
 /*-------------------------------------------------------------------*/
 
 static int
-badfo_readwrite(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags, struct thread *td)
+badfo_readwrite(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 
 	return (EBADF);
 }
 
 static int
-badfo_truncate(struct file *fp, off_t length, struct ucred *active_cred, struct thread *td)
+badfo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return (EINVAL);
 }
 
 static int
-badfo_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred, struct thread *td)
+badfo_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return (EBADF);
 }
 
 static int
-badfo_poll(struct file *fp, int events, struct ucred *active_cred, struct thread *td)
+badfo_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return (0);
@@ -3793,7 +3797,8 @@ badfo_kqfilter(struct file *fp, struct knote *kn)
 }
 
 static int
-badfo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred, struct thread *td)
+badfo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return (EBADF);
