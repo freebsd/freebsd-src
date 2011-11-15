@@ -1231,6 +1231,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
+	if (desiredvnodes >= 11000)
+		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
+	else
+		nmp->nm_wcommitsize = hibufspace / 10;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1252,7 +1256,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_rsize = NFS_RSIZE;
 		nmp->nm_readdirsize = NFS_READDIRSIZE;
 	}
-	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
