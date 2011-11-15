@@ -724,7 +724,8 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_free.9 \
 	kobj.9 kobj_create.9 \
 	kobj.9 kobj_delete.9 \
-	kobj.9 kobj_init.9
+	kobj.9 kobj_init.9 \
+	kobj.9 kobj_init_static.9
 MLINKS+=kproc.9 kproc_create.9 \
 	kproc.9 kproc_exit.9 \
 	kproc.9 kproc_resume.9 \
