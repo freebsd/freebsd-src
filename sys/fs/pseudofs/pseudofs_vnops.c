@@ -711,6 +711,13 @@ pfs_iterate(struct thread *td, struct proc *proc, struct pfs_node *pd,
 	return (0);
 }
 
+/* Directory entry list */
+struct pfsentry {
+	STAILQ_ENTRY(pfsentry)	link;
+	struct dirent		entry;
+};
+STAILQ_HEAD(pfsdirentlist, pfsentry);
+
 /*
  * Return directory entries.
  */
@@ -723,12 +730,14 @@ pfs_readdir(struct vop_readdir_args *va)
 	pid_t pid = pvd->pvd_pid;
 	struct proc *p, *proc;
 	struct pfs_node *pn;
-	struct dirent *entry;
 	struct uio *uio;
+	struct pfsentry *pfsent, *pfsent2;
+	struct pfsdirentlist lst;
 	off_t offset;
 	int error, i, resid;
-	char *buf, *ent;
 
+	STAILQ_INIT(&lst);
+	error = 0;
 	KASSERT(pd->pn_info == vn->v_mount->mnt_data,
 	    ("%s(): pn_info does not match mountpoint", __func__));
 	PFS_TRACE(("%s pid %lu", pd->pn_name, (unsigned long)pid));
@@ -748,8 +757,6 @@ pfs_readdir(struct vop_readdir_args *va)
 	if (resid == 0)
 		PFS_RETURN (0);
 
-	/* can't do this while holding the proc lock... */
-	buf = malloc(resid, M_IOV, M_WAITOK | M_ZERO);
 	sx_slock(&allproc_lock);
 	pfs_lock(pd);
 
@@ -757,7 +764,6 @@ pfs_readdir(struct vop_readdir_args *va)
         if (!pfs_visible(curthread, pd, pid, &proc)) {
 		sx_sunlock(&allproc_lock);
 		pfs_unlock(pd);
-		free(buf, M_IOV);
                 PFS_RETURN (ENOENT);
 	}
 	KASSERT(pid == NO_PID || proc != NULL,
@@ -771,57 +777,64 @@ pfs_readdir(struct vop_readdir_args *va)
 				PROC_UNLOCK(proc);
 			pfs_unlock(pd);
 			sx_sunlock(&allproc_lock);
-			free(buf, M_IOV);
 			PFS_RETURN (0);
 		}
 	}
 
 	/* fill in entries */
-	ent = buf;
 	while (pfs_iterate(curthread, proc, pd, &pn, &p) != -1 &&
 	    resid >= PFS_DELEN) {
-		entry = (struct dirent *)ent;
-		entry->d_reclen = PFS_DELEN;
-		entry->d_fileno = pn_fileno(pn, pid);
+		if ((pfsent = malloc(sizeof(struct pfsentry), M_IOV,
+		    M_NOWAIT | M_ZERO)) == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		pfsent->entry.d_reclen = PFS_DELEN;
+		pfsent->entry.d_fileno = pn_fileno(pn, pid);
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
 		for (i = 0; i < PFS_NAMELEN - 1 && pn->pn_name[i] != '\0'; ++i)
-			entry->d_name[i] = pn->pn_name[i];
-		entry->d_name[i] = 0;
-		entry->d_namlen = i;
+			pfsent->entry.d_name[i] = pn->pn_name[i];
+		pfsent->entry.d_name[i] = 0;
+		pfsent->entry.d_namlen = i;
 		switch (pn->pn_type) {
 		case pfstype_procdir:
 			KASSERT(p != NULL,
 			    ("reached procdir node with p == NULL"));
-			entry->d_namlen = snprintf(entry->d_name,
+			pfsent->entry.d_namlen = snprintf(pfsent->entry.d_name,
 			    PFS_NAMELEN, "%d", p->p_pid);
 			/* fall through */
 		case pfstype_root:
 		case pfstype_dir:
 		case pfstype_this:
 		case pfstype_parent:
-			entry->d_type = DT_DIR;
+			pfsent->entry.d_type = DT_DIR;
 			break;
 		case pfstype_file:
-			entry->d_type = DT_REG;
+			pfsent->entry.d_type = DT_REG;
 			break;
 		case pfstype_symlink:
-			entry->d_type = DT_LNK;
+			pfsent->entry.d_type = DT_LNK;
 			break;
 		default:
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
-		PFS_TRACE(("%s", entry->d_name));
+		PFS_TRACE(("%s", pfsent->entry.d_name));
+		STAILQ_INSERT_TAIL(&lst, pfsent, link);
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
-		ent += PFS_DELEN;
 	}
 	if (proc != NULL)
 		PROC_UNLOCK(proc);
 	pfs_unlock(pd);
 	sx_sunlock(&allproc_lock);
-	PFS_TRACE(("%zd bytes", ent - buf));
-	error = uiomove(buf, ent - buf, uio);
-	free(buf, M_IOV);
+	i = 0;
+	STAILQ_FOREACH_SAFE(pfsent, &lst, link, pfsent2) {
+		if (error == 0)
+			error = uiomove(&pfsent->entry, PFS_DELEN, uio);
+		free(pfsent, M_IOV);
+		i++;
+	}
+	PFS_TRACE(("%zd bytes", i * PFS_DELEN));
 	PFS_RETURN (error);
 }
 
