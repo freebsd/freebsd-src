@@ -1186,6 +1186,7 @@ re_attach(device_t dev)
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	const struct rl_hwrev	*hw_rev;
+	u_int32_t		cap, ctl;
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
 	int			error = 0, i, phy, rid;
@@ -1241,8 +1242,10 @@ re_attach(device_t dev)
 
 	msic = pci_msi_count(dev);
 	msixc = pci_msix_count(dev);
-	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0)
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		sc->rl_flags |= RL_FLAG_PCIE;
+		sc->rl_expcap = reg;
+	}
 	if (bootverbose) {
 		device_printf(dev, "MSI count : %d\n", msic);
 		device_printf(dev, "MSI-X count : %d\n", msixc);
@@ -1332,6 +1335,23 @@ re_attach(device_t dev)
 			CSR_WRITE_1(sc, RL_CFG2, cfg);
 		}
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+	}
+
+	/* Disable ASPM L0S/L1. */
+	if (sc->rl_expcap != 0) {
+		cap = pci_read_config(dev, sc->rl_expcap +
+		    PCIR_EXPRESS_LINK_CAP, 2);
+		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
+			ctl = pci_read_config(dev, sc->rl_expcap +
+			    PCIR_EXPRESS_LINK_CTL, 2);
+			if ((ctl & 0x0003) != 0) {
+				ctl &= ~0x0003;
+				pci_write_config(dev, sc->rl_expcap +
+				    PCIR_EXPRESS_LINK_CTL, ctl, 2);
+				device_printf(dev, "ASPM disabled\n");
+			}
+		} else
+			device_printf(dev, "no ASPM capability\n");
 	}
 
 	hw_rev = re_hwrevs;
