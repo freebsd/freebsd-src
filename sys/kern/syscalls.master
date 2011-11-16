@@ -927,5 +927,15 @@
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec *ts, \
 				    const sigset_t *sm); }
+523	AUE_NULL	UNIMPL	getloginclass
+524	AUE_NULL	UNIMPL	setloginclass
+525	AUE_NULL	UNIMPL	rctl_get_racct
+526	AUE_NULL	UNIMPL	rctl_get_rules
+527	AUE_NULL	UNIMPL	rctl_get_limits
+528	AUE_NULL	UNIMPL	rctl_add_rule
+529	AUE_NULL	UNIMPL	rctl_remove_rule
+530	AUE_NULL	STD	{ int posix_fallocate(int fd, \
+				    off_t offset, off_t len); }
+531	AUE_NULL	UNIMPL	posix_fadvise
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

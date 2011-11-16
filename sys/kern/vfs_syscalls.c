@@ -4654,3 +4654,98 @@ out:
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
+
+static int
+kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
+{
+	struct file *fp;
+	struct mount *mp;
+	struct vnode *vp;
+	off_t olen, ooffset;
+	int error, vfslocked;
+
+	fp = NULL;
+	vfslocked = 0;
+	error = fget(td, fd, &fp);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+	if ((fp->f_flag & FWRITE) == 0) {
+		error = EBADF;
+		goto out;
+	}
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (offset < 0 || len <= 0) {
+		error = EINVAL;
+		goto out;
+	}
+	/* Check for wrap. */
+	if (offset > OFF_MAX - len) {
+		error = EFBIG;
+		goto out;
+	}
+
+	/* Allocating blocks may take a long time, so iterate. */
+	for (;;) {
+		olen = len;
+		ooffset = offset;
+
+		bwillwrite();
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		mp = NULL;
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0) {
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			vn_finished_write(mp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+#ifdef MAC
+		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
+		if (error == 0)
+#endif
+			error = VOP_ALLOCATE(vp, &offset, &len);
+		VOP_UNLOCK(vp, 0);
+		vn_finished_write(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+
+		if (olen + ooffset != offset + len) {
+			panic("offset + len changed from %jx/%jx to %jx/%jx",
+			    ooffset, olen, offset, len);
+		}
+		if (error != 0 || len == 0)
+			break;
+		KASSERT(olen > len, ("Iteration did not make progress?"));
+		maybe_yield();
+	}
+ out:
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
+}
+
+int
+posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
+{
+
+	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
+}
