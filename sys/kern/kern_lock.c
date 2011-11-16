@@ -131,15 +131,16 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	lockmgr_xlocked(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
 
-static void	 assert_lockmgr(struct lock_object *lock, int how);
+static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
-static void	 db_show_lockmgr(struct lock_object *lock);
+static void	db_show_lockmgr(const struct lock_object *lock);
 #endif
-static void	 lock_lockmgr(struct lock_object *lock, int how);
+static void	lock_lockmgr(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	 owner_lockmgr(struct lock_object *lock, struct thread **owner);
+static int	owner_lockmgr(const struct lock_object *lock,
+		    struct thread **owner);
 #endif
-static int	 unlock_lockmgr(struct lock_object *lock);
+static int	unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
@@ -165,7 +166,7 @@ SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
 #endif
 
 static __inline struct thread *
-lockmgr_xholder(struct lock *lk)
+lockmgr_xholder(const struct lock *lk)
 {
 	uintptr_t x;
 
@@ -335,7 +336,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 }
 
 static void
-assert_lockmgr(struct lock_object *lock, int what)
+assert_lockmgr(const struct lock_object *lock, int what)
 {
 
 	panic("lockmgr locks do not support assertions");
@@ -357,7 +358,7 @@ unlock_lockmgr(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 static int
-owner_lockmgr(struct lock_object *lock, struct thread **owner)
+owner_lockmgr(const struct lock_object *lock, struct thread **owner)
 {
 
 	panic("lockmgr locks do not support owner inquiring");
@@ -1260,7 +1261,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 }
 
 void
-lockmgr_printinfo(struct lock *lk)
+lockmgr_printinfo(const struct lock *lk)
 {
 	struct thread *td;
 	uintptr_t x;
@@ -1289,7 +1290,7 @@ lockmgr_printinfo(struct lock *lk)
 }
 
 int
-lockstatus(struct lock *lk)
+lockstatus(const struct lock *lk)
 {
 	uintptr_t v, x;
 	int ret;
@@ -1319,7 +1320,7 @@ FEATURE(invariant_support,
 #endif
 
 void
-_lockmgr_assert(struct lock *lk, int what, const char *file, int line)
+_lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 {
 	int slocked = 0;
 
@@ -1412,12 +1413,12 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 }
 
 static void
-db_show_lockmgr(struct lock_object *lock)
+db_show_lockmgr(const struct lock_object *lock)
 {
 	struct thread *td;
-	struct lock *lk;
+	const struct lock *lk;
 
-	lk = (struct lock *)lock;
+	lk = (const struct lock *)lock;
 
 	db_printf(" state: ");
 	if (lk->lk_lock == LK_UNLOCKED)

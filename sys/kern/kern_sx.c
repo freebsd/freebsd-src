@@ -105,13 +105,13 @@ CTASSERT((SX_NOADAPTIVE & LO_CLASSFLAGS) == SX_NOADAPTIVE);
 #define	sx_recurse		lock_object.lo_data
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
-static void	assert_sx(struct lock_object *lock, int what);
+static void	assert_sx(const struct lock_object *lock, int what);
 #ifdef DDB
-static void	db_show_sx(struct lock_object *lock);
+static void	db_show_sx(const struct lock_object *lock);
 #endif
 static void	lock_sx(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	owner_sx(struct lock_object *lock, struct thread **owner);
+static int	owner_sx(const struct lock_object *lock, struct thread **owner);
 #endif
 static int	unlock_sx(struct lock_object *lock);
 
@@ -142,10 +142,10 @@ SYSCTL_UINT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 #endif
 
 void
-assert_sx(struct lock_object *lock, int what)
+assert_sx(const struct lock_object *lock, int what)
 {
 
-	sx_assert((struct sx *)lock, what);
+	sx_assert((const struct sx *)lock, what);
 }
 
 void
@@ -178,9 +178,9 @@ unlock_sx(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 int
-owner_sx(struct lock_object *lock, struct thread **owner)
+owner_sx(const struct lock_object *lock, struct thread **owner)
 {
-        struct sx *sx = (struct sx *)lock;
+        const struct sx *sx = (const struct sx *)lock;
 	uintptr_t x = sx->sx_lock;
 
         *owner = (struct thread *)SX_OWNER(x);
@@ -1005,7 +1005,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
  * thread owns an slock.
  */
 void
-_sx_assert(struct sx *sx, int what, const char *file, int line)
+_sx_assert(const struct sx *sx, int what, const char *file, int line)
 {
 #ifndef WITNESS
 	int slocked = 0;
@@ -1088,12 +1088,12 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 
 #ifdef DDB
 static void
-db_show_sx(struct lock_object *lock)
+db_show_sx(const struct lock_object *lock)
 {
 	struct thread *td;
-	struct sx *sx;
+	const struct sx *sx;
 
-	sx = (struct sx *)lock;
+	sx = (const struct sx *)lock;
 
 	db_printf(" state: ");
 	if (sx->sx_lock == SX_LOCK_UNLOCKED)
