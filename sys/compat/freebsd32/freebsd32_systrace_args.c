@@ -2930,6 +2930,17 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* freebsd32_posix_fallocate */
+	case 530: {
+		struct freebsd32_posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->offset1; /* uint32_t */
+		uarg[2] = p->offset2; /* uint32_t */
+		uarg[3] = p->len1; /* uint32_t */
+		uarg[4] = p->len2; /* uint32_t */
+		*n_args = 5;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -7805,6 +7816,28 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "const sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
 			break;
 		default:
 			break;
