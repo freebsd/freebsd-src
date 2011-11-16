@@ -117,6 +117,12 @@
 #define	PRI_MIN_IDLE		(224)
 #define	PRI_MAX_IDLE		(PRI_MAX)
 
+#ifdef _KERNEL
+/* Other arguments for kern_yield(9). */
+#define	PRI_USER	-2	/* Change to current user priority. */
+#define	PRI_UNCHANGED	-1	/* Do not change priority. */
+#endif
+
 struct priority {
 	u_char	pri_class;	/* Scheduling class. */
 	u_char	pri_level;	/* Normal priority level. */

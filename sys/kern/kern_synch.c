@@ -536,6 +536,38 @@ synch_setup(void *dummy)
 	loadav(NULL);
 }
 
+int
+should_yield(void)
+{
+
+	return (ticks - PCPU_GET(switchticks) >= hogticks);
+}
+
+void
+maybe_yield(void)
+{
+
+	if (should_yield())
+		kern_yield(PRI_USER);
+}
+
+void
+kern_yield(int prio)
+{
+	struct thread *td;
+
+	td = curthread;
+	DROP_GIANT();
+	thread_lock(td);
+	if (prio == PRI_USER)
+		prio = td->td_user_pri;
+	if (prio >= 0)
+		sched_prio(td, prio);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
+	thread_unlock(td);
+	PICKUP_GIANT();
+}
+
 /*
  * General purpose yield system call.
  */
