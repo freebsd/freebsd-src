@@ -275,6 +275,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	send \
 	sf \
+	sfxge \
 	sge \
 	siba_bwn \
 	siftr \
