@@ -5,11 +5,10 @@ PROG=	filemontest
 NO_MAN=
 
 WARNS?=	6
-CFLAGS=	-Werror
 CFLAGS+= -I${.CURDIR}/..
 
-test: ${PROG}
-	@cd ${.CURDIR} ; ${MAKE} clean-test
+# Cannot use .OBJDIR -- 'filemontest' expects 'test_script.sh' in .
+test: ${PROG} clean-test
 	cd ${.CURDIR} ; \
 		for A in 1 2 3 4 5 6 7 8 9 0; do \
 		for B in 1 2 3 4 5 6 7 8 9 0; do \
