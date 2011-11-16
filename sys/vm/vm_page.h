@@ -359,8 +359,10 @@ void vm_pageq_remove(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
+    u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
-struct vnode *vm_page_alloc_init(vm_page_t);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache(vm_page_t);
 void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
