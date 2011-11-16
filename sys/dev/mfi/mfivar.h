@@ -73,8 +73,8 @@ struct mfi_hwcomms {
 	uint32_t		hw_ci;
 	uint32_t		hw_reply_q[1];
 };
-#define  MEGASAS_MAX_NAME 32
-#define MEGASAS_VERSION "4.23"
+#define	MEGASAS_MAX_NAME	32
+#define	MEGASAS_VERSION		"4.23"
 
 struct mfi_softc;
 struct disk;
@@ -127,12 +127,12 @@ struct mfi_disk {
 };
 
 struct mfi_system_pd {
-	TAILQ_ENTRY(mfi_system_pd)	pd_link;
+	TAILQ_ENTRY(mfi_system_pd) pd_link;
 	device_t	pd_dev;
 	int		pd_id;
 	int		pd_unit;
 	struct mfi_softc *pd_controller;
-	struct mfi_pd_info	*pd_info;
+	struct mfi_pd_info *pd_info;
 	struct disk	*pd_disk;
 	int		pd_flags;
 };
@@ -153,8 +153,8 @@ typedef struct {
 	volatile unsigned int val;
 } atomic_t;
 
-#define atomic_read(v)	((v)->val)
-#define atomic_set(v,i)	((v)->val - (i))
+#define	atomic_read(v)	((v)->val)
+#define	atomic_set(v,i)	((v)->val - (i))
 
 struct mfi_softc {
 	device_t			mfi_dev;
@@ -246,7 +246,7 @@ struct mfi_softc {
 
 	struct intr_config_hook		mfi_ich;
 	eventhandler_tag		eh;
-	/*OCR flags*/
+	/* OCR flags */
 	atomic_t fw_reset_no_pci_access;
 	uint8_t adpreset;
 	uint8_t issuepend_done;
@@ -317,18 +317,21 @@ struct mfi_softc {
 	uint32_t			MFA_enabled;
 	uint64_t			map_id;
 	struct mfi_command 		*map_update_cmd;
-	//Thunderbolt Related structure members
-	uint16_t			reply_size;        // Single Reply structure size
-	uint16_t			raid_io_msg_size;    // Singler message size
+	/* Single Reply structure size */
+	uint16_t			reply_size;
+	/* Singler message size. */
+	uint16_t			raid_io_msg_size;
 	TAILQ_HEAD(TB, mfi_cmd_tbolt)	mfi_cmd_tbolt_tqh;
-	bus_dma_tag_t			mfi_tb_dmat;		// ThunderBolt base contiguous memory mapping
+	/* ThunderBolt base contiguous memory mapping. */
+	bus_dma_tag_t			mfi_tb_dmat;
 	bus_dmamap_t			mfi_tb_dmamap;
 	#if defined(__amd64__)
 		uint64_t			mfi_tb_busaddr;
 	#else
 	uint32_t			mfi_tb_busaddr;
 	#endif
-	uint8_t	*			request_message_pool;	// ThunderBolt Contiguous DMA memory Mapping
+	/* ThunderBolt Contiguous DMA memory Mapping */
+	uint8_t	*			request_message_pool;
 	uint8_t *			request_message_pool_align;
 	uint8_t *			request_desc_pool;
 	//uint32_t			request_desc_busaddr;
@@ -341,14 +344,17 @@ struct mfi_softc {
 	uint32_t			reply_frame_busaddr;
 	uint32_t			sg_frame_busaddr;
 	#endif
-	bus_dma_tag_t			mfi_tb_ioc_init_dmat;	// ThunderBolt IOC Init Descriptor
+	/* ThunderBolt IOC Init Descriptor */
+	bus_dma_tag_t			mfi_tb_ioc_init_dmat;
 	bus_dmamap_t			mfi_tb_ioc_init_dmamap;
 	uint8_t *			mfi_tb_ioc_init_desc;
 	struct mfi_cmd_tbolt		**mfi_cmd_pool_tbolt;
-	struct mfi_mpi2_reply_header*	reply_frame_pool; // Virtual address of reply Frame Pool
+	/* Virtual address of reply Frame Pool */
+	struct mfi_mpi2_reply_header*	reply_frame_pool;
 	struct mfi_mpi2_reply_header*	reply_frame_pool_align;
 
-	uint8_t *			reply_pool_limit; // Last reply frame address
+	/* Last reply frame address */
+	uint8_t *			reply_pool_limit;
 	uint16_t			last_reply_idx;
 	uint8_t				max_SGEs_in_chain_message;
 	uint8_t				max_SGEs_in_main_message;
@@ -359,11 +365,11 @@ struct mfi_softc {
 };
 
 union desc_value {
-	uint64_t word;
+	uint64_t	word;
 	struct {
-			uint32_t low;
-			uint32_t high;
-		}u;
+		uint32_t	low;
+		uint32_t	high;
+	}u;
 };
 
 // TODO find the right definition
@@ -387,21 +393,21 @@ union desc_value {
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	0x60
 #define MEGASAS_EEDPBLOCKSIZE			512
 struct mfi_cmd_tbolt {
-	union mfi_mpi2_request_descriptor	*request_desc;
-	struct mfi_mpi2_request_raid_scsi_io	*io_request;
-	uintptr_t			io_request_phys_addr;
-	uintptr_t			sg_frame_phys_addr;
-	uintptr_t 			sense_phys_addr;
-	MPI2_SGE_IO_UNION		*sg_frame;
-	uint8_t *sense;
+	union mfi_mpi2_request_descriptor *request_desc;
+	struct mfi_mpi2_request_raid_scsi_io *io_request;
+	uintptr_t		io_request_phys_addr;
+	uintptr_t		sg_frame_phys_addr;
+	uintptr_t 		sense_phys_addr;
+	MPI2_SGE_IO_UNION	*sg_frame;
+	uint8_t			*sense;
 	TAILQ_ENTRY(mfi_cmd_tbolt) next;
 	/*
 	 * Context for a MFI frame.
 	 * Used to get the mfi cmd from list when a MFI cmd is completed
 	 */
-	uint32_t sync_cmd_idx;
-	uint16_t index;
-	uint8_t  status;
+	uint32_t		sync_cmd_idx;
+	uint16_t		index;
+	uint8_t			status;
 };
 
 extern int mfi_attach(struct mfi_softc *);

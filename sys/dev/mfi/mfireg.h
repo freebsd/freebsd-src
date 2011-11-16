@@ -101,9 +101,9 @@ __FBSDID("$FreeBSD$");
 #define MFI_1078_RM	0x80000000 	/* reply 1078 message interrupt  */
 #define MFI_ODC		0x4 		/* outbound doorbell change interrupt */
 
-/*OCR registers*/
-#define MFI_WSR		0x004		/*write sequence register*/
-#define MFI_HDR		0x008		/*host diagnostic register*/
+/* OCR registers */
+#define MFI_WSR		0x004		/* write sequence register */
+#define MFI_HDR		0x008		/* host diagnostic register */
 #define MFI_RSR		0x3c3		/* Reset Status Register */
 
 /*
@@ -111,12 +111,6 @@ __FBSDID("$FreeBSD$");
  */
 #define MFI_GEN2_EIM	0x00000005	/* GEN2 enable interrupt mask */
 #define MFI_GEN2_RM	0x00000001	/* reply GEN2 message interrupt */
-
-/*
- * gen2 specific changes
- */
-#define MFI_GEN2_EIM	0x00000005	/* gen2 enable interrupt mask */
-#define MFI_GEN2_RM	0x00000001	/* reply gen2 message interrupt */
 
 /*
  * skinny specific changes
@@ -129,7 +123,7 @@ __FBSDID("$FreeBSD$");
 /* Bits for MFI_OSTS */
 #define MFI_OSTS_INTR_VALID	0x00000002
 
-/*OCR specific flags*/
+/* OCR specific flags */
 #define MFI_FIRMWARE_STATE_CHANGE	0x00000002
 #define MFI_STATE_CHANGE_INTERRUPT	0x00000004  /* MFI state change interrrupt */
 
@@ -153,13 +147,14 @@ __FBSDID("$FreeBSD$");
 #define MFI_FWSTATE_HOSTMEMREQD_MASK	0x08000000
 #define MFI_FWSTATE_BOOT_MESSAGE_PENDING	0x90000000
 #define MFI_RESET_REQUIRED		0x00000001
-/* ThunderBolt Support */
 
+/* ThunderBolt Support */
 #define MFI_FWSTATE_TB_MASK		0xf0000000
 #define MFI_FWSTATE_TB_RESET		0x00000000
 #define MFI_FWSTATE_TB_READY		0x10000000
 #define MFI_FWSTATE_TB_OPERATIONAL	0x20000000
 #define MFI_FWSTATE_TB_FAULT		0x40000000
+
 /*
  * Control bits to drive the card to ready state.  These go into the IDB
  * register.
@@ -170,7 +165,7 @@ __FBSDID("$FreeBSD$");
 #define MFI_FWINIT_CLEAR_HANDSHAKE 0x00000008 /* Respond to WAIT_HANDSHAKE */
 #define MFI_FWINIT_HOTPLUG	0x00000010
 
-/*ADP reset flags*/
+/* ADP reset flags */
 #define MFI_STOP_ADP		0x00000020
 #define MFI_ADP_RESET		0x00000040
 #define DIAG_WRITE_ENABLE	0x00000080
@@ -267,12 +262,18 @@ typedef enum {
 
 /* ThunderBolt Specific */
 
-// Pre-TB command size and TB command size. We will be checking it at the load time for the time being
-#define MR_COMMAND_SIZE (MFI_FRAME_SIZE*20) // 1280 bytes
+/*
+ * Pre-TB command size and TB command size.
+ * We will be checking it at the load time for the time being
+ */
+#define MR_COMMAND_SIZE (MFI_FRAME_SIZE*20) /* 1280 bytes */
 
 #define MEGASAS_THUNDERBOLT_MSG_ALLIGNMENT  256
-// We are defining only 128 byte message to reduce memory move over head
-// and also it will reduce the SRB extension size by 128byte compared with 256 message size
+/*
+ * We are defining only 128 byte message to reduce memory move over head
+ * and also it will reduce the SRB extension size by 128byte compared with
+ * 256 message size
+ */
 #define MEGASAS_THUNDERBOLT_NEW_MSG_SIZE	256
 #define MEGASAS_THUNDERBOLT_MAX_COMMANDS	1024
 #define MEGASAS_THUNDERBOLT_MAX_REPLY_COUNT	1024
@@ -282,7 +283,7 @@ typedef enum {
 
 #define MPI2_FUNCTION_PASSTHRU_IO_REQUEST       0xF0
 #define MPI2_FUNCTION_LD_IO_REQUEST             0xF1
-//TODO remove this and place the right AEN
+/* TODO remove this and place the right AEN */
 #define MR_EVT_LD_FAST_PATH_IO_STATUS_CHANGED   (0xFFFF)
 
 #define MR_INTERNAL_MFI_FRAMES_SMID             1
@@ -434,8 +435,8 @@ typedef enum {
 	MR_PD_QUERY_TYPE_POWER_STATE =	2,
 	MR_PD_QUERY_TYPE_MEDIA_TYPE =	3,
 	MR_PD_QUERY_TYPE_SPEED =	4,
-	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST =	5, /*query for system drives */
-}mfi_pd_query_type;
+	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST = 5 /*query for system drives */
+} mfi_pd_query_type;
 
 /*
  * Other propertities and definitions
@@ -459,8 +460,6 @@ typedef enum {
 #define MFI_SECTOR_LEN		512
 
 /* Scatter Gather elements */
-
-/* Scatter Gather elements */
 struct mfi_sg32 {
 	uint32_t	addr;
 	uint32_t	len;
@@ -478,9 +477,9 @@ struct mfi_sg_skinny {
 } __packed;
 
 union mfi_sgl {
-	struct mfi_sg32 sg32[1];
-	struct mfi_sg64 sg64[1];
-	struct mfi_sg_skinny sg_skinny[1];
+	struct mfi_sg32		sg32[1];
+	struct mfi_sg64		sg64[1];
+	struct mfi_sg_skinny	sg_skinny[1];
 } __packed;
 
 /* Message frames.  All messages have a common header */
@@ -496,7 +495,7 @@ struct mfi_frame_header {
 	uint32_t	context;
 	/*
 	 * pad0 is MSI Specific. Not used by Driver. Zero the value before
-	 * sending the command to f/w
+	 * sending the command to f/w.
 	 */
 	uint32_t	pad0;
 	uint16_t	flags;
@@ -521,9 +520,8 @@ struct mfi_init_frame {
 } __packed;
 
 /*
- * define MFI Address Context union
+ * Define MFI Address Context union.
  */
-
 #ifdef MFI_ADDRESS_IS_uint64_t
     typedef uint64_t     MFI_ADDRESS;
 #else
@@ -647,40 +645,58 @@ struct mfi_ctrl_props {
 	uint8_t		expose_encl_devices;
 	uint8_t		maintainPdFailHistory;
 	uint8_t		disallowHostRequestReordering;
-	uint8_t		abortCCOnError;	// set TRUE to abort CC on detecting an inconsistency
-	uint8_t		loadBalanceMode;// load balance mode (MR_LOAD_BALANCE_MODE)
-	uint8_t		disableAutoDetectBackplane;	// 0 - use auto detect logic of backplanes like SGPIO, i2c SEP using h/w mechansim like GPIO pins
-								// 1 - disable auto detect SGPIO,
-								// 2 - disable i2c SEP auto detect
-								// 3 - disable both auto detect
-	uint8_t snapVDSpace;	    // % of source LD to be reserved for a VDs snapshot in snapshot repository, for metadata and user data
-							    // 1=5%, 2=10%, 3=15% and so on
+	/* set TRUE to abort CC on detecting an inconsistency */
+	uint8_t		abortCCOnError;
+	/* load balance mode (MR_LOAD_BALANCE_MODE) */
+	uint8_t		loadBalanceMode;
+	/*
+	 * 0 - use auto detect logic of backplanes like SGPIO, i2c SEP using
+	 *     h/w mechansim like GPIO pins
+	 * 1 - disable auto detect SGPIO,
+	 * 2 - disable i2c SEP auto detect
+	 * 3 - disable both auto detect
+	 */
+	uint8_t		disableAutoDetectBackplane;
+	/*
+	 * % of source LD to be reserved for a VDs snapshot in snapshot
+	 * repository, for metadata and user data: 1=5%, 2=10%, 3=15% and so on
+	 */
+	uint8_t		snapVDSpace;
 
 	/*
-	 * Add properties that can be controlled by a bit in the following structure.
-	*/
+	 * Add properties that can be controlled by a bit in the following
+	 * structure.
+	 */
 	struct {
-		uint32_t	copyBackDisabled			:1;	// set TRUE to disable copyBack (0=copback enabled)
-		uint32_t	SMARTerEnabled				:1;
+		/* set TRUE to disable copyBack (0=copback enabled) */
+		uint32_t	copyBackDisabled		:1;
+		uint32_t	SMARTerEnabled			:1;
 		uint32_t	prCorrectUnconfiguredAreas	:1;
-		uint32_t	useFdeOnly					:1;
-		uint32_t	disableNCQ					:1;
-		uint32_t	SSDSMARTerEnabled			:1;
+		uint32_t	useFdeOnly			:1;
+		uint32_t	disableNCQ			:1;
+		uint32_t	SSDSMARTerEnabled		:1;
 		uint32_t	SSDPatrolReadEnabled		:1;
 		uint32_t	enableSpinDownUnconfigured	:1;
-		uint32_t	autoEnhancedImport			:1;
+		uint32_t	autoEnhancedImport		:1;
 		uint32_t	enableSecretKeyControl		:1;
 		uint32_t	disableOnlineCtrlReset		:1;
 		uint32_t	allowBootWithPinnedCache	:1;
-		uint32_t	disableSpinDownHS			:1;
-		uint32_t	enableJBOD					:1;
-		uint32_t	reserved					:18;
+		uint32_t	disableSpinDownHS		:1;
+		uint32_t	enableJBOD			:1;
+		uint32_t	reserved			:18;
 	} OnOffProperties;
-	uint8_t		autoSnapVDSpace;	// % of source LD to be reserved for auto snapshot in snapshot repository, for metadata and user data
-									// 1=5%, 2=10%, 3=15% and so on
-	uint8_t		viewSpace;			// snapshot writeable VIEWs capacity as a % of source LD capacity. 0=READ only
-									// 1=5%, 2=10%, 3=15% and so on
-	uint16_t	spinDownTime;		// # of idle minutes before device is spun down (0=use FW defaults)
+	/*
+	 * % of source LD to be reserved for auto snapshot in snapshot
+	 * repository, for metadata and user data: 1=5%, 2=10%, 3=15% and so on.
+	 */
+	uint8_t		autoSnapVDSpace;
+	/*
+	 * Snapshot writeable VIEWs capacity as a % of source LD capacity:
+	 * 0=READ only, 1=5%, 2=10%, 3=15% and so on.
+	 */
+	uint8_t		viewSpace;
+	/* # of idle minutes before device is spun down (0=use FW defaults) */
+	uint16_t	spinDownTime;
 	uint8_t		reserved[24];
 } __packed;
 
@@ -1396,27 +1412,26 @@ struct mfi_pr_properties {
  * Raid Context structure which describes MegaRAID specific IO Paramenters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
-
 typedef struct _MPI2_SCSI_IO_VENDOR_UNIQUE {
-    uint16_t     resvd0;             // 0x00 -0x01
-    uint16_t     timeoutValue;       // 0x02 -0x03
-    uint8_t      regLockFlags;
-    uint8_t      armId;
-    uint16_t     TargetID;   // 0x06 -0x07
+	uint16_t	resvd0;		/* 0x00 - 0x01 */
+	uint16_t	timeoutValue;	/* 0x02 - 0x03 */
+	uint8_t		regLockFlags;
+	uint8_t		armId;
+	uint16_t	TargetID;	/* 0x06 - 0x07 */
 
-    uint64_t     RegLockLBA;      // 0x08 - 0x0F
+	uint64_t	RegLockLBA;	/* 0x08 - 0x0F */
 
-    uint32_t     RegLockLength;      // 0x10 - 0x13
+	uint32_t	RegLockLength;	/* 0x10 - 0x13 */
 
-    uint16_t     SMID; //nextLMId;           // 0x14 - 0x15
-    uint8_t      exStatus;           // 0x16
-    uint8_t      Status;             // 0x17 status
+	uint16_t	SMID;		/* 0x14 - 0x15 nextLMId */
+	uint8_t		exStatus;	/* 0x16 */
+	uint8_t		Status;		/* 0x17 status */
 
-    uint8_t      RAIDFlags;          // 0x18
-    uint8_t      numSGE;             // 0x19 numSge
-    uint16_t     configSeqNum;	// 0x1A - 0x1B
-    uint8_t      spanArm;		// 0x1C
-    uint8_t      resvd2[3];          // 0x1D- 0x1F
+	uint8_t		RAIDFlags;	/* 0x18 */
+	uint8_t		numSGE;		/* 0x19 numSge */
+	uint16_t	configSeqNum;	/* 0x1A - 0x1B */
+	uint8_t		spanArm;	/* 0x1C */
+	uint8_t		resvd2[3];	/* 0x1D - 0x1F */
 } MPI2_SCSI_IO_VENDOR_UNIQUE, MPI25_SCSI_IO_VENDOR_UNIQUE;
 
 /*** DJA *****/
@@ -1458,8 +1473,6 @@ typedef struct _MPI2_SCSI_IO_VENDOR_UNIQUE {
 #define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0) /* beginning of product-specific range */
 #define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF) /* end of product-specific range */
 
-
-
 /* Doorbell functions */
 #define MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET        (0x40)
 #define MPI2_FUNCTION_HANDSHAKE                     (0x42)
@@ -1488,38 +1501,38 @@ typedef struct _MPI2_SCSI_IO_VENDOR_UNIQUE {
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
 #define MPI2_HEADER_VERSION_DEV_MASK        (0x00FF)
 #define MPI2_HEADER_VERSION_DEV_SHIFT       (0)
-#define MPI2_HEADER_VERSION ((MPI2_HEADER_VERSION_UNIT << 8) | MPI2_HEADER_VERSION_DEV)
+#define MPI2_HEADER_VERSION ((MPI2_HEADER_VERSION_UNIT << 8) |		\
+					MPI2_HEADER_VERSION_DEV)
 
 
 /* IOCInit Request message */
-struct MPI2_IOC_INIT_REQUEST
-{
-    uint8_t                      WhoInit;                        /* 0x00 */
-    uint8_t                      Reserved1;                      /* 0x01 */
-    uint8_t                      ChainOffset;                    /* 0x02 */
-    uint8_t                      Function;                       /* 0x03 */
-    uint16_t                     Reserved2;                      /* 0x04 */
-    uint8_t                      Reserved3;                      /* 0x06 */
-    uint8_t                      MsgFlags;                       /* 0x07 */
-    uint8_t                      VP_ID;                          /* 0x08 */
-    uint8_t                      VF_ID;                          /* 0x09 */
-    uint16_t                     Reserved4;                      /* 0x0A */
-    uint16_t                     MsgVersion;                     /* 0x0C */
-    uint16_t                     HeaderVersion;                  /* 0x0E */
-    uint32_t                     Reserved5;                      /* 0x10 */
-    uint16_t                     Reserved6;                      /* 0x14 */
-    uint8_t                      Reserved7;                      /* 0x16 */
-    uint8_t                      HostMSIxVectors;                /* 0x17 */
-    uint16_t                     Reserved8;                      /* 0x18 */
-    uint16_t                     SystemRequestFrameSize;         /* 0x1A */
-    uint16_t                     ReplyDescriptorPostQueueDepth;  /* 0x1C */
-    uint16_t                     ReplyFreeQueueDepth;            /* 0x1E */
-    uint32_t                     SenseBufferAddressHigh;         /* 0x20 */
-    uint32_t                     SystemReplyAddressHigh;         /* 0x24 */
-    uint64_t                     SystemRequestFrameBaseAddress;  /* 0x28 */
-    uint64_t                     ReplyDescriptorPostQueueAddress;/* 0x30 */
-    uint64_t                     ReplyFreeQueueAddress;          /* 0x38 */
-    uint64_t                     TimeStamp;                      /* 0x40 */
+struct MPI2_IOC_INIT_REQUEST {
+	uint8_t		WhoInit;                        /* 0x00 */
+	uint8_t		Reserved1;                      /* 0x01 */
+	uint8_t		ChainOffset;                    /* 0x02 */
+	uint8_t		Function;                       /* 0x03 */
+	uint16_t	Reserved2;                      /* 0x04 */
+	uint8_t		Reserved3;                      /* 0x06 */
+	uint8_t		MsgFlags;                       /* 0x07 */
+	uint8_t		VP_ID;                          /* 0x08 */
+	uint8_t		VF_ID;                          /* 0x09 */
+	uint16_t	Reserved4;                      /* 0x0A */
+	uint16_t	MsgVersion;                     /* 0x0C */
+	uint16_t	HeaderVersion;                  /* 0x0E */
+	uint32_t	Reserved5;                      /* 0x10 */
+	uint16_t	Reserved6;                      /* 0x14 */
+	uint8_t		Reserved7;                      /* 0x16 */
+	uint8_t		HostMSIxVectors;                /* 0x17 */
+	uint16_t	Reserved8;                      /* 0x18 */
+	uint16_t	SystemRequestFrameSize;         /* 0x1A */
+	uint16_t	ReplyDescriptorPostQueueDepth;  /* 0x1C */
+	uint16_t	ReplyFreeQueueDepth;            /* 0x1E */
+	uint32_t	SenseBufferAddressHigh;         /* 0x20 */
+	uint32_t	SystemReplyAddressHigh;         /* 0x24 */
+	uint64_t	SystemRequestFrameBaseAddress;  /* 0x28 */
+	uint64_t	ReplyDescriptorPostQueueAddress;/* 0x30 */
+	uint64_t	ReplyFreeQueueAddress;          /* 0x38 */
+	uint64_t	TimeStamp;                      /* 0x40 */
 };
 
 /* WhoInit values */
@@ -1530,47 +1543,40 @@ struct MPI2_IOC_INIT_REQUEST
 #define MPI2_WHOINIT_HOST_DRIVER                (0x04)
 #define MPI2_WHOINIT_MANUFACTURER               (0x05)
 
-struct MPI2_SGE_CHAIN_UNION
-{
-    uint16_t                     Length;
-    uint8_t                      NextChainOffset;
-    uint8_t                      Flags;
-    union
-    {
-        uint32_t                 Address32;
-        uint64_t                 Address64;
-    } u;
+struct MPI2_SGE_CHAIN_UNION {
+	uint16_t	Length;
+	uint8_t		NextChainOffset;
+	uint8_t		Flags;
+	union {
+		uint32_t	Address32;
+		uint64_t	Address64;
+	} u;
 };
 
-struct MPI2_IEEE_SGE_SIMPLE32
-{
-    uint32_t                     Address;
-    uint32_t                     FlagsLength;
+struct MPI2_IEEE_SGE_SIMPLE32 {
+	uint32_t	Address;
+	uint32_t	FlagsLength;
 };
 
-struct MPI2_IEEE_SGE_SIMPLE64
-{
-    uint64_t                     Address;
-    uint32_t                     Length;
-    uint16_t                     Reserved1;
-    uint8_t                      Reserved2;
-    uint8_t                      Flags;
+struct MPI2_IEEE_SGE_SIMPLE64 {
+	uint64_t	Address;
+	uint32_t	Length;
+	uint16_t	Reserved1;
+	uint8_t		Reserved2;
+	uint8_t		Flags;
 };
 
-typedef union _MPI2_IEEE_SGE_SIMPLE_UNION
-{
-    struct MPI2_IEEE_SGE_SIMPLE32  Simple32;
-    struct MPI2_IEEE_SGE_SIMPLE64  Simple64;
+typedef union _MPI2_IEEE_SGE_SIMPLE_UNION {
+	struct MPI2_IEEE_SGE_SIMPLE32	Simple32;
+	struct MPI2_IEEE_SGE_SIMPLE64	Simple64;
 } MPI2_IEEE_SGE_SIMPLE_UNION;
 
-typedef struct _MPI2_SGE_SIMPLE_UNION
-{
-    uint32_t                     FlagsLength;
-    union
-    {
-        uint32_t                 Address32;
-        uint64_t                 Address64;
-    } u;
+typedef struct _MPI2_SGE_SIMPLE_UNION {
+	uint32_t	FlagsLength;
+	union {
+		uint32_t	Address32;
+		uint64_t	Address64;
+	} u;
 } MPI2_SGE_SIMPLE_UNION;
 
 /****************************************************************************
@@ -1630,41 +1636,36 @@ typedef struct _MPI2_SGE_SIMPLE_UNION
 
 /*******************/
 
-typedef struct
-{
-    uint8_t                      CDB[20];                    /* 0x00 */
-    uint32_t                     PrimaryReferenceTag;        /* 0x14 */
-    uint16_t                     PrimaryApplicationTag;      /* 0x18 */
-    uint16_t                     PrimaryApplicationTagMask;  /* 0x1A */
-    uint32_t                     TransferLength;             /* 0x1C */
+typedef struct {
+	uint8_t		CDB[20];                    /* 0x00 */
+	uint32_t	PrimaryReferenceTag;        /* 0x14 */
+	uint16_t	PrimaryApplicationTag;      /* 0x18 */
+	uint16_t	PrimaryApplicationTagMask;  /* 0x1A */
+	uint32_t	TransferLength;             /* 0x1C */
 } MPI2_SCSI_IO_CDB_EEDP32;
 
 
-typedef union _MPI2_IEEE_SGE_CHAIN_UNION
-{
-    struct MPI2_IEEE_SGE_SIMPLE32   Chain32;
-    struct MPI2_IEEE_SGE_SIMPLE64   Chain64;
+typedef union _MPI2_IEEE_SGE_CHAIN_UNION {
+	struct MPI2_IEEE_SGE_SIMPLE32	Chain32;
+	struct MPI2_IEEE_SGE_SIMPLE64	Chain64;
 } MPI2_IEEE_SGE_CHAIN_UNION;
 
-typedef union _MPI2_SIMPLE_SGE_UNION
-{
-    MPI2_SGE_SIMPLE_UNION       MpiSimple;
-    MPI2_IEEE_SGE_SIMPLE_UNION  IeeeSimple;
+typedef union _MPI2_SIMPLE_SGE_UNION {
+	MPI2_SGE_SIMPLE_UNION		MpiSimple;
+	MPI2_IEEE_SGE_SIMPLE_UNION	IeeeSimple;
 } MPI2_SIMPLE_SGE_UNION;
 
-typedef union _MPI2_SGE_IO_UNION
-{
-    MPI2_SGE_SIMPLE_UNION       MpiSimple;
-    struct MPI2_SGE_CHAIN_UNION        MpiChain;
-    MPI2_IEEE_SGE_SIMPLE_UNION  IeeeSimple;
-    MPI2_IEEE_SGE_CHAIN_UNION   IeeeChain;
+typedef union _MPI2_SGE_IO_UNION {
+	MPI2_SGE_SIMPLE_UNION		MpiSimple;
+	struct MPI2_SGE_CHAIN_UNION	MpiChain;
+	MPI2_IEEE_SGE_SIMPLE_UNION	IeeeSimple;
+	MPI2_IEEE_SGE_CHAIN_UNION	IeeeChain;
 } MPI2_SGE_IO_UNION;
 
-typedef union
-{
-    uint8_t                      CDB32[32];
-    MPI2_SCSI_IO_CDB_EEDP32 EEDP32;
-    MPI2_SGE_SIMPLE_UNION   SGE;
+typedef union {
+	uint8_t			CDB32[32];
+	MPI2_SCSI_IO_CDB_EEDP32	EEDP32;
+	MPI2_SGE_SIMPLE_UNION	SGE;
 } MPI2_SCSI_IO_CDB_UNION;
 
 
@@ -1672,13 +1673,12 @@ typedef union
 
 #define MPI25_IEEE_SGE_FLAGS_END_OF_LIST        (0x40)
 
-typedef struct _MPI25_IEEE_SGE_CHAIN64
-{
-    uint64_t                     Address;
-    uint32_t                     Length;
-    uint16_t                     Reserved1;
-    uint8_t                      NextChainOffset;
-    uint8_t                      Flags;
+typedef struct _MPI25_IEEE_SGE_CHAIN64 {
+	uint64_t	Address;
+	uint32_t	Length;
+	uint16_t	Reserved1;
+	uint8_t		NextChainOffset;
+	uint8_t		Flags;
 } MPI25_IEEE_SGE_CHAIN64, *pMpi25IeeeSgeChain64_t;
 
 /* use MPI2_IEEE_SGE_FLAGS_ defines for the Flags field */
@@ -1690,8 +1690,7 @@ typedef struct _MPI25_IEEE_SGE_CHAIN64
  * RAID SCSI IO Request Message
  * Total SGE count will be one less than  _MPI2_SCSI_IO_REQUEST
  */
-struct mfi_mpi2_request_raid_scsi_io
-{
+struct mfi_mpi2_request_raid_scsi_io {
 	uint16_t		DevHandle;                      /* 0x00 */
 	uint8_t			ChainOffset;                    /* 0x02 */
 	uint8_t			Function;                       /* 0x03 */
@@ -1729,16 +1728,16 @@ struct mfi_mpi2_request_raid_scsi_io
  * MPT RAID MFA IO Descriptor.
  */
 typedef struct _MFI_RAID_MFA_IO_DESCRIPTOR {
-    uint32_t     RequestFlags : 8;
-    uint32_t     MessageAddress1 : 24; /* bits 31:8*/
-    uint32_t     MessageAddress2;      /* bits 61:32 */
+	uint32_t	RequestFlags : 8;
+	uint32_t	MessageAddress1 : 24; /* bits 31:8*/
+	uint32_t	MessageAddress2;      /* bits 61:32 */
 } MFI_RAID_MFA_IO_REQUEST_DESCRIPTOR,*PMFI_RAID_MFA_IO_REQUEST_DESCRIPTOR;
 
 struct mfi_mpi2_request_header {
-	uint8_t					RequestFlags;       /* 0x00 */
-	uint8_t					MSIxIndex;          /* 0x01 */
-	uint16_t				SMID;               /* 0x02 */
-	uint16_t				LMID;               /* 0x04 */
+	uint8_t		RequestFlags;       /* 0x00 */
+	uint8_t		MSIxIndex;          /* 0x01 */
+	uint16_t	SMID;               /* 0x02 */
+	uint16_t	LMID;               /* 0x04 */
 };
 
 /* defines for the RequestFlags field */
@@ -1752,18 +1751,18 @@ struct mfi_mpi2_request_header {
 #define MPI2_REQ_DESCRIPT_FLAGS_IOC_FIFO_MARKER (0x01)
 
 struct mfi_mpi2_request_high_priority {
-	struct mfi_mpi2_request_header		header;
-	uint16_t				reserved;
+	struct mfi_mpi2_request_header	header;
+	uint16_t			reserved;
 };
 
 struct mfi_mpi2_request_scsi_io {
-	struct mfi_mpi2_request_header		header;
-	uint16_t				scsi_io_dev_handle;
+	struct mfi_mpi2_request_header	header;
+	uint16_t			scsi_io_dev_handle;
 };
 
 struct mfi_mpi2_request_scsi_target {
-	struct mfi_mpi2_request_header		header;
-	uint16_t				scsi_target_io_index;
+	struct mfi_mpi2_request_header	header;
+	uint16_t			scsi_target_io_index;
 };
 
 /* Request Descriptors */
@@ -1777,9 +1776,9 @@ union mfi_mpi2_request_descriptor {
 
 
 struct mfi_mpi2_reply_header {
-    uint8_t              ReplyFlags;                 /* 0x00 */
-    uint8_t              MSIxIndex;                  /* 0x01 */
-    uint16_t             SMID;                       /* 0x02 */
+	uint8_t		ReplyFlags;                 /* 0x00 */
+	uint8_t		MSIxIndex;                  /* 0x01 */
+	uint16_t	SMID;                       /* 0x02 */
 };
 
 /* defines for the ReplyFlags field */
@@ -1796,45 +1795,44 @@ struct mfi_mpi2_reply_header {
 #define MPI2_RPY_DESCRIPT_UNUSED_WORD1_MARK             (0xFFFFFFFF)
 
 struct mfi_mpi2_reply_default {
-	struct mfi_mpi2_reply_header		header;
-	uint32_t				DescriptorTypeDependent2;
+	struct mfi_mpi2_reply_header	header;
+	uint32_t			DescriptorTypeDependent2;
 };
 
 struct mfi_mpi2_reply_address {
-	struct mfi_mpi2_reply_header		header;
-	uint32_t				ReplyFrameAddress;
+	struct mfi_mpi2_reply_header	header;
+	uint32_t			ReplyFrameAddress;
 };
 
 struct mfi_mpi2_reply_scsi_io {
-	struct mfi_mpi2_reply_header		header;
-	uint16_t				TaskTag;          /* 0x04 */
-	uint16_t				Reserved1;        /* 0x06 */
+	struct mfi_mpi2_reply_header	header;
+	uint16_t			TaskTag;		/* 0x04 */
+	uint16_t			Reserved1;		/* 0x06 */
 };
 
 struct mfi_mpi2_reply_target_assist {
-	struct mfi_mpi2_reply_header		header;
-	uint8_t					SequenceNumber;  /* 0x04 */
-	uint8_t					Reserved1;       /* 0x04 */
-	uint16_t				IoIndex;         /* 0x06 */
+	struct mfi_mpi2_reply_header	header;
+	uint8_t				SequenceNumber;		/* 0x04 */
+	uint8_t				Reserved1;		/* 0x04 */
+	uint16_t			IoIndex;		/* 0x06 */
 };
 
 struct mfi_mpi2_reply_target_cmd_buffer {
-	struct mfi_mpi2_reply_header		header;
-	uint8_t					SequenceNumber;  /* 0x04 */
-	uint8_t					Flags;       /* 0x04 */
-	uint16_t				InitiatorDevHandle;  /* 0x06 */
-	uint16_t				IoIndex;         /* 0x06 */
+	struct mfi_mpi2_reply_header	header;
+	uint8_t				SequenceNumber;		/* 0x04 */
+	uint8_t				Flags;			/* 0x04 */
+	uint16_t			InitiatorDevHandle;	/* 0x06 */
+	uint16_t			IoIndex;		/* 0x06 */
 };
 
 struct mfi_mpi2_reply_raid_accel {
-	struct mfi_mpi2_reply_header		header;
-	uint8_t					SequenceNumber;  /* 0x04 */
-	uint32_t				Reserved;       /* 0x04 */
+	struct mfi_mpi2_reply_header	header;
+	uint8_t				SequenceNumber;		/* 0x04 */
+	uint32_t			Reserved;		/* 0x04 */
 };
 
 /* union of Reply Descriptors */
-union mfi_mpi2_reply_descriptor
-{
+union mfi_mpi2_reply_descriptor {
 	struct mfi_mpi2_reply_header		header;
 	struct mfi_mpi2_reply_scsi_io		scsi_io;
 	struct mfi_mpi2_reply_target_assist	target_assist;
@@ -1845,13 +1843,13 @@ union mfi_mpi2_reply_descriptor
 };
 
 struct IO_REQUEST_INFO {
-	uint64_t ldStartBlock;
-	uint32_t numBlocks;
-	uint16_t ldTgtId;
-	uint8_t isRead;
-	uint16_t devHandle;
-	uint64_t pdBlock;
-	uint8_t fpOkForIo;
+	uint64_t	ldStartBlock;
+	uint32_t	numBlocks;
+	uint16_t	ldTgtId;
+	uint8_t		isRead;
+	uint16_t	devHandle;
+	uint64_t	pdBlock;
+	uint8_t		fpOkForIo;
 };
 
 #define MFI_SCSI_MAX_TARGETS	128
