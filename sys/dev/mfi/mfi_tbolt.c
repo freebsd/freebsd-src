@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_tbolt.c,v 1.00 2010/06/30 16:00:00 Bhara
 #include <sys/callout.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 

@@ -568,6 +568,7 @@ mfi_print_sense(struct mfi_softc *sc, void *sense)
 	(sc)->mfi_bhandle, (reg))
 
 MALLOC_DECLARE(M_MFIBUF);
+SYSCTL_DECL(_hw_mfi);
 
 #define MFI_RESET_WAIT_TIME 180
 #define MFI_CMD_TIMEOUT 30
