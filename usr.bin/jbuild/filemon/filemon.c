@@ -82,21 +82,17 @@ MALLOC_DECLARE(M_FILEMON);
 MALLOC_DEFINE(M_FILEMON, "filemon", "File access monitor");
 
 struct filemon {
-	pid_t	pid;			/* The process ID being monitored. */
-	char	fname1[MAXPATHLEN];	/* Temporary filename buffer. */
-	char	fname2[MAXPATHLEN];	/* Temporary filename buffer. */
-	char	msgbufr[1024];		/* Output message buffer. */
-	struct file
-		*fp;			/* Output file pointer. */
-	struct thread
-		*locker;		/* Ptr to the thread locking this */
-					/* filemon.*/
-	struct mtx
-		mtx;			/* Lock mutex for this filemon. */
-	struct cv
-		cv;			/* Lock condition variable for this */
-					/* filemon. */
 	TAILQ_ENTRY(filemon) link;	/* Link into the in-use list. */
+	struct mtx	mtx;		/* Lock mutex for this filemon. */
+	struct cv	cv;		/* Lock condition variable for this
+					   filemon. */
+	struct file	*fp;		/* Output file pointer. */
+	struct thread	*locker;	/* Ptr to the thread locking this
+					   filemon. */
+	pid_t		pid;		/* The process ID being monitored. */
+	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
+	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
+	char		msgbufr[1024];	/* Output message buffer. */
 };
 
 static TAILQ_HEAD(, filemon) filemons_inuse = TAILQ_HEAD_INITIALIZER(filemons_inuse);

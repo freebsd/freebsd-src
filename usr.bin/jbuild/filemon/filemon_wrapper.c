@@ -83,7 +83,7 @@ filemon_pid_check(struct proc *p)
 
 	if (p->p_pptr == NULL)
 		return (NULL);
-	
+
 	return (filemon_pid_check(p->p_pptr));
 }
 
