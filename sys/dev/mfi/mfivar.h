@@ -171,16 +171,12 @@ struct mfi_softc {
 	// Start: LSIP200113393
 	bus_dma_tag_t			verbuf_h_dmat;
 	bus_dmamap_t			verbuf_h_dmamap;
-	uint32_t				verbuf_h_busaddr;
-	uint32_t				*verbuf;
-	void				* kbuff_arr[MAX_IOCTL_SGE];
+	uint32_t			verbuf_h_busaddr;
+	uint32_t			*verbuf;
+	void				*kbuff_arr[MAX_IOCTL_SGE];
 	bus_dma_tag_t			mfi_kbuff_arr_dmat[2];
 	bus_dmamap_t			mfi_kbuff_arr_dmamap[2];
-	#if defined (__amd64__)
-	uint64_t				mfi_kbuff_arr_busaddr[2];
-	#else
-	uint32_t				mfi_kbuff_arr_busaddr[2];
-	#endif
+	bus_addr_t			mfi_kbuff_arr_busaddr[2];
 
 	struct mfi_hwcomms		*mfi_comms;
 	TAILQ_HEAD(,mfi_command)	mfi_free;
@@ -199,30 +195,17 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_comms_dmat;
 	bus_dmamap_t			mfi_comms_dmamap;
-	#if defined(__amd64__)
-	uint64_t			mfi_comms_busaddr;
-#else
-	uint32_t			mfi_comms_busaddr;
-#endif
+	bus_addr_t			mfi_comms_busaddr;
 
 	bus_dma_tag_t			mfi_frames_dmat;
 	bus_dmamap_t			mfi_frames_dmamap;
-#if defined(__amd64__)
-	uint64_t			mfi_frames_busaddr;
-#else
-	uint32_t			mfi_frames_busaddr;
-#endif
+	bus_addr_t			mfi_frames_busaddr;
 	union mfi_frame			*mfi_frames;
 
 	bus_dma_tag_t			mfi_tb_init_dmat;
 	bus_dmamap_t			mfi_tb_init_dmamap;
-	#if defined(__amd64__)
-	uint64_t				mfi_tb_init_busaddr;
-	uint64_t				mfi_tb_ioc_init_busaddr;
-	#else
-	uint32_t				mfi_tb_init_busaddr;
-	uint32_t				mfi_tb_ioc_init_busaddr;
-	#endif
+	bus_addr_t			mfi_tb_init_busaddr;
+	bus_addr_t			mfi_tb_ioc_init_busaddr;
 	union mfi_frame			*mfi_tb_init;
 
 	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
@@ -304,13 +287,10 @@ struct mfi_softc {
 	void	(*mfi_disable_intr)(struct mfi_softc *sc);
 	int32_t	(*mfi_read_fw_status)(struct mfi_softc *sc);
 	int	(*mfi_check_clear_intr)(struct mfi_softc *sc);
-	#if defined(__amd64__)
- 	void	(*mfi_issue_cmd)(struct mfi_softc *sc,uint64_t bus_add,uint32_t frame_cnt);
-	#else
-	void	(*mfi_issue_cmd)(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
-	#endif
-	int (*mfi_adp_reset)(struct mfi_softc *sc);
-	int (*mfi_adp_check_reset)(struct mfi_softc *sc);
+	void	(*mfi_issue_cmd)(struct mfi_softc *sc, bus_addr_t bus_add,
+		    uint32_t frame_cnt);
+	int	(*mfi_adp_reset)(struct mfi_softc *sc);
+	int	(*mfi_adp_check_reset)(struct mfi_softc *sc);
 
 	/* ThunderBolt */
 	uint32_t			mfi_tbolt;
@@ -325,25 +305,15 @@ struct mfi_softc {
 	/* ThunderBolt base contiguous memory mapping. */
 	bus_dma_tag_t			mfi_tb_dmat;
 	bus_dmamap_t			mfi_tb_dmamap;
-	#if defined(__amd64__)
-		uint64_t			mfi_tb_busaddr;
-	#else
-	uint32_t			mfi_tb_busaddr;
-	#endif
+	bus_addr_t			mfi_tb_busaddr;
 	/* ThunderBolt Contiguous DMA memory Mapping */
 	uint8_t	*			request_message_pool;
 	uint8_t *			request_message_pool_align;
 	uint8_t *			request_desc_pool;
 	//uint32_t			request_desc_busaddr;
-	#if defined(__amd64__)
-	uint64_t			request_msg_busaddr;
-	uint64_t			reply_frame_busaddr;
-	uint64_t			sg_frame_busaddr;
-	#else
-	uint32_t			request_msg_busaddr;
-	uint32_t			reply_frame_busaddr;
-	uint32_t			sg_frame_busaddr;
-	#endif
+	bus_addr_t			request_msg_busaddr;
+	bus_addr_t			reply_frame_busaddr;
+	bus_addr_t			sg_frame_busaddr;
 	/* ThunderBolt IOC Init Descriptor */
 	bus_dma_tag_t			mfi_tb_ioc_init_dmat;
 	bus_dmamap_t			mfi_tb_ioc_init_dmamap;
