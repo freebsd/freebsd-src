@@ -675,12 +675,6 @@ mfi_attach(struct mfi_softc *sc)
 
 		if((error = mfi_tbolt_alloc_cmd(sc)) != 0)
 			return error;
-		sc->mfi_irq_rid = 0;
-		if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
-			&sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-			device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
-			return (EINVAL);
-		}
 		if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq, INTR_MPSAFE|INTR_TYPE_BIO,
 	   			NULL, mfi_intr_tbolt, sc, &sc->mfi_intr)) {
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
@@ -695,12 +689,6 @@ mfi_attach(struct mfi_softc *sc)
 		if ((error = mfi_comms_init(sc)) != 0)
 			return (error);
 
-		sc->mfi_irq_rid = 0;
-		if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
-			&sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-			device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
-			return (EINVAL);
-		}
 		if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq, INTR_MPSAFE|INTR_TYPE_BIO,
 	    		NULL, mfi_intr, sc, &sc->mfi_intr)) {
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_pddisk.c,v 1.2.2.6 2007/08/24 17:29:18 j
 #include <sys/selinfo.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <sys/bio.h>

@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -106,6 +107,11 @@ static driver_t mfi_pci_driver = {
 static devclass_t	mfi_devclass;
 DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
 MODULE_VERSION(mfi, 1);
+
+static int	mfi_msi = 0;
+TUNABLE_INT("hw.mfi.msi", &mfi_msi);
+SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
+    "Enable use of MSI interrupts");
 
 struct mfi_ident {
 	uint16_t	vendor;
@@ -175,7 +181,7 @@ mfi_pci_attach(device_t dev)
 	struct mfi_softc *sc;
 	struct mfi_ident *m;
 	uint32_t command;
-	int error;
+	int count, error;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -232,6 +238,20 @@ mfi_pci_attach(device_t dev)
 				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_parent_dmat)) {
 		device_printf(dev, "Cannot allocate parent DMA tag\n");
+		goto out;
+	}
+
+	/* Allocate IRQ resource. */
+	sc->mfi_irq_rid = 0;
+	count = 1;
+	if (mfi_msi && pci_alloc_msi(sc->mfi_dev, &count) == 0) {
+		device_printf(sc->mfi_dev, "Using MSI\n");
+		sc->mfi_irq_rid = 1;
+	}
+	if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
+	    &sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+		device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
+		error = EINVAL;
 		goto out;
 	}
 
@@ -318,6 +338,8 @@ mfi_pci_free(struct mfi_softc *sc)
 		bus_release_resource(sc->mfi_dev, SYS_RES_MEMORY,
 		    sc->mfi_regs_rid, sc->mfi_regs_resource);
 	}
+	if (sc->mfi_irq_rid != 0)
+		pci_release_msi(sc->mfi_dev);
 
 	return;
 }
