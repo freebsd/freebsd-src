@@ -229,6 +229,7 @@ get_type(int t)
 }
 
 
+static int geom_class_available(const char *);
 static void print_s0(void);
 static void print_part(const struct dos_partition *);
 static void init_sector0(unsigned long start);
@@ -764,49 +765,76 @@ read_disk(off_t sector, void *buf)
 }
 
 static int
+geom_class_available(const char *name)
+{
+	struct gclass *class;
+	struct gmesh mesh;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(1, error, "Cannot get GEOM tree");
+
+	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
+		if (strcmp(class->lg_name, name) == 0) {
+			geom_deletetree(&mesh);
+			return (1);
+		}
+	}
+
+	geom_deletetree(&mesh);
+
+	return (0);
+}
+
+static int
 write_disk(off_t sector, void *buf)
 {
-	int error;
 	struct gctl_req *grq;
 	const char *errmsg;
-	char fbuf[BUFSIZ], *pname;
-	int i, fdw;
+	char *pname;
+	int error;
 
-	grq = gctl_get_handle();
-	gctl_ro_param(grq, "verb", -1, "write MBR");
-	gctl_ro_param(grq, "class", -1, "MBR");
-	pname = g_providername(fd);
-	if (pname == NULL) {
-		warn("Error getting providername for %s", disk);
-		return (-1);
-	}
-	gctl_ro_param(grq, "geom", -1, pname);
-	gctl_ro_param(grq, "data", secsize, buf);
-	errmsg = gctl_issue(grq);
-	free(pname);
-	if (errmsg == NULL) {
+	/* Check that GEOM_MBR is available */
+	if (geom_class_available("MBR") != 0) {
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "verb", -1, "write MBR");
+		gctl_ro_param(grq, "class", -1, "MBR");
+		pname = g_providername(fd);
+		if (pname == NULL) {
+			warn("Error getting providername for %s", disk);
+			return (-1);
+		}
+		gctl_ro_param(grq, "geom", -1, pname);
+		gctl_ro_param(grq, "data", secsize, buf);
+		errmsg = gctl_issue(grq);
+		free(pname);
+		if (errmsg == NULL) {
+			gctl_free(grq);
+			return(0);
+		}
+		if (!q_flag)
+			warnx("GEOM_MBR: %s", errmsg);
 		gctl_free(grq);
-		return(0);
-	}
-	if (!q_flag)	/* GEOM errors are benign, not all devices supported */
-		warnx("%s", errmsg);
-	gctl_free(grq);
-
-	error = pwrite(fd, buf, secsize, (sector * 512));
-	if (error == secsize)
-		return (0);
-
-	for (i = 1; i < 5; i++) {
-		sprintf(fbuf, "%ss%d", disk, i);
-		fdw = open(fbuf, O_RDWR, 0);
-		if (fdw < 0)
-			continue;
-		error = ioctl(fdw, DIOCSMBR, buf);
-		close(fdw);
-		if (error == 0)
+	} else {
+		/*
+		 * Try to write MBR directly. This may help when disk
+		 * is not in use.
+		 * XXX: hardcoded sectorsize
+		 */
+		error = pwrite(fd, buf, secsize, (sector * 512));
+		if (error == secsize)
 			return (0);
 	}
-	warnx("Failed to write sector zero");
+
+	/*
+	 * GEOM_MBR is not available or failed to write MBR.
+	 * Now check that we have GEOM_PART and recommend to use gpart (8).
+	 */
+	if (geom_class_available("PART") != 0)
+		warnx("Failed to write MBR. Try to use gpart(8).");
+	else
+		warnx("Failed to write sector zero");
 	return(EINVAL);
 }
 
