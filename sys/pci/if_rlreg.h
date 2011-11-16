@@ -868,6 +868,7 @@ struct rl_softc {
 	const struct rl_hwrev	*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
+	int			rl_expcap;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
