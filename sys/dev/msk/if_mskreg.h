@@ -2315,35 +2315,48 @@ struct msk_stat_desc {
 #define BMU_UDP_CHECK	(0x57<<16)	/* Descr with UDP ext (YUKON only) */
 #define BMU_BBC		0xffff	/* Bit 15.. 0:	Buffer Byte Counter */
 
+/*
+ * Controller requires an additional LE op code for 64bit DMA operation.
+ * Driver uses fixed number of RX buffers such that this limitation
+ * reduces number of available RX buffers with 64bit DMA so double
+ * number of RX buffers on platforms that support 64bit DMA. For TX
+ * side, controller requires an additional OP_ADDR64 op code if a TX
+ * buffer uses different high address value than previously used one.
+ * Driver monitors high DMA address change in TX and inserts an
+ * OP_ADDR64 op code if the high DMA address is changed.  Driver
+ * allocates 50% more total TX buffers on platforms that support 64bit
+ * DMA.
+ */
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#define	MSK_64BIT_DMA
+#define MSK_TX_RING_CNT		384
+#define MSK_RX_RING_CNT		512
+#else
+#undef	MSK_64BIT_DMA
 #define MSK_TX_RING_CNT		256
 #define MSK_RX_RING_CNT		256
+#endif
 #define	MSK_RX_BUF_ALIGN	8
 #define MSK_JUMBO_RX_RING_CNT	MSK_RX_RING_CNT
-#define	MSK_STAT_RING_CNT	((1 + 3) * (MSK_TX_RING_CNT + MSK_RX_RING_CNT))
 #define MSK_MAXTXSEGS		32
 #define	MSK_TSO_MAXSGSIZE	4096
 #define	MSK_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
 
 /*
- * It seems that the hardware requires extra decriptors(LEs) to offload
- * TCP/UDP checksum, VLAN hardware tag inserstion and TSO.
+ * It seems that the hardware requires extra descriptors(LEs) to offload
+ * TCP/UDP checksum, VLAN hardware tag insertion and TSO.
  *
  * 1 descriptor for TCP/UDP checksum offload.
  * 1 descriptor VLAN hardware tag insertion.
  * 1 descriptor for TSO(TCP Segmentation Offload)
- * 1 descriptor for 64bits DMA : Not applicatable due to the use of
- *  BUS_SPACE_MAXADDR_32BIT in parent DMA tag creation.
+ * 1 descriptor for each 64bits DMA transfers 
  */
+#ifdef MSK_64BIT_DMA
+#define	MSK_RESERVED_TX_DESC_CNT	(MSK_MAXTXSEGS + 3)
+#else
 #define	MSK_RESERVED_TX_DESC_CNT	3
+#endif
 
-/*
- * Jumbo buffer stuff. Note that we must allocate more jumbo
- * buffers than there are descriptors in the receive ring. This
- * is because we don't know how long it will take for a packet
- * to be released after we hand it off to the upper protocol
- * layers. To be safe, we allocate 1.5 times the number of
- * receive descriptors.
- */
 #define MSK_JUMBO_FRAMELEN	9022
 #define MSK_JUMBO_MTU		(MSK_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define MSK_MAX_FRAMELEN		\
@@ -2380,6 +2393,7 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_jumbo_rx_sparemap;
 	uint16_t		msk_tso_mtu;
 	uint32_t		msk_last_csum;
+	uint32_t		msk_tx_high_addr;
 	int			msk_tx_prod;
 	int			msk_tx_cons;
 	int			msk_tx_cnt;
@@ -2411,10 +2425,17 @@ struct msk_ring_data {
     (sizeof(struct msk_rx_desc) * MSK_RX_RING_CNT)
 #define MSK_JUMBO_RX_RING_SZ		\
     (sizeof(struct msk_rx_desc) * MSK_JUMBO_RX_RING_CNT)
-#define MSK_STAT_RING_SZ		\
-    (sizeof(struct msk_stat_desc) * MSK_STAT_RING_CNT)
 
 #define MSK_INC(x, y)	(x) = (x + 1) % y
+#ifdef MSK_64BIT_DMA
+#define MSK_RX_INC(x, y)	(x) = (x + 2) % y
+#define MSK_RX_BUF_CNT		(MSK_RX_RING_CNT / 2)
+#define MSK_JUMBO_RX_BUF_CNT	(MSK_JUMBO_RX_RING_CNT / 2)
+#else
+#define MSK_RX_INC(x, y)	(x) = (x + 1) % y
+#define MSK_RX_BUF_CNT		MSK_RX_RING_CNT
+#define MSK_JUMBO_RX_BUF_CNT	MSK_JUMBO_RX_RING_CNT
+#endif
 
 #define	MSK_PCI_BUS	0
 #define	MSK_PCIX_BUS	1
@@ -2519,6 +2540,7 @@ struct msk_softc {
 	int			msk_int_holdoff;
 	int			msk_process_limit;
 	int			msk_stat_cons;
+	int			msk_stat_count;
 	struct mtx		msk_mtx;
 };
 
