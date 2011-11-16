@@ -3312,6 +3312,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif /* DEVICE_POLLING */
+		RL_LOCK(sc);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -3370,8 +3371,9 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			re_init(sc);
+			re_init_locked(sc);
 		}
+		RL_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 	    }
 		break;
