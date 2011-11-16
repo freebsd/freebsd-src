@@ -49,7 +49,7 @@
 void	rm_init(struct rmlock *rm, const char *name);
 void	rm_init_flags(struct rmlock *rm, const char *name, int opts);
 void	rm_destroy(struct rmlock *rm);
-int	rm_wowned(struct rmlock *rm);
+int	rm_wowned(const struct rmlock *rm);
 void	rm_sysinit(void *arg);
 void	rm_sysinit_flags(void *arg);
 

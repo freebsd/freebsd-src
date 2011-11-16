@@ -105,7 +105,7 @@ void	_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file,
 void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 	     int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
+void	_mtx_assert(const struct mtx *m, int what, const char *file, int line);
 #endif
 void	_thread_lock_flags(struct thread *, int, const char *, int);
 
