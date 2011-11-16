@@ -555,7 +555,7 @@ main(int argc, char **argv)
 	int option, npmc, ncpu, haltedcpus;
 	int c, check_driver_stats, current_cpu, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
-	int do_print;
+	int do_print, do_read;
 	size_t dummy;
 	int graphdepth;
 	int pipefd[2], rfd;
@@ -797,7 +797,9 @@ main(int argc, char **argv)
 			break;
 
 		case 'o':	/* outputfile */
-			if (args.pa_printfile != NULL)
+			if (args.pa_printfile != NULL &&
+			    args.pa_printfile != stdout &&
+			    args.pa_printfile != stderr)
 				(void) fclose(args.pa_printfile);
 			if ((args.pa_printfile = fopen(optarg, "w")) == NULL)
 				errx(EX_OSERR, "ERROR: cannot open \"%s\" for "
@@ -1329,7 +1331,7 @@ main(int argc, char **argv)
 	 * are killed by a SIGINT.
 	 */
 	runstate = PMCSTAT_RUNNING;
-	do_print = 0;
+	do_print = do_read = 0;
 	do {
 		if ((c = kevent(pmcstat_kq, NULL, 0, &kev, 1, NULL)) <= 0) {
 			if (errno != EINTR)
@@ -1352,8 +1354,10 @@ main(int argc, char **argv)
 			    (args.pa_flags & FLAG_DO_TOP)) {
 				if (pmcstat_keypress_log())
 					runstate = pmcstat_close_log();
-			} else
+			} else {
+				do_read = 0;
 				runstate = pmcstat_process_log();
+			}
 			break;
 
 		case EVFILT_SIGNAL:
@@ -1378,9 +1382,6 @@ main(int argc, char **argv)
 				/* Kill the child process if we started it */
 				if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 					pmcstat_kill_process();
-				/* Close the pipe to self, if present. */
-				if (args.pa_flags & FLAG_HAS_PIPE)
-					(void) close(pipefd[READPIPEFD]);
 				runstate = pmcstat_close_log();
 			} else if (kev.ident == SIGWINCH) {
 				if (ioctl(fileno(args.pa_printfile),
@@ -1395,12 +1396,15 @@ main(int argc, char **argv)
 			break;
 
 		case EVFILT_TIMER: /* print out counting PMCs */
+			if ((args.pa_flags & FLAG_DO_TOP) &&
+			     pmc_flush_logfile() == 0)
+				do_read = 1;
 			do_print = 1;
 			break;
 
 		}
 
-		if (do_print) {
+		if (do_print && !do_read) {
 			if ((args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0) {
 				pmcstat_print_pmcs();
 				if (runstate == PMCSTAT_FINISHED && /* final newline */
@@ -1421,7 +1425,7 @@ main(int argc, char **argv)
 
 	/* flush any pending log entries */
 	if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE | FLAG_HAS_PIPE))
-		pmc_flush_logfile();
+		pmc_close_logfile();
 
 	pmcstat_cleanup();
 
