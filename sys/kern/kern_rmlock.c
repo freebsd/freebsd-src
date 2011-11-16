@@ -69,10 +69,10 @@ static __inline void compiler_memory_barrier(void) {
 	__asm __volatile("":::"memory");
 }
 
-static void	assert_rm(struct lock_object *lock, int what);
+static void	assert_rm(const struct lock_object *lock, int what);
 static void	lock_rm(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	owner_rm(struct lock_object *lock, struct thread **owner);
+static int	owner_rm(const struct lock_object *lock, struct thread **owner);
 #endif
 static int	unlock_rm(struct lock_object *lock);
 
@@ -93,7 +93,7 @@ struct lock_class lock_class_rm = {
 };
 
 static void
-assert_rm(struct lock_object *lock, int what)
+assert_rm(const struct lock_object *lock, int what)
 {
 
 	panic("assert_rm called");
@@ -115,7 +115,7 @@ unlock_rm(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 static int
-owner_rm(struct lock_object *lock, struct thread **owner)
+owner_rm(const struct lock_object *lock, struct thread **owner)
 {
 
 	panic("owner_rm called");
@@ -227,7 +227,7 @@ rm_destroy(struct rmlock *rm)
 }
 
 int
-rm_wowned(struct rmlock *rm)
+rm_wowned(const struct rmlock *rm)
 {
 
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)

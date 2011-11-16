@@ -69,7 +69,7 @@ struct thread;
 int	 __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    const char *wmesg, int prio, int timo, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	 _lockmgr_assert(struct lock *lk, int what, const char *file, int line);
+void	 _lockmgr_assert(const struct lock *lk, int what, const char *file, int line);
 #endif
 void	 _lockmgr_disown(struct lock *lk, const char *file, int line);
 
@@ -82,8 +82,8 @@ void	 lockinit(struct lock *lk, int prio, const char *wmesg, int timo,
 #ifdef DDB
 int	 lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
-void	 lockmgr_printinfo(struct lock *lk);
-int	 lockstatus(struct lock *lk);
+void	 lockmgr_printinfo(const struct lock *lk);
+int	 lockstatus(const struct lock *lk);
 
 /*
  * As far as the ilk can be a static NULL pointer these functions need a
