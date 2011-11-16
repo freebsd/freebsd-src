@@ -455,15 +455,8 @@ phashinit(int elements, struct malloc_type *type, u_long *nentries)
 void
 uio_yield(void)
 {
-	struct thread *td;
 
-	td = curthread;
-	DROP_GIANT();
-	thread_lock(td);
-	sched_prio(td, td->td_user_pri);
-	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
-	thread_unlock(td);
-	PICKUP_GIANT();
+	kern_yield(PRI_USER);
 }
 
 int
