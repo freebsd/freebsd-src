@@ -28,16 +28,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if __FreeBSD_version > 800032
+#define FILEMON_HAS_LINKAT
+#endif
+
 #if __FreeBSD_version < 900044	/* r225617 (2011-09-16) failed to bump
 				   __FreeBSD_version.  This really should
 				   be based on "900045".  "900044" is r225469
 				   (2011-09-10) so this code is broken for
 				   9-CURRENT September 10th-16th. */
 #define sys_chdir	chdir
+#define sys_execve	execve
 #define sys_fork	fork
 #define sys_link	link
 #define sys_open	open
 #define sys_rename	rename
+#define sys_stat	stat
 #define sys_symlink	symlink
 #define sys_unlink	unlink
 #define sys_vfork	vfork
@@ -421,10 +427,6 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 
 	return (ret);
 }
-
-#if __FreeBSD_version > 800032
-#define FILEMON_HAS_LINKAT
-#endif
 
 #ifdef FILEMON_HAS_LINKAT
 static int
