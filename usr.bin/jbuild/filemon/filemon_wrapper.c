@@ -28,6 +28,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if __FreeBSD_version < 900044	/* r225617 (2011-09-16) failed to bump
+				   __FreeBSD_version.  This really should
+				   be based on "900045".  "900044" is r225469
+				   (2011-09-10) so this code is broken for
+				   9-CURRENT September 10th-16th. */
+#define sys_chdir	chdir
+#define sys_fork	fork
+#define sys_link	link
+#define sys_open	open
+#define sys_rename	rename
+#define sys_symlink	symlink
+#define sys_unlink	unlink
+#define sys_vfork	vfork
+#define sys_sys_exit	sys_exit
+#ifdef FILEMON_HAS_LINKAT
+#define sys_linkat	linkat
+#endif
+#endif	/* __FreeBSD_version */
+
 static void
 filemon_output(struct filemon *filemon, char *msg, size_t len)
 {
@@ -105,7 +124,7 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = chdir(td, uap)) == 0) {
+	if ((ret = sys_chdir(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -144,7 +163,7 @@ filemon_wrapper_execve(struct thread *td, struct execve_args *uap)
 
 	copyinstr(uap->fname, fname, sizeof(fname), &done);
 
-	if ((ret = execve(td, uap)) == 0) {
+	if ((ret = sys_execve(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -169,7 +188,7 @@ filemon_wrapper_execve(struct thread *td, struct execve_args *uap)
 	return (ret);
 }
 
-#ifdef COMPAT_IA32
+#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 static int
 filemon_wrapper_freebsd32_execve(struct thread *td,
     struct freebsd32_execve_args *uap)
@@ -215,7 +234,7 @@ filemon_wrapper_fork(struct thread *td, struct fork_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = fork(td, uap)) == 0) {
+	if ((ret = sys_fork(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -248,7 +267,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = open(td, uap)) == 0) {
+	if ((ret = sys_open(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -297,7 +316,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = rename(td, uap)) == 0) {
+	if ((ret = sys_rename(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -335,7 +354,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = link(td, uap)) == 0) {
+	if ((ret = sys_link(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -373,7 +392,7 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = symlink(td, uap)) == 0) {
+	if ((ret = sys_symlink(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -416,7 +435,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = linkat(td, uap)) == 0) {
+	if ((ret = sys_linkat(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -455,7 +474,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = stat(td, uap)) == 0) {
+	if ((ret = sys_stat(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -483,7 +502,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 	return (ret);
 }
 
-#ifdef COMPAT_IA32
+#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 static int
 filemon_wrapper_freebsd32_stat(struct thread *td,
     struct freebsd32_stat_args *uap)
@@ -561,7 +580,7 @@ filemon_wrapper_sys_exit(struct thread *td, struct sys_exit_args *uap)
 	/* Release the read lock. */
 	filemon_unlock_read();
 
-	sys_exit(td, uap);
+	sys_sys_exit(td, uap);
 }
 
 static int
@@ -572,7 +591,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = unlink(td, uap)) == 0) {
+	if ((ret = sys_unlink(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -607,7 +626,7 @@ filemon_wrapper_vfork(struct thread *td, struct vfork_args *uap)
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = vfork(td, uap)) == 0) {
+	if ((ret = sys_vfork(td, uap)) == 0) {
 		/* Grab a read lock on the filemon inuse list. */
 		filemon_lock_read();
 
@@ -658,7 +677,7 @@ filemon_wrapper_install(void)
 	sv_table[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
 #endif
 
-#ifdef COMPAT_IA32
+#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 	sv_table = ia32_freebsd_sysvec.sv_table;
 
 	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
@@ -675,7 +694,7 @@ filemon_wrapper_install(void)
 #ifdef FILEMON_HAS_LINKAT
 	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
 #endif
-#endif	/* COMPAT_IA32 */
+#endif	/* COMPAT_ARCH32 */
 }
 
 static void
@@ -689,37 +708,37 @@ filemon_wrapper_deinstall(void)
 #error Machine type not supported
 #endif
 
-	sv_table[SYS_chdir].sy_call = (sy_call_t *) chdir;
-	sv_table[SYS_exit].sy_call = (sy_call_t *) sys_exit;
-	sv_table[SYS_execve].sy_call = (sy_call_t *) execve;
-	sv_table[SYS_fork].sy_call = (sy_call_t *) fork;
-	sv_table[SYS_open].sy_call = (sy_call_t *) open;
-	sv_table[SYS_rename].sy_call = (sy_call_t *) rename;
-	sv_table[SYS_stat].sy_call = (sy_call_t *) stat;
-	sv_table[SYS_unlink].sy_call = (sy_call_t *) unlink;
-	sv_table[SYS_vfork].sy_call = (sy_call_t *) vfork;
-	sv_table[SYS_link].sy_call = (sy_call_t *) link;
-	sv_table[SYS_symlink].sy_call = (sy_call_t *) symlink;
+	sv_table[SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
+	sv_table[SYS_exit].sy_call = (sy_call_t *)sys_sys_exit;
+	sv_table[SYS_execve].sy_call = (sy_call_t *)sys_execve;
+	sv_table[SYS_fork].sy_call = (sy_call_t *)sys_fork;
+	sv_table[SYS_open].sy_call = (sy_call_t *)sys_open;
+	sv_table[SYS_rename].sy_call = (sy_call_t *)sys_rename;
+	sv_table[SYS_stat].sy_call = (sy_call_t *)sys_stat;
+	sv_table[SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
+	sv_table[SYS_vfork].sy_call = (sy_call_t *)sys_vfork;
+	sv_table[SYS_link].sy_call = (sy_call_t *)sys_link;
+	sv_table[SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
 #ifdef FILEMON_HAS_LINKAT
-	sv_table[SYS_linkat].sy_call = (sy_call_t *) linkat;
+	sv_table[SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
 #endif
 
-#ifdef COMPAT_IA32
+#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 	sv_table = ia32_freebsd_sysvec.sv_table;
 
-	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) chdir;
-	sv_table[FREEBSD32_SYS_exit].sy_call = (sy_call_t *) sys_exit;
+	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
+	sv_table[FREEBSD32_SYS_exit].sy_call = (sy_call_t *)sys_sys_exit;
 	sv_table[FREEBSD32_SYS_freebsd32_execve].sy_call = (sy_call_t *)freebsd32_execve;
-	sv_table[FREEBSD32_SYS_fork].sy_call = (sy_call_t *) fork;
-	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *) open;
-	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *) rename;
-	sv_table[FREEBSD32_SYS_freebsd32_stat].sy_call = (sy_call_t *) freebsd32_stat;
-	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *) unlink;
-	sv_table[FREEBSD32_SYS_vfork].sy_call = (sy_call_t *) vfork;
-	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *) link;
-	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) symlink;
+	sv_table[FREEBSD32_SYS_fork].sy_call = (sy_call_t *)sys_fork;
+	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *)sys_open;
+	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *)sys_rename;
+	sv_table[FREEBSD32_SYS_freebsd32_stat].sy_call = (sy_call_t *)freebsd32_stat;
+	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
+	sv_table[FREEBSD32_SYS_vfork].sy_call = (sy_call_t *)sys_vfork;
+	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *)sys_link;
+	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
 #ifdef FILEMON_HAS_LINKAT
-	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) linkat;
+	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
 #endif
-#endif	/* COMPAT_IA32 */
+#endif	/* COMPAT_ARCH32 */
 }
