@@ -360,6 +360,10 @@ FBSD_1.1 {
 	unlinkat;
 };
 
+FBSD_1.2 {
+	posix_fallocate;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;

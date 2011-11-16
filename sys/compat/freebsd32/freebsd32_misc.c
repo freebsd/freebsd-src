@@ -2672,3 +2672,15 @@ freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 	bcopy(&stat.pathname[0], &stat32.pathname[0], sizeof(stat.pathname));
 	return (copyout(&stat32, uap->stat, version));
 }
+
+int
+freebsd32_posix_fallocate(struct thread *td,
+    struct freebsd32_posix_fallocate_args *uap)
+{
+	struct posix_fallocate_args ap;
+
+	ap.fd = uap->fd;
+	ap.offset = PAIR32TO64(off_t, uap->offset);
+	ap.len = PAIR32TO64(off_t, uap->len);
+	return (posix_fallocate(td, &ap));
+}
