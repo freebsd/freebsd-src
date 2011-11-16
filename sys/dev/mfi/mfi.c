@@ -117,7 +117,7 @@ static int 	mfi_check_clear_intr_ppc(struct mfi_softc *sc);
 static void 	mfi_issue_cmd_xscale(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
 static void 	mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
 
-static SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
 TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
@@ -484,15 +484,8 @@ mfi_attach(struct mfi_softc *sc)
 	mtx_unlock(&sc->mfi_io_lock);
 
 	/*
-	 * Set up the interrupt handler.  XXX This should happen in
-	 * mfi_pci.c
+	 * Set up the interrupt handler.
 	 */
-	sc->mfi_irq_rid = 0;
-	if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
-	    &sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-		device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
-		return (EINVAL);
-	}
 	if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq, INTR_MPSAFE|INTR_TYPE_BIO,
 	    NULL, mfi_intr, sc, &sc->mfi_intr)) {
 		device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
