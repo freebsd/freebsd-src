@@ -40,7 +40,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	watchdogd wpa_supplicant \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd \
-	zfs zvol
+	zfs zfsd zvol
 
 .if ${MK_IPX} != "no"
 FILES+=	ipxrouted
