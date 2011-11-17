@@ -181,7 +181,6 @@ static pt_entry_t init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
-static void pmap_invalidate_all_action(void *arg);
 static void pmap_update_page_action(void *arg);
 #endif
 
@@ -622,71 +621,83 @@ pmap_init(void)
  * Low level helper routines.....
  ***************************************************/
 
+#ifdef	SMP
 static __inline void
-pmap_invalidate_all_local(pmap_t pmap)
+pmap_call_on_active_cpus(pmap_t pmap, void (*fn)(void *), void *arg)
 {
-	u_int cpuid;
+	int	cpuid, cpu, self;
+	cpuset_t active_cpus;
 
-	cpuid = PCPU_GET(cpuid);
-
-	if (pmap == kernel_pmap) {
-		tlb_invalidate_all();
-		return;
+	sched_pin();
+	if (is_kernel_pmap(pmap)) {
+		smp_rendezvous(NULL, fn, NULL, arg);
+		goto out;
 	}
-	if (CPU_ISSET(cpuid, &pmap->pm_active))
-		tlb_invalidate_all_user(pmap);
-	else
-		pmap->pm_asid[cpuid].gen = 0;
-}
-
-#ifdef SMP
-static void
-pmap_invalidate_all(pmap_t pmap)
-{
-
-	smp_rendezvous(0, pmap_invalidate_all_action, 0, pmap);
-}
-
-static void
-pmap_invalidate_all_action(void *arg)
-{
-
-	pmap_invalidate_all_local((pmap_t)arg);
-}
-#else
-static void
-pmap_invalidate_all(pmap_t pmap)
-{
-
-	pmap_invalidate_all_local(pmap);
-}
-#endif
-
-static __inline void
-pmap_invalidate_page_local(pmap_t pmap, vm_offset_t va)
-{
-	u_int cpuid;
-
+	/* Force ASID update on inactive CPUs */
+	CPU_FOREACH(cpu) {
+		if (!CPU_ISSET(cpu, &pmap->pm_active))
+			pmap->pm_asid[cpu].gen = 0;
+	}
 	cpuid = PCPU_GET(cpuid);
+	/* 
+	 * XXX: barrier/locking for active? 
+	 *
+	 * Take a snapshot of active here, any further changes are ignored.
+	 * tlb update/invalidate should be harmless on inactive CPUs
+	 */
+	active_cpus = pmap->pm_active;
+	self = CPU_ISSET(cpuid, &active_cpus);
+	CPU_CLR(cpuid, &active_cpus);
+	/* Optimize for the case where this cpu is the only active one */
+	if (CPU_EMPTY(&active_cpus)) {
+		if (self)
+			fn(arg);
+	} else {
+		if (self)
+			CPU_SET(cpuid, &active_cpus);
+		smp_rendezvous_cpus(active_cpus, NULL, fn, NULL, arg);
+	}
+out:
+	sched_unpin();
+}
+#else /* !SMP */
+static __inline void
+pmap_call_on_active_cpus(pmap_t pmap, void (*fn)(void *), void *arg)
+{
+	int	cpuid;
 
 	if (is_kernel_pmap(pmap)) {
-		tlb_invalidate_address(pmap, va);
+		fn(arg);
 		return;
 	}
-	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
-		return;
-	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &pmap->pm_active))
 		pmap->pm_asid[cpuid].gen = 0;
-		return;
-	}
-	tlb_invalidate_address(pmap, va);
+	else
+		fn(arg);
+}
+#endif /* SMP */
+
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
+
+	pmap_call_on_active_cpus(pmap,
+	    (void (*)(void *))tlb_invalidate_all_user, pmap);
 }
 
-#ifdef SMP
 struct pmap_invalidate_page_arg {
 	pmap_t pmap;
 	vm_offset_t va;
 };
+
+static void
+pmap_invalidate_page_action(void *arg)
+{
+	struct pmap_invalidate_page_arg *p = arg;
+
+	tlb_invalidate_address(p->pmap, p->va);
+}
 
 static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
@@ -695,51 +706,22 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	arg.pmap = pmap;
 	arg.va = va;
-	smp_rendezvous(0, pmap_invalidate_page_action, 0, &arg);
+	pmap_call_on_active_cpus(pmap, pmap_invalidate_page_action, &arg);
 }
 
-static void
-pmap_invalidate_page_action(void *arg)
-{
-	struct pmap_invalidate_page_arg *p = arg;
-
-	pmap_invalidate_page_local(p->pmap, p->va);
-}
-#else
-static void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
-{
-
-	pmap_invalidate_page_local(pmap, va);
-}
-#endif
-
-static __inline void
-pmap_update_page_local(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
-{
-	u_int cpuid;
-
-	cpuid = PCPU_GET(cpuid);
-
-	if (is_kernel_pmap(pmap)) {
-		tlb_update(pmap, va, pte);
-		return;
-	}
-	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
-		return;
-	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
-		pmap->pm_asid[cpuid].gen = 0;
-		return;
-	}
-	tlb_update(pmap, va, pte);
-}
-
-#ifdef SMP
 struct pmap_update_page_arg {
 	pmap_t pmap;
 	vm_offset_t va;
 	pt_entry_t pte;
 };
+
+static void
+pmap_update_page_action(void *arg)
+{
+	struct pmap_update_page_arg *p = arg;
+
+	tlb_update(p->pmap, p->va, p->pte);
+}
 
 static void
 pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
@@ -749,24 +731,8 @@ pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
 	arg.pmap = pmap;
 	arg.va = va;
 	arg.pte = pte;
-	smp_rendezvous(0, pmap_update_page_action, 0, &arg);
+	pmap_call_on_active_cpus(pmap, pmap_update_page_action, &arg);
 }
-
-static void
-pmap_update_page_action(void *arg)
-{
-	struct pmap_update_page_arg *p = arg;
-
-	pmap_update_page_local(p->pmap, p->va, p->pte);
-}
-#else
-static void
-pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
-{
-
-	pmap_update_page_local(pmap, va, pte);
-}
-#endif
 
 /*
  *	Routine:	pmap_extract
@@ -3213,7 +3179,7 @@ pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
 #ifdef SMP
 	/* It is possible that some other CPU changed m-bit */
 	if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
-		pmap_update_page_local(pmap, va, *pte);
+		tlb_update(pmap, va, *pte);
 		PMAP_UNLOCK(pmap);
 		return (0);
 	}
@@ -3227,7 +3193,7 @@ pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
 		return (1);
 	}
 	pte_set(pte, PTE_D);
-	pmap_update_page_local(pmap, va, *pte);
+	tlb_update(pmap, va, *pte);
 	pa = TLBLO_PTE_TO_PA(*pte);
 	if (!page_is_managed(pa))
 		panic("pmap_emulate_modified: unmanaged page");
