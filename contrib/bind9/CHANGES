@@ -1,3 +1,9 @@
+	--- 9.6-ESV-R5-P1 released ---
+
+3218.	[security]	Cache lookup could return RRSIG data associated with
+			nonexistent records, leading to an assertion
+			failure. [RT #26590]
+
 	--- 9.6-ESV-R5 released ---
 
 3135.	[port]		FreeBSD: workaround broken IPV6_USE_MIN_MTU processing.
