@@ -303,7 +303,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 */
 	pc = __pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-	curthread_reg = pc->pc_curthread = &thread0;
+	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	pc->pc_cpuid = 0;
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
