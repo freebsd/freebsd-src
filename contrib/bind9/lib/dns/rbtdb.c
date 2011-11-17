@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.67 2011-06-09 00:42:47 each Exp $ */
+/* $Id: rbtdb.c,v 1.196.18.67.2.1 2011-11-16 09:33:41 each Exp $ */
 
 /*! \file */
 
@@ -3672,7 +3672,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	    result == DNS_R_NCACHENXRRSET) {
 		bind_rdataset(search.rbtdb, node, found, search.now,
 			      rdataset);
-		if (foundsig != NULL)
+		if (!NEGATIVE(found) && foundsig != NULL)
 			bind_rdataset(search.rbtdb, node, foundsig, search.now,
 				      sigrdataset);
 	}
@@ -4258,7 +4258,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	}
 	if (found != NULL) {
 		bind_rdataset(rbtdb, rbtnode, found, now, rdataset);
-		if (foundsig != NULL)
+		if (!NEGATIVE(found) && foundsig != NULL)
 			bind_rdataset(rbtdb, rbtnode, foundsig, now,
 				      sigrdataset);
 	}
