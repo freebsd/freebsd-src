@@ -48,25 +48,29 @@ sfxge_load="YES"
 The
 .Nm
 driver provides support for 10Gb Ethernet adapters based on
-Solarflare SFC9000 family controllers.  The driver supports jumbo
+Solarflare SFC9000 family controllers.
+The driver supports jumbo
 frames, transmit/receive checksum offload, TCP Segmentation Offload
 (TSO), Large Receive Offload (LRO), VLAN checksum offload, VLAN TSO,
 and Receive Side Scaling (RSS) using MSI-X interrupts.  
 .Pp
 The driver allocates 1 receive queue, transmit queue, event queue and
-IRQ per CPU up to a maximum of 64.  IRQ affinities should be spread
-out using
+IRQ per CPU up to a maximum of 64.
+IRQ affinities should be spread out using
 .Xr cpuset 8 .
 Interrupt moderation may be controlled through the sysctl
-dev.sfxge.\fIindex\fR.int_mod (units are microseconds).
+.Va dev.sfxge.%d.int_mod
+(units are microseconds).
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 A large number of MAC, PHY and data path statistics are available
-under the sysctl dev.sfxge.\fIindex\fR.stats.  The adapter's VPD
+under the sysctl
+.Va dev.sfxge.%d.stats .
+The adapter's VPD
 fields including its serial number are available under the sysctl
-dev.sfxge.\fIindex\fR.vpd.
+.Va dev.sfxge.%d.vpd .
 .Sh HARDWARE
 The
 .Nm
