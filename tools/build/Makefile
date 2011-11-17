@@ -7,10 +7,6 @@ SRCS=
 INCSGROUPS=	INCS
 INCS=		
 
-.if ${MACHINE_ARCH} == i386
-SRCS+=		atomic.c
-.endif
-
 BOOTSTRAPPING?=	0
 
 .if empty(SRCS)
