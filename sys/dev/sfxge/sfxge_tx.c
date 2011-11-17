@@ -135,7 +135,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 
 	/* Acquire the put list. */
 	putp = &stdp->std_put;
-	put = atomic_readandclear_long(putp);
+	put = atomic_readandclear_ptr(putp);
 	mbuf = (void *)put;
 
 	if (mbuf == NULL)
@@ -484,7 +484,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 				return ENOBUFS;
 			mbuf->m_pkthdr.csum_data = old_len + 1;
 			mbuf->m_nextpkt = (void *)old;
-		} while (atomic_cmpset_long(putp, old, new) == 0);
+		} while (atomic_cmpset_ptr(putp, old, new) == 0);
 	}
 
 	return (0);
@@ -1323,9 +1323,9 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 				 &txq->buf_base_id);
 
 	/* Create a DMA tag for packet mappings. */
-	if (bus_dma_tag_create(sc->parent_dma_tag, 1, 0x1000, 0x3FFFFFFFFFFFULL,
-	    BUS_SPACE_MAXADDR, NULL, NULL, 0x11000,
-	    SFXGE_TX_MAPPING_MAX_SEG, 0x1000, 0, NULL, NULL,
+	if (bus_dma_tag_create(sc->parent_dma_tag, 1, 0x1000,
+	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
+	    NULL, 0x11000, SFXGE_TX_MAPPING_MAX_SEG, 0x1000, 0, NULL, NULL,
 	    &txq->packet_dma_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
 		rc = ENOMEM;
