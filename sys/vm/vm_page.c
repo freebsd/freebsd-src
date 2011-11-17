@@ -1335,7 +1335,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM &&
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0)) {
@@ -1723,7 +1723,7 @@ vm_page_alloc_freelist(int flind, int req)
 	 */
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM && 
+	    (req_class == VM_ALLOC_SYSTEM &&
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0))
