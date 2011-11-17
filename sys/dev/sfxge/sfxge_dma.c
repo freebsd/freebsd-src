@@ -134,8 +134,8 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 
 	/* Create the child DMA tag. */
 	if (bus_dma_tag_create(sc->parent_dma_tag, PAGE_SIZE, 0,
-	    0x3FFFFFFFFFFFULL, BUS_SPACE_MAXADDR, NULL, NULL, len, 1, len, 0,
-	    NULL, NULL, &esmp->esm_tag) != 0) {
+	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
+	    NULL, len, 1, len, 0, NULL, NULL, &esmp->esm_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
 		return (ENOMEM);
 	}
