@@ -146,7 +146,7 @@ sfxge_intr_message(void *arg)
 
 		do {
 			mask = intr->mask;
-		} while (atomic_cmpset_long(&intr->mask, mask,
+		} while (atomic_cmpset_ptr(&intr->mask, mask,
 		    mask | (1 << index)) == 0);
 
 		return;
