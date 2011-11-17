@@ -365,9 +365,9 @@ union desc_value {
 struct mfi_cmd_tbolt {
 	union mfi_mpi2_request_descriptor *request_desc;
 	struct mfi_mpi2_request_raid_scsi_io *io_request;
-	uintptr_t		io_request_phys_addr;
-	uintptr_t		sg_frame_phys_addr;
-	uintptr_t 		sense_phys_addr;
+	bus_addr_t		io_request_phys_addr;
+	bus_addr_t		sg_frame_phys_addr;
+	bus_addr_t 		sense_phys_addr;
 	MPI2_SGE_IO_UNION	*sg_frame;
 	uint8_t			*sense;
 	TAILQ_ENTRY(mfi_cmd_tbolt) next;
@@ -401,7 +401,7 @@ extern void mfi_tbolt_enable_intr_ppc(struct mfi_softc *);
 extern void mfi_tbolt_disable_intr_ppc(struct mfi_softc *);
 extern int32_t mfi_tbolt_read_fw_status_ppc(struct mfi_softc *);
 extern int32_t mfi_tbolt_check_clear_intr_ppc(struct mfi_softc *);
-extern void mfi_tbolt_issue_cmd_ppc(struct mfi_softc *,bus_addr_t, uint32_t);
+extern void mfi_tbolt_issue_cmd_ppc(struct mfi_softc *, bus_addr_t, uint32_t);
 extern void mfi_tbolt_init_globals(struct mfi_softc*);
 extern uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *);
 extern int mfi_tbolt_init_desc_pool(struct mfi_softc *, uint8_t *, uint32_t);

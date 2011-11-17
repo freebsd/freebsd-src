@@ -53,6 +53,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_mfi.h"
 
 #include <sys/param.h>
@@ -117,8 +118,10 @@ static int32_t	mfi_read_fw_status_xscale(struct mfi_softc *sc);
 static int32_t	mfi_read_fw_status_ppc(struct mfi_softc *sc);
 static int 	mfi_check_clear_intr_xscale(struct mfi_softc *sc);
 static int 	mfi_check_clear_intr_ppc(struct mfi_softc *sc);
-static void 	mfi_issue_cmd_xscale(struct mfi_softc *sc, bus_addr_t bus_add,uint32_t frame_cnt);
-static void 	mfi_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,uint32_t frame_cnt);
+static void 	mfi_issue_cmd_xscale(struct mfi_softc *sc, bus_addr_t bus_add,
+		    uint32_t frame_cnt);
+static void 	mfi_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,
+		    uint32_t frame_cnt);
 static int mfi_config_lock(struct mfi_softc *sc, uint32_t opcode);
 static void mfi_config_unlock(struct mfi_softc *sc, int locked);
 static int mfi_check_command_pre(struct mfi_softc *sc, struct mfi_command *cm);
@@ -1973,13 +1976,8 @@ mfi_build_syspdio(struct mfi_softc *sc,struct bio *bio)
 	pass->header.sense_len = MFI_SENSE_LEN;
 	pass->header.data_len = bio->bio_bcount;
 	pass->header.cdb_len = 10;
-	#if defined(__amd64__)
-	pass->sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-	pass->sense_addr_hi = (cm->cm_sense_busaddr & 0xFFFFFFFF00000000) >> 32;
-	#else
-	pass->sense_addr_lo = cm->cm_sense_busaddr;
-	pass->sense_addr_hi = 0;
-	#endif
+	pass->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_complete = mfi_bio_complete;
 	cm->cm_private = bio;
 	cm->cm_data = bio->bio_data;
@@ -2027,13 +2025,8 @@ mfi_build_ldio(struct mfi_softc *sc,struct bio *bio)
 	io->header.scsi_status = 0;
 	io->header.sense_len = MFI_SENSE_LEN;
 	io->header.data_len = blkcount;
-	#if defined(__amd64__)
-	io->sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-	io->sense_addr_hi = (cm->cm_sense_busaddr & 0xFFFFFFFF00000000 ) >> 32;
-	#else
-	io->sense_addr_lo = cm->cm_sense_busaddr;
-	io->sense_addr_hi = 0;
-	#endif
+	io->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	io->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	io->lba_hi = (bio->bio_pblkno & 0xffffffff00000000) >> 32;
 	io->lba_lo = bio->bio_pblkno & 0xffffffff;
 	cm->cm_complete = mfi_bio_complete;
@@ -2335,13 +2328,9 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	abort->header.flags = 0;
 	abort->header.scsi_status = 0;
 	abort->abort_context = cm_abort->cm_frame->header.context;
-	#if defined(__amd64__)
-		abort->abort_mfi_addr_lo = cm_abort->cm_frame_busaddr & 0xFFFFFFFF;
-		abort->abort_mfi_addr_hi = (cm_abort->cm_frame_busaddr & 0xFFFFFFFF00000000 ) >> 32  ;
-	#else
-	abort->abort_mfi_addr_lo = cm_abort->cm_frame_busaddr;
-	abort->abort_mfi_addr_hi = 0;
-	#endif
+	abort->abort_mfi_addr_lo = (uint32_t)cm_abort->cm_frame_busaddr;
+	abort->abort_mfi_addr_hi =
+	    (uint32_t)((uint64_t)cm_abort->cm_frame_busaddr >> 32);
 	cm->cm_data = NULL;
 	cm->cm_flags = MFI_CMD_POLLED;
 
@@ -2382,13 +2371,8 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 	io->header.scsi_status = 0;
 	io->header.sense_len = MFI_SENSE_LEN;
 	io->header.data_len = (len + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
-	#if defined(__amd64__)
-		io->sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-		io->sense_addr_hi = (cm->cm_sense_busaddr & 0xFFFFFFFF00000000) >> 32;
-	#else
-	io->sense_addr_lo = cm->cm_sense_busaddr;
-	io->sense_addr_hi = 0;
-	#endif
+	io->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	io->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	io->lba_hi = (lba & 0xffffffff00000000) >> 32;
 	io->lba_lo = lba & 0xffffffff;
 	cm->cm_data = virt;
@@ -2435,13 +2419,8 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, in
 	pass->header.sense_len = MFI_SENSE_LEN;
 	pass->header.data_len = len;
 	pass->header.cdb_len = 10;
-	#if defined(__amd64__)
-		pass->sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-		pass->sense_addr_hi = (cm->cm_sense_busaddr & 0xFFFFFFFF00000000) >> 32;
-	#else
-	pass->sense_addr_lo = cm->cm_sense_busaddr;
-	pass->sense_addr_hi = 0;
-	#endif
+	pass->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_data = virt;
 	cm->cm_len = len;
 	cm->cm_sg = &pass->sgl;
@@ -2774,12 +2753,6 @@ mfi_stp_cmd(struct mfi_softc *sc, struct mfi_command *cm,caddr_t arg)
 	return 0;
 }
 
-#ifdef __amd64__
-#define	PTRIN(p)		((void *)(uintptr_t)(p))
-#else
-#define	PTRIN(p)		(p)
-#endif
-
 static int
 mfi_user_command(struct mfi_softc *sc, struct mfi_ioc_passthru *ioc)
 {
@@ -2848,11 +2821,7 @@ out:
 	return (error);
 }
 
-#ifdef __amd64__
 #define	PTRIN(p)		((void *)(uintptr_t)(p))
-#else
-#define	PTRIN(p)		(p)
-#endif
 
 static int
 mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
@@ -2860,7 +2829,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
 	struct mfi_ioc_packet *ioc;
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 	struct mfi_ioc_packet32 *ioc32;
 #endif
 	struct mfi_ioc_aen *aen;
@@ -2871,7 +2840,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 	size_t len;
 	int i, res;
 	struct mfi_ioc_passthru *iop = (struct mfi_ioc_passthru *)arg;
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 	struct mfi_ioc_passthru32 *iop32 = (struct mfi_ioc_passthru32 *)arg;
 	struct mfi_ioc_passthru iop_swab;
 #endif
@@ -2930,7 +2899,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 		break;
 	}
 	case MFI_CMD:
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 	case MFI_CMD32:
 #endif
 		{
@@ -2979,12 +2948,12 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			cm->cm_flags |= MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
 		if (cm->cm_frame->header.cmd == MFI_CMD_STP) {
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 			if (cmd == MFI_CMD) {
 #endif
 				/* Native */
 				cm->cm_stp_len = ioc->mfi_sgl[0].iov_len;
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 			} else {
 				/* 32bit on 64bit */
 				ioc32 = (struct mfi_ioc_packet32 *)ioc;
@@ -3017,13 +2986,13 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			if ((cm->cm_flags & MFI_CMD_DATAOUT) ||
 			    (cm->cm_frame->header.cmd == MFI_CMD_STP)) {
 				for (i = 0; i < ioc->mfi_sge_count; i++) {
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 					if (cmd == MFI_CMD) {
 #endif
 						/* Native */
 						addr = ioc->mfi_sgl[i].iov_base;
 						len = ioc->mfi_sgl[i].iov_len;
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 					} else {
 						/* 32bit on 64bit */
 						ioc32 = (struct mfi_ioc_packet32 *)ioc;
@@ -3046,13 +3015,10 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
-			#if defined(__amd64__)
-			cm->cm_frame->pass.sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-			cm->cm_frame->pass.sense_addr_hi = (cm->cm_sense_busaddr& 0xFFFFFFFF00000000) >> 32;
-			#else
-			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
-			cm->cm_frame->pass.sense_addr_hi = 0;
-			#endif
+			cm->cm_frame->pass.sense_addr_lo =
+			    (uint32_t)cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi =
+			    (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 		}
 		mtx_lock(&sc->mfi_io_lock);
 		skip_pre_post = mfi_check_for_sscd (sc, cm);
@@ -3079,13 +3045,13 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			if ((cm->cm_flags & MFI_CMD_DATAIN) ||
 			    (cm->cm_frame->header.cmd == MFI_CMD_STP)) {
 				for (i = 0; i < ioc->mfi_sge_count; i++) {
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 					if (cmd == MFI_CMD) {
 #endif
 						/* Native */
 						addr = ioc->mfi_sgl[i].iov_base;
 						len = ioc->mfi_sgl[i].iov_len;
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 					} else {
 						/* 32bit on 64bit */
 						ioc32 = (struct mfi_ioc_packet32 *)ioc;
@@ -3109,7 +3075,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			bcopy(&ioc->mfi_frame.raw[ioc->mfi_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 			if (cmd != MFI_CMD) {
 				/*
 				 * not 64bit native so zero out any address
@@ -3202,7 +3168,7 @@ out:
 			    cmd, arg, flag, td));
 			break;
 		}
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 	case MFIIO_PASSTHRU32:
 		iop_swab.ioc_frame	= iop32->ioc_frame;
 		iop_swab.buf_size	= iop32->buf_size;
@@ -3212,7 +3178,7 @@ out:
 #endif
 	case MFIIO_PASSTHRU:
 		error = mfi_user_command(sc, iop);
-#ifdef __amd64__
+#ifdef COMPAT_FREEBSD32
 		if (cmd == MFIIO_PASSTHRU32)
 			iop32->ioc_frame = iop_swab.ioc_frame;
 #endif
@@ -3315,13 +3281,10 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct 
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
-			#if defined(__amd64__)
-			cm->cm_frame->pass.sense_addr_lo = (cm->cm_sense_busaddr & 0xFFFFFFFF);
-			cm->cm_frame->pass.sense_addr_hi = (cm->cm_sense_busaddr & 0xFFFFFFFF00000000) >> 32;
-			#else
-			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
-			cm->cm_frame->pass.sense_addr_hi = 0;
-			#endif
+			cm->cm_frame->pass.sense_addr_lo =
+			    (uint32_t)cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi =
+			    (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 		}
 		
 		mtx_lock(&sc->mfi_io_lock);

@@ -134,13 +134,13 @@ mfi_tbolt_check_clear_intr_ppc(struct mfi_softc *sc)
 
 
 void
-mfi_tbolt_issue_cmd_ppc(struct mfi_softc *sc, uintptr_t bus_add,
+mfi_tbolt_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,
    uint32_t frame_cnt)
 {
 	bus_add |= (MFI_REQ_DESCRIPT_FLAGS_MFA
 	    << MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	MFI_WRITE4(sc, MFI_IQPL, bus_add);
-	MFI_WRITE4(sc, MFI_IQPH, 0x00000000);
+	MFI_WRITE4(sc, MFI_IQPL, (uint32_t)bus_add);
+	MFI_WRITE4(sc, MFI_IQPH, (uint32_t)((uint64_t)bus_add >> 32));
 }
 
 /**
@@ -348,7 +348,7 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 	struct MPI2_IOC_INIT_REQUEST   *mpi2IocInit;
 	struct mfi_init_frame	*mfi_init;
 	uintptr_t			offset = 0;
-	uintptr_t			phyAddress;
+	bus_addr_t			phyAddress;
 	MFI_ADDRESS			*mfiAddressTemp;
 	struct mfi_command *cm;
 	int error;
@@ -395,48 +395,29 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 	phyAddress = sc->mfi_tb_busaddr + offset;
 	mfiAddressTemp =
 	    (MFI_ADDRESS *)&mpi2IocInit->ReplyDescriptorPostQueueAddress;
-#if defined(__amd64__)
-	mfiAddressTemp->u.addressLow = (phyAddress & 0xFFFFFFFF);
-	mfiAddressTemp->u.addressHigh = (phyAddress & 0xFFFFFFFF00000000) >> 32;
-#else
-	mfiAddressTemp->u.addressLow = phyAddress & 0xFFFFFFFF;
-	mfiAddressTemp->u.addressHigh = 0;
-#endif
+	mfiAddressTemp->u.addressLow = (uint32_t)phyAddress;
+	mfiAddressTemp->u.addressHigh = (uint32_t)((uint64_t)phyAddress >> 32);
 
 	/* Get physical address of request message pool */
 	offset = sc->request_message_pool_align - sc->request_message_pool;
 	phyAddress =  sc->mfi_tb_busaddr + offset;
 	mfiAddressTemp = (MFI_ADDRESS *)&mpi2IocInit->SystemRequestFrameBaseAddress;
-#if defined(__amd64__)
-	mfiAddressTemp->u.addressLow = (phyAddress & 0xFFFFFFFF);
-	mfiAddressTemp->u.addressHigh = (phyAddress & 0xFFFFFFFF00000000) >> 32;
-#else
-	mfiAddressTemp->u.addressLow = phyAddress & 0xFFFFFFFF;
-	mfiAddressTemp->u.addressHigh = 0;	/* High Part */
-#endif
+	mfiAddressTemp->u.addressLow = (uint32_t)phyAddress;
+	mfiAddressTemp->u.addressHigh = (uint32_t)((uint64_t)phyAddress >> 32);
 	mpi2IocInit->ReplyFreeQueueAddress =  0; // Not supported by MR.
 	mpi2IocInit->TimeStamp = time_uptime;
 
 	if (sc->verbuf) {
 		snprintf((char *)sc->verbuf, strlen(MEGASAS_VERSION) + 2, "%s\n",
                 MEGASAS_VERSION);
-#if defined(__amd64__)
-		mfi_init->driver_ver_lo = (sc->verbuf_h_busaddr & 0xFFFFFFFF);
-		mfi_init->driver_ver_hi = (sc->verbuf_h_busaddr & 0xFFFFFFFF00000000) >> 32;
-#else
-		mfi_init->driver_ver_lo = sc->verbuf_h_busaddr;
-		mfi_init->driver_ver_hi = 0;
-#endif
+		mfi_init->driver_ver_lo = (uint32_t)sc->verbuf_h_busaddr;
+		mfi_init->driver_ver_hi =
+		    (uint32_t)((uint64_t)sc->verbuf_h_busaddr >> 32);
 	}
 	/* Get the physical address of the mpi2 ioc init command */
 	phyAddress =  sc->mfi_tb_ioc_init_busaddr;
-#if defined(__amd64__)
-	mfi_init->qinfo_new_addr_lo = (phyAddress & 0xFFFFFFFF);
-	mfi_init->qinfo_new_addr_hi = (phyAddress & 0xFFFFFFFF00000000) >> 32;
-#else
-	mfi_init->qinfo_new_addr_lo = phyAddress & 0xFFFFFFFF;
-	mfi_init->qinfo_new_addr_hi = 0;
-#endif
+	mfi_init->qinfo_new_addr_lo = (uint32_t)phyAddress;
+	mfi_init->qinfo_new_addr_hi = (uint32_t)((uint64_t)phyAddress >> 32);
 	mfi_init->header.flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	mfi_init->header.cmd = MFI_CMD_INIT;
@@ -472,9 +453,9 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 int mfi_tbolt_alloc_cmd(struct mfi_softc *sc)
 {
 	struct mfi_cmd_tbolt *cmd;
-	uint32_t io_req_base_phys, offset = 0;
+	bus_addr_t io_req_base_phys;
 	uint8_t *io_req_base;
-	uint16_t i = 0, j = 0;
+	int i = 0, j = 0, offset = 0;
 
 	/*
 	 * sc->mfi_cmd_pool_tbolt is an array of struct mfi_cmd_tbolt pointers.
@@ -1080,7 +1061,6 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	uint8_t i, sg_processed,sg_to_process;
 	uint8_t sge_count, sge_idx;
 	union mfi_sgl *os_sgl;
-	uint64_t tmp = ~0x00;
 
 	/*
 	 * Return 0 if there is no data transfer
@@ -1121,7 +1101,7 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 			sgl_ptr->Address = os_sgl->sg_skinny[i].addr;
 		} else {
 			sgl_ptr->Length = os_sgl->sg32[i].len;
-			sgl_ptr->Address = os_sgl->sg32[i].addr & tmp;
+			sgl_ptr->Address = os_sgl->sg32[i].addr;
 		}
 		sgl_ptr->Flags = 0;
 		sgl_ptr++;
@@ -1142,18 +1122,15 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		    MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
 		sg_chain->Length =  (sizeof(MPI2_SGE_IO_UNION) *
 		    (sge_count - sg_processed));
-		sg_chain->Address = ((uintptr_t)cmd->sg_frame_phys_addr) & tmp;
+		sg_chain->Address = cmd->sg_frame_phys_addr;
 		sgl_ptr = (pMpi25IeeeSgeChain64_t)cmd->sg_frame;
 		for (; i < sge_count; i++) {
 			if (sc->mfi_flags & MFI_FLAGS_SKINNY) {
 				sgl_ptr->Length = os_sgl->sg_skinny[i].len;
 				sgl_ptr->Address = os_sgl->sg_skinny[i].addr;
-			}
-			else
-			{
+			} else {
 				sgl_ptr->Length = os_sgl->sg32[i].len;
-				sgl_ptr->Address = (os_sgl->sg32[i].addr) &
-				    tmp;
+				sgl_ptr->Address = os_sgl->sg32[i].addr;
 			}
 			sgl_ptr->Flags = 0;
 			sgl_ptr++;
