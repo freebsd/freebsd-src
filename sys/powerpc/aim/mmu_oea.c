@@ -1624,6 +1624,8 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 			hash &= 0xfffff & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
+		KASSERT(!(moea_vsid_bitmap[n] & mask),
+		    ("Allocating in-use VSID group %#x\n", hash));
 		moea_vsid_bitmap[n] |= mask;
 		for (i = 0; i < 16; i++)
 			pmap->pm_sr[i] = VSID_MAKE(i, hash);
