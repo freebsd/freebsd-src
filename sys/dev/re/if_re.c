@@ -181,7 +181,7 @@ static const struct rl_type const re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8111 B/C/CP/D/DP/E PCIe Gigabit Ethernet" },
+	    "RealTek 8168/8111 B/C/CP/D/DP/E/F PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -232,6 +232,7 @@ static const struct rl_hwrev const re_hwrevs[] = {
 	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP", RL_JUMBO_MTU_9K },
 	{ RL_HWREV_8168E, RL_8169, "8168E/8111E", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168E_VL, RL_8169, "8168E/8111E-VL", RL_JUMBO_MTU_6K},
+	{ RL_HWREV_8168F, RL_8169, "8168F/8111F", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411, RL_8169, "8411", RL_JUMBO_MTU_9K},
 	{ 0, 0, NULL, 0 }
 };
@@ -1438,6 +1439,7 @@ re_attach(device_t dev)
 		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
 		break;
 	case RL_HWREV_8168E_VL:
+	case RL_HWREV_8168F:
 	case RL_HWREV_8411:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
