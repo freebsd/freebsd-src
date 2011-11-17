@@ -253,6 +253,7 @@ MAN=	aac.4 \
 	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
+	netmap.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
