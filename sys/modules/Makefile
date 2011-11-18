@@ -275,7 +275,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	send \
 	sf \
-	sfxge \
+	${_sfxge} \
 	sge \
 	siba_bwn \
 	siftr \
@@ -630,6 +630,7 @@ _rdma=		rdma
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
+_sfxge=		sfxge
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
