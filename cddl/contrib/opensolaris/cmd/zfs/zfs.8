@@ -573,7 +573,7 @@ to (and used by) other snapshots.
 .sp
 The amount of space used, available, or referenced does not take into account
 pending changes. Pending changes are generally accounted for within a few
-seconds. Committing a change to a disk using \fBfsync\fR(3c) or \fBO_SYNC\fR
+seconds. Committing a change to a disk using \fBfsync\fR(2) or \fBO_SYNC\fR
 does not necessarily guarantee that the space usage information is updated
 immediately.
 .RE
@@ -3554,7 +3554,7 @@ Invalid command line options were specified.
 .SH SEE ALSO
 .sp
 .LP
-zpool(8)
+chmod(2), fsync(2), exports(5), fstab(5), jail(8), mount(8), zpool(8)
 .sp
 .LP
 For information about using the \fBZFS\fR web-based management tool and other
