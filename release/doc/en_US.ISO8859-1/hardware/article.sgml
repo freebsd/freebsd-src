@@ -962,6 +962,8 @@
 
       &hwlist.sf;
 
+      &hwlist.sfxge;
+
       &hwlist.sge;
 
       &hwlist.sis;
