@@ -760,7 +760,6 @@ struct dc_softc {
 	int			dc_pnic_rx_bug_save;
 	unsigned char		*dc_pnic_rx_buf;
 	int			dc_if_flags;
-	int			dc_if_media;
 	uint32_t		dc_flags;
 	uint32_t		dc_txthresh;
 	uint32_t		dc_eaddr[2];
