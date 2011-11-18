@@ -109,7 +109,7 @@ void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
 	    line);
 void	_sx_sunlock_hard(struct sx *sx, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_sx_assert(struct sx *sx, int what, const char *file, int line);
+void	_sx_assert(const struct sx *sx, int what, const char *file, int line);
 #endif
 #ifdef DDB
 int	sx_chain(struct thread *td, struct thread **ownerp);

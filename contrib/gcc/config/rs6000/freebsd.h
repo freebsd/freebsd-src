@@ -253,3 +253,22 @@ extern int dot_symbols;
 
 #undef NEED_INDICATE_EXEC_STACK
 #define NEED_INDICATE_EXEC_STACK 1
+
+/* This is how to declare the size of a function.  */
+#undef  ASM_DECLARE_FUNCTION_SIZE
+#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)                    \
+  do                                                                    \
+    {                                                                   \
+      if (!flag_inhibit_size_directive)                                 \
+        {                                                               \
+          fputs ("\t.size\t", (FILE));                                  \
+          if (TARGET_64BIT && DOT_SYMBOLS)                              \
+            putc ('.', (FILE));                                         \
+          assemble_name ((FILE), (FNAME));                              \
+          fputs (",.-", (FILE));                                        \
+          rs6000_output_function_entry (FILE, FNAME);                   \
+          putc ('\n', (FILE));                                          \
+        }                                                               \
+    }                                                                   \
+  while (0)
+

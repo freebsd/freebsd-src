@@ -49,6 +49,9 @@ struct mem_affinity {
 
 extern struct mem_affinity *mem_affinity;
 
+/*
+ * The following functions are only to be used by the virtual memory system.
+ */
 void vm_phys_add_page(vm_paddr_t pa);
 vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary);

@@ -34,6 +34,7 @@
 #include <sys/vnode.h>
 #include <sys/mbuf.h>
 #include <sys/mount.h>
+#include <sys/endian.h>
 
 #ifdef USE_MD5_HASH
 #include <sys/md5.h>
@@ -393,6 +394,10 @@ smbfs_smb_setpattr(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 		if (error)
 			break;
 		mb_put_uint8(mbp, SMB_DT_ASCII);
+		if (SMB_UNICODE_STRINGS(SSTOVC(ssp))) {
+			mb_put_padbyte(mbp);
+			mb_put_uint8(mbp, 0);	/* 1st byte of NULL Unicode char */
+		}
 		mb_put_uint8(mbp, 0);
 		smb_rq_bend(rqp);
 		error = smb_rq_simple(rqp);
@@ -909,6 +914,10 @@ smbfs_smb_search(struct smbfs_fctx *ctx)
 		mb_put_uint16le(mbp, 0);	/* context length */
 		ctx->f_flags &= ~SMBFS_RDD_FINDFIRST;
 	} else {
+		if (SMB_UNICODE_STRINGS(vcp)) {
+			mb_put_padbyte(mbp);
+			mb_put_uint8(mbp, 0);
+		}
 		mb_put_uint8(mbp, 0);	/* file name length */
 		mb_put_uint8(mbp, SMB_DT_VARIABLE);
 		mb_put_uint16le(mbp, SMB_SKEYLEN);
@@ -1069,7 +1078,7 @@ smbfs_smb_trans2find2(struct smbfs_fctx *ctx)
 		mb_put_uint32le(mbp, 0);		/* resume key */
 		mb_put_uint16le(mbp, flags);
 		if (ctx->f_rname)
-			mb_put_mem(mbp, ctx->f_rname, strlen(ctx->f_rname) + 1, MB_MSYSTEM);
+			mb_put_mem(mbp, ctx->f_rname, ctx->f_rnamelen + 1, MB_MSYSTEM);
 		else
 			mb_put_uint8(mbp, 0);	/* resume file name */
 #if 0
@@ -1152,7 +1161,10 @@ static int
 smbfs_findopenLM2(struct smbfs_fctx *ctx, struct smbnode *dnp,
 	const char *wildcard, int wclen, int attr, struct smb_cred *scred)
 {
-	ctx->f_name = malloc(SMB_MAXFNAMELEN, M_SMBFSDATA, M_WAITOK);
+	if (SMB_UNICODE_STRINGS(SSTOVC(ctx->f_ssp))) {
+		ctx->f_name = malloc(SMB_MAXFNAMELEN * 2, M_SMBFSDATA, M_WAITOK);
+	} else
+		ctx->f_name = malloc(SMB_MAXFNAMELEN, M_SMBFSDATA, M_WAITOK);
 	if (ctx->f_name == NULL)
 		return ENOMEM;
 	ctx->f_infolevel = SMB_DIALECT(SSTOVC(ctx->f_ssp)) < SMB_DIALECT_NTLM0_12 ?
@@ -1231,7 +1243,10 @@ smbfs_findnextLM2(struct smbfs_fctx *ctx, int limit)
 		SMBERROR("unexpected info level %d\n", ctx->f_infolevel);
 		return EINVAL;
 	}
-	nmlen = min(size, SMB_MAXFNAMELEN);
+	if (SMB_UNICODE_STRINGS(SSTOVC(ctx->f_ssp))) {
+		nmlen = min(size, SMB_MAXFNAMELEN * 2);
+	} else
+		nmlen = min(size, SMB_MAXFNAMELEN);
 	cp = ctx->f_name;
 	error = md_get_mem(mbp, cp, nmlen, MB_MSYSTEM);
 	if (error)
@@ -1245,8 +1260,12 @@ smbfs_findnextLM2(struct smbfs_fctx *ctx, int limit)
 			return EBADRPC;
 		}
 	}
-	if (nmlen && cp[nmlen - 1] == 0)
-		nmlen--;
+	if (SMB_UNICODE_STRINGS(SSTOVC(ctx->f_ssp))) {
+		if (nmlen > 1 && cp[nmlen - 1] == 0 && cp[nmlen - 2] == 0)
+			nmlen -= 2;
+	} else
+		if (nmlen && cp[nmlen - 1] == 0)
+			nmlen--;
 	if (nmlen == 0)
 		return EBADRPC;
 
@@ -1330,10 +1349,17 @@ smbfs_findnext(struct smbfs_fctx *ctx, int limit, struct smb_cred *scred)
 			error = smbfs_findnextLM2(ctx, limit);
 		if (error)
 			return error;
-		if ((ctx->f_nmlen == 1 && ctx->f_name[0] == '.') ||
-		    (ctx->f_nmlen == 2 && ctx->f_name[0] == '.' &&
-		     ctx->f_name[1] == '.'))
-			continue;
+		if (SMB_UNICODE_STRINGS(SSTOVC(ctx->f_ssp))) {
+			if ((ctx->f_nmlen == 2 &&
+			     *(u_int16_t *)ctx->f_name == htole16(0x002e)) ||
+			    (ctx->f_nmlen == 4 &&
+			     *(u_int32_t *)ctx->f_name == htole32(0x002e002e)))
+				continue;
+		} else
+			if ((ctx->f_nmlen == 1 && ctx->f_name[0] == '.') ||
+			    (ctx->f_nmlen == 2 && ctx->f_name[0] == '.' &&
+			     ctx->f_name[1] == '.'))
+				continue;
 		break;
 	}
 	smbfs_fname_tolocal(SSTOVC(ctx->f_ssp), ctx->f_name, &ctx->f_nmlen,

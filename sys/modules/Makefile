@@ -275,6 +275,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	send \
 	sf \
+	sfxge \
 	sge \
 	siba_bwn \
 	siftr \
@@ -316,6 +317,7 @@ SUBDIR=	${_3dfx} \
 	usb \
 	utopia \
 	${_vesa} \
+	${_virtio} \
 	vge \
 	vkbd \
 	${_vpo} \
@@ -536,6 +538,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_virtio=	virtio
 _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
@@ -635,6 +638,7 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
 _wi=		wi

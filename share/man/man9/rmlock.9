@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd November 10, 2007
+.Dd November 16, 2011
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -63,7 +63,7 @@
 .Ft void
 .Fn rm_wunlock "struct rmlock *rm"
 .Ft int
-.Fn rm_wowned "struct rmlock *rm"
+.Fn rm_wowned "const struct rmlock *rm"
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
 .Sh DESCRIPTION
@@ -208,7 +208,7 @@ This functions destroys a lock previously initialized with
 The
 .Fa rm
 lock must be unlocked.
-.It Fn rm_wowned "struct rmlock *rm"
+.It Fn rm_wowned "const struct rmlock *rm"
 This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rm .

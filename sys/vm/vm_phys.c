@@ -29,11 +29,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ *	Physical memory system implementation
+ *
+ * Any external functions defined by this module are only to be used by the
+ * virtual memory system.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
-#include <sys/vnode.h>
 
 #include <ddb/ddb.h>
 
@@ -55,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
-#include <vm/vm_reserv.h>
 
 /*
  * VM_FREELIST_DEFAULT is split into VM_NDOMAIN lists, one for each
@@ -755,12 +759,12 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
-	struct vnode *vp;
 	vm_paddr_t pa, pa_last, size;
-	vm_page_t deferred_vdrop_list, m, m_ret;
+	vm_page_t m, m_ret;
 	u_long npages_end;
-	int domain, flind, i, oind, order, pind;
+	int domain, flind, oind, order, pind;
 
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 #if VM_NDOMAIN > 1
 	domain = PCPU_GET(domain);
 #else
@@ -773,13 +777,8 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	    ("vm_phys_alloc_contig: alignment must be a power of 2"));
 	KASSERT((boundary & (boundary - 1)) == 0,
 	    ("vm_phys_alloc_contig: boundary must be a power of 2"));
-	deferred_vdrop_list = NULL;
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
-	mtx_lock(&vm_page_queue_free_mtx);
-#if VM_NRESERVLEVEL > 0
-retry:
-#endif
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER; oind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
@@ -838,11 +837,6 @@ retry:
 			}
 		}
 	}
-#if VM_NRESERVLEVEL > 0
-	if (vm_reserv_reclaim_contig(size, low, high, alignment, boundary))
-		goto retry;
-#endif
-	mtx_unlock(&vm_page_queue_free_mtx);
 	return (NULL);
 done:
 	for (m = m_ret; m < &m_ret[npages]; m = &m[1 << oind]) {
@@ -855,31 +849,10 @@ done:
 		vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m_ret, oind);
 	fl = (*seg->free_queues)[m_ret->pool];
 	vm_phys_split_pages(m_ret, oind, fl, order);
-	for (i = 0; i < npages; i++) {
-		m = &m_ret[i];
-		vp = vm_page_alloc_init(m);
-		if (vp != NULL) {
-			/*
-			 * Enqueue the vnode for deferred vdrop().
-			 *
-			 * Unmanaged pages don't use "pageq", so it
-			 * can be safely abused to construct a short-
-			 * lived queue of vnodes.
-			 */
-			m->pageq.tqe_prev = (void *)vp;
-			m->pageq.tqe_next = deferred_vdrop_list;
-			deferred_vdrop_list = m;
-		}
-	}
 	/* Return excess pages to the free lists. */
 	npages_end = roundup2(npages, 1 << imin(oind, order));
 	if (npages < npages_end)
 		vm_phys_free_contig(&m_ret[npages], npages_end - npages);
-	mtx_unlock(&vm_page_queue_free_mtx);
-	while (deferred_vdrop_list != NULL) {
-		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
-		deferred_vdrop_list = deferred_vdrop_list->pageq.tqe_next;
-	}
 	return (m_ret);
 }
 

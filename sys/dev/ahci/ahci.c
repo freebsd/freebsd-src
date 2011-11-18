@@ -498,13 +498,14 @@ ahci_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		if ((ctlr->ichannels & (1 << unit)) == 0)
-			continue;
 		child = device_add_child(dev, "ahcich", -1);
-		if (child == NULL)
+		if (child == NULL) {
 			device_printf(dev, "failed to add channel device\n");
-		else
-			device_set_ivars(child, (void *)(intptr_t)unit);
+			continue;
+		}
+		device_set_ivars(child, (void *)(intptr_t)unit);
+		if ((ctlr->ichannels & (1 << unit)) == 0)
+			device_disable(child);
 	}
 	bus_generic_attach(dev);
 	return 0;

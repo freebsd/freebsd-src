@@ -2580,6 +2580,16 @@ nfs_strategy(struct vop_strategy_args *ap)
 static int
 nfs_fsync(struct vop_fsync_args *ap)
 {
+
+	if (ap->a_vp->v_type != VREG) {
+		/*
+		 * For NFS, metadata is changed synchronously on the server,
+		 * so there is nothing to flush. Also, ncl_flush() clears
+		 * the NMODIFIED flag and that shouldn't be done here for
+		 * directories.
+		 */
+		return (0);
+	}
 	return (ncl_flush(ap->a_vp, ap->a_waitfor, NULL, ap->a_td, 1, 0));
 }
 

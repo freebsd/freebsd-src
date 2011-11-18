@@ -332,7 +332,7 @@ static void	depart(struct witness *w);
 static struct witness	*enroll(const char *description,
 			    struct lock_class *lock_class);
 static struct lock_instance	*find_instance(struct lock_list_entry *list,
-				    struct lock_object *lock);
+				    const struct lock_object *lock);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
 static void	itismychild(struct witness *parent, struct witness *child);
@@ -2063,7 +2063,7 @@ witness_lock_list_free(struct lock_list_entry *lle)
 }
 
 static struct lock_instance *
-find_instance(struct lock_list_entry *list, struct lock_object *lock)
+find_instance(struct lock_list_entry *list, const struct lock_object *lock)
 {
 	struct lock_list_entry *lle;
 	struct lock_instance *instance;
@@ -2210,7 +2210,8 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 }
 
 void
-witness_assert(struct lock_object *lock, int flags, const char *file, int line)
+witness_assert(const struct lock_object *lock, int flags, const char *file,
+    int line)
 {
 #ifdef INVARIANT_SUPPORT
 	struct lock_instance *instance;

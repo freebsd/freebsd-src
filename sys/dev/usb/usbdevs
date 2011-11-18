@@ -915,8 +915,10 @@ product ALCATEL OT535		0x02df	One Touch 535/735
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
+product ALCOR DUMMY		0x0000	Dummy product
 product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
 product ALCOR SDCR_6362		0x6362	SD/MMC Card Reader
+product ALCOR SDCR_6366		0x6366	SD/MMC Card Reader
 product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub

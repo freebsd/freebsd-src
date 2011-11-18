@@ -178,6 +178,10 @@
 #define	RL_HWREV_8168C_SPIN2	0x3C400000
 #define	RL_HWREV_8168CP		0x3C800000
 #define	RL_HWREV_8105E		0x40800000
+#define	RL_HWREV_8105E_SPIN1	0x40C00000
+#define	RL_HWREV_8402		0x44000000
+#define	RL_HWREV_8168F		0x48000000
+#define	RL_HWREV_8411		0x48800000
 #define	RL_HWREV_8139		0x60000000
 #define	RL_HWREV_8139A		0x70000000
 #define	RL_HWREV_8139AG		0x70800000
@@ -866,6 +870,7 @@ struct rl_softc {
 	const struct rl_hwrev	*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
+	int			rl_expcap;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;

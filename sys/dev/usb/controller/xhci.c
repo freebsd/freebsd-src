@@ -1110,7 +1110,7 @@ xhci_cmd_nop(struct xhci_softc *sc)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 #endif
 
@@ -1127,7 +1127,7 @@ xhci_cmd_enable_slot(struct xhci_softc *sc, uint8_t *pslot)
 	trb.dwTrb2 = 0;
 	trb.dwTrb3 = htole32(XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ENABLE_SLOT));
 
-	err = xhci_do_command(sc, &trb, 50 /* ms */);
+	err = xhci_do_command(sc, &trb, 100 /* ms */);
 	if (err)
 		goto done;
 
@@ -1154,7 +1154,7 @@ xhci_cmd_disable_slot(struct xhci_softc *sc, uint8_t slot_id)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1310,7 +1310,7 @@ xhci_cmd_configure_ep(struct xhci_softc *sc, uint64_t input_ctx,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1328,7 +1328,7 @@ xhci_cmd_evaluate_ctx(struct xhci_softc *sc, uint64_t input_ctx,
 	    XHCI_TRB_3_SLOT_SET(slot_id);
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1351,7 +1351,7 @@ xhci_cmd_reset_ep(struct xhci_softc *sc, uint8_t preserve,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1373,7 +1373,7 @@ xhci_cmd_set_tr_dequeue_ptr(struct xhci_softc *sc, uint64_t dequeue_ptr,
 	    XHCI_TRB_3_EP_SET(ep_id);
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1396,7 +1396,7 @@ xhci_cmd_stop_ep(struct xhci_softc *sc, uint8_t suspend,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1414,7 +1414,7 @@ xhci_cmd_reset_dev(struct xhci_softc *sc, uint8_t slot_id)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 /*------------------------------------------------------------------------*
