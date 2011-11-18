@@ -69,7 +69,7 @@
 static __inline void
 mips_barrier(void)
 {
-#ifdef CPU_CNMIPS
+#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
 	__asm __volatile("" : : : "memory");
 #else
 	__asm __volatile (".set noreorder\n\t"
