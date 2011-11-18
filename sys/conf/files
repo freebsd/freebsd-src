@@ -2557,6 +2557,7 @@ libkern/fnmatch.c		standard
 libkern/gets.c			standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
+libkern/iconv_ucs.c		optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard
