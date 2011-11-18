@@ -860,12 +860,11 @@ dc_miibus_statchg(device_t dev)
 		return;
 
 	ifm = &mii->mii_media;
-	if (DC_IS_DAVICOM(sc) &&
-	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
+	if (DC_IS_DAVICOM(sc) && IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 		dc_setcfg(sc, ifm->ifm_media);
-		sc->dc_if_media = ifm->ifm_media;
 		return;
-	}
+	} else if (!DC_IS_ADMTEK(sc))
+		dc_setcfg(sc, mii->mii_media_active);
 
 	sc->dc_link = 0;
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
@@ -875,17 +874,8 @@ dc_miibus_statchg(device_t dev)
 		case IFM_100_TX:
 			sc->dc_link = 1;
 			break;
-		default:
-			break;
 		}
 	}
-	if (sc->dc_link == 0)
-		return;
-
-	sc->dc_if_media = mii->mii_media_active;
-	if (DC_IS_ADMTEK(sc))
-		return;
-	dc_setcfg(sc, mii->mii_media_active);
 }
 
 /*
