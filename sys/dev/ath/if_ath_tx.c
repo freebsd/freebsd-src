@@ -477,8 +477,6 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	txq->axq_link = &bf->bf_lastds->ds_link;
 }
 
-
-
 /*
  * Hand-off packet to a hardware queue.
  */
@@ -500,6 +498,36 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 	KASSERT(txq->axq_qnum != ATH_TXQ_SWQ,
 	     ("ath_tx_handoff_hw called for mcast queue"));
+
+#if 0
+	/*
+	 * This causes a LOR. Find out where the PCU lock is being
+	 * held whilst the TXQ lock is grabbed - that shouldn't
+	 * be occuring.
+	 */
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt) {
+		ATH_PCU_UNLOCK(sc);
+		DPRINTF(sc, ATH_DEBUG_RESET,
+		    "%s: called with sc_in_reset != 0\n",
+		    __func__);
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+		    "%s: queued: TXDP[%u] = %p (%p) depth %d\n",
+		    __func__, txq->axq_qnum,
+		    (caddr_t)bf->bf_daddr, bf->bf_desc,
+		    txq->axq_depth);
+		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+		if (bf->bf_state.bfs_aggr)
+			txq->axq_aggr_depth++;
+		/*
+		 * There's no need to update axq_link; the hardware
+		 * is in reset and once the reset is complete, any
+		 * non-empty queues will simply have DMA restarted.
+		 */
+		return;
+		}
+	ATH_PCU_UNLOCK(sc);
+#endif
 
 	/* For now, so not to generate whitespace diffs */
 	if (1) {
@@ -1688,6 +1716,17 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ath_buf *bf;
 	int error;
 
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev, "%s: sc_inreset_cnt > 0; bailing\n",
+		    __func__);
+		error = EIO;
+		ATH_PCU_UNLOCK(sc);
+		goto bad0;
+	}
+	sc->sc_txstart_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
@@ -1730,15 +1769,24 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	ifp->if_opackets++;
 	sc->sc_stats.ast_tx_raw++;
 
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
+
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
 	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
 bad:
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
+bad0:
 	ifp->if_oerrors++;
 	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
+
 	return error;
 }
 
