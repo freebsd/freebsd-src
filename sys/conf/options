@@ -80,6 +80,7 @@ COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 DIRECTIO
+FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
 GEOM_AES	opt_geom.h
