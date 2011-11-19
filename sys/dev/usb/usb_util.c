@@ -58,31 +58,6 @@
 #include <dev/usb/usb_bus.h>
 
 /*------------------------------------------------------------------------*
- * device_delete_all_children - delete all children of a device
- *------------------------------------------------------------------------*/
-#ifndef device_delete_all_children
-int
-device_delete_all_children(device_t dev)
-{
-	device_t *devlist;
-	int devcount;
-	int error;
-
-	error = device_get_children(dev, &devlist, &devcount);
-	if (error == 0) {
-		while (devcount-- > 0) {
-			error = device_delete_child(dev, devlist[devcount]);
-			if (error) {
-				break;
-			}
-		}
-		free(devlist, M_TEMP);
-	}
-	return (error);
-}
-#endif
-
-/*------------------------------------------------------------------------*
  *	device_set_usb_desc
  *
  * This function can be called at probe or attach to set the USB

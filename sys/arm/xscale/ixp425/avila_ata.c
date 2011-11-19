@@ -259,17 +259,11 @@ static int
 ata_avila_detach(device_t dev)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
-	device_t *children;
-	int nc;
 
 	/* XXX quiesce gpio? */
 
 	/* detach & delete all children */
-	if (device_get_children(dev, &children, &nc) == 0) {
-		if (nc > 0)
-			device_delete_child(dev, children[0]);
-		free(children, M_TEMP);
-	}
+	device_delete_all_children(dev);
 
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid, sc->sc_irq);

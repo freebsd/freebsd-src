@@ -515,15 +515,11 @@ static int
 ahci_detach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
+	int i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_all_children(dev);
+
 	/* Free interrupts. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		if (ctlr->irqs[i].r_irq) {
