@@ -238,7 +238,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct linux_access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* l_int */
+		iarg[1] = p->amode; /* l_int */
 		*n_args = 2;
 		break;
 	}
@@ -2124,7 +2124,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_faccessat_args *p = params;
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
-		iarg[2] = p->mode; /* l_int */
+		iarg[2] = p->amode; /* l_int */
 		*n_args = 3;
 		break;
 	}
