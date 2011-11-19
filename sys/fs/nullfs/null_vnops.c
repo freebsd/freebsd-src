@@ -729,7 +729,7 @@ null_print(struct vop_print_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	printf("\tvp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
+	printf("\tvp=%p, lowervp=%p\n", vp, VTONULL(vp)->null_lowervp);
 	return (0);
 }
 
