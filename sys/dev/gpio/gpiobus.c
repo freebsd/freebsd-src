@@ -219,8 +219,7 @@ static int
 gpiobus_detach(device_t dev)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
-	int err, ndevs, i;
-	device_t *devlist;
+	int err;
 
 	KASSERT(mtx_initialized(&sc->sc_mtx),
 	    ("gpiobus mutex not initialized"));
@@ -228,16 +227,14 @@ gpiobus_detach(device_t dev)
 
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
-	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
-		return (err);
-	for (i = 0; i < ndevs; i++)
-		device_delete_child(dev, devlist[i]);
+
+	/* detach and delete all children */
+	device_delete_all_children(dev);
 
 	if (sc->sc_pins_mapped) {
 		free(sc->sc_pins_mapped, M_DEVBUF);
 		sc->sc_pins_mapped = NULL;
 	}
-	free(devlist, M_TEMP);
 
 	return (0);
 }

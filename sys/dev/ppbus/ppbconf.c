@@ -422,20 +422,14 @@ ppbus_attach(device_t dev)
 static int
 ppbus_detach(device_t dev)
 {
-	device_t *children;
-	int error, nchildren, i;
+	int error;
 
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
 
 	/* detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			if (children[i])
-				device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_all_children(dev);
 
 	return (0);
 }
