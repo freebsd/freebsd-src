@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2000
+.Dd November 14, 2011
 .Dt KOBJ 9
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@
 .Fn kobj_create "kobj_class_t cls" "struct malloc_type *mtype" "int mflags"
 .Ft void
 .Fn kobj_init "kobj_t obj" "kobj_class_t cls"
+.Ft void
+.Fn kobj_init_static "kobj_t obj" "kobj_class_t cls"
 .Ft void
 .Fn kobj_delete "kobj_t obj" "struct malloc_type *mtype"
 .Fn DEFINE_CLASS name "kobj_method_t *methods" "size_t size"
@@ -88,10 +90,14 @@ Objects created in this way should be freed by calling
 Clients which would like to manage the allocation of memory
 themselves should call
 .Fn kobj_init
+or
+.Fn kobj_init_static
 with a pointer to the memory for the object and the class which
 implements it.
 It is also possible to use
 .Fn kobj_init
+and
+.Fn kobj_init_static
 to change the class for an object.
 This should be done with care as the classes must agree on the layout
 of the object.
@@ -109,13 +115,19 @@ A client should not normally need to call these since a class
 will automatically be compiled the first time it is used.
 If a class is to be used before
 .Xr malloc 9
-is initialised,
+and
+.Xr mutex 9
+are initialised,
 then
 .Fn kobj_class_compile_static
 should be called with the class and a pointer to a statically
 allocated
 .Vt kobj_ops
 structure before the class is used to initialise any objects.
+In that case, also
+.Fn kobj_init_static
+should be used instead of
+.Fn kobj_init .
 .Pp
 To define a class, first define a simple array of
 .Vt kobj_method_t .
