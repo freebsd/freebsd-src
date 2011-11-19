@@ -291,7 +291,7 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
-		LD="${LD} -m elf32ppc"
+		LD="${LD} -m elf32ppc_fbsd"
 .endif
 
 
