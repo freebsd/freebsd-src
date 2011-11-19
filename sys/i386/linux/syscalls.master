@@ -493,14 +493,14 @@
 302	AUE_RENAMEAT	STD	{ int linux_renameat(l_int olddfd, const char *oldname, \
 					l_int newdfd, const char *newname); }
 303	AUE_LINKAT	STD	{ int linux_linkat(l_int olddfd, const char *oldname, \
-					l_int newdfd, const char *newname, l_int flags); }
+					l_int newdfd, const char *newname, l_int flag); }
 304	AUE_SYMLINKAT	STD	{ int linux_symlinkat(const char *oldname, l_int newdfd, \
 					const char *newname); }
 305	AUE_READLINKAT	STD	{ int linux_readlinkat(l_int dfd, const char *path, \
 					char *buf, l_int bufsiz); }
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
-307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode, l_int flag); }
 308	AUE_NULL	STD	{ int linux_pselect6(void); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }
