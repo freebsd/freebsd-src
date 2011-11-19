@@ -71,6 +71,16 @@ register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
+static __inline __pure2 struct thread *
+__curthread(void)
+{
+	struct thread *td;
+
+	__asm("ldx [%" __XSTRING(PCPU_REG) "], %0" : "=r" (td));
+	return (td);
+}
+#define	curthread	(__curthread())
+
 /*
  * XXX The implementation of this operation should be made atomic
  * with respect to preemption.
