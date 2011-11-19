@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2008
+.Dd November 19, 2011
 .Dt VOP_VPTOCNP 9
 .Os
 .Sh NAME
@@ -65,9 +65,9 @@ is not a directory, then
 .Nm
 returns ENOENT.
 .Sh LOCKS
-The vnode should be locked on entry and will still be locked on exit.  The
-parent directory vnode will be unlocked on a successful exit.  However, it
-will have its hold count incremented.
+The vnode should be locked on entry and will still be locked on exit.
+The parent directory vnode will be unlocked on a successful exit.
+However, it will have its use count incremented.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
 .Sh ERRORS
