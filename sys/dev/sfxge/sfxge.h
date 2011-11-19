@@ -144,7 +144,6 @@ struct sfxge_intr {
 	int			n_alloc;
 	int			type;
 	efsys_mem_t		status;
-	uint64_t		mask;
 	uint32_t		zero_count;
 };
 
