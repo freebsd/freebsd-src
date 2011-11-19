@@ -76,6 +76,14 @@ device		scbus
 #device		ata
 #device		atadisk
 
+# USB
+device		usb			# USB Bus (required)
+device		ehci			# EHCI PCI->USB interface (USB 2.0)
+#options 	USB_DEBUG		# enable debug msgs
+#device		ugen			# Generic
+#device		uhid			# "Human Interface Devices"
+device		umass			# Requires scbus and da
+
 options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=xlp-basic.dts
