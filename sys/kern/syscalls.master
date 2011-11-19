@@ -115,7 +115,7 @@
 32	AUE_GETSOCKNAME	STD	{ int getsockname(int fdes, \
 				    struct sockaddr * __restrict asa, \
 				    __socklen_t * __restrict alen); }
-33	AUE_ACCESS	STD	{ int access(char *path, int flags); }
+33	AUE_ACCESS	STD	{ int access(char *path, int amode); }
 34	AUE_CHFLAGS	STD	{ int chflags(char *path, int flags); }
 35	AUE_FCHFLAGS	STD	{ int fchflags(int fd, int flags); }
 36	AUE_SYNC	STD	{ int sync(void); }
@@ -671,7 +671,7 @@
 				    const char *attrname); }
 374	AUE_NULL	STD	{ int __setugid(int flag); }
 375	AUE_NULL	UNIMPL	nfsclnt
-376	AUE_EACCESS	STD	{ int eaccess(char *path, int flags); }
+376	AUE_EACCESS	STD	{ int eaccess(char *path, int amode); }
 377	AUE_NULL	NOSTD|NOTSTATIC	{ int afs3_syscall(long syscall, \
 				    long parm1, long parm2, long parm3, \
 				    long parm4, long parm5, long parm6); }
@@ -870,7 +870,7 @@
 488	AUE_NULL	STD	{ int cpuset_setaffinity(cpulevel_t level, \
 				    cpuwhich_t which, id_t id, size_t cpusetsize, \
 				    const cpuset_t *mask); }
-489	AUE_FACCESSAT	STD	{ int faccessat(int fd, char *path, int mode, \
+489	AUE_FACCESSAT	STD	{ int faccessat(int fd, char *path, int amode, \
 				    int flag); }
 490	AUE_FCHMODAT	STD	{ int fchmodat(int fd, char *path, mode_t mode, \
 				    int flag); }

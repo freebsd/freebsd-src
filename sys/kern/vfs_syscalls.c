@@ -2144,7 +2144,7 @@ vn_access(vp, user_flags, cred, td)
 #ifndef _SYS_SYSPROTO_H_
 struct access_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2152,18 +2152,18 @@ sys_access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_access(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_access(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct faccessat_args {
 	int	dirfd;
 	char	*path;
-	int	mode;
+	int	amode;
 	int	flag;
 }
 #endif
@@ -2174,19 +2174,19 @@ sys_faccessat(struct thread *td, struct faccessat_args *uap)
 	if (uap->flag & ~AT_EACCESS)
 		return (EINVAL);
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
-	    uap->mode));
+	    uap->amode));
 }
 
 int
-kern_access(struct thread *td, char *path, enum uio_seg pathseg, int mode)
+kern_access(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, mode));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, amode));
 }
 
 int
 kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int flags, int mode)
+    int flag, int amode)
 {
 	struct ucred *cred, *tmpcred;
 	struct vnode *vp;
@@ -2198,7 +2198,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	 * Create and modify a temporary credential instead of one that
 	 * is potentially shared.
 	 */
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		cred = td->td_ucred;
 		tmpcred = crdup(cred);
 		tmpcred->cr_uid = cred->cr_ruid;
@@ -2206,7 +2206,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
-	AUDIT_ARG_VALUE(mode);
+	AUDIT_ARG_VALUE(amode);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, CAP_FSTAT, td);
 	if ((error = namei(&nd)) != 0)
@@ -2214,12 +2214,12 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, mode, tmpcred, td);
+	error = vn_access(vp, amode, tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 out1:
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		td->td_ucred = cred;
 		crfree(tmpcred);
 	}
@@ -2232,7 +2232,7 @@ out1:
 #ifndef _SYS_SYSPROTO_H_
 struct eaccess_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2240,18 +2240,18 @@ sys_eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 int
-kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int flags)
+kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, flags));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, amode));
 }
 
 #if defined(COMPAT_43)
