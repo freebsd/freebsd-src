@@ -724,6 +724,20 @@ ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 	}
+
+	/*
+	 * Set half/quarter mode flags if required.
+	 *
+	 * This doesn't change the IFS timings at all; that needs to
+	 * be done as part of the MAC setup.  Similarly, the PLL
+	 * configuration also needs some changes for the half/quarter
+	 * rate clock.
+	 */
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		rfMode |= AR_PHY_MODE_HALF;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		rfMode |= AR_PHY_MODE_QUARTER;
+
 	OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
 
