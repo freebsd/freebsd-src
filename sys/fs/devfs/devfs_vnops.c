@@ -261,7 +261,7 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	} else if (vp->v_type == VDIR) {
 		if (dd == dmp->dm_rootdir) {
 			*dvp = vp;
-			vhold(*dvp);
+			vref(*dvp);
 			goto finished;
 		}
 		i -= dd->de_dirent->d_namlen;
@@ -289,6 +289,8 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(*dvp);
 		VI_UNLOCK(*dvp);
+		vref(*dvp);
+		vdrop(*dvp);
 	} else {
 		mtx_unlock(&devfs_de_interlock);
 		error = ENOENT;
