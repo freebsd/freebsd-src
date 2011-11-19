@@ -540,6 +540,11 @@ tryagain:
 				    hz);
 			goto tryagain;
 		}
+		/*
+		 * Make sure NFSERR_RETERR isn't bogusly set by a server
+		 * such as amd. (No actual NFS error has bit 31 set.)
+		 */
+		error &= ~NFSERR_RETERR;
 
 		/*
 		 * If the File Handle was stale, invalidate the lookup
