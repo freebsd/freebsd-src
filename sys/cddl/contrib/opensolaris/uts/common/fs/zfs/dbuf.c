@@ -627,6 +627,10 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 	} else if (db->db_state == DB_UNCACHED) {
 		spa_t *spa = dn->dn_objset->os_spa;
 
+#ifdef _KERNEL
+		curthread->td_ru.ru_inblock++;
+#endif
+
 		if (zio == NULL)
 			zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 		dbuf_read_impl(db, zio, &flags);
