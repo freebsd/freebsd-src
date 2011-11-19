@@ -565,16 +565,16 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	int error;
 
 	/* linux convention */
-	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->flags);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
-	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
+	error = kern_access(td, path, UIO_SYSSPACE, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -587,7 +587,7 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 	int error, dfd;
 
 	/* linux convention */
-	if (args->mode & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
@@ -595,11 +595,11 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->mode);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
 	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0 /* XXX */,
-	    args->mode);
+	    args->amode);
 	LFREEPATH(path);
 
 	return (error);
