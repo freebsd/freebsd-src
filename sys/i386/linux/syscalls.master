@@ -86,7 +86,7 @@
 				    struct l_utimbuf *times); }
 31	AUE_NULL	UNIMPL	stty
 32	AUE_NULL	UNIMPL	gtty
-33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int flags); }
+33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int amode); }
 34	AUE_NICE	STD	{ int linux_nice(l_int inc); }
 35	AUE_NULL	UNIMPL	ftime
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
@@ -500,7 +500,7 @@
 					char *buf, l_int bufsiz); }
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
-307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int mode); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode); }
 308	AUE_NULL	STD	{ int linux_pselect6(void); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }
