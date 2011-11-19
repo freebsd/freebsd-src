@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2010 Doug Rabson
  * Copyright (c) 2011 Andriy Gapon
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +29,10 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <md5.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +46,7 @@
 void
 pager_output(const char *line)
 {
+
 	fprintf(stderr, "%s", line);
 }
 
@@ -54,7 +58,7 @@ pager_output(const char *line)
 static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
-	int fd = *(int *) priv;
+	int fd = *(int *)priv;
 
 	if (pread(fd, buf, bytes, off) != bytes)
 		return (-1);
@@ -73,7 +77,7 @@ zfs_read(spa_t *spa, dnode_phys_t *dn, void *buf, size_t size, off_t off)
 		n = zp->zp_size - off;
 
 	rc = dnode_read(spa, dn, off, buf, n);
-	if (rc)
+	if (rc != 0)
 		return (-rc);
 
 	return (n);
@@ -82,31 +86,49 @@ zfs_read(spa_t *spa, dnode_phys_t *dn, void *buf, size_t size, off_t off)
 int
 main(int argc, char** argv)
 {
-	char buf[512];
-	int fd[100];
+	char buf[512], hash[33];
+	MD5_CTX ctx;
 	struct stat sb;
 	dnode_phys_t dn;
 	spa_t *spa;
 	off_t off;
 	ssize_t n;
-	int i;
+	int i, failures, *fd;
 
 	zfs_init();
 	if (argc == 1) {
 		static char *av[] = {
-			"zfstest", "COPYRIGHT",
-			"/dev/da0p2", "/dev/da1p2", "/dev/da2p2",
+			"zfsboottest",
+			"/dev/gpt/system0",
+			"/dev/gpt/system1",
+			"-",
+			"/boot/zfsloader",
+			"/boot/support.4th",
+			"/boot/kernel/kernel",
 			NULL,
 		};
-		argc = 5;
+		argc = sizeof(av) / sizeof(av[0]) - 1;
 		argv = av;
 	}
-	for (i = 2; i < argc; i++) {
-		fd[i] = open(argv[i], O_RDONLY);
-		if (fd[i] < 0)
+	for (i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "-") == 0)
+			break;
+	}
+	fd = malloc(sizeof(fd[0]) * (i - 1));
+	if (fd == NULL)
+		errx(1, "Unable to allocate memory.");
+	for (i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "-") == 0)
+			break;
+		fd[i - 1] = open(argv[i], O_RDONLY);
+		if (fd[i - 1] == -1) {
+			warn("open(%s) failed", argv[i]);
 			continue;
-		if (vdev_probe(vdev_read, &fd[i], NULL) != 0)
-			close(fd[i]);
+		}
+		if (vdev_probe(vdev_read, &fd[i - 1], NULL) != 0) {
+			warnx("vdev_probe(%s) failed", argv[i]);
+			close(fd[i - 1]);
+		}
 	}
 	spa_all_status();
 
@@ -121,29 +143,40 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
-	if (zfs_lookup(spa, argv[1], &dn)) {
-		fprintf(stderr, "can't lookup\n");
-		exit(1);
-	}
-
-	if (zfs_dnode_stat(spa, &dn, &sb)) {
-		fprintf(stderr, "can't stat\n");
-		exit(1);
-	}
-
-
-	off = 0;
-	do {
-		n = sb.st_size - off;
-		n = n > sizeof(buf) ? sizeof(buf) : n;
-		n = zfs_read(spa, &dn, buf, n, off);
-		if (n < 0) {
-			fprintf(stderr, "zfs_read failed\n");
-			exit(1);
+	printf("\n");
+	for (++i, failures = 0; i < argc; i++) {
+		if (zfs_lookup(spa, argv[i], &dn)) {
+			fprintf(stderr, "%s: can't lookup\n", argv[i]);
+			failures++;
+			continue;
 		}
-		write(1, buf, n);
-		off += n;
-	} while (off < sb.st_size);
 
-	return (0);
+		if (zfs_dnode_stat(spa, &dn, &sb)) {
+			fprintf(stderr, "%s: can't stat\n", argv[i]);
+			failures++;
+			continue;
+		}
+
+		off = 0;
+		MD5Init(&ctx);
+		do {
+			n = sb.st_size - off;
+			n = n > sizeof(buf) ? sizeof(buf) : n;
+			n = zfs_read(spa, &dn, buf, n, off);
+			if (n < 0) {
+				fprintf(stderr, "%s: zfs_read failed\n",
+				    argv[i]);
+				failures++;
+				break;
+			}
+			MD5Update(&ctx, buf, n);
+			off += n;
+		} while (off < sb.st_size);
+		if (off < sb.st_size)
+			continue;
+		MD5End(&ctx, hash);
+		printf("%s %s\n", hash, argv[i]);
+	}
+
+	return (failures == 0 ? 0 : 1);
 }
