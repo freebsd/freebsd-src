@@ -193,7 +193,7 @@ extern int dot_symbols;
 #undef	LINK_OS_FREEBSD_SPEC
 #define	ASM_DEFAULT_SPEC	"-mppc%{!m32:64}"
 #define	ASM_SPEC		"%{m32:-a32}%{!m32:-a64} " SVR4_ASM_SPEC
-#define	LINK_OS_FREEBSD_SPEC	"%{m32:-melf32ppc}%{!m32:-melf64ppc} " LINK_OS_FREEBSD_SPEC_DEF
+#define	LINK_OS_FREEBSD_SPEC	"%{m32:-melf32ppc_fbsd}%{!m32:-melf64ppc_fbsd} " LINK_OS_FREEBSD_SPEC_DEF
 #endif
 
 /* _init and _fini functions are built from bits spread across many
