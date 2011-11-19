@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 
@@ -219,14 +220,14 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 
 #endif /* SFXGE_HAVE_PAUSE_MEDIAOPTS */
 
-static const int sfxge_link_speed_kbit[EFX_LINK_NMODES] = {
-	[EFX_LINK_10HDX]	= 10000,
-	[EFX_LINK_10FDX]	= 10000,
-	[EFX_LINK_100HDX]	= 100000,
-	[EFX_LINK_100FDX]	= 100000,
-	[EFX_LINK_1000HDX]	= 1000000,
-	[EFX_LINK_1000FDX]	= 1000000,
-	[EFX_LINK_10000FDX]	= 10000000,
+static const u_long sfxge_link_baudrate[EFX_LINK_NMODES] = {
+	[EFX_LINK_10HDX]	= IF_Mbps(10),
+	[EFX_LINK_10FDX]	= IF_Mbps(10),
+	[EFX_LINK_100HDX]	= IF_Mbps(100),
+	[EFX_LINK_100FDX]	= IF_Mbps(100),
+	[EFX_LINK_1000HDX]	= IF_Gbps(1),
+	[EFX_LINK_1000FDX]	= IF_Gbps(1),
+	[EFX_LINK_10000FDX]	= MIN(IF_Gbps(10ULL), ULONG_MAX),
 };
 
 void
@@ -245,7 +246,7 @@ sfxge_mac_link_update(struct sfxge_softc *sc, efx_link_mode_t mode)
 	/* Push link state update to the OS */
 	link_state = (port->link_mode != EFX_LINK_DOWN ?
 		      LINK_STATE_UP : LINK_STATE_DOWN);
-	sc->ifnet->if_baudrate = sfxge_link_speed_kbit[port->link_mode];
+	sc->ifnet->if_baudrate = sfxge_link_baudrate[port->link_mode];
 	if_link_state_change(sc->ifnet, link_state);
 }
 
