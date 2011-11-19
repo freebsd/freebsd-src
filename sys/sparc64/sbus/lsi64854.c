@@ -568,7 +568,7 @@ lsi64854_scsi_intr(void *arg)
 
 	DPRINTF(LDB_SCSI, ("%s: tcl=%d, tcm=%d, tch=%d; trans=%d, resid=%d\n",
 	    __func__, NCR_READ_REG(nsc, NCR_TCL), NCR_READ_REG(nsc, NCR_TCM),
-	    (nsc->sc_sc_features & NCR_F_LARGEXFER) != 0 ?
+	    (nsc->sc_features & NCR_F_LARGEXFER) != 0 ?
 	    NCR_READ_REG(nsc, NCR_TCH) : 0, trans, resid));
 
 	if (dmasize != 0) {
