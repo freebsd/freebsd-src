@@ -798,7 +798,11 @@
 
       &hwlist.mly;
 
+      &hwlist.mps;
+
       &hwlist.mpt;
+
+      &hwlist.mvs;
 
       &hwlist.ncr;
 
