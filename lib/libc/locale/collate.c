@@ -3,6 +3,16 @@
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -44,42 +54,83 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-int __collate_load_error = 1;
-int __collate_substitute_nontrivial;
+/*
+ * To avoid modifying the original (single-threaded) code too much, we'll just
+ * define the old globals as fields inside the table.
+ *
+ * We also modify the collation table test functions to search the thread-local
+ * table first and the global table second.  
+ */
+#define __collate_load_error (table->__collate_load_error)
+#define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
+#define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
+#define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
+#define __collate_chain_pri_table (table->__collate_chain_pri_table)
 
-u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
-struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
-struct __collate_st_chain_pri *__collate_chain_pri_table;
+
+struct xlocale_collate __xlocale_global_collate = {
+	{{0}, "C"}, 1, 0
+};
+
+ struct xlocale_collate __xlocale_C_collate = {
+	{{0}, "C"}, 1, 0
+};
 
 void __collate_err(int ex, const char *f) __dead2;
 
 int
+__collate_load_tables_l(const char *encoding, struct xlocale_collate *table);
+
+static void
+destruct_collate(void *t)
+{
+	struct xlocale_collate *table = t;
+	if (__collate_chain_pri_table) {
+		free(__collate_chain_pri_table);
+	}
+	free(t);
+}
+
+void *
+__collate_load(const char *encoding, locale_t unused)
+{
+	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
+		return &__xlocale_C_collate;
+	}
+	struct xlocale_collate *table = calloc(sizeof(struct xlocale_collate), 1);
+	table->header.header.destructor = destruct_collate;
+	// FIXME: Make sure that _LDP_CACHE is never returned.  We should be doing
+	// the caching outside of this section
+	if (__collate_load_tables_l(encoding, table) != _LDP_LOADED) {
+		xlocale_release(table);
+		return NULL;
+	}
+	return table;
+}
+
+/**
+ * Load the collation tables for the specified encoding into the global table.
+ */
+int
 __collate_load_tables(const char *encoding)
+{
+	return __collate_load_tables_l(encoding, &__xlocale_global_collate);
+}
+
+int
+__collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 {
 	FILE *fp;
 	int i, saverr, chains;
 	uint32_t u32;
 	char strbuf[STR_LEN], buf[PATH_MAX];
 	void *TMP_substitute_table, *TMP_char_pri_table, *TMP_chain_pri_table;
-	static char collate_encoding[ENCODING_LEN + 1];
 
 	/* 'encoding' must be already checked. */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
 		__collate_load_error = 1;
 		return (_LDP_CACHE);
 	}
-
-	/*
-	 * If the locale name is the same as our cache, use the cache.
-	 */
-	if (strcmp(encoding, collate_encoding) == 0) {
-		__collate_load_error = 0;
-		return (_LDP_CACHE);
-	}
-
-	/*
-	 * Slurp the locale file into the cache.
-	 */
 
 	/* 'PathLocale' must be already set & checked. */
 	/* Range checking not needed, encoding has fixed size */
@@ -165,7 +216,6 @@ __collate_load_tables(const char *encoding)
 	      sizeof(*__collate_chain_pri_table), chains, fp);
 	(void)fclose(fp);
 
-	(void)strcpy(collate_encoding, encoding);
 	if (__collate_substitute_table_ptr != NULL)
 		free(__collate_substitute_table_ptr);
 	__collate_substitute_table_ptr = TMP_substitute_table;
@@ -201,7 +251,7 @@ __collate_load_tables(const char *encoding)
 }
 
 u_char *
-__collate_substitute(const u_char *s)
+__collate_substitute(struct xlocale_collate *table, const u_char *s)
 {
 	int dest_len, len, nlen;
 	int delta = strlen(s);
@@ -228,7 +278,7 @@ __collate_substitute(const u_char *s)
 }
 
 void
-__collate_lookup(const u_char *t, int *len, int *prim, int *sec)
+__collate_lookup(struct xlocale_collate *table, const u_char *t, int *len, int *prim, int *sec)
 {
 	struct __collate_st_chain_pri *p2;
 

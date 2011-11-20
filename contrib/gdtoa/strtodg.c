@@ -313,12 +313,12 @@ mantbits(U *d)
 	}
 
  int
-strtodg
+strtodg_l
 #ifdef KR_headers
-	(s00, se, fpi, exp, bits)
-	CONST char *s00; char **se; FPI *fpi; Long *exp; ULong *bits;
+	(s00, se, fpi, exp, bits, loc)
+	CONST char *s00; char **se; FPI *fpi; Long *exp; ULong *bits; locale_t loc;
 #else
-	(CONST char *s00, char **se, FPI *fpi, Long *exp, ULong *bits)
+	(CONST char *s00, char **se, FPI *fpi, Long *exp, ULong *bits, locale_t loc)
 #endif
 {
 	int abe, abits, asub;
@@ -334,14 +334,14 @@ strtodg
 	Bigint *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
 #ifdef USE_LOCALE /*{{*/
 #ifdef NO_LOCALE_CACHE
-	char *decimalpoint = localeconv()->decimal_point;
+	char *decimalpoint = localeconv_l(loc)->decimal_point;
 	int dplen = strlen(decimalpoint);
 #else
 	char *decimalpoint;
 	static char *decimalpoint_cache;
 	static int dplen;
 	if (!(s0 = decimalpoint_cache)) {
-		s0 = localeconv()->decimal_point;
+		s0 = localeconv_l(loc)->decimal_point;
 		if ((decimalpoint_cache = (char*)MALLOC(strlen(s0) + 1))) {
 			strcpy(decimalpoint_cache, s0);
 			s0 = decimalpoint_cache;

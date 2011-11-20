@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,8 +36,13 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 int
+mbsinit_l(const mbstate_t *ps, locale_t locale)
+{
+	FIX_LOCALE(locale);
+	return (XLOCALE_CTYPE(locale)->__mbsinit(ps));
+}
+int
 mbsinit(const mbstate_t *ps)
 {
-
-	return (__mbsinit(ps));
+	return mbsinit_l(ps, __get_locale());
 }
