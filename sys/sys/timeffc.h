@@ -105,6 +105,29 @@ void ffclock_last_tick(ffcounter *ffcount, struct bintime *bt, uint32_t flags);
 void ffclock_convert_abs(ffcounter ffcount, struct bintime *bt, uint32_t flags);
 void ffclock_convert_diff(ffcounter ffdelta, struct bintime *bt);
 
+/*
+ * Feed-forward clock routines.
+ *
+ * These functions rely on the timecounters and ffclock_estimates stored in
+ * fftimehands. Note that the error_bound parameter is not the error of the
+ * clock but an upper bound on the error of the absolute time or time interval
+ * returned.
+ *
+ * ffclock_abstime(): retrieves current time as counter value and convert this
+ *     timestamp in seconds. The value (in seconds) of the converted timestamp
+ *     depends on the flags passed: for a given counter value, different
+ *     conversions are possible. Different clock models can be selected by
+ *     combining flags (for example (FFCLOCK_LERP|FFCLOCK_UPTIME) produces
+ *     linearly interpolated uptime).
+ * ffclock_difftime(): computes a time interval in seconds based on an interval
+ *     measured in ffcounter units. This should be the preferred way to measure
+ *     small time intervals very accurately.
+ */
+void ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
+    struct bintime *error_bound, uint32_t flags);
+void ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
+    struct bintime *error_bound);
+
 #endif /* _KERNEL */
 #endif /* __BSD_VISIBLE */
 #endif /* _SYS_TIMEFF_H_ */
