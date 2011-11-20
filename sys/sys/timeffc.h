@@ -71,7 +71,7 @@ struct ffclock_estimate {
  * time by ffclock_convert_abs().
  * FAST:    do not read the hardware counter, return feed-forward clock time
  *          at last tick. The time returned has the resolution of the kernel
- *           tick (1/hz [s]).
+ *          tick (1/hz [s]).
  * LERP:    linear interpolation of ffclock time to guarantee monotonic time.
  * LEAPSEC: include leap seconds.
  * UPTIME:  removes time of boot.
