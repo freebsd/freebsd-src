@@ -24,4 +24,6 @@ LDADD=	-lm -lnvpair -lumem -lzpool -lpthread -lz -lavl
 
 CSTD=	c99
 
+MANFILTER=	sed -e '/^$$/d'
+
 .include <bsd.prog.mk>
