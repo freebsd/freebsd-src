@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/timeffc.h>
 
@@ -126,4 +128,216 @@ ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
 		/* 18446744073709 = int(2^64/1e12), err_bound_rate in [ps/s] */
 		bintime_mul(error_bound, err_rate * (uint64_t)18446744073709LL);
 	}
+}
+
+/*
+ * Sysctl for the Feed-Forward Clock.
+ */
+
+static int ffclock_version = 2;
+SYSCTL_NODE(_kern, OID_AUTO, ffclock, CTLFLAG_RW, 0,
+    "Feed-Forward Clock Support");
+SYSCTL_INT(_kern_ffclock, OID_AUTO, version, CTLFLAG_RD, &ffclock_version, 0,
+    "Version of Feed-Forward Clock Support");
+
+/*
+ * Sysctl to select which clock is read when calling any of the
+ * [get]{bin,nano,micro}[up]time() functions.
+ */
+char *sysclocks[] = {"feedback", "feed-forward"};
+
+#define	NUM_SYSCLOCKS (sizeof(sysclocks) / sizeof(*sysclocks))
+
+/* Report or change the active timecounter hardware. */
+static int
+sysctl_kern_ffclock_choice(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *s;
+	int clk, error;
+
+	s = sbuf_new_for_sysctl(NULL, NULL, 16 * NUM_SYSCLOCKS, req);
+	if (s == NULL)
+		return (ENOMEM);
+
+	for (clk = 0; clk < NUM_SYSCLOCKS; clk++) {
+		sbuf_cat(s, sysclocks[clk]);
+		if (clk + 1 < NUM_SYSCLOCKS)
+			sbuf_cat(s, " ");
+	}
+	error = sbuf_finish(s);
+	sbuf_delete(s);
+
+	return (error);
+}
+
+SYSCTL_PROC(_kern_ffclock, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_kern_ffclock_choice, "A", "Clock paradigms available");
+
+extern int sysclock_active;
+
+static int
+sysctl_kern_ffclock_active(SYSCTL_HANDLER_ARGS)
+{
+	char newclock[32];
+	int error;
+
+	switch (sysclock_active) {
+	case SYSCLOCK_FBCK:
+		strlcpy(newclock, sysclocks[SYSCLOCK_FBCK], sizeof(newclock));
+		break;
+	case SYSCLOCK_FFWD:
+		strlcpy(newclock, sysclocks[SYSCLOCK_FFWD], sizeof(newclock));
+		break;
+	}
+
+	error = sysctl_handle_string(oidp, &newclock[0], sizeof(newclock), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (strncmp(newclock, sysclocks[SYSCLOCK_FBCK],
+	    sizeof(sysclocks[SYSCLOCK_FBCK])) == 0)
+		sysclock_active = SYSCLOCK_FBCK;
+	else if (strncmp(newclock, sysclocks[SYSCLOCK_FFWD],
+	    sizeof(sysclocks[SYSCLOCK_FFWD])) == 0)
+		sysclock_active = SYSCLOCK_FFWD;
+	else
+		return (EINVAL);
+
+	return (error);
+}
+
+SYSCTL_PROC(_kern_ffclock, OID_AUTO, active, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_kern_ffclock_active, "A", "Kernel clock selected");
+
+/*
+ * High level functions to access the Feed-Forward Clock.
+ */
+void
+ffclock_bintime(struct bintime *bt)
+{
+
+	ffclock_abstime(NULL, bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC);
+}
+
+void
+ffclock_nanotime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC);
+	bintime2timespec(&bt, tsp);
+}
+
+void
+ffclock_microtime(struct timeval *tvp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC);
+	bintime2timeval(&bt, tvp);
+}
+
+void
+ffclock_getbintime(struct bintime *bt)
+{
+
+	ffclock_abstime(NULL, bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+}
+
+void
+ffclock_getnanotime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+	bintime2timespec(&bt, tsp);
+}
+
+void
+ffclock_getmicrotime(struct timeval *tvp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+	bintime2timeval(&bt, tvp);
+}
+
+void
+ffclock_binuptime(struct bintime *bt)
+{
+
+	ffclock_abstime(NULL, bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME);
+}
+
+void
+ffclock_nanouptime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME);
+	bintime2timespec(&bt, tsp);
+}
+
+void
+ffclock_microuptime(struct timeval *tvp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME);
+	bintime2timeval(&bt, tvp);
+}
+
+void
+ffclock_getbinuptime(struct bintime *bt)
+{
+
+	ffclock_abstime(NULL, bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+}
+
+void
+ffclock_getnanouptime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+	bintime2timespec(&bt, tsp);
+}
+
+void
+ffclock_getmicrouptime(struct timeval *tvp)
+{
+	struct bintime bt;
+
+	ffclock_abstime(NULL, &bt, NULL,
+	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+	bintime2timeval(&bt, tvp);
+}
+
+void
+ffclock_bindifftime(ffcounter ffdelta, struct bintime *bt)
+{
+
+	ffclock_difftime(ffdelta, bt, NULL);
+}
+
+void
+ffclock_nanodifftime(ffcounter ffdelta, struct timespec *tsp)
+{
+	struct bintime bt;
+
+	ffclock_difftime(ffdelta, &bt, NULL);
+	bintime2timespec(&bt, tsp);
+}
+
+void
+ffclock_microdifftime(ffcounter ffdelta, struct timeval *tvp)
+{
+	struct bintime bt;
+
+	ffclock_difftime(ffdelta, &bt, NULL);
+	bintime2timeval(&bt, tvp);
 }
