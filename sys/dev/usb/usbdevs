@@ -664,7 +664,7 @@ vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
-vendor MATRIXORBITAL	0x1b3d	Matrix Orbital 
+vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
 vendor WAGO		0x1be3  WAGO Kontakttechnik GmbH.
@@ -2091,6 +2091,7 @@ product LOGITECH M4848		0x0301	M4848 mouse
 product LOGITECH PAGESCAN	0x040f	PageScan
 product LOGITECH QUICKCAMWEB	0x0801	QuickCam Web
 product LOGITECH QUICKCAMPRO	0x0810	QuickCam Pro
+product LOGITECH WEBCAMC100	0X0817	Webcam C100
 product LOGITECH QUICKCAMEXP	0x0840	QuickCam Express
 product LOGITECH QUICKCAM	0x0850	QuickCam
 product LOGITECH QUICKCAMPRO3	0x0990	QuickCam Pro 9000
@@ -2136,7 +2137,7 @@ product MACALLY MOUSE1		0x0101	mouse
 
 /* Marvell Technology Group, Ltd. products */
 product MARVELL SHEEVAPLUG	0x9e8f	SheevaPlug serial interface
-  
+
 /* Matrix Orbital products */
 product MATRIXORBITAL MOUA	0x0153	Martrix Orbital MOU-Axxxx LCD displays
 
