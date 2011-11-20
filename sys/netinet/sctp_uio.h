@@ -671,6 +671,12 @@ struct sctp_timeouts {
 	uint32_t stimo_shutdownack;
 };
 
+struct sctp_udpencaps {
+	sctp_assoc_t sue_assoc_id;
+	struct sockaddr_storage sue_address;
+	uint16_t sue_port;
+};
+
 struct sctp_cwnd_args {
 	struct sctp_nets *net;	/* network to *//* FIXME: LP64 issue */
 	uint32_t cwnd_new_value;/* cwnd in k */
