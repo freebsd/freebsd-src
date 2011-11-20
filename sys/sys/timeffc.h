@@ -56,6 +56,13 @@ struct ffclock_estimate {
 #ifdef _KERNEL
 
 /*
+ * Index into the sysclocks array for obtaining the ASCII name of a particular
+ * sysclock.
+ */
+#define	SYSCLOCK_FBCK	0
+#define	SYSCLOCK_FFWD	1
+
+/*
  * Parameters of counter characterisation required by feed-forward algorithms.
  */
 #define	FFCLOCK_SKM_SCALE	1024
@@ -127,6 +134,35 @@ void ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
     struct bintime *error_bound, uint32_t flags);
 void ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
     struct bintime *error_bound);
+
+/*
+ * Wrapper routines to return current absolute time using the feed-forward
+ * clock. These functions are named after those defined in <sys/time.h>, which
+ * contains a description of the original ones.
+ */
+void ffclock_bintime(struct bintime *bt);
+void ffclock_nanotime(struct timespec *tsp);
+void ffclock_microtime(struct timeval *tvp);
+
+void ffclock_getbintime(struct bintime *bt);
+void ffclock_getnanotime(struct timespec *tsp);
+void ffclock_getmicrotime(struct timeval *tvp);
+
+void ffclock_binuptime(struct bintime *bt);
+void ffclock_nanouptime(struct timespec *tsp);
+void ffclock_microuptime(struct timeval *tvp);
+
+void ffclock_getbinuptime(struct bintime *bt);
+void ffclock_getnanouptime(struct timespec *tsp);
+void ffclock_getmicrouptime(struct timeval *tvp);
+
+/*
+ * Wrapper routines to convert a time interval specified in ffcounter units into
+ * seconds using the current feed-forward clock estimates.
+ */
+void ffclock_bindifftime(ffcounter ffdelta, struct bintime *bt);
+void ffclock_nanodifftime(ffcounter ffdelta, struct timespec *tsp);
+void ffclock_microdifftime(ffcounter ffdelta, struct timeval *tvp);
 
 #endif /* _KERNEL */
 #endif /* __BSD_VISIBLE */
