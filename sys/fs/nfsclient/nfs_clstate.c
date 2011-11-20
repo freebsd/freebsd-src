@@ -699,7 +699,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 {
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
-	struct nfscllockowner *lp, *nlp;
 	struct mount *mp;
 	struct nfsmount *nmp;
 	char uuid[HOSTUUIDLEN];
@@ -744,7 +743,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		TAILQ_INIT(&clp->nfsc_deleg);
 		for (i = 0; i < NFSCLDELEGHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_deleghash[i]);
-		LIST_INIT(&clp->nfsc_defunctlockowner);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
@@ -792,11 +790,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			nfsv4_unlock(&clp->nfsc_lock, 0);
 			NFSUNLOCKCLSTATE();
 			return (EACCES);
-		}
-		/* get rid of defunct lockowners */
-		LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list,
-		    nlp) {
-			nfscl_freelockowner(lp, 0);
 		}
 		/*
 		 * If RFC3530 Sec. 14.2.33 is taken literally,
@@ -1537,13 +1530,6 @@ nfscl_cleanclient(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op, *nop;
-	struct nfscllockowner *lp, *nlp;
-
-
-	/* get rid of defunct lockowners */
-	LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list, nlp) {
-		nfscl_freelockowner(lp, 0);
-	}
 
 	/* Now, all the OpenOwners, etc. */
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
@@ -1717,12 +1703,6 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 		}
 		owp = nowp;
 	}
-
-	/* and check the defunct list */
-	LIST_FOREACH(lp, &clp->nfsc_defunctlockowner, nfsl_list) {
-		if (!NFSBCMP(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN))
-		    lp->nfsl_defunct = 1;
-	}
 }
 
 #if defined(APPLEKEXT) || defined(__FreeBSD__)
@@ -1735,19 +1715,12 @@ static void
 nfscl_cleanupkext(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
-	struct nfscllockowner *lp;
 
 	NFSPROCLISTLOCK();
 	NFSLOCKCLSTATE();
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
 		if (nfscl_procdoesntexist(owp->nfsow_owner))
 			nfscl_cleanup_common(clp, owp->nfsow_owner);
-	}
-
-	/* and check the defunct list */
-	LIST_FOREACH(lp, &clp->nfsc_defunctlockowner, nfsl_list) {
-		if (nfscl_procdoesntexist(lp->nfsl_owner))
-			lp->nfsl_defunct = 1;
 	}
 	NFSUNLOCKCLSTATE();
 	NFSPROCLISTUNLOCK();
@@ -1904,11 +1877,6 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	}
 	NFSUNLOCKREQ();
 	splx(s);
-
-	/* get rid of defunct lockowners */
-	LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list, nlp) {
-		nfscl_freelockowner(lp, 0);
-	}
 
 	/*
 	 * Now, mark all delegations "need reclaim".
@@ -2157,7 +2125,6 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 APPLESTATIC int
 nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 {
-	struct nfscllockowner *lp, *nlp;
 	struct nfsmount *nmp;
 	struct ucred *cred;
 	int igotlock = 0, error, trycnt;
@@ -2207,12 +2174,6 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
 		    NFSCLFLAGS_RECOVER);
 	} else {
-		/* get rid of defunct lockowners */
-		LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list,
-		    nlp) {
-			nfscl_freelockowner(lp, 0);
-		}
-
 		/*
 		 * Expire the state for the client.
 		 */
@@ -2486,25 +2447,6 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 		    owp = nowp;
 		}
 
-		/* also search the defunct list */
-		lp = LIST_FIRST(&clp->nfsc_defunctlockowner);
-		while (lp != NULL) {
-		    nlp = LIST_NEXT(lp, nfsl_list);
-		    if (lp->nfsl_defunct) {
-			LIST_FOREACH(olp, &lh, nfsl_list) {
-			    if (!NFSBCMP(olp->nfsl_owner, lp->nfsl_owner,
-				NFSV4CL_LOCKNAMELEN))
-				break;
-			}
-			if (olp == NULL) {
-			    LIST_REMOVE(lp, nfsl_list);
-			    LIST_INSERT_HEAD(&lh, lp, nfsl_list);
-			} else {
-			    nfscl_freelockowner(lp, 0);
-			}
-		    }
-		    lp = nlp;
-		}
 		/* and release defunct lock owners */
 		LIST_FOREACH_SAFE(lp, &lh, nfsl_list, nlp) {
 		    nfscl_freelockowner(lp, 0);
