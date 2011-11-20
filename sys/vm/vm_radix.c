@@ -288,8 +288,12 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 		 */
 		if (root == NULL || root->rn_count != 0) {
 			rnode = vm_radix_node_get();
-			if (rnode == NULL)
+			if (rnode == NULL) {
+				CTR4(KTR_VM,
+"insert: tree %p, root %p, index: %d, level: %d failed to allocate a new node",
+				    rtree, root, index, level);
 				return (ENOMEM);
+			}
 			/*
 			 * Store the new pointer with a memory barrier so
 			 * that it is visible before the new root.
@@ -311,8 +315,13 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 		/* Add the required intermidiate nodes. */
 		if (rnode->rn_child[slot] == NULL) {
 			rnode->rn_child[slot] = vm_radix_node_get();
-    			if (rnode->rn_child[slot] == NULL)
+    			if (rnode->rn_child[slot] == NULL) {
+				CTR5(KTR_VM,
+"insert: tree %p, index %jd, level %d, slot %d, child %p failed to populate",
+		    		    rtree, index, level, slot,
+				    rnode->rn_child[slot]);
 		    		return (ENOMEM);
+			}
 			rnode->rn_count++;
 	    	}
 		CTR5(KTR_VM,
