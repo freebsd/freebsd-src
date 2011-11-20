@@ -188,7 +188,7 @@ static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
-static void	ath_stoprecv(struct ath_softc *);
+static void	ath_stoprecv(struct ath_softc *, int);
 static int	ath_startrecv(struct ath_softc *);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
@@ -1153,7 +1153,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
-		ath_stoprecv(sc);		/* stop recv side */
+		ath_stoprecv(sc, 1);		/* stop recv side */
 	}
 
 	ieee80211_vap_detach(vap);
@@ -1849,7 +1849,7 @@ ath_stop_locked(struct ifnet *ifp)
 		}
 		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		if (!sc->sc_invalid) {
-			ath_stoprecv(sc);
+			ath_stoprecv(sc, 1);
 			ath_hal_phydisable(ah);
 		} else
 			sc->sc_rxlink = NULL;
@@ -1943,11 +1943,11 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ATH_PCU_UNLOCK(sc);
 
 	/*
-	 * XXX should now wait for pending TX/RX to complete
-	 * and block future ones from occuring.
+	 * Should now wait for pending TX/RX to complete
+	 * and block future ones from occuring. This needs to be
+	 * done before the TX queue is drained.
 	 */
 	ath_txrx_stop(sc);
-
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
 
 	/*
@@ -1955,18 +1955,8 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * not, stop the PCU and handle what's in the RX queue.
 	 * That way frames aren't dropped which shouldn't be.
 	 */
-	ath_hal_stoppcurecv(ah);
-	ath_hal_setrxfilter(ah, 0);
+	ath_stoprecv(sc, (reset_type != ATH_RESET_NOLOSS));
 	ath_rx_proc(sc, 0);
-
-	/*
-	 * If we're not doing a noloss reset, now call ath_stoprecv().
-	 * This fully stops all of the RX machinery and flushes whatever
-	 * frames are in the RX ring buffer. Hopefully all completed
-	 * frames have been handled at this point.
-	 */
-	if (reset_type != ATH_RESET_NOLOSS)
-		ath_stoprecv(sc);		/* stop recv side */
 
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -5125,7 +5115,7 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
  * Disable the receive h/w in preparation for a reset.
  */
 static void
-ath_stoprecv(struct ath_softc *sc)
+ath_stoprecv(struct ath_softc *sc, int dodelay)
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
@@ -5135,7 +5125,8 @@ ath_stoprecv(struct ath_softc *sc)
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
-	DELAY(3000);			/* 3ms is long enough for 1 frame */
+	if (dodelay)
+		DELAY(3000);		/* 3ms is long enough for 1 frame */
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
 		struct ath_buf *bf;
@@ -5253,8 +5244,17 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 #if 0
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 #endif
+		ath_stoprecv(sc, 1);		/* turn off frame recv */
+		/*
+		 * First, handle completed TX/RX frames.
+		 */
+		ath_rx_proc(sc, 0);
+		ath_draintxq(sc, ATH_RESET_NOLOSS);
+		/*
+		 * Next, flush the non-scheduled frames.
+		 */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
-		ath_stoprecv(sc);		/* turn off frame recv */
+
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",

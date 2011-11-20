@@ -65,14 +65,8 @@ sfxge_intr_line_filter(void *arg)
 	KASSERT(intr->type == EFX_INTR_LINE,
 	    ("intr->type != EFX_INTR_LINE"));
 
-	if (intr->state != SFXGE_INTR_STARTED &&
-	    intr->state != SFXGE_INTR_TESTING)
+	if (intr->state != SFXGE_INTR_STARTED)
 		return FILTER_STRAY;
-
-	if (intr->state == SFXGE_INTR_TESTING) {
-		intr->mask |= 1;	/* only one interrupt */
-		return FILTER_HANDLED;
-	}
 
 	(void)efx_intr_status_line(enp, &fatal, &qmask);
 
@@ -137,20 +131,8 @@ sfxge_intr_message(void *arg)
 	KASSERT(intr->type == EFX_INTR_MESSAGE,
 	    ("intr->type != EFX_INTR_MESSAGE"));
 
-	if (intr->state != SFXGE_INTR_STARTED &&
-	    intr->state != SFXGE_INTR_TESTING)
+	if (intr->state != SFXGE_INTR_STARTED)
 		return;
-
-	if (intr->state == SFXGE_INTR_TESTING) {
-		uint64_t mask;
-
-		do {
-			mask = intr->mask;
-		} while (atomic_cmpset_ptr(&intr->mask, mask,
-		    mask | (1 << index)) == 0);
-
-		return;
-	}
 
 	(void)efx_intr_status_message(enp, index, &fatal);
 
@@ -447,7 +429,6 @@ sfxge_intr_stop(struct sfxge_softc *sc)
 	intr->state = SFXGE_INTR_INITIALIZED;
 
 	/* Disable interrupts at the NIC */
-	intr->mask = 0;
 	efx_intr_disable(sc->enp);
 
 	/* Disable interrupts at the bus */
@@ -480,12 +461,10 @@ sfxge_intr_start(struct sfxge_softc *sc)
 	if ((rc = sfxge_intr_bus_enable(sc)) != 0)
 		goto fail;
 
-	intr->state = SFXGE_INTR_TESTING;
+	intr->state = SFXGE_INTR_STARTED;
 
 	/* Enable interrupts at the NIC */
 	efx_intr_enable(sc->enp);
-
-	intr->state = SFXGE_INTR_STARTED;
 
 	return (0);
 

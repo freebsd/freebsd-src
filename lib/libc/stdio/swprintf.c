@@ -2,6 +2,11 @@
  * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -30,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdio.h>
 #include <wchar.h>
+#include <xlocale.h>
 
 int
 swprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt, ...)
@@ -39,6 +45,19 @@ swprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt, ...)
 
 	va_start(ap, fmt);
 	ret = vswprintf(s, n, fmt, ap);
+	va_end(ap);
+
+	return (ret);
+}
+int
+swprintf_l(wchar_t * __restrict s, size_t n, locale_t locale,
+		const wchar_t * __restrict fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vswprintf_l(s, n, locale, fmt, ap);
 	va_end(ap);
 
 	return (ret);

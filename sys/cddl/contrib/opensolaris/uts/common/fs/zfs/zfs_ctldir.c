@@ -1594,7 +1594,7 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
 		*ap->a_buflen -= len;
 		bcopy(sep->se_name, ap->a_buf + *ap->a_buflen, len);
 		mutex_exit(&sdp->sd_lock);
-		vhold(dvp);
+		vref(dvp);
 		*ap->a_vpp = dvp;
 	}
 	VN_RELE(dvp);

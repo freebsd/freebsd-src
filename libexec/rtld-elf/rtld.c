@@ -1657,6 +1657,7 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
     }
     if (flags & RTLD_LO_NOLOAD) {
 	free(path);
+	close(fd);
 	return (NULL);
     }
 

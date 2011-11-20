@@ -92,6 +92,24 @@ FBSD_1.0 {
 	twalk;
 };
 
+FBSD_1.3 {
+	atof_l;
+	atoi_l;
+	atol_l;
+	atoll_l;
+	strtod_l;
+	strtol_l;
+	strtoll_l;
+	strtof_l;
+	strtoimax_l;
+	strtold_l;
+	strtoq_l;
+	strtoul_l;
+	strtoull_l;
+	strtoumax_l;
+	strtouq_l;
+};
+
 FBSDprivate_1.0 {
 	_malloc_thread_cleanup;
 	_malloc_prefork;

@@ -3926,7 +3926,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (getToolChain().getArchName() == "powerpc") {
     CmdArgs.push_back("-m");
-    CmdArgs.push_back("elf32ppc");
+    CmdArgs.push_back("elf32ppc_fbsd");
   }
 
   if (Output.isFilename()) {

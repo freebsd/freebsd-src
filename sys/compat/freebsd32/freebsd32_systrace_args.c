@@ -248,7 +248,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -1868,7 +1868,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 376: {
 		struct eaccess_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -2702,7 +2702,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct faccessat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* char * */
-		iarg[2] = p->mode; /* int */
+		iarg[2] = p->amode; /* int */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;

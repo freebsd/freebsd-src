@@ -230,7 +230,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct linux_access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* l_int */
+		iarg[1] = p->amode; /* l_int */
 		*n_args = 2;
 		break;
 	}
@@ -1996,7 +1996,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->oldname; /* const char * */
 		iarg[2] = p->newdfd; /* l_int */
 		uarg[3] = (intptr_t) p->newname; /* const char * */
-		iarg[4] = p->flags; /* l_int */
+		iarg[4] = p->flag; /* l_int */
 		*n_args = 5;
 		break;
 	}
@@ -2033,8 +2033,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_faccessat_args *p = params;
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
-		iarg[2] = p->mode; /* l_int */
-		*n_args = 3;
+		iarg[2] = p->amode; /* l_int */
+		iarg[3] = p->flag; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_pselect6 */
@@ -5063,6 +5064,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "l_int";
+			break;
+		case 3:
+			p = "int";
 			break;
 		default:
 			break;

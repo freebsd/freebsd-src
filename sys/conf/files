@@ -2341,6 +2341,7 @@ kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
+kern/kern_ffclock.c		optional ffclock
 kern/kern_fork.c		standard
 kern/kern_gzio.c		optional gzio
 kern/kern_hhook.c		standard

@@ -2,6 +2,11 @@
  * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -36,6 +41,14 @@ __FBSDID("$FreeBSD$");
 #define LCMESSAGES_SIZE_MIN \
 		(offsetof(struct lc_messages_T, yesstr) / sizeof(char *))
 
+struct xlocale_messages {
+	struct xlocale_component header;
+	char *buffer;
+	struct lc_messages_T locale;
+};
+
+struct xlocale_messages __xlocale_global_messages;
+
 static char empty[] = "";
 
 static const struct lc_messages_T _C_messages_locale = {
@@ -45,33 +58,55 @@ static const struct lc_messages_T _C_messages_locale = {
 	"no"		/* nostr */
 };
 
-static struct lc_messages_T _messages_locale;
-static int	_messages_using_locale;
-static char	*_messages_locale_buf;
+static void destruct_messages(void *v)
+{
+	struct xlocale_messages *l = v;
+	if (l->buffer)
+		free(l->buffer);
+	free(l);
+}
 
-int
-__messages_load_locale(const char *name)
+static int
+messages_load_locale(struct xlocale_messages *loc, int *using_locale, const char *name)
 {
 	int ret;
+	struct lc_messages_T *l = &loc->locale;
 
-	ret = __part_load_locale(name, &_messages_using_locale,
-		  &_messages_locale_buf, "LC_MESSAGES",
+	ret = __part_load_locale(name, using_locale,
+		  &loc->buffer, "LC_MESSAGES",
 		  LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
-		  (const char **)&_messages_locale);
+		  (const char **)l);
 	if (ret == _LDP_LOADED) {
-		if (_messages_locale.yesstr == NULL)
-			_messages_locale.yesstr = empty;
-		if (_messages_locale.nostr == NULL)
-			_messages_locale.nostr = empty;
+		if (l->yesstr == NULL)
+			l->yesstr = empty;
+		if (l->nostr == NULL)
+			l->nostr = empty;
 	}
 	return (ret);
 }
+int
+__messages_load_locale(const char *name)
+{
+	return messages_load_locale(&__xlocale_global_messages,
+			&__xlocale_global_locale.using_messages_locale, name);
+}
+void *
+__messages_load(const char *name, locale_t l)
+{
+	struct xlocale_messages *new = calloc(sizeof(struct xlocale_messages), 1);
+	new->header.header.destructor = destruct_messages;
+	if (messages_load_locale(new, &l->using_messages_locale, name) == _LDP_ERROR) {
+		xlocale_release(new);
+		return NULL;
+	}
+	return new;
+}
 
 struct lc_messages_T *
-__get_current_messages_locale(void)
+__get_current_messages_locale(locale_t loc)
 {
-	return (_messages_using_locale
-		? &_messages_locale
+	return (loc->using_messages_locale
+		? &((struct xlocale_messages *)loc->components[XLC_MESSAGES])->locale
 		: (struct lc_messages_T *)&_C_messages_locale);
 }
 

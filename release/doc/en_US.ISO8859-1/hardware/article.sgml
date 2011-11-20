@@ -30,6 +30,8 @@
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -961,6 +963,8 @@
       &hwlist.rue;
 
       &hwlist.sf;
+
+      &hwlist.sfxge;
 
       &hwlist.sge;
 
