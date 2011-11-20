@@ -2,6 +2,11 @@
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,36 +40,50 @@ __FBSDID("$FreeBSD$");
 
 #include <strings.h>
 #include <ctype.h>
+#include "xlocale_private.h"
 
 typedef unsigned char u_char;
 
 int
-strcasecmp(const char *s1, const char *s2)
+strcasecmp_l(const char *s1, const char *s2, locale_t locale)
 {
 	const u_char
 			*us1 = (const u_char *)s1,
 			*us2 = (const u_char *)s2;
+	FIX_LOCALE(locale);
 
-	while (tolower(*us1) == tolower(*us2++))
+	while (tolower_l(*us1, locale) == tolower_l(*us2++, locale))
 		if (*us1++ == '\0')
 			return (0);
-	return (tolower(*us1) - tolower(*--us2));
+	return (tolower_l(*us1, locale) - tolower_l(*--us2, locale));
+}
+int
+strcasecmp(const char *s1, const char *s2)
+{
+	return strcasecmp_l(s1, s2, __get_locale());
 }
 
 int
-strncasecmp(const char *s1, const char *s2, size_t n)
+strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t locale)
 {
+	FIX_LOCALE(locale);
 	if (n != 0) {
 		const u_char
 				*us1 = (const u_char *)s1,
 				*us2 = (const u_char *)s2;
 
 		do {
-			if (tolower(*us1) != tolower(*us2++))
-				return (tolower(*us1) - tolower(*--us2));
+			if (tolower_l(*us1, locale) != tolower_l(*us2++, locale))
+				return (tolower_l(*us1, locale) - tolower_l(*--us2, locale));
 			if (*us1++ == '\0')
 				break;
 		} while (--n != 0);
 	}
 	return (0);
+}
+
+int
+strncasecmp(const char *s1, const char *s2, size_t n)
+{
+	return strncasecmp_l(s1, s2, n, __get_locale());
 }
