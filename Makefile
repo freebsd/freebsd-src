@@ -186,9 +186,8 @@ buildworld: upgrade_checks
 # second time.  There are situations where this target will be cleaning
 # some directories via more than one method, but that duplication is
 # needed to correctly handle all the possible situations.  Removing all
-# files without the immutable flag set in the first 'rm' instance saves
-# time, because 'chflags' will need to operate on fewer files (with the
-# immutable flag set) afterwards.
+# files without file flags set in the first 'rm' instance saves
+# time, because 'chflags' will need to operate on fewer files afterwards.
 #
 BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 cleanworld:
