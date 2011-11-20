@@ -464,7 +464,7 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
 		(void)_sx_xlock(&map->lock, 0, file, line);
 	map->timestamp++;
@@ -489,7 +489,7 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
 		_sx_xunlock(&map->lock, file, line);
 		vm_map_process_deferred();
@@ -501,7 +501,7 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
 		(void)_sx_slock(&map->lock, 0, file, line);
 }
@@ -511,7 +511,7 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
 		_sx_sunlock(&map->lock, file, line);
 		vm_map_process_deferred();
@@ -524,7 +524,7 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
 	    !_sx_try_xlock(&map->lock, file, line);
 	if (error == 0)
 		map->timestamp++;
@@ -537,7 +537,7 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
 	    !_sx_try_slock(&map->lock, file, line);
 	return (error == 0);
 }
@@ -558,9 +558,7 @@ _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 	unsigned int last_timestamp;
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else {
 		if (!_sx_try_upgrade(&map->lock, file, line)) {
 			last_timestamp = map->timestamp;
@@ -586,9 +584,7 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else
 		_sx_downgrade(&map->lock, file, line);
 }
@@ -609,13 +605,14 @@ vm_map_locked(vm_map_t map)
 		return (sx_xlocked(&map->lock));
 }
 
+/* XXX: INVARIANTS here is still necessary because of sx support. */
 #ifdef INVARIANTS
 static void
 _vm_map_assert_locked(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	else
 		_sx_assert(&map->lock, SA_XLOCKED, file, line);
 }
@@ -626,7 +623,7 @@ _vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	else
 		_sx_assert(&map->lock, SA_SLOCKED, file, line);
 }
@@ -661,7 +658,7 @@ _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 
 	mtx_lock(&map_sleep_mtx);
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else
 		_sx_xunlock(&map->lock, file, line);
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",

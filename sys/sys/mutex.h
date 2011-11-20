@@ -81,6 +81,10 @@
  *	 of the kernel via macros, thus allowing us to use the cpp LOCK_FILE
  *	 and LOCK_LINE. These functions should not be called directly by any
  *	 code using the API. Their macros cover their functionality.
+ *	 Functions with a `_' suffix are the entrypoint for the common
+ *	 KPI covering both compat shims and fast path case.  These can be
+ *	 used by consumers willing to pass options, file and line
+ *	 informations, in an option-independent way.
  *
  * [See below for descriptions]
  *
@@ -88,6 +92,8 @@
 void	mtx_init(struct mtx *m, const char *name, const char *type, int opts);
 void	mtx_destroy(struct mtx *m);
 void	mtx_sysinit(void *arg);
+int	mtx_trylock_flags_(struct mtx *m, int opts, const char *file,
+	    int line);
 void	mutex_init(void);
 void	_mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts,
 	    const char *file, int line);
@@ -97,7 +103,6 @@ void	_mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts,
 	    const char *file, int line);
 #endif
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
-int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file,
@@ -107,12 +112,12 @@ void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_mtx_assert(const struct mtx *m, int what, const char *file, int line);
 #endif
-void	_thread_lock_flags(struct thread *, int, const char *, int);
+void	thread_lock_flags_(struct thread *, int, const char *, int);
 
 #define	thread_lock(tdp)						\
-    _thread_lock_flags((tdp), 0, __FILE__, __LINE__)
+	thread_lock_flags_((tdp), 0, __FILE__, __LINE__)
 #define	thread_lock_flags(tdp, opt)					\
-    _thread_lock_flags((tdp), (opt), __FILE__, __LINE__)
+	thread_lock_flags_((tdp), (opt), __FILE__, __LINE__)
 #define	thread_unlock(tdp)						\
        mtx_unlock_spin((tdp)->td_lock)
 
@@ -290,27 +295,48 @@ extern struct mtx_pool *mtxpool_sleep;
 #error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
 #endif
 #if LOCK_DEBUG > 0 || defined(MUTEX_NOINLINE)
-#define	mtx_lock_flags(m, opts)						\
-	_mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_unlock_flags(m, opts)					\
-	_mtx_unlock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_lock_spin_flags(m, opts)					\
-	_mtx_lock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_unlock_spin_flags(m, opts)					\
-	_mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
+#define	mtx_lock_flags_(m, opts, file, line)				\
+	_mtx_lock_flags((m), (opts), (file), (line))
+#define	mtx_unlock_flags_(m, opts, file, line)				\
+	_mtx_unlock_flags((m), (opts), (file), (line))
+#define	mtx_lock_spin_flags_(m, opts, file, line)			\
+	_mtx_lock_spin_flags((m), (opts), (file), (line))
+#define	mtx_unlock_spin_flags_(m, opts, file, line)			\
+	_mtx_unlock_spin_flags((m), (opts), (file), (line))
 #else	/* LOCK_DEBUG == 0 && !MUTEX_NOINLINE */
-#define	mtx_lock_flags(m, opts)						\
-	__mtx_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_unlock_flags(m, opts)					\
-	__mtx_unlock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_lock_spin_flags(m, opts)					\
-	__mtx_lock_spin((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
-#define	mtx_unlock_spin_flags(m, opts)					\
+#define	mtx_lock_flags_(m, opts, file, line)				\
+	__mtx_lock((m), curthread, (opts), (file), (line))
+#define	mtx_unlock_flags_(m, opts, file, line)				\
+	__mtx_unlock((m), curthread, (opts), (file), (line))
+#define	mtx_lock_spin_flags_(m, opts, file, line)			\
+	__mtx_lock_spin((m), curthread, (opts), (file), (line))
+#define	mtx_unlock_spin_flags_(m, opts, file, line)			\
 	__mtx_unlock_spin((m))
 #endif	/* LOCK_DEBUG > 0 || MUTEX_NOINLINE */
 
+#ifdef INVARIANTS
+#define	mtx_assert_(m, what, file, line)				\
+	_mtx_assert((m), (what), (file), (line))
+
+#define GIANT_REQUIRED	mtx_assert_(&Giant, MA_OWNED, __FILE__, __LINE__)
+
+#else	/* INVARIANTS */
+#define mtx_assert_(m, what, file, line)	(void)0
+#define GIANT_REQUIRED
+#endif	/* INVARIANTS */
+
+#define	mtx_lock_flags(m, opts)						\
+	mtx_lock_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
+#define	mtx_unlock_flags(m, opts)					\
+	mtx_unlock_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
+#define	mtx_lock_spin_flags(m, opts)					\
+	mtx_lock_spin_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
+#define	mtx_unlock_spin_flags(m, opts)					\
+	mtx_unlock_spin_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
 #define mtx_trylock_flags(m, opts)					\
-	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)
+	mtx_trylock_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
+#define	mtx_assert(m, what)						\
+	mtx_assert_((m), (what), __FILE__, __LINE__)
 
 #define	mtx_sleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
@@ -397,17 +423,6 @@ struct mtx_args {
 #define MA_RECURSED	LA_RECURSED
 #define MA_NOTRECURSED	LA_NOTRECURSED
 #endif
-
-#ifdef INVARIANTS
-#define	mtx_assert(m, what)						\
-	_mtx_assert((m), (what), __FILE__, __LINE__)
-
-#define GIANT_REQUIRED	mtx_assert(&Giant, MA_OWNED)
-
-#else	/* INVARIANTS */
-#define mtx_assert(m, what)	(void)0
-#define GIANT_REQUIRED
-#endif	/* INVARIANTS */
 
 /*
  * Common lock type names.
