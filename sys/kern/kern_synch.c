@@ -333,7 +333,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 int
 pause(const char *wmesg, int timo)
 {
-	KASSERT(timo > 0, ("pause: timo must be > 0"));
+	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
 
 	/* silently convert invalid timeouts */
 	if (timo < 1)
