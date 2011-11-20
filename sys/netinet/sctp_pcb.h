@@ -328,6 +328,7 @@ struct sctp_pcb {
 	uint8_t default_dscp;
 	char current_secret_number;
 	char last_secret_number;
+	uint16_t port;		/* remote UDP encapsulation port */
 };
 
 #ifndef SCTP_ALIGNMENT
