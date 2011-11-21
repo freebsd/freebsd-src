@@ -164,6 +164,15 @@ void ffclock_bindifftime(ffcounter ffdelta, struct bintime *bt);
 void ffclock_nanodifftime(ffcounter ffdelta, struct timespec *tsp);
 void ffclock_microdifftime(ffcounter ffdelta, struct timeval *tvp);
 
+#else /* !_KERNEL */
+
+/* Feed-Forward Clock system calls. */
+__BEGIN_DECLS
+int ffclock_getcounter(ffcounter *ffcount);
+int ffclock_getestimate(struct ffclock_estimate *cest);
+int ffclock_setestimate(struct ffclock_estimate *cest);
+__END_DECLS
+
 #endif /* _KERNEL */
 #endif /* __BSD_VISIBLE */
 #endif /* _SYS_TIMEFF_H_ */

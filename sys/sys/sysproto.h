@@ -12,6 +12,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
 
@@ -725,6 +726,15 @@ struct ktimer_getoverrun_args {
 struct nanosleep_args {
 	char rqtp_l_[PADL_(const struct timespec *)]; const struct timespec * rqtp; char rqtp_r_[PADR_(const struct timespec *)];
 	char rmtp_l_[PADL_(struct timespec *)]; struct timespec * rmtp; char rmtp_r_[PADR_(struct timespec *)];
+};
+struct ffclock_getcounter_args {
+	char ffcount_l_[PADL_(ffcounter *)]; ffcounter * ffcount; char ffcount_r_[PADR_(ffcounter *)];
+};
+struct ffclock_setestimate_args {
+	char cest_l_[PADL_(struct ffclock_estimate *)]; struct ffclock_estimate * cest; char cest_r_[PADR_(struct ffclock_estimate *)];
+};
+struct ffclock_getestimate_args {
+	char cest_l_[PADL_(struct ffclock_estimate *)]; struct ffclock_estimate * cest; char cest_r_[PADR_(struct ffclock_estimate *)];
 };
 struct ntp_gettime_args {
 	char ntvp_l_[PADL_(struct ntptimeval *)]; struct ntptimeval * ntvp; char ntvp_r_[PADR_(struct ntptimeval *)];
@@ -1894,6 +1904,9 @@ int	sys_ktimer_settime(struct thread *, struct ktimer_settime_args *);
 int	sys_ktimer_gettime(struct thread *, struct ktimer_gettime_args *);
 int	sys_ktimer_getoverrun(struct thread *, struct ktimer_getoverrun_args *);
 int	sys_nanosleep(struct thread *, struct nanosleep_args *);
+int	sys_ffclock_getcounter(struct thread *, struct ffclock_getcounter_args *);
+int	sys_ffclock_setestimate(struct thread *, struct ffclock_setestimate_args *);
+int	sys_ffclock_getestimate(struct thread *, struct ffclock_getestimate_args *);
 int	sys_ntp_gettime(struct thread *, struct ntp_gettime_args *);
 int	sys_minherit(struct thread *, struct minherit_args *);
 int	sys_rfork(struct thread *, struct rfork_args *);
@@ -2581,6 +2594,9 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 #define	SYS_AUE_ktimer_gettime	AUE_NULL
 #define	SYS_AUE_ktimer_getoverrun	AUE_NULL
 #define	SYS_AUE_nanosleep	AUE_NULL
+#define	SYS_AUE_ffclock_getcounter	AUE_NULL
+#define	SYS_AUE_ffclock_setestimate	AUE_NULL
+#define	SYS_AUE_ffclock_getestimate	AUE_NULL
 #define	SYS_AUE_ntp_gettime	AUE_NULL
 #define	SYS_AUE_minherit	AUE_MINHERIT
 #define	SYS_AUE_rfork	AUE_RFORK

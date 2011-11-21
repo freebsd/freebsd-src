@@ -456,9 +456,11 @@
 239	AUE_NULL	STD	{ int ktimer_getoverrun(int timerid); }
 240	AUE_NULL	STD	{ int nanosleep(const struct timespec *rqtp, \
 				    struct timespec *rmtp); }
-241	AUE_NULL	UNIMPL	nosys
-242	AUE_NULL	UNIMPL	nosys
-243	AUE_NULL	UNIMPL	nosys
+241	AUE_NULL	STD	{ int ffclock_getcounter(ffcounter *ffcount); }
+242	AUE_NULL	STD	{ int ffclock_setestimate( \
+				    struct ffclock_estimate *cest); }
+243	AUE_NULL	STD	{ int ffclock_getestimate( \
+				    struct ffclock_estimate *cest); }
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys

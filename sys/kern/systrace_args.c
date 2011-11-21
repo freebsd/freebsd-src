@@ -1337,6 +1337,27 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* ffclock_getcounter */
+	case 241: {
+		struct ffclock_getcounter_args *p = params;
+		uarg[0] = (intptr_t) p->ffcount; /* ffcounter * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_setestimate */
+	case 242: {
+		struct ffclock_setestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_getestimate */
+	case 243: {
+		struct ffclock_getestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
 	/* ntp_gettime */
 	case 248: {
 		struct ntp_gettime_args *p = params;
@@ -5381,6 +5402,36 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* ffclock_getcounter */
+	case 241:
+		switch(ndx) {
+		case 0:
+			p = "ffcounter *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_getestimate */
+	case 243:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* ntp_gettime */
 	case 248:
 		switch(ndx) {
@@ -9395,6 +9446,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* nanosleep */
 	case 240:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getcounter */
+	case 241:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getestimate */
+	case 243:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
