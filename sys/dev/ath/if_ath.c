@@ -1878,7 +1878,7 @@ ath_txrx_stop(struct ath_softc *sc)
 	    sc->sc_txstart_cnt || sc->sc_intr_cnt) {
 		if (i <= 0)
 			break;
-		msleep(sc, &sc->sc_mtx, 0, "ath_txrx_stop", 1);
+		msleep(sc, &sc->sc_pcu_mtx, 0, "ath_txrx_stop", 1);
 		i--;
 	}
 	ATH_PCU_UNLOCK(sc);
