@@ -447,9 +447,11 @@
 240	AUE_NULL	STD	{ int freebsd32_nanosleep( \
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
-241	AUE_NULL	UNIMPL	nosys
-242	AUE_NULL	UNIMPL	nosys
-243	AUE_NULL	UNIMPL	nosys
+241	AUE_NULL	NOPROTO	{ int ffclock_getcounter(ffcounter *ffcount); }
+242	AUE_NULL	NOPROTO	{ int ffclock_setestimate( \
+				    struct ffclock_estimate *cest); }
+243	AUE_NULL	NOPROTO	{ int ffclock_getestimate( \
+				    struct ffclock_estimate *cest); }
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
