@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2011
+.Dd November 21, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -498,12 +498,14 @@ Requires the
 .Cd GEOM_PART_APM
 kernel option.
 .It Cm BSD
-BSD disklabel without an MBR.
-Sometimes called
-.Dq dangerously dedicated mode .
+Traditional BSD disklabel, usually used to subdivide MBR partitions.
 .Po
-See
-.Xr bsdlabel 8 for more information.
+This scheme can also be used as the sole partitioning method, without
+an MBR.
+Partition editing tools from other operating systems often do not 
+understand the bare disklabel partition layout, so this is sometimes 
+called
+.Dq dangerously dedicated .
 .Pc
 Requires the
 .Cm GEOM_PART_BSD
@@ -854,7 +856,7 @@ action or reverted with the
 action.
 .Sh RECOVERING
 The GEOM PART class supports recovering of partition tables only for GPT.
-The GUID primary metadata is stored at the beginning of the device.
+The GPT primary metadata is stored at the beginning of the device.
 For redundancy, a secondary
 .Pq backup
 copy of the metadata is stored at the end of the device.
