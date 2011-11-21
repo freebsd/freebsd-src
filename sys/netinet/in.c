@@ -569,8 +569,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
-		if (ifra->ifra_addr.sin_family == AF_INET &&
-		    (hostIsNew || maskIsNew))
+		if (hostIsNew || maskIsNew)
 			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0);
 		if (error != 0 && iaIsNew)
 			break;
