@@ -256,7 +256,7 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 }
 
 int
-_sx_try_slock(struct sx *sx, const char *file, int line)
+sx_try_slock_(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 
@@ -300,7 +300,7 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 }
 
 int
-_sx_try_xlock(struct sx *sx, const char *file, int line)
+sx_try_xlock_(struct sx *sx, const char *file, int line)
 {
 	int rval;
 
@@ -364,7 +364,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
  * Return 1 if if the upgrade succeed, 0 otherwise.
  */
 int
-_sx_try_upgrade(struct sx *sx, const char *file, int line)
+sx_try_upgrade_(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int success;
@@ -394,7 +394,7 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
  * Downgrade an unrecursed exclusive lock into a single shared lock.
  */
 void
-_sx_downgrade(struct sx *sx, const char *file, int line)
+sx_downgrade_(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int wakeup_swapper;
