@@ -216,6 +216,9 @@
 #define	SYS_ktimer_gettime	238
 #define	SYS_ktimer_getoverrun	239
 #define	SYS_nanosleep	240
+#define	SYS_ffclock_getcounter	241
+#define	SYS_ffclock_setestimate	242
+#define	SYS_ffclock_getestimate	243
 #define	SYS_ntp_gettime	248
 #define	SYS_minherit	250
 #define	SYS_rfork	251
