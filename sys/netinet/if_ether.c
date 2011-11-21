@@ -443,8 +443,10 @@ arpintr(struct mbuf *m)
 	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
 	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
 	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
-		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)\n",
-		    (unsigned char *)&ar->ar_hrd, "");
+		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)"
+		    " (from %*D to %*D)\n", (unsigned char *)&ar->ar_hrd, "",
+		    ETHER_ADDR_LEN, (u_char *)ar_sha(ar), ":",
+		    ETHER_ADDR_LEN, (u_char *)ar_tha(ar), ":");
 		m_freem(m);
 		return;
 	}
