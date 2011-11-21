@@ -1365,6 +1365,9 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 {
 	pps_params_t *app;
 	struct pps_fetch_args *fapi;
+#ifdef FFCLOCK
+	struct pps_fetch_ffc_args *fapi_ffc;
+#endif
 #ifdef PPS_SYNC
 	struct pps_kcbind_args *kapi;
 #endif
@@ -1379,6 +1382,11 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		app = (pps_params_t *)data;
 		if (app->mode & ~pps->ppscap)
 			return (EINVAL);
+#ifdef FFCLOCK
+		/* Ensure only a single clock is selected for ffc timestamp. */
+		if ((app->mode & PPS_TSCLK_MASK) == PPS_TSCLK_MASK)
+			return (EINVAL);
+#endif
 		pps->ppsparam = *app;
 		return (0);
 	case PPS_IOC_GETPARAMS:
@@ -1398,6 +1406,31 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		pps->ppsinfo.current_mode = pps->ppsparam.mode;
 		fapi->pps_info_buf = pps->ppsinfo;
 		return (0);
+#ifdef FFCLOCK
+	case PPS_IOC_FETCH_FFCOUNTER:
+		fapi_ffc = (struct pps_fetch_ffc_args *)data;
+		if (fapi_ffc->tsformat && fapi_ffc->tsformat !=
+		    PPS_TSFMT_TSPEC)
+			return (EINVAL);
+		if (fapi_ffc->timeout.tv_sec || fapi_ffc->timeout.tv_nsec)
+			return (EOPNOTSUPP);
+		pps->ppsinfo_ffc.current_mode = pps->ppsparam.mode;
+		fapi_ffc->pps_info_buf_ffc = pps->ppsinfo_ffc;
+		/* Overwrite timestamps if feedback clock selected. */
+		switch (pps->ppsparam.mode & PPS_TSCLK_MASK) {
+		case PPS_TSCLK_FBCK:
+			fapi_ffc->pps_info_buf_ffc.assert_timestamp =
+			    pps->ppsinfo.assert_timestamp;
+			fapi_ffc->pps_info_buf_ffc.clear_timestamp =
+			    pps->ppsinfo.clear_timestamp;
+			break;
+		case PPS_TSCLK_FFWD:
+			break;
+		default:
+			break;
+		}
+		return (0);
+#endif /* FFCLOCK */
 	case PPS_IOC_KCBIND:
 #ifdef PPS_SYNC
 		kapi = (struct pps_kcbind_args *)data;
@@ -1426,6 +1459,9 @@ pps_init(struct pps_state *pps)
 		pps->ppscap |= PPS_OFFSETASSERT;
 	if (pps->ppscap & PPS_CAPTURECLEAR)
 		pps->ppscap |= PPS_OFFSETCLEAR;
+#ifdef FFCLOCK
+	pps->ppscap |= PPS_TSCLK_MASK;
+#endif
 }
 
 void
@@ -1437,6 +1473,9 @@ pps_capture(struct pps_state *pps)
 	th = timehands;
 	pps->capgen = th->th_generation;
 	pps->capth = th;
+#ifdef FFCLOCK
+	pps->capffth = fftimehands;
+#endif
 	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
 	if (pps->capgen != th->th_generation)
 		pps->capgen = 0;
@@ -1450,6 +1489,11 @@ pps_event(struct pps_state *pps, int event)
 	u_int tcount, *pcount;
 	int foff, fhard;
 	pps_seq_t *pseq;
+#ifdef FFCLOCK
+	struct timespec *tsp_ffc;
+	pps_seq_t *pseq_ffc;
+	ffcounter *ffcount;
+#endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
 	/* If the timecounter was wound up underneath us, bail out. */
@@ -1464,6 +1508,11 @@ pps_event(struct pps_state *pps, int event)
 		fhard = pps->kcmode & PPS_CAPTUREASSERT;
 		pcount = &pps->ppscount[0];
 		pseq = &pps->ppsinfo.assert_sequence;
+#ifdef FFCLOCK
+		ffcount = &pps->ppsinfo_ffc.assert_ffcount;
+		tsp_ffc = &pps->ppsinfo_ffc.assert_timestamp;
+		pseq_ffc = &pps->ppsinfo_ffc.assert_sequence;
+#endif
 	} else {
 		tsp = &pps->ppsinfo.clear_timestamp;
 		osp = &pps->ppsparam.clear_offset;
@@ -1471,6 +1520,11 @@ pps_event(struct pps_state *pps, int event)
 		fhard = pps->kcmode & PPS_CAPTURECLEAR;
 		pcount = &pps->ppscount[1];
 		pseq = &pps->ppsinfo.clear_sequence;
+#ifdef FFCLOCK
+		ffcount = &pps->ppsinfo_ffc.clear_ffcount;
+		tsp_ffc = &pps->ppsinfo_ffc.clear_timestamp;
+		pseq_ffc = &pps->ppsinfo_ffc.clear_sequence;
+#endif
 	}
 
 	/*
@@ -1507,6 +1561,17 @@ pps_event(struct pps_state *pps, int event)
 			tsp->tv_sec -= 1;
 		}
 	}
+
+#ifdef FFCLOCK
+	*ffcount = pps->capffth->tick_ffcount + tcount;
+	bt = pps->capffth->tick_time;
+	ffclock_convert_delta(tcount, pps->capffth->cest.period, &bt);
+	bintime_add(&bt, &pps->capffth->tick_time);
+	bintime2timespec(&bt, &ts);
+	(*pseq_ffc)++;
+	*tsp_ffc = ts;
+#endif
+
 #ifdef PPS_SYNC
 	if (fhard) {
 		uint64_t scale;
