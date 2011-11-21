@@ -25,6 +25,4 @@ DPADD=	${LIBGEOM} ${LIBNVPAIR} ${LIBUMEM} \
 	${LIBUTIL} ${LIBUUTIL} ${LIBZFS}
 LDADD=	-lgeom -lnvpair -lumem -lutil -luutil -lzfs
 
-MANFILTER=	sed -e '/^$$/d'
-
 .include <bsd.prog.mk>
