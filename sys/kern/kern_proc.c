@@ -1528,7 +1528,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &vm->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -1706,7 +1706,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &vm->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
