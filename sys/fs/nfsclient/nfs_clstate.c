@@ -1681,7 +1681,6 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 	}
 }
 
-#if defined(APPLEKEXT) || defined(__FreeBSD__)
 /*
  * Find open/lock owners for processes that have exited.
  */
@@ -1699,7 +1698,6 @@ nfscl_cleanupkext(struct nfsclclient *clp)
 	NFSUNLOCKCLSTATE();
 	NFSPROCLISTUNLOCK();
 }
-#endif	/* APPLEKEXT || __FreeBSD__ */
 
 static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
 /*
@@ -2341,6 +2339,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	u_int32_t clidrev;
 	int error, cbpathdown, islept, igotlock, ret, clearok;
 	uint32_t recover_done_time = 0;
+	struct timespec mytime;
+	static time_t prevsec = 0;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2528,22 +2528,15 @@ tryagain:
 			FREE((caddr_t)dp, M_NFSCLDELEG);
 		}
 
-#if defined(APPLEKEXT) || defined(__FreeBSD__)
 		/*
 		 * Call nfscl_cleanupkext() once per second to check for
 		 * open/lock owners where the process has exited.
 		 */
-		{
-			struct timespec mytime;
-			static time_t prevsec = 0;
-
-			NFSGETNANOTIME(&mytime);
-			if (prevsec != mytime.tv_sec) {
-				prevsec = mytime.tv_sec;
-				nfscl_cleanupkext(clp);
-			}
+		NFSGETNANOTIME(&mytime);
+		if (prevsec != mytime.tv_sec) {
+			prevsec = mytime.tv_sec;
+			nfscl_cleanupkext(clp);
 		}
-#endif	/* APPLEKEXT || __FreeBSD__ */
 
 		NFSLOCKCLSTATE();
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)
