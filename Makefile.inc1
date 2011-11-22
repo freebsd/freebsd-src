@@ -1235,8 +1235,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		${_cddl_lib_libumem} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
-		${_secure_lib_libssl} \
-		lib/libpam
+		${_secure_lib_libssl}
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
