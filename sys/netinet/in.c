@@ -375,7 +375,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	switch (cmd) {
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
-		{
+		if (ifra->ifra_addr.sin_len == AF_INET) {
 			struct in_ifaddr *oia;
 
 			IN_IFADDR_RLOCK();
